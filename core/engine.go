@@ -88,26 +88,14 @@ func (system *System) Diagnostics() []DiagnosticResult {
 	return result
 }
 
-func conditionalDebugf(engine Engine, fmt string) {
-	if named, ok := engine.(Named); ok {
-		coreLogger.Debugf(fmt, named.Name())
-	}
-}
-
-func conditionalInfof(engine Engine, fmt string) {
-	if named, ok := engine.(Named); ok {
-		coreLogger.Infof(fmt, named.Name())
-	}
-}
-
 // Start starts all engines in the system.
 func (system *System) Start() error {
 	var err error
 	return system.VisitEnginesE(func(engine Engine) error {
 		if m, ok := engine.(Runnable); ok {
-			conditionalDebugf(engine, "Starting %s")
+			coreLogger.Debugf("Starting %s", getEngineName(engine))
 			err = m.Start()
-			conditionalInfof(engine, "Started %s")
+			coreLogger.Infof("Started %s", getEngineName(engine))
 		}
 		return err
 	})
@@ -118,9 +106,9 @@ func (system *System) Shutdown() error {
 	var err error
 	return system.VisitEnginesE(func(engine Engine) error {
 		if m, ok := engine.(Runnable); ok {
-			conditionalDebugf(engine, "Stopping %s")
+			coreLogger.Debugf("Stopping %s", getEngineName(engine))
 			err = m.Shutdown()
-			conditionalInfof(engine, "Stopped %s")
+			coreLogger.Infof("Stopped %s", getEngineName(engine))
 		}
 		return err
 	})
@@ -128,6 +116,7 @@ func (system *System) Shutdown() error {
 
 // Configure configures all engines in the system.
 func (system *System) Configure() error {
+	coreLogger.Debugf("Creating datadir: %s", system.Config.Datadir)
 	var err error
 	if err = os.MkdirAll(system.Config.Datadir, os.ModePerm); err != nil {
 		return fmt.Errorf("unable to create datadir (dir=%s): %w", system.Config.Datadir, err)
@@ -135,7 +124,9 @@ func (system *System) Configure() error {
 	return system.VisitEnginesE(func(engine Engine) error {
 		// only if Engine is dynamically configurable
 		if m, ok := engine.(Configurable); ok {
+			coreLogger.Debugf("Configuring %s", getEngineName(engine))
 			err = m.Configure(*system.Config)
+			coreLogger.Debugf("Configured %s", getEngineName(engine))
 		}
 		return err
 	})
@@ -147,7 +138,9 @@ func (system *System) Migrate() error {
 	return system.VisitEnginesE(func(engine Engine) error {
 		// only if Engine is migratable
 		if m, ok := engine.(Migratable); ok {
+			coreLogger.Debugf("Migrating %s", getEngineName(engine))
 			err = m.Migrate()
+			coreLogger.Debugf("Migrated %s", getEngineName(engine))
 		}
 		return err
 	})
@@ -248,4 +241,14 @@ func DecodeURIPath(next echo.HandlerFunc) echo.HandlerFunc {
 		c.SetParamValues(newValues...)
 		return next(c)
 	}
+}
+
+func getEngineName(engine Engine) string {
+	var name string
+	if named, ok := engine.(Named); ok {
+		name = named.Name()
+	} else {
+		name = fmt.Sprintf("%T", engine)
+	}
+	return name
 }
