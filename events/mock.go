@@ -694,6 +694,26 @@ func (mr *MockJetStreamContextMockRecorder) SubscribeSync(subj interface{}, opts
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubscribeSync", reflect.TypeOf((*MockJetStreamContext)(nil).SubscribeSync), varargs...)
 }
 
+// UpdateConsumer mocks base method.
+func (m *MockJetStreamContext) UpdateConsumer(stream string, cfg *nats_go.ConsumerConfig, opts ...nats_go.JSOpt) (*nats_go.ConsumerInfo, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{stream, cfg}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "UpdateConsumer", varargs...)
+	ret0, _ := ret[0].(*nats_go.ConsumerInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateConsumer indicates an expected call of UpdateConsumer.
+func (mr *MockJetStreamContextMockRecorder) UpdateConsumer(stream, cfg interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{stream, cfg}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateConsumer", reflect.TypeOf((*MockJetStreamContext)(nil).UpdateConsumer), varargs...)
+}
+
 // UpdateStream mocks base method.
 func (m *MockJetStreamContext) UpdateStream(cfg *nats_go.StreamConfig, opts ...nats_go.JSOpt) (*nats_go.StreamInfo, error) {
 	m.ctrl.T.Helper()
