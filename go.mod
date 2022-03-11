@@ -22,7 +22,7 @@ require (
 	github.com/nuts-foundation/go-did v0.3.0
 	github.com/nuts-foundation/go-leia/v2 v2.0.1
 	github.com/piprate/json-gold v0.4.1
-	github.com/privacybydesign/irmago v0.9.0
+	github.com/privacybydesign/irmago v0.10.0
 	github.com/prometheus/client_golang v1.12.1
 	github.com/shengdoushi/base58 v1.0.0
 	github.com/sirupsen/logrus v1.8.1
@@ -41,7 +41,7 @@ require (
 )
 
 require (
-	github.com/alexandrevicenzi/go-sse v1.3.1-0.20200117161408-7b23d5ff7420 // indirect
+	github.com/alexandrevicenzi/go-sse v1.6.0 // indirect
 	github.com/armon/go-metrics v0.3.10 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
