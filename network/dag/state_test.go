@@ -250,9 +250,9 @@ func TestState_Diagnostics(t *testing.T) {
 	assert.NotZero(t, dbSize)
 
 	actual := strings.Join(lines, "\n")
-	expected := fmt.Sprintf(`dag_heads: [`+doc1.Ref().String()+`]
-dag_stored_database_size_bytes: %d
-dag_transaction_count: 1`, dbSize.DataSize)
+	expected := fmt.Sprintf(`heads: [`+doc1.Ref().String()+`]
+stored_database_size_bytes: %d
+transaction_count: 1`, dbSize.DataSize)
 	assert.Equal(t, expected, actual)
 }
 

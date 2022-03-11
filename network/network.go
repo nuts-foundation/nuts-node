@@ -470,13 +470,13 @@ func (n *Network) Shutdown() error {
 func (n *Network) Diagnostics() []core.DiagnosticResult {
 	var results = make([]core.DiagnosticResult, 0)
 	// Connection manager and protocols
-	results = append(results, n.connectionManager.Diagnostics()...)
+	results = append(results, core.DiagnosticResultMap{Title: "connections", Items: n.connectionManager.Diagnostics()})
 	for _, prot := range n.protocols {
-		results = append(results, prot.Diagnostics()...)
+		results = append(results, core.DiagnosticResultMap{Title: fmt.Sprintf("protocol_v%d", prot.Version()), Items: prot.Diagnostics()})
 	}
 	// DAG
 	if graph, ok := n.state.(core.Diagnosable); ok {
-		results = append(results, graph.Diagnostics()...)
+		results = append(results, core.DiagnosticResultMap{Title: "state", Items: graph.Diagnostics()})
 	}
 	// NodeDID
 	nodeDID, err := n.nodeDIDResolver.Resolve()
