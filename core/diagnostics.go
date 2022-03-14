@@ -33,6 +33,31 @@ type DiagnosticResult interface {
 	String() string
 }
 
+// DiagnosticResultMap is a DiagnosticResult that presents the given Items as a map, rather than a list.
+type DiagnosticResultMap struct {
+	Title string
+	Items []DiagnosticResult
+}
+
+// Name returns the of the diagnostic, which is used as key.
+func (g DiagnosticResultMap) Name() string {
+	return g.Title
+}
+
+// Result returns the result of the diagnostic, which is Items converted to a map.
+func (g DiagnosticResultMap) Result() interface{} {
+	result := make(map[string]interface{}, 0)
+	for _, item := range g.Items {
+		result[item.Name()] = item.Result()
+	}
+	return result
+}
+
+// String returns the string representation of Result()
+func (g DiagnosticResultMap) String() string {
+	return fmt.Sprintf("%v", g.Result())
+}
+
 // GenericDiagnosticResult is a simple implementation of the DiagnosticResult interface
 type GenericDiagnosticResult struct {
 	Title   string
@@ -40,16 +65,16 @@ type GenericDiagnosticResult struct {
 }
 
 // Result returns the raw outcome of the GenericDiagnosticResult
-func (gdr *GenericDiagnosticResult) Result() interface{} {
+func (gdr GenericDiagnosticResult) Result() interface{} {
 	return gdr.Outcome
 }
 
 // Name returns the name of the GenericDiagnosticResult
-func (gdr *GenericDiagnosticResult) Name() string {
+func (gdr GenericDiagnosticResult) Name() string {
 	return gdr.Title
 }
 
 // String returns the outcome of the GenericDiagnosticResult
-func (gdr *GenericDiagnosticResult) String() string {
+func (gdr GenericDiagnosticResult) String() string {
 	return fmt.Sprintf("%v", gdr.Outcome)
 }

@@ -70,7 +70,7 @@ func (d headsStatistic) Result() interface{} {
 }
 
 func (d headsStatistic) Name() string {
-	return "dag_heads"
+	return "heads"
 }
 
 func (d headsStatistic) String() string {
@@ -86,7 +86,7 @@ func (d numberOfTransactionsStatistic) Result() interface{} {
 }
 
 func (d numberOfTransactionsStatistic) Name() string {
-	return "dag_transaction_count"
+	return "transaction_count"
 }
 
 func (d numberOfTransactionsStatistic) String() string {
@@ -102,7 +102,7 @@ func (d dataSizeStatistic) Result() interface{} {
 }
 
 func (d dataSizeStatistic) Name() string {
-	return "dag_stored_database_size_bytes"
+	return "stored_database_size_bytes"
 }
 
 func (d dataSizeStatistic) String() string {

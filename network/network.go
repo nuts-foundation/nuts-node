@@ -469,13 +469,24 @@ func (n *Network) Shutdown() error {
 // Diagnostics collects and returns diagnostics for the Network engine.
 func (n *Network) Diagnostics() []core.DiagnosticResult {
 	var results = make([]core.DiagnosticResult, 0)
-	results = append(results, n.connectionManager.Diagnostics()...)
+	// Connection manager and protocols
+	results = append(results, core.DiagnosticResultMap{Title: "connections", Items: n.connectionManager.Diagnostics()})
 	for _, prot := range n.protocols {
-		results = append(results, prot.Diagnostics()...)
+		results = append(results, core.DiagnosticResultMap{Title: fmt.Sprintf("protocol_v%d", prot.Version()), Items: prot.Diagnostics()})
 	}
+	// DAG
 	if graph, ok := n.state.(core.Diagnosable); ok {
-		results = append(results, graph.Diagnostics()...)
+		results = append(results, core.DiagnosticResultMap{Title: "state", Items: graph.Diagnostics()})
 	}
+	// NodeDID
+	nodeDID, err := n.nodeDIDResolver.Resolve()
+	if err != nil {
+		log.Logger().Errorf("Unable to resolve node DID for diagnostics: %v", err)
+	}
+	results = append(results, core.GenericDiagnosticResult{
+		Title:   "node_did",
+		Outcome: nodeDID,
+	})
 	return results
 }
 

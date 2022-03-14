@@ -84,7 +84,7 @@ func (p *protocol) Diagnostics() []core.DiagnosticResult {
 		log.Logger().Errorf("Error while collecting missing payloads: %s", err)
 	}
 	diagnostics = append(diagnostics, &core.GenericDiagnosticResult{
-		Title:   "v1_missing_payload_hashes",
+		Title:   "missing_payload_hashes",
 		Outcome: missingPayloads,
 	})
 

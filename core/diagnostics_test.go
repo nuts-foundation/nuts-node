@@ -25,6 +25,28 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestDiagnosticResultMap_Name(t *testing.T) {
+	gdr := DiagnosticResultMap{Title: "test"}
+
+	assert.Equal(t, "test", gdr.Name())
+}
+
+func TestDiagnosticResultMap_String(t *testing.T) {
+	gdr := DiagnosticResultMap{Items: []DiagnosticResult{GenericDiagnosticResult{Title: "Foo"}}}
+
+	assert.Equal(t, "map[Foo:<nil>]", gdr.String())
+}
+
+func TestDiagnosticResultMap_Result(t *testing.T) {
+	gdr := DiagnosticResultMap{Items: []DiagnosticResult{
+		GenericDiagnosticResult{Title: "Foo", Outcome: 1},
+		GenericDiagnosticResult{Title: "Bar", Outcome: 2},
+	}}
+
+	assert.Equal(t, map[string]interface{}{"Foo": 1, "Bar": 2}, gdr.Result())
+
+}
+
 func TestGenericDiagnosticResult_Name(t *testing.T) {
 	gdr := GenericDiagnosticResult{Title: "test"}
 
