@@ -2,7 +2,6 @@ package tree
 
 import (
 	"encoding"
-	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"math"
@@ -311,44 +310,4 @@ func newNode(splitLC, limitLC uint32, data Data) *node {
 
 func (n node) isLeaf() bool {
 	return n.Left == nil
-}
-
-func (n *node) UnmarshalJSON(bytes []byte) error {
-
-	tmpNode := struct {
-		SplitLC uint32                 `json:"split"`
-		LimitLC uint32                 `json:"limit"`
-		Left    *node                  `json:"left,omitempty"`
-		Right   *node                  `json:"right,omitempty"`
-		Data    map[string]interface{} `json:"data"`
-	}{}
-	err := json.Unmarshal(bytes, &tmpNode)
-	if err != nil {
-		return err
-	}
-	n.SplitLC = tmpNode.SplitLC
-	n.LimitLC = tmpNode.LimitLC
-	n.Left = tmpNode.Left
-	n.Right = tmpNode.Right
-
-	jsonData, err := json.Marshal(tmpNode.Data)
-	if err != nil {
-		return err
-	}
-
-	if _, ok := tmpNode.Data["hash"]; ok {
-		n.Data = NewXor()
-		err = json.Unmarshal(jsonData, &n.Data)
-		if err != nil {
-			return err
-		}
-	} else if _, ok = tmpNode.Data["buckets"]; ok {
-		n.Data = NewIblt(1024)
-		err = json.Unmarshal(jsonData, &n.Data)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }

@@ -1,7 +1,6 @@
 package tree
 
 import (
-	"encoding/json"
 	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"testing"
@@ -30,7 +29,7 @@ func TestTree_Insert(t *testing.T) {
 
 		_ = tr.Insert(ref, 0)
 
-		assert.Equal(t, ref, hashFromXor(tr.Root))
+		assert.Equal(t, ref, hashFromXorNode(tr.Root))
 	})
 
 	t.Run("insert single Tx out of tree range", func(t *testing.T) {
@@ -39,9 +38,9 @@ func TestTree_Insert(t *testing.T) {
 
 		_ = tr.Insert(ref, testLeafSize+1)
 
-		assert.Equal(t, ref, hashFromXor(tr.Root))
-		assert.Equal(t, ref, hashFromXor(tr.Root.Right))
-		assert.Equal(t, hash.EmptyHash(), hashFromXor(tr.Root.Left))
+		assert.Equal(t, ref, hashFromXorNode(tr.Root))
+		assert.Equal(t, ref, hashFromXorNode(tr.Root.Right))
+		assert.Equal(t, hash.EmptyHash(), hashFromXorNode(tr.Root.Left))
 	})
 }
 
@@ -49,7 +48,7 @@ func TestTree_GetRoot(t *testing.T) {
 	t.Run("root Data is zero", func(t *testing.T) {
 		tr := newTestTree(NewXor(), testLeafSize)
 
-		assert.Equal(t, hash.EmptyHash(), hashFromXor(tr.Root))
+		assert.Equal(t, hash.EmptyHash(), tr.GetRoot().(*Xor).Hash)
 	})
 
 	t.Run("root after re-rooting", func(t *testing.T) {
@@ -58,7 +57,7 @@ func TestTree_GetRoot(t *testing.T) {
 
 		_ = tr.Insert(ref, testLeafSize)
 
-		assert.Equal(t, ref, hashFromXor(tr.Root))
+		assert.Equal(t, ref, tr.GetRoot().(*Xor).Hash)
 	})
 
 	t.Run("root of many Tx", func(t *testing.T) {
@@ -73,7 +72,7 @@ func TestTree_GetRoot(t *testing.T) {
 			_ = tr.Insert(ref, N-i)
 		}
 
-		assert.Equal(t, allRefs, hashFromXor(tr.Root))
+		assert.Equal(t, allRefs, tr.GetRoot().(*Xor).Hash)
 	})
 }
 
@@ -93,6 +92,14 @@ func TestTree_GetZeroTo(t *testing.T) {
 	assert.Equal(t, testLeafSize*3-1, lc2)
 	assert.Equal(t, td.r, root)
 	assert.Equal(t, testLeafSize*3-1, lcMax)
+}
+
+func TestTree_rightmostLeafClock(t *testing.T) {
+	tr, _ := filledTestTree(NewXor(), testLeafSize)
+
+	clock := rightmostLeafClock(tr.Root)
+
+	assert.Equal(t, testLeafSize*3-1, clock)
 }
 
 func TestTree_DropLeaves(t *testing.T) {
@@ -118,6 +125,18 @@ func TestTree_DropLeaves(t *testing.T) {
 		assert.True(t, tr.Root.Left.isLeaf())
 		assert.Equal(t, 1, tr.Depth)
 		assert.Equal(t, 2*testLeafSize, tr.LeafSize)
+	})
+
+	t.Run("drop leaves 2->0", func(t *testing.T) {
+		tr, _ := filledTestTree(NewXor(), testLeafSize)
+
+		tr.DropLeaves()
+		tr.DropLeaves()
+
+		assert.True(t, tr.Root.isLeaf())
+		assert.Equal(t, 0, tr.Depth)
+		assert.Equal(t, 4*testLeafSize, tr.LeafSize)
+		assert.Equal(t, len(tr.orphanedLeaves), 5)
 	})
 }
 
@@ -244,49 +263,9 @@ func TestTree_Load(t *testing.T) {
 	})
 }
 
-var jsonTestData = []byte(
-	`{"depth":2,"max_size":16,"leaf_size":4,
-	"root":{"split":8,"limit":16,"data":{"hash":"0002030000000000000000000000000000000000000000000000000000000000"},
-		"left":{"split":4,"limit":8,"data":{"hash":"4330030000000000000000000000000000000000000000000000000000000000"},
-			"left":{"split":2,"limit":4,"data":{"hash":"4330000000000000000000000000000000000000000000000000000000000000"}},
-			"right":{"split":6,"limit":8,"data":{"hash":"0000030000000000000000000000000000000000000000000000000000000000"}}},
-		"right":{"split":12,"limit":16,"data":{"hash":"4332000000000000000000000000000000000000000000000000000000000000"},
-			"left":{"split":10,"limit":12,"data":{"hash":"4332000000000000000000000000000000000000000000000000000000000000"}}}}}`)
-
-func TestTree_MarshalJSON(t *testing.T) {
-	tr, _ := filledTestTree(NewXor(), 4)
-
-	jsonData, err := json.Marshal(tr)
-	if !assert.NoError(t, err) {
-		return
-	}
-	assert.JSONEq(t, string(jsonTestData), string(jsonData))
-}
-
-func TestTree_UnmarshalJSON(t *testing.T) {
-	_, treeD := filledTestTree(NewXor(), 4)
-	tr := tree{}
-
-	err := json.Unmarshal(jsonTestData, &tr)
-
-	assert.NoError(t, err)
-	assert.Equal(t, 2, tr.Depth)
-	assert.Equal(t, uint32(16), tr.MaxSize)
-	assert.Equal(t, uint32(4), tr.LeafSize)
-	assert.True(t, nodeEquals(tr.Root, 8, 16, treeD.r.(*Xor).Hash))
-	assert.True(t, nodeEquals(tr.Root.Left, 4, 8, treeD.p0.(*Xor).Hash))
-	assert.True(t, nodeEquals(tr.Root.Left.Left, 2, 4, treeD.c0.(*Xor).Hash))
-	assert.True(t, nodeEquals(tr.Root.Right, 12, 16, treeD.c2.(*Xor).Hash))
-	assert.Nil(t, tr.Root.Right.Right)
-}
-
 // test helpers
 
-func nodeEquals(n *node, split, limit uint32, hash hash.SHA256Hash) bool {
-	return n != nil && n.SplitLC == split && n.LimitLC == limit && hashFromXor(n) == hash
-}
-
-func hashFromXor(n *node) hash.SHA256Hash {
+func hashFromXorNode(n *node) hash.SHA256Hash {
 	return n.Data.(*Xor).Hash
 }
 

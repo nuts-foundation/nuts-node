@@ -158,11 +158,22 @@ func TestXor_MarshalBinary(t *testing.T) {
 }
 
 func TestXor_UnmarshalBinary(t *testing.T) {
-	h1 := hash.FromSlice([]byte{1})
-	x := &Xor{}
+	t.Run("ok - unmarshal hash", func(t *testing.T) {
+		h1 := hash.FromSlice([]byte{1})
+		x := &Xor{}
 
-	err := x.UnmarshalBinary(h1.Slice())
+		err := x.UnmarshalBinary(h1.Slice())
 
-	assert.NoError(t, err)
-	assert.Equal(t, h1, x.Hash)
+		assert.NoError(t, err)
+		assert.Equal(t, h1, x.Hash)
+	})
+
+	t.Run("fail - invalid data length", func(t *testing.T) {
+		bs := []byte("invalid hash length")
+		x := &Xor{}
+
+		err := x.UnmarshalBinary(bs)
+
+		assert.EqualError(t, err, "invalid data length")
+	})
 }

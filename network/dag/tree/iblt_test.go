@@ -390,13 +390,24 @@ func TestBucket_MarshalBinary(t *testing.T) {
 }
 
 func TestBucket_UnmarshalBinary(t *testing.T) {
-	_, hash1Bucket, hash1BucketBytes := marshalBucketWithHash1()
-	b := new(bucket)
+	t.Run("ok - unmarshal bucket", func(t *testing.T) {
+		_, hash1Bucket, hash1BucketBytes := marshalBucketWithHash1()
+		b := new(bucket)
 
-	err := b.UnmarshalBinary(hash1BucketBytes)
+		err := b.UnmarshalBinary(hash1BucketBytes)
 
-	assert.NoError(t, err)
-	assert.True(t, b.equals(*hash1Bucket))
+		assert.NoError(t, err)
+		assert.True(t, b.equals(*hash1Bucket))
+	})
+
+	t.Run("fail - invalid data length", func(t *testing.T) {
+		bs := []byte("invalid bucket length")
+		b := new(bucket)
+
+		err := b.UnmarshalBinary(bs)
+
+		assert.EqualError(t, err, "invalid data length")
+	})
 }
 
 // creates a bucket containing hash.FromSlice([]byte{1})
