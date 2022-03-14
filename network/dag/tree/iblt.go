@@ -6,12 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/spaolacci/murmur3"
+	"github.com/twmb/murmur3"
 )
 
 const (
 	ibltNumBuckets = 1024
-	ibltHc         = uint32(0)
+	ibltHc         = uint64(0)
 	ibltHk         = uint32(1)
 	ibltK          = uint8(6)
 	bucketBytes    = 44 // = int32 + uint64 + hash.SHA256HashSize
@@ -27,7 +27,7 @@ The hash(key) value ensures correct decoding after subtraction of two IBLTs. Ibl
 	- Eppstein, David, et al. "What's the difference?: efficient set reconciliation without prior context." http://conferences.sigcomm.org/sigcomm/2011/papers/sigcomm/p218.pdf
 */
 type Iblt struct {
-	Hc      uint32    `json:"Hc"`
+	Hc      uint64    `json:"Hc"`
 	Hk      uint32    `json:"Hk"`
 	K       uint8     `json:"K"`
 	Buckets []*bucket `json:"buckets"`
@@ -174,7 +174,7 @@ func (i Iblt) bucketIndices(hash uint64) []uint32 {
 	var indices []uint32
 	hashKeyBytes, nextBytes := make([]byte, 8), make([]byte, 4)
 	binary.LittleEndian.PutUint64(hashKeyBytes, hash)
-	next := murmur3.Sum32WithSeed(hashKeyBytes, i.Hk)
+	next := murmur3.SeedSum32(i.Hk, hashKeyBytes)
 	for len(indices) < int(i.K) {
 		bucketId := next % uint32(i.numBuckets())
 		if !bucketUsed[bucketId] {
@@ -182,13 +182,13 @@ func (i Iblt) bucketIndices(hash uint64) []uint32 {
 			bucketUsed[bucketId] = true
 		}
 		binary.LittleEndian.PutUint32(nextBytes, next)
-		next = murmur3.Sum32WithSeed(nextBytes, i.Hk)
+		next = murmur3.SeedSum32(i.Hk, nextBytes)
 	}
 	return indices
 }
 
 func (i Iblt) hashKey(key hash.SHA256Hash) uint64 {
-	return murmur3.Sum64WithSeed(key.Slice(), i.Hc)
+	return murmur3.SeedSum64(i.Hc, key.Slice())
 }
 
 func (i Iblt) MarshalBinary() ([]byte, error) {
