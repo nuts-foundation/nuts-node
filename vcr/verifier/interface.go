@@ -20,6 +20,7 @@ package verifier
 
 import (
 	"errors"
+	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
@@ -49,6 +50,25 @@ type Verifier interface {
 
 // ErrNotFound is returned when a credential or revocation can not be found based on its ID.
 var ErrNotFound = errors.New("not found")
+
+var ErrInvalidSignature = errors.New("invalid signature")
+
+type ValidationError struct {
+	error       error
+	originalErr error
+}
+
+func NewValidationError(err, originalErr error) error {
+	return ValidationError{error: err, originalErr: originalErr}
+}
+
+func (e ValidationError) Unwrap() error {
+	return e.error
+}
+
+func (e ValidationError) Error() string {
+	return fmt.Errorf("verification failed: %w", e.originalErr).Error()
+}
 
 // Store defines the interface for a store for a verifier.
 // The store is filled with public information such as revoked credentials,

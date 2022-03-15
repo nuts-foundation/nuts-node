@@ -239,14 +239,14 @@ func (v verifier) doVerifyVP(vcVerifier Verifier, vp vc.VerifiablePresentation, 
 	}
 	err = ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: v.contextLoader}, signingKey)
 	if err != nil {
-		return nil, fmt.Errorf("signature verification failed: %w", err)
+		return nil, NewValidationError(ErrInvalidSignature, err)
 	}
 
 	if verifyVCs {
 		for _, current := range vp.VerifiableCredential {
 			err := vcVerifier.Verify(current, false, true, validAt)
 			if err != nil {
-				return nil, fmt.Errorf("verification of Verifiable Credential failed (id=%s): %w", current.ID, err)
+				return nil, NewValidationError(ErrInvalidSignature, fmt.Errorf("verification of Verifiable Credential failed (id=%s): %w", current.ID, err))
 			}
 		}
 	}
