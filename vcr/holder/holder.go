@@ -79,7 +79,7 @@ func (h vcHolder) BuildVP(credentials []vc.VerifiableCredential, proofOptions pr
 	}
 
 	unsignedVP := &vc.VerifiablePresentation{
-		Context:              []ssi.URI{VerifiableCredentialLDContextV1},
+		Context:              []ssi.URI{VerifiableCredentialLDContextV1, signature.JSONWebSignature2020Context},
 		Type:                 []ssi.URI{VerifiablePresentationLDType},
 		VerifiableCredential: credentials,
 	}
