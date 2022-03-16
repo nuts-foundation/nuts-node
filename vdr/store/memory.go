@@ -216,10 +216,6 @@ func (m *memory) Update(id did.DID, current hash.SHA256Hash, next did.Document, 
 	// latest version is to be updated
 	entry, _ := entries.last()
 
-	if entry.isDeactivated() {
-		return vdr.ErrDeactivated
-	}
-
 	// hashes must match
 	if !current.Equals(entry.metadata.Hash) {
 		return vdr.ErrUpdateOnOutdatedData

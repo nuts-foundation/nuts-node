@@ -73,10 +73,9 @@ type DocWriter interface {
 type DocUpdater interface {
 	// Update replaces the DID document identified by DID with the nextVersion
 	// To prevent updating stale data a hash of the current version should be provided.
-	// If the given hash does not represents the current version, a ErrUpdateOnOutdatedData is returned
+	// If the given hash does not represent the current version, a ErrUpdateOnOutdatedData is returned
 	// If the DID Document is not found, ErrNotFound is returned
 	// If the DID Document is not managed by this node, ErrDIDNotManagedByThisNode is returned
-	// If the DID Document is not active, ErrDeactivated is returned
 	Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *DocumentMetadata) error
 }
 

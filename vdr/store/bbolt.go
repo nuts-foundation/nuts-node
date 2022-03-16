@@ -135,11 +135,6 @@ func (store *bboltStore) Update(id did.DID, current hash.SHA256Hash, next did.Do
 			return err
 		}
 
-		// check for deactivated
-		if latestMetadata.Deactivated {
-			return vdr.ErrDeactivated
-		}
-
 		// check for hash
 		if !current.Equals(latestMetadata.Metadata.Hash) {
 			return vdr.ErrUpdateOnOutdatedData

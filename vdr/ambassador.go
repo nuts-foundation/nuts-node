@@ -184,14 +184,13 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, propos
 func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, proposedDIDDocument did.Document) error {
 	log.Logger().Debugf("Handling DID document update (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
 	// Resolve latest version of DID Document
-	currentDIDDocument, currentDIDMeta, err := n.didStore.Resolve(proposedDIDDocument.ID, nil)
+	currentDIDDocument, currentDIDMeta, err := n.didStore.Resolve(proposedDIDDocument.ID, &types.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {
 		return fmt.Errorf("unable to update DID document: %w", err)
 	}
 
 	// Resolve controllers of current version (could be the same document)
-	signingTime := transaction.SigningTime()
-	didControllers, err := n.docResolver.ResolveControllers(*currentDIDDocument, &types.ResolveMetadata{ResolveTime: &signingTime})
+	didControllers, err := n.resolveControllers(*currentDIDDocument, transaction)
 	if err != nil {
 		return fmt.Errorf("unable to resolve DID document's controllers: %w", err)
 	}
@@ -206,6 +205,7 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 	// In an update, only the keyID is provided in the network document. Resolve the key from the key store
 	// This should succeed since the signature of the network document has already been verified.
 	var pKey crypto.PublicKey
+	signingTime := transaction.SigningTime()
 	pKey, err = n.keyResolver.ResolvePublicKey(transaction.SigningKeyID(), transaction.Previous())
 	if err != nil {
 		if !errors.Is(err, types.ErrNotFound) {
@@ -264,6 +264,33 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 		log.Logger().Infof("DID document updated (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
 	}
 	return err
+}
+
+func (n *ambassador) resolveControllers(document did.Document, transaction dag.Transaction) ([]did.Document, error) {
+	controllers := make([]did.Document, 0)
+	signingTime := transaction.SigningTime()
+
+	for _, prev := range transaction.Previous() {
+		didControllers, err := n.docResolver.ResolveControllers(document, &types.ResolveMetadata{SourceTransaction: &prev})
+		if err != nil {
+			if errors.Is(err, types.ErrNotFound) || errors.Is(err, types.ErrNoActiveController) {
+				continue
+			}
+			return nil, err
+		}
+		controllers = append(controllers, didControllers...)
+	}
+
+	// legacy resolve
+	if len(controllers) == 0 {
+		didControllers, err := n.docResolver.ResolveControllers(document, &types.ResolveMetadata{ResolveTime: &signingTime})
+		if err != nil {
+			return nil, err
+		}
+		controllers = append(controllers, didControllers...)
+	}
+
+	return controllers, nil
 }
 
 func sortHashes(input []hash.SHA256Hash) {
