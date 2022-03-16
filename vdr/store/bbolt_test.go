@@ -141,9 +141,11 @@ func TestBBoltStore_Resolve(t *testing.T) {
 		err := store.Write(doc, firstMeta)
 		assert.NoError(t, err)
 
+		updatedAt := time.Now().Add(time.Hour * -24)
 		latestHash, _ := hash.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
 		meta := types.DocumentMetadata{
-			Created:            time.Now().Add(time.Hour * -24),
+			Created:            firstMeta.Created,
+			Updated:            &updatedAt,
 			Hash:               latestHash,
 			SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), txHash},
 		}
@@ -177,6 +179,7 @@ func TestBBoltStore_Resolve(t *testing.T) {
 			}
 			assert.NotNil(t, d)
 			assert.NotNil(t, m)
+			assert.Equal(t, m.Hash, latestHash)
 		})
 
 		t.Run("returns no document with resolve metadata - selection on date", func(t *testing.T) {
@@ -185,6 +188,21 @@ func TestBBoltStore_Resolve(t *testing.T) {
 				ResolveTime: &before,
 			})
 			assert.Equal(t, types.ErrNotFound, err)
+		})
+
+		t.Run("returns first document with resolve metadata - selection on date", func(t *testing.T) {
+			before := time.Now().Add(time.Hour * -32)
+
+			d, m, err := store.Resolve(*did1, &types.ResolveMetadata{
+				ResolveTime: &before,
+			})
+
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.NotNil(t, d)
+			assert.NotNil(t, m)
+			assert.Equal(t, firstHash.String(), m.Hash.String())
 		})
 
 		t.Run("returns document with resolve metadata - selection on hash", func(t *testing.T) {

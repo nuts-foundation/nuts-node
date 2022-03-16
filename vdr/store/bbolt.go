@@ -30,9 +30,9 @@ import (
 )
 
 const (
-	// latestBucket has did as key and latest metadata reference as value
+	// latestBucket has DID as key and latest metadata reference as value
 	latestBucket = "latest"
-	// metadataBucket has the metadata reference (did concatenated with version number, starting at 0) as key and the metadataRecord as value
+	// metadataBucket has the metadata reference (DID concatenated with version number, starting at 0) as key and the metadataRecord as value
 	metadataBucket = "metadata"
 	// transactionIndexBucket has the transaction reference as key and metadata reference as value
 	transactionIndexBucket = "txRef"
@@ -73,16 +73,16 @@ func (store *bboltStore) Shutdown() error {
 }
 
 type metadataRecord struct {
-	Deactivated bool `json:"deactivated"`
-	DID         string
-	Version     int `json:"version"`
-	Metadata    vdr.DocumentMetadata
+	Deactivated bool                 `json:"deactivated"`
+	DID         string               `json:"did"`
+	Version     int                  `json:"version"`
+	Metadata    vdr.DocumentMetadata `json:"metadata"`
 	// PrevRecord holds the previous metadataRecord reference (DID + version) as string
 	PrevMetaRef []byte `json:"prevMetaRef"`
 }
 
 func (mr metadataRecord) ref() []byte {
-	metaRefString := fmt.Sprintf("%s%06d", mr.DID, mr.Version)
+	metaRefString := fmt.Sprintf("%s%d", mr.DID, mr.Version)
 	return []byte(metaRefString)
 }
 
@@ -267,8 +267,8 @@ func (store *bboltStore) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (ret
 		documentBucket := tx.Bucket([]byte(documentBucket))
 
 		// loop over all versions
-		var metadataRecord metadataRecord
 		for latestMetadataRef != nil {
+			var metadataRecord metadataRecord
 			metadataBytes := metadataBucket.Get(latestMetadataRef)
 			if err := json.Unmarshal(metadataBytes, &metadataRecord); err != nil {
 				return err
@@ -310,14 +310,14 @@ func matches(metadataRecord metadataRecord, metadata *vdr.ResolveMetadata) bool 
 	if metadata.ResolveTime != nil {
 		resolveTime := *metadata.ResolveTime
 
-		if metadataRecord.Metadata.Created.After(resolveTime) {
-			return false
-		}
-
 		if metadataRecord.Metadata.Updated != nil {
 			if metadataRecord.Metadata.Updated.After(resolveTime) {
 				return false
 			}
+		}
+
+		if metadataRecord.Metadata.Created.After(resolveTime) {
+			return false
 		}
 	}
 

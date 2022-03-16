@@ -96,7 +96,7 @@ func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
 		return fmt.Errorf("could not process new DID Document: %w", err)
 	}
 	if processed {
-		log.Logger().Infof("Skipping DID document, already exists (tx=%s)", tx.Ref().String())
+		log.Logger().Debugf("Skipping DID document, already exists (tx=%s)", tx.Ref().String())
 		return nil
 	}
 
