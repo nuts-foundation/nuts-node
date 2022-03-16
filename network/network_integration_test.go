@@ -131,6 +131,13 @@ func TestNetworkIntegration_V2Gossip(t *testing.T) {
 	})
 	node1.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"))
 
+	// Wait until nodes are connected
+	if !test.WaitFor(t, func() (bool, error) {
+		return len(bootstrap.connectionManager.Peers()) == 1, nil
+	}, defaultTimeout, "time-out while waiting for node 1 and 2 to be connected") {
+		return
+	}
+
 	// create some transactions on the bootstrap node
 	for i := 0; i < 10; i++ {
 		if !addTransactionAndWaitForItToArrive(t, fmt.Sprintf("doc%d", i), key, bootstrap) {
