@@ -21,6 +21,7 @@ package v2
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -244,8 +245,22 @@ func TestProtocol_handleGossip(t *testing.T) {
 
 	t.Run("ok - new transaction ref", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
+		mockConnection := grpc.NewMockConnection(mocks.Controller)
 		mocks.State.EXPECT().IsPresent(gomock.Any(), hash.EmptyHash()).Return(false, nil)
 		mocks.Gossip.EXPECT().GossipReceived(peer.ID, hash.EmptyHash())
+		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peer.ID)).Return(mockConnection)
+		mockConnection.EXPECT().Send(gomock.Any(), gomock.Any()).DoAndReturn(func(arg0 interface{}, arg1 interface{}) error {
+			envelope, ok := arg1.(*Envelope)
+			if !assert.True(t, ok) {
+				return nil
+			}
+			msg, ok := envelope.Message.(*Envelope_TransactionListQuery)
+			if !assert.True(t, ok) {
+				return nil
+			}
+			assert.Equal(t, bytes, msg.TransactionListQuery.Refs)
+			return nil
+		})
 
 		err := p.Handle(peer, &Envelope{
 			Message: &Envelope_Gossip{&Gossip{Transactions: bytes}},
@@ -275,6 +290,310 @@ func TestProtocol_handleGossip(t *testing.T) {
 		})
 
 		assert.EqualError(t, err, "failed to handle Gossip message: custom")
+	})
+}
+
+func TestProtocol_handleTransactionList(t *testing.T) {
+	tx, _, _ := dag.CreateTestTransaction(0)
+	h1 := tx.Ref()
+	data := tx.Data()
+	payload := []byte{2}
+	request := &Envelope_TransactionListQuery{TransactionListQuery: &TransactionListQuery{Refs: [][]byte{h1.Slice()}}}
+
+	t.Run("ok", func(t *testing.T) {
+		p, mocks := newTestProtocol(t, nil)
+		conversation := p.cMan.startConversation(request)
+		mocks.State.EXPECT().IsPresent(context.Background(), h1).Return(false, nil)
+		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(nil)
+
+		err := p.handleTransactionList(peer, &Envelope_TransactionList{
+			TransactionList: &TransactionList{
+				ConversationID: conversation.conversationID.slice(),
+				Transactions: []*Transaction{
+					{
+						Hash:    h1.Slice(),
+						Data:    data,
+						Payload: payload,
+					},
+				},
+			},
+		})
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("ok - duplicate", func(t *testing.T) {
+		p, mocks := newTestProtocol(t, nil)
+		conversation := p.cMan.startConversation(request)
+		mocks.State.EXPECT().IsPresent(context.Background(), h1).Return(true, nil)
+
+		err := p.handleTransactionList(peer, &Envelope_TransactionList{
+			TransactionList: &TransactionList{
+				ConversationID: conversation.conversationID.slice(),
+				Transactions: []*Transaction{
+					{
+						Hash:    h1.Slice(),
+						Data:    data,
+						Payload: payload,
+					},
+				},
+			},
+		})
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("ok - conversation marked as done", func(t *testing.T) {
+		p, mocks := newTestProtocol(t, nil)
+		conversation := p.cMan.startConversation(request)
+		conversation.additionalInfo["refs"] = []hash.SHA256Hash{h1}
+		mocks.State.EXPECT().IsPresent(context.Background(), h1).Return(false, nil)
+		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(nil)
+
+		err := p.handleTransactionList(peer, &Envelope_TransactionList{
+			TransactionList: &TransactionList{
+				ConversationID: conversation.conversationID.slice(),
+				Transactions: []*Transaction{
+					{
+						Hash:    h1.Slice(),
+						Data:    data,
+						Payload: payload,
+					},
+				},
+			},
+		})
+
+		assert.NoError(t, err)
+		assert.Nil(t, p.cMan.conversations[conversation.conversationID.String()])
+	})
+
+	t.Run("ok - conversation not marked as done", func(t *testing.T) {
+		tx2, _, _ := dag.CreateTestTransaction(0)
+		h2 := tx2.Ref()
+		p, mocks := newTestProtocol(t, nil)
+		conversation := p.cMan.startConversation(request)
+		conversation.additionalInfo["refs"] = []hash.SHA256Hash{h1, h2}
+		mocks.State.EXPECT().IsPresent(context.Background(), h1).Return(false, nil)
+		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(nil)
+
+		err := p.handleTransactionList(peer, &Envelope_TransactionList{
+			TransactionList: &TransactionList{
+				ConversationID: conversation.conversationID.slice(),
+				Transactions: []*Transaction{
+					{
+						Hash:    h1.Slice(),
+						Data:    data,
+						Payload: payload,
+					},
+				},
+			},
+		})
+
+		assert.NoError(t, err)
+		assert.NotNil(t, p.cMan.conversations[conversation.conversationID.String()])
+		assert.Len(t, p.cMan.conversations[conversation.conversationID.String()].additionalInfo["refs"], 1)
+	})
+
+	t.Run("error - State.IsPresent failed", func(t *testing.T) {
+		p, mocks := newTestProtocol(t, nil)
+		conversation := p.cMan.startConversation(request)
+		mocks.State.EXPECT().IsPresent(context.Background(), h1).Return(false, errors.New("custom"))
+
+		err := p.handleTransactionList(peer, &Envelope_TransactionList{
+			TransactionList: &TransactionList{
+				ConversationID: conversation.conversationID.slice(),
+				Transactions: []*Transaction{
+					{
+						Hash:    h1.Slice(),
+						Data:    data,
+						Payload: payload,
+					},
+				},
+			},
+		})
+
+		assert.EqualError(t, err, fmt.Sprintf("unable to add received transaction to DAG (tx=%s): custom", tx.Ref().String()))
+	})
+
+	t.Run("error - State.Add failed", func(t *testing.T) {
+		p, mocks := newTestProtocol(t, nil)
+		conversation := p.cMan.startConversation(request)
+		mocks.State.EXPECT().IsPresent(context.Background(), h1).Return(false, nil)
+		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(errors.New("custom"))
+
+		err := p.handleTransactionList(peer, &Envelope_TransactionList{
+			TransactionList: &TransactionList{
+				ConversationID: conversation.conversationID.slice(),
+				Transactions: []*Transaction{
+					{
+						Hash:    h1.Slice(),
+						Data:    data,
+						Payload: payload,
+					},
+				},
+			},
+		})
+
+		assert.EqualError(t, err, fmt.Sprintf("unable to add received transaction to DAG (tx=%s): custom", tx.Ref().String()))
+	})
+
+	t.Run("error - invalid transaction", func(t *testing.T) {
+		p, _ := newTestProtocol(t, nil)
+		conversation := p.cMan.startConversation(request)
+
+		err := p.handleTransactionList(peer, &Envelope_TransactionList{
+			TransactionList: &TransactionList{
+				ConversationID: conversation.conversationID.slice(),
+				Transactions: []*Transaction{{
+					Data: []byte{1},
+					Hash: h1.Slice(),
+				}},
+			},
+		})
+
+		assert.EqualError(t, err, fmt.Sprintf("received transaction is invalid (peer=%s, ref=%s): unable to parse transaction: invalid compact serialization format: invalid number of segments", peer.String(), h1.String()))
+	})
+
+	t.Run("error - unknown conversationID", func(t *testing.T) {
+		p, _ := newTestProtocol(t, nil)
+		conversationID := newConversationID()
+
+		err := p.handleTransactionList(peer, &Envelope_TransactionList{
+			TransactionList: &TransactionList{
+				ConversationID: conversationID.slice(),
+			},
+		})
+
+		assert.EqualError(t, err, fmt.Sprintf("unknown or expired conversation (id=%s)", conversationID.String()))
+	})
+}
+
+func TestProtocol_handleTransactionListQuery(t *testing.T) {
+	conversationID := newConversationID()
+	dagT1, _, _ := dag.CreateTestTransaction(1)
+	dagT2, _, _ := dag.CreateTestTransaction(2, dagT1)
+	h1 := dagT1.Ref()
+	h2 := dagT2.Ref()
+	t1 := Transaction{
+		Hash:    h2.Slice(),
+		Data:    dagT1.Data(),
+		Payload: []byte{1},
+	}
+	t2 := Transaction{
+		Hash:    h1.Slice(),
+		Data:    dagT2.Data(),
+		Payload: []byte{2},
+	}
+
+	mockWithConnection := func(t *testing.T) (*protocol, protocolMocks, *grpc.MockConnection) {
+		p, mocks := newTestProtocol(t, nil)
+		mockConnection := grpc.NewMockConnection(mocks.Controller)
+		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), gomock.Any()).Return(mockConnection)
+		return p, mocks, mockConnection
+	}
+
+	t.Run("ok - send 2 transactions sorted on LC", func(t *testing.T) {
+		p, mocks, mockConnection := mockWithConnection(t)
+		expectedTransactions := []*Transaction{&t1, &t2}
+		mocks.State.EXPECT().GetTransaction(context.Background(), h1).Return(dagT1, nil)
+		mocks.State.EXPECT().GetTransaction(context.Background(), h2).Return(dagT2, nil)
+		mocks.State.EXPECT().ReadPayload(context.Background(), dagT1.PayloadHash()).Return(t1.Payload, nil)
+		mocks.State.EXPECT().ReadPayload(context.Background(), dagT2.PayloadHash()).Return(t2.Payload, nil)
+		mockConnection.EXPECT().Send(gomock.Any(), gomock.Any()).DoAndReturn(func(arg0 interface{}, arg1 interface{}) error {
+			envelope, ok := arg1.(*Envelope)
+			if !assert.True(t, ok) {
+				return nil
+			}
+			msg, ok := envelope.Message.(*Envelope_TransactionList)
+			if !assert.True(t, ok) {
+				return nil
+			}
+			assert.Equal(t, conversationID.slice(), msg.TransactionList.ConversationID)
+			assert.Equal(t, expectedTransactions, msg.TransactionList.Transactions)
+
+			return nil
+		})
+
+		err := p.Handle(peer, &Envelope{
+			Message: &Envelope_TransactionListQuery{&TransactionListQuery{
+				ConversationID: conversationID.slice(),
+				Refs:           [][]byte{h2.Slice(), h1.Slice()}, // reverse order to test sorting
+			}},
+		})
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("ok - tx not present", func(t *testing.T) {
+		p, mocks, _ := mockWithConnection(t)
+		mocks.State.EXPECT().GetTransaction(context.Background(), h1).Return(nil, nil)
+		mocks.State.EXPECT().GetTransaction(context.Background(), h2).Return(nil, nil)
+
+		err := p.Handle(peer, &Envelope{
+			Message: &Envelope_TransactionListQuery{&TransactionListQuery{
+				ConversationID: conversationID.slice(),
+				Refs:           [][]byte{h1.Slice(), h2.Slice()},
+			}},
+		})
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - on State.GetTransaction", func(t *testing.T) {
+		p, mocks := newTestProtocol(t, nil)
+		mocks.State.EXPECT().GetTransaction(context.Background(), h1).Return(nil, errors.New("custom"))
+
+		err := p.Handle(peer, &Envelope{
+			Message: &Envelope_TransactionListQuery{&TransactionListQuery{
+				ConversationID: conversationID.slice(),
+				Refs:           [][]byte{h1.Slice()}, // reverse order to test sorting
+			}},
+		})
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - on State.ReadPayload", func(t *testing.T) {
+		p, mocks := newTestProtocol(t, nil)
+		mocks.State.EXPECT().GetTransaction(context.Background(), h1).Return(dagT1, nil)
+		mocks.State.EXPECT().ReadPayload(context.Background(), dagT1.PayloadHash()).Return(nil, errors.New("custom"))
+
+		err := p.Handle(peer, &Envelope{
+			Message: &Envelope_TransactionListQuery{&TransactionListQuery{
+				ConversationID: conversationID.slice(),
+				Refs:           [][]byte{h1.Slice()}, // reverse order to test sorting
+			}},
+		})
+
+		assert.Error(t, err)
+	})
+
+	t.Run("ok - missing payload", func(t *testing.T) {
+		p, mocks, _ := mockWithConnection(t)
+		mocks.State.EXPECT().GetTransaction(context.Background(), h1).Return(dagT1, nil)
+		mocks.State.EXPECT().GetTransaction(context.Background(), h2).Return(dagT2, nil)
+		mocks.State.EXPECT().ReadPayload(context.Background(), dagT1.PayloadHash()).Return(nil, nil)
+
+		err := p.Handle(peer, &Envelope{
+			Message: &Envelope_TransactionListQuery{&TransactionListQuery{
+				ConversationID: conversationID.slice(),
+				Refs:           [][]byte{h2.Slice(), h1.Slice()}, // reverse order to test sorting
+			}},
+		})
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("ok - empty request", func(t *testing.T) {
+		p, _ := newTestProtocol(t, nil)
+
+		err := p.Handle(peer, &Envelope{
+			Message: &Envelope_TransactionListQuery{&TransactionListQuery{
+				ConversationID: conversationID.slice(),
+			}},
+		})
+
+		assert.NoError(t, err)
 	})
 }
 

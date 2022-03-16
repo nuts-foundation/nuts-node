@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
@@ -44,6 +45,12 @@ func (p protocol) Handle(peer transport.Peer, raw interface{}) error {
 		logMessage(msg)
 		log.Logger().Infof("%T: %s said hello", p, peer)
 		return nil
+	case *Envelope_TransactionList:
+		logMessage(msg)
+		return p.handleTransactionList(peer, msg)
+	case *Envelope_TransactionListQuery:
+		logMessage(msg)
+		return p.handleTransactionListQuery(peer, msg.TransactionListQuery)
 	case *Envelope_TransactionPayloadQuery:
 		logMessage(msg)
 		return p.handleTransactionPayloadQuery(peer, msg.TransactionPayloadQuery)
@@ -101,7 +108,7 @@ func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, msg *Trans
 	return p.send(peer, &Envelope_TransactionPayload{TransactionPayload: &TransactionPayload{TransactionRef: msg.TransactionRef, Data: data}})
 }
 
-func (p protocol) handleTransactionPayload(msg *TransactionPayload) error {
+func (p *protocol) handleTransactionPayload(msg *TransactionPayload) error {
 	ctx := context.Background()
 	ref := hash.FromSlice(msg.TransactionRef)
 	if ref.Empty() {
@@ -131,7 +138,7 @@ func (p protocol) handleTransactionPayload(msg *TransactionPayload) error {
 	return p.payloadScheduler.Finished(ref)
 }
 
-func (p protocol) handleGossip(peer transport.Peer, msg *Gossip) error {
+func (p *protocol) handleGossip(peer transport.Peer, msg *Gossip) error {
 	refs := make([]hash.SHA256Hash, len(msg.Transactions))
 	i := 0
 	ctx := context.Background()
@@ -151,10 +158,134 @@ func (p protocol) handleGossip(peer transport.Peer, msg *Gossip) error {
 	if len(refs) > 0 {
 		// TODO swap for trace logging
 		log.Logger().Infof("received %d new transaction references via Gossip", len(refs))
+		p.sendTransactionListQuery(peer.ID, refs)
 	}
 	p.gManager.GossipReceived(peer.ID, refs...)
 	// TODO compare xor
 	// TODO send new message
 
 	return nil
+}
+
+func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope_TransactionList) error {
+	msg := envelope.TransactionList
+	cid := conversationID(msg.ConversationID)
+	conversation := p.cMan.conversations[cid.String()]
+
+	// TODO convert to trace logging
+	log.Logger().Infof("handling handleTransactionList from peer (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
+
+	// check if response matches earlier request
+	if err := p.cMan.check(envelope); err != nil {
+		return err
+	}
+
+	refsToBeRemoved := map[string]bool{}
+	ctx := context.Background()
+	for _, tx := range msg.Transactions {
+		transactionRef := hash.FromSlice(tx.Hash)
+		transaction, err := dag.ParseTransaction(tx.Data)
+		if err != nil {
+			return fmt.Errorf("received transaction is invalid (peer=%s, ref=%s): %w", peer, transactionRef, err)
+		}
+
+		present, err := p.state.IsPresent(ctx, transactionRef)
+		if err != nil {
+			return fmt.Errorf("unable to add received transaction to DAG (tx=%s): %w", transaction.Ref(), err)
+		}
+		if !present {
+			// TODO does this always trigger fetching missing payloads? (through observer on DAG) Prolly not for v2
+			if err = p.state.Add(ctx, transaction, tx.Payload); err != nil {
+				return fmt.Errorf("unable to add received transaction to DAG (tx=%s): %w", transaction.Ref(), err)
+			}
+		}
+		refsToBeRemoved[transactionRef.String()] = true
+	}
+
+	// remove from conversation
+	if conversation.additionalInfo["refs"] != nil {
+		requestedRefs := conversation.additionalInfo["refs"].([]hash.SHA256Hash)
+		newRefs := make([]hash.SHA256Hash, len(requestedRefs))
+		i := 0
+		for _, requestedRef := range requestedRefs {
+			if _, ok := refsToBeRemoved[requestedRef.String()]; !ok {
+				newRefs[i] = requestedRef
+				i++
+			}
+		}
+		newRefs = newRefs[:i]
+		conversation.additionalInfo["refs"] = newRefs
+
+		// if len == 0, mark as done
+		if len(newRefs) == 0 {
+			p.cMan.done(cid)
+		}
+	}
+
+	return nil
+}
+
+func (p *protocol) handleTransactionListQuery(peer transport.Peer, msg *TransactionListQuery) error {
+	requestedRefs := make([]hash.SHA256Hash, len(msg.Refs))
+	transactions := make([]*Transaction, 0)
+	unsorted := make([]dag.Transaction, 0)
+
+	cid := conversationID(msg.ConversationID)
+
+	// TODO convert to trace logging
+	log.Logger().Infof("handling transactionListQuery from peer (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
+
+	for i, refBytes := range msg.Refs {
+		requestedRefs[i] = hash.FromSlice(refBytes)
+	}
+
+	if len(requestedRefs) == 0 {
+		log.Logger().Warnf("peer sent request for 0 transactions (peer=%s)", peer.ID)
+		return nil
+	}
+
+	ctx := context.Background()
+
+	// first retrieve all transactions, this is needed to sort them on LC value
+	for _, ref := range requestedRefs {
+		transaction, err := p.state.GetTransaction(ctx, ref)
+		if err != nil {
+			return err
+		}
+		// If a transaction is not present, we stop any further transaction gathering.
+		if transaction != nil {
+			unsorted = append(unsorted, transaction)
+		} else {
+			log.Logger().Warnf("peer requested transaction we don't have (peer=%s, node=%s, ref=%s)", peer.ID, peer.NodeDID.String(), ref.String())
+		}
+	}
+
+	// now we sort on LC value
+	sort.Slice(unsorted, func(i, j int) bool {
+		return unsorted[i].Clock() <= unsorted[j].Clock()
+	})
+
+	for i, transaction := range unsorted {
+		networkTX := Transaction{
+			Hash: msg.Refs[i],
+			Data: transaction.Data(),
+		}
+
+		// do not add private TX payloads
+		if len(transaction.PAL()) == 0 {
+			payload, err := p.state.ReadPayload(ctx, transaction.PayloadHash())
+			if err != nil {
+				return err
+			}
+			// TODO we abort here as well, since there's no mechanism for missing payloads on public transactions in v2 protocol
+			if payload == nil {
+				log.Logger().Warnf("peer requested transaction with missing payload (peer=%s, node=%s, ref=%s)", peer.ID, peer.NodeDID.String(), transaction.Ref().String())
+				break
+			}
+			networkTX.Payload = payload
+		}
+		transactions = append(transactions, &networkTX)
+	}
+
+	return p.sendTransactionList(peer.ID, cid, transactions)
 }

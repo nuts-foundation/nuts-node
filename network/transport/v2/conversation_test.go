@@ -21,7 +21,6 @@ package v2
 
 import (
 	"context"
-	"encoding/hex"
 	"testing"
 	"time"
 
@@ -32,47 +31,29 @@ import (
 )
 
 func TestConversationID(t *testing.T) {
-	hexUUID := "bd7baaa8f3244d229dc6512d02a88336"
-
 	t.Run("new creates a v4 uuid", func(t *testing.T) {
 		cid := newConversationID()
 
-		u := uuid.UUID(cid)
+		u, err := uuid.Parse(cid.String())
 
+		assert.NoError(t, err)
 		assert.Equal(t, uuid.Version(4), u.Version())
 	})
 
-	t.Run("String returns hex encoding", func(t *testing.T) {
+	t.Run("String returns uuid as string", func(t *testing.T) {
 		cid := newConversationID()
 
 		s := cid.String()
 
-		assert.Len(t, s, 32)
+		assert.Len(t, s, 36)
 	})
 
-	t.Run("slice() returns bytes", func(t *testing.T) {
+	t.Run("slice() returns string as bytes", func(t *testing.T) {
 		cid := newConversationID()
 
 		bytes := cid.slice()
 
-		assert.Len(t, bytes, 16)
-	})
-
-	t.Run("ok - parseConversationID", func(t *testing.T) {
-		bytes, _ := hex.DecodeString(hexUUID)
-
-		cid, err := parseConversationID(bytes)
-
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.Equal(t, hexUUID, cid.String())
-	})
-
-	t.Run("error - parseConversationID", func(t *testing.T) {
-		_, err := parseConversationID([]byte{})
-
-		assert.Error(t, err)
+		assert.Equal(t, cid.String(), string(bytes))
 	})
 }
 
@@ -92,7 +73,7 @@ func TestConversationManager_start(t *testing.T) {
 		TransactionListQuery: &TransactionListQuery{},
 	}
 
-	_ = cMan.conversationFromEnvelope(envelope)
+	_ = cMan.startConversation(envelope)
 
 	test.WaitFor(t, func() (bool, error) {
 		cMan.mutex.Lock()
@@ -106,7 +87,7 @@ func TestConversationManager_done(t *testing.T) {
 	envelope := &Envelope_TransactionListQuery{
 		TransactionListQuery: &TransactionListQuery{},
 	}
-	c := cMan.conversationFromEnvelope(envelope)
+	c := cMan.startConversation(envelope)
 
 	cMan.done(c.conversationID)
 
@@ -123,7 +104,7 @@ func TestConversationManager_checkTransactionList(t *testing.T) {
 	}
 
 	t.Run("ok", func(t *testing.T) {
-		c := cMan.conversationFromEnvelope(request)
+		c := cMan.startConversation(request)
 		response := &Envelope_TransactionList{
 			TransactionList: &TransactionList{
 				ConversationID: c.conversationID.slice(),
@@ -140,27 +121,9 @@ func TestConversationManager_checkTransactionList(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("error - invalid conversation ID", func(t *testing.T) {
-		_ = cMan.conversationFromEnvelope(request)
-		response := &Envelope_TransactionList{
-			TransactionList: &TransactionList{
-				Transactions: []*Transaction{
-					{
-						Hash: ref,
-					},
-				},
-			},
-		}
-
-		err := cMan.check(response)
-
-		assert.EqualError(t, err, "failed to parse conversationID: invalid UUID (got 0 bytes)")
-	})
-
 	t.Run("error - unknown conversation ID", func(t *testing.T) {
-		u, _ := uuid.Parse("9dbacbabf0c6413591f7553ff4348753")
-		cid := conversationID(u)
-		_ = cMan.conversationFromEnvelope(request)
+		cid := conversationID("9dbacbabf0c6413591f7553ff4348753")
+		_ = cMan.startConversation(request)
 		response := &Envelope_TransactionList{
 			TransactionList: &TransactionList{
 				ConversationID: cid.slice(),
@@ -179,7 +142,7 @@ func TestConversationManager_checkTransactionList(t *testing.T) {
 
 	t.Run("error - invalid response", func(t *testing.T) {
 		ref2 := hash.SHA256Sum([]byte{0}).Slice()
-		c := cMan.conversationFromEnvelope(request)
+		c := cMan.startConversation(request)
 		response := &Envelope_TransactionList{
 			TransactionList: &TransactionList{
 				ConversationID: c.conversationID.slice(),

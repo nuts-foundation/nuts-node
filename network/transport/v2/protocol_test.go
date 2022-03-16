@@ -73,6 +73,7 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 	proto := New(cfg, nodeDIDResolver, state, docResolver, decrypter)
 	proto.(*protocol).payloadScheduler = payloadScheduler
 	proto.(*protocol).gManager = gMan
+	proto.(*protocol).cMan = newConversationManager(time.Second)
 	proto.(*protocol).connectionList = connectionList
 
 	return proto.(*protocol), protocolMocks{
@@ -229,34 +230,6 @@ func TestProtocol_connectionStateCallback(t *testing.T) {
 		mockProto.EXPECT().Version().Return(0)
 
 		proto.connectionStateCallback(peer, transport.StateConnected, mockProto)
-	})
-}
-
-func TestProtocol_sendGossip(t *testing.T) {
-	peerID := transport.PeerID("1")
-	refsAsBytes := [][]byte{hash.EmptyHash().Slice()}
-
-	t.Run("ok", func(t *testing.T) {
-		proto, mocks := newTestProtocol(t, nil)
-		mockConnection := grpc.NewMockConnection(mocks.Controller)
-		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peerID)).Return(mockConnection)
-		mockConnection.EXPECT().Send(proto, &Envelope{Message: &Envelope_Gossip{
-			Gossip: &Gossip{
-				Transactions: refsAsBytes,
-			},
-		}})
-
-		success := proto.sendGossip(peerID, []hash.SHA256Hash{hash.EmptyHash()})
-
-		assert.True(t, success)
-	})
-	t.Run("error - no connection available", func(t *testing.T) {
-		proto, mocks := newTestProtocol(t, nil)
-		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peerID)).Return(nil)
-
-		success := proto.sendGossip(peerID, []hash.SHA256Hash{hash.EmptyHash()})
-
-		assert.False(t, success)
 	})
 }
 

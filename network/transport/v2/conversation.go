@@ -21,7 +21,7 @@ package v2
 
 import (
 	"context"
-	"encoding/hex"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -32,51 +32,47 @@ import (
 
 var maxValidity = 30 * time.Second
 
-type conversationID uuid.UUID
+type conversationID string
 
 func newConversationID() conversationID {
-	return conversationID(uuid.New())
-}
-
-func parseConversationID(bytes []byte) (cid conversationID, err error) {
-	var u uuid.UUID
-	u, err = uuid.FromBytes(bytes)
-	if err != nil {
-		return
-	}
-	cid = conversationID(u)
-	return
+	return conversationID(uuid.New().String())
 }
 
 func (cid conversationID) slice() []byte {
-	// error not possible when marshalling
-	bytes, _ := uuid.UUID(cid).MarshalBinary()
-	return bytes
+	return []byte(cid)
 }
 
 func (cid conversationID) String() string {
-	return hex.EncodeToString(cid.slice())
+	return string(cid)
 }
 
 type conversation struct {
 	conversationID   conversationID
 	createdAt        time.Time
-	conversationData conversationData
+	conversationData checkable
+	// additionalInfo can be used to check if a conversation is done
+	additionalInfo map[string]interface{}
 }
 
-type conversationData interface {
+type checkable interface {
+	conversationable
 	checkResponse(envelope isEnvelope_Message) error
+}
+
+type conversationable interface {
+	setConversationID(cid conversationID)
+	conversationID() []byte
 }
 
 type conversationManager struct {
 	mutex         sync.RWMutex
-	conversations map[string]conversation
+	conversations map[string]*conversation
 	validity      time.Duration
 }
 
 func newConversationManager(validity time.Duration) *conversationManager {
 	return &conversationManager{
-		conversations: map[string]conversation{},
+		conversations: map[string]*conversation{},
 		validity:      validity,
 	}
 }
@@ -116,22 +112,16 @@ func (cMan *conversationManager) done(cid conversationID) {
 	delete(cMan.conversations, cid.String())
 }
 
-// conversationFromEnvelope sets a conversationID on the envelope and stores the conversation
-func (cMan *conversationManager) conversationFromEnvelope(envelope isEnvelope_Message) (newConversation conversation) {
+// startConversation sets a conversationID on the envelope and stores the conversation
+func (cMan *conversationManager) startConversation(envelope checkable) *conversation {
 	cid := newConversationID()
 
-	switch t := envelope.(type) {
-	case *Envelope_TransactionListQuery:
-		t.TransactionListQuery.ConversationID = cid.slice()
-		newConversation = conversation{
-			conversationID: cid,
-			createdAt:      time.Now(),
-			conversationData: transactionListConversation{
-				msg: t,
-			},
-		}
-	default:
-		return
+	envelope.setConversationID(cid)
+	newConversation := &conversation{
+		conversationID:   cid,
+		createdAt:        time.Now(),
+		conversationData: envelope,
+		additionalInfo:   map[string]interface{}{},
 	}
 
 	cMan.mutex.Lock()
@@ -139,23 +129,17 @@ func (cMan *conversationManager) conversationFromEnvelope(envelope isEnvelope_Me
 
 	cMan.conversations[cid.String()] = newConversation
 
-	return
+	return newConversation
 }
 
 func (cMan *conversationManager) check(envelope isEnvelope_Message) error {
-	var cidBytes []byte
-
-	switch t := envelope.(type) {
-	case *Envelope_TransactionList:
-		cidBytes = t.TransactionList.ConversationID
-	default:
-		return fmt.Errorf("invalid response msg type: %s", t)
+	otherEnvelope, ok := envelope.(conversationable)
+	if !ok {
+		return errors.New("expecting envelope to contain be a conversation response type message")
 	}
 
-	cid, err := parseConversationID(cidBytes)
-	if err != nil {
-		return fmt.Errorf("failed to parse conversationID: %w", err)
-	}
+	cidBytes := otherEnvelope.conversationID()
+	cid := conversationID(cidBytes)
 
 	cMan.mutex.RLock()
 	defer cMan.mutex.RUnlock()
@@ -167,15 +151,22 @@ func (cMan *conversationManager) check(envelope isEnvelope_Message) error {
 	}
 }
 
-type transactionListConversation struct {
-	msg *Envelope_TransactionListQuery
+func (envelope *Envelope_TransactionListQuery) setConversationID(cid conversationID) {
+	envelope.TransactionListQuery.ConversationID = cid.slice()
 }
 
-func (c transactionListConversation) checkResponse(envelope isEnvelope_Message) error {
-	// envelope type already checked in cMan.check()
-	otherEnvelope := envelope.(*Envelope_TransactionList)
+func (envelope *Envelope_TransactionListQuery) conversationID() []byte {
+	return envelope.TransactionListQuery.ConversationID
+}
 
-	payloadRequest := c.msg.TransactionListQuery
+func (envelope *Envelope_TransactionListQuery) checkResponse(other isEnvelope_Message) error {
+	// envelope type already checked in cMan.check()
+	otherEnvelope, ok := other.(*Envelope_TransactionList)
+	if !ok {
+		return errors.New("checking wrong envelope type")
+	}
+
+	payloadRequest := envelope.TransactionListQuery
 	payloadResponse := otherEnvelope.TransactionList
 
 	// as map for easy finding
@@ -194,4 +185,12 @@ func (c transactionListConversation) checkResponse(envelope isEnvelope_Message) 
 	}
 
 	return nil
+}
+
+func (envelope *Envelope_TransactionList) setConversationID(cid conversationID) {
+	envelope.TransactionList.ConversationID = cid.slice()
+}
+
+func (envelope *Envelope_TransactionList) conversationID() []byte {
+	return envelope.TransactionList.ConversationID
 }

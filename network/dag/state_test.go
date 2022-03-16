@@ -196,11 +196,20 @@ func TestState_Observe(t *testing.T) {
 		}, false)
 		expected := CreateTestTransactionWithJWK(1)
 
-		err := txState.Add(ctx, expected, []byte{1})
+		err := txState.Add(ctx, expected, []byte{0, 0, 0, 1})
 
 		assert.NoError(t, err)
 		assert.Equal(t, expected, actualTX)
-		assert.Equal(t, []byte{1}, actualPayload)
+		assert.Equal(t, []byte{0, 0, 0, 1}, actualPayload)
+	})
+	t.Run("transaction added with incorrect payload", func(t *testing.T) {
+		ctx := context.Background()
+		txState := createState(t)
+		expected := CreateTestTransactionWithJWK(1)
+
+		err := txState.Add(ctx, expected, []byte{1})
+
+		assert.EqualError(t, err, "tx.PayloadHash does not match hash of payload")
 	})
 	t.Run("payload added", func(t *testing.T) {
 		ctx := context.Background()
