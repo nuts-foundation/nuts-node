@@ -98,7 +98,7 @@ func TestConversationManager_start(t *testing.T) {
 		cMan.mutex.Lock()
 		defer cMan.mutex.Unlock()
 		return len(cMan.conversations) == 0, nil
-	}, 100*time.Millisecond, "timeout while waiting for conversations to clear")
+	}, time.Second, "timeout while waiting for conversations to clear")
 }
 
 func TestConversationManager_done(t *testing.T) {
