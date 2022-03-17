@@ -32,3 +32,6 @@ type CredentialSubject = interface{}
 
 // Revocation is an alias to use from within the API
 type Revocation = credential.Revocation
+
+// VerifiablePresentation is an alias to use from within the API
+type VerifiablePresentation = vc.VerifiablePresentation

@@ -16,6 +16,7 @@ import (
 	credential "github.com/nuts-foundation/nuts-node/vcr/credential"
 	holder "github.com/nuts-foundation/nuts-node/vcr/holder"
 	issuer "github.com/nuts-foundation/nuts-node/vcr/issuer"
+	verifier "github.com/nuts-foundation/nuts-node/vcr/verifier"
 )
 
 // MockConceptFinder is a mock of ConceptFinder interface.
@@ -583,4 +584,18 @@ func (m *MockVCR) Validate(credential vc.VerifiableCredential, allowUntrusted, c
 func (mr *MockVCRMockRecorder) Validate(credential, allowUntrusted, checkSignature, validAt interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Validate", reflect.TypeOf((*MockVCR)(nil).Validate), credential, allowUntrusted, checkSignature, validAt)
+}
+
+// Verifier mocks base method.
+func (m *MockVCR) Verifier() verifier.Verifier {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Verifier")
+	ret0, _ := ret[0].(verifier.Verifier)
+	return ret0
+}
+
+// Verifier indicates an expected call of Verifier.
+func (mr *MockVCRMockRecorder) Verifier() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verifier", reflect.TypeOf((*MockVCR)(nil).Verifier))
 }

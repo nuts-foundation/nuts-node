@@ -210,6 +210,41 @@ paths:
                 $ref: '#/components/schemas/VCVerificationResult'
         default:
           $ref: '../common/error_response.yaml'
+  /internal/vcr/v2/verifier/vp:
+    post:
+      summary: Verifies a Verifiable Presentation
+      description: |
+        Verifies a Verifiable Presentation. It checks:
+        * Signature of the verifiable presentation and the verifiable credentials
+        * Expiration
+        * Revocation status
+        * If the issuers of the verifiable credentials are trusted
+        * If the issuers of the verifiable credentials were not deactivated at time of issuing
+
+        If the verification can be performed successfully (regardless whether checks failed), HTTP status 200 is returned.
+        Callers MUST observe the "validity" field of the verification result to check whether the VP is valid.
+
+        error returns:
+        * 400 - A parameter or the format of the verifiable presentation is invalid
+        * 500 - An error occurred while processing the request
+      operationId: "verifyVP"
+      tags:
+        - credential
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VPVerificationRequest'
+      responses:
+        "200":
+          description: "The verification result"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VPVerificationResult'
+        default:
+          $ref: '../common/error_response.yaml'
 
   /internal/vcr/v2/holder/vp:
     post:
@@ -236,7 +271,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/VerifiablePresentation"
-
 
 components:
   schemas:
@@ -458,6 +492,39 @@ components:
           description: Date and time at which proof will expire. If omitted, the proof does not have an end date.
           format: date-time
           example: '2021-12-20T09:00:00Z'
+
+    VPVerificationRequest:
+      required:
+        - verifiablePresentation
+      properties:
+        verifiablePresentation:
+          $ref: "#/components/schemas/VerifiablePresentation"
+        validAt:
+          type: string
+          description: Date and time at which the VP should be valid. If not supplied, the current date/time is used.
+          format: date-time
+          example: '2021-12-20T09:00:00Z'
+        verifyCredentials:
+          type: boolean
+          description: Indicates whether the Verifiable Credentials within the VP must be verified, default true.
+          default: true
+    VPVerificationResult:
+      description: Contains the verifiable presentation verification result.
+      type: object
+      required:
+        - validity
+      properties:
+        validity:
+          type: boolean
+          description: Indicates the validity of the signature, issuer and revocation state.
+        message:
+          type: string
+          description: Indicates what went wrong
+        credentials:
+          description: If the VP is valid, it will contain the credentials inside the VP.
+          type: array
+          items:
+            $ref: '#/components/schemas/VerifiableCredential'
 
     VerifiablePresentation:
       type: object

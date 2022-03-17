@@ -31,6 +31,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
+	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"os"
@@ -309,7 +310,7 @@ func Test_verifier_Verify(t *testing.T) {
 	})
 }
 
-func Test_verifier_validateInTime(t *testing.T) {
+func Test_verifier_validateAtTime(t *testing.T) {
 	var timeToCheck *time.Time
 	t.Run("no time provided", func(t *testing.T) {
 		timeToCheck = nil
@@ -317,7 +318,7 @@ func Test_verifier_validateInTime(t *testing.T) {
 		t.Run("credential is valid", func(t *testing.T) {
 			sut := verifier{}
 			credentialToTest := testCredential(t)
-			validationErr := sut.validateAtTime(credentialToTest, timeToCheck)
+			validationErr := sut.validateAtTime(credentialToTest.IssuanceDate, credentialToTest.ExpirationDate, timeToCheck)
 			assert.NoError(t, validationErr)
 		})
 	})
@@ -328,7 +329,7 @@ func Test_verifier_validateInTime(t *testing.T) {
 			timeToCheck = &now
 			sut := verifier{}
 			credentialToTest := testCredential(t)
-			validationErr := sut.validateAtTime(credentialToTest, timeToCheck)
+			validationErr := sut.validateAtTime(credentialToTest.IssuanceDate, credentialToTest.ExpirationDate, timeToCheck)
 			assert.NoError(t, validationErr)
 		})
 
@@ -340,7 +341,7 @@ func Test_verifier_validateInTime(t *testing.T) {
 			timeToCheck = &beforeIssuance
 			sut := verifier{}
 			credentialToTest := testCredential(t)
-			validationErr := sut.validateAtTime(credentialToTest, timeToCheck)
+			validationErr := sut.validateAtTime(credentialToTest.IssuanceDate, credentialToTest.ExpirationDate, timeToCheck)
 			assert.EqualError(t, validationErr, "credential not valid at given time")
 		})
 
@@ -355,7 +356,7 @@ func Test_verifier_validateInTime(t *testing.T) {
 			credentialToTest := testCredential(t)
 			// Set expirationDate since the testCredential does not have one
 			credentialToTest.ExpirationDate = &expireTime
-			validationErr := sut.validateAtTime(credentialToTest, timeToCheck)
+			validationErr := sut.validateAtTime(credentialToTest.IssuanceDate, credentialToTest.ExpirationDate, timeToCheck)
 			assert.EqualError(t, validationErr, "credential not valid at given time")
 		})
 
@@ -450,6 +451,170 @@ func Test_verifier_CheckAndStoreRevocation(t *testing.T) {
 	})
 }
 
+func TestVerifier_VerifyVP(t *testing.T) {
+	rawVP := `{
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1",
+    "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
+  ],
+  "proof": {
+    "created": "2022-03-07T15:17:05.447901+01:00",
+    "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..F49ecqz0jSnSQp4gSSOxVVdu7vN58oZv4uSC30DGGOVUeKHjHS5XUNvSr_r-egUCCouygCbzp5f9cMNbGQhNRw",
+    "proofPurpose": "assertionMethod",
+    "type": "JsonWebSignature2020",
+    "verificationMethod": "did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW#abc-method-1"
+  },
+  "type": "VerifiablePresentation",
+  "verifiableCredential": {
+    "@context": [
+      "https://www.w3.org/2018/credentials/v1",
+      "https://nuts.nl/credentials/v1",
+      "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
+    ],
+    "credentialSubject": {
+      "company": {
+        "city": "Hengelo",
+        "name": "De beste zorg"
+      },
+      "id": "did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW"
+    },
+    "id": "did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H#d2aa8189-db59-4dad-a3e5-60ca54f8fcc0",
+    "issuanceDate": "2021-12-24T13:21:29.087205+01:00",
+    "issuer": "did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H",
+    "proof": {
+      "created": "2021-12-24T13:21:29.087205+01:00",
+      "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..hPM2GLc1K9d2D8Sbve004x9SumjLqaXTjWhUhvqWRwxfRWlwfp5gHDUYuRoEjhCXfLt-_u-knChVmK980N3LBw",
+      "proofPurpose": "assertionMethod",
+      "type": "JsonWebSignature2020",
+      "verificationMethod": "did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW#abc-method-1"
+    },
+    "type": [
+      "CompanyCredential",
+      "VerifiableCredential"
+    ]
+  }
+}`
+	vp := vc.VerifiablePresentation{}
+	_ = json.Unmarshal([]byte(rawVP), &vp)
+	vpSignerKeyID := did.MustParseDIDURL(vp.Proof[0].(map[string]interface{})["verificationMethod"].(string))
+
+	t.Run("ok - do not verify VCs", func(t *testing.T) {
+		_ = json.Unmarshal([]byte(rawVP), &vp)
+
+		var validAt *time.Time
+
+		ctx := newMockContext(t)
+		ctx.keyResolver.EXPECT().ResolveSigningKey(vpSignerKeyID.String(), validAt).Return(vdr.TestMethodDIDAPrivateKey().Public(), nil)
+
+		vcs, err := ctx.verifier.VerifyVP(vp, false, validAt)
+
+		assert.NoError(t, err)
+		assert.Len(t, vcs, 1)
+	})
+	t.Run("ok - verify VCs", func(t *testing.T) {
+		_ = json.Unmarshal([]byte(rawVP), &vp)
+
+		var validAt *time.Time
+
+		ctx := newMockContext(t)
+		ctx.keyResolver.EXPECT().ResolveSigningKey(vpSignerKeyID.String(), validAt).Return(vdr.TestMethodDIDAPrivateKey().Public(), nil)
+
+		mockVerifier := NewMockVerifier(ctx.ctrl)
+		mockVerifier.EXPECT().Verify(vp.VerifiableCredential[0], false, true, validAt)
+
+		vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, validAt)
+
+		assert.NoError(t, err)
+		assert.Len(t, vcs, 1)
+	})
+	t.Run("error - VC verification fails (not valid at time)", func(t *testing.T) {
+		_ = json.Unmarshal([]byte(rawVP), &vp)
+
+		var validAt time.Time
+
+		ctx := newMockContext(t)
+
+		mockVerifier := NewMockVerifier(ctx.ctrl)
+
+		vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, &validAt)
+
+		assert.EqualError(t, err, "verification error: credential not valid at given time")
+		assert.Empty(t, vcs)
+	})
+	t.Run("error - VC verification fails", func(t *testing.T) {
+		_ = json.Unmarshal([]byte(rawVP), &vp)
+
+		var validAt *time.Time
+
+		ctx := newMockContext(t)
+		ctx.keyResolver.EXPECT().ResolveSigningKey(vpSignerKeyID.String(), validAt).Return(vdr.TestMethodDIDAPrivateKey().Public(), nil)
+
+		mockVerifier := NewMockVerifier(ctx.ctrl)
+		mockVerifier.EXPECT().Verify(vp.VerifiableCredential[0], false, true, validAt).Return(errors.New("invalid"))
+
+		vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, validAt)
+
+		assert.Error(t, err)
+		assert.Empty(t, vcs)
+	})
+	t.Run("error - invalid signature", func(t *testing.T) {
+		_ = json.Unmarshal([]byte(rawVP), &vp)
+
+		var validAt *time.Time
+
+		ctx := newMockContext(t)
+		// Return incorrect key, causing signature verification failure
+		ctx.keyResolver.EXPECT().ResolveSigningKey(vpSignerKeyID.String(), validAt).Return(vdr.TestMethodDIDBPrivateKey().Public(), nil)
+
+		vcs, err := ctx.verifier.VerifyVP(vp, false, validAt)
+
+		assert.EqualError(t, err, "verification error: invalid signature: invalid proof signature: failed to verify signature using ecdsa")
+		assert.Empty(t, vcs)
+	})
+	t.Run("error - signing key unknown", func(t *testing.T) {
+		_ = json.Unmarshal([]byte(rawVP), &vp)
+
+		var validAt *time.Time
+
+		ctx := newMockContext(t)
+		// Return incorrect key, causing signature verification failure
+		ctx.keyResolver.EXPECT().ResolveSigningKey(vpSignerKeyID.String(), validAt).Return(nil, types.ErrKeyNotFound)
+
+		vcs, err := ctx.verifier.VerifyVP(vp, false, validAt)
+
+		assert.ErrorIs(t, err, types.ErrKeyNotFound)
+		assert.Empty(t, vcs)
+	})
+	t.Run("error - invalid proof", func(t *testing.T) {
+		_ = json.Unmarshal([]byte(rawVP), &vp)
+
+		vp.Proof = []interface{}{"invalid"}
+
+		var validAt *time.Time
+
+		ctx := newMockContext(t)
+
+		vcs, err := ctx.verifier.VerifyVP(vp, false, validAt)
+
+		assert.EqualError(t, err, "verification error: unsupported proof type: json: cannot unmarshal string into Go value of type proof.LDProof")
+		assert.Empty(t, vcs)
+	})
+	t.Run("error - no proof", func(t *testing.T) {
+		_ = json.Unmarshal([]byte(rawVP), &vp)
+
+		vp.Proof = nil
+
+		var validAt *time.Time
+
+		ctx := newMockContext(t)
+
+		vcs, err := ctx.verifier.VerifyVP(vp, false, validAt)
+
+		assert.EqualError(t, err, "verification error: exactly 1 proof is expected")
+		assert.Empty(t, vcs)
+	})
+}
+
 func Test_verifier_IsRevoked(t *testing.T) {
 	rawRevocation, _ := os.ReadFile("../test/ld-revocation.json")
 	revocation := credential.Revocation{}
@@ -478,11 +643,16 @@ func Test_verifier_IsRevoked(t *testing.T) {
 	})
 }
 
+func TestVerificationError_Is(t *testing.T) {
+	assert.True(t, VerificationError{}.Is(VerificationError{}))
+	assert.False(t, VerificationError{}.Is(errors.New("other")))
+}
+
 type mockContext struct {
 	ctrl        *gomock.Controller
 	keyResolver *types.MockKeyResolver
 	store       *MockStore
-	verifier    Verifier
+	verifier    *verifier
 }
 
 func newMockContext(t *testing.T) mockContext {
@@ -492,7 +662,7 @@ func newMockContext(t *testing.T) mockContext {
 	contextLoader, err := signature.NewContextLoader(false)
 	verifierStore := NewMockStore(ctrl)
 	assert.NoError(t, err)
-	verifier := NewVerifier(verifierStore, keyResolver, contextLoader)
+	verifier := NewVerifier(verifierStore, keyResolver, contextLoader).(*verifier)
 	return mockContext{
 		ctrl:        ctrl,
 		verifier:    verifier,

@@ -20,7 +20,8 @@ package v2
 
 import (
 	"encoding/json"
-
+	"errors"
+	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"net/http"
 
 	"time"
@@ -228,4 +229,28 @@ func (w *Wrapper) CreateVP(ctx echo.Context) error {
 		return err
 	}
 	return ctx.JSON(http.StatusOK, vp)
+}
+
+// VerifyVP handles API request to verify a Verifiable Presentation.
+func (w *Wrapper) VerifyVP(ctx echo.Context) error {
+	request := &VPVerificationRequest{}
+	if err := ctx.Bind(request); err != nil {
+		return err
+	}
+
+	verifyCredentials := true
+	if request.VerifyCredentials != nil {
+		verifyCredentials = *request.VerifyCredentials
+	}
+	verifiedCredentials, err := w.VCR.Verifier().VerifyVP(request.VerifiablePresentation, verifyCredentials, request.ValidAt)
+	if err != nil {
+		if errors.Is(err, verifier.VerificationError{}) {
+			msg := err.Error()
+			return ctx.JSON(http.StatusOK, VPVerificationResult{Validity: false, Message: &msg})
+		}
+		return err
+	}
+
+	result := VPVerificationResult{Validity: true, Credentials: &verifiedCredentials}
+	return ctx.JSON(http.StatusOK, result)
 }

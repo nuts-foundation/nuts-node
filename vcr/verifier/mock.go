@@ -94,6 +94,21 @@ func (mr *MockVerifierMockRecorder) Verify(credential, allowUntrusted, checkSign
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockVerifier)(nil).Verify), credential, allowUntrusted, checkSignature, validAt)
 }
 
+// VerifyVP mocks base method.
+func (m *MockVerifier) VerifyVP(presentation vc.VerifiablePresentation, verifyVCs bool, validAt *time.Time) ([]vc.VerifiableCredential, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "VerifyVP", presentation, verifyVCs, validAt)
+	ret0, _ := ret[0].([]vc.VerifiableCredential)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// VerifyVP indicates an expected call of VerifyVP.
+func (mr *MockVerifierMockRecorder) VerifyVP(presentation, verifyVCs, validAt interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifyVP", reflect.TypeOf((*MockVerifier)(nil).VerifyVP), presentation, verifyVCs, validAt)
+}
+
 // MockStore is a mock of Store interface.
 type MockStore struct {
 	ctrl     *gomock.Controller

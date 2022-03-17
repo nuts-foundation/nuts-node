@@ -108,6 +108,10 @@ func (c vcr) Holder() holder.Holder {
 	return c.holder
 }
 
+func (c *vcr) Verifier() verifier.Verifier {
+	return c.verifier
+}
+
 func (c *vcr) Configure(config core.ServerConfig) error {
 	var err error
 

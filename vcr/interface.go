@@ -21,9 +21,9 @@ package vcr
 
 import (
 	"context"
-	"time"
-
 	"github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/vcr/verifier"
+	"time"
 
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
@@ -100,6 +100,7 @@ type Resolver interface {
 type VCR interface {
 	Issuer() issuer.Issuer
 	Holder() holder.Holder
+	Verifier() verifier.Verifier
 
 	// Issue creates and publishes a new VC.
 	// An optional expirationDate can be given.
