@@ -49,7 +49,6 @@ type verifier struct {
 	store         Store
 }
 
-
 // VerificationError is used to describe a VC/VP verification failure.
 type VerificationError struct {
 	msg  string
