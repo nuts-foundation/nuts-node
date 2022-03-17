@@ -51,12 +51,14 @@ type Verifier interface {
 // ErrNotFound is returned when a credential or revocation can not be found based on its ID.
 var ErrNotFound = errors.New("not found")
 
+// VerificationError is used to describe a VC/VP verification failure.
 type VerificationError struct {
 	msg  string
 	args []interface{}
 }
 
-func (v VerificationError) Is(other error) bool {
+// Is checks whether the given error is a VerificationError as well.
+func (e VerificationError) Is(other error) bool {
 	_, is := other.(VerificationError)
 	return is
 }
