@@ -904,6 +904,7 @@ func (r IssueVCResponse) StatusCode() int {
 type SearchIssuedVCsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON200      *SearchVCResults
 }
 
 // Status returns HTTPResponse.Status
@@ -1172,6 +1173,16 @@ func ParseSearchIssuedVCsResponse(rsp *http.Response) (*SearchIssuedVCsResponse,
 	response := &SearchIssuedVCsResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SearchVCResults
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	}
 
 	return response, nil
