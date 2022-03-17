@@ -222,7 +222,7 @@ paths:
         * If the issuers of the verifiable credentials were not deactivated at time of issuing
 
         error returns:
-        * 400 - One or more of the given parameters are invalid
+        * 400 - A parameter or the verifiable presentation is invalid
         * 500 - An error occurred while processing the request
       operationId: "verifyVP"
       tags:
