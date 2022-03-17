@@ -527,6 +527,20 @@ func TestVerifier_VerifyVP(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Len(t, vcs, 1)
 	})
+	t.Run("error - VC verification fails (not valid at time)", func(t *testing.T) {
+		_ = json.Unmarshal([]byte(rawVP), &vp)
+
+		var validAt time.Time
+
+		ctx := newMockContext(t)
+
+		mockVerifier := NewMockVerifier(ctx.ctrl)
+
+		vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, &validAt)
+
+		assert.EqualError(t, err, "verification error: credential not valid at given time")
+		assert.Empty(t, vcs)
+	})
 	t.Run("error - VC verification fails", func(t *testing.T) {
 		_ = json.Unmarshal([]byte(rawVP), &vp)
 
@@ -627,6 +641,11 @@ func Test_verifier_IsRevoked(t *testing.T) {
 		assert.EqualError(t, err, "foo")
 		assert.False(t, result)
 	})
+}
+
+func TestVerificationError_Is(t *testing.T) {
+	assert.True(t, VerificationError{}.Is(VerificationError{}))
+	assert.False(t, VerificationError{}.Is(errors.New("other")))
 }
 
 type mockContext struct {

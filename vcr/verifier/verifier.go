@@ -49,6 +49,31 @@ type verifier struct {
 	store         Store
 }
 
+
+// VerificationError is used to describe a VC/VP verification failure.
+type VerificationError struct {
+	msg  string
+	args []interface{}
+}
+
+// Is checks whether the given error is a VerificationError as well.
+func (e VerificationError) Is(other error) bool {
+	_, is := other.(VerificationError)
+	return is
+}
+
+func newVerificationError(msg string, args ...interface{}) error {
+	return VerificationError{msg: msg, args: args}
+}
+
+func toVerificationError(cause error) error {
+	return VerificationError{msg: cause.Error()}
+}
+
+func (e VerificationError) Error() string {
+	return fmt.Errorf("verification error: "+e.msg, e.args...).Error()
+}
+
 // NewVerifier creates a new instance of the verifier. It needs a key resolver for validating signatures.
 func NewVerifier(store Store, keyResolver vdr.KeyResolver, contextLoader ld.DocumentLoader) Verifier {
 	return &verifier{store: store, keyResolver: keyResolver, contextLoader: contextLoader}
