@@ -211,21 +211,22 @@ func (v verifier) VerifyVP(vp vc.VerifiablePresentation, verifyVCs bool, validAt
 
 // doVerifyVP delegates VC verification to the supplied Verifier, to aid unit testing.
 func (v verifier) doVerifyVP(vcVerifier Verifier, vp vc.VerifiablePresentation, verifyVCs bool, validAt *time.Time) ([]vc.VerifiableCredential, error) {
+	// Multiple proofs might be supported in the future, when there's an actual use case.
+	if len(vp.Proof) != 1 {
+		return nil, newVerificationError("exactly 1 proof is expected")
+	}
+	// Make sure the proofs are LD-proofs
 	var ldProofs []proof.LDProof
 	err := vp.UnmarshalProofValue(&ldProofs)
 	if err != nil {
-		return nil, fmt.Errorf("unsupported proof type: %w", err)
-	}
-	// Multiple proofs might be supported in the future, when there's an actual use case.
-	if len(ldProofs) != 1 {
-		return nil, errors.New("exactly 1 proof is expected")
+		return nil, newVerificationError("unsupported proof type: %w", err)
 	}
 	ldProof := ldProofs[0]
 
 	// Validate signing time
 	err = v.validateAtTime(ldProof.Created, ldProof.ExpirationDate, validAt)
 	if err != nil {
-		return nil, err
+		return nil, toVerificationError(err)
 	}
 
 	// Validate signature
@@ -235,18 +236,18 @@ func (v verifier) doVerifyVP(vcVerifier Verifier, vp vc.VerifiablePresentation, 
 	}
 	signedDocument, err := proof.NewSignedDocument(vp)
 	if err != nil {
-		return nil, err
+		return nil, newVerificationError("invalid LD-JSON document: %w", err)
 	}
 	err = ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: v.contextLoader}, signingKey)
 	if err != nil {
-		return nil, NewValidationError(ErrInvalidSignature, err)
+		return nil, newVerificationError("invalid signature: %w", err)
 	}
 
 	if verifyVCs {
 		for _, current := range vp.VerifiableCredential {
 			err := vcVerifier.Verify(current, false, true, validAt)
 			if err != nil {
-				return nil, NewValidationError(ErrInvalidSignature, fmt.Errorf("verification of Verifiable Credential failed (id=%s): %w", current.ID, err))
+				return nil, newVerificationError("invalid VC (id=%s): %w", current.ID, err)
 			}
 		}
 	}

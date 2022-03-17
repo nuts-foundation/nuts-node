@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
-
 	"net/http"
 
 	"time"
@@ -239,24 +238,17 @@ func (w *Wrapper) VerifyVP(ctx echo.Context) error {
 		return err
 	}
 
-	// Perform some input validation. The presentation should at least contain a proof.
-	// This prevents a http status 500 on a missing VPVerificationRequest body.
-	if request.VerifiablePresentation.Proof == nil {
-		return core.InvalidInputError("missing proof in verifiablePresentation")
-	}
-
 	verifyCredentials := true
 	if request.VerifyCredentials != nil {
 		verifyCredentials = *request.VerifyCredentials
 	}
 	verifiedCredentials, err := w.VCR.Verifier().VerifyVP(request.VerifiablePresentation, verifyCredentials, request.ValidAt)
 	if err != nil {
-		if errors.Is(err, verifier.ErrInvalidSignature) {
+		if errors.Is(err, verifier.VerificationError{}) {
 			msg := err.Error()
-			return ctx.JSON(http.StatusBadRequest, VPVerificationResult{Validity: false, Message: &msg})
-		} else {
-			return err
+			return ctx.JSON(http.StatusUnprocessableEntity, VPVerificationResult{Validity: false, Message: &msg})
 		}
+		return err
 	}
 
 	result := VPVerificationResult{Validity: true, Credentials: &verifiedCredentials}

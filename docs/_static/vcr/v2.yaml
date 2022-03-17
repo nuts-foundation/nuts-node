@@ -222,7 +222,8 @@ paths:
         * If the issuers of the verifiable credentials were not deactivated at time of issuing
 
         error returns:
-        * 400 - A parameter or the verifiable presentation is invalid
+        * 400 - A parameter or the format of the verifiable presentation is invalid
+        * 422 - Verification failed, e.g. invalid signature or untrusted VCs.
         * 500 - An error occurred while processing the request
       operationId: "verifyVP"
       tags:

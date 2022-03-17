@@ -543,16 +543,20 @@ func TestWrapper_CreateVP(t *testing.T) {
 
 func TestWrapper_VerifyVP(t *testing.T) {
 	verifiableCredential := vc.VerifiableCredential{
-		Type:              []ssi.URI{ssi.MustParseURI("ExampleType")},
+		Type: []ssi.URI{ssi.MustParseURI("ExampleType")},
 	}
-	vp := vc.VerifiablePresentation{VerifiableCredential: []VerifiableCredential{verifiableCredential}}
+	vp := vc.VerifiablePresentation{
+		VerifiableCredential: []VerifiableCredential{verifiableCredential},
+		Proof:                []interface{}{"It's a very good proof. I know it because I made it myself. ALl the rest is fake."},
+	}
+	expectedVCs := []VerifiableCredential{vp.VerifiableCredential[0]}
 
 	t.Run("ok", func(t *testing.T) {
 		testContext := newMockContext(t)
 		validAt := time.Now()
 		request := VPVerificationRequest{
 			VerifiablePresentation: vp,
-			ValidAt: &validAt,
+			ValidAt:                &validAt,
 		}
 		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			verifyRequest := f.(*VPVerificationRequest)
@@ -560,7 +564,10 @@ func TestWrapper_VerifyVP(t *testing.T) {
 			return nil
 		})
 		testContext.mockVerifier.EXPECT().VerifyVP(vp, true, &validAt).Return(vp.VerifiableCredential, nil)
-		testContext.echo.EXPECT().JSON(http.StatusOK, vp.VerifiableCredential)
+		testContext.echo.EXPECT().JSON(http.StatusOK, VPVerificationResult{
+			Credentials: &expectedVCs,
+			Validity:    true,
+		})
 
 		err := testContext.client.VerifyVP(testContext.echo)
 
@@ -576,13 +583,16 @@ func TestWrapper_VerifyVP(t *testing.T) {
 			return nil
 		})
 		testContext.mockVerifier.EXPECT().VerifyVP(vp, false, nil).Return(vp.VerifiableCredential, nil)
-		testContext.echo.EXPECT().JSON(http.StatusOK, vp.VerifiableCredential)
+		testContext.echo.EXPECT().JSON(http.StatusOK, VPVerificationResult{
+			Credentials: &expectedVCs,
+			Validity:    true,
+		})
 
 		err := testContext.client.VerifyVP(testContext.echo)
 
 		assert.NoError(t, err)
 	})
-	t.Run("error - verification failed", func(t *testing.T) {
+	t.Run("error - verification failed (other error)", func(t *testing.T) {
 		testContext := newMockContext(t)
 		request := VPVerificationRequest{VerifiablePresentation: vp}
 		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
@@ -595,6 +605,25 @@ func TestWrapper_VerifyVP(t *testing.T) {
 		err := testContext.client.VerifyVP(testContext.echo)
 
 		assert.Error(t, err)
+	})
+	t.Run("error - verification failed (verification error)", func(t *testing.T) {
+		testContext := newMockContext(t)
+		request := VPVerificationRequest{VerifiablePresentation: vp}
+		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			verifyRequest := f.(*VPVerificationRequest)
+			*verifyRequest = request
+			return nil
+		})
+		testContext.mockVerifier.EXPECT().VerifyVP(vp, true, nil).Return(nil, verifier.VerificationError{})
+		errMsg := "verification error: "
+		testContext.echo.EXPECT().JSON(http.StatusUnprocessableEntity, gomock.Eq(VPVerificationResult{
+			Message:  &errMsg,
+			Validity: false,
+		}))
+
+		err := testContext.client.VerifyVP(testContext.echo)
+
+		assert.NoError(t, err)
 	})
 }
 

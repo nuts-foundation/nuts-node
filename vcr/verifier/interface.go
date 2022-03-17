@@ -51,23 +51,26 @@ type Verifier interface {
 // ErrNotFound is returned when a credential or revocation can not be found based on its ID.
 var ErrNotFound = errors.New("not found")
 
-var ErrInvalidSignature = errors.New("invalid signature")
-
-type ValidationError struct {
-	error       error
-	originalErr error
+type VerificationError struct {
+	msg  string
+	args []interface{}
 }
 
-func NewValidationError(err, originalErr error) error {
-	return ValidationError{error: err, originalErr: originalErr}
+func (v VerificationError) Is(other error) bool {
+	_, is := other.(VerificationError)
+	return is
 }
 
-func (e ValidationError) Unwrap() error {
-	return e.error
+func newVerificationError(msg string, args ...interface{}) error {
+	return VerificationError{msg: msg, args: args}
 }
 
-func (e ValidationError) Error() string {
-	return fmt.Errorf("verification failed: %w", e.originalErr).Error()
+func toVerificationError(cause error) error {
+	return VerificationError{msg: cause.Error()}
+}
+
+func (e VerificationError) Error() string {
+	return fmt.Errorf("verification error: "+e.msg, e.args...).Error()
 }
 
 // Store defines the interface for a store for a verifier.

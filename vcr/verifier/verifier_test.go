@@ -554,7 +554,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 
 		vcs, err := ctx.verifier.VerifyVP(vp, false, validAt)
 
-		assert.EqualError(t, err, "signature verification failed: invalid proof signature: failed to verify signature using ecdsa")
+		assert.EqualError(t, err, "verification error: invalid signature: invalid proof signature: failed to verify signature using ecdsa")
 		assert.Empty(t, vcs)
 	})
 	t.Run("error - signing key unknown", func(t *testing.T) {
@@ -582,7 +582,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 
 		vcs, err := ctx.verifier.VerifyVP(vp, false, validAt)
 
-		assert.EqualError(t, err, "unsupported proof type: json: cannot unmarshal string into Go value of type proof.LDProof")
+		assert.EqualError(t, err, "verification error: unsupported proof type: json: cannot unmarshal string into Go value of type proof.LDProof")
 		assert.Empty(t, vcs)
 	})
 	t.Run("error - no proof", func(t *testing.T) {
@@ -596,7 +596,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 
 		vcs, err := ctx.verifier.VerifyVP(vp, false, validAt)
 
-		assert.EqualError(t, err, "exactly 1 proof is expected")
+		assert.EqualError(t, err, "verification error: exactly 1 proof is expected")
 		assert.Empty(t, vcs)
 	})
 }
