@@ -21,6 +21,7 @@ package gossip
 
 import (
 	"context"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -93,35 +94,23 @@ func TestManager_PeerDisconnected(t *testing.T) {
 		gMan := giveMeAgMan(t)
 		peer := transport.Peer{ID: "1"}
 		gMan.peers["2"] = gMan.peers["1"]
-		mainGroup := sync.WaitGroup{}
-		mainGroup.Add(1)
-		tickerGroupStart := sync.WaitGroup{}
-		tickerGroupStart.Add(1)
-		tickerGroupEnd := sync.WaitGroup{}
-		tickerGroupEnd.Add(1)
-		count := 0
+		currentRoutines := runtime.NumGoroutine()
+		wg := sync.WaitGroup{}
+		wg.Add(1)
 		gMan.RegisterSender(func(id transport.PeerID, refs []hash.SHA256Hash) bool {
-			count++
-			tickerGroupStart.Wait()
-			// if the ticker doesn't unregister, this one will blow up
-			mainGroup.Done()
-			tickerGroupEnd.Wait()
+			wg.Done()
 			return true
 		})
 		gMan.PeerConnected(peer)
+		assert.Equal(t, currentRoutines+1, runtime.NumGoroutine())
+		wg.Wait()
 
-		tickerGroupStart.Done()
-		mainGroup.Wait()
 		gMan.PeerDisconnected(peer)
 		gMan.peers["1"] = gMan.peers["2"] // reset administration to bypass administration test
-		tickerGroupEnd.Done()
-
-		time.Sleep(5 * time.Millisecond)
 
 		test.WaitFor(t, func() (bool, error) {
-			return count == 1, nil
-		}, 50*time.Millisecond, "timeout while waiting for mutexes")
-		assert.Equal(t, 1, count)
+			return runtime.NumGoroutine() == currentRoutines, nil
+		}, 5*time.Second, "timeout while waiting for go routine to exit")
 	})
 }
 
