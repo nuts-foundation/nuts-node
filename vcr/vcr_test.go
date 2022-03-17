@@ -149,7 +149,7 @@ func TestVCR_SearchInternal(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx, q := testInstance(t)
-		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
+		ctx.vcr.Trust(vc.Type[1], vc.Issuer)
 
 		searchResult, err := ctx.vcr.Search(reqCtx, q, false, &now)
 
@@ -232,7 +232,7 @@ func TestVCR_Resolve(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := testInstance(t)
-		ctx.vcr.trustConfig.AddTrust(testVC.Type[0], testVC.Issuer)
+		ctx.vcr.trustConfig.AddTrust(testVC.Type[1], testVC.Issuer)
 
 		vc, err := ctx.vcr.Resolve(*testVC.ID, &now)
 		if !assert.NoError(t, err) {
@@ -244,7 +244,7 @@ func TestVCR_Resolve(t *testing.T) {
 
 	t.Run("error - not valid yet", func(t *testing.T) {
 		ctx := testInstance(t)
-		ctx.vcr.trustConfig.AddTrust(testVC.Type[0], testVC.Issuer)
+		ctx.vcr.trustConfig.AddTrust(testVC.Type[1], testVC.Issuer)
 
 		_, err := ctx.vcr.Resolve(*testVC.ID, &time.Time{})
 		assert.Equal(t, vcrTypes.ErrInvalidPeriod, err)
@@ -255,7 +255,7 @@ func TestVCR_Resolve(t *testing.T) {
 		_ = json.Unmarshal([]byte(concept.TestCredential), &testVC)
 		nextYear, _ := time.Parse(time.RFC3339, "2030-01-02T12:00:00Z")
 		ctx := testInstance(t)
-		ctx.vcr.trustConfig.AddTrust(testVC.Type[0], testVC.Issuer)
+		ctx.vcr.trustConfig.AddTrust(testVC.Type[1], testVC.Issuer)
 
 		_, err := ctx.vcr.Resolve(*testVC.ID, &nextYear)
 		assert.Equal(t, vcrTypes.ErrInvalidPeriod, err)
@@ -668,7 +668,7 @@ func TestVcr_Find(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := testInstance(t)
-		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
+		ctx.vcr.Trust(vc.Type[1], vc.Issuer)
 
 		conc, err := ctx.vcr.Get(concept.ExampleConcept, false, subject)
 		if !assert.NoError(t, err) {
@@ -711,7 +711,7 @@ func TestVCR_Search(t *testing.T) {
 			return
 		}
 
-		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
+		ctx.vcr.Trust(vc.Type[1], vc.Issuer)
 		doc := leia.DocumentFromString(concept.TestCredential)
 		ctx.vcr.store.Collection(concept.ExampleType).Add([]leia.Document{doc})
 		results, _ := ctx.vcr.SearchConcept(context.Background(), "human", false, map[string]string{"human.eyeColour": "blue/grey"})

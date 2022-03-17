@@ -165,6 +165,10 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 	// Check trust status
 	if !allowUntrusted {
 		for _, t := range credentialToVerify.Type {
+			// Don't need to check type "VerifiableCredential"
+			if t.String() == verifiableCredentialType {
+				continue
+			}
 			if !v.trustConfig.IsTrusted(t, credentialToVerify.Issuer) {
 				return types.ErrUntrusted
 			}
