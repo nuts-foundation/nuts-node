@@ -221,9 +221,11 @@ paths:
         * If the issuers of the verifiable credentials are trusted
         * If the issuers of the verifiable credentials were not deactivated at time of issuing
 
+        If the verification can be performed successfully (regardless whether checks failed), HTTP status 200 is returned.
+        Callers MUST observe the "validity" field of the verification result to check whether the VP is valid.
+
         error returns:
         * 400 - A parameter or the format of the verifiable presentation is invalid
-        * 422 - Verification failed, e.g. invalid signature or untrusted VCs.
         * 500 - An error occurred while processing the request
       operationId: "verifyVP"
       tags:

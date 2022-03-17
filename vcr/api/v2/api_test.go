@@ -616,7 +616,7 @@ func TestWrapper_VerifyVP(t *testing.T) {
 		})
 		testContext.mockVerifier.EXPECT().VerifyVP(vp, true, nil).Return(nil, verifier.VerificationError{})
 		errMsg := "verification error: "
-		testContext.echo.EXPECT().JSON(http.StatusUnprocessableEntity, gomock.Eq(VPVerificationResult{
+		testContext.echo.EXPECT().JSON(http.StatusOK, gomock.Eq(VPVerificationResult{
 			Message:  &errMsg,
 			Validity: false,
 		}))

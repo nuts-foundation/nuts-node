@@ -246,7 +246,7 @@ func (w *Wrapper) VerifyVP(ctx echo.Context) error {
 	if err != nil {
 		if errors.Is(err, verifier.VerificationError{}) {
 			msg := err.Error()
-			return ctx.JSON(http.StatusUnprocessableEntity, VPVerificationResult{Validity: false, Message: &msg})
+			return ctx.JSON(http.StatusOK, VPVerificationResult{Validity: false, Message: &msg})
 		}
 		return err
 	}
