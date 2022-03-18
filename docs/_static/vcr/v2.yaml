@@ -246,6 +246,115 @@ paths:
                 $ref: '#/components/schemas/VPVerificationResult'
         default:
           $ref: '../common/error_response.yaml'
+  /internal/vcr/v2/verifier/trust:
+    post:
+      summary: Mark all the VCs of given type and issuer as 'trusted'.
+      description: |
+        The added trust is persisted and may be removed with a delete operation.
+
+        error returns:
+        * 400 - Invalid paramters
+        * 500 - An error occurred while processing the request
+      operationId: "trustIssuer"
+      tags:
+        - credential
+      requestBody:
+        required: true
+        description: a issuer/credentialType combination
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CredentialIssuer"
+      responses:
+        "204":
+          description: The change was accepted.
+        default:
+          $ref: '../common/error_response.yaml'
+    delete:
+      summary: Remove trust in an issuer/credentialType combination
+      description: |
+        The removed trust is persisted.
+
+        error returns:
+        * 400 - Invalid paramters
+        * 500 - An error occurred while processing the request
+      operationId: "untrustIssuer"
+      tags:
+        - credential
+      requestBody:
+        required: true
+        description: a issuer/credentialType combination
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CredentialIssuer"
+      responses:
+        "204":
+          description: The change was accepted.
+        default:
+          $ref: '../common/error_response.yaml'
+  /internal/vcr/v2/verifier/{credentialType}/trusted:
+    get:
+      summary: "List all trusted issuers for a given credential type"
+      description: |
+        List all trusted issuers for a given credential type.
+
+        error returns:
+        * 400 - Malformed credential type
+        * 404 - Unkown credential type
+      operationId: "listTrusted"
+      tags:
+        - credential
+      parameters:
+        - name: credentialType
+          in: path
+          description: URL encoded Verifiable Credential Type.
+          required: true
+          example: "NutsOrganizationCredential"
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of trusted issuers is returned.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DID'
+        default:
+          $ref: '../common/error_response.yaml'
+  /internal/vcr/v2/verifier/{credentialType}/untrusted:
+    get:
+      summary: "List all untrusted issuers for a given credential type"
+      description: |
+        List all untrusted issuers for a given credential type.
+
+        error returns:
+        * 400 - Malformed credential type
+        * 404 - Unkown credential type
+      operationId: "listUntrusted"
+      tags:
+        - credential
+      parameters:
+        - name: credentialType
+          in: path
+          description: URL encoded Verifiable Credential Type.
+          required: true
+          example: "NutsOrganizationCredential"
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of untrusted issuers is returned.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DID'
+        default:
+          $ref: '../common/error_response.yaml'
 
   /internal/vcr/v2/holder/vp:
     post:
@@ -630,3 +739,17 @@ components:
           type: string
           description: JSON Web Signature
           example: eyJhbGciOiJFUzI1NksifQ.eyJzdWIiOiJFQlNJIDIwMTkifQ.oggE3ft3kJYPGGa9eBibpbjgeJXw4fLbVMouVoM2NfcDxsl_UUUIarsS1VpBoYEs7s9cBlc4uC0EbnJCHfVJIw
+    CredentialIssuer:
+      type: object
+      required:
+        - issuer
+        - credentialType
+      properties:
+        issuer:
+          description: the DID of an issuer
+          example: "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY"
+          type: string
+        credentialType:
+          description: a credential type
+          example: NutsOrganizationCredential
+          type: string
