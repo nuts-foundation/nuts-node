@@ -50,6 +50,8 @@ type Verifier interface {
 // ErrNotFound is returned when a credential or revocation can not be found based on its ID.
 var ErrNotFound = errors.New("not found")
 
+const verifiableCredentialType = "VerifiableCredential"
+
 // Store defines the interface for a store for a verifier.
 // The store is filled with public information such as revoked credentials,
 // as well as local defined trust relations between issuer and credential type.

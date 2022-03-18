@@ -27,6 +27,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
+	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/piprate/json-gold/ld"
@@ -47,6 +48,7 @@ type verifier struct {
 	keyResolver   vdr.KeyResolver
 	contextLoader ld.DocumentLoader
 	store         Store
+	trustConfig   *trust.Config
 }
 
 // VerificationError is used to describe a VC/VP verification failure.
@@ -74,8 +76,8 @@ func (e VerificationError) Error() string {
 }
 
 // NewVerifier creates a new instance of the verifier. It needs a key resolver for validating signatures.
-func NewVerifier(store Store, keyResolver vdr.KeyResolver, contextLoader ld.DocumentLoader) Verifier {
-	return &verifier{store: store, keyResolver: keyResolver, contextLoader: contextLoader}
+func NewVerifier(store Store, keyResolver vdr.KeyResolver, contextLoader ld.DocumentLoader, trustConfig *trust.Config) Verifier {
+	return &verifier{store: store, keyResolver: keyResolver, contextLoader: contextLoader, trustConfig: trustConfig}
 }
 
 // validateAtTime is a helper method which checks if a credentia/presentation is valid at a certain given time.
@@ -151,6 +153,7 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 		return err
 	}
 
+	// Check revocation status
 	revoked, err := v.IsRevoked(*credentialToVerify.ID)
 	if err != nil {
 		return err
@@ -159,10 +162,25 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 		return types.ErrRevoked
 	}
 
+	// Check trust status
+	if !allowUntrusted {
+		for _, t := range credentialToVerify.Type {
+			// Don't need to check type "VerifiableCredential"
+			if t.String() == verifiableCredentialType {
+				continue
+			}
+			if !v.trustConfig.IsTrusted(t, credentialToVerify.Issuer) {
+				return types.ErrUntrusted
+			}
+		}
+	}
+
+	// Check issuance/expiration time
 	if err := v.validateAtTime(credentialToVerify.IssuanceDate, credentialToVerify.ExpirationDate, validAt); err != nil {
 		return err
 	}
 
+	// Check signature
 	if checkSignature {
 		return v.Validate(credentialToVerify, validAt)
 	}

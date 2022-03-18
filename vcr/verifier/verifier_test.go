@@ -28,13 +28,17 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
+	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
+	"github.com/nuts-foundation/nuts-node/vcr/trust"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	vdrTypes "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"os"
+	"path"
 	"testing"
 	"time"
 )
@@ -233,9 +237,7 @@ func TestVerifier_Verify(t *testing.T) {
 
 		assert.EqualError(t, err, "unable to resolve valid signing key at given time: not found")
 	})
-}
 
-func Test_verifier_Verify(t *testing.T) {
 	// Verify calls other verifiers / validators.
 	// These test do not try to be complete, only test the calling of these validators and the error handling.
 
@@ -245,7 +247,7 @@ func Test_verifier_Verify(t *testing.T) {
 			ctx := newMockContext(t)
 			ctx.store.EXPECT().GetRevocation(*vc.ID).Return(nil, ErrNotFound)
 			proofs, _ := vc.Proofs()
-			ctx.keyResolver.EXPECT().ResolveSigningKey(proofs[0].VerificationMethod.String(), nil).Return(nil, types.ErrKeyNotFound)
+			ctx.keyResolver.EXPECT().ResolveSigningKey(proofs[0].VerificationMethod.String(), nil).Return(nil, vdrTypes.ErrKeyNotFound)
 			sut := ctx.verifier
 			validationErr := sut.Verify(vc, true, true, nil)
 			assert.EqualError(t, validationErr, "unable to resolve signing key: key not found in DID document")
@@ -259,6 +261,30 @@ func Test_verifier_Verify(t *testing.T) {
 		sut := ctx.verifier
 		validationErr := sut.Verify(vc, true, false, nil)
 		assert.EqualError(t, validationErr, "credential is revoked")
+	})
+
+	t.Run("trust check", func(t *testing.T) {
+		t.Run("trusted", func(t *testing.T) {
+			vc := testCredential(t)
+			vc.Proof[0] = map[string]interface{}{"jws": "foo"}
+			ctx := newMockContext(t)
+			ctx.store.EXPECT().GetRevocation(*vc.ID).Return(nil, ErrNotFound)
+			for _, vcType := range vc.Type {
+				_ = ctx.trustConfig.AddTrust(vcType, vc.Issuer)
+			}
+			sut := ctx.verifier
+			validationErr := sut.Verify(vc, false, false, nil)
+			assert.NoError(t, validationErr)
+		})
+		t.Run("untrusted", func(t *testing.T) {
+			vc := testCredential(t)
+			vc.Proof[0] = map[string]interface{}{"jws": "foo"}
+			ctx := newMockContext(t)
+			ctx.store.EXPECT().GetRevocation(*vc.ID).Return(nil, ErrNotFound)
+			sut := ctx.verifier
+			err := sut.Verify(vc, false, false, nil)
+			assert.ErrorIs(t, err, types.ErrUntrusted)
+		})
 	})
 
 	t.Run("no signature check", func(t *testing.T) {
@@ -578,11 +604,11 @@ func TestVerifier_VerifyVP(t *testing.T) {
 
 		ctx := newMockContext(t)
 		// Return incorrect key, causing signature verification failure
-		ctx.keyResolver.EXPECT().ResolveSigningKey(vpSignerKeyID.String(), validAt).Return(nil, types.ErrKeyNotFound)
+		ctx.keyResolver.EXPECT().ResolveSigningKey(vpSignerKeyID.String(), validAt).Return(nil, vdrTypes.ErrKeyNotFound)
 
 		vcs, err := ctx.verifier.VerifyVP(vp, false, validAt)
 
-		assert.ErrorIs(t, err, types.ErrKeyNotFound)
+		assert.ErrorIs(t, err, vdrTypes.ErrKeyNotFound)
 		assert.Empty(t, vcs)
 	})
 	t.Run("error - invalid proof", func(t *testing.T) {
@@ -650,23 +676,26 @@ func TestVerificationError_Is(t *testing.T) {
 
 type mockContext struct {
 	ctrl        *gomock.Controller
-	keyResolver *types.MockKeyResolver
+	keyResolver *vdrTypes.MockKeyResolver
 	store       *MockStore
+	trustConfig *trust.Config
 	verifier    *verifier
 }
 
 func newMockContext(t *testing.T) mockContext {
 	t.Helper()
 	ctrl := gomock.NewController(t)
-	keyResolver := types.NewMockKeyResolver(ctrl)
+	keyResolver := vdrTypes.NewMockKeyResolver(ctrl)
 	contextLoader, err := signature.NewContextLoader(false)
 	verifierStore := NewMockStore(ctrl)
 	assert.NoError(t, err)
-	verifier := NewVerifier(verifierStore, keyResolver, contextLoader).(*verifier)
+	trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.yaml"))
+	verifier := NewVerifier(verifierStore, keyResolver, contextLoader, trustConfig).(*verifier)
 	return mockContext{
 		ctrl:        ctrl,
 		verifier:    verifier,
 		keyResolver: keyResolver,
 		store:       verifierStore,
+		trustConfig: trustConfig,
 	}
 }

@@ -131,13 +131,17 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		return err
 	}
 
+	// create trust config
+	tcPath := path.Join(config.Datadir, "vcr", "trusted_issuers.yaml")
+	c.trustConfig = trust.NewConfig(tcPath)
+
 	// Create the JSON-LD Context loader
 	allowExternalCalls := !config.Strictmode
 	contextLoader, err := signature.NewContextLoader(allowExternalCalls)
 
 	publisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
 	c.issuer = issuer.NewIssuer(c.issuerStore, publisher, c.docResolver, c.keyStore, contextLoader)
-	c.verifier = verifier.NewVerifier(c.verifierStore, c.keyResolver, contextLoader)
+	c.verifier = verifier.NewVerifier(c.verifierStore, c.keyResolver, contextLoader, c.trustConfig)
 
 	c.ambassador = NewAmbassador(c.network, c, c.verifier)
 
@@ -147,10 +151,6 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	if err = c.loadTemplates(); err != nil {
 		return err
 	}
-
-	// load trusted issuers
-	tcPath := path.Join(config.Datadir, "vcr", "trusted_issuers.yaml")
-	c.trustConfig = trust.NewConfig(tcPath)
 
 	return c.trustConfig.Load()
 }
@@ -413,6 +413,8 @@ func (c *vcr) Validate(credential vc.VerifiableCredential, allowUntrusted bool, 
 		now := timeFunc()
 		validAt = &now
 	}
+
+	// TODO: All calls except verifier.Verify() can be removed when v1 is removed
 
 	// check for old api
 	revoked, err := c.isRevoked(*credential.ID)
