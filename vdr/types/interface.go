@@ -73,10 +73,9 @@ type DocWriter interface {
 type DocUpdater interface {
 	// Update replaces the DID document identified by DID with the nextVersion
 	// To prevent updating stale data a hash of the current version should be provided.
-	// If the given hash does not represents the current version, a ErrUpdateOnOutdatedData is returned
+	// If the given hash does not represent the current version, a ErrUpdateOnOutdatedData is returned
 	// If the DID Document is not found, ErrNotFound is returned
 	// If the DID Document is not managed by this node, ErrDIDNotManagedByThisNode is returned
-	// If the DID Document is not active, ErrDeactivated is returned
 	Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *DocumentMetadata) error
 }
 
@@ -112,6 +111,8 @@ type DocIterator func(doc did.Document, metadata DocumentMetadata) error
 
 // Store is the interface that groups all low level VDR DID storage operations.
 type Store interface {
+	// Processed returns true if a DID Document has already been processed for the given TX hash.
+	Processed(hash hash.SHA256Hash) (bool, error)
 	// Resolve returns the DID Document for the provided DID.
 	// If metadata is not provided the latest version is returned.
 	// If metadata is provided then the result is filtered or scoped on that metadata.

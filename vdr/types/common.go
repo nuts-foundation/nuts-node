@@ -53,10 +53,6 @@ var ErrDuplicateService = errors.New("service type is duplicate")
 // ErrServiceNotFound is returned when the service is not found on a DID
 var ErrServiceNotFound = errors.New("service not found in DID Document")
 
-// DIDDocumentResolveEpoch represents the epoch on which DID Document resolving switched from time based to hash based
-// GMT: Saturday, 27 November 2021 08:00:00
-var DIDDocumentResolveEpoch = time.Unix(1638000000, 0)
-
 // ErrServiceReferenceToDeep is returned when a service reference is chain is nested too deeply.
 var ErrServiceReferenceToDeep = errors.New("service references are nested to deeply before resolving to a non-reference")
 

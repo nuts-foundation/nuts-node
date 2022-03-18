@@ -220,7 +220,8 @@ func ExtractAssertionKeyID(doc did.Document) (ssi.URI, error) {
 
 func (r KeyResolver) ResolvePublicKeyInTime(kid string, validAt *time.Time) (crypto.PublicKey, error) {
 	return r.resolvePublicKey(kid, types.ResolveMetadata{
-		ResolveTime: validAt,
+		AllowDeactivated: true,
+		ResolveTime:      validAt,
 	})
 }
 

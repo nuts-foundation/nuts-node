@@ -90,6 +90,16 @@ func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
 		return fmt.Errorf("could not process new DID Document: %w", err)
 	}
 
+	// check if already processed
+	processed, err := n.didStore.Processed(tx.Ref())
+	if err != nil {
+		return fmt.Errorf("could not process new DID Document: %w", err)
+	}
+	if processed {
+		log.Logger().Debugf("Skipping DID document, already exists (tx=%s)", tx.Ref().String())
+		return nil
+	}
+
 	// Unmarshal the next/new proposed version of the DID Document
 	var nextDIDDocument did.Document
 	if err := json.Unmarshal(payload, &nextDIDDocument); err != nil {
@@ -98,20 +108,6 @@ func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
 
 	if err := CreateDocumentValidator().Validate(nextDIDDocument); err != nil {
 		return fmt.Errorf("callback could not process new DID Document, DID Document integrity check failed: %w", err)
-	}
-
-	// we check the VDR if the document is already processed by using the transaction hash
-	sourceTX := tx.Ref()
-	doc, _, err := n.didStore.Resolve(nextDIDDocument.ID, &types.ResolveMetadata{
-		SourceTransaction: &sourceTX,
-		AllowDeactivated:  true,
-	})
-	if err != nil && !errors.Is(err, types.ErrNotFound) {
-		return fmt.Errorf("could not process new DID Document: %w", err)
-	}
-	if doc != nil {
-		log.Logger().Infof("Skipping DID document, already exists (tx=%s)", tx.Ref().String())
-		return nil
 	}
 
 	if n.isUpdate(tx) {
@@ -188,14 +184,13 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, propos
 func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, proposedDIDDocument did.Document) error {
 	log.Logger().Debugf("Handling DID document update (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
 	// Resolve latest version of DID Document
-	currentDIDDocument, currentDIDMeta, err := n.didStore.Resolve(proposedDIDDocument.ID, nil)
+	currentDIDDocument, currentDIDMeta, err := n.didStore.Resolve(proposedDIDDocument.ID, &types.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {
 		return fmt.Errorf("unable to update DID document: %w", err)
 	}
 
 	// Resolve controllers of current version (could be the same document)
-	signingTime := transaction.SigningTime()
-	didControllers, err := n.docResolver.ResolveControllers(*currentDIDDocument, &types.ResolveMetadata{ResolveTime: &signingTime})
+	didControllers, err := n.resolveControllers(*currentDIDDocument, transaction)
 	if err != nil {
 		return fmt.Errorf("unable to resolve DID document's controllers: %w", err)
 	}
@@ -210,11 +205,15 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 	// In an update, only the keyID is provided in the network document. Resolve the key from the key store
 	// This should succeed since the signature of the network document has already been verified.
 	var pKey crypto.PublicKey
-	if signingTime.After(types.DIDDocumentResolveEpoch) {
-		pKey, err = n.keyResolver.ResolvePublicKey(transaction.SigningKeyID(), transaction.Previous())
-	} else {
+	signingTime := transaction.SigningTime()
+	pKey, err = n.keyResolver.ResolvePublicKey(transaction.SigningKeyID(), transaction.Previous())
+	if err != nil {
+		if !errors.Is(err, types.ErrNotFound) {
+			return fmt.Errorf("unable to resolve signingkey: %w", err)
+		}
 		pKey, err = n.keyResolver.ResolvePublicKeyInTime(transaction.SigningKeyID(), &signingTime)
 	}
+
 	if err != nil {
 		return fmt.Errorf("unable to resolve signingkey: %w", err)
 	}
@@ -265,6 +264,33 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 		log.Logger().Infof("DID document updated (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
 	}
 	return err
+}
+
+func (n *ambassador) resolveControllers(document did.Document, transaction dag.Transaction) ([]did.Document, error) {
+	controllers := make([]did.Document, 0)
+	signingTime := transaction.SigningTime()
+
+	for _, prev := range transaction.Previous() {
+		didControllers, err := n.docResolver.ResolveControllers(document, &types.ResolveMetadata{SourceTransaction: &prev})
+		if err != nil {
+			if errors.Is(err, types.ErrNotFound) || errors.Is(err, types.ErrNoActiveController) {
+				continue
+			}
+			return nil, err
+		}
+		controllers = append(controllers, didControllers...)
+	}
+
+	// legacy resolve
+	if len(controllers) == 0 {
+		didControllers, err := n.docResolver.ResolveControllers(document, &types.ResolveMetadata{ResolveTime: &signingTime})
+		if err != nil {
+			return nil, err
+		}
+		controllers = append(controllers, didControllers...)
+	}
+
+	return controllers, nil
 }
 
 func sortHashes(input []hash.SHA256Hash) {

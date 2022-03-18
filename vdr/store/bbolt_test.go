@@ -17,13 +17,13 @@ package store
 
 import (
 	"errors"
-	"io/ioutil"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
 	"go.etcd.io/bbolt"
 
@@ -35,13 +35,36 @@ func newBBoltTestStore(t *testing.T) *bboltStore {
 	opts := *bbolt.DefaultOptions
 	opts.NoSync = true
 
-	dir, err := ioutil.TempDir("/tmp", "go_test_vdr_bboltstore")
-	assert.NoError(t, err)
+	testDir := io.TestDirectory(t)
 
-	db, err := bbolt.Open(filepath.Join(dir, "bbolt.db"), 0644, &opts)
-	assert.NoError(t, err)
+	store := NewBBoltStore().(*bboltStore)
+	store.Configure(core.ServerConfig{Datadir: testDir})
+	return store
+}
 
-	return NewBBoltStore(db).(*bboltStore)
+func TestBboltStore_Configure(t *testing.T) {
+	t.Run("error - unable to create DB", func(t *testing.T) {
+		store := NewBBoltStore().(core.Configurable)
+
+		err := store.Configure(core.ServerConfig{Datadir: "bbolt_test.go"})
+
+		assert.Error(t, err)
+	})
+}
+func TestBBoltStore_Start(t *testing.T) {
+	store := NewBBoltStore().(core.Runnable)
+
+	err := store.Start()
+
+	assert.NoError(t, err)
+}
+
+func TestBBoltStore_Shutdown(t *testing.T) {
+	store := NewBBoltStore().(core.Runnable)
+
+	err := store.Shutdown()
+
+	assert.NoError(t, err)
 }
 
 func TestBBoltStore_Write(t *testing.T) {
@@ -58,163 +81,174 @@ func TestBBoltStore_Write(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("doesn't return an error when already exist", func(t *testing.T) {
+	t.Run("does return an error when already exist", func(t *testing.T) {
 		err := store.Write(doc, meta)
-		assert.NoError(t, err)
+		assert.Equal(t, types.ErrDIDAlreadyExists, err)
+	})
+}
+
+func TestBboltStore_Processed(t *testing.T) {
+	store := newBBoltTestStore(t)
+	did1, _ := did.ParseDID("did:nuts:1")
+	doc := did.Document{
+		ID: *did1,
+	}
+	meta := types.DocumentMetadata{
+		SourceTransactions: []hash.SHA256Hash{hash.EmptyHash()},
+	}
+
+	err := store.Write(doc, meta)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	t.Run("returns true for processed hash", func(t *testing.T) {
+		processed, err := store.Processed(hash.EmptyHash())
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.True(t, processed)
+	})
+
+	t.Run("returns false for non-processed hash", func(t *testing.T) {
+		processed, err := store.Processed(hash.SHA256Sum([]byte{1}))
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.False(t, processed)
 	})
 }
 
 func TestBBoltStore_Resolve(t *testing.T) {
-	store := newBBoltTestStore(t)
 	did1, _ := did.ParseDID("did:nuts:1")
-	doc := did.Document{
-		ID:         *did1,
-		Controller: []did.DID{*did1},
-	}
-
-	firstHash, _ := hash.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4619")
-	txHash := hash.FromSlice([]byte("keyTransactionHash"))
-	firstMeta := types.DocumentMetadata{
-		Created:            time.Now().Add(time.Hour * -48),
-		Hash:               firstHash,
-		SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), txHash},
-	}
-
-	err := store.Write(doc, firstMeta)
-	assert.NoError(t, err)
-
-	latestHash, _ := hash.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
-	meta := types.DocumentMetadata{
-		Created:            time.Now().Add(time.Hour * -24),
-		Hash:               latestHash,
-		SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), txHash},
-	}
-
-	err = store.Update(*did1, firstHash, doc, &meta)
-	assert.NoError(t, err)
-
-	t.Run("returns ErrNotFound on unknown did", func(t *testing.T) {
-		did2, _ := did.ParseDID("did:nuts:2")
-		_, _, err := store.Resolve(*did2, nil)
-		assert.Equal(t, types.ErrNotFound, err)
-	})
-
-	t.Run("returns the last document without resolve metadata", func(t *testing.T) {
-		d, m, err := store.Resolve(*did1, nil)
-		if !assert.NoError(t, err) {
-			return
+	t.Run("with preloaded data", func(t *testing.T) {
+		store := newBBoltTestStore(t)
+		doc := did.Document{
+			ID:         *did1,
+			Controller: []did.DID{*did1},
 		}
-		assert.NotNil(t, d)
-		assert.NotNil(t, m)
-		assert.Equal(t, m.Hash, latestHash)
-	})
 
-	t.Run("returns document with resolve metadata - selection on date", func(t *testing.T) {
-		now := time.Now()
-		d, m, err := store.Resolve(*did1, &types.ResolveMetadata{
-			ResolveTime: &now,
-		})
-		if !assert.NoError(t, err) {
-			return
+		firstHash, _ := hash.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4619")
+		txHash := hash.FromSlice([]byte("keyTransactionHash"))
+		firstMeta := types.DocumentMetadata{
+			Created:            time.Now().Add(time.Hour * -48),
+			Hash:               firstHash,
+			SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), txHash},
 		}
-		assert.NotNil(t, d)
-		assert.NotNil(t, m)
-	})
 
-	t.Run("returns no document with resolve metadata - selection on date", func(t *testing.T) {
-		before := time.Now().Add(time.Hour * -48)
-		_, _, err := store.Resolve(*did1, &types.ResolveMetadata{
-			ResolveTime: &before,
-		})
-		assert.Equal(t, types.ErrNotFound, err)
-	})
+		err := store.Write(doc, firstMeta)
+		assert.NoError(t, err)
 
-	t.Run("returns document with resolve metadata - selection on hash", func(t *testing.T) {
-		d, m, err := store.Resolve(*did1, &types.ResolveMetadata{
-			Hash: &firstHash,
-		})
-		if !assert.NoError(t, err) {
-			return
+		updatedAt := time.Now().Add(time.Hour * -24)
+		latestHash, _ := hash.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
+		meta := types.DocumentMetadata{
+			Created:            firstMeta.Created,
+			Updated:            &updatedAt,
+			Hash:               latestHash,
+			SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), txHash},
 		}
-		assert.NotNil(t, d)
-		assert.NotNil(t, m)
+
+		err = store.Update(*did1, firstHash, doc, &meta)
+		assert.NoError(t, err)
+
+		t.Run("returns ErrNotFound on unknown did", func(t *testing.T) {
+			did2, _ := did.ParseDID("did:nuts:2")
+			_, _, err := store.Resolve(*did2, nil)
+			assert.Equal(t, types.ErrNotFound, err)
+		})
+
+		t.Run("returns the last document without resolve metadata", func(t *testing.T) {
+			d, m, err := store.Resolve(*did1, nil)
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.NotNil(t, d)
+			assert.NotNil(t, m)
+			assert.Equal(t, m.Hash, latestHash)
+		})
+
+		t.Run("returns document with resolve metadata - selection on date", func(t *testing.T) {
+			now := time.Now()
+			d, m, err := store.Resolve(*did1, &types.ResolveMetadata{
+				ResolveTime: &now,
+			})
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.NotNil(t, d)
+			assert.NotNil(t, m)
+			assert.Equal(t, m.Hash, latestHash)
+		})
+
+		t.Run("returns no document with resolve metadata - selection on date", func(t *testing.T) {
+			before := time.Now().Add(time.Hour * -49)
+			_, _, err := store.Resolve(*did1, &types.ResolveMetadata{
+				ResolveTime: &before,
+			})
+			assert.Equal(t, types.ErrNotFound, err)
+		})
+
+		t.Run("returns first document with resolve metadata - selection on date", func(t *testing.T) {
+			before := time.Now().Add(time.Hour * -32)
+
+			d, m, err := store.Resolve(*did1, &types.ResolveMetadata{
+				ResolveTime: &before,
+			})
+
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.NotNil(t, d)
+			assert.NotNil(t, m)
+			assert.Equal(t, firstHash.String(), m.Hash.String())
+		})
+
+		t.Run("returns document with resolve metadata - selection on hash", func(t *testing.T) {
+			d, m, err := store.Resolve(*did1, &types.ResolveMetadata{
+				Hash: &firstHash,
+			})
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.NotNil(t, d)
+			assert.NotNil(t, m)
+		})
+
+		t.Run("returns document with resolve metadata - selection on KeyTransaction", func(t *testing.T) {
+			d, m, err := store.Resolve(*did1, &types.ResolveMetadata{
+				SourceTransaction: &txHash,
+			})
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.NotNil(t, d)
+			assert.NotNil(t, m)
+		})
+
+		t.Run("returns no document with resolve metadata - selection on KeyTransaction", func(t *testing.T) {
+			_, _, err := store.Resolve(*did1, &types.ResolveMetadata{
+				SourceTransaction: &latestHash,
+			})
+			if !assert.Error(t, err) {
+				return
+			}
+			assert.Equal(t, types.ErrNotFound, err)
+		})
 	})
 
-	t.Run("returns document with resolve metadata - selection on KeyTransaction", func(t *testing.T) {
-		d, m, err := store.Resolve(*did1, &types.ResolveMetadata{
-			SourceTransaction: &txHash,
-		})
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.NotNil(t, d)
-		assert.NotNil(t, m)
-	})
+	t.Run("returns not found for empty DB", func(t *testing.T) {
+		store := newBBoltTestStore(t)
 
-	t.Run("returns no document with resolve metadata - selection on KeyTransaction", func(t *testing.T) {
-		_, _, err := store.Resolve(*did1, &types.ResolveMetadata{
-			SourceTransaction: &latestHash,
-		})
+		_, _, err := store.Resolve(*did1, nil)
+
 		if !assert.Error(t, err) {
 			return
 		}
 		assert.Equal(t, types.ErrNotFound, err)
 	})
-}
 
-func TestBBoltStore_TimeSelectionFilter(t *testing.T) {
-	earlier := time.Now().Add(time.Hour * -24)
-	now := time.Now()
-	later := time.Now().Add(time.Hour * 24)
-
-	metadata := types.ResolveMetadata{
-		ResolveTime: &now,
-	}
-	f := timeSelectionFilter(metadata)
-
-	t.Run("returns false when created later", func(t *testing.T) {
-		entry := memoryEntry{
-			metadata: types.DocumentMetadata{
-				Created: later,
-			},
-		}
-		assert.False(t, f(entry))
-	})
-
-	t.Run("returns true when created earlier", func(t *testing.T) {
-		entry := memoryEntry{
-			metadata: types.DocumentMetadata{
-				Created: earlier,
-			},
-		}
-		assert.True(t, f(entry))
-	})
-
-	t.Run("returns false when next document was updated earlier", func(t *testing.T) {
-		entry := memoryEntry{
-			metadata: types.DocumentMetadata{
-				Created: earlier,
-				Updated: &earlier,
-			},
-			next: &memoryEntry{
-				metadata: types.DocumentMetadata{
-					Created: earlier,
-					Updated: &earlier,
-				},
-			},
-		}
-		assert.False(t, f(entry))
-	})
-
-	t.Run("returns false when document was updated later", func(t *testing.T) {
-		entry := memoryEntry{
-			metadata: types.DocumentMetadata{
-				Created: earlier,
-				Updated: &later,
-			},
-		}
-		assert.False(t, f(entry))
-	})
 }
 
 func TestBBoltStore_Update(t *testing.T) {
@@ -255,20 +289,6 @@ func TestBBoltStore_Update(t *testing.T) {
 		assert.Equal(t, h, m.Hash)
 	})
 
-	t.Run("updates the previous record", func(t *testing.T) {
-		later := time.Now().Add(time.Hour * 24)
-		meta = types.DocumentMetadata{
-			Hash:    h,
-			Created: time.Now(),
-			Updated: &later,
-		}
-		err := store.Update(*did1, h, doc, &meta)
-		assert.NoError(t, err)
-
-		//s := store.(*memory)
-		//assert.NotNil(t, s.store[did1.String()][0].next)
-	})
-
 	t.Run("returns error when DID document doesn't exist", func(t *testing.T) {
 		did1, _ := did.ParseDID("did:nuts:2")
 		err := store.Update(*did1, h, doc, &meta)
@@ -279,20 +299,6 @@ func TestBBoltStore_Update(t *testing.T) {
 		h, _ := hash.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4621")
 		err := store.Update(*did1, h, doc, &meta)
 		assert.Equal(t, types.ErrUpdateOnOutdatedData, err)
-	})
-
-	t.Run("returns error when DID Document is deactivated", func(t *testing.T) {
-		did1, _ := did.ParseDID("did:nuts:2")
-		doc := did.Document{
-			ID: *did1,
-		}
-		err := store.Write(doc, meta)
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		err = store.Update(*did1, h, doc, &meta)
-		assert.Equal(t, types.ErrDeactivated, err)
 	})
 }
 
@@ -407,7 +413,7 @@ func TestBBoltStore_DeactivatedFilter(t *testing.T) {
 
 	t.Run("returns error when document is deactivated", func(t *testing.T) {
 		_, _, err := store.Resolve(*did1, nil)
-		assert.ErrorIs(t, types.ErrDeactivated, err)
+		assert.ErrorIs(t, err, types.ErrNotFound)
 	})
 
 	t.Run("returns deactivated document when allow deactivated is enabled in metadata", func(t *testing.T) {

@@ -236,20 +236,6 @@ func TestMemory_Update(t *testing.T) {
 		err := store.Update(*did1, h, doc, &meta)
 		assert.Equal(t, types.ErrUpdateOnOutdatedData, err)
 	})
-
-	t.Run("returns error when DID Document is deactivated", func(t *testing.T) {
-		did1, _ := did.ParseDID("did:nuts:2")
-		doc := did.Document{
-			ID: *did1,
-		}
-		err := store.Write(doc, meta)
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		err = store.Update(*did1, h, doc, &meta)
-		assert.Equal(t, types.ErrDeactivated, err)
-	})
 }
 
 func TestMemory_Parallelism(t *testing.T) {

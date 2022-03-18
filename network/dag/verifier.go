@@ -51,20 +51,17 @@ func NewTransactionSignatureVerifier(resolver types.KeyResolver) Verifier {
 			}
 		} else {
 			signingTime := tx.SigningTime()
-			if signingTime.After(types.DIDDocumentResolveEpoch) {
-				pk, err := resolver.ResolvePublicKey(tx.SigningKeyID(), tx.Previous())
-				if err != nil {
+			pk, err := resolver.ResolvePublicKey(tx.SigningKeyID(), tx.Previous())
+			if err != nil {
+				if !errors.Is(err, types.ErrNotFound) {
 					return fmt.Errorf("unable to verify transaction signature, can't resolve key by TX ref (kid=%s, tx=%s): %w", tx.SigningKeyID(), tx.Ref().String(), err)
 				}
-				signingKey = pk
-			} else {
-				// legacy resolving for older documents
-				pk, err := resolver.ResolvePublicKeyInTime(tx.SigningKeyID(), &signingTime)
+				pk, err = resolver.ResolvePublicKeyInTime(tx.SigningKeyID(), &signingTime)
 				if err != nil {
 					return fmt.Errorf("unable to verify transaction signature, can't resolve key by signing time (kid=%s): %w", tx.SigningKeyID(), err)
 				}
-				signingKey = pk
 			}
+			signingKey = pk
 		}
 		// TODO: jws.Verify parses the JWS again, which we already did when parsing the transaction. If we want to optimize
 		// this we need to implement a custom verifier.

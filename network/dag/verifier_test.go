@@ -114,31 +114,31 @@ func TestTransactionSignatureVerifier(t *testing.T) {
 		err := NewTransactionSignatureVerifier(nil)(context.Background(), transaction, nil)
 		assert.EqualError(t, err, "failed to build public key: invalid curve algorithm P-invalid")
 	})
-	t.Run("unable to resolve key by time", func(t *testing.T) {
-		aWhileBack := types.DIDDocumentResolveEpoch.Add(-1 * time.Second)
-		d := CreateSignedTestTransaction(1, aWhileBack, nil, "foo/bar", false)
+	t.Run("unable to resolve key by hash", func(t *testing.T) {
+		d := CreateSignedTestTransaction(1, time.Now(), nil, "foo/bar", false)
 		ctrl := gomock.NewController(t)
 		keyResolver := types.NewMockKeyResolver(ctrl)
+		keyResolver.EXPECT().ResolvePublicKey(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
+
+		err := NewTransactionSignatureVerifier(keyResolver)(context.Background(), d, nil)
+		if !assert.Error(t, err) {
+			return
+		}
+
+		assert.Contains(t, err.Error(), "unable to verify transaction signature, can't resolve key by TX ref")
+		assert.Contains(t, err.Error(), "failed")
+	})
+	t.Run("unable to resolve key by hash and time", func(t *testing.T) {
+		d := CreateSignedTestTransaction(1, time.Now(), nil, "foo/bar", false)
+		ctrl := gomock.NewController(t)
+		keyResolver := types.NewMockKeyResolver(ctrl)
+		keyResolver.EXPECT().ResolvePublicKey(gomock.Any(), gomock.Any()).Return(nil, types.ErrNotFound)
 		keyResolver.EXPECT().ResolvePublicKeyInTime(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
 		err := NewTransactionSignatureVerifier(keyResolver)(context.Background(), d, nil)
 		if !assert.Error(t, err) {
 			return
 		}
 		assert.Contains(t, err.Error(), "unable to verify transaction signature, can't resolve key by signing time")
-		assert.Contains(t, err.Error(), "failed")
-	})
-	t.Run("unable to resolve key by hash", func(t *testing.T) {
-		after := types.DIDDocumentResolveEpoch.Add(1 * time.Second)
-		root, _, _ := CreateTestTransaction(0)
-		d := CreateSignedTestTransaction(1, after, nil, "foo/bar", false, root)
-		ctrl := gomock.NewController(t)
-		keyResolver := types.NewMockKeyResolver(ctrl)
-		keyResolver.EXPECT().ResolvePublicKey(gomock.Any(), []hash.SHA256Hash{root.Ref()}).Return(nil, errors.New("failed"))
-		err := NewTransactionSignatureVerifier(keyResolver)(context.Background(), d, nil)
-		if !assert.Error(t, err) {
-			return
-		}
-		assert.Contains(t, err.Error(), "unable to verify transaction signature, can't resolve key by TX ref")
 		assert.Contains(t, err.Error(), "failed")
 	})
 }
