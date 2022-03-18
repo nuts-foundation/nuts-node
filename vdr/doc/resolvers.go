@@ -210,9 +210,7 @@ func (r KeyResolver) ResolveKeyAgreementKey(id did.DID) (crypto.PublicKey, error
 func ExtractAssertionKeyID(doc did.Document) (ssi.URI, error) {
 	keys := doc.AssertionMethod
 	for _, key := range keys {
-		kid := key.ID.String()
-		u, _ := ssi.ParseURI(kid)
-		return *u, nil
+		return ssi.MustParseURI(key.ID.String()), nil
 	}
 
 	return ssi.URI{}, types.ErrKeyNotFound

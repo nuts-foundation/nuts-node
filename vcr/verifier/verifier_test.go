@@ -107,8 +107,8 @@ func Test_verifier_Validate(t *testing.T) {
 		vc2 := testCredential(t)
 		pr := make([]vc.JSONWebSignature2020Proof, 0)
 		_ = vc2.UnmarshalProofValue(&pr)
-		u, _ := ssi.ParseURI(vc2.Issuer.String() + "2")
-		pr[0].VerificationMethod = *u
+		u := ssi.MustParseURI(vc2.Issuer.String() + "2")
+		pr[0].VerificationMethod = u
 		vc2.Proof = []interface{}{pr[0]}
 
 		err := instance.Validate(vc2, nil)
@@ -232,8 +232,8 @@ func TestVerifier_Verify(t *testing.T) {
 		instance := ctx.verifier
 		subject := testCredential(t)
 
-		credentialType, _ := ssi.ParseURI("unknown type")
-		subject.Type = []ssi.URI{vc.VerifiableCredentialTypeV1URI(), *credentialType}
+		credentialType := ssi.MustParseURI("unknown type")
+		subject.Type = []ssi.URI{vc.VerifiableCredentialTypeV1URI(), credentialType}
 
 		err := instance.Verify(subject, true, false, nil)
 

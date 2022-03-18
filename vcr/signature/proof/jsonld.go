@@ -126,8 +126,7 @@ func (p *LDProof) Sign(document Document, suite signature.Suite, key nutsCrypto.
 	if p.Created.IsZero() {
 		p.Created = time.Now()
 	}
-	vm, _ := ssi.ParseURI(key.KID())
-	p.VerificationMethod = *vm
+	p.VerificationMethod = ssi.MustParseURI(key.KID())
 
 	canonicalDocument, err := suite.CanonicalizeDocument(document)
 	if err != nil {

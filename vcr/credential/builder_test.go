@@ -32,8 +32,8 @@ import (
 )
 
 func TestGenerateID(t *testing.T) {
-	issuer, _ := ssi.ParseURI(vdr.TestDIDA.String())
-	id := generateID(*issuer)
+	issuer := ssi.MustParseURI(vdr.TestDIDA.String())
+	id := generateID(issuer)
 
 	if !assert.NotNil(t, id) {
 		return
@@ -54,9 +54,9 @@ func TestDefaultBuilder_Type(t *testing.T) {
 
 func TestDefaultBuilder_Fill(t *testing.T) {
 	b := defaultBuilder{vcType: "type"}
-	issuer, _ := ssi.ParseURI(vdr.TestDIDA.String())
+	issuer := ssi.MustParseURI(vdr.TestDIDA.String())
 	subject := &vc.VerifiableCredential{
-		Issuer: *issuer,
+		Issuer: issuer,
 	}
 	defer func() {
 		nowFunc = time.Now
@@ -74,9 +74,9 @@ func TestDefaultBuilder_Fill(t *testing.T) {
 	})
 
 	t.Run("adds type", func(t *testing.T) {
-		vcType, _ := ssi.ParseURI("type")
+		vcType := ssi.MustParseURI("type")
 		assert.True(t, subject.IsType(vc.VerifiableCredentialTypeV1URI()))
-		assert.True(t, subject.IsType(*vcType))
+		assert.True(t, subject.IsType(vcType))
 	})
 
 	t.Run("adds issuanceDate", func(t *testing.T) {
@@ -94,7 +94,7 @@ func TestDefaultBuilder_Fill(t *testing.T) {
 	t.Run("default VC type is not added twice if already present", func(t *testing.T) {
 		subject := &vc.VerifiableCredential{
 			Type:   []ssi.URI{vc.VerifiableCredentialTypeV1URI()},
-			Issuer: *issuer,
+			Issuer: issuer,
 		}
 		b.Fill(subject)
 		assert.Len(t, subject.Type, 2)

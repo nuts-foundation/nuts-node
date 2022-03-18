@@ -93,9 +93,9 @@ func TestRegistry_Transform(t *testing.T) {
 	})
 
 	t.Run("error - unknown type", func(t *testing.T) {
-		vcType, _ := ssi.ParseURI("unknownType")
+		vcType := ssi.MustParseURI("unknownType")
 		vc := vc.VerifiableCredential{
-			Type: []ssi.URI{*vcType},
+			Type: []ssi.URI{vcType},
 		}
 
 		_, err = r.Transform("human", vc)

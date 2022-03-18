@@ -104,10 +104,10 @@ func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.Verifiab
 		return nil, fmt.Errorf("failed to parse issuer: %w", err)
 	}
 
-	credentialID, _ := ssi.ParseURI(fmt.Sprintf("%s#%s", issuer.String(), uuid.New().String()))
+	credentialID := ssi.MustParseURI(fmt.Sprintf("%s#%s", issuer.String(), uuid.New().String()))
 	unsignedCredential := vc.VerifiableCredential{
 		Context:           append(credentialOptions.Context, vc.VCContextV1URI()),
-		ID:                credentialID,
+		ID:                &credentialID,
 		Type:              credentialOptions.Type,
 		CredentialSubject: credentialOptions.CredentialSubject,
 		Issuer:            credentialOptions.Issuer,

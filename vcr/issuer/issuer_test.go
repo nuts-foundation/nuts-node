@@ -38,8 +38,8 @@ import (
 )
 
 func Test_issuer_buildVC(t *testing.T) {
-	credentialType, _ := ssi.ParseURI("TestCredential")
-	issuerID, _ := ssi.ParseURI("did:nuts:123")
+	credentialType := ssi.MustParseURI("TestCredential")
+	issuerID := ssi.MustParseURI("did:nuts:123")
 	issuerDID, _ := did.ParseDID(issuerID.String())
 
 	t.Run("it issues a VC", func(t *testing.T) {
@@ -51,15 +51,15 @@ func Test_issuer_buildVC(t *testing.T) {
 		keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any()).Return(crypto.NewTestKey(kid), nil)
 		contextLoader, _ := signature.NewContextLoader(false)
 		sut := issuer{keyResolver: keyResolverMock, contextLoader: contextLoader}
-		schemaOrgContext, _ := ssi.ParseURI("https://schema.org")
+		schemaOrgContext := ssi.MustParseURI("https://schema.org")
 
 		issuance, err := time.Parse(time.RFC3339, "2022-01-02T12:00:00Z")
 		assert.NoError(t, err)
 
 		credentialOptions := vc.VerifiableCredential{
-			Context:      []ssi.URI{*schemaOrgContext},
-			Type:         []ssi.URI{*credentialType},
-			Issuer:       *issuerID,
+			Context:      []ssi.URI{schemaOrgContext},
+			Type:         []ssi.URI{credentialType},
+			Issuer:       issuerID,
 			IssuanceDate: issuance,
 			CredentialSubject: []interface{}{map[string]interface{}{
 				"id": "did:nuts:456",
@@ -69,11 +69,11 @@ func Test_issuer_buildVC(t *testing.T) {
 		if !assert.NoError(t, err) || !assert.NotNil(t, result) {
 			return
 		}
-		assert.Contains(t, result.Type, *credentialType, "expected vc to be of right type")
+		assert.Contains(t, result.Type, credentialType, "expected vc to be of right type")
 		proofs, _ := result.Proofs()
 		assert.Equal(t, kid, proofs[0].VerificationMethod.String(), "expected to be signed with the kid")
 		assert.Equal(t, issuerID.String(), result.Issuer.String(), "expected correct issuer")
-		assert.Contains(t, result.Context, *schemaOrgContext)
+		assert.Contains(t, result.Context, schemaOrgContext)
 		assert.Contains(t, result.Context, vc.VCContextV1URI())
 		assert.Equal(t, issuance, proofs[0].Created)
 	})
@@ -95,7 +95,7 @@ func Test_issuer_buildVC(t *testing.T) {
 			sut := issuer{}
 
 			credentialOptions := vc.VerifiableCredential{
-				Type: []ssi.URI{*credentialType},
+				Type: []ssi.URI{credentialType},
 			}
 			result, err := sut.buildVC(credentialOptions)
 
@@ -112,12 +112,12 @@ func Test_issuer_buildVC(t *testing.T) {
 			keyResolverMock := NewMockkeyResolver(ctrl)
 			keyResolverMock.EXPECT().ResolveAssertionKey(*issuerDID).Return(nil, errors.New("b00m!"))
 			sut := issuer{keyResolver: keyResolverMock}
-			schemaOrgContext, _ := ssi.ParseURI("http://schema.org")
+			schemaOrgContext := ssi.MustParseURI("http://schema.org")
 
 			credentialOptions := vc.VerifiableCredential{
-				Context: []ssi.URI{*schemaOrgContext},
-				Type:    []ssi.URI{*credentialType},
-				Issuer:  *issuerID,
+				Context: []ssi.URI{schemaOrgContext},
+				Type:    []ssi.URI{credentialType},
+				Issuer:  issuerID,
 				CredentialSubject: []interface{}{map[string]interface{}{
 					"id": "did:nuts:456",
 				}},
@@ -130,12 +130,12 @@ func Test_issuer_buildVC(t *testing.T) {
 }
 
 func Test_issuer_Issue(t *testing.T) {
-	credentialType, _ := ssi.ParseURI("TestCredential")
-	issuerID, _ := ssi.ParseURI("did:nuts:123")
+	credentialType := ssi.MustParseURI("TestCredential")
+	issuerID := ssi.MustParseURI("did:nuts:123")
 	credentialOptions := vc.VerifiableCredential{
 		Context: []ssi.URI{*credential.NutsContextURI},
-		Type:    []ssi.URI{*credentialType},
-		Issuer:  *issuerID,
+		Type:    []ssi.URI{credentialType},
+		Issuer:  issuerID,
 		CredentialSubject: []interface{}{map[string]interface{}{
 			"id": "did:nuts:456",
 		}},
@@ -157,14 +157,14 @@ func Test_issuer_Issue(t *testing.T) {
 
 		result, err := sut.Issue(credentialOptions, false, true)
 		assert.NoError(t, err)
-		assert.Contains(t, result.Type, *credentialType, "expected vc to be of right type")
+		assert.Contains(t, result.Type, credentialType, "expected vc to be of right type")
 		proofs, _ := result.Proofs()
 		assert.Equal(t, kid, proofs[0].VerificationMethod.String(), "expected to be signed with the kid")
 		assert.Equal(t, issuerID.String(), result.Issuer.String(), "expected correct issuer")
 		assert.Contains(t, result.Context, *credential.NutsContextURI)
 		assert.Contains(t, result.Context, vc.VCContextV1URI())
 		// Assert issuing a credential makes it trusted
-		assert.True(t, trustConfig.IsTrusted(*credentialType, result.Issuer))
+		assert.True(t, trustConfig.IsTrusted(credentialType, result.Issuer))
 	})
 
 	t.Run("error - from used services", func(t *testing.T) {
@@ -212,7 +212,7 @@ func Test_issuer_Issue(t *testing.T) {
 
 			credentialOptions := vc.VerifiableCredential{
 				Type:   []ssi.URI{},
-				Issuer: *issuerID,
+				Issuer: issuerID,
 			}
 
 			result, err := sut.Issue(credentialOptions, true, true)
@@ -243,12 +243,12 @@ func Test_issuer_buildRevocation(t *testing.T) {
 		keyResolverMock := NewMockkeyResolver(ctrl)
 		keyResolverMock.EXPECT().ResolveAssertionKey(*issuerDID).Return(crypto.NewTestKey(kid), nil)
 
-		credentialID, _ := ssi.ParseURI("did:nuts:123#" + uuid.NewString())
+		credentialID := ssi.MustParseURI("did:nuts:123#" + uuid.NewString())
 
 		sut := issuer{keyResolver: keyResolverMock, contextLoader: contextLoader}
 		credentialToRevoke := vc.VerifiableCredential{
 			Issuer: issuerDID.URI(),
-			ID:     credentialID,
+			ID:     &credentialID,
 		}
 		revocation, err := sut.buildRevocation(credentialToRevoke)
 		assert.NoError(t, err)

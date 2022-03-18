@@ -65,21 +65,17 @@ var orgConceptName = concept.Concept{"organization": concept.Concept{"name": "Ca
 const expectedService = "unit-test"
 const expectedAudience = "http://oauth"
 
-func getRequesterSigningKey() *ssi.URI {
-	serviceID, _ := ssi.ParseURI(requesterDID.String() + "#signing-key")
-
-	return serviceID
+func getRequesterSigningKey() ssi.URI {
+	return ssi.MustParseURI(requesterDID.String() + "#signing-key")
 }
 
-func getAuthorizerSigningKey() *ssi.URI {
-	keyID, _ := ssi.ParseURI(authorizerDID.String() + "#signing-key")
-
-	return keyID
+func getAuthorizerSigningKey() ssi.URI {
+	return ssi.MustParseURI(authorizerDID.String() + "#signing-key")
 }
 
 func getAuthorizerDIDDocument() *did.Document {
 	id := authorizerDID
-	serviceID, _ := ssi.ParseURI(id.String() + "#service-id")
+	serviceID := ssi.MustParseURI(id.String() + "#service-id")
 
 	doc := did.Document{
 		ID: id,
@@ -93,7 +89,7 @@ func getAuthorizerDIDDocument() *did.Document {
 	doc.AddAssertionMethod(key)
 	doc.AddCapabilityInvocation(key)
 	doc.Service = append(doc.Service, did.Service{
-		ID:   *serviceID,
+		ID:   serviceID,
 		Type: "oauth",
 	})
 	doc.Service = append(doc.Service, did.Service{

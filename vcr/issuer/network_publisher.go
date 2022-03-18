@@ -134,9 +134,9 @@ func (p networkPublisher) generateParticipants(verifiableCredential vc.Verifiabl
 }
 
 func (p networkPublisher) resolveNutsCommServiceOwner(DID did.DID) (*did.DID, error) {
-	serviceUser, _ := ssi.ParseURI(fmt.Sprintf("%s/serviceEndpoint?type=%s", DID.String(), transport.NutsCommServiceType))
+	serviceUser := ssi.MustParseURI(fmt.Sprintf("%s/serviceEndpoint?type=%s", DID.String(), transport.NutsCommServiceType))
 
-	service, err := p.serviceResolver.Resolve(*serviceUser, 5)
+	service, err := p.serviceResolver.Resolve(serviceUser, 5)
 	if err != nil {
 		return nil, fmt.Errorf("could not resolve NutsComm service owner: %w", err)
 	}
