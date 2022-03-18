@@ -81,6 +81,25 @@ func Test_verifier_Validate(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("type", func(t *testing.T) {
+		t.Run("incorrect number of types", func(t *testing.T) {
+			ctx := newMockContext(t)
+			instance := ctx.verifier
+
+			err := instance.Validate(vc.VerifiableCredential{Type: []ssi.URI{vc.VerifiableCredentialTypeV1URI()}}, nil)
+
+			assert.EqualError(t, err, "verifiable credential must list exactly 2 types")
+		})
+		t.Run("does not contain v1 context", func(t *testing.T) {
+			ctx := newMockContext(t)
+			instance := ctx.verifier
+
+			err := instance.Validate(vc.VerifiableCredential{Type: []ssi.URI{ssi.MustParseURI("foo"), ssi.MustParseURI("bar")}}, nil)
+
+			assert.EqualError(t, err, "verifiable credential does not list 'VerifiableCredential' as type")
+		})
+	})
+
 	t.Run("error - invalid vm", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.verifier
