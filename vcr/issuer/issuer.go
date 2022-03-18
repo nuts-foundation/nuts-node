@@ -31,19 +31,21 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
+	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/piprate/json-gold/ld"
 	"time"
 )
 
 // NewIssuer creates a new issuer which implements the Issuer interface.
-func NewIssuer(store Store, publisher Publisher, docResolver vdr.DocResolver, keyStore crypto.KeyStore, contextLoader ld.DocumentLoader) Issuer {
+func NewIssuer(store Store, publisher Publisher, docResolver vdr.DocResolver, keyStore crypto.KeyStore, contextLoader ld.DocumentLoader, trustConfig *trust.Config) Issuer {
 	resolver := vdrKeyResolver{docResolver: docResolver, keyResolver: keyStore}
 	return &issuer{
 		store:         store,
 		publisher:     publisher,
 		keyResolver:   resolver,
 		contextLoader: contextLoader,
+		trustConfig:   trustConfig,
 	}
 }
 
@@ -51,6 +53,7 @@ type issuer struct {
 	store         Store
 	publisher     Publisher
 	keyResolver   keyResolver
+	trustConfig   *trust.Config
 	contextLoader ld.DocumentLoader
 }
 
@@ -66,6 +69,16 @@ func (i issuer) Issue(credentialOptions vc.VerifiableCredential, publish, public
 	validator, _ := credential.FindValidatorAndBuilder(*createdVC)
 	if err := validator.Validate(*createdVC); err != nil {
 		return nil, err
+	}
+
+	// Trust credential before storing/publishing, otherwise it might self-issued credentials might not be trusted,
+	// if AddTrust() fails for whatever reason.
+	// Only 1 allowed for now, but looping over all types (VerifiableCredential is excluded by ExtractTypes()) is future-proof.
+	for _, credentialType := range credential.ExtractTypes(*createdVC) {
+		// MustParseURI is safe since it came from vc.Type, which contains URIs
+		if err := i.trustConfig.AddTrust(ssi.MustParseURI(credentialType), createdVC.Issuer); err != nil {
+			return nil, fmt.Errorf("failed to trust issuer after issuing VC (did=%s,type=%s): %w", createdVC.Issuer, credentialType, err)
+		}
 	}
 
 	if err = i.store.StoreCredential(*createdVC); err != nil {

@@ -27,9 +27,12 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
+	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/stretchr/testify/assert"
+	"path"
 	"testing"
 	"time"
 )
@@ -145,11 +148,12 @@ func Test_issuer_Issue(t *testing.T) {
 		defer ctrl.Finish()
 		kid := "did:nuts:123#abc"
 
+		trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config"))
 		keyResolverMock := NewMockkeyResolver(ctrl)
 		keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any()).Return(crypto.NewTestKey(kid), nil)
 		mockStore := NewMockStore(ctrl)
 		mockStore.EXPECT().StoreCredential(gomock.Any())
-		sut := issuer{keyResolver: keyResolverMock, store: mockStore, contextLoader: contextLoader}
+		sut := issuer{keyResolver: keyResolverMock, store: mockStore, contextLoader: contextLoader, trustConfig: trustConfig}
 
 		result, err := sut.Issue(credentialOptions, false, true)
 		assert.NoError(t, err)
@@ -159,6 +163,8 @@ func Test_issuer_Issue(t *testing.T) {
 		assert.Equal(t, issuerID.String(), result.Issuer.String(), "expected correct issuer")
 		assert.Contains(t, result.Context, *credential.NutsContextURI)
 		assert.Contains(t, result.Context, vc.VCContextV1URI())
+		// Assert issuing a credential makes it trusted
+		assert.True(t, trustConfig.IsTrusted(*credentialType, result.Issuer))
 	})
 
 	t.Run("error - from used services", func(t *testing.T) {
@@ -167,11 +173,12 @@ func Test_issuer_Issue(t *testing.T) {
 			defer ctrl.Finish()
 			kid := "did:nuts:123#abc"
 
+			trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config"))
 			keyResolverMock := NewMockkeyResolver(ctrl)
 			keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any()).Return(crypto.NewTestKey(kid), nil)
 			mockStore := NewMockStore(ctrl)
 			mockStore.EXPECT().StoreCredential(gomock.Any()).Return(errors.New("b00m!"))
-			sut := issuer{keyResolver: keyResolverMock, store: mockStore, contextLoader: contextLoader}
+			sut := issuer{keyResolver: keyResolverMock, store: mockStore, contextLoader: contextLoader, trustConfig: trustConfig}
 
 			result, err := sut.Issue(credentialOptions, false, true)
 			assert.EqualError(t, err, "unable to store the issued credential: b00m!")
@@ -183,13 +190,14 @@ func Test_issuer_Issue(t *testing.T) {
 			defer ctrl.Finish()
 			kid := "did:nuts:123#abc"
 
+			trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config"))
 			keyResolverMock := NewMockkeyResolver(ctrl)
 			keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any()).Return(crypto.NewTestKey(kid), nil)
 			mockPublisher := NewMockPublisher(ctrl)
 			mockPublisher.EXPECT().PublishCredential(gomock.Any(), true).Return(errors.New("b00m!"))
 			mockStore := NewMockStore(ctrl)
 			mockStore.EXPECT().StoreCredential(gomock.Any()).Return(nil)
-			sut := issuer{keyResolver: keyResolverMock, store: mockStore, publisher: mockPublisher, contextLoader: contextLoader}
+			sut := issuer{keyResolver: keyResolverMock, store: mockStore, publisher: mockPublisher, contextLoader: contextLoader, trustConfig: trustConfig}
 
 			result, err := sut.Issue(credentialOptions, true, true)
 			assert.EqualError(t, err, "unable to publish the issued credential: b00m!")
@@ -216,7 +224,7 @@ func Test_issuer_Issue(t *testing.T) {
 }
 
 func TestNewIssuer(t *testing.T) {
-	createdIssuer := NewIssuer(nil, nil, nil, nil, nil)
+	createdIssuer := NewIssuer(nil, nil, nil, nil, nil, nil)
 	assert.IsType(t, &issuer{}, createdIssuer)
 }
 

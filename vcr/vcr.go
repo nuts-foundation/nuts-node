@@ -140,7 +140,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	contextLoader, err := signature.NewContextLoader(allowExternalCalls)
 
 	publisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
-	c.issuer = issuer.NewIssuer(c.issuerStore, publisher, c.docResolver, c.keyStore, contextLoader)
+	c.issuer = issuer.NewIssuer(c.issuerStore, publisher, c.docResolver, c.keyStore, contextLoader, c.trustConfig)
 	c.verifier = verifier.NewVerifier(c.verifierStore, c.keyResolver, contextLoader, c.trustConfig)
 
 	c.ambassador = NewAmbassador(c.network, c, c.verifier)
