@@ -102,6 +102,11 @@ func (v *verifier) validateAtTime(issuanceDate time.Time, expirationDate *time.T
 
 // Validate implements the Proof Verification Algorithm: https://w3c-ccg.github.io/data-integrity-spec/#proof-verification-algorithm
 func (v *verifier) Validate(credentialToVerify vc.VerifiableCredential, at *time.Time) error {
+	err := v.validateType(credentialToVerify)
+	if err != nil {
+		return err
+	}
+
 	signedDocument, err := proof.NewSignedDocument(credentialToVerify)
 	if err != nil {
 		return fmt.Errorf("unable to build signed document from verifiable credential: %w", err)
@@ -277,4 +282,18 @@ func (v verifier) doVerifyVP(vcVerifier Verifier, vp vc.VerifiablePresentation, 
 	}
 
 	return vp.VerifiableCredential, nil
+}
+
+func (v *verifier) validateType(credential vc.VerifiableCredential) error {
+	// VCs must contain 2 types: "VerifiableCredential" and specific type
+	if len(credential.Type) != 2 {
+		return errors.New("verifiable credential must list exactly 2 types")
+	}
+	// "VerifiableCredential" should be one of the types
+	for _, curr := range credential.Type {
+		if curr == vc.VerifiableCredentialTypeV1URI() {
+			return nil
+		}
+	}
+	return fmt.Errorf("verifiable credential does not does not list '%s' as type", vc.VerifiableCredentialTypeV1URI())
 }
