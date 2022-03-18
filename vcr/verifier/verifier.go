@@ -295,5 +295,5 @@ func (v *verifier) validateType(credential vc.VerifiableCredential) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("verifiable credential does not does not list '%s' as type", vc.VerifiableCredentialTypeV1URI())
+	return fmt.Errorf("verifiable credential does not list '%s' as type", vc.VerifiableCredentialTypeV1URI())
 }

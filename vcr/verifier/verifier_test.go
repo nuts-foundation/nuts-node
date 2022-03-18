@@ -92,7 +92,7 @@ func Test_verifier_Validate(t *testing.T) {
 
 			err := instance.Validate(vc.VerifiableCredential{Type: []ssi.URI{ssi.MustParseURI("foo"), ssi.MustParseURI("bar")}}, nil)
 
-			assert.EqualError(t, err, "verifiable credential does not does not list 'VerifiableCredential' as type")
+			assert.EqualError(t, err, "verifiable credential does not list 'VerifiableCredential' as type")
 		})
 	})
 
