@@ -77,7 +77,7 @@ func (i issuer) Issue(credentialOptions vc.VerifiableCredential, publish, public
 	for _, credentialType := range credential.ExtractTypes(*createdVC) {
 		// MustParseURI is safe since it came from vc.Type, which contains URIs
 		if err := i.trustConfig.AddTrust(ssi.MustParseURI(credentialType), createdVC.Issuer); err != nil {
-			return nil, fmt.Errorf("failed to trust issuer after issuing VC (did=%s,type=%s): %w", createdVC.Issuer, credentialType, err)
+			return nil, fmt.Errorf("failed to trust issuer when issuing VC (did=%s,type=%s): %w", createdVC.Issuer, credentialType, err)
 		}
 	}
 
