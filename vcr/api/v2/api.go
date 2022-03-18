@@ -255,6 +255,59 @@ func (w *Wrapper) VerifyVP(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, result)
 }
 
+// TrustIssuer handles API request to start trusting an issuer of a Verifiable Credential.
+func (w *Wrapper) TrustIssuer(ctx echo.Context) error {
+	return changeTrust(ctx, func(cType ssi.URI, issuer ssi.URI) error {
+		return w.VCR.Trust(cType, issuer)
+	})
+}
+
+// UntrustIssuer handles API request to stop trusting an issuer of a Verifiable Credential.
+func (w *Wrapper) UntrustIssuer(ctx echo.Context) error {
+	return changeTrust(ctx, func(cType ssi.URI, issuer ssi.URI) error {
+		return w.VCR.Untrust(cType, issuer)
+	})
+}
+
+// ListTrusted handles API request list all trusted issuers.
+func (w *Wrapper) ListTrusted(ctx echo.Context, credentialType string) error {
+	uri, err := parseCredentialType(credentialType)
+	if err != nil {
+		return err
+	}
+
+	trusted, err := w.VCR.Trusted(*uri)
+	if err != nil {
+		return err
+	}
+	result := make([]string, len(trusted))
+	for i, t := range trusted {
+		result[i] = t.String()
+	}
+
+	return ctx.JSON(http.StatusOK, result)
+}
+
+// ListUntrusted handles API request list all untrusted issuers, which have issued Verifiable Credentials.
+func (w *Wrapper) ListUntrusted(ctx echo.Context, credentialType string) error {
+	uri, err := parseCredentialType(credentialType)
+	if err != nil {
+		return err
+	}
+
+	untrusted, err := w.VCR.Untrusted(*uri)
+	if err != nil {
+		return err
+	}
+
+	result := make([]string, len(untrusted))
+	for i, t := range untrusted {
+		result[i] = t.String()
+	}
+
+	return ctx.JSON(http.StatusOK, result)
+}
+
 type trustChangeFunc func(ssi.URI, ssi.URI) error
 
 func changeTrust(ctx echo.Context, f trustChangeFunc) error {
@@ -279,55 +332,6 @@ func changeTrust(ctx echo.Context, f trustChangeFunc) error {
 	}
 
 	return ctx.NoContent(http.StatusNoContent)
-}
-
-func (w *Wrapper) TrustIssuer(ctx echo.Context) error {
-	return changeTrust(ctx, func(cType ssi.URI, issuer ssi.URI) error {
-		return w.VCR.Trust(cType, issuer)
-	})
-}
-
-func (w *Wrapper) UntrustIssuer(ctx echo.Context) error {
-	return changeTrust(ctx, func(cType ssi.URI, issuer ssi.URI) error {
-		return w.VCR.Untrust(cType, issuer)
-	})
-}
-
-func (w *Wrapper) ListTrusted(ctx echo.Context, credentialType string) error {
-	uri, err := parseCredentialType(credentialType)
-	if err != nil {
-		return err
-	}
-
-	trusted, err := w.VCR.Trusted(*uri)
-	if err != nil {
-		return err
-	}
-	result := make([]string, len(trusted))
-	for i, t := range trusted {
-		result[i] = t.String()
-	}
-
-	return ctx.JSON(http.StatusOK, result)
-}
-
-func (w *Wrapper) ListUntrusted(ctx echo.Context, credentialType string) error {
-	uri, err := parseCredentialType(credentialType)
-	if err != nil {
-		return err
-	}
-
-	untrusted, err := w.VCR.Untrusted(*uri)
-	if err != nil {
-		return err
-	}
-
-	result := make([]string, len(untrusted))
-	for i, t := range untrusted {
-		result[i] = t.String()
-	}
-
-	return ctx.JSON(http.StatusOK, result)
 }
 
 func parseCredentialType(credentialType string) (*ssi.URI, error) {
