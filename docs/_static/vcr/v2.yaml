@@ -144,7 +144,8 @@ paths:
           description: A list of matching credentials
           content:
             application/json:
-              $ref: '#/components/schemas/SearchVCResults'
+              schema:
+                $ref: '#/components/schemas/SearchVCResults'
         default:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/issuer/vc/{id}:
