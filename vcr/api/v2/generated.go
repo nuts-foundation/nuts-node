@@ -51,6 +51,15 @@ type CreateVPRequest struct {
 	VerifiableCredentials []VerifiableCredential `json:"verifiableCredentials"`
 }
 
+// CredentialIssuer defines model for CredentialIssuer.
+type CredentialIssuer struct {
+	// a credential type
+	CredentialType string `json:"credentialType"`
+
+	// the DID of an issuer
+	Issuer string `json:"issuer"`
+}
+
 // DID according to Nuts specification
 type DID string
 
@@ -115,13 +124,13 @@ type IssueVCRequest struct {
 	// Type definition for the credential.
 	Type string `json:"type"`
 
-	// When publishToNetwork is true, the credential can be published publicly of privately to the holder.
-	// This field is mandatory if publishToNetwork is true to prevent accidents.
+	// When publishToNetwork is true, the credential can be published publicly or privately to the holder.
+	// This field is mandatory if publishToNetwork is true to prevent accidents. It defaults to "private".
 	Visibility *IssueVCRequestVisibility `json:"visibility,omitempty"`
 }
 
-// When publishToNetwork is true, the credential can be published publicly of privately to the holder.
-// This field is mandatory if publishToNetwork is true to prevent accidents.
+// When publishToNetwork is true, the credential can be published publicly or privately to the holder.
+// This field is mandatory if publishToNetwork is true to prevent accidents. It defaults to "private".
 type IssueVCRequestVisibility string
 
 // SearchOptions defines model for SearchOptions.
@@ -215,6 +224,12 @@ type SearchIssuedVCsParams struct {
 	Subject *string `json:"subject,omitempty"`
 }
 
+// UntrustIssuerJSONBody defines parameters for UntrustIssuer.
+type UntrustIssuerJSONBody CredentialIssuer
+
+// TrustIssuerJSONBody defines parameters for TrustIssuer.
+type TrustIssuerJSONBody CredentialIssuer
+
 // VerifyVCJSONBody defines parameters for VerifyVC.
 type VerifyVCJSONBody VCVerificationRequest
 
@@ -226,6 +241,12 @@ type CreateVPJSONRequestBody CreateVPJSONBody
 
 // IssueVCJSONRequestBody defines body for IssueVC for application/json ContentType.
 type IssueVCJSONRequestBody IssueVCJSONBody
+
+// UntrustIssuerJSONRequestBody defines body for UntrustIssuer for application/json ContentType.
+type UntrustIssuerJSONRequestBody UntrustIssuerJSONBody
+
+// TrustIssuerJSONRequestBody defines body for TrustIssuer for application/json ContentType.
+type TrustIssuerJSONRequestBody TrustIssuerJSONBody
 
 // VerifyVCJSONRequestBody defines body for VerifyVC for application/json ContentType.
 type VerifyVCJSONRequestBody VerifyVCJSONBody
@@ -325,6 +346,16 @@ type ClientInterface interface {
 	// RevokeVC request
 	RevokeVC(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// UntrustIssuer request with any body
+	UntrustIssuerWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UntrustIssuer(ctx context.Context, body UntrustIssuerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// TrustIssuer request with any body
+	TrustIssuerWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	TrustIssuer(ctx context.Context, body TrustIssuerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// VerifyVC request with any body
 	VerifyVCWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -334,6 +365,12 @@ type ClientInterface interface {
 	VerifyVPWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	VerifyVP(ctx context.Context, body VerifyVPJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListTrusted request
+	ListTrusted(ctx context.Context, credentialType string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListUntrusted request
+	ListUntrusted(ctx context.Context, credentialType string, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) SearchVCsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -420,6 +457,54 @@ func (c *Client) RevokeVC(ctx context.Context, id string, reqEditors ...RequestE
 	return c.Client.Do(req)
 }
 
+func (c *Client) UntrustIssuerWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUntrustIssuerRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UntrustIssuer(ctx context.Context, body UntrustIssuerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUntrustIssuerRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) TrustIssuerWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTrustIssuerRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) TrustIssuer(ctx context.Context, body TrustIssuerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTrustIssuerRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) VerifyVCWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewVerifyVCRequestWithBody(c.Server, contentType, body)
 	if err != nil {
@@ -458,6 +543,30 @@ func (c *Client) VerifyVPWithBody(ctx context.Context, contentType string, body 
 
 func (c *Client) VerifyVP(ctx context.Context, body VerifyVPJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewVerifyVPRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListTrusted(ctx context.Context, credentialType string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListTrustedRequest(c.Server, credentialType)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ListUntrusted(ctx context.Context, credentialType string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListUntrustedRequest(c.Server, credentialType)
 	if err != nil {
 		return nil, err
 	}
@@ -682,6 +791,86 @@ func NewRevokeVCRequest(server string, id string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewUntrustIssuerRequest calls the generic UntrustIssuer builder with application/json body
+func NewUntrustIssuerRequest(server string, body UntrustIssuerJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUntrustIssuerRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewUntrustIssuerRequestWithBody generates requests for UntrustIssuer with any type of body
+func NewUntrustIssuerRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/vcr/v2/verifier/trust")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("DELETE", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewTrustIssuerRequest calls the generic TrustIssuer builder with application/json body
+func NewTrustIssuerRequest(server string, body TrustIssuerJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewTrustIssuerRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewTrustIssuerRequestWithBody generates requests for TrustIssuer with any type of body
+func NewTrustIssuerRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/vcr/v2/verifier/trust")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewVerifyVCRequest calls the generic VerifyVC builder with application/json body
 func NewVerifyVCRequest(server string, body VerifyVCJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -762,6 +951,74 @@ func NewVerifyVPRequestWithBody(server string, contentType string, body io.Reade
 	return req, nil
 }
 
+// NewListTrustedRequest generates requests for ListTrusted
+func NewListTrustedRequest(server string, credentialType string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "credentialType", runtime.ParamLocationPath, credentialType)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/vcr/v2/verifier/%s/trusted", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListUntrustedRequest generates requests for ListUntrusted
+func NewListUntrustedRequest(server string, credentialType string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "credentialType", runtime.ParamLocationPath, credentialType)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/vcr/v2/verifier/%s/untrusted", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -824,6 +1081,16 @@ type ClientWithResponsesInterface interface {
 	// RevokeVC request
 	RevokeVCWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*RevokeVCResponse, error)
 
+	// UntrustIssuer request with any body
+	UntrustIssuerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UntrustIssuerResponse, error)
+
+	UntrustIssuerWithResponse(ctx context.Context, body UntrustIssuerJSONRequestBody, reqEditors ...RequestEditorFn) (*UntrustIssuerResponse, error)
+
+	// TrustIssuer request with any body
+	TrustIssuerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*TrustIssuerResponse, error)
+
+	TrustIssuerWithResponse(ctx context.Context, body TrustIssuerJSONRequestBody, reqEditors ...RequestEditorFn) (*TrustIssuerResponse, error)
+
 	// VerifyVC request with any body
 	VerifyVCWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*VerifyVCResponse, error)
 
@@ -833,6 +1100,12 @@ type ClientWithResponsesInterface interface {
 	VerifyVPWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*VerifyVPResponse, error)
 
 	VerifyVPWithResponse(ctx context.Context, body VerifyVPJSONRequestBody, reqEditors ...RequestEditorFn) (*VerifyVPResponse, error)
+
+	// ListTrusted request
+	ListTrustedWithResponse(ctx context.Context, credentialType string, reqEditors ...RequestEditorFn) (*ListTrustedResponse, error)
+
+	// ListUntrusted request
+	ListUntrustedWithResponse(ctx context.Context, credentialType string, reqEditors ...RequestEditorFn) (*ListUntrustedResponse, error)
 }
 
 type SearchVCsResponse struct {
@@ -945,6 +1218,48 @@ func (r RevokeVCResponse) StatusCode() int {
 	return 0
 }
 
+type UntrustIssuerResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r UntrustIssuerResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UntrustIssuerResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type TrustIssuerResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r TrustIssuerResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r TrustIssuerResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type VerifyVCResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -983,6 +1298,50 @@ func (r VerifyVPResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r VerifyVPResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListTrustedResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]DID
+}
+
+// Status returns HTTPResponse.Status
+func (r ListTrustedResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListTrustedResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListUntrustedResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]DID
+}
+
+// Status returns HTTPResponse.Status
+func (r ListUntrustedResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListUntrustedResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -1050,6 +1409,40 @@ func (c *ClientWithResponses) RevokeVCWithResponse(ctx context.Context, id strin
 	return ParseRevokeVCResponse(rsp)
 }
 
+// UntrustIssuerWithBodyWithResponse request with arbitrary body returning *UntrustIssuerResponse
+func (c *ClientWithResponses) UntrustIssuerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UntrustIssuerResponse, error) {
+	rsp, err := c.UntrustIssuerWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUntrustIssuerResponse(rsp)
+}
+
+func (c *ClientWithResponses) UntrustIssuerWithResponse(ctx context.Context, body UntrustIssuerJSONRequestBody, reqEditors ...RequestEditorFn) (*UntrustIssuerResponse, error) {
+	rsp, err := c.UntrustIssuer(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUntrustIssuerResponse(rsp)
+}
+
+// TrustIssuerWithBodyWithResponse request with arbitrary body returning *TrustIssuerResponse
+func (c *ClientWithResponses) TrustIssuerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*TrustIssuerResponse, error) {
+	rsp, err := c.TrustIssuerWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTrustIssuerResponse(rsp)
+}
+
+func (c *ClientWithResponses) TrustIssuerWithResponse(ctx context.Context, body TrustIssuerJSONRequestBody, reqEditors ...RequestEditorFn) (*TrustIssuerResponse, error) {
+	rsp, err := c.TrustIssuer(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTrustIssuerResponse(rsp)
+}
+
 // VerifyVCWithBodyWithResponse request with arbitrary body returning *VerifyVCResponse
 func (c *ClientWithResponses) VerifyVCWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*VerifyVCResponse, error) {
 	rsp, err := c.VerifyVCWithBody(ctx, contentType, body, reqEditors...)
@@ -1082,6 +1475,24 @@ func (c *ClientWithResponses) VerifyVPWithResponse(ctx context.Context, body Ver
 		return nil, err
 	}
 	return ParseVerifyVPResponse(rsp)
+}
+
+// ListTrustedWithResponse request returning *ListTrustedResponse
+func (c *ClientWithResponses) ListTrustedWithResponse(ctx context.Context, credentialType string, reqEditors ...RequestEditorFn) (*ListTrustedResponse, error) {
+	rsp, err := c.ListTrusted(ctx, credentialType, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListTrustedResponse(rsp)
+}
+
+// ListUntrustedWithResponse request returning *ListUntrustedResponse
+func (c *ClientWithResponses) ListUntrustedWithResponse(ctx context.Context, credentialType string, reqEditors ...RequestEditorFn) (*ListUntrustedResponse, error) {
+	rsp, err := c.ListUntrusted(ctx, credentialType, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListUntrustedResponse(rsp)
 }
 
 // ParseSearchVCsResponse parses an HTTP response from a SearchVCsWithResponse call
@@ -1214,6 +1625,38 @@ func ParseRevokeVCResponse(rsp *http.Response) (*RevokeVCResponse, error) {
 	return response, nil
 }
 
+// ParseUntrustIssuerResponse parses an HTTP response from a UntrustIssuerWithResponse call
+func ParseUntrustIssuerResponse(rsp *http.Response) (*UntrustIssuerResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UntrustIssuerResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseTrustIssuerResponse parses an HTTP response from a TrustIssuerWithResponse call
+func ParseTrustIssuerResponse(rsp *http.Response) (*TrustIssuerResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &TrustIssuerResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
 // ParseVerifyVCResponse parses an HTTP response from a VerifyVCWithResponse call
 func ParseVerifyVCResponse(rsp *http.Response) (*VerifyVCResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
@@ -1266,6 +1709,58 @@ func ParseVerifyVPResponse(rsp *http.Response) (*VerifyVPResponse, error) {
 	return response, nil
 }
 
+// ParseListTrustedResponse parses an HTTP response from a ListTrustedWithResponse call
+func ParseListTrustedResponse(rsp *http.Response) (*ListTrustedResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListTrustedResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []DID
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListUntrustedResponse parses an HTTP response from a ListUntrustedWithResponse call
+func ParseListUntrustedResponse(rsp *http.Response) (*ListUntrustedResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListUntrustedResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []DID
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Searches for verifiable credentials that could be used for different use-cases.
@@ -1283,12 +1778,24 @@ type ServerInterface interface {
 	// Revoke an issued credential
 	// (DELETE /internal/vcr/v2/issuer/vc/{id})
 	RevokeVC(ctx echo.Context, id string) error
+	// Remove trust in an issuer/credentialType combination
+	// (DELETE /internal/vcr/v2/verifier/trust)
+	UntrustIssuer(ctx echo.Context) error
+	// Mark all the VCs of given type and issuer as 'trusted'.
+	// (POST /internal/vcr/v2/verifier/trust)
+	TrustIssuer(ctx echo.Context) error
 	// Verifies a Verifiable Credential
 	// (POST /internal/vcr/v2/verifier/vc)
 	VerifyVC(ctx echo.Context) error
 	// Verifies a Verifiable Presentation
 	// (POST /internal/vcr/v2/verifier/vp)
 	VerifyVP(ctx echo.Context) error
+	// List all trusted issuers for a given credential type
+	// (GET /internal/vcr/v2/verifier/{credentialType}/trusted)
+	ListTrusted(ctx echo.Context, credentialType string) error
+	// List all untrusted issuers for a given credential type
+	// (GET /internal/vcr/v2/verifier/{credentialType}/untrusted)
+	ListUntrusted(ctx echo.Context, credentialType string) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -1371,6 +1878,24 @@ func (w *ServerInterfaceWrapper) RevokeVC(ctx echo.Context) error {
 	return err
 }
 
+// UntrustIssuer converts echo context to params.
+func (w *ServerInterfaceWrapper) UntrustIssuer(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.UntrustIssuer(ctx)
+	return err
+}
+
+// TrustIssuer converts echo context to params.
+func (w *ServerInterfaceWrapper) TrustIssuer(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.TrustIssuer(ctx)
+	return err
+}
+
 // VerifyVC converts echo context to params.
 func (w *ServerInterfaceWrapper) VerifyVC(ctx echo.Context) error {
 	var err error
@@ -1386,6 +1911,38 @@ func (w *ServerInterfaceWrapper) VerifyVP(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.VerifyVP(ctx)
+	return err
+}
+
+// ListTrusted converts echo context to params.
+func (w *ServerInterfaceWrapper) ListTrusted(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "credentialType" -------------
+	var credentialType string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "credentialType", runtime.ParamLocationPath, ctx.Param("credentialType"), &credentialType)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter credentialType: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.ListTrusted(ctx, credentialType)
+	return err
+}
+
+// ListUntrusted converts echo context to params.
+func (w *ServerInterfaceWrapper) ListUntrusted(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "credentialType" -------------
+	var credentialType string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "credentialType", runtime.ParamLocationPath, ctx.Param("credentialType"), &credentialType)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter credentialType: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.ListUntrusted(ctx, credentialType)
 	return err
 }
 
@@ -1441,6 +1998,14 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		si.(Preprocessor).Preprocess("RevokeVC", context)
 		return wrapper.RevokeVC(context)
 	})
+	router.Add(http.MethodDelete, baseURL+"/internal/vcr/v2/verifier/trust", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("UntrustIssuer", context)
+		return wrapper.UntrustIssuer(context)
+	})
+	router.Add(http.MethodPost, baseURL+"/internal/vcr/v2/verifier/trust", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("TrustIssuer", context)
+		return wrapper.TrustIssuer(context)
+	})
 	router.Add(http.MethodPost, baseURL+"/internal/vcr/v2/verifier/vc", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("VerifyVC", context)
 		return wrapper.VerifyVC(context)
@@ -1448,6 +2013,14 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.Add(http.MethodPost, baseURL+"/internal/vcr/v2/verifier/vp", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("VerifyVP", context)
 		return wrapper.VerifyVP(context)
+	})
+	router.Add(http.MethodGet, baseURL+"/internal/vcr/v2/verifier/:credentialType/trusted", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("ListTrusted", context)
+		return wrapper.ListTrusted(context)
+	})
+	router.Add(http.MethodGet, baseURL+"/internal/vcr/v2/verifier/:credentialType/untrusted", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("ListUntrusted", context)
+		return wrapper.ListUntrusted(context)
 	})
 
 }

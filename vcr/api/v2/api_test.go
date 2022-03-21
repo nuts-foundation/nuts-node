@@ -20,6 +20,7 @@ package v2
 
 import (
 	"errors"
+	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"net/http"
 	"testing"
@@ -624,6 +625,192 @@ func TestWrapper_VerifyVP(t *testing.T) {
 		err := testContext.client.VerifyVP(testContext.echo)
 
 		assert.NoError(t, err)
+	})
+}
+
+
+func TestWrapper_TrustUntrust(t *testing.T) {
+	vc := concept.TestVC()
+	issuer := vc.Issuer
+	cType := vc.Type[0]
+
+	t.Run("ok - add", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			capturedCombination := f.(*CredentialIssuer)
+			capturedCombination.CredentialType = cType.String()
+			capturedCombination.Issuer = issuer.String()
+			return nil
+		})
+		ctx.vcr.EXPECT().Trust(cType, issuer).Return(nil)
+		ctx.echo.EXPECT().NoContent(http.StatusNoContent)
+
+		err := ctx.client.TrustIssuer(ctx.echo)
+		assert.NoError(t, err)
+	})
+
+	t.Run("ok - remove", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			capturedCombination := f.(*CredentialIssuer)
+			capturedCombination.CredentialType = cType.String()
+			capturedCombination.Issuer = issuer.String()
+			return nil
+		})
+		ctx.vcr.EXPECT().Untrust(cType, issuer).Return(nil)
+		ctx.echo.EXPECT().NoContent(http.StatusNoContent)
+
+		err := ctx.client.UntrustIssuer(ctx.echo)
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - invalid issuer", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			capturedCombination := f.(*CredentialIssuer)
+			capturedCombination.CredentialType = cType.String()
+			capturedCombination.Issuer = string([]byte{0})
+			return nil
+		})
+
+		err := ctx.client.TrustIssuer(ctx.echo)
+
+		assert.EqualError(t, err, "failed to parse issuer: parse \"\\x00\": net/url: invalid control character in URL")
+		assert.ErrorIs(t, err, core.InvalidInputError(""))
+	})
+
+	t.Run("error - invalid credential", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			capturedCombination := f.(*CredentialIssuer)
+			capturedCombination.CredentialType = string([]byte{0})
+			capturedCombination.Issuer = cType.String()
+			return nil
+		})
+
+		err := ctx.client.TrustIssuer(ctx.echo)
+
+		assert.EqualError(t, err, "malformed credential type: parse \"\\x00\": net/url: invalid control character in URL")
+		assert.ErrorIs(t, err, core.InvalidInputError(""))
+	})
+
+	t.Run("error - invalid body", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			return errors.New("b00m!")
+		})
+
+		err := ctx.client.TrustIssuer(ctx.echo)
+
+		assert.EqualError(t, err, "b00m!")
+	})
+
+	t.Run("error - failed to add", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			capturedCombination := f.(*CredentialIssuer)
+			capturedCombination.CredentialType = cType.String()
+			capturedCombination.Issuer = issuer.String()
+			return nil
+		})
+		ctx.vcr.EXPECT().Trust(cType, issuer).Return(errors.New("b00m!"))
+
+		err := ctx.client.TrustIssuer(ctx.echo)
+
+		assert.Error(t, err)
+	})
+}
+
+func TestWrapper_Trusted(t *testing.T) {
+	credentialType, _ := ssi.ParseURI("type")
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		var capturedList []string
+		ctx.vcr.EXPECT().Trusted(*credentialType).Return([]ssi.URI{*credentialType}, nil)
+		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f1 interface{}, f2 interface{}) error {
+			capturedList = f2.([]string)
+			return nil
+		})
+
+		err := ctx.client.ListTrusted(ctx.echo, credentialType.String())
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Len(t, capturedList, 1)
+		assert.Equal(t, credentialType.String(), capturedList[0])
+	})
+
+	t.Run("error", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		err := ctx.client.ListTrusted(ctx.echo, string([]byte{0}))
+
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, core.InvalidInputError(""))
+	})
+}
+
+func TestWrapper_Untrusted(t *testing.T) {
+	credentialType, _ := ssi.ParseURI("type")
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		var capturedList []string
+		ctx.vcr.EXPECT().Untrusted(*credentialType).Return([]ssi.URI{*credentialType}, nil)
+		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f1 interface{}, f2 interface{}) error {
+			capturedList = f2.([]string)
+			return nil
+		})
+
+		err := ctx.client.ListUntrusted(ctx.echo, credentialType.String())
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Len(t, capturedList, 1)
+		assert.Equal(t, credentialType.String(), capturedList[0])
+	})
+
+	t.Run("error - malformed input", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		err := ctx.client.ListUntrusted(ctx.echo, string([]byte{0}))
+
+		assert.EqualError(t, err, "malformed credential type: parse \"\\x00\": net/url: invalid control character in URL")
+		assert.ErrorIs(t, err, core.InvalidInputError(""))
+	})
+
+	t.Run("error - other", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.vcr.EXPECT().Untrusted(*credentialType).Return(nil, errors.New("b00m!"))
+
+		err := ctx.client.ListUntrusted(ctx.echo, credentialType.String())
+
+		assert.EqualError(t, err, "b00m!")
 	})
 }
 
