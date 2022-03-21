@@ -35,3 +35,10 @@ type Revocation = credential.Revocation
 
 // VerifiablePresentation is an alias to use from within the API
 type VerifiablePresentation = vc.VerifiablePresentation
+
+// SearchVCRequest is the request body for searching VCs
+type SearchVCRequest struct {
+	// A partial VerifiableCredential in JSON-LD format. Each field will be used to match credentials against. All fields MUST be present.
+	Query         vc.VerifiableCredential `json:"query"`
+	SearchOptions *SearchOptions          `json:"searchOptions,omitempty"`
+}

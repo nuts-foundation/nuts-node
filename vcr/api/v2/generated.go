@@ -139,13 +139,6 @@ type SearchOptions struct {
 	AllowUntrustedIssuer *bool `json:"allowUntrustedIssuer,omitempty"`
 }
 
-// request body for searching VCs
-type SearchVCRequest struct {
-	// A partial VerifiableCredential in JSON-LD format. Each field will be used to match credentials against. All fields MUST be present.
-	Query         map[string]interface{} `json:"query"`
-	SearchOptions *SearchOptions         `json:"searchOptions,omitempty"`
-}
-
 // result of a Search operation.
 type SearchVCResult struct {
 	// Credential revocation record
