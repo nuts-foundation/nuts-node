@@ -421,8 +421,8 @@ components:
           default: true
         visibility:
             description: |
-              When publishToNetwork is true, the credential can be published publicly of privately to the holder.
-              This field is mandatory if publishToNetwork is true to prevent accidents.
+              When publishToNetwork is true, the credential can be published publicly or privately to the holder.
+              This field is mandatory if publishToNetwork is true to prevent accidents. It defaults to "private".
             type: string
             enum: [ public, private ]
             default: private
