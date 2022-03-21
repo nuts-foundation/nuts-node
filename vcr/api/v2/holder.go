@@ -43,13 +43,12 @@ func (w *Wrapper) SearchVCs(ctx echo.Context) error {
 		untrusted = *request.SearchOptions.AllowUntrustedIssuer
 	}
 
-	searchContexts, ok := request.Query["type"].([]interface{})
-	if !ok {
-		return core.InvalidInputError("failed to determine type, got %s, need list of strings", request.Query["type"])
-	}
-
 	query, _ := json.Marshal(request.Query)
-	for _, c := range searchContexts {
+	var types []string
+	for _, curr := range request.Query.Type {
+		types = append(types, curr.String())
+	}
+	for _, c := range types {
 		switch c {
 		case credential.NutsOrganizationCredentialType:
 			return w.searchOrgs(ctx, untrusted, query)
