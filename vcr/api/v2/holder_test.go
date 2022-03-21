@@ -40,7 +40,7 @@ var organizationQuery = `
 {
 	"query": {
 		"@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
-		"type": "NutsOrganizationCredential",
+		"type": ["VerifiableCredential", "NutsOrganizationCredential"],
 		"credentialSubject":{
 			"id":"did:nuts:123",
 			"organization": {
@@ -56,7 +56,7 @@ var untrustedOrganizationQuery = `
 {
 	"query": {
 		"@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
-		"type": "NutsOrganizationCredential",
+		"type": ["VerifiableCredential", "NutsOrganizationCredential"],
 		"credentialSubject":{
 			"id":"did:nuts:123",
 			"organization": {
