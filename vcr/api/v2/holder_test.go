@@ -189,7 +189,7 @@ func TestWrapper_SearchVCs(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Equal(t, concept.OrganizationConcept, capturedQuery.Concept())
+		assert.Equal(t, concept.AuthorizationConcept, capturedQuery.Concept())
 		parts := capturedQuery.Parts()
 		if !assert.Len(t, parts, 1) {
 			return
