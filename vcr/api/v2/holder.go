@@ -63,6 +63,7 @@ func (w *Wrapper) SearchVCs(ctx echo.Context) error {
 func (w *Wrapper) searchOrgs(ctx echo.Context, allowUntrusted bool, body []byte) error {
 	// some helper structs
 	type helper struct {
+		ID                string `json:"id"`
 		CredentialSubject struct {
 			ID           string `json:"id"`
 			Organization struct {
@@ -81,6 +82,9 @@ func (w *Wrapper) searchOrgs(ctx echo.Context, allowUntrusted bool, body []byte)
 	query, err := w.VCR.Registry().QueryFor(concept.OrganizationConcept)
 	if err != nil {
 		return err
+	}
+	if ldQuery.ID != "" {
+		query.AddClause(concept.Eq("id", ldQuery.ID))
 	}
 	if ldQuery.CredentialSubject.Organization.Name != "" {
 		query.AddClause(concept.Prefix("organization.name", ldQuery.CredentialSubject.Organization.Name))
@@ -103,6 +107,7 @@ func (w *Wrapper) searchOrgs(ctx echo.Context, allowUntrusted bool, body []byte)
 func (w *Wrapper) searchAuths(ctx echo.Context, allowUntrusted bool, body []byte) error {
 	// some helper structs that reflect current required query params
 	type helper struct {
+		ID                string `json:"id"`
 		CredentialSubject struct {
 			ID           string `json:"id"`
 			PurposeOfUse string `json:"purposeOfUse"`
@@ -122,6 +127,9 @@ func (w *Wrapper) searchAuths(ctx echo.Context, allowUntrusted bool, body []byte
 	query, err := w.VCR.Registry().QueryFor(concept.OrganizationConcept)
 	if err != nil {
 		return err
+	}
+	if ldQuery.ID != "" {
+		query.AddClause(concept.Eq("id", ldQuery.ID))
 	}
 	if ldQuery.CredentialSubject.ID != "" {
 		query.AddClause(concept.Eq("credentialSubject.id", ldQuery.CredentialSubject.ID))
