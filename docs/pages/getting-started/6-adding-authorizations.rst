@@ -48,10 +48,10 @@ The credential can be issued with the following call:
 
 .. code-block:: text
 
-    POST <internal-node-address>/internal/vcr/v1/vc
+    POST <internal-node-address>/internal/vcr/v2/issuer/vc
     {
         "issuer": "did:nuts:JCJEi3waNGNhkmwVvFB3wdUsmDYPnTcZxYiWThZqgWKv",
-        "type": ["NutsAuthorizationCredential"],
+        "type": "NutsAuthorizationCredential",
         "credentialSubject": {
             "id": "did:nuts:JCJEi3waNGNhkmwVvFB3wdUsmDYPnTcZxYiWThZqgWKv",
             "legalBase": {
@@ -59,14 +59,15 @@ The credential can be issued with the following call:
             },
             "resources": [
                 {
-                    "path": "/test",
+                    "path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843",
                     "operations": ["read"],
                     "userContext": true
                 }
             ],
             "purposeOfUse": "test-service",
             "subject": "urn:oid:2.16.840.1.113883.2.4.6.3:123456780"
-        }
+        },
+        "visibility": "private"
     }
 
 As you can see, there are quite some fields to fill out.
@@ -81,6 +82,13 @@ type
 ====
 The `type` must equal `["NutsAuthorizationCredential"]`, no exceptions.
 
+visibility
+==========
+VCs that are published to the network can be published publicly or private.
+When published private, only the issuer and subject can read the contents of the VC.
+VCs that contain personal information must be published privately (`visibility = private`).
+When the VC is to be read by anyone on the network, it should be published publicly (`visibility = public`).
+
 credentialSubject.id
 ====================
 The `credentialSubject.id` is the receiver or *holder* of the credential.
@@ -89,36 +97,23 @@ The following call will search for an organization with the name *CareBears*.
 
 .. code-block:: text
 
-    POST <internal-node-address>/internal/vcr/v1/organization
+    POST <internal-node-address>/internal/vcr/v2/holder/vc/search
     {
-        "Params": [
-            {
-                "key": "organization.name",
-                "value": "CareBears"
+        "query": {
+            "@context": [
+                "https://www.w3.org/2018/credentials/v1",
+                "https://nuts.nl/credentials/v1"
+            ],
+            "type": ["VerifiableCredential" ,"NutsOrganizationCredential"],
+            "credentialSubject": {
+                "organization": {
+                    "name": "CareBears",
+                }
             }
-        ]
+        }
     }
 
-The :ref:`concept development page <using-concepts>`_ contains some more information on how to perform searches.
-The result of the call above will be something like this:
-
-.. code-block:: json
-
-    [
-        {
-            "id": "did:nuts:3wEb8GJEuenjMexQXKfrdAr8CvA69SdbVh8qhUpDMcX2#dd4193e6-cc94-4276-88c3-8b272612c50f",
-            "issuer": "did:nuts:3wEb8GJEuenjMexQXKfrdAr8CvA69SdbVh8qhUpDMcX2",
-            "organization": {
-                "city": "CareTown",
-                "name": "CareBears"
-            },
-            "subject": "did:nuts:5vLpJpRP8KnQbTL4XC78VtfdNabwNGfDtTTWXDkAkXBm",
-            "type": "NutsOrganizationCredential"
-        }
-    ]
-
-The `subject` field is the DID that would be the receiver of the credential.
-
+The :ref:`VC manual <using-vcs>`_ contains some more information on how to perform searches.
 
 credentialSubject.purposeOfUse
 ==============================
@@ -156,18 +151,22 @@ To find all authorization credentials of a single patient:
 
 .. code-block:: text
 
-    POST <internal-node-address>/internal/vcr/v1/authorization?untrusted=true
+    POST <internal-node-address>/internal/vcr/v2/holder/vc/search
     {
-        "Params": [
-            {
-                "key": "credentialSubject.id",
-                "value": "did:nuts:JCJEi3waNGNhkmwVvFB3wdUsmDYPnTcZxYiWThZqgWKv"
-            },
-            {
-                "key": "credentialSubject.subject",
-                "value": "urn:oid:2.16.840.1.113883.2.4.6.3:123456780"
+        "query": {
+            "@context": [
+                "https://www.w3.org/2018/credentials/v1",
+                "https://nuts.nl/credentials/v1"
+            ],
+            "type": ["VerifiableCredential" ,"NutsAuthorizationCredential"],
+            "credentialSubject": {
+                "id": "did:nuts:JCJEi3waNGNhkmwVvFB3wdUsmDYPnTcZxYiWThZqgWKv",
+                "subject": "urn:oid:2.16.840.1.113883.2.4.6.3:123456780"
             }
-        ]
+        },
+        "searchOptions": {
+            "allowUntrustedIssuer": true
+        }
     }
 
 The call above includes a query for a particular *receiver* via the `credentialSubject.id` key.
@@ -181,22 +180,25 @@ If you want to call `/patient/2250f7ab-6517-4923-ac00-88ed26f85843` for a partic
 
 .. code-block:: text
 
-    POST <internal-node-address>/internal/vcr/v1/organization?untrusted=true
+    POST <internal-node-address>/internal/vcr/v2/holder/vc/search
     {
-        "Params": [
-            {
-                "key": "credentialSubject.id",
-                "value": "did:nuts:JCJEi3waNGNhkmwVvFB3wdUsmDYPnTcZxYiWThZqgWKv"
-            },
-            {
-                "key": "credentialSubject.purposeOfUse",
-                "value": "test-service"
-            },
-            {
-                "key": "credentialSubject.resources.#.path",
-                "value": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843"
+        "query": {
+            "@context": [
+                "https://www.w3.org/2018/credentials/v1",
+                "https://nuts.nl/credentials/v1"
+            ],
+            "type": ["VerifiableCredential" ,"NutsOrganizationCredential"],
+            "credentialSubject": {
+                "id": "did:nuts:JCJEi3waNGNhkmwVvFB3wdUsmDYPnTcZxYiWThZqgWKv",
+                "purposeOfUse": "test-service",
+                "resources": {
+                    "path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843"
+                }
             }
-        ]
+        },
+        "searchOptions": {
+            "allowUntrustedIssuer": true
+        }
     }
 
 This call will return all authorization credentials with a `purposeOfUse` equal to `test-service` and with which you are allowed to call the resource located at `/patient/2250f7ab-6517-4923-ac00-88ed26f85843`
