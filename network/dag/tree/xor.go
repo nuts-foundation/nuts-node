@@ -6,34 +6,37 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
-func xor(dest *hash.SHA256Hash, left, right hash.SHA256Hash) {
+func xor(dest, left, right []byte) {
 	for i := 0; i < len(left); i++ {
 		dest[i] = left[i] ^ right[i]
 	}
 }
 
-// Xor is a wrapper around hash.SHA256Hash that implements tree.Data to track transaction xors
-type Xor struct {
-	Hash hash.SHA256Hash `json:"hash"`
+// Xor is an alias of hash.SHA256Hash that implements tree.Data to track transaction xors
+type Xor hash.SHA256Hash
+
+// NewXor returns new(Xor). Convenience function to provide a consistent interface
+func NewXor() *Xor {
+	return new(Xor)
 }
 
-// NewXor return *Xor containing an empty hash.
-func NewXor() *Xor {
-	return &Xor{Hash: hash.EmptyHash()}
+// Hash returns a copy as a hash.SHA256Hash
+func (x Xor) Hash() hash.SHA256Hash {
+	return hash.SHA256Hash(x)
 }
 
 func (x Xor) New() Data {
-	return NewXor()
+	return new(Xor)
 }
 
 func (x *Xor) Clone() Data {
-	clone := x.New()
-	_ = clone.Insert(x.Hash)
-	return clone
+	c := new(Xor)
+	copy(c[:], x[:])
+	return c
 }
 
 func (x *Xor) Insert(ref hash.SHA256Hash) error {
-	xor(&x.Hash, x.Hash, ref)
+	xor(x[:], x[:], ref[:])
 	return nil
 }
 
@@ -44,7 +47,7 @@ func (x *Xor) Add(data Data) error {
 func (x *Xor) Subtract(data Data) error {
 	switch v := data.(type) {
 	case *Xor:
-		xor(&x.Hash, x.Hash, v.Hash)
+		xor(x[:], x[:], v[:])
 		return nil
 	default:
 		return fmt.Errorf("data type mismatch - expected %T, got %T", x, v)
@@ -52,13 +55,15 @@ func (x *Xor) Subtract(data Data) error {
 }
 
 func (x Xor) MarshalBinary() ([]byte, error) {
-	return x.Hash.Clone().Slice(), nil
+	c := new(Xor)
+	copy(c[:], x[:])
+	return c[:], nil
 }
 
 func (x *Xor) UnmarshalBinary(data []byte) error {
 	if len(data) != hash.SHA256HashSize {
 		return errors.New("invalid data length")
 	}
-	x.Hash = hash.FromSlice(data)
+	copy(x[:], data)
 	return nil
 }

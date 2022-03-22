@@ -11,15 +11,14 @@ import (
 const testLeafSize = uint32(4)
 
 func TestNew(t *testing.T) {
-	emptyTree := New(NewXor(), testLeafSize)
+	emptyTree := New(NewXor(), testLeafSize).(*tree)
 
 	// tree
-	assert.Equal(t, 0, emptyTree.Depth)
-	assert.Equal(t, testLeafSize, emptyTree.LeafSize)
-	assert.Equal(t, testLeafSize, emptyTree.MaxSize)
+	assert.Equal(t, testLeafSize, emptyTree.leafSize)
+	assert.Equal(t, testLeafSize, emptyTree.treeSize)
 
 	// root
-	assert.True(t, emptyTree.Root.isLeaf())
+	assert.True(t, emptyTree.root.isLeaf())
 }
 
 func TestTree_Insert(t *testing.T) {
@@ -29,7 +28,7 @@ func TestTree_Insert(t *testing.T) {
 
 		_ = tr.Insert(ref, 0)
 
-		assert.Equal(t, ref, hashFromXorNode(tr.Root))
+		assert.Equal(t, ref, tr.root.data.(*Xor).Hash())
 	})
 
 	t.Run("insert single Tx out of tree range", func(t *testing.T) {
@@ -38,9 +37,9 @@ func TestTree_Insert(t *testing.T) {
 
 		_ = tr.Insert(ref, testLeafSize+1)
 
-		assert.Equal(t, ref, hashFromXorNode(tr.Root))
-		assert.Equal(t, ref, hashFromXorNode(tr.Root.Right))
-		assert.Equal(t, hash.EmptyHash(), hashFromXorNode(tr.Root.Left))
+		assert.Equal(t, ref, tr.root.data.(*Xor).Hash())
+		assert.Equal(t, ref, tr.root.right.data.(*Xor).Hash())
+		assert.Equal(t, hash.EmptyHash(), tr.root.left.data.(*Xor).Hash())
 	})
 }
 
@@ -48,7 +47,7 @@ func TestTree_GetRoot(t *testing.T) {
 	t.Run("root Data is zero", func(t *testing.T) {
 		tr := newTestTree(NewXor(), testLeafSize)
 
-		assert.Equal(t, hash.EmptyHash(), tr.GetRoot().(*Xor).Hash)
+		assert.Equal(t, hash.EmptyHash(), tr.GetRoot().(*Xor).Hash())
 	})
 
 	t.Run("root after re-rooting", func(t *testing.T) {
@@ -57,7 +56,7 @@ func TestTree_GetRoot(t *testing.T) {
 
 		_ = tr.Insert(ref, testLeafSize)
 
-		assert.Equal(t, ref, tr.GetRoot().(*Xor).Hash)
+		assert.Equal(t, ref, tr.GetRoot().(*Xor).Hash())
 	})
 
 	t.Run("root of many Tx", func(t *testing.T) {
@@ -68,11 +67,11 @@ func TestTree_GetRoot(t *testing.T) {
 
 		for i := uint32(0); i < N; i++ {
 			rand.Read(ref[:])
-			xor(&allRefs, allRefs, ref)
+			xor(allRefs[:], allRefs[:], ref[:])
 			_ = tr.Insert(ref, N-i)
 		}
 
-		assert.Equal(t, allRefs, tr.GetRoot().(*Xor).Hash)
+		assert.Equal(t, allRefs, tr.GetRoot().(*Xor).Hash())
 	})
 }
 
@@ -82,7 +81,7 @@ func TestTree_GetZeroTo(t *testing.T) {
 	c0t, lc0 := tr.GetZeroTo(0 * testLeafSize)
 	p0t, lc1 := tr.GetZeroTo(1 * testLeafSize)
 	r0t, lc2 := tr.GetZeroTo(2 * testLeafSize)
-	root, lcMax := tr.GetZeroTo(2 * tr.MaxSize)
+	root, lcMax := tr.GetZeroTo(2 * tr.treeSize)
 
 	assert.Equal(t, td.c0, c0t)
 	assert.Equal(t, testLeafSize-1, lc0)
@@ -97,34 +96,31 @@ func TestTree_GetZeroTo(t *testing.T) {
 func TestTree_rightmostLeafClock(t *testing.T) {
 	tr, _ := filledTestTree(NewXor(), testLeafSize)
 
-	clock := rightmostLeafClock(tr.Root)
+	clock := rightmostLeafClock(tr.root)
 
 	assert.Equal(t, testLeafSize*3-1, clock)
 }
 
 func TestTree_DropLeaves(t *testing.T) {
 	t.Run("root should not be dropped", func(t *testing.T) {
-		tr := &tree{Depth: 0, LeafSize: testLeafSize, Root: &node{}}
+		tr := &tree{leafSize: testLeafSize, root: &node{}}
 
 		tr.DropLeaves()
 
-		assert.True(t, tr.Root.isLeaf())
-		assert.Equal(t, 0, tr.Depth)
-		assert.Equal(t, testLeafSize, tr.LeafSize)
+		assert.True(t, tr.root.isLeaf())
+		assert.Equal(t, testLeafSize, tr.leafSize)
 	})
 
 	t.Run("drop leaves 2->1", func(t *testing.T) {
 		tr := &tree{
-			Depth:    2,
-			LeafSize: testLeafSize,
-			Root:     &node{Left: &node{Left: &node{}, Right: &node{}}},
+			leafSize: testLeafSize,
+			root:     &node{left: &node{left: &node{}, right: &node{}}},
 		}
 
 		tr.DropLeaves()
 
-		assert.True(t, tr.Root.Left.isLeaf())
-		assert.Equal(t, 1, tr.Depth)
-		assert.Equal(t, 2*testLeafSize, tr.LeafSize)
+		assert.True(t, tr.root.left.isLeaf())
+		assert.Equal(t, 2*testLeafSize, tr.leafSize)
 	})
 
 	t.Run("drop leaves 2->0", func(t *testing.T) {
@@ -133,9 +129,8 @@ func TestTree_DropLeaves(t *testing.T) {
 		tr.DropLeaves()
 		tr.DropLeaves()
 
-		assert.True(t, tr.Root.isLeaf())
-		assert.Equal(t, 0, tr.Depth)
-		assert.Equal(t, 4*testLeafSize, tr.LeafSize)
+		assert.True(t, tr.root.isLeaf())
+		assert.Equal(t, 4*testLeafSize, tr.leafSize)
 		assert.Equal(t, len(tr.orphanedLeaves), 5)
 	})
 }
@@ -146,10 +141,9 @@ func TestTree_reRoot(t *testing.T) {
 
 		tr.reRoot()
 
-		assert.True(t, tr.Root.Left.isLeaf())
-		assert.Nil(t, tr.Root.Right)
-		assert.Equal(t, tr.MaxSize, 2*testLeafSize)
-		assert.Equal(t, 1, tr.Depth)
+		assert.True(t, tr.root.left.isLeaf())
+		assert.Nil(t, tr.root.right)
+		assert.Equal(t, tr.treeSize, 2*testLeafSize)
 	})
 
 	t.Run("double re-root", func(t *testing.T) {
@@ -158,10 +152,9 @@ func TestTree_reRoot(t *testing.T) {
 		tr.reRoot()
 		tr.reRoot()
 
-		assert.True(t, tr.Root.Left.Left.isLeaf())
-		assert.Nil(t, tr.Root.Right)
-		assert.Equal(t, tr.MaxSize, 4*testLeafSize)
-		assert.Equal(t, 2, tr.Depth)
+		assert.True(t, tr.root.left.left.isLeaf())
+		assert.Nil(t, tr.root.right)
+		assert.Equal(t, tr.treeSize, 4*testLeafSize)
 	})
 }
 
@@ -171,7 +164,7 @@ func TestTree_GetUpdate(t *testing.T) {
 		h := hash.FromSlice([]byte{1})
 		_ = tr.Insert(h, 2*testLeafSize)
 
-		dirty, orphaned, err := tr.GetUpdate()
+		dirty, orphaned, err := tr.GetUpdates()
 
 		assert.NoError(t, err)
 		assert.Equal(t, 0, len(orphaned))
@@ -182,13 +175,13 @@ func TestTree_GetUpdate(t *testing.T) {
 		assert.True(t, ok)
 	})
 
-	t.Run("GetUpdate does not reset update tracking", func(t *testing.T) {
+	t.Run("GetUpdates does not reset update tracking", func(t *testing.T) {
 		tr := newTestTree(NewXor(), testLeafSize)
 		h := hash.FromSlice([]byte{1})
 		_ = tr.Insert(h, 2*testLeafSize)
 
-		_, _, _ = tr.GetUpdate()
-		dirty, orphaned, err := tr.GetUpdate()
+		_, _, _ = tr.GetUpdates()
+		dirty, orphaned, err := tr.GetUpdates()
 
 		assert.NoError(t, err)
 		assert.Equal(t, 0, len(orphaned))
@@ -203,7 +196,7 @@ func TestTree_GetUpdate(t *testing.T) {
 		tr, _ := filledTestTree(NewXor(), testLeafSize)
 		tr.DropLeaves()
 
-		dirty, orphaned, err := tr.GetUpdate()
+		dirty, orphaned, err := tr.GetUpdates()
 
 		assert.NoError(t, err)
 		assert.Equal(t, 3, len(orphaned))
@@ -219,9 +212,9 @@ func TestTree_ResetUpdate(t *testing.T) {
 	tr, _ := filledTestTree(NewXor(), testLeafSize)
 	tr.DropLeaves()
 
-	dirty, orphaned, err := tr.GetUpdate()
+	dirty, orphaned, err := tr.GetUpdates()
 	tr.ResetUpdate()
-	dirtyReset, orphanedReset, err := tr.GetUpdate()
+	dirtyReset, orphanedReset, err := tr.GetUpdates()
 
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(orphaned))
@@ -233,18 +226,17 @@ func TestTree_ResetUpdate(t *testing.T) {
 func TestTree_Load(t *testing.T) {
 	t.Run("ok - tree reconstructed from bytes", func(t *testing.T) {
 		tr, _ := filledTestTree(NewXor(), testLeafSize)
-		dirty, _, _ := tr.GetUpdate()
-		loadedTree := New(NewXor(), 0)
+		dirty, _, _ := tr.GetUpdates()
+		loadedTree := New(NewXor(), 0).(*tree)
 
 		err := loadedTree.Load(dirty)
 
 		assert.NoError(t, err)
-		assert.Equal(t, testLeafSize, loadedTree.LeafSize)
-		assert.Equal(t, 4*testLeafSize, loadedTree.MaxSize)
-		assert.Equal(t, 2, loadedTree.Depth)
-		assert.Equal(t, tr.Root, loadedTree.Root)
+		assert.Equal(t, testLeafSize, loadedTree.leafSize)
+		assert.Equal(t, 4*testLeafSize, loadedTree.treeSize)
+		assert.Equal(t, tr.root, loadedTree.root)
 
-		for lc := testLeafSize - 1; lc < loadedTree.MaxSize; lc += testLeafSize {
+		for lc := testLeafSize - 1; lc < loadedTree.treeSize; lc += testLeafSize {
 			expData, expLc := tr.GetZeroTo(lc)
 			actualData, actualLc := loadedTree.GetZeroTo(lc)
 			assert.Equal(t, expData, actualData)
@@ -254,7 +246,7 @@ func TestTree_Load(t *testing.T) {
 
 	t.Run("fail - incorrect data prototype", func(t *testing.T) {
 		tr, _ := filledTestTree(NewXor(), testLeafSize)
-		dirty, _, _ := tr.GetUpdate()
+		dirty, _, _ := tr.GetUpdates()
 		loadedTree := New(NewIblt(ibltNumBuckets), 0)
 
 		err := loadedTree.Load(dirty)
@@ -265,23 +257,18 @@ func TestTree_Load(t *testing.T) {
 
 // test helpers
 
-func hashFromXorNode(n *node) hash.SHA256Hash {
-	return n.Data.(*Xor).Hash
-}
-
 func newTestTree(data Data, leafSize uint32) *tree {
 	root := &node{
-		SplitLC: leafSize / 2,
-		LimitLC: leafSize,
-		Data:    data.New(),
+		splitLC: leafSize / 2,
+		limitLC: leafSize,
+		data:    data.New(),
 	}
 	return &tree{
-		Depth:       0,
-		MaxSize:     leafSize,
-		LeafSize:    leafSize,
-		Root:        root,
+		treeSize:    leafSize,
+		leafSize:    leafSize,
+		root:        root,
 		prototype:   data.New(),
-		dirtyLeaves: map[uint32]*node{root.SplitLC: root},
+		dirtyLeaves: map[uint32]*node{root.splitLC: root},
 	}
 }
 
@@ -326,11 +313,11 @@ func filledTestTree(data Data, leafSize uint32) (*tree, treeData) {
 }
 
 /* treeData for the following structure
-        r
+       r
 	   / \
-     p0   p1
-    / \   / \
-   c0 c1 c2 c3
+    p0   p1
+   / \   / \
+  c0 c1 c2 c3
 */
 type treeData struct {
 	r, p0, p1, c0, c1, c2, c3 Data

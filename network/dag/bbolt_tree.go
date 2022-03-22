@@ -60,7 +60,7 @@ func (store bboltTree) Update(bucketName string, tree tree.Tree) error {
 		bucket.FillPercent = BucketFillPercent
 
 		// get data
-		dirties, orphaned, err := tree.GetUpdate()
+		dirties, orphaned, err := tree.GetUpdates()
 		if err != nil {
 			return err
 		}

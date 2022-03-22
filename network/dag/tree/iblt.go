@@ -27,19 +27,19 @@ The hash(key) value ensures correct decoding after subtraction of two IBLTs. Ibl
 	- Eppstein, David, et al. "What's the difference?: efficient set reconciliation without prior context." http://conferences.sigcomm.org/sigcomm/2011/papers/sigcomm/p218.pdf
 */
 type Iblt struct {
-	Hc      uint64    `json:"Hc"`
-	Hk      uint32    `json:"Hk"`
-	K       uint8     `json:"K"`
-	Buckets []*bucket `json:"buckets"`
+	hc      uint64
+	hk      uint32
+	k       uint8
+	buckets []*bucket
 }
 
 // NewIblt returns an *Iblt with default settings and specified number of buckets.
 func NewIblt(numBuckets int) *Iblt {
 	return &Iblt{
-		Buckets: makeBuckets(numBuckets),
-		Hc:      ibltHc,
-		Hk:      ibltHk,
-		K:       ibltK,
+		buckets: makeBuckets(numBuckets),
+		hc:      ibltHc,
+		hk:      ibltHk,
+		k:       ibltK,
 	}
 }
 
@@ -49,17 +49,17 @@ func (i Iblt) New() Data {
 
 func (i Iblt) Clone() Data {
 	tmpBuckets := makeBuckets(i.numBuckets())
-	for idx, b := range i.Buckets {
+	for idx, b := range i.buckets {
 		tmpBuckets[idx] = b.clone()
 	}
-	i.Buckets = tmpBuckets
+	i.buckets = tmpBuckets
 	return &i
 }
 
 func (i *Iblt) Insert(ref hash.SHA256Hash) error {
 	keyHash := i.hashKey(ref)
 	for _, h := range i.bucketIndices(keyHash) {
-		i.Buckets[h].insert(ref, keyHash)
+		i.buckets[h].insert(ref, keyHash)
 	}
 	return nil
 }
@@ -68,7 +68,7 @@ func (i *Iblt) Insert(ref hash.SHA256Hash) error {
 func (i *Iblt) Delete(key hash.SHA256Hash) error {
 	keyHash := i.hashKey(key)
 	for _, h := range i.bucketIndices(keyHash) {
-		i.Buckets[h].delete(key, keyHash)
+		i.buckets[h].delete(key, keyHash)
 	}
 	return nil
 }
@@ -78,8 +78,8 @@ func (i *Iblt) Add(other Data) error {
 	if err != nil {
 		return err
 	}
-	for idx, b := range i.Buckets {
-		b.add(o.Buckets[idx])
+	for idx, b := range i.buckets {
+		b.add(o.buckets[idx])
 	}
 	return nil
 }
@@ -89,8 +89,8 @@ func (i *Iblt) Subtract(other Data) error {
 	if err != nil {
 		return err
 	}
-	for idx, b := range i.Buckets {
-		b.subtract(o.Buckets[idx])
+	for idx, b := range i.buckets {
+		b.subtract(o.buckets[idx])
 	}
 	return nil
 }
@@ -105,16 +105,16 @@ func (i Iblt) validate(other Data) (*Iblt, error) {
 
 	// validate format
 	if i.numBuckets() != o.numBuckets() {
-		return nil, fmt.Errorf("number of Buckets do not match, expected (%d) got (%d)", i.numBuckets(), o.numBuckets())
+		return nil, fmt.Errorf("number of buckets do not match, expected (%d) got (%d)", i.numBuckets(), o.numBuckets())
 	}
-	if i.Hc != o.Hc {
-		return nil, fmt.Errorf("Hc do not match, expected (%d) got (%d)", i.Hc, o.Hc)
+	if i.hc != o.hc {
+		return nil, fmt.Errorf("hc do not match, expected (%d) got (%d)", i.hc, o.hc)
 	}
-	if i.Hk != o.Hk {
-		return nil, fmt.Errorf("Hk do not match, expected (%d) got (%d)", i.Hk, o.Hk)
+	if i.hk != o.hk {
+		return nil, fmt.Errorf("hk do not match, expected (%d) got (%d)", i.hk, o.hk)
 	}
-	if i.K != o.K {
-		return nil, fmt.Errorf("unequal number of K, expected (%d) got (%d)", i.K, o.K)
+	if i.k != o.k {
+		return nil, fmt.Errorf("unequal number of k, expected (%d) got (%d)", i.k, o.k)
 	}
 
 	// valid
@@ -129,14 +129,14 @@ func (i *Iblt) Decode() (remaining []hash.SHA256Hash, missing []hash.SHA256Hash,
 		updated := false
 
 		// peel off pures (count == ±1)
-		for _, b := range i.Buckets {
-			if (b.Count == 1 || b.Count == -1) && i.hashKey(b.KeySum) == b.HashSum {
-				if b.Count == 1 {
-					remaining = append(remaining, b.KeySum)
-					err = i.Delete(b.KeySum)
+		for _, b := range i.buckets {
+			if (b.count == 1 || b.count == -1) && i.hashKey(b.keySum) == b.hashSum {
+				if b.count == 1 {
+					remaining = append(remaining, b.keySum)
+					err = i.Delete(b.keySum)
 				} else { // b.count == -1
-					missing = append(missing, b.KeySum)
-					err = i.Insert(b.KeySum)
+					missing = append(missing, b.keySum)
+					err = i.Insert(b.keySum)
 				}
 				if err != nil {
 					return nil, nil, err
@@ -147,7 +147,7 @@ func (i *Iblt) Decode() (remaining []hash.SHA256Hash, missing []hash.SHA256Hash,
 
 		// if no pures exist, the iblt is empty or cannot be decoded
 		if !updated {
-			for _, b := range i.Buckets {
+			for _, b := range i.buckets {
 				if !b.isEmpty() {
 					return remaining, missing, ErrDecodeNotPossible
 				}
@@ -158,7 +158,7 @@ func (i *Iblt) Decode() (remaining []hash.SHA256Hash, missing []hash.SHA256Hash,
 }
 
 func (i Iblt) numBuckets() int {
-	return len(i.Buckets)
+	return len(i.buckets)
 }
 
 func makeBuckets(numBuckets int) []*bucket {
@@ -170,30 +170,30 @@ func makeBuckets(numBuckets int) []*bucket {
 }
 
 func (i Iblt) bucketIndices(hash uint64) []uint32 {
-	bucketUsed := make(map[uint32]bool, i.K)
+	bucketUsed := make(map[uint32]bool, i.k)
 	var indices []uint32
 	hashKeyBytes, nextBytes := make([]byte, 8), make([]byte, 4)
-	binary.LittleEndian.PutUint64(hashKeyBytes, hash)
-	next := murmur3.SeedSum32(i.Hk, hashKeyBytes)
-	for len(indices) < int(i.K) {
+	byteOrder().PutUint64(hashKeyBytes, hash)
+	next := murmur3.SeedSum32(i.hk, hashKeyBytes)
+	for len(indices) < int(i.k) {
 		bucketId := next % uint32(i.numBuckets())
 		if !bucketUsed[bucketId] {
 			indices = append(indices, bucketId)
 			bucketUsed[bucketId] = true
 		}
-		binary.LittleEndian.PutUint32(nextBytes, next)
-		next = murmur3.SeedSum32(i.Hk, nextBytes)
+		byteOrder().PutUint32(nextBytes, next)
+		next = murmur3.SeedSum32(i.hk, nextBytes)
 	}
 	return indices
 }
 
 func (i Iblt) hashKey(key hash.SHA256Hash) uint64 {
-	return murmur3.SeedSum64(i.Hc, key.Slice())
+	return murmur3.SeedSum64(i.hc, key.Slice())
 }
 
 func (i Iblt) MarshalBinary() ([]byte, error) {
 	data := make([]byte, i.numBuckets()*bucketBytes)
-	for idx, b := range i.Buckets {
+	for idx, b := range i.buckets {
 		bs, err := b.MarshalBinary()
 		if err != nil {
 			return nil, err
@@ -209,12 +209,12 @@ func (i *Iblt) UnmarshalBinary(data []byte) error {
 		return errors.New("invalid data length")
 	}
 	buf := bytes.NewBuffer(data)
-	i.Hc = ibltHc
-	i.Hk = ibltHk
-	i.K = ibltK
-	i.Buckets = makeBuckets(numBuckets)
+	i.hc = ibltHc
+	i.hk = ibltHk
+	i.k = ibltK
+	i.buckets = makeBuckets(numBuckets)
 	for j := 0; j < i.numBuckets(); j++ {
-		err := i.Buckets[j].UnmarshalBinary(buf.Next(bucketBytes))
+		err := i.buckets[j].UnmarshalBinary(buf.Next(bucketBytes))
 		if err != nil {
 			return fmt.Errorf("unmarshalling failed - %w", err)
 		}
@@ -224,35 +224,35 @@ func (i *Iblt) UnmarshalBinary(data []byte) error {
 
 // bucket
 type bucket struct {
-	// Count is signed to allow for negative counts after subtraction
-	Count   int32           `json:"count"`    // #1
-	HashSum uint64          `json:"hash_sum"` // #2
-	KeySum  hash.SHA256Hash `json:"key_sum"`  // #3
+	// count is signed to allow for negative counts after subtraction
+	count   int32           // #1
+	hashSum uint64          // #2
+	keySum  hash.SHA256Hash // #3
 }
 
 func (b *bucket) insert(key hash.SHA256Hash, hash uint64) {
-	b.Count++
+	b.count++
 	b.update(key, hash)
 }
 
 func (b *bucket) delete(key hash.SHA256Hash, hash uint64) {
-	b.Count--
+	b.count--
 	b.update(key, hash)
 }
 
 func (b *bucket) add(o *bucket) {
-	b.Count += o.Count
-	b.update(o.KeySum, o.HashSum)
+	b.count += o.count
+	b.update(o.keySum, o.hashSum)
 }
 
 func (b *bucket) subtract(o *bucket) {
-	b.Count -= o.Count
-	b.update(o.KeySum, o.HashSum)
+	b.count -= o.count
+	b.update(o.keySum, o.hashSum)
 }
 
 func (b *bucket) update(key hash.SHA256Hash, hash uint64) {
-	xor(&b.KeySum, b.KeySum, key)
-	b.HashSum ^= hash
+	xor(b.keySum[:], b.keySum[:], key[:])
+	b.hashSum ^= hash
 }
 
 func (b bucket) clone() *bucket {
@@ -264,18 +264,18 @@ func (b bucket) isEmpty() bool {
 }
 
 func (b bucket) equals(o bucket) bool {
-	return b.Count == o.Count && b.HashSum == o.HashSum && b.KeySum == o.KeySum
+	return b == o
 }
 
 func (b bucket) String() string {
-	return fmt.Sprintf("{Count:%d KeySum:%s HashSum:%d}", b.Count, b.KeySum, b.HashSum)
+	return fmt.Sprintf("{count:%d keySum:%s hashSum:%d}", b.count, b.keySum, b.hashSum)
 }
 
 func (b bucket) MarshalBinary() ([]byte, error) {
 	bs := make([]byte, bucketBytes)
-	byteOrder().PutUint32(bs, uint32(b.Count)) // #1
-	byteOrder().PutUint64(bs[4:], b.HashSum)   // #2
-	copy(bs[12:], b.KeySum.Clone().Slice())    // #3
+	byteOrder().PutUint32(bs, uint32(b.count)) // #1
+	byteOrder().PutUint64(bs[4:], b.hashSum)   // #2
+	copy(bs[12:], b.keySum.Clone().Slice())    // #3
 	return bs, nil
 }
 
@@ -284,12 +284,14 @@ func (b *bucket) UnmarshalBinary(data []byte) error {
 		return errors.New("invalid data length")
 	}
 	buf := bytes.NewBuffer(data)
-	b.Count = int32(byteOrder().Uint32(buf.Next(4)))         // #1
-	b.HashSum = byteOrder().Uint64(buf.Next(8))              // #2
-	b.KeySum = hash.FromSlice(buf.Next(hash.SHA256HashSize)) // #3
+	b.count = int32(byteOrder().Uint32(buf.Next(4)))         // #1
+	b.hashSum = byteOrder().Uint64(buf.Next(8))              // #2
+	b.keySum = hash.FromSlice(buf.Next(hash.SHA256HashSize)) // #3
 	return nil
 }
 
+// byteOrder returns the binary.ByteOrder described in the specs.
+// This guarantees Iblt generation is platform independent and allows decentralized comparison.
 func byteOrder() binary.ByteOrder {
 	return binary.LittleEndian
 }
