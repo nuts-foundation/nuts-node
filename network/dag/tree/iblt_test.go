@@ -309,6 +309,20 @@ func TestIblt_Decode(t *testing.T) {
 		}
 	})
 
+	t.Run("fail - loop detection", func(t *testing.T) {
+		key := hash.FromSlice([]byte("looper"))
+		iblt := NewIblt(ibltNumBuckets)
+		_ = iblt.Insert(key)
+		keyHash := iblt.hashKey(key)
+		// if the key-keyHash pair is missing from one of the buckets,
+		// it will be remaining/missing in the iblt out of sync with the other buckets causing a loop.
+		iblt.buckets[iblt.bucketIndices(keyHash)[0]].delete(key, keyHash)
+
+		_, _, err := iblt.Decode()
+
+		assert.Equal(t, ErrDecodeLoop, err)
+	})
+
 	t.Run("fail - too many hashes", func(t *testing.T) {
 		iblt, _ := getIbltWithRandomData(ibltNumBuckets, ibltNumBuckets)
 		clone := iblt.Clone().(*Iblt)

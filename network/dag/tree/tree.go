@@ -23,6 +23,8 @@ type Data interface {
 	encoding.BinaryUnmarshaler
 }
 
+// Tree is the interface for an in-memory tree that provides fast access to Data over requested Lamport Clock ranges.
+// Tree is not thread-safe.
 type Tree interface {
 	// Insert a transaction reference at the specified clock value.
 	// The result of inserting the same ref multiple times is undefined.

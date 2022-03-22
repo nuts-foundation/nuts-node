@@ -19,14 +19,14 @@ type bboltTree struct {
 	db *bbolt.DB
 }
 
-// NewBBoltTreeStore returns an instance of a BBolt based tree store. Buckets managed by this store are filled to BucketFillPercent
-func NewBBoltTreeStore(db *bbolt.DB) *bboltTree {
+// newBBoltTreeStore returns an instance of a BBolt based tree store. Buckets managed by this store are filled to BucketFillPercent
+func newBBoltTreeStore(db *bbolt.DB) *bboltTree {
 	return &bboltTree{db: db}
 }
 
-// Read fills the tree with data in the bucket.
+// read fills the tree with data in the bucket.
 // Returns an error the bucket does not exist, or if data in the bucket doesn't match the prototype.
-func (store bboltTree) Read(bucketName string, prototype tree.Data) (tree.Tree, error) {
+func (store bboltTree) read(bucketName string, prototype tree.Data) (tree.Tree, error) {
 	tr := tree.New(prototype.New(), 0)
 	return tr, store.db.View(func(tx *bbolt.Tx) error {
 		// get bucket
@@ -48,10 +48,10 @@ func (store bboltTree) Read(bucketName string, prototype tree.Data) (tree.Tree, 
 	})
 }
 
-// Update writes an incremental update to the bucket.
+// update writes an incremental update to the bucket.
 // The incremental update is defined as changes to the tree since the last call to Tree.ResetUpdate,
-// which is called when Update completes successfully.
-func (store bboltTree) Update(bucketName string, tree tree.Tree) error {
+// which is called when update completes successfully.
+func (store bboltTree) update(bucketName string, tree tree.Tree) error {
 	return store.db.Update(func(tx *bbolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte(bucketName))
 		if err != nil {

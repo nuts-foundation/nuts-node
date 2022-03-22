@@ -18,7 +18,10 @@ const (
 )
 
 // ErrDecodeNotPossible is returned when the Iblt cannot be decoded.
-var ErrDecodeNotPossible = errors.New("decode failed")
+var (
+	ErrDecodeNotPossible = errors.New("decode failed")
+	ErrDecodeLoop        = errors.New("decode loop detected")
+)
 
 /*
 Iblt implements an Invertible Bloom Filter, which is the special case of an IBLT where the key-value pair consist of a key-hash(key) pair.
@@ -125,21 +128,34 @@ func (i Iblt) validate(other Data) (*Iblt, error) {
 // Decode is destructive to the iblt. If decoding fails with ErrDecodeNotPossible, the original iblt can be recovered by
 // Insert-ing all remaining and Delete-ing all missing hashes. Any other error is unrecoverable.
 func (i *Iblt) Decode() (remaining []hash.SHA256Hash, missing []hash.SHA256Hash, err error) {
+	pures := map[hash.SHA256Hash]bool{}
+
+outer:
 	for {
 		updated := false
 
 		// peel off pures (count == ±1)
 		for _, b := range i.buckets {
 			if (b.count == 1 || b.count == -1) && i.hashKey(b.keySum) == b.hashSum {
-				if b.count == 1 {
-					remaining = append(remaining, b.keySum)
-					err = i.Delete(b.keySum)
-				} else { // b.count == -1
-					missing = append(missing, b.keySum)
-					err = i.Insert(b.keySum)
+				txRef := b.keySum
+				if pures[txRef] {
+					// Decode gets stuck in a loop when the b.keySum is not exactly ±1 times in all buckets with indices i.bucketIndices(b.hashSum)
+					// this can occur when two Iblt are subtracted that use different methods for assigning buckets
+					err = ErrDecodeLoop
+					break outer
 				}
+				pures[txRef] = true
+
+				if b.count == 1 {
+					remaining = append(remaining, txRef)
+					err = i.Delete(txRef)
+				} else { // b.count == -1
+					missing = append(missing, txRef)
+					err = i.Insert(txRef)
+				}
+
 				if err != nil {
-					return nil, nil, err
+					break outer
 				}
 				updated = true
 			}
@@ -147,14 +163,23 @@ func (i *Iblt) Decode() (remaining []hash.SHA256Hash, missing []hash.SHA256Hash,
 
 		// if no pures exist, the iblt is empty or cannot be decoded
 		if !updated {
-			for _, b := range i.buckets {
-				if !b.isEmpty() {
-					return remaining, missing, ErrDecodeNotPossible
-				}
+			if !i.isEmpty() {
+				err = ErrDecodeNotPossible
 			}
-			return remaining, missing, nil
+			break
 		}
 	}
+
+	return remaining, missing, err
+}
+
+func (i Iblt) isEmpty() bool {
+	for _, b := range i.buckets {
+		if !b.isEmpty() {
+			return false
+		}
+	}
+	return true
 }
 
 func (i Iblt) numBuckets() int {
