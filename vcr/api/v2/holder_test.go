@@ -130,7 +130,7 @@ func TestWrapper_SearchVCs(t *testing.T) {
 		assert.Equal(t, "organization.city", clauses[1].Key())
 		assert.Equal(t, "Amandelmere", clauses[1].Seek())
 		assert.Equal(t, "eq", clauses[2].Type())
-		assert.Equal(t, "subject", clauses[2].Key())
+		assert.Equal(t, "credentialSubject.id", clauses[2].Key())
 		assert.Equal(t, "did:nuts:123", clauses[2].Seek())
 	})
 

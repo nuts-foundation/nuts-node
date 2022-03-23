@@ -89,7 +89,7 @@ func (w *Wrapper) searchOrgs(ctx echo.Context, allowUntrusted bool, body []byte)
 		query.AddClause(concept.Prefix("organization.city", ldQuery.CredentialSubject.Organization.City))
 	}
 	if ldQuery.CredentialSubject.ID != "" {
-		query.AddClause(concept.Eq("subject", ldQuery.CredentialSubject.ID))
+		query.AddClause(concept.Eq("credentialSubject.id", ldQuery.CredentialSubject.ID))
 	}
 
 	results, err := w.VCR.Search(ctx.Request().Context(), query, allowUntrusted, nil)
