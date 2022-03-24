@@ -347,6 +347,9 @@ type ClientInterface interface {
 
 	SearchVCs(ctx context.Context, body SearchVCsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ResolveVC request
+	ResolveVC(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// UntrustIssuer request with any body
 	UntrustIssuerWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -460,6 +463,18 @@ func (c *Client) SearchVCsWithBody(ctx context.Context, contentType string, body
 
 func (c *Client) SearchVCs(ctx context.Context, body SearchVCsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSearchVCsRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ResolveVC(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewResolveVCRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -795,7 +810,7 @@ func NewSearchVCsRequestWithBody(server string, contentType string, body io.Read
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/internal/vcr/v2/registry/vc/search")
+	operationPath := fmt.Sprintf("/internal/vcr/v2/search")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -811,6 +826,40 @@ func NewSearchVCsRequestWithBody(server string, contentType string, body io.Read
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewResolveVCRequest generates requests for ResolveVC
+func NewResolveVCRequest(server string, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/vcr/v2/vc/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -1107,6 +1156,9 @@ type ClientWithResponsesInterface interface {
 
 	SearchVCsWithResponse(ctx context.Context, body SearchVCsJSONRequestBody, reqEditors ...RequestEditorFn) (*SearchVCsResponse, error)
 
+	// ResolveVC request
+	ResolveVCWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*ResolveVCResponse, error)
+
 	// UntrustIssuer request with any body
 	UntrustIssuerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UntrustIssuerResponse, error)
 
@@ -1238,6 +1290,28 @@ func (r SearchVCsResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r SearchVCsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ResolveVCResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *VerifiableCredential
+}
+
+// Status returns HTTPResponse.Status
+func (r ResolveVCResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ResolveVCResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -1441,6 +1515,15 @@ func (c *ClientWithResponses) SearchVCsWithResponse(ctx context.Context, body Se
 		return nil, err
 	}
 	return ParseSearchVCsResponse(rsp)
+}
+
+// ResolveVCWithResponse request returning *ResolveVCResponse
+func (c *ClientWithResponses) ResolveVCWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*ResolveVCResponse, error) {
+	rsp, err := c.ResolveVC(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseResolveVCResponse(rsp)
 }
 
 // UntrustIssuerWithBodyWithResponse request with arbitrary body returning *UntrustIssuerResponse
@@ -1659,6 +1742,32 @@ func ParseSearchVCsResponse(rsp *http.Response) (*SearchVCsResponse, error) {
 	return response, nil
 }
 
+// ParseResolveVCResponse parses an HTTP response from a ResolveVCWithResponse call
+func ParseResolveVCResponse(rsp *http.Response) (*ResolveVCResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ResolveVCResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest VerifiableCredential
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseUntrustIssuerResponse parses an HTTP response from a UntrustIssuerWithResponse call
 func ParseUntrustIssuerResponse(rsp *http.Response) (*UntrustIssuerResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
@@ -1810,8 +1919,11 @@ type ServerInterface interface {
 	// (DELETE /internal/vcr/v2/issuer/vc/{id})
 	RevokeVC(ctx echo.Context, id string) error
 	// Searches for verifiable credentials that could be used for different use-cases.
-	// (POST /internal/vcr/v2/registry/vc/search)
+	// (POST /internal/vcr/v2/search)
 	SearchVCs(ctx echo.Context) error
+	// Resolves a verifiable credential
+	// (GET /internal/vcr/v2/vc/{id})
+	ResolveVC(ctx echo.Context, id string) error
 	// Remove trust in an issuer/credentialType combination
 	// (DELETE /internal/vcr/v2/verifier/trust)
 	UntrustIssuer(ctx echo.Context) error
@@ -1909,6 +2021,22 @@ func (w *ServerInterfaceWrapper) SearchVCs(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.SearchVCs(ctx)
+	return err
+}
+
+// ResolveVC converts echo context to params.
+func (w *ServerInterfaceWrapper) ResolveVC(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "id", runtime.ParamLocationPath, ctx.Param("id"), &id)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.ResolveVC(ctx, id)
 	return err
 }
 
@@ -2028,9 +2156,13 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		si.(Preprocessor).Preprocess("RevokeVC", context)
 		return wrapper.RevokeVC(context)
 	})
-	router.Add(http.MethodPost, baseURL+"/internal/vcr/v2/registry/vc/search", func(context echo.Context) error {
+	router.Add(http.MethodPost, baseURL+"/internal/vcr/v2/search", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("SearchVCs", context)
 		return wrapper.SearchVCs(context)
+	})
+	router.Add(http.MethodGet, baseURL+"/internal/vcr/v2/vc/:id", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("ResolveVC", context)
+		return wrapper.ResolveVC(context)
 	})
 	router.Add(http.MethodDelete, baseURL+"/internal/vcr/v2/verifier/trust", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("UntrustIssuer", context)

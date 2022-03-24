@@ -1,5 +1,4 @@
 /*
- * Nuts node
  * Copyright (C) 2022 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
@@ -23,6 +22,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
@@ -249,4 +250,40 @@ func loadTemplates(t *testing.T, registry concept.Registry) {
 			t.Fatal(err)
 		}
 	}
+}
+
+
+func TestWrapper_ResolveVC(t *testing.T) {
+	id := ssi.MustParseURI("did:nuts:some-did#some-vc")
+
+	credential := vc.VerifiableCredential{
+		ID: &id,
+	}
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.vcr.EXPECT().Resolve(id, nil).Return(&credential, nil)
+		ctx.echo.EXPECT().JSON(http.StatusOK, credential)
+
+		err := ctx.client.ResolveVC(ctx.echo, id.String())
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("error", func(t *testing.T) {
+		ctx := newMockContext(t)
+
+		ctx.vcr.EXPECT().Resolve(id, nil).Return(nil, errors.New("failed"))
+
+		err := ctx.client.ResolveVC(ctx.echo, id.String())
+
+		assert.Error(t, err)
+	})
+
+	t.Run("error - invalid input ID", func(t *testing.T) {
+		ctx := newMockContext(t)
+
+		err := ctx.client.ResolveVC(ctx.echo, string([]byte{0x7f}))
+		assert.Error(t, err)
+	})
 }
