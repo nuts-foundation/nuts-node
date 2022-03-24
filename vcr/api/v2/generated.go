@@ -199,9 +199,6 @@ type VPVerificationResult struct {
 	Validity bool `json:"validity"`
 }
 
-// SearchVCsJSONBody defines parameters for SearchVCs.
-type SearchVCsJSONBody SearchVCRequest
-
 // CreateVPJSONBody defines parameters for CreateVP.
 type CreateVPJSONBody CreateVPRequest
 
@@ -220,6 +217,9 @@ type SearchIssuedVCsParams struct {
 	Subject *string `json:"subject,omitempty"`
 }
 
+// SearchVCsJSONBody defines parameters for SearchVCs.
+type SearchVCsJSONBody SearchVCRequest
+
 // UntrustIssuerJSONBody defines parameters for UntrustIssuer.
 type UntrustIssuerJSONBody CredentialIssuer
 
@@ -232,14 +232,14 @@ type VerifyVCJSONBody VCVerificationRequest
 // VerifyVPJSONBody defines parameters for VerifyVP.
 type VerifyVPJSONBody VPVerificationRequest
 
-// SearchVCsJSONRequestBody defines body for SearchVCs for application/json ContentType.
-type SearchVCsJSONRequestBody SearchVCsJSONBody
-
 // CreateVPJSONRequestBody defines body for CreateVP for application/json ContentType.
 type CreateVPJSONRequestBody CreateVPJSONBody
 
 // IssueVCJSONRequestBody defines body for IssueVC for application/json ContentType.
 type IssueVCJSONRequestBody IssueVCJSONBody
+
+// SearchVCsJSONRequestBody defines body for SearchVCs for application/json ContentType.
+type SearchVCsJSONRequestBody SearchVCsJSONBody
 
 // UntrustIssuerJSONRequestBody defines body for UntrustIssuer for application/json ContentType.
 type UntrustIssuerJSONRequestBody UntrustIssuerJSONBody
@@ -326,11 +326,6 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
-	// SearchVCs request with any body
-	SearchVCsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	SearchVCs(ctx context.Context, body SearchVCsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
-
 	// CreateVP request with any body
 	CreateVPWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -346,6 +341,11 @@ type ClientInterface interface {
 
 	// RevokeVC request
 	RevokeVC(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SearchVCs request with any body
+	SearchVCsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	SearchVCs(ctx context.Context, body SearchVCsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// UntrustIssuer request with any body
 	UntrustIssuerWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -372,30 +372,6 @@ type ClientInterface interface {
 
 	// ListUntrusted request
 	ListUntrusted(ctx context.Context, credentialType string, reqEditors ...RequestEditorFn) (*http.Response, error)
-}
-
-func (c *Client) SearchVCsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewSearchVCsRequestWithBody(c.Server, contentType, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) SearchVCs(ctx context.Context, body SearchVCsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewSearchVCsRequest(c.Server, body)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
 }
 
 func (c *Client) CreateVPWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -460,6 +436,30 @@ func (c *Client) SearchIssuedVCs(ctx context.Context, params *SearchIssuedVCsPar
 
 func (c *Client) RevokeVC(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRevokeVCRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) SearchVCsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSearchVCsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) SearchVCs(ctx context.Context, body SearchVCsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSearchVCsRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -588,46 +588,6 @@ func (c *Client) ListUntrusted(ctx context.Context, credentialType string, reqEd
 		return nil, err
 	}
 	return c.Client.Do(req)
-}
-
-// NewSearchVCsRequest calls the generic SearchVCs builder with application/json body
-func NewSearchVCsRequest(server string, body SearchVCsJSONRequestBody) (*http.Request, error) {
-	var bodyReader io.Reader
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	bodyReader = bytes.NewReader(buf)
-	return NewSearchVCsRequestWithBody(server, "application/json", bodyReader)
-}
-
-// NewSearchVCsRequestWithBody generates requests for SearchVCs with any type of body
-func NewSearchVCsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
-	var err error
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/internal/vcr/v2/holder/vc/search")
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("POST", queryURL.String(), body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Content-Type", contentType)
-
-	return req, nil
 }
 
 // NewCreateVPRequest calls the generic CreateVP builder with application/json body
@@ -811,6 +771,46 @@ func NewRevokeVCRequest(server string, id string) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewSearchVCsRequest calls the generic SearchVCs builder with application/json body
+func NewSearchVCsRequest(server string, body SearchVCsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSearchVCsRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSearchVCsRequestWithBody generates requests for SearchVCs with any type of body
+func NewSearchVCsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/vcr/v2/registry/vc/search")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -1086,11 +1086,6 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// SearchVCs request with any body
-	SearchVCsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SearchVCsResponse, error)
-
-	SearchVCsWithResponse(ctx context.Context, body SearchVCsJSONRequestBody, reqEditors ...RequestEditorFn) (*SearchVCsResponse, error)
-
 	// CreateVP request with any body
 	CreateVPWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateVPResponse, error)
 
@@ -1106,6 +1101,11 @@ type ClientWithResponsesInterface interface {
 
 	// RevokeVC request
 	RevokeVCWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*RevokeVCResponse, error)
+
+	// SearchVCs request with any body
+	SearchVCsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SearchVCsResponse, error)
+
+	SearchVCsWithResponse(ctx context.Context, body SearchVCsJSONRequestBody, reqEditors ...RequestEditorFn) (*SearchVCsResponse, error)
 
 	// UntrustIssuer request with any body
 	UntrustIssuerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UntrustIssuerResponse, error)
@@ -1132,28 +1132,6 @@ type ClientWithResponsesInterface interface {
 
 	// ListUntrusted request
 	ListUntrustedWithResponse(ctx context.Context, credentialType string, reqEditors ...RequestEditorFn) (*ListUntrustedResponse, error)
-}
-
-type SearchVCsResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *SearchVCResults
-}
-
-// Status returns HTTPResponse.Status
-func (r SearchVCsResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r SearchVCsResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
 }
 
 type CreateVPResponse struct {
@@ -1238,6 +1216,28 @@ func (r RevokeVCResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r RevokeVCResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type SearchVCsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *SearchVCResults
+}
+
+// Status returns HTTPResponse.Status
+func (r SearchVCsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SearchVCsResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -1374,23 +1374,6 @@ func (r ListUntrustedResponse) StatusCode() int {
 	return 0
 }
 
-// SearchVCsWithBodyWithResponse request with arbitrary body returning *SearchVCsResponse
-func (c *ClientWithResponses) SearchVCsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SearchVCsResponse, error) {
-	rsp, err := c.SearchVCsWithBody(ctx, contentType, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseSearchVCsResponse(rsp)
-}
-
-func (c *ClientWithResponses) SearchVCsWithResponse(ctx context.Context, body SearchVCsJSONRequestBody, reqEditors ...RequestEditorFn) (*SearchVCsResponse, error) {
-	rsp, err := c.SearchVCs(ctx, body, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseSearchVCsResponse(rsp)
-}
-
 // CreateVPWithBodyWithResponse request with arbitrary body returning *CreateVPResponse
 func (c *ClientWithResponses) CreateVPWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateVPResponse, error) {
 	rsp, err := c.CreateVPWithBody(ctx, contentType, body, reqEditors...)
@@ -1441,6 +1424,23 @@ func (c *ClientWithResponses) RevokeVCWithResponse(ctx context.Context, id strin
 		return nil, err
 	}
 	return ParseRevokeVCResponse(rsp)
+}
+
+// SearchVCsWithBodyWithResponse request with arbitrary body returning *SearchVCsResponse
+func (c *ClientWithResponses) SearchVCsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SearchVCsResponse, error) {
+	rsp, err := c.SearchVCsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSearchVCsResponse(rsp)
+}
+
+func (c *ClientWithResponses) SearchVCsWithResponse(ctx context.Context, body SearchVCsJSONRequestBody, reqEditors ...RequestEditorFn) (*SearchVCsResponse, error) {
+	rsp, err := c.SearchVCs(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSearchVCsResponse(rsp)
 }
 
 // UntrustIssuerWithBodyWithResponse request with arbitrary body returning *UntrustIssuerResponse
@@ -1527,32 +1527,6 @@ func (c *ClientWithResponses) ListUntrustedWithResponse(ctx context.Context, cre
 		return nil, err
 	}
 	return ParseListUntrustedResponse(rsp)
-}
-
-// ParseSearchVCsResponse parses an HTTP response from a SearchVCsWithResponse call
-func ParseSearchVCsResponse(rsp *http.Response) (*SearchVCsResponse, error) {
-	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer rsp.Body.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &SearchVCsResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest SearchVCResults
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	}
-
-	return response, nil
 }
 
 // ParseCreateVPResponse parses an HTTP response from a CreateVPWithResponse call
@@ -1649,6 +1623,32 @@ func ParseRevokeVCResponse(rsp *http.Response) (*RevokeVCResponse, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest Revocation
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSearchVCsResponse parses an HTTP response from a SearchVCsWithResponse call
+func ParseSearchVCsResponse(rsp *http.Response) (*SearchVCsResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer rsp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SearchVCsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SearchVCResults
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1797,9 +1797,6 @@ func ParseListUntrustedResponse(rsp *http.Response) (*ListUntrustedResponse, err
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Searches for verifiable credentials that could be used for different use-cases.
-	// (POST /internal/vcr/v2/holder/vc/search)
-	SearchVCs(ctx echo.Context) error
 	// Create a new Verifiable Presentation for a set of Verifiable Credentials.
 	// (POST /internal/vcr/v2/holder/vp)
 	CreateVP(ctx echo.Context) error
@@ -1812,6 +1809,9 @@ type ServerInterface interface {
 	// Revoke an issued credential
 	// (DELETE /internal/vcr/v2/issuer/vc/{id})
 	RevokeVC(ctx echo.Context, id string) error
+	// Searches for verifiable credentials that could be used for different use-cases.
+	// (POST /internal/vcr/v2/registry/vc/search)
+	SearchVCs(ctx echo.Context) error
 	// Remove trust in an issuer/credentialType combination
 	// (DELETE /internal/vcr/v2/verifier/trust)
 	UntrustIssuer(ctx echo.Context) error
@@ -1835,15 +1835,6 @@ type ServerInterface interface {
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
-}
-
-// SearchVCs converts echo context to params.
-func (w *ServerInterfaceWrapper) SearchVCs(ctx echo.Context) error {
-	var err error
-
-	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.SearchVCs(ctx)
-	return err
 }
 
 // CreateVP converts echo context to params.
@@ -1909,6 +1900,15 @@ func (w *ServerInterfaceWrapper) RevokeVC(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.RevokeVC(ctx, id)
+	return err
+}
+
+// SearchVCs converts echo context to params.
+func (w *ServerInterfaceWrapper) SearchVCs(ctx echo.Context) error {
+	var err error
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.SearchVCs(ctx)
 	return err
 }
 
@@ -2012,10 +2012,6 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 
 	// PATCH: This alteration wraps the call to the implementation in a function that sets the "OperationId" context parameter,
 	// so it can be used in error reporting middleware.
-	router.Add(http.MethodPost, baseURL+"/internal/vcr/v2/holder/vc/search", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("SearchVCs", context)
-		return wrapper.SearchVCs(context)
-	})
 	router.Add(http.MethodPost, baseURL+"/internal/vcr/v2/holder/vp", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("CreateVP", context)
 		return wrapper.CreateVP(context)
@@ -2031,6 +2027,10 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.Add(http.MethodDelete, baseURL+"/internal/vcr/v2/issuer/vc/:id", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("RevokeVC", context)
 		return wrapper.RevokeVC(context)
+	})
+	router.Add(http.MethodPost, baseURL+"/internal/vcr/v2/registry/vc/search", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("SearchVCs", context)
+		return wrapper.SearchVCs(context)
 	})
 	router.Add(http.MethodDelete, baseURL+"/internal/vcr/v2/verifier/trust", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("UntrustIssuer", context)
