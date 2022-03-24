@@ -119,7 +119,7 @@ func (w *Wrapper) searchAuths(ctx echo.Context, allowUntrusted bool, body []byte
 	}
 
 	// convert to query
-	query, err := w.VCR.Registry().QueryFor(concept.OrganizationConcept)
+	query, err := w.VCR.Registry().QueryFor(concept.AuthorizationConcept)
 	if err != nil {
 		return err
 	}
