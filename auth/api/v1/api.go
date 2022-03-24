@@ -405,6 +405,7 @@ func (w Wrapper) IntrospectAccessToken(ctx echo.Context) error {
 	}
 
 	if len(token) == 0 {
+		log.Logger().Warn("Missing token for introspection")
 		return ctx.JSON(http.StatusOK, introspectionResponse)
 	}
 
