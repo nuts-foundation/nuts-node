@@ -144,12 +144,12 @@ func TestDidman_AddCompoundService(t *testing.T) {
 		expectedRefs[k] = v.String()
 	}
 
-	serviceID, _ := ssi.ParseURI(fmt.Sprintf("%s#1", vdr.TestDIDA.String()))
+	serviceID := ssi.MustParseURI(fmt.Sprintf("%s#1", vdr.TestDIDA.String()))
 	docA := did.Document{
 		Context: []ssi.URI{did.DIDContextV1URI()},
 		ID:      *vdr.TestDIDA,
 		Service: []did.Service{{
-			ID:              *serviceID,
+			ID:              serviceID,
 			Type:            "hello",
 			ServiceEndpoint: "http://hello",
 		}},
@@ -213,8 +213,8 @@ func TestDidman_AddCompoundService(t *testing.T) {
 		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).MinTimes(1).Return(&docA, meta, nil)
 		ctx.vdr.EXPECT().Update(*vdr.TestDIDA, meta.Hash, gomock.Any(), nil)
 
-		s, _ := ssi.ParseURI("http://nuts.nl")
-		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "hellonuts", map[string]ssi.URI{"foobar": *s})
+		s := ssi.MustParseURI("http://nuts.nl")
+		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "hellonuts", map[string]ssi.URI{"foobar": s})
 
 		assert.NoError(t, err)
 	})
@@ -228,7 +228,7 @@ func TestDidman_DeleteService(t *testing.T) {
 		return didDoc
 	}
 	id, _ := did.ParseDID("did:nuts:123")
-	uri, _ := ssi.ParseURI("did:nuts:123#1")
+	uri := ssi.MustParseURI("did:nuts:123#1")
 	meta := &types.DocumentMetadata{Hash: hash.EmptyHash()}
 
 	t.Run("ok", func(t *testing.T) {
@@ -242,7 +242,7 @@ func TestDidman_DeleteService(t *testing.T) {
 				return nil
 			})
 
-		err := ctx.instance.DeleteService(*uri)
+		err := ctx.instance.DeleteService(uri)
 
 		if !assert.NoError(t, err) {
 			return
@@ -254,7 +254,7 @@ func TestDidman_DeleteService(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(doc(), meta, nil)
 		ctx.store.EXPECT().Iterate(gomock.Any()).Return(nil)
-		nonExistingID := *uri
+		nonExistingID := uri
 		nonExistingID.Fragment = "non-existent"
 
 		err := ctx.instance.DeleteService(nonExistingID)
@@ -267,7 +267,7 @@ func TestDidman_DeleteService(t *testing.T) {
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(doc(), meta, nil)
 		ctx.store.EXPECT().Iterate(gomock.Any()).Return(ErrServiceInUse)
 
-		err := ctx.instance.DeleteService(*uri)
+		err := ctx.instance.DeleteService(uri)
 
 		assert.Equal(t, ErrServiceInUse, err)
 	})
@@ -279,7 +279,7 @@ func TestDidman_DeleteService(t *testing.T) {
 		ctx.store.EXPECT().Iterate(gomock.Any()).Return(nil)
 		ctx.vdr.EXPECT().Update(*id, meta.Hash, gomock.Any(), nil).Return(returnError)
 
-		err := ctx.instance.DeleteService(*uri)
+		err := ctx.instance.DeleteService(uri)
 
 		assert.Equal(t, returnError, err)
 	})
@@ -288,7 +288,7 @@ func TestDidman_DeleteService(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(nil, nil, types.ErrNotFound)
 
-		err := ctx.instance.DeleteService(*uri)
+		err := ctx.instance.DeleteService(uri)
 
 		assert.Equal(t, types.ErrNotFound, err)
 	})
@@ -462,9 +462,9 @@ func TestDidman_DeleteEndpointsByType(t *testing.T) {
 				assert.Len(t, doc.Service, 1)
 				return nil
 			})
-		otherServiceID, _ := ssi.ParseURI("did:nuts:123#def")
+		otherServiceID := ssi.MustParseURI("did:nuts:123#def")
 		otherService := did.Service{
-			ID:   *otherServiceID,
+			ID:   otherServiceID,
 			Type: "other",
 		}
 		didDocWithOtherService := &did.Document{ID: *id, Service: append(endpoints, otherService)}
@@ -753,13 +753,13 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 
 func TestGenerateIDForService(t *testing.T) {
 	u, _ := url.Parse("https://api.example.com/v1")
-	expectedID, _ := ssi.ParseURI(fmt.Sprintf("%s#D4eNCVjdtGaeHYMdjsdYHpTQmiwXtQKJmE9QSwwsKKzy", vdr.TestDIDA.String()))
+	expectedID := ssi.MustParseURI(fmt.Sprintf("%s#D4eNCVjdtGaeHYMdjsdYHpTQmiwXtQKJmE9QSwwsKKzy", vdr.TestDIDA.String()))
 
 	id := generateIDForService(*vdr.TestDIDA, did.Service{
 		Type:            "type",
 		ServiceEndpoint: u.String(),
 	})
-	assert.Equal(t, *expectedID, id)
+	assert.Equal(t, expectedID, id)
 }
 
 func TestReferencesService(t *testing.T) {
@@ -767,18 +767,18 @@ func TestReferencesService(t *testing.T) {
 		didDocStr := `{"service":[{"id":"did:nuts:1234#1", "serviceEndpoint": {"ref":"did:nuts:123#2"}}]}`
 		didDoc := did.Document{}
 		json.Unmarshal([]byte(didDocStr), &didDoc)
-		uri, _ := ssi.ParseURI("did:nuts:123#1")
+		uri := ssi.MustParseURI("did:nuts:123#1")
 
-		assert.False(t, referencesService(didDoc, *uri))
+		assert.False(t, referencesService(didDoc, uri))
 	})
 
 	t.Run("true", func(t *testing.T) {
 		didDocStr := `{"service":[{"id":"did:nuts:1234#1", "serviceEndpoint": {"ref":"did:nuts:123#1"}}]}`
 		didDoc := did.Document{}
 		json.Unmarshal([]byte(didDocStr), &didDoc)
-		uri, _ := ssi.ParseURI("did:nuts:123#1")
+		uri := ssi.MustParseURI("did:nuts:123#1")
 
-		assert.True(t, referencesService(didDoc, *uri))
+		assert.True(t, referencesService(didDoc, uri))
 	})
 }
 

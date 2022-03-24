@@ -89,8 +89,7 @@ func (tc *Config) List(credentialType ssi.URI) []ssi.URI {
 	stringList := tc.issuersPerType[credentialType.String()]
 	uriList := make([]ssi.URI, len(stringList))
 	for i, e := range stringList {
-		u, _ := ssi.ParseURI(e)
-		uriList[i] = *u
+		uriList[i] = ssi.MustParseURI(e)
 	}
 	return uriList
 }

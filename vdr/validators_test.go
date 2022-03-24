@@ -118,8 +118,8 @@ func Test_serviceValidator(t *testing.T) {
 		}, errors.New("invalid service: ID must have a fragment")},
 		{"nok - service ID has wrong prefix", func(t *testing.T, a *args) {
 			didDoc, _, _ := newDidDoc()
-			uri, _ := ssi.ParseURI("did:foo:123#foobar")
-			didDoc.Service[0].ID = *uri
+			uri := ssi.MustParseURI("did:foo:123#foobar")
+			didDoc.Service[0].ID = uri
 			a.doc = didDoc
 		}, errors.New("invalid service: ID must have document prefix")},
 		{"nok - service with duplicate type", func(t *testing.T, a *args) {

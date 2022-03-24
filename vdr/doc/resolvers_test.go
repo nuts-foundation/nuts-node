@@ -54,7 +54,7 @@ func TestResolveSigningKey(t *testing.T) {
 	})
 
 	t.Run("unable to resolve document", func(t *testing.T) {
-		fakeDID, _ := ssi.ParseURI("did:nuts:fake")
+		fakeDID := ssi.MustParseURI("did:nuts:fake")
 
 		_, err := keyResolver.ResolveSigningKey(fakeDID.String(), nil)
 
@@ -494,12 +494,12 @@ func TestServiceResolver_Resolve(t *testing.T) {
 	didA, _ := did.ParseDID("did:nuts:A")
 	didB, _ := did.ParseDID("did:nuts:B")
 
-	serviceID, _ := ssi.ParseURI(fmt.Sprintf("%s#1", didA.String()))
+	serviceID := ssi.MustParseURI(fmt.Sprintf("%s#1", didA.String()))
 	docA := did.Document{
 		Context: []ssi.URI{did.DIDContextV1URI()},
 		ID:      *didA,
 		Service: []did.Service{{
-			ID:              *serviceID,
+			ID:              serviceID,
 			Type:            "hello",
 			ServiceEndpoint: "http://hello",
 		}},

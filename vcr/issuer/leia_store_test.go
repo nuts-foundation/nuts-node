@@ -74,7 +74,7 @@ func Test_leiaStore_StoreAndSearchCredential(t *testing.T) {
 
 		t.Run("and search", func(t *testing.T) {
 			issuerDID, _ := did.ParseDID(vcToStore.Issuer.String())
-			subjectID, _ := ssi.ParseURI("did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW")
+			subjectID := ssi.MustParseURI("did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW")
 
 			t.Run("for all issued credentials for a issuer", func(t *testing.T) {
 				res, err := sut.SearchCredential(vcToStore.Context[1], vcToStore.Type[0], *issuerDID, nil)
@@ -88,7 +88,7 @@ func Test_leiaStore_StoreAndSearchCredential(t *testing.T) {
 			})
 
 			t.Run("for all issued credentials for a issuer and subject", func(t *testing.T) {
-				res, err := sut.SearchCredential(vcToStore.Context[0], vcToStore.Type[0], *issuerDID, subjectID)
+				res, err := sut.SearchCredential(vcToStore.Context[0], vcToStore.Type[0], *issuerDID, &subjectID)
 				assert.NoError(t, err)
 				if !assert.Len(t, res, 1) {
 					return
@@ -110,8 +110,8 @@ func Test_leiaStore_StoreAndSearchCredential(t *testing.T) {
 				})
 
 				t.Run("unknown credentialType", func(t *testing.T) {
-					unknownType, _ := ssi.ParseURI("unknownType")
-					res, err := sut.SearchCredential(vcToStore.Context[0], *unknownType, *issuerDID, nil)
+					unknownType := ssi.MustParseURI("unknownType")
+					res, err := sut.SearchCredential(vcToStore.Context[0], unknownType, *issuerDID, nil)
 					assert.NoError(t, err)
 					if !assert.Len(t, res, 0) {
 						return
@@ -119,8 +119,8 @@ func Test_leiaStore_StoreAndSearchCredential(t *testing.T) {
 				})
 
 				t.Run("unknown subject", func(t *testing.T) {
-					unknownSubject, _ := ssi.ParseURI("did:nuts:unknown")
-					res, err := sut.SearchCredential(vcToStore.Context[0], vcToStore.Type[0], *issuerDID, unknownSubject)
+					unknownSubject := ssi.MustParseURI("did:nuts:unknown")
+					res, err := sut.SearchCredential(vcToStore.Context[0], vcToStore.Type[0], *issuerDID, &unknownSubject)
 					assert.NoError(t, err)
 					if !assert.Len(t, res, 0) {
 						return

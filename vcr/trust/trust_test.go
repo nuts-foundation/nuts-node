@@ -90,47 +90,47 @@ func TestTrustConfig_IsTrusted(t *testing.T) {
 		return
 	}
 
-	c, _ := ssi.ParseURI(nutsTestCredential)
+	c := ssi.MustParseURI(nutsTestCredential)
 
 	t.Run("true", func(t *testing.T) {
-		d, _ := ssi.ParseURI("did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey")
+		d := ssi.MustParseURI("did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey")
 
-		assert.True(t, tc.IsTrusted(*c, *d))
+		assert.True(t, tc.IsTrusted(c, d))
 	})
 
 	t.Run("false", func(t *testing.T) {
-		d, _ := ssi.ParseURI("did:nuts:1")
+		d := ssi.MustParseURI("did:nuts:1")
 
-		assert.False(t, tc.IsTrusted(*c, *d))
+		assert.False(t, tc.IsTrusted(c, d))
 	})
 }
 
 func TestTrustConfig_List(t *testing.T) {
 	tc := NewConfig("../test/issuers.yaml")
-	d, _ := ssi.ParseURI("did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey")
-	c, _ := ssi.ParseURI(nutsTestCredential)
+	d := ssi.MustParseURI("did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey")
+	c := ssi.MustParseURI(nutsTestCredential)
 
 	err := tc.Load()
 	if !assert.NoError(t, err) {
 		return
 	}
-	trusted := tc.List(*c)
+	trusted := tc.List(c)
 
 	assert.Len(t, trusted, 1)
-	assert.Equal(t, *d, trusted[0])
+	assert.Equal(t, d, trusted[0])
 }
 
 func TestConfig_AddTrust(t *testing.T) {
 	testDir := io.TestDirectory(t)
 	tc := NewConfig(path.Join(testDir, "test.yaml"))
-	issuer, _ := ssi.ParseURI("did:nuts:1")
+	issuer := ssi.MustParseURI("did:nuts:1")
 
 	t.Run("ok - already present", func(t *testing.T) {
-		err := tc.AddTrust(vc.VerifiableCredentialTypeV1URI(), *issuer)
+		err := tc.AddTrust(vc.VerifiableCredentialTypeV1URI(), issuer)
 
 		assert.NoError(t, err)
 
-		err = tc.AddTrust(vc.VerifiableCredentialTypeV1URI(), *issuer)
+		err = tc.AddTrust(vc.VerifiableCredentialTypeV1URI(), issuer)
 
 		assert.NoError(t, err)
 	})
@@ -139,49 +139,49 @@ func TestConfig_AddTrust(t *testing.T) {
 func TestConfig_RemoveTrust(t *testing.T) {
 	testDir := io.TestDirectory(t)
 	tc := NewConfig(path.Join(testDir, "test.yaml"))
-	issuer, _ := ssi.ParseURI("did:nuts:1")
+	issuer := ssi.MustParseURI("did:nuts:1")
 
 	t.Run("ok - not present", func(t *testing.T) {
-		isTrusted := tc.IsTrusted(vc.VerifiableCredentialTypeV1URI(), *issuer)
+		isTrusted := tc.IsTrusted(vc.VerifiableCredentialTypeV1URI(), issuer)
 
 		assert.False(t, isTrusted)
-		err := tc.RemoveTrust(vc.VerifiableCredentialTypeV1URI(), *issuer)
+		err := tc.RemoveTrust(vc.VerifiableCredentialTypeV1URI(), issuer)
 
 		assert.NoError(t, err)
 		assert.False(t, isTrusted)
 	})
 
 	t.Run("ok", func(t *testing.T) {
-		err := tc.AddTrust(vc.VerifiableCredentialTypeV1URI(), *issuer)
+		err := tc.AddTrust(vc.VerifiableCredentialTypeV1URI(), issuer)
 		if !assert.NoError(t, err) {
 			return
 		}
 
-		assert.True(t, tc.IsTrusted(vc.VerifiableCredentialTypeV1URI(), *issuer))
-		err = tc.RemoveTrust(vc.VerifiableCredentialTypeV1URI(), *issuer)
+		assert.True(t, tc.IsTrusted(vc.VerifiableCredentialTypeV1URI(), issuer))
+		err = tc.RemoveTrust(vc.VerifiableCredentialTypeV1URI(), issuer)
 
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.False(t, tc.IsTrusted(vc.VerifiableCredentialTypeV1URI(), *issuer))
+		assert.False(t, tc.IsTrusted(vc.VerifiableCredentialTypeV1URI(), issuer))
 	})
 
 	t.Run("ok - with multiple entries", func(t *testing.T) {
 		testDir := io.TestDirectory(t)
 		tc := NewConfig(path.Join(testDir, "test.yaml"))
 
-		issuer2, _ := ssi.ParseURI("did:nuts:2")
-		issuer3, _ := ssi.ParseURI("did:nuts:3")
+		issuer2 := ssi.MustParseURI("did:nuts:2")
+		issuer3 := ssi.MustParseURI("did:nuts:3")
 
-		tc.AddTrust(vc.VerifiableCredentialTypeV1URI(), *issuer)
-		tc.AddTrust(vc.VerifiableCredentialTypeV1URI(), *issuer2)
-		tc.AddTrust(vc.VerifiableCredentialTypeV1URI(), *issuer3)
+		tc.AddTrust(vc.VerifiableCredentialTypeV1URI(), issuer)
+		tc.AddTrust(vc.VerifiableCredentialTypeV1URI(), issuer2)
+		tc.AddTrust(vc.VerifiableCredentialTypeV1URI(), issuer3)
 
-		err := tc.RemoveTrust(vc.VerifiableCredentialTypeV1URI(), *issuer)
+		err := tc.RemoveTrust(vc.VerifiableCredentialTypeV1URI(), issuer)
 
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.True(t, tc.IsTrusted(vc.VerifiableCredentialTypeV1URI(), *issuer3))
+		assert.True(t, tc.IsTrusted(vc.VerifiableCredentialTypeV1URI(), issuer3))
 	})
 }

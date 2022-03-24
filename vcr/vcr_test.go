@@ -361,12 +361,12 @@ func TestVcr_Issue(t *testing.T) {
 		instance := ctx.vcr
 		instance.config.OverrideIssueAllPublic = true
 		cred := validNutsOrganizationCredential()
-		uri, _ := ssi.ParseURI("unknownType")
-		cred.Type = []ssi.URI{*uri}
-		//expectedURIA, _ := ssi.ParseURI(fmt.Sprintf("%s/serviceEndpoint?type=NutsComm", vdr.TestDIDA.String()))
-		//expectedURIB, _ := ssi.ParseURI(fmt.Sprintf("%s/serviceEndpoint?type=NutsComm", vdr.TestDIDB.String()))
+		uri := ssi.MustParseURI("unknownType")
+		cred.Type = []ssi.URI{uri}
+		//expectedURIA := ssi.MustParseURI(fmt.Sprintf("%s/serviceEndpoint?type=NutsComm", vdr.TestDIDA.String()))
+		//expectedURIB := ssi.MustParseURI(fmt.Sprintf("%s/serviceEndpoint?type=NutsComm", vdr.TestDIDB.String()))
 		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil).AnyTimes()
-		//serviceID, _ := ssi.ParseURI(fmt.Sprintf("%s#1", vdr.TestDIDA.String()))
+		//serviceID := ssi.MustParseURI(fmt.Sprintf("%s#1", vdr.TestDIDA.String()))
 		//service := did.Service{ID: *serviceID}
 		//ctx.serviceResolver.EXPECT().Resolve(*expectedURIA, 5).Return(service, nil)
 		//ctx.serviceResolver.EXPECT().Resolve(*expectedURIB, 5).Return(service, nil)
@@ -392,8 +392,8 @@ func TestVcr_Issue(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
 		cred := validNutsOrganizationCredential()
-		uri, _ := ssi.ParseURI("unknownType")
-		cred.Type = []ssi.URI{*uri}
+		uri := ssi.MustParseURI("unknownType")
+		cred.Type = []ssi.URI{uri}
 		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(&document, &documentMetadata, nil).AnyTimes()
 		//ctx.serviceResolver.EXPECT().Resolve(gomock.Any(), 5).Return(did.Service{}, errors.New("b00m!"))
 		ctx.crypto.EXPECT().Resolve(vdr.TestMethodDIDA.String()).Return(crypto.NewTestKey("kid"), nil)
@@ -412,8 +412,8 @@ func TestVcr_Issue(t *testing.T) {
 		instance.config = Config{strictMode: true}
 
 		cred := validNutsOrganizationCredential()
-		uri, _ := ssi.ParseURI("unknownType")
-		cred.Type = []ssi.URI{*uri}
+		uri := ssi.MustParseURI("unknownType")
+		cred.Type = []ssi.URI{uri}
 
 		_, err := instance.Issue(*cred)
 
@@ -827,9 +827,9 @@ func TestVcr_verifyRevocation(t *testing.T) {
 	t.Run("error - invalid issuer", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		issuer, _ := ssi.ParseURI(r.Issuer.String() + "2")
+		issuer := ssi.MustParseURI(r.Issuer.String() + "2")
 		r2 := r
-		r2.Issuer = *issuer
+		r2.Issuer = issuer
 
 		err := instance.verifyRevocation(r2)
 
@@ -840,10 +840,10 @@ func TestVcr_verifyRevocation(t *testing.T) {
 	t.Run("error - invalid vm", func(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
-		vm, _ := ssi.ParseURI(r.Issuer.String() + "2")
+		vm := ssi.MustParseURI(r.Issuer.String() + "2")
 		r2 := r
 		p := *r2.Proof
-		p.VerificationMethod = *vm
+		p.VerificationMethod = vm
 		r2.Proof = &p
 
 		err := instance.verifyRevocation(r2)
@@ -920,8 +920,8 @@ func TestResolveNutsCommServiceOwner(t *testing.T) {
 }
 
 func validNutsOrganizationCredential() *vc.VerifiableCredential {
-	uri, _ := ssi.ParseURI(credential.NutsOrganizationCredentialType)
-	issuer, _ := ssi.ParseURI(vdr.TestDIDA.String())
+	uri := ssi.MustParseURI(credential.NutsOrganizationCredentialType)
+	issuer := ssi.MustParseURI(vdr.TestDIDA.String())
 
 	var credentialSubject = make(map[string]interface{})
 	credentialSubject["id"] = vdr.TestDIDB.String()
@@ -931,8 +931,8 @@ func validNutsOrganizationCredential() *vc.VerifiableCredential {
 	}
 
 	return &vc.VerifiableCredential{
-		Type:              []ssi.URI{*uri},
-		Issuer:            *issuer,
+		Type:              []ssi.URI{uri},
+		Issuer:            issuer,
 		IssuanceDate:      time.Now(),
 		CredentialSubject: []interface{}{credentialSubject},
 	}

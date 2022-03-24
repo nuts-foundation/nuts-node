@@ -43,13 +43,13 @@ import (
 
 func TestWrapper_IssueVC(t *testing.T) {
 
-	issuerURI, _ := ssi.ParseURI("did:nuts:123")
-	credentialType, _ := ssi.ParseURI("ExampleType")
+	issuerURI := ssi.MustParseURI("did:nuts:123")
+	credentialType := ssi.MustParseURI("ExampleType")
 
 	expectedRequestedVC := vc.VerifiableCredential{
-		Type:              []ssi.URI{*credentialType},
 		Context:           []ssi.URI{*credential.NutsContextURI},
-		Issuer:            *issuerURI,
+		Type:              []ssi.URI{credentialType},
+		Issuer:            issuerURI,
 		CredentialSubject: []interface{}{map[string]interface{}{"id": "did:nuts:456"}},
 	}
 
@@ -253,22 +253,22 @@ func TestWrapper_IssueVC(t *testing.T) {
 }
 
 func TestWrapper_SearchIssuedVCs(t *testing.T) {
-	subjectID, _ := ssi.ParseURI("did:nuts:456")
+	subjectID := ssi.MustParseURI("did:nuts:456")
 	issuerDID, _ := did.ParseDID("did:nuts:123")
-	issuerID, _ := ssi.ParseURI(issuerDID.String())
+	issuerID := ssi.MustParseURI(issuerDID.String())
 	subjectIDString := subjectID.String()
-	contextURI, _ := ssi.ParseURI("")
-	testCredential, _ := ssi.ParseURI("TestCredential")
+	contextURI := ssi.MustParseURI("")
+	testCredential := ssi.MustParseURI("TestCredential")
 
 	foundVC := vc.VerifiableCredential{
-		Type:              []ssi.URI{*testCredential},
-		Issuer:            *issuerID,
+		Type:              []ssi.URI{testCredential},
+		Issuer:            issuerID,
 		CredentialSubject: []interface{}{map[string]interface{}{"id": "did:nuts:456"}},
 	}
 
 	t.Run("ok - with subject, no results", func(t *testing.T) {
 		testContext := newMockContext(t)
-		testContext.mockIssuer.EXPECT().SearchCredential(*contextURI, *testCredential, *issuerDID, subjectID)
+		testContext.mockIssuer.EXPECT().SearchCredential(contextURI, testCredential, *issuerDID, &subjectID)
 
 		testContext.echo.EXPECT().JSON(http.StatusOK, SearchVCResults{VerifiableCredentials: []SearchVCResult{}})
 
@@ -283,7 +283,7 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 
 	t.Run("ok - without subject, 1 result", func(t *testing.T) {
 		testContext := newMockContext(t)
-		testContext.mockIssuer.EXPECT().SearchCredential(*contextURI, *testCredential, *issuerDID, nil).Return([]VerifiableCredential{foundVC}, nil)
+		testContext.mockIssuer.EXPECT().SearchCredential(contextURI, testCredential, *issuerDID, nil).Return([]VerifiableCredential{foundVC}, nil)
 
 		testContext.echo.EXPECT().JSON(http.StatusOK, SearchVCResults{VerifiableCredentials: []SearchVCResult{{VerifiableCredential: foundVC}}})
 
@@ -335,7 +335,7 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 
 	t.Run("error - CredentialResolver returns error", func(t *testing.T) {
 		testContext := newMockContext(t)
-		testContext.mockIssuer.EXPECT().SearchCredential(*contextURI, *testCredential, *issuerDID, nil).Return(nil, errors.New("b00m!"))
+		testContext.mockIssuer.EXPECT().SearchCredential(contextURI, testCredential, *issuerDID, nil).Return(nil, errors.New("b00m!"))
 
 		params := SearchIssuedVCsParams{
 			CredentialType: "TestCredential",
@@ -347,8 +347,8 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 }
 
 func TestWrapper_VerifyVC(t *testing.T) {
-	issuerURI, _ := ssi.ParseURI("did:nuts:123")
-	credentialType, _ := ssi.ParseURI("ExampleType")
+	issuerURI := ssi.MustParseURI("did:nuts:123")
+	credentialType := ssi.MustParseURI("ExampleType")
 
 	allowUntrusted := true
 	options := VCVerificationOptions{
@@ -356,8 +356,8 @@ func TestWrapper_VerifyVC(t *testing.T) {
 	}
 
 	expectedVC := vc.VerifiableCredential{
-		Type:              []ssi.URI{*credentialType},
-		Issuer:            *issuerURI,
+		Type:              []ssi.URI{credentialType},
+		Issuer:            issuerURI,
 		CredentialSubject: []interface{}{map[string]interface{}{"id": "did:nuts:456"}},
 	}
 
@@ -441,14 +441,14 @@ func TestWrapper_RevokeVC(t *testing.T) {
 }
 
 func TestWrapper_CreateVP(t *testing.T) {
-	issuerURI, _ := ssi.ParseURI("did:nuts:123")
-	credentialType, _ := ssi.ParseURI("ExampleType")
+	issuerURI := ssi.MustParseURI("did:nuts:123")
+	credentialType := ssi.MustParseURI("ExampleType")
 
 	subjectDID := did.MustParseDID("did:nuts:456")
 	subjectDIDString := subjectDID.String()
 	verifiableCredential := vc.VerifiableCredential{
-		Type:              []ssi.URI{*credentialType},
-		Issuer:            *issuerURI,
+		Type:              []ssi.URI{credentialType},
+		Issuer:            issuerURI,
 		CredentialSubject: []interface{}{map[string]interface{}{"id": subjectDID.String()}},
 	}
 	result := &vc.VerifiablePresentation{}

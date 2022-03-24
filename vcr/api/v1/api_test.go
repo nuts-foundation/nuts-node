@@ -122,16 +122,16 @@ func TestWrapper_Create(t *testing.T) {
 
 func TestWrapper_Resolve(t *testing.T) {
 	idString := "did:nuts:1#1"
-	id, _ := ssi.ParseURI(idString)
+	id := ssi.MustParseURI(idString)
 
 	v := vc.VerifiableCredential{
-		ID: id,
+		ID: &id,
 	}
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		var resolutionResult ResolutionResult
-		ctx.vcr.EXPECT().Resolve(*id, nil).Return(&v, nil)
+		ctx.vcr.EXPECT().Resolve(id, nil).Return(&v, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
 			resolutionResult = f2.(ResolutionResult)
 			return nil
@@ -142,7 +142,7 @@ func TestWrapper_Resolve(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Equal(t, id, resolutionResult.VerifiableCredential.ID)
+		assert.Equal(t, id, *resolutionResult.VerifiableCredential.ID)
 		assert.Equal(t, ResolutionResultCurrentStatusTrusted, resolutionResult.CurrentStatus)
 	})
 
@@ -150,7 +150,7 @@ func TestWrapper_Resolve(t *testing.T) {
 		ctx := newMockContext(t)
 		timeString := "2020-01-01T12:00:00Z"
 		resolveTime, _ := time.Parse(time.RFC3339, timeString)
-		ctx.vcr.EXPECT().Resolve(*id, &resolveTime).Return(&v, nil)
+		ctx.vcr.EXPECT().Resolve(id, &resolveTime).Return(&v, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any())
 
 		err := ctx.client.Resolve(ctx.echo, idString, ResolveParams{ResolveTime: &timeString})
@@ -163,7 +163,7 @@ func TestWrapper_Resolve(t *testing.T) {
 	t.Run("error - not found", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.vcr.EXPECT().Resolve(*id, nil).Return(nil, types.ErrNotFound)
+		ctx.vcr.EXPECT().Resolve(id, nil).Return(nil, types.ErrNotFound)
 
 		err := ctx.client.Resolve(ctx.echo, idString, ResolveParams{})
 
@@ -174,7 +174,7 @@ func TestWrapper_Resolve(t *testing.T) {
 	t.Run("error - other", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.vcr.EXPECT().Resolve(*id, nil).Return(nil, errors.New("b00m!"))
+		ctx.vcr.EXPECT().Resolve(id, nil).Return(nil, errors.New("b00m!"))
 
 		err := ctx.client.Resolve(ctx.echo, idString, ResolveParams{})
 
@@ -185,7 +185,7 @@ func TestWrapper_Resolve(t *testing.T) {
 		ctx := newMockContext(t)
 
 		var resolutionResult ResolutionResult
-		ctx.vcr.EXPECT().Resolve(*id, nil).Return(&v, types.ErrRevoked)
+		ctx.vcr.EXPECT().Resolve(id, nil).Return(&v, types.ErrRevoked)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
 			resolutionResult = f2.(ResolutionResult)
 			return nil
@@ -196,7 +196,7 @@ func TestWrapper_Resolve(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Equal(t, id, resolutionResult.VerifiableCredential.ID)
+		assert.Equal(t, id, *resolutionResult.VerifiableCredential.ID)
 		assert.Equal(t, ResolutionResultCurrentStatusRevoked, resolutionResult.CurrentStatus)
 	})
 
@@ -204,7 +204,7 @@ func TestWrapper_Resolve(t *testing.T) {
 		ctx := newMockContext(t)
 
 		var resolutionResult ResolutionResult
-		ctx.vcr.EXPECT().Resolve(*id, nil).Return(&v, types.ErrUntrusted)
+		ctx.vcr.EXPECT().Resolve(id, nil).Return(&v, types.ErrUntrusted)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
 			resolutionResult = f2.(ResolutionResult)
 			return nil
@@ -215,7 +215,7 @@ func TestWrapper_Resolve(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Equal(t, id, resolutionResult.VerifiableCredential.ID)
+		assert.Equal(t, id, *resolutionResult.VerifiableCredential.ID)
 		assert.Equal(t, ResolutionResultCurrentStatusUntrusted, resolutionResult.CurrentStatus)
 	})
 
@@ -440,14 +440,14 @@ func TestWrapper_TrustUntrust(t *testing.T) {
 }
 
 func TestWrapper_Trusted(t *testing.T) {
-	credentialType, _ := ssi.ParseURI("type")
+	credentialType := ssi.MustParseURI("type")
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
 		var capturedList []string
-		ctx.vcr.EXPECT().Trusted(*credentialType).Return([]ssi.URI{*credentialType}, nil)
+		ctx.vcr.EXPECT().Trusted(credentialType).Return([]ssi.URI{credentialType}, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f1 interface{}, f2 interface{}) error {
 			capturedList = f2.([]string)
 			return nil
@@ -475,14 +475,14 @@ func TestWrapper_Trusted(t *testing.T) {
 }
 
 func TestWrapper_Untrusted(t *testing.T) {
-	credentialType, _ := ssi.ParseURI("type")
+	credentialType := ssi.MustParseURI("type")
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
 		var capturedList []string
-		ctx.vcr.EXPECT().Untrusted(*credentialType).Return([]ssi.URI{*credentialType}, nil)
+		ctx.vcr.EXPECT().Untrusted(credentialType).Return([]ssi.URI{credentialType}, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f1 interface{}, f2 interface{}) error {
 			capturedList = f2.([]string)
 			return nil
@@ -512,7 +512,7 @@ func TestWrapper_Untrusted(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.vcr.EXPECT().Untrusted(*credentialType).Return(nil, errors.New("b00m!"))
+		ctx.vcr.EXPECT().Untrusted(credentialType).Return(nil, errors.New("b00m!"))
 
 		err := ctx.client.ListUntrusted(ctx.echo, credentialType.String())
 

@@ -76,6 +76,5 @@ func validNutsAuthorizationCredential(credentialSubject NutsAuthorizationCredent
 }
 
 func stringToURI(input string) ssi.URI {
-	u, _ := ssi.ParseURI(input)
-	return *u
+	return ssi.MustParseURI(input)
 }

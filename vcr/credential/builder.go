@@ -53,9 +53,9 @@ func (d defaultBuilder) Fill(credential *vc.VerifiableCredential) {
 		credential.Type = append(credential.Type, defaultType)
 	}
 
-	builderType, _ := ssi.ParseURI(d.vcType)
-	if !credential.IsType(*builderType) {
-		credential.Type = append(credential.Type, *builderType)
+	builderType := ssi.MustParseURI(d.vcType)
+	if !credential.IsType(builderType) {
+		credential.Type = append(credential.Type, builderType)
 	}
 	credential.IssuanceDate = nowFunc()
 	credential.ID = generateID(credential.Issuer)
@@ -69,6 +69,6 @@ func (d defaultBuilder) Type() string {
 
 func generateID(issuer ssi.URI) *ssi.URI {
 	id := fmt.Sprintf("%s#%s", issuer.String(), uuid.New().String())
-	u, _ := ssi.ParseURI(id)
-	return u
+	u := ssi.MustParseURI(id)
+	return &u
 }
