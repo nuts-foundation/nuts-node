@@ -10,13 +10,13 @@ info:
 servers:
   - url: http://localhost:1323
 paths:
-  /internal/vcr/v2/holder/vc/search:
+  /internal/vcr/v2/search:
     post:
       summary: "Searches for verifiable credentials that could be used for different use-cases."
       description: >
         The result contains a list of matching credentials. Only verified credentials are returned.
         The search parameters define how the raw results are filtered.
-        
+
         error returns:
         * 400 - Incorrect search query
         * 500 - An error occurred while processing the request
@@ -381,6 +381,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/VerifiablePresentation"
+
+
 
 components:
   schemas:
