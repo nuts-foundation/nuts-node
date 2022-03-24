@@ -172,7 +172,7 @@ A credential can be issued with the following call:
 
 .. code-block:: text
 
-    POST <internal-node-address>/internal/vcr/v1/vc
+    POST <internal-node-address>/internal/vcr/v2/issuer/vc
     {
         "type": "NutsOrganizationCredential",
         "issuer": "<issuer-did>",
@@ -182,12 +182,12 @@ A credential can be issued with the following call:
                 "name": "<name>",
                 "city": "<city>"
             }
-        }
+        },
+        "visibility": "public"
     }
 
 Where ``<issuer-did>`` must be replaced with the vendor DID, ``<holder-did>`` must be replaced with the organization DID,``<name>`` and ``<city>`` must be replaced with the correct information.
 The API will respond with the full Verifiable Credential. It's not required to do anything with that since issued credentials can be found again.
-:ref:`This page <vc-concepts>` contains some more information on specific credentials.
 
 Trusting other vendors as issuer
 ================================
@@ -197,7 +197,7 @@ By default, no issuers are trusted. A list of untrusted issuers can be obtained 
 
 .. code-block:: text
 
-    GET <internal-node-address>/internal/vcr/v1/NutsOrganizationCredential/untrusted
+    GET <internal-node-address>/internal/vcr/v2/verifier/NutsOrganizationCredential/untrusted
 
 This will return a list of all DIDs that are currently not trusted. If a DID is to be trusted should be validated out-of-band, eg: by phone or video conference call.
 The registered contact information for that DID could help in contacting the right party. Be aware that the provided contact information isn't verified.
@@ -206,7 +206,7 @@ After a DID has been verified, it can be trusted by calling the following API:
 
 .. code-block:: text
 
-    POST <internal-node-address>/internal/vcr/v1/trust
+    POST <internal-node-address>/internal/vcr/v2/verifier/trust
     {
         "issuer": "<did>",
         "credentialType": "NutsOrganizationCredential"

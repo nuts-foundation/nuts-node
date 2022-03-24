@@ -1,7 +1,7 @@
-.. _using-concepts:
+.. _using-vcs:
 
-Using Concepts & VCs
-####################
+Issuing and searching Verifiable Credentials
+############################################
 
 Issuing VCs
 ***********
@@ -16,20 +16,21 @@ The node will add sensible defaults for:
 - proof
 
 You are required to provide the `credentialSubject`, the `issuer`, the `type` and an optional `expirationDate`.
-So calling `/internal/vcr/v1/vc` with
+So calling `/internal/vcr/v2/issuer/vc` with
 
 .. code-block:: json
 
     {
         "issuer": "did:nuts:ByJvBu2Ex21tNdn5s8FBnqmRBTCGkqRHms5ci7gKM8rg",
-        "type": ["NutsOrganizationCredential"],
+        "type": "NutsOrganizationCredential",
         "credentialSubject": {
             "id": "did:nuts:9UKf9F9sRtiq4gR3bxfGQAeARtJeU8jvPqfWJcFP6ziN",
             "organization": {
                 "name": "Because we care B.V.",
                 "city": "IJbergen"
             }
-        }
+        },
+        "visibility": "public"
     }
 
 Will be expanded by the node to:
@@ -64,67 +65,37 @@ Will be expanded by the node to:
       ]
     }
 
+The `visibility` property indicates the contents of the VC are published on the network, so it can be read by everyone.
+
 Searching VCs
 *************
 
-Searching for VCs uses `concepts <vc-concepts>`_. The search API `/internal/vcr/v1/{concept}` requires a `concept` as path param.
-One of the default concepts below defines the `organization` concept.
-The search API accepts a `SearchRequest` body with key/value parameters. See the `API page <nuts-node-api>`_ for details on the request body.
-The `key` field must be filled with one of the *conceptValues* from a concept template.
+You can search for VCs by providing a VC which should be used for matching in JSON-LD format.
+Searching works by posting a Verifiable Credential to `/internal/vcr/v2/holder/vc/search` that contains fields to match.
+The operation yields an array containing the matched verifiable credentials.
 
-A valid request body when searching for a NutsOrganizationCredential:
+The example below searches for a `NutsOrganizationCredential` (note that the `query` field contains the credential):
 
 .. code-block:: json
 
     {
-        "params": [
-            {
-                "key": "organization.name",
-                "value": "Because we care B.V."
-            },
-            {
-                "key": "subject",
-                "value": "did:nuts:1"
-            }
-        ]
-    }
-
-
-The result for a search request:
-
-.. code-block:: json
-
-    [
-        {
-            "id": "did:nuts:1#2",
-            "issuer": "did:nuts:1",
-            "subject": "did:nuts:2",
-            "type": "NutsOrganizationCredential",
-            "organization": {
-                "name": "Because we care B.V.",
-                "city": "EIbergen"
+        "query": {
+            "@context": [
+                "https://www.w3.org/2018/credentials/v1",
+                "https://nuts.nl/credentials/v1"
+            ],
+            "type": ["VerifiableCredential" ,"NutsOrganizationCredential"],
+            "credentialSubject": {
+                "id": "did:nuts:SKUYYi2g88ohjhiu49Q13ZWGXvp678sjNiM7UHUCMyw",
+                "organization": {
+                    "name": "Because we care B.V.",
+                    "city": "IJbergen"
+                }
             }
         }
-    ]
+    }
 
-The **id**, **issuer**, **subject** and **type** fields are common and will always be returned. The rest is determined by the concept template mapping.
+Note the fields `@context` and `type`, these are required for making it a valid VC in JSON-LD.
+In the example above they also contain Nuts specific contexts and types (since we're searching for a Nuts VC).
 
-.. _default-concepts:
-
-Preconfigured concepts
-**********************
-
-This page lists all preconfigured Verifiable Credentials used within a node.
-See `VC Concept mapping <vc-concepts>`_ for background information on concept mapping.
-
-NutsOrganizationCredential
-==========================
-
-.. include:: ../../../vcr/assets/NutsOrganizationCredential.config.yaml
-   :literal:
-
-NutsAuthorizationCredential
-===========================
-
-.. include:: ../../../vcr/assets/NutsAuthorizationCredential.config.yaml
-   :literal:
+By default only VCs from trusted issuers are returned. You can specify the `searchOptions` field to include VCs from untrusted issuers.
