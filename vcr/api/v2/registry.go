@@ -31,11 +31,11 @@ import (
 
 // ResolveVC handles the API request for resolving a VC
 func (w *Wrapper) ResolveVC(ctx echo.Context, id string) error {
-	vcId, err := ssi.ParseURI(id)
+	vcID, err := ssi.ParseURI(id)
 	if err != nil {
 		return core.InvalidInputError("invalid credential id: %w", err)
 	}
-	result, err := w.VCR.Resolve(*vcId, nil)
+	result, err := w.VCR.Resolve(*vcID, nil)
 	if err != nil {
 		return err
 	}
