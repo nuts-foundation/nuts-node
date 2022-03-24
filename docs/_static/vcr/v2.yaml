@@ -10,6 +10,35 @@ info:
 servers:
   - url: http://localhost:1323
 paths:
+  /internal/vcr/v2/vc/{id}:
+    parameters:
+      - name: id
+        in: path
+        description: URL encoded ID.
+        required: true
+        example: "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY#c4199b74-0c0a-4e09-a463-6927553e65f5"
+        schema:
+          type: string
+    get:
+      summary: "Resolves a verifiable credential"
+      description: >
+        Returns the resolved credential, whether its revocation/trust state.
+
+        error returns:
+        * 404 - Corresponding credential could not be found
+        * 500 - An error occurred while processing the request
+      operationId: "resolveVC"
+      tags:
+        - credential
+      responses:
+        "200":
+          description: Credential has been found and is returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifiableCredential'
+        default:
+          $ref: '../common/error_response.yaml'
   /internal/vcr/v2/search:
     post:
       summary: "Searches for verifiable credentials that could be used for different use-cases."

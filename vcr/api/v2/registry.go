@@ -1,5 +1,4 @@
 /*
- * Nuts node
  * Copyright (C) 2022 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
@@ -21,6 +20,7 @@ package v2
 
 import (
 	"encoding/json"
+	ssi "github.com/nuts-foundation/go-did"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -28,6 +28,19 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
+
+// ResolveVC handles the API request for resolving a VC
+func (w *Wrapper) ResolveVC(ctx echo.Context, id string) error {
+	vcID, err := ssi.ParseURI(id)
+	if err != nil {
+		return core.InvalidInputError("invalid credential id: %w", err)
+	}
+	result, err := w.VCR.Resolve(*vcID, nil)
+	if err != nil {
+		return err
+	}
+	return ctx.JSON(http.StatusOK, *result)
+}
 
 // SearchVCs checks the context used in the JSON-LD query, based on the contents it maps to a non-JSON-LD query
 // After V1, this needs to be remapped to a DB search that supports native JSON-LD
