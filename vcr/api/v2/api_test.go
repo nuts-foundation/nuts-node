@@ -21,6 +21,7 @@ package v2
 import (
 	"errors"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"net/http"
 	"testing"
@@ -47,6 +48,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 
 	expectedRequestedVC := vc.VerifiableCredential{
 		Type:              []ssi.URI{*credentialType},
+		Context:           []ssi.URI{*credential.NutsContextURI},
 		Issuer:            *issuerURI,
 		CredentialSubject: []interface{}{map[string]interface{}{"id": "did:nuts:456"}},
 	}
@@ -627,7 +629,6 @@ func TestWrapper_VerifyVP(t *testing.T) {
 		assert.NoError(t, err)
 	})
 }
-
 
 func TestWrapper_TrustUntrust(t *testing.T) {
 	vc := concept.TestVC()

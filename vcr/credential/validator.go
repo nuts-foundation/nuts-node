@@ -104,6 +104,10 @@ func (d nutsOrganizationCredentialValidator) Validate(credential vc.VerifiableCr
 		return failure("type '%s' is required", NutsOrganizationCredentialType)
 	}
 
+	if !credential.ContainsContext(*NutsContextURI) {
+		return failure("context '%s' is required", NutsContextURI.String())
+	}
+
 	// if it fails, length check will trigger
 	_ = credential.UnmarshalCredentialSubject(&target)
 	if len(target) != 1 {
@@ -143,6 +147,10 @@ func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableC
 
 	if !credential.IsType(*NutsAuthorizationCredentialTypeURI) {
 		return failure("type '%s' is required", NutsAuthorizationCredentialType)
+	}
+
+	if !credential.ContainsContext(*NutsContextURI) {
+		return failure("context '%s' is required", NutsContextURI.String())
 	}
 
 	// if it fails, length check will trigger

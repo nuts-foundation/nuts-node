@@ -21,6 +21,7 @@ package v2
 import (
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"net/http"
 
@@ -83,7 +84,8 @@ func (w Wrapper) IssueVC(ctx echo.Context) error {
 		if publish {
 			return core.InvalidInputError("visibility must be set when publishing credential")
 		}
-	} else { // visibility is set
+	} else {
+		// visibility is set
 		// Visibility can only be used when publishing
 		if !publish {
 			return core.InvalidInputError("visibility setting is only allowed when publishing to the network")
@@ -94,6 +96,12 @@ func (w Wrapper) IssueVC(ctx echo.Context) error {
 		}
 		// Set the actual value
 		public = *issueRequest.Visibility == IssueVCRequestVisibilityPublic
+	}
+
+	// Set default context, if not set
+	if issueRequest.Context == nil {
+		context := credential.NutsContext
+		issueRequest.Context = &context
 	}
 
 	if issueRequest.Type == "" {
