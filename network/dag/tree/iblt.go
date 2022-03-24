@@ -201,10 +201,10 @@ func (i Iblt) bucketIndices(hash uint64) []uint32 {
 	byteOrder().PutUint64(hashKeyBytes, hash)
 	next := murmur3.SeedSum32(i.hk, hashKeyBytes)
 	for len(indices) < int(i.k) {
-		bucketId := next % uint32(i.numBuckets())
-		if !bucketUsed[bucketId] {
-			indices = append(indices, bucketId)
-			bucketUsed[bucketId] = true
+		bucketID := next % uint32(i.numBuckets())
+		if !bucketUsed[bucketID] {
+			indices = append(indices, bucketID)
+			bucketUsed[bucketID] = true
 		}
 		byteOrder().PutUint32(nextBytes, next)
 		next = murmur3.SeedSum32(i.hk, nextBytes)

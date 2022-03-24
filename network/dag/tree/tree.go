@@ -173,12 +173,12 @@ func (t *tree) getNextNode(n *node, clock uint32) *node {
 
 	if clock < n.splitLC {
 		return n.left
-	} else {
-		if n.right == nil {
-			n.right = t.newBranch(n.splitLC, n.limitLC)
-		}
-		return n.right
 	}
+
+	if n.right == nil {
+		n.right = t.newBranch(n.splitLC, n.limitLC)
+	}
+	return n.right
 }
 
 func (t *tree) GetRoot() Data {
