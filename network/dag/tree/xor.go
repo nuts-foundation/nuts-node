@@ -55,9 +55,7 @@ func (x *Xor) Subtract(data Data) error {
 }
 
 func (x Xor) MarshalBinary() ([]byte, error) {
-	c := new(Xor)
-	copy(c[:], x[:])
-	return c[:], nil
+	return x.Clone().(*Xor)[:], nil
 }
 
 func (x *Xor) UnmarshalBinary(data []byte) error {
