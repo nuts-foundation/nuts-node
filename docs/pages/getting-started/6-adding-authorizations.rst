@@ -97,7 +97,7 @@ The following call will search for an organization with the name *CareBears*.
 
 .. code-block:: text
 
-    POST <internal-node-address>/internal/vcr/v2/holder/vc/search
+    POST <internal-node-address>/internal/vcr/v2/search
     {
         "query": {
             "@context": [
@@ -107,7 +107,7 @@ The following call will search for an organization with the name *CareBears*.
             "type": ["VerifiableCredential" ,"NutsOrganizationCredential"],
             "credentialSubject": {
                 "organization": {
-                    "name": "CareBears",
+                    "name": "CareBears"
                 }
             }
         }
@@ -151,7 +151,7 @@ To find all authorization credentials of a single patient:
 
 .. code-block:: text
 
-    POST <internal-node-address>/internal/vcr/v2/holder/vc/search
+    POST <internal-node-address>/internal/vcr/v2/search
     {
         "query": {
             "@context": [
@@ -180,7 +180,7 @@ If you want to call `/patient/2250f7ab-6517-4923-ac00-88ed26f85843` for a partic
 
 .. code-block:: text
 
-    POST <internal-node-address>/internal/vcr/v2/holder/vc/search
+    POST <internal-node-address>/internal/vcr/v2/search
     {
         "query": {
             "@context": [

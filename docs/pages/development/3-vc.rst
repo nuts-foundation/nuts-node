@@ -71,7 +71,7 @@ Searching VCs
 *************
 
 You can search for VCs by providing a VC which should be used for matching in JSON-LD format.
-Searching works by posting a Verifiable Credential to `/internal/vcr/v2/holder/vc/search` that contains fields to match.
+Searching works by posting a Verifiable Credential to `/internal/vcr/v2/search` that contains fields to match.
 The operation yields an array containing the matched verifiable credentials.
 
 The example below searches for a `NutsOrganizationCredential` (note that the `query` field contains the credential):
