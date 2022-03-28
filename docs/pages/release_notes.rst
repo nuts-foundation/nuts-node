@@ -12,9 +12,9 @@ Almond (v1.0.0)
 Release date: 2022-04-01
 
 This is the initial release of the Nuts node reference implementation.
-It implements RFC001 - RFC017 specified by the `Nuts specification <https://nuts-foundation.gitbook.io>`_.
+It implements RFC001 - RFC016 specified by the `Nuts specification <https://nuts-foundation.gitbook.io>`_.
 This release is intended for developers. It contains a stable API that will be backwards compatible for the next versions.
-The releases until the first production release will mainly focus on network and OPS related features.
+The releases until the first production release will mainly focus on network and Ops related features.
 
 To start using this release, please consult the getting started section.
 
