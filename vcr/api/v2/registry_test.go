@@ -37,11 +37,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var organizationQuery = `
+const organizationQuery = `
 {
 	"query": {
 		"@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
 		"type": ["VerifiableCredential", "NutsOrganizationCredential"],
+		"issuer": "did:nuts:issuer",
 		"credentialSubject":{
 			"id":"did:nuts:123",
 			"organization": {
@@ -53,7 +54,7 @@ var organizationQuery = `
 }
 `
 
-var untrustedOrganizationQuery = `
+const untrustedOrganizationQuery = `
 {
 	"query": {
 		"@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
@@ -72,11 +73,12 @@ var untrustedOrganizationQuery = `
 }
 `
 
-var authorizationQuery = `
+const authorizationQuery = `
 {
 	"query": {
 		"@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
 		"type": ["VerifiableCredential", "NutsAuthorizationCredential"],
+		"issuer": "did:nuts:issuer",
 		"credentialSubject":{
 			"id": "did:nuts:123",
 			"purposeOfUse": "eOverdracht-receiver",
@@ -85,6 +87,32 @@ var authorizationQuery = `
 			},
 			"subject": "urn:oid:2.16.840.1.113883.2.4.6.3:123456782"
 		}
+	}
+}
+`
+
+const multiSubjectQuery = `
+{
+	"query": {
+		"@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
+		"type": ["VerifiableCredential", "NutsAuthorizationCredential"],
+		"issuer": "did:nuts:issuer",
+		"credentialSubject":[{
+			"id": "did:nuts:123",
+			"purposeOfUse": "eOverdracht-receiver",
+			"resources": {
+				"path":"/Task/123"
+			},
+			"subject": "urn:oid:2.16.840.1.113883.2.4.6.3:123456782"
+		},
+		{
+			"id": "did:nuts:123",
+			"purposeOfUse": "eOverdracht-receiver",
+			"resources": {
+				"path":"/Task/123"
+			},
+			"subject": "urn:oid:2.16.840.1.113883.2.4.6.3:123456782"
+		}]
 	}
 }
 `
@@ -121,18 +149,25 @@ func TestWrapper_SearchVCs(t *testing.T) {
 			return
 		}
 		clauses := parts[0].Clauses
-		if !assert.Len(t, clauses, 3) {
+		if !assert.Len(t, clauses, 4) {
 			return
 		}
-		assert.Equal(t, "prefix", clauses[0].Type())
-		assert.Equal(t, "organization.name", clauses[0].Key())
-		assert.Equal(t, "Zorggroep de Nootjes", clauses[0].Seek())
-		assert.Equal(t, "prefix", clauses[1].Type())
-		assert.Equal(t, "organization.city", clauses[1].Key())
-		assert.Equal(t, "Amandelmere", clauses[1].Seek())
-		assert.Equal(t, "eq", clauses[2].Type())
-		assert.Equal(t, "credentialSubject.id", clauses[2].Key())
-		assert.Equal(t, "did:nuts:123", clauses[2].Seek())
+		idx := 0
+		assert.Equal(t, "eq", clauses[idx].Type())
+		assert.Equal(t, "issuer", clauses[idx].Key())
+		assert.Equal(t, "did:nuts:issuer", clauses[idx].Seek())
+		idx++
+		assert.Equal(t, "prefix", clauses[idx].Type())
+		assert.Equal(t, "organization.name", clauses[idx].Key())
+		assert.Equal(t, "Zorggroep de Nootjes", clauses[idx].Seek())
+		idx++
+		assert.Equal(t, "prefix", clauses[idx].Type())
+		assert.Equal(t, "organization.city", clauses[idx].Key())
+		assert.Equal(t, "Amandelmere", clauses[idx].Seek())
+		idx++
+		assert.Equal(t, "eq", clauses[idx].Type())
+		assert.Equal(t, "credentialSubject.id", clauses[idx].Key())
+		assert.Equal(t, "did:nuts:123", clauses[idx].Seek())
 	})
 
 	t.Run("ok - untrusted flag", func(t *testing.T) {
@@ -168,6 +203,17 @@ func TestWrapper_SearchVCs(t *testing.T) {
 		assert.EqualError(t, err, "custom")
 	})
 
+	t.Run("error - multiple subjects", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
+			_ = json.Unmarshal([]byte(multiSubjectQuery), f)
+		})
+
+		err := ctx.client.SearchVCs(ctx.echo)
+
+		assert.EqualError(t, err, "can't match on multiple VC subjects")
+	})
+
 	t.Run("ok - authorization", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/", nil)
 		ctx := newMockContext(t)
@@ -196,21 +242,29 @@ func TestWrapper_SearchVCs(t *testing.T) {
 			return
 		}
 		clauses := parts[0].Clauses
-		if !assert.Len(t, clauses, 4) {
+		if !assert.Len(t, clauses, 5) {
 			return
 		}
-		assert.Equal(t, "eq", clauses[0].Type())
-		assert.Equal(t, "credentialSubject.id", clauses[0].Key())
-		assert.Equal(t, "did:nuts:123", clauses[0].Seek())
-		assert.Equal(t, "eq", clauses[1].Type())
-		assert.Equal(t, "credentialSubject.purposeOfUse", clauses[1].Key())
-		assert.Equal(t, "eOverdracht-receiver", clauses[1].Seek())
-		assert.Equal(t, "eq", clauses[2].Type())
-		assert.Equal(t, "credentialSubject.subject", clauses[2].Key())
-		assert.Equal(t, "urn:oid:2.16.840.1.113883.2.4.6.3:123456782", clauses[2].Seek())
-		assert.Equal(t, "eq", clauses[3].Type())
-		assert.Equal(t, "credentialSubject.resources.#.path", clauses[3].Key())
-		assert.Equal(t, "/Task/123", clauses[3].Seek())
+		idx := 0
+		assert.Equal(t, "eq", clauses[idx].Type())
+		assert.Equal(t, "issuer", clauses[idx].Key())
+		assert.Equal(t, "did:nuts:issuer", clauses[idx].Seek())
+		idx++
+		assert.Equal(t, "eq", clauses[idx].Type())
+		assert.Equal(t, "credentialSubject.id", clauses[idx].Key())
+		assert.Equal(t, "did:nuts:123", clauses[idx].Seek())
+		idx++
+		assert.Equal(t, "eq", clauses[idx].Type())
+		assert.Equal(t, "credentialSubject.purposeOfUse", clauses[idx].Key())
+		assert.Equal(t, "eOverdracht-receiver", clauses[idx].Seek())
+		idx++
+		assert.Equal(t, "eq", clauses[idx].Type())
+		assert.Equal(t, "credentialSubject.subject", clauses[idx].Key())
+		assert.Equal(t, "urn:oid:2.16.840.1.113883.2.4.6.3:123456782", clauses[idx].Seek())
+		idx++
+		assert.Equal(t, "eq", clauses[idx].Type())
+		assert.Equal(t, "credentialSubject.resources.#.path", clauses[idx].Key())
+		assert.Equal(t, "/Task/123", clauses[idx].Seek())
 	})
 
 	t.Run("error - search auth returns error", func(t *testing.T) {
