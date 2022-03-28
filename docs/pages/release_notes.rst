@@ -41,6 +41,8 @@ Features that are marked as *deprecated* will be listed here.
 Any vendor using these features will have until next version to migrate to the alternative.
 Keep an eye on this section for every release.
 
+- VCR V1 API is deprecated. Please migrate all calls to the V2 API.
+
 ========
 Bugfixes
 ========
