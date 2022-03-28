@@ -19,13 +19,13 @@
 package v2
 
 import (
-	"encoding/json"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
@@ -56,7 +56,10 @@ func (w *Wrapper) SearchVCs(ctx echo.Context) error {
 		untrusted = *request.SearchOptions.AllowUntrustedIssuer
 	}
 
-	query, _ := json.Marshal(request.Query)
+	if len(request.Query.CredentialSubject) > 1 {
+		return core.InvalidInputError("can't match on multiple VC subjects")
+	}
+
 	var types []string
 	for _, curr := range request.Query.Type {
 		types = append(types, curr.String())
@@ -64,30 +67,28 @@ func (w *Wrapper) SearchVCs(ctx echo.Context) error {
 	for _, c := range types {
 		switch c {
 		case credential.NutsOrganizationCredentialType:
-			return w.searchOrgs(ctx, untrusted, query)
+			return w.searchOrgs(ctx, untrusted, request.Query)
 		case credential.NutsAuthorizationCredentialType:
-			return w.searchAuths(ctx, untrusted, query)
+			return w.searchAuths(ctx, untrusted, request.Query)
 		}
 	}
 
 	return core.InvalidInputError("given type not supported")
 }
 
-func (w *Wrapper) searchOrgs(ctx echo.Context, allowUntrusted bool, body []byte) error {
-	// some helper structs
-	type helper struct {
-		CredentialSubject struct {
-			ID           string `json:"id"`
-			Organization struct {
-				Name string `json:"name"`
-				City string `json:"city"`
-			} `json:"organization"`
-		} `json:"credentialSubject"`
+func (w *Wrapper) searchOrgs(ctx echo.Context, allowUntrusted bool, vcQuery vc.VerifiableCredential) error {
+	// credentialSubject struct that reflect current supported query params
+	type credentialSubject struct {
+		ID           string `json:"id"`
+		Organization struct {
+			Name string `json:"name"`
+			City string `json:"city"`
+		} `json:"organization"`
 	}
 
-	ldQuery := helper{}
-	if err := json.Unmarshal(body, &ldQuery); err != nil {
-		return core.InvalidInputError("failed to unmarshall JSON request body: %w", err)
+	var subjectsQuery []credentialSubject
+	if err := vcQuery.UnmarshalCredentialSubject(&subjectsQuery); err != nil {
+		return core.InvalidInputError("failed to unmarshall VC subject: %w", err)
 	}
 
 	// convert to query
@@ -95,14 +96,20 @@ func (w *Wrapper) searchOrgs(ctx echo.Context, allowUntrusted bool, body []byte)
 	if err != nil {
 		return err
 	}
-	if ldQuery.CredentialSubject.Organization.Name != "" {
-		query.AddClause(concept.Prefix("organization.name", ldQuery.CredentialSubject.Organization.Name))
+	if vcQuery.Issuer.String() != "" {
+		query.AddClause(concept.Eq("issuer", vcQuery.Issuer.String()))
 	}
-	if ldQuery.CredentialSubject.Organization.City != "" {
-		query.AddClause(concept.Prefix("organization.city", ldQuery.CredentialSubject.Organization.City))
-	}
-	if ldQuery.CredentialSubject.ID != "" {
-		query.AddClause(concept.Eq("credentialSubject.id", ldQuery.CredentialSubject.ID))
+	if len(subjectsQuery) > 0 {
+		subjectQuery := subjectsQuery[0]
+		if subjectQuery.Organization.Name != "" {
+			query.AddClause(concept.Prefix("organization.name", subjectQuery.Organization.Name))
+		}
+		if subjectQuery.Organization.City != "" {
+			query.AddClause(concept.Prefix("organization.city", subjectQuery.Organization.City))
+		}
+		if subjectQuery.ID != "" {
+			query.AddClause(concept.Eq("credentialSubject.id", subjectQuery.ID))
+		}
 	}
 
 	results, err := w.VCR.Search(ctx.Request().Context(), query, allowUntrusted, nil)
@@ -113,22 +120,20 @@ func (w *Wrapper) searchOrgs(ctx echo.Context, allowUntrusted bool, body []byte)
 	return ctx.JSON(http.StatusOK, results)
 }
 
-func (w *Wrapper) searchAuths(ctx echo.Context, allowUntrusted bool, body []byte) error {
-	// some helper structs that reflect current required query params
-	type helper struct {
-		CredentialSubject struct {
-			ID           string `json:"id"`
-			PurposeOfUse string `json:"purposeOfUse"`
-			Subject      string `json:"subject"`
-			Resources    struct {
-				Path string `json:"path"`
-			} `json:"resources"`
-		} `json:"credentialSubject"`
+func (w *Wrapper) searchAuths(ctx echo.Context, allowUntrusted bool, vcQuery vc.VerifiableCredential) error {
+	// credentialSubject struct that reflect current supported query params
+	type credentialSubject struct {
+		ID           string `json:"id"`
+		PurposeOfUse string `json:"purposeOfUse"`
+		Subject      string `json:"subject"`
+		Resources    struct {
+			Path string `json:"path"`
+		} `json:"resources"`
 	}
 
-	ldQuery := helper{}
-	if err := json.Unmarshal(body, &ldQuery); err != nil {
-		return core.InvalidInputError("failed to unmarshall JSON request body: %w", err)
+	var subjectsQuery []credentialSubject
+	if err := vcQuery.UnmarshalCredentialSubject(&subjectsQuery); err != nil {
+		return core.InvalidInputError("failed to unmarshall VC subject: %w", err)
 	}
 
 	// convert to query
@@ -136,17 +141,23 @@ func (w *Wrapper) searchAuths(ctx echo.Context, allowUntrusted bool, body []byte
 	if err != nil {
 		return err
 	}
-	if ldQuery.CredentialSubject.ID != "" {
-		query.AddClause(concept.Eq("credentialSubject.id", ldQuery.CredentialSubject.ID))
+	if vcQuery.Issuer.String() != "" {
+		query.AddClause(concept.Eq("issuer", vcQuery.Issuer.String()))
 	}
-	if ldQuery.CredentialSubject.PurposeOfUse != "" {
-		query.AddClause(concept.Eq("credentialSubject.purposeOfUse", ldQuery.CredentialSubject.PurposeOfUse))
-	}
-	if ldQuery.CredentialSubject.Subject != "" {
-		query.AddClause(concept.Eq("credentialSubject.subject", ldQuery.CredentialSubject.Subject))
-	}
-	if ldQuery.CredentialSubject.Resources.Path != "" {
-		query.AddClause(concept.Eq("credentialSubject.resources.#.path", ldQuery.CredentialSubject.Resources.Path))
+	if len(subjectsQuery) > 0 {
+		subjectQuery := subjectsQuery[0]
+		if subjectQuery.ID != "" {
+			query.AddClause(concept.Eq("credentialSubject.id", subjectQuery.ID))
+		}
+		if subjectQuery.PurposeOfUse != "" {
+			query.AddClause(concept.Eq("credentialSubject.purposeOfUse", subjectQuery.PurposeOfUse))
+		}
+		if subjectQuery.Subject != "" {
+			query.AddClause(concept.Eq("credentialSubject.subject", subjectQuery.Subject))
+		}
+		if subjectQuery.Resources.Path != "" {
+			query.AddClause(concept.Eq("credentialSubject.resources.#.path", subjectQuery.Resources.Path))
+		}
 	}
 
 	results, err := w.VCR.Search(ctx.Request().Context(), query, allowUntrusted, nil)
