@@ -1,3 +1,21 @@
+/*
+ * Copyright (C) 2022 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package tree
 
 import (
@@ -91,6 +109,36 @@ func TestXor_Insert(t *testing.T) {
 	})
 }
 
+func TestXor_Delete(t *testing.T) {
+	h1, h2, hXor := getTwoHashPlusXor()
+
+	t.Run("ok - delete 1 hash", func(t *testing.T) {
+		x := Xor{}
+		err := x.Delete(h1)
+
+		assert.NoError(t, err)
+		assert.Equal(t, h1, x.Hash())
+	})
+
+	t.Run("ok - delete 2 hashes", func(t *testing.T) {
+		x := Xor{}
+		_ = x.Delete(h1)
+		err := x.Delete(h2)
+
+		assert.NoError(t, err)
+		assert.Equal(t, hXor, x.Hash())
+	})
+
+	t.Run("ok - delete hash twice", func(t *testing.T) {
+		x := Xor{}
+		_ = x.Delete(h1)
+		err := x.Delete(h1)
+
+		assert.NoError(t, err)
+		assert.Equal(t, Xor{}, x)
+	})
+}
+
 func TestXor_Add(t *testing.T) {
 	h1, h2, hXor := getTwoHashPlusXor()
 
@@ -136,6 +184,18 @@ func TestXor_Subtract(t *testing.T) {
 
 		assert.EqualError(t, err, "data type mismatch - expected *tree.Xor, got *tree.Iblt")
 		assert.Equal(t, Xor(h1), x1)
+	})
+}
+
+func TestXor_IsEmpty(t *testing.T) {
+	t.Run("is empty", func(t *testing.T) {
+		x := NewXor()
+		assert.True(t, x.IsEmpty())
+	})
+
+	t.Run("is not empty", func(t *testing.T) {
+		x := Xor(hash.FromSlice([]byte("not empty")))
+		assert.False(t, x.IsEmpty())
 	})
 }
 

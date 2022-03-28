@@ -1,3 +1,21 @@
+/*
+ * Copyright (C) 2022 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package tree
 
 import (
@@ -15,10 +33,14 @@ type Data interface {
 	Clone() Data
 	// Insert a new transaction reference.
 	Insert(ref hash.SHA256Hash) error
+	// Delete a transaction reference.
+	Delete(ref hash.SHA256Hash) error
 	// Add other Data to this one. Returns an error if the underlying datastructures are incompatible.
 	Add(other Data) error
 	// Subtract other Data from this one. Returns an error if the underlying datastructures are incompatible.
 	Subtract(other Data) error
+	// IsEmpty returns true if the concrete type is in its default/empty state.
+	IsEmpty() bool
 	encoding.BinaryMarshaler
 	encoding.BinaryUnmarshaler
 }
@@ -29,6 +51,8 @@ type Tree interface {
 	// Insert a transaction reference at the specified clock value.
 	// The result of inserting the same ref multiple times is undefined.
 	Insert(ref hash.SHA256Hash, clock uint32) error
+	// Delete a transaction reference without checking if ref is in the Tree
+	Delete(ref hash.SHA256Hash, clock uint32) error
 	// GetRoot returns the accumulated Data for the entire tree
 	GetRoot() Data
 	// GetZeroTo returns the LC value closest to the requested clock value together with Data of the same leaf/page.
@@ -117,6 +141,12 @@ func (t *tree) Load(leaves map[uint32][]byte) error {
 func (t *tree) Insert(ref hash.SHA256Hash, clock uint32) error {
 	return t.updateOrCreatePath(clock, func(n *node) error {
 		return n.data.Insert(ref)
+	})
+}
+
+func (t *tree) Delete(ref hash.SHA256Hash, clock uint32) error {
+	return t.updateOrCreatePath(clock, func(n *node) error {
+		return n.data.Delete(ref)
 	})
 }
 

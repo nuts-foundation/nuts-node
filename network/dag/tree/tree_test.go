@@ -1,3 +1,21 @@
+/*
+ * Copyright (C) 2022 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package tree
 
 import (
@@ -36,6 +54,28 @@ func TestTree_Insert(t *testing.T) {
 		tr := newTestTree(NewXor(), testLeafSize)
 
 		_ = tr.Insert(ref, testLeafSize+1)
+
+		assert.Equal(t, ref, tr.root.data.(*Xor).Hash())
+		assert.Equal(t, ref, tr.root.right.data.(*Xor).Hash())
+		assert.Equal(t, hash.EmptyHash(), tr.root.left.data.(*Xor).Hash())
+	})
+}
+
+func TestTree_Delete(t *testing.T) {
+	t.Run("delete single Tx", func(t *testing.T) {
+		ref := hash.FromSlice([]byte{123})
+		tr := newTestTree(NewXor(), testLeafSize)
+
+		_ = tr.Delete(ref, 0)
+
+		assert.Equal(t, ref, tr.root.data.(*Xor).Hash())
+	})
+
+	t.Run("delete single Tx out of tree range", func(t *testing.T) {
+		ref := hash.FromSlice([]byte{123})
+		tr := newTestTree(NewXor(), testLeafSize)
+
+		_ = tr.Delete(ref, testLeafSize+1)
 
 		assert.Equal(t, ref, tr.root.data.(*Xor).Hash())
 		assert.Equal(t, ref, tr.root.right.data.(*Xor).Hash())
@@ -247,7 +287,7 @@ func TestTree_Load(t *testing.T) {
 	t.Run("fail - incorrect data prototype", func(t *testing.T) {
 		tr, _ := filledTestTree(NewXor(), testLeafSize)
 		dirty, _, _ := tr.GetUpdates()
-		loadedTree := New(NewIblt(ibltNumBuckets), 0)
+		loadedTree := New(NewIblt(1024), 0)
 
 		err := loadedTree.Load(dirty)
 

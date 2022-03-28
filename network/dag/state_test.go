@@ -247,7 +247,7 @@ func TestState_Diagnostics(t *testing.T) {
 	doc1 := CreateTestTransactionWithJWK(2)
 	txState.Add(ctx, doc1, nil)
 	diagnostics := txState.Diagnostics()
-	assert.Len(t, diagnostics, 3)
+	assert.Len(t, diagnostics, 4)
 	// Assert actual diagnostics
 	lines := make([]string, 0)
 	for _, diagnostic := range diagnostics {
@@ -259,9 +259,10 @@ func TestState_Diagnostics(t *testing.T) {
 	assert.NotZero(t, dbSize)
 
 	actual := strings.Join(lines, "\n")
-	expected := fmt.Sprintf(`heads: [`+doc1.Ref().String()+`]
+	expected := fmt.Sprintf(`dag_xor: %s
+heads: [%s]
 stored_database_size_bytes: %d
-transaction_count: 1`, dbSize.DataSize)
+transaction_count: 1`, doc1.Ref(), doc1.Ref(), dbSize.DataSize)
 	assert.Equal(t, expected, actual)
 }
 

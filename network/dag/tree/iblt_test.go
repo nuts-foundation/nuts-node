@@ -1,3 +1,21 @@
+/*
+ * Copyright (C) 2022 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package tree
 
 import (
@@ -7,16 +25,18 @@ import (
 	"testing"
 )
 
+const numTestBuckets = 1024
+
 // benchmarks
 func BenchmarkIblt_BinaryMarshal(b *testing.B) {
-	iblt, _ := getIbltWithRandomData(ibltNumBuckets, 128)
+	iblt, _ := getIbltWithRandomData(numTestBuckets, 128)
 	for i := 0; i < b.N; i++ {
 		_, _ = iblt.MarshalBinary()
 	}
 }
 
 func BenchmarkIblt_BinaryUnmarshal(b *testing.B) {
-	iblt, _ := getIbltWithRandomData(ibltNumBuckets, 128)
+	iblt, _ := getIbltWithRandomData(numTestBuckets, 128)
 	bytes, _ := iblt.MarshalBinary()
 	for i := 0; i < b.N; i++ {
 		iblt = &Iblt{}
@@ -59,17 +79,17 @@ func getEmptyTestIblt(numBuckets int) *Iblt {
 
 // tests iblt
 func TestNewIblt(t *testing.T) {
-	iblt := NewIblt(ibltNumBuckets)
+	iblt := NewIblt(numTestBuckets)
 
 	assert.Equal(t, ibltHc, iblt.hc)
 	assert.Equal(t, ibltHk, iblt.hk)
 	assert.Equal(t, ibltK, iblt.k)
-	assert.Equal(t, ibltNumBuckets, len(iblt.buckets))
-	assert.Equal(t, ibltNumBuckets, iblt.numBuckets())
+	assert.Equal(t, numTestBuckets, len(iblt.buckets))
+	assert.Equal(t, numTestBuckets, iblt.numBuckets())
 	for i, b := range iblt.buckets {
 		assert.Truef(t, b.isEmpty(), "bucket %d was not empty", i)
 	}
-	assert.True(t, equals(getEmptyTestIblt(ibltNumBuckets), iblt), "test function(s) invalid")
+	assert.True(t, equals(getEmptyTestIblt(numTestBuckets), iblt), "test function(s) invalid")
 }
 
 func equals(iblt1, iblt2 *Iblt) bool {
@@ -122,7 +142,7 @@ func TestIblt_Clone(t *testing.T) {
 }
 
 func TestIblt_Insert(t *testing.T) {
-	iblt := getEmptyTestIblt(ibltNumBuckets)
+	iblt := getEmptyTestIblt(numTestBuckets)
 	h := hash.FromSlice([]byte{1})
 	bExp := bucket{
 		count:   1,
@@ -276,7 +296,7 @@ func TestIblt_Decode(t *testing.T) {
 
 	t.Run("ok - Inserts only", func(t *testing.T) {
 		numHashes := 3
-		iblt, inserts := getIbltWithRandomData(ibltNumBuckets, numHashes)
+		iblt, inserts := getIbltWithRandomData(numTestBuckets, numHashes)
 
 		remaining, missing, err := iblt.Decode()
 
@@ -291,8 +311,8 @@ func TestIblt_Decode(t *testing.T) {
 
 	t.Run("ok - Inserts and Deletes", func(t *testing.T) {
 		numHashes := 3
-		ibltIns, inserts := getIbltWithRandomData(ibltNumBuckets, numHashes)
-		ibltDels, deletes := getIbltWithRandomData(ibltNumBuckets, numHashes)
+		ibltIns, inserts := getIbltWithRandomData(numTestBuckets, numHashes)
+		ibltDels, deletes := getIbltWithRandomData(numTestBuckets, numHashes)
 		_ = ibltIns.Subtract(ibltDels)
 
 		remaining, missing, err := ibltIns.Decode()
@@ -311,7 +331,7 @@ func TestIblt_Decode(t *testing.T) {
 
 	t.Run("fail - loop detection", func(t *testing.T) {
 		key := hash.FromSlice([]byte("looper"))
-		iblt := NewIblt(ibltNumBuckets)
+		iblt := NewIblt(numTestBuckets)
 		_ = iblt.Insert(key)
 		keyHash := iblt.hashKey(key)
 		// if the key-keyHash pair is missing from one of the buckets,
@@ -324,7 +344,7 @@ func TestIblt_Decode(t *testing.T) {
 	})
 
 	t.Run("fail - too many hashes", func(t *testing.T) {
-		iblt, _ := getIbltWithRandomData(ibltNumBuckets, ibltNumBuckets)
+		iblt, _ := getIbltWithRandomData(numTestBuckets, numTestBuckets)
 		clone := iblt.Clone().(*Iblt)
 
 		remaining, _, err := iblt.Decode()
@@ -338,13 +358,40 @@ func TestIblt_Decode(t *testing.T) {
 
 	t.Run("fail - hash inserted twice", func(t *testing.T) {
 		h := hash.FromSlice([]byte("random hash"))
-		iblt := getEmptyTestIblt(ibltNumBuckets)
+		iblt := getEmptyTestIblt(numTestBuckets)
 		_ = iblt.Insert(h)
 		_ = iblt.Insert(h)
 
 		_, _, err := iblt.Decode()
 
 		assert.ErrorIs(t, err, ErrDecodeNotPossible)
+	})
+}
+
+func TestIblt_IsEmpty(t *testing.T) {
+	t.Run("true - new iblt", func(t *testing.T) {
+		iblt := NewIblt(numTestBuckets)
+
+		assert.True(t, iblt.IsEmpty())
+	})
+
+	t.Run("false - insert", func(t *testing.T) {
+		iblt := NewIblt(numTestBuckets)
+		h := hash.FromSlice([]byte("test hash"))
+
+		_ = iblt.Insert(h)
+
+		assert.False(t, iblt.IsEmpty())
+	})
+
+	t.Run("true - insert and delete same hash", func(t *testing.T) {
+		iblt := NewIblt(numTestBuckets)
+		h := hash.FromSlice([]byte("test hash"))
+
+		_ = iblt.Insert(h)
+		_ = iblt.Delete(h)
+
+		assert.True(t, iblt.IsEmpty())
 	})
 }
 
