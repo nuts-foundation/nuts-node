@@ -75,6 +75,40 @@ func TestVcr_StoreCredential(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("ok - already exists", func(t *testing.T) {
+		ctx := newMockContext(t)
+		now := time.Now()
+
+		ctx.keyResolver.EXPECT().ResolveSigningKey(gomock.Any(), &now).Return(pk, nil)
+
+		_ = ctx.vcr.StoreCredential(target, &now)
+
+		err := ctx.vcr.StoreCredential(target, &now)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - already exists, but differs", func(t *testing.T) {
+		ctx := newMockContext(t)
+		now := time.Now()
+
+		ctx.keyResolver.EXPECT().ResolveSigningKey(gomock.Any(), &now).Return(pk, nil)
+
+		_ = ctx.vcr.StoreCredential(target, &now)
+
+		target.CredentialSubject = []interface{}{
+			map[string]interface{}{
+				"name": "John Doe",
+				"age":  "42",
+			},
+		}
+		err := ctx.vcr.StoreCredential(target, &now)
+
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, "credential with same ID but different content already exists")
+		assert.ErrorContains(t, err, target.ID.String())
+	})
+
 	t.Run("error - validation", func(t *testing.T) {
 		ctx := newMockContext(t)
 
