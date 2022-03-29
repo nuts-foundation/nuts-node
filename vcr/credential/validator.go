@@ -100,6 +100,11 @@ func (d nutsOrganizationCredentialValidator) Validate(credential vc.VerifiableCr
 		return err
 	}
 
+	err := validateNutsCredentialID(credential)
+	if err != nil {
+		return err
+	}
+
 	if !credential.IsType(*NutsOrganizationCredentialTypeURI) {
 		return failure("type '%s' is required", NutsOrganizationCredentialType)
 	}
@@ -142,6 +147,11 @@ func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableC
 	var target = make([]NutsAuthorizationCredentialSubject, 0)
 
 	if err := Validate(credential); err != nil {
+		return err
+	}
+
+	err := validateNutsCredentialID(credential)
+	if err != nil {
 		return err
 	}
 
@@ -210,4 +220,13 @@ func validOperation(operation string) bool {
 		}
 	}
 	return false
+}
+
+func validateNutsCredentialID(credential vc.VerifiableCredential) error {
+	idWithoutFragment := credential.ID
+	idWithoutFragment.Fragment = ""
+	if idWithoutFragment.String() != credential.Issuer.String() {
+		return failure("credential ID must start with issuer")
+	}
+	return nil
 }
