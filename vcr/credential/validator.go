@@ -223,7 +223,7 @@ func validOperation(operation string) bool {
 }
 
 func validateNutsCredentialID(credential vc.VerifiableCredential) error {
-	idWithoutFragment := credential.ID
+	idWithoutFragment := *credential.ID
 	idWithoutFragment.Fragment = ""
 	if idWithoutFragment.String() != credential.Issuer.String() {
 		return failure("credential ID must start with issuer")
