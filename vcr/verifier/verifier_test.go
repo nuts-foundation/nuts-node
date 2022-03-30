@@ -22,6 +22,11 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
+	"os"
+	"path"
+	"testing"
+	"time"
+
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -37,10 +42,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr"
 	vdrTypes "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
-	"os"
-	"path"
-	"testing"
-	"time"
 )
 
 func testCredential(t *testing.T) vc.VerifiableCredential {
@@ -685,6 +686,34 @@ func Test_verifier_IsRevoked(t *testing.T) {
 		result, err := sut.verifier.IsRevoked(revocation.Subject)
 		assert.EqualError(t, err, "foo")
 		assert.False(t, result)
+	})
+}
+
+func TestVerifier_GetRevocation(t *testing.T) {
+	rawRevocation, _ := os.ReadFile("../test/ld-revocation.json")
+	revocation := credential.Revocation{}
+	assert.NoError(t, json.Unmarshal(rawRevocation, &revocation))
+
+	t.Run("it returns nil, ErrNotFound if no revocation is found", func(t *testing.T) {
+		sut := newMockContext(t)
+		sut.store.EXPECT().GetRevocation(revocation.Subject).Return(nil, ErrNotFound)
+		result, err := sut.verifier.GetRevocation(revocation.Subject)
+		assert.Equal(t, ErrNotFound, err)
+		assert.Nil(t, result)
+	})
+	t.Run("it returns the revocation if found", func(t *testing.T) {
+		sut := newMockContext(t)
+		sut.store.EXPECT().GetRevocation(revocation.Subject).Return(&revocation, nil)
+		result, err := sut.verifier.GetRevocation(revocation.Subject)
+		assert.NoError(t, err)
+		assert.Equal(t, revocation, *result)
+	})
+	t.Run("it returns the error if the store returns an error", func(t *testing.T) {
+		sut := newMockContext(t)
+		sut.store.EXPECT().GetRevocation(revocation.Subject).Return(nil, errors.New("foo"))
+		result, err := sut.verifier.GetRevocation(revocation.Subject)
+		assert.EqualError(t, err, "foo")
+		assert.Nil(t, result)
 	})
 }
 

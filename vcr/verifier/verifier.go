@@ -205,8 +205,8 @@ func (v *verifier) IsRevoked(credentialID ssi.URI) (bool, error) {
 	return true, nil
 }
 
-func (c *verifier) GetRevocation(credentialID ssi.URI) (*credential.Revocation, error) {
-	revocation, err := c.store.GetRevocation(credentialID)
+func (v *verifier) GetRevocation(credentialID ssi.URI) (*credential.Revocation, error) {
+	revocation, err := v.store.GetRevocation(credentialID)
 	if err != nil {
 		return nil, err
 	}
