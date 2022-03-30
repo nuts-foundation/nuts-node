@@ -83,6 +83,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	)
 	nutsNetwork.Configure(nutsConfig)
 	nutsNetwork.Start()
+	defer nutsNetwork.Shutdown()
 
 	// Init the VDR
 	vdr := NewVDR(DefaultConfig(), cryptoInstance, nutsNetwork, didStore)

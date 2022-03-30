@@ -21,8 +21,10 @@ package tree
 import (
 	"encoding"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"math"
+	"sync"
+
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
 // Data is the interface for data held in each node of the Tree
@@ -87,6 +89,7 @@ type tree struct {
 	prototype      Data
 	dirtyLeaves    map[uint32]*node
 	orphanedLeaves map[uint32]struct{}
+	mutex          sync.Mutex
 }
 
 // New creates a new tree with the given leafSize and of the same type of Data as the prototype.
@@ -106,6 +109,9 @@ func (t *tree) resetDefaults(leafSize uint32) {
 }
 
 func (t *tree) Load(leaves map[uint32][]byte) error {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
 	// initialize tree
 	split := uint32(math.MaxUint32)
 	for k := range leaves {
@@ -133,18 +139,24 @@ func (t *tree) Load(leaves map[uint32][]byte) error {
 		}
 	}
 
-	t.ResetUpdate()
+	t.resetUpdate()
 
 	return nil
 }
 
 func (t *tree) Insert(ref hash.SHA256Hash, clock uint32) error {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
 	return t.updateOrCreatePath(clock, func(n *node) error {
 		return n.data.Insert(ref)
 	})
 }
 
 func (t *tree) Delete(ref hash.SHA256Hash, clock uint32) error {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
 	return t.updateOrCreatePath(clock, func(n *node) error {
 		return n.data.Delete(ref)
 	})
@@ -212,10 +224,16 @@ func (t *tree) getNextNode(n *node, clock uint32) *node {
 }
 
 func (t *tree) GetRoot() Data {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
 	return t.root.data.Clone()
 }
 
 func (t *tree) GetZeroTo(clock uint32) (Data, uint32) {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
 	data := t.root.data.Clone()
 	next := t.root
 	for {
@@ -249,6 +267,9 @@ func rightmostLeafClock(n *node) uint32 {
 }
 
 func (t tree) GetUpdates() (dirty map[uint32][]byte, orphaned []uint32, err error) {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
 	dirty = make(map[uint32][]byte, len(t.dirtyLeaves))
 	for k, v := range t.dirtyLeaves {
 		b, err := v.data.MarshalBinary()
@@ -264,6 +285,13 @@ func (t tree) GetUpdates() (dirty map[uint32][]byte, orphaned []uint32, err erro
 }
 
 func (t *tree) ResetUpdate() {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
+	t.resetUpdate()
+}
+
+func (t *tree) resetUpdate() {
 	t.dirtyLeaves = map[uint32]*node{}
 	t.orphanedLeaves = nil
 }
@@ -274,6 +302,9 @@ type dropLeavesUpdate struct {
 }
 
 func (t *tree) DropLeaves() {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
 	// don't drop root
 	if t.root == nil || t.root.isLeaf() {
 		return
@@ -283,7 +314,7 @@ func (t *tree) DropLeaves() {
 		dirty:    map[uint32]*node{},
 		orphaned: map[uint32]struct{}{},
 	}
-	dropLeaves(t.root, update)
+	dropLeavesR(t.root, update)
 
 	t.dirtyLeaves = update.dirty
 	if t.orphanedLeaves == nil {
@@ -296,7 +327,7 @@ func (t *tree) DropLeaves() {
 	t.leafSize *= 2
 }
 
-func dropLeaves(n *node, update *dropLeavesUpdate) {
+func dropLeavesR(n *node, update *dropLeavesUpdate) {
 	if n == nil {
 		// n = parent.right might not exist
 		return
@@ -312,8 +343,8 @@ func dropLeaves(n *node, update *dropLeavesUpdate) {
 		n.right = nil
 		return
 	}
-	dropLeaves(n.left, update)
-	dropLeaves(n.right, update)
+	dropLeavesR(n.left, update)
+	dropLeavesR(n.right, update)
 }
 
 // node

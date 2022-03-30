@@ -19,9 +19,10 @@
 package tree
 
 import (
-	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
@@ -232,7 +233,7 @@ func TestTree_GetUpdate(t *testing.T) {
 		assert.True(t, ok)
 	})
 
-	t.Run("DropLeaves has updates and orphans", func(t *testing.T) {
+	t.Run("dropLeaves has updates and orphans", func(t *testing.T) {
 		tr, _ := filledTestTree(NewXor(), testLeafSize)
 		tr.DropLeaves()
 

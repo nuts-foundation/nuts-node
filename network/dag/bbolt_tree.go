@@ -22,8 +22,9 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"go.etcd.io/bbolt"
 	"time"
+
+	"go.etcd.io/bbolt"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
