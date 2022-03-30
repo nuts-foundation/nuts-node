@@ -22,6 +22,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/google/uuid"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -34,7 +36,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/piprate/json-gold/ld"
-	"time"
 )
 
 // NewIssuer creates a new issuer which implements the Issuer interface.

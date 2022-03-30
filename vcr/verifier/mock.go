@@ -37,6 +37,21 @@ func (m *MockVerifier) EXPECT() *MockVerifierMockRecorder {
 	return m.recorder
 }
 
+// GetRevocation mocks base method.
+func (m *MockVerifier) GetRevocation(id ssi.URI) (*credential.Revocation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRevocation", id)
+	ret0, _ := ret[0].(*credential.Revocation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetRevocation indicates an expected call of GetRevocation.
+func (mr *MockVerifierMockRecorder) GetRevocation(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRevocation", reflect.TypeOf((*MockVerifier)(nil).GetRevocation), id)
+}
+
 // IsRevoked mocks base method.
 func (m *MockVerifier) IsRevoked(credentialID ssi.URI) (bool, error) {
 	m.ctrl.T.Helper()
