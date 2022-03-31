@@ -21,6 +21,10 @@ package vcr
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
+	"reflect"
 	"time"
 
 	"github.com/nuts-foundation/go-did/vc"
@@ -36,6 +40,20 @@ const revocationCollection = "_revocation"
 const maxFindExecutionTime = 1 * time.Second
 
 func (c *vcr) StoreCredential(credential vc.VerifiableCredential, validAt *time.Time) error {
+	// ID must be unique
+	if credential.ID != nil {
+		existingCredential, err := c.find(*credential.ID)
+		if err == nil {
+			if reflect.DeepEqual(existingCredential, credential) {
+				log.Logger().Infof("Credential already exists (id=%s)", credential.ID)
+				return nil
+			}
+			return fmt.Errorf("credential with same ID but different content already exists (id=%s)", credential.ID)
+		} else if !errors.Is(err, types.ErrNotFound) {
+			return err
+		}
+	}
+
 	// verify first
 	if err := c.verifier.Validate(credential, validAt); err != nil {
 		return err
