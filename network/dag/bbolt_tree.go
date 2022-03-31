@@ -21,7 +21,6 @@ package dag
 import (
 	"context"
 	"encoding/binary"
-	"fmt"
 	"time"
 
 	"go.etcd.io/bbolt"
@@ -35,6 +34,9 @@ import (
 // treeBucketFillPercent can be much higher than default 0.5 since the keys (unique node ids)
 // should be added to the bucket in monotonic increasing order, and the values are of fixed size.
 const treeBucketFillPercent = 0.9
+const defaultObserverRollbackTimeOut = 10 * time.Second
+
+var observerRollbackTimeOut = defaultObserverRollbackTimeOut
 
 type bboltTree struct {
 	db                *bbolt.DB
@@ -77,7 +79,7 @@ func (store *bboltTree) dagObserver(ctx context.Context, transaction Transaction
 
 			// Rollback after timeout to bring tree and DAG back in sync.
 			// A call to writeUpdates will persist all uncommitted tree changes. So a failed bboltTx will be dropped by the dag and (eventually) persisted by the tree.
-			c, cancel := context.WithTimeout(context.Background(), 10*time.Second) // << timeout must not be shorter than expected write operation to disk
+			c, cancel := context.WithTimeout(context.Background(), observerRollbackTimeOut) // << timeout must not be shorter than expected write operation to disk
 			go func() {
 				<-c.Done()
 				err := c.Err()
@@ -99,12 +101,12 @@ func (store *bboltTree) dagObserver(ctx context.Context, transaction Transaction
 	}
 }
 
-// buildFromDag builds a tree by walking over the dag and adding all Transaction references to the tree without checking for validity.
+// migrate builds a tree by walking over the dag and adding all Transaction references to the tree without checking for validity.
 // The tree is stored on disk once it is in sync with the dag.
 // Should only be called on an empty tree.
-func (store *bboltTree) buildFromDag(ctx context.Context, state State) error {
+func (store *bboltTree) migrate(ctx context.Context, state State) error {
 	if !store.isEmpty() {
-		return fmt.Errorf("failed to build tree on %s - tree is not empty", store.bucketName)
+		return nil
 	}
 
 	err := state.Walk(ctx, func(_ context.Context, transaction Transaction) bool {

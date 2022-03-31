@@ -203,33 +203,32 @@ func (s *state) Start() error {
 		return fmt.Errorf("unable to migrate DAG: %w", err)
 	}
 
+	ctx := context.Background()
 	// load trees or build if they do not exist yet.
 	// can only build after DAG migration added clock values for all transactions and before the publisher starts
-	if err := s.xorTree.read(context.Background()); err != nil {
+	if err := s.xorTree.read(ctx); err != nil {
 		return fmt.Errorf("failed to read xorTree: %w", err)
 	}
-	if s.xorTree.isEmpty() {
-		err := s.xorTree.buildFromDag(context.Background(), s)
-		if err != nil {
-			return fmt.Errorf("unable to migrate xorTree: %w", err)
-		}
+
+	// migrate XOR tree, to be removed in V3
+	if err := s.xorTree.migrate(ctx, s); err != nil {
+		return fmt.Errorf("unable to migrate xorTree: %w", err)
 	}
 
-	if err := s.ibltTree.read(context.Background()); err != nil {
+	if err := s.ibltTree.read(ctx); err != nil {
 		return fmt.Errorf("failed to read ibltTree: %w", err)
 	}
-	if s.ibltTree.isEmpty() {
-		err := s.ibltTree.buildFromDag(context.Background(), s)
-		if err != nil {
-			return fmt.Errorf("unable to migrate ibltTree: %w", err)
-		}
+
+	// migrate IBLT tree, to be removed in V3
+	if err := s.ibltTree.migrate(ctx, s); err != nil {
+		return fmt.Errorf("unable to migrate ibltTree: %w", err)
 	}
 
 	if err := s.publisher.Start(); err != nil {
 		return err
 	}
 
-	if err := s.Verify(context.Background()); err != nil {
+	if err := s.Verify(ctx); err != nil {
 		return err
 	}
 
