@@ -103,7 +103,6 @@ func (store *bboltTree) dagObserver(ctx context.Context, transaction Transaction
 
 // migrate builds a tree by walking over the dag and adding all Transaction references to the tree without checking for validity.
 // The tree is stored on disk once it is in sync with the dag.
-// Should only be called on an empty tree.
 func (store *bboltTree) migrate(ctx context.Context, state State) error {
 	if !store.isEmpty() {
 		return nil

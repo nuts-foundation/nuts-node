@@ -133,7 +133,7 @@ func (t *tree) Load(leaves map[uint32][]byte) error {
 			return err
 		}
 		t.updateOrCreatePath(split, func(n *node) {
-			n.data.Add(data)
+			_ = n.data.Add(data)
 		})
 	}
 
@@ -270,7 +270,7 @@ func rightmostLeafClock(n *node) uint32 {
 	}
 }
 
-func (t tree) GetUpdates() (dirty map[uint32][]byte, orphaned []uint32) {
+func (t *tree) GetUpdates() (dirty map[uint32][]byte, orphaned []uint32) {
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
 
@@ -282,7 +282,7 @@ func (t tree) GetUpdates() (dirty map[uint32][]byte, orphaned []uint32) {
 	return
 }
 
-func (t tree) getDirty() map[uint32][]byte {
+func (t *tree) getDirty() map[uint32][]byte {
 	dirty := make(map[uint32][]byte, len(t.dirtyLeaves))
 	for k, v := range t.dirtyLeaves {
 		// no error can be returned since the xor and iblt structures do not generate errors
