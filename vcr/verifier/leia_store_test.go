@@ -19,14 +19,13 @@
 package verifier
 
 import (
-	"encoding/json"
+	"path"
+	"testing"
+
 	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-leia/v2"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/stretchr/testify/assert"
-	"path"
-	"testing"
 )
 
 func TestNewLeiaVerifierStore(t *testing.T) {
@@ -59,14 +58,15 @@ func Test_leiaVerifierStore_StoreRevocation(t *testing.T) {
 	testDir := io.TestDirectory(t)
 	verifierStorePath := path.Join(testDir, "vcr", "verifier-store.db")
 	sut, _ := NewLeiaVerifierStore(verifierStorePath)
+
 	t.Run("it stores a revocation and can find it back", func(t *testing.T) {
 		subjectID := ssi.MustParseURI("did:nuts:123#ab-c")
-		revocation := credential.Revocation{Subject: subjectID}
-		err := sut.StoreRevocation(revocation)
+		revocation := &credential.Revocation{Subject: subjectID}
+		err := sut.StoreRevocation(*revocation)
 		assert.NoError(t, err)
-		result, err := sut.GetRevocation(subjectID)
+		result, err := sut.GetRevocations(subjectID)
 		assert.NoError(t, err)
-		assert.Equal(t, &revocation, result)
+		assert.Equal(t, []*credential.Revocation{revocation}, result)
 	})
 }
 
@@ -75,39 +75,19 @@ func Test_leiaVerifierStore_GetRevocation(t *testing.T) {
 	verifierStorePath := path.Join(testDir, "vcr", "verifier-store.db")
 	sut, _ := NewLeiaVerifierStore(verifierStorePath)
 	subjectID := ssi.MustParseURI("did:nuts:123#ab-c")
-	revocation := credential.Revocation{Subject: subjectID}
-	assert.NoError(t, sut.StoreRevocation(revocation))
+	revocation := &credential.Revocation{Subject: subjectID}
+	assert.NoError(t, sut.StoreRevocation(*revocation))
 
 	t.Run("it can find a revocation", func(t *testing.T) {
-		result, err := sut.GetRevocation(subjectID)
+		result, err := sut.GetRevocations(subjectID)
 		assert.NoError(t, err)
-		assert.Equal(t, &revocation, result)
+		assert.Equal(t, []*credential.Revocation{revocation}, result)
 	})
 
 	t.Run("it returns a ErrNotFound when revocation could not be found", func(t *testing.T) {
 		unknownSubjectID := ssi.MustParseURI("did:nuts:456#ab-cde")
-		result, err := sut.GetRevocation(unknownSubjectID)
+		result, err := sut.GetRevocations(unknownSubjectID)
 		assert.EqualError(t, err, "not found")
-		assert.Nil(t, result)
-	})
-
-	t.Run("found multiple results", func(t *testing.T) {
-		duplicateSubjectID := ssi.MustParseURI("did:nuts:789#ab-cde-zzz")
-		revocation := credential.Revocation{Subject: duplicateSubjectID}
-		// First store
-		sut.StoreRevocation(revocation)
-
-		// Second store
-		lstore := sut.(*leiaVerifierStore)
-		rawStructWithSameID := struct {
-			Subject ssi.URI `json:"subject,omitempty"`
-		}{Subject: revocation.Subject}
-		asBytes, _ := json.Marshal(rawStructWithSameID)
-		doc := leia.DocumentFromBytes(asBytes)
-		assert.NoError(t, lstore.revocations.Add([]leia.Document{doc}))
-
-		result, err := sut.GetRevocation(revocation.Subject)
-		assert.EqualError(t, err, "found more than one revocation by id")
 		assert.Nil(t, result)
 	})
 }

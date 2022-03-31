@@ -265,7 +265,7 @@ func TestVerifier_Verify(t *testing.T) {
 		t.Run("fails when key is not found", func(t *testing.T) {
 			vc := testCredential(t)
 			ctx := newMockContext(t)
-			ctx.store.EXPECT().GetRevocation(*vc.ID).Return(nil, ErrNotFound)
+			ctx.store.EXPECT().GetRevocations(*vc.ID).Return(nil, ErrNotFound)
 			proofs, _ := vc.Proofs()
 			ctx.keyResolver.EXPECT().ResolveSigningKey(proofs[0].VerificationMethod.String(), nil).Return(nil, vdrTypes.ErrKeyNotFound)
 			sut := ctx.verifier
@@ -277,7 +277,7 @@ func TestVerifier_Verify(t *testing.T) {
 	t.Run("invalid when revoked", func(t *testing.T) {
 		vc := testCredential(t)
 		ctx := newMockContext(t)
-		ctx.store.EXPECT().GetRevocation(*vc.ID).Return(&credential.Revocation{}, nil)
+		ctx.store.EXPECT().GetRevocations(*vc.ID).Return([]*credential.Revocation{{}}, nil)
 		sut := ctx.verifier
 		validationErr := sut.Verify(vc, true, false, nil)
 		assert.EqualError(t, validationErr, "credential is revoked")
@@ -288,7 +288,7 @@ func TestVerifier_Verify(t *testing.T) {
 			vc := testCredential(t)
 			vc.Proof[0] = map[string]interface{}{"jws": "foo"}
 			ctx := newMockContext(t)
-			ctx.store.EXPECT().GetRevocation(*vc.ID).Return(nil, ErrNotFound)
+			ctx.store.EXPECT().GetRevocations(*vc.ID).Return(nil, ErrNotFound)
 			for _, vcType := range vc.Type {
 				_ = ctx.trustConfig.AddTrust(vcType, vc.Issuer)
 			}
@@ -300,7 +300,7 @@ func TestVerifier_Verify(t *testing.T) {
 			vc := testCredential(t)
 			vc.Proof[0] = map[string]interface{}{"jws": "foo"}
 			ctx := newMockContext(t)
-			ctx.store.EXPECT().GetRevocation(*vc.ID).Return(nil, ErrNotFound)
+			ctx.store.EXPECT().GetRevocations(*vc.ID).Return(nil, ErrNotFound)
 			sut := ctx.verifier
 			err := sut.Verify(vc, false, false, nil)
 			assert.ErrorIs(t, err, types.ErrUntrusted)
@@ -311,7 +311,7 @@ func TestVerifier_Verify(t *testing.T) {
 		t.Run("ok, the vc is valid", func(t *testing.T) {
 			vc := testCredential(t)
 			ctx := newMockContext(t)
-			ctx.store.EXPECT().GetRevocation(*vc.ID).Return(nil, ErrNotFound)
+			ctx.store.EXPECT().GetRevocations(*vc.ID).Return(nil, ErrNotFound)
 			sut := ctx.verifier
 			validationErr := sut.Verify(vc, true, false, nil)
 			assert.NoError(t, validationErr,
@@ -322,7 +322,7 @@ func TestVerifier_Verify(t *testing.T) {
 			vc := testCredential(t)
 			vc.Proof[0] = map[string]interface{}{"jws": "foo"}
 			ctx := newMockContext(t)
-			ctx.store.EXPECT().GetRevocation(*vc.ID).Return(nil, ErrNotFound)
+			ctx.store.EXPECT().GetRevocations(*vc.ID).Return(nil, ErrNotFound)
 			sut := ctx.verifier
 			validationErr := sut.Verify(vc, true, false, nil)
 			assert.NoError(t, validationErr,
@@ -346,7 +346,7 @@ func TestVerifier_Verify(t *testing.T) {
 				expirationTime := time.Now().Add(-10 * time.Hour)
 				vc.ExpirationDate = &expirationTime
 				ctx := newMockContext(t)
-				ctx.store.EXPECT().GetRevocation(*vc.ID).Return(nil, ErrNotFound)
+				ctx.store.EXPECT().GetRevocations(*vc.ID).Return(nil, ErrNotFound)
 				sut := ctx.verifier
 				validationErr := sut.Verify(vc, true, false, nil)
 				assert.EqualError(t, validationErr, "credential not valid at given time")
@@ -668,21 +668,21 @@ func Test_verifier_IsRevoked(t *testing.T) {
 
 	t.Run("it returns false if no revocation is found", func(t *testing.T) {
 		sut := newMockContext(t)
-		sut.store.EXPECT().GetRevocation(revocation.Subject).Return(nil, ErrNotFound)
+		sut.store.EXPECT().GetRevocations(revocation.Subject).Return(nil, ErrNotFound)
 		result, err := sut.verifier.IsRevoked(revocation.Subject)
 		assert.NoError(t, err)
 		assert.False(t, result)
 	})
 	t.Run("it returns true if a revocation is found", func(t *testing.T) {
 		sut := newMockContext(t)
-		sut.store.EXPECT().GetRevocation(revocation.Subject).Return(&revocation, nil)
+		sut.store.EXPECT().GetRevocations(revocation.Subject).Return([]*credential.Revocation{&revocation}, nil)
 		result, err := sut.verifier.IsRevoked(revocation.Subject)
 		assert.NoError(t, err)
 		assert.True(t, result)
 	})
 	t.Run("it returns the error if the store returns an error", func(t *testing.T) {
 		sut := newMockContext(t)
-		sut.store.EXPECT().GetRevocation(revocation.Subject).Return(nil, errors.New("foo"))
+		sut.store.EXPECT().GetRevocations(revocation.Subject).Return(nil, errors.New("foo"))
 		result, err := sut.verifier.IsRevoked(revocation.Subject)
 		assert.EqualError(t, err, "foo")
 		assert.False(t, result)
@@ -696,21 +696,21 @@ func TestVerifier_GetRevocation(t *testing.T) {
 
 	t.Run("it returns nil, ErrNotFound if no revocation is found", func(t *testing.T) {
 		sut := newMockContext(t)
-		sut.store.EXPECT().GetRevocation(revocation.Subject).Return(nil, ErrNotFound)
+		sut.store.EXPECT().GetRevocations(revocation.Subject).Return(nil, ErrNotFound)
 		result, err := sut.verifier.GetRevocation(revocation.Subject)
 		assert.Equal(t, ErrNotFound, err)
 		assert.Nil(t, result)
 	})
 	t.Run("it returns the revocation if found", func(t *testing.T) {
 		sut := newMockContext(t)
-		sut.store.EXPECT().GetRevocation(revocation.Subject).Return(&revocation, nil)
+		sut.store.EXPECT().GetRevocations(revocation.Subject).Return([]*credential.Revocation{&revocation}, nil)
 		result, err := sut.verifier.GetRevocation(revocation.Subject)
 		assert.NoError(t, err)
 		assert.Equal(t, revocation, *result)
 	})
 	t.Run("it returns the error if the store returns an error", func(t *testing.T) {
 		sut := newMockContext(t)
-		sut.store.EXPECT().GetRevocation(revocation.Subject).Return(nil, errors.New("foo"))
+		sut.store.EXPECT().GetRevocations(revocation.Subject).Return(nil, errors.New("foo"))
 		result, err := sut.verifier.GetRevocation(revocation.Subject)
 		assert.EqualError(t, err, "foo")
 		assert.Nil(t, result)

@@ -195,7 +195,7 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 }
 
 func (v *verifier) IsRevoked(credentialID ssi.URI) (bool, error) {
-	_, err := v.store.GetRevocation(credentialID)
+	_, err := v.store.GetRevocations(credentialID)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return false, nil
@@ -206,12 +206,13 @@ func (v *verifier) IsRevoked(credentialID ssi.URI) (bool, error) {
 }
 
 func (v *verifier) GetRevocation(credentialID ssi.URI) (*credential.Revocation, error) {
-	revocation, err := v.store.GetRevocation(credentialID)
+	revocation, err := v.store.GetRevocations(credentialID)
 	if err != nil {
 		return nil, err
 	}
 
-	return revocation, nil
+	// GetRevocations returns ErrNotFound for len == 0
+	return revocation[0], nil
 }
 
 func (v *verifier) RegisterRevocation(revocation credential.Revocation) error {

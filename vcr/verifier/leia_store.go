@@ -21,8 +21,8 @@ package verifier
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-leia/v2"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
@@ -60,7 +60,7 @@ func (s leiaVerifierStore) StoreRevocation(revocation credential.Revocation) err
 	return s.revocations.Add([]leia.Document{doc})
 }
 
-func (s leiaVerifierStore) GetRevocation(id ssi.URI) (*credential.Revocation, error) {
+func (s leiaVerifierStore) GetRevocations(id ssi.URI) ([]*credential.Revocation, error) {
 	query := leia.New(leia.Eq(concept.SubjectField, id.String()))
 
 	results, err := s.revocations.Find(context.Background(), query)
@@ -70,15 +70,17 @@ func (s leiaVerifierStore) GetRevocation(id ssi.URI) (*credential.Revocation, er
 	if len(results) == 0 {
 		return nil, ErrNotFound
 	}
-	if len(results) > 1 {
-		return nil, errors.New("found more than one revocation by id")
+
+	revocations := make([]*credential.Revocation, len(results))
+	for i, result := range results {
+		revocation := &credential.Revocation{}
+		if err := json.Unmarshal(result.Bytes(), revocation); err != nil {
+			return nil, err
+		}
+		revocations[i] = revocation
 	}
-	result := results[0]
-	revocation := &credential.Revocation{}
-	if err := json.Unmarshal(result.Bytes(), revocation); err != nil {
-		return revocation, err
-	}
-	return revocation, nil
+
+	return revocations, nil
 }
 
 func (s leiaVerifierStore) Close() error {
