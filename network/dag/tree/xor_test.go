@@ -44,10 +44,7 @@ func getTwoHashPlusXor() (h1 hash.SHA256Hash, h2 hash.SHA256Hash, hXor hash.SHA2
 func TestXor_New(t *testing.T) {
 	xor1 := Xor{}
 	h1 := hash.FromSlice([]byte{1})
-	err := xor1.Insert(h1)
-	if !assert.NoError(t, err) {
-		return
-	}
+	xor1.Insert(h1)
 
 	xorN, ok := xor1.New().(*Xor)
 	if !assert.True(t, ok, "type assertion failed") {
@@ -61,19 +58,13 @@ func TestXor_New(t *testing.T) {
 func TestXor_Clone(t *testing.T) {
 	xor1 := Xor{}
 	h1, h2, hXor := getTwoHashPlusXor()
-	err := xor1.Insert(h1)
-	if !assert.NoError(t, err) {
-		return
-	}
+	xor1.Insert(h1)
 
 	xorN, ok := xor1.Clone().(*Xor)
 	if !assert.True(t, ok, "type assertion failed") {
 		return
 	}
-	err = xorN.Insert(h2)
-	if !assert.NoError(t, err) {
-		return
-	}
+	xorN.Insert(h2)
 
 	assert.Equal(t, h1, xor1.Hash())
 	assert.Equal(t, hXor, xorN.Hash())
@@ -84,27 +75,24 @@ func TestXor_Insert(t *testing.T) {
 
 	t.Run("ok - insert 1 hash", func(t *testing.T) {
 		x := Xor{}
-		err := x.Insert(h1)
+		x.Insert(h1)
 
-		assert.NoError(t, err)
 		assert.Equal(t, h1, x.Hash())
 	})
 
 	t.Run("ok - insert 2 hashes", func(t *testing.T) {
 		x := Xor{}
-		_ = x.Insert(h1)
-		err := x.Insert(h2)
+		x.Insert(h1)
+		x.Insert(h2)
 
-		assert.NoError(t, err)
 		assert.Equal(t, hXor, x.Hash())
 	})
 
 	t.Run("ok - insert hash twice", func(t *testing.T) {
 		x := Xor{}
-		_ = x.Insert(h1)
-		err := x.Insert(h1)
+		x.Insert(h1)
+		x.Insert(h1)
 
-		assert.NoError(t, err)
 		assert.Equal(t, Xor{}, x)
 	})
 }
@@ -114,27 +102,24 @@ func TestXor_Delete(t *testing.T) {
 
 	t.Run("ok - delete 1 hash", func(t *testing.T) {
 		x := Xor{}
-		err := x.Delete(h1)
+		x.Delete(h1)
 
-		assert.NoError(t, err)
 		assert.Equal(t, h1, x.Hash())
 	})
 
 	t.Run("ok - delete 2 hashes", func(t *testing.T) {
 		x := Xor{}
-		_ = x.Delete(h1)
-		err := x.Delete(h2)
+		x.Delete(h1)
+		x.Delete(h2)
 
-		assert.NoError(t, err)
 		assert.Equal(t, hXor, x.Hash())
 	})
 
 	t.Run("ok - delete hash twice", func(t *testing.T) {
 		x := Xor{}
-		_ = x.Delete(h1)
-		err := x.Delete(h1)
+		x.Delete(h1)
+		x.Delete(h1)
 
-		assert.NoError(t, err)
 		assert.Equal(t, Xor{}, x)
 	})
 }

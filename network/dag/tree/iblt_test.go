@@ -55,7 +55,7 @@ func getIbltWithRandomData(numBuckets, numHashes int) (*Iblt, map[hash.SHA256Has
 	hashes := make(map[hash.SHA256Hash]struct{}, numHashes)
 	for i := 0; i < numHashes; i++ {
 		ref := newRandomTx()
-		_ = iblt.Insert(ref)
+		iblt.Insert(ref)
 		hashes[ref] = struct{}{}
 	}
 	return iblt, hashes
@@ -109,10 +109,7 @@ func TestIblt_New(t *testing.T) {
 	nBuckets := 6
 	iblt := getEmptyTestIblt(nBuckets)
 	h := hash.FromSlice([]byte{1})
-	err := iblt.Insert(h)
-	if !assert.NoError(t, err) {
-		return
-	}
+	iblt.Insert(h)
 
 	newIblt, ok := iblt.New().(*Iblt)
 	if !assert.True(t, ok, "type assertion failed") {
@@ -132,10 +129,7 @@ func TestIblt_Clone(t *testing.T) {
 	if !assert.True(t, ok, "type assertion failed") {
 		return
 	}
-	err := newIblt.Insert(h)
-	if !assert.NoError(t, err) {
-		return
-	}
+	newIblt.Insert(h)
 
 	assert.False(t, equals(iblt, newIblt))
 	assert.True(t, equals(getEmptyTestIblt(nBuckets), iblt))
@@ -150,11 +144,8 @@ func TestIblt_Insert(t *testing.T) {
 		keySum:  h,
 	}
 
-	err := iblt.Insert(h)
+	iblt.Insert(h)
 
-	if assert.NoError(t, err) {
-		return
-	}
 	numMatches := 0
 	for _, b := range iblt.buckets {
 		if b.equals(bExp) {
@@ -174,11 +165,8 @@ func TestIblt_Delete(t *testing.T) {
 		keySum:  h,
 	}
 
-	err := iblt.Insert(h)
+	iblt.Delete(h)
 
-	if assert.NoError(t, err) {
-		return
-	}
 	for i, b := range iblt.buckets {
 		assert.Truef(t, b.equals(bExp), "bucket %d did not match", i)
 	}
@@ -248,10 +236,10 @@ func TestIblt_Add(t *testing.T) {
 	t.Run("ok - Add two *iblt", func(t *testing.T) {
 		h1, h2 := hash.FromSlice([]byte{1}), hash.FromSlice([]byte{2})
 		iblt1, iblt2, ibltAdd := getEmptyTestIblt(int(ibltK)), getEmptyTestIblt(int(ibltK)), getEmptyTestIblt(int(ibltK))
-		_ = iblt1.Insert(h1)
-		_ = iblt2.Insert(h2)
-		_ = ibltAdd.Insert(h1)
-		_ = ibltAdd.Insert(h2)
+		iblt1.Insert(h1)
+		iblt2.Insert(h2)
+		ibltAdd.Insert(h1)
+		ibltAdd.Insert(h2)
 
 		err := iblt1.Add(iblt2)
 
@@ -272,10 +260,10 @@ func TestIblt_Subtract(t *testing.T) {
 	t.Run("ok - Add two *iblt", func(t *testing.T) {
 		h1, h2 := hash.FromSlice([]byte{1}), hash.FromSlice([]byte{2})
 		iblt1, iblt2, ibltSubtract := getEmptyTestIblt(int(ibltK)), getEmptyTestIblt(int(ibltK)), getEmptyTestIblt(int(ibltK))
-		_ = iblt1.Insert(h1)
-		_ = iblt2.Insert(h2)
-		_ = ibltSubtract.Insert(h1)
-		_ = ibltSubtract.Delete(h2)
+		iblt1.Insert(h1)
+		iblt2.Insert(h2)
+		ibltSubtract.Insert(h1)
+		ibltSubtract.Delete(h2)
 
 		err := iblt1.Subtract(iblt2)
 
@@ -332,7 +320,7 @@ func TestIblt_Decode(t *testing.T) {
 	t.Run("fail - loop detection", func(t *testing.T) {
 		key := hash.FromSlice([]byte("looper"))
 		iblt := NewIblt(numTestBuckets)
-		_ = iblt.Insert(key)
+		iblt.Insert(key)
 		keyHash := iblt.hashKey(key)
 		// if the key-keyHash pair is missing from one of the buckets,
 		// it will be remaining/missing in the iblt out of sync with the other buckets causing a loop.
@@ -349,7 +337,7 @@ func TestIblt_Decode(t *testing.T) {
 
 		remaining, _, err := iblt.Decode()
 		for _, r := range remaining {
-			_ = iblt.Insert(r)
+			iblt.Insert(r)
 		}
 
 		assert.ErrorIs(t, err, ErrDecodeNotPossible)
@@ -359,8 +347,8 @@ func TestIblt_Decode(t *testing.T) {
 	t.Run("fail - hash inserted twice", func(t *testing.T) {
 		h := hash.FromSlice([]byte("random hash"))
 		iblt := getEmptyTestIblt(numTestBuckets)
-		_ = iblt.Insert(h)
-		_ = iblt.Insert(h)
+		iblt.Insert(h)
+		iblt.Insert(h)
 
 		_, _, err := iblt.Decode()
 
@@ -379,7 +367,7 @@ func TestIblt_IsEmpty(t *testing.T) {
 		iblt := NewIblt(numTestBuckets)
 		h := hash.FromSlice([]byte("test hash"))
 
-		_ = iblt.Insert(h)
+		iblt.Insert(h)
 
 		assert.False(t, iblt.IsEmpty())
 	})
@@ -388,8 +376,8 @@ func TestIblt_IsEmpty(t *testing.T) {
 		iblt := NewIblt(numTestBuckets)
 		h := hash.FromSlice([]byte("test hash"))
 
-		_ = iblt.Insert(h)
-		_ = iblt.Delete(h)
+		iblt.Insert(h)
+		iblt.Delete(h)
 
 		assert.True(t, iblt.IsEmpty())
 	})
@@ -398,7 +386,7 @@ func TestIblt_IsEmpty(t *testing.T) {
 func TestIblt_MarshalBinary(t *testing.T) {
 	hash1, _, hash1BucketBytes := marshalBucketWithHash1()
 	iblt := getEmptyTestIblt(int(ibltK))
-	_ = iblt.Insert(hash1)
+	iblt.Insert(hash1)
 
 	bs, err := iblt.MarshalBinary()
 

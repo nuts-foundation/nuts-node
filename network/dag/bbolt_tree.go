@@ -73,10 +73,7 @@ func (store *bboltTree) isEmpty() bool {
 func (store *bboltTree) dagObserver(ctx context.Context, transaction Transaction, _ []byte) {
 	if transaction != nil { // can happen when payload is written for private TX
 		err := storage.BBoltTXUpdate(ctx, store.db, func(callbackCtx context.Context, tx *bbolt.Tx) error {
-			err := store.tree.Insert(transaction.Ref(), transaction.Clock())
-			if err != nil {
-				return err
-			}
+			dirty := store.tree.InsertGetDirty(transaction.Ref(), transaction.Clock())
 
 			// Rollback after timeout to bring tree and DAG back in sync.
 			// A call to writeUpdates will persist all uncommitted tree changes. So a failed bboltTx will be dropped by the dag and (eventually) persisted by the tree.
@@ -86,16 +83,15 @@ func (store *bboltTree) dagObserver(ctx context.Context, transaction Transaction
 				err := c.Err()
 				if err == context.DeadlineExceeded {
 					log.Logger().Warnf("deadline exceeded - rollback transaction %s from %s", transaction.Ref(), store.bucketName)
-					if err := store.tree.Delete(transaction.Ref(), transaction.Clock()); err != nil {
-						log.Logger().Errorf("rollback of transaction %s failed - %s is not in sync with DAG", transaction.Ref(), store.bucketName)
-					}
+					store.tree.Delete(transaction.Ref(), transaction.Clock())
 				}
 			}()
 			tx.OnCommit(func() {
+				store.tree.ResetUpdate()
 				cancel()
 			})
 
-			return store.writeUpdates(callbackCtx)
+			return store.writeUpdates(callbackCtx, dirty, nil)
 		})
 		if err != nil {
 			log.Logger().Errorf("failed to add transaction to %s: %s", store.bucketName, err.Error())
@@ -112,14 +108,17 @@ func (store *bboltTree) buildFromDag(ctx context.Context, state State) error {
 	}
 
 	err := state.Walk(ctx, func(_ context.Context, transaction Transaction) bool {
-		err := store.tree.Insert(transaction.Ref(), transaction.Clock())
-		return err != nil
+		store.tree.Insert(transaction.Ref(), transaction.Clock())
+		return true
 	}, hash.EmptyHash())
 	if err != nil {
 		return err
 	}
 
-	err = store.writeUpdates(ctx)
+	dirties, orphaned := store.tree.GetUpdates()
+	store.tree.ResetUpdate()
+
+	err = store.writeUpdates(ctx, dirties, orphaned)
 	if err != nil {
 		return err
 	}
@@ -155,20 +154,13 @@ func (store *bboltTree) read(ctx context.Context) error {
 // writeUpdates writes an incremental update to the bucket.
 // The incremental update is defined as changes to the tree since the last call to Tree.ResetUpdate,
 // which is called when writeUpdates completes successfully.
-func (store *bboltTree) writeUpdates(ctx context.Context) error {
+func (store *bboltTree) writeUpdates(ctx context.Context, dirties map[uint32][]byte, orphaned []uint32) error {
 	return storage.BBoltTXUpdate(ctx, store.db, func(_ context.Context, tx *bbolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte(store.bucketName))
 		if err != nil {
 			return err
 		}
 		bucket.FillPercent = store.bucketFillPercent
-
-		// get data
-		dirties, orphaned, err := store.tree.GetUpdates()
-		if err != nil {
-			return err
-		}
-		tx.OnCommit(store.tree.ResetUpdate)
 
 		// delete orphaned leaves
 		key := make([]byte, 4)

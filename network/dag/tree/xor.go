@@ -53,14 +53,12 @@ func (x *Xor) Clone() Data {
 	return c
 }
 
-func (x *Xor) Insert(ref hash.SHA256Hash) error {
+func (x *Xor) Insert(ref hash.SHA256Hash) {
 	xor(x[:], x[:], ref[:])
-	return nil
 }
 
-func (x *Xor) Delete(ref hash.SHA256Hash) error {
+func (x *Xor) Delete(ref hash.SHA256Hash) {
 	xor(x[:], x[:], ref[:])
-	return nil
 }
 
 func (x *Xor) Add(data Data) error {

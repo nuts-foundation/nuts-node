@@ -79,21 +79,19 @@ func (i Iblt) Clone() Data {
 	return &i
 }
 
-func (i *Iblt) Insert(ref hash.SHA256Hash) error {
+func (i *Iblt) Insert(ref hash.SHA256Hash) {
 	keyHash := i.hashKey(ref)
 	for _, h := range i.bucketIndices(keyHash) {
 		i.buckets[h].insert(ref, keyHash)
 	}
-	return nil
 }
 
 // Delete subtracts the key from the iblt and is the inverse of Insert.
-func (i *Iblt) Delete(key hash.SHA256Hash) error {
+func (i *Iblt) Delete(key hash.SHA256Hash) {
 	keyHash := i.hashKey(key)
 	for _, h := range i.bucketIndices(keyHash) {
 		i.buckets[h].delete(key, keyHash)
 	}
-	return nil
 }
 
 func (i *Iblt) Add(other Data) error {
@@ -150,7 +148,6 @@ func (i Iblt) validate(other Data) (*Iblt, error) {
 func (i *Iblt) Decode() (remaining []hash.SHA256Hash, missing []hash.SHA256Hash, err error) {
 	pures := map[hash.SHA256Hash]bool{}
 
-outer:
 	for {
 		updated := false
 
@@ -162,20 +159,16 @@ outer:
 					// Decode gets stuck in a loop when the b.keySum is not exactly ±1 times in all buckets with indices i.bucketIndices(b.hashSum)
 					// this can occur when two Iblt are subtracted that use different methods for assigning buckets
 					err = ErrDecodeLoop
-					break outer
+					return
 				}
 				pures[txRef] = true
 
 				if b.count == 1 {
 					remaining = append(remaining, txRef)
-					err = i.Delete(txRef)
+					i.Delete(txRef)
 				} else { // b.count == -1
 					missing = append(missing, txRef)
-					err = i.Insert(txRef)
-				}
-
-				if err != nil {
-					break outer
+					i.Insert(txRef)
 				}
 				updated = true
 			}

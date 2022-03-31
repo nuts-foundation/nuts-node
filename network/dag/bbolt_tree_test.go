@@ -36,21 +36,22 @@ func TestBboltTree_writeUpdates(t *testing.T) {
 
 	t.Run("ok - inserts", func(t *testing.T) {
 		store := newBBoltTreeStore(db, "xor tree", tree.New(tree.NewXor(), testLeafSize))
-		_ = store.tree.Insert(hash.FromSlice([]byte("test hash 1")), 0)
-		_ = store.tree.Insert(hash.FromSlice([]byte("test hash 2")), testLeafSize)
+		store.tree.Insert(hash.FromSlice([]byte("test hash 1")), 0)
+		dirty := store.tree.InsertGetDirty(hash.FromSlice([]byte("test hash 2")), testLeafSize)
 
-		err := store.writeUpdates(context.Background())
+		err := store.writeUpdates(context.Background(), dirty, nil)
 
 		assert.NoError(t, err)
 	})
 
 	t.Run("ok - dropping leaves", func(t *testing.T) {
 		store := newBBoltTreeStore(db, "xor drop leaves", tree.New(tree.NewXor(), testLeafSize))
-		_ = store.tree.Insert(hash.FromSlice([]byte("test hash 1")), 0)
-		_ = store.tree.Insert(hash.FromSlice([]byte("test hash 2")), testLeafSize)
+		store.tree.Insert(hash.FromSlice([]byte("test hash 1")), 0)
+		store.tree.Insert(hash.FromSlice([]byte("test hash 2")), testLeafSize)
 		store.tree.DropLeaves()
+		dirties, orphaned := store.tree.GetUpdates()
 
-		err := store.writeUpdates(context.Background())
+		err := store.writeUpdates(context.Background(), dirties, orphaned)
 		assert.NoError(t, err)
 
 		storeRead := newBBoltTreeStore(db, "xor drop leaves", tree.New(tree.NewXor(), testLeafSize))
@@ -64,8 +65,8 @@ func TestBboltTree_writeUpdates(t *testing.T) {
 func TestBboltTree_read(t *testing.T) {
 	db := createBBoltDB(io.TestDirectory(t))
 	storeWrite := newBBoltTreeStore(db, "real bucket", tree.New(tree.NewXor(), testLeafSize))
-	_ = storeWrite.tree.Insert(hash.FromSlice([]byte("test hash")), testLeafSize)
-	err := storeWrite.writeUpdates(context.Background())
+	dirty := storeWrite.tree.InsertGetDirty(hash.FromSlice([]byte("test hash")), testLeafSize)
+	err := storeWrite.writeUpdates(context.Background(), dirty, nil)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -128,13 +129,16 @@ func TestBboltTree_dagObserver(t *testing.T) {
 }
 
 func TestBboltTree_buildFromDag(t *testing.T) {
-	tx, _, _ := CreateTestTransaction(7)
+	tx0, _, _ := CreateTestTransaction(7)
+	tx1a, _, _ := CreateTestTransaction(7, tx0)
+	tx1b, _, _ := CreateTestTransaction(7, tx0)
+	tx2, _, _ := CreateTestTransaction(7, tx1a, tx1b)
 	dag := CreateDAG(t)
 	dagState := &state{
 		db:    dag.db,
 		graph: dag,
 	}
-	err := dag.Add(context.Background(), tx)
+	err := dag.Add(context.Background(), tx0, tx1a, tx1b, tx2)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -147,16 +151,26 @@ func TestBboltTree_buildFromDag(t *testing.T) {
 		if assert.NoError(t, err) {
 			return
 		}
-		assert.Equal(t, tx.Ref(), store.getRoot().(*tree.Xor).Hash())
+		assert.Equal(t, dag.Heads(context.Background())[0], store.getRoot().(*tree.Xor).Hash())
 	})
 
 	t.Run("fail - tree is not empty", func(t *testing.T) {
 		store := newBBoltTreeStore(dag.db, "fail bucket", tree.New(tree.NewXor(), testLeafSize))
-		store.dagObserver(context.Background(), tx, nil)
+		store.tree.Insert(tx0.Ref(), 0)
 
 		err := store.buildFromDag(context.Background(), dagState)
 
 		assert.EqualError(t, err, "failed to build tree on fail bucket - tree is not empty")
 	})
 
+	//t.Run("ok - build tree", func(t *testing.T) {
+	//	store := newBBoltTreeStore(dag.db, "real bucket", tree.New(tree.NewXor(), testLeafSize))
+	//
+	//	err := store.buildFromDag(context.Background(), dagState)
+	//
+	//	if assert.NoError(t, err) {
+	//		return
+	//	}
+	//	assert.Equal(t, tx.Ref(), store.getRoot().(*tree.Xor).Hash())
+	//})
 }
