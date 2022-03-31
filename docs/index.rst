@@ -30,6 +30,7 @@ Nuts documentation
     pages/configuration/configuration.rst
     pages/contribute.rst
     pages/release_notes.rst
+    pages/roadmap.rst
 
 
 .. toctree::
