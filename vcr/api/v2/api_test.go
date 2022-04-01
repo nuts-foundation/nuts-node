@@ -20,12 +20,14 @@ package v2
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"time"
 
@@ -224,6 +226,14 @@ func TestWrapper_IssueVC(t *testing.T) {
 	})
 
 	t.Run("test errors", func(t *testing.T) {
+		validIssueRequest := func(f interface{}) {
+			public := IssueVCRequestVisibilityPublic
+			issueRequest := f.(*IssueVCRequest)
+			issueRequest.Type = expectedRequestedVC.Type[0].String()
+			issueRequest.CredentialSubject = expectedRequestedVC.CredentialSubject
+			issueRequest.Visibility = &public
+		}
+
 		t.Run("error - bind fails", func(t *testing.T) {
 			testContext := newMockContext(t)
 			defer testContext.ctrl.Finish()
@@ -233,23 +243,49 @@ func TestWrapper_IssueVC(t *testing.T) {
 			assert.EqualError(t, err, "b00m!")
 		})
 
-		t.Run("error - issue returns error", func(t *testing.T) {
-			testContext := newMockContext(t)
-			defer testContext.ctrl.Finish()
+		tests := []struct {
+			name       string
+			err        error
+			statusCode int
+		}{
+			{
+				name:       "issue returns random error",
+				err:        errors.New("could not issue"),
+				statusCode: 0,
+			},
+			{
+				name:       "missing service",
+				err:        fmt.Errorf("nested error for: %w", types.ErrServiceNotFound),
+				statusCode: http.StatusPreconditionFailed,
+			},
+			{
+				name:       "did not found",
+				err:        fmt.Errorf("nested error for: %w", types.ErrNotFound),
+				statusCode: http.StatusBadRequest,
+			},
+			{
+				name:       "key not found",
+				err:        fmt.Errorf("nested error for: %w", types.ErrKeyNotFound),
+				statusCode: http.StatusBadRequest,
+			},
+		}
 
-			testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-				public := IssueVCRequestVisibilityPublic
-				issueRequest := f.(*IssueVCRequest)
-				issueRequest.Type = expectedRequestedVC.Type[0].String()
-				issueRequest.CredentialSubject = expectedRequestedVC.CredentialSubject
-				issueRequest.Visibility = &public
-				return nil
+		for _, test := range tests {
+			t.Run(test.name, func(t *testing.T) {
+				testContext := newMockContext(t)
+				defer testContext.ctrl.Finish()
+
+				testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+					validIssueRequest(f)
+					return nil
+				})
+				testContext.mockIssuer.EXPECT().Issue(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, test.err)
+
+				err := testContext.client.IssueVC(testContext.echo)
+
+				assert.Equal(t, test.statusCode, testContext.client.ResolveStatusCode(err))
 			})
-			testContext.mockIssuer.EXPECT().Issue(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("could not issue"))
-			err := testContext.client.IssueVC(testContext.echo)
-			assert.EqualError(t, err, "could not issue")
-
-		})
+		}
 	})
 }
 

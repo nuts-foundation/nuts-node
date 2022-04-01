@@ -24,7 +24,9 @@ import (
 	"net/http"
 
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
+	vdrTypes "github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"time"
 
@@ -52,6 +54,17 @@ type Wrapper struct {
 // Routes registers the handler to the echo router
 func (w *Wrapper) Routes(router core.EchoRouter) {
 	RegisterHandlers(router, w)
+}
+
+// ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
+func (w *Wrapper) ResolveStatusCode(err error) int {
+	return core.ResolveStatusCode(err, map[error]int{
+		vcrTypes.ErrNotFound:        http.StatusNotFound,
+		vdrTypes.ErrServiceNotFound: http.StatusPreconditionFailed,
+		vcrTypes.ErrRevoked:         http.StatusConflict,
+		vdrTypes.ErrNotFound:        http.StatusBadRequest,
+		vdrTypes.ErrKeyNotFound:     http.StatusBadRequest,
+	})
 }
 
 // Preprocess is called just before the API operation itself is invoked.

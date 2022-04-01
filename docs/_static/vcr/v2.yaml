@@ -114,6 +114,7 @@ paths:
         
         error returns:
         * 400 - One or more of the given parameters are invalid
+        * 412 - A private transaction is issued for a subject that does not have a NutsComm address
         * 500 - An error occurred while processing the request
       operationId: "issueVC"
       tags:
@@ -141,7 +142,7 @@ paths:
         The entry may contain a revocation which means the credential has been revoked.
 
         error returns:
-        * 404 - Corresponding credential could not be found
+        * 400 - Invalid search parameters
         * 500 - An error occurred while processing the request
       operationId: "searchIssuedVCs"
       parameters:
