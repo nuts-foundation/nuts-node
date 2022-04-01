@@ -22,15 +22,16 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/stretchr/testify/assert"
-	"os"
-	"testing"
-	"time"
 )
 
 func TestLegacyLDProof_Verify(t *testing.T) {
@@ -133,14 +134,12 @@ func TestLegacyLDProof_Verify(t *testing.T) {
 func TestLegacyLDProof_Sign(t *testing.T) {
 	t.Run("it signs a document", func(t *testing.T) {
 		now := time.Now()
-		expires := now.Add(20 * time.Hour)
 		domain := "chateau Torquilstone"
 
 		pOptions := ProofOptions{
-			Created:        now,
-			Domain:         &domain,
-			ExpirationDate: &expires,
-			ProofPurpose:   "assertion",
+			Created:      now,
+			Domain:       &domain,
+			ProofPurpose: "assertion",
 		}
 
 		ldProof := NewLegacyLDProof(pOptions)

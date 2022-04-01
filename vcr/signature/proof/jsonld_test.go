@@ -21,14 +21,15 @@ package proof
 import (
 	"encoding/json"
 	"errors"
+	"testing"
+	"time"
+
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/stretchr/testify/assert"
-	"testing"
-	"time"
 )
 
 func TestLDProof_Verify(t *testing.T) {
@@ -184,11 +185,11 @@ func TestLDProof_Sign(t *testing.T) {
 		domain := "chateau Torquilstone"
 
 		pOptions := ProofOptions{
-			Created:        now,
-			Domain:         &domain,
-			Challenge:      &challenge,
-			ExpirationDate: &expires,
-			ProofPurpose:   "assertion",
+			Created:      now,
+			Domain:       &domain,
+			Challenge:    &challenge,
+			Expires:      &expires,
+			ProofPurpose: "assertion",
 		}
 
 		ldProof := NewLDProof(pOptions)

@@ -523,8 +523,8 @@ func TestWrapper_CreateVP(t *testing.T) {
 			return nil
 		})
 		opts := proof.ProofOptions{
-			Created:        created,
-			ExpirationDate: &expired,
+			Created: created,
+			Expires: &expired,
 		}
 		testContext.mockHolder.EXPECT().BuildVP([]VerifiableCredential{verifiableCredential}, opts, nil, true).Return(result, nil)
 		testContext.echo.EXPECT().JSON(http.StatusOK, result)
