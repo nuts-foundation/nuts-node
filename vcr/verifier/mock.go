@@ -37,6 +37,21 @@ func (m *MockVerifier) EXPECT() *MockVerifierMockRecorder {
 	return m.recorder
 }
 
+// GetRevocation mocks base method.
+func (m *MockVerifier) GetRevocation(id ssi.URI) (*credential.Revocation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRevocation", id)
+	ret0, _ := ret[0].(*credential.Revocation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetRevocation indicates an expected call of GetRevocation.
+func (mr *MockVerifierMockRecorder) GetRevocation(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRevocation", reflect.TypeOf((*MockVerifier)(nil).GetRevocation), id)
+}
+
 // IsRevoked mocks base method.
 func (m *MockVerifier) IsRevoked(credentialID ssi.URI) (bool, error) {
 	m.ctrl.T.Helper()
@@ -146,19 +161,19 @@ func (mr *MockStoreMockRecorder) Close() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockStore)(nil).Close))
 }
 
-// GetRevocation mocks base method.
-func (m *MockStore) GetRevocation(id ssi.URI) (*credential.Revocation, error) {
+// GetRevocations mocks base method.
+func (m *MockStore) GetRevocations(id ssi.URI) ([]*credential.Revocation, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetRevocation", id)
-	ret0, _ := ret[0].(*credential.Revocation)
+	ret := m.ctrl.Call(m, "GetRevocations", id)
+	ret0, _ := ret[0].([]*credential.Revocation)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetRevocation indicates an expected call of GetRevocation.
-func (mr *MockStoreMockRecorder) GetRevocation(id interface{}) *gomock.Call {
+// GetRevocations indicates an expected call of GetRevocations.
+func (mr *MockStoreMockRecorder) GetRevocations(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRevocation", reflect.TypeOf((*MockStore)(nil).GetRevocation), id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRevocations", reflect.TypeOf((*MockStore)(nil).GetRevocations), id)
 }
 
 // StoreRevocation mocks base method.

@@ -22,6 +22,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
@@ -31,8 +34,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/piprate/json-gold/ld"
-	"strings"
-	"time"
 )
 
 var timeFunc = time.Now
@@ -194,7 +195,7 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 }
 
 func (v *verifier) IsRevoked(credentialID ssi.URI) (bool, error) {
-	_, err := v.store.GetRevocation(credentialID)
+	_, err := v.store.GetRevocations(credentialID)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return false, nil
@@ -202,6 +203,16 @@ func (v *verifier) IsRevoked(credentialID ssi.URI) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+func (v *verifier) GetRevocation(credentialID ssi.URI) (*credential.Revocation, error) {
+	revocation, err := v.store.GetRevocations(credentialID)
+	if err != nil {
+		return nil, err
+	}
+
+	// GetRevocations returns ErrNotFound for len == 0
+	return revocation[0], nil
 }
 
 func (v *verifier) RegisterRevocation(revocation credential.Revocation) error {

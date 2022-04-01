@@ -20,11 +20,12 @@ package v2
 
 import (
 	"errors"
+	"net/http"
+	"testing"
+
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
-	"net/http"
-	"testing"
 
 	"time"
 
@@ -256,11 +257,14 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 	subjectID := ssi.MustParseURI("did:nuts:456")
 	issuerDID, _ := did.ParseDID("did:nuts:123")
 	issuerID := ssi.MustParseURI(issuerDID.String())
+	vcID := issuerID
+	vcID.Fragment = "1"
 	subjectIDString := subjectID.String()
 	contextURI := ssi.MustParseURI("")
 	testCredential := ssi.MustParseURI("TestCredential")
 
 	foundVC := vc.VerifiableCredential{
+		ID:                &vcID,
 		Type:              []ssi.URI{testCredential},
 		Issuer:            issuerID,
 		CredentialSubject: []interface{}{map[string]interface{}{"id": "did:nuts:456"}},
@@ -284,8 +288,23 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 	t.Run("ok - without subject, 1 result", func(t *testing.T) {
 		testContext := newMockContext(t)
 		testContext.mockIssuer.EXPECT().SearchCredential(contextURI, testCredential, *issuerDID, nil).Return([]VerifiableCredential{foundVC}, nil)
-
+		testContext.mockVerifier.EXPECT().GetRevocation(vcID).Return(nil, verifier.ErrNotFound)
 		testContext.echo.EXPECT().JSON(http.StatusOK, SearchVCResults{VerifiableCredentials: []SearchVCResult{{VerifiableCredential: foundVC}}})
+
+		params := SearchIssuedVCsParams{
+			CredentialType: "TestCredential",
+			Issuer:         issuerID.String(),
+		}
+		err := testContext.client.SearchIssuedVCs(testContext.echo, params)
+		assert.NoError(t, err)
+	})
+
+	t.Run("ok - without subject, 1 result, revoked", func(t *testing.T) {
+		revocation := &Revocation{Reason: "because of reasons"}
+		testContext := newMockContext(t)
+		testContext.mockIssuer.EXPECT().SearchCredential(contextURI, testCredential, *issuerDID, nil).Return([]VerifiableCredential{foundVC}, nil)
+		testContext.mockVerifier.EXPECT().GetRevocation(vcID).Return(revocation, nil)
+		testContext.echo.EXPECT().JSON(http.StatusOK, SearchVCResults{VerifiableCredentials: []SearchVCResult{{VerifiableCredential: foundVC, Revocation: revocation}}})
 
 		params := SearchIssuedVCsParams{
 			CredentialType: "TestCredential",

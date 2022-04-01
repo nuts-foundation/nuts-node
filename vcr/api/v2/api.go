@@ -21,9 +21,10 @@ package v2
 import (
 	"encoding/json"
 	"errors"
+	"net/http"
+
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
-	"net/http"
 
 	"time"
 
@@ -160,14 +161,19 @@ func (w *Wrapper) SearchIssuedVCs(ctx echo.Context, params SearchIssuedVCsParams
 	}
 
 	foundVCs, err := w.VCR.Issuer().SearchCredential(ssi.URI{}, *credentialType, *issuerDID, subjectID)
-	result := make([]SearchVCResult, len(foundVCs))
-	// TODO: add revocation status
-	for i, resolvedVC := range foundVCs {
-		result[i] = SearchVCResult{VerifiableCredential: resolvedVC}
-	}
 	if err != nil {
 		return err
 	}
+	result := make([]SearchVCResult, len(foundVCs))
+	for i, resolvedVC := range foundVCs {
+		var revocation *Revocation
+		revocation, err = w.VCR.Verifier().GetRevocation(*resolvedVC.ID)
+		if err != nil && !errors.Is(err, verifier.ErrNotFound) {
+			return err
+		}
+		result[i] = SearchVCResult{VerifiableCredential: resolvedVC, Revocation: revocation}
+	}
+
 	return ctx.JSON(http.StatusOK, SearchVCResults{VerifiableCredentials: result})
 }
 
