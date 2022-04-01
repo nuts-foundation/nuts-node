@@ -653,9 +653,11 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 		Service:    expectedService,
 	}
 
+	id := vdr.TestDIDA.URI()
+	id.Fragment = "1"
 	validCredential := vc.VerifiableCredential{
 		Context:      []ssi.URI{vc.VCContextV1URI(), *credential.NutsContextURI},
-		ID:           &ssi.URI{},
+		ID:           &id,
 		Type:         []ssi.URI{*credential.NutsAuthorizationCredentialTypeURI, vc.VerifiableCredentialTypeV1URI()},
 		Issuer:       vdr.TestDIDA.URI(),
 		IssuanceDate: time.Now(),

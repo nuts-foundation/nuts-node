@@ -552,10 +552,20 @@ func TestNetwork_Start(t *testing.T) {
 
 			assert.NoError(t, err)
 		})
+		t.Run("ok - invalid node DID configuration in non-strict mode", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			cxt := createNetwork(ctrl)
+			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
+			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(nil, nil, did.DeactivatedErr)
+			err := cxt.start()
+			assert.NoError(t, err)
+		})
 		t.Run("error - configured node DID does not resolve to a DID document", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			cxt := createNetwork(ctrl)
+			cxt.network.strictMode = true
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(nil, nil, did.DeactivatedErr)
 			cxt.state.EXPECT().Start()
@@ -566,33 +576,36 @@ func TestNetwork_Start(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			cxt := createNetwork(ctrl)
+			cxt.network.strictMode = true
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(&did.Document{}, &vdrTypes.DocumentMetadata{}, nil)
 			cxt.state.EXPECT().Start()
 			err := cxt.network.Start()
-			assert.EqualError(t, err, "invalid NodeDID configuration: DID document does not contain a keyAgreement key (did=did:nuts:test)")
+			assert.EqualError(t, err, "invalid NodeDID configuration: DID document does not contain a keyAgreement key, register a keyAgreement key (did=did:nuts:test)")
 		})
 		t.Run("error - configured node DID has key agreement key, but is not present in key store", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			cxt := createNetwork(ctrl)
+			cxt.network.strictMode = true
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 			cxt.keyStore.EXPECT().Exists(keyID.String()).Return(false)
 			cxt.state.EXPECT().Start()
 			err := cxt.network.Start()
-			assert.EqualError(t, err, "invalid NodeDID configuration: keyAgreement private key is not present in key store (did=did:nuts:test,kid=did:nuts:test#some-key)")
+			assert.EqualError(t, err, "invalid NodeDID configuration: keyAgreement private key is not present in key store, recover your key material or register a new keyAgreement key (did=did:nuts:test,kid=did:nuts:test#some-key)")
 		})
 		t.Run("error - configured node DID does not have NutsComm service", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			cxt := createNetwork(ctrl)
+			cxt.network.strictMode = true
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(documentWithoutNutsCommService, &vdrTypes.DocumentMetadata{}, nil)
 			cxt.keyStore.EXPECT().Exists(keyID.String()).Return(true)
 			cxt.state.EXPECT().Start()
 			err := cxt.network.Start()
-			assert.EqualError(t, err, "invalid NodeDID configuration: unable to resolve NutsComm service endpoint (did=did:nuts:test): service not found in DID Document")
+			assert.EqualError(t, err, "invalid NodeDID configuration: unable to resolve NutsComm service endpoint, register it on the DID document (did=did:nuts:test): service not found in DID Document")
 		})
 	})
 }

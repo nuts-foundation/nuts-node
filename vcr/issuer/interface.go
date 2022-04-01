@@ -20,12 +20,13 @@ package issuer
 
 import (
 	"errors"
+	"io"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"io"
 )
 
 // Publisher publishes new credentials and revocations to a channel. Used by a credential issuer.

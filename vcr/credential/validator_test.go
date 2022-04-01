@@ -159,6 +159,17 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 		assert.EqualError(t, err, "validation failed: 'ID' is required")
 	})
 
+	t.Run("failed - invalid ID", func(t *testing.T) {
+		v := validNutsOrganizationCredential()
+		otherID := vdr.TestDIDB.URI()
+		v.ID = &otherID
+
+		err := validator.Validate(*v)
+
+		assert.Error(t, err)
+		assert.EqualError(t, err, "validation failed: credential ID must start with issuer")
+	})
+
 	t.Run("failed - missing default context", func(t *testing.T) {
 		v := validNutsOrganizationCredential()
 		v.Context = []ssi.URI{stringToURI(NutsContext)}
@@ -213,6 +224,17 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 		err := validator.Validate(*v)
 
 		assert.NoError(t, err)
+	})
+
+	t.Run("failed - invalid ID", func(t *testing.T) {
+		v := validImpliedNutsAuthorizationCredential()
+		otherID := vdr.TestDIDB.URI()
+		v.ID = &otherID
+
+		err := validator.Validate(*v)
+
+		assert.Error(t, err)
+		assert.EqualError(t, err, "validation failed: credential ID must start with issuer")
 	})
 
 	t.Run("failed - wrong consentType", func(t *testing.T) {
@@ -348,11 +370,14 @@ func validNutsOrganizationCredential() *vc.VerifiableCredential {
 		"city": "EIbergen",
 	}
 
+	issuer := *vdr.TestDIDA
+	id := issuer.URI()
+	id.Fragment = "#"
 	return &vc.VerifiableCredential{
 		Context:           []ssi.URI{vc.VCContextV1URI(), *NutsContextURI},
-		ID:                &ssi.URI{},
+		ID:                &id,
 		Type:              []ssi.URI{*NutsOrganizationCredentialTypeURI, vc.VerifiableCredentialTypeV1URI()},
-		Issuer:            stringToURI(vdr.TestDIDA.String()),
+		Issuer:            stringToURI(issuer.String()),
 		IssuanceDate:      time.Now(),
 		CredentialSubject: []interface{}{credentialSubject},
 		Proof:             []interface{}{vc.Proof{}},
