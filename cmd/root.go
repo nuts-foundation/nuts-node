@@ -210,7 +210,7 @@ func CreateSystem() *core.System {
 	system.RegisterRoutes(&credAPIv2.Wrapper{VCR: credentialInstance})
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))
-	system.RegisterRoutes(&authAPI.Wrapper{Auth: authInstance})
+	system.RegisterRoutes(&authAPI.Wrapper{Auth: authInstance, CredentialResolver: credentialInstance})
 	system.RegisterRoutes(&authIrmaAPI.Wrapper{Auth: authInstance})
 	system.RegisterRoutes(&didmanAPI.Wrapper{Didman: didmanInstance})
 

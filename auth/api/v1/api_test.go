@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vcr"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -51,13 +52,14 @@ import (
 )
 
 type TestContext struct {
-	ctrl               *gomock.Controller
-	echoMock           *mock.MockContext
-	authMock           pkg2.AuthenticationServices
-	notaryMock         *services.MockContractNotary
-	contractClientMock *services.MockContractNotary
-	oauthClientMock    *services.MockOAuthClient
-	wrapper            Wrapper
+	ctrl                   *gomock.Controller
+	echoMock               *mock.MockContext
+	authMock               pkg2.AuthenticationServices
+	notaryMock             *services.MockContractNotary
+	contractClientMock     *services.MockContractNotary
+	oauthClientMock        *services.MockOAuthClient
+	wrapper                Wrapper
+	mockCredentialResolver *vcr.MockResolver
 }
 
 type mockAuthClient struct {
@@ -87,6 +89,7 @@ func createContext(t *testing.T) *TestContext {
 	ctrl := gomock.NewController(t)
 	mockContractNotary := services.NewMockContractNotary(ctrl)
 	mockOAuthClient := services.NewMockOAuthClient(ctrl)
+	mockCredentialResolver := vcr.NewMockResolver(ctrl)
 
 	authMock := &mockAuthClient{
 		ctrl:               ctrl,
@@ -95,13 +98,14 @@ func createContext(t *testing.T) *TestContext {
 	}
 
 	return &TestContext{
-		ctrl:               ctrl,
-		echoMock:           mock.NewMockContext(ctrl),
-		authMock:           authMock,
-		notaryMock:         mockContractNotary,
-		contractClientMock: mockContractNotary,
-		oauthClientMock:    mockOAuthClient,
-		wrapper:            Wrapper{Auth: authMock},
+		ctrl:                   ctrl,
+		echoMock:               mock.NewMockContext(ctrl),
+		authMock:               authMock,
+		notaryMock:             mockContractNotary,
+		contractClientMock:     mockContractNotary,
+		oauthClientMock:        mockOAuthClient,
+		mockCredentialResolver: mockCredentialResolver,
+		wrapper:                Wrapper{Auth: authMock, CredentialResolver: mockCredentialResolver},
 	}
 }
 
@@ -833,11 +837,14 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 				Issuer:      iss,
 				Subject:     aid,
 				Service:     service,
-				Credentials: []string{"credentialID"},
+				Credentials: []string{"credentialID-1", "credentialID-2"},
 			}, nil)
+		ctx.mockCredentialResolver.EXPECT().Resolve(ssi.MustParseURI("credentialID-1"), nil).Return(nil, errors.New("not found"))
+		ctx.mockCredentialResolver.EXPECT().Resolve(ssi.MustParseURI("credentialID-2"), nil).Return(&vc.VerifiableCredential{}, nil)
 
-		credentials := []string{"credentialID"}
+		credentials := []string{"credentialID-1", "credentialID-2"}
 
+		resolvedVCs := []VerifiableCredential{{}}
 		response := TokenIntrospectionResponse{
 			Active: true,
 			Aud:    &aud,
@@ -846,15 +853,16 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 			Iss:    &iss,
 			Sub:    &aid,
 			//Uid:    &uid,
-			Service: &service,
-			Vcs:     &credentials,
+			Service:     &service,
+			Vcs:         &credentials,
+			ResolvedVCs: &resolvedVCs,
 		}
 
 		expectStatusOK(ctx, response)
 
-		if !assert.NoError(t, ctx.wrapper.IntrospectAccessToken(ctx.echoMock)) {
-			t.Fail()
-		}
+		err := ctx.wrapper.IntrospectAccessToken(ctx.echoMock)
+
+		assert.NoError(t, err)
 	})
 }
 

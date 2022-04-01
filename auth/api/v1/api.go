@@ -21,6 +21,9 @@ package v1
 import (
 	"encoding/json"
 	"fmt"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/vcr"
 	"net/http"
 	"regexp"
 	"strings"
@@ -51,7 +54,8 @@ const (
 // Then passes the internal formats to the AuthenticationServices. Converts internal results back to the generated
 // Api types. Handles errors and returns the correct http response. It does not perform any business logic.
 type Wrapper struct {
-	Auth auth.AuthenticationServices
+	Auth               auth.AuthenticationServices
+	CredentialResolver vcr.Resolver
 }
 
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
@@ -434,9 +438,28 @@ func (w Wrapper) IntrospectAccessToken(ctx echo.Context) error {
 
 	if claims.Credentials != nil && len(claims.Credentials) > 0 {
 		introspectionResponse.Vcs = &claims.Credentials
+
+		var resolvedVCs []VerifiableCredential
+		for _, credentialID := range claims.Credentials {
+			credential, err := w.resolveCredential(credentialID)
+			if err != nil {
+				log.Logger().WithError(err).Warnf("Error while resolving credential (id=%s)", credentialID)
+				continue
+			}
+			resolvedVCs = append(resolvedVCs, *credential)
+		}
+		introspectionResponse.ResolvedVCs = &resolvedVCs
 	}
 
 	return ctx.JSON(http.StatusOK, introspectionResponse)
+}
+
+func (w *Wrapper) resolveCredential(credentialID string) (*vc.VerifiableCredential, error) {
+	id, err := ssi.ParseURI(credentialID)
+	if err != nil {
+		return nil, err
+	}
+	return w.CredentialResolver.Resolve(*id, nil)
 }
 
 // convertToMap converts an object to a map[string]interface{} using json conversion

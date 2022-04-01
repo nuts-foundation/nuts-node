@@ -300,8 +300,11 @@ type TokenIntrospectionResponse struct {
 	Osi *string `json:"osi,omitempty"`
 
 	// Surname prefix
-	Prefix  *string `json:"prefix,omitempty"`
-	Service *string `json:"service,omitempty"`
+	Prefix *string `json:"prefix,omitempty"`
+
+	// credentials resolved from `vcs` (VC IDs).
+	ResolvedVCs *[]VerifiableCredential `json:"resolvedVCs,omitempty"`
+	Service     *string                 `json:"service,omitempty"`
 
 	// The subject is always the acting party, thus the care organization requesting access to data.
 	Sub *string   `json:"sub,omitempty"`
