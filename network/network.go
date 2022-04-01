@@ -59,6 +59,7 @@ var defaultBBoltOptions = bbolt.DefaultOptions
 // Network implements Transactions interface and Engine functions.
 type Network struct {
 	config                 Config
+	strictMode             bool
 	lastTransactionTracker lastTransactionTracker
 	protocols              []transport.Protocol
 	connectionManager      transport.ConnectionManager
@@ -107,6 +108,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		return fmt.Errorf("failed to configure state: %w", err)
 	}
 
+	n.strictMode = config.Strictmode
 	n.peerID = transport.PeerID(uuid.New().String())
 
 	// TLS
@@ -230,7 +232,10 @@ func (n *Network) Start() error {
 	if !nodeDID.Empty() {
 		err := n.validateNodeDID(nodeDID)
 		if err != nil {
-			return err
+			if n.strictMode {
+				return fmt.Errorf("invalid NodeDID configuration: %w", err)
+			}
+			log.Logger().Errorf("Node DID is invalid, exchanging private TXs will not work: %v", err)
 		}
 	}
 
@@ -296,16 +301,16 @@ func (n *Network) validateNodeDID(nodeDID did.DID) error {
 	// Check if DID document can be resolved
 	document, _, err := n.didDocumentResolver.Resolve(nodeDID, nil)
 	if err != nil {
-		return fmt.Errorf("invalid NodeDID configuration: DID document can't be resolved (did=%s): %w", nodeDID, err)
+		return fmt.Errorf("DID document can't be resolved (did=%s): %w", nodeDID, err)
 	}
 
 	// Check if the key agreement keys can be resolved
 	if len(document.KeyAgreement) == 0 {
-		return fmt.Errorf("invalid NodeDID configuration: DID document does not contain a keyAgreement key (did=%s)", nodeDID)
+		return fmt.Errorf("DID document does not contain a keyAgreement key, register a keyAgreement key (did=%s)", nodeDID)
 	}
 	for _, keyAgreement := range document.KeyAgreement {
 		if !n.privateKeyResolver.Exists(keyAgreement.ID.String()) {
-			return fmt.Errorf("invalid NodeDID configuration: keyAgreement private key is not present in key store (did=%s,kid=%s)", nodeDID, keyAgreement.ID)
+			return fmt.Errorf("keyAgreement private key is not present in key store, recover your key material or register a new keyAgreement key (did=%s,kid=%s)", nodeDID, keyAgreement.ID)
 		}
 	}
 
@@ -314,7 +319,7 @@ func (n *Network) validateNodeDID(nodeDID did.DID) error {
 	serviceRef := doc.MakeServiceReference(nodeDID, transport.NutsCommServiceType)
 	_, err = serviceResolver.Resolve(serviceRef, doc.DefaultMaxServiceReferenceDepth)
 	if err != nil {
-		return fmt.Errorf("invalid NodeDID configuration: unable to resolve %s service endpoint (did=%s): %v", transport.NutsCommServiceType, nodeDID, err)
+		return fmt.Errorf("unable to resolve %s service endpoint, register it on the DID document (did=%s): %v", transport.NutsCommServiceType, nodeDID, err)
 	}
 	return nil
 }
