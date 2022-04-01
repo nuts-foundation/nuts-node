@@ -57,8 +57,8 @@ func TestProtocolV2_Pagination(t *testing.T) {
 		grpc.MaxMessageSizeInBytes = prevMaxSize
 	})
 
-	node1 := startNode(t, "pagination_node1")
-	node2 := startNode(t, "pagination_node2")
+	node1 := startNode(t, "v2_pagination_node1")
+	node2 := startNode(t, "v2_pagination_node2")
 
 	t.Logf("Creating %d transactions...", numberOfTransactions)
 	rootTX, _, _ := dag.CreateTestTransaction(1)
@@ -79,7 +79,7 @@ func TestProtocolV2_Pagination(t *testing.T) {
 		transactions[i+1] = tx
 	}
 
-	node2.connectionManager.Connect(nameToAddress("pagination_node1"))
+	node2.connectionManager.Connect(nameToAddress("v2_pagination_node1"))
 	// Wait until nodes are connected
 	if !test.WaitFor(t, func() (bool, error) {
 		return len(node1.connectionManager.Peers()) == 1 && len(node2.connectionManager.Peers()) == 1, nil
@@ -92,7 +92,7 @@ func TestProtocolV2_Pagination(t *testing.T) {
 	for i, tx := range transactions {
 		hashes[i] = tx.Ref()
 	}
-	err = node2.protocol.sendTransactionListQuery("pagination_node1", hashes)
+	err = node2.protocol.sendTransactionListQuery("v2_pagination_node1", hashes)
 	assert.NoError(t, err)
 
 	test.WaitFor(t, func() (bool, error) {
