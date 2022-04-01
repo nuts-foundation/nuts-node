@@ -481,10 +481,8 @@ components:
           example: "did:nuts:123#B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY"
           type: string
         type:
-          description: List of type definitions for the credential.
-          type: array
-          items:
-            type: string
+          description: A single string or array of strings. The value(s) indicate the type of credential. It should contain `VerifiableCredential`. Each type should be defined in the @context.
+          type: object
         issuer:
           $ref: '#/components/schemas/DID'
         issuanceDate:
@@ -693,13 +691,9 @@ components:
           example: https://example.edu/credentials/1872,
           format: uri
         type:
-          description: Type of the object or the datatype of the typed value.
-          example:
-            - "VerifiableCredential"
-            - "UniversityDegreeCredential"
-          type: array
-          items:
-            type: string
+          description: A single string or array of strings. Values indicate the type of object. It should contain `VerifiablePresentation`. Each type must be defined in the @context.
+          example: "VerifiablePresentation"
+          type: object
         verifiableCredential:
           description: |
             VerifiableCredential is composed of a list containing one or more verifiable credentials, in a
