@@ -245,10 +245,10 @@ func (w *Wrapper) CreateVP(ctx echo.Context) error {
 	}
 
 	proofOptions := proof.ProofOptions{
-		Created:        created,
-		Domain:         request.Domain,
-		Challenge:      request.Challenge,
-		ExpirationDate: expires,
+		Created:   created,
+		Domain:    request.Domain,
+		Challenge: request.Challenge,
+		Expires:   expires,
 	}
 
 	vp, err := w.VCR.Holder().BuildVP(request.VerifiableCredentials, proofOptions, signerDID, true)

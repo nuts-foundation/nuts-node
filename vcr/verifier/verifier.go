@@ -282,7 +282,7 @@ func (v verifier) doVerifyVP(vcVerifier Verifier, vp vc.VerifiablePresentation, 
 	ldProof := ldProofs[0]
 
 	// Validate signing time
-	err = v.validateAtTime(ldProof.Created, ldProof.ExpirationDate, validAt)
+	err = v.validateAtTime(ldProof.Created, ldProof.Expires, validAt)
 	if err != nil {
 		return nil, toVerificationError(err)
 	}

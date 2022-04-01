@@ -24,12 +24,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/lestrrat-go/jwx/jws"
 	ssi "github.com/nuts-foundation/go-did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
-	"strings"
-	"time"
 )
 
 // RsaSignature2018 contains the string value for the RsaSignature2018 signature type
@@ -48,8 +49,8 @@ type ProofOptions struct {
 	//The challenge property is used to associate a challenge with a proof
 	// https://w3c-ccg.github.io/security-vocab/#challenge
 	Challenge *string `json:"challenge,omitempty"`
-	// The expirationDate property is used to associate an expirationDate with a proof
-	ExpirationDate *time.Time `json:"expirationDate,omitempty"`
+	// The Expires property is used to associate an expiration date with a proof
+	Expires *time.Time `json:"expires,omitempty"`
 	// ProofPurpose contains a specific intent for the proof, the reason why an entity created it.
 	// Acts as a safeguard to prevent the proof from being misused for a purpose other than the one it was intended for.
 	ProofPurpose string `json:"proofPurpose"`
