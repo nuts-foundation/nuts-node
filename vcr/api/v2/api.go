@@ -26,7 +26,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	vdrTypes "github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"time"
 
