@@ -718,6 +718,11 @@ components:
           items:
             type: string
             description: credential ID as string
+        resolvedVCs:
+          type: array
+          items:
+            $ref: '#/components/schemas/VerifiableCredential'
+          description: credentials resolved from `vcs` (VC IDs). It contains only those VCs that could be resolved.
         osi:
           type: string
           description: encoded ops signature. (TBD)
