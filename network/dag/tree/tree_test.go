@@ -1,9 +1,28 @@
+/*
+ * Copyright (C) 2022 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package tree
 
 import (
-	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
@@ -26,7 +45,7 @@ func TestTree_Insert(t *testing.T) {
 		ref := hash.FromSlice([]byte{123})
 		tr := newTestTree(NewXor(), testLeafSize)
 
-		_ = tr.Insert(ref, 0)
+		tr.Insert(ref, 0)
 
 		assert.Equal(t, ref, tr.root.data.(*Xor).Hash())
 	})
@@ -35,7 +54,40 @@ func TestTree_Insert(t *testing.T) {
 		ref := hash.FromSlice([]byte{123})
 		tr := newTestTree(NewXor(), testLeafSize)
 
-		_ = tr.Insert(ref, testLeafSize+1)
+		tr.Insert(ref, testLeafSize+1)
+
+		assert.Equal(t, ref, tr.root.data.(*Xor).Hash())
+		assert.Equal(t, ref, tr.root.right.data.(*Xor).Hash())
+		assert.Equal(t, hash.EmptyHash(), tr.root.left.data.(*Xor).Hash())
+	})
+}
+
+func TestTree_InsertGetDirty(t *testing.T) {
+	t.Run("insert single TX", func(t *testing.T) {
+		ref := hash.FromSlice([]byte{123})
+		tr := newTestTree(NewXor(), testLeafSize)
+
+		dirty := tr.InsertGetDirty(ref, 0)
+
+		assert.Len(t, dirty, 1)
+	})
+}
+
+func TestTree_Delete(t *testing.T) {
+	t.Run("delete single Tx", func(t *testing.T) {
+		ref := hash.FromSlice([]byte{123})
+		tr := newTestTree(NewXor(), testLeafSize)
+
+		tr.Delete(ref, 0)
+
+		assert.Equal(t, ref, tr.root.data.(*Xor).Hash())
+	})
+
+	t.Run("delete single Tx out of tree range", func(t *testing.T) {
+		ref := hash.FromSlice([]byte{123})
+		tr := newTestTree(NewXor(), testLeafSize)
+
+		tr.Delete(ref, testLeafSize+1)
 
 		assert.Equal(t, ref, tr.root.data.(*Xor).Hash())
 		assert.Equal(t, ref, tr.root.right.data.(*Xor).Hash())
@@ -54,7 +106,7 @@ func TestTree_GetRoot(t *testing.T) {
 		tr := newTestTree(NewXor(), testLeafSize)
 		ref := hash.FromSlice([]byte{123})
 
-		_ = tr.Insert(ref, testLeafSize)
+		tr.Insert(ref, testLeafSize)
 
 		assert.Equal(t, ref, tr.GetRoot().(*Xor).Hash())
 	})
@@ -68,7 +120,7 @@ func TestTree_GetRoot(t *testing.T) {
 		for i := uint32(0); i < N; i++ {
 			rand.Read(ref[:])
 			xor(allRefs[:], allRefs[:], ref[:])
-			_ = tr.Insert(ref, N-i)
+			tr.Insert(ref, N-i)
 		}
 
 		assert.Equal(t, allRefs, tr.GetRoot().(*Xor).Hash())
@@ -162,11 +214,10 @@ func TestTree_GetUpdate(t *testing.T) {
 	t.Run("dirty leaves after insert", func(t *testing.T) {
 		tr := newTestTree(NewXor(), testLeafSize)
 		h := hash.FromSlice([]byte{1})
-		_ = tr.Insert(h, 2*testLeafSize)
+		tr.Insert(h, 2*testLeafSize)
 
-		dirty, orphaned, err := tr.GetUpdates()
+		dirty, orphaned := tr.GetUpdates()
 
-		assert.NoError(t, err)
 		assert.Equal(t, 0, len(orphaned))
 		assert.Equal(t, 2, len(dirty))
 		_, ok := dirty[testLeafSize/2] // root from newTestTree was dirty
@@ -178,12 +229,11 @@ func TestTree_GetUpdate(t *testing.T) {
 	t.Run("GetUpdates does not reset update tracking", func(t *testing.T) {
 		tr := newTestTree(NewXor(), testLeafSize)
 		h := hash.FromSlice([]byte{1})
-		_ = tr.Insert(h, 2*testLeafSize)
+		tr.Insert(h, 2*testLeafSize)
 
-		_, _, _ = tr.GetUpdates()
-		dirty, orphaned, err := tr.GetUpdates()
+		_, _ = tr.GetUpdates()
+		dirty, orphaned := tr.GetUpdates()
 
-		assert.NoError(t, err)
 		assert.Equal(t, 0, len(orphaned))
 		assert.Equal(t, 2, len(dirty))
 		_, ok := dirty[testLeafSize/2] // root from newTestTree was dirty
@@ -192,13 +242,12 @@ func TestTree_GetUpdate(t *testing.T) {
 		assert.True(t, ok)
 	})
 
-	t.Run("DropLeaves has updates and orphans", func(t *testing.T) {
+	t.Run("dropLeaves has updates and orphans", func(t *testing.T) {
 		tr, _ := filledTestTree(NewXor(), testLeafSize)
 		tr.DropLeaves()
 
-		dirty, orphaned, err := tr.GetUpdates()
+		dirty, orphaned := tr.GetUpdates()
 
-		assert.NoError(t, err)
 		assert.Equal(t, 3, len(orphaned))
 		assert.Equal(t, 2, len(dirty))
 		_, ok := dirty[testLeafSize]
@@ -212,11 +261,10 @@ func TestTree_ResetUpdate(t *testing.T) {
 	tr, _ := filledTestTree(NewXor(), testLeafSize)
 	tr.DropLeaves()
 
-	dirty, orphaned, err := tr.GetUpdates()
+	dirty, orphaned := tr.GetUpdates()
 	tr.ResetUpdate()
-	dirtyReset, orphanedReset, err := tr.GetUpdates()
+	dirtyReset, orphanedReset := tr.GetUpdates()
 
-	assert.NoError(t, err)
 	assert.Equal(t, 3, len(orphaned))
 	assert.Equal(t, 0, len(orphanedReset))
 	assert.Equal(t, 2, len(dirty))
@@ -226,7 +274,7 @@ func TestTree_ResetUpdate(t *testing.T) {
 func TestTree_Load(t *testing.T) {
 	t.Run("ok - tree reconstructed from bytes", func(t *testing.T) {
 		tr, _ := filledTestTree(NewXor(), testLeafSize)
-		dirty, _, _ := tr.GetUpdates()
+		dirty, _ := tr.GetUpdates()
 		loadedTree := New(NewXor(), 0).(*tree)
 
 		err := loadedTree.Load(dirty)
@@ -246,8 +294,8 @@ func TestTree_Load(t *testing.T) {
 
 	t.Run("fail - incorrect data prototype", func(t *testing.T) {
 		tr, _ := filledTestTree(NewXor(), testLeafSize)
-		dirty, _, _ := tr.GetUpdates()
-		loadedTree := New(NewIblt(ibltNumBuckets), 0)
+		dirty, _ := tr.GetUpdates()
+		loadedTree := New(NewIblt(1024), 0)
 
 		err := loadedTree.Load(dirty)
 
@@ -290,25 +338,25 @@ func filledTestTree(data Data, leafSize uint32) (*tree, treeData) {
 
 	// create individual treeData
 	c0 := data.New()
-	_ = c0.Insert(refC0)
+	c0.Insert(refC0)
 	c1 := data.New()
-	_ = c1.Insert(refC1a)
-	_ = c1.Insert(refC1b)
+	c1.Insert(refC1a)
+	c1.Insert(refC1b)
 	c2 := data.New()
-	_ = c2.Insert(refC2)
+	c2.Insert(refC2)
 	p0 := c1.Clone()
-	_ = p0.Insert(refC0)
+	p0.Insert(refC0)
 	p1 := c2.Clone()
 	r := p0.Clone()
-	_ = r.Insert(refC2)
+	r.Insert(refC2)
 	td := treeData{r, p0, p1, c0, c1, c2, nil}
 
 	// build tree
 	tr := newTestTree(data, leafSize)
-	_ = tr.Insert(refC0, 0)
-	_ = tr.Insert(refC1a, leafSize)
-	_ = tr.Insert(refC2, leafSize*2)
-	_ = tr.Insert(refC1b, leafSize+1) // inserted after tree is reRooted
+	tr.Insert(refC0, 0)
+	tr.Insert(refC1a, leafSize)
+	tr.Insert(refC2, leafSize*2)
+	tr.Insert(refC1b, leafSize+1) // inserted after tree is reRooted
 	return tr, td
 }
 

@@ -1,10 +1,29 @@
+/*
+ * Copyright (C) 2022 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package tree
 
 import (
 	"encoding"
-	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"math"
+	"sync"
+
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
 // Data is the interface for data held in each node of the Tree
@@ -14,21 +33,29 @@ type Data interface {
 	// Clone creates an exact copy using the current instance as a prototype.
 	Clone() Data
 	// Insert a new transaction reference.
-	Insert(ref hash.SHA256Hash) error
+	Insert(ref hash.SHA256Hash)
+	// Delete a transaction reference.
+	Delete(ref hash.SHA256Hash)
 	// Add other Data to this one. Returns an error if the underlying datastructures are incompatible.
 	Add(other Data) error
 	// Subtract other Data from this one. Returns an error if the underlying datastructures are incompatible.
 	Subtract(other Data) error
+	// IsEmpty returns true if the concrete type is in its default/empty state.
+	IsEmpty() bool
 	encoding.BinaryMarshaler
 	encoding.BinaryUnmarshaler
 }
 
 // Tree is the interface for an in-memory tree that provides fast access to Data over requested Lamport Clock ranges.
-// Tree is not thread-safe.
 type Tree interface {
 	// Insert a transaction reference at the specified clock value.
 	// The result of inserting the same ref multiple times is undefined.
-	Insert(ref hash.SHA256Hash, clock uint32) error
+	Insert(ref hash.SHA256Hash, clock uint32)
+	// InsertGetDirty inserts a transaction reference like Insert and also returns the dirty leaves like GetUpdates.
+	// This is an atomic operation to make sure no ResetUpdate can happen in between from calling logic.
+	InsertGetDirty(ref hash.SHA256Hash, clock uint32) map[uint32][]byte
+	// Delete a transaction reference without checking if ref is in the Tree
+	Delete(ref hash.SHA256Hash, clock uint32)
 	// GetRoot returns the accumulated Data for the entire tree
 	GetRoot() Data
 	// GetZeroTo returns the LC value closest to the requested clock value together with Data of the same leaf/page.
@@ -40,7 +67,7 @@ type Tree interface {
 	DropLeaves()
 	// GetUpdates return the leaves that have been orphaned or updated since the last call to ResetUpdate.
 	// dirty and orphaned are mutually exclusive.
-	GetUpdates() (dirty map[uint32][]byte, orphaned []uint32, err error)
+	GetUpdates() (dirty map[uint32][]byte, orphaned []uint32)
 	// ResetUpdate forgets all currently tracked changes.
 	ResetUpdate()
 	// Load builds a tree from binary leaf data. The keys in leaves correspond to a node's split value.
@@ -53,7 +80,7 @@ tree creates a binary tree, where the leaves contain Data over a fixed range (on
 	- The value that splits a node into its children is used as a nodeID since it is unique, even after tree resizing.
 	- Since the leaves are of fixed size, a new root is created when added something to a clock outside the current root range.
 	- Whenever a new branch is created, a string of left Nodes is created all the way down to the leaf.
-	- tree is not thread-safe. Since the tree is agnostic to its content, great care must be taken to prevent adding the same data more than once.
+	- Since the tree is agnostic to its content, great care must be taken to prevent adding the same data more than once.
 */
 type tree struct {
 	treeSize uint32
@@ -63,6 +90,7 @@ type tree struct {
 	prototype      Data
 	dirtyLeaves    map[uint32]*node
 	orphanedLeaves map[uint32]struct{}
+	mutex          sync.Mutex
 }
 
 // New creates a new tree with the given leafSize and of the same type of Data as the prototype.
@@ -82,6 +110,9 @@ func (t *tree) resetDefaults(leafSize uint32) {
 }
 
 func (t *tree) Load(leaves map[uint32][]byte) error {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
 	// initialize tree
 	split := uint32(math.MaxUint32)
 	for k := range leaves {
@@ -101,29 +132,49 @@ func (t *tree) Load(leaves map[uint32][]byte) error {
 		if err != nil {
 			return err
 		}
-		err = t.updateOrCreatePath(split, func(n *node) error {
-			return n.data.Add(data)
+		t.updateOrCreatePath(split, func(n *node) {
+			_ = n.data.Add(data)
 		})
-		if err != nil {
-			return err
-		}
 	}
 
-	t.ResetUpdate()
+	t.resetUpdate()
 
 	return nil
 }
 
-func (t *tree) Insert(ref hash.SHA256Hash, clock uint32) error {
-	return t.updateOrCreatePath(clock, func(n *node) error {
-		return n.data.Insert(ref)
+func (t *tree) Insert(ref hash.SHA256Hash, clock uint32) {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
+	t.updateOrCreatePath(clock, func(n *node) {
+		n.data.Insert(ref)
+	})
+}
+
+func (t *tree) InsertGetDirty(ref hash.SHA256Hash, clock uint32) map[uint32][]byte {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
+	t.updateOrCreatePath(clock, func(n *node) {
+		n.data.Insert(ref)
+	})
+
+	return t.getDirty()
+}
+
+func (t *tree) Delete(ref hash.SHA256Hash, clock uint32) {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
+	t.updateOrCreatePath(clock, func(n *node) {
+		n.data.Delete(ref)
 	})
 }
 
 // updateOrCreatePath calls fn on all nodes on the path from the root to leaf containing the clock value.
 // If the path/leaf does not exist it will be created.
 // The leaf is marked dirty.
-func (t *tree) updateOrCreatePath(clock uint32, fn func(n *node) error) error {
+func (t *tree) updateOrCreatePath(clock uint32, fn func(n *node)) {
 	// grow tree if needed
 	for clock >= t.treeSize {
 		t.reRoot()
@@ -134,15 +185,10 @@ func (t *tree) updateOrCreatePath(clock uint32, fn func(n *node) error) error {
 	next := t.root
 	for next != nil {
 		current = next
-		err := fn(current)
-		if err != nil {
-			return fmt.Errorf("failed for node with splitLC %d: %w", next.splitLC, err)
-		}
+		fn(current)
 		next = t.getNextNode(current, clock)
 	}
 	t.dirtyLeaves[current.splitLC] = current
-
-	return nil
 }
 
 func (t *tree) newBranch(start, stop uint32) *node {
@@ -182,10 +228,16 @@ func (t *tree) getNextNode(n *node, clock uint32) *node {
 }
 
 func (t *tree) GetRoot() Data {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
 	return t.root.data.Clone()
 }
 
 func (t *tree) GetZeroTo(clock uint32) (Data, uint32) {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
 	data := t.root.data.Clone()
 	next := t.root
 	for {
@@ -218,22 +270,37 @@ func rightmostLeafClock(n *node) uint32 {
 	}
 }
 
-func (t tree) GetUpdates() (dirty map[uint32][]byte, orphaned []uint32, err error) {
-	dirty = make(map[uint32][]byte, len(t.dirtyLeaves))
-	for k, v := range t.dirtyLeaves {
-		b, err := v.data.MarshalBinary()
-		if err != nil {
-			return nil, nil, err
-		}
-		dirty[k] = b
-	}
+func (t *tree) GetUpdates() (dirty map[uint32][]byte, orphaned []uint32) {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
+	dirty = t.getDirty()
+
 	for k := range t.orphanedLeaves {
 		orphaned = append(orphaned, k)
 	}
-	return dirty, orphaned, nil
+	return
+}
+
+func (t *tree) getDirty() map[uint32][]byte {
+	dirty := make(map[uint32][]byte, len(t.dirtyLeaves))
+	for k, v := range t.dirtyLeaves {
+		// no error can be returned since the xor and iblt structures do not generate errors
+		b, _ := v.data.MarshalBinary()
+		dirty[k] = b
+	}
+
+	return dirty
 }
 
 func (t *tree) ResetUpdate() {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
+	t.resetUpdate()
+}
+
+func (t *tree) resetUpdate() {
 	t.dirtyLeaves = map[uint32]*node{}
 	t.orphanedLeaves = nil
 }
@@ -244,6 +311,9 @@ type dropLeavesUpdate struct {
 }
 
 func (t *tree) DropLeaves() {
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
 	// don't drop root
 	if t.root == nil || t.root.isLeaf() {
 		return
@@ -253,7 +323,7 @@ func (t *tree) DropLeaves() {
 		dirty:    map[uint32]*node{},
 		orphaned: map[uint32]struct{}{},
 	}
-	dropLeaves(t.root, update)
+	dropLeavesR(t.root, update)
 
 	t.dirtyLeaves = update.dirty
 	if t.orphanedLeaves == nil {
@@ -266,7 +336,7 @@ func (t *tree) DropLeaves() {
 	t.leafSize *= 2
 }
 
-func dropLeaves(n *node, update *dropLeavesUpdate) {
+func dropLeavesR(n *node, update *dropLeavesUpdate) {
 	if n == nil {
 		// n = parent.right might not exist
 		return
@@ -282,8 +352,8 @@ func dropLeaves(n *node, update *dropLeavesUpdate) {
 		n.right = nil
 		return
 	}
-	dropLeaves(n.left, update)
-	dropLeaves(n.right, update)
+	dropLeavesR(n.left, update)
+	dropLeavesR(n.right, update)
 }
 
 // node

@@ -30,6 +30,7 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 	"github.com/nuts-foundation/nuts-node/network/storage"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"go.etcd.io/bbolt"
@@ -38,6 +39,10 @@ import (
 const (
 	// boltDBFileMode holds the Unix file mode the created BBolt database files will have.
 	boltDBFileMode = 0600
+	// pageSize specifies the Lamport Clock range over which data is summarized and is used in set reconciliation.
+	pageSize = uint32(512)
+	// ibltNumBuckets is the number of buckets in the IBLT used in set reconciliation.
+	ibltNumBuckets = 1024
 )
 
 // State has references to the DAG and the payload store.
@@ -50,6 +55,8 @@ type state struct {
 	keyResolver               types.KeyResolver
 	publisher                 Publisher
 	txVerifiers               []Verifier
+	xorTree                   *bboltTree
+	ibltTree                  *bboltTree
 }
 
 // NewState returns a new State. The State is used as entry point, it's methods will start transactions and will notify observers from within those transactions.
@@ -78,6 +85,14 @@ func NewState(dataDir string, verifiers ...Verifier) (State, error) {
 	publisher := NewReplayingDAGPublisher(payloadStore, graph)
 	publisher.ConfigureCallbacks(newState)
 	newState.publisher = publisher
+
+	xorTree := newBBoltTreeStore(db, "xorBucket", tree.New(tree.NewXor(), pageSize))
+	newState.RegisterObserver(xorTree.dagObserver, true)
+	newState.xorTree = xorTree
+
+	ibltTree := newBBoltTreeStore(db, "ibltBucket", tree.New(tree.NewIblt(ibltNumBuckets), pageSize))
+	newState.RegisterObserver(ibltTree.dagObserver, true)
+	newState.ibltTree = ibltTree
 
 	return newState, nil
 }
@@ -188,11 +203,32 @@ func (s *state) Start() error {
 		return fmt.Errorf("unable to migrate DAG: %w", err)
 	}
 
+	ctx := context.Background()
+	// load trees or build if they do not exist yet.
+	// can only build after DAG migration added clock values for all transactions and before the publisher starts
+	if err := s.xorTree.read(ctx); err != nil {
+		return fmt.Errorf("failed to read xorTree: %w", err)
+	}
+
+	// migrate XOR tree, to be removed in V3
+	if err := s.xorTree.migrate(ctx, s); err != nil {
+		return fmt.Errorf("unable to migrate xorTree: %w", err)
+	}
+
+	if err := s.ibltTree.read(ctx); err != nil {
+		return fmt.Errorf("failed to read ibltTree: %w", err)
+	}
+
+	// migrate IBLT tree, to be removed in V3
+	if err := s.ibltTree.migrate(ctx, s); err != nil {
+		return fmt.Errorf("unable to migrate ibltTree: %w", err)
+	}
+
 	if err := s.publisher.Start(); err != nil {
 		return err
 	}
 
-	if err := s.Verify(context.Background()); err != nil {
+	if err := s.Verify(ctx); err != nil {
 		return err
 	}
 
@@ -242,5 +278,7 @@ func (s *state) notifyObservers(ctx context.Context, transaction Transaction, pa
 }
 
 func (s *state) Diagnostics() []core.DiagnosticResult {
-	return s.graph.Diagnostics()
+	diag := s.graph.Diagnostics()
+	diag = append(diag, &core.GenericDiagnosticResult{Title: "dag_xor", Outcome: s.xorTree.getRoot().(*tree.Xor).Hash()})
+	return diag
 }

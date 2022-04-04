@@ -1,3 +1,21 @@
+/*
+ * Copyright (C) 2022 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package tree
 
 import (
@@ -10,11 +28,10 @@ import (
 )
 
 const (
-	ibltNumBuckets = 1024
-	ibltHc         = uint64(0)
-	ibltHk         = uint32(1)
-	ibltK          = uint8(6)
-	bucketBytes    = 44 // = int32 + uint64 + hash.SHA256HashSize
+	ibltHc      = uint64(0)
+	ibltHk      = uint32(1)
+	ibltK       = uint8(6)
+	bucketBytes = 44 // = int32 + uint64 + hash.SHA256HashSize
 )
 
 // ErrDecodeNotPossible is returned when the Iblt cannot be decoded.
@@ -36,8 +53,11 @@ type Iblt struct {
 	buckets []*bucket
 }
 
-// NewIblt returns an *Iblt with default settings and specified number of buckets.
+// NewIblt returns an *Iblt with default settings and specified number of buckets. numBuckets must be >= Iblt.k
 func NewIblt(numBuckets int) *Iblt {
+	if numBuckets < int(ibltK) {
+		numBuckets = int(ibltK)
+	}
 	return &Iblt{
 		buckets: makeBuckets(numBuckets),
 		hc:      ibltHc,
@@ -59,21 +79,19 @@ func (i Iblt) Clone() Data {
 	return &i
 }
 
-func (i *Iblt) Insert(ref hash.SHA256Hash) error {
+func (i *Iblt) Insert(ref hash.SHA256Hash) {
 	keyHash := i.hashKey(ref)
 	for _, h := range i.bucketIndices(keyHash) {
 		i.buckets[h].insert(ref, keyHash)
 	}
-	return nil
 }
 
 // Delete subtracts the key from the iblt and is the inverse of Insert.
-func (i *Iblt) Delete(key hash.SHA256Hash) error {
+func (i *Iblt) Delete(key hash.SHA256Hash) {
 	keyHash := i.hashKey(key)
 	for _, h := range i.bucketIndices(keyHash) {
 		i.buckets[h].delete(key, keyHash)
 	}
-	return nil
 }
 
 func (i *Iblt) Add(other Data) error {
@@ -130,7 +148,6 @@ func (i Iblt) validate(other Data) (*Iblt, error) {
 func (i *Iblt) Decode() (remaining []hash.SHA256Hash, missing []hash.SHA256Hash, err error) {
 	pures := map[hash.SHA256Hash]bool{}
 
-outer:
 	for {
 		updated := false
 
@@ -142,20 +159,16 @@ outer:
 					// Decode gets stuck in a loop when the b.keySum is not exactly ±1 times in all buckets with indices i.bucketIndices(b.hashSum)
 					// this can occur when two Iblt are subtracted that use different methods for assigning buckets
 					err = ErrDecodeLoop
-					break outer
+					return
 				}
 				pures[txRef] = true
 
 				if b.count == 1 {
 					remaining = append(remaining, txRef)
-					err = i.Delete(txRef)
+					i.Delete(txRef)
 				} else { // b.count == -1
 					missing = append(missing, txRef)
-					err = i.Insert(txRef)
-				}
-
-				if err != nil {
-					break outer
+					i.Insert(txRef)
 				}
 				updated = true
 			}
@@ -163,7 +176,7 @@ outer:
 
 		// if no pures exist, the iblt is empty or cannot be decoded
 		if !updated {
-			if !i.isEmpty() {
+			if !i.IsEmpty() {
 				err = ErrDecodeNotPossible
 			}
 			break
@@ -173,7 +186,7 @@ outer:
 	return remaining, missing, err
 }
 
-func (i Iblt) isEmpty() bool {
+func (i Iblt) IsEmpty() bool {
 	for _, b := range i.buckets {
 		if !b.isEmpty() {
 			return false

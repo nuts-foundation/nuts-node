@@ -1,3 +1,21 @@
+/*
+ * Copyright (C) 2022 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package tree
 
 import (
@@ -26,10 +44,7 @@ func getTwoHashPlusXor() (h1 hash.SHA256Hash, h2 hash.SHA256Hash, hXor hash.SHA2
 func TestXor_New(t *testing.T) {
 	xor1 := Xor{}
 	h1 := hash.FromSlice([]byte{1})
-	err := xor1.Insert(h1)
-	if !assert.NoError(t, err) {
-		return
-	}
+	xor1.Insert(h1)
 
 	xorN, ok := xor1.New().(*Xor)
 	if !assert.True(t, ok, "type assertion failed") {
@@ -43,19 +58,13 @@ func TestXor_New(t *testing.T) {
 func TestXor_Clone(t *testing.T) {
 	xor1 := Xor{}
 	h1, h2, hXor := getTwoHashPlusXor()
-	err := xor1.Insert(h1)
-	if !assert.NoError(t, err) {
-		return
-	}
+	xor1.Insert(h1)
 
 	xorN, ok := xor1.Clone().(*Xor)
 	if !assert.True(t, ok, "type assertion failed") {
 		return
 	}
-	err = xorN.Insert(h2)
-	if !assert.NoError(t, err) {
-		return
-	}
+	xorN.Insert(h2)
 
 	assert.Equal(t, h1, xor1.Hash())
 	assert.Equal(t, hXor, xorN.Hash())
@@ -66,27 +75,51 @@ func TestXor_Insert(t *testing.T) {
 
 	t.Run("ok - insert 1 hash", func(t *testing.T) {
 		x := Xor{}
-		err := x.Insert(h1)
+		x.Insert(h1)
 
-		assert.NoError(t, err)
 		assert.Equal(t, h1, x.Hash())
 	})
 
 	t.Run("ok - insert 2 hashes", func(t *testing.T) {
 		x := Xor{}
-		_ = x.Insert(h1)
-		err := x.Insert(h2)
+		x.Insert(h1)
+		x.Insert(h2)
 
-		assert.NoError(t, err)
 		assert.Equal(t, hXor, x.Hash())
 	})
 
 	t.Run("ok - insert hash twice", func(t *testing.T) {
 		x := Xor{}
-		_ = x.Insert(h1)
-		err := x.Insert(h1)
+		x.Insert(h1)
+		x.Insert(h1)
 
-		assert.NoError(t, err)
+		assert.Equal(t, Xor{}, x)
+	})
+}
+
+func TestXor_Delete(t *testing.T) {
+	h1, h2, hXor := getTwoHashPlusXor()
+
+	t.Run("ok - delete 1 hash", func(t *testing.T) {
+		x := Xor{}
+		x.Delete(h1)
+
+		assert.Equal(t, h1, x.Hash())
+	})
+
+	t.Run("ok - delete 2 hashes", func(t *testing.T) {
+		x := Xor{}
+		x.Delete(h1)
+		x.Delete(h2)
+
+		assert.Equal(t, hXor, x.Hash())
+	})
+
+	t.Run("ok - delete hash twice", func(t *testing.T) {
+		x := Xor{}
+		x.Delete(h1)
+		x.Delete(h1)
+
 		assert.Equal(t, Xor{}, x)
 	})
 }
@@ -136,6 +169,18 @@ func TestXor_Subtract(t *testing.T) {
 
 		assert.EqualError(t, err, "data type mismatch - expected *tree.Xor, got *tree.Iblt")
 		assert.Equal(t, Xor(h1), x1)
+	})
+}
+
+func TestXor_IsEmpty(t *testing.T) {
+	t.Run("is empty", func(t *testing.T) {
+		x := NewXor()
+		assert.True(t, x.IsEmpty())
+	})
+
+	t.Run("is not empty", func(t *testing.T) {
+		x := Xor(hash.FromSlice([]byte("not empty")))
+		assert.False(t, x.IsEmpty())
 	})
 }
 
