@@ -31,11 +31,16 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/storage"
 )
 
-// treeBucketFillPercent can be much higher than default 0.5 since the keys (unique node ids)
-// should be added to the bucket in monotonic increasing order, and the values are of fixed size.
-const treeBucketFillPercent = 0.9
-const defaultObserverRollbackTimeOut = 10 * time.Second
+const (
+	// treeBucketFillPercent can be much higher than default 0.5 since the keys (unique node ids)
+	// should be added to the bucket in monotonic increasing order, and the values are of fixed size.
+	treeBucketFillPercent = 0.9
+	// defaultObserverRollbackTimeOut is the default time waited before triggering a rollback of a transaction.
+	defaultObserverRollbackTimeOut = 10 * time.Second
+)
 
+// observerRollbackTimeOut is the time waited before triggering a rollback of a transaction.
+// timeout must not be shorter than expected write operation to disk.
 var observerRollbackTimeOut = defaultObserverRollbackTimeOut
 
 type bboltTree struct {

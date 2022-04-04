@@ -169,7 +169,7 @@ func TestBboltTree_dagObserver(t *testing.T) {
 
 		test.WaitFor(t, func() (bool, error) {
 			return runtime.NumGoroutine() == currentRoutines, nil
-		}, 5*time.Second, "timeout while waiting for go routine to exit")
+		}, 10*time.Second, "timeout while waiting for go routine to exit")
 		assert.Equal(t, tx.Ref(), store.getRoot().(*tree.Xor).Hash())
 
 		_ = db.View(func(tx *bbolt.Tx) error {
