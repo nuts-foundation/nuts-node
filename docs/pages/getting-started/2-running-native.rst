@@ -1,10 +1,10 @@
 .. _running-native:
 
-Getting Started with native binary
-##################################
+Running the native binary
+#########################
 
 The Nuts executable this project provides can be used to both run a Nuts server (a.k.a. node) and administer a running
-node remotely. This chapter explains how to run a server using the native binary.
+node remotely. This guide explains how to run a Nuts node using the native binary.
 
 Building
 ********
