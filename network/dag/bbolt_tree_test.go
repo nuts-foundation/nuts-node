@@ -23,7 +23,7 @@ import (
 	"encoding/binary"
 	"github.com/nuts-foundation/nuts-node/test"
 	"go.etcd.io/bbolt"
-	"runtime"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -139,12 +139,11 @@ func TestBboltTree_dagObserver(t *testing.T) {
 			observerRollbackTimeOut = defaultObserverRollbackTimeOut
 		}()
 
-		currentRoutines := runtime.NumGoroutine()
 		store.dagObserver(ctx, tx, nil)
 		assert.Equal(t, tx.Ref(), store.getRoot().(*tree.Xor).Hash())
 
 		test.WaitFor(t, func() (bool, error) {
-			return runtime.NumGoroutine() == currentRoutines, nil
+			return atomic.LoadUint32(store.activeRollbackRoutines) == 0, nil
 		}, 5*time.Second, "timeout while waiting for go routine to exit")
 		assert.Equal(t, hash.EmptyHash(), store.getRoot().(*tree.Xor).Hash())
 
@@ -162,13 +161,12 @@ func TestBboltTree_dagObserver(t *testing.T) {
 		store := newBBoltTreeStore(db, "observer bucket", tree.New(tree.NewXor(), testLeafSize))
 		tx, _, _ := CreateTestTransaction(1)
 
-		currentRoutines := runtime.NumGoroutine()
 		store.dagObserver(ctx, tx, nil)
 		assert.Equal(t, tx.Ref(), store.getRoot().(*tree.Xor).Hash())
 		_ = bboltTx.Commit()
 
 		test.WaitFor(t, func() (bool, error) {
-			return runtime.NumGoroutine() == currentRoutines, nil
+			return atomic.LoadUint32(store.activeRollbackRoutines) == 0, nil
 		}, 10*time.Second, "timeout while waiting for go routine to exit")
 		assert.Equal(t, tx.Ref(), store.getRoot().(*tree.Xor).Hash())
 

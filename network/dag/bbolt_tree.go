@@ -21,6 +21,7 @@ package dag
 import (
 	"context"
 	"encoding/binary"
+	"sync/atomic"
 	"time"
 
 	"go.etcd.io/bbolt"
@@ -44,19 +45,21 @@ const (
 var observerRollbackTimeOut = defaultObserverRollbackTimeOut
 
 type bboltTree struct {
-	db                *bbolt.DB
-	bucketFillPercent float64
-	bucketName        string
-	tree              tree.Tree
+	db                     *bbolt.DB
+	bucketFillPercent      float64
+	bucketName             string
+	tree                   tree.Tree
+	activeRollbackRoutines *uint32
 }
 
 // newBBoltTreeStore returns an instance of a BBolt based tree store. Buckets managed by this store are filled to treeBucketFillPercent
 func newBBoltTreeStore(db *bbolt.DB, bucketName string, tree tree.Tree) *bboltTree {
 	return &bboltTree{
-		db:                db,
-		bucketFillPercent: treeBucketFillPercent,
-		bucketName:        bucketName,
-		tree:              tree,
+		db:                     db,
+		bucketFillPercent:      treeBucketFillPercent,
+		bucketName:             bucketName,
+		tree:                   tree,
+		activeRollbackRoutines: new(uint32),
 	}
 }
 
@@ -86,6 +89,10 @@ func (store *bboltTree) dagObserver(ctx context.Context, transaction Transaction
 			// A call to writeUpdates will persist all uncommitted tree changes. So a failed bboltTx will be dropped by the dag and (eventually) persisted by the tree.
 			c, cancel := context.WithTimeout(context.Background(), observerRollbackTimeOut) // << timeout must not be shorter than expected write operation to disk
 			go func() {
+				atomic.AddUint32(store.activeRollbackRoutines, 1)
+				defer func() {
+					atomic.AddUint32(store.activeRollbackRoutines, ^uint32(0)) // decrements (as stated by godoc of AddUint32)
+				}()
 				<-c.Done()
 				err := c.Err()
 				if err == context.DeadlineExceeded {
