@@ -33,6 +33,7 @@ type messageSender interface {
 	sendGossipMsg(id transport.PeerID, refs []hash.SHA256Hash) error
 	sendTransactionListQuery(id transport.PeerID, refs []hash.SHA256Hash) error
 	sendTransactionList(id transport.PeerID, conversationID conversationID, transactions []*Transaction) error
+	sendTransactionRangeQuery(id transport.PeerID, conversationID conversationID, lcStart uint32, lcEnd uint32) error
 }
 
 func (p *protocol) sendGossipMsg(id transport.PeerID, refs []hash.SHA256Hash) error {
@@ -105,6 +106,20 @@ func (p *protocol) sendTransactionList(id transport.PeerID, conversationID conve
 	}
 
 	return nil
+}
+
+func (p *protocol) sendTransactionRangeQuery(id transport.PeerID, conversationID conversationID, lcStart uint32, lcEnd uint32) error {
+	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByPeerID(id))
+	if conn == nil {
+		return grpc.ErrNoConnection
+	}
+	return conn.Send(p, &Envelope{Message: &Envelope_TransactionRangeQuery{
+		TransactionRangeQuery: &TransactionRangeQuery{
+			ConversationID: conversationID.slice(),
+			Start:          lcStart,
+			End:            lcEnd,
+		},
+	}})
 }
 
 // chunkTransactionList splits a large set of transactions into smaller sets. Each set adheres to the maximum message size.

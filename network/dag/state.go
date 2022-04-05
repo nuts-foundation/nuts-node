@@ -142,6 +142,10 @@ func (s *state) FindBetween(ctx context.Context, startInclusive time.Time, endEx
 	return s.graph.FindBetween(ctx, startInclusive, endExclusive)
 }
 
+func (s *state) FindBetweenLC(ctx context.Context, startInclusive uint32, endExclusive uint32) ([]Transaction, error) {
+	return s.graph.findBetweenLC(ctx, startInclusive, endExclusive)
+}
+
 func (s *state) GetByPayloadHash(ctx context.Context, payloadHash hash.SHA256Hash) ([]Transaction, error) {
 	return s.graph.GetByPayloadHash(ctx, payloadHash)
 }

@@ -97,6 +97,37 @@ func TestProtocol_sendTransactionList(t *testing.T) {
 	})
 }
 
+func TestProtocol_sendTransactionRangeQuery(t *testing.T) {
+	peerID := transport.PeerID("1")
+	conversationID := newConversationID()
+
+	envelope := &Envelope{Message: &Envelope_TransactionRangeQuery{
+		TransactionRangeQuery: &TransactionRangeQuery{
+			ConversationID: conversationID.slice(),
+			Start:          1,
+			End:            5,
+		},
+	}}
+
+	t.Run("ok", func(t *testing.T) {
+		proto, mocks := newTestProtocol(t, nil)
+		mockConnection := grpc.NewMockConnection(mocks.Controller)
+		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peerID)).Return(mockConnection)
+		mockConnection.EXPECT().Send(proto, envelope)
+
+		err := proto.sendTransactionRangeQuery(peerID, conversationID, 1, 5)
+
+		assert.NoError(t, err)
+	})
+
+	performSendErrorTest(t, peerID, envelope, func(p *protocol, _ protocolMocks) error {
+		return p.sendTransactionRangeQuery(peerID, conversationID, 1, 5)
+	})
+	performNoConnectionAvailableTest(t, peerID, func(p *protocol, _ protocolMocks) error {
+		return p.sendTransactionRangeQuery(peerID, conversationID, 1, 5)
+	})
+}
+
 func Test_chunkTransactionList(t *testing.T) {
 	t.Run("no chunks", func(t *testing.T) {
 		transactions := []*Transaction{{}, {}}

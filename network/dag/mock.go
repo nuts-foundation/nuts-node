@@ -81,6 +81,21 @@ func (mr *MockStateMockRecorder) FindBetween(ctx, startInclusive, endExclusive i
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindBetween", reflect.TypeOf((*MockState)(nil).FindBetween), ctx, startInclusive, endExclusive)
 }
 
+// FindBetweenLC mocks base method.
+func (m *MockState) FindBetweenLC(ctx context.Context, startInclusive, endExclusive uint32) ([]Transaction, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindBetweenLC", ctx, startInclusive, endExclusive)
+	ret0, _ := ret[0].([]Transaction)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindBetweenLC indicates an expected call of FindBetweenLC.
+func (mr *MockStateMockRecorder) FindBetweenLC(ctx, startInclusive, endExclusive interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindBetweenLC", reflect.TypeOf((*MockState)(nil).FindBetweenLC), ctx, startInclusive, endExclusive)
+}
+
 // GetByPayloadHash mocks base method.
 func (m *MockState) GetByPayloadHash(ctx context.Context, payloadHash hash.SHA256Hash) ([]Transaction, error) {
 	m.ctrl.T.Helper()
