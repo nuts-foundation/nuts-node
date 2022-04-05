@@ -159,7 +159,7 @@ func (p *protocol) handleGossip(peer transport.Peer, msg *Gossip) error {
 	if len(refs) > 0 {
 		// TODO swap for trace logging
 		log.Logger().Infof("received %d new transaction references via Gossip", len(refs))
-		p.sendTransactionListQuery(peer.ID, refs)
+		p.sender.sendTransactionListQuery(peer.ID, refs)
 	}
 	p.gManager.GossipReceived(peer.ID, refs...)
 
@@ -235,7 +235,6 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 
 func (p *protocol) handleTransactionListQuery(peer transport.Peer, msg *TransactionListQuery) error {
 	requestedRefs := make([]hash.SHA256Hash, len(msg.Refs))
-	transactions := make([]*Transaction, 0)
 	unsorted := make([]dag.Transaction, 0)
 
 	cid := conversationID(msg.ConversationID)
@@ -273,9 +272,10 @@ func (p *protocol) handleTransactionListQuery(peer transport.Peer, msg *Transact
 		return unsorted[i].Clock() <= unsorted[j].Clock()
 	})
 
-	for i, transaction := range unsorted {
+	transactions := make([]*Transaction, 0)
+	for _, transaction := range unsorted {
 		networkTX := Transaction{
-			Hash: msg.Refs[i],
+			Hash: transaction.Ref().Slice(),
 			Data: transaction.Data(),
 		}
 
@@ -295,5 +295,5 @@ func (p *protocol) handleTransactionListQuery(peer transport.Peer, msg *Transact
 		transactions = append(transactions, &networkTX)
 	}
 
-	return p.sendTransactionList(peer.ID, cid, transactions)
+	return p.sender.sendTransactionList(peer.ID, cid, transactions)
 }

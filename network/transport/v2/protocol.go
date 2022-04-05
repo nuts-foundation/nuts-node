@@ -75,7 +75,7 @@ func New(
 	decrypter crypto.Decrypter,
 ) transport.Protocol {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &protocol{
+	p := &protocol{
 		cancel:          cancel,
 		config:          config,
 		ctx:             ctx,
@@ -84,6 +84,8 @@ func New(
 		decrypter:       decrypter,
 		docResolver:     docResolver,
 	}
+	p.sender = p
+	return p
 }
 
 type protocol struct {
@@ -98,7 +100,8 @@ type protocol struct {
 	nodeDIDResolver   transport.NodeDIDResolver
 	connectionManager transport.ConnectionManager
 	cMan              *conversationManager
-	gManager          gossip.Manager
+	gManager gossip.Manager
+	sender   messageSender
 }
 
 func (p protocol) CreateClientStream(outgoingContext context.Context, grpcConn grpcLib.ClientConnInterface) (grpcLib.ClientStream, error) {
