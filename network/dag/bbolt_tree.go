@@ -91,7 +91,7 @@ func (store *bboltTree) dagObserver(ctx context.Context, transaction Transaction
 			go func() {
 				atomic.AddUint32(store.activeRollbackRoutines, 1)
 				defer func() {
-					atomic.AddUint32(store.activeRollbackRoutines, -1)
+					atomic.AddUint32(store.activeRollbackRoutines, ^uint32(0)) // decrements (as stated by godoc of AddUint32)
 				}()
 				<-c.Done()
 				err := c.Err()
