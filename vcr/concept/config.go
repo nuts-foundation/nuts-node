@@ -82,8 +82,6 @@ type Index struct {
 
 // IndexPart defines the JSONPath and type of index for a partial index within a compound index
 type IndexPart struct {
-	// Alias defines an optional alias that can be used within a search query
-	Alias *string `yaml:"alias"`
 	// JSONPath defines the JSON search path
 	JSONPath string `yaml:"path"`
 	// Tokenizer defines an optional tokenizer. Possible values: [whitespace]

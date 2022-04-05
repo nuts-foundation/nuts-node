@@ -672,7 +672,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 
 	t.Run("ok - no results", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vcr.EXPECT().SearchConcept(reqCtx, "organization", false, map[string]string{"organization.name": "query"}).Return([]concept.Concept{}, nil)
+		ctx.vcr.EXPECT().SearchConcept(reqCtx, "organization", false, map[string]string{"credentialSubject.organization.name": "query"}).Return([]concept.Concept{}, nil)
 
 		actual, err := ctx.instance.SearchOrganizations(reqCtx, "query", nil)
 
@@ -686,7 +686,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 	}
 	t.Run("ok - no DID service type", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vcr.EXPECT().SearchConcept(reqCtx, "organization", false, map[string]string{"organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
+		ctx.vcr.EXPECT().SearchConcept(reqCtx, "organization", false, map[string]string{"credentialSubject.organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(&docWithoutService, nil, nil)
 
 		actual, err := ctx.instance.SearchOrganizations(reqCtx, "query", nil)
@@ -696,7 +696,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 	})
 	t.Run("ok - with DID service type (matches)", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vcr.EXPECT().SearchConcept(reqCtx, "organization", false, map[string]string{"organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
+		ctx.vcr.EXPECT().SearchConcept(reqCtx, "organization", false, map[string]string{"credentialSubject.organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(&docWithService, nil, nil)
 
 		serviceType := "eOverdracht"
@@ -707,7 +707,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 	})
 	t.Run("ok - with DID service type (no match)", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vcr.EXPECT().SearchConcept(reqCtx, "organization", false, map[string]string{"organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
+		ctx.vcr.EXPECT().SearchConcept(reqCtx, "organization", false, map[string]string{"credentialSubject.organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(&docWithoutService, nil, nil)
 
 		serviceType := "eOverdracht"
@@ -719,7 +719,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 	})
 	t.Run("ok - DID document not found (logs, omits result)", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vcr.EXPECT().SearchConcept(reqCtx, "organization", false, map[string]string{"organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
+		ctx.vcr.EXPECT().SearchConcept(reqCtx, "organization", false, map[string]string{"credentialSubject.organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(nil, nil, types.ErrNotFound)
 
 		actual, err := ctx.instance.SearchOrganizations(reqCtx, "query", nil)
@@ -730,7 +730,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 	})
 	t.Run("ok - DID document deactivated (logs, omits result)", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vcr.EXPECT().SearchConcept(reqCtx, "organization", false, map[string]string{"organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
+		ctx.vcr.EXPECT().SearchConcept(reqCtx, "organization", false, map[string]string{"credentialSubject.organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(nil, nil, types.ErrDeactivated)
 
 		actual, err := ctx.instance.SearchOrganizations(reqCtx, "query", nil)
@@ -741,7 +741,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 	})
 	t.Run("error - other error while resolving DID document", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vcr.EXPECT().SearchConcept(reqCtx, "organization", false, map[string]string{"organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
+		ctx.vcr.EXPECT().SearchConcept(reqCtx, "organization", false, map[string]string{"credentialSubject.organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(nil, nil, io.EOF)
 
 		actual, err := ctx.instance.SearchOrganizations(reqCtx, "query", nil)

@@ -279,7 +279,7 @@ func (d *didman) GetContactInformation(id did.DID) (*ContactInformation, error) 
 }
 
 func (d *didman) SearchOrganizations(ctx context.Context, query string, didServiceType *string) ([]OrganizationSearchResult, error) {
-	organizations, err := d.vcr.SearchConcept(ctx, concept.OrganizationConcept, false, map[string]string{concept.OrganizationName: query})
+	organizations, err := d.vcr.SearchConcept(ctx, concept.OrganizationConcept, false, map[string]string{"credentialSubject.organization.name": query})
 	if err != nil {
 		return nil, err
 	}

@@ -20,15 +20,16 @@ package issuer
 
 import (
 	"encoding/json"
+	"path"
+	"testing"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/go-leia/v2"
+	"github.com/nuts-foundation/go-leia/v3"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/stretchr/testify/assert"
-	"path"
-	"testing"
 )
 
 func TestNewLeiaStore(t *testing.T) {
@@ -176,8 +177,7 @@ func Test_leiaStore_GetCredential(t *testing.T) {
 			ID *ssi.URI `json:"id,omitempty"`
 		}{ID: vcToGet.ID}
 		asBytes, _ := json.Marshal(rawStructWithSameID)
-		doc := leia.DocumentFromBytes(asBytes)
-		lstore.issuedCredentials.Add([]leia.Document{doc})
+		lstore.issuedCredentials.Add([]leia.Document{asBytes})
 
 		t.Run("it fails", func(t *testing.T) {
 			foundCredential, err := store.GetCredential(*vcToGet.ID)

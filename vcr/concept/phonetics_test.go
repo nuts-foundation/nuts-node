@@ -22,23 +22,23 @@ package concept
 import (
 	"testing"
 
-	"github.com/nuts-foundation/go-leia/v2"
+	"github.com/nuts-foundation/go-leia/v3"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestCologneTransformer(t *testing.T) {
 	cases := []struct {
-		given    interface{}
+		given    string
 		expected string
 	}{
 		{"Ziekenhuis", "8468"},
 		{"ziek", "84"},
 		{"Zorgcentrum", "87486276"},
-		{leia.Key("zorggroep"), "87471"},
+		{"zorggroep", "87471"},
 	}
 
 	for _, testCase := range cases {
-		result := CologneTransformer(testCase.given)
-		assert.Equal(t, testCase.expected, result)
+		result := CologneTransformer(leia.MustParseScalar(testCase.given))
+		assert.Equal(t, testCase.expected, string(result.Bytes()))
 	}
 }

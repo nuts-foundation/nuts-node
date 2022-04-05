@@ -24,8 +24,7 @@ import (
 	"fmt"
 
 	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-leia/v2"
-	"github.com/nuts-foundation/nuts-node/vcr/concept"
+	"github.com/nuts-foundation/go-leia/v3"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
@@ -39,16 +38,16 @@ type leiaVerifierStore struct {
 
 // NewLeiaVerifierStore creates a new instance of leiaVerifierStore which implements the Store interface.
 func NewLeiaVerifierStore(dbPath string) (Store, error) {
-	store, err := leia.NewStore(dbPath, false)
+	store, err := leia.NewStore(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create leiaVerifierStore: %w", err)
 	}
-	revocations := store.Collection("revocations")
+	revocations := store.JSONCollection("revocations")
 	newLeiaStore := &leiaVerifierStore{
 		revocations: revocations,
 		store:       store,
 	}
-	if err := newLeiaStore.createIndices(); err != nil {
+	if err := newLeiaStore.createIndices(revocations); err != nil {
 		return nil, err
 	}
 	return newLeiaStore, nil
@@ -56,12 +55,11 @@ func NewLeiaVerifierStore(dbPath string) (Store, error) {
 
 func (s leiaVerifierStore) StoreRevocation(revocation credential.Revocation) error {
 	revocationAsBytes, _ := json.Marshal(revocation)
-	doc := leia.DocumentFromBytes(revocationAsBytes)
-	return s.revocations.Add([]leia.Document{doc})
+	return s.revocations.Add([]leia.Document{revocationAsBytes})
 }
 
 func (s leiaVerifierStore) GetRevocations(id ssi.URI) ([]*credential.Revocation, error) {
-	query := leia.New(leia.Eq(concept.SubjectField, id.String()))
+	query := leia.New(leia.Eq(leia.NewJSONPath(credential.RevocationSubjectPath), leia.MustParseScalar(id.String())))
 
 	results, err := s.revocations.Find(context.Background(), query)
 	if err != nil {
@@ -74,7 +72,7 @@ func (s leiaVerifierStore) GetRevocations(id ssi.URI) ([]*credential.Revocation,
 	revocations := make([]*credential.Revocation, len(results))
 	for i, result := range results {
 		revocation := &credential.Revocation{}
-		if err := json.Unmarshal(result.Bytes(), revocation); err != nil {
+		if err := json.Unmarshal(result, revocation); err != nil {
 			return nil, err
 		}
 		revocations[i] = revocation
@@ -89,9 +87,9 @@ func (s leiaVerifierStore) Close() error {
 
 // createIndices creates the needed indices for the issued VC store
 // It allows faster searching on context, type issuer and subject values.
-func (s leiaVerifierStore) createIndices() error {
+func (s leiaVerifierStore) createIndices(collection leia.Collection) error {
 	// Index used for getting issued VCs by id
-	revocationBySubjectIDIndex := leia.NewIndex("revocationBySubjectIDIndex",
-		leia.NewFieldIndexer("subject"))
+	revocationBySubjectIDIndex := collection.NewIndex("revocationBySubjectIDIndex",
+		leia.NewFieldIndexer(leia.NewJSONPath(credential.RevocationSubjectPath)))
 	return s.revocations.AddIndex(revocationBySubjectIDIndex)
 }

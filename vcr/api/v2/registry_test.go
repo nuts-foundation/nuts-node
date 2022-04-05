@@ -22,12 +22,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/vc"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/vcr/assets"
@@ -158,11 +159,11 @@ func TestWrapper_SearchVCs(t *testing.T) {
 		assert.Equal(t, "did:nuts:issuer", clauses[idx].Seek())
 		idx++
 		assert.Equal(t, "prefix", clauses[idx].Type())
-		assert.Equal(t, "organization.name", clauses[idx].Key())
+		assert.Equal(t, "credentialSubject.organization.name", clauses[idx].Key())
 		assert.Equal(t, "Zorggroep de Nootjes", clauses[idx].Seek())
 		idx++
 		assert.Equal(t, "prefix", clauses[idx].Type())
-		assert.Equal(t, "organization.city", clauses[idx].Key())
+		assert.Equal(t, "credentialSubject.organization.city", clauses[idx].Key())
 		assert.Equal(t, "Amandelmere", clauses[idx].Seek())
 		idx++
 		assert.Equal(t, "eq", clauses[idx].Type())
@@ -305,7 +306,6 @@ func loadTemplates(t *testing.T, registry concept.Registry) {
 		}
 	}
 }
-
 
 func TestWrapper_ResolveVC(t *testing.T) {
 	id := ssi.MustParseURI("did:nuts:some-did#some-vc")
