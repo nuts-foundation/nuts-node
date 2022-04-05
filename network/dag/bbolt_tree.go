@@ -91,6 +91,10 @@ func (store *bboltTree) dagObserver(ctx context.Context, transaction Transaction
 			// A call to writeUpdates will persist all uncommitted tree changes. So a failed bboltTx will be dropped by the dag and (eventually) persisted by the tree.
 			c, cancel := context.WithTimeout(context.Background(), observerRollbackTimeOut) // << timeout must not be shorter than expected write operation to disk
 			go func() {
+				atomic.AddUint32(store.activeRollbackRoutines, 1)
+				defer func() {
+					atomic.AddUint32(store.activeRollbackRoutines, ^uint32(0)) // decrements (as stated by godoc of AddUint32)
+				}()
 				<-c.Done()
 				err := c.Err()
 				if err == context.DeadlineExceeded {
