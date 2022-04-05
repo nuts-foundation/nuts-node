@@ -139,11 +139,12 @@ func TestBboltTree_dagObserver(t *testing.T) {
 			observerRollbackTimeOut = defaultObserverRollbackTimeOut
 		}()
 
+		assert.Equal(t, uint32(0), atomic.LoadUint32(store.numRollbacks))
 		store.dagObserver(ctx, tx, nil)
 		assert.Equal(t, tx.Ref(), store.getRoot().(*tree.Xor).Hash())
 
 		test.WaitFor(t, func() (bool, error) {
-			return atomic.LoadUint32(store.activeRollbackRoutines) == 0, nil
+			return atomic.LoadUint32(store.numRollbacks) == 1, nil
 		}, 5*time.Second, "timeout while waiting for go routine to exit")
 		assert.Equal(t, hash.EmptyHash(), store.getRoot().(*tree.Xor).Hash())
 
