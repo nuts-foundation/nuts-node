@@ -28,10 +28,25 @@ import (
 	"net/url"
 )
 
+type JsonLdContexts struct {
+	RemoteAllowList  []string      `koanf:"remoteallowlist"`
+	LocalFileMapping []FileMapping `koanf:"localmapping"`
+}
+
+type FileMapping struct {
+	Url  string `koanf:"url"`
+	Path string `koanf:"path"`
+}
+
 // embeddedFSDocumentLoader tries to load documents from an embedded filesystem.
 type embeddedFSDocumentLoader struct {
 	fs         embed.FS
 	nextLoader ld.DocumentLoader
+}
+
+type filteredDocumentLoader struct {
+	AllowedUrls []string
+	nextLoader  ld.DocumentLoader
 }
 
 // NewEmbeddedFSDocumentLoader creates a new embeddedFSDocumentLoader for an embedded filesystem.
@@ -40,6 +55,19 @@ func NewEmbeddedFSDocumentLoader(fs embed.FS, nextLoader ld.DocumentLoader) ld.D
 		fs:         fs,
 		nextLoader: nextLoader,
 	}
+}
+
+func NewFilteredLoader(allowedUrls []string, nextLoader ld.DocumentLoader) ld.DocumentLoader {
+	return &filteredDocumentLoader{AllowedUrls: allowedUrls, nextLoader: nextLoader}
+}
+
+func (h filteredDocumentLoader) LoadDocument(u string) (*ld.RemoteDocument, error) {
+	for _, allowedUrl := range h.AllowedUrls {
+		if allowedUrl == u {
+			return h.nextLoader.LoadDocument(u)
+		}
+	}
+	return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, nil)
 }
 
 // LoadDocument tries to load the document from the embedded filesystem.
@@ -71,21 +99,32 @@ func (e embeddedFSDocumentLoader) LoadDocument(path string) (*ld.RemoteDocument,
 	return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, nil)
 }
 
+const SchemaOrgContext = "https://schema.org"
+const W3cVcContext = "https://www.w3.org/2018/credentials/v1"
+const Jws2020Context = "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
+
+func DefaultAllowList() []string {
+	return []string{SchemaOrgContext, W3cVcContext, Jws2020Context}
+}
+
 // NewContextLoader creates a new JSON-LD context loader with the embedded FS as first loader.
 // It loads the most used context from the embedded FS. This ensures the contents cannot be altered.
 // If allowExternalCalls is set to true, it also loads external context from the internet.
-func NewContextLoader(allowExternalCalls bool) (ld.DocumentLoader, error) {
-	var nextLoader ld.DocumentLoader
-	if allowExternalCalls {
-		nextLoader = ld.NewDefaultDocumentLoader(nil)
+func NewContextLoader(allowUnlistedExternalCalls bool, contexts JsonLdContexts) (ld.DocumentLoader, error) {
+	var httpLoader ld.DocumentLoader
+	httpLoader = ld.NewDefaultDocumentLoader(nil)
+	if !allowUnlistedExternalCalls {
+		httpLoader = NewFilteredLoader(contexts.RemoteAllowList, httpLoader)
 	}
-	loader := ld.NewCachingDocumentLoader(NewEmbeddedFSDocumentLoader(assets.Assets, nextLoader))
-	if err := loader.PreloadWithMapping(map[string]string{
-		"https://nuts.nl/credentials/v1":                                     "assets/contexts/nuts.ldjson",
-		"https://www.w3.org/2018/credentials/v1":                             "assets/contexts/w3c-credentials-v1.ldjson",
-		"https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json": "assets/contexts/lds-jws2020-v1.ldjson",
-		"https://schema.org":                                                 "assets/contexts/schema-org-v13.ldjson",
-	}); err != nil {
+
+	loader := ld.NewCachingDocumentLoader(NewEmbeddedFSDocumentLoader(assets.Assets, httpLoader))
+
+	mapping := make(map[string]string, len(contexts.LocalFileMapping))
+	for _, urlMap := range contexts.LocalFileMapping {
+		mapping[urlMap.Url] = urlMap.Path
+	}
+
+	if err := loader.PreloadWithMapping(mapping); err != nil {
 		return nil, fmt.Errorf("unable to preload nuts ld-context: %w", err)
 	}
 	return loader, nil
