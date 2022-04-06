@@ -242,11 +242,14 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 func TestProtocol_handleGossip(t *testing.T) {
 	bytes := make([][]byte, 1)
 	bytes[0] = hash.EmptyHash().Slice()
+	xor := hash.FromSlice([]byte("test"))
+	clock := uint32(1)
 
 	t.Run("ok - new transaction ref", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		mockConnection := grpc.NewMockConnection(mocks.Controller)
 		mocks.State.EXPECT().IsPresent(gomock.Any(), hash.EmptyHash()).Return(false, nil)
+		mocks.State.EXPECT().XOR(gomock.Any(), gomock.Any()).Return(xor, clock)
 		mocks.Gossip.EXPECT().GossipReceived(peer.ID, hash.EmptyHash())
 		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peer.ID)).Return(mockConnection)
 		mockConnection.EXPECT().Send(gomock.Any(), gomock.Any()).DoAndReturn(func(arg0 interface{}, arg1 interface{}) error {
@@ -263,7 +266,7 @@ func TestProtocol_handleGossip(t *testing.T) {
 		})
 
 		err := p.Handle(peer, &Envelope{
-			Message: &Envelope_Gossip{&Gossip{Transactions: bytes}},
+			Message: &Envelope_Gossip{&Gossip{XOR: xor.Slice(), LC: clock, Transactions: bytes}},
 		})
 
 		assert.NoError(t, err)
@@ -272,10 +275,11 @@ func TestProtocol_handleGossip(t *testing.T) {
 	t.Run("ok - existing transaction ref", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		mocks.State.EXPECT().IsPresent(gomock.Any(), hash.EmptyHash()).Return(true, nil)
+		mocks.State.EXPECT().XOR(gomock.Any(), gomock.Any()).Return(xor, clock)
 		mocks.Gossip.EXPECT().GossipReceived(peer.ID, []hash.SHA256Hash{})
 
 		err := p.Handle(peer, &Envelope{
-			Message: &Envelope_Gossip{&Gossip{Transactions: bytes}},
+			Message: &Envelope_Gossip{&Gossip{XOR: xor.Slice(), LC: clock, Transactions: bytes}},
 		})
 
 		assert.NoError(t, err)
@@ -286,7 +290,7 @@ func TestProtocol_handleGossip(t *testing.T) {
 		mocks.State.EXPECT().IsPresent(gomock.Any(), hash.EmptyHash()).Return(false, errors.New("custom"))
 
 		err := p.Handle(peer, &Envelope{
-			Message: &Envelope_Gossip{&Gossip{Transactions: bytes}},
+			Message: &Envelope_Gossip{&Gossip{XOR: xor.Slice(), LC: clock, Transactions: bytes}},
 		})
 
 		assert.EqualError(t, err, "failed to handle Gossip message: custom")

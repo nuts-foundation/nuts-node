@@ -23,6 +23,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
@@ -31,14 +32,19 @@ import (
 
 func TestProtocol_sendGossip(t *testing.T) {
 	peerID := transport.PeerID("1")
-	refsAsBytes := [][]byte{hash.EmptyHash().Slice()}
+	xor := hash.EmptyHash()
+	clock := uint32(5)
+	refsAsBytes := [][]byte{xor.Slice()}
 
 	t.Run("ok", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
 		mockConnection := grpc.NewMockConnection(mocks.Controller)
 		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peerID)).Return(mockConnection)
+		mocks.State.EXPECT().XOR(gomock.Any(), gomock.Any()).Return(xor, clock)
 		mockConnection.EXPECT().Send(proto, &Envelope{Message: &Envelope_Gossip{
 			Gossip: &Gossip{
+				XOR:          xor.Slice(),
+				LC:           clock,
 				Transactions: refsAsBytes,
 			},
 		}})

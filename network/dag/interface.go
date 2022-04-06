@@ -25,6 +25,7 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 )
 
 // AnyPayloadType is a wildcard that matches with any payload type.
@@ -75,6 +76,18 @@ type State interface {
 	// The walk will be clock based so some transactions may be revisited due to existing branches.
 	// Precautions must be taken to handle revisited transactions.
 	Walk(ctx context.Context, visitor Visitor, startAt hash.SHA256Hash) error
+	// XOR returns the xor of all transaction references between the DAG root and the clock closest to the requested clock value.
+	// This closest clock value is also returned, and is defined as the lowest of:
+	//	- upper-limit of the page that contains the requested clock
+	//	- highest lamport clock in the DAG
+	// A requested clock of math.MaxUint32 will return the xor of the entire DAG
+	XOR(ctx context.Context, reqClock uint32) (hash.SHA256Hash, uint32)
+	// IBLT returns the iblt of all transaction references between the DAG root and the clock closest to the requested clock value.
+	// This closest clock value is also returned, and is defined as the lowest of:
+	//	- upper-limit of the page that contains the requested clock
+	//	- highest lamport clock in the DAG
+	// A requested clock of math.MaxUint32 will return the iblt of the entire DAG
+	IBLT(ctx context.Context, reqClock uint32) (tree.Iblt, uint32)
 }
 
 // Statistics holds data about the current state of the DAG.

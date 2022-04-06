@@ -23,11 +23,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 	"github.com/nuts-foundation/nuts-node/network/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
@@ -264,6 +266,88 @@ heads: [%s]
 stored_database_size_bytes: %d
 transaction_count: 1`, doc1.Ref(), doc1.Ref(), dbSize.DataSize)
 	assert.Equal(t, expected, actual)
+}
+
+func TestState_XOR(t *testing.T) {
+	// create state
+	ctx := context.Background()
+	txState := createState(t)
+	err := txState.Start()
+	if !assert.NoError(t, err) {
+		return
+	}
+	// add transaction
+	tx := CreateTestTransactionWithJWK(1)
+	dagClock := 3 * pageSize / 2
+	tx.(*transaction).lamportClock = dagClock
+	err = txState.Add(ctx, tx, nil)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	t.Run("requested clock larger than dag", func(t *testing.T) {
+		xor, actualClock := txState.XOR(ctx, math.MaxUint32)
+
+		assert.Equal(t, dagClock, actualClock)
+		assert.Equal(t, tx.Ref(), xor)
+	})
+	t.Run("requested clock before last page", func(t *testing.T) {
+		xor, actualClock := txState.XOR(ctx, uint32(1))
+
+		assert.Equal(t, pageSize-1, actualClock)
+		assert.Equal(t, hash.EmptyHash(), xor)
+	})
+	t.Run("requested clock on last page, lower than dag", func(t *testing.T) {
+		xor, actualClock := txState.XOR(ctx, pageSize+1)
+
+		assert.Equal(t, dagClock, actualClock)
+		assert.Equal(t, tx.Ref(), xor)
+	})
+}
+
+func TestState_IBLT(t *testing.T) {
+	// create state
+	ctx := context.Background()
+	txState := createState(t)
+	err := txState.Start()
+	if !assert.NoError(t, err) {
+		return
+	}
+	// add transaction
+	tx := CreateTestTransactionWithJWK(1)
+	dagClock := 3 * pageSize / 2
+	tx.(*transaction).lamportClock = dagClock
+	err = txState.Add(ctx, tx, nil)
+	if !assert.NoError(t, err) {
+		return
+	}
+	// expected iblt
+	dagIBLT := tree.NewIblt(ibltNumBuckets)
+	dagIBLT.Insert(tx.Ref())
+	if !assert.False(t, dagIBLT.IsEmpty()) {
+		return
+	}
+
+	t.Run("requested clock larger than dag", func(t *testing.T) {
+		iblt, actualClock := txState.IBLT(ctx, math.MaxUint32)
+		_ = iblt.Subtract(dagIBLT)
+
+		assert.Equal(t, dagClock, actualClock)
+		assert.True(t, iblt.IsEmpty(), iblt)
+	})
+	t.Run("requested clock before last page", func(t *testing.T) {
+		iblt, actualClock := txState.IBLT(ctx, uint32(1))
+
+		assert.Equal(t, pageSize-1, actualClock)
+		assert.True(t, iblt.IsEmpty(), iblt)
+	})
+	t.Run("requested clock on last page, lower than dag", func(t *testing.T) {
+		iblt, actualClock := txState.IBLT(ctx, pageSize+1)
+		_ = iblt.Subtract(dagIBLT)
+
+		assert.Equal(t, dagClock, actualClock)
+		assert.True(t, iblt.IsEmpty(), iblt)
+	})
 }
 
 func createState(t *testing.T, verifier ...Verifier) State {
