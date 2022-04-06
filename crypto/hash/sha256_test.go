@@ -170,3 +170,15 @@ func TestHash_Compare(t *testing.T) {
 		assert.Equal(t, 1, h1.Compare(h2))
 	})
 }
+
+func TestHash_Xor(t *testing.T) {
+	h0 := EmptyHash()
+	h1 := FromSlice([]byte{1})
+	h2 := FromSlice([]byte{2})
+	expected := FromSlice([]byte{3})
+
+	actual := h0.Xor(h1, h2)
+
+	assert.Equal(t, EmptyHash(), h0, "original Hash should not change")
+	assert.Equal(t, expected, actual)
+}

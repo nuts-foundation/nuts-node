@@ -289,7 +289,7 @@ func (b *bucket) subtract(o *bucket) {
 }
 
 func (b *bucket) update(key hash.SHA256Hash, hash uint64) {
-	xor(b.keySum[:], b.keySum[:], key[:])
+	b.keySum = b.keySum.Xor(key)
 	b.hashSum ^= hash
 }
 
