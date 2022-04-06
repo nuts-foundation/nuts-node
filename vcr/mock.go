@@ -96,9 +96,9 @@ func (m *MockFinder) EXPECT() *MockFinderMockRecorder {
 }
 
 // Search mocks base method.
-func (m *MockFinder) Search(ctx context.Context, query concept.Query, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
+func (m *MockFinder) SearchLegacy(ctx context.Context, query concept.Query, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Search", ctx, query, allowUntrusted, resolveTime)
+	ret := m.ctrl.Call(m, "SearchLegacy", ctx, query, allowUntrusted, resolveTime)
 	ret0, _ := ret[0].([]vc.VerifiableCredential)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
@@ -107,7 +107,7 @@ func (m *MockFinder) Search(ctx context.Context, query concept.Query, allowUntru
 // Search indicates an expected call of Search.
 func (mr *MockFinderMockRecorder) Search(ctx, query, allowUntrusted, resolveTime interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockFinder)(nil).Search), ctx, query, allowUntrusted, resolveTime)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchLegacy", reflect.TypeOf((*MockFinder)(nil).SearchLegacy), ctx, query, allowUntrusted, resolveTime)
 }
 
 // MockValidator is a mock of Validator interface.
@@ -457,9 +457,9 @@ func (mr *MockVCRMockRecorder) Revoke(ID interface{}) *gomock.Call {
 }
 
 // Search mocks base method.
-func (m *MockVCR) Search(ctx context.Context, query concept.Query, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
+func (m *MockVCR) SearchLegacy(ctx context.Context, query concept.Query, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Search", ctx, query, allowUntrusted, resolveTime)
+	ret := m.ctrl.Call(m, "SearchLegacy", ctx, query, allowUntrusted, resolveTime)
 	ret0, _ := ret[0].([]vc.VerifiableCredential)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
@@ -468,7 +468,7 @@ func (m *MockVCR) Search(ctx context.Context, query concept.Query, allowUntruste
 // Search indicates an expected call of Search.
 func (mr *MockVCRMockRecorder) Search(ctx, query, allowUntrusted, resolveTime interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockVCR)(nil).Search), ctx, query, allowUntrusted, resolveTime)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchLegacy", reflect.TypeOf((*MockVCR)(nil).SearchLegacy), ctx, query, allowUntrusted, resolveTime)
 }
 
 // SearchConcept mocks base method.

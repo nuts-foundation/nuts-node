@@ -22,10 +22,11 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"net/url"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/vcr/assets"
 	"github.com/piprate/json-gold/ld"
-	"net/url"
 )
 
 // embeddedFSDocumentLoader tries to load documents from an embedded filesystem.
@@ -154,4 +155,22 @@ func (util LDUtil) Canonicalize(input interface{}) (result interface{}, err erro
 		return nil, fmt.Errorf("unable to normalize document: %w", err)
 	}
 	return
+}
+
+// Expand expands the JSON-LD to its expanded form
+func (util LDUtil) Expand(jsonLD []byte) ([]interface{}, error) {
+	var optionsMap map[string]interface{}
+	if err := json.Unmarshal(jsonLD, &optionsMap); err != nil {
+		return nil, err
+	}
+	proc := ld.NewJsonLdProcessor()
+
+	expandOptions := ld.NewJsonLdOptions("")
+	expandOptions.DocumentLoader = util.LDDocumentLoader
+
+	result, err := proc.Expand(optionsMap, expandOptions)
+	if err != nil {
+		return nil, fmt.Errorf("unable to expand document: %w", err)
+	}
+	return result, nil
 }

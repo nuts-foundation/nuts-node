@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
+	"github.com/piprate/json-gold/ld"
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
@@ -94,6 +95,7 @@ type vcr struct {
 	holder          holder.Holder
 	issuerStore     issuer.Store
 	verifierStore   verifier.Store
+	contextLoader   ld.DocumentLoader
 }
 
 func (c *vcr) Registry() concept.Reader {
@@ -137,17 +139,18 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 
 	// Create the JSON-LD Context loader
 	allowExternalCalls := !config.Strictmode
-	contextLoader, err := signature.NewContextLoader(allowExternalCalls)
+	c.contextLoader, err = signature.NewContextLoader(allowExternalCalls)
 
 	publisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
-	c.issuer = issuer.NewIssuer(c.issuerStore, publisher, c.docResolver, c.keyStore, contextLoader, c.trustConfig)
-	c.verifier = verifier.NewVerifier(c.verifierStore, c.keyResolver, contextLoader, c.trustConfig)
+	c.issuer = issuer.NewIssuer(c.issuerStore, publisher, c.docResolver, c.keyStore, c.contextLoader, c.trustConfig)
+	c.verifier = verifier.NewVerifier(c.verifierStore, c.keyResolver, c.contextLoader, c.trustConfig)
 
 	c.ambassador = NewAmbassador(c.network, c, c.verifier)
 
-	c.holder = holder.New(c.keyResolver, c.keyStore, c.verifier, contextLoader)
+	c.holder = holder.New(c.keyResolver, c.keyStore, c.verifier, c.contextLoader)
 
 	// load VC concept templates
+	// Deprecated: remove after V2
 	if err = c.loadTemplates(); err != nil {
 		return err
 	}
@@ -175,12 +178,18 @@ func (c *vcr) Start() error {
 	var err error
 
 	// setup DB connection
-	if c.store, err = leia.NewStore(c.credentialsDBPath()); err != nil {
+	if c.store, err = leia.NewStore(c.credentialsDBPath(), leia.WithDocumentLoader(c.contextLoader)); err != nil {
 		return err
 	}
 
 	// init indices
+	// Deprecated: remove after V2
+	// TODO: remove entirely and make searchConcept backwards compatible?
 	if err = c.initIndices(); err != nil {
+		return err
+	}
+
+	if err = c.initJSONLDIndices(); err != nil {
 		return err
 	}
 
@@ -234,6 +243,11 @@ func whitespaceOrExactTokenizer(text string) (tokens []string) {
 	return
 }
 
+func (c *vcr) credentialCollection() leia.Collection {
+	return c.store.JSONLDCollection("credentials")
+}
+
+// Deprecated: remove after V2
 func (c *vcr) initIndices() error {
 	for _, config := range c.registry.Concepts() {
 		collection := c.store.JSONCollection(config.CredentialType)
@@ -282,6 +296,81 @@ func (c *vcr) initIndices() error {
 	return rIndex.AddIndex(rIndex.NewIndex("index_subject", leia.NewFieldIndexer(leia.NewJSONPath(credential.RevocationSubjectPath))))
 }
 
+func (c *vcr) loadJSONLDConfig() ([]concept.Config, error) {
+	list, err := fs.Glob(assets.Assets, "**/*.index.yaml")
+	if err != nil {
+		return nil, err
+	}
+
+	configs := make([]concept.Config, 0)
+	for _, f := range list {
+		bytes, err := assets.Assets.ReadFile(f)
+		if err != nil {
+			return nil, err
+		}
+		config := concept.Config{}
+		err = yaml.Unmarshal(bytes, &config)
+		if err != nil {
+			return nil, err
+		}
+
+		configs = append(configs, config)
+	}
+
+	return configs, nil
+}
+
+func (c *vcr) initJSONLDIndices() error {
+	collection := c.credentialCollection()
+
+	configs, err := c.loadJSONLDConfig()
+	if err != nil {
+		return err
+	}
+
+	for _, config := range configs {
+		for _, index := range config.Indices {
+			var leiaParts []leia.FieldIndexer
+
+			for _, iParts := range index.Parts {
+				options := make([]leia.IndexOption, 0)
+				if iParts.Tokenizer != nil {
+					tokenizer := strings.ToLower(*iParts.Tokenizer)
+					switch tokenizer {
+					case "whitespaceorexact":
+						options = append(options, leia.TokenizerOption(whitespaceOrExactTokenizer))
+					case "whitespace":
+						options = append(options, leia.TokenizerOption(leia.WhiteSpaceTokenizer))
+					default:
+						return fmt.Errorf("unknown tokenizer %s for %s", *iParts.Tokenizer, index.Name)
+					}
+				}
+				if iParts.Transformer != nil {
+					transformer := strings.ToLower(*iParts.Transformer)
+					switch transformer {
+					case "cologne":
+						options = append(options, leia.TransformerOption(concept.CologneTransformer))
+					case "lowercase":
+						options = append(options, leia.TransformerOption(leia.ToLower))
+					default:
+						return fmt.Errorf("unknown transformer %s for %s", *iParts.Transformer, index.Name)
+					}
+				}
+
+				leiaParts = append(leiaParts, leia.NewFieldIndexer(leia.NewIRIPath(iParts.IRIPath), options...))
+			}
+
+			leiaIndex := collection.NewIndex(index.Name, leiaParts...)
+			log.Logger().Debugf("Adding index %s", index.Name)
+
+			if err := collection.AddIndex(leiaIndex); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func (c *vcr) Name() string {
 	return moduleName
 }
@@ -290,9 +379,9 @@ func (c *vcr) Config() interface{} {
 	return &c.config
 }
 
-// Search for matching credentials based upon a query. It returns an empty list if no matches have been found.
+// SearchLegacy for matching credentials based upon a query. It returns an empty list if no matches have been found.
 // The optional resolveTime will Search for credentials at that point in time.
-func (c *vcr) Search(ctx context.Context, query concept.Query, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
+func (c *vcr) SearchLegacy(ctx context.Context, query concept.Query, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
 	//transform query to leia query, for each template a query is returned
 	queries := c.convert(query)
 
@@ -581,7 +670,7 @@ func (c *vcr) Get(conceptName string, allowUntrusted bool, subject string) (conc
 	ctx, cancel := context.WithTimeout(context.Background(), maxFindExecutionTime)
 	defer cancel()
 	// finding a VC that backs a concept always occurs in the present, so no resolveTime needs to be passed.
-	vcs, err := c.Search(ctx, q, allowUntrusted, nil)
+	vcs, err := c.SearchLegacy(ctx, q, allowUntrusted, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -604,7 +693,7 @@ func (c *vcr) SearchConcept(ctx context.Context, conceptName string, allowUntrus
 		query.AddClause(concept.Prefix(key, value))
 	}
 
-	results, err := c.Search(ctx, query, allowUntrusted, nil)
+	results, err := c.SearchLegacy(ctx, query, allowUntrusted, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -151,7 +151,7 @@ func TestVCR_SearchInternal(t *testing.T) {
 		ctx, q := testInstance(t)
 		ctx.vcr.Trust(vc.Type[1], vc.Issuer)
 
-		searchResult, err := ctx.vcr.Search(reqCtx, q, false, &now)
+		searchResult, err := ctx.vcr.SearchLegacy(reqCtx, q, false, &now)
 
 		if !assert.NoError(t, err) {
 			return
@@ -169,7 +169,7 @@ func TestVCR_SearchInternal(t *testing.T) {
 	t.Run("ok - untrusted", func(t *testing.T) {
 		ctx, q := testInstance(t)
 
-		creds, err := ctx.vcr.Search(reqCtx, q, false, nil)
+		creds, err := ctx.vcr.SearchLegacy(reqCtx, q, false, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -180,7 +180,7 @@ func TestVCR_SearchInternal(t *testing.T) {
 	t.Run("ok - untrusted but allowed", func(t *testing.T) {
 		ctx, q := testInstance(t)
 
-		creds, err := ctx.vcr.Search(reqCtx, q, true, nil)
+		creds, err := ctx.vcr.SearchLegacy(reqCtx, q, true, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -193,7 +193,7 @@ func TestVCR_SearchInternal(t *testing.T) {
 		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
 		rev := []byte(concept.TestRevocation)
 		ctx.vcr.store.JSONCollection(revocationCollection).Add([]leia.Document{rev})
-		creds, err := ctx.vcr.Search(reqCtx, q, false, nil)
+		creds, err := ctx.vcr.SearchLegacy(reqCtx, q, false, nil)
 		if !assert.NoError(t, err) {
 			return
 		}

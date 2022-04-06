@@ -77,6 +77,7 @@ func (c *vcr) writeCredential(subject vc.VerifiableCredential) error {
 	return collection.Add([]leia.Document{doc})
 }
 
+// Deprecated: only used for legacy proof
 func (c *vcr) StoreRevocation(r credential.Revocation) error {
 	// verify first
 	if err := c.verifyRevocation(r); err != nil {
@@ -86,6 +87,7 @@ func (c *vcr) StoreRevocation(r credential.Revocation) error {
 	return c.writeRevocation(r)
 }
 
+// Deprecated: only used for legacy proof
 func (c *vcr) writeRevocation(r credential.Revocation) error {
 	collection := c.revocationIndex()
 
@@ -94,6 +96,7 @@ func (c *vcr) writeRevocation(r credential.Revocation) error {
 	return collection.Add([]leia.Document{doc})
 }
 
+// Deprecated: only used for legacy proof
 func (c *vcr) revocationIndex() leia.Collection {
 	return c.store.JSONCollection(revocationCollection)
 }

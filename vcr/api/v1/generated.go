@@ -85,10 +85,10 @@ type ResolveParams struct {
 	ResolveTime *string `json:"resolveTime,omitempty"`
 }
 
-// SearchJSONBody defines parameters for Search.
+// SearchJSONBody defines parameters for SearchLegacy.
 type SearchJSONBody SearchRequest
 
-// SearchParams defines parameters for Search.
+// SearchParams defines parameters for SearchLegacy.
 type SearchParams struct {
 	// when true, the search also returns untrusted credentials. Default false
 	Untrusted *bool `json:"untrusted,omitempty"`
@@ -103,7 +103,7 @@ type TrustIssuerJSONRequestBody TrustIssuerJSONBody
 // CreateJSONRequestBody defines body for Create for application/json ContentType.
 type CreateJSONRequestBody CreateJSONBody
 
-// SearchJSONRequestBody defines body for Search for application/json ContentType.
+// SearchJSONRequestBody defines body for SearchLegacy for application/json ContentType.
 type SearchJSONRequestBody SearchJSONBody
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
@@ -564,7 +564,7 @@ func NewResolveRequest(server string, id string, params *ResolveParams) (*http.R
 	return req, nil
 }
 
-// NewSearchRequest calls the generic Search builder with application/json body
+// NewSearchRequest calls the generic SearchLegacy builder with application/json body
 func NewSearchRequest(server string, concept string, params *SearchParams, body SearchJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
@@ -575,7 +575,7 @@ func NewSearchRequest(server string, concept string, params *SearchParams, body 
 	return NewSearchRequestWithBody(server, concept, params, "application/json", bodyReader)
 }
 
-// NewSearchRequestWithBody generates requests for Search with any type of body
+// NewSearchRequestWithBody generates requests for SearchLegacy with any type of body
 func NewSearchRequestWithBody(server string, concept string, params *SearchParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
@@ -763,7 +763,7 @@ type ClientWithResponsesInterface interface {
 	// Resolve request
 	ResolveWithResponse(ctx context.Context, id string, params *ResolveParams, reqEditors ...RequestEditorFn) (*ResolveResponse, error)
 
-	// Search request with any body
+	// SearchLegacy request with any body
 	SearchWithBodyWithResponse(ctx context.Context, concept string, params *SearchParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SearchResponse, error)
 
 	SearchWithResponse(ctx context.Context, concept string, params *SearchParams, body SearchJSONRequestBody, reqEditors ...RequestEditorFn) (*SearchResponse, error)
@@ -1419,7 +1419,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		return wrapper.Resolve(context)
 	})
 	router.Add(http.MethodPost, baseURL+"/internal/vcr/v1/:concept", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("Search", context)
+		si.(Preprocessor).Preprocess("SearchLegacy", context)
 		return wrapper.Search(context)
 	})
 	router.Add(http.MethodGet, baseURL+"/internal/vcr/v1/:credentialType/trusted", func(context echo.Context) error {
