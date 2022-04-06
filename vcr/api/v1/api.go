@@ -85,7 +85,7 @@ func (w *Wrapper) Search(ctx echo.Context, conceptName string, requestParams Sea
 		untrusted = *requestParams.Untrusted
 	}
 
-	// for backwards compatibility
+	// for backwards compatibility: map old concept search parameters to JSON-LD IRI paths
 	for k, v := range params {
 		switch k {
 		case "subject":
