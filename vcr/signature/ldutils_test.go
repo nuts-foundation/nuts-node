@@ -100,7 +100,7 @@ func Test_embeddedFSDocumentLoader_LoadDocument(t *testing.T) {
 
 func TestNewContextLoader(t *testing.T) {
 	t.Run("it creates a new contextLoader", func(t *testing.T) {
-		loader, err := NewContextLoader(false)
+		loader, err := NewContextLoader(false, DefaultJsonLdContextConfig())
 		assert.NoError(t, err)
 		doc, err := loader.LoadDocument("https://schema.org")
 		assert.NoError(t, err)
@@ -108,14 +108,14 @@ func TestNewContextLoader(t *testing.T) {
 	})
 
 	t.Run("it fails requesting an external doc when allowingExternalCalls is false", func(t *testing.T) {
-		loader, err := NewContextLoader(false)
+		loader, err := NewContextLoader(false, DefaultJsonLdContextConfig())
 		assert.NoError(t, err)
 		_, err = loader.LoadDocument("http://example.org")
 		assert.EqualError(t, err, "loading document failed")
 	})
 
 	t.Run("it resolves an external doc when allowingExternalCalls is true", func(t *testing.T) {
-		loader, err := NewContextLoader(true)
+		loader, err := NewContextLoader(true, DefaultJsonLdContextConfig())
 		assert.NoError(t, err)
 		doc, err := loader.LoadDocument("http://schema.org")
 		assert.NoError(t, err)

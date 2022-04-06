@@ -39,8 +39,6 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		OverrideIssueAllPublic: true,
-		JsonLdContexts: signature.JsonLdContexts{
-			RemoteAllowList: signature.DefaultAllowList(),
-		},
+		JsonLdContexts:         signature.DefaultJsonLdContextConfig(),
 	}
 }

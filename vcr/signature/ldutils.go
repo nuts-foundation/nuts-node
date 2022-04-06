@@ -103,6 +103,17 @@ const SchemaOrgContext = "https://schema.org"
 const W3cVcContext = "https://www.w3.org/2018/credentials/v1"
 const Jws2020Context = "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
 
+func DefaultJsonLdContextConfig() JsonLdContexts {
+	return JsonLdContexts{
+		RemoteAllowList: DefaultAllowList(),
+		LocalFileMapping: []FileMapping{
+			{Url: "https://nuts.nl/credentials/v1", Path: "assets/contexts/nuts.ldjson"},
+			{Url: "https://www.w3.org/2018/credentials/v1", Path: "assets/contexts/w3c-credentials-v1.ldjson"},
+			{Url: "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json", Path: "assets/contexts/lds-jws2020-v1.ldjson"},
+			{Url: "https://schema.org", Path: "assets/contexts/schema-org-v13.ldjson"},
+		},
+	}
+}
 func DefaultAllowList() []string {
 	return []string{SchemaOrgContext, W3cVcContext, Jws2020Context}
 }
