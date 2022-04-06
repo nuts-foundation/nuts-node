@@ -29,10 +29,34 @@ type Config struct {
 	// if set to true, all issued credentials are published as public credentials, regardless of whether they're actually marked as public.
 	OverrideIssueAllPublic bool `koanf:"vcr.overrideissueallpublic"`
 	// datadir holds the location the VCR files are stored
-	datadir string
+	datadir        string
+	JsonLdContexts JsonLdContexts `koanf:"vcr.jsonldcontexts"`
+}
+
+type JsonLdContexts struct {
+	RemoteAllowList  []string      `koanf:"remoteallowlist"`
+	LocalFileMapping []FileMapping `koanf:"localmapping"`
+}
+
+type FileMapping struct {
+	Url  string `koanf:"url"`
+	Path string `koanf:"path"`
 }
 
 // DefaultConfig returns a fresh Config filled with default values
 func DefaultConfig() Config {
-	return Config{OverrideIssueAllPublic: true}
+	return Config{
+		OverrideIssueAllPublic: true,
+		JsonLdContexts: JsonLdContexts{
+			RemoteAllowList: DefaultAllowList(),
+		},
+	}
+}
+
+const SchemaOrgContext = "https://schema.org"
+const W3cVcContext = "https://www.w3.org/2018/credentials/v1"
+const Jws2020Context = "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
+
+func DefaultAllowList() []string {
+	return []string{SchemaOrgContext, W3cVcContext, Jws2020Context}
 }
