@@ -174,3 +174,57 @@ func (util LDUtil) Expand(jsonLD []byte) ([]interface{}, error) {
 	}
 	return result, nil
 }
+
+// ExtractValue returns the single value located at the requested nesting or nil if not found
+func ExtractValue(expanded []interface{}, IRIPath []string) interface{} {
+	result := valuesFromSlice(expanded, IRIPath)
+	if len(result) == 0 {
+		return nil
+	}
+	return result[0]
+}
+
+func valuesFromSlice(expanded []interface{}, IRIPath []string) []interface{} {
+	result := make([]interface{}, 0)
+
+	for _, sub := range expanded {
+		switch typedSub := sub.(type) {
+		case []interface{}:
+			result = append(result, valuesFromSlice(typedSub, IRIPath)...)
+		case map[string]interface{}:
+			result = append(result, valuesFromMap(typedSub, IRIPath)...)
+		}
+	}
+
+	return result
+}
+
+func valuesFromMap(expanded map[string]interface{}, IRIPath []string) []interface{} {
+	// JSON-LD in expanded form either has @value, @id, @list or @set
+	if len(IRIPath) == 0 {
+		if value, ok := expanded["@value"]; ok {
+			return []interface{}{value}
+		}
+		if id, ok := expanded["@id"]; ok {
+			return []interface{}{id}
+		}
+		if list, ok := expanded["@list"]; ok {
+			castList := list.([]interface{})
+			return valuesFromSlice(castList, IRIPath)
+		}
+	}
+
+	if value, ok := expanded[IRIPath[0]]; ok {
+		// the value should now be a slice
+		next, ok := value.([]interface{})
+		if !ok {
+			return nil
+		}
+		if len(IRIPath) == 1 {
+			return valuesFromSlice(next, []string{})
+		}
+		return valuesFromSlice(next, IRIPath[1:])
+	}
+
+	return nil
+}

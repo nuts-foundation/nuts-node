@@ -19,6 +19,7 @@
 package oauth
 
 import (
+	"context"
 	"crypto"
 	"encoding/json"
 	"errors"
@@ -30,12 +31,12 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	vc2 "github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/didman"
+	"github.com/nuts-foundation/nuts-node/vcr/signature"
 
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
@@ -53,7 +54,7 @@ const userIdentityClaim = "usi"
 
 type service struct {
 	docResolver     types.DocResolver
-	conceptFinder   vcr.ConceptFinder
+	vcFinder        vcr.Finder
 	vcValidator     vcr.Validator
 	keyResolver     types.KeyResolver
 	privateKeyStore nutsCrypto.KeyStore
@@ -138,13 +139,13 @@ func (c validationContext) verifiableCredentials() ([]vc2.VerifiableCredential, 
 }
 
 // NewOAuthService accepts a vendorID, and several Nuts engines and returns an implementation of services.OAuthClient
-func NewOAuthService(store types.Store, conceptFinder vcr.ConceptFinder, vcValidator vcr.Validator, serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore, contractNotary services.ContractNotary) services.OAuthClient {
+func NewOAuthService(store types.Store, vcFinder vcr.Finder, vcValidator vcr.Validator, serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore, contractNotary services.ContractNotary) services.OAuthClient {
 	return &service{
 		docResolver:     doc.Resolver{Store: store},
 		keyResolver:     doc.KeyResolver{Store: store},
 		serviceResolver: serviceResolver,
 		contractNotary:  contractNotary,
-		conceptFinder:   conceptFinder,
+		vcFinder:        vcFinder,
 		vcValidator:     vcValidator,
 		privateKeyStore: privateKeyStore,
 	}
@@ -276,27 +277,50 @@ func (s *service) validateAudience(context *validationContext) error {
 // check the requester against the registry, according to RFC003 §5.2.1.3
 // - the signing key (KID) must be present as assertionMethod in the issuer's DID.
 // - the requester name/city which must match the login contract.
-func (s *service) validateIssuer(context *validationContext) error {
-	if _, err := did.ParseDID(context.jwtBearerToken.Issuer()); err != nil {
+func (s *service) validateIssuer(vContext *validationContext) error {
+	if _, err := did.ParseDID(vContext.jwtBearerToken.Issuer()); err != nil {
 		return fmt.Errorf(errInvalidIssuerFmt, err)
 	}
 
-	validationTime := context.jwtBearerToken.IssuedAt()
-	if _, err := s.keyResolver.ResolveSigningKey(context.kid, &validationTime); err != nil {
+	validationTime := vContext.jwtBearerToken.IssuedAt()
+	if _, err := s.keyResolver.ResolveSigningKey(vContext.kid, &validationTime); err != nil {
 		return fmt.Errorf(errInvalidIssuerKeyFmt, err)
 	}
 
-	// organization credentials MUST come from a trusted source
-	orgConcept, err := s.conceptFinder.Get(concept.OrganizationConcept, false, context.jwtBearerToken.Issuer())
+	// TODO
+	searchTerms := []vcr.SearchTerm{
+		{
+			IRIPath: []string{"https://www.w3.org/2018/credentials#credentialSubject"},
+			Value:   vContext.jwtBearerToken.Issuer(),
+		},
+		{
+			IRIPath: []string{"@type"},
+			Value:   "https://nuts.nl/credentials/v1#NutsOrganizationCredential",
+		},
+	}
+	vcs, err := s.vcFinder.Search(context.Background(), searchTerms, false, &validationTime)
 	if err != nil {
 		return fmt.Errorf(errInvalidIssuerFmt, err)
 	}
 
-	if context.requesterName, err = orgConcept.GetString(concept.OrganizationName); err != nil {
-		return fmt.Errorf(errInvalidIssuerFmt, fmt.Errorf(errInvalidOrganizationVC, err))
+	if len(vcs) == 0 {
+		return errors.New("requester has no trusted organization VC")
 	}
-	if context.requesterCity, err = orgConcept.GetString(concept.OrganizationCity); err != nil {
-		return fmt.Errorf(errInvalidIssuerFmt, fmt.Errorf(errInvalidOrganizationVC, err))
+
+	// TODO: used a lot
+	// expand
+	expanded, err := s.vcFinder.Expand(vcs[0])
+	if err != nil {
+		return fmt.Errorf("could not expand credential to JSON-LD: %w", err)
+	}
+	var ok bool
+	rawOrgName := signature.ExtractValue(expanded, []string{"https://www.w3.org/2018/credentials#credentialSubject", "http://schema.org/organization", "http://schema.org/name"})
+	if vContext.requesterName, ok = rawOrgName.(string); !ok {
+		return fmt.Errorf("found credential where organization name is not a string (VC.ID: %s)", vcs[0].ID.String())
+	}
+	rawOrgCity := signature.ExtractValue(expanded, []string{"https://www.w3.org/2018/credentials#credentialSubject", "http://schema.org/organization", "http://schema.org/city"})
+	if vContext.requesterCity, ok = rawOrgCity.(string); !ok {
+		return fmt.Errorf("found credential where organization city is not a string (VC.ID: %s)", vcs[0].ID.String())
 	}
 
 	return nil

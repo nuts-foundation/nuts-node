@@ -36,6 +36,15 @@ type SearchTerm struct {
 	Value   interface{}
 }
 
+func (c *vcr) Expand(credential vc.VerifiableCredential) ([]interface{}, error) {
+	jsonLD, err := json.Marshal(credential)
+	if err != nil {
+		return nil, err
+	}
+
+	return signature.LDUtil{LDDocumentLoader: c.contextLoader}.Expand(jsonLD)
+}
+
 func (c *vcr) ExpandAndConvert(credential vc.VerifiableCredential) ([]SearchTerm, error) {
 	jsonLD, err := json.Marshal(credential)
 	if err != nil {

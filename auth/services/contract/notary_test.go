@@ -66,7 +66,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
-		ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(orgConcept, nil)
+		//ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(orgConcept, nil)
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
 		if !assert.NoError(t, err) {
@@ -83,7 +83,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
-		ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(orgConcept, nil)
+		//ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(orgConcept, nil)
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, 0)
 		if !assert.NoError(t, err) {
@@ -100,7 +100,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
-		ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(orgConcept, nil)
+		//ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(orgConcept, nil)
 
 		timeNow = func() time.Time {
 			return time.Time{}.Add(10 * time.Second)
@@ -134,7 +134,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
-		ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(concept.Concept{"organization": concept.Concept{"city": orgCity}}, nil)
+		//ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(concept.Concept{"organization": concept.Concept{"city": orgCity}}, nil)
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
 
@@ -148,7 +148,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
-		ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(concept.Concept{"organization": concept.Concept{"name": orgName}}, nil)
+		//ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(concept.Concept{"organization": concept.Concept{"name": orgName}}, nil)
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
 
@@ -189,7 +189,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
-		ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(nil, errors.New("error occurred"))
+		//ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(nil, errors.New("error occurred"))
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
 		if assert.Error(t, err) {
@@ -204,7 +204,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
-		ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(orgConcept, nil)
+		//ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(orgConcept, nil)
 
 		template := contract.Template{
 			Template: "Organisation Name: {{{legal_entity}}, valid from {{valid_from}} to {{valid_to}}",

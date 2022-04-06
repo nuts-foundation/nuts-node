@@ -83,7 +83,7 @@ type Index struct {
 // IndexPart defines the JSONPath and type of index for a partial index within a compound index
 type IndexPart struct {
 	// IRIPath defines the JSON-LD search path
-	IRIPath string `yaml:"iriPath"`
+	IRIPath []string `yaml:"iriPath"`
 	// JSONPath defines the JSON search path
 	JSONPath string `yaml:"path"`
 	// Tokenizer defines an optional tokenizer. Possible values: [whitespace]

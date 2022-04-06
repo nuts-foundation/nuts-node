@@ -1038,7 +1038,7 @@ var createContext = func(t *testing.T) *testContext {
 			keyResolver:     keyResolver,
 			contractNotary:  contractNotaryMock,
 			privateKeyStore: privateKeyStore,
-			conceptFinder:   nameResolver,
+			vcFinder:        nameResolver,
 			serviceResolver: serviceResolver,
 			vcValidator:     vcValidator,
 		},

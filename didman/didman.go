@@ -29,9 +29,11 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/didman/log"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/concept"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/shengdoushi/base58"
@@ -279,7 +281,20 @@ func (d *didman) GetContactInformation(id did.DID) (*ContactInformation, error) 
 }
 
 func (d *didman) SearchOrganizations(ctx context.Context, query string, didServiceType *string) ([]OrganizationSearchResult, error) {
-	organizations, err := d.vcr.SearchConcept(ctx, concept.OrganizationConcept, false, map[string]string{"credentialSubject.organization.name": query})
+
+	// TODO search like in notary.
+	searchTerms := make([]vcr.SearchTerm, 0)
+	searchTerms = append(searchTerms, vcr.SearchTerm{
+		IRIPath: []string{"https://www.w3.org/2018/credentials#credentialSubject", "http://schema.org/organization", "http://schema.org/name"},
+		Value:   query,
+	})
+	// TODO find any credential adding organization info: not-nil query or range query? everything between 0x0 and 0xff
+	searchTerms = append(searchTerms, vcr.SearchTerm{
+		IRIPath: []string{"@type"},
+		Value:   "https://nuts.nl/credentials/v1#NutsOrganizationCredential",
+	})
+
+	organizations, err := d.vcr.Search(ctx, searchTerms, false, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -309,13 +324,28 @@ func (d *didman) SearchOrganizations(ctx context.Context, query string, didServi
 	// Convert organization concepts and DID documents to search results
 	results := make([]OrganizationSearchResult, len(organizations))
 	for i := range organizations {
-		organization, ok := organizations[i]["organization"].(map[string]interface{})
-		if !ok {
-			return nil, errors.New("unable to map organization to concept")
+		// expand
+		expanded, err := d.vcr.Expand(organizations[i])
+		if err != nil {
+			return nil, fmt.Errorf("failed to expand credential to JSON-LD: %w", err)
 		}
+		var orgName, orgCity string
+		var ok bool
+		rawOrgName := signature.ExtractValue(expanded, []string{"https://www.w3.org/2018/credentials#credentialSubject", "http://schema.org/organization", "http://schema.org/name"})
+		if orgName, ok = rawOrgName.(string); !ok {
+			return nil, fmt.Errorf("failed to extract organization name from verifiable credential (VC.ID: %s)", organizations[i].ID.String())
+		}
+		rawOrgCity := signature.ExtractValue(expanded, []string{"https://www.w3.org/2018/credentials#credentialSubject", "http://schema.org/organization", "http://schema.org/city"})
+		if orgCity, ok = rawOrgCity.(string); !ok {
+			return nil, fmt.Errorf("failed to extract organization name from verifiable credential (VC.ID: %s)", organizations[i].ID.String())
+		}
+
 		results[i] = OrganizationSearchResult{
-			DIDDocument:  *didDocuments[i],
-			Organization: organization,
+			DIDDocument: *didDocuments[i],
+			Organization: map[string]interface{}{
+				"name": orgName,
+				"city": orgCity,
+			},
 		}
 	}
 
@@ -325,7 +355,7 @@ func (d *didman) SearchOrganizations(ctx context.Context, query string, didServi
 // resolveOrganizationDIDDocuments takes a slice of organization concepts and tries to resolve the corresponding DID document for each.
 // If a DID document isn't found or it is deactivated the organization is filtered from the concepts slice (reslicing the given slice) and omitted from the DID documents slice.
 // If any other error occurs, it is returned.
-func (d *didman) resolveOrganizationDIDDocuments(organizations []concept.Concept) ([]*did.Document, []concept.Concept, error) {
+func (d *didman) resolveOrganizationDIDDocuments(organizations []vc.VerifiableCredential) ([]*did.Document, []vc.VerifiableCredential, error) {
 	didDocuments := make([]*did.Document, len(organizations))
 	j := 0
 	for i, organization := range organizations {
@@ -348,14 +378,16 @@ func (d *didman) resolveOrganizationDIDDocuments(organizations []concept.Concept
 	return didDocuments, organizations, nil
 }
 
-func (d *didman) resolveOrganizationDIDDocument(organization concept.Concept) (*did.Document, did.DID, error) {
-	organizationDIDStr, err := organization.GetString(concept.SubjectField)
+func (d *didman) resolveOrganizationDIDDocument(organization vc.VerifiableCredential) (*did.Document, did.DID, error) {
+	credentialSubject := credential.BaseCredentialSubject{}
+	err := organization.UnmarshalCredentialSubject(&credentialSubject)
 	if err != nil {
-		return nil, did.DID{}, fmt.Errorf("unable to get DID from organization concept: %w", err)
+		return nil, did.DID{}, fmt.Errorf("unable to get DID from organization credential: %w", err)
 	}
+	organizationDIDStr := credentialSubject.ID
 	organizationDID, err := did.ParseDID(organizationDIDStr)
 	if err != nil {
-		return nil, did.DID{}, fmt.Errorf("unable to parse DID from organization concept: %w", err)
+		return nil, did.DID{}, fmt.Errorf("unable to parse DID from organization credential: %w", err)
 	}
 	document, _, err := d.docResolver.Resolve(*organizationDID, nil)
 	return document, *organizationDID, err

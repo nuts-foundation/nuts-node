@@ -33,30 +33,19 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 )
 
-// ConceptFinder can resolve VC backed concepts for a DID.
-// Deprecated: remove after V2
-type ConceptFinder interface {
-	// Get returns the requested concept as concept.Concept for the subject or ErrNotFound
-	// It also returns untrusted credentials when allowUntrusted == true
-	Get(conceptName string, allowUntrusted bool, subject string) (concept.Concept, error)
-
-	// SearchConcept returns matching concepts based upon a query. It returns an empty list if no matches have been found.
-	// It also returns untrusted credentials when allowUntrusted == true
-	// a context must be passed to prevent long-running queries
-	SearchConcept(ctx context.Context, conceptName string, allowUntrusted bool, query map[string]string) ([]concept.Concept, error)
-}
-
 // Finder is the VCR interface for searching VCs
 type Finder interface {
 	// SearchLegacy for matching VCs based upon a query. It returns an empty list if no matches have been found.
 	// It also returns untrusted credentials when allowUntrusted == true
 	// a context must be passed to prevent long-running queries
 	// Deprecated: remove after V2
-	SearchLegacy(ctx context.Context, query concept.Query, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error)
+	//SearchLegacy(ctx context.Context, query concept.Query, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error)
 
 	Search(ctx context.Context, searchTerms []SearchTerm, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error)
 
 	ExpandAndConvert(credential vc.VerifiableCredential) ([]SearchTerm, error)
+
+	Expand(credential vc.VerifiableCredential) ([]interface{}, error)
 }
 
 // Validator is the VCR interface for validation options
@@ -119,7 +108,6 @@ type VCR interface {
 	Revoke(ID ssi.URI) (*credential.Revocation, error)
 
 	Finder
-	ConceptFinder
 	Resolver
 	TrustManager
 	Validator

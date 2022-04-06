@@ -19,12 +19,15 @@
 package contract
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/vcr/signature"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -40,7 +43,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/services/x509"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/concept"
 )
 
 // ErrMissingOrganizationKey is used to indicate that this node has no private key of the indicated organization.
@@ -113,17 +115,38 @@ func (n *notary) DrawUpContract(template contract.Template, orgID did.DID, valid
 	}
 
 	// DrawUpContract draws up a contract for a specific organization from a template
-	result, err := n.vcr.Get(concept.OrganizationConcept, false, orgID.String())
+	searchTerms := make([]vcr.SearchTerm, 0)
+	searchTerms = append(searchTerms, vcr.SearchTerm{
+		IRIPath: []string{"https://www.w3.org/2018/credentials#credentialSubject"},
+		Value:   orgID.String(),
+	})
+	// TODO find any credential adding organization info: not-nil query or range query? everything between 0x0 and 0xff
+	searchTerms = append(searchTerms, vcr.SearchTerm{
+		IRIPath: []string{"@type"},
+		Value:   "https://nuts.nl/credentials/v1#NutsOrganizationCredential",
+	})
+
+	result, err := n.vcr.Search(context.Background(), searchTerms, false, nil)
 	if err != nil {
 		return nil, fmt.Errorf("could not draw up contract: %w", err)
 	}
-	orgName, err := result.GetString(concept.OrganizationName)
+
+	// TODO: Check zero length
+
+	// expand
+	expanded, err := n.vcr.Expand(result[0])
 	if err != nil {
-		return nil, fmt.Errorf("could not draw up contract, could not extract organization name: %w", err)
+		return nil, fmt.Errorf("could not draw up contract: %w", err)
 	}
-	orgCity, err := result.GetString(concept.OrganizationCity)
-	if err != nil {
-		return nil, fmt.Errorf("could not draw up contract, could not extract organization city: %w", err)
+	var orgName, orgCity string
+	var ok bool
+	rawOrgName := signature.ExtractValue(expanded, []string{"https://www.w3.org/2018/credentials#credentialSubject", "http://schema.org/organization", "http://schema.org/name"})
+	if orgName, ok = rawOrgName.(string); !ok {
+		return nil, fmt.Errorf("could not draw up contract: found credential where organization name is not a string (VC.ID: %s)", result[0].ID.String())
+	}
+	rawOrgCity := signature.ExtractValue(expanded, []string{"https://www.w3.org/2018/credentials#credentialSubject", "http://schema.org/organization", "http://schema.org/city"})
+	if orgCity, ok = rawOrgCity.(string); !ok {
+		return nil, fmt.Errorf("could not draw up contract: found credential where organization city is not a string (VC.ID: %s)", result[0].ID.String())
 	}
 
 	contractAttrs := map[string]string{

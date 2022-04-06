@@ -183,12 +183,6 @@ func (c *vcr) Start() error {
 	}
 
 	// init indices
-	// Deprecated: remove after V2
-	// TODO: remove entirely and make searchConcept backwards compatible?
-	if err = c.initIndices(); err != nil {
-		return err
-	}
-
 	if err = c.initJSONLDIndices(); err != nil {
 		return err
 	}
@@ -245,55 +239,6 @@ func whitespaceOrExactTokenizer(text string) (tokens []string) {
 
 func (c *vcr) credentialCollection() leia.Collection {
 	return c.store.JSONLDCollection("credentials")
-}
-
-// Deprecated: remove after V2
-func (c *vcr) initIndices() error {
-	for _, config := range c.registry.Concepts() {
-		collection := c.store.JSONCollection(config.CredentialType)
-		for _, index := range config.Indices {
-			var leiaParts []leia.FieldIndexer
-
-			for _, iParts := range index.Parts {
-				options := make([]leia.IndexOption, 0)
-				if iParts.Tokenizer != nil {
-					tokenizer := strings.ToLower(*iParts.Tokenizer)
-					switch tokenizer {
-					case "whitespaceorexact":
-						options = append(options, leia.TokenizerOption(whitespaceOrExactTokenizer))
-					case "whitespace":
-						options = append(options, leia.TokenizerOption(leia.WhiteSpaceTokenizer))
-					default:
-						return fmt.Errorf("unknown tokenizer %s for %s", *iParts.Tokenizer, config.CredentialType)
-					}
-				}
-				if iParts.Transformer != nil {
-					transformer := strings.ToLower(*iParts.Transformer)
-					switch transformer {
-					case "cologne":
-						options = append(options, leia.TransformerOption(concept.CologneTransformer))
-					case "lowercase":
-						options = append(options, leia.TransformerOption(leia.ToLower))
-					default:
-						return fmt.Errorf("unknown transformer %s for %s", *iParts.Transformer, config.CredentialType)
-					}
-				}
-
-				leiaParts = append(leiaParts, leia.NewFieldIndexer(leia.NewJSONPath(iParts.JSONPath), options...))
-			}
-
-			leiaIndex := collection.NewIndex(index.Name, leiaParts...)
-			log.Logger().Debugf("Adding index %s to %s using: %v", index.Name, config.CredentialType, leiaIndex)
-
-			if err := collection.AddIndex(leiaIndex); err != nil {
-				return err
-			}
-		}
-	}
-
-	// revocation indices
-	rIndex := c.revocationIndex()
-	return rIndex.AddIndex(rIndex.NewIndex("index_subject", leia.NewFieldIndexer(leia.NewJSONPath(credential.RevocationSubjectPath))))
 }
 
 func (c *vcr) loadJSONLDConfig() ([]concept.Config, error) {
@@ -357,7 +302,7 @@ func (c *vcr) initJSONLDIndices() error {
 					}
 				}
 
-				leiaParts = append(leiaParts, leia.NewFieldIndexer(leia.NewIRIPath(iParts.IRIPath), options...))
+				leiaParts = append(leiaParts, leia.NewFieldIndexer(leia.NewIRIPath(iParts.IRIPath...), options...))
 			}
 
 			leiaIndex := collection.NewIndex(index.Name, leiaParts...)
@@ -377,80 +322,6 @@ func (c *vcr) Name() string {
 
 func (c *vcr) Config() interface{} {
 	return &c.config
-}
-
-// SearchLegacy for matching credentials based upon a query. It returns an empty list if no matches have been found.
-// The optional resolveTime will Search for credentials at that point in time.
-func (c *vcr) SearchLegacy(ctx context.Context, query concept.Query, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
-	//transform query to leia query, for each template a query is returned
-	queries := c.convert(query)
-
-	var VCs = make([]vc.VerifiableCredential, 0)
-	for vcType, q := range queries {
-		docs, err := c.store.JSONCollection(vcType).Find(ctx, q)
-		if err != nil {
-			return nil, err
-		}
-		for _, doc := range docs {
-			foundCredential := vc.VerifiableCredential{}
-			err = json.Unmarshal(doc, &foundCredential)
-			if err != nil {
-				return nil, fmt.Errorf("unable to parse credential from db: %w", err)
-			}
-
-			if err = c.Validate(foundCredential, allowUntrusted, false, resolveTime); err == nil {
-				VCs = append(VCs, foundCredential)
-			}
-		}
-	}
-
-	return VCs, nil
-}
-
-func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
-	if len(template.Type) != 1 {
-		return nil, errors.New("can only issue credential with 1 type")
-	}
-	templateType := template.Type[0]
-	templateTypeString := templateType.String()
-	conceptConfig := c.registry.FindByType(templateTypeString)
-	if conceptConfig == nil {
-		if c.config.strictMode {
-			return nil, errors.New("cannot issue non-predefined credential types in strict mode")
-		}
-		// non-strictmode, add the credential type to the registry
-		conceptConfig = &concept.Config{
-			Concept:        templateTypeString,
-			CredentialType: templateTypeString,
-		}
-		c.registry.Add(*conceptConfig)
-	}
-
-	template.Context = append(template.Context, *credential.NutsContextURI)
-	verifiableCredential, err := c.issuer.Issue(template, true, c.config.OverrideIssueAllPublic || conceptConfig.Public)
-
-	if err != nil {
-		return nil, err
-	}
-
-	// find issuer
-	issuerDID, err := did.ParseDID(verifiableCredential.Issuer.String())
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse issuer: %w", err)
-	}
-
-	if !c.trustConfig.IsTrusted(templateType, issuerDID.URI()) {
-		log.Logger().WithFields(map[string]interface{}{"did": issuerDID.String(), "credential.Type": templateType}).
-			Debugf("Issuer not yet trusted, adding trust for DID.")
-		if err := c.Trust(templateType, issuerDID.URI()); err != nil {
-			return verifiableCredential, fmt.Errorf("failed to trust issuer after issuing VC (did=%s,type=%s): %w", *issuerDID, templateType, err)
-		}
-	} else {
-		log.Logger().WithFields(map[string]interface{}{"did": issuerDID.String(), "credential.Type": templateType}).
-			Debugf("Issuer already trusted.")
-	}
-
-	return verifiableCredential, nil
 }
 
 func (c *vcr) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {
