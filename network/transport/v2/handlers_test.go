@@ -247,23 +247,11 @@ func TestProtocol_handleGossip(t *testing.T) {
 
 	t.Run("ok - new transaction ref", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
-		mockConnection := grpc.NewMockConnection(mocks.Controller)
 		mocks.State.EXPECT().IsPresent(gomock.Any(), hash.EmptyHash()).Return(false, nil)
 		mocks.State.EXPECT().XOR(gomock.Any(), gomock.Any()).Return(xor, clock)
 		mocks.Gossip.EXPECT().GossipReceived(peer.ID, hash.EmptyHash())
-		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peer.ID)).Return(mockConnection)
-		mockConnection.EXPECT().Send(gomock.Any(), gomock.Any()).DoAndReturn(func(arg0 interface{}, arg1 interface{}) error {
-			envelope, ok := arg1.(*Envelope)
-			if !assert.True(t, ok) {
-				return nil
-			}
-			msg, ok := envelope.Message.(*Envelope_TransactionListQuery)
-			if !assert.True(t, ok) {
-				return nil
-			}
-			assert.Equal(t, bytes, msg.TransactionListQuery.Refs)
-			return nil
-		})
+
+		mocks.Sender.EXPECT().sendTransactionListQuery(peer.ID, []hash.SHA256Hash{hash.FromSlice(bytes[0])})
 
 		err := p.Handle(peer, &Envelope{
 			Message: &Envelope_Gossip{&Gossip{XOR: xor.Slice(), LC: clock, Transactions: bytes}},
@@ -479,44 +467,25 @@ func TestProtocol_handleTransactionListQuery(t *testing.T) {
 	h1 := dagT1.Ref()
 	h2 := dagT2.Ref()
 	t1 := Transaction{
-		Hash:    h2.Slice(),
+		Hash:    h1.Slice(),
 		Data:    dagT1.Data(),
 		Payload: []byte{1},
 	}
 	t2 := Transaction{
-		Hash:    h1.Slice(),
+		Hash:    h2.Slice(),
 		Data:    dagT2.Data(),
 		Payload: []byte{2},
 	}
 
-	mockWithConnection := func(t *testing.T) (*protocol, protocolMocks, *grpc.MockConnection) {
-		p, mocks := newTestProtocol(t, nil)
-		mockConnection := grpc.NewMockConnection(mocks.Controller)
-		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), gomock.Any()).Return(mockConnection)
-		return p, mocks, mockConnection
-	}
-
 	t.Run("ok - send 2 transactions sorted on LC", func(t *testing.T) {
-		p, mocks, mockConnection := mockWithConnection(t)
+		p, mocks := newTestProtocol(t, nil)
 		expectedTransactions := []*Transaction{&t1, &t2}
 		mocks.State.EXPECT().GetTransaction(context.Background(), h1).Return(dagT1, nil)
 		mocks.State.EXPECT().GetTransaction(context.Background(), h2).Return(dagT2, nil)
 		mocks.State.EXPECT().ReadPayload(context.Background(), dagT1.PayloadHash()).Return(t1.Payload, nil)
 		mocks.State.EXPECT().ReadPayload(context.Background(), dagT2.PayloadHash()).Return(t2.Payload, nil)
-		mockConnection.EXPECT().Send(gomock.Any(), gomock.Any()).DoAndReturn(func(arg0 interface{}, arg1 interface{}) error {
-			envelope, ok := arg1.(*Envelope)
-			if !assert.True(t, ok) {
-				return nil
-			}
-			msg, ok := envelope.Message.(*Envelope_TransactionList)
-			if !assert.True(t, ok) {
-				return nil
-			}
-			assert.Equal(t, conversationID.slice(), msg.TransactionList.ConversationID)
-			assert.Equal(t, expectedTransactions, msg.TransactionList.Transactions)
 
-			return nil
-		})
+		mocks.Sender.EXPECT().sendTransactionList(peer.ID, conversationID, gomock.Eq(expectedTransactions))
 
 		err := p.Handle(peer, &Envelope{
 			Message: &Envelope_TransactionListQuery{&TransactionListQuery{
@@ -529,9 +498,11 @@ func TestProtocol_handleTransactionListQuery(t *testing.T) {
 	})
 
 	t.Run("ok - tx not present", func(t *testing.T) {
-		p, mocks, _ := mockWithConnection(t)
+		p, mocks := newTestProtocol(t, nil)
 		mocks.State.EXPECT().GetTransaction(context.Background(), h1).Return(nil, nil)
 		mocks.State.EXPECT().GetTransaction(context.Background(), h2).Return(nil, nil)
+
+		mocks.Sender.EXPECT().sendTransactionList(peer.ID, conversationID, gomock.Any())
 
 		err := p.Handle(peer, &Envelope{
 			Message: &Envelope_TransactionListQuery{&TransactionListQuery{
@@ -573,10 +544,11 @@ func TestProtocol_handleTransactionListQuery(t *testing.T) {
 	})
 
 	t.Run("ok - missing payload", func(t *testing.T) {
-		p, mocks, _ := mockWithConnection(t)
+		p, mocks := newTestProtocol(t, nil)
 		mocks.State.EXPECT().GetTransaction(context.Background(), h1).Return(dagT1, nil)
 		mocks.State.EXPECT().GetTransaction(context.Background(), h2).Return(dagT2, nil)
 		mocks.State.EXPECT().ReadPayload(context.Background(), dagT1.PayloadHash()).Return(nil, nil)
+		mocks.Sender.EXPECT().sendTransactionList(peer.ID, conversationID, []*Transaction{})
 
 		err := p.Handle(peer, &Envelope{
 			Message: &Envelope_TransactionListQuery{&TransactionListQuery{

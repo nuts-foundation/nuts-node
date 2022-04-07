@@ -50,6 +50,7 @@ type protocolMocks struct {
 	Decrypter        *crypto.MockDecrypter
 	Gossip           *gossip.MockManager
 	ConnectionList   *grpc.MockConnectionList
+	Sender           *MockmessageSender
 }
 
 func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) {
@@ -62,6 +63,7 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 	gMan := gossip.NewMockManager(ctrl)
 	payloadScheduler := NewMockScheduler(ctrl)
 	connectionList := grpc.NewMockConnectionList(ctrl)
+	sender := NewMockmessageSender(ctrl)
 	nodeDIDResolver := transport.FixedNodeDIDResolver{}
 
 	if nodeDID != nil {
@@ -75,9 +77,17 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 	proto.(*protocol).gManager = gMan
 	proto.(*protocol).cMan = newConversationManager(time.Second)
 	proto.(*protocol).connectionList = connectionList
+	proto.(*protocol).sender = sender
 
 	return proto.(*protocol), protocolMocks{
-		ctrl, state, payloadScheduler, docResolver, decrypter, gMan, connectionList,
+		Controller: ctrl,
+		State: state,
+		PayloadScheduler: payloadScheduler,
+		DocResolver: docResolver,
+		Decrypter: decrypter,
+		Gossip: gMan,
+		ConnectionList: connectionList,
+		Sender: sender,
 	}
 }
 

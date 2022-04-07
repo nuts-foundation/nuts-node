@@ -29,6 +29,12 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 )
 
+type messageSender interface {
+	sendGossipMsg(id transport.PeerID, refs []hash.SHA256Hash) error
+	sendTransactionListQuery(id transport.PeerID, refs []hash.SHA256Hash) error
+	sendTransactionList(id transport.PeerID, conversationID conversationID, transactions []*Transaction) error
+}
+
 func (p *protocol) sendGossipMsg(id transport.PeerID, refs []hash.SHA256Hash) error {
 	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByPeerID(id))
 	if conn == nil {
