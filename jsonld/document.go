@@ -49,20 +49,20 @@ func (p Path) Tail() Path {
 	return p[1:]
 }
 
-// Expanded represents a JSON-LD document in expanded form.
+// Document represents a JSON-LD document in expanded form.
 // The expanded form is ideal for traversing and finding values
-type Expanded []interface{}
+type Document []interface{}
 
 // ValueAt returns the value found when traversing the given path
 // It looks at the @id, @value and @list field
-func (e Expanded) ValueAt(path Path) []Scalar {
+func (e Document) ValueAt(path Path) []Scalar {
 	return valuesFromSliceAtPath(e, path)
 }
 
-func valuesFromSliceAtPath(expanded []interface{}, path Path) []Scalar {
+func valuesFromSliceAtPath(document []interface{}, path Path) []Scalar {
 	result := make([]Scalar, 0)
 
-	for _, sub := range expanded {
+	for _, sub := range document {
 		switch typedSub := sub.(type) {
 		case []interface{}:
 			result = append(result, valuesFromSliceAtPath(typedSub, path)...)
@@ -80,27 +80,27 @@ func valuesFromSliceAtPath(expanded []interface{}, path Path) []Scalar {
 	return result
 }
 
-func valuesFromMapAtPath(expanded map[string]interface{}, path Path) []Scalar {
+func valuesFromMapAtPath(document map[string]interface{}, path Path) []Scalar {
 	// JSON-LD in expanded form either has @value, @id, @list or @set
 	if path.IsEmpty() {
-		if value, ok := expanded["@value"]; ok {
+		if value, ok := document["@value"]; ok {
 			return []Scalar{MustParseScalar(value)}
 		}
-		if id, ok := expanded["@id"]; ok {
+		if id, ok := document["@id"]; ok {
 			return []Scalar{MustParseScalar(id)}
 		}
-		if list, ok := expanded["@list"]; ok {
+		if list, ok := document["@list"]; ok {
 			castList := list.([]interface{})
 			return valuesFromSliceAtPath(castList, path)
 		}
 	}
 
-	if list, ok := expanded["@list"]; ok {
+	if list, ok := document["@list"]; ok {
 		castList := list.([]interface{})
 		return valuesFromSliceAtPath(castList, path)
 	}
 
-	if value, ok := expanded[path.Head()]; ok {
+	if value, ok := document[path.Head()]; ok {
 		// the value should now be a slice
 		next, ok := value.([]interface{})
 		if !ok {
