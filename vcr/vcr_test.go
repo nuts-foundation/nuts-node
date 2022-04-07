@@ -38,7 +38,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/go-leia/v2"
+	"github.com/nuts-foundation/go-leia/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
@@ -123,8 +123,8 @@ func TestVCR_SearchInternal(t *testing.T) {
 		}
 
 		// add document
-		doc := leia.DocumentFromString(concept.TestCredential)
-		err = ctx.vcr.store.Collection(concept.ExampleType).Add([]leia.Document{doc})
+		doc := []byte(concept.TestCredential)
+		err = ctx.vcr.store.JSONCollection(concept.ExampleType).Add([]leia.Document{doc})
 		if !assert.NoError(t2, err) {
 			t2.Fatal(err)
 		}
@@ -134,7 +134,7 @@ func TestVCR_SearchInternal(t *testing.T) {
 		if !assert.NoError(t2, err) {
 			t2.Fatal(err)
 		}
-		q.AddClause(concept.Prefix("human.eyeColour", "blue"))
+		q.AddClause(concept.Prefix("credentialSubject.human.eyeColour", "blue"))
 		return ctx, q
 	}
 
@@ -191,8 +191,8 @@ func TestVCR_SearchInternal(t *testing.T) {
 	t.Run("ok - revoked", func(t *testing.T) {
 		ctx, q := testInstance(t)
 		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
-		rev := leia.DocumentFromString(concept.TestRevocation)
-		ctx.vcr.store.Collection(revocationCollection).Add([]leia.Document{rev})
+		rev := []byte(concept.TestRevocation)
+		ctx.vcr.store.JSONCollection(revocationCollection).Add([]leia.Document{rev})
 		creds, err := ctx.vcr.Search(reqCtx, q, false, nil)
 		if !assert.NoError(t, err) {
 			return
@@ -208,8 +208,8 @@ func TestVCR_Resolve(t *testing.T) {
 		ctx := newMockContext(t2)
 
 		// add document
-		doc := leia.DocumentFromString(concept.TestCredential)
-		err := ctx.vcr.store.Collection(concept.ExampleType).Add([]leia.Document{doc})
+		doc := []byte(concept.TestCredential)
+		err := ctx.vcr.store.JSONCollection(concept.ExampleType).Add([]leia.Document{doc})
 		if !assert.NoError(t2, err) {
 			t2.Fatal(err)
 		}
@@ -264,8 +264,8 @@ func TestVCR_Resolve(t *testing.T) {
 	t.Run("ok - revoked", func(t *testing.T) {
 		ctx := testInstance(t)
 		ctx.vcr.trustConfig.RemoveTrust(testVC.Type[0], testVC.Issuer)
-		rev := leia.DocumentFromString(concept.TestRevocation)
-		ctx.vcr.store.Collection(revocationCollection).Add([]leia.Document{rev})
+		rev := []byte(concept.TestRevocation)
+		ctx.vcr.store.JSONCollection(revocationCollection).Add([]leia.Document{rev})
 
 		vc, err := ctx.vcr.Resolve(*testVC.ID, nil)
 
@@ -654,8 +654,8 @@ func TestVcr_Find(t *testing.T) {
 		}
 
 		// add document
-		doc := leia.DocumentFromString(concept.TestCredential)
-		err = ctx.vcr.store.Collection(concept.ExampleType).Add([]leia.Document{doc})
+		doc := []byte(concept.TestCredential)
+		err = ctx.vcr.store.JSONCollection(concept.ExampleType).Add([]leia.Document{doc})
 		if !assert.NoError(t2, err) {
 			t2.Fatal(err)
 		}
@@ -712,9 +712,9 @@ func TestVCR_Search(t *testing.T) {
 		}
 
 		ctx.vcr.Trust(vc.Type[1], vc.Issuer)
-		doc := leia.DocumentFromString(concept.TestCredential)
-		ctx.vcr.store.Collection(concept.ExampleType).Add([]leia.Document{doc})
-		results, _ := ctx.vcr.SearchConcept(context.Background(), "human", false, map[string]string{"human.eyeColour": "blue/grey"})
+		doc := []byte(concept.TestCredential)
+		ctx.vcr.store.JSONCollection(concept.ExampleType).Add([]leia.Document{doc})
+		results, _ := ctx.vcr.SearchConcept(context.Background(), "human", false, map[string]string{"credentialSubject.human.eyeColour": "blue/grey"})
 		assert.Len(t, results, 1)
 	})
 
@@ -743,11 +743,11 @@ func TestVcr_Untrusted(t *testing.T) {
 	}
 
 	// add document
-	doc := leia.DocumentFromString(concept.TestCredential)
-	doc2 := leia.DocumentFromString(strings.ReplaceAll(concept.TestCredential, "#123", "#321"))
-	_ = instance.store.Collection(concept.ExampleType).Add([]leia.Document{doc})
+	doc := []byte(concept.TestCredential)
+	doc2 := []byte(strings.ReplaceAll(concept.TestCredential, "#123", "#321"))
+	_ = instance.store.JSONCollection(concept.ExampleType).Add([]leia.Document{doc})
 	// for duplicate detection
-	_ = instance.store.Collection(concept.ExampleType).Add([]leia.Document{doc2})
+	_ = instance.store.JSONCollection(concept.ExampleType).Add([]leia.Document{doc2})
 
 	funcs := []func(ssi.URI) ([]ssi.URI, error){
 		instance.Trusted,

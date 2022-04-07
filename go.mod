@@ -20,7 +20,7 @@ require (
 	github.com/nats-io/nats.go v1.13.1-0.20220308171302-2f2f6968e98d
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.3.0
-	github.com/nuts-foundation/go-leia/v2 v2.0.1
+	github.com/nuts-foundation/go-leia/v3 v3.0.2
 	github.com/piprate/json-gold v0.4.1
 	github.com/privacybydesign/irmago v0.10.0
 	github.com/prometheus/client_golang v1.12.1
@@ -36,7 +36,6 @@ require (
 	google.golang.org/grpc v1.45.0
 	google.golang.org/protobuf v1.28.0
 	gopkg.in/yaml.v2 v2.4.0
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 	schneider.vip/problem v1.6.0
 )
 
@@ -156,5 +155,6 @@ require (
 	google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa // indirect
 	gopkg.in/Regis24GmbH/go-diacritics.v1 v1.0.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1 // indirect
+	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 	rsc.io/qr v0.2.0 // indirect
 )

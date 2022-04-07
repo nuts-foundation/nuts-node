@@ -19,10 +19,11 @@
 package v2
 
 import (
+	"net/http"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
-	"net/http"
 
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -102,10 +103,10 @@ func (w *Wrapper) searchOrgs(ctx echo.Context, allowUntrusted bool, vcQuery vc.V
 	if len(subjectsQuery) > 0 {
 		subjectQuery := subjectsQuery[0]
 		if subjectQuery.Organization.Name != "" {
-			query.AddClause(concept.Prefix("organization.name", subjectQuery.Organization.Name))
+			query.AddClause(concept.Prefix("credentialSubject.organization.name", subjectQuery.Organization.Name))
 		}
 		if subjectQuery.Organization.City != "" {
-			query.AddClause(concept.Prefix("organization.city", subjectQuery.Organization.City))
+			query.AddClause(concept.Prefix("credentialSubject.organization.city", subjectQuery.Organization.City))
 		}
 		if subjectQuery.ID != "" {
 			query.AddClause(concept.Eq("credentialSubject.id", subjectQuery.ID))

@@ -20,10 +20,11 @@
 package v1
 
 import (
-	"github.com/labstack/echo/v4"
-	ssi "github.com/nuts-foundation/go-did"
 	"net/http"
 	"time"
+
+	"github.com/labstack/echo/v4"
+	ssi "github.com/nuts-foundation/go-did"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr"
@@ -82,6 +83,22 @@ func (w *Wrapper) Search(ctx echo.Context, conceptName string, requestParams Sea
 	untrusted := false
 	if requestParams.Untrusted != nil {
 		untrusted = *requestParams.Untrusted
+	}
+
+	// for backwards compatibility: map old concept search parameters to JSON-LD IRI paths
+	for k, v := range params {
+		switch k {
+		case "subject":
+			params[credential.CredentialSubjectPath] = v
+			delete(params, k)
+		case "organization.name":
+			params["credentialSubject.organization.name"] = v
+			delete(params, k)
+		case "organization.city":
+			params["credentialSubject.organization.city"] = v
+			delete(params, k)
+			// default change nothing
+		}
 	}
 
 	results, err := w.VCR.SearchConcept(ctx.Request().Context(), conceptName, untrusted, params)

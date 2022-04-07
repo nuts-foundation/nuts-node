@@ -41,6 +41,13 @@ var (
 	NutsContextURI, _ = ssi.ParseURI(NutsContext)
 )
 
+const (
+	// CredentialSubjectPath represents the JSON path to the holder of the VC
+	CredentialSubjectPath = "credentialSubject.id"
+	// RevocationSubjectPath represents the JSON path to the subject of a revocation, typically the VC id
+	RevocationSubjectPath = "subject"
+)
+
 // NutsOrganizationCredentialSubject defines the CredentialSubject struct for the NutsOrganizationCredential
 type NutsOrganizationCredentialSubject struct {
 	ID           string            `json:"id"`

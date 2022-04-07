@@ -25,7 +25,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuts-foundation/nuts-node/vcr/assets"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
+	"gopkg.in/yaml.v2"
 
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -245,7 +247,6 @@ func TestWrapper_SearchConcept(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.client.ConceptReader = registry
-		defer ctx.ctrl.Finish()
 
 		var capturedConcept []concept.Concept
 		ctx.echo.EXPECT().Request().Return(&http.Request{})
@@ -267,6 +268,57 @@ func TestWrapper_SearchConcept(t *testing.T) {
 			return
 		}
 
+		assert.Len(t, capturedConcept, 1)
+		assert.Equal(t, cpt, capturedConcept[0])
+	})
+
+	t.Run("ok - backwards compatible", func(t *testing.T) {
+		registry := concept.NewRegistry()
+		registry.Add(concept.ExampleConfig)
+		bytes, err := assets.Assets.ReadFile("assets/NutsOrganizationCredential.config.yaml")
+		if !assert.NoError(t, err) {
+			return
+		}
+		config := concept.Config{}
+		err = yaml.Unmarshal(bytes, &config)
+		if !assert.NoError(t, err) {
+			return
+		}
+		err = registry.Add(config)
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		ctx := newMockContext(t)
+		ctx.client.ConceptReader = registry
+		defer ctx.ctrl.Finish()
+
+		var capturedConcept []concept.Concept
+		ctx.echo.EXPECT().Request().Return(&http.Request{})
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			sr := f.(*SearchRequest)
+			*sr = SearchRequest{
+				Params: []KeyValuePair{
+					{
+						Key:   "organization.name",
+						Value: "Because we care B.V.",
+					},
+				},
+			}
+			return nil
+		})
+		cpt := concept.Concept(map[string]interface{}{"foo": "bar"})
+		ctx.vcr.EXPECT().SearchConcept(gomock.Any(), gomock.Any(), false, map[string]string{"credentialSubject.organization.name": "Because we care B.V."}).Return([]concept.Concept{cpt}, nil)
+		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
+			capturedConcept = f2.([]concept.Concept)
+			return nil
+		})
+
+		err = ctx.client.Search(ctx.echo, "organization", SearchParams{})
+
+		if !assert.NoError(t, err) {
+			return
+		}
 		assert.Len(t, capturedConcept, 1)
 		assert.Equal(t, cpt, capturedConcept[0])
 	})

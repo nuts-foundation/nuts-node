@@ -21,17 +21,15 @@ package concept
 
 import (
 	gophonetics "github.com/Regis24GmbH/go-phonetics"
-	"github.com/nuts-foundation/go-leia/v2"
+	"github.com/nuts-foundation/go-leia/v3"
 )
 
 // CologneTransformer is a go-leia compatible function for generating the phonetic representation of a string.
-func CologneTransformer(text interface{}) interface{} {
-	switch v := text.(type) {
-	case string:
-		return gophonetics.NewPhoneticCode(v)
-	case leia.Key:
-		return gophonetics.NewPhoneticCode(v.String())
+func CologneTransformer(scalar leia.Scalar) leia.Scalar {
+	switch v := scalar.(type) {
+	case leia.StringScalar:
+		return leia.MustParseScalar(gophonetics.NewPhoneticCode(string(v.Bytes())))
 	default:
-		return text
+		return scalar
 	}
 }

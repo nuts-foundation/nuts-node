@@ -50,13 +50,13 @@ var ExampleConfig = Config{
 		{
 			Name: "human",
 			Parts: []IndexPart{
-				{Alias: &humanEyeColour, JSONPath: "credentialSubject.human.eyeColour"},
-				{Alias: &humanHairColour, JSONPath: "credentialSubject.human.hairColour"},
+				{JSONPath: "credentialSubject.human.eyeColour"},
+				{JSONPath: "credentialSubject.human.hairColour"},
 			},
 		},
 		{
 			Name:  "subject",
-			Parts: []IndexPart{{Alias: &humanSubject, JSONPath: "credentialSubject.id"}},
+			Parts: []IndexPart{{JSONPath: "credentialSubject.id"}},
 		},
 		{
 			Name:  "id",

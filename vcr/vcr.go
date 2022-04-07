@@ -40,7 +40,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/go-leia/v2"
+	"github.com/nuts-foundation/go-leia/v3"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -160,7 +160,7 @@ func (c *vcr) credentialsDBPath() string {
 }
 
 func (c *vcr) Migrate() error {
-	// the migration to go-leia V2 needs a fresh DB
+	// the migration to go-leia V3 needs a fresh DB
 	// The DAG is rewalked so all entries are added
 	// just delete
 	// TODO remove after all parties in development network have migrated.
@@ -175,7 +175,7 @@ func (c *vcr) Start() error {
 	var err error
 
 	// setup DB connection
-	if c.store, err = leia.NewStore(c.credentialsDBPath(), noSync); err != nil {
+	if c.store, err = leia.NewStore(c.credentialsDBPath()); err != nil {
 		return err
 	}
 
@@ -236,15 +236,12 @@ func whitespaceOrExactTokenizer(text string) (tokens []string) {
 
 func (c *vcr) initIndices() error {
 	for _, config := range c.registry.Concepts() {
-		collection := c.store.Collection(config.CredentialType)
+		collection := c.store.JSONCollection(config.CredentialType)
 		for _, index := range config.Indices {
 			var leiaParts []leia.FieldIndexer
 
 			for _, iParts := range index.Parts {
 				options := make([]leia.IndexOption, 0)
-				if iParts.Alias != nil {
-					options = append(options, leia.AliasOption(*iParts.Alias))
-				}
 				if iParts.Tokenizer != nil {
 					tokenizer := strings.ToLower(*iParts.Tokenizer)
 					switch tokenizer {
@@ -268,10 +265,10 @@ func (c *vcr) initIndices() error {
 					}
 				}
 
-				leiaParts = append(leiaParts, leia.NewFieldIndexer(iParts.JSONPath, options...))
+				leiaParts = append(leiaParts, leia.NewFieldIndexer(leia.NewJSONPath(iParts.JSONPath), options...))
 			}
 
-			leiaIndex := leia.NewIndex(index.Name, leiaParts...)
+			leiaIndex := collection.NewIndex(index.Name, leiaParts...)
 			log.Logger().Debugf("Adding index %s to %s using: %v", index.Name, config.CredentialType, leiaIndex)
 
 			if err := collection.AddIndex(leiaIndex); err != nil {
@@ -282,7 +279,7 @@ func (c *vcr) initIndices() error {
 
 	// revocation indices
 	rIndex := c.revocationIndex()
-	return rIndex.AddIndex(leia.NewIndex("index_subject", leia.NewFieldIndexer(concept.SubjectField)))
+	return rIndex.AddIndex(rIndex.NewIndex("index_subject", leia.NewFieldIndexer(leia.NewJSONPath(credential.RevocationSubjectPath))))
 }
 
 func (c *vcr) Name() string {
@@ -301,13 +298,13 @@ func (c *vcr) Search(ctx context.Context, query concept.Query, allowUntrusted bo
 
 	var VCs = make([]vc.VerifiableCredential, 0)
 	for vcType, q := range queries {
-		docs, err := c.store.Collection(vcType).Find(ctx, q)
+		docs, err := c.store.JSONCollection(vcType).Find(ctx, q)
 		if err != nil {
 			return nil, err
 		}
 		for _, doc := range docs {
 			foundCredential := vc.VerifiableCredential{}
-			err = json.Unmarshal(doc.Bytes(), &foundCredential)
+			err = json.Unmarshal(doc, &foundCredential)
 			if err != nil {
 				return nil, fmt.Errorf("unable to parse credential from db: %w", err)
 			}
@@ -467,19 +464,19 @@ func (c *vcr) isTrusted(credential vc.VerifiableCredential) bool {
 // find only returns a VC from storage, it does not tell anything about validity
 func (c *vcr) find(ID ssi.URI) (vc.VerifiableCredential, error) {
 	credential := vc.VerifiableCredential{}
-	qp := leia.Eq(concept.IDField, ID.String())
+	qp := leia.Eq(leia.NewJSONPath(concept.IDField), leia.MustParseScalar(ID.String()))
 	q := leia.New(qp)
 
 	ctx, cancel := context.WithTimeout(context.Background(), maxFindExecutionTime)
 	defer cancel()
 	for _, t := range c.registry.Concepts() {
-		docs, err := c.store.Collection(t.CredentialType).Find(ctx, q)
+		docs, err := c.store.JSONCollection(t.CredentialType).Find(ctx, q)
 		if err != nil {
 			return credential, err
 		}
 		if len(docs) > 0 {
 			// there can be only one
-			err = json.Unmarshal(docs[0].Bytes(), &credential)
+			err = json.Unmarshal(docs[0], &credential)
 			if err != nil {
 				return credential, fmt.Errorf("unable to parse credential from db: %w", err)
 			}
@@ -542,10 +539,10 @@ func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
 	}
 
 	// match all keys
-	query := leia.New(leia.Prefix(concept.IssuerField, ""))
+	query := leia.New(leia.Prefix(leia.NewJSONPath(concept.IssuerField), leia.MustParseScalar("")))
 
 	// use type specific collection
-	collection := c.store.Collection(credentialType.String())
+	collection := c.store.JSONCollection(credentialType.String())
 
 	// for each key: add to untrusted if not present in trusted
 	err := collection.IndexIterate(query, func(key []byte, value []byte) error {
@@ -579,7 +576,7 @@ func (c *vcr) Get(conceptName string, allowUntrusted bool, subject string) (conc
 		return nil, err
 	}
 
-	q.AddClause(concept.Eq(concept.SubjectField, subject))
+	q.AddClause(concept.Eq(credential.CredentialSubjectPath, subject))
 
 	ctx, cancel := context.WithTimeout(context.Background(), maxFindExecutionTime)
 	defer cancel()
@@ -674,7 +671,7 @@ func (c *vcr) verifyRevocation(r credential.Revocation) error {
 }
 
 func (c *vcr) isRevoked(ID ssi.URI) (bool, error) {
-	qp := leia.Eq(concept.SubjectField, ID.String())
+	qp := leia.Eq(leia.NewJSONPath(credential.RevocationSubjectPath), leia.MustParseScalar(ID.String()))
 	q := leia.New(qp)
 
 	gIndex := c.revocationIndex()
@@ -704,18 +701,14 @@ func (c *vcr) convert(query concept.Query) map[string]leia.Query {
 
 			switch clause.Type() {
 			case concept.EqType:
-				qp = leia.Eq(clause.Key(), clause.Seek())
+				qp = leia.Eq(leia.NewJSONPath(clause.Key()), leia.MustParseScalar(clause.Seek()))
 			case concept.PrefixType:
-				qp = leia.Prefix(clause.Key(), clause.Seek())
+				qp = leia.Prefix(leia.NewJSONPath(clause.Key()), leia.MustParseScalar(clause.Seek()))
 			default:
-				qp = leia.Range(clause.Key(), clause.Seek(), clause.Match())
+				qp = leia.Range(leia.NewJSONPath(clause.Key()), leia.MustParseScalar(clause.Seek()), leia.MustParseScalar(clause.Match()))
 			}
 
-			if q == nil {
-				q = leia.New(qp)
-			} else {
-				q = q.And(qp)
-			}
+			q = q.And(qp)
 		}
 		qs[tq.CredentialType()] = q
 	}
