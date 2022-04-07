@@ -44,6 +44,8 @@ type embeddedFSDocumentLoader struct {
 	nextLoader ld.DocumentLoader
 }
 
+// filteredDocumentLoader is a ld.DocumentLoader which contains a list of allowed urls.
+// the nextLoader will only be called when the url is on the AllowedUrls list.
 type filteredDocumentLoader struct {
 	AllowedUrls []string
 	nextLoader  ld.DocumentLoader
@@ -57,10 +59,12 @@ func NewEmbeddedFSDocumentLoader(fs embed.FS, nextLoader ld.DocumentLoader) ld.D
 	}
 }
 
+// NewFilteredLoader accepts a list of allowed urls and a nextLoader and creates a new filteredDocumentLoader
 func NewFilteredLoader(allowedUrls []string, nextLoader ld.DocumentLoader) ld.DocumentLoader {
 	return &filteredDocumentLoader{AllowedUrls: allowedUrls, nextLoader: nextLoader}
 }
 
+// LoadDocument calls the nextLoader if the url u is on the AllowedUrls list, throws a ld.LoadingDocumentFailed otherwise.
 func (h filteredDocumentLoader) LoadDocument(u string) (*ld.RemoteDocument, error) {
 	for _, allowedUrl := range h.AllowedUrls {
 		if allowedUrl == u {
@@ -99,21 +103,29 @@ func (e embeddedFSDocumentLoader) LoadDocument(path string) (*ld.RemoteDocument,
 	return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, nil)
 }
 
+// SchemaOrgContext contains the schema.org context url
 const SchemaOrgContext = "https://schema.org"
+
+// W3cVcContext contains the w3c VerifiableCredential type context
 const W3cVcContext = "https://www.w3.org/2018/credentials/v1"
+
+// Jws2020Context contains the JsonWebToken2020 Proof type context
 const Jws2020Context = "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
 
+// DefaultJsonLdContextConfig returns the default list of allowed external resources and a mapping to embedded contexts
 func DefaultJsonLdContextConfig() JsonLdContexts {
 	return JsonLdContexts{
 		RemoteAllowList: DefaultAllowList(),
 		LocalFileMapping: []FileMapping{
 			{Url: "https://nuts.nl/credentials/v1", Path: "assets/contexts/nuts.ldjson"},
-			{Url: "https://www.w3.org/2018/credentials/v1", Path: "assets/contexts/w3c-credentials-v1.ldjson"},
-			{Url: "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json", Path: "assets/contexts/lds-jws2020-v1.ldjson"},
-			{Url: "https://schema.org", Path: "assets/contexts/schema-org-v13.ldjson"},
+			{Url: W3cVcContext, Path: "assets/contexts/w3c-credentials-v1.ldjson"},
+			{Url: Jws2020Context, Path: "assets/contexts/lds-jws2020-v1.ldjson"},
+			{Url: SchemaOrgContext, Path: "assets/contexts/schema-org-v13.ldjson"},
 		},
 	}
 }
+
+// DefaultAllowList returns the default allow list for external contexts
 func DefaultAllowList() []string {
 	return []string{SchemaOrgContext, W3cVcContext, Jws2020Context}
 }

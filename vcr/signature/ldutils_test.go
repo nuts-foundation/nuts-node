@@ -31,12 +31,14 @@ import (
 var testfs embed.FS
 
 type testLoader struct {
-	Called bool
-	Err    error
+	Called     bool
+	CalledWith string
+	Err        error
 }
 
 func (t *testLoader) LoadDocument(u string) (*ld.RemoteDocument, error) {
 	t.Called = true
+	t.CalledWith = u
 	return nil, t.Err
 }
 
@@ -165,5 +167,32 @@ func TestAddContext(t *testing.T) {
 
 		assert.Len(t, doc["@context"], 1)
 		assert.Equal(t, doc["@context"].([]interface{})[0], newContext.String())
+	})
+}
+
+func Test_filteredDocumentLoader(t *testing.T) {
+
+	t.Run("create a new filteredDocumentLoader", func(t *testing.T) {
+		loader := NewFilteredLoader([]string{}, &testLoader{})
+		assert.Implements(t, (*ld.DocumentLoader)(nil), loader)
+	})
+
+	t.Run("it passes through an allowed url", func(t *testing.T) {
+		mockLoader := &testLoader{}
+		sut := NewFilteredLoader([]string{"foo.com"}, mockLoader)
+
+		_, err := sut.LoadDocument("foo.com")
+		assert.NoError(t, err)
+		assert.True(t, mockLoader.Called)
+		assert.Equal(t, "foo.com", mockLoader.CalledWith)
+	})
+
+	t.Run("it blocks urls not on the list", func(t *testing.T) {
+		mockLoader := &testLoader{}
+		sut := NewFilteredLoader([]string{"foo.com"}, mockLoader)
+
+		_, err := sut.LoadDocument("not-allowed.com")
+		assert.EqualError(t, err, "loading document failed")
+		assert.False(t, mockLoader.Called)
 	})
 }
