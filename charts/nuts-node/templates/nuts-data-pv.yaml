@@ -1,3 +1,4 @@
+{{ if .Values.nuts.data.persistedVolume.enabled }}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -8,13 +9,15 @@ metadata:
     "helm.sh/resource-policy": keep
 spec:
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: ""
+  storageClassName: {{ .Values.nuts.data.persistedVolume.storageClassName | default "" }}
   capacity:
     storage: {{ .Values.nuts.data.persistedVolume.capacity | default "100Mi" }}
   accessModes: {{ required "Please define `nuts.data.persistedVolume.accessModes` in `values.yaml`" .Values.nuts.data.persistedVolume.accessModes }}
   hostPath:
-    path: {{ .Values.nuts.data.persistedVolume.mountPath | default "/opt/nuts/data" }}
+    path: {{ .Values.nuts.data.persistedVolume.mountPath  }}
 ---
+{{ end }}
+{{ if .Values.nuts.data.persistedVolumeClaim.enabled }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -22,8 +25,10 @@ metadata:
   annotations:
     "helm.sh/resource-policy": keep
 spec:
-  storageClassName: "" # Empty string must be explicitly set otherwise default StorageClass will be set
-  accessModes: {{ required "Please define `nuts.data.persistedVolume.accessModes` in `values.yaml`" .Values.nuts.data.persistedVolume.accessModes }}
+  storageClassName: {{ .Values.nuts.data.persistedVolumeClaim.storageClassName | default "" }}
+  accessModes: {{ required "Please define `nuts.data.persistedVolumeClaim.accessModes` in `values.yaml`" .Values.nuts.data.persistedVolumeClaim.accessModes }}
   resources:
     requests:
-      storage: {{ .Values.nuts.data.persistedVolume.capacity | default "100Mi" }}
+      storage: {{ .Values.nuts.data.persistedVolumeClaim.capacity | default "100Mi" }}
+---
+{{ end }}
