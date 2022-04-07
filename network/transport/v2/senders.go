@@ -20,6 +20,9 @@
 package v2
 
 import (
+	"context"
+	"math"
+
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
@@ -38,8 +41,12 @@ func (p *protocol) sendGossipMsg(id transport.PeerID, refs []hash.SHA256Hash) er
 		refsAsBytes[i] = ref.Slice()
 	}
 
+	xor, clock := p.state.XOR(context.Background(), math.MaxUint32)
+
 	return conn.Send(p, &Envelope{Message: &Envelope_Gossip{
 		Gossip: &Gossip{
+			XOR:          xor.Slice(),
+			LC:           clock,
 			Transactions: refsAsBytes,
 		},
 	}})

@@ -12,6 +12,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	core "github.com/nuts-foundation/nuts-node/core"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
+	tree "github.com/nuts-foundation/nuts-node/network/dag/tree"
 )
 
 // MockState is a mock of State interface.
@@ -108,6 +109,21 @@ func (m *MockState) GetTransaction(ctx context.Context, hash hash.SHA256Hash) (T
 func (mr *MockStateMockRecorder) GetTransaction(ctx, hash interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransaction", reflect.TypeOf((*MockState)(nil).GetTransaction), ctx, hash)
+}
+
+// IBLT mocks base method.
+func (m *MockState) IBLT(ctx context.Context, reqClock uint32) (tree.Iblt, uint32) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IBLT", ctx, reqClock)
+	ret0, _ := ret[0].(tree.Iblt)
+	ret1, _ := ret[1].(uint32)
+	return ret0, ret1
+}
+
+// IBLT indicates an expected call of IBLT.
+func (mr *MockStateMockRecorder) IBLT(ctx, reqClock interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IBLT", reflect.TypeOf((*MockState)(nil).IBLT), ctx, reqClock)
 }
 
 // IsPayloadPresent mocks base method.
@@ -289,6 +305,21 @@ func (m *MockState) WritePayload(ctx context.Context, payloadHash hash.SHA256Has
 func (mr *MockStateMockRecorder) WritePayload(ctx, payloadHash, data interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WritePayload", reflect.TypeOf((*MockState)(nil).WritePayload), ctx, payloadHash, data)
+}
+
+// XOR mocks base method.
+func (m *MockState) XOR(ctx context.Context, reqClock uint32) (hash.SHA256Hash, uint32) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "XOR", ctx, reqClock)
+	ret0, _ := ret[0].(hash.SHA256Hash)
+	ret1, _ := ret[1].(uint32)
+	return ret0, ret1
+}
+
+// XOR indicates an expected call of XOR.
+func (mr *MockStateMockRecorder) XOR(ctx, reqClock interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "XOR", reflect.TypeOf((*MockState)(nil).XOR), ctx, reqClock)
 }
 
 // MockPublisher is a mock of Publisher interface.

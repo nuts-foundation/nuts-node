@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -161,8 +162,15 @@ func (p *protocol) handleGossip(peer transport.Peer, msg *Gossip) error {
 		p.sendTransactionListQuery(peer.ID, refs)
 	}
 	p.gManager.GossipReceived(peer.ID, refs...)
-	// TODO compare xor
-	// TODO send new message
+
+	xor, _ := p.state.XOR(ctx, math.MaxUint32)
+	xor = xor.Xor(refs...)
+	if xor.Equals(hash.FromSlice(msg.GetXOR())) {
+		return nil
+	}
+
+	// TODO send state message
+	log.Logger().Infof("xor is different from peer=%s", peer.ID)
 
 	return nil
 }

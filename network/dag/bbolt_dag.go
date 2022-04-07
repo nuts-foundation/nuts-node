@@ -465,6 +465,24 @@ func getClock(tx *bbolt.Tx, transaction Transaction) (uint32, error) {
 	return bytesToClock(lClockBytes), nil
 }
 
+// returns the highest clock for which a transaction is present in the DAG
+func (dag bboltDAG) getHighestClock(ctx context.Context) uint32 {
+	var clock uint32
+	_ = storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
+		clocksBucket := tx.Bucket([]byte(clockBucket))
+		if clocksBucket == nil {
+			// DAG is empty
+			return nil
+		}
+
+		// find the highest LC in the bucket
+		clockBytes, _ := clocksBucket.Cursor().Last()
+		clock = bytesToClock(clockBytes)
+		return nil
+	})
+	return clock
+}
+
 func bytesToClock(clockBytes []byte) uint32 {
 	return binary.BigEndian.Uint32(clockBytes)
 }

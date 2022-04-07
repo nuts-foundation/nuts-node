@@ -593,3 +593,39 @@ func Test_parseHashList(t *testing.T) {
 		assert.Equal(t, hash.FromSlice(h2[:]), actual[1])
 	})
 }
+
+func TestBBoltDAG_getHighestClock(t *testing.T) {
+	t.Run("empty DAG", func(t *testing.T) {
+		ctx := context.Background()
+		graph := CreateDAG(t)
+
+		clock := graph.getHighestClock(ctx)
+
+		assert.Equal(t, uint32(0), clock)
+	})
+	t.Run("multiple transaction", func(t *testing.T) {
+		ctx := context.Background()
+		graph := CreateDAG(t)
+		tx0, _, _ := CreateTestTransaction(9)
+		tx1, _, _ := CreateTestTransaction(8, tx0)
+		tx2, _, _ := CreateTestTransaction(7, tx1)
+		_ = graph.Add(ctx, tx0, tx1, tx2)
+
+		clock := graph.getHighestClock(ctx)
+
+		assert.Equal(t, uint32(2), clock)
+	})
+	t.Run("out of order transactions", func(t *testing.T) {
+		ctx := context.Background()
+		graph := CreateDAG(t)
+		tx0, _, _ := CreateTestTransaction(9)
+		tx1, _, _ := CreateTestTransaction(8, tx0)
+		tx2, _, _ := CreateTestTransaction(7, tx1)
+		_ = graph.Add(ctx, tx0, tx2)
+		_ = graph.Add(context.Background(), tx1)
+
+		clock := graph.getHighestClock(context.Background())
+
+		assert.Equal(t, uint32(2), clock)
+	})
+}

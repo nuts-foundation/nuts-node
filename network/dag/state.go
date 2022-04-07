@@ -185,6 +185,48 @@ func (s *state) Subscribe(eventType EventType, payloadType string, receiver Rece
 	s.publisher.Subscribe(eventType, payloadType, receiver)
 }
 
+func (s *state) XOR(ctx context.Context, reqClock uint32) (hash.SHA256Hash, uint32) {
+	var data tree.Data
+
+	currentClock := s.lamportClock(ctx)
+	dataClock := currentClock
+	if reqClock < currentClock {
+		var pageClock uint32
+		data, pageClock = s.xorTree.tree.GetZeroTo(reqClock)
+		if pageClock < currentClock { // false on the last page
+			dataClock = pageClock
+		}
+	} else {
+		data = s.xorTree.tree.GetRoot()
+	}
+
+	return data.(*tree.Xor).Hash(), dataClock
+}
+
+func (s *state) IBLT(ctx context.Context, reqClock uint32) (tree.Iblt, uint32) {
+	var data tree.Data
+
+	currentClock := s.lamportClock(ctx)
+	dataClock := currentClock
+	if reqClock < currentClock {
+		var pageClock uint32
+		data, pageClock = s.ibltTree.tree.GetZeroTo(reqClock)
+		if pageClock < currentClock { // false on the last page
+			dataClock = pageClock
+		}
+	} else {
+		data = s.ibltTree.tree.GetRoot()
+	}
+
+	return *data.(*tree.Iblt), dataClock
+}
+
+// lamportClock returns the highest clock value in the DAG.
+func (s *state) lamportClock(ctx context.Context) uint32 {
+	// TODO: keep track of clock in state
+	return s.graph.getHighestClock(ctx)
+}
+
 func (s *state) Shutdown() error {
 	// Close BBolt database
 	if s.db != nil {
