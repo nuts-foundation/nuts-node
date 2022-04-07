@@ -82,6 +82,16 @@ func (h SHA256Hash) Compare(other SHA256Hash) int {
 	return bytes.Compare(h[:], other[:])
 }
 
+// Xor returns the xor of this Hash and all others. It does not change this Hash.
+func (h SHA256Hash) Xor(others ...SHA256Hash) SHA256Hash {
+	for _, o := range others {
+		for i := range o {
+			h[i] ^= o[i]
+		}
+	}
+	return h
+}
+
 // MarshalJSON marshals the hash as hex-encoded string
 func (h SHA256Hash) MarshalJSON() ([]byte, error) {
 	s := h.String()

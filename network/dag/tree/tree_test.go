@@ -119,7 +119,7 @@ func TestTree_GetRoot(t *testing.T) {
 
 		for i := uint32(0); i < N; i++ {
 			rand.Read(ref[:])
-			xor(allRefs[:], allRefs[:], ref[:])
+			allRefs = allRefs.Xor(ref)
 			tr.Insert(ref, N-i)
 		}
 

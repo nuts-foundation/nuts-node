@@ -24,12 +24,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
-func xor(dest, left, right []byte) {
-	for i := 0; i < len(left); i++ {
-		dest[i] = left[i] ^ right[i]
-	}
-}
-
 // Xor is an alias of hash.SHA256Hash that implements tree.Data to track transaction xors
 type Xor hash.SHA256Hash
 
@@ -54,11 +48,11 @@ func (x *Xor) Clone() Data {
 }
 
 func (x *Xor) Insert(ref hash.SHA256Hash) {
-	xor(x[:], x[:], ref[:])
+	x.xor(ref)
 }
 
 func (x *Xor) Delete(ref hash.SHA256Hash) {
-	xor(x[:], x[:], ref[:])
+	x.xor(ref)
 }
 
 func (x *Xor) Add(data Data) error {
@@ -68,7 +62,7 @@ func (x *Xor) Add(data Data) error {
 func (x *Xor) Subtract(data Data) error {
 	switch v := data.(type) {
 	case *Xor:
-		xor(x[:], x[:], v[:])
+		x.xor(v.Hash())
 		return nil
 	default:
 		return fmt.Errorf("data type mismatch - expected %T, got %T", x, v)
@@ -89,4 +83,9 @@ func (x *Xor) UnmarshalBinary(data []byte) error {
 	}
 	copy(x[:], data)
 	return nil
+}
+
+// in-place xor operation
+func (x *Xor) xor(other hash.SHA256Hash) {
+	copy(x[:], x.Hash().Xor(other).Slice())
 }

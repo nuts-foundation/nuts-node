@@ -24,16 +24,6 @@ import (
 	"testing"
 )
 
-func TestXor_xor(t *testing.T) {
-	h1, h2, hXor := getTwoHashPlusXor()
-	out := Xor{}
-
-	xor(out[:], h1[:], h2[:])
-
-	assert.Equal(t, hXor, out.Hash())
-	assert.NotEqual(t, h1, out) // sanity check
-}
-
 func getTwoHashPlusXor() (h1 hash.SHA256Hash, h2 hash.SHA256Hash, hXor hash.SHA256Hash) {
 	h1 = hash.FromSlice([]byte{1})
 	h2 = hash.FromSlice([]byte{2})
