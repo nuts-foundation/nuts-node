@@ -100,8 +100,8 @@ type protocol struct {
 	nodeDIDResolver   transport.NodeDIDResolver
 	connectionManager transport.ConnectionManager
 	cMan              *conversationManager
-	gManager gossip.Manager
-	sender   messageSender
+	gManager          gossip.Manager
+	sender            messageSender
 }
 
 func (p protocol) CreateClientStream(outgoingContext context.Context, grpcConn grpcLib.ClientConnInterface) (grpcLib.ClientStream, error) {
