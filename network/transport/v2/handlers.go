@@ -163,14 +163,14 @@ func (p *protocol) handleGossip(peer transport.Peer, msg *Gossip) error {
 	}
 	p.gManager.GossipReceived(peer.ID, refs...)
 
-	xor, clock := p.state.XOR(ctx, math.MaxUint32)
+	xor, _ := p.state.XOR(ctx, math.MaxUint32)
+	xor = xor.Xor(refs...)
 	if xor.Equals(hash.FromSlice(msg.GetXOR())) {
 		return nil
 	}
 
-	if clock < msg.GetLC() {
-		// TODO send state message
-	}
+	// TODO send state message
+	log.Logger().Infof("xor is different from peer=%s", peer.ID)
 
 	return nil
 }
