@@ -548,6 +548,7 @@ func TestProtocol_handleTransactionListQuery(t *testing.T) {
 		mocks.State.EXPECT().GetTransaction(context.Background(), h1).Return(dagT1, nil)
 		mocks.State.EXPECT().GetTransaction(context.Background(), h2).Return(dagT2, nil)
 		mocks.State.EXPECT().ReadPayload(context.Background(), dagT1.PayloadHash()).Return(nil, nil)
+		mocks.Sender.EXPECT().sendTransactionList(peer.ID, conversationID, []*Transaction{})
 
 		err := p.Handle(peer, &Envelope{
 			Message: &Envelope_TransactionListQuery{&TransactionListQuery{
@@ -556,7 +557,7 @@ func TestProtocol_handleTransactionListQuery(t *testing.T) {
 			}},
 		})
 
-		assert.ErrorContains(t, err, "transaction is missing payload")
+		assert.NoError(t, err)
 	})
 
 	t.Run("ok - empty request", func(t *testing.T) {
