@@ -13,8 +13,8 @@ To get started, clone the repository and run the following commands to start the
 .. code-block:: shell
 
     cd single
-    docker-compose pull
-    docker-compose up
+    docker compose pull
+    docker compose up
 
 After the services have started you can try the following endpoints:
 

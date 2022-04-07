@@ -40,7 +40,7 @@ Development
 Configuration
 ^^^^^^^^^^^^^
 
-.. include:: docs/pages/getting-started/0-hello-world-docker.rst
+.. include:: docs/pages/configuration/configuration.rst
     :start-after: .. marker-for-readme
 
 CLI options
