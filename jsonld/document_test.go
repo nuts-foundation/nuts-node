@@ -121,7 +121,7 @@ func TestExpanded_ValueAt(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	document := Expanded(expanded)
+	document := Document(expanded)
 
 	t.Run("ok - find the root identifier", func(t *testing.T) {
 		values := document.ValueAt(NewPath())
