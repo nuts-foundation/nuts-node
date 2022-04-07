@@ -28,13 +28,19 @@ import (
 	"net/url"
 )
 
-type JsonLdContexts struct {
-	RemoteAllowList  []string      `koanf:"remoteallowlist"`
+// JsonLdContextsConfig contains config for json-ld document loader
+type JsonLdContextsConfig struct {
+	// RemoteAllowList A list with urls as string which are allowed to request
+	RemoteAllowList []string `koanf:"remoteallowlist"`
+	// LocalFileMapping contains a list of context urls mapped to a local file
 	LocalFileMapping []FileMapping `koanf:"localmapping"`
 }
 
+// FileMapping is a struct of a context url mapped to a local path
 type FileMapping struct {
-	Url  string `koanf:"url"`
+	// URL contains the url of the context which should be resolved
+	URL string `koanf:"url"`
+	// Path contains a relative path to the file which contains the json-ld context
 	Path string `koanf:"path"`
 }
 
@@ -45,9 +51,9 @@ type embeddedFSDocumentLoader struct {
 }
 
 // filteredDocumentLoader is a ld.DocumentLoader which contains a list of allowed urls.
-// the nextLoader will only be called when the url is on the AllowedUrls list.
+// the nextLoader will only be called when the url is on the AllowedURLs list.
 type filteredDocumentLoader struct {
-	AllowedUrls []string
+	AllowedURLs []string
 	nextLoader  ld.DocumentLoader
 }
 
@@ -60,14 +66,14 @@ func NewEmbeddedFSDocumentLoader(fs embed.FS, nextLoader ld.DocumentLoader) ld.D
 }
 
 // NewFilteredLoader accepts a list of allowed urls and a nextLoader and creates a new filteredDocumentLoader
-func NewFilteredLoader(allowedUrls []string, nextLoader ld.DocumentLoader) ld.DocumentLoader {
-	return &filteredDocumentLoader{AllowedUrls: allowedUrls, nextLoader: nextLoader}
+func NewFilteredLoader(allowedURLs []string, nextLoader ld.DocumentLoader) ld.DocumentLoader {
+	return &filteredDocumentLoader{AllowedURLs: allowedURLs, nextLoader: nextLoader}
 }
 
-// LoadDocument calls the nextLoader if the url u is on the AllowedUrls list, throws a ld.LoadingDocumentFailed otherwise.
+// LoadDocument calls the nextLoader if the url u is on the AllowedURLs list, throws a ld.LoadingDocumentFailed otherwise.
 func (h filteredDocumentLoader) LoadDocument(u string) (*ld.RemoteDocument, error) {
-	for _, allowedUrl := range h.AllowedUrls {
-		if allowedUrl == u {
+	for _, allowedURL := range h.AllowedURLs {
+		if allowedURL == u {
 			return h.nextLoader.LoadDocument(u)
 		}
 	}
@@ -113,14 +119,14 @@ const W3cVcContext = "https://www.w3.org/2018/credentials/v1"
 const Jws2020Context = "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
 
 // DefaultJsonLdContextConfig returns the default list of allowed external resources and a mapping to embedded contexts
-func DefaultJsonLdContextConfig() JsonLdContexts {
-	return JsonLdContexts{
+func DefaultJsonLdContextConfig() JsonLdContextsConfig {
+	return JsonLdContextsConfig{
 		RemoteAllowList: DefaultAllowList(),
 		LocalFileMapping: []FileMapping{
-			{Url: "https://nuts.nl/credentials/v1", Path: "assets/contexts/nuts.ldjson"},
-			{Url: W3cVcContext, Path: "assets/contexts/w3c-credentials-v1.ldjson"},
-			{Url: Jws2020Context, Path: "assets/contexts/lds-jws2020-v1.ldjson"},
-			{Url: SchemaOrgContext, Path: "assets/contexts/schema-org-v13.ldjson"},
+			{URL: "https://nuts.nl/credentials/v1", Path: "assets/contexts/nuts.ldjson"},
+			{URL: W3cVcContext, Path: "assets/contexts/w3c-credentials-v1.ldjson"},
+			{URL: Jws2020Context, Path: "assets/contexts/lds-jws2020-v1.ldjson"},
+			{URL: SchemaOrgContext, Path: "assets/contexts/schema-org-v13.ldjson"},
 		},
 	}
 }
@@ -133,7 +139,7 @@ func DefaultAllowList() []string {
 // NewContextLoader creates a new JSON-LD context loader with the embedded FS as first loader.
 // It loads the most used context from the embedded FS. This ensures the contents cannot be altered.
 // If allowExternalCalls is set to true, it also loads external context from the internet.
-func NewContextLoader(allowUnlistedExternalCalls bool, contexts JsonLdContexts) (ld.DocumentLoader, error) {
+func NewContextLoader(allowUnlistedExternalCalls bool, contexts JsonLdContextsConfig) (ld.DocumentLoader, error) {
 	var httpLoader ld.DocumentLoader
 	httpLoader = ld.NewDefaultDocumentLoader(nil)
 	if !allowUnlistedExternalCalls {
@@ -144,7 +150,7 @@ func NewContextLoader(allowUnlistedExternalCalls bool, contexts JsonLdContexts) 
 
 	mapping := make(map[string]string, len(contexts.LocalFileMapping))
 	for _, urlMap := range contexts.LocalFileMapping {
-		mapping[urlMap.Url] = urlMap.Path
+		mapping[urlMap.URL] = urlMap.Path
 	}
 
 	if err := loader.PreloadWithMapping(mapping); err != nil {

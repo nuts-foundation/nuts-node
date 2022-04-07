@@ -84,7 +84,7 @@ func TestLDProof_Verify(t *testing.T) {
 		return
 	}
 
-	contextLoader, err := signature.NewContextLoader(true, signature.JsonLdContexts{})
+	contextLoader, err := signature.NewContextLoader(true, signature.JsonLdContextsConfig{})
 	if !assert.NoError(t, err) {
 		return
 	}
