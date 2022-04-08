@@ -303,7 +303,6 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 				ConversationID: conversation.conversationID.slice(),
 				Transactions: []*Transaction{
 					{
-						Hash:    h1.Slice(),
 						Data:    data,
 						Payload: payload,
 					},
@@ -324,7 +323,6 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 				ConversationID: conversation.conversationID.slice(),
 				Transactions: []*Transaction{
 					{
-						Hash:    h1.Slice(),
 						Data:    data,
 						Payload: payload,
 					},
@@ -347,7 +345,6 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 				ConversationID: conversation.conversationID.slice(),
 				Transactions: []*Transaction{
 					{
-						Hash:    h1.Slice(),
 						Data:    data,
 						Payload: payload,
 					},
@@ -373,7 +370,6 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 				ConversationID: conversation.conversationID.slice(),
 				Transactions: []*Transaction{
 					{
-						Hash:    h1.Slice(),
 						Data:    data,
 						Payload: payload,
 					},
@@ -396,7 +392,6 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 				ConversationID: conversation.conversationID.slice(),
 				Transactions: []*Transaction{
 					{
-						Hash:    h1.Slice(),
 						Data:    data,
 						Payload: payload,
 					},
@@ -418,7 +413,6 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 				ConversationID: conversation.conversationID.slice(),
 				Transactions: []*Transaction{
 					{
-						Hash:    h1.Slice(),
 						Data:    data,
 						Payload: payload,
 					},
@@ -438,7 +432,6 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 				ConversationID: conversation.conversationID.slice(),
 				Transactions: []*Transaction{{
 					Data: []byte{1},
-					Hash: h1.Slice(),
 				}},
 			},
 		})
@@ -467,12 +460,10 @@ func TestProtocol_handleTransactionListQuery(t *testing.T) {
 	h1 := dagT1.Ref()
 	h2 := dagT2.Ref()
 	t1 := Transaction{
-		Hash:    h1.Slice(),
 		Data:    dagT1.Data(),
 		Payload: []byte{1},
 	}
 	t2 := Transaction{
-		Hash:    h2.Slice(),
 		Data:    dagT2.Data(),
 		Payload: []byte{2},
 	}
