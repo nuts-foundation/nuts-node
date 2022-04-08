@@ -436,7 +436,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 			},
 		})
 
-		assert.EqualError(t, err, fmt.Sprintf("received transaction is invalid (peer=%s, ref=%s): unable to parse transaction: invalid compact serialization format: invalid number of segments", peer.String(), h1.String()))
+		assert.EqualError(t, err, "received transaction is invalid: unable to parse transaction: invalid compact serialization format: invalid number of segments")
 	})
 
 	t.Run("error - unknown conversationID", func(t *testing.T) {
