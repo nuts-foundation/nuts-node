@@ -27,43 +27,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var jsonLDExample = `
-{
-  "@context": {
-    "id": "@id",
-    "type": "@type",
-    "schema": "http://example.com/",
-    "Person": {
-      "@id": "schema:Person",
-      "@context": {
-        "id": "@id",
-        "type": "@type",
-        "name": {"@id": "schema:name"},
-        "telephone": {"@id": "schema:telephone", "@container": "@list"},
-        "url": {"@id": "schema:url", "@type": "@id"},
-        "children": {"@id": "schema:children", "@container": "@list"},
-		"parents": {"@id": "schema:parents"}
-      }
-    }
-  },
-  "@type": "Person",
-  "@id": "123456782",
-  "name": "Jane Doe",
-  "url": "http://www.janedoe.com",
-  "telephone": ["06-12345678", "06-87654321"],
-  "children": [{
-    "@type": "Person",
-    "name": "John Doe",
-	"url": "http://www.johndoe.org"
-  }],
-  "parents": [{
-    "@type": "Person",
-    "name": "John Doe",
-	"url": "http://www.johndoe.org"
-  }]
-}
-`
-
 func TestPath_IsEmpty(t *testing.T) {
 	t.Run("true for empty list", func(t *testing.T) {
 		assert.True(t, Path{}.IsEmpty())
