@@ -12,7 +12,6 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	go_did "github.com/nuts-foundation/go-did"
 	vc "github.com/nuts-foundation/go-did/vc"
-	concept "github.com/nuts-foundation/nuts-node/vcr/concept"
 	credential "github.com/nuts-foundation/nuts-node/vcr/credential"
 	holder "github.com/nuts-foundation/nuts-node/vcr/holder"
 	issuer "github.com/nuts-foundation/nuts-node/vcr/issuer"
@@ -40,36 +39,6 @@ func NewMockFinder(ctrl *gomock.Controller) *MockFinder {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockFinder) EXPECT() *MockFinderMockRecorder {
 	return m.recorder
-}
-
-// Expand mocks base method.
-func (m *MockFinder) Expand(credential vc.VerifiableCredential) ([]interface{}, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Expand", credential)
-	ret0, _ := ret[0].([]interface{})
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Expand indicates an expected call of Expand.
-func (mr *MockFinderMockRecorder) Expand(credential interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Expand", reflect.TypeOf((*MockFinder)(nil).Expand), credential)
-}
-
-// ExpandAndConvert mocks base method.
-func (m *MockFinder) ExpandAndConvert(credential vc.VerifiableCredential) ([]SearchTerm, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ExpandAndConvert", credential)
-	ret0, _ := ret[0].([]SearchTerm)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ExpandAndConvert indicates an expected call of ExpandAndConvert.
-func (mr *MockFinderMockRecorder) ExpandAndConvert(credential interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExpandAndConvert", reflect.TypeOf((*MockFinder)(nil).ExpandAndConvert), credential)
 }
 
 // Search mocks base method.
@@ -279,20 +248,6 @@ func (m *MockResolver) EXPECT() *MockResolverMockRecorder {
 	return m.recorder
 }
 
-// Registry mocks base method.
-func (m *MockResolver) Registry() concept.Reader {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Registry")
-	ret0, _ := ret[0].(concept.Reader)
-	return ret0
-}
-
-// Registry indicates an expected call of Registry.
-func (mr *MockResolverMockRecorder) Registry() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Registry", reflect.TypeOf((*MockResolver)(nil).Registry))
-}
-
 // Resolve mocks base method.
 func (m *MockResolver) Resolve(ID go_did.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
@@ -331,36 +286,6 @@ func (m *MockVCR) EXPECT() *MockVCRMockRecorder {
 	return m.recorder
 }
 
-// Expand mocks base method.
-func (m *MockVCR) Expand(credential vc.VerifiableCredential) ([]interface{}, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Expand", credential)
-	ret0, _ := ret[0].([]interface{})
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Expand indicates an expected call of Expand.
-func (mr *MockVCRMockRecorder) Expand(credential interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Expand", reflect.TypeOf((*MockVCR)(nil).Expand), credential)
-}
-
-// ExpandAndConvert mocks base method.
-func (m *MockVCR) ExpandAndConvert(credential vc.VerifiableCredential) ([]SearchTerm, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ExpandAndConvert", credential)
-	ret0, _ := ret[0].([]SearchTerm)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ExpandAndConvert indicates an expected call of ExpandAndConvert.
-func (mr *MockVCRMockRecorder) ExpandAndConvert(credential interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExpandAndConvert", reflect.TypeOf((*MockVCR)(nil).ExpandAndConvert), credential)
-}
-
 // Holder mocks base method.
 func (m *MockVCR) Holder() holder.Holder {
 	m.ctrl.T.Helper()
@@ -373,21 +298,6 @@ func (m *MockVCR) Holder() holder.Holder {
 func (mr *MockVCRMockRecorder) Holder() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Holder", reflect.TypeOf((*MockVCR)(nil).Holder))
-}
-
-// Issue mocks base method.
-func (m *MockVCR) Issue(vcToIssue vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Issue", vcToIssue)
-	ret0, _ := ret[0].(*vc.VerifiableCredential)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Issue indicates an expected call of Issue.
-func (mr *MockVCRMockRecorder) Issue(vcToIssue interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Issue", reflect.TypeOf((*MockVCR)(nil).Issue), vcToIssue)
 }
 
 // Issuer mocks base method.
@@ -404,20 +314,6 @@ func (mr *MockVCRMockRecorder) Issuer() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Issuer", reflect.TypeOf((*MockVCR)(nil).Issuer))
 }
 
-// Registry mocks base method.
-func (m *MockVCR) Registry() concept.Reader {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Registry")
-	ret0, _ := ret[0].(concept.Reader)
-	return ret0
-}
-
-// Registry indicates an expected call of Registry.
-func (mr *MockVCRMockRecorder) Registry() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Registry", reflect.TypeOf((*MockVCR)(nil).Registry))
-}
-
 // Resolve mocks base method.
 func (m *MockVCR) Resolve(ID go_did.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
@@ -431,21 +327,6 @@ func (m *MockVCR) Resolve(ID go_did.URI, resolveTime *time.Time) (*vc.Verifiable
 func (mr *MockVCRMockRecorder) Resolve(ID, resolveTime interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockVCR)(nil).Resolve), ID, resolveTime)
-}
-
-// Revoke mocks base method.
-func (m *MockVCR) Revoke(ID go_did.URI) (*credential.Revocation, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Revoke", ID)
-	ret0, _ := ret[0].(*credential.Revocation)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Revoke indicates an expected call of Revoke.
-func (mr *MockVCRMockRecorder) Revoke(ID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Revoke", reflect.TypeOf((*MockVCR)(nil).Revoke), ID)
 }
 
 // Search mocks base method.

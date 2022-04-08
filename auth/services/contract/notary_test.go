@@ -34,7 +34,6 @@ import (
 	irmaService "github.com/nuts-foundation/nuts-node/auth/services/irma"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
@@ -43,8 +42,6 @@ import (
 
 const orgName = "CareBears"
 const orgCity = "Caretown"
-
-var orgConcept = concept.Concept{"organization": concept.Concept{"name": orgName, "city": orgCity}}
 
 var orgID = *vdr.TestDIDA
 

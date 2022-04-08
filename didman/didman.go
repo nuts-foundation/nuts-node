@@ -30,7 +30,9 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/didman/log"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
@@ -61,6 +63,7 @@ func (e ErrReferencedServiceNotAnEndpoint) Is(other error) bool {
 }
 
 type didman struct {
+	contextManager  jsonld.ContextManager
 	docResolver     types.DocResolver
 	serviceResolver doc.ServiceResolver
 	store           types.Store
@@ -77,6 +80,18 @@ func NewDidmanInstance(docResolver types.DocResolver, store types.Store, vdr typ
 		vdr:             vdr,
 		vcr:             vcr,
 	}
+}
+
+func (d *didman) Configure(config core.ServerConfig) error {
+	// TODO inject engine
+	allowExternalCalls := !config.Strictmode
+	contextLoader, err := signature.NewContextLoader(allowExternalCalls)
+	if err != nil {
+		return err
+	}
+	d.contextManager = jsonld.NewManager(contextLoader)
+
+	return nil
 }
 
 func (d *didman) Name() string {
@@ -282,17 +297,10 @@ func (d *didman) GetContactInformation(id did.DID) (*ContactInformation, error) 
 
 func (d *didman) SearchOrganizations(ctx context.Context, query string, didServiceType *string) ([]OrganizationSearchResult, error) {
 
-	// TODO search like in notary.
-	searchTerms := make([]vcr.SearchTerm, 0)
-	searchTerms = append(searchTerms, vcr.SearchTerm{
-		IRIPath: []string{"https://www.w3.org/2018/credentials#credentialSubject", "http://schema.org/organization", "http://schema.org/name"},
-		Value:   query,
-	})
-	// TODO find any credential adding organization info: not-nil query or range query? everything between 0x0 and 0xff
-	searchTerms = append(searchTerms, vcr.SearchTerm{
-		IRIPath: []string{"@type"},
-		Value:   "https://nuts.nl/credentials/v1#NutsOrganizationCredential",
-	})
+	searchTerms := []vcr.SearchTerm{
+		{IRIPath: jsonld.OrganizationNamePath, Value: query},
+		{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
+	}
 
 	organizations, err := d.vcr.Search(ctx, searchTerms, false, nil)
 	if err != nil {
@@ -324,27 +332,21 @@ func (d *didman) SearchOrganizations(ctx context.Context, query string, didServi
 	// Convert organization concepts and DID documents to search results
 	results := make([]OrganizationSearchResult, len(organizations))
 	for i := range organizations {
-		// expand
-		expanded, err := d.vcr.Expand(organizations[i])
+
+		document, err := d.contextManager.Transformer().FromVC(organizations[i])
 		if err != nil {
 			return nil, fmt.Errorf("failed to expand credential to JSON-LD: %w", err)
 		}
-		var orgName, orgCity string
-		var ok bool
-		rawOrgName := signature.ExtractValue(expanded, []string{"https://www.w3.org/2018/credentials#credentialSubject", "http://schema.org/organization", "http://schema.org/name"})
-		if orgName, ok = rawOrgName.(string); !ok {
-			return nil, fmt.Errorf("failed to extract organization name from verifiable credential (VC.ID: %s)", organizations[i].ID.String())
-		}
-		rawOrgCity := signature.ExtractValue(expanded, []string{"https://www.w3.org/2018/credentials#credentialSubject", "http://schema.org/organization", "http://schema.org/city"})
-		if orgCity, ok = rawOrgCity.(string); !ok {
-			return nil, fmt.Errorf("failed to extract organization name from verifiable credential (VC.ID: %s)", organizations[i].ID.String())
-		}
+
+		// guaranteed to contain values
+		orgNames := document.ValueAt(jsonld.NewPath(jsonld.OrganizationNamePath...))
+		orgCities := document.ValueAt(jsonld.NewPath(jsonld.OrganizationCityPath...))
 
 		results[i] = OrganizationSearchResult{
 			DIDDocument: *didDocuments[i],
 			Organization: map[string]interface{}{
-				"name": orgName,
-				"city": orgCity,
+				"name": orgNames[0],
+				"city": orgCities[0],
 			},
 		}
 	}
@@ -379,12 +381,12 @@ func (d *didman) resolveOrganizationDIDDocuments(organizations []vc.VerifiableCr
 }
 
 func (d *didman) resolveOrganizationDIDDocument(organization vc.VerifiableCredential) (*did.Document, did.DID, error) {
-	credentialSubject := credential.BaseCredentialSubject{}
+	credentialSubject := make([]credential.BaseCredentialSubject, 0)
 	err := organization.UnmarshalCredentialSubject(&credentialSubject)
 	if err != nil {
 		return nil, did.DID{}, fmt.Errorf("unable to get DID from organization credential: %w", err)
 	}
-	organizationDIDStr := credentialSubject.ID
+	organizationDIDStr := credentialSubject[0].ID
 	organizationDID, err := did.ParseDID(organizationDIDStr)
 	if err != nil {
 		return nil, did.DID{}, fmt.Errorf("unable to parse DID from organization credential: %w", err)

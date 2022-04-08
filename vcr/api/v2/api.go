@@ -23,6 +23,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
@@ -48,6 +49,7 @@ var clockFn = func() time.Time {
 // It parses and checks the params. Handles errors and returns the appropriate response.
 type Wrapper struct {
 	CredentialResolver issuer.CredentialSearcher
+	ContextManager     jsonld.ContextManager
 	VCR                vcr.VCR
 }
 
@@ -147,7 +149,7 @@ func (w Wrapper) RevokeVC(ctx echo.Context, id string) error {
 		return core.InvalidInputError("invalid credential id: %w", err)
 	}
 
-	revocation, err := w.VCR.Revoke(*credentialID)
+	revocation, err := w.VCR.Issuer().Revoke(*credentialID)
 	if err != nil {
 		return err
 	}

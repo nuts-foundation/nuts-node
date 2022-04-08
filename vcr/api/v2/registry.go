@@ -24,6 +24,7 @@ import (
 	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vcr"
 )
 
 // ResolveVC handles the API request for resolving a VC
@@ -56,10 +57,11 @@ func (w *Wrapper) SearchVCs(ctx echo.Context) error {
 		return core.InvalidInputError("can't match on multiple VC subjects")
 	}
 
-	query, err := w.VCR.ExpandAndConvert(request.Query)
+	document, err := w.ContextManager.Transformer().FromVC(request.Query)
 	if err != nil {
 		return core.InvalidInputError("failed to convert query to JSON-LD expanded form: %w", err)
 	}
+	query := flatten(document, nil)
 
 	results, err := w.VCR.Search(ctx.Request().Context(), query, untrusted, nil)
 	if err != nil {
@@ -67,4 +69,49 @@ func (w *Wrapper) SearchVCs(ctx echo.Context) error {
 	}
 
 	return ctx.JSON(http.StatusOK, results)
+}
+
+func flatten(document interface{}, currentPath []string) []vcr.SearchTerm {
+	switch t := document.(type) {
+	case []interface{}:
+		return flattenSlice(t, currentPath)
+	case map[string]interface{}:
+		return flattenMap(t, currentPath)
+	}
+
+	return nil
+}
+
+func flattenSlice(expanded []interface{}, currentPath []string) []vcr.SearchTerm {
+	result := make([]vcr.SearchTerm, 0)
+
+	for _, sub := range expanded {
+		result = append(result, flatten(sub, currentPath)...)
+	}
+
+	return result
+}
+
+func flattenMap(expanded map[string]interface{}, currentPath []string) []vcr.SearchTerm {
+	// JSON-LD in expanded form either has @value, @id, @list or objects
+
+	results := make([]vcr.SearchTerm, 0)
+
+	for k, v := range expanded {
+		switch k {
+		case "@id":
+			fallthrough
+		case "@value":
+			results = append(results, vcr.SearchTerm{
+				IRIPath: currentPath,
+				Value:   v,
+			})
+		case "@list":
+			// TODO: not supported...
+		default:
+			results = append(results, flatten(v, append(currentPath, k))...)
+		}
+	}
+
+	return results
 }

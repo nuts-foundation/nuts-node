@@ -19,57 +19,10 @@
 
 package concept
 
-import (
-	"encoding/json"
-	"regexp"
-	"strings"
-
-	"github.com/nuts-foundation/go-did/vc"
-	"github.com/tidwall/gjson"
-)
-
 // Config defines the concept configuration for a VerifiableCredential
 type Config struct {
-	// Concept groups multiple credentials under a single name
-	Concept string `yaml:"concept"`
-	// CredentialType defines the type of the credential. 'VerifiableCredential' is omitted.
-	CredentialType string `yaml:"credentialType"`
 	// Indices contains a set of Index values
 	Indices []Index `yaml:"indices"`
-	// Public indicates if this credential may be published on the DAG
-	Public bool `yaml:"public"`
-	// Template is the string template for outputting a credential to a common format
-	// Each <<JSONPath>> value is substituted with the outcome of the JSONPath query
-	Template *string `yaml:"template"`
-}
-
-var templateStringMatcher = regexp.MustCompile(`<<([a-zA-Z\\._\\-]+)>>`)
-
-func (c Config) transform(vc vc.VerifiableCredential) (Concept, error) {
-	vcBytes, err := json.Marshal(vc)
-	vcString := string(vcBytes)
-	concept := Concept{}
-	var template string
-	if err != nil {
-		return nil, err
-	}
-
-	// if no template is present, we'll return the credential
-	if c.Template == nil {
-		template = vcString
-	} else {
-		template = *c.Template
-
-		// find all << refs >>
-		for _, match := range templateStringMatcher.FindAllStringSubmatch(template, -1) {
-			replacement := gjson.Get(vcString, match[1]).String()
-			replacee := match[0]
-			template = strings.ReplaceAll(template, replacee, replacement)
-		}
-	}
-
-	err = json.Unmarshal([]byte(template), &concept)
-	return concept, err
 }
 
 // Index for a credential

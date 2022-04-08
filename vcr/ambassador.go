@@ -22,6 +22,7 @@ package vcr
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 
 	"github.com/nuts-foundation/go-did/vc"
@@ -57,7 +58,6 @@ func NewAmbassador(networkClient network.Transactions, writer Writer, verifier v
 // Configure instructs the ambassador to start receiving DID Documents from the network.
 func (n ambassador) Configure() {
 	n.networkClient.Subscribe(dag.TransactionPayloadAddedEvent, types.VcDocumentType, n.vcCallback)
-	n.networkClient.Subscribe(dag.TransactionPayloadAddedEvent, types.RevocationDocumentType, n.rCallback)
 	n.networkClient.Subscribe(dag.TransactionPayloadAddedEvent, types.RevocationLDDocumentType, n.jsonLDRevocationCallback)
 }
 
@@ -75,21 +75,6 @@ func (n ambassador) vcCallback(tx dag.Transaction, payload []byte) error {
 	// Verify and store
 	validAt := tx.SigningTime()
 	return n.writer.StoreCredential(target, &validAt)
-}
-
-// rCallback gets called when new credential revocations are received by the network. All checks on the signature are already performed.
-// The VCR is used to verify the contents of the revocation.
-// payload should be a json encoded Revocation
-func (n ambassador) rCallback(tx dag.Transaction, payload []byte) error {
-	log.Logger().Debugf("Processing VC revocation received from Nuts Network (ref=%s)", tx.Ref())
-
-	r := credential.Revocation{}
-	if err := json.Unmarshal(payload, &r); err != nil {
-		return fmt.Errorf("revocation processing failed: %w", err)
-	}
-
-	// Verify and store
-	return n.writer.StoreRevocation(r)
 }
 
 // jsonLDRevocationCallback gets called when new credential revocations are received by the network.

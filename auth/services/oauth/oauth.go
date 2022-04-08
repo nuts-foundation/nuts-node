@@ -30,12 +30,11 @@ import (
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	vc2 "github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/didman"
-	"github.com/nuts-foundation/nuts-node/vcr/signature"
-
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/didman"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
@@ -60,6 +59,7 @@ type service struct {
 	privateKeyStore nutsCrypto.KeyStore
 	contractNotary  services.ContractNotary
 	serviceResolver didman.CompoundServiceResolver
+	contextManager  jsonld.ContextManager
 
 	clockSkew time.Duration
 }
@@ -139,12 +139,13 @@ func (c validationContext) verifiableCredentials() ([]vc2.VerifiableCredential, 
 }
 
 // NewOAuthService accepts a vendorID, and several Nuts engines and returns an implementation of services.OAuthClient
-func NewOAuthService(store types.Store, vcFinder vcr.Finder, vcValidator vcr.Validator, serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore, contractNotary services.ContractNotary) services.OAuthClient {
+func NewOAuthService(store types.Store, vcFinder vcr.Finder, vcValidator vcr.Validator, serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore, contractNotary services.ContractNotary, contextManager jsonld.ContextManager) services.OAuthClient {
 	return &service{
 		docResolver:     doc.Resolver{Store: store},
 		keyResolver:     doc.KeyResolver{Store: store},
 		serviceResolver: serviceResolver,
 		contractNotary:  contractNotary,
+		contextManager:  contextManager,
 		vcFinder:        vcFinder,
 		vcValidator:     vcValidator,
 		privateKeyStore: privateKeyStore,
@@ -287,16 +288,10 @@ func (s *service) validateIssuer(vContext *validationContext) error {
 		return fmt.Errorf(errInvalidIssuerKeyFmt, err)
 	}
 
-	// TODO
 	searchTerms := []vcr.SearchTerm{
-		{
-			IRIPath: []string{"https://www.w3.org/2018/credentials#credentialSubject"},
-			Value:   vContext.jwtBearerToken.Issuer(),
-		},
-		{
-			IRIPath: []string{"@type"},
-			Value:   "https://nuts.nl/credentials/v1#NutsOrganizationCredential",
-		},
+		{IRIPath: jsonld.CredentialSubjectPath, Value: vContext.jwtBearerToken.Issuer()},
+		{IRIPath: jsonld.OrganizationNamePath, Type: vcr.NotNil},
+		{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
 	}
 	vcs, err := s.vcFinder.Search(context.Background(), searchTerms, false, &validationTime)
 	if err != nil {
@@ -307,21 +302,16 @@ func (s *service) validateIssuer(vContext *validationContext) error {
 		return errors.New("requester has no trusted organization VC")
 	}
 
-	// TODO: used a lot
-	// expand
-	expanded, err := s.vcFinder.Expand(vcs[0])
+	document, err := s.contextManager.Transformer().FromVC(vcs[0])
 	if err != nil {
 		return fmt.Errorf("could not expand credential to JSON-LD: %w", err)
 	}
-	var ok bool
-	rawOrgName := signature.ExtractValue(expanded, []string{"https://www.w3.org/2018/credentials#credentialSubject", "http://schema.org/organization", "http://schema.org/name"})
-	if vContext.requesterName, ok = rawOrgName.(string); !ok {
-		return fmt.Errorf("found credential where organization name is not a string (VC.ID: %s)", vcs[0].ID.String())
-	}
-	rawOrgCity := signature.ExtractValue(expanded, []string{"https://www.w3.org/2018/credentials#credentialSubject", "http://schema.org/organization", "http://schema.org/city"})
-	if vContext.requesterCity, ok = rawOrgCity.(string); !ok {
-		return fmt.Errorf("found credential where organization city is not a string (VC.ID: %s)", vcs[0].ID.String())
-	}
+	orgNames := document.ValueAt(jsonld.NewPath(jsonld.OrganizationNamePath...))
+	orgCities := document.ValueAt(jsonld.NewPath(jsonld.OrganizationCityPath...))
+
+	// must exist because we queried it that way
+	vContext.requesterName = orgNames[0].String()
+	vContext.requesterCity = orgCities[0].String()
 
 	return nil
 }

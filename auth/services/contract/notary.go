@@ -26,7 +26,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/vcr/signature"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -77,6 +77,7 @@ func (c Config) hasContractValidator(cv string) bool {
 
 type notary struct {
 	config            Config
+	contextManager    jsonld.ContextManager
 	keyResolver       types.KeyResolver
 	privateKeyStore   crypto.KeyStore
 	irmaServiceConfig irma.ValidatorConfig
@@ -89,9 +90,10 @@ type notary struct {
 var timeNow = time.Now
 
 // NewNotary accepts the registry and crypto Nuts engines and returns a ContractNotary
-func NewNotary(config Config, vcr vcr.VCR, keyResolver types.KeyResolver, keyStore crypto.KeyStore) services.ContractNotary {
+func NewNotary(config Config, vcr vcr.VCR, keyResolver types.KeyResolver, keyStore crypto.KeyStore, contextManager jsonld.ContextManager) services.ContractNotary {
 	return &notary{
 		config:          config,
+		contextManager:  contextManager,
 		vcr:             vcr,
 		keyResolver:     keyResolver,
 		privateKeyStore: keyStore,
@@ -105,53 +107,43 @@ func (n *notary) DrawUpContract(template contract.Template, orgID did.DID, valid
 	// Test if the org in managed by this node:
 	signingKeyID, err := n.keyResolver.ResolveSigningKeyID(orgID, &validFrom)
 	if errors.Is(err, types.ErrNotFound) {
-		return nil, fmt.Errorf("could not draw up contract: no valid organization credential at provided validFrom date")
+		return nil, fmt.Errorf("no valid organization credential at provided validFrom date")
 	} else if err != nil {
-		return nil, fmt.Errorf("could not draw up contract: %w", err)
+		return nil, fmt.Errorf("could not find signing key: %w", err)
 	}
 
 	if !n.privateKeyStore.Exists(signingKeyID) {
-		return nil, fmt.Errorf("could not draw up contract: organization is not managed by this node: %w", ErrMissingOrganizationKey)
+		return nil, fmt.Errorf("organization is not managed by this node: %w", ErrMissingOrganizationKey)
 	}
 
-	// DrawUpContract draws up a contract for a specific organization from a template
-	searchTerms := make([]vcr.SearchTerm, 0)
-	searchTerms = append(searchTerms, vcr.SearchTerm{
-		IRIPath: []string{"https://www.w3.org/2018/credentials#credentialSubject"},
-		Value:   orgID.String(),
-	})
-	// TODO find any credential adding organization info: not-nil query or range query? everything between 0x0 and 0xff
-	searchTerms = append(searchTerms, vcr.SearchTerm{
-		IRIPath: []string{"@type"},
-		Value:   "https://nuts.nl/credentials/v1#NutsOrganizationCredential",
-	})
+	searchTerms := []vcr.SearchTerm{
+		{IRIPath: jsonld.CredentialSubjectPath, Value: orgID.String()},
+		{IRIPath: jsonld.OrganizationNamePath, Type: vcr.NotNil},
+		{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
+	}
 
 	result, err := n.vcr.Search(context.Background(), searchTerms, false, nil)
 	if err != nil {
-		return nil, fmt.Errorf("could not draw up contract: %w", err)
+		return nil, fmt.Errorf("could not find a credential: %w", err)
 	}
 
-	// TODO: Check zero length
+	if len(result) == 0 {
+		return nil, errors.New("could not find a trusted credential with an organization name and city")
+	}
 
 	// expand
-	expanded, err := n.vcr.Expand(result[0])
+	document, err := n.contextManager.Transformer().FromVC(result[0])
 	if err != nil {
-		return nil, fmt.Errorf("could not draw up contract: %w", err)
-	}
-	var orgName, orgCity string
-	var ok bool
-	rawOrgName := signature.ExtractValue(expanded, []string{"https://www.w3.org/2018/credentials#credentialSubject", "http://schema.org/organization", "http://schema.org/name"})
-	if orgName, ok = rawOrgName.(string); !ok {
-		return nil, fmt.Errorf("could not draw up contract: found credential where organization name is not a string (VC.ID: %s)", result[0].ID.String())
-	}
-	rawOrgCity := signature.ExtractValue(expanded, []string{"https://www.w3.org/2018/credentials#credentialSubject", "http://schema.org/organization", "http://schema.org/city"})
-	if orgCity, ok = rawOrgCity.(string); !ok {
-		return nil, fmt.Errorf("could not draw up contract: found credential where organization city is not a string (VC.ID: %s)", result[0].ID.String())
+		return nil, fmt.Errorf("could not expand VC: %w", err)
 	}
 
+	orgNames := document.ValueAt(jsonld.NewPath(jsonld.OrganizationNamePath...))
+	orgCities := document.ValueAt(jsonld.NewPath(jsonld.OrganizationCityPath...))
+
+	// name and city must exist since we queried it
 	contractAttrs := map[string]string{
-		contract.LegalEntityAttr:     orgName,
-		contract.LegalEntityCityAttr: orgCity,
+		contract.LegalEntityAttr:     orgNames[0].String(),
+		contract.LegalEntityCityAttr: orgCities[0].String(),
 	}
 
 	if validDuration == 0 {

@@ -21,7 +21,6 @@ package vcr
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -34,21 +33,16 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/piprate/json-gold/ld"
 
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jws"
 	"gopkg.in/yaml.v2"
 
 	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/go-leia/v3"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vcr/assets"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
@@ -98,10 +92,6 @@ type vcr struct {
 	contextLoader   ld.DocumentLoader
 }
 
-func (c *vcr) Registry() concept.Reader {
-	return c.registry
-}
-
 func (c vcr) Issuer() issuer.Issuer {
 	return c.issuer
 }
@@ -148,12 +138,6 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	c.ambassador = NewAmbassador(c.network, c, c.verifier)
 
 	c.holder = holder.New(c.keyResolver, c.keyStore, c.verifier, c.contextLoader)
-
-	// load VC concept templates
-	// Deprecated: remove after V2
-	if err = c.loadTemplates(); err != nil {
-		return err
-	}
 
 	return c.trustConfig.Load()
 }
@@ -203,31 +187,6 @@ func (c *vcr) Shutdown() error {
 		log.Logger().Errorf("Unable to close verifier store: %v", err)
 	}
 	return c.store.Close()
-}
-
-func (c *vcr) loadTemplates() error {
-	list, err := fs.Glob(assets.Assets, "**/*.config.yaml")
-	if err != nil {
-		return err
-	}
-
-	for _, f := range list {
-		bytes, err := assets.Assets.ReadFile(f)
-		if err != nil {
-			return err
-		}
-		config := concept.Config{}
-		err = yaml.Unmarshal(bytes, &config)
-		if err != nil {
-			return err
-		}
-
-		if err = c.registry.Add(config); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func whitespaceOrExactTokenizer(text string) (tokens []string) {
@@ -371,42 +330,6 @@ func (c *vcr) Validate(credential vc.VerifiableCredential, allowUntrusted bool, 
 		validAt = &now
 	}
 
-	// TODO: All calls except verifier.Verify() can be removed when v1 is removed
-
-	// check for old api
-	revoked, err := c.isRevoked(*credential.ID)
-	if revoked {
-		return types.ErrRevoked
-	}
-	if err != nil {
-		return err
-	}
-
-	// check for new api
-	revoked, err = c.verifier.IsRevoked(*credential.ID)
-	if revoked {
-		return types.ErrRevoked
-	}
-	if err != nil {
-		return err
-	}
-
-	if checkSignature {
-		// check if the issuer was valid at the given time. (not deactivated, or deactivated controller)
-		issuerDID, _ := did.ParseDID(credential.Issuer.String())
-		_, _, err = c.docResolver.Resolve(*issuerDID, &vdr.ResolveMetadata{ResolveTime: validAt, AllowDeactivated: false})
-		if err != nil {
-			return fmt.Errorf("could not check validity of signing key: %w", err)
-		}
-	}
-
-	if !allowUntrusted {
-		trusted := c.isTrusted(credential)
-		if !trusted {
-			return types.ErrUntrusted
-		}
-	}
-
 	// perform the rest of the verification steps
 	return c.verifier.Verify(credential, allowUntrusted, checkSignature, validAt)
 }
@@ -424,41 +347,27 @@ func (c *vcr) isTrusted(credential vc.VerifiableCredential) bool {
 // find only returns a VC from storage, it does not tell anything about validity
 func (c *vcr) find(ID ssi.URI) (vc.VerifiableCredential, error) {
 	credential := vc.VerifiableCredential{}
-	qp := leia.Eq(leia.NewJSONPath(concept.IDField), leia.MustParseScalar(ID.String()))
+	qp := leia.Eq(leia.NewIRIPath(""), leia.MustParseScalar(ID.String()))
 	q := leia.New(qp)
 
 	ctx, cancel := context.WithTimeout(context.Background(), maxFindExecutionTime)
 	defer cancel()
-	for _, t := range c.registry.Concepts() {
-		docs, err := c.store.JSONCollection(t.CredentialType).Find(ctx, q)
-		if err != nil {
-			return credential, err
-		}
-		if len(docs) > 0 {
-			// there can be only one
-			err = json.Unmarshal(docs[0], &credential)
-			if err != nil {
-				return credential, fmt.Errorf("unable to parse credential from db: %w", err)
-			}
 
-			return credential, nil
+	docs, err := c.credentialCollection().Find(ctx, q)
+	if err != nil {
+		return credential, err
+	}
+	if len(docs) > 0 {
+		// there can be only one
+		err = json.Unmarshal(docs[0], &credential)
+		if err != nil {
+			return credential, fmt.Errorf("unable to parse credential from db: %w", err)
 		}
+
+		return credential, nil
 	}
 
 	return credential, types.ErrNotFound
-}
-
-// Revoke checks if the credential is already revoked, if not, it instructs the issuer role to revoke the credential.
-func (c *vcr) Revoke(credentialID ssi.URI) (*credential.Revocation, error) {
-	isRevoked, err := c.verifier.IsRevoked(credentialID)
-	if err != nil {
-		return nil, fmt.Errorf("error while checking revocation status: %w", err)
-	}
-	if isRevoked {
-		return nil, core.PreconditionFailedError("credential already revoked")
-	}
-
-	return c.issuer.Revoke(credentialID)
 }
 
 func (c *vcr) Trust(credentialType ssi.URI, issuer ssi.URI) error {
@@ -478,17 +387,7 @@ func (c *vcr) Untrust(credentialType ssi.URI, issuer ssi.URI) error {
 }
 
 func (c *vcr) Trusted(credentialType ssi.URI) ([]ssi.URI, error) {
-	concepts := c.registry.Concepts()
-
-	for _, concept := range concepts {
-		if concept.CredentialType == credentialType.String() {
-			return c.trustConfig.List(credentialType), nil
-		}
-	}
-
-	log.Logger().Warnf("No credential with type %s configured", credentialType.String())
-
-	return nil, types.ErrInvalidCredential
+	return c.trustConfig.List(credentialType), nil
 }
 
 func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
@@ -528,167 +427,4 @@ func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
 	}
 
 	return untrusted, nil
-}
-
-func (c *vcr) Get(conceptName string, allowUntrusted bool, subject string) (concept.Concept, error) {
-	q, err := c.Registry().QueryFor(conceptName)
-	if err != nil {
-		return nil, err
-	}
-
-	q.AddClause(concept.Eq(credential.CredentialSubjectPath, subject))
-
-	ctx, cancel := context.WithTimeout(context.Background(), maxFindExecutionTime)
-	defer cancel()
-	// finding a VC that backs a concept always occurs in the present, so no resolveTime needs to be passed.
-	vcs, err := c.SearchLegacy(ctx, q, allowUntrusted, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(vcs) == 0 {
-		return nil, types.ErrNotFound
-	}
-
-	// multiple valids, use first one
-	return c.Registry().Transform(conceptName, vcs[0])
-}
-
-func (c *vcr) SearchConcept(ctx context.Context, conceptName string, allowUntrusted bool, queryParams map[string]string) ([]concept.Concept, error) {
-	query, err := c.registry.QueryFor(conceptName)
-	if err != nil {
-		return nil, err
-	}
-
-	for key, value := range queryParams {
-		query.AddClause(concept.Prefix(key, value))
-	}
-
-	results, err := c.SearchLegacy(ctx, query, allowUntrusted, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var transformedResults = make([]concept.Concept, len(results))
-	for i, result := range results {
-		transformedResult, err := c.registry.Transform(conceptName, result)
-		if err != nil {
-			return nil, err
-		}
-		transformedResults[i] = transformedResult
-	}
-	return transformedResults, nil
-}
-
-func (c *vcr) verifyRevocation(r credential.Revocation) error {
-	// it must have valid content
-	if err := credential.ValidateRevocation(r); err != nil {
-		return err
-	}
-
-	// issuer must be the same as vc issuer
-	subject := r.Subject
-	subject.Fragment = ""
-	if subject != r.Issuer {
-		return errors.New("issuer of revocation is not the same as issuer of credential")
-	}
-
-	// create correct challenge for verification
-	payload := generateRevocationChallenge(r)
-
-	// extract proof, can't fail, already done in generateRevocationChallenge
-	splittedJws := strings.Split(r.Proof.Jws, "..")
-	if len(splittedJws) != 2 {
-		return errors.New("invalid 'jws' value in proof")
-	}
-	sig, err := base64.RawURLEncoding.DecodeString(splittedJws[1])
-	if err != nil {
-		return err
-	}
-
-	// check if key is of issuer
-	vm := r.Proof.VerificationMethod
-	vm.Fragment = ""
-	if vm != r.Issuer {
-		return errors.New("verification method is not of issuer")
-	}
-
-	// find key
-	pk, err := c.keyResolver.ResolveSigningKey(r.Proof.VerificationMethod.String(), &r.Date)
-	if err != nil {
-		return err
-	}
-
-	// the proof must be correct
-	verifier, _ := jws.NewVerifier(jwa.ES256)
-	// the jws lib can't do this for us, so we concat hdr with payload for verification
-	challenge := fmt.Sprintf("%s.%s", splittedJws[0], payload)
-	if err = verifier.Verify([]byte(challenge), sig, pk); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (c *vcr) isRevoked(ID ssi.URI) (bool, error) {
-	qp := leia.Eq(leia.NewJSONPath(credential.RevocationSubjectPath), leia.MustParseScalar(ID.String()))
-	q := leia.New(qp)
-
-	gIndex := c.revocationIndex()
-	ctx, cancel := context.WithTimeout(context.Background(), maxFindExecutionTime)
-	defer cancel()
-	docs, err := gIndex.Find(ctx, q)
-	if err != nil {
-		return false, err
-	}
-
-	if len(docs) >= 1 {
-		return true, nil
-	}
-
-	return false, nil
-}
-
-// convert returns a map of credential type to query
-// credential type is then used as collection input
-func (c *vcr) convert(query concept.Query) map[string]leia.Query {
-	var qs = make(map[string]leia.Query, 0)
-
-	for _, tq := range query.Parts() {
-		var q leia.Query
-		for _, clause := range tq.Clauses {
-			var qp leia.QueryPart
-
-			switch clause.Type() {
-			case concept.EqType:
-				qp = leia.Eq(leia.NewJSONPath(clause.Key()), leia.MustParseScalar(clause.Seek()))
-			case concept.PrefixType:
-				qp = leia.Prefix(leia.NewJSONPath(clause.Key()), leia.MustParseScalar(clause.Seek()))
-			default:
-				qp = leia.Range(leia.NewJSONPath(clause.Key()), leia.MustParseScalar(clause.Seek()), leia.MustParseScalar(clause.Match()))
-			}
-
-			q = q.And(qp)
-		}
-		qs[tq.CredentialType()] = q
-	}
-
-	return qs
-}
-
-func generateRevocationChallenge(r credential.Revocation) []byte {
-	// without JWS
-	proof := r.Proof.Proof
-
-	// payload
-	r.Proof = nil
-	payload, _ := json.Marshal(r)
-
-	// proof
-	prJSON, _ := json.Marshal(proof)
-
-	sums := append(hash.SHA256Sum(prJSON).Slice(), hash.SHA256Sum(payload).Slice()...)
-	tbs := base64.RawURLEncoding.EncodeToString(sums)
-
-	return []byte(tbs)
 }

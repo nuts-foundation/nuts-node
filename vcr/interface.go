@@ -27,25 +27,16 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vcr/concept"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 )
 
 // Finder is the VCR interface for searching VCs
 type Finder interface {
-	// SearchLegacy for matching VCs based upon a query. It returns an empty list if no matches have been found.
+	// Search for matching VCs based upon a query. It returns an empty list if no matches have been found.
 	// It also returns untrusted credentials when allowUntrusted == true
 	// a context must be passed to prevent long-running queries
-	// Deprecated: remove after V2
-	//SearchLegacy(ctx context.Context, query concept.Query, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error)
-
 	Search(ctx context.Context, searchTerms []SearchTerm, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error)
-
-	ExpandAndConvert(credential vc.VerifiableCredential) ([]SearchTerm, error)
-
-	Expand(credential vc.VerifiableCredential) ([]interface{}, error)
 }
 
 // Validator is the VCR interface for validation options
@@ -65,8 +56,6 @@ type Writer interface {
 	// StoreCredential writes a VC to storage. Before writing, it calls Verify!
 	// It can handle duplicates.
 	StoreCredential(vc vc.VerifiableCredential, validAt *time.Time) error
-	// StoreRevocation writes a revocation to storage.
-	StoreRevocation(r credential.Revocation) error
 }
 
 // TrustManager bundles all trust related methods in one interface
@@ -83,8 +72,6 @@ type TrustManager interface {
 
 // Resolver binds all read type of operations into an interface
 type Resolver interface {
-	// Registry returns the concept registry as read-only
-	Registry() concept.Reader
 	// Resolve returns a credential based on its ID.
 	// The optional resolveTime will resolve the credential at that point in time.
 	// The credential will still be returned in the case of ErrRevoked and ErrUntrusted.
@@ -97,15 +84,6 @@ type VCR interface {
 	Issuer() issuer.Issuer
 	Holder() holder.Holder
 	Verifier() verifier.Verifier
-
-	// Issue creates and publishes a new VC.
-	// An optional expirationDate can be given.
-	// VCs are stored when the network has successfully published them.
-	Issue(vcToIssue vc.VerifiableCredential) (*vc.VerifiableCredential, error)
-	// Revoke a credential based on its ID, the Issuer will be resolved automatically.
-	// The statusDate will be set to the current time.
-	// It returns an error if the credential, issuer or private key can not be found.
-	Revoke(ID ssi.URI) (*credential.Revocation, error)
 
 	Finder
 	Resolver

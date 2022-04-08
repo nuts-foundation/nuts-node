@@ -23,9 +23,12 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"path"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/vcr/signature"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/services/contract"
@@ -118,6 +121,14 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		auth.config.PublicURL = "http://" + config.HTTP.Address
 	}
 
+	// Create the JSON-LD Context loader
+	// TODO inject engine
+	allowExternalCalls := !config.Strictmode
+	contextLoader, err := signature.NewContextLoader(allowExternalCalls)
+	if err != nil {
+		return err
+	}
+
 	auth.contractNotary = contract.NewNotary(contract.Config{
 		PublicURL:             auth.config.PublicURL,
 		IrmaConfigPath:        path.Join(config.Datadir, "irma"),
@@ -125,7 +136,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		AutoUpdateIrmaSchemas: auth.config.IrmaAutoUpdateSchemas,
 		ContractValidators:    auth.config.ContractValidators,
 		ContractValidity:      contractValidity,
-	}, auth.vcr, doc.KeyResolver{Store: auth.registry}, auth.keyStore)
+	}, auth.vcr, doc.KeyResolver{Store: auth.registry}, auth.keyStore, jsonld.NewManager(contextLoader))
 
 	if config.Strictmode && !auth.config.tlsEnabled() {
 		return errors.New("in strictmode TLS must be enabled")
@@ -159,7 +170,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		return err
 	}
 
-	auth.oauthClient = oauth.NewOAuthService(auth.registry, auth.vcr, auth.vcr, auth.serviceResolver, auth.keyStore, auth.contractNotary)
+	auth.oauthClient = oauth.NewOAuthService(auth.registry, auth.vcr, auth.vcr, auth.serviceResolver, auth.keyStore, auth.contractNotary, jsonld.NewManager(contextLoader))
 
 	if err := auth.oauthClient.Configure(auth.config.ClockSkew); err != nil {
 		return err

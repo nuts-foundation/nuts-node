@@ -21,13 +21,14 @@ package v1
 import (
 	"encoding/json"
 	"fmt"
-	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vcr"
 	"net/http"
 	"regexp"
 	"strings"
 	"time"
+
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/vcr"
 
 	"github.com/labstack/echo/v4"
 
@@ -246,7 +247,7 @@ func (w Wrapper) DrawUpContract(ctx echo.Context) error {
 
 	drawnUpContract, err := w.Auth.ContractNotary().DrawUpContract(*template, *orgID, vf, validDuration)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not draw up contract: %w", err)
 	}
 
 	response := ContractResponse{

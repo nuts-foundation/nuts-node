@@ -31,9 +31,16 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 )
 
+const (
+	Prefix = "prefix"
+	Exact  = "exact"
+	NotNil = "notNil"
+)
+
 type SearchTerm struct {
 	IRIPath []string
 	Value   interface{}
+	Type    string
 }
 
 func (c *vcr) Expand(credential vc.VerifiableCredential) ([]interface{}, error) {
@@ -43,64 +50,6 @@ func (c *vcr) Expand(credential vc.VerifiableCredential) ([]interface{}, error) 
 	}
 
 	return signature.LDUtil{LDDocumentLoader: c.contextLoader}.Expand(jsonLD)
-}
-
-func (c *vcr) ExpandAndConvert(credential vc.VerifiableCredential) ([]SearchTerm, error) {
-	jsonLD, err := json.Marshal(credential)
-	if err != nil {
-		return nil, err
-	}
-
-	expanded, err := signature.LDUtil{LDDocumentLoader: c.contextLoader}.Expand(jsonLD)
-	if err != nil {
-		return nil, err
-	}
-	return flatten(expanded, nil), nil
-}
-
-func flatten(expanded interface{}, currentPath []string) []SearchTerm {
-	switch t := expanded.(type) {
-	case []interface{}:
-		return flattenSlice(t, currentPath)
-	case map[string]interface{}:
-		return flattenMap(t, currentPath)
-	}
-
-	return nil
-}
-
-func flattenSlice(expanded []interface{}, currentPath []string) []SearchTerm {
-	result := make([]SearchTerm, 0)
-
-	for _, sub := range expanded {
-		result = append(result, flatten(sub, currentPath)...)
-	}
-
-	return result
-}
-
-func flattenMap(expanded map[string]interface{}, currentPath []string) []SearchTerm {
-	// JSON-LD in expanded form either has @value, @id, @list or objects
-
-	results := make([]SearchTerm, 0)
-
-	for k, v := range expanded {
-		switch k {
-		case "@id":
-			fallthrough
-		case "@value":
-			results = append(results, SearchTerm{
-				IRIPath: currentPath,
-				Value:   v,
-			})
-		case "@list":
-			// TODO: not supported...
-		default:
-			results = append(results, flatten(v, append(currentPath, k))...)
-		}
-	}
-
-	return results
 }
 
 func (c *vcr) Search(ctx context.Context, searchTerms []SearchTerm, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
@@ -113,7 +62,15 @@ func (c *vcr) Search(ctx context.Context, searchTerms []SearchTerm, allowUntrust
 			return nil, fmt.Errorf("value type not supported at %s", strings.Join(searchTerm.IRIPath, "."))
 		}
 
-		query = query.And(leia.Prefix(leia.NewIRIPath(searchTerm.IRIPath...), scalar))
+		switch searchTerm.Type {
+		case Exact:
+			query = query.And(leia.Eq(leia.NewIRIPath(searchTerm.IRIPath...), scalar))
+		case NotNil:
+			query = query.And(leia.NotNil(leia.NewIRIPath(searchTerm.IRIPath...)))
+		default:
+			query = query.And(leia.Prefix(leia.NewIRIPath(searchTerm.IRIPath...), scalar))
+		}
+
 	}
 
 	docs, err := c.credentialCollection().Find(ctx, query)

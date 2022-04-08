@@ -28,24 +28,7 @@ import (
 const ExampleConcept = "human"
 const ExampleType = "HumanCredential"
 
-var humanEyeColour = "human.eyeColour"
-var humanHairColour = "human.hairColour"
-var humanSubject = "subject"
-var humanTemplate = `
-{
-	"id": "<<id>>",
-	"issuer": "<<issuer>>",
-	"type": "HumanCredential",
-	"subject": "<<credentialSubject.id>>",
-	"human": {
-		"eyeColour": "<<credentialSubject.human.eyeColour>>",
-		"hairColour": "<<credentialSubject.human.hairColour>>"
-	}
-}
-`
 var ExampleConfig = Config{
-	Concept:        "human",
-	CredentialType: "HumanCredential",
 	Indices: []Index{
 		{
 			Name: "human",
@@ -67,7 +50,6 @@ var ExampleConfig = Config{
 			Parts: []IndexPart{{JSONPath: "issuer"}},
 		},
 	},
-	Template: &humanTemplate,
 }
 
 const TestCredential = `

@@ -116,7 +116,6 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 	t.Run("broken identity token", func(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
-		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, false, requesterDID.String()).MinTimes(1).Return(orgConceptName, nil)
 		ctx.contractNotary.EXPECT().VerifyVP(gomock.Any(), nil).Return(nil, errors.New("identity validation failed"))
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(authorizerDID, gomock.Any()).MinTimes(1).Return(authorizerSigningKeyID.String(), nil)
@@ -154,7 +153,6 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
 
-		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, false, requesterDID.String()).MinTimes(1).Return(orgConceptName, nil)
 		ctx.privateKeyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(true)
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(authorizerDID, gomock.Any()).MinTimes(1).Return(authorizerSigningKeyID.String(), nil)
@@ -176,7 +174,6 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(authorizerDID, gomock.Any()).MinTimes(1).Return(authorizerSigningKeyID.String(), nil)
-		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, false, requesterDID.String()).MinTimes(1).Return(orgConceptName, nil)
 		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(getAuthorizerDIDDocument(), nil, nil).AnyTimes()
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
 		ctx.privateKeyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(true)
@@ -200,7 +197,6 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(authorizerDID, gomock.Any()).MinTimes(1).Return(authorizerSigningKeyID.String(), nil)
-		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, false, requesterDID.String()).MinTimes(1).Return(orgConceptName, nil)
 		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(getAuthorizerDIDDocument(), nil, nil).AnyTimes()
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
 		ctx.privateKeyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(true)
@@ -230,7 +226,6 @@ func TestService_validateIssuer(t *testing.T) {
 
 		tokenCtx := validContext()
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
-		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, false, requesterDID.String()).Return(orgConceptName, nil)
 
 		err := ctx.oauthService.validateIssuer(tokenCtx)
 		assert.NoError(t, err)
@@ -252,7 +247,6 @@ func TestService_validateIssuer(t *testing.T) {
 
 		tokenCtx := validContext()
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
-		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, false, requesterDID.String()).Return(nil, errors.New("failed"))
 
 		err := ctx.oauthService.validateIssuer(tokenCtx)
 		assert.EqualError(t, err, "invalid jwt.issuer: failed")
@@ -260,11 +254,9 @@ func TestService_validateIssuer(t *testing.T) {
 	t.Run("unable to resolve name from credential", func(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
-		falseConceptName := concept.Concept{"no org": concept.Concept{"name": "Carebears"}}
-
+		
 		tokenCtx := validContext()
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).Return(requesterSigningKey.Public(), nil)
-		ctx.nameResolver.EXPECT().Get(concept.OrganizationConcept, false, requesterDID.String()).Return(falseConceptName, nil)
 
 		err := ctx.oauthService.validateIssuer(tokenCtx)
 		assert.EqualError(t, err, "invalid jwt.issuer: requester has invalid organization VC: no value for given path")
@@ -1005,7 +997,6 @@ type testContext struct {
 	ctrl            *gomock.Controller
 	contractNotary  *services.MockContractNotary
 	privateKeyStore *crypto.MockKeyStore
-	nameResolver    *vcr.MockConceptFinder
 	vcValidator     *vcr.MockValidator
 	didResolver     *types.MockStore
 	keyResolver     *types.MockKeyResolver
@@ -1018,7 +1009,6 @@ var createContext = func(t *testing.T) *testContext {
 
 	contractNotaryMock := services.NewMockContractNotary(ctrl)
 	privateKeyStore := crypto.NewMockKeyStore(ctrl)
-	nameResolver := vcr.NewMockConceptFinder(ctrl)
 	vcValidator := vcr.NewMockValidator(ctrl)
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	serviceResolver := didman.NewMockCompoundServiceResolver(ctrl)
@@ -1029,7 +1019,6 @@ var createContext = func(t *testing.T) *testContext {
 		contractNotary:  contractNotaryMock,
 		privateKeyStore: privateKeyStore,
 		keyResolver:     keyResolver,
-		nameResolver:    nameResolver,
 		serviceResolver: serviceResolver,
 		vcValidator:     vcValidator,
 		didResolver:     didResolver,
@@ -1038,7 +1027,6 @@ var createContext = func(t *testing.T) *testContext {
 			keyResolver:     keyResolver,
 			contractNotary:  contractNotaryMock,
 			privateKeyStore: privateKeyStore,
-			vcFinder:        nameResolver,
 			serviceResolver: serviceResolver,
 			vcValidator:     vcValidator,
 		},

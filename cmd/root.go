@@ -27,6 +27,8 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"go.uber.org/atomic"
@@ -180,19 +182,22 @@ func CreateSystem() *core.System {
 
 	// Create instances
 	cryptoInstance := crypto.NewCryptoInstance()
+	// TODO
+	contextLoader, err := signature.NewContextLoader(false)
+	if err != nil {
+		panic(err)
+	}
+	contextManager := jsonld.NewManager(contextLoader)
 	didStore := store.NewBBoltStore()
 	keyResolver := doc.KeyResolver{Store: didStore}
 	docResolver := doc.Resolver{Store: didStore}
 	docFinder := doc.Finder{Store: didStore}
-
 	eventManager := events.NewManager()
-
 	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), keyResolver, cryptoInstance, cryptoInstance, docResolver, docFinder)
 	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance, didStore)
 	credentialInstance := vcr.NewVCRInstance(cryptoInstance, docResolver, keyResolver, networkInstance)
 	didmanInstance := didman.NewDidmanInstance(docResolver, didStore, vdrInstance, credentialInstance)
 	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), didStore, credentialInstance, cryptoInstance, didmanInstance)
-
 	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
 
@@ -205,7 +210,7 @@ func CreateSystem() *core.System {
 		Updater:    vdrInstance,
 		Resolver:   docResolver,
 	}})
-	system.RegisterRoutes(&credAPIv2.Wrapper{VCR: credentialInstance})
+	system.RegisterRoutes(&credAPIv2.Wrapper{VCR: credentialInstance, ContextManager: contextManager})
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))
 	system.RegisterRoutes(&authAPI.Wrapper{Auth: authInstance, CredentialResolver: credentialInstance})
