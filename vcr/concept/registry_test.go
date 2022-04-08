@@ -38,15 +38,4 @@ func TestRegistry_Add(t *testing.T) {
 			assert.Len(t, r.configs, 1)
 		})
 	})
-
-	t.Run("error - no type error", func(t *testing.T) {
-		r := NewRegistry().(*registry)
-
-		err := r.Add(Config{})
-
-		if !assert.Error(t, err) {
-			return
-		}
-		assert.Equal(t, ErrNoType, err)
-	})
 }

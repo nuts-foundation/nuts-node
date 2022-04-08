@@ -16,7 +16,7 @@
  *
  */
 
-package signature
+package jsonld
 
 import (
 	"embed"
@@ -25,7 +25,6 @@ import (
 	"net/url"
 
 	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/nuts-node/vcr/assets"
 	"github.com/piprate/json-gold/ld"
 )
 
@@ -70,26 +69,6 @@ func (e embeddedFSDocumentLoader) LoadDocument(path string) (*ld.RemoteDocument,
 		return e.nextLoader.LoadDocument(path)
 	}
 	return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, nil)
-}
-
-// NewContextLoader creates a new JSON-LD context loader with the embedded FS as first loader.
-// It loads the most used context from the embedded FS. This ensures the contents cannot be altered.
-// If allowExternalCalls is set to true, it also loads external context from the internet.
-func NewContextLoader(allowExternalCalls bool) (ld.DocumentLoader, error) {
-	var nextLoader ld.DocumentLoader
-	if allowExternalCalls {
-		nextLoader = ld.NewDefaultDocumentLoader(nil)
-	}
-	loader := ld.NewCachingDocumentLoader(NewEmbeddedFSDocumentLoader(assets.Assets, nextLoader))
-	if err := loader.PreloadWithMapping(map[string]string{
-		"https://nuts.nl/credentials/v1":                                     "assets/contexts/nuts.ldjson",
-		"https://www.w3.org/2018/credentials/v1":                             "assets/contexts/w3c-credentials-v1.ldjson",
-		"https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json": "assets/contexts/lds-jws2020-v1.ldjson",
-		"https://schema.org":                                                 "assets/contexts/schema-org-v13.ldjson",
-	}); err != nil {
-		return nil, fmt.Errorf("unable to preload nuts ld-context: %w", err)
-	}
-	return loader, nil
 }
 
 // LDUtil package a set of often used JSON-LD operations for re-usability.

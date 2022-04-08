@@ -19,19 +19,46 @@
 
 package jsonld
 
-import "github.com/piprate/json-gold/ld"
+import (
+	"fmt"
+
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/jsonld/assets"
+	"github.com/piprate/json-gold/ld"
+)
 
 type contextManager struct {
 	documentLoader ld.DocumentLoader
 }
 
 // NewManager returns a new ContextManager
-func NewManager(documentLoader ld.DocumentLoader) ContextManager {
-	return contextManager{
-		documentLoader: documentLoader,
-	}
+func NewManager() ContextManager {
+	return &contextManager{}
+}
+
+func (c contextManager) DocumentLoader() ld.DocumentLoader {
+	return c.documentLoader
 }
 
 func (m contextManager) Transformer() Transformer {
 	return transformer{documentLoader: m.documentLoader}
+}
+
+func (m *contextManager) Configure(config core.ServerConfig) error {
+	var nextLoader ld.DocumentLoader
+	if !config.Strictmode {
+		nextLoader = ld.NewDefaultDocumentLoader(nil)
+	}
+	loader := ld.NewCachingDocumentLoader(NewEmbeddedFSDocumentLoader(assets.Assets, nextLoader))
+	if err := loader.PreloadWithMapping(map[string]string{
+		"https://nuts.nl/credentials/v1":                                     "assets/contexts/nuts.ldjson",
+		"https://www.w3.org/2018/credentials/v1":                             "assets/contexts/w3c-credentials-v1.ldjson",
+		"https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json": "assets/contexts/lds-jws2020-v1.ldjson",
+		"https://schema.org":                                                 "assets/contexts/schema-org-v13.ldjson",
+	}); err != nil {
+		return fmt.Errorf("unable to preload nuts ld-context: %w", err)
+	}
+	m.documentLoader = loader
+
+	return nil
 }

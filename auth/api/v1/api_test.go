@@ -23,13 +23,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vcr"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/vcr"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -375,7 +376,7 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 
 		err := ctx.wrapper.DrawUpContract(ctx.echoMock)
 
-		assert.EqualError(t, err, "unknown error while drawing up the contract")
+		assert.EqualError(t, err, "could not draw up contract: unknown error while drawing up the contract")
 	})
 }
 

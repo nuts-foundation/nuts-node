@@ -20,8 +20,9 @@ package irma
 
 import (
 	"errors"
-	"github.com/privacybydesign/irmago/server/irmaserver"
 	"testing"
+
+	"github.com/privacybydesign/irmago/server/irmaserver"
 
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr"
@@ -180,7 +181,6 @@ func serviceWithMocks(t *testing.T) *mockContext {
 	vcr := vcr.NewMockResolver(ctrl)
 	conceptRegistry := concept.NewMockRegistry(ctrl)
 	mockSigner := crypto.NewMockJWTSigner(ctrl)
-	vcr.EXPECT().Registry().Return(conceptRegistry).AnyTimes()
 
 	irmaConfig, _ := GetIrmaConfig(serviceConfig)
 	service := &Service{

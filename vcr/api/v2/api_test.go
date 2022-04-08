@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
@@ -466,7 +467,7 @@ func TestWrapper_RevokeVC(t *testing.T) {
 			defer testContext.ctrl.Finish()
 
 			expectedRevocation := &Revocation{Subject: credentialURI}
-			testContext.vcr.EXPECT().Revoke(credentialURI).Return(expectedRevocation, nil)
+			testContext.mockIssuer.EXPECT().Revoke(credentialURI).Return(expectedRevocation, nil)
 			testContext.echo.EXPECT().JSON(http.StatusOK, expectedRevocation)
 
 			err := testContext.client.RevokeVC(testContext.echo, credentialID)
@@ -477,7 +478,7 @@ func TestWrapper_RevokeVC(t *testing.T) {
 			testContext := newMockContext(t)
 			defer testContext.ctrl.Finish()
 
-			testContext.vcr.EXPECT().Revoke(credentialURI).Return(nil, errors.New("credential not found"))
+			testContext.mockIssuer.EXPECT().Revoke(credentialURI).Return(nil, errors.New("credential not found"))
 			err := testContext.client.RevokeVC(testContext.echo, credentialID)
 			assert.EqualError(t, err, "credential not found")
 		})
@@ -903,7 +904,11 @@ func newMockContext(t *testing.T) mockContext {
 	mockVcr.EXPECT().Issuer().Return(mockIssuer).AnyTimes()
 	mockVcr.EXPECT().Holder().Return(mockHolder).AnyTimes()
 	mockVcr.EXPECT().Verifier().Return(mockVerifier).AnyTimes()
-	client := &Wrapper{VCR: mockVcr}
+	contextManager := jsonld.NewManager()
+	if err := contextManager.(core.Configurable).Configure(core.ServerConfig{}); err != nil {
+		panic(err)
+	}
+	client := &Wrapper{VCR: mockVcr, ContextManager: contextManager}
 
 	return mockContext{
 		ctrl:         ctrl,

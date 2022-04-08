@@ -22,9 +22,10 @@ package vcr
 import (
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"os"
 	"testing"
+
+	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/vc"
@@ -104,58 +105,6 @@ func TestAmbassador_vcCallback(t *testing.T) {
 		a := NewAmbassador(nil, wMock, nil).(ambassador)
 
 		err := a.vcCallback(stx, []byte("{"))
-
-		assert.Error(t, err)
-	})
-}
-
-func TestAmbassador_rCallback(t *testing.T) {
-	payload := []byte("{\"subject\":\"did:nuts:1#123\"}")
-	tx, _ := dag.NewTransaction(hash.EmptyHash(), types.RevocationDocumentType, nil, nil, 0)
-	stx := tx.(dag.Transaction)
-
-	t.Run("ok", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		wMock := NewMockWriter(ctrl)
-		defer ctrl.Finish()
-
-		r := credential.Revocation{}
-		a := NewAmbassador(nil, wMock, nil).(ambassador)
-		wMock.EXPECT().StoreRevocation(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			r = f.(credential.Revocation)
-			return nil
-		})
-
-		err := a.rCallback(stx, payload)
-
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		assert.Equal(t, "did:nuts:1#123", r.Subject.String())
-	})
-
-	t.Run("error - storing fails", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		wMock := NewMockWriter(ctrl)
-		defer ctrl.Finish()
-
-		a := NewAmbassador(nil, wMock, nil).(ambassador)
-		wMock.EXPECT().StoreRevocation(gomock.Any()).Return(errors.New("b00m!"))
-
-		err := a.rCallback(stx, payload)
-
-		assert.Error(t, err)
-	})
-
-	t.Run("error - invalid payload", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		wMock := NewMockWriter(ctrl)
-		defer ctrl.Finish()
-
-		a := NewAmbassador(nil, wMock, nil).(ambassador)
-
-		err := a.rCallback(stx, []byte("{"))
 
 		assert.Error(t, err)
 	})

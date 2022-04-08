@@ -21,9 +21,11 @@ package jsonld
 
 var (
 	// OrganizationNamePath contains the JSON-LD search path for finding an organization name
-	OrganizationNamePath = []string{"https://www.w3.org/2018/credentials#credentialSubject", "http://schema.org/organization", "http://schema.org/name"}
+	OrganizationNamePath = []string{"https://www.w3.org/2018/credentials#credentialSubject", "http://schema.org/organization", "http://schema.org/legalname"}
 	// OrganizationCityPath contains the JSON-LD search path for finding an organization city
 	OrganizationCityPath = []string{"https://www.w3.org/2018/credentials#credentialSubject", "http://schema.org/organization", "http://schema.org/city"}
 	// CredentialSubjectPath contains the JSON-LD search path for the credential subject ID
 	CredentialSubjectPath = []string{"https://www.w3.org/2018/credentials#credentialSubject"}
+	// CredentialIssuerPath contains the JSON-LD search path for the credential issuer
+	CredentialIssuerPath = []string{"https://www.w3.org/2018/credentials#issuer"}
 )

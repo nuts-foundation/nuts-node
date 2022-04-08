@@ -31,7 +31,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
 func TestVcr_StoreCredential(t *testing.T) {
@@ -113,38 +112,6 @@ func TestVcr_StoreCredential(t *testing.T) {
 		ctx := newMockContext(t)
 
 		err := ctx.vcr.StoreCredential(vc.VerifiableCredential{}, nil)
-
-		assert.Error(t, err)
-	})
-}
-
-func TestVcr_StoreRevocation(t *testing.T) {
-	// load VC
-	r := credential.Revocation{}
-	rJSON, _ := os.ReadFile("test/revocation.json")
-	json.Unmarshal(rJSON, &r)
-
-	// load pub key
-	pke := storage.PublicKeyEntry{}
-	pkeJSON, _ := os.ReadFile("test/public.json")
-	json.Unmarshal(pkeJSON, &pke)
-	var pk = new(ecdsa.PublicKey)
-	pke.JWK().Raw(pk)
-
-	t.Run("ok", func(t *testing.T) {
-		ctx := newMockContext(t)
-
-		ctx.keyResolver.EXPECT().ResolveSigningKey(gomock.Any(), gomock.Any()).Return(pk, nil)
-
-		err := ctx.vcr.StoreRevocation(r)
-
-		assert.NoError(t, err)
-	})
-
-	t.Run("error - validation", func(t *testing.T) {
-		ctx := newMockContext(t)
-
-		err := ctx.vcr.StoreRevocation(credential.Revocation{})
 
 		assert.Error(t, err)
 	})

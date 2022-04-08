@@ -30,9 +30,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
-	"github.com/piprate/json-gold/ld"
-
 	"gopkg.in/yaml.v2"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -45,7 +44,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
-	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
@@ -59,7 +57,7 @@ var timeFunc = time.Now
 var noSync bool
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
-func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions) VCR {
+func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions, contextManager jsonld.ContextManager) VCR {
 	r := &vcr{
 		config:          DefaultConfig(),
 		docResolver:     docResolver,
@@ -68,6 +66,7 @@ func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyRe
 		serviceResolver: doc.NewServiceResolver(docResolver),
 		network:         network,
 		registry:        concept.NewRegistry(),
+		contextManager:  contextManager,
 	}
 
 	return r
@@ -89,7 +88,7 @@ type vcr struct {
 	holder          holder.Holder
 	issuerStore     issuer.Store
 	verifierStore   verifier.Store
-	contextLoader   ld.DocumentLoader
+	contextManager  jsonld.ContextManager
 }
 
 func (c vcr) Issuer() issuer.Issuer {
@@ -127,17 +126,13 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	tcPath := path.Join(config.Datadir, "vcr", "trusted_issuers.yaml")
 	c.trustConfig = trust.NewConfig(tcPath)
 
-	// Create the JSON-LD Context loader
-	allowExternalCalls := !config.Strictmode
-	c.contextLoader, err = signature.NewContextLoader(allowExternalCalls)
-
 	publisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
-	c.issuer = issuer.NewIssuer(c.issuerStore, publisher, c.docResolver, c.keyStore, c.contextLoader, c.trustConfig)
-	c.verifier = verifier.NewVerifier(c.verifierStore, c.keyResolver, c.contextLoader, c.trustConfig)
+	c.issuer = issuer.NewIssuer(c.issuerStore, publisher, c.docResolver, c.keyStore, c.contextManager.DocumentLoader(), c.trustConfig)
+	c.verifier = verifier.NewVerifier(c.verifierStore, c.keyResolver, c.contextManager.DocumentLoader(), c.trustConfig)
 
 	c.ambassador = NewAmbassador(c.network, c, c.verifier)
 
-	c.holder = holder.New(c.keyResolver, c.keyStore, c.verifier, c.contextLoader)
+	c.holder = holder.New(c.keyResolver, c.keyStore, c.verifier, c.contextManager.DocumentLoader())
 
 	return c.trustConfig.Load()
 }
@@ -162,7 +157,7 @@ func (c *vcr) Start() error {
 	var err error
 
 	// setup DB connection
-	if c.store, err = leia.NewStore(c.credentialsDBPath(), leia.WithDocumentLoader(c.contextLoader)); err != nil {
+	if c.store, err = leia.NewStore(c.credentialsDBPath(), leia.WithDocumentLoader(c.contextManager.DocumentLoader())); err != nil {
 		return err
 	}
 
@@ -347,7 +342,7 @@ func (c *vcr) isTrusted(credential vc.VerifiableCredential) bool {
 // find only returns a VC from storage, it does not tell anything about validity
 func (c *vcr) find(ID ssi.URI) (vc.VerifiableCredential, error) {
 	credential := vc.VerifiableCredential{}
-	qp := leia.Eq(leia.NewIRIPath(""), leia.MustParseScalar(ID.String()))
+	qp := leia.Eq(leia.NewIRIPath(), leia.MustParseScalar(ID.String()))
 	q := leia.New(qp)
 
 	ctx, cancel := context.WithTimeout(context.Background(), maxFindExecutionTime)
@@ -398,10 +393,10 @@ func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
 	}
 
 	// match all keys
-	query := leia.New(leia.Prefix(leia.NewJSONPath(concept.IssuerField), leia.MustParseScalar("")))
+	query := leia.New(leia.NotNil(leia.NewIRIPath(jsonld.CredentialIssuerPath...)))
 
 	// use type specific collection
-	collection := c.store.JSONCollection(credentialType.String())
+	collection := c.credentialCollection()
 
 	// for each key: add to untrusted if not present in trusted
 	err := collection.IndexIterate(query, func(key []byte, value []byte) error {

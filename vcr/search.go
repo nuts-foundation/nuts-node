@@ -28,7 +28,7 @@ import (
 
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/go-leia/v3"
-	"github.com/nuts-foundation/nuts-node/vcr/signature"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 )
 
 const (
@@ -43,13 +43,13 @@ type SearchTerm struct {
 	Type    string
 }
 
-func (c *vcr) Expand(credential vc.VerifiableCredential) ([]interface{}, error) {
-	jsonLD, err := json.Marshal(credential)
+func (c *vcr) Expand(credential vc.VerifiableCredential) (jsonld.Document, error) {
+	document, err := c.contextManager.Transformer().FromVC(credential)
 	if err != nil {
 		return nil, err
 	}
 
-	return signature.LDUtil{LDDocumentLoader: c.contextLoader}.Expand(jsonLD)
+	return document, nil
 }
 
 func (c *vcr) Search(ctx context.Context, searchTerms []SearchTerm, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {

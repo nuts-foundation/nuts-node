@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Nuts community
+ * Copyright (C) 2022 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,30 +16,11 @@
  *
  */
 
-package auth
+package assets
 
-import (
-	"testing"
+import "embed"
 
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vdr/store"
-)
-
-func NewTestAuthInstance(t *testing.T) *Auth {
-	return NewAuthInstance(
-		TestConfig(),
-		store.NewMemoryStore(),
-		vcr.NewTestVCRInstance(t),
-		crypto.NewTestCryptoInstance(),
-		nil,
-		jsonld.NewManager(),
-	)
-}
-
-func TestConfig() Config {
-	config := DefaultConfig()
-	config.ContractValidators = []string{"dummy"}
-	return config
-}
+// Assets contains the embedded files needed for VCR.
+// These are the concept templates and de JSON-LD Contexts.
+//go:embed assets/*
+var Assets embed.FS

@@ -19,6 +19,7 @@
 package oauth
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -35,6 +36,8 @@ import (
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/lestrrat-go/jwx/jwt"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -44,7 +47,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr"
@@ -60,7 +62,6 @@ var authorizerDID = *vdr.TestDIDA
 var authorizerDIDDocument = getAuthorizerDIDDocument()
 var requesterSigningKeyID = getRequesterSigningKey()
 var authorizerSigningKeyID = getAuthorizerSigningKey()
-var orgConceptName = concept.Concept{"organization": concept.Concept{"name": "Carebears", "city": "Caretown"}}
 
 const expectedService = "unit-test"
 const expectedAudience = "http://oauth"
@@ -102,6 +103,37 @@ func getAuthorizerDIDDocument() *did.Document {
 }
 
 func TestAuth_CreateAccessToken(t *testing.T) {
+	searchTerms := []vcr.SearchTerm{
+		{IRIPath: jsonld.CredentialSubjectPath, Value: requesterDID.String()},
+		{IRIPath: jsonld.OrganizationNamePath, Type: vcr.NotNil},
+		{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
+	}
+	// TODO double testData
+	testCredentialJSON := `
+{
+    "@context": [
+        "https://www.w3.org/2018/credentials/v1",
+        "https://nuts.nl/credentials/v1",
+        "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
+    ],
+    "credentialSubject": {
+        "organization": {
+            "city": "Caretown",
+            "name": "Carebears"
+        },
+        "id": "` + requesterDID.String() + `"
+    },
+    "id": "did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H#d2aa8189-db59-4dad-a3e5-60ca54f8fcc0",
+    "issuanceDate": "2021-12-24T13:21:29.087205+01:00",
+    "issuer": "did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H",
+    "proof": {},
+    "type": [
+        "OrganizationCredential",
+        "VerifiableCredential"
+    ]
+}`
+	testCredential := vc.VerifiableCredential{}
+	_ = json.Unmarshal([]byte(testCredentialJSON), &testCredential)
 	t.Run("invalid jwt", func(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
@@ -120,6 +152,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(authorizerDID, gomock.Any()).MinTimes(1).Return(authorizerSigningKeyID.String(), nil)
 		ctx.privateKeyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(true)
+		ctx.vcFinder.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		tokenCtx := validContext()
 		signToken(tokenCtx)
@@ -157,6 +190,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(authorizerDID, gomock.Any()).MinTimes(1).Return(authorizerSigningKeyID.String(), nil)
 		ctx.contractNotary.EXPECT().VerifyVP(gomock.Any(), nil).Return(services.TestVPVerificationResult{Val: contract.Invalid}, nil)
+		ctx.vcFinder.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		tokenCtx := validContext()
 		signToken(tokenCtx)
@@ -179,6 +213,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx.privateKeyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(true)
 		ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), authorizerSigningKeyID.String()).Return("expectedAccessToken", nil)
 		ctx.vcValidator.EXPECT().Validate(gomock.Any(), true, true, gomock.Any()).Return(nil)
+		ctx.vcFinder.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		tokenCtx := validContext()
 		tokenCtx.jwtBearerToken.Remove(userIdentityClaim)
@@ -207,6 +242,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 			CAttributes: map[string]string{"legal_entity": "Carebears", "legal_entity_city": "Caretown"},
 		}, nil)
 		ctx.vcValidator.EXPECT().Validate(gomock.Any(), true, true, gomock.Any()).Return(nil)
+		ctx.vcFinder.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		tokenCtx := validContext()
 		signToken(tokenCtx)
@@ -220,12 +256,44 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 }
 
 func TestService_validateIssuer(t *testing.T) {
+	searchTerms := []vcr.SearchTerm{
+		{IRIPath: jsonld.CredentialSubjectPath, Value: requesterDID.String()},
+		{IRIPath: jsonld.OrganizationNamePath, Type: vcr.NotNil},
+		{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
+	}
+	testCredentialJSON := `
+{
+    "@context": [
+        "https://www.w3.org/2018/credentials/v1",
+        "https://nuts.nl/credentials/v1",
+        "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
+    ],
+    "credentialSubject": {
+        "organization": {
+            "city": "Caretown",
+            "name": "Carebears"
+        },
+        "id": "` + requesterDID.String() + `"
+    },
+    "id": "did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H#d2aa8189-db59-4dad-a3e5-60ca54f8fcc0",
+    "issuanceDate": "2021-12-24T13:21:29.087205+01:00",
+    "issuer": "did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H",
+    "proof": {},
+    "type": [
+        "OrganizationCredential",
+        "VerifiableCredential"
+    ]
+}`
+	testCredential := vc.VerifiableCredential{}
+	_ = json.Unmarshal([]byte(testCredentialJSON), &testCredential)
+
 	t.Run("ok", func(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
 
 		tokenCtx := validContext()
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
+		ctx.vcFinder.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		err := ctx.oauthService.validateIssuer(tokenCtx)
 		assert.NoError(t, err)
@@ -241,25 +309,27 @@ func TestService_validateIssuer(t *testing.T) {
 		err := ctx.oauthService.validateIssuer(tokenCtx)
 		assert.ErrorIs(t, err, did.ErrInvalidDID)
 	})
-	t.Run("unable to resolve name", func(t *testing.T) {
+	t.Run("unable to resolve credential", func(t *testing.T) {
 		ctx := createContext(t)
 		defer ctx.ctrl.Finish()
 
-		tokenCtx := validContext()
-		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
-
-		err := ctx.oauthService.validateIssuer(tokenCtx)
-		assert.EqualError(t, err, "invalid jwt.issuer: failed")
-	})
-	t.Run("unable to resolve name from credential", func(t *testing.T) {
-		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
-		
 		tokenCtx := validContext()
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).Return(requesterSigningKey.Public(), nil)
+		ctx.vcFinder.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return(nil, errors.New("error occurred"))
 
 		err := ctx.oauthService.validateIssuer(tokenCtx)
-		assert.EqualError(t, err, "invalid jwt.issuer: requester has invalid organization VC: no value for given path")
+		assert.EqualError(t, err, "invalid jwt.issuer: error occurred")
+	})
+	t.Run("no mathcing credential", func(t *testing.T) {
+		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
+
+		tokenCtx := validContext()
+		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).Return(requesterSigningKey.Public(), nil)
+		ctx.vcFinder.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{}, nil)
+
+		err := ctx.oauthService.validateIssuer(tokenCtx)
+		assert.EqualError(t, err, "requester has no trusted organization VC")
 	})
 	t.Run("unable to resolve key", func(t *testing.T) {
 		ctx := createContext(t)
@@ -998,6 +1068,7 @@ type testContext struct {
 	contractNotary  *services.MockContractNotary
 	privateKeyStore *crypto.MockKeyStore
 	vcValidator     *vcr.MockValidator
+	vcFinder        *vcr.MockFinder
 	didResolver     *types.MockStore
 	keyResolver     *types.MockKeyResolver
 	serviceResolver *didman.MockCompoundServiceResolver
@@ -1010,9 +1081,15 @@ var createContext = func(t *testing.T) *testContext {
 	contractNotaryMock := services.NewMockContractNotary(ctrl)
 	privateKeyStore := crypto.NewMockKeyStore(ctrl)
 	vcValidator := vcr.NewMockValidator(ctrl)
+	vcFinder := vcr.NewMockFinder(ctrl)
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	serviceResolver := didman.NewMockCompoundServiceResolver(ctrl)
 	didResolver := types.NewMockStore(ctrl)
+
+	contextManager := jsonld.NewManager()
+	if err := contextManager.(core.Configurable).Configure(core.ServerConfig{}); err != nil {
+		panic(err)
+	}
 
 	return &testContext{
 		ctrl:            ctrl,
@@ -1021,14 +1098,17 @@ var createContext = func(t *testing.T) *testContext {
 		keyResolver:     keyResolver,
 		serviceResolver: serviceResolver,
 		vcValidator:     vcValidator,
+		vcFinder:        vcFinder,
 		didResolver:     didResolver,
 		oauthService: &service{
 			docResolver:     doc.Resolver{Store: didResolver},
-			keyResolver:     keyResolver,
-			contractNotary:  contractNotaryMock,
-			privateKeyStore: privateKeyStore,
-			serviceResolver: serviceResolver,
+			vcFinder:        vcFinder,
 			vcValidator:     vcValidator,
+			keyResolver:     keyResolver,
+			privateKeyStore: privateKeyStore,
+			contractNotary:  contractNotaryMock,
+			serviceResolver: serviceResolver,
+			contextManager:  contextManager,
 		},
 	}
 }

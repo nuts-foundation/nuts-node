@@ -20,9 +20,11 @@
 package vcr
 
 import (
-	"github.com/nuts-foundation/nuts-node/network/dag"
 	"path"
 	"testing"
+
+	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/network/dag"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -49,9 +51,14 @@ func NewTestVCRInstance(t *testing.T) *vcr {
 		nil,
 		nil,
 		network.NewTestNetworkInstance(path.Join(testDirectory, "network")),
+		jsonld.NewManager(),
 	).(*vcr)
 
-	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
+	config := core.ServerConfig{Datadir: testDirectory}
+	if err := newInstance.contextManager.(core.Configurable).Configure(config); err != nil {
+		t.Fatal(err)
+	}
+	if err := newInstance.Configure(config); err != nil {
 		t.Fatal(err)
 	}
 	if err := newInstance.Start(); err != nil {
@@ -83,12 +90,17 @@ func newMockContext(t *testing.T) mockContext {
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	docResolver := types.NewMockDocResolver(ctrl)
 	serviceResolver := doc.NewMockServiceResolver(ctrl)
-	vcr := NewVCRInstance(crypto, docResolver, keyResolver, tx).(*vcr)
+	vcr := NewVCRInstance(crypto, docResolver, keyResolver, tx, jsonld.NewManager()).(*vcr)
 	vcr.serviceResolver = serviceResolver
 	vcr.trustConfig = trust.NewConfig(path.Join(testDir, "trust.yaml"))
 	vcr.config.OverrideIssueAllPublic = false
 
-	if err := vcr.Configure(core.ServerConfig{Datadir: testDir}); err != nil {
+	config := core.ServerConfig{Datadir: testDir}
+	if err := vcr.contextManager.(core.Configurable).Configure(config); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := vcr.Configure(config); err != nil {
 		t.Fatal(err)
 	}
 	if err := vcr.Start(); err != nil {

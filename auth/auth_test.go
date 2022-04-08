@@ -24,6 +24,7 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 
@@ -127,7 +128,7 @@ func TestAuth_Configure(t *testing.T) {
 func testInstance(t *testing.T, cfg Config) *Auth {
 	cryptoInstance := crypto.NewTestCryptoInstance()
 	vcrInstance := vcr.NewTestVCRInstance(t)
-	return NewAuthInstance(cfg, store.NewMemoryStore(), vcrInstance, cryptoInstance, nil)
+	return NewAuthInstance(cfg, store.NewMemoryStore(), vcrInstance, cryptoInstance, nil, jsonld.NewManager())
 }
 
 func TestAuth_Name(t *testing.T) {

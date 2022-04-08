@@ -19,10 +19,15 @@
 
 package jsonld
 
-import "github.com/nuts-foundation/go-did/vc"
+import (
+	"github.com/nuts-foundation/go-did/vc"
+	"github.com/piprate/json-gold/ld"
+)
 
 // ContextManager manages the different JSON-LD contexts. It helps in using the same loaded contexts over different engines.
 type ContextManager interface {
+	// DocumentLoader returns the JSON-LD documentLoader
+	DocumentLoader() ld.DocumentLoader
 	// Transformer returns a transformer loaded with the correct JSON-LD contexts
 	Transformer() Transformer
 }

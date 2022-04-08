@@ -20,10 +20,13 @@ package v2
 
 import (
 	"net/http"
+	"sort"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
 )
 
@@ -61,9 +64,18 @@ func (w *Wrapper) SearchVCs(ctx echo.Context) error {
 	if err != nil {
 		return core.InvalidInputError("failed to convert query to JSON-LD expanded form: %w", err)
 	}
-	query := flatten(document, nil)
+	searchTerms := flatten(document, nil)
+	searchTerms = filter(searchTerms)
 
-	results, err := w.VCR.Search(ctx.Request().Context(), query, untrusted, nil)
+	// sort terms to aid testing
+	sort.Slice(searchTerms, func(i, j int) bool {
+		left := strings.Join(searchTerms[i].IRIPath, "")
+		right := strings.Join(searchTerms[j].IRIPath, "")
+
+		return strings.Compare(left, right) < 0
+	})
+
+	results, err := w.VCR.Search(ctx.Request().Context(), searchTerms, untrusted, nil)
 	if err != nil {
 		return err
 	}
@@ -71,8 +83,31 @@ func (w *Wrapper) SearchVCs(ctx echo.Context) error {
 	return ctx.JSON(http.StatusOK, results)
 }
 
+// filter default required values that are empty in the query
+func filter(searchTerms []vcr.SearchTerm) []vcr.SearchTerm {
+	i := 0
+	for _, st := range searchTerms {
+		switch value := st.Value.(type) {
+		case string:
+			if value != "" && value != "0001-01-01T00:00:00Z" {
+				searchTerms[i] = st
+				i++
+			}
+		case float64:
+			if value != 0.0 {
+				searchTerms[i] = st
+				i++
+			}
+		}
+		// TODO bool problem
+	}
+	return searchTerms[:i]
+}
+
 func flatten(document interface{}, currentPath []string) []vcr.SearchTerm {
 	switch t := document.(type) {
+	case jsonld.Document:
+		return flattenSlice(t, currentPath)
 	case []interface{}:
 		return flattenSlice(t, currentPath)
 	case map[string]interface{}:

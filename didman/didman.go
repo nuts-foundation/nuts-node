@@ -30,12 +30,10 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/didman/log"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/shengdoushi/base58"
@@ -72,26 +70,15 @@ type didman struct {
 }
 
 // NewDidmanInstance creates a new didman instance with services set
-func NewDidmanInstance(docResolver types.DocResolver, store types.Store, vdr types.VDR, vcr vcr.VCR) Didman {
+func NewDidmanInstance(docResolver types.DocResolver, store types.Store, vdr types.VDR, vcr vcr.VCR, contextManager jsonld.ContextManager) Didman {
 	return &didman{
 		docResolver:     docResolver,
 		serviceResolver: doc.NewServiceResolver(docResolver),
 		store:           store,
 		vdr:             vdr,
 		vcr:             vcr,
+		contextManager:  contextManager,
 	}
-}
-
-func (d *didman) Configure(config core.ServerConfig) error {
-	// TODO inject engine
-	allowExternalCalls := !config.Strictmode
-	contextLoader, err := signature.NewContextLoader(allowExternalCalls)
-	if err != nil {
-		return err
-	}
-	d.contextManager = jsonld.NewManager(contextLoader)
-
-	return nil
 }
 
 func (d *didman) Name() string {
