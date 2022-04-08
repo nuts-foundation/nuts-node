@@ -320,14 +320,14 @@ components:
       required:
         - id
         - type
-        - endpoint
+        - serviceEndpoint
       properties:
         id:
           type: string
         type:
           description: type of the endpoint. May be freely choosen.
           type: string
-        endpoint:
+        serviceEndpoint:
           description: An endpoint URL or a reference to another service.
           type: string
           example: did:nuts:123/serviceEndpoint?type=eOverdracht-fhir
