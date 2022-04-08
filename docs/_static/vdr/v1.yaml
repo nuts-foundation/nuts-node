@@ -244,6 +244,11 @@ components:
           type: array
           items:
             type: string
+        capabilityDelegation:
+          description: Some description.. please add :)
+          type: array
+          items:
+            type: string
         capabilityInvocation:
            description: List of KIDs that can be used for signing
            type: array
