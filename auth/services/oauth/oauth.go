@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/auth/log"
 	"net/url"
 	"time"
 
@@ -236,7 +237,10 @@ func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (
 
 // checks if the name from the login contract matches with the registered name of the issuer.
 func (s *service) validateRequester(context *validationContext) error {
-	if context.contractVerificationResult.ContractAttribute(contract.LegalEntityAttr) != context.requesterName || context.contractVerificationResult.ContractAttribute(contract.LegalEntityCityAttr) != context.requesterCity {
+	actualName := context.contractVerificationResult.ContractAttribute(contract.LegalEntityAttr)
+	actualCity := context.contractVerificationResult.ContractAttribute(contract.LegalEntityCityAttr)
+	if actualName != context.requesterName || actualCity != context.requesterCity {
+		log.Logger().Warnf("Token request validation failed, legal entity mismatch (expected name=%s, actual name=%s, expected city=%s, actual city=%s)", context.requesterName, actualName, context.requesterCity, actualCity)
 		return errors.New("legal entity mismatch")
 	}
 	return nil
