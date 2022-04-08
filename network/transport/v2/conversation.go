@@ -204,12 +204,12 @@ func (envelope *Envelope_TransactionRangeQuery) checkResponse(other isEnvelope_M
 	if !ok {
 		return errIncorrectEnvelopeType
 	}
+	txs, err := otherEnvelope.ParseTransactions(data)
+	if err != nil {
+		return err
+	}
 	// As per RFC017, every TX in the response must have a LC value within the requested range
-	for _, rawTX := range otherEnvelope.TransactionList.Transactions {
-		tx, err := dag.ParseTransaction(rawTX.Data)
-		if err != nil {
-			return fmt.Errorf("response contains an invalid transaction: %w", err)
-		}
+	for _, tx := range txs {
 		if tx.Clock() < envelope.TransactionRangeQuery.Start || tx.Clock() >= envelope.TransactionRangeQuery.End {
 			return fmt.Errorf("TX is not within the requested range (tx=%s)", tx.Ref())
 		}

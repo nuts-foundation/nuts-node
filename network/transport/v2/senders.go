@@ -113,13 +113,15 @@ func (p *protocol) sendTransactionRangeQuery(id transport.PeerID, conversationID
 	if conn == nil {
 		return grpc.ErrNoConnection
 	}
-	return conn.Send(p, &Envelope{Message: &Envelope_TransactionRangeQuery{
+	msg := &Envelope_TransactionRangeQuery{
 		TransactionRangeQuery: &TransactionRangeQuery{
 			ConversationID: conversationID.slice(),
 			Start:          lcStart,
 			End:            lcEnd,
 		},
-	}})
+	}
+	_ := p.cMan.startConversation(msg)
+	return conn.Send(p, &Envelope{Message: msg})
 }
 
 // chunkTransactionList splits a large set of transactions into smaller sets. Each set adheres to the maximum message size.

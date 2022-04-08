@@ -145,9 +145,6 @@ func (p *protocol) handleTransactionPayload(msg *TransactionPayload) error {
 func (p protocol) handleTransactionRangeQuery(peer transport.Peer, envelope *Envelope_TransactionRangeQuery) error {
 	msg := envelope.TransactionRangeQuery
 	cid := conversationID(msg.ConversationID)
-	if err := p.cMan.check(envelope); err != nil {
-		return err
-	}
 
 	if envelope.TransactionRangeQuery.Start >= envelope.TransactionRangeQuery.End {
 		return errors.New("invalid range query")
