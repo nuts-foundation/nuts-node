@@ -141,7 +141,24 @@ func TestEnvelope_TransactionList_ParseTransactions(t *testing.T) {
 	})
 }
 
-func TestConversationManager_checkTransactionList(t *testing.T) {
+func TestConversationManager_checkTransactionRangeQuery(t *testing.T) {
+	start := uint32(1)
+	end := uint32(5)
+	cMan := newConversationManager(time.Millisecond)
+	envelope := &Envelope_TransactionRangeQuery{
+		TransactionRangeQuery: &TransactionRangeQuery{
+			Start: start,
+			End:   end,
+		},
+	}
+	c := cMan.startConversation(envelope)
+
+	cMan.check(c.conversationID)
+
+	assert.Len(t, cMan.conversations, 0)
+}
+
+func TestConversationManager_checkTransactionListQuery(t *testing.T) {
 	tx1, _, _ := dag.CreateTestTransaction(1)
 	tx2, _, _ := dag.CreateTestTransaction(2)
 	cMan := newConversationManager(time.Millisecond)
