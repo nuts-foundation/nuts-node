@@ -22,27 +22,26 @@ package jsonld
 import (
 	"encoding/json"
 
-	"github.com/nuts-foundation/go-did/vc"
 	"github.com/piprate/json-gold/ld"
 )
 
 // JSONLdBase is the base URL used for IRIs that are unknown when expanding a JSON-LD document.
 const JSONLdBase = ""
 
-type transformer struct {
+type DocumentReader struct {
 	documentLoader ld.DocumentLoader
 }
 
-func (t transformer) FromVC(credential vc.VerifiableCredential) (Document, error) {
-	asJSON, err := json.Marshal(credential)
+func (r DocumentReader) FromStruct(source struct{}) (Document, error) {
+	asJSON, err := json.Marshal(source)
 	if err != nil {
 		return nil, err
 	}
 
-	return t.FromBytes(asJSON)
+	return r.FromBytes(asJSON)
 }
 
-func (t transformer) FromBytes(asJSON []byte) (Document, error) {
+func (r DocumentReader) FromBytes(asJSON []byte) (Document, error) {
 	compact := make(map[string]interface{})
 	if err := json.Unmarshal(asJSON, &compact); err != nil {
 		return nil, err
@@ -50,7 +49,7 @@ func (t transformer) FromBytes(asJSON []byte) (Document, error) {
 
 	processor := ld.NewJsonLdProcessor()
 	options := ld.NewJsonLdOptions(JSONLdBase)
-	options.DocumentLoader = t.documentLoader
+	options.DocumentLoader = r.documentLoader
 
 	return processor.Expand(compact, options)
 }

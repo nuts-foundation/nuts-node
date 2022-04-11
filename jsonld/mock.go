@@ -8,7 +8,6 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	vc "github.com/nuts-foundation/go-did/vc"
 	ld "github.com/piprate/json-gold/ld"
 )
 
@@ -49,69 +48,16 @@ func (mr *MockContextManagerMockRecorder) DocumentLoader() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DocumentLoader", reflect.TypeOf((*MockContextManager)(nil).DocumentLoader))
 }
 
-// Transformer mocks base method.
-func (m *MockContextManager) Transformer() Transformer {
+// Reader mocks base method.
+func (m *MockContextManager) Reader() DocumentReader {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Transformer")
-	ret0, _ := ret[0].(Transformer)
+	ret := m.ctrl.Call(m, "Reader")
+	ret0, _ := ret[0].(DocumentReader)
 	return ret0
 }
 
-// Transformer indicates an expected call of Transformer.
-func (mr *MockContextManagerMockRecorder) Transformer() *gomock.Call {
+// Reader indicates an expected call of Reader.
+func (mr *MockContextManagerMockRecorder) Reader() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Transformer", reflect.TypeOf((*MockContextManager)(nil).Transformer))
-}
-
-// MockTransformer is a mock of Transformer interface.
-type MockTransformer struct {
-	ctrl     *gomock.Controller
-	recorder *MockTransformerMockRecorder
-}
-
-// MockTransformerMockRecorder is the mock recorder for MockTransformer.
-type MockTransformerMockRecorder struct {
-	mock *MockTransformer
-}
-
-// NewMockTransformer creates a new mock instance.
-func NewMockTransformer(ctrl *gomock.Controller) *MockTransformer {
-	mock := &MockTransformer{ctrl: ctrl}
-	mock.recorder = &MockTransformerMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockTransformer) EXPECT() *MockTransformerMockRecorder {
-	return m.recorder
-}
-
-// FromBytes mocks base method.
-func (m *MockTransformer) FromBytes(asJSON []byte) (Document, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FromBytes", asJSON)
-	ret0, _ := ret[0].(Document)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// FromBytes indicates an expected call of FromBytes.
-func (mr *MockTransformerMockRecorder) FromBytes(asJSON interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FromBytes", reflect.TypeOf((*MockTransformer)(nil).FromBytes), asJSON)
-}
-
-// FromVC mocks base method.
-func (m *MockTransformer) FromVC(credential vc.VerifiableCredential) (Document, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FromVC", credential)
-	ret0, _ := ret[0].(Document)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// FromVC indicates an expected call of FromVC.
-func (mr *MockTransformerMockRecorder) FromVC(credential interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FromVC", reflect.TypeOf((*MockTransformer)(nil).FromVC), credential)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reader", reflect.TypeOf((*MockContextManager)(nil).Reader))
 }

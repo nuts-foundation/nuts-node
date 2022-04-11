@@ -38,8 +38,8 @@ func (c contextManager) DocumentLoader() ld.DocumentLoader {
 	return c.documentLoader
 }
 
-func (c contextManager) Transformer() Transformer {
-	return transformer{documentLoader: c.documentLoader}
+func (c contextManager) Reader() DocumentReader {
+	return DocumentReader{documentLoader: c.documentLoader}
 }
 
 func (c *contextManager) Configure(config core.ServerConfig) (err error) {

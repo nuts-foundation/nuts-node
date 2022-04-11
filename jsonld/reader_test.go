@@ -26,13 +26,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTransformer_FromBytes(t *testing.T) {
-	transformer := transformer{
+func TestDocumentReader_FromBytes(t *testing.T) {
+	reader := DocumentReader{
 		documentLoader: &ld.DefaultDocumentLoader{},
 	}
 
 	t.Run("ok", func(t *testing.T) {
-		document, err := transformer.FromBytes([]byte(jsonLDExample))
+		document, err := reader.FromBytes([]byte(jsonLDExample))
 		values := document.ValueAt(NewPath())
 
 		if !assert.NoError(t, err) {
@@ -45,13 +45,13 @@ func TestTransformer_FromBytes(t *testing.T) {
 	})
 
 	t.Run("error - wrong syntax", func(t *testing.T) {
-		_, err := transformer.FromBytes([]byte("{"))
+		_, err := reader.FromBytes([]byte("{"))
 
 		assert.Error(t, err)
 	})
 
 	t.Run("error - invalid JSON-LD", func(t *testing.T) {
-		_, err := transformer.FromBytes([]byte(invalidJSONLD))
+		_, err := reader.FromBytes([]byte(invalidJSONLD))
 
 		assert.Error(t, err)
 	})

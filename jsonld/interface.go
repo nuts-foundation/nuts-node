@@ -20,7 +20,6 @@
 package jsonld
 
 import (
-	"github.com/nuts-foundation/go-did/vc"
 	"github.com/piprate/json-gold/ld"
 )
 
@@ -28,14 +27,6 @@ import (
 type ContextManager interface {
 	// DocumentLoader returns the JSON-LD documentLoader
 	DocumentLoader() ld.DocumentLoader
-	// Transformer returns a transformer loaded with the correct JSON-LD contexts
-	Transformer() Transformer
-}
-
-// Transformer helps in transforming different formats to a JSON-LD Document.
-type Transformer interface {
-	// FromVC transforms a nuts-foundation/go-did VerifiableCredential to a Document (expanded JSON-LD)
-	FromVC(credential vc.VerifiableCredential) (Document, error)
-	// FromBytes transforms a string representing a VerifiableCredential to a Document (expanded JSON-LD)
-	FromBytes(asJSON []byte) (Document, error)
+	// Reader returns a DocumentReader loaded with the correct JSON-LD contexts
+	Reader() DocumentReader
 }
