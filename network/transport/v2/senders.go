@@ -115,8 +115,8 @@ func (p *protocol) sendTransactionRangeQuery(id transport.PeerID, lcStart uint32
 	}
 	msg := &Envelope_TransactionRangeQuery{
 		TransactionRangeQuery: &TransactionRangeQuery{
-			Start:          lcStart,
-			End:            lcEnd,
+			Start: lcStart,
+			End:   lcEnd,
 		},
 	}
 	_ = p.cMan.startConversation(msg)
