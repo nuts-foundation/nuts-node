@@ -43,7 +43,7 @@ type embeddedFSDocumentLoader struct {
 }
 
 // filteredDocumentLoader is a ld.DocumentLoader which contains a list of allowed urls.
-// the nextLoader will only be called when the url is on the AllowedURLs list.
+// the nextLoader will only be called when the URL is on the AllowedURLs list.
 type filteredDocumentLoader struct {
 	AllowedURLs []string
 	nextLoader  ld.DocumentLoader
