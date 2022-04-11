@@ -44,7 +44,7 @@ func (c contextManager) DocumentLoader() ld.DocumentLoader {
 	return c.documentLoader
 }
 
-func (m *contextManager) Configure(config core.ServerConfig) (err error) {
-	m.documentLoader, err = signature.NewContextLoader(!config.Strictmode)
+func (c *contextManager) Configure(config core.ServerConfig) (err error) {
+	c.documentLoader, err = signature.NewContextLoader(!config.Strictmode)
 	return
 }
