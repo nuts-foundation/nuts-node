@@ -74,38 +74,47 @@ type MultiEcho struct {
 	creatorFn  func(cfg HTTPConfig) (EchoServer, error)
 }
 
+// CONNECT registers a new CONNECT route for the given path with optional middleware.
 func (c *MultiEcho) CONNECT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
 	return c.Add(http.MethodConnect, path, h, m...)
 }
 
+// DELETE registers a new DELETE route for the given path with optional middleware.
 func (c *MultiEcho) DELETE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
 	return c.Add(http.MethodDelete, path, h, m...)
 }
 
+// GET registers a new GET route for the given path with optional middleware.
 func (c *MultiEcho) GET(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
 	return c.Add(http.MethodGet, path, h, m...)
 }
 
+// HEAD registers a new HEAD route for the given path with optional middleware.
 func (c *MultiEcho) HEAD(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
 	return c.Add(http.MethodHead, path, h, m...)
 }
 
+// OPTIONS registers a new OPTIONS route for the given path with optional middleware.
 func (c *MultiEcho) OPTIONS(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
 	return c.Add(http.MethodOptions, path, h, m...)
 }
 
+// PATCH registers a new PATCH route for the given path with optional middleware.
 func (c *MultiEcho) PATCH(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
 	return c.Add(http.MethodPatch, path, h, m...)
 }
 
+// POST registers a new POST route for the given path with optional middleware.
 func (c *MultiEcho) POST(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
 	return c.Add(http.MethodPost, path, h, m...)
 }
 
+// PUT registers a new PUT route for the given path with optional middleware.
 func (c *MultiEcho) PUT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
 	return c.Add(http.MethodPut, path, h, m...)
 }
 
+// TRACE registers a new TRACE route for the given path with optional middleware.
 func (c *MultiEcho) TRACE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
 	return c.Add(http.MethodTrace, path, h, m...)
 }
