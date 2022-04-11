@@ -22,7 +22,6 @@ package core
 import (
 	"errors"
 	"fmt"
-	"github.com/mitchellh/mapstructure"
 	"os"
 	"reflect"
 	"strings"
