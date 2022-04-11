@@ -28,8 +28,8 @@ import (
 	"net/url"
 )
 
-// JsonLdContextsConfig contains config for json-ld document loader
-type JsonLdContextsConfig struct {
+// JSONLDContextsConfig contains config for json-ld document loader
+type JSONLDContextsConfig struct {
 	// RemoteAllowList A list with urls as string which are allowed to request
 	RemoteAllowList []string `koanf:"remoteallowlist"`
 	// LocalFileMapping contains a list of context urls mapped to a local file
@@ -118,9 +118,9 @@ const W3cVcContext = "https://www.w3.org/2018/credentials/v1"
 // Jws2020Context contains the JsonWebToken2020 Proof type context
 const Jws2020Context = "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
 
-// DefaultJsonLdContextConfig returns the default list of allowed external resources and a mapping to embedded contexts
-func DefaultJsonLdContextConfig() JsonLdContextsConfig {
-	return JsonLdContextsConfig{
+// DefaultJSONLDContextConfig returns the default list of allowed external resources and a mapping to embedded contexts
+func DefaultJSONLDContextConfig() JSONLDContextsConfig {
+	return JSONLDContextsConfig{
 		RemoteAllowList: DefaultAllowList(),
 		LocalFileMapping: []FileMapping{
 			{URL: "https://nuts.nl/credentials/v1", Path: "assets/contexts/nuts.ldjson"},
@@ -139,7 +139,7 @@ func DefaultAllowList() []string {
 // NewContextLoader creates a new JSON-LD context loader with the embedded FS as first loader.
 // It loads the most used context from the embedded FS. This ensures the contents cannot be altered.
 // If allowExternalCalls is set to true, it also loads external context from the internet.
-func NewContextLoader(allowUnlistedExternalCalls bool, contexts JsonLdContextsConfig) (ld.DocumentLoader, error) {
+func NewContextLoader(allowUnlistedExternalCalls bool, contexts JSONLDContextsConfig) (ld.DocumentLoader, error) {
 	var httpLoader ld.DocumentLoader
 	httpLoader = ld.NewDefaultDocumentLoader(nil)
 	if !allowUnlistedExternalCalls {

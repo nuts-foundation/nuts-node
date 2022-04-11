@@ -84,7 +84,7 @@ func TestLDProof_Verify(t *testing.T) {
 		return
 	}
 
-	contextLoader, err := signature.NewContextLoader(true, signature.JsonLdContextsConfig{})
+	contextLoader, err := signature.NewContextLoader(true, signature.JSONLDContextsConfig{})
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -176,7 +176,7 @@ func TestLDProof_Sign(t *testing.T) {
 
 	kid := "did:nuts:123#abc"
 	testKey := crypto.NewTestKey(kid)
-	contextLoader, _ := signature.NewContextLoader(false, signature.DefaultJsonLdContextConfig())
+	contextLoader, _ := signature.NewContextLoader(false, signature.DefaultJSONLDContextConfig())
 
 	t.Run("sign and verify a document", func(t *testing.T) {
 		now := time.Now()

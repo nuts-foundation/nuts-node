@@ -32,13 +32,13 @@ type Config struct {
 	OverrideIssueAllPublic bool `koanf:"vcr.overrideissueallpublic"`
 	// datadir holds the location the VCR files are stored
 	datadir        string
-	JsonLdContexts signature.JsonLdContextsConfig `koanf:"vcr.jsonldcontexts"`
+	JsonLdContexts signature.JSONLDContextsConfig `koanf:"vcr.jsonldcontexts"`
 }
 
 // DefaultConfig returns a fresh Config filled with default values
 func DefaultConfig() Config {
 	return Config{
 		OverrideIssueAllPublic: true,
-		JsonLdContexts:         signature.DefaultJsonLdContextConfig(),
+		JsonLdContexts:         signature.DefaultJSONLDContextConfig(),
 	}
 }

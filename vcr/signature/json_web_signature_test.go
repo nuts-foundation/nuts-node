@@ -51,7 +51,7 @@ func TestJsonWebSignature2020_CanonicalizeDocument(t *testing.T) {
 	})
 
 	t.Run("simple document with resolvable context", func(t *testing.T) {
-		contextLoader, err := NewContextLoader(false, DefaultJsonLdContextConfig())
+		contextLoader, err := NewContextLoader(false, DefaultJSONLDContextConfig())
 		assert.NoError(t, err)
 
 		sig := JSONWebSignature2020{contextLoader}
@@ -68,7 +68,7 @@ func TestJsonWebSignature2020_CanonicalizeDocument(t *testing.T) {
 	})
 
 	t.Run("fails with an uncached contextloader when loading is not allowed", func(t *testing.T) {
-		contextLoader, err := NewContextLoader(false, DefaultJsonLdContextConfig())
+		contextLoader, err := NewContextLoader(false, DefaultJSONLDContextConfig())
 		assert.NoError(t, err)
 
 		sig := JSONWebSignature2020{contextLoader}
