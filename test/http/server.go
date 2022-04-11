@@ -27,6 +27,42 @@ type StubEchoServer struct {
 	BoundAddress string
 }
 
+func (s StubEchoServer) CONNECT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
+	panic("implement me")
+}
+
+func (s StubEchoServer) DELETE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
+	panic("implement me")
+}
+
+func (s StubEchoServer) GET(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
+	panic("implement me")
+}
+
+func (s StubEchoServer) HEAD(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
+	panic("implement me")
+}
+
+func (s StubEchoServer) OPTIONS(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
+	panic("implement me")
+}
+
+func (s StubEchoServer) PATCH(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
+	panic("implement me")
+}
+
+func (s StubEchoServer) POST(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
+	panic("implement me")
+}
+
+func (s StubEchoServer) PUT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
+	panic("implement me")
+}
+
+func (s StubEchoServer) TRACE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
+	panic("implement me")
+}
+
 func (s StubEchoServer) Shutdown(ctx context.Context) error {
 	return nil
 }

@@ -40,7 +40,7 @@ import (
 )
 
 var _ ServerInterface = (*Wrapper)(nil)
-var _ ErrorStatusCodeResolver = (*Wrapper)(nil)
+var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
 
 const (
 	errOauthInvalidRequest   = "invalid_request"

@@ -28,7 +28,7 @@ import (
 )
 
 var _ ServerInterface = (*Wrapper)(nil)
-var _ ErrorStatusCodeResolver = (*Wrapper)(nil)
+var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
 
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {

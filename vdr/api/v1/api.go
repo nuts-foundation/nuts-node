@@ -34,7 +34,7 @@ import (
 )
 
 var _ ServerInterface = (*Wrapper)(nil)
-var _ ErrorStatusCodeResolver = (*Wrapper)(nil)
+var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
 
 // Wrapper is needed to connect the implementation to the echo ServiceWrapper
 type Wrapper struct {
