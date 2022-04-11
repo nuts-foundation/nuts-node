@@ -38,16 +38,7 @@ func (c contextManager) DocumentLoader() ld.DocumentLoader {
 	return c.documentLoader
 }
 
-<<<<<<< HEAD
 func (c *contextManager) Configure(config core.ServerConfig) (err error) {
 	c.documentLoader, err = signature.NewContextLoader(!config.Strictmode)
-=======
-func (m contextManager) Transformer() Transformer {
-	return transformer{documentLoader: m.documentLoader}
-}
-
-func (m *contextManager) Configure(config core.ServerConfig) (err error) {
-	m.documentLoader, err = signature.NewContextLoader(!config.Strictmode)
->>>>>>> added jsonld engine
 	return
 }
