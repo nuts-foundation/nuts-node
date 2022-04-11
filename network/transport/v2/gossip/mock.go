@@ -53,15 +53,15 @@ func (mr *MockManagerMockRecorder) GossipReceived(id interface{}, refs ...interf
 }
 
 // PeerConnected mocks base method.
-func (m *MockManager) PeerConnected(peer transport.Peer) {
+func (m *MockManager) PeerConnected(peer transport.Peer, xor hash.SHA256Hash, clock uint32) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "PeerConnected", peer)
+	m.ctrl.Call(m, "PeerConnected", peer, xor, clock)
 }
 
 // PeerConnected indicates an expected call of PeerConnected.
-func (mr *MockManagerMockRecorder) PeerConnected(peer interface{}) *gomock.Call {
+func (mr *MockManagerMockRecorder) PeerConnected(peer, xor, clock interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PeerConnected", reflect.TypeOf((*MockManager)(nil).PeerConnected), peer)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PeerConnected", reflect.TypeOf((*MockManager)(nil).PeerConnected), peer, xor, clock)
 }
 
 // PeerDisconnected mocks base method.
@@ -89,13 +89,13 @@ func (mr *MockManagerMockRecorder) RegisterSender(arg0 interface{}) *gomock.Call
 }
 
 // TransactionRegistered mocks base method.
-func (m *MockManager) TransactionRegistered(transaction hash.SHA256Hash) {
+func (m *MockManager) TransactionRegistered(transaction, xor hash.SHA256Hash, clock uint32) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "TransactionRegistered", transaction)
+	m.ctrl.Call(m, "TransactionRegistered", transaction, xor, clock)
 }
 
 // TransactionRegistered indicates an expected call of TransactionRegistered.
-func (mr *MockManagerMockRecorder) TransactionRegistered(transaction interface{}) *gomock.Call {
+func (mr *MockManagerMockRecorder) TransactionRegistered(transaction, xor, clock interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TransactionRegistered", reflect.TypeOf((*MockManager)(nil).TransactionRegistered), transaction)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TransactionRegistered", reflect.TypeOf((*MockManager)(nil).TransactionRegistered), transaction, xor, clock)
 }

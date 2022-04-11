@@ -144,7 +144,7 @@ func TestEnvelope_TransactionList_ParseTransactions(t *testing.T) {
 func TestConversationManager_checkTransactionRangeQuery(t *testing.T) {
 	start := uint32(0)
 	end := uint32(1)
-	tx1, _, _ := dag.CreateTestTransaction(1) // LC = 0
+	tx1, _, _ := dag.CreateTestTransaction(1)      // LC = 0
 	tx2, _, _ := dag.CreateTestTransaction(2, tx1) // LC = 1
 	cMan := newConversationManager(time.Millisecond)
 	envelope := &Envelope_TransactionRangeQuery{
@@ -259,5 +259,60 @@ func TestConversationManager_checkTransactionListQuery(t *testing.T) {
 		err := cMan.check(response, handlerData{})
 
 		assert.ErrorContains(t, err, "response contains non-requested transaction")
+	})
+}
+
+func TestConversationManager_checkState(t *testing.T) {
+	cMan := newConversationManager(time.Millisecond)
+	request := &Envelope_State{
+		State: &State{
+			LC: 5,
+		},
+	}
+
+	t.Run("ok", func(t *testing.T) {
+		c := cMan.startConversation(request)
+		response := &Envelope_TransactionSet{
+			TransactionSet: &TransactionSet{
+				ConversationID: c.conversationID.slice(),
+				LC:             8,
+				LCReq:          5,
+			},
+		}
+
+		err := cMan.check(response, handlerData{})
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("error - unknown conversation ID", func(t *testing.T) {
+		cid := conversationID("9dbacbabf0c6413591f7553ff4348753")
+		_ = cMan.startConversation(request)
+		response := &Envelope_TransactionSet{
+			TransactionSet: &TransactionSet{
+				ConversationID: cid.slice(),
+				LC:             8,
+				LCReq:          5,
+			},
+		}
+
+		err := cMan.check(response, handlerData{})
+
+		assert.EqualError(t, err, "unknown or expired conversation (id=9dbacbabf0c6413591f7553ff4348753)")
+	})
+
+	t.Run("error - invalid response", func(t *testing.T) {
+		c := cMan.startConversation(request)
+		response := &Envelope_TransactionSet{
+			TransactionSet: &TransactionSet{
+				ConversationID: c.conversationID.slice(),
+				LC:             8,
+				LCReq:          8,
+			},
+		}
+
+		err := cMan.check(response, handlerData{})
+
+		assert.ErrorContains(t, err, "TransactionSet.LCReq is not equal to requested value (requested=5, received=8)")
 	})
 }

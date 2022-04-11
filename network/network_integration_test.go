@@ -22,13 +22,14 @@ import (
 	"context"
 	"crypto"
 	"fmt"
-	"go.uber.org/goleak"
 	"hash/crc32"
 	"math/rand"
 	"path"
 	"sync"
 	"testing"
 	"time"
+
+	"go.uber.org/goleak"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -117,42 +118,28 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	fmt.Printf("%v\n", node2.Diagnostics())
 }
 
-func TestNetworkIntegration_V2Gossip(t *testing.T) {
+func TestNetworkIntegration_V2(t *testing.T) {
 	t.Cleanup(func() {
 		goleak.VerifyNone(t)
 	})
-
-	testDirectory := io.TestDirectory(t)
 	resetIntegrationTest()
-	key := nutsCrypto.NewTestKey("key")
-	expectedDocLogSize := 0
 
-	// start nodes with v1 disabled, we rely on the gossip protocol
-	bootstrap := startNode(t, "integration_bootstrap", testDirectory, func(cfg *Config) {
-		cfg.ProtocolV1.AdvertHashesInterval = 24 * 60 * 60 * 1000
-	})
-	node1 := startNode(t, "integration_node1", testDirectory, func(cfg *Config) {
-		cfg.ProtocolV1.AdvertHashesInterval = 24 * 60 * 60 * 1000
-	})
-	node1.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"))
+	testNodes := func(t *testing.T) (*Network, *Network) {
+		testDirectory := io.TestDirectory(t)
+		resetIntegrationTest()
 
-	// Wait until nodes are connected
-	if !test.WaitFor(t, func() (bool, error) {
-		return len(bootstrap.connectionManager.Peers()) == 1, nil
-	}, defaultTimeout, "time-out while waiting for node 1 and 2 to be connected") {
-		return
+		// start nodes with v1 disabled, we rely on the gossip protocol
+		bootstrap := startNode(t, "integration_bootstrap", testDirectory, func(cfg *Config) {
+			cfg.ProtocolV1.AdvertHashesInterval = 24 * 60 * 60 * 1000
+		})
+		node1 := startNode(t, "integration_node1", testDirectory, func(cfg *Config) {
+			cfg.ProtocolV1.AdvertHashesInterval = 24 * 60 * 60 * 1000
+		})
+
+		return bootstrap, node1
 	}
 
-	// create some transactions on the bootstrap node
-	for i := 0; i < 10; i++ {
-		if !addTransactionAndWaitForItToArrive(t, fmt.Sprintf("doc%d", i), key, bootstrap) {
-			return
-		}
-		expectedDocLogSize++
-	}
-
-	// Now assert that all nodes have received all transactions
-	waitForTransactions := func(node string, state dag.State) bool {
+	waitForTransactions := func(node string, state dag.State, expectedDocLogSize int) bool {
 		return test.WaitFor(t, func() (bool, error) {
 			var (
 				docs []dag.Transaction
@@ -164,7 +151,58 @@ func TestNetworkIntegration_V2Gossip(t *testing.T) {
 			return len(docs) == expectedDocLogSize, nil
 		}, defaultTimeout, "%s: time-out while waiting for %d transactions", node, expectedDocLogSize)
 	}
-	waitForTransactions("node 1", node1.state)
+
+	t.Run("Gossip", func(t *testing.T) {
+		key := nutsCrypto.NewTestKey("key")
+		expectedDocLogSize := 0
+
+		bootstrap, node1 := testNodes(t)
+		node1.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"))
+
+		// Wait until nodes are connected
+		if !test.WaitFor(t, func() (bool, error) {
+			return len(bootstrap.connectionManager.Peers()) == 1, nil
+		}, defaultTimeout, "time-out while waiting for node 1 and 2 to be connected") {
+			return
+		}
+
+		// create some transactions on the bootstrap node
+		for i := 0; i < 10; i++ {
+			if !addTransactionAndWaitForItToArrive(t, fmt.Sprintf("doc%d", i), key, bootstrap) {
+				return
+			}
+			expectedDocLogSize++
+		}
+
+		// Now assert that all nodes have received all transactions
+		waitForTransactions("node 1", node1.state, expectedDocLogSize)
+	})
+
+	t.Run("IBLT", func(t *testing.T) {
+		key := nutsCrypto.NewTestKey("key")
+		expectedDocLogSize := 0
+
+		bootstrap, node1 := testNodes(t)
+
+		// create some transactions on the bootstrap node
+		for i := 0; i < 10; i++ {
+			if !addTransactionAndWaitForItToArrive(t, fmt.Sprintf("doc%d", i), key, bootstrap) {
+				return
+			}
+			expectedDocLogSize++
+		}
+
+		// now connect and wait until nodes are connected
+		node1.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"))
+		if !test.WaitFor(t, func() (bool, error) {
+			return len(bootstrap.connectionManager.Peers()) == 1, nil
+		}, defaultTimeout, "time-out while waiting for node 1 and 2 to be connected") {
+			return
+		}
+
+		// Now assert that all nodes have received all transactions
+		waitForTransactions("node 1", node1.state, expectedDocLogSize)
+	})
 }
 
 func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {

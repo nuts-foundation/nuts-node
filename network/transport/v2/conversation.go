@@ -247,3 +247,32 @@ func (envelope Envelope_TransactionList) parseTransactions(data handlerData) ([]
 	data[dataKey] = transactions
 	return transactions, nil
 }
+
+func (envelope *Envelope_State) checkResponse(other isEnvelope_Message, _ handlerData) error {
+	// envelope type already checked in cMan.check()
+	otherEnvelope, ok := other.(*Envelope_TransactionSet)
+	if !ok {
+		return errIncorrectEnvelopeType
+	}
+
+	if envelope.State.LC != otherEnvelope.TransactionSet.LCReq {
+		return fmt.Errorf("TransactionSet.LCReq is not equal to requested value (requested=%d, received=%d)", envelope.State.LC, otherEnvelope.TransactionSet.LCReq)
+	}
+	return nil
+}
+
+func (envelope *Envelope_State) setConversationID(cid conversationID) {
+	envelope.State.ConversationID = cid.slice()
+}
+
+func (envelope *Envelope_State) conversationID() []byte {
+	return envelope.State.ConversationID
+}
+
+func (envelope *Envelope_TransactionSet) setConversationID(cid conversationID) {
+	envelope.TransactionSet.ConversationID = cid.slice()
+}
+
+func (envelope *Envelope_TransactionSet) conversationID() []byte {
+	return envelope.TransactionSet.ConversationID
+}

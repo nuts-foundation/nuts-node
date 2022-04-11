@@ -24,6 +24,8 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/nuts-foundation/nuts-node/network/dag/tree"
+
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
@@ -47,53 +49,51 @@ func TestProtocol_sendGossip(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
 		mockConnection := grpc.NewMockConnection(mocks.Controller)
 		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peerID)).Return(mockConnection)
-		mocks.State.EXPECT().XOR(gomock.Any(), gomock.Any()).Return(xor, clock)
 		mockConnection.EXPECT().Send(proto, envelope)
 
-		err := proto.sendGossipMsg(peerID, []hash.SHA256Hash{hash.EmptyHash()})
+		err := proto.sendGossipMsg(peerID, []hash.SHA256Hash{hash.EmptyHash()}, xor, clock)
 
 		assert.NoError(t, err)
 	})
 
 	performSendErrorTest(t, peerID, gomock.Eq(envelope), func(p *protocol, mocks protocolMocks) error {
-		mocks.State.EXPECT().XOR(gomock.Any(), gomock.Any()).Return(xor, clock)
-		return p.sendGossipMsg(peerID, []hash.SHA256Hash{hash.EmptyHash()})
+		return p.sendGossipMsg(peerID, []hash.SHA256Hash{hash.EmptyHash()}, xor, clock)
 	})
 	performNoConnectionAvailableTest(t, peerID, func(p *protocol, _ protocolMocks) error {
-		return p.sendGossipMsg(peerID, []hash.SHA256Hash{hash.EmptyHash()})
+		return p.sendGossipMsg(peerID, []hash.SHA256Hash{hash.EmptyHash()}, xor, clock)
 	})
 }
 
 func TestProtocol_sendTransactionList(t *testing.T) {
-	peerID := transport.PeerID("1")
+	peer := transport.Peer{ID: "1"}
 	conversationID := newConversationID()
 	largeTransaction := Transaction{
 		Data: make([]byte, grpc.MaxMessageSizeInBytes/2),
 	}
-	transactions := []*Transaction{&largeTransaction, &largeTransaction}
+	networkTXs := []*Transaction{&largeTransaction}
 	envelope := &Envelope{Message: &Envelope_TransactionList{
 		TransactionList: &TransactionList{
 			ConversationID: conversationID.slice(),
-			Transactions:   []*Transaction{&largeTransaction},
+			Transactions:   networkTXs,
 		},
 	}}
 
 	t.Run("ok", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
 		mockConnection := grpc.NewMockConnection(mocks.Controller)
-		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peerID)).Return(mockConnection)
-		mockConnection.EXPECT().Send(proto, envelope).Times(2)
+		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peer.ID)).Return(mockConnection)
+		mockConnection.EXPECT().Send(proto, envelope)
 
-		err := proto.sendTransactionList(peerID, conversationID, transactions)
+		err := proto.sendTransactionList(peer.ID, conversationID, networkTXs)
 
 		assert.NoError(t, err)
 	})
 
-	performSendErrorTest(t, peerID, gomock.Eq(envelope), func(p *protocol, _ protocolMocks) error {
-		return p.sendTransactionList(peerID, conversationID, transactions)
+	performSendErrorTest(t, peer.ID, gomock.Eq(envelope), func(p *protocol, _ protocolMocks) error {
+		return p.sendTransactionList(peer.ID, conversationID, networkTXs)
 	})
-	performNoConnectionAvailableTest(t, peerID, func(p *protocol, _ protocolMocks) error {
-		return p.sendTransactionList(peerID, newConversationID(), []*Transaction{})
+	performNoConnectionAvailableTest(t, peer.ID, func(p *protocol, _ protocolMocks) error {
+		return p.sendTransactionList(peer.ID, newConversationID(), []*Transaction{})
 	})
 }
 
@@ -165,6 +165,74 @@ func Test_chunkTransactionList(t *testing.T) {
 		chunks := chunkTransactionList(transactions)
 
 		assert.Len(t, chunks, 3)
+	})
+}
+
+func TestProtocol_sendState(t *testing.T) {
+	peerID := transport.PeerID("1")
+	xor := hash.EmptyHash()
+	clock := uint32(5)
+
+	t.Run("ok", func(t *testing.T) {
+		proto, mocks := newTestProtocol(t, nil)
+		var actualEnvelope *Envelope
+
+		mockConnection := grpc.NewMockConnection(mocks.Controller)
+		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peerID)).Return(mockConnection)
+		mockConnection.EXPECT().Send(proto, gomock.Any()).DoAndReturn(func(p *protocol, e *Envelope) error {
+			actualEnvelope = e
+			return nil
+		})
+
+		err := proto.sendState(peerID, xor, clock)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Len(t, proto.cMan.conversations, 1) // assert a conversation was started
+		assert.NotNil(t, actualEnvelope.GetState().GetConversationID())
+		assert.Equal(t, xor.Slice(), actualEnvelope.GetState().XOR)
+		assert.Equal(t, clock, actualEnvelope.GetState().LC)
+	})
+
+	performSendErrorTest(t, peerID, gomock.Any(), func(p *protocol, mocks protocolMocks) error {
+		return p.sendState(peerID, xor, clock)
+	})
+	performNoConnectionAvailableTest(t, peerID, func(p *protocol, _ protocolMocks) error {
+		return p.sendState(peerID, xor, clock)
+	})
+}
+
+func TestProtocol_sendTransactionSet(t *testing.T) {
+	peerID := transport.PeerID("1")
+	conversationID := newConversationID()
+	clock := uint32(5)
+	clockReq := uint32(4)
+	iblt := tree.NewIblt(1)
+	ibltBytes, _ := iblt.MarshalBinary()
+	envelope := &Envelope{Message: &Envelope_TransactionSet{TransactionSet: &TransactionSet{
+		ConversationID: conversationID.slice(),
+		LCReq:          clockReq,
+		LC:             clock,
+		IBLT:           ibltBytes,
+	}}}
+
+	t.Run("ok", func(t *testing.T) {
+		proto, mocks := newTestProtocol(t, nil)
+		mockConnection := grpc.NewMockConnection(mocks.Controller)
+		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peer.ID)).Return(mockConnection)
+		mockConnection.EXPECT().Send(proto, envelope)
+
+		err := proto.sendTransactionSet(peer.ID, conversationID, clockReq, clock, *iblt)
+
+		assert.NoError(t, err)
+	})
+
+	performSendErrorTest(t, peerID, gomock.Any(), func(p *protocol, mocks protocolMocks) error {
+		return p.sendTransactionSet(peerID, conversationID, clockReq, clock, *iblt)
+	})
+	performNoConnectionAvailableTest(t, peerID, func(p *protocol, _ protocolMocks) error {
+		return p.sendTransactionSet(peerID, conversationID, clockReq, clock, *iblt)
 	})
 }
 

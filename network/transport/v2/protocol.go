@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -194,7 +195,8 @@ func (p *protocol) connectionStateCallback(peer transport.Peer, state transport.
 	if protocol.Version() == p.Version() {
 		switch state {
 		case transport.StateConnected:
-			p.gManager.PeerConnected(peer)
+			xor, clock := p.state.XOR(context.Background(), math.MaxUint32)
+			p.gManager.PeerConnected(peer, xor, clock)
 		case transport.StateDisconnected:
 			p.gManager.PeerDisconnected(peer)
 		}
@@ -202,14 +204,16 @@ func (p *protocol) connectionStateCallback(peer transport.Peer, state transport.
 }
 
 // gossipTransaction is called when a transaction is added to the DAG
-func (p *protocol) gossipTransaction(_ context.Context, tx dag.Transaction, _ []byte) {
+// TODO: this should not be called parallel
+func (p *protocol) gossipTransaction(ctx context.Context, tx dag.Transaction, _ []byte) {
 	if tx != nil { // can happen when payload is written for private TX
-		p.gManager.TransactionRegistered(tx.Ref())
+		xor, clock := p.state.XOR(ctx, math.MaxUint32)
+		p.gManager.TransactionRegistered(tx.Ref(), xor, clock)
 	}
 }
 
-func (p *protocol) sendGossip(id transport.PeerID, refs []hash.SHA256Hash) bool {
-	if err := p.sendGossipMsg(id, refs); err != nil {
+func (p *protocol) sendGossip(id transport.PeerID, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) bool {
+	if err := p.sendGossipMsg(id, refs, xor, clock); err != nil {
 		log.Logger().Errorf("failed to send Gossip message (peer=%s): %v", id, err)
 		return false
 	}

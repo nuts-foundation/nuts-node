@@ -85,26 +85,32 @@ func TestQueue_enqueued(t *testing.T) {
 	t.Run("is empty for new queue", func(t *testing.T) {
 		pq := newPeerQueue()
 
-		assert.Empty(t, pq.enqueued())
+		refs, xor, clock := pq.enqueued()
+		assert.Empty(t, refs)
+		assert.True(t, xor.Empty())
+		assert.Zero(t, clock)
 	})
 
 	t.Run("returns enqueued transaction references", func(t *testing.T) {
 		pq := newPeerQueue()
-		pq.enqueue(hash.EmptyHash())
+		pq.enqueue(5, hash.EmptyHash(), hash.EmptyHash())
 
-		enq := pq.enqueued()
+		enq, xor, clock := pq.enqueued()
 
 		if !assert.Len(t, enq, 1) {
 			return
 		}
-		assert.Equal(t, hash.EmptyHash(), enq[0])
+		assert.Contains(t, enq, hash.EmptyHash())
+		assert.Equal(t, hash.EmptyHash(), xor)
+		assert.Equal(t, uint32(5), clock)
 	})
 }
+
 func TestQueue_enqueue(t *testing.T) {
 	t.Run("adds entries to queue and set", func(t *testing.T) {
 		pq := newPeerQueue()
 
-		pq.enqueue(hash.EmptyHash())
+		pq.enqueue(5, hash.EmptyHash(), hash.EmptyHash())
 
 		assert.Equal(t, 1, pq.queue.Len())
 	})
@@ -113,7 +119,7 @@ func TestQueue_enqueue(t *testing.T) {
 		pq := newPeerQueue()
 
 		pq.logReceivedTransactions(hash.EmptyHash())
-		pq.enqueue(hash.EmptyHash())
+		pq.enqueue(5, hash.EmptyHash(), hash.EmptyHash())
 
 		assert.Equal(t, 0, pq.queue.Len())
 	})
@@ -126,8 +132,8 @@ func TestQueue_enqueue(t *testing.T) {
 			set[i] = hash.SHA256Sum([]byte{byte(i & 0xff)})
 		}
 
-		pq.enqueue(hash.EmptyHash())
-		pq.enqueue(set...)
+		pq.enqueue(5, hash.EmptyHash(), hash.EmptyHash())
+		pq.enqueue(5, hash.EmptyHash(), set...)
 
 		assert.Equal(t, 10, pq.queue.Len())
 	})
@@ -136,11 +142,14 @@ func TestQueue_enqueue(t *testing.T) {
 func TestQueue_clear(t *testing.T) {
 	t.Run("empties queue and set", func(t *testing.T) {
 		pq := newPeerQueue()
-		pq.enqueue(hash.EmptyHash())
+		xor := hash.SHA256Sum([]byte{1, 2, 3})
+		pq.enqueue(5, xor, hash.EmptyHash())
 
 		pq.clear()
 
 		assert.Equal(t, 0, pq.queue.Len())
+		assert.Equal(t, uint32(5), pq.clock)
+		assert.Equal(t, xor, pq.xor)
 	})
 
 	t.Run("does not empty log", func(t *testing.T) {
@@ -176,7 +185,8 @@ func TestQueue_received(t *testing.T) {
 		pq := newPeerQueue()
 		pq.maxSize = 1
 
-		pq.enqueue(hash.EmptyHash())
+		xor := hash.SHA256Sum([]byte{1, 2, 3})
+		pq.enqueue(5, xor, hash.EmptyHash())
 		pq.logReceivedTransactions(hash.EmptyHash())
 
 		assert.Equal(t, 0, pq.queue.Len())

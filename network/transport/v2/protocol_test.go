@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -80,14 +81,14 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 	proto.(*protocol).sender = sender
 
 	return proto.(*protocol), protocolMocks{
-		Controller: ctrl,
-		State: state,
+		Controller:       ctrl,
+		State:            state,
 		PayloadScheduler: payloadScheduler,
-		DocResolver: docResolver,
-		Decrypter: decrypter,
-		Gossip: gMan,
-		ConnectionList: connectionList,
-		Sender: sender,
+		DocResolver:      docResolver,
+		Decrypter:        decrypter,
+		Gossip:           gMan,
+		ConnectionList:   connectionList,
+		Sender:           sender,
 	}
 }
 
@@ -221,7 +222,8 @@ func TestProtocol_Start(t *testing.T) {
 func TestProtocol_connectionStateCallback(t *testing.T) {
 	t.Run("ok - connected", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
-		mocks.Gossip.EXPECT().PeerConnected(peer)
+		mocks.State.EXPECT().XOR(gomock.Any(), uint32(math.MaxUint32)).Return(hash.EmptyHash(), uint32(5))
+		mocks.Gossip.EXPECT().PeerConnected(peer, hash.EmptyHash(), uint32(5))
 
 		proto.connectionStateCallback(peer, transport.StateConnected, proto)
 	})
@@ -253,7 +255,8 @@ func TestProtocol_gossipTransaction(t *testing.T) {
 	t.Run("ok - to gossipManager", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
 		tx, _, _ := dag.CreateTestTransaction(0)
-		mocks.Gossip.EXPECT().TransactionRegistered(tx.Ref())
+		mocks.State.EXPECT().XOR(context.Background(), uint32(math.MaxUint32))
+		mocks.Gossip.EXPECT().TransactionRegistered(tx.Ref(), hash.EmptyHash(), uint32(0))
 
 		proto.gossipTransaction(context.Background(), tx, nil)
 	})

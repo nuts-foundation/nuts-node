@@ -20,23 +20,23 @@
 package v2
 
 import (
-	"context"
-	"math"
-
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 )
 
 type messageSender interface {
-	sendGossipMsg(id transport.PeerID, refs []hash.SHA256Hash) error
+	sendGossipMsg(id transport.PeerID, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) error
 	sendTransactionListQuery(id transport.PeerID, refs []hash.SHA256Hash) error
-	sendTransactionList(id transport.PeerID, conversationID conversationID, transactions []*Transaction) error
+	sendTransactionList(peerID transport.PeerID, conversationID conversationID, transactions []*Transaction) error
 	sendTransactionRangeQuery(id transport.PeerID, lcStart uint32, lcEnd uint32) error
+	sendState(id transport.PeerID, xor hash.SHA256Hash, clock uint32) error
+	sendTransactionSet(id transport.PeerID, conversationID conversationID, LCReq uint32, LC uint32, iblt tree.Iblt) error
 }
 
-func (p *protocol) sendGossipMsg(id transport.PeerID, refs []hash.SHA256Hash) error {
+func (p *protocol) sendGossipMsg(id transport.PeerID, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) error {
 	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByPeerID(id))
 	if conn == nil {
 		return grpc.ErrNoConnection
@@ -48,7 +48,7 @@ func (p *protocol) sendGossipMsg(id transport.PeerID, refs []hash.SHA256Hash) er
 		refsAsBytes[i] = ref.Slice()
 	}
 
-	xor, clock := p.state.XOR(context.Background(), math.MaxUint32)
+	log.Logger().Infof("GOSSIP: LC=%d, xor=%s, xor refs=%s, refs=%v", clock, xor, hash.EmptyHash().Xor(refs...), refs)
 
 	return conn.Send(p, &Envelope{Message: &Envelope_Gossip{
 		Gossip: &Gossip{
@@ -73,23 +73,25 @@ func (p *protocol) sendTransactionListQuery(id transport.PeerID, refs []hash.SHA
 		refsAsBytes[i] = ref.Slice()
 	}
 
-	envelope := &Envelope_TransactionListQuery{
+	msg := &Envelope_TransactionListQuery{
 		TransactionListQuery: &TransactionListQuery{
 			Refs: refsAsBytes,
 		},
 	}
 
-	conversation := p.cMan.startConversation(envelope)
+	conversation := p.cMan.startConversation(msg)
 	conversation.additionalInfo["refs"] = refs
 
 	// todo convert to trace logging
 	log.Logger().Infof("requesting transactions from peer (peer=%s, conversationID=%s)", id, conversation.conversationID.String())
 
-	return conn.Send(p, &Envelope{Message: envelope})
+	return conn.Send(p, &Envelope{Message: msg})
 }
 
-func (p *protocol) sendTransactionList(id transport.PeerID, conversationID conversationID, transactions []*Transaction) error {
-	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByPeerID(id))
+// sendTransactionList sorts transactions on LC value and filters private transaction payloads.
+// It sends the resulting list to the peer
+func (p *protocol) sendTransactionList(peerID transport.PeerID, conversationID conversationID, transactions []*Transaction) error {
+	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByPeerID(peerID))
 	if conn == nil {
 		return grpc.ErrNoConnection
 	}
@@ -155,4 +157,43 @@ func chunkTransactionList(transactions []*Transaction) [][]*Transaction {
 	}
 
 	return chunked
+}
+
+func (p *protocol) sendState(id transport.PeerID, xor hash.SHA256Hash, clock uint32) error {
+	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByPeerID(id))
+	if conn == nil {
+		return grpc.ErrNoConnection
+	}
+
+	msg := &Envelope_State{
+		State: &State{
+			XOR: xor.Slice(),
+			LC:  clock,
+		},
+	}
+	conversation := p.cMan.startConversation(msg)
+
+	// todo convert to trace logging
+	log.Logger().Infof("requesting state from peer (peer=%s, conversationID=%s)", id, conversation.conversationID.String())
+
+	return conn.Send(p, &Envelope{Message: msg})
+}
+
+func (p *protocol) sendTransactionSet(id transport.PeerID, conversationID conversationID, LCReq uint32, LC uint32, iblt tree.Iblt) error {
+	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByPeerID(id))
+	if conn == nil {
+		return grpc.ErrNoConnection
+	}
+
+	ibltBytes, err := iblt.MarshalBinary()
+	if err != nil {
+		return err
+	}
+
+	return conn.Send(p, &Envelope{Message: &Envelope_TransactionSet{TransactionSet: &TransactionSet{
+		ConversationID: conversationID.slice(),
+		LCReq:          LCReq,
+		LC:             LC,
+		IBLT:           ibltBytes, // TODO: format of IBLT needs to be specced
+	}}})
 }
