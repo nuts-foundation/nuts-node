@@ -3,10 +3,10 @@
 Nuts node development
 #####################
 
-.. marker-for-readme
-
 Requirements
 ************
+
+.. marker-for-readme
 
 Go >= 1.17 is required.
 
