@@ -31,6 +31,7 @@ type Scalar interface {
 	Value() interface{}
 }
 
+// StringScalar is the string version of a Scalar
 type StringScalar string
 
 func (ss StringScalar) String() string {
@@ -41,6 +42,7 @@ func (ss StringScalar) Value() interface{} {
 	return string(ss)
 }
 
+// BoolScalar is the boolean version of a Scalar
 type BoolScalar bool
 
 func (bs BoolScalar) String() string {
@@ -54,6 +56,7 @@ func (bs BoolScalar) Value() interface{} {
 	return bool(bs)
 }
 
+// Float64Scalar is the float64 version of a Scalar
 type Float64Scalar float64
 
 func (fs Float64Scalar) String() string {
