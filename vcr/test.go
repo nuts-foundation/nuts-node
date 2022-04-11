@@ -51,7 +51,7 @@ func NewTestVCRInstance(t *testing.T) *vcr {
 		nil,
 		nil,
 		network.NewTestNetworkInstance(path.Join(testDirectory, "network")),
-		nil,
+		jsonld.TestContextManager(t),
 	).(*vcr)
 
 	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {

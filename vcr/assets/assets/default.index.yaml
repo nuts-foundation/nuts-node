@@ -1,0 +1,18 @@
+indices:
+  - name: index_id
+    parts:
+      - iriPath: []
+  - name: index_issuer
+    parts:
+      - iriPath: ["https://www.w3.org/2018/credentials#issuer"]
+  - name: index_subject
+    parts:
+      - iriPath: ["https://www.w3.org/2018/credentials#credentialSubject"]
+  - name: index_organization
+    parts:
+      - iripath: ["https://www.w3.org/2018/credentials#credentialSubject", "http://schema.org/organization", "http://schema.org/legalname"]
+        tokenizer: whitespaceOrExact
+        transformer: cologne
+      - iripath: ["https://www.w3.org/2018/credentials#credentialSubject", "http://schema.org/organization", "http://schema.org/city"]
+        tokenizer: whitespaceOrExact
+        transformer: cologne

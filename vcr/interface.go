@@ -21,9 +21,10 @@ package vcr
 
 import (
 	"context"
+	"time"
+
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
-	"time"
 
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"

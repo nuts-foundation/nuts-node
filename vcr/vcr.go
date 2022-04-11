@@ -173,12 +173,17 @@ func (c *vcr) Start() error {
 	var err error
 
 	// setup DB connection
-	if c.store, err = leia.NewStore(c.credentialsDBPath()); err != nil {
+	if c.store, err = leia.NewStore(c.credentialsDBPath(), leia.WithDocumentLoader(c.contextManager.DocumentLoader())); err != nil {
 		return err
 	}
 
 	// init indices
 	if err = c.initIndices(); err != nil {
+		return err
+	}
+
+	// init indices
+	if err = c.initJSONLDIndices(); err != nil {
 		return err
 	}
 
@@ -200,6 +205,7 @@ func (c *vcr) Shutdown() error {
 	return c.store.Close()
 }
 
+// Deprecated: replaced by JSON-LD
 func (c *vcr) loadTemplates() error {
 	list, err := fs.Glob(assets.Assets, "**/*.config.yaml")
 	if err != nil {
@@ -232,6 +238,11 @@ func whitespaceOrExactTokenizer(text string) (tokens []string) {
 	return
 }
 
+func (c *vcr) credentialCollection() leia.Collection {
+	return c.store.JSONLDCollection("credentials")
+}
+
+// Deprecated: replaced by JSON-LD indices
 func (c *vcr) initIndices() error {
 	for _, config := range c.registry.Concepts() {
 		collection := c.store.JSONCollection(config.CredentialType)
@@ -278,6 +289,81 @@ func (c *vcr) initIndices() error {
 	// revocation indices
 	rIndex := c.revocationIndex()
 	return rIndex.AddIndex(rIndex.NewIndex("index_subject", leia.NewFieldIndexer(leia.NewJSONPath(credential.RevocationSubjectPath))))
+}
+
+func (c *vcr) loadJSONLDConfig() ([]indexConfig, error) {
+	list, err := fs.Glob(assets.Assets, "**/*.index.yaml")
+	if err != nil {
+		return nil, err
+	}
+
+	configs := make([]indexConfig, 0)
+	for _, f := range list {
+		bytes, err := assets.Assets.ReadFile(f)
+		if err != nil {
+			return nil, err
+		}
+		config := indexConfig{}
+		err = yaml.Unmarshal(bytes, &config)
+		if err != nil {
+			return nil, err
+		}
+
+		configs = append(configs, config)
+	}
+
+	return configs, nil
+}
+
+func (c *vcr) initJSONLDIndices() error {
+	collection := c.credentialCollection()
+
+	configs, err := c.loadJSONLDConfig()
+	if err != nil {
+		return err
+	}
+
+	for _, config := range configs {
+		for _, index := range config.Indices {
+			var leiaParts []leia.FieldIndexer
+
+			for _, iParts := range index.Parts {
+				options := make([]leia.IndexOption, 0)
+				if iParts.Tokenizer != nil {
+					tokenizer := strings.ToLower(*iParts.Tokenizer)
+					switch tokenizer {
+					case "whitespaceorexact":
+						options = append(options, leia.TokenizerOption(whitespaceOrExactTokenizer))
+					case "whitespace":
+						options = append(options, leia.TokenizerOption(leia.WhiteSpaceTokenizer))
+					default:
+						return fmt.Errorf("unknown tokenizer %s for %s", *iParts.Tokenizer, index.Name)
+					}
+				}
+				if iParts.Transformer != nil {
+					transformer := strings.ToLower(*iParts.Transformer)
+					switch transformer {
+					case "cologne":
+						options = append(options, leia.TransformerOption(concept.CologneTransformer))
+					case "lowercase":
+						options = append(options, leia.TransformerOption(leia.ToLower))
+					default:
+						return fmt.Errorf("unknown transformer %s for %s", *iParts.Transformer, index.Name)
+					}
+				}
+
+				leiaParts = append(leiaParts, leia.NewFieldIndexer(leia.NewIRIPath(iParts.IRIPath...), options...))
+			}
+
+			leiaIndex := collection.NewIndex(index.Name, leiaParts...)
+			log.Logger().Debugf("Adding index %s", index.Name)
+
+			if err := collection.AddIndex(leiaIndex); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (c *vcr) Name() string {
