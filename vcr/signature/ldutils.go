@@ -32,7 +32,7 @@ import (
 type JSONLDContextsConfig struct {
 	// RemoteAllowList A list with urls as string which are allowed to request
 	RemoteAllowList []string `koanf:"remoteallowlist"`
-	// LocalFileMapping contains a list of context urls mapped to a local file
+	// LocalFileMapping contains a list of context URLs mapped to a local file
 	LocalFileMapping map[string]string `koanf:"localmapping"`
 }
 
@@ -62,7 +62,7 @@ func NewFilteredLoader(allowedURLs []string, nextLoader ld.DocumentLoader) ld.Do
 	return &filteredDocumentLoader{AllowedURLs: allowedURLs, nextLoader: nextLoader}
 }
 
-// LoadDocument calls the nextLoader if the url u is on the AllowedURLs list, throws a ld.LoadingDocumentFailed otherwise.
+// LoadDocument calls the nextLoader if the URL u is on the AllowedURLs list, returns a ld.LoadingDocumentFailed otherwise.
 func (h filteredDocumentLoader) LoadDocument(u string) (*ld.RemoteDocument, error) {
 	for _, allowedURL := range h.AllowedURLs {
 		if allowedURL == u {
@@ -146,7 +146,7 @@ func NewContextLoader(allowUnlistedExternalCalls bool, contexts JSONLDContextsCo
 	}
 
 	if err := loader.PreloadWithMapping(mapping); err != nil {
-		return nil, fmt.Errorf("unable to preload nuts ld-context: %w", err)
+		return nil, fmt.Errorf("unable to preload ld-context: %w", err)
 	}
 	return loader, nil
 }
