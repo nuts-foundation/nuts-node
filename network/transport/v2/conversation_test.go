@@ -21,11 +21,11 @@ package v2
 
 import (
 	"context"
+	"github.com/nuts-foundation/nuts-node/network/dag"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -94,12 +94,60 @@ func TestConversationManager_done(t *testing.T) {
 	assert.Len(t, cMan.conversations, 0)
 }
 
+func TestEnvelope_TransactionList_ParseTransactions(t *testing.T) {
+	tx1, _, _ := dag.CreateTestTransaction(1)
+	tx2, _, _ := dag.CreateTestTransaction(2)
+
+	tl := Envelope_TransactionList{TransactionList: &TransactionList{
+		Transactions: []*Transaction{
+			{
+				Data: tx1.Data(),
+			},
+			{
+				Data: tx2.Data(),
+			},
+		},
+	}}
+
+	t.Run("ok", func(t *testing.T) {
+		transactions, err := tl.parseTransactions(handlerData{})
+		assert.NoError(t, err)
+		assert.Len(t, transactions, 2)
+		assert.Contains(t, transactions, tx1)
+		assert.Contains(t, transactions, tx2)
+	})
+
+	t.Run("ok - cached", func(t *testing.T) {
+		data := handlerData{}
+		_, err := tl.parseTransactions(data)
+		assert.NoError(t, err)
+		txs, err := Envelope_TransactionList{}.parseTransactions(data) // should take parsed TXs from data
+		assert.NoError(t, err)
+		assert.Len(t, txs, 2)
+	})
+
+	t.Run("error - parse failure", func(t *testing.T) {
+		data := handlerData{}
+		txs, err := Envelope_TransactionList{TransactionList: &TransactionList{Transactions: []*Transaction{
+			{
+				Data: tx1.Data(),
+			},
+			{
+				Data: []byte("invalid"),
+			},
+		}}}.parseTransactions(data)
+		assert.Error(t, err)
+		assert.Empty(t, txs)
+	})
+}
+
 func TestConversationManager_checkTransactionList(t *testing.T) {
-	ref := hash.EmptyHash().Slice()
+	tx1, _, _ := dag.CreateTestTransaction(1)
+	tx2, _, _ := dag.CreateTestTransaction(2)
 	cMan := newConversationManager(time.Millisecond)
 	request := &Envelope_TransactionListQuery{
 		TransactionListQuery: &TransactionListQuery{
-			Refs: [][]byte{ref},
+			Refs: [][]byte{tx1.Ref().Slice()},
 		},
 	}
 
@@ -110,13 +158,13 @@ func TestConversationManager_checkTransactionList(t *testing.T) {
 				ConversationID: c.conversationID.slice(),
 				Transactions: []*Transaction{
 					{
-						Hash: ref,
+						Data: tx1.Data(),
 					},
 				},
 			},
 		}
 
-		err := cMan.check(response)
+		err := cMan.check(response, handlerData{})
 
 		assert.NoError(t, err)
 	})
@@ -129,36 +177,35 @@ func TestConversationManager_checkTransactionList(t *testing.T) {
 				ConversationID: cid.slice(),
 				Transactions: []*Transaction{
 					{
-						Hash: ref,
+						Data: tx1.Data(),
 					},
 				},
 			},
 		}
 
-		err := cMan.check(response)
+		err := cMan.check(response, handlerData{})
 
 		assert.EqualError(t, err, "unknown or expired conversation (id=9dbacbabf0c6413591f7553ff4348753)")
 	})
 
 	t.Run("error - invalid response", func(t *testing.T) {
-		ref2 := hash.SHA256Sum([]byte{0}).Slice()
 		c := cMan.startConversation(request)
 		response := &Envelope_TransactionList{
 			TransactionList: &TransactionList{
 				ConversationID: c.conversationID.slice(),
 				Transactions: []*Transaction{
 					{
-						Hash: ref,
+						Data: tx1.Data(),
 					},
 					{
-						Hash: ref2,
+						Data: tx2.Data(),
 					},
 				},
 			},
 		}
 
-		err := cMan.check(response)
+		err := cMan.check(response, handlerData{})
 
-		assert.EqualError(t, err, "response contains non-requested transaction (ref=6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d)")
+		assert.ErrorContains(t, err, "response contains non-requested transaction")
 	})
 }

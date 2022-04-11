@@ -179,35 +179,35 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 	msg := envelope.TransactionList
 	cid := conversationID(msg.ConversationID)
 	conversation := p.cMan.conversations[cid.String()]
+	data := handlerData{}
 
 	// TODO convert to trace logging
 	log.Logger().Infof("handling handleTransactionList from peer (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
 
 	// check if response matches earlier request
-	if err := p.cMan.check(envelope); err != nil {
+	if err := p.cMan.check(envelope, data); err != nil {
 		return err
 	}
 
-	refsToBeRemoved := map[string]bool{}
-	ctx := context.Background()
-	for _, tx := range msg.Transactions {
-		transactionRef := hash.FromSlice(tx.Hash)
-		transaction, err := dag.ParseTransaction(tx.Data)
-		if err != nil {
-			return fmt.Errorf("received transaction is invalid (peer=%s, ref=%s): %w", peer, transactionRef, err)
-		}
+	txs, err := envelope.parseTransactions(data)
+	if err != nil {
+		return err
+	}
 
-		present, err := p.state.IsPresent(ctx, transactionRef)
+	refsToBeRemoved := map[hash.SHA256Hash]bool{}
+	ctx := context.Background()
+	for i, tx := range txs {
+		present, err := p.state.IsPresent(ctx, tx.Ref())
 		if err != nil {
-			return fmt.Errorf("unable to add received transaction to DAG (tx=%s): %w", transaction.Ref(), err)
+			return fmt.Errorf("unable to add received transaction to DAG (tx=%s): %w", tx.Ref(), err)
 		}
 		if !present {
 			// TODO does this always trigger fetching missing payloads? (through observer on DAG) Prolly not for v2
-			if err = p.state.Add(ctx, transaction, tx.Payload); err != nil {
-				return fmt.Errorf("unable to add received transaction to DAG (tx=%s): %w", transaction.Ref(), err)
+			if err = p.state.Add(ctx, tx, envelope.TransactionList.Transactions[i].Payload); err != nil {
+				return fmt.Errorf("unable to add received transaction to DAG (tx=%s): %w", tx.Ref(), err)
 			}
 		}
-		refsToBeRemoved[transactionRef.String()] = true
+		refsToBeRemoved[tx.Ref()] = true
 	}
 
 	// remove from conversation
@@ -216,7 +216,7 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 		newRefs := make([]hash.SHA256Hash, len(requestedRefs))
 		i := 0
 		for _, requestedRef := range requestedRefs {
-			if _, ok := refsToBeRemoved[requestedRef.String()]; !ok {
+			if _, ok := refsToBeRemoved[requestedRef]; !ok {
 				newRefs[i] = requestedRef
 				i++
 			}
@@ -275,7 +275,6 @@ func (p *protocol) handleTransactionListQuery(peer transport.Peer, msg *Transact
 	transactions := make([]*Transaction, 0)
 	for _, transaction := range unsorted {
 		networkTX := Transaction{
-			Hash: transaction.Ref().Slice(),
 			Data: transaction.Data(),
 		}
 

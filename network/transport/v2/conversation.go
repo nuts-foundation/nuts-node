@@ -23,6 +23,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/network/dag"
 	"sync"
 	"time"
 
@@ -31,6 +32,11 @@ import (
 )
 
 var maxValidity = 30 * time.Second
+
+// handlerData contains contextual data produced and consumed by a message handler.
+// It is used to cache expensive data (e.g. parsed transactions) that are used multiple times within a handler,
+// but cannot be shared directly due to interface incompatibility.
+type handlerData map[interface{}]interface{}
 
 type conversationID string
 
@@ -56,10 +62,11 @@ type conversation struct {
 
 type checkable interface {
 	conversationable
-	checkResponse(envelope isEnvelope_Message) error
+	checkResponse(envelope isEnvelope_Message, data handlerData) error
 }
 
 type conversationable interface {
+	isEnvelope_Message
 	setConversationID(cid conversationID)
 	conversationID() []byte
 }
@@ -132,13 +139,8 @@ func (cMan *conversationManager) startConversation(envelope checkable) *conversa
 	return newConversation
 }
 
-func (cMan *conversationManager) check(envelope isEnvelope_Message) error {
-	otherEnvelope, ok := envelope.(conversationable)
-	if !ok {
-		return errors.New("expecting envelope to contain be a conversation response type message")
-	}
-
-	cidBytes := otherEnvelope.conversationID()
+func (cMan *conversationManager) check(envelope conversationable, data handlerData) error {
+	cidBytes := envelope.conversationID()
 	cid := conversationID(cidBytes)
 
 	cMan.mutex.RLock()
@@ -147,7 +149,7 @@ func (cMan *conversationManager) check(envelope isEnvelope_Message) error {
 	if req, ok := cMan.conversations[cid.String()]; !ok {
 		return fmt.Errorf("unknown or expired conversation (id=%s)", cid)
 	} else {
-		return req.conversationData.checkResponse(envelope)
+		return req.conversationData.checkResponse(envelope, data)
 	}
 }
 
@@ -159,28 +161,28 @@ func (envelope *Envelope_TransactionListQuery) conversationID() []byte {
 	return envelope.TransactionListQuery.ConversationID
 }
 
-func (envelope *Envelope_TransactionListQuery) checkResponse(other isEnvelope_Message) error {
+func (envelope *Envelope_TransactionListQuery) checkResponse(other isEnvelope_Message, data handlerData) error {
 	// envelope type already checked in cMan.check()
 	otherEnvelope, ok := other.(*Envelope_TransactionList)
 	if !ok {
 		return errors.New("checking wrong envelope type")
 	}
 
-	payloadRequest := envelope.TransactionListQuery
-	payloadResponse := otherEnvelope.TransactionList
-
 	// as map for easy finding
-	refs := map[string]bool{}
-	for _, bytes := range payloadRequest.Refs {
+	refs := map[hash.SHA256Hash]bool{}
+	for _, bytes := range envelope.TransactionListQuery.Refs {
 		ref := hash.FromSlice(bytes)
-		refs[ref.String()] = true
+		refs[ref] = true
 	}
 
-	for _, transaction := range payloadResponse.Transactions {
-		// ref is the sha256 of the transaction payload
-		ref := hash.FromSlice(transaction.Hash)
-		if _, ok := refs[ref.String()]; !ok {
-			return fmt.Errorf("response contains non-requested transaction (ref=%s)", ref.String())
+	txs, err := otherEnvelope.parseTransactions(data)
+	if err != nil {
+		return err
+	}
+
+	for _, tx := range txs {
+		if _, ok := refs[tx.Ref()]; !ok {
+			return fmt.Errorf("response contains non-requested transaction (ref=%s)", tx.Ref())
 		}
 	}
 
@@ -193,4 +195,27 @@ func (envelope *Envelope_TransactionList) setConversationID(cid conversationID) 
 
 func (envelope *Envelope_TransactionList) conversationID() []byte {
 	return envelope.TransactionList.ConversationID
+}
+
+// parseTransactions parses the transactions from the message and caches them in the handlerData,
+// so subsequent calls to parseTransactions will not parse the transactions again.
+func (envelope Envelope_TransactionList) parseTransactions(data handlerData) ([]dag.Transaction, error) {
+	type key struct{}
+	dataKey := key{}
+	cached, ok := data[dataKey].([]dag.Transaction)
+	if ok {
+		return cached, nil
+	}
+
+	var transactions []dag.Transaction
+	for _, transaction := range envelope.TransactionList.Transactions {
+		tx, err := dag.ParseTransaction(transaction.Data)
+		if err != nil {
+			return nil, fmt.Errorf("received transaction is invalid: %w", err)
+		}
+		transactions = append(transactions, tx)
+	}
+
+	data[dataKey] = transactions
+	return transactions, nil
 }

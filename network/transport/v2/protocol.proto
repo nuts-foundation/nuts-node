@@ -52,8 +52,6 @@ message HelloMessage {
 
 // Transaction represents a transaction on the DAG.
 message Transaction {
-  // hash contains the reference of the transaction, as specified by RFC004.
-  bytes hash = 1;
   // data contains the data of the transaction, which is a JWS as specified by RFC004.
   bytes data = 2;
   // payload contains the payload when it may be attached but wasn't so in the transaction already
