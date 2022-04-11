@@ -204,7 +204,7 @@ func (envelope *Envelope_TransactionRangeQuery) checkResponse(other isEnvelope_M
 	if !ok {
 		return errIncorrectEnvelopeType
 	}
-	txs, err := otherEnvelope.ParseTransactions(data)
+	txs, err := otherEnvelope.parseTransactions(data)
 	if err != nil {
 		return err
 	}

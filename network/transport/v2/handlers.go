@@ -144,7 +144,6 @@ func (p *protocol) handleTransactionPayload(msg *TransactionPayload) error {
 
 func (p protocol) handleTransactionRangeQuery(peer transport.Peer, envelope *Envelope_TransactionRangeQuery) error {
 	msg := envelope.TransactionRangeQuery
-	cid := conversationID(msg.ConversationID)
 
 	if envelope.TransactionRangeQuery.Start >= envelope.TransactionRangeQuery.End {
 		return errors.New("invalid range query")
@@ -161,7 +160,7 @@ func (p protocol) handleTransactionRangeQuery(peer transport.Peer, envelope *Env
 		return err
 	}
 
-	return p.sender.sendTransactionList(peer.ID, cid, transactionList)
+	return p.sender.sendTransactionList(peer.ID, conversationID(msg.ConversationID), transactionList)
 }
 
 func (p *protocol) handleGossip(peer transport.Peer, msg *Gossip) error {
@@ -300,8 +299,6 @@ func (p *protocol) handleTransactionListQuery(peer transport.Peer, msg *Transact
 
 	txs, err := p.collectTransactionList(ctx, unsorted)
 	if err != nil {
-		log.Logger().Warnf("Peer requested transaction with unretrievable payload (peer=%s, node=%s): %v", peer.ID, peer.NodeDID.String(), err)
-		// TODO: Should we send this error back to the peer? We might be disclosing too much information?
 		return err
 	}
 

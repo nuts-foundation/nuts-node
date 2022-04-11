@@ -587,6 +587,30 @@ func TestProtocol_handleTransactionRangeQuery(t *testing.T) {
 
 		assert.NoError(t, err)
 	})
+	t.Run("error - invalid range", func(t *testing.T) {
+		p, _ := newTestProtocol(t, nil)
+
+		msg := &Envelope_TransactionRangeQuery{&TransactionRangeQuery{
+			Start: 1,
+			End:   1,
+		}}
+		p.cMan.startConversation(msg)
+		err := p.Handle(peer, &Envelope{Message: msg})
+
+		assert.EqualError(t, err, "invalid range query")
+	})
+	t.Run("error - DAG reading error", func(t *testing.T) {
+		p, mocks := newTestProtocol(t, nil)
+		mocks.State.EXPECT().FindBetweenLC(gomock.Any(), lcStart, lcEnd).Return(nil, errors.New("failure"))
+		msg := &Envelope_TransactionRangeQuery{&TransactionRangeQuery{
+			Start: lcStart,
+			End:   lcEnd,
+		}}
+		p.cMan.startConversation(msg)
+		err := p.Handle(peer, &Envelope{Message: msg})
+
+		assert.Error(t, err,)
+	})
 }
 
 func assertPayloadResponse(t *testing.T, tx dag.Transaction, payload []byte, raw interface{}) bool {
