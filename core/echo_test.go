@@ -118,6 +118,39 @@ func Test_MultiEcho(t *testing.T) {
 	}
 }
 
+func Test_MultiEcho_Methods(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	defaultServer := NewMockEchoServer(ctrl)
+	gomock.InOrder(
+		defaultServer.EXPECT().Add("GET", "/get", gomock.Any()),
+		defaultServer.EXPECT().Add("POST", "/post", gomock.Any()),
+		defaultServer.EXPECT().Add("PUT", "/put", gomock.Any()),
+		defaultServer.EXPECT().Add("DELETE", "/delete", gomock.Any()),
+		defaultServer.EXPECT().Add("PATCH", "/patch", gomock.Any()),
+		defaultServer.EXPECT().Add("HEAD", "/head", gomock.Any()),
+		defaultServer.EXPECT().Add("OPTIONS", "/options", gomock.Any()),
+		defaultServer.EXPECT().Add("CONNECT", "/connect", gomock.Any()),
+		defaultServer.EXPECT().Add("TRACE", "/trace", gomock.Any()),
+	)
+
+	createFn := func(_ HTTPConfig) (EchoServer, error) {
+		return defaultServer, nil
+	}
+
+	m := NewMultiEcho(createFn, NewServerConfig().HTTP.HTTPConfig)
+	m.GET("/get", nil)
+	m.POST("/post", nil)
+	m.PUT("/put", nil)
+	m.DELETE("/delete", nil)
+	m.PATCH("/patch", nil)
+	m.HEAD("/head", nil)
+	m.OPTIONS("/options", nil)
+	m.CONNECT("/connect", nil)
+	m.TRACE("/trace", nil)
+}
+
 func Test_getGroup(t *testing.T) {
 	assert.Equal(t, "internal", getGroup("/internal/vdr/v1/did"))
 	assert.Equal(t, "internal", getGroup("/internal"))
