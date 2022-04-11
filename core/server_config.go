@@ -201,15 +201,7 @@ func elemType(ty reflect.Type) (reflect.Type, bool) {
 func unmarshalRecursive(path []string, config interface{}, configMap *koanf.Koanf) error {
 	decoderConfig := koanf.UnmarshalConf{
 		FlatPaths: true,
-		// Use default DecoderConfig except for ZeroFields
-		DecoderConfig: &mapstructure.DecoderConfig{
-			DecodeHook: mapstructure.ComposeDecodeHookFunc(
-				mapstructure.StringToTimeDurationHookFunc()),
-			Metadata:         nil,
-			Result:           config,
-			WeaklyTypedInput: true,
-			ZeroFields:       true, // Make sure to overwrite default values of maps and list instead of merging them
-		}}
+	}
 	if err := configMap.UnmarshalWithConf(strings.Join(path, "."), config, decoderConfig); err != nil {
 		return err
 	}
