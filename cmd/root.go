@@ -27,6 +27,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"go.uber.org/atomic"
@@ -181,19 +182,17 @@ func CreateSystem() *core.System {
 
 	// Create instances
 	cryptoInstance := crypto.NewCryptoInstance()
+	contextManager := jsonld.NewManager()
 	didStore := store.NewBBoltStore()
 	keyResolver := doc.KeyResolver{Store: didStore}
 	docResolver := doc.Resolver{Store: didStore}
 	docFinder := doc.Finder{Store: didStore}
-
 	eventManager := events.NewManager()
-
 	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), keyResolver, cryptoInstance, cryptoInstance, docResolver, docFinder)
 	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance, didStore)
-	credentialInstance := vcr.NewVCRInstance(cryptoInstance, docResolver, keyResolver, networkInstance)
-	didmanInstance := didman.NewDidmanInstance(docResolver, didStore, vdrInstance, credentialInstance)
-	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), didStore, credentialInstance, cryptoInstance, didmanInstance)
-
+	credentialInstance := vcr.NewVCRInstance(cryptoInstance, docResolver, keyResolver, networkInstance, contextManager)
+	didmanInstance := didman.NewDidmanInstance(docResolver, didStore, vdrInstance, credentialInstance, contextManager)
+	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), didStore, credentialInstance, cryptoInstance, didmanInstance, contextManager)
 	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
 
@@ -215,6 +214,7 @@ func CreateSystem() *core.System {
 	system.RegisterRoutes(&didmanAPI.Wrapper{Didman: didmanInstance})
 
 	// Register engines
+	system.RegisterEngine(contextManager)
 	system.RegisterEngine(eventManager)
 	system.RegisterEngine(didStore)
 	system.RegisterEngine(statusEngine)

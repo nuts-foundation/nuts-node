@@ -44,14 +44,14 @@ import (
 )
 
 func TestDidman_Name(t *testing.T) {
-	instance := NewDidmanInstance(nil, nil, nil, nil).(core.Named)
+	instance := NewDidmanInstance(nil, nil, nil, nil, nil).(core.Named)
 
 	assert.Equal(t, ModuleName, instance.Name())
 }
 
 func TestNewDidmanInstance(t *testing.T) {
 	ctx := newMockContext(t)
-	instance := NewDidmanInstance(ctx.docResolver, ctx.store, ctx.vdr, ctx.vcr).(*didman)
+	instance := NewDidmanInstance(ctx.docResolver, ctx.store, ctx.vdr, ctx.vcr, nil).(*didman)
 
 	assert.NotNil(t, instance)
 	assert.Equal(t, ctx.docResolver, instance.docResolver)
@@ -800,7 +800,7 @@ func newMockContext(t *testing.T) mockContext {
 	store := types.NewMockStore(ctrl)
 	mockVDR := types.NewMockVDR(ctrl)
 	mockVCR := vcr.NewMockVCR(ctrl)
-	instance := NewDidmanInstance(docResolver, store, mockVDR, mockVCR)
+	instance := NewDidmanInstance(docResolver, store, mockVDR, mockVCR, nil)
 
 	return mockContext{
 		ctrl:        ctrl,

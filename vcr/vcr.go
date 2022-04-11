@@ -31,6 +31,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 
 	"github.com/lestrrat-go/jwx/jwa"
@@ -50,7 +51,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
-	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
@@ -64,7 +64,7 @@ var timeFunc = time.Now
 var noSync bool
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
-func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions) VCR {
+func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions, contextManager jsonld.ContextManager) VCR {
 	r := &vcr{
 		config:          DefaultConfig(),
 		docResolver:     docResolver,
@@ -73,6 +73,7 @@ func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyRe
 		serviceResolver: doc.NewServiceResolver(docResolver),
 		network:         network,
 		registry:        concept.NewRegistry(),
+		contextManager:  contextManager,
 	}
 
 	return r
@@ -94,6 +95,7 @@ type vcr struct {
 	holder          holder.Holder
 	issuerStore     issuer.Store
 	verifierStore   verifier.Store
+	contextManager  jsonld.ContextManager
 }
 
 func (c *vcr) Registry() concept.Reader {
@@ -135,17 +137,13 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	tcPath := path.Join(config.Datadir, "vcr", "trusted_issuers.yaml")
 	c.trustConfig = trust.NewConfig(tcPath)
 
-	// Create the JSON-LD Context loader
-	allowExternalCalls := !config.Strictmode
-	contextLoader, err := signature.NewContextLoader(allowExternalCalls)
-
 	publisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
-	c.issuer = issuer.NewIssuer(c.issuerStore, publisher, c.docResolver, c.keyStore, contextLoader, c.trustConfig)
-	c.verifier = verifier.NewVerifier(c.verifierStore, c.keyResolver, contextLoader, c.trustConfig)
+	c.issuer = issuer.NewIssuer(c.issuerStore, publisher, c.docResolver, c.keyStore, c.contextManager, c.trustConfig)
+	c.verifier = verifier.NewVerifier(c.verifierStore, c.keyResolver, c.contextManager, c.trustConfig)
 
 	c.ambassador = NewAmbassador(c.network, c, c.verifier)
 
-	c.holder = holder.New(c.keyResolver, c.keyStore, c.verifier, contextLoader)
+	c.holder = holder.New(c.keyResolver, c.keyStore, c.verifier, c.contextManager)
 
 	// load VC concept templates
 	if err = c.loadTemplates(); err != nil {

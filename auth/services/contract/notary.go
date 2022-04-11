@@ -21,10 +21,12 @@ package contract
 import (
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -75,6 +77,7 @@ func (c Config) hasContractValidator(cv string) bool {
 
 type notary struct {
 	config            Config
+	contextManager    jsonld.ContextManager
 	keyResolver       types.KeyResolver
 	privateKeyStore   crypto.KeyStore
 	irmaServiceConfig irma.ValidatorConfig
@@ -87,9 +90,10 @@ type notary struct {
 var timeNow = time.Now
 
 // NewNotary accepts the registry and crypto Nuts engines and returns a ContractNotary
-func NewNotary(config Config, vcr vcr.VCR, keyResolver types.KeyResolver, keyStore crypto.KeyStore) services.ContractNotary {
+func NewNotary(config Config, vcr vcr.VCR, keyResolver types.KeyResolver, keyStore crypto.KeyStore, contextManager jsonld.ContextManager) services.ContractNotary {
 	return &notary{
 		config:          config,
+		contextManager:  contextManager,
 		vcr:             vcr,
 		keyResolver:     keyResolver,
 		privateKeyStore: keyStore,

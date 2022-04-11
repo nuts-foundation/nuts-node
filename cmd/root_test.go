@@ -202,7 +202,7 @@ func Test_CreateSystem(t *testing.T) {
 	system.VisitEngines(func(engine core.Engine) {
 		numEngines++
 	})
-	assert.Equal(t, 10, numEngines)
+	assert.Equal(t, 11, numEngines)
 }
 
 func testCommand() *cobra.Command {

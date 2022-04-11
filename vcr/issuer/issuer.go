@@ -29,33 +29,33 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
-	"github.com/piprate/json-gold/ld"
 )
 
 // NewIssuer creates a new issuer which implements the Issuer interface.
-func NewIssuer(store Store, publisher Publisher, docResolver vdr.DocResolver, keyStore crypto.KeyStore, contextLoader ld.DocumentLoader, trustConfig *trust.Config) Issuer {
+func NewIssuer(store Store, publisher Publisher, docResolver vdr.DocResolver, keyStore crypto.KeyStore, contextManager jsonld.ContextManager, trustConfig *trust.Config) Issuer {
 	resolver := vdrKeyResolver{docResolver: docResolver, keyResolver: keyStore}
 	return &issuer{
-		store:         store,
-		publisher:     publisher,
-		keyResolver:   resolver,
-		contextLoader: contextLoader,
-		trustConfig:   trustConfig,
+		store:          store,
+		publisher:      publisher,
+		keyResolver:    resolver,
+		contextManager: contextManager,
+		trustConfig:    trustConfig,
 	}
 }
 
 type issuer struct {
-	store         Store
-	publisher     Publisher
-	keyResolver   keyResolver
-	trustConfig   *trust.Config
-	contextLoader ld.DocumentLoader
+	store          Store
+	publisher      Publisher
+	keyResolver    keyResolver
+	trustConfig    *trust.Config
+	contextManager jsonld.ContextManager
 }
 
 // Issue creates a new credential, signs, stores it.
@@ -191,7 +191,7 @@ func (i issuer) buildRevocation(credentialToRevoke vc.VerifiableCredential) (*cr
 	_ = json.Unmarshal(b, &revocationAsMap)
 
 	ldProof := proof.NewLDProof(proof.ProofOptions{Created: time.Now()})
-	signingResult, err := ldProof.Sign(revocationAsMap, signature.JSONWebSignature2020{ContextLoader: i.contextLoader}, assertionKey)
+	signingResult, err := ldProof.Sign(revocationAsMap, signature.JSONWebSignature2020{ContextLoader: i.contextManager.DocumentLoader()}, assertionKey)
 	if err != nil {
 		return nil, err
 	}

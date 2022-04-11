@@ -33,6 +33,7 @@ func NewTestAuthInstance(t *testing.T) *Auth {
 		vcr.NewTestVCRInstance(t),
 		crypto.NewTestCryptoInstance(),
 		nil,
+		nil,
 	)
 }
 
