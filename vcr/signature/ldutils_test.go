@@ -101,6 +101,33 @@ func Test_embeddedFSDocumentLoader_LoadDocument(t *testing.T) {
 }
 
 func TestNewContextLoader(t *testing.T) {
+	t.Run("loads local file", func(t *testing.T) {
+		cfg := DefaultJSONLDContextConfig()
+		cfg.LocalFileMapping = map[string]string{
+			"http://test-context.com": "test/test.jsonld",
+		}
+		_, err := NewContextLoader(true, cfg)
+		assert.NoError(t, err)
+	})
+
+	t.Run("loads local file (external calls disallowed)", func(t *testing.T) {
+		cfg := DefaultJSONLDContextConfig()
+		cfg.LocalFileMapping = map[string]string{
+			"http://test-context.com": "test/test.jsonld",
+		}
+		_, err := NewContextLoader(false, cfg)
+		assert.NoError(t, err)
+	})
+
+	t.Run("errors when local file is not found", func(t *testing.T) {
+		cfg := DefaultJSONLDContextConfig()
+		cfg.LocalFileMapping = map[string]string{
+			"http://test-context.com": "test/non-existing.jsonld",
+		}
+		_, err := NewContextLoader(true, cfg)
+		assert.EqualError(t, err, "unable to preload ld-context: loading document failed: open test/non-existing.jsonld: no such file or directory")
+	})
+
 	t.Run("it creates a new contextLoader", func(t *testing.T) {
 		loader, err := NewContextLoader(false, DefaultJSONLDContextConfig())
 		assert.NoError(t, err)
