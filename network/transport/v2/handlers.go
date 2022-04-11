@@ -189,7 +189,7 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 		return err
 	}
 
-	txs, err := envelope.ParseTransactions(data)
+	txs, err := envelope.parseTransactions(data)
 	if err != nil {
 		return err
 	}

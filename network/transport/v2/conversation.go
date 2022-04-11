@@ -175,7 +175,7 @@ func (envelope *Envelope_TransactionListQuery) checkResponse(other isEnvelope_Me
 		refs[ref] = true
 	}
 
-	txs, err := otherEnvelope.ParseTransactions(data)
+	txs, err := otherEnvelope.parseTransactions(data)
 	if err != nil {
 		return err
 	}
@@ -197,9 +197,9 @@ func (envelope *Envelope_TransactionList) conversationID() []byte {
 	return envelope.TransactionList.ConversationID
 }
 
-// ParseTransactions parses the transactions from the message and caches them in the handlerData,
-// so subsequent calls to ParseTransactions will not parse the transactions again.
-func (envelope Envelope_TransactionList) ParseTransactions(data handlerData) ([]dag.Transaction, error) {
+// parseTransactions parses the transactions from the message and caches them in the handlerData,
+// so subsequent calls to parseTransactions will not parse the transactions again.
+func (envelope Envelope_TransactionList) parseTransactions(data handlerData) ([]dag.Transaction, error) {
 	type key struct{}
 	dataKey := key{}
 	cached, ok := data[dataKey].([]dag.Transaction)

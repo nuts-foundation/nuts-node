@@ -110,7 +110,7 @@ func TestEnvelope_TransactionList_ParseTransactions(t *testing.T) {
 	}}
 
 	t.Run("ok", func(t *testing.T) {
-		transactions, err := tl.ParseTransactions(handlerData{})
+		transactions, err := tl.parseTransactions(handlerData{})
 		assert.NoError(t, err)
 		assert.Len(t, transactions, 2)
 		assert.Contains(t, transactions, tx1)
@@ -119,9 +119,9 @@ func TestEnvelope_TransactionList_ParseTransactions(t *testing.T) {
 
 	t.Run("ok - cached", func(t *testing.T) {
 		data := handlerData{}
-		_, err := tl.ParseTransactions(data)
+		_, err := tl.parseTransactions(data)
 		assert.NoError(t, err)
-		txs, err := Envelope_TransactionList{}.ParseTransactions(data) // should take parsed TXs from data
+		txs, err := Envelope_TransactionList{}.parseTransactions(data) // should take parsed TXs from data
 		assert.NoError(t, err)
 		assert.Len(t, txs, 2)
 	})
@@ -135,7 +135,7 @@ func TestEnvelope_TransactionList_ParseTransactions(t *testing.T) {
 			{
 				Data: []byte("invalid"),
 			},
-		}}}.ParseTransactions(data)
+		}}}.parseTransactions(data)
 		assert.Error(t, err)
 		assert.Empty(t, txs)
 	})
