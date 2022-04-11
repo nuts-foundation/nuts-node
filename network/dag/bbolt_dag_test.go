@@ -79,6 +79,35 @@ func TestBBoltDAG_FindBetween(t *testing.T) {
 	})
 }
 
+func TestBBoltDAG_findBetweenLC(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		ctx := context.Background()
+		graph := CreateDAG(t)
+
+		// tx1 < [tx2, tx3] < tx4 < tx5
+		tx1 := CreateSignedTestTransaction(1, time.Now(), nil, "unit/test", true)
+		tx2 := CreateSignedTestTransaction(2, time.Now(), nil, "unit/test", true, tx1)
+		tx3 := CreateSignedTestTransaction(3, time.Now(), nil, "unit/test", true, tx1)
+		tx4 := CreateSignedTestTransaction(4, time.Now(), nil, "unit/test", true, tx2, tx3)
+		tx5 := CreateSignedTestTransaction(5, time.Now(), nil, "unit/test", true, tx4)
+		err := graph.Add(ctx, tx1, tx2, tx3, tx4, tx5)
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		// LC 1..3 should yield tx2, tx3 and tx4
+		actual, err := graph.findBetweenLC(ctx, 1, 3)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Len(t, actual, 3)
+		assert.Contains(t, actual, tx2)
+		assert.Contains(t, actual, tx3)
+		assert.Contains(t, actual, tx4)
+	})
+}
+
 func TestBBoltDAG_Get(t *testing.T) {
 	t.Run("found", func(t *testing.T) {
 		ctx := context.Background()

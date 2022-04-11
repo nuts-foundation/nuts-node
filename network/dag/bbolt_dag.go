@@ -274,6 +274,33 @@ func (dag *bboltDAG) FindBetween(ctx context.Context, startInclusive time.Time, 
 	return result, err
 }
 
+func (dag *bboltDAG) findBetweenLC(ctx context.Context, startInclusive uint32, endExclusive uint32) ([]Transaction, error) {
+	var result []Transaction
+
+	err := storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
+		clocks := tx.Bucket([]byte(clockBucket))
+		if clocks == nil {
+			return nil
+		}
+
+		// Initiate a cursor and start from the given lamport clock, collect the transactions until the LC upper bound is reached.
+		// This works because the clock index is sorted by the clock value.
+		return walk(ctx, clocks.Cursor(), startInclusive, tx, func(ctx context.Context, transaction Transaction) bool {
+			if transaction.Clock() >= endExclusive {
+				return false
+			}
+			result = append(result, transaction)
+			return true
+		})
+	})
+
+	if err != nil {
+		// Make sure not to return results in case of error
+		return nil, err
+	}
+	return result, nil
+}
+
 func (dag bboltDAG) IsPresent(ctx context.Context, ref hash.SHA256Hash) (bool, error) {
 	var result bool
 	err := storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
@@ -318,28 +345,7 @@ func (dag bboltDAG) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA2
 		}
 
 		// initiate a cursor and start from the given lcValue
-		cursor := clocksBucket.Cursor()
-
-	outer:
-		for _, list := cursor.Seek(clockToBytes(clockValue)); list != nil; _, list = cursor.Next() {
-
-			parsed := parseHashList(list)
-			// according to RFC004, lower byte value refs go first
-			sort.Slice(parsed, func(i, j int) bool {
-				return parsed[i].Compare(parsed[j]) <= 0
-			})
-			for _, next := range parsed {
-				transaction, err := getTransaction(next, tx)
-				if err != nil {
-					return err
-				}
-				if !visitor(contextWithTX, transaction) {
-					break outer
-				}
-			}
-		}
-
-		return nil
+		return walk(contextWithTX, clocksBucket.Cursor(), clockValue, tx, visitor)
 	})
 }
 
@@ -481,6 +487,29 @@ func (dag bboltDAG) getHighestClock(ctx context.Context) uint32 {
 		return nil
 	})
 	return clock
+}
+
+// walk visits every DAG transaction, calling the visitor for every transaction.
+// It visits the transaction in lamport clock order, starting at the transaction with the given lamport clock.
+// If the visitor returns false, it stops walking.
+func walk(ctx context.Context, cursor *bbolt.Cursor, startAtLC uint32, dbTX *bbolt.Tx, visitor Visitor) error {
+	for _, list := cursor.Seek(clockToBytes(startAtLC)); list != nil; _, list = cursor.Next() {
+		parsed := parseHashList(list)
+		// according to RFC004, lower byte value refs go first
+		sort.Slice(parsed, func(i, j int) bool {
+			return parsed[i].Compare(parsed[j]) <= 0
+		})
+		for _, next := range parsed {
+			tx, err := getTransaction(next, dbTX)
+			if err != nil {
+				return err
+			}
+			if !visitor(ctx, tx) {
+				return nil
+			}
+		}
+	}
+	return nil
 }
 
 func bytesToClock(clockBytes []byte) uint32 {

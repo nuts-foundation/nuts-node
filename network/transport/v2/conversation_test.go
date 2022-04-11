@@ -141,7 +141,59 @@ func TestEnvelope_TransactionList_ParseTransactions(t *testing.T) {
 	})
 }
 
-func TestConversationManager_checkTransactionList(t *testing.T) {
+func TestConversationManager_checkTransactionRangeQuery(t *testing.T) {
+	start := uint32(0)
+	end := uint32(1)
+	tx1, _, _ := dag.CreateTestTransaction(1) // LC = 0
+	tx2, _, _ := dag.CreateTestTransaction(2, tx1) // LC = 1
+	cMan := newConversationManager(time.Millisecond)
+	envelope := &Envelope_TransactionRangeQuery{
+		TransactionRangeQuery: &TransactionRangeQuery{
+			Start: start,
+			End:   end,
+		},
+	}
+
+	t.Run("ok", func(t *testing.T) {
+		c := cMan.startConversation(envelope)
+		response := &Envelope_TransactionList{
+			TransactionList: &TransactionList{
+				ConversationID: c.conversationID.slice(),
+				Transactions: []*Transaction{
+					{
+						Data: tx1.Data(),
+					},
+				},
+			},
+		}
+
+		err := cMan.check(response, handlerData{})
+
+		assert.NoError(t, err)
+	})
+	t.Run("error - TX LC out of requested range", func(t *testing.T) {
+		c := cMan.startConversation(envelope)
+		response := &Envelope_TransactionList{
+			TransactionList: &TransactionList{
+				ConversationID: c.conversationID.slice(),
+				Transactions: []*Transaction{
+					{
+						Data: tx1.Data(),
+					},
+					{
+						Data: tx2.Data(),
+					},
+				},
+			},
+		}
+
+		err := cMan.check(response, handlerData{})
+
+		assert.EqualError(t, err, "TX is not within the requested range (tx="+tx2.Ref().String()+")")
+	})
+}
+
+func TestConversationManager_checkTransactionListQuery(t *testing.T) {
 	tx1, _, _ := dag.CreateTestTransaction(1)
 	tx2, _, _ := dag.CreateTestTransaction(2)
 	cMan := newConversationManager(time.Millisecond)

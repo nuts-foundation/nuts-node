@@ -58,6 +58,9 @@ func (p protocol) Handle(peer transport.Peer, raw interface{}) error {
 	case *Envelope_TransactionPayload:
 		logMessage(msg)
 		return p.handleTransactionPayload(msg.TransactionPayload)
+	case *Envelope_TransactionRangeQuery:
+		logMessage(msg)
+		return p.handleTransactionRangeQuery(peer, msg)
 	}
 
 	return errors.New("envelope doesn't contain any (handleable) messages")
@@ -139,6 +142,27 @@ func (p *protocol) handleTransactionPayload(msg *TransactionPayload) error {
 	return p.payloadScheduler.Finished(ref)
 }
 
+func (p protocol) handleTransactionRangeQuery(peer transport.Peer, envelope *Envelope_TransactionRangeQuery) error {
+	msg := envelope.TransactionRangeQuery
+
+	if envelope.TransactionRangeQuery.Start >= envelope.TransactionRangeQuery.End {
+		return errors.New("invalid range query")
+	}
+
+	ctx := context.Background()
+	txs, err := p.state.FindBetweenLC(ctx, envelope.TransactionRangeQuery.Start, envelope.TransactionRangeQuery.End)
+	if err != nil {
+		return err
+	}
+
+	transactionList, err := p.collectTransactionList(ctx, txs)
+	if err != nil {
+		return err
+	}
+
+	return p.sender.sendTransactionList(peer.ID, conversationID(msg.ConversationID), transactionList)
+}
+
 func (p *protocol) handleGossip(peer transport.Peer, msg *Gossip) error {
 	refs := make([]hash.SHA256Hash, len(msg.Transactions))
 	i := 0
@@ -159,6 +183,7 @@ func (p *protocol) handleGossip(peer transport.Peer, msg *Gossip) error {
 	if len(refs) > 0 {
 		// TODO swap for trace logging
 		log.Logger().Infof("received %d new transaction references via Gossip", len(refs))
+		// TODO: What about the error?
 		p.sender.sendTransactionListQuery(peer.ID, refs)
 	}
 	p.gManager.GossipReceived(peer.ID, refs...)
@@ -272,8 +297,17 @@ func (p *protocol) handleTransactionListQuery(peer transport.Peer, msg *Transact
 		return unsorted[i].Clock() <= unsorted[j].Clock()
 	})
 
-	transactions := make([]*Transaction, 0)
-	for _, transaction := range unsorted {
+	txs, err := p.collectTransactionList(ctx, unsorted)
+	if err != nil {
+		return err
+	}
+
+	return p.sender.sendTransactionList(peer.ID, cid, txs)
+}
+
+func (p *protocol) collectTransactionList(ctx context.Context, txs []dag.Transaction) ([]*Transaction, error) {
+	var result []*Transaction
+	for _, transaction := range txs {
 		networkTX := Transaction{
 			Data: transaction.Data(),
 		}
@@ -282,17 +316,14 @@ func (p *protocol) handleTransactionListQuery(peer transport.Peer, msg *Transact
 		if len(transaction.PAL()) == 0 {
 			payload, err := p.state.ReadPayload(ctx, transaction.PayloadHash())
 			if err != nil {
-				return err
+				return nil, err
 			}
-			// TODO we abort here as well, since there's no mechanism for missing payloads on public transactions in v2 protocol
 			if payload == nil {
-				log.Logger().Warnf("peer requested transaction with missing payload (peer=%s, node=%s, ref=%s)", peer.ID, peer.NodeDID.String(), transaction.Ref().String())
-				break
+				return nil, fmt.Errorf("transaction is missing payload (ref=%s)", transaction.Ref())
 			}
 			networkTX.Payload = payload
 		}
-		transactions = append(transactions, &networkTX)
+		result = append(result, &networkTX)
 	}
-
-	return p.sender.sendTransactionList(peer.ID, cid, transactions)
+	return result, nil
 }

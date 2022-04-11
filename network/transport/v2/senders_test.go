@@ -55,7 +55,7 @@ func TestProtocol_sendGossip(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	performSendErrorTest(t, peerID, envelope, func(p *protocol, mocks protocolMocks) error {
+	performSendErrorTest(t, peerID, gomock.Eq(envelope), func(p *protocol, mocks protocolMocks) error {
 		mocks.State.EXPECT().XOR(gomock.Any(), gomock.Any()).Return(xor, clock)
 		return p.sendGossipMsg(peerID, []hash.SHA256Hash{hash.EmptyHash()})
 	})
@@ -89,11 +89,39 @@ func TestProtocol_sendTransactionList(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	performSendErrorTest(t, peerID, envelope, func(p *protocol, _ protocolMocks) error {
+	performSendErrorTest(t, peerID, gomock.Eq(envelope), func(p *protocol, _ protocolMocks) error {
 		return p.sendTransactionList(peerID, conversationID, transactions)
 	})
 	performNoConnectionAvailableTest(t, peerID, func(p *protocol, _ protocolMocks) error {
 		return p.sendTransactionList(peerID, newConversationID(), []*Transaction{})
+	})
+}
+
+func TestProtocol_sendTransactionRangeQuery(t *testing.T) {
+	peerID := transport.PeerID("1")
+
+	t.Run("ok", func(t *testing.T) {
+		proto, mocks := newTestProtocol(t, nil)
+		mockConnection := grpc.NewMockConnection(mocks.Controller)
+		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peerID)).Return(mockConnection)
+		var actualEnvelope *Envelope
+		mockConnection.EXPECT().Send(proto, gomock.Any()).DoAndReturn(func(p *protocol, e *Envelope) error {
+			actualEnvelope = e
+			return nil
+		})
+
+		err := proto.sendTransactionRangeQuery(peerID, 1, 5)
+
+		assert.NoError(t, err)
+		assert.Len(t, proto.cMan.conversations, 1) // assert a conversation was started
+		assert.NotNil(t, actualEnvelope.GetTransactionRangeQuery().GetConversationID())
+	})
+
+	performSendErrorTest(t, peerID, gomock.Any(), func(p *protocol, _ protocolMocks) error {
+		return p.sendTransactionRangeQuery(peerID, 1, 5)
+	})
+	performNoConnectionAvailableTest(t, peerID, func(p *protocol, _ protocolMocks) error {
+		return p.sendTransactionRangeQuery(peerID, 1, 5)
 	})
 }
 
@@ -140,7 +168,7 @@ func Test_chunkTransactionList(t *testing.T) {
 	})
 }
 
-func performSendErrorTest(t *testing.T, peerID transport.PeerID, envelope *Envelope, sender func(*protocol, protocolMocks) error) {
+func performSendErrorTest(t *testing.T, peerID transport.PeerID, envelope gomock.Matcher, sender func(*protocol, protocolMocks) error) {
 	t.Run("error - error on send", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
 		mockConnection := grpc.NewMockConnection(mocks.Controller)

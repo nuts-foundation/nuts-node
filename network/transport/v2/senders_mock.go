@@ -76,3 +76,17 @@ func (mr *MockmessageSenderMockRecorder) sendTransactionListQuery(id, refs inter
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "sendTransactionListQuery", reflect.TypeOf((*MockmessageSender)(nil).sendTransactionListQuery), id, refs)
 }
+
+// sendTransactionRangeQuery mocks base method.
+func (m *MockmessageSender) sendTransactionRangeQuery(id transport.PeerID, lcStart, lcEnd uint32) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "sendTransactionRangeQuery", id, lcStart, lcEnd)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// sendTransactionRangeQuery indicates an expected call of sendTransactionRangeQuery.
+func (mr *MockmessageSenderMockRecorder) sendTransactionRangeQuery(id, lcStart, lcEnd interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "sendTransactionRangeQuery", reflect.TypeOf((*MockmessageSender)(nil).sendTransactionRangeQuery), id, lcStart, lcEnd)
+}

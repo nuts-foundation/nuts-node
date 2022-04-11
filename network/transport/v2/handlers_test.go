@@ -539,7 +539,6 @@ func TestProtocol_handleTransactionListQuery(t *testing.T) {
 		mocks.State.EXPECT().GetTransaction(context.Background(), h1).Return(dagT1, nil)
 		mocks.State.EXPECT().GetTransaction(context.Background(), h2).Return(dagT2, nil)
 		mocks.State.EXPECT().ReadPayload(context.Background(), dagT1.PayloadHash()).Return(nil, nil)
-		mocks.Sender.EXPECT().sendTransactionList(peer.ID, conversationID, []*Transaction{})
 
 		err := p.Handle(peer, &Envelope{
 			Message: &Envelope_TransactionListQuery{&TransactionListQuery{
@@ -548,7 +547,7 @@ func TestProtocol_handleTransactionListQuery(t *testing.T) {
 			}},
 		})
 
-		assert.NoError(t, err)
+		assert.ErrorContains(t, err, "transaction is missing payload")
 	})
 
 	t.Run("ok - empty request", func(t *testing.T) {
@@ -561,6 +560,56 @@ func TestProtocol_handleTransactionListQuery(t *testing.T) {
 		})
 
 		assert.NoError(t, err)
+	})
+}
+
+func TestProtocol_handleTransactionRangeQuery(t *testing.T) {
+	payload := []byte("Hello, World!")
+	tx1, _, _ := dag.CreateTestTransaction(0)
+	tx2, _, _ := dag.CreateTestTransaction(1, tx1)
+	lcStart := uint32(1)
+	lcEnd := uint32(5)
+
+	t.Run("ok", func(t *testing.T) {
+		p, mocks := newTestProtocol(t, nil)
+
+		mocks.State.EXPECT().FindBetweenLC(gomock.Any(), lcStart, lcEnd).Return([]dag.Transaction{tx1, tx2}, nil)
+		mocks.State.EXPECT().ReadPayload(gomock.Any(), tx1.PayloadHash()).Return(payload, nil)
+		mocks.State.EXPECT().ReadPayload(gomock.Any(), tx2.PayloadHash()).Return(payload, nil)
+		mocks.Sender.EXPECT().sendTransactionList(peer.ID, gomock.Any(), gomock.Any())
+
+		msg := &Envelope_TransactionRangeQuery{&TransactionRangeQuery{
+			Start: lcStart,
+			End:   lcEnd,
+		}}
+		p.cMan.startConversation(msg)
+		err := p.Handle(peer, &Envelope{Message: msg})
+
+		assert.NoError(t, err)
+	})
+	t.Run("error - invalid range", func(t *testing.T) {
+		p, _ := newTestProtocol(t, nil)
+
+		msg := &Envelope_TransactionRangeQuery{&TransactionRangeQuery{
+			Start: 1,
+			End:   1,
+		}}
+		p.cMan.startConversation(msg)
+		err := p.Handle(peer, &Envelope{Message: msg})
+
+		assert.EqualError(t, err, "invalid range query")
+	})
+	t.Run("error - DAG reading error", func(t *testing.T) {
+		p, mocks := newTestProtocol(t, nil)
+		mocks.State.EXPECT().FindBetweenLC(gomock.Any(), lcStart, lcEnd).Return(nil, errors.New("failure"))
+		msg := &Envelope_TransactionRangeQuery{&TransactionRangeQuery{
+			Start: lcStart,
+			End:   lcEnd,
+		}}
+		p.cMan.startConversation(msg)
+		err := p.Handle(peer, &Envelope{Message: msg})
+
+		assert.Error(t, err,)
 	})
 }
 
