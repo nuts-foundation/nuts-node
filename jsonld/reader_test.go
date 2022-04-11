@@ -20,11 +20,33 @@
 package jsonld
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/piprate/json-gold/ld"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestDocumentReader_FromStruct(t *testing.T) {
+	reader := Reader{
+		DocumentLoader: &ld.DefaultDocumentLoader{},
+	}
+
+	t.Run("ok", func(t *testing.T) {
+		object := make(map[string]interface{})
+		_ = json.Unmarshal([]byte(jsonLDExample), &object)
+		document, err := reader.Read(object)
+		values := document.ValueAt(NewPath())
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.NotNil(t, document)
+		assert.Len(t, values, 1)
+		assert.Equal(t, "123456782", values[0].String())
+	})
+}
 
 func TestDocumentReader_FromBytes(t *testing.T) {
 	reader := Reader{
@@ -32,7 +54,7 @@ func TestDocumentReader_FromBytes(t *testing.T) {
 	}
 
 	t.Run("ok", func(t *testing.T) {
-		document, err := reader.FromBytes([]byte(jsonLDExample))
+		document, err := reader.ReadBytes([]byte(jsonLDExample))
 		values := document.ValueAt(NewPath())
 
 		if !assert.NoError(t, err) {
@@ -45,13 +67,13 @@ func TestDocumentReader_FromBytes(t *testing.T) {
 	})
 
 	t.Run("error - wrong syntax", func(t *testing.T) {
-		_, err := reader.FromBytes([]byte("{"))
+		_, err := reader.ReadBytes([]byte("{"))
 
 		assert.Error(t, err)
 	})
 
 	t.Run("error - invalid JSON-LD", func(t *testing.T) {
-		_, err := reader.FromBytes([]byte(invalidJSONLD))
+		_, err := reader.ReadBytes([]byte(invalidJSONLD))
 
 		assert.Error(t, err)
 	})

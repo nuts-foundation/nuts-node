@@ -34,18 +34,18 @@ type Reader struct {
 	DocumentLoader ld.DocumentLoader
 }
 
-// FromStruct transforms a struct to a Document (expanded JSON-LD)
-func (r Reader) FromStruct(source struct{}) (Document, error) {
+// Read transforms a struct to a Document (expanded JSON-LD)
+func (r Reader) Read(source interface{}) (Document, error) {
 	asJSON, err := json.Marshal(source)
 	if err != nil {
 		return nil, err
 	}
 
-	return r.FromBytes(asJSON)
+	return r.ReadBytes(asJSON)
 }
 
-// FromBytes transforms a JSON-LD string to a Document (expanded JSON-LD)
-func (r Reader) FromBytes(asJSON []byte) (Document, error) {
+// ReadBytes transforms a JSON-LD string to a Document (expanded JSON-LD)
+func (r Reader) ReadBytes(asJSON []byte) (Document, error) {
 	compact := make(map[string]interface{})
 	if err := json.Unmarshal(asJSON, &compact); err != nil {
 		return nil, err
