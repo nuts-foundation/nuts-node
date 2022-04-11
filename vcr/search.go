@@ -32,7 +32,6 @@ import (
 )
 
 const (
-<<<<<<< HEAD
 	// Exact is the SearchTerm type that requires a search path to result in an exact match
 	Exact = "exact"
 	// NotNil is the SearchTerm type that requires a search path to result in a non nil value
@@ -42,13 +41,6 @@ const (
 )
 
 // SearchTerm is part of a JSON-LD query. Multiple terms are combined in an 'AND' manner.
-=======
-	Prefix = "prefix"
-	Exact  = "exact"
-	NotNil = "notNil"
-)
-
->>>>>>> added JSON-LD type search to VCR
 type SearchTerm struct {
 	IRIPath []string
 	Value   interface{}
