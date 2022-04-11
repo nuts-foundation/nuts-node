@@ -20,12 +20,17 @@
 package jsonld
 
 import (
+	"encoding/json"
 	"testing"
 
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vcr/assets"
+	"github.com/nuts-foundation/nuts-node/vcr/signature"
+	"github.com/piprate/json-gold/ld"
 )
 
-var jsonLDExample = `
+const jsonLDExample = `
 {
   "@context": {
     "id": "@id",
@@ -63,7 +68,7 @@ var jsonLDExample = `
 `
 
 // invalidJSONLD contains an incorrect version for JSON-LD
-var invalidJSONLD = `
+const invalidJSONLD = `
 {
   "@context": [
     {
@@ -73,10 +78,90 @@ var invalidJSONLD = `
 }
 `
 
+const testContext = `
+{
+  "@context": {
+    "@version": 1.1,
+    "@protected": true,
+
+    "id": "@id",
+    "type": "@type",
+    "HumanCredential": {
+      "@id": "http://example.org/HumanCredential",
+      "@type": "@id",
+      "@context": {
+        "@version": 1.1,
+        "id": "@id",
+        "type": "@type",
+        "schema": "http://schema.org/",
+		"ex": "http://example.org/",
+        "human": {
+          "@id":"http://example.org/human",
+          "@type": "@id",
+          "@context": {
+            "eyeColour": "ex:eyeColour",
+            "hairColour": "ex:hairColour"
+          }
+        }
+      }
+    }
+  }
+}
+`
+
+const TestCredential = `
+{
+	"@context": [
+		"https://www.w3.org/2018/credentials/v1",
+		"http://example.org/credentials/V1"
+	  ],
+	"id": "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY#123",
+	"issuer": "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY",
+	"issuanceDate": "1970-01-01T12:00:00Z",
+	"expirationDate": "2030-01-01T12:00:00Z",
+	"type": ["VerifiableCredential", "HumanCredential"],
+	"credentialSubject": {
+		"id": "did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW",
+		"human": {
+			"eyeColour": "blue/grey",
+			"hairColour": "fair"
+		}
+	},
+	"proof": {}
+}
+`
+
+const TestRevocation = `
+{
+  "issuer": "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY",
+  "subject": "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY#123",
+  "currentStatus": "Revoked",
+  "statusDate": "2021-03-13T16:39:58.496215+01:00"
+}
+`
+
+func TestVC() vc.VerifiableCredential {
+	credential := vc.VerifiableCredential{}
+
+	json.Unmarshal([]byte(TestCredential), &credential)
+
+	return credential
+}
+
 func TestContextManager(t *testing.T) ContextManager {
 	manager := NewManager()
 	if err := manager.(core.Configurable).Configure(core.ServerConfig{Strictmode: true}); err != nil {
 		t.Fatal(err)
 	}
+
+	loader := ld.NewCachingDocumentLoader(signature.NewEmbeddedFSDocumentLoader(assets.TestAssets, manager.DocumentLoader()))
+	if err := loader.PreloadWithMapping(map[string]string{
+		"http://example.org/credentials/V1": "test_assets/contexts/test.ldjson",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	manager.(*contextManager).documentLoader = loader
+
 	return manager
 }

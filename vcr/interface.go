@@ -21,9 +21,10 @@ package vcr
 
 import (
 	"context"
+	"time"
+
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
-	"time"
 
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
@@ -46,10 +47,15 @@ type ConceptFinder interface {
 
 // Finder is the VCR interface for searching VCs
 type Finder interface {
+	// SearchLegacy for matching VCs based upon a query. It returns an empty list if no matches have been found.
+	// It also returns untrusted credentials when allowUntrusted == true
+	// a context must be passed to prevent long-running queries
+	SearchLegacy(ctx context.Context, query concept.Query, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error)
+
 	// Search for matching VCs based upon a query. It returns an empty list if no matches have been found.
 	// It also returns untrusted credentials when allowUntrusted == true
 	// a context must be passed to prevent long-running queries
-	Search(ctx context.Context, query concept.Query, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error)
+	Search(ctx context.Context, searchTerms []SearchTerm, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error)
 }
 
 // Validator is the VCR interface for validation options
