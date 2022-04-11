@@ -100,13 +100,6 @@ func TestProtocol_sendTransactionList(t *testing.T) {
 func TestProtocol_sendTransactionRangeQuery(t *testing.T) {
 	peerID := transport.PeerID("1")
 
-	envelope := &Envelope{Message: &Envelope_TransactionRangeQuery{
-		TransactionRangeQuery: &TransactionRangeQuery{
-			Start:          1,
-			End:            5,
-		},
-	}}
-
 	t.Run("ok", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
 		mockConnection := grpc.NewMockConnection(mocks.Controller)
@@ -124,7 +117,7 @@ func TestProtocol_sendTransactionRangeQuery(t *testing.T) {
 		assert.NotNil(t, actualEnvelope.GetTransactionRangeQuery().GetConversationID())
 	})
 
-	performSendErrorTest(t, peerID, gomock.Eq(envelope), func(p *protocol, _ protocolMocks) error {
+	performSendErrorTest(t, peerID, gomock.Any(), func(p *protocol, _ protocolMocks) error {
 		return p.sendTransactionRangeQuery(peerID, 1, 5)
 	})
 	performNoConnectionAvailableTest(t, peerID, func(p *protocol, _ protocolMocks) error {

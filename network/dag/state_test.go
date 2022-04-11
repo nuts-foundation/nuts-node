@@ -101,6 +101,15 @@ func TestState_relayingFuncs(t *testing.T) {
 		assert.Equal(t, payloadHash, result)
 	})
 
+	t.Run("FindBetweenLC", func(t *testing.T) {
+		txs, err := txState.FindBetweenLC(ctx, 0, 1)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Len(t, txs, 1)
+	})
+
 	t.Run("ReadManyPayloads", func(t *testing.T) {
 		var result bool
 		var err error

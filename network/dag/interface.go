@@ -48,7 +48,7 @@ type State interface {
 	// It returns the transactions in DAG walking order.
 	FindBetween(ctx context.Context, startInclusive time.Time, endExclusive time.Time) ([]Transaction, error)
 	// FindBetweenLC finds all transactions which lamport clock value lies between startInclusive and endExclusive.
-	// They are returned in order, sorted on lamport clock value.
+	// They are returned in order: first sorted on lamport clock value, then on transaction reference (byte order).
 	FindBetweenLC(ctx context.Context, startInclusive uint32, endExclusive uint32) ([]Transaction, error)
 	// GetByPayloadHash retrieves all transactions that refer to the specified payload.
 	GetByPayloadHash(ctx context.Context, payloadHash hash.SHA256Hash) ([]Transaction, error)
