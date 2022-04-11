@@ -20,7 +20,7 @@ require (
 	github.com/nats-io/nats.go v1.13.1-0.20220308171302-2f2f6968e98d
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.3.0
-	github.com/nuts-foundation/go-leia/v3 v3.0.2
+	github.com/nuts-foundation/go-leia/v3 v3.1.0
 	github.com/piprate/json-gold v0.4.1
 	github.com/privacybydesign/irmago v0.10.0
 	github.com/prometheus/client_golang v1.12.1
@@ -29,7 +29,6 @@ require (
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.1
-	github.com/tidwall/gjson v1.14.0
 	github.com/twmb/murmur3 v1.1.6
 	go.etcd.io/bbolt v1.3.6
 	go.uber.org/atomic v1.9.0
@@ -39,8 +38,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 	schneider.vip/problem v1.6.0
 )
-
-replace github.com/nuts-foundation/go-leia/v3 => ../go-leia
 
 require (
 	github.com/alexandrevicenzi/go-sse v1.6.0 // indirect
@@ -136,9 +133,9 @@ require (
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/sietseringers/go-sse v0.0.0-20200801161811-e2cf2c63ca50 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
-	github.com/stretchr/objx v0.1.1 // indirect
 	github.com/templexxx/cpufeat v0.0.0-20180724012125-cef66df7f161 // indirect
 	github.com/templexxx/xor v0.0.0-20181023030647-4e92f724b73b // indirect
+	github.com/tidwall/gjson v1.14.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/timshannon/bolthold v0.0.0-20190812165541-a85bcc049a2e // indirect

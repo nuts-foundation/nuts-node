@@ -575,6 +575,8 @@ github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b h1:80
 github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b/go.mod h1:6YUioYirD6/8IahZkoS4Ypc8xbeJW76Xdk1QKcziNTM=
 github.com/nuts-foundation/go-did v0.3.0 h1:uZoFnwiAlJgVWWsr8b7tJXSMUgW2bajaLANE0f43fu4=
 github.com/nuts-foundation/go-did v0.3.0/go.mod h1:MD2sE53BOvsQHZ9CmGI+EGXPUk1QiU9bUqB062y9+N8=
+github.com/nuts-foundation/go-leia/v3 v3.1.0 h1:6BRX45OJoRFmd4f7lHixj1mqDEKls9G4GKnRMk0At0Y=
+github.com/nuts-foundation/go-leia/v3 v3.1.0/go.mod h1:zdtxPXfOmhXKbn4UqEbtxCcVPGyg+JgbgIISrKi6P6s=
 github.com/nxadm/tail v1.4.4 h1:DQuhQpB1tVlglWS2hLQ5OV6B5r8aGxSrPc5Qo6uTN78=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
 github.com/ockam-network/did v0.1.4-0.20210103172416-02ae01ce06d8 h1:s5GFggECXv/KwF37ax4B7ACMOKoUnKvmur4i+7I07UE=
