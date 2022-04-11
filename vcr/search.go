@@ -31,11 +31,15 @@ import (
 )
 
 const (
-	Prefix = "prefix"
-	Exact  = "exact"
+	// Exact is the SearchTerm type that requires a search path to result in an exact match
+	Exact = "exact"
+	// NotNil is the SearchTerm type that requires a search path to result in a non nil value
 	NotNil = "notNil"
+	// Prefix is the SearchTerm type that does a prefix match
+	Prefix = "prefix"
 )
 
+// SearchTerm is part of a JSON-LD query. Multiple terms are combined in an 'AND' manner.
 type SearchTerm struct {
 	IRIPath []string
 	Value   interface{}
