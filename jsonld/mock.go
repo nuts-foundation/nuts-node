@@ -49,10 +49,10 @@ func (mr *MockContextManagerMockRecorder) DocumentLoader() *gomock.Call {
 }
 
 // Reader mocks base method.
-func (m *MockContextManager) Reader() DocumentReader {
+func (m *MockContextManager) Reader() Reader {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Reader")
-	ret0, _ := ret[0].(DocumentReader)
+	ret0, _ := ret[0].(Reader)
 	return ret0
 }
 

@@ -28,11 +28,13 @@ import (
 // JSONLdBase is the base URL used for IRIs that are unknown when expanding a JSON-LD document.
 const JSONLdBase = ""
 
-type DocumentReader struct {
-	documentLoader ld.DocumentLoader
+// Reader adds Document reader functions for a JSON-LD context.
+type Reader struct {
+	// DocumentLoader the document loader that resolves JSON-LD context urls
+	DocumentLoader ld.DocumentLoader
 }
 
-func (r DocumentReader) FromStruct(source struct{}) (Document, error) {
+func (r Reader) FromStruct(source struct{}) (Document, error) {
 	asJSON, err := json.Marshal(source)
 	if err != nil {
 		return nil, err
@@ -41,7 +43,7 @@ func (r DocumentReader) FromStruct(source struct{}) (Document, error) {
 	return r.FromBytes(asJSON)
 }
 
-func (r DocumentReader) FromBytes(asJSON []byte) (Document, error) {
+func (r Reader) FromBytes(asJSON []byte) (Document, error) {
 	compact := make(map[string]interface{})
 	if err := json.Unmarshal(asJSON, &compact); err != nil {
 		return nil, err
@@ -49,7 +51,7 @@ func (r DocumentReader) FromBytes(asJSON []byte) (Document, error) {
 
 	processor := ld.NewJsonLdProcessor()
 	options := ld.NewJsonLdOptions(JSONLdBase)
-	options.DocumentLoader = r.documentLoader
+	options.DocumentLoader = r.DocumentLoader
 
 	return processor.Expand(compact, options)
 }

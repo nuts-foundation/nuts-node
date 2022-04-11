@@ -27,8 +27,8 @@ import (
 )
 
 func TestDocumentReader_FromBytes(t *testing.T) {
-	reader := DocumentReader{
-		documentLoader: &ld.DefaultDocumentLoader{},
+	reader := Reader{
+		DocumentLoader: &ld.DefaultDocumentLoader{},
 	}
 
 	t.Run("ok", func(t *testing.T) {

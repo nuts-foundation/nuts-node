@@ -25,8 +25,6 @@ import (
 
 // ContextManager manages the different JSON-LD contexts. It helps in using the same loaded contexts over different engines.
 type ContextManager interface {
-	// DocumentLoader returns the JSON-LD documentLoader
+	// DocumentLoader returns the JSON-LD DocumentLoader
 	DocumentLoader() ld.DocumentLoader
-	// Reader returns a DocumentReader loaded with the correct JSON-LD contexts
-	Reader() DocumentReader
 }
