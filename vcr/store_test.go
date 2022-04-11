@@ -21,6 +21,7 @@ package vcr
 
 import (
 	"crypto/ecdsa"
+	"crypto/sha1"
 	"encoding/json"
 	"os"
 	"testing"
@@ -147,5 +148,27 @@ func TestVcr_StoreRevocation(t *testing.T) {
 		err := ctx.vcr.StoreRevocation(credential.Revocation{})
 
 		assert.Error(t, err)
+	})
+}
+
+func TestStore_writeCredential(t *testing.T) {
+	// load VC
+	target := vc.VerifiableCredential{}
+	vcJSON, _ := os.ReadFile("test/vc.json")
+	json.Unmarshal(vcJSON, &target)
+
+	t.Run("ok - stored in JSON-LD collection", func(t *testing.T) {
+		ctx := newMockContext(t)
+		vcBytes, _ := json.Marshal(target)
+		ref := sha1.Sum(vcBytes)
+
+		err := ctx.vcr.writeCredential(target)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		doc, err := ctx.vcr.credentialCollection().Get(ref[:])
+		assert.NoError(t, err)
+		assert.NotNil(t, doc)
 	})
 }
