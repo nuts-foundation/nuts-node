@@ -33,15 +33,7 @@ type JSONLDContextsConfig struct {
 	// RemoteAllowList A list with urls as string which are allowed to request
 	RemoteAllowList []string `koanf:"remoteallowlist"`
 	// LocalFileMapping contains a list of context urls mapped to a local file
-	LocalFileMapping []FileMapping `koanf:"localmapping"`
-}
-
-// FileMapping is a struct of a context url mapped to a local path
-type FileMapping struct {
-	// URL contains the url of the context which should be resolved
-	URL string `koanf:"url"`
-	// Path contains a relative path to the file which contains the json-ld context
-	Path string `koanf:"path"`
+	LocalFileMapping map[string]string `koanf:"localmapping"`
 }
 
 // embeddedFSDocumentLoader tries to load documents from an embedded filesystem.
@@ -122,11 +114,11 @@ const Jws2020Context = "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws20
 func DefaultJSONLDContextConfig() JSONLDContextsConfig {
 	return JSONLDContextsConfig{
 		RemoteAllowList: DefaultAllowList(),
-		LocalFileMapping: []FileMapping{
-			{URL: "https://nuts.nl/credentials/v1", Path: "assets/contexts/nuts.ldjson"},
-			{URL: W3cVcContext, Path: "assets/contexts/w3c-credentials-v1.ldjson"},
-			{URL: Jws2020Context, Path: "assets/contexts/lds-jws2020-v1.ldjson"},
-			{URL: SchemaOrgContext, Path: "assets/contexts/schema-org-v13.ldjson"},
+		LocalFileMapping: map[string]string{
+			"https://nuts.nl/credentials/v1": "assets/contexts/nuts.ldjson",
+			W3cVcContext:                     "assets/contexts/w3c-credentials-v1.ldjson",
+			Jws2020Context:                   "assets/contexts/lds-jws2020-v1.ldjson",
+			SchemaOrgContext:                 "assets/contexts/schema-org-v13.ldjson",
 		},
 	}
 }
@@ -149,8 +141,8 @@ func NewContextLoader(allowUnlistedExternalCalls bool, contexts JSONLDContextsCo
 	loader := ld.NewCachingDocumentLoader(NewEmbeddedFSDocumentLoader(assets.Assets, httpLoader))
 
 	mapping := make(map[string]string, len(contexts.LocalFileMapping))
-	for _, urlMap := range contexts.LocalFileMapping {
-		mapping[urlMap.URL] = urlMap.Path
+	for url, destination := range contexts.LocalFileMapping {
+		mapping[url] = destination
 	}
 
 	if err := loader.PreloadWithMapping(mapping); err != nil {
