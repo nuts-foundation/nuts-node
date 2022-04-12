@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"path"
 	"reflect"
 	"runtime"
 	"strings"
@@ -34,6 +35,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
+	"go.etcd.io/bbolt"
 
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
@@ -91,6 +93,50 @@ func TestVCR_Start(t *testing.T) {
 
 		_, err := os.Stat(instance.credentialsDBPath())
 		assert.NoError(t, err)
+	})
+
+	t.Run("loads default indices", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		instance := NewVCRInstance(
+			nil,
+			nil,
+			nil,
+			network.NewTestNetworkInstance(path.Join(testDirectory, "network")),
+			jsonld.TestContextManager(t),
+		).(*vcr)
+		if err := instance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
+			t.Fatal(err)
+		}
+		if err := instance.Start(); err != nil {
+			t.Fatal(err)
+		}
+		// add a single document so indices are created
+		if err := instance.credentialCollection().Add([]leia.Document{[]byte("{}")}); err != nil {
+			t.Fatal(err)
+		}
+		if err := instance.Shutdown(); err != nil {
+			t.Fatal(err)
+		}
+
+		dbPath := instance.credentialsDBPath()
+		db, err := bbolt.Open(dbPath, os.ModePerm, nil)
+		defer db.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		db.View(func(tx *bbolt.Tx) error {
+			mainBucket := tx.Bucket([]byte("credentials"))
+
+			if !assert.NotNil(t, mainBucket) {
+				return nil
+			}
+			assert.NotNil(t, mainBucket.Bucket([]byte("index_id")))
+			assert.NotNil(t, mainBucket.Bucket([]byte("index_issuer")))
+			assert.NotNil(t, mainBucket.Bucket([]byte("index_subject")))
+			assert.NotNil(t, mainBucket.Bucket([]byte("index_organization")))
+
+			return nil
+		})
 	})
 }
 

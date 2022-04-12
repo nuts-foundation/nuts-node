@@ -72,8 +72,12 @@ func (c *vcr) writeCredential(subject vc.VerifiableCredential) error {
 
 	doc, _ := json.Marshal(subject)
 
-	collection := c.store.JSONCollection(vcType)
+	if err := c.credentialCollection().Add([]leia.Document{doc}); err != nil {
+		return err
+	}
 
+	// Deprecated: remove old JSON store
+	collection := c.store.JSONCollection(vcType)
 	return collection.Add([]leia.Document{doc})
 }
 
