@@ -95,6 +95,7 @@ const TestOrganizationCredential = `
     },
     "id": "did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H#d2aa8189-db59-4dad-a3e5-60ca54f8fcc0",
     "issuanceDate": "2021-12-24T13:21:29.087205+01:00",
+    "expirationDate": "2030-01-01T13:21:29.087205+01:00",
     "issuer": "did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H",
     "proof": {},
     "type": [

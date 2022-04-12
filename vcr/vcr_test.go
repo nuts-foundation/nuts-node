@@ -255,19 +255,17 @@ func TestVCR_Resolve(t *testing.T) {
 		ctx := newMockContext(t2)
 
 		// add document
-		doc := []byte(concept.TestCredential)
-		err := ctx.vcr.store.JSONCollection(concept.ExampleType).Add([]leia.Document{doc})
+		doc := []byte(jsonld.TestOrganizationCredential)
+		err := ctx.vcr.credentialCollection().Add([]leia.Document{doc})
 		if !assert.NoError(t2, err) {
 			t2.Fatal(err)
 		}
-		// register type in templates
-		_ = ctx.vcr.registry.Add(concept.ExampleConfig)
 
 		return ctx
 	}
 
 	testVC := vc.VerifiableCredential{}
-	_ = json.Unmarshal([]byte(concept.TestCredential), &testVC)
+	_ = json.Unmarshal([]byte(jsonld.TestOrganizationCredential), &testVC)
 
 	now := time.Now()
 	timeFunc = func() time.Time {
@@ -279,7 +277,7 @@ func TestVCR_Resolve(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := testInstance(t)
-		ctx.vcr.trustConfig.AddTrust(testVC.Type[1], testVC.Issuer)
+		ctx.vcr.trustConfig.AddTrust(ssi.MustParseURI("NutsOrganizationCredential"), testVC.Issuer)
 
 		vc, err := ctx.vcr.Resolve(*testVC.ID, &now)
 		if !assert.NoError(t, err) {
@@ -291,18 +289,16 @@ func TestVCR_Resolve(t *testing.T) {
 
 	t.Run("error - not valid yet", func(t *testing.T) {
 		ctx := testInstance(t)
-		ctx.vcr.trustConfig.AddTrust(testVC.Type[1], testVC.Issuer)
+		ctx.vcr.trustConfig.AddTrust(ssi.MustParseURI("NutsOrganizationCredential"), testVC.Issuer)
 
 		_, err := ctx.vcr.Resolve(*testVC.ID, &time.Time{})
 		assert.Equal(t, vcrTypes.ErrInvalidPeriod, err)
 	})
 
 	t.Run("error - no longer valid", func(t *testing.T) {
-		testVC := vc.VerifiableCredential{}
-		_ = json.Unmarshal([]byte(concept.TestCredential), &testVC)
 		nextYear, _ := time.Parse(time.RFC3339, "2030-01-02T12:00:00Z")
 		ctx := testInstance(t)
-		ctx.vcr.trustConfig.AddTrust(testVC.Type[1], testVC.Issuer)
+		ctx.vcr.trustConfig.AddTrust(ssi.MustParseURI("NutsOrganizationCredential"), testVC.Issuer)
 
 		_, err := ctx.vcr.Resolve(*testVC.ID, &nextYear)
 		assert.Equal(t, vcrTypes.ErrInvalidPeriod, err)
@@ -310,13 +306,14 @@ func TestVCR_Resolve(t *testing.T) {
 
 	t.Run("ok - revoked", func(t *testing.T) {
 		ctx := testInstance(t)
-		ctx.vcr.trustConfig.RemoveTrust(testVC.Type[0], testVC.Issuer)
-		rev := []byte(concept.TestRevocation)
-		ctx.vcr.store.JSONCollection(revocationCollection).Add([]leia.Document{rev})
+		ctx.vcr.trustConfig.AddTrust(ssi.MustParseURI("NutsOrganizationCredential"), testVC.Issuer)
+		mockVerifier := verifier.NewMockVerifier(ctx.ctrl)
+		ctx.vcr.verifier = mockVerifier
+		mockVerifier.EXPECT().Verify(testVC, false, false, gomock.Any()).Return(vcrTypes.ErrRevoked)
 
 		vc, err := ctx.vcr.Resolve(*testVC.ID, nil)
 
-		assert.Equal(t, err, vcrTypes.ErrRevoked)
+		assert.Equal(t, vcrTypes.ErrRevoked, err)
 		assert.Equal(t, testVC, *vc)
 	})
 
