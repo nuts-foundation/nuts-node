@@ -138,7 +138,7 @@ type SearchOptions struct {
 	AllowUntrustedIssuer *bool `json:"allowUntrustedIssuer,omitempty"`
 }
 
-// result of a SearchLegacy operation.
+// result of a Search operation.
 type SearchVCResult struct {
 	// Credential revocation record
 	Revocation *Revocation `json:"revocation,omitempty"`
@@ -147,7 +147,7 @@ type SearchVCResult struct {
 	VerifiableCredential VerifiableCredential `json:"verifiableCredential"`
 }
 
-// result of a SearchLegacy operation.
+// result of a Search operation.
 type SearchVCResults struct {
 	VerifiableCredentials []SearchVCResult `json:"verifiableCredentials"`
 }
