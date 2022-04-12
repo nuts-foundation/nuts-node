@@ -113,7 +113,7 @@ func (w *Wrapper) searchOrgs(ctx echo.Context, allowUntrusted bool, vcQuery vc.V
 		}
 	}
 
-	results, err := w.VCR.Search(ctx.Request().Context(), query, allowUntrusted, nil)
+	results, err := w.VCR.SearchLegacy(ctx.Request().Context(), query, allowUntrusted, nil)
 	if err != nil {
 		return err
 	}
@@ -161,7 +161,7 @@ func (w *Wrapper) searchAuths(ctx echo.Context, allowUntrusted bool, vcQuery vc.
 		}
 	}
 
-	results, err := w.VCR.Search(ctx.Request().Context(), query, allowUntrusted, nil)
+	results, err := w.VCR.SearchLegacy(ctx.Request().Context(), query, allowUntrusted, nil)
 	if err != nil {
 		return err
 	}

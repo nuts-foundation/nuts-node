@@ -376,7 +376,7 @@ func (c *vcr) Config() interface{} {
 
 // Search for matching credentials based upon a query. It returns an empty list if no matches have been found.
 // The optional resolveTime will Search for credentials at that point in time.
-func (c *vcr) Search(ctx context.Context, query concept.Query, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
+func (c *vcr) SearchLegacy(ctx context.Context, query concept.Query, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
 	//transform query to leia query, for each template a query is returned
 	queries := c.convert(query)
 
@@ -665,7 +665,7 @@ func (c *vcr) Get(conceptName string, allowUntrusted bool, subject string) (conc
 	ctx, cancel := context.WithTimeout(context.Background(), maxFindExecutionTime)
 	defer cancel()
 	// finding a VC that backs a concept always occurs in the present, so no resolveTime needs to be passed.
-	vcs, err := c.Search(ctx, q, allowUntrusted, nil)
+	vcs, err := c.SearchLegacy(ctx, q, allowUntrusted, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -688,7 +688,7 @@ func (c *vcr) SearchConcept(ctx context.Context, conceptName string, allowUntrus
 		query.AddClause(concept.Prefix(key, value))
 	}
 
-	results, err := c.Search(ctx, query, allowUntrusted, nil)
+	results, err := c.SearchLegacy(ctx, query, allowUntrusted, nil)
 	if err != nil {
 		return nil, err
 	}

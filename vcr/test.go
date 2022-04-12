@@ -86,10 +86,7 @@ func newMockContext(t *testing.T) mockContext {
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	docResolver := types.NewMockDocResolver(ctrl)
 	serviceResolver := doc.NewMockServiceResolver(ctrl)
-	contextManager := jsonld.NewManager()
-	if err := contextManager.(core.Configurable).Configure(core.ServerConfig{Strictmode: true}); err != nil {
-		t.Fatal(err)
-	}
+	contextManager := jsonld.TestContextManager(t)
 	vcr := NewVCRInstance(crypto, docResolver, keyResolver, tx, contextManager).(*vcr)
 	vcr.serviceResolver = serviceResolver
 	vcr.trustConfig = trust.NewConfig(path.Join(testDir, "trust.yaml"))

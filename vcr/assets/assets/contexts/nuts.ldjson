@@ -5,6 +5,7 @@
 
     "id": "@id",
     "type": "@type",
+    "schema": "http://schema.org/",
     "CredentialRevocation": {
       "@id": "https://nuts.nl/credentials/v1#CredentialRevocation",
       "@context": {
@@ -17,6 +18,18 @@
         "issuer": {"@id": "cred:issuer", "@type": "@id"},
         "date": {"@id": "nuts:date", "@type": "xsd:dateTime"},
         "subject": {"@id": "cred:credentialSubject", "@type": "@id"}
+      }
+    },
+    "NutsOrganizationCredential": {
+      "@id": "https://nuts.nl/credentials/v1#NutsOrganizationCredential",
+      "@type": "@id"
+    },
+    "organization": {
+      "@id":"schema:organization",
+      "@type": "@id",
+      "@context": {
+        "city": "schema:city",
+        "name": "schema:legalname"
       }
     }
   }
