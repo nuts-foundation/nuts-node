@@ -79,6 +79,7 @@ type mappedDocumentLoader struct {
 	nextLoader ld.DocumentLoader
 }
 
+// NewMappedDocumentLoader rewrites document request using a mapping and calls the nextLoader
 func NewMappedDocumentLoader(mapping map[string]string, nextLoader ld.DocumentLoader) ld.DocumentLoader {
 	return &mappedDocumentLoader{
 		mapping:    mapping,
@@ -86,6 +87,8 @@ func NewMappedDocumentLoader(mapping map[string]string, nextLoader ld.DocumentLo
 	}
 }
 
+// LoadDocument rewrites u according to the mapping and calls the next loader.
+// If u is not found in the mapping, just call the nextLoader with u.
 func (m mappedDocumentLoader) LoadDocument(u string) (*ld.RemoteDocument, error) {
 	mappedU, ok := m.mapping[u]
 	if ok {
@@ -186,13 +189,13 @@ func NewContextLoader(allowUnlistedExternalCalls bool, contexts JSONLDContextsCo
 		for _, url := range contexts.RemoteAllowList {
 			allowed = append(allowed, url)
 		}
-		for url, _ := range contexts.LocalFileMapping {
+		for url := range contexts.LocalFileMapping {
 			allowed = append(allowed, url)
 		}
 		loader = NewFilteredLoader(allowed, loader)
 	}
 
-	for url, _ := range contexts.LocalFileMapping {
+	for url := range contexts.LocalFileMapping {
 		// preload mapped files:
 		if _, err := loader.LoadDocument(url); err != nil {
 			return nil, err
