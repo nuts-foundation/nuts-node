@@ -581,8 +581,6 @@ github.com/nuts-foundation/go-leia/v3 v3.1.0/go.mod h1:zdtxPXfOmhXKbn4UqEbtxCcVP
 github.com/nxadm/tail v1.4.4 h1:DQuhQpB1tVlglWS2hLQ5OV6B5r8aGxSrPc5Qo6uTN78=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
 github.com/ockam-network/did v0.1.4-0.20210103172416-02ae01ce06d8 h1:s5GFggECXv/KwF37ax4B7ACMOKoUnKvmur4i+7I07UE=
-github.com/ockam-network/did v0.1.4-0.20210103172416-02ae01ce06d8 h1:s5GFggECXv/KwF37ax4B7ACMOKoUnKvmur4i+7I07UE=
-github.com/ockam-network/did v0.1.4-0.20210103172416-02ae01ce06d8/go.mod h1:ZsbTIuVGt8OrQEbqWrSztUISN4joeMabdsinbLubbzw=
 github.com/ockam-network/did v0.1.4-0.20210103172416-02ae01ce06d8/go.mod h1:ZsbTIuVGt8OrQEbqWrSztUISN4joeMabdsinbLubbzw=
 github.com/oklog/run v1.0.0 h1:Ru7dDtJNOyC66gQ5dQmaCa0qIsAUFY3sFpK1Xk8igrw=
 github.com/oklog/run v1.0.0/go.mod h1:dlhp/R75TPv97u0XWUtDeV/lRKWPKSdTuV0TZvrmrQA=

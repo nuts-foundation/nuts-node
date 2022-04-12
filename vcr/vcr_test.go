@@ -31,6 +31,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 
@@ -78,7 +79,7 @@ func TestVCR_Configure(t *testing.T) {
 func TestVCR_Start(t *testing.T) {
 
 	t.Run("error - creating db", func(t *testing.T) {
-		instance := NewVCRInstance(nil, nil, nil, nil, nil).(*vcr)
+		instance := NewVCRInstance(nil, nil, nil, nil, jsonld.TestContextManager(t)).(*vcr)
 
 		_ = instance.Configure(core.ServerConfig{Datadir: "test"})
 		err := instance.Start()
@@ -105,7 +106,7 @@ func TestVCR_Shutdown(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestVCR_SearchInternal(t *testing.T) {
+func TestVCR_SearchLegacy(t *testing.T) {
 	vc := concept.TestVC()
 	testInstance := func(t2 *testing.T) (mockContext, concept.Query) {
 		ctx := newMockContext(t2)
@@ -151,7 +152,7 @@ func TestVCR_SearchInternal(t *testing.T) {
 		ctx, q := testInstance(t)
 		ctx.vcr.Trust(vc.Type[1], vc.Issuer)
 
-		searchResult, err := ctx.vcr.Search(reqCtx, q, false, &now)
+		searchResult, err := ctx.vcr.SearchLegacy(reqCtx, q, false, &now)
 
 		if !assert.NoError(t, err) {
 			return
@@ -169,7 +170,7 @@ func TestVCR_SearchInternal(t *testing.T) {
 	t.Run("ok - untrusted", func(t *testing.T) {
 		ctx, q := testInstance(t)
 
-		creds, err := ctx.vcr.Search(reqCtx, q, false, nil)
+		creds, err := ctx.vcr.SearchLegacy(reqCtx, q, false, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -180,7 +181,7 @@ func TestVCR_SearchInternal(t *testing.T) {
 	t.Run("ok - untrusted but allowed", func(t *testing.T) {
 		ctx, q := testInstance(t)
 
-		creds, err := ctx.vcr.Search(reqCtx, q, true, nil)
+		creds, err := ctx.vcr.SearchLegacy(reqCtx, q, true, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -193,7 +194,7 @@ func TestVCR_SearchInternal(t *testing.T) {
 		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
 		rev := []byte(concept.TestRevocation)
 		ctx.vcr.store.JSONCollection(revocationCollection).Add([]leia.Document{rev})
-		creds, err := ctx.vcr.Search(reqCtx, q, false, nil)
+		creds, err := ctx.vcr.SearchLegacy(reqCtx, q, false, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -700,7 +701,7 @@ func TestVcr_Find(t *testing.T) {
 	})
 }
 
-func TestVCR_Search(t *testing.T) {
+func TestVCR_SearchConcept(t *testing.T) {
 	vc := concept.TestVC()
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)

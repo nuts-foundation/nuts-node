@@ -131,7 +131,7 @@ func TestWrapper_SearchVCs(t *testing.T) {
 			_ = json.Unmarshal([]byte(organizationQuery), f)
 		})
 		var capturedQuery concept.Query
-		ctx.vcr.EXPECT().Search(context.Background(), gomock.Any(), false, nil).DoAndReturn(
+		ctx.vcr.EXPECT().SearchLegacy(context.Background(), gomock.Any(), false, nil).DoAndReturn(
 			func(_ interface{}, arg1 interface{}, _ interface{}, _ interface{}) ([]VerifiableCredential, error) {
 				capturedQuery = arg1.(concept.Query)
 				return []VerifiableCredential{}, nil
@@ -179,7 +179,7 @@ func TestWrapper_SearchVCs(t *testing.T) {
 		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
 			_ = json.Unmarshal([]byte(untrustedOrganizationQuery), f)
 		})
-		ctx.vcr.EXPECT().Search(context.Background(), gomock.Any(), true, nil).Return([]VerifiableCredential{}, nil)
+		ctx.vcr.EXPECT().SearchLegacy(context.Background(), gomock.Any(), true, nil).Return([]VerifiableCredential{}, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, []VerifiableCredential{})
 
 		err := ctx.client.SearchVCs(ctx.echo)
@@ -197,7 +197,7 @@ func TestWrapper_SearchVCs(t *testing.T) {
 		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
 			_ = json.Unmarshal([]byte(organizationQuery), f)
 		})
-		ctx.vcr.EXPECT().Search(context.Background(), gomock.Any(), false, nil).Return(nil, errors.New("custom"))
+		ctx.vcr.EXPECT().SearchLegacy(context.Background(), gomock.Any(), false, nil).Return(nil, errors.New("custom"))
 
 		err := ctx.client.SearchVCs(ctx.echo)
 
@@ -224,7 +224,7 @@ func TestWrapper_SearchVCs(t *testing.T) {
 			_ = json.Unmarshal([]byte(authorizationQuery), f)
 		})
 		var capturedQuery concept.Query
-		ctx.vcr.EXPECT().Search(context.Background(), gomock.Any(), false, nil).DoAndReturn(
+		ctx.vcr.EXPECT().SearchLegacy(context.Background(), gomock.Any(), false, nil).DoAndReturn(
 			func(_ interface{}, arg1 interface{}, _ interface{}, _ interface{}) ([]VerifiableCredential, error) {
 				capturedQuery = arg1.(concept.Query)
 				return []VerifiableCredential{}, nil
@@ -276,7 +276,7 @@ func TestWrapper_SearchVCs(t *testing.T) {
 		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
 			_ = json.Unmarshal([]byte(authorizationQuery), f)
 		})
-		ctx.vcr.EXPECT().Search(context.Background(), gomock.Any(), false, nil).Return(nil, errors.New("custom"))
+		ctx.vcr.EXPECT().SearchLegacy(context.Background(), gomock.Any(), false, nil).Return(nil, errors.New("custom"))
 
 		err := ctx.client.SearchVCs(ctx.echo)
 
