@@ -313,8 +313,8 @@ func (s *service) validateIssuer(vContext *validationContext) error {
 	if err != nil {
 		return fmt.Errorf("could not expand credential to JSON-LD: %w", err)
 	}
-	orgNames := document.ValueAt(jsonld.NewPath(jsonld.OrganizationNamePath...))
-	orgCities := document.ValueAt(jsonld.NewPath(jsonld.OrganizationCityPath...))
+	orgNames := document.ValueAt(jsonld.OrganizationNamePath)
+	orgCities := document.ValueAt(jsonld.OrganizationCityPath)
 
 	// must exist because we queried it that way
 	vContext.requesterName = orgNames[0].String()

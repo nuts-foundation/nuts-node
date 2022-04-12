@@ -135,11 +135,11 @@ func (n *notary) DrawUpContract(template contract.Template, orgID did.DID, valid
 	reader := jsonld.Reader{DocumentLoader: n.jsonldManager.DocumentLoader()}
 	document, err := reader.Read(result[0])
 	if err != nil {
-		return nil, fmt.Errorf("could not expand VC: %w", err)
+		return nil, fmt.Errorf("could not read VC: %w", err)
 	}
 
-	orgNames := document.ValueAt(jsonld.NewPath(jsonld.OrganizationNamePath...))
-	orgCities := document.ValueAt(jsonld.NewPath(jsonld.OrganizationCityPath...))
+	orgNames := document.ValueAt(jsonld.OrganizationNamePath)
+	orgCities := document.ValueAt(jsonld.OrganizationCityPath)
 
 	// name and city must exist since we queried it
 	contractAttrs := map[string]string{

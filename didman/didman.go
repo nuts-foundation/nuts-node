@@ -325,8 +325,8 @@ func (d *didman) SearchOrganizations(ctx context.Context, query string, didServi
 		}
 
 		// guaranteed to contain values
-		orgNames := document.ValueAt(jsonld.NewPath(jsonld.OrganizationNamePath...))
-		orgCities := document.ValueAt(jsonld.NewPath(jsonld.OrganizationCityPath...))
+		orgNames := document.ValueAt(jsonld.OrganizationNamePath)
+		orgCities := document.ValueAt(jsonld.OrganizationCityPath)
 
 		results[i] = OrganizationSearchResult{
 			DIDDocument: *didDocuments[i],
