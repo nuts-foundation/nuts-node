@@ -21,18 +21,19 @@ package holder
 import (
 	"encoding/json"
 	"errors"
+	"testing"
+	"time"
+
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vcr/signature"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
-	"testing"
-	"time"
 )
 
 func TestHolder_BuildVP(t *testing.T) {
@@ -69,6 +70,7 @@ func TestHolder_BuildVP(t *testing.T) {
 	testCredential := vc.VerifiableCredential{}
 	_ = json.Unmarshal([]byte(testCredentialJSON), &testCredential)
 	key := vdr.TestMethodDIDAPrivateKey()
+	contextManager := jsonld.TestContextManager(t)
 
 	t.Run("ok - one VC", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -80,8 +82,7 @@ func TestHolder_BuildVP(t *testing.T) {
 		keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(ssi.MustParseURI(kid), nil)
 		keyStore.EXPECT().Resolve(vdr.TestMethodDIDA.URI().String()).Return(key, nil)
 
-		contextLoader, _ := signature.NewContextLoader(false)
-		holder := New(keyResolver, keyStore, nil, contextLoader)
+		holder := New(keyResolver, keyStore, nil, contextManager)
 
 		options := proof.ProofOptions{}
 		resultingPresentation, err := holder.BuildVP([]vc.VerifiableCredential{testCredential}, options, vdr.TestDIDA, false)
@@ -99,8 +100,7 @@ func TestHolder_BuildVP(t *testing.T) {
 		keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(vdr.TestMethodDIDA.URI(), nil)
 		keyStore.EXPECT().Resolve(vdr.TestMethodDIDA.URI().String()).Return(key, nil)
 
-		contextLoader, _ := signature.NewContextLoader(false)
-		holder := New(keyResolver, keyStore, nil, contextLoader)
+		holder := New(keyResolver, keyStore, nil, contextManager)
 
 		options := proof.ProofOptions{}
 		resultingPresentation, err := holder.BuildVP([]vc.VerifiableCredential{testCredential, testCredential}, options, vdr.TestDIDA, false)
@@ -123,8 +123,7 @@ func TestHolder_BuildVP(t *testing.T) {
 			keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(ssi.MustParseURI(kid), nil)
 			keyStore.EXPECT().Resolve(vdr.TestMethodDIDA.URI().String()).Return(key, nil)
 
-			contextLoader, _ := signature.NewContextLoader(false)
-			holder := New(keyResolver, keyStore, mockVerifier, contextLoader)
+			holder := New(keyResolver, keyStore, mockVerifier, contextManager)
 
 			options := proof.ProofOptions{Created: created}
 			resultingPresentation, err := holder.BuildVP([]vc.VerifiableCredential{testCredential}, options, vdr.TestDIDA, true)
@@ -146,8 +145,7 @@ func TestHolder_BuildVP(t *testing.T) {
 			keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(ssi.MustParseURI(kid), nil)
 			keyStore.EXPECT().Resolve(vdr.TestMethodDIDA.URI().String()).Return(key, nil)
 
-			contextLoader, _ := signature.NewContextLoader(false)
-			holder := New(keyResolver, keyStore, mockVerifier, contextLoader)
+			holder := New(keyResolver, keyStore, mockVerifier, contextManager)
 
 			options := proof.ProofOptions{Created: created}
 			resultingPresentation, err := holder.BuildVP([]vc.VerifiableCredential{testCredential}, options, vdr.TestDIDA, true)
@@ -167,8 +165,7 @@ func TestHolder_BuildVP(t *testing.T) {
 			keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(ssi.MustParseURI(kid), nil)
 			keyStore.EXPECT().Resolve(vdr.TestMethodDIDA.URI().String()).Return(key, nil)
 
-			contextLoader, _ := signature.NewContextLoader(false)
-			holder := New(keyResolver, keyStore, nil, contextLoader)
+			holder := New(keyResolver, keyStore, nil, contextManager)
 
 			options := proof.ProofOptions{}
 			resultingPresentation, err := holder.BuildVP([]vc.VerifiableCredential{testCredential, testCredential}, options, nil, false)
@@ -186,8 +183,7 @@ func TestHolder_BuildVP(t *testing.T) {
 			keyResolver := types.NewMockKeyResolver(ctrl)
 			keyStore := crypto.NewMockKeyStore(ctrl)
 
-			contextLoader, _ := signature.NewContextLoader(false)
-			holder := New(keyResolver, keyStore, nil, contextLoader)
+			holder := New(keyResolver, keyStore, nil, contextManager)
 
 			options := proof.ProofOptions{}
 			resultingPresentation, err := holder.BuildVP([]vc.VerifiableCredential{testCredential, secondCredential}, options, nil, false)
@@ -205,8 +201,7 @@ func TestHolder_BuildVP(t *testing.T) {
 			keyResolver := types.NewMockKeyResolver(ctrl)
 			keyStore := crypto.NewMockKeyStore(ctrl)
 
-			contextLoader, _ := signature.NewContextLoader(false)
-			holder := New(keyResolver, keyStore, nil, contextLoader)
+			holder := New(keyResolver, keyStore, nil, contextManager)
 
 			options := proof.ProofOptions{}
 			resultingPresentation, err := holder.BuildVP([]vc.VerifiableCredential{testCredential, secondCredential}, options, nil, false)

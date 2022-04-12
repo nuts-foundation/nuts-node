@@ -78,7 +78,7 @@ func TestVCR_Configure(t *testing.T) {
 func TestVCR_Start(t *testing.T) {
 
 	t.Run("error - creating db", func(t *testing.T) {
-		instance := NewVCRInstance(nil, nil, nil, nil).(*vcr)
+		instance := NewVCRInstance(nil, nil, nil, nil, nil).(*vcr)
 
 		_ = instance.Configure(core.ServerConfig{Datadir: "test"})
 		err := instance.Start()

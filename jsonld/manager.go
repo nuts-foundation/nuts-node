@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2021 Nuts community
+ * Nuts node
+ * Copyright (C) 2022 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,29 +17,28 @@
  *
  */
 
-package auth
+package jsonld
 
 import (
-	"testing"
-
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vdr/store"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vcr/signature"
+	"github.com/piprate/json-gold/ld"
 )
 
-func NewTestAuthInstance(t *testing.T) *Auth {
-	return NewAuthInstance(
-		TestConfig(),
-		store.NewMemoryStore(),
-		vcr.NewTestVCRInstance(t),
-		crypto.NewTestCryptoInstance(),
-		nil,
-		nil,
-	)
+type contextManager struct {
+	documentLoader ld.DocumentLoader
 }
 
-func TestConfig() Config {
-	config := DefaultConfig()
-	config.ContractValidators = []string{"dummy"}
-	return config
+// NewManager returns a new ContextManager
+func NewManager() ContextManager {
+	return &contextManager{}
+}
+
+func (c contextManager) DocumentLoader() ld.DocumentLoader {
+	return c.documentLoader
+}
+
+func (c *contextManager) Configure(config core.ServerConfig) (err error) {
+	c.documentLoader, err = signature.NewContextLoader(!config.Strictmode)
+	return
 }

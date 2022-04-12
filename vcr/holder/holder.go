@@ -22,32 +22,33 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
-	"github.com/piprate/json-gold/ld"
 )
 
 type vcHolder struct {
-	keyResolver   vdr.KeyResolver
-	keyStore      crypto.KeyStore
-	verifier      verifier.Verifier
-	contextLoader ld.DocumentLoader
+	keyResolver    vdr.KeyResolver
+	keyStore       crypto.KeyStore
+	verifier       verifier.Verifier
+	contextManager jsonld.ContextManager
 }
 
 // New creates a new Holder.
-func New(keyResolver vdr.KeyResolver, keyStore crypto.KeyStore, verifier verifier.Verifier, contextLoader ld.DocumentLoader) Holder {
+func New(keyResolver vdr.KeyResolver, keyStore crypto.KeyStore, verifier verifier.Verifier, contextManager jsonld.ContextManager) Holder {
 	return &vcHolder{
-		keyResolver:   keyResolver,
-		keyStore:      keyStore,
-		verifier:      verifier,
-		contextLoader: contextLoader,
+		keyResolver:    keyResolver,
+		keyStore:       keyStore,
+		verifier:       verifier,
+		contextManager: contextManager,
 	}
 }
 
@@ -98,7 +99,7 @@ func (h vcHolder) BuildVP(credentials []vc.VerifiableCredential, proofOptions pr
 	// TODO: choose between different proof types (JWT or LD-Proof)
 	signingResult, err := proof.
 		NewLDProof(proofOptions).
-		Sign(document, signature.JSONWebSignature2020{ContextLoader: h.contextLoader}, key)
+		Sign(document, signature.JSONWebSignature2020{ContextLoader: h.contextManager.DocumentLoader()}, key)
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign VP with LD proof: %w", err)
 	}

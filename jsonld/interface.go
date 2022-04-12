@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2021 Nuts community
+ * Nuts node
+ * Copyright (C) 2022 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,29 +17,14 @@
  *
  */
 
-package auth
+package jsonld
 
 import (
-	"testing"
-
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vdr/store"
+	"github.com/piprate/json-gold/ld"
 )
 
-func NewTestAuthInstance(t *testing.T) *Auth {
-	return NewAuthInstance(
-		TestConfig(),
-		store.NewMemoryStore(),
-		vcr.NewTestVCRInstance(t),
-		crypto.NewTestCryptoInstance(),
-		nil,
-		nil,
-	)
-}
-
-func TestConfig() Config {
-	config := DefaultConfig()
-	config.ContractValidators = []string{"dummy"}
-	return config
+// ContextManager manages the different JSON-LD contexts. It helps in using the same loaded contexts over different engines.
+type ContextManager interface {
+	// DocumentLoader returns the JSON-LD DocumentLoader
+	DocumentLoader() ld.DocumentLoader
 }

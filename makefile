@@ -47,6 +47,7 @@ gen-mocks:
 	mockgen -destination=crl/mock.go -package crl -source=crl/validator.go Validator
 	mockgen -destination=events/events_mock.go -package events -source=events/interface.go Event
 	mockgen -destination=events/mock.go -package events -source=events/conn.go Conn ConnectionPool
+	mockgen -destination=jsonld/mock.go -package jsonld -source=jsonld/interface.go
 
 gen-api:
 	oapi-codegen -generate types,server,client -templates codegen/oapi/ -package v1 docs/_static/crypto/v1.yaml | gofmt > crypto/api/v1/generated.go

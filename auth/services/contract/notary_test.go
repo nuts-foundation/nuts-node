@@ -227,6 +227,7 @@ func TestNewContractNotary(t *testing.T) {
 			vcr.NewTestVCRInstance(t),
 			doc.KeyResolver{Store: store.NewMemoryStore()},
 			crypto.NewTestCryptoInstance(),
+			nil,
 		)
 
 		if !assert.NotNil(t, instance) {
@@ -410,6 +411,7 @@ func buildContext(t *testing.T) *testContext {
 		config: Config{
 			ContractValidity: 15 * time.Minute,
 		},
+		contextManager: nil,
 	}
 
 	ctx.notary = notary

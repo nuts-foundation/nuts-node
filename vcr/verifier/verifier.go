@@ -27,13 +27,13 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
-	"github.com/piprate/json-gold/ld"
 )
 
 var timeFunc = time.Now
@@ -46,10 +46,10 @@ const (
 // It implements the generic methods for verifying verifiable credentials and verifiable presentations.
 // It does not know anything about the semantics of a credential. It should support a wide range of types.
 type verifier struct {
-	keyResolver   vdr.KeyResolver
-	contextLoader ld.DocumentLoader
-	store         Store
-	trustConfig   *trust.Config
+	keyResolver    vdr.KeyResolver
+	contextManager jsonld.ContextManager
+	store          Store
+	trustConfig    *trust.Config
 }
 
 // VerificationError is used to describe a VC/VP verification failure.
@@ -77,8 +77,8 @@ func (e VerificationError) Error() string {
 }
 
 // NewVerifier creates a new instance of the verifier. It needs a key resolver for validating signatures.
-func NewVerifier(store Store, keyResolver vdr.KeyResolver, contextLoader ld.DocumentLoader, trustConfig *trust.Config) Verifier {
-	return &verifier{store: store, keyResolver: keyResolver, contextLoader: contextLoader, trustConfig: trustConfig}
+func NewVerifier(store Store, keyResolver vdr.KeyResolver, contextManager jsonld.ContextManager, trustConfig *trust.Config) Verifier {
+	return &verifier{store: store, keyResolver: keyResolver, contextManager: contextManager, trustConfig: trustConfig}
 }
 
 // validateAtTime is a helper method which checks if a credentia/presentation is valid at a certain given time.
@@ -136,7 +136,7 @@ func (v *verifier) Validate(credentialToVerify vc.VerifiableCredential, at *time
 	}
 
 	// Try first with the correct LDProof implementation
-	if err = ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: v.contextLoader}, pk); err != nil {
+	if err = ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: v.contextManager.DocumentLoader()}, pk); err != nil {
 		// If this fails, try the legacy suite:
 		legacyProof := proof.LegacyLDProof{}
 		if err := signedDocument.UnmarshalProofValue(&legacyProof); err != nil {
@@ -252,7 +252,7 @@ func (v *verifier) RegisterRevocation(revocation credential.Revocation) error {
 	if err := document.UnmarshalProofValue(&ldProof); err != nil {
 		return err
 	}
-	err = ldProof.Verify(document.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: v.contextLoader}, pk)
+	err = ldProof.Verify(document.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: v.contextManager.DocumentLoader()}, pk)
 	if err != nil {
 		return fmt.Errorf("unable to verify revocation signature: %w", err)
 	}
@@ -296,7 +296,7 @@ func (v verifier) doVerifyVP(vcVerifier Verifier, vp vc.VerifiablePresentation, 
 	if err != nil {
 		return nil, newVerificationError("invalid LD-JSON document: %w", err)
 	}
-	err = ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: v.contextLoader}, signingKey)
+	err = ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: v.contextManager.DocumentLoader()}, signingKey)
 	if err != nil {
 		return nil, newVerificationError("invalid signature: %w", err)
 	}

@@ -33,9 +33,9 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
@@ -734,11 +734,10 @@ func newMockContext(t *testing.T) mockContext {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	keyResolver := vdrTypes.NewMockKeyResolver(ctrl)
-	contextLoader, err := signature.NewContextLoader(false)
+	contextManager := jsonld.TestContextManager(t)
 	verifierStore := NewMockStore(ctrl)
-	assert.NoError(t, err)
 	trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.yaml"))
-	verifier := NewVerifier(verifierStore, keyResolver, contextLoader, trustConfig).(*verifier)
+	verifier := NewVerifier(verifierStore, keyResolver, contextManager, trustConfig).(*verifier)
 	return mockContext{
 		ctrl:        ctrl,
 		verifier:    verifier,

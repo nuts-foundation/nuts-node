@@ -23,9 +23,11 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"path"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/services/contract"
@@ -46,6 +48,7 @@ const contractValidity = 60 * time.Minute
 // Auth is the main struct of the Auth service
 type Auth struct {
 	config          Config
+	contextManager  jsonld.ContextManager
 	oauthClient     services.OAuthClient
 	contractNotary  services.ContractNotary
 	serviceResolver didman.CompoundServiceResolver
@@ -83,9 +86,10 @@ func (auth *Auth) ContractNotary() services.ContractNotary {
 }
 
 // NewAuthInstance accepts a Config with several Nuts Engines and returns an instance of Auth
-func NewAuthInstance(config Config, registry types.Store, vcr vcr.VCR, keyStore crypto.KeyStore, serviceResolver didman.CompoundServiceResolver) *Auth {
+func NewAuthInstance(config Config, registry types.Store, vcr vcr.VCR, keyStore crypto.KeyStore, serviceResolver didman.CompoundServiceResolver, contextManager jsonld.ContextManager) *Auth {
 	return &Auth{
 		config:          config,
+		contextManager:  contextManager,
 		registry:        registry,
 		keyStore:        keyStore,
 		vcr:             vcr,
@@ -125,7 +129,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		AutoUpdateIrmaSchemas: auth.config.IrmaAutoUpdateSchemas,
 		ContractValidators:    auth.config.ContractValidators,
 		ContractValidity:      contractValidity,
-	}, auth.vcr, doc.KeyResolver{Store: auth.registry}, auth.keyStore)
+	}, auth.vcr, doc.KeyResolver{Store: auth.registry}, auth.keyStore, auth.contextManager)
 
 	if config.Strictmode && !auth.config.tlsEnabled() {
 		return errors.New("in strictmode TLS must be enabled")
@@ -159,7 +163,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		return err
 	}
 
-	auth.oauthClient = oauth.NewOAuthService(auth.registry, auth.vcr, auth.vcr, auth.serviceResolver, auth.keyStore, auth.contractNotary)
+	auth.oauthClient = oauth.NewOAuthService(auth.registry, auth.vcr, auth.vcr, auth.serviceResolver, auth.keyStore, auth.contractNotary, auth.contextManager)
 
 	if err := auth.oauthClient.Configure(auth.config.ClockSkew); err != nil {
 		return err

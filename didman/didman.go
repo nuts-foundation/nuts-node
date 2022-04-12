@@ -30,6 +30,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/didman/log"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
@@ -59,6 +60,7 @@ func (e ErrReferencedServiceNotAnEndpoint) Is(other error) bool {
 }
 
 type didman struct {
+	contextManager  jsonld.ContextManager
 	docResolver     types.DocResolver
 	serviceResolver doc.ServiceResolver
 	store           types.Store
@@ -67,13 +69,14 @@ type didman struct {
 }
 
 // NewDidmanInstance creates a new didman instance with services set
-func NewDidmanInstance(docResolver types.DocResolver, store types.Store, vdr types.VDR, vcr vcr.VCR) Didman {
+func NewDidmanInstance(docResolver types.DocResolver, store types.Store, vdr types.VDR, vcr vcr.VCR, contextManager jsonld.ContextManager) Didman {
 	return &didman{
 		docResolver:     docResolver,
 		serviceResolver: doc.NewServiceResolver(docResolver),
 		store:           store,
 		vdr:             vdr,
 		vcr:             vcr,
+		contextManager:  contextManager,
 	}
 }
 
