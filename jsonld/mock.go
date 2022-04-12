@@ -47,17 +47,3 @@ func (mr *MockContextManagerMockRecorder) DocumentLoader() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DocumentLoader", reflect.TypeOf((*MockContextManager)(nil).DocumentLoader))
 }
-
-// Reader mocks base method.
-func (m *MockContextManager) Reader() Reader {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Reader")
-	ret0, _ := ret[0].(Reader)
-	return ret0
-}
-
-// Reader indicates an expected call of Reader.
-func (mr *MockContextManagerMockRecorder) Reader() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reader", reflect.TypeOf((*MockContextManager)(nil).Reader))
-}
