@@ -21,10 +21,12 @@ package signature
 import (
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/vcr/assets"
 	"github.com/piprate/json-gold/ld"
+	"io/fs"
 	"net/url"
 )
 
@@ -69,7 +71,27 @@ func (h filteredDocumentLoader) LoadDocument(u string) (*ld.RemoteDocument, erro
 			return h.nextLoader.LoadDocument(u)
 		}
 	}
-	return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, nil)
+	return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, "context not on the remoteallowlist")
+}
+
+type mappedDocumentLoader struct {
+	mapping    map[string]string
+	nextLoader ld.DocumentLoader
+}
+
+func NewMappedDocumentLoader(mapping map[string]string, nextLoader ld.DocumentLoader) ld.DocumentLoader {
+	return &mappedDocumentLoader{
+		mapping:    mapping,
+		nextLoader: nextLoader,
+	}
+}
+
+func (m mappedDocumentLoader) LoadDocument(u string) (*ld.RemoteDocument, error) {
+	mappedU, ok := m.mapping[u]
+	if ok {
+		return m.nextLoader.LoadDocument(mappedU)
+	}
+	return m.nextLoader.LoadDocument(u)
 }
 
 // LoadDocument tries to load the document from the embedded filesystem.
@@ -81,12 +103,26 @@ func (e embeddedFSDocumentLoader) LoadDocument(path string) (*ld.RemoteDocument,
 	}
 
 	protocol := parsedURL.Scheme
+	// ignore http(s) documents
 	if protocol != "http" && protocol != "https" {
 		remoteDoc := &ld.RemoteDocument{}
 		remoteDoc.DocumentURL = path
+		// If fileNotExists, pass on to the nextLoader
 		file, err := e.fs.Open(path)
+		if errors.Is(err, fs.ErrNotExist) {
+			if e.nextLoader != nil {
+				return e.nextLoader.LoadDocument(path)
+			}
+			return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, err)
+		}
+		// If an error occurred, fail
 		if err != nil {
-			return e.nextLoader.LoadDocument(path)
+			return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, err.Error())
+		}
+		// If the file points to a directory, fail
+		stat, _ := file.Stat()
+		if stat.IsDir() {
+			return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, errors.New("document can not be a directory"))
 		}
 		defer file.Close()
 		remoteDoc.Document, err = ld.DocumentFromReader(file)
@@ -132,22 +168,37 @@ func DefaultAllowList() []string {
 // It loads the most used context from the embedded FS. This ensures the contents cannot be altered.
 // If allowExternalCalls is set to true, it also loads external context from the internet.
 func NewContextLoader(allowUnlistedExternalCalls bool, contexts JSONLDContextsConfig) (ld.DocumentLoader, error) {
-	var httpLoader ld.DocumentLoader
-	httpLoader = ld.NewDefaultDocumentLoader(nil)
+	// Build the documentLoader chain:
+	// Start with rewriting all context urls to their mapped counterparts
+	loader := NewMappedDocumentLoader(contexts.LocalFileMapping,
+		// Cache all the documents
+		ld.NewCachingDocumentLoader(
+			// Handle all embedded file system files
+			NewEmbeddedFSDocumentLoader(assets.Assets,
+				// Last in the chain is the defaultLoader which can resolve
+				// local files and remote (via http) context documents
+				ld.NewDefaultDocumentLoader(nil))))
+
+	// If unlisted calls are not allowed, filter all calls to the defaultLoader
 	if !allowUnlistedExternalCalls {
-		httpLoader = NewFilteredLoader(contexts.RemoteAllowList, httpLoader)
+		// only allow explicitly allowed remote urls and listed local files:
+		allowed := []string{}
+		for _, url := range contexts.RemoteAllowList {
+			allowed = append(allowed, url)
+		}
+		for url, _ := range contexts.LocalFileMapping {
+			allowed = append(allowed, url)
+		}
+		loader = NewFilteredLoader(allowed, loader)
 	}
 
-	loader := ld.NewCachingDocumentLoader(NewEmbeddedFSDocumentLoader(assets.Assets, httpLoader))
-
-	mapping := make(map[string]string, len(contexts.LocalFileMapping))
-	for url, destination := range contexts.LocalFileMapping {
-		mapping[url] = destination
+	for url, _ := range contexts.LocalFileMapping {
+		// preload mapped files:
+		if _, err := loader.LoadDocument(url); err != nil {
+			return nil, err
+		}
 	}
 
-	if err := loader.PreloadWithMapping(mapping); err != nil {
-		return nil, fmt.Errorf("unable to preload ld-context: %w", err)
-	}
 	return loader, nil
 }
 
