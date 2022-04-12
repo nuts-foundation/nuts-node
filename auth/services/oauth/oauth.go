@@ -19,6 +19,7 @@
 package oauth
 
 import (
+	"context"
 	"crypto"
 	"encoding/json"
 	"errors"
@@ -39,7 +40,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
@@ -48,7 +48,6 @@ import (
 const errInvalidIssuerFmt = "invalid jwt.issuer: %w"
 const errInvalidIssuerKeyFmt = "invalid jwt.issuer key ID: %w"
 const errInvalidSubjectFmt = "invalid jwt.subject: %w"
-const errInvalidOrganizationVC = "requester has invalid organization VC: %w"
 const errInvalidVCClaim = "invalid jwt.vcs: %w"
 
 const vcClaim = "vcs"
@@ -57,7 +56,7 @@ const userIdentityClaim = "usi"
 
 type service struct {
 	docResolver     types.DocResolver
-	conceptFinder   vcr.ConceptFinder
+	vcFinder        vcr.Finder
 	vcValidator     vcr.Validator
 	keyResolver     types.KeyResolver
 	privateKeyStore nutsCrypto.KeyStore
@@ -143,14 +142,14 @@ func (c validationContext) verifiableCredentials() ([]vc2.VerifiableCredential, 
 }
 
 // NewOAuthService accepts a vendorID, and several Nuts engines and returns an implementation of services.OAuthClient
-func NewOAuthService(store types.Store, conceptFinder vcr.ConceptFinder, vcValidator vcr.Validator, serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore, contractNotary services.ContractNotary, jsonldManager jsonld.JSONLD) services.OAuthClient {
+func NewOAuthService(store types.Store, vcFinder vcr.Finder, vcValidator vcr.Validator, serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore, contractNotary services.ContractNotary, jsonldManager jsonld.JSONLD) services.OAuthClient {
 	return &service{
 		docResolver:     doc.Resolver{Store: store},
 		keyResolver:     doc.KeyResolver{Store: store},
 		serviceResolver: serviceResolver,
 		contractNotary:  contractNotary,
 		jsonldManager:   jsonldManager,
-		conceptFinder:   conceptFinder,
+		vcFinder:        vcFinder,
 		vcValidator:     vcValidator,
 		privateKeyStore: privateKeyStore,
 	}
@@ -285,28 +284,41 @@ func (s *service) validateAudience(context *validationContext) error {
 // check the requester against the registry, according to RFC003 §5.2.1.3
 // - the signing key (KID) must be present as assertionMethod in the issuer's DID.
 // - the requester name/city which must match the login contract.
-func (s *service) validateIssuer(context *validationContext) error {
-	if _, err := did.ParseDID(context.jwtBearerToken.Issuer()); err != nil {
+func (s *service) validateIssuer(vContext *validationContext) error {
+	if _, err := did.ParseDID(vContext.jwtBearerToken.Issuer()); err != nil {
 		return fmt.Errorf(errInvalidIssuerFmt, err)
 	}
 
-	validationTime := context.jwtBearerToken.IssuedAt()
-	if _, err := s.keyResolver.ResolveSigningKey(context.kid, &validationTime); err != nil {
+	validationTime := vContext.jwtBearerToken.IssuedAt()
+	if _, err := s.keyResolver.ResolveSigningKey(vContext.kid, &validationTime); err != nil {
 		return fmt.Errorf(errInvalidIssuerKeyFmt, err)
 	}
 
-	// organization credentials MUST come from a trusted source
-	orgConcept, err := s.conceptFinder.Get(concept.OrganizationConcept, false, context.jwtBearerToken.Issuer())
+	searchTerms := []vcr.SearchTerm{
+		{IRIPath: jsonld.CredentialSubjectPath, Value: vContext.jwtBearerToken.Issuer()},
+		{IRIPath: jsonld.OrganizationNamePath, Type: vcr.NotNil},
+		{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
+	}
+	vcs, err := s.vcFinder.Search(context.Background(), searchTerms, false, &validationTime)
 	if err != nil {
 		return fmt.Errorf(errInvalidIssuerFmt, err)
 	}
 
-	if context.requesterName, err = orgConcept.GetString(concept.OrganizationName); err != nil {
-		return fmt.Errorf(errInvalidIssuerFmt, fmt.Errorf(errInvalidOrganizationVC, err))
+	if len(vcs) == 0 {
+		return errors.New("requester has no trusted organization VC")
 	}
-	if context.requesterCity, err = orgConcept.GetString(concept.OrganizationCity); err != nil {
-		return fmt.Errorf(errInvalidIssuerFmt, fmt.Errorf(errInvalidOrganizationVC, err))
+
+	reader := jsonld.Reader{DocumentLoader: s.jsonldManager.DocumentLoader()}
+	document, err := reader.Read(vcs[0])
+	if err != nil {
+		return fmt.Errorf("could not expand credential to JSON-LD: %w", err)
 	}
+	orgNames := document.ValueAt(jsonld.NewPath(jsonld.OrganizationNamePath...))
+	orgCities := document.ValueAt(jsonld.NewPath(jsonld.OrganizationCityPath...))
+
+	// must exist because we queried it that way
+	vContext.requesterName = orgNames[0].String()
+	vContext.requesterCity = orgCities[0].String()
 
 	return nil
 }

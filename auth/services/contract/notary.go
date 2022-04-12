@@ -19,6 +19,7 @@
 package contract
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -42,7 +43,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/services/x509"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/concept"
 )
 
 // ErrMissingOrganizationKey is used to indicate that this node has no private key of the indicated organization.
@@ -84,7 +84,7 @@ type notary struct {
 	irmaServer        *irmaserver.Server
 	verifiers         map[string]contract.VPVerifier
 	signers           map[string]contract.Signer
-	vcr               vcr.VCR
+	vcr               vcr.Finder
 }
 
 var timeNow = time.Now
@@ -116,23 +116,35 @@ func (n *notary) DrawUpContract(template contract.Template, orgID did.DID, valid
 		return nil, fmt.Errorf("could not draw up contract: organization is not managed by this node: %w", ErrMissingOrganizationKey)
 	}
 
-	// DrawUpContract draws up a contract for a specific organization from a template
-	result, err := n.vcr.Get(concept.OrganizationConcept, false, orgID.String())
-	if err != nil {
-		return nil, fmt.Errorf("could not draw up contract: %w", err)
-	}
-	orgName, err := result.GetString(concept.OrganizationName)
-	if err != nil {
-		return nil, fmt.Errorf("could not draw up contract, could not extract organization name: %w", err)
-	}
-	orgCity, err := result.GetString(concept.OrganizationCity)
-	if err != nil {
-		return nil, fmt.Errorf("could not draw up contract, could not extract organization city: %w", err)
+	searchTerms := []vcr.SearchTerm{
+		{IRIPath: jsonld.CredentialSubjectPath, Value: orgID.String()},
+		{IRIPath: jsonld.OrganizationNamePath, Type: vcr.NotNil},
+		{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
 	}
 
+	result, err := n.vcr.Search(context.Background(), searchTerms, false, nil)
+	if err != nil {
+		return nil, fmt.Errorf("could not find a credential: %w", err)
+	}
+
+	if len(result) == 0 {
+		return nil, errors.New("could not find a trusted credential with an organization name and city")
+	}
+
+	// expand
+	reader := jsonld.Reader{DocumentLoader: n.jsonldManager.DocumentLoader()}
+	document, err := reader.Read(result[0])
+	if err != nil {
+		return nil, fmt.Errorf("could not expand VC: %w", err)
+	}
+
+	orgNames := document.ValueAt(jsonld.NewPath(jsonld.OrganizationNamePath...))
+	orgCities := document.ValueAt(jsonld.NewPath(jsonld.OrganizationCityPath...))
+
+	// name and city must exist since we queried it
 	contractAttrs := map[string]string{
-		contract.LegalEntityAttr:     orgName,
-		contract.LegalEntityCityAttr: orgCity,
+		contract.LegalEntityAttr:     orgNames[0].String(),
+		contract.LegalEntityCityAttr: orgCities[0].String(),
 	}
 
 	if validDuration == 0 {

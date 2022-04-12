@@ -29,14 +29,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/concept"
-
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
@@ -657,7 +657,7 @@ func TestDidman_GetCompoundServiceEndpoint(t *testing.T) {
 }
 
 func TestDidman_SearchOrganizations(t *testing.T) {
-	id, _ := did.ParseDID("did:nuts:123")
+	id := vdr.TestDIDB
 	docWithService := did.Document{
 		ID: *id,
 		Service: []did.Service{{
@@ -669,10 +669,16 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 		ID: *id,
 	}
 	reqCtx := context.Background()
+	searchTerms := []vcr.SearchTerm{
+		{IRIPath: jsonld.OrganizationNamePath, Value: "query"},
+		{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
+	}
+	testCredential := vc.VerifiableCredential{}
+	_ = json.Unmarshal([]byte(jsonld.TestOrganizationCredential), &testCredential)
 
 	t.Run("ok - no results", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vcr.EXPECT().SearchConcept(reqCtx, "organization", false, map[string]string{"credentialSubject.organization.name": "query"}).Return([]concept.Concept{}, nil)
+		ctx.vcr.EXPECT().Search(reqCtx, searchTerms, false, nil).Return([]vc.VerifiableCredential{}, nil)
 
 		actual, err := ctx.instance.SearchOrganizations(reqCtx, "query", nil)
 
@@ -680,13 +686,9 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 		assert.NotNil(t, actual)
 		assert.Empty(t, actual)
 	})
-	cpt := map[string]interface{}{
-		"subject":      id.String(),
-		"organization": map[string]interface{}{"name": "Foo"},
-	}
 	t.Run("ok - no DID service type", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vcr.EXPECT().SearchConcept(reqCtx, "organization", false, map[string]string{"credentialSubject.organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
+		ctx.vcr.EXPECT().Search(reqCtx, searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(&docWithoutService, nil, nil)
 
 		actual, err := ctx.instance.SearchOrganizations(reqCtx, "query", nil)
@@ -696,7 +698,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 	})
 	t.Run("ok - with DID service type (matches)", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vcr.EXPECT().SearchConcept(reqCtx, "organization", false, map[string]string{"credentialSubject.organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
+		ctx.vcr.EXPECT().Search(reqCtx, searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(&docWithService, nil, nil)
 
 		serviceType := "eOverdracht"
@@ -707,7 +709,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 	})
 	t.Run("ok - with DID service type (no match)", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vcr.EXPECT().SearchConcept(reqCtx, "organization", false, map[string]string{"credentialSubject.organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
+		ctx.vcr.EXPECT().Search(reqCtx, searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(&docWithoutService, nil, nil)
 
 		serviceType := "eOverdracht"
@@ -719,7 +721,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 	})
 	t.Run("ok - DID document not found (logs, omits result)", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vcr.EXPECT().SearchConcept(reqCtx, "organization", false, map[string]string{"credentialSubject.organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
+		ctx.vcr.EXPECT().Search(reqCtx, searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(nil, nil, types.ErrNotFound)
 
 		actual, err := ctx.instance.SearchOrganizations(reqCtx, "query", nil)
@@ -730,7 +732,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 	})
 	t.Run("ok - DID document deactivated (logs, omits result)", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vcr.EXPECT().SearchConcept(reqCtx, "organization", false, map[string]string{"credentialSubject.organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
+		ctx.vcr.EXPECT().Search(reqCtx, searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(nil, nil, types.ErrDeactivated)
 
 		actual, err := ctx.instance.SearchOrganizations(reqCtx, "query", nil)
@@ -741,7 +743,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 	})
 	t.Run("error - other error while resolving DID document", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vcr.EXPECT().SearchConcept(reqCtx, "organization", false, map[string]string{"credentialSubject.organization.name": "query"}).Return([]concept.Concept{cpt}, nil)
+		ctx.vcr.EXPECT().Search(reqCtx, searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(nil, nil, io.EOF)
 
 		actual, err := ctx.instance.SearchOrganizations(reqCtx, "query", nil)
@@ -787,7 +789,7 @@ type mockContext struct {
 	docResolver *types.MockDocResolver
 	store       *types.MockStore
 	vdr         *types.MockVDR
-	vcr         *vcr.MockVCR
+	vcr         *vcr.MockFinder
 	instance    Didman
 }
 
@@ -799,8 +801,8 @@ func newMockContext(t *testing.T) mockContext {
 	docResolver := types.NewMockDocResolver(ctrl)
 	store := types.NewMockStore(ctrl)
 	mockVDR := types.NewMockVDR(ctrl)
-	mockVCR := vcr.NewMockVCR(ctrl)
-	instance := NewDidmanInstance(docResolver, store, mockVDR, mockVCR, nil)
+	mockVCR := vcr.NewMockFinder(ctrl)
+	instance := NewDidmanInstance(docResolver, store, mockVDR, mockVCR, jsonld.TestContextManager(t))
 
 	return mockContext{
 		ctrl:        ctrl,
