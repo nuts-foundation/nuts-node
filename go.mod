@@ -13,7 +13,7 @@ require (
 	github.com/hashicorp/vault/api v1.5.0
 	github.com/knadh/koanf v1.4.1
 	github.com/labstack/echo/v4 v4.7.2
-	github.com/lestrrat-go/jwx v1.2.22
+	github.com/lestrrat-go/jwx v1.2.23
 	github.com/magiconair/properties v1.8.6
 	github.com/mdp/qrterminal/v3 v3.0.0
 	github.com/nats-io/nats-server/v2 v2.7.4
