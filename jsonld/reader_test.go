@@ -29,7 +29,7 @@ import (
 
 func TestDocumentReader_FromStruct(t *testing.T) {
 	reader := Reader{
-		DocumentLoader: &ld.DefaultDocumentLoader{},
+		DocumentLoader: TestContextManager(t).DocumentLoader(),
 	}
 
 	t.Run("ok", func(t *testing.T) {
@@ -45,6 +45,21 @@ func TestDocumentReader_FromStruct(t *testing.T) {
 		assert.NotNil(t, document)
 		assert.Len(t, values, 1)
 		assert.Equal(t, "123456782", values[0].String())
+	})
+
+	t.Run("ok - nested within CredentialSubject", func(t *testing.T) {
+		object := make(map[string]interface{})
+		_ = json.Unmarshal([]byte(TestCredential), &object)
+		document, err := reader.Read(object)
+		values := document.ValueAt(NewPath("https://www.w3.org/2018/credentials#credentialSubject", "http://example.org/human", "http://example.org/eyeColour"))
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.NotNil(t, document)
+		assert.Len(t, values, 1)
+		assert.Equal(t, "blue/grey", values[0].String())
 	})
 }
 

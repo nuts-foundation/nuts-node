@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
@@ -947,7 +948,7 @@ func newMockContext(t *testing.T) mockContext {
 	mockVcr.EXPECT().Issuer().Return(mockIssuer).AnyTimes()
 	mockVcr.EXPECT().Holder().Return(mockHolder).AnyTimes()
 	mockVcr.EXPECT().Verifier().Return(mockVerifier).AnyTimes()
-	client := &Wrapper{VCR: mockVcr}
+	client := &Wrapper{VCR: mockVcr, ContextManager: jsonld.TestContextManager(t)}
 
 	return mockContext{
 		ctrl:         ctrl,

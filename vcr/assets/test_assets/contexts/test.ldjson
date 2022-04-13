@@ -7,18 +7,22 @@
     "type": "@type",
     "ex": "http://example.org/",
 
-    "human": {
-      "@id":"ex:human",
-      "@type": "@id",
-      "@context": {
-        "@protected": true,
-        "eyeColour": "ex:eyeColour",
-        "hairColour": "ex:hairColour"
-      }
-    },
     "HumanCredential": {
       "@id": "http://example.org/HumanCredential",
-      "@type": "@id"
+      "@context": {
+        "@version": 1.1,
+        "@protected": true,
+        "id": "@id",
+        "type": "@type",
+        "@propagate": true,
+        "human": {
+          "@id":"ex:human",
+          "@context": {
+            "eyeColour": "ex:eyeColour",
+            "hairColour": "ex:hairColour"
+          }
+        }
+      }
     }
   }
 }
