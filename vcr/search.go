@@ -23,6 +23,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
@@ -53,7 +54,7 @@ func (c *vcr) Search(ctx context.Context, searchTerms []SearchTerm, allowUntrust
 	for _, searchTerm := range searchTerms {
 		scalar, err := leia.ParseScalar(searchTerm.Value)
 		if err != nil {
-			return nil, fmt.Errorf("value type not supported at %s", strings.Join(searchTerm.IRIPath, "."))
+			return nil, fmt.Errorf("value type (value=%v, type=%s) not supported at %s", searchTerm.Value, reflect.TypeOf(searchTerm.Value), strings.Join(searchTerm.IRIPath, ", "))
 		}
 
 		switch searchTerm.Type {
