@@ -516,6 +516,9 @@ func TestWrapper_CreateVP(t *testing.T) {
 	clockFn = func() time.Time {
 		return created
 	}
+	t.Cleanup(func() {
+		clockFn = time.Now
+	})
 
 	t.Run("ok - without signer DID", func(t *testing.T) {
 		testContext := newMockContext(t)
