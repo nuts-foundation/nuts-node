@@ -39,23 +39,23 @@ import (
 )
 
 // NewIssuer creates a new issuer which implements the Issuer interface.
-func NewIssuer(store Store, publisher Publisher, docResolver vdr.DocResolver, keyStore crypto.KeyStore, contextManager jsonld.JSONLD, trustConfig *trust.Config) Issuer {
+func NewIssuer(store Store, publisher Publisher, docResolver vdr.DocResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config) Issuer {
 	resolver := vdrKeyResolver{docResolver: docResolver, keyResolver: keyStore}
 	return &issuer{
-		store:          store,
-		publisher:      publisher,
-		keyResolver:    resolver,
-		contextManager: contextManager,
-		trustConfig:    trustConfig,
+		store:         store,
+		publisher:     publisher,
+		keyResolver:   resolver,
+		jsonldManager: jsonldManager,
+		trustConfig:   trustConfig,
 	}
 }
 
 type issuer struct {
-	store          Store
-	publisher      Publisher
-	keyResolver    keyResolver
-	trustConfig    *trust.Config
-	contextManager jsonld.JSONLD
+	store         Store
+	publisher     Publisher
+	keyResolver   keyResolver
+	trustConfig   *trust.Config
+	jsonldManager jsonld.JSONLD
 }
 
 // Issue creates a new credential, signs, stores it.
@@ -191,7 +191,7 @@ func (i issuer) buildRevocation(credentialToRevoke vc.VerifiableCredential) (*cr
 	_ = json.Unmarshal(b, &revocationAsMap)
 
 	ldProof := proof.NewLDProof(proof.ProofOptions{Created: time.Now()})
-	signingResult, err := ldProof.Sign(revocationAsMap, signature.JSONWebSignature2020{ContextLoader: i.contextManager.DocumentLoader()}, assertionKey)
+	signingResult, err := ldProof.Sign(revocationAsMap, signature.JSONWebSignature2020{ContextLoader: i.jsonldManager.DocumentLoader()}, assertionKey)
 	if err != nil {
 		return nil, err
 	}

@@ -411,7 +411,7 @@ func buildContext(t *testing.T) *testContext {
 		config: Config{
 			ContractValidity: 15 * time.Minute,
 		},
-		contextManager: nil,
+		jsonldManager: nil,
 	}
 
 	ctx.notary = notary

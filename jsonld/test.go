@@ -152,8 +152,8 @@ func (t testContextManager) Configure(config Config) error {
 	panic("implement me")
 }
 
-// NewTestContextManager creates a new test context manager which contains extra test contexts
-func NewTestContextManager(t *testing.T) JSONLD {
+// NewTestJSONLDManager creates a new test context manager which contains extra test contexts
+func NewTestJSONLDManager(t *testing.T) JSONLD {
 	t.Helper()
 
 	contextConfig := DefaultContextConfig()

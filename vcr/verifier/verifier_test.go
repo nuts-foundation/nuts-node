@@ -734,10 +734,10 @@ func newMockContext(t *testing.T) mockContext {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	keyResolver := vdrTypes.NewMockKeyResolver(ctrl)
-	contextManager := jsonld.NewTestContextManager(t)
+	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	verifierStore := NewMockStore(ctrl)
 	trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.yaml"))
-	verifier := NewVerifier(verifierStore, keyResolver, contextManager, trustConfig).(*verifier)
+	verifier := NewVerifier(verifierStore, keyResolver, jsonldManager, trustConfig).(*verifier)
 	return mockContext{
 		ctrl:        ctrl,
 		verifier:    verifier,

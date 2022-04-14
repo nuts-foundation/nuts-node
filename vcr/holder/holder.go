@@ -36,19 +36,19 @@ import (
 )
 
 type vcHolder struct {
-	keyResolver    vdr.KeyResolver
-	keyStore       crypto.KeyStore
-	verifier       verifier.Verifier
-	contextManager jsonld.JSONLD
+	keyResolver   vdr.KeyResolver
+	keyStore      crypto.KeyStore
+	verifier      verifier.Verifier
+	jsonldManager jsonld.JSONLD
 }
 
 // New creates a new Holder.
-func New(keyResolver vdr.KeyResolver, keyStore crypto.KeyStore, verifier verifier.Verifier, contextManager jsonld.JSONLD) Holder {
+func New(keyResolver vdr.KeyResolver, keyStore crypto.KeyStore, verifier verifier.Verifier, jsonldManager jsonld.JSONLD) Holder {
 	return &vcHolder{
-		keyResolver:    keyResolver,
-		keyStore:       keyStore,
-		verifier:       verifier,
-		contextManager: contextManager,
+		keyResolver:   keyResolver,
+		keyStore:      keyStore,
+		verifier:      verifier,
+		jsonldManager: jsonldManager,
 	}
 }
 
@@ -99,7 +99,7 @@ func (h vcHolder) BuildVP(credentials []vc.VerifiableCredential, proofOptions pr
 	// TODO: choose between different proof types (JWT or LD-Proof)
 	signingResult, err := proof.
 		NewLDProof(proofOptions).
-		Sign(document, signature.JSONWebSignature2020{ContextLoader: h.contextManager.DocumentLoader()}, key)
+		Sign(document, signature.JSONWebSignature2020{ContextLoader: h.jsonldManager.DocumentLoader()}, key)
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign VP with LD proof: %w", err)
 	}
