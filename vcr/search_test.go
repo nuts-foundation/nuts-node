@@ -83,6 +83,25 @@ func TestVCR_Search(t *testing.T) {
 		assert.Equal(t, "fair", c["hairColour"])
 	})
 
+	t.Run("ok - not nil", func(t *testing.T) {
+		ctx, _ := testInstance(t)
+		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
+		ctx.vcr.Trust(vc.Type[1], vc.Issuer)
+		searchTerms := []SearchTerm{
+			{
+				IRIPath: []string{"https://www.w3.org/2018/credentials#credentialSubject", "http://example.org/human", "http://example.org/eyeColour"},
+				Type:    NotNil,
+			},
+		}
+
+		searchResult, err := ctx.vcr.Search(reqCtx, searchTerms, false, &now)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Len(t, searchResult, 1)
+	})
+
 	t.Run("ok - untrusted", func(t *testing.T) {
 		ctx, searchTerms := testInstance(t)
 

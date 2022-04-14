@@ -52,9 +52,13 @@ func (c *vcr) Search(ctx context.Context, searchTerms []SearchTerm, allowUntrust
 	var VCs = make([]vc.VerifiableCredential, 0)
 
 	for _, searchTerm := range searchTerms {
-		scalar, err := leia.ParseScalar(searchTerm.Value)
-		if err != nil {
-			return nil, fmt.Errorf("value type (value=%v, type=%s) not supported at %s", searchTerm.Value, reflect.TypeOf(searchTerm.Value), strings.Join(searchTerm.IRIPath, ", "))
+		var scalar leia.Scalar
+		var err error
+		if searchTerm.Type != NotNil {
+			scalar, err = leia.ParseScalar(searchTerm.Value)
+			if err != nil {
+				return nil, fmt.Errorf("value type (value=%v, type=%s) not supported at %s", searchTerm.Value, reflect.TypeOf(searchTerm.Value), strings.Join(searchTerm.IRIPath, ", "))
+			}
 		}
 
 		switch searchTerm.Type {
@@ -65,7 +69,6 @@ func (c *vcr) Search(ctx context.Context, searchTerms []SearchTerm, allowUntrust
 		default:
 			query = query.And(leia.Prefix(leia.NewIRIPath(searchTerm.IRIPath...), scalar))
 		}
-
 	}
 
 	docs, err := c.credentialCollection().Find(ctx, query)
