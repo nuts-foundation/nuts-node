@@ -1048,7 +1048,7 @@ var createContext = func(t *testing.T) *testContext {
 			vcFinder:        nameResolver,
 			serviceResolver: serviceResolver,
 			vcValidator:     vcValidator,
-			contextManager:  jsonld.TestContextManager(t),
+			jsonldManager:   jsonld.NewTestJSONLDManager(t),
 		},
 	}
 }

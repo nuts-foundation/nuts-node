@@ -802,7 +802,7 @@ func newMockContext(t *testing.T) mockContext {
 	store := types.NewMockStore(ctrl)
 	mockVDR := types.NewMockVDR(ctrl)
 	mockVCR := vcr.NewMockFinder(ctrl)
-	instance := NewDidmanInstance(docResolver, store, mockVDR, mockVCR, jsonld.TestContextManager(t))
+	instance := NewDidmanInstance(docResolver, store, mockVDR, mockVCR, jsonld.NewTestJSONLDManager(t))
 
 	return mockContext{
 		ctrl:        ctrl,
