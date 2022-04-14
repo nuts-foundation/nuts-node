@@ -238,10 +238,14 @@ func (w *Wrapper) CreateVP(ctx echo.Context) error {
 	created := clockFn()
 	var expires *time.Time
 	if request.Expires != nil {
-		if request.Expires.Before(created) {
+		parsedTime, err := time.Parse(time.RFC3339, *request.Expires)
+		if err != nil {
+			return core.InvalidInputError("invalid value for expires: %w", err)
+		}
+		if parsedTime.Before(created) {
 			return core.InvalidInputError("expires can not lay in the past")
 		}
-		expires = request.Expires
+		expires = &parsedTime
 	}
 
 	proofOptions := proof.ProofOptions{
@@ -269,7 +273,17 @@ func (w *Wrapper) VerifyVP(ctx echo.Context) error {
 	if request.VerifyCredentials != nil {
 		verifyCredentials = *request.VerifyCredentials
 	}
-	verifiedCredentials, err := w.VCR.Verifier().VerifyVP(request.VerifiablePresentation, verifyCredentials, request.ValidAt)
+
+	var validAt *time.Time
+	if request.ValidAt != nil {
+		parsedTime, err := time.Parse(time.RFC3339, *request.ValidAt)
+		if err != nil {
+			return core.InvalidInputError("invalid value for validAt: %w", err)
+		}
+		validAt = &parsedTime
+	}
+
+	verifiedCredentials, err := w.VCR.Verifier().VerifyVP(request.VerifiablePresentation, verifyCredentials, validAt)
 	if err != nil {
 		if errors.Is(err, verifier.VerificationError{}) {
 			msg := err.Error()

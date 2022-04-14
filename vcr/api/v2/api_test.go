@@ -550,9 +550,10 @@ func TestWrapper_CreateVP(t *testing.T) {
 	})
 	t.Run("ok - with expires", func(t *testing.T) {
 		testContext := newMockContext(t)
-		expired := created.Add(time.Hour)
+		expired := created.Add(time.Hour).Truncate(time.Second)
 		request := createRequest()
-		request.Expires = &expired
+		expiredStr := expired.Format(time.RFC3339)
+		request.Expires = &expiredStr
 		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			verifyRequest := f.(*CreateVPRequest)
 			*verifyRequest = request
@@ -573,7 +574,8 @@ func TestWrapper_CreateVP(t *testing.T) {
 		testContext := newMockContext(t)
 		expired := time.Time{}
 		request := createRequest()
-		request.Expires = &expired
+		expiredStr := expired.Format(time.RFC3339)
+		request.Expires = &expiredStr
 		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			verifyRequest := f.(*CreateVPRequest)
 			*verifyRequest = request
@@ -611,10 +613,11 @@ func TestWrapper_VerifyVP(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		testContext := newMockContext(t)
-		validAt := time.Now()
+		validAt := time.Now().Truncate(time.Second)
+		validAtStr := validAt.Format(time.RFC3339)
 		request := VPVerificationRequest{
 			VerifiablePresentation: vp,
-			ValidAt:                &validAt,
+			ValidAt:                &validAtStr,
 		}
 		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			verifyRequest := f.(*VPVerificationRequest)
