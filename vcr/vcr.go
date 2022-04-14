@@ -495,19 +495,8 @@ func (c *vcr) Validate(credential vc.VerifiableCredential, allowUntrusted bool, 
 		validAt = &now
 	}
 
-	// TODO: All calls except verifier.Verify() can be removed when v1 is removed
-
-	// check for old api
+	// TODO: to be removed with V1 API
 	revoked, err := c.isRevoked(*credential.ID)
-	if revoked {
-		return types.ErrRevoked
-	}
-	if err != nil {
-		return err
-	}
-
-	// check for new api
-	revoked, err = c.verifier.IsRevoked(*credential.ID)
 	if revoked {
 		return types.ErrRevoked
 	}
@@ -524,6 +513,7 @@ func (c *vcr) Validate(credential vc.VerifiableCredential, allowUntrusted bool, 
 		}
 	}
 
+	// TODO: to be removed with V1 API
 	if !allowUntrusted {
 		trusted := c.isTrusted(credential)
 		if !trusted {
@@ -548,25 +538,24 @@ func (c *vcr) isTrusted(credential vc.VerifiableCredential) bool {
 // find only returns a VC from storage, it does not tell anything about validity
 func (c *vcr) find(ID ssi.URI) (vc.VerifiableCredential, error) {
 	credential := vc.VerifiableCredential{}
-	qp := leia.Eq(leia.NewJSONPath(concept.IDField), leia.MustParseScalar(ID.String()))
+	qp := leia.Eq(leia.NewIRIPath(), leia.MustParseScalar(ID.String()))
 	q := leia.New(qp)
 
 	ctx, cancel := context.WithTimeout(context.Background(), maxFindExecutionTime)
 	defer cancel()
-	for _, t := range c.registry.Concepts() {
-		docs, err := c.store.JSONCollection(t.CredentialType).Find(ctx, q)
-		if err != nil {
-			return credential, err
-		}
-		if len(docs) > 0 {
-			// there can be only one
-			err = json.Unmarshal(docs[0], &credential)
-			if err != nil {
-				return credential, fmt.Errorf("unable to parse credential from db: %w", err)
-			}
 
-			return credential, nil
+	docs, err := c.credentialCollection().Find(ctx, q)
+	if err != nil {
+		return credential, err
+	}
+	if len(docs) > 0 {
+		// there can be only one
+		err = json.Unmarshal(docs[0], &credential)
+		if err != nil {
+			return credential, fmt.Errorf("unable to parse credential from db: %w", err)
 		}
+
+		return credential, nil
 	}
 
 	return credential, types.ErrNotFound
