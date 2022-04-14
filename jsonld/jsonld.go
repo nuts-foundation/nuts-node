@@ -15,7 +15,8 @@ func NewJSONLDInstance() JSONLD {
 	}
 }
 
-func (j *jsonld) Configure(core.ServerConfig) error {
+func (j *jsonld) Configure(serverConfig core.ServerConfig) error {
+	j.config.strictMode = serverConfig.Strictmode
 	if err := j.contextManager.Configure(j.config); err != nil {
 		return err
 	}
