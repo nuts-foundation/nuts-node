@@ -948,7 +948,7 @@ func newMockContext(t *testing.T) mockContext {
 	mockVcr.EXPECT().Issuer().Return(mockIssuer).AnyTimes()
 	mockVcr.EXPECT().Holder().Return(mockHolder).AnyTimes()
 	mockVcr.EXPECT().Verifier().Return(mockVerifier).AnyTimes()
-	client := &Wrapper{VCR: mockVcr, ContextManager: jsonld.TestContextManager(t)}
+	client := &Wrapper{VCR: mockVcr, ContextManager: jsonld.NewTestJSONLDManager(t)}
 
 	return mockContext{
 		ctrl:         ctrl,

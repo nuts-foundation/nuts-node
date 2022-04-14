@@ -49,7 +49,7 @@ var clockFn = func() time.Time {
 // It parses and checks the params. Handles errors and returns the appropriate response.
 type Wrapper struct {
 	CredentialResolver issuer.CredentialSearcher
-	ContextManager     jsonld.ContextManager
+	ContextManager     jsonld.JSONLD
 	VCR                vcr.VCR
 }
 

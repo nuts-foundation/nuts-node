@@ -29,7 +29,7 @@ import (
 
 func TestDocumentReader_FromStruct(t *testing.T) {
 	reader := Reader{
-		DocumentLoader: TestContextManager(t).DocumentLoader(),
+		DocumentLoader: NewTestJSONLDManager(t).DocumentLoader(),
 	}
 
 	t.Run("ok", func(t *testing.T) {
