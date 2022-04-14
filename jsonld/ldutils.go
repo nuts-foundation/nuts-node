@@ -30,8 +30,8 @@ import (
 	"net/url"
 )
 
-// JSONLDContextsConfig contains config for json-ld document loader
-type JSONLDContextsConfig struct {
+// ContextsConfig contains config for json-ld document loader
+type ContextsConfig struct {
 	// RemoteAllowList A list with urls as string which are allowed to request
 	RemoteAllowList []string `koanf:"remoteallowlist"`
 	// LocalFileMapping contains a list of context URLs mapped to a local file
@@ -150,8 +150,8 @@ const W3cVcContext = "https://www.w3.org/2018/credentials/v1"
 const Jws2020Context = "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
 
 // DefaultContextConfig returns the default list of allowed external resources and a mapping to embedded contexts
-func DefaultContextConfig() JSONLDContextsConfig {
-	return JSONLDContextsConfig{
+func DefaultContextConfig() ContextsConfig {
+	return ContextsConfig{
 		RemoteAllowList: DefaultAllowList(),
 		LocalFileMapping: map[string]string{
 			"https://nuts.nl/credentials/v1": "assets/contexts/nuts.ldjson",
@@ -170,7 +170,7 @@ func DefaultAllowList() []string {
 // NewContextLoader creates a new JSON-LD context loader with the embedded FS as first loader.
 // It loads the most used context from the embedded FS. This ensures the contents cannot be altered.
 // If allowExternalCalls is set to true, it also loads external context from the internet.
-func NewContextLoader(allowUnlistedExternalCalls bool, contexts JSONLDContextsConfig) (ld.DocumentLoader, error) {
+func NewContextLoader(allowUnlistedExternalCalls bool, contexts ContextsConfig) (ld.DocumentLoader, error) {
 	// Build the documentLoader chain:
 	// Start with rewriting all context urls to their mapped counterparts
 	loader := NewMappedDocumentLoader(contexts.LocalFileMapping,

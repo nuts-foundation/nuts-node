@@ -23,7 +23,9 @@ import (
 	"github.com/piprate/json-gold/ld"
 )
 
+// JSONLD defines the interface of a JSON utilities engine. It allows sharing instances of utils over engines.
 type JSONLD interface {
+	// ContextManager returns an instance of the ContextManager interface
 	ContextManager() ContextManager
 }
 
@@ -31,5 +33,6 @@ type JSONLD interface {
 type ContextManager interface {
 	// DocumentLoader returns the JSON-LD DocumentLoader
 	DocumentLoader() ld.DocumentLoader
+	// Configure the ContextManager
 	Configure(config Config) error
 }

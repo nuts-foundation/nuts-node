@@ -107,6 +107,7 @@ const testContext = `
 }
 `
 
+// TestCredential contains a valid credential of the Humancredential type
 const TestCredential = `
 {
 	"@context": [
@@ -129,15 +130,7 @@ const TestCredential = `
 }
 `
 
-const TestRevocation = `
-{
-  "issuer": "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY",
-  "subject": "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY#123",
-  "currentStatus": "Revoked",
-  "statusDate": "2021-03-13T16:39:58.496215+01:00"
-}
-`
-
+// TestVC returns an instance of the TestCredential
 func TestVC() vc.VerifiableCredential {
 	credential := vc.VerifiableCredential{}
 

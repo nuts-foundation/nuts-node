@@ -7,6 +7,7 @@ type jsonld struct {
 	contextManager ContextManager
 }
 
+// NewJSONLDInstance creates a new instance of the jsonld struct which implements the JSONLD interface
 func NewJSONLDInstance() JSONLD {
 	return &jsonld{
 		config:         DefaultConfig(),

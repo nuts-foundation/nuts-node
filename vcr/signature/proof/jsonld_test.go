@@ -85,7 +85,7 @@ func TestLDProof_Verify(t *testing.T) {
 		return
 	}
 
-	contextLoader, err := jsonld.NewContextLoader(true, jsonld.JSONLDContextsConfig{})
+	contextLoader, err := jsonld.NewContextLoader(true, jsonld.ContextsConfig{})
 	if !assert.NoError(t, err) {
 		return
 	}
