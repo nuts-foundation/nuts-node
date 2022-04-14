@@ -29,6 +29,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 )
 
+// JSONLDExample is a JSON-LD document example with a custom nested context covering all different supported term types.
 const JSONLDExample = `
 {
   "@context": {
