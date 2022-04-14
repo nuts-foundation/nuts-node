@@ -76,7 +76,7 @@ func TestPath_Tail(t *testing.T) {
 
 func TestExpanded_ValueAt(t *testing.T) {
 	marshalled := make(map[string]interface{})
-	if err := json.Unmarshal([]byte(jsonLDExample), &marshalled); err != nil {
+	if err := json.Unmarshal([]byte(JSONLDExample), &marshalled); err != nil {
 		t.Fatal(err)
 	}
 	expanded, err := ld.NewJsonLdProcessor().Expand(marshalled, nil)

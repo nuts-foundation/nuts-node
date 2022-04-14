@@ -96,6 +96,12 @@ const multiSubjectQuery = `
 }
 `
 
+const customQuery = `
+{
+	"query": ` + jsonld.JSONLDExample + `
+}
+`
+
 func TestWrapper_SearchVCs(t *testing.T) {
 	searchTerms := []vcr.SearchTerm{
 		{IRIPath: jsonld.CredentialSubjectPath, Value: "did:nuts:123"},
@@ -111,6 +117,34 @@ func TestWrapper_SearchVCs(t *testing.T) {
 			_ = json.Unmarshal([]byte(organizationQuery), f)
 		})
 		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{}, nil)
+		ctx.echo.EXPECT().JSON(http.StatusOK, []VerifiableCredential{})
+
+		err := ctx.client.SearchVCs(ctx.echo)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("ok - custom credential with @list terms", func(t *testing.T) {
+		ctx := newMockContext(t)
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
+		ctx.echo.EXPECT().Request().Return(req)
+		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
+			_ = json.Unmarshal([]byte(customQuery), f)
+		})
+		ctx.vcr.EXPECT().Search(context.Background(), gomock.Any(), false, gomock.Any()).Return([]vc.VerifiableCredential{}, nil).Do(func(f1 interface{}, f2 interface{}, f3 interface{}, f4 interface{}) {
+			terms := f2.([]vcr.SearchTerm)
+			if assert.Len(t, terms, 9) {
+				count := 0
+
+				// both telephone numbers should have been added as required param, only checking the count since ordering is not guaranteed
+				for _, st := range terms {
+					if len(st.IRIPath) > 0 && st.IRIPath[0] == "http://example.com/telephone" {
+						count++
+					}
+				}
+				assert.Equal(t, 2, count)
+			}
+		})
 		ctx.echo.EXPECT().JSON(http.StatusOK, []VerifiableCredential{})
 
 		err := ctx.client.SearchVCs(ctx.echo)

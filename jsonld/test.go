@@ -29,7 +29,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 )
 
-const jsonLDExample = `
+const JSONLDExample = `
 {
   "@context": {
     "id": "@id",

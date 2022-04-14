@@ -46,7 +46,13 @@ func (w *Wrapper) ResolveVC(ctx echo.Context, id string) error {
 // SearchVCs checks the context used in the JSON-LD query, based on the contents it maps to a non-JSON-LD query
 // After V1, this needs to be remapped to a DB search that supports native JSON-LD
 func (w *Wrapper) SearchVCs(ctx echo.Context) error {
-	var request SearchVCRequest
+	// use different struct for unmarshalling, we don't want default values for required params
+	type searchVCRequest struct {
+		Query         map[string]interface{} `json:"query"`
+		SearchOptions *SearchOptions         `json:"searchOptions,omitempty"`
+	}
+
+	var request searchVCRequest
 	err := ctx.Bind(&request)
 	if err != nil {
 		return core.InvalidInputError("failed to parse request body: %w", err)
@@ -57,7 +63,7 @@ func (w *Wrapper) SearchVCs(ctx echo.Context) error {
 		untrusted = *request.SearchOptions.AllowUntrustedIssuer
 	}
 
-	if len(request.Query.CredentialSubject) > 1 {
+	if credentials, ok := request.Query["credentialSubject"].([]interface{}); ok && len(credentials) > 1 {
 		return core.InvalidInputError("can't match on multiple VC subjects")
 	}
 
@@ -67,7 +73,6 @@ func (w *Wrapper) SearchVCs(ctx echo.Context) error {
 		return core.InvalidInputError("failed to convert query to JSON-LD expanded form: %w", err)
 	}
 	searchTerms := flatten(document, nil)
-	searchTerms = filter(searchTerms)
 
 	// sort terms to aid testing
 	sort.Slice(searchTerms, func(i, j int) bool {
@@ -83,27 +88,6 @@ func (w *Wrapper) SearchVCs(ctx echo.Context) error {
 	}
 
 	return ctx.JSON(http.StatusOK, results)
-}
-
-// filter default required values that are empty in the query
-func filter(searchTerms []vcr.SearchTerm) []vcr.SearchTerm {
-	i := 0
-	for _, st := range searchTerms {
-		switch value := st.Value.(type) {
-		case string:
-			if value != "" && value != "0001-01-01T00:00:00Z" {
-				searchTerms[i] = st
-				i++
-			}
-		case float64:
-			if value != 0.0 {
-				searchTerms[i] = st
-				i++
-			}
-		}
-		// TODO bool problem, luckily there are no default bool fields in a VC
-	}
-	return searchTerms[:i]
 }
 
 func flatten(document interface{}, currentPath []string) []vcr.SearchTerm {
@@ -144,7 +128,7 @@ func flattenMap(expanded map[string]interface{}, currentPath []string) []vcr.Sea
 				Value:   v,
 			})
 		case "@list":
-			// TODO: not supported... This would require OR type queries
+			results = append(results, flatten(v, currentPath)...)
 		default:
 			results = append(results, flatten(v, append(currentPath, k))...)
 		}

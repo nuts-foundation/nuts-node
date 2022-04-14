@@ -34,7 +34,7 @@ func TestDocumentReader_FromStruct(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		object := make(map[string]interface{})
-		_ = json.Unmarshal([]byte(jsonLDExample), &object)
+		_ = json.Unmarshal([]byte(JSONLDExample), &object)
 		document, err := reader.Read(object)
 		values := document.ValueAt(NewPath())
 
@@ -69,7 +69,7 @@ func TestDocumentReader_FromBytes(t *testing.T) {
 	}
 
 	t.Run("ok", func(t *testing.T) {
-		document, err := reader.ReadBytes([]byte(jsonLDExample))
+		document, err := reader.ReadBytes([]byte(JSONLDExample))
 		values := document.ValueAt(NewPath())
 
 		if !assert.NoError(t, err) {
