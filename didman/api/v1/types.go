@@ -19,6 +19,7 @@
 package v1
 
 import (
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/didman"
 	"schneider.vip/problem"
 )
@@ -31,3 +32,6 @@ type ContactInformation = didman.ContactInformation
 
 // OrganizationSearchResult is an alias for the already defined didman.OrganizationSearchResult
 type OrganizationSearchResult = didman.OrganizationSearchResult
+
+// Endpoint is an alias for the already defined did.Service
+type Endpoint = did.Service
