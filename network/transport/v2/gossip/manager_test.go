@@ -97,10 +97,13 @@ func TestManager_PeerDisconnected(t *testing.T) {
 		peer := transport.Peer{ID: "1"}
 		gMan.peers["2"] = gMan.peers["1"]
 
+		once := sync.Once{}
 		wg := sync.WaitGroup{}
 		wg.Add(1)
 		gMan.RegisterSender(func(id transport.PeerID, refs []hash.SHA256Hash) bool {
-			wg.Done()
+			once.Do(func() {
+				wg.Done()
+			})
 			return true
 		})
 		gMan.PeerConnected(peer)
