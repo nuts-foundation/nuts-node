@@ -39,6 +39,6 @@ func (c contextManager) DocumentLoader() ld.DocumentLoader {
 }
 
 func (c *contextManager) Configure(config core.ServerConfig) (err error) {
-	c.documentLoader, err = signature.NewContextLoader(!config.Strictmode, signature.JSONLDContextsConfig{})
+	c.documentLoader, err = signature.NewContextLoader(!config.Strictmode, signature.DefaultJSONLDContextConfig())
 	return
 }

@@ -140,7 +140,7 @@ func TestNewContextLoader(t *testing.T) {
 		loader, err := NewContextLoader(false, DefaultJSONLDContextConfig())
 		assert.NoError(t, err)
 		_, err = loader.LoadDocument("http://example.org")
-		assert.EqualError(t, err, "loading document failed: context not on the remoteallowlist")
+		assert.EqualError(t, err, "loading document failed: context not on the remoteallowlist: http://example.org")
 	})
 
 	t.Run("it resolves an external doc when allowingExternalCalls is true", func(t *testing.T) {
@@ -239,7 +239,7 @@ func Test_filteredDocumentLoader(t *testing.T) {
 		sut := NewFilteredLoader([]string{"foo.com"}, mockLoader)
 
 		_, err := sut.LoadDocument("not-allowed.com")
-		assert.EqualError(t, err, "loading document failed: context not on the remoteallowlist")
+		assert.EqualError(t, err, "loading document failed: context not on the remoteallowlist: not-allowed.com")
 		assert.False(t, mockLoader.Called)
 	})
 }

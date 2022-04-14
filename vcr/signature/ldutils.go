@@ -71,7 +71,7 @@ func (h filteredDocumentLoader) LoadDocument(u string) (*ld.RemoteDocument, erro
 			return h.nextLoader.LoadDocument(u)
 		}
 	}
-	return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, "context not on the remoteallowlist")
+	return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, fmt.Sprintf("context not on the remoteallowlist: %s", u))
 }
 
 type mappedDocumentLoader struct {
