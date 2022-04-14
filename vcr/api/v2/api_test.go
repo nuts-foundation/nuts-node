@@ -495,6 +495,14 @@ func TestWrapper_RevokeVC(t *testing.T) {
 	})
 }
 
+// parsedTimeStr returns the original (truncated) time and an RFC3339 string with an extra round of formatting/parsing
+func parsedTimeStr(t time.Time) (time.Time, string) {
+	formatted := t.Format(time.RFC3339)
+	parsed, _ := time.Parse(time.RFC3339, formatted)
+	formatted = parsed.Format(time.RFC3339)
+	return parsed, formatted
+}
+
 func TestWrapper_CreateVP(t *testing.T) {
 	issuerURI := ssi.MustParseURI("did:nuts:123")
 	credentialType := ssi.MustParseURI("ExampleType")
@@ -516,6 +524,9 @@ func TestWrapper_CreateVP(t *testing.T) {
 	clockFn = func() time.Time {
 		return created
 	}
+	t.Cleanup(func() {
+		clockFn = time.Now
+	})
 
 	t.Run("ok - without signer DID", func(t *testing.T) {
 		testContext := newMockContext(t)
@@ -550,9 +561,9 @@ func TestWrapper_CreateVP(t *testing.T) {
 	})
 	t.Run("ok - with expires", func(t *testing.T) {
 		testContext := newMockContext(t)
-		expired := created.Add(time.Hour)
 		request := createRequest()
-		request.Expires = &expired
+		expired, expiredStr := parsedTimeStr(created.Add(time.Hour))
+		request.Expires = &expiredStr
 		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			verifyRequest := f.(*CreateVPRequest)
 			*verifyRequest = request
@@ -573,7 +584,8 @@ func TestWrapper_CreateVP(t *testing.T) {
 		testContext := newMockContext(t)
 		expired := time.Time{}
 		request := createRequest()
-		request.Expires = &expired
+		expiredStr := expired.Format(time.RFC3339)
+		request.Expires = &expiredStr
 		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			verifyRequest := f.(*CreateVPRequest)
 			*verifyRequest = request
@@ -583,6 +595,21 @@ func TestWrapper_CreateVP(t *testing.T) {
 		err := testContext.client.CreateVP(testContext.echo)
 
 		assert.EqualError(t, err, "expires can not lay in the past")
+	})
+	t.Run("error - invalid expires format", func(t *testing.T) {
+		testContext := newMockContext(t)
+		request := createRequest()
+		expiredStr := "a"
+		request.Expires = &expiredStr
+		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			verifyRequest := f.(*CreateVPRequest)
+			*verifyRequest = request
+			return nil
+		})
+
+		err := testContext.client.CreateVP(testContext.echo)
+
+		assert.Contains(t, err.Error(), "invalid value for expires")
 	})
 	t.Run("error - no VCs", func(t *testing.T) {
 		testContext := newMockContext(t)
@@ -611,10 +638,10 @@ func TestWrapper_VerifyVP(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		testContext := newMockContext(t)
-		validAt := time.Now()
+		validAt, validAtStr := parsedTimeStr(time.Now())
 		request := VPVerificationRequest{
 			VerifiablePresentation: vp,
-			ValidAt:                &validAt,
+			ValidAt:                &validAtStr,
 		}
 		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			verifyRequest := f.(*VPVerificationRequest)
@@ -663,6 +690,23 @@ func TestWrapper_VerifyVP(t *testing.T) {
 		err := testContext.client.VerifyVP(testContext.echo)
 
 		assert.Error(t, err)
+	})
+	t.Run("error - invalid validAt format", func(t *testing.T) {
+		testContext := newMockContext(t)
+		validAtStr := "a"
+		request := VPVerificationRequest{
+			VerifiablePresentation: vp,
+			ValidAt:                &validAtStr,
+		}
+		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			verifyRequest := f.(*VPVerificationRequest)
+			*verifyRequest = request
+			return nil
+		})
+
+		err := testContext.client.VerifyVP(testContext.echo)
+
+		assert.Contains(t, err.Error(), "invalid value for validAt")
 	})
 	t.Run("error - verification failed (verification error)", func(t *testing.T) {
 		testContext := newMockContext(t)

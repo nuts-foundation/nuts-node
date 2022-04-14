@@ -630,7 +630,6 @@ components:
         expires:
           type: string
           description: Date and time at which proof will expire. If omitted, the proof does not have an end date.
-          format: date-time
           example: '2021-12-20T09:00:00Z'
 
     VPVerificationRequest:
@@ -642,7 +641,6 @@ components:
         validAt:
           type: string
           description: Date and time at which the VP should be valid. If not supplied, the current date/time is used.
-          format: date-time
           example: '2021-12-20T09:00:00Z'
         verifyCredentials:
           type: boolean
@@ -729,7 +727,6 @@ components:
         created:
           type: string
           description: Date and time at which proof has been created.
-          format: date-time
           example: '2021-12-20T09:00:00Z'
         proofPurpose:
           type: string

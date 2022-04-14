@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/deepmap/oapi-codegen/pkg/runtime"
 	"github.com/labstack/echo/v4"
@@ -38,7 +37,7 @@ type CreateVPRequest struct {
 	Domain *string `json:"domain,omitempty"`
 
 	// Date and time at which proof will expire. If omitted, the proof does not have an end date.
-	Expires *time.Time `json:"expires,omitempty"`
+	Expires *string `json:"expires,omitempty"`
 
 	// The specific intent for the proof, the reason why an entity created it. Acts as a safeguard to prevent the
 	// proof from being misused for a purpose other than the one it was intended for.
@@ -72,7 +71,7 @@ type EmbeddedProof struct {
 	Challenge *string `json:"challenge,omitempty"`
 
 	// Date and time at which proof has been created.
-	Created time.Time `json:"created"`
+	Created string `json:"created"`
 
 	// A string value that specifies the operational domain of a digital proof. This could be an Internet domain
 	// name like example.com, an ad-hoc value such as mycorp-level3-access, or a very specific transaction value
@@ -178,7 +177,7 @@ type VCVerificationResult struct {
 // VPVerificationRequest defines model for VPVerificationRequest.
 type VPVerificationRequest struct {
 	// Date and time at which the VP should be valid. If not supplied, the current date/time is used.
-	ValidAt *time.Time `json:"validAt,omitempty"`
+	ValidAt *string `json:"validAt,omitempty"`
 
 	// Verifiable Presentation
 	VerifiablePresentation VerifiablePresentation `json:"verifiablePresentation"`
