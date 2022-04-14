@@ -153,7 +153,7 @@ func (t testContextManager) Configure(config Config) error {
 }
 
 // NewTestContextManager creates a new test context manager which contains extra test contexts
-func NewTestContextManager(t *testing.T) ContextManager {
+func NewTestContextManager(t *testing.T) JSONLD {
 	t.Helper()
 
 	contextConfig := DefaultContextConfig()

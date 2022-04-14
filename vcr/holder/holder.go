@@ -39,11 +39,11 @@ type vcHolder struct {
 	keyResolver    vdr.KeyResolver
 	keyStore       crypto.KeyStore
 	verifier       verifier.Verifier
-	contextManager jsonld.ContextManager
+	contextManager jsonld.JSONLD
 }
 
 // New creates a new Holder.
-func New(keyResolver vdr.KeyResolver, keyStore crypto.KeyStore, verifier verifier.Verifier, contextManager jsonld.ContextManager) Holder {
+func New(keyResolver vdr.KeyResolver, keyStore crypto.KeyStore, verifier verifier.Verifier, contextManager jsonld.JSONLD) Holder {
 	return &vcHolder{
 		keyResolver:    keyResolver,
 		keyStore:       keyStore,

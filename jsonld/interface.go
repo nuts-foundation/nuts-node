@@ -25,14 +25,6 @@ import (
 
 // JSONLD defines the interface of a JSON utilities engine. It allows sharing instances of utils over engines.
 type JSONLD interface {
-	// ContextManager returns an instance of the ContextManager interface
-	ContextManager() ContextManager
-}
-
-// ContextManager manages the different JSON-LD contexts. It helps in using the same loaded contexts over different engines.
-type ContextManager interface {
 	// DocumentLoader returns the JSON-LD DocumentLoader
 	DocumentLoader() ld.DocumentLoader
-	// Configure the ContextManager
-	Configure(config Config) error
 }

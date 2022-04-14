@@ -39,7 +39,7 @@ import (
 )
 
 // NewIssuer creates a new issuer which implements the Issuer interface.
-func NewIssuer(store Store, publisher Publisher, docResolver vdr.DocResolver, keyStore crypto.KeyStore, contextManager jsonld.ContextManager, trustConfig *trust.Config) Issuer {
+func NewIssuer(store Store, publisher Publisher, docResolver vdr.DocResolver, keyStore crypto.KeyStore, contextManager jsonld.JSONLD, trustConfig *trust.Config) Issuer {
 	resolver := vdrKeyResolver{docResolver: docResolver, keyResolver: keyStore}
 	return &issuer{
 		store:          store,
@@ -55,7 +55,7 @@ type issuer struct {
 	publisher      Publisher
 	keyResolver    keyResolver
 	trustConfig    *trust.Config
-	contextManager jsonld.ContextManager
+	contextManager jsonld.JSONLD
 }
 
 // Issue creates a new credential, signs, stores it.

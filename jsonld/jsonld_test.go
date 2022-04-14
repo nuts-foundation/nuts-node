@@ -20,11 +20,6 @@ func TestNewJSONLDInstance(t *testing.T) {
 		assert.Implements(t, (*core.Injectable)(nil), instance)
 	})
 
-	t.Run("it contains a ContextMananger", func(t *testing.T) {
-		cm := instance.ContextManager()
-		assert.Implements(t, (*ContextManager)(nil), cm)
-	})
-
 	t.Run("as an injectable", func(t *testing.T) {
 		injectable := instance.(core.Injectable)
 		t.Run("it knows its name", func(t *testing.T) {
@@ -42,7 +37,7 @@ func TestNewJSONLDInstance(t *testing.T) {
 			configurable := instance.(core.Configurable)
 
 			t.Run("it can be configured", func(t *testing.T) {
-				configurable.Configure(core.ServerConfig{Strictmode: true})
+				assert.NoError(t, configurable.Configure(core.ServerConfig{Strictmode: true}))
 				config := injectable.Config().(*Config)
 				assert.True(t, config.strictMode)
 

@@ -47,7 +47,7 @@ const (
 // It does not know anything about the semantics of a credential. It should support a wide range of types.
 type verifier struct {
 	keyResolver    vdr.KeyResolver
-	contextManager jsonld.ContextManager
+	contextManager jsonld.JSONLD
 	store          Store
 	trustConfig    *trust.Config
 }
@@ -77,7 +77,7 @@ func (e VerificationError) Error() string {
 }
 
 // NewVerifier creates a new instance of the verifier. It needs a key resolver for validating signatures.
-func NewVerifier(store Store, keyResolver vdr.KeyResolver, contextManager jsonld.ContextManager, trustConfig *trust.Config) Verifier {
+func NewVerifier(store Store, keyResolver vdr.KeyResolver, contextManager jsonld.JSONLD, trustConfig *trust.Config) Verifier {
 	return &verifier{store: store, keyResolver: keyResolver, contextManager: contextManager, trustConfig: trustConfig}
 }
 

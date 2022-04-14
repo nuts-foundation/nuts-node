@@ -63,7 +63,7 @@ type service struct {
 	privateKeyStore nutsCrypto.KeyStore
 	contractNotary  services.ContractNotary
 	serviceResolver didman.CompoundServiceResolver
-	contextManager  jsonld.ContextManager
+	contextManager  jsonld.JSONLD
 
 	clockSkew time.Duration
 }
@@ -143,7 +143,7 @@ func (c validationContext) verifiableCredentials() ([]vc2.VerifiableCredential, 
 }
 
 // NewOAuthService accepts a vendorID, and several Nuts engines and returns an implementation of services.OAuthClient
-func NewOAuthService(store types.Store, conceptFinder vcr.ConceptFinder, vcValidator vcr.Validator, serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore, contractNotary services.ContractNotary, contextManager jsonld.ContextManager) services.OAuthClient {
+func NewOAuthService(store types.Store, conceptFinder vcr.ConceptFinder, vcValidator vcr.Validator, serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore, contractNotary services.ContractNotary, contextManager jsonld.JSONLD) services.OAuthClient {
 	return &service{
 		docResolver:     doc.Resolver{Store: store},
 		keyResolver:     doc.KeyResolver{Store: store},

@@ -77,7 +77,7 @@ func (c Config) hasContractValidator(cv string) bool {
 
 type notary struct {
 	config            Config
-	contextManager    jsonld.ContextManager
+	contextManager    jsonld.JSONLD
 	keyResolver       types.KeyResolver
 	privateKeyStore   crypto.KeyStore
 	irmaServiceConfig irma.ValidatorConfig
@@ -90,7 +90,7 @@ type notary struct {
 var timeNow = time.Now
 
 // NewNotary accepts the registry and crypto Nuts engines and returns a ContractNotary
-func NewNotary(config Config, vcr vcr.VCR, keyResolver types.KeyResolver, keyStore crypto.KeyStore, contextManager jsonld.ContextManager) services.ContractNotary {
+func NewNotary(config Config, vcr vcr.VCR, keyResolver types.KeyResolver, keyStore crypto.KeyStore, contextManager jsonld.JSONLD) services.ContractNotary {
 	return &notary{
 		config:          config,
 		contextManager:  contextManager,

@@ -190,9 +190,9 @@ func CreateSystem() *core.System {
 	eventManager := events.NewManager()
 	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), keyResolver, cryptoInstance, cryptoInstance, docResolver, docFinder)
 	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance, didStore)
-	credentialInstance := vcr.NewVCRInstance(cryptoInstance, docResolver, keyResolver, networkInstance, jsonld.ContextManager())
-	didmanInstance := didman.NewDidmanInstance(docResolver, didStore, vdrInstance, credentialInstance, jsonld.ContextManager())
-	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), didStore, credentialInstance, cryptoInstance, didmanInstance, jsonld.ContextManager())
+	credentialInstance := vcr.NewVCRInstance(cryptoInstance, docResolver, keyResolver, networkInstance, jsonld)
+	didmanInstance := didman.NewDidmanInstance(docResolver, didStore, vdrInstance, credentialInstance, jsonld)
+	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), didStore, credentialInstance, cryptoInstance, didmanInstance, jsonld)
 	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
 
