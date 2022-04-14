@@ -16,7 +16,7 @@
  *
  */
 
-package signature
+package jsonld
 
 import (
 	"embed"
@@ -149,8 +149,8 @@ const W3cVcContext = "https://www.w3.org/2018/credentials/v1"
 // Jws2020Context contains the JsonWebToken2020 Proof type context
 const Jws2020Context = "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
 
-// DefaultJSONLDContextConfig returns the default list of allowed external resources and a mapping to embedded contexts
-func DefaultJSONLDContextConfig() JSONLDContextsConfig {
+// DefaultContextConfig returns the default list of allowed external resources and a mapping to embedded contexts
+func DefaultContextConfig() JSONLDContextsConfig {
 	return JSONLDContextsConfig{
 		RemoteAllowList: DefaultAllowList(),
 		LocalFileMapping: map[string]string{
@@ -198,7 +198,7 @@ func NewContextLoader(allowUnlistedExternalCalls bool, contexts JSONLDContextsCo
 	for url := range contexts.LocalFileMapping {
 		// preload mapped files:
 		if _, err := loader.LoadDocument(url); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("preloading context %s failed: %w", url, err)
 		}
 	}
 

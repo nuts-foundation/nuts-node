@@ -19,8 +19,6 @@
 
 package vcr
 
-import "github.com/nuts-foundation/nuts-node/vcr/signature"
-
 const moduleName = "VCR"
 
 // Config holds the config for the vcr engine
@@ -31,14 +29,12 @@ type Config struct {
 	// if set to true, all issued credentials are published as public credentials, regardless of whether they're actually marked as public.
 	OverrideIssueAllPublic bool `koanf:"vcr.overrideissueallpublic"`
 	// datadir holds the location the VCR files are stored
-	datadir        string
-	JSONLDContexts signature.JSONLDContextsConfig `koanf:"vcr.jsonldcontexts"`
+	datadir string
 }
 
 // DefaultConfig returns a fresh Config filled with default values
 func DefaultConfig() Config {
 	return Config{
 		OverrideIssueAllPublic: true,
-		JSONLDContexts:         signature.DefaultJSONLDContextConfig(),
 	}
 }

@@ -182,7 +182,7 @@ func CreateSystem() *core.System {
 
 	// Create instances
 	cryptoInstance := crypto.NewCryptoInstance()
-	contextManager := jsonld.NewManager()
+	jsonld := jsonld.NewJSONLDInstance()
 	didStore := store.NewBBoltStore()
 	keyResolver := doc.KeyResolver{Store: didStore}
 	docResolver := doc.Resolver{Store: didStore}
@@ -190,9 +190,9 @@ func CreateSystem() *core.System {
 	eventManager := events.NewManager()
 	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), keyResolver, cryptoInstance, cryptoInstance, docResolver, docFinder)
 	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance, didStore)
-	credentialInstance := vcr.NewVCRInstance(cryptoInstance, docResolver, keyResolver, networkInstance, contextManager)
-	didmanInstance := didman.NewDidmanInstance(docResolver, didStore, vdrInstance, credentialInstance, contextManager)
-	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), didStore, credentialInstance, cryptoInstance, didmanInstance, contextManager)
+	credentialInstance := vcr.NewVCRInstance(cryptoInstance, docResolver, keyResolver, networkInstance, jsonld.ContextManager())
+	didmanInstance := didman.NewDidmanInstance(docResolver, didStore, vdrInstance, credentialInstance, jsonld.ContextManager())
+	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), didStore, credentialInstance, cryptoInstance, didmanInstance, jsonld.ContextManager())
 	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
 
@@ -214,7 +214,7 @@ func CreateSystem() *core.System {
 	system.RegisterRoutes(&didmanAPI.Wrapper{Didman: didmanInstance})
 
 	// Register engines
-	system.RegisterEngine(contextManager)
+	system.RegisterEngine(jsonld)
 	system.RegisterEngine(eventManager)
 	system.RegisterEngine(didStore)
 	system.RegisterEngine(statusEngine)
@@ -264,6 +264,7 @@ func addFlagSets(cmd *cobra.Command) {
 	cmd.PersistentFlags().AddFlagSet(networkCmd.FlagSet())
 	cmd.PersistentFlags().AddFlagSet(vdrCmd.FlagSet())
 	cmd.PersistentFlags().AddFlagSet(vcrCmd.FlagSet())
+	cmd.PersistentFlags().AddFlagSet(jsonld.FlagSet())
 	cmd.PersistentFlags().AddFlagSet(authCmd.FlagSet())
 	cmd.PersistentFlags().AddFlagSet(eventsCmd.FlagSet())
 }

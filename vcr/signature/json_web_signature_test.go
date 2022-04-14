@@ -22,6 +22,7 @@ import (
 	"encoding/hex"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -51,7 +52,7 @@ func TestJsonWebSignature2020_CanonicalizeDocument(t *testing.T) {
 	})
 
 	t.Run("simple document with resolvable context", func(t *testing.T) {
-		contextLoader, err := NewContextLoader(false, DefaultJSONLDContextConfig())
+		contextLoader, err := jsonld.NewContextLoader(false, jsonld.DefaultContextConfig())
 		assert.NoError(t, err)
 
 		sig := JSONWebSignature2020{contextLoader}
@@ -68,7 +69,7 @@ func TestJsonWebSignature2020_CanonicalizeDocument(t *testing.T) {
 	})
 
 	t.Run("fails with an uncached contextloader when loading is not allowed", func(t *testing.T) {
-		contextLoader, err := NewContextLoader(false, DefaultJSONLDContextConfig())
+		contextLoader, err := jsonld.NewContextLoader(false, jsonld.DefaultContextConfig())
 		assert.NoError(t, err)
 
 		sig := JSONWebSignature2020{contextLoader}

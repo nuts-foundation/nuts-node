@@ -36,8 +36,6 @@ func FlagSet() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("vcr", pflag.ContinueOnError)
 	flagSet.Bool("vcr.overrideissueallpublic", defs.OverrideIssueAllPublic, "Overrides the \"Public\" property of a credential when issuing credentials: "+
 		"if set to true, all issued credentials are published as public credentials, regardless of whether they're actually marked as public.")
-	flagSet.StringSlice("vcr.jsonldcontexts.remoteallowlist", defs.JSONLDContexts.RemoteAllowList, "In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here.")
-	flagSet.StringToString("vcr.jsonldcontexts.localmapping", defs.JSONLDContexts.LocalFileMapping, "This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist.")
 	return flagSet
 }
 

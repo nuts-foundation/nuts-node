@@ -16,7 +16,7 @@
  *
  */
 
-package signature
+package jsonld
 
 import (
 	"embed"
@@ -102,7 +102,7 @@ func Test_embeddedFSDocumentLoader_LoadDocument(t *testing.T) {
 
 func TestNewContextLoader(t *testing.T) {
 	t.Run("loads local file", func(t *testing.T) {
-		cfg := DefaultJSONLDContextConfig()
+		cfg := DefaultContextConfig()
 		cfg.LocalFileMapping = map[string]string{
 			"http://test-context.com": "./test/test.jsonld",
 		}
@@ -111,7 +111,7 @@ func TestNewContextLoader(t *testing.T) {
 	})
 
 	t.Run("loads local file (external calls disallowed)", func(t *testing.T) {
-		cfg := DefaultJSONLDContextConfig()
+		cfg := DefaultContextConfig()
 		cfg.LocalFileMapping = map[string]string{
 			"http://test-context.com": "./test/test.jsonld",
 		}
@@ -120,16 +120,16 @@ func TestNewContextLoader(t *testing.T) {
 	})
 
 	t.Run("errors when local file is not found", func(t *testing.T) {
-		cfg := DefaultJSONLDContextConfig()
+		cfg := DefaultContextConfig()
 		cfg.LocalFileMapping = map[string]string{
 			"http://test-context.com": "test/non-existing.jsonld",
 		}
 		_, err := NewContextLoader(true, cfg)
-		assert.EqualError(t, err, "loading document failed: open test/non-existing.jsonld: no such file or directory")
+		assert.EqualError(t, err, "preloading context http://test-context.com failed: loading document failed: open test/non-existing.jsonld: no such file or directory")
 	})
 
 	t.Run("it creates a new contextLoader", func(t *testing.T) {
-		loader, err := NewContextLoader(false, DefaultJSONLDContextConfig())
+		loader, err := NewContextLoader(false, DefaultContextConfig())
 		assert.NoError(t, err)
 		doc, err := loader.LoadDocument("https://schema.org")
 		assert.NoError(t, err)
@@ -137,14 +137,14 @@ func TestNewContextLoader(t *testing.T) {
 	})
 
 	t.Run("it fails requesting an external doc when allowingExternalCalls is false", func(t *testing.T) {
-		loader, err := NewContextLoader(false, DefaultJSONLDContextConfig())
+		loader, err := NewContextLoader(false, DefaultContextConfig())
 		assert.NoError(t, err)
 		_, err = loader.LoadDocument("http://example.org")
 		assert.EqualError(t, err, "loading document failed: context not on the remoteallowlist: http://example.org")
 	})
 
 	t.Run("it resolves an external doc when allowingExternalCalls is true", func(t *testing.T) {
-		loader, err := NewContextLoader(true, DefaultJSONLDContextConfig())
+		loader, err := NewContextLoader(true, DefaultContextConfig())
 		assert.NoError(t, err)
 		doc, err := loader.LoadDocument("http://schema.org")
 		assert.NoError(t, err)

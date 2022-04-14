@@ -20,8 +20,6 @@
 package jsonld
 
 import (
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/piprate/json-gold/ld"
 )
 
@@ -38,7 +36,11 @@ func (c contextManager) DocumentLoader() ld.DocumentLoader {
 	return c.documentLoader
 }
 
-func (c *contextManager) Configure(config core.ServerConfig) (err error) {
-	c.documentLoader, err = signature.NewContextLoader(!config.Strictmode, signature.DefaultJSONLDContextConfig())
-	return
+func (c *contextManager) Configure(config Config) error {
+	loader, err := NewContextLoader(!config.strictMode, config.Contexts)
+	if err != nil {
+		return err
+	}
+	c.documentLoader = loader
+	return nil
 }
