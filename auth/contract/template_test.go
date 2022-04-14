@@ -29,14 +29,15 @@ import (
 
 func TestContract_RenderTemplate(t *testing.T) {
 	template := &Template{Type: "Simple", Template: "ga je akkoord met {{wat}} van {{valid_from}} tot {{valid_to}}?", Locale: "nl_NL"}
-	result, err := template.Render(map[string]string{"wat": "alles"}, time.Now(), 60*time.Minute)
+	now := time.Now()
+	result, err := template.Render(map[string]string{"wat": "alles"}, now, 60*time.Minute)
 	if !assert.NoError(t, err) {
 		return
 	}
 	amsterdamLocation, _ := time.LoadLocation(AmsterdamTimeZone)
 
-	from := monday.Format(time.Now().In(amsterdamLocation).Add(0), timeLayout, monday.LocaleNlNL)
-	to := monday.Format(time.Now().In(amsterdamLocation).Add(60*time.Minute), timeLayout, monday.LocaleNlNL)
+	from := monday.Format(now.In(amsterdamLocation).Add(0), timeLayout, monday.LocaleNlNL)
+	to := monday.Format(now.In(amsterdamLocation).Add(60*time.Minute), timeLayout, monday.LocaleNlNL)
 
 	expected := fmt.Sprintf("ga je akkoord met alles van %s tot %s?", from, to)
 	if result.RawContractText != expected {
