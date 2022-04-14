@@ -88,15 +88,15 @@ func TestHTTPClient_GetContactInformation(t *testing.T) {
 func TestHTTPClient_AddEndpoint(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		endpoint := Endpoint{
-			Endpoint: "ref:did:nuts:455/serviceEndpoint?type=eOverdracht-production",
-			Id:       "did:nuts:123#abc",
-			Type:     "eOverdracht",
+			ServiceEndpoint: "ref:did:nuts:455/serviceEndpoint?type=eOverdracht-production",
+			ID:              ssi.MustParseURI("did:nuts:123#abc"),
+			Type:            "eOverdracht",
 		}
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: endpoint})
 		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
 		res, err := c.AddEndpoint("did:nuts:123", "type", "some-url")
 		assert.NoError(t, err)
-		assert.Equal(t, &endpoint, res)
+		assert.Equal(t, endpoint, *res)
 	})
 	t.Run("error - server error", func(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})

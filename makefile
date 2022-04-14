@@ -57,7 +57,7 @@ gen-api:
 	oapi-codegen -generate types,server,client,skip-prune -templates codegen/oapi/ -package v1 -exclude-schemas VerifiableCredential,CredentialSubject,IssueVCRequest,Revocation docs/_static/vcr/v1.yaml | gofmt > vcr/api/v1/generated.go
 	oapi-codegen -generate types,server,client,skip-prune -templates codegen/oapi/ -package v2 -exclude-schemas VerifiableCredential,CredentialSubject,Revocation,VerifiablePresentation,SearchVCRequest docs/_static/vcr/v2.yaml | gofmt > vcr/api/v2/generated.go
 	oapi-codegen -generate types,server,client,skip-prune -templates codegen/oapi/ -package v1 -exclude-schemas VerifiableCredential,VerifiablePresentation docs/_static/auth/v1.yaml | gofmt > auth/api/v1/generated.go
-	oapi-codegen -generate types,server,client -templates codegen/oapi/ -package v1 -exclude-schemas ContactInformation,OrganizationSearchResult docs/_static/didman/v1.yaml | gofmt > didman/api/v1/generated.go
+	oapi-codegen -generate types,server,client -templates codegen/oapi/ -package v1 -exclude-schemas ContactInformation,OrganizationSearchResult,Endpoint docs/_static/didman/v1.yaml | gofmt > didman/api/v1/generated.go
 
 gen-protobuf:
 	protoc --go_out=paths=source_relative:network -I network network/transport/v1/protobuf/network.proto

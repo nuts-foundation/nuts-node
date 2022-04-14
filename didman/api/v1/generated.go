@@ -39,16 +39,6 @@ type CompoundServiceProperties struct {
 }
 
 // A combination of type and URL.
-type Endpoint struct {
-	// An endpoint URL or a reference to another service.
-	Endpoint string `json:"endpoint"`
-	Id       string `json:"id"`
-
-	// type of the endpoint. May be freely choosen.
-	Type string `json:"type"`
-}
-
-// A combination of type and URL.
 type EndpointProperties struct {
 	// An endpoint URL or a reference to another service.
 	Endpoint string `json:"endpoint"`

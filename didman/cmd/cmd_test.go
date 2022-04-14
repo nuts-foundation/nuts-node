@@ -60,8 +60,8 @@ func TestCmd_AddService(t *testing.T) {
 
 		cmd := Cmd()
 		response := v1.Endpoint{
-			Type:     "type",
-			Endpoint: serviceEndpoint,
+			Type:            "type",
+			ServiceEndpoint: serviceEndpoint,
 		}
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: response}
 		s := httptest.NewServer(handler)
@@ -76,7 +76,6 @@ func TestCmd_AddService(t *testing.T) {
 		assert.NoError(t, err)
 	})
 }
-
 
 func TestCmd_DeleteService(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
