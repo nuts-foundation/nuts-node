@@ -81,7 +81,7 @@ func TestVCR_Configure(t *testing.T) {
 func TestVCR_Start(t *testing.T) {
 
 	t.Run("error - creating db", func(t *testing.T) {
-		instance := NewVCRInstance(nil, nil, nil, nil, jsonld.TestContextManager(t)).(*vcr)
+		instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestContextManager(t)).(*vcr)
 
 		_ = instance.Configure(core.ServerConfig{Datadir: "test"})
 		err := instance.Start()
@@ -102,7 +102,7 @@ func TestVCR_Start(t *testing.T) {
 			nil,
 			nil,
 			network.NewTestNetworkInstance(path.Join(testDirectory, "network")),
-			jsonld.TestContextManager(t),
+			jsonld.NewTestContextManager(t),
 		).(*vcr)
 		if err := instance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
 			t.Fatal(err)

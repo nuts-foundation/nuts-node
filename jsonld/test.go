@@ -148,7 +148,8 @@ func TestVC() vc.VerifiableCredential {
 	return credential
 }
 
-func TestContextManager(t *testing.T) ContextManager {
+// NewTestContextManager creates a new test context manager which contains extra test contexts
+func NewTestContextManager(t *testing.T) ContextManager {
 	t.Helper()
 
 	manager := NewManager()

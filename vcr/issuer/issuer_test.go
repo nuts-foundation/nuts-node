@@ -50,7 +50,7 @@ func Test_issuer_buildVC(t *testing.T) {
 
 		keyResolverMock := NewMockkeyResolver(ctrl)
 		keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any()).Return(crypto.NewTestKey(kid), nil)
-		contextManager := jsonld.TestContextManager(t)
+		contextManager := jsonld.NewTestContextManager(t)
 		sut := issuer{keyResolver: keyResolverMock, contextManager: contextManager}
 		schemaOrgContext := ssi.MustParseURI("https://schema.org")
 
@@ -142,7 +142,7 @@ func Test_issuer_Issue(t *testing.T) {
 		}},
 	}
 
-	contextManager := jsonld.TestContextManager(t)
+	contextManager := jsonld.NewTestContextManager(t)
 
 	t.Run("ok - unpublished", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -230,7 +230,7 @@ func TestNewIssuer(t *testing.T) {
 }
 
 func Test_issuer_buildRevocation(t *testing.T) {
-	contextManager := jsonld.TestContextManager(t)
+	contextManager := jsonld.NewTestContextManager(t)
 
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -286,7 +286,7 @@ func Test_issuer_Revoke(t *testing.T) {
 	issuerID := "did:nuts:123"
 	issuerURI := ssi.MustParseURI(issuerID)
 	issuerDID := did.MustParseDID(issuerID)
-	contextManager := jsonld.TestContextManager(t)
+	contextManager := jsonld.NewTestContextManager(t)
 	kid := ssi.MustParseURI(issuerID + "#123")
 	key := crypto.NewTestKey(kid.String())
 
