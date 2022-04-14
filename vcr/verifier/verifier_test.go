@@ -514,7 +514,6 @@ func TestVerifier_VerifyVP(t *testing.T) {
   "verifiableCredential": {
     "@context": [
       "https://www.w3.org/2018/credentials/v1",
-      "https://nuts.nl/credentials/v1",
       "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
     ],
     "credentialSubject": {

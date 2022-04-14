@@ -29,12 +29,12 @@ import (
 
 func TestDocumentReader_FromStruct(t *testing.T) {
 	reader := Reader{
-		DocumentLoader: &ld.DefaultDocumentLoader{},
+		DocumentLoader: NewTestJSONLDManager(t).DocumentLoader(),
 	}
 
 	t.Run("ok", func(t *testing.T) {
 		object := make(map[string]interface{})
-		_ = json.Unmarshal([]byte(jsonLDExample), &object)
+		_ = json.Unmarshal([]byte(JSONLDExample), &object)
 		document, err := reader.Read(object)
 		values := document.ValueAt(NewPath())
 
@@ -46,6 +46,21 @@ func TestDocumentReader_FromStruct(t *testing.T) {
 		assert.Len(t, values, 1)
 		assert.Equal(t, "123456782", values[0].String())
 	})
+
+	t.Run("ok - nested within CredentialSubject", func(t *testing.T) {
+		object := make(map[string]interface{})
+		_ = json.Unmarshal([]byte(TestCredential), &object)
+		document, err := reader.Read(object)
+		values := document.ValueAt(NewPath("https://www.w3.org/2018/credentials#credentialSubject", "http://example.org/human", "http://example.org/eyeColour"))
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.NotNil(t, document)
+		assert.Len(t, values, 1)
+		assert.Equal(t, "blue/grey", values[0].String())
+	})
 }
 
 func TestDocumentReader_FromBytes(t *testing.T) {
@@ -54,7 +69,7 @@ func TestDocumentReader_FromBytes(t *testing.T) {
 	}
 
 	t.Run("ok", func(t *testing.T) {
-		document, err := reader.ReadBytes([]byte(jsonLDExample))
+		document, err := reader.ReadBytes([]byte(JSONLDExample))
 		values := document.ValueAt(NewPath())
 
 		if !assert.NoError(t, err) {

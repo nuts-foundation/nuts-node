@@ -16,3 +16,7 @@ indices:
       - iriPath: ["https://www.w3.org/2018/credentials#credentialSubject", "http://schema.org/organization", "http://schema.org/city"]
         tokenizer: whitespaceOrExact
         transformer: cologne
+  - name: index_auth_subject
+    parts:
+      - iriPath: ["https://www.w3.org/2018/credentials#credentialSubject"]
+      - iriPath: ["https://www.w3.org/2018/credentials#credentialSubject", "https://nuts.nl/credentials/v1#subject"]

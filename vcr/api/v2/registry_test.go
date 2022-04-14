@@ -22,19 +22,16 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/vcr"
 
 	"github.com/golang/mock/gomock"
-	"github.com/nuts-foundation/nuts-node/vcr/assets"
-	"gopkg.in/yaml.v2"
-
-	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -43,7 +40,6 @@ const organizationQuery = `
 	"query": {
 		"@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
 		"type": ["VerifiableCredential", "NutsOrganizationCredential"],
-		"issuer": "did:nuts:issuer",
 		"credentialSubject":{
 			"id":"did:nuts:123",
 			"organization": {
@@ -74,24 +70,6 @@ const untrustedOrganizationQuery = `
 }
 `
 
-const authorizationQuery = `
-{
-	"query": {
-		"@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
-		"type": ["VerifiableCredential", "NutsAuthorizationCredential"],
-		"issuer": "did:nuts:issuer",
-		"credentialSubject":{
-			"id": "did:nuts:123",
-			"purposeOfUse": "eOverdracht-receiver",
-			"resources": {
-				"path":"/Task/123"
-			},
-			"subject": "urn:oid:2.16.840.1.113883.2.4.6.3:123456782"
-		}
-	}
-}
-`
-
 const multiSubjectQuery = `
 {
 	"query": {
@@ -118,86 +96,85 @@ const multiSubjectQuery = `
 }
 `
 
+const customQuery = `
+{
+	"query": ` + jsonld.JSONLDExample + `
+}
+`
+
 func TestWrapper_SearchVCs(t *testing.T) {
-	registry := concept.NewRegistry()
-	loadTemplates(t, registry)
+	searchTerms := []vcr.SearchTerm{
+		{IRIPath: jsonld.CredentialSubjectPath, Value: "did:nuts:123"},
+		{IRIPath: jsonld.OrganizationCityPath, Value: "Amandelmere"},
+		{IRIPath: jsonld.OrganizationNamePath, Value: "Zorggroep de Nootjes"},
+	}
 
 	t.Run("ok - organization", func(t *testing.T) {
 		ctx := newMockContext(t)
 		req := httptest.NewRequest(http.MethodPost, "/", nil)
 		ctx.echo.EXPECT().Request().Return(req)
-		ctx.vcr.EXPECT().Registry().Return(registry)
 		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
 			_ = json.Unmarshal([]byte(organizationQuery), f)
 		})
-		var capturedQuery concept.Query
-		ctx.vcr.EXPECT().SearchLegacy(context.Background(), gomock.Any(), false, nil).DoAndReturn(
-			func(_ interface{}, arg1 interface{}, _ interface{}, _ interface{}) ([]VerifiableCredential, error) {
-				capturedQuery = arg1.(concept.Query)
-				return []VerifiableCredential{}, nil
-			},
-		)
+		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{}, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, []VerifiableCredential{})
 
 		err := ctx.client.SearchVCs(ctx.echo)
 
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.Equal(t, concept.OrganizationConcept, capturedQuery.Concept())
-		parts := capturedQuery.Parts()
-		if !assert.Len(t, parts, 1) {
-			return
-		}
-		clauses := parts[0].Clauses
-		if !assert.Len(t, clauses, 4) {
-			return
-		}
-		idx := 0
-		assert.Equal(t, "eq", clauses[idx].Type())
-		assert.Equal(t, "issuer", clauses[idx].Key())
-		assert.Equal(t, "did:nuts:issuer", clauses[idx].Seek())
-		idx++
-		assert.Equal(t, "prefix", clauses[idx].Type())
-		assert.Equal(t, "credentialSubject.organization.name", clauses[idx].Key())
-		assert.Equal(t, "Zorggroep de Nootjes", clauses[idx].Seek())
-		idx++
-		assert.Equal(t, "prefix", clauses[idx].Type())
-		assert.Equal(t, "credentialSubject.organization.city", clauses[idx].Key())
-		assert.Equal(t, "Amandelmere", clauses[idx].Seek())
-		idx++
-		assert.Equal(t, "eq", clauses[idx].Type())
-		assert.Equal(t, "credentialSubject.id", clauses[idx].Key())
-		assert.Equal(t, "did:nuts:123", clauses[idx].Seek())
+		assert.NoError(t, err)
+	})
+
+	t.Run("ok - custom credential with @list terms", func(t *testing.T) {
+		ctx := newMockContext(t)
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
+		ctx.echo.EXPECT().Request().Return(req)
+		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
+			_ = json.Unmarshal([]byte(customQuery), f)
+		})
+		ctx.vcr.EXPECT().Search(context.Background(), gomock.Any(), false, gomock.Any()).Return([]vc.VerifiableCredential{}, nil).Do(func(f1 interface{}, f2 interface{}, f3 interface{}, f4 interface{}) {
+			terms := f2.([]vcr.SearchTerm)
+			if assert.Len(t, terms, 9) {
+				count := 0
+
+				// both telephone numbers should have been added as required param, only checking the count since ordering is not guaranteed
+				for _, st := range terms {
+					if len(st.IRIPath) > 0 && st.IRIPath[0] == "http://example.com/telephone" {
+						count++
+					}
+				}
+				assert.Equal(t, 2, count)
+			}
+		})
+		ctx.echo.EXPECT().JSON(http.StatusOK, []VerifiableCredential{})
+
+		err := ctx.client.SearchVCs(ctx.echo)
+
+		assert.NoError(t, err)
 	})
 
 	t.Run("ok - untrusted flag", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/", nil)
 		ctx := newMockContext(t)
-		ctx.vcr.EXPECT().Registry().Return(registry)
 		ctx.echo.EXPECT().Request().Return(req)
 		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
 			_ = json.Unmarshal([]byte(untrustedOrganizationQuery), f)
 		})
-		ctx.vcr.EXPECT().SearchLegacy(context.Background(), gomock.Any(), true, nil).Return([]VerifiableCredential{}, nil)
+		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, true, gomock.Any()).Return([]vc.VerifiableCredential{}, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, []VerifiableCredential{})
 
 		err := ctx.client.SearchVCs(ctx.echo)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		assert.NoError(t, err)
 	})
 
 	t.Run("error - search returns error", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/", nil)
 		ctx := newMockContext(t)
-		ctx.vcr.EXPECT().Registry().Return(registry)
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
 		ctx.echo.EXPECT().Request().Return(req)
 		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
 			_ = json.Unmarshal([]byte(organizationQuery), f)
 		})
-		ctx.vcr.EXPECT().SearchLegacy(context.Background(), gomock.Any(), false, nil).Return(nil, errors.New("custom"))
+		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return(nil, errors.New("custom"))
 
 		err := ctx.client.SearchVCs(ctx.echo)
 
@@ -214,97 +191,6 @@ func TestWrapper_SearchVCs(t *testing.T) {
 
 		assert.EqualError(t, err, "can't match on multiple VC subjects")
 	})
-
-	t.Run("ok - authorization", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/", nil)
-		ctx := newMockContext(t)
-		ctx.vcr.EXPECT().Registry().Return(registry)
-		ctx.echo.EXPECT().Request().Return(req)
-		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
-			_ = json.Unmarshal([]byte(authorizationQuery), f)
-		})
-		var capturedQuery concept.Query
-		ctx.vcr.EXPECT().SearchLegacy(context.Background(), gomock.Any(), false, nil).DoAndReturn(
-			func(_ interface{}, arg1 interface{}, _ interface{}, _ interface{}) ([]VerifiableCredential, error) {
-				capturedQuery = arg1.(concept.Query)
-				return []VerifiableCredential{}, nil
-			},
-		)
-		ctx.echo.EXPECT().JSON(http.StatusOK, []VerifiableCredential{})
-
-		err := ctx.client.SearchVCs(ctx.echo)
-
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.Equal(t, concept.AuthorizationConcept, capturedQuery.Concept())
-		parts := capturedQuery.Parts()
-		if !assert.Len(t, parts, 1) {
-			return
-		}
-		clauses := parts[0].Clauses
-		if !assert.Len(t, clauses, 5) {
-			return
-		}
-		idx := 0
-		assert.Equal(t, "eq", clauses[idx].Type())
-		assert.Equal(t, "issuer", clauses[idx].Key())
-		assert.Equal(t, "did:nuts:issuer", clauses[idx].Seek())
-		idx++
-		assert.Equal(t, "eq", clauses[idx].Type())
-		assert.Equal(t, "credentialSubject.id", clauses[idx].Key())
-		assert.Equal(t, "did:nuts:123", clauses[idx].Seek())
-		idx++
-		assert.Equal(t, "eq", clauses[idx].Type())
-		assert.Equal(t, "credentialSubject.purposeOfUse", clauses[idx].Key())
-		assert.Equal(t, "eOverdracht-receiver", clauses[idx].Seek())
-		idx++
-		assert.Equal(t, "eq", clauses[idx].Type())
-		assert.Equal(t, "credentialSubject.subject", clauses[idx].Key())
-		assert.Equal(t, "urn:oid:2.16.840.1.113883.2.4.6.3:123456782", clauses[idx].Seek())
-		idx++
-		assert.Equal(t, "eq", clauses[idx].Type())
-		assert.Equal(t, "credentialSubject.resources.#.path", clauses[idx].Key())
-		assert.Equal(t, "/Task/123", clauses[idx].Seek())
-	})
-
-	t.Run("error - search auth returns error", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/", nil)
-		ctx := newMockContext(t)
-		ctx.vcr.EXPECT().Registry().Return(registry)
-		ctx.echo.EXPECT().Request().Return(req)
-		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
-			_ = json.Unmarshal([]byte(authorizationQuery), f)
-		})
-		ctx.vcr.EXPECT().SearchLegacy(context.Background(), gomock.Any(), false, nil).Return(nil, errors.New("custom"))
-
-		err := ctx.client.SearchVCs(ctx.echo)
-
-		assert.EqualError(t, err, "custom")
-	})
-}
-
-func loadTemplates(t *testing.T, registry concept.Registry) {
-	list, err := fs.Glob(assets.Assets, "**/*.config.yaml")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	for _, f := range list {
-		bytes, err := assets.Assets.ReadFile(f)
-		if err != nil {
-			t.Fatal(err)
-		}
-		config := concept.Config{}
-		err = yaml.Unmarshal(bytes, &config)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if err = registry.Add(config); err != nil {
-			t.Fatal(err)
-		}
-	}
 }
 
 func TestWrapper_ResolveVC(t *testing.T) {

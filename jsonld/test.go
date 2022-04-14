@@ -21,14 +21,16 @@ package jsonld
 
 import (
 	"encoding/json"
+	"testing"
+
 	"github.com/nuts-foundation/nuts-node/vcr/assets"
 	"github.com/piprate/json-gold/ld"
-	"testing"
 
 	"github.com/nuts-foundation/go-did/vc"
 )
 
-const jsonLDExample = `
+// JSONLDExample is a JSON-LD document example with a custom nested context covering all different supported term types.
+const JSONLDExample = `
 {
   "@context": {
     "id": "@id",
@@ -73,37 +75,6 @@ const invalidJSONLD = `
       "@version": 0.1
     }
   ]
-}
-`
-
-const testContext = `
-{
-  "@context": {
-    "@version": 1.1,
-    "@protected": true,
-
-    "id": "@id",
-    "type": "@type",
-    "HumanCredential": {
-      "@id": "http://example.org/HumanCredential",
-      "@type": "@id",
-      "@context": {
-        "@version": 1.1,
-        "id": "@id",
-        "type": "@type",
-        "schema": "http://schema.org/",
-		"ex": "http://example.org/",
-        "human": {
-          "@id":"http://example.org/human",
-          "@type": "@id",
-          "@context": {
-            "eyeColour": "ex:eyeColour",
-            "hairColour": "ex:hairColour"
-          }
-        }
-      }
-    }
-  }
 }
 `
 
