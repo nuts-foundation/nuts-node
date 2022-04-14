@@ -19,6 +19,8 @@
 package contract
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -26,6 +28,7 @@ import (
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	irma "github.com/privacybydesign/irmago"
 	"github.com/stretchr/testify/assert"
 
@@ -60,13 +63,22 @@ func TestContract_DrawUpContract(t *testing.T) {
 	keyID := orgID
 	keyID.Fragment = "key-1"
 
+	searchTerms := []vcr.SearchTerm{
+		{IRIPath: jsonld.CredentialSubjectPath, Value: orgID.String()},
+		{IRIPath: jsonld.OrganizationNamePath, Type: vcr.NotNil},
+		{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
+	}
+
+	testCredential := vc.VerifiableCredential{}
+	_ = json.Unmarshal([]byte(jsonld.TestOrganizationCredential), &testCredential)
+
 	t.Run("draw up valid contract", func(t *testing.T) {
 		ctx := buildContext(t)
 		defer ctx.ctrl.Finish()
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
-		ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(orgConcept, nil)
+		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
 		if !assert.NoError(t, err) {
@@ -83,7 +95,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
-		ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(orgConcept, nil)
+		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, 0)
 		if !assert.NoError(t, err) {
@@ -100,7 +112,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
-		ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(orgConcept, nil)
+		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		timeNow = func() time.Time {
 			return time.Time{}.Add(10 * time.Second)
@@ -126,34 +138,6 @@ func TestContract_DrawUpContract(t *testing.T) {
 			assert.Equal(t, "could not draw up contract: no valid organization credential at provided validFrom date", err.Error())
 		}
 		assert.Nil(t, drawnUpContract)
-	})
-
-	t.Run("nok - missing organization name", func(t *testing.T) {
-		ctx := buildContext(t)
-		defer ctx.ctrl.Finish()
-
-		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
-		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
-		ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(concept.Concept{"organization": concept.Concept{"city": orgCity}}, nil)
-
-		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
-
-		assert.Nil(t, drawnUpContract)
-		assert.EqualError(t, err, "could not draw up contract, could not extract organization name: no value for given path")
-	})
-
-	t.Run("nok - missing organization city", func(t *testing.T) {
-		ctx := buildContext(t)
-		defer ctx.ctrl.Finish()
-
-		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
-		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
-		ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(concept.Concept{"organization": concept.Concept{"name": orgName}}, nil)
-
-		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
-
-		assert.Nil(t, drawnUpContract)
-		assert.EqualError(t, err, "could not draw up contract, could not extract organization city: no value for given path")
 	})
 
 	t.Run("nok - unknown private key", func(t *testing.T) {
@@ -183,17 +167,17 @@ func TestContract_DrawUpContract(t *testing.T) {
 		assert.Nil(t, drawnUpContract)
 	})
 
-	t.Run("nok - other name resolver error", func(t *testing.T) {
+	t.Run("nok - could not find credential", func(t *testing.T) {
 		ctx := buildContext(t)
 		defer ctx.ctrl.Finish()
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
-		ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(nil, errors.New("error occurred"))
+		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return(nil, errors.New("error occurred"))
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
 		if assert.Error(t, err) {
-			assert.Equal(t, "could not draw up contract: error occurred", err.Error())
+			assert.Equal(t, "could not find a credential: error occurred", err.Error())
 		}
 		assert.Nil(t, drawnUpContract)
 	})
@@ -204,7 +188,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
-		ctx.vcr.EXPECT().Get(concept.OrganizationConcept, false, gomock.Any()).AnyTimes().Return(orgConcept, nil)
+		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		template := contract.Template{
 			Template: "Organisation Name: {{{legal_entity}}, valid from {{valid_from}} to {{valid_to}}",
@@ -381,7 +365,7 @@ type testContext struct {
 	ctrl *gomock.Controller
 
 	signerMock  *contract.MockSigner
-	vcr         *vcr.MockVCR
+	vcr         *vcr.MockFinder
 	keyResolver *types.MockKeyResolver
 	keyStore    *crypto.MockKeyStore
 	notary      notary
@@ -397,7 +381,7 @@ func buildContext(t *testing.T) *testContext {
 
 	ctx := &testContext{
 		ctrl:        ctrl,
-		vcr:         vcr.NewMockVCR(ctrl),
+		vcr:         vcr.NewMockFinder(ctrl),
 		keyResolver: types.NewMockKeyResolver(ctrl),
 		keyStore:    crypto.NewMockKeyStore(ctrl),
 		signerMock:  signerMock,
@@ -411,7 +395,7 @@ func buildContext(t *testing.T) *testContext {
 		config: Config{
 			ContractValidity: 15 * time.Minute,
 		},
-		jsonldManager: nil,
+		jsonldManager: jsonld.NewTestJSONLDManager(t),
 	}
 
 	ctx.notary = notary

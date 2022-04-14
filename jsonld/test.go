@@ -78,6 +78,31 @@ const invalidJSONLD = `
 }
 `
 
+// TestOrganizationCredential is an example of a NutsOrganizationCredential without Proof
+const TestOrganizationCredential = `
+{
+    "@context": [
+        "https://www.w3.org/2018/credentials/v1",
+        "https://nuts.nl/credentials/v1",
+        "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
+    ],
+    "credentialSubject": {
+        "organization": {
+            "city": "Caretown",
+            "name": "CareBears"
+        },
+        "id": "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY"
+    },
+    "id": "did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H#d2aa8189-db59-4dad-a3e5-60ca54f8fcc0",
+    "issuanceDate": "2021-12-24T13:21:29.087205+01:00",
+    "issuer": "did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H",
+    "proof": {},
+    "type": [
+        "NutsOrganizationCredential",
+        "VerifiableCredential"
+    ]
+}`
+
 // TestCredential contains a valid credential of the Humancredential type
 const TestCredential = `
 {
