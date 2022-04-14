@@ -495,6 +495,14 @@ func TestWrapper_RevokeVC(t *testing.T) {
 	})
 }
 
+// parsedTimeStr returns the original (truncated) time and an RFC3339 string with an extra round of formatting/parsing
+func parsedTimeStr(t time.Time) (time.Time, string) {
+	formatted := t.Format(time.RFC3339)
+	parsed, _ := time.Parse(time.RFC3339, formatted)
+	formatted = parsed.Format(time.RFC3339)
+	return parsed, formatted
+}
+
 func TestWrapper_CreateVP(t *testing.T) {
 	issuerURI := ssi.MustParseURI("did:nuts:123")
 	credentialType := ssi.MustParseURI("ExampleType")
@@ -553,9 +561,8 @@ func TestWrapper_CreateVP(t *testing.T) {
 	})
 	t.Run("ok - with expires", func(t *testing.T) {
 		testContext := newMockContext(t)
-		expired := created.Add(time.Hour).Truncate(time.Second)
 		request := createRequest()
-		expiredStr := expired.Format(time.RFC3339)
+		expired, expiredStr := parsedTimeStr(created.Add(time.Hour))
 		request.Expires = &expiredStr
 		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			verifyRequest := f.(*CreateVPRequest)
@@ -616,8 +623,7 @@ func TestWrapper_VerifyVP(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		testContext := newMockContext(t)
-		validAt := time.Now().Truncate(time.Second)
-		validAtStr := validAt.Format(time.RFC3339)
+		validAt, validAtStr := parsedTimeStr(time.Now())
 		request := VPVerificationRequest{
 			VerifiablePresentation: vp,
 			ValidAt:                &validAtStr,
