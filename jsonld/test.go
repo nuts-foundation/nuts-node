@@ -78,6 +78,7 @@ const invalidJSONLD = `
 }
 `
 
+// TestOrganizationCredential is an example of a NutsOrganizationCredential without Proof
 const TestOrganizationCredential = `
 {
     "@context": [
