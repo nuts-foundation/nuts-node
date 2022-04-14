@@ -596,6 +596,21 @@ func TestWrapper_CreateVP(t *testing.T) {
 
 		assert.EqualError(t, err, "expires can not lay in the past")
 	})
+	t.Run("error - invalid expires format", func(t *testing.T) {
+		testContext := newMockContext(t)
+		request := createRequest()
+		expiredStr := "a"
+		request.Expires = &expiredStr
+		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			verifyRequest := f.(*CreateVPRequest)
+			*verifyRequest = request
+			return nil
+		})
+
+		err := testContext.client.CreateVP(testContext.echo)
+
+		assert.Contains(t, err.Error(), "invalid value for expires")
+	})
 	t.Run("error - no VCs", func(t *testing.T) {
 		testContext := newMockContext(t)
 		request := CreateVPRequest{}
@@ -675,6 +690,23 @@ func TestWrapper_VerifyVP(t *testing.T) {
 		err := testContext.client.VerifyVP(testContext.echo)
 
 		assert.Error(t, err)
+	})
+	t.Run("error - invalid validAt format", func(t *testing.T) {
+		testContext := newMockContext(t)
+		validAtStr := "a"
+		request := VPVerificationRequest{
+			VerifiablePresentation: vp,
+			ValidAt:                &validAtStr,
+		}
+		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			verifyRequest := f.(*VPVerificationRequest)
+			*verifyRequest = request
+			return nil
+		})
+
+		err := testContext.client.VerifyVP(testContext.echo)
+
+		assert.Contains(t, err.Error(), "invalid value for validAt")
 	})
 	t.Run("error - verification failed (verification error)", func(t *testing.T) {
 		testContext := newMockContext(t)
