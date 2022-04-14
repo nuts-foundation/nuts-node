@@ -21,14 +21,13 @@ package gossip
 
 import (
 	"context"
-	"runtime"
+	"go.uber.org/goleak"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -91,10 +90,13 @@ func TestManager_PeerDisconnected(t *testing.T) {
 	})
 
 	t.Run("stops ticker", func(t *testing.T) {
+		// Use uber/goleak to assert the goroutine started by PeerConnected is stopped when PeerDisconnected is called
+		defer goleak.VerifyNone(t)
+
 		gMan := giveMeAgMan(t)
 		peer := transport.Peer{ID: "1"}
 		gMan.peers["2"] = gMan.peers["1"]
-		currentRoutines := runtime.NumGoroutine()
+
 		wg := sync.WaitGroup{}
 		wg.Add(1)
 		gMan.RegisterSender(func(id transport.PeerID, refs []hash.SHA256Hash) bool {
@@ -102,15 +104,10 @@ func TestManager_PeerDisconnected(t *testing.T) {
 			return true
 		})
 		gMan.PeerConnected(peer)
-		assert.Equal(t, currentRoutines+1, runtime.NumGoroutine())
 		wg.Wait()
 
 		gMan.PeerDisconnected(peer)
 		gMan.peers["1"] = gMan.peers["2"] // reset administration to bypass administration test
-
-		test.WaitFor(t, func() (bool, error) {
-			return runtime.NumGoroutine() == currentRoutines, nil
-		}, 5*time.Second, "timeout while waiting for go routine to exit")
 	})
 }
 
