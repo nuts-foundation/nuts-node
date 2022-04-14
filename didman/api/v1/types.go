@@ -37,5 +37,3 @@ type OrganizationSearchResult = didman.OrganizationSearchResult
 // It's an alias (instead of a type definition) because we don't want to use the custom marshaler of did.Service,
 // to make the response symmetric to the request body (given endpoint is a string, we want to return a string, rather than an array containing a string).
 type Endpoint did.Service
-
-
