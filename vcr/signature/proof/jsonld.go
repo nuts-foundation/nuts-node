@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"strings"
 	"time"
 
@@ -157,7 +158,7 @@ func (p *LDProof) Sign(document Document, suite signature.Suite, key nutsCrypto.
 	if err != nil {
 		return nil, err
 	}
-	signedDocument["@context"] = signature.AddContext(signedDocument["@context"], determineProofContext(suite.GetType()))
+	signedDocument["@context"] = jsonld.AddContext(signedDocument["@context"], determineProofContext(suite.GetType()))
 	proofAsMap, err := p.asMap()
 	if err != nil {
 		return nil, err
@@ -170,7 +171,7 @@ func (p *LDProof) Sign(document Document, suite signature.Suite, key nutsCrypto.
 // asCanonicalizableMap converts the proof to a map, adds a ld-context and removes the signature value so it can be canonicalized.
 func (p LDProof) asCanonicalizableMap() (map[string]interface{}, error) {
 	asMap, err := p.asMap()
-	asMap["@context"] = signature.AddContext(asMap["@context"], determineProofContext(p.Type))
+	asMap["@context"] = jsonld.AddContext(asMap["@context"], determineProofContext(p.Type))
 	asMap["@type"] = asMap["type"]
 	if err != nil {
 		return nil, err

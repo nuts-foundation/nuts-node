@@ -16,7 +16,7 @@
  *
  */
 
-package signature
+package jsonld
 
 import (
 	"embed"
@@ -31,12 +31,14 @@ import (
 var testfs embed.FS
 
 type testLoader struct {
-	Called bool
-	Err    error
+	Called     bool
+	CalledWith string
+	Err        error
 }
 
 func (t *testLoader) LoadDocument(u string) (*ld.RemoteDocument, error) {
 	t.Called = true
+	t.CalledWith = u
 	return nil, t.Err
 }
 
@@ -99,8 +101,35 @@ func Test_embeddedFSDocumentLoader_LoadDocument(t *testing.T) {
 }
 
 func TestNewContextLoader(t *testing.T) {
+	t.Run("loads local file", func(t *testing.T) {
+		cfg := DefaultContextConfig()
+		cfg.LocalFileMapping = map[string]string{
+			"http://test-context.com": "./test/test.jsonld",
+		}
+		_, err := NewContextLoader(true, cfg)
+		assert.NoError(t, err)
+	})
+
+	t.Run("loads local file (external calls disallowed)", func(t *testing.T) {
+		cfg := DefaultContextConfig()
+		cfg.LocalFileMapping = map[string]string{
+			"http://test-context.com": "./test/test.jsonld",
+		}
+		_, err := NewContextLoader(false, cfg)
+		assert.NoError(t, err)
+	})
+
+	t.Run("errors when local file is not found", func(t *testing.T) {
+		cfg := DefaultContextConfig()
+		cfg.LocalFileMapping = map[string]string{
+			"http://test-context.com": "test/non-existing.jsonld",
+		}
+		_, err := NewContextLoader(true, cfg)
+		assert.EqualError(t, err, "preloading context http://test-context.com failed: loading document failed: open test/non-existing.jsonld: no such file or directory")
+	})
+
 	t.Run("it creates a new contextLoader", func(t *testing.T) {
-		loader, err := NewContextLoader(false)
+		loader, err := NewContextLoader(false, DefaultContextConfig())
 		assert.NoError(t, err)
 		doc, err := loader.LoadDocument("https://schema.org")
 		assert.NoError(t, err)
@@ -108,14 +137,14 @@ func TestNewContextLoader(t *testing.T) {
 	})
 
 	t.Run("it fails requesting an external doc when allowingExternalCalls is false", func(t *testing.T) {
-		loader, err := NewContextLoader(false)
+		loader, err := NewContextLoader(false, DefaultContextConfig())
 		assert.NoError(t, err)
 		_, err = loader.LoadDocument("http://example.org")
-		assert.EqualError(t, err, "loading document failed")
+		assert.EqualError(t, err, "loading document failed: context not on the remoteallowlist: http://example.org")
 	})
 
 	t.Run("it resolves an external doc when allowingExternalCalls is true", func(t *testing.T) {
-		loader, err := NewContextLoader(true)
+		loader, err := NewContextLoader(true, DefaultContextConfig())
 		assert.NoError(t, err)
 		doc, err := loader.LoadDocument("http://schema.org")
 		assert.NoError(t, err)
@@ -165,5 +194,52 @@ func TestAddContext(t *testing.T) {
 
 		assert.Len(t, doc["@context"], 1)
 		assert.Equal(t, doc["@context"].([]interface{})[0], newContext.String())
+	})
+}
+
+func TestMappedDocumentLoader_LoadDocument(t *testing.T) {
+	t.Run("it maps", func(t *testing.T) {
+		tl := &testLoader{}
+		loader := NewMappedDocumentLoader(map[string]string{"foo": "bar"}, tl)
+		_, err := loader.LoadDocument("foo")
+		assert.NoError(t, err)
+		assert.True(t, tl.Called)
+		assert.Equal(t, tl.CalledWith, "bar")
+	})
+
+	t.Run("it passes thru unmapped urls", func(t *testing.T) {
+		tl := &testLoader{}
+		loader := NewMappedDocumentLoader(map[string]string{"foo": "bar"}, tl)
+		_, err := loader.LoadDocument("fnorp")
+		assert.NoError(t, err)
+		assert.True(t, tl.Called)
+		assert.Equal(t, tl.CalledWith, "fnorp")
+	})
+}
+
+func Test_filteredDocumentLoader(t *testing.T) {
+
+	t.Run("create a new filteredDocumentLoader", func(t *testing.T) {
+		loader := NewFilteredLoader([]string{}, &testLoader{})
+		assert.Implements(t, (*ld.DocumentLoader)(nil), loader)
+	})
+
+	t.Run("it passes through an allowed url", func(t *testing.T) {
+		mockLoader := &testLoader{}
+		sut := NewFilteredLoader([]string{"foo.com"}, mockLoader)
+
+		_, err := sut.LoadDocument("foo.com")
+		assert.NoError(t, err)
+		assert.True(t, mockLoader.Called)
+		assert.Equal(t, "foo.com", mockLoader.CalledWith)
+	})
+
+	t.Run("it blocks urls not on the list", func(t *testing.T) {
+		mockLoader := &testLoader{}
+		sut := NewFilteredLoader([]string{"foo.com"}, mockLoader)
+
+		_, err := sut.LoadDocument("not-allowed.com")
+		assert.EqualError(t, err, "loading document failed: context not on the remoteallowlist: not-allowed.com")
+		assert.False(t, mockLoader.Called)
 	})
 }

@@ -21,13 +21,11 @@ package jsonld
 
 import (
 	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/vcr/assets"
+	"github.com/piprate/json-gold/ld"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr/assets"
-	"github.com/nuts-foundation/nuts-node/vcr/signature"
-	"github.com/piprate/json-gold/ld"
 )
 
 const jsonLDExample = `
@@ -109,6 +107,7 @@ const testContext = `
 }
 `
 
+// TestCredential contains a valid credential of the Humancredential type
 const TestCredential = `
 {
 	"@context": [
@@ -131,15 +130,7 @@ const TestCredential = `
 }
 `
 
-const TestRevocation = `
-{
-  "issuer": "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY",
-  "subject": "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY#123",
-  "currentStatus": "Revoked",
-  "statusDate": "2021-03-13T16:39:58.496215+01:00"
-}
-`
-
+// TestVC returns an instance of the TestCredential
 func TestVC() vc.VerifiableCredential {
 	credential := vc.VerifiableCredential{}
 
@@ -148,20 +139,35 @@ func TestVC() vc.VerifiableCredential {
 	return credential
 }
 
-func TestContextManager(t *testing.T) ContextManager {
-	manager := NewManager()
-	if err := manager.(core.Configurable).Configure(core.ServerConfig{Strictmode: true}); err != nil {
-		t.Fatal(err)
-	}
+type testContextManager struct {
+	loader ld.DocumentLoader
+}
 
-	loader := ld.NewCachingDocumentLoader(signature.NewEmbeddedFSDocumentLoader(assets.TestAssets, manager.DocumentLoader()))
-	if err := loader.PreloadWithMapping(map[string]string{
-		"http://example.org/credentials/V1": "test_assets/contexts/test.ldjson",
-	}); err != nil {
-		t.Fatal(err)
-	}
+func (t testContextManager) DocumentLoader() ld.DocumentLoader {
+	return t.loader
+}
 
-	manager.(*contextManager).documentLoader = loader
+func (t testContextManager) Configure(config Config) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+// NewTestJSONLDManager creates a new test context manager which contains extra test contexts
+func NewTestJSONLDManager(t *testing.T) JSONLD {
+	t.Helper()
+
+	contextConfig := DefaultContextConfig()
+	contextConfig.LocalFileMapping["http://example.org/credentials/V1"] = "test_assets/contexts/test.ldjson"
+
+	loader := NewMappedDocumentLoader(contextConfig.LocalFileMapping,
+		NewEmbeddedFSDocumentLoader(assets.Assets,
+			// Handle all embedded file system files
+			NewEmbeddedFSDocumentLoader(assets.TestAssets,
+				// Last in the chain is the defaultLoader which can resolve
+				// local files and remote (via http) context documents
+				ld.NewDefaultDocumentLoader(nil))))
+
+	manager := testContextManager{loader: loader}
 
 	return manager
 }

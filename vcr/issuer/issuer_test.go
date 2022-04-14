@@ -50,8 +50,8 @@ func Test_issuer_buildVC(t *testing.T) {
 
 		keyResolverMock := NewMockkeyResolver(ctrl)
 		keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any()).Return(crypto.NewTestKey(kid), nil)
-		contextManager := jsonld.TestContextManager(t)
-		sut := issuer{keyResolver: keyResolverMock, contextManager: contextManager}
+		jsonldManager := jsonld.NewTestJSONLDManager(t)
+		sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager}
 		schemaOrgContext := ssi.MustParseURI("https://schema.org")
 
 		issuance, err := time.Parse(time.RFC3339, "2022-01-02T12:00:00Z")
@@ -142,7 +142,7 @@ func Test_issuer_Issue(t *testing.T) {
 		}},
 	}
 
-	contextManager := jsonld.TestContextManager(t)
+	jsonldManager := jsonld.NewTestJSONLDManager(t)
 
 	t.Run("ok - unpublished", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -154,7 +154,7 @@ func Test_issuer_Issue(t *testing.T) {
 		keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any()).Return(crypto.NewTestKey(kid), nil)
 		mockStore := NewMockStore(ctrl)
 		mockStore.EXPECT().StoreCredential(gomock.Any())
-		sut := issuer{keyResolver: keyResolverMock, store: mockStore, contextManager: contextManager, trustConfig: trustConfig}
+		sut := issuer{keyResolver: keyResolverMock, store: mockStore, jsonldManager: jsonldManager, trustConfig: trustConfig}
 
 		result, err := sut.Issue(credentialOptions, false, true)
 		assert.NoError(t, err)
@@ -179,7 +179,7 @@ func Test_issuer_Issue(t *testing.T) {
 			keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any()).Return(crypto.NewTestKey(kid), nil)
 			mockStore := NewMockStore(ctrl)
 			mockStore.EXPECT().StoreCredential(gomock.Any()).Return(errors.New("b00m!"))
-			sut := issuer{keyResolver: keyResolverMock, store: mockStore, contextManager: contextManager, trustConfig: trustConfig}
+			sut := issuer{keyResolver: keyResolverMock, store: mockStore, jsonldManager: jsonldManager, trustConfig: trustConfig}
 
 			result, err := sut.Issue(credentialOptions, false, true)
 			assert.EqualError(t, err, "unable to store the issued credential: b00m!")
@@ -198,7 +198,7 @@ func Test_issuer_Issue(t *testing.T) {
 			mockPublisher.EXPECT().PublishCredential(gomock.Any(), true).Return(errors.New("b00m!"))
 			mockStore := NewMockStore(ctrl)
 			mockStore.EXPECT().StoreCredential(gomock.Any()).Return(nil)
-			sut := issuer{keyResolver: keyResolverMock, store: mockStore, publisher: mockPublisher, contextManager: contextManager, trustConfig: trustConfig}
+			sut := issuer{keyResolver: keyResolverMock, store: mockStore, publisher: mockPublisher, jsonldManager: jsonldManager, trustConfig: trustConfig}
 
 			result, err := sut.Issue(credentialOptions, true, true)
 			assert.EqualError(t, err, "unable to publish the issued credential: b00m!")
@@ -230,7 +230,7 @@ func TestNewIssuer(t *testing.T) {
 }
 
 func Test_issuer_buildRevocation(t *testing.T) {
-	contextManager := jsonld.TestContextManager(t)
+	jsonldManager := jsonld.NewTestJSONLDManager(t)
 
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -243,7 +243,7 @@ func Test_issuer_buildRevocation(t *testing.T) {
 
 		credentialID := ssi.MustParseURI("did:nuts:123#" + uuid.NewString())
 
-		sut := issuer{keyResolver: keyResolverMock, contextManager: contextManager}
+		sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager}
 		credentialToRevoke := vc.VerifiableCredential{
 			Issuer: issuerDID.URI(),
 			ID:     &credentialID,
@@ -267,7 +267,7 @@ func Test_issuer_buildRevocation(t *testing.T) {
 		revocationMap := map[string]interface{}{}
 		json.Unmarshal([]byte(revocationJSON), &revocationMap)
 
-		ldProof := signature.JSONWebSignature2020{ContextLoader: contextManager.DocumentLoader()}
+		ldProof := signature.JSONWebSignature2020{ContextLoader: jsonldManager.DocumentLoader()}
 		res, err := ldProof.CanonicalizeDocument(revocationMap)
 		assert.NoError(t, err)
 		expectedCanonicalForm := `_:c14n0 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://nuts.nl/credentials/v1#CredentialRevocation> .
@@ -286,7 +286,7 @@ func Test_issuer_Revoke(t *testing.T) {
 	issuerID := "did:nuts:123"
 	issuerURI := ssi.MustParseURI(issuerID)
 	issuerDID := did.MustParseDID(issuerID)
-	contextManager := jsonld.TestContextManager(t)
+	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	kid := ssi.MustParseURI(issuerID + "#123")
 	key := crypto.NewTestKey(kid.String())
 
@@ -319,10 +319,10 @@ func Test_issuer_Revoke(t *testing.T) {
 			publisher.EXPECT().PublishRevocation(gomock.Any()).Return(nil)
 
 			sut := issuer{
-				store:          storeWithActualCredential(ctrl),
-				keyResolver:    keyResolverWithKey(ctrl),
-				contextManager: contextManager,
-				publisher:      publisher,
+				store:         storeWithActualCredential(ctrl),
+				keyResolver:   keyResolverWithKey(ctrl),
+				jsonldManager: jsonldManager,
+				publisher:     publisher,
 			}
 
 			revocation, err := sut.Revoke(credentialURI)
@@ -367,10 +367,10 @@ func Test_issuer_Revoke(t *testing.T) {
 			publisher.EXPECT().PublishRevocation(gomock.Any()).Return(errors.New("foo"))
 
 			sut := issuer{
-				store:          storeWithActualCredential(ctrl),
-				keyResolver:    keyResolverWithKey(ctrl),
-				contextManager: contextManager,
-				publisher:      publisher,
+				store:         storeWithActualCredential(ctrl),
+				keyResolver:   keyResolverWithKey(ctrl),
+				jsonldManager: jsonldManager,
+				publisher:     publisher,
 			}
 
 			revocation, err := sut.Revoke(credentialURI)

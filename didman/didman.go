@@ -60,7 +60,7 @@ func (e ErrReferencedServiceNotAnEndpoint) Is(other error) bool {
 }
 
 type didman struct {
-	contextManager  jsonld.ContextManager
+	jsonldManager   jsonld.JSONLD
 	docResolver     types.DocResolver
 	serviceResolver doc.ServiceResolver
 	store           types.Store
@@ -69,14 +69,14 @@ type didman struct {
 }
 
 // NewDidmanInstance creates a new didman instance with services set
-func NewDidmanInstance(docResolver types.DocResolver, store types.Store, vdr types.VDR, vcr vcr.VCR, contextManager jsonld.ContextManager) Didman {
+func NewDidmanInstance(docResolver types.DocResolver, store types.Store, vdr types.VDR, vcr vcr.VCR, jsonldManager jsonld.JSONLD) Didman {
 	return &didman{
 		docResolver:     docResolver,
 		serviceResolver: doc.NewServiceResolver(docResolver),
 		store:           store,
 		vdr:             vdr,
 		vcr:             vcr,
-		contextManager:  contextManager,
+		jsonldManager:   jsonldManager,
 	}
 }
 

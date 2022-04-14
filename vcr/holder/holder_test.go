@@ -70,7 +70,7 @@ func TestHolder_BuildVP(t *testing.T) {
 	testCredential := vc.VerifiableCredential{}
 	_ = json.Unmarshal([]byte(testCredentialJSON), &testCredential)
 	key := vdr.TestMethodDIDAPrivateKey()
-	contextManager := jsonld.TestContextManager(t)
+	jsonldManager := jsonld.NewTestJSONLDManager(t)
 
 	t.Run("ok - one VC", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -82,7 +82,7 @@ func TestHolder_BuildVP(t *testing.T) {
 		keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(ssi.MustParseURI(kid), nil)
 		keyStore.EXPECT().Resolve(vdr.TestMethodDIDA.URI().String()).Return(key, nil)
 
-		holder := New(keyResolver, keyStore, nil, contextManager)
+		holder := New(keyResolver, keyStore, nil, jsonldManager)
 
 		options := proof.ProofOptions{}
 		resultingPresentation, err := holder.BuildVP([]vc.VerifiableCredential{testCredential}, options, vdr.TestDIDA, false)
@@ -100,7 +100,7 @@ func TestHolder_BuildVP(t *testing.T) {
 		keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(vdr.TestMethodDIDA.URI(), nil)
 		keyStore.EXPECT().Resolve(vdr.TestMethodDIDA.URI().String()).Return(key, nil)
 
-		holder := New(keyResolver, keyStore, nil, contextManager)
+		holder := New(keyResolver, keyStore, nil, jsonldManager)
 
 		options := proof.ProofOptions{}
 		resultingPresentation, err := holder.BuildVP([]vc.VerifiableCredential{testCredential, testCredential}, options, vdr.TestDIDA, false)
@@ -123,7 +123,7 @@ func TestHolder_BuildVP(t *testing.T) {
 			keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(ssi.MustParseURI(kid), nil)
 			keyStore.EXPECT().Resolve(vdr.TestMethodDIDA.URI().String()).Return(key, nil)
 
-			holder := New(keyResolver, keyStore, mockVerifier, contextManager)
+			holder := New(keyResolver, keyStore, mockVerifier, jsonldManager)
 
 			options := proof.ProofOptions{Created: created}
 			resultingPresentation, err := holder.BuildVP([]vc.VerifiableCredential{testCredential}, options, vdr.TestDIDA, true)
@@ -145,7 +145,7 @@ func TestHolder_BuildVP(t *testing.T) {
 			keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(ssi.MustParseURI(kid), nil)
 			keyStore.EXPECT().Resolve(vdr.TestMethodDIDA.URI().String()).Return(key, nil)
 
-			holder := New(keyResolver, keyStore, mockVerifier, contextManager)
+			holder := New(keyResolver, keyStore, mockVerifier, jsonldManager)
 
 			options := proof.ProofOptions{Created: created}
 			resultingPresentation, err := holder.BuildVP([]vc.VerifiableCredential{testCredential}, options, vdr.TestDIDA, true)
@@ -165,7 +165,7 @@ func TestHolder_BuildVP(t *testing.T) {
 			keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(ssi.MustParseURI(kid), nil)
 			keyStore.EXPECT().Resolve(vdr.TestMethodDIDA.URI().String()).Return(key, nil)
 
-			holder := New(keyResolver, keyStore, nil, contextManager)
+			holder := New(keyResolver, keyStore, nil, jsonldManager)
 
 			options := proof.ProofOptions{}
 			resultingPresentation, err := holder.BuildVP([]vc.VerifiableCredential{testCredential, testCredential}, options, nil, false)
@@ -183,7 +183,7 @@ func TestHolder_BuildVP(t *testing.T) {
 			keyResolver := types.NewMockKeyResolver(ctrl)
 			keyStore := crypto.NewMockKeyStore(ctrl)
 
-			holder := New(keyResolver, keyStore, nil, contextManager)
+			holder := New(keyResolver, keyStore, nil, jsonldManager)
 
 			options := proof.ProofOptions{}
 			resultingPresentation, err := holder.BuildVP([]vc.VerifiableCredential{testCredential, secondCredential}, options, nil, false)
@@ -201,7 +201,7 @@ func TestHolder_BuildVP(t *testing.T) {
 			keyResolver := types.NewMockKeyResolver(ctrl)
 			keyStore := crypto.NewMockKeyStore(ctrl)
 
-			holder := New(keyResolver, keyStore, nil, contextManager)
+			holder := New(keyResolver, keyStore, nil, jsonldManager)
 
 			options := proof.ProofOptions{}
 			resultingPresentation, err := holder.BuildVP([]vc.VerifiableCredential{testCredential, secondCredential}, options, nil, false)

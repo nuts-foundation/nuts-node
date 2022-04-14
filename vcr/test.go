@@ -51,7 +51,7 @@ func NewTestVCRInstance(t *testing.T) *vcr {
 		nil,
 		nil,
 		network.NewTestNetworkInstance(path.Join(testDirectory, "network")),
-		jsonld.TestContextManager(t),
+		jsonld.NewTestJSONLDManager(t),
 	).(*vcr)
 
 	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
@@ -86,8 +86,8 @@ func newMockContext(t *testing.T) mockContext {
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	docResolver := types.NewMockDocResolver(ctrl)
 	serviceResolver := doc.NewMockServiceResolver(ctrl)
-	contextManager := jsonld.TestContextManager(t)
-	vcr := NewVCRInstance(crypto, docResolver, keyResolver, tx, contextManager).(*vcr)
+	jsonldManager := jsonld.NewTestJSONLDManager(t)
+	vcr := NewVCRInstance(crypto, docResolver, keyResolver, tx, jsonldManager).(*vcr)
 	vcr.serviceResolver = serviceResolver
 	vcr.trustConfig = trust.NewConfig(path.Join(testDir, "trust.yaml"))
 	vcr.config.OverrideIssueAllPublic = false

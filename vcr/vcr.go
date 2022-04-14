@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/go-leia/v3"
 	"io/fs"
 	"os"
 	"path"
@@ -41,7 +42,6 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/go-leia/v3"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -64,7 +64,7 @@ var timeFunc = time.Now
 var noSync bool
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
-func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions, contextManager jsonld.ContextManager) VCR {
+func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions, jsonldManager jsonld.JSONLD) VCR {
 	r := &vcr{
 		config:          DefaultConfig(),
 		docResolver:     docResolver,
@@ -73,7 +73,7 @@ func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyRe
 		serviceResolver: doc.NewServiceResolver(docResolver),
 		network:         network,
 		registry:        concept.NewRegistry(),
-		contextManager:  contextManager,
+		jsonldManager:   jsonldManager,
 	}
 
 	return r
@@ -95,7 +95,7 @@ type vcr struct {
 	holder          holder.Holder
 	issuerStore     issuer.Store
 	verifierStore   verifier.Store
-	contextManager  jsonld.ContextManager
+	jsonldManager   jsonld.JSONLD
 }
 
 func (c *vcr) Registry() concept.Reader {
@@ -138,12 +138,12 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	c.trustConfig = trust.NewConfig(tcPath)
 
 	publisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
-	c.issuer = issuer.NewIssuer(c.issuerStore, publisher, c.docResolver, c.keyStore, c.contextManager, c.trustConfig)
-	c.verifier = verifier.NewVerifier(c.verifierStore, c.keyResolver, c.contextManager, c.trustConfig)
+	c.issuer = issuer.NewIssuer(c.issuerStore, publisher, c.docResolver, c.keyStore, c.jsonldManager, c.trustConfig)
+	c.verifier = verifier.NewVerifier(c.verifierStore, c.keyResolver, c.jsonldManager, c.trustConfig)
 
 	c.ambassador = NewAmbassador(c.network, c, c.verifier)
 
-	c.holder = holder.New(c.keyResolver, c.keyStore, c.verifier, c.contextManager)
+	c.holder = holder.New(c.keyResolver, c.keyStore, c.verifier, c.jsonldManager)
 
 	// load VC concept templates
 	if err = c.loadTemplates(); err != nil {
@@ -173,7 +173,7 @@ func (c *vcr) Start() error {
 	var err error
 
 	// setup DB connection
-	if c.store, err = leia.NewStore(c.credentialsDBPath(), leia.WithDocumentLoader(c.contextManager.DocumentLoader())); err != nil {
+	if c.store, err = leia.NewStore(c.credentialsDBPath(), leia.WithDocumentLoader(c.jsonldManager.DocumentLoader())); err != nil {
 		return err
 	}
 

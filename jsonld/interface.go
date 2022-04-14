@@ -23,8 +23,8 @@ import (
 	"github.com/piprate/json-gold/ld"
 )
 
-// ContextManager manages the different JSON-LD contexts. It helps in using the same loaded contexts over different engines.
-type ContextManager interface {
+// JSONLD defines the interface of a JSON utilities engine. It allows sharing instances of utils over engines.
+type JSONLD interface {
 	// DocumentLoader returns the JSON-LD DocumentLoader
 	DocumentLoader() ld.DocumentLoader
 }

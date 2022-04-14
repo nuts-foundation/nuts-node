@@ -11,31 +11,31 @@ import (
 	ld "github.com/piprate/json-gold/ld"
 )
 
-// MockContextManager is a mock of ContextManager interface.
-type MockContextManager struct {
+// MockJSONLD is a mock of JSONLD interface.
+type MockJSONLD struct {
 	ctrl     *gomock.Controller
-	recorder *MockContextManagerMockRecorder
+	recorder *MockJSONLDMockRecorder
 }
 
-// MockContextManagerMockRecorder is the mock recorder for MockContextManager.
-type MockContextManagerMockRecorder struct {
-	mock *MockContextManager
+// MockJSONLDMockRecorder is the mock recorder for MockJSONLD.
+type MockJSONLDMockRecorder struct {
+	mock *MockJSONLD
 }
 
-// NewMockContextManager creates a new mock instance.
-func NewMockContextManager(ctrl *gomock.Controller) *MockContextManager {
-	mock := &MockContextManager{ctrl: ctrl}
-	mock.recorder = &MockContextManagerMockRecorder{mock}
+// NewMockJSONLD creates a new mock instance.
+func NewMockJSONLD(ctrl *gomock.Controller) *MockJSONLD {
+	mock := &MockJSONLD{ctrl: ctrl}
+	mock.recorder = &MockJSONLDMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockContextManager) EXPECT() *MockContextManagerMockRecorder {
+func (m *MockJSONLD) EXPECT() *MockJSONLDMockRecorder {
 	return m.recorder
 }
 
 // DocumentLoader mocks base method.
-func (m *MockContextManager) DocumentLoader() ld.DocumentLoader {
+func (m *MockJSONLD) DocumentLoader() ld.DocumentLoader {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DocumentLoader")
 	ret0, _ := ret[0].(ld.DocumentLoader)
@@ -43,7 +43,7 @@ func (m *MockContextManager) DocumentLoader() ld.DocumentLoader {
 }
 
 // DocumentLoader indicates an expected call of DocumentLoader.
-func (mr *MockContextManagerMockRecorder) DocumentLoader() *gomock.Call {
+func (mr *MockJSONLDMockRecorder) DocumentLoader() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DocumentLoader", reflect.TypeOf((*MockContextManager)(nil).DocumentLoader))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DocumentLoader", reflect.TypeOf((*MockJSONLD)(nil).DocumentLoader))
 }

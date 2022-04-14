@@ -48,7 +48,7 @@ const contractValidity = 60 * time.Minute
 // Auth is the main struct of the Auth service
 type Auth struct {
 	config          Config
-	contextManager  jsonld.ContextManager
+	jsonldManager   jsonld.JSONLD
 	oauthClient     services.OAuthClient
 	contractNotary  services.ContractNotary
 	serviceResolver didman.CompoundServiceResolver
@@ -86,10 +86,10 @@ func (auth *Auth) ContractNotary() services.ContractNotary {
 }
 
 // NewAuthInstance accepts a Config with several Nuts Engines and returns an instance of Auth
-func NewAuthInstance(config Config, registry types.Store, vcr vcr.VCR, keyStore crypto.KeyStore, serviceResolver didman.CompoundServiceResolver, contextManager jsonld.ContextManager) *Auth {
+func NewAuthInstance(config Config, registry types.Store, vcr vcr.VCR, keyStore crypto.KeyStore, serviceResolver didman.CompoundServiceResolver, jsonldManager jsonld.JSONLD) *Auth {
 	return &Auth{
 		config:          config,
-		contextManager:  contextManager,
+		jsonldManager:   jsonldManager,
 		registry:        registry,
 		keyStore:        keyStore,
 		vcr:             vcr,
@@ -129,7 +129,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		AutoUpdateIrmaSchemas: auth.config.IrmaAutoUpdateSchemas,
 		ContractValidators:    auth.config.ContractValidators,
 		ContractValidity:      contractValidity,
-	}, auth.vcr, doc.KeyResolver{Store: auth.registry}, auth.keyStore, auth.contextManager)
+	}, auth.vcr, doc.KeyResolver{Store: auth.registry}, auth.keyStore, auth.jsonldManager)
 
 	if config.Strictmode && !auth.config.tlsEnabled() {
 		return errors.New("in strictmode TLS must be enabled")
@@ -163,7 +163,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		return err
 	}
 
-	auth.oauthClient = oauth.NewOAuthService(auth.registry, auth.vcr, auth.vcr, auth.serviceResolver, auth.keyStore, auth.contractNotary, auth.contextManager)
+	auth.oauthClient = oauth.NewOAuthService(auth.registry, auth.vcr, auth.vcr, auth.serviceResolver, auth.keyStore, auth.contractNotary, auth.jsonldManager)
 
 	if err := auth.oauthClient.Configure(auth.config.ClockSkew); err != nil {
 		return err

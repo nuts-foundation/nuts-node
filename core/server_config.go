@@ -198,9 +198,10 @@ func elemType(ty reflect.Type) (reflect.Type, bool) {
 }
 
 func unmarshalRecursive(path []string, config interface{}, configMap *koanf.Koanf) error {
-	if err := configMap.UnmarshalWithConf(strings.Join(path, "."), config, koanf.UnmarshalConf{
+	decoderConfig := koanf.UnmarshalConf{
 		FlatPaths: true,
-	}); err != nil {
+	}
+	if err := configMap.UnmarshalWithConf(strings.Join(path, "."), config, decoderConfig); err != nil {
 		return err
 	}
 

@@ -21,6 +21,7 @@ package proof
 import (
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"testing"
 	"time"
 
@@ -84,7 +85,7 @@ func TestLDProof_Verify(t *testing.T) {
 		return
 	}
 
-	contextLoader, err := signature.NewContextLoader(true)
+	contextLoader, err := jsonld.NewContextLoader(true, jsonld.ContextsConfig{})
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -176,7 +177,7 @@ func TestLDProof_Sign(t *testing.T) {
 
 	kid := "did:nuts:123#abc"
 	testKey := crypto.NewTestKey(kid)
-	contextLoader, _ := signature.NewContextLoader(false)
+	contextLoader, _ := jsonld.NewContextLoader(false, jsonld.DefaultContextConfig())
 
 	t.Run("sign and verify a document", func(t *testing.T) {
 		now := time.Now()

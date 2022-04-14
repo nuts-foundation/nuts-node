@@ -22,6 +22,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/piprate/json-gold/ld"
 )
 
@@ -41,7 +42,7 @@ func (s JSONWebSignature2020) Sign(doc []byte, key crypto.Key) ([]byte, error) {
 // Can be used for both the LD proof as the document. It requires the document to have a valid context.
 func (s JSONWebSignature2020) CanonicalizeDocument(doc interface{}) ([]byte, error) {
 
-	res, err := LDUtil{s.ContextLoader}.Canonicalize(doc)
+	res, err := jsonld.LDUtil{s.ContextLoader}.Canonicalize(doc)
 	if err != nil {
 		return nil, err
 	}
