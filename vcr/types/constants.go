@@ -47,8 +47,5 @@ var ErrInvalidPeriod = errors.New("credential not valid at given time")
 // VcDocumentType holds the content type used in network documents which contain Verifiable Credentials
 const VcDocumentType = "application/vc+json"
 
-// RevocationDocumentType holds the content type used in network documents which contain Revocation messages of credentials
-const RevocationDocumentType = "application/vc+json;type=revocation"
-
 // RevocationLDDocumentType holds the content type used in network documents which contain Revocation messages of credentials in JSON-LD form
 const RevocationLDDocumentType = "application/ld+json;type=revocation"

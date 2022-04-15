@@ -12,7 +12,6 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	go_did "github.com/nuts-foundation/go-did"
 	vc "github.com/nuts-foundation/go-did/vc"
-	credential "github.com/nuts-foundation/nuts-node/vcr/credential"
 	holder "github.com/nuts-foundation/nuts-node/vcr/holder"
 	issuer "github.com/nuts-foundation/nuts-node/vcr/issuer"
 	verifier "github.com/nuts-foundation/nuts-node/vcr/verifier"
@@ -128,20 +127,6 @@ func (m *MockWriter) StoreCredential(vc vc.VerifiableCredential, validAt *time.T
 func (mr *MockWriterMockRecorder) StoreCredential(vc, validAt interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreCredential", reflect.TypeOf((*MockWriter)(nil).StoreCredential), vc, validAt)
-}
-
-// StoreRevocation mocks base method.
-func (m *MockWriter) StoreRevocation(r credential.Revocation) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StoreRevocation", r)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// StoreRevocation indicates an expected call of StoreRevocation.
-func (mr *MockWriterMockRecorder) StoreRevocation(r interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreRevocation", reflect.TypeOf((*MockWriter)(nil).StoreRevocation), r)
 }
 
 // MockTrustManager is a mock of TrustManager interface.
@@ -356,20 +341,6 @@ func (m *MockVCR) StoreCredential(vc vc.VerifiableCredential, validAt *time.Time
 func (mr *MockVCRMockRecorder) StoreCredential(vc, validAt interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreCredential", reflect.TypeOf((*MockVCR)(nil).StoreCredential), vc, validAt)
-}
-
-// StoreRevocation mocks base method.
-func (m *MockVCR) StoreRevocation(r credential.Revocation) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StoreRevocation", r)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// StoreRevocation indicates an expected call of StoreRevocation.
-func (mr *MockVCRMockRecorder) StoreRevocation(r interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreRevocation", reflect.TypeOf((*MockVCR)(nil).StoreRevocation), r)
 }
 
 // Trust mocks base method.

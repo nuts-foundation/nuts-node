@@ -66,16 +66,6 @@ func TestValidateRevocation(t *testing.T) {
 			revocation.Type = []ssi.URI{}
 			assert.EqualError(t, ValidateRevocation(revocation), "validation failed: 'type' does not contain CredentialRevocation")
 		})
-	})
-
-	t.Run("old style revocations", func(t *testing.T) {
-		revocation := Revocation{}
-		jData, _ := os.ReadFile("../test/revocation.json")
-		json.Unmarshal(jData, &revocation)
-
-		t.Run("ok", func(t *testing.T) {
-			assert.NoError(t, ValidateRevocation(revocation))
-		})
 
 		t.Run("error - empty subject", func(t *testing.T) {
 			r := revocation

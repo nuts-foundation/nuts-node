@@ -338,16 +338,6 @@ func (c *vcr) Validate(credential vc.VerifiableCredential, allowUntrusted bool, 
 	return c.verifier.Verify(credential, allowUntrusted, checkSignature, validAt)
 }
 
-func (c *vcr) isTrusted(credential vc.VerifiableCredential) bool {
-	for _, t := range credential.Type {
-		if c.trustConfig.IsTrusted(t, credential.Issuer) {
-			return true
-		}
-	}
-
-	return false
-}
-
 // find only returns a VC from storage, it does not tell anything about validity
 func (c *vcr) find(ID ssi.URI) (vc.VerifiableCredential, error) {
 	credential := vc.VerifiableCredential{}

@@ -135,17 +135,7 @@ func (v *verifier) Validate(credentialToVerify vc.VerifiableCredential, at *time
 		return fmt.Errorf("unable to resolve valid signing key at given time: %w", err)
 	}
 
-	// Try first with the correct LDProof implementation
-	if err = ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: v.jsonldManager.DocumentLoader()}, pk); err != nil {
-		// If this fails, try the legacy suite:
-		legacyProof := proof.LegacyLDProof{}
-		if err := signedDocument.UnmarshalProofValue(&legacyProof); err != nil {
-			return err
-		}
-		return legacyProof.Verify(signedDocument.DocumentWithoutProof(), signature.LegacyNutsSuite{}, pk)
-	}
-	return err
-
+	return ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: v.jsonldManager.DocumentLoader()}, pk)
 }
 
 // Verify implements the verify interface.

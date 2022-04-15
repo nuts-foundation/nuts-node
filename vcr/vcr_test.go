@@ -30,13 +30,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"go.etcd.io/bbolt"
 
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/go-leia/v3"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -44,7 +44,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -231,14 +230,20 @@ func TestVcr_Validate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	issuer, _ := did.ParseDIDURL(subject.Issuer.String())
-
 	// oad pub key
 	pke := storage.PublicKeyEntry{}
 	pkeJSON, _ := os.ReadFile("test/public.json")
 	json.Unmarshal(pkeJSON, &pke)
 	var pk = new(ecdsa.PublicKey)
 	pke.JWK().Raw(pk)
+
+	issuer := did.MustParseDIDURL(subject.Issuer.String())
+	newMethod, err := did.NewVerificationMethod(issuer, ssi.JsonWebKey2020, issuer, pk)
+	if !assert.NoError(t, err) {
+		return
+	}
+	didDocument := did.Document{ID: issuer}
+	didDocument.AddAssertionMethod(newMethod)
 
 	now := time.Now()
 	timeFunc = func() time.Time {
@@ -253,10 +258,10 @@ func TestVcr_Validate(t *testing.T) {
 		ctx := newMockContext(t)
 		instance := ctx.vcr
 
-		ctx.docResolver.EXPECT().Resolve(*issuer, &types.ResolveMetadata{ResolveTime: &now, AllowDeactivated: false})
+		ctx.docResolver.EXPECT().Resolve(issuer, gomock.Any()).Return(&didDocument, nil, nil)
 		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, &now).Return(pk, nil)
 
-		err := instance.Validate(subject, true, true, &now)
+		err = instance.Validate(subject, true, true, &now)
 
 		assert.NoError(t, err)
 	})
@@ -318,69 +323,6 @@ func TestVcr_Validate(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
-
-//
-//func TestVcr_Find(t *testing.T) {
-//	testInstance := func(t2 *testing.T) mockContext {
-//		ctx := newMockContext(t2)
-//
-//		err := ctx.vcr.registry.Add(concept.ExampleConfig)
-//		if !assert.NoError(t2, err) {
-//			t2.Fatal(err)
-//		}
-//
-//		// reindex
-//		err = ctx.vcr.initIndices()
-//		if !assert.NoError(t2, err) {
-//			t2.Fatal(err)
-//		}
-//
-//		// add document
-//		doc := []byte(concept.TestCredential)
-//		err = ctx.vcr.store.JSONCollection(concept.ExampleType).Add([]leia.Document{doc})
-//		if !assert.NoError(t2, err) {
-//			t2.Fatal(err)
-//		}
-//
-//		return ctx
-//	}
-//
-//	vc := concept.TestVC()
-//	subject := "did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW"
-//
-//	t.Run("ok", func(t *testing.T) {
-//		ctx := testInstance(t)
-//		ctx.vcr.Trust(vc.Type[1], vc.Issuer)
-//
-//		conc, err := ctx.vcr.Get(concept.ExampleConcept, false, subject)
-//		if !assert.NoError(t, err) {
-//			return
-//		}
-//
-//		hairColour, err := conc.GetString("human.hairColour")
-//		if !assert.NoError(t, err) {
-//			return
-//		}
-//
-//		assert.Equal(t, "fair", hairColour)
-//	})
-//
-//	t.Run("error - unknown concept", func(t *testing.T) {
-//		ctx := testInstance(t)
-//		_, err := ctx.vcr.Get("unknown", false, subject)
-//
-//		assert.Error(t, err)
-//		assert.Equal(t, err, concept.ErrUnknownConcept)
-//	})
-//
-//	t.Run("error - not found", func(t *testing.T) {
-//		ctx := testInstance(t)
-//		_, err := ctx.vcr.Get(concept.ExampleConcept, false, "unknown")
-//
-//		assert.Error(t, err)
-//		assert.Equal(t, err, vcrTypes.ErrNotFound)
-//	})
-//}
 
 func TestVcr_Untrusted(t *testing.T) {
 	instance := NewTestVCRInstance(t)
