@@ -269,13 +269,14 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 			// Non-fatal error: other protocols may continue
 			continue
 		}
-		log.Logger().Debugf("%T: Opened gRPC stream (peer=%s)", prot, connection.Peer())
-		s.notifyObservers(connection.Peer(), protocol, transport.StateConnected)
+		peer := connection.Peer() // work with a copy of peer to avoid race condition due to disconnect() resetting it
+		log.Logger().Debugf("%T: Opened gRPC stream (peer=%s)", prot, peer)
+		s.notifyObservers(peer, protocol, transport.StateConnected)
 
 		go func() {
 			// Waits for the clientStream to be done (other side closed the stream), then we disconnect the connection on our side
 			<-clientStream.Context().Done()
-			s.notifyObservers(connection.Peer(), protocol, transport.StateDisconnected)
+			s.notifyObservers(peer, protocol, transport.StateDisconnected)
 			connection.disconnect()
 		}()
 

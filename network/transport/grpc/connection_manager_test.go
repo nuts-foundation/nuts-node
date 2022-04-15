@@ -169,11 +169,17 @@ func Test_grpcConnectionManager_Peers(t *testing.T) {
 		assert.Equal(t, transport.Peer{ID: "2"}, capturedPeer.Load())
 		assert.Equal(t, transport.StateConnected, capturedState.Load())
 
+		// Bug: peer ID is empty when race condition with disconnect() and notify observers occurs
+		// Explicitly disconnect to clear peer.
+		cm2.connections.list[0].disconnect()
+
 		cm2.Stop()
 
 		test.WaitFor(t, func() (bool, error) {
 			return capturedState.Load() == transport.StateDisconnected, nil
 		}, time.Second*2, "waiting for peer 2 observers")
+		assert.Equal(t, transport.Peer{ID: "2"}, capturedPeer.Load())
+		assert.Equal(t, transport.StateDisconnected, capturedState.Load())
 	})
 	t.Run("inbound stream triggers observer", func(t *testing.T) {
 		cm1, authenticator1, _, listener := create(t)
