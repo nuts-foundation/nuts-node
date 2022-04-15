@@ -20,14 +20,14 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vcr"
 	"strings"
+
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vcr"
+	api "github.com/nuts-foundation/nuts-node/vcr/api/v2"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-
-	"github.com/nuts-foundation/nuts-node/core"
-	api "github.com/nuts-foundation/nuts-node/vcr/api/v1"
 )
 
 // FlagSet contains flags relevant for VCR
