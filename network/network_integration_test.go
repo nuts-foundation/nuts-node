@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto"
 	"fmt"
+	"go.uber.org/goleak"
 	"hash/crc32"
 	"math/rand"
 	"path"
@@ -117,6 +118,10 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 }
 
 func TestNetworkIntegration_V2Gossip(t *testing.T) {
+	t.Cleanup(func() {
+		goleak.VerifyNone(t)
+	})
+
 	testDirectory := io.TestDirectory(t)
 	resetIntegrationTest()
 	key := nutsCrypto.NewTestKey("key")
@@ -434,6 +439,10 @@ func TestNetworkIntegration_OutboundConnectionReconnects(t *testing.T) {
 	}, defaultTimeout, "time-out while waiting for node 1 to reconnect to node 2") {
 		return
 	}
+
+	// Bug: outbound peer.Address is empty after reconnect
+	assert.NotEmpty(t, node1.connectionManager.Peers()[0].Address)
+	assert.NotEmpty(t, node1.connectionManager.Peers()[0].ID)
 }
 
 func resetIntegrationTest() {

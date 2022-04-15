@@ -23,6 +23,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/go-did/did"
 	"io"
 	"sync"
 	"sync/atomic"
@@ -129,8 +130,11 @@ func (mc *conn) disconnect() {
 	}
 	mc.outboxes = make(map[string]chan interface{})
 
-	// Reset peer ID, since when it reconnects it might have changed (due to a reboot)
-	mc.peer.Store(transport.Peer{})
+	// Reset peer ID, since when it reconnects it might have changed (due to a reboot). Also reset node DID because it has to be re-authenticated.
+	peer := mc.Peer()
+	peer.ID = ""
+	peer.NodeDID = did.DID{}
+	mc.peer.Store(peer)
 }
 
 func (mc *conn) waitUntilDisconnected() {
