@@ -24,9 +24,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-leia/v3"
 	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/vcr/concept"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
+	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -124,12 +126,12 @@ func TestVCR_Search(t *testing.T) {
 		assert.Len(t, searchResult, 1, "expected 1 results since the allowUntrusted flag is set")
 	})
 
-	// Todo: use ldproof revocation and issuer store after switch
 	t.Run("ok - revoked", func(t *testing.T) {
 		ctx, searchTerms := testInstance(t)
 		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
-		rev := []byte(concept.TestRevocation)
-		ctx.vcr.store.JSONCollection(revocationCollection).Add([]leia.Document{rev})
+		mockVerifier := verifier.NewMockVerifier(ctx.ctrl)
+		ctx.vcr.verifier = mockVerifier
+		mockVerifier.EXPECT().Verify(vc, true, false, gomock.Any()).Return(types.ErrRevoked)
 
 		creds, err := ctx.vcr.Search(reqCtx, searchTerms, true, nil)
 

@@ -21,22 +21,20 @@ package vcr
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-leia/v3"
 	"io/fs"
 	"os"
 	"path"
 	"strings"
 	"time"
 
+	"github.com/nuts-foundation/go-leia/v3"
+
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jws"
 	"gopkg.in/yaml.v2"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -44,11 +42,8 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vcr/assets"
-	"github.com/nuts-foundation/nuts-node/vcr/concept"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
@@ -72,7 +67,6 @@ func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyRe
 		keyResolver:     keyResolver,
 		serviceResolver: doc.NewServiceResolver(docResolver),
 		network:         network,
-		registry:        concept.NewRegistry(),
 		jsonldManager:   jsonldManager,
 	}
 
@@ -80,7 +74,6 @@ func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyRe
 }
 
 type vcr struct {
-	registry        concept.Registry
 	config          Config
 	store           leia.Store
 	keyStore        crypto.KeyStore
@@ -96,10 +89,6 @@ type vcr struct {
 	issuerStore     issuer.Store
 	verifierStore   verifier.Store
 	jsonldManager   jsonld.JSONLD
-}
-
-func (c *vcr) Registry() concept.Reader {
-	return c.registry
 }
 
 func (c vcr) Issuer() issuer.Issuer {
@@ -145,11 +134,6 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 
 	c.holder = holder.New(c.keyResolver, c.keyStore, c.verifier, c.jsonldManager)
 
-	// load VC concept templates
-	if err = c.loadTemplates(); err != nil {
-		return err
-	}
-
 	return c.trustConfig.Load()
 }
 
@@ -178,11 +162,6 @@ func (c *vcr) Start() error {
 	}
 
 	// init indices
-	if err = c.initIndices(); err != nil {
-		return err
-	}
-
-	// init indices
 	if err = c.initJSONLDIndices(); err != nil {
 		return err
 	}
@@ -205,32 +184,6 @@ func (c *vcr) Shutdown() error {
 	return c.store.Close()
 }
 
-// Deprecated: replaced by JSON-LD
-func (c *vcr) loadTemplates() error {
-	list, err := fs.Glob(assets.Assets, "**/*.config.yaml")
-	if err != nil {
-		return err
-	}
-
-	for _, f := range list {
-		bytes, err := assets.Assets.ReadFile(f)
-		if err != nil {
-			return err
-		}
-		config := concept.Config{}
-		err = yaml.Unmarshal(bytes, &config)
-		if err != nil {
-			return err
-		}
-
-		if err = c.registry.Add(config); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func whitespaceOrExactTokenizer(text string) (tokens []string) {
 	tokens = leia.WhiteSpaceTokenizer(text)
 	tokens = append(tokens, text)
@@ -240,55 +193,6 @@ func whitespaceOrExactTokenizer(text string) (tokens []string) {
 
 func (c *vcr) credentialCollection() leia.Collection {
 	return c.store.JSONLDCollection("credentials")
-}
-
-// Deprecated: replaced by JSON-LD indices
-func (c *vcr) initIndices() error {
-	for _, config := range c.registry.Concepts() {
-		collection := c.store.JSONCollection(config.CredentialType)
-		for _, index := range config.Indices {
-			var leiaParts []leia.FieldIndexer
-
-			for _, iParts := range index.Parts {
-				options := make([]leia.IndexOption, 0)
-				if iParts.Tokenizer != nil {
-					tokenizer := strings.ToLower(*iParts.Tokenizer)
-					switch tokenizer {
-					case "whitespaceorexact":
-						options = append(options, leia.TokenizerOption(whitespaceOrExactTokenizer))
-					case "whitespace":
-						options = append(options, leia.TokenizerOption(leia.WhiteSpaceTokenizer))
-					default:
-						return fmt.Errorf("unknown tokenizer %s for %s", *iParts.Tokenizer, config.CredentialType)
-					}
-				}
-				if iParts.Transformer != nil {
-					transformer := strings.ToLower(*iParts.Transformer)
-					switch transformer {
-					case "cologne":
-						options = append(options, leia.TransformerOption(concept.CologneTransformer))
-					case "lowercase":
-						options = append(options, leia.TransformerOption(leia.ToLower))
-					default:
-						return fmt.Errorf("unknown transformer %s for %s", *iParts.Transformer, config.CredentialType)
-					}
-				}
-
-				leiaParts = append(leiaParts, leia.NewFieldIndexer(leia.NewJSONPath(iParts.JSONPath), options...))
-			}
-
-			leiaIndex := collection.NewIndex(index.Name, leiaParts...)
-			log.Logger().Debugf("Adding index %s to %s using: %v", index.Name, config.CredentialType, leiaIndex)
-
-			if err := collection.AddIndex(leiaIndex); err != nil {
-				return err
-			}
-		}
-	}
-
-	// revocation indices
-	rIndex := c.revocationIndex()
-	return rIndex.AddIndex(rIndex.NewIndex("index_subject", leia.NewFieldIndexer(leia.NewJSONPath(credential.RevocationSubjectPath))))
 }
 
 func (c *vcr) loadJSONLDConfig() ([]indexConfig, error) {
@@ -344,7 +248,7 @@ func (c *vcr) initJSONLDIndices() error {
 					transformer := strings.ToLower(*iParts.Transformer)
 					switch transformer {
 					case "cologne":
-						options = append(options, leia.TransformerOption(concept.CologneTransformer))
+						options = append(options, leia.TransformerOption(CologneTransformer))
 					case "lowercase":
 						options = append(options, leia.TransformerOption(leia.ToLower))
 					default:
@@ -372,80 +276,6 @@ func (c *vcr) Name() string {
 
 func (c *vcr) Config() interface{} {
 	return &c.config
-}
-
-// Search for matching credentials based upon a query. It returns an empty list if no matches have been found.
-// The optional resolveTime will Search for credentials at that point in time.
-func (c *vcr) SearchLegacy(ctx context.Context, query concept.Query, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
-	//transform query to leia query, for each template a query is returned
-	queries := c.convert(query)
-
-	var VCs = make([]vc.VerifiableCredential, 0)
-	for vcType, q := range queries {
-		docs, err := c.store.JSONCollection(vcType).Find(ctx, q)
-		if err != nil {
-			return nil, err
-		}
-		for _, doc := range docs {
-			foundCredential := vc.VerifiableCredential{}
-			err = json.Unmarshal(doc, &foundCredential)
-			if err != nil {
-				return nil, fmt.Errorf("unable to parse credential from db: %w", err)
-			}
-
-			if err = c.Validate(foundCredential, allowUntrusted, false, resolveTime); err == nil {
-				VCs = append(VCs, foundCredential)
-			}
-		}
-	}
-
-	return VCs, nil
-}
-
-func (c *vcr) Issue(template vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
-	if len(template.Type) != 1 {
-		return nil, errors.New("can only issue credential with 1 type")
-	}
-	templateType := template.Type[0]
-	templateTypeString := templateType.String()
-	conceptConfig := c.registry.FindByType(templateTypeString)
-	if conceptConfig == nil {
-		if c.config.strictMode {
-			return nil, errors.New("cannot issue non-predefined credential types in strict mode")
-		}
-		// non-strictmode, add the credential type to the registry
-		conceptConfig = &concept.Config{
-			Concept:        templateTypeString,
-			CredentialType: templateTypeString,
-		}
-		c.registry.Add(*conceptConfig)
-	}
-
-	template.Context = append(template.Context, *credential.NutsContextURI)
-	verifiableCredential, err := c.issuer.Issue(template, true, c.config.OverrideIssueAllPublic || conceptConfig.Public)
-
-	if err != nil {
-		return nil, err
-	}
-
-	// find issuer
-	issuerDID, err := did.ParseDID(verifiableCredential.Issuer.String())
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse issuer: %w", err)
-	}
-
-	if !c.trustConfig.IsTrusted(templateType, issuerDID.URI()) {
-		log.Logger().WithFields(map[string]interface{}{"did": issuerDID.String(), "credential.Type": templateType}).
-			Debugf("Issuer not yet trusted, adding trust for DID.")
-		if err := c.Trust(templateType, issuerDID.URI()); err != nil {
-			return verifiableCredential, fmt.Errorf("failed to trust issuer after issuing VC (did=%s,type=%s): %w", *issuerDID, templateType, err)
-		}
-	} else {
-		log.Logger().WithFields(map[string]interface{}{"did": issuerDID.String(), "credential.Type": templateType}).
-			Debugf("Issuer already trusted.")
-	}
-
-	return verifiableCredential, nil
 }
 
 func (c *vcr) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {
@@ -495,29 +325,12 @@ func (c *vcr) Validate(credential vc.VerifiableCredential, allowUntrusted bool, 
 		validAt = &now
 	}
 
-	// TODO: to be removed with V1 API
-	revoked, err := c.isRevoked(*credential.ID)
-	if revoked {
-		return types.ErrRevoked
-	}
-	if err != nil {
-		return err
-	}
-
 	if checkSignature {
 		// check if the issuer was valid at the given time. (not deactivated, or deactivated controller)
 		issuerDID, _ := did.ParseDID(credential.Issuer.String())
-		_, _, err = c.docResolver.Resolve(*issuerDID, &vdr.ResolveMetadata{ResolveTime: validAt, AllowDeactivated: false})
+		_, _, err := c.docResolver.Resolve(*issuerDID, &vdr.ResolveMetadata{ResolveTime: validAt, AllowDeactivated: false})
 		if err != nil {
 			return fmt.Errorf("could not check validity of signing key: %w", err)
-		}
-	}
-
-	// TODO: to be removed with V1 API
-	if !allowUntrusted {
-		trusted := c.isTrusted(credential)
-		if !trusted {
-			return types.ErrUntrusted
 		}
 	}
 
@@ -561,19 +374,6 @@ func (c *vcr) find(ID ssi.URI) (vc.VerifiableCredential, error) {
 	return credential, types.ErrNotFound
 }
 
-// Revoke checks if the credential is already revoked, if not, it instructs the issuer role to revoke the credential.
-func (c *vcr) Revoke(credentialID ssi.URI) (*credential.Revocation, error) {
-	isRevoked, err := c.verifier.IsRevoked(credentialID)
-	if err != nil {
-		return nil, fmt.Errorf("error while checking revocation status: %w", err)
-	}
-	if isRevoked {
-		return nil, core.PreconditionFailedError("credential already revoked")
-	}
-
-	return c.issuer.Revoke(credentialID)
-}
-
 func (c *vcr) Trust(credentialType ssi.URI, issuer ssi.URI) error {
 	err := c.trustConfig.AddTrust(credentialType, issuer)
 	if err != nil {
@@ -591,17 +391,7 @@ func (c *vcr) Untrust(credentialType ssi.URI, issuer ssi.URI) error {
 }
 
 func (c *vcr) Trusted(credentialType ssi.URI) ([]ssi.URI, error) {
-	concepts := c.registry.Concepts()
-
-	for _, concept := range concepts {
-		if concept.CredentialType == credentialType.String() {
-			return c.trustConfig.List(credentialType), nil
-		}
-	}
-
-	log.Logger().Warnf("No credential with type %s configured", credentialType.String())
-
-	return nil, types.ErrInvalidCredential
+	return c.trustConfig.List(credentialType), nil
 }
 
 func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
@@ -611,11 +401,10 @@ func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
 		trustMap[trusted.String()] = true
 	}
 
-	// match all keys
-	query := leia.New(leia.Prefix(leia.NewJSONPath(concept.IssuerField), leia.MustParseScalar("")))
+	// check all issued VCs
+	query := leia.New(leia.NotNil(leia.NewIRIPath(jsonld.CredentialIssuerPath...)))
 
-	// use type specific collection
-	collection := c.store.JSONCollection(credentialType.String())
+	collection := c.credentialCollection()
 
 	// for each key: add to untrusted if not present in trusted
 	err := collection.IndexIterate(query, func(key []byte, value []byte) error {
@@ -641,167 +430,4 @@ func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
 	}
 
 	return untrusted, nil
-}
-
-func (c *vcr) Get(conceptName string, allowUntrusted bool, subject string) (concept.Concept, error) {
-	q, err := c.Registry().QueryFor(conceptName)
-	if err != nil {
-		return nil, err
-	}
-
-	q.AddClause(concept.Eq(credential.CredentialSubjectPath, subject))
-
-	ctx, cancel := context.WithTimeout(context.Background(), maxFindExecutionTime)
-	defer cancel()
-	// finding a VC that backs a concept always occurs in the present, so no resolveTime needs to be passed.
-	vcs, err := c.SearchLegacy(ctx, q, allowUntrusted, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(vcs) == 0 {
-		return nil, types.ErrNotFound
-	}
-
-	// multiple valids, use first one
-	return c.Registry().Transform(conceptName, vcs[0])
-}
-
-func (c *vcr) SearchConcept(ctx context.Context, conceptName string, allowUntrusted bool, queryParams map[string]string) ([]concept.Concept, error) {
-	query, err := c.registry.QueryFor(conceptName)
-	if err != nil {
-		return nil, err
-	}
-
-	for key, value := range queryParams {
-		query.AddClause(concept.Prefix(key, value))
-	}
-
-	results, err := c.SearchLegacy(ctx, query, allowUntrusted, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var transformedResults = make([]concept.Concept, len(results))
-	for i, result := range results {
-		transformedResult, err := c.registry.Transform(conceptName, result)
-		if err != nil {
-			return nil, err
-		}
-		transformedResults[i] = transformedResult
-	}
-	return transformedResults, nil
-}
-
-func (c *vcr) verifyRevocation(r credential.Revocation) error {
-	// it must have valid content
-	if err := credential.ValidateRevocation(r); err != nil {
-		return err
-	}
-
-	// issuer must be the same as vc issuer
-	subject := r.Subject
-	subject.Fragment = ""
-	if subject != r.Issuer {
-		return errors.New("issuer of revocation is not the same as issuer of credential")
-	}
-
-	// create correct challenge for verification
-	payload := generateRevocationChallenge(r)
-
-	// extract proof, can't fail, already done in generateRevocationChallenge
-	splittedJws := strings.Split(r.Proof.Jws, "..")
-	if len(splittedJws) != 2 {
-		return errors.New("invalid 'jws' value in proof")
-	}
-	sig, err := base64.RawURLEncoding.DecodeString(splittedJws[1])
-	if err != nil {
-		return err
-	}
-
-	// check if key is of issuer
-	vm := r.Proof.VerificationMethod
-	vm.Fragment = ""
-	if vm != r.Issuer {
-		return errors.New("verification method is not of issuer")
-	}
-
-	// find key
-	pk, err := c.keyResolver.ResolveSigningKey(r.Proof.VerificationMethod.String(), &r.Date)
-	if err != nil {
-		return err
-	}
-
-	// the proof must be correct
-	verifier, _ := jws.NewVerifier(jwa.ES256)
-	// the jws lib can't do this for us, so we concat hdr with payload for verification
-	challenge := fmt.Sprintf("%s.%s", splittedJws[0], payload)
-	if err = verifier.Verify([]byte(challenge), sig, pk); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (c *vcr) isRevoked(ID ssi.URI) (bool, error) {
-	qp := leia.Eq(leia.NewJSONPath(credential.RevocationSubjectPath), leia.MustParseScalar(ID.String()))
-	q := leia.New(qp)
-
-	gIndex := c.revocationIndex()
-	ctx, cancel := context.WithTimeout(context.Background(), maxFindExecutionTime)
-	defer cancel()
-	docs, err := gIndex.Find(ctx, q)
-	if err != nil {
-		return false, err
-	}
-
-	if len(docs) >= 1 {
-		return true, nil
-	}
-
-	return false, nil
-}
-
-// convert returns a map of credential type to query
-// credential type is then used as collection input
-func (c *vcr) convert(query concept.Query) map[string]leia.Query {
-	var qs = make(map[string]leia.Query, 0)
-
-	for _, tq := range query.Parts() {
-		var q leia.Query
-		for _, clause := range tq.Clauses {
-			var qp leia.QueryPart
-
-			switch clause.Type() {
-			case concept.EqType:
-				qp = leia.Eq(leia.NewJSONPath(clause.Key()), leia.MustParseScalar(clause.Seek()))
-			case concept.PrefixType:
-				qp = leia.Prefix(leia.NewJSONPath(clause.Key()), leia.MustParseScalar(clause.Seek()))
-			default:
-				qp = leia.Range(leia.NewJSONPath(clause.Key()), leia.MustParseScalar(clause.Seek()), leia.MustParseScalar(clause.Match()))
-			}
-
-			q = q.And(qp)
-		}
-		qs[tq.CredentialType()] = q
-	}
-
-	return qs
-}
-
-func generateRevocationChallenge(r credential.Revocation) []byte {
-	// without JWS
-	proof := r.Proof.Proof
-
-	// payload
-	r.Proof = nil
-	payload, _ := json.Marshal(r)
-
-	// proof
-	prJSON, _ := json.Marshal(proof)
-
-	sums := append(hash.SHA256Sum(prJSON).Slice(), hash.SHA256Sum(payload).Slice()...)
-	tbs := base64.RawURLEncoding.EncodeToString(sums)
-
-	return []byte(tbs)
 }

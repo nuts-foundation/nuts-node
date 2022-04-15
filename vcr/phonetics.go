@@ -17,35 +17,19 @@
  *
  */
 
-package concept
+package vcr
 
 import (
-	"testing"
-
-	vc2 "github.com/nuts-foundation/go-did/vc"
-	"github.com/stretchr/testify/assert"
+	gophonetics "github.com/Regis24GmbH/go-phonetics"
+	"github.com/nuts-foundation/go-leia/v3"
 )
 
-func TestConfig_transform(t *testing.T) {
-	t.Run("without template raw VC is returned", func(t *testing.T) {
-		config := Config{}
-		vc := vc2.VerifiableCredential{
-			CredentialSubject: []interface{}{
-				map[string]string{"key": "value"},
-			},
-		}
-
-		transformed, err := config.transform(vc)
-
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		subject, ok := transformed["credentialSubject"].(map[string]interface{})
-		if !assert.True(t, ok) {
-			return
-		}
-
-		assert.Equal(t, "value", subject["key"])
-	})
+// CologneTransformer is a go-leia compatible function for generating the phonetic representation of a string.
+func CologneTransformer(scalar leia.Scalar) leia.Scalar {
+	switch v := scalar.(type) {
+	case leia.StringScalar:
+		return leia.MustParseScalar(gophonetics.NewPhoneticCode(string(v.Bytes())))
+	default:
+		return scalar
+	}
 }

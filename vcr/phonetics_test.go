@@ -17,21 +17,28 @@
  *
  */
 
-package concept
+package vcr
 
-import "strings"
+import (
+	"testing"
 
-func max(x int, y int) int {
-	if x > y {
-		return x
+	"github.com/nuts-foundation/go-leia/v3"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestCologneTransformer(t *testing.T) {
+	cases := []struct {
+		given    string
+		expected string
+	}{
+		{"Ziekenhuis", "8468"},
+		{"ziek", "84"},
+		{"Zorgcentrum", "87486276"},
+		{"zorggroep", "87471"},
 	}
-	return y
-}
 
-func joinPath(currentPath string, additional string) string {
-	if currentPath == "" {
-		return additional
+	for _, testCase := range cases {
+		result := CologneTransformer(leia.MustParseScalar(testCase.given))
+		assert.Equal(t, testCase.expected, string(result.Bytes()))
 	}
-
-	return strings.Join([]string{currentPath, additional}, ".")
 }
