@@ -8,7 +8,6 @@ Below you can discover the Nuts Node APIs and download their OpenAPI specificati
 - `Common (required by others) <../_static/common/error_response.yaml>`_
 - `DID Manager <../_static/didman/v1.yaml>`_
 - `Crypto <../_static/crypto/v1.yaml>`_
-- `Verifiable Credential Registry (v1, deprecated: please use v2) <../_static/vcr/v1.yaml>`_
 - `Verifiable Credential Registry (v2) <../_static/vcr/v2.yaml>`_
 - `Verifiable Data Registry <../_static/vdr/v1.yaml>`_
 - `Network <../_static/network/v1.yaml>`_

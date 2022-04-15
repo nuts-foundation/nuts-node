@@ -33,25 +33,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 )
 
-// ConceptFinder can resolve VC backed concepts for a DID.
-type ConceptFinder interface {
-	// Get returns the requested concept as concept.Concept for the subject or ErrNotFound
-	// It also returns untrusted credentials when allowUntrusted == true
-	Get(conceptName string, allowUntrusted bool, subject string) (concept.Concept, error)
-
-	// SearchConcept returns matching concepts based upon a query. It returns an empty list if no matches have been found.
-	// It also returns untrusted credentials when allowUntrusted == true
-	// a context must be passed to prevent long-running queries
-	SearchConcept(ctx context.Context, conceptName string, allowUntrusted bool, query map[string]string) ([]concept.Concept, error)
-}
-
 // Finder is the VCR interface for searching VCs
 type Finder interface {
-	// SearchLegacy for matching VCs based upon a query. It returns an empty list if no matches have been found.
-	// It also returns untrusted credentials when allowUntrusted == true
-	// a context must be passed to prevent long-running queries
-	SearchLegacy(ctx context.Context, query concept.Query, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error)
-
 	// Search for matching VCs based upon a query. It returns an empty list if no matches have been found.
 	// It also returns untrusted credentials when allowUntrusted == true
 	// a context must be passed to prevent long-running queries
@@ -108,17 +91,7 @@ type VCR interface {
 	Holder() holder.Holder
 	Verifier() verifier.Verifier
 
-	// Issue creates and publishes a new VC.
-	// An optional expirationDate can be given.
-	// VCs are stored when the network has successfully published them.
-	Issue(vcToIssue vc.VerifiableCredential) (*vc.VerifiableCredential, error)
-	// Revoke a credential based on its ID, the Issuer will be resolved automatically.
-	// The statusDate will be set to the current time.
-	// It returns an error if the credential, issuer or private key can not be found.
-	Revoke(ID ssi.URI) (*credential.Revocation, error)
-
 	Finder
-	ConceptFinder
 	Resolver
 	TrustManager
 	Validator

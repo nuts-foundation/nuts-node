@@ -467,7 +467,7 @@ func TestWrapper_RevokeVC(t *testing.T) {
 			defer testContext.ctrl.Finish()
 
 			expectedRevocation := &Revocation{Subject: credentialURI}
-			testContext.vcr.EXPECT().Revoke(credentialURI).Return(expectedRevocation, nil)
+			testContext.mockIssuer.EXPECT().Revoke(credentialURI).Return(expectedRevocation, nil)
 			testContext.echo.EXPECT().JSON(http.StatusOK, expectedRevocation)
 
 			err := testContext.client.RevokeVC(testContext.echo, credentialID)
@@ -478,7 +478,7 @@ func TestWrapper_RevokeVC(t *testing.T) {
 			testContext := newMockContext(t)
 			defer testContext.ctrl.Finish()
 
-			testContext.vcr.EXPECT().Revoke(credentialURI).Return(nil, errors.New("credential not found"))
+			testContext.mockIssuer.EXPECT().Revoke(credentialURI).Return(nil, errors.New("credential not found"))
 			err := testContext.client.RevokeVC(testContext.echo, credentialID)
 			assert.EqualError(t, err, "credential not found")
 		})
