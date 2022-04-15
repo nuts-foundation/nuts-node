@@ -112,7 +112,7 @@ func TestConnectionList_Diagnostics(t *testing.T) {
 		connectionB, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "b"}, nil)
 		connectionB.(*conn).ctx = context.Background() // simulate connection being active
 		connectionC, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "c", Address: "localhost:5555"}, grpc.DialContext)
-		connectionC.startConnecting("C", nil, func(grpcConn *grpc.ClientConn) bool {
+		connectionC.startConnecting("C", nil, nil, func(grpcConn *grpc.ClientConn) bool {
 			return false
 		})
 		defer connectionC.stopConnecting()

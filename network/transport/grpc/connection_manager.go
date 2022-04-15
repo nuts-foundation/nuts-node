@@ -23,6 +23,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"go.etcd.io/bbolt"
 	"net"
 	"sync"
 
@@ -70,7 +71,7 @@ func (s fatalError) Is(other error) bool {
 }
 
 // NewGRPCConnectionManager creates a new ConnectionManager that accepts/creates connections which communicate using the given protocols.
-func NewGRPCConnectionManager(config Config, nodeDIDResolver transport.NodeDIDResolver, authenticator Authenticator, protocols ...transport.Protocol) transport.ConnectionManager {
+func NewGRPCConnectionManager(config Config, grpcDB *bbolt.DB, nodeDIDResolver transport.NodeDIDResolver, authenticator Authenticator, protocols ...transport.Protocol) transport.ConnectionManager {
 	var grpcProtocols []Protocol
 	for _, curr := range protocols {
 		// For now, only gRPC protocols are supported
@@ -88,6 +89,7 @@ func NewGRPCConnectionManager(config Config, nodeDIDResolver transport.NodeDIDRe
 		grpcServerMutex: &sync.Mutex{},
 		listenerCreator: config.listener,
 		dialer:          config.dialer,
+		db:              grpcDB,
 	}
 	cm.ctx, cm.ctxCancel = context.WithCancel(context.Background())
 	return cm
@@ -109,6 +111,7 @@ type grpcConnectionManager struct {
 	nodeDIDResolver  transport.NodeDIDResolver
 	stopCRLValidator func()
 	observers        []transport.StreamStateObserverFunc
+	db               *bbolt.DB
 }
 
 func (s *grpcConnectionManager) Start() error {
@@ -441,7 +444,8 @@ func (s *grpcConnectionManager) startTracking(address string, connection Connect
 		}
 	}
 
-	connection.startConnecting(address, tlsConfig, func(grpcConn *grpc.ClientConn) bool {
+	backoff := NewPersistedBackoff(s.db, address, defaultBackoff())
+	connection.startConnecting(address, backoff, tlsConfig, func(grpcConn *grpc.ClientConn) bool {
 		err := s.openOutboundStreams(connection, grpcConn)
 		if err != nil {
 			log.Logger().Errorf("Error while setting up outbound gRPC streams, disconnecting (peer=%s): %v", connection.Peer(), err)

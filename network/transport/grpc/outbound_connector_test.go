@@ -31,24 +31,27 @@ import (
 
 func Test_connector_tryConnect(t *testing.T) {
 	serverConfig := NewConfig(fmt.Sprintf("localhost:%d", test.FreeTCPPort()), "server")
-	cm := NewGRPCConnectionManager(serverConfig, &TestNodeDIDResolver{}, nil)
+	cm := NewGRPCConnectionManager(serverConfig, createBBoltDB(t), &TestNodeDIDResolver{}, nil)
 	if !assert.NoError(t, cm.Start()) {
 		return
 	}
 	defer cm.Stop()
 
+	bo := &trackingBackoff{}
 	connector := createOutboundConnector(serverConfig.listenAddress, grpc.DialContext, nil, func() bool {
 		return false
-	}, nil)
+	}, nil, bo)
 	grpcConn, err := connector.tryConnect()
 	assert.NoError(t, err)
 	assert.NotNil(t, grpcConn)
 	assert.Equal(t, uint32(1), connector.stats().Attempts)
+	assert.Equal(t, 1, bo.backoffCount)
 }
 
 func Test_connector_start(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		connected := make(chan struct{}, 1)
+		bo := &trackingBackoff{mux: &sync.Mutex{}}
 		connector := createOutboundConnector("foo", func(_ context.Context, _ string, _ ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
 			return &grpc.ClientConn{}, nil
 		}, nil, func() bool {
@@ -56,9 +59,7 @@ func Test_connector_start(t *testing.T) {
 		}, func(_ *grpc.ClientConn) bool {
 			connected <- struct{}{}
 			return true
-		})
-		bo := &trackingBackoff{mux: &sync.Mutex{}}
-		connector.backoff = bo
+		}, bo)
 		connector.connectedBackoff = func(_ context.Context) {
 			// nothing
 		}
@@ -75,10 +76,11 @@ func Test_connector_start(t *testing.T) {
 	})
 	t.Run("not connecting when already connected", func(t *testing.T) {
 		calls := make(chan struct{}, 10)
+		bo := &trackingBackoff{mux: &sync.Mutex{}}
 		connector := createOutboundConnector("foo", nil, nil, func() bool {
 			calls <- struct{}{}
 			return false
-		}, nil)
+		}, nil, bo)
 		connector.connectedBackoff = func(_ context.Context) {
 			// nothing
 		}
@@ -91,15 +93,14 @@ func Test_connector_start(t *testing.T) {
 		}
 	})
 	t.Run("backoff when callback fails", func(t *testing.T) {
+		bo := &trackingBackoff{mux: &sync.Mutex{}}
 		connector := createOutboundConnector("foo", func(_ context.Context, _ string, _ ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
 			return &grpc.ClientConn{}, nil
 		}, nil, func() bool {
 			return true
 		}, func(_ *grpc.ClientConn) bool {
 			return false
-		})
-		bo := &trackingBackoff{mux: &sync.Mutex{}}
-		connector.backoff = bo
+		}, bo)
 		connector.connectedBackoff = func(_ context.Context) {
 			// nothing
 		}
@@ -122,13 +123,17 @@ type trackingBackoff struct {
 	mux          *sync.Mutex
 }
 
+func (t *trackingBackoff) Value() time.Duration {
+	return 0
+}
+
 func (t *trackingBackoff) counts() (int, int) {
 	t.mux.Lock()
 	defer t.mux.Unlock()
 	return t.resetCount, t.backoffCount
 }
 
-func (t *trackingBackoff) Reset() {
+func (t *trackingBackoff) Reset(_ time.Duration) {
 	t.mux.Lock()
 	defer t.mux.Unlock()
 	t.resetCount++

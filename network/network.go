@@ -23,6 +23,8 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"os"
+	"path"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -180,8 +182,13 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		} else {
 			authenticator = grpc.NewTLSAuthenticator(doc.NewServiceResolver(n.didDocumentResolver))
 		}
+		grpcDB, err := bbolt.Open(path.Join(config.Datadir, "network", "connections.db"), os.ModePerm, nil)
+		if err != nil {
+			return fmt.Errorf("failed to open gRPC database: %w", err)
+		}
 		n.connectionManager = grpc.NewGRPCConnectionManager(
 			grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...),
+			grpcDB,
 			n.nodeDIDResolver,
 			authenticator,
 			n.protocols...,

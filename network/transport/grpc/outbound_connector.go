@@ -33,10 +33,10 @@ import (
 
 type dialer func(ctx context.Context, target string, opts ...grpcLib.DialOption) (conn *grpcLib.ClientConn, err error)
 
-func createOutboundConnector(address string, dialer dialer, tlsConfig *tls.Config, shouldConnect func() bool, connectedCallback func(conn *grpcLib.ClientConn) bool) *outboundConnector {
+func createOutboundConnector(address string, dialer dialer, tlsConfig *tls.Config, shouldConnect func() bool, connectedCallback func(conn *grpcLib.ClientConn) bool, backoff Backoff) *outboundConnector {
 	var attempts uint32
 	return &outboundConnector{
-		backoff:           defaultBackoff(),
+		backoff:           backoff,
 		address:           address,
 		dialer:            dialer,
 		tlsConfig:         tlsConfig,
@@ -88,7 +88,7 @@ func (c *outboundConnector) start() {
 					err = errors.New("protocol connection failure")
 				} else {
 					// Connection was OK, but now disconnected
-					c.backoff.Reset()
+					c.backoff.Reset(0)
 
 					// When the peer's reconnection timing is very close to the local node's (because they're running the same software),
 					// they might reconnect to each other at the same time after a disconnect.
