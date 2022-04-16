@@ -74,6 +74,7 @@ type Network struct {
 	decrypter              crypto.Decrypter
 	nodeDIDResolver        transport.NodeDIDResolver
 	didDocumentFinder      types.DocFinder
+	connectionsDB          *bbolt.DB
 }
 
 // Walk walks the DAG starting at the root, passing every transaction to `visitor`.
@@ -182,13 +183,13 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		} else {
 			authenticator = grpc.NewTLSAuthenticator(doc.NewServiceResolver(n.didDocumentResolver))
 		}
-		grpcDB, err := bbolt.Open(path.Join(config.Datadir, "network", "connections.db"), os.ModePerm, nil)
+		n.connectionsDB, err = bbolt.Open(path.Join(config.Datadir, "network", "connections.db"), os.ModePerm, nil)
 		if err != nil {
 			return fmt.Errorf("failed to open gRPC database: %w", err)
 		}
 		n.connectionManager = grpc.NewGRPCConnectionManager(
 			grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...),
-			grpcDB,
+			n.connectionsDB,
 			n.nodeDIDResolver,
 			authenticator,
 			n.protocols...,
@@ -475,7 +476,7 @@ func (n *Network) Shutdown() error {
 		n.state = nil
 	}
 
-	return nil
+	return n.connectionsDB.Close()
 }
 
 // Diagnostics collects and returns diagnostics for the Network engine.

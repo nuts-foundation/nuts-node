@@ -26,7 +26,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/test/io"
 	v1 "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/goleak"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -124,8 +123,6 @@ func stopNode(t *testing.T, ctx context.Context) {
 	_ = syscall.Kill(syscall.Getpid(), syscall.SIGINT)
 	<-ctx.Done()
 	t.Log("Nuts node shut down successfully.")
-
-	goleak.VerifyNone(t)
 }
 
 func startServer(opts map[string]string, exitCallback func()) context.Context {
