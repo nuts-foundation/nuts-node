@@ -73,6 +73,9 @@ func (c *outboundConnector) start() {
 	cancelCtx, c.cancelFunc = context.WithCancel(context.Background())
 	c.stopped.Store(false)
 	go func() {
+		// Take into account initial backoff
+		println("Initial backoff", c.backoff.Value().String())
+		sleepWithCancel(cancelCtx, c.backoff.Value())
 		for {
 			if c.stopped.Load().(bool) {
 				return

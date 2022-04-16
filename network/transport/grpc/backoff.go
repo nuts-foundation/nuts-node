@@ -104,8 +104,13 @@ func NewPersistedBackoff(db *bbolt.DB, peerAddress string, underlying Backoff) B
 		db:          db,
 		underlying:  underlying,
 	}
-	initialValue := b.read()
-	b.underlying.Reset(initialValue)
+	valueAsTimestamp := b.read()
+	if valueAsTimestamp.Before(time.Now()) {
+		// Backoff timestamp in the past, reset it to 0 (no initial backoff)
+		b.underlying.Reset(0)
+	} else {
+		b.underlying.Reset(time.Now().Sub(valueAsTimestamp))
+	}
 	return b
 }
 
@@ -120,14 +125,15 @@ func (p persistedBackoff) Backoff() time.Duration {
 	return b
 }
 
-func (p persistedBackoff) write(value time.Duration) {
+func (p persistedBackoff) write(backoff time.Duration) {
+	timestampAfterBackoff := time.Now().Add(backoff).Unix()
 	err := p.db.Update(func(tx *bbolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte("backoff"))
 		if err != nil {
 			return err
 		}
 		data := make([]byte, backoffValueByteSize)
-		binary.LittleEndian.PutUint64(data, uint64(value))
+		binary.LittleEndian.PutUint64(data, uint64(timestampAfterBackoff))
 		return bucket.Put([]byte(p.peerAddress), data)
 	})
 	if err != nil {
@@ -135,8 +141,8 @@ func (p persistedBackoff) write(value time.Duration) {
 	}
 }
 
-func (p persistedBackoff) read() time.Duration {
-	var result time.Duration
+func (p persistedBackoff) read() time.Time {
+	var result time.Time
 	err := p.db.View(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket([]byte("backoff"))
 		if bucket == nil {
@@ -149,7 +155,7 @@ func (p persistedBackoff) read() time.Duration {
 		if len(data) < backoffValueByteSize {
 			return errors.New("invalid persisted backoff")
 		}
-		result = time.Duration(binary.LittleEndian.Uint64(data))
+		result = time.Unix(int64(binary.LittleEndian.Uint64(data)), 0)
 		return nil
 	})
 	if err != nil {
