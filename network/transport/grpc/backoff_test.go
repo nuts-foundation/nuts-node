@@ -57,6 +57,10 @@ func TestBoundedRandomBackoff_DefaultValues(t *testing.T) {
 func TestPersistedBackoff_Backoff(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
 
+	nowFunc = func() time.Time {
+		return time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	}
+
 	// Create back-off
 	db, _ := bbolt.Open(path.Join(testDirectory, "backoff.db"), os.ModePerm, nil)
 	defer db.Close()
@@ -75,8 +79,9 @@ func TestPersistedBackoff_Backoff(t *testing.T) {
 	db, _ = bbolt.Open(path.Join(testDirectory, "backoff.db"), os.ModePerm, nil)
 	defer db.Close()
 	b = NewPersistedBackoff(db, "test", defaultBackoff())
+	assert.Equal(t, int(prev.Seconds()), int(b.Value().Seconds()))
 	backoffAfterPersist := b.Backoff()
-	assert.True(t, backoffAfterPersist > prev)
+	assert.Truef(t, backoffAfterPersist > prev, "%s should be greater than %s", backoffAfterPersist, prev)
 }
 
 func TestPersistedBackoff_Reset(t *testing.T) {

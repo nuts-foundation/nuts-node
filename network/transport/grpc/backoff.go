@@ -29,6 +29,8 @@ import (
 
 const backoffValueByteSize = 8
 
+var nowFunc = time.Now
+
 // Backoff defines an API for delaying calls (or connections) to a remote system when its unresponsive,
 // to avoid flooding both local and remote system. When a call fails Backoff() must be called,
 // which returns the waiting time before the action should be retried.
@@ -105,11 +107,12 @@ func NewPersistedBackoff(db *bbolt.DB, peerAddress string, underlying Backoff) B
 		underlying:  underlying,
 	}
 	valueAsTimestamp := b.read()
-	if valueAsTimestamp.Before(time.Now()) {
+	if valueAsTimestamp.Before(nowFunc()) {
 		// Backoff timestamp in the past, reset it to 0 (no initial backoff)
 		b.underlying.Reset(0)
 	} else {
-		b.underlying.Reset(time.Now().Sub(valueAsTimestamp))
+		// Remaining time until the backoff is initial backoff
+		b.underlying.Reset(valueAsTimestamp.Sub(nowFunc()))
 	}
 	return b
 }
@@ -126,7 +129,7 @@ func (p persistedBackoff) Backoff() time.Duration {
 }
 
 func (p persistedBackoff) write(backoff time.Duration) {
-	timestampAfterBackoff := time.Now().Add(backoff).Unix()
+	timestampAfterBackoff := nowFunc().Add(backoff).Unix()
 	err := p.db.Update(func(tx *bbolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte("backoff"))
 		if err != nil {
