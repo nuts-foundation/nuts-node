@@ -476,7 +476,10 @@ func (n *Network) Shutdown() error {
 		n.state = nil
 	}
 
-	return n.connectionsDB.Close()
+	if n.connectionsDB != nil {
+		return n.connectionsDB.Close()
+	}
+	return nil
 }
 
 // Diagnostics collects and returns diagnostics for the Network engine.

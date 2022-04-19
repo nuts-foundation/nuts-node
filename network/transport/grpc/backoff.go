@@ -100,6 +100,8 @@ func (p persistedBackoff) Value() time.Duration {
 	return p.underlying.Value()
 }
 
+// NewPersistedBackoff wraps another backoff and stores the last value returned by Backoff() in BBolt.
+// It reads the last backoff value from the DB and returns it as the first value of the Backoff.
 func NewPersistedBackoff(db *bbolt.DB, peerAddress string, underlying Backoff) Backoff {
 	b := &persistedBackoff{
 		peerAddress: peerAddress,
