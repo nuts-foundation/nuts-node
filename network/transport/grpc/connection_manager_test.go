@@ -476,6 +476,54 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 		assert.ErrorIs(t, err, ErrNodeDIDAuthFailed)
 		assert.Nil(t, clientStream)
 	})
+	t.Run("outbound stream observer is passed populated peer after disconnect", func(t *testing.T) {
+		// Bug: peer ID is empty when race condition with disconnect() and notify observers occurs.
+		// See https://github.com/nuts-foundation/nuts-node/issues/978
+		serverCfg, serverListener := newBufconnConfig("server")
+		server := NewGRPCConnectionManager(serverCfg, &transport.FixedNodeDIDResolver{}, nil, &TestProtocol{}).(*grpcConnectionManager)
+		if err := server.Start(); err != nil {
+			t.Fatal(err)
+		}
+		defer server.Stop()
+
+		clientCfg, _ := newBufconnConfig("client", withBufconnDialer(serverListener))
+		client := NewGRPCConnectionManager(clientCfg, &transport.FixedNodeDIDResolver{}, nil, &TestProtocol{}).(*grpcConnectionManager)
+		c := createConnection(context.Background(), clientCfg.dialer, transport.Peer{})
+		grpcConn, err := clientCfg.dialer(context.Background(), "server")
+		if !assert.NoError(t, err) {
+			return
+		}
+		var capturedPeer atomic.Value
+		connectedWG := sync.WaitGroup{}
+		connectedWG.Add(1)
+		disconnectedWG := sync.WaitGroup{}
+		disconnectedWG.Add(1)
+		client.RegisterObserver(func(peer transport.Peer, state transport.StreamState, protocol transport.Protocol) {
+			if state == transport.StateConnected {
+				connectedWG.Done()
+			}
+			if state == transport.StateDisconnected {
+				capturedPeer.Store(peer)
+				disconnectedWG.Done()
+			}
+		})
+
+		go func() {
+			err = client.openOutboundStreams(c, grpcConn)
+			if !assert.NoError(t, err) {
+				return
+			}
+		}()
+
+		connectedWG.Wait()
+
+		// Explicitly disconnect to clear peer.
+		c.disconnect()
+		disconnectedWG.Wait()
+
+		// Assert that the peer is passed correctly to the observer
+		assert.Equal(t, transport.Peer{ID: "server"}, capturedPeer.Load())
+	})
 }
 
 func Test_grpcConnectionManager_openOutboundStream(t *testing.T) {
