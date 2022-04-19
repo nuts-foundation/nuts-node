@@ -48,7 +48,7 @@ func (p *protocol) sendGossipMsg(id transport.PeerID, refs []hash.SHA256Hash, xo
 		refsAsBytes[i] = ref.Slice()
 	}
 
-	log.Logger().Infof("GOSSIP: LC=%d, xor=%s, xor refs=%s, refs=%v", clock, xor, hash.EmptyHash().Xor(refs...), refs)
+	log.Logger().Tracef("GOSSIP: LC=%d, xor=%s, xor refs=%s, refs=%v", clock, xor, hash.EmptyHash().Xor(refs...), refs)
 
 	return conn.Send(p, &Envelope{Message: &Envelope_Gossip{
 		Gossip: &Gossip{
@@ -121,7 +121,10 @@ func (p *protocol) sendTransactionRangeQuery(id transport.PeerID, lcStart uint32
 			End:   lcEnd,
 		},
 	}
-	_ = p.cMan.startConversation(msg)
+	cid := p.cMan.startConversation(msg)
+
+	log.Logger().Debugf("requesting transaction range (peer=%s, conversationID=%s, start=%d, end=%d)", id.String(), cid.conversationID.String(), lcStart, lcEnd)
+
 	return conn.Send(p, &Envelope{Message: msg})
 }
 

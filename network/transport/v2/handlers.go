@@ -370,7 +370,7 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope_
 	data := handlerData{}
 
 	// TODO convert to trace logging
-	log.Logger().Infof("handling TransactionSet from peer (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
+	log.Logger().Debugf("handling TransactionSet from peer (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
 
 	// check if response matches earlier request
 	if err := p.cMan.check(envelope, data); err != nil {
@@ -400,15 +400,12 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope_
 		return err
 	}
 
-	// nothing to do if there is no difference
-	if iblt.IsEmpty() {
-		return nil
-	}
-
 	// Decode iblt
 	_, missing, err := iblt.Decode()
 	if err != nil {
 		if errors.Is(err, tree.ErrDecodeNotPossible) {
+			log.Logger().Debugf("peer IBLT decode failed (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
+
 			// request fist page if decode of first page fails
 			if minLC < dag.PageSize {
 				return p.sender.sendTransactionRangeQuery(peer.ID, 0, dag.PageSize)
@@ -416,6 +413,8 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope_
 			// send new state message, request one page lower than the current evaluation
 			previousPageLimit := pageClockStart(clockToPageNum(minLC)) - 1
 			xor, _ := p.state.XOR(ctx, math.MaxUint32)
+
+			log.Logger().Debugf("requesting state of previous page (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
 			return p.sender.sendState(peer.ID, xor, previousPageLimit)
 		}
 		return err
