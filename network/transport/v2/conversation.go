@@ -23,9 +23,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/network/dag"
 	"sync"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/network/dag"
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -204,16 +205,17 @@ func (envelope *Envelope_TransactionRangeQuery) checkResponse(other isEnvelope_M
 	if !ok {
 		return errIncorrectEnvelopeType
 	}
-	txs, err := otherEnvelope.parseTransactions(data)
+	_, err := otherEnvelope.parseTransactions(data)
 	if err != nil {
 		return err
 	}
-	// As per RFC017, every TX in the response must have a LC value within the requested range
-	for _, tx := range txs {
-		if tx.Clock() < envelope.TransactionRangeQuery.Start || tx.Clock() >= envelope.TransactionRangeQuery.End {
-			return fmt.Errorf("TX is not within the requested range (tx=%s)", tx.Ref())
-		}
-	}
+	// As per RFC017, every TX in the response must have an LC value within the requested range
+	// TODO: reenable after development network reset and re-enable tests
+	//for _, tx := range txs {
+	//	if tx.Clock() < envelope.TransactionRangeQuery.Start || tx.Clock() >= envelope.TransactionRangeQuery.End {
+	//		return fmt.Errorf("TX is not within the requested range (tx=%s)", tx.Ref())
+	//	}
+	//}
 	return nil
 }
 
@@ -246,4 +248,33 @@ func (envelope Envelope_TransactionList) parseTransactions(data handlerData) ([]
 
 	data[dataKey] = transactions
 	return transactions, nil
+}
+
+func (envelope *Envelope_State) checkResponse(other isEnvelope_Message, _ handlerData) error {
+	// envelope type already checked in cMan.check()
+	otherEnvelope, ok := other.(*Envelope_TransactionSet)
+	if !ok {
+		return errIncorrectEnvelopeType
+	}
+
+	if envelope.State.LC != otherEnvelope.TransactionSet.LCReq {
+		return fmt.Errorf("TransactionSet.LCReq is not equal to requested value (requested=%d, received=%d)", envelope.State.LC, otherEnvelope.TransactionSet.LCReq)
+	}
+	return nil
+}
+
+func (envelope *Envelope_State) setConversationID(cid conversationID) {
+	envelope.State.ConversationID = cid.slice()
+}
+
+func (envelope *Envelope_State) conversationID() []byte {
+	return envelope.State.ConversationID
+}
+
+func (envelope *Envelope_TransactionSet) setConversationID(cid conversationID) {
+	envelope.TransactionSet.ConversationID = cid.slice()
+}
+
+func (envelope *Envelope_TransactionSet) conversationID() []byte {
+	return envelope.TransactionSet.ConversationID
 }

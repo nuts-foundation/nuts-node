@@ -1,30 +1,31 @@
 /*
- * Nuts node
- * Copyright (C) 2022 Nuts community
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
+* Nuts node
+* Copyright (C) 2022 Nuts community
+*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*
  */
 
 package gossip
 
 import (
 	"context"
-	"go.uber.org/goleak"
 	"sync"
 	"testing"
 	"time"
+
+	"go.uber.org/goleak"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/transport"
@@ -46,18 +47,20 @@ func TestManager_PeerConnected(t *testing.T) {
 	t.Run("adds a peer to the administration", func(t *testing.T) {
 		gMan := giveMeAgMan(t)
 
-		gMan.PeerConnected(transport.Peer{ID: "1"})
+		gMan.PeerConnected(transport.Peer{ID: "1"}, hash.SHA256Sum([]byte{1, 2, 3}), 5)
 
 		assert.NotNil(t, gMan.peers["1"])
+		assert.Equal(t, uint32(5), gMan.peers["1"].clock)
+		assert.Equal(t, hash.SHA256Sum([]byte{1, 2, 3}), gMan.peers["1"].xor)
 	})
 
 	t.Run("skips existing peers", func(t *testing.T) {
 		gMan := giveMeAgMan(t)
-		gMan.PeerConnected(transport.Peer{ID: "1"})
-		gMan.TransactionRegistered(hash.EmptyHash())
+		gMan.PeerConnected(transport.Peer{ID: "1"}, hash.EmptyHash(), 5)
+		gMan.TransactionRegistered(hash.EmptyHash(), hash.EmptyHash(), 5)
 
 		// doesn't influence queue
-		gMan.PeerConnected(transport.Peer{ID: "1"})
+		gMan.PeerConnected(transport.Peer{ID: "1"}, hash.EmptyHash(), 5)
 		pq := gMan.peers["1"]
 
 		assert.Equal(t, 1, pq.queue.Len())
@@ -68,7 +71,7 @@ func TestManager_PeerDisconnected(t *testing.T) {
 	t.Run("removes peer from the administration", func(t *testing.T) {
 		gMan := giveMeAgMan(t)
 		peer := transport.Peer{ID: "1"}
-		gMan.PeerConnected(peer)
+		gMan.PeerConnected(peer, hash.EmptyHash(), 5)
 
 		gMan.PeerDisconnected(peer)
 		_, present := gMan.peers["1"]
@@ -79,7 +82,7 @@ func TestManager_PeerDisconnected(t *testing.T) {
 	t.Run("ignores unknown peers", func(t *testing.T) {
 		gMan := giveMeAgMan(t)
 		peer := transport.Peer{ID: "1"}
-		gMan.PeerConnected(peer)
+		gMan.PeerConnected(peer, hash.EmptyHash(), 5)
 
 		gMan.PeerDisconnected(transport.Peer{ID: "2"})
 		_, present1 := gMan.peers["1"]
@@ -100,13 +103,13 @@ func TestManager_PeerDisconnected(t *testing.T) {
 		once := sync.Once{}
 		wg := sync.WaitGroup{}
 		wg.Add(1)
-		gMan.RegisterSender(func(id transport.PeerID, refs []hash.SHA256Hash) bool {
+		gMan.RegisterSender(func(id transport.PeerID, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) bool {
 			once.Do(func() {
 				wg.Done()
 			})
 			return true
 		})
-		gMan.PeerConnected(peer)
+		gMan.PeerConnected(peer, hash.EmptyHash(), 5)
 		wg.Wait()
 
 		gMan.PeerDisconnected(peer)
@@ -125,7 +128,7 @@ func TestManager_GossipReceived(t *testing.T) {
 
 	t.Run("updates the log of the peerQueue", func(t *testing.T) {
 		gMan := giveMeAgMan(t)
-		gMan.PeerConnected(transport.Peer{ID: "1"})
+		gMan.PeerConnected(transport.Peer{ID: "1"}, hash.EmptyHash(), 5)
 
 		gMan.GossipReceived("1", hash.EmptyHash())
 
@@ -137,11 +140,11 @@ func TestManager_GossipReceived(t *testing.T) {
 func TestManager_callSenders(t *testing.T) {
 	t.Run("ok - called and peerQueue cleared", func(t *testing.T) {
 		gMan := giveMeAgMan(t)
-		gMan.PeerConnected(transport.Peer{ID: "1"})
-		gMan.RegisterSender(func(id transport.PeerID, refs []hash.SHA256Hash) bool {
+		gMan.PeerConnected(transport.Peer{ID: "1"}, hash.EmptyHash(), 5)
+		gMan.RegisterSender(func(id transport.PeerID, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) bool {
 			return true
 		})
-		gMan.TransactionRegistered(hash.EmptyHash())
+		gMan.TransactionRegistered(hash.EmptyHash(), hash.EmptyHash(), 5)
 
 		pq := gMan.peers["1"]
 		callSenders("1", pq, gMan.messageSenders)
@@ -151,11 +154,11 @@ func TestManager_callSenders(t *testing.T) {
 
 	t.Run("not ok - called and peerQueue not cleared", func(t *testing.T) {
 		gMan := giveMeAgMan(t)
-		gMan.PeerConnected(transport.Peer{ID: "1"})
-		gMan.RegisterSender(func(id transport.PeerID, refs []hash.SHA256Hash) bool {
+		gMan.PeerConnected(transport.Peer{ID: "1"}, hash.EmptyHash(), 5)
+		gMan.RegisterSender(func(id transport.PeerID, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) bool {
 			return false
 		})
-		gMan.TransactionRegistered(hash.EmptyHash())
+		gMan.TransactionRegistered(hash.EmptyHash(), hash.EmptyHash(), 5)
 
 		pq := gMan.peers["1"]
 		callSenders("1", pq, gMan.messageSenders)

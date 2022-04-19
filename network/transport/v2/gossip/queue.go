@@ -38,6 +38,8 @@ type peerQueue struct {
 	mutex sync.Mutex
 	// queue that holds the list of hashes to be gossipped
 	queue *uniqueList
+	xor   hash.SHA256Hash
+	clock uint32
 }
 
 func newPeerQueue() peerQueue {
@@ -72,8 +74,8 @@ func (pq *peerQueue) do(f func()) {
 
 // enqueued returns the enqueued transaction references
 // it does not lock the mutex
-func (pq *peerQueue) enqueued() []hash.SHA256Hash {
-	return pq.queue.Values()
+func (pq *peerQueue) enqueued() ([]hash.SHA256Hash, hash.SHA256Hash, uint32) {
+	return pq.queue.Values(), pq.xor, pq.clock
 }
 
 // clear the queue, it does not clear the log
@@ -102,9 +104,12 @@ func (pq *peerQueue) logReceivedTransactions(refs ...hash.SHA256Hash) {
 }
 
 // enqueue adds given hashes to the queue unless present in the log
-func (pq *peerQueue) enqueue(refs ...hash.SHA256Hash) {
+func (pq *peerQueue) enqueue(clock uint32, xor hash.SHA256Hash, refs ...hash.SHA256Hash) {
 	pq.mutex.Lock()
 	defer pq.mutex.Unlock()
+
+	pq.xor = xor
+	pq.clock = clock
 
 	for _, ref := range refs {
 		if pq.queue.Len() >= pq.maxSize {

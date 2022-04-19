@@ -37,7 +37,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1"
 	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
@@ -149,7 +148,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	// Only set protocols if not already set: improves testability
 	if n.protocols == nil {
 		n.protocols = []transport.Protocol{
-			v1.New(n.config.ProtocolV1, n.state, n.collectDiagnostics),
+			//v1.New(n.config.ProtocolV1, n.state, n.collectDiagnostics),
 			v2.New(v2Cfg, n.nodeDIDResolver, n.state, n.didDocumentResolver, n.decrypter),
 		}
 	}

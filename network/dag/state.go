@@ -39,10 +39,10 @@ import (
 const (
 	// boltDBFileMode holds the Unix file mode the created BBolt database files will have.
 	boltDBFileMode = 0600
-	// pageSize specifies the Lamport Clock range over which data is summarized and is used in set reconciliation.
-	pageSize = uint32(512)
-	// ibltNumBuckets is the number of buckets in the IBLT used in set reconciliation.
-	ibltNumBuckets = 1024
+	// PageSize specifies the Lamport Clock range over which data is summarized and is used in set reconciliation.
+	PageSize = uint32(512)
+	// IbltNumBuckets is the number of buckets in the IBLT used in set reconciliation.
+	IbltNumBuckets = 1024
 )
 
 // State has references to the DAG and the payload store.
@@ -86,11 +86,11 @@ func NewState(dataDir string, verifiers ...Verifier) (State, error) {
 	publisher.ConfigureCallbacks(newState)
 	newState.publisher = publisher
 
-	xorTree := newBBoltTreeStore(db, "xorBucket", tree.New(tree.NewXor(), pageSize))
+	xorTree := newBBoltTreeStore(db, "xorBucket", tree.New(tree.NewXor(), PageSize))
 	newState.RegisterObserver(xorTree.dagObserver, true)
 	newState.xorTree = xorTree
 
-	ibltTree := newBBoltTreeStore(db, "ibltBucket", tree.New(tree.NewIblt(ibltNumBuckets), pageSize))
+	ibltTree := newBBoltTreeStore(db, "ibltBucket", tree.New(tree.NewIblt(IbltNumBuckets), PageSize))
 	newState.RegisterObserver(ibltTree.dagObserver, true)
 	newState.ibltTree = ibltTree
 

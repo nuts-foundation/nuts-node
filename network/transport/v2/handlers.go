@@ -25,6 +25,8 @@ import (
 	"math"
 	"sort"
 
+	"github.com/nuts-foundation/nuts-node/network/dag/tree"
+
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
@@ -61,6 +63,12 @@ func (p protocol) Handle(peer transport.Peer, raw interface{}) error {
 	case *Envelope_TransactionRangeQuery:
 		logMessage(msg)
 		return p.handleTransactionRangeQuery(peer, msg)
+	case *Envelope_State:
+		logMessage(msg)
+		return p.handleState(peer, msg.State)
+	case *Envelope_TransactionSet:
+		logMessage(msg)
+		return p.handleTransactionSet(peer, msg)
 	}
 
 	return errors.New("envelope doesn't contain any (handleable) messages")
@@ -164,9 +172,15 @@ func (p protocol) handleTransactionRangeQuery(peer transport.Peer, envelope *Env
 }
 
 func (p *protocol) handleGossip(peer transport.Peer, msg *Gossip) error {
+	ctx := context.Background()
+	xor, clock := p.state.XOR(ctx, math.MaxUint32)
+	peerXor := hash.FromSlice(msg.XOR)
+	if xor.Equals(peerXor) {
+		return nil
+	}
+
 	refs := make([]hash.SHA256Hash, len(msg.Transactions))
 	i := 0
-	ctx := context.Background()
 	for _, bytes := range msg.Transactions {
 		ref := hash.FromSlice(bytes)
 		// separate reader transactions on DB but that's ok.
@@ -183,20 +197,22 @@ func (p *protocol) handleGossip(peer transport.Peer, msg *Gossip) error {
 	if len(refs) > 0 {
 		// TODO swap for trace logging
 		log.Logger().Infof("received %d new transaction references via Gossip", len(refs))
-		// TODO: What about the error?
-		p.sender.sendTransactionListQuery(peer.ID, refs)
-	}
-	p.gManager.GossipReceived(peer.ID, refs...)
-
-	xor, _ := p.state.XOR(ctx, math.MaxUint32)
-	xor = xor.Xor(refs...)
-	if xor.Equals(hash.FromSlice(msg.GetXOR())) {
-		return nil
+		p.gManager.GossipReceived(peer.ID, refs...)
+		err := p.sender.sendTransactionListQuery(peer.ID, refs)
+		if err != nil {
+			return err
+		}
+		// querying refs with missing prevs will trigger a State msg
 	}
 
-	// TODO send state message
-	log.Logger().Infof("xor is different from peer=%s", peer.ID)
+	tempXor := xor.Xor(refs...)
+	if msg.LC >= clock && !tempXor.Equals(peerXor) {
+		// TODO swap for trace logging
+		log.Logger().Infof("xor is different from peer=%s and peers clock is equal or higher", peer.ID)
+		return p.sender.sendState(peer.ID, xor, clock)
+	}
 
+	// peer is behind
 	return nil
 }
 
@@ -325,5 +341,117 @@ func (p *protocol) collectTransactionList(ctx context.Context, txs []dag.Transac
 		}
 		result = append(result, &networkTX)
 	}
+
 	return result, nil
+}
+
+func (p *protocol) handleState(peer transport.Peer, msg *State) error {
+	cid := conversationID(msg.ConversationID)
+
+	// TODO convert to trace logging
+	log.Logger().Infof("handling State from peer (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
+
+	ctx := context.Background()
+	xor, lc := p.state.XOR(ctx, math.MaxUint32)
+
+	// nothing to do if peers are now synced
+	if xor.Equals(hash.FromSlice(msg.XOR)) {
+		return nil
+	}
+
+	iblt, _ := p.state.IBLT(ctx, msg.LC)
+
+	return p.sender.sendTransactionSet(peer.ID, cid, msg.LC, lc, iblt)
+}
+
+func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope_TransactionSet) error {
+	msg := envelope.TransactionSet
+	cid := conversationID(msg.ConversationID)
+	data := handlerData{}
+
+	// TODO convert to trace logging
+	log.Logger().Debugf("handling TransactionSet from peer (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
+
+	// check if response matches earlier request
+	if err := p.cMan.check(envelope, data); err != nil {
+		return err
+	}
+
+	// mark state request as done
+	p.cMan.done(cid)
+
+	// parse msg data
+	minLC := msg.LCReq
+	if msg.LC < minLC {
+		// peers DAG might be behind. IBLTs cannot be decoded if their range difference is too large.
+		minLC = msg.LC
+	}
+	peerIblt := tree.NewIblt(dag.IbltNumBuckets)
+	err := peerIblt.UnmarshalBinary(msg.IBLT)
+	if err != nil {
+		return err
+	}
+
+	// get iblt difference
+	ctx := context.Background()
+	iblt, _ := p.state.IBLT(ctx, minLC)
+	err = iblt.Subtract(peerIblt)
+	if err != nil {
+		return err
+	}
+
+	// Decode iblt
+	_, missing, err := iblt.Decode()
+	if err != nil {
+		if errors.Is(err, tree.ErrDecodeNotPossible) {
+			log.Logger().Debugf("peer IBLT decode failed (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
+
+			// request fist page if decode of first page fails
+			if minLC < dag.PageSize {
+				return p.sender.sendTransactionRangeQuery(peer.ID, 0, dag.PageSize)
+			}
+			// send new state message, request one page lower than the current evaluation
+			previousPageLimit := pageClockStart(clockToPageNum(minLC)) - 1
+			xor, _ := p.state.XOR(ctx, math.MaxUint32)
+
+			log.Logger().Debugf("requesting state of previous page (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
+			return p.sender.sendState(peer.ID, xor, previousPageLimit)
+		}
+		return err
+	}
+
+	// request all missing transactions
+	if len(missing) > 0 {
+		log.Logger().Debugf("peer IBLT decode succesful, requesting %d transactions", len(missing))
+
+		err = p.sender.sendTransactionListQuery(peer.ID, missing)
+		if err != nil {
+			return err
+		}
+	}
+
+	// request next page(s) if peer's DAG has more pages
+	_, localLC := p.state.XOR(ctx, math.MaxUint32)
+	peerPageNum, localPageNum, reqPageNum := clockToPageNum(msg.LC), clockToPageNum(localLC), clockToPageNum(msg.LCReq)
+	if peerPageNum > reqPageNum {
+		log.Logger().Debugf("peer has higher LC values, requesting transactions by range (%d<%d)", reqPageNum, peerPageNum)
+
+		if localPageNum > reqPageNum {
+			// only ask for next page when reconciling historical pages
+			return p.sender.sendTransactionRangeQuery(peer.ID, pageClockStart(reqPageNum+1), pageClockStart(reqPageNum+2))
+		}
+		// TODO: Distribute synchronization of new nodes over multiple peers.
+		return p.sender.sendTransactionRangeQuery(peer.ID, pageClockStart(reqPageNum+1), math.MaxUint32)
+	}
+
+	// peer is behind
+	return nil
+}
+
+func pageClockStart(pageNum uint32) uint32 {
+	return pageNum * dag.PageSize
+}
+
+func clockToPageNum(clock uint32) uint32 {
+	return clock / dag.PageSize
 }

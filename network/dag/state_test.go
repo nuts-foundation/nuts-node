@@ -287,7 +287,7 @@ func TestState_XOR(t *testing.T) {
 	}
 	// add transaction
 	tx := CreateTestTransactionWithJWK(1)
-	dagClock := 3 * pageSize / 2
+	dagClock := 3 * PageSize / 2
 	tx.(*transaction).lamportClock = dagClock
 	err = txState.Add(ctx, tx, nil)
 	if !assert.NoError(t, err) {
@@ -303,11 +303,11 @@ func TestState_XOR(t *testing.T) {
 	t.Run("requested clock before last page", func(t *testing.T) {
 		xor, actualClock := txState.XOR(ctx, uint32(1))
 
-		assert.Equal(t, pageSize-1, actualClock)
+		assert.Equal(t, PageSize-1, actualClock)
 		assert.Equal(t, hash.EmptyHash(), xor)
 	})
 	t.Run("requested clock on last page, lower than dag", func(t *testing.T) {
-		xor, actualClock := txState.XOR(ctx, pageSize+1)
+		xor, actualClock := txState.XOR(ctx, PageSize+1)
 
 		assert.Equal(t, dagClock, actualClock)
 		assert.Equal(t, tx.Ref(), xor)
@@ -324,14 +324,14 @@ func TestState_IBLT(t *testing.T) {
 	}
 	// add transaction
 	tx := CreateTestTransactionWithJWK(1)
-	dagClock := 3 * pageSize / 2
+	dagClock := 3 * PageSize / 2
 	tx.(*transaction).lamportClock = dagClock
 	err = txState.Add(ctx, tx, nil)
 	if !assert.NoError(t, err) {
 		return
 	}
 	// expected iblt
-	dagIBLT := tree.NewIblt(ibltNumBuckets)
+	dagIBLT := tree.NewIblt(IbltNumBuckets)
 	dagIBLT.Insert(tx.Ref())
 	if !assert.False(t, dagIBLT.IsEmpty()) {
 		return
@@ -347,11 +347,11 @@ func TestState_IBLT(t *testing.T) {
 	t.Run("requested clock before last page", func(t *testing.T) {
 		iblt, actualClock := txState.IBLT(ctx, uint32(1))
 
-		assert.Equal(t, pageSize-1, actualClock)
+		assert.Equal(t, PageSize-1, actualClock)
 		assert.True(t, iblt.IsEmpty(), iblt)
 	})
 	t.Run("requested clock on last page, lower than dag", func(t *testing.T) {
-		iblt, actualClock := txState.IBLT(ctx, pageSize+1)
+		iblt, actualClock := txState.IBLT(ctx, PageSize+1)
 		_ = iblt.Subtract(dagIBLT)
 
 		assert.Equal(t, dagClock, actualClock)
