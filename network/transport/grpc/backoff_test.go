@@ -55,33 +55,62 @@ func TestBoundedRandomBackoff_DefaultValues(t *testing.T) {
 }
 
 func TestPersistedBackoff_Backoff(t *testing.T) {
-	testDirectory := io.TestDirectory(t)
+	t.Run("read persisted backoff", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		nowFunc = func() time.Time {
+			return time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+		}
 
-	nowFunc = func() time.Time {
-		return time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	}
+		// Create back-off
+		db, _ := bbolt.Open(path.Join(testDirectory, "backoff.db"), os.ModePerm, nil)
+		defer db.Close()
+		b := NewPersistedBackoff(db, "test", defaultBackoff())
 
-	// Create back-off
-	db, _ := bbolt.Open(path.Join(testDirectory, "backoff.db"), os.ModePerm, nil)
-	defer db.Close()
-	b := NewPersistedBackoff(db, "test", defaultBackoff())
+		// Do some back-off
+		var prev time.Duration
+		for i := 0; i < 5; i++ {
+			b := b.Backoff()
+			assert.True(t, b > prev)
+			prev = b
+		}
 
-	// Do some back-off
-	var prev time.Duration
-	for i := 0; i < 5; i++ {
-		b := b.Backoff()
-		assert.True(t, b > prev)
-		prev = b
-	}
+		// Re-open back-off, check if started from the same point
+		_ = db.Close()
+		db, _ = bbolt.Open(path.Join(testDirectory, "backoff.db"), os.ModePerm, nil)
+		defer db.Close()
+		b = NewPersistedBackoff(db, "test", defaultBackoff())
+		assert.Equal(t, int(prev.Seconds()), int(b.Value().Seconds()))
+		backoffAfterPersist := b.Backoff()
+		assert.Truef(t, backoffAfterPersist > prev, "%s should be greater than %s", backoffAfterPersist, prev)
+	})
+	t.Run("persisted max backoff", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		initialDate := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+		maxBackoff := defaultBackoff().(*boundedRandomBackoff).max
+		nowFunc = func() time.Time {
+			return initialDate
+		}
 
-	// Re-open back-off, check if started from the same point
-	_ = db.Close()
-	db, _ = bbolt.Open(path.Join(testDirectory, "backoff.db"), os.ModePerm, nil)
-	defer db.Close()
-	b = NewPersistedBackoff(db, "test", defaultBackoff())
-	assert.Equal(t, int(prev.Seconds()), int(b.Value().Seconds()))
-	backoffAfterPersist := b.Backoff()
-	assert.Truef(t, backoffAfterPersist > prev, "%s should be greater than %s", backoffAfterPersist, prev)
+		// Create back-off
+		db, _ := bbolt.Open(path.Join(testDirectory, "backoff.db"), os.ModePerm, nil)
+		defer db.Close()
+		b := NewPersistedBackoff(db, "test", defaultBackoff())
+
+		// Set backoff to
+		b.Reset(maxBackoff)
+
+		// Re-open back-off, simulate half of the max back-off time has passed
+		// So the initial back-off should be half of the max back-off, but the subsequent back-off should be the max back-off again
+		nowFunc = func() time.Time {
+			return initialDate.Add(maxBackoff / 2)
+		}
+		_ = db.Close()
+		db, _ = bbolt.Open(path.Join(testDirectory, "backoff.db"), os.ModePerm, nil)
+		defer db.Close()
+		b = NewPersistedBackoff(db, "test", defaultBackoff())
+		assert.Equal(t, maxBackoff / 2, b.Value())
+		assert.Equal(t, maxBackoff, b.Backoff())
+	})
 }
 
 func TestPersistedBackoff_Reset(t *testing.T) {

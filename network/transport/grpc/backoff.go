@@ -19,8 +19,8 @@
 package grpc
 
 import (
-	"encoding/binary"
-	"errors"
+	"bytes"
+	"encoding/gob"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"go.etcd.io/bbolt"
 	"math/rand"
@@ -89,65 +89,83 @@ func defaultBackoff() Backoff {
 	}
 }
 
-// persistedBackoff wraps a Backoff and remembers the last value returned by Backoff()
-type persistedBackoff struct {
-	underlying  Backoff
-	peerAddress string
-	db          *bbolt.DB
+// persistingBackoff wraps a Backoff and remembers the last value returned by Backoff()
+type persistingBackoff struct {
+	underlying       Backoff
+	peerAddress      string
+	db               *bbolt.DB
+	persistedBackoff time.Time
 }
 
-func (p persistedBackoff) Value() time.Duration {
+type persistedBackoff struct {
+	// Moment holds the time at which the current backoff expires.
+	Moment time.Time
+	// Value holds the actual backoff value.
+	Value time.Duration
+}
+
+func (p *persistingBackoff) Value() time.Duration {
+	if !p.persistedBackoff.IsZero() {
+		// Remaining time until the previously persisted backoff is the initial backoff
+		result := p.persistedBackoff.Sub(nowFunc()) // negative is no problem: time.Sleep() returns immediately in that case
+		p.persistedBackoff = time.Time{}
+		return result
+	}
 	return p.underlying.Value()
 }
 
 // NewPersistedBackoff wraps another backoff and stores the last value returned by Backoff() in BBolt.
 // It reads the last backoff value from the DB and returns it as the first value of the Backoff.
 func NewPersistedBackoff(db *bbolt.DB, peerAddress string, underlying Backoff) Backoff {
-	b := &persistedBackoff{
+	b := &persistingBackoff{
 		peerAddress: peerAddress,
 		db:          db,
 		underlying:  underlying,
 	}
-	valueAsTimestamp := b.read()
-	if valueAsTimestamp.Before(nowFunc()) {
-		// Backoff timestamp in the past, reset it to 0 (no initial backoff)
-		b.underlying.Reset(0)
-	} else {
-		// Remaining time until the backoff is initial backoff
-		b.underlying.Reset(valueAsTimestamp.Sub(nowFunc()))
+	persisted := b.read()
+	if !persisted.Moment.IsZero() {
+		b.persistedBackoff = persisted.Moment
+		b.underlying.Reset(persisted.Value)
 	}
 	return b
 }
 
-func (p persistedBackoff) Reset(value time.Duration) {
+func (p *persistingBackoff) Reset(value time.Duration) {
 	p.underlying.Reset(value)
+	p.persistedBackoff = time.Time{}
 	p.write(value)
 }
 
-func (p persistedBackoff) Backoff() time.Duration {
+func (p *persistingBackoff) Backoff() time.Duration {
 	b := p.underlying.Backoff()
+	p.persistedBackoff = time.Time{}
 	p.write(b)
 	return b
 }
 
-func (p persistedBackoff) write(backoff time.Duration) {
-	timestampAfterBackoff := nowFunc().Add(backoff).Unix()
+func (p persistingBackoff) write(backoff time.Duration) {
 	err := p.db.Update(func(tx *bbolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte("backoff"))
 		if err != nil {
 			return err
 		}
-		data := make([]byte, backoffValueByteSize)
-		binary.LittleEndian.PutUint64(data, uint64(timestampAfterBackoff))
-		return bucket.Put([]byte(p.peerAddress), data)
+		var buf bytes.Buffer
+		err = gob.NewEncoder(&buf).Encode(persistedBackoff{
+			Moment: nowFunc().Add(backoff),
+			Value:  backoff,
+		})
+		if err != nil {
+			return err
+		}
+		return bucket.Put([]byte(p.peerAddress), buf.Bytes())
 	})
 	if err != nil {
 		log.Logger().Errorf("Failed to persist backoff: %v", err)
 	}
 }
 
-func (p persistedBackoff) read() time.Time {
-	var result time.Time
+func (p persistingBackoff) read() persistedBackoff {
+	var result persistedBackoff
 	err := p.db.View(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket([]byte("backoff"))
 		if bucket == nil {
@@ -157,10 +175,10 @@ func (p persistedBackoff) read() time.Time {
 		if data == nil {
 			return nil
 		}
-		if len(data) < backoffValueByteSize {
-			return errors.New("invalid persisted backoff")
+		err := gob.NewDecoder(bytes.NewReader(data)).Decode(&result)
+		if err != nil {
+			return err
 		}
-		result = time.Unix(int64(binary.LittleEndian.Uint64(data)), 0)
 		return nil
 	})
 	if err != nil {
