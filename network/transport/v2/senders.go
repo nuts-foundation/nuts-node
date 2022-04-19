@@ -83,7 +83,7 @@ func (p *protocol) sendTransactionListQuery(id transport.PeerID, refs []hash.SHA
 	conversation.additionalInfo["refs"] = refs
 
 	// todo convert to trace logging
-	log.Logger().Infof("requesting transactions from peer (peer=%s, conversationID=%s)", id, conversation.conversationID.String())
+	log.Logger().Infof("requesting transactionList from peer (peer=%s, conversationID=%s, #=%d)", id, conversation.conversationID.String(), len(refs))
 
 	return conn.Send(p, &Envelope{Message: msg})
 }
@@ -134,11 +134,11 @@ func chunkTransactionList(transactions []*Transaction) [][]*Transaction {
 	startIndex := 0
 	endIndex := 0
 
-	// TODO to be tested in practise
+	// 43 bytes for meta overhead and 8 bytes per TX
 	max := grpc.MaxMessageSizeInBytes - 256 // 256 chosen as overhead per message
 
 	for _, tx := range transactions {
-		txSize := len(tx.Payload) + len(tx.Data)
+		txSize := len(tx.Payload) + len(tx.Data) + 8
 		newSize = currentSize + txSize
 
 		if newSize > max {

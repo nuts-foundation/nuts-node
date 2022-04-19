@@ -22,9 +22,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 	"math"
 	"sort"
+
+	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
@@ -422,6 +423,8 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope_
 
 	// request all missing transactions
 	if len(missing) > 0 {
+		log.Logger().Debugf("peer IBLT decode succesful, requesting %d transactions", len(missing))
+
 		err = p.sender.sendTransactionListQuery(peer.ID, missing)
 		if err != nil {
 			return err
@@ -432,6 +435,8 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope_
 	_, localLC := p.state.XOR(ctx, math.MaxUint32)
 	peerPageNum, localPageNum, reqPageNum := clockToPageNum(msg.LC), clockToPageNum(localLC), clockToPageNum(msg.LCReq)
 	if peerPageNum > reqPageNum {
+		log.Logger().Debugf("peer has higher LC values, requesting transactions by range (%d<%d)", reqPageNum, peerPageNum)
+
 		if localPageNum > reqPageNum {
 			// only ask for next page when reconciling historical pages
 			return p.sender.sendTransactionRangeQuery(peer.ID, pageClockStart(reqPageNum+1), pageClockStart(reqPageNum+2))
