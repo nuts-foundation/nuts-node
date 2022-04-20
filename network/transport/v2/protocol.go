@@ -162,7 +162,7 @@ func (p *protocol) Configure(_ transport.PeerID) error {
 	p.state.RegisterObserver(p.gossipTransaction, false)
 
 	// register callback from DAG to other engines.
-	p.state.RegisterObserver(p.emitEvents, false)
+	p.state.RegisterObserver(p.emitEvents, true)
 
 	return nil
 }
@@ -218,11 +218,10 @@ func (p *protocol) gossipTransaction(ctx context.Context, tx dag.Transaction, _ 
 func (p *protocol) emitEvents(ctx context.Context, tx dag.Transaction, payload []byte) error {
 	// TODO other events for missing payload/tx
 	if tx != nil && payload != nil {
-		conn, js, err := p.eventPublisher.Pool().Acquire(ctx)
+		_, js, err := p.eventPublisher.Pool().Acquire(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to emit event for published transaction: %w", err)
 		}
-		defer conn.Close()
 
 		twp := events.TransactionWithPayload{
 			Transaction: string(tx.Data()),

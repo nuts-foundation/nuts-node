@@ -105,7 +105,8 @@ func TestDefaultConfig(t *testing.T) {
 func TestProtocol_Configure(t *testing.T) {
 	testDID, _ := did.ParseDID("did:nuts:123")
 	p, mocks := newTestProtocol(t, testDID)
-	mocks.State.EXPECT().RegisterObserver(gomock.Any(), false).Times(2)
+	mocks.State.EXPECT().RegisterObserver(gomock.Any(), false)
+	mocks.State.EXPECT().RegisterObserver(gomock.Any(), true)
 
 	assert.NoError(t, p.Configure(""))
 }
