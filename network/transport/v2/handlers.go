@@ -248,7 +248,8 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 			if err != nil {
 				if errors.Is(err, dag.ErrPreviousTransactionMissing) {
 					p.cMan.done(cid)
-					xor, clock := p.state.XOR(context.Background(), math.MaxUint32)
+					log.Logger().Warnf("ignoring remainder of TransactionList due to missing prevs (conversation=%s, Tx with missing prevs=%s)", cid, tx.Ref())
+					xor, clock := p.state.XOR(ctx, math.MaxUint32)
 					return p.sender.sendState(peer.ID, xor, clock)
 				}
 				return fmt.Errorf("unable to add received transaction to DAG (tx=%s): %w", tx.Ref(), err)
