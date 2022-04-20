@@ -19,9 +19,17 @@
 package grpc
 
 import (
+	"bytes"
+	"encoding/gob"
+	"github.com/nuts-foundation/nuts-node/network/log"
+	"go.etcd.io/bbolt"
 	"math/rand"
 	"time"
 )
+
+const backoffValueByteSize = 8
+
+var nowFunc = time.Now
 
 // Backoff defines an API for delaying calls (or connections) to a remote system when its unresponsive,
 // to avoid flooding both local and remote system. When a call fails Backoff() must be called,
@@ -29,31 +37,37 @@ import (
 // When the call succeeds Reset() and the Backoff is stored for re-use, Reset() should be called to make sure to reset
 // the internal counters.
 type Backoff interface {
-	// Reset resets the internal counters of the Backoff and should be called after a successful call.
-	Reset()
+	// Reset resets the internal counters of the Backoff to the given value. Should be called after a successful call (set to 0).
+	Reset(value time.Duration)
 	// Backoff returns the waiting time before the call should be retried, and should be called after a failed call.
 	Backoff() time.Duration
+	// Value returns the last backoff value returned by Backoff().
+	Value() time.Duration
 }
 
 // RandomBackoff returns a random time.Duration which lies between the given (inclusive) min/max bounds.
-// It can be used to get a random, one-off backoff.
+// It can be used to get a random, one-off boundedRandomBackoff.
 func RandomBackoff(min, max time.Duration) time.Duration {
 	return time.Duration(rand.Int63n(int64(max-min)) + int64(min))
 }
 
-type backoff struct {
+type boundedRandomBackoff struct {
 	multiplier float64
 	value      time.Duration
 	max        time.Duration
 	min        time.Duration
 }
 
-func (b *backoff) Reset() {
-	b.value = 0
+func (b *boundedRandomBackoff) Value() time.Duration {
+	return b.value
 }
 
-func (b *backoff) Backoff() time.Duration {
-	// Jitter could be added to add a bit of randomness to the backoff value (e.g. https://github.com/grpc/grpc/blob/master/doc/connection-backoff.md)
+func (b *boundedRandomBackoff) Reset(value time.Duration) {
+	b.value = value
+}
+
+func (b *boundedRandomBackoff) Backoff() time.Duration {
+	// Jitter could be added to add a bit of randomness to the boundedRandomBackoff value (e.g. https://github.com/grpc/grpc/blob/master/doc/connection-boundedRandomBackoff.md)
 	if b.value < b.min {
 		b.value = b.min
 	} else {
@@ -67,10 +81,108 @@ func (b *backoff) Backoff() time.Duration {
 
 func defaultBackoff() Backoff {
 	// TODO: Make this configurable
-	return &backoff{
+	return &boundedRandomBackoff{
 		multiplier: 1.5,
 		value:      0,
 		max:        time.Hour,
 		min:        time.Second,
 	}
+}
+
+// persistingBackoff wraps a Backoff and remembers the last value returned by Backoff()
+type persistingBackoff struct {
+	underlying       Backoff
+	peerAddress      string
+	db               *bbolt.DB
+	persistedBackoff time.Time
+}
+
+type persistedBackoff struct {
+	// Moment holds the time at which the current backoff expires.
+	Moment time.Time
+	// Value holds the actual backoff value.
+	Value time.Duration
+}
+
+func (p *persistingBackoff) Value() time.Duration {
+	if !p.persistedBackoff.IsZero() {
+		// Remaining time until the previously persisted backoff is the initial backoff
+		result := p.persistedBackoff.Sub(nowFunc()) // negative is no problem: time.Sleep() returns immediately in that case
+		p.persistedBackoff = time.Time{}
+		return result
+	}
+	return p.underlying.Value()
+}
+
+// NewPersistedBackoff wraps another backoff and stores the last value returned by Backoff() in BBolt.
+// It reads the last backoff value from the DB and returns it as the first value of the Backoff.
+func NewPersistedBackoff(db *bbolt.DB, peerAddress string, underlying Backoff) Backoff {
+	b := &persistingBackoff{
+		peerAddress: peerAddress,
+		db:          db,
+		underlying:  underlying,
+	}
+	persisted := b.read()
+	if !persisted.Moment.IsZero() {
+		b.persistedBackoff = persisted.Moment
+		b.underlying.Reset(persisted.Value)
+	}
+	return b
+}
+
+func (p *persistingBackoff) Reset(value time.Duration) {
+	p.underlying.Reset(value)
+	p.persistedBackoff = time.Time{}
+	p.write(value)
+}
+
+func (p *persistingBackoff) Backoff() time.Duration {
+	b := p.underlying.Backoff()
+	p.persistedBackoff = time.Time{}
+	p.write(b)
+	return b
+}
+
+func (p persistingBackoff) write(backoff time.Duration) {
+	err := p.db.Update(func(tx *bbolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists([]byte("backoff"))
+		if err != nil {
+			return err
+		}
+		var buf bytes.Buffer
+		err = gob.NewEncoder(&buf).Encode(persistedBackoff{
+			Moment: nowFunc().Add(backoff),
+			Value:  backoff,
+		})
+		if err != nil {
+			return err
+		}
+		return bucket.Put([]byte(p.peerAddress), buf.Bytes())
+	})
+	if err != nil {
+		log.Logger().Errorf("Failed to persist backoff: %v", err)
+	}
+}
+
+func (p persistingBackoff) read() persistedBackoff {
+	var result persistedBackoff
+	err := p.db.View(func(tx *bbolt.Tx) error {
+		bucket := tx.Bucket([]byte("backoff"))
+		if bucket == nil {
+			return nil
+		}
+		data := bucket.Get([]byte(p.peerAddress))
+		if data == nil {
+			return nil
+		}
+		err := gob.NewDecoder(bytes.NewReader(data)).Decode(&result)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		log.Logger().Errorf("Failed to read persisted backoff: %v", err)
+	}
+	return result
 }

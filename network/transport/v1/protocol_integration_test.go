@@ -21,7 +21,9 @@ package v1
 import (
 	"context"
 	"fmt"
+	"go.etcd.io/bbolt"
 	"hash/crc32"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -175,7 +177,8 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 	ctx.protocol = New(*cfg, ctx.state, dummyDiagnostics).(*protocolV1)
 
 	authenticator := grpc.NewTLSAuthenticator(doc.NewServiceResolver(&doc.Resolver{Store: store.NewMemoryStore()}))
-	ctx.connectionManager = grpc.NewGRPCConnectionManager(grpc.NewConfig(listenAddress, peerID), &transport.FixedNodeDIDResolver{NodeDID: did.DID{}}, authenticator, ctx.protocol)
+	connectionsDB, _ := bbolt.Open(filepath.Join(testDirectory, "connections.db"), 0600, nil)
+	ctx.connectionManager = grpc.NewGRPCConnectionManager(grpc.NewConfig(listenAddress, peerID), connectionsDB, &transport.FixedNodeDIDResolver{NodeDID: did.DID{}}, authenticator, ctx.protocol)
 
 	ctx.protocol.Configure(peerID)
 	if err := ctx.connectionManager.Start(); err != nil {
