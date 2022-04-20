@@ -140,7 +140,6 @@ func chunkTransactionList(transactions []*Transaction) [][]*Transaction {
 	startIndex := 0
 	endIndex := 0
 
-	// TODO to be tested in practise
 	max := grpc.MaxMessageSizeInBytes - transactionListMessageOverhead
 
 	for _, tx := range transactions {
