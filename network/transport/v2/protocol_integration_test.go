@@ -31,8 +31,10 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
@@ -144,6 +146,14 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 	})
 	ctx.state.Start()
 
+	eventPublisher := events.NewManager()
+	if err := eventPublisher.(core.Configurable).Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
+		t.Fatal(err)
+	}
+	if err := eventPublisher.(core.Runnable).Start(); err != nil {
+		t.Fatal(err)
+	}
+
 	cfg := &Config{
 		GossipInterval: 500,
 		Datadir:        testDirectory,
@@ -153,7 +163,7 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 	}
 	peerID := transport.PeerID(name)
 	listenAddress := fmt.Sprintf("localhost:%d", nameToPort(name))
-	ctx.protocol = New(*cfg, transport.FixedNodeDIDResolver{}, ctx.state, doc.Resolver{Store: vdrStore}, keyStore).(*protocol)
+	ctx.protocol = New(*cfg, transport.FixedNodeDIDResolver{}, ctx.state, doc.Resolver{Store: vdrStore}, keyStore, eventPublisher).(*protocol)
 
 	authenticator := grpc.NewTLSAuthenticator(doc.NewServiceResolver(&doc.Resolver{Store: store.NewMemoryStore()}))
 	connectionsDB, _ := bbolt.Open(path.Join(testDirectory, "connections.db"), os.ModePerm, nil)
@@ -167,6 +177,7 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 	t.Cleanup(func() {
 		ctx.protocol.Stop()
 		ctx.connectionManager.Stop()
+		eventPublisher.(core.Runnable).Shutdown()
 	})
 	return ctx
 }

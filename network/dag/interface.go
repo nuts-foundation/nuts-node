@@ -156,7 +156,7 @@ type PayloadReader interface {
 }
 
 // Observer defines the signature of an observer which can be called by an Observable.
-type Observer func(ctx context.Context, transaction Transaction, payload []byte)
+type Observer func(ctx context.Context, transaction Transaction, payload []byte) error
 
 // MinTime returns the minimum value for time.Time
 func MinTime() time.Time {

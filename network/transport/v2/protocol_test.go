@@ -29,6 +29,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/transport/v2/gossip"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
@@ -52,6 +53,7 @@ type protocolMocks struct {
 	Gossip           *gossip.MockManager
 	ConnectionList   *grpc.MockConnectionList
 	Sender           *MockmessageSender
+	EventPublisher   *events.MockEvent
 }
 
 func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) {
@@ -65,6 +67,7 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 	payloadScheduler := NewMockScheduler(ctrl)
 	connectionList := grpc.NewMockConnectionList(ctrl)
 	sender := NewMockmessageSender(ctrl)
+	eventPublisher := events.NewMockEvent(ctrl)
 	nodeDIDResolver := transport.FixedNodeDIDResolver{}
 
 	if nodeDID != nil {
@@ -73,7 +76,7 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 
 	cfg := DefaultConfig()
 	cfg.Datadir = dirname
-	proto := New(cfg, nodeDIDResolver, state, docResolver, decrypter)
+	proto := New(cfg, nodeDIDResolver, state, docResolver, decrypter, eventPublisher)
 	proto.(*protocol).payloadScheduler = payloadScheduler
 	proto.(*protocol).gManager = gMan
 	proto.(*protocol).cMan = newConversationManager(time.Second)
@@ -89,6 +92,7 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 		Gossip:           gMan,
 		ConnectionList:   connectionList,
 		Sender:           sender,
+		EventPublisher:   eventPublisher,
 	}
 }
 
@@ -101,7 +105,7 @@ func TestDefaultConfig(t *testing.T) {
 func TestProtocol_Configure(t *testing.T) {
 	testDID, _ := did.ParseDID("did:nuts:123")
 	p, mocks := newTestProtocol(t, testDID)
-	mocks.State.EXPECT().RegisterObserver(gomock.Any(), false)
+	mocks.State.EXPECT().RegisterObserver(gomock.Any(), false).Times(2)
 
 	assert.NoError(t, p.Configure(""))
 }

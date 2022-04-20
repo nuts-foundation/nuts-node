@@ -31,6 +31,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
+	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/storage"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"go.etcd.io/bbolt"
@@ -132,8 +133,7 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 			return err
 		}
 
-		s.notifyObservers(contextWithTX, transaction, payload)
-		return nil
+		return s.notifyObservers(contextWithTX, transaction, payload)
 	})
 }
 
@@ -175,7 +175,7 @@ func (s *state) WritePayload(ctx context.Context, payloadHash hash.SHA256Hash, d
 		err := s.payloadStore.WritePayload(contextWithTX, payloadHash, data)
 		if err == nil {
 			// ctx passed with bbolt transaction
-			s.notifyObservers(contextWithTX, nil, data)
+			return s.notifyObservers(contextWithTX, nil, data)
 		}
 		return err
 	})
@@ -311,15 +311,19 @@ func (s *state) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA256Ha
 }
 
 // notifyObservers is called from a transactional context. The transactional observers need to be called with the TX context, the other observers after the commit.
-func (s *state) notifyObservers(ctx context.Context, transaction Transaction, payload []byte) {
+func (s *state) notifyObservers(ctx context.Context, transaction Transaction, payload []byte) error {
 	// apply TX context observers
 	for _, observer := range s.transactionalObservers {
-		observer(ctx, transaction, payload)
+		if err := observer(ctx, transaction, payload); err != nil {
+			return fmt.Errorf("observer notification failed: %w", err)
+		}
 	}
 
 	notifyNonTXObservers := func() {
 		for _, observer := range s.nonTransactionalObservers {
-			observer(context.Background(), transaction, payload)
+			if err := observer(context.Background(), transaction, payload); err != nil {
+				log.Logger().Errorf("observer notification failed: %v", err)
+			}
 		}
 	}
 	// check if there's an active transaction
@@ -329,6 +333,7 @@ func (s *state) notifyObservers(ctx context.Context, transaction Transaction, pa
 	} else {
 		notifyNonTXObservers()
 	}
+	return nil
 }
 
 func (s *state) Diagnostics() []core.DiagnosticResult {

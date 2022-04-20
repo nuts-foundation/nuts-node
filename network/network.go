@@ -35,6 +35,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
@@ -75,6 +76,7 @@ type Network struct {
 	nodeDIDResolver        transport.NodeDIDResolver
 	didDocumentFinder      types.DocFinder
 	connectionsDB          *bbolt.DB
+	eventPublisher         events.Event
 }
 
 // Walk walks the DAG starting at the root, passing every transaction to `visitor`.
@@ -91,6 +93,7 @@ func NewNetworkInstance(
 	decrypter crypto.Decrypter,
 	didDocumentResolver types.DocResolver,
 	didDocumentFinder types.DocFinder,
+	eventPublisher events.Event,
 ) *Network {
 	return &Network{
 		config:                 config,
@@ -101,6 +104,7 @@ func NewNetworkInstance(
 		didDocumentFinder:      didDocumentFinder,
 		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool), processedTransactions: map[hash.SHA256Hash]bool{}},
 		nodeDIDResolver:        &transport.FixedNodeDIDResolver{},
+		eventPublisher:         eventPublisher,
 	}
 }
 
@@ -154,7 +158,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	if n.protocols == nil {
 		candidateProtocols = []transport.Protocol{
 			v1.New(n.config.ProtocolV1, n.state, n.collectDiagnostics),
-			v2.New(v2Cfg, n.nodeDIDResolver, n.state, n.didDocumentResolver, n.decrypter),
+			v2.New(v2Cfg, n.nodeDIDResolver, n.state, n.didDocumentResolver, n.decrypter, n.eventPublisher),
 		}
 	} else {
 		// Only set protocols if not already set: improves testability

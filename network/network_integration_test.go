@@ -30,6 +30,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuts-foundation/nuts-node/events"
 	"go.uber.org/goleak"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -617,6 +618,14 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 		f(&config)
 	}
 
+	eventPublisher := events.NewManager()
+	if err := eventPublisher.(core.Configurable).Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
+		t.Fatal(err)
+	}
+	if err := eventPublisher.(core.Runnable).Start(); err != nil {
+		t.Fatal(err)
+	}
+
 	instance := &Network{
 		config:                 config,
 		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool), processedTransactions: map[hash.SHA256Hash]bool{}},
@@ -626,6 +635,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 		decrypter:              keyStore,
 		keyResolver:            doc.KeyResolver{Store: vdrStore},
 		nodeDIDResolver:        &transport.FixedNodeDIDResolver{},
+		eventPublisher:         eventPublisher,
 	}
 
 	if err := instance.Configure(core.ServerConfig{Datadir: path.Join(testDirectory, name)}); err != nil {
@@ -643,6 +653,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 	})
 	t.Cleanup(func() {
 		_ = instance.Shutdown()
+		eventPublisher.(core.Runnable).Shutdown()
 	})
 	return instance
 }

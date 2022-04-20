@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 
 	"github.com/golang/mock/gomock"
@@ -53,6 +54,7 @@ type networkTestContext struct {
 	protocol          *transport.MockProtocol
 	docResolver       *vdrTypes.MockDocResolver
 	docFinder         *vdrTypes.MockDocFinder
+	eventPublisher    *events.MockEvent
 }
 
 func (cxt *networkTestContext) start() error {
@@ -885,9 +887,10 @@ func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *netw
 	keyResolver := vdrTypes.NewMockKeyResolver(ctrl)
 	docResolver := vdrTypes.NewMockDocResolver(ctrl)
 	docFinder := vdrTypes.NewMockDocFinder(ctrl)
+	eventPublisher := events.NewMockEvent(ctrl)
 	// required when starting the network, it searches for nodes to connect to
 	docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return([]did.Document{}, nil)
-	network := NewNetworkInstance(networkConfig, keyResolver, keyStore, decrypter, docResolver, docFinder)
+	network := NewNetworkInstance(networkConfig, keyResolver, keyStore, decrypter, docResolver, docFinder, eventPublisher)
 	network.state = state
 	network.connectionManager = connectionManager
 	network.protocols = []transport.Protocol{prot}
@@ -905,6 +908,7 @@ func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *netw
 		keyResolver:       keyResolver,
 		docResolver:       docResolver,
 		docFinder:         docFinder,
+		eventPublisher:    eventPublisher,
 	}
 }
 
