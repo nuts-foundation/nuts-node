@@ -47,6 +47,41 @@ func Test_connector_tryConnect(t *testing.T) {
 	assert.Equal(t, uint32(1), connector.stats().Attempts)
 }
 
+func Test_connector_stats(t *testing.T) {
+	t.Run("no connect attempts", func(t *testing.T) {
+		connector := createOutboundConnector("foo", func(_ context.Context, _ string, _ ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
+			return &grpc.ClientConn{}, nil
+		}, nil, func() bool {
+			return true
+		}, func(_ *grpc.ClientConn) bool {
+			return true
+		}, defaultBackoff())
+
+		stats := connector.stats()
+
+		assert.Equal(t, uint32(0), stats.Attempts)
+		assert.Equal(t, "foo", stats.Address)
+		assert.Equal(t, time.Time{}, stats.LastAttempt)
+	})
+	t.Run("with connect attempts", func(t *testing.T) {
+		connector := createOutboundConnector("foo", func(_ context.Context, _ string, _ ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
+			return &grpc.ClientConn{}, nil
+		}, nil, func() bool {
+			return true
+		}, func(_ *grpc.ClientConn) bool {
+			return true
+		}, defaultBackoff())
+
+		connector.tryConnect()
+		stats := connector.stats()
+
+		now := time.Now().Add(time.Second * -1)
+		assert.Equal(t, uint32(1), stats.Attempts)
+		assert.Equal(t, "foo", stats.Address)
+		assert.True(t,stats.LastAttempt.After(now))
+	})
+}
+
 func Test_connector_start(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		connected := make(chan struct{}, 1)
@@ -71,7 +106,7 @@ func Test_connector_start(t *testing.T) {
 		test.WaitFor(t, func() (bool, error) {
 			resetCounts, _ := bo.counts()
 			return resetCounts == 1, nil
-		}, 5 * time.Second, "waiting for backoff.Reset() to be called")
+		}, 5*time.Second, "waiting for backoff.Reset() to be called")
 	})
 	t.Run("not connecting when already connected", func(t *testing.T) {
 		calls := make(chan struct{}, 10)

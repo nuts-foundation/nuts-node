@@ -43,6 +43,7 @@ func createOutboundConnector(address string, dialer dialer, tlsConfig *tls.Confi
 		shouldConnect:     shouldConnect,
 		connectedCallback: connectedCallback,
 		stopped:           &atomic.Value{},
+		lastAttempt:       &atomic.Value{},
 		attempts:          &attempts,
 		connectedBackoff: func(cancelCtx context.Context) {
 			sleepWithCancel(cancelCtx, 2*time.Second)
@@ -63,9 +64,10 @@ type outboundConnector struct {
 	shouldConnect    func() bool
 	connectedBackoff func(cancelCtx context.Context)
 	// cancelFunc is used to signal the async connector loop (and specifically waits/sleeps) to abort.
-	cancelFunc func()
-	stopped    *atomic.Value
-	attempts   *uint32
+	cancelFunc  func()
+	stopped     *atomic.Value
+	attempts    *uint32
+	lastAttempt *atomic.Value
 }
 
 func (c *outboundConnector) start() {
@@ -117,6 +119,7 @@ func (c *outboundConnector) stop() {
 func (c *outboundConnector) tryConnect() (*grpcLib.ClientConn, error) {
 	log.Logger().Infof("Connecting to peer: %s", c.address)
 	atomic.AddUint32(c.attempts, 1)
+	c.lastAttempt.Store(time.Now())
 
 	dialContext, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -143,8 +146,10 @@ func (c *outboundConnector) tryConnect() (*grpcLib.ClientConn, error) {
 }
 
 func (c outboundConnector) stats() transport.ConnectorStats {
+	lastAttempt, _ := c.lastAttempt.Load().(time.Time)
 	return transport.ConnectorStats{
-		Address:  c.address,
-		Attempts: atomic.LoadUint32(c.attempts),
+		Address:     c.address,
+		Attempts:    atomic.LoadUint32(c.attempts),
+		LastAttempt: lastAttempt,
 	}
 }
