@@ -31,6 +31,21 @@ func TestDefaultConfig(t *testing.T) {
 	assert.Equal(t, ":5555", defs.GrpcAddr)
 }
 
+func TestConfig_IsProtocolEnabled(t *testing.T) {
+	t.Run("not set", func(t *testing.T) {
+		defs := DefaultConfig()
+		assert.True(t, defs.IsProtocolEnabled(1))
+		assert.True(t, defs.IsProtocolEnabled(2))
+		assert.True(t, defs.IsProtocolEnabled(3))
+	})
+	t.Run("protocols set", func(t *testing.T) {
+		defs := DefaultConfig()
+		defs.Protocols = []int{2}
+		assert.False(t, defs.IsProtocolEnabled(1))
+		assert.True(t, defs.IsProtocolEnabled(2))
+	})
+}
+
 func TestConfig_loadTrustStore(t *testing.T) {
 	t.Run("configured", func(t *testing.T) {
 		cfg := DefaultConfig()

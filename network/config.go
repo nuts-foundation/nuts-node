@@ -31,8 +31,10 @@ type Config struct {
 	EnableTLS bool `koanf:"network.enabletls"`
 	// Public address of this nodes other nodes can use to connect to this node.
 	BootstrapNodes []string `koanf:"network.bootstrapnodes"`
-	CertFile       string   `koanf:"network.certfile"`
-	CertKeyFile    string   `koanf:"network.certkeyfile"`
+	// Protocols is the list of network protocols to enable on the server. They are specified by version (v1, v2).
+	Protocols   []int  `koanf:"network.protocols"`
+	CertFile    string `koanf:"network.certfile"`
+	CertKeyFile string `koanf:"network.certkeyfile"`
 	// EnableDiscovery tells the node to automatically connect to other nodes
 	EnableDiscovery bool   `koanf:"network.enablediscovery"`
 	TrustStoreFile  string `koanf:"network.truststorefile"`
@@ -54,6 +56,19 @@ type Config struct {
 
 	// ProtocolV2 specifies config for protocol v2
 	ProtocolV2 v2.Config `koanf:"network.v2"`
+}
+
+// IsProtocolEnabled returns true if the protocol is enabled, otherwise false.
+func (c Config) IsProtocolEnabled(version int) bool {
+	if len(c.Protocols) == 0 {
+		return true
+	}
+	for _, curr := range c.Protocols {
+		if curr == version {
+			return true
+		}
+	}
+	return false
 }
 
 // DefaultConfig returns the default NetworkEngine configuration.
