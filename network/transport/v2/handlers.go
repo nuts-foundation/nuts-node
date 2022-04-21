@@ -244,7 +244,14 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 		}
 		if !present {
 			// TODO does this always trigger fetching missing payloads? (through observer on DAG) Prolly not for v2
-			if err = p.state.Add(ctx, tx, envelope.TransactionList.Transactions[i].Payload); err != nil {
+			err = p.state.Add(ctx, tx, envelope.TransactionList.Transactions[i].Payload)
+			if err != nil {
+				if errors.Is(err, dag.ErrPreviousTransactionMissing) {
+					p.cMan.done(cid)
+					log.Logger().Warnf("ignoring remainder of TransactionList due to missing prevs (conversation=%s, Tx with missing prevs=%s)", cid, tx.Ref())
+					xor, clock := p.state.XOR(ctx, math.MaxUint32)
+					return p.sender.sendState(peer.ID, xor, clock)
+				}
 				return fmt.Errorf("unable to add received transaction to DAG (tx=%s): %w", tx.Ref(), err)
 			}
 		}

@@ -356,12 +356,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		err := p.handleTransactionList(peer, &Envelope_TransactionList{
 			TransactionList: &TransactionList{
 				ConversationID: conversation.conversationID.slice(),
-				Transactions: []*Transaction{
-					{
-						Data:    data,
-						Payload: payload,
-					},
-				},
+				Transactions:   []*Transaction{{Data: data, Payload: payload}},
 			},
 		})
 
@@ -376,16 +371,30 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		err := p.handleTransactionList(peer, &Envelope_TransactionList{
 			TransactionList: &TransactionList{
 				ConversationID: conversation.conversationID.slice(),
-				Transactions: []*Transaction{
-					{
-						Data:    data,
-						Payload: payload,
-					},
-				},
+				Transactions:   []*Transaction{{Data: data, Payload: payload}},
 			},
 		})
 
 		assert.NoError(t, err)
+	})
+
+	t.Run("ok - missing prevs", func(t *testing.T) {
+		p, mocks := newTestProtocol(t, nil)
+		conversation := p.cMan.startConversation(request)
+		mocks.State.EXPECT().IsPresent(context.Background(), h1).Return(false, nil)
+		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(dag.ErrPreviousTransactionMissing)
+		mocks.State.EXPECT().XOR(context.Background(), uint32(math.MaxUint32)).Return(hash.FromSlice([]byte("stateXor")), uint32(7))
+		mocks.Sender.EXPECT().sendState(peer.ID, hash.FromSlice([]byte("stateXor")), uint32(7))
+
+		err := p.handleTransactionList(peer, &Envelope_TransactionList{
+			TransactionList: &TransactionList{
+				ConversationID: conversation.conversationID.slice(),
+				Transactions:   []*Transaction{{Data: data, Payload: payload}},
+			},
+		})
+
+		assert.NoError(t, err)
+		assert.Nil(t, p.cMan.conversations[conversation.conversationID.String()])
 	})
 
 	t.Run("ok - conversation marked as done", func(t *testing.T) {
@@ -398,12 +407,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		err := p.handleTransactionList(peer, &Envelope_TransactionList{
 			TransactionList: &TransactionList{
 				ConversationID: conversation.conversationID.slice(),
-				Transactions: []*Transaction{
-					{
-						Data:    data,
-						Payload: payload,
-					},
-				},
+				Transactions:   []*Transaction{{Data: data, Payload: payload}},
 			},
 		})
 
@@ -423,12 +427,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		err := p.handleTransactionList(peer, &Envelope_TransactionList{
 			TransactionList: &TransactionList{
 				ConversationID: conversation.conversationID.slice(),
-				Transactions: []*Transaction{
-					{
-						Data:    data,
-						Payload: payload,
-					},
-				},
+				Transactions:   []*Transaction{{Data: data, Payload: payload}},
 			},
 		})
 
@@ -445,12 +444,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		err := p.handleTransactionList(peer, &Envelope_TransactionList{
 			TransactionList: &TransactionList{
 				ConversationID: conversation.conversationID.slice(),
-				Transactions: []*Transaction{
-					{
-						Data:    data,
-						Payload: payload,
-					},
-				},
+				Transactions:   []*Transaction{{Data: data, Payload: payload}},
 			},
 		})
 
@@ -466,12 +460,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		err := p.handleTransactionList(peer, &Envelope_TransactionList{
 			TransactionList: &TransactionList{
 				ConversationID: conversation.conversationID.slice(),
-				Transactions: []*Transaction{
-					{
-						Data:    data,
-						Payload: payload,
-					},
-				},
+				Transactions:   []*Transaction{{Data: data, Payload: payload}},
 			},
 		})
 
@@ -485,9 +474,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		err := p.handleTransactionList(peer, &Envelope_TransactionList{
 			TransactionList: &TransactionList{
 				ConversationID: conversation.conversationID.slice(),
-				Transactions: []*Transaction{{
-					Data: []byte{1},
-				}},
+				Transactions:   []*Transaction{{Data: []byte{1}}},
 			},
 		})
 
