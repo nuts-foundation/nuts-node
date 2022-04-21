@@ -59,8 +59,21 @@ type conversation struct {
 	conversationID   conversationID
 	createdAt        time.Time
 	conversationData checkable
-	// additionalInfo can be used to check if a conversation is done
-	additionalInfo map[string]interface{}
+	mux              sync.RWMutex
+	// properties can be used to store extra info on the conversation, e.g. to check if a conversation is done
+	properties map[string]interface{}
+}
+
+func (conversation *conversation) get(key string) interface{} {
+	conversation.mux.RLock()
+	defer conversation.mux.RUnlock()
+	return conversation.properties[key]
+}
+
+func (conversation *conversation) set(key string, value interface{}) {
+	conversation.mux.Lock()
+	defer conversation.mux.Unlock()
+	conversation.properties[key] = value
 }
 
 type checkable interface {
@@ -131,7 +144,7 @@ func (cMan *conversationManager) startConversation(msg checkable) *conversation 
 		conversationID:   cid,
 		createdAt:        time.Now(),
 		conversationData: msg,
-		additionalInfo:   map[string]interface{}{},
+		properties:       map[string]interface{}{},
 	}
 
 	cMan.mutex.Lock()
@@ -142,7 +155,7 @@ func (cMan *conversationManager) startConversation(msg checkable) *conversation 
 	return newConversation
 }
 
-func (cMan *conversationManager) check(envelope conversationable, data handlerData) error {
+func (cMan *conversationManager) check(envelope conversationable, data handlerData) (*conversation, error) {
 	cidBytes := envelope.conversationID()
 	cid := conversationID(cidBytes)
 
@@ -150,9 +163,9 @@ func (cMan *conversationManager) check(envelope conversationable, data handlerDa
 	defer cMan.mutex.RUnlock()
 
 	if req, ok := cMan.conversations[cid.String()]; !ok {
-		return fmt.Errorf("unknown or expired conversation (id=%s)", cid)
+		return nil, fmt.Errorf("unknown or expired conversation (id=%s)", cid)
 	} else {
-		return req.conversationData.checkResponse(envelope, data)
+		return req, req.conversationData.checkResponse(envelope, data)
 	}
 }
 

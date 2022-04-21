@@ -219,14 +219,15 @@ func (p *protocol) handleGossip(peer transport.Peer, msg *Gossip) error {
 func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope_TransactionList) error {
 	msg := envelope.TransactionList
 	cid := conversationID(msg.ConversationID)
-	conversation := p.cMan.conversations[cid.String()]
 	data := handlerData{}
 
 	// TODO convert to trace logging
 	log.Logger().Infof("handling handleTransactionList from peer (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
 
 	// check if response matches earlier request
-	if err := p.cMan.check(envelope, data); err != nil {
+	var conversation *conversation
+	var err error
+	if conversation, err = p.cMan.check(envelope, data); err != nil {
 		return err
 	}
 
@@ -259,8 +260,9 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 	}
 
 	// remove from conversation
-	if conversation.additionalInfo["refs"] != nil {
-		requestedRefs := conversation.additionalInfo["refs"].([]hash.SHA256Hash)
+	refs := conversation.get("refs")
+	if refs != nil {
+		requestedRefs := refs.([]hash.SHA256Hash)
 		newRefs := make([]hash.SHA256Hash, len(requestedRefs))
 		i := 0
 		for _, requestedRef := range requestedRefs {
@@ -270,7 +272,7 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 			}
 		}
 		newRefs = newRefs[:i]
-		conversation.additionalInfo["refs"] = newRefs
+		conversation.set("refs", newRefs)
 
 		// if len == 0, mark as done
 		if len(newRefs) == 0 {
@@ -380,7 +382,7 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope_
 	log.Logger().Debugf("handling TransactionSet from peer (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
 
 	// check if response matches earlier request
-	if err := p.cMan.check(envelope, data); err != nil {
+	if _, err := p.cMan.check(envelope, data); err != nil {
 		return err
 	}
 

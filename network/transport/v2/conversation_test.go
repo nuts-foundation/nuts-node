@@ -168,9 +168,10 @@ func TestConversationManager_checkTransactionRangeQuery(t *testing.T) {
 			},
 		}
 
-		err := cMan.check(response, handlerData{})
+		c, err := cMan.check(response, handlerData{})
 
 		assert.NoError(t, err)
+		assert.NotNil(t, c)
 	})
 	t.Run("error - TX LC out of requested range", func(t *testing.T) {
 		t.Skip()
@@ -189,9 +190,10 @@ func TestConversationManager_checkTransactionRangeQuery(t *testing.T) {
 			},
 		}
 
-		err := cMan.check(response, handlerData{})
+		c, err := cMan.check(response, handlerData{})
 
 		assert.EqualError(t, err, "TX is not within the requested range (tx="+tx2.Ref().String()+")")
+		assert.Nil(t, c)
 	})
 }
 
@@ -218,9 +220,10 @@ func TestConversationManager_checkTransactionListQuery(t *testing.T) {
 			},
 		}
 
-		err := cMan.check(response, handlerData{})
+		c, err := cMan.check(response, handlerData{})
 
 		assert.NoError(t, err)
+		assert.NotNil(t, c)
 	})
 
 	t.Run("error - unknown conversation ID", func(t *testing.T) {
@@ -237,9 +240,10 @@ func TestConversationManager_checkTransactionListQuery(t *testing.T) {
 			},
 		}
 
-		err := cMan.check(response, handlerData{})
+		c, err := cMan.check(response, handlerData{})
 
 		assert.EqualError(t, err, "unknown or expired conversation (id=9dbacbabf0c6413591f7553ff4348753)")
+		assert.Nil(t, c)
 	})
 
 	t.Run("error - invalid response", func(t *testing.T) {
@@ -258,9 +262,10 @@ func TestConversationManager_checkTransactionListQuery(t *testing.T) {
 			},
 		}
 
-		err := cMan.check(response, handlerData{})
+		c, err := cMan.check(response, handlerData{})
 
 		assert.ErrorContains(t, err, "response contains non-requested transaction")
+		assert.NotNil(t, c)
 	})
 }
 
@@ -282,9 +287,10 @@ func TestConversationManager_checkState(t *testing.T) {
 			},
 		}
 
-		err := cMan.check(response, handlerData{})
+		c, err := cMan.check(response, handlerData{})
 
 		assert.NoError(t, err)
+		assert.NotNil(t, c)
 	})
 
 	t.Run("error - unknown conversation ID", func(t *testing.T) {
@@ -298,9 +304,10 @@ func TestConversationManager_checkState(t *testing.T) {
 			},
 		}
 
-		err := cMan.check(response, handlerData{})
+		c, err := cMan.check(response, handlerData{})
 
 		assert.EqualError(t, err, "unknown or expired conversation (id=9dbacbabf0c6413591f7553ff4348753)")
+		assert.Nil(t, c)
 	})
 
 	t.Run("error - invalid response", func(t *testing.T) {
@@ -313,8 +320,9 @@ func TestConversationManager_checkState(t *testing.T) {
 			},
 		}
 
-		err := cMan.check(response, handlerData{})
+		c, err := cMan.check(response, handlerData{})
 
 		assert.ErrorContains(t, err, "TransactionSet.LCReq is not equal to requested value (requested=5, received=8)")
+		assert.NotNil(t, c)
 	})
 }
