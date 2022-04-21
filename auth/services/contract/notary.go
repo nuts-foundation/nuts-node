@@ -116,35 +116,15 @@ func (n *notary) DrawUpContract(template contract.Template, orgID did.DID, valid
 		return nil, fmt.Errorf("could not draw up contract: organization is not managed by this node: %w", ErrMissingOrganizationKey)
 	}
 
-	searchTerms := []vcr.SearchTerm{
-		{IRIPath: jsonld.CredentialSubjectPath, Value: orgID.String()},
-		{IRIPath: jsonld.OrganizationNamePath, Type: vcr.NotNil},
-		{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
-	}
-
-	result, err := n.vcr.Search(context.Background(), searchTerms, false, nil)
+	orgName, orgCity, err := n.findVC(orgID)
 	if err != nil {
-		return nil, fmt.Errorf("could not find a credential: %w", err)
+		return nil, err
 	}
-
-	if len(result) == 0 {
-		return nil, errors.New("could not find a trusted credential with an organization name and city")
-	}
-
-	// expand
-	reader := jsonld.Reader{DocumentLoader: n.jsonldManager.DocumentLoader()}
-	document, err := reader.Read(result[0])
-	if err != nil {
-		return nil, fmt.Errorf("could not read VC: %w", err)
-	}
-
-	orgNames := document.ValueAt(jsonld.OrganizationNamePath)
-	orgCities := document.ValueAt(jsonld.OrganizationCityPath)
 
 	// name and city must exist since we queried it
 	contractAttrs := map[string]string{
-		contract.LegalEntityAttr:     orgNames[0].String(),
-		contract.LegalEntityCityAttr: orgCities[0].String(),
+		contract.LegalEntityAttr:     orgName,
+		contract.LegalEntityCityAttr: orgCity,
 	}
 
 	if validDuration == 0 {
@@ -292,4 +272,31 @@ func (n *notary) CreateSigningSession(sessionRequest services.CreateSessionReque
 	}
 
 	return signer.StartSigningSession(sessionRequest.Message)
+}
+
+func (n *notary) findVC(orgID did.DID) (string, string, error) {
+	searchTerms := []vcr.SearchTerm{
+		{IRIPath: jsonld.CredentialSubjectPath, Value: orgID.String()},
+		{IRIPath: jsonld.OrganizationNamePath, Type: vcr.NotNil},
+		{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
+	}
+
+	result, err := n.vcr.Search(context.Background(), searchTerms, false, nil)
+	if err != nil {
+		return "", "", fmt.Errorf("could not find a credential: %w", err)
+	}
+	if len(result) == 0 {
+		return "", "", errors.New("could not find a trusted credential with an organization name and city")
+	}
+
+	// expand
+	reader := jsonld.Reader{DocumentLoader: n.jsonldManager.DocumentLoader()}
+	document, err := reader.Read(result[0])
+	if err != nil {
+		return "", "", fmt.Errorf("could not read VC: %w", err)
+	}
+
+	orgNames := document.ValueAt(jsonld.OrganizationNamePath)
+	orgCities := document.ValueAt(jsonld.OrganizationCityPath)
+	return orgNames[0].String(), orgCities[0].String(), nil
 }
