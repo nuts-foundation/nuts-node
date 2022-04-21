@@ -108,6 +108,14 @@ func (s *state) RegisterObserver(observer Observer, transactional bool) {
 
 func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte) error {
 	return storage.BBoltTXUpdate(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
+		present, err := s.IsPresent(contextWithTX, transaction.Ref())
+		if err != nil {
+			return err
+		}
+		if present {
+			return nil
+		}
+
 		if err := s.verifyTX(contextWithTX, transaction); err != nil {
 			return err
 		}

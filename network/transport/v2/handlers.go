@@ -239,22 +239,15 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 	refsToBeRemoved := map[hash.SHA256Hash]bool{}
 	ctx := context.Background()
 	for i, tx := range txs {
-		present, err := p.state.IsPresent(ctx, tx.Ref())
-		if err != nil {
-			return fmt.Errorf("unable to add received transaction to DAG (tx=%s): %w", tx.Ref(), err)
-		}
-		if !present {
-			// TODO does this always trigger fetching missing payloads? (through observer on DAG) Prolly not for v2
-			err = p.state.Add(ctx, tx, envelope.TransactionList.Transactions[i].Payload)
-			if err != nil {
-				if errors.Is(err, dag.ErrPreviousTransactionMissing) {
-					p.cMan.done(cid)
-					log.Logger().Warnf("ignoring remainder of TransactionList due to missing prevs (conversation=%s, Tx with missing prevs=%s)", cid, tx.Ref())
-					xor, clock := p.state.XOR(ctx, math.MaxUint32)
-					return p.sender.sendState(peer.ID, xor, clock)
-				}
-				return fmt.Errorf("unable to add received transaction to DAG (tx=%s): %w", tx.Ref(), err)
+		// TODO does this always trigger fetching missing payloads? (through observer on DAG) Prolly not for v2
+		if err = p.state.Add(ctx, tx, envelope.TransactionList.Transactions[i].Payload); err != nil {
+			if errors.Is(err, dag.ErrPreviousTransactionMissing) {
+				p.cMan.done(cid)
+				log.Logger().Warnf("ignoring remainder of TransactionList due to missing prevs (conversation=%s, Tx with missing prevs=%s)", cid, tx.Ref())
+				xor, clock := p.state.XOR(ctx, math.MaxUint32)
+				return p.sender.sendState(peer.ID, xor, clock)
 			}
+			return fmt.Errorf("unable to add received transaction to DAG (tx=%s): %w", tx.Ref(), err)
 		}
 		refsToBeRemoved[tx.Ref()] = true
 	}
