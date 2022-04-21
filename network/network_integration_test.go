@@ -23,6 +23,7 @@ import (
 	"crypto"
 	"fmt"
 	"hash/crc32"
+	"math"
 	"math/rand"
 	"path"
 	"sync"
@@ -130,10 +131,10 @@ func TestNetworkIntegration_V2(t *testing.T) {
 
 		// start nodes with v1 disabled, we rely on the gossip protocol
 		bootstrap := startNode(t, "integration_bootstrap", testDirectory, func(cfg *Config) {
-			cfg.ProtocolV1.AdvertHashesInterval = 24 * 60 * 60 * 1000
+			cfg.Protocols = []int{2}
 		})
 		node1 := startNode(t, "integration_node1", testDirectory, func(cfg *Config) {
-			cfg.ProtocolV1.AdvertHashesInterval = 24 * 60 * 60 * 1000
+			cfg.Protocols = []int{2}
 		})
 
 		return bootstrap, node1
@@ -202,6 +203,56 @@ func TestNetworkIntegration_V2(t *testing.T) {
 
 		// Now assert that all nodes have received all transactions
 		waitForTransactions("node 1", node1.state, expectedDocLogSize)
+	})
+
+	t.Run("Parallel node sync", func(t *testing.T) {
+		key := nutsCrypto.NewTestKey("key")
+		expectedDocLogSize := 0
+
+		testDirectory := io.TestDirectory(t)
+		resetIntegrationTest()
+
+		node1 := startNode(t, "integration_node1", testDirectory, func(cfg *Config) {
+			cfg.Protocols = []int{2}
+			cfg.ProtocolV2.GossipInterval = 10
+		})
+		node2 := startNode(t, "integration_node2", testDirectory, func(cfg *Config) {
+			cfg.Protocols = []int{2}
+			cfg.ProtocolV2.GossipInterval = 10
+		})
+		node3 := startNode(t, "integration_node3", testDirectory, func(cfg *Config) {
+			cfg.Protocols = []int{2}
+			cfg.ProtocolV2.GossipInterval = 10
+		})
+		node1.connectionManager.Connect(nameToAddress(t, "integration_node2"))
+
+		// Wait until nodes are connected
+		if !test.WaitFor(t, func() (bool, error) {
+			return len(node1.connectionManager.Peers()) == 1, nil
+		}, defaultTimeout, "time-out while waiting for node 1 and 2 to be connected") {
+			return
+		}
+
+		// create some transactions on node1
+		for i := 0; i < 10; i++ {
+			if !addTransactionAndWaitForItToArrive(t, fmt.Sprintf("doc%d", i), key, node1) {
+				return
+			}
+			expectedDocLogSize++
+		}
+
+		waitForTransactions("node 2", node2.state, expectedDocLogSize)
+
+		// connect node 3 to 1 and 2. It'll receive parallel updates from both nodes
+		node3.connectionManager.Connect(nameToAddress(t, "integration_node1"))
+		node3.connectionManager.Connect(nameToAddress(t, "integration_node2"))
+		waitForTransactions("node 3", node3.state, expectedDocLogSize)
+
+		xor1, _ := node1.state.XOR(context.Background(), math.MaxUint32)
+		xor2, _ := node2.state.XOR(context.Background(), math.MaxUint32)
+		xor3, _ := node3.state.XOR(context.Background(), math.MaxUint32)
+		assert.True(t, xor1.Equals(xor3))
+		assert.True(t, xor2.Equals(xor3))
 	})
 }
 

@@ -239,16 +239,11 @@ func (p *protocol) checkTransactionOnLocalNode(ctx context.Context, peer transpo
 		return fmt.Errorf("received transaction is invalid (peer=%s,pref=%s): %w", peer, transactionRef, err)
 	}
 
-	queryContents := false
-
-	if present, err := p.state.IsPresent(ctx, transactionRef); err != nil {
-		return err
-	} else if !present {
-		if err := p.state.Add(ctx, transaction, nil); err != nil {
-			return fmt.Errorf("unable to add received transaction to DAG (tx=%s): %w", transaction.Ref(), err)
-		}
-		queryContents = true
-	} else if payloadPresent, err := p.state.IsPayloadPresent(ctx, transaction.PayloadHash()); err != nil {
+	queryContents := true
+	if err := p.state.Add(ctx, transaction, nil); err != nil {
+		return fmt.Errorf("unable to add received transaction to DAG (tx=%s): %w", transaction.Ref(), err)
+	}
+	if payloadPresent, err := p.state.IsPayloadPresent(ctx, transaction.PayloadHash()); err != nil {
 		return err
 	} else {
 		queryContents = !payloadPresent

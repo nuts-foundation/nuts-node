@@ -350,7 +350,6 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request)
-		mocks.State.EXPECT().IsPresent(context.Background(), h1).Return(false, nil)
 		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(nil)
 
 		err := p.handleTransactionList(peer, &Envelope_TransactionList{
@@ -366,7 +365,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 	t.Run("ok - duplicate", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request)
-		mocks.State.EXPECT().IsPresent(context.Background(), h1).Return(true, nil)
+		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(nil)
 
 		err := p.handleTransactionList(peer, &Envelope_TransactionList{
 			TransactionList: &TransactionList{
@@ -381,7 +380,6 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 	t.Run("ok - missing prevs", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request)
-		mocks.State.EXPECT().IsPresent(context.Background(), h1).Return(false, nil)
 		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(dag.ErrPreviousTransactionMissing)
 		mocks.State.EXPECT().XOR(context.Background(), uint32(math.MaxUint32)).Return(hash.FromSlice([]byte("stateXor")), uint32(7))
 		mocks.Sender.EXPECT().sendState(peer.ID, hash.FromSlice([]byte("stateXor")), uint32(7))
@@ -401,7 +399,6 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request)
 		conversation.set("refs", []hash.SHA256Hash{h1})
-		mocks.State.EXPECT().IsPresent(context.Background(), h1).Return(false, nil)
 		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(nil)
 
 		err := p.handleTransactionList(peer, &Envelope_TransactionList{
@@ -421,7 +418,6 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request)
 		conversation.set("refs", []hash.SHA256Hash{h1, h2})
-		mocks.State.EXPECT().IsPresent(context.Background(), h1).Return(false, nil)
 		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(nil)
 
 		err := p.handleTransactionList(peer, &Envelope_TransactionList{
@@ -436,25 +432,9 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		assert.Len(t, p.cMan.conversations[conversation.conversationID.String()].get("refs"), 1)
 	})
 
-	t.Run("error - State.IsPresent failed", func(t *testing.T) {
-		p, mocks := newTestProtocol(t, nil)
-		conversation := p.cMan.startConversation(request)
-		mocks.State.EXPECT().IsPresent(context.Background(), h1).Return(false, errors.New("custom"))
-
-		err := p.handleTransactionList(peer, &Envelope_TransactionList{
-			TransactionList: &TransactionList{
-				ConversationID: conversation.conversationID.slice(),
-				Transactions:   []*Transaction{{Data: data, Payload: payload}},
-			},
-		})
-
-		assert.EqualError(t, err, fmt.Sprintf("unable to add received transaction to DAG (tx=%s): custom", tx.Ref().String()))
-	})
-
 	t.Run("error - State.Add failed", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request)
-		mocks.State.EXPECT().IsPresent(context.Background(), h1).Return(false, nil)
 		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(errors.New("custom"))
 
 		err := p.handleTransactionList(peer, &Envelope_TransactionList{

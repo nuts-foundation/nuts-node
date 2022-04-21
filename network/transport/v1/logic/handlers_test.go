@@ -158,7 +158,7 @@ func TestProtocol_HandleTransactionList(t *testing.T) {
 	t.Run("non-empty list (happy flow)", func(t *testing.T) {
 		ctx := newContext(t)
 		tx, _, _ := dag.CreateTestTransaction(1)
-		ctx.state().EXPECT().IsPresent(gomock.Any(), tx.Ref()).Return(true, nil)
+		ctx.state().EXPECT().Add(gomock.Any(), tx, gomock.Any()).Return(nil)
 		ctx.state().EXPECT().IsPayloadPresent(gomock.Any(), tx.PayloadHash()).Return(true, nil)
 		msg := &protobuf.NetworkMessage_TransactionList{
 			TransactionList: &protobuf.TransactionList{
@@ -178,7 +178,6 @@ func TestProtocol_HandleTransactionList(t *testing.T) {
 	t.Run("non-empty list, processing error", func(t *testing.T) {
 		ctx := newContext(t)
 		tx1, _, _ := dag.CreateTestTransaction(1)
-		ctx.state().EXPECT().IsPresent(gomock.Any(), tx1.Ref()).Return(false, nil)
 		ctx.state().EXPECT().Add(gomock.Any(), tx1, nil).Return(errors.New("failed"))
 		msg := &protobuf.NetworkMessage_TransactionList{
 			TransactionList: &protobuf.TransactionList{
@@ -196,13 +195,12 @@ func TestProtocol_HandleTransactionList(t *testing.T) {
 		// TX(3) should be processed properly
 		ctx := context.Background()
 		tx1, _, _ := dag.CreateTestTransaction(1)
-		testCtx.state().EXPECT().IsPresent(ctx, tx1.Ref()).MinTimes(1).Return(true, nil)
+		testCtx.state().EXPECT().Add(ctx, tx1, gomock.Any()).Return(nil)
 		testCtx.state().EXPECT().IsPayloadPresent(ctx, tx1.PayloadHash()).Return(true, nil)
 		tx2, _, _ := dag.CreateTestTransaction(1)
-		testCtx.state().EXPECT().IsPresent(ctx, tx2.Ref()).MinTimes(1).Return(false, nil)
 		testCtx.state().EXPECT().Add(gomock.Any(), tx2, gomock.Any()).MinTimes(1).Return(fmt.Errorf("error: %w", dag.ErrPreviousTransactionMissing))
 		tx3, _, _ := dag.CreateTestTransaction(1)
-		testCtx.state().EXPECT().IsPresent(ctx, tx3.Ref()).MinTimes(1).Return(true, nil)
+		testCtx.state().EXPECT().Add(ctx, tx3, gomock.Any()).Return(nil)
 		testCtx.state().EXPECT().IsPayloadPresent(ctx, tx3.PayloadHash()).Return(true, nil)
 		msg := &protobuf.NetworkMessage_TransactionList{
 			TransactionList: &protobuf.TransactionList{
@@ -360,23 +358,15 @@ func Test_checkTransactionOnLocalNode(t *testing.T) {
 	tx, _, _ := dag.CreateTestTransaction(1)
 	t.Run("payload present (happy flow)", func(t *testing.T) {
 		ctx := newContext(t)
-		ctx.state().EXPECT().IsPresent(gomock.Any(), tx.Ref()).Return(true, nil)
+		ctx.state().EXPECT().Add(gomock.Any(), tx, gomock.Any()).Return(nil)
 		ctx.state().EXPECT().IsPayloadPresent(gomock.Any(), tx.PayloadHash()).Return(true, nil)
 		err := ctx.instance.checkTransactionOnLocalNode(context.Background(), peerID, tx.Ref(), tx.Data())
 		assert.NoError(t, err)
 	})
 	t.Run("payload not present (alt. flow)", func(t *testing.T) {
 		ctx := newContext(t)
-		ctx.state().EXPECT().IsPresent(gomock.Any(), tx.Ref()).Return(true, nil)
+		ctx.state().EXPECT().Add(gomock.Any(), tx, gomock.Any()).Return(nil)
 		ctx.state().EXPECT().IsPayloadPresent(gomock.Any(), tx.PayloadHash()).Return(false, nil)
-		ctx.sender().EXPECT().sendTransactionPayloadQuery(peerID, tx.PayloadHash())
-		err := ctx.instance.checkTransactionOnLocalNode(context.Background(), peerID, tx.Ref(), tx.Data())
-		assert.NoError(t, err)
-	})
-	t.Run("tx not present  (alt. flow)", func(t *testing.T) {
-		ctx := newContext(t)
-		ctx.state().EXPECT().IsPresent(gomock.Any(), tx.Ref()).Return(false, nil)
-		ctx.state().EXPECT().Add(gomock.Any(), tx, gomock.Any())
 		ctx.sender().EXPECT().sendTransactionPayloadQuery(peerID, tx.PayloadHash())
 		err := ctx.instance.checkTransactionOnLocalNode(context.Background(), peerID, tx.Ref(), tx.Data())
 		assert.NoError(t, err)
