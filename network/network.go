@@ -149,11 +149,21 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	v2Cfg := n.config.ProtocolV2
 	v2Cfg.Datadir = config.Datadir
 
-	// Only set protocols if not already set: improves testability
+	// Register enabled protocols
+	var candidateProtocols []transport.Protocol
 	if n.protocols == nil {
-		n.protocols = []transport.Protocol{
+		candidateProtocols = []transport.Protocol{
 			v1.New(n.config.ProtocolV1, n.state, n.collectDiagnostics),
 			v2.New(v2Cfg, n.nodeDIDResolver, n.state, n.didDocumentResolver, n.decrypter),
+		}
+	} else {
+		// Only set protocols if not already set: improves testability
+		candidateProtocols = n.protocols
+		n.protocols = nil
+	}
+	for _, protocol := range candidateProtocols {
+		if n.config.IsProtocolEnabled(protocol.Version()) {
+			n.protocols = append(n.protocols, protocol)
 		}
 	}
 

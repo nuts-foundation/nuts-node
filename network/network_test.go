@@ -24,6 +24,8 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
+	"fmt"
+	"math"
 	"testing"
 	"time"
 
@@ -131,14 +133,13 @@ func TestNetwork_Diagnostics(t *testing.T) {
 		// Diagnostics from deps
 		cxt.connectionManager.EXPECT().Diagnostics().Return([]core.DiagnosticResult{stat{}, stat{}})
 		cxt.protocol.EXPECT().Diagnostics().Return([]core.DiagnosticResult{stat{}, stat{}})
-		cxt.protocol.EXPECT().Version().Return(1)
 		cxt.state.EXPECT().Diagnostics().Return([]core.DiagnosticResult{stat{}, stat{}})
 
 		diagnostics := cxt.network.Diagnostics()
 
 		assert.Len(t, diagnostics, 4)
 		assert.Equal(t, "connections", diagnostics[0].Name())
-		assert.Equal(t, "protocol_v1", diagnostics[1].Name())
+		assert.Equal(t, fmt.Sprintf("protocol_v%d", math.MaxInt), diagnostics[1].Name())
 		assert.Equal(t, "state", diagnostics[2].Name())
 		nodeDIDStat := core.GenericDiagnosticResult{Title: "node_did", Outcome: did.MustParseDID("did:nuts:localio")}
 		assert.Equal(t, nodeDIDStat, diagnostics[3])
@@ -326,6 +327,18 @@ func TestNetwork_Configure(t *testing.T) {
 
 		err := ctx.network.Configure(core.ServerConfig{Datadir: "network_test.go"})
 		assert.Error(t, err)
+	})
+	t.Run("ok - protocol not enabled", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		ctx := createNetwork(ctrl, func(config *Config) {
+			config.Protocols = []int{2} // do not enable TestProtocol with version math.MaxInt
+		})
+
+		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+
+		assert.NoError(t, err)
+		assert.Empty(t, ctx.network.protocols)
 	})
 }
 
@@ -857,6 +870,7 @@ func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *netw
 	state := dag.NewMockState(ctrl)
 	state.EXPECT().Subscribe(dag.TransactionPayloadAddedEvent, dag.AnyPayloadType, gomock.Any()).AnyTimes()
 	prot := transport.NewMockProtocol(ctrl)
+	prot.EXPECT().Version().AnyTimes().Return(math.MaxInt)
 	connectionManager := transport.NewMockConnectionManager(ctrl)
 	networkConfig := TestNetworkConfig()
 	networkConfig.EnableTLS = true
