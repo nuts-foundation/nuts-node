@@ -16,7 +16,6 @@ require (
 	github.com/lestrrat-go/jwx v1.2.23
 	github.com/magiconair/properties v1.8.6
 	github.com/mdp/qrterminal/v3 v3.0.0
-	github.com/mitchellh/mapstructure v1.4.3
 	github.com/nats-io/nats-server/v2 v2.7.4
 	github.com/nats-io/nats.go v1.13.1-0.20220308171302-2f2f6968e98d
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
@@ -30,10 +29,11 @@ require (
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.1
-	github.com/tidwall/gjson v1.14.0
+	github.com/tidwall/gjson v1.14.1
 	github.com/twmb/murmur3 v1.1.6
 	go.etcd.io/bbolt v1.3.6
 	go.uber.org/atomic v1.9.0
+	go.uber.org/goleak v1.1.12
 	google.golang.org/grpc v1.45.0
 	google.golang.org/protobuf v1.28.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -114,6 +114,7 @@ require (
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-testing-interface v1.0.0 // indirect
+	github.com/mitchellh/mapstructure v1.4.3 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/mr-tron/base58 v1.1.3 // indirect
 	github.com/multiformats/go-multihash v0.0.11 // indirect
@@ -147,7 +148,6 @@ require (
 	go.opentelemetry.io/otel v0.19.0 // indirect
 	go.opentelemetry.io/otel/metric v0.19.0 // indirect
 	go.opentelemetry.io/otel/trace v0.19.0 // indirect
-	go.uber.org/goleak v1.1.12 // indirect
 	golang.org/x/crypto v0.0.0-20220214200702-86341886e292 // indirect
 	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2 // indirect
 	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9 // indirect
