@@ -80,7 +80,7 @@ func (p *protocol) sendTransactionListQuery(id transport.PeerID, refs []hash.SHA
 	}
 
 	conversation := p.cMan.startConversation(msg)
-	conversation.additionalInfo["refs"] = refs
+	conversation.set("refs", refs)
 
 	// todo convert to trace logging
 	log.Logger().Infof("requesting transactionList from peer (peer=%s, conversationID=%s, #=%d)", id, conversation.conversationID.String(), len(refs))

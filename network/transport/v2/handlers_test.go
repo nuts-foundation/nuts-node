@@ -391,7 +391,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 	t.Run("ok - conversation marked as done", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request)
-		conversation.additionalInfo["refs"] = []hash.SHA256Hash{h1}
+		conversation.set("refs", []hash.SHA256Hash{h1})
 		mocks.State.EXPECT().IsPresent(context.Background(), h1).Return(false, nil)
 		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(nil)
 
@@ -416,7 +416,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		h2 := tx2.Ref()
 		p, mocks := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request)
-		conversation.additionalInfo["refs"] = []hash.SHA256Hash{h1, h2}
+		conversation.set("refs", []hash.SHA256Hash{h1, h2})
 		mocks.State.EXPECT().IsPresent(context.Background(), h1).Return(false, nil)
 		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(nil)
 
@@ -434,7 +434,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, p.cMan.conversations[conversation.conversationID.String()])
-		assert.Len(t, p.cMan.conversations[conversation.conversationID.String()].additionalInfo["refs"], 1)
+		assert.Len(t, p.cMan.conversations[conversation.conversationID.String()].get("refs"), 1)
 	})
 
 	t.Run("error - State.IsPresent failed", func(t *testing.T) {
