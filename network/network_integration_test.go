@@ -131,10 +131,10 @@ func TestNetworkIntegration_V2(t *testing.T) {
 
 		// start nodes with v1 disabled, we rely on the gossip protocol
 		bootstrap := startNode(t, "integration_bootstrap", testDirectory, func(cfg *Config) {
-			cfg.ProtocolV1.AdvertHashesInterval = 24 * 60 * 60 * 1000
+			cfg.Protocols = []int{2}
 		})
 		node1 := startNode(t, "integration_node1", testDirectory, func(cfg *Config) {
-			cfg.ProtocolV1.AdvertHashesInterval = 24 * 60 * 60 * 1000
+			cfg.Protocols = []int{2}
 		})
 
 		return bootstrap, node1
@@ -213,15 +213,15 @@ func TestNetworkIntegration_V2(t *testing.T) {
 		resetIntegrationTest()
 
 		node1 := startNode(t, "integration_node1", testDirectory, func(cfg *Config) {
-			cfg.ProtocolV1.AdvertHashesInterval = 24 * 60 * 60 * 1000
+			cfg.Protocols = []int{2}
 			cfg.ProtocolV2.GossipInterval = 10
 		})
 		node2 := startNode(t, "integration_node2", testDirectory, func(cfg *Config) {
-			cfg.ProtocolV1.AdvertHashesInterval = 24 * 60 * 60 * 1000
+			cfg.Protocols = []int{2}
 			cfg.ProtocolV2.GossipInterval = 10
 		})
 		node3 := startNode(t, "integration_node3", testDirectory, func(cfg *Config) {
-			cfg.ProtocolV1.AdvertHashesInterval = 24 * 60 * 60 * 1000
+			cfg.Protocols = []int{2}
 			cfg.ProtocolV2.GossipInterval = 10
 		})
 		node1.connectionManager.Connect(nameToAddress(t, "integration_node2"))
