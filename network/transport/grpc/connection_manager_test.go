@@ -479,14 +479,14 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 		// Bug: peer ID is empty when race condition with disconnect() and notify observers occurs.
 		// See https://github.com/nuts-foundation/nuts-node/issues/978
 		serverCfg, serverListener := newBufconnConfig("server")
-		server := NewGRPCConnectionManager(serverCfg, &transport.FixedNodeDIDResolver{}, nil, &TestProtocol{}).(*grpcConnectionManager)
+		server := NewGRPCConnectionManager(serverCfg, nil, &transport.FixedNodeDIDResolver{}, nil, &TestProtocol{}).(*grpcConnectionManager)
 		if err := server.Start(); err != nil {
 			t.Fatal(err)
 		}
 		defer server.Stop()
 
 		clientCfg, _ := newBufconnConfig("client", withBufconnDialer(serverListener))
-		client := NewGRPCConnectionManager(clientCfg, &transport.FixedNodeDIDResolver{}, nil, &TestProtocol{}).(*grpcConnectionManager)
+		client := NewGRPCConnectionManager(clientCfg, nil, &transport.FixedNodeDIDResolver{}, nil, &TestProtocol{}).(*grpcConnectionManager)
 		c := createConnection(context.Background(), clientCfg.dialer, transport.Peer{})
 		grpcConn, err := clientCfg.dialer(context.Background(), "server")
 		if !assert.NoError(t, err) {
