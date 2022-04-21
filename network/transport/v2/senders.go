@@ -27,6 +27,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 )
 
+const transactionListMessageOverhead = 256
+const transactionListTXOverhead = 8
+
 type messageSender interface {
 	sendGossipMsg(id transport.PeerID, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) error
 	sendTransactionListQuery(id transport.PeerID, refs []hash.SHA256Hash) error
@@ -137,11 +140,10 @@ func chunkTransactionList(transactions []*Transaction) [][]*Transaction {
 	startIndex := 0
 	endIndex := 0
 
-	// 43 bytes for meta overhead and 8 bytes per TX
-	max := grpc.MaxMessageSizeInBytes - 256 // 256 chosen as overhead per message
+	max := grpc.MaxMessageSizeInBytes - transactionListMessageOverhead
 
 	for _, tx := range transactions {
-		txSize := len(tx.Payload) + len(tx.Data) + 8
+		txSize := len(tx.Payload) + len(tx.Data) + transactionListTXOverhead
 		newSize = currentSize + txSize
 
 		if newSize > max {

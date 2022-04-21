@@ -21,6 +21,9 @@ package v2
 
 import (
 	"errors"
+	"github.com/google/uuid"
+	"github.com/nuts-foundation/nuts-node/network/dag"
+	"google.golang.org/protobuf/proto"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -126,6 +129,39 @@ func TestProtocol_sendTransactionRangeQuery(t *testing.T) {
 }
 
 func Test_chunkTransactionList(t *testing.T) {
+	t.Run("calculate overhead", func(t *testing.T) {
+		const numTX = 100
+		var txs []*Transaction
+		dataLen := 0
+		for i := 0; i < numTX; i++ {
+			tx, _, _ := dag.CreateTestTransaction(1)
+			payload := []byte{1, 2, 3, 4, 5, 6}
+			txs = append(txs, &Transaction{Data: tx.Data(), Payload: payload})
+			dataLen += len(tx.Data()) + len(payload)
+		}
+
+		sizeEmpty := proto.Size(&Envelope{Message: &Envelope_TransactionList{
+			TransactionList: &TransactionList{
+				ConversationID: []byte(uuid.New().String()),
+			},
+		}})
+		println("Message size for empty TransactionList (message overhead):", sizeEmpty)
+
+		sizeNonEmpty := proto.Size(&Envelope{Message: &Envelope_TransactionList{
+			TransactionList: &TransactionList{
+				ConversationID: []byte(uuid.New().String()),
+				Transactions:   txs,
+			},
+		}})
+		println("Message size for", numTX, "transactions:", sizeNonEmpty)
+		println("Length of data (TX data + payload is):", dataLen)
+		println("Delta:", sizeNonEmpty-dataLen)
+		overheadPerTX := (sizeNonEmpty - sizeEmpty - dataLen) / numTX
+		println("Overhead per TX:", overheadPerTX)
+
+		assert.True(t, transactionListMessageOverhead >= sizeEmpty)
+		assert.True(t, transactionListTXOverhead >= overheadPerTX)
+	})
 	t.Run("no chunks", func(t *testing.T) {
 		transactions := []*Transaction{{}, {}}
 
