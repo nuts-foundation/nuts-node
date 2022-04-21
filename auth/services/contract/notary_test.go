@@ -200,6 +200,39 @@ func TestContract_DrawUpContract(t *testing.T) {
 		}
 		assert.Nil(t, drawnUpContract)
 	})
+
+	t.Run("ok - multiple (matching) VCs", func(t *testing.T) {
+		ctx := buildContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
+		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
+		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential, testCredential}, nil)
+
+		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.NotNil(t, drawnUpContract)
+		assert.Equal(t, "Organisation Name: CareBears in Caretown, valid from Monday, 1 January 0001 00:19:33 to Monday, 1 January 0001 00:29:33", drawnUpContract.RawContractText)
+	})
+
+	t.Run("nok - multiple non-matching VCs", func(t *testing.T) {
+		ctx := buildContext(t)
+		defer ctx.ctrl.Finish()
+
+		testCredential2 := vc.VerifiableCredential{}
+		_ = json.Unmarshal([]byte(jsonld.TestCredential), &testCredential2)
+
+		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
+		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
+		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential, testCredential2}, nil)
+
+		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
+		assert.EqualError(t, err, "found multiple non-matching VCs, which is not supported")
+		assert.Nil(t, drawnUpContract)
+	})
 }
 
 func TestNewContractNotary(t *testing.T) {
