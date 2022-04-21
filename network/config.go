@@ -58,6 +58,7 @@ type Config struct {
 	ProtocolV2 v2.Config `koanf:"network.v2"`
 }
 
+// IsProtocolEnabled returns true if the protocol is enabled, otherwise false.
 func (c Config) IsProtocolEnabled(version int) bool {
 	if len(c.Protocols) == 0 {
 		return true
