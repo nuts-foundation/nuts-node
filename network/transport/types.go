@@ -89,6 +89,8 @@ type ConnectorStats struct {
 	Address string
 	// Attempts holds the number of times the node tried to connect to the peer.
 	Attempts uint32
+	// LastAttempt holds the time of the last connection attempt.
+	LastAttempt time.Time
 }
 
 // NutsCommServiceType holds the DID document service type that specifies the Nuts network service address of the Nuts node.
