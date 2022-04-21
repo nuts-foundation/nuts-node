@@ -189,7 +189,7 @@ func TestProtocol_lifecycle(t *testing.T) {
 	}, connectionList, connectionManager)
 
 	err = p.Handle(transport.Peer{ID: "123"}, &Envelope{})
-	assert.EqualError(t, err, "envelope doesn't contain any (handleable) messages")
+	assert.Equal(t, errInternalError, err)
 
 	p.Stop()
 }
