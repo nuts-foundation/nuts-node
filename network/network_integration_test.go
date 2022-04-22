@@ -428,15 +428,15 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		defer conn.Close()
 		var found []byte
 		foundMutex := sync.Mutex{}
-		err = stream.Subscribe(conn, "TEST", "TRANSACTIONS.tx", func(msg *nats.Msg) {
+		_ = stream.Subscribe(conn, "TEST", "TRANSACTIONS.tx", func(msg *nats.Msg) {
 			foundMutex.Lock()
 			defer foundMutex.Unlock()
 			found = msg.Data
-			err = msg.Ack()
+			err := msg.Ack()
+			if !assert.NoError(t, err) {
+				t.Fatal(err)
+			}
 		})
-		if !assert.NoError(t, err) {
-			return
-		}
 
 		node1DID, _ := node1.nodeDIDResolver.Resolve()
 		node2DID, _ := node2.nodeDIDResolver.Resolve()
@@ -620,11 +620,11 @@ func TestNetworkIntegration_AddedTransactionsAsEvents(t *testing.T) {
 		foundMutex.Lock()
 		defer foundMutex.Unlock()
 		found = msg.Data
-		err = msg.Ack()
+		err := msg.Ack()
+		if !assert.NoError(t, err) {
+			t.Fatal(err)
+		}
 	})
-	if !assert.NoError(t, err) {
-		t.Fatal(err)
-	}
 
 	// add a transaction
 	key := nutsCrypto.NewTestKey("key")
