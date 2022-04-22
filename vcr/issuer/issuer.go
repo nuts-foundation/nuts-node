@@ -111,9 +111,8 @@ func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.Verifiab
 		// Differentiate between a DID document not found and some other error:
 		if errors.Is(err, vdr.ErrNotFound) {
 			return nil, core.InvalidInputError(errString, err)
-		} else {
-			return nil, fmt.Errorf(errString, err)
 		}
+		return nil, fmt.Errorf(errString, err)
 	}
 
 	credentialID := ssi.MustParseURI(fmt.Sprintf("%s#%s", issuerDID.String(), uuid.New().String()))
