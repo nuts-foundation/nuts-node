@@ -33,44 +33,42 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport"
 )
 
+// errInternalError is returned to the node's peer when an internal error occurs.
+var errInternalError = errors.New("internal error")
+
 func (p protocol) Handle(peer transport.Peer, raw interface{}) error {
 	envelope := raw.(*Envelope)
-
-	logMessage := func(msg interface{}) {
-		log.Logger().Tracef("Handling %T from peer: %s", msg, peer)
+	log.Logger().Tracef("Handling %T from peer: %s", envelope.Message, peer)
+	err := p.handle(peer, envelope)
+	if err != nil {
+		log.Logger().Errorf("Error handling %T (peer=%s): %s", envelope.Message, peer, err)
+		return errInternalError
 	}
+	return nil
+}
 
+func (p protocol) handle(peer transport.Peer, envelope *Envelope) error {
 	switch msg := envelope.Message.(type) {
 	case *Envelope_Gossip:
-		logMessage(msg)
 		return p.handleGossip(peer, msg.Gossip)
 	case *Envelope_Hello:
-		logMessage(msg)
 		log.Logger().Infof("%T: %s said hello", p, peer)
 		return nil
 	case *Envelope_TransactionList:
-		logMessage(msg)
 		return p.handleTransactionList(peer, msg)
 	case *Envelope_TransactionListQuery:
-		logMessage(msg)
 		return p.handleTransactionListQuery(peer, msg.TransactionListQuery)
 	case *Envelope_TransactionPayloadQuery:
-		logMessage(msg)
 		return p.handleTransactionPayloadQuery(peer, msg.TransactionPayloadQuery)
 	case *Envelope_TransactionPayload:
-		logMessage(msg)
 		return p.handleTransactionPayload(msg.TransactionPayload)
 	case *Envelope_TransactionRangeQuery:
-		logMessage(msg)
 		return p.handleTransactionRangeQuery(peer, msg)
 	case *Envelope_State:
-		logMessage(msg)
 		return p.handleState(peer, msg.State)
 	case *Envelope_TransactionSet:
-		logMessage(msg)
 		return p.handleTransactionSet(peer, msg)
 	}
-
 	return errors.New("envelope doesn't contain any (handleable) messages")
 }
 

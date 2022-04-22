@@ -56,7 +56,12 @@ func TestProtocol_handle(t *testing.T) {
 	t.Run("no handleable messages", func(t *testing.T) {
 		p, _ := newTestProtocol(t, nil)
 		err := p.Handle(peer, &Envelope{})
-		assert.EqualError(t, err, "envelope doesn't contain any (handleable) messages")
+		assert.EqualError(t, err, "internal error")
+	})
+	t.Run("handler error is returned as internal error", func(t *testing.T) {
+		p, _ := newTestProtocol(t, nil)
+		err := p.Handle(peer, &Envelope{Message: &Envelope_TransactionPayload{TransactionPayload: &TransactionPayload{TransactionRef: []byte{}}}})
+		assert.EqualError(t, err, "internal error")
 	})
 }
 
@@ -86,14 +91,14 @@ func TestProtocol_handleTransactionPayload(t *testing.T) {
 	t.Run("error - no tx ref", func(t *testing.T) {
 		p, _ := newTestProtocol(t, nil)
 		envelope := &Envelope{Message: &Envelope_TransactionPayload{&TransactionPayload{}}}
-		err := p.Handle(peer, envelope)
+		err := p.handle(peer, envelope)
 
 		assert.EqualError(t, err, "msg is missing transaction reference")
 	})
 
 	t.Run("error - no data", func(t *testing.T) {
 		p, _ := newTestProtocol(t, nil)
-		err := p.Handle(peer, &Envelope{Message: &Envelope_TransactionPayload{&TransactionPayload{TransactionRef: []byte{1, 2, 3}}}})
+		err := p.handle(peer, &Envelope{Message: &Envelope_TransactionPayload{&TransactionPayload{TransactionRef: []byte{1, 2, 3}}}})
 
 		assert.EqualError(t, err, "peer does not have transaction payload (tx=0102030000000000000000000000000000000000000000000000000000000000)")
 	})
@@ -102,7 +107,7 @@ func TestProtocol_handleTransactionPayload(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
 
-		err := p.Handle(peer, &Envelope{Message: &Envelope_TransactionPayload{&TransactionPayload{TransactionRef: tx.Ref().Slice(), Data: []byte("Hello, victim!")}}})
+		err := p.handle(peer, &Envelope{Message: &Envelope_TransactionPayload{&TransactionPayload{TransactionRef: tx.Ref().Slice(), Data: []byte("Hello, victim!")}}})
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "peer sent payload that doesn't match payload hash")
@@ -112,7 +117,7 @@ func TestProtocol_handleTransactionPayload(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(nil, nil)
 
-		err := p.Handle(peer, &Envelope{Message: &Envelope_TransactionPayload{&TransactionPayload{TransactionRef: tx.Ref().Slice(), Data: payload}}})
+		err := p.handle(peer, &Envelope{Message: &Envelope_TransactionPayload{&TransactionPayload{TransactionRef: tx.Ref().Slice(), Data: payload}}})
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "peer sent payload for non-existing transaction")
@@ -135,7 +140,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			}
 			p.connectionList = conns
 
-			err := p.Handle(peer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
+			err := p.handle(peer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
 
 			assert.NoError(t, err)
 			assertPayloadResponse(t, tx, payload, conns.Conn.SentMsgs[0])
@@ -150,7 +155,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			}
 			p.connectionList = conns
 
-			err := p.Handle(peer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
+			err := p.handle(peer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
 
 			assert.NoError(t, err)
 			assertEmptyPayloadResponse(t, tx, conns.Conn.SentMsgs[0])
@@ -175,7 +180,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			}
 			p.connectionList = conns
 
-			err := p.Handle(peer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
+			err := p.handle(peer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
 
 			assert.NoError(t, err)
 			assertEmptyPayloadResponse(t, tx, conns.Conn.SentMsgs[0])
@@ -190,7 +195,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			}
 			p.connectionList = conns
 
-			err := p.Handle(authenticatedPeer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
+			err := p.handle(authenticatedPeer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
 
 			assert.NoError(t, err)
 			assertEmptyPayloadResponse(t, tx, conns.Conn.SentMsgs[0])
@@ -203,7 +208,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			}
 			p.connectionList = conns
 
-			err := p.Handle(authenticatedPeer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
+			err := p.handle(authenticatedPeer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
 
 			assert.NoError(t, err)
 			assertEmptyPayloadResponse(t, tx, conns.Conn.SentMsgs[0])
@@ -218,7 +223,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			}
 			p.connectionList = conns
 
-			err := p.Handle(authenticatedPeer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
+			err := p.handle(authenticatedPeer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
 
 			assert.NoError(t, err)
 			assertEmptyPayloadResponse(t, tx, conns.Conn.SentMsgs[0])
@@ -234,7 +239,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			}
 			p.connectionList = conns
 
-			err := p.Handle(authenticatedPeer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
+			err := p.handle(authenticatedPeer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
 
 			assert.NoError(t, err)
 			assertPayloadResponse(t, tx, []byte{}, conns.Conn.SentMsgs[0])
@@ -254,7 +259,7 @@ func TestProtocol_handleGossip(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		mocks.State.EXPECT().XOR(gomock.Any(), uint32(math.MaxUint32)).Return(xorPeer, clockPeer)
 
-		err := p.Handle(peer, envelope)
+		err := p.handle(peer, envelope)
 
 		assert.NoError(t, err)
 	})
@@ -269,7 +274,7 @@ func TestProtocol_handleGossip(t *testing.T) {
 
 		mocks.Sender.EXPECT().sendTransactionListQuery(peer.ID, []hash.SHA256Hash{xorPeer})
 
-		err := p.Handle(peer, envelope)
+		err := p.handle(peer, envelope)
 
 		assert.NoError(t, err)
 	})
@@ -283,7 +288,7 @@ func TestProtocol_handleGossip(t *testing.T) {
 
 		mocks.Sender.EXPECT().sendTransactionListQuery(peer.ID, []hash.SHA256Hash{hash.FromSlice(bytes[0])})
 
-		err := p.Handle(peer, envelope)
+		err := p.handle(peer, envelope)
 
 		assert.NoError(t, err)
 	})
@@ -298,7 +303,7 @@ func TestProtocol_handleGossip(t *testing.T) {
 
 		mocks.Sender.EXPECT().sendTransactionListQuery(peer.ID, []hash.SHA256Hash{xorPeer})
 
-		err := p.Handle(peer, envelope)
+		err := p.handle(peer, envelope)
 
 		assert.NoError(t, err)
 	})
@@ -313,7 +318,7 @@ func TestProtocol_handleGossip(t *testing.T) {
 
 		mocks.Sender.EXPECT().sendTransactionListQuery(peer.ID, []hash.SHA256Hash{xorPeer}).Return(errors.New("custom"))
 
-		err := p.Handle(peer, envelope)
+		err := p.handle(peer, envelope)
 
 		assert.EqualError(t, err, "custom")
 	})
@@ -324,7 +329,7 @@ func TestProtocol_handleGossip(t *testing.T) {
 		mocks.State.EXPECT().IsPresent(gomock.Any(), hash.EmptyHash()).Return(true, nil)
 		mocks.Sender.EXPECT().sendState(peer.ID, xorLocal, clockPeer).Return(nil)
 
-		err := p.Handle(peer, envelope)
+		err := p.handle(peer, envelope)
 
 		assert.NoError(t, err)
 	})
@@ -334,7 +339,7 @@ func TestProtocol_handleGossip(t *testing.T) {
 		mocks.State.EXPECT().XOR(gomock.Any(), uint32(math.MaxUint32)).Return(xorLocal, clockLocal)
 		mocks.State.EXPECT().IsPresent(gomock.Any(), hash.EmptyHash()).Return(false, errors.New("custom"))
 
-		err := p.Handle(peer, envelope)
+		err := p.handle(peer, envelope)
 
 		assert.EqualError(t, err, "failed to handle Gossip message: custom")
 	})
@@ -563,7 +568,7 @@ func TestProtocol_handleTransactionListQuery(t *testing.T) {
 		mocks.State.EXPECT().GetTransaction(context.Background(), h2).Return(dagT2, nil)
 		mocks.State.EXPECT().ReadPayload(context.Background(), dagT1.PayloadHash()).Return(nil, nil)
 
-		err := p.Handle(peer, &Envelope{
+		err := p.handle(peer, &Envelope{
 			Message: &Envelope_TransactionListQuery{&TransactionListQuery{
 				ConversationID: conversationID.slice(),
 				Refs:           [][]byte{h2.Slice(), h1.Slice()}, // reverse order to test sorting
@@ -618,7 +623,7 @@ func TestProtocol_handleTransactionRangeQuery(t *testing.T) {
 			End:   1,
 		}}
 		p.cMan.startConversation(msg)
-		err := p.Handle(peer, &Envelope{Message: msg})
+		err := p.handle(peer, &Envelope{Message: msg})
 
 		assert.EqualError(t, err, "invalid range query")
 	})
