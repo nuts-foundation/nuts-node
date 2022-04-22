@@ -22,6 +22,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"os"
 	"strings"
 
@@ -105,7 +106,10 @@ func (v Service) StartSigningSession(rawContractText string) (contract.SessionPo
 		QrCodeInfo: *sessionPointer,
 	}
 	jsonResult := challenge.Payload()
-	printQrCode(string(jsonResult))
+	if log.Logger().Level >= logrus.DebugLevel {
+		printQrCode(string(jsonResult))
+	}
+	log.Logger().Debugf("sessionPointer: %s", string(jsonResult))
 
 	return challenge, nil
 }
