@@ -107,7 +107,7 @@ func TestLDProof_Verify(t *testing.T) {
 		mockSuite := signature.NewMockSuite(ctrl)
 		mockSuite.EXPECT().CanonicalizeDocument(signedDocument.DocumentWithoutProof()).Return(nil, errors.New("foo"))
 		err = ldProof.Verify(signedDocument.DocumentWithoutProof(), mockSuite, pk)
-		assert.EqualError(t, err, "unable to canonicalize document: foo")
+		assert.EqualError(t, err, "foo")
 	})
 
 	t.Run("it handles an error while canonicalizing the proof", func(t *testing.T) {
@@ -224,7 +224,7 @@ func TestLDProof_Sign(t *testing.T) {
 		mockSuite.EXPECT().CanonicalizeDocument(document).Return(nil, errors.New("foo"))
 		mockSuite.EXPECT().GetType().Return(ssi.JsonWebSignature2020)
 		result, err := ldProof.Sign(document, mockSuite, testKey)
-		assert.EqualError(t, err, "unable to canonicalize document: foo")
+		assert.EqualError(t, err, "foo")
 		assert.Nil(t, result)
 	})
 
