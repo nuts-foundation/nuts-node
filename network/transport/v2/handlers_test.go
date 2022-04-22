@@ -56,7 +56,7 @@ func TestProtocol_handle(t *testing.T) {
 	t.Run("no handleable messages", func(t *testing.T) {
 		p, _ := newTestProtocol(t, nil)
 		err := p.Handle(peer, &Envelope{})
-		assert.EqualError(t, err, "internal error")
+		assert.EqualError(t, err, "message not supported")
 	})
 	t.Run("handler error is returned as internal error", func(t *testing.T) {
 		p, _ := newTestProtocol(t, nil)
