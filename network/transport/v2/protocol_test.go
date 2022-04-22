@@ -189,7 +189,7 @@ func TestProtocol_lifecycle(t *testing.T) {
 	}, connectionList, connectionManager)
 
 	err = p.Handle(transport.Peer{ID: "123"}, &Envelope{})
-	assert.Equal(t, errInternalError, err)
+	assert.Equal(t, errMessageNotSupported, err)
 
 	p.Stop()
 }
