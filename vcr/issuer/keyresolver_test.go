@@ -73,7 +73,7 @@ func Test_vdrKeyResolver_ResolveAssertionKey(t *testing.T) {
 		key, err := sut.ResolveAssertionKey(*issuerDID)
 
 		assert.Nil(t, key)
-		assert.EqualError(t, err, "failed to resolve assertionKey: could not resolve did document is vdr: not found")
+		assert.EqualError(t, err, "not found")
 	})
 
 	t.Run("key not found in crypto", func(t *testing.T) {

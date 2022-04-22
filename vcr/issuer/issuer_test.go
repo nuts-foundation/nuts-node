@@ -21,6 +21,7 @@ package issuer
 import (
 	"encoding/json"
 	"errors"
+	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"path"
 	"testing"
 	"time"
@@ -113,18 +114,29 @@ func Test_issuer_buildVC(t *testing.T) {
 			keyResolverMock := NewMockkeyResolver(ctrl)
 			keyResolverMock.EXPECT().ResolveAssertionKey(*issuerDID).Return(nil, errors.New("b00m!"))
 			sut := issuer{keyResolver: keyResolverMock}
-			schemaOrgContext := ssi.MustParseURI("http://schema.org")
 
 			credentialOptions := vc.VerifiableCredential{
-				Context: []ssi.URI{schemaOrgContext},
-				Type:    []ssi.URI{credentialType},
-				Issuer:  issuerID,
-				CredentialSubject: []interface{}{map[string]interface{}{
-					"id": "did:nuts:456",
-				}},
+				Type:   []ssi.URI{credentialType},
+				Issuer: issuerID,
 			}
 			_, err := sut.buildVC(credentialOptions)
-			assert.EqualError(t, err, "failed to sign credential, could not resolve an assertionKey for issuer: b00m!")
+			assert.EqualError(t, err, "failed to sign credential: could not resolve an assertionKey for issuer: b00m!")
+		})
+
+		t.Run("no DID Document for issuer", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			keyResolverMock := NewMockkeyResolver(ctrl)
+			keyResolverMock.EXPECT().ResolveAssertionKey(*issuerDID).Return(nil, vdr.ErrNotFound)
+			sut := issuer{keyResolver: keyResolverMock}
+
+			credentialOptions := vc.VerifiableCredential{
+				Type:   []ssi.URI{credentialType},
+				Issuer: issuerID,
+			}
+			_, err := sut.buildVC(credentialOptions)
+			assert.EqualError(t, err, "failed to sign credential: could not resolve an assertionKey for issuer: unable to find the DID document")
 		})
 
 	})

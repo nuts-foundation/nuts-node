@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/core"
 	"time"
 
 	"github.com/google/uuid"
@@ -99,13 +100,23 @@ func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.Verifiab
 		return nil, errors.New("can only issue credential with 1 type")
 	}
 
-	// find issuer
-	issuer, err := did.ParseDID(credentialOptions.Issuer.String())
+	issuerDID, err := did.ParseDID(credentialOptions.Issuer.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse issuer: %w", err)
 	}
 
-	credentialID := ssi.MustParseURI(fmt.Sprintf("%s#%s", issuer.String(), uuid.New().String()))
+	key, err := i.keyResolver.ResolveAssertionKey(*issuerDID)
+	if err != nil {
+		const errString = "failed to sign credential: could not resolve an assertionKey for issuer: %w"
+		// Differentiate between a DID document not found and some other error:
+		if errors.Is(err, vdr.ErrNotFound) {
+			return nil, core.InvalidInputError(errString, err)
+		} else {
+			return nil, fmt.Errorf(errString, err)
+		}
+	}
+
+	credentialID := ssi.MustParseURI(fmt.Sprintf("%s#%s", issuerDID.String(), uuid.New().String()))
 	unsignedCredential := vc.VerifiableCredential{
 		Context:           append(credentialOptions.Context, vc.VCContextV1URI()),
 		ID:                &credentialID,
@@ -119,11 +130,6 @@ func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.Verifiab
 	defaultType := vc.VerifiableCredentialTypeV1URI()
 	if !unsignedCredential.IsType(defaultType) {
 		unsignedCredential.Type = append(unsignedCredential.Type, defaultType)
-	}
-
-	key, err := i.keyResolver.ResolveAssertionKey(*issuer)
-	if err != nil {
-		return nil, fmt.Errorf("failed to sign credential, could not resolve an assertionKey for issuer: %w", err)
 	}
 
 	credentialAsMap := map[string]interface{}{}
