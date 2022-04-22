@@ -32,11 +32,9 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
-	"github.com/nuts-foundation/nuts-node/events"
-	"go.uber.org/goleak"
-
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	"github.com/nuts-foundation/nuts-node/network/transport/v1"
@@ -123,9 +121,6 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 }
 
 func TestNetworkIntegration_V2(t *testing.T) {
-	t.Cleanup(func() {
-		goleak.VerifyNone(t)
-	})
 	resetIntegrationTest()
 
 	testNodes := func(t *testing.T) (*Network, *Network) {
