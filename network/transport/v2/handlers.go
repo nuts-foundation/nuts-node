@@ -36,12 +36,28 @@ import (
 // errInternalError is returned to the node's peer when an internal error occurs.
 var errInternalError = errors.New("internal error")
 
+// errMessageNotSupported is returned to the node's peer when the received message is not supported.
+var errMessageNotSupported = errors.New("message not supported")
+
+// allowedErrors is a list of errors that are allowed to be sent back to the peer (spec'd by RFC017).
+var allowedErrors = []error{
+	errInternalError,
+	errMessageNotSupported,
+}
+
 func (p protocol) Handle(peer transport.Peer, raw interface{}) error {
 	envelope := raw.(*Envelope)
 	log.Logger().Tracef("Handling %T from peer: %s", envelope.Message, peer)
 	err := p.handle(peer, envelope)
 	if err != nil {
 		log.Logger().Errorf("Error handling %T (peer=%s): %s", envelope.Message, peer, err)
+		// Only return allowed errors
+		for _, allowedError := range allowedErrors {
+			if err == allowedError {
+				return err
+			}
+		}
+		// If the error isn't allowed to be returned, return as internal error
 		return errInternalError
 	}
 	return nil
@@ -69,7 +85,7 @@ func (p protocol) handle(peer transport.Peer, envelope *Envelope) error {
 	case *Envelope_TransactionSet:
 		return p.handleTransactionSet(peer, msg)
 	}
-	return errors.New("envelope doesn't contain any (handleable) messages")
+	return errMessageNotSupported
 }
 
 func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, msg *TransactionPayloadQuery) error {
