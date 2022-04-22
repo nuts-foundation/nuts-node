@@ -84,7 +84,7 @@ func NewLDProof(options ProofOptions) *LDProof {
 func (p LDProof) Verify(document Document, suite signature.Suite, key crypto.PublicKey) error {
 	canonicalDocument, err := suite.CanonicalizeDocument(document)
 	if err != nil {
-		return fmt.Errorf("unable to canonicalize document: %w", err)
+		return err
 	}
 
 	preparedProof, err := p.asCanonicalizableMap()
@@ -132,7 +132,7 @@ func (p *LDProof) Sign(document Document, suite signature.Suite, key nutsCrypto.
 
 	canonicalDocument, err := suite.CanonicalizeDocument(document)
 	if err != nil {
-		return nil, fmt.Errorf("unable to canonicalize document: %w", err)
+		return nil, err
 	}
 
 	proofMap, err := p.asCanonicalizableMap()
