@@ -265,7 +265,7 @@ func (util LDUtil) Canonicalize(input interface{}) (result interface{}, err erro
 
 	result, err = proc.Normalize(optionsMap, normalizeOptions)
 	if err != nil {
-		return nil, fmt.Errorf("unable to canonicalize document: %w", err)
+		return nil, fmt.Errorf("unable to normalize the json-ld document: %w", err)
 	}
 	return
 }

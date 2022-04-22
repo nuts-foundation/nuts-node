@@ -82,7 +82,7 @@ func TestJsonWebSignature2020_CanonicalizeDocument(t *testing.T) {
 
 		res, err := sig.CanonicalizeDocument(doc)
 
-		assert.EqualError(t, err, "unable to canonicalize document: loading remote context failed: Dereferencing a URL did not result in a valid JSON-LD context: https://example.org")
+		assert.EqualError(t, err, "canonicalization failed: unable to normalize the json-ld document: loading remote context failed: Dereferencing a URL did not result in a valid JSON-LD context: https://example.org")
 		assert.Nil(t, res)
 	})
 }
