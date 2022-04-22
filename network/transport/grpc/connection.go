@@ -91,13 +91,14 @@ func createConnection(parentCtx context.Context, dialer dialer, peer transport.P
 }
 
 type conn struct {
-	peer      atomic.Value
-	ctx       context.Context
-	cancelCtx func()
-	mux       sync.RWMutex
-	connector *outboundConnector
-	streams   map[string]Stream
-	outboxes  map[string]chan interface{}
+	peer             atomic.Value
+	ctx              context.Context
+	cancelCtx        func()
+	mux              sync.RWMutex
+	connector        *outboundConnector
+	streams          map[string]Stream
+	outboxes         map[string]chan interface{}
+	activeGoroutines int32
 
 	dialer    dialer
 	parentCtx context.Context
@@ -212,7 +213,9 @@ func (mc *conn) registerStream(protocol Protocol, stream Stream) bool {
 
 func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 	peer := mc.Peer() // copy Peer, because it will be nil when logging after disconnecting.
-	go func() {
+	atomic.AddInt32(&mc.activeGoroutines, 1)
+	go func(activeGoroutines *int32, cancel func()) {
+		defer atomic.AddInt32(activeGoroutines, -1)
 		for {
 			message := protocol.CreateEnvelope()
 			err := stream.RecvMsg(message)
@@ -223,9 +226,7 @@ func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 				} else {
 					log.Logger().Warnf("%s: Peer connection error (peer=%s): %v", protocol.MethodName(), peer, err)
 				}
-				mc.mux.Lock()
-				mc.cancelCtx()
-				mc.mux.Unlock()
+				cancel()
 				break
 			}
 
@@ -234,20 +235,29 @@ func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 				log.Logger().Warnf("%s: Error handling message %T (peer=%s): %v", protocol.MethodName(), protocol.UnwrapMessage(message), peer, err)
 			}
 		}
-	}()
+	}(&mc.activeGoroutines, mc.cancelCtx)
 }
 
 func (mc *conn) startSending(protocol Protocol, stream Stream) {
 	outbox := mc.outboxes[protocol.MethodName()]
 	done := mc.ctx.Done()
 
-	go func() {
+	atomic.AddInt32(&mc.activeGoroutines, 1)
+	go func(activeGoroutines *int32) {
+		defer atomic.AddInt32(activeGoroutines, -1)
 	loop:
 		for {
 			select {
 			case _ = <-done:
 				break loop
 			case envelope := <-outbox:
+				if envelope == nil {
+					// https://github.com/nuts-foundation/nuts-node/issues/1017
+					// message to send can also be nil when the connection is closed,
+					// and the outbox channel case receives the nil value before the done channel case receives its value.
+					// This sometimes triggered a panic during test teardown on slow systems
+					break loop
+				}
 				err := stream.SendMsg(envelope)
 				if err != nil {
 					log.Logger().Warnf("Unable to send message %T, message is dropped (peer=%s): %v", envelope, mc.Peer(), err)
@@ -262,7 +272,7 @@ func (mc *conn) startSending(protocol Protocol, stream Stream) {
 				log.Logger().Warnf("Error while closing client for gRPC stream %s: %v", protocol.MethodName(), err)
 			}
 		}
-	}()
+	}(&mc.activeGoroutines)
 }
 
 func (mc *conn) startConnecting(address string, backoff Backoff, tlsConfig *tls.Config, connectedCallback func(grpcConn *grpc.ClientConn) bool) {
