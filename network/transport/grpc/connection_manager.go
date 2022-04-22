@@ -295,7 +295,7 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 }
 
 func (s *grpcConnectionManager) openOutboundStream(connection Connection, protocol Protocol, grpcConn grpc.ClientConnInterface, md metadata.MD) (grpc.ClientStream, error) {
-	outgoingContext := metadata.NewOutgoingContext(context.Background(), md)
+	outgoingContext := metadata.NewOutgoingContext(s.ctx, md)
 	clientStream, err := protocol.CreateClientStream(outgoingContext, grpcConn)
 	if err != nil {
 		return nil, fatalError{error: err}
