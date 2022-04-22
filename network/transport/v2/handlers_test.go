@@ -452,6 +452,20 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		assert.EqualError(t, err, fmt.Sprintf("unable to add received transaction to DAG (tx=%s): custom", tx.Ref().String()))
 	})
 
+	t.Run("error - missing payload for TX without PAL", func(t *testing.T) {
+		p, _ := newTestProtocol(t, nil)
+		conversation := p.cMan.startConversation(request)
+
+		err := p.handleTransactionList(peer, &Envelope_TransactionList{
+			TransactionList: &TransactionList{
+				ConversationID: conversation.conversationID.slice(),
+				Transactions:   []*Transaction{{Data: data}},
+			},
+		})
+
+		assert.ErrorContains(t, err, "peer did not provide payload for transaction")
+	})
+
 	t.Run("error - invalid transaction", func(t *testing.T) {
 		p, _ := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request)
