@@ -28,7 +28,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/go-leia/v3"
-	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
@@ -88,7 +87,7 @@ func (s leiaIssuerStore) SearchCredential(jsonLDContext ssi.URI, credentialType 
 }
 
 func (s leiaIssuerStore) GetCredential(id ssi.URI) (*vc.VerifiableCredential, error) {
-	query := leia.New(leia.Eq(leia.NewJSONPath(concept.IDField), leia.MustParseScalar(id.String())))
+	query := leia.New(leia.Eq(leia.NewJSONPath("id"), leia.MustParseScalar(id.String())))
 
 	results, err := s.issuedCredentials.Find(context.Background(), query)
 	if err != nil {
