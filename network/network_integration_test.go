@@ -21,6 +21,7 @@ package network
 import (
 	"context"
 	"crypto"
+	"encoding/json"
 	"fmt"
 	"hash/crc32"
 	"math"
@@ -30,6 +31,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/nuts-node/events"
 	"go.uber.org/goleak"
 
@@ -533,6 +535,59 @@ func TestNetworkIntegration_OutboundConnectionReconnects(t *testing.T) {
 	// Bug: outbound peer.Address is empty after reconnect
 	assert.NotEmpty(t, node1.connectionManager.Peers()[0].Address)
 	assert.NotEmpty(t, node1.connectionManager.Peers()[0].ID)
+}
+
+func TestNetworkIntegration_AddedTransactionsAsEvents(t *testing.T) {
+	testDirectory := io.TestDirectory(t)
+	resetIntegrationTest()
+
+	node1 := startNode(t, "node1", testDirectory)
+	node2 := startNode(t, "node2", testDirectory)
+
+	// Now connect node1 to node2 and wait for them to set up
+	node1.connectionManager.Connect(nameToAddress(t, "node2"))
+	if !test.WaitFor(t, func() (bool, error) {
+		return len(node1.connectionManager.Peers()) == 1 && len(node2.connectionManager.Peers()) == 1, nil
+	}, defaultTimeout, "time-out while waiting for node 1 and 2 to be connected") {
+		return
+	}
+
+	// setup eventListener
+	stream := node2.eventPublisher.GetStream(events.TransactionsStream)
+
+	conn, _, err := node2.eventPublisher.Pool().Acquire(context.Background())
+	if !assert.NoError(t, err) {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	var found []byte
+	foundMutex := sync.Mutex{}
+	err = stream.Subscribe(conn, "TEST", "TRANSACTIONS.tx", func(msg *nats.Msg) {
+		foundMutex.Lock()
+		defer foundMutex.Unlock()
+		found = msg.Data
+		err = msg.Ack()
+	})
+
+	if !assert.NoError(t, err) {
+		t.Fatal(err)
+	}
+
+	// add a transaction
+	key := nutsCrypto.NewTestKey("key")
+	addTransactionAndWaitForItToArrive(t, "payload", key, node1)
+
+	test.WaitFor(t, func() (bool, error) {
+		foundMutex.Lock()
+		defer foundMutex.Unlock()
+		return len(found) > 0, nil
+	}, 10*time.Millisecond, "timeout waiting for message")
+
+	event := events.TransactionWithPayload{}
+	_ = json.Unmarshal(found, &event)
+
+	assert.Equal(t, uint32(0), event.Transaction.Clock())
+	assert.Equal(t, "payload", string(event.Payload))
 }
 
 func resetIntegrationTest() {

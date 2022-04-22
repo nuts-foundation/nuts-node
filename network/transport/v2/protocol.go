@@ -20,8 +20,6 @@ package v2
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -32,7 +30,6 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport/v2/gossip"
 	"go.etcd.io/bbolt"
@@ -77,7 +74,6 @@ func New(
 	state dag.State,
 	docResolver vdr.DocResolver,
 	decrypter crypto.Decrypter,
-	eventPublisher events.Event,
 ) transport.Protocol {
 	ctx, cancel := context.WithCancel(context.Background())
 	p := &protocol{
@@ -88,7 +84,6 @@ func New(
 		nodeDIDResolver: nodeDIDResolver,
 		decrypter:       decrypter,
 		docResolver:     docResolver,
-		eventPublisher:  eventPublisher,
 	}
 	p.sender = p
 	return p
@@ -108,7 +103,6 @@ type protocol struct {
 	cMan              *conversationManager
 	gManager          gossip.Manager
 	sender            messageSender
-	eventPublisher    events.Event
 }
 
 func (p protocol) CreateClientStream(outgoingContext context.Context, grpcConn grpcLib.ClientConnInterface) (grpcLib.ClientStream, error) {
@@ -161,9 +155,6 @@ func (p *protocol) Configure(_ transport.PeerID) error {
 	// called after DAG is committed
 	p.state.RegisterObserver(p.gossipTransaction, false)
 
-	// register callback from DAG to other engines.
-	p.state.RegisterObserver(p.emitEvents, true)
-
 	return nil
 }
 
@@ -208,34 +199,6 @@ func (p *protocol) gossipTransaction(ctx context.Context, tx dag.Transaction, _ 
 	if tx != nil { // can happen when payload is written for private TX
 		xor, clock := p.state.XOR(ctx, math.MaxUint32)
 		p.gManager.TransactionRegistered(tx.Ref(), xor, clock)
-	}
-	return nil
-}
-
-// TODO description
-// This may be done within the TX, since it's already determined the TX valid. Buit something else failed like storage.
-// No rollback is needed, the TX will come by later anyway.
-func (p *protocol) emitEvents(ctx context.Context, tx dag.Transaction, payload []byte) error {
-	// TODO other events for missing payload/tx
-	if tx != nil && payload != nil {
-		_, js, err := p.eventPublisher.Pool().Acquire(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to emit event for published transaction: %w", err)
-		}
-
-		twp := events.TransactionWithPayload{
-			Transaction: string(tx.Data()),
-			Payload:     base64.StdEncoding.EncodeToString(payload),
-		}
-		twpData, err := json.Marshal(twp)
-		if err != nil {
-			return fmt.Errorf("failed to emit event for published transaction: %w", err)
-		}
-
-		// TODO: constants
-		if _, err = js.PublishAsync("TRANSACTIONS.tx", twpData); err != nil {
-			return fmt.Errorf("failed to emit event for published transaction: %w", err)
-		}
 	}
 	return nil
 }

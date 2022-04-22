@@ -21,6 +21,7 @@ package network
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -158,7 +159,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	if n.protocols == nil {
 		candidateProtocols = []transport.Protocol{
 			v1.New(n.config.ProtocolV1, n.state, n.collectDiagnostics),
-			v2.New(v2Cfg, n.nodeDIDResolver, n.state, n.didDocumentResolver, n.decrypter, n.eventPublisher),
+			v2.New(v2Cfg, n.nodeDIDResolver, n.state, n.didDocumentResolver, n.decrypter),
 		}
 	} else {
 		// Only set protocols if not already set: improves testability
@@ -210,6 +211,37 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		)
 	}
 
+	// register callback from DAG to other engines.
+	n.state.RegisterObserver(n.emitEvents, true)
+
+	return nil
+}
+
+// TODO description
+// This may be done within the TX, since it's already determined the TX valid. Buit something else failed like storage.
+// No rollback is needed, the TX will come by later anyway.
+func (n *Network) emitEvents(ctx context.Context, tx dag.Transaction, payload []byte) error {
+	// TODO other events for missing payload/tx
+	if tx != nil && payload != nil {
+		_, js, err := n.eventPublisher.Pool().Acquire(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to emit event for published transaction: %w", err)
+		}
+
+		twp := events.TransactionWithPayload{
+			Transaction: tx,
+			Payload:     payload,
+		}
+		twpData, err := json.Marshal(twp)
+		if err != nil {
+			return fmt.Errorf("failed to emit event for published transaction: %w", err)
+		}
+
+		// TODO: constants
+		if _, err = js.PublishAsync("TRANSACTIONS.tx", twpData); err != nil {
+			return fmt.Errorf("failed to emit event for published transaction: %w", err)
+		}
+	}
 	return nil
 }
 

@@ -19,11 +19,46 @@
 
 package events
 
-// TransactionWithPayload holds the JWS transaction and base64 encoded payload
-// To be serialized as JSON
+import (
+	"encoding/base64"
+	"encoding/json"
+
+	"github.com/nuts-foundation/nuts-node/network/dag"
+)
+
+// TransactionWithPayload holds the transaction and byte payload
+// It serializes as JSON where the transaction is serialized as JWS string and the payload as base64 encoded string
 type TransactionWithPayload struct {
-	// Transactions as JWS encoded string
+	Transaction dag.Transaction
+	Payload     []byte
+}
+
+type transactionWithPayloadHelper struct {
 	Transaction string `json:"transaction"`
-	// Payload as base64 encoded string
-	Payload string `json:"payload"`
+	Payload     string `json:"payload"`
+}
+
+func (t TransactionWithPayload) MarshalJSON() ([]byte, error) {
+	helper := transactionWithPayloadHelper{
+		Transaction: string(t.Transaction.Data()),
+		Payload:     base64.StdEncoding.EncodeToString(t.Payload),
+	}
+
+	return json.Marshal(helper)
+}
+
+func (t *TransactionWithPayload) UnmarshalJSON(bytes []byte) error {
+	var err error
+	helper := transactionWithPayloadHelper{}
+	if err = json.Unmarshal(bytes, &helper); err != nil {
+		return err
+	}
+
+	t.Transaction, err = dag.ParseTransaction([]byte(helper.Transaction))
+	if err != nil {
+		return err
+	}
+	t.Payload, err = base64.StdEncoding.DecodeString(helper.Payload)
+
+	return err
 }
