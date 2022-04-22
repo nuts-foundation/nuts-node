@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"reflect"
 	"strings"
 	"time"
 
@@ -287,6 +288,18 @@ func (n *notary) findVC(orgID did.DID) (string, string, error) {
 	}
 	if len(result) == 0 {
 		return "", "", errors.New("could not find a trusted credential with an organization name and city")
+	}
+
+	// Having multiple VCs with non-matching credentialSubjects for this care organization is not supported.
+	// Will be supported when https://github.com/nuts-foundation/nuts-node/issues/987 is implemented.
+	if len(result) > 1 {
+		var credentialSubject interface{}
+		for _, current := range result {
+			if credentialSubject != nil && !reflect.DeepEqual(credentialSubject, current.CredentialSubject) {
+				return "", "", errors.New("found multiple non-matching VCs, which is not supported")
+			}
+			credentialSubject = current.CredentialSubject
+		}
 	}
 
 	// expand
