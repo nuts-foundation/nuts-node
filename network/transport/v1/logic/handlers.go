@@ -152,7 +152,7 @@ func (p *protocol) handleTransactionPayload(peer transport.PeerID, contents *pro
 	} else if len(transaction) == 0 {
 		// This might mean an attacker is sending us unsolicited document payloads
 		log.Logger().Infof("Received transaction payload for transaction we don't have (payloadHash=%s)", payloadHash)
-	} else if err := p.state.WritePayload(ctx, payloadHash, contents.Data); err != nil {
+	} else if err := p.state.WritePayload(ctx, nil, payloadHash, contents.Data); err != nil {
 		log.Logger().Errorf("Error while writing payload for transaction (hash=%s): %v", payloadHash, err)
 	}
 }

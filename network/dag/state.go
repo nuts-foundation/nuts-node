@@ -170,12 +170,12 @@ func (s *state) IsPresent(ctx context.Context, hash hash.SHA256Hash) (bool, erro
 	return s.graph.IsPresent(ctx, hash)
 }
 
-func (s *state) WritePayload(ctx context.Context, payloadHash hash.SHA256Hash, data []byte) error {
+func (s *state) WritePayload(ctx context.Context, transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
 	return storage.BBoltTXUpdate(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
 		err := s.payloadStore.WritePayload(contextWithTX, payloadHash, data)
 		if err == nil {
 			// ctx passed with bbolt transaction
-			return s.notifyObservers(contextWithTX, nil, data)
+			return s.notifyObservers(contextWithTX, transaction, data)
 		}
 		return err
 	})

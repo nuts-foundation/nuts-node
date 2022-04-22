@@ -229,13 +229,13 @@ func TestState_Observe(t *testing.T) {
 		ctx := context.Background()
 		txState := createState(t)
 		var actual []byte
-		txState.RegisterObserver(func(ctx context.Context, _ Transaction, payload []byte) error {
+		txState.RegisterObserver(func(ctx context.Context, tx Transaction, payload []byte) error {
 			actual = payload
 			return nil
 		}, false)
 		expected := []byte{1}
 
-		err := txState.WritePayload(ctx, hash.EmptyHash(), expected)
+		err := txState.WritePayload(ctx, nil, hash.EmptyHash(), expected)
 
 		assert.NoError(t, err)
 		assert.Equal(t, expected, actual)

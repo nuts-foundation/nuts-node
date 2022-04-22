@@ -309,17 +309,17 @@ func (mr *MockStateMockRecorder) Walk(ctx, visitor, startAt interface{}) *gomock
 }
 
 // WritePayload mocks base method.
-func (m *MockState) WritePayload(ctx context.Context, payloadHash hash.SHA256Hash, data []byte) error {
+func (m *MockState) WritePayload(ctx context.Context, transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WritePayload", ctx, payloadHash, data)
+	ret := m.ctrl.Call(m, "WritePayload", ctx, transaction, payloadHash, data)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // WritePayload indicates an expected call of WritePayload.
-func (mr *MockStateMockRecorder) WritePayload(ctx, payloadHash, data interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) WritePayload(ctx, transaction, payloadHash, data interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WritePayload", reflect.TypeOf((*MockState)(nil).WritePayload), ctx, payloadHash, data)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WritePayload", reflect.TypeOf((*MockState)(nil).WritePayload), ctx, transaction, payloadHash, data)
 }
 
 // XOR mocks base method.
@@ -503,17 +503,17 @@ func (m *MockPayloadWriter) EXPECT() *MockPayloadWriterMockRecorder {
 }
 
 // WritePayload mocks base method.
-func (m *MockPayloadWriter) WritePayload(ctx context.Context, payloadHash hash.SHA256Hash, data []byte) error {
+func (m *MockPayloadWriter) WritePayload(ctx context.Context, transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WritePayload", ctx, payloadHash, data)
+	ret := m.ctrl.Call(m, "WritePayload", ctx, transaction, payloadHash, data)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // WritePayload indicates an expected call of WritePayload.
-func (mr *MockPayloadWriterMockRecorder) WritePayload(ctx, payloadHash, data interface{}) *gomock.Call {
+func (mr *MockPayloadWriterMockRecorder) WritePayload(ctx, transaction, payloadHash, data interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WritePayload", reflect.TypeOf((*MockPayloadWriter)(nil).WritePayload), ctx, payloadHash, data)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WritePayload", reflect.TypeOf((*MockPayloadWriter)(nil).WritePayload), ctx, transaction, payloadHash, data)
 }
 
 // MockPayloadReader is a mock of PayloadReader interface.
