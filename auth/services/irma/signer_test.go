@@ -20,12 +20,12 @@ package irma
 
 import (
 	"errors"
-	"github.com/privacybydesign/irmago/server/irmaserver"
 	"testing"
+
+	"github.com/privacybydesign/irmago/server/irmaserver"
 
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vdr"
 
 	"github.com/golang/mock/gomock"
@@ -161,11 +161,10 @@ func TestService_SigningSessionStatus(t *testing.T) {
 }
 
 type mockContext struct {
-	ctrl            *gomock.Controller
-	signer          *crypto.MockJWTSigner
-	vcResolver      *vcr.MockResolver
-	conceptRegistry *concept.MockRegistry
-	service         *Service
+	ctrl       *gomock.Controller
+	signer     *crypto.MockJWTSigner
+	vcResolver *vcr.MockResolver
+	service    *Service
 }
 
 func serviceWithMocks(t *testing.T) *mockContext {
@@ -178,9 +177,7 @@ func serviceWithMocks(t *testing.T) *mockContext {
 	ctrl := gomock.NewController(t)
 
 	vcr := vcr.NewMockResolver(ctrl)
-	conceptRegistry := concept.NewMockRegistry(ctrl)
 	mockSigner := crypto.NewMockJWTSigner(ctrl)
-	vcr.EXPECT().Registry().Return(conceptRegistry).AnyTimes()
 
 	irmaConfig, _ := GetIrmaConfig(serviceConfig)
 	service := &Service{
@@ -191,10 +188,9 @@ func serviceWithMocks(t *testing.T) *mockContext {
 	}
 
 	return &mockContext{
-		ctrl:            ctrl,
-		signer:          mockSigner,
-		vcResolver:      vcr,
-		conceptRegistry: conceptRegistry,
-		service:         service,
+		ctrl:       ctrl,
+		signer:     mockSigner,
+		vcResolver: vcr,
+		service:    service,
 	}
 }

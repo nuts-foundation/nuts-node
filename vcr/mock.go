@@ -12,65 +12,11 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	go_did "github.com/nuts-foundation/go-did"
 	vc "github.com/nuts-foundation/go-did/vc"
-	concept "github.com/nuts-foundation/nuts-node/vcr/concept"
 	credential "github.com/nuts-foundation/nuts-node/vcr/credential"
 	holder "github.com/nuts-foundation/nuts-node/vcr/holder"
 	issuer "github.com/nuts-foundation/nuts-node/vcr/issuer"
 	verifier "github.com/nuts-foundation/nuts-node/vcr/verifier"
 )
-
-// MockConceptFinder is a mock of ConceptFinder interface.
-type MockConceptFinder struct {
-	ctrl     *gomock.Controller
-	recorder *MockConceptFinderMockRecorder
-}
-
-// MockConceptFinderMockRecorder is the mock recorder for MockConceptFinder.
-type MockConceptFinderMockRecorder struct {
-	mock *MockConceptFinder
-}
-
-// NewMockConceptFinder creates a new mock instance.
-func NewMockConceptFinder(ctrl *gomock.Controller) *MockConceptFinder {
-	mock := &MockConceptFinder{ctrl: ctrl}
-	mock.recorder = &MockConceptFinderMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockConceptFinder) EXPECT() *MockConceptFinderMockRecorder {
-	return m.recorder
-}
-
-// Get mocks base method.
-func (m *MockConceptFinder) Get(conceptName string, allowUntrusted bool, subject string) (concept.Concept, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", conceptName, allowUntrusted, subject)
-	ret0, _ := ret[0].(concept.Concept)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Get indicates an expected call of Get.
-func (mr *MockConceptFinderMockRecorder) Get(conceptName, allowUntrusted, subject interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockConceptFinder)(nil).Get), conceptName, allowUntrusted, subject)
-}
-
-// SearchConcept mocks base method.
-func (m *MockConceptFinder) SearchConcept(ctx context.Context, conceptName string, allowUntrusted bool, query map[string]string) ([]concept.Concept, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SearchConcept", ctx, conceptName, allowUntrusted, query)
-	ret0, _ := ret[0].([]concept.Concept)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// SearchConcept indicates an expected call of SearchConcept.
-func (mr *MockConceptFinderMockRecorder) SearchConcept(ctx, conceptName, allowUntrusted, query interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchConcept", reflect.TypeOf((*MockConceptFinder)(nil).SearchConcept), ctx, conceptName, allowUntrusted, query)
-}
 
 // MockFinder is a mock of Finder interface.
 type MockFinder struct {
@@ -108,21 +54,6 @@ func (m *MockFinder) Search(ctx context.Context, searchTerms []SearchTerm, allow
 func (mr *MockFinderMockRecorder) Search(ctx, searchTerms, allowUntrusted, resolveTime interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockFinder)(nil).Search), ctx, searchTerms, allowUntrusted, resolveTime)
-}
-
-// SearchLegacy mocks base method.
-func (m *MockFinder) SearchLegacy(ctx context.Context, query concept.Query, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SearchLegacy", ctx, query, allowUntrusted, resolveTime)
-	ret0, _ := ret[0].([]vc.VerifiableCredential)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// SearchLegacy indicates an expected call of SearchLegacy.
-func (mr *MockFinderMockRecorder) SearchLegacy(ctx, query, allowUntrusted, resolveTime interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchLegacy", reflect.TypeOf((*MockFinder)(nil).SearchLegacy), ctx, query, allowUntrusted, resolveTime)
 }
 
 // MockValidator is a mock of Validator interface.
@@ -317,20 +248,6 @@ func (m *MockResolver) EXPECT() *MockResolverMockRecorder {
 	return m.recorder
 }
 
-// Registry mocks base method.
-func (m *MockResolver) Registry() concept.Reader {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Registry")
-	ret0, _ := ret[0].(concept.Reader)
-	return ret0
-}
-
-// Registry indicates an expected call of Registry.
-func (mr *MockResolverMockRecorder) Registry() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Registry", reflect.TypeOf((*MockResolver)(nil).Registry))
-}
-
 // Resolve mocks base method.
 func (m *MockResolver) Resolve(ID go_did.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
@@ -369,21 +286,6 @@ func (m *MockVCR) EXPECT() *MockVCRMockRecorder {
 	return m.recorder
 }
 
-// Get mocks base method.
-func (m *MockVCR) Get(conceptName string, allowUntrusted bool, subject string) (concept.Concept, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", conceptName, allowUntrusted, subject)
-	ret0, _ := ret[0].(concept.Concept)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Get indicates an expected call of Get.
-func (mr *MockVCRMockRecorder) Get(conceptName, allowUntrusted, subject interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockVCR)(nil).Get), conceptName, allowUntrusted, subject)
-}
-
 // Holder mocks base method.
 func (m *MockVCR) Holder() holder.Holder {
 	m.ctrl.T.Helper()
@@ -398,21 +300,6 @@ func (mr *MockVCRMockRecorder) Holder() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Holder", reflect.TypeOf((*MockVCR)(nil).Holder))
 }
 
-// Issue mocks base method.
-func (m *MockVCR) Issue(vcToIssue vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Issue", vcToIssue)
-	ret0, _ := ret[0].(*vc.VerifiableCredential)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Issue indicates an expected call of Issue.
-func (mr *MockVCRMockRecorder) Issue(vcToIssue interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Issue", reflect.TypeOf((*MockVCR)(nil).Issue), vcToIssue)
-}
-
 // Issuer mocks base method.
 func (m *MockVCR) Issuer() issuer.Issuer {
 	m.ctrl.T.Helper()
@@ -425,20 +312,6 @@ func (m *MockVCR) Issuer() issuer.Issuer {
 func (mr *MockVCRMockRecorder) Issuer() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Issuer", reflect.TypeOf((*MockVCR)(nil).Issuer))
-}
-
-// Registry mocks base method.
-func (m *MockVCR) Registry() concept.Reader {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Registry")
-	ret0, _ := ret[0].(concept.Reader)
-	return ret0
-}
-
-// Registry indicates an expected call of Registry.
-func (mr *MockVCRMockRecorder) Registry() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Registry", reflect.TypeOf((*MockVCR)(nil).Registry))
 }
 
 // Resolve mocks base method.
@@ -456,21 +329,6 @@ func (mr *MockVCRMockRecorder) Resolve(ID, resolveTime interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockVCR)(nil).Resolve), ID, resolveTime)
 }
 
-// Revoke mocks base method.
-func (m *MockVCR) Revoke(ID go_did.URI) (*credential.Revocation, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Revoke", ID)
-	ret0, _ := ret[0].(*credential.Revocation)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Revoke indicates an expected call of Revoke.
-func (mr *MockVCRMockRecorder) Revoke(ID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Revoke", reflect.TypeOf((*MockVCR)(nil).Revoke), ID)
-}
-
 // Search mocks base method.
 func (m *MockVCR) Search(ctx context.Context, searchTerms []SearchTerm, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
@@ -484,36 +342,6 @@ func (m *MockVCR) Search(ctx context.Context, searchTerms []SearchTerm, allowUnt
 func (mr *MockVCRMockRecorder) Search(ctx, searchTerms, allowUntrusted, resolveTime interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockVCR)(nil).Search), ctx, searchTerms, allowUntrusted, resolveTime)
-}
-
-// SearchConcept mocks base method.
-func (m *MockVCR) SearchConcept(ctx context.Context, conceptName string, allowUntrusted bool, query map[string]string) ([]concept.Concept, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SearchConcept", ctx, conceptName, allowUntrusted, query)
-	ret0, _ := ret[0].([]concept.Concept)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// SearchConcept indicates an expected call of SearchConcept.
-func (mr *MockVCRMockRecorder) SearchConcept(ctx, conceptName, allowUntrusted, query interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchConcept", reflect.TypeOf((*MockVCR)(nil).SearchConcept), ctx, conceptName, allowUntrusted, query)
-}
-
-// SearchLegacy mocks base method.
-func (m *MockVCR) SearchLegacy(ctx context.Context, query concept.Query, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SearchLegacy", ctx, query, allowUntrusted, resolveTime)
-	ret0, _ := ret[0].([]vc.VerifiableCredential)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// SearchLegacy indicates an expected call of SearchLegacy.
-func (mr *MockVCRMockRecorder) SearchLegacy(ctx, query, allowUntrusted, resolveTime interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchLegacy", reflect.TypeOf((*MockVCR)(nil).SearchLegacy), ctx, query, allowUntrusted, resolveTime)
 }
 
 // StoreCredential mocks base method.
