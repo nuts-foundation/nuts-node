@@ -840,6 +840,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 			PayloadRetryDelay:   50 * time.Millisecond,
 			DiagnosticsInterval: int(time.Minute.Milliseconds()),
 		},
+		ConnectionTimeout: 5000,
 	}
 	for _, f := range opts {
 		f(&config)

@@ -26,6 +26,8 @@ import (
 type Config struct {
 	// Socket address for gRPC to listen on
 	GrpcAddr string `koanf:"network.grpcaddr"`
+	// ConnectionTimeout specifies the timeout before an outbound connection attempt times out (in milliseconds).
+	ConnectionTimeout int `koanf:"network.connectiontimeout"`
 	// EnableTLS specifies whether to enable TLS for incoming connections.
 	EnableTLS bool `koanf:"network.enabletls"`
 	// Public address of this nodes other nodes can use to connect to this node.
@@ -70,9 +72,10 @@ func (c Config) IsProtocolEnabled(version int) bool {
 // DefaultConfig returns the default NetworkEngine configuration.
 func DefaultConfig() Config {
 	return Config{
-		GrpcAddr:        ":5555",
-		EnableTLS:       true,
-		ProtocolV2:      v2.DefaultConfig(),
-		EnableDiscovery: true,
+		GrpcAddr:          ":5555",
+		ConnectionTimeout: 5000,
+		EnableTLS:         true,
+		ProtocolV2:        v2.DefaultConfig(),
+		EnableDiscovery:   true,
 	}
 }

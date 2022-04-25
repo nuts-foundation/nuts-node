@@ -29,6 +29,12 @@ import (
 	"time"
 )
 
+var testConnectorConfig = connectorConfig{
+	address:           "unit-test-target",
+	tls:               nil,
+	connectionTimeout: time.Second,
+}
+
 func Test_connector_tryConnect(t *testing.T) {
 	serverConfig := NewConfig(fmt.Sprintf("localhost:%d", test.FreeTCPPort()), "server")
 	cm := NewGRPCConnectionManager(serverConfig, createKVStore(t), &TestNodeDIDResolver{}, nil)
@@ -38,7 +44,9 @@ func Test_connector_tryConnect(t *testing.T) {
 	defer cm.Stop()
 
 	bo := &trackingBackoff{}
-	connector := createOutboundConnector(serverConfig.listenAddress, grpc.DialContext, nil, func() bool {
+	cfg := testConnectorConfig
+	cfg.address = serverConfig.listenAddress
+	connector := createOutboundConnector(cfg, grpc.DialContext, func() bool {
 		return false
 	}, nil, bo)
 	grpcConn, err := connector.tryConnect()
@@ -49,9 +57,9 @@ func Test_connector_tryConnect(t *testing.T) {
 
 func Test_connector_stats(t *testing.T) {
 	t.Run("no connect attempts", func(t *testing.T) {
-		connector := createOutboundConnector("foo", func(_ context.Context, _ string, _ ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
+		connector := createOutboundConnector(testConnectorConfig, func(_ context.Context, _ string, _ ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
 			return &grpc.ClientConn{}, nil
-		}, nil, func() bool {
+		}, func() bool {
 			return true
 		}, func(_ *grpc.ClientConn) bool {
 			return true
@@ -60,13 +68,13 @@ func Test_connector_stats(t *testing.T) {
 		stats := connector.stats()
 
 		assert.Equal(t, uint32(0), stats.Attempts)
-		assert.Equal(t, "foo", stats.Address)
+		assert.Equal(t, "unit-test-target", stats.Address)
 		assert.Equal(t, time.Time{}, stats.LastAttempt)
 	})
 	t.Run("with connect attempts", func(t *testing.T) {
-		connector := createOutboundConnector("foo", func(_ context.Context, _ string, _ ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
+		connector := createOutboundConnector(testConnectorConfig, func(_ context.Context, _ string, _ ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
 			return &grpc.ClientConn{}, nil
-		}, nil, func() bool {
+		}, func() bool {
 			return true
 		}, func(_ *grpc.ClientConn) bool {
 			return true
@@ -77,8 +85,8 @@ func Test_connector_stats(t *testing.T) {
 
 		now := time.Now().Add(time.Second * -1)
 		assert.Equal(t, uint32(1), stats.Attempts)
-		assert.Equal(t, "foo", stats.Address)
-		assert.True(t,stats.LastAttempt.After(now))
+		assert.Equal(t, "unit-test-target", stats.Address)
+		assert.True(t, stats.LastAttempt.After(now))
 	})
 }
 
@@ -86,9 +94,9 @@ func Test_connector_start(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		connected := make(chan struct{}, 1)
 		bo := &trackingBackoff{mux: &sync.Mutex{}}
-		connector := createOutboundConnector("foo", func(_ context.Context, _ string, _ ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
+		connector := createOutboundConnector(testConnectorConfig, func(_ context.Context, _ string, _ ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
 			return &grpc.ClientConn{}, nil
-		}, nil, func() bool {
+		}, func() bool {
 			return true
 		}, func(_ *grpc.ClientConn) bool {
 			connected <- struct{}{}
@@ -111,7 +119,7 @@ func Test_connector_start(t *testing.T) {
 	t.Run("not connecting when already connected", func(t *testing.T) {
 		calls := make(chan struct{}, 10)
 		bo := &trackingBackoff{mux: &sync.Mutex{}}
-		connector := createOutboundConnector("foo", nil, nil, func() bool {
+		connector := createOutboundConnector(testConnectorConfig, nil, func() bool {
 			calls <- struct{}{}
 			return false
 		}, nil, bo)
@@ -128,9 +136,9 @@ func Test_connector_start(t *testing.T) {
 	})
 	t.Run("backoff when callback fails", func(t *testing.T) {
 		bo := &trackingBackoff{mux: &sync.Mutex{}}
-		connector := createOutboundConnector("foo", func(_ context.Context, _ string, _ ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
+		connector := createOutboundConnector(testConnectorConfig, func(_ context.Context, _ string, _ ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
 			return &grpc.ClientConn{}, nil
-		}, nil, func() bool {
+		}, func() bool {
 			return true
 		}, func(_ *grpc.ClientConn) bool {
 			return false

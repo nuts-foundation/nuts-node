@@ -180,7 +180,9 @@ func (n *Network) Configure(config core.ServerConfig) error {
 
 	// Setup connection manager, load with bootstrap nodes
 	if n.connectionManager == nil {
-		var grpcOpts []grpc.ConfigOption
+		grpcOpts := []grpc.ConfigOption{
+			grpc.WithConnectionTimeout(time.Duration(n.config.ConnectionTimeout) * time.Millisecond),
+		}
 		// Configure TLS
 		if n.config.EnableTLS {
 			grpcOpts = append(grpcOpts, grpc.WithTLS(clientCert, trustStore, n.config.MaxCRLValidityDays))

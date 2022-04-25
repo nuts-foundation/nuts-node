@@ -443,7 +443,12 @@ func (s *grpcConnectionManager) startTracking(address string, connection Connect
 	}
 
 	backoff := NewPersistedBackoff(s.connectionStore, address, defaultBackoff())
-	connection.startConnecting(address, backoff, tlsConfig, func(grpcConn *grpc.ClientConn) bool {
+	cfg := connectorConfig{
+		address:           address,
+		tls:               tlsConfig,
+		connectionTimeout: s.config.connectionTimeout,
+	}
+	connection.startConnecting(cfg, backoff, func(grpcConn *grpc.ClientConn) bool {
 		err := s.openOutboundStreams(connection, grpcConn)
 		if err != nil {
 			log.Logger().Errorf("Error while setting up outbound gRPC streams, disconnecting (peer=%s): %v", connection.Peer(), err)
