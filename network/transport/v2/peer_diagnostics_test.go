@@ -4,27 +4,27 @@ import (
 	"context"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/atomic"
+	"sync"
 	"testing"
 	"time"
 )
 
 func Test_PeerDiagnosticsManager(t *testing.T) {
 	t.Run("calls sender", func(t *testing.T) {
-		calls := &atomic.Int32{}
+		wg := &sync.WaitGroup{}
+		wg.Add(4)
 		manager := newPeerDiagnosticsManager(func() transport.Diagnostics {
 			return transport.Diagnostics{}
 		}, func(diagnostics transport.Diagnostics) {
-			calls.Add(1)
+			wg.Done()
 		})
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		manager.start(ctx, 5*time.Millisecond)
 
-		// Wait for a bit, then check if it's at least been sent a few times
-		time.Sleep(20 * time.Millisecond)
-		assert.True(t, calls.Load() > 2)
+		// Wait for the calls
+		wg.Done()
 	})
 }
 
