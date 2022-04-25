@@ -145,15 +145,15 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 	ctx.state.Start()
 
 	cfg := &Config{
-		GossipInterval: 500,
-		Datadir:        testDirectory,
+		GossipInterval:      500,
+		Datadir:             testDirectory,
 	}
 	for _, c := range configurers {
 		c(cfg)
 	}
 	peerID := transport.PeerID(name)
 	listenAddress := fmt.Sprintf("localhost:%d", nameToPort(name))
-	ctx.protocol = New(*cfg, transport.FixedNodeDIDResolver{}, ctx.state, doc.Resolver{Store: vdrStore}, keyStore).(*protocol)
+	ctx.protocol = New(*cfg, transport.FixedNodeDIDResolver{}, ctx.state, doc.Resolver{Store: vdrStore}, keyStore, nil).(*protocol)
 
 	authenticator := grpc.NewTLSAuthenticator(doc.NewServiceResolver(&doc.Resolver{Store: store.NewMemoryStore()}))
 	connectionsDB, _ := bbolt.Open(path.Join(testDirectory, "connections.db"), os.ModePerm, nil)

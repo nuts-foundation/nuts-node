@@ -37,6 +37,7 @@ type messageSender interface {
 	sendTransactionRangeQuery(id transport.PeerID, lcStart uint32, lcEnd uint32) error
 	sendState(id transport.PeerID, xor hash.SHA256Hash, clock uint32) error
 	sendTransactionSet(id transport.PeerID, conversationID conversationID, LCReq uint32, LC uint32, iblt tree.Iblt) error
+	broadcastDiagnostics(diagnostics transport.Diagnostics)
 }
 
 func (p *protocol) sendGossipMsg(id transport.PeerID, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) error {
@@ -201,4 +202,24 @@ func (p *protocol) sendTransactionSet(id transport.PeerID, conversationID conver
 		LC:             LC,
 		IBLT:           ibltBytes, // TODO: format of IBLT needs to be specced
 	}}})
+}
+
+func (p *protocol) broadcastDiagnostics(diagnostics transport.Diagnostics) {
+	message := &Diagnostics{
+		Uptime:               uint32(diagnostics.Uptime.Seconds()),
+		NumberOfTransactions: diagnostics.NumberOfTransactions,
+		SoftwareVersion:      diagnostics.SoftwareVersion,
+		SoftwareID:           diagnostics.SoftwareID,
+	}
+	for _, peer := range diagnostics.Peers {
+		message.Peers = append(message.Peers, peer.String())
+	}
+	envelope := &Envelope{Message: &Envelope_DiagnosticsBroadcast{DiagnosticsBroadcast: message}}
+
+	for _, curr := range p.connectionList.AllMatching(grpc.ByConnected()) {
+		err := curr.Send(p, envelope)
+		if err != nil {
+			log.Logger().Errorf("error broadcasting diagnostics (peer=%s): %s", curr.Peer(), err)
+		}
+	}
 }

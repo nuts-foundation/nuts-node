@@ -58,6 +58,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.Int("network.v1.collectmissingpayloadsinterval", defs.ProtocolV1.CollectMissingPayloadsInterval, "Interval (in milliseconds) that specifies how often the node should check for missing payloads and broadcast its peers for it (specify 0 to disable). "+
 		"This check might be heavy on larger DAGs so make sure not to run it too often.")
 	flagSet.Int("network.v2.gossipinterval", defs.ProtocolV2.GossipInterval, "Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes.")
+	flagSet.Int("network.v2.diagnosticsinterval", defs.ProtocolV2.DiagnosticsInterval, "Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable).")
 	return flagSet
 }
 

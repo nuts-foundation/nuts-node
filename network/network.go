@@ -154,7 +154,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	if n.protocols == nil {
 		candidateProtocols = []transport.Protocol{
 			v1.New(n.config.ProtocolV1, n.state, n.collectDiagnostics),
-			v2.New(v2Cfg, n.nodeDIDResolver, n.state, n.didDocumentResolver, n.decrypter),
+			v2.New(v2Cfg, n.nodeDIDResolver, n.state, n.didDocumentResolver, n.decrypter, n.collectDiagnostics),
 		}
 	} else {
 		// Only set protocols if not already set: improves testability

@@ -160,6 +160,10 @@ type delegatingConnectionList struct {
 	target grpc.ConnectionList
 }
 
+func (d delegatingConnectionList) AllMatching(query ...grpc.Predicate) []grpc.Connection {
+	return d.target.AllMatching(query...)
+}
+
 func (d delegatingConnectionList) Get(query ...grpc.Predicate) grpc.Connection {
 	return d.target.Get(query...)
 }

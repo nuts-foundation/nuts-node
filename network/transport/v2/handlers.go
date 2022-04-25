@@ -22,10 +22,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 	"math"
 	"sort"
-
-	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
@@ -465,6 +464,10 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope_
 
 	// peer is behind
 	return nil
+}
+
+func (p *protocol) handleDiagnostics(peer transport.PeerID, response *Diagnostics) {
+	p.diagnosticsMan.handleReceived(peer, response)
 }
 
 func pageClockStart(pageNum uint32) uint32 {

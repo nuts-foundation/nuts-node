@@ -36,6 +36,18 @@ func (m *MockmessageSender) EXPECT() *MockmessageSenderMockRecorder {
 	return m.recorder
 }
 
+// broadcastDiagnostics mocks base method.
+func (m *MockmessageSender) broadcastDiagnostics(diagnostics transport.Diagnostics) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "broadcastDiagnostics", diagnostics)
+}
+
+// broadcastDiagnostics indicates an expected call of broadcastDiagnostics.
+func (mr *MockmessageSenderMockRecorder) broadcastDiagnostics(diagnostics interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "broadcastDiagnostics", reflect.TypeOf((*MockmessageSender)(nil).broadcastDiagnostics), diagnostics)
+}
+
 // sendGossipMsg mocks base method.
 func (m *MockmessageSender) sendGossipMsg(id transport.PeerID, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) error {
 	m.ctrl.T.Helper()
