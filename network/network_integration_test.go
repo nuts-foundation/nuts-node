@@ -714,7 +714,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 			AdvertDiagnosticsInterval: 5000,
 		},
 		ProtocolV2: v2.Config{
-			GossipInterval: 100,
+			GossipInterval: 200,
 		},
 	}
 	for _, f := range opts {
