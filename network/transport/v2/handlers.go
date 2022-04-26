@@ -29,6 +29,7 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 )
