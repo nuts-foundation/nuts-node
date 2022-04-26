@@ -236,12 +236,10 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 	data := handlerData{}
 
 	// TODO convert to trace logging
-	log.Logger().Infof("handling handleTransactionList from peer (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
+	log.Logger().Infof("handling handleTransactionList from peer (peer=%s, conversationID=%s, message=%d/%d)", peer.ID.String(), cid.String(), msg.MessageNumber, msg.TotalMessages)
 
 	// check if response matches earlier request
-	var conversation *conversation
-	var err error
-	if conversation, err = p.cMan.check(envelope, data); err != nil {
+	if _, err := p.cMan.check(envelope, data); err != nil {
 		return err
 	}
 
@@ -250,7 +248,6 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 		return err
 	}
 
-	refsToBeRemoved := map[hash.SHA256Hash]bool{}
 	ctx := context.Background()
 	for i, tx := range txs {
 		// TODO does this always trigger fetching missing payloads? (through observer on DAG) Prolly not for v2
@@ -266,28 +263,10 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 			}
 			return fmt.Errorf("unable to add received transaction to DAG (tx=%s): %w", tx.Ref(), err)
 		}
-		refsToBeRemoved[tx.Ref()] = true
 	}
 
-	// remove from conversation
-	refs := conversation.get("refs")
-	if refs != nil {
-		requestedRefs := refs.([]hash.SHA256Hash)
-		newRefs := make([]hash.SHA256Hash, len(requestedRefs))
-		i := 0
-		for _, requestedRef := range requestedRefs {
-			if _, ok := refsToBeRemoved[requestedRef]; !ok {
-				newRefs[i] = requestedRef
-				i++
-			}
-		}
-		newRefs = newRefs[:i]
-		conversation.set("refs", newRefs)
-
-		// if len == 0, mark as done
-		if len(newRefs) == 0 {
-			p.cMan.done(cid)
-		}
+	if msg.MessageNumber == msg.TotalMessages {
+		p.cMan.done(cid)
 	}
 
 	return nil

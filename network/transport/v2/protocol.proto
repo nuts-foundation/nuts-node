@@ -73,8 +73,8 @@ message Gossip {
 message State {
   // conversationID contains the token used to identify the response
   bytes conversationID = 1;
-        // XOR contains the XOR'ed value of ALL transaction references on the sender's DAG.
-        bytes XOR = 2;
+  // XOR contains the XOR'ed value of ALL transaction references on the sender's DAG.
+  bytes XOR = 2;
   // LC contains the Lamport Clock value (inclusive) for which the node requests an IBLT
   uint32 LC = 3;
 }
@@ -115,6 +115,10 @@ message TransactionList {
   bytes conversationID = 1;
   // transactions contains the list of requested transactions. Transactions MUST be sorted by LC value
   repeated Transaction transactions = 2;
+  // totalMessages is the number of messages that are in the TransactionList sequence with this conversationID
+  uint32 totalMessages = 3;
+  // messageNumber identifies which message this is in the sequence. Uses 1-based indexing
+  uint32 messageNumber = 4;
 }
 
 // TransactionPayloadQuery is a message used to query the payload of a transaction.
