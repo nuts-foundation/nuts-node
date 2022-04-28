@@ -125,17 +125,16 @@ func TestNetworkIntegration_V2(t *testing.T) {
 	})
 	resetIntegrationTest()
 
-	testNodes := func(t *testing.T) (*Network, *Network) {
+	testNodes := func(t *testing.T, opts ...func(cfg *Config)) (*Network, *Network) {
 		testDirectory := io.TestDirectory(t)
 		resetIntegrationTest()
 
 		// start nodes with v1 disabled, we rely on the gossip protocol
-		bootstrap := startNode(t, "integration_bootstrap", testDirectory, func(cfg *Config) {
+		allOpts := append([]func(*Config){func(cfg *Config) {
 			cfg.Protocols = []int{2}
-		})
-		node1 := startNode(t, "integration_node1", testDirectory, func(cfg *Config) {
-			cfg.Protocols = []int{2}
-		})
+		}}, opts...)
+		bootstrap := startNode(t, "integration_bootstrap", testDirectory, allOpts...)
+		node1 := startNode(t, "integration_node1", testDirectory, allOpts...)
 
 		return bootstrap, node1
 	}
@@ -253,6 +252,40 @@ func TestNetworkIntegration_V2(t *testing.T) {
 		xor3, _ := node3.state.XOR(context.Background(), math.MaxUint32)
 		assert.True(t, xor1.Equals(xor3))
 		assert.True(t, xor2.Equals(xor3))
+	})
+
+	t.Run("Peer Diagnostics", func(t *testing.T) {
+		bootstrap, node1 := testNodes(t, func(cfg *Config) {
+			cfg.ProtocolV2.DiagnosticsInterval = 50
+		})
+		node1.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"))
+
+		// Wait until nodes are connected
+		if !test.WaitFor(t, func() (bool, error) {
+			return len(bootstrap.connectionManager.Peers()) == 1, nil
+		}, defaultTimeout, "time-out while waiting for node 1 and 2 to be connected") {
+			return
+		}
+
+		addTransactionAndWaitForItToArrive(t, "foobar", nutsCrypto.NewTestKey("key"), bootstrap, "integration_node1")
+
+		time.Sleep(100 * time.Millisecond) // wait for diagnostics to be sent
+
+		// Assert peer diagnostics sent from bootstrap node to node 1
+		assert.Equal(t, 1, len(node1.PeerDiagnostics()))
+		bootstrapDiag := node1.PeerDiagnostics()[bootstrap.peerID]
+		assert.Equal(t, uint32(1), bootstrapDiag.NumberOfTransactions)
+		assert.Equal(t, "https://github.com/nuts-foundation/nuts-node", bootstrapDiag.SoftwareID)
+		assert.Equal(t, "0", bootstrapDiag.SoftwareVersion)
+		assert.Equal(t, []transport.PeerID{node1.peerID}, bootstrapDiag.Peers)
+
+		// Assert peer diagnostics sent from bootstrap node1 to bootstrap node
+		assert.Equal(t, 1, len(bootstrap.PeerDiagnostics()))
+		node1Diag := bootstrap.PeerDiagnostics()[node1.peerID]
+		assert.Equal(t, uint32(1), node1Diag.NumberOfTransactions)
+		assert.Equal(t, "https://github.com/nuts-foundation/nuts-node", node1Diag.SoftwareID)
+		assert.Equal(t, "0", node1Diag.SoftwareVersion)
+		assert.Equal(t, []transport.PeerID{bootstrap.peerID}, node1Diag.Peers)
 	})
 }
 

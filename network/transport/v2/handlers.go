@@ -83,6 +83,9 @@ func (p protocol) handle(peer transport.Peer, envelope *Envelope) error {
 		return p.handleState(peer, msg.State)
 	case *Envelope_TransactionSet:
 		return p.handleTransactionSet(peer, msg)
+	case *Envelope_DiagnosticsBroadcast:
+		p.handleDiagnostics(peer.ID, msg.DiagnosticsBroadcast)
+		return nil
 	}
 	return errMessageNotSupported
 }
