@@ -111,6 +111,7 @@ type protocol struct {
 	gManager          gossip.Manager
 	diagnosticsMan    *peerDiagnosticsManager
 	sender            messageSender
+	listHandler       *transactionListHandler
 	mLock             sync.RWMutex
 }
 
@@ -183,6 +184,9 @@ func (p *protocol) Start() (err error) {
 	if p.config.DiagnosticsInterval > 0 {
 		p.diagnosticsMan.start(p.ctx, time.Duration(p.config.DiagnosticsInterval)*time.Millisecond)
 	}
+
+	p.listHandler = newTransactionListHandler(p.ctx, p.handleTransactionList)
+	p.listHandler.start()
 
 	nodeDID, err := p.nodeDIDResolver.Resolve()
 	if err != nil {

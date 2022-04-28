@@ -96,7 +96,11 @@ func (p *protocol) handle(peer transport.Peer, envelope *Envelope) error {
 		log.Logger().Infof("%T: %s said hello", p, peer)
 		return nil
 	case *Envelope_TransactionList:
-		return handleASync(peer, envelope, p.handleTransactionList)
+		p.listHandler.ch <- peerEnvelope{
+			envelope: envelope,
+			peer:     peer,
+		}
+		return nil
 	case *Envelope_TransactionListQuery:
 		return handleASync(peer, envelope, p.handleTransactionListQuery)
 	case *Envelope_TransactionPayloadQuery:
