@@ -149,6 +149,61 @@ func TestProtocol_sendTransactionRangeQuery(t *testing.T) {
 		assert.NotNil(t, actualEnvelope.GetTransactionRangeQuery().GetConversationID())
 	})
 
+	t.Run("ok - only 1 active RangeQuery", func(t *testing.T) {
+		proto, mocks := newTestProtocol(t, nil)
+		mockConnection := grpc.NewMockConnection(mocks.Controller)
+		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peerID)).Return(mockConnection).Times(2)
+		mockConnection.EXPECT().Send(proto, gomock.Any())
+
+		err := proto.sendTransactionRangeQuery(peerID, 1, 5)
+		if !assert.NoError(t, err) {
+			return
+		}
+		err = proto.sendTransactionRangeQuery(peerID, 1, 5)
+
+		assert.NoError(t, err)
+		assert.Len(t, proto.cMan.conversations, 1)
+	})
+
+	t.Run("ok - new RangeQuery after previous marked done", func(t *testing.T) {
+		proto, mocks := newTestProtocol(t, nil)
+		mockConnection := grpc.NewMockConnection(mocks.Controller)
+		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peerID)).Return(mockConnection).Times(2)
+		mockConnection.EXPECT().Send(proto, gomock.Any()).Times(2)
+
+		err := proto.sendTransactionRangeQuery(peerID, 1, 5)
+		if !assert.NoError(t, err) {
+			return
+		}
+		firstRangeQueryID := proto.cMan.lastRangeQueryID
+		proto.cMan.done(firstRangeQueryID)
+		err = proto.sendTransactionRangeQuery(peerID, 1, 5)
+
+		assert.NoError(t, err)
+		assert.Len(t, proto.cMan.conversations, 1)
+		assert.NotEqual(t, firstRangeQueryID, proto.cMan.lastRangeQueryID)
+	})
+
+	t.Run("ok - new RangeQuery after previous expired", func(t *testing.T) {
+		proto, mocks := newTestProtocol(t, nil)
+		mockConnection := grpc.NewMockConnection(mocks.Controller)
+		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peerID)).Return(mockConnection).Times(2)
+		mockConnection.EXPECT().Send(proto, gomock.Any()).Times(2)
+
+		err := proto.sendTransactionRangeQuery(peerID, 1, 5)
+		if !assert.NoError(t, err) {
+			return
+		}
+		firstRangeQueryID := proto.cMan.lastRangeQueryID
+		conversation := proto.cMan.conversations[firstRangeQueryID.String()]
+		conversation.createdAt = time.Time{}
+		err = proto.sendTransactionRangeQuery(peerID, 1, 5)
+
+		assert.NoError(t, err)
+		assert.Len(t, proto.cMan.conversations, 2) // first conversation has expired but not yet evicted
+		assert.NotEqual(t, firstRangeQueryID, proto.cMan.lastRangeQueryID)
+	})
+
 	performSendErrorTest(t, peerID, gomock.Any(), func(p *protocol, _ protocolMocks) error {
 		return p.sendTransactionRangeQuery(peerID, 1, 5)
 	})

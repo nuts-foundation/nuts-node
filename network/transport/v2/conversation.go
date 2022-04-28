@@ -88,9 +88,10 @@ type conversationable interface {
 }
 
 type conversationManager struct {
-	mutex         sync.RWMutex
-	conversations map[string]*conversation
-	validity      time.Duration
+	mutex            sync.RWMutex
+	conversations    map[string]*conversation
+	validity         time.Duration
+	lastRangeQueryID conversationID
 }
 
 func newConversationManager(validity time.Duration) *conversationManager {
@@ -149,6 +150,17 @@ func (cMan *conversationManager) startConversation(msg checkable) *conversation 
 
 	cMan.mutex.Lock()
 	defer cMan.mutex.Unlock()
+
+	if _, ok := msg.(*Envelope_TransactionRangeQuery); ok {
+		// check if new RangeQuery is allowed
+		if conversation, ok := cMan.conversations[cMan.lastRangeQueryID.String()]; ok {
+			if conversation.createdAt.Add(cMan.validity).After(time.Now()) {
+				return nil
+			}
+		}
+		// set range query timeout
+		cMan.lastRangeQueryID = cid
+	}
 
 	cMan.conversations[cid.String()] = newConversation
 

@@ -128,9 +128,14 @@ func (p *protocol) sendTransactionRangeQuery(id transport.PeerID, lcStart uint32
 			End:   lcEnd,
 		},
 	}
-	cid := p.cMan.startConversation(msg)
 
-	log.Logger().Debugf("requesting transaction range (peer=%s, conversationID=%s, start=%d, end=%d)", id.String(), cid.conversationID.String(), lcStart, lcEnd)
+	conversation := p.cMan.startConversation(msg)
+	if conversation == nil {
+		log.Logger().Debugf("did not request a new transaction range while another range query is in progress (peer=%s, start=%d, end=%d)", id.String(), lcStart, lcEnd)
+		return nil
+	}
+
+	log.Logger().Debugf("requesting transaction range (peer=%s, conversationID=%s, start=%d, end=%d)", id.String(), conversation.conversationID.String(), lcStart, lcEnd)
 
 	return conn.Send(p, &Envelope{Message: msg})
 }
