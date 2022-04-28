@@ -49,19 +49,6 @@ func (p *protocol) Handle(peer transport.Peer, raw interface{}) error {
 	envelope := raw.(*Envelope)
 	log.Logger().Tracef("Handling %T from peer: %s", envelope.Message, peer)
 
-	switch envelope.Message.(type) {
-	case *Envelope_TransactionList:
-		// continue with processing, a go routine is created for each TransactionList
-		// TODO: convert to channel
-	default:
-		// TODO remove TryLock from messages that will never call the DB
-		if !p.mLock.TryRLock() {
-			log.Logger().Debugf("Sink active, ignoring %T (peer=%s): %s", envelope.Message, peer)
-			return nil
-		}
-		p.mLock.RUnlock()
-	}
-
 	err := p.handle(peer, envelope)
 	if err != nil {
 		log.Logger().Errorf("Error handling %T (peer=%s): %s", envelope.Message, peer, err)
@@ -79,6 +66,20 @@ func (p *protocol) Handle(peer transport.Peer, raw interface{}) error {
 
 type handleFunc func(peer transport.Peer, envelope *Envelope) error
 
+func (p *protocol) handleASynchWithLock(peer transport.Peer, envelope *Envelope, f handleFunc) error {
+	go func() {
+		if !p.mLock.TryRLock() {
+			log.Logger().Debugf("Sink active, ignoring %T (peer=%s)", envelope.Message, peer)
+			return
+		}
+		defer p.mLock.RUnlock()
+		if err := f(peer, envelope); err != nil {
+			log.Logger().Errorf("error handling %T (peer=%s): %s", envelope.Message, peer, err)
+		}
+	}()
+	return nil
+}
+
 func handleASync(peer transport.Peer, envelope *Envelope, f handleFunc) error {
 	go func() {
 		if err := f(peer, envelope); err != nil {
@@ -91,27 +92,31 @@ func handleASync(peer transport.Peer, envelope *Envelope, f handleFunc) error {
 func (p *protocol) handle(peer transport.Peer, envelope *Envelope) error {
 	switch msg := envelope.Message.(type) {
 	case *Envelope_Gossip:
-		return handleASync(peer, envelope, p.handleGossip)
+		return p.handleASynchWithLock(peer, envelope, p.handleGossip)
 	case *Envelope_Hello:
 		log.Logger().Infof("%T: %s said hello", p, peer)
 		return nil
 	case *Envelope_TransactionList:
+		// in order handling of transactionLists
+		// the transactionList handler locks after parsing and before DB access.
 		p.listHandler.ch <- peerEnvelope{
 			envelope: envelope,
 			peer:     peer,
 		}
 		return nil
 	case *Envelope_TransactionListQuery:
-		return handleASync(peer, envelope, p.handleTransactionListQuery)
+		return p.handleASynchWithLock(peer, envelope, p.handleTransactionListQuery)
 	case *Envelope_TransactionPayloadQuery:
-		return handleASync(peer, envelope, p.handleTransactionPayloadQuery)
+		return p.handleASynchWithLock(peer, envelope, p.handleTransactionPayloadQuery)
 	case *Envelope_TransactionPayload:
-		return handleASync(peer, envelope, p.handleTransactionPayload)
+		return p.handleASynchWithLock(peer, envelope, p.handleTransactionPayload)
 	case *Envelope_TransactionRangeQuery:
-		return handleASync(peer, envelope, p.handleTransactionRangeQuery)
+		return p.handleASynchWithLock(peer, envelope, p.handleTransactionRangeQuery)
 	case *Envelope_State:
+		// no DB interaction so no lock required
 		return handleASync(peer, envelope, p.handleState)
 	case *Envelope_TransactionSet:
+		// no DB interaction so no lock required
 		return handleASync(peer, envelope, p.handleTransactionSet)
 	case *Envelope_DiagnosticsBroadcast:
 		p.handleDiagnostics(peer.ID, msg.DiagnosticsBroadcast)
@@ -122,8 +127,6 @@ func (p *protocol) handle(peer transport.Peer, envelope *Envelope) error {
 
 func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, envelope *Envelope) error {
 	msg := envelope.GetTransactionPayloadQuery()
-	p.mLock.RLock()
-	defer p.mLock.RUnlock()
 	ctx := context.Background()
 	tx, err := p.state.GetTransaction(ctx, hash.FromSlice(msg.TransactionRef))
 	if err != nil {
@@ -171,8 +174,6 @@ func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, envelope *
 
 func (p *protocol) handleTransactionPayload(_ transport.Peer, envelope *Envelope) error {
 	msg := envelope.GetTransactionPayload()
-	p.mLock.Lock()
-	defer p.mLock.Unlock()
 	ctx := context.Background()
 	ref := hash.FromSlice(msg.TransactionRef)
 	if ref.Empty() {
@@ -209,8 +210,6 @@ func (p *protocol) handleTransactionRangeQuery(peer transport.Peer, envelope *En
 		return errors.New("invalid range query")
 	}
 
-	p.mLock.RLock()
-	defer p.mLock.RUnlock()
 	ctx := context.Background()
 	txs, err := p.state.FindBetweenLC(ctx, msg.Start, msg.End)
 	if err != nil {
@@ -234,8 +233,6 @@ func (p *protocol) handleGossip(peer transport.Peer, envelope *Envelope) error {
 		return nil
 	}
 
-	p.mLock.RLock()
-	defer p.mLock.RUnlock()
 	refs := make([]hash.SHA256Hash, len(msg.Transactions))
 	i := 0
 	for _, bytes := range msg.Transactions {
@@ -279,8 +276,7 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 	cid := conversationID(msg.ConversationID)
 	data := handlerData{}
 
-	// TODO convert to trace logging
-	log.Logger().Infof("handling handleTransactionList from peer (peer=%s, conversationID=%s, message=%d/%d)", peer.ID.String(), cid.String(), msg.MessageNumber, msg.TotalMessages)
+	log.Logger().Tracef("handling handleTransactionList from peer (peer=%s, conversationID=%s, message=%d/%d)", peer.ID.String(), cid.String(), msg.MessageNumber, msg.TotalMessages)
 
 	// check if response matches earlier request
 	if _, err := p.cMan.check(subEnvelope, data); err != nil {
@@ -294,6 +290,7 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 
 	p.mLock.Lock()
 	defer p.mLock.Unlock()
+
 	refsToBeRemoved := map[hash.SHA256Hash]bool{}
 
 	ctx := context.Background()
@@ -344,8 +341,6 @@ func (p *protocol) handleTransactionListQuery(peer transport.Peer, envelope *Env
 		return nil
 	}
 
-	p.mLock.RLock()
-	defer p.mLock.RUnlock()
 	ctx := context.Background()
 
 	// first retrieve all transactions, this is needed to sort them on LC value
