@@ -265,7 +265,7 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 		}
 	}
 
-	if msg.MessageNumber == msg.TotalMessages {
+	if msg.MessageNumber >= msg.TotalMessages {
 		p.cMan.done(cid)
 	}
 
