@@ -179,17 +179,11 @@ func (w *Wrapper) SearchIssuedVCs(ctx echo.Context, params SearchIssuedVCsParams
 	if err != nil {
 		return err
 	}
-	result := make([]SearchVCResult, len(foundVCs))
-	for i, resolvedVC := range foundVCs {
-		var revocation *Revocation
-		revocation, err = w.VCR.Verifier().GetRevocation(*resolvedVC.ID)
-		if err != nil && !errors.Is(err, verifier.ErrNotFound) {
-			return err
-		}
-		result[i] = SearchVCResult{VerifiableCredential: resolvedVC, Revocation: revocation}
+	result, err := w.vcsWithRevocationsToSearchResults(foundVCs)
+	if err != nil {
+		return err
 	}
-
-	return ctx.JSON(http.StatusOK, SearchVCResults{VerifiableCredentials: result})
+	return ctx.JSON(http.StatusOK, SearchVCResults{result})
 }
 
 // VerifyVC handles API request to verify a  Verifiable Credential.
@@ -349,6 +343,19 @@ func (w *Wrapper) ListUntrusted(ctx echo.Context, credentialType string) error {
 	}
 
 	return ctx.JSON(http.StatusOK, result)
+}
+
+func (w *Wrapper) vcsWithRevocationsToSearchResults(foundVCs []vc.VerifiableCredential) ([]SearchVCResult, error) {
+	result := make([]SearchVCResult, len(foundVCs))
+	for i, resolvedVC := range foundVCs {
+		var revocation *Revocation
+		revocation, err := w.VCR.Verifier().GetRevocation(*resolvedVC.ID)
+		if err != nil && !errors.Is(err, verifier.ErrNotFound) {
+			return nil, nil
+		}
+		result[i] = SearchVCResult{VerifiableCredential: resolvedVC, Revocation: revocation}
+	}
+	return result, nil
 }
 
 type trustChangeFunc func(ssi.URI, ssi.URI) error

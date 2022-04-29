@@ -86,8 +86,11 @@ func (w *Wrapper) SearchVCs(ctx echo.Context) error {
 	if err != nil {
 		return err
 	}
-
-	return ctx.JSON(http.StatusOK, results)
+	searchResults, err := w.vcsWithRevocationsToSearchResults(results)
+	if err != nil {
+		return err
+	}
+	return ctx.JSON(http.StatusOK, SearchVCResults{searchResults})
 }
 
 func flatten(document interface{}, currentPath []string) []vcr.SearchTerm {
