@@ -44,6 +44,10 @@ type bboltStore struct {
 	db *bbolt.DB
 }
 
+func (store *bboltStore) Name() string {
+	return "BBolt DID Document Store"
+}
+
 // NewBBoltStore returns an instance of a BBolt based VDR store
 func NewBBoltStore() vdr.Store {
 	return &bboltStore{}

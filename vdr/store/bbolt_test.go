@@ -42,6 +42,10 @@ func newBBoltTestStore(t *testing.T) *bboltStore {
 	return store
 }
 
+func TestBboltStore_Name(t *testing.T) {
+	assert.Equal(t, "BBolt DID Document Store", (&bboltStore{}).Name())
+}
+
 func TestBboltStore_Configure(t *testing.T) {
 	t.Run("error - unable to create DB", func(t *testing.T) {
 		store := NewBBoltStore().(core.Configurable)
