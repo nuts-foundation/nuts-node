@@ -23,6 +23,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"io"
 	"net/http"
 	"os"
@@ -182,6 +183,7 @@ func CreateSystem() *core.System {
 	// Create instances
 	cryptoInstance := crypto.NewCryptoInstance()
 	jsonld := jsonld.NewJSONLDInstance()
+	storageInstance := storage.New()
 	didStore := store.NewBBoltStore()
 	keyResolver := doc.KeyResolver{Store: didStore}
 	docResolver := doc.Resolver{Store: didStore}
@@ -214,6 +216,7 @@ func CreateSystem() *core.System {
 	// Register engines
 	system.RegisterEngine(jsonld)
 	system.RegisterEngine(eventManager)
+	system.RegisterEngine(storageInstance)
 	system.RegisterEngine(didStore)
 	system.RegisterEngine(statusEngine)
 	system.RegisterEngine(metricsEngine)
