@@ -342,6 +342,45 @@ func TestNetwork_Configure(t *testing.T) {
 	})
 }
 
+func TestNetwork_PeerDiagnostics(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// Protocol 1: peer A (with diagnostics), B (without diagnostics)
+	// Protocol 2: peer B (with diagnostics)
+	// Result should be peer A and B without diagnostics
+
+	cxt := createNetwork(ctrl)
+	cxt.protocol.EXPECT().PeerDiagnostics().Return(map[transport.PeerID]transport.Diagnostics{
+		"A": {
+			SoftwareID: "A",
+			Uptime: time.Second,
+			Peers:  []transport.PeerID{"A"},
+		},
+		"B": {},
+	})
+	protocol2 := transport.NewMockProtocol(ctrl)
+	protocol2.EXPECT().Start()
+	protocol2.EXPECT().PeerDiagnostics().Return(map[transport.PeerID]transport.Diagnostics{
+		"B": {
+			SoftwareID: "B",
+			Uptime: time.Second,
+			Peers:  []transport.PeerID{"A"},
+		},
+	})
+	cxt.network.protocols = append(cxt.network.protocols, protocol2)
+
+	err := cxt.start()
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	actual := cxt.network.PeerDiagnostics()
+
+	assert.Equal(t, "A", actual["A"].SoftwareID)
+	assert.Equal(t, "B", actual["B"].SoftwareID)
+}
+
 func TestNetwork_CreateTransaction(t *testing.T) {
 	key := crypto.NewTestKey("signing-key")
 	t.Run("ok - attach key", func(t *testing.T) {

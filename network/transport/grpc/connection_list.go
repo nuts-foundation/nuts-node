@@ -37,6 +37,8 @@ type ConnectionList interface {
 	Get(query ...Predicate) Connection
 	// All returns the list of connections.
 	All() []Connection
+	// AllMatching returns the list of connections which match the predicates (using AND).
+	AllMatching(query ...Predicate) []Connection
 }
 
 type connectionList struct {
@@ -111,6 +113,25 @@ func (c *connectionList) All() []Connection {
 	for _, curr := range c.list {
 		result = append(result, curr)
 	}
+	return result
+}
+
+func (c *connectionList) AllMatching(query ...Predicate) []Connection {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	var result []Connection
+outer:
+	for _, curr := range c.list {
+		for _, predicate := range query {
+			if !predicate.Match(curr) {
+				continue outer
+			}
+		}
+
+		result = append(result, curr)
+	}
+
 	return result
 }
 

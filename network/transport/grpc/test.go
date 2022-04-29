@@ -129,6 +129,11 @@ func (s StubConnectionList) All() []Connection {
 	return []Connection{s.Conn}
 }
 
+// All returns all connections
+func (s StubConnectionList) AllMatching(_ ...Predicate) []Connection {
+	return s.All()
+}
+
 // StubConnection is a stub implementation of the Connection interface
 type StubConnection struct {
 	Open     bool
