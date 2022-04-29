@@ -83,7 +83,7 @@ func (p *protocol) handleASynchWithLock(peer transport.Peer, envelope *Envelope,
 func handleASync(peer transport.Peer, envelope *Envelope, f handleFunc) error {
 	go func() {
 		if err := f(peer, envelope); err != nil {
-			log.Logger().Errorf("error handling %T (peer=%s): %s", envelope.Message, peer, err)
+			log.Logger().Errorf("Error handling %T (peer=%s): %s", envelope.Message, peer, err)
 		}
 	}()
 	return nil
