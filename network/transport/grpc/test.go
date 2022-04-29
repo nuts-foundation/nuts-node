@@ -162,7 +162,7 @@ func (s StubConnection) IsConnected() bool {
 	return s.Open
 }
 
-// IsConnected returns true if the connection is connected for the given protocol
+// IsProtocolConnected returns true if the connection is connected for the given protocol
 func (s StubConnection) IsProtocolConnected(_ Protocol) bool {
 	return s.Open
 }
