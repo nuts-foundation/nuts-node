@@ -78,7 +78,7 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 	cid := conversationID(msg.ConversationID)
 	data := handlerData{}
 
-	log.Logger().Tracef("handling handleTransactionList from peer (peer=%s, conversationID=%s, message=%d/%d)", peer.ID.String(), cid.String(), msg.MessageNumber, msg.TotalMessages)
+	log.Logger().Tracef("Handling handleTransactionList from peer (peer=%s, conversationID=%s, message=%d/%d)", peer.ID, cid, msg.MessageNumber, msg.TotalMessages)
 
 	// check if response matches earlier request
 	if _, err := p.cMan.check(subEnvelope, data); err != nil {
