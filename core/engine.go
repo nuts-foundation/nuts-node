@@ -93,7 +93,7 @@ func (system *System) Start() error {
 	var err error
 	return system.VisitEnginesE(func(engine Engine) error {
 		if m, ok := engine.(Runnable); ok {
-			coreLogger.Debugf("Starting %s", getEngineName(engine))
+			coreLogger.Infof("Starting %s...", getEngineName(engine))
 			err = m.Start()
 			coreLogger.Infof("Started %s", getEngineName(engine))
 		}
@@ -106,7 +106,7 @@ func (system *System) Shutdown() error {
 	var err error
 	return system.VisitEnginesE(func(engine Engine) error {
 		if m, ok := engine.(Runnable); ok {
-			coreLogger.Debugf("Stopping %s", getEngineName(engine))
+			coreLogger.Infof("Stopping %s...", getEngineName(engine))
 			err = m.Shutdown()
 			coreLogger.Infof("Stopped %s", getEngineName(engine))
 		}
