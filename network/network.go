@@ -21,6 +21,7 @@ package network
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -35,6 +36,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
@@ -52,7 +54,8 @@ const (
 	// ModuleName specifies the name of this module.
 	ModuleName = "Network"
 	// softwareID contains the name of the vendor/implementation that's published in the node's diagnostic information.
-	softwareID = "https://github.com/nuts-foundation/nuts-node"
+	softwareID        = "https://github.com/nuts-foundation/nuts-node"
+	errEventFailedMsg = "failed to emit event for published transaction: %w"
 )
 
 // defaultBBoltOptions are given to bbolt, allows for package local adjustments during test
@@ -75,6 +78,7 @@ type Network struct {
 	nodeDIDResolver        transport.NodeDIDResolver
 	didDocumentFinder      types.DocFinder
 	connectionsDB          *bbolt.DB
+	eventPublisher         events.Event
 }
 
 // Walk walks the DAG starting at the root, passing every transaction to `visitor`.
@@ -91,6 +95,7 @@ func NewNetworkInstance(
 	decrypter crypto.Decrypter,
 	didDocumentResolver types.DocResolver,
 	didDocumentFinder types.DocFinder,
+	eventPublisher events.Event,
 ) *Network {
 	return &Network{
 		config:                 config,
@@ -101,6 +106,7 @@ func NewNetworkInstance(
 		didDocumentFinder:      didDocumentFinder,
 		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool), processedTransactions: map[hash.SHA256Hash]bool{}},
 		nodeDIDResolver:        &transport.FixedNodeDIDResolver{},
+		eventPublisher:         eventPublisher,
 	}
 }
 
@@ -206,6 +212,37 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		)
 	}
 
+	// register callback from DAG to other engines.
+	n.state.RegisterObserver(n.emitEvents, true)
+
+	return nil
+}
+
+// emitEvents is called when a transaction is being added to the DAG.
+// It runs within the transactional context because if the event fails, the transaction must also fail.
+// If the transaction fails for some reason (storage) then the event is still emitted. This is ok because the transaction was already validated.
+// Most likely the transaction will be added at a later stage and another event will be emitted.
+// It only emits events when both the payload and transaction are present. This is the case from both state.Add and from state.WritePayload.
+func (n *Network) emitEvents(ctx context.Context, tx dag.Transaction, payload []byte) error {
+	if tx != nil && payload != nil {
+		_, js, err := n.eventPublisher.Pool().Acquire(ctx)
+		if err != nil {
+			return fmt.Errorf(errEventFailedMsg, err)
+		}
+
+		twp := events.TransactionWithPayload{
+			Transaction: tx,
+			Payload:     payload,
+		}
+		twpData, err := json.Marshal(twp)
+		if err != nil {
+			return fmt.Errorf(errEventFailedMsg, err)
+		}
+
+		if _, err = js.PublishAsync(events.TransactionsSubject, twpData); err != nil {
+			return fmt.Errorf(errEventFailedMsg, err)
+		}
+	}
 	return nil
 }
 

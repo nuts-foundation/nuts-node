@@ -21,12 +21,13 @@ package v1
 import (
 	"context"
 	"fmt"
-	"go.etcd.io/bbolt"
 	"hash/crc32"
 	"path/filepath"
 	"sync"
 	"testing"
 	"time"
+
+	"go.etcd.io/bbolt"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/dag"
@@ -82,7 +83,7 @@ func TestProtocolV1_MissingPayloads(t *testing.T) {
 	}, integrationTestTimeout, "node2 didn't receive all transactions")
 
 	// Now write the payload, node 2 should broadcast query node 1 for TX1's payload which it now has
-	err = node1.state.WritePayload(context.Background(), tx1.PayloadHash(), []byte{0, 0, 0, 2})
+	err = node1.state.WritePayload(context.Background(), tx1, tx1.PayloadHash(), []byte{0, 0, 0, 2})
 	if !assert.NoError(t, err) {
 		return
 	}

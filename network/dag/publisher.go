@@ -21,6 +21,7 @@ package dag
 import (
 	"container/list"
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -52,7 +53,7 @@ type replayingDAGPublisher struct {
 
 func (s *replayingDAGPublisher) ConfigureCallbacks(state State) {
 	// the publisher only signals the VDR, VCR and transaction state. These need to be called after the bbolt transaction is completed.
-	state.RegisterObserver(func(ctx context.Context, transaction Transaction, payload []byte) {
+	state.RegisterObserver(func(ctx context.Context, transaction Transaction, payload []byte) error {
 		s.publishMux.Lock()
 		defer s.publishMux.Unlock()
 
@@ -62,10 +63,11 @@ func (s *replayingDAGPublisher) ConfigureCallbacks(state State) {
 		if payload != nil {
 			s.payloadWritten(ctx, transaction, payload)
 		}
+		return nil
 	}, false)
 }
 
-func (s *replayingDAGPublisher) payloadWritten(ctx context.Context, _ Transaction, payload []byte) {
+func (s *replayingDAGPublisher) payloadWritten(ctx context.Context, _ Transaction, payload []byte) error {
 	payloadHash := hash.EmptyHash()
 	if payload != nil {
 		// some defensive programming
@@ -74,15 +76,14 @@ func (s *replayingDAGPublisher) payloadWritten(ctx context.Context, _ Transactio
 
 	txs, err := s.dag.GetByPayloadHash(ctx, payloadHash)
 	if err != nil {
-		log.Logger().Errorf("Error while reading TXs by PayloadHash (payloadHash=%s): %v", payloadHash.String(), err)
-		return
+		return fmt.Errorf("error while reading TXs by PayloadHash (payloadHash=%s): %v", payloadHash.String(), err)
 	}
 	if len(txs) == 0 {
 		// No transaction found for this payload hash.
 		// This happens when a transaction was created by the local node, which first writes payload, then adds TX to the DAG.
 		// But when the actual TX is added and transactionAdded() is called, it will still resume publishing from that TX,
 		// so all required events will still be emitted.
-		return
+		return nil
 	}
 
 	// make sure publisher resumes at these points
@@ -92,11 +93,11 @@ func (s *replayingDAGPublisher) payloadWritten(ctx context.Context, _ Transactio
 		}
 	}
 
-	s.publish(ctx)
+	return s.publish(ctx)
 }
 
 // transactionAdded is called by the DAG when a new transaction is added.
-func (s *replayingDAGPublisher) transactionAdded(ctx context.Context, transaction Transaction, _ []byte) {
+func (s *replayingDAGPublisher) transactionAdded(ctx context.Context, transaction Transaction, _ []byte) error {
 	tx := transaction.(Transaction)
 
 	// The transaction itself has already been validated by the network layer. So the dependencies of this TX are already processed in the VDR.
@@ -105,7 +106,7 @@ func (s *replayingDAGPublisher) transactionAdded(ctx context.Context, transactio
 	// Received new transaction, add it to the subscription walker resume list, so it resumes from this transaction
 	// when the payload is received.
 	s.resumeAt.PushBack(tx.Ref())
-	s.publish(ctx)
+	return s.publish(ctx)
 }
 
 func (s *replayingDAGPublisher) Subscribe(eventType EventType, payloadType string, receiver Receiver) {
@@ -130,23 +131,20 @@ func (s *replayingDAGPublisher) Start() error {
 
 // publish is called both from payloadWritten and transactionAdded. Only when both are satisfied (transaction is present and payload as well), the transaction is published.
 // payloadWritten will be the correct event during operation, transactionAdded will be the event at startup
-func (s *replayingDAGPublisher) publish(ctx context.Context) {
+func (s *replayingDAGPublisher) publish(ctx context.Context) error {
 	front := s.resumeAt.Front()
 	if front == nil {
-		return
+		return nil
 	}
 
 	currentRef := front.Value.(hash.SHA256Hash)
-	err := s.dag.Walk(ctx, func(ctx context.Context, transaction Transaction) bool {
+	return s.dag.Walk(ctx, func(ctx context.Context, transaction Transaction) bool {
 		outcome := s.publishTransaction(ctx, transaction)
 		if outcome {
 			remove(s.resumeAt, transaction.Ref())
 		}
 		return outcome
 	}, currentRef)
-	if err != nil {
-		log.Logger().Errorf("Unable to publish DAG: %v", err)
-	}
 }
 
 func remove(l *list.List, ref hash.SHA256Hash) {

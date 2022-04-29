@@ -162,15 +162,6 @@ func (p *protocol) Configure(_ transport.PeerID) error {
 	// called after DAG is committed
 	p.state.RegisterObserver(p.gossipTransaction, false)
 
-	// register callback from DAG to protocol layer.
-	// The callback is done within the DAG DB transaction.
-	// It's only called once for each validated transaction.
-	// TODO hook to XOR and IBLT calculations
-	// p.state.RegisterObserver(p.Observe)
-
-	// the observer is called with a context. Within that context is the TX
-	// use storage.BBoltTXView or storage.BBoltTXUpdate around the logic that needs to be run within a transaction
-
 	return nil
 }
 
@@ -216,12 +207,12 @@ func (p *protocol) connectionStateCallback(peer transport.Peer, state transport.
 }
 
 // gossipTransaction is called when a transaction is added to the DAG
-// TODO: this should not be called parallel
-func (p *protocol) gossipTransaction(ctx context.Context, tx dag.Transaction, _ []byte) {
+func (p *protocol) gossipTransaction(ctx context.Context, tx dag.Transaction, _ []byte) error {
 	if tx != nil { // can happen when payload is written for private TX
 		xor, clock := p.state.XOR(ctx, math.MaxUint32)
 		p.gManager.TransactionRegistered(tx.Ref(), xor, clock)
 	}
+	return nil
 }
 
 func (p *protocol) sendGossip(id transport.PeerID, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) bool {

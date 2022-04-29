@@ -158,7 +158,7 @@ func (p *protocol) handleTransactionPayload(msg *TransactionPayload) error {
 		// Possible attack: received payload does not match transaction payload hash.
 		return fmt.Errorf("peer sent payload that doesn't match payload hash (tx=%s)", ref)
 	}
-	if err = p.state.WritePayload(ctx, payloadHash, msg.Data); err != nil {
+	if err = p.state.WritePayload(ctx, tx, payloadHash, msg.Data); err != nil {
 		return err
 	}
 

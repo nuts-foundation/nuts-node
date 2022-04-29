@@ -108,6 +108,8 @@ func createManager(t *testing.T) *manager {
 	assert.NoError(t, err)
 	err = eventManager.Start()
 	assert.NoError(t, err)
-	t.Cleanup(func() { eventManager.Shutdown() })
+	t.Cleanup(func() {
+		eventManager.Shutdown()
+	})
 	return eventManager
 }

@@ -28,6 +28,7 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
@@ -70,6 +71,16 @@ func TestVDRIntegration_Test(t *testing.T) {
 	docResolver := doc.Resolver{Store: didStore}
 	docFinder := doc.Finder{Store: didStore}
 
+	// Startup Event
+	eventPublisher := events.NewManager()
+	if err := eventPublisher.(core.Configurable).Configure(nutsConfig); err != nil {
+		t.Fatal(err)
+	}
+	if err := eventPublisher.(core.Runnable).Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer eventPublisher.(core.Runnable).Shutdown()
+
 	// Startup the network layer
 	networkCfg := network.DefaultConfig()
 	networkCfg.EnableTLS = false
@@ -80,6 +91,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 		cryptoInstance,
 		docResolver,
 		docFinder,
+		eventPublisher,
 	)
 	nutsNetwork.Configure(nutsConfig)
 	nutsNetwork.Start()
@@ -249,6 +261,16 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	docResolver := doc.Resolver{Store: didStore}
 	docFinder := doc.Finder{Store: didStore}
 
+	// Startup events
+	eventPublisher := events.NewManager()
+	if err = eventPublisher.(core.Configurable).Configure(nutsConfig); err != nil {
+		t.Fatal(err)
+	}
+	if err = eventPublisher.(core.Runnable).Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer eventPublisher.(core.Runnable).Shutdown()
+
 	// Startup the network layer
 	networkCfg := network.DefaultConfig()
 	networkCfg.EnableTLS = false
@@ -259,6 +281,7 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 		cryptoInstance,
 		docResolver,
 		docFinder,
+		eventPublisher,
 	)
 	nutsNetwork.Configure(nutsConfig)
 	nutsNetwork.Start()

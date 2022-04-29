@@ -22,13 +22,14 @@ package v2
 import (
 	"context"
 	"fmt"
-	"go.etcd.io/bbolt"
 	"hash/crc32"
 	"os"
 	"path"
 	"sync"
 	"testing"
 	"time"
+
+	"go.etcd.io/bbolt"
 
 	"github.com/nuts-foundation/go-did/did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"

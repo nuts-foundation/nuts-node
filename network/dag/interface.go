@@ -37,9 +37,11 @@ var errNoClockValue = errors.New("missing clock value")
 // State represents the Node transactional state. Mutations are done via this abstraction layer.
 // Notifications are also done via this layer
 type State interface {
-	// PayloadStore interface for wrapping payloadStore behind TX
-	PayloadStore
+	PayloadWriter
+	PayloadReader
 	core.Diagnosable
+	// Deprecated: remove with V1 protocol
+	ReadManyPayloads(ctx context.Context, consumer func(context.Context, PayloadReader) error) error
 
 	// Add a transactions to the DAG. If it can't be added an error is returned.
 	// If the transaction already exists, nothing is added and no observers are notified.
@@ -133,16 +135,17 @@ type Visitor func(ctx context.Context, transaction Transaction) bool
 // PayloadStore defines the interface for types that store and read transaction payloads.
 type PayloadStore interface {
 	PayloadReader
-	PayloadWriter
-	// ReadManyPayloads allows the caller read many payloads in an optimized fashion.
+	// WritePayload writes contents for the specified payload, identified by the given hash.
+	WritePayload(ctx context.Context, payloadHash hash.SHA256Hash, data []byte) error
+	// Deprecated: remove with V1 protocol
 	ReadManyPayloads(ctx context.Context, consumer func(context.Context, PayloadReader) error) error
 }
 
 // PayloadWriter defines the interface for types that store transaction payloads.
 type PayloadWriter interface {
-	// WritePayload writes contents for the specified payload, identified by the given hash. Implementations must make
-	// sure the hash matches the given contents.
-	WritePayload(ctx context.Context, payloadHash hash.SHA256Hash, data []byte) error
+	// WritePayload writes contents for the specified payload, identified by the given hash.
+	// It also calls observers and therefore requires the transaction.
+	WritePayload(ctx context.Context, transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error
 }
 
 // PayloadReader defines the interface for types that read transaction payloads.
@@ -156,7 +159,7 @@ type PayloadReader interface {
 }
 
 // Observer defines the signature of an observer which can be called by an Observable.
-type Observer func(ctx context.Context, transaction Transaction, payload []byte)
+type Observer func(ctx context.Context, transaction Transaction, payload []byte) error
 
 // MinTime returns the minimum value for time.Time
 func MinTime() time.Time {

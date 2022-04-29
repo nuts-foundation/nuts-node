@@ -82,7 +82,7 @@ func (store *bboltTree) isEmpty() bool {
 
 // dagCallback inserts a transaction reference to the in-memory tree and to persistent storage.
 // The tree is not aware of previously seen transactions, so it should be transactional with updates to the dag.
-func (store *bboltTree) dagObserver(ctx context.Context, transaction Transaction, _ []byte) {
+func (store *bboltTree) dagObserver(ctx context.Context, transaction Transaction, _ []byte) error {
 	if transaction != nil { // can happen when payload is written for private TX
 		err := storage.BBoltTXUpdate(ctx, store.db, func(callbackCtx context.Context, tx *bbolt.Tx) error {
 			dirty := store.tree.InsertGetDirty(transaction.Ref(), transaction.Clock())
@@ -110,10 +110,9 @@ func (store *bboltTree) dagObserver(ctx context.Context, transaction Transaction
 
 			return store.writeUpdates(callbackCtx, dirty, nil)
 		})
-		if err != nil {
-			log.Logger().Errorf("failed to add transaction to %s: %s", store.bucketName, err.Error())
-		}
+		return err
 	}
+	return nil
 }
 
 // migrate builds a tree by walking over the dag and adding all Transaction references to the tree without checking for validity.
