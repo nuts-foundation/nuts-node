@@ -90,7 +90,7 @@ func handleASync(peer transport.Peer, envelope *Envelope, f handleFunc) error {
 }
 
 func (p *protocol) handle(peer transport.Peer, envelope *Envelope) error {
-	switch msg := envelope.Message.(type) {
+	switch envelope.Message.(type) {
 	case *Envelope_Gossip:
 		return p.handleASynchWithLock(peer, envelope, p.handleGossip)
 	case *Envelope_Hello:
@@ -125,8 +125,7 @@ func (p *protocol) handle(peer transport.Peer, envelope *Envelope) error {
 	case *Envelope_TransactionSet:
 		return p.handleASynchWithLock(peer, envelope, p.handleTransactionSet)
 	case *Envelope_DiagnosticsBroadcast:
-		p.handleDiagnostics(peer.ID, msg.DiagnosticsBroadcast)
-		return nil
+		return handleASync(peer, envelope, p.handleDiagnostics)
 	}
 	return errMessageNotSupported
 }
@@ -453,8 +452,10 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope)
 	return nil
 }
 
-func (p *protocol) handleDiagnostics(peer transport.PeerID, response *Diagnostics) {
-	p.diagnosticsMan.handleReceived(peer, response)
+func (p *protocol) handleDiagnostics(peer transport.Peer, envelope *Envelope) error {
+	msg := envelope.GetDiagnosticsBroadcast()
+	p.diagnosticsMan.handleReceived(peer.ID, msg)
+	return nil
 }
 
 func pageClockStart(pageNum uint32) uint32 {
