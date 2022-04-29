@@ -52,6 +52,20 @@ func Test_conn_disconnect(t *testing.T) {
 	})
 }
 
+func Test_conn_IsProtocolConnected(t *testing.T) {
+	p := &TestProtocol{}
+	t.Run("not connected", func(t *testing.T) {
+		conn := createConnection(context.Background(), nil, transport.Peer{})
+		assert.False(t, conn.IsProtocolConnected(p))
+	})
+	t.Run("connected", func(t *testing.T) {
+		conn := createConnection(context.Background(), nil, transport.Peer{}).(*conn)
+		conn.ctx = context.Background()
+		conn.streams[p.MethodName()] = &MockStream{}
+		assert.True(t, conn.IsProtocolConnected(p))
+	})
+}
+
 func Test_conn_waitUntilDisconnected(t *testing.T) {
 	t.Run("never open, should return immediately", func(t *testing.T) {
 		conn := conn{}
