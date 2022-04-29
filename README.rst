@@ -48,7 +48,7 @@ After the services have started you can try the following endpoints:
 Development
 ^^^^^^^^^^^
 
-Go >= 1.17 is required.
+Go >= 1.18 is required.
 
 Building
 ********
