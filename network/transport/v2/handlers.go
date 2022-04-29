@@ -22,10 +22,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 	"math"
 	"sort"
-
-	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
@@ -36,12 +35,28 @@ import (
 // errInternalError is returned to the node's peer when an internal error occurs.
 var errInternalError = errors.New("internal error")
 
+// errMessageNotSupported is returned to the node's peer when the received message is not supported.
+var errMessageNotSupported = errors.New("message not supported")
+
+// allowedErrors is a list of errors that are allowed to be sent back to the peer (spec'd by RFC017).
+var allowedErrors = []error{
+	errInternalError,
+	errMessageNotSupported,
+}
+
 func (p protocol) Handle(peer transport.Peer, raw interface{}) error {
 	envelope := raw.(*Envelope)
 	log.Logger().Tracef("Handling %T from peer: %s", envelope.Message, peer)
 	err := p.handle(peer, envelope)
 	if err != nil {
 		log.Logger().Errorf("Error handling %T (peer=%s): %s", envelope.Message, peer, err)
+		// Only return allowed errors
+		for _, allowedError := range allowedErrors {
+			if err == allowedError {
+				return err
+			}
+		}
+		// If the error isn't allowed to be returned, return as internal error
 		return errInternalError
 	}
 	return nil
@@ -68,8 +83,11 @@ func (p protocol) handle(peer transport.Peer, envelope *Envelope) error {
 		return p.handleState(peer, msg.State)
 	case *Envelope_TransactionSet:
 		return p.handleTransactionSet(peer, msg)
+	case *Envelope_DiagnosticsBroadcast:
+		p.handleDiagnostics(peer.ID, msg.DiagnosticsBroadcast)
+		return nil
 	}
-	return errors.New("envelope doesn't contain any (handleable) messages")
+	return errMessageNotSupported
 }
 
 func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, msg *TransactionPayloadQuery) error {
@@ -220,12 +238,10 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 	data := handlerData{}
 
 	// TODO convert to trace logging
-	log.Logger().Infof("handling handleTransactionList from peer (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
+	log.Logger().Infof("handling handleTransactionList from peer (peer=%s, conversationID=%s, message=%d/%d)", peer.ID.String(), cid.String(), msg.MessageNumber, msg.TotalMessages)
 
 	// check if response matches earlier request
-	var conversation *conversation
-	var err error
-	if conversation, err = p.cMan.check(envelope, data); err != nil {
+	if _, err := p.cMan.check(envelope, data); err != nil {
 		return err
 	}
 
@@ -234,10 +250,12 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 		return err
 	}
 
-	refsToBeRemoved := map[hash.SHA256Hash]bool{}
 	ctx := context.Background()
 	for i, tx := range txs {
 		// TODO does this always trigger fetching missing payloads? (through observer on DAG) Prolly not for v2
+		if len(tx.PAL()) == 0 && len(envelope.TransactionList.Transactions[i].Payload) == 0 {
+			return fmt.Errorf("peer did not provide payload for transaction (tx=%s)", tx.Ref())
+		}
 		if err = p.state.Add(ctx, tx, envelope.TransactionList.Transactions[i].Payload); err != nil {
 			if errors.Is(err, dag.ErrPreviousTransactionMissing) {
 				p.cMan.done(cid)
@@ -247,28 +265,10 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 			}
 			return fmt.Errorf("unable to add received transaction to DAG (tx=%s): %w", tx.Ref(), err)
 		}
-		refsToBeRemoved[tx.Ref()] = true
 	}
 
-	// remove from conversation
-	refs := conversation.get("refs")
-	if refs != nil {
-		requestedRefs := refs.([]hash.SHA256Hash)
-		newRefs := make([]hash.SHA256Hash, len(requestedRefs))
-		i := 0
-		for _, requestedRef := range requestedRefs {
-			if _, ok := refsToBeRemoved[requestedRef]; !ok {
-				newRefs[i] = requestedRef
-				i++
-			}
-		}
-		newRefs = newRefs[:i]
-		conversation.set("refs", newRefs)
-
-		// if len == 0, mark as done
-		if len(newRefs) == 0 {
-			p.cMan.done(cid)
-		}
+	if msg.MessageNumber >= msg.TotalMessages {
+		p.cMan.done(cid)
 	}
 
 	return nil
@@ -446,6 +446,10 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope_
 
 	// peer is behind
 	return nil
+}
+
+func (p *protocol) handleDiagnostics(peer transport.PeerID, response *Diagnostics) {
+	p.diagnosticsMan.handleReceived(peer, response)
 }
 
 func pageClockStart(pageNum uint32) uint32 {

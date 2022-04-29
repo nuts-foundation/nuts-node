@@ -129,6 +129,11 @@ func (s StubConnectionList) All() []Connection {
 	return []Connection{s.Conn}
 }
 
+// AllMatching returns all connections
+func (s StubConnectionList) AllMatching(_ ...Predicate) []Connection {
+	return s.All()
+}
+
 // StubConnection is a stub implementation of the Connection interface
 type StubConnection struct {
 	Open     bool
@@ -154,6 +159,11 @@ func (s StubConnection) Peer() transport.Peer {
 
 // IsConnected returns true if the connection is connected
 func (s StubConnection) IsConnected() bool {
+	return s.Open
+}
+
+// IsProtocolConnected returns true if the connection is connected for the given protocol
+func (s StubConnection) IsProtocolConnected(_ Protocol) bool {
 	return s.Open
 }
 

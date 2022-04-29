@@ -137,12 +137,13 @@ func (p *protocolV1) Send(peer transport.PeerID, envelope *protobuf.NetworkMessa
 }
 
 func (p *protocolV1) Broadcast(envelope *protobuf.NetworkMessage) {
-	for _, connection := range p.connectionList.All() {
-		if connection.IsConnected() {
-			err := connection.Send(p, envelope)
-			if err != nil {
-				log.Logger().Warnf("Error while broadcasting (peer=%s): %v", connection.Peer(), err)
-			}
+	for _, connection := range p.connectionList.AllMatching(grpc.ByConnected()) {
+		if !connection.IsProtocolConnected(p) {
+			continue
+		}
+		err := connection.Send(p, envelope)
+		if err != nil {
+			log.Logger().Warnf("Error while broadcasting (peer=%s): %v", connection.Peer(), err)
 		}
 	}
 }
@@ -158,6 +159,10 @@ func (p protocolServer) Connect(server protobuf.Network_ConnectServer) error {
 // delegatingConnectionList delegates ConnectionList calls to another implementation. Temp fix until v1/logic package is refactored into v1.
 type delegatingConnectionList struct {
 	target grpc.ConnectionList
+}
+
+func (d delegatingConnectionList) AllMatching(query ...grpc.Predicate) []grpc.Connection {
+	return d.target.AllMatching(query...)
 }
 
 func (d delegatingConnectionList) Get(query ...grpc.Predicate) grpc.Connection {

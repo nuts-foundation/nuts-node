@@ -22,18 +22,18 @@ package vcr
 import (
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"os"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
+	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -57,7 +57,7 @@ func TestAmbassador_Configure(t *testing.T) {
 }
 
 func TestAmbassador_vcCallback(t *testing.T) {
-	payload := []byte(concept.TestCredential)
+	payload := []byte(jsonld.TestCredential)
 	tx, _ := dag.NewTransaction(hash.EmptyHash(), types.VcDocumentType, nil, nil, 0)
 	stx := tx.(dag.Transaction)
 	validAt := stx.SigningTime()

@@ -47,6 +47,24 @@ func (mr *MockConnectionListMockRecorder) All() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "All", reflect.TypeOf((*MockConnectionList)(nil).All))
 }
 
+// AllMatching mocks base method.
+func (m *MockConnectionList) AllMatching(query ...Predicate) []Connection {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{}
+	for _, a := range query {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "AllMatching", varargs...)
+	ret0, _ := ret[0].([]Connection)
+	return ret0
+}
+
+// AllMatching indicates an expected call of AllMatching.
+func (mr *MockConnectionListMockRecorder) AllMatching(query ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AllMatching", reflect.TypeOf((*MockConnectionList)(nil).AllMatching), query...)
+}
+
 // Get mocks base method.
 func (m *MockConnectionList) Get(query ...Predicate) Connection {
 	m.ctrl.T.Helper()

@@ -20,8 +20,11 @@ package grpc
 
 import (
 	"context"
+	"github.com/nuts-foundation/nuts-node/test"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/stretchr/testify/assert"
@@ -46,6 +49,20 @@ func Test_conn_disconnect(t *testing.T) {
 		conn.verifyOrSetPeerID("foo")
 		conn.disconnect()
 		assert.Empty(t, conn.Peer())
+	})
+}
+
+func Test_conn_IsProtocolConnected(t *testing.T) {
+	p := &TestProtocol{}
+	t.Run("not connected", func(t *testing.T) {
+		conn := createConnection(context.Background(), nil, transport.Peer{})
+		assert.False(t, conn.IsProtocolConnected(p))
+	})
+	t.Run("connected", func(t *testing.T) {
+		conn := createConnection(context.Background(), nil, transport.Peer{}).(*conn)
+		conn.ctx = context.Background()
+		conn.streams[p.MethodName()] = &MockStream{}
+		assert.True(t, conn.IsProtocolConnected(p))
 	})
 }
 
@@ -95,5 +112,29 @@ func Test_conn_registerStream(t *testing.T) {
 
 		assert.True(t, accepted)
 		assert.False(t, accepted2)
+	})
+}
+
+func Test_conn_startSending(t *testing.T) {
+	t.Run("disconnect causes panic in startSending", func(t *testing.T) {
+		// startSending reads from the outbox channel, which is closed when disconnect() is called. Closing the channel
+		// causes startSending to read a nil message from the channel, which causes a panic.
+		// If the message to be sent is nil, it indicates the connection is closing and the loop should exit.
+		connection := createConnection(context.Background(), nil, transport.Peer{}).(*conn)
+		stream := newServerStream("foo", "")
+
+		defer stream.cancelFunc()
+
+		p := &TestProtocol{}
+		_ = connection.registerStream(p, stream)
+
+		assert.Equal(t, int32(2), connection.activeGoroutines) // startSending and startReceiving
+
+		stream.cancelFunc()
+		connection.disconnect()
+
+		test.WaitFor(t, func() (bool, error) {
+			return atomic.LoadInt32(&connection.activeGoroutines) == 0, nil
+		}, 5*time.Second, "waiting for all goroutines to exit")
 	})
 }

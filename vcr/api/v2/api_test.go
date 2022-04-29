@@ -19,13 +19,13 @@
 package v2
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
@@ -731,7 +731,8 @@ func TestWrapper_VerifyVP(t *testing.T) {
 }
 
 func TestWrapper_TrustUntrust(t *testing.T) {
-	vc := concept.TestVC()
+	vc := vc.VerifiableCredential{}
+	json.Unmarshal([]byte(jsonld.TestCredential), &vc)
 	issuer := vc.Issuer
 	cType := vc.Type[0]
 

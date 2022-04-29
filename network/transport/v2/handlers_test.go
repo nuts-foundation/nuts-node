@@ -56,7 +56,7 @@ func TestProtocol_handle(t *testing.T) {
 	t.Run("no handleable messages", func(t *testing.T) {
 		p, _ := newTestProtocol(t, nil)
 		err := p.Handle(peer, &Envelope{})
-		assert.EqualError(t, err, "internal error")
+		assert.EqualError(t, err, "message not supported")
 	})
 	t.Run("handler error is returned as internal error", func(t *testing.T) {
 		p, _ := newTestProtocol(t, nil)
@@ -410,6 +410,8 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 			TransactionList: &TransactionList{
 				ConversationID: conversation.conversationID.slice(),
 				Transactions:   []*Transaction{{Data: data, Payload: payload}},
+				TotalMessages:  1,
+				MessageNumber:  1,
 			},
 		})
 
@@ -429,12 +431,13 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 			TransactionList: &TransactionList{
 				ConversationID: conversation.conversationID.slice(),
 				Transactions:   []*Transaction{{Data: data, Payload: payload}},
+				TotalMessages:  2,
+				MessageNumber:  1,
 			},
 		})
 
 		assert.NoError(t, err)
 		assert.NotNil(t, p.cMan.conversations[conversation.conversationID.String()])
-		assert.Len(t, p.cMan.conversations[conversation.conversationID.String()].get("refs"), 1)
 	})
 
 	t.Run("error - State.Add failed", func(t *testing.T) {
@@ -450,6 +453,20 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		})
 
 		assert.EqualError(t, err, fmt.Sprintf("unable to add received transaction to DAG (tx=%s): custom", tx.Ref().String()))
+	})
+
+	t.Run("error - missing payload for TX without PAL", func(t *testing.T) {
+		p, _ := newTestProtocol(t, nil)
+		conversation := p.cMan.startConversation(request)
+
+		err := p.handleTransactionList(peer, &Envelope_TransactionList{
+			TransactionList: &TransactionList{
+				ConversationID: conversation.conversationID.slice(),
+				Transactions:   []*Transaction{{Data: data}},
+			},
+		})
+
+		assert.ErrorContains(t, err, "peer did not provide payload for transaction")
 	})
 
 	t.Run("error - invalid transaction", func(t *testing.T) {

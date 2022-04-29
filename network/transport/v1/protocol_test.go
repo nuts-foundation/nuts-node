@@ -19,6 +19,8 @@
 package v1
 
 import (
+	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1/protobuf"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -71,4 +73,29 @@ func TestProtocolV1_Stop(t *testing.T) {
 	v1 := New(DefaultConfig(), dag.NewMockState(ctrl), dummyDiagnostics).(*protocolV1)
 	v1.protocol = underlyingProto
 	v1.Stop()
+}
+
+func TestProtocolV1_Broadcast(t *testing.T) {
+	t.Run("only broadcast to connected v1 protocol connections", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		underlyingProto := logic.NewMockProtocol(ctrl)
+
+		v1conn := grpc.NewMockConnection(ctrl)
+		v1conn.EXPECT().IsProtocolConnected(gomock.Any()).Return(true)
+		v1conn.EXPECT().Send(gomock.Any(), gomock.Any())
+
+		v2conn := grpc.NewMockConnection(ctrl)
+		v2conn.EXPECT().IsProtocolConnected(gomock.Any()).Return(false)
+		// only calls Send() for v1conn
+
+		cl := grpc.NewMockConnectionList(ctrl)
+		cl.EXPECT().AllMatching(grpc.ByConnected()).Return([]grpc.Connection{v1conn, v2conn})
+
+		v1 := New(DefaultConfig(), dag.NewMockState(ctrl), dummyDiagnostics).(*protocolV1)
+		v1.connectionList = delegatingConnectionList{cl}
+		v1.protocol = underlyingProto
+		v1.Broadcast(&protobuf.NetworkMessage{})
+	})
 }

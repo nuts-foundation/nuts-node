@@ -19,6 +19,7 @@
 package signature
 
 import (
+	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -44,7 +45,7 @@ func (s JSONWebSignature2020) CanonicalizeDocument(doc interface{}) ([]byte, err
 
 	res, err := jsonld.LDUtil{s.ContextLoader}.Canonicalize(doc)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("canonicalization failed: %w", err)
 	}
 	return []byte(res.(string)), nil
 }

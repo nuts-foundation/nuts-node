@@ -12,7 +12,6 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	go_did "github.com/nuts-foundation/go-did"
 	vc "github.com/nuts-foundation/go-did/vc"
-	concept "github.com/nuts-foundation/nuts-node/vcr/concept"
 	credential "github.com/nuts-foundation/nuts-node/vcr/credential"
 	holder "github.com/nuts-foundation/nuts-node/vcr/holder"
 	issuer "github.com/nuts-foundation/nuts-node/vcr/issuer"
@@ -249,20 +248,6 @@ func (m *MockResolver) EXPECT() *MockResolverMockRecorder {
 	return m.recorder
 }
 
-// Registry mocks base method.
-func (m *MockResolver) Registry() concept.Reader {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Registry")
-	ret0, _ := ret[0].(concept.Reader)
-	return ret0
-}
-
-// Registry indicates an expected call of Registry.
-func (mr *MockResolverMockRecorder) Registry() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Registry", reflect.TypeOf((*MockResolver)(nil).Registry))
-}
-
 // Resolve mocks base method.
 func (m *MockResolver) Resolve(ID go_did.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
@@ -327,20 +312,6 @@ func (m *MockVCR) Issuer() issuer.Issuer {
 func (mr *MockVCRMockRecorder) Issuer() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Issuer", reflect.TypeOf((*MockVCR)(nil).Issuer))
-}
-
-// Registry mocks base method.
-func (m *MockVCR) Registry() concept.Reader {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Registry")
-	ret0, _ := ret[0].(concept.Reader)
-	return ret0
-}
-
-// Registry indicates an expected call of Registry.
-func (mr *MockVCRMockRecorder) Registry() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Registry", reflect.TypeOf((*MockVCR)(nil).Registry))
 }
 
 // Resolve mocks base method.

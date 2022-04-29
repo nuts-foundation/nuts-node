@@ -46,7 +46,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr"
@@ -62,7 +61,6 @@ var authorizerDID = *vdr.TestDIDA
 var authorizerDIDDocument = getAuthorizerDIDDocument()
 var requesterSigningKeyID = getRequesterSigningKey()
 var authorizerSigningKeyID = getAuthorizerSigningKey()
-var orgConceptName = concept.Concept{"organization": concept.Concept{"name": "Carebears", "city": "Caretown"}}
 
 const expectedService = "unit-test"
 const expectedAudience = "http://oauth"

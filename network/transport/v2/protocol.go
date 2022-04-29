@@ -54,16 +54,20 @@ type Config struct {
 	// GossipInterval specifies how often (in milliseconds) the node should broadcast its gossip message,
 	// so other nodes can compare and synchronize.
 	GossipInterval int `koanf:"gossipinterval"`
+	// DiagnosticsInterval specifies how often (in milliseconds) the node should broadcast its diagnostics message.
+	DiagnosticsInterval int `koanf:"diagnosticsinterval"`
 }
 
 const defaultPayloadRetryDelay = 5 * time.Second
 const defaultGossipInterval = 5000
+const defaultDiagnosticsInterval = 5000
 
 // DefaultConfig returns the default config for protocol v2
 func DefaultConfig() Config {
 	return Config{
-		PayloadRetryDelay: defaultPayloadRetryDelay,
-		GossipInterval:    defaultGossipInterval,
+		PayloadRetryDelay:   defaultPayloadRetryDelay,
+		GossipInterval:      defaultGossipInterval,
+		DiagnosticsInterval: defaultDiagnosticsInterval,
 	}
 }
 
@@ -74,6 +78,7 @@ func New(
 	state dag.State,
 	docResolver vdr.DocResolver,
 	decrypter crypto.Decrypter,
+	diagnosticsProvider func() transport.Diagnostics,
 ) transport.Protocol {
 	ctx, cancel := context.WithCancel(context.Background())
 	p := &protocol{
@@ -86,6 +91,7 @@ func New(
 		docResolver:     docResolver,
 	}
 	p.sender = p
+	p.diagnosticsMan = newPeerDiagnosticsManager(diagnosticsProvider, p.sender.broadcastDiagnostics)
 	return p
 }
 
@@ -102,6 +108,7 @@ type protocol struct {
 	connectionManager transport.ConnectionManager
 	cMan              *conversationManager
 	gManager          gossip.Manager
+	diagnosticsMan    *peerDiagnosticsManager
 	sender            messageSender
 }
 
@@ -162,6 +169,10 @@ func (p *protocol) Start() (err error) {
 	p.cMan = newConversationManager(maxValidity)
 	p.cMan.start(p.ctx)
 
+	if p.config.DiagnosticsInterval > 0 {
+		p.diagnosticsMan.start(p.ctx, time.Duration(p.config.DiagnosticsInterval)*time.Millisecond)
+	}
+
 	nodeDID, err := p.nodeDIDResolver.Resolve()
 	if err != nil {
 		log.Logger().WithError(err).Error("Failed to resolve node DID")
@@ -178,7 +189,6 @@ func (p *protocol) Start() (err error) {
 		// todo replace with observer, underlying storage is persistent
 		p.state.Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, p.handlePrivateTx)
 	}
-
 	return
 }
 
@@ -188,7 +198,9 @@ func (p *protocol) connectionStateCallback(peer transport.Peer, state transport.
 		case transport.StateConnected:
 			xor, clock := p.state.XOR(context.Background(), math.MaxUint32)
 			p.gManager.PeerConnected(peer, xor, clock)
+			p.diagnosticsMan.add(peer.ID)
 		case transport.StateDisconnected:
+			p.diagnosticsMan.remove(peer.ID)
 			p.gManager.PeerDisconnected(peer)
 		}
 	}
@@ -326,7 +338,7 @@ func (p protocol) Diagnostics() []core.DiagnosticResult {
 }
 
 func (p protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
-	return make(map[transport.PeerID]transport.Diagnostics)
+	return p.diagnosticsMan.get()
 }
 
 func (p *protocol) send(peer transport.Peer, message isEnvelope_Message) error {

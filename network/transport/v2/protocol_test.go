@@ -73,7 +73,7 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 
 	cfg := DefaultConfig()
 	cfg.Datadir = dirname
-	proto := New(cfg, nodeDIDResolver, state, docResolver, decrypter)
+	proto := New(cfg, nodeDIDResolver, state, docResolver, decrypter, nil)
 	proto.(*protocol).payloadScheduler = payloadScheduler
 	proto.(*protocol).gManager = gMan
 	proto.(*protocol).cMan = newConversationManager(time.Second)
@@ -121,8 +121,12 @@ func TestProtocol_Diagnostics(t *testing.T) {
 }
 
 func TestProtocol_PeerDiagnostics(t *testing.T) {
-	// Doesn't do anything yet
-	assert.Empty(t, protocol{}.PeerDiagnostics())
+	mgr := newPeerDiagnosticsManager(nil, nil)
+	expected := map[transport.PeerID]transport.Diagnostics{
+		transport.PeerID("1234"): {SoftwareID: "4321", Peers: []transport.PeerID{}},
+	}
+	mgr.received = expected
+	assert.Equal(t, expected, protocol{diagnosticsMan: mgr}.PeerDiagnostics())
 }
 
 func TestProtocol_MethodName(t *testing.T) {
@@ -189,7 +193,7 @@ func TestProtocol_lifecycle(t *testing.T) {
 	}, connectionList, connectionManager)
 
 	err = p.Handle(transport.Peer{ID: "123"}, &Envelope{})
-	assert.Equal(t, errInternalError, err)
+	assert.Equal(t, errMessageNotSupported, err)
 
 	p.Stop()
 }

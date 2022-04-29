@@ -25,6 +25,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"google.golang.org/protobuf/proto"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
@@ -78,6 +79,8 @@ func TestProtocol_sendTransactionList(t *testing.T) {
 		TransactionList: &TransactionList{
 			ConversationID: conversationID.slice(),
 			Transactions:   networkTXs,
+			MessageNumber:  1,
+			TotalMessages:  1,
 		},
 	}}
 
@@ -88,6 +91,32 @@ func TestProtocol_sendTransactionList(t *testing.T) {
 		mockConnection.EXPECT().Send(proto, envelope)
 
 		err := proto.sendTransactionList(peer.ID, conversationID, networkTXs)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("ok - 2 messages", func(t *testing.T) {
+		proto, mocks := newTestProtocol(t, nil)
+		mockConnection := grpc.NewMockConnection(mocks.Controller)
+		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peer.ID)).Return(mockConnection)
+		mockConnection.EXPECT().Send(proto, &Envelope{Message: &Envelope_TransactionList{
+			TransactionList: &TransactionList{
+				ConversationID: conversationID.slice(),
+				Transactions:   []*Transaction{&largeTransaction},
+				MessageNumber:  1,
+				TotalMessages:  2,
+			},
+		}})
+		mockConnection.EXPECT().Send(proto, &Envelope{Message: &Envelope_TransactionList{
+			TransactionList: &TransactionList{
+				ConversationID: conversationID.slice(),
+				Transactions:   []*Transaction{&largeTransaction},
+				MessageNumber:  2,
+				TotalMessages:  2,
+			},
+		}})
+
+		err := proto.sendTransactionList(peer.ID, conversationID, []*Transaction{&largeTransaction, &largeTransaction})
 
 		assert.NoError(t, err)
 	})
@@ -269,6 +298,36 @@ func TestProtocol_sendTransactionSet(t *testing.T) {
 	})
 	performNoConnectionAvailableTest(t, peerID, func(p *protocol, _ protocolMocks) error {
 		return p.sendTransactionSet(peerID, conversationID, clockReq, clock, *iblt)
+	})
+}
+
+func TestProtocol_broadcastDiagnostics(t *testing.T) {
+	envelope := &Envelope{Message: &Envelope_DiagnosticsBroadcast{
+		DiagnosticsBroadcast: &Diagnostics{
+			Uptime:               1,
+			PeerID:               "",
+			Peers:                []string{"1","2"},
+			NumberOfTransactions: 100,
+			SoftwareVersion:      "abc",
+			SoftwareID:           "def",
+		},
+	}}
+
+	proto, mocks := newTestProtocol(t, nil)
+	conn1 := grpc.NewMockConnection(mocks.Controller)
+	conn1.EXPECT().Send(proto, envelope)
+	// Second connection returns an error, which is just logged
+	conn2 := grpc.NewMockConnection(mocks.Controller)
+	conn2.EXPECT().Send(proto, envelope).Return(errors.New("error"))
+	conn2.EXPECT().Peer().Return(transport.Peer{})
+	mocks.ConnectionList.EXPECT().AllMatching(grpc.ByConnected()).Return([]grpc.Connection{conn1, conn2})
+
+	proto.broadcastDiagnostics(transport.Diagnostics{
+		Uptime:               time.Second,
+		Peers:                []transport.PeerID{"1", "2"},
+		NumberOfTransactions: 100,
+		SoftwareVersion:      "abc",
+		SoftwareID:           "def",
 	})
 }
 

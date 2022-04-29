@@ -160,7 +160,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	if n.protocols == nil {
 		candidateProtocols = []transport.Protocol{
 			v1.New(n.config.ProtocolV1, n.state, n.collectDiagnostics),
-			v2.New(v2Cfg, n.nodeDIDResolver, n.state, n.didDocumentResolver, n.decrypter),
+			v2.New(v2Cfg, n.nodeDIDResolver, n.state, n.didDocumentResolver, n.decrypter, n.collectDiagnostics),
 		}
 	} else {
 		// Only set protocols if not already set: improves testability
@@ -557,10 +557,13 @@ func (n *Network) Diagnostics() []core.DiagnosticResult {
 func (n *Network) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 	result := make(map[transport.PeerID]transport.Diagnostics, 0)
 	// We assume higher protocol versions (later in the slice) have better/more accurate diagnostics,
-	// so for now they're copied over diagnostics of earlier versions.
+	// so for now they're copied over diagnostics of earlier versions, unless the entry is empty for that peer.
+	// We assume the diagnostic result is empty when it lists no peers (since it has at least 1 peer: the local node).
 	for _, prot := range n.protocols {
 		for peerID, peerDiagnostics := range prot.PeerDiagnostics() {
-			result[peerID] = peerDiagnostics
+			if _, exists := result[peerID]; !exists || len(peerDiagnostics.Peers) > 0 {
+				result[peerID] = peerDiagnostics
+			}
 		}
 	}
 	return result

@@ -27,8 +27,8 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/go-leia/v3"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/nuts-foundation/nuts-node/vcr/concept"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -60,7 +60,7 @@ func TestLeiaStore_Close(t *testing.T) {
 
 func Test_leiaStore_StoreAndSearchCredential(t *testing.T) {
 	vcToStore := vc.VerifiableCredential{}
-	_ = json.Unmarshal([]byte(concept.TestCredential), &vcToStore)
+	_ = json.Unmarshal([]byte(jsonld.TestCredential), &vcToStore)
 
 	t.Run("store", func(t *testing.T) {
 		testDir := io.TestDirectory(t)
@@ -137,7 +137,7 @@ func Test_leiaStore_StoreAndSearchCredential(t *testing.T) {
 
 func Test_leiaStore_GetCredential(t *testing.T) {
 	vcToGet := vc.VerifiableCredential{}
-	_ = json.Unmarshal([]byte(concept.TestCredential), &vcToGet)
+	_ = json.Unmarshal([]byte(jsonld.TestCredential), &vcToGet)
 
 	newStore := func(t2 *testing.T) Store {
 		t2.Helper()
