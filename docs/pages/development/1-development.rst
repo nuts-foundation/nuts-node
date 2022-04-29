@@ -15,6 +15,13 @@ Building
 
 Just use ``go build``.
 
+Building for exotic environments
+================================
+
+You can build and run the Nuts node on more exotic environments, e.g. Raspberry Pis:
+
+* 32-bit ARMv6 (Raspberry Pi Zero): ``env GOOS=linux GOARCH=arm GOARM=6 go build``
+
 Running tests
 *************
 
