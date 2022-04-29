@@ -1,6 +1,6 @@
 package jsonld
 
-const moduleName = "JDONLD"
+const moduleName = "JSONLD"
 
 // Config holds the config for the vcr engine
 type Config struct {
