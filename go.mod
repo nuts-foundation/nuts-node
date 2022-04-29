@@ -1,6 +1,6 @@
 module github.com/nuts-foundation/nuts-node
 
-go 1.17
+go 1.18
 
 require (
 	github.com/Regis24GmbH/go-phonetics v1.0.0

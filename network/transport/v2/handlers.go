@@ -22,9 +22,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 	"math"
 	"sort"
+
+	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
@@ -44,9 +45,10 @@ var allowedErrors = []error{
 	errMessageNotSupported,
 }
 
-func (p protocol) Handle(peer transport.Peer, raw interface{}) error {
+func (p *protocol) Handle(peer transport.Peer, raw interface{}) error {
 	envelope := raw.(*Envelope)
 	log.Logger().Tracef("Handling %T from peer: %s", envelope.Message, peer)
+
 	err := p.handle(peer, envelope)
 	if err != nil {
 		log.Logger().Errorf("Error handling %T (peer=%s): %s", envelope.Message, peer, err)
@@ -62,35 +64,74 @@ func (p protocol) Handle(peer transport.Peer, raw interface{}) error {
 	return nil
 }
 
-func (p protocol) handle(peer transport.Peer, envelope *Envelope) error {
-	switch msg := envelope.Message.(type) {
+type handleFunc func(peer transport.Peer, envelope *Envelope) error
+
+func (p *protocol) handleASynchWithLock(peer transport.Peer, envelope *Envelope, f handleFunc) error {
+	go func() {
+		if !p.handlerMutex.TryRLock() {
+			log.Logger().Debugf("Sink active, ignoring %T (peer=%s)", envelope.Message, peer)
+			return
+		}
+		defer p.handlerMutex.RUnlock()
+		if err := f(peer, envelope); err != nil {
+			log.Logger().Errorf("Error handling %T (peer=%s): %s", envelope.Message, peer, err)
+		}
+	}()
+	return nil
+}
+
+func handleASync(peer transport.Peer, envelope *Envelope, f handleFunc) error {
+	go func() {
+		if err := f(peer, envelope); err != nil {
+			log.Logger().Errorf("Error handling %T (peer=%s): %s", envelope.Message, peer, err)
+		}
+	}()
+	return nil
+}
+
+func (p *protocol) handle(peer transport.Peer, envelope *Envelope) error {
+	switch envelope.Message.(type) {
 	case *Envelope_Gossip:
-		return p.handleGossip(peer, msg.Gossip)
+		return p.handleASynchWithLock(peer, envelope, p.handleGossip)
 	case *Envelope_Hello:
 		log.Logger().Infof("%T: %s said hello", p, peer)
 		return nil
 	case *Envelope_TransactionList:
-		return p.handleTransactionList(peer, msg)
-	case *Envelope_TransactionListQuery:
-		return p.handleTransactionListQuery(peer, msg.TransactionListQuery)
-	case *Envelope_TransactionPayloadQuery:
-		return p.handleTransactionPayloadQuery(peer, msg.TransactionPayloadQuery)
-	case *Envelope_TransactionPayload:
-		return p.handleTransactionPayload(msg.TransactionPayload)
-	case *Envelope_TransactionRangeQuery:
-		return p.handleTransactionRangeQuery(peer, msg)
-	case *Envelope_State:
-		return p.handleState(peer, msg.State)
-	case *Envelope_TransactionSet:
-		return p.handleTransactionSet(peer, msg)
-	case *Envelope_DiagnosticsBroadcast:
-		p.handleDiagnostics(peer.ID, msg.DiagnosticsBroadcast)
+		// in order handling of transactionLists
+		// the transactionList handler locks after parsing and before DB access.
+		pe := peerEnvelope{
+			envelope: envelope,
+			peer:     peer,
+		}
+		select {
+		case p.listHandler.ch <- pe:
+			// add to channel for processing
+		default:
+			// when 100 lists are waiting to be processed
+			log.Logger().Warnf("Can't handle TransactionList message from %s: channel full", peer)
+		}
+
 		return nil
+	case *Envelope_TransactionListQuery:
+		return p.handleASynchWithLock(peer, envelope, p.handleTransactionListQuery)
+	case *Envelope_TransactionPayloadQuery:
+		return p.handleASynchWithLock(peer, envelope, p.handleTransactionPayloadQuery)
+	case *Envelope_TransactionPayload:
+		return p.handleASynchWithLock(peer, envelope, p.handleTransactionPayload)
+	case *Envelope_TransactionRangeQuery:
+		return p.handleASynchWithLock(peer, envelope, p.handleTransactionRangeQuery)
+	case *Envelope_State:
+		return p.handleASynchWithLock(peer, envelope, p.handleState)
+	case *Envelope_TransactionSet:
+		return p.handleASynchWithLock(peer, envelope, p.handleTransactionSet)
+	case *Envelope_DiagnosticsBroadcast:
+		return handleASync(peer, envelope, p.handleDiagnostics)
 	}
 	return errMessageNotSupported
 }
 
-func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, msg *TransactionPayloadQuery) error {
+func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, envelope *Envelope) error {
+	msg := envelope.GetTransactionPayloadQuery()
 	ctx := context.Background()
 	tx, err := p.state.GetTransaction(ctx, hash.FromSlice(msg.TransactionRef))
 	if err != nil {
@@ -136,7 +177,8 @@ func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, msg *Trans
 	return p.send(peer, &Envelope_TransactionPayload{TransactionPayload: &TransactionPayload{TransactionRef: msg.TransactionRef, Data: data}})
 }
 
-func (p *protocol) handleTransactionPayload(msg *TransactionPayload) error {
+func (p *protocol) handleTransactionPayload(_ transport.Peer, envelope *Envelope) error {
+	msg := envelope.GetTransactionPayload()
 	ctx := context.Background()
 	ref := hash.FromSlice(msg.TransactionRef)
 	if ref.Empty() {
@@ -166,15 +208,15 @@ func (p *protocol) handleTransactionPayload(msg *TransactionPayload) error {
 	return p.payloadScheduler.Finished(ref)
 }
 
-func (p protocol) handleTransactionRangeQuery(peer transport.Peer, envelope *Envelope_TransactionRangeQuery) error {
-	msg := envelope.TransactionRangeQuery
+func (p *protocol) handleTransactionRangeQuery(peer transport.Peer, envelope *Envelope) error {
+	msg := envelope.GetTransactionRangeQuery()
 
-	if envelope.TransactionRangeQuery.Start >= envelope.TransactionRangeQuery.End {
+	if msg.Start >= msg.End {
 		return errors.New("invalid range query")
 	}
 
 	ctx := context.Background()
-	txs, err := p.state.FindBetweenLC(ctx, envelope.TransactionRangeQuery.Start, envelope.TransactionRangeQuery.End)
+	txs, err := p.state.FindBetweenLC(ctx, msg.Start, msg.End)
 	if err != nil {
 		return err
 	}
@@ -187,7 +229,8 @@ func (p protocol) handleTransactionRangeQuery(peer transport.Peer, envelope *Env
 	return p.sender.sendTransactionList(peer.ID, conversationID(msg.ConversationID), transactionList)
 }
 
-func (p *protocol) handleGossip(peer transport.Peer, msg *Gossip) error {
+func (p *protocol) handleGossip(peer transport.Peer, envelope *Envelope) error {
+	msg := envelope.GetGossip()
 	ctx := context.Background()
 	xor, clock := p.state.XOR(ctx, math.MaxUint32)
 	peerXor := hash.FromSlice(msg.XOR)
@@ -232,49 +275,8 @@ func (p *protocol) handleGossip(peer transport.Peer, msg *Gossip) error {
 	return nil
 }
 
-func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope_TransactionList) error {
-	msg := envelope.TransactionList
-	cid := conversationID(msg.ConversationID)
-	data := handlerData{}
-
-	// TODO convert to trace logging
-	log.Logger().Infof("handling handleTransactionList from peer (peer=%s, conversationID=%s, message=%d/%d)", peer.ID.String(), cid.String(), msg.MessageNumber, msg.TotalMessages)
-
-	// check if response matches earlier request
-	if _, err := p.cMan.check(envelope, data); err != nil {
-		return err
-	}
-
-	txs, err := envelope.parseTransactions(data)
-	if err != nil {
-		return err
-	}
-
-	ctx := context.Background()
-	for i, tx := range txs {
-		// TODO does this always trigger fetching missing payloads? (through observer on DAG) Prolly not for v2
-		if len(tx.PAL()) == 0 && len(envelope.TransactionList.Transactions[i].Payload) == 0 {
-			return fmt.Errorf("peer did not provide payload for transaction (tx=%s)", tx.Ref())
-		}
-		if err = p.state.Add(ctx, tx, envelope.TransactionList.Transactions[i].Payload); err != nil {
-			if errors.Is(err, dag.ErrPreviousTransactionMissing) {
-				p.cMan.done(cid)
-				log.Logger().Warnf("ignoring remainder of TransactionList due to missing prevs (conversation=%s, Tx with missing prevs=%s)", cid, tx.Ref())
-				xor, clock := p.state.XOR(ctx, math.MaxUint32)
-				return p.sender.sendState(peer.ID, xor, clock)
-			}
-			return fmt.Errorf("unable to add received transaction to DAG (tx=%s): %w", tx.Ref(), err)
-		}
-	}
-
-	if msg.MessageNumber >= msg.TotalMessages {
-		p.cMan.done(cid)
-	}
-
-	return nil
-}
-
-func (p *protocol) handleTransactionListQuery(peer transport.Peer, msg *TransactionListQuery) error {
+func (p *protocol) handleTransactionListQuery(peer transport.Peer, envelope *Envelope) error {
+	msg := envelope.GetTransactionListQuery()
 	requestedRefs := make([]hash.SHA256Hash, len(msg.Refs))
 	unsorted := make([]dag.Transaction, 0)
 
@@ -345,7 +347,8 @@ func (p *protocol) collectTransactionList(ctx context.Context, txs []dag.Transac
 	return result, nil
 }
 
-func (p *protocol) handleState(peer transport.Peer, msg *State) error {
+func (p *protocol) handleState(peer transport.Peer, envelope *Envelope) error {
+	msg := envelope.GetState()
 	cid := conversationID(msg.ConversationID)
 
 	// TODO convert to trace logging
@@ -364,8 +367,9 @@ func (p *protocol) handleState(peer transport.Peer, msg *State) error {
 	return p.sender.sendTransactionSet(peer.ID, cid, msg.LC, lc, iblt)
 }
 
-func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope_TransactionSet) error {
-	msg := envelope.TransactionSet
+func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope) error {
+	subEnvelope := envelope.Message.(*Envelope_TransactionSet)
+	msg := envelope.GetTransactionSet()
 	cid := conversationID(msg.ConversationID)
 	data := handlerData{}
 
@@ -373,7 +377,7 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope_
 	log.Logger().Debugf("handling TransactionSet from peer (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
 
 	// check if response matches earlier request
-	if _, err := p.cMan.check(envelope, data); err != nil {
+	if _, err := p.cMan.check(subEnvelope, data); err != nil {
 		return err
 	}
 
@@ -448,8 +452,10 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope_
 	return nil
 }
 
-func (p *protocol) handleDiagnostics(peer transport.PeerID, response *Diagnostics) {
-	p.diagnosticsMan.handleReceived(peer, response)
+func (p *protocol) handleDiagnostics(peer transport.Peer, envelope *Envelope) error {
+	msg := envelope.GetDiagnosticsBroadcast()
+	p.diagnosticsMan.handleReceived(peer.ID, msg)
+	return nil
 }
 
 func pageClockStart(pageNum uint32) uint32 {

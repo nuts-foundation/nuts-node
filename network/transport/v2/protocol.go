@@ -26,6 +26,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -110,6 +111,8 @@ type protocol struct {
 	gManager          gossip.Manager
 	diagnosticsMan    *peerDiagnosticsManager
 	sender            messageSender
+	listHandler       *transactionListHandler
+	handlerMutex      sync.RWMutex
 }
 
 func (p protocol) CreateClientStream(outgoingContext context.Context, grpcConn grpcLib.ClientConnInterface) (grpcLib.ClientStream, error) {
@@ -172,6 +175,9 @@ func (p *protocol) Start() (err error) {
 	if p.config.DiagnosticsInterval > 0 {
 		p.diagnosticsMan.start(p.ctx, time.Duration(p.config.DiagnosticsInterval)*time.Millisecond)
 	}
+
+	p.listHandler = newTransactionListHandler(p.ctx, p.handleTransactionList)
+	p.listHandler.start()
 
 	nodeDID, err := p.nodeDIDResolver.Resolve()
 	if err != nil {
