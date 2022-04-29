@@ -116,8 +116,11 @@ func (w *Wrapper) searchOrgs(ctx echo.Context, allowUntrusted bool, vcQuery vc.V
 	if err != nil {
 		return err
 	}
-
-	return ctx.JSON(http.StatusOK, results)
+	searchResults, err := w.vcsWithRevocationsToSearchResults(results)
+	if err != nil {
+		return err
+	}
+	return ctx.JSON(http.StatusOK, SearchVCResults{searchResults})
 }
 
 func (w *Wrapper) searchAuths(ctx echo.Context, allowUntrusted bool, vcQuery vc.VerifiableCredential) error {
