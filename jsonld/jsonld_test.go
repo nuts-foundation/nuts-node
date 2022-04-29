@@ -23,7 +23,7 @@ func TestNewJSONLDInstance(t *testing.T) {
 	t.Run("as an injectable", func(t *testing.T) {
 		injectable := instance.(core.Injectable)
 		t.Run("it knows its name", func(t *testing.T) {
-			assert.Equal(t, "JDONLD", injectable.Name())
+			assert.Equal(t, "JSONLD", injectable.Name())
 		})
 
 		t.Run("it returns its config", func(t *testing.T) {
