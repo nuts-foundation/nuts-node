@@ -68,11 +68,11 @@ type handleFunc func(peer transport.Peer, envelope *Envelope) error
 
 func (p *protocol) handleASynchWithLock(peer transport.Peer, envelope *Envelope, f handleFunc) error {
 	go func() {
-		if !p.mLock.TryRLock() {
+		if !p.handlerMutex.TryRLock() {
 			log.Logger().Debugf("Sink active, ignoring %T (peer=%s)", envelope.Message, peer)
 			return
 		}
-		defer p.mLock.RUnlock()
+		defer p.handlerMutex.RUnlock()
 		if err := f(peer, envelope); err != nil {
 			log.Logger().Errorf("error handling %T (peer=%s): %s", envelope.Message, peer, err)
 		}
@@ -99,10 +99,18 @@ func (p *protocol) handle(peer transport.Peer, envelope *Envelope) error {
 	case *Envelope_TransactionList:
 		// in order handling of transactionLists
 		// the transactionList handler locks after parsing and before DB access.
-		p.listHandler.ch <- peerEnvelope{
+		pe := peerEnvelope{
 			envelope: envelope,
 			peer:     peer,
 		}
+		select {
+		case p.listHandler.ch <- pe:
+			// add to channel for processing
+		default:
+			// when 100 lists are waiting to be processed
+			log.Logger().Warnf("Can't handle TransactionList message from %s: channel full", peer)
+		}
+
 		return nil
 	case *Envelope_TransactionListQuery:
 		return p.handleASynchWithLock(peer, envelope, p.handleTransactionListQuery)
@@ -113,11 +121,9 @@ func (p *protocol) handle(peer transport.Peer, envelope *Envelope) error {
 	case *Envelope_TransactionRangeQuery:
 		return p.handleASynchWithLock(peer, envelope, p.handleTransactionRangeQuery)
 	case *Envelope_State:
-		// no DB interaction so no lock required
-		return handleASync(peer, envelope, p.handleState)
+		return p.handleASynchWithLock(peer, envelope, p.handleState)
 	case *Envelope_TransactionSet:
-		// no DB interaction so no lock required
-		return handleASync(peer, envelope, p.handleTransactionSet)
+		return p.handleASynchWithLock(peer, envelope, p.handleTransactionSet)
 	case *Envelope_DiagnosticsBroadcast:
 		p.handleDiagnostics(peer.ID, msg.DiagnosticsBroadcast)
 		return nil

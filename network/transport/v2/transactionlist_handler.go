@@ -90,8 +90,8 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 		return err
 	}
 
-	p.mLock.Lock()
-	defer p.mLock.Unlock()
+	p.handlerMutex.Lock()
+	defer p.handlerMutex.Unlock()
 
 	refsToBeRemoved := map[hash.SHA256Hash]bool{}
 

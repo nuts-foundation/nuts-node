@@ -112,7 +112,7 @@ type protocol struct {
 	diagnosticsMan    *peerDiagnosticsManager
 	sender            messageSender
 	listHandler       *transactionListHandler
-	mLock             sync.RWMutex
+	handlerMutex      sync.RWMutex
 }
 
 func (p protocol) CreateClientStream(outgoingContext context.Context, grpcConn grpcLib.ClientConnInterface) (grpcLib.ClientStream, error) {
