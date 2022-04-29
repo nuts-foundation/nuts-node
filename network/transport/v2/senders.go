@@ -100,11 +100,14 @@ func (p *protocol) sendTransactionList(peerID transport.PeerID, conversationID c
 		return grpc.ErrNoConnection
 	}
 
-	for _, chunk := range chunkTransactionList(transactions) {
+	chunks := chunkTransactionList(transactions)
+	for chunkNumber, chunk := range chunks {
 		if err := conn.Send(p, &Envelope{Message: &Envelope_TransactionList{
 			TransactionList: &TransactionList{
 				ConversationID: conversationID.slice(),
 				Transactions:   chunk,
+				TotalMessages:  uint32(len(chunks)),
+				MessageNumber:  uint32(chunkNumber + 1),
 			},
 		}}); err != nil {
 			return err

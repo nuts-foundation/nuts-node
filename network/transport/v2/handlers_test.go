@@ -410,6 +410,8 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 			TransactionList: &TransactionList{
 				ConversationID: conversation.conversationID.slice(),
 				Transactions:   []*Transaction{{Data: data, Payload: payload}},
+				TotalMessages:  1,
+				MessageNumber:  1,
 			},
 		})
 
@@ -429,12 +431,13 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 			TransactionList: &TransactionList{
 				ConversationID: conversation.conversationID.slice(),
 				Transactions:   []*Transaction{{Data: data, Payload: payload}},
+				TotalMessages:  2,
+				MessageNumber:  1,
 			},
 		})
 
 		assert.NoError(t, err)
 		assert.NotNil(t, p.cMan.conversations[conversation.conversationID.String()])
-		assert.Len(t, p.cMan.conversations[conversation.conversationID.String()].get("refs"), 1)
 	})
 
 	t.Run("error - State.Add failed", func(t *testing.T) {

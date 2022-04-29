@@ -79,6 +79,8 @@ func TestProtocol_sendTransactionList(t *testing.T) {
 		TransactionList: &TransactionList{
 			ConversationID: conversationID.slice(),
 			Transactions:   networkTXs,
+			MessageNumber:  1,
+			TotalMessages:  1,
 		},
 	}}
 
@@ -89,6 +91,32 @@ func TestProtocol_sendTransactionList(t *testing.T) {
 		mockConnection.EXPECT().Send(proto, envelope)
 
 		err := proto.sendTransactionList(peer.ID, conversationID, networkTXs)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("ok - 2 messages", func(t *testing.T) {
+		proto, mocks := newTestProtocol(t, nil)
+		mockConnection := grpc.NewMockConnection(mocks.Controller)
+		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peer.ID)).Return(mockConnection)
+		mockConnection.EXPECT().Send(proto, &Envelope{Message: &Envelope_TransactionList{
+			TransactionList: &TransactionList{
+				ConversationID: conversationID.slice(),
+				Transactions:   []*Transaction{&largeTransaction},
+				MessageNumber:  1,
+				TotalMessages:  2,
+			},
+		}})
+		mockConnection.EXPECT().Send(proto, &Envelope{Message: &Envelope_TransactionList{
+			TransactionList: &TransactionList{
+				ConversationID: conversationID.slice(),
+				Transactions:   []*Transaction{&largeTransaction},
+				MessageNumber:  2,
+				TotalMessages:  2,
+			},
+		}})
+
+		err := proto.sendTransactionList(peer.ID, conversationID, []*Transaction{&largeTransaction, &largeTransaction})
 
 		assert.NoError(t, err)
 	})
