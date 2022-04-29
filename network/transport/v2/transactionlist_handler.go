@@ -65,7 +65,7 @@ func (tlh *transactionListHandler) start() {
 				return
 			case pe := <-tlh.ch:
 				if err := tlh.fn(pe.peer, pe.envelope); err != nil {
-					log.Logger().Errorf("error handling %T (peer=%s): %s", pe.envelope.Message, pe.peer, err)
+					log.Logger().Errorf("Error handling %T (peer=%s): %s", pe.envelope.Message, pe.peer, err)
 				}
 			}
 		}
