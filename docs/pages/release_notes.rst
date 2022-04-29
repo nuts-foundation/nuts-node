@@ -16,7 +16,7 @@ The protocol can quickly identify hundreds of missing transactions.
 The new protocol is much faster than the old protocol and its performance is currently limited by the database performance.
 
 Besides the improved network protocol, this version also implements semantic searching for Verifiable Credentials.
-Till this version searching for VCs only supported the NutsOrganizationCredential and NutsAuthorizationCredential. With the new semantic search capabilities all kinds of credentials can be issued and found.
+Till this version, searching for VCs only supported the NutsOrganizationCredential and NutsAuthorizationCredential. With the new semantic search capabilities all kinds of credentials can be issued and found.
 This is the first step for the Nuts node to become a toolbox that supports multiple domains.
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v1.0.0...v2.0.0
