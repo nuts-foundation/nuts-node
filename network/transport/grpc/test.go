@@ -129,7 +129,7 @@ func (s StubConnectionList) All() []Connection {
 	return []Connection{s.Conn}
 }
 
-// All returns all connections
+// AllMatching returns all connections
 func (s StubConnectionList) AllMatching(_ ...Predicate) []Connection {
 	return s.All()
 }
@@ -159,6 +159,11 @@ func (s StubConnection) Peer() transport.Peer {
 
 // IsConnected returns true if the connection is connected
 func (s StubConnection) IsConnected() bool {
+	return s.Open
+}
+
+// IsConnected returns true if the connection is connected for the given protocol
+func (s StubConnection) IsProtocolConnected(_ Protocol) bool {
 	return s.Open
 }
 

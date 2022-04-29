@@ -77,6 +77,9 @@ type Connection interface {
 
 	// IsConnected returns whether the connection is active or not.
 	IsConnected() bool
+
+	// IsProtocolConnected returns whether the given protocol is active on the connection.
+	IsProtocolConnected(protocol Protocol) bool
 }
 
 func createConnection(parentCtx context.Context, dialer dialer, peer transport.Peer) Connection {
@@ -308,6 +311,13 @@ func (mc *conn) IsConnected() bool {
 	defer mc.mux.RUnlock()
 
 	return mc.ctx != nil
+}
+
+func (mc *conn) IsProtocolConnected(protocol Protocol) bool {
+	mc.mux.RLock()
+	defer mc.mux.RUnlock()
+
+	return mc.ctx != nil && mc.streams[protocol.MethodName()] != nil
 }
 
 func (mc *conn) outboundConnector() *outboundConnector {
