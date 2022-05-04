@@ -110,20 +110,6 @@ func TestState_relayingFuncs(t *testing.T) {
 		assert.Len(t, txs, 1)
 	})
 
-	t.Run("ReadManyPayloads", func(t *testing.T) {
-		var result bool
-		var err error
-		err = txState.ReadManyPayloads(ctx, func(ctx context.Context, reader PayloadReader) error {
-			result, err = reader.IsPayloadPresent(ctx, payloadHash)
-			return err
-		})
-
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.True(t, result)
-	})
-
 	t.Run("ReadPayload", func(t *testing.T) {
 		result, err := txState.ReadPayload(ctx, payloadHash)
 

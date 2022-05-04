@@ -19,7 +19,6 @@
 package network
 
 import (
-	"github.com/nuts-foundation/nuts-node/network/transport/v1"
 	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
 )
 
@@ -51,9 +50,6 @@ type Config struct {
 	// It is used to identify it on the network.
 	NodeDID string `koanf:"network.nodedid"`
 
-	// ProtocolV1 specifies config for protocol v1
-	ProtocolV1 v1.Config `koanf:"network.v1"`
-
 	// ProtocolV2 specifies config for protocol v2
 	ProtocolV2 v2.Config `koanf:"network.v2"`
 }
@@ -76,7 +72,6 @@ func DefaultConfig() Config {
 	return Config{
 		GrpcAddr:        ":5555",
 		EnableTLS:       true,
-		ProtocolV1:      v1.DefaultConfig(),
 		ProtocolV2:      v2.DefaultConfig(),
 		EnableDiscovery: true,
 	}

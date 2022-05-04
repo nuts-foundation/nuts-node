@@ -37,13 +37,11 @@ import (
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
-	"github.com/nuts-foundation/nuts-node/network/transport/v1"
 	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
-
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -838,10 +836,6 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 		CertKeyFile:    "test/certificate-and-key.pem",
 		TrustStoreFile: "test/truststore.pem",
 		EnableTLS:      true,
-		ProtocolV1: v1.Config{
-			AdvertHashesInterval:      500,
-			AdvertDiagnosticsInterval: 5000,
-		},
 		ProtocolV2: v2.Config{
 			GossipInterval:      100,
 			PayloadRetryDelay:   50 * time.Millisecond,
