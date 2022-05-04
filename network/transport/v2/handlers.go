@@ -237,6 +237,7 @@ func (p *protocol) handleGossip(peer transport.Peer, envelope *Envelope) error {
 		return nil
 	}
 
+	// check for unknown transactions
 	refs := make([]hash.SHA256Hash, len(msg.Transactions))
 	i := 0
 	for _, bytes := range msg.Transactions {
@@ -256,18 +257,19 @@ func (p *protocol) handleGossip(peer transport.Peer, envelope *Envelope) error {
 		// TODO swap for trace logging
 		log.Logger().Infof("received %d new transaction references via Gossip", len(refs))
 		p.gManager.GossipReceived(peer.ID, refs...)
-		err := p.sender.sendTransactionListQuery(peer.ID, refs)
-		if err != nil {
-			return err
-		}
-		// querying refs with missing prevs will trigger a State msg
 	}
 
+	// send State if node is missing more refs than referenced in this Gossip
 	tempXor := xor.Xor(refs...)
 	if msg.LC >= clock && !tempXor.Equals(peerXor) {
 		// TODO swap for trace logging
 		log.Logger().Infof("xor is different from peer=%s and peers clock is equal or higher", peer.ID)
 		return p.sender.sendState(peer.ID, xor, clock)
+	}
+
+	// request missing refs
+	if len(refs) > 0 {
+		return p.sender.sendTransactionListQuery(peer.ID, refs)
 	}
 
 	// peer is behind
@@ -423,14 +425,10 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope)
 		return err
 	}
 
-	// request all missing transactions
+	// request missing decoded transactions
 	if len(missing) > 0 {
 		log.Logger().Debugf("peer IBLT decode succesful, requesting %d transactions", len(missing))
-
-		err = p.sender.sendTransactionListQuery(peer.ID, missing)
-		if err != nil {
-			return err
-		}
+		return p.sender.sendTransactionListQuery(peer.ID, missing)
 	}
 
 	// request next page(s) if peer's DAG has more pages
