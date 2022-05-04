@@ -25,10 +25,6 @@ gen-mocks:
 	mockgen -destination=network/transport/grpc/connection_list_mock.go -package=grpc -source=network/transport/grpc/connection_list.go
 	mockgen -destination=network/transport/grpc/connection_mock.go -package=grpc -source=network/transport/grpc/connection.go
 	mockgen -destination=network/transport/grpc/interface_mock.go -package=grpc -source=network/transport/grpc/interface.go
-	mockgen -destination=network/transport/v1/logic/mock.go -package=logic -source=network/transport/v1/logic/interface.go Protocol
-	mockgen -destination=network/transport/v1/logic/senders_mock.go -package=logic -source=network/transport/v1/logic/senders.go
-	mockgen -destination=network/transport/v1/logic/payload_collector_mock.go -package=logic -source=network/transport/v1/logic/payload_collector.go
-	mockgen -destination=network/transport/v1/protobuf/network_grpc_mock.go -package=protobuf -source=network/transport/v1/protobuf/network_grpc.pb.go
 	mockgen -destination=network/transport/v2/protocol_grpc_mock.pb.go -package=v2 -source=network/transport/v2/protocol_grpc.pb.go
 	mockgen -destination=network/transport/v2/scheduler_mock.go -package=v2 -source=network/transport/v2/scheduler.go
 	mockgen -destination=network/transport/v2/senders_mock.go -package=v2 -source=network/transport/v2/senders.go
@@ -58,8 +54,6 @@ gen-api:
 	oapi-codegen -generate types,server,client -templates codegen/oapi/ -package v1 -exclude-schemas ContactInformation,OrganizationSearchResult,Endpoint docs/_static/didman/v1.yaml | gofmt > didman/api/v1/generated.go
 
 gen-protobuf:
-	protoc --go_out=paths=source_relative:network -I network network/transport/v1/protobuf/network.proto
-	protoc --go-grpc_out=require_unimplemented_servers=false,paths=source_relative:network -I network network/transport/v1/protobuf/network.proto
 	protoc --go_out=paths=source_relative:network -I network network/transport/v2/protocol.proto
 	protoc --go-grpc_out=require_unimplemented_servers=false,paths=source_relative:network -I network network/transport/v2/protocol.proto
 	protoc --go_out=paths=source_relative:network -I network network/transport/grpc/testprotocol.proto

@@ -40,8 +40,6 @@ type State interface {
 	PayloadWriter
 	PayloadReader
 	core.Diagnosable
-	// Deprecated: remove with V1 protocol
-	ReadManyPayloads(ctx context.Context, consumer func(context.Context, PayloadReader) error) error
 
 	// Add a transactions to the DAG. If it can't be added an error is returned.
 	// If the transaction already exists, nothing is added and no observers are notified.
@@ -67,6 +65,7 @@ type State interface {
 	// Subscribe lets an application subscribe to a specific type of transaction. When a new transaction is received
 	// the `receiver` function is called. If an asterisk (`*`) is specified as `payloadType` the receiver is subscribed
 	// to all payload types.
+	// Deprecated: to be replaced with events
 	Subscribe(eventType EventType, payloadType string, receiver Receiver)
 	// Shutdown the DB
 	Shutdown() error
@@ -137,8 +136,6 @@ type PayloadStore interface {
 	PayloadReader
 	// WritePayload writes contents for the specified payload, identified by the given hash.
 	WritePayload(ctx context.Context, payloadHash hash.SHA256Hash, data []byte) error
-	// Deprecated: remove with V1 protocol
-	ReadManyPayloads(ctx context.Context, consumer func(context.Context, PayloadReader) error) error
 }
 
 // PayloadWriter defines the interface for types that store transaction payloads.

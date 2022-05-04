@@ -58,13 +58,13 @@ func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, pal [
 
 // CreateLegacyTransactionWithJWK creates a transaction with the given num as payload hash and signs it with a random EC key.
 // The JWK is attached, rather than referred to using the kid.
-// Deprecated: remove when V1 transactions are no longer possible
+// Deprecated: remove when V1 transactions are no longer present in a network
 func CreateLegacyTransactionWithJWK(num uint32, prevs ...Transaction) Transaction {
 	return CreateSignedLegacyTransaction(num, time.Now(), nil, "application/did+json", true, prevs...)
 }
 
 // CreateSignedLegacyTransaction creates a signed transaction with more control
-// Deprecated: remove when V1 transactions are no longer possible
+// Deprecated: remove when V1 transactions are no longer present in a network
 func CreateSignedLegacyTransaction(payloadNum uint32, signingTime time.Time, pal [][]byte, payloadType string, attach bool, prevs ...Transaction) Transaction {
 	payload := make([]byte, 4)
 	binary.BigEndian.PutUint32(payload, payloadNum)

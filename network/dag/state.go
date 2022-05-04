@@ -185,10 +185,6 @@ func (s *state) PayloadHashes(ctx context.Context, visitor func(payloadHash hash
 	return s.graph.PayloadHashes(ctx, visitor)
 }
 
-func (s *state) ReadManyPayloads(ctx context.Context, consumer func(context.Context, PayloadReader) error) error {
-	return s.payloadStore.ReadManyPayloads(ctx, consumer)
-}
-
 func (s *state) ReadPayload(ctx context.Context, hash hash.SHA256Hash) ([]byte, error) {
 	return s.payloadStore.ReadPayload(ctx, hash)
 }

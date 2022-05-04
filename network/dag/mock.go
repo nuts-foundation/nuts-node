@@ -185,20 +185,6 @@ func (mr *MockStateMockRecorder) PayloadHashes(ctx, visitor interface{}) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PayloadHashes", reflect.TypeOf((*MockState)(nil).PayloadHashes), ctx, visitor)
 }
 
-// ReadManyPayloads mocks base method.
-func (m *MockState) ReadManyPayloads(ctx context.Context, consumer func(context.Context, PayloadReader) error) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadManyPayloads", ctx, consumer)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// ReadManyPayloads indicates an expected call of ReadManyPayloads.
-func (mr *MockStateMockRecorder) ReadManyPayloads(ctx, consumer interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadManyPayloads", reflect.TypeOf((*MockState)(nil).ReadManyPayloads), ctx, consumer)
-}
-
 // ReadPayload mocks base method.
 func (m *MockState) ReadPayload(ctx context.Context, payloadHash hash.SHA256Hash) ([]byte, error) {
 	m.ctrl.T.Helper()
@@ -434,20 +420,6 @@ func (m *MockPayloadStore) IsPayloadPresent(ctx context.Context, payloadHash has
 func (mr *MockPayloadStoreMockRecorder) IsPayloadPresent(ctx, payloadHash interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsPayloadPresent", reflect.TypeOf((*MockPayloadStore)(nil).IsPayloadPresent), ctx, payloadHash)
-}
-
-// ReadManyPayloads mocks base method.
-func (m *MockPayloadStore) ReadManyPayloads(ctx context.Context, consumer func(context.Context, PayloadReader) error) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadManyPayloads", ctx, consumer)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// ReadManyPayloads indicates an expected call of ReadManyPayloads.
-func (mr *MockPayloadStoreMockRecorder) ReadManyPayloads(ctx, consumer interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadManyPayloads", reflect.TypeOf((*MockPayloadStore)(nil).ReadManyPayloads), ctx, consumer)
 }
 
 // ReadPayload mocks base method.
