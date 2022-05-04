@@ -89,9 +89,6 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 		return err
 	}
 
-	p.handlerMutex.Lock()
-	defer p.handlerMutex.Unlock()
-
 	ctx := context.Background()
 	for i, tx := range txs {
 		// TODO does this always trigger fetching missing payloads? (through observer on DAG) Prolly not for v2

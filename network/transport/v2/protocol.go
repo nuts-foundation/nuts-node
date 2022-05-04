@@ -26,7 +26,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -112,7 +111,6 @@ type protocol struct {
 	diagnosticsMan    *peerDiagnosticsManager
 	sender            messageSender
 	listHandler       *transactionListHandler
-	handlerMutex      sync.RWMutex
 }
 
 func (p protocol) CreateClientStream(outgoingContext context.Context, grpcConn grpcLib.ClientConnInterface) (grpcLib.ClientStream, error) {

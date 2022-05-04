@@ -65,20 +65,6 @@ func (p *protocol) Handle(peer transport.Peer, raw interface{}) error {
 
 type handleFunc func(peer transport.Peer, envelope *Envelope) error
 
-func (p *protocol) handleASynchWithLock(peer transport.Peer, envelope *Envelope, f handleFunc) error {
-	go func() {
-		if !p.handlerMutex.TryRLock() {
-			log.Logger().Debugf("Sink active, ignoring %T (peer=%s)", envelope.Message, peer)
-			return
-		}
-		defer p.handlerMutex.RUnlock()
-		if err := f(peer, envelope); err != nil {
-			log.Logger().Errorf("Error handling %T (peer=%s): %s", envelope.Message, peer, err)
-		}
-	}()
-	return nil
-}
-
 func handleASync(peer transport.Peer, envelope *Envelope, f handleFunc) error {
 	go func() {
 		if err := f(peer, envelope); err != nil {
@@ -91,13 +77,12 @@ func handleASync(peer transport.Peer, envelope *Envelope, f handleFunc) error {
 func (p *protocol) handle(peer transport.Peer, envelope *Envelope) error {
 	switch envelope.Message.(type) {
 	case *Envelope_Gossip:
-		return p.handleASynchWithLock(peer, envelope, p.handleGossip)
+		return handleASync(peer, envelope, p.handleGossip)
 	case *Envelope_Hello:
 		log.Logger().Infof("%T: %s said hello", p, peer)
 		return nil
 	case *Envelope_TransactionList:
 		// in order handling of transactionLists
-		// the transactionList handler locks after parsing and before DB access.
 		pe := peerEnvelope{
 			envelope: envelope,
 			peer:     peer,
@@ -112,17 +97,17 @@ func (p *protocol) handle(peer transport.Peer, envelope *Envelope) error {
 
 		return nil
 	case *Envelope_TransactionListQuery:
-		return p.handleASynchWithLock(peer, envelope, p.handleTransactionListQuery)
+		return handleASync(peer, envelope, p.handleTransactionListQuery)
 	case *Envelope_TransactionPayloadQuery:
-		return p.handleASynchWithLock(peer, envelope, p.handleTransactionPayloadQuery)
+		return handleASync(peer, envelope, p.handleTransactionPayloadQuery)
 	case *Envelope_TransactionPayload:
-		return p.handleASynchWithLock(peer, envelope, p.handleTransactionPayload)
+		return handleASync(peer, envelope, p.handleTransactionPayload)
 	case *Envelope_TransactionRangeQuery:
-		return p.handleASynchWithLock(peer, envelope, p.handleTransactionRangeQuery)
+		return handleASync(peer, envelope, p.handleTransactionRangeQuery)
 	case *Envelope_State:
-		return p.handleASynchWithLock(peer, envelope, p.handleState)
+		return handleASync(peer, envelope, p.handleState)
 	case *Envelope_TransactionSet:
-		return p.handleASynchWithLock(peer, envelope, p.handleTransactionSet)
+		return handleASync(peer, envelope, p.handleTransactionSet)
 	case *Envelope_DiagnosticsBroadcast:
 		return handleASync(peer, envelope, p.handleDiagnostics)
 	}
