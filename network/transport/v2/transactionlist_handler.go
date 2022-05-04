@@ -25,7 +25,6 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
@@ -90,13 +89,7 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 		return err
 	}
 
-	p.handlerMutex.Lock()
-	defer p.handlerMutex.Unlock()
-
-	refsToBeRemoved := map[hash.SHA256Hash]bool{}
-
 	ctx := context.Background()
-	maxLC := uint32(0)
 	for i, tx := range txs {
 		// TODO does this always trigger fetching missing payloads? (through observer on DAG) Prolly not for v2
 		if len(tx.PAL()) == 0 && len(msg.Transactions[i].Payload) == 0 {
@@ -111,10 +104,6 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 			}
 			return fmt.Errorf("unable to add received transaction to DAG (tx=%s): %w", tx.Ref(), err)
 		}
-		if tx.Clock() > maxLC {
-			maxLC = tx.Clock()
-		}
-		refsToBeRemoved[tx.Ref()] = true
 	}
 
 	if msg.MessageNumber >= msg.TotalMessages {

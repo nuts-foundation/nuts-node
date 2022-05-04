@@ -75,10 +75,11 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 			},
 		}}
 	}
+	peerID := transport.PeerID("peerID")
 
 	t.Run("ok", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
-		conversation := p.cMan.startConversation(request)
+		conversation := p.cMan.startConversation(request, peerID)
 		envelope := envelopeWithConversation(conversation)
 		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(nil)
 
@@ -89,7 +90,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 
 	t.Run("ok - duplicate", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
-		conversation := p.cMan.startConversation(request)
+		conversation := p.cMan.startConversation(request, peerID)
 		envelope := envelopeWithConversation(conversation)
 		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(nil)
 
@@ -100,7 +101,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 
 	t.Run("ok - missing prevs", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
-		conversation := p.cMan.startConversation(request)
+		conversation := p.cMan.startConversation(request, peerID)
 		envelope := envelopeWithConversation(conversation)
 		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(dag.ErrPreviousTransactionMissing)
 		mocks.State.EXPECT().XOR(context.Background(), uint32(math.MaxUint32)).Return(hash.FromSlice([]byte("stateXor")), uint32(7))
@@ -114,7 +115,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 
 	t.Run("ok - conversation marked as done", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
-		conversation := p.cMan.startConversation(request)
+		conversation := p.cMan.startConversation(request, peerID)
 		envelope := envelopeWithConversation(conversation)
 		conversation.set("refs", []hash.SHA256Hash{h1})
 		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(nil)
@@ -129,7 +130,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		tx2, _, _ := dag.CreateTestTransaction(0)
 		h2 := tx2.Ref()
 		p, mocks := newTestProtocol(t, nil)
-		conversation := p.cMan.startConversation(request)
+		conversation := p.cMan.startConversation(request, peerID)
 		conversation.set("refs", []hash.SHA256Hash{h1, h2})
 		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(nil)
 
@@ -148,7 +149,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 
 	t.Run("error - State.Add failed", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
-		conversation := p.cMan.startConversation(request)
+		conversation := p.cMan.startConversation(request, peerID)
 		envelope := envelopeWithConversation(conversation)
 		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(errors.New("custom"))
 
@@ -159,7 +160,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 
 	t.Run("error - missing payload for TX without PAL", func(t *testing.T) {
 		p, _ := newTestProtocol(t, nil)
-		conversation := p.cMan.startConversation(request)
+		conversation := p.cMan.startConversation(request, peerID)
 
 		err := p.handleTransactionList(peer, &Envelope{Message: &Envelope_TransactionList{
 			TransactionList: &TransactionList{
@@ -173,7 +174,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 
 	t.Run("error - invalid transaction", func(t *testing.T) {
 		p, _ := newTestProtocol(t, nil)
-		conversation := p.cMan.startConversation(request)
+		conversation := p.cMan.startConversation(request, peerID)
 
 		err := p.handleTransactionList(peer, &Envelope{Message: &Envelope_TransactionList{
 			TransactionList: &TransactionList{

@@ -83,7 +83,11 @@ func (p *protocol) sendTransactionListQuery(id transport.PeerID, refs []hash.SHA
 		},
 	}
 
-	conversation := p.cMan.startConversation(msg)
+	conversation := p.cMan.startConversation(msg, id)
+	if conversation == nil {
+		log.Logger().Debugf("did not request a TransactionList while another conversation is in progress (peer=%s)", id.String())
+		return nil
+	}
 	conversation.set("refs", refs)
 
 	// todo convert to trace logging
@@ -128,9 +132,14 @@ func (p *protocol) sendTransactionRangeQuery(id transport.PeerID, lcStart uint32
 			End:   lcEnd,
 		},
 	}
-	cid := p.cMan.startConversation(msg)
 
-	log.Logger().Debugf("requesting transaction range (peer=%s, conversationID=%s, start=%d, end=%d)", id.String(), cid.conversationID.String(), lcStart, lcEnd)
+	conversation := p.cMan.startConversation(msg, id)
+	if conversation == nil {
+		log.Logger().Debugf("did not request a TransactionRange while another conversation is in progress (peer=%s, start=%d, end=%d)", id.String(), lcStart, lcEnd)
+		return nil
+	}
+
+	log.Logger().Debugf("requesting transaction range (peer=%s, conversationID=%s, start=%d, end=%d)", id.String(), conversation.conversationID.String(), lcStart, lcEnd)
 
 	return conn.Send(p, &Envelope{Message: msg})
 }
@@ -180,7 +189,11 @@ func (p *protocol) sendState(id transport.PeerID, xor hash.SHA256Hash, clock uin
 			LC:  clock,
 		},
 	}
-	conversation := p.cMan.startConversation(msg)
+	conversation := p.cMan.startConversation(msg, id)
+	if conversation == nil {
+		log.Logger().Debugf("did not request State while another conversation is in progress (peer=%s)", id.String())
+		return nil
+	}
 
 	// todo convert to trace logging
 	log.Logger().Infof("requesting state from peer (peer=%s, conversationID=%s)", id, conversation.conversationID.String())

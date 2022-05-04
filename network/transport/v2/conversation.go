@@ -26,10 +26,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/network/dag"
-
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/network/transport"
 )
 
 var maxValidity = 30 * time.Second
@@ -88,15 +88,17 @@ type conversationable interface {
 }
 
 type conversationManager struct {
-	mutex         sync.RWMutex
-	conversations map[string]*conversation
-	validity      time.Duration
+	mutex                  sync.RWMutex
+	conversations          map[string]*conversation
+	validity               time.Duration
+	lastPeerConversationID map[transport.PeerID]conversationID
 }
 
 func newConversationManager(validity time.Duration) *conversationManager {
 	return &conversationManager{
-		conversations: map[string]*conversation{},
-		validity:      validity,
+		conversations:          map[string]*conversation{},
+		validity:               validity,
+		lastPeerConversationID: map[transport.PeerID]conversationID{},
 	}
 }
 
@@ -136,7 +138,7 @@ func (cMan *conversationManager) done(cid conversationID) {
 }
 
 // startConversation sets a conversationID on the envelope and stores the conversation
-func (cMan *conversationManager) startConversation(msg checkable) *conversation {
+func (cMan *conversationManager) startConversation(msg checkable, id transport.PeerID) *conversation {
 	cid := newConversationID()
 
 	msg.setConversationID(cid)
@@ -150,9 +152,24 @@ func (cMan *conversationManager) startConversation(msg checkable) *conversation 
 	cMan.mutex.Lock()
 	defer cMan.mutex.Unlock()
 
+	if cMan.hasActiveConversation(id) {
+		return nil
+	}
+	cMan.lastPeerConversationID[id] = cid
 	cMan.conversations[cid.String()] = newConversation
 
 	return newConversation
+}
+
+func (cMan *conversationManager) hasActiveConversation(id transport.PeerID) bool {
+	if lastPeerConv, ok := cMan.lastPeerConversationID[id]; ok {
+		if conversation, ok := cMan.conversations[lastPeerConv.String()]; ok {
+			if conversation.createdAt.Add(cMan.validity).After(time.Now()) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (cMan *conversationManager) check(envelope conversationable, data handlerData) (*conversation, error) {
