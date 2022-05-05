@@ -47,7 +47,7 @@ jobs:
             FILES="cov/*"
             for f in $FILES
             do
-              cat "$f" > c_raw.out
+              cat "$f" >> c_raw.out
             done
       - run:
           name: Remove test, mock and generated code
