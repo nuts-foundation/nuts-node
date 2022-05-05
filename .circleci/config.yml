@@ -7,6 +7,7 @@ workflows:
 
 jobs:
   build:
+    parallelism: 4
     docker:
       - image: cimg/go:1.18
     steps:
@@ -23,7 +24,25 @@ jobs:
           paths:
             - "/go/pkg/mod"
 
-      - run: go test ./... -race -coverprofile=c_raw.out
+      - run: go test -v $(go list ./... | circleci tests split) -race -coverprofile=cov/c_raw_$CIRCLE_NODE_INDEX.out
+      - persist_to_workspace:
+          root: ~/repo
+          paths:
+            - cov
+
+  report:
+    docker:
+      - image: cimg/go:1.18
+    steps:
+      - attach_workspace:
+          at: ~/repo
+      - run:
+          name: Merge test files
+          command |
+            cat tmp/c_raw_0.out > c_raw.out
+            cat tmp/c_raw_1.out > c_raw.out
+            cat tmp/c_raw_2.out > c_raw.out
+            cat tmp/c_raw_3.out > c_raw.out
       - run:
           name: Remove test, mock and generated code
           command: |
