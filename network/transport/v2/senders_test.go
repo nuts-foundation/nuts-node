@@ -21,6 +21,7 @@ package v2
 
 import (
 	"errors"
+	"math"
 	"testing"
 	"time"
 
@@ -206,6 +207,8 @@ func Test_chunkTransactionList(t *testing.T) {
 		sizeEmpty := proto.Size(&Envelope{Message: &Envelope_TransactionList{
 			TransactionList: &TransactionList{
 				ConversationID: []byte(uuid.New().String()),
+				MessageNumber:  1,
+				TotalMessages:  1,
 			},
 		}})
 		println("Message size for empty TransactionList (message overhead):", sizeEmpty)
@@ -214,12 +217,15 @@ func Test_chunkTransactionList(t *testing.T) {
 			TransactionList: &TransactionList{
 				ConversationID: []byte(uuid.New().String()),
 				Transactions:   txs,
+				MessageNumber:  1,
+				TotalMessages:  1,
 			},
 		}})
 		println("Message size for", numTX, "transactions:", sizeNonEmpty)
 		println("Length of data (TX data + payload is):", dataLen)
 		println("Delta:", sizeNonEmpty-dataLen)
-		overheadPerTX := (sizeNonEmpty - sizeEmpty - dataLen) / numTX
+		marginTx := 1.1
+		overheadPerTX := int(math.Ceil(float64(sizeNonEmpty-sizeEmpty-dataLen) * marginTx / numTX))
 		println("Overhead per TX:", overheadPerTX)
 
 		assert.True(t, transactionListMessageOverhead >= sizeEmpty)
