@@ -45,7 +45,7 @@ jobs:
           name: Merge test files
           command: |
             cat "cov/c_raw_0.out" >> c_raw.out
-            for f in {1..$CIRCLE_NODE_TOTAL}
+            for f in $(seq 1 7)
             do
               tail -n +2 "cov/c_raw_$f.out" >> c_raw.out
             done
