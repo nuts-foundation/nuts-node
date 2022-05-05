@@ -712,6 +712,8 @@ func (w *ServerInterfaceWrapper) GetTransactionPayload(ctx echo.Context) error {
 	return err
 }
 
+// PATCH: This template file was taken from pkg/codegen/templates/echo/echo-register.tmpl
+
 // This is a simple interface which specifies echo.Route addition functions which
 // are present on both echo.Echo and echo.Group, since we want to allow using
 // either of them for path registration
@@ -727,6 +729,14 @@ type EchoRouter interface {
 	TRACE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 }
 
+type Preprocessor interface {
+	Preprocess(operationID string, context echo.Context)
+}
+
+type ErrorStatusCodeResolver interface {
+	ResolveStatusCode(err error) int
+}
+
 // RegisterHandlers adds each server route to the EchoRouter.
 func RegisterHandlers(router EchoRouter, si ServerInterface) {
 	RegisterHandlersWithBaseURL(router, si, "")
@@ -740,10 +750,27 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.GET(baseURL+"/internal/network/v1/diagnostics/graph", wrapper.RenderGraph)
-	router.GET(baseURL+"/internal/network/v1/diagnostics/peers", wrapper.GetPeerDiagnostics)
-	router.GET(baseURL+"/internal/network/v1/transaction", wrapper.ListTransactions)
-	router.GET(baseURL+"/internal/network/v1/transaction/:ref", wrapper.GetTransaction)
-	router.GET(baseURL+"/internal/network/v1/transaction/:ref/payload", wrapper.GetTransactionPayload)
+	// PATCH: This alteration wraps the call to the implementation in a function that sets the "OperationId" context parameter,
+	// so it can be used in error reporting middleware.
+	router.GET(baseURL+"/internal/network/v1/diagnostics/graph", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("RenderGraph", context)
+		return wrapper.RenderGraph(context)
+	})
+	router.GET(baseURL+"/internal/network/v1/diagnostics/peers", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("GetPeerDiagnostics", context)
+		return wrapper.GetPeerDiagnostics(context)
+	})
+	router.GET(baseURL+"/internal/network/v1/transaction", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("ListTransactions", context)
+		return wrapper.ListTransactions(context)
+	})
+	router.GET(baseURL+"/internal/network/v1/transaction/:ref", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("GetTransaction", context)
+		return wrapper.GetTransaction(context)
+	})
+	router.GET(baseURL+"/internal/network/v1/transaction/:ref/payload", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("GetTransactionPayload", context)
+		return wrapper.GetTransactionPayload(context)
+	})
 
 }
