@@ -671,7 +671,8 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 	reqCtx := context.Background()
 	searchTerms := []vcr.SearchTerm{
 		{IRIPath: jsonld.OrganizationNamePath, Value: "query"},
-		{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
+		// Disabled because of a bug in leia
+		//{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
 	}
 	testCredential := vc.VerifiableCredential{}
 	_ = json.Unmarshal([]byte(jsonld.TestOrganizationCredential), &testCredential)
