@@ -399,7 +399,6 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope)
 	// get iblt difference
 	ctx := context.Background()
 	iblt, _ := p.state.IBLT(ctx, minLC)
-	myIblt := iblt
 	err = iblt.Subtract(peerIblt)
 	if err != nil {
 		return err
@@ -410,8 +409,6 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope)
 	if err != nil {
 		if errors.Is(err, tree.ErrDecodeNotPossible) {
 			log.Logger().Debugf("peer IBLT decode failed (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
-			log.Logger().Debugf("MINE: %s\n", myIblt.String())
-			log.Logger().Debugf("PEER: %s\n", peerIblt.String())
 
 			// request fist page if decode of first page fails
 			if minLC < dag.PageSize {

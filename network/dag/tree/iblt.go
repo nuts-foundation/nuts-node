@@ -23,7 +23,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/twmb/murmur3"
 )
@@ -259,16 +258,6 @@ func (i *Iblt) UnmarshalBinary(data []byte) error {
 		}
 	}
 	return nil
-}
-
-func (i *Iblt) String() string {
-	buf := bytes.Buffer{}
-	for _, b := range i.buckets {
-		buf.WriteString(b.String())
-		buf.WriteString("\n")
-	}
-
-	return buf.String()
 }
 
 // bucket
