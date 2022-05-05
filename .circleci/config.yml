@@ -4,10 +4,11 @@ workflows:
   tests:
     jobs:
       - build
+      - report
 
 jobs:
   build:
-    parallelism: 4
+    parallelism: 8
     docker:
       - image: cimg/go:1.18
     steps:
