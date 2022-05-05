@@ -22,14 +22,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net/http"
-	"net/http/httptest"
-	"testing"
-
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"net/http"
+	"net/http/httptest"
+	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -109,7 +109,25 @@ func TestWrapper_SearchVCs(t *testing.T) {
 		{IRIPath: jsonld.OrganizationNamePath, Value: "Zorggroep de Nootjes"},
 	}
 
-	t.Run("ok - organization", func(t *testing.T) {
+	t.Run("ok - results", func(t *testing.T) {
+		ctx := newMockContext(t)
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
+		ctx.echo.EXPECT().Request().Return(req)
+		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
+			_ = json.Unmarshal([]byte(organizationQuery), f)
+		})
+		// Not an organization VC, but doesn't matter
+		actualVC := *credential.ValidExplicitNutsAuthorizationCredential()
+		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{actualVC}, nil)
+		ctx.mockVerifier.EXPECT().GetRevocation(*actualVC.ID).Return(nil, nil)
+		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any())
+
+		err := ctx.client.SearchVCs(ctx.echo)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("ok - no results", func(t *testing.T) {
 		ctx := newMockContext(t)
 		req := httptest.NewRequest(http.MethodPost, "/", nil)
 		ctx.echo.EXPECT().Request().Return(req)
@@ -190,6 +208,23 @@ func TestWrapper_SearchVCs(t *testing.T) {
 		err := ctx.client.SearchVCs(ctx.echo)
 
 		assert.EqualError(t, err, "can't match on multiple VC subjects")
+	})
+
+	t.Run("error - error retrieving revocation", func(t *testing.T) {
+		ctx := newMockContext(t)
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
+		ctx.echo.EXPECT().Request().Return(req)
+		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
+			_ = json.Unmarshal([]byte(organizationQuery), f)
+		})
+		// Not an organization VC, but doesn't matter
+		actualVC := *credential.ValidExplicitNutsAuthorizationCredential()
+		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{actualVC}, nil)
+		ctx.mockVerifier.EXPECT().GetRevocation(*actualVC.ID).Return(nil, errors.New("failure"))
+
+		err := ctx.client.SearchVCs(ctx.echo)
+
+		assert.EqualError(t, err, "failure")
 	})
 }
 

@@ -351,7 +351,7 @@ func (w *Wrapper) vcsWithRevocationsToSearchResults(foundVCs []vc.VerifiableCred
 		var revocation *Revocation
 		revocation, err := w.VCR.Verifier().GetRevocation(*resolvedVC.ID)
 		if err != nil && !errors.Is(err, verifier.ErrNotFound) {
-			return nil, nil
+			return nil, err
 		}
 		result[i] = SearchVCResult{VerifiableCredential: resolvedVC, Revocation: revocation}
 	}
