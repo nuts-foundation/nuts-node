@@ -38,7 +38,7 @@ jobs:
           at: ~/repo
       - run:
           name: Merge test files
-          command |
+          command: |
             cat tmp/c_raw_0.out > c_raw.out
             cat tmp/c_raw_1.out > c_raw.out
             cat tmp/c_raw_2.out > c_raw.out
