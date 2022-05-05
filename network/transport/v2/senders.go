@@ -27,8 +27,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 )
 
-const transactionListMessageOverhead = 256
-const transactionListTXOverhead = 8
+const transactionListMessageOverhead = 512
+const transactionListTXOverhead = 9
 
 type messageSender interface {
 	sendGossipMsg(id transport.PeerID, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) error
