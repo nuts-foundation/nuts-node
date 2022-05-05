@@ -118,14 +118,13 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	fmt.Printf("%v\n", node2.Diagnostics())
 }
 
-func TestNetworkIntegration_V2(t *testing.T) {
+func TestNetworkIntegration_Messages(t *testing.T) {
 	resetIntegrationTest()
 
 	testNodes := func(t *testing.T, opts ...func(cfg *Config)) (*Network, *Network) {
 		testDirectory := io.TestDirectory(t)
 		resetIntegrationTest()
 
-		// start nodes with v1 disabled, we rely on the gossip protocol
 		allOpts := append([]func(*Config){func(cfg *Config) {
 			cfg.Protocols = []int{2}
 		}}, opts...)
