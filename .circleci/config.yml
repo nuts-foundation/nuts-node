@@ -27,7 +27,7 @@ jobs:
       - run: mkdir cov
       - run: go test -v $(go list ./... | circleci tests split) -race -coverprofile=cov/c_raw_$CIRCLE_NODE_INDEX.out
       - persist_to_workspace:
-          root: ./
+          root: .
           paths:
             - cov
 
@@ -36,7 +36,7 @@ jobs:
       - image: cimg/go:1.18
     steps:
       - attach_workspace:
-          at: ./
+          at: .
       - run:
           name: Merge test files
           command: |
