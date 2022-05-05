@@ -51,15 +51,6 @@ func TestState_relayingFuncs(t *testing.T) {
 	txState.Add(ctx, tx, payload)
 	payloadHash := hash.SHA256Sum(payload)
 
-	t.Run("GetByPayloadHash", func(t *testing.T) {
-		txs, err := txState.GetByPayloadHash(ctx, payloadHash)
-
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.Equal(t, tx, txs[0])
-	})
-
 	t.Run("GetTransaction", func(t *testing.T) {
 		txResult, err := txState.GetTransaction(ctx, tx.Ref())
 
@@ -86,19 +77,6 @@ func TestState_relayingFuncs(t *testing.T) {
 			return
 		}
 		assert.True(t, result)
-	})
-
-	t.Run("PayloadHashes", func(t *testing.T) {
-		var result hash.SHA256Hash
-		err := txState.PayloadHashes(ctx, func(payloadHash hash.SHA256Hash) error {
-			result = payloadHash
-			return nil
-		})
-
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.Equal(t, payloadHash, result)
 	})
 
 	t.Run("FindBetweenLC", func(t *testing.T) {
