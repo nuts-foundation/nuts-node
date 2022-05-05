@@ -1570,6 +1570,8 @@ func (w *ServerInterfaceWrapper) DeleteService(ctx echo.Context) error {
 	return err
 }
 
+// PATCH: This template file was taken from pkg/codegen/templates/echo/echo-register.tmpl
+
 // This is a simple interface which specifies echo.Route addition functions which
 // are present on both echo.Echo and echo.Group, since we want to allow using
 // either of them for path registration
@@ -1585,6 +1587,14 @@ type EchoRouter interface {
 	TRACE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 }
 
+type Preprocessor interface {
+	Preprocess(operationID string, context echo.Context)
+}
+
+type ErrorStatusCodeResolver interface {
+	ResolveStatusCode(err error) int
+}
+
 // RegisterHandlers adds each server route to the EchoRouter.
 func RegisterHandlers(router EchoRouter, si ServerInterface) {
 	RegisterHandlersWithBaseURL(router, si, "")
@@ -1598,14 +1608,43 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.GET(baseURL+"/internal/didman/v1/did/:did/compoundservice", wrapper.GetCompoundServices)
-	router.POST(baseURL+"/internal/didman/v1/did/:did/compoundservice", wrapper.AddCompoundService)
-	router.GET(baseURL+"/internal/didman/v1/did/:did/compoundservice/:compoundServiceType/endpoint/:endpointType", wrapper.GetCompoundServiceEndpoint)
-	router.GET(baseURL+"/internal/didman/v1/did/:did/contactinfo", wrapper.GetContactInformation)
-	router.PUT(baseURL+"/internal/didman/v1/did/:did/contactinfo", wrapper.UpdateContactInformation)
-	router.POST(baseURL+"/internal/didman/v1/did/:did/endpoint", wrapper.AddEndpoint)
-	router.DELETE(baseURL+"/internal/didman/v1/did/:did/endpoint/:type", wrapper.DeleteEndpointsByType)
-	router.GET(baseURL+"/internal/didman/v1/search/organizations", wrapper.SearchOrganizations)
-	router.DELETE(baseURL+"/internal/didman/v1/service/:id", wrapper.DeleteService)
+	// PATCH: This alteration wraps the call to the implementation in a function that sets the "OperationId" context parameter,
+	// so it can be used in error reporting middleware.
+	router.GET(baseURL+"/internal/didman/v1/did/:did/compoundservice", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("GetCompoundServices", context)
+		return wrapper.GetCompoundServices(context)
+	})
+	router.POST(baseURL+"/internal/didman/v1/did/:did/compoundservice", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("AddCompoundService", context)
+		return wrapper.AddCompoundService(context)
+	})
+	router.GET(baseURL+"/internal/didman/v1/did/:did/compoundservice/:compoundServiceType/endpoint/:endpointType", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("GetCompoundServiceEndpoint", context)
+		return wrapper.GetCompoundServiceEndpoint(context)
+	})
+	router.GET(baseURL+"/internal/didman/v1/did/:did/contactinfo", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("GetContactInformation", context)
+		return wrapper.GetContactInformation(context)
+	})
+	router.PUT(baseURL+"/internal/didman/v1/did/:did/contactinfo", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("UpdateContactInformation", context)
+		return wrapper.UpdateContactInformation(context)
+	})
+	router.POST(baseURL+"/internal/didman/v1/did/:did/endpoint", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("AddEndpoint", context)
+		return wrapper.AddEndpoint(context)
+	})
+	router.DELETE(baseURL+"/internal/didman/v1/did/:did/endpoint/:type", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("DeleteEndpointsByType", context)
+		return wrapper.DeleteEndpointsByType(context)
+	})
+	router.GET(baseURL+"/internal/didman/v1/search/organizations", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("SearchOrganizations", context)
+		return wrapper.SearchOrganizations(context)
+	})
+	router.DELETE(baseURL+"/internal/didman/v1/service/:id", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("DeleteService", context)
+		return wrapper.DeleteService(context)
+	})
 
 }

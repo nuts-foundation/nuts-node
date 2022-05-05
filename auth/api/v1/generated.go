@@ -1917,6 +1917,8 @@ func (w *ServerInterfaceWrapper) GetContractByType(ctx echo.Context) error {
 	return err
 }
 
+// PATCH: This template file was taken from pkg/codegen/templates/echo/echo-register.tmpl
+
 // This is a simple interface which specifies echo.Route addition functions which
 // are present on both echo.Echo and echo.Group, since we want to allow using
 // either of them for path registration
@@ -1932,6 +1934,14 @@ type EchoRouter interface {
 	TRACE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 }
 
+type Preprocessor interface {
+	Preprocess(operationID string, context echo.Context)
+}
+
+type ErrorStatusCodeResolver interface {
+	ResolveStatusCode(err error) int
+}
+
 // RegisterHandlers adds each server route to the EchoRouter.
 func RegisterHandlers(router EchoRouter, si ServerInterface) {
 	RegisterHandlersWithBaseURL(router, si, "")
@@ -1945,15 +1955,47 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.POST(baseURL+"/internal/auth/v1/accesstoken/introspect", wrapper.IntrospectAccessToken)
-	router.HEAD(baseURL+"/internal/auth/v1/accesstoken/verify", wrapper.VerifyAccessToken)
-	router.PUT(baseURL+"/internal/auth/v1/contract/drawup", wrapper.DrawUpContract)
-	router.POST(baseURL+"/internal/auth/v1/jwt-grant", wrapper.CreateJwtGrant)
-	router.POST(baseURL+"/internal/auth/v1/request-access-token", wrapper.RequestAccessToken)
-	router.POST(baseURL+"/internal/auth/v1/signature/session", wrapper.CreateSignSession)
-	router.GET(baseURL+"/internal/auth/v1/signature/session/:sessionID", wrapper.GetSignSessionStatus)
-	router.PUT(baseURL+"/internal/auth/v1/signature/verify", wrapper.VerifySignature)
-	router.POST(baseURL+"/n2n/auth/v1/accesstoken", wrapper.CreateAccessToken)
-	router.GET(baseURL+"/public/auth/v1/contract/:contractType", wrapper.GetContractByType)
+	// PATCH: This alteration wraps the call to the implementation in a function that sets the "OperationId" context parameter,
+	// so it can be used in error reporting middleware.
+	router.POST(baseURL+"/internal/auth/v1/accesstoken/introspect", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("IntrospectAccessToken", context)
+		return wrapper.IntrospectAccessToken(context)
+	})
+	router.HEAD(baseURL+"/internal/auth/v1/accesstoken/verify", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("VerifyAccessToken", context)
+		return wrapper.VerifyAccessToken(context)
+	})
+	router.PUT(baseURL+"/internal/auth/v1/contract/drawup", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("DrawUpContract", context)
+		return wrapper.DrawUpContract(context)
+	})
+	router.POST(baseURL+"/internal/auth/v1/jwt-grant", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("CreateJwtGrant", context)
+		return wrapper.CreateJwtGrant(context)
+	})
+	router.POST(baseURL+"/internal/auth/v1/request-access-token", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("RequestAccessToken", context)
+		return wrapper.RequestAccessToken(context)
+	})
+	router.POST(baseURL+"/internal/auth/v1/signature/session", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("CreateSignSession", context)
+		return wrapper.CreateSignSession(context)
+	})
+	router.GET(baseURL+"/internal/auth/v1/signature/session/:sessionID", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("GetSignSessionStatus", context)
+		return wrapper.GetSignSessionStatus(context)
+	})
+	router.PUT(baseURL+"/internal/auth/v1/signature/verify", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("VerifySignature", context)
+		return wrapper.VerifySignature(context)
+	})
+	router.POST(baseURL+"/n2n/auth/v1/accesstoken", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("CreateAccessToken", context)
+		return wrapper.CreateAccessToken(context)
+	})
+	router.GET(baseURL+"/public/auth/v1/contract/:contractType", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("GetContractByType", context)
+		return wrapper.GetContractByType(context)
+	})
 
 }

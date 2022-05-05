@@ -2107,6 +2107,8 @@ func (w *ServerInterfaceWrapper) ListUntrusted(ctx echo.Context) error {
 	return err
 }
 
+// PATCH: This template file was taken from pkg/codegen/templates/echo/echo-register.tmpl
+
 // This is a simple interface which specifies echo.Route addition functions which
 // are present on both echo.Echo and echo.Group, since we want to allow using
 // either of them for path registration
@@ -2122,6 +2124,14 @@ type EchoRouter interface {
 	TRACE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 }
 
+type Preprocessor interface {
+	Preprocess(operationID string, context echo.Context)
+}
+
+type ErrorStatusCodeResolver interface {
+	ResolveStatusCode(err error) int
+}
+
 // RegisterHandlers adds each server route to the EchoRouter.
 func RegisterHandlers(router EchoRouter, si ServerInterface) {
 	RegisterHandlersWithBaseURL(router, si, "")
@@ -2135,17 +2145,55 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.POST(baseURL+"/internal/vcr/v2/holder/vp", wrapper.CreateVP)
-	router.POST(baseURL+"/internal/vcr/v2/issuer/vc", wrapper.IssueVC)
-	router.GET(baseURL+"/internal/vcr/v2/issuer/vc/search", wrapper.SearchIssuedVCs)
-	router.DELETE(baseURL+"/internal/vcr/v2/issuer/vc/:id", wrapper.RevokeVC)
-	router.POST(baseURL+"/internal/vcr/v2/search", wrapper.SearchVCs)
-	router.GET(baseURL+"/internal/vcr/v2/vc/:id", wrapper.ResolveVC)
-	router.DELETE(baseURL+"/internal/vcr/v2/verifier/trust", wrapper.UntrustIssuer)
-	router.POST(baseURL+"/internal/vcr/v2/verifier/trust", wrapper.TrustIssuer)
-	router.POST(baseURL+"/internal/vcr/v2/verifier/vc", wrapper.VerifyVC)
-	router.POST(baseURL+"/internal/vcr/v2/verifier/vp", wrapper.VerifyVP)
-	router.GET(baseURL+"/internal/vcr/v2/verifier/:credentialType/trusted", wrapper.ListTrusted)
-	router.GET(baseURL+"/internal/vcr/v2/verifier/:credentialType/untrusted", wrapper.ListUntrusted)
+	// PATCH: This alteration wraps the call to the implementation in a function that sets the "OperationId" context parameter,
+	// so it can be used in error reporting middleware.
+	router.POST(baseURL+"/internal/vcr/v2/holder/vp", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("CreateVP", context)
+		return wrapper.CreateVP(context)
+	})
+	router.POST(baseURL+"/internal/vcr/v2/issuer/vc", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("IssueVC", context)
+		return wrapper.IssueVC(context)
+	})
+	router.GET(baseURL+"/internal/vcr/v2/issuer/vc/search", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("SearchIssuedVCs", context)
+		return wrapper.SearchIssuedVCs(context)
+	})
+	router.DELETE(baseURL+"/internal/vcr/v2/issuer/vc/:id", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("RevokeVC", context)
+		return wrapper.RevokeVC(context)
+	})
+	router.POST(baseURL+"/internal/vcr/v2/search", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("SearchVCs", context)
+		return wrapper.SearchVCs(context)
+	})
+	router.GET(baseURL+"/internal/vcr/v2/vc/:id", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("ResolveVC", context)
+		return wrapper.ResolveVC(context)
+	})
+	router.DELETE(baseURL+"/internal/vcr/v2/verifier/trust", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("UntrustIssuer", context)
+		return wrapper.UntrustIssuer(context)
+	})
+	router.POST(baseURL+"/internal/vcr/v2/verifier/trust", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("TrustIssuer", context)
+		return wrapper.TrustIssuer(context)
+	})
+	router.POST(baseURL+"/internal/vcr/v2/verifier/vc", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("VerifyVC", context)
+		return wrapper.VerifyVC(context)
+	})
+	router.POST(baseURL+"/internal/vcr/v2/verifier/vp", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("VerifyVP", context)
+		return wrapper.VerifyVP(context)
+	})
+	router.GET(baseURL+"/internal/vcr/v2/verifier/:credentialType/trusted", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("ListTrusted", context)
+		return wrapper.ListTrusted(context)
+	})
+	router.GET(baseURL+"/internal/vcr/v2/verifier/:credentialType/untrusted", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("ListUntrusted", context)
+		return wrapper.ListUntrusted(context)
+	})
 
 }
