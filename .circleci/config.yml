@@ -38,19 +38,17 @@ jobs:
     docker:
       - image: cimg/go:1.18
     steps:
+      - checkout
       - attach_workspace:
           at: .
       - run:
           name: Merge test files
           command: |
-            cat cov/c_raw_0.out > c_raw.out
-            cat cov/c_raw_1.out > c_raw.out
-            cat cov/c_raw_2.out > c_raw.out
-            cat cov/c_raw_3.out > c_raw.out
-            cat cov/c_raw_4.out > c_raw.out
-            cat cov/c_raw_5.out > c_raw.out
-            cat cov/c_raw_6.out > c_raw.out
-            cat cov/c_raw_7.out > c_raw.out
+            FILES="cov/*"
+            for f in $FILES
+            do
+              cat "$f" > c_raw.out
+            done
       - run:
           name: Remove test, mock and generated code
           command: |
