@@ -40,10 +40,10 @@ jobs:
       - run:
           name: Merge test files
           command: |
-            cat tmp/c_raw_0.out > c_raw.out
-            cat tmp/c_raw_1.out > c_raw.out
-            cat tmp/c_raw_2.out > c_raw.out
-            cat tmp/c_raw_3.out > c_raw.out
+            cat cov/c_raw_0.out > c_raw.out
+            cat cov/c_raw_1.out > c_raw.out
+            cat cov/c_raw_2.out > c_raw.out
+            cat cov/c_raw_3.out > c_raw.out
       - run:
           name: Remove test, mock and generated code
           command: |
