@@ -1,0 +1,13 @@
+verbosity: debug
+network:
+  disablenodeauthentication: true
+  enablediscovery: false
+  enabletls: false
+auth:
+  contractvalidators:
+    - dummy
+  irma:
+    autoupdateschemas: false
+events:
+  nats:
+    port: 4222
