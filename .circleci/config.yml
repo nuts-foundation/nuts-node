@@ -44,10 +44,10 @@ jobs:
       - run:
           name: Merge test files
           command: |
-            FILES="cov/*"
-            for f in $FILES
+            cat "cov/c_raw_0.out" >> c_raw.out
+            for f in {1..$CIRCLE_NODE_TOTAL}
             do
-              cat "$f" >> c_raw.out
+              tail -n +2 "cov/c_raw_$f.out" >> c_raw.out
             done
       - run:
           name: Remove test, mock and generated code
