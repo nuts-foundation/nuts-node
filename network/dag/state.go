@@ -88,12 +88,10 @@ func NewState(dataDir string, verifiers ...Verifier) (State, error) {
 	newState.publisher = publisher
 
 	xorTree := newBBoltTreeStore(db, "xorBucket", tree.New(tree.NewXor(), PageSize))
-	newState.RegisterObserver(xorTree.dagObserver, true)
-	newState.xorTree = xorTree
-
 	ibltTree := newBBoltTreeStore(db, "ibltBucket", tree.New(tree.NewIblt(IbltNumBuckets), PageSize))
-	newState.RegisterObserver(ibltTree.dagObserver, true)
+	newState.xorTree = xorTree
 	newState.ibltTree = ibltTree
+	newState.RegisterObserver(newState.treeObserver, true)
 
 	return newState, nil
 }
@@ -105,6 +103,21 @@ func (s *state) RegisterObserver(observer Observer, transactional bool) {
 		s.nonTransactionalObservers = append(s.nonTransactionalObservers, observer)
 	}
 
+}
+
+func (s *state) treeObserver(ctx context.Context, transaction Transaction, payload []byte) error {
+	if transaction != nil {
+		if (len(transaction.PAL()) > 0 && payload == nil) || // for private transactions we want the event without payload
+			(len(transaction.PAL()) == 0 && payload != nil) { // for public transactions we want the event with payload
+			if err := s.ibltTree.dagObserver(ctx, transaction, nil); err != nil {
+				return err
+			}
+			if err := s.xorTree.dagObserver(ctx, transaction, nil); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte) error {
