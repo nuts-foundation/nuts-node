@@ -365,6 +365,47 @@ func TestState_IBLT(t *testing.T) {
 	})
 }
 
+func TestState_treeObserver(t *testing.T) {
+	setup := func(t *testing.T) State {
+		txState := createState(t)
+		err := txState.Start()
+		if !assert.NoError(t, err) {
+			t.Fatal(err)
+		}
+		return txState
+	}
+	ctx := context.Background()
+
+	t.Run("no callback for public transaction without payload", func(t *testing.T) {
+		txState := setup(t)
+		tx := CreateTestTransactionWithJWK(1)
+
+		err := txState.Add(ctx, tx, nil)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		xor, _ := txState.XOR(ctx, 1)
+		assert.True(t, hash.EmptyHash().Equals(xor))
+	})
+
+	t.Run("no callback for private transaction with payload", func(t *testing.T) {
+		txState := setup(t)
+		payload := []byte("payload")
+		tx, _, _ := CreateTestTransactionEx(1, hash.SHA256Sum(payload), [][]byte{{0x1}})
+
+		err := txState.Add(ctx, tx, payload)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		xor, _ := txState.XOR(ctx, 1)
+		assert.True(t, hash.EmptyHash().Equals(xor))
+	})
+}
+
 func createState(t *testing.T, verifier ...Verifier) State {
 	testDir := io.TestDirectory(t)
 	s, _ := NewState(testDir, verifier...)

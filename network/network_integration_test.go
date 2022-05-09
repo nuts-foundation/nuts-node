@@ -590,10 +590,10 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			cfg.NodeDID = "did:nuts:node2"
 		})
 
-		// create 999 transactions on node 1
+		// create some transactions
 		node1DID, _ := node1.nodeDIDResolver.Resolve()
 		node2DID, _ := node2.nodeDIDResolver.Resolve()
-		for i := 1; i <= 10; i++ {
+		for i := 0; i < 10; i++ {
 			tpl := TransactionTemplate(payloadType, []byte(fmt.Sprintf("private TX%d", i)), key).
 				WithAttachKey().
 				WithPrivate([]did.DID{node1DID, node2DID})
@@ -611,8 +611,8 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		}, defaultTimeout, "time-out while waiting for node1 to connect to node2")
 
 		test.WaitFor(t, func() (bool, error) {
-			xor1, _ := node1.state.XOR(context.Background(), 100)
-			xor2, _ := node2.state.XOR(context.Background(), 100)
+			xor1, _ := node1.state.XOR(context.Background(), 10)
+			xor2, _ := node2.state.XOR(context.Background(), 10)
 			return xor1.Equals(xor2), nil
 		}, defaultTimeout, "%s: time-out while waiting for transactions", node2.Name())
 	})
