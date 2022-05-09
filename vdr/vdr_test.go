@@ -185,7 +185,7 @@ func TestVDR_Update(t *testing.T) {
 		currentDIDDocument := nextDIDDocument
 		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 		ctx.mockStore.EXPECT().Resolve(*id, gomock.Any()).Times(1).Return(&currentDIDDocument, &types.DocumentMetadata{}, nil)
-		ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(nil, crypto.ErrKeyNotFound)
+		ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(nil, crypto.ErrPrivateKeyNotFound)
 
 		err := ctx.vdr.Update(*id, currentHash, nextDIDDocument, nil)
 
@@ -345,7 +345,7 @@ func TestVDR_resolveControllerKey(t *testing.T) {
 		controller.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 		ctx.mockStore.EXPECT().Resolve(*controllerId, gomock.Any()).Return(&controller, nil, nil).Times(2)
 		gomock.InOrder(
-			ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(nil, crypto.ErrKeyNotFound),
+			ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(nil, crypto.ErrPrivateKeyNotFound),
 			ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(crypto.NewTestKey(keyID.String()), nil),
 		)
 
@@ -378,7 +378,7 @@ func TestVDR_resolveControllerKey(t *testing.T) {
 		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*controllerId, *controllerId}}
 		controller.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 		ctx.mockStore.EXPECT().Resolve(*controllerId, gomock.Any()).Return(&controller, nil, nil).Times(2)
-		ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(nil, crypto.ErrKeyNotFound).Times(2)
+		ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(nil, crypto.ErrPrivateKeyNotFound).Times(2)
 
 		_, _, err := ctx.vdr.resolveControllerWithKey(currentDIDDocument)
 
