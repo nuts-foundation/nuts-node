@@ -22,6 +22,7 @@ package echo
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"path"
@@ -36,8 +37,7 @@ import (
 
 // TestStatusCodes tests if the returned errors from the API implementations are correctly translated to status codes
 func TestStatusCodes(t *testing.T) {
-	httpPort, cancel := startServer(t)
-	defer cancel()
+	httpPort := startServer(t)
 	defer resetEnv()
 
 	baseUrl := fmt.Sprintf("http://localhost%s", httpPort)
@@ -66,7 +66,7 @@ func TestStatusCodes(t *testing.T) {
 	})
 }
 
-func startServer(t *testing.T) (string, context.CancelFunc) {
+func startServer(t *testing.T) string {
 	testDir := io.TestDirectory(t)
 	system := cmd.CreateSystem()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -96,7 +96,23 @@ func startServer(t *testing.T) (string, context.CancelFunc) {
 		return err == nil && resp.StatusCode == http.StatusOK, nil
 	}, time.Second, "Timeout while waiting for node to become available")
 
-	return httpPort, cancel
+	t.Cleanup(func() {
+		cancel()
+
+		// wait for port to become free again
+		test.WaitFor(t, func() (bool, error) {
+			if a, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("localhost%s", httpPort)); err == nil {
+				if l, err := net.ListenTCP("tcp", a); err == nil {
+					l.Close()
+					return true, nil
+				}
+			}
+
+			return false, nil
+		}, 5*time.Second, "Timeout while waiting for node to shutdown")
+	})
+
+	return httpPort
 }
 
 func resetEnv() {

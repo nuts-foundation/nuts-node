@@ -259,8 +259,10 @@ func TestState_Add(t *testing.T) {
 func TestState_Diagnostics(t *testing.T) {
 	ctx := context.Background()
 	txState := createState(t)
-	doc1 := CreateTestTransactionWithJWK(2)
-	txState.Add(ctx, doc1, nil)
+	payload := []byte("payload")
+	doc1, _, _ := CreateTestTransactionEx(2, hash.SHA256Sum(payload), nil)
+	err := txState.Add(ctx, doc1, payload)
+	assert.NoError(t, err)
 	diagnostics := txState.Diagnostics()
 	assert.Len(t, diagnostics, 4)
 	// Assert actual diagnostics
@@ -289,11 +291,11 @@ func TestState_XOR(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	// add transaction
-	tx := CreateTestTransactionWithJWK(1)
+	payload := []byte("payload")
+	tx, _, _ := CreateTestTransactionEx(1, hash.SHA256Sum(payload), nil)
 	dagClock := 3 * PageSize / 2
 	tx.(*transaction).lamportClock = dagClock
-	err = txState.Add(ctx, tx, nil)
+	err = txState.Add(ctx, tx, payload)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -326,11 +328,11 @@ func TestState_IBLT(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	// add transaction
-	tx := CreateTestTransactionWithJWK(1)
+	payload := []byte("payload")
+	tx, _, _ := CreateTestTransactionEx(1, hash.SHA256Sum(payload), nil)
 	dagClock := 3 * PageSize / 2
 	tx.(*transaction).lamportClock = dagClock
-	err = txState.Add(ctx, tx, nil)
+	err = txState.Add(ctx, tx, payload)
 	if !assert.NoError(t, err) {
 		return
 	}

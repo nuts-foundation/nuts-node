@@ -576,6 +576,46 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		}
 		waitForTransaction(t, tx, "node1", "node2", "node3")
 	})
+
+	t.Run("large amount of private transactions", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		resetIntegrationTest()
+		key := nutsCrypto.NewTestKey("key")
+
+		// Start 2 nodes: node1 and node2, node1 sends a private TX to node 2
+		node1 := startNode(t, "node1", testDirectory, func(cfg *Config) {
+			cfg.NodeDID = "did:nuts:node1"
+		})
+		node2 := startNode(t, "node2", testDirectory, func(cfg *Config) {
+			cfg.NodeDID = "did:nuts:node2"
+		})
+
+		// create 999 transactions on node 1
+		node1DID, _ := node1.nodeDIDResolver.Resolve()
+		node2DID, _ := node2.nodeDIDResolver.Resolve()
+		for i := 1; i <= 10; i++ {
+			tpl := TransactionTemplate(payloadType, []byte(fmt.Sprintf("private TX%d", i)), key).
+				WithAttachKey().
+				WithPrivate([]did.DID{node1DID, node2DID})
+			_, err := node1.CreateTransaction(tpl)
+			if !assert.NoError(t, err) {
+				return
+			}
+		}
+
+		// Now connect node1 to node2 and wait for them to set up
+		node1.connectionManager.Connect(nameToAddress(t, "node2"))
+
+		test.WaitFor(t, func() (bool, error) {
+			return len(node1.connectionManager.Peers()) == 1 && len(node2.connectionManager.Peers()) == 1, nil
+		}, defaultTimeout, "time-out while waiting for node1 to connect to node2")
+
+		test.WaitFor(t, func() (bool, error) {
+			xor1, _ := node1.state.XOR(context.Background(), 100)
+			xor2, _ := node2.state.XOR(context.Background(), 100)
+			return xor1.Equals(xor2), nil
+		}, defaultTimeout, "%s: time-out while waiting for transactions", node2.Name())
+	})
 }
 
 func TestNetworkIntegration_OutboundConnectionReconnects(t *testing.T) {
@@ -748,6 +788,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 		},
 		ProtocolV2: v2.Config{
 			GossipInterval:      100,
+			PayloadRetryDelay:   50 * time.Millisecond,
 			DiagnosticsInterval: int(time.Minute.Milliseconds()),
 		},
 	}
