@@ -49,24 +49,25 @@ func ValidateServiceReference(endpointURI ssi.URI) error {
 	// For DID URLs the path is parsed properly.
 	didEndpointURL, err := did.ParseDIDURL(endpointURI.String())
 	if err != nil {
-		return types.ErrInvalidServiceQuery
+		return types.ErrInvalidServiceQuery{Cause: err}
 	}
 	if didEndpointURL.Path != serviceEndpointPath {
 		// Service reference doesn't refer to `/serviceEndpoint`
-		return types.ErrInvalidServiceQuery
+		return types.ErrInvalidServiceQuery{Cause: fmt.Errorf("URL path must be '/%s'", serviceEndpointPath)}
 	}
 	queriedServiceType := endpointURI.Query().Get(serviceTypeQueryParameter)
+	typeQueryParameterError := types.ErrInvalidServiceQuery{Cause: fmt.Errorf("URL must contain exactly one '%s' query parameter, with exactly one value", serviceTypeQueryParameter)}
 	if len(queriedServiceType) == 0 {
 		// Service reference doesn't contain `type` query parameter
-		return types.ErrInvalidServiceQuery
+		return typeQueryParameterError
 	}
 	if len(endpointURI.Query()[serviceTypeQueryParameter]) > 1 {
 		// Service reference contains more than 1 `type` query parameter
-		return types.ErrInvalidServiceQuery
+		return typeQueryParameterError
 	}
 	if len(endpointURI.Query()) > 1 {
 		// Service reference contains more than just `type` query parameter
-		return types.ErrInvalidServiceQuery
+		return typeQueryParameterError
 	}
 	return nil
 }
