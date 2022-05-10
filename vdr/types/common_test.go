@@ -91,7 +91,7 @@ func Test_deactivatedError_Is(t *testing.T) {
 
 func Test_ErrInvalidServiceQuery_Is(t *testing.T) {
 	assert.ErrorIs(t, ErrInvalidServiceQuery{}, ErrInvalidServiceQuery{})
-	assert.NotErrorIs(t, io.EOF, ErrInvalidServiceQuery{})
+	assert.NotErrorIs(t, ErrInvalidServiceQuery{}, io.EOF)
 }
 
 func Test_ErrInvalidServiceQuery_Error(t *testing.T) {
