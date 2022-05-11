@@ -301,12 +301,12 @@ func TestProtocol_handleGossip(t *testing.T) {
 	// results in State
 
 	t.Run("ok - new transaction ref, xors still unequal", func(t *testing.T) {
-		differentLocalXor := hash.FromSlice([]byte("completely different"))
+		xorLocal := hash.FromSlice([]byte("completely different"))
 		p, mocks := newTestProtocol(t, nil)
-		mocks.State.EXPECT().XOR(gomock.Any(), uint32(math.MaxUint32)).Return(differentLocalXor, clockLocal)
+		mocks.State.EXPECT().XOR(gomock.Any(), uint32(math.MaxUint32)).Return(xorLocal, clockLocal)
 		mocks.State.EXPECT().IsPresent(gomock.Any(), xorPeer).Return(false, nil)
 		mocks.Gossip.EXPECT().GossipReceived(peer.ID, xorPeer)
-		mocks.Sender.EXPECT().sendState(peer.ID, differentLocalXor, clockLocal).Return(nil)
+		mocks.Sender.EXPECT().sendState(peer.ID, xorLocal, clockLocal).Return(nil)
 
 		err := p.handleGossip(peer, envelope)
 
