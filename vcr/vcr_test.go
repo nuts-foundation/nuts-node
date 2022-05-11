@@ -372,31 +372,27 @@ func TestVcr_Untrusted(t *testing.T) {
 	})
 }
 func confirmUntrustedStatus(t *testing.T, fn func(issuer ssi.URI) ([]ssi.URI, error), numUntrusted int) {
-	t.Run("ok - untrusted", func(t *testing.T) {
-		trusted, err := fn(ssi.MustParseURI("NutsOrganizationCredential"))
+	trusted, err := fn(ssi.MustParseURI("NutsOrganizationCredential"))
 
-		if !assert.NoError(t, err) {
-			return
-		}
+	if !assert.NoError(t, err) {
+		return
+	}
 
-		assert.Len(t, trusted, numUntrusted)
-	})
+	assert.Len(t, trusted, numUntrusted)
 }
 
 func confirmTrustedStatus(t *testing.T, trustManager TrustManager, issuer ssi.URI, fn func(issuer ssi.URI) ([]ssi.URI, error), numTrusted int) {
-	t.Run("ok - trusted", func(t *testing.T) {
-		trustManager.Trust(ssi.MustParseURI("NutsOrganizationCredential"), issuer)
-		defer func() {
-			trustManager.Untrust(ssi.MustParseURI("NutsOrganizationCredential"), issuer)
-		}()
-		trusted, err := fn(ssi.MustParseURI("NutsOrganizationCredential"))
+	trustManager.Trust(ssi.MustParseURI("NutsOrganizationCredential"), issuer)
+	defer func() {
+		trustManager.Untrust(ssi.MustParseURI("NutsOrganizationCredential"), issuer)
+	}()
+	trusted, err := fn(ssi.MustParseURI("NutsOrganizationCredential"))
 
-		if !assert.NoError(t, err) {
-			return
-		}
+	if !assert.NoError(t, err) {
+		return
+	}
 
-		assert.Len(t, trusted, numTrusted)
-	})
+	assert.Len(t, trusted, numTrusted)
 }
 
 func TestVcr_verifyRevocation(t *testing.T) {
