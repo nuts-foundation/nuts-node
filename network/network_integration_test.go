@@ -37,11 +37,13 @@ import (
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
+	"github.com/nuts-foundation/nuts-node/network/transport/v1"
 	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
+
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -118,13 +120,14 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	fmt.Printf("%v\n", node2.Diagnostics())
 }
 
-func TestNetworkIntegration_Messages(t *testing.T) {
+func TestNetworkIntegration_V2(t *testing.T) {
 	resetIntegrationTest()
 
 	testNodes := func(t *testing.T, opts ...func(cfg *Config)) (*Network, *Network) {
 		testDirectory := io.TestDirectory(t)
 		resetIntegrationTest()
 
+		// start nodes with v1 disabled, we rely on the gossip protocol
 		allOpts := append([]func(*Config){func(cfg *Config) {
 			cfg.Protocols = []int{2}
 		}}, opts...)
@@ -779,6 +782,10 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 		CertKeyFile:    "test/certificate-and-key.pem",
 		TrustStoreFile: "test/truststore.pem",
 		EnableTLS:      true,
+		ProtocolV1: v1.Config{
+			AdvertHashesInterval:      500,
+			AdvertDiagnosticsInterval: 5000,
+		},
 		ProtocolV2: v2.Config{
 			GossipInterval:      100,
 			PayloadRetryDelay:   50 * time.Millisecond,

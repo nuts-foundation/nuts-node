@@ -24,6 +24,8 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	io2 "github.com/nuts-foundation/nuts-node/test/io"
+	"go.etcd.io/bbolt"
 	"hash/crc32"
 	"io"
 	"net"
@@ -33,9 +35,6 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
-
-	io2 "github.com/nuts-foundation/nuts-node/test/io"
-	"go.etcd.io/bbolt"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
@@ -635,6 +634,7 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 
 		// Assert headers sent to client
 		assert.Equal(t, "server-peer-id", serverStream.sentHeaders.Get("peerID")[0])
+		assert.Equal(t, "v1", serverStream.sentHeaders.Get("version")[0])
 		assert.Equal(t, "did:nuts:test", serverStream.sentHeaders.Get("nodeDID")[0])
 
 		// Assert connection was registered
@@ -704,6 +704,18 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 			defer cm.connections.mux.Unlock()
 			return len(cm.connections.list) == 0, nil
 		}, time.Second*2, "time-out while waiting for closed inbound connection to be removed")
+	})
+}
+
+func Test_grpcConnectionManager_constructMetadata(t *testing.T) {
+	t.Run("set default protocol version", func(t *testing.T) {
+		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}, nil, &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
+		md, _ := cm.constructMetadata()
+
+		v := md.Get(protocolVersionHeader)
+
+		assert.Len(t, v, 1)
+		assert.Equal(t, protocolVersionV1, v[0])
 	})
 }
 

@@ -23,10 +23,9 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"go.etcd.io/bbolt"
 	"net"
 	"sync"
-
-	"go.etcd.io/bbolt"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -40,6 +39,8 @@ import (
 
 const defaultMaxMessageSizeInBytes = 1024 * 512
 
+const protocolVersionV1 = "v1"          // required for backwards compatibility with v1
+const protocolVersionHeader = "version" // required for backwards compatibility with v1
 const peerIDHeader = "peerID"
 const nodeDIDHeader = "nodeDID"
 
@@ -416,7 +417,8 @@ func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundSt
 
 func (s *grpcConnectionManager) constructMetadata() (metadata.MD, error) {
 	md := metadata.New(map[string]string{
-		peerIDHeader: string(s.config.peerID),
+		peerIDHeader:          string(s.config.peerID),
+		protocolVersionHeader: protocolVersionV1, // required for backwards compatibility with v1
 	})
 
 	nodeDID, err := s.nodeDIDResolver.Resolve()
