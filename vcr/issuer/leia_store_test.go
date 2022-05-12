@@ -21,9 +21,10 @@ package issuer
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"path"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -31,7 +32,7 @@ import (
 	"github.com/nuts-foundation/go-leia/v3"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/stretchr/testify/assert"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
 func TestNewLeiaStore(t *testing.T) {

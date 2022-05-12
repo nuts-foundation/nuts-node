@@ -22,14 +22,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"time"
 
 	"github.com/google/uuid"
+	
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
@@ -37,6 +37,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
+	vcr "github.com/nuts-foundation/nuts-node/vcr/types"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -167,7 +168,7 @@ func (i issuer) Revoke(credentialID ssi.URI) (*credential.Revocation, error) {
 		return nil, fmt.Errorf("error while checking revocation status: %w", err)
 	}
 	if isRevoked {
-		return nil, types.ErrRevoked
+		return nil, vcr.ErrRevoked
 	}
 
 	revocation, err := i.buildRevocation(*credentialToRevoke)

@@ -21,14 +21,14 @@ package issuer
 import (
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/vcr/types"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"path"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -38,7 +38,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
-	"github.com/stretchr/testify/assert"
+	vcr "github.com/nuts-foundation/nuts-node/vcr/types"
+	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 func Test_issuer_buildVC(t *testing.T) {
@@ -419,7 +420,7 @@ func Test_issuer_Revoke(t *testing.T) {
 			}
 			revocation, err := sut.Revoke(credentialURI)
 
-			assert.ErrorIs(t, err, types.ErrRevoked)
+			assert.ErrorIs(t, err, vcr.ErrRevoked)
 			assert.Nil(t, revocation)
 		})
 	})
