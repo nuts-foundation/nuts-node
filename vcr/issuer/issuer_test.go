@@ -21,6 +21,7 @@ package issuer
 import (
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"path"
 	"testing"
@@ -310,10 +311,10 @@ func Test_issuer_Revoke(t *testing.T) {
 			}
 		}
 
-		storeWithActualCredential := func(c *gomock.Controller) Store {
+		storeWithActualCredential := func(c *gomock.Controller) *MockStore {
 			store := NewMockStore(c)
 			store.EXPECT().GetCredential(credentialURI).Return(credentialToRevoke(), nil)
-			//store.EXPECT().GetRevocation(credentialURI).Return(credential.Revocation{}, ErrNotFound)
+			store.EXPECT().GetRevocation(credentialURI).Return(nil, ErrNotFound)
 			return store
 		}
 
@@ -328,10 +329,12 @@ func Test_issuer_Revoke(t *testing.T) {
 			defer ctrl.Finish()
 
 			publisher := NewMockPublisher(ctrl)
+			store := storeWithActualCredential(ctrl)
 			publisher.EXPECT().PublishRevocation(gomock.Any()).Return(nil)
+			store.EXPECT().StoreRevocation(gomock.Any()).Return(nil)
 
 			sut := issuer{
-				store:         storeWithActualCredential(ctrl),
+				store:         store,
 				keyResolver:   keyResolverWithKey(ctrl),
 				jsonldManager: jsonldManager,
 				publisher:     publisher,
@@ -361,7 +364,7 @@ func Test_issuer_Revoke(t *testing.T) {
 			invalidCredential := vc.VerifiableCredential{}
 			store := NewMockStore(ctrl)
 			store.EXPECT().GetCredential(credentialURI).Return(&invalidCredential, nil)
-			//store.EXPECT().GetRevocation(credentialURI).Return(credential.Revocation{}, ErrNotFound)
+			store.EXPECT().GetRevocation(credentialURI).Return(nil, ErrNotFound)
 
 			sut := issuer{
 				store: store,
@@ -387,6 +390,37 @@ func Test_issuer_Revoke(t *testing.T) {
 
 			revocation, err := sut.Revoke(credentialURI)
 			assert.EqualError(t, err, "failed to publish revocation: foo")
+			assert.Nil(t, revocation)
+		})
+
+		t.Run("it does not allow double revocation", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			store := storeWithActualCredential(ctrl)
+			publisher := NewMockPublisher(ctrl)
+			resolver := keyResolverWithKey(ctrl)
+
+			publisher.EXPECT().PublishRevocation(gomock.Any()).Return(nil)
+			store.EXPECT().StoreRevocation(gomock.Any()).Return(nil)
+			// 2nd revocation
+			store.EXPECT().GetCredential(credentialURI).Return(credentialToRevoke(), nil)
+			store.EXPECT().GetRevocation(credentialURI).Return(&credential.Revocation{}, nil)
+
+			sut := issuer{
+				store:         store,
+				keyResolver:   resolver,
+				jsonldManager: jsonldManager,
+				publisher:     publisher,
+			}
+
+			_, err := sut.Revoke(credentialURI)
+			if !assert.NoError(t, err) {
+				return
+			}
+			revocation, err := sut.Revoke(credentialURI)
+
+			assert.ErrorIs(t, err, types.ErrRevoked)
 			assert.Nil(t, revocation)
 		})
 	})

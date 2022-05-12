@@ -21,7 +21,6 @@ package issuer
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -34,8 +33,9 @@ import (
 // leiaIssuerStore implements the issuer Store interface. It is a simple and fast JSON store.
 // Note: It can not be used in a clustered setup.
 type leiaIssuerStore struct {
-	issuedCredentials leia.Collection
-	store             leia.Store
+	issuedCredentials  leia.Collection
+	revokedCredentials leia.Collection
+	store              leia.Store
 }
 
 // NewLeiaIssuerStore creates a new instance of leiaIssuerStore which implements the Store interface.
@@ -44,12 +44,17 @@ func NewLeiaIssuerStore(dbPath string) (Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create leiaIssuerStore: %w", err)
 	}
-	collection := store.JSONCollection("issuedCredentials")
+	issuedCollection := store.JSONCollection("issuedCredentials")
+	revokedCollection := store.JSONCollection("revokedCredentials")
 	newLeiaStore := &leiaIssuerStore{
-		issuedCredentials: collection,
-		store:             store,
+		issuedCredentials:  issuedCollection,
+		revokedCredentials: revokedCollection,
+		store:              store,
 	}
-	if err := newLeiaStore.createIndices(collection); err != nil {
+	if err := newLeiaStore.createIssuedIndices(issuedCollection); err != nil {
+		return nil, err
+	}
+	if err := newLeiaStore.createRevokedIndices(revokedCollection); err != nil {
 		return nil, err
 	}
 	return newLeiaStore, nil
@@ -97,7 +102,7 @@ func (s leiaIssuerStore) GetCredential(id ssi.URI) (*vc.VerifiableCredential, er
 		return nil, ErrNotFound
 	}
 	if len(results) > 1 {
-		return nil, errors.New("found more than one credential by id")
+		return nil, ErrMultipleFound
 	}
 	result := results[0]
 	credential := &vc.VerifiableCredential{}
@@ -107,13 +112,40 @@ func (s leiaIssuerStore) GetCredential(id ssi.URI) (*vc.VerifiableCredential, er
 	return credential, nil
 }
 
+func (s leiaIssuerStore) StoreRevocation(revocation credential.Revocation) error {
+	revocationAsBytes, _ := json.Marshal(revocation)
+	return s.revokedCredentials.Add([]leia.Document{revocationAsBytes})
+}
+
+func (s leiaIssuerStore) GetRevocation(id ssi.URI) (*credential.Revocation, error) {
+	query := leia.New(leia.Eq(leia.NewJSONPath(credential.RevocationSubjectPath), leia.MustParseScalar(id.String())))
+
+	results, err := s.revokedCredentials.Find(context.Background(), query)
+	if err != nil {
+		return nil, fmt.Errorf("error while getting revocation by id: %w", err)
+	}
+	if len(results) == 0 {
+		return nil, ErrNotFound
+	}
+	if len(results) > 1 {
+		return nil, ErrMultipleFound
+	}
+	result := results[0]
+	revocation := &credential.Revocation{}
+	if err := json.Unmarshal(result, revocation); err != nil {
+		return nil, err
+	}
+
+	return revocation, nil
+}
+
 func (s leiaIssuerStore) Close() error {
 	return s.store.Close()
 }
 
-// createIndices creates the needed indices for the issued VC store
+// createIssuedIndices creates the needed indices for the issued VC store
 // It allows faster searching on context, type issuer and subject values.
-func (s leiaIssuerStore) createIndices(collection leia.Collection) error {
+func (s leiaIssuerStore) createIssuedIndices(collection leia.Collection) error {
 	searchIndex := collection.NewIndex("issuedVCs",
 		leia.NewFieldIndexer(leia.NewJSONPath("issuer")),
 		leia.NewFieldIndexer(leia.NewJSONPath("type")),
@@ -124,4 +156,13 @@ func (s leiaIssuerStore) createIndices(collection leia.Collection) error {
 	idIndex := collection.NewIndex("issuedVCByID",
 		leia.NewFieldIndexer(leia.NewJSONPath("id")))
 	return s.issuedCredentials.AddIndex(searchIndex, idIndex)
+}
+
+// createRevokedIndices creates the needed indices for the issued VC store
+// It allows faster searching on context, type issuer and subject values.
+func (s leiaIssuerStore) createRevokedIndices(collection leia.Collection) error {
+	// Index used for getting issued VCs by id
+	revocationBySubjectIDIndex := collection.NewIndex("revocationBySubjectIDIndex",
+		leia.NewFieldIndexer(leia.NewJSONPath(credential.RevocationSubjectPath)))
+	return s.revokedCredentials.AddIndex(revocationBySubjectIDIndex)
 }

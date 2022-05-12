@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"time"
 
 	"github.com/google/uuid"
@@ -161,6 +162,14 @@ func (i issuer) Revoke(credentialID ssi.URI) (*credential.Revocation, error) {
 		return nil, fmt.Errorf("could not revoke (id=%s): %w", credentialID, err)
 	}
 
+	isRevoked, err := i.isRevoked(credentialID)
+	if err != nil {
+		return nil, fmt.Errorf("error while checking revocation status: %w", err)
+	}
+	if isRevoked {
+		return nil, types.ErrRevoked
+	}
+
 	revocation, err := i.buildRevocation(*credentialToRevoke)
 	if err != nil {
 		return nil, err
@@ -169,6 +178,11 @@ func (i issuer) Revoke(credentialID ssi.URI) (*credential.Revocation, error) {
 	err = i.publisher.PublishRevocation(*revocation)
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish revocation: %w", err)
+	}
+
+	// Store the revocation after it has been published
+	if err := i.store.StoreRevocation(*revocation); err != nil {
+		return nil, fmt.Errorf("unable to store revocation: %w", err)
 	}
 
 	log.Logger().Infof("Verifiable Credential revoked (id=%s)", credentialToRevoke.ID)
@@ -202,6 +216,20 @@ func (i issuer) buildRevocation(credentialToRevoke vc.VerifiableCredential) (*cr
 	_ = json.Unmarshal(b, &signedRevocation)
 
 	return &signedRevocation, nil
+}
+
+func (i issuer) isRevoked(credentialID ssi.URI) (bool, error) {
+	_, err := i.store.GetRevocation(credentialID)
+	switch err {
+	case nil: // revocation found
+		return true, nil
+	case ErrMultipleFound:
+		return true, nil
+	case ErrNotFound:
+		return false, nil
+	default:
+		return false, err
+	}
 }
 
 func (i issuer) CredentialResolver() CredentialSearcher {
