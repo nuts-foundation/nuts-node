@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -37,7 +36,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
-
 	vcr "github.com/nuts-foundation/nuts-node/vcr/types"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
