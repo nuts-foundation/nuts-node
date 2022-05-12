@@ -249,6 +249,9 @@ func (p *protocol) handleGossip(peer transport.Peer, envelope *Envelope) error {
 	log.Logger().Infof("received %d new transaction references via Gossip", len(refs))
 
 	// request missing refs
+	// If our DAG is just missing the TXs from the gossip to get in sync with the peer's DAG, send TransactionListQuery.
+	// Test this by XORing the TX refs from the gossip message with our DAG's XOR (should then equal peer DAG's XOR).
+	// If the XORs are not equal and the peer is behind, still request the missing refs if there are any.
 	tempXor := xor.Xor(refs...)
 	if tempXor.Equals(peerXor) || (msg.LC < clock && len(refs) > 0) {
 		return p.sender.sendTransactionListQuery(peer.ID, refs)

@@ -176,6 +176,57 @@ func TestNetworkIntegration_V2(t *testing.T) {
 		waitForTransactions("node 1", node1.state, expectedDocLogSize)
 	})
 
+	t.Run("Gossip - sync missing transactions from slow peer", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		resetIntegrationTest()
+
+		// start nodes with v1 disabled, and disable Gossip for bootstrap node
+		bootstrap := startNode(t, "integration_bootstrap", testDirectory, func(cfg *Config) {
+			cfg.Protocols = []int{2}
+			cfg.ProtocolV2 = v2.Config{GossipInterval: 100000} // disable Gossip to simulate node1 always being behind
+		})
+		node1 := startNode(t, "integration_node1", testDirectory, func(cfg *Config) {
+			cfg.Protocols = []int{2}
+			cfg.ProtocolV2 = v2.Config{GossipInterval: 100}
+		})
+
+		// set root
+		key := nutsCrypto.NewTestKey("key")
+		rootTx, err := bootstrap.CreateTransaction(TransactionTemplate(payloadType, []byte("root_tx"), key).WithAttachKey())
+		if !assert.NoError(t, err) {
+			return
+		}
+		if !assert.NoError(t, node1.state.Add(context.Background(), rootTx, []byte("root_tx"))) {
+			return
+		}
+		expectedDocLogSize := 1
+
+		// create some transactions on the bootstrap node to get it ahead of node 1
+		for i := 0; i < 10; i++ {
+			if !addTransactionAndWaitForItToArrive(t, fmt.Sprintf("bootstrap_doc%d", i), key, bootstrap) {
+				return
+			}
+			expectedDocLogSize++
+		}
+		// create a single transaction on node1
+		if !addTransactionAndWaitForItToArrive(t, "node1_doc", nutsCrypto.NewTestKey("key_node1"), node1) {
+			return
+		}
+		expectedDocLogSize++
+
+		// Wait until nodes are connected
+		node1.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"))
+		if !test.WaitFor(t, func() (bool, error) {
+			return len(bootstrap.connectionManager.Peers()) == 1, nil
+		}, defaultTimeout, "time-out while waiting for nodes to be connected") {
+			return
+		}
+
+		// Now assert that the nodes have received the right
+		waitForTransactions("bootstrap", bootstrap.state, expectedDocLogSize) // has everything
+		waitForTransactions("node 1", node1.state, 2)                         // received no updates
+	})
+
 	t.Run("IBLT", func(t *testing.T) {
 		key := nutsCrypto.NewTestKey("key")
 		expectedDocLogSize := 0
