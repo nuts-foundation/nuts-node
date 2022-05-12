@@ -243,10 +243,10 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 }
 
 func TestProtocol_handleGossip(t *testing.T) {
-	bytes := make([][]byte, 1)
-	bytes[0] = hash.EmptyHash().Slice()
 	xorLocal, xorPeer := hash.EmptyHash(), hash.FromSlice([]byte("test"))
 	clockLocal, clockPeer := uint32(2), uint32(3)
+	bytes := make([][]byte, 1)
+	bytes[0] = xorPeer.Slice()
 
 	envelope := &Envelope{Message: &Envelope_Gossip{&Gossip{XOR: xorPeer.Slice(), LC: clockPeer, Transactions: bytes}}}
 
@@ -262,7 +262,8 @@ func TestProtocol_handleGossip(t *testing.T) {
 	t.Run("ok - xors don't match, peer is behind", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		mocks.State.EXPECT().XOR(gomock.Any(), uint32(math.MaxUint32)).Return(xorLocal, clockPeer+1)
-		mocks.State.EXPECT().IsPresent(gomock.Any(), hash.EmptyHash()).Return(true, nil)
+		mocks.State.EXPECT().IsPresent(gomock.Any(), xorPeer).Return(true, nil)
+		mocks.Gossip.EXPECT().GossipReceived(peer.ID, xorPeer)
 
 		err := p.handleGossip(peer, envelope)
 
@@ -288,9 +289,9 @@ func TestProtocol_handleGossip(t *testing.T) {
 	t.Run("ok - new transaction ref, xors still unequal but peers is behind", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		mocks.State.EXPECT().XOR(gomock.Any(), uint32(math.MaxUint32)).Return(xorLocal, clockPeer+1)
-		mocks.State.EXPECT().IsPresent(gomock.Any(), hash.EmptyHash()).Return(false, nil)
-		mocks.Gossip.EXPECT().GossipReceived(peer.ID, hash.EmptyHash())
-		mocks.Sender.EXPECT().sendTransactionListQuery(peer.ID, []hash.SHA256Hash{xorLocal}).Return(nil)
+		mocks.State.EXPECT().IsPresent(gomock.Any(), xorPeer).Return(false, nil)
+		mocks.Gossip.EXPECT().GossipReceived(peer.ID, xorPeer)
+		mocks.Sender.EXPECT().sendTransactionListQuery(peer.ID, []hash.SHA256Hash{xorPeer}).Return(nil)
 
 		err := p.handleGossip(peer, envelope)
 
@@ -300,10 +301,11 @@ func TestProtocol_handleGossip(t *testing.T) {
 	// results in State
 
 	t.Run("ok - new transaction ref, xors still unequal", func(t *testing.T) {
+		xorLocal := hash.FromSlice([]byte("completely different"))
 		p, mocks := newTestProtocol(t, nil)
 		mocks.State.EXPECT().XOR(gomock.Any(), uint32(math.MaxUint32)).Return(xorLocal, clockLocal)
-		mocks.State.EXPECT().IsPresent(gomock.Any(), hash.EmptyHash()).Return(false, nil)
-		mocks.Gossip.EXPECT().GossipReceived(peer.ID, hash.EmptyHash())
+		mocks.State.EXPECT().IsPresent(gomock.Any(), xorPeer).Return(false, nil)
+		mocks.Gossip.EXPECT().GossipReceived(peer.ID, xorPeer)
 		mocks.Sender.EXPECT().sendState(peer.ID, xorLocal, clockLocal).Return(nil)
 
 		err := p.handleGossip(peer, envelope)
@@ -329,6 +331,7 @@ func TestProtocol_handleGossip(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		mocks.State.EXPECT().XOR(gomock.Any(), uint32(math.MaxUint32)).Return(xorLocal, clockLocal)
 		mocks.State.EXPECT().IsPresent(gomock.Any(), xorLocal).Return(true, nil)
+		mocks.Gossip.EXPECT().GossipReceived(peer.ID, xorLocal)
 		mocks.Sender.EXPECT().sendState(peer.ID, xorLocal, clockLocal).Return(nil)
 
 		err := p.handleGossip(peer, envelope)
@@ -356,7 +359,8 @@ func TestProtocol_handleGossip(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		mocks.State.EXPECT().XOR(gomock.Any(), uint32(math.MaxUint32)).Return(xorLocal, clockLocal)
-		mocks.State.EXPECT().IsPresent(gomock.Any(), hash.EmptyHash()).Return(false, errors.New("custom"))
+		mocks.State.EXPECT().IsPresent(gomock.Any(), xorPeer).Return(false, errors.New("custom"))
+		mocks.Gossip.EXPECT().GossipReceived(peer.ID, xorPeer)
 
 		err := p.handleGossip(peer, envelope)
 

@@ -222,11 +222,18 @@ func (p *protocol) handleGossip(peer transport.Peer, envelope *Envelope) error {
 		return nil
 	}
 
-	// check for unknown transactions
+	//
 	refs := make([]hash.SHA256Hash, len(msg.Transactions))
+	for i, bytes := range msg.Transactions {
+		refs[i] = hash.FromSlice(bytes)
+	}
+	if len(refs) > 0 {
+		p.gManager.GossipReceived(peer.ID, refs...)
+	}
+
+	// filter for unknown transactions
 	i := 0
-	for _, bytes := range msg.Transactions {
-		ref := hash.FromSlice(bytes)
+	for _, ref := range refs {
 		// separate reader transactions on DB but that's ok.
 		present, err := p.state.IsPresent(ctx, ref)
 		if err != nil {
@@ -238,11 +245,8 @@ func (p *protocol) handleGossip(peer transport.Peer, envelope *Envelope) error {
 		}
 	}
 	refs = refs[:i]
-	if len(refs) > 0 {
-		// TODO swap for trace logging
-		log.Logger().Infof("received %d new transaction references via Gossip", len(refs))
-		p.gManager.GossipReceived(peer.ID, refs...)
-	}
+	// TODO swap for trace logging
+	log.Logger().Infof("received %d new transaction references via Gossip", len(refs))
 
 	// send State if node is missing more refs than referenced in this Gossip
 	tempXor := xor.Xor(refs...)
