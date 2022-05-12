@@ -25,6 +25,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"math"
 	"sync"
 	"testing"
@@ -995,9 +996,11 @@ func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *netw
 	docResolver := vdrTypes.NewMockDocResolver(ctrl)
 	docFinder := vdrTypes.NewMockDocFinder(ctrl)
 	eventPublisher := events.NewMockEvent(ctrl)
+	warehouse := storage.NewMockWarehouse(ctrl)
+	warehouse.EXPECT().GetKVStore("network", "connections").AnyTimes()
 	// required when starting the network, it searches for nodes to connect to
 	docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return([]did.Document{}, nil)
-	network := NewNetworkInstance(networkConfig, keyResolver, keyStore, decrypter, docResolver, docFinder, eventPublisher)
+	network := NewNetworkInstance(networkConfig, keyResolver, keyStore, decrypter, docResolver, docFinder, eventPublisher, warehouse)
 	network.state = state
 	network.connectionManager = connectionManager
 	network.protocols = []transport.Protocol{prot}

@@ -18,17 +18,62 @@
 
 package storage
 
-import "github.com/nuts-foundation/nuts-node/core"
+import (
+	"errors"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/storage/log"
+	"path"
+)
 
 // New creates a new instance of the storage engine.
-func New() core.Engine {
-	return &engine{}
+func New() Engine {
+	return &engine{stores: map[string]KVStore{}}
 }
 
 type engine struct {
+	datadir string
+	stores  map[string]KVStore
 }
 
-// Name returns the name of the storage engine.
+// Name returns the name of the engine.
 func (e engine) Name() string {
 	return "Storage"
+}
+
+func (e engine) Start() error {
+	return nil
+}
+
+func (e engine) Shutdown() error {
+	failures := false
+	for storeName, store := range e.stores {
+		err := store.Close()
+		if err != nil {
+			log.Logger().Errorf("Failed to close store '%s': %s", storeName, err)
+			failures = true
+		}
+	}
+	if failures {
+		return errors.New("one or more stores failed to close")
+	}
+	return nil
+}
+
+func (e *engine) Configure(config core.ServerConfig) error {
+	e.datadir = config.Datadir
+	return nil
+}
+
+func (e *engine) GetKVStore(engineKey string, storeName string) (KVStore, error) {
+	if len(engineKey) == 0 {
+		return nil, errors.New("invalid engine key")
+	}
+	if len(storeName) == 0 {
+		return nil, errors.New("invalid store name")
+	}
+	store, err := CreateBBoltStore(path.Join(e.datadir, engineKey, storeName+".db"))
+	if err == nil {
+		e.stores[engineKey+"/"+storeName] = store
+	}
+	return store, err
 }

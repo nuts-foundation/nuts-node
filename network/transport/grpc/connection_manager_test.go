@@ -24,10 +24,11 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/storage"
+	io2 "github.com/nuts-foundation/nuts-node/test/io"
 	"hash/crc32"
 	"io"
 	"net"
-	"os"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
@@ -74,7 +75,7 @@ func withBufconnDialer(listener *bufconn.Listener) ConfigOption {
 func Test_grpcConnectionManager_Connect(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		p := &TestProtocol{}
-		cm := NewGRPCConnectionManager(NewConfig("", "test"), createBBoltDB(t), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
+		cm := NewGRPCConnectionManager(NewConfig("", "test"), createKVStore(t), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
 
 		cm.Connect(fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort()))
 		assert.Len(t, cm.connections.list, 1)
@@ -85,7 +86,7 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 		config := NewConfig("", "test")
 		ts, _ := core.LoadTrustStore("../../test/truststore.pem")
 		config.trustStore = ts.CertPool
-		cm := NewGRPCConnectionManager(config, createBBoltDB(t), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
+		cm := NewGRPCConnectionManager(config, createKVStore(t), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
 
 		cm.Connect(fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort()))
 
@@ -98,7 +99,7 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 
 	t.Run("duplicate connection", func(t *testing.T) {
 		p := &TestProtocol{}
-		cm := NewGRPCConnectionManager(NewConfig("", "test"), createBBoltDB(t), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
+		cm := NewGRPCConnectionManager(NewConfig("", "test"), createKVStore(t), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
 
 		peerAddress := fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort())
 		cm.Connect(peerAddress)
@@ -108,14 +109,14 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 
 	t.Run("already connected to the peer (inbound)", func(t *testing.T) {
 		serverCfg, serverListener := newBufconnConfig("server")
-		server := NewGRPCConnectionManager(serverCfg, createBBoltDB(t), &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
+		server := NewGRPCConnectionManager(serverCfg, createKVStore(t), &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
 		if err := server.Start(); err != nil {
 			t.Fatal(err)
 		}
 		defer server.Stop()
 
 		clientCfg, _ := newBufconnConfig("client", withBufconnDialer(serverListener))
-		client := NewGRPCConnectionManager(clientCfg, createBBoltDB(t), &stubNodeDIDReader{}, nil, &TestProtocol{}).(*grpcConnectionManager)
+		client := NewGRPCConnectionManager(clientCfg, createKVStore(t), &stubNodeDIDReader{}, nil, &TestProtocol{}).(*grpcConnectionManager)
 		if err := client.Start(); err != nil {
 			t.Fatal(err)
 		}
@@ -130,7 +131,7 @@ func Test_grpcConnectionManager_Peers(t *testing.T) {
 		authenticator := NewMockAuthenticator(ctrl)
 		proto := &TestProtocol{}
 		cfg, listener := newBufconnConfig(transport.PeerID(t.Name()), opts...)
-		db := createBBoltDB(t)
+		db := createKVStore(t)
 		cm := NewGRPCConnectionManager(cfg, db, &stubNodeDIDReader{}, authenticator, proto).(*grpcConnectionManager)
 		if err := cm.Start(); err != nil {
 			t.Fatal(err)
@@ -579,7 +580,7 @@ func Test_grpcConnectionManager_openOutboundStream(t *testing.T) {
 		existingConn.EXPECT().disconnect()
 		existingConn.EXPECT().stopConnecting() // due to ConnectionManager.Stop()
 
-		cm := NewGRPCConnectionManager(Config{peerID: "local"}, createBBoltDB(t), &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
+		cm := NewGRPCConnectionManager(Config{peerID: "local"}, createKVStore(t), &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
 		cm.connections.list = append(cm.connections.list, existingConn)
 
 		defer cm.Stop()
@@ -784,9 +785,9 @@ func (s stubNodeDIDReader) Resolve() (did.DID, error) {
 	return *nodeDID, nil
 }
 
-func createBBoltDB(t *testing.T) *bbolt.DB {
+func createKVStore(t *testing.T) storage.KVStore {
 	testDirectory := io2.TestDirectory(t)
-	db, err := bbolt.Open(filepath.Join(testDirectory, "grpc.db"), os.ModePerm, nil)
+	db, err := storage.CreateTestBBoltStore(filepath.Join(testDirectory, "grpc.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

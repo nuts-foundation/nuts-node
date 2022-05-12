@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"net/url"
 	"sync"
 	"testing"
@@ -32,6 +33,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
@@ -63,6 +65,13 @@ func TestVDRIntegration_Test(t *testing.T) {
 	log.SetLevel(lvl)
 	log.SetFormatter(&log.TextFormatter{ForceColors: true})
 
+	// Storage
+	warehouse := storage.New()
+	err = warehouse.Configure(nutsConfig)
+	if !assert.NoError(t, err) {
+		return
+	}
+
 	// Startup crypto
 	cryptoInstance := crypto.NewCryptoInstance()
 	cryptoInstance.Configure(nutsConfig)
@@ -86,6 +95,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 		docResolver,
 		docFinder,
 		eventPublisher,
+		warehouse,
 	)
 	nutsNetwork.Configure(nutsConfig)
 	nutsNetwork.Start()
@@ -250,6 +260,13 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	cryptoInstance := crypto.NewCryptoInstance()
 	cryptoInstance.Configure(nutsConfig)
 
+	// Storage
+	warehouse := storage.New()
+	err = warehouse.Configure(nutsConfig)
+	if !assert.NoError(t, err) {
+		return
+	}
+
 	// DID Store
 	didStore := store.NewMemoryStore()
 	docResolver := doc.Resolver{Store: didStore}
@@ -276,6 +293,7 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 		docResolver,
 		docFinder,
 		eventPublisher,
+		warehouse,
 	)
 	nutsNetwork.Configure(nutsConfig)
 	nutsNetwork.Start()

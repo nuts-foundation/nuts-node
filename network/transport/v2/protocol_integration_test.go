@@ -22,14 +22,12 @@ package v2
 import (
 	"context"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"hash/crc32"
-	"os"
 	"path"
 	"sync"
 	"testing"
 	"time"
-
-	"go.etcd.io/bbolt"
 
 	"github.com/nuts-foundation/go-did/did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
@@ -157,8 +155,8 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 	ctx.protocol = New(*cfg, transport.FixedNodeDIDResolver{}, ctx.state, doc.Resolver{Store: vdrStore}, keyStore, nil).(*protocol)
 
 	authenticator := grpc.NewTLSAuthenticator(doc.NewServiceResolver(&doc.Resolver{Store: store.NewMemoryStore()}))
-	connectionsDB, _ := bbolt.Open(path.Join(testDirectory, "connections.db"), os.ModePerm, nil)
-	ctx.connectionManager = grpc.NewGRPCConnectionManager(grpc.NewConfig(listenAddress, peerID), connectionsDB, &transport.FixedNodeDIDResolver{NodeDID: did.DID{}}, authenticator, ctx.protocol)
+	connectionsStore, _ := storage.CreateTestBBoltStore(path.Join(testDirectory, "connections.db"))
+	ctx.connectionManager = grpc.NewGRPCConnectionManager(grpc.NewConfig(listenAddress, peerID), connectionsStore, &transport.FixedNodeDIDResolver{NodeDID: did.DID{}}, authenticator, ctx.protocol)
 
 	ctx.protocol.Configure(peerID)
 	if err := ctx.connectionManager.Start(); err != nil {

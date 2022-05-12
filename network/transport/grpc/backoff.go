@@ -22,7 +22,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"github.com/nuts-foundation/nuts-node/network/log"
-	"go.etcd.io/bbolt"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"math/rand"
 	"time"
 )
@@ -93,7 +93,7 @@ func defaultBackoff() Backoff {
 type persistingBackoff struct {
 	underlying       Backoff
 	peerAddress      string
-	db               *bbolt.DB
+	store            storage.KVStore
 	persistedBackoff time.Time
 }
 
@@ -116,10 +116,10 @@ func (p *persistingBackoff) Value() time.Duration {
 
 // NewPersistedBackoff wraps another backoff and stores the last value returned by Backoff() in BBolt.
 // It reads the last backoff value from the DB and returns it as the first value of the Backoff.
-func NewPersistedBackoff(db *bbolt.DB, peerAddress string, underlying Backoff) Backoff {
+func NewPersistedBackoff(connectionStore storage.KVStore, peerAddress string, underlying Backoff) Backoff {
 	b := &persistingBackoff{
 		peerAddress: peerAddress,
-		db:          db,
+		store:       connectionStore,
 		underlying:  underlying,
 	}
 	persisted := b.read()
@@ -144,20 +144,16 @@ func (p *persistingBackoff) Backoff() time.Duration {
 }
 
 func (p persistingBackoff) write(backoff time.Duration) {
-	err := p.db.Update(func(tx *bbolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists([]byte("backoff"))
-		if err != nil {
-			return err
-		}
+	err := p.store.WriteBucket("backoff", func(writer storage.BucketWriter) error {
 		var buf bytes.Buffer
-		err = gob.NewEncoder(&buf).Encode(persistedBackoff{
+		err := gob.NewEncoder(&buf).Encode(persistedBackoff{
 			Moment: nowFunc().Add(backoff),
 			Value:  backoff,
 		})
 		if err != nil {
 			return err
 		}
-		return bucket.Put([]byte(p.peerAddress), buf.Bytes())
+		return writer.Put([]byte(p.peerAddress), buf.Bytes())
 	})
 	if err != nil {
 		log.Logger().Errorf("Failed to persist backoff: %v", err)
@@ -166,20 +162,15 @@ func (p persistingBackoff) write(backoff time.Duration) {
 
 func (p persistingBackoff) read() persistedBackoff {
 	var result persistedBackoff
-	err := p.db.View(func(tx *bbolt.Tx) error {
-		bucket := tx.Bucket([]byte("backoff"))
-		if bucket == nil {
-			return nil
-		}
-		data := bucket.Get([]byte(p.peerAddress))
-		if data == nil {
-			return nil
-		}
-		err := gob.NewDecoder(bytes.NewReader(data)).Decode(&result)
+	err := p.store.ReadBucket("backoff", func(reader storage.BucketReader) error {
+		data, err := reader.Get([]byte(p.peerAddress))
 		if err != nil {
 			return err
 		}
-		return nil
+		if data == nil {
+			return nil
+		}
+		return gob.NewDecoder(bytes.NewReader(data)).Decode(&result)
 	})
 	if err != nil {
 		log.Logger().Errorf("Failed to read persisted backoff: %v", err)

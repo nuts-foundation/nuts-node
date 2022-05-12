@@ -22,6 +22,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/events"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 	"github.com/sirupsen/logrus"
@@ -43,6 +44,7 @@ func NewTestNetworkInstance(testDirectory string) *Network {
 		doc.Resolver{Store: vdrStore},
 		doc.Finder{Store: vdrStore},
 		eventPublisher,
+		storage.NewTestStorageEngine(testDirectory),
 	)
 	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
 		logrus.Fatal(err)

@@ -23,10 +23,9 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"net"
 	"sync"
-
-	"go.etcd.io/bbolt"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -70,7 +69,7 @@ func (s fatalError) Is(other error) bool {
 }
 
 // NewGRPCConnectionManager creates a new ConnectionManager that accepts/creates connections which communicate using the given protocols.
-func NewGRPCConnectionManager(config Config, grpcDB *bbolt.DB, nodeDIDResolver transport.NodeDIDResolver, authenticator Authenticator, protocols ...transport.Protocol) transport.ConnectionManager {
+func NewGRPCConnectionManager(config Config, connectionStore storage.KVStore, nodeDIDResolver transport.NodeDIDResolver, authenticator Authenticator, protocols ...transport.Protocol) transport.ConnectionManager {
 	var grpcProtocols []Protocol
 	for _, curr := range protocols {
 		// For now, only gRPC protocols are supported
@@ -88,7 +87,7 @@ func NewGRPCConnectionManager(config Config, grpcDB *bbolt.DB, nodeDIDResolver t
 		grpcServerMutex: &sync.Mutex{},
 		listenerCreator: config.listener,
 		dialer:          config.dialer,
-		db:              grpcDB,
+		connectionStore: connectionStore,
 	}
 	cm.ctx, cm.ctxCancel = context.WithCancel(context.Background())
 	return cm
@@ -110,7 +109,7 @@ type grpcConnectionManager struct {
 	nodeDIDResolver  transport.NodeDIDResolver
 	stopCRLValidator func()
 	observers        []transport.StreamStateObserverFunc
-	db               *bbolt.DB
+	connectionStore  storage.KVStore
 }
 
 func (s *grpcConnectionManager) Start() error {
@@ -443,7 +442,7 @@ func (s *grpcConnectionManager) startTracking(address string, connection Connect
 		}
 	}
 
-	backoff := NewPersistedBackoff(s.db, address, defaultBackoff())
+	backoff := NewPersistedBackoff(s.connectionStore, address, defaultBackoff())
 	connection.startConnecting(address, backoff, tlsConfig, func(grpcConn *grpc.ClientConn) bool {
 		err := s.openOutboundStreams(connection, grpcConn)
 		if err != nil {

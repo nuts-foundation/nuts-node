@@ -23,6 +23,7 @@ import (
 	"crypto"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"hash/crc32"
 	"math"
 	"math/rand"
@@ -845,12 +846,16 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 	}
 
 	eventPublisher := events.NewManager()
-	if err := eventPublisher.(core.Configurable).Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
+	serverConfig := core.ServerConfig{Datadir: path.Join(testDirectory, name)}
+	if err := eventPublisher.(core.Configurable).Configure(serverConfig); err != nil {
 		t.Fatal(err)
 	}
 	if err := eventPublisher.(core.Runnable).Start(); err != nil {
 		t.Fatal(err)
 	}
+
+	warehouse := storage.New()
+	_ = warehouse.Configure(serverConfig)
 
 	instance := &Network{
 		config:              config,
@@ -861,9 +866,10 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 		keyResolver:         doc.KeyResolver{Store: vdrStore},
 		nodeDIDResolver:     &transport.FixedNodeDIDResolver{},
 		eventPublisher:      eventPublisher,
+		warehouse:           warehouse,
 	}
 
-	if err := instance.Configure(core.ServerConfig{Datadir: path.Join(testDirectory, name)}); err != nil {
+	if err := instance.Configure(serverConfig); err != nil {
 		t.Fatal(err)
 	}
 	if err := instance.Start(); err != nil {

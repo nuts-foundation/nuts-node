@@ -19,9 +19,8 @@
 package grpc
 
 import (
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
-	"go.etcd.io/bbolt"
-	"os"
 	"path"
 	"testing"
 	"time"
@@ -62,7 +61,7 @@ func TestPersistedBackoff_Backoff(t *testing.T) {
 		}
 
 		// Create back-off
-		db, _ := bbolt.Open(path.Join(testDirectory, "backoff.db"), os.ModePerm, nil)
+		db, _ := storage.CreateBBoltStore(path.Join(testDirectory, "backoff.db"))
 		defer db.Close()
 		b := NewPersistedBackoff(db, "test", defaultBackoff())
 
@@ -76,7 +75,7 @@ func TestPersistedBackoff_Backoff(t *testing.T) {
 
 		// Re-open back-off, check if started from the same point
 		_ = db.Close()
-		db, _ = bbolt.Open(path.Join(testDirectory, "backoff.db"), os.ModePerm, nil)
+		db, _ = storage.CreateBBoltStore(path.Join(testDirectory, "backoff.db"))
 		defer db.Close()
 		b = NewPersistedBackoff(db, "test", defaultBackoff())
 		assert.Equal(t, int(prev.Seconds()), int(b.Value().Seconds()))
@@ -92,7 +91,7 @@ func TestPersistedBackoff_Backoff(t *testing.T) {
 		}
 
 		// Create back-off
-		db, _ := bbolt.Open(path.Join(testDirectory, "backoff.db"), os.ModePerm, nil)
+		db, _ := storage.CreateBBoltStore(path.Join(testDirectory, "backoff.db"))
 		defer db.Close()
 		b := NewPersistedBackoff(db, "test", defaultBackoff())
 
@@ -105,7 +104,7 @@ func TestPersistedBackoff_Backoff(t *testing.T) {
 			return initialDate.Add(maxBackoff / 2)
 		}
 		_ = db.Close()
-		db, _ = bbolt.Open(path.Join(testDirectory, "backoff.db"), os.ModePerm, nil)
+		db, _ = storage.CreateBBoltStore(path.Join(testDirectory, "backoff.db"))
 		defer db.Close()
 		b = NewPersistedBackoff(db, "test", defaultBackoff())
 		assert.Equal(t, maxBackoff / 2, b.Value())
@@ -117,7 +116,7 @@ func TestPersistedBackoff_Reset(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
 
 	// Create back-off
-	db, _ := bbolt.Open(path.Join(testDirectory, "backoff.db"), os.ModePerm, nil)
+	db, _ := storage.CreateBBoltStore(path.Join(testDirectory, "backoff.db"))
 	defer db.Close()
 	b := NewPersistedBackoff(db, "test", defaultBackoff())
 
@@ -130,7 +129,7 @@ func TestPersistedBackoff_Reset(t *testing.T) {
 
 	// Re-open back-off, check if 0 due to reset
 	_ = db.Close()
-	db, _ = bbolt.Open(path.Join(testDirectory, "backoff.db"), os.ModePerm, nil)
+	db, _ = storage.CreateBBoltStore(path.Join(testDirectory, "backoff.db"))
 	defer db.Close()
 	b = NewPersistedBackoff(db, "test", defaultBackoff())
 	backoffAfterPersist := b.Value()
