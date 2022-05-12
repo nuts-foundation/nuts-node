@@ -40,8 +40,6 @@ type State interface {
 	PayloadWriter
 	PayloadReader
 	core.Diagnosable
-	// Deprecated: remove with V1 protocol
-	ReadManyPayloads(ctx context.Context, consumer func(context.Context, PayloadReader) error) error
 
 	// Add a transactions to the DAG. If it can't be added an error is returned.
 	// If the transaction already exists, nothing is added and no observers are notified.
@@ -53,20 +51,17 @@ type State interface {
 	// FindBetweenLC finds all transactions which lamport clock value lies between startInclusive and endExclusive.
 	// They are returned in order: first sorted on lamport clock value, then on transaction reference (byte order).
 	FindBetweenLC(ctx context.Context, startInclusive uint32, endExclusive uint32) ([]Transaction, error)
-	// GetByPayloadHash retrieves all transactions that refer to the specified payload.
-	GetByPayloadHash(ctx context.Context, payloadHash hash.SHA256Hash) ([]Transaction, error)
 	// GetTransaction returns the transaction from local storage
 	GetTransaction(ctx context.Context, hash hash.SHA256Hash) (Transaction, error)
 	// IsPresent returns true if a transaction is present in the DAG
 	IsPresent(context.Context, hash.SHA256Hash) (bool, error)
-	// PayloadHashes applies the visitor function to the payload hashes of all transactions, in random order.
-	PayloadHashes(ctx context.Context, visitor func(payloadHash hash.SHA256Hash) error) error
 	// RegisterObserver allows observers to be notified when a transaction is added to the DAG.
 	// If the observer needs to be called within the transaction, transactional must be true.
 	RegisterObserver(observer Observer, transactional bool)
 	// Subscribe lets an application subscribe to a specific type of transaction. When a new transaction is received
 	// the `receiver` function is called. If an asterisk (`*`) is specified as `payloadType` the receiver is subscribed
 	// to all payload types.
+	// Deprecated: to be replaced with events
 	Subscribe(eventType EventType, payloadType string, receiver Receiver)
 	// Shutdown the DB
 	Shutdown() error
@@ -137,8 +132,6 @@ type PayloadStore interface {
 	PayloadReader
 	// WritePayload writes contents for the specified payload, identified by the given hash.
 	WritePayload(ctx context.Context, payloadHash hash.SHA256Hash, data []byte) error
-	// Deprecated: remove with V1 protocol
-	ReadManyPayloads(ctx context.Context, consumer func(context.Context, PayloadReader) error) error
 }
 
 // PayloadWriter defines the interface for types that store transaction payloads.
