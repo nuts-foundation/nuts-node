@@ -32,7 +32,6 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"go.etcd.io/bbolt"
 
@@ -523,43 +522,4 @@ func validNutsOrganizationCredential() *vc.VerifiableCredential {
 		IssuanceDate:      time.Now(),
 		CredentialSubject: []interface{}{credentialSubject},
 	}
-}
-
-func Test_vcr_Revoke(t *testing.T) {
-	credentialID := ssi.MustParseURI("did:nuts:123#abc")
-
-	t.Run("it calls the verifier to revoke", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		mockVerifier := verifier.NewMockVerifier(ctrl)
-		mockIssuer := issuer.NewMockIssuer(ctrl)
-
-		mockVerifier.EXPECT().IsRevoked(credentialID).Return(false, nil)
-		expectedRevocation := &credential.Revocation{Subject: credentialID}
-		mockIssuer.EXPECT().Revoke(credentialID).Return(expectedRevocation, nil)
-		vcr := vcr{verifier: mockVerifier, issuer: mockIssuer}
-		revocation, err := vcr.Revoke(credentialID)
-		assert.NoError(t, err)
-		assert.NotNil(t, revocation)
-		assert.Equal(t, expectedRevocation, revocation)
-	})
-
-	t.Run("it fails when the credential is already revoked", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		mockVerifier := verifier.NewMockVerifier(ctrl)
-		mockVerifier.EXPECT().IsRevoked(credentialID).Return(true, nil)
-		vcr := vcr{verifier: mockVerifier}
-		revocation, err := vcr.Revoke(credentialID)
-		assert.EqualError(t, err, "credential already revoked")
-		assert.Nil(t, revocation)
-	})
-
-	t.Run("it fails when revocation status checking fails", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		mockVerifier := verifier.NewMockVerifier(ctrl)
-		mockVerifier.EXPECT().IsRevoked(credentialID).Return(false, errors.New("foo"))
-		vcr := vcr{verifier: mockVerifier}
-		revocation, err := vcr.Revoke(credentialID)
-		assert.EqualError(t, err, "error while checking revocation status: foo")
-		assert.Nil(t, revocation)
-	})
 }
