@@ -45,21 +45,25 @@ func Test_ValidateServiceReference(t *testing.T) {
 	t.Run("error - invalid path", func(t *testing.T) {
 		ref := ssi.MustParseURI("did:nuts:abc/serviceEndpointWithInvalidPostfix?type=sajdklsad")
 		err := ValidateServiceReference(ref)
-		assert.ErrorIs(t, err, types.ErrInvalidServiceQuery)
+		assert.ErrorIs(t, err, types.ErrInvalidServiceQuery{})
+		assert.ErrorContains(t, err, "URL path must be '/serviceEndpoint'")
 	})
 	t.Run("error - too many type params", func(t *testing.T) {
 		ref := ssi.MustParseURI("did:nuts:abc/serviceEndpoint?type=t1&type=t2")
 		err := ValidateServiceReference(ref)
-		assert.ErrorIs(t, err, types.ErrInvalidServiceQuery)
+		assert.ErrorIs(t, err, types.ErrInvalidServiceQuery{})
+		assert.ErrorContains(t, err, "URL must contain exactly one 'type' query parameter, with exactly one value")
 	})
 	t.Run("error - no type params", func(t *testing.T) {
 		ref := ssi.MustParseURI("did:nuts:abc/serviceEndpoint")
 		err := ValidateServiceReference(ref)
-		assert.ErrorIs(t, err, types.ErrInvalidServiceQuery)
+		assert.ErrorIs(t, err, types.ErrInvalidServiceQuery{})
+		assert.ErrorContains(t, err, "URL must contain exactly one 'type' query parameter, with exactly one value")
 	})
 	t.Run("error - invalid params", func(t *testing.T) {
 		ref := ssi.MustParseURI("did:nuts:abc/serviceEndpoint?type=t1&someOther=not-allowed")
 		err := ValidateServiceReference(ref)
-		assert.ErrorIs(t, err, types.ErrInvalidServiceQuery)
+		assert.ErrorIs(t, err, types.ErrInvalidServiceQuery{})
+		assert.ErrorContains(t, err, "URL must contain exactly one 'type' query parameter, with exactly one value")
 	})
 }

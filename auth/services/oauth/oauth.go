@@ -443,7 +443,7 @@ func (s *service) CreateJwtGrant(request services.CreateJwtGrantRequest) (*servi
 
 	endpointURL, err := s.serviceResolver.GetCompoundServiceEndpoint(*authorizer, request.Service, services.OAuthEndpointType, true)
 	if err != nil {
-		return nil, fmt.Errorf("could not fetch oauth endpoint from compound service: %w", err)
+		return nil, fmt.Errorf("could not fetch authorizer's 'oauth' endpoint from compound service: %w", err)
 	}
 
 	keyVals := claimsFromRequest(request, endpointURL)

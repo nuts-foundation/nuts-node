@@ -55,7 +55,7 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 		didman.ErrServiceInUse:                     http.StatusConflict,
 		vdrDoc.ErrInvalidOptions:                   http.StatusBadRequest,
 		types.ErrServiceNotFound:                   http.StatusNotFound,
-		types.ErrInvalidServiceQuery:               http.StatusBadRequest,
+		types.ErrInvalidServiceQuery{}:             http.StatusBadRequest,
 		types.ErrServiceReferenceToDeep:            http.StatusNotAcceptable,
 		didman.ErrReferencedServiceNotAnEndpoint{}: http.StatusNotAcceptable,
 	})
