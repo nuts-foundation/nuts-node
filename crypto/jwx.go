@@ -53,7 +53,7 @@ func (client *Crypto) SignJWT(claims map[string]interface{}, kid string) (token 
 	privateKey, err := client.Storage.GetPrivateKey(kid)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			return "", ErrKeyNotFound
+			return "", ErrPrivateKeyNotFound
 		}
 		return "", err
 	}

@@ -64,7 +64,7 @@ func (m memoryStorage) ListPrivateKeys() []string {
 func (m memoryStorage) GetPrivateKey(kid string) (crypto.Signer, error) {
 	pk, ok := m[kid]
 	if !ok {
-		return nil, ErrKeyNotFound
+		return nil, ErrPrivateKeyNotFound
 	}
 	return pk.(crypto.Signer), nil
 }

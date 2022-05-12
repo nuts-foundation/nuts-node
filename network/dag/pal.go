@@ -99,7 +99,7 @@ outer:
 		for _, kak := range keyAgreementKIDs {
 			log.Logger().Tracef("Trying key %s to decrypt PAL header...", kak)
 			decrypted, err = decryptor.Decrypt(kak, encrypted)
-			if errors.Is(err, crypto.ErrKeyNotFound) {
+			if errors.Is(err, crypto.ErrPrivateKeyNotFound) {
 				return nil, fmt.Errorf("private key of DID keyAgreement not found (kid=%s)", kak)
 			}
 			if err != nil {

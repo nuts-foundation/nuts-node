@@ -152,7 +152,7 @@ func (client *Crypto) Resolve(kid string) (Key, error) {
 	keypair, err := client.Storage.GetPrivateKey(kid)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			return nil, ErrKeyNotFound
+			return nil, ErrPrivateKeyNotFound
 		}
 		return nil, err
 	}

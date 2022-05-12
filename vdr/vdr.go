@@ -196,7 +196,7 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 		log.Logger().Infof("DID Document updated (DID=%s)", id)
 	} else {
 		log.Logger().WithError(err).Warn("Unable to update DID document")
-		if errors.Is(err, crypto.ErrKeyNotFound) {
+		if errors.Is(err, crypto.ErrPrivateKeyNotFound) {
 			return types.ErrDIDNotManagedByThisNode
 		}
 	}
@@ -223,7 +223,7 @@ func (r VDR) resolveControllerWithKey(doc did.Document) (did.Document, crypto.Ke
 		}
 	}
 
-	if errors.Is(err, crypto.ErrKeyNotFound) {
+	if errors.Is(err, crypto.ErrPrivateKeyNotFound) {
 		return did.Document{}, nil, types.ErrDIDNotManagedByThisNode
 	}
 

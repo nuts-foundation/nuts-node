@@ -23,8 +23,8 @@ import (
 	"errors"
 )
 
-// ErrKeyNotFound is returned when the key should not exists but does
-var ErrKeyNotFound = errors.New("key not found")
+// ErrPrivateKeyNotFound is returned when the private key doesn't exist
+var ErrPrivateKeyNotFound = errors.New("private key not found")
 
 // KIDNamingFunc is a function passed to New() which generates the kid for the pub/priv key
 type KIDNamingFunc func(key crypto.PublicKey) (string, error)
@@ -41,7 +41,7 @@ type KeyResolver interface {
 	// Exists returns if the specified private key exists.
 	// If an error occurs, false is also returned
 	Exists(kid string) bool
-	// Resolve returns a Key for the given KID. ErrKeyNotFound is returned for an unknown KID.
+	// Resolve returns a Key for the given KID. ErrPrivateKeyNotFound is returned for an unknown KID.
 	Resolve(kid string) (Key, error)
 	// List returns the KIDs of the private keys that are present in the KeyStore.
 	List() []string
@@ -64,7 +64,7 @@ type Decrypter interface {
 // JWTSigner is the interface used to sign authorization tokens.
 type JWTSigner interface {
 	// SignJWT creates a signed JWT using the indicated key and map of claims.
-	// Returns ErrKeyNotFound when indicated private key is not present.
+	// Returns ErrPrivateKeyNotFound when indicated private key is not present.
 	SignJWT(claims map[string]interface{}, kid string) (string, error)
 }
 
