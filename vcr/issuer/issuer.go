@@ -228,7 +228,7 @@ func (i issuer) isRevoked(credentialID ssi.URI) (bool, error) {
 	case ErrNotFound:
 		return false, nil
 	default:
-		return false, err
+		return true, err
 	}
 }
 
