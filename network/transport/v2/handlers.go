@@ -248,21 +248,23 @@ func (p *protocol) handleGossip(peer transport.Peer, envelope *Envelope) error {
 	// TODO swap for trace logging
 	log.Logger().Infof("received %d new transaction references via Gossip", len(refs))
 
-	// send State if node is missing more refs than referenced in this Gossip
-	tempXor := xor.Xor(refs...)
-	if msg.LC >= clock && !tempXor.Equals(peerXor) {
-		// TODO swap for trace logging
-		log.Logger().Infof("xor is different from peer=%s and peers clock is equal or higher", peer.ID)
-		return p.sender.sendState(peer.ID, xor, clock)
-	}
-
 	// request missing refs
-	if len(refs) > 0 {
+	// If our DAG is just missing the TXs from the gossip to get in sync with the peer's DAG, send TransactionListQuery.
+	// Test this by XORing the TX refs from the gossip message with our DAG's XOR (should then equal peer DAG's XOR).
+	// If the XORs are not equal and the peer is behind, still request the missing refs if there are any.
+	tempXor := xor.Xor(refs...)
+	if tempXor.Equals(peerXor) || (msg.LC < clock && len(refs) > 0) {
 		return p.sender.sendTransactionListQuery(peer.ID, refs)
 	}
 
-	// peer is behind
-	return nil
+	// send State if node is missing more refs than referenced in this Gossip
+	// TODO swap for trace logging
+	if len(refs) == 0 {
+		log.Logger().Infof("xor is different from peer=%s but Gossip contained no new transactions", peer.ID)
+	} else {
+		log.Logger().Infof("xor is different from peer=%s and peers clock is equal or higher", peer.ID)
+	}
+	return p.sender.sendState(peer.ID, xor, clock)
 }
 
 func (p *protocol) handleTransactionListQuery(peer transport.Peer, envelope *Envelope) error {
