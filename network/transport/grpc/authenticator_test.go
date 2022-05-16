@@ -121,6 +121,21 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 	})
 	t.Run("with acceptUnauthenticated", func(t *testing.T) {
 		transportPeer := transport.Peer{AcceptUnauthenticated: true}
+		expectedPeer := transport.Peer{
+			AcceptUnauthenticated: true,
+			NodeDID:               nodeDID,
+		}
+		t.Run("ok", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			serviceResolver := doc.NewMockServiceResolver(ctrl)
+			serviceResolver.EXPECT().Resolve(query, gomock.Any()).Return(did.Service{}, types.ErrNotFound)
+			authenticator := NewTLSAuthenticator(serviceResolver)
+
+			authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transportPeer)
+
+			assert.NoError(t, err)
+			assert.Equal(t, expectedPeer, authenticatedPeer)
+		})
 		t.Run("not authenticated, DNS names do not match", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			serviceResolver := doc.NewMockServiceResolver(ctrl)
@@ -130,12 +145,12 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 			authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transportPeer)
 
 			assert.NoError(t, err)
-			assert.Equal(t, transportPeer, authenticatedPeer)
+			assert.Equal(t, expectedPeer, authenticatedPeer)
 		})
 		t.Run("no TLS info", func(t *testing.T) {
 			authenticatedPeer, err := NewTLSAuthenticator(nil).Authenticate(nodeDID, peer.Peer{}, transportPeer)
 			assert.NoError(t, err)
-			assert.Equal(t, transportPeer, authenticatedPeer)
+			assert.Equal(t, expectedPeer, authenticatedPeer)
 		})
 		t.Run("DID document not found", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
@@ -146,7 +161,7 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 			authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transportPeer)
 
 			assert.NoError(t, err)
-			assert.Equal(t, transportPeer, authenticatedPeer)
+			assert.Equal(t, expectedPeer, authenticatedPeer)
 		})
 	})
 }

@@ -51,6 +51,7 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 	withOverride := func(peer transport.Peer, err error) (transport.Peer, error) {
 		if peer.AcceptUnauthenticated {
 			log.Logger().Warnf("Connection manually authenticated, authentication error: %v", err)
+			peer.NodeDID = nodeDID
 			return peer, nil
 		}
 		return peer, err
