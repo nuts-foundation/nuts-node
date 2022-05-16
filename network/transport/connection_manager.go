@@ -30,7 +30,7 @@ type ConnectionOption func(peer *Peer)
 // The node.DID authentication on a connection will always succeed. Actions that require the node.DID will fail.
 func WithUnauthenticated() ConnectionOption {
 	return func(peer *Peer) {
-		peer.	AcceptUnauthenticated = true
+		peer.AcceptUnauthenticated = true
 	}
 }
 
