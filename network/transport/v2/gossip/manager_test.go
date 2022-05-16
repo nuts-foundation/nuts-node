@@ -97,6 +97,7 @@ func TestManager_PeerDisconnected(t *testing.T) {
 		defer goleak.VerifyNone(t)
 
 		gMan := giveMeAgMan(t)
+		gMan.interval = time.Millisecond
 		peer := transport.Peer{ID: "1"}
 		gMan.peers["2"] = gMan.peers["1"]
 
@@ -170,7 +171,7 @@ func TestManager_callSenders(t *testing.T) {
 func giveMeAgMan(t *testing.T) *manager {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(func() { cancel() })
-	gMan := NewManager(ctx, time.Millisecond).(*manager)
+	gMan := NewManager(ctx, time.Second).(*manager)
 
 	return gMan
 }
