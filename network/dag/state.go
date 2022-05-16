@@ -106,15 +106,13 @@ func (s *state) RegisterObserver(observer Observer, transactional bool) {
 }
 
 func (s *state) treeObserver(ctx context.Context, transaction Transaction, payload []byte) error {
-	if transaction != nil {
-		if (len(transaction.PAL()) > 0 && payload == nil) || // for private transactions we want the event without payload
-			(len(transaction.PAL()) == 0 && payload != nil) { // for public transactions we want the event with payload
-			if err := s.ibltTree.dagObserver(ctx, transaction, nil); err != nil {
-				return err
-			}
-			if err := s.xorTree.dagObserver(ctx, transaction, nil); err != nil {
-				return err
-			}
+	// notifications are sent with and without payload or without payload only
+	if transaction != nil && payload == nil {
+		if err := s.ibltTree.dagObserver(ctx, transaction, nil); err != nil {
+			return err
+		}
+		if err := s.xorTree.dagObserver(ctx, transaction, nil); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -146,7 +144,17 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 			return err
 		}
 
-		return s.notifyObservers(contextWithTX, transaction, payload)
+		// The double notification call makes sure that the node that created the TX gets the same amount of
+		// notifications as a node that received the TX from the network.
+		// Give a private transaction, both the receiver and creator get 2 notifications: 1 with payload and 1 without.
+		// The creator gets both from here while the receiver gets the notification with payload via WritePayload.
+		// For public transactions, all nodes get 2 notifications: 1 with and 1 without a payload.
+		if payload != nil {
+			if err := s.notifyObservers(contextWithTX, transaction, payload); err != nil {
+				return err
+			}
+		}
+		return s.notifyObservers(contextWithTX, transaction, nil)
 	})
 }
 

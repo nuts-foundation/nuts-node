@@ -205,7 +205,9 @@ func TestState_Observe(t *testing.T) {
 		var actualPayload []byte
 		txState.RegisterObserver(func(ctx context.Context, transaction Transaction, payload []byte) error {
 			actualTX = transaction
-			actualPayload = payload
+			if payload != nil {
+				actualPayload = payload
+			}
 			return nil
 		}, false)
 		expected := CreateTestTransactionWithJWK(1)
@@ -376,7 +378,7 @@ func TestState_treeObserver(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	t.Run("no callback for public transaction without payload", func(t *testing.T) {
+	t.Run("callback for public transaction without payload", func(t *testing.T) {
 		txState := setup(t)
 		tx := CreateTestTransactionWithJWK(1)
 
@@ -387,22 +389,7 @@ func TestState_treeObserver(t *testing.T) {
 		}
 
 		xor, _ := txState.XOR(ctx, 1)
-		assert.True(t, hash.EmptyHash().Equals(xor))
-	})
-
-	t.Run("no callback for private transaction with payload", func(t *testing.T) {
-		txState := setup(t)
-		payload := []byte("payload")
-		tx, _, _ := CreateTestTransactionEx(1, hash.SHA256Sum(payload), [][]byte{{0x1}})
-
-		err := txState.Add(ctx, tx, payload)
-
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		xor, _ := txState.XOR(ctx, 1)
-		assert.True(t, hash.EmptyHash().Equals(xor))
+		assert.False(t, hash.EmptyHash().Equals(xor))
 	})
 }
 

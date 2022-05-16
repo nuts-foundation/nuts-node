@@ -43,7 +43,7 @@ type State interface {
 	// Deprecated: remove with V1 protocol
 	ReadManyPayloads(ctx context.Context, consumer func(context.Context, PayloadReader) error) error
 
-	// Add a transactions to the DAG. If it can't be added an error is returned.
+	// Add a transaction to the DAG. If it can't be added an error is returned.
 	// If the transaction already exists, nothing is added and no observers are notified.
 	// The payload may be passed as well. Allowing for better notification of observers
 	Add(ctx context.Context, transactions Transaction, payload []byte) error
