@@ -27,7 +27,7 @@ import (
 )
 
 // MinTLSVersion defines the minimal TLS version used by all components that use TLS
-const MinTLSVersion uint16 = tls.VersionTLS13
+const MinTLSVersion uint16 = tls.VersionTLS12
 
 func parseCertificates(data []byte) (certificates []*x509.Certificate, _ error) {
 	for len(data) > 0 {
