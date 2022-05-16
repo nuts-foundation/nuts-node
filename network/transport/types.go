@@ -56,7 +56,7 @@ type Peer struct {
 	// NodeDID holds the DID that the peer uses to identify its node on the network.
 	// It is only set when properly authenticated.
 	NodeDID did.DID
-	// AcceptUnauthenticated indicates if a connection may be made with this Peer even if the NodeDID is not set.
+	// AcceptUnauthenticated indicates if a connection may be made with this Peer even if the NodeDID could not be authenticated.
 	AcceptUnauthenticated bool
 }
 
