@@ -97,7 +97,6 @@ func Test_defaultMessageSender_sendTransactionList(t *testing.T) {
 		const numberOfTXs = 100     // number of transactions this test produces
 		const maxMessageSize = 6000 // max. message size in bytes
 		const dataSize = 100        // number of bytes added to the TX to make them a bit larger
-		const numberOfMessages = 4  // expected number of pages when the transaction list is sent
 
 		var txs []dag.Transaction
 		for i := 0; i < numberOfTXs; i++ {
@@ -116,7 +115,7 @@ func Test_defaultMessageSender_sendTransactionList(t *testing.T) {
 				sentMessages[tx.Data[0]] = true
 			}
 			return nil
-		}).Times(numberOfMessages)
+		}).AnyTimes()
 		sender.sendTransactionList(peerID, txs, blockDate)
 
 		assert.Len(t, sentMessages, numberOfTXs)
