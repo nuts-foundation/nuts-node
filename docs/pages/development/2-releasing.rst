@@ -16,7 +16,7 @@ They follow the major version from the Nuts Node, but minor and patch versions m
 Major release
 *************
 
-A major release starts with version number `<major>.0.0`. Every Nuts Node release has a name (e.g. "Brazil") and a version number.
+A major release starts with version number ``<major>.0.0``. Every Nuts Node release has a name (e.g. "Brazil") and a version number.
 A release consists of a Git tag and a release in Github with release notes. Releases are created according to the following format:
 
 - Git tag: ``v<major>.<minor>.<patch>``, e.g. ``v2.0.0``
