@@ -167,10 +167,6 @@ func (s *state) FindBetweenLC(ctx context.Context, startInclusive uint32, endExc
 	return s.graph.findBetweenLC(ctx, startInclusive, endExclusive)
 }
 
-func (s *state) GetByPayloadHash(ctx context.Context, payloadHash hash.SHA256Hash) ([]Transaction, error) {
-	return s.graph.GetByPayloadHash(ctx, payloadHash)
-}
-
 func (s *state) GetTransaction(ctx context.Context, hash hash.SHA256Hash) (Transaction, error) {
 	return s.graph.Get(ctx, hash)
 }
@@ -192,14 +188,6 @@ func (s *state) WritePayload(ctx context.Context, transaction Transaction, paylo
 		}
 		return err
 	})
-}
-
-func (s *state) PayloadHashes(ctx context.Context, visitor func(payloadHash hash.SHA256Hash) error) error {
-	return s.graph.PayloadHashes(ctx, visitor)
-}
-
-func (s *state) ReadManyPayloads(ctx context.Context, consumer func(context.Context, PayloadReader) error) error {
-	return s.payloadStore.ReadManyPayloads(ctx, consumer)
 }
 
 func (s *state) ReadPayload(ctx context.Context, hash hash.SHA256Hash) ([]byte, error) {
