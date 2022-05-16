@@ -116,7 +116,7 @@ func Test_defaultMessageSender_sendTransactionList(t *testing.T) {
 				sentMessages[tx.Data[0]] = true
 			}
 			return nil
-		}).Times(numberOfMessages)
+		}).MinTimes(numberOfMessages)
 		sender.sendTransactionList(peerID, txs, blockDate)
 
 		assert.Len(t, sentMessages, numberOfTXs)
