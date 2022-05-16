@@ -31,7 +31,7 @@ import (
 
 // estimatedMessageSizeMargin defines the factor by which the message size is multiplied, as a safety measure to avoid
 // accidentally exceeding the max Protobuf message size.
-const estimatedMessageSizeMargin = 0.75
+const estimatedMessageSizeMargin = 0.5
 
 // messageSender provides a domain-specific abstraction for sending messages to the network. It aids testing and
 // implementation of non-functional requirements like throttling.
