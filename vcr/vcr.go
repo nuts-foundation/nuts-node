@@ -452,7 +452,20 @@ func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
 				return err
 			}
 			trustMap[issuer] = true
-			untrusted = append(untrusted, *u)
+
+			// only add to untrusted if issuer is not deactivated or has active controllers
+			issuerDid, err := did.ParseDIDURL(issuer)
+			if err != nil {
+				return err
+			}
+			_, _, err = c.docResolver.Resolve(*issuerDid, nil)
+			if err != nil {
+				if !(errors.Is(err, did.DeactivatedErr) || errors.Is(err, vdr.ErrNoActiveController)) {
+					return err
+				}
+			} else {
+				untrusted = append(untrusted, *u)
+			}
 		}
 		return nil
 	})

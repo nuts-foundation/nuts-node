@@ -25,8 +25,6 @@ import (
 	"errors"
 	"os"
 	"path"
-	"reflect"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -331,6 +329,8 @@ func TestVcr_Validate(t *testing.T) {
 
 func TestVcr_Untrusted(t *testing.T) {
 	instance := NewTestVCRInstance(t)
+	mockDocResolver := types.NewMockDocResolver(gomock.NewController(t))
+	instance.docResolver = mockDocResolver
 	testCredential := vc.VerifiableCredential{}
 	_ = json.Unmarshal([]byte(jsonld.TestOrganizationCredential), &testCredential)
 
@@ -347,44 +347,52 @@ func TestVcr_Untrusted(t *testing.T) {
 	// for duplicate detection
 	_ = instance.credentialCollection().Add([]leia.Document{doc2})
 
-	funcs := []func(ssi.URI) ([]ssi.URI, error){
-		instance.Trusted,
-		instance.Untrusted,
+	t.Run("Trusted", func(t *testing.T) {
+		confirmTrustedStatus(t, instance, testCredential.Issuer, instance.Trusted, 1)
+		confirmUntrustedStatus(t, instance.Trusted, 0)
+	})
+	t.Run("Untrusted", func(t *testing.T) {
+		confirmTrustedStatus(t, instance, testCredential.Issuer, instance.Untrusted, 0)
+		confirmUntrustedStatus(t, func(issuer ssi.URI) ([]ssi.URI, error) {
+			mockDocResolver.EXPECT().Resolve(did.MustParseDIDURL(testCredential.Issuer.String()), nil).Return(nil, nil, nil)
+			return instance.Untrusted(issuer)
+		}, 1)
+	})
+	t.Run("Untrusted - did deactivated", func(t *testing.T) {
+		confirmUntrustedStatus(t, func(issuer ssi.URI) ([]ssi.URI, error) {
+			mockDocResolver.EXPECT().Resolve(did.MustParseDIDURL(testCredential.Issuer.String()), nil).Return(nil, nil, did.DeactivatedErr)
+			return instance.Untrusted(issuer)
+		}, 0)
+	})
+	t.Run("Untrusted - no active controller", func(t *testing.T) {
+		confirmUntrustedStatus(t, func(issuer ssi.URI) ([]ssi.URI, error) {
+			mockDocResolver.EXPECT().Resolve(did.MustParseDIDURL(testCredential.Issuer.String()), nil).Return(nil, nil, types.ErrNoActiveController)
+			return instance.Untrusted(issuer)
+		}, 0)
+	})
+}
+func confirmUntrustedStatus(t *testing.T, fn func(issuer ssi.URI) ([]ssi.URI, error), numUntrusted int) {
+	trusted, err := fn(ssi.MustParseURI("NutsOrganizationCredential"))
+
+	if !assert.NoError(t, err) {
+		return
 	}
 
-	outcomes := [][]int{
-		{0, 1},
-		{1, 0},
+	assert.Len(t, trusted, numUntrusted)
+}
+
+func confirmTrustedStatus(t *testing.T, trustManager TrustManager, issuer ssi.URI, fn func(issuer ssi.URI) ([]ssi.URI, error), numTrusted int) {
+	trustManager.Trust(ssi.MustParseURI("NutsOrganizationCredential"), issuer)
+	defer func() {
+		trustManager.Untrust(ssi.MustParseURI("NutsOrganizationCredential"), issuer)
+	}()
+	trusted, err := fn(ssi.MustParseURI("NutsOrganizationCredential"))
+
+	if !assert.NoError(t, err) {
+		return
 	}
 
-	for i, fn := range funcs {
-		name := runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name()
-		t.Run(name, func(t *testing.T) {
-			t.Run("ok - untrusted", func(t *testing.T) {
-				trusted, err := fn(ssi.MustParseURI("NutsOrganizationCredential"))
-
-				if !assert.NoError(t, err) {
-					return
-				}
-
-				assert.Len(t, trusted, outcomes[i][0])
-			})
-
-			t.Run("ok - trusted", func(t *testing.T) {
-				instance.Trust(ssi.MustParseURI("NutsOrganizationCredential"), testCredential.Issuer)
-				defer func() {
-					instance.Untrust(ssi.MustParseURI("NutsOrganizationCredential"), testCredential.Issuer)
-				}()
-				trusted, err := fn(ssi.MustParseURI("NutsOrganizationCredential"))
-
-				if !assert.NoError(t, err) {
-					return
-				}
-
-				assert.Len(t, trusted, outcomes[i][1])
-			})
-		})
-	}
+	assert.Len(t, trusted, numTrusted)
 }
 
 func TestVcr_verifyRevocation(t *testing.T) {
