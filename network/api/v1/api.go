@@ -29,6 +29,10 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport"
 )
 
+var _ ServerInterface = (*Wrapper)(nil)
+var _ Preprocessor = (*Wrapper)(nil)
+var _ core.RoutableWithSpec = (*Wrapper)(nil)
+
 // Wrapper implements the ServerInterface for the network API.
 type Wrapper struct {
 	Service network.Transactions
@@ -40,8 +44,20 @@ func (a *Wrapper) Preprocess(operationID string, context echo.Context) {
 	context.Set(core.ModuleNameContextKey, network.ModuleName)
 }
 
-func (a *Wrapper) Routes(router core.EchoRouter) {
+func (a Wrapper) Routes(router core.EchoRouter) {
 	RegisterHandlers(router, a)
+}
+
+func (a Wrapper) Version() int {
+	return 1
+}
+
+func (a Wrapper) Name() string {
+	return network.ModuleName
+}
+
+func (a Wrapper) JsonSpec() ([]byte, error) {
+	return rawSpec()
 }
 
 // ListTransactions lists all transactions

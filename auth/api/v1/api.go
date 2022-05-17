@@ -41,6 +41,7 @@ import (
 
 var _ ServerInterface = (*Wrapper)(nil)
 var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
+var _ core.RoutableWithSpec = (*Wrapper)(nil)
 
 const (
 	errOauthInvalidRequest   = "invalid_request"
@@ -73,9 +74,28 @@ func (w *Wrapper) Preprocess(operationID string, context echo.Context) {
 	context.Set(core.ModuleNameContextKey, auth.ModuleName)
 }
 
+func (w Wrapper) Version() int {
+	return 1
+}
+
+func (w Wrapper) Name() string {
+	return auth.ModuleName
+}
+
+func (w Wrapper) JsonSpec() ([]byte, error) {
+	return rawSpec()
+}
+
 // Routes registers the Echo routes for the API.
 func (w *Wrapper) Routes(router core.EchoRouter) {
 	RegisterHandlers(router, w)
+	router.GET("/spec/auth/v1.yaml", func(c echo.Context) error {
+		spec, err := rawSpec()
+		if err != nil {
+			return err
+		}
+		return c.Blob(http.StatusOK, "application/json", spec)
+	})
 }
 
 // VerifySignature handles the VerifySignature http request.

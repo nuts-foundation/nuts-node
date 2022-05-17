@@ -29,6 +29,7 @@ import (
 
 var _ ServerInterface = (*Wrapper)(nil)
 var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
+var _ core.RoutableWithSpec = (*Wrapper)(nil)
 
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {
@@ -47,6 +48,18 @@ func (w *Wrapper) Preprocess(operationID string, context echo.Context) {
 	context.Set(core.StatusCodeResolverContextKey, w)
 	context.Set(core.OperationIDContextKey, operationID)
 	context.Set(core.ModuleNameContextKey, crypto.ModuleName)
+}
+
+func (w *Wrapper) Version() int {
+	return 1
+}
+
+func (w *Wrapper) Name() string {
+	return crypto.ModuleName
+}
+
+func (w *Wrapper) JsonSpec() ([]byte, error) {
+	return rawSpec()
 }
 
 func (w *Wrapper) Routes(router core.EchoRouter) {

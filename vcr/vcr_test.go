@@ -201,7 +201,7 @@ func TestVcr_Instance(t *testing.T) {
 	instance := NewTestVCRInstance(t)
 
 	t.Run("ok - name", func(t *testing.T) {
-		assert.Equal(t, moduleName, instance.Name())
+		assert.Equal(t, ModuleName, instance.Name())
 	})
 
 	t.Run("ok - config defaults", func(t *testing.T) {

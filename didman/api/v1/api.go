@@ -38,10 +38,23 @@ import (
 
 var _ ServerInterface = (*Wrapper)(nil)
 var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
+var _ core.RoutableWithSpec = (*Wrapper)(nil)
 
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {
 	Didman didman.Didman
+}
+
+func (w Wrapper) Version() int {
+	return 1
+}
+
+func (w Wrapper) Name() string {
+	return didman.ModuleName
+}
+
+func (w Wrapper) JsonSpec() ([]byte, error) {
+	return rawSpec()
 }
 
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.

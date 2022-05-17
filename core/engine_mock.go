@@ -33,6 +33,21 @@ func (m *MockRoutable) EXPECT() *MockRoutableMockRecorder {
 	return m.recorder
 }
 
+// JsonSpec mocks base method.
+func (m *MockRoutable) JsonSpec() ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "JsonSpec")
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// JsonSpec indicates an expected call of JsonSpec.
+func (mr *MockRoutableMockRecorder) JsonSpec() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JsonSpec", reflect.TypeOf((*MockRoutable)(nil).JsonSpec))
+}
+
 // Routes mocks base method.
 func (m *MockRoutable) Routes(router EchoRouter) {
 	m.ctrl.T.Helper()
@@ -43,6 +58,20 @@ func (m *MockRoutable) Routes(router EchoRouter) {
 func (mr *MockRoutableMockRecorder) Routes(router interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Routes", reflect.TypeOf((*MockRoutable)(nil).Routes), router)
+}
+
+// Version mocks base method.
+func (m *MockRoutable) Version() int {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Version")
+	ret0, _ := ret[0].(int)
+	return ret0
+}
+
+// Version indicates an expected call of Version.
+func (mr *MockRoutableMockRecorder) Version() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Version", reflect.TypeOf((*MockRoutable)(nil).Version))
 }
 
 // MockRunnable is a mock of Runnable interface.

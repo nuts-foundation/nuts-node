@@ -21,6 +21,7 @@ package v1
 
 import (
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr"
 	"net/http"
 	"time"
 
@@ -35,6 +36,7 @@ import (
 
 var _ ServerInterface = (*Wrapper)(nil)
 var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
+var _ core.RoutableWithSpec = (*Wrapper)(nil)
 
 // Wrapper is needed to connect the implementation to the echo ServiceWrapper
 type Wrapper struct {
@@ -61,6 +63,18 @@ func (a *Wrapper) Preprocess(operationID string, context echo.Context) {
 	context.Set(core.StatusCodeResolverContextKey, a)
 	context.Set(core.OperationIDContextKey, operationID)
 	context.Set(core.ModuleNameContextKey, "VDR")
+}
+
+func (a Wrapper) Version() int {
+	return 1
+}
+
+func (a Wrapper) Name() string {
+	return vdr.ModuleName
+}
+
+func (a Wrapper) JsonSpec() ([]byte, error) {
+	return rawSpec()
 }
 
 // DeleteVerificationMethod accepts a DID and a KeyIdentifier of a verificationMethod and calls the DocManipulator

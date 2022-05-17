@@ -929,6 +929,20 @@ func TestWrapper_Preprocess(t *testing.T) {
 	w.Preprocess("foo", ctx)
 }
 
+func TestWrapper_Version(t *testing.T) {
+	assert.Equal(t, 2, (&Wrapper{}).Version())
+}
+
+func TestWrapper_Name(t *testing.T) {
+	assert.Equal(t, "VCR", (&Wrapper{}).Name())
+}
+
+func TestWrapper_JsonSpec(t *testing.T) {
+	data, err := (&Wrapper{}).JsonSpec()
+	assert.NoError(t, err)
+	assert.NotNil(t, data)
+}
+
 type mockContext struct {
 	ctrl         *gomock.Controller
 	echo         *mock.MockContext

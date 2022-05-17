@@ -33,6 +33,16 @@ type Routable interface {
 	Routes(router EchoRouter)
 }
 
+type RoutableWithSpec interface {
+	Routable
+	// Version returns the version number of the API.
+	Version() int
+	// JsonSpec returns the OpenAPI specification for the API in JSON format.
+	JsonSpec() ([]byte, error)
+	// Name returns an identifying name of the API by which it can be recognized.
+	Name() string
+}
+
 // NewSystem creates a new, empty System.
 func NewSystem() *System {
 	serverCfg := NewServerConfig()

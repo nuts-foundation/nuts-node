@@ -655,6 +655,21 @@ func TestWrapper_SearchOrganizations(t *testing.T) {
 	})
 }
 
+
+func TestWrapper_Version(t *testing.T) {
+	assert.Equal(t, 1, (&Wrapper{}).Version())
+}
+
+func TestWrapper_Name(t *testing.T) {
+	assert.Equal(t, "DIDMan", (&Wrapper{}).Name())
+}
+
+func TestWrapper_JsonSpec(t *testing.T) {
+	data, err := (&Wrapper{}).JsonSpec()
+	assert.NoError(t, err)
+	assert.NotNil(t, data)
+}
+
 type mockContext struct {
 	ctrl    *gomock.Controller
 	echo    *mock.MockContext

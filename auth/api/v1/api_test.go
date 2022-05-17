@@ -1094,3 +1094,18 @@ func TestWrapper_VerifySignature(t *testing.T) {
 		assert.EqualError(t, err, "unable to verify the verifiable presentation: verification error")
 	})
 }
+
+
+func TestWrapper_Version(t *testing.T) {
+	assert.Equal(t, 1, (&Wrapper{}).Version())
+}
+
+func TestWrapper_Name(t *testing.T) {
+	assert.Equal(t, "Auth", (&Wrapper{}).Name())
+}
+
+func TestWrapper_JsonSpec(t *testing.T) {
+	data, err := (&Wrapper{}).JsonSpec()
+	assert.NoError(t, err)
+	assert.NotNil(t, data)
+}

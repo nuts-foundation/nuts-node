@@ -41,6 +41,10 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 )
 
+var _ ServerInterface = (*Wrapper)(nil)
+var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
+var _ core.RoutableWithSpec = (*Wrapper)(nil)
+
 var clockFn = func() time.Time {
 	return time.Now()
 }
@@ -74,6 +78,18 @@ func (w *Wrapper) Preprocess(operationID string, context echo.Context) {
 	context.Set(core.StatusCodeResolverContextKey, w)
 	context.Set(core.OperationIDContextKey, operationID)
 	context.Set(core.ModuleNameContextKey, "VCR")
+}
+
+func (w *Wrapper) Version() int {
+	return 2
+}
+
+func (w *Wrapper) JsonSpec() ([]byte, error) {
+	return rawSpec()
+}
+
+func (w *Wrapper) Name() string {
+	return vcr.ModuleName
 }
 
 // IssueVC handles the API request for credential issuing.

@@ -27,6 +27,8 @@ import (
 	"strings"
 )
 
+var _ core.Routable = (*Wrapper)(nil)
+
 // Wrapper bridges Echo routes to the server backend.
 type Wrapper struct {
 	Auth auth.AuthenticationServices
