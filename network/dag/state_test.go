@@ -170,7 +170,7 @@ func TestState_Observe(t *testing.T) {
 				ctx := context.Background()
 				txState := createState(t)
 				var actual bool
-				txState.RegisterObserver(func(ctx context.Context, transaction Transaction, _ []byte) error {
+				txState.RegisterTransactionObserver(func(ctx context.Context, transaction Transaction) error {
 					_, actual = storage.BBoltTX(ctx)
 					return nil
 				}, expected)
@@ -187,7 +187,7 @@ func TestState_Observe(t *testing.T) {
 		ctx := context.Background()
 		txState := createState(t)
 		var actual Transaction
-		txState.RegisterObserver(func(ctx context.Context, transaction Transaction, _ []byte) error {
+		txState.RegisterTransactionObserver(func(ctx context.Context, transaction Transaction) error {
 			actual = transaction
 			return nil
 		}, false)
@@ -203,11 +203,12 @@ func TestState_Observe(t *testing.T) {
 		txState := createState(t)
 		var actualTX Transaction
 		var actualPayload []byte
-		txState.RegisterObserver(func(ctx context.Context, transaction Transaction, payload []byte) error {
+		txState.RegisterTransactionObserver(func(ctx context.Context, transaction Transaction) error {
 			actualTX = transaction
-			if payload != nil {
-				actualPayload = payload
-			}
+			return nil
+		}, false)
+		txState.RegisterPayloadObserver(func(ctx context.Context, transaction Transaction, payload []byte) error {
+			actualPayload = payload
 			return nil
 		}, false)
 		expected := CreateTestTransactionWithJWK(1)
@@ -231,7 +232,7 @@ func TestState_Observe(t *testing.T) {
 		ctx := context.Background()
 		txState := createState(t)
 		var actual []byte
-		txState.RegisterObserver(func(ctx context.Context, tx Transaction, payload []byte) error {
+		txState.RegisterPayloadObserver(func(ctx context.Context, tx Transaction, payload []byte) error {
 			actual = payload
 			return nil
 		}, false)

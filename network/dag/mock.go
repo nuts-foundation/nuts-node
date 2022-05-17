@@ -214,16 +214,28 @@ func (mr *MockStateMockRecorder) ReadPayload(ctx, payloadHash interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadPayload", reflect.TypeOf((*MockState)(nil).ReadPayload), ctx, payloadHash)
 }
 
-// RegisterObserver mocks base method.
-func (m *MockState) RegisterObserver(observer Observer, transactional bool) {
+// RegisterPayloadObserver mocks base method.
+func (m *MockState) RegisterPayloadObserver(observer PayloadObserver, transactional bool) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "RegisterObserver", observer, transactional)
+	m.ctrl.Call(m, "RegisterPayloadObserver", observer, transactional)
 }
 
-// RegisterObserver indicates an expected call of RegisterObserver.
-func (mr *MockStateMockRecorder) RegisterObserver(observer, transactional interface{}) *gomock.Call {
+// RegisterPayloadObserver indicates an expected call of RegisterPayloadObserver.
+func (mr *MockStateMockRecorder) RegisterPayloadObserver(observer, transactional interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterObserver", reflect.TypeOf((*MockState)(nil).RegisterObserver), observer, transactional)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterPayloadObserver", reflect.TypeOf((*MockState)(nil).RegisterPayloadObserver), observer, transactional)
+}
+
+// RegisterTransactionObserver mocks base method.
+func (m *MockState) RegisterTransactionObserver(observer Observer, transactional bool) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "RegisterTransactionObserver", observer, transactional)
+}
+
+// RegisterTransactionObserver indicates an expected call of RegisterTransactionObserver.
+func (mr *MockStateMockRecorder) RegisterTransactionObserver(observer, transactional interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterTransactionObserver", reflect.TypeOf((*MockState)(nil).RegisterTransactionObserver), observer, transactional)
 }
 
 // Shutdown mocks base method.

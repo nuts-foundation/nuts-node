@@ -48,16 +48,18 @@ const (
 
 // State has references to the DAG and the payload store.
 type state struct {
-	db                        *bbolt.DB
-	graph                     *bboltDAG
-	payloadStore              PayloadStore
-	transactionalObservers    []Observer
-	nonTransactionalObservers []Observer
-	keyResolver               types.KeyResolver
-	publisher                 Publisher
-	txVerifiers               []Verifier
-	xorTree                   *bboltTree
-	ibltTree                  *bboltTree
+	db                               *bbolt.DB
+	graph                            *bboltDAG
+	payloadStore                     PayloadStore
+	transactionalObservers           []Observer
+	nonTransactionalObservers        []Observer
+	transactionalPayloadObservers    []PayloadObserver
+	nonTransactionalPayloadObservers []PayloadObserver
+	keyResolver                      types.KeyResolver
+	publisher                        Publisher
+	txVerifiers                      []Verifier
+	xorTree                          *bboltTree
+	ibltTree                         *bboltTree
 }
 
 // NewState returns a new State. The State is used as entry point, it's methods will start transactions and will notify observers from within those transactions.
@@ -91,31 +93,32 @@ func NewState(dataDir string, verifiers ...Verifier) (State, error) {
 	ibltTree := newBBoltTreeStore(db, "ibltBucket", tree.New(tree.NewIblt(IbltNumBuckets), PageSize))
 	newState.xorTree = xorTree
 	newState.ibltTree = ibltTree
-	newState.RegisterObserver(newState.treeObserver, true)
+	newState.RegisterTransactionObserver(newState.treeObserver, true)
 
 	return newState, nil
 }
 
-func (s *state) RegisterObserver(observer Observer, transactional bool) {
+func (s *state) RegisterTransactionObserver(observer Observer, transactional bool) {
 	if transactional {
 		s.transactionalObservers = append(s.transactionalObservers, observer)
 	} else {
 		s.nonTransactionalObservers = append(s.nonTransactionalObservers, observer)
 	}
-
 }
 
-func (s *state) treeObserver(ctx context.Context, transaction Transaction, payload []byte) error {
-	// notifications are sent with and without payload or without payload only
-	if transaction != nil && payload == nil {
-		if err := s.ibltTree.dagObserver(ctx, transaction, nil); err != nil {
-			return err
-		}
-		if err := s.xorTree.dagObserver(ctx, transaction, nil); err != nil {
-			return err
-		}
+func (s *state) RegisterPayloadObserver(observer PayloadObserver, transactional bool) {
+	if transactional {
+		s.transactionalPayloadObservers = append(s.transactionalPayloadObservers, observer)
+	} else {
+		s.nonTransactionalPayloadObservers = append(s.nonTransactionalPayloadObservers, observer)
 	}
-	return nil
+}
+
+func (s *state) treeObserver(ctx context.Context, transaction Transaction) error {
+	if err := s.ibltTree.dagObserver(ctx, transaction, nil); err != nil {
+		return err
+	}
+	return s.xorTree.dagObserver(ctx, transaction, nil)
 }
 
 func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte) error {
@@ -136,7 +139,7 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 			if !transaction.PayloadHash().Equals(payloadHash) {
 				return errors.New("tx.PayloadHash does not match hash of payload")
 			}
-			if err := s.payloadStore.WritePayload(contextWithTX, payloadHash, payload); err != nil {
+			if err := s.WritePayload(contextWithTX, transaction, payloadHash, payload); err != nil {
 				return err
 			}
 		}
@@ -144,17 +147,7 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 			return err
 		}
 
-		// The double notification call makes sure that the node that created the TX gets the same amount of
-		// notifications as a node that received the TX from the network.
-		// Give a private transaction, both the receiver and creator get 2 notifications: 1 with payload and 1 without.
-		// The creator gets both from here while the receiver gets the notification with payload via WritePayload.
-		// For public transactions, all nodes get 2 notifications: 1 with and 1 without a payload.
-		if payload != nil {
-			if err := s.notifyObservers(contextWithTX, transaction, payload); err != nil {
-				return err
-			}
-		}
-		return s.notifyObservers(contextWithTX, transaction, nil)
+		return s.notifyObservers(contextWithTX, transaction)
 	})
 }
 
@@ -196,7 +189,7 @@ func (s *state) WritePayload(ctx context.Context, transaction Transaction, paylo
 		err := s.payloadStore.WritePayload(contextWithTX, payloadHash, data)
 		if err == nil {
 			// ctx passed with bbolt transaction
-			return s.notifyObservers(contextWithTX, transaction, data)
+			return s.notifyPayloadObservers(contextWithTX, transaction, data)
 		}
 		return err
 	})
@@ -332,16 +325,42 @@ func (s *state) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA256Ha
 }
 
 // notifyObservers is called from a transactional context. The transactional observers need to be called with the TX context, the other observers after the commit.
-func (s *state) notifyObservers(ctx context.Context, transaction Transaction, payload []byte) error {
+func (s *state) notifyObservers(ctx context.Context, transaction Transaction) error {
 	// apply TX context observers
 	for _, observer := range s.transactionalObservers {
-		if err := observer(ctx, transaction, payload); err != nil {
+		if err := observer(ctx, transaction); err != nil {
 			return fmt.Errorf("observer notification failed: %w", err)
 		}
 	}
 
 	notifyNonTXObservers := func() {
 		for _, observer := range s.nonTransactionalObservers {
+			if err := observer(context.Background(), transaction); err != nil {
+				log.Logger().Errorf("observer notification failed: %v", err)
+			}
+		}
+	}
+	// check if there's an active transaction
+	tx, txIsActive := storage.BBoltTX(ctx)
+	if txIsActive { // sanity check because there should always be a transaction
+		tx.OnCommit(notifyNonTXObservers)
+	} else {
+		notifyNonTXObservers()
+	}
+	return nil
+}
+
+// notifyObservers is called from a transactional context. The transactional observers need to be called with the TX context, the other observers after the commit.
+func (s *state) notifyPayloadObservers(ctx context.Context, transaction Transaction, payload []byte) error {
+	// apply TX context observers
+	for _, observer := range s.transactionalPayloadObservers {
+		if err := observer(ctx, transaction, payload); err != nil {
+			return fmt.Errorf("observer notification failed: %w", err)
+		}
+	}
+
+	notifyNonTXObservers := func() {
+		for _, observer := range s.nonTransactionalPayloadObservers {
 			if err := observer(context.Background(), transaction, payload); err != nil {
 				log.Logger().Errorf("observer notification failed: %v", err)
 			}

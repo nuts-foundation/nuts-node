@@ -101,7 +101,7 @@ func TestDefaultConfig(t *testing.T) {
 func TestProtocol_Configure(t *testing.T) {
 	testDID, _ := did.ParseDID("did:nuts:123")
 	p, mocks := newTestProtocol(t, testDID)
-	mocks.State.EXPECT().RegisterObserver(gomock.Any(), false)
+	mocks.State.EXPECT().RegisterTransactionObserver(gomock.Any(), false)
 
 	assert.NoError(t, p.Configure(""))
 }
@@ -253,7 +253,7 @@ func TestProtocol_gossipTransaction(t *testing.T) {
 	t.Run("ok - no transaction", func(t *testing.T) {
 		proto, _ := newTestProtocol(t, nil)
 
-		proto.gossipTransaction(context.Background(), nil, nil)
+		proto.gossipTransaction(context.Background(), nil)
 	})
 
 	t.Run("ok - to gossipManager", func(t *testing.T) {
@@ -262,7 +262,7 @@ func TestProtocol_gossipTransaction(t *testing.T) {
 		mocks.State.EXPECT().XOR(context.Background(), uint32(math.MaxUint32))
 		mocks.Gossip.EXPECT().TransactionRegistered(tx.Ref(), hash.EmptyHash(), uint32(0))
 
-		proto.gossipTransaction(context.Background(), tx, nil)
+		proto.gossipTransaction(context.Background(), tx)
 	})
 }
 
