@@ -96,21 +96,6 @@ func (mr *MockStateMockRecorder) FindBetweenLC(ctx, startInclusive, endExclusive
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindBetweenLC", reflect.TypeOf((*MockState)(nil).FindBetweenLC), ctx, startInclusive, endExclusive)
 }
 
-// GetByPayloadHash mocks base method.
-func (m *MockState) GetByPayloadHash(ctx context.Context, payloadHash hash.SHA256Hash) ([]Transaction, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetByPayloadHash", ctx, payloadHash)
-	ret0, _ := ret[0].([]Transaction)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetByPayloadHash indicates an expected call of GetByPayloadHash.
-func (mr *MockStateMockRecorder) GetByPayloadHash(ctx, payloadHash interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByPayloadHash", reflect.TypeOf((*MockState)(nil).GetByPayloadHash), ctx, payloadHash)
-}
-
 // GetTransaction mocks base method.
 func (m *MockState) GetTransaction(ctx context.Context, hash hash.SHA256Hash) (Transaction, error) {
 	m.ctrl.T.Helper()
@@ -169,34 +154,6 @@ func (m *MockState) IsPresent(arg0 context.Context, arg1 hash.SHA256Hash) (bool,
 func (mr *MockStateMockRecorder) IsPresent(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsPresent", reflect.TypeOf((*MockState)(nil).IsPresent), arg0, arg1)
-}
-
-// PayloadHashes mocks base method.
-func (m *MockState) PayloadHashes(ctx context.Context, visitor func(hash.SHA256Hash) error) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PayloadHashes", ctx, visitor)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// PayloadHashes indicates an expected call of PayloadHashes.
-func (mr *MockStateMockRecorder) PayloadHashes(ctx, visitor interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PayloadHashes", reflect.TypeOf((*MockState)(nil).PayloadHashes), ctx, visitor)
-}
-
-// ReadManyPayloads mocks base method.
-func (m *MockState) ReadManyPayloads(ctx context.Context, consumer func(context.Context, PayloadReader) error) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadManyPayloads", ctx, consumer)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// ReadManyPayloads indicates an expected call of ReadManyPayloads.
-func (mr *MockStateMockRecorder) ReadManyPayloads(ctx, consumer interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadManyPayloads", reflect.TypeOf((*MockState)(nil).ReadManyPayloads), ctx, consumer)
 }
 
 // ReadPayload mocks base method.
@@ -446,20 +403,6 @@ func (m *MockPayloadStore) IsPayloadPresent(ctx context.Context, payloadHash has
 func (mr *MockPayloadStoreMockRecorder) IsPayloadPresent(ctx, payloadHash interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsPayloadPresent", reflect.TypeOf((*MockPayloadStore)(nil).IsPayloadPresent), ctx, payloadHash)
-}
-
-// ReadManyPayloads mocks base method.
-func (m *MockPayloadStore) ReadManyPayloads(ctx context.Context, consumer func(context.Context, PayloadReader) error) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadManyPayloads", ctx, consumer)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// ReadManyPayloads indicates an expected call of ReadManyPayloads.
-func (mr *MockPayloadStoreMockRecorder) ReadManyPayloads(ctx, consumer interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadManyPayloads", reflect.TypeOf((*MockPayloadStore)(nil).ReadManyPayloads), ctx, consumer)
 }
 
 // ReadPayload mocks base method.

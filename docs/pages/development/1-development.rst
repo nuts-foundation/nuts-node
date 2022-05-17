@@ -8,7 +8,7 @@ Requirements
 
 .. marker-for-readme
 
-Go >= 1.17 is required.
+Go >= 1.18 is required.
 
 Building
 ********
@@ -64,7 +64,7 @@ All              ``make run-generators``
 Docs Generation
 ***************
 
-To generate the documentation, you'll need ``python3``, ``sphinx`` and a bunch of other stuff. 
+To generate the documentation, you'll need ``python3``, ``sphinx`` and a bunch of other stuff.
 After you have installed ``python3`` (and ``pip3`` if this not already installed) run
 
 .. code-block:: shell
