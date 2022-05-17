@@ -212,8 +212,8 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		)
 	}
 
-	// register callback from DAG to other engines.
-	n.state.RegisterObserver(n.emitEvents, true)
+	// register callback from DAG to other engines, with payload only.
+	n.state.RegisterPayloadObserver(n.emitEvents, true)
 
 	return nil
 }
