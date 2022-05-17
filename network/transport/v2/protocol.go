@@ -161,7 +161,7 @@ func (p *protocol) Configure(_ transport.PeerID) error {
 	p.gManager.RegisterSender(p.sendGossip)
 
 	// called after DAG is committed
-	p.state.RegisterObserver(p.gossipTransaction, false)
+	p.state.RegisterTransactionObserver(p.gossipTransaction, false)
 
 	return nil
 }
@@ -211,7 +211,7 @@ func (p *protocol) connectionStateCallback(peer transport.Peer, state transport.
 }
 
 // gossipTransaction is called when a transaction is added to the DAG
-func (p *protocol) gossipTransaction(ctx context.Context, tx dag.Transaction, _ []byte) error {
+func (p *protocol) gossipTransaction(ctx context.Context, tx dag.Transaction) error {
 	if tx != nil { // can happen when payload is written for private TX
 		xor, clock := p.state.XOR(ctx, math.MaxUint32)
 		p.gManager.TransactionRegistered(tx.Ref(), xor, clock)

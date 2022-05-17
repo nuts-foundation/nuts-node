@@ -53,17 +53,18 @@ type replayingDAGPublisher struct {
 
 func (s *replayingDAGPublisher) ConfigureCallbacks(state State) {
 	// the publisher only signals the VDR, VCR and transaction state. These need to be called after the bbolt transaction is completed.
-	state.RegisterObserver(func(ctx context.Context, transaction Transaction, payload []byte) error {
+	state.RegisterTransactionObserver(func(ctx context.Context, transaction Transaction) error {
 		s.publishMux.Lock()
 		defer s.publishMux.Unlock()
 
-		if transaction != nil {
-			s.transactionAdded(ctx, transaction, payload)
-		}
-		if payload != nil {
-			s.payloadWritten(ctx, transaction, payload)
-		}
-		return nil
+		return s.transactionAdded(ctx, transaction, nil)
+	}, false)
+
+	state.RegisterPayloadObserver(func(ctx context.Context, transaction Transaction, payload []byte) error {
+		s.publishMux.Lock()
+		defer s.publishMux.Unlock()
+
+		return s.payloadWritten(ctx, transaction, payload)
 	}, false)
 }
 
