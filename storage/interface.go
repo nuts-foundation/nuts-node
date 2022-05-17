@@ -28,9 +28,9 @@ type KVStore interface {
 	// Close releases all resources associated with the KVStore. It is safe to call multiple (subsequent) times.
 	Close() error
 	// Write starts a writable transaction and passes it to the given function.
-	Write(fn func(WriteTransaction) error) error
+	Write(fn func(WriteTx) error, opts ...TxOption) error
 	// Read starts a read-only transaction and passes it to the given function.
-	Read(fn func(transaction ReadTransaction) error) error
+	Read(fn func(ReadTx) error) error
 	// WriteBucket starts a writable transaction, retrieves the specified bucket and passes it to the given function.
 	// If the bucket does not exist, it will be created.
 	WriteBucket(bucketName string, fn func(BucketWriter) error) error
@@ -39,14 +39,37 @@ type KVStore interface {
 	ReadBucket(bucketName string, fn func(BucketReader) error) error
 }
 
-// WriteTransaction is used to write to a KVStore.
-type WriteTransaction interface {
+// TxOption holds options for store transactions.
+type TxOption interface{}
+
+type afterCommit struct {
+	fn func()
+}
+
+// AfterCommit specifies a function that will be called after a transaction is successfully committed.
+// There can be multiple AfterCommit functions, which will be called in order.
+func AfterCommit(fn func()) TxOption {
+	return &afterCommit{fn: fn}
+}
+
+type afterRollback struct {
+	fn func()
+}
+
+// AfterRollback specifies a function that will be called after a transaction is successfully rolled back.
+// There can be multiple AfterRollback functions, which will be called in order.
+func AfterRollback(fn func()) TxOption {
+	return &afterRollback{fn: fn}
+}
+
+// WriteTx is used to write to a KVStore.
+type WriteTx interface {
 	// Bucket returns the specified bucket for writing. If it doesn't exist, it will be created.
 	Bucket(bucketName string) (BucketWriter, error)
 }
 
-// ReadTransaction is used to read from a KVStore.
-type ReadTransaction interface {
+// ReadTx is used to read from a KVStore.
+type ReadTx interface {
 	// Bucket returns the specified bucket for reading. If it doesn't exist, nil is returned.
 	Bucket(bucketName string) (BucketReader, error)
 }

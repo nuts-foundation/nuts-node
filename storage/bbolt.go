@@ -11,8 +11,8 @@ import (
 var _ KVStore = (*bboltStore)(nil)
 var _ BucketWriter = (*bboltBucket)(nil)
 var _ BucketReader = (*bboltBucket)(nil)
-var _ ReadTransaction = (*bboltReadTransaction)(nil)
-var _ WriteTransaction = (*bboltWriteTransaction)(nil)
+var _ ReadTx = (*bboltReadTransaction)(nil)
+var _ WriteTx = (*bboltWriteTransaction)(nil)
 
 //var _ Cursor = (*bboltCursor)(nil)
 
@@ -37,16 +37,16 @@ type bboltStore struct {
 	db *bbolt.DB
 }
 
-func (b bboltStore) Write(fn func(WriteTransaction) error) error {
+func (b bboltStore) Write(fn func(WriteTx) error, opts ...TxOption) error {
 	return b.doTX(func(tx *bbolt.Tx) error {
 		return fn(&bboltWriteTransaction{tx: tx})
-	}, true)
+	}, true, opts)
 }
 
-func (b bboltStore) Read(fn func(transaction ReadTransaction) error) error {
+func (b bboltStore) Read(fn func(transaction ReadTx) error) error {
 	return b.doTX(func(tx *bbolt.Tx) error {
 		return fn(&bboltReadTransaction{tx: tx})
-	}, false)
+	}, false, nil)
 }
 
 func (b bboltStore) Close() error {
@@ -60,7 +60,7 @@ func (b bboltStore) WriteBucket(bucketName string, fn func(writer BucketWriter) 
 			return err
 		}
 		return fn(bucket)
-	}, true)
+	}, true, nil)
 }
 
 func (b bboltStore) ReadBucket(bucketName string, fn func(reader BucketReader) error) error {
@@ -73,10 +73,10 @@ func (b bboltStore) ReadBucket(bucketName string, fn func(reader BucketReader) e
 			return nil
 		}
 		return fn(bucket)
-	}, false)
+	}, false, nil)
 }
 
-func (b bboltStore) doTX(fn func(tx *bbolt.Tx) error, writable bool) error {
+func (b bboltStore) doTX(fn func(tx *bbolt.Tx) error, writable bool, opts []TxOption) error {
 	// Start transaction, retrieve/create bucket to operate on
 	dbTX, err := b.db.Begin(writable)
 	if err != nil {
@@ -101,11 +101,24 @@ func (b bboltStore) doTX(fn func(tx *bbolt.Tx) error, writable bool) error {
 		if err != nil {
 			return core.WrapError(ErrCommitFailed, err)
 		}
+		// Call AfterCommit functions
+		for _, opt := range opts {
+			if ac, ok := opt.(*afterCommit); ok {
+				ac.fn()
+			}
+		}
 	} else {
 		log.Logger().Warnf("Rolling back transaction application due to error: %s", appError)
 		err := dbTX.Rollback()
 		if err != nil {
 			log.Logger().Errorf("Could not rollback BBolt transaction: %s", err)
+		} else {
+			// Call AfterRollback functions
+			for _, opt := range opts {
+				if ar, ok := opt.(*afterRollback); ok {
+					ar.fn()
+				}
+			}
 		}
 		return appError
 	}

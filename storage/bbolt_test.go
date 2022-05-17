@@ -18,7 +18,7 @@ func TestBBolt_Write(t *testing.T) {
 		store, _ := createBBoltStore(path.Join(io.TestDirectory(t), "bbolt.db"), nil)
 		defer store.Close()
 
-		err := store.Write(func(tx WriteTransaction) error {
+		err := store.Write(func(tx WriteTx) error {
 			bucket, err := tx.Bucket(bucket)
 			if err != nil {
 				return err
@@ -34,6 +34,56 @@ func TestBBolt_Write(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, value, actual)
 	})
+
+	t.Run("afterCommit and afterRollback after commit", func(t *testing.T) {
+		store, _ := createBBoltStore(path.Join(io.TestDirectory(t), "bbolt.db"), nil)
+		defer store.Close()
+
+		var actual []byte
+		var innerError error
+		var afterRollbackCalled bool
+
+		err := store.Write(func(tx WriteTx) error {
+			bucket, err := tx.Bucket(bucket)
+			if err != nil {
+				return err
+			}
+			return bucket.Put(key, value)
+		}, AfterCommit(func() {
+			// Happens after commit, so we should be able to read the data now
+			innerError = store.ReadBucket(bucket, func(reader BucketReader) error {
+				actual, innerError = reader.Get(key)
+				return innerError
+			})
+			if innerError != nil {
+				t.Fatal(innerError)
+			}
+		}), AfterRollback(func() {
+			afterRollbackCalled = true
+		}))
+
+		assert.NoError(t, err)
+		assert.Equal(t, value, actual)
+		assert.False(t, afterRollbackCalled)
+	})
+	t.Run("afterCommit and afterRollback on rollback", func(t *testing.T) {
+		store, _ := createBBoltStore(path.Join(io.TestDirectory(t), "bbolt.db"), nil)
+		defer store.Close()
+
+		var afterCommitCalled bool
+		var afterRollbackCalled bool
+
+		_ = store.Write(func(tx WriteTx) error {
+			return errors.New("failed")
+		}, AfterCommit(func() {
+			afterCommitCalled = true
+		}), AfterRollback(func() {
+			afterRollbackCalled = true
+		}))
+
+		assert.False(t, afterCommitCalled)
+		assert.True(t, afterRollbackCalled)
+	})
 }
 
 func TestBBolt_Read(t *testing.T) {
@@ -41,7 +91,7 @@ func TestBBolt_Read(t *testing.T) {
 		store, _ := createBBoltStore(path.Join(io.TestDirectory(t), "bbolt.db"), nil)
 		defer store.Close()
 
-		err := store.Read(func(tx ReadTransaction) error {
+		err := store.Read(func(tx ReadTx) error {
 			bucket, err := tx.Bucket(bucket)
 			if err != nil {
 				return err

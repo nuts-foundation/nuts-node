@@ -167,7 +167,7 @@ func (mr *MockKVStoreMockRecorder) Close() *gomock.Call {
 }
 
 // Read mocks base method.
-func (m *MockKVStore) Read(fn func(ReadTransaction) error) error {
+func (m *MockKVStore) Read(fn func(ReadTx) error) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Read", fn)
 	ret0, _ := ret[0].(error)
@@ -195,17 +195,22 @@ func (mr *MockKVStoreMockRecorder) ReadBucket(bucketName, fn interface{}) *gomoc
 }
 
 // Write mocks base method.
-func (m *MockKVStore) Write(fn func(WriteTransaction) error) error {
+func (m *MockKVStore) Write(fn func(WriteTx) error, opts ...TxOption) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Write", fn)
+	varargs := []interface{}{fn}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Write", varargs...)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Write indicates an expected call of Write.
-func (mr *MockKVStoreMockRecorder) Write(fn interface{}) *gomock.Call {
+func (mr *MockKVStoreMockRecorder) Write(fn interface{}, opts ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Write", reflect.TypeOf((*MockKVStore)(nil).Write), fn)
+	varargs := append([]interface{}{fn}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Write", reflect.TypeOf((*MockKVStore)(nil).Write), varargs...)
 }
 
 // WriteBucket mocks base method.
@@ -222,31 +227,54 @@ func (mr *MockKVStoreMockRecorder) WriteBucket(bucketName, fn interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteBucket", reflect.TypeOf((*MockKVStore)(nil).WriteBucket), bucketName, fn)
 }
 
-// MockWriteTransaction is a mock of WriteTransaction interface.
-type MockWriteTransaction struct {
+// MockTxOption is a mock of TxOption interface.
+type MockTxOption struct {
 	ctrl     *gomock.Controller
-	recorder *MockWriteTransactionMockRecorder
+	recorder *MockTxOptionMockRecorder
 }
 
-// MockWriteTransactionMockRecorder is the mock recorder for MockWriteTransaction.
-type MockWriteTransactionMockRecorder struct {
-	mock *MockWriteTransaction
+// MockTxOptionMockRecorder is the mock recorder for MockTxOption.
+type MockTxOptionMockRecorder struct {
+	mock *MockTxOption
 }
 
-// NewMockWriteTransaction creates a new mock instance.
-func NewMockWriteTransaction(ctrl *gomock.Controller) *MockWriteTransaction {
-	mock := &MockWriteTransaction{ctrl: ctrl}
-	mock.recorder = &MockWriteTransactionMockRecorder{mock}
+// NewMockTxOption creates a new mock instance.
+func NewMockTxOption(ctrl *gomock.Controller) *MockTxOption {
+	mock := &MockTxOption{ctrl: ctrl}
+	mock.recorder = &MockTxOptionMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockWriteTransaction) EXPECT() *MockWriteTransactionMockRecorder {
+func (m *MockTxOption) EXPECT() *MockTxOptionMockRecorder {
+	return m.recorder
+}
+
+// MockWriteTx is a mock of WriteTx interface.
+type MockWriteTx struct {
+	ctrl     *gomock.Controller
+	recorder *MockWriteTxMockRecorder
+}
+
+// MockWriteTxMockRecorder is the mock recorder for MockWriteTx.
+type MockWriteTxMockRecorder struct {
+	mock *MockWriteTx
+}
+
+// NewMockWriteTx creates a new mock instance.
+func NewMockWriteTx(ctrl *gomock.Controller) *MockWriteTx {
+	mock := &MockWriteTx{ctrl: ctrl}
+	mock.recorder = &MockWriteTxMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockWriteTx) EXPECT() *MockWriteTxMockRecorder {
 	return m.recorder
 }
 
 // Bucket mocks base method.
-func (m *MockWriteTransaction) Bucket(bucketName string) (BucketWriter, error) {
+func (m *MockWriteTx) Bucket(bucketName string) (BucketWriter, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Bucket", bucketName)
 	ret0, _ := ret[0].(BucketWriter)
@@ -255,36 +283,36 @@ func (m *MockWriteTransaction) Bucket(bucketName string) (BucketWriter, error) {
 }
 
 // Bucket indicates an expected call of Bucket.
-func (mr *MockWriteTransactionMockRecorder) Bucket(bucketName interface{}) *gomock.Call {
+func (mr *MockWriteTxMockRecorder) Bucket(bucketName interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Bucket", reflect.TypeOf((*MockWriteTransaction)(nil).Bucket), bucketName)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Bucket", reflect.TypeOf((*MockWriteTx)(nil).Bucket), bucketName)
 }
 
-// MockReadTransaction is a mock of ReadTransaction interface.
-type MockReadTransaction struct {
+// MockReadTx is a mock of ReadTx interface.
+type MockReadTx struct {
 	ctrl     *gomock.Controller
-	recorder *MockReadTransactionMockRecorder
+	recorder *MockReadTxMockRecorder
 }
 
-// MockReadTransactionMockRecorder is the mock recorder for MockReadTransaction.
-type MockReadTransactionMockRecorder struct {
-	mock *MockReadTransaction
+// MockReadTxMockRecorder is the mock recorder for MockReadTx.
+type MockReadTxMockRecorder struct {
+	mock *MockReadTx
 }
 
-// NewMockReadTransaction creates a new mock instance.
-func NewMockReadTransaction(ctrl *gomock.Controller) *MockReadTransaction {
-	mock := &MockReadTransaction{ctrl: ctrl}
-	mock.recorder = &MockReadTransactionMockRecorder{mock}
+// NewMockReadTx creates a new mock instance.
+func NewMockReadTx(ctrl *gomock.Controller) *MockReadTx {
+	mock := &MockReadTx{ctrl: ctrl}
+	mock.recorder = &MockReadTxMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockReadTransaction) EXPECT() *MockReadTransactionMockRecorder {
+func (m *MockReadTx) EXPECT() *MockReadTxMockRecorder {
 	return m.recorder
 }
 
 // Bucket mocks base method.
-func (m *MockReadTransaction) Bucket(bucketName string) (BucketReader, error) {
+func (m *MockReadTx) Bucket(bucketName string) (BucketReader, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Bucket", bucketName)
 	ret0, _ := ret[0].(BucketReader)
@@ -293,9 +321,9 @@ func (m *MockReadTransaction) Bucket(bucketName string) (BucketReader, error) {
 }
 
 // Bucket indicates an expected call of Bucket.
-func (mr *MockReadTransactionMockRecorder) Bucket(bucketName interface{}) *gomock.Call {
+func (mr *MockReadTxMockRecorder) Bucket(bucketName interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Bucket", reflect.TypeOf((*MockReadTransaction)(nil).Bucket), bucketName)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Bucket", reflect.TypeOf((*MockReadTx)(nil).Bucket), bucketName)
 }
 
 // MockBucketReader is a mock of BucketReader interface.

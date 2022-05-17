@@ -35,9 +35,6 @@ import (
 	"testing"
 	"time"
 
-	io2 "github.com/nuts-foundation/nuts-node/test/io"
-	"go.etcd.io/bbolt"
-
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
