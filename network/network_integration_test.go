@@ -836,7 +836,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 		TrustStoreFile: "test/truststore.pem",
 		EnableTLS:      true,
 		ProtocolV2: v2.Config{
-			GossipInterval:      100,
+			GossipInterval:      250,
 			PayloadRetryDelay:   50 * time.Millisecond,
 			DiagnosticsInterval: int(time.Minute.Milliseconds()),
 		},
