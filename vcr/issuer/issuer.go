@@ -22,13 +22,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core"
 	"time"
 
 	"github.com/google/uuid"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
@@ -36,6 +37,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
+	vcr "github.com/nuts-foundation/nuts-node/vcr/types"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -161,6 +163,14 @@ func (i issuer) Revoke(credentialID ssi.URI) (*credential.Revocation, error) {
 		return nil, fmt.Errorf("could not revoke (id=%s): %w", credentialID, err)
 	}
 
+	isRevoked, err := i.isRevoked(credentialID)
+	if err != nil {
+		return nil, fmt.Errorf("error while checking revocation status: %w", err)
+	}
+	if isRevoked {
+		return nil, vcr.ErrRevoked
+	}
+
 	revocation, err := i.buildRevocation(*credentialToRevoke)
 	if err != nil {
 		return nil, err
@@ -169,6 +179,11 @@ func (i issuer) Revoke(credentialID ssi.URI) (*credential.Revocation, error) {
 	err = i.publisher.PublishRevocation(*revocation)
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish revocation: %w", err)
+	}
+
+	// Store the revocation after it has been published
+	if err := i.store.StoreRevocation(*revocation); err != nil {
+		return nil, fmt.Errorf("unable to store revocation: %w", err)
 	}
 
 	log.Logger().Infof("Verifiable Credential revoked (id=%s)", credentialToRevoke.ID)
@@ -204,8 +219,18 @@ func (i issuer) buildRevocation(credentialToRevoke vc.VerifiableCredential) (*cr
 	return &signedRevocation, nil
 }
 
-func (i issuer) CredentialResolver() CredentialSearcher {
-	return i.store
+func (i issuer) isRevoked(credentialID ssi.URI) (bool, error) {
+	_, err := i.store.GetRevocation(credentialID)
+	switch err {
+	case nil: // revocation found
+		return true, nil
+	case ErrMultipleFound:
+		return true, nil
+	case ErrNotFound:
+		return false, nil
+	default:
+		return true, err
+	}
 }
 
 func (i issuer) SearchCredential(context ssi.URI, credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {

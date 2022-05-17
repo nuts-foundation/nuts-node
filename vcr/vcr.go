@@ -396,19 +396,6 @@ func (c *vcr) find(ID ssi.URI) (vc.VerifiableCredential, error) {
 	return credential, types.ErrNotFound
 }
 
-// Revoke checks if the credential is already revoked, if not, it instructs the issuer role to revoke the credential.
-func (c *vcr) Revoke(credentialID ssi.URI) (*credential.Revocation, error) {
-	isRevoked, err := c.verifier.IsRevoked(credentialID)
-	if err != nil {
-		return nil, fmt.Errorf("error while checking revocation status: %w", err)
-	}
-	if isRevoked {
-		return nil, core.PreconditionFailedError("credential already revoked")
-	}
-
-	return c.issuer.Revoke(credentialID)
-}
-
 func (c *vcr) Trust(credentialType ssi.URI, issuer ssi.URI) error {
 	err := c.trustConfig.AddTrust(credentialType, issuer)
 	if err != nil {

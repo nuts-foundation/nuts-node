@@ -224,6 +224,21 @@ func (mr *MockStoreMockRecorder) GetCredential(id interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCredential", reflect.TypeOf((*MockStore)(nil).GetCredential), id)
 }
 
+// GetRevocation mocks base method.
+func (m *MockStore) GetRevocation(id ssi.URI) (*credential.Revocation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRevocation", id)
+	ret0, _ := ret[0].(*credential.Revocation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetRevocation indicates an expected call of GetRevocation.
+func (mr *MockStoreMockRecorder) GetRevocation(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRevocation", reflect.TypeOf((*MockStore)(nil).GetRevocation), id)
+}
+
 // SearchCredential mocks base method.
 func (m *MockStore) SearchCredential(context, credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
@@ -251,6 +266,20 @@ func (m *MockStore) StoreCredential(vc vc.VerifiableCredential) error {
 func (mr *MockStoreMockRecorder) StoreCredential(vc interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreCredential", reflect.TypeOf((*MockStore)(nil).StoreCredential), vc)
+}
+
+// StoreRevocation mocks base method.
+func (m *MockStore) StoreRevocation(r credential.Revocation) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StoreRevocation", r)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// StoreRevocation indicates an expected call of StoreRevocation.
+func (mr *MockStoreMockRecorder) StoreRevocation(r interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreRevocation", reflect.TypeOf((*MockStore)(nil).StoreRevocation), r)
 }
 
 // MockCredentialSearcher is a mock of CredentialSearcher interface.
