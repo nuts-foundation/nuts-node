@@ -4,7 +4,7 @@ const moduleName = "JSONLD"
 
 // Config holds the config for the vcr engine
 type Config struct {
-	// JSONLDContext contains the configuration for the JSON-LD Contexts
+	// Contexts contains the configuration for the JSON-LD Contexts
 	Contexts ContextsConfig `koanf:"jsonld.contexts"`
 }
 
