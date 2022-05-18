@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Nuts community
+ * Copyright (C) 2021 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,19 +16,15 @@
  *
  */
 
-package jsonld
+package log
 
-const moduleName = "JSONLD"
+import (
+	"github.com/sirupsen/logrus"
+)
 
-// Config holds the config for the vcr engine
-type Config struct {
-	// Contexts contains the configuration for the JSON-LD Contexts
-	Contexts ContextsConfig `koanf:"jsonld.contexts"`
-}
+var _logger = logrus.StandardLogger().WithField("module", "JSONLD")
 
-// DefaultConfig returns a fresh Config filled with default values
-func DefaultConfig() Config {
-	return Config{
-		Contexts: DefaultContextConfig(),
-	}
+// Logger returns the logger for the network engine.
+func Logger() *logrus.Entry {
+	return _logger
 }
