@@ -641,6 +641,3 @@ components:
           description: a credential type
           example: NutsOrganizationCredential
           type: string
-  examples:
-    Proof:
-      $ref: '../common/ssi_types.yaml#/components/schemas/EmbeddedProof'
