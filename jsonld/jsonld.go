@@ -2,8 +2,11 @@ package jsonld
 
 import (
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/jsonld/log"
 	"github.com/piprate/json-gold/ld"
 )
+
+var _ core.Configurable = (*jsonld)(nil)
 
 type jsonld struct {
 	config         Config
@@ -24,6 +27,7 @@ func (j *jsonld) DocumentLoader() ld.DocumentLoader {
 func (j *jsonld) Configure(serverConfig core.ServerConfig) error {
 	j.config.strictMode = serverConfig.Strictmode
 
+	log.Logger().Tracef("Config: %v", j.config)
 	loader, err := NewContextLoader(!j.config.strictMode, j.config.Contexts)
 	if err != nil {
 		return err

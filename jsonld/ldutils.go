@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/jsonld/log"
 	"github.com/nuts-foundation/nuts-node/vcr/assets"
 	"github.com/piprate/json-gold/ld"
 	"io/fs"
@@ -92,6 +93,7 @@ func NewMappedDocumentLoader(mapping map[string]string, nextLoader ld.DocumentLo
 func (m mappedDocumentLoader) LoadDocument(u string) (*ld.RemoteDocument, error) {
 	mappedU, ok := m.mapping[u]
 	if ok {
+		log.Logger().Tracef("Loading context %s from %s", u, mappedU)
 		return m.nextLoader.LoadDocument(mappedU)
 	}
 	return m.nextLoader.LoadDocument(u)
@@ -118,6 +120,7 @@ func (e embeddedFSDocumentLoader) LoadDocument(path string) (*ld.RemoteDocument,
 			}
 			return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, err)
 		}
+		log.Logger().Tracef("Loading %s from embedded filesystem", path)
 		// If an error occurred, fail
 		if err != nil {
 			return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, err.Error())
@@ -195,11 +198,12 @@ func NewContextLoader(allowUnlistedExternalCalls bool, contexts ContextsConfig) 
 		loader = NewFilteredLoader(allowed, loader)
 	}
 
-	for url := range contexts.LocalFileMapping {
+	for contextURL, localFile := range contexts.LocalFileMapping {
 		// preload mapped files:
-		if _, err := loader.LoadDocument(url); err != nil {
-			return nil, fmt.Errorf("preloading context %s failed: %w", url, err)
+		if _, err := loader.LoadDocument(contextURL); err != nil {
+			return nil, fmt.Errorf("preloading context %s failed: %w", contextURL, err)
 		}
+		log.Logger().Debugf("Loaded context from local file (context=%s, file=%s)", contextURL, localFile)
 	}
 
 	return loader, nil

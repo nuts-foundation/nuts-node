@@ -4,7 +4,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// FlagSet contains flags relevant for VCR
+// FlagSet contains flags relevant for JSON-LD
 func FlagSet() *pflag.FlagSet {
 	defs := DefaultConfig()
 	flagSet := pflag.NewFlagSet("jsonld", pflag.ContinueOnError)
