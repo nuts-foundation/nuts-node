@@ -25,10 +25,8 @@ func (j *jsonld) DocumentLoader() ld.DocumentLoader {
 }
 
 func (j *jsonld) Configure(serverConfig core.ServerConfig) error {
-	j.config.strictMode = serverConfig.Strictmode
-
 	log.Logger().Tracef("Config: %v", j.config)
-	loader, err := NewContextLoader(!j.config.strictMode, j.config.Contexts)
+	loader, err := NewContextLoader(!serverConfig.Strictmode, j.config.Contexts)
 	if err != nil {
 		return err
 	}
