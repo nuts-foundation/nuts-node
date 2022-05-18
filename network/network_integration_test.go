@@ -426,6 +426,11 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			return
 		}
 		waitForTransaction(t, tx, "node2")
+
+		// assert not only TX is transfered, but state is updates as well
+		xor1, _ := node1.state.XOR(context.Background(), math.MaxUint32)
+		xor2, _ := node2.state.XOR(context.Background(), math.MaxUint32)
+		assert.Equal(t, xor1.String(), xor2.String())
 	})
 
 	t.Run("event received", func(t *testing.T) {

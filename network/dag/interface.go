@@ -43,7 +43,7 @@ type State interface {
 	// Deprecated: remove with V1 protocol
 	ReadManyPayloads(ctx context.Context, consumer func(context.Context, PayloadReader) error) error
 
-	// Add a transactions to the DAG. If it can't be added an error is returned.
+	// Add a transaction to the DAG. If it can't be added an error is returned.
 	// If the transaction already exists, nothing is added and no observers are notified.
 	// The payload may be passed as well. Allowing for better notification of observers
 	Add(ctx context.Context, transactions Transaction, payload []byte) error
@@ -61,9 +61,12 @@ type State interface {
 	IsPresent(context.Context, hash.SHA256Hash) (bool, error)
 	// PayloadHashes applies the visitor function to the payload hashes of all transactions, in random order.
 	PayloadHashes(ctx context.Context, visitor func(payloadHash hash.SHA256Hash) error) error
-	// RegisterObserver allows observers to be notified when a transaction is added to the DAG.
+	// RegisterTransactionObserver allows observers to be notified when a transaction is added to the DAG.
 	// If the observer needs to be called within the transaction, transactional must be true.
-	RegisterObserver(observer Observer, transactional bool)
+	RegisterTransactionObserver(observer Observer, transactional bool)
+	// RegisterPayloadObserver allows observers to be notified when a payload is written to the store.
+	// If the observer needs to be called within the transaction, transactional must be true.
+	RegisterPayloadObserver(observer PayloadObserver, transactional bool)
 	// Subscribe lets an application subscribe to a specific type of transaction. When a new transaction is received
 	// the `receiver` function is called. If an asterisk (`*`) is specified as `payloadType` the receiver is subscribed
 	// to all payload types.
@@ -159,7 +162,10 @@ type PayloadReader interface {
 }
 
 // Observer defines the signature of an observer which can be called by an Observable.
-type Observer func(ctx context.Context, transaction Transaction, payload []byte) error
+type Observer func(ctx context.Context, transaction Transaction) error
+
+// PayloadObserver defines the signature of an observer which can be called by an Observable.
+type PayloadObserver func(ctx context.Context, transaction Transaction, payload []byte) error
 
 // MinTime returns the minimum value for time.Time
 func MinTime() time.Time {
