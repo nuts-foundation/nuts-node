@@ -71,8 +71,6 @@ components:
           description: |
             VerifiableCredential is composed of a list containing one or more verifiable credentials, in a
             cryptographically verifiable format.
-          example:
-            $ref: '#/components/schemas/VerifiableCredential'
         holder:
           type: string
           description: "URI of the entity that is generating the presentation."
@@ -83,8 +81,6 @@ components:
             Cryptographic proofs that can be used to detect tampering and verify the authorship of a
             credential or presentation. An embedded proof is a mechanism where the proof is included in
             the data, such as a Linked Data Signature.
-          example:
-            $ref: "#/components/schemas/EmbeddedProof"
     EmbeddedProof:
       title: Embedded Proof
       type: object
