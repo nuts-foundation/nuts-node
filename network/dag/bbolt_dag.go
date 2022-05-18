@@ -115,78 +115,7 @@ func newBBoltDAG(db *bbolt.DB) *bboltDAG {
 }
 
 func (dag *bboltDAG) Migrate() error {
-	// We'll take the root and then use nexts to add the Transactions in the right order
-	err := dag.db.Update(func(tx *bbolt.Tx) error {
-		if tx.Bucket([]byte(nextsBucket)) == nil {
-			// already migrated
-			return nil
-		}
-
-		log.Logger().Info("DAG migrations: adding logical clock values to transactions")
-
-		// get root
-		transactions := tx.Bucket([]byte(transactionsBucket))
-		roots := parseHashList(transactions.Get([]byte(rootsTransactionKey)))
-
-		for nexts, err := migrateAddClocks(tx, []hash.SHA256Hash{roots[0]}); len(nexts) != 0; nexts, err = migrateAddClocks(tx, nexts) {
-			if err != nil {
-				return err
-			}
-		}
-
-		// remove nexts
-		if err := tx.DeleteBucket([]byte(nextsBucket)); err != nil {
-			return err
-		}
-		// remove root
-		return transactions.Delete([]byte(rootsTransactionKey))
-	})
-	if err != nil {
-		return err
-	}
-
-	log.Logger().Info("DAG migrations: done")
 	return nil
-}
-
-func migrateAddClocks(tx *bbolt.Tx, refs []hash.SHA256Hash) ([]hash.SHA256Hash, error) {
-	nextBucket := tx.Bucket([]byte(nextsBucket))
-	txBucket := tx.Bucket([]byte(transactionsBucket))
-	var nexts []hash.SHA256Hash
-	var retry []hash.SHA256Hash
-
-	for _, ref := range refs {
-		transaction, err := ParseTransaction(txBucket.Get(ref.Slice()))
-		if err != nil {
-			return nexts, err
-		}
-		// indexClockValue uses the prevs to guarantee ordering
-		if err := indexClockValue(tx, transaction); err != nil {
-			// we hit a branch and have processed a TX to soon, retry later
-			retry = append(retry, ref)
-		}
-
-		// find next TXs from nexts bucket
-		nexts = append(nexts, parseHashList(nextBucket.Get(ref.Slice()))...)
-	}
-
-	// nexts have a lot of doubles
-	return unique(append(nexts, retry...)), nil
-}
-
-func unique(list []hash.SHA256Hash) []hash.SHA256Hash {
-	set := map[hash.SHA256Hash]bool{}
-
-	for _, v := range list {
-		set[v] = true
-	}
-
-	result := make([]hash.SHA256Hash, 0)
-	for k := range set {
-		result = append(result, k)
-	}
-
-	return result
 }
 
 func (dag *bboltDAG) Diagnostics() []core.DiagnosticResult {
