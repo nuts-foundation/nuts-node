@@ -201,7 +201,7 @@ paths:
               $ref: "#/components/schemas/RequestAccessTokenRequest"
       responses:
         '200':
-          description: Successful request. Responds with an access-token.
+          description: Successful request. Responds with an access token.
           content:
             application/json:
               schema:
@@ -508,7 +508,7 @@ components:
           $ref: "#/components/schemas/VerifiablePresentation"
         service:
           type: string
-          description: The service for which this access-token can be used. The right oauth endpoint is selected based on the service.
+          description: The service for which this access token can be used. The right oauth endpoint is selected based on the service.
           example: nuts-patient-transfer
         credentials:
           type: array
@@ -545,7 +545,7 @@ components:
           $ref: '#/components/schemas/VerifiablePresentation'
         service:
           type: string
-          description: The service for which this access-token can be used. The right oauth endpoint is selected based on the service.
+          description: The service for which this access token can be used. The right oauth endpoint is selected based on the service.
           example: nuts-patient-transfer
         credentials:
           type: array
