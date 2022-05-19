@@ -26,6 +26,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
+	"go.etcd.io/bbolt"
 )
 
 // AnyPayloadType is a wildcard that matches with any payload type.
@@ -132,16 +133,20 @@ type Visitor func(ctx context.Context, transaction Transaction) bool
 
 // PayloadStore defines the interface for types that store and read transaction payloads.
 type PayloadStore interface {
-	PayloadReader
+	// IsPayloadPresent checks whether the contents for the given transaction are present.
+	IsPayloadPresent(tx *bbolt.Tx, payloadHash hash.SHA256Hash) bool
+	// ReadPayload reads the contents for the specified payload, identified by the given hash. If contents can't be found,
+	// nil is returned. If something (else) goes wrong an error is returned.
+	ReadPayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash) []byte
 	// WritePayload writes contents for the specified payload, identified by the given hash.
-	WritePayload(ctx context.Context, payloadHash hash.SHA256Hash, data []byte) error
+	WritePayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash, data []byte) error
 }
 
 // PayloadWriter defines the interface for types that store transaction payloads.
 type PayloadWriter interface {
 	// WritePayload writes contents for the specified payload, identified by the given hash.
 	// It also calls observers and therefore requires the transaction.
-	WritePayload(ctx context.Context, transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error
+	WritePayload(transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error
 }
 
 // PayloadReader defines the interface for types that read transaction payloads.
@@ -158,7 +163,7 @@ type PayloadReader interface {
 type Observer func(ctx context.Context, transaction Transaction) error
 
 // PayloadObserver defines the signature of an observer which can be called by an Observable.
-type PayloadObserver func(ctx context.Context, transaction Transaction, payload []byte) error
+type PayloadObserver func(transaction Transaction, payload []byte) error
 
 // MinTime returns the minimum value for time.Time
 func MinTime() time.Time {

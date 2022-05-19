@@ -13,6 +13,7 @@ import (
 	core "github.com/nuts-foundation/nuts-node/core"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	tree "github.com/nuts-foundation/nuts-node/network/dag/tree"
+	bbolt "go.etcd.io/bbolt"
 )
 
 // MockState is a mock of State interface.
@@ -278,17 +279,17 @@ func (mr *MockStateMockRecorder) Walk(ctx, visitor, startAt interface{}) *gomock
 }
 
 // WritePayload mocks base method.
-func (m *MockState) WritePayload(ctx context.Context, transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
+func (m *MockState) WritePayload(transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WritePayload", ctx, transaction, payloadHash, data)
+	ret := m.ctrl.Call(m, "WritePayload", transaction, payloadHash, data)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // WritePayload indicates an expected call of WritePayload.
-func (mr *MockStateMockRecorder) WritePayload(ctx, transaction, payloadHash, data interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) WritePayload(transaction, payloadHash, data interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WritePayload", reflect.TypeOf((*MockState)(nil).WritePayload), ctx, transaction, payloadHash, data)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WritePayload", reflect.TypeOf((*MockState)(nil).WritePayload), transaction, payloadHash, data)
 }
 
 // XOR mocks base method.
@@ -391,47 +392,45 @@ func (m *MockPayloadStore) EXPECT() *MockPayloadStoreMockRecorder {
 }
 
 // IsPayloadPresent mocks base method.
-func (m *MockPayloadStore) IsPayloadPresent(ctx context.Context, payloadHash hash.SHA256Hash) (bool, error) {
+func (m *MockPayloadStore) IsPayloadPresent(tx *bbolt.Tx, payloadHash hash.SHA256Hash) bool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsPayloadPresent", ctx, payloadHash)
+	ret := m.ctrl.Call(m, "IsPayloadPresent", tx, payloadHash)
 	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	return ret0
 }
 
 // IsPayloadPresent indicates an expected call of IsPayloadPresent.
-func (mr *MockPayloadStoreMockRecorder) IsPayloadPresent(ctx, payloadHash interface{}) *gomock.Call {
+func (mr *MockPayloadStoreMockRecorder) IsPayloadPresent(tx, payloadHash interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsPayloadPresent", reflect.TypeOf((*MockPayloadStore)(nil).IsPayloadPresent), ctx, payloadHash)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsPayloadPresent", reflect.TypeOf((*MockPayloadStore)(nil).IsPayloadPresent), tx, payloadHash)
 }
 
 // ReadPayload mocks base method.
-func (m *MockPayloadStore) ReadPayload(ctx context.Context, payloadHash hash.SHA256Hash) ([]byte, error) {
+func (m *MockPayloadStore) ReadPayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash) []byte {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadPayload", ctx, payloadHash)
+	ret := m.ctrl.Call(m, "ReadPayload", tx, payloadHash)
 	ret0, _ := ret[0].([]byte)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	return ret0
 }
 
 // ReadPayload indicates an expected call of ReadPayload.
-func (mr *MockPayloadStoreMockRecorder) ReadPayload(ctx, payloadHash interface{}) *gomock.Call {
+func (mr *MockPayloadStoreMockRecorder) ReadPayload(tx, payloadHash interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadPayload", reflect.TypeOf((*MockPayloadStore)(nil).ReadPayload), ctx, payloadHash)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadPayload", reflect.TypeOf((*MockPayloadStore)(nil).ReadPayload), tx, payloadHash)
 }
 
 // WritePayload mocks base method.
-func (m *MockPayloadStore) WritePayload(ctx context.Context, payloadHash hash.SHA256Hash, data []byte) error {
+func (m *MockPayloadStore) WritePayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash, data []byte) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WritePayload", ctx, payloadHash, data)
+	ret := m.ctrl.Call(m, "WritePayload", tx, payloadHash, data)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // WritePayload indicates an expected call of WritePayload.
-func (mr *MockPayloadStoreMockRecorder) WritePayload(ctx, payloadHash, data interface{}) *gomock.Call {
+func (mr *MockPayloadStoreMockRecorder) WritePayload(tx, payloadHash, data interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WritePayload", reflect.TypeOf((*MockPayloadStore)(nil).WritePayload), ctx, payloadHash, data)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WritePayload", reflect.TypeOf((*MockPayloadStore)(nil).WritePayload), tx, payloadHash, data)
 }
 
 // MockPayloadWriter is a mock of PayloadWriter interface.
@@ -458,17 +457,17 @@ func (m *MockPayloadWriter) EXPECT() *MockPayloadWriterMockRecorder {
 }
 
 // WritePayload mocks base method.
-func (m *MockPayloadWriter) WritePayload(ctx context.Context, transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
+func (m *MockPayloadWriter) WritePayload(transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WritePayload", ctx, transaction, payloadHash, data)
+	ret := m.ctrl.Call(m, "WritePayload", transaction, payloadHash, data)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // WritePayload indicates an expected call of WritePayload.
-func (mr *MockPayloadWriterMockRecorder) WritePayload(ctx, transaction, payloadHash, data interface{}) *gomock.Call {
+func (mr *MockPayloadWriterMockRecorder) WritePayload(transaction, payloadHash, data interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WritePayload", reflect.TypeOf((*MockPayloadWriter)(nil).WritePayload), ctx, transaction, payloadHash, data)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WritePayload", reflect.TypeOf((*MockPayloadWriter)(nil).WritePayload), transaction, payloadHash, data)
 }
 
 // MockPayloadReader is a mock of PayloadReader interface.

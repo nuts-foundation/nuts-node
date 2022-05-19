@@ -21,11 +21,12 @@ package dag
 import (
 	"context"
 	"encoding/binary"
-	"github.com/nuts-foundation/nuts-node/test"
-	"go.etcd.io/bbolt"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/test"
+	"go.etcd.io/bbolt"
 
 	"github.com/stretchr/testify/assert"
 
@@ -196,10 +197,7 @@ func TestBboltTree_buildFromDag(t *testing.T) {
 		db:    dag.db,
 		graph: dag,
 	}
-	err := dag.Add(context.Background(), tx0, tx1a, tx1b, tx2)
-	if !assert.NoError(t, err) {
-		return
-	}
+	addTx(t, dag, tx0, tx1a, tx1b, tx2)
 
 	t.Run("ok - build tree", func(t *testing.T) {
 		store := newBBoltTreeStore(dag.db, "real bucket", tree.New(tree.NewXor(), testLeafSize))

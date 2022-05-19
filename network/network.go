@@ -221,9 +221,9 @@ func (n *Network) Configure(config core.ServerConfig) error {
 // If the transaction fails for some reason (storage) then the event is still emitted. This is ok because the transaction was already validated.
 // Most likely the transaction will be added at a later stage and another event will be emitted.
 // It only emits events when both the payload and transaction are present. This is the case from both state.Add and from state.WritePayload.
-func (n *Network) emitEvents(ctx context.Context, tx dag.Transaction, payload []byte) error {
+func (n *Network) emitEvents(tx dag.Transaction, payload []byte) error {
 	if tx != nil && payload != nil {
-		_, js, err := n.eventPublisher.Pool().Acquire(ctx)
+		_, js, err := n.eventPublisher.Pool().Acquire(context.Background())
 		if err != nil {
 			return fmt.Errorf(errEventFailedMsg, err)
 		}

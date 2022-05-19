@@ -171,7 +171,7 @@ func TestState_Observe(t *testing.T) {
 			actualTX = transaction
 			return nil
 		}, false)
-		txState.RegisterPayloadObserver(func(ctx context.Context, transaction Transaction, payload []byte) error {
+		txState.RegisterPayloadObserver(func(transaction Transaction, payload []byte) error {
 			actualPayload = payload
 			return nil
 		}, false)
@@ -193,16 +193,15 @@ func TestState_Observe(t *testing.T) {
 		assert.EqualError(t, err, "tx.PayloadHash does not match hash of payload")
 	})
 	t.Run("payload added", func(t *testing.T) {
-		ctx := context.Background()
 		txState := createState(t)
 		var actual []byte
-		txState.RegisterPayloadObserver(func(ctx context.Context, tx Transaction, payload []byte) error {
+		txState.RegisterPayloadObserver(func(tx Transaction, payload []byte) error {
 			actual = payload
 			return nil
 		}, false)
 		expected := []byte{1}
 
-		err := txState.WritePayload(ctx, nil, hash.EmptyHash(), expected)
+		err := txState.WritePayload(nil, hash.EmptyHash(), expected)
 
 		assert.NoError(t, err)
 		assert.Equal(t, expected, actual)

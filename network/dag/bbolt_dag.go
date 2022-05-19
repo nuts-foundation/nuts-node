@@ -128,14 +128,8 @@ func (dag *bboltDAG) Diagnostics() []core.DiagnosticResult {
 	return result
 }
 
-func (dag bboltDAG) Get(ctx context.Context, ref hash.SHA256Hash) (Transaction, error) {
-	var result Transaction
-	var err error
-	err = storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
-		result, err = getTransaction(ref, tx)
-		return err
-	})
-	return result, err
+func (dag bboltDAG) Get(tx *bbolt.Tx, ref hash.SHA256Hash) (Transaction, error) {
+	return getTransaction(ref, tx)
 }
 
 func (dag bboltDAG) GetByPayloadHash(ctx context.Context, payloadHash hash.SHA256Hash) ([]Transaction, error) {
@@ -230,29 +224,23 @@ func (dag *bboltDAG) findBetweenLC(ctx context.Context, startInclusive uint32, e
 	return result, nil
 }
 
-func (dag bboltDAG) IsPresent(ctx context.Context, ref hash.SHA256Hash) (bool, error) {
-	var result bool
-	err := storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
-		if payloads := tx.Bucket([]byte(transactionsBucket)); payloads != nil {
-			data := payloads.Get(ref.Slice())
-			result = data != nil
-		}
-		return nil
-	})
-	return result, err
+func (dag bboltDAG) IsPresent(tx *bbolt.Tx, ref hash.SHA256Hash) bool {
+	if payloads := tx.Bucket([]byte(transactionsBucket)); payloads != nil {
+		data := payloads.Get(ref.Slice())
+		return data != nil
+	}
+	return false
 }
 
-func (dag *bboltDAG) Add(ctx context.Context, transactions ...Transaction) error {
-	return storage.BBoltTXUpdate(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
-		for _, transaction := range transactions {
-			if transaction != nil {
-				if err := dag.add(tx, transaction); err != nil {
-					return err
-				}
+func (dag *bboltDAG) Add(tx *bbolt.Tx, transactions ...Transaction) error {
+	for _, transaction := range transactions {
+		if transaction != nil {
+			if err := dag.add(tx, transaction); err != nil {
+				return err
 			}
 		}
-		return nil
-	})
+	}
+	return nil
 }
 
 func (dag bboltDAG) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA256Hash) error {

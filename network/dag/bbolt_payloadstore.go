@@ -19,10 +19,7 @@
 package dag
 
 import (
-	"context"
-
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/storage"
 	"go.etcd.io/bbolt"
 )
 
@@ -38,44 +35,27 @@ type bboltPayloadStore struct {
 	db *bbolt.DB
 }
 
-func (store bboltPayloadStore) IsPayloadPresent(ctx context.Context, payloadHash hash.SHA256Hash) (bool, error) {
-	var result bool
-	var err error
-	err = storage.BBoltTXView(ctx, store.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
-		bucket := tx.Bucket([]byte(payloadsBucketName))
-		if bucket == nil {
-			return nil
-		}
-		data := bucket.Get(payloadHash.Slice())
-		result = len(data) > 0
-		return nil
-	})
-	return result, err
+func (store bboltPayloadStore) IsPayloadPresent(tx *bbolt.Tx, payloadHash hash.SHA256Hash) bool {
+	bucket := tx.Bucket([]byte(payloadsBucketName))
+	if bucket == nil {
+		return false
+	}
+	data := bucket.Get(payloadHash.Slice())
+	return len(data) > 0
 }
 
-func (store bboltPayloadStore) ReadPayload(ctx context.Context, payloadHash hash.SHA256Hash) ([]byte, error) {
-	var result []byte
-	var err error
-	err = storage.BBoltTXView(ctx, store.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
-		bucket := tx.Bucket([]byte(payloadsBucketName))
-		if bucket == nil {
-			return nil
-		}
-		result = bucket.Get(payloadHash.Slice())
+func (store bboltPayloadStore) ReadPayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash) []byte {
+	bucket := tx.Bucket([]byte(payloadsBucketName))
+	if bucket == nil {
 		return nil
-	})
-	return result, err
+	}
+	return bucket.Get(payloadHash.Slice())
 }
 
-func (store bboltPayloadStore) WritePayload(ctx context.Context, payloadHash hash.SHA256Hash, data []byte) error {
-	return storage.BBoltTXUpdate(ctx, store.db, func(_ context.Context, tx *bbolt.Tx) error {
-		payloads, err := tx.CreateBucketIfNotExists([]byte(payloadsBucketName))
-		if err != nil {
-			return err
-		}
-		if err := payloads.Put(payloadHash.Slice(), data); err != nil {
-			return err
-		}
-		return nil
-	})
+func (store bboltPayloadStore) WritePayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash, data []byte) error {
+	payloads, err := tx.CreateBucketIfNotExists([]byte(payloadsBucketName))
+	if err != nil {
+		return err
+	}
+	return payloads.Put(payloadHash.Slice(), data)
 }

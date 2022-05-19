@@ -139,11 +139,11 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 			if !transaction.PayloadHash().Equals(payloadHash) {
 				return errors.New("tx.PayloadHash does not match hash of payload")
 			}
-			if err := s.WritePayload(contextWithTX, transaction, payloadHash, payload); err != nil {
+			if err := s.writePayload(tx, transaction, payloadHash, payload); err != nil {
 				return err
 			}
 		}
-		if err := s.graph.Add(contextWithTX, transaction); err != nil {
+		if err := s.graph.Add(tx, transaction); err != nil {
 			return err
 		}
 
@@ -168,31 +168,51 @@ func (s *state) FindBetweenLC(ctx context.Context, startInclusive uint32, endExc
 	return s.graph.findBetweenLC(ctx, startInclusive, endExclusive)
 }
 
-func (s *state) GetTransaction(ctx context.Context, hash hash.SHA256Hash) (Transaction, error) {
-	return s.graph.Get(ctx, hash)
-}
-
-func (s *state) IsPayloadPresent(ctx context.Context, hash hash.SHA256Hash) (bool, error) {
-	return s.payloadStore.IsPayloadPresent(ctx, hash)
-}
-
-func (s *state) IsPresent(ctx context.Context, hash hash.SHA256Hash) (bool, error) {
-	return s.graph.IsPresent(ctx, hash)
-}
-
-func (s *state) WritePayload(ctx context.Context, transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
-	return storage.BBoltTXUpdate(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
-		err := s.payloadStore.WritePayload(contextWithTX, payloadHash, data)
-		if err == nil {
-			// ctx passed with bbolt transaction
-			return s.notifyPayloadObservers(contextWithTX, transaction, data)
-		}
+func (s *state) GetTransaction(ctx context.Context, hash hash.SHA256Hash) (transaction Transaction, err error) {
+	err = storage.BBoltTXView(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
+		transaction, err = s.graph.Get(tx, hash)
 		return err
+	})
+	return
+}
+
+func (s *state) IsPayloadPresent(ctx context.Context, hash hash.SHA256Hash) (present bool, err error) {
+	err = storage.BBoltTXView(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
+		present = s.payloadStore.IsPayloadPresent(tx, hash)
+		return nil
+	})
+	return
+}
+
+func (s *state) IsPresent(ctx context.Context, hash hash.SHA256Hash) (present bool, err error) {
+	err = storage.BBoltTXView(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
+		present = s.graph.IsPresent(tx, hash)
+		return nil
+	})
+	return
+}
+
+func (s *state) WritePayload(transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
+	return storage.BBoltTXUpdate(context.Background(), s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
+		return s.writePayload(tx, transaction, payloadHash, data)
 	})
 }
 
-func (s *state) ReadPayload(ctx context.Context, hash hash.SHA256Hash) ([]byte, error) {
-	return s.payloadStore.ReadPayload(ctx, hash)
+func (s *state) writePayload(tx *bbolt.Tx, transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
+	err := s.payloadStore.WritePayload(tx, payloadHash, data)
+	if err == nil {
+		// ctx passed with bbolt transaction
+		return s.notifyPayloadObservers(tx, transaction, data)
+	}
+	return err
+}
+
+func (s *state) ReadPayload(ctx context.Context, hash hash.SHA256Hash) (payload []byte, err error) {
+	err = storage.BBoltTXView(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
+		payload = s.payloadStore.ReadPayload(tx, hash)
+		return nil
+	})
+	return
 }
 
 func (s *state) Subscribe(eventType EventType, payloadType string, receiver Receiver) {
@@ -338,29 +358,23 @@ func (s *state) notifyObservers(ctx context.Context, transaction Transaction) er
 	return nil
 }
 
-// notifyObservers is called from a transactional context. The transactional observers need to be called with the TX context, the other observers after the commit.
-func (s *state) notifyPayloadObservers(ctx context.Context, transaction Transaction, payload []byte) error {
+func (s *state) notifyPayloadObservers(tx *bbolt.Tx, transaction Transaction, payload []byte) error {
 	// apply TX context observers
 	for _, observer := range s.transactionalPayloadObservers {
-		if err := observer(ctx, transaction, payload); err != nil {
+		if err := observer(transaction, payload); err != nil {
 			return fmt.Errorf("observer notification failed: %w", err)
 		}
 	}
 
 	notifyNonTXObservers := func() {
 		for _, observer := range s.nonTransactionalPayloadObservers {
-			if err := observer(context.Background(), transaction, payload); err != nil {
+			if err := observer(transaction, payload); err != nil {
 				log.Logger().Errorf("observer notification failed: %v", err)
 			}
 		}
 	}
 	// check if there's an active transaction
-	tx, txIsActive := storage.BBoltTX(ctx)
-	if txIsActive { // sanity check because there should always be a transaction
-		tx.OnCommit(notifyNonTXObservers)
-	} else {
-		notifyNonTXObservers()
-	}
+	tx.OnCommit(notifyNonTXObservers)
 	return nil
 }
 

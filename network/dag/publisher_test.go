@@ -48,23 +48,16 @@ func TestReplayingPublisher(t *testing.T) {
 		publisher.Start()
 
 		// Now add transaction and write payload to trigger the observers
-		dag.Add(ctx, tx0)
-		payloadStore.WritePayload(ctx, tx0.PayloadHash(), []byte{1, 2, 3})
+		addTx(t, dag, tx0)
+		writePayload(t, payloadStore, tx0.PayloadHash(), []byte{1, 2, 3})
 		publisher.transactionAdded(ctx, tx0, nil)
 
 		assert.Equal(t, 1, calls)
 	})
 	t.Run("non-empty graph at start", func(t *testing.T) {
-		ctx := context.Background()
 		publisher, dag, payloadStore := newPublisher(t)
-		err := dag.Add(ctx, tx0)
-		if !assert.NoError(t, err) {
-			return
-		}
-		err = payloadStore.WritePayload(ctx, tx0.PayloadHash(), []byte{1, 2, 3})
-		if !assert.NoError(t, err) {
-			return
-		}
+		addTx(t, dag, tx0)
+		writePayload(t, payloadStore, tx0.PayloadHash(), []byte{1, 2, 3})
 
 		calls := 0
 		publisher.Subscribe(TransactionAddedEvent, tx0.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
@@ -82,9 +75,8 @@ func TestReplayingDAGPublisher_replay(t *testing.T) {
 	tx0 := CreateTestTransactionWithJWK(1)
 
 	t.Run("tx without payload", func(t *testing.T) {
-		ctx := context.Background()
 		publisher, dag, _ := newPublisher(t)
-		dag.Add(ctx, tx0)
+		addTx(t, dag, tx0)
 		calls := 0
 
 		publisher.Subscribe(TransactionAddedEvent, tx0.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
@@ -98,10 +90,8 @@ func TestReplayingDAGPublisher_replay(t *testing.T) {
 
 	t.Run("txs without payload - first is blocking", func(t *testing.T) {
 		tx1 := CreateTestTransactionWithJWK(2, tx0)
-		ctx := context.Background()
 		publisher, dag, _ := newPublisher(t)
-		dag.Add(ctx, tx0)
-		dag.Add(ctx, tx1)
+		addTx(t, dag, tx0, tx1)
 		txAddedCalls := 0
 		txPayloadAddedCalls := 0
 
@@ -121,12 +111,10 @@ func TestReplayingDAGPublisher_replay(t *testing.T) {
 
 	t.Run("txs with payload - first is blocking", func(t *testing.T) {
 		tx1 := CreateTestTransactionWithJWK(2, tx0)
-		ctx := context.Background()
 		publisher, dag, payloadStore := newPublisher(t)
-		dag.Add(ctx, tx0)
-		dag.Add(ctx, tx1)
-		payloadStore.WritePayload(ctx, tx0.PayloadHash(), []byte{1})
-		payloadStore.WritePayload(ctx, tx1.PayloadHash(), []byte{2})
+		addTx(t, dag, tx0, tx1)
+		writePayload(t, payloadStore, tx0.PayloadHash(), []byte{1})
+		writePayload(t, payloadStore, tx1.PayloadHash(), []byte{2})
 		txAddedCalls := 0
 		txPayloadAddedCalls := 0
 
@@ -148,9 +136,9 @@ func TestReplayingDAGPublisher_replay(t *testing.T) {
 		tx2 := CreateTestTransactionWithJWK(3, tx1)
 		ctx := context.Background()
 		publisher, dag, payloadStore := newPublisher(t)
-		dag.Add(ctx, tx0, tx1)
-		payloadStore.WritePayload(ctx, tx0.PayloadHash(), []byte{1})
-		payloadStore.WritePayload(ctx, tx1.PayloadHash(), []byte{2})
+		addTx(t, dag, tx0, tx1)
+		writePayload(t, payloadStore, tx0.PayloadHash(), []byte{1})
+		writePayload(t, payloadStore, tx1.PayloadHash(), []byte{2})
 		txAddedCalls := 0
 		txPayloadAddedCalls := 0
 
@@ -163,7 +151,7 @@ func TestReplayingDAGPublisher_replay(t *testing.T) {
 			return nil
 		})
 		publisher.Start()
-		dag.Add(ctx, tx2)
+		addTx(t, dag, tx2)
 		// trigger another processing with an old hash
 		publisher.payloadWritten(ctx, nil, []byte{1})
 
@@ -181,7 +169,7 @@ func TestReplayingDAGPublisher_replay(t *testing.T) {
 		t.Cleanup(func() {
 			_ = db.Close()
 		})
-		payloadStore := NewBBoltPayloadStore(db)
+		payloadStore := NewBBoltPayloadStore(db).(*bboltPayloadStore)
 		graph := newBBoltDAG(db)
 		publisher := NewReplayingDAGPublisher(payloadStore, graph).(*replayingDAGPublisher)
 		ctx := context.Background()
@@ -219,11 +207,11 @@ func TestReplayingDAGPublisher_replay(t *testing.T) {
 			payloads++
 			return nil
 		})
-		graph.Add(ctx, txA, txB, txC, txD)
+		addTx(t, graph, txA, txB, txC, txD)
 
 		// Write payload for A and C, check events
-		_ = payloadStore.WritePayload(ctx, txA.PayloadHash(), txAPayload)
-		_ = payloadStore.WritePayload(ctx, txC.PayloadHash(), txCPayload)
+		writePayload(t, payloadStore, txA.PayloadHash(), txAPayload)
+		writePayload(t, payloadStore, txC.PayloadHash(), txCPayload)
 		publisher.transactionAdded(ctx, txA, nil)
 		publisher.transactionAdded(ctx, txB, nil)
 		publisher.transactionAdded(ctx, txC, nil)
@@ -235,14 +223,14 @@ func TestReplayingDAGPublisher_replay(t *testing.T) {
 		assert.Equal(t, 4, transactions)
 
 		// Write payload for D, nothing should be published
-		_ = payloadStore.WritePayload(ctx, txD.PayloadHash(), txDPayload)
+		writePayload(t, payloadStore, txD.PayloadHash(), txDPayload)
 		publisher.payloadWritten(ctx, nil, txDPayload)
 		assert.Equal(t, 1, payloads)
 		// Another call for B
 		assert.Equal(t, 4, transactions)
 
 		// Write payload for B, B, C and D should be published
-		_ = payloadStore.WritePayload(ctx, txB.PayloadHash(), txBPayload)
+		writePayload(t, payloadStore, txB.PayloadHash(), txBPayload)
 		publisher.payloadWritten(ctx, nil, txBPayload)
 		assert.Equal(t, 4, payloads)
 		// + B, C, D
@@ -256,16 +244,16 @@ func TestReplayingPublisher_Publish(t *testing.T) {
 	rootTXPayload := []byte{0, 0, 0, 1}
 	t.Run("no subscribers", func(t *testing.T) {
 		ctrl := createPublisher(t)
-		ctrl.payloadStore.WritePayload(ctx, rootTX.PayloadHash(), rootTXPayload)
+		writePayload(t, ctrl.payloadStore, rootTX.PayloadHash(), rootTXPayload)
 
-		ctrl.graph.Add(ctx, rootTX)
+		addTx(t, ctrl.graph, rootTX)
 
 		ctrl.publisher.transactionAdded(ctx, rootTX, nil)
 	})
 	t.Run("single subscriber", func(t *testing.T) {
 		ctrl := createPublisher(t)
 
-		ctrl.graph.Add(ctx, rootTX)
+		addTx(t, ctrl.graph, rootTX)
 
 		calls := 0
 		ctrl.publisher.Subscribe(TransactionPayloadAddedEvent, rootTX.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
@@ -278,7 +266,7 @@ func TestReplayingPublisher_Publish(t *testing.T) {
 		ctrl.publisher.transactionAdded(ctx, rootTX, nil)
 
 		// Add payload as well, now payload IS present
-		ctrl.payloadStore.WritePayload(ctx, rootTX.PayloadHash(), rootTXPayload)
+		writePayload(t, ctrl.payloadStore, rootTX.PayloadHash(), rootTXPayload)
 		ctrl.publisher.payloadWritten(ctx, nil, rootTXPayload)
 
 		assert.Equal(t, 1, calls)
@@ -286,7 +274,7 @@ func TestReplayingPublisher_Publish(t *testing.T) {
 	t.Run("local node call order (payloadWritten first, then transactionAdded)", func(t *testing.T) {
 		ctrl := createPublisher(t)
 
-		ctrl.payloadStore.WritePayload(ctx, rootTX.PayloadHash(), rootTXPayload)
+		writePayload(t, ctrl.payloadStore, rootTX.PayloadHash(), rootTXPayload)
 
 		txAddedCalls := 0
 		ctrl.publisher.Subscribe(TransactionAddedEvent, rootTX.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
@@ -305,7 +293,7 @@ func TestReplayingPublisher_Publish(t *testing.T) {
 		assert.Equal(t, 0, txAddedCalls)
 
 		// Then add TX
-		_ = ctrl.graph.Add(ctx, rootTX)
+		addTx(t, ctrl.graph, rootTX)
 		ctrl.publisher.transactionAdded(ctx, rootTX, nil)
 		assert.Equal(t, 1, payloadAddedCalls)
 		assert.Equal(t, 1, txAddedCalls)
@@ -333,7 +321,7 @@ func TestReplayingPublisher_Publish(t *testing.T) {
 	t.Run("subscribers on multiple event types", func(t *testing.T) {
 		ctrl := createPublisher(t)
 
-		ctrl.graph.Add(ctx, rootTX)
+		addTx(t, ctrl.graph, rootTX)
 
 		txAddedCalls := 0
 		txPayloadAddedCalls := 0
@@ -352,7 +340,7 @@ func TestReplayingPublisher_Publish(t *testing.T) {
 		ctrl.publisher.transactionAdded(ctx, rootTX, nil)
 
 		// Add payload as well, now payload IS present
-		ctrl.payloadStore.WritePayload(ctx, rootTX.PayloadHash(), rootTXPayload)
+		writePayload(t, ctrl.payloadStore, rootTX.PayloadHash(), rootTXPayload)
 		ctrl.publisher.payloadWritten(ctx, nil, rootTXPayload)
 
 		assert.Equal(t, 1, txAddedCalls)
@@ -363,7 +351,7 @@ func TestReplayingPublisher_Publish(t *testing.T) {
 
 		tx := CreateSignedTestTransaction(1, time.Now(), [][]byte{{9, 8, 7}}, "foo/bar", true)
 
-		ctrl.graph.Add(ctx, tx)
+		addTx(t, ctrl.graph, tx)
 
 		txAddedCalled := 0
 		ctrl.publisher.Subscribe(TransactionAddedEvent, tx.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
@@ -384,7 +372,7 @@ func TestReplayingPublisher_Publish(t *testing.T) {
 	t.Run("payload not present (but present later)", func(t *testing.T) {
 		ctrl := createPublisher(t)
 
-		ctrl.graph.Add(ctx, rootTX)
+		addTx(t, ctrl.graph, rootTX)
 
 		txAddedCalled := 0
 		ctrl.publisher.Subscribe(TransactionAddedEvent, rootTX.PayloadType(), func(actualTransaction Transaction, actualPayload []byte) error {
@@ -405,7 +393,7 @@ func TestReplayingPublisher_Publish(t *testing.T) {
 		assert.Equal(t, 0, txPayloadAddedCalled)
 
 		// Now add the payload and trigger subscribers
-		ctrl.payloadStore.WritePayload(ctx, rootTX.PayloadHash(), rootTXPayload)
+		writePayload(t, ctrl.payloadStore, rootTX.PayloadHash(), rootTXPayload)
 
 		ctrl.publisher.payloadWritten(ctx, nil, rootTXPayload)
 
@@ -416,8 +404,8 @@ func TestReplayingPublisher_Publish(t *testing.T) {
 	t.Run("multiple subscribers on single event type", func(t *testing.T) {
 		ctrl := createPublisher(t)
 
-		ctrl.payloadStore.WritePayload(ctx, rootTX.PayloadHash(), rootTXPayload)
-		ctrl.graph.Add(ctx, rootTX)
+		writePayload(t, ctrl.payloadStore, rootTX.PayloadHash(), rootTXPayload)
+		addTx(t, ctrl.graph, rootTX)
 
 		calls := 0
 		receiver := func(actualTransaction Transaction, actualPayload []byte) error {
@@ -434,8 +422,8 @@ func TestReplayingPublisher_Publish(t *testing.T) {
 	t.Run("multiple subscribers on single event type, first fails", func(t *testing.T) {
 		ctrl := createPublisher(t)
 
-		ctrl.payloadStore.WritePayload(ctx, rootTX.PayloadHash(), rootTXPayload)
-		ctrl.graph.Add(ctx, rootTX)
+		writePayload(t, ctrl.payloadStore, rootTX.PayloadHash(), rootTXPayload)
+		addTx(t, ctrl.graph, rootTX)
 
 		calls := 0
 		receiver := func(actualTransaction Transaction, actualPayload []byte) error {
@@ -456,7 +444,7 @@ func createPublisher(t *testing.T) testPublisher {
 	t.Cleanup(func() {
 		_ = db.Close()
 	})
-	payloadStore := NewBBoltPayloadStore(db)
+	payloadStore := NewBBoltPayloadStore(db).(*bboltPayloadStore)
 	graph := newBBoltDAG(db)
 	publisher := NewReplayingDAGPublisher(payloadStore, graph).(*replayingDAGPublisher)
 	return testPublisher{
@@ -468,16 +456,16 @@ func createPublisher(t *testing.T) testPublisher {
 }
 
 type testPublisher struct {
-	payloadStore PayloadStore
+	payloadStore *bboltPayloadStore
 	publisher    *replayingDAGPublisher
 	graph        *bboltDAG
 	db           *bbolt.DB
 }
 
-func newPublisher(t *testing.T) (*replayingDAGPublisher, *bboltDAG, PayloadStore) {
+func newPublisher(t *testing.T) (*replayingDAGPublisher, *bboltDAG, *bboltPayloadStore) {
 	testDirectory := io.TestDirectory(t)
 	db := createBBoltDB(testDirectory)
 	dag := newBBoltDAG(db)
 	payloadStore := NewBBoltPayloadStore(db)
-	return NewReplayingDAGPublisher(payloadStore, dag).(*replayingDAGPublisher), dag, payloadStore
+	return NewReplayingDAGPublisher(payloadStore, dag).(*replayingDAGPublisher), dag, payloadStore.(*bboltPayloadStore)
 }
