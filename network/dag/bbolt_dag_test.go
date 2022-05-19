@@ -143,8 +143,8 @@ func TestBBoltDAG_Get(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				tx1 := CreateTestTransactionWithJWK(uint32(rand.Int31n(100000)), rootTX)
-				addTx(t, graph, tx1)
-				err := graph.db.View(func(tx *bbolt.Tx) error {
+				err := graph.db.Update(func(tx *bbolt.Tx) error {
+					_ = graph.Add(tx, tx1)
 					actual, err := graph.Get(tx, tx1.Ref())
 					if err != nil {
 						return err
