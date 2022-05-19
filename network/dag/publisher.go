@@ -142,7 +142,7 @@ func (s *replayingDAGPublisher) publish(ctx context.Context) error {
 
 	currentRef := front.Value.(hash.SHA256Hash)
 	return storage.BBoltTXView(ctx, s.dag.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
-		return s.dag.Walk(ctx, func(ctx context.Context, transaction Transaction) bool {
+		return s.dag.Walk(contextWithTX, func(ctx context.Context, transaction Transaction) bool {
 			outcome := s.publishTransaction(tx, transaction)
 			if outcome {
 				remove(s.resumeAt, transaction.Ref())

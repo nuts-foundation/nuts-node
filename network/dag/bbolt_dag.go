@@ -200,7 +200,7 @@ func (dag *bboltDAG) FindBetween(ctx context.Context, startInclusive time.Time, 
 func (dag *bboltDAG) findBetweenLC(ctx context.Context, startInclusive uint32, endExclusive uint32) ([]Transaction, error) {
 	var result []Transaction
 
-	err := storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
+	err := storage.BBoltTXView(ctx, dag.db, func(contextWithDBTx context.Context, tx *bbolt.Tx) error {
 		clocks := tx.Bucket([]byte(clockBucket))
 		if clocks == nil {
 			return nil
@@ -208,7 +208,7 @@ func (dag *bboltDAG) findBetweenLC(ctx context.Context, startInclusive uint32, e
 
 		// Initiate a cursor and start from the given lamport clock, collect the transactions until the LC upper bound is reached.
 		// This works because the clock index is sorted by the clock value.
-		return walk(ctx, clocks.Cursor(), startInclusive, tx, func(ctx context.Context, transaction Transaction) bool {
+		return walk(contextWithDBTx, clocks.Cursor(), startInclusive, tx, func(ctx context.Context, transaction Transaction) bool {
 			if transaction.Clock() >= endExclusive {
 				return false
 			}
