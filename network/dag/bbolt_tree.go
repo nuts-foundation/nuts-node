@@ -122,7 +122,7 @@ func (store *bboltTree) migrate(ctx context.Context, state State) error {
 		return nil
 	}
 
-	err := state.Walk(ctx, func(_ context.Context, transaction Transaction) bool {
+	err := state.Walk(ctx, func(transaction Transaction) bool {
 		store.tree.Insert(transaction.Ref(), transaction.Clock())
 		return true
 	}, hash.EmptyHash())

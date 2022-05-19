@@ -41,7 +41,7 @@ type trackingVisitor struct {
 	transactions []Transaction
 }
 
-func (n *trackingVisitor) Accept(_ context.Context, transaction Transaction) bool {
+func (n *trackingVisitor) Accept(_ *bbolt.Tx, transaction Transaction) bool {
 	n.transactions = append(n.transactions, transaction)
 	return true
 }
@@ -60,7 +60,6 @@ func (n trackingVisitor) JoinRefsAsString() string {
 
 func TestBBoltDAG_FindBetween(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		ctx := context.Background()
 		graph := CreateDAG(t)
 
 		// tx1 and tx2's signing time are out-of-order
@@ -68,19 +67,22 @@ func TestBBoltDAG_FindBetween(t *testing.T) {
 		tx2 := CreateSignedTestTransaction(1, time.Now(), nil, "unit/test", true, tx1)
 		addTx(t, graph, tx1, tx2)
 
-		actual, err := graph.FindBetween(ctx, time.Now().AddDate(0, 0, -2), time.Now().AddDate(1, 0, 0))
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.Len(t, actual, 2)
-		assert.Equal(t, tx1.Data(), actual[0].Data())
-		assert.Equal(t, tx2.Data(), actual[1].Data())
+		_ = graph.db.View(func(tx *bbolt.Tx) error {
+			actual, err := graph.findBetween(tx, time.Now().AddDate(0, 0, -2), time.Now().AddDate(1, 0, 0))
+			if !assert.NoError(t, err) {
+				return nil
+			}
+			assert.Len(t, actual, 2)
+			assert.Equal(t, tx1.Data(), actual[0].Data())
+			assert.Equal(t, tx2.Data(), actual[1].Data())
+
+			return nil
+		})
 	})
 }
 
 func TestBBoltDAG_findBetweenLC(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		ctx := context.Background()
 		graph := CreateDAG(t)
 
 		// tx1 < [tx2, tx3] < tx4 < tx5
@@ -92,15 +94,19 @@ func TestBBoltDAG_findBetweenLC(t *testing.T) {
 		addTx(t, graph, tx2, tx3, tx4, tx5)
 
 		// LC 1..3 should yield tx2, tx3 and tx4
-		actual, err := graph.findBetweenLC(ctx, 1, 3)
+		graph.db.View(func(tx *bbolt.Tx) error {
+			actual, err := graph.findBetweenLC(tx, 1, 3)
 
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.Len(t, actual, 3)
-		assert.Contains(t, actual, tx2)
-		assert.Contains(t, actual, tx3)
-		assert.Contains(t, actual, tx4)
+			if !assert.NoError(t, err) {
+				return nil
+			}
+			assert.Len(t, actual, 3)
+			assert.Contains(t, actual, tx2)
+			assert.Contains(t, actual, tx3)
+			assert.Contains(t, actual, tx4)
+			return nil
+		})
+
 	})
 }
 
@@ -109,8 +115,8 @@ func TestBBoltDAG_Get(t *testing.T) {
 		graph := CreateDAG(t)
 		transaction := CreateTestTransactionWithJWK(1)
 		_ = graph.db.Update(func(tx *bbolt.Tx) error {
-			_ = graph.Add(tx, transaction)
-			actual, err := graph.Get(tx, transaction.Ref())
+			_ = graph.add(tx, transaction)
+			actual, err := graph.get(tx, transaction.Ref())
 			if !assert.NoError(t, err) {
 				return err
 			}
@@ -121,7 +127,7 @@ func TestBBoltDAG_Get(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		graph := CreateDAG(t)
 		_ = graph.db.Update(func(tx *bbolt.Tx) error {
-			actual, err := graph.Get(tx, hash.SHA256Sum([]byte{1, 2, 3}))
+			actual, err := graph.get(tx, hash.SHA256Sum([]byte{1, 2, 3}))
 			assert.NoError(t, err)
 			assert.Nil(t, actual)
 			return nil
@@ -144,8 +150,8 @@ func TestBBoltDAG_Get(t *testing.T) {
 				defer wg.Done()
 				tx1 := CreateTestTransactionWithJWK(uint32(rand.Int31n(100000)), rootTX)
 				err := graph.db.Update(func(tx *bbolt.Tx) error {
-					_ = graph.Add(tx, tx1)
-					actual, err := graph.Get(tx, tx1.Ref())
+					_ = graph.add(tx, tx1)
+					actual, err := graph.get(tx, tx1.Ref())
 					if err != nil {
 						return err
 					}
@@ -163,39 +169,40 @@ func TestBBoltDAG_Get(t *testing.T) {
 
 func TestBBoltDAG_Add(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		ctx := context.Background()
 		graph := CreateDAG(t)
 		tx := CreateTestTransactionWithJWK(0)
 
 		addTx(t, graph, tx)
 
 		visitor := trackingVisitor{}
-		err := graph.Walk(ctx, visitor.Accept, hash.EmptyHash())
+		err := graph.db.View(func(tx *bbolt.Tx) error {
+			return graph.walk(tx, visitor.Accept, hash.EmptyHash())
+		})
 		if !assert.NoError(t, err) {
 			return
 		}
 		assert.Len(t, visitor.transactions, 1)
 		assert.Equal(t, tx.Ref(), visitor.transactions[0].Ref())
 		graph.db.View(func(dbTx *bbolt.Tx) error {
-			assert.True(t, graph.IsPresent(dbTx, tx.Ref()))
+			assert.True(t, graph.isPresent(dbTx, tx.Ref()))
 			return nil
 		})
 
 	})
 	t.Run("duplicate", func(t *testing.T) {
-		ctx := context.Background()
 		graph := CreateDAG(t)
 		tx := CreateTestTransactionWithJWK(0)
 
-		err := addTxErr(graph, tx)
+		addTx(t, graph, tx)
 
-		assert.NoError(t, err)
-		// Assert we can find the TX, but make sure it's only there once
-		actual, _ := graph.FindBetween(ctx, MinTime(), MaxTime())
-		assert.Len(t, actual, 1)
+		_ = graph.db.View(func(tx *bbolt.Tx) error {
+			// Assert we can find the TX, but make sure it's only there once
+			actual, _ := graph.findBetween(tx, MinTime(), MaxTime())
+			assert.Len(t, actual, 1)
+			return nil
+		})
 	})
 	t.Run("second root", func(t *testing.T) {
-		ctx := context.Background()
 		graph := CreateDAG(t)
 		root1 := CreateTestTransactionWithJWK(1)
 		root2 := CreateTestTransactionWithJWK(2)
@@ -203,8 +210,11 @@ func TestBBoltDAG_Add(t *testing.T) {
 		addTx(t, graph, root1)
 		err := addTxErr(graph, root2)
 		assert.EqualError(t, err, "root transaction already exists")
-		actual, _ := graph.FindBetween(ctx, MinTime(), MaxTime())
-		assert.Len(t, actual, 1)
+		_ = graph.db.View(func(tx *bbolt.Tx) error {
+			actual, _ := graph.findBetween(tx, MinTime(), MaxTime())
+			assert.Len(t, actual, 1)
+			return nil
+		})
 	})
 	t.Run("error - cyclic graph", func(t *testing.T) {
 		t.Skip("Algorithm for detecting cycles is not yet decided on")
@@ -342,11 +352,12 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 
 func TestBBoltDAG_Walk(t *testing.T) {
 	t.Run("ok - empty graph", func(t *testing.T) {
-		ctx := context.Background()
 		graph := CreateDAG(t)
 		visitor := trackingVisitor{}
 
-		err := graph.Walk(ctx, visitor.Accept, hash.EmptyHash())
+		err := graph.db.View(func(tx *bbolt.Tx) error {
+			return graph.walk(tx, visitor.Accept, hash.EmptyHash())
+		})
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -355,13 +366,14 @@ func TestBBoltDAG_Walk(t *testing.T) {
 	})
 
 	t.Run("ok - start at root for empty hash", func(t *testing.T) {
-		ctx := context.Background()
 		graph := CreateDAG(t)
 		visitor := trackingVisitor{}
 		transaction := CreateTestTransactionWithJWK(1)
 		addTx(t, graph, transaction)
 
-		err := graph.Walk(ctx, visitor.Accept, hash.EmptyHash())
+		err := graph.db.View(func(tx *bbolt.Tx) error {
+			return graph.walk(tx, visitor.Accept, hash.EmptyHash())
+		})
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -370,7 +382,6 @@ func TestBBoltDAG_Walk(t *testing.T) {
 	})
 
 	t.Run("ok - TXs processing in right order", func(t *testing.T) {
-		ctx := context.Background()
 		graph := CreateDAG(t)
 		visitor := trackingVisitor{}
 		A := CreateTestTransactionWithJWK(1)
@@ -379,7 +390,9 @@ func TestBBoltDAG_Walk(t *testing.T) {
 		D := CreateTestTransactionWithJWK(4, C, B)
 		addTx(t, graph, A, B, C, D)
 
-		err := graph.Walk(ctx, visitor.Accept, hash.EmptyHash())
+		err := graph.db.View(func(tx *bbolt.Tx) error {
+			return graph.walk(tx, visitor.Accept, hash.EmptyHash())
+		})
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -398,7 +411,7 @@ func TestBBoltDAG_GetByPayloadHash(t *testing.T) {
 		graph := CreateDAG(t)
 		transaction := CreateTestTransactionWithJWK(1)
 		addTx(t, graph, transaction)
-		actual, err := graph.GetByPayloadHash(ctx, transaction.PayloadHash())
+		actual, err := graph.getByPayloadHash(ctx, transaction.PayloadHash())
 		assert.Len(t, actual, 1)
 		assert.NoError(t, err)
 		assert.Equal(t, transaction, actual[0])
@@ -406,7 +419,7 @@ func TestBBoltDAG_GetByPayloadHash(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		ctx := context.Background()
 		graph := CreateDAG(t)
-		actual, err := graph.GetByPayloadHash(ctx, hash.SHA256Sum([]byte{1, 2, 3}))
+		actual, err := graph.getByPayloadHash(ctx, hash.SHA256Sum([]byte{1, 2, 3}))
 		assert.NoError(t, err)
 		assert.Empty(t, actual)
 	})
@@ -430,7 +443,7 @@ func TestBBoltDAG_PayloadHashes(t *testing.T) {
 
 		// Call
 		numCalled := 0
-		err := graph.PayloadHashes(ctx, func(payloadHash hash.SHA256Hash) error {
+		err := graph.payloadHashes(ctx, func(payloadHash hash.SHA256Hash) error {
 			// Every payload should be visited once
 			assert.False(t, payloads[payloadHash])
 			// Mark visited
@@ -450,7 +463,7 @@ func TestBBoltDAG_PayloadHashes(t *testing.T) {
 		graph := CreateDAG(t)
 		addTx(t, graph, CreateTestTransactionWithJWK(0))
 		numCalled := 0
-		err := graph.PayloadHashes(ctx, func(payloadHash hash.SHA256Hash) error {
+		err := graph.payloadHashes(ctx, func(payloadHash hash.SHA256Hash) error {
 			numCalled++
 			return errors.New("some error")
 		})
@@ -461,7 +474,7 @@ func TestBBoltDAG_PayloadHashes(t *testing.T) {
 		ctx := context.Background()
 		graph := CreateDAG(t)
 		numCalled := 0
-		err := graph.PayloadHashes(ctx, func(payloadHash hash.SHA256Hash) error {
+		err := graph.payloadHashes(ctx, func(payloadHash hash.SHA256Hash) error {
 			numCalled++
 			return nil
 		})

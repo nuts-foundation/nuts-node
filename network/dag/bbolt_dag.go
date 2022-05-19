@@ -40,13 +40,6 @@ const transactionsBucket = "documents"
 // the payload.
 const payloadIndexBucket = "payloadIndex"
 
-// nextsBucket is the name of the Bolt bucket that holds the forward transaction references (a.k.a. "nexts") as transaction
-// refs. The value ([]byte) should be split in chunks of HashSize where each entry is a forward reference (next).
-const nextsBucket = "nexts"
-
-// rootsTransactionKey is the name of the bucket entry that holds the refs of the root transactions.
-const rootsTransactionKey = "roots"
-
 // headsBucket contains the name of the bucket the holds the heads.
 const headsBucket = "heads"
 
@@ -114,25 +107,25 @@ func newBBoltDAG(db *bbolt.DB) *bboltDAG {
 	return &bboltDAG{db: db}
 }
 
-func (dag *bboltDAG) Migrate() error {
+func (dag *bboltDAG) migrate() error {
 	return nil
 }
 
-func (dag *bboltDAG) Diagnostics() []core.DiagnosticResult {
+func (dag *bboltDAG) diagnostics() []core.DiagnosticResult {
 	result := make([]core.DiagnosticResult, 0)
 	ctx := context.Background()
-	stats := dag.Statistics(ctx)
-	result = append(result, headsStatistic{heads: dag.Heads(ctx)})
+	stats := dag.statistics(ctx)
+	result = append(result, headsStatistic{heads: dag.heads(ctx)})
 	result = append(result, numberOfTransactionsStatistic{numberOfTransactions: stats.NumberOfTransactions})
 	result = append(result, dataSizeStatistic{sizeInBytes: stats.DataSize})
 	return result
 }
 
-func (dag bboltDAG) Get(tx *bbolt.Tx, ref hash.SHA256Hash) (Transaction, error) {
+func (dag bboltDAG) get(tx *bbolt.Tx, ref hash.SHA256Hash) (Transaction, error) {
 	return getTransaction(ref, tx)
 }
 
-func (dag bboltDAG) GetByPayloadHash(ctx context.Context, payloadHash hash.SHA256Hash) ([]Transaction, error) {
+func (dag bboltDAG) getByPayloadHash(ctx context.Context, payloadHash hash.SHA256Hash) ([]Transaction, error) {
 	result := make([]Transaction, 0)
 	err := storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
 		transactions := tx.Bucket([]byte(transactionsBucket))
@@ -153,7 +146,7 @@ func (dag bboltDAG) GetByPayloadHash(ctx context.Context, payloadHash hash.SHA25
 	return result, err
 }
 
-func (dag *bboltDAG) PayloadHashes(ctx context.Context, visitor func(payloadHash hash.SHA256Hash) error) error {
+func (dag *bboltDAG) payloadHashes(ctx context.Context, visitor func(payloadHash hash.SHA256Hash) error) error {
 	return storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
 		payloadIndex := tx.Bucket([]byte(payloadIndexBucket))
 		if payloadIndex == nil {
@@ -170,7 +163,7 @@ func (dag *bboltDAG) PayloadHashes(ctx context.Context, visitor func(payloadHash
 	})
 }
 
-func (dag bboltDAG) Heads(ctx context.Context) []hash.SHA256Hash {
+func (dag bboltDAG) heads(ctx context.Context) []hash.SHA256Hash {
 	result := make([]hash.SHA256Hash, 0)
 	_ = storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
 		heads := tx.Bucket([]byte(headsBucket))
@@ -186,9 +179,9 @@ func (dag bboltDAG) Heads(ctx context.Context) []hash.SHA256Hash {
 	return result
 }
 
-func (dag *bboltDAG) FindBetween(ctx context.Context, startInclusive time.Time, endExclusive time.Time) ([]Transaction, error) {
+func (dag *bboltDAG) findBetween(tx *bbolt.Tx, startInclusive time.Time, endExclusive time.Time) ([]Transaction, error) {
 	var result []Transaction
-	err := dag.Walk(ctx, func(_ context.Context, transaction Transaction) bool {
+	err := dag.walk(tx, func(_ *bbolt.Tx, transaction Transaction) bool {
 		if !transaction.SigningTime().Before(startInclusive) && transaction.SigningTime().Before(endExclusive) {
 			result = append(result, transaction)
 		}
@@ -197,24 +190,22 @@ func (dag *bboltDAG) FindBetween(ctx context.Context, startInclusive time.Time, 
 	return result, err
 }
 
-func (dag *bboltDAG) findBetweenLC(ctx context.Context, startInclusive uint32, endExclusive uint32) ([]Transaction, error) {
+func (dag *bboltDAG) findBetweenLC(tx *bbolt.Tx, startInclusive uint32, endExclusive uint32) ([]Transaction, error) {
 	var result []Transaction
 
-	err := storage.BBoltTXView(ctx, dag.db, func(contextWithDBTx context.Context, tx *bbolt.Tx) error {
-		clocks := tx.Bucket([]byte(clockBucket))
-		if clocks == nil {
-			return nil
-		}
+	clocks := tx.Bucket([]byte(clockBucket))
+	if clocks == nil {
+		return result, nil
+	}
 
-		// Initiate a cursor and start from the given lamport clock, collect the transactions until the LC upper bound is reached.
-		// This works because the clock index is sorted by the clock value.
-		return walk(contextWithDBTx, clocks.Cursor(), startInclusive, tx, func(ctx context.Context, transaction Transaction) bool {
-			if transaction.Clock() >= endExclusive {
-				return false
-			}
-			result = append(result, transaction)
-			return true
-		})
+	// Initiate a cursor and start from the given lamport clock, collect the transactions until the LC upper bound is reached.
+	// This works because the clock index is sorted by the clock value.
+	err := walk(clocks.Cursor(), startInclusive, tx, func(_ *bbolt.Tx, transaction Transaction) bool {
+		if transaction.Clock() >= endExclusive {
+			return false
+		}
+		result = append(result, transaction)
+		return true
 	})
 
 	if err != nil {
@@ -224,7 +215,7 @@ func (dag *bboltDAG) findBetweenLC(ctx context.Context, startInclusive uint32, e
 	return result, nil
 }
 
-func (dag bboltDAG) IsPresent(tx *bbolt.Tx, ref hash.SHA256Hash) bool {
+func (dag bboltDAG) isPresent(tx *bbolt.Tx, ref hash.SHA256Hash) bool {
 	if payloads := tx.Bucket([]byte(transactionsBucket)); payloads != nil {
 		data := payloads.Get(ref.Slice())
 		return data != nil
@@ -232,10 +223,10 @@ func (dag bboltDAG) IsPresent(tx *bbolt.Tx, ref hash.SHA256Hash) bool {
 	return false
 }
 
-func (dag *bboltDAG) Add(tx *bbolt.Tx, transactions ...Transaction) error {
+func (dag *bboltDAG) add(tx *bbolt.Tx, transactions ...Transaction) error {
 	for _, transaction := range transactions {
 		if transaction != nil {
-			if err := dag.add(tx, transaction); err != nil {
+			if err := dag.addSingle(tx, transaction); err != nil {
 				return err
 			}
 		}
@@ -243,30 +234,28 @@ func (dag *bboltDAG) Add(tx *bbolt.Tx, transactions ...Transaction) error {
 	return nil
 }
 
-func (dag bboltDAG) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA256Hash) error {
-	return storage.BBoltTXView(ctx, dag.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
-		transactions := tx.Bucket([]byte(transactionsBucket))
-		clocksBucket := tx.Bucket([]byte(clockBucket))
-		clocksIndexBucket := tx.Bucket([]byte(clockIndexBucket))
-		if transactions == nil {
-			// DAG is empty
-			return nil
-		}
+func (dag bboltDAG) walk(tx *bbolt.Tx, visitor visitor, startAt hash.SHA256Hash) error {
+	transactions := tx.Bucket([]byte(transactionsBucket))
+	clocksBucket := tx.Bucket([]byte(clockBucket))
+	clocksIndexBucket := tx.Bucket([]byte(clockIndexBucket))
+	if transactions == nil {
+		// DAG is empty
+		return nil
+	}
 
-		// we find the clock value of the TX ref
-		// an empty hash means start at root
-		clockBytes := clocksIndexBucket.Get(startAt.Slice())
-		var clockValue uint32
-		if clockBytes != nil {
-			clockValue = bytesToClock(clockBytes)
-		}
+	// we find the clock value of the TX ref
+	// an empty hash means start at root
+	clockBytes := clocksIndexBucket.Get(startAt.Slice())
+	var clockValue uint32
+	if clockBytes != nil {
+		clockValue = bytesToClock(clockBytes)
+	}
 
-		// initiate a cursor and start from the given lcValue
-		return walk(contextWithTX, clocksBucket.Cursor(), clockValue, tx, visitor)
-	})
+	// initiate a cursor and start from the given lcValue
+	return walk(clocksBucket.Cursor(), clockValue, tx, visitor)
 }
 
-func (dag bboltDAG) Statistics(ctx context.Context) Statistics {
+func (dag bboltDAG) statistics(ctx context.Context) Statistics {
 	transactionNum := 0
 	_ = storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
 		if bucket := tx.Bucket([]byte(transactionsBucket)); bucket != nil {
@@ -280,7 +269,7 @@ func (dag bboltDAG) Statistics(ctx context.Context) Statistics {
 	}
 }
 
-func (dag *bboltDAG) add(tx *bbolt.Tx, transaction Transaction) error {
+func (dag *bboltDAG) addSingle(tx *bbolt.Tx, transaction Transaction) error {
 	ref := transaction.Ref()
 	refSlice := ref.Slice()
 	transactions, lc, _, payloadIndex, heads, err := getBuckets(tx)
@@ -409,7 +398,7 @@ func (dag bboltDAG) getHighestClock(ctx context.Context) uint32 {
 // walk visits every DAG transaction, calling the visitor for every transaction.
 // It visits the transaction in lamport clock order, starting at the transaction with the given lamport clock.
 // If the visitor returns false, it stops walking.
-func walk(ctx context.Context, cursor *bbolt.Cursor, startAtLC uint32, dbTX *bbolt.Tx, visitor Visitor) error {
+func walk(cursor *bbolt.Cursor, startAtLC uint32, dbTX *bbolt.Tx, visitor visitor) error {
 	for _, list := cursor.Seek(clockToBytes(startAtLC)); list != nil; _, list = cursor.Next() {
 		parsed := parseHashList(list)
 		// according to RFC004, lower byte value refs go first
@@ -421,7 +410,7 @@ func walk(ctx context.Context, cursor *bbolt.Cursor, startAtLC uint32, dbTX *bbo
 			if err != nil {
 				return err
 			}
-			if !visitor(ctx, tx) {
+			if !visitor(dbTX, tx) {
 				return nil
 			}
 		}

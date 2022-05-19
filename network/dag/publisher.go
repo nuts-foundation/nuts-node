@@ -77,7 +77,7 @@ func (s *replayingDAGPublisher) payloadWritten(ctx context.Context, _ Transactio
 		payloadHash = hash.SHA256Sum(payload)
 	}
 
-	txs, err := s.dag.GetByPayloadHash(ctx, payloadHash)
+	txs, err := s.dag.getByPayloadHash(ctx, payloadHash)
 	if err != nil {
 		return fmt.Errorf("error while reading TXs by PayloadHash (payloadHash=%s): %v", payloadHash.String(), err)
 	}
@@ -142,7 +142,7 @@ func (s *replayingDAGPublisher) publish(ctx context.Context) error {
 
 	currentRef := front.Value.(hash.SHA256Hash)
 	return storage.BBoltTXView(ctx, s.dag.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
-		return s.dag.Walk(contextWithTX, func(ctx context.Context, transaction Transaction) bool {
+		return s.dag.walk(tx, func(tx *bbolt.Tx, transaction Transaction) bool {
 			outcome := s.publishTransaction(tx, transaction)
 			if outcome {
 				remove(s.resumeAt, transaction.Ref())
@@ -209,7 +209,7 @@ func (s *replayingDAGPublisher) replay() error {
 	defer s.publishMux.Unlock()
 
 	err := storage.BBoltTXView(context.Background(), s.dag.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
-		return s.dag.Walk(contextWithTX, func(ctx context.Context, transaction Transaction) bool {
+		return s.dag.walk(tx, func(tx *bbolt.Tx, transaction Transaction) bool {
 			s.emitEvent(TransactionAddedEvent, transaction, nil)
 			payload := s.payloadStore.ReadPayload(tx, transaction.PayloadHash())
 			if payload == nil {

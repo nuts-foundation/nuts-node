@@ -491,7 +491,7 @@ func TestProtocol_handleTransactionRangeQuery(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 
-		mocks.State.EXPECT().FindBetweenLC(gomock.Any(), lcStart, lcEnd).Return([]dag.Transaction{tx1, tx2}, nil)
+		mocks.State.EXPECT().FindBetweenLC(lcStart, lcEnd).Return([]dag.Transaction{tx1, tx2}, nil)
 		mocks.State.EXPECT().ReadPayload(gomock.Any(), tx1.PayloadHash()).Return(payload, nil)
 		mocks.State.EXPECT().ReadPayload(gomock.Any(), tx2.PayloadHash()).Return(payload, nil)
 		mocks.Sender.EXPECT().sendTransactionList(peer.ID, gomock.Any(), gomock.Any())
@@ -519,7 +519,7 @@ func TestProtocol_handleTransactionRangeQuery(t *testing.T) {
 	})
 	t.Run("error - DAG reading error", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
-		mocks.State.EXPECT().FindBetweenLC(gomock.Any(), lcStart, lcEnd).Return(nil, errors.New("failure"))
+		mocks.State.EXPECT().FindBetweenLC(lcStart, lcEnd).Return(nil, errors.New("failure"))
 		msg := &Envelope_TransactionRangeQuery{&TransactionRangeQuery{
 			Start: lcStart,
 			End:   lcEnd,

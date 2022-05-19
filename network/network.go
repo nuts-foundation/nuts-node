@@ -403,7 +403,7 @@ func (n *Network) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte,
 
 // ListTransactions returns all transactions known to this Network instance.
 func (n *Network) ListTransactions() ([]dag.Transaction, error) {
-	return n.state.FindBetween(context.Background(), dag.MinTime(), dag.MaxTime())
+	return n.state.FindBetween(dag.MinTime(), dag.MaxTime())
 }
 
 // CreateTransaction creates a new transaction from the given template.

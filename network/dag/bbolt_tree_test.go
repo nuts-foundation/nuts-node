@@ -207,13 +207,13 @@ func TestBboltTree_buildFromDag(t *testing.T) {
 		if assert.NoError(t, err) {
 			return
 		}
-		assert.Equal(t, dag.Heads(context.Background())[0], store.getRoot().(*tree.Xor).Hash())
+		assert.Equal(t, dag.heads(context.Background())[0], store.getRoot().(*tree.Xor).Hash())
 	})
 
 	t.Run("fail - tree is not empty", func(t *testing.T) {
 		store := newBBoltTreeStore(dag.db, "fail bucket", tree.New(tree.NewXor(), testLeafSize))
 		store.tree.Insert(tx0.Ref(), 0)
-		exp := dag.Heads(context.Background())[0]
+		exp := dag.heads(context.Background())[0]
 
 		err := store.migrate(context.Background(), dagState)
 

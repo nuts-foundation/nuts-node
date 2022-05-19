@@ -70,7 +70,7 @@ func TestNetwork_ListTransactions(t *testing.T) {
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(ctrl)
-		cxt.state.EXPECT().FindBetween(gomock.Any(), gomock.Any(), gomock.Any()).Return([]dag.Transaction{dag.CreateTestTransactionWithJWK(1)}, nil)
+		cxt.state.EXPECT().FindBetween(gomock.Any(), gomock.Any()).Return([]dag.Transaction{dag.CreateTestTransactionWithJWK(1)}, nil)
 		docs, err := cxt.network.ListTransactions()
 		assert.Len(t, docs, 1)
 		assert.NoError(t, err)
@@ -356,8 +356,8 @@ func TestNetwork_PeerDiagnostics(t *testing.T) {
 	cxt.protocol.EXPECT().PeerDiagnostics().Return(map[transport.PeerID]transport.Diagnostics{
 		"A": {
 			SoftwareID: "A",
-			Uptime: time.Second,
-			Peers:  []transport.PeerID{"A"},
+			Uptime:     time.Second,
+			Peers:      []transport.PeerID{"A"},
 		},
 		"B": {},
 	})
@@ -366,8 +366,8 @@ func TestNetwork_PeerDiagnostics(t *testing.T) {
 	protocol2.EXPECT().PeerDiagnostics().Return(map[transport.PeerID]transport.Diagnostics{
 		"B": {
 			SoftwareID: "B",
-			Uptime: time.Second,
-			Peers:  []transport.PeerID{"A"},
+			Uptime:     time.Second,
+			Peers:      []transport.PeerID{"A"},
 		},
 	})
 	cxt.network.protocols = append(cxt.network.protocols, protocol2)

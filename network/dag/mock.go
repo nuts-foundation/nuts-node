@@ -68,33 +68,33 @@ func (mr *MockStateMockRecorder) Diagnostics() *gomock.Call {
 }
 
 // FindBetween mocks base method.
-func (m *MockState) FindBetween(ctx context.Context, startInclusive, endExclusive time.Time) ([]Transaction, error) {
+func (m *MockState) FindBetween(startInclusive, endExclusive time.Time) ([]Transaction, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FindBetween", ctx, startInclusive, endExclusive)
+	ret := m.ctrl.Call(m, "FindBetween", startInclusive, endExclusive)
 	ret0, _ := ret[0].([]Transaction)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // FindBetween indicates an expected call of FindBetween.
-func (mr *MockStateMockRecorder) FindBetween(ctx, startInclusive, endExclusive interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) FindBetween(startInclusive, endExclusive interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindBetween", reflect.TypeOf((*MockState)(nil).FindBetween), ctx, startInclusive, endExclusive)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindBetween", reflect.TypeOf((*MockState)(nil).FindBetween), startInclusive, endExclusive)
 }
 
 // FindBetweenLC mocks base method.
-func (m *MockState) FindBetweenLC(ctx context.Context, startInclusive, endExclusive uint32) ([]Transaction, error) {
+func (m *MockState) FindBetweenLC(startInclusive, endExclusive uint32) ([]Transaction, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FindBetweenLC", ctx, startInclusive, endExclusive)
+	ret := m.ctrl.Call(m, "FindBetweenLC", startInclusive, endExclusive)
 	ret0, _ := ret[0].([]Transaction)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // FindBetweenLC indicates an expected call of FindBetweenLC.
-func (mr *MockStateMockRecorder) FindBetweenLC(ctx, startInclusive, endExclusive interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) FindBetweenLC(startInclusive, endExclusive interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindBetweenLC", reflect.TypeOf((*MockState)(nil).FindBetweenLC), ctx, startInclusive, endExclusive)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindBetweenLC", reflect.TypeOf((*MockState)(nil).FindBetweenLC), startInclusive, endExclusive)
 }
 
 // GetTransaction mocks base method.
@@ -251,17 +251,17 @@ func (mr *MockStateMockRecorder) Subscribe(eventType, payloadType, receiver inte
 }
 
 // Verify mocks base method.
-func (m *MockState) Verify(ctx context.Context) error {
+func (m *MockState) Verify() error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Verify", ctx)
+	ret := m.ctrl.Call(m, "Verify")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Verify indicates an expected call of Verify.
-func (mr *MockStateMockRecorder) Verify(ctx interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) Verify() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockState)(nil).Verify), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockState)(nil).Verify))
 }
 
 // Walk mocks base method.

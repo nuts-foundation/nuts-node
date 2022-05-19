@@ -151,7 +151,7 @@ func addTx(t *testing.T, graph *bboltDAG, transactions ...Transaction) {
 // addTx is a helper to add transactions to the DAG. It creates an Update bbolt TX and returns the error
 func addTxErr(graph *bboltDAG, transactions ...Transaction) error {
 	return graph.db.Update(func(tx *bbolt.Tx) error {
-		return graph.Add(tx, transactions...)
+		return graph.add(tx, transactions...)
 	})
 }
 

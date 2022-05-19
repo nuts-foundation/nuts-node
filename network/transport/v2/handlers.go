@@ -208,7 +208,7 @@ func (p *protocol) handleTransactionRangeQuery(peer transport.Peer, envelope *En
 	}
 
 	ctx := context.Background()
-	txs, err := p.state.FindBetweenLC(ctx, msg.Start, msg.End)
+	txs, err := p.state.FindBetweenLC(msg.Start, msg.End)
 	if err != nil {
 		return err
 	}

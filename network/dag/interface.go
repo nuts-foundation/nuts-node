@@ -48,10 +48,10 @@ type State interface {
 	Add(ctx context.Context, transactions Transaction, payload []byte) error
 	// FindBetween finds all transactions which signing time lies between startInclude and endExclusive.
 	// It returns the transactions in DAG walking order.
-	FindBetween(ctx context.Context, startInclusive time.Time, endExclusive time.Time) ([]Transaction, error)
+	FindBetween(startInclusive time.Time, endExclusive time.Time) ([]Transaction, error)
 	// FindBetweenLC finds all transactions which lamport clock value lies between startInclusive and endExclusive.
 	// They are returned in order: first sorted on lamport clock value, then on transaction reference (byte order).
-	FindBetweenLC(ctx context.Context, startInclusive uint32, endExclusive uint32) ([]Transaction, error)
+	FindBetweenLC(startInclusive uint32, endExclusive uint32) ([]Transaction, error)
 	// GetTransaction returns the transaction from local storage
 	GetTransaction(ctx context.Context, hash hash.SHA256Hash) (Transaction, error)
 	// IsPresent returns true if a transaction is present in the DAG
@@ -74,7 +74,7 @@ type State interface {
 	// Statistics returns data for the statistics page
 	Statistics(ctx context.Context) Statistics
 	// Verify checks the integrity of the DAG. Should be called when it's loaded, e.g. from disk.
-	Verify(ctx context.Context) error
+	Verify() error
 	// Walk visits every node of the DAG, starting at the given hash working its way down each level until every leaf is visited.
 	// when startAt is an empty hash, the walker starts at the root node.
 	// The walker will resolve the given starting hash to a clock value.
@@ -129,7 +129,9 @@ const (
 type Receiver func(transaction Transaction, payload []byte) error
 
 // Visitor defines the contract for a function that visits the DAG. If the function returns `false` it stops walking the DAG.
-type Visitor func(ctx context.Context, transaction Transaction) bool
+type Visitor func(transaction Transaction) bool
+
+type visitor func(tx *bbolt.Tx, transaction Transaction) bool
 
 // PayloadStore defines the interface for types that store and read transaction payloads.
 type PayloadStore interface {

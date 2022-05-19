@@ -80,7 +80,7 @@ func TestState_relayingFuncs(t *testing.T) {
 	})
 
 	t.Run("FindBetweenLC", func(t *testing.T) {
-		txs, err := txState.FindBetweenLC(ctx, 0, 1)
+		txs, err := txState.FindBetweenLC(0, 1)
 
 		if !assert.NoError(t, err) {
 			return
@@ -211,7 +211,7 @@ func TestState_Observe(t *testing.T) {
 func TestState_Add(t *testing.T) {
 	t.Run("error for transaction verification failure", func(t *testing.T) {
 		ctx := context.Background()
-		txState := createState(t, func(ctx context.Context, tx Transaction, state State) error {
+		txState := createState(t, func(_ context.Context, tx Transaction, _ State) error {
 			return errors.New("verification failed")
 		})
 		_ = txState.Start()
