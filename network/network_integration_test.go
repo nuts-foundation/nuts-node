@@ -102,7 +102,7 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 				docs []dag.Transaction
 				err  error
 			)
-			if docs, err = state.FindBetween(context.Background(), dag.MinTime(), dag.MaxTime()); err != nil {
+			if docs, err = state.FindBetween(dag.MinTime(), dag.MaxTime()); err != nil {
 				return false, err
 			}
 			return len(docs) == expectedDocLogSize, nil
@@ -140,7 +140,7 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 				docs []dag.Transaction
 				err  error
 			)
-			if docs, err = state.FindBetween(context.Background(), dag.MinTime(), dag.MaxTime()); err != nil {
+			if docs, err = state.FindBetween(dag.MinTime(), dag.MaxTime()); err != nil {
 				return false, err
 			}
 			return len(docs) == expectedDocLogSize, nil

@@ -190,7 +190,7 @@ func (p *protocol) handleTransactionPayload(peer transport.Peer, envelope *Envel
 		// Possible attack: received payload does not match transaction payload hash.
 		return fmt.Errorf("peer sent payload that doesn't match payload hash (tx=%s)", ref)
 	}
-	if err = p.state.WritePayload(ctx, tx, payloadHash, msg.Data); err != nil {
+	if err = p.state.WritePayload(tx, payloadHash, msg.Data); err != nil {
 		return err
 	}
 
@@ -208,7 +208,7 @@ func (p *protocol) handleTransactionRangeQuery(peer transport.Peer, envelope *En
 	}
 
 	ctx := context.Background()
-	txs, err := p.state.FindBetweenLC(ctx, msg.Start, msg.End)
+	txs, err := p.state.FindBetweenLC(msg.Start, msg.End)
 	if err != nil {
 		return err
 	}

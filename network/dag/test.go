@@ -139,3 +139,27 @@ func CreateDAG(t *testing.T) *bboltDAG {
 	testDirectory := io.TestDirectory(t)
 	return newBBoltDAG(createBBoltDB(testDirectory))
 }
+
+// addTx is a helper to add transactions to the DAG. It creates an Update bbolt TX and panics the test on error
+func addTx(t *testing.T, graph *bboltDAG, transactions ...Transaction) {
+	err := addTxErr(graph, transactions...)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// addTx is a helper to add transactions to the DAG. It creates an Update bbolt TX and returns the error
+func addTxErr(graph *bboltDAG, transactions ...Transaction) error {
+	return graph.db.Update(func(tx *bbolt.Tx) error {
+		return graph.add(tx, transactions...)
+	})
+}
+
+func writePayload(t *testing.T, payloadStore *bboltPayloadStore, payloadHash hash.SHA256Hash, payload []byte) {
+	err := payloadStore.db.Update(func(tx *bbolt.Tx) error {
+		return payloadStore.writePayload(tx, payloadHash, payload)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}

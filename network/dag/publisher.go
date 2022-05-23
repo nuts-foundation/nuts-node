@@ -26,6 +26,8 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/nuts-foundation/nuts-node/network/storage"
+	"go.etcd.io/bbolt"
 )
 
 // NewReplayingDAGPublisher creates a DAG publisher that replays the complete DAG to all subscribers when started.
@@ -60,11 +62,11 @@ func (s *replayingDAGPublisher) ConfigureCallbacks(state State) {
 		return s.transactionAdded(ctx, transaction, nil)
 	}, false)
 
-	state.RegisterPayloadObserver(func(ctx context.Context, transaction Transaction, payload []byte) error {
+	state.RegisterPayloadObserver(func(transaction Transaction, payload []byte) error {
 		s.publishMux.Lock()
 		defer s.publishMux.Unlock()
 
-		return s.payloadWritten(ctx, transaction, payload)
+		return s.payloadWritten(context.Background(), transaction, payload)
 	}, false)
 }
 
@@ -75,7 +77,7 @@ func (s *replayingDAGPublisher) payloadWritten(ctx context.Context, _ Transactio
 		payloadHash = hash.SHA256Sum(payload)
 	}
 
-	txs, err := s.dag.GetByPayloadHash(ctx, payloadHash)
+	txs, err := s.dag.getByPayloadHash(ctx, payloadHash)
 	if err != nil {
 		return fmt.Errorf("error while reading TXs by PayloadHash (payloadHash=%s): %v", payloadHash.String(), err)
 	}
@@ -139,13 +141,15 @@ func (s *replayingDAGPublisher) publish(ctx context.Context) error {
 	}
 
 	currentRef := front.Value.(hash.SHA256Hash)
-	return s.dag.Walk(ctx, func(ctx context.Context, transaction Transaction) bool {
-		outcome := s.publishTransaction(ctx, transaction)
-		if outcome {
-			remove(s.resumeAt, transaction.Ref())
-		}
-		return outcome
-	}, currentRef)
+	return storage.BBoltTXView(ctx, s.dag.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
+		return s.dag.walk(tx, func(tx *bbolt.Tx, transaction Transaction) bool {
+			outcome := s.publishTransaction(tx, transaction)
+			if outcome {
+				remove(s.resumeAt, transaction.Ref())
+			}
+			return outcome
+		}, currentRef)
+	})
 }
 
 func remove(l *list.List, ref hash.SHA256Hash) {
@@ -162,12 +166,8 @@ func remove(l *list.List, ref hash.SHA256Hash) {
 	}
 }
 
-func (s *replayingDAGPublisher) publishTransaction(ctx context.Context, transaction Transaction) bool {
-	payload, err := s.payloadStore.ReadPayload(ctx, transaction.PayloadHash())
-	if err != nil {
-		log.Logger().Errorf("Unable to read payload to publish DAG: (ref=%s) %v", transaction.Ref(), err)
-		return false
-	}
+func (s *replayingDAGPublisher) publishTransaction(tx *bbolt.Tx, transaction Transaction) bool {
+	payload := s.payloadStore.readPayload(tx, transaction.PayloadHash())
 
 	if payload == nil {
 		if isBlockingTransaction(transaction) {
@@ -208,27 +208,26 @@ func (s *replayingDAGPublisher) replay() error {
 	s.publishMux.Lock()
 	defer s.publishMux.Unlock()
 
-	err := s.dag.Walk(context.Background(), func(ctx context.Context, tx Transaction) bool {
-		s.emitEvent(TransactionAddedEvent, tx, nil)
-		payload, err := s.payloadStore.ReadPayload(ctx, tx.PayloadHash())
-		if err != nil {
-			log.Logger().Errorf("Error reading payload (tx=%s): %v", tx.Ref(), err)
-		}
-		if payload == nil {
-			if isBlockingTransaction(tx) {
-				// public TX but without payload, TX processing only. Wait for payload.
-				// This is probably a DID Document Create/Update. We need the payload before we process any depending payloads
-				s.resumeAt.PushBack(tx.Ref())
-				return false
+	err := storage.BBoltTXView(context.Background(), s.dag.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
+		return s.dag.walk(tx, func(tx *bbolt.Tx, transaction Transaction) bool {
+			s.emitEvent(TransactionAddedEvent, transaction, nil)
+			payload := s.payloadStore.readPayload(tx, transaction.PayloadHash())
+			if payload == nil {
+				if isBlockingTransaction(transaction) {
+					// public TX but without payload, TX processing only. Wait for payload.
+					// This is probably a DID Document Create/Update. We need the payload before we process any depending payloads
+					s.resumeAt.PushBack(transaction.Ref())
+					return false
+				}
+			} else {
+				s.emitEvent(TransactionPayloadAddedEvent, transaction, payload)
+				// prevent DID doc updates to come back and haunt us. DID doc updates may reuse a payload hash already seen earlier.
+				// payloadWritten will then also find the old TX
+				s.visitedTransactions[transaction.Ref()] = true
 			}
-		} else {
-			s.emitEvent(TransactionPayloadAddedEvent, tx, payload)
-			// prevent DID doc updates to come back and haunt us. DID doc updates may reuse a payload hash already seen earlier.
-			// payloadWritten will then also find the old TX
-			s.visitedTransactions[tx.Ref()] = true
-		}
-		return true
-	}, hash.EmptyHash())
+			return true
+		}, hash.EmptyHash())
+	})
 	if err != nil {
 		return err
 	}

@@ -26,6 +26,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
+	"go.etcd.io/bbolt"
 )
 
 // AnyPayloadType is a wildcard that matches with any payload type.
@@ -37,20 +38,26 @@ var errNoClockValue = errors.New("missing clock value")
 // State represents the Node transactional state. Mutations are done via this abstraction layer.
 // Notifications are also done via this layer
 type State interface {
-	PayloadWriter
-	PayloadReader
 	core.Diagnosable
 
+	// WritePayload writes contents for the specified payload, identified by the given hash.
+	// It also calls observers and therefore requires the transaction.
+	WritePayload(transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error
+	// IsPayloadPresent checks whether the contents for the given transaction are present.
+	IsPayloadPresent(ctx context.Context, payloadHash hash.SHA256Hash) (bool, error)
+	// ReadPayload reads the contents for the specified payload, identified by the given hash. If contents can't be found,
+	// nil is returned. If something (else) goes wrong an error is returned.
+	ReadPayload(ctx context.Context, payloadHash hash.SHA256Hash) ([]byte, error)
 	// Add a transaction to the DAG. If it can't be added an error is returned.
 	// If the transaction already exists, nothing is added and no observers are notified.
 	// The payload may be passed as well. Allowing for better notification of observers
 	Add(ctx context.Context, transactions Transaction, payload []byte) error
 	// FindBetween finds all transactions which signing time lies between startInclude and endExclusive.
 	// It returns the transactions in DAG walking order.
-	FindBetween(ctx context.Context, startInclusive time.Time, endExclusive time.Time) ([]Transaction, error)
+	FindBetween(startInclusive time.Time, endExclusive time.Time) ([]Transaction, error)
 	// FindBetweenLC finds all transactions which lamport clock value lies between startInclusive and endExclusive.
 	// They are returned in order: first sorted on lamport clock value, then on transaction reference (byte order).
-	FindBetweenLC(ctx context.Context, startInclusive uint32, endExclusive uint32) ([]Transaction, error)
+	FindBetweenLC(startInclusive uint32, endExclusive uint32) ([]Transaction, error)
 	// GetTransaction returns the transaction from local storage
 	GetTransaction(ctx context.Context, hash hash.SHA256Hash) (Transaction, error)
 	// IsPresent returns true if a transaction is present in the DAG
@@ -73,7 +80,7 @@ type State interface {
 	// Statistics returns data for the statistics page
 	Statistics(ctx context.Context) Statistics
 	// Verify checks the integrity of the DAG. Should be called when it's loaded, e.g. from disk.
-	Verify(ctx context.Context) error
+	Verify() error
 	// Walk visits every node of the DAG, starting at the given hash working its way down each level until every leaf is visited.
 	// when startAt is an empty hash, the walker starts at the root node.
 	// The walker will resolve the given starting hash to a clock value.
@@ -128,37 +135,26 @@ const (
 type Receiver func(transaction Transaction, payload []byte) error
 
 // Visitor defines the contract for a function that visits the DAG. If the function returns `false` it stops walking the DAG.
-type Visitor func(ctx context.Context, transaction Transaction) bool
+type Visitor func(transaction Transaction) bool
+
+type visitor func(tx *bbolt.Tx, transaction Transaction) bool
 
 // PayloadStore defines the interface for types that store and read transaction payloads.
 type PayloadStore interface {
-	PayloadReader
-	// WritePayload writes contents for the specified payload, identified by the given hash.
-	WritePayload(ctx context.Context, payloadHash hash.SHA256Hash, data []byte) error
-}
-
-// PayloadWriter defines the interface for types that store transaction payloads.
-type PayloadWriter interface {
-	// WritePayload writes contents for the specified payload, identified by the given hash.
-	// It also calls observers and therefore requires the transaction.
-	WritePayload(ctx context.Context, transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error
-}
-
-// PayloadReader defines the interface for types that read transaction payloads.
-type PayloadReader interface {
 	// IsPayloadPresent checks whether the contents for the given transaction are present.
-	IsPayloadPresent(ctx context.Context, payloadHash hash.SHA256Hash) (bool, error)
-
+	isPayloadPresent(tx *bbolt.Tx, payloadHash hash.SHA256Hash) bool
 	// ReadPayload reads the contents for the specified payload, identified by the given hash. If contents can't be found,
 	// nil is returned. If something (else) goes wrong an error is returned.
-	ReadPayload(ctx context.Context, payloadHash hash.SHA256Hash) ([]byte, error)
+	readPayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash) []byte
+	// WritePayload writes contents for the specified payload, identified by the given hash.
+	writePayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash, data []byte) error
 }
 
 // Observer defines the signature of an observer which can be called by an Observable.
 type Observer func(ctx context.Context, transaction Transaction) error
 
 // PayloadObserver defines the signature of an observer which can be called by an Observable.
-type PayloadObserver func(ctx context.Context, transaction Transaction, payload []byte) error
+type PayloadObserver func(transaction Transaction, payload []byte) error
 
 // MinTime returns the minimum value for time.Time
 func MinTime() time.Time {
