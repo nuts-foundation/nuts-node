@@ -356,8 +356,8 @@ func (s *grpcConnectionManager) authenticate(nodeDID did.DID, peer transport.Pee
 	if !nodeDID.Empty() {
 		authenticatedPeer, err := s.authenticator.Authenticate(nodeDID, *peerFromCtx, peer)
 		if err != nil {
-			// Error message below is spec'd by RFC017
-			log.Logger().Warnf("Peer node DID could not be authenticated (did=%s): %v", nodeDID, err)
+			log.Logger().WithField("peer", peer).Warnf("Peer node DID could not be authenticated (did=%s): %v", nodeDID, err)
+			// Error message is spec'd by RFC017, because it is returned to the peer
 			return transport.Peer{}, ErrNodeDIDAuthFailed
 		}
 		return authenticatedPeer, nil
