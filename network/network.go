@@ -571,7 +571,7 @@ func (n *Network) collectDiagnostics() transport.Diagnostics {
 	result := transport.Diagnostics{
 		Uptime:               time.Now().Sub(n.startTime.Load().(time.Time)),
 		NumberOfTransactions: uint32(n.state.Statistics(context.Background()).NumberOfTransactions),
-		SoftwareVersion:      core.GitCommit,
+		SoftwareVersion:      fmt.Sprintf("%s (%s)", core.GitBranch, core.GitCommit),
 		SoftwareID:           softwareID,
 	}
 	for _, peer := range n.connectionManager.Peers() {

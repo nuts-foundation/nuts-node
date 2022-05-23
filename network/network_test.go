@@ -701,7 +701,7 @@ func TestNetwork_Shutdown(t *testing.T) {
 
 func TestNetwork_collectDiagnostics(t *testing.T) {
 	const txNum = 5
-	const expectedVersion = "0"
+	const expectedVersion = "development (0)"
 	const expectedID = "https://github.com/nuts-foundation/nuts-node"
 	expectedPeer := transport.Peer{ID: "abc", Address: "123"}
 
