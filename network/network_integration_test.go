@@ -854,8 +854,8 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 		t.Fatal(err)
 	}
 
-	warehouse := storage.New()
-	_ = warehouse.Configure(serverConfig)
+	storeProvider := storage.New()
+	_ = storeProvider.Configure(serverConfig)
 
 	instance := &Network{
 		config:              config,
@@ -866,7 +866,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 		keyResolver:         doc.KeyResolver{Store: vdrStore},
 		nodeDIDResolver:     &transport.FixedNodeDIDResolver{},
 		eventPublisher:      eventPublisher,
-		warehouse:           warehouse,
+		storeProvider:       storeProvider,
 	}
 
 	if err := instance.Configure(serverConfig); err != nil {

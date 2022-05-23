@@ -64,16 +64,16 @@ func (e *engine) Configure(config core.ServerConfig) error {
 	return nil
 }
 
-func (e *engine) GetKVStore(engineKey string, storeName string) (KVStore, error) {
-	if len(engineKey) == 0 {
-		return nil, errors.New("invalid engine key")
+func (e *engine) GetKVStore(namespace string, name string) (KVStore, error) {
+	if len(namespace) == 0 {
+		return nil, errors.New("invalid store namespace")
 	}
-	if len(storeName) == 0 {
+	if len(name) == 0 {
 		return nil, errors.New("invalid store name")
 	}
-	store, err := CreateBBoltStore(path.Join(e.datadir, engineKey, storeName+".db"))
+	store, err := CreateBBoltStore(path.Join(e.datadir, namespace, name+".db"))
 	if err == nil {
-		e.stores[engineKey+"/"+storeName] = store
+		e.stores[namespace+"/"+name] = store
 	}
 	return store, err
 }

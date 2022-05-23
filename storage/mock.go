@@ -49,18 +49,18 @@ func (mr *MockEngineMockRecorder) Configure(config interface{}) *gomock.Call {
 }
 
 // GetKVStore mocks base method.
-func (m *MockEngine) GetKVStore(engineKey, storeName string) (KVStore, error) {
+func (m *MockEngine) GetKVStore(namespace, name string) (KVStore, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetKVStore", engineKey, storeName)
+	ret := m.ctrl.Call(m, "GetKVStore", namespace, name)
 	ret0, _ := ret[0].(KVStore)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetKVStore indicates an expected call of GetKVStore.
-func (mr *MockEngineMockRecorder) GetKVStore(engineKey, storeName interface{}) *gomock.Call {
+func (mr *MockEngineMockRecorder) GetKVStore(namespace, name interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetKVStore", reflect.TypeOf((*MockEngine)(nil).GetKVStore), engineKey, storeName)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetKVStore", reflect.TypeOf((*MockEngine)(nil).GetKVStore), namespace, name)
 }
 
 // Shutdown mocks base method.
@@ -91,42 +91,42 @@ func (mr *MockEngineMockRecorder) Start() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockEngine)(nil).Start))
 }
 
-// MockWarehouse is a mock of Warehouse interface.
-type MockWarehouse struct {
+// MockProvider is a mock of Provider interface.
+type MockProvider struct {
 	ctrl     *gomock.Controller
-	recorder *MockWarehouseMockRecorder
+	recorder *MockProviderMockRecorder
 }
 
-// MockWarehouseMockRecorder is the mock recorder for MockWarehouse.
-type MockWarehouseMockRecorder struct {
-	mock *MockWarehouse
+// MockProviderMockRecorder is the mock recorder for MockProvider.
+type MockProviderMockRecorder struct {
+	mock *MockProvider
 }
 
-// NewMockWarehouse creates a new mock instance.
-func NewMockWarehouse(ctrl *gomock.Controller) *MockWarehouse {
-	mock := &MockWarehouse{ctrl: ctrl}
-	mock.recorder = &MockWarehouseMockRecorder{mock}
+// NewMockProvider creates a new mock instance.
+func NewMockProvider(ctrl *gomock.Controller) *MockProvider {
+	mock := &MockProvider{ctrl: ctrl}
+	mock.recorder = &MockProviderMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockWarehouse) EXPECT() *MockWarehouseMockRecorder {
+func (m *MockProvider) EXPECT() *MockProviderMockRecorder {
 	return m.recorder
 }
 
 // GetKVStore mocks base method.
-func (m *MockWarehouse) GetKVStore(engineKey, storeName string) (KVStore, error) {
+func (m *MockProvider) GetKVStore(namespace, name string) (KVStore, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetKVStore", engineKey, storeName)
+	ret := m.ctrl.Call(m, "GetKVStore", namespace, name)
 	ret0, _ := ret[0].(KVStore)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetKVStore indicates an expected call of GetKVStore.
-func (mr *MockWarehouseMockRecorder) GetKVStore(engineKey, storeName interface{}) *gomock.Call {
+func (mr *MockProviderMockRecorder) GetKVStore(namespace, name interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetKVStore", reflect.TypeOf((*MockWarehouse)(nil).GetKVStore), engineKey, storeName)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetKVStore", reflect.TypeOf((*MockProvider)(nil).GetKVStore), namespace, name)
 }
 
 // MockKVStore is a mock of KVStore interface.

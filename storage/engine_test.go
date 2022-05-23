@@ -58,10 +58,10 @@ func Test_engine_lifecycle(t *testing.T) {
 
 func Test_engine_GetKVStore(t *testing.T) {
 	sut := New()
-	t.Run("key is empty", func(t *testing.T) {
+	t.Run("namespace is empty", func(t *testing.T) {
 		store, err := sut.GetKVStore("", "store")
 		assert.Nil(t, store)
-		assert.EqualError(t, err, "invalid engine key")
+		assert.EqualError(t, err, "invalid store namespace")
 	})
 	t.Run("store is empty", func(t *testing.T) {
 		store, err := sut.GetKVStore("engine", "")

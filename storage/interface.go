@@ -1,3 +1,21 @@
+/*
+ * Copyright (C) 2022 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package storage
 
 import (
@@ -13,13 +31,16 @@ type Engine interface {
 	core.Engine
 	core.Configurable
 	core.Runnable
-	Warehouse
+	Provider
 }
 
-// Warehouse is used to manage data stores.
-type Warehouse interface {
-	// GetKVStore returns a key-value store for the given engine and store name.
-	GetKVStore(engineKey string, storeName string) (KVStore, error)
+// Provider lets callers get access to stores.
+type Provider interface {
+	// GetKVStore returns a key-value store. Stores are created in a namespace identified by a name.
+	// When identical namespace/name is passed the same store is returned.
+	// Store names may appear in multiple namespaces.
+	// Namespaces and names must be alphanumeric, non-zero strings.
+	GetKVStore(namespace string, name string) (KVStore, error)
 }
 
 // KVStore defines the interface for a key-value store.

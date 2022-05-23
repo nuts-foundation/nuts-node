@@ -75,7 +75,7 @@ type Network struct {
 	didDocumentFinder   types.DocFinder
 	eventPublisher      events.Event
 	connectionStore     storage.KVStore
-	warehouse           storage.Warehouse
+	storeProvider       storage.Provider
 }
 
 // Walk walks the DAG starting at the root, passing every transaction to `visitor`.
@@ -93,7 +93,7 @@ func NewNetworkInstance(
 	didDocumentResolver types.DocResolver,
 	didDocumentFinder types.DocFinder,
 	eventPublisher events.Event,
-	warehouse storage.Warehouse,
+	storeProvider storage.Provider,
 ) *Network {
 	return &Network{
 		config:              config,
@@ -104,7 +104,7 @@ func NewNetworkInstance(
 		didDocumentFinder:   didDocumentFinder,
 		nodeDIDResolver:     &transport.FixedNodeDIDResolver{},
 		eventPublisher:      eventPublisher,
-		warehouse:           warehouse,
+		storeProvider:          storeProvider,
 	}
 }
 
@@ -196,7 +196,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		} else {
 			authenticator = grpc.NewTLSAuthenticator(doc.NewServiceResolver(n.didDocumentResolver))
 		}
-		n.connectionStore, err = n.warehouse.GetKVStore("network", "connections")
+		n.connectionStore, err = n.storeProvider.GetKVStore("network", "connections")
 		if err != nil {
 			return fmt.Errorf("failed to open connections store: %w", err)
 		}
