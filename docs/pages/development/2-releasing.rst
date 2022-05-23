@@ -3,9 +3,14 @@
 Releasing Nuts Node
 ###################
 
-Nuts Node and auxiliary tools/applications follow a semantic versioning scheme (``<major>.<minor>.<patch>``).
-With every regular release the major version is incremented. The patch version is incremented for releases that contain bugfixes.
-The minor version generally isn't used.
+Nuts Node and auxiliary tools/applications follow a semantic versioning scheme (``<major>.<minor>.<patch>``):
+
+    Given a version number MAJOR.MINOR.PATCH, increment the:
+    1. MAJOR version when you make incompatible API changes,
+    2. MINOR version when you add functionality in a backwards compatible manner, and
+    3. PATCH version when you make backwards compatible bug fixes.
+
+(Taken from `semver.org<https://semver.org/`_)
 
 Aside from the Nuts Node itself, the projects below need to be released.
 They follow the major version from the Nuts Node, but minor and patch versions may differ.
