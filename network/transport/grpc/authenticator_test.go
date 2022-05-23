@@ -36,8 +36,10 @@ import (
 )
 
 func Test_tlsAuthenticator_Authenticate(t *testing.T) {
-	data, _ := os.ReadFile("test/nuts.nl.cer")
-	cert, _ := x509.ParseCertificate(data)
+	certData, _ := os.ReadFile("test/nuts.nl.cer")
+	cert, _ := x509.ParseCertificate(certData)
+	wildcardCertData, _ := os.ReadFile("test/wildcard.nuts.nl.cer")
+	wildcardCert, _ := x509.ParseCertificate(wildcardCertData)
 	grpcPeer := peer.Peer{
 		AuthInfo: credentials.TLSInfo{
 			State: tls.ConnectionState{
@@ -54,13 +56,6 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 		serviceResolver := doc.NewMockServiceResolver(ctrl)
 		serviceResolver.EXPECT().Resolve(query, gomock.Any()).Return(did.Service{ServiceEndpoint: "grpc://nuts.nl:5555"}, nil)
 		authenticator := NewTLSAuthenticator(serviceResolver)
-		grpcPeer := peer.Peer{
-			AuthInfo: credentials.TLSInfo{
-				State: tls.ConnectionState{
-					PeerCertificates: []*x509.Certificate{cert},
-				},
-			},
-		}
 
 		authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transport.Peer{})
 
@@ -74,10 +69,23 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 		serviceResolver := doc.NewMockServiceResolver(ctrl)
 		serviceResolver.EXPECT().Resolve(query, gomock.Any()).Return(did.Service{ServiceEndpoint: "grpc://Nuts.nl:5555"}, nil)
 		authenticator := NewTLSAuthenticator(serviceResolver)
+
+		authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transport.Peer{})
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, authenticatedPeer.NodeDID, nodeDID)
+	})
+	t.Run("ok - wildcard comparison", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		serviceResolver := doc.NewMockServiceResolver(ctrl)
+		serviceResolver.EXPECT().Resolve(query, gomock.Any()).Return(did.Service{ServiceEndpoint: "grpc://node.nuts.nl:5555"}, nil)
+		authenticator := NewTLSAuthenticator(serviceResolver)
 		grpcPeer := peer.Peer{
 			AuthInfo: credentials.TLSInfo{
 				State: tls.ConnectionState{
-					PeerCertificates: []*x509.Certificate{cert},
+					PeerCertificates: []*x509.Certificate{wildcardCert},
 				},
 			},
 		}
