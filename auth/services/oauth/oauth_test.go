@@ -107,9 +107,9 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		{IRIPath: jsonld.OrganizationNamePath, Type: vcr.NotNil},
 		{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
 	}
+
 	testCredential := vc.VerifiableCredential{}
 	_ = json.Unmarshal([]byte(jsonld.TestOrganizationCredential), &testCredential)
-
 	t.Run("invalid jwt", func(t *testing.T) {
 		ctx := createContext(t)
 
