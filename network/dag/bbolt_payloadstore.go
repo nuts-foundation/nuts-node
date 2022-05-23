@@ -35,7 +35,7 @@ type bboltPayloadStore struct {
 	db *bbolt.DB
 }
 
-func (store bboltPayloadStore) IsPayloadPresent(tx *bbolt.Tx, payloadHash hash.SHA256Hash) bool {
+func (store bboltPayloadStore) isPayloadPresent(tx *bbolt.Tx, payloadHash hash.SHA256Hash) bool {
 	bucket := tx.Bucket([]byte(payloadsBucketName))
 	if bucket == nil {
 		return false
@@ -44,7 +44,7 @@ func (store bboltPayloadStore) IsPayloadPresent(tx *bbolt.Tx, payloadHash hash.S
 	return len(data) > 0
 }
 
-func (store bboltPayloadStore) ReadPayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash) []byte {
+func (store bboltPayloadStore) readPayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash) []byte {
 	bucket := tx.Bucket([]byte(payloadsBucketName))
 	if bucket == nil {
 		return nil
@@ -52,7 +52,7 @@ func (store bboltPayloadStore) ReadPayload(tx *bbolt.Tx, payloadHash hash.SHA256
 	return bucket.Get(payloadHash.Slice())
 }
 
-func (store bboltPayloadStore) WritePayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash, data []byte) error {
+func (store bboltPayloadStore) writePayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash, data []byte) error {
 	payloads, err := tx.CreateBucketIfNotExists([]byte(payloadsBucketName))
 	if err != nil {
 		return err

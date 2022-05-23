@@ -157,7 +157,7 @@ func addTxErr(graph *bboltDAG, transactions ...Transaction) error {
 
 func writePayload(t *testing.T, payloadStore *bboltPayloadStore, payloadHash hash.SHA256Hash, payload []byte) {
 	err := payloadStore.db.Update(func(tx *bbolt.Tx) error {
-		return payloadStore.WritePayload(tx, payloadHash, payload)
+		return payloadStore.writePayload(tx, payloadHash, payload)
 	})
 	if err != nil {
 		t.Fatal(err)

@@ -123,10 +123,7 @@ func (s *state) treeObserver(ctx context.Context, transaction Transaction) error
 
 func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte) error {
 	return storage.BBoltTXUpdate(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
-		present, err := s.IsPresent(contextWithTX, transaction.Ref())
-		if err != nil {
-			return err
-		}
+		present := s.graph.isPresent(tx, transaction.Ref())
 		if present {
 			return nil
 		}
@@ -178,7 +175,7 @@ func (s *state) FindBetweenLC(startInclusive uint32, endExclusive uint32) (trans
 
 func (s *state) GetTransaction(ctx context.Context, hash hash.SHA256Hash) (transaction Transaction, err error) {
 	err = storage.BBoltTXView(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
-		transaction, err = s.graph.get(tx, hash)
+		transaction, err = getTransaction(hash, tx)
 		return err
 	})
 	return
@@ -186,7 +183,7 @@ func (s *state) GetTransaction(ctx context.Context, hash hash.SHA256Hash) (trans
 
 func (s *state) IsPayloadPresent(ctx context.Context, hash hash.SHA256Hash) (present bool, err error) {
 	err = storage.BBoltTXView(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
-		present = s.payloadStore.IsPayloadPresent(tx, hash)
+		present = s.payloadStore.isPayloadPresent(tx, hash)
 		return nil
 	})
 	return
@@ -207,7 +204,7 @@ func (s *state) WritePayload(transaction Transaction, payloadHash hash.SHA256Has
 }
 
 func (s *state) writePayload(tx *bbolt.Tx, transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
-	err := s.payloadStore.WritePayload(tx, payloadHash, data)
+	err := s.payloadStore.writePayload(tx, payloadHash, data)
 	if err == nil {
 		// ctx passed with bbolt transaction
 		return s.notifyPayloadObservers(tx, transaction, data)
@@ -217,7 +214,7 @@ func (s *state) writePayload(tx *bbolt.Tx, transaction Transaction, payloadHash 
 
 func (s *state) ReadPayload(ctx context.Context, hash hash.SHA256Hash) (payload []byte, err error) {
 	err = storage.BBoltTXView(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
-		payload = s.payloadStore.ReadPayload(tx, hash)
+		payload = s.payloadStore.readPayload(tx, hash)
 		return nil
 	})
 	return
@@ -339,7 +336,7 @@ func (s *state) Verify() error {
 }
 
 func (s *state) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA256Hash) error {
-	return storage.BBoltTXUpdate(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
+	return storage.BBoltTXView(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
 		return s.graph.walk(tx, func(tx *bbolt.Tx, transaction Transaction) bool {
 			return visitor(transaction)
 		}, startAt)

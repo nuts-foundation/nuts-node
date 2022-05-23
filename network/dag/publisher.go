@@ -167,7 +167,7 @@ func remove(l *list.List, ref hash.SHA256Hash) {
 }
 
 func (s *replayingDAGPublisher) publishTransaction(tx *bbolt.Tx, transaction Transaction) bool {
-	payload := s.payloadStore.ReadPayload(tx, transaction.PayloadHash())
+	payload := s.payloadStore.readPayload(tx, transaction.PayloadHash())
 
 	if payload == nil {
 		if isBlockingTransaction(transaction) {
@@ -211,7 +211,7 @@ func (s *replayingDAGPublisher) replay() error {
 	err := storage.BBoltTXView(context.Background(), s.dag.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
 		return s.dag.walk(tx, func(tx *bbolt.Tx, transaction Transaction) bool {
 			s.emitEvent(TransactionAddedEvent, transaction, nil)
-			payload := s.payloadStore.ReadPayload(tx, transaction.PayloadHash())
+			payload := s.payloadStore.readPayload(tx, transaction.PayloadHash())
 			if payload == nil {
 				if isBlockingTransaction(transaction) {
 					// public TX but without payload, TX processing only. Wait for payload.

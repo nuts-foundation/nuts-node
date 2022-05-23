@@ -38,10 +38,16 @@ var errNoClockValue = errors.New("missing clock value")
 // State represents the Node transactional state. Mutations are done via this abstraction layer.
 // Notifications are also done via this layer
 type State interface {
-	PayloadWriter
-	PayloadReader
 	core.Diagnosable
 
+	// WritePayload writes contents for the specified payload, identified by the given hash.
+	// It also calls observers and therefore requires the transaction.
+	WritePayload(transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error
+	// IsPayloadPresent checks whether the contents for the given transaction are present.
+	IsPayloadPresent(ctx context.Context, payloadHash hash.SHA256Hash) (bool, error)
+	// ReadPayload reads the contents for the specified payload, identified by the given hash. If contents can't be found,
+	// nil is returned. If something (else) goes wrong an error is returned.
+	ReadPayload(ctx context.Context, payloadHash hash.SHA256Hash) ([]byte, error)
 	// Add a transaction to the DAG. If it can't be added an error is returned.
 	// If the transaction already exists, nothing is added and no observers are notified.
 	// The payload may be passed as well. Allowing for better notification of observers
@@ -136,29 +142,12 @@ type visitor func(tx *bbolt.Tx, transaction Transaction) bool
 // PayloadStore defines the interface for types that store and read transaction payloads.
 type PayloadStore interface {
 	// IsPayloadPresent checks whether the contents for the given transaction are present.
-	IsPayloadPresent(tx *bbolt.Tx, payloadHash hash.SHA256Hash) bool
+	isPayloadPresent(tx *bbolt.Tx, payloadHash hash.SHA256Hash) bool
 	// ReadPayload reads the contents for the specified payload, identified by the given hash. If contents can't be found,
 	// nil is returned. If something (else) goes wrong an error is returned.
-	ReadPayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash) []byte
+	readPayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash) []byte
 	// WritePayload writes contents for the specified payload, identified by the given hash.
-	WritePayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash, data []byte) error
-}
-
-// PayloadWriter defines the interface for types that store transaction payloads.
-type PayloadWriter interface {
-	// WritePayload writes contents for the specified payload, identified by the given hash.
-	// It also calls observers and therefore requires the transaction.
-	WritePayload(transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error
-}
-
-// PayloadReader defines the interface for types that read transaction payloads.
-type PayloadReader interface {
-	// IsPayloadPresent checks whether the contents for the given transaction are present.
-	IsPayloadPresent(ctx context.Context, payloadHash hash.SHA256Hash) (bool, error)
-
-	// ReadPayload reads the contents for the specified payload, identified by the given hash. If contents can't be found,
-	// nil is returned. If something (else) goes wrong an error is returned.
-	ReadPayload(ctx context.Context, payloadHash hash.SHA256Hash) ([]byte, error)
+	writePayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash, data []byte) error
 }
 
 // Observer defines the signature of an observer which can be called by an Observable.

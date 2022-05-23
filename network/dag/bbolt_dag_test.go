@@ -116,7 +116,7 @@ func TestBBoltDAG_Get(t *testing.T) {
 		transaction := CreateTestTransactionWithJWK(1)
 		_ = graph.db.Update(func(tx *bbolt.Tx) error {
 			_ = graph.add(tx, transaction)
-			actual, err := graph.get(tx, transaction.Ref())
+			actual, err := getTransaction(transaction.Ref(), tx)
 			if !assert.NoError(t, err) {
 				return err
 			}
@@ -127,7 +127,7 @@ func TestBBoltDAG_Get(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		graph := CreateDAG(t)
 		_ = graph.db.Update(func(tx *bbolt.Tx) error {
-			actual, err := graph.get(tx, hash.SHA256Sum([]byte{1, 2, 3}))
+			actual, err := getTransaction(hash.SHA256Sum([]byte{1, 2, 3}), tx)
 			assert.NoError(t, err)
 			assert.Nil(t, actual)
 			return nil
@@ -151,7 +151,7 @@ func TestBBoltDAG_Get(t *testing.T) {
 				tx1 := CreateTestTransactionWithJWK(uint32(rand.Int31n(100000)), rootTX)
 				err := graph.db.Update(func(tx *bbolt.Tx) error {
 					_ = graph.add(tx, tx1)
-					actual, err := graph.get(tx, tx1.Ref())
+					actual, err := getTransaction(tx1.Ref(), tx)
 					if err != nil {
 						return err
 					}

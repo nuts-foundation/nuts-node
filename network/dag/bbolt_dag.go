@@ -121,10 +121,6 @@ func (dag *bboltDAG) diagnostics() []core.DiagnosticResult {
 	return result
 }
 
-func (dag bboltDAG) get(tx *bbolt.Tx, ref hash.SHA256Hash) (Transaction, error) {
-	return getTransaction(ref, tx)
-}
-
 func (dag bboltDAG) getByPayloadHash(ctx context.Context, payloadHash hash.SHA256Hash) ([]Transaction, error) {
 	result := make([]Transaction, 0)
 	err := storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
