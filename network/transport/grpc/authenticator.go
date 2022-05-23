@@ -27,6 +27,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	grpcPeer "google.golang.org/grpc/peer"
 	"net/url"
+	"strings"
 )
 
 // Authenticator verifies node identities.
@@ -83,7 +84,7 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 		return peer, nil
 	}
 
-	log.Logger().Debugf("DNS names in peer certificate: %s", peerCertificate.DNSNames)
+	log.Logger().Debugf("DNS names in peer certificate: %s", strings.Join(peerCertificate.DNSNames, ", "))
 	return withOverride(peer, fmt.Errorf("none of the DNS names in the peer's TLS certificate match the NutsComm endpoint (nodeDID=%s)", nodeDID))
 }
 
