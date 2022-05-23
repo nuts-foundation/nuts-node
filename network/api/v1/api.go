@@ -19,9 +19,10 @@
 package v1
 
 import (
+	"net/http"
+
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/transport"
-	"net/http"
 
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -114,6 +115,16 @@ func (a Wrapper) RenderGraph(ctx echo.Context) error {
 	}
 	ctx.Response().Header().Set(echo.HeaderContentType, "text/vnd.graphviz")
 	return ctx.String(http.StatusOK, visitor.Render())
+}
+
+func (a Wrapper) Reprocess(ctx echo.Context, params ReprocessParams) error {
+	if params.Type == nil {
+		return core.InvalidInputError("missing type")
+	}
+
+	a.Service.Reprocess(*params.Type)
+
+	return ctx.NoContent(http.StatusAccepted)
 }
 
 func parseHash(hashAsString string) (hash2.SHA256Hash, error) {

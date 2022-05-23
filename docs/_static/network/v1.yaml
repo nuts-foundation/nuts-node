@@ -129,7 +129,30 @@ paths:
                 type: string
         default:
           $ref: '../common/error_response.yaml'
-
+  /internal/network/v1/reprocess:
+    post:
+      summary: "Reprocess all transactions of the given type, verify and process"
+      description: >
+        Walks the DAG as subscribers do, only selects TXs of the given type are considered.
+        The supported type values correspond with the transaction content-types.
+        Transactions are not verified and added to an in-memory queue. For large sets of transactions, memory usage can become high.
+        The API returns immediately.
+        
+        error returns:
+        * 400 - missing type
+      parameters:
+        - name: type
+          in: query
+          description: the transaction content-type that must be reprocessed
+          schema:
+            type: string
+          example: application/did+json
+      operationId: reprocess
+      tags:
+        - admin
+      responses:
+        "202":
+          description: "The request was accepted, process was started"
 components:
   schemas:
     PeerDiagnostics:

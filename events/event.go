@@ -88,6 +88,14 @@ func (m *manager) Configure(config core.ServerConfig) error {
 		Storage:   nats.FileStorage,
 	}, []nats.SubOpt{})
 
+	// register Reprocess stream
+	m.streams[ReprocessStream] = newStream(&nats.StreamConfig{
+		Name:      ReprocessStream,
+		Subjects:  []string{"REPROCESS.*"},
+		Retention: nats.InterestPolicy,
+		Storage:   nats.MemoryStorage,
+	}, []nats.SubOpt{})
+
 	return nil
 }
 

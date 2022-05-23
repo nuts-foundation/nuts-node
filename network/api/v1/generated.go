@@ -16,6 +16,12 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// ReprocessParams defines parameters for Reprocess.
+type ReprocessParams struct {
+	// the transaction content-type that must be reprocessed
+	Type *string `json:"type,omitempty"`
+}
+
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
 
@@ -95,6 +101,9 @@ type ClientInterface interface {
 	// GetPeerDiagnostics request
 	GetPeerDiagnostics(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// Reprocess request
+	Reprocess(ctx context.Context, params *ReprocessParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListTransactions request
 	ListTransactions(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -119,6 +128,18 @@ func (c *Client) RenderGraph(ctx context.Context, reqEditors ...RequestEditorFn)
 
 func (c *Client) GetPeerDiagnostics(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetPeerDiagnosticsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) Reprocess(ctx context.Context, params *ReprocessParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReprocessRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -212,6 +233,53 @@ func NewGetPeerDiagnosticsRequest(server string) (*http.Request, error) {
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReprocessRequest generates requests for Reprocess
+func NewReprocessRequest(server string, params *ReprocessParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/network/v1/reprocess")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	queryValues := queryURL.Query()
+
+	if params.Type != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "type", runtime.ParamLocationQuery, *params.Type); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	queryURL.RawQuery = queryValues.Encode()
+
+	req, err := http.NewRequest("POST", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -363,6 +431,9 @@ type ClientWithResponsesInterface interface {
 	// GetPeerDiagnostics request
 	GetPeerDiagnosticsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetPeerDiagnosticsResponse, error)
 
+	// Reprocess request
+	ReprocessWithResponse(ctx context.Context, params *ReprocessParams, reqEditors ...RequestEditorFn) (*ReprocessResponse, error)
+
 	// ListTransactions request
 	ListTransactionsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListTransactionsResponse, error)
 
@@ -412,6 +483,27 @@ func (r GetPeerDiagnosticsResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r GetPeerDiagnosticsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ReprocessResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r ReprocessResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReprocessResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -500,6 +592,15 @@ func (c *ClientWithResponses) GetPeerDiagnosticsWithResponse(ctx context.Context
 	return ParseGetPeerDiagnosticsResponse(rsp)
 }
 
+// ReprocessWithResponse request returning *ReprocessResponse
+func (c *ClientWithResponses) ReprocessWithResponse(ctx context.Context, params *ReprocessParams, reqEditors ...RequestEditorFn) (*ReprocessResponse, error) {
+	rsp, err := c.Reprocess(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReprocessResponse(rsp)
+}
+
 // ListTransactionsWithResponse request returning *ListTransactionsResponse
 func (c *ClientWithResponses) ListTransactionsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListTransactionsResponse, error) {
 	rsp, err := c.ListTransactions(ctx, reqEditors...)
@@ -571,6 +672,22 @@ func ParseGetPeerDiagnosticsResponse(rsp *http.Response) (*GetPeerDiagnosticsRes
 	return response, nil
 }
 
+// ParseReprocessResponse parses an HTTP response from a ReprocessWithResponse call
+func ParseReprocessResponse(rsp *http.Response) (*ReprocessResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReprocessResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
 // ParseListTransactionsResponse parses an HTTP response from a ListTransactionsWithResponse call
 func ParseListTransactionsResponse(rsp *http.Response) (*ListTransactionsResponse, error) {
 	bodyBytes, err := ioutil.ReadAll(rsp.Body)
@@ -637,6 +754,9 @@ type ServerInterface interface {
 	// Gets diagnostic information about the node's peers
 	// (GET /internal/network/v1/diagnostics/peers)
 	GetPeerDiagnostics(ctx echo.Context) error
+	// Reprocess all transactions of the given type, verify and process
+	// (POST /internal/network/v1/reprocess)
+	Reprocess(ctx echo.Context, params ReprocessParams) error
 	// Lists the transactions on the DAG
 	// (GET /internal/network/v1/transaction)
 	ListTransactions(ctx echo.Context) error
@@ -668,6 +788,24 @@ func (w *ServerInterfaceWrapper) GetPeerDiagnostics(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.GetPeerDiagnostics(ctx)
+	return err
+}
+
+// Reprocess converts echo context to params.
+func (w *ServerInterfaceWrapper) Reprocess(ctx echo.Context) error {
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReprocessParams
+	// ------------- Optional query parameter "type" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "type", ctx.QueryParams(), &params.Type)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter type: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.Reprocess(ctx, params)
 	return err
 }
 
@@ -759,6 +897,10 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.GET(baseURL+"/internal/network/v1/diagnostics/peers", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("GetPeerDiagnostics", context)
 		return wrapper.GetPeerDiagnostics(context)
+	})
+	router.POST(baseURL+"/internal/network/v1/reprocess", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("Reprocess", context)
+		return wrapper.Reprocess(context)
 	})
 	router.GET(baseURL+"/internal/network/v1/transaction", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("ListTransactions", context)

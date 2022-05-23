@@ -29,8 +29,10 @@ import (
 const (
 	// TransactionsStream is the stream name on which transactions are stored
 	TransactionsStream = "TRANSACTIONS"
-	// DataStream is the stream name on which the dat/payload is stored (VCs/DIDDocuments)
+	// DataStream is the stream name on which the data/payload is stored (VCs/DIDDocuments)
 	DataStream = "DATA"
+	// ReprocessStream is the stream name used to rebuild the VDR/VCR
+	ReprocessStream = "REPROCESS"
 )
 
 // Stream contains configuration for a NATS stream both on the server and client side
