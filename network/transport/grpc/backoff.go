@@ -21,8 +21,8 @@ package grpc
 import (
 	"bytes"
 	"encoding/gob"
+	"github.com/nuts-foundation/go-storage/api"
 	"github.com/nuts-foundation/nuts-node/network/log"
-	"github.com/nuts-foundation/nuts-node/storage"
 	"math/rand"
 	"time"
 )
@@ -93,7 +93,7 @@ func defaultBackoff() Backoff {
 type persistingBackoff struct {
 	underlying       Backoff
 	peerAddress      string
-	store            storage.KVStore
+	store            api.KVStore
 	persistedBackoff time.Time
 }
 
@@ -116,7 +116,7 @@ func (p *persistingBackoff) Value() time.Duration {
 
 // NewPersistedBackoff wraps another backoff and stores the last value returned by Backoff() in BBolt.
 // It reads the last backoff value from the DB and returns it as the first value of the Backoff.
-func NewPersistedBackoff(connectionStore storage.KVStore, peerAddress string, underlying Backoff) Backoff {
+func NewPersistedBackoff(connectionStore api.KVStore, peerAddress string, underlying Backoff) Backoff {
 	b := &persistingBackoff{
 		peerAddress: peerAddress,
 		store:       connectionStore,
@@ -144,7 +144,7 @@ func (p *persistingBackoff) Backoff() time.Duration {
 }
 
 func (p persistingBackoff) write(backoff time.Duration) {
-	err := p.store.WriteBucket("backoff", func(writer storage.BucketWriter) error {
+	err := p.store.WriteShelf("backoff", func(writer api.Writer) error {
 		var buf bytes.Buffer
 		err := gob.NewEncoder(&buf).Encode(persistedBackoff{
 			Moment: nowFunc().Add(backoff),
@@ -162,7 +162,7 @@ func (p persistingBackoff) write(backoff time.Duration) {
 
 func (p persistingBackoff) read() persistedBackoff {
 	var result persistedBackoff
-	err := p.store.ReadBucket("backoff", func(reader storage.BucketReader) error {
+	err := p.store.ReadShelf("backoff", func(reader api.Reader) error {
 		data, err := reader.Get([]byte(p.peerAddress))
 		if err != nil {
 			return err
