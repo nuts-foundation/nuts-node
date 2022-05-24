@@ -771,7 +771,7 @@ func TestNetworkIntegration_Reprocess(t *testing.T) {
 	node1 := startNode(t, "node1", testDirectory)
 
 	// setup eventListener
-	stream := events.NewDisposableStream(events.ReprocessStream, []string{"REPROCESS.application/did+json"}, 10)
+	stream := events.NewDisposableStream(events.ReprocessStream, []string{"REPROCESS.test/transaction"}, 10)
 	conn, _, err := node1.eventPublisher.Pool().Acquire(context.Background())
 	if !assert.NoError(t, err) {
 		t.Fatal(err)
@@ -779,7 +779,7 @@ func TestNetworkIntegration_Reprocess(t *testing.T) {
 	defer conn.Close()
 	var found []byte
 	foundMutex := sync.Mutex{}
-	err = stream.Subscribe(conn, "TEST", "REPROCESS.application/did+json", func(msg *nats.Msg) {
+	err = stream.Subscribe(conn, "TEST", "REPROCESS.test/transaction", func(msg *nats.Msg) {
 		foundMutex.Lock()
 		defer foundMutex.Unlock()
 		found = msg.Data
@@ -794,7 +794,7 @@ func TestNetworkIntegration_Reprocess(t *testing.T) {
 	addTransactionAndWaitForItToArrive(t, "payload", key, node1)
 
 	// trigger reprocess
-	node1.Reprocess("application/did+json")
+	node1.Reprocess("test/transaction")
 
 	test.WaitFor(t, func() (bool, error) {
 		foundMutex.Lock()
