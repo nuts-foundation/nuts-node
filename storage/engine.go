@@ -20,6 +20,8 @@ package storage
 
 import (
 	"errors"
+	"github.com/nuts-foundation/go-storage/api"
+	"github.com/nuts-foundation/go-storage/bbolt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
 	"path"
@@ -27,12 +29,12 @@ import (
 
 // New creates a new instance of the storage engine.
 func New() Engine {
-	return &engine{stores: map[string]KVStore{}}
+	return &engine{stores: map[string]api.Store{}}
 }
 
 type engine struct {
 	datadir string
-	stores  map[string]KVStore
+	stores  map[string]api.Store
 }
 
 // Name returns the name of the engine.
@@ -64,16 +66,32 @@ func (e *engine) Configure(config core.ServerConfig) error {
 	return nil
 }
 
-func (e *engine) GetKVStore(namespace string, name string) (KVStore, error) {
+func (e *engine) GetIterableKVStore(namespace string, name string) (api.IterableKVStore, error) {
+	store, err := e.getStore(namespace, name, func(namespace string, name string) (api.Store, error) {
+		return bbolt.CreateBBoltStore(path.Join(e.datadir, namespace, name+".db"))
+	})
+	return store.(api.IterableKVStore), err
+}
+
+func (e *engine) GetKVStore(namespace string, name string) (api.KVStore, error) {
+	return e.GetIterableKVStore(namespace, name)
+}
+
+func (e *engine) getStore(namespace string, name string, creator func(namespace string, name string) (api.Store, error)) (api.Store, error) {
 	if len(namespace) == 0 {
 		return nil, errors.New("invalid store namespace")
 	}
 	if len(name) == 0 {
 		return nil, errors.New("invalid store name")
 	}
-	store, err := CreateBBoltStore(path.Join(e.datadir, namespace, name+".db"))
+	key := namespace + "/" + name
+	store := e.stores[key]
+	if store != nil {
+		return store, nil
+	}
+	store, err := creator(namespace, name)
 	if err == nil {
-		e.stores[namespace+"/"+name] = store
+		e.stores[key] = store
 	}
 	return store, err
 }
