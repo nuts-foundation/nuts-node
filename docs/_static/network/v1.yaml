@@ -133,7 +133,7 @@ paths:
     post:
       summary: "Reprocess all transactions of the given type, verify and process"
       description: >
-        Walks the DAG as subscribers do, only selects TXs of the given type are considered.
+        Walks the DAG as subscribers do, only selects TXs of the given type.
         The supported type values correspond with the transaction content-types.
         Transactions are not verified and added to an in-memory queue. For large sets of transactions, memory usage can become high.
         The API returns immediately.
