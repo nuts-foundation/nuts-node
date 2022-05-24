@@ -45,7 +45,7 @@ type Transactions interface {
 	Walk(visitor dag.Visitor) error
 	// PeerDiagnostics returns a map containing diagnostic information of the node's peers. The key contains the remote peer's ID.
 	PeerDiagnostics() map[transport.PeerID]transport.Diagnostics
-	// Reprocess walks the DAG and publishes all transactions matching the contentType with 'reprocess' key via Nats
+	// Reprocess walks the DAG and publishes all transactions matching the contentType via Nats
 	// This is an async process and will not return any feedback
 	Reprocess(contentType string)
 }
