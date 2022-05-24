@@ -21,6 +21,7 @@ package vdr
 
 import (
 	"bytes"
+	"context"
 	"crypto"
 	"encoding/json"
 	"errors"
@@ -28,16 +29,17 @@ import (
 	"sort"
 	"time"
 
+	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/nats-io/nats.go"
+	"github.com/nuts-foundation/go-did/did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/events"
+	"github.com/nuts-foundation/nuts-node/network"
+	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
-
-	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -52,6 +54,8 @@ var ErrThumbprintMismatch = errors.New("thumbprint of signing key does not match
 type Ambassador interface {
 	// Configure instructs the ambassador to start receiving DID Documents from the network.
 	Configure()
+	// Start the event listener
+	Start() error
 }
 
 type ambassador struct {
@@ -59,21 +63,60 @@ type ambassador struct {
 	didStore      types.Store
 	keyResolver   types.KeyResolver
 	docResolver   types.DocResolver
+	eventManager  events.Event
 }
 
 // NewAmbassador creates a new Ambassador,
-func NewAmbassador(networkClient network.Transactions, didStore types.Store) Ambassador {
+func NewAmbassador(networkClient network.Transactions, didStore types.Store, eventManager events.Event) Ambassador {
 	return &ambassador{
 		networkClient: networkClient,
 		didStore:      didStore,
 		keyResolver:   doc.KeyResolver{Store: didStore},
 		docResolver:   doc.Resolver{Store: didStore},
+		eventManager:  eventManager,
 	}
 }
 
 // Configure instructs the ambassador to start receiving DID Documents from the network.
 func (n *ambassador) Configure() {
 	n.networkClient.Subscribe(dag.TransactionPayloadAddedEvent, didDocumentType, n.callback)
+}
+
+func (n *ambassador) Start() error {
+	stream := events.NewDisposableStream(
+		fmt.Sprintf("%s_%s", events.ReprocessStream, "VDR"),
+		[]string{fmt.Sprintf("%s.%s", events.ReprocessStream, didDocumentType)},
+		network.MaxReprocessBufferSize)
+	conn, _, err := n.eventManager.Pool().Acquire(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to REPROCESS event stream: %v", err)
+	}
+
+	err = stream.Subscribe(conn, "VDR", fmt.Sprintf("%s.%s", events.ReprocessStream, "application/did+json"), func(msg *nats.Msg) {
+		jsonBytes := msg.Data
+		twp := events.TransactionWithPayload{}
+
+		if err = msg.Ack(); err != nil {
+			log.Logger().Errorf("Failed to process REPROCESS.application/did+json event: failed to ack message: %v", err)
+			return
+		}
+
+		if err := json.Unmarshal(jsonBytes, &twp); err != nil {
+			log.Logger().Errorf("Failed to process REPROCESS.application/did+json event: failed to unmarshall data: %v", err)
+			return
+		}
+
+		if err := n.callback(twp.Transaction, twp.Payload); err != nil {
+			log.Logger().Errorf("Failed to process REPROCESS.application/did+json event: %v", err)
+			return
+		}
+
+		return
+	})
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to REPROCESS event stream: %v", err)
+	}
+	return nil
 }
 
 // thumbprintAlg is used for creating public key thumbprints

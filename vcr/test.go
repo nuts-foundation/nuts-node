@@ -23,6 +23,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 
@@ -52,6 +53,7 @@ func NewTestVCRInstance(t *testing.T) *vcr {
 		nil,
 		network.NewTestNetworkInstance(path.Join(testDirectory, "network")),
 		jsonld.NewTestJSONLDManager(t),
+		events.NewTestManager(t),
 	).(*vcr)
 
 	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
@@ -87,7 +89,7 @@ func newMockContext(t *testing.T) mockContext {
 	docResolver := types.NewMockDocResolver(ctrl)
 	serviceResolver := doc.NewMockServiceResolver(ctrl)
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
-	vcr := NewVCRInstance(crypto, docResolver, keyResolver, tx, jsonldManager).(*vcr)
+	vcr := NewVCRInstance(crypto, docResolver, keyResolver, tx, jsonldManager, events.NewTestManager(t)).(*vcr)
 	vcr.serviceResolver = serviceResolver
 	vcr.trustConfig = trust.NewConfig(path.Join(testDir, "trust.yaml"))
 	vcr.config.OverrideIssueAllPublic = false

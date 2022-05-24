@@ -23,10 +23,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/storage"
 	"io"
 	"net/http"
 	"os"
+
+	"github.com/nuts-foundation/nuts-node/storage"
 
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/sirupsen/logrus"
@@ -190,8 +191,8 @@ func CreateSystem() *core.System {
 	docFinder := doc.Finder{Store: didStore}
 	eventManager := events.NewManager()
 	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), keyResolver, cryptoInstance, cryptoInstance, docResolver, docFinder, eventManager)
-	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance, didStore)
-	credentialInstance := vcr.NewVCRInstance(cryptoInstance, docResolver, keyResolver, networkInstance, jsonld)
+	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance, didStore, eventManager)
+	credentialInstance := vcr.NewVCRInstance(cryptoInstance, docResolver, keyResolver, networkInstance, jsonld, eventManager)
 	didmanInstance := didman.NewDidmanInstance(docResolver, didStore, vdrInstance, credentialInstance, jsonld)
 	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), didStore, credentialInstance, cryptoInstance, didmanInstance, jsonld)
 	statusEngine := status.NewStatusEngine(system)

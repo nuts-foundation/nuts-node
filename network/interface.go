@@ -24,6 +24,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport"
 )
 
+// MaxReprocessBufferSize is the maximum number of events for Nats resulting from a Reprocess
+const MaxReprocessBufferSize = 1000000
+
 // Transactions is the interface that defines the API for creating, reading and subscribing to Nuts Network transactions.
 type Transactions interface {
 	// Subscribe makes a subscription for the specified transaction type. The receiver is called when a transaction

@@ -21,8 +21,9 @@ package vdr
 import (
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/network/dag"
 	"testing"
+
+	"github.com/nuts-foundation/nuts-node/network/dag"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
@@ -245,7 +246,7 @@ func TestVDR_Create(t *testing.T) {
 
 func TestNewVDR(t *testing.T) {
 	cfg := Config{}
-	vdr := NewVDR(cfg, nil, nil, nil)
+	vdr := NewVDR(cfg, nil, nil, nil, nil)
 	assert.IsType(t, &VDR{}, vdr)
 	assert.Equal(t, vdr.config, cfg)
 }
@@ -256,7 +257,7 @@ func TestVDR_Configure(t *testing.T) {
 	// Make sure configuring VDR subscribes to network
 	tx.EXPECT().Subscribe(dag.TransactionPayloadAddedEvent, gomock.Any(), gomock.Any())
 	cfg := Config{}
-	vdr := NewVDR(cfg, nil, tx, nil)
+	vdr := NewVDR(cfg, nil, tx, nil, nil)
 	err := vdr.Configure(core.ServerConfig{})
 	assert.NoError(t, err)
 }
@@ -265,7 +266,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 	t.Run("diagnostics", func(t *testing.T) {
 		t.Run("ok - no conflicts", func(t *testing.T) {
 			s := store.NewMemoryStore()
-			vdr := NewVDR(Config{}, nil, nil, s)
+			vdr := NewVDR(Config{}, nil, nil, s, nil)
 			results := vdr.Diagnostics()
 
 			if !assert.Len(t, results, 1) {
@@ -276,7 +277,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 
 		t.Run("ok - 1 conflict", func(t *testing.T) {
 			s := store.NewMemoryStore()
-			vdr := NewVDR(Config{}, nil, nil, s)
+			vdr := NewVDR(Config{}, nil, nil, s, nil)
 			doc := did.Document{ID: *TestDIDA}
 			metadata := types.DocumentMetadata{SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), hash.EmptyHash()}}
 			s.Write(doc, metadata)
@@ -291,7 +292,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 	t.Run("list", func(t *testing.T) {
 		t.Run("ok - no conflicts", func(t *testing.T) {
 			s := store.NewMemoryStore()
-			vdr := NewVDR(Config{}, nil, nil, s)
+			vdr := NewVDR(Config{}, nil, nil, s, nil)
 			docs, meta, err := vdr.ConflictedDocuments()
 
 			if !assert.NoError(t, err) {
@@ -303,7 +304,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 
 		t.Run("ok - 1 conflict", func(t *testing.T) {
 			s := store.NewMemoryStore()
-			vdr := NewVDR(Config{}, nil, nil, s)
+			vdr := NewVDR(Config{}, nil, nil, s, nil)
 			doc := did.Document{ID: *TestDIDA}
 			metadata := types.DocumentMetadata{SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), hash.EmptyHash()}}
 			s.Write(doc, metadata)

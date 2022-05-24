@@ -29,6 +29,7 @@ import (
 	"fmt"
 
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 	"github.com/sirupsen/logrus"
@@ -59,7 +60,7 @@ type VDR struct {
 }
 
 // NewVDR creates a new VDR with provided params
-func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.Transactions, store types.Store) *VDR {
+func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.Transactions, store types.Store, eventManager events.Event) *VDR {
 	return &VDR{
 		config:            config,
 		network:           networkClient,
@@ -67,7 +68,7 @@ func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.T
 		store:             store,
 		didDocCreator:     doc.Creator{KeyStore: cryptoClient},
 		didDocResolver:    doc.Resolver{Store: store},
-		networkAmbassador: NewAmbassador(networkClient, store),
+		networkAmbassador: NewAmbassador(networkClient, store, eventManager),
 		keyStore:          cryptoClient,
 	}
 }
@@ -84,6 +85,14 @@ func (r *VDR) Config() interface{} {
 func (r *VDR) Configure(_ core.ServerConfig) error {
 	// Initiate the routines for auto-updating the data.
 	r.networkAmbassador.Configure()
+	return nil
+}
+
+func (r *VDR) Start() error {
+	return r.networkAmbassador.Start()
+}
+
+func (r *VDR) Shutdown() error {
 	return nil
 }
 

@@ -98,7 +98,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	defer nutsNetwork.Shutdown()
 
 	// Init the VDR
-	vdr := NewVDR(DefaultConfig(), cryptoInstance, nutsNetwork, didStore)
+	vdr := NewVDR(DefaultConfig(), cryptoInstance, nutsNetwork, didStore, eventPublisher)
 	vdr.Configure(nutsConfig)
 
 	// === End of setup ===
@@ -288,7 +288,7 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	defer nutsNetwork.Shutdown()
 
 	// Init the VDR
-	vdr := NewVDR(DefaultConfig(), cryptoInstance, nutsNetwork, didStore)
+	vdr := NewVDR(DefaultConfig(), cryptoInstance, nutsNetwork, didStore, eventPublisher)
 	vdr.Configure(nutsConfig)
 
 	// === End of setup ===

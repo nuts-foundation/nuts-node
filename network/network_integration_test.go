@@ -771,7 +771,7 @@ func TestNetworkIntegration_Reprocess(t *testing.T) {
 	node1 := startNode(t, "node1", testDirectory)
 
 	// setup eventListener
-	stream := node1.eventPublisher.GetStream(events.ReprocessStream)
+	stream := events.NewDisposableStream(events.ReprocessStream, []string{"REPROCESS.application/did+json"}, 10)
 	conn, _, err := node1.eventPublisher.Pool().Acquire(context.Background())
 	if !assert.NoError(t, err) {
 		t.Fatal(err)

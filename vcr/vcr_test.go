@@ -29,6 +29,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"go.etcd.io/bbolt"
@@ -52,7 +53,7 @@ import (
 func TestVCR_Start(t *testing.T) {
 
 	t.Run("error - creating db", func(t *testing.T) {
-		instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t)).(*vcr)
+		instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil).(*vcr)
 
 		_ = instance.Configure(core.ServerConfig{Datadir: "test"})
 		err := instance.Start()
@@ -74,6 +75,7 @@ func TestVCR_Start(t *testing.T) {
 			nil,
 			network.NewTestNetworkInstance(path.Join(testDirectory, "network")),
 			jsonld.NewTestJSONLDManager(t),
+			events.NewTestManager(t),
 		).(*vcr)
 		if err := instance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
 			t.Fatal(err)
