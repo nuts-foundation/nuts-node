@@ -120,6 +120,7 @@ func (hb HTTPClient) GetPeerDiagnostics() (map[transport.PeerID]PeerDiagnostics,
 	return result, err
 }
 
+// Reprocess triggers reprocessing of transactions with the given content type
 func (hb HTTPClient) Reprocess(contentType string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), hb.Timeout)
 	defer cancel()
