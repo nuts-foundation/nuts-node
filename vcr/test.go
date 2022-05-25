@@ -89,7 +89,8 @@ func newMockContext(t *testing.T) mockContext {
 	docResolver := types.NewMockDocResolver(ctrl)
 	serviceResolver := doc.NewMockServiceResolver(ctrl)
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
-	vcr := NewVCRInstance(crypto, docResolver, keyResolver, tx, jsonldManager, events.NewTestManager(t)).(*vcr)
+	eventManager := events.NewTestManager(t)
+	vcr := NewVCRInstance(crypto, docResolver, keyResolver, tx, jsonldManager, eventManager).(*vcr)
 	vcr.serviceResolver = serviceResolver
 	vcr.trustConfig = trust.NewConfig(path.Join(testDir, "trust.yaml"))
 	vcr.config.OverrideIssueAllPublic = false

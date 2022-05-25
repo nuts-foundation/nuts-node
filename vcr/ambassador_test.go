@@ -20,17 +20,24 @@
 package vcr
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/crypto/util"
+	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
@@ -47,13 +54,90 @@ func TestAmbassador_Configure(t *testing.T) {
 	t.Run("calls network.subscribe", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		nMock := network.NewMockTransactions(ctrl)
-		defer ctrl.Finish()
 
 		a := NewAmbassador(nMock, nil, nil, nil)
 		nMock.EXPECT().Subscribe(dag.TransactionPayloadAddedEvent, gomock.Any(), gomock.Any()).MinTimes(2)
 
 		a.Configure()
 	})
+}
+
+func TestAmbassador_Start(t *testing.T) {
+	t.Run("error on stream subscription", func(t *testing.T) {
+		ctx := newMockContext(t)
+		mockEvent := events.NewMockEvent(ctx.ctrl)
+		ctx.vcr.ambassador.(*ambassador).eventManager = mockEvent
+		mockPool := events.NewMockConnectionPool(ctx.ctrl)
+		mockConnection := events.NewMockConn(ctx.ctrl)
+		mockEvent.EXPECT().Pool().Return(mockPool)
+		mockPool.EXPECT().Acquire(gomock.Any()).Return(mockConnection, nil, nil)
+		mockConnection.EXPECT().JetStream().Return(nil, errors.New("b00m!"))
+
+		err := ctx.vcr.ambassador.Start()
+
+		assert.EqualError(t, err, "failed to subscribe to REPROCESS event stream: b00m!")
+	})
+
+	t.Run("error on nats connection acquire", func(t *testing.T) {
+		ctx := newMockContext(t)
+		mockEvent := events.NewMockEvent(ctx.ctrl)
+		ctx.vcr.ambassador.(*ambassador).eventManager = mockEvent
+		mockPool := events.NewMockConnectionPool(ctx.ctrl)
+		mockEvent.EXPECT().Pool().Return(mockPool)
+		mockPool.EXPECT().Acquire(gomock.Any()).Return(nil, nil, errors.New("b00m!"))
+
+		err := ctx.vcr.ambassador.Start()
+
+		assert.EqualError(t, err, "failed to subscribe to REPROCESS event stream: b00m!")
+	})
+}
+
+func TestAmbassador_handleReprocessEvent(t *testing.T) {
+	ctx := newMockContext(t)
+	mockWriter := NewMockWriter(ctx.ctrl)
+	ctx.vcr.ambassador.(*ambassador).writer = mockWriter
+
+	// load VC
+	vc := vc.VerifiableCredential{}
+	vcJSON, _ := os.ReadFile("test/vc.json")
+	json.Unmarshal(vcJSON, &vc)
+
+	// load key
+	pem, _ := os.ReadFile("test/private.pem")
+	signer, _ := util.PemToPrivateKey(pem)
+	key := crypto.TestKey{
+		PrivateKey: signer,
+		Kid:        fmt.Sprintf("%s#1", vc.Issuer.String()),
+	}
+
+	// trust otherwise Resolve wont work
+	ctx.vcr.Trust(vc.Type[0], vc.Issuer)
+	ctx.vcr.Trust(vc.Type[1], vc.Issuer)
+
+	// mocks
+	ctx.keyResolver.EXPECT().ResolveSigningKey(gomock.Any(), gomock.Any()).Return(signer.Public(), nil)
+
+	// Publish a VC
+	payload, _ := json.Marshal(vc)
+	unsignedTransaction, err := dag.NewTransaction(hash.SHA256Sum(payload), "application/vc+json", nil, nil, uint32(0))
+	signedTransaction, err := dag.NewTransactionSigner(key, true).Sign(unsignedTransaction, time.Now())
+	twp := events.TransactionWithPayload{
+		Transaction: signedTransaction,
+		Payload:     payload,
+	}
+	twpBytes, _ := json.Marshal(twp)
+
+	_, js, _ := ctx.vcr.eventManager.Pool().Acquire(context.Background())
+	_, err = js.Publish("REPROCESS.application/vc+json", twpBytes)
+
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	test.WaitFor(t, func() (bool, error) {
+		_, err := ctx.vcr.Resolve(*vc.ID, nil)
+		return err == nil, nil
+	}, time.Second, "timeout while waiting for event to be processed")
 }
 
 func TestAmbassador_vcCallback(t *testing.T) {
@@ -68,7 +152,7 @@ func TestAmbassador_vcCallback(t *testing.T) {
 		defer ctrl.Finish()
 
 		target := vc.VerifiableCredential{}
-		a := NewAmbassador(nil, wMock, nil, nil).(ambassador)
+		a := NewAmbassador(nil, wMock, nil, nil).(*ambassador)
 		wMock.EXPECT().StoreCredential(gomock.Any(), &validAt).DoAndReturn(func(f interface{}, g interface{}) error {
 			target = f.(vc.VerifiableCredential)
 			return nil
@@ -88,7 +172,7 @@ func TestAmbassador_vcCallback(t *testing.T) {
 		wMock := NewMockWriter(ctrl)
 		defer ctrl.Finish()
 
-		a := NewAmbassador(nil, wMock, nil, nil).(ambassador)
+		a := NewAmbassador(nil, wMock, nil, nil).(*ambassador)
 		wMock.EXPECT().StoreCredential(gomock.Any(), &validAt).Return(errors.New("b00m!"))
 
 		err := a.vcCallback(stx, payload)
@@ -101,7 +185,7 @@ func TestAmbassador_vcCallback(t *testing.T) {
 		wMock := NewMockWriter(ctrl)
 		defer ctrl.Finish()
 
-		a := NewAmbassador(nil, wMock, nil, nil).(ambassador)
+		a := NewAmbassador(nil, wMock, nil, nil).(*ambassador)
 
 		err := a.vcCallback(stx, []byte("{"))
 
@@ -120,7 +204,7 @@ func TestAmbassador_rCallback(t *testing.T) {
 		defer ctrl.Finish()
 
 		r := credential.Revocation{}
-		a := NewAmbassador(nil, wMock, nil, nil).(ambassador)
+		a := NewAmbassador(nil, wMock, nil, nil).(*ambassador)
 		wMock.EXPECT().StoreRevocation(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			r = f.(credential.Revocation)
 			return nil
@@ -140,7 +224,7 @@ func TestAmbassador_rCallback(t *testing.T) {
 		wMock := NewMockWriter(ctrl)
 		defer ctrl.Finish()
 
-		a := NewAmbassador(nil, wMock, nil, nil).(ambassador)
+		a := NewAmbassador(nil, wMock, nil, nil).(*ambassador)
 		wMock.EXPECT().StoreRevocation(gomock.Any()).Return(errors.New("b00m!"))
 
 		err := a.rCallback(stx, payload)
@@ -153,7 +237,7 @@ func TestAmbassador_rCallback(t *testing.T) {
 		wMock := NewMockWriter(ctrl)
 		defer ctrl.Finish()
 
-		a := NewAmbassador(nil, wMock, nil, nil).(ambassador)
+		a := NewAmbassador(nil, wMock, nil, nil).(*ambassador)
 
 		err := a.rCallback(stx, []byte("{"))
 
@@ -175,14 +259,14 @@ func Test_ambassador_jsonLDRevocationCallback(t *testing.T) {
 
 		mockVerifier := verifier.NewMockVerifier(ctrl)
 		mockVerifier.EXPECT().RegisterRevocation(revocation)
-		a := NewAmbassador(nil, nil, mockVerifier, nil).(ambassador)
+		a := NewAmbassador(nil, nil, mockVerifier, nil).(*ambassador)
 
 		err := a.jsonLDRevocationCallback(stx, payload)
 		assert.NoError(t, err)
 	})
 
 	t.Run("error - invalid payload", func(t *testing.T) {
-		a := NewAmbassador(nil, nil, nil, nil).(ambassador)
+		a := NewAmbassador(nil, nil, nil, nil).(*ambassador)
 
 		err := a.jsonLDRevocationCallback(stx, []byte("b00m"))
 		assert.EqualError(t, err, "revocation processing failed: invalid character 'b' looking for beginning of value")
@@ -194,7 +278,7 @@ func Test_ambassador_jsonLDRevocationCallback(t *testing.T) {
 
 		mockVerifier := verifier.NewMockVerifier(ctrl)
 		mockVerifier.EXPECT().RegisterRevocation(gomock.Any()).Return(errors.New("foo"))
-		a := NewAmbassador(nil, nil, mockVerifier, nil).(ambassador)
+		a := NewAmbassador(nil, nil, mockVerifier, nil).(*ambassador)
 
 		err := a.jsonLDRevocationCallback(stx, payload)
 		assert.EqualError(t, err, "foo")

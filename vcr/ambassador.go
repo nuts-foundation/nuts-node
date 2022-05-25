@@ -54,7 +54,7 @@ type ambassador struct {
 
 // NewAmbassador creates a new listener for the network that listens to Verifiable Credential transactions.
 func NewAmbassador(networkClient network.Transactions, writer Writer, verifier verifier.Verifier, eventManager events.Event) Ambassador {
-	return ambassador{
+	return &ambassador{
 		networkClient: networkClient,
 		writer:        writer,
 		verifier:      verifier,
@@ -83,34 +83,36 @@ func (n ambassador) Start() error {
 		return fmt.Errorf("failed to subscribe to REPROCESS event stream: %v", err)
 	}
 
-	err = stream.Subscribe(conn, "VCR", fmt.Sprintf("%s.*", events.ReprocessStream), func(msg *nats.Msg) {
-		jsonBytes := msg.Data
-		twp := events.TransactionWithPayload{}
-
-		if err = msg.Ack(); err != nil {
-			log.Logger().Errorf("Failed to process %s event: failed to ack message: %v", msg.Subject, err)
-			return
-		}
-
-		if err := json.Unmarshal(jsonBytes, &twp); err != nil {
-			log.Logger().Errorf("Failed to process %s event: failed to unmarshall data: %v", msg.Subject, err)
-			return
-		}
-
-		if len(twp.Payload) != 0 { // private TXs not intended for us
-			callback := n.getCallbackFn(twp.Transaction.PayloadType())
-			if err := callback(twp.Transaction, twp.Payload); err != nil {
-				log.Logger().Errorf("Failed to process %s event: %v", msg.Subject, err)
-				return
-			}
-		}
-
-		return
-	})
+	err = stream.Subscribe(conn, "VCR", fmt.Sprintf("%s.*", events.ReprocessStream), n.handleReprocessEvent)
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to REPROCESS event stream: %v", err)
 	}
 	return nil
+}
+
+func (n ambassador) handleReprocessEvent(msg *nats.Msg) {
+	jsonBytes := msg.Data
+	twp := events.TransactionWithPayload{}
+
+	if err := msg.Ack(); err != nil {
+		log.Logger().Errorf("Failed to process %s event: failed to ack message: %v", msg.Subject, err)
+		return
+	}
+
+	if err := json.Unmarshal(jsonBytes, &twp); err != nil {
+		log.Logger().Errorf("Failed to process %s event: failed to unmarshall data: %v", msg.Subject, err)
+		return
+	}
+
+	if len(twp.Payload) != 0 { // private TXs not intended for us
+		callback := n.getCallbackFn(twp.Transaction.PayloadType())
+		if err := callback(twp.Transaction, twp.Payload); err != nil {
+			log.Logger().Errorf("Failed to process %s event: %v", msg.Subject, err)
+			return
+		}
+	}
+
+	return
 }
 
 func (n ambassador) getCallbackFn(contentType string) func(dag.Transaction, []byte) error {
