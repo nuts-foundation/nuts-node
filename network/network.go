@@ -517,10 +517,6 @@ func (n *Network) Shutdown() error {
 		}
 		n.state = nil
 	}
-
-	if n.connectionStore != nil {
-		return n.connectionStore.Close()
-	}
 	return nil
 }
 
