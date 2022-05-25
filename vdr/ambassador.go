@@ -92,31 +92,34 @@ func (n *ambassador) Start() error {
 		return fmt.Errorf("failed to subscribe to REPROCESS event stream: %v", err)
 	}
 
-	err = stream.Subscribe(conn, "VDR", fmt.Sprintf("%s.%s", events.ReprocessStream, "application/did+json"), func(msg *nats.Msg) {
-		jsonBytes := msg.Data
-		twp := events.TransactionWithPayload{}
+	err = stream.Subscribe(conn, "VDR", fmt.Sprintf("%s.%s", events.ReprocessStream, "application/did+json"), n.handleReprocessEvent)
 
-		if err = msg.Ack(); err != nil {
-			log.Logger().Errorf("Failed to process REPROCESS.application/did+json event: failed to ack message: %v", err)
-			return
-		}
-
-		if err := json.Unmarshal(jsonBytes, &twp); err != nil {
-			log.Logger().Errorf("Failed to process REPROCESS.application/did+json event: failed to unmarshall data: %v", err)
-			return
-		}
-
-		if err := n.callback(twp.Transaction, twp.Payload); err != nil {
-			log.Logger().Errorf("Failed to process REPROCESS.application/did+json event: %v", err)
-			return
-		}
-
-		return
-	})
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to REPROCESS event stream: %v", err)
 	}
 	return nil
+}
+
+func (n *ambassador) handleReprocessEvent(msg *nats.Msg) {
+	jsonBytes := msg.Data
+	twp := events.TransactionWithPayload{}
+
+	if err := msg.Ack(); err != nil {
+		log.Logger().Errorf("Failed to process REPROCESS.application/did+json event: failed to ack message: %v", err)
+		return
+	}
+
+	if err := json.Unmarshal(jsonBytes, &twp); err != nil {
+		log.Logger().Errorf("Failed to process REPROCESS.application/did+json event: failed to unmarshall data: %v", err)
+		return
+	}
+
+	if err := n.callback(twp.Transaction, twp.Payload); err != nil {
+		log.Logger().Errorf("Failed to process REPROCESS.application/did+json event: %v", err)
+		return
+	}
+
+	return
 }
 
 // thumbprintAlg is used for creating public key thumbprints

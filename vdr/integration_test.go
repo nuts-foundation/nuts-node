@@ -19,16 +19,20 @@
 package vdr
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/url"
-	"os"
 	"sync"
 	"testing"
+	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/events"
+	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
@@ -44,17 +48,14 @@ import (
 // Test the full stack by testing creating and updating DID documents.
 func TestVDRIntegration_Test(t *testing.T) {
 	// === Setup ===
-	tmpDir, err := ioutil.TempDir("", "nuts-vdr-integration-test")
-	if !assert.NoError(t, err, "unable to create temporary data dir for integration test") {
-		return
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := io.TestDirectory(t)
 	nutsConfig := core.ServerConfig{
 		Verbosity: "debug",
 		Datadir:   tmpDir,
 	}
 	// Configure the logger:
 	var lvl log.Level
+	var err error
 	// initialize logger, verbosity flag needs to be available
 	if lvl, err = log.ParseLevel(nutsConfig.Verbosity); err != nil {
 		return
@@ -72,14 +73,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	docFinder := doc.Finder{Store: didStore}
 
 	// Startup Event
-	eventPublisher := events.NewManager()
-	if err := eventPublisher.(core.Configurable).Configure(nutsConfig); err != nil {
-		t.Fatal(err)
-	}
-	if err := eventPublisher.(core.Runnable).Start(); err != nil {
-		t.Fatal(err)
-	}
-	defer eventPublisher.(core.Runnable).Shutdown()
+	eventPublisher := events.NewTestManager(t)
 
 	// Startup the network layer
 	networkCfg := network.DefaultConfig()
@@ -327,4 +321,64 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 		}(i)
 	}
 	wg.Wait()
+}
+
+func TestVDRIntegration_ReprocessEvents(t *testing.T) {
+	// === Setup ===
+	tmpDir := io.TestDirectory(t)
+	nutsConfig := core.ServerConfig{
+		Verbosity: "debug",
+		Datadir:   tmpDir,
+	}
+	// Configure the logger:
+	var lvl log.Level
+	var err error
+	// initialize logger, verbosity flag needs to be available
+	if lvl, err = log.ParseLevel(nutsConfig.Verbosity); err != nil {
+		return
+	}
+	log.SetLevel(lvl)
+	log.SetFormatter(&log.TextFormatter{ForceColors: true})
+
+	// DID Store
+	didStore := store.NewMemoryStore()
+	docResolver := doc.Resolver{Store: didStore}
+	kc := &mockKeyCreator{}
+	docCreator := doc.Creator{KeyStore: kc}
+
+	// Startup Event
+	eventPublisher := events.NewTestManager(t)
+
+	// Init the VDR
+	vdr := NewVDR(DefaultConfig(), nil, network.NewTestNetworkInstance(tmpDir), didStore, eventPublisher)
+	_ = vdr.Configure(nutsConfig)
+	_ = vdr.Start()
+	t.Cleanup(func() {
+		vdr.Shutdown()
+	})
+
+	// === End of setup ===
+
+	// Publish a DID Document
+	didDoc, key, _ := docCreator.Create(doc.DefaultCreationOptions())
+	payload, _ := json.Marshal(didDoc)
+	unsignedTransaction, err := dag.NewTransaction(hash.SHA256Sum(payload), "application/did+json", nil, nil, uint32(0))
+	signedTransaction, err := dag.NewTransactionSigner(key, true).Sign(unsignedTransaction, time.Now())
+	twp := events.TransactionWithPayload{
+		Transaction: signedTransaction,
+		Payload:     payload,
+	}
+	twpBytes, _ := json.Marshal(twp)
+
+	_, js, _ := eventPublisher.Pool().Acquire(context.Background())
+	_, err = js.Publish("REPROCESS.application/did+json", twpBytes)
+
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	test.WaitFor(t, func() (bool, error) {
+		_, _, err := docResolver.Resolve(didDoc.ID, nil)
+		return err == nil, nil
+	}, 100*time.Millisecond, "timeout while waiting for event to be processed")
 }

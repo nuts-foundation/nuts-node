@@ -20,11 +20,12 @@ package v1
 
 import (
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/network/transport"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/network/transport"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
@@ -124,5 +125,20 @@ func TestHTTPClient_GetPeerDiagnostics(t *testing.T) {
 		actual, err := httpClient.GetPeerDiagnostics()
 		assert.Error(t, err)
 		assert.Nil(t, actual)
+	})
+}
+
+func TestHTTPClient_Reprocess(t *testing.T) {
+	t.Run("200", func(t *testing.T) {
+		s := httptest.NewServer(handler{statusCode: http.StatusAccepted})
+		httpClient := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		err := httpClient.Reprocess("application/did+json")
+		assert.NoError(t, err)
+	})
+	t.Run("bad request (400)", func(t *testing.T) {
+		s := httptest.NewServer(handler{statusCode: http.StatusBadRequest})
+		httpClient := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		err := httpClient.Reprocess("")
+		assert.Error(t, err)
 	})
 }

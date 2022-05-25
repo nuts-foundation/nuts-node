@@ -764,50 +764,6 @@ func TestNetworkIntegration_AddedTransactionsAsEvents(t *testing.T) {
 	assert.Equal(t, "payload", string(event.Payload))
 }
 
-func TestNetworkIntegration_Reprocess(t *testing.T) {
-	testDirectory := io.TestDirectory(t)
-	resetIntegrationTest()
-
-	node1 := startNode(t, "node1", testDirectory)
-
-	// setup eventListener
-	stream := events.NewDisposableStream(events.ReprocessStream, []string{"REPROCESS.test/transaction"}, 10)
-	conn, _, err := node1.eventPublisher.Pool().Acquire(context.Background())
-	if !assert.NoError(t, err) {
-		t.Fatal(err)
-	}
-	defer conn.Close()
-	var found []byte
-	foundMutex := sync.Mutex{}
-	err = stream.Subscribe(conn, "TEST", "REPROCESS.test/transaction", func(msg *nats.Msg) {
-		foundMutex.Lock()
-		defer foundMutex.Unlock()
-		found = msg.Data
-		err := msg.Ack()
-		if !assert.NoError(t, err) {
-			t.Fatal(err)
-		}
-	})
-
-	// add a transaction
-	key := nutsCrypto.NewTestKey("key")
-	addTransactionAndWaitForItToArrive(t, "payload", key, node1)
-
-	// trigger reprocess
-	node1.Reprocess("test/transaction")
-
-	test.WaitFor(t, func() (bool, error) {
-		foundMutex.Lock()
-		defer foundMutex.Unlock()
-		return len(found) > 0, nil
-	}, 5*time.Second, "timeout waiting for event")
-
-	event := events.TransactionWithPayload{}
-	_ = json.Unmarshal(found, &event)
-
-	assert.Equal(t, "payload", string(event.Payload))
-}
-
 func resetIntegrationTest() {
 	// in an integration test we want everything to work as intended, disable test speedup and re-enable file sync for bbolt
 	defaultBBoltOptions.NoSync = false
