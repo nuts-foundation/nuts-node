@@ -33,6 +33,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
+	"go.etcd.io/bbolt"
 )
 
 func TestNewState(t *testing.T) {
@@ -111,7 +112,7 @@ func TestState_Shutdown(t *testing.T) {
 func TestState_Start(t *testing.T) {
 	t.Run("error - verifier failed", func(t *testing.T) {
 		ctx := context.Background()
-		txState := createState(t, func(_ context.Context, _ Transaction, _ State) error {
+		txState := createState(t, func(_ *bbolt.Tx, _ Transaction) error {
 			return errors.New("failed")
 		})
 		tx := CreateTestTransactionWithJWK(0)
@@ -211,7 +212,7 @@ func TestState_Observe(t *testing.T) {
 func TestState_Add(t *testing.T) {
 	t.Run("error for transaction verification failure", func(t *testing.T) {
 		ctx := context.Background()
-		txState := createState(t, func(_ context.Context, tx Transaction, _ State) error {
+		txState := createState(t, func(_ *bbolt.Tx, tx Transaction) error {
 			return errors.New("verification failed")
 		})
 		_ = txState.Start()

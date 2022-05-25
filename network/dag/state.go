@@ -128,7 +128,7 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 			return nil
 		}
 
-		if err := s.verifyTX(contextWithTX, transaction); err != nil {
+		if err := s.verifyTX(tx, transaction); err != nil {
 			return err
 		}
 		if payload != nil {
@@ -148,9 +148,9 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 	})
 }
 
-func (s *state) verifyTX(ctx context.Context, transaction Transaction) error {
+func (s *state) verifyTX(tx *bbolt.Tx, transaction Transaction) error {
 	for _, verifier := range s.txVerifiers {
-		if err := verifier(ctx, transaction, s); err != nil {
+		if err := verifier(tx, transaction); err != nil {
 			return fmt.Errorf("transaction verification failed (tx=%s): %w", transaction.Ref(), err)
 		}
 	}
@@ -321,13 +321,13 @@ func (s *state) Statistics(ctx context.Context) Statistics {
 }
 
 func (s *state) Verify() error {
-	return storage.BBoltTXView(context.Background(), s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
-		transactions, err := s.graph.findBetween(tx, MinTime(), MaxTime())
+	return storage.BBoltTXView(context.Background(), s.db, func(contextWithTX context.Context, dbTx *bbolt.Tx) error {
+		transactions, err := s.graph.findBetween(dbTx, MinTime(), MaxTime())
 		if err != nil {
 			return err
 		}
 		for _, tx := range transactions {
-			if err := s.verifyTX(contextWithTX, tx); err != nil {
+			if err := s.verifyTX(dbTx, tx); err != nil {
 				return err
 			}
 		}
