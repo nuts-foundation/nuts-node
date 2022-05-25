@@ -3,7 +3,6 @@ module github.com/nuts-foundation/nuts-node
 go 1.18
 
 require (
-	github.com/Regis24GmbH/go-phonetics v1.0.0
 	github.com/avast/retry-go/v4 v4.0.5
 	github.com/cbroglie/mustache v1.3.1
 	github.com/deepmap/oapi-codegen v1.10.1
@@ -35,6 +34,7 @@ require (
 	go.uber.org/goleak v1.1.12
 	google.golang.org/grpc v1.46.2
 	google.golang.org/protobuf v1.28.0
+	gopkg.in/Regis24GmbH/go-phonetics.v2 v2.0.2
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 	schneider.vip/problem v1.6.0
@@ -154,7 +154,7 @@ require (
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20220411224347-583f2d630306 // indirect
 	google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa // indirect
-	gopkg.in/Regis24GmbH/go-diacritics.v1 v1.0.0 // indirect
+	gopkg.in/Regis24GmbH/go-diacritics.v2 v2.0.2 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1 // indirect
 	rsc.io/qr v0.2.0 // indirect
 )

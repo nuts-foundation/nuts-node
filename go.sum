@@ -52,8 +52,6 @@ github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym
 github.com/DataDog/datadog-go v3.2.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=
 github.com/OneOfOne/xxhash v1.2.2 h1:KMrpdQIwFcEqXDklaen+P1axHaj9BSKzvpUUfnHldSE=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
-github.com/Regis24GmbH/go-phonetics v1.0.0 h1:8u9uHWk3beJ+zhSWLPYUR7hMEW5d4vjdmPKdPky/CeM=
-github.com/Regis24GmbH/go-phonetics v1.0.0/go.mod h1:R23kRPNoUNFdJroVeIaHJB0T9+0PBW/TiagnkIWvxQY=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf/go.mod h1:ybxpYRFXyAe+OPACYpWeL0wqObRcbAqCMya13uyzqw0=
@@ -1250,8 +1248,10 @@ google.golang.org/protobuf v1.26.0/go.mod h1:9q0QmTI4eRPtz6boOQmLYwt+qCgq0jsYwAQ
 google.golang.org/protobuf v1.27.1/go.mod h1:9q0QmTI4eRPtz6boOQmLYwt+qCgq0jsYwAQnmE0givc=
 google.golang.org/protobuf v1.28.0 h1:w43yiav+6bVFTBQFZX0r7ipe9JQ1QsbMgHwbBziscLw=
 google.golang.org/protobuf v1.28.0/go.mod h1:HV8QOd/L58Z+nl8r43ehVNZIU/HEI6OcFqwMG9pJV4I=
-gopkg.in/Regis24GmbH/go-diacritics.v1 v1.0.0 h1:VJvJ8yFbE8v1f9YcoY7d0ULZaUeD66yzQy0jzZiiE+o=
-gopkg.in/Regis24GmbH/go-diacritics.v1 v1.0.0/go.mod h1:yJVYf/HxbIad87581bSoyMTFm3gph8RtwMTWFFnIZ3s=
+gopkg.in/Regis24GmbH/go-diacritics.v2 v2.0.2 h1:Cxte5RJBAunyWVoW8+Gvn4qm9BGYI9tLfFDnn7Qee9Q=
+gopkg.in/Regis24GmbH/go-diacritics.v2 v2.0.2/go.mod h1:h5F0Zb/tDW/LGsdB3Lof5GUS18P1GoPx0EG4viBHJX8=
+gopkg.in/Regis24GmbH/go-phonetics.v2 v2.0.2 h1:M+mLw7+UKXGttOLAGRxctEao1yBMCqdg6oHgMwv6ujU=
+gopkg.in/Regis24GmbH/go-phonetics.v2 v2.0.2/go.mod h1:DrZeRBsoILM3DOiCQc2oYWL8wHnK7FuUWZciIv90dm4=
 gopkg.in/alecthomas/kingpin.v2 v2.2.6/go.mod h1:FMv+mEhP44yOT+4EoQTLFTRgOQ1FBLkstjWtayDeSgw=
 gopkg.in/asn1-ber.v1 v1.0.0-20181015200546-f715ec2f112d/go.mod h1:cuepJuh7vyXfUyUwEgHQXw849cJrilpS5NeIjOWESAw=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
