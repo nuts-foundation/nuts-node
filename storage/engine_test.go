@@ -21,6 +21,7 @@ package storage
 import (
 	"errors"
 	"github.com/golang/mock/gomock"
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
@@ -74,7 +75,7 @@ func Test_engine_Shutdown(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		store := NewMockKVStore(ctrl)
+		store := stoabs.NewMockKVStore(ctrl)
 		store.EXPECT().Close()
 
 		sut := New().(*engine)
@@ -87,9 +88,9 @@ func Test_engine_Shutdown(t *testing.T) {
 	t.Run("error while closing store results in error, but all stores are closed", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		store1 := NewMockKVStore(ctrl)
+		store1 := stoabs.NewMockKVStore(ctrl)
 		store1.EXPECT().Close().Return(errors.New("failed"))
-		store2 := NewMockKVStore(ctrl)
+		store2 := stoabs.NewMockKVStore(ctrl)
 		store2.EXPECT().Close().Return(errors.New("failed"))
 
 		sut := New().(*engine)

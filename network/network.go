@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"strings"
 	"sync/atomic"
@@ -74,7 +75,7 @@ type Network struct {
 	nodeDIDResolver     transport.NodeDIDResolver
 	didDocumentFinder   types.DocFinder
 	eventPublisher      events.Event
-	connectionStore     storage.KVStore
+	connectionStore     stoabs.KVStore
 	storeProvider       storage.Provider
 }
 
@@ -104,7 +105,7 @@ func NewNetworkInstance(
 		didDocumentFinder:   didDocumentFinder,
 		nodeDIDResolver:     &transport.FixedNodeDIDResolver{},
 		eventPublisher:      eventPublisher,
-		storeProvider:          storeProvider,
+		storeProvider:       storeProvider,
 	}
 }
 

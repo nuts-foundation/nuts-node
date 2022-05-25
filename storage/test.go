@@ -19,8 +19,8 @@
 package storage
 
 import (
-	"github.com/nuts-foundation/go-storage/api"
-	"github.com/nuts-foundation/go-storage/bbolt"
+	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/core"
 )
 
@@ -30,6 +30,6 @@ func NewTestStorageEngine(testDirectory string) Engine {
 	return result
 }
 
-func CreateTestBBoltStore(filePath string) (api.IterableKVStore, error) {
-	return bbolt.CreateBBoltStore(filePath, api.WithNoSync())
+func CreateTestBBoltStore(filePath string) (stoabs.IterableKVStore, error) {
+	return bbolt.CreateBBoltStore(filePath, stoabs.WithNoSync())
 }

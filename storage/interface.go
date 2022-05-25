@@ -19,7 +19,7 @@
 package storage
 
 import (
-	"github.com/nuts-foundation/go-storage/api"
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 )
 
@@ -34,11 +34,11 @@ type Engine interface {
 // Provider lets callers get access to stores.
 type Provider interface {
 	// GetIterableKVStore returns a key-value store like KVStore, but then iterable (supporting cursors).
-	GetIterableKVStore(namespace string, name string) (api.IterableKVStore, error)
+	GetIterableKVStore(namespace string, name string) (stoabs.IterableKVStore, error)
 
 	// GetKVStore returns a key-value store. Stores are created in a namespace identified by a name.
 	// When identical namespace/name is passed the same store is returned.
 	// Store names may appear in multiple namespaces.
 	// Namespaces and names must be alphanumeric, non-zero strings.
-	GetKVStore(namespace string, name string) (api.KVStore, error)
+	GetKVStore(namespace string, name string) (stoabs.KVStore, error)
 }

@@ -23,7 +23,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/go-stoabs"
 	"net"
 	"sync"
 
@@ -69,7 +69,7 @@ func (s fatalError) Is(other error) bool {
 }
 
 // NewGRPCConnectionManager creates a new ConnectionManager that accepts/creates connections which communicate using the given protocols.
-func NewGRPCConnectionManager(config Config, connectionStore storage.KVStore, nodeDIDResolver transport.NodeDIDResolver, authenticator Authenticator, protocols ...transport.Protocol) transport.ConnectionManager {
+func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nodeDIDResolver transport.NodeDIDResolver, authenticator Authenticator, protocols ...transport.Protocol) transport.ConnectionManager {
 	var grpcProtocols []Protocol
 	for _, curr := range protocols {
 		// For now, only gRPC protocols are supported
@@ -109,7 +109,7 @@ type grpcConnectionManager struct {
 	nodeDIDResolver  transport.NodeDIDResolver
 	stopCRLValidator func()
 	observers        []transport.StreamStateObserverFunc
-	connectionStore  storage.KVStore
+	connectionStore  stoabs.KVStore
 }
 
 func (s *grpcConnectionManager) Start() error {

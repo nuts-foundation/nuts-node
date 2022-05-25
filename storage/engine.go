@@ -20,8 +20,8 @@ package storage
 
 import (
 	"errors"
-	"github.com/nuts-foundation/go-storage/api"
-	"github.com/nuts-foundation/go-storage/bbolt"
+	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
 	"path"
@@ -29,12 +29,12 @@ import (
 
 // New creates a new instance of the storage engine.
 func New() Engine {
-	return &engine{stores: map[string]api.Store{}}
+	return &engine{stores: map[string]stoabs.Store{}}
 }
 
 type engine struct {
 	datadir string
-	stores  map[string]api.Store
+	stores  map[string]stoabs.Store
 }
 
 // Name returns the name of the engine.
@@ -66,18 +66,21 @@ func (e *engine) Configure(config core.ServerConfig) error {
 	return nil
 }
 
-func (e *engine) GetIterableKVStore(namespace string, name string) (api.IterableKVStore, error) {
-	store, err := e.getStore(namespace, name, func(namespace string, name string) (api.Store, error) {
+func (e *engine) GetIterableKVStore(namespace string, name string) (stoabs.IterableKVStore, error) {
+	store, err := e.getStore(namespace, name, func(namespace string, name string) (stoabs.Store, error) {
 		return bbolt.CreateBBoltStore(path.Join(e.datadir, namespace, name+".db"))
 	})
-	return store.(api.IterableKVStore), err
+	if store == nil {
+		return nil, err
+	}
+	return store.(stoabs.IterableKVStore), err
 }
 
-func (e *engine) GetKVStore(namespace string, name string) (api.KVStore, error) {
+func (e *engine) GetKVStore(namespace string, name string) (stoabs.KVStore, error) {
 	return e.GetIterableKVStore(namespace, name)
 }
 
-func (e *engine) getStore(namespace string, name string, creator func(namespace string, name string) (api.Store, error)) (api.Store, error) {
+func (e *engine) getStore(namespace string, name string, creator func(namespace string, name string) (stoabs.Store, error)) (stoabs.Store, error) {
 	if len(namespace) == 0 {
 		return nil, errors.New("invalid store namespace")
 	}

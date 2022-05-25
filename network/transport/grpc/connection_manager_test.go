@@ -24,6 +24,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/storage"
 	io2 "github.com/nuts-foundation/nuts-node/test/io"
 	"hash/crc32"
@@ -782,7 +783,7 @@ func (s stubNodeDIDReader) Resolve() (did.DID, error) {
 	return *nodeDID, nil
 }
 
-func createKVStore(t *testing.T) storage.KVStore {
+func createKVStore(t *testing.T) stoabs.KVStore {
 	testDirectory := io2.TestDirectory(t)
 	db, err := storage.CreateTestBBoltStore(filepath.Join(testDirectory, "grpc.db"))
 	if err != nil {

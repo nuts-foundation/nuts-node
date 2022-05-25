@@ -8,7 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	api "github.com/nuts-foundation/go-storage/api"
+	stoabs "github.com/nuts-foundation/go-stoabs"
 	core "github.com/nuts-foundation/nuts-node/core"
 )
 
@@ -50,10 +50,10 @@ func (mr *MockEngineMockRecorder) Configure(config interface{}) *gomock.Call {
 }
 
 // GetIterableKVStore mocks base method.
-func (m *MockEngine) GetIterableKVStore(namespace, name string) (api.IterableKVStore, error) {
+func (m *MockEngine) GetIterableKVStore(namespace, name string) (stoabs.IterableKVStore, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetIterableKVStore", namespace, name)
-	ret0, _ := ret[0].(api.IterableKVStore)
+	ret0, _ := ret[0].(stoabs.IterableKVStore)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -65,10 +65,10 @@ func (mr *MockEngineMockRecorder) GetIterableKVStore(namespace, name interface{}
 }
 
 // GetKVStore mocks base method.
-func (m *MockEngine) GetKVStore(namespace, name string) (api.KVStore, error) {
+func (m *MockEngine) GetKVStore(namespace, name string) (stoabs.KVStore, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetKVStore", namespace, name)
-	ret0, _ := ret[0].(api.KVStore)
+	ret0, _ := ret[0].(stoabs.KVStore)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -131,10 +131,10 @@ func (m *MockProvider) EXPECT() *MockProviderMockRecorder {
 }
 
 // GetIterableKVStore mocks base method.
-func (m *MockProvider) GetIterableKVStore(namespace, name string) (api.IterableKVStore, error) {
+func (m *MockProvider) GetIterableKVStore(namespace, name string) (stoabs.IterableKVStore, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetIterableKVStore", namespace, name)
-	ret0, _ := ret[0].(api.IterableKVStore)
+	ret0, _ := ret[0].(stoabs.IterableKVStore)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -146,10 +146,10 @@ func (mr *MockProviderMockRecorder) GetIterableKVStore(namespace, name interface
 }
 
 // GetKVStore mocks base method.
-func (m *MockProvider) GetKVStore(namespace, name string) (api.KVStore, error) {
+func (m *MockProvider) GetKVStore(namespace, name string) (stoabs.KVStore, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetKVStore", namespace, name)
-	ret0, _ := ret[0].(api.KVStore)
+	ret0, _ := ret[0].(stoabs.KVStore)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
