@@ -12,6 +12,8 @@ Nuts Node and auxiliary tools/applications follow a semantic versioning scheme (
 
 (Taken from `semver.org<https://semver.org/`_)
 
+    Note: "API" is a broad term, it covers every interface interacted with by applications or other nodes (including Nuts network protocols).
+
 Aside from the Nuts Node itself, the projects below need to be released.
 They follow the major version from the Nuts Node, but minor and patch versions may differ.
 
