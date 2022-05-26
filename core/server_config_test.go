@@ -253,7 +253,7 @@ func TestNewNutsConfig_resolveConfigFile(t *testing.T) {
 		cfg := NewServerConfig()
 		cfg.Load(cmd)
 
-		file := resolveConfigFile(cmd.PersistentFlags())
+		file := resolveConfigFilePath(cmd.PersistentFlags())
 
 		assert.Equal(t, "from_file.yaml", file)
 	})
@@ -267,7 +267,7 @@ func TestNewNutsConfig_resolveConfigFile(t *testing.T) {
 		cfg := NewServerConfig()
 		cfg.Load(cmd)
 
-		file := resolveConfigFile(cmd.PersistentFlags())
+		file := resolveConfigFilePath(cmd.PersistentFlags())
 
 		assert.Equal(t, "from_env.yaml", file)
 	})

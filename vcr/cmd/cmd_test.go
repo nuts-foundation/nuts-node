@@ -31,12 +31,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TestCmd test the nuts vcr * commands
 func TestCmd(t *testing.T) {
 	didString := "did:nuts:1"
 	credentialType := "type"
 
 	buf := new(bytes.Buffer)
 
+	// Setup new VCR commands with output to a bytes buffer
 	newCmd := func(t *testing.T) *cobra.Command {
 		t.Helper()
 		buf.Reset()

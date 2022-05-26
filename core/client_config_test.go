@@ -20,23 +20,31 @@
 package core
 
 import (
+	"github.com/knadh/koanf"
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
+	"time"
 )
 
 func Test_GetAddress(t *testing.T) {
 	t.Run("address has http prefix", func(t *testing.T) {
 		os.Setenv("NUTS_ADDRESS", "https://localhost")
 		defer os.Unsetenv("NUTS_ADDRESS")
-		cfg := NewClientConfig(ClientConfigFlags())
+		cmd := &cobra.Command{}
+		cmd.PersistentFlags().AddFlagSet(ClientConfigFlags())
+		cfg, err := NewClientConfigForCommand(cmd)
+		assert.NoError(t, err)
 		assert.Equal(t, "https://localhost", cfg.GetAddress())
 	})
 	t.Run("address has no http prefix", func(t *testing.T) {
 		os.Setenv("NUTS_ADDRESS", "localhost")
 		defer os.Unsetenv("NUTS_ADDRESS")
-		cfg := NewClientConfig(ClientConfigFlags())
+		cmd := &cobra.Command{}
+		cmd.PersistentFlags().AddFlagSet(ClientConfigFlags())
+		cfg, err := NewClientConfigForCommand(cmd)
+		assert.NoError(t, err)
 		assert.Equal(t, "http://localhost", cfg.GetAddress())
 	})
 }
@@ -68,5 +76,48 @@ func TestClientConfigFlags(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "localhost:1111", address)
 		assert.Equal(t, "20ms", duration.String())
+	})
+}
+
+func TestNewClientConfigFromConfigMap(t *testing.T) {
+	t.Run("it contains the default values", func(t *testing.T) {
+		configMap := koanf.New(defaultDelimiter)
+		cmd := &cobra.Command{}
+		cmd.PersistentFlags().AddFlagSet(ClientConfigFlags())
+		assert.NoError(t, LoadConfigMap(configMap, cmd))
+		clientConfig, err := NewClientConfigFromConfigMap(configMap)
+		assert.NoError(t, err)
+		assert.Equal(t, defaultClientTimeout, clientConfig.Timeout)
+		assert.Equal(t, defaultAddress, clientConfig.Address)
+		assert.Equal(t, defaultLogLevel, clientConfig.Verbosity)
+	})
+
+	t.Run("it uses configured values", func(t *testing.T) {
+		configMap := koanf.New(defaultDelimiter)
+		cmd := &cobra.Command{}
+		args := []string{"nuts", "--" + clientAddressFlag + "=localhost:1111", "--" + clientTimeoutFlag + "=20ms", "--" + loggerLevelFlag + "=foo"}
+		flags := ClientConfigFlags()
+		flags.Parse(args)
+		cmd.PersistentFlags().AddFlagSet(flags)
+		assert.NoError(t, LoadConfigMap(configMap, cmd))
+		clientConfig, err := NewClientConfigFromConfigMap(configMap)
+		assert.NoError(t, err)
+		duration, err := flags.GetDuration(clientTimeoutFlag)
+		assert.Equal(t, duration, clientConfig.Timeout)
+		assert.Equal(t, "localhost:1111", clientConfig.Address)
+		assert.Equal(t, "foo", clientConfig.Verbosity)
+	})
+}
+
+func TestNewClientConfigForCommand(t *testing.T) {
+	t.Run("default values", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		cmd.PersistentFlags().AddFlagSet(ClientConfigFlags())
+		cfg, err := NewClientConfigForCommand(cmd)
+		assert.NoError(t, err)
+
+		assert.Equal(t, "localhost:1323", cfg.Address)
+		assert.Equal(t, 10*time.Second, cfg.Timeout)
+		assert.Equal(t, "info", cfg.Verbosity)
 	})
 }

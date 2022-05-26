@@ -67,7 +67,27 @@ func (system *System) Load(cmd *cobra.Command) error {
 	if err := system.Config.Load(cmd); err != nil {
 		return err
 	}
+	//// for the server, load the default values:
+	//if err := system.Config.configMap.Load(structs.ProviderWithDelim(NewServerConfig(), "koanf", "."), nil); err != nil {
+	//	return err
+	//}
 
+	//// for each engine, load the default values:
+	//if err := system.VisitEnginesE(func(engine Engine) error {
+	//	if m, ok := engine.(Injectable); ok {
+	//		return system.Config.configMap.Load(structs.ProviderWithDelim(m.DefaultConfig(), "koanf", "."), nil)
+	//	}
+	//	return nil
+	//}); err != nil {
+	//	return err
+	//}
+
+	//// Load the config from the flags, env and config file
+	//if err := system.Config.Load(cmd); err != nil {
+	//	return err
+	//}
+
+	// visit each engine and inject the config
 	return system.VisitEnginesE(func(engine Engine) error {
 		if m, ok := engine.(Injectable); ok {
 			return system.Config.InjectIntoEngine(m)
@@ -223,6 +243,8 @@ type Injectable interface {
 	Named
 	// Config returns a pointer to the struct that holds the Config.
 	Config() interface{}
+	//// DefaultConfig returns the default config for the engine
+	//DefaultConfig() interface{}
 }
 
 // DecodeURIPath is a echo middleware that decodes path parameters

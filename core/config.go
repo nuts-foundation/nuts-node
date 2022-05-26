@@ -20,20 +20,40 @@
 package core
 
 import (
-	"strings"
-
+	"errors"
 	"github.com/knadh/koanf"
+	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/env"
+	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/providers/posflag"
+	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"os"
+	"strings"
 )
 
-const defaultPrefix = "NUTS_"
-const defaultDelimiter = "."
-const configValueListSeparator = ","
-
 func loadConfigIntoStruct(flags *pflag.FlagSet, target interface{}, configMap *koanf.Koanf) error {
-	// load env
+	// load into struct
+	return configMap.UnmarshalWithConf("", target, koanf.UnmarshalConf{
+		FlatPaths: false,
+	})
+}
+
+func loadFromFile(configMap *koanf.Koanf, filepath string) error {
+	if filepath == "" {
+		return nil
+	}
+	configFileProvider := file.Provider(filepath)
+	// load file
+	if err := configMap.Load(configFileProvider, yaml.Parser()); err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+	}
+	return nil
+}
+
+func loadFromEnv(configMap *koanf.Koanf) error {
 	e := env.ProviderWithValue(defaultPrefix, defaultDelimiter, func(rawKey string, rawValue string) (string, interface{}) {
 		key := strings.Replace(strings.ToLower(strings.TrimPrefix(rawKey, defaultPrefix)), "_", defaultDelimiter, -1)
 
@@ -50,13 +70,34 @@ func loadConfigIntoStruct(flags *pflag.FlagSet, target interface{}, configMap *k
 		return key, rawValue
 	})
 	// errors can't occur for this provider
-	_ = configMap.Load(e, nil)
+	return configMap.Load(e, nil)
+}
 
-	// errors can't occur for this provider
-	_ = configMap.Load(posflag.Provider(flags, defaultDelimiter, configMap), nil)
+func loadDefaultsFromFlagset(configMap *koanf.Koanf, flags *pflag.FlagSet) error {
+	return configMap.Load(posflag.Provider(flags, defaultDelimiter, configMap), nil)
+}
 
-	// load into struct
-	return configMap.UnmarshalWithConf("", target, koanf.UnmarshalConf{
-		FlatPaths: false,
-	})
+func loadFromFlagSet(configMap *koanf.Koanf, flags *pflag.FlagSet) error {
+	return configMap.Load(posflag.Provider(flags, defaultDelimiter, configMap), nil)
+}
+
+func LoadConfigMap(configMap *koanf.Koanf, cmd *cobra.Command) error {
+	flags := cmd.Flags()
+	if err := loadDefaultsFromFlagset(configMap, flags); err != nil {
+		return err
+	}
+
+	if err := loadFromFile(configMap, resolveConfigFilePath(cmd.PersistentFlags())); err != nil {
+		return err
+	}
+
+	if err := loadFromEnv(configMap); err != nil {
+		return err
+	}
+
+	if err := loadFromFlagSet(configMap, cmd.PersistentFlags()); err != nil {
+		return err
+	}
+
+	return nil
 }

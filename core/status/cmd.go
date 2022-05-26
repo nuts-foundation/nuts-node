@@ -34,7 +34,10 @@ func Cmd() *cobra.Command {
 		Use:   "status",
 		Short: "Shows the status of the Nuts Node.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			config := core.NewClientConfig(cmd.PersistentFlags())
+			config, err := core.NewClientConfigForCommand(cmd)
+			if err != nil {
+				return err
+			}
 			targetURL := config.GetAddress() + diagnosticsEndpoint
 			response, err := http.Get(targetURL)
 			if err != nil {

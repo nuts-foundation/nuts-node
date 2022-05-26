@@ -21,11 +21,66 @@ package core
 
 import (
 	"github.com/knadh/koanf"
+	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
 )
+
+func Test_ListMerging(t *testing.T) {
+	t.Run("list values", func(t *testing.T) {
+		t.Run("without extra config options, it uses the default values", func(t *testing.T) {
+			testEngine := &TestEngine{}
+			system := NewSystem()
+
+			// create a dummy command with the serverFlagSet and the testEngine flagSet:
+			cmd := &cobra.Command{}
+			serverFlagSet := FlagSet()
+			cmd.PersistentFlags().AddFlagSet(serverFlagSet)
+			cmd.PersistentFlags().AddFlagSet(testFlagSet())
+
+			// load the testEngine
+			system.RegisterEngine(testEngine)
+			// Load the system
+			if !assert.NoError(t, system.Load(cmd)) {
+				return
+			}
+			// Configure system and the engines
+			assert.Nil(t, system.Configure())
+
+			// expect the testEngine config to contain the default values
+			assert.Equal(t, []string{"default", "default"}, testEngine.TestConfig.List)
+		})
+
+		t.Run("it replaces the default values with values from the configfile", func(t *testing.T) {
+			os.Args = []string{"command", "--configfile", "test/config/testengine.yaml"}
+			testEngine := &TestEngine{}
+			system := NewSystem()
+
+			// create a dummy command with the serverFlagSet and the testEngine flagSet:
+			cmd := &cobra.Command{}
+			serverFlagSet := FlagSet()
+			// this is done by the cobra command and may only be done once
+
+			cmd.PersistentFlags().AddFlagSet(serverFlagSet)
+			cmd.PersistentFlags().AddFlagSet(testFlagSet())
+
+			assert.NoError(t, serverFlagSet.Parse(os.Args[1:]))
+
+			// load the testEngine
+			system.RegisterEngine(testEngine)
+			// Load the system
+			if !assert.NoError(t, system.Load(cmd)) {
+				return
+			}
+			// Configure system and the engines
+			assert.Nil(t, system.Configure())
+
+			assert.Equal(t, []string{"configfilevalue"}, testEngine.TestConfig.List)
+		})
+	})
+}
 
 func Test_loadConfigIntoStruct(t *testing.T) {
 	t.Run("scalar values from env", func(t *testing.T) {
@@ -38,6 +93,9 @@ func Test_loadConfigIntoStruct(t *testing.T) {
 			E string `koanf:"e"`
 		}
 		var target Target
+		configMap := &koanf.Koanf{}
+		LoadConfigMap()
+		loadConfig
 		err := loadConfigIntoStruct(flagSet, &target, koanf.New(defaultDelimiter))
 		assert.NoError(t, err)
 		assert.Equal(t, "lag", target.F)

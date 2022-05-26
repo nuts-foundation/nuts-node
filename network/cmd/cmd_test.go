@@ -40,27 +40,35 @@ func TestFlagSet(t *testing.T) {
 	assert.NotNil(t, FlagSet())
 }
 
+// Test the 'nuts network list' command.
 func TestCmd_List(t *testing.T) {
+	// Create 3 transactions
 	t1 := dag.CreateSignedTestTransaction(1, time.Now().Add(time.Duration(0)*time.Second), nil, "zfoo/bar", true)
 	t2 := dag.CreateSignedTestTransaction(1, time.Now().Add(time.Duration(60)*time.Second), nil, "bar/foo", true)
 	t3 := dag.CreateSignedTestTransaction(1, time.Now().Add(time.Duration(30)*time.Second), nil, "1foo/bar", true)
+	// mock the sever response
 	response := []interface{}{string(t1.Data()), string(t2.Data()), string(t3.Data())}
+	// start the mock server
 	s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: response})
 	defer s.Close()
 
 	t.Run("it lists sorted by time on default", func(t *testing.T) {
-		outBuf := new(bytes.Buffer)
-		cmd := Cmd()
+		// make sure the test connects to the mock server
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")
-		core.NewServerConfig().Load(cmd)
-		cmd.SetOut(outBuf)
-		cmd.SetArgs([]string{"list"})
 
-		err := cmd.Execute()
+		outBuf := new(bytes.Buffer)
+		networkCmd := Cmd()
+		networkCmd.SetOut(outBuf)
+		networkCmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
+		networkCmd.SetArgs([]string{"list"})
+
+		err := networkCmd.Execute()
 		assert.NoError(t, err)
 		lines := strings.Split(outBuf.String(), "\n")
-		assert.Len(t, lines, 5)
+		if !assert.Len(t, lines, 5) {
+			return
+		}
 		hashStr1 := strings.Split(lines[1], "  ")[0]
 		hashStr2 := strings.Split(lines[2], "  ")[0]
 		hashStr3 := strings.Split(lines[3], "  ")[0]
@@ -70,14 +78,16 @@ func TestCmd_List(t *testing.T) {
 	})
 
 	t.Run("it sorts by type", func(t *testing.T) {
-		outBuf := new(bytes.Buffer)
-		cmd := Cmd()
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")
-		core.NewServerConfig().Load(cmd)
+
+		outBuf := new(bytes.Buffer)
+		cmd := Cmd()
 		cmd.SetOut(outBuf)
 		cmd.SetArgs([]string{"list", "--sort", "type"})
+		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 		err := cmd.Execute()
+
 		assert.NoError(t, err)
 		lines := strings.Split(outBuf.String(), "\n")
 		assert.Len(t, lines, 5)
@@ -95,12 +105,13 @@ func TestCmd_List(t *testing.T) {
 func TestCmd_Get(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		cmd := Cmd()
+		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 		response := dag.CreateTestTransactionWithJWK(1)
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: string(response.Data())}
 		s := httptest.NewServer(handler)
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")
-		core.NewServerConfig().Load(cmd)
+		assert.NoError(t, core.NewServerConfig().Load(cmd))
 		defer s.Close()
 		cmd.SetArgs([]string{"get", response.Ref().String()})
 		err := cmd.Execute()
@@ -108,6 +119,7 @@ func TestCmd_Get(t *testing.T) {
 	})
 	t.Run("not found", func(t *testing.T) {
 		cmd := Cmd()
+		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 		handler := http2.Handler{StatusCode: http.StatusNotFound, ResponseData: "not found"}
 		s := httptest.NewServer(handler)
 		os.Setenv("NUTS_ADDRESS", s.URL)
@@ -122,6 +134,7 @@ func TestCmd_Get(t *testing.T) {
 
 func TestCmd_Payload(t *testing.T) {
 	cmd := Cmd()
+	cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 	handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: []byte("Hello, World!")}
 	s := httptest.NewServer(handler)
 	os.Setenv("NUTS_ADDRESS", s.URL)
@@ -145,6 +158,7 @@ func TestCmd_Payload(t *testing.T) {
 
 func TestCmd_Peers(t *testing.T) {
 	cmd := Cmd()
+	cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 	handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: map[string]v1.PeerDiagnostics{"foo": {Uptime: 50 * time.Second}}}
 	s := httptest.NewServer(handler)
 	os.Setenv("NUTS_ADDRESS", s.URL)

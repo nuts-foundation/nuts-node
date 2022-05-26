@@ -66,7 +66,11 @@ func trustCmd() *cobra.Command {
 			cType := args[0]
 			issuer := args[1]
 
-			err := httpClient(cmd.Flags()).Trust(cType, issuer)
+			client, err := httpClient(cmd)
+			if err != nil {
+				return err
+			}
+			err = client.Trust(cType, issuer)
 
 			if err != nil {
 				return fmt.Errorf("unable to trust issuer: %v", err)
@@ -86,7 +90,11 @@ func untrustCmd() *cobra.Command {
 			cType := args[0]
 			issuer := args[1]
 
-			err := httpClient(cmd.Flags()).Untrust(cType, issuer)
+			client, err := httpClient(cmd)
+			if err != nil {
+				return err
+			}
+			err = client.Untrust(cType, issuer)
 
 			if err != nil {
 				return fmt.Errorf("unable to untrust issuer: %v", err)
@@ -105,7 +113,11 @@ func listTrustedCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cType := args[0]
 
-			issuers, err := httpClient(cmd.Flags()).Trusted(cType)
+			client, err := httpClient(cmd)
+			if err != nil {
+				return err
+			}
+			issuers, err := client.Trusted(cType)
 			if err != nil {
 				return fmt.Errorf("unable to get list of trusted issuers: %v", err)
 			}
@@ -124,7 +136,11 @@ func listUntrustedCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cType := args[0]
 
-			issuers, err := httpClient(cmd.Flags()).Untrusted(cType)
+			client, err := httpClient(cmd)
+			if err != nil {
+				return err
+			}
+			issuers, err := client.Untrusted(cType)
 			if err != nil {
 				return fmt.Errorf("unable to get list of untrusted issuers: %v", err)
 			}
@@ -136,10 +152,13 @@ func listUntrustedCmd() *cobra.Command {
 }
 
 // httpClient creates a remote client
-func httpClient(set *pflag.FlagSet) api.HTTPClient {
-	config := core.NewClientConfig(set)
+func httpClient(command *cobra.Command) (api.HTTPClient, error) {
+	config, err := core.NewClientConfigForCommand(command)
+	if err != nil {
+		return api.HTTPClient{}, err
+	}
 	return api.HTTPClient{
 		ServerAddress: config.GetAddress(),
 		Timeout:       config.Timeout,
-	}
+	}, nil
 }

@@ -85,7 +85,11 @@ func payloadCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			data, err := httpClient(core.NewClientConfig(cmd.Flags())).GetTransactionPayload(hash)
+			clientConfig, err := core.NewClientConfigForCommand(cmd)
+			if err != nil {
+				return err
+			}
+			data, err := httpClient(clientConfig).GetTransactionPayload(hash)
 			if err != nil {
 				return err
 			}
@@ -109,7 +113,11 @@ func getCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			transaction, err := httpClient(core.NewClientConfig(cmd.Flags())).GetTransaction(hash)
+			clientConfig, err := core.NewClientConfigForCommand(cmd)
+			if err != nil {
+				return err
+			}
+			transaction, err := httpClient(clientConfig).GetTransaction(hash)
 			if err != nil {
 				return err
 			}
@@ -136,7 +144,11 @@ func listCommand() *cobra.Command {
 		Use:   "list",
 		Short: "Lists the transactions on the network",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			transactions, err := httpClient(core.NewClientConfig(cmd.Flags())).ListTransactions()
+			clientConfig, err := core.NewClientConfigForCommand(cmd)
+			if err != nil {
+				return err
+			}
+			transactions, err := httpClient(clientConfig).ListTransactions()
 			if err != nil {
 				return err
 			}
@@ -158,7 +170,11 @@ func peersCommand() *cobra.Command {
 		Use:   "peers",
 		Short: "Get diagnostic information of the node's peers",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			peers, err := httpClient(core.NewClientConfig(cmd.Flags())).GetPeerDiagnostics()
+			clientConfig, err := core.NewClientConfigForCommand(cmd)
+			if err != nil {
+				return err
+			}
+			peers, err := httpClient(clientConfig).GetPeerDiagnostics()
 			if err != nil {
 				return err
 			}

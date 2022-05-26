@@ -28,7 +28,6 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/knadh/koanf"
 	"github.com/labstack/echo/v4"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -196,7 +195,7 @@ func TestSystem_Load(t *testing.T) {
 	})
 
 	t.Run("slice flags are loaded once", func(t *testing.T) {
-		flagSet := pflag.NewFlagSet("test", pflag.ContinueOnError)
+		flagSet := pflag.NewFlagSet("test", pflag.PanicOnError)
 		flagSet.StringSlice("f", []string{}, "")
 		type Target struct {
 			F []string `koanf:"f"`
@@ -205,12 +204,10 @@ func TestSystem_Load(t *testing.T) {
 		cmd.PersistentFlags().AddFlagSet(flagSet)
 		var target Target
 
-		flagSet.Parse([]string{"command", "--f", "once"})
-		ctl.Load(cmd)
-		err := loadConfigIntoStruct(flagSet, &target, koanf.New(defaultDelimiter))
-
-		assert.NoError(t, err)
-		if !assert.Len(t, target.F, 1) {
+		assert.NoError(t, flagSet.Parse([]string{"command", "--f", "once"}))
+		assert.NoError(t, ctl.Config.Load(cmd))
+		assert.NoError(t, loadConfigIntoStruct(flagSet, &target, ctl.Config.configMap))
+		if assert.Len(t, target.F, 1) {
 			assert.Equal(t, "once", target.F[0])
 		}
 	})
