@@ -62,7 +62,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 		defer testContext.ctrl.Finish()
 
 		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			public := IssueVCRequestVisibilityPublic
+			public := Public
 			issueRequest := f.(*IssueVCRequest)
 			issueRequest.Type = expectedRequestedVC.Type[0].String()
 			issueRequest.Issuer = expectedRequestedVC.Issuer.String()
@@ -84,7 +84,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 			defer testContext.ctrl.Finish()
 
 			testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-				public := IssueVCRequestVisibilityPublic
+				public := Public
 				issueRequest := f.(*IssueVCRequest)
 				//issueRequest.Type = expectedRequestedVC.Type[0].String()
 				issueRequest.Issuer = expectedRequestedVC.Issuer.String()
@@ -101,7 +101,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 			defer testContext.ctrl.Finish()
 
 			testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-				public := IssueVCRequestVisibilityPublic
+				public := Public
 				issueRequest := f.(*IssueVCRequest)
 				issueRequest.Type = expectedRequestedVC.Type[0].String()
 				issueRequest.Issuer = expectedRequestedVC.Issuer.String()
@@ -124,7 +124,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 				testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 					issueRequest := f.(*IssueVCRequest)
 					publishValue := true
-					visibilityValue := IssueVCRequestVisibilityPrivate
+					visibilityValue := Private
 					issueRequest.Type = expectedRequestedVC.Type[0].String()
 					issueRequest.CredentialSubject = expectedRequestedVC.CredentialSubject
 					issueRequest.Visibility = &visibilityValue
@@ -144,7 +144,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 				testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 					issueRequest := f.(*IssueVCRequest)
 					publishValue := true
-					visibilityValue := IssueVCRequestVisibilityPublic
+					visibilityValue := Public
 					issueRequest.Type = expectedRequestedVC.Type[0].String()
 					issueRequest.CredentialSubject = expectedRequestedVC.CredentialSubject
 					issueRequest.Visibility = &visibilityValue
@@ -199,7 +199,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 				issueRequest := f.(*IssueVCRequest)
 				publishValue := false
 				issueRequest.PublishToNetwork = &publishValue
-				visibilityValue := IssueVCRequestVisibilityPrivate
+				visibilityValue := Private
 				issueRequest.Visibility = &visibilityValue
 				return nil
 			})
@@ -228,7 +228,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 
 	t.Run("test errors", func(t *testing.T) {
 		validIssueRequest := func(f interface{}) {
-			public := IssueVCRequestVisibilityPublic
+			public := Public
 			issueRequest := f.(*IssueVCRequest)
 			issueRequest.Type = expectedRequestedVC.Type[0].String()
 			issueRequest.CredentialSubject = expectedRequestedVC.CredentialSubject
