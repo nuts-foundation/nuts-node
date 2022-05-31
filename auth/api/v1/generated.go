@@ -41,7 +41,7 @@ const (
 	SignSessionResponseMeansIrma SignSessionResponseMeans = "irma"
 )
 
-// Error response when access token request fails as described in rfc6749 sectionn 5.2
+// Error response when access token request fails as described in rfc6749 section 5.2
 type AccessTokenRequestFailedResponse struct {
 	Error AccessTokenRequestFailedResponseError `json:"error"`
 
@@ -139,28 +139,13 @@ type CreateJwtGrantRequest struct {
 	Authorizer  string                 `json:"authorizer"`
 	Credentials []VerifiableCredential `json:"credentials"`
 
-	// If the signature session is completed, this property contains the signature embedded in an w3c verifiable presentation.
+	// Verifiable Presentation
 	Identity  *VerifiablePresentation `json:"identity,omitempty"`
 	Requester string                  `json:"requester"`
 
 	// The service for which this access-token can be used. The right oauth endpoint is selected based on the service.
 	Service string `json:"service"`
 }
-
-// CredentialIssuer defines model for CredentialIssuer.
-type CredentialIssuer struct {
-	// a credential type
-	CredentialType string `json:"credentialType"`
-
-	// the DID of an issuer
-	Issuer string `json:"issuer"`
-}
-
-// Subject of a Verifiable Credential identifying the holder and expressing claims.
-type CredentialSubject map[string]interface{}
-
-// DID according to Nuts specification
-type DID string
 
 // DrawUpContractRequest defines model for DrawUpContractRequest.
 type DrawUpContractRequest struct {
@@ -198,7 +183,7 @@ type RequestAccessTokenRequest struct {
 	Authorizer  string                 `json:"authorizer"`
 	Credentials []VerifiableCredential `json:"credentials"`
 
-	// If the signature session is completed, this property contains the signature embedded in an w3c verifiable presentation.
+	// Verifiable Presentation
 	Identity  *VerifiablePresentation `json:"identity,omitempty"`
 	Requester string                  `json:"requester"`
 
@@ -237,16 +222,16 @@ type SignSessionResponseMeans string
 
 // SignSessionStatusResponse defines model for SignSessionStatusResponse.
 type SignSessionStatusResponse struct {
-	// Status indicates the status of the signing proces. Values depend on the implementation of the signing means.
+	// Status indicates the status of the signing process. Values depend on the implementation of the signing means.
 	Status string `json:"status"`
 
-	// If the signature session is completed, this property contains the signature embedded in an w3c verifiable presentation.
+	// Verifiable Presentation
 	VerifiablePresentation *VerifiablePresentation `json:"verifiablePresentation,omitempty"`
 }
 
 // SignatureVerificationRequest defines model for SignatureVerificationRequest.
 type SignatureVerificationRequest struct {
-	// If the signature session is completed, this property contains the signature embedded in an w3c verifiable presentation.
+	// Verifiable Presentation
 	VerifiablePresentation VerifiablePresentation `json:"VerifiablePresentation"`
 
 	// Moment in time to check the validity of the signature. If omitted, the current time is used.
@@ -1750,7 +1735,7 @@ type ServerInterface interface {
 	// Create a JWT Grant
 	// (POST /internal/auth/v1/jwt-grant)
 	CreateJwtGrant(ctx echo.Context) error
-	// Request an accesstoken from the authorizer
+	// Request an access token from the authorizer
 	// (POST /internal/auth/v1/request-access-token)
 	RequestAccessToken(ctx echo.Context) error
 	// Create a signing session for a supported means.

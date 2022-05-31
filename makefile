@@ -49,9 +49,10 @@ gen-api:
 	oapi-codegen -generate types,server,client,skip-prune -templates codegen/oapi/ -package v1 -exclude-schemas DIDDocument,DIDDocumentMetadata,Service,VerificationMethod docs/_static/vdr/v1.yaml | gofmt > vdr/api/v1/generated.go
 	oapi-codegen -generate types -templates codegen/oapi/ -package v1 docs/_static/vdr/v1.yaml | gofmt > vdr/api/v1/test/generated.go
 	oapi-codegen -generate types,server,client -templates codegen/oapi/ -package v1 -exclude-schemas PeerDiagnostics docs/_static/network/v1.yaml | gofmt > network/api/v1/generated.go
-	oapi-codegen -generate types,server,client,skip-prune -templates codegen/oapi/ -package v2 -exclude-schemas VerifiableCredential,CredentialSubject,Revocation,VerifiablePresentation,SearchVCRequest docs/_static/vcr/v2.yaml | gofmt > vcr/api/v2/generated.go
+	oapi-codegen -generate types,server,client,skip-prune -templates codegen/oapi/ -package v2 -exclude-schemas VerifiableCredential,DID,CredentialSubject,Revocation,VerifiablePresentation,SearchVCRequest docs/_static/vcr/v2.yaml | gofmt > vcr/api/v2/generated.go
 	oapi-codegen -generate types,server,client,skip-prune -templates codegen/oapi/ -package v1 -exclude-schemas VerifiableCredential,VerifiablePresentation docs/_static/auth/v1.yaml | gofmt > auth/api/v1/generated.go
 	oapi-codegen -generate types,server,client -templates codegen/oapi/ -package v1 -exclude-schemas ContactInformation,OrganizationSearchResult,Endpoint docs/_static/didman/v1.yaml | gofmt > didman/api/v1/generated.go
+	oapi-codegen -generate types,skip-prune -templates codegen/oapi/ -package ssiTypes docs/_static/common/ssi_types.yaml | gofmt > api/ssi_types.go
 
 gen-protobuf:
 	protoc --go_out=paths=source_relative:network -I network network/transport/v2/protocol.proto

@@ -20,10 +20,12 @@
 package v2
 
 import (
+	"time"
+
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"time"
 )
 
 // VerifiableCredential is an alias to use from within the API
@@ -37,6 +39,9 @@ type Revocation = credential.Revocation
 
 // VerifiablePresentation is an alias to use from within the API
 type VerifiablePresentation = vc.VerifiablePresentation
+
+// DID is an alias to use from within the API
+type DID = did.DID
 
 // SearchVCQuery defines a less strict VerifiableCredential struct without proof which can be used to search for VerifiableCredentials.
 // All fields except for the Context are optional

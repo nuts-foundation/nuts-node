@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
