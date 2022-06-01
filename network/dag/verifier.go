@@ -74,7 +74,7 @@ func NewTransactionSignatureVerifier(resolver types.KeyResolver) Verifier {
 // It also checks if the lamportClock value is correct (if given).
 func NewPrevTransactionsVerifier() Verifier {
 	return func(tx *bbolt.Tx, transaction Transaction) error {
-		var highestLamportClock uint32
+		highestLamportClock := -1
 		for _, prev := range transaction.Previous() {
 			previousTransaction, err := getTransaction(prev, tx)
 			if err != nil {
@@ -83,18 +83,13 @@ func NewPrevTransactionsVerifier() Verifier {
 			if previousTransaction == nil {
 				return ErrPreviousTransactionMissing
 			}
-			if previousTransaction.Clock() >= highestLamportClock {
-				highestLamportClock = previousTransaction.Clock()
+			if int(previousTransaction.Clock()) >= highestLamportClock {
+				highestLamportClock = int(previousTransaction.Clock())
 			}
 		}
 
-		// check LC
-		// skip check for 0's
-		// Deprecated: add check for empty prevs if 0 (root)
-		if transaction.Clock() != 0 {
-			if transaction.Clock() != highestLamportClock+1 {
-				return ErrInvalidLamportClockValue
-			}
+		if int(transaction.Clock()) != highestLamportClock+1 {
+			return ErrInvalidLamportClockValue
 		}
 
 		return nil

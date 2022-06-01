@@ -235,17 +235,16 @@ func (envelope *Envelope_TransactionRangeQuery) checkResponse(other isEnvelope_M
 	if !ok {
 		return errIncorrectEnvelopeType
 	}
-	_, err := otherEnvelope.parseTransactions(data)
+	txs, err := otherEnvelope.parseTransactions(data)
 	if err != nil {
 		return err
 	}
 	// As per RFC017, every TX in the response must have an LC value within the requested range
-	// TODO: reenable after development network reset and re-enable tests
-	//for _, tx := range txs {
-	//	if tx.Clock() < envelope.TransactionRangeQuery.Start || tx.Clock() >= envelope.TransactionRangeQuery.End {
-	//		return fmt.Errorf("TX is not within the requested range (tx=%s)", tx.Ref())
-	//	}
-	//}
+	for _, tx := range txs {
+		if tx.Clock() < envelope.TransactionRangeQuery.Start || tx.Clock() >= envelope.TransactionRangeQuery.End {
+			return fmt.Errorf("TX is not within the requested range (tx=%s)", tx.Ref())
+		}
+	}
 	return nil
 }
 

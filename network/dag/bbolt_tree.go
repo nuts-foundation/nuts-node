@@ -26,7 +26,6 @@ import (
 
 	"go.etcd.io/bbolt"
 
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/storage"
@@ -112,32 +111,6 @@ func (store *bboltTree) dagObserver(ctx context.Context, transaction Transaction
 		})
 		return err
 	}
-	return nil
-}
-
-// migrate builds a tree by walking over the dag and adding all Transaction references to the tree without checking for validity.
-// The tree is stored on disk once it is in sync with the dag.
-func (store *bboltTree) migrate(ctx context.Context, state State) error {
-	if !store.isEmpty() {
-		return nil
-	}
-
-	err := state.Walk(ctx, func(transaction Transaction) bool {
-		store.tree.Insert(transaction.Ref(), transaction.Clock())
-		return true
-	}, hash.EmptyHash())
-	if err != nil {
-		return err
-	}
-
-	dirties, orphaned := store.tree.GetUpdates()
-	store.tree.ResetUpdate()
-
-	err = store.writeUpdates(ctx, dirties, orphaned)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
