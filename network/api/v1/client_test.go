@@ -129,7 +129,7 @@ func TestHTTPClient_GetPeerDiagnostics(t *testing.T) {
 }
 
 func TestHTTPClient_Reprocess(t *testing.T) {
-	t.Run("200", func(t *testing.T) {
+	t.Run("202", func(t *testing.T) {
 		s := httptest.NewServer(handler{statusCode: http.StatusAccepted})
 		httpClient := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
 		err := httpClient.Reprocess("application/did+json")

@@ -582,7 +582,7 @@ func (n *Network) Reprocess(contentType string) {
 		lastLC := uint32(999)
 		for i := uint32(0); (lastLC+uint32(1))%batchSize == 0; i++ {
 			start := i * batchSize
-			end := start + +batchSize
+			end := start + batchSize
 			txs, err := n.state.FindBetweenLC(start, end)
 			if err != nil {
 				log.Logger().Errorf("Failed to Reprocess transactions (start: %d, end: %d): %v", start, end, err)
