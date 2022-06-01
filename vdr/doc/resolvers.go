@@ -218,13 +218,6 @@ func ExtractAssertionKeyID(doc did.Document) (ssi.URI, error) {
 	return ssi.URI{}, types.ErrKeyNotFound
 }
 
-func (r KeyResolver) ResolvePublicKeyInTime(kid string, validAt *time.Time) (crypto.PublicKey, error) {
-	return r.resolvePublicKey(kid, types.ResolveMetadata{
-		AllowDeactivated: true,
-		ResolveTime:      validAt,
-	})
-}
-
 func (r KeyResolver) ResolvePublicKey(kid string, sourceTransactionsRefs []hash.SHA256Hash) (crypto.PublicKey, error) {
 	// try all keys, continue when err == types.ErrNotFound
 	for _, h := range sourceTransactionsRefs {

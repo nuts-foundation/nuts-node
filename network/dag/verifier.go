@@ -50,16 +50,9 @@ func NewTransactionSignatureVerifier(resolver types.KeyResolver) Verifier {
 				return err
 			}
 		} else {
-			signingTime := transaction.SigningTime()
 			pk, err := resolver.ResolvePublicKey(transaction.SigningKeyID(), transaction.Previous())
 			if err != nil {
-				if !errors.Is(err, types.ErrNotFound) {
-					return fmt.Errorf("unable to verify transaction signature, can't resolve key by TX ref (kid=%s, tx=%s): %w", transaction.SigningKeyID(), transaction.Ref().String(), err)
-				}
-				pk, err = resolver.ResolvePublicKeyInTime(transaction.SigningKeyID(), &signingTime)
-				if err != nil {
-					return fmt.Errorf("unable to verify transaction signature, can't resolve key by signing time (kid=%s): %w", transaction.SigningKeyID(), err)
-				}
+				return fmt.Errorf("unable to verify transaction signature, can't resolve key by TX ref (kid=%s, tx=%s): %w", transaction.SigningKeyID(), transaction.Ref().String(), err)
 			}
 			signingKey = pk
 		}
