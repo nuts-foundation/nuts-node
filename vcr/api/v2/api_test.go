@@ -433,7 +433,7 @@ func TestWrapper_VerifyVC(t *testing.T) {
 
 		testContext.echo.EXPECT().JSON(http.StatusOK, VCVerificationResult{Validity: true})
 
-		testContext.vcr.EXPECT().Validate(expectedVC, allowUntrusted, true, nil)
+		testContext.mockVerifier.EXPECT().Verify(expectedVC, allowUntrusted, true, nil)
 
 		err := testContext.client.VerifyVC(testContext.echo)
 		assert.NoError(t, err)
@@ -450,7 +450,7 @@ func TestWrapper_VerifyVC(t *testing.T) {
 		message := "invalid vc"
 		testContext.echo.EXPECT().JSON(http.StatusOK, VCVerificationResult{Validity: false, Message: &message})
 
-		testContext.vcr.EXPECT().Validate(expectedVC, true, true, nil).Return(errors.New("invalid vc"))
+		testContext.mockVerifier.EXPECT().Verify(expectedVC, true, true, nil).Return(errors.New("invalid vc"))
 
 		err := testContext.client.VerifyVC(testContext.echo)
 		assert.NoError(t, err)

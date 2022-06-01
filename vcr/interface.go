@@ -27,7 +27,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 )
@@ -40,25 +39,11 @@ type Finder interface {
 	Search(ctx context.Context, searchTerms []SearchTerm, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error)
 }
 
-// Validator is the VCR interface for validation options
-type Validator interface {
-	// Validate checks if the given credential:
-	// - is not revoked
-	// - is valid at the given time (or now if not give)
-	// - has a valid issuer
-	// - has a valid signature if checkSignature is true
-	// if allowUntrusted == false, the issuer must also be a trusted DID
-	// May return ErrRevoked, ErrUntrusted or ErrInvalidPeriod
-	Validate(credential vc.VerifiableCredential, allowUntrusted bool, checkSignature bool, validAt *time.Time) error
-}
-
 // Writer is the interface that groups al the VC write methods
 type Writer interface {
 	// StoreCredential writes a VC to storage. Before writing, it calls Verify!
 	// It can handle duplicates.
 	StoreCredential(vc vc.VerifiableCredential, validAt *time.Time) error
-	// StoreRevocation writes a revocation to storage.
-	StoreRevocation(r credential.Revocation) error
 }
 
 // TrustManager bundles all trust related methods in one interface
@@ -91,6 +76,5 @@ type VCR interface {
 	Finder
 	Resolver
 	TrustManager
-	Validator
 	Writer
 }

@@ -74,27 +74,3 @@ func (c *vcr) writeCredential(subject vc.VerifiableCredential) error {
 
 	return c.credentialCollection().Add([]leia.Document{doc})
 }
-
-// Deprecated: remove with old revocation callback in ambassador
-func (c *vcr) StoreRevocation(r credential.Revocation) error {
-	// verify first
-	if err := c.verifyRevocation(r); err != nil {
-		return err
-	}
-
-	return c.writeRevocation(r)
-}
-
-// Deprecated: remove with old revocation callback in ambassador
-func (c *vcr) writeRevocation(r credential.Revocation) error {
-	collection := c.revocationIndex()
-
-	doc, _ := json.Marshal(r)
-
-	return collection.Add([]leia.Document{doc})
-}
-
-// Deprecated: remove with old revocation callback in ambassador
-func (c *vcr) revocationIndex() leia.Collection {
-	return c.store.JSONCollection(revocationCollection)
-}

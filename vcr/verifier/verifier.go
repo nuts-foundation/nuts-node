@@ -136,22 +136,11 @@ func (v *verifier) Validate(credentialToVerify vc.VerifiableCredential, at *time
 	}
 
 	// Try first with the correct LDProof implementation
-	if err = ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: v.jsonldManager.DocumentLoader()}, pk); err != nil {
-		// If this fails, try the legacy suite:
-		legacyProof := proof.LegacyLDProof{}
-		if err := signedDocument.UnmarshalProofValue(&legacyProof); err != nil {
-			return err
-		}
-		return legacyProof.Verify(signedDocument.DocumentWithoutProof(), signature.LegacyNutsSuite{}, pk)
-	}
-	return err
-
+	return ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: v.jsonldManager.DocumentLoader()}, pk)
 }
 
 // Verify implements the verify interface.
 // It currently checks if the credential has the required fields and values, if it is valid at the given time and optional the signature.
-// For the v2 api to be complete implement the following TODOs:
-// TODO: check if issuer-type combination is trusted
 func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrusted bool, checkSignature bool, validAt *time.Time) error {
 	// it must have valid content
 	validator, _ := credential.FindValidatorAndBuilder(credentialToVerify)

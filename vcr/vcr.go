@@ -21,7 +21,6 @@ package vcr
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -37,8 +36,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jws"
 	"gopkg.in/yaml.v2"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -46,10 +43,8 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vcr/assets"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
@@ -293,7 +288,7 @@ func (c *vcr) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredent
 	}
 
 	// we don't have to check the signature, it's coming from our own store.
-	if err = c.Validate(credential, false, false, resolveTime); err != nil {
+	if err = c.verifier.Verify(credential, false, false, resolveTime); err != nil {
 		switch err {
 		case types.ErrRevoked:
 			return &credential, types.ErrRevoked
@@ -304,73 +299,6 @@ func (c *vcr) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredent
 		}
 	}
 	return &credential, nil
-}
-
-// Validate validates the provided credential.
-// The function returns nil when the credential is considered valid, the validation error otherwise.
-//
-// It accepts a few extra flags which configure the validation process:
-// * If the allowUntrusted bool is set to true, the credential is not checked for trust.
-//   This means that the validity does not depend on if the issuer-type combination is set to be trusted on this node.
-// * If the checkSignature is set to false, the signature will not be checked.
-//   If it is set to true, the signature must compute. Also, the used signing key must be valid at the validAt time.
-//   A signing key is considered valid if the issuer AND at least one (if any) of its controllers was active at the validAt time.
-// * If the validAt is not provided, validAt will be set to the current time.
-//
-// In addition to the signing key time checks, the following checks will be performed:
-// * The ID fields must be set
-// * The credential is not revoked (note: the revocation state is currently time independent)
-// * The type must contain exactly one type in addition to the default `VerifiableCredential` type.
-// * The issuanceDate must be before the validAt.
-// * The expirationDate must be after the validAt.
-func (c *vcr) Validate(credential vc.VerifiableCredential, allowUntrusted bool, checkSignature bool, validAt *time.Time) error {
-	if credential.ID == nil {
-		return errors.New("verifying a credential requires it to have a valid ID")
-	}
-
-	if validAt == nil {
-		now := timeFunc()
-		validAt = &now
-	}
-
-	// TODO: remove after great reset
-	revoked, err := c.isRevoked(*credential.ID)
-	if revoked {
-		return types.ErrRevoked
-	}
-	if err != nil {
-		return err
-	}
-
-	if checkSignature {
-		// check if the issuer was valid at the given time. (not deactivated, or deactivated controller)
-		issuerDID, _ := did.ParseDID(credential.Issuer.String())
-		_, _, err = c.docResolver.Resolve(*issuerDID, &vdr.ResolveMetadata{ResolveTime: validAt, AllowDeactivated: false})
-		if err != nil {
-			return fmt.Errorf("could not check validity of signing key: %w", err)
-		}
-	}
-
-	// TODO: remove after great reset
-	if !allowUntrusted {
-		trusted := c.isTrusted(credential)
-		if !trusted {
-			return types.ErrUntrusted
-		}
-	}
-
-	// perform the rest of the verification steps
-	return c.verifier.Verify(credential, allowUntrusted, checkSignature, validAt)
-}
-
-func (c *vcr) isTrusted(credential vc.VerifiableCredential) bool {
-	for _, t := range credential.Type {
-		if c.trustConfig.IsTrusted(t, credential.Issuer) {
-			return true
-		}
-	}
-
-	return false
 }
 
 // find only returns a VC from storage, it does not tell anything about validity
@@ -469,90 +397,4 @@ func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
 	}
 
 	return untrusted, nil
-}
-
-func (c *vcr) verifyRevocation(r credential.Revocation) error {
-	// it must have valid content
-	if err := credential.ValidateRevocation(r); err != nil {
-		return err
-	}
-
-	// issuer must be the same as vc issuer
-	subject := r.Subject
-	subject.Fragment = ""
-	if subject != r.Issuer {
-		return errors.New("issuer of revocation is not the same as issuer of credential")
-	}
-
-	// create correct challenge for verification
-	payload := generateRevocationChallenge(r)
-
-	// extract proof, can't fail, already done in generateRevocationChallenge
-	splittedJws := strings.Split(r.Proof.Jws, "..")
-	if len(splittedJws) != 2 {
-		return errors.New("invalid 'jws' value in proof")
-	}
-	sig, err := base64.RawURLEncoding.DecodeString(splittedJws[1])
-	if err != nil {
-		return err
-	}
-
-	// check if key is of issuer
-	vm := r.Proof.VerificationMethod
-	vm.Fragment = ""
-	if vm != r.Issuer {
-		return errors.New("verification method is not of issuer")
-	}
-
-	// find key
-	pk, err := c.keyResolver.ResolveSigningKey(r.Proof.VerificationMethod.String(), &r.Date)
-	if err != nil {
-		return err
-	}
-
-	// the proof must be correct
-	verifier, _ := jws.NewVerifier(jwa.ES256)
-	// the jws lib can't do this for us, so we concat hdr with payload for verification
-	challenge := fmt.Sprintf("%s.%s", splittedJws[0], payload)
-	if err = verifier.Verify([]byte(challenge), sig, pk); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (c *vcr) isRevoked(ID ssi.URI) (bool, error) {
-	qp := leia.Eq(leia.NewJSONPath(credential.RevocationSubjectPath), leia.MustParseScalar(ID.String()))
-	q := leia.New(qp)
-
-	gIndex := c.revocationIndex()
-	ctx, cancel := context.WithTimeout(context.Background(), maxFindExecutionTime)
-	defer cancel()
-	docs, err := gIndex.Find(ctx, q)
-	if err != nil {
-		return false, err
-	}
-
-	if len(docs) >= 1 {
-		return true, nil
-	}
-
-	return false, nil
-}
-
-func generateRevocationChallenge(r credential.Revocation) []byte {
-	// without JWS
-	proof := r.Proof.Proof
-
-	// payload
-	r.Proof = nil
-	payload, _ := json.Marshal(r)
-
-	// proof
-	prJSON, _ := json.Marshal(proof)
-
-	sums := append(hash.SHA256Sum(prJSON).Slice(), hash.SHA256Sum(payload).Slice()...)
-	tbs := base64.RawURLEncoding.EncodeToString(sums)
-
-	return []byte(tbs)
 }
