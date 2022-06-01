@@ -191,9 +191,8 @@ func parsePAL(transaction *transaction, headers jws.Headers, _ *jws.Message) err
 
 func parseLamportClock(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
 	if lcAsInterf, ok := headers.Get(lamportClockHeader); !ok {
-		// not required as of this point
-		// deprecated
-		return nil
+		// won't happen since it's a critical header, but we need to check the cast anyway
+		return transactionValidationError(missingHeaderErrFmt, lamportClockHeader)
 	} else if lcAsFloat64, ok := lcAsInterf.(float64); !ok {
 		return transactionValidationError(invalidHeaderErrFmt, lamportClockHeader)
 	} else {

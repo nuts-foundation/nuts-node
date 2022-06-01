@@ -245,7 +245,8 @@ func makeJWSHeaders(key crypto.Signer, kid string, embedKey bool) jws.Headers {
 	headerMap := map[string]interface{}{
 		jws.AlgorithmKey:   jwa.ES256,
 		jws.ContentTypeKey: "foo/bar",
-		jws.CriticalKey:    []string{signingTimeHeader, versionHeader, previousHeader},
+		jws.CriticalKey:    []string{signingTimeHeader, versionHeader, previousHeader, lamportClockHeader},
+		lamportClockHeader: 0,
 		signingTimeHeader:  time.Now().UTC().Unix(),
 		versionHeader:      1,
 		previousHeader:     []string{prev.String()},
