@@ -6,6 +6,16 @@ Release notes
 Whats has been changed, and how to update between versions.
 
 ***************
+Cashew (v3.0.0)
+***************
+
+Release date: 2022-06-01
+
+This release no longer contains the V1 network protocol.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v2.0.0...v3.0.0
+
+***************
 Brazil (v2.0.0)
 ***************
 
