@@ -391,134 +391,44 @@ func (m *MockPayloadStore) EXPECT() *MockPayloadStoreMockRecorder {
 	return m.recorder
 }
 
-// IsPayloadPresent mocks base method.
-func (m *MockPayloadStore) IsPayloadPresent(tx *bbolt.Tx, payloadHash hash.SHA256Hash) bool {
+// isPayloadPresent mocks base method.
+func (m *MockPayloadStore) isPayloadPresent(tx *bbolt.Tx, payloadHash hash.SHA256Hash) bool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsPayloadPresent", tx, payloadHash)
+	ret := m.ctrl.Call(m, "isPayloadPresent", tx, payloadHash)
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
-// IsPayloadPresent indicates an expected call of IsPayloadPresent.
-func (mr *MockPayloadStoreMockRecorder) IsPayloadPresent(tx, payloadHash interface{}) *gomock.Call {
+// isPayloadPresent indicates an expected call of isPayloadPresent.
+func (mr *MockPayloadStoreMockRecorder) isPayloadPresent(tx, payloadHash interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsPayloadPresent", reflect.TypeOf((*MockPayloadStore)(nil).IsPayloadPresent), tx, payloadHash)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "isPayloadPresent", reflect.TypeOf((*MockPayloadStore)(nil).isPayloadPresent), tx, payloadHash)
 }
 
-// ReadPayload mocks base method.
-func (m *MockPayloadStore) ReadPayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash) []byte {
+// readPayload mocks base method.
+func (m *MockPayloadStore) readPayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash) []byte {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadPayload", tx, payloadHash)
+	ret := m.ctrl.Call(m, "readPayload", tx, payloadHash)
 	ret0, _ := ret[0].([]byte)
 	return ret0
 }
 
-// ReadPayload indicates an expected call of ReadPayload.
-func (mr *MockPayloadStoreMockRecorder) ReadPayload(tx, payloadHash interface{}) *gomock.Call {
+// readPayload indicates an expected call of readPayload.
+func (mr *MockPayloadStoreMockRecorder) readPayload(tx, payloadHash interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadPayload", reflect.TypeOf((*MockPayloadStore)(nil).ReadPayload), tx, payloadHash)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "readPayload", reflect.TypeOf((*MockPayloadStore)(nil).readPayload), tx, payloadHash)
 }
 
-// WritePayload mocks base method.
-func (m *MockPayloadStore) WritePayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash, data []byte) error {
+// writePayload mocks base method.
+func (m *MockPayloadStore) writePayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash, data []byte) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WritePayload", tx, payloadHash, data)
+	ret := m.ctrl.Call(m, "writePayload", tx, payloadHash, data)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// WritePayload indicates an expected call of WritePayload.
-func (mr *MockPayloadStoreMockRecorder) WritePayload(tx, payloadHash, data interface{}) *gomock.Call {
+// writePayload indicates an expected call of writePayload.
+func (mr *MockPayloadStoreMockRecorder) writePayload(tx, payloadHash, data interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WritePayload", reflect.TypeOf((*MockPayloadStore)(nil).WritePayload), tx, payloadHash, data)
-}
-
-// MockPayloadWriter is a mock of PayloadWriter interface.
-type MockPayloadWriter struct {
-	ctrl     *gomock.Controller
-	recorder *MockPayloadWriterMockRecorder
-}
-
-// MockPayloadWriterMockRecorder is the mock recorder for MockPayloadWriter.
-type MockPayloadWriterMockRecorder struct {
-	mock *MockPayloadWriter
-}
-
-// NewMockPayloadWriter creates a new mock instance.
-func NewMockPayloadWriter(ctrl *gomock.Controller) *MockPayloadWriter {
-	mock := &MockPayloadWriter{ctrl: ctrl}
-	mock.recorder = &MockPayloadWriterMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockPayloadWriter) EXPECT() *MockPayloadWriterMockRecorder {
-	return m.recorder
-}
-
-// WritePayload mocks base method.
-func (m *MockPayloadWriter) WritePayload(transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WritePayload", transaction, payloadHash, data)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// WritePayload indicates an expected call of WritePayload.
-func (mr *MockPayloadWriterMockRecorder) WritePayload(transaction, payloadHash, data interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WritePayload", reflect.TypeOf((*MockPayloadWriter)(nil).WritePayload), transaction, payloadHash, data)
-}
-
-// MockPayloadReader is a mock of PayloadReader interface.
-type MockPayloadReader struct {
-	ctrl     *gomock.Controller
-	recorder *MockPayloadReaderMockRecorder
-}
-
-// MockPayloadReaderMockRecorder is the mock recorder for MockPayloadReader.
-type MockPayloadReaderMockRecorder struct {
-	mock *MockPayloadReader
-}
-
-// NewMockPayloadReader creates a new mock instance.
-func NewMockPayloadReader(ctrl *gomock.Controller) *MockPayloadReader {
-	mock := &MockPayloadReader{ctrl: ctrl}
-	mock.recorder = &MockPayloadReaderMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockPayloadReader) EXPECT() *MockPayloadReaderMockRecorder {
-	return m.recorder
-}
-
-// IsPayloadPresent mocks base method.
-func (m *MockPayloadReader) IsPayloadPresent(ctx context.Context, payloadHash hash.SHA256Hash) (bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsPayloadPresent", ctx, payloadHash)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// IsPayloadPresent indicates an expected call of IsPayloadPresent.
-func (mr *MockPayloadReaderMockRecorder) IsPayloadPresent(ctx, payloadHash interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsPayloadPresent", reflect.TypeOf((*MockPayloadReader)(nil).IsPayloadPresent), ctx, payloadHash)
-}
-
-// ReadPayload mocks base method.
-func (m *MockPayloadReader) ReadPayload(ctx context.Context, payloadHash hash.SHA256Hash) ([]byte, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadPayload", ctx, payloadHash)
-	ret0, _ := ret[0].([]byte)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ReadPayload indicates an expected call of ReadPayload.
-func (mr *MockPayloadReaderMockRecorder) ReadPayload(ctx, payloadHash interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadPayload", reflect.TypeOf((*MockPayloadReader)(nil).ReadPayload), ctx, payloadHash)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "writePayload", reflect.TypeOf((*MockPayloadStore)(nil).writePayload), tx, payloadHash, data)
 }

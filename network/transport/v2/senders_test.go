@@ -300,9 +300,6 @@ func TestProtocol_sendState(t *testing.T) {
 		assert.Equal(t, clock, actualEnvelope.GetState().LC)
 	})
 
-	performMultipleConversationsTest(t, peerID, func(p *protocol, mocks protocolMocks) error {
-		return p.sendState(peerID, xor, clock)
-	})
 	performSendErrorTest(t, peerID, gomock.Any(), func(p *protocol, mocks protocolMocks) error {
 		return p.sendState(peerID, xor, clock)
 	})
