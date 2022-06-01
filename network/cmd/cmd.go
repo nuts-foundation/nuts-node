@@ -68,6 +68,7 @@ func Cmd() *cobra.Command {
 	cmd.AddCommand(getCommand())
 	cmd.AddCommand(payloadCommand())
 	cmd.AddCommand(peersCommand())
+	cmd.AddCommand(reprocessCommand())
 	return cmd
 }
 
@@ -175,6 +176,23 @@ func peersCommand() *cobra.Command {
 				cmd.Printf("  Number of DAG TXs: %d\n", peers[peer].NumberOfTransactions)
 				cmd.Printf("  Peers:             %v\n", peers[peer].Peers)
 			}
+			return nil
+		},
+	}
+}
+
+func reprocessCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "reprocess [contentType]",
+		Short: "Reprocess all transactions with the give contentType (ex: application/did+json)",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			err := httpClient(core.NewClientConfig(cmd.Flags())).Reprocess(args[0])
+			if err != nil {
+				// prints help on 400
+				return err
+			}
+			cmd.Printf("Reprocessing transactions with contentType: %s\n", args[0])
 			return nil
 		},
 	}

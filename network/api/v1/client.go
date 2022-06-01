@@ -22,11 +22,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/network/transport"
 	"io"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/network/transport"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -117,6 +118,20 @@ func (hb HTTPClient) GetPeerDiagnostics() (map[transport.PeerID]PeerDiagnostics,
 	result := make(map[transport.PeerID]PeerDiagnostics, 0)
 	err = json.Unmarshal(responseData, &result)
 	return result, err
+}
+
+// Reprocess triggers reprocessing of transactions with the given content type
+func (hb HTTPClient) Reprocess(contentType string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), hb.Timeout)
+	defer cancel()
+	response, err := hb.client().Reprocess(ctx, &ReprocessParams{Type: &contentType})
+	if err != nil {
+		return err
+	}
+	if err = core.TestResponseCode(http.StatusAccepted, response); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (hb HTTPClient) client() ClientInterface {

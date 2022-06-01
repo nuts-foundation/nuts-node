@@ -22,8 +22,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
-	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/vdr/store"
 )
 
 // Two TestDIDs which can be used during testing:
@@ -57,15 +55,4 @@ XxhMnrGAyJ4c6DWkQyjAfhgzMJChRANCAARyqdBob46wU2n+qqQHwnxRa/KprcVr
 rYrfaOuqO34hTemBL1DkecuWBTPYT5HKiuKPn7LnDRupFXuCLF4tp+BR
 -----END PRIVATE KEY-----`))
 	return crypto.TestKey{PrivateKey: key, Kid: TestMethodDIDB.String()}
-}
-
-func NewTestVDRInstance(testDirectory string) *VDR {
-	config := TestVDRConfig()
-	didStore := store.NewMemoryStore()
-	return NewVDR(config, crypto.NewTestCryptoInstance(), network.NewTestNetworkInstance(testDirectory), didStore)
-}
-
-func TestVDRConfig() Config {
-	config := DefaultConfig()
-	return config
 }

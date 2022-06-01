@@ -26,12 +26,15 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/test"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -696,6 +699,107 @@ func TestNetwork_Shutdown(t *testing.T) {
 		assert.NoError(t, err)
 		err = cxt.network.Shutdown()
 		assert.NoError(t, err)
+	})
+}
+
+func TestNetwork_Reprocess(t *testing.T) {
+	foundMutex := sync.Mutex{}
+	tx, _, _ := dag.CreateTestTransaction(0)
+
+	setup := func(t *testing.T) (*networkTestContext, events.Event) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		ctx := createNetwork(ctrl)
+		eventManager := events.NewTestManager(t)
+		ctx.network.eventPublisher = eventManager
+		return ctx, eventManager
+	}
+
+	subscribe := func(counter *int, eventManager events.Event) {
+		conn, _, _ := eventManager.Pool().Acquire(context.Background())
+		stream := events.NewDisposableStream("REPROCESS_test", []string{"REPROCESS.*"}, 10)
+		_ = stream.Subscribe(conn, "test", "REPROCESS.*", func(msg *nats.Msg) {
+			foundMutex.Lock()
+			defer foundMutex.Unlock()
+			*counter++
+			err := msg.Ack()
+			if !assert.NoError(t, err) {
+				t.Fatal(err)
+			}
+		})
+	}
+
+	t.Run("ok", func(t *testing.T) {
+		ctx, eventManager := setup(t)
+		ctx.state.EXPECT().FindBetweenLC(uint32(0), uint32(1000)).Return([]dag.Transaction{tx}, nil)
+		ctx.state.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).Return([]byte("payload"), nil)
+
+		var found int
+		subscribe(&found, eventManager)
+
+		ctx.network.Reprocess("application/did+json")
+
+		test.WaitFor(t, func() (bool, error) {
+			foundMutex.Lock()
+			defer foundMutex.Unlock()
+			return found > 0, nil
+		}, 100*time.Millisecond, "timeout waiting for event")
+	})
+
+	t.Run("ignores other transactions", func(t *testing.T) {
+		ctx, eventManager := setup(t)
+		ctx.state.EXPECT().FindBetweenLC(uint32(0), uint32(1000)).Return([]dag.Transaction{tx}, nil)
+		ctx.state.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).Return([]byte("payload"), nil)
+
+		var found int
+		subscribe(&found, eventManager)
+
+		ctx.network.Reprocess("application/did+vc")
+
+		test.WaitForNoFail(t, func() (bool, error) {
+			foundMutex.Lock()
+			defer foundMutex.Unlock()
+			return found > 0, nil
+		}, 100*time.Millisecond)
+
+		assert.Equal(t, 0, found)
+	})
+
+	t.Run("stops on error", func(t *testing.T) {
+		ctx, eventManager := setup(t)
+		ctx.state.EXPECT().FindBetweenLC(uint32(0), uint32(1000)).Return(nil, errors.New("b00m!"))
+
+		var found int
+		subscribe(&found, eventManager)
+
+		ctx.network.Reprocess("application/did+vc")
+
+		test.WaitForNoFail(t, func() (bool, error) {
+			foundMutex.Lock()
+			defer foundMutex.Unlock()
+			return found > 0, nil
+		}, 100*time.Millisecond)
+
+		assert.Equal(t, 0, found)
+	})
+
+	t.Run("stops on error 2", func(t *testing.T) {
+		ctx, eventManager := setup(t)
+		ctx.state.EXPECT().FindBetweenLC(uint32(0), uint32(1000)).Return([]dag.Transaction{tx}, nil)
+		ctx.state.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).Return(nil, errors.New("b00m!"))
+
+		var found int
+		subscribe(&found, eventManager)
+
+		ctx.network.Reprocess("application/did+vc")
+
+		test.WaitForNoFail(t, func() (bool, error) {
+			foundMutex.Lock()
+			defer foundMutex.Unlock()
+			return found > 0, nil
+		}, 100*time.Millisecond)
+
+		assert.Equal(t, 0, found)
 	})
 }
 

@@ -24,6 +24,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport"
 )
 
+// MaxReprocessBufferSize is the maximum number of events for Nats resulting from a Reprocess
+const MaxReprocessBufferSize = 1000000
+
 // Transactions is the interface that defines the API for creating, reading and subscribing to Nuts Network transactions.
 type Transactions interface {
 	// Subscribe makes a subscription for the specified transaction type. The receiver is called when a transaction
@@ -42,4 +45,7 @@ type Transactions interface {
 	Walk(visitor dag.Visitor) error
 	// PeerDiagnostics returns a map containing diagnostic information of the node's peers. The key contains the remote peer's ID.
 	PeerDiagnostics() map[transport.PeerID]transport.Diagnostics
+	// Reprocess walks the DAG and publishes all transactions matching the contentType via Nats
+	// This is an async process and will not return any feedback
+	Reprocess(contentType string)
 }

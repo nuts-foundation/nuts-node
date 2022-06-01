@@ -20,14 +20,15 @@ package v1
 import (
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/mock"
-	"github.com/nuts-foundation/nuts-node/network/transport"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/mock"
+	"github.com/nuts-foundation/nuts-node/network/transport"
 
 	"github.com/golang/mock/gomock"
 	"github.com/labstack/echo/v4"
@@ -319,6 +320,38 @@ func TestWrapper_GetPeerDiagnostics(t *testing.T) {
 		actual := map[transport.PeerID]PeerDiagnostics{}
 		json.Unmarshal(rec.Body.Bytes(), &actual)
 		assert.Equal(t, PeerDiagnostics(expected["foo"]), actual["foo"])
+	})
+}
+
+func TestApiWrapper_Reprocess(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	t.Run("error - missing type", func(t *testing.T) {
+		var networkClient = network.NewMockTransactions(mockCtrl)
+		e, wrapper := initMockEcho(networkClient)
+
+		req := httptest.NewRequest(echo.GET, "/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.SetPath("/reprocess")
+
+		err := wrapper.Reprocess(c)
+		assert.EqualError(t, err, "missing type")
+	})
+	t.Run("ok", func(t *testing.T) {
+		var networkClient = network.NewMockTransactions(mockCtrl)
+		e, wrapper := initMockEcho(networkClient)
+		networkClient.EXPECT().Reprocess("application/did+json")
+
+		req := httptest.NewRequest(echo.GET, "/reprocess?type=application/did%2bjson", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.SetPath("/reprocess")
+
+		err := wrapper.Reprocess(c)
+
+		assert.NoError(t, err)
 	})
 }
 

@@ -567,6 +567,58 @@ func (n *Network) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 	return result
 }
 
+func (n *Network) Reprocess(contentType string) {
+	batchSize := uint32(1000)
+
+	log.Logger().Infof("Starting reprocess of %s", contentType)
+
+	go func() {
+		ctx := context.Background()
+		_, js, err := n.eventPublisher.Pool().Acquire(context.Background())
+		if err != nil {
+			log.Logger().Errorf("Failed to start reprocessing transactions: %v", err)
+		}
+
+		lastLC := uint32(999)
+		for i := uint32(0); (lastLC+uint32(1))%batchSize == 0; i++ {
+			start := i * batchSize
+			end := start + batchSize
+			txs, err := n.state.FindBetweenLC(start, end)
+			if err != nil {
+				log.Logger().Errorf("Failed to Reprocess transactions (start: %d, end: %d): %v", start, end, err)
+				return
+			}
+
+			for _, tx := range txs {
+				if tx.PayloadType() == contentType {
+					// add to Nats
+					subject := fmt.Sprintf("%s.%s", events.ReprocessStream, contentType)
+					payload, err := n.state.ReadPayload(ctx, tx.PayloadHash())
+					if err != nil {
+						log.Logger().Errorf("Failed to publish transaction (subject: %s, ref: %s): %v", subject, tx.Ref().String(), err)
+						return
+					}
+					twp := events.TransactionWithPayload{
+						Transaction: tx,
+						Payload:     payload,
+					}
+					data, _ := json.Marshal(twp)
+					log.Logger().Tracef("Publishing transaction (subject=%s, ref=%s)", subject, tx.Ref().String())
+					_, err = js.PublishAsync(subject, data)
+					if err != nil {
+						log.Logger().Errorf("Failed to publish transaction (subject: %s, ref: %s): %v", subject, tx.Ref().String(), err)
+						return
+					}
+				}
+				lastLC = tx.Clock()
+			}
+
+			// give some time for Update transactions that require all read transactions to be closed
+			time.Sleep(time.Second)
+		}
+	}()
+}
+
 func (n *Network) collectDiagnostics() transport.Diagnostics {
 	result := transport.Diagnostics{
 		Uptime:               time.Now().Sub(n.startTime.Load().(time.Time)),

@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/go-leia/v3"
+	"github.com/nuts-foundation/nuts-node/events"
 
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
@@ -64,7 +65,7 @@ var timeFunc = time.Now
 var noSync bool
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
-func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions, jsonldManager jsonld.JSONLD) VCR {
+func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions, jsonldManager jsonld.JSONLD, eventManager events.Event) VCR {
 	r := &vcr{
 		config:          DefaultConfig(),
 		docResolver:     docResolver,
@@ -73,6 +74,7 @@ func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyRe
 		serviceResolver: doc.NewServiceResolver(docResolver),
 		network:         network,
 		jsonldManager:   jsonldManager,
+		eventManager:    eventManager,
 	}
 
 	return r
@@ -94,6 +96,7 @@ type vcr struct {
 	issuerStore     issuer.Store
 	verifierStore   verifier.Store
 	jsonldManager   jsonld.JSONLD
+	eventManager    events.Event
 }
 
 func (c vcr) Issuer() issuer.Issuer {
@@ -135,7 +138,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	c.issuer = issuer.NewIssuer(c.issuerStore, publisher, c.docResolver, c.keyStore, c.jsonldManager, c.trustConfig)
 	c.verifier = verifier.NewVerifier(c.verifierStore, c.keyResolver, c.jsonldManager, c.trustConfig)
 
-	c.ambassador = NewAmbassador(c.network, c, c.verifier)
+	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)
 
 	c.holder = holder.New(c.keyResolver, c.keyStore, c.verifier, c.jsonldManager)
 
@@ -174,7 +177,7 @@ func (c *vcr) Start() error {
 	// start listening for new credentials
 	c.ambassador.Configure()
 
-	return nil
+	return c.ambassador.Start()
 }
 
 func (c *vcr) Shutdown() error {

@@ -20,8 +20,12 @@
 package vcr
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+
+	"github.com/nats-io/nats.go"
+	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 
 	"github.com/nuts-foundation/go-did/vc"
@@ -36,21 +40,25 @@ import (
 type Ambassador interface {
 	// Configure instructs the ambassador to start receiving DID Documents from the network.
 	Configure()
+	// Start the event subscriber for reprocessing transactions from the DAG when called
+	Start() error
 }
 
 type ambassador struct {
 	networkClient network.Transactions
 	writer        Writer
 	// verifier is used to store incoming revocations from the network
-	verifier verifier.Verifier
+	verifier     verifier.Verifier
+	eventManager events.Event
 }
 
 // NewAmbassador creates a new listener for the network that listens to Verifiable Credential transactions.
-func NewAmbassador(networkClient network.Transactions, writer Writer, verifier verifier.Verifier) Ambassador {
-	return ambassador{
+func NewAmbassador(networkClient network.Transactions, writer Writer, verifier verifier.Verifier, eventManager events.Event) Ambassador {
+	return &ambassador{
 		networkClient: networkClient,
 		writer:        writer,
 		verifier:      verifier,
+		eventManager:  eventManager,
 	}
 }
 
@@ -59,6 +67,67 @@ func (n ambassador) Configure() {
 	n.networkClient.Subscribe(dag.TransactionPayloadAddedEvent, types.VcDocumentType, n.vcCallback)
 	n.networkClient.Subscribe(dag.TransactionPayloadAddedEvent, types.RevocationDocumentType, n.rCallback)
 	n.networkClient.Subscribe(dag.TransactionPayloadAddedEvent, types.RevocationLDDocumentType, n.jsonLDRevocationCallback)
+}
+
+func (n ambassador) Start() error {
+	stream := events.NewDisposableStream(
+		fmt.Sprintf("%s_%s", events.ReprocessStream, "VCR"),
+		[]string{
+			fmt.Sprintf("%s.%s", events.ReprocessStream, types.VcDocumentType),
+			fmt.Sprintf("%s.%s", events.ReprocessStream, types.RevocationDocumentType),
+			fmt.Sprintf("%s.%s", events.ReprocessStream, types.RevocationLDDocumentType),
+		},
+		network.MaxReprocessBufferSize)
+	conn, _, err := n.eventManager.Pool().Acquire(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to REPROCESS event stream: %v", err)
+	}
+
+	err = stream.Subscribe(conn, "VCR", fmt.Sprintf("%s.*", events.ReprocessStream), n.handleReprocessEvent)
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to REPROCESS event stream: %v", err)
+	}
+	return nil
+}
+
+func (n ambassador) handleReprocessEvent(msg *nats.Msg) {
+	jsonBytes := msg.Data
+	twp := events.TransactionWithPayload{}
+
+	if err := msg.Ack(); err != nil {
+		log.Logger().Errorf("Failed to process %s event: failed to ack message: %v", msg.Subject, err)
+		return
+	}
+
+	if err := json.Unmarshal(jsonBytes, &twp); err != nil {
+		log.Logger().Errorf("Failed to process %s event: failed to unmarshall data: %v", msg.Subject, err)
+		return
+	}
+
+	if len(twp.Payload) != 0 { // private TXs not intended for us
+		callback := n.getCallbackFn(twp.Transaction.PayloadType())
+		if err := callback(twp.Transaction, twp.Payload); err != nil {
+			log.Logger().Errorf("Failed to process %s event: %v", msg.Subject, err)
+			return
+		}
+	}
+
+	return
+}
+
+func (n ambassador) getCallbackFn(contentType string) func(dag.Transaction, []byte) error {
+	switch contentType {
+	case types.VcDocumentType:
+		return n.vcCallback
+	case types.RevocationDocumentType:
+		return n.rCallback
+	case types.RevocationLDDocumentType:
+		return n.jsonLDRevocationCallback
+	}
+
+	return func(tx dag.Transaction, payload []byte) error {
+		return nil
+	}
 }
 
 // vcCallback gets called when new Verifiable Credentials are received by the network. All checks on the signature are already performed.
