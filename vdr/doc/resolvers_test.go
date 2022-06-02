@@ -432,6 +432,27 @@ func TestResolver_ResolveControllers(t *testing.T) {
 	})
 }
 
+func TestKeyResolver_ResolvePublicKey(t *testing.T) {
+	didStore := store.NewMemoryStore()
+	keyResolver := KeyResolver{Store: didStore}
+	keyCreator := newMockKeyCreator()
+	docCreator := Creator{KeyStore: keyCreator}
+	doc, _, _ := docCreator.Create(DefaultCreationOptions())
+	doc.AddAssertionMethod(doc.VerificationMethod[0])
+	txHash := hash.FromSlice([]byte("hash"))
+	didStore.Write(*doc, types.DocumentMetadata{SourceTransactions: []hash.SHA256Hash{txHash}})
+
+	t.Run("ok by hash", func(t *testing.T) {
+		key, err := keyResolver.ResolvePublicKey(kid, []hash.SHA256Hash{txHash})
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.NotNil(t, key)
+	})
+
+}
+
 func TestServiceResolver_Resolve(t *testing.T) {
 	meta := &types.DocumentMetadata{Hash: hash.EmptyHash()}
 
