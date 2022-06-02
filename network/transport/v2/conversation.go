@@ -76,6 +76,11 @@ func (conversation *conversation) set(key string, value interface{}) {
 	conversation.properties[key] = value
 }
 
+type blockable interface {
+	checkable
+	blockingConversation()
+}
+
 type checkable interface {
 	conversationable
 	checkResponse(envelope isEnvelope_Message, data handlerData) error
@@ -152,10 +157,13 @@ func (cMan *conversationManager) startConversation(msg checkable, id transport.P
 	cMan.mutex.Lock()
 	defer cMan.mutex.Unlock()
 
-	if cMan.hasActiveConversation(id) {
-		return nil
+	if _, ok := msg.(blockable); ok {
+		if cMan.hasActiveConversation(id) {
+			return nil
+		}
+		cMan.lastPeerConversationID[id] = cid
 	}
-	cMan.lastPeerConversationID[id] = cid
+
 	cMan.conversations[cid.String()] = newConversation
 
 	return newConversation
@@ -222,6 +230,8 @@ func (envelope *Envelope_TransactionListQuery) checkResponse(other isEnvelope_Me
 	return nil
 }
 
+func (envelope *Envelope_TransactionListQuery) blockingConversation() {}
+
 func (envelope *Envelope_TransactionRangeQuery) setConversationID(cid conversationID) {
 	envelope.TransactionRangeQuery.ConversationID = cid.slice()
 }
@@ -248,6 +258,8 @@ func (envelope *Envelope_TransactionRangeQuery) checkResponse(other isEnvelope_M
 	//}
 	return nil
 }
+
+func (envelope *Envelope_TransactionRangeQuery) blockingConversation() {}
 
 func (envelope *Envelope_TransactionList) setConversationID(cid conversationID) {
 	envelope.TransactionList.ConversationID = cid.slice()
