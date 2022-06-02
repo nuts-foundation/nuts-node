@@ -140,12 +140,21 @@ func parseVersion(transaction *transaction, headers jws.Headers, _ *jws.Message)
 		return transactionValidationError(missingHeaderErrFmt, versionHeader)
 	} else if versionAsFloat64, ok := versionAsInterf.(float64); !ok {
 		return transactionValidationError(invalidHeaderErrFmt, versionHeader)
-	} else if version = Version(versionAsFloat64); version != currentVersion {
+	} else if version = Version(versionAsFloat64); !versionAllowed(version) {
 		return transactionValidationError("unsupported version: %d", version)
 	} else {
 		transaction.version = version
 		return nil
 	}
+}
+
+func versionAllowed(version Version) bool {
+	for _, v := range allowedVersion {
+		if version == v {
+			return true
+		}
+	}
+	return false
 }
 
 // parsePrevious parses, validates and sets the transaction prevs fields.

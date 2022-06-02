@@ -56,7 +56,7 @@ func TestTransactionSigner(t *testing.T) {
 		assert.Empty(t, signedTx.SigningKeyID())
 		// Custom headers
 		assert.Equal(t, "2020-10-23 12:59:59 +0000 UTC", signedTx.SigningTime().String())
-		assert.Equal(t, Version(1), signedTx.Version())
+		assert.Equal(t, Version(2), signedTx.Version())
 		prevs := signedTx.Previous()
 		assert.Len(t, prevs, 2, "expected 2 prevs")
 		assert.Equal(t, prev1, prevs[0])
