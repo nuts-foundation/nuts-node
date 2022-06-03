@@ -33,7 +33,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/storage"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"go.etcd.io/bbolt"
 )
 
@@ -55,7 +54,6 @@ type state struct {
 	nonTransactionalObservers        []Observer
 	transactionalPayloadObservers    []PayloadObserver
 	nonTransactionalPayloadObservers []PayloadObserver
-	keyResolver                      types.KeyResolver
 	publisher                        Publisher
 	txVerifiers                      []Verifier
 	xorTree                          *bboltTree
