@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/avast/retry-go/v4 v4.0.5
 	github.com/cbroglie/mustache v1.3.1
-	github.com/deepmap/oapi-codegen v1.10.1
+	github.com/deepmap/oapi-codegen v1.11.0
 	github.com/golang/mock v1.6.0
 	github.com/goodsign/monday v1.0.0
 	github.com/google/uuid v1.3.0
@@ -147,9 +147,9 @@ require (
 	go.opentelemetry.io/otel v0.19.0 // indirect
 	go.opentelemetry.io/otel/metric v0.19.0 // indirect
 	go.opentelemetry.io/otel/trace v0.19.0 // indirect
-	golang.org/x/crypto v0.0.0-20220427172511-eb4f295cb31f // indirect
-	golang.org/x/net v0.0.0-20220418201149-a630d4f3e7a2 // indirect
-	golang.org/x/sys v0.0.0-20220503163025-988cb79eb6c6 // indirect
+	golang.org/x/crypto v0.0.0-20220513210258-46612604a0f9 // indirect
+	golang.org/x/net v0.0.0-20220513224357-95641704303c // indirect
+	golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20220411224347-583f2d630306 // indirect

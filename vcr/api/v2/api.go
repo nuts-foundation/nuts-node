@@ -107,11 +107,11 @@ func (w Wrapper) IssueVC(ctx echo.Context) error {
 			return core.InvalidInputError("visibility setting is only allowed when publishing to the network")
 		}
 		// Check if the values are in range
-		if *issueRequest.Visibility != IssueVCRequestVisibilityPublic && *issueRequest.Visibility != IssueVCRequestVisibilityPrivate {
+		if *issueRequest.Visibility != Public && *issueRequest.Visibility != Private {
 			return core.InvalidInputError("invalid value for visibility")
 		}
 		// Set the actual value
-		public = *issueRequest.Visibility == IssueVCRequestVisibilityPublic
+		public = *issueRequest.Visibility == Public
 	}
 
 	// Set default context, if not set
