@@ -134,19 +134,6 @@ func TestTransactionSignatureVerifier(t *testing.T) {
 		assert.Contains(t, err.Error(), "unable to verify transaction signature, can't resolve key by TX ref")
 		assert.Contains(t, err.Error(), "failed")
 	})
-	t.Run("unable to resolve key by hash and time", func(t *testing.T) {
-		d := CreateSignedTestTransaction(1, time.Now(), nil, "foo/bar", false)
-		ctrl := gomock.NewController(t)
-		keyResolver := types.NewMockKeyResolver(ctrl)
-		keyResolver.EXPECT().ResolvePublicKey(gomock.Any(), gomock.Any()).Return(nil, types.ErrNotFound)
-		keyResolver.EXPECT().ResolvePublicKeyInTime(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
-		err := NewTransactionSignatureVerifier(keyResolver)(nil, d)
-		if !assert.Error(t, err) {
-			return
-		}
-		assert.Contains(t, err.Error(), "unable to verify transaction signature, can't resolve key by signing time")
-		assert.Contains(t, err.Error(), "failed")
-	})
 }
 
 func TestSigningTimeVerifier(t *testing.T) {
