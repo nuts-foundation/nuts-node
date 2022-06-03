@@ -138,23 +138,6 @@ func (dag bboltDAG) getByPayloadHash(ctx context.Context, payloadHash hash.SHA25
 	return result, err
 }
 
-func (dag *bboltDAG) payloadHashes(ctx context.Context, visitor func(payloadHash hash.SHA256Hash) error) error {
-	return storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
-		payloadIndex := tx.Bucket([]byte(payloadIndexBucket))
-		if payloadIndex == nil {
-			return nil
-		}
-		cursor := payloadIndex.Cursor()
-		for ref, _ := cursor.First(); ref != nil; ref, _ = cursor.Next() {
-			err := visitor(hash.FromSlice(ref)) // FromSlice() copies
-			if err != nil {
-				return fmt.Errorf("visitor returned error: %w", err)
-			}
-		}
-		return nil
-	})
-}
-
 func (dag bboltDAG) heads(ctx context.Context) []hash.SHA256Hash {
 	result := make([]hash.SHA256Hash, 0)
 	_ = storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {

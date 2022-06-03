@@ -20,7 +20,6 @@ package dag
 
 import (
 	"context"
-	"errors"
 	"math/rand"
 	"sort"
 	"strings"
@@ -406,64 +405,6 @@ func TestBBoltDAG_GetByPayloadHash(t *testing.T) {
 		actual, err := graph.getByPayloadHash(ctx, hash.SHA256Sum([]byte{1, 2, 3}))
 		assert.NoError(t, err)
 		assert.Empty(t, actual)
-	})
-}
-
-func TestBBoltDAG_PayloadHashes(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		ctx := context.Background()
-		graph := CreateDAG(t)
-		const numberOfTXs = 5
-		payloads := make(map[hash.SHA256Hash]bool, 0)
-		// Create some TXs
-		rootTX := CreateTestTransactionWithJWK(0)
-		payloads[rootTX.PayloadHash()] = false
-		addTx(t, graph, rootTX)
-		for i := 1; i < numberOfTXs; i++ {
-			tx := CreateTestTransactionWithJWK(uint32(i), rootTX)
-			addTx(t, graph, tx)
-			payloads[tx.PayloadHash()] = false
-		}
-
-		// Call
-		numCalled := 0
-		err := graph.payloadHashes(ctx, func(payloadHash hash.SHA256Hash) error {
-			// Every payload should be visited once
-			assert.False(t, payloads[payloadHash])
-			// Mark visited
-			payloads[payloadHash] = true
-			numCalled++
-			return nil
-		})
-		assert.NoError(t, err)
-		assert.Equal(t, numberOfTXs, numCalled)
-		// Assert all transaction payloads have been visited
-		for _, b := range payloads {
-			assert.True(t, b)
-		}
-	})
-	t.Run("error - visitor returns error", func(t *testing.T) {
-		ctx := context.Background()
-		graph := CreateDAG(t)
-		addTx(t, graph, CreateTestTransactionWithJWK(0))
-		numCalled := 0
-		err := graph.payloadHashes(ctx, func(payloadHash hash.SHA256Hash) error {
-			numCalled++
-			return errors.New("some error")
-		})
-		assert.Error(t, err)
-		assert.Equal(t, 1, numCalled)
-	})
-	t.Run("ok - empty DAG", func(t *testing.T) {
-		ctx := context.Background()
-		graph := CreateDAG(t)
-		numCalled := 0
-		err := graph.payloadHashes(ctx, func(payloadHash hash.SHA256Hash) error {
-			numCalled++
-			return nil
-		})
-		assert.NoError(t, err)
-		assert.Equal(t, 0, numCalled)
 	})
 }
 
