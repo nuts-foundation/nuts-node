@@ -131,7 +131,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 
 	publisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
 	c.issuer = issuer.NewIssuer(c.issuerStore, publisher, c.docResolver, c.keyStore, c.jsonldManager, c.trustConfig)
-	c.verifier = verifier.NewVerifier(c.verifierStore, c.keyResolver, c.jsonldManager, c.trustConfig)
+	c.verifier = verifier.NewVerifier(c.verifierStore, c.docResolver, c.keyResolver, c.jsonldManager, c.trustConfig)
 
 	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)
 
