@@ -33,7 +33,6 @@ import (
 const AnyPayloadType = "*"
 
 var errRootAlreadyExists = errors.New("root transaction already exists")
-var errNoClockValue = errors.New("missing clock value")
 
 // State represents the Node transactional state. Mutations are done via this abstraction layer.
 // Notifications are also done via this layer

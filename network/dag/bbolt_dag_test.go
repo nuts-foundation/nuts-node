@@ -235,8 +235,6 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 	A := CreateTestTransactionWithJWK(0)
 	B := CreateTestTransactionWithJWK(1, A)
 	C := CreateTestTransactionWithJWK(2, B)
-	// This one doesn't
-	D := CreateLegacyTransactionWithJWK(3, C)
 
 	assertRefs := func(t *testing.T, tx *bbolt.Tx, clock uint32, expected []hash.SHA256Hash) {
 		lcBucket, _ := tx.CreateBucketIfNotExists([]byte(clockBucket))
@@ -278,7 +276,6 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 			_ = indexClockValue(tx, A)
 			_ = indexClockValue(tx, B)
 			_ = indexClockValue(tx, C)
-			_ = indexClockValue(tx, D)
 
 			assertRefs(t, tx, 0, []hash.SHA256Hash{A.Ref()})
 			assertClock(t, tx, 0, A.Ref())
@@ -286,8 +283,6 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 			assertClock(t, tx, 1, B.Ref())
 			assertRefs(t, tx, 2, []hash.SHA256Hash{C.Ref()})
 			assertClock(t, tx, 2, C.Ref())
-			assertRefs(t, tx, 3, []hash.SHA256Hash{D.Ref()})
-			assertClock(t, tx, 3, D.Ref())
 
 			return nil
 		})
@@ -335,17 +330,6 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 		})
 
 		assert.NoError(t, err)
-	})
-
-	t.Run("err - missing prev", func(t *testing.T) {
-		testDirectory := io.TestDirectory(t)
-		db := createBBoltDB(testDirectory)
-
-		err := db.Update(func(tx *bbolt.Tx) error {
-			return indexClockValue(tx, D)
-		})
-
-		assert.Error(t, err)
 	})
 
 }

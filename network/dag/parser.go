@@ -140,12 +140,21 @@ func parseVersion(transaction *transaction, headers jws.Headers, _ *jws.Message)
 		return transactionValidationError(missingHeaderErrFmt, versionHeader)
 	} else if versionAsFloat64, ok := versionAsInterf.(float64); !ok {
 		return transactionValidationError(invalidHeaderErrFmt, versionHeader)
-	} else if version = Version(versionAsFloat64); version != currentVersion {
+	} else if version = Version(versionAsFloat64); !versionAllowed(version) {
 		return transactionValidationError("unsupported version: %d", version)
 	} else {
 		transaction.version = version
 		return nil
 	}
+}
+
+func versionAllowed(version Version) bool {
+	for _, v := range allowedVersion {
+		if version == v {
+			return true
+		}
+	}
+	return false
 }
 
 // parsePrevious parses, validates and sets the transaction prevs fields.
@@ -191,9 +200,8 @@ func parsePAL(transaction *transaction, headers jws.Headers, _ *jws.Message) err
 
 func parseLamportClock(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
 	if lcAsInterf, ok := headers.Get(lamportClockHeader); !ok {
-		// not required as of this point
-		// deprecated
-		return nil
+		// won't happen since it's a critical header, but we need to check the cast anyway
+		return transactionValidationError(missingHeaderErrFmt, lamportClockHeader)
 	} else if lcAsFloat64, ok := lcAsInterf.(float64); !ok {
 		return transactionValidationError(invalidHeaderErrFmt, lamportClockHeader)
 	} else {

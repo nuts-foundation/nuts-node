@@ -56,30 +56,6 @@ func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, pal [
 
 }
 
-// CreateLegacyTransactionWithJWK creates a transaction with the given num as payload hash and signs it with a random EC key.
-// The JWK is attached, rather than referred to using the kid.
-// Deprecated: remove when V1 transactions are no longer present in a network
-func CreateLegacyTransactionWithJWK(num uint32, prevs ...Transaction) Transaction {
-	return CreateSignedLegacyTransaction(num, time.Now(), nil, "application/did+json", true, prevs...)
-}
-
-// CreateSignedLegacyTransaction creates a signed transaction with more control
-// Deprecated: remove when V1 transactions are no longer present in a network
-func CreateSignedLegacyTransaction(payloadNum uint32, signingTime time.Time, pal [][]byte, payloadType string, attach bool, prevs ...Transaction) Transaction {
-	payload := make([]byte, 4)
-	binary.BigEndian.PutUint32(payload, payloadNum)
-	payloadHash := hash.SHA256Sum(payload)
-	unsignedTransaction, _ := NewTransaction(payloadHash, payloadType, prevHashes(prevs), pal, 0)
-
-	signer := crypto2.NewTestKey(fmt.Sprintf("%d", payloadNum))
-	signedTransaction, err := NewTransactionSigner(signer, attach).Sign(unsignedTransaction, signingTime)
-	if err != nil {
-		panic(err)
-	}
-	return signedTransaction
-
-}
-
 // CreateTestTransactionEx creates a transaction with the given payload hash and signs it with a random EC key.
 func CreateTestTransactionEx(num uint32, payloadHash hash.SHA256Hash, participants EncryptedPAL, prevs ...Transaction) (Transaction, string, crypto.PublicKey) {
 	lamportClock := calculateLamportClock(prevs)

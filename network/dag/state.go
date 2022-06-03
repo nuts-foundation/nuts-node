@@ -279,11 +279,6 @@ func (s *state) Shutdown() error {
 }
 
 func (s *state) Start() error {
-	// migrate DAG to add Clock values
-	if err := s.graph.migrate(); err != nil {
-		return fmt.Errorf("unable to migrate DAG: %w", err)
-	}
-
 	ctx := context.Background()
 	// load trees or build if they do not exist yet.
 	// can only build after DAG migration added clock values for all transactions and before the publisher starts
@@ -291,18 +286,8 @@ func (s *state) Start() error {
 		return fmt.Errorf("failed to read xorTree: %w", err)
 	}
 
-	// migrate XOR tree, to be removed in V3
-	if err := s.xorTree.migrate(ctx, s); err != nil {
-		return fmt.Errorf("unable to migrate xorTree: %w", err)
-	}
-
 	if err := s.ibltTree.read(ctx); err != nil {
 		return fmt.Errorf("failed to read ibltTree: %w", err)
-	}
-
-	// migrate IBLT tree, to be removed in V3
-	if err := s.ibltTree.migrate(ctx, s); err != nil {
-		return fmt.Errorf("unable to migrate ibltTree: %w", err)
 	}
 
 	if err := s.publisher.Start(); err != nil {

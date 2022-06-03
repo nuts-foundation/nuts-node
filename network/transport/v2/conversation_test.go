@@ -244,7 +244,6 @@ func TestConversationManager_checkTransactionRangeQuery(t *testing.T) {
 		assert.NotNil(t, c)
 	})
 	t.Run("error - TX LC out of requested range", func(t *testing.T) {
-		t.Skip()
 		c := cMan.startConversation(envelope, "error - TX LC out of requested range")
 		response := &Envelope_TransactionList{
 			TransactionList: &TransactionList{
@@ -263,7 +262,6 @@ func TestConversationManager_checkTransactionRangeQuery(t *testing.T) {
 		c, err := cMan.check(response, handlerData{})
 
 		assert.EqualError(t, err, "TX is not within the requested range (tx="+tx2.Ref().String()+")")
-		assert.Nil(t, c)
 	})
 }
 

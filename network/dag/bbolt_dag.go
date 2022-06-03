@@ -107,10 +107,6 @@ func newBBoltDAG(db *bbolt.DB) *bboltDAG {
 	return &bboltDAG{db: db}
 }
 
-func (dag *bboltDAG) migrate() error {
-	return nil
-}
-
 func (dag *bboltDAG) diagnostics() []core.DiagnosticResult {
 	result := make([]core.DiagnosticResult, 0)
 	ctx := context.Background()
@@ -325,19 +321,6 @@ func indexClockValue(tx *bbolt.Tx, transaction Transaction) error {
 		return nil
 	}
 
-	if clock == 0 {
-		for _, prev := range transaction.Previous() {
-			lClockBytes := lcIndex.Get(prev.Slice())
-			if lClockBytes == nil {
-				return fmt.Errorf("clock value not found for TX ref: %s", prev.String())
-			}
-			lClock := bytesToClock(lClockBytes)
-			if lClock >= clock {
-				clock = lClock + 1
-			}
-		}
-	}
-
 	clockBytes := clockToBytes(clock)
 	currentRefs := lc.Get(clockBytes)
 
@@ -351,26 +334,6 @@ func indexClockValue(tx *bbolt.Tx, transaction Transaction) error {
 	log.Logger().Tracef("storing transaction logical clock, txRef: %s, clock: %d", ref.String(), clock)
 
 	return nil
-}
-
-// getClock returns errNoClockValue if no clock value can be found for the given hash
-// Deprecated: no longer needed when all transactions have an LC value
-func getClock(tx *bbolt.Tx, transaction Transaction) (uint32, error) {
-	// If added, just return it
-	if transaction.Clock() != 0 {
-		return transaction.Clock(), nil
-	}
-
-	lcIndex := tx.Bucket([]byte(clockIndexBucket))
-	if lcIndex == nil {
-		return 0, errNoClockValue
-	}
-	lClockBytes := lcIndex.Get(transaction.Ref().Slice())
-	if lClockBytes == nil {
-		return 0, errNoClockValue
-	}
-	// can't be nil due to Previous must exist checks
-	return bytesToClock(lClockBytes), nil
 }
 
 // returns the highest clock for which a transaction is present in the DAG
@@ -461,13 +424,6 @@ func getTransaction(hash hash.SHA256Hash, tx *bbolt.Tx) (Transaction, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse transaction %s: %w", hash, err)
 	}
-	clock, err := getClock(tx, parsedTx)
-	if err != nil {
-		return nil, err
-	}
-	castTx := parsedTx.(*transaction)
-	// Deprecated: will be available in the transaction
-	castTx.lamportClock = clock
 
 	return parsedTx, nil
 }
