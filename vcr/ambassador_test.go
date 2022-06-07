@@ -193,58 +193,6 @@ func TestAmbassador_vcCallback(t *testing.T) {
 	})
 }
 
-func TestAmbassador_rCallback(t *testing.T) {
-	payload := []byte("{\"subject\":\"did:nuts:1#123\"}")
-	tx, _ := dag.NewTransaction(hash.EmptyHash(), types.RevocationDocumentType, nil, nil, 0)
-	stx := tx.(dag.Transaction)
-
-	t.Run("ok", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		wMock := NewMockWriter(ctrl)
-		defer ctrl.Finish()
-
-		r := credential.Revocation{}
-		a := NewAmbassador(nil, wMock, nil, nil).(*ambassador)
-		wMock.EXPECT().StoreRevocation(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			r = f.(credential.Revocation)
-			return nil
-		})
-
-		err := a.rCallback(stx, payload)
-
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		assert.Equal(t, "did:nuts:1#123", r.Subject.String())
-	})
-
-	t.Run("error - storing fails", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		wMock := NewMockWriter(ctrl)
-		defer ctrl.Finish()
-
-		a := NewAmbassador(nil, wMock, nil, nil).(*ambassador)
-		wMock.EXPECT().StoreRevocation(gomock.Any()).Return(errors.New("b00m!"))
-
-		err := a.rCallback(stx, payload)
-
-		assert.Error(t, err)
-	})
-
-	t.Run("error - invalid payload", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		wMock := NewMockWriter(ctrl)
-		defer ctrl.Finish()
-
-		a := NewAmbassador(nil, wMock, nil, nil).(*ambassador)
-
-		err := a.rCallback(stx, []byte("{"))
-
-		assert.Error(t, err)
-	})
-}
-
 func Test_ambassador_jsonLDRevocationCallback(t *testing.T) {
 	payload, _ := os.ReadFile("test/ld-revocation.json")
 	tx, _ := dag.NewTransaction(hash.EmptyHash(), types.RevocationLDDocumentType, nil, nil, 0)

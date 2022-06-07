@@ -262,15 +262,28 @@ func TestVerifier_Verify(t *testing.T) {
 	// These test do not try to be complete, only test the calling of these validators and the error handling.
 
 	t.Run("with signature check", func(t *testing.T) {
+		vc := testCredential(t)
+
 		t.Run("fails when key is not found", func(t *testing.T) {
-			vc := testCredential(t)
 			ctx := newMockContext(t)
 			ctx.store.EXPECT().GetRevocations(*vc.ID).Return(nil, ErrNotFound)
 			proofs, _ := vc.Proofs()
+			ctx.docResolver.EXPECT().Resolve(did.MustParseDID(vc.Issuer.String()), gomock.Any()).Return(nil, nil, nil)
 			ctx.keyResolver.EXPECT().ResolveSigningKey(proofs[0].VerificationMethod.String(), nil).Return(nil, vdrTypes.ErrKeyNotFound)
-			sut := ctx.verifier
-			validationErr := sut.Verify(vc, true, true, nil)
+
+			validationErr := ctx.verifier.Verify(vc, true, true, nil)
+
 			assert.EqualError(t, validationErr, "unable to resolve signing key: key not found in DID document")
+		})
+
+		t.Run("fails when controller or issuer is deactivated", func(t *testing.T) {
+			ctx := newMockContext(t)
+			ctx.store.EXPECT().GetRevocations(*vc.ID).Return(nil, ErrNotFound)
+			ctx.docResolver.EXPECT().Resolve(did.MustParseDID(vc.Issuer.String()), gomock.Any()).Return(nil, nil, vdrTypes.ErrDeactivated)
+
+			validationErr := ctx.verifier.Verify(vc, true, true, nil)
+
+			assert.EqualError(t, validationErr, "could not validate issuer: the DID document has been deactivated")
 		})
 	})
 
@@ -723,6 +736,7 @@ func TestVerificationError_Is(t *testing.T) {
 
 type mockContext struct {
 	ctrl        *gomock.Controller
+	docResolver *vdrTypes.MockDocResolver
 	keyResolver *vdrTypes.MockKeyResolver
 	store       *MockStore
 	trustConfig *trust.Config
@@ -732,14 +746,16 @@ type mockContext struct {
 func newMockContext(t *testing.T) mockContext {
 	t.Helper()
 	ctrl := gomock.NewController(t)
+	docResolver := vdrTypes.NewMockDocResolver(ctrl)
 	keyResolver := vdrTypes.NewMockKeyResolver(ctrl)
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	verifierStore := NewMockStore(ctrl)
 	trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.yaml"))
-	verifier := NewVerifier(verifierStore, keyResolver, jsonldManager, trustConfig).(*verifier)
+	verifier := NewVerifier(verifierStore, docResolver, keyResolver, jsonldManager, trustConfig).(*verifier)
 	return mockContext{
 		ctrl:        ctrl,
 		verifier:    verifier,
+		docResolver: docResolver,
 		keyResolver: keyResolver,
 		store:       verifierStore,
 		trustConfig: trustConfig,

@@ -203,7 +203,7 @@ func (w *Wrapper) VerifyVC(ctx echo.Context) error {
 		}
 	}
 
-	if err := w.VCR.Validate(requestedVC, allowUntrustedIssuer, true, nil); err != nil {
+	if err := w.VCR.Verifier().Verify(requestedVC, allowUntrustedIssuer, true, nil); err != nil {
 		errMsg := err.Error()
 		return ctx.JSON(http.StatusOK, VCVerificationResult{Validity: false, Message: &errMsg})
 	}

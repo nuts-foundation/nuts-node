@@ -19,6 +19,7 @@
 package issuer
 
 import (
+	crypto2 "crypto"
 	"encoding/json"
 	"errors"
 	"path"
@@ -41,6 +42,23 @@ import (
 	vcr "github.com/nuts-foundation/nuts-node/vcr/types"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
+
+type testKey struct {
+	priv crypto2.Signer
+	kid  string
+}
+
+func (t testKey) Signer() crypto2.Signer {
+	return t.priv
+}
+
+func (t testKey) KID() string {
+	return t.kid
+}
+
+func (t testKey) Public() crypto2.PublicKey {
+	return t.priv.Public()
+}
 
 func Test_issuer_buildVC(t *testing.T) {
 	credentialType := ssi.MustParseURI("TestCredential")

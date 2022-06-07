@@ -27,6 +27,7 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 
 	"net/url"
 	"time"
@@ -57,7 +58,7 @@ const userIdentityClaim = "usi"
 type service struct {
 	docResolver     types.DocResolver
 	vcFinder        vcr.Finder
-	vcValidator     vcr.Validator
+	vcVerifier      verifier.Verifier
 	keyResolver     types.KeyResolver
 	privateKeyStore nutsCrypto.KeyStore
 	contractNotary  services.ContractNotary
@@ -142,7 +143,7 @@ func (c validationContext) verifiableCredentials() ([]vc2.VerifiableCredential, 
 }
 
 // NewOAuthService accepts a vendorID, and several Nuts engines and returns an implementation of services.OAuthClient
-func NewOAuthService(store types.Store, vcFinder vcr.Finder, vcValidator vcr.Validator, serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore, contractNotary services.ContractNotary, jsonldManager jsonld.JSONLD) services.OAuthClient {
+func NewOAuthService(store types.Store, vcFinder vcr.Finder, vcVerifier verifier.Verifier, serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore, contractNotary services.ContractNotary, jsonldManager jsonld.JSONLD) services.OAuthClient {
 	return &service{
 		docResolver:     doc.Resolver{Store: store},
 		keyResolver:     doc.KeyResolver{Store: store},
@@ -150,7 +151,7 @@ func NewOAuthService(store types.Store, vcFinder vcr.Finder, vcValidator vcr.Val
 		contractNotary:  contractNotary,
 		jsonldManager:   jsonldManager,
 		vcFinder:        vcFinder,
-		vcValidator:     vcValidator,
+		vcVerifier:      vcVerifier,
 		privateKeyStore: privateKeyStore,
 	}
 }
@@ -373,7 +374,7 @@ func (s *service) validateAuthorizationCredentials(context *validationContext) e
 
 	for _, authCred := range vcs {
 		// first check if the VC is valid and if the signature is correct
-		if err := s.vcValidator.Validate(authCred, true, true, &iat); err != nil {
+		if err := s.vcVerifier.Verify(authCred, true, true, &iat); err != nil {
 			return fmt.Errorf(errInvalidVCClaim, err)
 		}
 

@@ -26,6 +26,7 @@ import (
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
@@ -46,6 +47,7 @@ const (
 // It implements the generic methods for verifying verifiable credentials and verifiable presentations.
 // It does not know anything about the semantics of a credential. It should support a wide range of types.
 type verifier struct {
+	docResolver   vdr.DocResolver
 	keyResolver   vdr.KeyResolver
 	jsonldManager jsonld.JSONLD
 	store         Store
@@ -77,8 +79,8 @@ func (e VerificationError) Error() string {
 }
 
 // NewVerifier creates a new instance of the verifier. It needs a key resolver for validating signatures.
-func NewVerifier(store Store, keyResolver vdr.KeyResolver, jsonldManager jsonld.JSONLD, trustConfig *trust.Config) Verifier {
-	return &verifier{store: store, keyResolver: keyResolver, jsonldManager: jsonldManager, trustConfig: trustConfig}
+func NewVerifier(store Store, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, jsonldManager jsonld.JSONLD, trustConfig *trust.Config) Verifier {
+	return &verifier{store: store, docResolver: docResolver, keyResolver: keyResolver, jsonldManager: jsonldManager, trustConfig: trustConfig}
 }
 
 // validateAtTime is a helper method which checks if a credentia/presentation is valid at a certain given time.
@@ -136,22 +138,11 @@ func (v *verifier) Validate(credentialToVerify vc.VerifiableCredential, at *time
 	}
 
 	// Try first with the correct LDProof implementation
-	if err = ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: v.jsonldManager.DocumentLoader()}, pk); err != nil {
-		// If this fails, try the legacy suite:
-		legacyProof := proof.LegacyLDProof{}
-		if err := signedDocument.UnmarshalProofValue(&legacyProof); err != nil {
-			return err
-		}
-		return legacyProof.Verify(signedDocument.DocumentWithoutProof(), signature.LegacyNutsSuite{}, pk)
-	}
-	return err
-
+	return ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: v.jsonldManager.DocumentLoader()}, pk)
 }
 
 // Verify implements the verify interface.
 // It currently checks if the credential has the required fields and values, if it is valid at the given time and optional the signature.
-// For the v2 api to be complete implement the following TODOs:
-// TODO: check if issuer-type combination is trusted
 func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrusted bool, checkSignature bool, validAt *time.Time) error {
 	// it must have valid content
 	validator, _ := credential.FindValidatorAndBuilder(credentialToVerify)
@@ -188,6 +179,12 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 
 	// Check signature
 	if checkSignature {
+		issuerDID, _ := did.ParseDID(credentialToVerify.Issuer.String())
+		_, _, err = v.docResolver.Resolve(*issuerDID, &vdr.ResolveMetadata{ResolveTime: validAt, AllowDeactivated: false})
+		if err != nil {
+			return fmt.Errorf("could not validate issuer: %w", err)
+		}
+
 		return v.Validate(credentialToVerify, validAt)
 	}
 

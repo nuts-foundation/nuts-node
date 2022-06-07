@@ -163,7 +163,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		return err
 	}
 
-	auth.oauthClient = oauth.NewOAuthService(auth.registry, auth.vcr, auth.vcr, auth.serviceResolver, auth.keyStore, auth.contractNotary, auth.jsonldManager)
+	auth.oauthClient = oauth.NewOAuthService(auth.registry, auth.vcr, auth.vcr.Verifier(), auth.serviceResolver, auth.keyStore, auth.contractNotary, auth.jsonldManager)
 
 	if err := auth.oauthClient.Configure(auth.config.ClockSkew); err != nil {
 		return err
