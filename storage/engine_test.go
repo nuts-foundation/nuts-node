@@ -22,7 +22,6 @@ import (
 	"errors"
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -37,12 +36,8 @@ func Test_engine_Name(t *testing.T) {
 }
 
 func Test_engine_lifecycle(t *testing.T) {
-	sut := New()
-	err := sut.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
-	if !assert.NoError(t, err) {
-		return
-	}
-	err = sut.Start()
+	sut := NewTestStorageEngine(io.TestDirectory(t))
+	err := sut.Start()
 	if !assert.NoError(t, err) {
 		return
 	}

@@ -854,8 +854,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 		t.Fatal(err)
 	}
 
-	storeProvider := storage.New()
-	_ = storeProvider.Configure(serverConfig)
+	storeProvider := storage.NewTestStorageEngine(testDirectory)
 
 	instance := &Network{
 		config:              config,

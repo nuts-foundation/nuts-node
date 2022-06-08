@@ -66,11 +66,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	log.SetFormatter(&log.TextFormatter{ForceColors: true})
 
 	// Storage
-	warehouse := storage.New()
-	err = warehouse.Configure(nutsConfig)
-	if !assert.NoError(t, err) {
-		return
-	}
+	storageProvider := storage.NewTestStorageEngine(tmpDir)
 
 	// Startup crypto
 	cryptoInstance := crypto.NewCryptoInstance()
@@ -95,7 +91,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 		docResolver,
 		docFinder,
 		eventPublisher,
-		warehouse,
+		storageProvider,
 	)
 	nutsNetwork.Configure(nutsConfig)
 	nutsNetwork.Start()
@@ -261,11 +257,7 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	cryptoInstance.Configure(nutsConfig)
 
 	// Storage
-	warehouse := storage.New()
-	err = warehouse.Configure(nutsConfig)
-	if !assert.NoError(t, err) {
-		return
-	}
+	storageProvider := storage.NewTestStorageEngine(testDir)
 
 	// DID Store
 	didStore := store.NewMemoryStore()
@@ -293,7 +285,7 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 		docResolver,
 		docFinder,
 		eventPublisher,
-		warehouse,
+		storageProvider,
 	)
 	nutsNetwork.Configure(nutsConfig)
 	nutsNetwork.Start()
