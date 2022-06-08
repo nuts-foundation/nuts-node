@@ -48,7 +48,6 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/test/io"
@@ -854,15 +853,14 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 	}
 
 	instance := &Network{
-		config:                 config,
-		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool), processedTransactions: map[hash.SHA256Hash]bool{}},
-		didDocumentResolver:    doc.Resolver{Store: vdrStore},
-		didDocumentFinder:      doc.Finder{Store: vdrStore},
-		privateKeyResolver:     keyStore,
-		decrypter:              keyStore,
-		keyResolver:            doc.KeyResolver{Store: vdrStore},
-		nodeDIDResolver:        &transport.FixedNodeDIDResolver{},
-		eventPublisher:         eventPublisher,
+		config:              config,
+		didDocumentResolver: doc.Resolver{Store: vdrStore},
+		didDocumentFinder:   doc.Finder{Store: vdrStore},
+		privateKeyResolver:  keyStore,
+		decrypter:           keyStore,
+		keyResolver:         doc.KeyResolver{Store: vdrStore},
+		nodeDIDResolver:     &transport.FixedNodeDIDResolver{},
+		eventPublisher:      eventPublisher,
 	}
 
 	if err := instance.Configure(core.ServerConfig{Datadir: path.Join(testDirectory, name)}); err != nil {

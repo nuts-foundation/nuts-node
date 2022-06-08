@@ -27,7 +27,6 @@ import (
 	"os"
 	"path"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -62,22 +61,21 @@ var defaultBBoltOptions = bbolt.DefaultOptions
 
 // Network implements Transactions interface and Engine functions.
 type Network struct {
-	config                 Config
-	strictMode             bool
-	lastTransactionTracker lastTransactionTracker
-	protocols              []transport.Protocol
-	connectionManager      transport.ConnectionManager
-	state                  dag.State
-	privateKeyResolver     crypto.KeyResolver
-	keyResolver            types.KeyResolver
-	startTime              atomic.Value
-	peerID                 transport.PeerID
-	didDocumentResolver    types.DocResolver
-	decrypter              crypto.Decrypter
-	nodeDIDResolver        transport.NodeDIDResolver
-	didDocumentFinder      types.DocFinder
-	connectionsDB          *bbolt.DB
-	eventPublisher         events.Event
+	config              Config
+	strictMode          bool
+	protocols           []transport.Protocol
+	connectionManager   transport.ConnectionManager
+	state               dag.State
+	privateKeyResolver  crypto.KeyResolver
+	keyResolver         types.KeyResolver
+	startTime           atomic.Value
+	peerID              transport.PeerID
+	didDocumentResolver types.DocResolver
+	decrypter           crypto.Decrypter
+	nodeDIDResolver     transport.NodeDIDResolver
+	didDocumentFinder   types.DocFinder
+	connectionsDB       *bbolt.DB
+	eventPublisher      events.Event
 }
 
 // Walk walks the DAG starting at the root, passing every transaction to `visitor`.
@@ -97,15 +95,14 @@ func NewNetworkInstance(
 	eventPublisher events.Event,
 ) *Network {
 	return &Network{
-		config:                 config,
-		decrypter:              decrypter,
-		keyResolver:            keyResolver,
-		privateKeyResolver:     privateKeyResolver,
-		didDocumentResolver:    didDocumentResolver,
-		didDocumentFinder:      didDocumentFinder,
-		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool), processedTransactions: map[hash.SHA256Hash]bool{}},
-		nodeDIDResolver:        &transport.FixedNodeDIDResolver{},
-		eventPublisher:         eventPublisher,
+		config:              config,
+		decrypter:           decrypter,
+		keyResolver:         keyResolver,
+		privateKeyResolver:  privateKeyResolver,
+		didDocumentResolver: didDocumentResolver,
+		didDocumentFinder:   didDocumentFinder,
+		nodeDIDResolver:     &transport.FixedNodeDIDResolver{},
+		eventPublisher:      eventPublisher,
 	}
 }
 
@@ -270,9 +267,6 @@ func (n *Network) Config() interface{} {
 func (n *Network) Start() error {
 	n.startTime.Store(time.Now())
 
-	// Load DAG and start publishing
-	n.state.Subscribe(dag.TransactionPayloadAddedEvent, dag.AnyPayloadType, n.lastTransactionTracker.process)
-
 	if err := n.state.Start(); err != nil {
 		return err
 	}
@@ -435,7 +429,7 @@ func (n *Network) CreateTransaction(template Template) (dag.Transaction, error) 
 	}
 
 	// Collect prevs
-	prevs := n.lastTransactionTracker.heads()
+	prevs := n.state.Heads(ctx)
 	for _, addPrev := range template.AdditionalPrevs {
 		prevs = append(prevs, addPrev)
 	}
@@ -641,42 +635,4 @@ func (n *Network) isPayloadPresent(ctx context.Context, txRef hash.SHA256Hash) (
 		return false, nil
 	}
 	return n.state.IsPayloadPresent(ctx, tx.PayloadHash())
-}
-
-// lastTransactionTracker that is used for tracking correct transactions.
-// If transactions are correct differs per type of transaction. The DAG will call process only for correct transactions.
-type lastTransactionTracker struct {
-	headRefs map[hash.SHA256Hash]bool
-	// processedTransactions keeps track of previous processed transactions.
-	// this is an ever growing map and will require some refactoring in the future.
-	processedTransactions map[hash.SHA256Hash]bool
-	mux                   sync.Mutex
-}
-
-func (l *lastTransactionTracker) process(transaction dag.Transaction, payload []byte) error {
-	l.mux.Lock()
-	defer l.mux.Unlock()
-
-	if processed := l.processedTransactions[transaction.Ref()]; processed {
-		return nil
-	}
-
-	// Update heads: previous' transactions aren't heads anymore, this transaction becomes a head.
-	for _, prev := range transaction.Previous() {
-		delete(l.headRefs, prev)
-	}
-	l.headRefs[transaction.Ref()] = true
-	l.processedTransactions[transaction.Ref()] = true
-	return nil
-}
-
-func (l *lastTransactionTracker) heads() []hash.SHA256Hash {
-	l.mux.Lock()
-	defer l.mux.Unlock()
-
-	var heads []hash.SHA256Hash
-	for head := range l.headRefs {
-		heads = append(heads, head)
-	}
-	return heads
 }

@@ -222,6 +222,10 @@ func (s *state) Subscribe(eventType EventType, payloadType string, receiver Rece
 	s.publisher.Subscribe(eventType, payloadType, receiver)
 }
 
+func (s *state) Heads(ctx context.Context) []hash.SHA256Hash {
+	return s.graph.heads(ctx)
+}
+
 func (s *state) XOR(ctx context.Context, reqClock uint32) (hash.SHA256Hash, uint32) {
 	var data tree.Data
 
