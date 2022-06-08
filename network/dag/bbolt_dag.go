@@ -87,7 +87,7 @@ func (d numberOfTransactionsStatistic) String() string {
 }
 
 type dataSizeStatistic struct {
-	sizeInBytes int
+	sizeInBytes int64
 }
 
 func (d dataSizeStatistic) Result() interface{} {
@@ -232,15 +232,17 @@ func (dag bboltDAG) walk(tx *bbolt.Tx, visitor visitor, startAt hash.SHA256Hash)
 
 func (dag bboltDAG) statistics(ctx context.Context) Statistics {
 	transactionNum := 0
+	dbSize := int64(0)
 	_ = storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
 		if bucket := tx.Bucket([]byte(transactionsBucket)); bucket != nil {
 			transactionNum = bucket.Stats().KeyN
+			dbSize = tx.Size()
 		}
 		return nil
 	})
 	return Statistics{
 		NumberOfTransactions: transactionNum,
-		DataSize:             dag.db.Stats().TxStats.PageAlloc,
+		DataSize:             dbSize,
 	}
 }
 

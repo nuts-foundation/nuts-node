@@ -105,7 +105,7 @@ type Statistics struct {
 	// NumberOfTransactions contains the number of transactions on the DAG
 	NumberOfTransactions int
 	// DataSize contains the size of the DAG in bytes
-	DataSize int
+	DataSize int64
 }
 
 // Publisher defines the interface for types that publish Nuts Network transactions.
