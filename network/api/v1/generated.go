@@ -19,7 +19,7 @@ import (
 // ReprocessParams defines parameters for Reprocess.
 type ReprocessParams struct {
 	// the transaction content-type that must be reprocessed
-	Type *string `json:"type,omitempty"`
+	Type *string `form:"type,omitempty" json:"type,omitempty"`
 }
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
