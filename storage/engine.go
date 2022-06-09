@@ -19,13 +19,17 @@
 package storage
 
 import (
+	"context"
 	"errors"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
 	"path"
+	"time"
 )
+
+const storeShutdownTimeout = 5 * time.Second
 
 // New creates a new instance of the storage engine.
 func New() Engine {
@@ -47,9 +51,16 @@ func (e engine) Start() error {
 }
 
 func (e engine) Shutdown() error {
+	shutdown := func(store stoabs.Store) error {
+		// Refactored to separate function, otherwise defer would be in for loop which leaks resources.
+		ctx, cancel := context.WithTimeout(context.Background(), storeShutdownTimeout)
+		defer cancel()
+		return store.Close(ctx)
+	}
+
 	failures := false
 	for storeName, store := range e.stores {
-		err := store.Close()
+		err := shutdown(store)
 		if err != nil {
 			log.Logger().Errorf("Failed to close store '%s': %s", storeName, err)
 			failures = true

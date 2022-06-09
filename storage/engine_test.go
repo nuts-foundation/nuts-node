@@ -71,7 +71,7 @@ func Test_engine_Shutdown(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		store := stoabs.NewMockKVStore(ctrl)
-		store.EXPECT().Close()
+		store.EXPECT().Close(gomock.Any())
 
 		sut := New().(*engine)
 		sut.stores["1"] = store
@@ -84,9 +84,9 @@ func Test_engine_Shutdown(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		store1 := stoabs.NewMockKVStore(ctrl)
-		store1.EXPECT().Close().Return(errors.New("failed"))
+		store1.EXPECT().Close(gomock.Any()).Return(errors.New("failed"))
 		store2 := stoabs.NewMockKVStore(ctrl)
-		store2.EXPECT().Close().Return(errors.New("failed"))
+		store2.EXPECT().Close(gomock.Any()).Return(errors.New("failed"))
 
 		sut := New().(*engine)
 		sut.stores["1"] = store1

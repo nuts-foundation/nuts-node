@@ -854,7 +854,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 		t.Fatal(err)
 	}
 
-	storeProvider := storage.NewTestStorageEngine(testDirectory)
+	storeProvider := storage.NewTestStorageEngine(serverConfig.Datadir)
 
 	instance := &Network{
 		config:              config,
@@ -900,7 +900,10 @@ type node struct {
 
 func (n node) shutdown() {
 	_ = n.network.Shutdown()
-	_ = n.storeProvider.Shutdown()
+	err := n.storeProvider.Shutdown()
+	if err != nil {
+		panic(err)
+	}
 	_ = n.eventPublisher.(core.Runnable).Shutdown()
 }
 
