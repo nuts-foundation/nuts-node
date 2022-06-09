@@ -42,7 +42,7 @@ func Test_engine_lifecycle(t *testing.T) {
 		return
 	}
 	// Get a KV store so there's something to shut down
-	_, err = sut.GetKVStore("test", "store")
+	_, err = sut.GetProvider("test").GetKVStore("store")
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -52,15 +52,19 @@ func Test_engine_lifecycle(t *testing.T) {
 	}
 }
 
+func Test_engine_GetProvider(t *testing.T) {
+	sut := New()
+	t.Run("moduleName is empty", func(t *testing.T) {
+		store, err := sut.GetProvider("").GetKVStore("store")
+		assert.Nil(t, store)
+		assert.EqualError(t, err, "invalid store moduleName")
+	})
+}
+
 func Test_engine_GetKVStore(t *testing.T) {
 	sut := New()
-	t.Run("namespace is empty", func(t *testing.T) {
-		store, err := sut.GetKVStore("", "store")
-		assert.Nil(t, store)
-		assert.EqualError(t, err, "invalid store namespace")
-	})
 	t.Run("store is empty", func(t *testing.T) {
-		store, err := sut.GetKVStore("engine", "")
+		store, err := sut.GetProvider("engine").GetKVStore("")
 		assert.Nil(t, store)
 		assert.EqualError(t, err, "invalid store name")
 	})

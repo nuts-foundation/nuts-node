@@ -197,7 +197,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		} else {
 			authenticator = grpc.NewTLSAuthenticator(doc.NewServiceResolver(n.didDocumentResolver))
 		}
-		n.connectionStore, err = n.storeProvider.GetKVStore("network", "connections")
+		n.connectionStore, err = n.storeProvider.GetKVStore("connections")
 		if err != nil {
 			return fmt.Errorf("failed to open connections store: %w", err)
 		}

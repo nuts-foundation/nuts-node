@@ -865,7 +865,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 		keyResolver:         doc.KeyResolver{Store: vdrStore},
 		nodeDIDResolver:     &transport.FixedNodeDIDResolver{},
 		eventPublisher:      eventPublisher,
-		storeProvider:       storeProvider,
+		storeProvider:       storeProvider.GetProvider(ModuleName),
 	}
 
 	if err := instance.Configure(serverConfig); err != nil {

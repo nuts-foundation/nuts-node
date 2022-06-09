@@ -354,7 +354,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx := createNetwork(t, ctrl)
 		ctx.protocol.EXPECT().Configure(gomock.Any()).AnyTimes()
 		prov := storage.NewMockProvider(ctrl)
-		prov.EXPECT().GetKVStore(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
+		prov.EXPECT().GetKVStore(gomock.Any()).Return(nil, errors.New("failed"))
 		ctx.network.storeProvider = prov
 		ctx.network.connectionManager = nil
 
@@ -1012,13 +1012,13 @@ func createNetwork(t *testing.T, ctrl *gomock.Controller, cfgFn ...func(config *
 	docResolver := vdrTypes.NewMockDocResolver(ctrl)
 	docFinder := vdrTypes.NewMockDocFinder(ctrl)
 	eventPublisher := events.NewMockEvent(ctrl)
-	storeProvider := storage.NewTestStorageEngine(io.TestDirectory(t))
+	storageEngine := storage.NewTestStorageEngine(io.TestDirectory(t))
 	t.Cleanup(func() {
-		_ = storeProvider.Shutdown()
+		_ = storageEngine.Shutdown()
 	})
 	// required when starting the network, it searches for nodes to connect to
 	docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return([]did.Document{}, nil)
-	network := NewNetworkInstance(networkConfig, keyResolver, keyStore, decrypter, docResolver, docFinder, eventPublisher, storeProvider)
+	network := NewNetworkInstance(networkConfig, keyResolver, keyStore, decrypter, docResolver, docFinder, eventPublisher, storageEngine.GetProvider(ModuleName))
 	network.state = state
 	network.connectionManager = connectionManager
 	network.protocols = []transport.Protocol{prot}

@@ -8,7 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	stoabs "github.com/nuts-foundation/go-stoabs"
+	go_stoabs "github.com/nuts-foundation/go-stoabs"
 	core "github.com/nuts-foundation/nuts-node/core"
 )
 
@@ -49,34 +49,18 @@ func (mr *MockEngineMockRecorder) Configure(config interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockEngine)(nil).Configure), config)
 }
 
-// GetIterableKVStore mocks base method.
-func (m *MockEngine) GetIterableKVStore(namespace, name string) (stoabs.IterableKVStore, error) {
+// GetProvider mocks base method.
+func (m *MockEngine) GetProvider(moduleName string) Provider {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetIterableKVStore", namespace, name)
-	ret0, _ := ret[0].(stoabs.IterableKVStore)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret := m.ctrl.Call(m, "GetProvider", moduleName)
+	ret0, _ := ret[0].(Provider)
+	return ret0
 }
 
-// GetIterableKVStore indicates an expected call of GetIterableKVStore.
-func (mr *MockEngineMockRecorder) GetIterableKVStore(namespace, name interface{}) *gomock.Call {
+// GetProvider indicates an expected call of GetProvider.
+func (mr *MockEngineMockRecorder) GetProvider(moduleName interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIterableKVStore", reflect.TypeOf((*MockEngine)(nil).GetIterableKVStore), namespace, name)
-}
-
-// GetKVStore mocks base method.
-func (m *MockEngine) GetKVStore(namespace, name string) (stoabs.KVStore, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetKVStore", namespace, name)
-	ret0, _ := ret[0].(stoabs.KVStore)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetKVStore indicates an expected call of GetKVStore.
-func (mr *MockEngineMockRecorder) GetKVStore(namespace, name interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetKVStore", reflect.TypeOf((*MockEngine)(nil).GetKVStore), namespace, name)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetProvider", reflect.TypeOf((*MockEngine)(nil).GetProvider), moduleName)
 }
 
 // Shutdown mocks base method.
@@ -130,32 +114,17 @@ func (m *MockProvider) EXPECT() *MockProviderMockRecorder {
 	return m.recorder
 }
 
-// GetIterableKVStore mocks base method.
-func (m *MockProvider) GetIterableKVStore(namespace, name string) (stoabs.IterableKVStore, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetIterableKVStore", namespace, name)
-	ret0, _ := ret[0].(stoabs.IterableKVStore)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetIterableKVStore indicates an expected call of GetIterableKVStore.
-func (mr *MockProviderMockRecorder) GetIterableKVStore(namespace, name interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIterableKVStore", reflect.TypeOf((*MockProvider)(nil).GetIterableKVStore), namespace, name)
-}
-
 // GetKVStore mocks base method.
-func (m *MockProvider) GetKVStore(namespace, name string) (stoabs.KVStore, error) {
+func (m *MockProvider) GetKVStore(name string) (go_stoabs.KVStore, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetKVStore", namespace, name)
-	ret0, _ := ret[0].(stoabs.KVStore)
+	ret := m.ctrl.Call(m, "GetKVStore", name)
+	ret0, _ := ret[0].(go_stoabs.KVStore)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetKVStore indicates an expected call of GetKVStore.
-func (mr *MockProviderMockRecorder) GetKVStore(namespace, name interface{}) *gomock.Call {
+func (mr *MockProviderMockRecorder) GetKVStore(name interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetKVStore", reflect.TypeOf((*MockProvider)(nil).GetKVStore), namespace, name)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetKVStore", reflect.TypeOf((*MockProvider)(nil).GetKVStore), name)
 }

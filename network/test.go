@@ -44,7 +44,7 @@ func NewTestNetworkInstance(testDirectory string) *Network {
 		doc.Resolver{Store: vdrStore},
 		doc.Finder{Store: vdrStore},
 		eventPublisher,
-		storage.NewTestStorageEngine(testDirectory),
+		storage.NewTestStorageEngine(testDirectory).GetProvider(ModuleName),
 	)
 	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
 		logrus.Fatal(err)

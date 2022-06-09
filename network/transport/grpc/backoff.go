@@ -153,7 +153,7 @@ func (p persistingBackoff) write(backoff time.Duration) {
 		if err != nil {
 			return err
 		}
-		return writer.Put([]byte(p.peerAddress), buf.Bytes())
+		return writer.Put(stoabs.BytesKey(p.peerAddress), buf.Bytes())
 	})
 	if err != nil {
 		log.Logger().Errorf("Failed to persist backoff: %v", err)
@@ -163,7 +163,7 @@ func (p persistingBackoff) write(backoff time.Duration) {
 func (p persistingBackoff) read() persistedBackoff {
 	var result persistedBackoff
 	err := p.store.ReadShelf("backoff", func(reader stoabs.Reader) error {
-		data, err := reader.Get([]byte(p.peerAddress))
+		data, err := reader.Get(stoabs.BytesKey(p.peerAddress))
 		if err != nil {
 			return err
 		}

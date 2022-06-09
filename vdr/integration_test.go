@@ -91,7 +91,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 		docResolver,
 		docFinder,
 		eventPublisher,
-		storageProvider,
+		storageProvider.GetProvider(network.ModuleName),
 	)
 	nutsNetwork.Configure(nutsConfig)
 	nutsNetwork.Start()
@@ -285,7 +285,7 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 		docResolver,
 		docFinder,
 		eventPublisher,
-		storageProvider,
+		storageProvider.GetProvider(network.ModuleName),
 	)
 	nutsNetwork.Configure(nutsConfig)
 	nutsNetwork.Start()

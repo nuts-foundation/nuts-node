@@ -26,6 +26,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
 	"path"
+	"strings"
 	"time"
 )
 
@@ -77,35 +78,45 @@ func (e *engine) Configure(config core.ServerConfig) error {
 	return nil
 }
 
-func (e *engine) GetIterableKVStore(namespace string, name string) (stoabs.IterableKVStore, error) {
-	store, err := e.getStore(namespace, name, func(namespace string, name string) (stoabs.Store, error) {
-		return bbolt.CreateBBoltStore(path.Join(e.datadir, namespace, name+".db"))
+func (e *engine) GetProvider(moduleName string) Provider {
+	return &provider{
+		moduleName: strings.ToLower(moduleName),
+		datadir:    e.datadir,
+		stores:     e.stores,
+	}
+}
+
+type provider struct {
+	moduleName string
+	datadir    string
+	stores     map[string]stoabs.Store
+}
+
+func (p *provider) GetKVStore(name string) (stoabs.KVStore, error) {
+	store, err := p.getStore(p.moduleName, name, func(moduleName string, name string) (stoabs.Store, error) {
+		return bbolt.CreateBBoltStore(path.Join(p.datadir, moduleName, name+".db"))
 	})
 	if store == nil {
 		return nil, err
 	}
-	return store.(stoabs.IterableKVStore), err
+	return store.(stoabs.KVStore), err
 }
 
-func (e *engine) GetKVStore(namespace string, name string) (stoabs.KVStore, error) {
-	return e.GetIterableKVStore(namespace, name)
-}
-
-func (e *engine) getStore(namespace string, name string, creator func(namespace string, name string) (stoabs.Store, error)) (stoabs.Store, error) {
-	if len(namespace) == 0 {
-		return nil, errors.New("invalid store namespace")
+func (p *provider) getStore(moduleName string, name string, creator func(namespace string, name string) (stoabs.Store, error)) (stoabs.Store, error) {
+	if len(moduleName) == 0 {
+		return nil, errors.New("invalid store moduleName")
 	}
 	if len(name) == 0 {
 		return nil, errors.New("invalid store name")
 	}
-	key := namespace + "/" + name
-	store := e.stores[key]
+	key := moduleName + "/" + name
+	store := p.stores[key]
 	if store != nil {
 		return store, nil
 	}
-	store, err := creator(namespace, name)
+	store, err := creator(moduleName, name)
 	if err == nil {
-		e.stores[key] = store
+		p.stores[key] = store
 	}
 	return store, err
 }

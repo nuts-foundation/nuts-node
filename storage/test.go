@@ -30,6 +30,6 @@ func NewTestStorageEngine(testDirectory string) Engine {
 	return result
 }
 
-func CreateTestBBoltStore(filePath string) (stoabs.IterableKVStore, error) {
+func CreateTestBBoltStore(filePath string) (stoabs.KVStore, error) {
 	return bbolt.CreateBBoltStore(filePath, stoabs.WithNoSync())
 }
