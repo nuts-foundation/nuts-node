@@ -23,6 +23,7 @@ func DefaultConfig() Config {
 	return Config{
 		InterfaceConfig: InterfaceConfig{
 			Address: ":1323",
+			Log:     LogMetadataLevel,
 		},
 		AltBinds: map[string]InterfaceConfig{},
 	}
@@ -48,7 +49,21 @@ type InterfaceConfig struct {
 	Auth AuthConfig `koanf:"auth"`
 	// TLSMode specifies whether TLS is enabled for this interface, and which flavor.
 	TLSMode TLSMode `koanf:"tls"`
+	// Log specifies what should be logged of HTTP requests.
+	Log LogLevel `koanf:"log"`
 }
+
+// LogLevel specifies what to log for incoming/outgoing HTTP traffic.
+type LogLevel string
+
+const (
+	// LogNothingLevel indicates nothing will be logged for incoming/outgoing HTTP traffic.
+	LogNothingLevel LogLevel = "nothing"
+	// LogMetadataLevel indicates that only metadata (HTTP URI, method, response code, etc) will be logged for incoming/outgoing HTTP traffic.
+	LogMetadataLevel = "metadata"
+	// LogRequestReplyLevel indicates that metadata and full request/reply bodies  will be logged for incoming/outgoing HTTP traffic.
+	LogRequestReplyLevel = "request-reply"
+)
 
 // TLSMode defines the values for TLS modes
 type TLSMode string
