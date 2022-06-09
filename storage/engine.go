@@ -81,20 +81,18 @@ func (e *engine) Configure(config core.ServerConfig) error {
 func (e *engine) GetProvider(moduleName string) Provider {
 	return &provider{
 		moduleName: strings.ToLower(moduleName),
-		datadir:    e.datadir,
-		stores:     e.stores,
+		engine:     e,
 	}
 }
 
 type provider struct {
 	moduleName string
-	datadir    string
-	stores     map[string]stoabs.Store
+	engine     *engine
 }
 
 func (p *provider) GetKVStore(name string) (stoabs.KVStore, error) {
 	store, err := p.getStore(p.moduleName, name, func(moduleName string, name string) (stoabs.Store, error) {
-		return bbolt.CreateBBoltStore(path.Join(p.datadir, moduleName, name+".db"))
+		return bbolt.CreateBBoltStore(path.Join(p.engine.datadir, moduleName, name+".db"))
 	})
 	if store == nil {
 		return nil, err
@@ -110,13 +108,13 @@ func (p *provider) getStore(moduleName string, name string, creator func(namespa
 		return nil, errors.New("invalid store name")
 	}
 	key := moduleName + "/" + name
-	store := p.stores[key]
+	store := p.engine.stores[key]
 	if store != nil {
 		return store, nil
 	}
 	store, err := creator(moduleName, name)
 	if err == nil {
-		p.stores[key] = store
+		p.engine.stores[key] = store
 	}
 	return store, err
 }
