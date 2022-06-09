@@ -729,7 +729,7 @@ func TestNetwork_Reprocess(t *testing.T) {
 	setup := func(t *testing.T) (*networkTestContext, events.Event) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		ctx := createNetwork(ctrl)
+		ctx := createNetwork(t, ctrl)
 		eventManager := events.NewTestManager(t)
 		ctx.network.eventPublisher = eventManager
 		return ctx, eventManager
