@@ -321,7 +321,7 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 		bootstrapDiag := node1.PeerDiagnostics()[bootstrap.peerID]
 		assert.Equal(t, uint32(1), bootstrapDiag.NumberOfTransactions)
 		assert.Equal(t, "https://github.com/nuts-foundation/nuts-node", bootstrapDiag.SoftwareID)
-		assert.Equal(t, "0", bootstrapDiag.SoftwareVersion)
+		assert.Equal(t, "development (0)", bootstrapDiag.SoftwareVersion)
 		assert.Equal(t, []transport.PeerID{node1.peerID}, bootstrapDiag.Peers)
 
 		// Assert peer diagnostics sent from bootstrap node1 to bootstrap node
@@ -329,7 +329,7 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 		node1Diag := bootstrap.PeerDiagnostics()[node1.peerID]
 		assert.Equal(t, uint32(1), node1Diag.NumberOfTransactions)
 		assert.Equal(t, "https://github.com/nuts-foundation/nuts-node", node1Diag.SoftwareID)
-		assert.Equal(t, "0", node1Diag.SoftwareVersion)
+		assert.Equal(t, "development (0)", node1Diag.SoftwareVersion)
 		assert.Equal(t, []transport.PeerID{bootstrap.peerID}, node1Diag.Peers)
 	})
 }

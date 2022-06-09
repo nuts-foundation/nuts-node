@@ -170,8 +170,8 @@ func peersCommand() *cobra.Command {
 			for _, curr := range sortedPeers {
 				peer := transport.PeerID(curr)
 				cmd.Printf("\n%s\n", peer)
-				cmd.Printf("  SoftwareID:            %s\n", peers[peer].SoftwareID)
-				cmd.Printf("  SoftwareVersion:           %s\n", peers[peer].SoftwareVersion)
+				cmd.Printf("  SoftwareID:        %s\n", peers[peer].SoftwareID)
+				cmd.Printf("  SoftwareVersion:   %s\n", peers[peer].SoftwareVersion)
 				cmd.Printf("  Uptime:            %s\n", peers[peer].Uptime)
 				cmd.Printf("  Number of DAG TXs: %d\n", peers[peer].NumberOfTransactions)
 				cmd.Printf("  Peers:             %v\n", peers[peer].Peers)
