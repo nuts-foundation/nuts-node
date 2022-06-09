@@ -18,6 +18,12 @@ The following is needed to connect a Nuts node to a network:
 To connect to the development network you can use the ``nuts-development-network-ca`` by cloning ``https://github.com/nuts-foundation/nuts-development-network-ca``.
 That project contains scripts to generate certificates, and a truststore.
 
+There are 2 networks for development/integration purposes:
+- `development`: where new features are tested. Nodes will generally run the newest (not yet released) version of the Nuts node.
+- `stable`: for integrating your software with Nuts and testing with other vendors. Nodes will generally run the latest released version (or at least a recent one).
+
+Consult the community on `Slack <https://nuts-foundation.slack.com/>`_ to find out about how to connect to either network.
+
 Configuring
 ***********
 
@@ -29,8 +35,7 @@ See :ref:`configuration reference <nuts-node-config>` for a detailed explanation
 
 .. note::
 
-    You _can_ start the node without configuring the network, but it won't connect and thus exchange data with other
-    nodes.
+    You can start the node without configuring the network, but it won't connect and thus exchange data with other nodes.
 
 YAML Configuration File
 =======================
