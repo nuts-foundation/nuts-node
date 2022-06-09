@@ -398,6 +398,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 			return
 		}
 
+		cxt.state.EXPECT().Heads(gomock.Any())
 		cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
 
 		_, err = cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key).WithAttachKey())
@@ -412,6 +413,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
+		cxt.state.EXPECT().Heads(gomock.Any())
 		cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
 		tx, err := cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key))
 		assert.NoError(t, err)
@@ -425,13 +427,13 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 
 		// Register root TX on head tracker
 		rootTX, _, _ := dag.CreateTestTransaction(0)
-		cxt.network.lastTransactionTracker.process(rootTX, nil)
 
 		// 'Register' prev on DAG
 		additionalPrev, _, _ := dag.CreateTestTransaction(1)
 		cxt.state.EXPECT().GetTransaction(gomock.Any(), rootTX.Ref()).Return(rootTX, nil)
 		cxt.state.EXPECT().GetTransaction(gomock.Any(), additionalPrev.Ref()).Return(additionalPrev, nil).Times(2)
 		cxt.state.EXPECT().IsPayloadPresent(gomock.Any(), additionalPrev.PayloadHash()).Return(true, nil)
+		cxt.state.EXPECT().Heads(gomock.Any()).Return([]hash.SHA256Hash{rootTX.Ref()})
 
 		cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
 
@@ -488,6 +490,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 
+			cxt.state.EXPECT().Heads(gomock.Any())
 			cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
 
 			cxt.keyResolver.EXPECT().ResolveKeyAgreementKey(*sender).Return(senderKey.Public(), nil)
@@ -516,12 +519,12 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt := createNetwork(ctrl)
 		// Register root TX on head tracker
 		rootTX, _, _ := dag.CreateTestTransaction(0)
-		cxt.network.lastTransactionTracker.process(rootTX, nil)
 		// 'Register' prev on DAG
 		additionalPrev, _, _ := dag.CreateTestTransaction(1)
 		cxt.state.EXPECT().GetTransaction(gomock.Any(), rootTX.Ref()).Return(nil, errors.New("custom"))
 		cxt.state.EXPECT().GetTransaction(gomock.Any(), additionalPrev.Ref()).Return(additionalPrev, nil)
 		cxt.state.EXPECT().IsPayloadPresent(gomock.Any(), additionalPrev.PayloadHash()).Return(true, nil)
+		cxt.state.EXPECT().Heads(gomock.Any()).Return([]hash.SHA256Hash{rootTX.Ref()})
 
 		_, err := cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key).WithAdditionalPrevs([]hash.SHA256Hash{additionalPrev.Ref()}))
 
@@ -823,45 +826,6 @@ func TestNetwork_collectDiagnostics(t *testing.T) {
 	assert.Equal(t, []transport.PeerID{expectedPeer.ID}, actual.Peers)
 	assert.Equal(t, uint32(txNum), actual.NumberOfTransactions)
 	assert.NotEmpty(t, actual.Uptime)
-}
-
-func Test_lastTransactionTracker(t *testing.T) {
-	tracker := lastTransactionTracker{
-		headRefs:              map[hash.SHA256Hash]bool{},
-		processedTransactions: map[hash.SHA256Hash]bool{},
-	}
-
-	assert.Empty(t, tracker.heads()) // initially empty
-
-	// Root TX
-	tx0, _, _ := dag.CreateTestTransaction(0)
-	_ = tracker.process(tx0, nil)
-	assert.Len(t, tracker.heads(), 1)
-	assert.Contains(t, tracker.heads(), tx0.Ref())
-
-	// TX 1
-	tx1, _, _ := dag.CreateTestTransaction(1, tx0)
-	_ = tracker.process(tx1, nil)
-	assert.Len(t, tracker.heads(), 1)
-	assert.Contains(t, tracker.heads(), tx1.Ref())
-
-	// TX 2 (branch from root)
-	tx2, _, _ := dag.CreateTestTransaction(2, tx0)
-	_ = tracker.process(tx2, nil)
-	assert.Len(t, tracker.heads(), 2)
-	assert.Contains(t, tracker.heads(), tx1.Ref())
-	assert.Contains(t, tracker.heads(), tx2.Ref())
-
-	// TX 3 (merges 1 and 2)
-	tx3, _, _ := dag.CreateTestTransaction(2, tx1, tx2)
-	_ = tracker.process(tx3, nil)
-	assert.Len(t, tracker.heads(), 1)
-	assert.Contains(t, tracker.heads(), tx3.Ref())
-
-	// duplicate TX 1, no effect.
-	_ = tracker.process(tx1, nil)
-	assert.Len(t, tracker.heads(), 1)
-	assert.Contains(t, tracker.heads(), tx3.Ref())
 }
 
 func Test_connectToKnownNodes(t *testing.T) {

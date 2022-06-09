@@ -97,6 +97,13 @@ func TestState_relayingFuncs(t *testing.T) {
 		}
 		assert.Equal(t, payload, result)
 	})
+
+	t.Run("State", func(t *testing.T) {
+		heads := txState.Heads(ctx)
+
+		assert.Len(t, heads, 1)
+		assert.Equal(t, tx.Ref(), heads[0])
+	})
 }
 
 func TestState_Shutdown(t *testing.T) {

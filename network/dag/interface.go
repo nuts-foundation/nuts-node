@@ -72,6 +72,8 @@ type State interface {
 	// to all payload types.
 	// Deprecated: to be replaced with events
 	Subscribe(eventType EventType, payloadType string, receiver Receiver)
+	// Heads returns the references to all transactions that have not been referenced in the prevs of other transactions.
+	Heads(ctx context.Context) []hash.SHA256Hash
 	// Shutdown the DB
 	Shutdown() error
 	// Start the publisher and verifier

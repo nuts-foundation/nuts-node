@@ -112,6 +112,20 @@ func (mr *MockStateMockRecorder) GetTransaction(ctx, hash interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransaction", reflect.TypeOf((*MockState)(nil).GetTransaction), ctx, hash)
 }
 
+// Heads mocks base method.
+func (m *MockState) Heads(ctx context.Context) []hash.SHA256Hash {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Heads", ctx)
+	ret0, _ := ret[0].([]hash.SHA256Hash)
+	return ret0
+}
+
+// Heads indicates an expected call of Heads.
+func (mr *MockStateMockRecorder) Heads(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Heads", reflect.TypeOf((*MockState)(nil).Heads), ctx)
+}
+
 // IBLT mocks base method.
 func (m *MockState) IBLT(ctx context.Context, reqClock uint32) (tree.Iblt, uint32) {
 	m.ctrl.T.Helper()
