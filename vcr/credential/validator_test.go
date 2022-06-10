@@ -20,6 +20,11 @@
 package credential
 
 import (
+	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/sirupsen/logrus"
+	"os"
 	"testing"
 	"time"
 
@@ -30,7 +35,9 @@ import (
 )
 
 func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
-	validator := nutsOrganizationCredentialValidator{}
+	jsonldInstance := jsonld.NewJSONLDInstance()
+	_ = jsonldInstance.(core.Configurable).Configure(core.ServerConfig{})
+	validator := nutsOrganizationCredentialValidator{jsonldInstance.DocumentLoader()}
 
 	t.Run("ok", func(t *testing.T) {
 		v := validNutsOrganizationCredential()
@@ -150,15 +157,6 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 		assert.EqualError(t, err, "validation failed: 'credentialSubject.ID' is nil")
 	})
 
-	t.Run("failed - missing ID", func(t *testing.T) {
-		v := validNutsOrganizationCredential()
-		v.ID = nil
-
-		err := validator.Validate(*v)
-
-		assert.EqualError(t, err, "validation failed: 'ID' is required")
-	})
-
 	t.Run("failed - invalid ID", func(t *testing.T) {
 		v := validNutsOrganizationCredential()
 		otherID := vdr.TestDIDB.URI()
@@ -208,7 +206,9 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 }
 
 func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
-	validator := nutsAuthorizationCredentialValidator{}
+	jsonldInstance := jsonld.NewJSONLDInstance()
+	_ = jsonldInstance.(core.Configurable).Configure(core.ServerConfig{})
+	validator := nutsAuthorizationCredentialValidator{jsonldInstance.DocumentLoader()}
 
 	t.Run("v1", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
@@ -374,23 +374,44 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 }
 
 func validNutsOrganizationCredential() *vc.VerifiableCredential {
-	var credentialSubject = make(map[string]interface{})
-	credentialSubject["id"] = vdr.TestDIDB.String()
-	credentialSubject["organization"] = map[string]interface{}{
-		"name": "Because we care B.V.",
-		"city": "EIbergen",
-	}
+	inputVC := vc.VerifiableCredential{}
+	vcJSON, _ := os.ReadFile("../test/vc.json")
+	_ = json.Unmarshal(vcJSON, &inputVC)
+	return &inputVC
+}
 
-	issuer := *vdr.TestDIDA
-	id := issuer.URI()
-	id.Fragment = "#"
-	return &vc.VerifiableCredential{
-		Context:           []ssi.URI{vc.VCContextV1URI(), NutsV1ContextURI},
-		ID:                &id,
-		Type:              []ssi.URI{*NutsOrganizationCredentialTypeURI, vc.VerifiableCredentialTypeV1URI()},
-		Issuer:            stringToURI(issuer.String()),
-		IssuanceDate:      time.Now(),
-		CredentialSubject: []interface{}{credentialSubject},
-		Proof:             []interface{}{vc.Proof{}},
-	}
+func TestDefaultCredentialValidator(t *testing.T) {
+	jsonldInstance := jsonld.NewJSONLDInstance()
+	_ = jsonldInstance.(core.Configurable).Configure(core.ServerConfig{})
+	validator := defaultCredentialValidator{jsonldInstance.DocumentLoader()}
+
+	t.Run("failed - missing ID", func(t *testing.T) {
+		v := validNutsOrganizationCredential()
+		v.ID = nil
+
+		err := validator.Validate(*v)
+
+		assert.EqualError(t, err, "validation failed: 'ID' is required")
+	})
+	t.Run("ok", func(t *testing.T) {
+		err := validator.Validate(*validNutsOrganizationCredential())
+
+		assert.NoError(t, err)
+	})
+	t.Run("invalid fields", func(t *testing.T) {
+		logrus.SetLevel(logrus.DebugLevel)
+		var invalidCredentialSubject = make(map[string]interface{})
+		invalidCredentialSubject["id"] = vdr.TestDIDB.String()
+		invalidCredentialSubject["organizationButIncorrectFieldName"] = map[string]interface{}{
+			"name": "Because we care B.V.",
+			"city": "EIbergen",
+		}
+
+		inputVC := *validNutsOrganizationCredential()
+		inputVC.CredentialSubject[0] = invalidCredentialSubject
+
+		err := validator.Validate(inputVC)
+
+		assert.EqualError(t, err, "validation failed: not all fields are defined by JSON-LD context")
+	})
 }
