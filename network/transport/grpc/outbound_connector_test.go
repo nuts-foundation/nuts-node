@@ -31,7 +31,7 @@ import (
 
 func Test_connector_tryConnect(t *testing.T) {
 	serverConfig := NewConfig(fmt.Sprintf("localhost:%d", test.FreeTCPPort()), "server")
-	cm := NewGRPCConnectionManager(serverConfig, createBBoltDB(t), &TestNodeDIDResolver{}, nil)
+	cm := NewGRPCConnectionManager(serverConfig, createKVStore(t), &TestNodeDIDResolver{}, nil)
 	if !assert.NoError(t, cm.Start()) {
 		return
 	}

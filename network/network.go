@@ -24,8 +24,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"path"
+	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -74,8 +74,9 @@ type Network struct {
 	decrypter           crypto.Decrypter
 	nodeDIDResolver     transport.NodeDIDResolver
 	didDocumentFinder   types.DocFinder
-	connectionsDB       *bbolt.DB
 	eventPublisher      events.Event
+	connectionStore     stoabs.KVStore
+	storeProvider       storage.Provider
 }
 
 // Walk walks the DAG starting at the root, passing every transaction to `visitor`.
@@ -93,6 +94,7 @@ func NewNetworkInstance(
 	didDocumentResolver types.DocResolver,
 	didDocumentFinder types.DocFinder,
 	eventPublisher events.Event,
+	storeProvider storage.Provider,
 ) *Network {
 	return &Network{
 		config:              config,
@@ -103,6 +105,7 @@ func NewNetworkInstance(
 		didDocumentFinder:   didDocumentFinder,
 		nodeDIDResolver:     &transport.FixedNodeDIDResolver{},
 		eventPublisher:      eventPublisher,
+		storeProvider:       storeProvider,
 	}
 }
 
@@ -194,13 +197,13 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		} else {
 			authenticator = grpc.NewTLSAuthenticator(doc.NewServiceResolver(n.didDocumentResolver))
 		}
-		n.connectionsDB, err = bbolt.Open(path.Join(config.Datadir, "network", "connections.db"), os.ModePerm, nil)
+		n.connectionStore, err = n.storeProvider.GetKVStore("connections")
 		if err != nil {
-			return fmt.Errorf("failed to open gRPC database: %w", err)
+			return fmt.Errorf("failed to open connections store: %w", err)
 		}
 		n.connectionManager = grpc.NewGRPCConnectionManager(
 			grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...),
-			n.connectionsDB,
+			n.connectionStore,
 			n.nodeDIDResolver,
 			authenticator,
 			n.protocols...,
@@ -513,10 +516,6 @@ func (n *Network) Shutdown() error {
 			return err
 		}
 		n.state = nil
-	}
-
-	if n.connectionsDB != nil {
-		return n.connectionsDB.Close()
 	}
 	return nil
 }
