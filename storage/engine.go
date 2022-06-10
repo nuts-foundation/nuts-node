@@ -27,6 +27,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage/log"
 	"path"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -34,12 +35,16 @@ const storeShutdownTimeout = 5 * time.Second
 
 // New creates a new instance of the storage engine.
 func New() Engine {
-	return &engine{stores: map[string]stoabs.Store{}}
+	return &engine{
+		storesMux: &sync.Mutex{},
+		stores:    map[string]stoabs.Store{},
+	}
 }
 
 type engine struct {
-	datadir string
-	stores  map[string]stoabs.Store
+	datadir   string
+	storesMux *sync.Mutex
+	stores    map[string]stoabs.Store
 }
 
 // Name returns the name of the engine.
@@ -52,6 +57,9 @@ func (e engine) Start() error {
 }
 
 func (e engine) Shutdown() error {
+	e.storesMux.Lock()
+	defer e.storesMux.Unlock()
+
 	shutdown := func(store stoabs.Store) error {
 		// Refactored to separate function, otherwise defer would be in for loop which leaks resources.
 		ctx, cancel := context.WithTimeout(context.Background(), storeShutdownTimeout)
@@ -91,6 +99,9 @@ type provider struct {
 }
 
 func (p *provider) GetKVStore(name string) (stoabs.KVStore, error) {
+	p.engine.storesMux.Lock()
+	defer p.engine.storesMux.Unlock()
+
 	store, err := p.getStore(p.moduleName, name, func(moduleName string, name string) (stoabs.Store, error) {
 		return bbolt.CreateBBoltStore(path.Join(p.engine.datadir, moduleName, name+".db"))
 	})
