@@ -38,5 +38,21 @@ type Provider interface {
 	// GetKVStore returns a key-value store. Stores are identified by a name.
 	// When identical name is passed the same store is returned.
 	// Names must be alphanumeric, non-zero strings.
-	GetKVStore(name string) (stoabs.KVStore, error)
+	GetKVStore(name string, class Class) (stoabs.KVStore, error)
+}
+
+// Class defines levels of storage reliability.
+type Class int
+
+const (
+	// VolatileStorageClass means losing the storage has no/little implications due to data loss (e.g. caches).
+	VolatileStorageClass = iota
+	// PersistentStorageClass means losing the storage should never happen, because it has major implications.
+	PersistentStorageClass = iota
+)
+
+type databaseAdapter interface {
+	createStore(moduleName string, storeName string) (stoabs.KVStore, error)
+	getClass() Class
+	getType() DatabaseType
 }

@@ -115,16 +115,82 @@ func (m *MockProvider) EXPECT() *MockProviderMockRecorder {
 }
 
 // GetKVStore mocks base method.
-func (m *MockProvider) GetKVStore(name string) (go_stoabs.KVStore, error) {
+func (m *MockProvider) GetKVStore(name string, class Class) (go_stoabs.KVStore, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetKVStore", name)
+	ret := m.ctrl.Call(m, "GetKVStore", name, class)
 	ret0, _ := ret[0].(go_stoabs.KVStore)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetKVStore indicates an expected call of GetKVStore.
-func (mr *MockProviderMockRecorder) GetKVStore(name interface{}) *gomock.Call {
+func (mr *MockProviderMockRecorder) GetKVStore(name, class interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetKVStore", reflect.TypeOf((*MockProvider)(nil).GetKVStore), name)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetKVStore", reflect.TypeOf((*MockProvider)(nil).GetKVStore), name, class)
+}
+
+// MockdatabaseAdapter is a mock of databaseAdapter interface.
+type MockdatabaseAdapter struct {
+	ctrl     *gomock.Controller
+	recorder *MockdatabaseAdapterMockRecorder
+}
+
+// MockdatabaseAdapterMockRecorder is the mock recorder for MockdatabaseAdapter.
+type MockdatabaseAdapterMockRecorder struct {
+	mock *MockdatabaseAdapter
+}
+
+// NewMockdatabaseAdapter creates a new mock instance.
+func NewMockdatabaseAdapter(ctrl *gomock.Controller) *MockdatabaseAdapter {
+	mock := &MockdatabaseAdapter{ctrl: ctrl}
+	mock.recorder = &MockdatabaseAdapterMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockdatabaseAdapter) EXPECT() *MockdatabaseAdapterMockRecorder {
+	return m.recorder
+}
+
+// createStore mocks base method.
+func (m *MockdatabaseAdapter) createStore(moduleName, storeName string) (go_stoabs.KVStore, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "createStore", moduleName, storeName)
+	ret0, _ := ret[0].(go_stoabs.KVStore)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// createStore indicates an expected call of createStore.
+func (mr *MockdatabaseAdapterMockRecorder) createStore(moduleName, storeName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "createStore", reflect.TypeOf((*MockdatabaseAdapter)(nil).createStore), moduleName, storeName)
+}
+
+// getClass mocks base method.
+func (m *MockdatabaseAdapter) getClass() Class {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "getClass")
+	ret0, _ := ret[0].(Class)
+	return ret0
+}
+
+// getClass indicates an expected call of getClass.
+func (mr *MockdatabaseAdapterMockRecorder) getClass() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "getClass", reflect.TypeOf((*MockdatabaseAdapter)(nil).getClass))
+}
+
+// getType mocks base method.
+func (m *MockdatabaseAdapter) getType() DatabaseType {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "getType")
+	ret0, _ := ret[0].(DatabaseType)
+	return ret0
+}
+
+// getType indicates an expected call of getType.
+func (mr *MockdatabaseAdapterMockRecorder) getType() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "getType", reflect.TypeOf((*MockdatabaseAdapter)(nil).getType))
 }
