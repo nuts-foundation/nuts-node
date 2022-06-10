@@ -20,7 +20,6 @@ package grpc
 
 import (
 	"context"
-	"crypto/tls"
 	"net"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -175,7 +174,7 @@ func (s StubConnection) waitUntilDisconnected() {
 	panic("implement me")
 }
 
-func (s StubConnection) startConnecting(address string, _ Backoff, _ *tls.Config, _ func(_ *grpc.ClientConn) bool) {
+func (s StubConnection) startConnecting(_ connectorConfig, _ Backoff, _ func(_ *grpc.ClientConn) bool) {
 	panic("implement me")
 }
 

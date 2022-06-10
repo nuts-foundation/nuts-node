@@ -410,7 +410,7 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 		waiter.Add(1)
 
 		connection, _ := client.connections.getOrRegister(context.Background(), transport.Peer{Address: "server"}, client.dialer)
-		connection.startConnecting("", defaultBackoff(), nil, func(grpcConn *grpc.ClientConn) bool {
+		connection.startConnecting(connectorConfig{connectionTimeout: 5000 * time.Millisecond}, defaultBackoff(), func(grpcConn *grpc.ClientConn) bool {
 			err := client.openOutboundStreams(connection, grpcConn)
 			capturedError.Store(err)
 			waiter.Done()
@@ -596,7 +596,7 @@ func Test_grpcConnectionManager_openOutboundStream(t *testing.T) {
 		// New outbound connection's connector should be stopped, peer address copied to existing connection's connector
 		newConn.EXPECT().stopConnecting()
 		newConn.EXPECT().Peer().Return(transport.Peer{ID: "remote", Address: "remote-address"})
-		existingConn.EXPECT().startConnecting("remote-address", gomock.Any(), gomock.Any(), gomock.Any())
+		existingConn.EXPECT().startConnecting(connectorConfig{address: "remote-address"}, gomock.Any(), gomock.Any())
 
 		stream, err := cm.openOutboundStream(newConn, protocol, grpcConn, metadata.MD{})
 

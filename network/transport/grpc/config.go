@@ -26,6 +26,7 @@ import (
 	networkTypes "github.com/nuts-foundation/nuts-node/network/transport"
 	"google.golang.org/grpc"
 	"net"
+	"time"
 )
 
 // tcpListenerCreator starts a TCP listener for the inbound gRPC server on the given address.
@@ -40,10 +41,11 @@ type ConfigOption func(config *Config)
 // NewConfig creates a new Config, used for configuring a gRPC ConnectionManager.
 func NewConfig(grpcAddress string, peerID networkTypes.PeerID, options ...ConfigOption) Config {
 	cfg := Config{
-		listenAddress: grpcAddress,
-		peerID:        peerID,
-		dialer:        grpc.DialContext,
-		listener:      tcpListenerCreator,
+		listenAddress:     grpcAddress,
+		peerID:            peerID,
+		dialer:            grpc.DialContext,
+		listener:          tcpListenerCreator,
+		connectionTimeout: 5 * time.Second,
 	}
 	for _, opt := range options {
 		opt(&cfg)
@@ -65,6 +67,13 @@ func WithTLS(clientCertificate tls.Certificate, trustStore *core.TrustStore, max
 	}
 }
 
+// WithConnectionTimeout specifies the connection timeout for outbound connection attempts.
+func WithConnectionTimeout(value time.Duration) ConfigOption {
+	return func(config *Config) {
+		config.connectionTimeout = value
+	}
+}
+
 // Config holds values for configuring the gRPC ConnectionManager.
 type Config struct {
 	// PeerID contains the ID of the local node.
@@ -82,6 +91,8 @@ type Config struct {
 	crlValidator crl.Validator
 	// maxCRLValidityDays contains the number of days that a CRL can be outdated
 	maxCRLValidityDays int
+	// connectionTimeout specifies the time before an outbound connection attempt times out.
+	connectionTimeout time.Duration
 	// listener holds a function to create the net.Listener that is used for inbound connections.
 	listener func(string) (net.Listener, error)
 	// dialer holds a function to open connections to remote gRPC services.
