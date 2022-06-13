@@ -23,16 +23,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
+	"os"
+	"path"
+	"path/filepath"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/storage"
 	"go.etcd.io/bbolt"
-	"math"
-	"os"
-	"path"
-	"path/filepath"
 )
 
 const (
