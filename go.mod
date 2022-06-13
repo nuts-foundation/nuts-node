@@ -3,7 +3,7 @@ module github.com/nuts-foundation/nuts-node
 go 1.18
 
 require (
-	github.com/avast/retry-go/v4 v4.0.5
+	github.com/avast/retry-go/v4 v4.1.0
 	github.com/cbroglie/mustache v1.3.1
 	github.com/deepmap/oapi-codegen v1.11.0
 	github.com/golang/mock v1.6.0
