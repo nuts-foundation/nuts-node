@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"math"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -402,7 +403,7 @@ func (n *Network) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte,
 
 // ListTransactions returns all transactions known to this Network instance.
 func (n *Network) ListTransactions() ([]dag.Transaction, error) {
-	return n.state.FindBetween(dag.MinTime(), dag.MaxTime())
+	return n.state.FindBetweenLC(0, math.MaxUint32)
 }
 
 // CreateTransaction creates a new transaction from the given template.

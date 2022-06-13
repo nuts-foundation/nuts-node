@@ -20,6 +20,7 @@ package dag
 
 import (
 	"context"
+	"math"
 	"math/rand"
 	"sort"
 	"strings"
@@ -55,29 +56,6 @@ func (n trackingVisitor) JoinRefsAsString() string {
 		contents = append(contents, val)
 	}
 	return strings.Join(contents, ", ")
-}
-
-func TestBBoltDAG_FindBetween(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		graph := CreateDAG(t)
-
-		// tx1 and tx2's signing time are out-of-order
-		tx1 := CreateSignedTestTransaction(2, time.Now().AddDate(0, 0, 1), nil, "unit/test", true)
-		tx2 := CreateSignedTestTransaction(1, time.Now(), nil, "unit/test", true, tx1)
-		addTx(t, graph, tx1, tx2)
-
-		_ = graph.db.View(func(tx *bbolt.Tx) error {
-			actual, err := graph.findBetween(tx, time.Now().AddDate(0, 0, -2), time.Now().AddDate(1, 0, 0))
-			if !assert.NoError(t, err) {
-				return nil
-			}
-			assert.Len(t, actual, 2)
-			assert.Equal(t, tx1.Data(), actual[0].Data())
-			assert.Equal(t, tx2.Data(), actual[1].Data())
-
-			return nil
-		})
-	})
 }
 
 func TestBBoltDAG_findBetweenLC(t *testing.T) {
@@ -196,7 +174,7 @@ func TestBBoltDAG_Add(t *testing.T) {
 
 		_ = graph.db.View(func(tx *bbolt.Tx) error {
 			// Assert we can find the TX, but make sure it's only there once
-			actual, _ := graph.findBetween(tx, MinTime(), MaxTime())
+			actual, _ := graph.findBetweenLC(tx, 0, math.MaxUint32)
 			assert.Len(t, actual, 1)
 			return nil
 		})
@@ -210,7 +188,7 @@ func TestBBoltDAG_Add(t *testing.T) {
 		err := addTxErr(graph, root2)
 		assert.EqualError(t, err, "root transaction already exists")
 		_ = graph.db.View(func(tx *bbolt.Tx) error {
-			actual, _ := graph.findBetween(tx, MinTime(), MaxTime())
+			actual, _ := graph.findBetweenLC(tx, 0, math.MaxUint32)
 			assert.Len(t, actual, 1)
 			return nil
 		})

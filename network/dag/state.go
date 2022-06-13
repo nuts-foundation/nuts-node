@@ -23,17 +23,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"path"
-	"path/filepath"
-	"time"
-
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/storage"
 	"go.etcd.io/bbolt"
+	"math"
+	"os"
+	"path"
+	"path/filepath"
 )
 
 const (
@@ -153,14 +152,6 @@ func (s *state) verifyTX(tx *bbolt.Tx, transaction Transaction) error {
 		}
 	}
 	return nil
-}
-
-func (s *state) FindBetween(startInclusive time.Time, endExclusive time.Time) (transactions []Transaction, err error) {
-	err = s.db.View(func(tx *bbolt.Tx) error {
-		transactions, err = s.graph.findBetween(tx, startInclusive, endExclusive)
-		return err
-	})
-	return
 }
 
 func (s *state) FindBetweenLC(startInclusive uint32, endExclusive uint32) (transactions []Transaction, err error) {
@@ -309,7 +300,7 @@ func (s *state) Statistics(ctx context.Context) Statistics {
 
 func (s *state) Verify() error {
 	return storage.BBoltTXView(context.Background(), s.db, func(contextWithTX context.Context, dbTx *bbolt.Tx) error {
-		transactions, err := s.graph.findBetween(dbTx, MinTime(), MaxTime())
+		transactions, err := s.graph.findBetweenLC(dbTx, 0, math.MaxUint32)
 		if err != nil {
 			return err
 		}
