@@ -54,7 +54,6 @@ type state struct {
 	nonTransactionalObservers        []Observer
 	transactionalPayloadObservers    []PayloadObserver
 	nonTransactionalPayloadObservers []PayloadObserver
-	publisher                        Publisher
 	txVerifiers                      []Verifier
 	xorTree                          *bboltTree
 	ibltTree                         *bboltTree
@@ -82,10 +81,6 @@ func NewState(dataDir string, verifiers ...Verifier) (State, error) {
 		payloadStore: payloadStore,
 		txVerifiers:  verifiers,
 	}
-
-	publisher := NewReplayingDAGPublisher(payloadStore, graph)
-	publisher.ConfigureCallbacks(newState)
-	newState.publisher = publisher
 
 	xorTree := newBBoltTreeStore(db, "xorBucket", tree.New(tree.NewXor(), PageSize))
 	ibltTree := newBBoltTreeStore(db, "ibltBucket", tree.New(tree.NewIblt(IbltNumBuckets), PageSize))
@@ -208,9 +203,6 @@ func (s *state) ReadPayload(ctx context.Context, hash hash.SHA256Hash) (payload 
 		return nil
 	})
 	return
-}
-
-func (s *state) Subscribe(eventType EventType, payloadType string, receiver Receiver) {
 }
 
 func (s *state) Heads(ctx context.Context) []hash.SHA256Hash {

@@ -62,11 +62,6 @@ type State interface {
 	// RegisterPayloadObserver allows observers to be notified when a payload is written to the store.
 	// If the observer needs to be called within the transaction, transactional must be true.
 	RegisterPayloadObserver(observer PayloadObserver, transactional bool)
-	// Subscribe lets an application subscribe to a specific type of transaction. When a new transaction is received
-	// the `receiver` function is called. If an asterisk (`*`) is specified as `payloadType` the receiver is subscribed
-	// to all payload types.
-	// Deprecated: to be replaced with events
-	Subscribe(eventType EventType, payloadType string, receiver Receiver)
 	// Heads returns the references to all transactions that have not been referenced in the prevs of other transactions.
 	Heads(ctx context.Context) []hash.SHA256Hash
 	// Shutdown the DB
@@ -103,18 +98,6 @@ type Statistics struct {
 	NumberOfTransactions int
 	// DataSize contains the size of the DAG in bytes
 	DataSize int64
-}
-
-// Publisher defines the interface for types that publish Nuts Network transactions.
-type Publisher interface {
-	// ConfigureCallbacks subsribes the publisher on the state callbacks
-	ConfigureCallbacks(state State)
-	// Subscribe lets an application subscribe to a specific type of transaction. When a new transaction is received
-	// the `receiver` function is called. If an asterisk (`*`) is specified as `payloadType` the receiver is subscribed
-	// to all payload types.
-	Subscribe(eventType EventType, payloadType string, receiver Receiver)
-	// Start starts the publisher.
-	Start() error
 }
 
 // EventType defines a type for specifying the kind of events that can be published/subscribed on the Publisher.
