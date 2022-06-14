@@ -190,8 +190,7 @@ func (p *protocol) Start() (err error) {
 			return fmt.Errorf("failed to start retrying TransactionPayloadQuery: %w", err)
 		}
 
-		// todo replace with observer, underlying storage is persistent
-		p.state.Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, p.handlePrivateTx)
+		p.state.RegisterTransactionObserver(p.handlePrivateTx, true)
 	}
 	return
 }
@@ -229,9 +228,9 @@ func (p *protocol) sendGossip(id transport.PeerID, refs []hash.SHA256Hash, xor h
 	return true
 }
 
-func (p *protocol) handlePrivateTx(tx dag.Transaction, _ []byte) error {
+func (p *protocol) handlePrivateTx(_ context.Context, tx dag.Transaction) error {
 	if len(tx.PAL()) == 0 {
-		// not for us, but for V1 protocol
+		// not a private tx
 		return nil
 	}
 

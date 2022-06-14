@@ -202,9 +202,9 @@ func TestProtocol_Start(t *testing.T) {
 	t.Run("ok - with node DID", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nodeDID)
 
+		mocks.State.EXPECT().RegisterTransactionObserver(gomock.Any(), true)
 		mocks.PayloadScheduler.EXPECT().Run().Return(nil)
 		mocks.PayloadScheduler.EXPECT().Close()
-		mocks.State.EXPECT().Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, gomock.Any())
 
 		err := proto.Start()
 		assert.NoError(t, err)
@@ -273,7 +273,7 @@ func TestProtocol_HandlePrivateTx(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
 		mocks.PayloadScheduler.EXPECT().Schedule(txOk.Ref())
 
-		err := proto.handlePrivateTx(txOk, nil)
+		err := proto.handlePrivateTx(nil, txOk)
 
 		assert.NoError(t, err)
 	})
@@ -282,7 +282,7 @@ func TestProtocol_HandlePrivateTx(t *testing.T) {
 		tx, _, _ := dag.CreateTestTransaction(0)
 		proto, _ := newTestProtocol(t, nil)
 
-		err := proto.handlePrivateTx(tx, nil)
+		err := proto.handlePrivateTx(nil, tx)
 
 		assert.NoError(t, err)
 	})
@@ -291,7 +291,7 @@ func TestProtocol_HandlePrivateTx(t *testing.T) {
 		tx, _, _ := dag.CreateTestTransaction(0)
 		proto, _ := newTestProtocol(t, nil)
 
-		err := proto.handlePrivateTx(tx, []byte{0})
+		err := proto.handlePrivateTx(nil, tx)
 
 		assert.NoError(t, err)
 	})
@@ -300,7 +300,7 @@ func TestProtocol_HandlePrivateTx(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
 		mocks.PayloadScheduler.EXPECT().Schedule(txOk.Ref()).Return(errors.New("b00m!"))
 
-		err := proto.handlePrivateTx(txOk, nil)
+		err := proto.handlePrivateTx(nil, txOk)
 
 		if !assert.Error(t, err) {
 			return

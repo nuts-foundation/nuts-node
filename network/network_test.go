@@ -124,8 +124,18 @@ func TestNetwork_Subscribe(t *testing.T) {
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
-		cxt.state.EXPECT().Subscribe(dag.TransactionAddedEvent, "some-type", nil)
-		cxt.network.Subscribe(dag.TransactionAddedEvent, "some-type", nil)
+		var expectedReceiver dag.Receiver
+		expectedReceiver = func(transaction dag.Transaction, payload []byte) error { return errors.New("custom receiver") }
+
+		cxt.network.Subscribe(dag.TransactionAddedEvent, "some-type", expectedReceiver)
+
+		subs, ok := cxt.network.subscribers[dag.TransactionAddedEvent]
+		if !assert.True(t, ok) {
+			return
+		}
+		receivers, ok := subs["some-type"]
+		assert.True(t, ok)
+		assert.Equal(t, expectedReceiver(nil, nil), receivers(nil, nil))
 	})
 }
 

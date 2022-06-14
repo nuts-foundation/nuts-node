@@ -134,18 +134,19 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 	}
 
 	ctx.state, _ = dag.NewState(testDirectory)
-	ctx.state.Subscribe(dag.TransactionPayloadAddedEvent, integrationTestPayloadType, func(tx dag.Transaction, payload []byte) error {
+	ctx.state.RegisterPayloadObserver(func(transaction dag.Transaction, payload []byte) error {
 		log.Logger().Infof("transaction %s arrived at %s", string(payload), name)
 		ctx.mux.Lock()
 		defer ctx.mux.Unlock()
-		ctx.receivedTXs = append(ctx.receivedTXs, tx)
+		ctx.receivedTXs = append(ctx.receivedTXs, transaction)
 		return nil
-	})
+
+	}, false)
 	ctx.state.Start()
 
 	cfg := &Config{
-		GossipInterval:      500,
-		Datadir:             testDirectory,
+		GossipInterval: 500,
+		Datadir:        testDirectory,
 	}
 	for _, c := range configurers {
 		c(cfg)

@@ -211,7 +211,6 @@ func (s *state) ReadPayload(ctx context.Context, hash hash.SHA256Hash) (payload 
 }
 
 func (s *state) Subscribe(eventType EventType, payloadType string, receiver Receiver) {
-	s.publisher.Subscribe(eventType, payloadType, receiver)
 }
 
 func (s *state) Heads(ctx context.Context) []hash.SHA256Hash {
@@ -274,18 +273,14 @@ func (s *state) Shutdown() error {
 
 func (s *state) Start() error {
 	ctx := context.Background()
-	// load trees or build if they do not exist yet.
-	// can only build after DAG migration added clock values for all transactions and before the publisher starts
+
+	// load trees
 	if err := s.xorTree.read(ctx); err != nil {
 		return fmt.Errorf("failed to read xorTree: %w", err)
 	}
 
 	if err := s.ibltTree.read(ctx); err != nil {
 		return fmt.Errorf("failed to read ibltTree: %w", err)
-	}
-
-	if err := s.publisher.Start(); err != nil {
-		return err
 	}
 
 	if err := s.Verify(); err != nil {
