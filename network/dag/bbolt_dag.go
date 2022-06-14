@@ -22,14 +22,12 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"sort"
-	"time"
-
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/storage"
 	"go.etcd.io/bbolt"
+	"sort"
 )
 
 // transactionsBucket is the name of the Bolt bucket that holds the actual transactions as JSON.
@@ -152,17 +150,6 @@ func (dag bboltDAG) heads(ctx context.Context) []hash.SHA256Hash {
 		return nil
 	})
 	return result
-}
-
-func (dag *bboltDAG) findBetween(tx *bbolt.Tx, startInclusive time.Time, endExclusive time.Time) ([]Transaction, error) {
-	var result []Transaction
-	err := dag.walk(tx, func(_ *bbolt.Tx, transaction Transaction) bool {
-		if !transaction.SigningTime().Before(startInclusive) && transaction.SigningTime().Before(endExclusive) {
-			result = append(result, transaction)
-		}
-		return true
-	}, hash.EmptyHash())
-	return result, err
 }
 
 func (dag *bboltDAG) findBetweenLC(tx *bbolt.Tx, startInclusive uint32, endExclusive uint32) ([]Transaction, error) {

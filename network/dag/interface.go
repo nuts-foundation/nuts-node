@@ -21,8 +21,6 @@ package dag
 import (
 	"context"
 	"errors"
-	"time"
-
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
@@ -51,9 +49,6 @@ type State interface {
 	// If the transaction already exists, nothing is added and no observers are notified.
 	// The payload may be passed as well. Allowing for better notification of observers
 	Add(ctx context.Context, transactions Transaction, payload []byte) error
-	// FindBetween finds all transactions which signing time lies between startInclude and endExclusive.
-	// It returns the transactions in DAG walking order.
-	FindBetween(startInclusive time.Time, endExclusive time.Time) ([]Transaction, error)
 	// FindBetweenLC finds all transactions which lamport clock value lies between startInclusive and endExclusive.
 	// They are returned in order: first sorted on lamport clock value, then on transaction reference (byte order).
 	FindBetweenLC(startInclusive uint32, endExclusive uint32) ([]Transaction, error)
@@ -156,13 +151,3 @@ type Observer func(ctx context.Context, transaction Transaction) error
 
 // PayloadObserver defines the signature of an observer which can be called by an Observable.
 type PayloadObserver func(transaction Transaction, payload []byte) error
-
-// MinTime returns the minimum value for time.Time
-func MinTime() time.Time {
-	return time.Time{}
-}
-
-// MaxTime returns the maximum value for time.Time. Taken from https://stackoverflow.com/questions/25065055/what-is-the-maximum-time-time-in-go
-func MaxTime() time.Time {
-	return time.Unix(1<<63-62135596801, 999999999)
-}

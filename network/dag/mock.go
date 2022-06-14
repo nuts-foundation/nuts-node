@@ -7,7 +7,6 @@ package dag
 import (
 	context "context"
 	reflect "reflect"
-	time "time"
 
 	gomock "github.com/golang/mock/gomock"
 	core "github.com/nuts-foundation/nuts-node/core"
@@ -65,21 +64,6 @@ func (m *MockState) Diagnostics() []core.DiagnosticResult {
 func (mr *MockStateMockRecorder) Diagnostics() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Diagnostics", reflect.TypeOf((*MockState)(nil).Diagnostics))
-}
-
-// FindBetween mocks base method.
-func (m *MockState) FindBetween(startInclusive, endExclusive time.Time) ([]Transaction, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FindBetween", startInclusive, endExclusive)
-	ret0, _ := ret[0].([]Transaction)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// FindBetween indicates an expected call of FindBetween.
-func (mr *MockStateMockRecorder) FindBetween(startInclusive, endExclusive interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindBetween", reflect.TypeOf((*MockState)(nil).FindBetween), startInclusive, endExclusive)
 }
 
 // FindBetweenLC mocks base method.
