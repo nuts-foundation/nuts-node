@@ -50,7 +50,7 @@ type Transactions interface {
 	Reprocess(contentType string)
 }
 
-// EventType defines a type for specifying the kind of events that can be published/subscribed on the Publisher.
+// EventType defines a type for specifying the kind of events that can be published/subscribed on the Network.
 type EventType string
 
 const (
@@ -63,5 +63,5 @@ const (
 // AnyPayloadType is a wildcard that matches with any payload type.
 const AnyPayloadType = "*"
 
-// Receiver defines a function for processing transactions when walking the DAG.
+// Receiver defines a callback function for processing transactions/payloads received by the DAG.
 type Receiver func(transaction dag.Transaction, payload []byte) error
