@@ -56,7 +56,7 @@ func TestAmbassador_Configure(t *testing.T) {
 		nMock := network.NewMockTransactions(ctrl)
 
 		a := NewAmbassador(nMock, nil, nil, nil)
-		nMock.EXPECT().Subscribe(dag.TransactionPayloadAddedEvent, gomock.Any(), gomock.Any()).MinTimes(2)
+		nMock.EXPECT().Subscribe(network.TransactionPayloadAddedEvent, gomock.Any(), gomock.Any()).MinTimes(2)
 
 		a.Configure()
 	})

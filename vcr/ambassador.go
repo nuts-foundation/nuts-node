@@ -64,8 +64,8 @@ func NewAmbassador(networkClient network.Transactions, writer Writer, verifier v
 
 // Configure instructs the ambassador to start receiving DID Documents from the network.
 func (n ambassador) Configure() {
-	n.networkClient.Subscribe(dag.TransactionPayloadAddedEvent, types.VcDocumentType, n.vcCallback)
-	n.networkClient.Subscribe(dag.TransactionPayloadAddedEvent, types.RevocationLDDocumentType, n.jsonLDRevocationCallback)
+	n.networkClient.Subscribe(network.TransactionPayloadAddedEvent, types.VcDocumentType, n.vcCallback)
+	n.networkClient.Subscribe(network.TransactionPayloadAddedEvent, types.RevocationLDDocumentType, n.jsonLDRevocationCallback)
 }
 
 func (n ambassador) Start() error {

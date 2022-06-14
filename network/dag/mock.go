@@ -236,18 +236,6 @@ func (mr *MockStateMockRecorder) Statistics(ctx interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Statistics", reflect.TypeOf((*MockState)(nil).Statistics), ctx)
 }
 
-// Subscribe mocks base method.
-func (m *MockState) Subscribe(eventType EventType, payloadType string, receiver Receiver) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Subscribe", eventType, payloadType, receiver)
-}
-
-// Subscribe indicates an expected call of Subscribe.
-func (mr *MockStateMockRecorder) Subscribe(eventType, payloadType, receiver interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockState)(nil).Subscribe), eventType, payloadType, receiver)
-}
-
 // Verify mocks base method.
 func (m *MockState) Verify() error {
 	m.ctrl.T.Helper()
@@ -303,67 +291,6 @@ func (m *MockState) XOR(ctx context.Context, reqClock uint32) (hash.SHA256Hash, 
 func (mr *MockStateMockRecorder) XOR(ctx, reqClock interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "XOR", reflect.TypeOf((*MockState)(nil).XOR), ctx, reqClock)
-}
-
-// MockPublisher is a mock of Publisher interface.
-type MockPublisher struct {
-	ctrl     *gomock.Controller
-	recorder *MockPublisherMockRecorder
-}
-
-// MockPublisherMockRecorder is the mock recorder for MockPublisher.
-type MockPublisherMockRecorder struct {
-	mock *MockPublisher
-}
-
-// NewMockPublisher creates a new mock instance.
-func NewMockPublisher(ctrl *gomock.Controller) *MockPublisher {
-	mock := &MockPublisher{ctrl: ctrl}
-	mock.recorder = &MockPublisherMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockPublisher) EXPECT() *MockPublisherMockRecorder {
-	return m.recorder
-}
-
-// ConfigureCallbacks mocks base method.
-func (m *MockPublisher) ConfigureCallbacks(state State) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "ConfigureCallbacks", state)
-}
-
-// ConfigureCallbacks indicates an expected call of ConfigureCallbacks.
-func (mr *MockPublisherMockRecorder) ConfigureCallbacks(state interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConfigureCallbacks", reflect.TypeOf((*MockPublisher)(nil).ConfigureCallbacks), state)
-}
-
-// Start mocks base method.
-func (m *MockPublisher) Start() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Start")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Start indicates an expected call of Start.
-func (mr *MockPublisherMockRecorder) Start() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockPublisher)(nil).Start))
-}
-
-// Subscribe mocks base method.
-func (m *MockPublisher) Subscribe(eventType EventType, payloadType string, receiver Receiver) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Subscribe", eventType, payloadType, receiver)
-}
-
-// Subscribe indicates an expected call of Subscribe.
-func (mr *MockPublisherMockRecorder) Subscribe(eventType, payloadType, receiver interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockPublisher)(nil).Subscribe), eventType, payloadType, receiver)
 }
 
 // MockPayloadStore is a mock of PayloadStore interface.

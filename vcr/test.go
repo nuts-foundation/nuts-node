@@ -23,13 +23,11 @@ import (
 	"path"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/events"
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/network/dag"
-
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/events"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
@@ -84,7 +82,7 @@ func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	crypto := crypto.NewMockKeyStore(ctrl)
 	tx := network.NewMockTransactions(ctrl)
-	tx.EXPECT().Subscribe(dag.TransactionPayloadAddedEvent, gomock.Any(), gomock.Any()).AnyTimes()
+	tx.EXPECT().Subscribe(network.TransactionPayloadAddedEvent, gomock.Any(), gomock.Any()).AnyTimes()
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	docResolver := types.NewMockDocResolver(ctrl)
 	serviceResolver := doc.NewMockServiceResolver(ctrl)

@@ -27,9 +27,6 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-// AnyPayloadType is a wildcard that matches with any payload type.
-const AnyPayloadType = "*"
-
 var errRootAlreadyExists = errors.New("root transaction already exists")
 
 // State represents the Node transactional state. Mutations are done via this abstraction layer.
@@ -99,19 +96,6 @@ type Statistics struct {
 	// DataSize contains the size of the DAG in bytes
 	DataSize int64
 }
-
-// EventType defines a type for specifying the kind of events that can be published/subscribed on the Publisher.
-type EventType string
-
-const (
-	// TransactionAddedEvent is called when a transaction is added to the DAG. Its payload may not be present.
-	TransactionAddedEvent EventType = "TRANSACTION_ADDED"
-	// TransactionPayloadAddedEvent is called when a transaction is added to the DAG including its payload.
-	TransactionPayloadAddedEvent EventType = "TRANSACTION_PAYLOAD_ADDED"
-)
-
-// Receiver defines a function for processing transactions when walking the DAG.
-type Receiver func(transaction Transaction, payload []byte) error
 
 // Visitor defines the contract for a function that visits the DAG. If the function returns `false` it stops walking the DAG.
 type Visitor func(transaction Transaction) bool
