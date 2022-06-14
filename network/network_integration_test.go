@@ -767,6 +767,8 @@ func TestNetworkIntegration_AddedTransactionsAsEvents(t *testing.T) {
 func resetIntegrationTest() {
 	// in an integration test we want everything to work as intended, disable test speedup and re-enable file sync for bbolt
 	defaultBBoltOptions.NoSync = false
+	mutex.Lock()
+	defer mutex.Unlock()
 
 	receivedTransactions = make(map[string][]dag.Transaction, 0)
 	vdrStore = store.NewMemoryStore()
@@ -867,6 +869,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 		nodeDIDResolver:     &transport.FixedNodeDIDResolver{},
 		eventPublisher:      eventPublisher,
 		storeProvider:       storeProvider.GetProvider(ModuleName),
+		subscribers:         map[EventType]map[string]Receiver{},
 	}
 
 	if err := instance.Configure(serverConfig); err != nil {
@@ -875,7 +878,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 	if err := instance.Start(); err != nil {
 		t.Fatal(err)
 	}
-	instance.Subscribe(dag.TransactionPayloadAddedEvent, payloadType, func(transaction dag.Transaction, payload []byte) error {
+	instance.Subscribe(TransactionPayloadAddedEvent, payloadType, func(transaction dag.Transaction, payload []byte) error {
 		mutex.Lock()
 		defer mutex.Unlock()
 		log.Logger().Infof("transaction %s arrived at %s", string(payload), name)

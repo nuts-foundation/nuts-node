@@ -27,9 +27,6 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-// AnyPayloadType is a wildcard that matches with any payload type.
-const AnyPayloadType = "*"
-
 var errRootAlreadyExists = errors.New("root transaction already exists")
 
 // State represents the Node transactional state. Mutations are done via this abstraction layer.
@@ -62,11 +59,6 @@ type State interface {
 	// RegisterPayloadObserver allows observers to be notified when a payload is written to the store.
 	// If the observer needs to be called within the transaction, transactional must be true.
 	RegisterPayloadObserver(observer PayloadObserver, transactional bool)
-	// Subscribe lets an application subscribe to a specific type of transaction. When a new transaction is received
-	// the `receiver` function is called. If an asterisk (`*`) is specified as `payloadType` the receiver is subscribed
-	// to all payload types.
-	// Deprecated: to be replaced with events
-	Subscribe(eventType EventType, payloadType string, receiver Receiver)
 	// Heads returns the references to all transactions that have not been referenced in the prevs of other transactions.
 	Heads(ctx context.Context) []hash.SHA256Hash
 	// Shutdown the DB
@@ -104,31 +96,6 @@ type Statistics struct {
 	// DataSize contains the size of the DAG in bytes
 	DataSize int64
 }
-
-// Publisher defines the interface for types that publish Nuts Network transactions.
-type Publisher interface {
-	// ConfigureCallbacks subsribes the publisher on the state callbacks
-	ConfigureCallbacks(state State)
-	// Subscribe lets an application subscribe to a specific type of transaction. When a new transaction is received
-	// the `receiver` function is called. If an asterisk (`*`) is specified as `payloadType` the receiver is subscribed
-	// to all payload types.
-	Subscribe(eventType EventType, payloadType string, receiver Receiver)
-	// Start starts the publisher.
-	Start() error
-}
-
-// EventType defines a type for specifying the kind of events that can be published/subscribed on the Publisher.
-type EventType string
-
-const (
-	// TransactionAddedEvent is called when a transaction is added to the DAG. Its payload may not be present.
-	TransactionAddedEvent EventType = "TRANSACTION_ADDED"
-	// TransactionPayloadAddedEvent is called when a transaction is added to the DAG including its payload.
-	TransactionPayloadAddedEvent EventType = "TRANSACTION_PAYLOAD_ADDED"
-)
-
-// Receiver defines a function for processing transactions when walking the DAG.
-type Receiver func(transaction Transaction, payload []byte) error
 
 // Visitor defines the contract for a function that visits the DAG. If the function returns `false` it stops walking the DAG.
 type Visitor func(transaction Transaction) bool

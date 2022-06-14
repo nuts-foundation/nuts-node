@@ -124,8 +124,18 @@ func TestNetwork_Subscribe(t *testing.T) {
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
-		cxt.state.EXPECT().Subscribe(dag.TransactionAddedEvent, "some-type", nil)
-		cxt.network.Subscribe(dag.TransactionAddedEvent, "some-type", nil)
+		var expectedReceiver Receiver
+		expectedReceiver = func(transaction dag.Transaction, payload []byte) error { return errors.New("custom receiver") }
+
+		cxt.network.Subscribe(TransactionAddedEvent, "some-type", expectedReceiver)
+
+		subs, ok := cxt.network.subscribers[TransactionAddedEvent]
+		if !assert.True(t, ok) {
+			return
+		}
+		receivers, ok := subs["some-type"]
+		assert.True(t, ok)
+		assert.Equal(t, expectedReceiver(nil, nil), receivers(nil, nil))
 	})
 }
 
@@ -994,7 +1004,6 @@ func TestNetwork_calculateLamportClock(t *testing.T) {
 
 func createNetwork(t *testing.T, ctrl *gomock.Controller, cfgFn ...func(config *Config)) *networkTestContext {
 	state := dag.NewMockState(ctrl)
-	state.EXPECT().Subscribe(dag.TransactionPayloadAddedEvent, dag.AnyPayloadType, gomock.Any()).AnyTimes()
 	prot := transport.NewMockProtocol(ctrl)
 	prot.EXPECT().Version().AnyTimes().Return(math.MaxInt)
 	connectionManager := transport.NewMockConnectionManager(ctrl)

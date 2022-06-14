@@ -123,7 +123,7 @@ func (mr *MockTransactionsMockRecorder) Reprocess(contentType interface{}) *gomo
 }
 
 // Subscribe mocks base method.
-func (m *MockTransactions) Subscribe(eventType dag.EventType, payloadType string, receiver dag.Receiver) {
+func (m *MockTransactions) Subscribe(eventType EventType, payloadType string, receiver Receiver) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Subscribe", eventType, payloadType, receiver)
 }

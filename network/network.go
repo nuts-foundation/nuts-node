@@ -76,6 +76,7 @@ type Network struct {
 	nodeDIDResolver     transport.NodeDIDResolver
 	didDocumentFinder   types.DocFinder
 	eventPublisher      events.Event
+	subscribers         map[EventType]map[string]Receiver
 	connectionStore     stoabs.KVStore
 	storeProvider       storage.Provider
 }
@@ -107,6 +108,7 @@ func NewNetworkInstance(
 		nodeDIDResolver:     &transport.FixedNodeDIDResolver{},
 		eventPublisher:      eventPublisher,
 		storeProvider:       storeProvider,
+		subscribers:         map[EventType]map[string]Receiver{},
 	}
 }
 
@@ -215,6 +217,16 @@ func (n *Network) Configure(config core.ServerConfig) error {
 
 	// register callback from DAG to other engines, with payload only.
 	n.state.RegisterPayloadObserver(n.emitEvents, true)
+
+	// register observers to publish to other engines. Non-transactional, so will be published to other engines at most once.
+	n.state.RegisterTransactionObserver(func(_ context.Context, transaction dag.Transaction) error {
+		n.publish(TransactionAddedEvent, transaction, nil)
+		return nil
+	}, false)
+	n.state.RegisterPayloadObserver(func(transaction dag.Transaction, payload []byte) error {
+		n.publish(TransactionPayloadAddedEvent, transaction, payload)
+		return nil
+	}, false)
 
 	return nil
 }
@@ -379,8 +391,36 @@ func (n *Network) validateNodeDID(nodeDID did.DID) error {
 
 // Subscribe makes a subscription for the specified transaction type. The receiver is called when a transaction
 // is received for the specified event and payload type.
-func (n *Network) Subscribe(eventType dag.EventType, transactionType string, receiver dag.Receiver) {
-	n.state.Subscribe(eventType, transactionType, receiver)
+func (n *Network) Subscribe(eventType EventType, payloadType string, receiver Receiver) {
+	if _, ok := n.subscribers[eventType]; !ok {
+		n.subscribers[eventType] = make(map[string]Receiver, 0)
+	}
+	oldSubscriber := n.subscribers[eventType][payloadType]
+	n.subscribers[eventType][payloadType] = func(transaction dag.Transaction, payload []byte) error {
+		// Chain subscribers in case there's more than 1
+		if oldSubscriber != nil {
+			if err := oldSubscriber(transaction, payload); err != nil {
+				return err
+			}
+		}
+		return receiver(transaction, payload)
+	}
+}
+
+func (n *Network) publish(eventType EventType, transaction dag.Transaction, payload []byte) {
+	subs := n.subscribers[eventType]
+	if subs == nil {
+		return
+	}
+	for _, payloadType := range []string{transaction.PayloadType(), AnyPayloadType} {
+		receiver := subs[payloadType]
+		if receiver == nil {
+			continue
+		}
+		if err := receiver(transaction, payload); err != nil {
+			log.Logger().Errorf("Transaction subscriber returned an error (ref=%s,type=%s): %v", transaction.Ref(), transaction.PayloadType(), err)
+		}
+	}
 }
 
 // GetTransaction retrieves the transaction for the given reference. If the transaction is not known, an error is returned.

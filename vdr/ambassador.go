@@ -79,7 +79,7 @@ func NewAmbassador(networkClient network.Transactions, didStore types.Store, eve
 
 // Configure instructs the ambassador to start receiving DID Documents from the network.
 func (n *ambassador) Configure() {
-	n.networkClient.Subscribe(dag.TransactionPayloadAddedEvent, didDocumentType, n.callback)
+	n.networkClient.Subscribe(network.TransactionPayloadAddedEvent, didDocumentType, n.callback)
 }
 
 func (n *ambassador) Start() error {
@@ -255,7 +255,7 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 	if err != nil {
 		return fmt.Errorf("unable to resolve signingkey: %w", err)
 	}
-	
+
 	signingKey, err := jwk.New(pKey)
 	if err != nil {
 		return fmt.Errorf("could not parse public key into jwk: %w", err)

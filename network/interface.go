@@ -31,7 +31,7 @@ const MaxReprocessBufferSize = 1000000
 type Transactions interface {
 	// Subscribe makes a subscription for the specified transaction type. The receiver is called when a transaction
 	// is received for the specified event and payload type.
-	Subscribe(eventType dag.EventType, payloadType string, receiver dag.Receiver)
+	Subscribe(eventType EventType, payloadType string, receiver Receiver)
 	// GetTransactionPayload retrieves the transaction Payload for the given transaction. If the transaction or Payload is not found
 	// nil is returned.
 	GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte, error)
@@ -49,3 +49,19 @@ type Transactions interface {
 	// This is an async process and will not return any feedback
 	Reprocess(contentType string)
 }
+
+// EventType defines a type for specifying the kind of events that can be published/subscribed on the Network.
+type EventType string
+
+const (
+	// TransactionAddedEvent is called when a transaction is added to the DAG. Its payload may not be present.
+	TransactionAddedEvent EventType = "TRANSACTION_ADDED"
+	// TransactionPayloadAddedEvent is called when a transaction is added to the DAG including its payload.
+	TransactionPayloadAddedEvent EventType = "TRANSACTION_PAYLOAD_ADDED"
+)
+
+// AnyPayloadType is a wildcard that matches with any payload type.
+const AnyPayloadType = "*"
+
+// Receiver defines a callback function for processing transactions/payloads received by the DAG.
+type Receiver func(transaction dag.Transaction, payload []byte) error

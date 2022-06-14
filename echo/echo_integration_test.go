@@ -94,7 +94,7 @@ func startServer(t *testing.T) string {
 	if !test.WaitFor(t, func() (bool, error) {
 		resp, err := http.Get(fmt.Sprintf("http://localhost%s/status", httpPort))
 		return err == nil && resp.StatusCode == http.StatusOK, nil
-	}, time.Second * 5, "Timeout while waiting for node to become available") {
+	}, time.Second*5, "Timeout while waiting for node to become available") {
 		t.Fatal("time-out")
 	}
 
