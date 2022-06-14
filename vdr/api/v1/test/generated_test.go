@@ -53,8 +53,8 @@ func Test_OASCompatibleWithDIDModel(t *testing.T) {
 		},
 		VerificationMethod: &[]VerificationMethod{
 			{
-				Id:   "did:example:123456789abcdefghi#vm",
-				Type: "Secp256k1VerificationKey2018",
+				Id:         "did:example:123456789abcdefghi#vm",
+				Type:       "Secp256k1VerificationKey2018",
 				Controller: "did:example:123456789abcdefghi",
 			},
 		},
