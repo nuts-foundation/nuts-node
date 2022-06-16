@@ -81,6 +81,9 @@ func loadFromFlagSet(configMap *koanf.Koanf, flags *pflag.FlagSet) error {
 	return configMap.Load(posflag.Provider(flags, defaultDelimiter, configMap), nil)
 }
 
+// LoadConfigMap loads all the values for a given command into the provided configMap.
+// It loads the default values and then (when defined) overwrites them respectively with values from
+// the config file, environment variables and command line flags.
 func LoadConfigMap(configMap *koanf.Koanf, cmd *cobra.Command) error {
 	flags := cmd.Flags()
 	if err := loadDefaultsFromFlagset(configMap, flags); err != nil {

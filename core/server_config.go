@@ -88,10 +88,6 @@ func (cors HTTPCORSConfig) Enabled() bool {
 	return len(cors.Origin) > 0
 }
 
-func (ngc ServerConfig) DefaultConfig() *ServerConfig {
-	return NewServerConfig()
-}
-
 // NewServerConfig creates a new config with some defaults
 func NewServerConfig() *ServerConfig {
 	return &ServerConfig{

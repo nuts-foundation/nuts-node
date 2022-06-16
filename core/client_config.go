@@ -58,6 +58,7 @@ func NewClientConfigForCommand(cmd *cobra.Command) (ClientConfig, error) {
 	return NewClientConfigFromConfigMap(configMap)
 }
 
+// NewClientConfigFromConfigMap returns an initialized ClientConfig with values set from the provided configMap
 func NewClientConfigFromConfigMap(configMap *koanf.Koanf) (ClientConfig, error) {
 	cfg := ClientConfig{}
 	if err := configMap.UnmarshalWithConf("", &cfg, koanf.UnmarshalConf{

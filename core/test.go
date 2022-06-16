@@ -64,10 +64,6 @@ func (i *TestEngine) Config() interface{} {
 	return &i.TestConfig
 }
 
-func (i TestEngine) DefaultConfig() interface{} {
-	return testDefaultConfig()
-}
-
 func (i *TestEngine) FlagSet() *pflag.FlagSet {
 	return i.flagSet
 }
