@@ -183,31 +183,8 @@ func (ngc *ServerConfig) PrintConfig() string {
 	return ngc.configMap.Sprint()
 }
 
-func customConfigMerger(src, dest map[string]interface{}) error {
-	if len(dest) > 0 {
-		return nil
-	}
-	dest = src
-	return nil
-}
-
 // InjectIntoEngine takes the loaded config and sets the engine's config struct
 func (ngc *ServerConfig) InjectIntoEngine(e Injectable) error {
-
-	//defaultConfig := koanf.New(".")
-	//defaultConfig.Load(structs.Provider(e.DefaultConfig(), "koanf"), nil)
-	//ngc.configMap.Merge(defaultConfig)
-
-	//ngc.configMap.Load(confmap.Provider(map[string]interface{}{"testengine.list": []string{"bar"}}, "."), nil)
-	//
-	//if err := ngc.configMap.Load(structs.ProviderWithDelim(e.DefaultConfig(), "koanf", "."), nil, koanf.WithMergeFunc(customConfigMerger)); err != nil {
-	//	return err
-	//}
-
-	//if err := ngc.configMap.Load(structs.Provider(testDefaultConfig(), "koanf"), nil); err != nil {
-	//	return err
-	//}
-
 	return unmarshalRecursive([]string{}, e.Config(), ngc.configMap)
 }
 
