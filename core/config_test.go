@@ -93,10 +93,10 @@ func Test_loadConfigIntoStruct(t *testing.T) {
 			E string `koanf:"e"`
 		}
 		var target Target
-		configMap := &koanf.Koanf{}
-		LoadConfigMap()
-		loadConfig
-		err := loadConfigIntoStruct(flagSet, &target, koanf.New(defaultDelimiter))
+		configMap := koanf.New(defaultDelimiter)
+		assert.NoError(t, loadFromFlagSet(configMap, flagSet))
+		assert.NoError(t, loadFromEnv(configMap))
+		err := loadConfigIntoStruct(flagSet, &target, configMap)
 		assert.NoError(t, err)
 		assert.Equal(t, "lag", target.F)
 		assert.Equal(t, "nvironment", target.E)
@@ -109,7 +109,10 @@ func Test_loadConfigIntoStruct(t *testing.T) {
 			List []string `koanf:"list"`
 		}
 		var target Target
-		err := loadConfigIntoStruct(flagSet, &target, koanf.New(defaultDelimiter))
+		configMap := koanf.New(defaultDelimiter)
+		assert.NoError(t, loadFromFlagSet(configMap, flagSet))
+		assert.NoError(t, loadFromEnv(configMap))
+		err := loadConfigIntoStruct(flagSet, &target, configMap)
 		assert.NoError(t, err)
 		assert.Equal(t, []string{"a", "b", "c", "d"}, target.List)
 	})

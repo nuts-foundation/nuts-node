@@ -46,7 +46,8 @@ func TestCmd_AddService(t *testing.T) {
 		s := httptest.NewServer(handler)
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")
-		core.NewServerConfig().Load(cmd)
+		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
+
 		defer s.Close()
 
 		endpointAsJSON, _ := json.Marshal(serviceEndpoint)
@@ -67,7 +68,7 @@ func TestCmd_AddService(t *testing.T) {
 		s := httptest.NewServer(handler)
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")
-		core.NewServerConfig().Load(cmd)
+		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 		defer s.Close()
 
 		cmd.SetArgs([]string{"svc", "add", "did:nuts:1234", "type", serviceEndpoint})
@@ -84,7 +85,7 @@ func TestCmd_DeleteService(t *testing.T) {
 		s := httptest.NewServer(handler)
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")
-		core.NewServerConfig().Load(cmd)
+		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 		defer s.Close()
 
 		cmd.SetArgs([]string{"svc", "delete", "did:nuts:1234", "type"})

@@ -49,6 +49,7 @@ func DefaultClientConfig() ClientConfig {
 	}
 }
 
+// NewClientConfigForCommand loads the config map into a command
 func NewClientConfigForCommand(cmd *cobra.Command) (ClientConfig, error) {
 	configMap := koanf.New(defaultDelimiter)
 	if err := LoadConfigMap(configMap, cmd); err != nil {

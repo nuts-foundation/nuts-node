@@ -21,6 +21,7 @@ package cmd
 
 import (
 	"bytes"
+	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -59,6 +60,8 @@ func TestCmd(t *testing.T) {
 				s := setupServer(cmd, http.StatusOK, []string{didString})
 				defer reset(s)
 
+				cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
+
 				cmd.SetArgs([]string{c, credentialType})
 				err := cmd.Execute()
 
@@ -72,6 +75,7 @@ func TestCmd(t *testing.T) {
 				cmd := newCmd(t)
 				s := setupServer(cmd, http.StatusInternalServerError, nil)
 				defer reset(s)
+				cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 				cmd.SetArgs([]string{c, credentialType})
 				err := cmd.Execute()
@@ -105,6 +109,7 @@ func TestCmd(t *testing.T) {
 				cmd := newCmd(t)
 				s := setupServer(cmd, http.StatusNoContent, nil)
 				defer reset(s)
+				cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 				cmd.SetArgs([]string{c, credentialType, didString})
 				err := cmd.Execute()
@@ -120,6 +125,7 @@ func TestCmd(t *testing.T) {
 				cmd := newCmd(t)
 				s := setupServer(cmd, http.StatusInternalServerError, nil)
 				defer reset(s)
+				cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 				cmd.SetArgs([]string{c, credentialType, didString})
 				err := cmd.Execute()
