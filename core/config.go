@@ -53,6 +53,7 @@ func loadFromFile(configMap *koanf.Koanf, filepath string) error {
 	return nil
 }
 
+// loadFromEnv loads the values from the environment variables into the configMap
 func loadFromEnv(configMap *koanf.Koanf) error {
 	e := env.ProviderWithValue(defaultPrefix, defaultDelimiter, func(rawKey string, rawValue string) (string, interface{}) {
 		key := strings.Replace(strings.ToLower(strings.TrimPrefix(rawKey, defaultPrefix)), "_", defaultDelimiter, -1)
@@ -69,14 +70,16 @@ func loadFromEnv(configMap *koanf.Koanf) error {
 		// Just a single value
 		return key, rawValue
 	})
-	// errors can't occur for this provider
 	return configMap.Load(e, nil)
 }
 
+// loadDefaultsFromFlagset loads the default values, set in the flags, into the configMap.
+// Note: This method should be used first to seed the configMap so other providers can override/alter the configMap.
 func loadDefaultsFromFlagset(configMap *koanf.Koanf, flags *pflag.FlagSet) error {
 	return configMap.Load(posflag.Provider(flags, defaultDelimiter, configMap), nil)
 }
 
+// loadFromFlagSet loads the config values set in the command line options into the configMap.
 func loadFromFlagSet(configMap *koanf.Koanf, flags *pflag.FlagSet) error {
 	return configMap.Load(posflag.Provider(flags, defaultDelimiter, configMap), nil)
 }
