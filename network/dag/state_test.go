@@ -198,7 +198,7 @@ func TestState_Observe(t *testing.T) {
 
 		err := txState.Add(ctx, expected, []byte{1})
 
-		assert.EqualError(t, err, "tx.PayloadHash does not match hash of payload")
+		assert.EqualError(t, err, "tx.PayloadHash does not match Hash of payload")
 	})
 	t.Run("payload added", func(t *testing.T) {
 		txState := createState(t)

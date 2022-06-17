@@ -42,8 +42,8 @@ func TestBboltTree_writeUpdates(t *testing.T) {
 
 	t.Run("ok - inserts", func(t *testing.T) {
 		store := newBBoltTreeStore(db, "xor tree", tree.New(tree.NewXor(), testLeafSize))
-		store.tree.Insert(hash.FromSlice([]byte("test hash 1")), 0)
-		dirty := store.tree.InsertGetDirty(hash.FromSlice([]byte("test hash 2")), testLeafSize)
+		store.tree.Insert(hash.FromSlice([]byte("test Hash 1")), 0)
+		dirty := store.tree.InsertGetDirty(hash.FromSlice([]byte("test Hash 2")), testLeafSize)
 
 		err := store.writeUpdates(context.Background(), dirty, nil)
 
@@ -52,8 +52,8 @@ func TestBboltTree_writeUpdates(t *testing.T) {
 
 	t.Run("ok - dropping leaves", func(t *testing.T) {
 		store := newBBoltTreeStore(db, "xor drop leaves", tree.New(tree.NewXor(), testLeafSize))
-		store.tree.Insert(hash.FromSlice([]byte("test hash 1")), 0)
-		store.tree.Insert(hash.FromSlice([]byte("test hash 2")), testLeafSize)
+		store.tree.Insert(hash.FromSlice([]byte("test Hash 1")), 0)
+		store.tree.Insert(hash.FromSlice([]byte("test Hash 2")), testLeafSize)
 		store.tree.DropLeaves()
 		dirties, orphaned := store.tree.GetUpdates()
 
@@ -71,7 +71,7 @@ func TestBboltTree_writeUpdates(t *testing.T) {
 func TestBboltTree_read(t *testing.T) {
 	db := createBBoltDB(io.TestDirectory(t))
 	storeWrite := newBBoltTreeStore(db, "real bucket", tree.New(tree.NewXor(), testLeafSize))
-	dirty := storeWrite.tree.InsertGetDirty(hash.FromSlice([]byte("test hash")), testLeafSize)
+	dirty := storeWrite.tree.InsertGetDirty(hash.FromSlice([]byte("test Hash")), testLeafSize)
 	err := storeWrite.writeUpdates(context.Background(), dirty, nil)
 	if !assert.NoError(t, err) {
 		return

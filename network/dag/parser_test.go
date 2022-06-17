@@ -160,7 +160,7 @@ func TestParseTransaction(t *testing.T) {
 	})
 	t.Run("error - invalid prevs (invalid entry)", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", true)
-		headers.Set(previousHeader, []string{"not a hash"})
+		headers.Set(previousHeader, []string{"not a Hash"})
 		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
 
 		transaction, err := ParseTransaction(signature)
@@ -231,7 +231,7 @@ func TestParseTransaction(t *testing.T) {
 	})
 	t.Run("error - invalid payload", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", true)
-		signature, _ := jws.Sign([]byte("not a valid hash"), headers.Algorithm(), key, jws.WithHeaders(headers))
+		signature, _ := jws.Sign([]byte("not a valid Hash"), headers.Algorithm(), key, jws.WithHeaders(headers))
 
 		transaction, err := ParseTransaction(signature)
 

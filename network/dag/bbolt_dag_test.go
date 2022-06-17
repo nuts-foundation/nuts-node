@@ -326,7 +326,7 @@ func TestBBoltDAG_Walk(t *testing.T) {
 		assert.Empty(t, visitor.transactions)
 	})
 
-	t.Run("ok - start at root for empty hash", func(t *testing.T) {
+	t.Run("ok - start at root for empty Hash", func(t *testing.T) {
 		graph := CreateDAG(t)
 		visitor := trackingVisitor{}
 		transaction := CreateTestTransactionWithJWK(1)

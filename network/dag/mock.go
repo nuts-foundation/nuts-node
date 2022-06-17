@@ -9,10 +9,10 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	go_stoabs "github.com/nuts-foundation/go-stoabs"
 	core "github.com/nuts-foundation/nuts-node/core"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	tree "github.com/nuts-foundation/nuts-node/network/dag/tree"
-	bbolt "go.etcd.io/bbolt"
 )
 
 // MockState is a mock of State interface.
@@ -111,18 +111,18 @@ func (mr *MockStateMockRecorder) Heads(ctx interface{}) *gomock.Call {
 }
 
 // IBLT mocks base method.
-func (m *MockState) IBLT(ctx context.Context, reqClock uint32) (tree.Iblt, uint32) {
+func (m *MockState) IBLT(reqClock uint32) (tree.Iblt, uint32) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IBLT", ctx, reqClock)
+	ret := m.ctrl.Call(m, "IBLT", reqClock)
 	ret0, _ := ret[0].(tree.Iblt)
 	ret1, _ := ret[1].(uint32)
 	return ret0, ret1
 }
 
 // IBLT indicates an expected call of IBLT.
-func (mr *MockStateMockRecorder) IBLT(ctx, reqClock interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) IBLT(reqClock interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IBLT", reflect.TypeOf((*MockState)(nil).IBLT), ctx, reqClock)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IBLT", reflect.TypeOf((*MockState)(nil).IBLT), reqClock)
 }
 
 // IsPayloadPresent mocks base method.
@@ -170,30 +170,6 @@ func (mr *MockStateMockRecorder) ReadPayload(ctx, payloadHash interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadPayload", reflect.TypeOf((*MockState)(nil).ReadPayload), ctx, payloadHash)
 }
 
-// RegisterPayloadObserver mocks base method.
-func (m *MockState) RegisterPayloadObserver(observer PayloadObserver, transactional bool) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "RegisterPayloadObserver", observer, transactional)
-}
-
-// RegisterPayloadObserver indicates an expected call of RegisterPayloadObserver.
-func (mr *MockStateMockRecorder) RegisterPayloadObserver(observer, transactional interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterPayloadObserver", reflect.TypeOf((*MockState)(nil).RegisterPayloadObserver), observer, transactional)
-}
-
-// RegisterTransactionObserver mocks base method.
-func (m *MockState) RegisterTransactionObserver(observer Observer, transactional bool) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "RegisterTransactionObserver", observer, transactional)
-}
-
-// RegisterTransactionObserver indicates an expected call of RegisterTransactionObserver.
-func (mr *MockStateMockRecorder) RegisterTransactionObserver(observer, transactional interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterTransactionObserver", reflect.TypeOf((*MockState)(nil).RegisterTransactionObserver), observer, transactional)
-}
-
 // Shutdown mocks base method.
 func (m *MockState) Shutdown() error {
 	m.ctrl.T.Helper()
@@ -236,6 +212,26 @@ func (mr *MockStateMockRecorder) Statistics(ctx interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Statistics", reflect.TypeOf((*MockState)(nil).Statistics), ctx)
 }
 
+// Subscribe mocks base method.
+func (m *MockState) Subscribe(name string, subscriber SubscriberFn, filters ...SubscriberOption) (Subscriber, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{name, subscriber}
+	for _, a := range filters {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Subscribe", varargs...)
+	ret0, _ := ret[0].(Subscriber)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Subscribe indicates an expected call of Subscribe.
+func (mr *MockStateMockRecorder) Subscribe(name, subscriber interface{}, filters ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{name, subscriber}, filters...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockState)(nil).Subscribe), varargs...)
+}
+
 // Verify mocks base method.
 func (m *MockState) Verify() error {
 	m.ctrl.T.Helper()
@@ -248,20 +244,6 @@ func (m *MockState) Verify() error {
 func (mr *MockStateMockRecorder) Verify() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockState)(nil).Verify))
-}
-
-// Walk mocks base method.
-func (m *MockState) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA256Hash) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Walk", ctx, visitor, startAt)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Walk indicates an expected call of Walk.
-func (mr *MockStateMockRecorder) Walk(ctx, visitor, startAt interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Walk", reflect.TypeOf((*MockState)(nil).Walk), ctx, visitor, startAt)
 }
 
 // WritePayload mocks base method.
@@ -317,7 +299,7 @@ func (m *MockPayloadStore) EXPECT() *MockPayloadStoreMockRecorder {
 }
 
 // isPayloadPresent mocks base method.
-func (m *MockPayloadStore) isPayloadPresent(tx *bbolt.Tx, payloadHash hash.SHA256Hash) bool {
+func (m *MockPayloadStore) isPayloadPresent(tx go_stoabs.ReadTx, payloadHash hash.SHA256Hash) bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "isPayloadPresent", tx, payloadHash)
 	ret0, _ := ret[0].(bool)
@@ -331,7 +313,7 @@ func (mr *MockPayloadStoreMockRecorder) isPayloadPresent(tx, payloadHash interfa
 }
 
 // readPayload mocks base method.
-func (m *MockPayloadStore) readPayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash) []byte {
+func (m *MockPayloadStore) readPayload(tx go_stoabs.ReadTx, payloadHash hash.SHA256Hash) []byte {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "readPayload", tx, payloadHash)
 	ret0, _ := ret[0].([]byte)
@@ -345,7 +327,7 @@ func (mr *MockPayloadStoreMockRecorder) readPayload(tx, payloadHash interface{})
 }
 
 // writePayload mocks base method.
-func (m *MockPayloadStore) writePayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash, data []byte) error {
+func (m *MockPayloadStore) writePayload(tx go_stoabs.WriteTx, payloadHash hash.SHA256Hash, data []byte) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "writePayload", tx, payloadHash, data)
 	ret0, _ := ret[0].(error)

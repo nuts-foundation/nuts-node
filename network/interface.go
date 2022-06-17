@@ -29,9 +29,8 @@ const MaxReprocessBufferSize = 1000000
 
 // Transactions is the interface that defines the API for creating, reading and subscribing to Nuts Network transactions.
 type Transactions interface {
-	// Subscribe makes a subscription for the specified transaction type. The receiver is called when a transaction
-	// is received for the specified event and payload type.
-	Subscribe(eventType EventType, payloadType string, receiver Receiver)
+	// Subscribe TODO
+	Subscribe(name string, subscriber dag.SubscriberFn, filters ...dag.SubscriberOption) error
 	// GetTransactionPayload retrieves the transaction Payload for the given transaction. If the transaction or Payload is not found
 	// nil is returned.
 	GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte, error)
@@ -41,8 +40,6 @@ type Transactions interface {
 	CreateTransaction(spec Template) (dag.Transaction, error)
 	// ListTransactions returns all transactions known to this Network instance.
 	ListTransactions() ([]dag.Transaction, error)
-	// Walk walks the DAG starting at the root, calling `visitor` for every transaction.
-	Walk(visitor dag.Visitor) error
 	// PeerDiagnostics returns a map containing diagnostic information of the node's peers. The key contains the remote peer's ID.
 	PeerDiagnostics() map[transport.PeerID]transport.Diagnostics
 	// Reprocess walks the DAG and publishes all transactions matching the contentType via Nats

@@ -95,9 +95,6 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
-	// RenderGraph request
-	RenderGraph(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
-
 	// GetPeerDiagnostics request
 	GetPeerDiagnostics(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -112,18 +109,6 @@ type ClientInterface interface {
 
 	// GetTransactionPayload request
 	GetTransactionPayload(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error)
-}
-
-func (c *Client) RenderGraph(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRenderGraphRequest(c.Server)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
 }
 
 func (c *Client) GetPeerDiagnostics(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -184,33 +169,6 @@ func (c *Client) GetTransactionPayload(ctx context.Context, ref string, reqEdito
 		return nil, err
 	}
 	return c.Client.Do(req)
-}
-
-// NewRenderGraphRequest generates requests for RenderGraph
-func NewRenderGraphRequest(server string) (*http.Request, error) {
-	var err error
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/internal/network/v1/diagnostics/graph")
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
 }
 
 // NewGetPeerDiagnosticsRequest generates requests for GetPeerDiagnostics
@@ -425,9 +383,6 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// RenderGraph request
-	RenderGraphWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*RenderGraphResponse, error)
-
 	// GetPeerDiagnostics request
 	GetPeerDiagnosticsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetPeerDiagnosticsResponse, error)
 
@@ -442,27 +397,6 @@ type ClientWithResponsesInterface interface {
 
 	// GetTransactionPayload request
 	GetTransactionPayloadWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*GetTransactionPayloadResponse, error)
-}
-
-type RenderGraphResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-}
-
-// Status returns HTTPResponse.Status
-func (r RenderGraphResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r RenderGraphResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
 }
 
 type GetPeerDiagnosticsResponse struct {
@@ -574,15 +508,6 @@ func (r GetTransactionPayloadResponse) StatusCode() int {
 	return 0
 }
 
-// RenderGraphWithResponse request returning *RenderGraphResponse
-func (c *ClientWithResponses) RenderGraphWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*RenderGraphResponse, error) {
-	rsp, err := c.RenderGraph(ctx, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseRenderGraphResponse(rsp)
-}
-
 // GetPeerDiagnosticsWithResponse request returning *GetPeerDiagnosticsResponse
 func (c *ClientWithResponses) GetPeerDiagnosticsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetPeerDiagnosticsResponse, error) {
 	rsp, err := c.GetPeerDiagnostics(ctx, reqEditors...)
@@ -626,22 +551,6 @@ func (c *ClientWithResponses) GetTransactionPayloadWithResponse(ctx context.Cont
 		return nil, err
 	}
 	return ParseGetTransactionPayloadResponse(rsp)
-}
-
-// ParseRenderGraphResponse parses an HTTP response from a RenderGraphWithResponse call
-func ParseRenderGraphResponse(rsp *http.Response) (*RenderGraphResponse, error) {
-	bodyBytes, err := ioutil.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &RenderGraphResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	return response, nil
 }
 
 // ParseGetPeerDiagnosticsResponse parses an HTTP response from a GetPeerDiagnosticsWithResponse call
@@ -748,9 +657,6 @@ func ParseGetTransactionPayloadResponse(rsp *http.Response) (*GetTransactionPayl
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Visualizes the DAG as a graph
-	// (GET /internal/network/v1/diagnostics/graph)
-	RenderGraph(ctx echo.Context) error
 	// Gets diagnostic information about the node's peers
 	// (GET /internal/network/v1/diagnostics/peers)
 	GetPeerDiagnostics(ctx echo.Context) error
@@ -771,15 +677,6 @@ type ServerInterface interface {
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
-}
-
-// RenderGraph converts echo context to params.
-func (w *ServerInterfaceWrapper) RenderGraph(ctx echo.Context) error {
-	var err error
-
-	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.RenderGraph(ctx)
-	return err
 }
 
 // GetPeerDiagnostics converts echo context to params.
@@ -890,10 +787,6 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 
 	// PATCH: This alteration wraps the call to the implementation in a function that sets the "OperationId" context parameter,
 	// so it can be used in error reporting middleware.
-	router.GET(baseURL+"/internal/network/v1/diagnostics/graph", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("RenderGraph", context)
-		return wrapper.RenderGraph(context)
-	})
 	router.GET(baseURL+"/internal/network/v1/diagnostics/peers", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("GetPeerDiagnostics", context)
 		return wrapper.GetPeerDiagnostics(context)

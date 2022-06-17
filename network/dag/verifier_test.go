@@ -120,7 +120,7 @@ func TestTransactionSignatureVerifier(t *testing.T) {
 		err := NewTransactionSignatureVerifier(nil)(nil, transaction)
 		assert.EqualError(t, err, "failed to build public key: invalid curve algorithm P-invalid")
 	})
-	t.Run("unable to resolve key by hash", func(t *testing.T) {
+	t.Run("unable to resolve key by Hash", func(t *testing.T) {
 		d := CreateSignedTestTransaction(1, time.Now(), nil, "foo/bar", false)
 		ctrl := gomock.NewController(t)
 		keyResolver := types.NewMockKeyResolver(ctrl)

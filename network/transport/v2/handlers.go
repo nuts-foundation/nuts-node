@@ -361,7 +361,7 @@ func (p *protocol) handleState(peer transport.Peer, envelope *Envelope) error {
 		return nil
 	}
 
-	iblt, _ := p.state.IBLT(ctx, msg.LC)
+	iblt, _ := p.state.IBLT(msg.LC)
 
 	return p.sender.sendTransactionSet(peer.ID, cid, msg.LC, lc, iblt)
 }
@@ -396,7 +396,7 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope)
 
 	// get iblt difference
 	ctx := context.Background()
-	iblt, _ := p.state.IBLT(ctx, minLC)
+	iblt, _ := p.state.IBLT(minLC)
 	err = iblt.Subtract(peerIblt)
 	if err != nil {
 		return err

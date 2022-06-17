@@ -19,43 +19,44 @@
 package dag
 
 import (
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"go.etcd.io/bbolt"
 )
 
 // payloadsBucketName is the name of the Bolt bucket that holds the payloads of the transactions.
 const payloadsBucketName = "payloads"
 
 // NewBBoltPayloadStore creates a etcd/bbolt backed payload store using the given database.
-func NewBBoltPayloadStore(db *bbolt.DB) PayloadStore {
+func NewBBoltPayloadStore(db stoabs.KVStore) PayloadStore {
 	return &bboltPayloadStore{db: db}
 }
 
 type bboltPayloadStore struct {
-	db *bbolt.DB
+	db stoabs.KVStore
 }
 
-func (store bboltPayloadStore) isPayloadPresent(tx *bbolt.Tx, payloadHash hash.SHA256Hash) bool {
-	bucket := tx.Bucket([]byte(payloadsBucketName))
-	if bucket == nil {
+func (store bboltPayloadStore) isPayloadPresent(tx stoabs.ReadTx, payloadHash hash.SHA256Hash) bool {
+	reader, _ := tx.GetShelfReader(payloadsBucketName)
+	if reader == nil {
 		return false
 	}
-	data := bucket.Get(payloadHash.Slice())
+	data, _ := reader.Get(stoabs.BytesKey(payloadHash.Slice()))
 	return len(data) > 0
 }
 
-func (store bboltPayloadStore) readPayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash) []byte {
-	bucket := tx.Bucket([]byte(payloadsBucketName))
-	if bucket == nil {
+func (store bboltPayloadStore) readPayload(tx stoabs.ReadTx, payloadHash hash.SHA256Hash) []byte {
+	reader, _ := tx.GetShelfReader(payloadsBucketName)
+	if reader == nil {
 		return nil
 	}
-	return bucket.Get(payloadHash.Slice())
+	data, _ := reader.Get(stoabs.BytesKey(payloadHash.Slice()))
+	return data
 }
 
-func (store bboltPayloadStore) writePayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash, data []byte) error {
-	payloads, err := tx.CreateBucketIfNotExists([]byte(payloadsBucketName))
+func (store bboltPayloadStore) writePayload(tx stoabs.WriteTx, payloadHash hash.SHA256Hash, data []byte) error {
+	payloads, err := tx.GetShelfWriter(payloadsBucketName)
 	if err != nil {
 		return err
 	}
-	return payloads.Put(payloadHash.Slice(), data)
+	return payloads.Put(stoabs.BytesKey(payloadHash.Slice()), data)
 }

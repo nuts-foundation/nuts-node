@@ -25,11 +25,12 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/storage"
 	"math"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/storage"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/go-did/did"
@@ -116,26 +117,6 @@ func TestNetwork_GetTransactionPayload(t *testing.T) {
 		payload, err := cxt.network.GetTransactionPayload(transaction.Ref())
 		assert.NoError(t, err)
 		assert.Nil(t, payload)
-	})
-}
-
-func TestNetwork_Subscribe(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	t.Run("ok", func(t *testing.T) {
-		cxt := createNetwork(t, ctrl)
-		var expectedReceiver Receiver
-		expectedReceiver = func(transaction dag.Transaction, payload []byte) error { return errors.New("custom receiver") }
-
-		cxt.network.Subscribe(TransactionAddedEvent, "some-type", expectedReceiver)
-
-		subs, ok := cxt.network.subscribers[TransactionAddedEvent]
-		if !assert.True(t, ok) {
-			return
-		}
-		receivers, ok := subs["some-type"]
-		assert.True(t, ok)
-		assert.Equal(t, expectedReceiver(nil, nil), receivers(nil, nil))
 	})
 }
 

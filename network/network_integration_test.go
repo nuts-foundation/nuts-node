@@ -23,7 +23,6 @@ import (
 	"crypto"
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/storage"
 	"hash/crc32"
 	"math"
 	"math/rand"
@@ -31,6 +30,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/storage"
 
 	"github.com/nats-io/nats.go"
 	ssi "github.com/nuts-foundation/go-did"
@@ -878,13 +879,18 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 	if err := instance.Start(); err != nil {
 		t.Fatal(err)
 	}
-	instance.Subscribe(TransactionPayloadAddedEvent, payloadType, func(transaction dag.Transaction, payload []byte) error {
+	err := instance.Subscribe(t.Name(), func(job dag.Job) (bool, error) {
 		mutex.Lock()
 		defer mutex.Unlock()
-		log.Logger().Infof("transaction %s arrived at %s", string(payload), name)
-		receivedTransactions[name] = append(receivedTransactions[name], transaction)
-		return nil
-	})
+		log.Logger().Infof("transaction %s arrived at %s", string(job.Payload), name)
+		receivedTransactions[name] = append(receivedTransactions[name], job.Transaction)
+		return true, nil
+	}, dag.Unsafe(), dag.WithSelectionFilter(func(job dag.Job) bool {
+		return job.Type == "transaction"
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
 	result := node{
 		network:        instance,
 		eventPublisher: eventPublisher,

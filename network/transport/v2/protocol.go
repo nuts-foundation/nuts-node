@@ -23,17 +23,13 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"os"
-	"path"
-	"path/filepath"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport/v2/gossip"
-	"go.etcd.io/bbolt"
-
+	"github.com/nuts-foundation/nuts-node/storage"
 	grpcLib "google.golang.org/grpc"
 
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -79,6 +75,7 @@ func New(
 	docResolver vdr.DocResolver,
 	decrypter crypto.Decrypter,
 	diagnosticsProvider func() transport.Diagnostics,
+	storageProvider storage.Provider,
 ) transport.Protocol {
 	ctx, cancel := context.WithCancel(context.Background())
 	p := &protocol{
@@ -89,6 +86,7 @@ func New(
 		nodeDIDResolver: nodeDIDResolver,
 		decrypter:       decrypter,
 		docResolver:     docResolver,
+		storageProvider: storageProvider,
 	}
 	p.sender = p
 	p.diagnosticsMan = newPeerDiagnosticsManager(diagnosticsProvider, p.sender.broadcastDiagnostics)
@@ -101,7 +99,6 @@ type protocol struct {
 	state             dag.State
 	ctx               context.Context
 	docResolver       vdr.DocResolver
-	payloadScheduler  Scheduler
 	decrypter         crypto.Decrypter
 	connectionList    grpc.ConnectionList
 	nodeDIDResolver   transport.NodeDIDResolver
@@ -111,6 +108,8 @@ type protocol struct {
 	diagnosticsMan    *peerDiagnosticsManager
 	sender            messageSender
 	listHandler       *transactionListHandler
+	payloadScheduler  dag.Subscriber
+	storageProvider   storage.Provider
 }
 
 func (p protocol) CreateClientStream(outgoingContext context.Context, grpcConn grpcLib.ClientConnInterface) (grpcLib.ClientStream, error) {
@@ -141,27 +140,37 @@ func (p protocol) UnwrapMessage(envelope interface{}) interface{} {
 }
 
 func (p *protocol) Configure(_ transport.PeerID) error {
-	dbFile := path.Join(p.config.Datadir, "network", "payload_jobs.db")
-	if err := os.MkdirAll(filepath.Dir(dbFile), os.ModePerm); err != nil {
-		return fmt.Errorf("unable to setup database: %w", err)
+	nodeDID, err := p.nodeDIDResolver.Resolve()
+	if err != nil {
+		log.Logger().WithError(err).Error("Failed to resolve node DID")
 	}
 
-	db, err := bbolt.Open(dbFile, 0600, bbolt.DefaultOptions)
-	if err != nil {
-		return fmt.Errorf("unable to create BBolt database: %w", err)
-	}
-
-	p.payloadScheduler, err = NewPayloadScheduler(db, p.config.PayloadRetryDelay, p.handlePrivateTxRetry)
-	if err != nil {
-		return fmt.Errorf("failed to setup payload scheduler: %w", err)
+	if nodeDID.Empty() {
+		log.Logger().Warn("Not starting the payload scheduler as node DID is not set")
+	} else {
+		// TODO error
+		store, _ := p.storageProvider.GetKVStore("data")
+		p.payloadScheduler, _ = p.state.Subscribe("private", p.handlePrivateTxRetry,
+			dag.WithPersistency(store),
+			dag.WithRetryDelay(p.config.PayloadRetryDelay),
+			dag.WithSelectionFilter(func(job dag.Job) bool {
+				// TODO constant
+				return job.Type == "transaction" && job.Transaction.PAL() != nil
+			}))
 	}
 
 	// register gossip part of protocol
 	p.gManager = gossip.NewManager(p.ctx, time.Duration(p.config.GossipInterval)*time.Millisecond)
 	p.gManager.RegisterSender(p.sendGossip)
 
-	// called after DAG is committed
-	p.state.RegisterTransactionObserver(p.gossipTransaction, false)
+	// This subscriber must be unsafe (eg PostCommit), non-durable and only for transaction events not payload events
+	// TODO
+	_, _ = p.state.Subscribe("gossip", p.gossipTransaction,
+		dag.Unsafe(),
+		dag.WithSelectionFilter(func(job dag.Job) bool {
+			// TODO constant
+			return job.Type == "transaction"
+		}))
 
 	return nil
 }
@@ -177,21 +186,6 @@ func (p *protocol) Start() (err error) {
 	p.listHandler = newTransactionListHandler(p.ctx, p.handleTransactionList)
 	p.listHandler.start()
 
-	nodeDID, err := p.nodeDIDResolver.Resolve()
-	if err != nil {
-		log.Logger().WithError(err).Error("Failed to resolve node DID")
-	}
-
-	if nodeDID.Empty() {
-		log.Logger().Warn("Not starting the payload scheduler as node DID is not set")
-	} else {
-		// load old payload query jobs
-		if err = p.payloadScheduler.Run(); err != nil {
-			return fmt.Errorf("failed to start retrying TransactionPayloadQuery: %w", err)
-		}
-
-		p.state.RegisterTransactionObserver(p.handlePrivateTx, true)
-	}
 	return
 }
 
@@ -210,12 +204,12 @@ func (p *protocol) connectionStateCallback(peer transport.Peer, state transport.
 }
 
 // gossipTransaction is called when a transaction is added to the DAG
-func (p *protocol) gossipTransaction(ctx context.Context, tx dag.Transaction) error {
-	if tx != nil { // can happen when payload is written for private TX
-		xor, clock := p.state.XOR(ctx, math.MaxUint32)
-		p.gManager.TransactionRegistered(tx.Ref(), xor, clock)
-	}
-	return nil
+func (p *protocol) gossipTransaction(job dag.Job) (bool, error) {
+	ctx := context.Background()
+	xor, clock := p.state.XOR(ctx, math.MaxUint32)
+	p.gManager.TransactionRegistered(job.Hash, xor, clock)
+
+	return true, nil
 }
 
 func (p *protocol) sendGossip(id transport.PeerID, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) bool {
@@ -228,67 +222,35 @@ func (p *protocol) sendGossip(id transport.PeerID, refs []hash.SHA256Hash, xor h
 	return true
 }
 
-func (p *protocol) handlePrivateTx(_ context.Context, tx dag.Transaction) error {
-	if len(tx.PAL()) == 0 {
-		// not a private tx
-		return nil
-	}
-
-	if err := p.payloadScheduler.Schedule(tx.Ref()); err != nil {
-		// this means the underlying DB is broken
-		log.Logger().Errorf("failed to add payload query retry job: %v", err)
-		return err
-	}
-	return nil
-}
-
-func (p *protocol) handlePrivateTxRetry(hash hash.SHA256Hash) {
-	if err := p.handlePrivateTxRetryErr(hash); err != nil {
-		log.Logger().Errorf("retry of TransactionPayloadQuery failed: %v", err)
-	}
-}
-
-func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
-	tx, err := p.state.GetTransaction(context.Background(), hash)
-	if err != nil {
-		return fmt.Errorf("failed to retrieve transaction (tx=:%s) from the DAG: %w", hash.String(), err)
-	}
-
-	if tx == nil {
-		return fmt.Errorf("failed to find transaction (tx=:%s) in DAG", hash.String())
-	}
-
+func (p *protocol) handlePrivateTxRetry(job dag.Job) (bool, error) {
 	// Sanity check: if we have the payload, mark this job as finished
-	payload, err := p.state.ReadPayload(context.Background(), tx.PayloadHash())
+	payload, err := p.state.ReadPayload(context.Background(), job.Transaction.PayloadHash())
 	if err != nil {
-		return fmt.Errorf("unable to read payload (tx=%s): %w", hash, err)
+		return false, fmt.Errorf("unable to read payload (tx=%s): %w", job.Hash, err)
 	}
 
 	if payload != nil {
 		// stop retrying
-		log.Logger().Infof("Transaction payload already present, not querying (tx=%s)", hash)
-		return p.payloadScheduler.Finished(hash)
+		log.Logger().Infof("Transaction payload already present, not querying (tx=%s)", job.Hash)
+		return true, nil
 	}
 
-	if len(tx.PAL()) == 0 {
-		log.Logger().Infof("Transaction does not have a PAL, not querying (tx=%s)", hash)
-		return p.payloadScheduler.Finished(hash)
+	if len(job.Transaction.PAL()) == 0 {
+		log.Logger().Infof("Transaction does not have a PAL, not querying (tx=%s)", job.Hash)
+		return true, nil
 	}
 
-	epal := dag.EncryptedPAL(tx.PAL())
+	epal := dag.EncryptedPAL(job.Transaction.PAL())
 
 	pal, err := p.decryptPAL(epal)
 	if err != nil {
-		return fmt.Errorf("failed to decrypt PAL header (tx=%s): %w", tx.Ref(), err)
+		return false, fmt.Errorf("failed to decrypt PAL header (tx=%s): %w", job.Hash, err)
 	}
 
 	// We weren't able to decrypt the PAL, so it wasn't meant for us
 	if pal == nil {
 		// stop retrying
-		if err = p.payloadScheduler.Finished(hash); err != nil {
-			return err
-		}
-		return nil
+		return true, nil
 	}
 
 	// Broadcast query to all TX participants we've got a connection to
@@ -298,12 +260,12 @@ func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
 		if conn != nil {
 			err = conn.Send(p, &Envelope{Message: &Envelope_TransactionPayloadQuery{
 				TransactionPayloadQuery: &TransactionPayloadQuery{
-					TransactionRef: tx.Ref().Slice(),
+					TransactionRef: job.Hash.Slice(),
 				},
 			}})
 
 			if err != nil {
-				log.Logger().Warnf("Failed to send TransactionPayloadQuery msg to private TX participant (tx=%s, PAL=%v): %v", hash.String(), pal, err)
+				log.Logger().Warnf("Failed to send TransactionPayloadQuery msg to private TX participant (tx=%s, PAL=%v): %v", job.Hash.String(), pal, err)
 			} else {
 				sent = true
 			}
@@ -311,17 +273,13 @@ func (p *protocol) handlePrivateTxRetryErr(hash hash.SHA256Hash) error {
 	}
 
 	if !sent {
-		return fmt.Errorf("no connection to any of the participants (tx=%s, PAL=%v)", hash.String(), pal)
+		return false, fmt.Errorf("no connection to any of the participants (tx=%s, PAL=%v)", job.Hash.String(), pal)
 	}
 
-	return nil
+	return false, nil
 }
 
 func (p *protocol) Stop() {
-	if p.payloadScheduler != nil {
-		_ = p.payloadScheduler.Close()
-	}
-
 	if p.cancel != nil {
 		p.cancel()
 	}
@@ -329,14 +287,15 @@ func (p *protocol) Stop() {
 
 func (p protocol) Diagnostics() []core.DiagnosticResult {
 	// Feels weird to ignore the error here but diagnostics shouldn't fail
-	failedJobs, err := p.payloadScheduler.GetFailedJobs()
-	if err != nil {
-		log.Logger().Errorf("failed to get failed jobs: %v", err)
-	}
+	// TODO
+	//failedJobs, err := p.payloadScheduler.GetFailedJobs()
+	//if err != nil {
+	//	log.Logger().Errorf("failed to get failed jobs: %v", err)
+	//}
 
 	return []core.DiagnosticResult{&core.GenericDiagnosticResult{
 		Title:   "payload_fetch_dlq",
-		Outcome: failedJobs,
+		Outcome: 0,
 	}}
 }
 

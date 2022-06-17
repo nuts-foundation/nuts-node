@@ -21,7 +21,6 @@ package v1
 import (
 	"net/http"
 
-	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 
 	"github.com/labstack/echo/v4"
@@ -104,17 +103,6 @@ func (a Wrapper) GetPeerDiagnostics(ctx echo.Context) error {
 		result[k] = PeerDiagnostics(v)
 	}
 	return ctx.JSON(http.StatusOK, result)
-}
-
-// RenderGraph visualizes the DAG as Graphviz/dot graph
-func (a Wrapper) RenderGraph(ctx echo.Context) error {
-	visitor := dag.NewDotGraphVisitor(dag.ShowShortRefLabelStyle)
-	err := a.Service.Walk(visitor.Accept)
-	if err != nil {
-		return err
-	}
-	ctx.Response().Header().Set(echo.HeaderContentType, "text/vnd.graphviz")
-	return ctx.String(http.StatusOK, visitor.Render())
 }
 
 func (a Wrapper) Reprocess(ctx echo.Context, params ReprocessParams) error {

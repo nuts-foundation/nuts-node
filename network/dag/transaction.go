@@ -48,7 +48,7 @@ const (
 var allowedAlgos = []jwa.SignatureAlgorithm{jwa.ES256, jwa.ES384, jwa.ES512, jwa.PS256, jwa.PS384, jwa.PS512}
 
 var errInvalidPayloadType = errors.New("payload type must be formatted as MIME type")
-var errInvalidPrevs = errors.New("prevs contains an empty hash")
+var errInvalidPrevs = errors.New("prevs contains an empty Hash")
 var unableToParseTransactionErrFmt = "unable to parse transaction: %w"
 var transactionNotValidErrFmt = "transaction validation failed: %w"
 var missingHeaderErrFmt = "missing %s header"
@@ -65,9 +65,9 @@ type UnsignedTransaction interface {
 }
 
 // PayloadReferencer allows implementers to reference to a payload.
-// It provides an uniform interface to payload properties such as the type and the hash.
+// It provides an uniform interface to payload properties such as the type and the Hash.
 type PayloadReferencer interface {
-	// PayloadHash returns the hash of the payload of the transaction.
+	// PayloadHash returns the Hash of the payload of the transaction.
 	PayloadHash() hash.SHA256Hash
 
 	// PayloadType returns the MIME-formatted type of the payload. It must contain the context and specific type of the
@@ -98,7 +98,7 @@ type Signable interface {
 
 // Referencable contains the Ref function which allows implementors to return a unique reference
 type Referencable interface {
-	// Ref returns a unique sha256 hash of the implementing object.
+	// Ref returns a unique sha256 Hash of the implementing object.
 	Ref() hash.SHA256Hash
 }
 

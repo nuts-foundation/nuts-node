@@ -26,9 +26,9 @@ gen-mocks:
 	mockgen -destination=network/transport/grpc/connection_mock.go -package=grpc -source=network/transport/grpc/connection.go
 	mockgen -destination=network/transport/grpc/interface_mock.go -package=grpc -source=network/transport/grpc/interface.go
 	mockgen -destination=network/transport/v2/protocol_grpc_mock.pb.go -package=v2 -source=network/transport/v2/protocol_grpc.pb.go
-	mockgen -destination=network/transport/v2/scheduler_mock.go -package=v2 -source=network/transport/v2/scheduler.go
 	mockgen -destination=network/transport/v2/senders_mock.go -package=v2 -source=network/transport/v2/senders.go
 	mockgen -destination=network/transport/v2/gossip/mock.go -package=gossip -source=network/transport/v2/gossip/manager.go
+	mockgen -destination=network/dag/subscriber_mock.go -package=dag -source=network/dag/subscriber.go
 	mockgen -destination=network/dag/mock.go -package=dag -source=network/dag/interface.go State
 	mockgen -destination=vcr/mock.go -package=vcr -source=vcr/interface.go
 	mockgen -destination=vcr/holder/mock.go -package=holder -source=vcr/holder/interface.go

@@ -1,6 +1,6 @@
 /*
  * Nuts node
- * Copyright (C) 2021 Nuts community
+ * Copyright (C) 2022 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
  *
  */
 
-package v2
+package dag
 
 import (
 	"encoding/binary"
@@ -49,12 +49,12 @@ func TestNewPayloadScheduler(t *testing.T) {
 			_ = db.Close()
 		})
 
-		scheduler, err := NewPayloadScheduler(db, 0, dummyCallback)
+		scheduler, err := NewSubscriber(db, 0, dummyCallback)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, scheduler)
-		assert.NotNil(t, scheduler.(*payloadScheduler).retryDelay)
-		assert.NotNil(t, scheduler.(*payloadScheduler).callback)
+		assert.NotNil(t, scheduler.(*scheduler).retryDelay)
+		assert.NotNil(t, scheduler.(*scheduler).callback)
 	})
 }
 
@@ -78,7 +78,7 @@ func (cc *callbackCounter) read() int {
 	return cc.count
 }
 
-func newTestPayloadScheduler(t *testing.T, callback jobCallBack) *payloadScheduler {
+func newTestPayloadScheduler(t *testing.T, callback jobCallBack) *scheduler {
 	testDir := io.TestDirectory(t)
 	config := Config{Datadir: testDir}
 
@@ -92,12 +92,12 @@ func newTestPayloadScheduler(t *testing.T, callback jobCallBack) *payloadSchedul
 		_ = db.Close()
 	})
 
-	scheduler, err := NewPayloadScheduler(db, config.PayloadRetryDelay, callback)
+	scheduler, err := NewSubscriber(db, config.PayloadRetryDelay, callback)
 	assert.NoError(t, err)
 
-	scheduler.(*payloadScheduler).retryDelay = 10 * time.Second
+	scheduler.(*scheduler).retryDelay = 10 * time.Second
 
-	return scheduler.(*payloadScheduler)
+	return scheduler.(*scheduler)
 }
 
 func TestPayloadScheduler_Add(t *testing.T) {

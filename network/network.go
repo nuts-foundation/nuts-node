@@ -24,12 +24,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/storage"
 	"math"
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/nuts-node/storage"
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
@@ -81,12 +82,6 @@ type Network struct {
 	storeProvider       storage.Provider
 }
 
-// Walk walks the DAG starting at the root, passing every transaction to `visitor`.
-func (n *Network) Walk(visitor dag.Visitor) error {
-	ctx := context.Background()
-	return n.state.Walk(ctx, visitor, hash.EmptyHash())
-}
-
 // NewNetworkInstance creates a new Network engine instance.
 func NewNetworkInstance(
 	config Config,
@@ -115,10 +110,11 @@ func NewNetworkInstance(
 // Configure configures the Network subsystem
 func (n *Network) Configure(config core.ServerConfig) error {
 	var err error
-	if n.state, err = dag.NewState(config.Datadir, dag.NewSigningTimeVerifier(), dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver)); err != nil {
+	dagStore, err := n.storeProvider.GetKVStore("data")
+	if err != nil {
 		return fmt.Errorf("failed to configure state: %w", err)
 	}
-
+	n.state = dag.NewState(dagStore, dag.NewSigningTimeVerifier(), dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver))
 	n.strictMode = config.Strictmode
 	n.peerID = transport.PeerID(uuid.New().String())
 
@@ -161,7 +157,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	var candidateProtocols []transport.Protocol
 	if n.protocols == nil {
 		candidateProtocols = []transport.Protocol{
-			v2.New(v2Cfg, n.nodeDIDResolver, n.state, n.didDocumentResolver, n.decrypter, n.collectDiagnostics),
+			v2.New(v2Cfg, n.nodeDIDResolver, n.state, n.didDocumentResolver, n.decrypter, n.collectDiagnostics, n.storeProvider),
 		}
 	} else {
 		// Only set protocols if not already set: improves testability
@@ -215,18 +211,12 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		)
 	}
 
-	// register callback from DAG to other engines, with payload only.
-	n.state.RegisterPayloadObserver(n.emitEvents, true)
-
-	// register observers to publish to other engines. Non-transactional, so will be published to other engines at most once.
-	n.state.RegisterTransactionObserver(func(_ context.Context, transaction dag.Transaction) error {
-		n.publish(TransactionAddedEvent, transaction, nil)
-		return nil
-	}, false)
-	n.state.RegisterPayloadObserver(func(transaction dag.Transaction, payload []byte) error {
-		n.publish(TransactionPayloadAddedEvent, transaction, payload)
-		return nil
-	}, false)
+	// publish DAG changes to Nats
+	if _, err := n.state.Subscribe("nats", n.emitEvents, dag.WithPersistency(dagStore), dag.WithSelectionFilter(func(job dag.Job) bool {
+		return job.Type == "payload"
+	})); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -236,27 +226,26 @@ func (n *Network) Configure(config core.ServerConfig) error {
 // If the transaction fails for some reason (storage) then the event is still emitted. This is ok because the transaction was already validated.
 // Most likely the transaction will be added at a later stage and another event will be emitted.
 // It only emits events when both the payload and transaction are present. This is the case from both state.Add and from state.WritePayload.
-func (n *Network) emitEvents(tx dag.Transaction, payload []byte) error {
-	if tx != nil && payload != nil {
-		_, js, err := n.eventPublisher.Pool().Acquire(context.Background())
-		if err != nil {
-			return fmt.Errorf(errEventFailedMsg, err)
-		}
-
-		twp := events.TransactionWithPayload{
-			Transaction: tx,
-			Payload:     payload,
-		}
-		twpData, err := json.Marshal(twp)
-		if err != nil {
-			return fmt.Errorf(errEventFailedMsg, err)
-		}
-
-		if _, err = js.PublishAsync(events.TransactionsSubject, twpData); err != nil {
-			return fmt.Errorf(errEventFailedMsg, err)
-		}
+func (n *Network) emitEvents(job dag.Job) (bool, error) {
+	_, js, err := n.eventPublisher.Pool().Acquire(context.Background())
+	if err != nil {
+		return false, fmt.Errorf(errEventFailedMsg, err)
 	}
-	return nil
+
+	twp := events.TransactionWithPayload{
+		Transaction: job.Transaction,
+		Payload:     job.Payload,
+	}
+	twpData, err := json.Marshal(twp)
+	if err != nil {
+		return false, fmt.Errorf(errEventFailedMsg, err)
+	}
+
+	if _, err = js.PublishAsync(events.TransactionsSubject, twpData); err != nil {
+		return false, fmt.Errorf(errEventFailedMsg, err)
+	}
+
+	return true, nil
 }
 
 func loadCertificateAndTrustStore(moduleConfig Config) (tls.Certificate, *core.TrustStore, error) {
@@ -391,36 +380,9 @@ func (n *Network) validateNodeDID(nodeDID did.DID) error {
 
 // Subscribe makes a subscription for the specified transaction type. The receiver is called when a transaction
 // is received for the specified event and payload type.
-func (n *Network) Subscribe(eventType EventType, payloadType string, receiver Receiver) {
-	if _, ok := n.subscribers[eventType]; !ok {
-		n.subscribers[eventType] = make(map[string]Receiver, 0)
-	}
-	oldSubscriber := n.subscribers[eventType][payloadType]
-	n.subscribers[eventType][payloadType] = func(transaction dag.Transaction, payload []byte) error {
-		// Chain subscribers in case there's more than 1
-		if oldSubscriber != nil {
-			if err := oldSubscriber(transaction, payload); err != nil {
-				return err
-			}
-		}
-		return receiver(transaction, payload)
-	}
-}
-
-func (n *Network) publish(eventType EventType, transaction dag.Transaction, payload []byte) {
-	subs := n.subscribers[eventType]
-	if subs == nil {
-		return
-	}
-	for _, payloadType := range []string{transaction.PayloadType(), AnyPayloadType} {
-		receiver := subs[payloadType]
-		if receiver == nil {
-			continue
-		}
-		if err := receiver(transaction, payload); err != nil {
-			log.Logger().Errorf("Transaction subscriber returned an error (ref=%s,type=%s): %v", transaction.Ref(), transaction.PayloadType(), err)
-		}
-	}
+func (n *Network) Subscribe(name string, subscriber dag.SubscriberFn, options ...dag.SubscriberOption) error {
+	_, err := n.state.Subscribe(name, subscriber, options...)
+	return err
 }
 
 // GetTransaction retrieves the transaction for the given reference. If the transaction is not known, an error is returned.

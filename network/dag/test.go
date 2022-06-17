@@ -26,14 +26,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/test/io"
-	"go.etcd.io/bbolt"
-
+	"github.com/nuts-foundation/go-stoabs"
+	bbolt2 "github.com/nuts-foundation/go-stoabs/bbolt"
 	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/test/io"
+	"go.etcd.io/bbolt"
 )
 
-// CreateTestTransactionWithJWK creates a transaction with the given num as payload hash and signs it with a random EC key.
+// CreateTestTransactionWithJWK creates a transaction with the given num as payload Hash and signs it with a random EC key.
 // The JWK is attached, rather than referred to using the kid.
 func CreateTestTransactionWithJWK(num uint32, prevs ...Transaction) Transaction {
 	return CreateSignedTestTransaction(num, time.Now(), nil, "application/did+json", true, prevs...)
@@ -56,7 +57,7 @@ func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, pal [
 
 }
 
-// CreateTestTransactionEx creates a transaction with the given payload hash and signs it with a random EC key.
+// CreateTestTransactionEx creates a transaction with the given payload Hash and signs it with a random EC key.
 func CreateTestTransactionEx(num uint32, payloadHash hash.SHA256Hash, participants EncryptedPAL, prevs ...Transaction) (Transaction, string, crypto.PublicKey) {
 	lamportClock := calculateLamportClock(prevs)
 	unsignedTransaction, _ := NewTransaction(payloadHash, "application/did+json", prevHashes(prevs), participants, lamportClock)
@@ -69,7 +70,7 @@ func CreateTestTransactionEx(num uint32, payloadHash hash.SHA256Hash, participan
 	return signedTransaction, kid, signer.Public()
 }
 
-// CreateTestTransaction creates a transaction with the given num as payload hash and signs it with a random EC key.
+// CreateTestTransaction creates a transaction with the given num as payload Hash and signs it with a random EC key.
 func CreateTestTransaction(num uint32, prevs ...Transaction) (Transaction, string, crypto.PublicKey) {
 	payload := make([]byte, 4)
 	binary.BigEndian.PutUint32(payload, num)
@@ -113,7 +114,8 @@ func createBBoltDB(testDirectory string) *bbolt.DB {
 
 func CreateDAG(t *testing.T) *bboltDAG {
 	testDirectory := io.TestDirectory(t)
-	return newBBoltDAG(createBBoltDB(testDirectory))
+	kv, _ := bbolt2.CreateBBoltStore(testDirectory)
+	return newBBoltDAG(kv)
 }
 
 // addTx is a helper to add transactions to the DAG. It creates an Update bbolt TX and panics the test on error
@@ -126,16 +128,7 @@ func addTx(t *testing.T, graph *bboltDAG, transactions ...Transaction) {
 
 // addTx is a helper to add transactions to the DAG. It creates an Update bbolt TX and returns the error
 func addTxErr(graph *bboltDAG, transactions ...Transaction) error {
-	return graph.db.Update(func(tx *bbolt.Tx) error {
+	return graph.db.Write(func(tx stoabs.WriteTx) error {
 		return graph.add(tx, transactions...)
 	})
-}
-
-func writePayload(t *testing.T, payloadStore *bboltPayloadStore, payloadHash hash.SHA256Hash, payload []byte) {
-	err := payloadStore.db.Update(func(tx *bbolt.Tx) error {
-		return payloadStore.writePayload(tx, payloadHash, payload)
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
 }
