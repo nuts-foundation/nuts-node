@@ -190,6 +190,7 @@ func TestCmd_Reprocess(t *testing.T) {
 		s := httptest.NewServer(handler)
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")
+		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 		core.NewServerConfig().Load(cmd)
 		defer s.Close()
 		cmd.SetArgs([]string{"reprocess", "application/did+json"})

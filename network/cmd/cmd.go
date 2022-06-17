@@ -204,7 +204,11 @@ func reprocessCommand() *cobra.Command {
 		Short: "Reprocess all transactions with the give contentType (ex: application/did+json)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := httpClient(core.NewClientConfig(cmd.Flags())).Reprocess(args[0])
+			clientConfig, err := core.NewClientConfigForCommand(cmd)
+			if err != nil {
+				return err
+			}
+			err = httpClient(clientConfig).Reprocess(args[0])
 			if err != nil {
 				// prints help on 400
 				return err
