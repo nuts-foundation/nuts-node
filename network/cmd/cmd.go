@@ -19,6 +19,7 @@
 package cmd
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -89,7 +90,7 @@ func payloadCommand() *cobra.Command {
 			}
 			data, err := httpClient(clientConfig).GetTransactionPayload(hash)
 			if err != nil {
-				return err
+				return fmt.Errorf("unable to get transaction payload: %w", err)
 			}
 			if data == nil {
 				cmd.PrintErrf("Transaction or contents not found: %s", hash)
@@ -117,7 +118,7 @@ func getCommand() *cobra.Command {
 			}
 			transaction, err := httpClient(clientConfig).GetTransaction(hash)
 			if err != nil {
-				return err
+				return fmt.Errorf("unable to get transaction: %w", err)
 			}
 			if transaction == nil {
 				cmd.PrintErrf("Transaction not found: %s", hash)
@@ -148,7 +149,7 @@ func listCommand() *cobra.Command {
 			}
 			transactions, err := httpClient(clientConfig).ListTransactions()
 			if err != nil {
-				return err
+				return fmt.Errorf("unable to list transactions: %w", err)
 			}
 			const format = "%-65s %-40s %-20s\n"
 			cmd.Printf(format, "Hashes", "Timestamp", "Type")
@@ -174,7 +175,7 @@ func peersCommand() *cobra.Command {
 			}
 			peers, err := httpClient(clientConfig).GetPeerDiagnostics()
 			if err != nil {
-				return err
+				return fmt.Errorf("unable to get peer diagnostics: %w", err)
 			}
 
 			sortedPeers := make([]string, 0, len(peers))
@@ -211,7 +212,7 @@ func reprocessCommand() *cobra.Command {
 			err = httpClient(clientConfig).Reprocess(args[0])
 			if err != nil {
 				// prints help on 400
-				return err
+				return fmt.Errorf("unable to reprocess transactions: %w", err)
 			}
 			cmd.Printf("Reprocessing transactions with contentType: %s\n", args[0])
 			return nil

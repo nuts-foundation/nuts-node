@@ -117,3 +117,34 @@ func Test_loadConfigIntoStruct(t *testing.T) {
 		assert.Equal(t, []string{"a", "b", "c", "d"}, target.List)
 	})
 }
+
+func TestLoadConfigMap(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		configMap := koanf.New(defaultDelimiter)
+		assert.NoError(t, LoadConfigMap(configMap, cmd))
+	})
+}
+
+func Test_loadFromFile(t *testing.T) {
+	t.Run("ok - no file path provided", func(t *testing.T) {
+		assert.NoError(t, loadFromFile(koanf.New(defaultDelimiter), ""))
+
+	})
+	t.Run("ok - file exists", func(t *testing.T) {
+		assert.NoError(t, loadFromFile(koanf.New(defaultDelimiter), "test/config/http.yaml"))
+
+	})
+
+	t.Run("ok - default file does not exists", func(t *testing.T) {
+		assert.NoError(t, loadFromFile(koanf.New(defaultDelimiter), defaultConfigFile))
+	})
+
+	t.Run("error - custom file does not exists", func(t *testing.T) {
+		assert.EqualError(t, loadFromFile(koanf.New(defaultDelimiter), "nonexisting-config.yaml"), "unable to load config file: open nonexisting-config.yaml: no such file or directory")
+	})
+
+	t.Run("error - invalid config file contents", func(t *testing.T) {
+		assert.EqualError(t, loadFromFile(koanf.New(defaultDelimiter), "test/config/corrupt.yaml"), "unable to load config file: yaml: line 1: did not find expected ',' or '}'")
+	})
+}

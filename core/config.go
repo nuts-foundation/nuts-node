@@ -21,6 +21,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"github.com/knadh/koanf"
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/env"
@@ -46,8 +47,9 @@ func loadFromFile(configMap *koanf.Koanf, filepath string) error {
 	configFileProvider := file.Provider(filepath)
 	// load file
 	if err := configMap.Load(configFileProvider, yaml.Parser()); err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			return err
+		// return all errors but ignore the missing of the default config file
+		if !errors.Is(err, os.ErrNotExist) || filepath != defaultConfigFile {
+			return fmt.Errorf("unable to load config file: %w", err)
 		}
 	}
 	return nil

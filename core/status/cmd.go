@@ -30,7 +30,7 @@ import (
 
 // Cmd contains sub-commands for the remote client
 func Cmd() *cobra.Command {
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "status",
 		Short: "Shows the status of the Nuts Node.",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -51,5 +51,4 @@ func Cmd() *cobra.Command {
 			return nil
 		},
 	}
-	return cmd
 }

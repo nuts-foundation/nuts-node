@@ -95,7 +95,7 @@ func deleteService() *cobra.Command {
 			client := httpClient(clientConfig)
 			err = client.DeleteEndpointsByType(args[0], args[1])
 			if err != nil {
-				return err
+				return fmt.Errorf("unable to delete service: %w", err)
 			}
 			cmd.Println("Service deleted")
 			return nil

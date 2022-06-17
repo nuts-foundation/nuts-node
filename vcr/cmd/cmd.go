@@ -66,15 +66,15 @@ func trustCmd() *cobra.Command {
 			cType := args[0]
 			issuer := args[1]
 
-			client, err := httpClient(cmd)
+			clientConfig, err := core.NewClientConfigForCommand(cmd)
 			if err != nil {
 				return err
 			}
-			err = client.Trust(cType, issuer)
-
+			err = httpClient(clientConfig).Trust(cType, issuer)
 			if err != nil {
 				return fmt.Errorf("unable to trust issuer: %v", err)
 			}
+
 			cmd.Println(fmt.Sprintf("%s is now trusted as issuer of %s", issuer, cType))
 			return nil
 		},
@@ -90,15 +90,15 @@ func untrustCmd() *cobra.Command {
 			cType := args[0]
 			issuer := args[1]
 
-			client, err := httpClient(cmd)
+			clientConfig, err := core.NewClientConfigForCommand(cmd)
 			if err != nil {
 				return err
 			}
-			err = client.Untrust(cType, issuer)
-
+			err = httpClient(clientConfig).Untrust(cType, issuer)
 			if err != nil {
 				return fmt.Errorf("unable to untrust issuer: %v", err)
 			}
+
 			cmd.Println(fmt.Sprintf("%s is no longer trusted as issuer of %s", issuer, cType))
 			return nil
 		},
@@ -113,11 +113,11 @@ func listTrustedCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cType := args[0]
 
-			client, err := httpClient(cmd)
+			clientConfig, err := core.NewClientConfigForCommand(cmd)
 			if err != nil {
 				return err
 			}
-			issuers, err := client.Trusted(cType)
+			issuers, err := httpClient(clientConfig).Trusted(cType)
 			if err != nil {
 				return fmt.Errorf("unable to get list of trusted issuers: %v", err)
 			}
@@ -136,11 +136,12 @@ func listUntrustedCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cType := args[0]
 
-			client, err := httpClient(cmd)
+			clientConfig, err := core.NewClientConfigForCommand(cmd)
 			if err != nil {
 				return err
 			}
-			issuers, err := client.Untrusted(cType)
+
+			issuers, err := httpClient(clientConfig).Untrusted(cType)
 			if err != nil {
 				return fmt.Errorf("unable to get list of untrusted issuers: %v", err)
 			}
@@ -152,13 +153,9 @@ func listUntrustedCmd() *cobra.Command {
 }
 
 // httpClient creates a remote client
-func httpClient(command *cobra.Command) (api.HTTPClient, error) {
-	config, err := core.NewClientConfigForCommand(command)
-	if err != nil {
-		return api.HTTPClient{}, err
-	}
+func httpClient(config core.ClientConfig) api.HTTPClient {
 	return api.HTTPClient{
 		ServerAddress: config.GetAddress(),
 		Timeout:       config.Timeout,
-	}, nil
+	}
 }

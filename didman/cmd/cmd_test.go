@@ -76,6 +76,18 @@ func TestCmd_AddService(t *testing.T) {
 
 		assert.NoError(t, err)
 	})
+	t.Run("it handles an http error", func(t *testing.T) {
+		cmd := Cmd()
+		cmd.SetArgs([]string{"svc", "add", "did:nuts:1234", "type", "http://example.com/foo"})
+		assert.EqualError(t, cmd.Execute(), "unable to register service: Post \"http:///internal/didman/v1/did/did:nuts:1234/endpoint\": http: no Host in request URL")
+	})
+	t.Run("it handles an error with the clientConfig", func(t *testing.T) {
+		cmd := Cmd()
+		cmd.SetArgs([]string{"svc", "add", "did:nuts:1234", "type", "http://example.com/foo"})
+		os.Setenv("NUTS_CONFIGFILE", "foo")
+		defer os.Unsetenv("NUTS_CONFIGFILE")
+		assert.EqualError(t, cmd.Execute(), "unable to load config file: open foo: no such file or directory")
+	})
 }
 
 func TestCmd_DeleteService(t *testing.T) {
@@ -92,5 +104,17 @@ func TestCmd_DeleteService(t *testing.T) {
 		err := cmd.Execute()
 
 		assert.NoError(t, err)
+	})
+	t.Run("it handles an error with the clientConfig", func(t *testing.T) {
+		cmd := Cmd()
+		cmd.SetArgs([]string{"svc", "delete", "did:nuts:1234", "type"})
+		os.Setenv("NUTS_CONFIGFILE", "foo")
+		defer os.Unsetenv("NUTS_CONFIGFILE")
+		assert.EqualError(t, cmd.Execute(), "unable to load config file: open foo: no such file or directory")
+	})
+	t.Run("it handles an http error", func(t *testing.T) {
+		cmd := Cmd()
+		cmd.SetArgs([]string{"svc", "delete", "did:nuts:1234", "type"})
+		assert.EqualError(t, cmd.Execute(), "unable to delete service: Delete \"http:///internal/didman/v1/did/did:nuts:1234/endpoint/type\": http: no Host in request URL")
 	})
 }

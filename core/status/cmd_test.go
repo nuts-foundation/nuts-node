@@ -46,6 +46,16 @@ func TestEngine_Command(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "diagnostics\n", buf.String())
 	})
+	t.Run("it handles an error with the clientConfig", func(t *testing.T) {
+		cmd := Cmd()
+		os.Setenv("NUTS_CONFIGFILE", "foo")
+		defer os.Unsetenv("NUTS_CONFIGFILE")
+		assert.EqualError(t, cmd.Execute(), "unable to load config file: open foo: no such file or directory")
+	})
+	t.Run("it handles a failed call", func(t *testing.T) {
+		cmd := Cmd()
+		assert.EqualError(t, cmd.Execute(), "Get \"http:///status/diagnostics\": http: no Host in request URL")
+	})
 	t.Run("unexpected status code", func(t *testing.T) {
 		cmd := Cmd()
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})

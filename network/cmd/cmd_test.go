@@ -20,6 +20,7 @@ package cmd
 
 import (
 	"bytes"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -37,7 +38,13 @@ import (
 )
 
 func TestFlagSet(t *testing.T) {
-	assert.NotNil(t, FlagSet())
+	t.Run("check if a at least some value is set", func(t *testing.T) {
+		flagset := FlagSet()
+		assert.NotNil(t, flagset)
+		value, err := flagset.GetInt("network.connectiontimeout")
+		assert.NoError(t, err)
+		assert.Equal(t, 5000, value)
+	})
 }
 
 // Test the 'nuts network list' command.
@@ -99,7 +106,21 @@ func TestCmd_List(t *testing.T) {
 		assert.Equal(t, t2.Ref().String(), hashStr2)
 		assert.Equal(t, t1.Ref().String(), hashStr3)
 	})
-	sortTransactions([]dag.Transaction{}, "foo")
+
+	t.Run("it handles an error with the clientConfig", func(t *testing.T) {
+		cmd := Cmd()
+		os.Setenv("NUTS_CONFIGFILE", "foo")
+		defer os.Unsetenv("NUTS_CONFIGFILE")
+		cmd.SetArgs([]string{"list"})
+		assert.EqualError(t, cmd.Execute(), "unable to load config file: open foo: no such file or directory")
+	})
+
+	t.Run("it handles an http error", func(t *testing.T) {
+		cmd := Cmd()
+		cmd.SetArgs([]string{"list"})
+		assert.EqualError(t, cmd.Execute(), "unable to list transactions: Get \"http:///internal/network/v1/transaction\": http: no Host in request URL")
+	})
+
 }
 
 func TestCmd_Get(t *testing.T) {
@@ -111,7 +132,6 @@ func TestCmd_Get(t *testing.T) {
 		s := httptest.NewServer(handler)
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")
-		assert.NoError(t, core.NewServerConfig().Load(cmd))
 		defer s.Close()
 		cmd.SetArgs([]string{"get", response.Ref().String()})
 		err := cmd.Execute()
@@ -119,57 +139,111 @@ func TestCmd_Get(t *testing.T) {
 	})
 	t.Run("not found", func(t *testing.T) {
 		cmd := Cmd()
+		outBuf := new(bytes.Buffer)
+		cmd.SetOut(outBuf)
+		cmd.SetErr(outBuf)
+
 		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 		handler := http2.Handler{StatusCode: http.StatusNotFound, ResponseData: "not found"}
 		s := httptest.NewServer(handler)
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")
-		core.NewServerConfig().Load(cmd)
 		defer s.Close()
-		cmd.SetArgs([]string{"get", hash.SHA256Sum([]byte{1, 2, 3}).String()})
+		hashString := hash.SHA256Sum([]byte{1, 2, 3}).String()
+		cmd.SetArgs([]string{"get", hashString})
 		err := cmd.Execute()
 		assert.NoError(t, err)
+		expected := fmt.Sprintf("Transaction not found: %s", hashString)
+		assert.Equal(t, expected, outBuf.String())
+	})
+
+	t.Run("it checks the hash format", func(t *testing.T) {
+		cmd := Cmd()
+		cmd.SetArgs([]string{"get", "invalid format"})
+		assert.EqualError(t, cmd.Execute(), "encoding/hex: invalid byte: U+0069 'i'")
+	})
+
+	t.Run("it handles an error with the clientConfig", func(t *testing.T) {
+		cmd := Cmd()
+		os.Setenv("NUTS_CONFIGFILE", "foo")
+		defer os.Unsetenv("NUTS_CONFIGFILE")
+		cmd.SetArgs([]string{"get", hash.SHA256Sum([]byte{1, 2, 3}).String()})
+		assert.EqualError(t, cmd.Execute(), "unable to load config file: open foo: no such file or directory")
+	})
+
+	t.Run("it handles an http error", func(t *testing.T) {
+		cmd := Cmd()
+		cmd.SetArgs([]string{"get", hash.SHA256Sum([]byte{1, 2, 3}).String()})
+		assert.EqualError(t, cmd.Execute(), "unable to get transaction: Get \"http:///internal/network/v1/transaction/039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81\": http: no Host in request URL")
 	})
 }
 
 func TestCmd_Payload(t *testing.T) {
-	cmd := Cmd()
-	cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
-	handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: []byte("Hello, World!")}
-	s := httptest.NewServer(handler)
-	os.Setenv("NUTS_ADDRESS", s.URL)
-	defer os.Unsetenv("NUTS_ADDRESS")
-	core.NewServerConfig().Load(cmd)
-	defer s.Close()
 
 	t.Run("ok", func(t *testing.T) {
+		cmd := Cmd()
+		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: []byte("Hello, World!")}
+		s := httptest.NewServer(handler)
+		os.Setenv("NUTS_ADDRESS", s.URL)
+		defer os.Unsetenv("NUTS_ADDRESS")
+		defer s.Close()
 		h := hash.SHA256Sum([]byte{1, 2, 3})
 		cmd.SetArgs([]string{"payload", h.String()})
 		err := cmd.Execute()
 		assert.NoError(t, err)
 	})
 	t.Run("not found", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusNotFound, ResponseData: []byte("Hello, World!")}
+		s := httptest.NewServer(handler)
+		os.Setenv("NUTS_ADDRESS", s.URL)
+		defer os.Unsetenv("NUTS_ADDRESS")
+		defer s.Close()
+		cmd := Cmd()
+		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 		h := hash.SHA256Sum([]byte{1, 2, 3})
 		cmd.SetArgs([]string{"payload", h.String()})
 		err := cmd.Execute()
 		assert.NoError(t, err)
 	})
+
+	t.Run("it checks the hash format", func(t *testing.T) {
+		cmd := Cmd()
+		cmd.SetArgs([]string{"payload", "invalid format"})
+		assert.EqualError(t, cmd.Execute(), "encoding/hex: invalid byte: U+0069 'i'")
+	})
+
+	t.Run("it handles an error with the clientConfig", func(t *testing.T) {
+		cmd := Cmd()
+		os.Setenv("NUTS_CONFIGFILE", "foo")
+		defer os.Unsetenv("NUTS_CONFIGFILE")
+		h := hash.SHA256Sum([]byte{1, 2, 3})
+		cmd.SetArgs([]string{"payload", h.String()})
+		assert.EqualError(t, cmd.Execute(), "unable to load config file: open foo: no such file or directory")
+	})
+
+	t.Run("it handles an http error", func(t *testing.T) {
+		cmd := Cmd()
+		h := hash.SHA256Sum([]byte{1, 2, 3})
+		cmd.SetArgs([]string{"payload", h.String()})
+		assert.EqualError(t, cmd.Execute(), "unable to get transaction payload: Get \"http:///internal/network/v1/transaction/039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81/payload\": http: no Host in request URL")
+	})
 }
 
 func TestCmd_Peers(t *testing.T) {
-	cmd := Cmd()
-	cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
-	handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: map[string]v1.PeerDiagnostics{"foo": {Uptime: 50 * time.Second}}}
-	s := httptest.NewServer(handler)
-	os.Setenv("NUTS_ADDRESS", s.URL)
-	defer os.Unsetenv("NUTS_ADDRESS")
-	core.NewServerConfig().Load(cmd)
-	defer s.Close()
+	t.Run("ok", func(t *testing.T) {
+		cmd := Cmd()
+		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: map[string]v1.PeerDiagnostics{"foo": {Uptime: 50 * time.Second}}}
+		s := httptest.NewServer(handler)
+		os.Setenv("NUTS_ADDRESS", s.URL)
+		defer os.Unsetenv("NUTS_ADDRESS")
+		defer s.Close()
 
-	outBuf := new(bytes.Buffer)
-	cmd.SetOut(outBuf)
+		outBuf := new(bytes.Buffer)
+		cmd.SetOut(outBuf)
 
-	expected := `Listing 1 peers:
+		expected := `Listing 1 peers:
 
 foo
   SoftwareID:        
@@ -177,10 +251,25 @@ foo
   Uptime:            50s
   Number of DAG TXs: 0
   Peers:             []`
-	cmd.SetArgs([]string{"peers"})
-	err := cmd.Execute()
-	assert.Equal(t, strings.TrimSpace(expected), strings.TrimSpace(outBuf.String()))
-	assert.NoError(t, err)
+		cmd.SetArgs([]string{"peers"})
+		err := cmd.Execute()
+		assert.Equal(t, strings.TrimSpace(expected), strings.TrimSpace(outBuf.String()))
+		assert.NoError(t, err)
+	})
+
+	t.Run("it handles an error with the clientConfig", func(t *testing.T) {
+		cmd := Cmd()
+		os.Setenv("NUTS_CONFIGFILE", "foo")
+		defer os.Unsetenv("NUTS_CONFIGFILE")
+		cmd.SetArgs([]string{"peers"})
+		assert.EqualError(t, cmd.Execute(), "unable to load config file: open foo: no such file or directory")
+	})
+
+	t.Run("it handles an http error", func(t *testing.T) {
+		cmd := Cmd()
+		cmd.SetArgs([]string{"peers"})
+		assert.EqualError(t, cmd.Execute(), "unable to get peer diagnostics: Get \"http:///internal/network/v1/diagnostics/peers\": http: no Host in request URL")
+	})
 }
 
 func TestCmd_Reprocess(t *testing.T) {
@@ -191,7 +280,6 @@ func TestCmd_Reprocess(t *testing.T) {
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")
 		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
-		core.NewServerConfig().Load(cmd)
 		defer s.Close()
 		cmd.SetArgs([]string{"reprocess", "application/did+json"})
 		err := cmd.Execute()
@@ -204,7 +292,6 @@ func TestCmd_Reprocess(t *testing.T) {
 		s := httptest.NewServer(handler)
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")
-		core.NewServerConfig().Load(cmd)
 		defer s.Close()
 		cmd.SetArgs([]string{"reprocess", "application/did+json"})
 		expected := "Usage:\n  network reprocess [contentType]"
@@ -214,5 +301,19 @@ func TestCmd_Reprocess(t *testing.T) {
 
 		_ = cmd.Execute()
 		assert.Contains(t, outBuf.String(), expected)
+	})
+
+	t.Run("it handles an error with the clientConfig", func(t *testing.T) {
+		cmd := Cmd()
+		os.Setenv("NUTS_CONFIGFILE", "foo")
+		defer os.Unsetenv("NUTS_CONFIGFILE")
+		cmd.SetArgs([]string{"reprocess", "application/did+json"})
+		assert.EqualError(t, cmd.Execute(), "unable to load config file: open foo: no such file or directory")
+	})
+
+	t.Run("it handles an http error", func(t *testing.T) {
+		cmd := Cmd()
+		cmd.SetArgs([]string{"reprocess", "application/did+json"})
+		assert.EqualError(t, cmd.Execute(), "unable to reprocess transactions: Post \"http:///internal/network/v1/reprocess?type=application%2Fdid%2Bjson\": http: no Host in request URL")
 	})
 }

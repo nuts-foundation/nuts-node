@@ -40,15 +40,6 @@ type ClientConfig struct {
 	Timeout   time.Duration `koanf:"timeout"`
 }
 
-// DefaultClientConfig creates a new CLI client config with default values set.
-func DefaultClientConfig() ClientConfig {
-	return ClientConfig{
-		Address:   defaultAddress,
-		Verbosity: defaultLogLevel,
-		Timeout:   defaultClientTimeout,
-	}
-}
-
 // NewClientConfigForCommand loads the config map into a command
 func NewClientConfigForCommand(cmd *cobra.Command) (ClientConfig, error) {
 	configMap := koanf.New(defaultDelimiter)
