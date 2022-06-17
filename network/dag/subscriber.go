@@ -35,6 +35,7 @@ import (
 )
 
 const (
+	defaultRetryDelay      = time.Second
 	retriesFailedThreshold = 10
 	maxRetries             = 100
 )
@@ -88,10 +89,11 @@ func NewSubscriber(name string, subscriberFn SubscriberFn, options ...Subscriber
 
 	ctx, cancel := context.WithCancel(context.Background())
 	subscriber := &subscriber{
-		name:     name,
-		ctx:      ctx,
-		cancel:   cancel,
-		callback: subscriberFn,
+		name:       name,
+		ctx:        ctx,
+		cancel:     cancel,
+		callback:   subscriberFn,
+		retryDelay: defaultRetryDelay,
 	}
 
 	for _, option := range options {

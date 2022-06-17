@@ -534,7 +534,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			foundMutex.Lock()
 			defer foundMutex.Unlock()
 			return len(found) > 0, nil
-		}, 10*time.Millisecond, "timeout waiting for message")
+		}, 2*time.Second, "timeout waiting for message")
 	})
 
 	t.Run("third node knows nothing", func(t *testing.T) {
@@ -756,7 +756,7 @@ func TestNetworkIntegration_AddedTransactionsAsEvents(t *testing.T) {
 		foundMutex.Lock()
 		defer foundMutex.Unlock()
 		return len(found) > 0, nil
-	}, 10*time.Millisecond, "timeout waiting for message")
+	}, 2*time.Second, "timeout waiting for message")
 
 	event := events.TransactionWithPayload{}
 	_ = json.Unmarshal(found, &event)
