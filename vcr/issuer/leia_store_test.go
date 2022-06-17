@@ -20,8 +20,11 @@ package issuer
 
 import (
 	"encoding/json"
+	"fmt"
 	"path"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -29,7 +32,7 @@ import (
 	"github.com/nuts-foundation/go-leia/v3"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/stretchr/testify/assert"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
 func TestNewLeiaStore(t *testing.T) {
@@ -181,8 +184,69 @@ func Test_leiaStore_GetCredential(t *testing.T) {
 
 		t.Run("it fails", func(t *testing.T) {
 			foundCredential, err := store.GetCredential(*vcToGet.ID)
-			assert.EqualError(t, err, "found more than one credential by id")
+			assert.ErrorIs(t, err, ErrMultipleFound)
 			assert.Nil(t, foundCredential)
 		})
+	})
+}
+
+func Test_leiaIssuerStore_StoreRevocation(t *testing.T) {
+	testDir := io.TestDirectory(t)
+	issuerStorePath := path.Join(testDir, "vcr", "issuer-store.db")
+	store, _ := NewLeiaIssuerStore(issuerStorePath)
+
+	t.Run("it stores a revocation and can find it back", func(t *testing.T) {
+		subjectID := ssi.MustParseURI("did:nuts:123#ab-c")
+		revocation := &credential.Revocation{Subject: subjectID}
+
+		err := store.StoreRevocation(*revocation)
+		if !assert.NoError(t, err) {
+			return
+		}
+		result, err := store.GetRevocation(subjectID)
+
+		assert.NoError(t, err)
+		assert.Equal(t, revocation, result)
+	})
+}
+
+func Test_leiaIssuerStore_GetRevocation(t *testing.T) {
+	testDir := io.TestDirectory(t)
+	issuerStorePath := path.Join(testDir, "vcr", "issuer-store.db")
+	store, _ := NewLeiaIssuerStore(issuerStorePath)
+	subjectID := ssi.MustParseURI("did:nuts:123#ab-c")
+	revocation := &credential.Revocation{Subject: subjectID}
+	assert.NoError(t, store.StoreRevocation(*revocation))
+
+	t.Run("it can find a revocation", func(t *testing.T) {
+		result, err := store.GetRevocation(subjectID)
+
+		assert.NoError(t, err)
+		assert.Equal(t, revocation, result)
+	})
+
+	t.Run("it returns a ErrNotFound when revocation could not be found", func(t *testing.T) {
+		unknownSubjectID := ssi.MustParseURI("did:nuts:456#ab-cde")
+
+		result, err := store.GetRevocation(unknownSubjectID)
+
+		assert.ErrorIs(t, err, ErrNotFound)
+		assert.Nil(t, result)
+	})
+
+	t.Run("it fails when multiple revocations exist", func(t *testing.T) {
+		duplicateSubjectID := ssi.MustParseURI("did:nuts:456#ab-duplicate")
+		revocation := &credential.Revocation{Subject: duplicateSubjectID}
+		for i := 0; i < 2; i++ {
+			revocation.Reason = fmt.Sprintf("revocation reason %d", i)
+			if !assert.NoError(t, store.StoreRevocation(*revocation)) {
+				return
+			}
+		}
+
+		result, err := store.GetRevocation(duplicateSubjectID)
+
+		assert.ErrorIs(t, err, ErrMultipleFound)
+		assert.Nil(t, result)
 	})
 }

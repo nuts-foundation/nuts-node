@@ -12,7 +12,6 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	go_did "github.com/nuts-foundation/go-did"
 	vc "github.com/nuts-foundation/go-did/vc"
-	credential "github.com/nuts-foundation/nuts-node/vcr/credential"
 	holder "github.com/nuts-foundation/nuts-node/vcr/holder"
 	issuer "github.com/nuts-foundation/nuts-node/vcr/issuer"
 	verifier "github.com/nuts-foundation/nuts-node/vcr/verifier"
@@ -56,43 +55,6 @@ func (mr *MockFinderMockRecorder) Search(ctx, searchTerms, allowUntrusted, resol
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockFinder)(nil).Search), ctx, searchTerms, allowUntrusted, resolveTime)
 }
 
-// MockValidator is a mock of Validator interface.
-type MockValidator struct {
-	ctrl     *gomock.Controller
-	recorder *MockValidatorMockRecorder
-}
-
-// MockValidatorMockRecorder is the mock recorder for MockValidator.
-type MockValidatorMockRecorder struct {
-	mock *MockValidator
-}
-
-// NewMockValidator creates a new mock instance.
-func NewMockValidator(ctrl *gomock.Controller) *MockValidator {
-	mock := &MockValidator{ctrl: ctrl}
-	mock.recorder = &MockValidatorMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockValidator) EXPECT() *MockValidatorMockRecorder {
-	return m.recorder
-}
-
-// Validate mocks base method.
-func (m *MockValidator) Validate(credential vc.VerifiableCredential, allowUntrusted, checkSignature bool, validAt *time.Time) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Validate", credential, allowUntrusted, checkSignature, validAt)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Validate indicates an expected call of Validate.
-func (mr *MockValidatorMockRecorder) Validate(credential, allowUntrusted, checkSignature, validAt interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Validate", reflect.TypeOf((*MockValidator)(nil).Validate), credential, allowUntrusted, checkSignature, validAt)
-}
-
 // MockWriter is a mock of Writer interface.
 type MockWriter struct {
 	ctrl     *gomock.Controller
@@ -128,20 +90,6 @@ func (m *MockWriter) StoreCredential(vc vc.VerifiableCredential, validAt *time.T
 func (mr *MockWriterMockRecorder) StoreCredential(vc, validAt interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreCredential", reflect.TypeOf((*MockWriter)(nil).StoreCredential), vc, validAt)
-}
-
-// StoreRevocation mocks base method.
-func (m *MockWriter) StoreRevocation(r credential.Revocation) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StoreRevocation", r)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// StoreRevocation indicates an expected call of StoreRevocation.
-func (mr *MockWriterMockRecorder) StoreRevocation(r interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreRevocation", reflect.TypeOf((*MockWriter)(nil).StoreRevocation), r)
 }
 
 // MockTrustManager is a mock of TrustManager interface.
@@ -358,20 +306,6 @@ func (mr *MockVCRMockRecorder) StoreCredential(vc, validAt interface{}) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreCredential", reflect.TypeOf((*MockVCR)(nil).StoreCredential), vc, validAt)
 }
 
-// StoreRevocation mocks base method.
-func (m *MockVCR) StoreRevocation(r credential.Revocation) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StoreRevocation", r)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// StoreRevocation indicates an expected call of StoreRevocation.
-func (mr *MockVCRMockRecorder) StoreRevocation(r interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreRevocation", reflect.TypeOf((*MockVCR)(nil).StoreRevocation), r)
-}
-
 // Trust mocks base method.
 func (m *MockVCR) Trust(credentialType, issuer go_did.URI) error {
 	m.ctrl.T.Helper()
@@ -428,20 +362,6 @@ func (m *MockVCR) Untrusted(credentialType go_did.URI) ([]go_did.URI, error) {
 func (mr *MockVCRMockRecorder) Untrusted(credentialType interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Untrusted", reflect.TypeOf((*MockVCR)(nil).Untrusted), credentialType)
-}
-
-// Validate mocks base method.
-func (m *MockVCR) Validate(credential vc.VerifiableCredential, allowUntrusted, checkSignature bool, validAt *time.Time) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Validate", credential, allowUntrusted, checkSignature, validAt)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Validate indicates an expected call of Validate.
-func (mr *MockVCRMockRecorder) Validate(credential, allowUntrusted, checkSignature, validAt interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Validate", reflect.TypeOf((*MockVCR)(nil).Validate), credential, allowUntrusted, checkSignature, validAt)
 }
 
 // Verifier mocks base method.

@@ -33,6 +33,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
+	"go.etcd.io/bbolt"
 )
 
 func TestNewState(t *testing.T) {
@@ -50,15 +51,6 @@ func TestState_relayingFuncs(t *testing.T) {
 	payload := []byte{0, 0, 0, 1}
 	txState.Add(ctx, tx, payload)
 	payloadHash := hash.SHA256Sum(payload)
-
-	t.Run("GetByPayloadHash", func(t *testing.T) {
-		txs, err := txState.GetByPayloadHash(ctx, payloadHash)
-
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.Equal(t, tx, txs[0])
-	})
 
 	t.Run("GetTransaction", func(t *testing.T) {
 		txResult, err := txState.GetTransaction(ctx, tx.Ref())
@@ -88,40 +80,13 @@ func TestState_relayingFuncs(t *testing.T) {
 		assert.True(t, result)
 	})
 
-	t.Run("PayloadHashes", func(t *testing.T) {
-		var result hash.SHA256Hash
-		err := txState.PayloadHashes(ctx, func(payloadHash hash.SHA256Hash) error {
-			result = payloadHash
-			return nil
-		})
-
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.Equal(t, payloadHash, result)
-	})
-
 	t.Run("FindBetweenLC", func(t *testing.T) {
-		txs, err := txState.FindBetweenLC(ctx, 0, 1)
+		txs, err := txState.FindBetweenLC(0, 1)
 
 		if !assert.NoError(t, err) {
 			return
 		}
 		assert.Len(t, txs, 1)
-	})
-
-	t.Run("ReadManyPayloads", func(t *testing.T) {
-		var result bool
-		var err error
-		err = txState.ReadManyPayloads(ctx, func(ctx context.Context, reader PayloadReader) error {
-			result, err = reader.IsPayloadPresent(ctx, payloadHash)
-			return err
-		})
-
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.True(t, result)
 	})
 
 	t.Run("ReadPayload", func(t *testing.T) {
@@ -131,6 +96,13 @@ func TestState_relayingFuncs(t *testing.T) {
 			return
 		}
 		assert.Equal(t, payload, result)
+	})
+
+	t.Run("State", func(t *testing.T) {
+		heads := txState.Heads(ctx)
+
+		assert.Len(t, heads, 1)
+		assert.Equal(t, tx.Ref(), heads[0])
 	})
 }
 
@@ -147,7 +119,7 @@ func TestState_Shutdown(t *testing.T) {
 func TestState_Start(t *testing.T) {
 	t.Run("error - verifier failed", func(t *testing.T) {
 		ctx := context.Background()
-		txState := createState(t, func(_ context.Context, _ Transaction, _ State) error {
+		txState := createState(t, func(_ *bbolt.Tx, _ Transaction) error {
 			return errors.New("failed")
 		})
 		tx := CreateTestTransactionWithJWK(0)
@@ -170,7 +142,7 @@ func TestState_Observe(t *testing.T) {
 				ctx := context.Background()
 				txState := createState(t)
 				var actual bool
-				txState.RegisterObserver(func(ctx context.Context, transaction Transaction, _ []byte) error {
+				txState.RegisterTransactionObserver(func(ctx context.Context, transaction Transaction) error {
 					_, actual = storage.BBoltTX(ctx)
 					return nil
 				}, expected)
@@ -187,7 +159,7 @@ func TestState_Observe(t *testing.T) {
 		ctx := context.Background()
 		txState := createState(t)
 		var actual Transaction
-		txState.RegisterObserver(func(ctx context.Context, transaction Transaction, _ []byte) error {
+		txState.RegisterTransactionObserver(func(ctx context.Context, transaction Transaction) error {
 			actual = transaction
 			return nil
 		}, false)
@@ -203,8 +175,11 @@ func TestState_Observe(t *testing.T) {
 		txState := createState(t)
 		var actualTX Transaction
 		var actualPayload []byte
-		txState.RegisterObserver(func(ctx context.Context, transaction Transaction, payload []byte) error {
+		txState.RegisterTransactionObserver(func(ctx context.Context, transaction Transaction) error {
 			actualTX = transaction
+			return nil
+		}, false)
+		txState.RegisterPayloadObserver(func(transaction Transaction, payload []byte) error {
 			actualPayload = payload
 			return nil
 		}, false)
@@ -226,16 +201,15 @@ func TestState_Observe(t *testing.T) {
 		assert.EqualError(t, err, "tx.PayloadHash does not match hash of payload")
 	})
 	t.Run("payload added", func(t *testing.T) {
-		ctx := context.Background()
 		txState := createState(t)
 		var actual []byte
-		txState.RegisterObserver(func(ctx context.Context, tx Transaction, payload []byte) error {
+		txState.RegisterPayloadObserver(func(tx Transaction, payload []byte) error {
 			actual = payload
 			return nil
 		}, false)
 		expected := []byte{1}
 
-		err := txState.WritePayload(ctx, nil, hash.EmptyHash(), expected)
+		err := txState.WritePayload(nil, hash.EmptyHash(), expected)
 
 		assert.NoError(t, err)
 		assert.Equal(t, expected, actual)
@@ -245,7 +219,7 @@ func TestState_Observe(t *testing.T) {
 func TestState_Add(t *testing.T) {
 	t.Run("error for transaction verification failure", func(t *testing.T) {
 		ctx := context.Background()
-		txState := createState(t, func(ctx context.Context, tx Transaction, state State) error {
+		txState := createState(t, func(_ *bbolt.Tx, tx Transaction) error {
 			return errors.New("verification failed")
 		})
 		_ = txState.Start()
@@ -376,7 +350,7 @@ func TestState_treeObserver(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	t.Run("no callback for public transaction without payload", func(t *testing.T) {
+	t.Run("callback for public transaction without payload", func(t *testing.T) {
 		txState := setup(t)
 		tx := CreateTestTransactionWithJWK(1)
 
@@ -387,22 +361,7 @@ func TestState_treeObserver(t *testing.T) {
 		}
 
 		xor, _ := txState.XOR(ctx, 1)
-		assert.True(t, hash.EmptyHash().Equals(xor))
-	})
-
-	t.Run("no callback for private transaction with payload", func(t *testing.T) {
-		txState := setup(t)
-		payload := []byte("payload")
-		tx, _, _ := CreateTestTransactionEx(1, hash.SHA256Sum(payload), [][]byte{{0x1}})
-
-		err := txState.Add(ctx, tx, payload)
-
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		xor, _ := txState.XOR(ctx, 1)
-		assert.True(t, hash.EmptyHash().Equals(xor))
+		assert.False(t, hash.EmptyHash().Equals(xor))
 	})
 }
 

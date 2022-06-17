@@ -23,7 +23,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"go.etcd.io/bbolt"
+	"github.com/nuts-foundation/go-stoabs"
 	"net"
 	"sync"
 
@@ -39,8 +39,6 @@ import (
 
 const defaultMaxMessageSizeInBytes = 1024 * 512
 
-const protocolVersionV1 = "v1"          // required for backwards compatibility with v1
-const protocolVersionHeader = "version" // required for backwards compatibility with v1
 const peerIDHeader = "peerID"
 const nodeDIDHeader = "nodeDID"
 
@@ -71,7 +69,7 @@ func (s fatalError) Is(other error) bool {
 }
 
 // NewGRPCConnectionManager creates a new ConnectionManager that accepts/creates connections which communicate using the given protocols.
-func NewGRPCConnectionManager(config Config, grpcDB *bbolt.DB, nodeDIDResolver transport.NodeDIDResolver, authenticator Authenticator, protocols ...transport.Protocol) transport.ConnectionManager {
+func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nodeDIDResolver transport.NodeDIDResolver, authenticator Authenticator, protocols ...transport.Protocol) transport.ConnectionManager {
 	var grpcProtocols []Protocol
 	for _, curr := range protocols {
 		// For now, only gRPC protocols are supported
@@ -89,7 +87,7 @@ func NewGRPCConnectionManager(config Config, grpcDB *bbolt.DB, nodeDIDResolver t
 		grpcServerMutex: &sync.Mutex{},
 		listenerCreator: config.listener,
 		dialer:          config.dialer,
-		db:              grpcDB,
+		connectionStore: connectionStore,
 	}
 	cm.ctx, cm.ctxCancel = context.WithCancel(context.Background())
 	return cm
@@ -111,7 +109,7 @@ type grpcConnectionManager struct {
 	nodeDIDResolver  transport.NodeDIDResolver
 	stopCRLValidator func()
 	observers        []transport.StreamStateObserverFunc
-	db               *bbolt.DB
+	connectionStore  stoabs.KVStore
 }
 
 func (s *grpcConnectionManager) Start() error {
@@ -357,8 +355,8 @@ func (s *grpcConnectionManager) authenticate(nodeDID did.DID, peer transport.Pee
 	if !nodeDID.Empty() {
 		authenticatedPeer, err := s.authenticator.Authenticate(nodeDID, *peerFromCtx, peer)
 		if err != nil {
-			// Error message below is spec'd by RFC017
-			log.Logger().Warnf("Peer node DID could not be authenticated (did=%s): %v", nodeDID, err)
+			log.Logger().WithField("peer", peer).Warnf("Peer node DID could not be authenticated (did=%s): %v", nodeDID, err)
+			// Error message is spec'd by RFC017, because it is returned to the peer
 			return transport.Peer{}, ErrNodeDIDAuthFailed
 		}
 		return authenticatedPeer, nil
@@ -417,8 +415,7 @@ func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundSt
 
 func (s *grpcConnectionManager) constructMetadata() (metadata.MD, error) {
 	md := metadata.New(map[string]string{
-		peerIDHeader:          string(s.config.peerID),
-		protocolVersionHeader: protocolVersionV1, // required for backwards compatibility with v1
+		peerIDHeader: string(s.config.peerID),
 	})
 
 	nodeDID, err := s.nodeDIDResolver.Resolve()
@@ -445,8 +442,13 @@ func (s *grpcConnectionManager) startTracking(address string, connection Connect
 		}
 	}
 
-	backoff := NewPersistedBackoff(s.db, address, defaultBackoff())
-	connection.startConnecting(address, backoff, tlsConfig, func(grpcConn *grpc.ClientConn) bool {
+	backoff := NewPersistedBackoff(s.connectionStore, address, defaultBackoff())
+	cfg := connectorConfig{
+		address:           address,
+		tls:               tlsConfig,
+		connectionTimeout: s.config.connectionTimeout,
+	}
+	connection.startConnecting(cfg, backoff, func(grpcConn *grpc.ClientConn) bool {
 		err := s.openOutboundStreams(connection, grpcConn)
 		if err != nil {
 			log.Logger().Errorf("Error while setting up outbound gRPC streams, disconnecting (peer=%s): %v", connection.Peer(), err)

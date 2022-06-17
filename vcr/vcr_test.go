@@ -20,19 +20,15 @@
 package vcr
 
 import (
-	"crypto/ecdsa"
 	"encoding/json"
-	"errors"
 	"os"
 	"path"
-	"reflect"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"go.etcd.io/bbolt"
 
@@ -42,7 +38,6 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/go-leia/v3"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
@@ -55,7 +50,7 @@ import (
 func TestVCR_Start(t *testing.T) {
 
 	t.Run("error - creating db", func(t *testing.T) {
-		instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t)).(*vcr)
+		instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil).(*vcr)
 
 		_ = instance.Configure(core.ServerConfig{Datadir: "test"})
 		err := instance.Start()
@@ -77,6 +72,7 @@ func TestVCR_Start(t *testing.T) {
 			nil,
 			network.NewTestNetworkInstance(path.Join(testDirectory, "network")),
 			jsonld.NewTestJSONLDManager(t),
+			events.NewTestManager(t),
 		).(*vcr)
 		if err := instance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
 			t.Fatal(err)
@@ -226,111 +222,10 @@ func TestVcr_Instance(t *testing.T) {
 	})
 }
 
-func TestVcr_Validate(t *testing.T) {
-	// load VC
-	subject := vc.VerifiableCredential{}
-	vcJSON, _ := os.ReadFile("test/vc.json")
-
-	if err := json.Unmarshal(vcJSON, &subject); err != nil {
-		t.Fatal(err)
-	}
-
-	// oad pub key
-	pke := storage.PublicKeyEntry{}
-	pkeJSON, _ := os.ReadFile("test/public.json")
-	json.Unmarshal(pkeJSON, &pke)
-	var pk = new(ecdsa.PublicKey)
-	pke.JWK().Raw(pk)
-
-	issuer := did.MustParseDIDURL(subject.Issuer.String())
-	newMethod, err := did.NewVerificationMethod(issuer, ssi.JsonWebKey2020, issuer, pk)
-	if !assert.NoError(t, err) {
-		return
-	}
-	didDocument := did.Document{ID: issuer}
-	didDocument.AddAssertionMethod(newMethod)
-
-	now := time.Now()
-	timeFunc = func() time.Time {
-		return now
-	}
-
-	t.Cleanup(func() {
-		timeFunc = time.Now
-	})
-
-	t.Run("ok - with signature verification", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.vcr
-
-		ctx.docResolver.EXPECT().Resolve(issuer, &types.ResolveMetadata{ResolveTime: &now, AllowDeactivated: false}).Return(&didDocument, nil, nil)
-		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, &now).Return(pk, nil)
-
-		err = instance.Validate(subject, true, true, &now)
-
-		assert.NoError(t, err)
-	})
-
-	t.Run("ok - with clock one second off", func(t *testing.T) {
-		almostNow := now.Add(-time.Second)
-
-		subject.IssuanceDate = now
-		subject.ExpirationDate = &now
-
-		timeFunc = func() time.Time {
-			return almostNow
-		}
-
-		t.Cleanup(func() {
-			timeFunc = func() time.Time {
-				return now
-			}
-		})
-
-		ctx := newMockContext(t)
-		instance := ctx.vcr
-
-		err := instance.Validate(subject, true, false, nil)
-
-		assert.NoError(t, err)
-	})
-
-	t.Run("err - vc without id", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.vcr
-		subject := vc.VerifiableCredential{}
-
-		err := instance.Validate(subject, true, false, nil)
-		assert.EqualError(t, err, "verifying a credential requires it to have a valid ID")
-	})
-
-	t.Run("err - with clock 10 seconds off", func(t *testing.T) {
-		almostNow := now.Add(-10 * time.Second)
-
-		subject.IssuanceDate = now
-		subject.ExpirationDate = &now
-
-		timeFunc = func() time.Time {
-			return almostNow
-		}
-
-		t.Cleanup(func() {
-			timeFunc = func() time.Time {
-				return now
-			}
-		})
-
-		ctx := newMockContext(t)
-		instance := ctx.vcr
-
-		err := instance.Validate(subject, true, false, nil)
-
-		assert.Error(t, err)
-	})
-}
-
 func TestVcr_Untrusted(t *testing.T) {
 	instance := NewTestVCRInstance(t)
+	mockDocResolver := types.NewMockDocResolver(gomock.NewController(t))
+	instance.docResolver = mockDocResolver
 	testCredential := vc.VerifiableCredential{}
 	_ = json.Unmarshal([]byte(jsonld.TestOrganizationCredential), &testCredential)
 
@@ -347,154 +242,52 @@ func TestVcr_Untrusted(t *testing.T) {
 	// for duplicate detection
 	_ = instance.credentialCollection().Add([]leia.Document{doc2})
 
-	funcs := []func(ssi.URI) ([]ssi.URI, error){
-		instance.Trusted,
-		instance.Untrusted,
+	t.Run("Trusted", func(t *testing.T) {
+		confirmTrustedStatus(t, instance, testCredential.Issuer, instance.Trusted, 1)
+		confirmUntrustedStatus(t, instance.Trusted, 0)
+	})
+	t.Run("Untrusted", func(t *testing.T) {
+		confirmTrustedStatus(t, instance, testCredential.Issuer, instance.Untrusted, 0)
+		confirmUntrustedStatus(t, func(issuer ssi.URI) ([]ssi.URI, error) {
+			mockDocResolver.EXPECT().Resolve(did.MustParseDIDURL(testCredential.Issuer.String()), nil).Return(nil, nil, nil)
+			return instance.Untrusted(issuer)
+		}, 1)
+	})
+	t.Run("Untrusted - did deactivated", func(t *testing.T) {
+		confirmUntrustedStatus(t, func(issuer ssi.URI) ([]ssi.URI, error) {
+			mockDocResolver.EXPECT().Resolve(did.MustParseDIDURL(testCredential.Issuer.String()), nil).Return(nil, nil, did.DeactivatedErr)
+			return instance.Untrusted(issuer)
+		}, 0)
+	})
+	t.Run("Untrusted - no active controller", func(t *testing.T) {
+		confirmUntrustedStatus(t, func(issuer ssi.URI) ([]ssi.URI, error) {
+			mockDocResolver.EXPECT().Resolve(did.MustParseDIDURL(testCredential.Issuer.String()), nil).Return(nil, nil, types.ErrNoActiveController)
+			return instance.Untrusted(issuer)
+		}, 0)
+	})
+}
+func confirmUntrustedStatus(t *testing.T, fn func(issuer ssi.URI) ([]ssi.URI, error), numUntrusted int) {
+	trusted, err := fn(ssi.MustParseURI("NutsOrganizationCredential"))
+
+	if !assert.NoError(t, err) {
+		return
 	}
 
-	outcomes := [][]int{
-		{0, 1},
-		{1, 0},
-	}
-
-	for i, fn := range funcs {
-		name := runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name()
-		t.Run(name, func(t *testing.T) {
-			t.Run("ok - untrusted", func(t *testing.T) {
-				trusted, err := fn(ssi.MustParseURI("NutsOrganizationCredential"))
-
-				if !assert.NoError(t, err) {
-					return
-				}
-
-				assert.Len(t, trusted, outcomes[i][0])
-			})
-
-			t.Run("ok - trusted", func(t *testing.T) {
-				instance.Trust(ssi.MustParseURI("NutsOrganizationCredential"), testCredential.Issuer)
-				defer func() {
-					instance.Untrust(ssi.MustParseURI("NutsOrganizationCredential"), testCredential.Issuer)
-				}()
-				trusted, err := fn(ssi.MustParseURI("NutsOrganizationCredential"))
-
-				if !assert.NoError(t, err) {
-					return
-				}
-
-				assert.Len(t, trusted, outcomes[i][1])
-			})
-		})
-	}
+	assert.Len(t, trusted, numUntrusted)
 }
 
-func TestVcr_verifyRevocation(t *testing.T) {
-	// load revocation
-	r := credential.Revocation{}
-	rJSON, _ := os.ReadFile("test/revocation.json")
-	json.Unmarshal(rJSON, &r)
+func confirmTrustedStatus(t *testing.T, trustManager TrustManager, issuer ssi.URI, fn func(issuer ssi.URI) ([]ssi.URI, error), numTrusted int) {
+	trustManager.Trust(ssi.MustParseURI("NutsOrganizationCredential"), issuer)
+	defer func() {
+		trustManager.Untrust(ssi.MustParseURI("NutsOrganizationCredential"), issuer)
+	}()
+	trusted, err := fn(ssi.MustParseURI("NutsOrganizationCredential"))
 
-	// Load pub key
-	pke := storage.PublicKeyEntry{}
-	pkeJSON, _ := os.ReadFile("test/public.json")
-	json.Unmarshal(pkeJSON, &pke)
-	var pk = new(ecdsa.PublicKey)
-	pke.JWK().Raw(pk)
+	if !assert.NoError(t, err) {
+		return
+	}
 
-	t.Run("ok", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.vcr
-
-		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, gomock.Any()).Return(pk, nil)
-
-		err := instance.verifyRevocation(r)
-
-		assert.NoError(t, err)
-	})
-
-	t.Run("error - invalid issuer", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.vcr
-		issuer := ssi.MustParseURI(r.Issuer.String() + "2")
-		r2 := r
-		r2.Issuer = issuer
-
-		err := instance.verifyRevocation(r2)
-
-		assert.Error(t, err)
-		assert.EqualError(t, err, "issuer of revocation is not the same as issuer of credential")
-	})
-
-	t.Run("error - invalid vm", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.vcr
-		vm := ssi.MustParseURI(r.Issuer.String() + "2")
-		r2 := r
-		p := *r2.Proof
-		p.VerificationMethod = vm
-		r2.Proof = &p
-
-		err := instance.verifyRevocation(r2)
-
-		assert.Error(t, err)
-		assert.EqualError(t, err, "verification method is not of issuer")
-	})
-
-	t.Run("error - invalid revocation", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.vcr
-		r2 := r
-		r2.Issuer = ssi.URI{}
-
-		err := instance.verifyRevocation(r2)
-
-		assert.Error(t, err)
-	})
-
-	t.Run("error - invalid signature", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.vcr
-		r2 := r
-		r2.Reason = "sig fails"
-
-		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, gomock.Any()).Return(pk, nil)
-
-		err := instance.verifyRevocation(r2)
-
-		assert.Error(t, err)
-	})
-
-	t.Run("error - incorrect signature", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.vcr
-		r2 := r
-		r2.Proof = &vc.JSONWebSignature2020Proof{}
-
-		err := instance.verifyRevocation(r2)
-
-		assert.Error(t, err)
-	})
-
-	t.Run("error - resolving key", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.vcr
-
-		ctx.keyResolver.EXPECT().ResolveSigningKey(testKID, gomock.Any()).Return(nil, errors.New("b00m!"))
-
-		err := instance.verifyRevocation(r)
-
-		assert.Error(t, err)
-	})
-
-	t.Run("error - incorrect base64 encoded sig", func(t *testing.T) {
-		ctx := newMockContext(t)
-		instance := ctx.vcr
-		r2 := r
-		r2.Proof.Jws = "====..===="
-
-		err := instance.verifyRevocation(r2)
-
-		assert.Error(t, err)
-	})
+	assert.Len(t, trusted, numTrusted)
 }
 
 func TestWhitespaceOrExactTokenizer(t *testing.T) {
@@ -523,43 +316,4 @@ func validNutsOrganizationCredential() *vc.VerifiableCredential {
 		IssuanceDate:      time.Now(),
 		CredentialSubject: []interface{}{credentialSubject},
 	}
-}
-
-func Test_vcr_Revoke(t *testing.T) {
-	credentialID := ssi.MustParseURI("did:nuts:123#abc")
-
-	t.Run("it calls the verifier to revoke", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		mockVerifier := verifier.NewMockVerifier(ctrl)
-		mockIssuer := issuer.NewMockIssuer(ctrl)
-
-		mockVerifier.EXPECT().IsRevoked(credentialID).Return(false, nil)
-		expectedRevocation := &credential.Revocation{Subject: credentialID}
-		mockIssuer.EXPECT().Revoke(credentialID).Return(expectedRevocation, nil)
-		vcr := vcr{verifier: mockVerifier, issuer: mockIssuer}
-		revocation, err := vcr.Revoke(credentialID)
-		assert.NoError(t, err)
-		assert.NotNil(t, revocation)
-		assert.Equal(t, expectedRevocation, revocation)
-	})
-
-	t.Run("it fails when the credential is already revoked", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		mockVerifier := verifier.NewMockVerifier(ctrl)
-		mockVerifier.EXPECT().IsRevoked(credentialID).Return(true, nil)
-		vcr := vcr{verifier: mockVerifier}
-		revocation, err := vcr.Revoke(credentialID)
-		assert.EqualError(t, err, "credential already revoked")
-		assert.Nil(t, revocation)
-	})
-
-	t.Run("it fails when revocation status checking fails", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		mockVerifier := verifier.NewMockVerifier(ctrl)
-		mockVerifier.EXPECT().IsRevoked(credentialID).Return(false, errors.New("foo"))
-		vcr := vcr{verifier: mockVerifier}
-		revocation, err := vcr.Revoke(credentialID)
-		assert.EqualError(t, err, "error while checking revocation status: foo")
-		assert.Nil(t, revocation)
-	})
 }

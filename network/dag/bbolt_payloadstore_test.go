@@ -19,40 +19,40 @@
 package dag
 
 import (
-	"context"
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
+	"go.etcd.io/bbolt"
 )
 
 func TestBBoltPayloadStore_ReadWrite(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
-	ctx := context.Background()
-	payloadStore := NewBBoltPayloadStore(createBBoltDB(testDirectory))
+	db := createBBoltDB(testDirectory)
+	payloadStore := NewBBoltPayloadStore(db)
 
-	payload := []byte("Hello, World!")
-	hash := hash.SHA256Sum(payload)
-	// Before, payload should not be present
-	present, err := payloadStore.IsPayloadPresent(ctx, hash)
-	if !assert.NoError(t, err) || !assert.False(t, present) {
-		return
-	}
-	// Add payload
-	err = payloadStore.WritePayload(ctx, hash, payload)
-	if !assert.NoError(t, err) {
-		return
-	}
-	// Now it should be present
-	present, err = payloadStore.IsPayloadPresent(ctx, hash)
-	if !assert.NoError(t, err) || !assert.True(t, present, "payload should be present") {
-		return
-	}
-	// Read payload
-	data, err := payloadStore.ReadPayload(ctx, hash)
-	if !assert.NoError(t, err) {
-		return
-	}
-	assert.Equal(t, payload, data)
+	db.Update(func(tx *bbolt.Tx) error {
+		payload := []byte("Hello, World!")
+		hash := hash.SHA256Sum(payload)
+		// Before, payload should not be present
+		present := payloadStore.isPayloadPresent(tx, hash)
+		if !assert.False(t, present) {
+			return nil
+		}
+		// Add payload
+		err := payloadStore.writePayload(tx, hash, payload)
+		if !assert.NoError(t, err) {
+			return nil
+		}
+		// Now it should be present
+		present = payloadStore.isPayloadPresent(tx, hash)
+		if !assert.True(t, present, "payload should be present") {
+			return nil
+		}
+		// Read payload
+		data := payloadStore.readPayload(tx, hash)
+		assert.Equal(t, payload, data)
+		return nil
+	})
 }

@@ -42,10 +42,6 @@ func (s StaticKeyResolver) ResolvePublicKey(_ string, _ []hash.SHA256Hash) (cryp
 	return s.Key, nil
 }
 
-func (s StaticKeyResolver) ResolvePublicKeyInTime(_ string, _ *time.Time) (crypto.PublicKey, error) {
-	return s.Key, nil
-}
-
 func (s StaticKeyResolver) ResolveSigningKeyID(_ did.DID, _ *time.Time) (string, error) {
 	panic("implement me")
 }

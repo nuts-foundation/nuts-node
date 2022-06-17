@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Nuts community
+ * Copyright (C) 2022 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,18 +16,20 @@
  *
  */
 
-package logic
+package storage
 
 import (
-	"github.com/nuts-foundation/nuts-node/network/transport"
-	"testing"
-
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/stretchr/testify/assert"
+	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/go-stoabs/bbolt"
+	"github.com/nuts-foundation/nuts-node/core"
 )
 
-func TestPeerOmnihashStatistic(t *testing.T) {
-	diagnostic := newPeerOmnihashStatistic(map[transport.PeerID]hash.SHA256Hash{"abc": hash.FromSlice([]byte{1, 2, 3})})
-	assert.Equal(t, diagnostic.String(), "0102030000000000000000000000000000000000000000000000000000000000={abc}")
-	assert.NotEmpty(t, diagnostic.Name())
+func NewTestStorageEngine(testDirectory string) Engine {
+	result := New()
+	_ = result.Configure(core.ServerConfig{Datadir: testDirectory + "/data"})
+	return result
+}
+
+func CreateTestBBoltStore(filePath string) (stoabs.KVStore, error) {
+	return bbolt.CreateBBoltStore(filePath, stoabs.WithNoSync())
 }

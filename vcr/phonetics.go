@@ -20,8 +20,8 @@
 package vcr
 
 import (
-	gophonetics "github.com/Regis24GmbH/go-phonetics"
 	"github.com/nuts-foundation/go-leia/v3"
+	gophonetics "gopkg.in/Regis24GmbH/go-phonetics.v2"
 )
 
 // CologneTransformer is a go-leia compatible function for generating the phonetic representation of a string.

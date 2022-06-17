@@ -29,8 +29,10 @@ import (
 const (
 	// TransactionsStream is the stream name on which transactions are stored
 	TransactionsStream = "TRANSACTIONS"
-	// DataStream is the stream name on which the dat/payload is stored (VCs/DIDDocuments)
+	// DataStream is the stream name on which the data/payload is stored (VCs/DIDDocuments)
 	DataStream = "DATA"
+	// ReprocessStream is the stream name used to rebuild the VDR/VCR
+	ReprocessStream = "REPROCESS"
 )
 
 // Stream contains configuration for a NATS stream both on the server and client side
@@ -49,6 +51,7 @@ type stream struct {
 	config     *nats.StreamConfig
 	clientOpts []nats.SubOpt
 	created    atomic.Value
+	durable    bool
 }
 
 func (stream *stream) Config() *nats.StreamConfig {
@@ -89,13 +92,17 @@ func (stream *stream) Subscribe(conn Conn, consumerName string, subjectFilter st
 		return err
 	}
 
-	_, err = ctx.Subscribe(subjectFilter, handler,
-		nats.Durable(consumerName),
+	opts := []nats.SubOpt{
 		nats.BindStream(stream.config.Name),
 		nats.AckExplicit(),
 		nats.DeliverNew(),
 		nats.MaxDeliver(10),
-	)
+	}
+	if stream.durable {
+		opts = append(opts, nats.Durable(consumerName))
+	}
+
+	_, err = ctx.Subscribe(subjectFilter, handler, opts...)
 	if err != nil {
 		return err
 	}
@@ -116,13 +123,14 @@ func NewDisposableStream(name string, subjects []string, maxMessages int64) Stre
 		nats.AckNone(),
 		nats.DeliverNew(),
 		nats.ReplayInstant(),
-	})
+	}, false)
 }
 
 // newStream configures a stream without any default settings
-func newStream(config *nats.StreamConfig, clientOpts []nats.SubOpt) Stream {
+func newStream(config *nats.StreamConfig, clientOpts []nats.SubOpt, durable bool) Stream {
 	return &stream{
 		config:     config,
 		clientOpts: clientOpts,
+		durable:    durable,
 	}
 }

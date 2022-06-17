@@ -24,10 +24,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"path"
+	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/nuts-node/storage"
+	"math"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -41,7 +41,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
-	v1 "github.com/nuts-foundation/nuts-node/network/transport/v1"
 	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
@@ -63,22 +62,23 @@ var defaultBBoltOptions = bbolt.DefaultOptions
 
 // Network implements Transactions interface and Engine functions.
 type Network struct {
-	config                 Config
-	strictMode             bool
-	lastTransactionTracker lastTransactionTracker
-	protocols              []transport.Protocol
-	connectionManager      transport.ConnectionManager
-	state                  dag.State
-	privateKeyResolver     crypto.KeyResolver
-	keyResolver            types.KeyResolver
-	startTime              atomic.Value
-	peerID                 transport.PeerID
-	didDocumentResolver    types.DocResolver
-	decrypter              crypto.Decrypter
-	nodeDIDResolver        transport.NodeDIDResolver
-	didDocumentFinder      types.DocFinder
-	connectionsDB          *bbolt.DB
-	eventPublisher         events.Event
+	config              Config
+	strictMode          bool
+	protocols           []transport.Protocol
+	connectionManager   transport.ConnectionManager
+	state               dag.State
+	privateKeyResolver  crypto.KeyResolver
+	keyResolver         types.KeyResolver
+	startTime           atomic.Value
+	peerID              transport.PeerID
+	didDocumentResolver types.DocResolver
+	decrypter           crypto.Decrypter
+	nodeDIDResolver     transport.NodeDIDResolver
+	didDocumentFinder   types.DocFinder
+	eventPublisher      events.Event
+	subscribers         map[EventType]map[string]Receiver
+	connectionStore     stoabs.KVStore
+	storeProvider       storage.Provider
 }
 
 // Walk walks the DAG starting at the root, passing every transaction to `visitor`.
@@ -96,17 +96,19 @@ func NewNetworkInstance(
 	didDocumentResolver types.DocResolver,
 	didDocumentFinder types.DocFinder,
 	eventPublisher events.Event,
+	storeProvider storage.Provider,
 ) *Network {
 	return &Network{
-		config:                 config,
-		decrypter:              decrypter,
-		keyResolver:            keyResolver,
-		privateKeyResolver:     privateKeyResolver,
-		didDocumentResolver:    didDocumentResolver,
-		didDocumentFinder:      didDocumentFinder,
-		lastTransactionTracker: lastTransactionTracker{headRefs: make(map[hash.SHA256Hash]bool), processedTransactions: map[hash.SHA256Hash]bool{}},
-		nodeDIDResolver:        &transport.FixedNodeDIDResolver{},
-		eventPublisher:         eventPublisher,
+		config:              config,
+		decrypter:           decrypter,
+		keyResolver:         keyResolver,
+		privateKeyResolver:  privateKeyResolver,
+		didDocumentResolver: didDocumentResolver,
+		didDocumentFinder:   didDocumentFinder,
+		nodeDIDResolver:     &transport.FixedNodeDIDResolver{},
+		eventPublisher:      eventPublisher,
+		storeProvider:       storeProvider,
+		subscribers:         map[EventType]map[string]Receiver{},
 	}
 }
 
@@ -159,7 +161,6 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	var candidateProtocols []transport.Protocol
 	if n.protocols == nil {
 		candidateProtocols = []transport.Protocol{
-			v1.New(n.config.ProtocolV1, n.state, n.collectDiagnostics),
 			v2.New(v2Cfg, n.nodeDIDResolver, n.state, n.didDocumentResolver, n.decrypter, n.collectDiagnostics),
 		}
 	} else {
@@ -182,7 +183,9 @@ func (n *Network) Configure(config core.ServerConfig) error {
 
 	// Setup connection manager, load with bootstrap nodes
 	if n.connectionManager == nil {
-		var grpcOpts []grpc.ConfigOption
+		grpcOpts := []grpc.ConfigOption{
+			grpc.WithConnectionTimeout(time.Duration(n.config.ConnectionTimeout) * time.Millisecond),
+		}
 		// Configure TLS
 		if n.config.EnableTLS {
 			grpcOpts = append(grpcOpts, grpc.WithTLS(clientCert, trustStore, n.config.MaxCRLValidityDays))
@@ -199,21 +202,31 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		} else {
 			authenticator = grpc.NewTLSAuthenticator(doc.NewServiceResolver(n.didDocumentResolver))
 		}
-		n.connectionsDB, err = bbolt.Open(path.Join(config.Datadir, "network", "connections.db"), os.ModePerm, nil)
+		n.connectionStore, err = n.storeProvider.GetKVStore("connections")
 		if err != nil {
-			return fmt.Errorf("failed to open gRPC database: %w", err)
+			return fmt.Errorf("failed to open connections store: %w", err)
 		}
 		n.connectionManager = grpc.NewGRPCConnectionManager(
 			grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...),
-			n.connectionsDB,
+			n.connectionStore,
 			n.nodeDIDResolver,
 			authenticator,
 			n.protocols...,
 		)
 	}
 
-	// register callback from DAG to other engines.
-	n.state.RegisterObserver(n.emitEvents, true)
+	// register callback from DAG to other engines, with payload only.
+	n.state.RegisterPayloadObserver(n.emitEvents, true)
+
+	// register observers to publish to other engines. Non-transactional, so will be published to other engines at most once.
+	n.state.RegisterTransactionObserver(func(_ context.Context, transaction dag.Transaction) error {
+		n.publish(TransactionAddedEvent, transaction, nil)
+		return nil
+	}, false)
+	n.state.RegisterPayloadObserver(func(transaction dag.Transaction, payload []byte) error {
+		n.publish(TransactionPayloadAddedEvent, transaction, payload)
+		return nil
+	}, false)
 
 	return nil
 }
@@ -223,9 +236,9 @@ func (n *Network) Configure(config core.ServerConfig) error {
 // If the transaction fails for some reason (storage) then the event is still emitted. This is ok because the transaction was already validated.
 // Most likely the transaction will be added at a later stage and another event will be emitted.
 // It only emits events when both the payload and transaction are present. This is the case from both state.Add and from state.WritePayload.
-func (n *Network) emitEvents(ctx context.Context, tx dag.Transaction, payload []byte) error {
+func (n *Network) emitEvents(tx dag.Transaction, payload []byte) error {
 	if tx != nil && payload != nil {
-		_, js, err := n.eventPublisher.Pool().Acquire(ctx)
+		_, js, err := n.eventPublisher.Pool().Acquire(context.Background())
 		if err != nil {
 			return fmt.Errorf(errEventFailedMsg, err)
 		}
@@ -271,9 +284,6 @@ func (n *Network) Config() interface{} {
 // Start initiates the Network subsystem
 func (n *Network) Start() error {
 	n.startTime.Store(time.Now())
-
-	// Load DAG and start publishing
-	n.state.Subscribe(dag.TransactionPayloadAddedEvent, dag.AnyPayloadType, n.lastTransactionTracker.process)
 
 	if err := n.state.Start(); err != nil {
 		return err
@@ -381,8 +391,36 @@ func (n *Network) validateNodeDID(nodeDID did.DID) error {
 
 // Subscribe makes a subscription for the specified transaction type. The receiver is called when a transaction
 // is received for the specified event and payload type.
-func (n *Network) Subscribe(eventType dag.EventType, transactionType string, receiver dag.Receiver) {
-	n.state.Subscribe(eventType, transactionType, receiver)
+func (n *Network) Subscribe(eventType EventType, payloadType string, receiver Receiver) {
+	if _, ok := n.subscribers[eventType]; !ok {
+		n.subscribers[eventType] = make(map[string]Receiver, 0)
+	}
+	oldSubscriber := n.subscribers[eventType][payloadType]
+	n.subscribers[eventType][payloadType] = func(transaction dag.Transaction, payload []byte) error {
+		// Chain subscribers in case there's more than 1
+		if oldSubscriber != nil {
+			if err := oldSubscriber(transaction, payload); err != nil {
+				return err
+			}
+		}
+		return receiver(transaction, payload)
+	}
+}
+
+func (n *Network) publish(eventType EventType, transaction dag.Transaction, payload []byte) {
+	subs := n.subscribers[eventType]
+	if subs == nil {
+		return
+	}
+	for _, payloadType := range []string{transaction.PayloadType(), AnyPayloadType} {
+		receiver := subs[payloadType]
+		if receiver == nil {
+			continue
+		}
+		if err := receiver(transaction, payload); err != nil {
+			log.Logger().Errorf("Transaction subscriber returned an error (ref=%s,type=%s): %v", transaction.Ref(), transaction.PayloadType(), err)
+		}
+	}
 }
 
 // GetTransaction retrieves the transaction for the given reference. If the transaction is not known, an error is returned.
@@ -405,7 +443,7 @@ func (n *Network) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte,
 
 // ListTransactions returns all transactions known to this Network instance.
 func (n *Network) ListTransactions() ([]dag.Transaction, error) {
-	return n.state.FindBetween(context.Background(), dag.MinTime(), dag.MaxTime())
+	return n.state.FindBetweenLC(0, math.MaxUint32)
 }
 
 // CreateTransaction creates a new transaction from the given template.
@@ -437,7 +475,7 @@ func (n *Network) CreateTransaction(template Template) (dag.Transaction, error) 
 	}
 
 	// Collect prevs
-	prevs := n.lastTransactionTracker.heads()
+	prevs := n.state.Heads(ctx)
 	for _, addPrev := range template.AdditionalPrevs {
 		prevs = append(prevs, addPrev)
 	}
@@ -522,10 +560,6 @@ func (n *Network) Shutdown() error {
 		}
 		n.state = nil
 	}
-
-	if n.connectionsDB != nil {
-		return n.connectionsDB.Close()
-	}
 	return nil
 }
 
@@ -569,11 +603,63 @@ func (n *Network) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 	return result
 }
 
+func (n *Network) Reprocess(contentType string) {
+	batchSize := uint32(1000)
+
+	log.Logger().Infof("Starting reprocess of %s", contentType)
+
+	go func() {
+		ctx := context.Background()
+		_, js, err := n.eventPublisher.Pool().Acquire(context.Background())
+		if err != nil {
+			log.Logger().Errorf("Failed to start reprocessing transactions: %v", err)
+		}
+
+		lastLC := uint32(999)
+		for i := uint32(0); (lastLC+uint32(1))%batchSize == 0; i++ {
+			start := i * batchSize
+			end := start + batchSize
+			txs, err := n.state.FindBetweenLC(start, end)
+			if err != nil {
+				log.Logger().Errorf("Failed to Reprocess transactions (start: %d, end: %d): %v", start, end, err)
+				return
+			}
+
+			for _, tx := range txs {
+				if tx.PayloadType() == contentType {
+					// add to Nats
+					subject := fmt.Sprintf("%s.%s", events.ReprocessStream, contentType)
+					payload, err := n.state.ReadPayload(ctx, tx.PayloadHash())
+					if err != nil {
+						log.Logger().Errorf("Failed to publish transaction (subject: %s, ref: %s): %v", subject, tx.Ref().String(), err)
+						return
+					}
+					twp := events.TransactionWithPayload{
+						Transaction: tx,
+						Payload:     payload,
+					}
+					data, _ := json.Marshal(twp)
+					log.Logger().Tracef("Publishing transaction (subject=%s, ref=%s)", subject, tx.Ref().String())
+					_, err = js.PublishAsync(subject, data)
+					if err != nil {
+						log.Logger().Errorf("Failed to publish transaction (subject: %s, ref: %s): %v", subject, tx.Ref().String(), err)
+						return
+					}
+				}
+				lastLC = tx.Clock()
+			}
+
+			// give some time for Update transactions that require all read transactions to be closed
+			time.Sleep(time.Second)
+		}
+	}()
+}
+
 func (n *Network) collectDiagnostics() transport.Diagnostics {
 	result := transport.Diagnostics{
 		Uptime:               time.Now().Sub(n.startTime.Load().(time.Time)),
 		NumberOfTransactions: uint32(n.state.Statistics(context.Background()).NumberOfTransactions),
-		SoftwareVersion:      core.GitCommit,
+		SoftwareVersion:      fmt.Sprintf("%s (%s)", core.GitBranch, core.GitCommit),
 		SoftwareID:           softwareID,
 	}
 	for _, peer := range n.connectionManager.Peers() {
@@ -591,42 +677,4 @@ func (n *Network) isPayloadPresent(ctx context.Context, txRef hash.SHA256Hash) (
 		return false, nil
 	}
 	return n.state.IsPayloadPresent(ctx, tx.PayloadHash())
-}
-
-// lastTransactionTracker that is used for tracking correct transactions.
-// If transactions are correct differs per type of transaction. The DAG will call process only for correct transactions.
-type lastTransactionTracker struct {
-	headRefs map[hash.SHA256Hash]bool
-	// processedTransactions keeps track of previous processed transactions.
-	// this is an ever growing map and will require some refactoring in the future.
-	processedTransactions map[hash.SHA256Hash]bool
-	mux                   sync.Mutex
-}
-
-func (l *lastTransactionTracker) process(transaction dag.Transaction, payload []byte) error {
-	l.mux.Lock()
-	defer l.mux.Unlock()
-
-	if processed := l.processedTransactions[transaction.Ref()]; processed {
-		return nil
-	}
-
-	// Update heads: previous' transactions aren't heads anymore, this transaction becomes a head.
-	for _, prev := range transaction.Previous() {
-		delete(l.headRefs, prev)
-	}
-	l.headRefs[transaction.Ref()] = true
-	l.processedTransactions[transaction.Ref()] = true
-	return nil
-}
-
-func (l *lastTransactionTracker) heads() []hash.SHA256Hash {
-	l.mux.Lock()
-	defer l.mux.Unlock()
-
-	var heads []hash.SHA256Hash
-	for head := range l.headRefs {
-		heads = append(heads, head)
-	}
-	return heads
 }

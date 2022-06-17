@@ -117,6 +117,9 @@ func (p *protocol) handle(peer transport.Peer, envelope *Envelope) error {
 func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, envelope *Envelope) error {
 	msg := envelope.GetTransactionPayloadQuery()
 	ctx := context.Background()
+
+	log.Logger().Tracef("handling TransactionPayloadQuery from peer (peer=%s, conversationID=%s, payload=%s)", peer.ID.String(), msg.ConversationID, msg.TransactionRef)
+
 	tx, err := p.state.GetTransaction(ctx, hash.FromSlice(msg.TransactionRef))
 	if err != nil {
 		return err
@@ -161,10 +164,13 @@ func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, envelope *
 	return p.send(peer, &Envelope_TransactionPayload{TransactionPayload: &TransactionPayload{TransactionRef: msg.TransactionRef, Data: data}})
 }
 
-func (p *protocol) handleTransactionPayload(_ transport.Peer, envelope *Envelope) error {
+func (p *protocol) handleTransactionPayload(peer transport.Peer, envelope *Envelope) error {
 	msg := envelope.GetTransactionPayload()
 	ctx := context.Background()
 	ref := hash.FromSlice(msg.TransactionRef)
+
+	log.Logger().Tracef("handling TransactionPayload from peer (peer=%s, conversationID=%s, payload=%s)", peer.ID.String(), msg.ConversationID, ref)
+
 	if ref.Empty() {
 		return errors.New("msg is missing transaction reference")
 	}
@@ -184,7 +190,7 @@ func (p *protocol) handleTransactionPayload(_ transport.Peer, envelope *Envelope
 		// Possible attack: received payload does not match transaction payload hash.
 		return fmt.Errorf("peer sent payload that doesn't match payload hash (tx=%s)", ref)
 	}
-	if err = p.state.WritePayload(ctx, tx, payloadHash, msg.Data); err != nil {
+	if err = p.state.WritePayload(tx, payloadHash, msg.Data); err != nil {
 		return err
 	}
 
@@ -195,12 +201,14 @@ func (p *protocol) handleTransactionPayload(_ transport.Peer, envelope *Envelope
 func (p *protocol) handleTransactionRangeQuery(peer transport.Peer, envelope *Envelope) error {
 	msg := envelope.GetTransactionRangeQuery()
 
+	log.Logger().Tracef("handling TransactionRangeQuery from peer (peer=%s, conversationID=%s)", peer.ID.String(), msg.ConversationID)
+
 	if msg.Start >= msg.End {
 		return errors.New("invalid range query")
 	}
 
 	ctx := context.Background()
-	txs, err := p.state.FindBetweenLC(ctx, msg.Start, msg.End)
+	txs, err := p.state.FindBetweenLC(msg.Start, msg.End)
 	if err != nil {
 		return err
 	}
@@ -216,17 +224,27 @@ func (p *protocol) handleTransactionRangeQuery(peer transport.Peer, envelope *En
 func (p *protocol) handleGossip(peer transport.Peer, envelope *Envelope) error {
 	msg := envelope.GetGossip()
 	ctx := context.Background()
+
+	log.Logger().Tracef("handling Gossip from peer (peer=%s)", peer.ID.String())
+
 	xor, clock := p.state.XOR(ctx, math.MaxUint32)
 	peerXor := hash.FromSlice(msg.XOR)
 	if xor.Equals(peerXor) {
 		return nil
 	}
 
-	// check for unknown transactions
+	//
 	refs := make([]hash.SHA256Hash, len(msg.Transactions))
+	for i, bytes := range msg.Transactions {
+		refs[i] = hash.FromSlice(bytes)
+	}
+	if len(refs) > 0 {
+		p.gManager.GossipReceived(peer.ID, refs...)
+	}
+
+	// filter for unknown transactions
 	i := 0
-	for _, bytes := range msg.Transactions {
-		ref := hash.FromSlice(bytes)
+	for _, ref := range refs {
 		// separate reader transactions on DB but that's ok.
 		present, err := p.state.IsPresent(ctx, ref)
 		if err != nil {
@@ -238,27 +256,24 @@ func (p *protocol) handleGossip(peer transport.Peer, envelope *Envelope) error {
 		}
 	}
 	refs = refs[:i]
-	if len(refs) > 0 {
-		// TODO swap for trace logging
-		log.Logger().Infof("received %d new transaction references via Gossip", len(refs))
-		p.gManager.GossipReceived(peer.ID, refs...)
-	}
-
-	// send State if node is missing more refs than referenced in this Gossip
-	tempXor := xor.Xor(refs...)
-	if msg.LC >= clock && !tempXor.Equals(peerXor) {
-		// TODO swap for trace logging
-		log.Logger().Infof("xor is different from peer=%s and peers clock is equal or higher", peer.ID)
-		return p.sender.sendState(peer.ID, xor, clock)
-	}
+	log.Logger().Debugf("received %d new transaction references via Gossip from peer=%s", len(refs), peer.ID)
 
 	// request missing refs
-	if len(refs) > 0 {
+	// If our DAG is just missing the TXs from the gossip to get in sync with the peer's DAG, send TransactionListQuery.
+	// Test this by XORing the TX refs from the gossip message with our DAG's XOR (should then equal peer DAG's XOR).
+	// If the XORs are not equal and the peer is behind, still request the missing refs if there are any.
+	tempXor := xor.Xor(refs...)
+	if tempXor.Equals(peerXor) || (msg.LC < clock && len(refs) > 0) {
 		return p.sender.sendTransactionListQuery(peer.ID, refs)
 	}
 
-	// peer is behind
-	return nil
+	// send State if node is missing more refs than referenced in this Gossip
+	if len(refs) == 0 {
+		log.Logger().Debugf("xor is different from peer=%s but Gossip contained no new transactions", peer.ID)
+	} else {
+		log.Logger().Debugf("xor is different from peer=%s and peers clock is equal or higher", peer.ID)
+	}
+	return p.sender.sendState(peer.ID, xor, clock)
 }
 
 func (p *protocol) handleTransactionListQuery(peer transport.Peer, envelope *Envelope) error {
@@ -268,8 +283,7 @@ func (p *protocol) handleTransactionListQuery(peer transport.Peer, envelope *Env
 
 	cid := conversationID(msg.ConversationID)
 
-	// TODO convert to trace logging
-	log.Logger().Infof("handling transactionListQuery from peer (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
+	log.Logger().Tracef("handling TransactionListQuery from peer (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
 
 	for i, refBytes := range msg.Refs {
 		requestedRefs[i] = hash.FromSlice(refBytes)
@@ -337,8 +351,7 @@ func (p *protocol) handleState(peer transport.Peer, envelope *Envelope) error {
 	msg := envelope.GetState()
 	cid := conversationID(msg.ConversationID)
 
-	// TODO convert to trace logging
-	log.Logger().Infof("handling State from peer (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
+	log.Logger().Tracef("handling State from peer (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
 
 	ctx := context.Background()
 	xor, lc := p.state.XOR(ctx, math.MaxUint32)
@@ -359,8 +372,7 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope)
 	cid := conversationID(msg.ConversationID)
 	data := handlerData{}
 
-	// TODO convert to trace logging
-	log.Logger().Debugf("handling TransactionSet from peer (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
+	log.Logger().Tracef("handling TransactionSet from peer (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
 
 	// check if response matches earlier request
 	if _, err := p.cMan.check(subEnvelope, data); err != nil {

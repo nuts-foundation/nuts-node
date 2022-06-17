@@ -23,12 +23,11 @@ import (
 	"path"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/network/dag"
-
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/events"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
@@ -52,6 +51,7 @@ func NewTestVCRInstance(t *testing.T) *vcr {
 		nil,
 		network.NewTestNetworkInstance(path.Join(testDirectory, "network")),
 		jsonld.NewTestJSONLDManager(t),
+		events.NewTestManager(t),
 	).(*vcr)
 
 	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
@@ -82,12 +82,13 @@ func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	crypto := crypto.NewMockKeyStore(ctrl)
 	tx := network.NewMockTransactions(ctrl)
-	tx.EXPECT().Subscribe(dag.TransactionPayloadAddedEvent, gomock.Any(), gomock.Any()).AnyTimes()
+	tx.EXPECT().Subscribe(network.TransactionPayloadAddedEvent, gomock.Any(), gomock.Any()).AnyTimes()
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	docResolver := types.NewMockDocResolver(ctrl)
 	serviceResolver := doc.NewMockServiceResolver(ctrl)
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
-	vcr := NewVCRInstance(crypto, docResolver, keyResolver, tx, jsonldManager).(*vcr)
+	eventManager := events.NewTestManager(t)
+	vcr := NewVCRInstance(crypto, docResolver, keyResolver, tx, jsonldManager, eventManager).(*vcr)
 	vcr.serviceResolver = serviceResolver
 	vcr.trustConfig = trust.NewConfig(path.Join(testDir, "trust.yaml"))
 	vcr.config.OverrideIssueAllPublic = false

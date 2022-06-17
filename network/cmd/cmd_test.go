@@ -172,8 +172,8 @@ func TestCmd_Peers(t *testing.T) {
 	expected := `Listing 1 peers:
 
 foo
-  SoftwareID:            
-  SoftwareVersion:           
+  SoftwareID:        
+  SoftwareVersion:   
   Uptime:            50s
   Number of DAG TXs: 0
   Peers:             []`
@@ -181,4 +181,37 @@ foo
 	err := cmd.Execute()
 	assert.Equal(t, strings.TrimSpace(expected), strings.TrimSpace(outBuf.String()))
 	assert.NoError(t, err)
+}
+
+func TestCmd_Reprocess(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		cmd := Cmd()
+		handler := http2.Handler{StatusCode: http.StatusAccepted}
+		s := httptest.NewServer(handler)
+		os.Setenv("NUTS_ADDRESS", s.URL)
+		defer os.Unsetenv("NUTS_ADDRESS")
+		core.NewServerConfig().Load(cmd)
+		defer s.Close()
+		cmd.SetArgs([]string{"reprocess", "application/did+json"})
+		err := cmd.Execute()
+		assert.NoError(t, err)
+	})
+
+	t.Run("missing type", func(t *testing.T) {
+		cmd := Cmd()
+		handler := http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: "{\"detail\":\"missing type\"}"}
+		s := httptest.NewServer(handler)
+		os.Setenv("NUTS_ADDRESS", s.URL)
+		defer os.Unsetenv("NUTS_ADDRESS")
+		core.NewServerConfig().Load(cmd)
+		defer s.Close()
+		cmd.SetArgs([]string{"reprocess", "application/did+json"})
+		expected := "Usage:\n  network reprocess [contentType]"
+
+		outBuf := new(bytes.Buffer)
+		cmd.SetOut(outBuf)
+
+		_ = cmd.Execute()
+		assert.Contains(t, outBuf.String(), expected)
+	})
 }

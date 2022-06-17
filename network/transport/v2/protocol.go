@@ -161,7 +161,7 @@ func (p *protocol) Configure(_ transport.PeerID) error {
 	p.gManager.RegisterSender(p.sendGossip)
 
 	// called after DAG is committed
-	p.state.RegisterObserver(p.gossipTransaction, false)
+	p.state.RegisterTransactionObserver(p.gossipTransaction, false)
 
 	return nil
 }
@@ -190,8 +190,7 @@ func (p *protocol) Start() (err error) {
 			return fmt.Errorf("failed to start retrying TransactionPayloadQuery: %w", err)
 		}
 
-		// todo replace with observer, underlying storage is persistent
-		p.state.Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, p.handlePrivateTx)
+		p.state.RegisterTransactionObserver(p.handlePrivateTx, true)
 	}
 	return
 }
@@ -211,7 +210,7 @@ func (p *protocol) connectionStateCallback(peer transport.Peer, state transport.
 }
 
 // gossipTransaction is called when a transaction is added to the DAG
-func (p *protocol) gossipTransaction(ctx context.Context, tx dag.Transaction, _ []byte) error {
+func (p *protocol) gossipTransaction(ctx context.Context, tx dag.Transaction) error {
 	if tx != nil { // can happen when payload is written for private TX
 		xor, clock := p.state.XOR(ctx, math.MaxUint32)
 		p.gManager.TransactionRegistered(tx.Ref(), xor, clock)
@@ -229,9 +228,9 @@ func (p *protocol) sendGossip(id transport.PeerID, refs []hash.SHA256Hash, xor h
 	return true
 }
 
-func (p *protocol) handlePrivateTx(tx dag.Transaction, _ []byte) error {
+func (p *protocol) handlePrivateTx(_ context.Context, tx dag.Transaction) error {
 	if len(tx.PAL()) == 0 {
-		// not for us, but for V1 protocol
+		// not a private tx
 		return nil
 	}
 

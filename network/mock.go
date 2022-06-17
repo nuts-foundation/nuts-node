@@ -110,8 +110,20 @@ func (mr *MockTransactionsMockRecorder) PeerDiagnostics() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PeerDiagnostics", reflect.TypeOf((*MockTransactions)(nil).PeerDiagnostics))
 }
 
+// Reprocess mocks base method.
+func (m *MockTransactions) Reprocess(contentType string) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Reprocess", contentType)
+}
+
+// Reprocess indicates an expected call of Reprocess.
+func (mr *MockTransactionsMockRecorder) Reprocess(contentType interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reprocess", reflect.TypeOf((*MockTransactions)(nil).Reprocess), contentType)
+}
+
 // Subscribe mocks base method.
-func (m *MockTransactions) Subscribe(eventType dag.EventType, payloadType string, receiver dag.Receiver) {
+func (m *MockTransactions) Subscribe(eventType EventType, payloadType string, receiver Receiver) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Subscribe", eventType, payloadType, receiver)
 }

@@ -76,7 +76,7 @@ func (m *manager) Configure(config core.ServerConfig) error {
 		MaxAge:    168 * time.Hour, // week
 		Discard:   nats.DiscardOld,
 		Storage:   nats.FileStorage,
-	}, []nats.SubOpt{})
+	}, []nats.SubOpt{}, true)
 
 	// register Data stream
 	m.streams[DataStream] = newStream(&nats.StreamConfig{
@@ -86,7 +86,7 @@ func (m *manager) Configure(config core.ServerConfig) error {
 		MaxAge:    168 * time.Hour, // week
 		Discard:   nats.DiscardOld,
 		Storage:   nats.FileStorage,
-	}, []nats.SubOpt{})
+	}, []nats.SubOpt{}, true)
 
 	return nil
 }

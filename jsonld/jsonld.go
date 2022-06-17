@@ -1,9 +1,30 @@
+/*
+ * Copyright (C) 2022 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package jsonld
 
 import (
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/jsonld/log"
 	"github.com/piprate/json-gold/ld"
 )
+
+var _ core.Configurable = (*jsonld)(nil)
 
 type jsonld struct {
 	config         Config
@@ -22,9 +43,8 @@ func (j *jsonld) DocumentLoader() ld.DocumentLoader {
 }
 
 func (j *jsonld) Configure(serverConfig core.ServerConfig) error {
-	j.config.strictMode = serverConfig.Strictmode
-
-	loader, err := NewContextLoader(!j.config.strictMode, j.config.Contexts)
+	log.Logger().Tracef("Config: %v", j.config)
+	loader, err := NewContextLoader(!serverConfig.Strictmode, j.config.Contexts)
 	if err != nil {
 		return err
 	}

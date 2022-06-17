@@ -5,7 +5,6 @@
 package grpc
 
 import (
-	tls "crypto/tls"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -145,15 +144,15 @@ func (mr *MockConnectionMockRecorder) setPeer(peer interface{}) *gomock.Call {
 }
 
 // startConnecting mocks base method.
-func (m *MockConnection) startConnecting(address string, backoff Backoff, config *tls.Config, callback func(*grpc.ClientConn) bool) {
+func (m *MockConnection) startConnecting(config connectorConfig, backoff Backoff, callback func(*grpc.ClientConn) bool) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "startConnecting", address, backoff, config, callback)
+	m.ctrl.Call(m, "startConnecting", config, backoff, callback)
 }
 
 // startConnecting indicates an expected call of startConnecting.
-func (mr *MockConnectionMockRecorder) startConnecting(address, backoff, config, callback interface{}) *gomock.Call {
+func (mr *MockConnectionMockRecorder) startConnecting(config, backoff, callback interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "startConnecting", reflect.TypeOf((*MockConnection)(nil).startConnecting), address, backoff, config, callback)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "startConnecting", reflect.TypeOf((*MockConnection)(nil).startConnecting), config, backoff, callback)
 }
 
 // stopConnecting mocks base method.

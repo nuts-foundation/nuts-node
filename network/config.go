@@ -19,7 +19,6 @@
 package network
 
 import (
-	"github.com/nuts-foundation/nuts-node/network/transport/v1"
 	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
 )
 
@@ -27,6 +26,8 @@ import (
 type Config struct {
 	// Socket address for gRPC to listen on
 	GrpcAddr string `koanf:"network.grpcaddr"`
+	// ConnectionTimeout specifies the timeout before an outbound connection attempt times out (in milliseconds).
+	ConnectionTimeout int `koanf:"network.connectiontimeout"`
 	// EnableTLS specifies whether to enable TLS for incoming connections.
 	EnableTLS bool `koanf:"network.enabletls"`
 	// Public address of this nodes other nodes can use to connect to this node.
@@ -51,9 +52,6 @@ type Config struct {
 	// It is used to identify it on the network.
 	NodeDID string `koanf:"network.nodedid"`
 
-	// ProtocolV1 specifies config for protocol v1
-	ProtocolV1 v1.Config `koanf:"network.v1"`
-
 	// ProtocolV2 specifies config for protocol v2
 	ProtocolV2 v2.Config `koanf:"network.v2"`
 }
@@ -74,10 +72,10 @@ func (c Config) IsProtocolEnabled(version int) bool {
 // DefaultConfig returns the default NetworkEngine configuration.
 func DefaultConfig() Config {
 	return Config{
-		GrpcAddr:        ":5555",
-		EnableTLS:       true,
-		ProtocolV1:      v1.DefaultConfig(),
-		ProtocolV2:      v2.DefaultConfig(),
-		EnableDiscovery: true,
+		GrpcAddr:          ":5555",
+		ConnectionTimeout: 5000,
+		EnableTLS:         true,
+		ProtocolV2:        v2.DefaultConfig(),
+		EnableDiscovery:   true,
 	}
 }

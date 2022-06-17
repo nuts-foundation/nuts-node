@@ -87,14 +87,16 @@ func startServer(t *testing.T) string {
 	go func() {
 		err := cmd.Execute(ctx, system)
 		if err != nil {
-			t.Fatal(err)
+			panic(err)
 		}
 	}()
 
-	test.WaitFor(t, func() (bool, error) {
+	if !test.WaitFor(t, func() (bool, error) {
 		resp, err := http.Get(fmt.Sprintf("http://localhost%s/status", httpPort))
 		return err == nil && resp.StatusCode == http.StatusOK, nil
-	}, time.Second, "Timeout while waiting for node to become available")
+	}, time.Second*5, "Timeout while waiting for node to become available") {
+		t.Fatal("time-out")
+	}
 
 	t.Cleanup(func() {
 		cancel()

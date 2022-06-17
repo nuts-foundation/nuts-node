@@ -25,13 +25,17 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"math"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/test"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -69,8 +73,8 @@ func TestNetwork_ListTransactions(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
-		cxt := createNetwork(ctrl)
-		cxt.state.EXPECT().FindBetween(gomock.Any(), gomock.Any(), gomock.Any()).Return([]dag.Transaction{dag.CreateTestTransactionWithJWK(1)}, nil)
+		cxt := createNetwork(t, ctrl)
+		cxt.state.EXPECT().FindBetweenLC(gomock.Any(), gomock.Any()).Return([]dag.Transaction{dag.CreateTestTransactionWithJWK(1)}, nil)
 		docs, err := cxt.network.ListTransactions()
 		assert.Len(t, docs, 1)
 		assert.NoError(t, err)
@@ -90,7 +94,7 @@ func TestNetwork_GetTransaction(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
-		cxt := createNetwork(ctrl)
+		cxt := createNetwork(t, ctrl)
 		cxt.state.EXPECT().GetTransaction(gomock.Any(), gomock.Any())
 		cxt.network.GetTransaction(hash.EmptyHash())
 	})
@@ -99,14 +103,14 @@ func TestNetwork_GetTransaction(t *testing.T) {
 func TestNetwork_GetTransactionPayload(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	t.Run("ok", func(t *testing.T) {
-		cxt := createNetwork(ctrl)
+		cxt := createNetwork(t, ctrl)
 		transaction := dag.CreateTestTransactionWithJWK(1)
 		cxt.state.EXPECT().GetTransaction(gomock.Any(), transaction.Ref()).Return(transaction, nil)
 		cxt.state.EXPECT().ReadPayload(gomock.Any(), transaction.PayloadHash())
 		cxt.network.GetTransactionPayload(transaction.Ref())
 	})
 	t.Run("ok - TX not found", func(t *testing.T) {
-		cxt := createNetwork(ctrl)
+		cxt := createNetwork(t, ctrl)
 		transaction := dag.CreateTestTransactionWithJWK(1)
 		cxt.state.EXPECT().GetTransaction(gomock.Any(), transaction.Ref()).Return(nil, nil)
 		payload, err := cxt.network.GetTransactionPayload(transaction.Ref())
@@ -119,9 +123,19 @@ func TestNetwork_Subscribe(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
-		cxt := createNetwork(ctrl)
-		cxt.state.EXPECT().Subscribe(dag.TransactionAddedEvent, "some-type", nil)
-		cxt.network.Subscribe(dag.TransactionAddedEvent, "some-type", nil)
+		cxt := createNetwork(t, ctrl)
+		var expectedReceiver Receiver
+		expectedReceiver = func(transaction dag.Transaction, payload []byte) error { return errors.New("custom receiver") }
+
+		cxt.network.Subscribe(TransactionAddedEvent, "some-type", expectedReceiver)
+
+		subs, ok := cxt.network.subscribers[TransactionAddedEvent]
+		if !assert.True(t, ok) {
+			return
+		}
+		receivers, ok := subs["some-type"]
+		assert.True(t, ok)
+		assert.Equal(t, expectedReceiver(nil, nil), receivers(nil, nil))
 	})
 }
 
@@ -129,7 +143,7 @@ func TestNetwork_Diagnostics(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		cxt := createNetwork(ctrl, func(config *Config) {
+		cxt := createNetwork(t, ctrl, func(config *Config) {
 			config.NodeDID = "did:nuts:localio"
 		})
 		// Diagnostics from deps
@@ -153,7 +167,7 @@ func TestNetwork_Configure(t *testing.T) {
 	t.Run("ok - configured node DID", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
-		ctx := createNetwork(ctrl, func(config *Config) {
+		ctx := createNetwork(t, ctrl, func(config *Config) {
 			config.NodeDID = "did:nuts:test"
 		})
 		ctx.protocol.EXPECT().Configure(gomock.Any())
@@ -171,7 +185,7 @@ func TestNetwork_Configure(t *testing.T) {
 	t.Run("ok - auto-resolve node DID", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
-		ctx := createNetwork(ctrl)
+		ctx := createNetwork(t, ctrl)
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 
 		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
@@ -183,7 +197,7 @@ func TestNetwork_Configure(t *testing.T) {
 	t.Run("ok - no DID set in strict mode, should return empty node DID", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
-		ctx := createNetwork(ctrl)
+		ctx := createNetwork(t, ctrl)
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 
 		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t), Strictmode: true})
@@ -199,7 +213,7 @@ func TestNetwork_Configure(t *testing.T) {
 	t.Run("error - configured node DID invalid", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
-		ctx := createNetwork(ctrl)
+		ctx := createNetwork(t, ctrl)
 		ctx.network.config.NodeDID = "invalid"
 
 		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
@@ -209,7 +223,7 @@ func TestNetwork_Configure(t *testing.T) {
 	t.Run("ok - TLS enabled", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		ctx := createNetwork(ctrl)
+		ctx := createNetwork(t, ctrl)
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 		ctx.network.connectionManager = nil
 
@@ -223,7 +237,7 @@ func TestNetwork_Configure(t *testing.T) {
 	t.Run("ok - TLS disabled", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		ctx := createNetwork(ctrl, func(config *Config) {
+		ctx := createNetwork(t, ctrl, func(config *Config) {
 			config.EnableTLS = false
 		})
 		ctx.protocol.EXPECT().Configure(gomock.Any())
@@ -240,7 +254,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
-		ctx := createNetwork(ctrl, func(config *Config) {
+		ctx := createNetwork(t, ctrl, func(config *Config) {
 			config.DisableNodeAuthentication = true
 		})
 		ctx.protocol.EXPECT().Configure(gomock.Any())
@@ -256,7 +270,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
-		ctx := createNetwork(ctrl, func(config *Config) {
+		ctx := createNetwork(t, ctrl, func(config *Config) {
 			config.DisableNodeAuthentication = true
 		})
 		ctx.protocol.EXPECT().Configure(gomock.Any())
@@ -269,7 +283,7 @@ func TestNetwork_Configure(t *testing.T) {
 	t.Run("ok - gRPC server not bound (but outbound connections are still supported)", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		ctx := createNetwork(ctrl, func(config *Config) {
+		ctx := createNetwork(t, ctrl, func(config *Config) {
 			config.GrpcAddr = ""
 		})
 		ctx.protocol.EXPECT().Configure(gomock.Any())
@@ -285,7 +299,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
-		ctx := createNetwork(ctrl, func(config *Config) {
+		ctx := createNetwork(t, ctrl, func(config *Config) {
 			config.EnableTLS = false
 		})
 		ctx.protocol.EXPECT().Configure(gomock.Any())
@@ -300,7 +314,7 @@ func TestNetwork_Configure(t *testing.T) {
 	t.Run("error - unable to load key pair from file", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		ctx := createNetwork(ctrl, func(config *Config) {
+		ctx := createNetwork(t, ctrl, func(config *Config) {
 			config.CertFile = "test/non-existent.pem"
 			config.CertKeyFile = "test/non-existent.pem"
 		})
@@ -314,7 +328,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
-		ctx := createNetwork(ctrl)
+		ctx := createNetwork(t, ctrl)
 		ctx.protocol.EXPECT().Configure(gomock.Any()).Return(errors.New("failed"))
 
 		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
@@ -325,7 +339,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
-		ctx := createNetwork(ctrl)
+		ctx := createNetwork(t, ctrl)
 
 		err := ctx.network.Configure(core.ServerConfig{Datadir: "network_test.go"})
 		assert.Error(t, err)
@@ -333,7 +347,7 @@ func TestNetwork_Configure(t *testing.T) {
 	t.Run("ok - protocol not enabled", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
-		ctx := createNetwork(ctrl, func(config *Config) {
+		ctx := createNetwork(t, ctrl, func(config *Config) {
 			config.Protocols = []int{2} // do not enable TestProtocol with version math.MaxInt
 		})
 
@@ -341,6 +355,22 @@ func TestNetwork_Configure(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.Empty(t, ctx.network.protocols)
+	})
+
+	t.Run("error - unable to open connections store", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		ctx := createNetwork(t, ctrl)
+		ctx.protocol.EXPECT().Configure(gomock.Any()).AnyTimes()
+		prov := storage.NewMockProvider(ctrl)
+		prov.EXPECT().GetKVStore(gomock.Any()).Return(nil, errors.New("failed"))
+		ctx.network.storeProvider = prov
+		ctx.network.connectionManager = nil
+
+		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+
+		assert.EqualError(t, err, "failed to open connections store: failed")
 	})
 }
 
@@ -352,12 +382,12 @@ func TestNetwork_PeerDiagnostics(t *testing.T) {
 	// Protocol 2: peer B (with diagnostics)
 	// Result should be peer A and B without diagnostics
 
-	cxt := createNetwork(ctrl)
+	cxt := createNetwork(t, ctrl)
 	cxt.protocol.EXPECT().PeerDiagnostics().Return(map[transport.PeerID]transport.Diagnostics{
 		"A": {
 			SoftwareID: "A",
-			Uptime: time.Second,
-			Peers:  []transport.PeerID{"A"},
+			Uptime:     time.Second,
+			Peers:      []transport.PeerID{"A"},
 		},
 		"B": {},
 	})
@@ -366,8 +396,8 @@ func TestNetwork_PeerDiagnostics(t *testing.T) {
 	protocol2.EXPECT().PeerDiagnostics().Return(map[transport.PeerID]transport.Diagnostics{
 		"B": {
 			SoftwareID: "B",
-			Uptime: time.Second,
-			Peers:  []transport.PeerID{"A"},
+			Uptime:     time.Second,
+			Peers:      []transport.PeerID{"A"},
 		},
 	})
 	cxt.network.protocols = append(cxt.network.protocols, protocol2)
@@ -389,12 +419,13 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		payload := []byte("Hello, World!")
-		cxt := createNetwork(ctrl)
+		cxt := createNetwork(t, ctrl)
 		err := cxt.start()
 		if !assert.NoError(t, err) {
 			return
 		}
 
+		cxt.state.EXPECT().Heads(gomock.Any())
 		cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
 
 		_, err = cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key).WithAttachKey())
@@ -404,11 +435,12 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		payload := []byte("Hello, World!")
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		cxt := createNetwork(ctrl)
+		cxt := createNetwork(t, ctrl)
 		err := cxt.start()
 		if !assert.NoError(t, err) {
 			return
 		}
+		cxt.state.EXPECT().Heads(gomock.Any())
 		cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
 		tx, err := cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key))
 		assert.NoError(t, err)
@@ -418,17 +450,17 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		payload := []byte("Hello, World!")
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		cxt := createNetwork(ctrl)
+		cxt := createNetwork(t, ctrl)
 
 		// Register root TX on head tracker
 		rootTX, _, _ := dag.CreateTestTransaction(0)
-		cxt.network.lastTransactionTracker.process(rootTX, nil)
 
 		// 'Register' prev on DAG
 		additionalPrev, _, _ := dag.CreateTestTransaction(1)
 		cxt.state.EXPECT().GetTransaction(gomock.Any(), rootTX.Ref()).Return(rootTX, nil)
 		cxt.state.EXPECT().GetTransaction(gomock.Any(), additionalPrev.Ref()).Return(additionalPrev, nil).Times(2)
 		cxt.state.EXPECT().IsPayloadPresent(gomock.Any(), additionalPrev.PayloadHash()).Return(true, nil)
+		cxt.state.EXPECT().Heads(gomock.Any()).Return([]hash.SHA256Hash{rootTX.Ref()})
 
 		cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
 
@@ -450,7 +482,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		payload := []byte("Hello, World!")
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		cxt := createNetwork(ctrl)
+		cxt := createNetwork(t, ctrl)
 		err := cxt.start()
 		if !assert.NoError(t, err) {
 			return
@@ -477,7 +509,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			payload := []byte("Hello, World!")
-			cxt := createNetwork(ctrl)
+			cxt := createNetwork(t, ctrl)
 			err := cxt.start()
 			if !assert.NoError(t, err) {
 				return
@@ -485,6 +517,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 
+			cxt.state.EXPECT().Heads(gomock.Any())
 			cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
 
 			cxt.keyResolver.EXPECT().ResolveKeyAgreementKey(*sender).Return(senderKey.Public(), nil)
@@ -497,7 +530,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			payload := []byte("Hello, World!")
-			cxt := createNetwork(ctrl)
+			cxt := createNetwork(t, ctrl)
 			err := cxt.start()
 			if !assert.NoError(t, err) {
 				return
@@ -510,15 +543,15 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 	t.Run("error - failed to calculate LC", func(t *testing.T) {
 		payload := []byte("Hello, World!")
 		ctrl := gomock.NewController(t)
-		cxt := createNetwork(ctrl)
+		cxt := createNetwork(t, ctrl)
 		// Register root TX on head tracker
 		rootTX, _, _ := dag.CreateTestTransaction(0)
-		cxt.network.lastTransactionTracker.process(rootTX, nil)
 		// 'Register' prev on DAG
 		additionalPrev, _, _ := dag.CreateTestTransaction(1)
 		cxt.state.EXPECT().GetTransaction(gomock.Any(), rootTX.Ref()).Return(nil, errors.New("custom"))
 		cxt.state.EXPECT().GetTransaction(gomock.Any(), additionalPrev.Ref()).Return(additionalPrev, nil)
 		cxt.state.EXPECT().IsPayloadPresent(gomock.Any(), additionalPrev.PayloadHash()).Return(true, nil)
+		cxt.state.EXPECT().Heads(gomock.Any()).Return([]hash.SHA256Hash{rootTX.Ref()})
 
 		_, err := cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key).WithAdditionalPrevs([]hash.SHA256Hash{additionalPrev.Ref()}))
 
@@ -530,7 +563,7 @@ func TestNetwork_Start(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		cxt := createNetwork(ctrl)
+		cxt := createNetwork(t, ctrl)
 
 		err := cxt.start()
 
@@ -542,7 +575,7 @@ func TestNetwork_Start(t *testing.T) {
 	t.Run("ok - connects to bootstrap nodes", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		cxt := createNetwork(ctrl, func(config *Config) {
+		cxt := createNetwork(t, ctrl, func(config *Config) {
 			config.BootstrapNodes = []string{"bootstrap-node-1", "", "bootstrap-node-2"}
 		})
 		cxt.docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return([]did.Document{}, nil)
@@ -567,7 +600,7 @@ func TestNetwork_Start(t *testing.T) {
 	t.Run("error - state start failed", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		cxt := createNetwork(ctrl)
+		cxt := createNetwork(t, ctrl)
 		cxt.state.EXPECT().Start().Return(errors.New("failed"))
 
 		err := cxt.network.Start()
@@ -597,7 +630,7 @@ func TestNetwork_Start(t *testing.T) {
 		t.Run("ok - configured node DID successfully resolves", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			cxt := createNetwork(ctrl)
+			cxt := createNetwork(t, ctrl)
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 			cxt.keyStore.EXPECT().Exists(keyID.String()).Return(true)
@@ -609,7 +642,7 @@ func TestNetwork_Start(t *testing.T) {
 		t.Run("ok - invalid node DID configuration in non-strict mode", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			cxt := createNetwork(ctrl)
+			cxt := createNetwork(t, ctrl)
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(nil, nil, did.DeactivatedErr)
 			err := cxt.start()
@@ -618,7 +651,7 @@ func TestNetwork_Start(t *testing.T) {
 		t.Run("error - configured node DID does not resolve to a DID document", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			cxt := createNetwork(ctrl)
+			cxt := createNetwork(t, ctrl)
 			cxt.network.strictMode = true
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(nil, nil, did.DeactivatedErr)
@@ -629,7 +662,7 @@ func TestNetwork_Start(t *testing.T) {
 		t.Run("error - configured node DID does not have key agreement key", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			cxt := createNetwork(ctrl)
+			cxt := createNetwork(t, ctrl)
 			cxt.network.strictMode = true
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(&did.Document{}, &vdrTypes.DocumentMetadata{}, nil)
@@ -640,7 +673,7 @@ func TestNetwork_Start(t *testing.T) {
 		t.Run("error - configured node DID has key agreement key, but is not present in key store", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			cxt := createNetwork(ctrl)
+			cxt := createNetwork(t, ctrl)
 			cxt.network.strictMode = true
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
@@ -652,7 +685,7 @@ func TestNetwork_Start(t *testing.T) {
 		t.Run("error - configured node DID does not have NutsComm service", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			cxt := createNetwork(ctrl)
+			cxt := createNetwork(t, ctrl)
 			cxt.network.strictMode = true
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(documentWithoutNutsCommService, &vdrTypes.DocumentMetadata{}, nil)
@@ -668,7 +701,7 @@ func TestNetwork_Shutdown(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		ctx := createNetwork(ctrl)
+		ctx := createNetwork(t, ctrl)
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 		ctx.protocol.EXPECT().Stop()
 		ctx.connectionManager.EXPECT().Stop()
@@ -686,7 +719,7 @@ func TestNetwork_Shutdown(t *testing.T) {
 	t.Run("multiple calls", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		cxt := createNetwork(ctrl)
+		cxt := createNetwork(t, ctrl)
 		cxt.state.EXPECT().Shutdown().MinTimes(1)
 		cxt.protocol.EXPECT().Stop().MinTimes(1)
 		cxt.connectionManager.EXPECT().Stop().MinTimes(1)
@@ -699,15 +732,116 @@ func TestNetwork_Shutdown(t *testing.T) {
 	})
 }
 
+func TestNetwork_Reprocess(t *testing.T) {
+	foundMutex := sync.Mutex{}
+	tx, _, _ := dag.CreateTestTransaction(0)
+
+	setup := func(t *testing.T) (*networkTestContext, events.Event) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		ctx := createNetwork(t, ctrl)
+		eventManager := events.NewTestManager(t)
+		ctx.network.eventPublisher = eventManager
+		return ctx, eventManager
+	}
+
+	subscribe := func(counter *int, eventManager events.Event) {
+		conn, _, _ := eventManager.Pool().Acquire(context.Background())
+		stream := events.NewDisposableStream("REPROCESS_test", []string{"REPROCESS.*"}, 10)
+		_ = stream.Subscribe(conn, "test", "REPROCESS.*", func(msg *nats.Msg) {
+			foundMutex.Lock()
+			defer foundMutex.Unlock()
+			*counter++
+			err := msg.Ack()
+			if !assert.NoError(t, err) {
+				t.Fatal(err)
+			}
+		})
+	}
+
+	t.Run("ok", func(t *testing.T) {
+		ctx, eventManager := setup(t)
+		ctx.state.EXPECT().FindBetweenLC(uint32(0), uint32(1000)).Return([]dag.Transaction{tx}, nil)
+		ctx.state.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).Return([]byte("payload"), nil)
+
+		var found int
+		subscribe(&found, eventManager)
+
+		ctx.network.Reprocess("application/did+json")
+
+		test.WaitFor(t, func() (bool, error) {
+			foundMutex.Lock()
+			defer foundMutex.Unlock()
+			return found > 0, nil
+		}, 100*time.Millisecond, "timeout waiting for event")
+	})
+
+	t.Run("ignores other transactions", func(t *testing.T) {
+		ctx, eventManager := setup(t)
+		ctx.state.EXPECT().FindBetweenLC(uint32(0), uint32(1000)).Return([]dag.Transaction{tx}, nil)
+		ctx.state.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).Return([]byte("payload"), nil)
+
+		var found int
+		subscribe(&found, eventManager)
+
+		ctx.network.Reprocess("application/did+vc")
+
+		test.WaitForNoFail(t, func() (bool, error) {
+			foundMutex.Lock()
+			defer foundMutex.Unlock()
+			return found > 0, nil
+		}, 100*time.Millisecond)
+
+		assert.Equal(t, 0, found)
+	})
+
+	t.Run("stops on error", func(t *testing.T) {
+		ctx, eventManager := setup(t)
+		ctx.state.EXPECT().FindBetweenLC(uint32(0), uint32(1000)).Return(nil, errors.New("b00m!"))
+
+		var found int
+		subscribe(&found, eventManager)
+
+		ctx.network.Reprocess("application/did+vc")
+
+		test.WaitForNoFail(t, func() (bool, error) {
+			foundMutex.Lock()
+			defer foundMutex.Unlock()
+			return found > 0, nil
+		}, 100*time.Millisecond)
+
+		assert.Equal(t, 0, found)
+	})
+
+	t.Run("stops on error 2", func(t *testing.T) {
+		ctx, eventManager := setup(t)
+		ctx.state.EXPECT().FindBetweenLC(uint32(0), uint32(1000)).Return([]dag.Transaction{tx}, nil)
+		ctx.state.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).Return(nil, errors.New("b00m!"))
+
+		var found int
+		subscribe(&found, eventManager)
+
+		ctx.network.Reprocess("application/did+vc")
+
+		test.WaitForNoFail(t, func() (bool, error) {
+			foundMutex.Lock()
+			defer foundMutex.Unlock()
+			return found > 0, nil
+		}, 100*time.Millisecond)
+
+		assert.Equal(t, 0, found)
+	})
+}
+
 func TestNetwork_collectDiagnostics(t *testing.T) {
 	const txNum = 5
-	const expectedVersion = "0"
+	const expectedVersion = "development (0)"
 	const expectedID = "https://github.com/nuts-foundation/nuts-node"
 	expectedPeer := transport.Peer{ID: "abc", Address: "123"}
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	cxt := createNetwork(ctrl)
+	cxt := createNetwork(t, ctrl)
 	cxt.state.EXPECT().Statistics(gomock.Any()).Return(dag.Statistics{NumberOfTransactions: txNum})
 
 	cxt.connectionManager.EXPECT().Peers().Return([]transport.Peer{expectedPeer})
@@ -719,45 +853,6 @@ func TestNetwork_collectDiagnostics(t *testing.T) {
 	assert.Equal(t, []transport.PeerID{expectedPeer.ID}, actual.Peers)
 	assert.Equal(t, uint32(txNum), actual.NumberOfTransactions)
 	assert.NotEmpty(t, actual.Uptime)
-}
-
-func Test_lastTransactionTracker(t *testing.T) {
-	tracker := lastTransactionTracker{
-		headRefs:              map[hash.SHA256Hash]bool{},
-		processedTransactions: map[hash.SHA256Hash]bool{},
-	}
-
-	assert.Empty(t, tracker.heads()) // initially empty
-
-	// Root TX
-	tx0, _, _ := dag.CreateTestTransaction(0)
-	_ = tracker.process(tx0, nil)
-	assert.Len(t, tracker.heads(), 1)
-	assert.Contains(t, tracker.heads(), tx0.Ref())
-
-	// TX 1
-	tx1, _, _ := dag.CreateTestTransaction(1, tx0)
-	_ = tracker.process(tx1, nil)
-	assert.Len(t, tracker.heads(), 1)
-	assert.Contains(t, tracker.heads(), tx1.Ref())
-
-	// TX 2 (branch from root)
-	tx2, _, _ := dag.CreateTestTransaction(2, tx0)
-	_ = tracker.process(tx2, nil)
-	assert.Len(t, tracker.heads(), 2)
-	assert.Contains(t, tracker.heads(), tx1.Ref())
-	assert.Contains(t, tracker.heads(), tx2.Ref())
-
-	// TX 3 (merges 1 and 2)
-	tx3, _, _ := dag.CreateTestTransaction(2, tx1, tx2)
-	_ = tracker.process(tx3, nil)
-	assert.Len(t, tracker.heads(), 1)
-	assert.Contains(t, tracker.heads(), tx3.Ref())
-
-	// duplicate TX 1, no effect.
-	_ = tracker.process(tx1, nil)
-	assert.Len(t, tracker.heads(), 1)
-	assert.Contains(t, tracker.heads(), tx3.Ref())
 }
 
 func Test_connectToKnownNodes(t *testing.T) {
@@ -855,7 +950,7 @@ func TestNetwork_calculateLamportClock(t *testing.T) {
 
 	t.Run("returns 0 for root", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		cxt := createNetwork(ctrl)
+		cxt := createNetwork(t, ctrl)
 
 		clock, err := cxt.network.calculateLamportClock(context.Background(), nil)
 
@@ -867,7 +962,7 @@ func TestNetwork_calculateLamportClock(t *testing.T) {
 
 	t.Run("returns 1 for next TX", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		cxt := createNetwork(ctrl)
+		cxt := createNetwork(t, ctrl)
 		cxt.state.EXPECT().GetTransaction(gomock.Any(), root.Ref()).Return(root, nil)
 
 		clock, err := cxt.network.calculateLamportClock(context.Background(), []hash.SHA256Hash{root.Ref()})
@@ -880,7 +975,7 @@ func TestNetwork_calculateLamportClock(t *testing.T) {
 
 	t.Run("returns correct number for complex situation", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		cxt := createNetwork(ctrl)
+		cxt := createNetwork(t, ctrl)
 		A := dag.CreateTestTransactionWithJWK(2, root)
 		B := dag.CreateTestTransactionWithJWK(3, root, A)
 		C := dag.CreateTestTransactionWithJWK(4, B, root)
@@ -897,7 +992,7 @@ func TestNetwork_calculateLamportClock(t *testing.T) {
 
 	t.Run("error - failed to fetch TX", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		cxt := createNetwork(ctrl)
+		cxt := createNetwork(t, ctrl)
 		cxt.state.EXPECT().GetTransaction(gomock.Any(), root.Ref()).Return(nil, errors.New("custom"))
 
 		clock, err := cxt.network.calculateLamportClock(context.Background(), []hash.SHA256Hash{root.Ref()})
@@ -907,9 +1002,8 @@ func TestNetwork_calculateLamportClock(t *testing.T) {
 	})
 }
 
-func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *networkTestContext {
+func createNetwork(t *testing.T, ctrl *gomock.Controller, cfgFn ...func(config *Config)) *networkTestContext {
 	state := dag.NewMockState(ctrl)
-	state.EXPECT().Subscribe(dag.TransactionPayloadAddedEvent, dag.AnyPayloadType, gomock.Any()).AnyTimes()
 	prot := transport.NewMockProtocol(ctrl)
 	prot.EXPECT().Version().AnyTimes().Return(math.MaxInt)
 	connectionManager := transport.NewMockConnectionManager(ctrl)
@@ -927,9 +1021,13 @@ func createNetwork(ctrl *gomock.Controller, cfgFn ...func(config *Config)) *netw
 	docResolver := vdrTypes.NewMockDocResolver(ctrl)
 	docFinder := vdrTypes.NewMockDocFinder(ctrl)
 	eventPublisher := events.NewMockEvent(ctrl)
+	storageEngine := storage.NewTestStorageEngine(io.TestDirectory(t))
+	t.Cleanup(func() {
+		_ = storageEngine.Shutdown()
+	})
 	// required when starting the network, it searches for nodes to connect to
 	docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return([]did.Document{}, nil)
-	network := NewNetworkInstance(networkConfig, keyResolver, keyStore, decrypter, docResolver, docFinder, eventPublisher)
+	network := NewNetworkInstance(networkConfig, keyResolver, keyStore, decrypter, docResolver, docFinder, eventPublisher, storageEngine.GetProvider(ModuleName))
 	network.state = state
 	network.connectionManager = connectionManager
 	network.protocols = []transport.Protocol{prot}

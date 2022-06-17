@@ -41,6 +41,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("network.grpcaddr", defs.GrpcAddr, "Local address for gRPC to listen on. "+
 		"If empty the gRPC server won't be started and other nodes will not be able to connect to this node "+
 		"(outbound connections can still be made).")
+	flagSet.Int("network.connectiontimeout", defs.ConnectionTimeout, "Timeout before an outbound connection attempt times out (in milliseconds).")
 	flagSet.StringSlice("network.bootstrapnodes", defs.BootstrapNodes, "List of bootstrap nodes (`<host>:<port>`) which the node initially connect to.")
 	flagSet.Bool("network.enablediscovery", defs.EnableDiscovery, "Whether to enable automatic connecting to other nodes.")
 	flagSet.Bool("network.enabletls", defs.EnableTLS, "Whether to enable TLS for incoming and outgoing gRPC connections. "+
@@ -53,10 +54,6 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.Bool("network.disablenodeauthentication", defs.DisableNodeAuthentication, "Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes. Not allowed in strict-mode.")
 	flagSet.String("network.nodedid", defs.NodeDID, "Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.")
 	flagSet.IntSlice("network.protocols", defs.Protocols, "Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.")
-	flagSet.Int("network.v1.adverthashesinterval", defs.ProtocolV1.AdvertHashesInterval, "Interval (in milliseconds) that specifies how often the node should broadcast its last hashes to other nodes.")
-	flagSet.Int("network.v1.advertdiagnosticsinterval", defs.ProtocolV1.AdvertDiagnosticsInterval, "Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable).")
-	flagSet.Int("network.v1.collectmissingpayloadsinterval", defs.ProtocolV1.CollectMissingPayloadsInterval, "Interval (in milliseconds) that specifies how often the node should check for missing payloads and broadcast its peers for it (specify 0 to disable). "+
-		"This check might be heavy on larger DAGs so make sure not to run it too often.")
 	flagSet.Int("network.v2.gossipinterval", defs.ProtocolV2.GossipInterval, "Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes.")
 	flagSet.Int("network.v2.diagnosticsinterval", defs.ProtocolV2.DiagnosticsInterval, "Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable).")
 	return flagSet
@@ -72,6 +69,7 @@ func Cmd() *cobra.Command {
 	cmd.AddCommand(getCommand())
 	cmd.AddCommand(payloadCommand())
 	cmd.AddCommand(peersCommand())
+	cmd.AddCommand(reprocessCommand())
 	return cmd
 }
 
@@ -189,12 +187,29 @@ func peersCommand() *cobra.Command {
 			for _, curr := range sortedPeers {
 				peer := transport.PeerID(curr)
 				cmd.Printf("\n%s\n", peer)
-				cmd.Printf("  SoftwareID:            %s\n", peers[peer].SoftwareID)
-				cmd.Printf("  SoftwareVersion:           %s\n", peers[peer].SoftwareVersion)
+				cmd.Printf("  SoftwareID:        %s\n", peers[peer].SoftwareID)
+				cmd.Printf("  SoftwareVersion:   %s\n", peers[peer].SoftwareVersion)
 				cmd.Printf("  Uptime:            %s\n", peers[peer].Uptime)
 				cmd.Printf("  Number of DAG TXs: %d\n", peers[peer].NumberOfTransactions)
 				cmd.Printf("  Peers:             %v\n", peers[peer].Peers)
 			}
+			return nil
+		},
+	}
+}
+
+func reprocessCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "reprocess [contentType]",
+		Short: "Reprocess all transactions with the give contentType (ex: application/did+json)",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			err := httpClient(core.NewClientConfig(cmd.Flags())).Reprocess(args[0])
+			if err != nil {
+				// prints help on 400
+				return err
+			}
+			cmd.Printf("Reprocessing transactions with contentType: %s\n", args[0])
 			return nil
 		},
 	}

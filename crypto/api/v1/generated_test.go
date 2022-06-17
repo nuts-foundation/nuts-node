@@ -66,7 +66,7 @@ func TestRegisterHandlers(t *testing.T) {
 		defer ctrl.Finish()
 		echo := core.NewMockEchoRouter(ctrl)
 
-		echo.EXPECT().POST( "/internal/crypto/v1/sign_jwt", gomock.Any())
+		echo.EXPECT().POST("/internal/crypto/v1/sign_jwt", gomock.Any())
 
 		RegisterHandlers(echo, &testServerInterface{})
 	})

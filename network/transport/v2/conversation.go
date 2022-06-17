@@ -76,6 +76,11 @@ func (conversation *conversation) set(key string, value interface{}) {
 	conversation.properties[key] = value
 }
 
+type blockable interface {
+	checkable
+	blockingConversation()
+}
+
 type checkable interface {
 	conversationable
 	checkResponse(envelope isEnvelope_Message, data handlerData) error
@@ -152,10 +157,13 @@ func (cMan *conversationManager) startConversation(msg checkable, id transport.P
 	cMan.mutex.Lock()
 	defer cMan.mutex.Unlock()
 
-	if cMan.hasActiveConversation(id) {
-		return nil
+	if _, ok := msg.(blockable); ok {
+		if cMan.hasActiveConversation(id) {
+			return nil
+		}
+		cMan.lastPeerConversationID[id] = cid
 	}
-	cMan.lastPeerConversationID[id] = cid
+
 	cMan.conversations[cid.String()] = newConversation
 
 	return newConversation
@@ -222,6 +230,8 @@ func (envelope *Envelope_TransactionListQuery) checkResponse(other isEnvelope_Me
 	return nil
 }
 
+func (envelope *Envelope_TransactionListQuery) blockingConversation() {}
+
 func (envelope *Envelope_TransactionRangeQuery) setConversationID(cid conversationID) {
 	envelope.TransactionRangeQuery.ConversationID = cid.slice()
 }
@@ -235,19 +245,20 @@ func (envelope *Envelope_TransactionRangeQuery) checkResponse(other isEnvelope_M
 	if !ok {
 		return errIncorrectEnvelopeType
 	}
-	_, err := otherEnvelope.parseTransactions(data)
+	txs, err := otherEnvelope.parseTransactions(data)
 	if err != nil {
 		return err
 	}
 	// As per RFC017, every TX in the response must have an LC value within the requested range
-	// TODO: reenable after development network reset and re-enable tests
-	//for _, tx := range txs {
-	//	if tx.Clock() < envelope.TransactionRangeQuery.Start || tx.Clock() >= envelope.TransactionRangeQuery.End {
-	//		return fmt.Errorf("TX is not within the requested range (tx=%s)", tx.Ref())
-	//	}
-	//}
+	for _, tx := range txs {
+		if tx.Clock() < envelope.TransactionRangeQuery.Start || tx.Clock() >= envelope.TransactionRangeQuery.End {
+			return fmt.Errorf("TX is not within the requested range (tx=%s)", tx.Ref())
+		}
+	}
 	return nil
 }
+
+func (envelope *Envelope_TransactionRangeQuery) blockingConversation() {}
 
 func (envelope *Envelope_TransactionList) setConversationID(cid conversationID) {
 	envelope.TransactionList.ConversationID = cid.slice()

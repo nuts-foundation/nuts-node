@@ -100,7 +100,7 @@ func TestCrypto_Resolve(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		_, err := client.Resolve("no kidding")
 
-		assert.Equal(t, ErrKeyNotFound, err)
+		assert.Equal(t, ErrPrivateKeyNotFound, err)
 	})
 }
 

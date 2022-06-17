@@ -83,7 +83,7 @@ func TestConversationManager_start(t *testing.T) {
 }
 
 func TestConversationManager_startConversation(t *testing.T) {
-	msg := &Envelope_State{State: &State{}}
+	msg := &Envelope_TransactionListQuery{TransactionListQuery: &TransactionListQuery{}}
 	t.Run("peers first conversation", func(t *testing.T) {
 		cMan := newConversationManager(time.Millisecond)
 
@@ -104,6 +104,17 @@ func TestConversationManager_startConversation(t *testing.T) {
 		assert.Len(t, cMan.conversations, 1)
 		assert.Len(t, cMan.lastPeerConversationID, 1)
 		assert.Equal(t, previousConv.conversationID, cMan.lastPeerConversationID["peer"])
+	})
+	t.Run("State is not blocking", func(t *testing.T) {
+		msg := &Envelope_State{State: &State{}}
+		cMan := newConversationManager(time.Millisecond)
+		_ = cMan.startConversation(msg, "peer")
+
+		conv := cMan.startConversation(msg, "peer")
+
+		assert.NotNil(t, conv)
+		assert.Len(t, cMan.conversations, 2)
+		assert.Len(t, cMan.lastPeerConversationID, 0)
 	})
 	t.Run("previous conversation marked done", func(t *testing.T) {
 		cMan := newConversationManager(time.Millisecond)
@@ -233,7 +244,6 @@ func TestConversationManager_checkTransactionRangeQuery(t *testing.T) {
 		assert.NotNil(t, c)
 	})
 	t.Run("error - TX LC out of requested range", func(t *testing.T) {
-		t.Skip()
 		c := cMan.startConversation(envelope, "error - TX LC out of requested range")
 		response := &Envelope_TransactionList{
 			TransactionList: &TransactionList{
@@ -252,7 +262,6 @@ func TestConversationManager_checkTransactionRangeQuery(t *testing.T) {
 		c, err := cMan.check(response, handlerData{})
 
 		assert.EqualError(t, err, "TX is not within the requested range (tx="+tx2.Ref().String()+")")
-		assert.Nil(t, c)
 	})
 }
 

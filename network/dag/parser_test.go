@@ -200,13 +200,13 @@ func TestParseTransaction(t *testing.T) {
 	})
 	t.Run("error - unsupported version", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", true)
-		headers.Set(versionHeader, 2)
+		headers.Set(versionHeader, 3)
 		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
 
 		transaction, err := ParseTransaction(signature)
 
 		assert.Nil(t, transaction)
-		assert.EqualError(t, err, "transaction validation failed: unsupported version: 2")
+		assert.EqualError(t, err, "transaction validation failed: unsupported version: 3")
 	})
 	t.Run("error - invalid algorithm", func(t *testing.T) {
 		key := generateRSAKey()
@@ -245,7 +245,8 @@ func makeJWSHeaders(key crypto.Signer, kid string, embedKey bool) jws.Headers {
 	headerMap := map[string]interface{}{
 		jws.AlgorithmKey:   jwa.ES256,
 		jws.ContentTypeKey: "foo/bar",
-		jws.CriticalKey:    []string{signingTimeHeader, versionHeader, previousHeader},
+		jws.CriticalKey:    []string{signingTimeHeader, versionHeader, previousHeader, lamportClockHeader},
+		lamportClockHeader: 0,
 		signingTimeHeader:  time.Now().UTC().Unix(),
 		versionHeader:      1,
 		previousHeader:     []string{prev.String()},

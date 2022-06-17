@@ -18,6 +18,6 @@ To get started, clone the repository and run the following commands to start the
 
 After the services have started you can try the following endpoints:
 
-- `Nuts Node status page <http://localhost:1323/status/diagnostics/>`_.
-- `Registry Admin Demo login <http://localhost:1304/>`_ (default password: "demo").
-- `Demo EHR login <http://localhost:1303/>`_ (default password: "demo").
+- `Nuts Node status page <http://localhost:1323/status/diagnostics>`_.
+- `Registry Admin Demo login <http://localhost:1303/>`_ (default password: "demo").
+- `Demo EHR login <http://localhost:1304/>`_ (default password: "demo").

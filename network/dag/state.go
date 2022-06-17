@@ -23,17 +23,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"path/filepath"
-	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/storage"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"go.etcd.io/bbolt"
 )
 
@@ -48,16 +47,16 @@ const (
 
 // State has references to the DAG and the payload store.
 type state struct {
-	db                        *bbolt.DB
-	graph                     *bboltDAG
-	payloadStore              PayloadStore
-	transactionalObservers    []Observer
-	nonTransactionalObservers []Observer
-	keyResolver               types.KeyResolver
-	publisher                 Publisher
-	txVerifiers               []Verifier
-	xorTree                   *bboltTree
-	ibltTree                  *bboltTree
+	db                               *bbolt.DB
+	graph                            *bboltDAG
+	payloadStore                     PayloadStore
+	transactionalObservers           []Observer
+	nonTransactionalObservers        []Observer
+	transactionalPayloadObservers    []PayloadObserver
+	nonTransactionalPayloadObservers []PayloadObserver
+	txVerifiers                      []Verifier
+	xorTree                          *bboltTree
+	ibltTree                         *bboltTree
 }
 
 // NewState returns a new State. The State is used as entry point, it's methods will start transactions and will notify observers from within those transactions.
@@ -83,54 +82,46 @@ func NewState(dataDir string, verifiers ...Verifier) (State, error) {
 		txVerifiers:  verifiers,
 	}
 
-	publisher := NewReplayingDAGPublisher(payloadStore, graph)
-	publisher.ConfigureCallbacks(newState)
-	newState.publisher = publisher
-
 	xorTree := newBBoltTreeStore(db, "xorBucket", tree.New(tree.NewXor(), PageSize))
 	ibltTree := newBBoltTreeStore(db, "ibltBucket", tree.New(tree.NewIblt(IbltNumBuckets), PageSize))
 	newState.xorTree = xorTree
 	newState.ibltTree = ibltTree
-	newState.RegisterObserver(newState.treeObserver, true)
+	newState.RegisterTransactionObserver(newState.treeObserver, true)
 
 	return newState, nil
 }
 
-func (s *state) RegisterObserver(observer Observer, transactional bool) {
+func (s *state) RegisterTransactionObserver(observer Observer, transactional bool) {
 	if transactional {
 		s.transactionalObservers = append(s.transactionalObservers, observer)
 	} else {
 		s.nonTransactionalObservers = append(s.nonTransactionalObservers, observer)
 	}
-
 }
 
-func (s *state) treeObserver(ctx context.Context, transaction Transaction, payload []byte) error {
-	if transaction != nil {
-		if (len(transaction.PAL()) > 0 && payload == nil) || // for private transactions we want the event without payload
-			(len(transaction.PAL()) == 0 && payload != nil) { // for public transactions we want the event with payload
-			if err := s.ibltTree.dagObserver(ctx, transaction, nil); err != nil {
-				return err
-			}
-			if err := s.xorTree.dagObserver(ctx, transaction, nil); err != nil {
-				return err
-			}
-		}
+func (s *state) RegisterPayloadObserver(observer PayloadObserver, transactional bool) {
+	if transactional {
+		s.transactionalPayloadObservers = append(s.transactionalPayloadObservers, observer)
+	} else {
+		s.nonTransactionalPayloadObservers = append(s.nonTransactionalPayloadObservers, observer)
 	}
-	return nil
+}
+
+func (s *state) treeObserver(ctx context.Context, transaction Transaction) error {
+	if err := s.ibltTree.dagObserver(ctx, transaction, nil); err != nil {
+		return err
+	}
+	return s.xorTree.dagObserver(ctx, transaction, nil)
 }
 
 func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte) error {
 	return storage.BBoltTXUpdate(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
-		present, err := s.IsPresent(contextWithTX, transaction.Ref())
-		if err != nil {
-			return err
-		}
+		present := s.graph.isPresent(tx, transaction.Ref())
 		if present {
 			return nil
 		}
 
-		if err := s.verifyTX(contextWithTX, transaction); err != nil {
+		if err := s.verifyTX(tx, transaction); err != nil {
 			return err
 		}
 		if payload != nil {
@@ -138,76 +129,84 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 			if !transaction.PayloadHash().Equals(payloadHash) {
 				return errors.New("tx.PayloadHash does not match hash of payload")
 			}
-			if err := s.payloadStore.WritePayload(contextWithTX, payloadHash, payload); err != nil {
+			if err := s.writePayload(tx, transaction, payloadHash, payload); err != nil {
 				return err
 			}
 		}
-		if err := s.graph.Add(contextWithTX, transaction); err != nil {
+		if err := s.graph.add(tx, transaction); err != nil {
 			return err
 		}
 
-		return s.notifyObservers(contextWithTX, transaction, payload)
+		return s.notifyObservers(contextWithTX, transaction)
 	})
 }
 
-func (s *state) verifyTX(ctx context.Context, tx Transaction) error {
+func (s *state) verifyTX(tx *bbolt.Tx, transaction Transaction) error {
 	for _, verifier := range s.txVerifiers {
-		if err := verifier(ctx, tx, s); err != nil {
-			return fmt.Errorf("transaction verification failed (tx=%s): %w", tx.Ref(), err)
+		if err := verifier(tx, transaction); err != nil {
+			return fmt.Errorf("transaction verification failed (tx=%s): %w", transaction.Ref(), err)
 		}
 	}
 	return nil
 }
 
-func (s *state) FindBetween(ctx context.Context, startInclusive time.Time, endExclusive time.Time) ([]Transaction, error) {
-	return s.graph.FindBetween(ctx, startInclusive, endExclusive)
-}
-
-func (s *state) FindBetweenLC(ctx context.Context, startInclusive uint32, endExclusive uint32) ([]Transaction, error) {
-	return s.graph.findBetweenLC(ctx, startInclusive, endExclusive)
-}
-
-func (s *state) GetByPayloadHash(ctx context.Context, payloadHash hash.SHA256Hash) ([]Transaction, error) {
-	return s.graph.GetByPayloadHash(ctx, payloadHash)
-}
-
-func (s *state) GetTransaction(ctx context.Context, hash hash.SHA256Hash) (Transaction, error) {
-	return s.graph.Get(ctx, hash)
-}
-
-func (s *state) IsPayloadPresent(ctx context.Context, hash hash.SHA256Hash) (bool, error) {
-	return s.payloadStore.IsPayloadPresent(ctx, hash)
-}
-
-func (s *state) IsPresent(ctx context.Context, hash hash.SHA256Hash) (bool, error) {
-	return s.graph.IsPresent(ctx, hash)
-}
-
-func (s *state) WritePayload(ctx context.Context, transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
-	return storage.BBoltTXUpdate(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
-		err := s.payloadStore.WritePayload(contextWithTX, payloadHash, data)
-		if err == nil {
-			// ctx passed with bbolt transaction
-			return s.notifyObservers(contextWithTX, transaction, data)
-		}
+func (s *state) FindBetweenLC(startInclusive uint32, endExclusive uint32) (transactions []Transaction, err error) {
+	err = s.db.View(func(tx *bbolt.Tx) error {
+		transactions, err = s.graph.findBetweenLC(tx, startInclusive, endExclusive)
 		return err
+	})
+	return
+}
+
+func (s *state) GetTransaction(ctx context.Context, hash hash.SHA256Hash) (transaction Transaction, err error) {
+	err = storage.BBoltTXView(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
+		transaction, err = getTransaction(hash, tx)
+		return err
+	})
+	return
+}
+
+func (s *state) IsPayloadPresent(ctx context.Context, hash hash.SHA256Hash) (present bool, err error) {
+	err = storage.BBoltTXView(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
+		present = s.payloadStore.isPayloadPresent(tx, hash)
+		return nil
+	})
+	return
+}
+
+func (s *state) IsPresent(ctx context.Context, hash hash.SHA256Hash) (present bool, err error) {
+	err = storage.BBoltTXView(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
+		present = s.graph.isPresent(tx, hash)
+		return nil
+	})
+	return
+}
+
+func (s *state) WritePayload(transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
+	return storage.BBoltTXUpdate(context.Background(), s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
+		return s.writePayload(tx, transaction, payloadHash, data)
 	})
 }
 
-func (s *state) PayloadHashes(ctx context.Context, visitor func(payloadHash hash.SHA256Hash) error) error {
-	return s.graph.PayloadHashes(ctx, visitor)
+func (s *state) writePayload(tx *bbolt.Tx, transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
+	err := s.payloadStore.writePayload(tx, payloadHash, data)
+	if err == nil {
+		// ctx passed with bbolt transaction
+		return s.notifyPayloadObservers(tx, transaction, data)
+	}
+	return err
 }
 
-func (s *state) ReadManyPayloads(ctx context.Context, consumer func(context.Context, PayloadReader) error) error {
-	return s.payloadStore.ReadManyPayloads(ctx, consumer)
+func (s *state) ReadPayload(ctx context.Context, hash hash.SHA256Hash) (payload []byte, err error) {
+	err = storage.BBoltTXView(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
+		payload = s.payloadStore.readPayload(tx, hash)
+		return nil
+	})
+	return
 }
 
-func (s *state) ReadPayload(ctx context.Context, hash hash.SHA256Hash) ([]byte, error) {
-	return s.payloadStore.ReadPayload(ctx, hash)
-}
-
-func (s *state) Subscribe(eventType EventType, payloadType string, receiver Receiver) {
-	s.publisher.Subscribe(eventType, payloadType, receiver)
+func (s *state) Heads(ctx context.Context) []hash.SHA256Hash {
+	return s.graph.heads(ctx)
 }
 
 func (s *state) XOR(ctx context.Context, reqClock uint32) (hash.SHA256Hash, uint32) {
@@ -265,37 +264,18 @@ func (s *state) Shutdown() error {
 }
 
 func (s *state) Start() error {
-	// migrate DAG to add Clock values
-	if err := s.graph.Migrate(); err != nil {
-		return fmt.Errorf("unable to migrate DAG: %w", err)
-	}
-
 	ctx := context.Background()
-	// load trees or build if they do not exist yet.
-	// can only build after DAG migration added clock values for all transactions and before the publisher starts
+
+	// load trees
 	if err := s.xorTree.read(ctx); err != nil {
 		return fmt.Errorf("failed to read xorTree: %w", err)
-	}
-
-	// migrate XOR tree, to be removed in V3
-	if err := s.xorTree.migrate(ctx, s); err != nil {
-		return fmt.Errorf("unable to migrate xorTree: %w", err)
 	}
 
 	if err := s.ibltTree.read(ctx); err != nil {
 		return fmt.Errorf("failed to read ibltTree: %w", err)
 	}
 
-	// migrate IBLT tree, to be removed in V3
-	if err := s.ibltTree.migrate(ctx, s); err != nil {
-		return fmt.Errorf("unable to migrate ibltTree: %w", err)
-	}
-
-	if err := s.publisher.Start(); err != nil {
-		return err
-	}
-
-	if err := s.Verify(ctx); err != nil {
+	if err := s.Verify(); err != nil {
 		return err
 	}
 
@@ -303,38 +283,44 @@ func (s *state) Start() error {
 }
 
 func (s *state) Statistics(ctx context.Context) Statistics {
-	return s.graph.Statistics(ctx)
+	return s.graph.statistics(ctx)
 }
 
-func (s *state) Verify(ctx context.Context) error {
-	transactions, err := s.FindBetween(ctx, MinTime(), MaxTime())
-	if err != nil {
-		return err
-	}
-	for _, tx := range transactions {
-		if err := s.verifyTX(ctx, tx); err != nil {
+func (s *state) Verify() error {
+	return storage.BBoltTXView(context.Background(), s.db, func(contextWithTX context.Context, dbTx *bbolt.Tx) error {
+		transactions, err := s.graph.findBetweenLC(dbTx, 0, math.MaxUint32)
+		if err != nil {
 			return err
 		}
-	}
-	return nil
+		for _, tx := range transactions {
+			if err := s.verifyTX(dbTx, tx); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func (s *state) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA256Hash) error {
-	return s.graph.Walk(ctx, visitor, startAt)
+	return storage.BBoltTXView(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
+		return s.graph.walk(tx, func(tx *bbolt.Tx, transaction Transaction) bool {
+			return visitor(transaction)
+		}, startAt)
+	})
 }
 
 // notifyObservers is called from a transactional context. The transactional observers need to be called with the TX context, the other observers after the commit.
-func (s *state) notifyObservers(ctx context.Context, transaction Transaction, payload []byte) error {
+func (s *state) notifyObservers(ctx context.Context, transaction Transaction) error {
 	// apply TX context observers
 	for _, observer := range s.transactionalObservers {
-		if err := observer(ctx, transaction, payload); err != nil {
+		if err := observer(ctx, transaction); err != nil {
 			return fmt.Errorf("observer notification failed: %w", err)
 		}
 	}
 
 	notifyNonTXObservers := func() {
 		for _, observer := range s.nonTransactionalObservers {
-			if err := observer(context.Background(), transaction, payload); err != nil {
+			if err := observer(context.Background(), transaction); err != nil {
 				log.Logger().Errorf("observer notification failed: %v", err)
 			}
 		}
@@ -349,8 +335,28 @@ func (s *state) notifyObservers(ctx context.Context, transaction Transaction, pa
 	return nil
 }
 
+func (s *state) notifyPayloadObservers(tx *bbolt.Tx, transaction Transaction, payload []byte) error {
+	// apply TX context observers
+	for _, observer := range s.transactionalPayloadObservers {
+		if err := observer(transaction, payload); err != nil {
+			return fmt.Errorf("observer notification failed: %w", err)
+		}
+	}
+
+	notifyNonTXObservers := func() {
+		for _, observer := range s.nonTransactionalPayloadObservers {
+			if err := observer(transaction, payload); err != nil {
+				log.Logger().Errorf("observer notification failed: %v", err)
+			}
+		}
+	}
+	// check if there's an active transaction
+	tx.OnCommit(notifyNonTXObservers)
+	return nil
+}
+
 func (s *state) Diagnostics() []core.DiagnosticResult {
-	diag := s.graph.Diagnostics()
+	diag := s.graph.diagnostics()
 	diag = append(diag, &core.GenericDiagnosticResult{Title: "dag_xor", Outcome: s.xorTree.getRoot().(*tree.Xor).Hash()})
 	return diag
 }

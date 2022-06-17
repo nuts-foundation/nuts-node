@@ -101,7 +101,7 @@ func TestDefaultConfig(t *testing.T) {
 func TestProtocol_Configure(t *testing.T) {
 	testDID, _ := did.ParseDID("did:nuts:123")
 	p, mocks := newTestProtocol(t, testDID)
-	mocks.State.EXPECT().RegisterObserver(gomock.Any(), false)
+	mocks.State.EXPECT().RegisterTransactionObserver(gomock.Any(), false)
 
 	assert.NoError(t, p.Configure(""))
 }
@@ -202,9 +202,9 @@ func TestProtocol_Start(t *testing.T) {
 	t.Run("ok - with node DID", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nodeDID)
 
+		mocks.State.EXPECT().RegisterTransactionObserver(gomock.Any(), true)
 		mocks.PayloadScheduler.EXPECT().Run().Return(nil)
 		mocks.PayloadScheduler.EXPECT().Close()
-		mocks.State.EXPECT().Subscribe(dag.TransactionAddedEvent, dag.AnyPayloadType, gomock.Any())
 
 		err := proto.Start()
 		assert.NoError(t, err)
@@ -253,7 +253,7 @@ func TestProtocol_gossipTransaction(t *testing.T) {
 	t.Run("ok - no transaction", func(t *testing.T) {
 		proto, _ := newTestProtocol(t, nil)
 
-		proto.gossipTransaction(context.Background(), nil, nil)
+		proto.gossipTransaction(context.Background(), nil)
 	})
 
 	t.Run("ok - to gossipManager", func(t *testing.T) {
@@ -262,7 +262,7 @@ func TestProtocol_gossipTransaction(t *testing.T) {
 		mocks.State.EXPECT().XOR(context.Background(), uint32(math.MaxUint32))
 		mocks.Gossip.EXPECT().TransactionRegistered(tx.Ref(), hash.EmptyHash(), uint32(0))
 
-		proto.gossipTransaction(context.Background(), tx, nil)
+		proto.gossipTransaction(context.Background(), tx)
 	})
 }
 
@@ -273,7 +273,7 @@ func TestProtocol_HandlePrivateTx(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
 		mocks.PayloadScheduler.EXPECT().Schedule(txOk.Ref())
 
-		err := proto.handlePrivateTx(txOk, nil)
+		err := proto.handlePrivateTx(nil, txOk)
 
 		assert.NoError(t, err)
 	})
@@ -282,7 +282,7 @@ func TestProtocol_HandlePrivateTx(t *testing.T) {
 		tx, _, _ := dag.CreateTestTransaction(0)
 		proto, _ := newTestProtocol(t, nil)
 
-		err := proto.handlePrivateTx(tx, nil)
+		err := proto.handlePrivateTx(nil, tx)
 
 		assert.NoError(t, err)
 	})
@@ -291,7 +291,7 @@ func TestProtocol_HandlePrivateTx(t *testing.T) {
 		tx, _, _ := dag.CreateTestTransaction(0)
 		proto, _ := newTestProtocol(t, nil)
 
-		err := proto.handlePrivateTx(tx, []byte{0})
+		err := proto.handlePrivateTx(nil, tx)
 
 		assert.NoError(t, err)
 	})
@@ -300,7 +300,7 @@ func TestProtocol_HandlePrivateTx(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
 		mocks.PayloadScheduler.EXPECT().Schedule(txOk.Ref()).Return(errors.New("b00m!"))
 
-		err := proto.handlePrivateTx(txOk, nil)
+		err := proto.handlePrivateTx(nil, txOk)
 
 		if !assert.Error(t, err) {
 			return
@@ -408,7 +408,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 				{VerificationMethod: &did.VerificationMethod{ID: *keyDID}},
 			},
 		}, nil, nil)
-		mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), []byte{1}).Return(nil, crypto.ErrKeyNotFound)
+		mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), []byte{1}).Return(nil, crypto.ErrPrivateKeyNotFound)
 
 		err := proto.handlePrivateTxRetryErr(txOk.Ref())
 
@@ -571,7 +571,7 @@ func TestProtocol_decryptPAL(t *testing.T) {
 				{VerificationMethod: &did.VerificationMethod{ID: *keyDID}},
 			},
 		}, nil, nil)
-		mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), []byte{1}).Return(nil, crypto.ErrKeyNotFound)
+		mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), []byte{1}).Return(nil, crypto.ErrPrivateKeyNotFound)
 
 		_, err := proto.decryptPAL(tx.PAL())
 		assert.EqualError(t, err, fmt.Sprintf("private key of DID keyAgreement not found (kid=%s)", keyDID.String()))

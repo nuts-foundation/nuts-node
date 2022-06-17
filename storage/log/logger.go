@@ -16,15 +16,15 @@
  *
  */
 
-package protobuf
+package log
 
 import (
-	"github.com/stretchr/testify/assert"
-	"testing"
+	"github.com/sirupsen/logrus"
 )
 
-func TestGrpcContract(t *testing.T) {
-	// This test asserts the gRPC contract's sanity
-	assert.Equal(t, "transport.Network", Network_ServiceDesc.ServiceName)
-	assert.Equal(t, "Connect", Network_ServiceDesc.Streams[0].StreamName)
+var _logger = logrus.StandardLogger().WithField("module", "Storage")
+
+// Logger returns the logger for the storage engine.
+func Logger() *logrus.Entry {
+	return _logger
 }

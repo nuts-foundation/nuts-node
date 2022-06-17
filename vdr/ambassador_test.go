@@ -31,8 +31,10 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/nats-io/nats.go"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -70,6 +72,7 @@ type testTransaction struct {
 	payloadType  string
 	prevs        []hash.SHA256Hash
 	pal          [][]byte
+	data         []byte
 }
 
 func (s testTransaction) SigningKey() jwk.Key {
@@ -116,7 +119,7 @@ func (s testTransaction) MarshalJSON() ([]byte, error) {
 }
 
 func (s testTransaction) Data() []byte {
-	panic("implement me")
+	return s.data
 }
 
 func (s testTransaction) Clock() uint32 {
@@ -125,7 +128,47 @@ func (s testTransaction) Clock() uint32 {
 
 const signingKeyID = "did:nuts:123#validKeyID123"
 
-func Test_ambassador_callback(t *testing.T) {
+func TestAmbassador_Start(t *testing.T) {
+	t.Run("error on stream subscription", func(t *testing.T) {
+		ctx := newMockContext(t)
+		mockPool := events.NewMockConnectionPool(ctx.ctrl)
+		mockConnection := events.NewMockConn(ctx.ctrl)
+		ctx.eventManager.EXPECT().Pool().Return(mockPool)
+		mockPool.EXPECT().Acquire(gomock.Any()).Return(mockConnection, nil, nil)
+		mockConnection.EXPECT().JetStream().Return(nil, errors.New("b00m!"))
+
+		err := ctx.ambassador.Start()
+
+		assert.EqualError(t, err, "failed to subscribe to REPROCESS event stream: b00m!")
+	})
+
+	t.Run("error on nats connection acquire", func(t *testing.T) {
+		ctx := newMockContext(t)
+		mockPool := events.NewMockConnectionPool(ctx.ctrl)
+		ctx.eventManager.EXPECT().Pool().Return(mockPool)
+		mockPool.EXPECT().Acquire(gomock.Any()).Return(nil, nil, errors.New("b00m!"))
+
+		err := ctx.ambassador.Start()
+
+		assert.EqualError(t, err, "failed to subscribe to REPROCESS event stream: b00m!")
+	})
+}
+
+func TestAmbassador_handleReprocessEvent(t *testing.T) {
+	// going any deeper with unit tests is useless since Nats does not contain any interfaces, just types
+	t.Run("ack fails", func(t *testing.T) {
+		ctx := newMockContext(t)
+		twp := events.TransactionWithPayload{
+			Transaction: testTransaction{},
+			Payload:     []byte("payload"),
+		}
+		twpJson, _ := json.Marshal(twp)
+
+		ctx.ambassador.handleReprocessEvent(&nats.Msg{Data: twpJson})
+	})
+}
+
+func TestAmbassador_callback(t *testing.T) {
 	// tests based upon time based resolvement of DID documents
 	signingTime := time.Unix(1628000000, 0)
 	payloadHash := hash.SHA256Sum([]byte("payload"))
@@ -948,11 +991,12 @@ func newDidDoc() (did.Document, jwk.Key, error) {
 }
 
 type mockContext struct {
-	ctrl       *gomock.Controller
-	didStore   *types.MockStore
-	keyStore   *types.MockKeyResolver
-	resolver   *types.MockDocResolver
-	ambassador ambassador
+	ctrl         *gomock.Controller
+	didStore     *types.MockStore
+	keyStore     *types.MockKeyResolver
+	resolver     *types.MockDocResolver
+	eventManager *events.MockEvent
+	ambassador   ambassador
 }
 
 func newMockContext(t *testing.T) mockContext {
@@ -960,17 +1004,20 @@ func newMockContext(t *testing.T) mockContext {
 	didStoreMock := types.NewMockStore(ctrl)
 	keyStoreMock := types.NewMockKeyResolver(ctrl)
 	resolverMock := types.NewMockDocResolver(ctrl)
+	eventManager := events.NewMockEvent(ctrl)
 	am := ambassador{
-		didStore:    didStoreMock,
-		docResolver: resolverMock,
-		keyResolver: keyStoreMock,
+		didStore:     didStoreMock,
+		docResolver:  resolverMock,
+		keyResolver:  keyStoreMock,
+		eventManager: eventManager,
 	}
 
 	return mockContext{
-		ctrl:       ctrl,
-		didStore:   didStoreMock,
-		keyStore:   keyStoreMock,
-		resolver:   resolverMock,
-		ambassador: am,
+		ctrl:         ctrl,
+		didStore:     didStoreMock,
+		keyStore:     keyStoreMock,
+		resolver:     resolverMock,
+		ambassador:   am,
+		eventManager: eventManager,
 	}
 }

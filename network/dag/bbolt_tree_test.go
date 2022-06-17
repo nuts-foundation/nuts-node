@@ -21,11 +21,12 @@ package dag
 import (
 	"context"
 	"encoding/binary"
-	"github.com/nuts-foundation/nuts-node/test"
-	"go.etcd.io/bbolt"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/test"
+	"go.etcd.io/bbolt"
 
 	"github.com/stretchr/testify/assert"
 
@@ -183,45 +184,5 @@ func TestBboltTree_dagObserver(t *testing.T) {
 			assert.NotNil(t, leaf)
 			return nil
 		})
-	})
-}
-
-func TestBboltTree_buildFromDag(t *testing.T) {
-	tx0, _, _ := CreateTestTransaction(7)
-	tx1a, _, _ := CreateTestTransaction(7, tx0)
-	tx1b, _, _ := CreateTestTransaction(7, tx0)
-	tx2, _, _ := CreateTestTransaction(7, tx1a, tx1b)
-	dag := CreateDAG(t)
-	dagState := &state{
-		db:    dag.db,
-		graph: dag,
-	}
-	err := dag.Add(context.Background(), tx0, tx1a, tx1b, tx2)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	t.Run("ok - build tree", func(t *testing.T) {
-		store := newBBoltTreeStore(dag.db, "real bucket", tree.New(tree.NewXor(), testLeafSize))
-
-		err := store.migrate(context.Background(), dagState)
-
-		if assert.NoError(t, err) {
-			return
-		}
-		assert.Equal(t, dag.Heads(context.Background())[0], store.getRoot().(*tree.Xor).Hash())
-	})
-
-	t.Run("fail - tree is not empty", func(t *testing.T) {
-		store := newBBoltTreeStore(dag.db, "fail bucket", tree.New(tree.NewXor(), testLeafSize))
-		store.tree.Insert(tx0.Ref(), 0)
-		exp := dag.Heads(context.Background())[0]
-
-		err := store.migrate(context.Background(), dagState)
-
-		if assert.NoError(t, err) {
-			return
-		}
-		assert.Equal(t, exp, store.getRoot().(*tree.Xor).Hash())
 	})
 }

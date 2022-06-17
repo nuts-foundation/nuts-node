@@ -33,18 +33,25 @@ import (
 
 type dialer func(ctx context.Context, target string, opts ...grpcLib.DialOption) (conn *grpcLib.ClientConn, err error)
 
-func createOutboundConnector(address string, dialer dialer, tlsConfig *tls.Config, shouldConnect func() bool, connectedCallback func(conn *grpcLib.ClientConn) bool, backoff Backoff) *outboundConnector {
+type connectorConfig struct {
+	address           string
+	tls               *tls.Config
+	connectionTimeout time.Duration
+}
+
+func createOutboundConnector(config connectorConfig, dialer dialer, shouldConnect func() bool, connectedCallback func(conn *grpcLib.ClientConn) bool, backoff Backoff) *outboundConnector {
 	var attempts uint32
 	return &outboundConnector{
 		backoff:           backoff,
-		address:           address,
+		address:           config.address,
 		dialer:            dialer,
-		tlsConfig:         tlsConfig,
+		tlsConfig:         config.tls,
 		shouldConnect:     shouldConnect,
 		connectedCallback: connectedCallback,
 		stopped:           &atomic.Value{},
 		lastAttempt:       &atomic.Value{},
 		attempts:          &attempts,
+		connectionTimeout: config.connectionTimeout,
 		connectedBackoff: func(cancelCtx context.Context) {
 			sleepWithCancel(cancelCtx, 2*time.Second)
 		},
@@ -53,10 +60,11 @@ func createOutboundConnector(address string, dialer dialer, tlsConfig *tls.Confi
 
 type outboundConnector struct {
 	dialer
-	address     string
-	backoff     Backoff
-	tlsConfig   *tls.Config
-	localPeerID transport.PeerID
+	address           string
+	connectionTimeout time.Duration
+	backoff           Backoff
+	tlsConfig         *tls.Config
+	localPeerID       transport.PeerID
 	// connectedCallback is called when the outbound connection was successful and application-level operations can be performed.
 	// If these fail and the connector should backoff before retrying, the callback should return 'false'.
 	connectedCallback func(conn *grpcLib.ClientConn) bool
@@ -121,7 +129,7 @@ func (c *outboundConnector) tryConnect() (*grpcLib.ClientConn, error) {
 	atomic.AddUint32(c.attempts, 1)
 	c.lastAttempt.Store(time.Now())
 
-	dialContext, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	dialContext, cancel := context.WithTimeout(context.Background(), c.connectionTimeout)
 	defer cancel()
 
 	dialOptions := []grpcLib.DialOption{

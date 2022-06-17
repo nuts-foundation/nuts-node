@@ -60,14 +60,24 @@ type Issuer interface {
 // ErrNotFound is returned when a credential or revocation can not be found based on its ID.
 var ErrNotFound = errors.New("not found")
 
+// ErrMultipleFound is returned when multiple credentials or revocations are found for the same ID.
+var ErrMultipleFound = errors.New("multiple found")
+
 // Store defines the interface for an issuer store.
 // An implementation stores all the issued credentials and the revocations.
 type Store interface {
 	// GetCredential retrieves an issued credential by ID
 	// Returns an ErrNotFound when the credential is not in the store
+	// Returns an ErrMultipleFound when there are multiple credentials with this ID in the store
 	GetCredential(id ssi.URI) (*vc.VerifiableCredential, error)
 	// StoreCredential writes a VC to storage.
 	StoreCredential(vc vc.VerifiableCredential) error
+	// GetRevocation returns a revocation for a credential ID
+	// Returns an ErrNotFound when the revocation is not in the store
+	// Returns an ErrMultipleFound when there are multiple revocations for this credential ID in the store
+	GetRevocation(id ssi.URI) (*credential.Revocation, error)
+	// StoreRevocation writes a revocation to storage.
+	StoreRevocation(r credential.Revocation) error
 	CredentialSearcher
 	// Closer closes and frees the underlying resources the store uses.
 	io.Closer

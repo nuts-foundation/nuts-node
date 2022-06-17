@@ -19,15 +19,17 @@
 package issuer
 
 import (
+	crypto2 "crypto"
 	"encoding/json"
 	"errors"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"path"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -37,8 +39,26 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
-	"github.com/stretchr/testify/assert"
+	vcr "github.com/nuts-foundation/nuts-node/vcr/types"
+	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
+
+type testKey struct {
+	priv crypto2.Signer
+	kid  string
+}
+
+func (t testKey) Signer() crypto2.Signer {
+	return t.priv
+}
+
+func (t testKey) KID() string {
+	return t.kid
+}
+
+func (t testKey) Public() crypto2.PublicKey {
+	return t.priv.Public()
+}
 
 func Test_issuer_buildVC(t *testing.T) {
 	credentialType := ssi.MustParseURI("TestCredential")
@@ -310,10 +330,10 @@ func Test_issuer_Revoke(t *testing.T) {
 			}
 		}
 
-		storeWithActualCredential := func(c *gomock.Controller) Store {
+		storeWithActualCredential := func(c *gomock.Controller) *MockStore {
 			store := NewMockStore(c)
 			store.EXPECT().GetCredential(credentialURI).Return(credentialToRevoke(), nil)
-			//store.EXPECT().GetRevocation(credentialURI).Return(credential.Revocation{}, ErrNotFound)
+			store.EXPECT().GetRevocation(credentialURI).Return(nil, ErrNotFound)
 			return store
 		}
 
@@ -328,10 +348,12 @@ func Test_issuer_Revoke(t *testing.T) {
 			defer ctrl.Finish()
 
 			publisher := NewMockPublisher(ctrl)
+			store := storeWithActualCredential(ctrl)
 			publisher.EXPECT().PublishRevocation(gomock.Any()).Return(nil)
+			store.EXPECT().StoreRevocation(gomock.Any()).Return(nil)
 
 			sut := issuer{
-				store:         storeWithActualCredential(ctrl),
+				store:         store,
 				keyResolver:   keyResolverWithKey(ctrl),
 				jsonldManager: jsonldManager,
 				publisher:     publisher,
@@ -361,7 +383,7 @@ func Test_issuer_Revoke(t *testing.T) {
 			invalidCredential := vc.VerifiableCredential{}
 			store := NewMockStore(ctrl)
 			store.EXPECT().GetCredential(credentialURI).Return(&invalidCredential, nil)
-			//store.EXPECT().GetRevocation(credentialURI).Return(credential.Revocation{}, ErrNotFound)
+			store.EXPECT().GetRevocation(credentialURI).Return(nil, ErrNotFound)
 
 			sut := issuer{
 				store: store,
@@ -389,6 +411,36 @@ func Test_issuer_Revoke(t *testing.T) {
 			assert.EqualError(t, err, "failed to publish revocation: foo")
 			assert.Nil(t, revocation)
 		})
+
+		t.Run("it does not allow double revocation", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			store := storeWithActualCredential(ctrl)
+			publisher := NewMockPublisher(ctrl)
+
+			publisher.EXPECT().PublishRevocation(gomock.Any()).Return(nil)
+			store.EXPECT().StoreRevocation(gomock.Any()).Return(nil)
+			// 2nd revocation
+			store.EXPECT().GetCredential(credentialURI).Return(credentialToRevoke(), nil)
+			store.EXPECT().GetRevocation(credentialURI).Return(&credential.Revocation{}, nil)
+
+			sut := issuer{
+				store:         store,
+				keyResolver:   keyResolverWithKey(ctrl),
+				jsonldManager: jsonldManager,
+				publisher:     publisher,
+			}
+
+			_, err := sut.Revoke(credentialURI)
+			if !assert.NoError(t, err) {
+				return
+			}
+			revocation, err := sut.Revoke(credentialURI)
+
+			assert.ErrorIs(t, err, vcr.ErrRevoked)
+			assert.Nil(t, revocation)
+		})
 	})
 
 	t.Run("for an unknown credential", func(t *testing.T) {
@@ -411,4 +463,52 @@ func Test_issuer_Revoke(t *testing.T) {
 			assert.Nil(t, revocation)
 		})
 	})
+}
+
+func TestIssuer_isRevoked(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	credentialID := "did:nuts:123#abc"
+	credentialURI := ssi.MustParseURI(credentialID)
+
+	store := NewMockStore(ctrl)
+
+	sut := issuer{
+		store: store,
+	}
+
+	t.Run("ok - no revocation", func(t *testing.T) {
+		store.EXPECT().GetRevocation(credentialURI).Return(nil, ErrNotFound)
+
+		isRevoked, err := sut.isRevoked(credentialURI)
+
+		assert.NoError(t, err)
+		assert.False(t, isRevoked)
+	})
+	t.Run("ok - revocation exists", func(t *testing.T) {
+		store.EXPECT().GetRevocation(credentialURI).Return(&credential.Revocation{}, nil)
+
+		isRevoked, err := sut.isRevoked(credentialURI)
+
+		assert.NoError(t, err)
+		assert.True(t, isRevoked)
+	})
+	t.Run("ok - multiple revocations exists", func(t *testing.T) {
+		store.EXPECT().GetRevocation(credentialURI).Return(nil, ErrMultipleFound)
+
+		isRevoked, err := sut.isRevoked(credentialURI)
+
+		assert.NoError(t, err)
+		assert.True(t, isRevoked)
+	})
+	t.Run("error", func(t *testing.T) {
+		store.EXPECT().GetRevocation(credentialURI).Return(nil, errors.New("custom"))
+
+		isRevoked, err := sut.isRevoked(credentialURI)
+
+		assert.EqualError(t, err, "custom")
+		assert.True(t, isRevoked)
+	})
+
 }

@@ -82,7 +82,7 @@ func (c *vcr) Search(ctx context.Context, searchTerms []SearchTerm, allowUntrust
 			return nil, fmt.Errorf("unable to parse credential from db: %w", err)
 		}
 
-		if err = c.Validate(foundCredential, allowUntrusted, false, resolveTime); err == nil {
+		if err = c.verifier.Verify(foundCredential, allowUntrusted, false, resolveTime); err == nil {
 			VCs = append(VCs, foundCredential)
 		}
 	}

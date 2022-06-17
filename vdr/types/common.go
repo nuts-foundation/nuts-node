@@ -20,6 +20,7 @@ package types
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -57,7 +58,19 @@ var ErrServiceNotFound = errors.New("service not found in DID Document")
 var ErrServiceReferenceToDeep = errors.New("service references are nested to deeply before resolving to a non-reference")
 
 // ErrInvalidServiceQuery is returned when a compound service contains an invalid service reference.
-var ErrInvalidServiceQuery = errors.New("service query is invalid")
+type ErrInvalidServiceQuery struct {
+	Cause error
+}
+
+// Error returns the error message.
+func (e ErrInvalidServiceQuery) Error() string {
+	return fmt.Sprintf("service query is invalid: %s", e.Cause)
+}
+
+// Is checks whether the other error is also a ErrInvalidServiceQuery
+func (e ErrInvalidServiceQuery) Is(other error) bool {
+	return fmt.Sprintf("%T", e) == fmt.Sprintf("%T", other)
+}
 
 type deactivatedError struct {
 	msg string

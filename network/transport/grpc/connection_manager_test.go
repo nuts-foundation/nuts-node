@@ -24,12 +24,12 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/nuts-node/storage"
 	io2 "github.com/nuts-foundation/nuts-node/test/io"
-	"go.etcd.io/bbolt"
 	"hash/crc32"
 	"io"
 	"net"
-	"os"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
@@ -73,7 +73,7 @@ func withBufconnDialer(listener *bufconn.Listener) ConfigOption {
 func Test_grpcConnectionManager_Connect(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		p := &TestProtocol{}
-		cm := NewGRPCConnectionManager(NewConfig("", "test"), createBBoltDB(t), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
+		cm := NewGRPCConnectionManager(NewConfig("", "test"), createKVStore(t), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
 
 		cm.Connect(fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort()))
 		assert.Len(t, cm.connections.list, 1)
@@ -84,7 +84,7 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 		config := NewConfig("", "test")
 		ts, _ := core.LoadTrustStore("../../test/truststore.pem")
 		config.trustStore = ts.CertPool
-		cm := NewGRPCConnectionManager(config, createBBoltDB(t), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
+		cm := NewGRPCConnectionManager(config, createKVStore(t), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
 
 		cm.Connect(fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort()))
 
@@ -97,7 +97,7 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 
 	t.Run("duplicate connection", func(t *testing.T) {
 		p := &TestProtocol{}
-		cm := NewGRPCConnectionManager(NewConfig("", "test"), createBBoltDB(t), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
+		cm := NewGRPCConnectionManager(NewConfig("", "test"), createKVStore(t), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
 
 		peerAddress := fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort())
 		cm.Connect(peerAddress)
@@ -107,14 +107,14 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 
 	t.Run("already connected to the peer (inbound)", func(t *testing.T) {
 		serverCfg, serverListener := newBufconnConfig("server")
-		server := NewGRPCConnectionManager(serverCfg, createBBoltDB(t), &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
+		server := NewGRPCConnectionManager(serverCfg, createKVStore(t), &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
 		if err := server.Start(); err != nil {
 			t.Fatal(err)
 		}
 		defer server.Stop()
 
 		clientCfg, _ := newBufconnConfig("client", withBufconnDialer(serverListener))
-		client := NewGRPCConnectionManager(clientCfg, createBBoltDB(t), &stubNodeDIDReader{}, nil, &TestProtocol{}).(*grpcConnectionManager)
+		client := NewGRPCConnectionManager(clientCfg, createKVStore(t), &stubNodeDIDReader{}, nil, &TestProtocol{}).(*grpcConnectionManager)
 		if err := client.Start(); err != nil {
 			t.Fatal(err)
 		}
@@ -129,7 +129,7 @@ func Test_grpcConnectionManager_Peers(t *testing.T) {
 		authenticator := NewMockAuthenticator(ctrl)
 		proto := &TestProtocol{}
 		cfg, listener := newBufconnConfig(transport.PeerID(t.Name()), opts...)
-		db := createBBoltDB(t)
+		db := createKVStore(t)
 		cm := NewGRPCConnectionManager(cfg, db, &stubNodeDIDReader{}, authenticator, proto).(*grpcConnectionManager)
 		if err := cm.Start(); err != nil {
 			t.Fatal(err)
@@ -410,7 +410,7 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 		waiter.Add(1)
 
 		connection, _ := client.connections.getOrRegister(context.Background(), transport.Peer{Address: "server"}, client.dialer)
-		connection.startConnecting("", defaultBackoff(), nil, func(grpcConn *grpc.ClientConn) bool {
+		connection.startConnecting(connectorConfig{connectionTimeout: 5000 * time.Millisecond}, defaultBackoff(), func(grpcConn *grpc.ClientConn) bool {
 			err := client.openOutboundStreams(connection, grpcConn)
 			capturedError.Store(err)
 			waiter.Done()
@@ -578,7 +578,7 @@ func Test_grpcConnectionManager_openOutboundStream(t *testing.T) {
 		existingConn.EXPECT().disconnect()
 		existingConn.EXPECT().stopConnecting() // due to ConnectionManager.Stop()
 
-		cm := NewGRPCConnectionManager(Config{peerID: "local"}, createBBoltDB(t), &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
+		cm := NewGRPCConnectionManager(Config{peerID: "local"}, createKVStore(t), &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
 		cm.connections.list = append(cm.connections.list, existingConn)
 
 		defer cm.Stop()
@@ -596,7 +596,7 @@ func Test_grpcConnectionManager_openOutboundStream(t *testing.T) {
 		// New outbound connection's connector should be stopped, peer address copied to existing connection's connector
 		newConn.EXPECT().stopConnecting()
 		newConn.EXPECT().Peer().Return(transport.Peer{ID: "remote", Address: "remote-address"})
-		existingConn.EXPECT().startConnecting("remote-address", gomock.Any(), gomock.Any(), gomock.Any())
+		existingConn.EXPECT().startConnecting(connectorConfig{address: "remote-address"}, gomock.Any(), gomock.Any())
 
 		stream, err := cm.openOutboundStream(newConn, protocol, grpcConn, metadata.MD{})
 
@@ -634,7 +634,6 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 
 		// Assert headers sent to client
 		assert.Equal(t, "server-peer-id", serverStream.sentHeaders.Get("peerID")[0])
-		assert.Equal(t, "v1", serverStream.sentHeaders.Get("version")[0])
 		assert.Equal(t, "did:nuts:test", serverStream.sentHeaders.Get("nodeDID")[0])
 
 		// Assert connection was registered
@@ -704,18 +703,6 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 			defer cm.connections.mux.Unlock()
 			return len(cm.connections.list) == 0, nil
 		}, time.Second*2, "time-out while waiting for closed inbound connection to be removed")
-	})
-}
-
-func Test_grpcConnectionManager_constructMetadata(t *testing.T) {
-	t.Run("set default protocol version", func(t *testing.T) {
-		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}, nil, &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
-		md, _ := cm.constructMetadata()
-
-		v := md.Get(protocolVersionHeader)
-
-		assert.Len(t, v, 1)
-		assert.Equal(t, protocolVersionV1, v[0])
 	})
 }
 
@@ -796,9 +783,9 @@ func (s stubNodeDIDReader) Resolve() (did.DID, error) {
 	return *nodeDID, nil
 }
 
-func createBBoltDB(t *testing.T) *bbolt.DB {
+func createKVStore(t *testing.T) stoabs.KVStore {
 	testDirectory := io2.TestDirectory(t)
-	db, err := bbolt.Open(filepath.Join(testDirectory, "grpc.db"), os.ModePerm, nil)
+	db, err := storage.CreateTestBBoltStore(filepath.Join(testDirectory, "grpc.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

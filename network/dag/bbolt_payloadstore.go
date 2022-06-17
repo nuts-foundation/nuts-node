@@ -19,10 +19,7 @@
 package dag
 
 import (
-	"context"
-
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/storage"
 	"go.etcd.io/bbolt"
 )
 
@@ -38,60 +35,27 @@ type bboltPayloadStore struct {
 	db *bbolt.DB
 }
 
-func (store bboltPayloadStore) IsPayloadPresent(ctx context.Context, payloadHash hash.SHA256Hash) (bool, error) {
-	var result bool
-	var err error
-	err = store.ReadManyPayloads(ctx, func(ctx context.Context, reader PayloadReader) error {
-		result, err = reader.IsPayloadPresent(ctx, payloadHash)
-		return err
-	})
-	return result, err
+func (store bboltPayloadStore) isPayloadPresent(tx *bbolt.Tx, payloadHash hash.SHA256Hash) bool {
+	bucket := tx.Bucket([]byte(payloadsBucketName))
+	if bucket == nil {
+		return false
+	}
+	data := bucket.Get(payloadHash.Slice())
+	return len(data) > 0
 }
 
-func (store bboltPayloadStore) ReadPayload(ctx context.Context, payloadHash hash.SHA256Hash) ([]byte, error) {
-	var result []byte
-	var err error
-	err = store.ReadManyPayloads(ctx, func(ctx context.Context, reader PayloadReader) error {
-		result, err = reader.ReadPayload(ctx, payloadHash)
-		return err
-	})
-	return result, err
-}
-
-func (store bboltPayloadStore) ReadManyPayloads(ctx context.Context, consumer func(ctx context.Context, reader PayloadReader) error) error {
-	return storage.BBoltTXView(ctx, store.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
-		return consumer(contextWithTX, &bboltPayloadReader{payloadsBucket: tx.Bucket([]byte(payloadsBucketName))})
-	})
-}
-
-func (store bboltPayloadStore) WritePayload(ctx context.Context, payloadHash hash.SHA256Hash, data []byte) error {
-	return storage.BBoltTXUpdate(ctx, store.db, func(_ context.Context, tx *bbolt.Tx) error {
-		payloads, err := tx.CreateBucketIfNotExists([]byte(payloadsBucketName))
-		if err != nil {
-			return err
-		}
-		if err := payloads.Put(payloadHash.Slice(), data); err != nil {
-			return err
-		}
+func (store bboltPayloadStore) readPayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash) []byte {
+	bucket := tx.Bucket([]byte(payloadsBucketName))
+	if bucket == nil {
 		return nil
-	})
-}
-
-type bboltPayloadReader struct {
-	payloadsBucket *bbolt.Bucket
-}
-
-func (reader bboltPayloadReader) IsPayloadPresent(_ context.Context, payloadHash hash.SHA256Hash) (bool, error) {
-	if reader.payloadsBucket == nil {
-		return false, nil
 	}
-	data := reader.payloadsBucket.Get(payloadHash.Slice())
-	return len(data) > 0, nil
+	return bucket.Get(payloadHash.Slice())
 }
 
-func (reader bboltPayloadReader) ReadPayload(_ context.Context, payloadHash hash.SHA256Hash) ([]byte, error) {
-	if reader.payloadsBucket == nil {
-		return nil, nil
+func (store bboltPayloadStore) writePayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash, data []byte) error {
+	payloads, err := tx.CreateBucketIfNotExists([]byte(payloadsBucketName))
+	if err != nil {
+		return err
 	}
-	return copyBBoltValue(reader.payloadsBucket, payloadHash.Slice()), nil
+	return payloads.Put(payloadHash.Slice(), data)
 }

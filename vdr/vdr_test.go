@@ -21,7 +21,6 @@ package vdr
 import (
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/network/dag"
 	"testing"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -185,7 +184,7 @@ func TestVDR_Update(t *testing.T) {
 		currentDIDDocument := nextDIDDocument
 		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 		ctx.mockStore.EXPECT().Resolve(*id, gomock.Any()).Times(1).Return(&currentDIDDocument, &types.DocumentMetadata{}, nil)
-		ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(nil, crypto.ErrKeyNotFound)
+		ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(nil, crypto.ErrPrivateKeyNotFound)
 
 		err := ctx.vdr.Update(*id, currentHash, nextDIDDocument, nil)
 
@@ -245,7 +244,7 @@ func TestVDR_Create(t *testing.T) {
 
 func TestNewVDR(t *testing.T) {
 	cfg := Config{}
-	vdr := NewVDR(cfg, nil, nil, nil)
+	vdr := NewVDR(cfg, nil, nil, nil, nil)
 	assert.IsType(t, &VDR{}, vdr)
 	assert.Equal(t, vdr.config, cfg)
 }
@@ -254,9 +253,9 @@ func TestVDR_Configure(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	tx := network.NewMockTransactions(ctrl)
 	// Make sure configuring VDR subscribes to network
-	tx.EXPECT().Subscribe(dag.TransactionPayloadAddedEvent, gomock.Any(), gomock.Any())
+	tx.EXPECT().Subscribe(network.TransactionPayloadAddedEvent, gomock.Any(), gomock.Any())
 	cfg := Config{}
-	vdr := NewVDR(cfg, nil, tx, nil)
+	vdr := NewVDR(cfg, nil, tx, nil, nil)
 	err := vdr.Configure(core.ServerConfig{})
 	assert.NoError(t, err)
 }
@@ -265,7 +264,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 	t.Run("diagnostics", func(t *testing.T) {
 		t.Run("ok - no conflicts", func(t *testing.T) {
 			s := store.NewMemoryStore()
-			vdr := NewVDR(Config{}, nil, nil, s)
+			vdr := NewVDR(Config{}, nil, nil, s, nil)
 			results := vdr.Diagnostics()
 
 			if !assert.Len(t, results, 1) {
@@ -276,7 +275,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 
 		t.Run("ok - 1 conflict", func(t *testing.T) {
 			s := store.NewMemoryStore()
-			vdr := NewVDR(Config{}, nil, nil, s)
+			vdr := NewVDR(Config{}, nil, nil, s, nil)
 			doc := did.Document{ID: *TestDIDA}
 			metadata := types.DocumentMetadata{SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), hash.EmptyHash()}}
 			s.Write(doc, metadata)
@@ -291,7 +290,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 	t.Run("list", func(t *testing.T) {
 		t.Run("ok - no conflicts", func(t *testing.T) {
 			s := store.NewMemoryStore()
-			vdr := NewVDR(Config{}, nil, nil, s)
+			vdr := NewVDR(Config{}, nil, nil, s, nil)
 			docs, meta, err := vdr.ConflictedDocuments()
 
 			if !assert.NoError(t, err) {
@@ -303,7 +302,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 
 		t.Run("ok - 1 conflict", func(t *testing.T) {
 			s := store.NewMemoryStore()
-			vdr := NewVDR(Config{}, nil, nil, s)
+			vdr := NewVDR(Config{}, nil, nil, s, nil)
 			doc := did.Document{ID: *TestDIDA}
 			metadata := types.DocumentMetadata{SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), hash.EmptyHash()}}
 			s.Write(doc, metadata)
@@ -345,7 +344,7 @@ func TestVDR_resolveControllerKey(t *testing.T) {
 		controller.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 		ctx.mockStore.EXPECT().Resolve(*controllerId, gomock.Any()).Return(&controller, nil, nil).Times(2)
 		gomock.InOrder(
-			ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(nil, crypto.ErrKeyNotFound),
+			ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(nil, crypto.ErrPrivateKeyNotFound),
 			ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(crypto.NewTestKey(keyID.String()), nil),
 		)
 
@@ -378,7 +377,7 @@ func TestVDR_resolveControllerKey(t *testing.T) {
 		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*controllerId, *controllerId}}
 		controller.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 		ctx.mockStore.EXPECT().Resolve(*controllerId, gomock.Any()).Return(&controller, nil, nil).Times(2)
-		ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(nil, crypto.ErrKeyNotFound).Times(2)
+		ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(nil, crypto.ErrPrivateKeyNotFound).Times(2)
 
 		_, _, err := ctx.vdr.resolveControllerWithKey(currentDIDDocument)
 

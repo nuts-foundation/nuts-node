@@ -95,10 +95,6 @@ type KeyResolver interface {
 	// ResolveKeyAgreementKey look for a valid keyAgreement key for the give DID. If multiple keys are valid, the first one is returned.
 	// An ErrKeyNotFound is returned when no key is found.
 	ResolveKeyAgreementKey(id did.DID) (crypto.PublicKey, error)
-	// ResolvePublicKeyInTime loads the key from a DID Document
-	// It returns ErrKeyNotFound when the key could not be found in the DID Document.
-	// It returns ErrNotFound when the DID Document can't be found.
-	ResolvePublicKeyInTime(kid string, validAt *time.Time) (crypto.PublicKey, error)
 	// ResolvePublicKey loads the key from a DID Document where the DID Document
 	// was created with one of the given tx refs
 	// It returns ErrKeyNotFound when the key could not be found in the DID Document.

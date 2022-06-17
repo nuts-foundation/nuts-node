@@ -90,8 +90,7 @@ func (p *protocol) sendTransactionListQuery(id transport.PeerID, refs []hash.SHA
 	}
 	conversation.set("refs", refs)
 
-	// todo convert to trace logging
-	log.Logger().Infof("requesting transactionList from peer (peer=%s, conversationID=%s, #=%d)", id, conversation.conversationID.String(), len(refs))
+	log.Logger().Debugf("requesting transactionList from peer (peer=%s, conversationID=%s, #=%d)", id, conversation.conversationID.String(), len(refs))
 
 	return conn.Send(p, &Envelope{Message: msg})
 }
@@ -195,8 +194,7 @@ func (p *protocol) sendState(id transport.PeerID, xor hash.SHA256Hash, clock uin
 		return nil
 	}
 
-	// todo convert to trace logging
-	log.Logger().Infof("requesting state from peer (peer=%s, conversationID=%s)", id, conversation.conversationID.String())
+	log.Logger().Debugf("requesting state from peer (peer=%s, conversationID=%s)", id, conversation.conversationID.String())
 
 	return conn.Send(p, &Envelope{Message: msg})
 }
@@ -216,7 +214,7 @@ func (p *protocol) sendTransactionSet(id transport.PeerID, conversationID conver
 		ConversationID: conversationID.slice(),
 		LCReq:          LCReq,
 		LC:             LC,
-		IBLT:           ibltBytes, // TODO: format of IBLT needs to be specced
+		IBLT:           ibltBytes,
 	}}})
 }
 
