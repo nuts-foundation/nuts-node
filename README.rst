@@ -1,6 +1,7 @@
 nuts-node
 #########
 
+
 Distributed registry for storing and querying health care providers their vendors and technical endpoints.
 
 See the `documentation <https://nuts-node.readthedocs.io/en/latest/>`_ for how to set up, integrate and use the Nuts node.
