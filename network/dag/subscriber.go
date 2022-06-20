@@ -280,7 +280,7 @@ func (p *subscriber) retry(event Event) {
 				}
 			}
 
-			dbEvent.Count += 1
+			dbEvent.Count++
 			if p.isPersistent() {
 				if err := p.db.WriteShelf(p.bucketName(), func(writer stoabs.Writer) error {
 					return p.writeEvent(writer, *dbEvent)
