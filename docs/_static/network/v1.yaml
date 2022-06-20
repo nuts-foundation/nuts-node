@@ -109,13 +109,34 @@ paths:
         default:
           $ref: '../common/error_response.yaml'
   /internal/network/v1/diagnostics/graph:
+    parameters:
+      - name: start
+        in: query
+        description: "Lamport Clock value from where to start rendering the graph."
+        required: true
+        example: 2
+        schema:
+          type: integer
+          minimum: 0
+      - name: end
+        in: query
+        description: "Lamport Clock value where rendering stops (exclusive). Must be larger than the `start` parameter."
+        required: false
+        example: 3
+        schema:
+          type: integer
+          minimum: 1
     get:
       summary: "Visualizes the DAG as a graph"
       description: >
-        Walks the DAG as subscribers of the DAG do, rendering it as graph. By default it renders in Graphviz format,
-        which can be rendered to an image using `dot`.
+        Collects transactions in the requested range and renders it as graph. By default it renders in Graphviz format,
+        which can be rendered to an image using `dot`. 
+        
+        If only the start of the range is specified, all transactions until the end of the graph are rendered. 
+        However, rendering capabilities are currently limited to a couple of hundred transactions.
 
         error returns:
+        * 400 - invalid range
         * 500 - internal server error
       operationId: "renderGraph"
       tags:

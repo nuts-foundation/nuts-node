@@ -250,20 +250,6 @@ func (mr *MockStateMockRecorder) Verify() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockState)(nil).Verify))
 }
 
-// Walk mocks base method.
-func (m *MockState) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA256Hash) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Walk", ctx, visitor, startAt)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Walk indicates an expected call of Walk.
-func (mr *MockStateMockRecorder) Walk(ctx, visitor, startAt interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Walk", reflect.TypeOf((*MockState)(nil).Walk), ctx, visitor, startAt)
-}
-
 // WritePayload mocks base method.
 func (m *MockState) WritePayload(transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
 	m.ctrl.T.Helper()

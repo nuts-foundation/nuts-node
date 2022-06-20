@@ -21,18 +21,26 @@ package v1
 import (
 	"net/http"
 
-	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"
 	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network"
+	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/network/transport"
 )
+
+var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
 
 // Wrapper implements the ServerInterface for the network API.
 type Wrapper struct {
 	Service network.Transactions
+}
+
+// ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
+func (w *Wrapper) ResolveStatusCode(err error) int {
+	return core.ResolveStatusCode(err, map[error]int{
+		network.ErrInvalidRange: http.StatusBadRequest,
+	})
 }
 
 // Preprocess is called just before the API operation itself is invoked.
@@ -107,11 +115,21 @@ func (a Wrapper) GetPeerDiagnostics(ctx echo.Context) error {
 }
 
 // RenderGraph visualizes the DAG as Graphviz/dot graph
-func (a Wrapper) RenderGraph(ctx echo.Context) error {
-	visitor := dag.NewDotGraphVisitor(dag.ShowShortRefLabelStyle)
-	err := a.Service.Walk(visitor.Accept)
+func (a Wrapper) RenderGraph(ctx echo.Context, params RenderGraphParams) error {
+	end := dag.MaxLamportClock
+	if params.End != nil {
+		end = *params.End
+	}
+	if params.Start < 0 || end < 1 {
+		return network.ErrInvalidRange
+	}
+	txs, err := a.Service.ListTransactionsInRange(uint32(params.Start), uint32(end))
 	if err != nil {
 		return err
+	}
+	visitor := dag.NewDotGraphVisitor(dag.ShowShortRefLabelStyle)
+	for _, tx := range txs {
+		visitor.Accept(tx)
 	}
 	ctx.Response().Header().Set(echo.HeaderContentType, "text/vnd.graphviz")
 	return ctx.String(http.StatusOK, visitor.Render())
