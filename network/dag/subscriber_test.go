@@ -190,6 +190,38 @@ func TestSubscriber_Save(t *testing.T) {
 			return nil
 		})
 	})
+
+	t.Run("error on ShelfWriter", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		kvMock := stoabs.NewMockKVStore(ctrl)
+		tx := stoabs.NewMockWriteTx(ctrl)
+		s := NewSubscriber(t.Name(), dummyFunc, WithPersistency(kvMock)).(*subscriber)
+		tx.EXPECT().GetShelfWriter(s.bucketName()).Return(nil, errors.New("failure"))
+
+		err := s.Save(tx, Event{})
+
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.EqualError(t, err, "failure")
+	})
+
+	t.Run("error on readEvent", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		kvMock := stoabs.NewMockKVStore(ctrl)
+		tx := stoabs.NewMockWriteTx(ctrl)
+		writer := stoabs.NewMockWriter(ctrl)
+		s := NewSubscriber(t.Name(), dummyFunc, WithPersistency(kvMock)).(*subscriber)
+		tx.EXPECT().GetShelfWriter(s.bucketName()).Return(writer, nil)
+		writer.EXPECT().Get(stoabs.BytesKey(hash.EmptyHash().Slice())).Return(nil, errors.New("failure"))
+
+		err := s.Save(tx, Event{Hash: hash.EmptyHash()})
+
+		if !assert.Error(t, err) {
+			return
+		}
+		assert.EqualError(t, err, "failure")
+	})
 }
 
 func TestSubscriber_Notify(t *testing.T) {
@@ -359,7 +391,7 @@ func TestSubscriber_VariousFlows(t *testing.T) {
 	})
 }
 
-func dummyFunc(event Event) (bool, error) {
+func dummyFunc(_ Event) (bool, error) {
 	return true, nil
 }
 
