@@ -18,10 +18,10 @@ import (
 
 // RenderGraphParams defines parameters for RenderGraph.
 type RenderGraphParams struct {
-	// Lamport Clock value from where to start rendering the graph.
-	Start int `form:"start" json:"start"`
+	// Lamport Clock value from where to start rendering (inclusive). If omitted, rendering starts at the root.
+	Start *int `form:"start,omitempty" json:"start,omitempty"`
 
-	// Lamport Clock value where rendering stops (exclusive). Must be larger than the `start` parameter.
+	// Lamport Clock value where to stop rendering (exclusive). If omitted, renders the remainder of the graph. Must be larger than the `start` parameter.
 	End *int `form:"end,omitempty" json:"end,omitempty"`
 }
 
@@ -216,16 +216,20 @@ func NewRenderGraphRequest(server string, params *RenderGraphParams) (*http.Requ
 
 	queryValues := queryURL.Query()
 
-	if queryFrag, err := runtime.StyleParamWithLocation("form", true, "start", runtime.ParamLocationQuery, params.Start); err != nil {
-		return nil, err
-	} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-		return nil, err
-	} else {
-		for k, v := range parsed {
-			for _, v2 := range v {
-				queryValues.Add(k, v2)
+	if params.Start != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "start", runtime.ParamLocationQuery, *params.Start); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
 			}
 		}
+
 	}
 
 	if params.End != nil {
@@ -820,9 +824,9 @@ func (w *ServerInterfaceWrapper) RenderGraph(ctx echo.Context) error {
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params RenderGraphParams
-	// ------------- Required query parameter "start" -------------
+	// ------------- Optional query parameter "start" -------------
 
-	err = runtime.BindQueryParameter("form", true, true, "start", ctx.QueryParams(), &params.Start)
+	err = runtime.BindQueryParameter("form", true, false, "start", ctx.QueryParams(), &params.Start)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter start: %s", err))
 	}

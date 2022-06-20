@@ -29,18 +29,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport"
 )
 
-var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
-
 // Wrapper implements the ServerInterface for the network API.
 type Wrapper struct {
 	Service network.Transactions
-}
-
-// ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
-func (w *Wrapper) ResolveStatusCode(err error) int {
-	return core.ResolveStatusCode(err, map[error]int{
-		network.ErrInvalidRange: http.StatusBadRequest,
-	})
 }
 
 // Preprocess is called just before the API operation itself is invoked.
@@ -55,7 +46,7 @@ func (a *Wrapper) Routes(router core.EchoRouter) {
 
 // ListTransactions lists all transactions
 func (a Wrapper) ListTransactions(ctx echo.Context) error {
-	transactions, err := a.Service.ListTransactions()
+	transactions, err := a.Service.ListTransactionsInRange(0, dag.MaxLamportClock)
 	if err != nil {
 		return err
 	}
@@ -116,14 +107,12 @@ func (a Wrapper) GetPeerDiagnostics(ctx echo.Context) error {
 
 // RenderGraph visualizes the DAG as Graphviz/dot graph
 func (a Wrapper) RenderGraph(ctx echo.Context, params RenderGraphParams) error {
-	end := dag.MaxLamportClock
-	if params.End != nil {
-		end = *params.End
+	start := toInt(params.Start, 0)
+	end := toInt(params.End, dag.MaxLamportClock)
+	if start < 0 || end < 1 || start >= end {
+		return core.InvalidInputError("invalid range")
 	}
-	if params.Start < 0 || end < 1 {
-		return network.ErrInvalidRange
-	}
-	txs, err := a.Service.ListTransactionsInRange(uint32(params.Start), uint32(end))
+	txs, err := a.Service.ListTransactionsInRange(uint32(start), uint32(end))
 	if err != nil {
 		return err
 	}
@@ -133,6 +122,13 @@ func (a Wrapper) RenderGraph(ctx echo.Context, params RenderGraphParams) error {
 	}
 	ctx.Response().Header().Set(echo.HeaderContentType, "text/vnd.graphviz")
 	return ctx.String(http.StatusOK, visitor.Render())
+}
+
+func toInt(v *int, def int) int {
+	if v == nil {
+		return def
+	}
+	return *v
 }
 
 func (a Wrapper) Reprocess(ctx echo.Context, params ReprocessParams) error {

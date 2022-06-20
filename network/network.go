@@ -441,9 +441,6 @@ func (n *Network) ListTransactions() ([]dag.Transaction, error) {
 
 // ListTransactionsInRange returns all transactions known to this Network instance with lamport clock value between startInclusive and endExclusive.
 func (n *Network) ListTransactionsInRange(startInclusive uint32, endExclusive uint32) ([]dag.Transaction, error) {
-	if startInclusive >= endExclusive {
-		return nil, ErrInvalidRange
-	}
 	return n.state.FindBetweenLC(startInclusive, endExclusive)
 }
 

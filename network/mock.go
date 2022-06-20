@@ -81,21 +81,6 @@ func (mr *MockTransactionsMockRecorder) GetTransactionPayload(transactionRef int
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransactionPayload", reflect.TypeOf((*MockTransactions)(nil).GetTransactionPayload), transactionRef)
 }
 
-// ListTransactions mocks base method.
-func (m *MockTransactions) ListTransactions() ([]dag.Transaction, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListTransactions")
-	ret0, _ := ret[0].([]dag.Transaction)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ListTransactions indicates an expected call of ListTransactions.
-func (mr *MockTransactionsMockRecorder) ListTransactions() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTransactions", reflect.TypeOf((*MockTransactions)(nil).ListTransactions))
-}
-
 // ListTransactionsInRange mocks base method.
 func (m *MockTransactions) ListTransactionsInRange(startInclusive, endExclusive uint32) ([]dag.Transaction, error) {
 	m.ctrl.T.Helper()
