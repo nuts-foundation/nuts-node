@@ -253,7 +253,7 @@ func (p *subscriber) Notify(event Event) {
 }
 
 // errEventInProgress defines a dummy error that is returned when a job is currently in progress
-var errEventInProgress = errors.New("job is in progress")
+var errEventInProgress = errors.New("event is not yet handled by subscriber")
 
 func (p *subscriber) retry(event Event) {
 	delay := p.retryDelay
@@ -296,7 +296,7 @@ func (p *subscriber) retry(event Event) {
 			}
 
 			// has to return an error since `retry.Do` needs to retry until it's marked as finished
-			return errEventInProgress
+			return fmt.Errorf("event is not yet handled by subscriber (count=%d, max=%d)", dbEvent.Count, maxRetries)
 		},
 			retry.Attempts(maxRetries-uint(initialCount)),
 			retry.MaxDelay(24*time.Hour),
