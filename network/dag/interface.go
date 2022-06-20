@@ -114,4 +114,5 @@ type Observer func(ctx context.Context, transaction Transaction) error
 // PayloadObserver defines the signature of an observer which can be called by an Observable.
 type PayloadObserver func(transaction Transaction, payload []byte) error
 
+// MaxLamportClock is the highest Lamport Clock value a transaction on the DAG can have.
 const MaxLamportClock = math.MaxUint32
