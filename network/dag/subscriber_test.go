@@ -285,7 +285,7 @@ func TestSubscriber_VariousFlows(t *testing.T) {
 		filePath := io.TestDirectory(t)
 		kvStore, _ := bbolt.CreateBBoltStore(path.Join(filePath, "test.db"))
 		counter := callbackCounter{}
-		s := NewSubscriber(t.Name(), counter.callbackFinished, WithPersistency(kvStore), WithRetryDelay(10*time.Millisecond)).(*subscriber)
+		s := NewSubscriber(t.Name(), counter.callback, WithPersistency(kvStore), WithRetryDelay(10*time.Millisecond)).(*subscriber)
 		defer s.Close()
 
 		_ = kvStore.Write(func(tx stoabs.WriteTx) error {
