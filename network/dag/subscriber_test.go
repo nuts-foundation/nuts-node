@@ -22,6 +22,7 @@ package dag
 import (
 	bytes2 "bytes"
 	"encoding/json"
+	"errors"
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
@@ -331,6 +332,31 @@ func TestSubscriber_VariousFlows(t *testing.T) {
 			return e == nil, nil
 		}, time.Second, "timeout while waiting for callback")
 	})
+
+	t.Run("fails and stops at max attempts", func(t *testing.T) {
+		filePath := io.TestDirectory(t)
+		kvStore, _ := bbolt.CreateBBoltStore(path.Join(filePath, "test.db"))
+		counter := callbackCounter{}
+		event := Event{Hash: hash.EmptyHash(), Transaction: transaction, Count: 95}
+		s := NewSubscriber(t.Name(), counter.callbackFailure, WithPersistency(kvStore), WithRetryDelay(time.Nanosecond)).(*subscriber)
+		defer s.Close()
+
+		_ = kvStore.Write(func(tx stoabs.WriteTx) error {
+			return s.Save(tx, event)
+		})
+
+		s.Notify(event)
+
+		test.WaitFor(t, func() (bool, error) {
+			var e *Event
+			kvStore.ReadShelf(s.bucketName(), func(reader stoabs.Reader) error {
+				e, _ = s.readEvent(reader, hash.EmptyHash())
+				return nil
+			})
+
+			return e.Count == 100, nil
+		}, time.Second, "timeout while waiting for callback")
+	})
 }
 
 func dummyFunc(event Event) (bool, error) {
@@ -357,6 +383,10 @@ func (cc *callbackCounter) callbackFinished(_ Event) (bool, error) {
 
 	cc.count++
 	return true, nil
+}
+
+func (cc *callbackCounter) callbackFailure(_ Event) (bool, error) {
+	return false, errors.New("error")
 }
 
 func (cc *callbackCounter) read() int {
