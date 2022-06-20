@@ -311,6 +311,33 @@ func TestSubscriber_Notify(t *testing.T) {
 	})
 }
 
+func TestSubscriber_Run(t *testing.T) {
+	filePath := io.TestDirectory(t)
+	transaction, _, _ := CreateTestTransaction(0)
+	kvStore, _ := bbolt.CreateBBoltStore(path.Join(filePath, "test.db"))
+	counter := callbackCounter{}
+	payload := "payload"
+	event := Event{
+		Type:        TransactionEventType,
+		Hash:        transaction.Ref(),
+		Count:       1,
+		Transaction: transaction,
+		Payload:     []byte(payload),
+	}
+	s := NewSubscriber(t.Name(), counter.callbackFinished, WithPersistency(kvStore)).(*subscriber)
+
+	_ = kvStore.WriteShelf(s.bucketName(), func(writer stoabs.Writer) error {
+		bytes, _ := json.Marshal(event)
+		return writer.Put(stoabs.BytesKey(event.Hash.Slice()), bytes)
+	})
+
+	s.Run()
+
+	test.WaitFor(t, func() (bool, error) {
+		return counter.read() == 1, nil
+	}, time.Second, "timeout while waiting for callback")
+}
+
 func TestSubscriber_VariousFlows(t *testing.T) {
 	transaction, _, _ := CreateTestTransaction(0)
 	event := Event{Hash: hash.EmptyHash(), Transaction: transaction}
@@ -388,6 +415,11 @@ func TestSubscriber_VariousFlows(t *testing.T) {
 
 			return e.Count == 100, nil
 		}, time.Second, "timeout while waiting for callback")
+
+		events, err := s.GetFailedEvents()
+
+		assert.NoError(t, err)
+		assert.Len(t, events, 1)
 	})
 }
 
