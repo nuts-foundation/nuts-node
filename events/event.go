@@ -28,7 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 )
 
-const moduleName = "Event manager"
+const moduleName = "Events"
 
 type manager struct {
 	config  Config
