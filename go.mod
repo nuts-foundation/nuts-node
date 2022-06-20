@@ -41,8 +41,6 @@ require (
 	schneider.vip/problem v1.6.0
 )
 
-replace github.com/nuts-foundation/go-stoabs => ../go-stoabs
-
 require (
 	github.com/alexandrevicenzi/go-sse v1.6.0 // indirect
 	github.com/armon/go-metrics v0.3.10 // indirect

@@ -23,6 +23,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/network/log"
 	"math"
 
 	"github.com/nuts-foundation/go-stoabs"
@@ -77,7 +78,42 @@ func (s *state) updateTrees(tx stoabs.WriteTx, transaction Transaction) error {
 	return s.xorTree.dagObserver(tx, transaction)
 }
 
-func (s *state) Add(_ context.Context, transaction Transaction, payload []byte) error {
+func (s *state) reloadTrees() {
+	// get an exclusive lock
+	if err := s.db.Write(func(tx stoabs.WriteTx) error {
+		s.xorTree = newBBoltTreeStore(s.db, "xorBucket", tree.New(tree.NewXor(), PageSize))
+		s.ibltTree = newBBoltTreeStore(s.db, "ibltBucket", tree.New(tree.NewIblt(IbltNumBuckets), PageSize))
+
+		if err := s.xorTree.read(tx); err != nil {
+			return fmt.Errorf("failed to read xorTree: %w", err)
+		}
+
+		if err := s.ibltTree.read(tx); err != nil {
+			return fmt.Errorf("failed to read ibltTree: %w", err)
+		}
+		return nil
+	}); err != nil {
+		log.Logger().Errorf("Failed to reload the XOR and IBLT trees: %w", err)
+	}
+	log.Logger().Info("Reloaded the XOR and IBLT trees")
+}
+
+func (s *state) Add(_ context.Context, transaction Transaction, payload []byte) error { // subscribers
+	jobTx := Job{
+		Type:        "transaction",
+		Hash:        transaction.Ref(),
+		Count:       0,
+		Transaction: transaction,
+		Payload:     payload,
+	}
+	jobPayload := Job{
+		Type:        "payload",
+		Hash:        transaction.Ref(),
+		Count:       0,
+		Transaction: transaction,
+		Payload:     payload,
+	}
+
 	return s.db.Write(func(tx stoabs.WriteTx) error {
 		present := s.graph.isPresent(tx, transaction.Ref())
 		if present {
@@ -92,7 +128,7 @@ func (s *state) Add(_ context.Context, transaction Transaction, payload []byte) 
 			if !transaction.PayloadHash().Equals(payloadHash) {
 				return errors.New("tx.PayloadHash does not match Hash of payload")
 			}
-			if err := s.writePayload(tx, transaction, payloadHash, payload); err != nil {
+			if err := s.payloadStore.writePayload(tx, payloadHash, payload); err != nil {
 				return err
 			}
 		}
@@ -105,8 +141,17 @@ func (s *state) Add(_ context.Context, transaction Transaction, payload []byte) 
 			return err
 		}
 
-		return s.notifyObservers(tx, "transaction", transaction, payload)
-	})
+		if err := s.saveJob(tx, jobTx); err != nil {
+			return err
+		}
+		return s.saveJob(tx, jobPayload)
+	}, stoabs.AfterCommit(func() {
+		s.runJob(jobTx)
+		s.runJob(jobPayload)
+	}), stoabs.OnRollback(func() {
+		log.Logger().Warn("Reloading the XOR and IBLT trees due to a DB transaction Rollback")
+		s.reloadTrees()
+	}))
 }
 
 func (s *state) verifyTX(tx stoabs.ReadTx, transaction Transaction) error {
@@ -151,17 +196,22 @@ func (s *state) IsPresent(_ context.Context, hash hash.SHA256Hash) (present bool
 }
 
 func (s *state) WritePayload(transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
-	return s.db.Write(func(tx stoabs.WriteTx) error {
-		return s.writePayload(tx, transaction, payloadHash, data)
-	})
-}
-
-func (s *state) writePayload(tx stoabs.WriteTx, transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
-	err := s.payloadStore.writePayload(tx, payloadHash, data)
-	if err == nil {
-		return s.notifyObservers(tx, "payload", transaction, data)
+	job := Job{
+		Type:        "payload",
+		Hash:        transaction.Ref(),
+		Count:       0,
+		Transaction: transaction,
+		Payload:     data,
 	}
-	return err
+
+	return s.db.Write(func(tx stoabs.WriteTx) error {
+		if err := s.saveJob(tx, job); err != nil {
+			return err
+		}
+		return s.payloadStore.writePayload(tx, payloadHash, data)
+	}, stoabs.AfterCommit(func() {
+		s.runJob(job)
+	}))
 }
 
 func (s *state) ReadPayload(_ context.Context, hash hash.SHA256Hash) (payload []byte, err error) {
@@ -296,20 +346,19 @@ func (s *state) Verify() error {
 	})
 }
 
-func (s *state) notifyObservers(tx stoabs.WriteTx, jobType string, transaction Transaction, payload []byte) error {
-
-	job := Job{
-		Type:        jobType,
-		Hash:        transaction.Ref(),
-		Count:       0,
-		Transaction: transaction,
-		Payload:     payload,
-	}
-
+func (s *state) saveJob(tx stoabs.WriteTx, job Job) error {
 	for _, subscriber := range s.subscribers {
-		if err := subscriber.Schedule(tx, job); err != nil {
+		if err := subscriber.Save(tx, job); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (s *state) runJob(job Job) error {
+	for _, subscriber := range s.subscribers {
+		subscriber.RunJob(job)
 	}
 
 	return nil

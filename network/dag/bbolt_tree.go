@@ -19,9 +19,7 @@
 package dag
 
 import (
-	"context"
 	"encoding/binary"
-	"sync/atomic"
 	"time"
 
 	"github.com/nuts-foundation/go-stoabs"
@@ -81,27 +79,7 @@ func (store *bboltTree) isEmpty() bool {
 // The tree is not aware of previously seen transactions, so it should be transactional with updates to the dag.
 func (store *bboltTree) dagObserver(tx stoabs.WriteTx, transaction Transaction) error {
 	dirty := store.tree.InsertGetDirty(transaction.Ref(), transaction.Clock())
-
-	// Rollback after timeout to bring tree and DAG back in sync.
-	// A call to writeUpdates will persist all uncommitted tree changes. So a failed bboltTx will be dropped by the dag and (eventually) persisted by the tree.
-	c, cancel := context.WithTimeout(context.Background(), observerRollbackTimeOut) // << timeout must not be shorter than expected write operation to disk
-	go func() {
-		atomic.AddUint32(store.activeRollbackRoutines, 1)
-		defer func() {
-			atomic.AddUint32(store.activeRollbackRoutines, ^uint32(0)) // decrements (as stated by godoc of AddUint32)
-		}()
-		<-c.Done()
-		err := c.Err()
-		if err == context.DeadlineExceeded {
-			log.Logger().Warnf("deadline exceeded - rollback transaction %s from %s", transaction.Ref(), store.bucketName)
-			store.tree.Delete(transaction.Ref(), transaction.Clock())
-			atomic.AddUint32(store.numRollbacks, 1)
-		}
-	}()
-	tx.AfterCommit(func() {
-		store.tree.ResetUpdate()
-		cancel()
-	})
+	store.tree.ResetUpdate()
 
 	return store.writeUpdates(tx, dirty, nil)
 }

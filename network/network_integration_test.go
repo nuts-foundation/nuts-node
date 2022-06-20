@@ -885,7 +885,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 		log.Logger().Infof("transaction %s arrived at %s", string(job.Payload), name)
 		receivedTransactions[name] = append(receivedTransactions[name], job.Transaction)
 		return true, nil
-	}, dag.Unsafe(), dag.WithSelectionFilter(func(job dag.Job) bool {
+	}, dag.WithSelectionFilter(func(job dag.Job) bool {
 		return job.Type == "transaction"
 	}))
 	if err != nil {

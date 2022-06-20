@@ -24,7 +24,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/avast/retry-go/v4"
@@ -42,11 +41,15 @@ const (
 
 // Subscriber defines methods for a persistent retry mechanism
 type Subscriber interface {
-	// Schedule a job that needs to be retried.
+	// Save a job that needs to be retried even after a crash.
+	// It will not yet be run, use RunJob to run the task.
 	// The job may be ignored due to configured filters
 	// Returns nil if job already exists.
 	// An error is returned if there's a problem with the underlying storage.
-	Schedule(tx stoabs.WriteTx, job Job) error
+	Save(tx stoabs.WriteTx, job Job) error
+	// RunJob runs the Job, if an error occurs it'll be retried later
+	// This does not store the job in the DB, use Save for that.
+	RunJob(job Job)
 	// Finished marks the job as finished and removes it from the scheduler
 	// An error is returned if there's a problem with the underlying storage.
 	Finished(hash hash.SHA256Hash) error
@@ -67,13 +70,6 @@ func WithRetryDelay(delay time.Duration) SubscriberOption {
 func WithPersistency(db stoabs.KVStore) SubscriberOption {
 	return func(subscriber *subscriber) {
 		subscriber.db = db
-	}
-}
-
-// Unsafe is the option to call the subscriber after the transaction is closed, only once and without persistency
-func Unsafe() SubscriberOption {
-	return func(subscriber *subscriber) {
-		subscriber.onCommit = true
 	}
 }
 
@@ -104,15 +100,13 @@ func NewSubscriber(name string, subscriberFn SubscriberFn, options ...Subscriber
 }
 
 type subscriber struct {
-	db           stoabs.KVStore
-	name         string
-	retryDelay   time.Duration
-	callback     SubscriberFn
-	ctx          context.Context
-	cancel       context.CancelFunc
-	scheduleLock sync.Mutex
-	filters      []SubscriptionFilter
-	onCommit     bool
+	db         stoabs.KVStore
+	name       string
+	retryDelay time.Duration
+	callback   SubscriberFn
+	ctx        context.Context
+	cancel     context.CancelFunc
+	filters    []SubscriptionFilter
 }
 
 func (p *subscriber) bucketName() string {
@@ -155,17 +149,11 @@ func (p *subscriber) GetFailedJobs() (jobs []Job, err error) {
 	return
 }
 
-func (p *subscriber) Schedule(tx stoabs.WriteTx, job Job) error {
-	if p.onCommit {
-		tx.AfterCommit(func() {
-			// TODO
-			_, _ = p.callback(job)
-		})
+func (p *subscriber) Save(tx stoabs.WriteTx, job Job) error {
+	// non-persistent job
+	if p.db == nil {
 		return nil
 	}
-
-	p.scheduleLock.Lock()
-	defer p.scheduleLock.Unlock()
 
 	writer, err := tx.GetShelfWriter(p.bucketName())
 	if err != nil {
@@ -188,10 +176,18 @@ func (p *subscriber) Schedule(tx stoabs.WriteTx, job Job) error {
 		return err
 	}
 
-	tx.AfterCommit(func() {
-		p.retry(job)
-	})
 	return nil
+}
+
+func (p *subscriber) RunJob(job Job) {
+	// apply filters
+	for _, f := range p.filters {
+		if !f(job) {
+			return
+		}
+	}
+
+	p.retry(job)
 }
 
 // errJobInProgress defines a dummy error that is returned when a job is currently in progress
@@ -207,29 +203,33 @@ func (p *subscriber) retry(job Job) {
 
 	go func(ctx context.Context) {
 		err := retry.Do(func() error {
-			var dbJob Job
-			if err := p.db.ReadShelf(p.bucketName(), func(reader stoabs.Reader) error {
-				dbJob = p.readJob(reader, job.Hash)
-				return nil
-			}); err != nil {
-				return retry.Unrecoverable(err)
-			}
-			if dbJob.Hash.Empty() {
-				// no longer exists so done, this stops any go routine but does not clear the DB entry
-				return nil
+			var dbJob = job
+			if p.db != nil {
+				if err := p.db.ReadShelf(p.bucketName(), func(reader stoabs.Reader) error {
+					dbJob = p.readJob(reader, job.Hash)
+					return nil
+				}); err != nil {
+					return retry.Unrecoverable(err)
+				}
+				if dbJob.Hash.Empty() {
+					// no longer exists so done, this stops any go routine but does not clear the DB entry
+					return nil
+				}
 			}
 
 			dbJob.Count += 1
-			if err := p.db.WriteShelf(p.bucketName(), func(writer stoabs.Writer) error {
-				return p.writeJob(writer, dbJob)
-			}); err != nil {
-				return retry.Unrecoverable(err)
+			if p.db != nil {
+				if err := p.db.WriteShelf(p.bucketName(), func(writer stoabs.Writer) error {
+					return p.writeJob(writer, dbJob)
+				}); err != nil {
+					return retry.Unrecoverable(err)
+				}
 			}
 
 			if finished, err := p.callback(dbJob); err != nil {
 				log.Logger().Errorf("retry for %s job failed (ref=%s)", p.name, dbJob.Hash.String())
 			} else if finished {
-				p.Finished(dbJob.Hash)
+				return p.Finished(dbJob.Hash)
 			}
 
 			// has to return an error since `retry.Do` needs to retry until it's marked as finished
@@ -272,6 +272,9 @@ func (p *subscriber) readJob(reader stoabs.Reader, hash hash.SHA256Hash) (job Jo
 }
 
 func (p *subscriber) Finished(hash hash.SHA256Hash) error {
+	if p.db == nil {
+		return nil
+	}
 	return p.db.WriteShelf(p.bucketName(), func(writer stoabs.Writer) error {
 		return writer.Delete(stoabs.BytesKey(hash.Slice()))
 	})

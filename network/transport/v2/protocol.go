@@ -163,10 +163,9 @@ func (p *protocol) Configure(_ transport.PeerID) error {
 	p.gManager = gossip.NewManager(p.ctx, time.Duration(p.config.GossipInterval)*time.Millisecond)
 	p.gManager.RegisterSender(p.sendGossip)
 
-	// This subscriber must be unsafe (eg PostCommit), non-durable and only for transaction events not payload events
+	// This subscriber non-durable and only for transaction events not payload events
 	// TODO
 	_, _ = p.state.Subscribe("gossip", p.gossipTransaction,
-		dag.Unsafe(),
 		dag.WithSelectionFilter(func(job dag.Job) bool {
 			// TODO constant
 			return job.Type == "transaction"
