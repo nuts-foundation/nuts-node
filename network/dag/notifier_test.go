@@ -21,6 +21,7 @@ package dag
 
 import (
 	bytes2 "bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"github.com/golang/mock/gomock"
@@ -88,6 +89,15 @@ func TestNewSubscriber(t *testing.T) {
 		}))
 
 		assert.Len(t, s.(*notifier).filters, 1)
+	})
+
+	t.Run("sets context based on parent context", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		s := NewNotifier(t.Name(), dummyFunc, WithContext(ctx)).(*notifier)
+
+		cancel()
+
+		assert.NotNil(t, ctx, s.ctx.Err())
 	})
 }
 

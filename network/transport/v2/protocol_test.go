@@ -101,7 +101,7 @@ func TestDefaultConfig(t *testing.T) {
 func TestProtocol_Configure(t *testing.T) {
 	testDID, _ := did.ParseDID("did:nuts:123")
 	p, mocks := newTestProtocol(t, testDID)
-	mocks.State.EXPECT().RegisterTransactionObserver(gomock.Any(), false)
+	mocks.State.EXPECT().Notifier("gossip", gomock.Any(), gomock.Len(2))
 
 	assert.NoError(t, p.Configure(""))
 }
@@ -250,19 +250,20 @@ func TestProtocol_connectionStateCallback(t *testing.T) {
 }
 
 func TestProtocol_gossipTransaction(t *testing.T) {
-	t.Run("ok - no transaction", func(t *testing.T) {
-		proto, _ := newTestProtocol(t, nil)
-
-		proto.gossipTransaction(context.Background(), nil)
-	})
-
 	t.Run("ok - to gossipManager", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
 		tx, _, _ := dag.CreateTestTransaction(0)
 		mocks.State.EXPECT().XOR(context.Background(), uint32(math.MaxUint32))
 		mocks.Gossip.EXPECT().TransactionRegistered(tx.Ref(), hash.EmptyHash(), uint32(0))
+		event := dag.Event{
+			Type:        dag.TransactionEventType,
+			Hash:        tx.Ref(),
+			Retries:     0,
+			Transaction: tx,
+			Payload:     nil,
+		}
 
-		proto.gossipTransaction(context.Background(), tx)
+		proto.gossipTransaction(event)
 	})
 }
 

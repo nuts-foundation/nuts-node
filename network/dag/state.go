@@ -23,6 +23,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/go-stoabs"
 	"math"
 	"os"
 	"path"
@@ -57,6 +58,7 @@ type state struct {
 	txVerifiers                      []Verifier
 	xorTree                          *bboltTree
 	ibltTree                         *bboltTree
+	notifiers                        map[string]Notifier
 }
 
 // NewState returns a new State. The State is used as entry point, it's methods will start transactions and will notify observers from within those transactions.
@@ -80,6 +82,7 @@ func NewState(dataDir string, verifiers ...Verifier) (State, error) {
 		graph:        graph,
 		payloadStore: payloadStore,
 		txVerifiers:  verifiers,
+		notifiers:    map[string]Notifier{},
 	}
 
 	xorTree := newBBoltTreeStore(db, "xorBucket", tree.New(tree.NewXor(), PageSize))
@@ -115,6 +118,22 @@ func (s *state) treeObserver(ctx context.Context, transaction Transaction) error
 }
 
 func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte) error {
+	txEvent := Event{
+		Type:        TransactionEventType,
+		Hash:        transaction.Ref(),
+		Retries:     0,
+		Transaction: transaction,
+		Payload:     payload,
+	}
+	payloadEvent := Event{
+		Type:        PayloadEventType,
+		Hash:        transaction.Ref(),
+		Retries:     0,
+		Transaction: transaction,
+		Payload:     payload,
+	}
+	emitPayloadEvent := false
+
 	return storage.BBoltTXUpdate(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
 		present := s.graph.isPresent(tx, transaction.Ref())
 		if present {
@@ -125,6 +144,7 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 			return err
 		}
 		if payload != nil {
+			emitPayloadEvent = true
 			payloadHash := hash.SHA256Sum(payload)
 			if !transaction.PayloadHash().Equals(payloadHash) {
 				return errors.New("tx.PayloadHash does not match hash of payload")
@@ -132,10 +152,26 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 			if err := s.writePayload(tx, transaction, payloadHash, payload); err != nil {
 				return err
 			}
+			// TODO: Set tx when updated to stoabs
+			if err := s.saveEvent(nil, payloadEvent); err != nil {
+				return err
+			}
 		}
 		if err := s.graph.add(tx, transaction); err != nil {
 			return err
 		}
+		// TODO: Set tx when updated to stoabs
+		if err := s.saveEvent(nil, txEvent); err != nil {
+			return err
+		}
+
+		// TODO move to TX begin scope when migrated to stoabs
+		tx.OnCommit(func() {
+			s.notify(txEvent)
+			if emitPayloadEvent {
+				s.notify(payloadEvent)
+			}
+		})
 
 		return s.notifyObservers(contextWithTX, transaction)
 	})
@@ -209,6 +245,17 @@ func (s *state) Heads(ctx context.Context) []hash.SHA256Hash {
 	return s.graph.heads(ctx)
 }
 
+func (s *state) Notifier(name string, receiver ReceiverFn, options ...NotifierOption) (Notifier, error) {
+	if _, exists := s.notifiers[name]; exists {
+		return nil, fmt.Errorf("notifier already exists (name=%s)", name)
+	}
+
+	notifier := NewNotifier(name, receiver, options...)
+	s.notifiers[name] = notifier
+
+	return notifier, nil
+}
+
 func (s *state) XOR(ctx context.Context, reqClock uint32) (hash.SHA256Hash, uint32) {
 	var data tree.Data
 
@@ -279,6 +326,13 @@ func (s *state) Start() error {
 		return err
 	}
 
+	// resume all notifiers
+	for _, subscriber := range s.notifiers {
+		if err := subscriber.Run(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -345,6 +399,22 @@ func (s *state) notifyPayloadObservers(tx *bbolt.Tx, transaction Transaction, pa
 	// check if there's an active transaction
 	tx.OnCommit(notifyNonTXObservers)
 	return nil
+}
+
+func (s *state) saveEvent(tx stoabs.WriteTx, event Event) error {
+	for _, notifier := range s.notifiers {
+		if err := notifier.Save(tx, event); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *state) notify(event Event) {
+	for _, notifier := range s.notifiers {
+		notifier.Notify(event)
+	}
 }
 
 func (s *state) Diagnostics() []core.DiagnosticResult {

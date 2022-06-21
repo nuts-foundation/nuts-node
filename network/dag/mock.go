@@ -155,6 +155,26 @@ func (mr *MockStateMockRecorder) IsPresent(arg0, arg1 interface{}) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsPresent", reflect.TypeOf((*MockState)(nil).IsPresent), arg0, arg1)
 }
 
+// Notifier mocks base method.
+func (m *MockState) Notifier(name string, receiver ReceiverFn, filters ...NotifierOption) (Notifier, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{name, receiver}
+	for _, a := range filters {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Notifier", varargs...)
+	ret0, _ := ret[0].(Notifier)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Notifier indicates an expected call of Notifier.
+func (mr *MockStateMockRecorder) Notifier(name, receiver interface{}, filters ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{name, receiver}, filters...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Notifier", reflect.TypeOf((*MockState)(nil).Notifier), varargs...)
+}
+
 // ReadPayload mocks base method.
 func (m *MockState) ReadPayload(ctx context.Context, payloadHash hash.SHA256Hash) ([]byte, error) {
 	m.ctrl.T.Helper()

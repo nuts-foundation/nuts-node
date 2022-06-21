@@ -119,24 +119,33 @@ func (j *Event) UnmarshalJSON(bytes []byte) error {
 // WithRetryDelay sets a custom delay for the notifier.
 // Between each execution the delay is doubled.
 func WithRetryDelay(delay time.Duration) NotifierOption {
-	return func(subscriber *notifier) {
-		subscriber.retryDelay = delay
+	return func(notifier *notifier) {
+		notifier.retryDelay = delay
 	}
 }
 
 // WithPersistency sets the DB to be used for persisting the events.
 // Without persistency, the event is lost between restarts.
 func WithPersistency(db stoabs.KVStore) NotifierOption {
-	return func(subscriber *notifier) {
-		subscriber.db = db
+	return func(notifier *notifier) {
+		notifier.db = db
 	}
 }
 
 // WithSelectionFilter adds a filter to the notifier.
 // Any unwanted events can be filtered out.
 func WithSelectionFilter(filter NotificationFilter) NotifierOption {
-	return func(subscriber *notifier) {
-		subscriber.filters = append(subscriber.filters, filter)
+	return func(notifier *notifier) {
+		notifier.filters = append(notifier.filters, filter)
+	}
+}
+
+// WithContext adds the given context as parent context.
+func WithContext(ctx context.Context) NotifierOption {
+	return func(notifier *notifier) {
+		subCtx, cancelFn := context.WithCancel(ctx)
+		notifier.ctx = subCtx
+		notifier.cancel = cancelFn
 	}
 }
 

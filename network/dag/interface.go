@@ -54,6 +54,14 @@ type State interface {
 	GetTransaction(ctx context.Context, hash hash.SHA256Hash) (Transaction, error)
 	// IsPresent returns true if a transaction is present in the DAG
 	IsPresent(context.Context, hash.SHA256Hash) (bool, error)
+	// Notifier creates a new Notifier.
+	// It lets another part of the application receive events on new transactions. When a new transaction is received
+	// the `receiver` function is called. Notifiers can be persistent and will survive restarts.
+	// The name is used to keep different notifiers apart.
+	// Filters can be used to receive specific transactions. Filters are added via the WithSelectionFilter() option.
+	// A Notifier should only be created during `configuration` step since the `start` step will redeliver all events that have not been delivered yet.
+	// Returns an error when the Notifier already exists
+	Notifier(name string, receiver ReceiverFn, filters ...NotifierOption) (Notifier, error)
 	// RegisterTransactionObserver allows observers to be notified when a transaction is added to the DAG.
 	// If the observer needs to be called within the transaction, transactional must be true.
 	RegisterTransactionObserver(observer Observer, transactional bool)
