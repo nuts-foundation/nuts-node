@@ -69,26 +69,20 @@ func (cxt *networkTestContext) start() error {
 	return cxt.network.Start()
 }
 
-func TestNetwork_ListTransactions(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	t.Run("ok", func(t *testing.T) {
-		cxt := createNetwork(t, ctrl)
-		cxt.state.EXPECT().FindBetweenLC(gomock.Any(), gomock.Any()).Return([]dag.Transaction{dag.CreateTestTransactionWithJWK(1)}, nil)
-		docs, err := cxt.network.ListTransactions()
-		assert.Len(t, docs, 1)
-		assert.NoError(t, err)
-	})
-}
-
 func TestNetwork_ListTransactionsInRange(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	t.Run("ok", func(t *testing.T) {
+	t.Run("ok - full dag", func(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
-		cxt.state.EXPECT().FindBetweenLC(gomock.Any(), gomock.Any()).Return([]dag.Transaction{dag.CreateTestTransactionWithJWK(1)}, nil)
-		docs, err := cxt.network.ListTransactions()
+		cxt.state.EXPECT().FindBetweenLC(uint32(0), uint32(dag.MaxLamportClock)).Return([]dag.Transaction{dag.CreateTestTransactionWithJWK(1)}, nil)
+		docs, err := cxt.network.ListTransactionsInRange(0, dag.MaxLamportClock)
 		assert.Len(t, docs, 1)
+		assert.NoError(t, err)
+	})
+	t.Run("ok - range query", func(t *testing.T) {
+		cxt := createNetwork(t, ctrl)
+		cxt.state.EXPECT().FindBetweenLC(uint32(3), uint32(5))
+		_, err := cxt.network.ListTransactionsInRange(3, 5)
 		assert.NoError(t, err)
 	})
 }

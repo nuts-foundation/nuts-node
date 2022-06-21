@@ -434,11 +434,6 @@ func (n *Network) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte,
 	return n.state.ReadPayload(context.Background(), transaction.PayloadHash())
 }
 
-// ListTransactions returns all transactions known to this Network instance.
-func (n *Network) ListTransactions() ([]dag.Transaction, error) {
-	return n.state.FindBetweenLC(0, dag.MaxLamportClock)
-}
-
 // ListTransactionsInRange returns all transactions known to this Network instance with lamport clock value between startInclusive and endExclusive.
 func (n *Network) ListTransactionsInRange(startInclusive uint32, endExclusive uint32) ([]dag.Transaction, error) {
 	return n.state.FindBetweenLC(startInclusive, endExclusive)
