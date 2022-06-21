@@ -21,7 +21,6 @@ package dag
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/avast/retry-go/v4"
 	"github.com/nuts-foundation/go-stoabs"
@@ -40,17 +39,17 @@ const (
 	PayloadEventType = "payload"
 )
 
-// Subscriber defines methods for a persistent retry mechanism.
+// Notifier defines methods for a persistent retry mechanism.
 // Storing the event in the DB is separated from notifying the subscribers.
 // The event is sent to subscribers after the transaction is committed to prevent timing issues.
-type Subscriber interface {
+type Notifier interface {
 	// Save an event that needs to be retried even after a crash.
-	// It will not yet be sent, use Notify to notify subscribers.
+	// It will not yet be sent, use Notify to notify the receiver.
 	// The event may be ignored due to configured filters.
 	// Returns nil if event already exists.
 	// An error is returned if there's a problem with the underlying storage.
 	Save(tx stoabs.WriteTx, event Event) error
-	// Notify the subscribers, if an error occurs it'll be retried later.
+	// Notify the receiver, if an error occurs it'll be retried later.
 	// This does not store the event in the DB, use Save for that.
 	Notify(event Event)
 	// Finished marks the job as finished and removes it from the scheduler
@@ -64,35 +63,37 @@ type Subscriber interface {
 	Close() error
 }
 
-// SubscriberFn is the function type that needs to be registered for a subscriber
+// ReceiverFn is the function type that needs to be registered for a notifier
 // Returns true if event is received and done, false otherwise
-type SubscriberFn func(event Event) (bool, error)
+type ReceiverFn func(event Event) (bool, error)
 
-// SubscriptionFilter can be added to a subscription to filter out any unwanted events
+// NotificationFilter can be added to a notifier to filter out any unwanted events
 // Returns true if the filter applies and the Event is to be received
-type SubscriptionFilter func(event Event) bool
+type NotificationFilter func(event Event) bool
 
-// SubscriberOption sets an option on a subscriber
-type SubscriberOption func(subscriber *subscriber)
+// NotifierOption sets an option on a notifier
+type NotifierOption func(notifier *notifier)
 
-// Event is the metadata that is stored for a subscriber specific event
+// Event is the metadata that is stored for a notifier specific event
 // The Hash is used as identifier for the Event.
 type Event struct {
 	// Type of an event, can be used to filter
 	Type string `json:"type"`
 	// Hash is the ID of the Event, usually the same as the dag.Transaction.Ref()
 	Hash hash.SHA256Hash `json:"Hash"`
-	// Count is the current number of retries
-	Count       int         `json:"count"`
+	// Retries is the current number of retries
+	Retries int `json:"retries"`
+	// Transaction that was added to the DAG or for which the Payload was written. Mandatory.
 	Transaction Transaction `json:"transaction"`
-	Payload     []byte      `json:"payload"`
+	// Payload that was written to the PayloadStore, optional (private TXs)
+	Payload []byte `json:"payload"`
 }
 
 func (j *Event) UnmarshalJSON(bytes []byte) error {
 	tmp := &struct {
 		Type        string          `json:"type"`
 		Hash        hash.SHA256Hash `json:"Hash"`
-		Count       int             `json:"count"`
+		Retries     int             `json:"retries"`
 		Transaction string          `json:"transaction"`
 		Payload     []byte          `json:"payload"`
 	}{}
@@ -103,7 +104,7 @@ func (j *Event) UnmarshalJSON(bytes []byte) error {
 
 	j.Type = tmp.Type
 	j.Hash = tmp.Hash
-	j.Count = tmp.Count
+	j.Retries = tmp.Retries
 	j.Payload = tmp.Payload
 
 	tx, err := ParseTransaction([]byte(tmp.Transaction))
@@ -115,41 +116,41 @@ func (j *Event) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
-// WithRetryDelay sets a custom delay for the subscriber.
+// WithRetryDelay sets a custom delay for the notifier.
 // Between each execution the delay is doubled.
-func WithRetryDelay(delay time.Duration) SubscriberOption {
-	return func(subscriber *subscriber) {
+func WithRetryDelay(delay time.Duration) NotifierOption {
+	return func(subscriber *notifier) {
 		subscriber.retryDelay = delay
 	}
 }
 
 // WithPersistency sets the DB to be used for persisting the events.
 // Without persistency, the event is lost between restarts.
-func WithPersistency(db stoabs.KVStore) SubscriberOption {
-	return func(subscriber *subscriber) {
+func WithPersistency(db stoabs.KVStore) NotifierOption {
+	return func(subscriber *notifier) {
 		subscriber.db = db
 	}
 }
 
-// WithSelectionFilter adds a filter to the subscriber.
+// WithSelectionFilter adds a filter to the notifier.
 // Any unwanted events can be filtered out.
-func WithSelectionFilter(filter SubscriptionFilter) SubscriberOption {
-	return func(subscriber *subscriber) {
+func WithSelectionFilter(filter NotificationFilter) NotifierOption {
+	return func(subscriber *notifier) {
 		subscriber.filters = append(subscriber.filters, filter)
 	}
 }
 
-// NewSubscriber returns a Subscriber that handles transaction events with the given function.
-// Various settings can be changed via a SubscriberOption
+// NewNotifier returns a Notifier that handles transaction events with the given function.
+// Various settings can be changed via a NotifierOption
 // A default retry delay of 10 seconds is used.
-func NewSubscriber(name string, subscriberFn SubscriberFn, options ...SubscriberOption) Subscriber {
+func NewNotifier(name string, receiverFn ReceiverFn, options ...NotifierOption) Notifier {
 
 	ctx, cancel := context.WithCancel(context.Background())
-	subscriber := &subscriber{
+	subscriber := &notifier{
 		name:       name,
 		ctx:        ctx,
 		cancel:     cancel,
-		callback:   subscriberFn,
+		receiver:   receiverFn,
 		retryDelay: defaultRetryDelay,
 	}
 
@@ -160,30 +161,30 @@ func NewSubscriber(name string, subscriberFn SubscriberFn, options ...Subscriber
 	return subscriber
 }
 
-type subscriber struct {
+type notifier struct {
 	db         stoabs.KVStore
 	name       string
 	retryDelay time.Duration
-	callback   SubscriberFn
+	receiver   ReceiverFn
 	ctx        context.Context
 	cancel     context.CancelFunc
-	filters    []SubscriptionFilter
+	filters    []NotificationFilter
 }
 
-func (p *subscriber) bucketName() string {
+func (p *notifier) shelfName() string {
 	return fmt.Sprintf("_%s_jobs", p.name)
 }
 
-func (p *subscriber) isPersistent() bool {
+func (p *notifier) isPersistent() bool {
 	return p.db != nil
 }
 
-func (p *subscriber) Run() error {
-	// nothing to run if this subscriber is not persistent
+func (p *notifier) Run() error {
+	// nothing to run if this notifier is not persistent
 	if !p.isPersistent() {
 		return nil
 	}
-	return p.db.ReadShelf(p.bucketName(), func(reader stoabs.Reader) error {
+	return p.db.ReadShelf(p.shelfName(), func(reader stoabs.Reader) error {
 		return reader.Iterate(func(k stoabs.Key, v []byte) error {
 			event := Event{}
 			_ = json.Unmarshal(v, &event)
@@ -195,14 +196,14 @@ func (p *subscriber) Run() error {
 	})
 }
 
-func (p *subscriber) GetFailedEvents() (events []Event, err error) {
-	err = p.db.ReadShelf(p.bucketName(), func(reader stoabs.Reader) error {
+func (p *notifier) GetFailedEvents() (events []Event, err error) {
+	err = p.db.ReadShelf(p.shelfName(), func(reader stoabs.Reader) error {
 		return reader.Iterate(func(k stoabs.Key, data []byte) error {
 			if data != nil {
 				event := Event{}
 				_ = json.Unmarshal(data, &event)
 
-				if event.Count >= retriesFailedThreshold {
+				if event.Retries >= retriesFailedThreshold {
 					events = append(events, event)
 				}
 			}
@@ -213,13 +214,13 @@ func (p *subscriber) GetFailedEvents() (events []Event, err error) {
 	return
 }
 
-func (p *subscriber) Save(tx stoabs.WriteTx, event Event) error {
+func (p *notifier) Save(tx stoabs.WriteTx, event Event) error {
 	// non-persistent job
 	if p.db == nil {
 		return nil
 	}
 
-	writer, err := tx.GetShelfWriter(p.bucketName())
+	writer, err := tx.GetShelfWriter(p.shelfName())
 	if err != nil {
 		return err
 	}
@@ -241,7 +242,7 @@ func (p *subscriber) Save(tx stoabs.WriteTx, event Event) error {
 	return p.writeEvent(writer, event)
 }
 
-func (p *subscriber) Notify(event Event) {
+func (p *notifier) Notify(event Event) {
 	// apply filters
 	for _, f := range p.filters {
 		if !f(event) {
@@ -252,12 +253,9 @@ func (p *subscriber) Notify(event Event) {
 	p.retry(event)
 }
 
-// errEventInProgress defines a dummy error that is returned when a job is currently in progress
-var errEventInProgress = errors.New("event is not yet handled by subscriber")
-
-func (p *subscriber) retry(event Event) {
+func (p *notifier) retry(event Event) {
 	delay := p.retryDelay
-	initialCount := event.Count
+	initialCount := event.Retries
 
 	for i := 0; i < initialCount; i++ {
 		delay *= 2
@@ -267,7 +265,7 @@ func (p *subscriber) retry(event Event) {
 		err := retry.Do(func() error {
 			var dbEvent = &event
 			if p.isPersistent() {
-				if err := p.db.ReadShelf(p.bucketName(), func(reader stoabs.Reader) error {
+				if err := p.db.ReadShelf(p.shelfName(), func(reader stoabs.Reader) error {
 					var err error
 					dbEvent, err = p.readEvent(reader, event.Hash)
 					return err
@@ -280,23 +278,23 @@ func (p *subscriber) retry(event Event) {
 				}
 			}
 
-			dbEvent.Count++
+			dbEvent.Retries++
 			if p.isPersistent() {
-				if err := p.db.WriteShelf(p.bucketName(), func(writer stoabs.Writer) error {
+				if err := p.db.WriteShelf(p.shelfName(), func(writer stoabs.Writer) error {
 					return p.writeEvent(writer, *dbEvent)
 				}); err != nil {
 					return retry.Unrecoverable(err)
 				}
 			}
 
-			if finished, err := p.callback(*dbEvent); err != nil {
-				log.Logger().Errorf("retry for %s subscriber failed (ref=%s)", p.name, dbEvent.Hash.String())
+			if finished, err := p.receiver(*dbEvent); err != nil {
+				log.Logger().Errorf("retry for %s receiver failed (ref=%s)", p.name, dbEvent.Hash.String())
 			} else if finished {
 				return p.Finished(dbEvent.Hash)
 			}
 
 			// has to return an error since `retry.Do` needs to retry until it's marked as finished
-			return fmt.Errorf("event is not yet handled by subscriber (count=%d, max=%d)", dbEvent.Count, maxRetries)
+			return fmt.Errorf("event is not yet handled by receiver (count=%d, max=%d)", dbEvent.Retries, maxRetries)
 		},
 			retry.Attempts(maxRetries-uint(initialCount)),
 			retry.MaxDelay(24*time.Hour),
@@ -309,12 +307,12 @@ func (p *subscriber) retry(event Event) {
 			}),
 		)
 		if err != nil {
-			log.Logger().Errorf("retry for %s job subscriber (ref=%s): %v", p.name, event.Hash.String(), err)
+			log.Logger().Errorf("retry for %s receiver failed (ref=%s): %v", p.name, event.Hash.String(), err)
 		}
 	}(p.ctx)
 }
 
-func (p *subscriber) writeEvent(writer stoabs.Writer, event Event) error {
+func (p *notifier) writeEvent(writer stoabs.Writer, event Event) error {
 	bytes, err := json.Marshal(event)
 	if err != nil {
 		return err
@@ -323,7 +321,7 @@ func (p *subscriber) writeEvent(writer stoabs.Writer, event Event) error {
 	return writer.Put(stoabs.BytesKey(event.Hash.Slice()), bytes)
 }
 
-func (p *subscriber) readEvent(reader stoabs.Reader, hash hash.SHA256Hash) (*Event, error) {
+func (p *notifier) readEvent(reader stoabs.Reader, hash hash.SHA256Hash) (*Event, error) {
 	var event Event
 	data, err := reader.Get(stoabs.BytesKey(hash.Slice()))
 	if err != nil {
@@ -341,16 +339,16 @@ func (p *subscriber) readEvent(reader stoabs.Reader, hash hash.SHA256Hash) (*Eve
 	return &event, nil
 }
 
-func (p *subscriber) Finished(hash hash.SHA256Hash) error {
+func (p *notifier) Finished(hash hash.SHA256Hash) error {
 	if !p.isPersistent() {
 		return nil
 	}
-	return p.db.WriteShelf(p.bucketName(), func(writer stoabs.Writer) error {
+	return p.db.WriteShelf(p.shelfName(), func(writer stoabs.Writer) error {
 		return writer.Delete(stoabs.BytesKey(hash.Slice()))
 	})
 }
 
-func (p *subscriber) Close() error {
+func (p *notifier) Close() error {
 	p.cancel()
 	return nil
 }
