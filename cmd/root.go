@@ -260,12 +260,13 @@ func addSubCommands(system *core.System, root *cobra.Command) {
 		createPrintConfigCommand(system),
 	}
 	for _, serverCommand := range serverCommands {
-		serverCommand.Flags().AddFlagSet(ServerConfigFlags())
+		serverCommand.Flags().AddFlagSet(serverConfigFlags())
 	}
 	root.AddCommand(serverCommands...)
 }
 
-func ServerConfigFlags() *pflag.FlagSet {
+// serverConfigFlags returns the flagSet needed for the server command
+func serverConfigFlags() *pflag.FlagSet {
 	set := pflag.NewFlagSet("server", pflag.ContinueOnError)
 
 	set.AddFlagSet(core.FlagSet())
