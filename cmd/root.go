@@ -23,6 +23,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/spf13/pflag"
 	"io"
 	"net/http"
 	"os"
@@ -74,7 +75,7 @@ func createRootCommand() *cobra.Command {
 }
 
 func createPrintConfigCommand(system *core.System) *cobra.Command {
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "config",
 		Short: "Prints the current config",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -87,12 +88,10 @@ func createPrintConfigCommand(system *core.System) *cobra.Command {
 			return nil
 		},
 	}
-	addFlagSets(cmd)
-	return cmd
 }
 
 func createServerCommand(system *core.System) *cobra.Command {
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "server",
 		Short: "Starts the Nuts server",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -106,8 +105,6 @@ func createServerCommand(system *core.System) *cobra.Command {
 			return nil
 		},
 	}
-	addFlagSets(cmd)
-	return cmd
 }
 
 func startServer(ctx context.Context, system *core.System) error {
@@ -256,19 +253,29 @@ func addSubCommands(system *core.System, root *cobra.Command) {
 		clientCommand.PersistentFlags().AddFlagSet(clientFlags)
 	}
 	root.AddCommand(clientCommands...)
+
 	// Register server commands
-	root.AddCommand(createServerCommand(system))
-	root.AddCommand(createPrintConfigCommand(system))
+	serverCommands := []*cobra.Command{
+		createServerCommand(system),
+		createPrintConfigCommand(system),
+	}
+	for _, serverCommand := range serverCommands {
+		serverCommand.Flags().AddFlagSet(ServerConfigFlags())
+	}
+	root.AddCommand(serverCommands...)
 }
 
-func addFlagSets(cmd *cobra.Command) {
-	cmd.Flags().AddFlagSet(core.FlagSet())
-	cmd.Flags().AddFlagSet(core.FlagSet())
-	cmd.Flags().AddFlagSet(cryptoCmd.FlagSet())
-	cmd.Flags().AddFlagSet(networkCmd.FlagSet())
-	cmd.Flags().AddFlagSet(vdrCmd.FlagSet())
-	cmd.Flags().AddFlagSet(vcrCmd.FlagSet())
-	cmd.Flags().AddFlagSet(jsonld.FlagSet())
-	cmd.Flags().AddFlagSet(authCmd.FlagSet())
-	cmd.Flags().AddFlagSet(eventsCmd.FlagSet())
+func ServerConfigFlags() *pflag.FlagSet {
+	set := pflag.NewFlagSet("server", pflag.ContinueOnError)
+
+	set.AddFlagSet(core.FlagSet())
+	set.AddFlagSet(cryptoCmd.FlagSet())
+	set.AddFlagSet(networkCmd.FlagSet())
+	set.AddFlagSet(vdrCmd.FlagSet())
+	set.AddFlagSet(vcrCmd.FlagSet())
+	set.AddFlagSet(jsonld.FlagSet())
+	set.AddFlagSet(authCmd.FlagSet())
+	set.AddFlagSet(eventsCmd.FlagSet())
+
+	return set
 }
