@@ -25,6 +25,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 	"go.etcd.io/bbolt"
+	"math"
 )
 
 var errRootAlreadyExists = errors.New("root transaction already exists")
@@ -69,12 +70,6 @@ type State interface {
 	Statistics(ctx context.Context) Statistics
 	// Verify checks the integrity of the DAG. Should be called when it's loaded, e.g. from disk.
 	Verify() error
-	// Walk visits every node of the DAG, starting at the given hash working its way down each level until every leaf is visited.
-	// when startAt is an empty hash, the walker starts at the root node.
-	// The walker will resolve the given starting hash to a clock value.
-	// The walk will be clock based so some transactions may be revisited due to existing branches.
-	// Precautions must be taken to handle revisited transactions.
-	Walk(ctx context.Context, visitor Visitor, startAt hash.SHA256Hash) error
 	// XOR returns the xor of all transaction references between the DAG root and the clock closest to the requested clock value.
 	// This closest clock value is also returned, and is defined as the lowest of:
 	//	- upper-limit of the page that contains the requested clock
@@ -118,3 +113,6 @@ type Observer func(ctx context.Context, transaction Transaction) error
 
 // PayloadObserver defines the signature of an observer which can be called by an Observable.
 type PayloadObserver func(transaction Transaction, payload []byte) error
+
+// MaxLamportClock is the highest Lamport Clock value a transaction on the DAG can have.
+const MaxLamportClock = math.MaxUint32

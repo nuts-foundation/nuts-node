@@ -26,7 +26,6 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/storage"
-	"math"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -79,12 +78,6 @@ type Network struct {
 	subscribers         map[EventType]map[string]Receiver
 	connectionStore     stoabs.KVStore
 	storeProvider       storage.Provider
-}
-
-// Walk walks the DAG starting at the root, passing every transaction to `visitor`.
-func (n *Network) Walk(visitor dag.Visitor) error {
-	ctx := context.Background()
-	return n.state.Walk(ctx, visitor, hash.EmptyHash())
 }
 
 // NewNetworkInstance creates a new Network engine instance.
@@ -441,9 +434,9 @@ func (n *Network) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte,
 	return n.state.ReadPayload(context.Background(), transaction.PayloadHash())
 }
 
-// ListTransactions returns all transactions known to this Network instance.
-func (n *Network) ListTransactions() ([]dag.Transaction, error) {
-	return n.state.FindBetweenLC(0, math.MaxUint32)
+// ListTransactionsInRange returns all transactions known to this Network instance with lamport clock value between startInclusive and endExclusive.
+func (n *Network) ListTransactionsInRange(startInclusive uint32, endExclusive uint32) ([]dag.Transaction, error) {
+	return n.state.FindBetweenLC(startInclusive, endExclusive)
 }
 
 // CreateTransaction creates a new transaction from the given template.

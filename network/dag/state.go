@@ -301,14 +301,6 @@ func (s *state) Verify() error {
 	})
 }
 
-func (s *state) Walk(ctx context.Context, visitor Visitor, startAt hash.SHA256Hash) error {
-	return storage.BBoltTXView(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
-		return s.graph.walk(tx, func(tx *bbolt.Tx, transaction Transaction) bool {
-			return visitor(transaction)
-		}, startAt)
-	})
-}
-
 // notifyObservers is called from a transactional context. The transactional observers need to be called with the TX context, the other observers after the commit.
 func (s *state) notifyObservers(ctx context.Context, transaction Transaction) error {
 	// apply TX context observers

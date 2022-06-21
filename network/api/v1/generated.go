@@ -16,6 +16,15 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// RenderGraphParams defines parameters for RenderGraph.
+type RenderGraphParams struct {
+	// Lamport Clock value from where to start rendering (inclusive). If omitted, rendering starts at the root.
+	Start *int `form:"start,omitempty" json:"start,omitempty"`
+
+	// Lamport Clock value where to stop rendering (exclusive). If omitted, renders the remainder of the graph. Must be larger than the `start` parameter.
+	End *int `form:"end,omitempty" json:"end,omitempty"`
+}
+
 // ReprocessParams defines parameters for Reprocess.
 type ReprocessParams struct {
 	// the transaction content-type that must be reprocessed
@@ -96,7 +105,7 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 // The interface specification for the client above.
 type ClientInterface interface {
 	// RenderGraph request
-	RenderGraph(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	RenderGraph(ctx context.Context, params *RenderGraphParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetPeerDiagnostics request
 	GetPeerDiagnostics(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -114,8 +123,8 @@ type ClientInterface interface {
 	GetTransactionPayload(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
-func (c *Client) RenderGraph(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRenderGraphRequest(c.Server)
+func (c *Client) RenderGraph(ctx context.Context, params *RenderGraphParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRenderGraphRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +196,7 @@ func (c *Client) GetTransactionPayload(ctx context.Context, ref string, reqEdito
 }
 
 // NewRenderGraphRequest generates requests for RenderGraph
-func NewRenderGraphRequest(server string) (*http.Request, error) {
+func NewRenderGraphRequest(server string, params *RenderGraphParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -204,6 +213,42 @@ func NewRenderGraphRequest(server string) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	queryValues := queryURL.Query()
+
+	if params.Start != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "start", runtime.ParamLocationQuery, *params.Start); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	if params.End != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "end", runtime.ParamLocationQuery, *params.End); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	queryURL.RawQuery = queryValues.Encode()
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
@@ -426,7 +471,7 @@ func WithBaseURL(baseURL string) ClientOption {
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
 	// RenderGraph request
-	RenderGraphWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*RenderGraphResponse, error)
+	RenderGraphWithResponse(ctx context.Context, params *RenderGraphParams, reqEditors ...RequestEditorFn) (*RenderGraphResponse, error)
 
 	// GetPeerDiagnostics request
 	GetPeerDiagnosticsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetPeerDiagnosticsResponse, error)
@@ -575,8 +620,8 @@ func (r GetTransactionPayloadResponse) StatusCode() int {
 }
 
 // RenderGraphWithResponse request returning *RenderGraphResponse
-func (c *ClientWithResponses) RenderGraphWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*RenderGraphResponse, error) {
-	rsp, err := c.RenderGraph(ctx, reqEditors...)
+func (c *ClientWithResponses) RenderGraphWithResponse(ctx context.Context, params *RenderGraphParams, reqEditors ...RequestEditorFn) (*RenderGraphResponse, error) {
+	rsp, err := c.RenderGraph(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -750,7 +795,7 @@ func ParseGetTransactionPayloadResponse(rsp *http.Response) (*GetTransactionPayl
 type ServerInterface interface {
 	// Visualizes the DAG as a graph
 	// (GET /internal/network/v1/diagnostics/graph)
-	RenderGraph(ctx echo.Context) error
+	RenderGraph(ctx echo.Context, params RenderGraphParams) error
 	// Gets diagnostic information about the node's peers
 	// (GET /internal/network/v1/diagnostics/peers)
 	GetPeerDiagnostics(ctx echo.Context) error
@@ -777,8 +822,24 @@ type ServerInterfaceWrapper struct {
 func (w *ServerInterfaceWrapper) RenderGraph(ctx echo.Context) error {
 	var err error
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RenderGraphParams
+	// ------------- Optional query parameter "start" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "start", ctx.QueryParams(), &params.Start)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter start: %s", err))
+	}
+
+	// ------------- Optional query parameter "end" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "end", ctx.QueryParams(), &params.End)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter end: %s", err))
+	}
+
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.RenderGraph(ctx)
+	err = w.Handler.RenderGraph(ctx, params)
 	return err
 }
 

@@ -69,7 +69,7 @@ Below is a minimal configuration file that will only gather Nuts metrics:
         static_configs:
           - targets: ['127.0.0.1:1323']
 
-It's imported to enter the correct IP/domain and port where the Nuts node can be found!
+It's important to enter the correct IP/domain and port where the Nuts node can be found!
 
 Exported metrics
 ================
@@ -210,3 +210,8 @@ from `/internal/network/v1/diagnostics/graph`. It is returned in the `dot` forma
 .. code-block:: shell
 
     dot -T png -o output.png input.dot
+
+Using query parameters `start` and `end` it is possible to retrieve a range of transactions.
+`/internal/network/v1/diagnostics/graph?start=10&end=12` will return a graph with all transactions containing Lamport Clock 10 and 11.
+Both parameters need to be non-negative integers, and `start` < `end`. If no value is provided, `start=0` and `end=inf`.
+Querying a range can be useful if only a certain range is of interest, but may also be required to generate the graph using `dot`.

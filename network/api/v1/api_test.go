@@ -22,6 +22,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -159,12 +160,31 @@ func TestApiWrapper_RenderGraph(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	t.Run("ok", func(t *testing.T) {
+	t.Run("ok - no query params", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		e, wrapper := initMockEcho(networkClient)
-		networkClient.EXPECT().Walk(gomock.Any())
+		networkClient.EXPECT().ListTransactionsInRange(gomock.Any(), gomock.Any())
 
 		req := httptest.NewRequest(echo.GET, "/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.SetPath("/graph")
+
+		err := wrapper.RenderGraph(c)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "text/vnd.graphviz", rec.Header().Get("Content-Type"))
+		assert.NotEmpty(t, rec.Body.String())
+	})
+	t.Run("ok - with query params", func(t *testing.T) {
+		var networkClient = network.NewMockTransactions(mockCtrl)
+		e, wrapper := initMockEcho(networkClient)
+		networkClient.EXPECT().ListTransactionsInRange(gomock.Any(), gomock.Any())
+		q := make(url.Values)
+		q.Set("start", "0")
+		q.Set("end", "5")
+
+		req := httptest.NewRequest(echo.GET, "/?"+q.Encode(), nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		c.SetPath("/graph")
@@ -178,16 +198,17 @@ func TestApiWrapper_RenderGraph(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		e, wrapper := initMockEcho(networkClient)
-		networkClient.EXPECT().Walk(gomock.Any()).Return(errors.New("failed"))
+		q := make(url.Values) // invalid query params exit before ListTransactionsInRange call
+		q.Set("start", "5")
+		q.Set("end", "0")
 
-		req := httptest.NewRequest(echo.GET, "/", nil)
+		req := httptest.NewRequest(echo.GET, "/?"+q.Encode(), nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		c.SetPath("/graph")
 
 		err := wrapper.RenderGraph(c)
-
-		assert.EqualError(t, err, "failed")
+		assert.EqualError(t, err, "invalid range")
 	})
 }
 
@@ -271,7 +292,7 @@ func TestApiWrapper_ListTransactions(t *testing.T) {
 	t.Run("200", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		e, wrapper := initMockEcho(networkClient)
-		networkClient.EXPECT().ListTransactions().Return([]dag.Transaction{transaction}, nil)
+		networkClient.EXPECT().ListTransactionsInRange(uint32(0), uint32(dag.MaxLamportClock)).Return([]dag.Transaction{transaction}, nil)
 
 		req := httptest.NewRequest(echo.GET, "/", nil)
 		rec := httptest.NewRecorder()
@@ -286,7 +307,7 @@ func TestApiWrapper_ListTransactions(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		e, wrapper := initMockEcho(networkClient)
-		networkClient.EXPECT().ListTransactions().Return(nil, errors.New("failed"))
+		networkClient.EXPECT().ListTransactionsInRange(uint32(0), uint32(dag.MaxLamportClock)).Return(nil, errors.New("failed"))
 
 		req := httptest.NewRequest(echo.GET, "/", nil)
 		rec := httptest.NewRecorder()

@@ -81,19 +81,19 @@ func (mr *MockTransactionsMockRecorder) GetTransactionPayload(transactionRef int
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransactionPayload", reflect.TypeOf((*MockTransactions)(nil).GetTransactionPayload), transactionRef)
 }
 
-// ListTransactions mocks base method.
-func (m *MockTransactions) ListTransactions() ([]dag.Transaction, error) {
+// ListTransactionsInRange mocks base method.
+func (m *MockTransactions) ListTransactionsInRange(startInclusive, endExclusive uint32) ([]dag.Transaction, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListTransactions")
+	ret := m.ctrl.Call(m, "ListTransactionsInRange", startInclusive, endExclusive)
 	ret0, _ := ret[0].([]dag.Transaction)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListTransactions indicates an expected call of ListTransactions.
-func (mr *MockTransactionsMockRecorder) ListTransactions() *gomock.Call {
+// ListTransactionsInRange indicates an expected call of ListTransactionsInRange.
+func (mr *MockTransactionsMockRecorder) ListTransactionsInRange(startInclusive, endExclusive interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTransactions", reflect.TypeOf((*MockTransactions)(nil).ListTransactions))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTransactionsInRange", reflect.TypeOf((*MockTransactions)(nil).ListTransactionsInRange), startInclusive, endExclusive)
 }
 
 // PeerDiagnostics mocks base method.
@@ -132,18 +132,4 @@ func (m *MockTransactions) Subscribe(eventType EventType, payloadType string, re
 func (mr *MockTransactionsMockRecorder) Subscribe(eventType, payloadType, receiver interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockTransactions)(nil).Subscribe), eventType, payloadType, receiver)
-}
-
-// Walk mocks base method.
-func (m *MockTransactions) Walk(visitor dag.Visitor) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Walk", visitor)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Walk indicates an expected call of Walk.
-func (mr *MockTransactionsMockRecorder) Walk(visitor interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Walk", reflect.TypeOf((*MockTransactions)(nil).Walk), visitor)
 }

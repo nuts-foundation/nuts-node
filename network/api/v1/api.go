@@ -21,13 +21,12 @@ package v1
 import (
 	"net/http"
 
-	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"
 	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network"
+	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/network/transport"
 )
 
 // Wrapper implements the ServerInterface for the network API.
@@ -47,7 +46,7 @@ func (a *Wrapper) Routes(router core.EchoRouter) {
 
 // ListTransactions lists all transactions
 func (a Wrapper) ListTransactions(ctx echo.Context) error {
-	transactions, err := a.Service.ListTransactions()
+	transactions, err := a.Service.ListTransactionsInRange(0, dag.MaxLamportClock)
 	if err != nil {
 		return err
 	}
@@ -107,14 +106,29 @@ func (a Wrapper) GetPeerDiagnostics(ctx echo.Context) error {
 }
 
 // RenderGraph visualizes the DAG as Graphviz/dot graph
-func (a Wrapper) RenderGraph(ctx echo.Context) error {
-	visitor := dag.NewDotGraphVisitor(dag.ShowShortRefLabelStyle)
-	err := a.Service.Walk(visitor.Accept)
+func (a Wrapper) RenderGraph(ctx echo.Context, params RenderGraphParams) error {
+	start := toInt(params.Start, 0)
+	end := toInt(params.End, dag.MaxLamportClock)
+	if start < 0 || end < 1 || start >= end {
+		return core.InvalidInputError("invalid range")
+	}
+	txs, err := a.Service.ListTransactionsInRange(uint32(start), uint32(end))
 	if err != nil {
 		return err
 	}
+	visitor := dag.NewDotGraphVisitor(dag.ShowShortRefLabelStyle)
+	for _, tx := range txs {
+		visitor.Accept(tx)
+	}
 	ctx.Response().Header().Set(echo.HeaderContentType, "text/vnd.graphviz")
 	return ctx.String(http.StatusOK, visitor.Render())
+}
+
+func toInt(v *int, def int64) int64 {
+	if v == nil {
+		return def
+	}
+	return int64(*v)
 }
 
 func (a Wrapper) Reprocess(ctx echo.Context, params ReprocessParams) error {
