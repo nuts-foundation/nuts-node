@@ -52,10 +52,10 @@ type state struct {
 	transactionalPayloadObservers    []PayloadObserver
 	nonTransactionalPayloadObservers []PayloadObserver
 	txVerifiers                      []Verifier
-	notifiers                        map[string]Notifier
 	xorTree                          *treeStore
 	ibltTree                         *treeStore
 	treeMux                          sync.Mutex
+	notifiers                        map[string]Notifier
 }
 
 // NewState returns a new State. The State is used as entry point, it's methods will start transactions and will notify observers from within those transactions.
@@ -336,6 +336,13 @@ func (s *state) Start() error {
 
 	if err := s.Verify(); err != nil {
 		return err
+	}
+
+	// resume all notifiers
+	for _, notifier := range s.notifiers {
+		if err := notifier.Run(); err != nil {
+			return err
+		}
 	}
 
 	// resume all notifiers
