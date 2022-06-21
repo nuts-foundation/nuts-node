@@ -124,11 +124,11 @@ func (a Wrapper) RenderGraph(ctx echo.Context, params RenderGraphParams) error {
 	return ctx.String(http.StatusOK, visitor.Render())
 }
 
-func toInt(v *int, def int) int {
+func toInt(v *int, def int64) int64 {
 	if v == nil {
 		return def
 	}
-	return *v
+	return int64(*v)
 }
 
 func (a Wrapper) Reprocess(ctx echo.Context, params ReprocessParams) error {
