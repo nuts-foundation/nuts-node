@@ -26,7 +26,7 @@ require (
 	github.com/prometheus/client_golang v1.12.2
 	github.com/shengdoushi/base58 v1.0.0
 	github.com/sirupsen/logrus v1.8.1
-	github.com/spf13/cobra v1.4.0
+	github.com/spf13/cobra v1.5.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.4
 	github.com/twmb/murmur3 v1.1.6
