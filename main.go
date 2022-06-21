@@ -35,6 +35,6 @@ func main() {
 
 	err := cmd.Execute(ctx, cmd.CreateSystem())
 	if err != nil {
-		logrus.Errorf("Server error: %v", err)
+		logrus.Error(err)
 	}
 }
