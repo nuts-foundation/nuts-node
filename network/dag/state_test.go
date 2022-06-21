@@ -350,7 +350,7 @@ func TestState_treeObserver(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	t.Run("callback for public transaction without payload", func(t *testing.T) {
+	t.Run("receiver for public transaction without payload", func(t *testing.T) {
 		txState := setup(t)
 		tx := CreateTestTransactionWithJWK(1)
 
