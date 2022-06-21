@@ -41,6 +41,7 @@ Nuts documentation
     pages/monitoring.rst
     pages/administering-your-node.rst
     pages/production-configuration.rst
+    pages/faq-errors.rst
 
 
 .. toctree::
