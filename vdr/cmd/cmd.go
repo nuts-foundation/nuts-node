@@ -132,9 +132,6 @@ func updateCmd() *cobra.Command {
 			}
 
 			clientConfig := core.NewClientConfigForCommand(cmd)
-			if err != nil {
-				return err
-			}
 			if _, err = httpClient(clientConfig).Update(id, hash, didDoc); err != nil {
 				return fmt.Errorf("failed to update DID document: %w", err)
 			}
@@ -283,9 +280,6 @@ func addKeyAgreementKeyCmd() *cobra.Command {
 			targetDID.Query = ""
 
 			clientConfig := core.NewClientConfigForCommand(cmd)
-			if err != nil {
-				return err
-			}
 			client := httpClient(clientConfig)
 			document, metadata, err := client.Get(targetDID.String())
 			if err != nil {

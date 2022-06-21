@@ -98,7 +98,7 @@ func NewServerConfig() *ServerConfig {
 	}
 }
 
-// loadServerConfigMap populates the configMap with values from the config file, environment and pFlags
+// loadConfigMap populates the configMap with values from the config file, environment and pFlags
 func (ngc *ServerConfig) loadConfigMap(flags *pflag.FlagSet) error {
 	if err := loadDefaultsFromFlagset(ngc.configMap, flags); err != nil {
 		return err
