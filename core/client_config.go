@@ -44,31 +44,32 @@ type ClientConfig struct {
 // It loads the default values and then (when defined) overwrites them respectively with values from
 // environment variables and command line flags.
 // env and command line args cannot throw errors
-func NewClientConfigForCommand(cmd *cobra.Command) (ClientConfig, error) {
+func NewClientConfigForCommand(cmd *cobra.Command) ClientConfig {
 	configMap := koanf.New(defaultDelimiter)
 	if err := loadDefaultsFromFlagset(configMap, cmd.Flags()); err != nil {
-		return ClientConfig{}, err
+		panic(err)
 	}
 
 	if err := loadFromEnv(configMap); err != nil {
-		return ClientConfig{}, err
+		panic(err)
 	}
 
 	if err := loadFromFlagSet(configMap, cmd.PersistentFlags()); err != nil {
-		return ClientConfig{}, err
+		panic(err)
 	}
 	return newClientConfigFromConfigMap(configMap)
 }
 
 // newClientConfigFromConfigMap returns an initialized ClientConfig with values set from the provided configMap
-func newClientConfigFromConfigMap(configMap *koanf.Koanf) (ClientConfig, error) {
+func newClientConfigFromConfigMap(configMap *koanf.Koanf) ClientConfig {
 	cfg := ClientConfig{}
 	if err := configMap.UnmarshalWithConf("", &cfg, koanf.UnmarshalConf{
 		FlatPaths: false,
 	}); err != nil {
-		return cfg, err
+		// this should not happen, otherwise panic.
+		panic(err)
 	}
-	return cfg, nil
+	return cfg
 }
 
 // GetAddress normalizes and gets the address of the remote server

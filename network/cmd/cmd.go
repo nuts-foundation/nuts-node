@@ -84,7 +84,7 @@ func payloadCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			clientConfig, err := core.NewClientConfigForCommand(cmd)
+			clientConfig := core.NewClientConfigForCommand(cmd)
 			if err != nil {
 				return err
 			}
@@ -112,7 +112,7 @@ func getCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			clientConfig, err := core.NewClientConfigForCommand(cmd)
+			clientConfig := core.NewClientConfigForCommand(cmd)
 			if err != nil {
 				return err
 			}
@@ -143,10 +143,7 @@ func listCommand() *cobra.Command {
 		Use:   "list",
 		Short: "Lists the transactions on the network",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientConfig, err := core.NewClientConfigForCommand(cmd)
-			if err != nil {
-				return err
-			}
+			clientConfig := core.NewClientConfigForCommand(cmd)
 			transactions, err := httpClient(clientConfig).ListTransactions()
 			if err != nil {
 				return fmt.Errorf("unable to list transactions: %w", err)
@@ -169,10 +166,7 @@ func peersCommand() *cobra.Command {
 		Use:   "peers",
 		Short: "Get diagnostic information of the node's peers",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientConfig, err := core.NewClientConfigForCommand(cmd)
-			if err != nil {
-				return err
-			}
+			clientConfig := core.NewClientConfigForCommand(cmd)
 			peers, err := httpClient(clientConfig).GetPeerDiagnostics()
 			if err != nil {
 				return fmt.Errorf("unable to get peer diagnostics: %w", err)
@@ -205,12 +199,8 @@ func reprocessCommand() *cobra.Command {
 		Short: "Reprocess all transactions with the give contentType (ex: application/did+json)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientConfig, err := core.NewClientConfigForCommand(cmd)
-			if err != nil {
-				return err
-			}
-			err = httpClient(clientConfig).Reprocess(args[0])
-			if err != nil {
+			clientConfig := core.NewClientConfigForCommand(cmd)
+			if err := httpClient(clientConfig).Reprocess(args[0]); err != nil {
 				// prints help on 400
 				return fmt.Errorf("unable to reprocess transactions: %w", err)
 			}

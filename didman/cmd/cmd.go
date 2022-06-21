@@ -50,10 +50,7 @@ func addService() *cobra.Command {
 			"The given service endpoint can either be a string a compound service map in JSON format.",
 		Args: cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientConfig, err := core.NewClientConfigForCommand(cmd)
-			if err != nil {
-				return err
-			}
+			clientConfig := core.NewClientConfigForCommand(cmd)
 			client := httpClient(clientConfig)
 
 			targetDID := args[0]
@@ -62,7 +59,7 @@ func addService() *cobra.Command {
 			compoundService := make(map[string]string, 0)
 			var result interface{}
 
-			err = json.Unmarshal([]byte(serviceEndpoint), &compoundService)
+			err := json.Unmarshal([]byte(serviceEndpoint), &compoundService)
 			if err == nil {
 				// Compound service
 				result, err = client.AddCompoundService(targetDID, serviceType, compoundService)
@@ -88,12 +85,9 @@ func deleteService() *cobra.Command {
 		Short: "Deletes a service from a DID document.",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientConfig, err := core.NewClientConfigForCommand(cmd)
-			if err != nil {
-				return err
-			}
+			clientConfig := core.NewClientConfigForCommand(cmd)
 			client := httpClient(clientConfig)
-			err = client.DeleteEndpointsByType(args[0], args[1])
+			err := client.DeleteEndpointsByType(args[0], args[1])
 			if err != nil {
 				return fmt.Errorf("unable to delete service: %w", err)
 			}
