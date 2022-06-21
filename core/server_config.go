@@ -28,7 +28,6 @@ import (
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/posflag"
 	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
@@ -100,13 +99,12 @@ func NewServerConfig() *ServerConfig {
 }
 
 // loadServerConfigMap populates the configMap with values from the config file, environment and pFlags
-func (ngc *ServerConfig) loadConfigMap(cmd *cobra.Command) error {
-	flags := cmd.Flags()
+func (ngc *ServerConfig) loadConfigMap(flags *pflag.FlagSet) error {
 	if err := loadDefaultsFromFlagset(ngc.configMap, flags); err != nil {
 		return err
 	}
 
-	if err := loadFromFile(ngc.configMap, resolveConfigFilePath(cmd.PersistentFlags())); err != nil {
+	if err := loadFromFile(ngc.configMap, resolveConfigFilePath(flags)); err != nil {
 		return err
 	}
 
@@ -114,7 +112,7 @@ func (ngc *ServerConfig) loadConfigMap(cmd *cobra.Command) error {
 		return err
 	}
 
-	if err := loadFromFlagSet(ngc.configMap, cmd.PersistentFlags()); err != nil {
+	if err := loadFromFlagSet(ngc.configMap, flags); err != nil {
 		return err
 	}
 
@@ -122,8 +120,8 @@ func (ngc *ServerConfig) loadConfigMap(cmd *cobra.Command) error {
 }
 
 // Load loads the server config  follows the load order of configfile, env vars and then commandline param
-func (ngc *ServerConfig) Load(cmd *cobra.Command) (err error) {
-	if err := ngc.loadConfigMap(cmd); err != nil {
+func (ngc *ServerConfig) Load(flags *pflag.FlagSet) (err error) {
+	if err := ngc.loadConfigMap(flags); err != nil {
 		return err
 	}
 

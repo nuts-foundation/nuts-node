@@ -20,6 +20,7 @@
 package core
 
 import (
+	"github.com/knadh/koanf"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"os"
@@ -80,9 +81,7 @@ func TestNewClientConfigFromConfigMap(t *testing.T) {
 	t.Run("it contains the default values", func(t *testing.T) {
 		cmd := &cobra.Command{}
 		cmd.PersistentFlags().AddFlagSet(ClientConfigFlags())
-		config := NewServerConfig()
-		assert.NoError(t, config.loadConfigMap(cmd))
-		clientConfig := newClientConfigFromConfigMap(config.configMap)
+		clientConfig := NewClientConfigForCommand(cmd)
 		assert.Equal(t, defaultClientTimeout, clientConfig.Timeout)
 		assert.Equal(t, defaultAddress, clientConfig.Address)
 		assert.Equal(t, defaultLogLevel, clientConfig.Verbosity)
@@ -92,11 +91,11 @@ func TestNewClientConfigFromConfigMap(t *testing.T) {
 		cmd := &cobra.Command{}
 		args := []string{"nuts", "--" + clientAddressFlag + "=localhost:1111", "--" + clientTimeoutFlag + "=20ms", "--" + loggerLevelFlag + "=foo"}
 		flags := ClientConfigFlags()
-		flags.Parse(args)
-		cmd.PersistentFlags().AddFlagSet(flags)
-		config := NewServerConfig()
-		assert.NoError(t, config.loadConfigMap(cmd))
-		clientConfig := newClientConfigFromConfigMap(config.configMap)
+		assert.NoError(t, flags.Parse(args))
+		cmd.Flags().AddFlagSet(flags)
+		configMap := koanf.New(defaultDelimiter)
+		loadFromFlagSet(configMap, cmd.Flags())
+		clientConfig := newClientConfigFromConfigMap(configMap)
 		duration, err := flags.GetDuration(clientTimeoutFlag)
 		assert.NoError(t, err)
 		assert.Equal(t, duration, clientConfig.Timeout)

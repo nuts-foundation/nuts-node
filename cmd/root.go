@@ -79,7 +79,7 @@ func createPrintConfigCommand(system *core.System) *cobra.Command {
 		Short: "Prints the current config",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Load all config and add generic options
-			if err := system.Load(cmd); err != nil {
+			if err := system.Load(cmd.Flags()); err != nil {
 				return err
 			}
 			cmd.Println("Current system config")
@@ -87,7 +87,7 @@ func createPrintConfigCommand(system *core.System) *cobra.Command {
 			return nil
 		},
 	}
-	addPersistentFlagSets(cmd)
+	addFlagSets(cmd)
 	return cmd
 }
 
@@ -97,7 +97,7 @@ func createServerCommand(system *core.System) *cobra.Command {
 		Short: "Starts the Nuts server",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Load all config and add generic options
-			if err := system.Load(cmd); err != nil {
+			if err := system.Load(cmd.Flags()); err != nil {
 				return err
 			}
 			if err := startServer(cmd.Context(), system); err != nil {
@@ -106,7 +106,7 @@ func createServerCommand(system *core.System) *cobra.Command {
 			return nil
 		},
 	}
-	addPersistentFlagSets(cmd)
+	addFlagSets(cmd)
 	return cmd
 }
 
@@ -261,13 +261,14 @@ func addSubCommands(system *core.System, root *cobra.Command) {
 	root.AddCommand(createPrintConfigCommand(system))
 }
 
-func addPersistentFlagSets(cmd *cobra.Command) {
-	cmd.PersistentFlags().AddFlagSet(core.FlagSet())
-	cmd.PersistentFlags().AddFlagSet(cryptoCmd.FlagSet())
-	cmd.PersistentFlags().AddFlagSet(networkCmd.FlagSet())
-	cmd.PersistentFlags().AddFlagSet(vdrCmd.FlagSet())
-	cmd.PersistentFlags().AddFlagSet(vcrCmd.FlagSet())
-	cmd.PersistentFlags().AddFlagSet(jsonld.FlagSet())
-	cmd.PersistentFlags().AddFlagSet(authCmd.FlagSet())
-	cmd.PersistentFlags().AddFlagSet(eventsCmd.FlagSet())
+func addFlagSets(cmd *cobra.Command) {
+	cmd.Flags().AddFlagSet(core.FlagSet())
+	cmd.Flags().AddFlagSet(core.FlagSet())
+	cmd.Flags().AddFlagSet(cryptoCmd.FlagSet())
+	cmd.Flags().AddFlagSet(networkCmd.FlagSet())
+	cmd.Flags().AddFlagSet(vdrCmd.FlagSet())
+	cmd.Flags().AddFlagSet(vcrCmd.FlagSet())
+	cmd.Flags().AddFlagSet(jsonld.FlagSet())
+	cmd.Flags().AddFlagSet(authCmd.FlagSet())
+	cmd.Flags().AddFlagSet(eventsCmd.FlagSet())
 }

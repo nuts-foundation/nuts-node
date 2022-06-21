@@ -38,7 +38,7 @@ func TestNewNutsConfig_Load(t *testing.T) {
 		cfg := NewServerConfig()
 		cmd := testCommand()
 
-		err := cfg.Load(cmd)
+		err := cfg.Load(cmd.Flags())
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -56,7 +56,7 @@ func TestNewNutsConfig_Load(t *testing.T) {
 		os.Setenv("NUTS_KEY", "value")
 		defer os.Unsetenv("NUTS_KEY")
 
-		err := cfg.Load(cmd)
+		err := cfg.Load(cmd.Flags())
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -72,7 +72,7 @@ func TestNewNutsConfig_Load(t *testing.T) {
 		os.Setenv("NUTS_SUB_KEY", "value")
 		defer os.Unsetenv("NUTS_SUB_KEY")
 
-		cfg.Load(cmd)
+		cfg.Load(cmd.Flags())
 
 		if value := cfg.configMap.Get("sub.key"); value != "value" {
 			t.Errorf("Expected sub.key to have [value], got [%v]", value)
@@ -85,7 +85,7 @@ func TestNewNutsConfig_Load(t *testing.T) {
 		cfg := NewServerConfig()
 		cmd := testCommand()
 
-		err := cfg.Load(cmd)
+		err := cfg.Load(cmd.Flags())
 
 		assert.NoError(t, err)
 	})
@@ -96,7 +96,7 @@ func TestNewNutsConfig_Load(t *testing.T) {
 		cfg := NewServerConfig()
 		cmd := testCommand()
 
-		err := cfg.Load(cmd)
+		err := cfg.Load(cmd.Flags())
 
 		assert.Error(t, err)
 	})
@@ -107,7 +107,7 @@ func TestNewNutsConfig_Load(t *testing.T) {
 		cfg := NewServerConfig()
 		cmd := testCommand()
 
-		err := cfg.Load(cmd)
+		err := cfg.Load(cmd.Flags())
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, "invalid formatter: 'fluffy'")
@@ -118,7 +118,7 @@ func TestNewNutsConfig_Load(t *testing.T) {
 		os.Args = []string{"command"}
 		cfg := NewServerConfig()
 		cmd := testCommand()
-		err := cfg.Load(cmd)
+		err := cfg.Load(cmd.Flags())
 		assert.NoError(t, err)
 		assert.False(t, cfg.Strictmode)
 	})
@@ -129,7 +129,7 @@ func TestNewNutsConfig_Load(t *testing.T) {
 		cfg := NewServerConfig()
 		cmd := testCommand()
 
-		err := cfg.Load(cmd)
+		err := cfg.Load(cmd.Flags())
 
 		assert.NoError(t, err)
 		assert.True(t, cfg.Strictmode)
@@ -141,7 +141,7 @@ func TestNewNutsConfig_Load(t *testing.T) {
 		cfg := NewServerConfig()
 		cmd := testCommand()
 
-		err := cfg.Load(cmd)
+		err := cfg.Load(cmd.Flags())
 		assert.Equal(t, cfg.HTTP.Address, "alternative:1323")
 		assert.Len(t, cfg.HTTP.AltBinds, 2)
 		assert.Equal(t, cfg.HTTP.AltBinds["internal"].Address, "localhost:1111")
@@ -156,7 +156,7 @@ func TestNewNutsConfig_Load(t *testing.T) {
 		cfg := NewServerConfig()
 		cmd := testCommand()
 
-		err := cfg.Load(cmd)
+		err := cfg.Load(cmd.Flags())
 
 		if !assert.Error(t, err) {
 			return
@@ -171,7 +171,7 @@ func TestNewNutsConfig_Load(t *testing.T) {
 		cfg := NewServerConfig()
 		cmd := testCommand()
 
-		err := cfg.Load(cmd)
+		err := cfg.Load(cmd.Flags())
 
 		if !assert.NoError(t, err) {
 			return
@@ -186,8 +186,8 @@ func TestNewNutsConfig_PrintConfig(t *testing.T) {
 	fs := pflag.FlagSet{}
 	fs.String("camelCaseKey", "value", "description")
 	cmd := testCommand()
-	cmd.PersistentFlags().AddFlagSet(&fs)
-	cfg.Load(cmd)
+	cmd.Flags().AddFlagSet(&fs)
+	cfg.Load(cmd.Flags())
 
 	bs := cfg.PrintConfig()
 
@@ -212,14 +212,14 @@ func TestNewNutsConfig_InjectIntoEngine(t *testing.T) {
 	err := flagSet.Parse([]string{"--key", "value", "--sub.test", "testvalue", "--subptr.test", "test2value"})
 	assert.NoError(t, err)
 
-	cmd.PersistentFlags().AddFlagSet(flagSet)
+	cmd.Flags().AddFlagSet(flagSet)
 
 	in := &TestEngine{
 		TestConfig: TestEngineConfig{},
 	}
 
 	t.Run("param is injected", func(t *testing.T) {
-		err := cfg.Load(cmd)
+		err := cfg.Load(cmd.Flags())
 		assert.NoError(t, err)
 
 		err = cfg.InjectIntoEngine(in)
@@ -231,7 +231,7 @@ func TestNewNutsConfig_InjectIntoEngine(t *testing.T) {
 	})
 
 	t.Run("param is injected recursively", func(t *testing.T) {
-		err := cfg.Load(cmd)
+		err := cfg.Load(cmd.Flags())
 		assert.NoError(t, err)
 
 		err = cfg.InjectIntoEngine(in)
@@ -251,9 +251,9 @@ func TestNewNutsConfig_resolveConfigFile(t *testing.T) {
 		os.Args = []string{"executable", "command", "--configfile", "from_file.yaml"}
 		cmd := testCommand()
 		cfg := NewServerConfig()
-		cfg.Load(cmd)
+		cfg.Load(cmd.Flags())
 
-		file := resolveConfigFilePath(cmd.PersistentFlags())
+		file := resolveConfigFilePath(cmd.Flags())
 
 		assert.Equal(t, "from_file.yaml", file)
 	})
@@ -263,11 +263,7 @@ func TestNewNutsConfig_resolveConfigFile(t *testing.T) {
 
 		os.Setenv("NUTS_CONFIGFILE", "from_env.yaml")
 		defer os.Unsetenv("NUTS_CONFIGFILE")
-		cmd := &cobra.Command{}
-		cfg := NewServerConfig()
-		cfg.Load(cmd)
-
-		file := resolveConfigFilePath(cmd.PersistentFlags())
+		file := resolveConfigFilePath(FlagSet())
 
 		assert.Equal(t, "from_env.yaml", file)
 	})
@@ -280,6 +276,6 @@ func testCommand() *cobra.Command {
 	// this is done by the cobra command and may only be done once
 	fs.Parse(os.Args)
 
-	cmd.PersistentFlags().AddFlagSet(fs)
+	cmd.Flags().AddFlagSet(fs)
 	return cmd
 }

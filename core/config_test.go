@@ -37,13 +37,13 @@ func Test_ListMerging(t *testing.T) {
 			// create a dummy command with the serverFlagSet and the testEngine flagSet:
 			cmd := &cobra.Command{}
 			serverFlagSet := FlagSet()
-			cmd.PersistentFlags().AddFlagSet(serverFlagSet)
-			cmd.PersistentFlags().AddFlagSet(testFlagSet())
+			cmd.Flags().AddFlagSet(serverFlagSet)
+			cmd.Flags().AddFlagSet(testFlagSet())
 
 			// load the testEngine
 			system.RegisterEngine(testEngine)
 			// Load the system
-			if !assert.NoError(t, system.Load(cmd)) {
+			if !assert.NoError(t, system.Load(cmd.Flags())) {
 				return
 			}
 			// Configure system and the engines
@@ -63,15 +63,15 @@ func Test_ListMerging(t *testing.T) {
 			serverFlagSet := FlagSet()
 			// this is done by the cobra command and may only be done once
 
-			cmd.PersistentFlags().AddFlagSet(serverFlagSet)
-			cmd.PersistentFlags().AddFlagSet(testFlagSet())
+			cmd.Flags().AddFlagSet(serverFlagSet)
+			cmd.Flags().AddFlagSet(testFlagSet())
 
 			assert.NoError(t, serverFlagSet.Parse(os.Args[1:]))
 
 			// load the testEngine
 			system.RegisterEngine(testEngine)
 			// Load the system
-			if !assert.NoError(t, system.Load(cmd)) {
+			if !assert.NoError(t, system.Load(cmd.Flags())) {
 				return
 			}
 			// Configure system and the engines
@@ -122,7 +122,7 @@ func TestLoadConfigMap(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		cmd := &cobra.Command{}
 		config := NewServerConfig()
-		assert.NoError(t, config.loadConfigMap(cmd))
+		assert.NoError(t, config.loadConfigMap(cmd.Flags()))
 	})
 }
 
