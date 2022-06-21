@@ -88,19 +88,13 @@ func (cors HTTPCORSConfig) Enabled() bool {
 	return len(cors.Origin) > 0
 }
 
-// NewServerConfig creates a new config with some defaults
+// NewServerConfig creates an initialized empty server config
 func NewServerConfig() *ServerConfig {
 	return &ServerConfig{
-		configMap:    koanf.New(defaultDelimiter),
-		Verbosity:    defaultLogLevel,
-		LoggerFormat: defaultLoggerFormat,
-		Strictmode:   defaultStrictMode,
-		Datadir:      defaultDatadir,
+		configMap: koanf.New(defaultDelimiter),
 		HTTP: GlobalHTTPConfig{
-			HTTPConfig: HTTPConfig{
-				Address: defaultHTTPInterface,
-			},
-			AltBinds: map[string]HTTPConfig{},
+			HTTPConfig: HTTPConfig{},
+			AltBinds:   map[string]HTTPConfig{},
 		},
 	}
 }

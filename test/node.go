@@ -25,7 +25,6 @@ import (
 func GetIntegrationTestConfig(testDirectory string) map[string]string {
 	httpAddress := fmt.Sprintf("localhost:%d", FreeTCPPort())
 	return map[string]string{
-		//"configfile":              path.Join(testDirectory, "nuts.yaml"), // does not exist, but that's okay: default config
 		"datadir":                 testDirectory,
 		"network.enabletls":       "false",
 		"network.grpcaddr":        fmt.Sprintf("localhost:%d", FreeTCPPort()),

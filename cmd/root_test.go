@@ -188,6 +188,9 @@ func Test_serverCmd(t *testing.T) {
 		system := core.NewSystem()
 		system.RegisterEngine(r)
 		os.Args = []string{"nuts", "server"}
+		cmd := &cobra.Command{}
+		cmd.PersistentFlags().AddFlagSet(core.FlagSet())
+		assert.NoError(t, system.Load(cmd))
 
 		r.EXPECT().Migrate().Return(errors.New("b00m!"))
 

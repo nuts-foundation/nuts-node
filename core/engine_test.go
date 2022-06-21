@@ -76,11 +76,14 @@ func TestSystem_Configure(t *testing.T) {
 		system := NewSystem()
 		system.RegisterEngine(TestEngine{})
 		system.RegisterEngine(r)
+		cmd := &cobra.Command{}
+		cmd.PersistentFlags().AddFlagSet(FlagSet())
+		assert.NoError(t, system.Load(cmd))
 		assert.Nil(t, system.Configure())
 	})
 	t.Run("unable to create datadir", func(t *testing.T) {
 		system := NewSystem()
-		system.Config = &ServerConfig{Datadir: "engine_test.go"}
+		system.Config.Datadir = "engine_test.go"
 		assert.Error(t, system.Configure())
 	})
 }
