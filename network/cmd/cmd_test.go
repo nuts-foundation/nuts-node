@@ -107,14 +107,6 @@ func TestCmd_List(t *testing.T) {
 		assert.Equal(t, t1.Ref().String(), hashStr3)
 	})
 
-	t.Run("it handles an error with the clientConfig", func(t *testing.T) {
-		cmd := Cmd()
-		os.Setenv("NUTS_CONFIGFILE", "foo")
-		defer os.Unsetenv("NUTS_CONFIGFILE")
-		cmd.SetArgs([]string{"list"})
-		assert.EqualError(t, cmd.Execute(), "unable to load config file: open foo: no such file or directory")
-	})
-
 	t.Run("it handles an http error", func(t *testing.T) {
 		cmd := Cmd()
 		cmd.SetArgs([]string{"list"})
@@ -163,14 +155,6 @@ func TestCmd_Get(t *testing.T) {
 		assert.EqualError(t, cmd.Execute(), "encoding/hex: invalid byte: U+0069 'i'")
 	})
 
-	t.Run("it handles an error with the clientConfig", func(t *testing.T) {
-		cmd := Cmd()
-		os.Setenv("NUTS_CONFIGFILE", "foo")
-		defer os.Unsetenv("NUTS_CONFIGFILE")
-		cmd.SetArgs([]string{"get", hash.SHA256Sum([]byte{1, 2, 3}).String()})
-		assert.EqualError(t, cmd.Execute(), "unable to load config file: open foo: no such file or directory")
-	})
-
 	t.Run("it handles an http error", func(t *testing.T) {
 		cmd := Cmd()
 		cmd.SetArgs([]string{"get", hash.SHA256Sum([]byte{1, 2, 3}).String()})
@@ -213,15 +197,6 @@ func TestCmd_Payload(t *testing.T) {
 		assert.EqualError(t, cmd.Execute(), "encoding/hex: invalid byte: U+0069 'i'")
 	})
 
-	t.Run("it handles an error with the clientConfig", func(t *testing.T) {
-		cmd := Cmd()
-		os.Setenv("NUTS_CONFIGFILE", "foo")
-		defer os.Unsetenv("NUTS_CONFIGFILE")
-		h := hash.SHA256Sum([]byte{1, 2, 3})
-		cmd.SetArgs([]string{"payload", h.String()})
-		assert.EqualError(t, cmd.Execute(), "unable to load config file: open foo: no such file or directory")
-	})
-
 	t.Run("it handles an http error", func(t *testing.T) {
 		cmd := Cmd()
 		h := hash.SHA256Sum([]byte{1, 2, 3})
@@ -255,14 +230,6 @@ foo
 		err := cmd.Execute()
 		assert.Equal(t, strings.TrimSpace(expected), strings.TrimSpace(outBuf.String()))
 		assert.NoError(t, err)
-	})
-
-	t.Run("it handles an error with the clientConfig", func(t *testing.T) {
-		cmd := Cmd()
-		os.Setenv("NUTS_CONFIGFILE", "foo")
-		defer os.Unsetenv("NUTS_CONFIGFILE")
-		cmd.SetArgs([]string{"peers"})
-		assert.EqualError(t, cmd.Execute(), "unable to load config file: open foo: no such file or directory")
 	})
 
 	t.Run("it handles an http error", func(t *testing.T) {
@@ -301,14 +268,6 @@ func TestCmd_Reprocess(t *testing.T) {
 
 		_ = cmd.Execute()
 		assert.Contains(t, outBuf.String(), expected)
-	})
-
-	t.Run("it handles an error with the clientConfig", func(t *testing.T) {
-		cmd := Cmd()
-		os.Setenv("NUTS_CONFIGFILE", "foo")
-		defer os.Unsetenv("NUTS_CONFIGFILE")
-		cmd.SetArgs([]string{"reprocess", "application/did+json"})
-		assert.EqualError(t, cmd.Execute(), "unable to load config file: open foo: no such file or directory")
 	})
 
 	t.Run("it handles an http error", func(t *testing.T) {

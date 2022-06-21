@@ -121,8 +121,8 @@ func Test_loadConfigIntoStruct(t *testing.T) {
 func TestLoadConfigMap(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		cmd := &cobra.Command{}
-		configMap := koanf.New(defaultDelimiter)
-		assert.NoError(t, LoadConfigMap(configMap, cmd))
+		config := NewServerConfig()
+		assert.NoError(t, config.loadConfigMap(cmd))
 	})
 }
 

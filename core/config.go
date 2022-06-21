@@ -27,7 +27,6 @@ import (
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/providers/posflag"
-	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"os"
 	"strings"
@@ -84,28 +83,4 @@ func loadDefaultsFromFlagset(configMap *koanf.Koanf, flags *pflag.FlagSet) error
 // loadFromFlagSet loads the config values set in the command line options into the configMap.
 func loadFromFlagSet(configMap *koanf.Koanf, flags *pflag.FlagSet) error {
 	return configMap.Load(posflag.Provider(flags, defaultDelimiter, configMap), nil)
-}
-
-// LoadConfigMap loads all the values for a given command into the provided configMap.
-// It loads the default values and then (when defined) overwrites them respectively with values from
-// the config file, environment variables and command line flags.
-func LoadConfigMap(configMap *koanf.Koanf, cmd *cobra.Command) error {
-	flags := cmd.Flags()
-	if err := loadDefaultsFromFlagset(configMap, flags); err != nil {
-		return err
-	}
-
-	if err := loadFromFile(configMap, resolveConfigFilePath(cmd.PersistentFlags())); err != nil {
-		return err
-	}
-
-	if err := loadFromEnv(configMap); err != nil {
-		return err
-	}
-
-	if err := loadFromFlagSet(configMap, cmd.PersistentFlags()); err != nil {
-		return err
-	}
-
-	return nil
 }

@@ -112,15 +112,6 @@ func TestCmd(t *testing.T) {
 				err := cmd.Execute()
 				assert.Contains(t, err.Error(), "no Host in request URL")
 			})
-
-			t.Run("it handles an error with the clientConfig", func(t *testing.T) {
-				cmd := Cmd()
-				os.Setenv("NUTS_CONFIGFILE", "foo")
-				defer os.Unsetenv("NUTS_CONFIGFILE")
-				cmd.SetArgs([]string{c, credentialType})
-				assert.EqualError(t, cmd.Execute(), "unable to load config file: open foo: no such file or directory")
-			})
-
 		})
 	}
 
@@ -177,14 +168,6 @@ func TestCmd(t *testing.T) {
 				cmd.SetArgs([]string{c, credentialType, didString})
 				err := cmd.Execute()
 				assert.Contains(t, err.Error(), "no Host in request URL")
-			})
-
-			t.Run("it handles an error with the clientConfig", func(t *testing.T) {
-				cmd := Cmd()
-				os.Setenv("NUTS_CONFIGFILE", "foo")
-				defer os.Unsetenv("NUTS_CONFIGFILE")
-				cmd.SetArgs([]string{c, credentialType, didString})
-				assert.EqualError(t, cmd.Execute(), "unable to load config file: open foo: no such file or directory")
 			})
 
 		})

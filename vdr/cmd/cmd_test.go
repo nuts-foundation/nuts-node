@@ -116,14 +116,6 @@ func TestEngine_Command(t *testing.T) {
 			assert.Contains(t, errBuf.String(), "unable to create new DID")
 			assert.Contains(t, errBuf.String(), "b00m!")
 		})
-
-		t.Run("error invalid clientConfig", func(t *testing.T) {
-			cmd := Cmd()
-			os.Setenv("NUTS_CONFIGFILE", "foo")
-			defer os.Unsetenv("NUTS_CONFIGFILE")
-			cmd.SetArgs([]string{"create-did"})
-			assert.EqualError(t, cmd.Execute(), "unable to load config file: open foo: no such file or directory")
-		})
 	})
 
 	t.Run("resolve", func(t *testing.T) {
@@ -179,14 +171,6 @@ func TestEngine_Command(t *testing.T) {
 			assert.Contains(t, errBuf.String(), "failed to resolve DID document")
 			assert.Contains(t, errBuf.String(), "not found")
 		})
-
-		t.Run("error invalid clientConfig", func(t *testing.T) {
-			cmd := Cmd()
-			os.Setenv("NUTS_CONFIGFILE", "foo")
-			defer os.Unsetenv("NUTS_CONFIGFILE")
-			cmd.SetArgs([]string{"resolve", "did"})
-			assert.EqualError(t, cmd.Execute(), "unable to load config file: open foo: no such file or directory")
-		})
 	})
 
 	t.Run("conflicted", func(t *testing.T) {
@@ -229,14 +213,6 @@ func TestEngine_Command(t *testing.T) {
 			assert.NotContains(t, buf.String(), "version")
 			assert.Empty(t, errBuf.Bytes())
 		})
-
-		t.Run("error - invalid clientConfig", func(t *testing.T) {
-			cmd := Cmd()
-			os.Setenv("NUTS_CONFIGFILE", "foo")
-			defer os.Unsetenv("NUTS_CONFIGFILE")
-			cmd.SetArgs([]string{"conflicted"})
-			assert.EqualError(t, cmd.Execute(), "unable to load config file: open foo: no such file or directory")
-		})
 	})
 
 	t.Run("update", func(t *testing.T) {
@@ -275,14 +251,6 @@ func TestEngine_Command(t *testing.T) {
 			}
 			assert.Contains(t, errBuf.String(), "failed to update DID document")
 			assert.Contains(t, errBuf.String(), "invalid")
-		})
-
-		t.Run("error - invalid clientConfig", func(t *testing.T) {
-			cmd := Cmd()
-			os.Setenv("NUTS_CONFIGFILE", "foo")
-			defer os.Unsetenv("NUTS_CONFIGFILE")
-			cmd.SetArgs([]string{"update", "did", "hash", "../test/diddocument.json"})
-			assert.EqualError(t, cmd.Execute(), "unable to load config file: open foo: no such file or directory")
 		})
 	})
 
@@ -331,15 +299,6 @@ func TestEngine_Command(t *testing.T) {
 			}
 			assert.Contains(t, errBuf.String(), "failed to deactivate DID document: server returned HTTP 404 (expected: 200)")
 		})
-
-		t.Run("error - invalid clientConfig", func(t *testing.T) {
-			cmd := newCmd(t)
-			inBuf.Write([]byte{'y', '\n'})
-			os.Setenv("NUTS_CONFIGFILE", "foo")
-			defer os.Unsetenv("NUTS_CONFIGFILE")
-			cmd.SetArgs([]string{"deactivate", "did"})
-			assert.EqualError(t, cmd.Execute(), "unable to load config file: open foo: no such file or directory")
-		})
 	})
 
 	t.Run("addVerificationMethod", func(t *testing.T) {
@@ -378,14 +337,6 @@ func TestEngine_Command(t *testing.T) {
 			}
 			assert.Contains(t, errBuf.String(), "failed to add a new verification method to DID document: server returned HTTP 404 (expected: 200), response: null")
 		})
-
-		t.Run("error - invalid clientConfig", func(t *testing.T) {
-			cmd := Cmd()
-			os.Setenv("NUTS_CONFIGFILE", "foo")
-			defer os.Unsetenv("NUTS_CONFIGFILE")
-			cmd.SetArgs([]string{"addvm", vdr.TestDIDA.String()})
-			assert.EqualError(t, cmd.Execute(), "unable to load config file: open foo: no such file or directory")
-		})
 	})
 
 	t.Run("deleteVerificationMethod", func(t *testing.T) {
@@ -411,14 +362,6 @@ func TestEngine_Command(t *testing.T) {
 				return
 			}
 			assert.Contains(t, errBuf.String(), "failed to delete the verification method from DID document: server returned HTTP 404 (expected: 204), response: null")
-		})
-
-		t.Run("error - invalid clientConfig", func(t *testing.T) {
-			cmd := Cmd()
-			os.Setenv("NUTS_CONFIGFILE", "foo")
-			defer os.Unsetenv("NUTS_CONFIGFILE")
-			cmd.SetArgs([]string{"delvm", vdr.TestDIDA.String(), vdr.TestMethodDIDA.String()})
-			assert.EqualError(t, cmd.Execute(), "unable to load config file: open foo: no such file or directory")
 		})
 	})
 
@@ -490,14 +433,6 @@ func TestEngine_Command(t *testing.T) {
 
 			assert.Error(t, err)
 			assert.Contains(t, errBuf.String(), "Error: server returned HTTP 404")
-		})
-
-		t.Run("error - invalid clientConfig", func(t *testing.T) {
-			cmd := Cmd()
-			os.Setenv("NUTS_CONFIGFILE", "foo")
-			defer os.Unsetenv("NUTS_CONFIGFILE")
-			cmd.SetArgs([]string{"add-keyagreement", kid.String()})
-			assert.EqualError(t, cmd.Execute(), "unable to load config file: open foo: no such file or directory")
 		})
 	})
 }

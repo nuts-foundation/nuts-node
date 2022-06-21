@@ -105,9 +105,26 @@ func NewServerConfig() *ServerConfig {
 	}
 }
 
-// LoadConfigMap populates the configMap with values from the config file, environment and pFlags
+// loadServerConfigMap populates the configMap with values from the config file, environment and pFlags
 func (ngc *ServerConfig) loadConfigMap(cmd *cobra.Command) error {
-	return LoadConfigMap(ngc.configMap, cmd)
+	flags := cmd.Flags()
+	if err := loadDefaultsFromFlagset(ngc.configMap, flags); err != nil {
+		return err
+	}
+
+	if err := loadFromFile(ngc.configMap, resolveConfigFilePath(cmd.PersistentFlags())); err != nil {
+		return err
+	}
+
+	if err := loadFromEnv(ngc.configMap); err != nil {
+		return err
+	}
+
+	if err := loadFromFlagSet(ngc.configMap, cmd.PersistentFlags()); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Load loads the server config  follows the load order of configfile, env vars and then commandline param

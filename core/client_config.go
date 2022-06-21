@@ -40,17 +40,28 @@ type ClientConfig struct {
 	Timeout   time.Duration `koanf:"timeout"`
 }
 
-// NewClientConfigForCommand loads the config map into a command
+// NewClientConfigForCommand loads all the values for a given command into the provided configMap.
+// It loads the default values and then (when defined) overwrites them respectively with values from
+// environment variables and command line flags.
+// env and command line args cannot throw errors
 func NewClientConfigForCommand(cmd *cobra.Command) (ClientConfig, error) {
 	configMap := koanf.New(defaultDelimiter)
-	if err := LoadConfigMap(configMap, cmd); err != nil {
+	if err := loadDefaultsFromFlagset(configMap, cmd.Flags()); err != nil {
 		return ClientConfig{}, err
 	}
-	return NewClientConfigFromConfigMap(configMap)
+
+	if err := loadFromEnv(configMap); err != nil {
+		return ClientConfig{}, err
+	}
+
+	if err := loadFromFlagSet(configMap, cmd.PersistentFlags()); err != nil {
+		return ClientConfig{}, err
+	}
+	return newClientConfigFromConfigMap(configMap)
 }
 
-// NewClientConfigFromConfigMap returns an initialized ClientConfig with values set from the provided configMap
-func NewClientConfigFromConfigMap(configMap *koanf.Koanf) (ClientConfig, error) {
+// newClientConfigFromConfigMap returns an initialized ClientConfig with values set from the provided configMap
+func newClientConfigFromConfigMap(configMap *koanf.Koanf) (ClientConfig, error) {
 	cfg := ClientConfig{}
 	if err := configMap.UnmarshalWithConf("", &cfg, koanf.UnmarshalConf{
 		FlatPaths: false,
