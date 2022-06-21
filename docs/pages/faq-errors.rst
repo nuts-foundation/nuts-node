@@ -1,7 +1,7 @@
 .. _faq-errors:
 
-Frequently Asked Errors
-#######################
+Frequently Encountered Errors
+#############################
 
 This section lists commonly seen errors, what they mean and what to do about it.
 
