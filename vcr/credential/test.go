@@ -20,6 +20,7 @@
 package credential
 
 import (
+	"encoding/json"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"

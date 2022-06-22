@@ -90,7 +90,6 @@ func (d defaultCredentialValidator) Validate(credential vc.VerifiableCredential)
 
 // validateAllFieldsKnown verifies that all fields in the VC are specified by the JSON-LD context.
 func (d defaultCredentialValidator) validateAllFieldsKnown(input vc.VerifiableCredential) error {
-
 	// First expand, then compact and marshal to JSON, then compare
 	inputAsJSON, _ := input.MarshalJSON()
 	inputAsMap := make(map[string]interface{})
@@ -103,12 +102,6 @@ func (d defaultCredentialValidator) validateAllFieldsKnown(input vc.VerifiableCr
 	if err != nil {
 		return fmt.Errorf("unable to compact JSON-LD VC: %w", err)
 	}
-
-	// TODO: For some reason, proof returns out almost empty (everything except `type`) after compacting.
-	// Need to find out why, but maybe not a big issue since its fields are used to check the signature?
-	// So if one of the required fields were missing, signature validation would fail.
-	delete(compactedAsMap, "proof")
-	delete(inputAsMap, "proof")
 	expectedAsJSON, _ := json.Marshal(inputAsMap)
 
 	// Now marshal compacted document to JSON and compare
