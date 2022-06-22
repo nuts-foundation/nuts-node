@@ -41,9 +41,9 @@ To get started, clone the repository and run the following commands to start the
 
 After the services have started you can try the following endpoints:
 
-- `Nuts Node status page <http://localhost:1323/status/diagnostics/>`_.
-- `Registry Admin Demo login <http://localhost:1304/>`_ (default password: "demo").
-- `Demo EHR login <http://localhost:1303/>`_ (default password: "demo").
+- `Nuts Node status page <http://localhost:1323/status/diagnostics>`_.
+- `Registry Admin Demo login <http://localhost:1303/>`_ (default password: "demo").
+- `Demo EHR login <http://localhost:1304/>`_ (default password: "demo").
 
 Development
 ^^^^^^^^^^^
@@ -233,10 +233,11 @@ CLI options
 
 The following options can be supplied when running CLI commands:
 
-=======  ==============  =====================================================================================================================================================================
-Key      Default         Description
-=======  ==============  =====================================================================================================================================================================
-address  localhost:1323  Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended.
-timeout  10s             Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax.
-=======  ==============  =====================================================================================================================================================================
+=========  ==============  =====================================================================================================================================================================
+Key        Default         Description
+=========  ==============  =====================================================================================================================================================================
+address    localhost:1323  Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended.
+timeout    10s             Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax.
+verbosity  info            Log level (trace, debug, info, warn, error)
+=========  ==============  =====================================================================================================================================================================
 
