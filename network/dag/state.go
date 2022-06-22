@@ -169,6 +169,7 @@ func (s *state) Add(_ context.Context, transaction Transaction, payload []byte) 
 func (s *state) updateTrees(tx stoabs.WriteTx, transaction Transaction) error {
 	s.treeMux.Lock()
 	defer s.treeMux.Unlock()
+
 	if err := s.ibltTree.write(tx, transaction); err != nil {
 		return err
 	}

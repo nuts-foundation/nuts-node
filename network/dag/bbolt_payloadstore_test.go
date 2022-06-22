@@ -24,11 +24,10 @@ import (
 	"github.com/golang/mock/gomock"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPayloadStore_ReadWrite(t *testing.T) {

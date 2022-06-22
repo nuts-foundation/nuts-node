@@ -80,6 +80,12 @@ type Network struct {
 	storeProvider       storage.Provider
 }
 
+// Walk walks the DAG starting at the root, passing every transaction to `visitor`.
+func (n *Network) Walk(visitor dag.Visitor) error {
+	ctx := context.Background()
+	return n.state.Walk(ctx, visitor, 0)
+}
+
 // NewNetworkInstance creates a new Network engine instance.
 func NewNetworkInstance(
 	config Config,
