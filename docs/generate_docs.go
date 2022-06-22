@@ -49,7 +49,7 @@ func generateServerOptions(system *core.System) {
 	globalFlags := core.FlagSet()
 	// Resolve server command flags
 	serverCommand, _, _ := cmd.CreateCommand(system).Find([]string{"server"})
-	globalFlags.AddFlagSet(serverCommand.PersistentFlags())
+	globalFlags.AddFlagSet(serverCommand.Flags())
 	// Now index the flags by engine
 	flags[""] = globalFlags
 

@@ -21,6 +21,7 @@ package cmd
 
 import (
 	"bytes"
+	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -31,12 +32,24 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestFlagSet(t *testing.T) {
+	t.Run("it returns something", func(t *testing.T) {
+		flagSet := FlagSet()
+		assert.NotNil(t, flagSet)
+		value, err := flagSet.GetBool("vcr.overrideissueallpublic")
+		assert.NoError(t, err)
+		assert.True(t, value)
+	})
+}
+
+// TestCmd test the nuts vcr * commands
 func TestCmd(t *testing.T) {
 	didString := "did:nuts:1"
 	credentialType := "type"
 
 	buf := new(bytes.Buffer)
 
+	// Setup new VCR commands with output to a bytes buffer
 	newCmd := func(t *testing.T) *cobra.Command {
 		t.Helper()
 		buf.Reset()
@@ -57,6 +70,8 @@ func TestCmd(t *testing.T) {
 				s := setupServer(cmd, http.StatusOK, []string{didString})
 				defer reset(s)
 
+				cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
+
 				cmd.SetArgs([]string{c, credentialType})
 				err := cmd.Execute()
 
@@ -70,6 +85,7 @@ func TestCmd(t *testing.T) {
 				cmd := newCmd(t)
 				s := setupServer(cmd, http.StatusInternalServerError, nil)
 				defer reset(s)
+				cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 				cmd.SetArgs([]string{c, credentialType})
 				err := cmd.Execute()
@@ -88,6 +104,13 @@ func TestCmd(t *testing.T) {
 				err := cmd.Execute()
 
 				assert.Error(t, err)
+			})
+
+			t.Run("it handles an http error", func(t *testing.T) {
+				cmd := Cmd()
+				cmd.SetArgs([]string{c, credentialType})
+				err := cmd.Execute()
+				assert.Contains(t, err.Error(), "no Host in request URL")
 			})
 		})
 	}
@@ -103,6 +126,7 @@ func TestCmd(t *testing.T) {
 				cmd := newCmd(t)
 				s := setupServer(cmd, http.StatusNoContent, nil)
 				defer reset(s)
+				cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 				cmd.SetArgs([]string{c, credentialType, didString})
 				err := cmd.Execute()
@@ -118,6 +142,7 @@ func TestCmd(t *testing.T) {
 				cmd := newCmd(t)
 				s := setupServer(cmd, http.StatusInternalServerError, nil)
 				defer reset(s)
+				cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 				cmd.SetArgs([]string{c, credentialType, didString})
 				err := cmd.Execute()
@@ -137,6 +162,14 @@ func TestCmd(t *testing.T) {
 
 				assert.Error(t, err)
 			})
+
+			t.Run("it handles an http error", func(t *testing.T) {
+				cmd := Cmd()
+				cmd.SetArgs([]string{c, credentialType, didString})
+				err := cmd.Execute()
+				assert.Contains(t, err.Error(), "no Host in request URL")
+			})
+
 		})
 	}
 }

@@ -20,20 +20,42 @@
 package core
 
 import (
-	"strings"
-
+	"errors"
+	"fmt"
 	"github.com/knadh/koanf"
+	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/env"
+	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/providers/posflag"
 	"github.com/spf13/pflag"
+	"os"
+	"strings"
 )
 
-const defaultPrefix = "NUTS_"
-const defaultDelimiter = "."
-const configValueListSeparator = ","
-
 func loadConfigIntoStruct(flags *pflag.FlagSet, target interface{}, configMap *koanf.Koanf) error {
-	// load env
+	// load into struct
+	return configMap.UnmarshalWithConf("", target, koanf.UnmarshalConf{
+		FlatPaths: false,
+	})
+}
+
+func loadFromFile(configMap *koanf.Koanf, filepath string) error {
+	if filepath == "" {
+		return nil
+	}
+	configFileProvider := file.Provider(filepath)
+	// load file
+	if err := configMap.Load(configFileProvider, yaml.Parser()); err != nil {
+		// return all errors but ignore the missing of the default config file
+		if !errors.Is(err, os.ErrNotExist) || filepath != defaultConfigFile {
+			return fmt.Errorf("unable to load config file: %w", err)
+		}
+	}
+	return nil
+}
+
+// loadFromEnv loads the values from the environment variables into the configMap
+func loadFromEnv(configMap *koanf.Koanf) error {
 	e := env.ProviderWithValue(defaultPrefix, defaultDelimiter, func(rawKey string, rawValue string) (string, interface{}) {
 		key := strings.Replace(strings.ToLower(strings.TrimPrefix(rawKey, defaultPrefix)), "_", defaultDelimiter, -1)
 
@@ -49,14 +71,16 @@ func loadConfigIntoStruct(flags *pflag.FlagSet, target interface{}, configMap *k
 		// Just a single value
 		return key, rawValue
 	})
-	// errors can't occur for this provider
-	_ = configMap.Load(e, nil)
+	return configMap.Load(e, nil)
+}
 
-	// errors can't occur for this provider
-	_ = configMap.Load(posflag.Provider(flags, defaultDelimiter, configMap), nil)
+// loadDefaultsFromFlagset loads the default values, set in the flags, into the configMap.
+// Note: This method should be used first to seed the configMap so other providers can override/alter the configMap.
+func loadDefaultsFromFlagset(configMap *koanf.Koanf, flags *pflag.FlagSet) error {
+	return configMap.Load(posflag.Provider(flags, defaultDelimiter, configMap), nil)
+}
 
-	// load into struct
-	return configMap.UnmarshalWithConf("", target, koanf.UnmarshalConf{
-		FlatPaths: false,
-	})
+// loadFromFlagSet loads the config values set in the command line options into the configMap.
+func loadFromFlagSet(configMap *koanf.Koanf, flags *pflag.FlagSet) error {
+	return configMap.Load(posflag.Provider(flags, defaultDelimiter, configMap), nil)
 }

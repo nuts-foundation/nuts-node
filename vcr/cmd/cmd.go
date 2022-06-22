@@ -66,11 +66,12 @@ func trustCmd() *cobra.Command {
 			cType := args[0]
 			issuer := args[1]
 
-			err := httpClient(cmd.Flags()).Trust(cType, issuer)
-
+			clientConfig := core.NewClientConfigForCommand(cmd)
+			err := httpClient(clientConfig).Trust(cType, issuer)
 			if err != nil {
 				return fmt.Errorf("unable to trust issuer: %v", err)
 			}
+
 			cmd.Println(fmt.Sprintf("%s is now trusted as issuer of %s", issuer, cType))
 			return nil
 		},
@@ -86,11 +87,11 @@ func untrustCmd() *cobra.Command {
 			cType := args[0]
 			issuer := args[1]
 
-			err := httpClient(cmd.Flags()).Untrust(cType, issuer)
-
-			if err != nil {
+			clientConfig := core.NewClientConfigForCommand(cmd)
+			if err := httpClient(clientConfig).Untrust(cType, issuer); err != nil {
 				return fmt.Errorf("unable to untrust issuer: %v", err)
 			}
+
 			cmd.Println(fmt.Sprintf("%s is no longer trusted as issuer of %s", issuer, cType))
 			return nil
 		},
@@ -105,7 +106,8 @@ func listTrustedCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cType := args[0]
 
-			issuers, err := httpClient(cmd.Flags()).Trusted(cType)
+			clientConfig := core.NewClientConfigForCommand(cmd)
+			issuers, err := httpClient(clientConfig).Trusted(cType)
 			if err != nil {
 				return fmt.Errorf("unable to get list of trusted issuers: %v", err)
 			}
@@ -124,7 +126,9 @@ func listUntrustedCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cType := args[0]
 
-			issuers, err := httpClient(cmd.Flags()).Untrusted(cType)
+			clientConfig := core.NewClientConfigForCommand(cmd)
+
+			issuers, err := httpClient(clientConfig).Untrusted(cType)
 			if err != nil {
 				return fmt.Errorf("unable to get list of untrusted issuers: %v", err)
 			}
@@ -136,8 +140,7 @@ func listUntrustedCmd() *cobra.Command {
 }
 
 // httpClient creates a remote client
-func httpClient(set *pflag.FlagSet) api.HTTPClient {
-	config := core.NewClientConfig(set)
+func httpClient(config core.ClientConfig) api.HTTPClient {
 	return api.HTTPClient{
 		ServerAddress: config.GetAddress(),
 		Timeout:       config.Timeout,

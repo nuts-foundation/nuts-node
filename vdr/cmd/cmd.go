@@ -77,7 +77,8 @@ func createCmd() *cobra.Command {
 		Short: "Registers a new DID",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			doc, err := httpClient(core.NewClientConfig(cmd.Flags())).Create(createRequest)
+			clientConfig := core.NewClientConfigForCommand(cmd)
+			doc, err := httpClient(clientConfig).Create(createRequest)
 			if err != nil {
 				return fmt.Errorf("unable to create new DID: %v", err)
 			}
@@ -130,7 +131,8 @@ func updateCmd() *cobra.Command {
 				return fmt.Errorf("failed to parse DID document: %w", err)
 			}
 
-			if _, err = httpClient(core.NewClientConfig(cmd.Flags())).Update(id, hash, didDoc); err != nil {
+			clientConfig := core.NewClientConfigForCommand(cmd)
+			if _, err = httpClient(clientConfig).Update(id, hash, didDoc); err != nil {
 				return fmt.Errorf("failed to update DID document: %w", err)
 			}
 
@@ -148,7 +150,8 @@ func resolveCmd() *cobra.Command {
 		Short: "Resolve a DID document based on its DID",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			doc, meta, err := httpClient(core.NewClientConfig(cmd.Flags())).Get(args[0])
+			clientConfig := core.NewClientConfigForCommand(cmd)
+			doc, meta, err := httpClient(clientConfig).Get(args[0])
 			if err != nil {
 				return fmt.Errorf("failed to resolve DID document: %v", err)
 			}
@@ -185,7 +188,8 @@ func conflictedCmd() *cobra.Command {
 		Short: "Print conflicted documents and their metadata",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			conflictedDocs, err := httpClient(core.NewClientConfig(cmd.Flags())).ConflictedDIDs()
+			clientConfig := core.NewClientConfigForCommand(cmd)
+			conflictedDocs, err := httpClient(clientConfig).ConflictedDIDs()
 			if err != nil {
 				return fmt.Errorf("failed to find conflicted documents: %v", err)
 			}
@@ -224,7 +228,8 @@ func deactivateCmd() *cobra.Command {
 				cmd.Println("Deactivation cancelled")
 				return nil
 			}
-			err := httpClient(core.NewClientConfig(cmd.Flags())).Deactivate(args[0])
+			clientConfig := core.NewClientConfigForCommand(cmd)
+			err := httpClient(clientConfig).Deactivate(args[0])
 			if err != nil {
 				return fmt.Errorf("failed to deactivate DID document: %v", err)
 			}
@@ -242,7 +247,8 @@ func addVerificationMethodCmd() *cobra.Command {
 		Short: "Add a verification method key to the DID document.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			verificationMethod, err := httpClient(core.NewClientConfig(cmd.Flags())).AddNewVerificationMethod(args[0])
+			clientConfig := core.NewClientConfigForCommand(cmd)
+			verificationMethod, err := httpClient(clientConfig).AddNewVerificationMethod(args[0])
 			if err != nil {
 				return fmt.Errorf("failed to add a new verification method to DID document: %s", err.Error())
 			}
@@ -273,7 +279,8 @@ func addKeyAgreementKeyCmd() *cobra.Command {
 			targetDID.Path = ""
 			targetDID.Query = ""
 
-			client := httpClient(core.NewClientConfig(cmd.Flags()))
+			clientConfig := core.NewClientConfigForCommand(cmd)
+			client := httpClient(clientConfig)
 			document, metadata, err := client.Get(targetDID.String())
 			if err != nil {
 				return err
@@ -316,7 +323,8 @@ func deleteVerificationMethodCmd() *cobra.Command {
 		Short: "Deletes a verification method from the DID document.",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := httpClient(core.NewClientConfig(cmd.Flags())).DeleteVerificationMethod(args[0], args[1])
+			clientConfig := core.NewClientConfigForCommand(cmd)
+			err := httpClient(clientConfig).DeleteVerificationMethod(args[0], args[1])
 			if err != nil {
 				return fmt.Errorf("failed to delete the verification method from DID document: %s", err.Error())
 			}

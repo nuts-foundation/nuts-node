@@ -145,8 +145,7 @@ func Test_serverCmd(t *testing.T) {
 			return s, nil
 		}
 		cmd := testCommand()
-		system.Load(cmd)
-		system.Config = core.NewServerConfig()
+		system.Load(cmd.Flags())
 		system.Config.Datadir = io.TestDirectory(t)
 		system.Config.HTTP.AltBinds["internal"] = core.HTTPConfig{Address: "localhost:7642"}
 		err := startServer(ctx, system)
@@ -188,6 +187,7 @@ func Test_serverCmd(t *testing.T) {
 		system := core.NewSystem()
 		system.RegisterEngine(r)
 		os.Args = []string{"nuts", "server"}
+		assert.NoError(t, system.Load(core.FlagSet()))
 
 		r.EXPECT().Migrate().Return(errors.New("b00m!"))
 
@@ -212,6 +212,6 @@ func testCommand() *cobra.Command {
 	// this is done by the cobra command and may only be done once
 	fs.Parse(os.Args)
 
-	cmd.PersistentFlags().AddFlagSet(fs)
+	cmd.Flags().AddFlagSet(fs)
 	return cmd
 }

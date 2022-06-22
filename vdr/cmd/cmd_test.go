@@ -31,14 +31,12 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/spf13/cobra"
-	"github.com/stretchr/testify/assert"
-	"schneider.vip/problem"
-
 	"github.com/nuts-foundation/nuts-node/core"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	v1 "github.com/nuts-foundation/nuts-node/vdr/api/v1"
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_flagSet(t *testing.T) {
@@ -91,6 +89,7 @@ func TestEngine_Command(t *testing.T) {
 		t.Run("ok - write to stdout", func(t *testing.T) {
 			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
 			cmd.SetArgs([]string{"create-did"})
+			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()
 			if !assert.NoError(t, err) {
@@ -108,6 +107,7 @@ func TestEngine_Command(t *testing.T) {
 		t.Run("error - server error", func(t *testing.T) {
 			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: "b00m!"})
 			cmd.SetArgs([]string{"create-did"})
+			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()
 			if !assert.Error(t, err) {
@@ -122,6 +122,7 @@ func TestEngine_Command(t *testing.T) {
 		t.Run("ok - write to stdout", func(t *testing.T) {
 			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDRsolution})
 			cmd.SetArgs([]string{"resolve", "did"})
+			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()
 			if !assert.NoError(t, err) {
@@ -134,6 +135,7 @@ func TestEngine_Command(t *testing.T) {
 		t.Run("ok - print metadata only", func(t *testing.T) {
 			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDRsolution})
 			cmd.SetArgs([]string{"resolve", "did", "--metadata"})
+			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()
 			if !assert.NoError(t, err) {
@@ -146,6 +148,7 @@ func TestEngine_Command(t *testing.T) {
 		t.Run("ok - print document only", func(t *testing.T) {
 			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDRsolution})
 			cmd.SetArgs([]string{"resolve", "did", "--document"})
+			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()
 			if !assert.NoError(t, err) {
@@ -159,6 +162,7 @@ func TestEngine_Command(t *testing.T) {
 		t.Run("error - not found", func(t *testing.T) {
 			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusNotFound, ResponseData: "not found"})
 			cmd.SetArgs([]string{"resolve", "did"})
+			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()
 			if !assert.Error(t, err) {
@@ -173,6 +177,7 @@ func TestEngine_Command(t *testing.T) {
 		t.Run("ok - write to stdout", func(t *testing.T) {
 			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: []v1.DIDResolutionResult{exampleDIDRsolution}})
 			cmd.SetArgs([]string{"conflicted"})
+			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()
 			if !assert.NoError(t, err) {
@@ -185,6 +190,7 @@ func TestEngine_Command(t *testing.T) {
 		t.Run("ok - print metadata only", func(t *testing.T) {
 			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: []v1.DIDResolutionResult{exampleDIDRsolution}})
 			cmd.SetArgs([]string{"conflicted", "--metadata"})
+			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()
 			if !assert.NoError(t, err) {
@@ -197,6 +203,7 @@ func TestEngine_Command(t *testing.T) {
 		t.Run("ok - print document only", func(t *testing.T) {
 			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: []v1.DIDResolutionResult{exampleDIDRsolution}})
 			cmd.SetArgs([]string{"conflicted", "--document"})
+			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()
 			if !assert.NoError(t, err) {
@@ -206,24 +213,13 @@ func TestEngine_Command(t *testing.T) {
 			assert.NotContains(t, buf.String(), "version")
 			assert.Empty(t, errBuf.Bytes())
 		})
-
-		t.Run("error - not found", func(t *testing.T) {
-			p1 := problem.New(problem.Title("error"))
-			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: p1})
-			cmd.SetArgs([]string{"resolve", "did"})
-
-			err := cmd.Execute()
-			if !assert.Error(t, err) {
-				return
-			}
-			assert.Contains(t, errBuf.String(), "error")
-		})
 	})
 
 	t.Run("update", func(t *testing.T) {
 		t.Run("ok - write to stdout", func(t *testing.T) {
 			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
 			cmd.SetArgs([]string{"update", "did", "hash", "../test/diddocument.json"})
+			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 			err := cmd.Execute()
 
 			if !assert.NoError(t, err) {
@@ -247,6 +243,7 @@ func TestEngine_Command(t *testing.T) {
 		t.Run("error - server error", func(t *testing.T) {
 			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: "invalid"})
 			cmd.SetArgs([]string{"update", "did", "hash", "../test/diddocument.json"})
+			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()
 			if !assert.Error(t, err) {
@@ -263,6 +260,8 @@ func TestEngine_Command(t *testing.T) {
 
 			inBuf.Write([]byte{'y', '\n'})
 			cmd.SetArgs([]string{"deactivate", "did"})
+			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
+			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 			err := cmd.Execute()
 
 			if !assert.NoError(t, err) {
@@ -277,6 +276,7 @@ func TestEngine_Command(t *testing.T) {
 
 			inBuf.Write([]byte{'n', '\n'})
 			cmd.SetArgs([]string{"deactivate", "did"})
+			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()
 			if !assert.Nil(t, err) {
@@ -291,6 +291,7 @@ func TestEngine_Command(t *testing.T) {
 
 			inBuf.Write([]byte{'y', '\n'})
 			cmd.SetArgs([]string{"deactivate", "did"})
+			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()
 			if !assert.Error(t, err) {
@@ -308,6 +309,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: verificationMethod})
 
 			cmd.SetArgs([]string{"addvm", vdr.TestDIDA.String()})
+			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 			err := cmd.Execute()
 
 			if !assert.NoError(t, err) {
@@ -327,6 +329,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusNotFound})
 
 			cmd.SetArgs([]string{"addvm", vdr.TestDIDA.String()})
+			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()
 			if !assert.Error(t, err) {
@@ -340,6 +343,7 @@ func TestEngine_Command(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
 			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusNoContent})
 			cmd.SetArgs([]string{"delvm", vdr.TestDIDA.String(), vdr.TestMethodDIDA.String()})
+			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 			err := cmd.Execute()
 
 			if !assert.NoError(t, err) {
@@ -352,6 +356,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusNotFound})
 
 			cmd.SetArgs([]string{"delvm", vdr.TestDIDA.String(), vdr.TestMethodDIDA.String()})
+			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 			err := cmd.Execute()
 			if !assert.Error(t, err) {
 				return
@@ -377,6 +382,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: resolution})
 
 			cmd.SetArgs([]string{"add-keyagreement", kid.String()})
+			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 			err := cmd.Execute()
 
 			assert.NoError(t, err)
@@ -389,6 +395,7 @@ func TestEngine_Command(t *testing.T) {
 			}})
 
 			cmd.SetArgs([]string{"add-keyagreement", kid.String()})
+			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 			err := cmd.Execute()
 
 			assert.Error(t, err)
@@ -399,6 +406,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK})
 
 			cmd.SetArgs([]string{"add-keyagreement", "not a DID"})
+			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 			err := cmd.Execute()
 
 			assert.Error(t, err)
@@ -409,6 +417,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: did.Document{}})
 
 			cmd.SetArgs([]string{"add-keyagreement", kid.String()})
+			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 			err := cmd.Execute()
 
 			assert.Error(t, err)
@@ -419,22 +428,12 @@ func TestEngine_Command(t *testing.T) {
 			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusNotFound})
 
 			cmd.SetArgs([]string{"add-keyagreement", kid.String()})
+			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 			err := cmd.Execute()
 
 			assert.Error(t, err)
 			assert.Contains(t, errBuf.String(), "Error: server returned HTTP 404")
 		})
-	})
-}
-
-func Test_httpClient(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		client := httpClient(core.DefaultClientConfig())
-		assert.Equal(t, "http://localhost:1323", client.ServerAddress)
-	})
-	t.Run("invalid address", func(t *testing.T) {
-		client := httpClient(core.DefaultClientConfig())
-		assert.Equal(t, "http://localhost:1323", client.ServerAddress)
 	})
 }
 

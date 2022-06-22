@@ -36,7 +36,7 @@ func TestEngine_Command(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: "diagnostics"})
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")
-		core.NewServerConfig().Load(cmd)
+		core.NewServerConfig().Load(cmd.Flags())
 		defer s.Close()
 
 		buf := new(bytes.Buffer)
@@ -46,12 +46,16 @@ func TestEngine_Command(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "diagnostics\n", buf.String())
 	})
+	t.Run("it handles a failed call", func(t *testing.T) {
+		cmd := Cmd()
+		assert.EqualError(t, cmd.Execute(), "Get \"http:///status/diagnostics\": http: no Host in request URL")
+	})
 	t.Run("unexpected status code", func(t *testing.T) {
 		cmd := Cmd()
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")
-		core.NewServerConfig().Load(cmd)
+		core.NewServerConfig().Load(cmd.Flags())
 		defer s.Close()
 
 		buf := new(bytes.Buffer)

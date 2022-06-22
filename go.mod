@@ -62,6 +62,7 @@ require (
 	github.com/edsrzf/mmap-go v1.0.0 // indirect
 	github.com/eknkc/basex v1.0.0 // indirect
 	github.com/fatih/color v1.13.0 // indirect
+	github.com/fatih/structs v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/fxamacker/cbor v1.5.0 // indirect
 	github.com/getsentry/raven-go v0.0.0-20180121060056-563b81fc02b7 // indirect

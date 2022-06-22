@@ -20,19 +20,14 @@
 package core
 
 import (
-	"errors"
 	"fmt"
-	"os"
 	"reflect"
 	"strings"
 
 	"github.com/knadh/koanf"
-	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/env"
-	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/providers/posflag"
 	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
@@ -49,6 +44,9 @@ const defaultLogLevel = "info"
 const loggerLevelFlag = "verbosity"
 const defaultLoggerFormat = "text"
 const loggerFormatFlag = "loggerformat"
+const defaultPrefix = "NUTS_"
+const defaultDelimiter = "."
+const configValueListSeparator = ","
 
 // ServerConfig has global server settings.
 type ServerConfig struct {
@@ -89,38 +87,50 @@ func (cors HTTPCORSConfig) Enabled() bool {
 	return len(cors.Origin) > 0
 }
 
-// NewServerConfig creates a new config with some defaults
+// NewServerConfig creates an initialized empty server config
 func NewServerConfig() *ServerConfig {
 	return &ServerConfig{
-		configMap:    koanf.New(defaultDelimiter),
-		Verbosity:    defaultLogLevel,
-		LoggerFormat: defaultLoggerFormat,
-		Strictmode:   defaultStrictMode,
-		Datadir:      defaultDatadir,
+		configMap: koanf.New(defaultDelimiter),
 		HTTP: GlobalHTTPConfig{
-			HTTPConfig: HTTPConfig{
-				Address: defaultHTTPInterface,
-			},
-			AltBinds: map[string]HTTPConfig{},
+			HTTPConfig: HTTPConfig{},
+			AltBinds:   map[string]HTTPConfig{},
 		},
 	}
 }
 
-// Load follows the load order of configfile, env vars and then commandline param
-func (ngc *ServerConfig) Load(cmd *cobra.Command) (err error) {
-	ngc.configMap = koanf.New(defaultDelimiter)
-	configFile := file.Provider(resolveConfigFile(cmd.PersistentFlags()))
-
-	// load file
-	if err = ngc.configMap.Load(configFile, yaml.Parser()); err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			return
-		}
-	}
-
-	if err = loadConfigIntoStruct(cmd.PersistentFlags(), ngc, ngc.configMap); err != nil {
+// loadConfigMap populates the configMap with values from the config file, environment and pFlags
+func (ngc *ServerConfig) loadConfigMap(flags *pflag.FlagSet) error {
+	if err := loadDefaultsFromFlagset(ngc.configMap, flags); err != nil {
 		return err
 	}
+
+	if err := loadFromFile(ngc.configMap, resolveConfigFilePath(flags)); err != nil {
+		return err
+	}
+
+	if err := loadFromEnv(ngc.configMap); err != nil {
+		return err
+	}
+
+	if err := loadFromFlagSet(ngc.configMap, flags); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Load loads the server config  follows the load order of configfile, env vars and then commandline param
+func (ngc *ServerConfig) Load(flags *pflag.FlagSet) (err error) {
+	if err := ngc.loadConfigMap(flags); err != nil {
+		return err
+	}
+
+	if err := ngc.configMap.UnmarshalWithConf("", ngc, koanf.UnmarshalConf{
+		FlatPaths: false,
+	}); err != nil {
+		return err
+	}
+
 	// Configure logging.
 	// TODO: see #40
 	lvl, err := logrus.ParseLevel(ngc.Verbosity)
@@ -141,11 +151,11 @@ func (ngc *ServerConfig) Load(cmd *cobra.Command) (err error) {
 	return nil
 }
 
-// resolveConfigFile resolves the path of the config file using the following sources:
+// resolveConfigFilePath resolves the path of the config file using the following sources:
 // 1. commandline params (using the given flags)
 // 2. environment vars,
 // 3. default location.
-func resolveConfigFile(flags *pflag.FlagSet) string {
+func resolveConfigFilePath(flags *pflag.FlagSet) string {
 	k := koanf.New(defaultDelimiter)
 
 	// load env flags

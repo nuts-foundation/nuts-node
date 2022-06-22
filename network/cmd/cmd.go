@@ -19,6 +19,7 @@
 package cmd
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -83,9 +84,13 @@ func payloadCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			data, err := httpClient(core.NewClientConfig(cmd.Flags())).GetTransactionPayload(hash)
+			clientConfig := core.NewClientConfigForCommand(cmd)
 			if err != nil {
 				return err
+			}
+			data, err := httpClient(clientConfig).GetTransactionPayload(hash)
+			if err != nil {
+				return fmt.Errorf("unable to get transaction payload: %w", err)
 			}
 			if data == nil {
 				cmd.PrintErrf("Transaction or contents not found: %s", hash)
@@ -107,9 +112,13 @@ func getCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			transaction, err := httpClient(core.NewClientConfig(cmd.Flags())).GetTransaction(hash)
+			clientConfig := core.NewClientConfigForCommand(cmd)
 			if err != nil {
 				return err
+			}
+			transaction, err := httpClient(clientConfig).GetTransaction(hash)
+			if err != nil {
+				return fmt.Errorf("unable to get transaction: %w", err)
 			}
 			if transaction == nil {
 				cmd.PrintErrf("Transaction not found: %s", hash)
@@ -134,9 +143,10 @@ func listCommand() *cobra.Command {
 		Use:   "list",
 		Short: "Lists the transactions on the network",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			transactions, err := httpClient(core.NewClientConfig(cmd.Flags())).ListTransactions()
+			clientConfig := core.NewClientConfigForCommand(cmd)
+			transactions, err := httpClient(clientConfig).ListTransactions()
 			if err != nil {
-				return err
+				return fmt.Errorf("unable to list transactions: %w", err)
 			}
 			const format = "%-65s %-40s %-20s\n"
 			cmd.Printf(format, "Hashes", "Timestamp", "Type")
@@ -156,9 +166,10 @@ func peersCommand() *cobra.Command {
 		Use:   "peers",
 		Short: "Get diagnostic information of the node's peers",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			peers, err := httpClient(core.NewClientConfig(cmd.Flags())).GetPeerDiagnostics()
+			clientConfig := core.NewClientConfigForCommand(cmd)
+			peers, err := httpClient(clientConfig).GetPeerDiagnostics()
 			if err != nil {
-				return err
+				return fmt.Errorf("unable to get peer diagnostics: %w", err)
 			}
 
 			sortedPeers := make([]string, 0, len(peers))
@@ -188,10 +199,10 @@ func reprocessCommand() *cobra.Command {
 		Short: "Reprocess all transactions with the give contentType (ex: application/did+json)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := httpClient(core.NewClientConfig(cmd.Flags())).Reprocess(args[0])
-			if err != nil {
+			clientConfig := core.NewClientConfigForCommand(cmd)
+			if err := httpClient(clientConfig).Reprocess(args[0]); err != nil {
 				// prints help on 400
-				return err
+				return fmt.Errorf("unable to reprocess transactions: %w", err)
 			}
 			cmd.Printf("Reprocessing transactions with contentType: %s\n", args[0])
 			return nil

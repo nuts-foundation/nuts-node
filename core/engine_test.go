@@ -28,9 +28,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/knadh/koanf"
 	"github.com/labstack/echo/v4"
-	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 )
@@ -77,11 +75,12 @@ func TestSystem_Configure(t *testing.T) {
 		system := NewSystem()
 		system.RegisterEngine(TestEngine{})
 		system.RegisterEngine(r)
+		assert.NoError(t, system.Load(FlagSet()))
 		assert.Nil(t, system.Configure())
 	})
 	t.Run("unable to create datadir", func(t *testing.T) {
 		system := NewSystem()
-		system.Config = &ServerConfig{Datadir: "engine_test.go"}
+		system.Config.Datadir = "engine_test.go"
 		assert.Error(t, system.Configure())
 	})
 }
@@ -183,34 +182,31 @@ func TestSystem_Load(t *testing.T) {
 		Config:  NewServerConfig(),
 	}
 	e.FlagSet().String("key", "", "")
-	cmd.PersistentFlags().AddFlagSet(e.FlagSet())
+	cmd.Flags().AddFlagSet(FlagSet())
+	cmd.Flags().AddFlagSet(e.FlagSet())
 	e.FlagSet().Parse([]string{"--key", "value"})
 
 	t.Run("loads Config without error", func(t *testing.T) {
-		assert.NoError(t, ctl.Load(cmd))
+		assert.NoError(t, ctl.Load(cmd.Flags()))
 	})
 
 	t.Run("calls inject into engine", func(t *testing.T) {
-		ctl.Load(cmd)
+		ctl.Load(cmd.Flags())
 		assert.Equal(t, "value", e.TestConfig.Key)
 	})
 
 	t.Run("slice flags are loaded once", func(t *testing.T) {
-		flagSet := pflag.NewFlagSet("test", pflag.ContinueOnError)
+		flagSet := pflag.NewFlagSet("test", pflag.PanicOnError)
 		flagSet.StringSlice("f", []string{}, "")
 		type Target struct {
 			F []string `koanf:"f"`
 		}
-		cmd := &cobra.Command{}
-		cmd.PersistentFlags().AddFlagSet(flagSet)
 		var target Target
 
-		flagSet.Parse([]string{"command", "--f", "once"})
-		ctl.Load(cmd)
-		err := loadConfigIntoStruct(flagSet, &target, koanf.New(defaultDelimiter))
-
-		assert.NoError(t, err)
-		if !assert.Len(t, target.F, 1) {
+		assert.NoError(t, flagSet.Parse([]string{"command", "--f", "once"}))
+		assert.NoError(t, ctl.Config.Load(flagSet))
+		assert.NoError(t, loadConfigIntoStruct(flagSet, &target, ctl.Config.configMap))
+		if assert.Len(t, target.F, 1) {
 			assert.Equal(t, "once", target.F[0])
 		}
 	})

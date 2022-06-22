@@ -23,6 +23,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/spf13/pflag"
 	"io"
 	"net/http"
 	"os"
@@ -79,8 +80,7 @@ func createPrintConfigCommand(system *core.System) *cobra.Command {
 		Short: "Prints the current config",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Load all config and add generic options
-			cmd.PersistentFlags().AddFlagSet(core.FlagSet())
-			if err := system.Load(cmd); err != nil {
+			if err := system.Load(cmd.Flags()); err != nil {
 				return err
 			}
 			cmd.Println("Current system config")
@@ -91,12 +91,12 @@ func createPrintConfigCommand(system *core.System) *cobra.Command {
 }
 
 func createServerCommand(system *core.System) *cobra.Command {
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "server",
 		Short: "Starts the Nuts server",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Load all config and add generic options
-			if err := system.Load(cmd); err != nil {
+			if err := system.Load(cmd.Flags()); err != nil {
 				return err
 			}
 			if err := startServer(cmd.Context(), system); err != nil {
@@ -105,8 +105,6 @@ func createServerCommand(system *core.System) *cobra.Command {
 			return nil
 		},
 	}
-	addFlagSets(cmd)
-	return cmd
 }
 
 func startServer(ctx context.Context, system *core.System) error {
@@ -255,18 +253,30 @@ func addSubCommands(system *core.System, root *cobra.Command) {
 		clientCommand.PersistentFlags().AddFlagSet(clientFlags)
 	}
 	root.AddCommand(clientCommands...)
+
 	// Register server commands
-	root.AddCommand(createServerCommand(system))
-	root.AddCommand(createPrintConfigCommand(system))
+	serverCommands := []*cobra.Command{
+		createServerCommand(system),
+		createPrintConfigCommand(system),
+	}
+	for _, serverCommand := range serverCommands {
+		serverCommand.Flags().AddFlagSet(serverConfigFlags())
+	}
+	root.AddCommand(serverCommands...)
 }
 
-func addFlagSets(cmd *cobra.Command) {
-	cmd.PersistentFlags().AddFlagSet(core.FlagSet())
-	cmd.PersistentFlags().AddFlagSet(cryptoCmd.FlagSet())
-	cmd.PersistentFlags().AddFlagSet(networkCmd.FlagSet())
-	cmd.PersistentFlags().AddFlagSet(vdrCmd.FlagSet())
-	cmd.PersistentFlags().AddFlagSet(vcrCmd.FlagSet())
-	cmd.PersistentFlags().AddFlagSet(jsonld.FlagSet())
-	cmd.PersistentFlags().AddFlagSet(authCmd.FlagSet())
-	cmd.PersistentFlags().AddFlagSet(eventsCmd.FlagSet())
+// serverConfigFlags returns the flagSet needed for the server command
+func serverConfigFlags() *pflag.FlagSet {
+	set := pflag.NewFlagSet("server", pflag.ContinueOnError)
+
+	set.AddFlagSet(core.FlagSet())
+	set.AddFlagSet(cryptoCmd.FlagSet())
+	set.AddFlagSet(networkCmd.FlagSet())
+	set.AddFlagSet(vdrCmd.FlagSet())
+	set.AddFlagSet(vcrCmd.FlagSet())
+	set.AddFlagSet(jsonld.FlagSet())
+	set.AddFlagSet(authCmd.FlagSet())
+	set.AddFlagSet(eventsCmd.FlagSet())
+
+	return set
 }

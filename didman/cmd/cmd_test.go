@@ -46,7 +46,8 @@ func TestCmd_AddService(t *testing.T) {
 		s := httptest.NewServer(handler)
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")
-		core.NewServerConfig().Load(cmd)
+		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
+
 		defer s.Close()
 
 		endpointAsJSON, _ := json.Marshal(serviceEndpoint)
@@ -67,13 +68,18 @@ func TestCmd_AddService(t *testing.T) {
 		s := httptest.NewServer(handler)
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")
-		core.NewServerConfig().Load(cmd)
+		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 		defer s.Close()
 
 		cmd.SetArgs([]string{"svc", "add", "did:nuts:1234", "type", serviceEndpoint})
 		err := cmd.Execute()
 
 		assert.NoError(t, err)
+	})
+	t.Run("it handles an http error", func(t *testing.T) {
+		cmd := Cmd()
+		cmd.SetArgs([]string{"svc", "add", "did:nuts:1234", "type", "http://example.com/foo"})
+		assert.EqualError(t, cmd.Execute(), "unable to register service: Post \"http:///internal/didman/v1/did/did:nuts:1234/endpoint\": http: no Host in request URL")
 	})
 }
 
@@ -84,12 +90,17 @@ func TestCmd_DeleteService(t *testing.T) {
 		s := httptest.NewServer(handler)
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")
-		core.NewServerConfig().Load(cmd)
+		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 		defer s.Close()
 
 		cmd.SetArgs([]string{"svc", "delete", "did:nuts:1234", "type"})
 		err := cmd.Execute()
 
 		assert.NoError(t, err)
+	})
+	t.Run("it handles an http error", func(t *testing.T) {
+		cmd := Cmd()
+		cmd.SetArgs([]string{"svc", "delete", "did:nuts:1234", "type"})
+		assert.EqualError(t, cmd.Execute(), "unable to delete service: Delete \"http:///internal/didman/v1/did/did:nuts:1234/endpoint/type\": http: no Host in request URL")
 	})
 }

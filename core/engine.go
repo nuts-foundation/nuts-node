@@ -21,12 +21,12 @@ package core
 
 import (
 	"fmt"
+	"github.com/spf13/pflag"
 	"net/url"
 	"os"
 
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 )
 
 // Routable enables connecting a REST API to the echo server. The API wrappers should implement this interface
@@ -63,11 +63,12 @@ type System struct {
 var coreLogger = logrus.StandardLogger().WithField("module", "core")
 
 // Load loads the config and injects config values into engines
-func (system *System) Load(cmd *cobra.Command) error {
-	if err := system.Config.Load(cmd); err != nil {
+func (system *System) Load(flags *pflag.FlagSet) error {
+	if err := system.Config.Load(flags); err != nil {
 		return err
 	}
 
+	// visit each engine and inject the config
 	return system.VisitEnginesE(func(engine Engine) error {
 		if m, ok := engine.(Injectable); ok {
 			return system.Config.InjectIntoEngine(m)

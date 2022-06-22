@@ -29,6 +29,7 @@ type TestEngineConfig struct {
 	Datadir string               `koanf:"datadir"`
 	Sub     TestEngineSubConfig  `koanf:"sub"`
 	SubPtr  *TestEngineSubConfig `koanf:"subptr"`
+	List    []string             `koanf:"testengine.list"`
 }
 
 // TestEngineSubConfig defines the `sub` configuration for the test engine
@@ -40,6 +41,10 @@ type TestEngine struct {
 	TestConfig    TestEngineConfig
 	flagSet       *pflag.FlagSet
 	ShutdownError bool
+}
+
+func testDefaultConfig() TestEngineConfig {
+	return TestEngineConfig{List: []string{"default", "default"}, SubPtr: &TestEngineSubConfig{}}
 }
 
 // Start does test stuff
@@ -55,10 +60,6 @@ func (i *TestEngine) Shutdown() error {
 	return nil
 }
 
-func (i *TestEngine) ConfigKey() string {
-	return ""
-}
-
 func (i *TestEngine) Config() interface{} {
 	return &i.TestConfig
 }
@@ -69,4 +70,13 @@ func (i *TestEngine) FlagSet() *pflag.FlagSet {
 
 func (i *TestEngine) Name() string {
 	return "test"
+}
+
+func testFlagSet() *pflag.FlagSet {
+	flags := pflag.NewFlagSet("testengine", pflag.ContinueOnError)
+
+	//defs := testDefaultConfig()
+	flags.StringSlice("testengine.list", testDefaultConfig().List, "sets the values of list")
+
+	return flags
 }

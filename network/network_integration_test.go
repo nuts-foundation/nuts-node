@@ -44,7 +44,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -829,7 +828,7 @@ func waitForTransaction(t *testing.T, tx dag.Transaction, receivers ...string) b
 func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg *Config)) node {
 	log.Logger().Infof("Starting node: %s", name)
 	logrus.SetLevel(logrus.DebugLevel)
-	core.NewServerConfig().Load(&cobra.Command{})
+	core.NewServerConfig().Load(core.FlagSet())
 	// Create Network instance
 	config := Config{
 		GrpcAddr:       fmt.Sprintf("localhost:%d", nameToPort(t, name)),
