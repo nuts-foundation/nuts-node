@@ -342,7 +342,6 @@ func getTransaction(hash hash.SHA256Hash, tx stoabs.ReadTx) (Transaction, error)
 
 // exists checks whether the transaction with the given ref exists.
 func exists(transactions stoabs.Reader, ref hash.SHA256Hash) bool {
-	// TODO: how should this error be handled?
 	val, _ := transactions.Get(stoabs.NewHashKey(ref))
 	return val != nil
 }

@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/test"
+	log "github.com/sirupsen/logrus"
 	"go.uber.org/atomic"
 	"math"
 	"path/filepath"
@@ -149,6 +150,7 @@ func TestState_Start(t *testing.T) {
 		})
 		tx := CreateTestTransactionWithJWK(0)
 		err := txState.Add(ctx, tx, nil)
+		println(2)
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "transaction verification failed")
@@ -185,7 +187,7 @@ func TestState_Observe(t *testing.T) {
 		ctx := context.Background()
 		txState := createState(t)
 		var actual Transaction
-		txState.RegisterTransactionObserver(func(_ stoabs.WriteTx, transaction Transaction) error {
+		txState.RegisterTransactionObserver(func(transaction Transaction) error {
 			actual = transaction
 			return nil
 		}, false)
@@ -201,7 +203,7 @@ func TestState_Observe(t *testing.T) {
 		txState := createState(t)
 		var actualTX Transaction
 		var actualPayload []byte
-		txState.RegisterTransactionObserver(func(_ stoabs.WriteTx, transaction Transaction) error {
+		txState.RegisterTransactionObserver(func(transaction Transaction) error {
 			actualTX = transaction
 			return nil
 		}, false)
@@ -454,6 +456,12 @@ func Test_createStore(t *testing.T) {
 
 func createState(t *testing.T, verifier ...Verifier) State {
 	testDir := io.TestDirectory(t)
+	lvl, err := log.ParseLevel("trace")
+	if err != nil {
+		panic("log level failed")
+	}
+	log.SetLevel(lvl)
+	log.SetFormatter(&log.TextFormatter{ForceColors: true})
 	bboltStore, err := bbolt.CreateBBoltStore(filepath.Join(testDir, "test_state"), stoabs.WithNoSync())
 	if err != nil {
 		t.Fatal("failed to create store: ", err)
