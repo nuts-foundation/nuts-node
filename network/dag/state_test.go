@@ -458,20 +458,12 @@ func Test_createStore(t *testing.T) {
 
 func createState(t *testing.T, verifier ...Verifier) State {
 	testDir := io.TestDirectory(t)
-	//lvl, err := log.ParseLevel("trace")
-	//if err != nil {
-	//	panic("log level failed")
-	//}
-	//log.SetLevel(lvl)
-	//log.SetFormatter(&log.TextFormatter{ForceColors: true})
 	bboltStore, err := bbolt.CreateBBoltStore(filepath.Join(testDir, "test_state"), stoabs.WithNoSync())
 	if err != nil {
 		t.Fatal("failed to create store: ", err)
 	}
 	s, _ := NewState(bboltStore, verifier...)
-	println("pre-start")
 	s.Start()
-	println("post-start")
 	t.Cleanup(func() {
 		s.Shutdown()
 	})

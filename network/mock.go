@@ -133,3 +133,17 @@ func (mr *MockTransactionsMockRecorder) Subscribe(eventType, payloadType, receiv
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockTransactions)(nil).Subscribe), eventType, payloadType, receiver)
 }
+
+// Walk mocks base method.
+func (m *MockTransactions) Walk(visitor dag.Visitor) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Walk", visitor)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Walk indicates an expected call of Walk.
+func (mr *MockTransactionsMockRecorder) Walk(visitor interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Walk", reflect.TypeOf((*MockTransactions)(nil).Walk), visitor)
+}
