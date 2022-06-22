@@ -117,7 +117,7 @@ type PayloadStore interface {
 }
 
 // Observer defines the signature of an observer which can be called by an Observable.
-type Observer func(transaction Transaction) error
+type Observer func(tx stoabs.WriteTx, transaction Transaction) error
 
 // PayloadObserver defines the signature of an observer which can be called by an Observable.
 type PayloadObserver func(transaction Transaction, payload []byte) error

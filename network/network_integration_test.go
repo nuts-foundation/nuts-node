@@ -823,7 +823,11 @@ func waitForTransaction(t *testing.T, tx dag.Transaction, receivers ...string) b
 		}, 15*time.Second, "time-out while waiting for transaction to arrive at %s", receiver) {
 			return false
 		}
+<<<<<<< HEAD
 	} // TODO: reduce timeout when store sync is configurable, https://github.com/nuts-foundation/nuts-node/issues/1218
+=======
+	} // TODO: reduce timeout store sync is configurable
+>>>>>>> c7954e3 (replace bbolt with stoabs in dag)
 	return true
 }
 

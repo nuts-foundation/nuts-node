@@ -222,7 +222,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	n.state.RegisterPayloadObserver(n.emitEvents, true)
 
 	// register observers to publish to other engines. Non-transactional, so will be published to other engines at most once.
-	n.state.RegisterTransactionObserver(func(transaction dag.Transaction) error {
+	n.state.RegisterTransactionObserver(func(_ stoabs.WriteTx, transaction dag.Transaction) error {
 		n.publish(TransactionAddedEvent, transaction, nil)
 		return nil
 	}, false)

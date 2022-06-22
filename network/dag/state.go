@@ -126,7 +126,6 @@ func (s *state) Add(_ context.Context, transaction Transaction, payload []byte) 
 		}
 
 		if err := s.verifyTX(tx, transaction); err != nil {
-			println("verifier failed")
 			return err
 		}
 		if payload != nil {
@@ -154,7 +153,7 @@ func (s *state) Add(_ context.Context, transaction Transaction, payload []byte) 
 			return err
 		}
 
-		return s.notifyObservers(transaction)
+		return s.notifyObservers(tx, transaction)
 	}, stoabs.OnRollback(func() {
 		log.Logger().Warn("Reloading the XOR and IBLT trees due to a DB transaction Rollback")
 		s.loadTrees()
@@ -382,17 +381,17 @@ func (s *state) Walk(_ context.Context, visitor Visitor, startAt uint32) error {
 }
 
 // notifyObservers is called from a transactional context. The transactional observers need to be called with the TX context, the other observers after the commit.
-func (s *state) notifyObservers(transaction Transaction) error {
+func (s *state) notifyObservers(tx stoabs.WriteTx, transaction Transaction) error {
 	// apply TX context observers
 	for _, observer := range s.transactionalObservers {
-		if err := observer(transaction); err != nil {
+		if err := observer(tx, transaction); err != nil {
 			return fmt.Errorf("observer notification failed: %w", err)
 		}
 	}
 
 	notifyNonTXObservers := func() {
 		for _, observer := range s.nonTransactionalObservers {
-			if err := observer(transaction); err != nil {
+			if err := observer(tx, transaction); err != nil {
 				log.Logger().Errorf("observer notification failed: %v", err)
 			}
 		}
