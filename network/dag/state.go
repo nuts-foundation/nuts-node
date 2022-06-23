@@ -327,8 +327,8 @@ func (s *state) Start() error {
 	}
 
 	// resume all notifiers
-	for _, subscriber := range s.notifiers {
-		if err := subscriber.Run(); err != nil {
+	for _, notifier := range s.notifiers {
+		if err := notifier.Run(); err != nil {
 			return err
 		}
 	}
