@@ -14,7 +14,7 @@ spec:
     storage: {{ .Values.nuts.data.persistedVolume.capacity | default "100Mi" }}
   accessModes: {{ required "Please define `nuts.data.persistedVolume.accessModes` in `values.yaml`" .Values.nuts.data.persistedVolume.accessModes }}
   hostPath:
-    path: {{ .Values.nuts.data.persistedVolume.mountPath  }}
+    path: {{ .Values.nuts.data.persistedVolume.mountPath | default "/opt/nuts/data" }}
 ---
 {{ end }}
 {{ if .Values.nuts.data.persistedVolumeClaim.enabled }}
