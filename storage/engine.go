@@ -20,6 +20,7 @@ package storage
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
@@ -44,11 +45,11 @@ type engine struct {
 	datadir   string
 	storesMux *sync.Mutex
 	stores    map[string]stoabs.Store
-	databases []databaseAdapter
+	databases []database
 	config    Config
 }
 
-func (e engine) Config() interface{} {
+func (e *engine) Config() interface{} {
 	return &e.config
 }
 
@@ -89,27 +90,13 @@ func (e engine) Shutdown() error {
 func (e *engine) Configure(config core.ServerConfig) error {
 	e.datadir = config.Datadir
 
-	// Register databases
-	for _, database := range e.config.Databases {
-		if e.isDatabaseRegistered(database.Type) {
-			// TODO: Will be supported in future
-			return fmt.Errorf("multiple databases configured of type '%s' (which is not supported)", database.Type)
-		}
-		switch database.Type {
-		// TODO: add more
-		case BBoltDatabaseType:
-			e.databases = append(e.databases, &bboltDatabaseAdapter{
-				datadir: e.datadir,
-				config:  database,
-			})
-		default:
-			return fmt.Errorf("unsupported database type: %s", database.Type)
-		}
+	data, _ := json.MarshalIndent(e.config, "  ", "  ")
+	println(string(data))
+	bboltDB, err := createBBoltDatabase(config.Datadir, e.config.Databases.BBolt)
+	if err != nil {
+		return fmt.Errorf("unable to configure BBolt database: %w", err)
 	}
-	// Now register default database(s):
-	if !e.isDatabaseRegistered(BBoltDatabaseType) {
-		e.databases = append(e.databases, &bboltDatabaseAdapter{datadir: e.datadir})
-	}
+	e.databases = append(e.databases, bboltDB)
 	return nil
 }
 
@@ -118,15 +105,6 @@ func (e *engine) GetProvider(moduleName string) Provider {
 		moduleName: strings.ToLower(moduleName),
 		engine:     e,
 	}
-}
-
-func (e *engine) isDatabaseRegistered(dbType DatabaseType) bool {
-	for _, db := range e.databases {
-		if db.getType() == dbType {
-			return true
-		}
-	}
-	return false
 }
 
 type provider struct {
@@ -151,7 +129,7 @@ func (p *provider) GetKVStore(name string, class Class) (stoabs.KVStore, error) 
 	return store.(stoabs.KVStore), err
 }
 
-func (p *provider) getStore(moduleName string, name string, adapter databaseAdapter) (stoabs.Store, error) {
+func (p *provider) getStore(moduleName string, name string, adapter database) (stoabs.Store, error) {
 	if len(moduleName) == 0 {
 		return nil, errors.New("invalid store moduleName")
 	}

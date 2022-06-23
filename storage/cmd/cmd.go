@@ -1,4 +1,5 @@
 /*
+ * Nuts node
  * Copyright (C) 2022 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
@@ -13,29 +14,18 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
  */
 
-package storage
+package cmd
 
 import (
-	"fmt"
-	"time"
+	"github.com/spf13/pflag"
 )
 
-// MarshallingDuration wraps time.Duration so it can be unmarshalled from YAML
-type MarshallingDuration time.Duration
-
-func (d MarshallingDuration) MarshalText() ([]byte, error) {
-	return []byte(time.Duration(d).String()), nil
-}
-
-// UnmarshalText parses a string representation of time.Duration into time.Duration
-func (d *MarshallingDuration) UnmarshalText(text []byte) error {
-	value, err := time.ParseDuration(string(text))
-	*d = MarshallingDuration(value)
-	if err != nil {
-		return fmt.Errorf("invalid duration '%s': %w", string(text), err)
-	}
-	return nil
+// FlagSet contains flags relevant for the engine
+func FlagSet() *pflag.FlagSet {
+	flagSet := pflag.NewFlagSet("storage", pflag.ContinueOnError)
+	flagSet.String("storage.databases.bbolt.backup.directory", "", "Target directory for BBolt database backups.")
+	flagSet.String("storage.databases.bbolt.backup.interval", "", "Interval, formatted as Golang duration (e.g. 10m, 1h) at which BBolt database backups will be performed.")
+	return flagSet
 }

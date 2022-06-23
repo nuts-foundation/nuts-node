@@ -51,8 +51,8 @@ const (
 	PersistentStorageClass = iota
 )
 
-type databaseAdapter interface {
+type database interface {
 	createStore(moduleName string, storeName string) (stoabs.KVStore, error)
 	getClass() Class
-	getType() DatabaseType
+	close()
 }
