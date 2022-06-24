@@ -299,16 +299,15 @@ func (n *Network) Start() error {
 	}
 
 	// Start connection management and protocols
-	err = n.connectionManager.Start()
-	if err != nil {
-		return err
-	}
 	for _, prot := range n.protocols {
 		if err = prot.Start(); err != nil {
 			return err
 		}
 	}
-
+	err = n.connectionManager.Start()
+	if err != nil {
+		return err
+	}
 	return n.connectToKnownNodes(nodeDID)
 }
 
