@@ -32,7 +32,7 @@ Node TLS Certificate
 
 Before you can join a network, your node needs a certificate from the correct Certificate Authority (CA). The two `development` and`stable` networks are open for everyone to join. Contrary to the `production` network (where we will be using a real Certificate Authority like PKIoverheid) the CA certificate and private key for these networks are available on github. This way you can generate your own certificate.
 
-To generate the certificate for your own node you need the ``https://github.com/nuts-foundation/nuts-development-network-ca`` repository. It contains handy scripts and the needed key material.
+To generate the certificate for your own node you need the ``https://github.com/nuts-foundation/nuts-development-network-ca`` repository. It contains handy scripts and the needed key material. For more information how to use, consult the `README <https://github.com/nuts-foundation/nuts-development-network-ca/blob/master/README.md>`_
 
 Your node only accepts requests from other nodes which use a certificate issued by one of the trusted CAs. Which CAs to trust is configured by providing a truststore file. The truststore is a PEM file which contains a set of one or more certificates from CAs which the network participants all decided on to trust.
 To learn more about how a Nuts network uses certificates, see the specification `RFC008 <https://nuts-foundation.gitbook.io/drafts/rfc/rfc008-certificate-structure>`_.
@@ -56,8 +56,9 @@ This results in 3 files:
 Bootstrap nodes
 ===============
 
-A bootstrap node is just a normal Nuts node which is available for other nodes to connect to. When you want to join a network, you must approach another network participant and ask for its public endpoint. After connecting, this node will sent an address list of other connected nodes (this requires a Network Identity and NutsComm endpoint, see further down for more information). Your node must connect to the GRPC endpoint which is usually configured on the ``5555`` port.
-Consult the community on `Slack <https://nuts-foundation.slack.com/>`_ to find out which public bootstrap nodes are available to connect to your network of choice.
+A bootstrap node is just a normal Nuts node which is available for other nodes to connect to. When you want to join a network, you must approach another network participant and ask for its public endpoint. After connecting, this node will sent an address list of other connected nodes (this requires you to configure a Network Identity and NutsComm endpoint, see further down for more information). Your node must connect to the others GRPC endpoint which is usually configured on the ``5555`` port.
+
+Consult the community on `Slack <https://nuts-foundation.slack.com/>`_ in the ``#development`` channel to find out which public bootstrap nodes are available to connect to your network of choice.
 
 Configuring
 ***********
