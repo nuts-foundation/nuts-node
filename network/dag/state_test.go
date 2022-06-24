@@ -21,12 +21,16 @@ package dag
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/test"
+	"go.uber.org/atomic"
 	"math"
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
@@ -134,6 +138,28 @@ func TestState_Start(t *testing.T) {
 	})
 }
 
+func TestState_Notifier(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		s := createState(t).(*state)
+
+		_, err := s.Notifier(t.Name(), dummyFunc)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Len(t, s.notifiers, 1)
+	})
+
+	t.Run("error on adding same notifier twice", func(t *testing.T) {
+		s := createState(t)
+		_, _ = s.Notifier(t.Name(), dummyFunc)
+
+		_, err := s.Notifier(t.Name(), dummyFunc)
+
+		assert.Error(t, err)
+	})
+}
+
 func TestState_Observe(t *testing.T) {
 	t.Run("called with correct TX context", func(t *testing.T) {
 		tests := []bool{true, false}
@@ -227,6 +253,71 @@ func TestState_Add(t *testing.T) {
 		err := txState.Add(ctx, transaction{}, nil)
 
 		assert.Error(t, err)
+	})
+
+	t.Run("notifies receiver for transaction", func(t *testing.T) {
+		ctx := context.Background()
+		var received atomic.Bool
+		s := createState(t)
+		s.Notifier(t.Name(), func(event Event) (bool, error) {
+			received.Toggle()
+			return true, nil
+		}, WithSelectionFilter(func(event Event) bool {
+			return event.Type == TransactionEventType
+		}))
+
+		err := s.Add(ctx, transaction{}, nil)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		test.WaitFor(t, func() (bool, error) {
+			return received.Load(), nil
+		}, time.Second, "timeout while waiting for event")
+	})
+
+	t.Run("does not notify receiver for missing payload", func(t *testing.T) {
+		ctx := context.Background()
+		s := createState(t)
+		s.Notifier(t.Name(), func(event Event) (bool, error) {
+			t.Fail()
+			return true, nil
+		}, WithSelectionFilter(func(event Event) bool {
+			return event.Type == PayloadEventType
+		}), WithRetryDelay(time.Nanosecond))
+
+		err := s.Add(ctx, transaction{}, nil)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		// this is enough to make it fail otherwise
+		time.Sleep(10 * time.Millisecond)
+	})
+
+	t.Run("notifies receiver for payload", func(t *testing.T) {
+		ctx := context.Background()
+		var received atomic.Bool
+		s := createState(t)
+		s.Notifier(t.Name(), func(event Event) (bool, error) {
+			received.Toggle()
+			return true, nil
+		}, WithSelectionFilter(func(event Event) bool {
+			return event.Type == PayloadEventType
+		}))
+		tx, _, _ := CreateTestTransaction(0)
+		payload := make([]byte, 4)
+		binary.BigEndian.PutUint32(payload, 0)
+
+		err := s.Add(ctx, tx, payload)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		test.WaitFor(t, func() (bool, error) {
+			return received.Load(), nil
+		}, time.Second, "timeout while waiting for event")
 	})
 }
 

@@ -21,6 +21,7 @@ package dag
 
 import (
 	bytes2 "bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"github.com/golang/mock/gomock"
@@ -89,6 +90,15 @@ func TestNewSubscriber(t *testing.T) {
 
 		assert.Len(t, s.(*notifier).filters, 1)
 	})
+
+	t.Run("sets context based on parent context", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		s := NewNotifier(t.Name(), dummyFunc, WithContext(ctx)).(*notifier)
+
+		cancel()
+
+		assert.NotNil(t, ctx, s.ctx.Err())
+	})
 }
 
 func TestSubscriber_Save(t *testing.T) {
@@ -127,6 +137,22 @@ func TestSubscriber_Save(t *testing.T) {
 
 			return nil
 		})
+	})
+
+	t.Run("error on wrong DB", func(t *testing.T) {
+		s, _ := persistentSubscriber(t)
+
+		testDir := io.TestDirectory(t)
+		dummyDB, err := bbolt.CreateBBoltStore(path.Join(testDir, "test.db"))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = dummyDB.Write(func(tx stoabs.WriteTx) error {
+			return s.Save(tx, event)
+		})
+
+		assert.Error(t, err)
 	})
 
 	t.Run("Not stored if no persistency", func(t *testing.T) {
@@ -196,6 +222,7 @@ func TestSubscriber_Save(t *testing.T) {
 		kvMock := stoabs.NewMockKVStore(ctrl)
 		tx := stoabs.NewMockWriteTx(ctrl)
 		s := NewNotifier(t.Name(), dummyFunc, WithPersistency(kvMock)).(*notifier)
+		tx.EXPECT().Store().Return(kvMock)
 		tx.EXPECT().GetShelfWriter(s.shelfName()).Return(nil, errors.New("failure"))
 
 		err := s.Save(tx, Event{})
@@ -212,6 +239,7 @@ func TestSubscriber_Save(t *testing.T) {
 		tx := stoabs.NewMockWriteTx(ctrl)
 		writer := stoabs.NewMockWriter(ctrl)
 		s := NewNotifier(t.Name(), dummyFunc, WithPersistency(kvMock)).(*notifier)
+		tx.EXPECT().Store().Return(kvMock)
 		tx.EXPECT().GetShelfWriter(s.shelfName()).Return(writer, nil)
 		writer.EXPECT().Get(stoabs.BytesKey(hash.EmptyHash().Slice())).Return(nil, errors.New("failure"))
 

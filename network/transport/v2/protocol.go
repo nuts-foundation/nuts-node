@@ -161,7 +161,14 @@ func (p *protocol) Configure(_ transport.PeerID) error {
 	p.gManager.RegisterSender(p.sendGossip)
 
 	// called after DAG is committed
-	p.state.RegisterTransactionObserver(p.gossipTransaction, false)
+	_, err = p.state.Notifier("gossip", p.gossipTransaction,
+		dag.WithSelectionFilter(func(event dag.Event) bool {
+			return event.Type == dag.TransactionEventType
+		}),
+		dag.WithContext(p.ctx))
+	if err != nil {
+		return fmt.Errorf("failed to register transaction listener for gossip: %w", err)
+	}
 
 	return nil
 }
@@ -210,12 +217,14 @@ func (p *protocol) connectionStateCallback(peer transport.Peer, state transport.
 }
 
 // gossipTransaction is called when a transaction is added to the DAG
-func (p *protocol) gossipTransaction(ctx context.Context, tx dag.Transaction) error {
-	if tx != nil { // can happen when payload is written for private TX
-		xor, clock := p.state.XOR(ctx, math.MaxUint32)
-		p.gManager.TransactionRegistered(tx.Ref(), xor, clock)
-	}
-	return nil
+func (p *protocol) gossipTransaction(event dag.Event) (bool, error) {
+	ctx := context.Background()
+	// race conditions may occur since the XOR may have been updated in parallel.
+	// If this is the case, nodes will fall back to using the IBLT.
+	xor, clock := p.state.XOR(ctx, math.MaxUint32)
+	p.gManager.TransactionRegistered(event.Hash, xor, clock)
+
+	return true, nil
 }
 
 func (p *protocol) sendGossip(id transport.PeerID, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) bool {
