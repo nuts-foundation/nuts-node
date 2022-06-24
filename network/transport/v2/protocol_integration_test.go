@@ -22,11 +22,9 @@ package v2
 import (
 	"context"
 	"fmt"
-	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"hash/crc32"
 	"path"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -136,15 +134,18 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 		mux: &sync.Mutex{},
 	}
 
-	bboltStore, err := bbolt.CreateBBoltStore(filepath.Join(testDirectory, "test-store"))
+	storage := storage.NewTestStorageEngine(testDirectory)
+	bboltStore, err := storage.GetProvider("network").GetKVStore("data")
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	ctx.state, _ = dag.NewState(bboltStore)
-	ctx.state.RegisterPayloadObserver(func(transaction dag.Transaction, payload []byte) error {
-		log.Logger().Infof("transaction %s arrived at %s", string(payload), name)
+	ctx.state.Notifier(t.Name(), func(event dag.Event) (bool, error) {
+		log.Logger().Infof("transaction %s arrived at %s", string(event.Payload), name)
 		ctx.mux.Lock()
 		defer ctx.mux.Unlock()
+<<<<<<< HEAD
 		ctx.receivedTXs = append(ctx.receivedTXs, transaction)
 		return nil
 
@@ -153,6 +154,14 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 	if err != nil {
 		t.Fatal(err)
 	}
+=======
+		ctx.receivedTXs = append(ctx.receivedTXs, event.Transaction)
+		return true, nil
+	}, dag.WithSelectionFilter(func(event dag.Event) bool {
+		return event.Type == dag.PayloadEventType
+	}))
+	ctx.state.Start()
+>>>>>>> 12a443c (removed subscribers on dag.State)
 
 	cfg := &Config{
 		GossipInterval: 500,
@@ -163,10 +172,10 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 	}
 	peerID := transport.PeerID(name)
 	listenAddress := fmt.Sprintf("localhost:%d", nameToPort(name))
-	ctx.protocol = New(*cfg, transport.FixedNodeDIDResolver{}, ctx.state, doc.Resolver{Store: vdrStore}, keyStore, nil).(*protocol)
+	ctx.protocol = New(*cfg, transport.FixedNodeDIDResolver{}, ctx.state, doc.Resolver{Store: vdrStore}, keyStore, nil, storage.GetProvider("network")).(*protocol)
 
 	authenticator := grpc.NewTLSAuthenticator(doc.NewServiceResolver(&doc.Resolver{Store: store.NewMemoryStore()}))
-	connectionsStore, _ := storage.CreateTestBBoltStore(path.Join(testDirectory, "connections.db"))
+	connectionsStore, _ := storage.GetProvider("network").GetKVStore("connections")
 	ctx.connectionManager = grpc.NewGRPCConnectionManager(grpc.NewConfig(listenAddress, peerID), connectionsStore, &transport.FixedNodeDIDResolver{NodeDID: did.DID{}}, authenticator, ctx.protocol)
 
 	ctx.protocol.Configure(peerID)

@@ -20,6 +20,7 @@
 package vcr
 
 import (
+	"github.com/nuts-foundation/nuts-node/storage"
 	"path"
 	"testing"
 
@@ -52,6 +53,7 @@ func NewTestVCRInstance(t *testing.T) *vcr {
 		network.NewTestNetworkInstance(path.Join(testDirectory, "network")),
 		jsonld.NewTestJSONLDManager(t),
 		events.NewTestManager(t),
+		storage.NewTestStorageEngine(testDirectory),
 	).(*vcr)
 
 	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
@@ -76,19 +78,22 @@ type mockContext struct {
 
 func newMockContext(t *testing.T) mockContext {
 	// speedup tests
+	// TODO remove since bbolt control has gone to storage
 	noSync = true
 
 	testDir := io.TestDirectory(t)
 	ctrl := gomock.NewController(t)
 	crypto := crypto.NewMockKeyStore(ctrl)
 	tx := network.NewMockTransactions(ctrl)
-	tx.EXPECT().Subscribe(network.TransactionPayloadAddedEvent, gomock.Any(), gomock.Any()).AnyTimes()
+	tx.EXPECT().Subscribe("vcr_vcs", gomock.Any(), gomock.Any())
+	tx.EXPECT().Subscribe("vcr_revocations", gomock.Any(), gomock.Any())
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	docResolver := types.NewMockDocResolver(ctrl)
 	serviceResolver := doc.NewMockServiceResolver(ctrl)
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	eventManager := events.NewTestManager(t)
-	vcr := NewVCRInstance(crypto, docResolver, keyResolver, tx, jsonldManager, eventManager).(*vcr)
+	storageClient := storage.NewTestStorageEngine(testDir)
+	vcr := NewVCRInstance(crypto, docResolver, keyResolver, tx, jsonldManager, eventManager, storageClient).(*vcr)
 	vcr.serviceResolver = serviceResolver
 	vcr.trustConfig = trust.NewConfig(path.Join(testDir, "trust.yaml"))
 	vcr.config.OverrideIssueAllPublic = false
@@ -99,7 +104,9 @@ func newMockContext(t *testing.T) mockContext {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		vcr.Shutdown()
+		if err := vcr.Shutdown(); err != nil {
+			t.Fatal(err)
+		}
 	})
 	return mockContext{
 		ctrl:            ctrl,

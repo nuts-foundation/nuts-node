@@ -114,11 +114,11 @@ func NewNetworkInstance(
 // Configure configures the Network subsystem
 func (n *Network) Configure(config core.ServerConfig) error {
 	var err error
-	db, err := n.storeProvider.GetKVStore("data")
+	dagStore, err := n.storeProvider.GetKVStore("data")
 	if err != nil {
 		return fmt.Errorf("unable to create database: %w", err)
 	}
-	if n.state, err = dag.NewState(db, dag.NewSigningTimeVerifier(), dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver)); err != nil {
+	if n.state, err = dag.NewState(dagStore, dag.NewSigningTimeVerifier(), dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver)); err != nil {
 		return fmt.Errorf("failed to configure state: %w", err)
 	}
 
@@ -164,7 +164,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	var candidateProtocols []transport.Protocol
 	if n.protocols == nil {
 		candidateProtocols = []transport.Protocol{
-			v2.New(v2Cfg, n.nodeDIDResolver, n.state, n.didDocumentResolver, n.decrypter, n.collectDiagnostics),
+			v2.New(v2Cfg, n.nodeDIDResolver, n.state, n.didDocumentResolver, n.decrypter, n.collectDiagnostics, n.storeProvider),
 		}
 	} else {
 		// Only set protocols if not already set: improves testability
@@ -219,47 +219,38 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	}
 
 	// register callback from DAG to other engines, with payload only.
-	n.state.RegisterPayloadObserver(n.emitEvents, true)
-
-	// register observers to publish to other engines. Non-transactional, so will be published to other engines at most once.
-	n.state.RegisterTransactionObserver(func(_ stoabs.WriteTx, transaction dag.Transaction) error {
-		n.publish(TransactionAddedEvent, transaction, nil)
-		return nil
-	}, false)
-	n.state.RegisterPayloadObserver(func(transaction dag.Transaction, payload []byte) error {
-		n.publish(TransactionPayloadAddedEvent, transaction, payload)
-		return nil
-	}, false)
+	if _, err = n.state.Notifier("nats", n.emitEvents,
+		dag.WithPersistency(dagStore),
+		dag.WithSelectionFilter(func(event dag.Event) bool {
+			return event.Type == dag.PayloadEventType
+		})); err != nil {
+		return err
+	}
 
 	return nil
 }
 
-// emitEvents is called when a transaction is being added to the DAG.
-// It runs within the transactional context because if the event fails, the transaction must also fail.
-// If the transaction fails for some reason (storage) then the event is still emitted. This is ok because the transaction was already validated.
-// Most likely the transaction will be added at a later stage and another event will be emitted.
-// It only emits events when both the payload and transaction are present. This is the case from both state.Add and from state.WritePayload.
-func (n *Network) emitEvents(tx dag.Transaction, payload []byte) error {
-	if tx != nil && payload != nil {
-		_, js, err := n.eventPublisher.Pool().Acquire(context.Background())
-		if err != nil {
-			return fmt.Errorf(errEventFailedMsg, err)
-		}
-
-		twp := events.TransactionWithPayload{
-			Transaction: tx,
-			Payload:     payload,
-		}
-		twpData, err := json.Marshal(twp)
-		if err != nil {
-			return fmt.Errorf(errEventFailedMsg, err)
-		}
-
-		if _, err = js.PublishAsync(events.TransactionsSubject, twpData); err != nil {
-			return fmt.Errorf(errEventFailedMsg, err)
-		}
+// emitEvents is called when a payload is added.
+func (n *Network) emitEvents(event dag.Event) (bool, error) {
+	_, js, err := n.eventPublisher.Pool().Acquire(context.Background())
+	if err != nil {
+		return false, fmt.Errorf(errEventFailedMsg, err)
 	}
-	return nil
+
+	twp := events.TransactionWithPayload{
+		Transaction: event.Transaction,
+		Payload:     event.Payload,
+	}
+	twpData, err := json.Marshal(twp)
+	if err != nil {
+		return false, fmt.Errorf(errEventFailedMsg, err)
+	}
+
+	if _, err = js.PublishAsync(events.TransactionsSubject, twpData); err != nil {
+		return false, fmt.Errorf(errEventFailedMsg, err)
+	}
+
+	return true, nil
 }
 
 func loadCertificateAndTrustStore(moduleConfig Config) (tls.Certificate, *core.TrustStore, error) {
@@ -392,22 +383,12 @@ func (n *Network) validateNodeDID(nodeDID did.DID) error {
 	return nil
 }
 
-// Subscribe makes a subscription for the specified transaction type. The receiver is called when a transaction
-// is received for the specified event and payload type.
-func (n *Network) Subscribe(eventType EventType, payloadType string, receiver Receiver) {
-	if _, ok := n.subscribers[eventType]; !ok {
-		n.subscribers[eventType] = make(map[string]Receiver, 0)
-	}
-	oldSubscriber := n.subscribers[eventType][payloadType]
-	n.subscribers[eventType][payloadType] = func(transaction dag.Transaction, payload []byte) error {
-		// Chain subscribers in case there's more than 1
-		if oldSubscriber != nil {
-			if err := oldSubscriber(transaction, payload); err != nil {
-				return err
-			}
-		}
-		return receiver(transaction, payload)
-	}
+// Subscribe registers a receiverFn with specific options.
+// The receiver is called when a transaction is added to the DAG.
+// It's only called if the given dag.NotificationFilter's match.
+func (n *Network) Subscribe(name string, subscriber dag.ReceiverFn, options ...dag.NotifierOption) error {
+	_, err := n.state.Notifier(name, subscriber, options...)
+	return err
 }
 
 func (n *Network) publish(eventType EventType, transaction dag.Transaction, payload []byte) {

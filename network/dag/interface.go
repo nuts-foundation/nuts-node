@@ -62,12 +62,6 @@ type State interface {
 	// A Notifier should only be created during `configuration` step since the `start` step will redeliver all events that have not been delivered yet.
 	// Returns an error when the Notifier already exists
 	Notifier(name string, receiver ReceiverFn, filters ...NotifierOption) (Notifier, error)
-	// RegisterTransactionObserver allows observers to be notified when a transaction is added to the DAG.
-	// If the observer needs to be called within the transaction, transactional must be true.
-	RegisterTransactionObserver(observer Observer, transactional bool)
-	// RegisterPayloadObserver allows observers to be notified when a payload is written to the store.
-	// If the observer needs to be called within the transaction, transactional must be true.
-	RegisterPayloadObserver(observer PayloadObserver, transactional bool)
 	// Heads returns the references to all transactions that have not been referenced in the prevs of other transactions.
 	Heads(ctx context.Context) []hash.SHA256Hash
 	// Shutdown the DB

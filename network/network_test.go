@@ -125,26 +125,6 @@ func TestNetwork_GetTransactionPayload(t *testing.T) {
 	})
 }
 
-func TestNetwork_Subscribe(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	t.Run("ok", func(t *testing.T) {
-		cxt := createNetwork(t, ctrl)
-		var expectedReceiver Receiver
-		expectedReceiver = func(transaction dag.Transaction, payload []byte) error { return errors.New("custom receiver") }
-
-		cxt.network.Subscribe(TransactionAddedEvent, "some-type", expectedReceiver)
-
-		subs, ok := cxt.network.subscribers[TransactionAddedEvent]
-		if !assert.True(t, ok) {
-			return
-		}
-		receivers, ok := subs["some-type"]
-		assert.True(t, ok)
-		assert.Equal(t, expectedReceiver(nil, nil), receivers(nil, nil))
-	})
-}
-
 func TestNetwork_Diagnostics(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)

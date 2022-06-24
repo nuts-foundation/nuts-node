@@ -123,15 +123,22 @@ func (mr *MockTransactionsMockRecorder) Reprocess(contentType interface{}) *gomo
 }
 
 // Subscribe mocks base method.
-func (m *MockTransactions) Subscribe(eventType EventType, payloadType string, receiver Receiver) {
+func (m *MockTransactions) Subscribe(name string, receiver dag.ReceiverFn, filters ...dag.NotifierOption) error {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Subscribe", eventType, payloadType, receiver)
+	varargs := []interface{}{name, receiver}
+	for _, a := range filters {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Subscribe", varargs...)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // Subscribe indicates an expected call of Subscribe.
-func (mr *MockTransactionsMockRecorder) Subscribe(eventType, payloadType, receiver interface{}) *gomock.Call {
+func (mr *MockTransactionsMockRecorder) Subscribe(name, receiver interface{}, filters ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockTransactions)(nil).Subscribe), eventType, payloadType, receiver)
+	varargs := append([]interface{}{name, receiver}, filters...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockTransactions)(nil).Subscribe), varargs...)
 }
 
 // Walk mocks base method.

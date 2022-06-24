@@ -23,6 +23,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/storage"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/nuts-node/events"
@@ -39,7 +40,7 @@ import (
 // Ambassador registers a callback with the network for processing received Verifiable Credentials.
 type Ambassador interface {
 	// Configure instructs the ambassador to start receiving DID Documents from the network.
-	Configure()
+	Configure() error
 	// Start the event subscriber for reprocessing transactions from the DAG when called
 	Start() error
 }
@@ -48,24 +49,42 @@ type ambassador struct {
 	networkClient network.Transactions
 	writer        Writer
 	// verifier is used to store incoming revocations from the network
-	verifier     verifier.Verifier
-	eventManager events.Event
+	verifier      verifier.Verifier
+	eventManager  events.Event
+	storageClient storage.Engine
 }
 
 // NewAmbassador creates a new listener for the network that listens to Verifiable Credential transactions.
-func NewAmbassador(networkClient network.Transactions, writer Writer, verifier verifier.Verifier, eventManager events.Event) Ambassador {
+func NewAmbassador(networkClient network.Transactions, writer Writer, verifier verifier.Verifier, eventManager events.Event, storageClient storage.Engine) Ambassador {
 	return &ambassador{
 		networkClient: networkClient,
 		writer:        writer,
 		verifier:      verifier,
 		eventManager:  eventManager,
+		storageClient: storageClient,
 	}
 }
 
 // Configure instructs the ambassador to start receiving DID Documents from the network.
-func (n ambassador) Configure() {
-	n.networkClient.Subscribe(network.TransactionPayloadAddedEvent, types.VcDocumentType, n.vcCallback)
-	n.networkClient.Subscribe(network.TransactionPayloadAddedEvent, types.RevocationLDDocumentType, n.jsonLDRevocationCallback)
+func (n ambassador) Configure() error {
+	kvStore, err := n.storageClient.GetProvider("network").GetKVStore("data")
+	if err != nil {
+		return fmt.Errorf("failed to get DAG datastore: %w", err)
+	}
+
+	err = n.networkClient.Subscribe("vcr_vcs", n.handleNetworkVCs,
+		dag.WithPersistency(kvStore),
+		dag.WithSelectionFilter(func(event dag.Event) bool {
+			return event.Type == dag.PayloadEventType && event.Transaction.PayloadType() == types.VcDocumentType
+		}))
+	if err != nil {
+		return err
+	}
+	return n.networkClient.Subscribe("vcr_revocations", n.handleNetworkRevocations,
+		dag.WithPersistency(kvStore),
+		dag.WithSelectionFilter(func(event dag.Event) bool {
+			return event.Type == dag.PayloadEventType && event.Transaction.PayloadType() == types.RevocationLDDocumentType
+		}))
 }
 
 func (n ambassador) Start() error {
@@ -86,6 +105,20 @@ func (n ambassador) Start() error {
 		return fmt.Errorf("failed to subscribe to REPROCESS event stream: %v", err)
 	}
 	return nil
+}
+
+func (n *ambassador) handleNetworkVCs(event dag.Event) (bool, error) {
+	if err := n.vcCallback(event.Transaction, event.Payload); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (n *ambassador) handleNetworkRevocations(event dag.Event) (bool, error) {
+	if err := n.jsonLDRevocationCallback(event.Transaction, event.Payload); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (n ambassador) handleReprocessEvent(msg *nats.Msg) {

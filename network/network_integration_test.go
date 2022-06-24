@@ -28,6 +28,7 @@ import (
 	"math"
 	"math/rand"
 	"path"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -823,11 +824,7 @@ func waitForTransaction(t *testing.T, tx dag.Transaction, receivers ...string) b
 		}, 15*time.Second, "time-out while waiting for transaction to arrive at %s", receiver) {
 			return false
 		}
-<<<<<<< HEAD
 	} // TODO: reduce timeout when store sync is configurable, https://github.com/nuts-foundation/nuts-node/issues/1218
-=======
-	} // TODO: reduce timeout store sync is configurable
->>>>>>> c7954e3 (replace bbolt with stoabs in dag)
 	return true
 }
 
@@ -883,13 +880,16 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 	if err := instance.Start(); err != nil {
 		t.Fatal(err)
 	}
-	instance.Subscribe(TransactionPayloadAddedEvent, payloadType, func(transaction dag.Transaction, payload []byte) error {
+	_ = instance.Subscribe(t.Name(), func(event dag.Event) (bool, error) {
 		mutex.Lock()
 		defer mutex.Unlock()
-		log.Logger().Infof("transaction %s arrived at %s", string(payload), name)
-		receivedTransactions[name] = append(receivedTransactions[name], transaction)
-		return nil
-	})
+		log.Logger().Infof("transaction %s arrived at %s", string(event.Payload), name)
+		receivedTransactions[name] = append(receivedTransactions[name], event.Transaction)
+		return true, nil
+	}, dag.WithSelectionFilter(func(event dag.Event) bool {
+		return event.Type == dag.PayloadEventType
+	}))
+
 	result := node{
 		network:        instance,
 		eventPublisher: eventPublisher,
@@ -922,4 +922,9 @@ func nameToPort(t *testing.T, name string) int {
 
 func nameToAddress(t *testing.T, name string) string {
 	return fmt.Sprintf("localhost:%d", nameToPort(t, name))
+}
+
+func nameToDID(name string) string {
+	splitted := strings.Split(name, "_")
+	return splitted[len(splitted)-1]
 }

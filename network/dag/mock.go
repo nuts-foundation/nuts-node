@@ -190,30 +190,6 @@ func (mr *MockStateMockRecorder) ReadPayload(ctx, payloadHash interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadPayload", reflect.TypeOf((*MockState)(nil).ReadPayload), ctx, payloadHash)
 }
 
-// RegisterPayloadObserver mocks base method.
-func (m *MockState) RegisterPayloadObserver(observer PayloadObserver, transactional bool) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "RegisterPayloadObserver", observer, transactional)
-}
-
-// RegisterPayloadObserver indicates an expected call of RegisterPayloadObserver.
-func (mr *MockStateMockRecorder) RegisterPayloadObserver(observer, transactional interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterPayloadObserver", reflect.TypeOf((*MockState)(nil).RegisterPayloadObserver), observer, transactional)
-}
-
-// RegisterTransactionObserver mocks base method.
-func (m *MockState) RegisterTransactionObserver(observer Observer, transactional bool) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "RegisterTransactionObserver", observer, transactional)
-}
-
-// RegisterTransactionObserver indicates an expected call of RegisterTransactionObserver.
-func (mr *MockStateMockRecorder) RegisterTransactionObserver(observer, transactional interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterTransactionObserver", reflect.TypeOf((*MockState)(nil).RegisterTransactionObserver), observer, transactional)
-}
-
 // Shutdown mocks base method.
 func (m *MockState) Shutdown() error {
 	m.ctrl.T.Helper()

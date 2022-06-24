@@ -26,11 +26,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nats-io/nats.go"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"sort"
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/go-did/did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -53,7 +54,7 @@ var ErrThumbprintMismatch = errors.New("thumbprint of signing key does not match
 // DID Documents received through the network.
 type Ambassador interface {
 	// Configure instructs the ambassador to start receiving DID Documents from the network.
-	Configure()
+	Configure() error
 	// Start the event listener
 	Start() error
 }
@@ -64,22 +65,33 @@ type ambassador struct {
 	keyResolver   types.KeyResolver
 	docResolver   types.DocResolver
 	eventManager  events.Event
+	storageClient storage.Engine
 }
 
 // NewAmbassador creates a new Ambassador,
-func NewAmbassador(networkClient network.Transactions, didStore types.Store, eventManager events.Event) Ambassador {
+func NewAmbassador(networkClient network.Transactions, didStore types.Store, eventManager events.Event, storageClient storage.Engine) Ambassador {
 	return &ambassador{
 		networkClient: networkClient,
 		didStore:      didStore,
 		keyResolver:   doc.KeyResolver{Store: didStore},
 		docResolver:   doc.Resolver{Store: didStore},
 		eventManager:  eventManager,
+		storageClient: storageClient,
 	}
 }
 
 // Configure instructs the ambassador to start receiving DID Documents from the network.
-func (n *ambassador) Configure() {
-	n.networkClient.Subscribe(network.TransactionPayloadAddedEvent, didDocumentType, n.callback)
+func (n *ambassador) Configure() error {
+	kvStore, err := n.storageClient.GetProvider("network").GetKVStore("data")
+	if err != nil {
+		return fmt.Errorf("failed to get DAG datastore: %w", err)
+	}
+
+	return n.networkClient.Subscribe("vdr", n.handleNetworkEvent,
+		dag.WithPersistency(kvStore),
+		dag.WithSelectionFilter(func(event dag.Event) bool {
+			return event.Type == dag.PayloadEventType && event.Transaction.PayloadType() == didDocumentType
+		}))
 }
 
 func (n *ambassador) Start() error {
@@ -120,6 +132,13 @@ func (n *ambassador) handleReprocessEvent(msg *nats.Msg) {
 	}
 
 	return
+}
+
+func (n *ambassador) handleNetworkEvent(event dag.Event) (bool, error) {
+	if err := n.callback(event.Transaction, event.Payload); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // thumbprintAlg is used for creating public key thumbprints

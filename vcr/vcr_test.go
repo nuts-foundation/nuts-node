@@ -21,6 +21,7 @@ package vcr
 
 import (
 	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"os"
 	"path"
 	"strings"
@@ -50,7 +51,7 @@ import (
 func TestVCR_Start(t *testing.T) {
 
 	t.Run("error - creating db", func(t *testing.T) {
-		instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil).(*vcr)
+		instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, nil).(*vcr)
 
 		_ = instance.Configure(core.ServerConfig{Datadir: "test"})
 		err := instance.Start()
@@ -73,6 +74,7 @@ func TestVCR_Start(t *testing.T) {
 			network.NewTestNetworkInstance(path.Join(testDirectory, "network")),
 			jsonld.NewTestJSONLDManager(t),
 			events.NewTestManager(t),
+			storage.NewTestStorageEngine(testDirectory),
 		).(*vcr)
 		if err := instance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
 			t.Fatal(err)
@@ -108,18 +110,6 @@ func TestVCR_Start(t *testing.T) {
 			return nil
 		})
 	})
-}
-
-func TestVCR_Shutdown(t *testing.T) {
-	m := newMockContext(t)
-
-	_ = m.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
-	err := m.vcr.Start()
-	if !assert.NoError(t, err) {
-		return
-	}
-	err = m.vcr.Shutdown()
-	assert.NoError(t, err)
 }
 
 func TestVCR_Resolve(t *testing.T) {
