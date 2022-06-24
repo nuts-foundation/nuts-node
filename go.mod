@@ -28,7 +28,7 @@ require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.5.0
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.7.4
+	github.com/stretchr/testify v1.7.5
 	github.com/twmb/murmur3 v1.1.6
 	go.etcd.io/bbolt v1.3.6
 	go.uber.org/atomic v1.9.0
@@ -62,7 +62,6 @@ require (
 	github.com/edsrzf/mmap-go v1.0.0 // indirect
 	github.com/eknkc/basex v1.0.0 // indirect
 	github.com/fatih/color v1.13.0 // indirect
-	github.com/fatih/structs v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/fxamacker/cbor v1.5.0 // indirect
 	github.com/getsentry/raven-go v0.0.0-20180121060056-563b81fc02b7 // indirect
