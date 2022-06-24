@@ -139,6 +139,22 @@ func TestSubscriber_Save(t *testing.T) {
 		})
 	})
 
+	t.Run("error on wrong DB", func(t *testing.T) {
+		s, _ := persistentSubscriber(t)
+
+		testDir := io.TestDirectory(t)
+		dummyDB, err := bbolt.CreateBBoltStore(path.Join(testDir, "test.db"))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = dummyDB.Write(func(tx stoabs.WriteTx) error {
+			return s.Save(tx, event)
+		})
+
+		assert.Error(t, err)
+	})
+
 	t.Run("Not stored if no persistency", func(t *testing.T) {
 		filePath := io.TestDirectory(t)
 		kvStore, _ := bbolt.CreateBBoltStore(path.Join(filePath, "test.db"))
@@ -206,6 +222,7 @@ func TestSubscriber_Save(t *testing.T) {
 		kvMock := stoabs.NewMockKVStore(ctrl)
 		tx := stoabs.NewMockWriteTx(ctrl)
 		s := NewNotifier(t.Name(), dummyFunc, WithPersistency(kvMock)).(*notifier)
+		tx.EXPECT().Store().Return(kvMock)
 		tx.EXPECT().GetShelfWriter(s.shelfName()).Return(nil, errors.New("failure"))
 
 		err := s.Save(tx, Event{})
@@ -222,6 +239,7 @@ func TestSubscriber_Save(t *testing.T) {
 		tx := stoabs.NewMockWriteTx(ctrl)
 		writer := stoabs.NewMockWriter(ctrl)
 		s := NewNotifier(t.Name(), dummyFunc, WithPersistency(kvMock)).(*notifier)
+		tx.EXPECT().Store().Return(kvMock)
 		tx.EXPECT().GetShelfWriter(s.shelfName()).Return(writer, nil)
 		writer.EXPECT().Get(stoabs.BytesKey(hash.EmptyHash().Slice())).Return(nil, errors.New("failure"))
 

@@ -21,6 +21,7 @@ package dag
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/avast/retry-go/v4"
 	"github.com/nuts-foundation/go-stoabs"
@@ -227,6 +228,11 @@ func (p *notifier) Save(tx stoabs.WriteTx, event Event) error {
 	// non-persistent job
 	if p.db == nil {
 		return nil
+	}
+
+	// check if tx is on the same DB
+	if tx.Store() != p.db {
+		return errors.New("trying to save Event on different DB")
 	}
 
 	writer, err := tx.GetShelfWriter(p.shelfName())
