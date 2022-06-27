@@ -20,7 +20,6 @@ package storage
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
@@ -90,8 +89,6 @@ func (e engine) Shutdown() error {
 func (e *engine) Configure(config core.ServerConfig) error {
 	e.datadir = config.Datadir
 
-	data, _ := json.MarshalIndent(e.config, "  ", "  ")
-	println(string(data))
 	bboltDB, err := createBBoltDatabase(config.Datadir, e.config.Databases.BBolt)
 	if err != nil {
 		return fmt.Errorf("unable to configure BBolt database: %w", err)

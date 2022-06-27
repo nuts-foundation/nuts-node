@@ -69,7 +69,7 @@ func Test_bboltDatabase_startBackup(t *testing.T) {
 	backupDir := path.Join(datadir, "backups")
 	db, _ := createBBoltDatabase(datadir, BBoltConfig{BBoltBackupConfig{
 		Directory: backupDir,
-		Interval:  MarshallingDuration(time.Second),
+		Interval:  time.Second,
 	}})
 
 	t.Run("scheduled backup is performed", func(t *testing.T) {

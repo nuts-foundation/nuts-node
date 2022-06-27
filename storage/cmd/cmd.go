@@ -26,6 +26,6 @@ import (
 func FlagSet() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("storage", pflag.ContinueOnError)
 	flagSet.String("storage.databases.bbolt.backup.directory", "", "Target directory for BBolt database backups.")
-	flagSet.String("storage.databases.bbolt.backup.interval", "", "Interval, formatted as Golang duration (e.g. 10m, 1h) at which BBolt database backups will be performed.")
+	flagSet.String("storage.databases.bbolt.backup.interval", "0", "Interval, formatted as Golang duration (e.g. 10m, 1h) at which BBolt database backups will be performed.")
 	return flagSet
 }

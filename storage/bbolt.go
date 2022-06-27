@@ -122,7 +122,6 @@ func (b bboltDatabase) performBackup(moduleName string, storeName string, store 
 	// Write backup to "store.db.work"
 	// Rename existing backup ("store.db") to "store.db.previous"
 	// Rename "store.db.work" to "store.db"
-	// Remove work file
 	return store.Read(func(tx stoabs.ReadTx) error {
 		// Make sure the parent directory exists
 		err := os.MkdirAll(path.Dir(backupFilePath), os.ModePerm)
