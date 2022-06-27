@@ -14,7 +14,7 @@ The following is needed to connect a Nuts node to a network:
 2. A network you want to join.
 3. A TLS client- and server certificate which is accepted by the other nodes in the network (e.g. PKIoverheid).
 4. The public address of one or more remote nodes you'd like to use as bootstrap nodes.
-5. A node Identity to identify yourself in te network
+5. A node Identity to identify yourself in te network (optionally)
 
 Networks
 ========
