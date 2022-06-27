@@ -25,7 +25,7 @@ There are 3 networks:
 
 - `development` where new features are tested. Nodes will generally run the newest (not yet released) version of the Nuts node.
 - `stable` for integrating your software with Nuts and testing with other vendors. Nodes will generally run the latest released version (or at least a recent one).
-- `production` for production uses. Connecting to this network involves PKIoverheid certificates and outside the cope of this tutorial.
+- `production` for production uses. Connecting to this network involves PKIoverheid certificates and outside the scope of this tutorial.
 
 Node TLS Certificate
 ====================
@@ -34,7 +34,7 @@ Before you can join a network, your node needs a certificate from the correct Ce
 
 To generate the certificate for your own node you need the ``https://github.com/nuts-foundation/nuts-development-network-ca`` repository. It contains handy scripts and the needed key material. For more information how to use, consult the `README <https://github.com/nuts-foundation/nuts-development-network-ca/blob/master/README.md>`_
 
-Your node only accepts requests from other nodes which use a certificate issued by one of the trusted CAs. Which CAs to trust is configured by providing a truststore file. The truststore is a PEM file which contains a set of one or more certificates from CAs which the network participants all decided on to trust.
+Your node only accepts connections from other nodes which use a certificate issued by one of the trusted CAs. Trusted CAs are using a truststore file. The truststore is a PEM file which contains one or more certificates from CAs which the network participants all decided on to trust.
 To learn more about how a Nuts network uses certificates, see the specification `RFC008 <https://nuts-foundation.gitbook.io/drafts/rfc/rfc008-certificate-structure>`_.
 
 
@@ -56,7 +56,7 @@ This results in 3 files:
 Bootstrap nodes
 ===============
 
-A bootstrap node is just a normal Nuts node which is available for other nodes to connect to. When you want to join a network, you must approach another network participant and ask for its public endpoint. After connecting, you receive a copy of the current state of the network. These transactions contain endpoints of other nodes. After a reboot, your node will try to connect to other nodes discoverd in the network. Your node must connect to the others GRPC endpoint which is usually configured on the ``5555`` port.
+A bootstrap node is just a normal Nuts node which is available for other nodes to connect to. When you want to join a network, you must approach another network participant and ask for its public (gRPC) endpoint. After connecting, you receive a copy of the current state of the network. These transactions contain endpoints of other nodes. After a reboot, your node will try to connect to other nodes discoverd in the network. Your node will have to connect to the bootstrap node's gRPC endpoint which is configured on port ``5555`` by default.
 
 Consult the community on `Slack <https://nuts-foundation.slack.com/>`_ in the ``#development`` channel to find out which public bootstrap nodes are available to connect to your network of choice.
 
@@ -89,7 +89,7 @@ See "Node Discovery" below for more information on registering the ``NutsComm`` 
 
 .. note::
 
-    After registering of the ``nodedid``, you need to reboot your node in order to receive private transactions.
+    After registering ``nodedid`` you need to reboot your node in order have your connections authenticated, which is required to receive private transactions.
 
 .. note::
 
