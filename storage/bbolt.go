@@ -56,6 +56,7 @@ type BBoltBackupConfig struct {
 	Interval time.Duration `koanf:"interval"`
 }
 
+// Enabled returns whether backups are enabled for BBolt.
 func (b BBoltBackupConfig) Enabled() bool {
 	return b.Interval > 0 && len(b.Directory) > 0
 }
