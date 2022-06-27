@@ -56,7 +56,7 @@ This results in 3 files:
 Bootstrap nodes
 ===============
 
-A bootstrap node is just a normal Nuts node which is available for other nodes to connect to. When you want to join a network, you must approach another network participant and ask for its public endpoint. After connecting, this node will sent an address list of other connected nodes (this requires you to configure a Network Identity and NutsComm endpoint, see further down for more information). Your node must connect to the others GRPC endpoint which is usually configured on the ``5555`` port.
+A bootstrap node is just a normal Nuts node which is available for other nodes to connect to. When you want to join a network, you must approach another network participant and ask for its public endpoint. After connecting, you receive a copy of the current state of the network. These transactions contain endpoints of other nodes. After a reboot, your node will try to connect to other nodes discoverd in the network. Your node must connect to the others GRPC endpoint which is usually configured on the ``5555`` port.
 
 Consult the community on `Slack <https://nuts-foundation.slack.com/>`_ in the ``#development`` channel to find out which public bootstrap nodes are available to connect to your network of choice.
 
@@ -89,6 +89,10 @@ See "Node Discovery" below for more information on registering the ``NutsComm`` 
 
 .. note::
 
+    After registering of the ``nodedid``, you need to reboot your node in order to receive private transactions.
+
+.. note::
+
     Multiple nodes may share the same DID, if they're governed by the same organization (e.g., clustered setups).
 
 
@@ -110,8 +114,7 @@ If you're using a YAML file to configure your node, the following snippet shows 
 Node Discovery
 ==============
 
-To allow your Nuts node to be discovered by other nodes, so they can connect to it,
-you need to register a ``NutsComm`` endpoint on your vendor DID document.
+To allow your Nuts node to be discovered by other nodes (so they can connect to it) and be able to receive private transactions, you need to register a ``NutsComm`` endpoint on your vendor DID document.
 The ``NutsComm`` endpoint contains a URL to your node's public gRPC service,
 and must be in the form of ``grpc://<host>:<port>``.
 E.g., if it were to run on ``nuts.nl:5555``, the value of the ``NutsComm`` endpoint should be ``grpc://nuts.nl:5555``
@@ -125,6 +128,7 @@ You can register the ``NutsComm`` endpoint by calling ``addEndpoint`` on the DID
         "type": "NutsComm",
         "endpoint": "grpc://nuts.nl:5555"
     }
+
 
 Care Organizations
 ******************
