@@ -37,10 +37,12 @@ func (w *Wrapper) ResolveVC(ctx echo.Context, id string) error {
 		return core.InvalidInputError("invalid credential id: %w", err)
 	}
 	result, err := w.VCR.Resolve(*vcID, nil)
-	if err != nil {
-		return err
+	if result != nil {
+		// When err != nil credential is untrusted or revoked, credential is still returned.
+		// This API call must return the VC regardless its status: https://github.com/nuts-foundation/nuts-node/issues/1221
+		return ctx.JSON(http.StatusOK, *result)
 	}
-	return ctx.JSON(http.StatusOK, *result)
+	return err
 }
 
 // SearchVCs checks the context used in the JSON-LD query, based on the contents it maps to a non-JSON-LD query
