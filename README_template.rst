@@ -40,7 +40,7 @@ Development
 Configuration
 ^^^^^^^^^^^^^
 
-.. include:: docs/pages/configuration/configuration.rst
+.. include:: docs/pages/deployment/configuration.rst
     :start-after: .. marker-for-readme
 
 CLI options

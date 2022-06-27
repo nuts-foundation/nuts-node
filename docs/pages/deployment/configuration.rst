@@ -1,7 +1,7 @@
 .. _nuts-node-config:
 
-Nuts node config
-################
+Configuring the Nuts Node
+#########################
 
 .. marker-for-readme
 
