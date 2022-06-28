@@ -19,9 +19,15 @@ The following is needed to connect a Nuts node to a network:
 Networks
 ========
 
-A network is a set of nodes who trust each other. They share a single root transaction. Trust is put in one or more network authorities who issue certificates (Certificate Authorities or CAs). Each node can be configured with a certificate and a set of trusted Certificate Authorities.
+A network contains of a set of nodes who can all communicate with each other.
+To make this possible, each of the nodes must meet the following requirements:
 
-There are 3 networks:
+- Share a common set of trusted Certificate Authorities.
+- Use a certificate issued by one of the CAs.
+- The network transactions share the same root transaction.
+- Use and accept network protocol versions from an agreed upon set.
+
+There are 3 official Nuts networks:
 
 - `development` where new features are tested. Nodes will generally run the newest (not yet released) version of the Nuts node.
 - `stable` for integrating your software with Nuts and testing with other vendors. Nodes will generally run the latest released version (or at least a recent one).
