@@ -89,7 +89,7 @@ func (b bboltDatabase) startBackup(moduleName string, storeName string, store st
 	if !b.config.Backup.Enabled() {
 		return
 	}
-	interval := time.Duration(b.config.Backup.Interval)
+	interval := b.config.Backup.Interval
 	log.Logger().Infof("BBolt database %s/%s will be backuped at interval of %s", moduleName, storeName, interval)
 	ticker := time.NewTicker(interval)
 

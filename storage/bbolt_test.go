@@ -61,6 +61,40 @@ func Test_bboltDatabase_performBackup(t *testing.T) {
 		}
 		assert.Equal(t, value, actualValue)
 	})
+
+	t.Run("subsequent backups", func(t *testing.T) {
+		store, _ := db.createStore(moduleName, storeName)
+		defer store.Close(context.Background())
+
+		var newValue = []byte{10, 11, 12}
+
+		// Write data, then backup, then overwrite the value and backup again. Check that the backup contains the most recent data.
+		_ = store.WriteShelf("data", func(writer stoabs.Writer) error {
+			return writer.Put(key, value)
+		})
+		_ = db.performBackup(moduleName, storeName, store)
+
+		_ = store.WriteShelf("data", func(writer stoabs.Writer) error {
+			return writer.Put(key, newValue)
+		})
+		_ = db.performBackup(moduleName, storeName, store)
+
+		// Close the store, reopen backup
+		backupFile := path.Join(backupDir, db.getRelativeStorePath(moduleName, storeName))
+		_ = store.Close(context.Background())
+		store, _ = bbolt.CreateBBoltStore(backupFile)
+
+		// Read value and compare
+		var actualValue []byte
+		err := store.ReadShelf("data", func(reader stoabs.Reader) error {
+			actualValue, _ = reader.Get(key)
+			return nil
+		})
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, newValue, actualValue)
+	})
 }
 
 func Test_bboltDatabase_startBackup(t *testing.T) {
@@ -84,6 +118,11 @@ func Test_bboltDatabase_startBackup(t *testing.T) {
 		time.Sleep(time.Second)
 		db.close()
 
+		db.shutdownWatcher.Wait()
 		assert.FileExists(t, path.Join(backupDir, db.getRelativeStorePath(moduleName, storeName)))
 	})
+}
+
+func Test_bboltDatabase_getClass(t *testing.T) {
+	assert.Equal(t, VolatileStorageClass, bboltDatabase{}.getClass())
 }

@@ -46,7 +46,7 @@ type Class int
 
 const (
 	// VolatileStorageClass means losing the storage has no/little implications due to data loss (e.g. caches).
-	VolatileStorageClass = iota
+	VolatileStorageClass Class = iota
 	// PersistentStorageClass means losing the storage should never happen, because it has major implications.
 	PersistentStorageClass = iota
 )
