@@ -14,3 +14,16 @@ When connecting to a remote node, the following error can occur:
 
 This indicates the server is using TLS, but the local node is trying to connect without TLS.
 Check the `network.tls.enabled` setting.
+
+Error: `JWT signing key not present on this node`
+*************************************************
+
+When inspecting an access token, the following error can occur:
+
+    Error while inspecting access token (error: JWT signing key not present on this node)
+
+This indicates the JWT token you send to the Nuts node can't be introspected by the Nuts node,
+because it can't find the private key to create the token. This can have 2 causes:
+
+# Calls are mixed up; token introspection must be done by the Nuts node (*authorizer*) that created it for the consuming node (*requestor*).
+# Your node's private key storage is corrupt and your node lost access to its private keys (less probable).
