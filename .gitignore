@@ -23,11 +23,13 @@ data
 # MacOS
 .DS_Store
 
-# ignore generated pem files from running the nuts-node executable.
+# ignore generated pem and key files from running the nuts-node executable.
 /*.pem
+/*.key
 
 # ignore generated database files
 /*.db
 
 /nuts-node
 nuts.yaml
+

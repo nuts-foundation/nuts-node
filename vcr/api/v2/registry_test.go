@@ -135,7 +135,7 @@ func TestWrapper_SearchVCs(t *testing.T) {
 			_ = json.Unmarshal([]byte(organizationQuery), f)
 		})
 		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{}, nil)
-		ctx.echo.EXPECT().JSON(http.StatusOK, SearchVCResults{[]SearchVCResult{}})
+		ctx.echo.EXPECT().JSON(http.StatusOK, SearchVCResults{VerifiableCredentials: []SearchVCResult{}})
 
 		err := ctx.client.SearchVCs(ctx.echo)
 
@@ -163,7 +163,7 @@ func TestWrapper_SearchVCs(t *testing.T) {
 				assert.Equal(t, 2, count)
 			}
 		})
-		ctx.echo.EXPECT().JSON(http.StatusOK, SearchVCResults{[]SearchVCResult{}})
+		ctx.echo.EXPECT().JSON(http.StatusOK, SearchVCResults{VerifiableCredentials: []SearchVCResult{}})
 
 		err := ctx.client.SearchVCs(ctx.echo)
 
@@ -178,7 +178,7 @@ func TestWrapper_SearchVCs(t *testing.T) {
 			_ = json.Unmarshal([]byte(untrustedOrganizationQuery), f)
 		})
 		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, true, gomock.Any()).Return([]vc.VerifiableCredential{}, nil)
-		ctx.echo.EXPECT().JSON(http.StatusOK, SearchVCResults{[]SearchVCResult{}})
+		ctx.echo.EXPECT().JSON(http.StatusOK, SearchVCResults{VerifiableCredentials: []SearchVCResult{}})
 
 		err := ctx.client.SearchVCs(ctx.echo)
 

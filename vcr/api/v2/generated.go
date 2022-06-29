@@ -95,6 +95,9 @@ type IssueVCRequestVisibility string
 type SearchOptions struct {
 	// If set to true, VCs from an untrusted issuer are returned.
 	AllowUntrustedIssuer *bool `json:"allowUntrustedIssuer,omitempty"`
+
+	// Debug the query by adding the JSON-LD expanded form to the result set.
+	DebugQuery *bool `json:"debugQuery,omitempty"`
 }
 
 // result of a Search operation.
@@ -108,6 +111,8 @@ type SearchVCResult struct {
 
 // result of a Search operation.
 type SearchVCResults struct {
+	// Contains the query in JSON-LD expanded form which allows for debugging a request.
+	ExpandedQuery         *[]interface{}   `json:"expandedQuery,omitempty"`
 	VerifiableCredentials []SearchVCResult `json:"verifiableCredentials"`
 }
 

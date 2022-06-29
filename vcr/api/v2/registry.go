@@ -19,6 +19,7 @@
 package v2
 
 import (
+	"encoding/json"
 	"net/http"
 	"sort"
 	"strings"
@@ -53,18 +54,10 @@ func (w *Wrapper) SearchVCs(ctx echo.Context) error {
 	}
 
 	var request searchVCRequest
+	result := SearchVCResults{}
 	err := ctx.Bind(&request)
 	if err != nil {
 		return core.InvalidInputError("failed to parse request body: %w", err)
-	}
-
-	untrusted := false
-	if request.SearchOptions != nil && request.SearchOptions.AllowUntrustedIssuer != nil {
-		untrusted = *request.SearchOptions.AllowUntrustedIssuer
-	}
-
-	if credentials, ok := request.Query["credentialSubject"].([]interface{}); ok && len(credentials) > 1 {
-		return core.InvalidInputError("can't match on multiple VC subjects")
 	}
 
 	reader := jsonld.Reader{DocumentLoader: w.ContextManager.DocumentLoader()}
@@ -73,6 +66,21 @@ func (w *Wrapper) SearchVCs(ctx echo.Context) error {
 		return core.InvalidInputError("failed to convert query to JSON-LD expanded form: %w", err)
 	}
 	searchTerms := flatten(document, nil)
+	untrusted := false
+	if request.SearchOptions != nil && request.SearchOptions.AllowUntrustedIssuer != nil {
+		untrusted = *request.SearchOptions.AllowUntrustedIssuer
+		if request.SearchOptions.DebugQuery != nil && *request.SearchOptions.DebugQuery {
+			docAsBytes, _ := json.Marshal(document)
+			var docAsArray = []interface{}{}
+			_ = json.Unmarshal(docAsBytes, &docAsArray)
+			result.ExpandedQuery = &docAsArray
+		}
+	}
+
+	// Assert that if the credentialSubject is an array, it only contains 1 subject
+	if credentials, ok := request.Query["credentialSubject"].([]interface{}); ok && len(credentials) > 1 {
+		return core.InvalidInputError("can't match on multiple VC subjects")
+	}
 
 	// sort terms to aid testing
 	sort.Slice(searchTerms, func(i, j int) bool {
@@ -90,7 +98,8 @@ func (w *Wrapper) SearchVCs(ctx echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return ctx.JSON(http.StatusOK, SearchVCResults{searchResults})
+	result.VerifiableCredentials = searchResults
+	return ctx.JSON(http.StatusOK, result)
 }
 
 func flatten(document interface{}, currentPath []string) []vcr.SearchTerm {

@@ -183,7 +183,7 @@ func (w *Wrapper) SearchIssuedVCs(ctx echo.Context, params SearchIssuedVCsParams
 	if err != nil {
 		return err
 	}
-	return ctx.JSON(http.StatusOK, SearchVCResults{result})
+	return ctx.JSON(http.StatusOK, SearchVCResults{VerifiableCredentials: result})
 }
 
 // VerifyVC handles API request to verify a  Verifiable Credential.

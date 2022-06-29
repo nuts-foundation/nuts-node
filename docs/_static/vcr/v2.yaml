@@ -479,6 +479,9 @@ components:
       required:
         - verifiableCredentials
       properties:
+        expandedQuery:
+          description: Contains the query in JSON-LD expanded form which allows for debugging a request.
+          type: array
         verifiableCredentials:
           type: array
           items:
@@ -498,6 +501,10 @@ components:
       properties:
         allowUntrustedIssuer:
           description: If set to true, VCs from an untrusted issuer are returned.
+          type: boolean
+          default: false
+        debugQuery:
+          description: Debug the query by adding the JSON-LD expanded form to the result set.
           type: boolean
           default: false
     Revocation:
