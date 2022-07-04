@@ -42,8 +42,6 @@ type Transactions interface {
 	// ListTransactionsInRange returns all transactions known to this Network instance with lamport clock value between startInclusive and endExclusive.
 	// endExclusive must be larger than startInclusive.
 	ListTransactionsInRange(startInclusive uint32, endExclusive uint32) ([]dag.Transaction, error)
-	// Walk walks the DAG starting at the root, calling `visitor` for every transaction.
-	Walk(visitor dag.Visitor) error
 	// PeerDiagnostics returns a map containing diagnostic information of the node's peers. The key contains the remote peer's ID.
 	PeerDiagnostics() map[transport.PeerID]transport.Diagnostics
 	// Reprocess walks the DAG and publishes all transactions matching the contentType via Nats
