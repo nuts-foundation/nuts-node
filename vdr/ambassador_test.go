@@ -168,6 +168,23 @@ func TestAmbassador_handleReprocessEvent(t *testing.T) {
 	})
 }
 
+func TestAmbassador_handleNetworkEvent(t *testing.T) {
+	t.Run("nok - incorrect payloadType", func(t *testing.T) {
+		tx := testTransaction{
+			signingKeyID: signingKeyID,
+			signingTime:  time.Unix(1628000000, 0),
+			ref:          hash.SHA256Sum([]byte("ref")),
+			payloadHash:  hash.SHA256Sum([]byte("payload")),
+			payloadType:  didDocumentType,
+		}
+		tx.payloadType = ""
+		am := ambassador{}
+		value, err := am.handleNetworkEvent(dag.Event{Transaction: tx})
+		assert.False(t, value)
+		assert.EqualError(t, err, "could not process new DID Document: wrong payload type for this subscriber. Can handle: application/did+json, got: ")
+	})
+}
+
 func TestAmbassador_callback(t *testing.T) {
 	// tests based upon time based resolvement of DID documents
 	signingTime := time.Unix(1628000000, 0)

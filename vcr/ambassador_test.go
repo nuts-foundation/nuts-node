@@ -155,7 +155,6 @@ func TestAmbassador_vcCallback(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		wMock := NewMockWriter(ctrl)
-		defer ctrl.Finish()
 
 		target := vc.VerifiableCredential{}
 		a := NewAmbassador(nil, wMock, nil, nil, nil).(*ambassador)
@@ -176,7 +175,6 @@ func TestAmbassador_vcCallback(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		wMock := NewMockWriter(ctrl)
-		defer ctrl.Finish()
 
 		a := NewAmbassador(nil, wMock, nil, nil, nil).(*ambassador)
 		wMock.EXPECT().StoreCredential(gomock.Any(), &validAt).Return(errors.New("b00m!"))
@@ -189,12 +187,31 @@ func TestAmbassador_vcCallback(t *testing.T) {
 	t.Run("error - invalid payload", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		wMock := NewMockWriter(ctrl)
-		defer ctrl.Finish()
 
 		a := NewAmbassador(nil, wMock, nil, nil, nil).(*ambassador)
 
 		err := a.vcCallback(stx, []byte("{"))
 
+		assert.Error(t, err)
+	})
+}
+
+func TestAmbassador_handleNetworkVCs(t *testing.T) {
+	tx, _ := dag.NewTransaction(hash.EmptyHash(), types.VcDocumentType, nil, nil, 0)
+	stx := tx.(dag.Transaction)
+
+	t.Run("error - invalid payload", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		wMock := NewMockWriter(ctrl)
+
+		a := NewAmbassador(nil, wMock, nil, nil, nil).(*ambassador)
+
+		value, err := a.handleNetworkVCs(dag.Event{
+			Transaction: stx,
+			Payload:     []byte("{"),
+		})
+
+		assert.False(t, value)
 		assert.Error(t, err)
 	})
 }
