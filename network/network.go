@@ -298,12 +298,12 @@ func (n *Network) Start() error {
 		}
 	}
 
-	// Start connection management and protocols
 	for _, prot := range n.protocols {
 		if err = prot.Start(); err != nil {
 			return err
 		}
 	}
+	// Start connection management and protocols
 	err = n.connectionManager.Start()
 	if err != nil {
 		return err

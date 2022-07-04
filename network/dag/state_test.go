@@ -42,14 +42,11 @@ import (
 )
 
 func TestState_relayingFuncs(t *testing.T) {
-	println("start")
 	ctx := context.Background()
 	txState := createState(t)
 	tx, _, _ := CreateTestTransaction(1)
 	payload := []byte{0, 0, 0, 1}
-	println("pre-add")
 	txState.Add(ctx, tx, payload)
-	println("post-add")
 	payloadHash := hash.SHA256Sum(payload)
 	lastTx := tx
 	for i := 1; i < 10; i++ {

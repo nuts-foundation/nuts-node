@@ -29,7 +29,7 @@ const MaxReprocessBufferSize = 1000000
 
 // Transactions is the interface that defines the API for creating, reading and subscribing to Nuts Network transactions.
 type Transactions interface {
-	// Subscribe register a receiver for the specified transaction type. The receiver is called when a transaction
+	// Subscribe registers a receiver for the specified transaction type. The receiver is called when a transaction
 	// matches with the given dag.NotificationFilter's.
 	Subscribe(name string, receiver dag.ReceiverFn, filters ...dag.NotifierOption) error
 	// GetTransactionPayload retrieves the transaction Payload for the given transaction. If the transaction or Payload is not found
