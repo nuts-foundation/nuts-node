@@ -148,7 +148,7 @@ func (p *protocol) Configure(_ transport.PeerID) error {
 	if nodeDID.Empty() {
 		log.Logger().Warn("Not starting the payload scheduler as node DID is not set")
 	} else {
-		store, err := p.storageProvider.GetKVStore("data")
+		store, err := p.storageProvider.GetKVStore("data", storage.PersistentStorageClass)
 		if err != nil {
 			return fmt.Errorf("failed to register transaction listener for private transactions: %w", err)
 		}

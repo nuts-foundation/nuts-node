@@ -60,7 +60,7 @@ func TestAmbassador_Configure(t *testing.T) {
 
 		a := NewAmbassador(nMock, nil, nil, nil, sMock)
 		sMock.EXPECT().GetProvider("network").Return(pMock)
-		pMock.EXPECT().GetKVStore("data")
+		pMock.EXPECT().GetKVStore("data", gomock.Any())
 		nMock.EXPECT().Subscribe("vcr_vcs", gomock.Any(), gomock.Any())
 		nMock.EXPECT().Subscribe("vcr_revocations", gomock.Any(), gomock.Any())
 

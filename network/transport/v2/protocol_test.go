@@ -106,7 +106,7 @@ func TestDefaultConfig(t *testing.T) {
 func TestProtocol_Configure(t *testing.T) {
 	testDID, _ := did.ParseDID("did:nuts:123")
 	p, mocks := newTestProtocol(t, testDID)
-	mocks.StorageProvider.EXPECT().GetKVStore("data").Return(stoabs.NewMockKVStore(mocks.Controller), nil)
+	mocks.StorageProvider.EXPECT().GetKVStore("data", gomock.Any()).Return(stoabs.NewMockKVStore(mocks.Controller), nil)
 	mocks.State.EXPECT().Notifier("private", gomock.Any(), gomock.Len(3))
 	mocks.State.EXPECT().Notifier("gossip", gomock.Any(), gomock.Len(2))
 

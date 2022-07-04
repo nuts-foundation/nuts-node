@@ -67,7 +67,7 @@ func NewAmbassador(networkClient network.Transactions, writer Writer, verifier v
 
 // Configure instructs the ambassador to start receiving DID Documents from the network.
 func (n ambassador) Configure() error {
-	kvStore, err := n.storageClient.GetProvider("network").GetKVStore("data")
+	kvStore, err := n.storageClient.GetProvider("network").GetKVStore("data", storage.PersistentStorageClass)
 	if err != nil {
 		return fmt.Errorf("failed to get DAG datastore: %w", err)
 	}

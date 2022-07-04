@@ -134,8 +134,8 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 		mux: &sync.Mutex{},
 	}
 
-	storage := storage.NewTestStorageEngine(testDirectory)
-	bboltStore, err := storage.GetProvider("network").GetKVStore("data")
+	storageClient := storage.NewTestStorageEngine(testDirectory)
+	bboltStore, err := storageClient.GetProvider("network").GetKVStore("data", storage.PersistentStorageClass)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,10 +164,10 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 	}
 	peerID := transport.PeerID(name)
 	listenAddress := fmt.Sprintf("localhost:%d", nameToPort(name))
-	ctx.protocol = New(*cfg, transport.FixedNodeDIDResolver{}, ctx.state, doc.Resolver{Store: vdrStore}, keyStore, nil, storage.GetProvider("network")).(*protocol)
+	ctx.protocol = New(*cfg, transport.FixedNodeDIDResolver{}, ctx.state, doc.Resolver{Store: vdrStore}, keyStore, nil, storageClient.GetProvider("network")).(*protocol)
 
 	authenticator := grpc.NewTLSAuthenticator(doc.NewServiceResolver(&doc.Resolver{Store: store.NewMemoryStore()}))
-	connectionsStore, _ := storage.GetProvider("network").GetKVStore("connections")
+	connectionsStore, _ := storageClient.GetProvider("network").GetKVStore("connections", storage.VolatileStorageClass)
 	ctx.connectionManager = grpc.NewGRPCConnectionManager(grpc.NewConfig(listenAddress, peerID), connectionsStore, &transport.FixedNodeDIDResolver{NodeDID: did.DID{}}, authenticator, ctx.protocol)
 
 	ctx.protocol.Configure(peerID)
