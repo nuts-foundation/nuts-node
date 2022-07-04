@@ -22,7 +22,7 @@ paths:
     get:
       summary: "Resolves a verifiable credential"
       description: >
-        Returns the resolved credential, whether its revocation/trust state.
+        Returns the resolved credential, regardless of its revocation/trust state.
 
         error returns:
         * 404 - Corresponding credential could not be found

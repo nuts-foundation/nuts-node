@@ -245,6 +245,17 @@ func TestWrapper_ResolveVC(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("ok (verify error, but still returned)", func(t *testing.T) {
+		ctx := newMockContext(t)
+
+		ctx.vcr.EXPECT().Resolve(id, nil).Return(&credential, errors.New("failed"))
+		ctx.echo.EXPECT().JSON(http.StatusOK, credential)
+
+		err := ctx.client.ResolveVC(ctx.echo, id.String())
+
+		assert.NoError(t, err)
+	})
+
 	t.Run("error", func(t *testing.T) {
 		ctx := newMockContext(t)
 
