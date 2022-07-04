@@ -145,23 +145,15 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 		log.Logger().Infof("transaction %s arrived at %s", string(event.Payload), name)
 		ctx.mux.Lock()
 		defer ctx.mux.Unlock()
-<<<<<<< HEAD
-		ctx.receivedTXs = append(ctx.receivedTXs, transaction)
-		return nil
-
-	}, false)
-	err = ctx.state.Start()
-	if err != nil {
-		t.Fatal(err)
-	}
-=======
 		ctx.receivedTXs = append(ctx.receivedTXs, event.Transaction)
 		return true, nil
 	}, dag.WithSelectionFilter(func(event dag.Event) bool {
 		return event.Type == dag.PayloadEventType
 	}))
-	ctx.state.Start()
->>>>>>> 12a443c (removed subscribers on dag.State)
+	err = ctx.state.Start()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	cfg := &Config{
 		GossipInterval: 500,

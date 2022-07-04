@@ -142,11 +142,6 @@ func (s *state) Add(_ context.Context, transaction Transaction, payload []byte) 
 	}), stoabs.OnRollback(func() {
 		log.Logger().Warn("Reloading the XOR and IBLT trees due to a DB transaction Rollback")
 		s.loadTrees()
-	}), stoabs.AfterCommit(func() {
-		s.notify(txEvent)
-		if emitPayloadEvent {
-			s.notify(payloadEvent)
-		}
 	}),
 	)
 }
