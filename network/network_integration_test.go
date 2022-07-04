@@ -669,7 +669,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			xor1, _ := node1.network.state.XOR(context.Background(), 10)
 			xor2, _ := node2.network.state.XOR(context.Background(), 10)
 			return xor1.Equals(xor2), nil
-		}, defaultTimeout, "%s: time-out while waiting for transactions", node2.network.Name())
+		}, 10*time.Second, "%s: time-out while waiting for transactions", node2.network.Name())
 	})
 }
 

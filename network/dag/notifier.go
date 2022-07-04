@@ -264,6 +264,7 @@ func (p *notifier) Notify(event Event) {
 			return
 		}
 	}
+
 	if err := p.runNow(event); err != nil {
 		p.retry(event)
 	}
@@ -278,6 +279,8 @@ func (p *notifier) retry(event Event) {
 	}
 
 	go func(ctx context.Context) {
+		// also an initial delay
+		time.Sleep(delay)
 		err := retry.Do(func() error {
 			return p.runNow(event)
 		},
