@@ -9,10 +9,10 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	go_stoabs "github.com/nuts-foundation/go-stoabs"
 	core "github.com/nuts-foundation/nuts-node/core"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	tree "github.com/nuts-foundation/nuts-node/network/dag/tree"
-	bbolt "go.etcd.io/bbolt"
 )
 
 // MockState is a mock of State interface.
@@ -270,6 +270,20 @@ func (mr *MockStateMockRecorder) Verify() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockState)(nil).Verify))
 }
 
+// Walk mocks base method.
+func (m *MockState) Walk(ctx context.Context, visitor Visitor, startLC uint32) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Walk", ctx, visitor, startLC)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Walk indicates an expected call of Walk.
+func (mr *MockStateMockRecorder) Walk(ctx, visitor, startLC interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Walk", reflect.TypeOf((*MockState)(nil).Walk), ctx, visitor, startLC)
+}
+
 // WritePayload mocks base method.
 func (m *MockState) WritePayload(transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
 	m.ctrl.T.Helper()
@@ -323,7 +337,7 @@ func (m *MockPayloadStore) EXPECT() *MockPayloadStoreMockRecorder {
 }
 
 // isPayloadPresent mocks base method.
-func (m *MockPayloadStore) isPayloadPresent(tx *bbolt.Tx, payloadHash hash.SHA256Hash) bool {
+func (m *MockPayloadStore) isPayloadPresent(tx go_stoabs.ReadTx, payloadHash hash.SHA256Hash) bool {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "isPayloadPresent", tx, payloadHash)
 	ret0, _ := ret[0].(bool)
@@ -337,7 +351,7 @@ func (mr *MockPayloadStoreMockRecorder) isPayloadPresent(tx, payloadHash interfa
 }
 
 // readPayload mocks base method.
-func (m *MockPayloadStore) readPayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash) []byte {
+func (m *MockPayloadStore) readPayload(tx go_stoabs.ReadTx, payloadHash hash.SHA256Hash) []byte {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "readPayload", tx, payloadHash)
 	ret0, _ := ret[0].([]byte)
@@ -351,7 +365,7 @@ func (mr *MockPayloadStoreMockRecorder) readPayload(tx, payloadHash interface{})
 }
 
 // writePayload mocks base method.
-func (m *MockPayloadStore) writePayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash, data []byte) error {
+func (m *MockPayloadStore) writePayload(tx go_stoabs.WriteTx, payloadHash hash.SHA256Hash, data []byte) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "writePayload", tx, payloadHash, data)
 	ret0, _ := ret[0].(error)

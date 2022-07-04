@@ -19,36 +19,29 @@
 package dag
 
 import (
-	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
+	"math"
+	"sort"
+
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/log"
-	"github.com/nuts-foundation/nuts-node/network/storage"
-	"go.etcd.io/bbolt"
-	"sort"
 )
 
-// transactionsBucket is the name of the Bolt bucket that holds the actual transactions as JSON.
-const transactionsBucket = "documents"
+// transactionsShelf is the name of the shelf that holds the actual transactions.
+const transactionsShelf = "documents"
 
-// payloadIndexBucket is the name of the Bolt bucket that holds the reverse reference from payload hash back to transactions.
-// The value ([]byte) should be split in chunks of HashSize where each entry is a transaction reference that refers to
-// the payload.
-const payloadIndexBucket = "payloadIndex"
+// headsShelf contains the name of the shelf the holds the heads.
+const headsShelf = "heads"
 
-// headsBucket contains the name of the bucket the holds the heads.
-const headsBucket = "heads"
+// clockShelf is the name of the shelf that uses the Lamport clock as index to a set of TX refs.
+const clockShelf = "clocks"
 
-// clockIndexBucket is the name of the bucket that holds the mappings from TX ref to lamport clock value. This is required for V1 transactions that are missing the lc header.
-const clockIndexBucket = "clockIndex"
-
-// clockBucket is the name of the bucket that uses the Lamport clock as index to a set of TX refs.
-const clockBucket = "clocks"
-
-type bboltDAG struct {
-	db *bbolt.DB
+type dag struct {
+	db stoabs.KVStore
 }
 
 type headsStatistic struct {
@@ -56,120 +49,98 @@ type headsStatistic struct {
 	heads []hash.SHA256Hash
 }
 
-func (d headsStatistic) Result() interface{} {
-	return d.heads
+func (h headsStatistic) Result() interface{} {
+	return h.heads
 }
 
-func (d headsStatistic) Name() string {
+func (h headsStatistic) Name() string {
 	return "heads"
 }
 
-func (d headsStatistic) String() string {
-	return fmt.Sprintf("%v", d.heads)
+func (h headsStatistic) String() string {
+	return fmt.Sprintf("%v", h.heads)
 }
 
 type numberOfTransactionsStatistic struct {
-	numberOfTransactions int
+	numberOfTransactions uint
 }
 
-func (d numberOfTransactionsStatistic) Result() interface{} {
-	return d.numberOfTransactions
+func (n numberOfTransactionsStatistic) Result() interface{} {
+	return n.numberOfTransactions
 }
 
-func (d numberOfTransactionsStatistic) Name() string {
+func (n numberOfTransactionsStatistic) Name() string {
 	return "transaction_count"
 }
 
-func (d numberOfTransactionsStatistic) String() string {
-	return fmt.Sprintf("%d", d.numberOfTransactions)
+func (n numberOfTransactionsStatistic) String() string {
+	return fmt.Sprintf("%d", n.numberOfTransactions)
 }
 
 type dataSizeStatistic struct {
 	sizeInBytes int64
 }
 
-func (d dataSizeStatistic) Result() interface{} {
-	return d.sizeInBytes
+func (s dataSizeStatistic) Result() interface{} {
+	return s.sizeInBytes
 }
 
-func (d dataSizeStatistic) Name() string {
+func (s dataSizeStatistic) Name() string {
 	return "stored_database_size_bytes"
 }
 
-func (d dataSizeStatistic) String() string {
-	return fmt.Sprintf("%d", d.sizeInBytes)
+func (s dataSizeStatistic) String() string {
+	return fmt.Sprintf("%d", s.sizeInBytes)
 }
 
-// newBBoltDAG creates a etcd/bbolt backed DAG using the given database.
-func newBBoltDAG(db *bbolt.DB) *bboltDAG {
-	return &bboltDAG{db: db}
+// newDAG creates a DAG backed by the given database.
+func newDAG(db stoabs.KVStore) *dag {
+	return &dag{db: db}
 }
 
-func (dag *bboltDAG) diagnostics() []core.DiagnosticResult {
+func (d *dag) init() error {
+	return d.db.Write(func(tx stoabs.WriteTx) error {
+		_, _, _, err := getBuckets(tx)
+		return err
+	})
+}
+
+func (d *dag) diagnostics() []core.DiagnosticResult {
+	var stats Statistics
+	var heads []hash.SHA256Hash
+	_ = d.db.Read(func(tx stoabs.ReadTx) error {
+		stats = d.statistics(tx)
+		heads = d.heads(tx)
+		return nil
+	})
+
 	result := make([]core.DiagnosticResult, 0)
-	ctx := context.Background()
-	stats := dag.statistics(ctx)
-	result = append(result, headsStatistic{heads: dag.heads(ctx)})
+	result = append(result, headsStatistic{heads: heads})
 	result = append(result, numberOfTransactionsStatistic{numberOfTransactions: stats.NumberOfTransactions})
 	result = append(result, dataSizeStatistic{sizeInBytes: stats.DataSize})
 	return result
 }
 
-func (dag bboltDAG) getByPayloadHash(ctx context.Context, payloadHash hash.SHA256Hash) ([]Transaction, error) {
-	result := make([]Transaction, 0)
-	err := storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
-		transactions := tx.Bucket([]byte(transactionsBucket))
-		payloadIndex := tx.Bucket([]byte(payloadIndexBucket))
-		if transactions == nil || payloadIndex == nil {
-			return nil
-		}
-		transactionHashes := parseHashList(payloadIndex.Get(payloadHash.Slice()))
-		for _, transactionHash := range transactionHashes {
-			transaction, err := getTransaction(transactionHash, tx)
-			if err != nil {
-				return err
-			}
-			result = append(result, transaction)
-		}
-		return nil
-	})
-	return result, err
-}
-
-func (dag bboltDAG) heads(ctx context.Context) []hash.SHA256Hash {
+func (d dag) heads(ctx stoabs.ReadTx) []hash.SHA256Hash {
 	result := make([]hash.SHA256Hash, 0)
-	_ = storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
-		heads := tx.Bucket([]byte(headsBucket))
-		if heads == nil {
-			return nil
-		}
-		cursor := heads.Cursor()
-		for ref, _ := cursor.First(); ref != nil; ref, _ = cursor.Next() {
-			result = append(result, hash.FromSlice(ref)) // FromSlice() copies
-		}
+	reader, err := ctx.GetShelfReader(headsShelf)
+	if err != nil || reader == nil {
+		return nil
+	}
+	_ = reader.Iterate(func(key stoabs.Key, _ []byte) error {
+		result = append(result, hash.FromSlice(key.Bytes())) // FromSlice() copies
 		return nil
 	})
 	return result
 }
 
-func (dag *bboltDAG) findBetweenLC(tx *bbolt.Tx, startInclusive uint32, endExclusive uint32) ([]Transaction, error) {
+func (d *dag) findBetweenLC(tx stoabs.ReadTx, startInclusive uint32, endExclusive uint32) ([]Transaction, error) {
 	var result []Transaction
 
-	clocks := tx.Bucket([]byte(clockBucket))
-	if clocks == nil {
-		return result, nil
-	}
-
-	// Initiate a cursor and start from the given lamport clock, collect the transactions until the LC upper bound is reached.
-	// This works because the clock index is sorted by the clock value.
-	err := walk(clocks.Cursor(), startInclusive, tx, func(_ *bbolt.Tx, transaction Transaction) bool {
-		if transaction.Clock() >= endExclusive {
-			return false
-		}
+	err := d.visitBetweenLC(tx, startInclusive, endExclusive, func(transaction Transaction) bool {
 		result = append(result, transaction)
 		return true
 	})
-
 	if err != nil {
 		// Make sure not to return results in case of error
 		return nil, err
@@ -177,18 +148,49 @@ func (dag *bboltDAG) findBetweenLC(tx *bbolt.Tx, startInclusive uint32, endExclu
 	return result, nil
 }
 
-func (dag bboltDAG) isPresent(tx *bbolt.Tx, ref hash.SHA256Hash) bool {
-	if payloads := tx.Bucket([]byte(transactionsBucket)); payloads != nil {
-		data := payloads.Get(ref.Slice())
-		return data != nil
+func (d *dag) visitBetweenLC(tx stoabs.ReadTx, startInclusive uint32, endExclusive uint32, visitor Visitor) error {
+	reader, err := tx.GetShelfReader(clockShelf)
+	if err != nil {
+		return err
 	}
-	return false
+	if reader == nil {
+		return errors.New("shelf does not exist")
+	}
+
+	// TODO: update to process in batches
+	return reader.Range(stoabs.Uint32Key(startInclusive), stoabs.Uint32Key(endExclusive), func(_ stoabs.Key, value []byte) error {
+		parsed := parseHashList(value)
+		// according to RFC004, lower byte value refs go first
+		sort.Slice(parsed, func(i, j int) bool {
+			return parsed[i].Compare(parsed[j]) <= 0
+		})
+		for _, next := range parsed {
+			transaction, err := getTransaction(next, tx)
+			if err != nil {
+				return err
+			}
+			visitor(transaction)
+		}
+		return nil
+	})
 }
 
-func (dag *bboltDAG) add(tx *bbolt.Tx, transactions ...Transaction) error {
+func (d *dag) walk(tx stoabs.ReadTx, startLC uint32, visitor Visitor) error {
+	return d.visitBetweenLC(tx, startLC, math.MaxUint32, visitor)
+}
+
+func (d *dag) isPresent(tx stoabs.ReadTx, ref hash.SHA256Hash) bool {
+	reader, err := tx.GetShelfReader(transactionsShelf)
+	if err != nil {
+		return false
+	}
+	return exists(reader, ref)
+}
+
+func (d *dag) add(tx stoabs.WriteTx, transactions ...Transaction) error {
 	for _, transaction := range transactions {
 		if transaction != nil {
-			if err := dag.addSingle(tx, transaction); err != nil {
+			if err := d.addSingle(tx, transaction); err != nil {
 				return err
 			}
 		}
@@ -196,47 +198,25 @@ func (dag *bboltDAG) add(tx *bbolt.Tx, transactions ...Transaction) error {
 	return nil
 }
 
-func (dag bboltDAG) walk(tx *bbolt.Tx, visitor visitor, startAt hash.SHA256Hash) error {
-	transactions := tx.Bucket([]byte(transactionsBucket))
-	clocksBucket := tx.Bucket([]byte(clockBucket))
-	clocksIndexBucket := tx.Bucket([]byte(clockIndexBucket))
-	if transactions == nil {
-		// DAG is empty
-		return nil
-	}
-
-	// we find the clock value of the TX ref
-	// an empty hash means start at root
-	clockBytes := clocksIndexBucket.Get(startAt.Slice())
-	var clockValue uint32
-	if clockBytes != nil {
-		clockValue = bytesToClock(clockBytes)
-	}
-
-	// initiate a cursor and start from the given lcValue
-	return walk(clocksBucket.Cursor(), clockValue, tx, visitor)
-}
-
-func (dag bboltDAG) statistics(ctx context.Context) Statistics {
-	transactionNum := 0
+func (d dag) statistics(tx stoabs.ReadTx) Statistics {
+	transactionNum := uint(0)
 	dbSize := int64(0)
-	_ = storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
-		if bucket := tx.Bucket([]byte(transactionsBucket)); bucket != nil {
-			transactionNum = bucket.Stats().KeyN
-			dbSize = tx.Size()
-		}
-		return nil
-	})
+	reader, _ := tx.GetShelfReader(transactionsShelf)
+	if reader != nil {
+		shelfStats := reader.Stats()
+		transactionNum = shelfStats.NumEntries
+		dbSize = int64(shelfStats.ShelfSize)
+	}
 	return Statistics{
 		NumberOfTransactions: transactionNum,
 		DataSize:             dbSize,
 	}
 }
 
-func (dag *bboltDAG) addSingle(tx *bbolt.Tx, transaction Transaction) error {
+func (d *dag) addSingle(tx stoabs.WriteTx, transaction Transaction) error {
 	ref := transaction.Ref()
-	refSlice := ref.Slice()
-	transactions, lc, _, payloadIndex, heads, err := getBuckets(tx)
+	refKey := stoabs.NewHashKey(ref)
+	transactions, lc, heads, err := getBuckets(tx)
 	if err != nil {
 		return err
 	}
@@ -252,145 +232,105 @@ func (dag *bboltDAG) addSingle(tx *bbolt.Tx, transaction Transaction) error {
 	if err := indexClockValue(tx, transaction); err != nil {
 		return fmt.Errorf("unable to calculate LC value for %s: %w", ref, err)
 	}
-	if err := transactions.Put(refSlice, transaction.Data()); err != nil {
+	if err := transactions.Put(refKey, transaction.Data()); err != nil {
 		return err
 	}
 	// Store forward references ([C -> prev A, B] is stored as [A -> C, B -> C])
 	for _, prev := range transaction.Previous() {
 		// The TX's previous transactions are probably current heads (if there's no other TX referring to it as prev),
 		// so it should be unmarked as head.
-		if err := heads.Delete(prev.Slice()); err != nil {
+		if err := heads.Delete(stoabs.NewHashKey(prev)); err != nil {
 			return fmt.Errorf("unable to unmark earlier head: %w", err)
 		}
 	}
 	// Transactions are added in order, so the latest TX is always a head
-	if err := heads.Put(refSlice, []byte{1}); err != nil {
+	if err := heads.Put(refKey, []byte{1}); err != nil {
 		return fmt.Errorf("unable to mark transaction as head (ref=%s): %w", ref, err)
-	}
-	// Store reverse reference from payload hash to transaction
-	newPayloadIndexValue := appendHashList(copyBBoltValue(payloadIndex, transaction.PayloadHash().Slice()), ref)
-	if err = payloadIndex.Put(transaction.PayloadHash().Slice(), newPayloadIndexValue); err != nil {
-		return fmt.Errorf("unable to update payload index for transaction %s: %w", ref, err)
 	}
 	return nil
 }
 
-func indexClockValue(tx *bbolt.Tx, transaction Transaction) error {
-	lc, err := tx.CreateBucketIfNotExists([]byte(clockBucket))
-	if err != nil {
-		return err
-	}
-	lcIndex, err := tx.CreateBucketIfNotExists([]byte(clockIndexBucket))
+func indexClockValue(tx stoabs.WriteTx, transaction Transaction) error {
+	lc, err := tx.GetShelfWriter(clockShelf)
 	if err != nil {
 		return err
 	}
 
-	clock := transaction.Clock()
+	clockKey := stoabs.Uint32Key(transaction.Clock())
 	ref := transaction.Ref()
-
-	if lcIndex.Get(ref.Slice()) != nil {
-		// already added
-		return nil
-	}
-
-	clockBytes := clockToBytes(clock)
-	currentRefs := lc.Get(clockBytes)
-
-	if err := lc.Put(clockBytes, appendHashList(currentRefs, ref)); err != nil {
+	currentRefs, err := lc.Get(clockKey)
+	if err != nil {
 		return err
 	}
-	if err := lcIndex.Put(ref.Slice(), clockBytes); err != nil {
+	for _, cRef := range parseHashList(currentRefs) {
+		if ref.Equals(cRef) {
+			// should only be in the list once
+			return nil
+		}
+	}
+	if err := lc.Put(clockKey, appendHashList(currentRefs, ref)); err != nil {
 		return err
 	}
 
-	log.Logger().Tracef("storing transaction logical clock, txRef: %s, clock: %d", ref.String(), clock)
+	log.Logger().Tracef("storing transaction logical clock, txRef: %s, clock: %d", ref.String(), clockKey)
 
 	return nil
 }
 
 // returns the highest clock for which a transaction is present in the DAG
-func (dag bboltDAG) getHighestClock(ctx context.Context) uint32 {
+func (d dag) getHighestClock() uint32 {
 	var clock uint32
-	_ = storage.BBoltTXView(ctx, dag.db, func(_ context.Context, tx *bbolt.Tx) error {
-		clocksBucket := tx.Bucket([]byte(clockBucket))
-		if clocksBucket == nil {
-			// DAG is empty
+	err := d.db.ReadShelf(clockShelf, func(reader stoabs.Reader) error {
+		return reader.Iterate(func(key stoabs.Key, _ []byte) error {
+			currentClock := bytesToClock(key.Bytes())
+			if currentClock > clock {
+				clock = currentClock
+			}
 			return nil
-		}
-
-		// find the highest LC in the bucket
-		clockBytes, _ := clocksBucket.Cursor().Last()
-		clock = bytesToClock(clockBytes)
-		return nil
-	})
-	return clock
-}
-
-// walk visits every DAG transaction, calling the visitor for every transaction.
-// It visits the transaction in lamport clock order, starting at the transaction with the given lamport clock.
-// If the visitor returns false, it stops walking.
-func walk(cursor *bbolt.Cursor, startAtLC uint32, dbTX *bbolt.Tx, visitor visitor) error {
-	for _, list := cursor.Seek(clockToBytes(startAtLC)); list != nil; _, list = cursor.Next() {
-		parsed := parseHashList(list)
-		// according to RFC004, lower byte value refs go first
-		sort.Slice(parsed, func(i, j int) bool {
-			return parsed[i].Compare(parsed[j]) <= 0
 		})
-		for _, next := range parsed {
-			tx, err := getTransaction(next, dbTX)
-			if err != nil {
-				return err
-			}
-			if !visitor(dbTX, tx) {
-				return nil
-			}
-		}
+	})
+	if err != nil {
+		log.Logger().Errorf("failed to read clock shelf: %s", err)
+		return 0
 	}
-	return nil
+	return clock
 }
 
 func bytesToClock(clockBytes []byte) uint32 {
 	return binary.BigEndian.Uint32(clockBytes)
 }
 
-func clockToBytes(clock uint32) []byte {
-	clockBytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(clockBytes, clock)
-	return clockBytes[:]
-}
-
-func getBuckets(tx *bbolt.Tx) (transactions, lc, lcIndex, payloadIndex, heads *bbolt.Bucket, err error) {
-	if transactions, err = tx.CreateBucketIfNotExists([]byte(transactionsBucket)); err != nil {
+func getBuckets(tx stoabs.WriteTx) (transactions, lc, heads stoabs.Writer, err error) {
+	if transactions, err = tx.GetShelfWriter(transactionsShelf); err != nil {
 		return
 	}
-	if lc, err = tx.CreateBucketIfNotExists([]byte(clockBucket)); err != nil {
+	if lc, err = tx.GetShelfWriter(clockShelf); err != nil {
 		return
 	}
-	if lcIndex, err = tx.CreateBucketIfNotExists([]byte(clockIndexBucket)); err != nil {
-		return
-	}
-	if payloadIndex, err = tx.CreateBucketIfNotExists([]byte(payloadIndexBucket)); err != nil {
-		return
-	}
-	if heads, err = tx.CreateBucketIfNotExists([]byte(headsBucket)); err != nil {
+	if heads, err = tx.GetShelfWriter(headsShelf); err != nil {
 		return
 	}
 	return
 }
 
-func getRoots(lcBucket *bbolt.Bucket) []hash.SHA256Hash {
-	return parseHashList(lcBucket.Get(clockToBytes(0))) // no need to copy, calls FromSlice() (which copies)
+func getRoots(lcBucket stoabs.Reader) []hash.SHA256Hash {
+	roots, err := lcBucket.Get(stoabs.Uint32Key(0))
+	if err != nil {
+		return nil
+	}
+	return parseHashList(roots) // no need to copy, calls FromSlice() (which copies)
 }
 
-func getTransaction(hash hash.SHA256Hash, tx *bbolt.Tx) (Transaction, error) {
-	transactions := tx.Bucket([]byte(transactionsBucket))
-	if transactions == nil {
-		return nil, nil
+func getTransaction(hash hash.SHA256Hash, tx stoabs.ReadTx) (Transaction, error) {
+	transactions, err := tx.GetShelfReader(transactionsShelf)
+	// TODO: error handling
+	if err != nil || transactions == nil {
+		return nil, err
 	}
 
-	transactionBytes := copyBBoltValue(transactions, hash.Slice())
-	if transactionBytes == nil {
-		return nil, nil
+	transactionBytes, err := transactions.Get(stoabs.NewHashKey(hash))
+	if err != nil || transactionBytes == nil {
+		return nil, err
 	}
 	parsedTx, err := ParseTransaction(transactionBytes)
 	if err != nil {
@@ -401,8 +341,9 @@ func getTransaction(hash hash.SHA256Hash, tx *bbolt.Tx) (Transaction, error) {
 }
 
 // exists checks whether the transaction with the given ref exists.
-func exists(transactions *bbolt.Bucket, ref hash.SHA256Hash) bool {
-	return transactions.Get(ref.Slice()) != nil
+func exists(transactions stoabs.Reader, ref hash.SHA256Hash) bool {
+	val, _ := transactions.Get(stoabs.NewHashKey(ref))
+	return val != nil
 }
 
 // parseHashList splits a list of concatenated hashes into separate hashes.

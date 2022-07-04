@@ -19,43 +19,52 @@
 package dag
 
 import (
+	"fmt"
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"go.etcd.io/bbolt"
+	"github.com/nuts-foundation/nuts-node/network/log"
 )
 
-// payloadsBucketName is the name of the Bolt bucket that holds the payloads of the transactions.
-const payloadsBucketName = "payloads"
+// payloadsShelf is the name of the shelf that holds the payloads of the transactions.
+const payloadsShelf = "payloads"
 
-// NewBBoltPayloadStore creates a etcd/bbolt backed payload store using the given database.
-func NewBBoltPayloadStore(db *bbolt.DB) PayloadStore {
-	return &bboltPayloadStore{db: db}
+// NewPayloadStore creates a etcd/bbolt backed payload store using the given database.
+func NewPayloadStore() PayloadStore {
+	return &payloadStore{}
 }
 
-type bboltPayloadStore struct {
-	db *bbolt.DB
-}
+type payloadStore struct{}
 
-func (store bboltPayloadStore) isPayloadPresent(tx *bbolt.Tx, payloadHash hash.SHA256Hash) bool {
-	bucket := tx.Bucket([]byte(payloadsBucketName))
-	if bucket == nil {
+func (store payloadStore) isPayloadPresent(tx stoabs.ReadTx, payloadHash hash.SHA256Hash) bool {
+	reader, err := tx.GetShelfReader(payloadsShelf)
+	if err != nil {
+		log.Logger().Errorf("failed to verify payload existence (hash=%s): %s", payloadHash, err)
 		return false
 	}
-	data := bucket.Get(payloadHash.Slice())
+	data, err := reader.Get(stoabs.NewHashKey(payloadHash))
+	if err != nil {
+		log.Logger().Errorf("failed to verify payload existence (hash=%s): %s", payloadHash, err)
+		return false
+	}
 	return len(data) > 0
 }
 
-func (store bboltPayloadStore) readPayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash) []byte {
-	bucket := tx.Bucket([]byte(payloadsBucketName))
-	if bucket == nil {
-		return nil
+func (store payloadStore) readPayload(tx stoabs.ReadTx, payloadHash hash.SHA256Hash) ([]byte, error) {
+	reader, err := tx.GetShelfReader(payloadsShelf)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read payload (hash=%s): %w", payloadHash, err)
 	}
-	return bucket.Get(payloadHash.Slice())
+	data, err := reader.Get(stoabs.NewHashKey(payloadHash))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read payload (hash=%s): %w", payloadHash, err)
+	}
+	return data, nil
 }
 
-func (store bboltPayloadStore) writePayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash, data []byte) error {
-	payloads, err := tx.CreateBucketIfNotExists([]byte(payloadsBucketName))
+func (store payloadStore) writePayload(tx stoabs.WriteTx, payloadHash hash.SHA256Hash, data []byte) error {
+	writer, err := tx.GetShelfWriter(payloadsShelf)
 	if err != nil {
 		return err
 	}
-	return payloads.Put(payloadHash.Slice(), data)
+	return writer.Put(stoabs.NewHashKey(payloadHash), data)
 }

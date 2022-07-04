@@ -21,18 +21,20 @@ package dag
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/stretchr/testify/assert"
-	"go.etcd.io/bbolt"
 )
 
 func TestBBoltPayloadStore_ReadWrite(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
 	db := createBBoltDB(testDirectory)
-	payloadStore := NewBBoltPayloadStore(db)
+	payloadStore := NewPayloadStore().(*payloadStore)
+	initShelfs(db, payloadsShelf)
 
-	db.Update(func(tx *bbolt.Tx) error {
+	db.Write(func(tx stoabs.WriteTx) error {
 		payload := []byte("Hello, World!")
 		hash := hash.SHA256Sum(payload)
 		// Before, payload should not be present
@@ -51,7 +53,8 @@ func TestBBoltPayloadStore_ReadWrite(t *testing.T) {
 			return nil
 		}
 		// Read payload
-		data := payloadStore.readPayload(tx, hash)
+		data, err := payloadStore.readPayload(tx, hash)
+		assert.NoError(t, err)
 		assert.Equal(t, payload, data)
 		return nil
 	})

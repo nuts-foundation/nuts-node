@@ -19,7 +19,7 @@
 package dag
 
 import (
-	"context"
+	"github.com/nuts-foundation/go-stoabs"
 	"math"
 	"math/rand"
 	"sort"
@@ -29,11 +29,10 @@ import (
 	"time"
 
 	"github.com/lestrrat-go/jwx/jws"
-	"github.com/nuts-foundation/nuts-node/test/io"
-	"go.etcd.io/bbolt"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/stretchr/testify/assert"
+	"github.com/nuts-foundation/nuts-node/test/io"
 )
 
 // trackingVisitor just keeps track of which nodes were visited in what order.
@@ -41,7 +40,7 @@ type trackingVisitor struct {
 	transactions []Transaction
 }
 
-func (n *trackingVisitor) Accept(_ *bbolt.Tx, transaction Transaction) bool {
+func (n *trackingVisitor) Accept(transaction Transaction) bool {
 	n.transactions = append(n.transactions, transaction)
 	return true
 }
@@ -71,7 +70,7 @@ func TestBBoltDAG_findBetweenLC(t *testing.T) {
 		addTx(t, graph, tx2, tx3, tx4, tx5)
 
 		// LC 1..3 should yield tx2, tx3 and tx4
-		graph.db.View(func(tx *bbolt.Tx) error {
+		err := graph.db.Read(func(tx stoabs.ReadTx) error {
 			actual, err := graph.findBetweenLC(tx, 1, 3)
 
 			if !assert.NoError(t, err) {
@@ -83,7 +82,7 @@ func TestBBoltDAG_findBetweenLC(t *testing.T) {
 			assert.Contains(t, actual, tx4)
 			return nil
 		})
-
+		assert.NoError(t, err)
 	})
 }
 
@@ -91,7 +90,7 @@ func TestBBoltDAG_Get(t *testing.T) {
 	t.Run("found", func(t *testing.T) {
 		graph := CreateDAG(t)
 		transaction := CreateTestTransactionWithJWK(1)
-		_ = graph.db.Update(func(tx *bbolt.Tx) error {
+		_ = graph.db.Write(func(tx stoabs.WriteTx) error {
 			_ = graph.add(tx, transaction)
 			actual, err := getTransaction(transaction.Ref(), tx)
 			if !assert.NoError(t, err) {
@@ -103,7 +102,7 @@ func TestBBoltDAG_Get(t *testing.T) {
 	})
 	t.Run("not found", func(t *testing.T) {
 		graph := CreateDAG(t)
-		_ = graph.db.Update(func(tx *bbolt.Tx) error {
+		_ = graph.db.Write(func(tx stoabs.WriteTx) error {
 			actual, err := getTransaction(hash.SHA256Sum([]byte{1, 2, 3}), tx)
 			assert.NoError(t, err)
 			assert.Nil(t, actual)
@@ -126,7 +125,7 @@ func TestBBoltDAG_Get(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				tx1 := CreateTestTransactionWithJWK(uint32(rand.Int31n(100000)), rootTX)
-				err := graph.db.Update(func(tx *bbolt.Tx) error {
+				err := graph.db.Write(func(tx stoabs.WriteTx) error {
 					_ = graph.add(tx, tx1)
 					actual, err := getTransaction(tx1.Ref(), tx)
 					if err != nil {
@@ -152,19 +151,19 @@ func TestBBoltDAG_Add(t *testing.T) {
 		addTx(t, graph, tx)
 
 		visitor := trackingVisitor{}
-		err := graph.db.View(func(tx *bbolt.Tx) error {
-			return graph.walk(tx, visitor.Accept, hash.EmptyHash())
+		err := graph.db.Read(func(dbTx stoabs.ReadTx) error {
+			return graph.walk(dbTx, 0, visitor.Accept)
 		})
 		if !assert.NoError(t, err) {
 			return
 		}
 		assert.Len(t, visitor.transactions, 1)
 		assert.Equal(t, tx.Ref(), visitor.transactions[0].Ref())
-		graph.db.View(func(dbTx *bbolt.Tx) error {
+		err = graph.db.Read(func(dbTx stoabs.ReadTx) error {
 			assert.True(t, graph.isPresent(dbTx, tx.Ref()))
 			return nil
 		})
-
+		assert.NoError(t, err)
 	})
 	t.Run("duplicate", func(t *testing.T) {
 		graph := CreateDAG(t)
@@ -172,7 +171,7 @@ func TestBBoltDAG_Add(t *testing.T) {
 
 		addTx(t, graph, tx)
 
-		_ = graph.db.View(func(tx *bbolt.Tx) error {
+		_ = graph.db.Read(func(tx stoabs.ReadTx) error {
 			// Assert we can find the TX, but make sure it's only there once
 			actual, _ := graph.findBetweenLC(tx, 0, math.MaxUint32)
 			assert.Len(t, actual, 1)
@@ -187,7 +186,7 @@ func TestBBoltDAG_Add(t *testing.T) {
 		addTx(t, graph, root1)
 		err := addTxErr(graph, root2)
 		assert.EqualError(t, err, "root transaction already exists")
-		_ = graph.db.View(func(tx *bbolt.Tx) error {
+		_ = graph.db.Read(func(tx stoabs.ReadTx) error {
 			actual, _ := graph.findBetweenLC(tx, 0, math.MaxUint32)
 			assert.Len(t, actual, 1)
 			return nil
@@ -213,10 +212,10 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 	B := CreateTestTransactionWithJWK(1, A)
 	C := CreateTestTransactionWithJWK(2, B)
 
-	assertRefs := func(t *testing.T, tx *bbolt.Tx, clock uint32, expected []hash.SHA256Hash) {
-		lcBucket, _ := tx.CreateBucketIfNotExists([]byte(clockBucket))
+	assertRefs := func(t *testing.T, tx stoabs.ReadTx, clock uint32, expected []hash.SHA256Hash) {
+		lcBucket, _ := tx.GetShelfReader(clockShelf)
 
-		ref := lcBucket.Get(clockToBytes(clock))
+		ref, _ := lcBucket.Get(stoabs.Uint32Key(clock))
 		if !assert.NotNil(t, ref) {
 			return
 		}
@@ -234,22 +233,22 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 			assert.True(t, refs[i].Equals(expected[i]))
 		}
 	}
-	assertClock := func(t *testing.T, tx *bbolt.Tx, clock uint32, expected hash.SHA256Hash) {
-		lcIndexBucket, _ := tx.CreateBucketIfNotExists([]byte(clockIndexBucket))
+	assertClock := func(t *testing.T, tx stoabs.ReadTx, clock uint32, expected hash.SHA256Hash) {
+		lcBucket, _ := tx.GetShelfReader(clockShelf)
 
-		clockBytes := lcIndexBucket.Get(expected.Slice())
-		if !assert.NotNil(t, clockBytes) {
+		hashBytes, _ := lcBucket.Get(stoabs.Uint32Key(clock))
+		if !assert.NotNil(t, hashBytes) {
 			return
 		}
-
-		assert.Equal(t, clock, bytesToClock(clockBytes))
+		hashes := parseHashList(hashBytes)
+		assert.Contains(t, hashes, expected)
 	}
 
 	t.Run("Ok threesome", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		db := createBBoltDB(testDirectory)
 
-		err := db.Update(func(tx *bbolt.Tx) error {
+		err := db.Write(func(tx stoabs.WriteTx) error {
 			_ = indexClockValue(tx, A)
 			_ = indexClockValue(tx, B)
 			_ = indexClockValue(tx, C)
@@ -271,7 +270,7 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		db := createBBoltDB(testDirectory)
 
-		err := db.Update(func(tx *bbolt.Tx) error {
+		err := db.Write(func(tx stoabs.WriteTx) error {
 			_ = indexClockValue(tx, A)
 			_ = indexClockValue(tx, B)
 			_ = indexClockValue(tx, B)
@@ -292,7 +291,7 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 		db := createBBoltDB(testDirectory)
 		C := CreateTestTransactionWithJWK(2, A)
 
-		err := db.Update(func(tx *bbolt.Tx) error {
+		err := db.Write(func(tx stoabs.WriteTx) error {
 			_ = indexClockValue(tx, A)
 			_ = indexClockValue(tx, B)
 			_ = indexClockValue(tx, C)
@@ -316,8 +315,8 @@ func TestBBoltDAG_Walk(t *testing.T) {
 		graph := CreateDAG(t)
 		visitor := trackingVisitor{}
 
-		err := graph.db.View(func(tx *bbolt.Tx) error {
-			return graph.walk(tx, visitor.Accept, hash.EmptyHash())
+		err := graph.db.Read(func(tx stoabs.ReadTx) error {
+			return graph.walk(tx, 0, visitor.Accept)
 		})
 		if !assert.NoError(t, err) {
 			return
@@ -332,8 +331,8 @@ func TestBBoltDAG_Walk(t *testing.T) {
 		transaction := CreateTestTransactionWithJWK(1)
 		addTx(t, graph, transaction)
 
-		err := graph.db.View(func(tx *bbolt.Tx) error {
-			return graph.walk(tx, visitor.Accept, hash.EmptyHash())
+		err := graph.db.Read(func(tx stoabs.ReadTx) error {
+			return graph.walk(tx, 0, visitor.Accept)
 		})
 		if !assert.NoError(t, err) {
 			return
@@ -351,8 +350,8 @@ func TestBBoltDAG_Walk(t *testing.T) {
 		D := CreateTestTransactionWithJWK(4, C, B)
 		addTx(t, graph, A, B, C, D)
 
-		err := graph.db.View(func(tx *bbolt.Tx) error {
-			return graph.walk(tx, visitor.Accept, hash.EmptyHash())
+		err := graph.db.Read(func(tx stoabs.ReadTx) error {
+			return graph.walk(tx, 0, visitor.Accept)
 		})
 		if !assert.NoError(t, err) {
 			return
@@ -363,26 +362,6 @@ func TestBBoltDAG_Walk(t *testing.T) {
 		// the smallest byte value should have been processed first
 		assert.True(t, visitor.transactions[1].Ref().Compare(visitor.transactions[2].Ref()) <= 0)
 		assert.Equal(t, D.Ref().String(), visitor.transactions[3].Ref().String())
-	})
-}
-
-func TestBBoltDAG_GetByPayloadHash(t *testing.T) {
-	t.Run("found", func(t *testing.T) {
-		ctx := context.Background()
-		graph := CreateDAG(t)
-		transaction := CreateTestTransactionWithJWK(1)
-		addTx(t, graph, transaction)
-		actual, err := graph.getByPayloadHash(ctx, transaction.PayloadHash())
-		assert.Len(t, actual, 1)
-		assert.NoError(t, err)
-		assert.Equal(t, transaction, actual[0])
-	})
-	t.Run("not found", func(t *testing.T) {
-		ctx := context.Background()
-		graph := CreateDAG(t)
-		actual, err := graph.getByPayloadHash(ctx, hash.SHA256Sum([]byte{1, 2, 3}))
-		assert.NoError(t, err)
-		assert.Empty(t, actual)
 	})
 }
 
@@ -418,22 +397,20 @@ func Test_parseHashList(t *testing.T) {
 
 func TestBBoltDAG_getHighestClock(t *testing.T) {
 	t.Run("empty DAG", func(t *testing.T) {
-		ctx := context.Background()
 		graph := CreateDAG(t)
 
-		clock := graph.getHighestClock(ctx)
+		clock := graph.getHighestClock()
 
 		assert.Equal(t, uint32(0), clock)
 	})
 	t.Run("multiple transaction", func(t *testing.T) {
-		ctx := context.Background()
 		graph := CreateDAG(t)
 		tx0, _, _ := CreateTestTransaction(9)
 		tx1, _, _ := CreateTestTransaction(8, tx0)
 		tx2, _, _ := CreateTestTransaction(7, tx1)
 		addTx(t, graph, tx0, tx1, tx2)
 
-		clock := graph.getHighestClock(ctx)
+		clock := graph.getHighestClock()
 
 		assert.Equal(t, uint32(2), clock)
 	})
@@ -445,7 +422,7 @@ func TestBBoltDAG_getHighestClock(t *testing.T) {
 		addTx(t, graph, tx0, tx2)
 		addTx(t, graph, tx1)
 
-		clock := graph.getHighestClock(context.Background())
+		clock := graph.getHighestClock()
 
 		assert.Equal(t, uint32(2), clock)
 	})

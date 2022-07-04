@@ -23,60 +23,46 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-stoabs"
 	"math"
-	"os"
-	"path"
-	"path/filepath"
+	"sync"
 
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 	"github.com/nuts-foundation/nuts-node/network/log"
-	"github.com/nuts-foundation/nuts-node/network/storage"
-	"go.etcd.io/bbolt"
 )
 
 const (
-	// boltDBFileMode holds the Unix file mode the created BBolt database files will have.
-	boltDBFileMode = 0600
 	// PageSize specifies the Lamport Clock range over which data is summarized and is used in set reconciliation.
 	PageSize = uint32(512)
 	// IbltNumBuckets is the number of buckets in the IBLT used in set reconciliation.
 	IbltNumBuckets = 1024
+	xorShelf       = "xorBucket"
+	ibltShelf      = "ibltBucket"
 )
 
 // State has references to the DAG and the payload store.
 type state struct {
-	db                               *bbolt.DB
-	graph                            *bboltDAG
+	db                               stoabs.KVStore
+	graph                            *dag
 	payloadStore                     PayloadStore
 	transactionalObservers           []Observer
 	nonTransactionalObservers        []Observer
 	transactionalPayloadObservers    []PayloadObserver
 	nonTransactionalPayloadObservers []PayloadObserver
 	txVerifiers                      []Verifier
-	xorTree                          *bboltTree
-	ibltTree                         *bboltTree
 	notifiers                        map[string]Notifier
+	xorTree                          *treeStore
+	ibltTree                         *treeStore
+	treeMux                          sync.Mutex
 }
 
 // NewState returns a new State. The State is used as entry point, it's methods will start transactions and will notify observers from within those transactions.
-func NewState(dataDir string, verifiers ...Verifier) (State, error) {
-	dbFile := path.Join(dataDir, "network", "data.db")
-	if err := os.MkdirAll(filepath.Dir(dbFile), os.ModePerm); err != nil {
-		return nil, fmt.Errorf("unable to create BBolt database: %w", err)
-	}
+func NewState(db stoabs.KVStore, verifiers ...Verifier) (State, error) {
+	graph := newDAG(db)
 
-	var bboltErr error
-	db, bboltErr := bbolt.Open(dbFile, boltDBFileMode, bbolt.DefaultOptions)
-	if bboltErr != nil {
-		return nil, fmt.Errorf("unable to create BBolt database: %w", bboltErr)
-	}
-
-	graph := newBBoltDAG(db)
-
-	payloadStore := NewBBoltPayloadStore(db)
+	payloadStore := NewPayloadStore()
 	newState := &state{
 		db:           db,
 		graph:        graph,
@@ -85,13 +71,19 @@ func NewState(dataDir string, verifiers ...Verifier) (State, error) {
 		notifiers:    map[string]Notifier{},
 	}
 
-	xorTree := newBBoltTreeStore(db, "xorBucket", tree.New(tree.NewXor(), PageSize))
-	ibltTree := newBBoltTreeStore(db, "ibltBucket", tree.New(tree.NewIblt(IbltNumBuckets), PageSize))
-	newState.xorTree = xorTree
-	newState.ibltTree = ibltTree
-	newState.RegisterTransactionObserver(newState.treeObserver, true)
-
 	return newState, nil
+}
+
+func initShelfs(db stoabs.KVStore, shelfs ...string) error {
+	// TODO: replace with shelf initialization method that is agnostic to the underlying store. See https://github.com/nuts-foundation/go-stoabs/issues/14
+	for _, shelf := range shelfs {
+		if err := db.WriteShelf(shelf, func(writer stoabs.Writer) error {
+			return nil
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *state) RegisterTransactionObserver(observer Observer, transactional bool) {
@@ -110,14 +102,15 @@ func (s *state) RegisterPayloadObserver(observer PayloadObserver, transactional 
 	}
 }
 
-func (s *state) treeObserver(ctx context.Context, transaction Transaction) error {
-	if err := s.ibltTree.dagObserver(ctx, transaction, nil); err != nil {
-		return err
-	}
-	return s.xorTree.dagObserver(ctx, transaction, nil)
-}
+//<<<<<<< HEAD
+//func (s *state) treeObserver(ctx context.Context, transaction Transaction) error {
+//	if err := s.ibltTree.dagObserver(ctx, transaction, nil); err != nil {
+//		return err
+//	}
+//	return s.xorTree.dagObserver(ctx, transaction, nil)
+//}
 
-func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte) error {
+func (s *state) Add(_ context.Context, transaction Transaction, payload []byte) error {
 	txEvent := Event{
 		Type:        TransactionEventType,
 		Hash:        transaction.Ref(),
@@ -134,7 +127,7 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 	}
 	emitPayloadEvent := false
 
-	return storage.BBoltTXUpdate(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
+	return s.db.Write(func(tx stoabs.WriteTx) error {
 		present := s.graph.isPresent(tx, transaction.Ref())
 		if present {
 			return nil
@@ -153,7 +146,7 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 				return err
 			}
 			// TODO: Set tx when updated to stoabs
-			if err := s.saveEvent(nil, payloadEvent); err != nil {
+			if err := s.saveEvent(tx, payloadEvent); err != nil {
 				return err
 			}
 		}
@@ -161,23 +154,67 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 			return err
 		}
 		// TODO: Set tx when updated to stoabs
-		if err := s.saveEvent(nil, txEvent); err != nil {
+		if err := s.saveEvent(tx, txEvent); err != nil {
 			return err
 		}
 
 		// TODO move to TX begin scope when migrated to stoabs
-		tx.OnCommit(func() {
-			s.notify(txEvent)
-			if emitPayloadEvent {
-				s.notify(payloadEvent)
-			}
-		})
+		//tx.OnCommit(func() {
+		//	s.notify(txEvent)
+		//	if emitPayloadEvent {
+		//		s.notify(payloadEvent)
+		//	}
+		//})
 
-		return s.notifyObservers(contextWithTX, transaction)
-	})
+		// update XOR and IBLT
+		if err := s.updateTrees(tx, transaction); err != nil {
+			return err
+		}
+
+		return s.notifyObservers(tx, transaction)
+	}, stoabs.OnRollback(func() {
+		log.Logger().Warn("Reloading the XOR and IBLT trees due to a DB transaction Rollback")
+		s.loadTrees()
+	}), stoabs.AfterCommit(func() {
+		s.notify(txEvent)
+		if emitPayloadEvent {
+			s.notify(payloadEvent)
+		}
+	}),
+	)
 }
 
-func (s *state) verifyTX(tx *bbolt.Tx, transaction Transaction) error {
+func (s *state) updateTrees(tx stoabs.WriteTx, transaction Transaction) error {
+	s.treeMux.Lock()
+	defer s.treeMux.Unlock()
+	if err := s.ibltTree.write(tx, transaction); err != nil {
+		return err
+	}
+	return s.xorTree.write(tx, transaction)
+}
+
+func (s *state) loadTrees() {
+	s.treeMux.Lock()
+	defer s.treeMux.Unlock()
+	if err := s.db.Read(func(tx stoabs.ReadTx) error {
+		s.xorTree = newTreeStore(xorShelf, tree.New(tree.NewXor(), PageSize))
+		s.ibltTree = newTreeStore(ibltShelf, tree.New(tree.NewIblt(IbltNumBuckets), PageSize))
+
+		if err := s.xorTree.read(tx); err != nil {
+			return fmt.Errorf("failed to read xorTree: %w", err)
+		}
+
+		if err := s.ibltTree.read(tx); err != nil {
+			return fmt.Errorf("failed to read ibltTree: %w", err)
+		}
+		return nil
+	}); err != nil {
+		log.Logger().Errorf("Failed to load the XOR and IBLT trees: %s", err)
+	}
+	log.Logger().Trace("Loaded the XOR and IBLT trees")
+}
+
+func (s *state) verifyTX(tx stoabs.ReadTx, transaction Transaction) error {
 	for _, verifier := range s.txVerifiers {
 		if err := verifier(tx, transaction); err != nil {
 			return fmt.Errorf("transaction verification failed (tx=%s): %w", transaction.Ref(), err)
@@ -187,31 +224,31 @@ func (s *state) verifyTX(tx *bbolt.Tx, transaction Transaction) error {
 }
 
 func (s *state) FindBetweenLC(startInclusive uint32, endExclusive uint32) (transactions []Transaction, err error) {
-	err = s.db.View(func(tx *bbolt.Tx) error {
+	err = s.db.Read(func(tx stoabs.ReadTx) error {
 		transactions, err = s.graph.findBetweenLC(tx, startInclusive, endExclusive)
 		return err
 	})
 	return
 }
 
-func (s *state) GetTransaction(ctx context.Context, hash hash.SHA256Hash) (transaction Transaction, err error) {
-	err = storage.BBoltTXView(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
+func (s *state) GetTransaction(_ context.Context, hash hash.SHA256Hash) (transaction Transaction, err error) {
+	err = s.db.Read(func(tx stoabs.ReadTx) error {
 		transaction, err = getTransaction(hash, tx)
 		return err
 	})
 	return
 }
 
-func (s *state) IsPayloadPresent(ctx context.Context, hash hash.SHA256Hash) (present bool, err error) {
-	err = storage.BBoltTXView(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
+func (s *state) IsPayloadPresent(_ context.Context, hash hash.SHA256Hash) (present bool, err error) {
+	err = s.db.Read(func(tx stoabs.ReadTx) error {
 		present = s.payloadStore.isPayloadPresent(tx, hash)
 		return nil
 	})
 	return
 }
 
-func (s *state) IsPresent(ctx context.Context, hash hash.SHA256Hash) (present bool, err error) {
-	err = storage.BBoltTXView(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
+func (s *state) IsPresent(_ context.Context, hash hash.SHA256Hash) (present bool, err error) {
+	err = s.db.Read(func(tx stoabs.ReadTx) error {
 		present = s.graph.isPresent(tx, hash)
 		return nil
 	})
@@ -219,30 +256,35 @@ func (s *state) IsPresent(ctx context.Context, hash hash.SHA256Hash) (present bo
 }
 
 func (s *state) WritePayload(transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
-	return storage.BBoltTXUpdate(context.Background(), s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
+	return s.db.Write(func(tx stoabs.WriteTx) error {
 		return s.writePayload(tx, transaction, payloadHash, data)
 	})
 }
 
-func (s *state) writePayload(tx *bbolt.Tx, transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
+func (s *state) writePayload(tx stoabs.WriteTx, transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
 	err := s.payloadStore.writePayload(tx, payloadHash, data)
 	if err == nil {
 		// ctx passed with bbolt transaction
-		return s.notifyPayloadObservers(tx, transaction, data)
+		return s.notifyPayloadObservers(transaction, data)
 	}
 	return err
 }
 
-func (s *state) ReadPayload(ctx context.Context, hash hash.SHA256Hash) (payload []byte, err error) {
-	err = storage.BBoltTXView(ctx, s.db, func(contextWithTX context.Context, tx *bbolt.Tx) error {
-		payload = s.payloadStore.readPayload(tx, hash)
-		return nil
+func (s *state) ReadPayload(_ context.Context, hash hash.SHA256Hash) (payload []byte, err error) {
+	_ = s.db.Read(func(tx stoabs.ReadTx) error {
+		payload, err = s.payloadStore.readPayload(tx, hash)
+		return err
 	})
 	return
 }
 
-func (s *state) Heads(ctx context.Context) []hash.SHA256Hash {
-	return s.graph.heads(ctx)
+func (s *state) Heads(_ context.Context) []hash.SHA256Hash {
+	heads := make([]hash.SHA256Hash, 0)
+	_ = s.db.Read(func(tx stoabs.ReadTx) error {
+		heads = s.graph.heads(tx)
+		return nil
+	})
+	return heads
 }
 
 func (s *state) Notifier(name string, receiver ReceiverFn, options ...NotifierOption) (Notifier, error) {
@@ -256,10 +298,10 @@ func (s *state) Notifier(name string, receiver ReceiverFn, options ...NotifierOp
 	return notifier, nil
 }
 
-func (s *state) XOR(ctx context.Context, reqClock uint32) (hash.SHA256Hash, uint32) {
+func (s *state) XOR(_ context.Context, reqClock uint32) (hash.SHA256Hash, uint32) {
 	var data tree.Data
 
-	currentClock := s.lamportClock(ctx)
+	currentClock := s.lamportClock()
 	dataClock := currentClock
 	if reqClock < currentClock {
 		var pageClock uint32
@@ -274,10 +316,10 @@ func (s *state) XOR(ctx context.Context, reqClock uint32) (hash.SHA256Hash, uint
 	return data.(*tree.Xor).Hash(), dataClock
 }
 
-func (s *state) IBLT(ctx context.Context, reqClock uint32) (tree.Iblt, uint32) {
+func (s *state) IBLT(_ context.Context, reqClock uint32) (tree.Iblt, uint32) {
 	var data tree.Data
 
-	currentClock := s.lamportClock(ctx)
+	currentClock := s.lamportClock()
 	dataClock := currentClock
 	if reqClock < currentClock {
 		var pageClock uint32
@@ -293,34 +335,21 @@ func (s *state) IBLT(ctx context.Context, reqClock uint32) (tree.Iblt, uint32) {
 }
 
 // lamportClock returns the highest clock value in the DAG.
-func (s *state) lamportClock(ctx context.Context) uint32 {
-	// TODO: keep track of clock in state
-	return s.graph.getHighestClock(ctx)
+func (s *state) lamportClock() uint32 {
+	return s.graph.getHighestClock()
 }
 
 func (s *state) Shutdown() error {
-	// Close BBolt database
-	if s.db != nil {
-		err := s.db.Close()
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
 func (s *state) Start() error {
-	ctx := context.Background()
-
-	// load trees
-	if err := s.xorTree.read(ctx); err != nil {
-		return fmt.Errorf("failed to read xorTree: %w", err)
+	// initialize all shelfs so that the db cannot return nil readers
+	err := initShelfs(s.db, transactionsShelf, headsShelf, clockShelf, payloadsShelf, ibltShelf, xorShelf)
+	if err != nil {
+		return err
 	}
-
-	if err := s.ibltTree.read(ctx); err != nil {
-		return fmt.Errorf("failed to read ibltTree: %w", err)
-	}
+	s.loadTrees()
 
 	if err := s.Verify(); err != nil {
 		return err
@@ -336,12 +365,17 @@ func (s *state) Start() error {
 	return nil
 }
 
-func (s *state) Statistics(ctx context.Context) Statistics {
-	return s.graph.statistics(ctx)
+func (s *state) Statistics(_ context.Context) Statistics {
+	var stats Statistics
+	_ = s.db.Read(func(tx stoabs.ReadTx) error {
+		stats = s.graph.statistics(tx)
+		return nil
+	})
+	return stats
 }
 
 func (s *state) Verify() error {
-	return storage.BBoltTXView(context.Background(), s.db, func(contextWithTX context.Context, dbTx *bbolt.Tx) error {
+	return s.db.Read(func(dbTx stoabs.ReadTx) error {
 		transactions, err := s.graph.findBetweenLC(dbTx, 0, math.MaxUint32)
 		if err != nil {
 			return err
@@ -355,33 +389,35 @@ func (s *state) Verify() error {
 	})
 }
 
+func (s *state) Walk(_ context.Context, visitor Visitor, startAt uint32) error {
+	return s.db.Read(func(tx stoabs.ReadTx) error {
+		return s.graph.walk(tx, startAt, func(transaction Transaction) bool {
+			return visitor(transaction)
+		})
+	})
+}
+
 // notifyObservers is called from a transactional context. The transactional observers need to be called with the TX context, the other observers after the commit.
-func (s *state) notifyObservers(ctx context.Context, transaction Transaction) error {
+func (s *state) notifyObservers(tx stoabs.WriteTx, transaction Transaction) error {
 	// apply TX context observers
 	for _, observer := range s.transactionalObservers {
-		if err := observer(ctx, transaction); err != nil {
+		if err := observer(tx, transaction); err != nil {
 			return fmt.Errorf("observer notification failed: %w", err)
 		}
 	}
 
 	notifyNonTXObservers := func() {
 		for _, observer := range s.nonTransactionalObservers {
-			if err := observer(context.Background(), transaction); err != nil {
+			if err := observer(tx, transaction); err != nil {
 				log.Logger().Errorf("observer notification failed: %v", err)
 			}
 		}
 	}
-	// check if there's an active transaction
-	tx, txIsActive := storage.BBoltTX(ctx)
-	if txIsActive { // sanity check because there should always be a transaction
-		tx.OnCommit(notifyNonTXObservers)
-	} else {
-		notifyNonTXObservers()
-	}
+	notifyNonTXObservers()
 	return nil
 }
 
-func (s *state) notifyPayloadObservers(tx *bbolt.Tx, transaction Transaction, payload []byte) error {
+func (s *state) notifyPayloadObservers(transaction Transaction, payload []byte) error {
 	// apply TX context observers
 	for _, observer := range s.transactionalPayloadObservers {
 		if err := observer(transaction, payload); err != nil {
@@ -397,7 +433,8 @@ func (s *state) notifyPayloadObservers(tx *bbolt.Tx, transaction Transaction, pa
 		}
 	}
 	// check if there's an active transaction
-	tx.OnCommit(notifyNonTXObservers)
+
+	notifyNonTXObservers()
 	return nil
 }
 
