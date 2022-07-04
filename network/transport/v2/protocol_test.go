@@ -253,7 +253,7 @@ func TestProtocol_gossipTransaction(t *testing.T) {
 	t.Run("ok - to gossipManager", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
 		tx, _, _ := dag.CreateTestTransaction(0)
-		mocks.State.EXPECT().XOR(context.Background(), uint32(math.MaxUint32))
+		mocks.State.EXPECT().XOR(gomock.Any(), uint32(math.MaxUint32))
 		mocks.Gossip.EXPECT().TransactionRegistered(tx.Ref(), hash.EmptyHash(), uint32(0))
 		event := dag.Event{
 			Type:        dag.TransactionEventType,

@@ -29,12 +29,13 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/nuts-foundation/go-stoabs"
 	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"github.com/stretchr/testify/assert"
-	"go.etcd.io/bbolt"
 )
 
 func Test_PrevTransactionVerifier(t *testing.T) {
@@ -48,7 +49,7 @@ func Test_PrevTransactionVerifier(t *testing.T) {
 		tx, _, _ := CreateTestTransactionEx(1, hash.SHA256Sum(payload), nil, root)
 		_ = testState.Add(ctx, root, rootPayload)
 
-		_ = testState.db.View(func(dbTx *bbolt.Tx) error {
+		_ = testState.db.Read(func(dbTx stoabs.ReadTx) error {
 			err := NewPrevTransactionsVerifier()(dbTx, tx)
 			assert.NoError(t, err)
 			return nil
@@ -59,7 +60,7 @@ func Test_PrevTransactionVerifier(t *testing.T) {
 		testState := createState(t).(*state)
 		tx, _, _ := CreateTestTransaction(1, root)
 
-		_ = testState.db.View(func(dbTx *bbolt.Tx) error {
+		_ = testState.db.Read(func(dbTx stoabs.ReadTx) error {
 			err := NewPrevTransactionsVerifier()(dbTx, tx)
 			assert.Contains(t, err.Error(), "transaction is referring to non-existing previous transaction")
 			return nil
@@ -75,7 +76,7 @@ func Test_PrevTransactionVerifier(t *testing.T) {
 		signer := crypto2.NewTestKey("1")
 		signedTransaction, _ := NewTransactionSigner(signer, true).Sign(unsignedTransaction, time.Now())
 
-		_ = testState.db.View(func(dbTx *bbolt.Tx) error {
+		_ = testState.db.Read(func(dbTx stoabs.ReadTx) error {
 			err := NewPrevTransactionsVerifier()(dbTx, signedTransaction)
 			assert.EqualError(t, err, "transaction has an invalid lamport clock value")
 			return nil

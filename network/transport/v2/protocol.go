@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/go-stoabs"
 	"math"
 	"os"
 	"path"
@@ -237,7 +238,7 @@ func (p *protocol) sendGossip(id transport.PeerID, refs []hash.SHA256Hash, xor h
 	return true
 }
 
-func (p *protocol) handlePrivateTx(_ context.Context, tx dag.Transaction) error {
+func (p *protocol) handlePrivateTx(_ stoabs.WriteTx, tx dag.Transaction) error {
 	if len(tx.PAL()) == 0 {
 		// not a private tx
 		return nil

@@ -19,16 +19,9 @@
 package dag
 
 import (
-	"context"
-	"encoding/binary"
-	"sync/atomic"
-	"testing"
-	"time"
-
-	"github.com/nuts-foundation/nuts-node/test"
-	"go.etcd.io/bbolt"
-
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/stretchr/testify/assert"
+	"testing"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
@@ -41,27 +34,33 @@ func TestBboltTree_writeUpdates(t *testing.T) {
 	db := createBBoltDB(io.TestDirectory(t))
 
 	t.Run("ok - inserts", func(t *testing.T) {
-		store := newBBoltTreeStore(db, "xor tree", tree.New(tree.NewXor(), testLeafSize))
+		store := newTreeStore("xor tree", tree.New(tree.NewXor(), testLeafSize))
 		store.tree.Insert(hash.FromSlice([]byte("test hash 1")), 0)
 		dirty := store.tree.InsertGetDirty(hash.FromSlice([]byte("test hash 2")), testLeafSize)
 
-		err := store.writeUpdates(context.Background(), dirty, nil)
+		err := db.Write(func(tx stoabs.WriteTx) error {
+			return store.writeUpdates(tx, dirty, nil)
+		})
 
 		assert.NoError(t, err)
 	})
 
 	t.Run("ok - dropping leaves", func(t *testing.T) {
-		store := newBBoltTreeStore(db, "xor drop leaves", tree.New(tree.NewXor(), testLeafSize))
+		store := newTreeStore("xor drop leaves", tree.New(tree.NewXor(), testLeafSize))
 		store.tree.Insert(hash.FromSlice([]byte("test hash 1")), 0)
 		store.tree.Insert(hash.FromSlice([]byte("test hash 2")), testLeafSize)
 		store.tree.DropLeaves()
 		dirties, orphaned := store.tree.GetUpdates()
 
-		err := store.writeUpdates(context.Background(), dirties, orphaned)
+		err := db.Write(func(tx stoabs.WriteTx) error {
+			return store.writeUpdates(tx, dirties, orphaned)
+		})
 		assert.NoError(t, err)
 
-		storeRead := newBBoltTreeStore(db, "xor drop leaves", tree.New(tree.NewXor(), testLeafSize))
-		_ = storeRead.read(context.Background())
+		storeRead := newTreeStore("xor drop leaves", tree.New(tree.NewXor(), testLeafSize))
+		_ = db.Read(func(tx stoabs.ReadTx) error {
+			return storeRead.read(tx)
+		})
 
 		data, _ := store.getZeroTo(0)
 		assert.Equal(t, data, storeRead.getRoot())
@@ -70,49 +69,67 @@ func TestBboltTree_writeUpdates(t *testing.T) {
 
 func TestBboltTree_read(t *testing.T) {
 	db := createBBoltDB(io.TestDirectory(t))
-	storeWrite := newBBoltTreeStore(db, "real bucket", tree.New(tree.NewXor(), testLeafSize))
-	dirty := storeWrite.tree.InsertGetDirty(hash.FromSlice([]byte("test hash")), testLeafSize)
-	err := storeWrite.writeUpdates(context.Background(), dirty, nil)
+	storeWrite := newTreeStore("real bucket", tree.New(tree.NewXor(), testLeafSize))
+	testTx := CreateTestTransactionWithJWK(123)
+	testTx.(*transaction).lamportClock = testLeafSize // tx is on second page
+	err := db.Write(func(tx stoabs.WriteTx) error {
+		return storeWrite.write(tx, testTx)
+	})
 	if !assert.NoError(t, err) {
 		return
 	}
 
 	t.Run("ok - read tree successfully", func(t *testing.T) {
-		store := newBBoltTreeStore(db, "real bucket", tree.New(tree.NewXor(), testLeafSize))
+		store := newTreeStore("real bucket", tree.New(tree.NewXor(), testLeafSize))
 
-		err := store.read(context.Background())
+		err := db.Read(func(tx stoabs.ReadTx) error {
+			return store.read(tx)
+		})
 
+		xor, clock := store.getZeroTo(MaxLamportClock)
 		assert.NoError(t, err)
-		assert.Equal(t, storeWrite.getRoot(), store.getRoot())
+		assert.Equal(t, testTx.Ref(), xor.(*tree.Xor).Hash())
+		assert.Equal(t, uint32(2*testLeafSize-1), clock) // highest clock on second page
 	})
 
 	t.Run("ok - incorrect bucket name results in empty tree", func(t *testing.T) {
-		store := newBBoltTreeStore(db, "fake bucket", tree.New(tree.NewXor(), testLeafSize))
+		store := newTreeStore("fake bucket", tree.New(tree.NewXor(), testLeafSize))
 
-		err := store.read(context.Background())
+		err := db.Read(func(tx stoabs.ReadTx) error {
+			return store.read(tx)
+		})
 
 		assert.NoError(t, err)
 		assert.Equal(t, tree.Data(tree.NewXor()), store.getRoot())
 	})
 
 	t.Run("fail - incorrect prototype", func(t *testing.T) {
-		store := newBBoltTreeStore(db, "real bucket", tree.New(tree.NewIblt(0), testLeafSize))
+		store := newTreeStore("real bucket", tree.New(tree.NewIblt(0), testLeafSize))
 
-		err := store.read(context.Background())
+		err := db.Read(func(tx stoabs.ReadTx) error {
+			return store.read(tx)
+		})
 
 		assert.EqualError(t, err, "invalid data length")
 	})
 }
 
-func TestBboltTree_dagObserver(t *testing.T) {
+func TestBboltTree_write(t *testing.T) {
 	t.Run("write tx", func(t *testing.T) {
 		db := createBBoltDB(io.TestDirectory(t))
-		storeWrite := newBBoltTreeStore(db, "observer bucket", tree.New(tree.NewXor(), testLeafSize))
-		storeRead := newBBoltTreeStore(db, "observer bucket", tree.New(tree.NewXor(), testLeafSize))
+		storeWrite := newTreeStore("observer bucket", tree.New(tree.NewXor(), testLeafSize))
+		storeRead := newTreeStore("observer bucket", tree.New(tree.NewXor(), testLeafSize))
 		tx, _, _ := CreateTestTransaction(1)
 
-		storeWrite.dagObserver(context.Background(), tx, nil)
-		err := storeRead.read(context.Background())
+		err := db.Write(func(dbTx stoabs.WriteTx) error {
+			return storeWrite.write(dbTx, tx)
+		})
+		if !assert.NoError(t, err) {
+			return
+		}
+		err = db.Read(func(tx stoabs.ReadTx) error {
+			return storeRead.read(tx)
+		})
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -123,66 +140,11 @@ func TestBboltTree_dagObserver(t *testing.T) {
 
 	t.Run("don't panic on nil Transaction", func(t *testing.T) {
 		db := createBBoltDB(io.TestDirectory(t))
-		store := newBBoltTreeStore(db, "observer bucket", tree.New(tree.NewXor(), testLeafSize))
+		store := newTreeStore("observer bucket", tree.New(tree.NewXor(), testLeafSize))
 
 		// don't panic
-		store.dagObserver(context.Background(), nil, nil)
-	})
-
-	t.Run("rollback on timeout", func(t *testing.T) {
-		db := createBBoltDB(io.TestDirectory(t))
-		bboltTx, _ := db.Begin(true)
-		ctx := context.WithValue(context.Background(), struct{}{}, bboltTx)
-		store := newBBoltTreeStore(db, "observer bucket", tree.New(tree.NewXor(), testLeafSize))
-		tx, _, _ := CreateTestTransaction(1)
-		observerRollbackTimeOut = 10 * time.Millisecond
-		defer func() {
-			observerRollbackTimeOut = defaultObserverRollbackTimeOut
-		}()
-
-		assert.Equal(t, uint32(0), atomic.LoadUint32(store.numRollbacks))
-		store.dagObserver(ctx, tx, nil)
-		assert.Equal(t, tx.Ref(), store.getRoot().(*tree.Xor).Hash())
-
-		test.WaitFor(t, func() (bool, error) {
-			return atomic.LoadUint32(store.numRollbacks) == 1, nil
-		}, 5*time.Second, "timeout while waiting for go routine to exit")
-		assert.Equal(t, hash.EmptyHash(), store.getRoot().(*tree.Xor).Hash())
-
-		_ = db.View(func(tx *bbolt.Tx) error {
-			bucket := tx.Bucket([]byte("observer bucket"))
-			assert.Nil(t, bucket)
-			return nil
-		})
-	})
-
-	t.Run("cancel rollback-routine on commit", func(t *testing.T) {
-		db := createBBoltDB(io.TestDirectory(t))
-		bboltTx, _ := db.Begin(true)
-		ctx := context.WithValue(context.Background(), struct{}{}, bboltTx)
-		store := newBBoltTreeStore(db, "observer bucket", tree.New(tree.NewXor(), testLeafSize))
-		tx, _, _ := CreateTestTransaction(1)
-
-		store.dagObserver(ctx, tx, nil)
-		assert.Equal(t, tx.Ref(), store.getRoot().(*tree.Xor).Hash())
-		_ = bboltTx.Commit()
-
-		test.WaitFor(t, func() (bool, error) {
-			return atomic.LoadUint32(store.activeRollbackRoutines) == 0, nil
-		}, 10*time.Second, "timeout while waiting for go routine to exit")
-		assert.Equal(t, tx.Ref(), store.getRoot().(*tree.Xor).Hash())
-
-		_ = db.View(func(tx *bbolt.Tx) error {
-			bucket := tx.Bucket([]byte("observer bucket"))
-			if !assert.NotNil(t, bucket) {
-				return nil
-			}
-			bytes := make([]byte, 4)
-			binary.LittleEndian.PutUint32(bytes, 256)
-			leaf := bucket.Get(bytes)
-
-			assert.NotNil(t, leaf)
-			return nil
+		_ = db.Write(func(dbTx stoabs.WriteTx) error {
+			return store.write(dbTx, nil)
 		})
 	})
 }

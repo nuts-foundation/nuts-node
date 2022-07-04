@@ -27,26 +27,19 @@ import (
 	"github.com/nuts-foundation/nuts-node/test"
 	"go.uber.org/atomic"
 	"math"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
-	"github.com/nuts-foundation/nuts-node/network/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
-	"go.etcd.io/bbolt"
 )
-
-func TestNewState(t *testing.T) {
-	t.Run("error creating DB files", func(t *testing.T) {
-		_, err := NewState("state_test.go")
-
-		assert.EqualError(t, err, "unable to create BBolt database: mkdir state_test.go: not a directory")
-	})
-}
 
 func TestState_relayingFuncs(t *testing.T) {
 	ctx := context.Background()
@@ -55,6 +48,12 @@ func TestState_relayingFuncs(t *testing.T) {
 	payload := []byte{0, 0, 0, 1}
 	txState.Add(ctx, tx, payload)
 	payloadHash := hash.SHA256Sum(payload)
+	lastTx := tx
+	for i := 1; i < 10; i++ {
+		lastTx, _, _ = CreateTestTransaction(uint32(i+1), lastTx)
+		err := txState.Add(ctx, lastTx, []byte{0, 0, 0, byte(i + 1)})
+		assert.NoError(t, err)
+	}
 
 	t.Run("GetTransaction", func(t *testing.T) {
 		txResult, err := txState.GetTransaction(ctx, tx.Ref())
@@ -85,12 +84,11 @@ func TestState_relayingFuncs(t *testing.T) {
 	})
 
 	t.Run("FindBetweenLC", func(t *testing.T) {
-		txs, err := txState.FindBetweenLC(0, 1)
-
+		txs, err := txState.FindBetweenLC(0, 10)
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Len(t, txs, 1)
+		assert.Len(t, txs, 10)
 	})
 
 	t.Run("ReadPayload", func(t *testing.T) {
@@ -106,7 +104,16 @@ func TestState_relayingFuncs(t *testing.T) {
 		heads := txState.Heads(ctx)
 
 		assert.Len(t, heads, 1)
-		assert.Equal(t, tx.Ref(), heads[0])
+		assert.Equal(t, lastTx.Ref(), heads[0])
+	})
+
+	t.Run("Walk", func(t *testing.T) {
+		var clock uint32
+		err := txState.Walk(ctx, func(transaction Transaction) bool {
+			clock++
+			return transaction.Clock() == clock
+		}, 0)
+		assert.NoError(t, err)
 	})
 }
 
@@ -121,13 +128,26 @@ func TestState_Shutdown(t *testing.T) {
 }
 
 func TestState_Start(t *testing.T) {
+	t.Run("all shelfs created", func(t *testing.T) {
+		txState := createState(t)
+
+		// createState already calls Start
+
+		err := txState.(*state).db.Read(func(tx stoabs.ReadTx) error {
+			for _, shelf := range []string{transactionsShelf, headsShelf, clockShelf, payloadsShelf, ibltShelf, xorShelf} {
+				reader, _ := tx.GetShelfReader(shelf)
+				assert.NotNil(t, reader)
+			}
+			return nil
+		})
+		assert.NoError(t, err)
+	})
 	t.Run("error - verifier failed", func(t *testing.T) {
 		ctx := context.Background()
-		txState := createState(t, func(_ *bbolt.Tx, _ Transaction) error {
+		txState := createState(t, func(_ stoabs.ReadTx, _ Transaction) error {
 			return errors.New("failed")
 		})
 		tx := CreateTestTransactionWithJWK(0)
-
 		err := txState.Add(ctx, tx, nil)
 
 		assert.Error(t, err)
@@ -161,31 +181,11 @@ func TestState_Notifier(t *testing.T) {
 }
 
 func TestState_Observe(t *testing.T) {
-	t.Run("called with correct TX context", func(t *testing.T) {
-		tests := []bool{true, false}
-		for _, expected := range tests {
-			t.Run(fmt.Sprintf("TX active: %v", expected), func(t *testing.T) {
-				ctx := context.Background()
-				txState := createState(t)
-				var actual bool
-				txState.RegisterTransactionObserver(func(ctx context.Context, transaction Transaction) error {
-					_, actual = storage.BBoltTX(ctx)
-					return nil
-				}, expected)
-				tx := CreateTestTransactionWithJWK(1)
-
-				err := txState.Add(ctx, tx, nil)
-
-				assert.NoError(t, err)
-				assert.Equal(t, expected, actual)
-			})
-		}
-	})
 	t.Run("transaction added", func(t *testing.T) {
 		ctx := context.Background()
 		txState := createState(t)
 		var actual Transaction
-		txState.RegisterTransactionObserver(func(ctx context.Context, transaction Transaction) error {
+		txState.RegisterTransactionObserver(func(_ stoabs.WriteTx, transaction Transaction) error {
 			actual = transaction
 			return nil
 		}, false)
@@ -201,7 +201,7 @@ func TestState_Observe(t *testing.T) {
 		txState := createState(t)
 		var actualTX Transaction
 		var actualPayload []byte
-		txState.RegisterTransactionObserver(func(ctx context.Context, transaction Transaction) error {
+		txState.RegisterTransactionObserver(func(_ stoabs.WriteTx, transaction Transaction) error {
 			actualTX = transaction
 			return nil
 		}, false)
@@ -245,7 +245,7 @@ func TestState_Observe(t *testing.T) {
 func TestState_Add(t *testing.T) {
 	t.Run("error for transaction verification failure", func(t *testing.T) {
 		ctx := context.Background()
-		txState := createState(t, func(_ *bbolt.Tx, tx Transaction) error {
+		txState := createState(t, func(_ stoabs.ReadTx, tx Transaction) error {
 			return errors.New("verification failed")
 		})
 		_ = txState.Start()
@@ -352,15 +352,11 @@ func TestState_XOR(t *testing.T) {
 	// create state
 	ctx := context.Background()
 	txState := createState(t)
-	err := txState.Start()
-	if !assert.NoError(t, err) {
-		return
-	}
 	payload := []byte("payload")
 	tx, _, _ := CreateTestTransactionEx(1, hash.SHA256Sum(payload), nil)
 	dagClock := 3 * PageSize / 2
 	tx.(*transaction).lamportClock = dagClock
-	err = txState.Add(ctx, tx, payload)
+	err := txState.Add(ctx, tx, payload)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -389,15 +385,11 @@ func TestState_IBLT(t *testing.T) {
 	// create state
 	ctx := context.Background()
 	txState := createState(t)
-	err := txState.Start()
-	if !assert.NoError(t, err) {
-		return
-	}
 	payload := []byte("payload")
 	tx, _, _ := CreateTestTransactionEx(1, hash.SHA256Sum(payload), nil)
 	dagClock := 3 * PageSize / 2
 	tx.(*transaction).lamportClock = dagClock
-	err = txState.Add(ctx, tx, payload)
+	err := txState.Add(ctx, tx, payload)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -430,7 +422,7 @@ func TestState_IBLT(t *testing.T) {
 	})
 }
 
-func TestState_treeObserver(t *testing.T) {
+func TestState_updateTrees(t *testing.T) {
 	setup := func(t *testing.T) State {
 		txState := createState(t)
 		err := txState.Start()
@@ -456,9 +448,18 @@ func TestState_treeObserver(t *testing.T) {
 	})
 }
 
+func Test_createStore(t *testing.T) {
+	assert.NotNil(t, createState(t))
+}
+
 func createState(t *testing.T, verifier ...Verifier) State {
 	testDir := io.TestDirectory(t)
-	s, _ := NewState(testDir, verifier...)
+	bboltStore, err := bbolt.CreateBBoltStore(filepath.Join(testDir, "test_state"), stoabs.WithNoSync())
+	if err != nil {
+		t.Fatal("failed to create store: ", err)
+	}
+	s, _ := NewState(bboltStore, verifier...)
+	s.Start()
 	t.Cleanup(func() {
 		s.Shutdown()
 	})

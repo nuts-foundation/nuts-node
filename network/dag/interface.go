@@ -21,10 +21,10 @@ package dag
 import (
 	"context"
 	"errors"
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
-	"go.etcd.io/bbolt"
 	"math"
 )
 
@@ -78,6 +78,8 @@ type State interface {
 	Statistics(ctx context.Context) Statistics
 	// Verify checks the integrity of the DAG. Should be called when it's loaded, e.g. from disk.
 	Verify() error
+	// Walk visits every node of the DAG, starting at the given Lamport Clock value working its way down each level until every leaf is visited.
+	Walk(ctx context.Context, visitor Visitor, startLC uint32) error
 	// XOR returns the xor of all transaction references between the DAG root and the clock closest to the requested clock value.
 	// This closest clock value is also returned, and is defined as the lowest of:
 	//	- upper-limit of the page that contains the requested clock
@@ -95,7 +97,7 @@ type State interface {
 // Statistics holds data about the current state of the DAG.
 type Statistics struct {
 	// NumberOfTransactions contains the number of transactions on the DAG
-	NumberOfTransactions int
+	NumberOfTransactions uint
 	// DataSize contains the size of the DAG in bytes
 	DataSize int64
 }
@@ -103,21 +105,19 @@ type Statistics struct {
 // Visitor defines the contract for a function that visits the DAG. If the function returns `false` it stops walking the DAG.
 type Visitor func(transaction Transaction) bool
 
-type visitor func(tx *bbolt.Tx, transaction Transaction) bool
-
 // PayloadStore defines the interface for types that store and read transaction payloads.
 type PayloadStore interface {
 	// IsPayloadPresent checks whether the contents for the given transaction are present.
-	isPayloadPresent(tx *bbolt.Tx, payloadHash hash.SHA256Hash) bool
+	isPayloadPresent(tx stoabs.ReadTx, payloadHash hash.SHA256Hash) bool
 	// ReadPayload reads the contents for the specified payload, identified by the given hash. If contents can't be found,
 	// nil is returned. If something (else) goes wrong an error is returned.
-	readPayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash) []byte
+	readPayload(tx stoabs.ReadTx, payloadHash hash.SHA256Hash) ([]byte, error)
 	// WritePayload writes contents for the specified payload, identified by the given hash.
-	writePayload(tx *bbolt.Tx, payloadHash hash.SHA256Hash, data []byte) error
+	writePayload(tx stoabs.WriteTx, payloadHash hash.SHA256Hash, data []byte) error
 }
 
 // Observer defines the signature of an observer which can be called by an Observable.
-type Observer func(ctx context.Context, transaction Transaction) error
+type Observer func(tx stoabs.WriteTx, transaction Transaction) error
 
 // PayloadObserver defines the signature of an observer which can be called by an Observable.
 type PayloadObserver func(transaction Transaction, payload []byte) error
