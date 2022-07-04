@@ -22,8 +22,6 @@ import (
 	crypto2 "crypto"
 	"errors"
 	"fmt"
-	"time"
-
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
@@ -85,17 +83,6 @@ func NewPrevTransactionsVerifier() Verifier {
 			return ErrInvalidLamportClockValue
 		}
 
-		return nil
-	}
-}
-
-// NewSigningTimeVerifier creates a transaction verifier that asserts that signing time of transactions aren't
-// further than 1 day in the future, since that complicates head calculation.
-func NewSigningTimeVerifier() Verifier {
-	return func(tx *bbolt.Tx, transaction Transaction) error {
-		if time.Now().Add(24 * time.Hour).Before(transaction.SigningTime()) {
-			return fmt.Errorf("transaction signing time too far in the future: %s", transaction.SigningTime())
-		}
 		return nil
 	}
 }

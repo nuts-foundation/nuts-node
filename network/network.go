@@ -108,7 +108,7 @@ func NewNetworkInstance(
 // Configure configures the Network subsystem
 func (n *Network) Configure(config core.ServerConfig) error {
 	var err error
-	if n.state, err = dag.NewState(config.Datadir, dag.NewSigningTimeVerifier(), dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver)); err != nil {
+	if n.state, err = dag.NewState(config.Datadir, dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver)); err != nil {
 		return fmt.Errorf("failed to configure state: %w", err)
 	}
 

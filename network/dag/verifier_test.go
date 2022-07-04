@@ -135,25 +135,3 @@ func TestTransactionSignatureVerifier(t *testing.T) {
 		assert.Contains(t, err.Error(), "failed")
 	})
 }
-
-func TestSigningTimeVerifier(t *testing.T) {
-	t.Run("signed now", func(t *testing.T) {
-		err := NewSigningTimeVerifier()(nil, CreateSignedTestTransaction(1, time.Now(), nil, "test/test", true))
-		assert.NoError(t, err)
-	})
-	t.Run("signed in history", func(t *testing.T) {
-		aWhileBack := time.Now().AddDate(-1, 0, 0)
-		err := NewSigningTimeVerifier()(nil, CreateSignedTestTransaction(1, aWhileBack, nil, "test/test", true))
-		assert.NoError(t, err)
-	})
-	t.Run("signed a few hours in the future", func(t *testing.T) {
-		soon := time.Now().Add(time.Hour * 2)
-		err := NewSigningTimeVerifier()(nil, CreateSignedTestTransaction(1, soon, nil, "test/test", true))
-		assert.NoError(t, err)
-	})
-	t.Run("error - signed a day in the future", func(t *testing.T) {
-		later := time.Now().Add(time.Hour*24 + time.Minute)
-		err := NewSigningTimeVerifier()(nil, CreateSignedTestTransaction(1, later, nil, "test/test", true))
-		assert.Error(t, err)
-	})
-}
