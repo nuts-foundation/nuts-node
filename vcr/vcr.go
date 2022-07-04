@@ -25,7 +25,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"os"
 	"path"
 	"strings"
 	"time"
@@ -142,18 +141,6 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 
 func (c *vcr) credentialsDBPath() string {
 	return path.Join(c.config.datadir, "vcr", "credentials.db")
-}
-
-func (c *vcr) Migrate() error {
-	// the migration to go-leia V3 needs a fresh DB
-	// The DAG is rewalked so all entries are added
-	// just delete
-	// TODO remove after all parties in development network have migrated.
-	err := os.Remove(c.credentialsDBPath())
-	if errors.Is(err, os.ErrNotExist) {
-		return nil
-	}
-	return err
 }
 
 func (c *vcr) Start() error {
