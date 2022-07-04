@@ -259,11 +259,19 @@ func addSubCommands(system *core.System, root *cobra.Command) {
 	serverCommands := []*cobra.Command{
 		createServerCommand(system),
 		createPrintConfigCommand(system),
+		cryptoCmd.ServerCmd(),
 	}
-	for _, serverCommand := range serverCommands {
-		serverCommand.Flags().AddFlagSet(serverConfigFlags())
-	}
+	flagSet := serverConfigFlags()
+	registerFlags(serverCommands, flagSet)
+
 	root.AddCommand(serverCommands...)
+}
+
+func registerFlags(cmds []*cobra.Command, flags *pflag.FlagSet) {
+	for _, cmd := range cmds {
+		cmd.Flags().AddFlagSet(flags)
+		registerFlags(cmd.Commands(), flags)
+	}
 }
 
 // serverConfigFlags returns the flagSet needed for the server command

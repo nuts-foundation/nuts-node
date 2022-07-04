@@ -46,6 +46,15 @@ func (m mockVaultClient) Read(path string) (*vault.Secret, error) {
 	}, nil
 }
 
+func (m mockVaultClient) ReadWithData(path string, _ map[string][]string) (*vault.Secret, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	return &vault.Secret{
+		Data: m.store[path],
+	}, nil
+}
+
 func (m mockVaultClient) Write(path string, data map[string]interface{}) (*vault.Secret, error) {
 	if m.err != nil {
 		return nil, m.err
@@ -138,12 +147,18 @@ func Test_PrivateKeyPath(t *testing.T) {
 
 func TestVaultKVStorage_configure(t *testing.T) {
 	t.Run("ok - configure a new vault store", func(t *testing.T) {
-		_, err := configureVaultClient("tokenString", "http://localhost:123")
+		_, err := configureVaultClient(VaultConfig{
+			Token:   "tokenString",
+			Address: "http://localhost:123",
+		})
 		assert.NoError(t, err)
 	})
 
 	t.Run("error - invalid address", func(t *testing.T) {
-		_, err := configureVaultClient("tokenString", "%zzzzz")
+		_, err := configureVaultClient(VaultConfig{
+			Token:   "tokenString",
+			Address: "%zzzzz",
+		})
 		assert.Error(t, err)
 		assert.EqualError(t, err, "vault address invalid: failed to set address: parse \"%zzzzz\": invalid URL escape \"%zz\"")
 	})
@@ -155,7 +170,7 @@ func TestNewVaultKVStorage(t *testing.T) {
 			writer.Write([]byte("{\"data\": {\"keys\":[]}}"))
 		}))
 		defer s.Close()
-		storage, err := NewVaultKVStorage(VaultConfig{Address: s.URL})
+		storage, err := NewVaultKVStorage(createTestVaultConfig(s.URL))
 		assert.NoError(t, err)
 		assert.NotNil(t, storage)
 	})
@@ -165,14 +180,14 @@ func TestNewVaultKVStorage(t *testing.T) {
 			writer.WriteHeader(http.StatusUnauthorized)
 		}))
 		defer s.Close()
-		storage, err := NewVaultKVStorage(VaultConfig{Address: s.URL})
+		storage, err := NewVaultKVStorage(createTestVaultConfig(s.URL))
 		assert.Error(t, err)
 		assert.True(t, strings.HasPrefix(err.Error(), "unable to connect to Vault: unable to retrieve token status: Error making API request"))
 		assert.Nil(t, storage)
 	})
 
 	t.Run("error - wrong URL", func(t *testing.T) {
-		storage, err := NewVaultKVStorage(VaultConfig{Address: "http://localhost"})
+		storage, err := NewVaultKVStorage(createTestVaultConfig("http://localhost"))
 		assert.Error(t, err)
 		assert.True(t, strings.HasSuffix(err.Error(), "connect: connection refused"))
 		assert.Nil(t, storage)
@@ -198,4 +213,10 @@ func TestVaultKVStorage_checkConnection(t *testing.T) {
 		err := vaultStorage.checkConnection()
 		assert.EqualError(t, err, "unable to connect to Vault: unable to retrieve token status: vault error")
 	})
+}
+
+func createTestVaultConfig(address string) VaultConfig {
+	return VaultConfig{
+		Address: address,
+	}
 }

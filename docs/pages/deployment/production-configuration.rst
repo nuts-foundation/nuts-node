@@ -34,6 +34,17 @@ This is the default backend but not recommended for production. It stores keys u
 the directory in your backups and keep these on a safe place.
 If you want to use filesystem in strict-mode, you have to set it explicitly, otherwise the node fails during startup.
 
+Migrating from Filesystem storage to Vault
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To migrate from filesystem based storage to Vault you can upload the keys to Vault under `kv/nuts-private-keys`.
+
+Alternatively you can use the `fs2vault` crypto command, which takes the directory containing the private keys as argument (it assumes the container is called `nuts-node`):
+
+    docker exec nuts-node nuts crypto fs2vault /opt/nuts/data/crypto
+
+In any case, make sure the key-value secret engine exists before trying to migrate (default engine name is `kv`).
+
 Strict mode
 ***********
 

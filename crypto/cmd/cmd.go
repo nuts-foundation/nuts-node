@@ -20,32 +20,83 @@ package cmd
 
 import (
 	"fmt"
-
-	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/core"
+	cryptoEngine "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/storage"
+	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
-
-// ConfigStorage is used as --crypto.storage config flag
-const ConfigStorage string = "crypto.storage"
-
-// ConfigVaultToken is used as --crypto.vault.token config flag
-const ConfigVaultToken string = "crypto.vault.token"
-
-// ConfigVaultAddr is used as --crypto.vault.address config flag
-const ConfigVaultAddr string = "crypto.vault.address"
-
-// ConfigVaultPathPrefix is used as --crypto.vault.pathprefix config flag
-const ConfigVaultPathPrefix string = "crypto.vault.pathprefix"
 
 // FlagSet returns the configuration flags for crypto
 func FlagSet() *pflag.FlagSet {
 	flags := pflag.NewFlagSet("crypto", pflag.ContinueOnError)
 
-	defs := crypto2.DefaultCryptoConfig()
-	flags.String(ConfigStorage, defs.Storage, fmt.Sprintf("Storage to use, 'fs' for file system, vaultkv for Vault KV store, default: %s.", defs.Storage))
-	flags.String(ConfigVaultToken, defs.Vault.Token, "The Vault token. If set it overwrites the VAULT_TOKEN env var.")
-	flags.String(ConfigVaultAddr, defs.Vault.Address, "The Vault address. If set it overwrites the VAULT_ADDR env var.")
-	flags.String(ConfigVaultPathPrefix, defs.Vault.PathPrefix, fmt.Sprintf("The Vault path prefix. default: %s.", defs.Vault.PathPrefix))
+	defs := cryptoEngine.DefaultCryptoConfig()
+	flags.String("crypto.storage", defs.Storage, fmt.Sprintf("Storage to use, 'fs' for file system, vaultkv for Vault KV store, default: %s.", defs.Storage))
+	flags.String("crypto.vault.token", defs.Vault.Token, "The Vault token. If set it overwrites the VAULT_TOKEN env var.")
+	flags.String("crypto.vault.address", defs.Vault.Address, "The Vault address. If set it overwrites the VAULT_ADDR env var.")
+	flags.Duration("crypto.vault.timeout", defs.Vault.Timeout, "Timeout of client calls to Vault, in Golang time.Duration string format (e.g. 5s).")
+	flags.String("crypto.vault.pathprefix", defs.Vault.PathPrefix, fmt.Sprintf("The Vault path prefix. default: %s.", defs.Vault.PathPrefix))
 
 	return flags
+}
+
+// ServerCmd returns contains CLI commands for crypto that use the server configuration.
+func ServerCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "crypto",
+		Short: "crypto commands",
+	}
+	cmd.AddCommand(fs2VaultCommand())
+	return cmd
+}
+
+func fs2VaultCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "fs2vault [directory]",
+		Short: "Imports private keys from filesystem based storage (located at the given directory) into Vault.",
+		Long: "Imports private keys from filesystem based storage into Vault. The given directory must contain the private key files." +
+			"The Nuts node must be configured to use Vault as crypto storage. Can only be run on the local Nuts node, from the directory where nuts.yaml resides.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.Println("Importing keys on FileSystem storage into Vault...")
+
+			cfg := core.NewServerConfig()
+			err := cfg.Load(cmd.Flags())
+			if err != nil {
+				return err
+			}
+			instance := cryptoEngine.NewCryptoInstance()
+			err = cfg.InjectIntoEngine(instance)
+			if err != nil {
+				return nil
+			}
+			err = instance.Configure(*cfg)
+			if err != nil {
+				return err
+			}
+			targetStorage := instance.Storage
+
+			directory := args[0]
+			sourceStorage, err := storage.NewFileSystemBackend(directory)
+			if err != nil {
+				return fmt.Errorf("unable to initialize filesystem storage: %w", err)
+			}
+
+			for _, kid := range sourceStorage.ListPrivateKeys() {
+				privateKey, err := sourceStorage.GetPrivateKey(kid)
+				if err != nil {
+					return fmt.Errorf("unable to retrieve private key (kid=%s): %w", kid, err)
+				}
+				err = targetStorage.SavePrivateKey(kid, privateKey)
+				if err != nil {
+					return fmt.Errorf("unable to store private key in Vault (kid=%s): %w", kid, err)
+				}
+				cmd.Println("  Imported:", kid)
+			}
+			cmd.Println("Done!")
+			return nil
+		},
+	}
+	return cmd
 }

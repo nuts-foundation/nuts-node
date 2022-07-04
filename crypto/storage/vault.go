@@ -25,6 +25,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"path/filepath"
+	"time"
 )
 
 const privateKeyPathName = "nuts-private-keys"
@@ -39,12 +40,15 @@ type VaultConfig struct {
 	Address string `koanf:"address"`
 	// PathPrefix can be used to overwrite the default 'kv' path.
 	PathPrefix string `koanf:"pathprefix"`
+	// Timeout specifies the Vault client timeout.
+	Timeout time.Duration
 }
 
 // DefaultVaultConfig returns a VaultConfig with the PathPrefix containing the default value.
 func DefaultVaultConfig() VaultConfig {
 	return VaultConfig{
 		PathPrefix: defaultPathPrefix,
+		Timeout:    5 * time.Second,
 	}
 }
 
@@ -52,6 +56,7 @@ func DefaultVaultConfig() VaultConfig {
 type logicaler interface {
 	Read(path string) (*vault.Secret, error)
 	Write(path string, data map[string]interface{}) (*vault.Secret, error)
+	ReadWithData(path string, data map[string][]string) (*vault.Secret, error)
 }
 
 type vaultKVStorage struct {
@@ -64,7 +69,7 @@ type vaultKVStorage struct {
 // If config.Address is empty, the VAULT_ADDR environment should be set.
 // If config.Token is empty, the VAULT_TOKEN environment should be is set.
 func NewVaultKVStorage(config VaultConfig) (Storage, error) {
-	client, err := configureVaultClient(config.Token, config.Address)
+	client, err := configureVaultClient(config)
 	if err != nil {
 		return nil, err
 	}
@@ -76,15 +81,16 @@ func NewVaultKVStorage(config VaultConfig) (Storage, error) {
 	return vaultStorage, nil
 }
 
-func configureVaultClient(token, vaultAddr string) (*vault.Client, error) {
-	config := vault.DefaultConfig()
-	client, err := vault.NewClient(config)
+func configureVaultClient(cfg VaultConfig) (*vault.Client, error) {
+	vaultConfig := vault.DefaultConfig()
+	vaultConfig.Timeout = cfg.Timeout
+	client, err := vault.NewClient(vaultConfig)
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize Vault client: %w", err)
 	}
-	client.SetToken(token)
-	if vaultAddr != "" {
-		if err = client.SetAddress(vaultAddr); err != nil {
+	client.SetToken(cfg.Token)
+	if cfg.Address != "" {
+		if err = client.SetAddress(cfg.Address); err != nil {
 			return nil, fmt.Errorf("vault address invalid: %w", err)
 		}
 	}
@@ -151,9 +157,13 @@ func (v vaultKVStorage) PrivateKeyExists(kid string) bool {
 
 func (v vaultKVStorage) ListPrivateKeys() []string {
 	path := privateKeyListPath(v.config.PathPrefix)
-	response, err := v.client.Read(path)
+	response, err := v.client.ReadWithData(path, map[string][]string{"list": {"true"}})
 	if err != nil {
 		log.Logger().Errorf("Could not list private keys in Vault: %v", err)
+		return nil
+	}
+	if response == nil {
+		log.Logger().Warnf("Vault returned nothing while fetching private keys, maybe the path prefix ('%s') is incorrect or the engine doesn't exist?", v.config.PathPrefix)
 		return nil
 	}
 	keys, _ := response.Data["keys"].([]interface{})
@@ -175,7 +185,7 @@ func privateKeyPath(prefix, kid string) string {
 }
 
 func privateKeyListPath(prefix string) string {
-	path := fmt.Sprintf("%s/%s?list=true", prefix, privateKeyPathName)
+	path := fmt.Sprintf("%s/%s", prefix, privateKeyPathName)
 	return filepath.Clean(path)
 }
 
