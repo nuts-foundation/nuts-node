@@ -328,13 +328,6 @@ func (s *state) Start() error {
 		}
 	}
 
-	// resume all notifiers
-	for _, notifier := range s.notifiers {
-		if err := notifier.Run(); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 

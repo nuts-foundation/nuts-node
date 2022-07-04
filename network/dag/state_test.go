@@ -149,7 +149,6 @@ func TestState_Start(t *testing.T) {
 		})
 		tx := CreateTestTransactionWithJWK(0)
 		err := txState.Add(ctx, tx, nil)
-		println(2)
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "transaction verification failed")
