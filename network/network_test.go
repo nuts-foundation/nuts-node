@@ -348,7 +348,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx := createNetwork(t, ctrl)
 		ctx.network.storeProvider = prov
 		ctx.network.connectionManager = nil
-		prov.EXPECT().GetKVStore(gomock.Any()).Return(nil, errors.New("failed"))
+		prov.EXPECT().GetKVStore(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
 
 		err := ctx.network.Configure(core.ServerConfig{Datadir: "network_test.go"})
 		assert.Error(t, err)
@@ -375,8 +375,8 @@ func TestNetwork_Configure(t *testing.T) {
 		prov := storage.NewMockProvider(ctrl)
 		ctx.network.storeProvider = prov
 		ctx.network.connectionManager = nil
-		prov.EXPECT().GetKVStore(gomock.Any())
-		prov.EXPECT().GetKVStore(gomock.Any()).Return(nil, errors.New("failed"))
+		prov.EXPECT().GetKVStore(gomock.Any(), gomock.Any())
+		prov.EXPECT().GetKVStore(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
 
 		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
 

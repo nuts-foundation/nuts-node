@@ -108,7 +108,7 @@ func NewNetworkInstance(
 // Configure configures the Network subsystem
 func (n *Network) Configure(config core.ServerConfig) error {
 	var err error
-	db, err := n.storeProvider.GetKVStore("data")
+	db, err := n.storeProvider.GetKVStore("data", storage.PersistentStorageClass)
 	if err != nil {
 		return fmt.Errorf("unable to create database: %w", err)
 	}
@@ -199,7 +199,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		} else {
 			authenticator = grpc.NewTLSAuthenticator(doc.NewServiceResolver(n.didDocumentResolver))
 		}
-		n.connectionStore, err = n.storeProvider.GetKVStore("connections")
+		n.connectionStore, err = n.storeProvider.GetKVStore("connections", storage.VolatileStorageClass)
 		if err != nil {
 			return fmt.Errorf("failed to open connections store: %w", err)
 		}
