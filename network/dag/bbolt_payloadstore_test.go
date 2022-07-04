@@ -19,6 +19,9 @@
 package dag
 
 import (
+	"errors"
+	"fmt"
+	"github.com/golang/mock/gomock"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,7 +31,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/test/io"
 )
 
-func TestBBoltPayloadStore_ReadWrite(t *testing.T) {
+func TestPayloadStore_ReadWrite(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
 	db := createBBoltDB(testDirectory)
 	payloadStore := NewPayloadStore().(*payloadStore)
@@ -57,5 +60,77 @@ func TestBBoltPayloadStore_ReadWrite(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, payload, data)
 		return nil
+	})
+}
+
+func TestPayloadStore_readPayload(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	tx := stoabs.NewMockReadTx(ctrl)
+	reader := stoabs.NewMockReader(ctrl)
+	payloadStore := NewPayloadStore().(*payloadStore)
+
+	t.Run("error - db failure", func(t *testing.T) {
+		tx.EXPECT().GetShelfReader(payloadsShelf).Return(reader, errors.New("custom"))
+		h := hash.FromSlice([]byte("test read"))
+
+		data, err := payloadStore.readPayload(tx, h)
+
+		assert.Nil(t, data)
+		assert.EqualError(t, err, fmt.Sprintf("failed to read payload (hash=%s): custom", h))
+	})
+
+	t.Run("error - read failure", func(t *testing.T) {
+		h := hash.FromSlice([]byte("test read"))
+		tx.EXPECT().GetShelfReader(payloadsShelf).Return(reader, nil)
+		reader.EXPECT().Get(gomock.Any()).Return([]byte("not nil"), errors.New("custom"))
+
+		data, err := payloadStore.readPayload(tx, h)
+
+		assert.Nil(t, data)
+		assert.EqualError(t, err, fmt.Sprintf("failed to read payload (hash=%s): custom", h))
+	})
+}
+
+func TestPayloadStore_writePayload(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	tx := stoabs.NewMockWriteTx(ctrl)
+	writer := stoabs.NewMockWriter(ctrl)
+	payloadStore := NewPayloadStore().(*payloadStore)
+
+	t.Run("error - db failure", func(t *testing.T) {
+		tx.EXPECT().GetShelfWriter(payloadsShelf).Return(writer, errors.New("custom"))
+		h := hash.FromSlice([]byte("test write"))
+
+		err := payloadStore.writePayload(tx, h, nil)
+
+		assert.EqualError(t, err, "custom")
+	})
+
+	t.Run("error - read failure", func(t *testing.T) {
+		h := hash.FromSlice([]byte("test write"))
+		tx.EXPECT().GetShelfWriter(payloadsShelf).Return(writer, nil)
+		writer.EXPECT().Put(gomock.Any(), gomock.Any()).Return(errors.New("custom"))
+
+		err := payloadStore.writePayload(tx, h, nil)
+
+		assert.EqualError(t, err, "custom")
+	})
+}
+
+func TestPayloadStore_isPresent(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	tx := stoabs.NewMockReadTx(ctrl)
+	payloadStore := NewPayloadStore().(*payloadStore)
+
+	t.Run("error - readPayload failure", func(t *testing.T) {
+		h := hash.FromSlice([]byte("test isPresent"))
+		tx.EXPECT().GetShelfReader(payloadsShelf).Return(nil, errors.New("custom"))
+
+		present := payloadStore.isPayloadPresent(tx, h)
+
+		assert.False(t, present)
 	})
 }

@@ -351,11 +351,12 @@ func (mr *MockPayloadStoreMockRecorder) isPayloadPresent(tx, payloadHash interfa
 }
 
 // readPayload mocks base method.
-func (m *MockPayloadStore) readPayload(tx go_stoabs.ReadTx, payloadHash hash.SHA256Hash) []byte {
+func (m *MockPayloadStore) readPayload(tx go_stoabs.ReadTx, payloadHash hash.SHA256Hash) ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "readPayload", tx, payloadHash)
 	ret0, _ := ret[0].([]byte)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // readPayload indicates an expected call of readPayload.

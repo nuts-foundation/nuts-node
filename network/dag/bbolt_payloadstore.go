@@ -36,14 +36,9 @@ func NewPayloadStore() PayloadStore {
 type payloadStore struct{}
 
 func (store payloadStore) isPayloadPresent(tx stoabs.ReadTx, payloadHash hash.SHA256Hash) bool {
-	reader, err := tx.GetShelfReader(payloadsShelf)
+	data, err := store.readPayload(tx, payloadHash)
 	if err != nil {
-		log.Logger().Errorf("failed to verify payload existence (hash=%s): %s", payloadHash, err)
-		return false
-	}
-	data, err := reader.Get(stoabs.NewHashKey(payloadHash))
-	if err != nil {
-		log.Logger().Errorf("failed to verify payload existence (hash=%s): %s", payloadHash, err)
+		log.Logger().Errorf("failed to verify payload existence: %s", err)
 		return false
 	}
 	return len(data) > 0
