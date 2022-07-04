@@ -102,14 +102,6 @@ func (s *state) RegisterPayloadObserver(observer PayloadObserver, transactional 
 	}
 }
 
-//<<<<<<< HEAD
-//func (s *state) treeObserver(ctx context.Context, transaction Transaction) error {
-//	if err := s.ibltTree.dagObserver(ctx, transaction, nil); err != nil {
-//		return err
-//	}
-//	return s.xorTree.dagObserver(ctx, transaction, nil)
-//}
-
 func (s *state) Add(_ context.Context, transaction Transaction, payload []byte) error {
 	txEvent := Event{
 		Type:        TransactionEventType,
@@ -145,7 +137,6 @@ func (s *state) Add(_ context.Context, transaction Transaction, payload []byte) 
 			if err := s.writePayload(tx, transaction, payloadHash, payload); err != nil {
 				return err
 			}
-			// TODO: Set tx when updated to stoabs
 			if err := s.saveEvent(tx, payloadEvent); err != nil {
 				return err
 			}
@@ -153,18 +144,9 @@ func (s *state) Add(_ context.Context, transaction Transaction, payload []byte) 
 		if err := s.graph.add(tx, transaction); err != nil {
 			return err
 		}
-		// TODO: Set tx when updated to stoabs
 		if err := s.saveEvent(tx, txEvent); err != nil {
 			return err
 		}
-
-		// TODO move to TX begin scope when migrated to stoabs
-		//tx.OnCommit(func() {
-		//	s.notify(txEvent)
-		//	if emitPayloadEvent {
-		//		s.notify(payloadEvent)
-		//	}
-		//})
 
 		// update XOR and IBLT
 		if err := s.updateTrees(tx, transaction); err != nil {

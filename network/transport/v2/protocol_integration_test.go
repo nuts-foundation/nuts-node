@@ -103,6 +103,7 @@ func TestProtocolV2_Pagination(t *testing.T) {
 		t.Logf("received %d transactions", txs)
 		return txs == numberOfTransactions, nil
 	}, integrationTestTimeout, "node2 didn't receive all transactions")
+	time.Sleep(100 * time.Millisecond) // small timeout for TXs to propagate within the node
 
 	// Confirm that both nodes have the same non-empty XOR
 	assert.NotEqual(t, node1.state.Diagnostics()[3].Result(), hash.EmptyHash())
