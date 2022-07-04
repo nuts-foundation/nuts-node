@@ -21,11 +21,10 @@ package storage
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
-	"path"
 	"strings"
 	"sync"
 	"time"
@@ -45,6 +44,12 @@ type engine struct {
 	datadir   string
 	storesMux *sync.Mutex
 	stores    map[string]stoabs.Store
+	databases []database
+	config    Config
+}
+
+func (e *engine) Config() interface{} {
+	return &e.config
 }
 
 // Name returns the name of the engine.
@@ -83,6 +88,12 @@ func (e engine) Shutdown() error {
 
 func (e *engine) Configure(config core.ServerConfig) error {
 	e.datadir = config.Datadir
+
+	bboltDB, err := createBBoltDatabase(config.Datadir, e.config.Databases.BBolt)
+	if err != nil {
+		return fmt.Errorf("unable to configure BBolt database: %w", err)
+	}
+	e.databases = append(e.databases, bboltDB)
 	return nil
 }
 
@@ -98,20 +109,24 @@ type provider struct {
 	engine     *engine
 }
 
-func (p *provider) GetKVStore(name string) (stoabs.KVStore, error) {
+func (p *provider) GetKVStore(name string, class Class) (stoabs.KVStore, error) {
 	p.engine.storesMux.Lock()
 	defer p.engine.storesMux.Unlock()
 
-	store, err := p.getStore(p.moduleName, name, func(moduleName string, name string) (stoabs.Store, error) {
-		return bbolt.CreateBBoltStore(path.Join(p.engine.datadir, moduleName, name+".db"))
-	})
+	// TODO: For now, we ignore class since we only support BBolt.
+	// When other database types with other storage classes are supported (e.g. Redis) we'll be matching them here,
+	// to find the right one:
+	// 1. Check manual binding of specific store to a configured database (e.g. `network/connections -> redis0`)
+	// 2. Otherwise: find database whose storage class matches the requested class
+	// 3. Otherwise (if no storage class matches, e.g. no `persistent` database configured): use "lower" storage class, but only in non-strict mode.
+	store, err := p.getStore(p.moduleName, name, p.engine.databases[0])
 	if store == nil {
 		return nil, err
 	}
 	return store.(stoabs.KVStore), err
 }
 
-func (p *provider) getStore(moduleName string, name string, creator func(namespace string, name string) (stoabs.Store, error)) (stoabs.Store, error) {
+func (p *provider) getStore(moduleName string, name string, adapter database) (stoabs.Store, error) {
 	if len(moduleName) == 0 {
 		return nil, errors.New("invalid store moduleName")
 	}
@@ -123,7 +138,7 @@ func (p *provider) getStore(moduleName string, name string, creator func(namespa
 	if store != nil {
 		return store, nil
 	}
-	store, err := creator(moduleName, name)
+	store, err := adapter.createStore(moduleName, name)
 	if err == nil {
 		p.engine.stores[key] = store
 	}

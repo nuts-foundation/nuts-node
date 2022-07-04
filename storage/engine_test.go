@@ -22,6 +22,7 @@ import (
 	"errors"
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -42,7 +43,7 @@ func Test_engine_lifecycle(t *testing.T) {
 		return
 	}
 	// Get a KV store so there's something to shut down
-	_, err = sut.GetProvider("test").GetKVStore("store")
+	_, err = sut.GetProvider("test").GetKVStore("store", VolatileStorageClass)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -54,8 +55,9 @@ func Test_engine_lifecycle(t *testing.T) {
 
 func Test_engine_GetProvider(t *testing.T) {
 	sut := New()
+	_ = sut.Configure(core.ServerConfig{})
 	t.Run("moduleName is empty", func(t *testing.T) {
-		store, err := sut.GetProvider("").GetKVStore("store")
+		store, err := sut.GetProvider("").GetKVStore("store", VolatileStorageClass)
 		assert.Nil(t, store)
 		assert.EqualError(t, err, "invalid store moduleName")
 	})
@@ -63,8 +65,9 @@ func Test_engine_GetProvider(t *testing.T) {
 
 func Test_engine_GetKVStore(t *testing.T) {
 	sut := New()
+	_ = sut.Configure(core.ServerConfig{})
 	t.Run("store is empty", func(t *testing.T) {
-		store, err := sut.GetProvider("engine").GetKVStore("")
+		store, err := sut.GetProvider("engine").GetKVStore("", VolatileStorageClass)
 		assert.Nil(t, store)
 		assert.EqualError(t, err, "invalid store name")
 	})
