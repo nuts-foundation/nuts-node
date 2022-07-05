@@ -379,8 +379,13 @@ func (n *Network) validateNodeDID(nodeDID did.DID) error {
 // Subscribe registers a receiverFn with specific options.
 // The receiver is called when a transaction is added to the DAG.
 // It's only called if the given dag.NotificationFilter's match.
-func (n *Network) Subscribe(name string, subscriber dag.ReceiverFn, options ...dag.NotifierOption) error {
-	_, err := n.state.Notifier(name, subscriber, options...)
+func (n *Network) Subscribe(name string, subscriber dag.ReceiverFn, options ...SubscriberOption) error {
+	notifierOptions := make([]dag.NotifierOption, len(options))
+	for i, o := range options {
+		notifierOptions[i] = o()
+	}
+
+	_, err := n.state.Notifier(name, subscriber, notifierOptions...)
 	return err
 }
 

@@ -123,7 +123,7 @@ func (mr *MockTransactionsMockRecorder) Reprocess(contentType interface{}) *gomo
 }
 
 // Subscribe mocks base method.
-func (m *MockTransactions) Subscribe(name string, receiver dag.ReceiverFn, filters ...dag.NotifierOption) error {
+func (m *MockTransactions) Subscribe(name string, receiver dag.ReceiverFn, filters ...SubscriberOption) error {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{name, receiver}
 	for _, a := range filters {
@@ -139,4 +139,18 @@ func (mr *MockTransactionsMockRecorder) Subscribe(name, receiver interface{}, fi
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{name, receiver}, filters...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockTransactions)(nil).Subscribe), varargs...)
+}
+
+// WithPersistency mocks base method.
+func (m *MockTransactions) WithPersistency() SubscriberOption {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WithPersistency")
+	ret0, _ := ret[0].(SubscriberOption)
+	return ret0
+}
+
+// WithPersistency indicates an expected call of WithPersistency.
+func (mr *MockTransactionsMockRecorder) WithPersistency() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithPersistency", reflect.TypeOf((*MockTransactions)(nil).WithPersistency))
 }

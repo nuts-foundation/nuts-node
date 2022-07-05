@@ -20,7 +20,6 @@
 package vcr
 
 import (
-	"github.com/nuts-foundation/nuts-node/storage"
 	"path"
 	"testing"
 
@@ -36,9 +35,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-// keyID matches the keys in /test
-const testKID = "did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey#sNGDQ3NlOe6Icv0E7_ufviOLG6Y25bSEyS5EbXBgp8Y"
-
 // NewTestVCRInstance returns a new vcr instance to be used for integration tests. Any data is stored in the
 // specified test directory.
 func NewTestVCRInstance(t *testing.T) *vcr {
@@ -53,7 +49,6 @@ func NewTestVCRInstance(t *testing.T) *vcr {
 		network.NewTestNetworkInstance(path.Join(testDirectory, "network")),
 		jsonld.NewTestJSONLDManager(t),
 		events.NewTestManager(t),
-		storage.NewTestStorageEngine(testDirectory),
 	).(*vcr)
 
 	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
@@ -85,6 +80,7 @@ func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	crypto := crypto.NewMockKeyStore(ctrl)
 	tx := network.NewMockTransactions(ctrl)
+	tx.EXPECT().WithPersistency().AnyTimes()
 	tx.EXPECT().Subscribe("vcr_vcs", gomock.Any(), gomock.Any())
 	tx.EXPECT().Subscribe("vcr_revocations", gomock.Any(), gomock.Any())
 	keyResolver := types.NewMockKeyResolver(ctrl)
@@ -92,8 +88,7 @@ func newMockContext(t *testing.T) mockContext {
 	serviceResolver := doc.NewMockServiceResolver(ctrl)
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	eventManager := events.NewTestManager(t)
-	storageClient := storage.NewTestStorageEngine(testDir)
-	vcr := NewVCRInstance(crypto, docResolver, keyResolver, tx, jsonldManager, eventManager, storageClient).(*vcr)
+	vcr := NewVCRInstance(crypto, docResolver, keyResolver, tx, jsonldManager, eventManager).(*vcr)
 	vcr.serviceResolver = serviceResolver
 	vcr.trustConfig = trust.NewConfig(path.Join(testDir, "trust.yaml"))
 	vcr.config.OverrideIssueAllPublic = false

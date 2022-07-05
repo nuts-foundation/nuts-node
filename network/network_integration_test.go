@@ -886,7 +886,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 		log.Logger().Infof("transaction %s arrived at %s", string(event.Payload), name)
 		receivedTransactions[name] = append(receivedTransactions[name], event.Transaction)
 		return true, nil
-	}, dag.WithSelectionFilter(func(event dag.Event) bool {
+	}, WithSelectionFilter(func(event dag.Event) bool {
 		return event.Type == dag.PayloadEventType
 	}))
 

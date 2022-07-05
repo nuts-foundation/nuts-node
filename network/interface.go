@@ -31,7 +31,7 @@ const MaxReprocessBufferSize = 1000000
 type Transactions interface {
 	// Subscribe registers a receiver for the specified transaction type. The receiver is called when a transaction
 	// matches with the given dag.NotificationFilter's.
-	Subscribe(name string, receiver dag.ReceiverFn, filters ...dag.NotifierOption) error
+	Subscribe(name string, receiver dag.ReceiverFn, filters ...SubscriberOption) error
 	// GetTransactionPayload retrieves the transaction Payload for the given transaction. If the transaction or Payload is not found
 	// nil is returned.
 	GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte, error)
@@ -47,20 +47,19 @@ type Transactions interface {
 	// Reprocess walks the DAG and publishes all transactions matching the contentType via Nats
 	// This is an async process and will not return any feedback
 	Reprocess(contentType string)
+	// WithPersistency returns a SubscriberOption for persistency. It allows the DAG KVStore to be used as persistent store for notifications.
+	// The notifications will then have ACID properties
+	WithPersistency() SubscriberOption
 }
 
 // EventType defines a type for specifying the kind of events that can be published/subscribed on the Network.
 type EventType string
-
-const (
-	// TransactionAddedEvent is called when a transaction is added to the DAG. Its payload may not be present.
-	TransactionAddedEvent EventType = "TRANSACTION_ADDED"
-	// TransactionPayloadAddedEvent is called when a transaction is added to the DAG including its payload.
-	TransactionPayloadAddedEvent EventType = "TRANSACTION_PAYLOAD_ADDED"
-)
 
 // AnyPayloadType is a wildcard that matches with any payload type.
 const AnyPayloadType = "*"
 
 // Receiver defines a callback function for processing transactions/payloads received by the DAG.
 type Receiver func(transaction dag.Transaction, payload []byte) error
+
+// SubscriberOption creates a dag.NotifierOption
+type SubscriberOption func() dag.NotifierOption

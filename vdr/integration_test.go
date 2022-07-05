@@ -319,7 +319,7 @@ func setup(t *testing.T) testContext {
 	})
 
 	// Init the VDR
-	vdr := NewVDR(DefaultConfig(), cryptoInstance, nutsNetwork, didStore, eventPublisher, storageProvider)
+	vdr := NewVDR(DefaultConfig(), cryptoInstance, nutsNetwork, didStore, eventPublisher)
 	vdr.Configure(nutsConfig)
 	err = vdr.Start()
 	if err != nil {

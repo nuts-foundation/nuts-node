@@ -23,8 +23,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/storage"
-
 	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
@@ -49,40 +47,33 @@ type ambassador struct {
 	networkClient network.Transactions
 	writer        Writer
 	// verifier is used to store incoming revocations from the network
-	verifier      verifier.Verifier
-	eventManager  events.Event
-	storageClient storage.Engine
+	verifier     verifier.Verifier
+	eventManager events.Event
 }
 
 // NewAmbassador creates a new listener for the network that listens to Verifiable Credential transactions.
-func NewAmbassador(networkClient network.Transactions, writer Writer, verifier verifier.Verifier, eventManager events.Event, storageClient storage.Engine) Ambassador {
+func NewAmbassador(networkClient network.Transactions, writer Writer, verifier verifier.Verifier, eventManager events.Event) Ambassador {
 	return &ambassador{
 		networkClient: networkClient,
 		writer:        writer,
 		verifier:      verifier,
 		eventManager:  eventManager,
-		storageClient: storageClient,
 	}
 }
 
 // Configure instructs the ambassador to start receiving DID Documents from the network.
 func (n ambassador) Configure() error {
-	kvStore, err := n.storageClient.GetProvider("network").GetKVStore("data", storage.PersistentStorageClass)
-	if err != nil {
-		return fmt.Errorf("failed to get DAG datastore: %w", err)
-	}
-
-	err = n.networkClient.Subscribe("vcr_vcs", n.handleNetworkVCs,
-		dag.WithPersistency(kvStore),
-		dag.WithSelectionFilter(func(event dag.Event) bool {
+	err := n.networkClient.Subscribe("vcr_vcs", n.handleNetworkVCs,
+		n.networkClient.WithPersistency(),
+		network.WithSelectionFilter(func(event dag.Event) bool {
 			return event.Type == dag.PayloadEventType && event.Transaction.PayloadType() == types.VcDocumentType
 		}))
 	if err != nil {
 		return err
 	}
 	return n.networkClient.Subscribe("vcr_revocations", n.handleNetworkRevocations,
-		dag.WithPersistency(kvStore),
-		dag.WithSelectionFilter(func(event dag.Event) bool {
+		n.networkClient.WithPersistency(),
+		network.WithSelectionFilter(func(event dag.Event) bool {
 			return event.Type == dag.PayloadEventType && event.Transaction.PayloadType() == types.RevocationLDDocumentType
 		}))
 }

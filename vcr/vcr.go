@@ -24,7 +24,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/storage"
 	"io/fs"
 	"path"
 	"strings"
@@ -60,7 +59,7 @@ var timeFunc = time.Now
 var noSync bool
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
-func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions, jsonldManager jsonld.JSONLD, eventManager events.Event, storageClient storage.Engine) VCR {
+func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions, jsonldManager jsonld.JSONLD, eventManager events.Event) VCR {
 	r := &vcr{
 		config:          DefaultConfig(),
 		docResolver:     docResolver,
@@ -70,7 +69,6 @@ func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyRe
 		network:         network,
 		jsonldManager:   jsonldManager,
 		eventManager:    eventManager,
-		storageClient:   storageClient,
 	}
 
 	return r
@@ -93,7 +91,6 @@ type vcr struct {
 	verifierStore   verifier.Store
 	jsonldManager   jsonld.JSONLD
 	eventManager    events.Event
-	storageClient   storage.Engine
 }
 
 func (c vcr) Issuer() issuer.Issuer {
@@ -135,7 +132,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	c.issuer = issuer.NewIssuer(c.issuerStore, publisher, c.docResolver, c.keyStore, c.jsonldManager, c.trustConfig)
 	c.verifier = verifier.NewVerifier(c.verifierStore, c.docResolver, c.keyResolver, c.jsonldManager, c.trustConfig)
 
-	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager, c.storageClient)
+	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)
 
 	c.holder = holder.New(c.keyResolver, c.keyStore, c.verifier, c.jsonldManager)
 

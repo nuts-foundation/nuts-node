@@ -27,7 +27,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nats-io/nats.go"
-	"github.com/nuts-foundation/nuts-node/storage"
 	"sort"
 	"time"
 
@@ -65,31 +64,24 @@ type ambassador struct {
 	keyResolver   types.KeyResolver
 	docResolver   types.DocResolver
 	eventManager  events.Event
-	storageClient storage.Engine
 }
 
 // NewAmbassador creates a new Ambassador,
-func NewAmbassador(networkClient network.Transactions, didStore types.Store, eventManager events.Event, storageClient storage.Engine) Ambassador {
+func NewAmbassador(networkClient network.Transactions, didStore types.Store, eventManager events.Event) Ambassador {
 	return &ambassador{
 		networkClient: networkClient,
 		didStore:      didStore,
 		keyResolver:   doc.KeyResolver{Store: didStore},
 		docResolver:   doc.Resolver{Store: didStore},
 		eventManager:  eventManager,
-		storageClient: storageClient,
 	}
 }
 
 // Configure instructs the ambassador to start receiving DID Documents from the network.
 func (n *ambassador) Configure() error {
-	kvStore, err := n.storageClient.GetProvider("network").GetKVStore("data", storage.PersistentStorageClass)
-	if err != nil {
-		return fmt.Errorf("failed to get DAG datastore: %w", err)
-	}
-
 	return n.networkClient.Subscribe("vdr", n.handleNetworkEvent,
-		dag.WithPersistency(kvStore),
-		dag.WithSelectionFilter(func(event dag.Event) bool {
+		n.networkClient.WithPersistency(),
+		network.WithSelectionFilter(func(event dag.Event) bool {
 			return event.Type == dag.PayloadEventType && event.Transaction.PayloadType() == didDocumentType
 		}))
 }
