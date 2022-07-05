@@ -170,7 +170,7 @@ func TestNewVaultKVStorage(t *testing.T) {
 			writer.Write([]byte("{\"data\": {\"keys\":[]}}"))
 		}))
 		defer s.Close()
-		storage, err := NewVaultKVStorage(createTestVaultConfig(s.URL))
+		storage, err := NewVaultKVStorage(VaultConfig{Address: s.URL})
 		assert.NoError(t, err)
 		assert.NotNil(t, storage)
 	})
@@ -180,14 +180,14 @@ func TestNewVaultKVStorage(t *testing.T) {
 			writer.WriteHeader(http.StatusUnauthorized)
 		}))
 		defer s.Close()
-		storage, err := NewVaultKVStorage(createTestVaultConfig(s.URL))
+		storage, err := NewVaultKVStorage(VaultConfig{Address: s.URL})
 		assert.Error(t, err)
 		assert.True(t, strings.HasPrefix(err.Error(), "unable to connect to Vault: unable to retrieve token status: Error making API request"))
 		assert.Nil(t, storage)
 	})
 
 	t.Run("error - wrong URL", func(t *testing.T) {
-		storage, err := NewVaultKVStorage(createTestVaultConfig("http://localhost"))
+		storage, err := NewVaultKVStorage(VaultConfig{Address: "http://localhost"})
 		assert.Error(t, err)
 		assert.True(t, strings.HasSuffix(err.Error(), "connect: connection refused"))
 		assert.Nil(t, storage)
@@ -213,10 +213,4 @@ func TestVaultKVStorage_checkConnection(t *testing.T) {
 		err := vaultStorage.checkConnection()
 		assert.EqualError(t, err, "unable to connect to Vault: unable to retrieve token status: vault error")
 	})
-}
-
-func createTestVaultConfig(address string) VaultConfig {
-	return VaultConfig{
-		Address: address,
-	}
 }
