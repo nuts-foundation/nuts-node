@@ -99,6 +99,7 @@ func configureVaultClient(cfg VaultConfig) (*vault.Client, error) {
 
 func (v vaultKVStorage) checkConnection() error {
 	// Perform a token introspection to test the connection. This should be allowed by the default vault token policy.
+	log.Logger().Debug("Verifying Vault connection...")
 	secret, err := v.client.Read("auth/token/lookup-self")
 	if err != nil {
 		return fmt.Errorf("unable to connect to Vault: unable to retrieve token status: %w", err)
@@ -106,6 +107,7 @@ func (v vaultKVStorage) checkConnection() error {
 	if secret == nil || len(secret.Data) == 0 {
 		return fmt.Errorf("could not read token information on auth/token/lookup-self")
 	}
+	log.Logger().Info("Connected to Vault.")
 	return nil
 }
 
@@ -115,7 +117,7 @@ func (v vaultKVStorage) GetPrivateKey(kid string) (crypto.Signer, error) {
 	if err != nil {
 		return nil, err
 	}
-	privateKey, err := util.PemToPrivateKey([]byte(value))
+	privateKey, err := util.PemToPrivateKey(value)
 	if err != nil {
 		return nil, err
 	}
