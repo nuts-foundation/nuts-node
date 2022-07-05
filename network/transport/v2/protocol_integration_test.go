@@ -22,9 +22,11 @@ package v2
 import (
 	"context"
 	"fmt"
+	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"hash/crc32"
 	"path"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -101,6 +103,7 @@ func TestProtocolV2_Pagination(t *testing.T) {
 		t.Logf("received %d transactions", txs)
 		return txs == numberOfTransactions, nil
 	}, integrationTestTimeout, "node2 didn't receive all transactions")
+	time.Sleep(100 * time.Millisecond) // small timeout for TXs to propagate within the node
 
 	// Confirm that both nodes have the same non-empty XOR
 	assert.NotEqual(t, node1.state.Diagnostics()[3].Result(), hash.EmptyHash())
@@ -133,7 +136,11 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 		mux: &sync.Mutex{},
 	}
 
-	ctx.state, _ = dag.NewState(testDirectory)
+	bboltStore, err := bbolt.CreateBBoltStore(filepath.Join(testDirectory, "test-store"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx.state, _ = dag.NewState(bboltStore)
 	ctx.state.RegisterPayloadObserver(func(transaction dag.Transaction, payload []byte) error {
 		log.Logger().Infof("transaction %s arrived at %s", string(payload), name)
 		ctx.mux.Lock()
@@ -142,7 +149,10 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 		return nil
 
 	}, false)
-	ctx.state.Start()
+	err = ctx.state.Start()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	cfg := &Config{
 		GossipInterval: 500,

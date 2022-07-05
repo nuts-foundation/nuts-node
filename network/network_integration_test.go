@@ -88,6 +88,8 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	}
 	expectedDocLogSize++
 
+	time.Sleep(100 * time.Millisecond) // Need a small delay for root transaction to propagate within the nodes.
+
 	// Now the graph has a root, and node2 can publish a transaction
 	if !addTransactionAndWaitForItToArrive(t, "doc2", key, node2, "integration_node1", "integration_bootstrap") {
 		return
@@ -258,15 +260,15 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 
 		node1 := startNode(t, "integration_node1", testDirectory, func(cfg *Config) {
 			cfg.Protocols = []int{2}
-			cfg.ProtocolV2.GossipInterval = 10
+			cfg.ProtocolV2.GossipInterval = 500
 		})
 		node2 := startNode(t, "integration_node2", testDirectory, func(cfg *Config) {
 			cfg.Protocols = []int{2}
-			cfg.ProtocolV2.GossipInterval = 10
+			cfg.ProtocolV2.GossipInterval = 500
 		})
 		node3 := startNode(t, "integration_node3", testDirectory, func(cfg *Config) {
 			cfg.Protocols = []int{2}
-			cfg.ProtocolV2.GossipInterval = 10
+			cfg.ProtocolV2.GossipInterval = 500
 		})
 		node1.network.connectionManager.Connect(nameToAddress(t, "integration_node2"))
 
@@ -818,10 +820,10 @@ func waitForTransaction(t *testing.T, tx dag.Transaction, receivers ...string) b
 				}
 			}
 			return false, nil
-		}, 5*time.Second, "time-out while waiting for transaction to arrive at %s", receiver) {
+		}, 15*time.Second, "time-out while waiting for transaction to arrive at %s", receiver) {
 			return false
 		}
-	}
+	} // TODO: reduce timeout when store sync is configurable, https://github.com/nuts-foundation/nuts-node/issues/1218
 	return true
 }
 
@@ -837,7 +839,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 		TrustStoreFile: "test/truststore.pem",
 		EnableTLS:      true,
 		ProtocolV2: v2.Config{
-			GossipInterval:      250,
+			GossipInterval:      500,
 			PayloadRetryDelay:   50 * time.Millisecond,
 			DiagnosticsInterval: int(time.Minute.Milliseconds()),
 		},

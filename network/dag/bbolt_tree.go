@@ -19,155 +19,115 @@
 package dag
 
 import (
-	"context"
 	"encoding/binary"
-	"sync/atomic"
-	"time"
-
-	"go.etcd.io/bbolt"
-
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 	"github.com/nuts-foundation/nuts-node/network/log"
-	"github.com/nuts-foundation/nuts-node/network/storage"
 )
 
-const (
-	// treeBucketFillPercent can be much higher than default 0.5 since the keys (unique node ids)
-	// should be added to the bucket in monotonic increasing order, and the values are of fixed size.
-	treeBucketFillPercent = 0.9
-	// defaultObserverRollbackTimeOut is the default time waited before triggering a rollback of a transaction.
-	defaultObserverRollbackTimeOut = 10 * time.Second
-)
-
-// observerRollbackTimeOut is the time waited before triggering a rollback of a transaction.
-// timeout must not be shorter than expected write operation to disk.
-var observerRollbackTimeOut = defaultObserverRollbackTimeOut
-
-type bboltTree struct {
-	db                     *bbolt.DB
-	bucketFillPercent      float64
-	bucketName             string
-	tree                   tree.Tree
-	activeRollbackRoutines *uint32
-	numRollbacks           *uint32
+type treeStore struct {
+	bucketName string
+	tree       tree.Tree
 }
 
-// newBBoltTreeStore returns an instance of a BBolt based tree store. Buckets managed by this store are filled to treeBucketFillPercent
-func newBBoltTreeStore(db *bbolt.DB, bucketName string, tree tree.Tree) *bboltTree {
-	return &bboltTree{
-		db:                     db,
-		bucketFillPercent:      treeBucketFillPercent,
-		bucketName:             bucketName,
-		tree:                   tree,
-		activeRollbackRoutines: new(uint32),
-		numRollbacks:           new(uint32),
+// newTreeStore returns an instance of a BBolt based tree store. Buckets managed by this store are filled to treeBucketFillPercent
+func newTreeStore(bucketName string, tree tree.Tree) *treeStore {
+	return &treeStore{
+		bucketName: bucketName,
+		tree:       tree,
 	}
 }
 
 // getRoot returns the tree.Data summary of the entire tree.
-func (store *bboltTree) getRoot() tree.Data {
+func (store *treeStore) getRoot() tree.Data {
 	return store.tree.GetRoot()
 }
 
 // getZeroTo returns the tree.Data sum of all tree pages/leaves upto and including the one containing the requested Lamport Clock value.
 // In addition to the data, the highest LC value of this range is returned.
-func (store *bboltTree) getZeroTo(clock uint32) (tree.Data, uint32) {
+func (store *treeStore) getZeroTo(clock uint32) (tree.Data, uint32) {
 	return store.tree.GetZeroTo(clock)
 }
 
-func (store *bboltTree) isEmpty() bool {
+func (store *treeStore) isEmpty() bool {
 	return store.tree.GetRoot().IsEmpty()
 }
 
-// dagCallback inserts a transaction reference to the in-memory tree and to persistent storage.
+// write inserts a transaction reference to the in-memory tree and to persistent storage.
 // The tree is not aware of previously seen transactions, so it should be transactional with updates to the dag.
-func (store *bboltTree) dagObserver(ctx context.Context, transaction Transaction, _ []byte) error {
+func (store *treeStore) write(tx stoabs.WriteTx, transaction Transaction) error {
 	if transaction != nil { // can happen when payload is written for private TX
-		err := storage.BBoltTXUpdate(ctx, store.db, func(callbackCtx context.Context, tx *bbolt.Tx) error {
-			dirty := store.tree.InsertGetDirty(transaction.Ref(), transaction.Clock())
-
-			// Rollback after timeout to bring tree and DAG back in sync.
-			// A call to writeUpdates will persist all uncommitted tree changes. So a failed bboltTx will be dropped by the dag and (eventually) persisted by the tree.
-			c, cancel := context.WithTimeout(context.Background(), observerRollbackTimeOut) // << timeout must not be shorter than expected write operation to disk
-			go func() {
-				atomic.AddUint32(store.activeRollbackRoutines, 1)
-				defer func() {
-					atomic.AddUint32(store.activeRollbackRoutines, ^uint32(0)) // decrements (as stated by godoc of AddUint32)
-				}()
-				<-c.Done()
-				err := c.Err()
-				if err == context.DeadlineExceeded {
-					log.Logger().Warnf("deadline exceeded - rollback transaction %s from %s", transaction.Ref(), store.bucketName)
-					store.tree.Delete(transaction.Ref(), transaction.Clock())
-					atomic.AddUint32(store.numRollbacks, 1)
-				}
-			}()
-			tx.OnCommit(func() {
-				store.tree.ResetUpdate()
-				cancel()
-			})
-
-			return store.writeUpdates(callbackCtx, dirty, nil)
-		})
-		return err
+		dirty := store.tree.InsertGetDirty(transaction.Ref(), transaction.Clock())
+		return store.writeUpdates(tx, dirty, nil)
 	}
 	return nil
 }
 
 // read fills the tree with data in the bucket.
 // Returns an error the bucket does not exist, or if data in the bucket doesn't match the tree's Data prototype.
-func (store *bboltTree) read(ctx context.Context) error {
-	return storage.BBoltTXUpdate(ctx, store.db, func(_ context.Context, tx *bbolt.Tx) error {
-		// get bucket
-		bucket := tx.Bucket([]byte(store.bucketName))
-		if bucket == nil {
-			// should only happen once for a new tree/bucket.
-			log.Logger().Warnf("tree bucket '%s' does not exist", store.bucketName)
-			return nil
-		}
+func (store *treeStore) read(tx stoabs.ReadTx) error {
+	reader, err := tx.GetShelfReader(store.bucketName)
+	if err != nil {
+		return err
+	}
+	if reader == nil {
+		log.Logger().Warnf("tree bucket '%s' does not exist", store.bucketName)
+		return nil
+	}
 
-		// get data
-		rawData := map[uint32][]byte{}
-		_ = bucket.ForEach(func(k, v []byte) error {
-			split := binary.LittleEndian.Uint32(k)
-			rawData[split] = v
-			return nil
-		})
-
-		// build tree
-		return store.tree.Load(rawData)
+	// get data
+	rawData := map[uint32][]byte{}
+	err = reader.Iterate(func(k stoabs.Key, v []byte) error {
+		rawData[keyToClock(k)] = v
+		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	// nothing to load
+	if len(rawData) == 0 {
+		return nil
+	}
+
+	// build tree
+	return store.tree.Load(rawData)
 }
 
 // writeUpdates writes an incremental update to the bucket.
 // The incremental update is defined as changes to the tree since the last call to Tree.ResetUpdate,
 // which is called when writeUpdates completes successfully.
-func (store *bboltTree) writeUpdates(ctx context.Context, dirties map[uint32][]byte, orphaned []uint32) error {
-	return storage.BBoltTXUpdate(ctx, store.db, func(_ context.Context, tx *bbolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists([]byte(store.bucketName))
+func (store *treeStore) writeUpdates(tx stoabs.WriteTx, dirties map[uint32][]byte, orphaned []uint32) error {
+	writer, err := tx.GetShelfWriter(store.bucketName)
+	// writer should never be nil
+	if err != nil {
+		return err
+	}
+
+	// delete orphaned leaves
+	for _, orphan := range orphaned {
+		err = writer.Delete(clockToKey(orphan))
 		if err != nil {
 			return err
 		}
-		bucket.FillPercent = store.bucketFillPercent
+	}
 
-		// delete orphaned leaves
-		key := make([]byte, 4)
-		for _, orphan := range orphaned {
-			binary.LittleEndian.PutUint32(key, orphan)
-			err = bucket.Delete(key)
-			if err != nil {
-				return err
-			}
+	// write new/updated leaves
+	for dirty, data := range dirties {
+		err = writer.Put(clockToKey(dirty), data)
+		if err != nil {
+			return err
 		}
+	}
+	return nil
+}
 
-		// write new/updated leaves
-		for dirty, data := range dirties {
-			binary.LittleEndian.PutUint32(key, dirty)
-			err = bucket.Put(key, data)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+func clockToKey(clock uint32) stoabs.Key {
+	var bytes [4]byte
+	binary.LittleEndian.PutUint32(bytes[:], clock)
+	return stoabs.BytesKey(bytes[:])
+}
+
+func keyToClock(key stoabs.Key) uint32 {
+	return binary.LittleEndian.Uint32(key.Bytes())
 }

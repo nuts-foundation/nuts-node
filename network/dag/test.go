@@ -22,13 +22,14 @@ import (
 	"crypto"
 	"encoding/binary"
 	"fmt"
+	"github.com/nuts-foundation/go-stoabs"
 	"path"
 	"testing"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/test/io"
-	"go.etcd.io/bbolt"
 
+	"github.com/nuts-foundation/go-stoabs/bbolt"
 	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
@@ -101,23 +102,23 @@ func calculateLamportClock(prevs []Transaction) uint32 {
 	return clock + 1
 }
 
-func createBBoltDB(testDirectory string) *bbolt.DB {
-	options := *bbolt.DefaultOptions
-	options.NoSync = true
-	db, err := bbolt.Open(path.Join(testDirectory, "dag.db"), 0600, &options)
+func createBBoltDB(testDirectory string) stoabs.KVStore {
+	db, err := bbolt.CreateBBoltStore(path.Join(testDirectory, "dag"), stoabs.WithNoSync())
 	if err != nil {
 		panic(err)
 	}
 	return db
 }
 
-func CreateDAG(t *testing.T) *bboltDAG {
+func CreateDAG(t *testing.T) *dag {
 	testDirectory := io.TestDirectory(t)
-	return newBBoltDAG(createBBoltDB(testDirectory))
+	d := newDAG(createBBoltDB(testDirectory))
+	d.init()
+	return d
 }
 
 // addTx is a helper to add transactions to the DAG. It creates an Update bbolt TX and panics the test on error
-func addTx(t *testing.T, graph *bboltDAG, transactions ...Transaction) {
+func addTx(t *testing.T, graph *dag, transactions ...Transaction) {
 	err := addTxErr(graph, transactions...)
 	if err != nil {
 		t.Fatal(err)
@@ -125,17 +126,8 @@ func addTx(t *testing.T, graph *bboltDAG, transactions ...Transaction) {
 }
 
 // addTx is a helper to add transactions to the DAG. It creates an Update bbolt TX and returns the error
-func addTxErr(graph *bboltDAG, transactions ...Transaction) error {
-	return graph.db.Update(func(tx *bbolt.Tx) error {
+func addTxErr(graph *dag, transactions ...Transaction) error {
+	return graph.db.Write(func(tx stoabs.WriteTx) error {
 		return graph.add(tx, transactions...)
 	})
-}
-
-func writePayload(t *testing.T, payloadStore *bboltPayloadStore, payloadHash hash.SHA256Hash, payload []byte) {
-	err := payloadStore.db.Update(func(tx *bbolt.Tx) error {
-		return payloadStore.writePayload(tx, payloadHash, payload)
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
 }

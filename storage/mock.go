@@ -115,16 +115,80 @@ func (m *MockProvider) EXPECT() *MockProviderMockRecorder {
 }
 
 // GetKVStore mocks base method.
-func (m *MockProvider) GetKVStore(name string) (go_stoabs.KVStore, error) {
+func (m *MockProvider) GetKVStore(name string, class Class) (go_stoabs.KVStore, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetKVStore", name)
+	ret := m.ctrl.Call(m, "GetKVStore", name, class)
 	ret0, _ := ret[0].(go_stoabs.KVStore)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetKVStore indicates an expected call of GetKVStore.
-func (mr *MockProviderMockRecorder) GetKVStore(name interface{}) *gomock.Call {
+func (mr *MockProviderMockRecorder) GetKVStore(name, class interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetKVStore", reflect.TypeOf((*MockProvider)(nil).GetKVStore), name)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetKVStore", reflect.TypeOf((*MockProvider)(nil).GetKVStore), name, class)
+}
+
+// Mockdatabase is a mock of database interface.
+type Mockdatabase struct {
+	ctrl     *gomock.Controller
+	recorder *MockdatabaseMockRecorder
+}
+
+// MockdatabaseMockRecorder is the mock recorder for Mockdatabase.
+type MockdatabaseMockRecorder struct {
+	mock *Mockdatabase
+}
+
+// NewMockdatabase creates a new mock instance.
+func NewMockdatabase(ctrl *gomock.Controller) *Mockdatabase {
+	mock := &Mockdatabase{ctrl: ctrl}
+	mock.recorder = &MockdatabaseMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *Mockdatabase) EXPECT() *MockdatabaseMockRecorder {
+	return m.recorder
+}
+
+// close mocks base method.
+func (m *Mockdatabase) close() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "close")
+}
+
+// close indicates an expected call of close.
+func (mr *MockdatabaseMockRecorder) close() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "close", reflect.TypeOf((*Mockdatabase)(nil).close))
+}
+
+// createStore mocks base method.
+func (m *Mockdatabase) createStore(moduleName, storeName string) (go_stoabs.KVStore, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "createStore", moduleName, storeName)
+	ret0, _ := ret[0].(go_stoabs.KVStore)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// createStore indicates an expected call of createStore.
+func (mr *MockdatabaseMockRecorder) createStore(moduleName, storeName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "createStore", reflect.TypeOf((*Mockdatabase)(nil).createStore), moduleName, storeName)
+}
+
+// getClass mocks base method.
+func (m *Mockdatabase) getClass() Class {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "getClass")
+	ret0, _ := ret[0].(Class)
+	return ret0
+}
+
+// getClass indicates an expected call of getClass.
+func (mr *MockdatabaseMockRecorder) getClass() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "getClass", reflect.TypeOf((*Mockdatabase)(nil).getClass))
 }

@@ -24,14 +24,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/storage"
 	"strings"
 	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -40,7 +39,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
-	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
+	"github.com/nuts-foundation/nuts-node/network/transport/v2"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"go.etcd.io/bbolt"
@@ -108,7 +108,11 @@ func NewNetworkInstance(
 // Configure configures the Network subsystem
 func (n *Network) Configure(config core.ServerConfig) error {
 	var err error
-	if n.state, err = dag.NewState(config.Datadir, dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver)); err != nil {
+	db, err := n.storeProvider.GetKVStore("data", storage.PersistentStorageClass)
+	if err != nil {
+		return fmt.Errorf("unable to create database: %w", err)
+	}
+	if n.state, err = dag.NewState(db, dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver)); err != nil {
 		return fmt.Errorf("failed to configure state: %w", err)
 	}
 
@@ -195,7 +199,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		} else {
 			authenticator = grpc.NewTLSAuthenticator(doc.NewServiceResolver(n.didDocumentResolver))
 		}
-		n.connectionStore, err = n.storeProvider.GetKVStore("connections")
+		n.connectionStore, err = n.storeProvider.GetKVStore("connections", storage.VolatileStorageClass)
 		if err != nil {
 			return fmt.Errorf("failed to open connections store: %w", err)
 		}
@@ -212,7 +216,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	n.state.RegisterPayloadObserver(n.emitEvents, true)
 
 	// register observers to publish to other engines. Non-transactional, so will be published to other engines at most once.
-	n.state.RegisterTransactionObserver(func(_ context.Context, transaction dag.Transaction) error {
+	n.state.RegisterTransactionObserver(func(_ stoabs.WriteTx, transaction dag.Transaction) error {
 		n.publish(TransactionAddedEvent, transaction, nil)
 		return nil
 	}, false)

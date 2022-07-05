@@ -52,6 +52,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network"
 	networkAPI "github.com/nuts-foundation/nuts-node/network/api/v1"
 	networkCmd "github.com/nuts-foundation/nuts-node/network/cmd"
+	storageCmd "github.com/nuts-foundation/nuts-node/storage/cmd"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	credAPIv2 "github.com/nuts-foundation/nuts-node/vcr/api/v2"
 	vcrCmd "github.com/nuts-foundation/nuts-node/vcr/cmd"
@@ -271,6 +272,7 @@ func serverConfigFlags() *pflag.FlagSet {
 
 	set.AddFlagSet(core.FlagSet())
 	set.AddFlagSet(cryptoCmd.FlagSet())
+	set.AddFlagSet(storageCmd.FlagSet())
 	set.AddFlagSet(networkCmd.FlagSet())
 	set.AddFlagSet(vdrCmd.FlagSet())
 	set.AddFlagSet(vcrCmd.FlagSet())

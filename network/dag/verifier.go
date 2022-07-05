@@ -22,10 +22,11 @@ import (
 	crypto2 "crypto"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/go-stoabs"
+
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"go.etcd.io/bbolt"
 )
 
 // ErrPreviousTransactionMissing indicates one or more of the previous transactions (which the transaction refers to)
@@ -36,12 +37,12 @@ var ErrPreviousTransactionMissing = errors.New("transaction is referring to non-
 var ErrInvalidLamportClockValue = errors.New("transaction has an invalid lamport clock value")
 
 // Verifier defines the API of a DAG verifier, used to check the validity of a transaction.
-type Verifier func(tx *bbolt.Tx, transaction Transaction) error
+type Verifier func(tx stoabs.ReadTx, transaction Transaction) error
 
 // NewTransactionSignatureVerifier creates a transaction verifier that checks the signature of the transaction.
 // It uses the given KeyResolver to resolves keys that aren't embedded in the transaction.
 func NewTransactionSignatureVerifier(resolver types.KeyResolver) Verifier {
-	return func(_ *bbolt.Tx, transaction Transaction) error {
+	return func(_ stoabs.ReadTx, transaction Transaction) error {
 		var signingKey crypto2.PublicKey
 		if transaction.SigningKey() != nil {
 			if err := transaction.SigningKey().Raw(&signingKey); err != nil {
@@ -64,7 +65,7 @@ func NewTransactionSignatureVerifier(resolver types.KeyResolver) Verifier {
 // NewPrevTransactionsVerifier creates a transaction verifier that asserts that all previous transactions are known.
 // It also checks if the lamportClock value is correct (if given).
 func NewPrevTransactionsVerifier() Verifier {
-	return func(tx *bbolt.Tx, transaction Transaction) error {
+	return func(tx stoabs.ReadTx, transaction Transaction) error {
 		highestLamportClock := -1
 		for _, prev := range transaction.Previous() {
 			previousTransaction, err := getTransaction(prev, tx)
