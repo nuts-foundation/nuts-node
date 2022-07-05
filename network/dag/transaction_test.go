@@ -44,7 +44,7 @@ func TestNewTransaction(t *testing.T) {
 		assert.Equal(t, "some/type", transaction.PayloadType())
 		assert.Equal(t, transaction.PayloadHash(), payloadHash)
 		assert.Equal(t, []hash2.SHA256Hash{hash}, transaction.Previous())
-		assert.Equal(t, Version(2), transaction.Version())
+		assert.Equal(t, Version(1), transaction.Version())
 		assert.Equal(t, uint32(1), transaction.Clock())
 	})
 	t.Run("ok - with pal", func(t *testing.T) {
