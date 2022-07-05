@@ -238,12 +238,7 @@ func (p *protocol) handlePrivateTxRetry(event dag.Event) (bool, error) {
 
 	if payload != nil {
 		// stop retrying
-		log.Logger().Infof("Transaction payload already present, not querying (tx=%s)", event.Hash)
-		return true, nil
-	}
-
-	if len(event.Transaction.PAL()) == 0 {
-		log.Logger().Infof("Transaction does not have a PAL, not querying (tx=%s)", event.Hash)
+		log.Logger().Debugf("Transaction payload already present, not querying (tx=%s)", event.Hash)
 		return true, nil
 	}
 

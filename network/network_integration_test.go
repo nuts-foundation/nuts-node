@@ -28,7 +28,6 @@ import (
 	"math"
 	"math/rand"
 	"path"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -922,9 +921,4 @@ func nameToPort(t *testing.T, name string) int {
 
 func nameToAddress(t *testing.T, name string) string {
 	return fmt.Sprintf("localhost:%d", nameToPort(t, name))
-}
-
-func nameToDID(name string) string {
-	splitted := strings.Split(name, "_")
-	return splitted[len(splitted)-1]
 }
