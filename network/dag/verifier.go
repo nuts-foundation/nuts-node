@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
-	"time"
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
@@ -85,17 +84,6 @@ func NewPrevTransactionsVerifier() Verifier {
 			return ErrInvalidLamportClockValue
 		}
 
-		return nil
-	}
-}
-
-// NewSigningTimeVerifier creates a transaction verifier that asserts that signing time of transactions aren't
-// further than 1 day in the future, since that complicates head calculation.
-func NewSigningTimeVerifier() Verifier {
-	return func(_ stoabs.ReadTx, transaction Transaction) error {
-		if time.Now().Add(24 * time.Hour).Before(transaction.SigningTime()) {
-			return fmt.Errorf("transaction signing time too far in the future: %s", transaction.SigningTime())
-		}
 		return nil
 	}
 }
