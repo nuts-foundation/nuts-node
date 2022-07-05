@@ -119,7 +119,6 @@ func Test_fs2VaultCommand(t *testing.T) {
 
 	// Assert imported keys are logged
 	output := outBuf.String()
-	println(output)
 	assert.Contains(t, output, "pk1")
 	assert.Contains(t, output, "pk2")
 }
