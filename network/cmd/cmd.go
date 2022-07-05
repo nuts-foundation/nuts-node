@@ -19,7 +19,9 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"github.com/nuts-foundation/go-did/did"
 	"sort"
 	"strings"
 
@@ -71,6 +73,7 @@ func Cmd() *cobra.Command {
 	cmd.AddCommand(payloadCommand())
 	cmd.AddCommand(peersCommand())
 	cmd.AddCommand(reprocessCommand())
+	cmd.AddCommand(analyzeCommand())
 	return cmd
 }
 
@@ -208,6 +211,76 @@ func reprocessCommand() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func analyzeCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "analyze [file]",
+		Short: "Analyze the given BBolt network state database.",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			state, err := dag.NewState(args[0])
+			if err != nil {
+				return err
+			}
+
+			// Pretty ASCII art
+			cmd.Println("===================================")
+			cmd.Println("Analyzing network state database...")
+			cmd.Println("===================================")
+			cmd.Println("Number of TXs per signer:")
+			txCountPerSigner, err := analyzeSigners(state)
+			if err != nil {
+				return err
+			}
+			// Invert map, sort by tx count and print
+			signersPerTxCount := make(map[int][]string)
+			var sortedCount []int
+			for signer, count := range txCountPerSigner {
+				if len(signersPerTxCount[count]) == 0 {
+					sortedCount = append(sortedCount, count)
+				}
+				signersPerTxCount[count] = append(signersPerTxCount[count], signer)
+			}
+			sort.Ints(sortedCount)
+			// Show signers with TX count descending order (signers with most TXs first)
+			for i := len(sortedCount) - 1; i >= 0; i-- {
+				txCount := sortedCount[i]
+				for _, signer := range signersPerTxCount[txCount] {
+					println(signer, ":", txCount)
+				}
+			}
+
+			cmd.Println("===================================")
+			cmd.Println("Done!")
+			cmd.Println("===================================")
+			return nil
+		},
+	}
+}
+
+func analyzeSigners(state dag.State) (map[string]int, error) {
+	const newKeyID = "(unknown signer: embedded JWT)"
+	result := make(map[string]int)
+	err := state.Walk(context.Background(), func(transaction dag.Transaction) bool {
+		var signerID string
+		if transaction.SigningKeyID() == "" {
+			signerID = newKeyID
+		} else {
+			kid, err := did.ParseDIDURL(transaction.SigningKeyID())
+			if err != nil {
+				println("Invalid key ID:", err.Error())
+				signerID = transaction.SigningKeyID()
+			} else {
+				kid.Fragment = ""
+				kid.Query = ""
+				signerID = kid.String()
+			}
+		}
+		result[signerID] = result[signerID] + 1
+		return true
+	}, hash2.EmptyHash())
+	return result, err
 }
 
 // Sorts the transactions by provided flag or by time.
