@@ -62,17 +62,6 @@ func TestTree_Insert(t *testing.T) {
 	})
 }
 
-func TestTree_InsertGetDirty(t *testing.T) {
-	t.Run("insert single TX", func(t *testing.T) {
-		ref := hash.FromSlice([]byte{123})
-		tr := newTestTree(NewXor(), testLeafSize)
-
-		dirty := tr.InsertGetDirty(ref, 0)
-
-		assert.Len(t, dirty, 1)
-	})
-}
-
 func TestTree_Delete(t *testing.T) {
 	t.Run("delete single Tx", func(t *testing.T) {
 		ref := hash.FromSlice([]byte{123})
@@ -290,6 +279,17 @@ func TestTree_Load(t *testing.T) {
 			assert.Equal(t, expData, actualData)
 			assert.Equal(t, expLc, actualLc)
 		}
+	})
+
+	t.Run("ok - no data no change", func(t *testing.T) {
+		tr := New(NewXor(), testLeafSize).(*tree)
+
+		err := tr.Load(make(map[uint32][]byte, 0))
+
+		assert.NoError(t, err)
+		assert.Equal(t, testLeafSize, tr.leafSize)
+		assert.Equal(t, testLeafSize, tr.treeSize)
+		assert.Equal(t, NewXor(), tr.root.data)
 	})
 
 	t.Run("fail - incorrect data prototype", func(t *testing.T) {

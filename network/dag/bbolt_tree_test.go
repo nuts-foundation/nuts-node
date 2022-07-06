@@ -19,41 +19,62 @@
 package dag
 
 import (
-	"github.com/nuts-foundation/go-stoabs"
-	"github.com/stretchr/testify/assert"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 	"github.com/nuts-foundation/nuts-node/test/io"
 )
 
 const testLeafSize = 512
 
-func TestBboltTree_writeUpdates(t *testing.T) {
-	db := createBBoltDB(io.TestDirectory(t))
+func TestBboltTree_write(t *testing.T) {
+	t.Run("write tx", func(t *testing.T) {
+		db := createBBoltDB(io.TestDirectory(t))
+		storeWrite := newTreeStore("observer bucket", tree.New(tree.NewXor(), testLeafSize))
+		storeRead := newTreeStore("observer bucket", tree.New(tree.NewXor(), testLeafSize))
+		tx, _, _ := CreateTestTransaction(1)
 
-	t.Run("ok - inserts", func(t *testing.T) {
-		store := newTreeStore("xor tree", tree.New(tree.NewXor(), testLeafSize))
-		store.tree.Insert(hash.FromSlice([]byte("test hash 1")), 0)
-		dirty := store.tree.InsertGetDirty(hash.FromSlice([]byte("test hash 2")), testLeafSize)
-
-		err := db.Write(func(tx stoabs.WriteTx) error {
-			return store.writeUpdates(tx, dirty, nil)
+		err := db.Write(func(dbTx stoabs.WriteTx) error {
+			return storeWrite.write(dbTx, tx)
 		})
+		if !assert.NoError(t, err) {
+			return
+		}
+		err = db.Read(func(tx stoabs.ReadTx) error {
+			return storeRead.read(tx)
+		})
+		if !assert.NoError(t, err) {
+			return
+		}
 
-		assert.NoError(t, err)
+		assert.Equal(t, tx.Ref(), storeRead.getRoot().(*tree.Xor).Hash())
+		assert.Equal(t, tx.Ref(), storeWrite.getRoot().(*tree.Xor).Hash())
 	})
 
 	t.Run("ok - dropping leaves", func(t *testing.T) {
+		db := createBBoltDB(io.TestDirectory(t))
 		store := newTreeStore("xor drop leaves", tree.New(tree.NewXor(), testLeafSize))
-		store.tree.Insert(hash.FromSlice([]byte("test hash 1")), 0)
-		store.tree.Insert(hash.FromSlice([]byte("test hash 2")), testLeafSize)
-		store.tree.DropLeaves()
-		dirties, orphaned := store.tree.GetUpdates()
+		tx1, _, _ := CreateTestTransaction(1)
+		tx2, _, _ := CreateTestTransaction(2, tx1)
+		tx2.(*transaction).lamportClock = testLeafSize // on second page, so tree expands
+		tx3, _, _ := CreateTestTransaction(3, tx2)
 
-		err := db.Write(func(tx stoabs.WriteTx) error {
-			return store.writeUpdates(tx, dirties, orphaned)
+		err := db.Write(func(dbTx stoabs.WriteTx) error {
+			// write on first page, root == leaf
+			if err := store.write(dbTx, tx1); err != nil {
+				return err
+			}
+			// write on second page, root + 2 leaves
+			if err := store.write(dbTx, tx2); err != nil {
+				return err
+			}
+			// drop leaves, so root only
+			store.tree.DropLeaves()
+			// write to second page that is now part of root
+			return store.write(dbTx, tx3)
 		})
 		assert.NoError(t, err)
 
@@ -111,40 +132,5 @@ func TestBboltTree_read(t *testing.T) {
 		})
 
 		assert.EqualError(t, err, "invalid data length")
-	})
-}
-
-func TestBboltTree_write(t *testing.T) {
-	t.Run("write tx", func(t *testing.T) {
-		db := createBBoltDB(io.TestDirectory(t))
-		storeWrite := newTreeStore("observer bucket", tree.New(tree.NewXor(), testLeafSize))
-		storeRead := newTreeStore("observer bucket", tree.New(tree.NewXor(), testLeafSize))
-		tx, _, _ := CreateTestTransaction(1)
-
-		err := db.Write(func(dbTx stoabs.WriteTx) error {
-			return storeWrite.write(dbTx, tx)
-		})
-		if !assert.NoError(t, err) {
-			return
-		}
-		err = db.Read(func(tx stoabs.ReadTx) error {
-			return storeRead.read(tx)
-		})
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		assert.Equal(t, tx.Ref(), storeRead.getRoot().(*tree.Xor).Hash())
-		assert.Equal(t, tx.Ref(), storeWrite.getRoot().(*tree.Xor).Hash())
-	})
-
-	t.Run("don't panic on nil Transaction", func(t *testing.T) {
-		db := createBBoltDB(io.TestDirectory(t))
-		store := newTreeStore("observer bucket", tree.New(tree.NewXor(), testLeafSize))
-
-		// don't panic
-		_ = db.Write(func(dbTx stoabs.WriteTx) error {
-			return store.write(dbTx, nil)
-		})
 	})
 }
