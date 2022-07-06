@@ -72,6 +72,8 @@ func (client *Crypto) Config() interface{} {
 }
 
 func (client *Crypto) setupFSBackend(config core.ServerConfig) error {
+	log.Logger().Infof("Setting up FileSystem backend for storage of private key material. " +
+		"Discouraged for production use unless backups and encryption is properly set up. If not, consider using the Vault backend.")
 	fsPath := path.Join(config.Datadir, "crypto")
 	var err error
 	client.Storage, err = storage.NewFileSystemBackend(fsPath)
@@ -79,6 +81,7 @@ func (client *Crypto) setupFSBackend(config core.ServerConfig) error {
 }
 
 func (client *Crypto) setupVaultBackend(_ core.ServerConfig) error {
+	log.Logger().Debug("Setting up Vault backend for storage of private key material.")
 	var err error
 	client.Storage, err = storage.NewVaultKVStorage(client.config.Vault)
 	return err
