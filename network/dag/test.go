@@ -24,6 +24,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
+	"github.com/google/uuid"
 	"path"
 	"testing"
 	"time"
@@ -43,19 +44,24 @@ func CreateTestTransactionWithJWK(num uint32, prevs ...Transaction) Transaction 
 
 // CreateSignedTestTransaction creates a signed transaction with more control
 func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, pal [][]byte, payloadType string, attach bool, prevs ...Transaction) Transaction {
-	payload := make([]byte, 4)
-	binary.BigEndian.PutUint32(payload, payloadNum)
+	payload := NumToPayload(payloadNum)
 	payloadHash := hash.SHA256Sum(payload)
 	lamportClock := calculateLamportClock(prevs)
 	unsignedTransaction, _ := NewTransaction(payloadHash, payloadType, prevHashes(prevs), pal, lamportClock)
 
-	signer := crypto2.NewTestKey(fmt.Sprintf("%d", payloadNum))
+	signer := crypto2.NewTestKey(fmt.Sprintf("did:nuts:%d#%s", payloadNum, uuid.NewString()))
 	signedTransaction, err := NewTransactionSigner(signer, attach).Sign(unsignedTransaction, signingTime)
 	if err != nil {
 		panic(err)
 	}
 	return signedTransaction
 
+}
+
+func NumToPayload(payloadNum uint32) []byte {
+	payload := make([]byte, 4)
+	binary.BigEndian.PutUint32(payload, payloadNum)
+	return payload
 }
 
 // CreateTestTransactionEx creates a transaction with the given payload hash and signs it with a random EC key.

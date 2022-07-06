@@ -247,7 +247,7 @@ func analyzeCommand() *cobra.Command {
 			for i := len(sortedCount) - 1; i >= 0; i-- {
 				txCount := sortedCount[i]
 				for _, signer := range signersPerTxCount[txCount] {
-					println(signer, ":", txCount)
+					cmd.Println(signer, ":", txCount)
 				}
 			}
 
