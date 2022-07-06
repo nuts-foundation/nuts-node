@@ -184,7 +184,7 @@ func CreateSystem() *core.System {
 	cryptoInstance := crypto.NewCryptoInstance()
 	jsonld := jsonld.NewJSONLDInstance()
 	storageInstance := storage.New()
-	didStore := store.NewBBoltStore()
+	didStore := store.NewStore(storageInstance.GetProvider(vdr.ModuleName))
 	keyResolver := doc.KeyResolver{Store: didStore}
 	docResolver := doc.Resolver{Store: didStore}
 	docFinder := doc.Finder{Store: didStore}

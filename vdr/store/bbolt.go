@@ -16,62 +16,56 @@
 package store
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path"
 
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"go.etcd.io/bbolt"
-
+	"github.com/nuts-foundation/nuts-node/storage"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 const (
-	// latestBucket has DID as key and latest metadata reference as value
-	latestBucket = "latest"
-	// metadataBucket has the metadata reference (DID concatenated with version number, starting at 0) as key and the metadataRecord as value
-	metadataBucket = "metadata"
-	// transactionIndexBucket has the transaction reference as key and metadata reference as value
-	transactionIndexBucket = "txRef"
-	// documentsBucket has payload hash as key and document as value
-	documentBucket = "documents"
+	// latestShelf has DID as key and latest metadata reference as value
+	latestShelf = "latest"
+	// metadataShelf has the metadata reference (DID concatenated with version number, starting at 0) as key and the metadataRecord as value
+	metadataShelf = "metadata"
+	// transactionIndexShelf has the transaction reference as key and metadata reference as value
+	transactionIndexShelf = "txRef"
+	// documentShelf has payload hash as key and document as value
+	documentShelf = "documents"
 )
 
-type bboltStore struct {
-	db *bbolt.DB
+type store struct {
+	db            stoabs.KVStore
+	storeProvider storage.Provider
 }
 
-func (store *bboltStore) Name() string {
-	return "BBolt DID Document Store"
+func (s *store) Name() string {
+	return "DID Document Store"
 }
 
-// NewBBoltStore returns an instance of a BBolt based VDR store
-func NewBBoltStore() vdr.Store {
-	return &bboltStore{}
+// NewStore returns an instance of a VDR store
+func NewStore(storeProvider storage.Provider) vdr.Store {
+	return &store{storeProvider: storeProvider}
 }
 
-func (store *bboltStore) Configure(config core.ServerConfig) error {
+func (s *store) Configure(_ core.ServerConfig) error {
 	var err error
-	filePath := path.Join(config.Datadir, "vdr", "didstore.db")
-	if err = os.MkdirAll(path.Join(config.Datadir, "vdr"), os.ModePerm); err != nil {
-		return err
-	}
-	store.db, err = bbolt.Open(filePath, 0600, bbolt.DefaultOptions)
-
+	s.db, err = s.storeProvider.GetKVStore("didstore")
 	return err
 }
 
-func (store *bboltStore) Start() error {
-	// already done in Configure
-	return nil
+func (s *store) Start() error {
+	return storage.InitializeShelfs(s.db, latestShelf, metadataShelf, transactionIndexShelf, documentShelf)
 }
 
-func (store *bboltStore) Shutdown() error {
-	if store.db != nil {
-		return store.db.Close()
+func (s *store) Shutdown() error {
+	if s.db != nil {
+		return s.db.Close(context.Background())
 	}
 	return nil
 }
@@ -90,17 +84,20 @@ func (mr metadataRecord) ref() []byte {
 	return []byte(metaRefString)
 }
 
-func (store *bboltStore) Write(document did.Document, metadata vdr.DocumentMetadata) error {
-	return store.db.Update(func(tx *bbolt.Tx) error {
-		if err := store.createBucketsIfNotExist(tx); err != nil {
+func (s *store) Write(document did.Document, metadata vdr.DocumentMetadata) error {
+	return s.db.Write(func(tx stoabs.WriteTx) error {
+		latestWriter, err := tx.GetShelfWriter(latestShelf)
+		if err != nil {
 			return err
 		}
 
-		latestBucket := tx.Bucket([]byte(latestBucket))
 		didString := document.ID.String()
 
 		// first get latest
-		latestBytes := latestBucket.Get([]byte(didString))
+		latestBytes, err := latestWriter.Get(stoabs.BytesKey(didString))
+		if err != nil {
+			return nil
+		}
 		if latestBytes != nil {
 			return vdr.ErrDIDAlreadyExists
 		}
@@ -113,27 +110,39 @@ func (store *bboltStore) Write(document did.Document, metadata vdr.DocumentMetad
 			Version:     0,
 		}
 
-		return store.writeDocument(tx, document, newMetadataRecord)
+		return s.writeDocument(tx, document, newMetadataRecord)
 	})
 }
 
-func (store *bboltStore) Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *vdr.DocumentMetadata) error {
-	return store.db.Update(func(tx *bbolt.Tx) error {
-		latestBucket := tx.Bucket([]byte(latestBucket))
-		metadataBucket := tx.Bucket([]byte(metadataBucket))
+func (s *store) Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *vdr.DocumentMetadata) error {
+	return s.db.Write(func(tx stoabs.WriteTx) error {
+		latestWriter, err := tx.GetShelfWriter(latestShelf)
+		if err != nil {
+			return err
+		}
+		metadataWriter, err := tx.GetShelfWriter(metadataShelf)
+		if err != nil {
+			return err
+		}
 		didString := id.String()
 
 		// first get latest
 		var version int
 		var prevMetaRef []byte
-		latestRef := latestBucket.Get([]byte(didString))
+		latestRef, err := latestWriter.Get(stoabs.BytesKey(didString))
+		if err != nil {
+			return err
+		}
 
 		// check for existence
 		if latestRef == nil {
 			return vdr.ErrNotFound
 		}
 
-		latestBytes := metadataBucket.Get(latestRef)
+		latestBytes, err := metadataWriter.Get(stoabs.BytesKey(latestRef))
+		if err != nil {
+			return err
+		}
 		latestMetadata := metadataRecord{}
 		if err := json.Unmarshal(latestBytes, &latestMetadata); err != nil {
 			return err
@@ -155,49 +164,64 @@ func (store *bboltStore) Update(id did.DID, current hash.SHA256Hash, next did.Do
 			Version:     version,
 		}
 
-		return store.writeDocument(tx, next, newMetadataRecord)
+		return s.writeDocument(tx, next, newMetadataRecord)
 	})
 }
 
-func (store *bboltStore) writeDocument(tx *bbolt.Tx, document did.Document, metadataRecord metadataRecord) error {
-
-	latestBucket := tx.Bucket([]byte(latestBucket))
-	metadataBucket := tx.Bucket([]byte(metadataBucket))
-	transactionIndex := tx.Bucket([]byte(transactionIndexBucket))
-	documentBucket := tx.Bucket([]byte(documentBucket))
-
-	// store in metadataBucket
-	newRefBytes := metadataRecord.ref()
-	newRecordBytes, _ := json.Marshal(metadataRecord)
-	if err := metadataBucket.Put(newRefBytes, newRecordBytes); err != nil {
+func (s *store) writeDocument(tx stoabs.WriteTx, document did.Document, metadataRecord metadataRecord) error {
+	// get shelf writers
+	latestWriter, err := tx.GetShelfWriter(latestShelf)
+	if err != nil {
+		return err
+	}
+	metadataWriter, err := tx.GetShelfWriter(metadataShelf)
+	if err != nil {
+		return err
+	}
+	transactionIndexWriter, err := tx.GetShelfWriter(transactionIndexShelf)
+	if err != nil {
+		return err
+	}
+	documentWriter, err := tx.GetShelfWriter(documentShelf)
+	if err != nil {
 		return err
 	}
 
-	// update latestBucket
-	if err := latestBucket.Put([]byte(metadataRecord.DID), newRefBytes); err != nil {
+	// store in metadataShelf
+	newRefBytes := metadataRecord.ref()
+	newRecordBytes, _ := json.Marshal(metadataRecord)
+	if err := metadataWriter.Put(stoabs.BytesKey(newRefBytes), newRecordBytes); err != nil {
+		return err
+	}
+
+	// update latestShelf
+	if err := latestWriter.Put(stoabs.BytesKey(metadataRecord.DID), newRefBytes); err != nil {
 		return err
 	}
 
 	// update transactionIndex, this may overwrite entries in case of a conflict, but that's ok
 	for _, sourceTX := range metadataRecord.Metadata.SourceTransactions {
-		if err := transactionIndex.Put(sourceTX.Slice(), newRefBytes); err != nil {
+		if err := transactionIndexWriter.Put(stoabs.NewHashKey(sourceTX), newRefBytes); err != nil {
 			return err
 		}
 	}
 
-	// add payload to documentBucket
+	// add payload to documentShelf
 	documentBytes, _ := json.Marshal(document)
-	return documentBucket.Put(metadataRecord.Metadata.Hash.Slice(), documentBytes)
+	return documentWriter.Put(stoabs.NewHashKey(metadataRecord.Metadata.Hash), documentBytes)
 }
 
-func (store *bboltStore) Processed(hash hash.SHA256Hash) (processed bool, txErr error) {
-	txErr = store.db.View(func(tx *bbolt.Tx) error {
-		transactionIndexBucket := tx.Bucket([]byte(transactionIndexBucket))
-		if transactionIndexBucket == nil {
-			return nil
+func (s *store) Processed(hash hash.SHA256Hash) (processed bool, txErr error) {
+	txErr = s.db.Read(func(tx stoabs.ReadTx) error {
+		transactionIndexReader, err := tx.GetShelfReader(transactionIndexShelf)
+		if err != nil {
+			return err
 		}
 
-		ref := transactionIndexBucket.Get(hash.Slice())
+		ref, err := transactionIndexReader.Get(stoabs.NewHashKey(hash))
+		if err != nil {
+			return err
+		}
 		if ref != nil {
 			processed = true
 		}
@@ -207,38 +231,36 @@ func (store *bboltStore) Processed(hash hash.SHA256Hash) (processed bool, txErr 
 	return
 }
 
-func (store *bboltStore) createBucketsIfNotExist(tx *bbolt.Tx) error {
-	if _, err := tx.CreateBucketIfNotExists([]byte(latestBucket)); err != nil {
-		return err
-	}
-	if _, err := tx.CreateBucketIfNotExists([]byte(metadataBucket)); err != nil {
-		return err
-	}
-	if _, err := tx.CreateBucketIfNotExists([]byte(transactionIndexBucket)); err != nil {
-		return err
-	}
-	_, err := tx.CreateBucketIfNotExists([]byte(documentBucket))
-	return err
-}
-
 // Iterate loops over all the latest versions of the stored DID Documents and applies fn
-func (store *bboltStore) Iterate(fn vdr.DocIterator) error {
-	return store.db.View(func(tx *bbolt.Tx) error {
-		latestBucket := tx.Bucket([]byte(latestBucket))
-		if latestBucket == nil {
-			return nil
+func (s *store) Iterate(fn vdr.DocIterator) error {
+	return s.db.Read(func(tx stoabs.ReadTx) error {
+		// get shelf readers
+		latestReader, err := tx.GetShelfReader(latestShelf)
+		if err != nil {
+			return err
+		}
+		metadataReader, err := tx.GetShelfReader(metadataShelf)
+		if err != nil {
+			return err
+		}
+		documentReader, err := tx.GetShelfReader(documentShelf)
+		if err != nil {
+			return err
 		}
 
-		metadataBucket := tx.Bucket([]byte(metadataBucket))
-		documentBucket := tx.Bucket([]byte(documentBucket))
-
-		return latestBucket.ForEach(func(didKey, metadataRecordRef []byte) error {
-			metadataRecordBytes := metadataBucket.Get(metadataRecordRef)
+		return latestReader.Iterate(func(didKey stoabs.Key, metadataRecordRef []byte) error {
+			metadataRecordBytes, err := metadataReader.Get(stoabs.BytesKey(metadataRecordRef))
+			if err != nil {
+				return err
+			}
 			var metadataRecord metadataRecord
 			if err := json.Unmarshal(metadataRecordBytes, &metadataRecord); err != nil {
 				return err
 			}
-			documentBytes := documentBucket.Get(metadataRecord.Metadata.Hash.Slice())
+			documentBytes, err := documentReader.Get(stoabs.NewHashKey(metadataRecord.Metadata.Hash))
+			if err != nil {
+				return err
+			}
 			var document did.Document
 			if err := json.Unmarshal(documentBytes, &document); err != nil {
 				return err
@@ -249,33 +271,45 @@ func (store *bboltStore) Iterate(fn vdr.DocIterator) error {
 	})
 }
 
-func (store *bboltStore) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (returnDocument *did.Document, returnMetadata *vdr.DocumentMetadata, txErr error) {
-	txErr = store.db.View(func(tx *bbolt.Tx) error {
-		// we start at the latest version
-		latestBucket := tx.Bucket([]byte(latestBucket))
-		if latestBucket == nil {
+func (s *store) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (returnDocument *did.Document, returnMetadata *vdr.DocumentMetadata, txErr error) {
+	txErr = s.db.Read(func(tx stoabs.ReadTx) error {
+		// get shelf readers
+		latestReader, err := tx.GetShelfReader(latestShelf)
+		if err != nil {
 			return vdr.ErrNotFound
 		}
-
-		metadataBucket := tx.Bucket([]byte(metadataBucket))
-		latestRefBytes := latestBucket.Get([]byte(id.String()))
+		latestRefBytes, err := latestReader.Get(stoabs.BytesKey(id.String()))
 		if latestRefBytes == nil {
 			return vdr.ErrNotFound
 		}
 		latestMetadataRef := latestRefBytes
-		documentBucket := tx.Bucket([]byte(documentBucket))
+
+		metadataReader, err := tx.GetShelfReader(metadataShelf)
+		if err != nil {
+			return err
+		}
+		documentReader, err := tx.GetShelfReader(documentShelf)
+		if err != nil {
+			return err
+		}
 
 		// loop over all versions
 		for latestMetadataRef != nil {
 			var metadataRecord metadataRecord
-			metadataBytes := metadataBucket.Get(latestMetadataRef)
+			metadataBytes, err := metadataReader.Get(stoabs.BytesKey(latestMetadataRef))
+			if err != nil {
+				return err
+			}
 			if err := json.Unmarshal(metadataBytes, &metadataRecord); err != nil {
 				return err
 			}
 
 			if matches(metadataRecord, metadata) {
 				returnMetadata = &metadataRecord.Metadata
-				docBytes := documentBucket.Get(metadataRecord.Metadata.Hash.Slice())
+				docBytes, err := documentReader.Get(stoabs.NewHashKey(metadataRecord.Metadata.Hash))
+				if err != nil {
+					return err
+				}
 				var document did.Document
 				if err := json.Unmarshal(docBytes, &document); err != nil {
 					return err

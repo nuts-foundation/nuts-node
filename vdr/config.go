@@ -18,7 +18,8 @@
 
 package vdr
 
-const moduleName = "VDR"
+// ModuleName is the name of the engine
+const ModuleName = "VDR"
 
 // Config holds the config for the VDR engine
 type Config struct{}

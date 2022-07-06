@@ -144,3 +144,17 @@ func (p *provider) getStore(moduleName string, name string, adapter database) (s
 	}
 	return store, err
 }
+
+// InitializeShelfs creates shelfs for the given store if they do not exist. This removes the need for nil checks after calling stoabs.ReadTx.GetShelfReader
+// Currently this is only guaranteed to work if the underlying store is bbolt.
+func InitializeShelfs(store stoabs.KVStore, shelfs ...string) error {
+	// TODO: replace with shelf initialization method that is agnostic to the underlying store. See https://github.com/nuts-foundation/go-stoabs/issues/14
+	for _, shelf := range shelfs {
+		if err := store.WriteShelf(shelf, func(writer stoabs.Writer) error {
+			return nil
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
