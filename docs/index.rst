@@ -11,6 +11,27 @@ Nuts documentation
 
     pages/getting-started/**
 
+.. toctree::
+    :maxdepth: 1
+    :caption: Integrating:
+    :glob:
+
+    pages/integrating/api.rst
+    pages/integrating/vc.rst
+    pages/integrating/faq-errors.rst
+    pages/release_notes.rst
+    pages/roadmap.rst
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Deployment & Configuration:
+    :glob:
+
+    pages/deployment/recommended-deployment.rst
+    pages/deployment/configuration.rst
+    pages/deployment/monitoring.rst
+    pages/deployment/administering-your-node.rst
+    pages/deployment/production-configuration.rst
 
 .. toctree::
     :maxdepth: 1
@@ -26,22 +47,7 @@ Nuts documentation
     :glob:
 
     pages/development/**
-    pages/api.rst
-    pages/configuration/configuration.rst
     pages/contribute.rst
-    pages/release_notes.rst
-    pages/roadmap.rst
-
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Node & Network:
-    :glob:
-
-    pages/monitoring.rst
-    pages/administering-your-node.rst
-    pages/production-configuration.rst
-    pages/faq-errors.rst
 
 
 .. toctree::

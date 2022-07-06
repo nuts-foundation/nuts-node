@@ -65,7 +65,7 @@ func generateServerOptions(system *core.System) {
 		}
 	})
 
-	generatePartitionedConfigOptionsDocs("docs/pages/configuration/server_options.rst", flags)
+	generatePartitionedConfigOptionsDocs("docs/pages/deployment/server_options.rst", flags)
 }
 
 func extractFlagsForEngine(flagSet *pflag.FlagSet, config interface{}) (*pflag.FlagSet, error) {

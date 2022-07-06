@@ -1,7 +1,7 @@
 .. _nuts-node-monitoring:
 
-Nuts node monitoring
-####################
+Monitoring the Nuts Node
+########################
 
 Basic service health
 ********************
