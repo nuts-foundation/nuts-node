@@ -46,5 +46,5 @@ Configuration
 CLI options
 ^^^^^^^^^^^
 
-.. include:: docs/pages/administering-your-node.rst
+.. include:: docs/pages/deployment/administering-your-node.rst
     :start-after: .. marker-for-readme
