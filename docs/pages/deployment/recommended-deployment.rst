@@ -57,6 +57,7 @@ Interfaces/Endpoints:
   *Security*: HTTPS with server certificate (on proxy). Monitor traffic to detect attacks.
 
 * **HTTP /n2n**: for providing Nuts services to other nodes (e.g. creating access tokens).
+  The local node also calls other nodes on their `/n2n` endpoint, these outgoing calls are subject to the same security requirements.
 
   *Users*: Nuts nodes of other SPs.
 
