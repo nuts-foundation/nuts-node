@@ -31,6 +31,7 @@ Nuts documentation
     pages/deployment/configuration.rst
     pages/deployment/monitoring.rst
     pages/deployment/administering-your-node.rst
+    pages/deployment/cli/index.rst
     pages/deployment/production-configuration.rst
 
 .. toctree::
