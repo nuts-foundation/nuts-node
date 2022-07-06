@@ -164,7 +164,7 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 	}
 	peerID := transport.PeerID(name)
 	listenAddress := fmt.Sprintf("localhost:%d", nameToPort(name))
-	ctx.protocol = New(*cfg, transport.FixedNodeDIDResolver{}, ctx.state, doc.Resolver{Store: vdrStore}, keyStore, nil, storageClient.GetProvider("network")).(*protocol)
+	ctx.protocol = New(*cfg, transport.FixedNodeDIDResolver{}, ctx.state, doc.Resolver{Store: vdrStore}, keyStore, nil, bboltStore).(*protocol)
 
 	authenticator := grpc.NewTLSAuthenticator(doc.NewServiceResolver(&doc.Resolver{Store: store.NewMemoryStore()}))
 	connectionsStore, _ := storageClient.GetProvider("network").GetKVStore("connections", storage.VolatileStorageClass)

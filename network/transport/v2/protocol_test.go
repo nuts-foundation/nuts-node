@@ -41,7 +41,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
-	"github.com/nuts-foundation/nuts-node/storage"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -54,7 +53,7 @@ type protocolMocks struct {
 	Gossip           *gossip.MockManager
 	ConnectionList   *grpc.MockConnectionList
 	Sender           *MockmessageSender
-	StorageProvider  *storage.MockProvider
+	DagStore         *stoabs.MockKVStore
 }
 
 func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) {
@@ -69,7 +68,7 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 	connectionList := grpc.NewMockConnectionList(ctrl)
 	sender := NewMockmessageSender(ctrl)
 	nodeDIDResolver := transport.FixedNodeDIDResolver{}
-	storage := storage.NewMockProvider(ctrl)
+	storage := stoabs.NewMockKVStore(ctrl)
 
 	if nodeDID != nil {
 		nodeDIDResolver.NodeDID = *nodeDID
@@ -93,7 +92,7 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 		Gossip:           gMan,
 		ConnectionList:   connectionList,
 		Sender:           sender,
-		StorageProvider:  storage,
+		DagStore:         storage,
 	}
 }
 
@@ -106,7 +105,6 @@ func TestDefaultConfig(t *testing.T) {
 func TestProtocol_Configure(t *testing.T) {
 	testDID, _ := did.ParseDID("did:nuts:123")
 	p, mocks := newTestProtocol(t, testDID)
-	mocks.StorageProvider.EXPECT().GetKVStore("data", gomock.Any()).Return(stoabs.NewMockKVStore(mocks.Controller), nil)
 	mocks.State.EXPECT().Notifier("private", gomock.Any(), gomock.Len(3))
 	mocks.State.EXPECT().Notifier("gossip", gomock.Any(), gomock.Len(2))
 

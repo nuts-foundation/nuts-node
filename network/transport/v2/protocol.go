@@ -22,7 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/go-stoabs"
 	"math"
 	"time"
 
@@ -75,7 +75,7 @@ func New(
 	docResolver vdr.DocResolver,
 	decrypter crypto.Decrypter,
 	diagnosticsProvider func() transport.Diagnostics,
-	storageProvider storage.Provider,
+	dagStore stoabs.KVStore,
 ) transport.Protocol {
 	ctx, cancel := context.WithCancel(context.Background())
 	p := &protocol{
@@ -86,7 +86,7 @@ func New(
 		nodeDIDResolver: nodeDIDResolver,
 		decrypter:       decrypter,
 		docResolver:     docResolver,
-		storageProvider: storageProvider,
+		dagStore:        dagStore,
 	}
 	p.sender = p
 	p.diagnosticsMan = newPeerDiagnosticsManager(diagnosticsProvider, p.sender.broadcastDiagnostics)
@@ -109,7 +109,7 @@ type protocol struct {
 	diagnosticsMan         *peerDiagnosticsManager
 	sender                 messageSender
 	listHandler            *transactionListHandler
-	storageProvider        storage.Provider
+	dagStore               stoabs.KVStore
 }
 
 func (p protocol) CreateClientStream(outgoingContext context.Context, grpcConn grpcLib.ClientConnInterface) (grpcLib.ClientStream, error) {
@@ -148,12 +148,8 @@ func (p *protocol) Configure(_ transport.PeerID) error {
 	if nodeDID.Empty() {
 		log.Logger().Warn("Not starting the payload scheduler as node DID is not set")
 	} else {
-		store, err := p.storageProvider.GetKVStore("data", storage.PersistentStorageClass)
-		if err != nil {
-			return fmt.Errorf("failed to register transaction listener for private transactions: %w", err)
-		}
 		p.privatePayloadReceiver, err = p.state.Notifier("private", p.handlePrivateTxRetry,
-			dag.WithPersistency(store),
+			dag.WithPersistency(p.dagStore),
 			dag.WithRetryDelay(p.config.PayloadRetryDelay),
 			dag.WithSelectionFilter(func(event dag.Event) bool {
 				return event.Type == dag.TransactionEventType && event.Transaction.PAL() != nil

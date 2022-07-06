@@ -265,7 +265,7 @@ func (p *notifier) Notify(event Event) {
 		}
 	}
 
-	if err := p.runNow(event); err != nil {
+	if err := p.notifyNow(event); err != nil {
 		p.retry(event)
 	}
 }
@@ -282,7 +282,7 @@ func (p *notifier) retry(event Event) {
 		// also an initial delay
 		time.Sleep(delay)
 		err := retry.Do(func() error {
-			return p.runNow(event)
+			return p.notifyNow(event)
 		},
 			retry.Attempts(maxRetries-uint(initialCount)),
 			retry.MaxDelay(24*time.Hour),
@@ -300,9 +300,9 @@ func (p *notifier) retry(event Event) {
 	}(p.ctx)
 }
 
-// runNow is used to call the receiverFn synchronously.
-// This is used for the first run.
-func (p *notifier) runNow(event Event) error {
+// notifyNow is used to call the receiverFn synchronously.
+// This is used for the first run and with every retry.
+func (p *notifier) notifyNow(event Event) error {
 	var dbEvent = &event
 	if p.isPersistent() {
 		if err := p.db.ReadShelf(p.shelfName(), func(reader stoabs.Reader) error {
@@ -328,13 +328,13 @@ func (p *notifier) runNow(event Event) error {
 	}
 
 	if finished, err := p.receiver(*dbEvent); err != nil {
-		log.Logger().Errorf("retry for %s receiver failed (ref=%s)", p.name, dbEvent.Hash.String())
+		log.Logger().Errorf("Retry for %s receiver failed (ref=%s)", p.name, dbEvent.Hash.String())
 	} else if finished {
 		return p.Finished(dbEvent.Hash)
 	}
 
 	// has to return an error since `retry.Do` needs to retry until it's marked as finished
-	return fmt.Errorf("event is not yet handled by receiver (count=%d, max=%d)", dbEvent.Retries, maxRetries)
+	return fmt.Errorf("event handling by receiver failed, but might be retried (count=%d, max=%d)", dbEvent.Retries, maxRetries)
 }
 
 func (p *notifier) writeEvent(writer stoabs.Writer, event Event) error {

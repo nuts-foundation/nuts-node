@@ -112,7 +112,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	if err != nil {
 		return fmt.Errorf("unable to create database: %w", err)
 	}
-	if n.state, err = dag.NewState(dagStore, dag.NewSigningTimeVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver)); err != nil {
+	if n.state, err = dag.NewState(dagStore, dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver)); err != nil {
 		return fmt.Errorf("failed to configure state: %w", err)
 	}
 
@@ -158,7 +158,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	var candidateProtocols []transport.Protocol
 	if n.protocols == nil {
 		candidateProtocols = []transport.Protocol{
-			v2.New(v2Cfg, n.nodeDIDResolver, n.state, n.didDocumentResolver, n.decrypter, n.collectDiagnostics, n.storeProvider),
+			v2.New(v2Cfg, n.nodeDIDResolver, n.state, n.didDocumentResolver, n.decrypter, n.collectDiagnostics, dagStore),
 		}
 	} else {
 		// Only set protocols if not already set: improves testability
