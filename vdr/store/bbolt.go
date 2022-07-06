@@ -55,7 +55,7 @@ func NewStore(storeProvider storage.Provider) vdr.Store {
 
 func (s *store) Configure(_ core.ServerConfig) error {
 	var err error
-	s.db, err = s.storeProvider.GetKVStore("didstore")
+	s.db, err = s.storeProvider.GetKVStore("didstore", storage.PersistentStorageClass)
 	return err
 }
 

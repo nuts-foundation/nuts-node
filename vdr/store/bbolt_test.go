@@ -61,7 +61,7 @@ func TestStore_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		mockProvider := storage.NewMockProvider(ctrl)
 		store := NewStore(mockProvider).(core.Configurable)
-		mockProvider.EXPECT().GetKVStore(gomock.Any()).Return(nil, errors.New("custom"))
+		mockProvider.EXPECT().GetKVStore(gomock.Any(), gomock.Any()).Return(nil, errors.New("custom"))
 
 		err := store.Configure(core.ServerConfig{Datadir: "a_file_not_a_dir.go"})
 
