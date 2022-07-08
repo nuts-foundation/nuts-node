@@ -68,6 +68,39 @@ func TestParseTransaction(t *testing.T) {
 		assert.NotNil(t, transaction.Data())
 		assert.False(t, transaction.Ref().Empty())
 	})
+	t.Run("ok v2", func(t *testing.T) {
+		headers := makeJWSHeaders(key, "123", true)
+		_ = headers.Set("pal", []string{base64.StdEncoding.EncodeToString([]byte{5, 6, 7})})
+		_ = headers.Set(versionHeader, 2)
+		_ = headers.Set(jws.CriticalKey, []string{signingTimeHeader, versionHeader, previousHeader, lamportClockHeader})
+		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
+
+		transaction, err := ParseTransaction(signature)
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		var actualKey ecdsa.PublicKey
+		err = transaction.SigningKey().Raw(&actualKey)
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.NotNil(t, transaction)
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Equal(t, payload, transaction.PayloadHash())
+		assert.Equal(t, key.PublicKey, actualKey)
+		assert.Equal(t, 2, int(transaction.Version()))
+		assert.Equal(t, "foo/bar", transaction.PayloadType())
+		assert.Equal(t, time.UTC, transaction.SigningTime().Location())
+		assert.Equal(t, headers.PrivateParams()[previousHeader].([]string)[0], transaction.Previous()[0].String())
+		assert.Equal(t, transaction.PAL(), [][]byte{{5, 6, 7}})
+		assert.NotNil(t, transaction.Data())
+		assert.False(t, transaction.Ref().Empty())
+	})
 	t.Run("error - input not a JWS (compact serialization format)", func(t *testing.T) {
 		tx, err := ParseTransaction([]byte("not a JWS"))
 		assert.Nil(t, tx)
@@ -245,7 +278,8 @@ func makeJWSHeaders(key crypto.Signer, kid string, embedKey bool) jws.Headers {
 	headerMap := map[string]interface{}{
 		jws.AlgorithmKey:   jwa.ES256,
 		jws.ContentTypeKey: "foo/bar",
-		jws.CriticalKey:    []string{signingTimeHeader, versionHeader, previousHeader, lamportClockHeader},
+		// TODO add lamportClockHeader after v4.0.0 tag
+		jws.CriticalKey:    []string{signingTimeHeader, versionHeader, previousHeader},
 		lamportClockHeader: 0,
 		signingTimeHeader:  time.Now().UTC().Unix(),
 		versionHeader:      1,
