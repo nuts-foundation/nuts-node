@@ -20,6 +20,8 @@ package dag
 
 import (
 	"encoding/binary"
+	"sync"
+
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 	"github.com/nuts-foundation/nuts-node/network/log"
@@ -28,6 +30,7 @@ import (
 type treeStore struct {
 	bucketName string
 	tree       tree.Tree
+	mutex      sync.Mutex
 }
 
 // newTreeStore returns an instance of a BBolt based tree store. Buckets managed by this store are filled to treeBucketFillPercent
@@ -40,25 +43,57 @@ func newTreeStore(bucketName string, tree tree.Tree) *treeStore {
 
 // getRoot returns the tree.Data summary of the entire tree.
 func (store *treeStore) getRoot() tree.Data {
+	store.mutex.Lock()
+	defer store.mutex.Unlock()
+
 	return store.tree.GetRoot()
 }
 
 // getZeroTo returns the tree.Data sum of all tree pages/leaves upto and including the one containing the requested Lamport Clock value.
 // In addition to the data, the highest LC value of this range is returned.
 func (store *treeStore) getZeroTo(clock uint32) (tree.Data, uint32) {
+	store.mutex.Lock()
+	defer store.mutex.Unlock()
+
 	return store.tree.GetZeroTo(clock)
 }
 
 func (store *treeStore) isEmpty() bool {
+	store.mutex.Lock()
+	defer store.mutex.Unlock()
+
 	return store.tree.GetRoot().IsEmpty()
 }
 
 // write inserts a transaction reference to the in-memory tree and to persistent storage.
 // The tree is not aware of previously seen transactions, so it should be transactional with updates to the dag.
 func (store *treeStore) write(tx stoabs.WriteTx, transaction Transaction) error {
-	if transaction != nil { // can happen when payload is written for private TX
-		dirty := store.tree.InsertGetDirty(transaction.Ref(), transaction.Clock())
-		return store.writeUpdates(tx, dirty, nil)
+	store.mutex.Lock()
+	defer store.mutex.Unlock()
+
+	writer, err := tx.GetShelfWriter(store.bucketName)
+	if err != nil {
+		return err
+	}
+
+	store.tree.Insert(transaction.Ref(), transaction.Clock())
+	dirties, orphaned := store.tree.GetUpdates()
+	store.tree.ResetUpdate() // failure after this point results in rollback anyway
+
+	// delete orphaned leaves
+	for _, orphan := range orphaned { // always zero
+		err = writer.Delete(clockToKey(orphan))
+		if err != nil {
+			return err
+		}
+	}
+
+	// write new/updated leaves
+	for dirty, data := range dirties { // contains exactly 1 dirty
+		err = writer.Put(clockToKey(dirty), data)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -66,6 +101,9 @@ func (store *treeStore) write(tx stoabs.WriteTx, transaction Transaction) error 
 // read fills the tree with data in the bucket.
 // Returns an error the bucket does not exist, or if data in the bucket doesn't match the tree's Data prototype.
 func (store *treeStore) read(tx stoabs.ReadTx) error {
+	store.mutex.Lock()
+	defer store.mutex.Unlock()
+
 	reader, err := tx.GetShelfReader(store.bucketName)
 	if err != nil {
 		return err
@@ -85,41 +123,8 @@ func (store *treeStore) read(tx stoabs.ReadTx) error {
 		return err
 	}
 
-	// nothing to load
-	if len(rawData) == 0 {
-		return nil
-	}
-
 	// build tree
 	return store.tree.Load(rawData)
-}
-
-// writeUpdates writes an incremental update to the bucket.
-// The incremental update is defined as changes to the tree since the last call to Tree.ResetUpdate,
-// which is called when writeUpdates completes successfully.
-func (store *treeStore) writeUpdates(tx stoabs.WriteTx, dirties map[uint32][]byte, orphaned []uint32) error {
-	writer, err := tx.GetShelfWriter(store.bucketName)
-	// writer should never be nil
-	if err != nil {
-		return err
-	}
-
-	// delete orphaned leaves
-	for _, orphan := range orphaned {
-		err = writer.Delete(clockToKey(orphan))
-		if err != nil {
-			return err
-		}
-	}
-
-	// write new/updated leaves
-	for dirty, data := range dirties {
-		err = writer.Put(clockToKey(dirty), data)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func clockToKey(clock uint32) stoabs.Key {

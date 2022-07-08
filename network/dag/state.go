@@ -24,7 +24,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"sync"
 
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -55,7 +54,6 @@ type state struct {
 	notifiers                        map[string]Notifier
 	xorTree                          *treeStore
 	ibltTree                         *treeStore
-	treeMux                          sync.Mutex
 }
 
 // NewState returns a new State. The State is used as entry point, it's methods will start transactions and will notify observers from within those transactions.
@@ -69,6 +67,8 @@ func NewState(db stoabs.KVStore, verifiers ...Verifier) (State, error) {
 		payloadStore: payloadStore,
 		txVerifiers:  verifiers,
 		notifiers:    map[string]Notifier{},
+		xorTree:      newTreeStore(xorShelf, tree.New(tree.NewXor(), PageSize)),
+		ibltTree:     newTreeStore(ibltShelf, tree.New(tree.NewIblt(IbltNumBuckets), PageSize)),
 	}
 
 	return newState, nil
@@ -147,9 +147,6 @@ func (s *state) Add(_ context.Context, transaction Transaction, payload []byte) 
 }
 
 func (s *state) updateTrees(tx stoabs.WriteTx, transaction Transaction) error {
-	s.treeMux.Lock()
-	defer s.treeMux.Unlock()
-
 	if err := s.ibltTree.write(tx, transaction); err != nil {
 		return err
 	}
@@ -157,16 +154,10 @@ func (s *state) updateTrees(tx stoabs.WriteTx, transaction Transaction) error {
 }
 
 func (s *state) loadTrees() {
-	s.treeMux.Lock()
-	defer s.treeMux.Unlock()
 	if err := s.db.Read(func(tx stoabs.ReadTx) error {
-		s.xorTree = newTreeStore(xorShelf, tree.New(tree.NewXor(), PageSize))
-		s.ibltTree = newTreeStore(ibltShelf, tree.New(tree.NewIblt(IbltNumBuckets), PageSize))
-
 		if err := s.xorTree.read(tx); err != nil {
 			return fmt.Errorf("failed to read xorTree: %w", err)
 		}
-
 		if err := s.ibltTree.read(tx); err != nil {
 			return fmt.Errorf("failed to read ibltTree: %w", err)
 		}
@@ -271,12 +262,12 @@ func (s *state) XOR(_ context.Context, reqClock uint32) (hash.SHA256Hash, uint32
 	dataClock := currentClock
 	if reqClock < currentClock {
 		var pageClock uint32
-		data, pageClock = s.xorTree.tree.GetZeroTo(reqClock)
+		data, pageClock = s.xorTree.getZeroTo(reqClock)
 		if pageClock < currentClock { // false on the last page
 			dataClock = pageClock
 		}
 	} else {
-		data = s.xorTree.tree.GetRoot()
+		data = s.xorTree.getRoot()
 	}
 
 	return data.(*tree.Xor).Hash(), dataClock
@@ -289,12 +280,12 @@ func (s *state) IBLT(_ context.Context, reqClock uint32) (tree.Iblt, uint32) {
 	dataClock := currentClock
 	if reqClock < currentClock {
 		var pageClock uint32
-		data, pageClock = s.ibltTree.tree.GetZeroTo(reqClock)
+		data, pageClock = s.ibltTree.getZeroTo(reqClock)
 		if pageClock < currentClock { // false on the last page
 			dataClock = pageClock
 		}
 	} else {
-		data = s.ibltTree.tree.GetRoot()
+		data = s.ibltTree.getRoot()
 	}
 
 	return *data.(*tree.Iblt), dataClock

@@ -21,7 +21,6 @@ package tree
 import (
 	"encoding"
 	"math"
-	"sync"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
@@ -47,13 +46,11 @@ type Data interface {
 }
 
 // Tree is the interface for an in-memory tree that provides fast access to Data over requested Lamport Clock ranges.
+// The tree is not thread safe
 type Tree interface {
 	// Insert a transaction reference at the specified clock value.
 	// The result of inserting the same ref multiple times is undefined.
 	Insert(ref hash.SHA256Hash, clock uint32)
-	// InsertGetDirty inserts a transaction reference like Insert and also returns the dirty leaves like GetUpdates.
-	// This is an atomic operation to make sure no ResetUpdate can happen in between from calling logic.
-	InsertGetDirty(ref hash.SHA256Hash, clock uint32) map[uint32][]byte
 	// Delete a transaction reference without checking if ref is in the Tree
 	Delete(ref hash.SHA256Hash, clock uint32)
 	// GetRoot returns the accumulated Data for the entire tree
@@ -90,7 +87,6 @@ type tree struct {
 	prototype      Data
 	dirtyLeaves    map[uint32]*node
 	orphanedLeaves map[uint32]struct{}
-	mutex          sync.Mutex
 }
 
 // New creates a new tree with the given leafSize and of the same type of Data as the prototype.
@@ -110,8 +106,10 @@ func (t *tree) resetDefaults(leafSize uint32) {
 }
 
 func (t *tree) Load(leaves map[uint32][]byte) error {
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
+	// nothing to load / prevents changes being made to tree settings
+	if len(leaves) == 0 {
+		return nil
+	}
 
 	// initialize tree
 	split := uint32(math.MaxUint32)
@@ -137,34 +135,18 @@ func (t *tree) Load(leaves map[uint32][]byte) error {
 		})
 	}
 
-	t.resetUpdate()
+	t.ResetUpdate()
 
 	return nil
 }
 
 func (t *tree) Insert(ref hash.SHA256Hash, clock uint32) {
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
-
 	t.updateOrCreatePath(clock, func(n *node) {
 		n.data.Insert(ref)
 	})
-}
-
-func (t *tree) InsertGetDirty(ref hash.SHA256Hash, clock uint32) map[uint32][]byte {
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
-
-	t.updateOrCreatePath(clock, func(n *node) {
-		n.data.Insert(ref)
-	})
-
-	return t.getDirty()
 }
 
 func (t *tree) Delete(ref hash.SHA256Hash, clock uint32) {
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
 
 	t.updateOrCreatePath(clock, func(n *node) {
 		n.data.Delete(ref)
@@ -228,16 +210,10 @@ func (t *tree) getNextNode(n *node, clock uint32) *node {
 }
 
 func (t *tree) GetRoot() Data {
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
-
 	return t.root.data.Clone()
 }
 
 func (t *tree) GetZeroTo(clock uint32) (Data, uint32) {
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
-
 	data := t.root.data.Clone()
 	next := t.root
 	for {
@@ -271,9 +247,6 @@ func rightmostLeafClock(n *node) uint32 {
 }
 
 func (t *tree) GetUpdates() (dirty map[uint32][]byte, orphaned []uint32) {
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
-
 	dirty = t.getDirty()
 
 	for k := range t.orphanedLeaves {
@@ -294,13 +267,6 @@ func (t *tree) getDirty() map[uint32][]byte {
 }
 
 func (t *tree) ResetUpdate() {
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
-
-	t.resetUpdate()
-}
-
-func (t *tree) resetUpdate() {
 	t.dirtyLeaves = map[uint32]*node{}
 	t.orphanedLeaves = nil
 }
@@ -311,9 +277,6 @@ type dropLeavesUpdate struct {
 }
 
 func (t *tree) DropLeaves() {
-	t.mutex.Lock()
-	defer t.mutex.Unlock()
-
 	// don't drop root
 	if t.root == nil || t.root.isLeaf() {
 		return
