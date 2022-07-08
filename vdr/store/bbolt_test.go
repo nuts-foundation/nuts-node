@@ -35,17 +35,19 @@ import (
 
 const moduleName = "VDR"
 
-func newTestStore(t *testing.T) *store {
+func newTestStore(t *testing.T) types.Store {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockProvider := storage.NewMockProvider(ctrl)
+	store := NewStore(mockProvider)
+
 	bboltStore, err := storage.CreateTestBBoltStore(path.Join(io.TestDirectory(t), moduleName, "didstore.db"))
 	if !assert.NoError(t, err) {
 		t.Fatal(err)
 	}
-	store := &store{
-		db: bboltStore,
-		// does not have a storeProvider
-	}
+	mockProvider.EXPECT().GetKVStore(gomock.Any(), gomock.Any()).Return(bboltStore, nil)
 
-	err = store.Start()
+	err = store.(core.Configurable).Configure(core.ServerConfig{})
 	if !assert.NoError(t, err) {
 		t.Fatal(err)
 	}
