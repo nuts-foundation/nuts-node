@@ -30,7 +30,7 @@ import (
 
 const testLeafSize = 512
 
-func TestBboltTree_write(t *testing.T) {
+func TestTree_write(t *testing.T) {
 	t.Run("write tx", func(t *testing.T) {
 		db := createBBoltDB(io.TestDirectory(t))
 		storeWrite := newTreeStore("observer bucket", tree.New(tree.NewXor(), testLeafSize))
@@ -88,7 +88,7 @@ func TestBboltTree_write(t *testing.T) {
 	})
 }
 
-func TestBboltTree_read(t *testing.T) {
+func TestTree_read(t *testing.T) {
 	db := createBBoltDB(io.TestDirectory(t))
 	storeWrite := newTreeStore("real bucket", tree.New(tree.NewXor(), testLeafSize))
 	testTx := CreateTestTransactionWithJWK(123)

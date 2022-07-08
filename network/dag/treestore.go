@@ -32,7 +32,7 @@ type treeStore struct {
 	mutex      sync.Mutex
 }
 
-// newTreeStore returns an instance of a BBolt based tree store. Buckets managed by this store are filled to treeBucketFillPercent
+// newTreeStore returns an instance of a tree store.
 func newTreeStore(bucketName string, tree tree.Tree) *treeStore {
 	return &treeStore{
 		bucketName: bucketName,

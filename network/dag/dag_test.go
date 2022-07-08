@@ -57,7 +57,7 @@ func (n trackingVisitor) JoinRefsAsString() string {
 	return strings.Join(contents, ", ")
 }
 
-func TestBBoltDAG_findBetweenLC(t *testing.T) {
+func TestDAG_findBetweenLC(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		graph := CreateDAG(t)
 
@@ -86,7 +86,7 @@ func TestBBoltDAG_findBetweenLC(t *testing.T) {
 	})
 }
 
-func TestBBoltDAG_Get(t *testing.T) {
+func TestDAG_Get(t *testing.T) {
 	t.Run("found", func(t *testing.T) {
 		graph := CreateDAG(t)
 		transaction := CreateTestTransactionWithJWK(1)
@@ -109,7 +109,7 @@ func TestBBoltDAG_Get(t *testing.T) {
 			return nil
 		})
 	})
-	t.Run("bbolt byte slice is copied", func(t *testing.T) {
+	t.Run("bbolt byte slice is copied", func(t *testing.T) { // TODO: can this be removed?
 		// This test the fixing of https://github.com/nuts-foundation/nuts-node/issues/488: "Fix and debug strange memory corruption issue".
 		// It was caused by using a []byte returned from BBolt after the TX was closed (parsing it as JWS), which is illegal.
 		// It happened when there was concurrent read/write access to BBolt (e.g. adding and reading TXs concurrently).
@@ -143,7 +143,7 @@ func TestBBoltDAG_Get(t *testing.T) {
 	})
 }
 
-func TestBBoltDAG_Add(t *testing.T) {
+func TestDAG_Add(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		graph := CreateDAG(t)
 		tx := CreateTestTransactionWithJWK(0)
@@ -206,7 +206,7 @@ func TestBBoltDAG_Add(t *testing.T) {
 	})
 }
 
-func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
+func TestNewDAG_addToLCIndex(t *testing.T) {
 	// These three transactions come with a clock value.
 	A := CreateTestTransactionWithJWK(0)
 	B := CreateTestTransactionWithJWK(1, A)
@@ -340,7 +340,7 @@ func Test_parseHashList(t *testing.T) {
 	})
 }
 
-func TestBBoltDAG_getHighestClock(t *testing.T) {
+func TestDAG_getHighestClock(t *testing.T) {
 	t.Run("empty DAG", func(t *testing.T) {
 		graph := CreateDAG(t)
 

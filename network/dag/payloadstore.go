@@ -28,7 +28,7 @@ import (
 // payloadsShelf is the name of the shelf that holds the payloads of the transactions.
 const payloadsShelf = "payloads"
 
-// NewPayloadStore creates a etcd/bbolt backed payload store using the given database.
+// NewPayloadStore creates a new payload store.
 func NewPayloadStore() PayloadStore {
 	return &payloadStore{}
 }
