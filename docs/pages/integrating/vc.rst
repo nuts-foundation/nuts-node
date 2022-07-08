@@ -97,5 +97,41 @@ The example below searches for a `NutsOrganizationCredential` (note that the `qu
 
 Note the fields `@context` and `type`, these are required for making it a valid VC in JSON-LD.
 In the example above they also contain Nuts specific contexts and types (since we're searching for a Nuts VC).
+The fields `@context` and `type` are not used as query parameters for searching, they are required to determine the right context.
+The following query does not return all `NutsOrganizationCredential` but **all** credentials.
+
+.. code-block:: json
+
+    {
+        "query": {
+            "@context": [
+                "https://www.w3.org/2018/credentials/v1",
+                "https://nuts.nl/credentials/v1"
+            ],
+            "type": ["VerifiableCredential" ,"NutsOrganizationCredential"],
+        }
+    }
+
+To find certain credentials, you'll need to add fields that are required to exist in the desired credential.
+The following query searches for credentials that have a organization name that starts with an empty string.
+Any credential that does not have an organization name will be ignored.
+By default, field selection is done by matching the given value as prefix.
+
+.. code-block:: json
+
+    {
+        "query": {
+            "@context": [
+                "https://www.w3.org/2018/credentials/v1",
+                "https://nuts.nl/credentials/v1"
+            ],
+            "type": ["VerifiableCredential" ,"NutsOrganizationCredential"],
+            "credentialSubject": {
+                "organization": {
+                    "name": ""
+                }
+            }
+        }
+    }
 
 By default only VCs from trusted issuers are returned. You can specify the `searchOptions` field to include VCs from untrusted issuers.
