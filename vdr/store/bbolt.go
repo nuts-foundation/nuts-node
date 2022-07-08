@@ -37,6 +37,8 @@ const (
 	transactionIndexShelf = "txRef"
 	// documentShelf has payload hash as key and document as value
 	documentShelf = "documents"
+	// didStoreName contains the name for the store
+	didStoreName = "didstore"
 )
 
 type store struct {
@@ -55,7 +57,7 @@ func NewStore(storeProvider storage.Provider) vdr.Store {
 
 func (s *store) Configure(_ core.ServerConfig) error {
 	var err error
-	s.db, err = s.storeProvider.GetKVStore("didstore", storage.PersistentStorageClass)
+	s.db, err = s.storeProvider.GetKVStore(didStoreName, storage.PersistentStorageClass)
 	return err
 }
 
