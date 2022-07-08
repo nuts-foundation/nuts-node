@@ -180,65 +180,22 @@ func TestState_Notifier(t *testing.T) {
 	})
 }
 
-func TestState_Observe(t *testing.T) {
-	t.Run("transaction added", func(t *testing.T) {
-		ctx := context.Background()
+func TestState_WritePayload(t *testing.T) {
+	t.Run("notifies receiver for payload", func(t *testing.T) {
 		txState := createState(t)
-		var actual Transaction
-		txState.RegisterTransactionObserver(func(_ stoabs.WriteTx, transaction Transaction) error {
-			actual = transaction
-			return nil
-		}, false)
-		expected := CreateTestTransactionWithJWK(1)
-
-		err := txState.Add(ctx, expected, nil)
-
-		assert.NoError(t, err)
-		assert.Equal(t, expected, actual)
-	})
-	t.Run("transaction added with payload", func(t *testing.T) {
-		ctx := context.Background()
-		txState := createState(t)
-		var actualTX Transaction
-		var actualPayload []byte
-		txState.RegisterTransactionObserver(func(_ stoabs.WriteTx, transaction Transaction) error {
-			actualTX = transaction
-			return nil
-		}, false)
-		txState.RegisterPayloadObserver(func(transaction Transaction, payload []byte) error {
-			actualPayload = payload
-			return nil
-		}, false)
-		expected := CreateTestTransactionWithJWK(1)
-
-		err := txState.Add(ctx, expected, []byte{0, 0, 0, 1})
-
-		assert.NoError(t, err)
-		assert.Equal(t, expected, actualTX)
-		assert.Equal(t, []byte{0, 0, 0, 1}, actualPayload)
-	})
-	t.Run("transaction added with incorrect payload", func(t *testing.T) {
-		ctx := context.Background()
-		txState := createState(t)
-		expected := CreateTestTransactionWithJWK(1)
-
-		err := txState.Add(ctx, expected, []byte{1})
-
-		assert.EqualError(t, err, "tx.PayloadHash does not match hash of payload")
-	})
-	t.Run("payload added", func(t *testing.T) {
-		txState := createState(t)
-		var actual []byte
-		txState.RegisterPayloadObserver(func(tx Transaction, payload []byte) error {
-			actual = payload
-			return nil
-		}, false)
+		var received atomic.Bool
+		_, _ = txState.Notifier(t.Name(), func(event Event) (bool, error) {
+			received.Toggle()
+			return true, nil
+		}, WithSelectionFilter(func(event Event) bool {
+			return event.Type == PayloadEventType
+		}))
 		expected := []byte{1}
 
-		err := txState.WritePayload(nil, hash.EmptyHash(), expected)
+		err := txState.WritePayload(transaction{}, hash.EmptyHash(), expected)
 
 		assert.NoError(t, err)
-		assert.Equal(t, expected, actual)
+		assert.True(t, received.Load())
 	})
 }
 
@@ -276,7 +233,6 @@ func TestState_Add(t *testing.T) {
 			return received.Load(), nil
 		}, time.Second, "timeout while waiting for event")
 	})
-
 	t.Run("does not notify receiver for missing payload", func(t *testing.T) {
 		ctx := context.Background()
 		s := createState(t)
@@ -295,7 +251,6 @@ func TestState_Add(t *testing.T) {
 		// this is enough to make it fail otherwise
 		time.Sleep(10 * time.Millisecond)
 	})
-
 	t.Run("notifies receiver for payload", func(t *testing.T) {
 		ctx := context.Background()
 		var received atomic.Bool
@@ -318,6 +273,16 @@ func TestState_Add(t *testing.T) {
 		test.WaitFor(t, func() (bool, error) {
 			return received.Load(), nil
 		}, time.Second, "timeout while waiting for event")
+	})
+
+	t.Run("transaction added with incorrect payload", func(t *testing.T) {
+		ctx := context.Background()
+		txState := createState(t)
+		expected := CreateTestTransactionWithJWK(1)
+
+		err := txState.Add(ctx, expected, []byte{1})
+
+		assert.EqualError(t, err, "tx.PayloadHash does not match hash of payload")
 	})
 }
 

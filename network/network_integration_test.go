@@ -668,7 +668,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			xor1, _ := node1.network.state.XOR(context.Background(), 10)
 			xor2, _ := node2.network.state.XOR(context.Background(), 10)
 			return xor1.Equals(xor2), nil
-		}, defaultTimeout, "%s: time-out while waiting for transactions", node2.network.Name())
+		}, 10*time.Second, "%s: time-out while waiting for transactions", node2.network.Name())
 	})
 }
 
@@ -879,13 +879,16 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 	if err := instance.Start(); err != nil {
 		t.Fatal(err)
 	}
-	instance.Subscribe(TransactionPayloadAddedEvent, payloadType, func(transaction dag.Transaction, payload []byte) error {
+	_ = instance.Subscribe(t.Name(), func(event dag.Event) (bool, error) {
 		mutex.Lock()
 		defer mutex.Unlock()
-		log.Logger().Infof("transaction %s arrived at %s", string(payload), name)
-		receivedTransactions[name] = append(receivedTransactions[name], transaction)
-		return nil
-	})
+		log.Logger().Infof("transaction %s arrived at %s", string(event.Payload), name)
+		receivedTransactions[name] = append(receivedTransactions[name], event.Transaction)
+		return true, nil
+	}, WithSelectionFilter(func(event dag.Event) bool {
+		return event.Type == dag.PayloadEventType
+	}))
+
 	result := node{
 		network:        instance,
 		eventPublisher: eventPublisher,

@@ -253,7 +253,8 @@ func TestVDR_Configure(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	tx := network.NewMockTransactions(ctrl)
 	// Make sure configuring VDR subscribes to network
-	tx.EXPECT().Subscribe(network.TransactionPayloadAddedEvent, gomock.Any(), gomock.Any())
+	tx.EXPECT().WithPersistency()
+	tx.EXPECT().Subscribe("vdr", gomock.Any(), gomock.Any())
 	cfg := Config{}
 	vdr := NewVDR(cfg, nil, tx, nil, nil)
 	err := vdr.Configure(core.ServerConfig{})

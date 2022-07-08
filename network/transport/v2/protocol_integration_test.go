@@ -22,11 +22,9 @@ package v2
 import (
 	"context"
 	"fmt"
-	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"hash/crc32"
 	"path"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -136,19 +134,22 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 		mux: &sync.Mutex{},
 	}
 
-	bboltStore, err := bbolt.CreateBBoltStore(filepath.Join(testDirectory, "test-store"))
+	storageClient := storage.NewTestStorageEngine(testDirectory)
+	bboltStore, err := storageClient.GetProvider("network").GetKVStore("data", storage.PersistentStorageClass)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	ctx.state, _ = dag.NewState(bboltStore)
-	ctx.state.RegisterPayloadObserver(func(transaction dag.Transaction, payload []byte) error {
-		log.Logger().Infof("transaction %s arrived at %s", string(payload), name)
+	ctx.state.Notifier(t.Name(), func(event dag.Event) (bool, error) {
+		log.Logger().Infof("transaction %s arrived at %s", string(event.Payload), name)
 		ctx.mux.Lock()
 		defer ctx.mux.Unlock()
-		ctx.receivedTXs = append(ctx.receivedTXs, transaction)
-		return nil
-
-	}, false)
+		ctx.receivedTXs = append(ctx.receivedTXs, event.Transaction)
+		return true, nil
+	}, dag.WithSelectionFilter(func(event dag.Event) bool {
+		return event.Type == dag.PayloadEventType
+	}))
 	err = ctx.state.Start()
 	if err != nil {
 		t.Fatal(err)
@@ -163,10 +164,10 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 	}
 	peerID := transport.PeerID(name)
 	listenAddress := fmt.Sprintf("localhost:%d", nameToPort(name))
-	ctx.protocol = New(*cfg, transport.FixedNodeDIDResolver{}, ctx.state, doc.Resolver{Store: vdrStore}, keyStore, nil).(*protocol)
+	ctx.protocol = New(*cfg, transport.FixedNodeDIDResolver{}, ctx.state, doc.Resolver{Store: vdrStore}, keyStore, nil, bboltStore).(*protocol)
 
 	authenticator := grpc.NewTLSAuthenticator(doc.NewServiceResolver(&doc.Resolver{Store: store.NewMemoryStore()}))
-	connectionsStore, _ := storage.CreateTestBBoltStore(path.Join(testDirectory, "connections.db"))
+	connectionsStore, _ := storageClient.GetProvider("network").GetKVStore("connections", storage.VolatileStorageClass)
 	ctx.connectionManager = grpc.NewGRPCConnectionManager(grpc.NewConfig(listenAddress, peerID), connectionsStore, &transport.FixedNodeDIDResolver{NodeDID: did.DID{}}, authenticator, ctx.protocol)
 
 	ctx.protocol.Configure(peerID)

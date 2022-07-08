@@ -35,9 +35,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-// keyID matches the keys in /test
-const testKID = "did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey#sNGDQ3NlOe6Icv0E7_ufviOLG6Y25bSEyS5EbXBgp8Y"
-
 // NewTestVCRInstance returns a new vcr instance to be used for integration tests. Any data is stored in the
 // specified test directory.
 func NewTestVCRInstance(t *testing.T) *vcr {
@@ -76,13 +73,16 @@ type mockContext struct {
 
 func newMockContext(t *testing.T) mockContext {
 	// speedup tests
+	// TODO remove since bbolt control has gone to storage
 	noSync = true
 
 	testDir := io.TestDirectory(t)
 	ctrl := gomock.NewController(t)
 	crypto := crypto.NewMockKeyStore(ctrl)
 	tx := network.NewMockTransactions(ctrl)
-	tx.EXPECT().Subscribe(network.TransactionPayloadAddedEvent, gomock.Any(), gomock.Any()).AnyTimes()
+	tx.EXPECT().WithPersistency().AnyTimes()
+	tx.EXPECT().Subscribe("vcr_vcs", gomock.Any(), gomock.Any())
+	tx.EXPECT().Subscribe("vcr_revocations", gomock.Any(), gomock.Any())
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	docResolver := types.NewMockDocResolver(ctrl)
 	serviceResolver := doc.NewMockServiceResolver(ctrl)
@@ -99,7 +99,9 @@ func newMockContext(t *testing.T) mockContext {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		vcr.Shutdown()
+		if err := vcr.Shutdown(); err != nil {
+			t.Fatal(err)
+		}
 	})
 	return mockContext{
 		ctrl:            ctrl,

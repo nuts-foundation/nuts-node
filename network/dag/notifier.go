@@ -265,51 +265,24 @@ func (p *notifier) Notify(event Event) {
 		}
 	}
 
-	p.retry(event)
+	if err := p.notifyNow(event); err != nil {
+		p.retry(event)
+	}
 }
 
 func (p *notifier) retry(event Event) {
 	delay := p.retryDelay
-	initialCount := event.Retries
+	initialCount := event.Retries + 1
 
 	for i := 0; i < initialCount; i++ {
 		delay *= 2
 	}
 
 	go func(ctx context.Context) {
+		// also an initial delay
+		time.Sleep(delay)
 		err := retry.Do(func() error {
-			var dbEvent = &event
-			if p.isPersistent() {
-				if err := p.db.ReadShelf(p.shelfName(), func(reader stoabs.Reader) error {
-					var err error
-					dbEvent, err = p.readEvent(reader, event.Hash)
-					return err
-				}); err != nil {
-					return retry.Unrecoverable(err)
-				}
-				if dbEvent == nil {
-					// no longer exists so done, this stops any go routine
-					return nil
-				}
-			}
-
-			dbEvent.Retries++
-			if p.isPersistent() {
-				if err := p.db.WriteShelf(p.shelfName(), func(writer stoabs.Writer) error {
-					return p.writeEvent(writer, *dbEvent)
-				}); err != nil {
-					return retry.Unrecoverable(err)
-				}
-			}
-
-			if finished, err := p.receiver(*dbEvent); err != nil {
-				log.Logger().Errorf("retry for %s receiver failed (ref=%s)", p.name, dbEvent.Hash.String())
-			} else if finished {
-				return p.Finished(dbEvent.Hash)
-			}
-
-			// has to return an error since `retry.Do` needs to retry until it's marked as finished
-			return fmt.Errorf("event is not yet handled by receiver (count=%d, max=%d)", dbEvent.Retries, maxRetries)
+			return p.notifyNow(event)
 		},
 			retry.Attempts(maxRetries-uint(initialCount)),
 			retry.MaxDelay(24*time.Hour),
@@ -325,6 +298,43 @@ func (p *notifier) retry(event Event) {
 			log.Logger().Errorf("retry for %s receiver failed (ref=%s): %v", p.name, event.Hash.String(), err)
 		}
 	}(p.ctx)
+}
+
+// notifyNow is used to call the receiverFn synchronously.
+// This is used for the first run and with every retry.
+func (p *notifier) notifyNow(event Event) error {
+	var dbEvent = &event
+	if p.isPersistent() {
+		if err := p.db.ReadShelf(p.shelfName(), func(reader stoabs.Reader) error {
+			var err error
+			dbEvent, err = p.readEvent(reader, event.Hash)
+			return err
+		}); err != nil {
+			return retry.Unrecoverable(err)
+		}
+		if dbEvent == nil {
+			// no longer exists so done, this stops any go routine
+			return nil
+		}
+	}
+
+	dbEvent.Retries++
+	if p.isPersistent() {
+		if err := p.db.WriteShelf(p.shelfName(), func(writer stoabs.Writer) error {
+			return p.writeEvent(writer, *dbEvent)
+		}); err != nil {
+			return retry.Unrecoverable(err)
+		}
+	}
+
+	if finished, err := p.receiver(*dbEvent); err != nil {
+		log.Logger().Errorf("Retry for %s receiver failed (ref=%s)", p.name, dbEvent.Hash.String())
+	} else if finished {
+		return p.Finished(dbEvent.Hash)
+	}
+
+	// has to return an error since `retry.Do` needs to retry until it's marked as finished
+	return fmt.Errorf("event handling by receiver failed, but might be retried (count=%d, max=%d)", dbEvent.Retries, maxRetries)
 }
 
 func (p *notifier) writeEvent(writer stoabs.Writer, event Event) error {

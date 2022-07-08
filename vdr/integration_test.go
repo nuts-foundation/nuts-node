@@ -49,62 +49,10 @@ import (
 
 // Test the full stack by testing creating and updating DID documents.
 func TestVDRIntegration_Test(t *testing.T) {
-	// === Setup ===
-	tmpDir := io.TestDirectory(t)
-	nutsConfig := core.ServerConfig{
-		Verbosity: "debug",
-		Datadir:   tmpDir,
-	}
-	// Configure the logger:
-	var lvl log.Level
-	var err error
-	// initialize logger, verbosity flag needs to be available
-	if lvl, err = log.ParseLevel(nutsConfig.Verbosity); err != nil {
-		return
-	}
-	log.SetLevel(lvl)
-	log.SetFormatter(&log.TextFormatter{ForceColors: true})
-
-	// Storage
-	storageProvider := storage.NewTestStorageEngine(tmpDir)
-
-	// Startup crypto
-	cryptoInstance := crypto.NewCryptoInstance()
-	cryptoInstance.Configure(nutsConfig)
-
-	// DID Store
-	didStore := store.NewMemoryStore()
-	docResolver := doc.Resolver{Store: didStore}
-	docFinder := doc.Finder{Store: didStore}
-
-	// Startup Event
-	eventPublisher := events.NewTestManager(t)
-
-	// Startup the network layer
-	networkCfg := network.DefaultConfig()
-	networkCfg.EnableTLS = false
-	nutsNetwork := network.NewNetworkInstance(
-		networkCfg,
-		doc.KeyResolver{Store: didStore},
-		cryptoInstance,
-		cryptoInstance,
-		docResolver,
-		docFinder,
-		eventPublisher,
-		storageProvider.GetProvider(network.ModuleName),
-	)
-	nutsNetwork.Configure(nutsConfig)
-	nutsNetwork.Start()
-	defer nutsNetwork.Shutdown()
-
-	// Init the VDR
-	vdr := NewVDR(DefaultConfig(), cryptoInstance, nutsNetwork, didStore, eventPublisher)
-	vdr.Configure(nutsConfig)
-
-	// === End of setup ===
+	ctx := setup(t)
 
 	// Start with a first and fresh document named DocumentA.
-	docA, _, err := vdr.Create(doc.DefaultCreationOptions())
+	docA, _, err := ctx.vdr.Create(doc.DefaultCreationOptions())
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -113,7 +61,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	docAID := docA.ID
 
 	// Check if the document can be found in the store
-	docA, metadataDocA, err := docResolver.Resolve(docA.ID, nil)
+	docA, metadataDocA, err := ctx.docResolver.Resolve(docA.ID, nil)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -132,14 +80,14 @@ func TestVDRIntegration_Test(t *testing.T) {
 
 	docA.Service = append(docA.Service, newService)
 
-	err = vdr.Update(docAID, metadataDocA.Hash, *docA, nil)
+	err = ctx.vdr.Update(docAID, metadataDocA.Hash, *docA, nil)
 	if !assert.NoError(t, err,
 		"unable to update docA with a new service") {
 		return
 	}
 
 	// Resolve the document and check it contents
-	docA, metadataDocA, err = docResolver.Resolve(docA.ID, nil)
+	docA, metadataDocA, err = ctx.docResolver.Resolve(docA.ID, nil)
 	if !assert.NoError(t, err,
 		"unable to resolve updated document") {
 		return
@@ -149,14 +97,14 @@ func TestVDRIntegration_Test(t *testing.T) {
 		"expected updated docA to have a service")
 
 	// Create a new DID Document we name DocumentB
-	docB, _, err := vdr.Create(doc.DefaultCreationOptions())
+	docB, _, err := ctx.vdr.Create(doc.DefaultCreationOptions())
 	if !assert.NoError(t, err,
 		"unexpected error while creating DocumentB") {
 		return
 	}
 	assert.NotNil(t, docB,
 		"a new document should have been created")
-	_, _, err = docResolver.Resolve(docB.ID, nil)
+	_, _, err = ctx.docResolver.Resolve(docB.ID, nil)
 	assert.NoError(t, err,
 		"unexpected error while resolving documentB")
 
@@ -167,14 +115,14 @@ func TestVDRIntegration_Test(t *testing.T) {
 	docA.CapabilityInvocation = []did.VerificationRelationship{}
 	docA.VerificationMethod = []*did.VerificationMethod{}
 	docA.KeyAgreement = []did.VerificationRelationship{}
-	err = vdr.Update(docAID, metadataDocA.Hash, *docA, nil)
+	err = ctx.vdr.Update(docAID, metadataDocA.Hash, *docA, nil)
 	if !assert.NoError(t, err,
 		"unable to update documentA with a new controller") {
 		return
 	}
 
 	// Resolve and check DocumentA
-	docA, metadataDocA, err = docResolver.Resolve(docA.ID, nil)
+	docA, metadataDocA, err = ctx.docResolver.Resolve(docA.ID, nil)
 	if !assert.NoError(t, err,
 		"unable to resolve updated documentA") {
 		return
@@ -194,13 +142,13 @@ func TestVDRIntegration_Test(t *testing.T) {
 	}
 	docA.Service = append(docA.Service, newService)
 
-	err = vdr.Update(docA.ID, metadataDocA.Hash, *docA, nil)
+	err = ctx.vdr.Update(docA.ID, metadataDocA.Hash, *docA, nil)
 	if !assert.NoError(t, err,
 		"unable to update documentA with a new service") {
 		return
 	}
 	// Resolve and check if the service has been added
-	docA, metadataDocA, err = docResolver.Resolve(docA.ID, nil)
+	docA, metadataDocA, err = ctx.docResolver.Resolve(docA.ID, nil)
 	if !assert.NoError(t, err,
 		"unable to resolve updated documentA") {
 		return
@@ -213,12 +161,12 @@ func TestVDRIntegration_Test(t *testing.T) {
 		"news service of document a does not contain expected values")
 
 	// deactivate document B
-	docUpdater := &doc.Manipulator{KeyCreator: cryptoInstance, Updater: *vdr, Resolver: docResolver}
+	docUpdater := &doc.Manipulator{KeyCreator: ctx.cryptoInstance, Updater: *ctx.vdr, Resolver: ctx.docResolver}
 	err = docUpdater.Deactivate(docB.ID)
 	assert.NoError(t, err,
 		"expected deactivation to succeed")
 
-	docB, _, err = docResolver.Resolve(docB.ID, &types.ResolveMetadata{AllowDeactivated: true})
+	docB, _, err = ctx.docResolver.Resolve(docB.ID, &types.ResolveMetadata{AllowDeactivated: true})
 	assert.NoError(t, err)
 	assert.Len(t, docB.CapabilityInvocation, 0,
 		"expected document B to not have any CapabilityInvocation methods after deactivation")
@@ -230,12 +178,86 @@ func TestVDRIntegration_Test(t *testing.T) {
 
 	// try to update document A should fail since it no longer has an active controller
 	docA.Service = docA.Service[1:]
-	err = vdr.Update(docAID, metadataDocA.Hash, *docA, nil)
+	err = ctx.vdr.Update(docAID, metadataDocA.Hash, *docA, nil)
 	assert.EqualError(t, err, "could not find any controllers for document")
 
 }
 
 func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
+	ctx := setup(t)
+
+	// Start with a first and fresh document named DocumentA.
+	initialDoc, _, err := ctx.vdr.Create(doc.DefaultCreationOptions())
+	if !assert.NoError(t, err) {
+		return
+	}
+	assert.NotNil(t, initialDoc)
+
+	// Check if the document can be found in the store
+	initialDoc, _, err = ctx.docResolver.Resolve(initialDoc.ID, nil)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	const procs = 10
+	wg := sync.WaitGroup{}
+	wg.Add(procs)
+	currDoc, currMetadata, _ := ctx.docResolver.Resolve(initialDoc.ID, nil)
+	for i := 0; i < procs; i++ {
+		go func(num int) {
+			newDoc := *currDoc
+			serviceID, _ := url.Parse(fmt.Sprintf("%s#service-%d", currDoc.ID, num))
+			newService := did.Service{
+				ID:              ssi.URI{URL: *serviceID},
+				Type:            fmt.Sprintf("service-%d", num),
+				ServiceEndpoint: []interface{}{"http://example.com/service"},
+			}
+
+			newDoc.Service = append(currDoc.Service, newService)
+			err := ctx.vdr.Update(currDoc.ID, currMetadata.Hash, newDoc, nil)
+			assert.NoError(t, err, "unable to update doc with a new service")
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
+}
+
+func TestVDRIntegration_ReprocessEvents(t *testing.T) {
+	ctx := setup(t)
+
+	// Publish a DID Document
+	didDoc, key, _ := ctx.docCreator.Create(doc.DefaultCreationOptions())
+	payload, _ := json.Marshal(didDoc)
+	unsignedTransaction, err := dag.NewTransaction(hash.SHA256Sum(payload), "application/did+json", nil, nil, uint32(0))
+	signedTransaction, err := dag.NewTransactionSigner(key, true).Sign(unsignedTransaction, time.Now())
+	twp := events.TransactionWithPayload{
+		Transaction: signedTransaction,
+		Payload:     payload,
+	}
+	twpBytes, _ := json.Marshal(twp)
+
+	_, js, _ := ctx.eventPublisher.Pool().Acquire(context.Background())
+	_, err = js.Publish("REPROCESS.application/did+json", twpBytes)
+
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	test.WaitFor(t, func() (bool, error) {
+		_, _, err := ctx.docResolver.Resolve(didDoc.ID, nil)
+		return err == nil, nil
+	}, 100*time.Millisecond, "timeout while waiting for event to be processed")
+}
+
+type testContext struct {
+	vdr            *VDR
+	eventPublisher events.Event
+	docCreator     doc.Creator
+	docResolver    doc.Resolver
+	cryptoInstance *crypto.Crypto
+}
+
+func setup(t *testing.T) testContext {
 	// === Setup ===
 	testDir := io.TestDirectory(t)
 	nutsConfig := core.ServerConfig{
@@ -247,7 +269,7 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	var err error
 	// initialize logger, verbosity flag needs to be available
 	if lvl, err = log.ParseLevel(nutsConfig.Verbosity); err != nil {
-		return
+		t.Fatal(err)
 	}
 	log.SetLevel(lvl)
 	log.SetFormatter(&log.TextFormatter{ForceColors: true})
@@ -263,6 +285,7 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	didStore := store.NewMemoryStore()
 	docResolver := doc.Resolver{Store: didStore}
 	docFinder := doc.Finder{Store: didStore}
+	docCreator := doc.Creator{KeyStore: cryptoInstance}
 
 	// Startup events
 	eventPublisher := events.NewManager()
@@ -272,7 +295,9 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	if err = eventPublisher.(core.Runnable).Start(); err != nil {
 		t.Fatal(err)
 	}
-	defer eventPublisher.(core.Runnable).Shutdown()
+	t.Cleanup(func() {
+		eventPublisher.(core.Runnable).Shutdown()
+	})
 
 	// Startup the network layer
 	networkCfg := network.DefaultConfig()
@@ -289,106 +314,26 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	)
 	nutsNetwork.Configure(nutsConfig)
 	nutsNetwork.Start()
-	defer nutsNetwork.Shutdown()
+	t.Cleanup(func() {
+		nutsNetwork.Shutdown()
+	})
 
 	// Init the VDR
 	vdr := NewVDR(DefaultConfig(), cryptoInstance, nutsNetwork, didStore, eventPublisher)
 	vdr.Configure(nutsConfig)
-
-	// === End of setup ===
-
-	// Start with a first and fresh document named DocumentA.
-	initialDoc, _, err := vdr.Create(doc.DefaultCreationOptions())
-	if !assert.NoError(t, err) {
-		return
+	err = vdr.Start()
+	if err != nil {
+		t.Fatal(err)
 	}
-	assert.NotNil(t, initialDoc)
-
-	// Check if the document can be found in the store
-	initialDoc, _, err = docResolver.Resolve(initialDoc.ID, nil)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	const procs = 10
-	wg := sync.WaitGroup{}
-	wg.Add(procs)
-	currDoc, currMetadata, _ := docResolver.Resolve(initialDoc.ID, nil)
-	for i := 0; i < procs; i++ {
-		go func(num int) {
-			newDoc := *currDoc
-			serviceID, _ := url.Parse(fmt.Sprintf("%s#service-%d", currDoc.ID, num))
-			newService := did.Service{
-				ID:              ssi.URI{URL: *serviceID},
-				Type:            fmt.Sprintf("service-%d", num),
-				ServiceEndpoint: []interface{}{"http://example.com/service"},
-			}
-
-			newDoc.Service = append(currDoc.Service, newService)
-			err := vdr.Update(currDoc.ID, currMetadata.Hash, newDoc, nil)
-			assert.NoError(t, err, "unable to update doc with a new service")
-			wg.Done()
-		}(i)
-	}
-	wg.Wait()
-}
-
-func TestVDRIntegration_ReprocessEvents(t *testing.T) {
-	// === Setup ===
-	tmpDir := io.TestDirectory(t)
-	nutsConfig := core.ServerConfig{
-		Verbosity: "debug",
-		Datadir:   tmpDir,
-	}
-	// Configure the logger:
-	var lvl log.Level
-	var err error
-	// initialize logger, verbosity flag needs to be available
-	if lvl, err = log.ParseLevel(nutsConfig.Verbosity); err != nil {
-		return
-	}
-	log.SetLevel(lvl)
-	log.SetFormatter(&log.TextFormatter{ForceColors: true})
-
-	// DID Store
-	didStore := store.NewMemoryStore()
-	docResolver := doc.Resolver{Store: didStore}
-	kc := &mockKeyCreator{}
-	docCreator := doc.Creator{KeyStore: kc}
-
-	// Startup Event
-	eventPublisher := events.NewTestManager(t)
-
-	// Init the VDR
-	vdr := NewVDR(DefaultConfig(), nil, network.NewTestNetworkInstance(tmpDir), didStore, eventPublisher)
-	_ = vdr.Configure(nutsConfig)
-	_ = vdr.Start()
 	t.Cleanup(func() {
 		vdr.Shutdown()
 	})
 
-	// === End of setup ===
-
-	// Publish a DID Document
-	didDoc, key, _ := docCreator.Create(doc.DefaultCreationOptions())
-	payload, _ := json.Marshal(didDoc)
-	unsignedTransaction, err := dag.NewTransaction(hash.SHA256Sum(payload), "application/did+json", nil, nil, uint32(0))
-	signedTransaction, err := dag.NewTransactionSigner(key, true).Sign(unsignedTransaction, time.Now())
-	twp := events.TransactionWithPayload{
-		Transaction: signedTransaction,
-		Payload:     payload,
+	return testContext{
+		vdr:            vdr,
+		eventPublisher: eventPublisher,
+		docCreator:     docCreator,
+		docResolver:    docResolver,
+		cryptoInstance: cryptoInstance,
 	}
-	twpBytes, _ := json.Marshal(twp)
-
-	_, js, _ := eventPublisher.Pool().Acquire(context.Background())
-	_, err = js.Publish("REPROCESS.application/did+json", twpBytes)
-
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	test.WaitFor(t, func() (bool, error) {
-		_, _, err := docResolver.Resolve(didDoc.ID, nil)
-		return err == nil, nil
-	}, 100*time.Millisecond, "timeout while waiting for event to be processed")
 }

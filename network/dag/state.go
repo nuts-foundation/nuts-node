@@ -86,22 +86,6 @@ func initShelfs(db stoabs.KVStore, shelfs ...string) error {
 	return nil
 }
 
-func (s *state) RegisterTransactionObserver(observer Observer, transactional bool) {
-	if transactional {
-		s.transactionalObservers = append(s.transactionalObservers, observer)
-	} else {
-		s.nonTransactionalObservers = append(s.nonTransactionalObservers, observer)
-	}
-}
-
-func (s *state) RegisterPayloadObserver(observer PayloadObserver, transactional bool) {
-	if transactional {
-		s.transactionalPayloadObservers = append(s.transactionalPayloadObservers, observer)
-	} else {
-		s.nonTransactionalPayloadObservers = append(s.nonTransactionalPayloadObservers, observer)
-	}
-}
-
 func (s *state) Add(_ context.Context, transaction Transaction, payload []byte) error {
 	txEvent := Event{
 		Type:        TransactionEventType,
@@ -134,7 +118,7 @@ func (s *state) Add(_ context.Context, transaction Transaction, payload []byte) 
 			if !transaction.PayloadHash().Equals(payloadHash) {
 				return errors.New("tx.PayloadHash does not match hash of payload")
 			}
-			if err := s.writePayload(tx, transaction, payloadHash, payload); err != nil {
+			if err := s.payloadStore.writePayload(tx, payloadHash, payload); err != nil {
 				return err
 			}
 			if err := s.saveEvent(tx, payloadEvent); err != nil {
@@ -149,11 +133,7 @@ func (s *state) Add(_ context.Context, transaction Transaction, payload []byte) 
 		}
 
 		// update XOR and IBLT
-		if err := s.updateTrees(tx, transaction); err != nil {
-			return err
-		}
-
-		return s.notifyObservers(tx, transaction)
+		return s.updateTrees(tx, transaction)
 	}, stoabs.OnRollback(func() {
 		log.Logger().Warn("Reloading the XOR and IBLT trees due to a DB transaction Rollback")
 		s.loadTrees()
@@ -169,6 +149,7 @@ func (s *state) Add(_ context.Context, transaction Transaction, payload []byte) 
 func (s *state) updateTrees(tx stoabs.WriteTx, transaction Transaction) error {
 	s.treeMux.Lock()
 	defer s.treeMux.Unlock()
+
 	if err := s.ibltTree.write(tx, transaction); err != nil {
 		return err
 	}
@@ -238,18 +219,21 @@ func (s *state) IsPresent(_ context.Context, hash hash.SHA256Hash) (present bool
 }
 
 func (s *state) WritePayload(transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
-	return s.db.Write(func(tx stoabs.WriteTx) error {
-		return s.writePayload(tx, transaction, payloadHash, data)
-	})
-}
-
-func (s *state) writePayload(tx stoabs.WriteTx, transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
-	err := s.payloadStore.writePayload(tx, payloadHash, data)
-	if err == nil {
-		// ctx passed with bbolt transaction
-		return s.notifyPayloadObservers(transaction, data)
+	event := Event{
+		Type:        PayloadEventType,
+		Hash:        transaction.Ref(),
+		Retries:     0,
+		Transaction: transaction,
+		Payload:     data,
 	}
-	return err
+	return s.db.Write(func(tx stoabs.WriteTx) error {
+		if err := s.saveEvent(tx, event); err != nil {
+			return err
+		}
+		return s.payloadStore.writePayload(tx, payloadHash, data)
+	}, stoabs.AfterCommit(func() {
+		s.notify(event)
+	}))
 }
 
 func (s *state) ReadPayload(_ context.Context, hash hash.SHA256Hash) (payload []byte, err error) {
@@ -377,47 +361,6 @@ func (s *state) Walk(_ context.Context, visitor Visitor, startAt uint32) error {
 			return visitor(transaction)
 		})
 	})
-}
-
-// notifyObservers is called from a transactional context. The transactional observers need to be called with the TX context, the other observers after the commit.
-func (s *state) notifyObservers(tx stoabs.WriteTx, transaction Transaction) error {
-	// apply TX context observers
-	for _, observer := range s.transactionalObservers {
-		if err := observer(tx, transaction); err != nil {
-			return fmt.Errorf("observer notification failed: %w", err)
-		}
-	}
-
-	notifyNonTXObservers := func() {
-		for _, observer := range s.nonTransactionalObservers {
-			if err := observer(tx, transaction); err != nil {
-				log.Logger().Errorf("observer notification failed: %v", err)
-			}
-		}
-	}
-	notifyNonTXObservers()
-	return nil
-}
-
-func (s *state) notifyPayloadObservers(transaction Transaction, payload []byte) error {
-	// apply TX context observers
-	for _, observer := range s.transactionalPayloadObservers {
-		if err := observer(transaction, payload); err != nil {
-			return fmt.Errorf("observer notification failed: %w", err)
-		}
-	}
-
-	notifyNonTXObservers := func() {
-		for _, observer := range s.nonTransactionalPayloadObservers {
-			if err := observer(transaction, payload); err != nil {
-				log.Logger().Errorf("observer notification failed: %v", err)
-			}
-		}
-	}
-	// check if there's an active transaction
-
-	notifyNonTXObservers()
-	return nil
 }
 
 func (s *state) saveEvent(tx stoabs.WriteTx, event Event) error {

@@ -352,7 +352,7 @@ func TestSubscriber_Run(t *testing.T) {
 		Transaction: transaction,
 		Payload:     []byte(payload),
 	}
-	s := NewNotifier(t.Name(), counter.callbackFinished, WithPersistency(kvStore)).(*notifier)
+	s := NewNotifier(t.Name(), counter.callbackFinished, WithPersistency(kvStore), WithRetryDelay(time.Millisecond)).(*notifier)
 
 	_ = kvStore.WriteShelf(s.shelfName(), func(writer stoabs.Writer) error {
 		bytes, _ := json.Marshal(event)

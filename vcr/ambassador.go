@@ -23,7 +23,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
 	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
@@ -39,7 +38,7 @@ import (
 // Ambassador registers a callback with the network for processing received Verifiable Credentials.
 type Ambassador interface {
 	// Configure instructs the ambassador to start receiving DID Documents from the network.
-	Configure()
+	Configure() error
 	// Start the event subscriber for reprocessing transactions from the DAG when called
 	Start() error
 }
@@ -63,9 +62,20 @@ func NewAmbassador(networkClient network.Transactions, writer Writer, verifier v
 }
 
 // Configure instructs the ambassador to start receiving DID Documents from the network.
-func (n ambassador) Configure() {
-	n.networkClient.Subscribe(network.TransactionPayloadAddedEvent, types.VcDocumentType, n.vcCallback)
-	n.networkClient.Subscribe(network.TransactionPayloadAddedEvent, types.RevocationLDDocumentType, n.jsonLDRevocationCallback)
+func (n ambassador) Configure() error {
+	err := n.networkClient.Subscribe("vcr_vcs", n.handleNetworkVCs,
+		n.networkClient.WithPersistency(),
+		network.WithSelectionFilter(func(event dag.Event) bool {
+			return event.Type == dag.PayloadEventType && event.Transaction.PayloadType() == types.VcDocumentType
+		}))
+	if err != nil {
+		return err
+	}
+	return n.networkClient.Subscribe("vcr_revocations", n.handleNetworkRevocations,
+		n.networkClient.WithPersistency(),
+		network.WithSelectionFilter(func(event dag.Event) bool {
+			return event.Type == dag.PayloadEventType && event.Transaction.PayloadType() == types.RevocationLDDocumentType
+		}))
 }
 
 func (n ambassador) Start() error {
@@ -86,6 +96,20 @@ func (n ambassador) Start() error {
 		return fmt.Errorf("failed to subscribe to REPROCESS event stream: %v", err)
 	}
 	return nil
+}
+
+func (n *ambassador) handleNetworkVCs(event dag.Event) (bool, error) {
+	if err := n.vcCallback(event.Transaction, event.Payload); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (n *ambassador) handleNetworkRevocations(event dag.Event) (bool, error) {
+	if err := n.jsonLDRevocationCallback(event.Transaction, event.Payload); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (n ambassador) handleReprocessEvent(msg *nats.Msg) {

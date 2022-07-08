@@ -195,7 +195,7 @@ func (p *protocol) handleTransactionPayload(peer transport.Peer, envelope *Envel
 	}
 
 	// it's saved, remove the job
-	return p.payloadScheduler.Finished(ref)
+	return p.privatePayloadReceiver.Finished(ref)
 }
 
 func (p *protocol) handleTransactionRangeQuery(peer transport.Peer, envelope *Envelope) error {

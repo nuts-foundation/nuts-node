@@ -110,18 +110,6 @@ func TestVCR_Start(t *testing.T) {
 	})
 }
 
-func TestVCR_Shutdown(t *testing.T) {
-	m := newMockContext(t)
-
-	_ = m.vcr.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
-	err := m.vcr.Start()
-	if !assert.NoError(t, err) {
-		return
-	}
-	err = m.vcr.Shutdown()
-	assert.NoError(t, err)
-}
-
 func TestVCR_Resolve(t *testing.T) {
 
 	testInstance := func(t2 *testing.T) mockContext {
