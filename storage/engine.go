@@ -89,7 +89,16 @@ func (e engine) Shutdown() error {
 func (e *engine) Configure(config core.ServerConfig) error {
 	e.datadir = config.Datadir
 
-	bboltDB, err := createBBoltDatabase(config.Datadir, e.config.Databases.BBolt)
+	if e.config.Redis.IsConfigured() {
+		redisDB, err := createRedisDatabase(e.config.Redis)
+		if err != nil {
+			return fmt.Errorf("unable to configure Redis database: %w", err)
+		}
+		e.databases = append(e.databases, redisDB)
+		log.Logger().Info("Redis database support enabled.")
+		log.Logger().Warn("Redis database support is still experimental: do not use for production environments!")
+	}
+	bboltDB, err := createBBoltDatabase(config.Datadir, e.config.BBolt)
 	if err != nil {
 		return fmt.Errorf("unable to configure BBolt database: %w", err)
 	}
@@ -119,7 +128,21 @@ func (p *provider) GetKVStore(name string, class Class) (stoabs.KVStore, error) 
 	// 1. Check manual binding of specific store to a configured database (e.g. `network/connections -> redis0`)
 	// 2. Otherwise: find database whose storage class matches the requested class
 	// 3. Otherwise (if no storage class matches, e.g. no `persistent` database configured): use "lower" storage class, but only in non-strict mode.
-	store, err := p.getStore(p.moduleName, name, p.engine.databases[0])
+	var db database
+	for _, curr := range p.engine.databases {
+		if curr.getClass() == class {
+			db = curr
+			break
+		}
+	}
+
+	if db == nil {
+		db = p.engine.databases[0]
+	}
+
+	// TODO: If the requested class isn't available and we're in strict mode, return an error
+
+	store, err := p.getStore(p.moduleName, name, db)
 	if store == nil {
 		return nil, err
 	}

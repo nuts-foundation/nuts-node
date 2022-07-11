@@ -38,7 +38,7 @@ type State interface {
 
 	// WritePayload writes contents for the specified payload, identified by the given hash.
 	// It also calls observers and therefore requires the transaction.
-	WritePayload(transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error
+	WritePayload(ctx context.Context, transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error
 	// IsPayloadPresent checks whether the contents for the given transaction are present.
 	IsPayloadPresent(ctx context.Context, payloadHash hash.SHA256Hash) (bool, error)
 	// ReadPayload reads the contents for the specified payload, identified by the given hash. If contents can't be found,
@@ -50,7 +50,7 @@ type State interface {
 	Add(ctx context.Context, transactions Transaction, payload []byte) error
 	// FindBetweenLC finds all transactions which lamport clock value lies between startInclusive and endExclusive.
 	// They are returned in order: first sorted on lamport clock value, then on transaction reference (byte order).
-	FindBetweenLC(startInclusive uint32, endExclusive uint32) ([]Transaction, error)
+	FindBetweenLC(ctx context.Context, startInclusive uint32, endExclusive uint32) ([]Transaction, error)
 	// GetTransaction returns the transaction from local storage
 	GetTransaction(ctx context.Context, hash hash.SHA256Hash) (Transaction, error)
 	// IsPresent returns true if a transaction is present in the DAG
@@ -72,7 +72,7 @@ type State interface {
 	// Statistics returns data for the statistics page
 	Statistics(ctx context.Context) Statistics
 	// Verify checks the integrity of the DAG. Should be called when it's loaded, e.g. from disk.
-	Verify() error
+	Verify(ctx context.Context) error
 	// XOR returns the xor of all transaction references between the DAG root and the clock closest to the requested clock value.
 	// This closest clock value is also returned, and is defined as the lowest of:
 	//	- upper-limit of the page that contains the requested clock

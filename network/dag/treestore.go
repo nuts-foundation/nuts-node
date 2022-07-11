@@ -110,7 +110,7 @@ func (store *treeStore) read(tx stoabs.ReadTx) error {
 	err := reader.Iterate(func(k stoabs.Key, v []byte) error {
 		rawData[keyToClock(k)] = v
 		return nil
-	})
+	}, clockToKey(0))
 	if err != nil {
 		return err
 	}

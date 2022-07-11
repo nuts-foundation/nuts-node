@@ -429,7 +429,7 @@ func (n *Network) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte,
 
 // ListTransactionsInRange returns all transactions known to this Network instance with lamport clock value between startInclusive and endExclusive.
 func (n *Network) ListTransactionsInRange(startInclusive uint32, endExclusive uint32) ([]dag.Transaction, error) {
-	return n.state.FindBetweenLC(startInclusive, endExclusive)
+	return n.state.FindBetweenLC(context.Background(), startInclusive, endExclusive)
 }
 
 // CreateTransaction creates a new transaction from the given template.
@@ -605,7 +605,7 @@ func (n *Network) Reprocess(contentType string) {
 		for i := uint32(0); (lastLC+uint32(1))%batchSize == 0; i++ {
 			start := i * batchSize
 			end := start + batchSize
-			txs, err := n.state.FindBetweenLC(start, end)
+			txs, err := n.state.FindBetweenLC(ctx, start, end)
 			if err != nil {
 				log.Logger().Errorf("Failed to Reprocess transactions (start: %d, end: %d): %v", start, end, err)
 				return

@@ -20,6 +20,7 @@ package grpc
 
 import (
 	"bytes"
+	"context"
 	"encoding/gob"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/network/log"
@@ -144,7 +145,7 @@ func (p *persistingBackoff) Backoff() time.Duration {
 }
 
 func (p persistingBackoff) write(backoff time.Duration) {
-	err := p.store.WriteShelf("backoff", func(writer stoabs.Writer) error {
+	err := p.store.WriteShelf(context.Background(), "backoff", func(writer stoabs.Writer) error {
 		var buf bytes.Buffer
 		err := gob.NewEncoder(&buf).Encode(persistedBackoff{
 			Moment: nowFunc().Add(backoff),
@@ -162,7 +163,7 @@ func (p persistingBackoff) write(backoff time.Duration) {
 
 func (p persistingBackoff) read() persistedBackoff {
 	var result persistedBackoff
-	err := p.store.ReadShelf("backoff", func(reader stoabs.Reader) error {
+	err := p.store.ReadShelf(context.Background(), "backoff", func(reader stoabs.Reader) error {
 		data, err := reader.Get(stoabs.BytesKey(p.peerAddress))
 		if err != nil {
 			return err

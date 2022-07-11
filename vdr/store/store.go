@@ -90,7 +90,7 @@ func (mr metadataRecord) ref() []byte {
 }
 
 func (s *store) Write(document did.Document, metadata vdr.DocumentMetadata) error {
-	return s.db.Write(func(tx stoabs.WriteTx) error {
+	return s.db.Write(context.Background(), func(tx stoabs.WriteTx) error {
 		latestWriter, err := tx.GetShelfWriter(latestShelf)
 		if err != nil {
 			return err
@@ -120,7 +120,7 @@ func (s *store) Write(document did.Document, metadata vdr.DocumentMetadata) erro
 }
 
 func (s *store) Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *vdr.DocumentMetadata) error {
-	return s.db.Write(func(tx stoabs.WriteTx) error {
+	return s.db.Write(context.Background(), func(tx stoabs.WriteTx) error {
 		latestWriter, err := tx.GetShelfWriter(latestShelf)
 		if err != nil {
 			return err
@@ -217,7 +217,7 @@ func (s *store) writeDocument(tx stoabs.WriteTx, document did.Document, metadata
 }
 
 func (s *store) Processed(hash hash.SHA256Hash) (processed bool, txErr error) {
-	txErr = s.db.Read(func(tx stoabs.ReadTx) error {
+	txErr = s.db.Read(context.Background(), func(tx stoabs.ReadTx) error {
 		transactionIndexReader := tx.GetShelfReader(transactionIndexShelf)
 
 		ref, err := transactionIndexReader.Get(stoabs.NewHashKey(hash))
@@ -235,7 +235,7 @@ func (s *store) Processed(hash hash.SHA256Hash) (processed bool, txErr error) {
 
 // Iterate loops over all the latest versions of the stored DID Documents and applies fn
 func (s *store) Iterate(fn vdr.DocIterator) error {
-	return s.db.Read(func(tx stoabs.ReadTx) error {
+	return s.db.Read(context.Background(), func(tx stoabs.ReadTx) error {
 		// get shelf readers
 		latestReader := tx.GetShelfReader(latestShelf)
 		metadataReader := tx.GetShelfReader(metadataShelf)
@@ -260,12 +260,12 @@ func (s *store) Iterate(fn vdr.DocIterator) error {
 			}
 
 			return fn(document, metadataRecord.Metadata)
-		})
+		}, stoabs.BytesKey{})
 	})
 }
 
 func (s *store) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (returnDocument *did.Document, returnMetadata *vdr.DocumentMetadata, txErr error) {
-	txErr = s.db.Read(func(tx stoabs.ReadTx) error {
+	txErr = s.db.Read(context.Background(), func(tx stoabs.ReadTx) error {
 		// get shelf readers
 		latestReader := tx.GetShelfReader(latestShelf)
 		latestRefBytes, _ := latestReader.Get(stoabs.BytesKey(id.String()))

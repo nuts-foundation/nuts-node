@@ -39,9 +39,9 @@ import (
 )
 
 func Test_PrevTransactionVerifier(t *testing.T) {
+	ctx := context.Background()
 	rootPayload := []byte{0}
 	root, _, _ := CreateTestTransactionEx(1, hash.SHA256Sum(rootPayload), nil)
-	ctx := context.Background()
 
 	t.Run("ok - prev is present", func(t *testing.T) {
 		testState := createState(t).(*state)
@@ -49,7 +49,7 @@ func Test_PrevTransactionVerifier(t *testing.T) {
 		tx, _, _ := CreateTestTransactionEx(1, hash.SHA256Sum(payload), nil, root)
 		_ = testState.Add(ctx, root, rootPayload)
 
-		_ = testState.db.Read(func(dbTx stoabs.ReadTx) error {
+		_ = testState.db.Read(ctx, func(dbTx stoabs.ReadTx) error {
 			err := NewPrevTransactionsVerifier()(dbTx, tx)
 			assert.NoError(t, err)
 			return nil
@@ -60,7 +60,7 @@ func Test_PrevTransactionVerifier(t *testing.T) {
 		testState := createState(t).(*state)
 		tx, _, _ := CreateTestTransaction(1, root)
 
-		_ = testState.db.Read(func(dbTx stoabs.ReadTx) error {
+		_ = testState.db.Read(ctx, func(dbTx stoabs.ReadTx) error {
 			err := NewPrevTransactionsVerifier()(dbTx, tx)
 			assert.Contains(t, err.Error(), "transaction is referring to non-existing previous transaction")
 			return nil
@@ -76,7 +76,7 @@ func Test_PrevTransactionVerifier(t *testing.T) {
 		signer := crypto2.NewTestKey("1")
 		signedTransaction, _ := NewTransactionSigner(signer, true).Sign(unsignedTransaction, time.Now())
 
-		_ = testState.db.Read(func(dbTx stoabs.ReadTx) error {
+		_ = testState.db.Read(ctx, func(dbTx stoabs.ReadTx) error {
 			err := NewPrevTransactionsVerifier()(dbTx, signedTransaction)
 			assert.EqualError(t, err, "transaction has an invalid lamport clock value")
 			return nil

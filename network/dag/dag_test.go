@@ -19,6 +19,7 @@
 package dag
 
 import (
+	"context"
 	"github.com/nuts-foundation/go-stoabs"
 	"math"
 	"sort"
@@ -55,6 +56,7 @@ func (n trackingVisitor) JoinRefsAsString() string {
 }
 
 func TestDAG_findBetweenLC(t *testing.T) {
+	ctx := context.Background()
 	t.Run("ok", func(t *testing.T) {
 		graph := CreateDAG(t)
 
@@ -67,7 +69,7 @@ func TestDAG_findBetweenLC(t *testing.T) {
 		addTx(t, graph, tx2, tx3, tx4, tx5)
 
 		// LC 1..3 should yield tx2, tx3 and tx4
-		err := graph.db.Read(func(tx stoabs.ReadTx) error {
+		err := graph.db.Read(ctx, func(tx stoabs.ReadTx) error {
 			actual, err := graph.findBetweenLC(tx, 1, 3)
 
 			if !assert.NoError(t, err) {
@@ -84,10 +86,11 @@ func TestDAG_findBetweenLC(t *testing.T) {
 }
 
 func TestDAG_Get(t *testing.T) {
+	ctx := context.Background()
 	t.Run("found", func(t *testing.T) {
 		graph := CreateDAG(t)
 		transaction := CreateTestTransactionWithJWK(1)
-		_ = graph.db.Write(func(tx stoabs.WriteTx) error {
+		_ = graph.db.Write(ctx, func(tx stoabs.WriteTx) error {
 			_ = graph.add(tx, transaction)
 			actual, err := getTransaction(transaction.Ref(), tx)
 			if !assert.NoError(t, err) {
@@ -99,7 +102,7 @@ func TestDAG_Get(t *testing.T) {
 	})
 	t.Run("not found", func(t *testing.T) {
 		graph := CreateDAG(t)
-		_ = graph.db.Write(func(tx stoabs.WriteTx) error {
+		_ = graph.db.Write(ctx, func(tx stoabs.WriteTx) error {
 			actual, err := getTransaction(hash.SHA256Sum([]byte{1, 2, 3}), tx)
 			assert.NoError(t, err)
 			assert.Nil(t, actual)
@@ -109,6 +112,7 @@ func TestDAG_Get(t *testing.T) {
 }
 
 func TestDAG_Migrate(t *testing.T) {
+	ctx := context.Background()
 	txRoot := CreateTestTransactionWithJWK(0)
 	tx1 := CreateTestTransactionWithJWK(1, txRoot)
 	tx2 := CreateTestTransactionWithJWK(2, txRoot)
@@ -118,10 +122,10 @@ func TestDAG_Migrate(t *testing.T) {
 
 		// Setup: add transactions, remove metadata
 		addTx(t, graph, txRoot, tx1, tx2)
-		err := graph.db.WriteShelf(metadataShelf, func(writer stoabs.Writer) error {
+		err := graph.db.WriteShelf(ctx, metadataShelf, func(writer stoabs.Writer) error {
 			return writer.Iterate(func(key stoabs.Key, _ []byte) error {
 				return writer.Delete(key)
-			})
+			}, stoabs.BytesKey{})
 		})
 		if !assert.NoError(t, err) {
 			return
@@ -130,7 +134,7 @@ func TestDAG_Migrate(t *testing.T) {
 		// Check values return 0
 		var stats Statistics
 		var lc uint32
-		_ = graph.db.Read(func(tx stoabs.ReadTx) error {
+		_ = graph.db.Read(ctx, func(tx stoabs.ReadTx) error {
 			stats = graph.statistics(tx)
 			lc = graph.getHighestClockValue(tx)
 			return nil
@@ -145,7 +149,7 @@ func TestDAG_Migrate(t *testing.T) {
 		}
 
 		// Assert
-		_ = graph.db.Read(func(tx stoabs.ReadTx) error {
+		_ = graph.db.Read(ctx, func(tx stoabs.ReadTx) error {
 			stats = graph.statistics(tx)
 			lc = graph.getHighestClockValue(tx)
 			return nil
@@ -164,7 +168,7 @@ func TestDAG_Migrate(t *testing.T) {
 
 		stats := Statistics{}
 		var lc uint32
-		_ = graph.db.Read(func(tx stoabs.ReadTx) error {
+		_ = graph.db.Read(ctx, func(tx stoabs.ReadTx) error {
 			stats = graph.statistics(tx)
 			lc = graph.getHighestClockValue(tx)
 			return nil
@@ -175,6 +179,7 @@ func TestDAG_Migrate(t *testing.T) {
 }
 
 func TestDAG_Add(t *testing.T) {
+	ctx := context.Background()
 	t.Run("ok", func(t *testing.T) {
 		graph := CreateDAG(t)
 		tx := CreateTestTransactionWithJWK(0)
@@ -182,7 +187,7 @@ func TestDAG_Add(t *testing.T) {
 		addTx(t, graph, tx)
 
 		visitor := trackingVisitor{}
-		err := graph.db.Read(func(dbTx stoabs.ReadTx) error {
+		err := graph.db.Read(ctx, func(dbTx stoabs.ReadTx) error {
 			return graph.visitBetweenLC(dbTx, 0, 1, visitor.Accept)
 		})
 		if !assert.NoError(t, err) {
@@ -190,7 +195,7 @@ func TestDAG_Add(t *testing.T) {
 		}
 		assert.Len(t, visitor.transactions, 1)
 		assert.Equal(t, tx.Ref(), visitor.transactions[0].Ref())
-		err = graph.db.Read(func(dbTx stoabs.ReadTx) error {
+		err = graph.db.Read(ctx, func(dbTx stoabs.ReadTx) error {
 			assert.True(t, graph.isPresent(dbTx, tx.Ref()))
 			return nil
 		})
@@ -202,7 +207,7 @@ func TestDAG_Add(t *testing.T) {
 
 		addTx(t, graph, tx)
 
-		_ = graph.db.Read(func(tx stoabs.ReadTx) error {
+		_ = graph.db.Read(ctx, func(tx stoabs.ReadTx) error {
 			// Assert we can find the TX, but make sure it's only there once
 			actual, _ := graph.findBetweenLC(tx, 0, math.MaxUint32)
 			assert.Len(t, actual, 1)
@@ -217,7 +222,7 @@ func TestDAG_Add(t *testing.T) {
 		addTx(t, graph, root1)
 		err := addTxErr(graph, root2)
 		assert.EqualError(t, err, "root transaction already exists")
-		_ = graph.db.Read(func(tx stoabs.ReadTx) error {
+		_ = graph.db.Read(ctx, func(tx stoabs.ReadTx) error {
 			actual, _ := graph.findBetweenLC(tx, 0, math.MaxUint32)
 			assert.Len(t, actual, 1)
 			return nil
@@ -238,6 +243,8 @@ func TestDAG_Add(t *testing.T) {
 }
 
 func TestNewDAG_addToLCIndex(t *testing.T) {
+	ctx := context.Background()
+
 	// These three transactions come with a clock value.
 	A := CreateTestTransactionWithJWK(0)
 	B := CreateTestTransactionWithJWK(1, A)
@@ -279,7 +286,7 @@ func TestNewDAG_addToLCIndex(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		db := createBBoltDB(testDirectory)
 
-		err := db.Write(func(tx stoabs.WriteTx) error {
+		err := db.Write(ctx, func(tx stoabs.WriteTx) error {
 			_ = indexClockValue(tx, A)
 			_ = indexClockValue(tx, B)
 			_ = indexClockValue(tx, C)
@@ -301,7 +308,7 @@ func TestNewDAG_addToLCIndex(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		db := createBBoltDB(testDirectory)
 
-		err := db.Write(func(tx stoabs.WriteTx) error {
+		err := db.Write(ctx, func(tx stoabs.WriteTx) error {
 			_ = indexClockValue(tx, A)
 			_ = indexClockValue(tx, B)
 			_ = indexClockValue(tx, B)
@@ -322,7 +329,7 @@ func TestNewDAG_addToLCIndex(t *testing.T) {
 		db := createBBoltDB(testDirectory)
 		C := CreateTestTransactionWithJWK(2, A)
 
-		err := db.Write(func(tx stoabs.WriteTx) error {
+		err := db.Write(ctx, func(tx stoabs.WriteTx) error {
 			_ = indexClockValue(tx, A)
 			_ = indexClockValue(tx, B)
 			_ = indexClockValue(tx, C)
@@ -372,10 +379,12 @@ func Test_parseHashList(t *testing.T) {
 }
 
 func TestDAG_getHighestClock(t *testing.T) {
+	ctx := context.Background()
+
 	t.Run("empty DAG", func(t *testing.T) {
 		graph := CreateDAG(t)
 
-		_ = graph.db.Read(func(tx stoabs.ReadTx) error {
+		_ = graph.db.Read(ctx, func(tx stoabs.ReadTx) error {
 			clock := graph.getHighestClockValue(tx)
 
 			assert.Equal(t, uint32(0), clock)
@@ -389,7 +398,7 @@ func TestDAG_getHighestClock(t *testing.T) {
 		tx2, _, _ := CreateTestTransaction(7, tx1)
 		addTx(t, graph, tx0, tx1, tx2)
 
-		_ = graph.db.Read(func(tx stoabs.ReadTx) error {
+		_ = graph.db.Read(ctx, func(tx stoabs.ReadTx) error {
 			clock := graph.getHighestClockValue(tx)
 
 			assert.Equal(t, uint32(2), clock)
@@ -404,7 +413,7 @@ func TestDAG_getHighestClock(t *testing.T) {
 		addTx(t, graph, tx0, tx2)
 		addTx(t, graph, tx1)
 
-		_ = graph.db.Read(func(tx stoabs.ReadTx) error {
+		_ = graph.db.Read(ctx, func(tx stoabs.ReadTx) error {
 			clock := graph.getHighestClockValue(tx)
 
 			assert.Equal(t, uint32(2), clock)

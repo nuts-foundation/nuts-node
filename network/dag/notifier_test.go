@@ -102,6 +102,7 @@ func TestNewSubscriber(t *testing.T) {
 }
 
 func TestSubscriber_Save(t *testing.T) {
+	ctx := context.Background()
 	transaction, _, _ := CreateTestTransaction(0)
 	payload := "payload"
 	event := Event{
@@ -122,11 +123,11 @@ func TestSubscriber_Save(t *testing.T) {
 	t.Run("OK", func(t *testing.T) {
 		s, kvStore := persistentSubscriber(t)
 
-		_ = kvStore.Write(func(tx stoabs.WriteTx) error {
+		_ = kvStore.Write(ctx, func(tx stoabs.WriteTx) error {
 			return s.Save(tx, event)
 		})
 
-		kvStore.ReadShelf(s.shelfName(), func(reader stoabs.Reader) error {
+		kvStore.ReadShelf(ctx, s.shelfName(), func(reader stoabs.Reader) error {
 			data, err := reader.Get(stoabs.BytesKey(event.Hash.Slice()))
 			var e Event
 			_ = json.Unmarshal(data, &e)
@@ -148,7 +149,7 @@ func TestSubscriber_Save(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		err = dummyDB.Write(func(tx stoabs.WriteTx) error {
+		err = dummyDB.Write(ctx, func(tx stoabs.WriteTx) error {
 			return s.Save(tx, event)
 		})
 
@@ -160,12 +161,12 @@ func TestSubscriber_Save(t *testing.T) {
 		kvStore, _ := bbolt.CreateBBoltStore(path.Join(filePath, "test.db"))
 		s := NewNotifier(t.Name(), dummyFunc)
 
-		err := kvStore.Write(func(tx stoabs.WriteTx) error {
+		err := kvStore.Write(ctx, func(tx stoabs.WriteTx) error {
 			return s.Save(tx, event)
 		})
 		assert.NoError(t, err)
 
-		kvStore.ReadShelf(s.(*notifier).shelfName(), func(reader stoabs.Reader) error {
+		kvStore.ReadShelf(ctx, s.(*notifier).shelfName(), func(reader stoabs.Reader) error {
 			data, err := reader.Get(stoabs.BytesKey(event.Hash.Slice()))
 
 			assert.NoError(t, err)
@@ -180,12 +181,12 @@ func TestSubscriber_Save(t *testing.T) {
 			return false
 		}))
 
-		err := kvStore.Write(func(tx stoabs.WriteTx) error {
+		err := kvStore.Write(ctx, func(tx stoabs.WriteTx) error {
 			return s.Save(tx, event)
 		})
 		assert.NoError(t, err)
 
-		kvStore.ReadShelf(s.shelfName(), func(reader stoabs.Reader) error {
+		kvStore.ReadShelf(ctx, s.shelfName(), func(reader stoabs.Reader) error {
 			data, err := reader.Get(stoabs.BytesKey(event.Hash.Slice()))
 
 			assert.NoError(t, err)
@@ -198,14 +199,14 @@ func TestSubscriber_Save(t *testing.T) {
 	t.Run("Not overwritten", func(t *testing.T) {
 		s, kvStore := persistentSubscriber(t)
 
-		err := kvStore.Write(func(tx stoabs.WriteTx) error {
+		err := kvStore.Write(ctx, func(tx stoabs.WriteTx) error {
 			_ = s.Save(tx, event)
 			event.Retries = 2
 			return s.Save(tx, event)
 		})
 		assert.NoError(t, err)
 
-		kvStore.ReadShelf(s.shelfName(), func(reader stoabs.Reader) error {
+		kvStore.ReadShelf(ctx, s.shelfName(), func(reader stoabs.Reader) error {
 			data, err := reader.Get(stoabs.BytesKey(event.Hash.Slice()))
 			var e Event
 			_ = json.Unmarshal(data, &e)
@@ -253,6 +254,8 @@ func TestSubscriber_Save(t *testing.T) {
 }
 
 func TestSubscriber_Notify(t *testing.T) {
+	ctx := context.Background()
+
 	t.Run("ignored with inclusion filter", func(t *testing.T) {
 		s := NewNotifier(t.Name(), func(event Event) (bool, error) {
 			t.FailNow()
@@ -300,7 +303,7 @@ func TestSubscriber_Notify(t *testing.T) {
 		event := Event{Hash: hash.EmptyHash(), Transaction: transaction}
 		s := NewNotifier(t.Name(), counter.callback, WithPersistency(kvStore)).(*notifier)
 		defer s.Close()
-		kvStore.Write(func(tx stoabs.WriteTx) error {
+		kvStore.Write(ctx, func(tx stoabs.WriteTx) error {
 			return s.Save(tx, event)
 		})
 
@@ -309,7 +312,7 @@ func TestSubscriber_Notify(t *testing.T) {
 		test.WaitFor(t, func() (bool, error) {
 			return counter.read() == 1, nil
 		}, time.Second, "timeout while waiting for receiver")
-		kvStore.ReadShelf(s.shelfName(), func(reader stoabs.Reader) error {
+		kvStore.ReadShelf(ctx, s.shelfName(), func(reader stoabs.Reader) error {
 			e, err := s.readEvent(reader, hash.EmptyHash())
 
 			assert.NoError(t, err)
@@ -333,7 +336,7 @@ func TestSubscriber_Notify(t *testing.T) {
 		defer s.Close()
 
 		// create bucket
-		kvStore.WriteShelf(s.shelfName(), func(writer stoabs.Writer) error {
+		kvStore.WriteShelf(ctx, s.shelfName(), func(writer stoabs.Writer) error {
 			return nil
 		})
 		s.Notify(event)
@@ -345,6 +348,7 @@ func TestSubscriber_Notify(t *testing.T) {
 }
 
 func TestSubscriber_Run(t *testing.T) {
+	ctx := context.Background()
 	filePath := io.TestDirectory(t)
 	transaction, _, _ := CreateTestTransaction(0)
 	kvStore, _ := bbolt.CreateBBoltStore(path.Join(filePath, "test.db"))
@@ -359,7 +363,7 @@ func TestSubscriber_Run(t *testing.T) {
 	}
 	s := NewNotifier(t.Name(), counter.callbackFinished, WithPersistency(kvStore), WithRetryDelay(time.Millisecond)).(*notifier)
 
-	_ = kvStore.WriteShelf(s.shelfName(), func(writer stoabs.Writer) error {
+	_ = kvStore.WriteShelf(ctx, s.shelfName(), func(writer stoabs.Writer) error {
 		bytes, _ := json.Marshal(event)
 		return writer.Put(stoabs.BytesKey(event.Hash.Slice()), bytes)
 	})
@@ -372,6 +376,7 @@ func TestSubscriber_Run(t *testing.T) {
 }
 
 func TestSubscriber_VariousFlows(t *testing.T) {
+	ctx := context.Background()
 	transaction, _, _ := CreateTestTransaction(0)
 	event := Event{Hash: hash.EmptyHash(), Transaction: transaction}
 	t.Run("Happy flow", func(t *testing.T) {
@@ -381,7 +386,7 @@ func TestSubscriber_VariousFlows(t *testing.T) {
 		s := NewNotifier(t.Name(), counter.callback, WithPersistency(kvStore), WithRetryDelay(10*time.Millisecond)).(*notifier)
 		defer s.Close()
 
-		_ = kvStore.Write(func(tx stoabs.WriteTx) error {
+		_ = kvStore.Write(ctx, func(tx stoabs.WriteTx) error {
 			return s.Save(tx, event)
 		})
 
@@ -391,7 +396,7 @@ func TestSubscriber_VariousFlows(t *testing.T) {
 			return counter.read() == 2, nil
 		}, time.Second, "timeout while waiting for receiver")
 
-		kvStore.ReadShelf(s.shelfName(), func(reader stoabs.Reader) error {
+		kvStore.ReadShelf(ctx, s.shelfName(), func(reader stoabs.Reader) error {
 			e, err := s.readEvent(reader, hash.EmptyHash())
 
 			assert.NoError(t, err)
@@ -408,7 +413,7 @@ func TestSubscriber_VariousFlows(t *testing.T) {
 		s := NewNotifier(t.Name(), counter.callbackFinished, WithPersistency(kvStore), WithRetryDelay(10*time.Millisecond)).(*notifier)
 		defer s.Close()
 
-		_ = kvStore.Write(func(tx stoabs.WriteTx) error {
+		_ = kvStore.Write(ctx, func(tx stoabs.WriteTx) error {
 			return s.Save(tx, event)
 		})
 
@@ -416,7 +421,7 @@ func TestSubscriber_VariousFlows(t *testing.T) {
 
 		test.WaitFor(t, func() (bool, error) {
 			var e *Event
-			kvStore.ReadShelf(s.shelfName(), func(reader stoabs.Reader) error {
+			kvStore.ReadShelf(ctx, s.shelfName(), func(reader stoabs.Reader) error {
 				e, _ = s.readEvent(reader, hash.EmptyHash())
 				return nil
 			})
@@ -433,7 +438,7 @@ func TestSubscriber_VariousFlows(t *testing.T) {
 		s := NewNotifier(t.Name(), counter.callbackFailure, WithPersistency(kvStore), WithRetryDelay(time.Nanosecond)).(*notifier)
 		defer s.Close()
 
-		_ = kvStore.Write(func(tx stoabs.WriteTx) error {
+		_ = kvStore.Write(ctx, func(tx stoabs.WriteTx) error {
 			return s.Save(tx, event)
 		})
 
@@ -441,7 +446,7 @@ func TestSubscriber_VariousFlows(t *testing.T) {
 
 		test.WaitFor(t, func() (bool, error) {
 			var e *Event
-			kvStore.ReadShelf(s.shelfName(), func(reader stoabs.Reader) error {
+			kvStore.ReadShelf(ctx, s.shelfName(), func(reader stoabs.Reader) error {
 				e, _ = s.readEvent(reader, hash.EmptyHash())
 				return nil
 			})

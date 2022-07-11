@@ -19,6 +19,7 @@
 package dag
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -31,19 +32,20 @@ import (
 const testLeafSize = 512
 
 func TestTree_write(t *testing.T) {
+	ctx := context.Background()
 	t.Run("write tx", func(t *testing.T) {
 		db := createBBoltDB(io.TestDirectory(t))
 		storeWrite := newTreeStore("observer bucket", tree.New(tree.NewXor(), testLeafSize))
 		storeRead := newTreeStore("observer bucket", tree.New(tree.NewXor(), testLeafSize))
 		tx, _, _ := CreateTestTransaction(1)
 
-		err := db.Write(func(dbTx stoabs.WriteTx) error {
+		err := db.Write(ctx, func(dbTx stoabs.WriteTx) error {
 			return storeWrite.write(dbTx, tx)
 		})
 		if !assert.NoError(t, err) {
 			return
 		}
-		err = db.Read(func(tx stoabs.ReadTx) error {
+		err = db.Read(ctx, func(tx stoabs.ReadTx) error {
 			return storeRead.read(tx)
 		})
 		if !assert.NoError(t, err) {
@@ -62,7 +64,7 @@ func TestTree_write(t *testing.T) {
 		tx2.(*transaction).lamportClock = testLeafSize // on second page, so tree expands
 		tx3, _, _ := CreateTestTransaction(3, tx2)
 
-		err := db.Write(func(dbTx stoabs.WriteTx) error {
+		err := db.Write(ctx, func(dbTx stoabs.WriteTx) error {
 			// write on first page, root == leaf
 			if err := store.write(dbTx, tx1); err != nil {
 				return err
@@ -79,7 +81,7 @@ func TestTree_write(t *testing.T) {
 		assert.NoError(t, err)
 
 		storeRead := newTreeStore("xor drop leaves", tree.New(tree.NewXor(), testLeafSize))
-		_ = db.Read(func(tx stoabs.ReadTx) error {
+		_ = db.Read(ctx, func(tx stoabs.ReadTx) error {
 			return storeRead.read(tx)
 		})
 
@@ -90,10 +92,11 @@ func TestTree_write(t *testing.T) {
 
 func TestTree_read(t *testing.T) {
 	db := createBBoltDB(io.TestDirectory(t))
+	ctx := context.Background()
 	storeWrite := newTreeStore("real bucket", tree.New(tree.NewXor(), testLeafSize))
 	testTx := CreateTestTransactionWithJWK(123)
 	testTx.(*transaction).lamportClock = testLeafSize // tx is on second page
-	err := db.Write(func(tx stoabs.WriteTx) error {
+	err := db.Write(ctx, func(tx stoabs.WriteTx) error {
 		return storeWrite.write(tx, testTx)
 	})
 	if !assert.NoError(t, err) {
@@ -103,7 +106,7 @@ func TestTree_read(t *testing.T) {
 	t.Run("ok - read tree successfully", func(t *testing.T) {
 		store := newTreeStore("real bucket", tree.New(tree.NewXor(), testLeafSize))
 
-		err := db.Read(func(tx stoabs.ReadTx) error {
+		err := db.Read(ctx, func(tx stoabs.ReadTx) error {
 			return store.read(tx)
 		})
 
@@ -116,7 +119,7 @@ func TestTree_read(t *testing.T) {
 	t.Run("ok - incorrect bucket name results in empty tree", func(t *testing.T) {
 		store := newTreeStore("fake bucket", tree.New(tree.NewXor(), testLeafSize))
 
-		err := db.Read(func(tx stoabs.ReadTx) error {
+		err := db.Read(ctx, func(tx stoabs.ReadTx) error {
 			return store.read(tx)
 		})
 
@@ -127,7 +130,7 @@ func TestTree_read(t *testing.T) {
 	t.Run("fail - incorrect prototype", func(t *testing.T) {
 		store := newTreeStore("real bucket", tree.New(tree.NewIblt(0), testLeafSize))
 
-		err := db.Read(func(tx stoabs.ReadTx) error {
+		err := db.Read(ctx, func(tx stoabs.ReadTx) error {
 			return store.read(tx)
 		})
 

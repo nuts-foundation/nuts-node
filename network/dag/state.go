@@ -78,7 +78,7 @@ func NewState(db stoabs.KVStore, verifiers ...Verifier) (State, error) {
 	return newState, nil
 }
 
-func (s *state) Add(_ context.Context, transaction Transaction, payload []byte) error {
+func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte) error {
 	txEvent := Event{
 		Type:        TransactionEventType,
 		Hash:        transaction.Ref(),
@@ -95,7 +95,7 @@ func (s *state) Add(_ context.Context, transaction Transaction, payload []byte) 
 	}
 	emitPayloadEvent := false
 
-	return s.db.Write(func(tx stoabs.WriteTx) error {
+	return s.db.Write(ctx, func(tx stoabs.WriteTx) error {
 		present := s.graph.isPresent(tx, transaction.Ref())
 		if present {
 			return nil
@@ -128,14 +128,13 @@ func (s *state) Add(_ context.Context, transaction Transaction, payload []byte) 
 		return s.updateTrees(tx, transaction)
 	}, stoabs.OnRollback(func() {
 		log.Logger().Warn("Reloading the XOR and IBLT trees due to a DB transaction Rollback")
-		s.loadTrees()
+		s.loadTrees(ctx)
 	}), stoabs.AfterCommit(func() {
 		s.notify(txEvent)
 		if emitPayloadEvent {
 			s.notify(payloadEvent)
 		}
-	}),
-	)
+	}), stoabs.WithWriteLock())
 }
 
 func (s *state) updateTrees(tx stoabs.WriteTx, transaction Transaction) error {
@@ -145,8 +144,8 @@ func (s *state) updateTrees(tx stoabs.WriteTx, transaction Transaction) error {
 	return s.xorTree.write(tx, transaction)
 }
 
-func (s *state) loadTrees() {
-	if err := s.db.Read(func(tx stoabs.ReadTx) error {
+func (s *state) loadTrees(ctx context.Context) {
+	if err := s.db.Read(ctx, func(tx stoabs.ReadTx) error {
 		if err := s.xorTree.read(tx); err != nil {
 			return fmt.Errorf("failed to read xorTree: %w", err)
 		}
@@ -169,39 +168,39 @@ func (s *state) verifyTX(tx stoabs.ReadTx, transaction Transaction) error {
 	return nil
 }
 
-func (s *state) FindBetweenLC(startInclusive uint32, endExclusive uint32) (transactions []Transaction, err error) {
-	err = s.db.Read(func(tx stoabs.ReadTx) error {
+func (s *state) FindBetweenLC(ctx context.Context, startInclusive uint32, endExclusive uint32) (transactions []Transaction, err error) {
+	err = s.db.Read(ctx, func(tx stoabs.ReadTx) error {
 		transactions, err = s.graph.findBetweenLC(tx, startInclusive, endExclusive)
 		return err
 	})
 	return
 }
 
-func (s *state) GetTransaction(_ context.Context, hash hash.SHA256Hash) (transaction Transaction, err error) {
-	err = s.db.Read(func(tx stoabs.ReadTx) error {
+func (s *state) GetTransaction(ctx context.Context, hash hash.SHA256Hash) (transaction Transaction, err error) {
+	err = s.db.Read(ctx, func(tx stoabs.ReadTx) error {
 		transaction, err = getTransaction(hash, tx)
 		return err
 	})
 	return
 }
 
-func (s *state) IsPayloadPresent(_ context.Context, hash hash.SHA256Hash) (present bool, err error) {
-	err = s.db.Read(func(tx stoabs.ReadTx) error {
+func (s *state) IsPayloadPresent(ctx context.Context, hash hash.SHA256Hash) (present bool, err error) {
+	err = s.db.Read(ctx, func(tx stoabs.ReadTx) error {
 		present = s.payloadStore.isPayloadPresent(tx, hash)
 		return nil
 	})
 	return
 }
 
-func (s *state) IsPresent(_ context.Context, hash hash.SHA256Hash) (present bool, err error) {
-	err = s.db.Read(func(tx stoabs.ReadTx) error {
+func (s *state) IsPresent(ctx context.Context, hash hash.SHA256Hash) (present bool, err error) {
+	err = s.db.Read(ctx, func(tx stoabs.ReadTx) error {
 		present = s.graph.isPresent(tx, hash)
 		return nil
 	})
 	return
 }
 
-func (s *state) WritePayload(transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
+func (s *state) WritePayload(ctx context.Context, transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
 	event := Event{
 		Type:        PayloadEventType,
 		Hash:        transaction.Ref(),
@@ -209,27 +208,27 @@ func (s *state) WritePayload(transaction Transaction, payloadHash hash.SHA256Has
 		Transaction: transaction,
 		Payload:     data,
 	}
-	return s.db.Write(func(tx stoabs.WriteTx) error {
+	return s.db.Write(ctx, func(tx stoabs.WriteTx) error {
 		if err := s.saveEvent(tx, event); err != nil {
 			return err
 		}
 		return s.payloadStore.writePayload(tx, payloadHash, data)
 	}, stoabs.AfterCommit(func() {
 		s.notify(event)
-	}))
+	}), stoabs.WithWriteLock())
 }
 
-func (s *state) ReadPayload(_ context.Context, hash hash.SHA256Hash) (payload []byte, err error) {
-	_ = s.db.Read(func(tx stoabs.ReadTx) error {
+func (s *state) ReadPayload(ctx context.Context, hash hash.SHA256Hash) (payload []byte, err error) {
+	_ = s.db.Read(ctx, func(tx stoabs.ReadTx) error {
 		payload, err = s.payloadStore.readPayload(tx, hash)
 		return err
 	})
 	return
 }
 
-func (s *state) Heads(_ context.Context) []hash.SHA256Hash {
+func (s *state) Heads(ctx context.Context) []hash.SHA256Hash {
 	heads := make([]hash.SHA256Hash, 0)
-	_ = s.db.Read(func(tx stoabs.ReadTx) error {
+	_ = s.db.Read(ctx, func(tx stoabs.ReadTx) error {
 		heads = s.graph.heads(tx)
 		return nil
 	})
@@ -247,10 +246,10 @@ func (s *state) Notifier(name string, receiver ReceiverFn, options ...NotifierOp
 	return notifier, nil
 }
 
-func (s *state) XOR(_ context.Context, reqClock uint32) (hash.SHA256Hash, uint32) {
+func (s *state) XOR(ctx context.Context, reqClock uint32) (hash.SHA256Hash, uint32) {
 	var data tree.Data
 
-	currentClock := s.lamportClock()
+	currentClock := s.lamportClock(ctx)
 	dataClock := currentClock
 	if reqClock < currentClock {
 		var pageClock uint32
@@ -265,10 +264,10 @@ func (s *state) XOR(_ context.Context, reqClock uint32) (hash.SHA256Hash, uint32
 	return data.(*tree.Xor).Hash(), dataClock
 }
 
-func (s *state) IBLT(_ context.Context, reqClock uint32) (tree.Iblt, uint32) {
+func (s *state) IBLT(ctx context.Context, reqClock uint32) (tree.Iblt, uint32) {
 	var data tree.Data
 
-	currentClock := s.lamportClock()
+	currentClock := s.lamportClock(ctx)
 	dataClock := currentClock
 	if reqClock < currentClock {
 		var pageClock uint32
@@ -284,10 +283,10 @@ func (s *state) IBLT(_ context.Context, reqClock uint32) (tree.Iblt, uint32) {
 }
 
 // lamportClock returns the highest clock value in the DAG.
-func (s *state) lamportClock() uint32 {
+func (s *state) lamportClock(ctx context.Context) uint32 {
 	lc := uint32(0)
 	// errors are logged at the lower level
-	_ = s.db.Read(func(tx stoabs.ReadTx) error {
+	_ = s.db.Read(ctx, func(tx stoabs.ReadTx) error {
 		lc = s.graph.getHighestClockValue(tx)
 		return nil
 	})
@@ -299,7 +298,7 @@ func (s *state) Shutdown() error {
 }
 
 func (s *state) Start() error {
-	s.loadTrees()
+	s.loadTrees(context.Background())
 
 	// resume all notifiers
 	for _, curr := range s.notifiers {
@@ -311,9 +310,9 @@ func (s *state) Start() error {
 	return nil
 }
 
-func (s *state) Statistics(_ context.Context) Statistics {
+func (s *state) Statistics(ctx context.Context) Statistics {
 	var stats Statistics
-	_ = s.db.Read(func(tx stoabs.ReadTx) error {
+	_ = s.db.Read(ctx, func(tx stoabs.ReadTx) error {
 		stats = s.graph.statistics(tx)
 		return nil
 	})
@@ -322,8 +321,8 @@ func (s *state) Statistics(_ context.Context) Statistics {
 
 // Verify can be used to verify the entire DAG.
 // TODO problematic for large sets. Currently not used, see #1216
-func (s *state) Verify() error {
-	return s.db.Read(func(dbTx stoabs.ReadTx) error {
+func (s *state) Verify(ctx context.Context) error {
+	return s.db.Read(ctx, func(dbTx stoabs.ReadTx) error {
 		transactions, err := s.graph.findBetweenLC(dbTx, 0, math.MaxUint32)
 		if err != nil {
 			return err
@@ -354,7 +353,7 @@ func (s *state) notify(event Event) {
 }
 
 func (s *state) Diagnostics() []core.DiagnosticResult {
-	diag := s.graph.diagnostics()
+	diag := s.graph.diagnostics(context.Background())
 	diag = append(diag, &core.GenericDiagnosticResult{Title: "dag_xor", Outcome: s.xorTree.getRoot().(*tree.Xor).Hash()})
 	return diag
 }

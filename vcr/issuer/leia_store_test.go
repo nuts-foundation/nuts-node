@@ -65,6 +65,7 @@ func TestLeiaStore_Close(t *testing.T) {
 }
 
 func TestLeiaIssuerStore_StoreCredential(t *testing.T) {
+	ctx := context.Background()
 	vcToStore := vc.VerifiableCredential{}
 	_ = json.Unmarshal([]byte(jsonld.TestCredential), &vcToStore)
 
@@ -73,9 +74,9 @@ func TestLeiaIssuerStore_StoreCredential(t *testing.T) {
 		issuerStorePath := path.Join(testDir, "vcr", "issued-credentials.db")
 		ctrl := gomock.NewController(t)
 		backupStore := stoabs.NewMockKVStore(ctrl)
-		backupStore.EXPECT().ReadShelf(issuedBackupShelf, gomock.Any()).Return(nil)
-		backupStore.EXPECT().ReadShelf(revocationBackupShelf, gomock.Any()).Return(nil)
-		backupStore.EXPECT().WriteShelf(issuedBackupShelf, gomock.Any()).Return(errors.New("failure"))
+		backupStore.EXPECT().ReadShelf(ctx, issuedBackupShelf, gomock.Any()).Return(nil)
+		backupStore.EXPECT().ReadShelf(ctx, revocationBackupShelf, gomock.Any()).Return(nil)
+		backupStore.EXPECT().WriteShelf(ctx, issuedBackupShelf, gomock.Any()).Return(errors.New("failure"))
 		store, err := NewLeiaIssuerStore(issuerStorePath, backupStore)
 		if !assert.NoError(t, err) {
 			t.Fatal()
@@ -258,6 +259,7 @@ func Test_leiaIssuerStore_GetRevocation(t *testing.T) {
 }
 
 func TestLeiaIssuerStore_handleRestore(t *testing.T) {
+	ctx := context.Background()
 	t.Run("credentials", func(t *testing.T) {
 		document := []byte(jsonld.TestCredential)
 		ref := defaultReference(document)
@@ -295,7 +297,7 @@ func TestLeiaIssuerStore_handleRestore(t *testing.T) {
 			if !assert.NoError(t, err) {
 				t.Fatal()
 			}
-			err = backupStore.WriteShelf(issuedBackupShelf, func(writer stoabs.Writer) error {
+			err = backupStore.WriteShelf(ctx, issuedBackupShelf, func(writer stoabs.Writer) error {
 				return writer.Put(stoabs.BytesKey(ref), document)
 			})
 			if !assert.NoError(t, err) {
@@ -328,7 +330,7 @@ func TestLeiaIssuerStore_handleRestore(t *testing.T) {
 			if !assert.NoError(t, err) {
 				return
 			}
-			_ = store.backupStore.ReadShelf(issuedBackupShelf, func(reader stoabs.Reader) error {
+			_ = store.backupStore.ReadShelf(ctx, issuedBackupShelf, func(reader stoabs.Reader) error {
 				val, err := reader.Get(stoabs.BytesKey(ref))
 				assert.NoError(t, err)
 				assert.NotNil(t, val)
@@ -374,7 +376,7 @@ func TestLeiaIssuerStore_handleRestore(t *testing.T) {
 			if !assert.NoError(t, err) {
 				t.Fatal()
 			}
-			err = backupStore.WriteShelf(revocationBackupShelf, func(writer stoabs.Writer) error {
+			err = backupStore.WriteShelf(ctx, revocationBackupShelf, func(writer stoabs.Writer) error {
 				return writer.Put(stoabs.BytesKey(ref), revocationBytes)
 			})
 			if !assert.NoError(t, err) {
@@ -407,7 +409,7 @@ func TestLeiaIssuerStore_handleRestore(t *testing.T) {
 			if !assert.NoError(t, err) {
 				return
 			}
-			_ = store.backupStore.ReadShelf(revocationBackupShelf, func(reader stoabs.Reader) error {
+			_ = store.backupStore.ReadShelf(ctx, revocationBackupShelf, func(reader stoabs.Reader) error {
 				val, err := reader.Get(stoabs.BytesKey(ref))
 				assert.NoError(t, err)
 				assert.NotNil(t, val)

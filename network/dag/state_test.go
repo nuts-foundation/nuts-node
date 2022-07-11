@@ -84,7 +84,7 @@ func TestState_relayingFuncs(t *testing.T) {
 	})
 
 	t.Run("FindBetweenLC", func(t *testing.T) {
-		txs, err := txState.FindBetweenLC(0, 10)
+		txs, err := txState.FindBetweenLC(context.Background(), 0, 10)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -124,7 +124,7 @@ func TestState_Start(t *testing.T) {
 
 		// createState already calls Start
 
-		err := txState.(*state).db.Read(func(tx stoabs.ReadTx) error {
+		err := txState.(*state).db.Read(context.Background(), func(tx stoabs.ReadTx) error {
 			for _, shelf := range []string{transactionsShelf, headsShelf, clockShelf, payloadsShelf, ibltShelf, xorShelf} {
 				reader := tx.GetShelfReader(shelf)
 				assert.NotNil(t, reader)
@@ -169,7 +169,7 @@ func TestState_WritePayload(t *testing.T) {
 		}))
 		expected := []byte{1}
 
-		err := txState.WritePayload(transaction{}, hash.EmptyHash(), expected)
+		err := txState.WritePayload(context.Background(), transaction{}, hash.EmptyHash(), expected)
 
 		assert.NoError(t, err)
 		assert.True(t, received.Load())

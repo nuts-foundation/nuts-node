@@ -19,6 +19,7 @@
 package dag
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -36,7 +37,7 @@ func TestPayloadStore_ReadWrite(t *testing.T) {
 	db := createBBoltDB(testDirectory)
 	payloadStore := NewPayloadStore().(*payloadStore)
 
-	err := db.Write(func(tx stoabs.WriteTx) error {
+	err := db.Write(context.Background(), func(tx stoabs.WriteTx) error {
 		payload := []byte("Hello, World!")
 		hash := hash.SHA256Sum(payload)
 		// Before, payload should not be present

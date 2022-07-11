@@ -25,6 +25,7 @@ import (
 func GetIntegrationTestConfig(testDirectory string) map[string]string {
 	httpAddress := fmt.Sprintf("localhost:%d", FreeTCPPort())
 	return map[string]string{
+		"configfile":              "",
 		"datadir":                 testDirectory,
 		"network.enabletls":       "false",
 		"network.grpcaddr":        fmt.Sprintf("localhost:%d", FreeTCPPort()),

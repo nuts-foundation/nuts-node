@@ -19,6 +19,7 @@
 package dag
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"sort"
@@ -106,7 +107,7 @@ func newDAG(db stoabs.KVStore) *dag {
 }
 
 func (d *dag) Migrate() error {
-	return d.db.Write(func(tx stoabs.WriteTx) error {
+	return d.db.Write(context.Background(), func(tx stoabs.WriteTx) error {
 		writer, err := tx.GetShelfWriter(metadataShelf)
 		if err != nil {
 			return err
@@ -141,17 +142,10 @@ func (d *dag) Migrate() error {
 	})
 }
 
-func (d *dag) init() error {
-	return d.db.Write(func(tx stoabs.WriteTx) error {
-		_, _, _, err := getBuckets(tx)
-		return err
-	})
-}
-
-func (d *dag) diagnostics() []core.DiagnosticResult {
+func (d *dag) diagnostics(ctx context.Context) []core.DiagnosticResult {
 	var stats Statistics
 	var heads []hash.SHA256Hash
-	_ = d.db.Read(func(tx stoabs.ReadTx) error {
+	_ = d.db.Read(ctx, func(tx stoabs.ReadTx) error {
 		stats = d.statistics(tx)
 		heads = d.heads(tx)
 		return nil
@@ -170,7 +164,7 @@ func (d dag) heads(ctx stoabs.ReadTx) []hash.SHA256Hash {
 	_ = reader.Iterate(func(key stoabs.Key, _ []byte) error {
 		result = append(result, hash.FromSlice(key.Bytes())) // FromSlice() copies
 		return nil
-	})
+	}, stoabs.HashKey{})
 	return result
 }
 
@@ -206,12 +200,11 @@ func (d *dag) visitBetweenLC(tx stoabs.ReadTx, startInclusive uint32, endExclusi
 			visitor(transaction)
 		}
 		return nil
-	})
+	}, true)
 }
 
 func (d *dag) isPresent(tx stoabs.ReadTx, ref hash.SHA256Hash) bool {
-	reader := tx.GetShelfReader(transactionsShelf)
-	return exists(reader, ref)
+	return exists(tx.GetShelfReader(transactionsShelf), ref)
 }
 
 func (d *dag) add(tx stoabs.WriteTx, transactions ...Transaction) error {
@@ -279,12 +272,12 @@ func (d dag) getHighestClockLegacy(tx stoabs.ReadTx) uint32 {
 	reader := tx.GetShelfReader(clockShelf)
 	var clock uint32
 	err := reader.Iterate(func(key stoabs.Key, _ []byte) error {
-		currentClock := bytesToClock(key.Bytes())
+		currentClock := uint32(key.(stoabs.Uint32Key))
 		if currentClock > clock {
 			clock = currentClock
 		}
 		return nil
-	})
+	}, stoabs.Uint32Key(0))
 	if err != nil {
 		log.Logger().Errorf("failed to read clock shelf: %s", err)
 		return 0
