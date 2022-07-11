@@ -73,7 +73,7 @@ func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.T
 }
 
 func (r *VDR) Name() string {
-	return moduleName
+	return ModuleName
 }
 
 func (r *VDR) Config() interface{} {

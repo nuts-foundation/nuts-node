@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 	"github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/nuts-foundation/nuts-node/storage"
 )
 
 const (
@@ -72,18 +73,6 @@ func NewState(db stoabs.KVStore, verifiers ...Verifier) (State, error) {
 	}
 
 	return newState, nil
-}
-
-func initShelfs(db stoabs.KVStore, shelfs ...string) error {
-	// TODO: replace with shelf initialization method that is agnostic to the underlying store. See https://github.com/nuts-foundation/go-stoabs/issues/14
-	for _, shelf := range shelfs {
-		if err := db.WriteShelf(shelf, func(writer stoabs.Writer) error {
-			return nil
-		}); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func (s *state) Add(_ context.Context, transaction Transaction, payload []byte) error {
@@ -302,7 +291,7 @@ func (s *state) Shutdown() error {
 
 func (s *state) Start() error {
 	// initialize all shelfs so that the db cannot return nil readers
-	err := initShelfs(s.db, transactionsShelf, headsShelf, clockShelf, payloadsShelf, ibltShelf, xorShelf)
+	err := storage.InitializeShelfs(s.db, transactionsShelf, headsShelf, clockShelf, payloadsShelf, ibltShelf, xorShelf)
 	if err != nil {
 		return err
 	}

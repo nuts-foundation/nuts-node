@@ -21,20 +21,22 @@ package dag
 import (
 	"errors"
 	"fmt"
-	"github.com/golang/mock/gomock"
 	"testing"
+
+	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestPayloadStore_ReadWrite(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
 	db := createBBoltDB(testDirectory)
 	payloadStore := NewPayloadStore().(*payloadStore)
-	initShelfs(db, payloadsShelf)
+	storage.InitializeShelfs(db, payloadsShelf)
 
 	db.Write(func(tx stoabs.WriteTx) error {
 		payload := []byte("Hello, World!")

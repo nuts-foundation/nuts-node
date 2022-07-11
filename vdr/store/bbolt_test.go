@@ -17,62 +17,82 @@ package store
 
 import (
 	"errors"
+	"path"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/stretchr/testify/assert"
-	"go.etcd.io/bbolt"
-
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-func newBBoltTestStore(t *testing.T) *bboltStore {
-	opts := *bbolt.DefaultOptions
-	opts.NoSync = true
+const moduleName = "VDR"
 
-	testDir := io.TestDirectory(t)
+func newTestStore(t *testing.T) types.Store {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockProvider := storage.NewMockProvider(ctrl)
+	store := NewStore(mockProvider)
 
-	store := NewBBoltStore().(*bboltStore)
-	store.Configure(core.ServerConfig{Datadir: testDir})
+	bboltStore, err := storage.CreateTestBBoltStore(path.Join(io.TestDirectory(t), moduleName, "didstore.db"))
+	if !assert.NoError(t, err) {
+		t.Fatal(err)
+	}
+	mockProvider.EXPECT().GetKVStore(gomock.Any(), gomock.Any()).Return(bboltStore, nil)
+
+	err = store.(core.Configurable).Configure(core.ServerConfig{})
+	if !assert.NoError(t, err) {
+		t.Fatal(err)
+	}
 	return store
 }
 
-func TestBboltStore_Name(t *testing.T) {
-	assert.Equal(t, "BBolt DID Document Store", (&bboltStore{}).Name())
+func TestStore_Name(t *testing.T) {
+	assert.Equal(t, "DID Document Store", (&store{}).Name())
 }
 
-func TestBboltStore_Configure(t *testing.T) {
+func TestStore_Configure(t *testing.T) {
 	t.Run("error - unable to create DB", func(t *testing.T) {
-		store := NewBBoltStore().(core.Configurable)
+		ctrl := gomock.NewController(t)
+		mockProvider := storage.NewMockProvider(ctrl)
+		store := NewStore(mockProvider).(core.Configurable)
+		mockProvider.EXPECT().GetKVStore(gomock.Any(), gomock.Any()).Return(nil, errors.New("custom"))
 
-		err := store.Configure(core.ServerConfig{Datadir: "bbolt_test.go"})
+		err := store.Configure(core.ServerConfig{Datadir: "a_file_not_a_dir.go"})
 
 		assert.Error(t, err)
 	})
 }
-func TestBBoltStore_Start(t *testing.T) {
-	store := NewBBoltStore().(core.Runnable)
 
-	err := store.Start()
+func TestStore_Start(t *testing.T) {
+	store := NewStore(storage.NewTestStorageEngine(io.TestDirectory(t)).GetProvider(moduleName)).(core.Runnable)
+	err := store.(core.Configurable).Configure(core.ServerConfig{})
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	err = store.Start()
 
 	assert.NoError(t, err)
 }
 
-func TestBBoltStore_Shutdown(t *testing.T) {
-	store := NewBBoltStore().(core.Runnable)
+func TestStore_Shutdown(t *testing.T) {
+	store := NewStore(storage.NewTestStorageEngine(io.TestDirectory(t)).GetProvider(moduleName)).(core.Runnable)
 
 	err := store.Shutdown()
 
 	assert.NoError(t, err)
 }
 
-func TestBBoltStore_Write(t *testing.T) {
-	store := newBBoltTestStore(t)
+func TestStore_Write(t *testing.T) {
+	store := newTestStore(t)
 	did1, _ := did.ParseDID("did:nuts:1")
 	doc := did.Document{
 		ID: *did1,
@@ -91,8 +111,8 @@ func TestBBoltStore_Write(t *testing.T) {
 	})
 }
 
-func TestBboltStore_Processed(t *testing.T) {
-	store := newBBoltTestStore(t)
+func TestStore_Processed(t *testing.T) {
+	store := newTestStore(t)
 	did1, _ := did.ParseDID("did:nuts:1")
 	doc := did.Document{
 		ID: *did1,
@@ -125,10 +145,10 @@ func TestBboltStore_Processed(t *testing.T) {
 	})
 }
 
-func TestBBoltStore_Resolve(t *testing.T) {
+func TestStore_Resolve(t *testing.T) {
 	did1, _ := did.ParseDID("did:nuts:1")
 	t.Run("with preloaded data", func(t *testing.T) {
-		store := newBBoltTestStore(t)
+		store := newTestStore(t)
 		doc := did.Document{
 			ID:         *did1,
 			Controller: []did.DID{*did1},
@@ -243,7 +263,7 @@ func TestBBoltStore_Resolve(t *testing.T) {
 	})
 
 	t.Run("returns not found for empty DB", func(t *testing.T) {
-		store := newBBoltTestStore(t)
+		store := newTestStore(t)
 
 		_, _, err := store.Resolve(*did1, nil)
 
@@ -255,8 +275,8 @@ func TestBBoltStore_Resolve(t *testing.T) {
 
 }
 
-func TestBBoltStore_Update(t *testing.T) {
-	store := newBBoltTestStore(t)
+func TestStore_Update(t *testing.T) {
+	store := newTestStore(t)
 	did1, _ := did.ParseDID("did:nuts:1")
 	doc := did.Document{
 		ID:         *did1,
@@ -306,9 +326,9 @@ func TestBBoltStore_Update(t *testing.T) {
 	})
 }
 
-func TestBBoltStore_Parallelism(t *testing.T) {
+func TestStore_Parallelism(t *testing.T) {
 	// This test, when run with -race, assures access to internals is synchronized
-	store := newBBoltTestStore(t)
+	store := newTestStore(t)
 	did1, _ := did.ParseDID("did:nuts:1")
 	did2, _ := did.ParseDID("did:nuts:2")
 	doc := did.Document{
@@ -352,8 +372,8 @@ func TestBBoltStore_Parallelism(t *testing.T) {
 	wg.Wait()
 }
 
-func TestBBoltStore_Iterate(t *testing.T) {
-	store := newBBoltTestStore(t)
+func TestStore_Iterate(t *testing.T) {
+	store := newTestStore(t)
 	did1, _ := did.ParseDID("did:nuts:1")
 	doc := did.Document{
 		ID: *did1,
@@ -402,8 +422,8 @@ func TestBBoltStore_Iterate(t *testing.T) {
 	})
 }
 
-func TestBBoltStore_DeactivatedFilter(t *testing.T) {
-	store := newBBoltTestStore(t)
+func TestStore_DeactivatedFilter(t *testing.T) {
+	store := newTestStore(t)
 	did1, _ := did.ParseDID("did:nuts:1")
 	doc := did.Document{
 		ID: *did1,
