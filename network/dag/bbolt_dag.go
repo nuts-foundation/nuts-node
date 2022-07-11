@@ -309,7 +309,7 @@ func getRoots(lcBucket stoabs.Reader) []hash.SHA256Hash {
 
 func getTransaction(hash hash.SHA256Hash, tx stoabs.ReadTx) (Transaction, error) {
 	transactions := tx.GetShelfReader(transactionsShelf)
-	
+
 	transactionBytes, err := transactions.Get(stoabs.NewHashKey(hash))
 	if err != nil || transactionBytes == nil {
 		return nil, err
