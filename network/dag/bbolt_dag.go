@@ -20,7 +20,6 @@ package dag
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -123,10 +122,7 @@ func (d *dag) diagnostics() []core.DiagnosticResult {
 
 func (d dag) heads(ctx stoabs.ReadTx) []hash.SHA256Hash {
 	result := make([]hash.SHA256Hash, 0)
-	reader, err := ctx.GetShelfReader(headsShelf)
-	if err != nil || reader == nil {
-		return nil
-	}
+	reader := ctx.GetShelfReader(headsShelf)
 	_ = reader.Iterate(func(key stoabs.Key, _ []byte) error {
 		result = append(result, hash.FromSlice(key.Bytes())) // FromSlice() copies
 		return nil
@@ -149,13 +145,7 @@ func (d *dag) findBetweenLC(tx stoabs.ReadTx, startInclusive uint32, endExclusiv
 }
 
 func (d *dag) visitBetweenLC(tx stoabs.ReadTx, startInclusive uint32, endExclusive uint32, visitor Visitor) error {
-	reader, err := tx.GetShelfReader(clockShelf)
-	if err != nil {
-		return err
-	}
-	if reader == nil {
-		return errors.New("shelf does not exist")
-	}
+	reader := tx.GetShelfReader(clockShelf)
 
 	// TODO: update to process in batches
 	return reader.Range(stoabs.Uint32Key(startInclusive), stoabs.Uint32Key(endExclusive), func(_ stoabs.Key, value []byte) error {
@@ -180,10 +170,7 @@ func (d *dag) walk(tx stoabs.ReadTx, startLC uint32, visitor Visitor) error {
 }
 
 func (d *dag) isPresent(tx stoabs.ReadTx, ref hash.SHA256Hash) bool {
-	reader, err := tx.GetShelfReader(transactionsShelf)
-	if err != nil {
-		return false
-	}
+	reader := tx.GetShelfReader(transactionsShelf)
 	return exists(reader, ref)
 }
 
@@ -201,12 +188,11 @@ func (d *dag) add(tx stoabs.WriteTx, transactions ...Transaction) error {
 func (d dag) statistics(tx stoabs.ReadTx) Statistics {
 	transactionNum := uint(0)
 	dbSize := int64(0)
-	reader, _ := tx.GetShelfReader(transactionsShelf)
-	if reader != nil {
-		shelfStats := reader.Stats()
-		transactionNum = shelfStats.NumEntries
-		dbSize = int64(shelfStats.ShelfSize)
-	}
+	reader := tx.GetShelfReader(transactionsShelf)
+	shelfStats := reader.Stats()
+	transactionNum = shelfStats.NumEntries
+	dbSize = int64(shelfStats.ShelfSize)
+
 	return Statistics{
 		NumberOfTransactions: transactionNum,
 		DataSize:             dbSize,
@@ -322,12 +308,8 @@ func getRoots(lcBucket stoabs.Reader) []hash.SHA256Hash {
 }
 
 func getTransaction(hash hash.SHA256Hash, tx stoabs.ReadTx) (Transaction, error) {
-	transactions, err := tx.GetShelfReader(transactionsShelf)
-	// TODO: error handling
-	if err != nil || transactions == nil {
-		return nil, err
-	}
-
+	transactions := tx.GetShelfReader(transactionsShelf)
+	
 	transactionBytes, err := transactions.Get(stoabs.NewHashKey(hash))
 	if err != nil || transactionBytes == nil {
 		return nil, err

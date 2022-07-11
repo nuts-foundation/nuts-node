@@ -24,7 +24,6 @@ import (
 
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
-	"github.com/nuts-foundation/nuts-node/network/log"
 )
 
 type treeStore struct {
@@ -104,18 +103,11 @@ func (store *treeStore) read(tx stoabs.ReadTx) error {
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
 
-	reader, err := tx.GetShelfReader(store.bucketName)
-	if err != nil {
-		return err
-	}
-	if reader == nil {
-		log.Logger().Warnf("tree bucket '%s' does not exist", store.bucketName)
-		return nil
-	}
+	reader := tx.GetShelfReader(store.bucketName)
 
 	// get data
 	rawData := map[uint32][]byte{}
-	err = reader.Iterate(func(k stoabs.Key, v []byte) error {
+	err := reader.Iterate(func(k stoabs.Key, v []byte) error {
 		rawData[keyToClock(k)] = v
 		return nil
 	})
