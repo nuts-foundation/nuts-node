@@ -135,7 +135,7 @@ func TestState_Start(t *testing.T) {
 
 		err := txState.(*state).db.Read(func(tx stoabs.ReadTx) error {
 			for _, shelf := range []string{transactionsShelf, headsShelf, clockShelf, payloadsShelf, ibltShelf, xorShelf} {
-				reader, _ := tx.GetShelfReader(shelf)
+				reader := tx.GetShelfReader(shelf)
 				assert.NotNil(t, reader)
 			}
 			return nil

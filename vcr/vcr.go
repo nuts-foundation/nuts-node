@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"io/fs"
 	"path"
 	"strings"
@@ -59,7 +60,7 @@ var timeFunc = time.Now
 var noSync bool
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
-func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions, jsonldManager jsonld.JSONLD, eventManager events.Event) VCR {
+func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions, jsonldManager jsonld.JSONLD, eventManager events.Event, storageClient storage.Engine) VCR {
 	r := &vcr{
 		config:          DefaultConfig(),
 		docResolver:     docResolver,
@@ -69,6 +70,7 @@ func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyRe
 		network:         network,
 		jsonldManager:   jsonldManager,
 		eventManager:    eventManager,
+		storageClient:   storageClient,
 	}
 
 	return r
@@ -91,6 +93,7 @@ type vcr struct {
 	verifierStore   verifier.Store
 	jsonldManager   jsonld.JSONLD
 	eventManager    events.Event
+	storageClient   storage.Engine
 }
 
 func (c vcr) Issuer() issuer.Issuer {
@@ -113,7 +116,11 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	c.config.datadir = config.Datadir
 
 	issuerStorePath := path.Join(c.config.datadir, "vcr", "issued-credentials.db")
-	c.issuerStore, err = issuer.NewLeiaIssuerStore(issuerStorePath)
+	issuerBackupStore, err := c.storageClient.GetProvider("vcr").GetKVStore("backup-issued-credentials", storage.PersistentStorageClass)
+	if err != nil {
+		return err
+	}
+	c.issuerStore, err = issuer.NewLeiaIssuerStore(issuerStorePath, issuerBackupStore)
 	if err != nil {
 		return err
 	}

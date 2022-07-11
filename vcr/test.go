@@ -20,6 +20,7 @@
 package vcr
 
 import (
+	"github.com/nuts-foundation/nuts-node/storage"
 	"path"
 	"testing"
 
@@ -49,6 +50,7 @@ func NewTestVCRInstance(t *testing.T) *vcr {
 		network.NewTestNetworkInstance(path.Join(testDirectory, "network")),
 		jsonld.NewTestJSONLDManager(t),
 		events.NewTestManager(t),
+		storage.NewTestStorageEngine(testDirectory),
 	).(*vcr)
 
 	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
@@ -88,7 +90,8 @@ func newMockContext(t *testing.T) mockContext {
 	serviceResolver := doc.NewMockServiceResolver(ctrl)
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	eventManager := events.NewTestManager(t)
-	vcr := NewVCRInstance(crypto, docResolver, keyResolver, tx, jsonldManager, eventManager).(*vcr)
+	storageClient := storage.NewTestStorageEngine(testDir)
+	vcr := NewVCRInstance(crypto, docResolver, keyResolver, tx, jsonldManager, eventManager, storageClient).(*vcr)
 	vcr.serviceResolver = serviceResolver
 	vcr.trustConfig = trust.NewConfig(path.Join(testDir, "trust.yaml"))
 	vcr.config.OverrideIssueAllPublic = false
