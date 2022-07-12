@@ -24,9 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"io/fs"
 	"path"
 	"strings"
@@ -216,56 +214,6 @@ func (c *vcr) loadJSONLDConfig() ([]indexConfig, error) {
 	}
 
 	return configs, nil
-}
-
-// registerRevocationReprocessor registers a processor for adding revocations to the issuer store after a backup has been restored
-func (c *vcr) registerRevocationReprocessor() error {
-	stream := events.NewDisposableStream(
-		fmt.Sprintf("%s_%s", events.ReprocessStream, "VCR_issuer"),
-		[]string{
-			fmt.Sprintf("%s.%s", events.ReprocessStream, types.RevocationLDDocumentType),
-		},
-		network.MaxReprocessBufferSize)
-	conn, _, err := c.eventManager.Pool().Acquire(context.Background())
-	if err != nil {
-		return fmt.Errorf("failed to subscribe to REPROCESS event stream: %v", err)
-	}
-
-	err = stream.Subscribe(conn, "VCR_issuer", fmt.Sprintf("%s.%s", events.ReprocessStream, types.RevocationLDDocumentType), c.handleReprocessEvent)
-	if err != nil {
-		return fmt.Errorf("failed to subscribe to REPROCESS event stream: %v", err)
-	}
-	return nil
-}
-
-func (c *vcr) handleReprocessEvent(msg *nats.Msg) {
-	jsonBytes := msg.Data
-	twp := events.TransactionWithPayload{}
-
-	if err := msg.Ack(); err != nil {
-		log.Logger().Errorf("Failed to process %s event: failed to ack message: %v", msg.Subject, err)
-		return
-	}
-	log.Logger().Debugf("Reprocessing VC revocation for issuer store (ref=%s)", twp.Transaction.Ref())
-
-	if err := json.Unmarshal(jsonBytes, &twp); err != nil {
-		log.Logger().Errorf("Failed to process %s event: failed to unmarshall data: %v", msg.Subject, err)
-		return
-	}
-
-	r := credential.Revocation{}
-	if err := json.Unmarshal(twp.Payload, &r); err != nil {
-		log.Logger().Errorf("revocation processing failed for issuer store: %v", err)
-		return
-	}
-
-	// check if we issued this revocation by searching for the privateKey
-	// todo caching
-	if c.keyStore.Exists(twp.Transaction.SigningKeyID()) {
-		if err := c.issuerStore.StoreRevocation(r); err != nil {
-			log.Logger().Errorf("revocation processing failed for issuer store: %v", err)
-		}
-	}
 }
 
 func (c *vcr) initJSONLDIndices() error {
