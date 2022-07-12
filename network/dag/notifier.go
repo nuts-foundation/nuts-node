@@ -328,7 +328,7 @@ func (p *notifier) notifyNow(event Event) error {
 	}
 
 	if finished, err := p.receiver(*dbEvent); err != nil {
-		log.Logger().Errorf("Retry for %s receiver failed (ref=%s)", p.name, dbEvent.Hash.String())
+		log.Logger().Errorf("Retry for %s receiver failed (ref=%s): %v", p.name, dbEvent.Hash.String(), err)
 	} else if finished {
 		return p.Finished(dbEvent.Hash)
 	}
