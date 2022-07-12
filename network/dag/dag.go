@@ -29,6 +29,12 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/log"
 )
 
+// metadataShelf is the name of the shelf that holds metadata.
+const metadataShelf = "metadata"
+
+// numberOfTransactionsKey is the key of the metadata property that holds the number of transactions on the DAG
+const numberOfTransactionsKey = "tx_num"
+
 // transactionsShelf is the name of the shelf that holds the actual transactions.
 const transactionsShelf = "documents"
 
@@ -180,18 +186,26 @@ func (d *dag) add(tx stoabs.WriteTx, transactions ...Transaction) error {
 	return nil
 }
 
-func (d dag) statistics(tx stoabs.ReadTx) Statistics {
-	transactionNum := uint(0)
-	dbSize := int64(0)
-	reader := tx.GetShelfReader(transactionsShelf)
-	shelfStats := reader.Stats()
-	transactionNum = shelfStats.NumEntries
-	dbSize = int64(shelfStats.ShelfSize)
-
-	return Statistics{
-		NumberOfTransactions: transactionNum,
-		DataSize:             dbSize,
+func (d dag) getNumberOfTransactions(tx stoabs.ReadTx) int {
+	value, err := tx.GetShelfReader(metadataShelf).Get(stoabs.BytesKey(numberOfTransactionsKey))
+	if err != nil {
+		log.Logger().Errorf("Unable to retrieve number of transactions: %v", err)
+		return -1
 	}
+	return value
+}
+
+func (d dag) statistics(tx stoabs.ReadTx) Statistics {
+	var result Statistics
+	// Collect number of TXs
+	tx.GetShelfReader()
+	// Collect db size
+	reader := tx.GetShelfReader(transactionsShelf)
+	if reader != nil {
+		shelfStats := reader.Stats()
+		result.DataSize = int64(shelfStats.ShelfSize)
+	}
+	return result
 }
 
 func (d *dag) addSingle(tx stoabs.WriteTx, transaction Transaction) error {
