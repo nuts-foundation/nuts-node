@@ -33,7 +33,7 @@ require (
 	go.etcd.io/bbolt v1.3.6
 	go.uber.org/atomic v1.9.0
 	go.uber.org/goleak v1.1.12
-	google.golang.org/grpc v1.47.0
+	google.golang.org/grpc v1.48.0
 	google.golang.org/protobuf v1.28.0
 	gopkg.in/Regis24GmbH/go-phonetics.v2 v2.0.2
 	gopkg.in/yaml.v2 v2.4.0
