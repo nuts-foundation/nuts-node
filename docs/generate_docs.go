@@ -70,6 +70,32 @@ Nuts CLI Command Reference
 	for _, fileName := range listDirectory(cmdsDirectory) {
 		part := fmt.Sprintf(".. include:: commands/%s\n", fileName)
 		_, _ = indexFile.WriteString(part)
+		_, _ = indexFile.WriteString("\n\n------------\n\n")
+
+		// Rewrite command usage
+		// - Rewrite subsections to bold text
+		const removeStarting = "SEE ALSO"
+		const sectionToRemove = `
+Options inherited from parent commands
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+::
+`
+		absolutePath := path.Join(cmdsDirectory, fileName)
+		cmdHelpBytes, _ := os.ReadFile(absolutePath)
+		cmdHelp := string(cmdHelpBytes)
+
+		// Remove caption "Options inherited from parent commands"
+		cmdHelp = strings.ReplaceAll(cmdHelp, sectionToRemove, "")
+		// Remove See Also
+		seeAlsoIndex := strings.Index(cmdHelp, removeStarting)
+		cmdHelp = cmdHelp[:seeAlsoIndex]
+		cmdHelp = strings.TrimSpace(cmdHelp)
+		// Rewrite subcaptions to bolded text
+		cmdHelp = strings.ReplaceAll(cmdHelp, "Synopsis\n~~~~~~~~\n", "**Synopsis**")
+		cmdHelp = strings.ReplaceAll(cmdHelp, "Options\n~~~~~~~\n", "**Options**")
+
+		_ = os.WriteFile(absolutePath, []byte(cmdHelp), os.ModeType)
 	}
 }
 
