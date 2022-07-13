@@ -72,8 +72,6 @@ type State interface {
 	Statistics(ctx context.Context) Statistics
 	// Verify checks the integrity of the DAG. Should be called when it's loaded, e.g. from disk.
 	Verify() error
-	// Walk visits every node of the DAG, starting at the given Lamport Clock value working its way down each level until every leaf is visited.
-	Walk(ctx context.Context, visitor Visitor, startLC uint32) error
 	// XOR returns the xor of all transaction references between the DAG root and the clock closest to the requested clock value.
 	// This closest clock value is also returned, and is defined as the lowest of:
 	//	- upper-limit of the page that contains the requested clock

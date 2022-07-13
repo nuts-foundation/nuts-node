@@ -297,10 +297,6 @@ func (s *state) Start() error {
 	}
 	s.loadTrees()
 
-	if err := s.Verify(); err != nil {
-		return err
-	}
-
 	// resume all notifiers
 	for _, notifier := range s.notifiers {
 		if err := notifier.Run(); err != nil {
@@ -320,6 +316,8 @@ func (s *state) Statistics(_ context.Context) Statistics {
 	return stats
 }
 
+// Verify can be used to verify the entire DAG.
+// TODO problematic for large sets. Currently not used, see #1216
 func (s *state) Verify() error {
 	return s.db.Read(func(dbTx stoabs.ReadTx) error {
 		transactions, err := s.graph.findBetweenLC(dbTx, 0, math.MaxUint32)
@@ -332,14 +330,6 @@ func (s *state) Verify() error {
 			}
 		}
 		return nil
-	})
-}
-
-func (s *state) Walk(_ context.Context, visitor Visitor, startAt uint32) error {
-	return s.db.Read(func(tx stoabs.ReadTx) error {
-		return s.graph.walk(tx, startAt, func(transaction Transaction) bool {
-			return visitor(transaction)
-		})
 	})
 }
 

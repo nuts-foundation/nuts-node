@@ -106,15 +106,6 @@ func TestState_relayingFuncs(t *testing.T) {
 		assert.Len(t, heads, 1)
 		assert.Equal(t, lastTx.Ref(), heads[0])
 	})
-
-	t.Run("Walk", func(t *testing.T) {
-		var clock uint32
-		err := txState.Walk(ctx, func(transaction Transaction) bool {
-			clock++
-			return transaction.Clock() == clock
-		}, 0)
-		assert.NoError(t, err)
-	})
 }
 
 func TestState_Shutdown(t *testing.T) {
@@ -141,20 +132,6 @@ func TestState_Start(t *testing.T) {
 			return nil
 		})
 		assert.NoError(t, err)
-	})
-	t.Run("error - verifier failed", func(t *testing.T) {
-		ctx := context.Background()
-		txState := createState(t, func(_ stoabs.ReadTx, _ Transaction) error {
-			return errors.New("failed")
-		})
-		tx := CreateTestTransactionWithJWK(0)
-		err := txState.Add(ctx, tx, nil)
-
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "transaction verification failed")
-		present, err := txState.IsPresent(ctx, tx.Ref())
-		assert.NoError(t, err)
-		assert.False(t, present)
 	})
 }
 
