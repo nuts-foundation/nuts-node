@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path"
 	"reflect"
 	"sort"
 	"strings"
@@ -40,16 +39,14 @@ func generateDocs() {
 }
 
 func generateCLICommands(system *core.System) {
-	cliDirectory := "docs/pages/deployment/cli"
+	const targetFile = "docs/pages/deployment/cli-reference.rst"
+	const base = `.. _nuts-cli-reference:
 
-	// Generate index.rst
-	const base = `.. _nuts-cli-command-reference:
-
-Nuts CLI Command Reference
-**************************
+CLI Command Reference
+*********************
 
 `
-	indexFile, _ := os.OpenFile(path.Join(cliDirectory, "index.rst"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
+	indexFile, _ := os.OpenFile(targetFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
 	defer indexFile.Close()
 	_, _ = indexFile.WriteString(base)
 
