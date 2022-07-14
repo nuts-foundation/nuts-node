@@ -22,7 +22,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"math"
 	"sort"
 
 	"github.com/nuts-foundation/go-stoabs"
@@ -173,10 +172,6 @@ func (d *dag) visitBetweenLC(tx stoabs.ReadTx, startInclusive uint32, endExclusi
 		}
 		return nil
 	})
-}
-
-func (d *dag) walk(tx stoabs.ReadTx, startLC uint32, visitor Visitor) error {
-	return d.visitBetweenLC(tx, startLC, math.MaxUint32, visitor)
 }
 
 func (d *dag) isPresent(tx stoabs.ReadTx, ref hash.SHA256Hash) bool {

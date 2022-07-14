@@ -152,7 +152,7 @@ func TestBBoltDAG_Add(t *testing.T) {
 
 		visitor := trackingVisitor{}
 		err := graph.db.Read(func(dbTx stoabs.ReadTx) error {
-			return graph.walk(dbTx, 0, visitor.Accept)
+			return graph.visitBetweenLC(dbTx, 0, 1, visitor.Accept)
 		})
 		if !assert.NoError(t, err) {
 			return
@@ -308,61 +308,6 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-}
-
-func TestBBoltDAG_Walk(t *testing.T) {
-	t.Run("ok - empty graph", func(t *testing.T) {
-		graph := CreateDAG(t)
-		visitor := trackingVisitor{}
-
-		err := graph.db.Read(func(tx stoabs.ReadTx) error {
-			return graph.walk(tx, 0, visitor.Accept)
-		})
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		assert.Empty(t, visitor.transactions)
-	})
-
-	t.Run("ok - start at root for empty hash", func(t *testing.T) {
-		graph := CreateDAG(t)
-		visitor := trackingVisitor{}
-		transaction := CreateTestTransactionWithJWK(1)
-		addTx(t, graph, transaction)
-
-		err := graph.db.Read(func(tx stoabs.ReadTx) error {
-			return graph.walk(tx, 0, visitor.Accept)
-		})
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		assert.Len(t, visitor.transactions, 1)
-	})
-
-	t.Run("ok - TXs processing in right order", func(t *testing.T) {
-		graph := CreateDAG(t)
-		visitor := trackingVisitor{}
-		A := CreateTestTransactionWithJWK(1)
-		B := CreateTestTransactionWithJWK(2, A)
-		C := CreateTestTransactionWithJWK(3, A)
-		D := CreateTestTransactionWithJWK(4, C, B)
-		addTx(t, graph, A, B, C, D)
-
-		err := graph.db.Read(func(tx stoabs.ReadTx) error {
-			return graph.walk(tx, 0, visitor.Accept)
-		})
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		assert.Len(t, visitor.transactions, 4)
-		assert.Equal(t, A.Ref().String(), visitor.transactions[0].Ref().String())
-		// the smallest byte value should have been processed first
-		assert.True(t, visitor.transactions[1].Ref().Compare(visitor.transactions[2].Ref()) <= 0)
-		assert.Equal(t, D.Ref().String(), visitor.transactions[3].Ref().String())
-	})
 }
 
 func Test_parseHashList(t *testing.T) {
