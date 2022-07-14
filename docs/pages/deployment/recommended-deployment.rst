@@ -36,11 +36,12 @@ It lists the interfaces of the Nuts node, who uses them and how they should be s
     * Clustering support
 
 Nuts Node
-^^^^^^^^^^
+^^^^^^^^^
 
 Server that implements the Nuts specification that connects to the Nuts network. It will usually run as Docker container or Kubernetes pod.
 
-Interfaces/Endpoints:
+Interfaces/Endpoints
+--------------------
 
 * **HTTP /internal**: for managing everything related to DIDs, VCs and the Nuts Node itself. Very sensitive endpoints with no additional built-in security, so care should be taken that no unauthorized parties can access it.
   Since it binds to the shared HTTP interface by default (port ``1323``),
@@ -63,6 +64,12 @@ Interfaces/Endpoints:
 
   *Security*: HTTPS with server- and client certificates (mTLS) according to network trust anchors (on proxy). Monitor traffic to detect attacks.
 
+* **gRPC**: for communicating with other Nuts nodes according to the network protocol. Uses HTTP/2 as transport, both outbound and inbound.
+
+  *Users*: Nuts nodes of other SPs.
+
+  *Security*: HTTPS with server- and client certificates (mTLS) according to network trust anchors. This is provided by the Nuts node.
+
 * **HTTP /status**: for inspecting the health of the server, returns ``OK`` if healthy.
 
   *Users*: monitoring tooling.
@@ -81,13 +88,20 @@ Interfaces/Endpoints:
 
   *Security*: Not strictly required, but advised to restrict access.
 
-* **gRPC**: for communicating with other Nuts nodes according to the network protocol. Uses HTTP/2 as transport, both outbound and inbound.
-
-  *Users*: Nuts nodes of other SPs.
-
-  *Security*: HTTPS with server- and client certificates (mTLS) according to network trust anchors. This is provided by the Nuts node.
-
 * **stdout**: the server logs to standard out, which can be configured to output in JSON format for integration with existing log tooling.
+
+Subdomains
+----------
+
+There are several endpoints that need to be accessed by external systems.
+You typically configure 2 subdomains for these, given `example.com` and the acceptance environment:
+
+* `nuts-acc.example.com` for traffic between nodes:
+  * HTTP traffic to `/n2n`
+  * gRPC traffic. gRPC will have to be bound on a separate port, e.g. `5555` (default).
+* `nuts-public-acc.example.com` for HTTP traffic to `/public`
+
+These exact subdomain names are by no means required and can be adjusted to your organization's requirements.
 
 Reverse Proxy
 ^^^^^^^^^^^^^

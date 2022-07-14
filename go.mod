@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/avast/retry-go/v4 v4.1.0
-	github.com/cbroglie/mustache v1.3.1
+	github.com/cbroglie/mustache v1.4.0
 	github.com/deepmap/oapi-codegen v1.11.0
 	github.com/golang/mock v1.6.0
 	github.com/goodsign/monday v1.0.0
@@ -33,7 +33,7 @@ require (
 	go.etcd.io/bbolt v1.3.6
 	go.uber.org/atomic v1.9.0
 	go.uber.org/goleak v1.1.12
-	google.golang.org/grpc v1.47.0
+	google.golang.org/grpc v1.48.0
 	google.golang.org/protobuf v1.28.0
 	gopkg.in/Regis24GmbH/go-phonetics.v2 v2.0.2
 	gopkg.in/yaml.v2 v2.4.0
