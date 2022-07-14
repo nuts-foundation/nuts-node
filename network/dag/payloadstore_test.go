@@ -109,7 +109,6 @@ func TestPayloadStore_writePayload(t *testing.T) {
 		assert.EqualError(t, err, "custom")
 	})
 }
-
 func TestPayloadStore_isPresent(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

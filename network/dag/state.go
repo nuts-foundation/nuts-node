@@ -282,7 +282,13 @@ func (s *state) IBLT(_ context.Context, reqClock uint32) (tree.Iblt, uint32) {
 
 // lamportClock returns the highest clock value in the DAG.
 func (s *state) lamportClock() uint32 {
-	return s.graph.getHighestClock()
+	lc := uint32(0)
+	// errors are logged at the lower level
+	_ = s.db.Read(func(tx stoabs.ReadTx) error {
+		lc = s.graph.getHighestClockValue(tx)
+		return nil
+	})
+	return lc
 }
 
 func (s *state) Shutdown() error {

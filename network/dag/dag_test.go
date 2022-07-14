@@ -309,9 +309,12 @@ func TestDAG_getHighestClock(t *testing.T) {
 	t.Run("empty DAG", func(t *testing.T) {
 		graph := CreateDAG(t)
 
-		clock := graph.getHighestClock()
+		_ = graph.db.Read(func(tx stoabs.ReadTx) error {
+			clock := graph.getHighestClockValue(tx)
 
-		assert.Equal(t, uint32(0), clock)
+			assert.Equal(t, uint32(0), clock)
+			return nil
+		})
 	})
 	t.Run("multiple transaction", func(t *testing.T) {
 		graph := CreateDAG(t)
@@ -320,9 +323,12 @@ func TestDAG_getHighestClock(t *testing.T) {
 		tx2, _, _ := CreateTestTransaction(7, tx1)
 		addTx(t, graph, tx0, tx1, tx2)
 
-		clock := graph.getHighestClock()
+		_ = graph.db.Read(func(tx stoabs.ReadTx) error {
+			clock := graph.getHighestClockValue(tx)
 
-		assert.Equal(t, uint32(2), clock)
+			assert.Equal(t, uint32(2), clock)
+			return nil
+		})
 	})
 	t.Run("out of order transactions", func(t *testing.T) {
 		graph := CreateDAG(t)
@@ -332,8 +338,11 @@ func TestDAG_getHighestClock(t *testing.T) {
 		addTx(t, graph, tx0, tx2)
 		addTx(t, graph, tx1)
 
-		clock := graph.getHighestClock()
+		_ = graph.db.Read(func(tx stoabs.ReadTx) error {
+			clock := graph.getHighestClockValue(tx)
 
-		assert.Equal(t, uint32(2), clock)
+			assert.Equal(t, uint32(2), clock)
+			return nil
+		})
 	})
 }

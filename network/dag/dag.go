@@ -35,6 +35,9 @@ const metadataShelf = "metadata"
 // numberOfTransactionsKey is the key of the metadata property that holds the number of transactions on the DAG
 const numberOfTransactionsKey = "tx_num"
 
+// highestClockValue is the key of the metadata property that holds the highest lamport clock value of all transactions on the DAG
+const highestClockValue = "lc_high"
+
 // transactionsShelf is the name of the shelf that holds the actual transactions.
 const transactionsShelf = "documents"
 
@@ -176,35 +179,106 @@ func (d *dag) isPresent(tx stoabs.ReadTx, ref hash.SHA256Hash) bool {
 }
 
 func (d *dag) add(tx stoabs.WriteTx, transactions ...Transaction) error {
+	highestLC := d.getHighestClockValue(tx)
+
 	for _, transaction := range transactions {
 		if transaction != nil {
 			if err := d.addSingle(tx, transaction); err != nil {
 				return err
 			}
+			if transaction.Clock() > highestLC {
+				highestLC = transaction.Clock()
+			}
 		}
 	}
-	return nil
+
+	// update highest LC
+	if err := d.setHighestClockValue(tx, highestLC); err != nil {
+		return err
+	}
+
+	// update TX count
+	txCount := d.getNumberOfTransactions(tx) + uint64(len(transactions))
+	return d.setNumberOfTransactions(tx, txCount)
 }
 
-func (d dag) getNumberOfTransactions(tx stoabs.ReadTx) int {
+func (d dag) getNumberOfTransactions(tx stoabs.ReadTx) uint64 {
 	value, err := tx.GetShelfReader(metadataShelf).Get(stoabs.BytesKey(numberOfTransactionsKey))
 	if err != nil {
 		log.Logger().Errorf("Unable to retrieve number of transactions: %v", err)
-		return -1
+		return 0
 	}
-	return value
+	if value != nil {
+		return bytesToCount(value)
+	}
+	return 0
+}
+
+func (d dag) setNumberOfTransactions(tx stoabs.WriteTx, count uint64) error {
+	writer, err := tx.GetShelfWriter(metadataShelf)
+	if err != nil {
+		return err
+	}
+	bytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(bytes[:], count)
+
+	return writer.Put(stoabs.BytesKey(numberOfTransactionsKey), bytes)
+}
+
+func (d dag) getHighestClockValue(tx stoabs.ReadTx) uint32 {
+	value, err := tx.GetShelfReader(metadataShelf).Get(stoabs.BytesKey(highestClockValue))
+	if err != nil {
+		log.Logger().Errorf("Unable to retrieve highest LC value: %v", err)
+		return 0
+	}
+
+	if value != nil {
+		return bytesToClock(value)
+	}
+
+	// backwards compatibility
+	// remove after V5 or V6 release?
+	return d.getHighestClockLegacy()
+}
+
+// getHighestClockLegacy is used for backwards compatibility
+// remove after V5 or V6 release?
+func (d dag) getHighestClockLegacy() uint32 {
+	var clock uint32
+	err := d.db.ReadShelf(clockShelf, func(reader stoabs.Reader) error {
+		return reader.Iterate(func(key stoabs.Key, _ []byte) error {
+			currentClock := bytesToClock(key.Bytes())
+			if currentClock > clock {
+				clock = currentClock
+			}
+			return nil
+		})
+	})
+	if err != nil {
+		log.Logger().Errorf("failed to read clock shelf: %s", err)
+		return 0
+	}
+	return clock
+}
+
+func (d dag) setHighestClockValue(tx stoabs.WriteTx, count uint32) error {
+	writer, err := tx.GetShelfWriter(metadataShelf)
+	if err != nil {
+		return err
+	}
+	bytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(bytes[:], count)
+
+	return writer.Put(stoabs.BytesKey(highestClockValue), bytes)
 }
 
 func (d dag) statistics(tx stoabs.ReadTx) Statistics {
 	var result Statistics
-	// Collect number of TXs
-	tx.GetShelfReader()
-	// Collect db size
 	reader := tx.GetShelfReader(transactionsShelf)
-	if reader != nil {
-		shelfStats := reader.Stats()
-		result.DataSize = int64(shelfStats.ShelfSize)
-	}
+	shelfStats := reader.Stats()
+	result.DataSize = int64(shelfStats.ShelfSize)
+	result.NumberOfTransactions = uint(d.getNumberOfTransactions(tx))
+
 	return result
 }
 
@@ -272,27 +346,12 @@ func indexClockValue(tx stoabs.WriteTx, transaction Transaction) error {
 	return nil
 }
 
-// returns the highest clock for which a transaction is present in the DAG
-func (d dag) getHighestClock() uint32 {
-	var clock uint32
-	err := d.db.ReadShelf(clockShelf, func(reader stoabs.Reader) error {
-		return reader.Iterate(func(key stoabs.Key, _ []byte) error {
-			currentClock := bytesToClock(key.Bytes())
-			if currentClock > clock {
-				clock = currentClock
-			}
-			return nil
-		})
-	})
-	if err != nil {
-		log.Logger().Errorf("failed to read clock shelf: %s", err)
-		return 0
-	}
-	return clock
-}
-
 func bytesToClock(clockBytes []byte) uint32 {
 	return binary.BigEndian.Uint32(clockBytes)
+}
+
+func bytesToCount(clockBytes []byte) uint64 {
+	return binary.BigEndian.Uint64(clockBytes)
 }
 
 func getBuckets(tx stoabs.WriteTx) (transactions, lc, heads stoabs.Writer, err error) {
