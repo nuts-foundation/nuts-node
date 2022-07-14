@@ -21,10 +21,8 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/spf13/cobra/doc"
 	"os"
 	"path"
-	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -43,20 +41,7 @@ func generateDocs() {
 
 func generateCLICommands(system *core.System) {
 	cliDirectory := "docs/pages/deployment/cli"
-	cmdsDirectory := path.Join(cliDirectory, "commands")
-	// Clean up first
-	for _, fileName := range listDirectory(cmdsDirectory) {
-		_ = os.Remove(filepath.Join(cmdsDirectory, fileName))
-	}
-	// Generate; see https://chromium.googlesource.com/external/github.com/spf13/cobra/+/HEAD/doc/rest_docs.md
-	linkHandler := func(name, ref string) string {
-		return fmt.Sprintf(":ref:`%s <%s>`", name, ref)
-	}
-	prepender := func(s string) string { return "" }
-	err := doc.GenReSTTreeCustom(cmd.CreateCommand(system), cmdsDirectory, prepender, linkHandler)
-	if err != nil {
-		panic(err)
-	}
+
 	// Generate index.rst
 	const base = `.. _nuts-cli-command-reference:
 
@@ -64,38 +49,13 @@ Nuts CLI Command Reference
 **************************
 
 `
-	indexFile, err := os.OpenFile(path.Join(cliDirectory, "index.rst"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
+	indexFile, _ := os.OpenFile(path.Join(cliDirectory, "index.rst"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
 	defer indexFile.Close()
 	_, _ = indexFile.WriteString(base)
-	for _, fileName := range listDirectory(cmdsDirectory) {
-		part := fmt.Sprintf(".. include:: commands/%s\n", fileName)
-		_, _ = indexFile.WriteString(part)
-		_, _ = indexFile.WriteString("\n\n------------\n\n")
 
-		// Rewrite command usage
-		// - Rewrite subsections to bold text
-		const removeStarting = "SEE ALSO"
-		const sectionToRemove = `
-Options inherited from parent commands
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-::
-`
-		absolutePath := path.Join(cmdsDirectory, fileName)
-		cmdHelpBytes, _ := os.ReadFile(absolutePath)
-		cmdHelp := string(cmdHelpBytes)
-
-		// Remove caption "Options inherited from parent commands"
-		cmdHelp = strings.ReplaceAll(cmdHelp, sectionToRemove, "")
-		// Remove See Also
-		seeAlsoIndex := strings.Index(cmdHelp, removeStarting)
-		cmdHelp = cmdHelp[:seeAlsoIndex]
-		cmdHelp = strings.TrimSpace(cmdHelp)
-		// Rewrite subcaptions to bolded text
-		cmdHelp = strings.ReplaceAll(cmdHelp, "Synopsis\n~~~~~~~~\n", "**Synopsis**")
-		cmdHelp = strings.ReplaceAll(cmdHelp, "Options\n~~~~~~~\n", "**Options**")
-
-		_ = os.WriteFile(absolutePath, []byte(cmdHelp), os.ModeType)
+	err := GenerateCommandDocs(cmd.CreateCommand(system), indexFile)
+	if err != nil {
+		panic(err)
 	}
 }
 
