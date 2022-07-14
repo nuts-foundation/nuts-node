@@ -182,11 +182,3 @@ func generateRstTable(fileName string, values [][]rstValue) {
 		panic(err)
 	}
 }
-
-func listDirectory(targetDirectory string) []string {
-	d, _ := os.Open(targetDirectory)
-	defer d.Close()
-	names, _ := d.Readdirnames(-1)
-	sort.Strings(names)
-	return names
-}
