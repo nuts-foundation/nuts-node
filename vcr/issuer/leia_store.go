@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/nuts-node/vcr/log"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -200,6 +201,7 @@ func (s leiaIssuerStore) handleRestore(collection leia.Collection, backupShelf s
 	}
 
 	if !storePresent {
+		log.Logger().Infof("Missing index for %s, rebuilding", backupShelf)
 		// empty node, backup has been restored, refill store
 		return s.backupStore.ReadShelf(backupShelf, func(reader stoabs.Reader) error {
 			return reader.Iterate(func(key stoabs.Key, value []byte) error {
@@ -208,10 +210,12 @@ func (s leiaIssuerStore) handleRestore(collection leia.Collection, backupShelf s
 		})
 	}
 
+	log.Logger().Infof("Missing store for %s, creating from index", backupShelf)
+
 	// else !backupPresent, process per 100
 	query := leia.New(leia.NotNil(leia.NewJSONPath(jsonSearchPath)))
 
-	limit := 100
+	const limit = 100
 	type refDoc struct {
 		ref leia.Reference
 		doc leia.Document
@@ -228,10 +232,9 @@ func (s leiaIssuerStore) handleRestore(collection leia.Collection, backupShelf s
 					return err
 				}
 			}
-			return nil
-		}, stoabs.AfterCommit(func() {
 			set = make([]refDoc, 0)
-		}))
+			return nil
+		})
 	}
 
 	err := collection.Iterate(query, func(ref leia.Reference, value []byte) error {
@@ -255,11 +258,10 @@ func (s leiaIssuerStore) backupStorePresent(backupShelf string) bool {
 	backupPresent := false
 
 	_ = s.backupStore.ReadShelf(backupShelf, func(reader stoabs.Reader) error {
-		shelfStats := reader.Stats()
-		if shelfStats.NumEntries > 0 {
+		return reader.Iterate(func(key stoabs.Key, value []byte) error {
 			backupPresent = true
-		}
-		return nil
+			return nil
+		})
 	})
 
 	return backupPresent
