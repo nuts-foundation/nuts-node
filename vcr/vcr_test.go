@@ -21,6 +21,7 @@ package vcr
 
 import (
 	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"os"
 	"path"
 	"strings"
@@ -40,9 +41,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
-	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -50,7 +49,8 @@ import (
 func TestVCR_Start(t *testing.T) {
 
 	t.Run("error - creating db", func(t *testing.T) {
-		instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil).(*vcr)
+		testDirectory := io.TestDirectory(t)
+		instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory)).(*vcr)
 
 		_ = instance.Configure(core.ServerConfig{Datadir: "test"})
 		err := instance.Start()
@@ -73,6 +73,7 @@ func TestVCR_Start(t *testing.T) {
 			network.NewTestNetworkInstance(path.Join(testDirectory, "network")),
 			jsonld.NewTestJSONLDManager(t),
 			events.NewTestManager(t),
+			storage.NewTestStorageEngine(testDirectory),
 		).(*vcr)
 		if err := instance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
 			t.Fatal(err)
@@ -285,23 +286,4 @@ func TestWhitespaceOrExactTokenizer(t *testing.T) {
 }
 
 func TestResolveNutsCommServiceOwner(t *testing.T) {
-}
-
-func validNutsOrganizationCredential() *vc.VerifiableCredential {
-	uri := ssi.MustParseURI(credential.NutsOrganizationCredentialType)
-	issuer := ssi.MustParseURI(vdr.TestDIDA.String())
-
-	var credentialSubject = make(map[string]interface{})
-	credentialSubject["id"] = vdr.TestDIDB.String()
-	credentialSubject["organization"] = map[string]interface{}{
-		"name": "Because we care B.V.",
-		"city": "EIbergen",
-	}
-
-	return &vc.VerifiableCredential{
-		Type:              []ssi.URI{uri},
-		Issuer:            issuer,
-		IssuanceDate:      time.Now(),
-		CredentialSubject: []interface{}{credentialSubject},
-	}
 }

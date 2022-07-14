@@ -45,10 +45,7 @@ func (store payloadStore) isPayloadPresent(tx stoabs.ReadTx, payloadHash hash.SH
 }
 
 func (store payloadStore) readPayload(tx stoabs.ReadTx, payloadHash hash.SHA256Hash) ([]byte, error) {
-	reader, err := tx.GetShelfReader(payloadsShelf)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read payload (hash=%s): %w", payloadHash, err)
-	}
+	reader := tx.GetShelfReader(payloadsShelf)
 	data, err := reader.Get(stoabs.NewHashKey(payloadHash))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read payload (hash=%s): %w", payloadHash, err)

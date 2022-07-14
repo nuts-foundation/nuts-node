@@ -300,6 +300,9 @@ func TestSubscriber_Notify(t *testing.T) {
 		event := Event{Hash: hash.EmptyHash(), Transaction: transaction}
 		s := NewNotifier(t.Name(), counter.callback, WithPersistency(kvStore)).(*notifier)
 		defer s.Close()
+		kvStore.Write(func(tx stoabs.WriteTx) error {
+			return s.Save(tx, event)
+		})
 
 		s.Notify(event)
 
@@ -310,7 +313,9 @@ func TestSubscriber_Notify(t *testing.T) {
 			e, err := s.readEvent(reader, hash.EmptyHash())
 
 			assert.NoError(t, err)
-			assert.Equal(t, 1, e.Retries)
+			if assert.NotNil(t, e) {
+				assert.Equal(t, 1, e.Retries)
+			}
 
 			return nil
 		})

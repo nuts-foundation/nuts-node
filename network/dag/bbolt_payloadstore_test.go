@@ -71,19 +71,9 @@ func TestPayloadStore_readPayload(t *testing.T) {
 	reader := stoabs.NewMockReader(ctrl)
 	payloadStore := NewPayloadStore().(*payloadStore)
 
-	t.Run("error - db failure", func(t *testing.T) {
-		tx.EXPECT().GetShelfReader(payloadsShelf).Return(reader, errors.New("custom"))
-		h := hash.FromSlice([]byte("test read"))
-
-		data, err := payloadStore.readPayload(tx, h)
-
-		assert.Nil(t, data)
-		assert.EqualError(t, err, fmt.Sprintf("failed to read payload (hash=%s): custom", h))
-	})
-
 	t.Run("error - read failure", func(t *testing.T) {
 		h := hash.FromSlice([]byte("test read"))
-		tx.EXPECT().GetShelfReader(payloadsShelf).Return(reader, nil)
+		tx.EXPECT().GetShelfReader(payloadsShelf).Return(reader)
 		reader.EXPECT().Get(gomock.Any()).Return([]byte("not nil"), errors.New("custom"))
 
 		data, err := payloadStore.readPayload(tx, h)
@@ -125,10 +115,12 @@ func TestPayloadStore_isPresent(t *testing.T) {
 	defer ctrl.Finish()
 	tx := stoabs.NewMockReadTx(ctrl)
 	payloadStore := NewPayloadStore().(*payloadStore)
+	reader := stoabs.NewMockReader(ctrl)
 
 	t.Run("error - readPayload failure", func(t *testing.T) {
 		h := hash.FromSlice([]byte("test isPresent"))
-		tx.EXPECT().GetShelfReader(payloadsShelf).Return(nil, errors.New("custom"))
+		tx.EXPECT().GetShelfReader(payloadsShelf).Return(reader)
+		reader.EXPECT().Get(stoabs.NewHashKey(h)).Return(nil, errors.New("error"))
 
 		present := payloadStore.isPayloadPresent(tx, h)
 

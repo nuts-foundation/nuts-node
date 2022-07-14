@@ -1,14 +1,17 @@
 /*
  * Nuts node
  * Copyright (C) 2021 Nuts community
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
@@ -219,10 +222,7 @@ func (s *store) writeDocument(tx stoabs.WriteTx, document did.Document, metadata
 
 func (s *store) Processed(hash hash.SHA256Hash) (processed bool, txErr error) {
 	txErr = s.db.Read(func(tx stoabs.ReadTx) error {
-		transactionIndexReader, err := tx.GetShelfReader(transactionIndexShelf)
-		if err != nil {
-			return err
-		}
+		transactionIndexReader := tx.GetShelfReader(transactionIndexShelf)
 
 		ref, err := transactionIndexReader.Get(stoabs.NewHashKey(hash))
 		if err != nil {
@@ -241,18 +241,9 @@ func (s *store) Processed(hash hash.SHA256Hash) (processed bool, txErr error) {
 func (s *store) Iterate(fn vdr.DocIterator) error {
 	return s.db.Read(func(tx stoabs.ReadTx) error {
 		// get shelf readers
-		latestReader, err := tx.GetShelfReader(latestShelf)
-		if err != nil {
-			return err
-		}
-		metadataReader, err := tx.GetShelfReader(metadataShelf)
-		if err != nil {
-			return err
-		}
-		documentReader, err := tx.GetShelfReader(documentShelf)
-		if err != nil {
-			return err
-		}
+		latestReader := tx.GetShelfReader(latestShelf)
+		metadataReader := tx.GetShelfReader(metadataShelf)
+		documentReader := tx.GetShelfReader(documentShelf)
 
 		return latestReader.Iterate(func(didKey stoabs.Key, metadataRecordRef []byte) error {
 			metadataRecordBytes, err := metadataReader.Get(stoabs.BytesKey(metadataRecordRef))
@@ -280,24 +271,15 @@ func (s *store) Iterate(fn vdr.DocIterator) error {
 func (s *store) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (returnDocument *did.Document, returnMetadata *vdr.DocumentMetadata, txErr error) {
 	txErr = s.db.Read(func(tx stoabs.ReadTx) error {
 		// get shelf readers
-		latestReader, err := tx.GetShelfReader(latestShelf)
-		if err != nil {
-			return vdr.ErrNotFound
-		}
-		latestRefBytes, err := latestReader.Get(stoabs.BytesKey(id.String()))
+		latestReader := tx.GetShelfReader(latestShelf)
+		latestRefBytes, _ := latestReader.Get(stoabs.BytesKey(id.String()))
 		if latestRefBytes == nil {
 			return vdr.ErrNotFound
 		}
 		latestMetadataRef := latestRefBytes
 
-		metadataReader, err := tx.GetShelfReader(metadataShelf)
-		if err != nil {
-			return err
-		}
-		documentReader, err := tx.GetShelfReader(documentShelf)
-		if err != nil {
-			return err
-		}
+		metadataReader := tx.GetShelfReader(metadataShelf)
+		documentReader := tx.GetShelfReader(documentShelf)
 
 		// loop over all versions
 		for latestMetadataRef != nil {

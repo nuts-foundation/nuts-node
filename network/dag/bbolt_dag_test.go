@@ -213,7 +213,7 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 	C := CreateTestTransactionWithJWK(2, B)
 
 	assertRefs := func(t *testing.T, tx stoabs.ReadTx, clock uint32, expected []hash.SHA256Hash) {
-		lcBucket, _ := tx.GetShelfReader(clockShelf)
+		lcBucket := tx.GetShelfReader(clockShelf)
 
 		ref, _ := lcBucket.Get(stoabs.Uint32Key(clock))
 		if !assert.NotNil(t, ref) {
@@ -234,7 +234,7 @@ func TestNewBBoltDAG_addToLCIndex(t *testing.T) {
 		}
 	}
 	assertClock := func(t *testing.T, tx stoabs.ReadTx, clock uint32, expected hash.SHA256Hash) {
-		lcBucket, _ := tx.GetShelfReader(clockShelf)
+		lcBucket := tx.GetShelfReader(clockShelf)
 
 		hashBytes, _ := lcBucket.Get(stoabs.Uint32Key(clock))
 		if !assert.NotNil(t, hashBytes) {
