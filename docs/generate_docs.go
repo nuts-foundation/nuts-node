@@ -33,11 +33,30 @@ import (
 
 func generateDocs() {
 	system := cmd.CreateSystem()
-	generateClientOptions(system)
+	generateClientOptions()
 	generateServerOptions(system)
+	generateCLICommands(system)
 }
 
-func generateClientOptions(system *core.System) {
+func generateCLICommands(system *core.System) {
+	const targetFile = "docs/pages/deployment/cli-reference.rst"
+	const base = `.. _nuts-cli-reference:
+
+CLI Command Reference
+*********************
+
+`
+	indexFile, _ := os.OpenFile(targetFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
+	defer indexFile.Close()
+	_, _ = indexFile.WriteString(base)
+
+	err := GenerateCommandDocs(cmd.CreateCommand(system), indexFile)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func generateClientOptions() {
 	flags := make(map[string]*pflag.FlagSet)
 	flags[""] = core.ClientConfigFlags()
 	generatePartitionedConfigOptionsDocs("docs/pages/client_options.rst", flags)

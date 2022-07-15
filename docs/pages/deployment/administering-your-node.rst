@@ -33,6 +33,8 @@ Or inside a running Nuts docker container (against the running Nuts node):
 
     $ docker exec nuts-container-name nuts network list
 
+See :ref:`nuts-cli-reference` for the available commands.
+
 .. marker-for-readme
 
 The following options can be supplied when running CLI commands:
