@@ -32,16 +32,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFlagSet(t *testing.T) {
-	t.Run("it returns something", func(t *testing.T) {
-		flagSet := FlagSet()
-		assert.NotNil(t, flagSet)
-		value, err := flagSet.GetBool("vcr.overrideissueallpublic")
-		assert.NoError(t, err)
-		assert.True(t, value)
-	})
-}
-
 // TestCmd test the nuts vcr * commands
 func TestCmd(t *testing.T) {
 	didString := "did:nuts:1"
