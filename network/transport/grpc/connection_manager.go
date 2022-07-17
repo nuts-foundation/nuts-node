@@ -245,7 +245,7 @@ func (s grpcConnectionManager) RegisterService(desc *grpc.ServiceDesc, impl inte
 // openOutboundStreams instructs the protocols that support gRPC streaming to open their streams.
 // The resulting grpc.ClientStream(s) must be registered on the Connection.
 // If an error is returned the connection should be closed.
-func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcConn *grpc.ClientConn) error {
+func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcConn *grpc.ClientConn, backoff Backoff) error {
 	md, err := s.constructMetadata()
 	if err != nil {
 		return err
@@ -286,6 +286,8 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 	if protocolNum == 0 {
 		return fmt.Errorf("could not use any of the supported protocols to communicate with peer (id=%s)", connection.Peer())
 	}
+	// Connection is OK, reset backoff it can immediately try reconnecting when it disconnects
+	backoff.Reset(0)
 	// Function must block until streams are closed or disconnect() is called.
 	connection.waitUntilDisconnected()
 	_ = grpcConn.Close()
@@ -449,7 +451,7 @@ func (s *grpcConnectionManager) startTracking(address string, connection Connect
 		connectionTimeout: s.config.connectionTimeout,
 	}
 	connection.startConnecting(cfg, backoff, func(grpcConn *grpc.ClientConn) bool {
-		err := s.openOutboundStreams(connection, grpcConn)
+		err := s.openOutboundStreams(connection, grpcConn, backoff)
 		if err != nil {
 			log.Logger().Errorf("Error while setting up outbound gRPC streams, disconnecting (peer=%s): %v", connection.Peer(), err)
 			connection.disconnect()

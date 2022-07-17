@@ -411,7 +411,7 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 
 		connection, _ := client.connections.getOrRegister(context.Background(), transport.Peer{Address: "server"}, client.dialer)
 		connection.startConnecting(connectorConfig{connectionTimeout: 5000 * time.Millisecond}, defaultBackoff(), func(grpcConn *grpc.ClientConn) bool {
-			err := client.openOutboundStreams(connection, grpcConn)
+			err := client.openOutboundStreams(connection, grpcConn, nil)
 			capturedError.Store(err)
 			waiter.Done()
 			connection.stopConnecting()
@@ -475,7 +475,7 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 		assert.ErrorIs(t, err, ErrNodeDIDAuthFailed)
 		assert.Nil(t, clientStream)
 	})
-	t.Run("outbound stream observer is passed populated peer after disconnect", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		// Bug: peer ID is empty when race condition with disconnect() and notify observers occurs.
 		// See https://github.com/nuts-foundation/nuts-node/issues/978
 		serverCfg, serverListener := newBufconnConfig("server")
@@ -507,8 +507,9 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 			}
 		})
 
+		backoff := &trackingBackoff{mux: &sync.Mutex{}}
 		go func() {
-			err = client.openOutboundStreams(c, grpcConn)
+			err = client.openOutboundStreams(c, grpcConn, backoff)
 			if !assert.NoError(t, err) {
 				return
 			}
@@ -522,6 +523,10 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 
 		// Assert that the peer is passed correctly to the observer
 		assert.Equal(t, transport.Peer{ID: "server"}, capturedPeer.Load())
+
+		// Assert backoff.Reset() is called
+		resets, _ := backoff.counts()
+		assert.Equal(t, 1, resets)
 	})
 }
 
