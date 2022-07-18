@@ -34,6 +34,7 @@ var errRootAlreadyExists = errors.New("root transaction already exists")
 // Notifications are also done via this layer
 type State interface {
 	core.Diagnosable
+	core.Migratable
 
 	// WritePayload writes contents for the specified payload, identified by the given hash.
 	// It also calls observers and therefore requires the transaction.

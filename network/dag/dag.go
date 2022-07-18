@@ -105,6 +105,42 @@ func newDAG(db stoabs.KVStore) *dag {
 	return &dag{db: db}
 }
 
+func (d *dag) Migrate() error {
+	return d.db.Write(func(tx stoabs.WriteTx) error {
+		writer, err := tx.GetShelfWriter(metadataShelf)
+		if err != nil {
+			return err
+		}
+		// Migrate highest LC value
+		highestLCBytes, err := writer.Get(stoabs.BytesKey(highestClockValue))
+		if err != nil {
+			return err
+		}
+		if highestLCBytes == nil {
+			log.Logger().Info("Highest LC value not stored, migrating...")
+			highestLC := d.getHighestClockLegacy(tx)
+			err = d.setHighestClockValue(tx, highestLC)
+			if err != nil {
+				return err
+			}
+		}
+		// Migrate number of TXs
+		numberOfTXs, err := writer.Get(stoabs.BytesKey(numberOfTransactionsKey))
+		if err != nil {
+			return err
+		}
+		if numberOfTXs == nil {
+			log.Logger().Info("Number of transactions not stored, migrating...")
+			numberOfTXs := d.getNumberOfTransactionsLegacy(tx)
+			err = d.setNumberOfTransactions(tx, numberOfTXs)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 func (d *dag) init() error {
 	return d.db.Write(func(tx stoabs.WriteTx) error {
 		_, _, _, err := getBuckets(tx)
@@ -231,34 +267,36 @@ func (d dag) getHighestClockValue(tx stoabs.ReadTx) uint32 {
 		log.Logger().Errorf("Unable to retrieve highest LC value: %v", err)
 		return 0
 	}
-
-	if value != nil {
-		return bytesToClock(value)
+	if value == nil {
+		return 0
 	}
-
-	// backwards compatibility
-	// remove after V5 or V6 release?
-	return d.getHighestClockLegacy()
+	return bytesToClock(value)
 }
 
-// getHighestClockLegacy is used for backwards compatibility
-// remove after V5 or V6 release?
-func (d dag) getHighestClockLegacy() uint32 {
+// getHighestClockLegacy is used for migration.
+// Remove after V5 or V6 release?
+func (d dag) getHighestClockLegacy(tx stoabs.ReadTx) uint32 {
+	reader := tx.GetShelfReader(clockShelf)
 	var clock uint32
-	err := d.db.ReadShelf(clockShelf, func(reader stoabs.Reader) error {
-		return reader.Iterate(func(key stoabs.Key, _ []byte) error {
-			currentClock := bytesToClock(key.Bytes())
-			if currentClock > clock {
-				clock = currentClock
-			}
-			return nil
-		})
+	err := reader.Iterate(func(key stoabs.Key, _ []byte) error {
+		currentClock := bytesToClock(key.Bytes())
+		if currentClock > clock {
+			clock = currentClock
+		}
+		return nil
 	})
 	if err != nil {
 		log.Logger().Errorf("failed to read clock shelf: %s", err)
 		return 0
 	}
 	return clock
+}
+
+// getNumberOfTransactionsLegacy is used for migration.
+// Remove after V5 or V6 release?
+func (d dag) getNumberOfTransactionsLegacy(tx stoabs.ReadTx) uint64 {
+	reader := tx.GetShelfReader(transactionsShelf)
+	return uint64(reader.Stats().NumEntries)
 }
 
 func (d dag) setHighestClockValue(tx stoabs.WriteTx, count uint32) error {
@@ -274,8 +312,7 @@ func (d dag) setHighestClockValue(tx stoabs.WriteTx, count uint32) error {
 
 func (d dag) statistics(tx stoabs.ReadTx) Statistics {
 	var result Statistics
-	reader := tx.GetShelfReader(transactionsShelf)
-	shelfStats := reader.Stats()
+	shelfStats := tx.GetShelfReader(transactionsShelf).Stats()
 	result.DataSize = int64(shelfStats.ShelfSize)
 	result.NumberOfTransactions = uint(d.getNumberOfTransactions(tx))
 

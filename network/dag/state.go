@@ -57,6 +57,10 @@ type state struct {
 	ibltTree                         *treeStore
 }
 
+func (s *state) Migrate() error {
+	return s.graph.Migrate()
+}
+
 // NewState returns a new State. The State is used as entry point, it's methods will start transactions and will notify observers from within those transactions.
 func NewState(db stoabs.KVStore, verifiers ...Verifier) (State, error) {
 	graph := newDAG(db)

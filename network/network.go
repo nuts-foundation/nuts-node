@@ -80,6 +80,10 @@ type Network struct {
 	storeProvider       storage.Provider
 }
 
+func (n *Network) Migrate() error {
+	return n.state.Migrate()
+}
+
 // NewNetworkInstance creates a new Network engine instance.
 func NewNetworkInstance(
 	config Config,
