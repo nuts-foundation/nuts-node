@@ -39,6 +39,8 @@ type connectorConfig struct {
 	connectionTimeout time.Duration
 }
 
+// createOutboundConnector connects to a remote server in a loop, taking into account a given backoff.
+// When the connection succeeds it calls the given callback. The caller is responsible to reset the backoff after optional application-level checks succeed (e.g. authentication).
 func createOutboundConnector(config connectorConfig, dialer dialer, shouldConnect func() bool, connectedCallback func(conn *grpcLib.ClientConn) bool, backoff Backoff) *outboundConnector {
 	var attempts uint32
 	return &outboundConnector{
@@ -100,8 +102,6 @@ func (c *outboundConnector) start() {
 					err = errors.New("protocol connection failure")
 				} else {
 					// Connection was OK, but now disconnected
-					c.backoff.Reset(0)
-
 					// When the peer's reconnection timing is very close to the local node's (because they're running the same software),
 					// they might reconnect to each other at the same time after a disconnect.
 					// So we add a bit of randomness before reconnecting, making the chance they reconnect at the same time a lot smaller.
@@ -109,6 +109,7 @@ func (c *outboundConnector) start() {
 				}
 			}
 			if err != nil {
+				// either tryConnect or connectedCallback returned an error
 				waitPeriod := c.backoff.Backoff()
 				log.Logger().Infof("Couldn't connect to peer, reconnecting in %d seconds (peer=%s,err=%v)", int(waitPeriod.Seconds()), c.address, err)
 				sleepWithCancel(cancelCtx, waitPeriod)

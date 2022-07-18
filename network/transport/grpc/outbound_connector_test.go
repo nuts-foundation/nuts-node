@@ -111,10 +111,9 @@ func Test_connector_start(t *testing.T) {
 
 		<-connected // wait for connected
 
-		test.WaitFor(t, func() (bool, error) {
-			resetCounts, _ := bo.counts()
-			return resetCounts == 1, nil
-		}, 5*time.Second, "waiting for backoff.Reset() to be called")
+		resetCount, backoffCount := bo.counts()
+		assert.Equal(t, 0, resetCount)
+		assert.Equal(t, 0, backoffCount)
 	})
 	t.Run("not connecting when already connected", func(t *testing.T) {
 		calls := make(chan struct{}, 10)
@@ -154,8 +153,9 @@ func Test_connector_start(t *testing.T) {
 			_, backoffCount := bo.counts()
 			return backoffCount >= 1, nil
 		}, time.Second, "time-out while waiting for backoff to be invoked")
-		resetCounts, _ := bo.counts()
+		resetCounts, backoffCounts := bo.counts()
 		assert.Equal(t, 0, resetCounts)
+		assert.GreaterOrEqual(t, backoffCounts, 1)
 	})
 }
 
