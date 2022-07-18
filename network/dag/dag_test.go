@@ -21,14 +21,11 @@ package dag
 import (
 	"github.com/nuts-foundation/go-stoabs"
 	"math"
-	"math/rand"
 	"sort"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/jws"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -108,38 +105,6 @@ func TestDAG_Get(t *testing.T) {
 			assert.Nil(t, actual)
 			return nil
 		})
-	})
-	t.Run("bbolt byte slice is copied", func(t *testing.T) { // TODO: can this be removed?
-		// This test the fixing of https://github.com/nuts-foundation/nuts-node/issues/488: "Fix and debug strange memory corruption issue".
-		// It was caused by using a []byte returned from BBolt after the TX was closed (parsing it as JWS), which is illegal.
-		// It happened when there was concurrent read/write access to BBolt (e.g. adding and reading TXs concurrently).
-		graph := CreateDAG(t)
-		// Create root TX
-		rootTX := CreateTestTransactionWithJWK(0)
-		addTx(t, graph, rootTX)
-		// Create and read TXs in parallel to trigger error scenario
-		const numTX = 10
-		wg := sync.WaitGroup{}
-		wg.Add(numTX)
-		for i := 0; i < numTX; i++ {
-			go func() {
-				defer wg.Done()
-				tx1 := CreateTestTransactionWithJWK(uint32(rand.Int31n(100000)), rootTX)
-				err := graph.db.Write(func(tx stoabs.WriteTx) error {
-					_ = graph.add(tx, tx1)
-					actual, err := getTransaction(tx1.Ref(), tx)
-					if err != nil {
-						return err
-					}
-					_, err = jws.Parse(actual.Data())
-					return err
-				})
-				if !assert.NoError(t, err) {
-					return
-				}
-			}()
-		}
-		wg.Wait()
 	})
 }
 
