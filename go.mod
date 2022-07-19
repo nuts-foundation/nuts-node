@@ -25,7 +25,7 @@ require (
 	github.com/privacybydesign/irmago v0.10.0
 	github.com/prometheus/client_golang v1.12.2
 	github.com/shengdoushi/base58 v1.0.0
-	github.com/sirupsen/logrus v1.8.1
+	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.5.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.0
@@ -150,7 +150,7 @@ require (
 	go.opentelemetry.io/otel/trace v0.19.0 // indirect
 	golang.org/x/crypto v0.0.0-20220513210258-46612604a0f9 // indirect
 	golang.org/x/net v0.0.0-20220513224357-95641704303c // indirect
-	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
+	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8 // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20220411224347-583f2d630306 // indirect
