@@ -54,11 +54,13 @@ Prints the current config
       --network.connectiontimeout int                 Timeout before an outbound connection attempt times out (in milliseconds). (default 5000)
       --network.disablenodeauthentication             Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes. Not allowed in strict-mode.
       --network.enablediscovery                       Whether to enable automatic connecting to other nodes. (default true)
-      --network.enabletls certfile                    Whether to enable TLS for incoming and outgoing gRPC connections. When certfile or `certkeyfile` is specified it defaults to `true`, otherwise `false`. (default true)
+      --network.enabletls certfile                    Whether to enable TLS for gRPC connections. When certfile or `certkeyfile` is specified it defaults to `true`, otherwise `false`. (default true)
       --network.grpcaddr string                       Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made). (default ":5555")
       --network.maxbackoff 1h                         Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. 1h, `30m`). (default 24h0m0s)
       --network.nodedid string                        Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
       --network.protocols ints                        Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.
+      --network.tls.certheader string                 Name of the HTTP header that will contain the client certificate when TLS is offloaded.
+      --network.tls.offload network.tls.offload       Whether to enable TLS offloading for incoming connections. If enabled network.tls.offload must be configured as well.
       --network.truststorefile string                 PEM file containing the trusted CA certificates for authenticating remote gRPC servers.
       --network.v2.diagnosticsinterval int            Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable). (default 5000)
       --network.v2.gossipinterval int                 Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes. (default 5000)
@@ -110,11 +112,13 @@ Imports private keys from filesystem based storage into Vault. The given directo
       --network.connectiontimeout int                 Timeout before an outbound connection attempt times out (in milliseconds). (default 5000)
       --network.disablenodeauthentication             Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes. Not allowed in strict-mode.
       --network.enablediscovery                       Whether to enable automatic connecting to other nodes. (default true)
-      --network.enabletls certfile                    Whether to enable TLS for incoming and outgoing gRPC connections. When certfile or `certkeyfile` is specified it defaults to `true`, otherwise `false`. (default true)
+      --network.enabletls certfile                    Whether to enable TLS for gRPC connections. When certfile or `certkeyfile` is specified it defaults to `true`, otherwise `false`. (default true)
       --network.grpcaddr string                       Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made). (default ":5555")
       --network.maxbackoff 1h                         Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. 1h, `30m`). (default 24h0m0s)
       --network.nodedid string                        Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
       --network.protocols ints                        Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.
+      --network.tls.certheader string                 Name of the HTTP header that will contain the client certificate when TLS is offloaded.
+      --network.tls.offload network.tls.offload       Whether to enable TLS offloading for incoming connections. If enabled network.tls.offload must be configured as well.
       --network.truststorefile string                 PEM file containing the trusted CA certificates for authenticating remote gRPC servers.
       --network.v2.diagnosticsinterval int            Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable). (default 5000)
       --network.v2.gossipinterval int                 Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes. (default 5000)
@@ -265,11 +269,13 @@ Starts the Nuts server
       --network.connectiontimeout int                 Timeout before an outbound connection attempt times out (in milliseconds). (default 5000)
       --network.disablenodeauthentication             Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes. Not allowed in strict-mode.
       --network.enablediscovery                       Whether to enable automatic connecting to other nodes. (default true)
-      --network.enabletls certfile                    Whether to enable TLS for incoming and outgoing gRPC connections. When certfile or `certkeyfile` is specified it defaults to `true`, otherwise `false`. (default true)
+      --network.enabletls certfile                    Whether to enable TLS for gRPC connections. When certfile or `certkeyfile` is specified it defaults to `true`, otherwise `false`. (default true)
       --network.grpcaddr string                       Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made). (default ":5555")
       --network.maxbackoff 1h                         Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. 1h, `30m`). (default 24h0m0s)
       --network.nodedid string                        Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
       --network.protocols ints                        Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.
+      --network.tls.certheader string                 Name of the HTTP header that will contain the client certificate when TLS is offloaded.
+      --network.tls.offload network.tls.offload       Whether to enable TLS offloading for incoming connections. If enabled network.tls.offload must be configured as well.
       --network.truststorefile string                 PEM file containing the trusted CA certificates for authenticating remote gRPC servers.
       --network.v2.diagnosticsinterval int            Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable). (default 5000)
       --network.v2.gossipinterval int                 Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes. (default 5000)

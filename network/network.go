@@ -193,6 +193,9 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		// Configure TLS
 		if n.config.EnableTLS {
 			grpcOpts = append(grpcOpts, grpc.WithTLS(clientCert, trustStore, n.config.MaxCRLValidityDays))
+			if n.config.TLS.Offload == OffloadIncomingTLS {
+				grpcOpts = append(grpcOpts, grpc.WithTLSOffloading(n.config.TLS.ClientCertHeaderName))
+			}
 		}
 
 		// Instantiate

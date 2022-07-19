@@ -32,7 +32,8 @@ type Config struct {
 	// MaxBackoff specifies the maximum backoff for outbound connections
 	MaxBackoff time.Duration `koanf:"network.maxbackoff"`
 	// EnableTLS specifies whether to enable TLS for incoming connections.
-	EnableTLS bool `koanf:"network.enabletls"`
+	EnableTLS bool      `koanf:"network.enabletls"`
+	TLS       TLSConfig `koanf:"network.tls"`
 	// Public address of this nodes other nodes can use to connect to this node.
 	BootstrapNodes []string `koanf:"network.bootstrapnodes"`
 	// Protocols is the list of network protocols to enable on the server. They are specified by version (v1, v2).
@@ -58,6 +59,29 @@ type Config struct {
 	// ProtocolV2 specifies config for protocol v2
 	ProtocolV2 v2.Config `koanf:"network.v2"`
 }
+
+// TLSConfig specifies how TLS should be configured for network connections.
+// For v5, network.enabletls, network.truststorefile, network.certfile and network.certkeyfile must be moved to this struct.
+type TLSConfig struct {
+	// Offload specifies the TLS offloading mode for incoming/outgoing traffic.
+	Offload TLSOffloadingMode `koanf:"offload"`
+	// ClientCertHeaderName specifies the name of the HTTP header in which the TLS offloader puts the client certificate in.
+	// It is required when TLS offloading for incoming traffic is enabled. The client certificate must be in PEM format.
+	ClientCertHeaderName string `koanf:"certheader"`
+}
+
+// TLSOffloadingMode defines configurable modes for TLS offloading.
+type TLSOffloadingMode string
+
+const (
+	// NoOffloading specifies that TLS is not offloaded,
+	// meaning incoming and outgoing TLS traffic is terminated at the local node, and not by a proxy inbetween.
+	NoOffloading TLSOffloadingMode = ""
+	// OffloadIncomingTLS specifies that incoming TLS traffic should be offloaded.
+	// It will assume there is a reverse proxy at which TLS is terminated,
+	// and which puts the client certificate in PEM format in a configured header.
+	OffloadIncomingTLS = "incoming"
+)
 
 // IsProtocolEnabled returns true if the protocol is enabled, otherwise false.
 func (c Config) IsProtocolEnabled(version int) bool {
