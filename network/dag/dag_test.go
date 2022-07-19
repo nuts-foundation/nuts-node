@@ -108,6 +108,72 @@ func TestDAG_Get(t *testing.T) {
 	})
 }
 
+func TestDAG_Migrate(t *testing.T) {
+	txRoot := CreateTestTransactionWithJWK(0)
+	tx1 := CreateTestTransactionWithJWK(1, txRoot)
+	tx2 := CreateTestTransactionWithJWK(2, txRoot)
+
+	t.Run("migrate LC value and transaction count to metadata storage", func(t *testing.T) {
+		graph := CreateDAG(t)
+
+		// Setup: add transactions, remove metadata
+		addTx(t, graph, txRoot, tx1, tx2)
+		err := graph.db.WriteShelf(metadataShelf, func(writer stoabs.Writer) error {
+			return writer.Iterate(func(key stoabs.Key, _ []byte) error {
+				return writer.Delete(key)
+			})
+		})
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		// Check values return 0
+		var stats Statistics
+		var lc uint32
+		_ = graph.db.Read(func(tx stoabs.ReadTx) error {
+			stats = graph.statistics(tx)
+			lc = graph.getHighestClockValue(tx)
+			return nil
+		})
+		assert.Equal(t, uint(0), stats.NumberOfTransactions)
+		assert.Equal(t, uint32(0), lc)
+
+		// Migrate
+		err = graph.Migrate()
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		// Assert
+		_ = graph.db.Read(func(tx stoabs.ReadTx) error {
+			stats = graph.statistics(tx)
+			lc = graph.getHighestClockValue(tx)
+			return nil
+		})
+		assert.Equal(t, uint(3), stats.NumberOfTransactions)
+		assert.Equal(t, tx2.Clock(), lc)
+	})
+	t.Run("nothing to migrate", func(t *testing.T) {
+		graph := CreateDAG(t)
+		addTx(t, graph, txRoot, tx1, tx2)
+
+		err := graph.Migrate()
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		stats := Statistics{}
+		var lc uint32
+		_ = graph.db.Read(func(tx stoabs.ReadTx) error {
+			stats = graph.statistics(tx)
+			lc = graph.getHighestClockValue(tx)
+			return nil
+		})
+		assert.Equal(t, uint(3), stats.NumberOfTransactions)
+		assert.Equal(t, tx2.Clock(), lc)
+	})
+}
+
 func TestDAG_Add(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		graph := CreateDAG(t)
@@ -309,9 +375,12 @@ func TestDAG_getHighestClock(t *testing.T) {
 	t.Run("empty DAG", func(t *testing.T) {
 		graph := CreateDAG(t)
 
-		clock := graph.getHighestClock()
+		_ = graph.db.Read(func(tx stoabs.ReadTx) error {
+			clock := graph.getHighestClockValue(tx)
 
-		assert.Equal(t, uint32(0), clock)
+			assert.Equal(t, uint32(0), clock)
+			return nil
+		})
 	})
 	t.Run("multiple transaction", func(t *testing.T) {
 		graph := CreateDAG(t)
@@ -320,9 +389,12 @@ func TestDAG_getHighestClock(t *testing.T) {
 		tx2, _, _ := CreateTestTransaction(7, tx1)
 		addTx(t, graph, tx0, tx1, tx2)
 
-		clock := graph.getHighestClock()
+		_ = graph.db.Read(func(tx stoabs.ReadTx) error {
+			clock := graph.getHighestClockValue(tx)
 
-		assert.Equal(t, uint32(2), clock)
+			assert.Equal(t, uint32(2), clock)
+			return nil
+		})
 	})
 	t.Run("out of order transactions", func(t *testing.T) {
 		graph := CreateDAG(t)
@@ -332,8 +404,11 @@ func TestDAG_getHighestClock(t *testing.T) {
 		addTx(t, graph, tx0, tx2)
 		addTx(t, graph, tx1)
 
-		clock := graph.getHighestClock()
+		_ = graph.db.Read(func(tx stoabs.ReadTx) error {
+			clock := graph.getHighestClockValue(tx)
 
-		assert.Equal(t, uint32(2), clock)
+			assert.Equal(t, uint32(2), clock)
+			return nil
+		})
 	})
 }

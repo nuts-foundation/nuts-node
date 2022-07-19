@@ -155,6 +155,20 @@ func (mr *MockStateMockRecorder) IsPresent(arg0, arg1 interface{}) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsPresent", reflect.TypeOf((*MockState)(nil).IsPresent), arg0, arg1)
 }
 
+// Migrate mocks base method.
+func (m *MockState) Migrate() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Migrate")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Migrate indicates an expected call of Migrate.
+func (mr *MockStateMockRecorder) Migrate() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Migrate", reflect.TypeOf((*MockState)(nil).Migrate))
+}
+
 // Notifier mocks base method.
 func (m *MockState) Notifier(name string, receiver ReceiverFn, filters ...NotifierOption) (Notifier, error) {
 	m.ctrl.T.Helper()
@@ -244,20 +258,6 @@ func (m *MockState) Verify() error {
 func (mr *MockStateMockRecorder) Verify() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockState)(nil).Verify))
-}
-
-// Walk mocks base method.
-func (m *MockState) Walk(ctx context.Context, visitor Visitor, startLC uint32) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Walk", ctx, visitor, startLC)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Walk indicates an expected call of Walk.
-func (mr *MockStateMockRecorder) Walk(ctx, visitor, startLC interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Walk", reflect.TypeOf((*MockState)(nil).Walk), ctx, visitor, startLC)
 }
 
 // WritePayload mocks base method.
