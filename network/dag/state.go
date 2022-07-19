@@ -30,7 +30,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 	"github.com/nuts-foundation/nuts-node/network/log"
-	"github.com/nuts-foundation/nuts-node/storage"
 )
 
 const (
@@ -300,16 +299,11 @@ func (s *state) Shutdown() error {
 }
 
 func (s *state) Start() error {
-	// initialize all shelfs so that the db cannot return nil readers
-	err := storage.InitializeShelfs(s.db, transactionsShelf, headsShelf, clockShelf, payloadsShelf, ibltShelf, xorShelf)
-	if err != nil {
-		return err
-	}
 	s.loadTrees()
 
 	// resume all notifiers
-	for _, notifier := range s.notifiers {
-		if err := notifier.Run(); err != nil {
+	for _, curr := range s.notifiers {
+		if err := curr.Run(); err != nil {
 			return err
 		}
 	}
