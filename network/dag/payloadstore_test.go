@@ -28,7 +28,6 @@ import (
 
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
 )
 
@@ -36,9 +35,8 @@ func TestPayloadStore_ReadWrite(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
 	db := createBBoltDB(testDirectory)
 	payloadStore := NewPayloadStore().(*payloadStore)
-	storage.InitializeShelfs(db, payloadsShelf)
 
-	db.Write(func(tx stoabs.WriteTx) error {
+	err := db.Write(func(tx stoabs.WriteTx) error {
 		payload := []byte("Hello, World!")
 		hash := hash.SHA256Sum(payload)
 		// Before, payload should not be present
@@ -62,6 +60,7 @@ func TestPayloadStore_ReadWrite(t *testing.T) {
 		assert.Equal(t, payload, data)
 		return nil
 	})
+	assert.NoError(t, err)
 }
 
 func TestPayloadStore_readPayload(t *testing.T) {

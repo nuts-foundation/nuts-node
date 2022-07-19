@@ -113,7 +113,6 @@ func createBBoltDB(testDirectory string) stoabs.KVStore {
 func CreateDAG(t *testing.T) *dag {
 	testDirectory := io.TestDirectory(t)
 	d := newDAG(createBBoltDB(testDirectory))
-	d.init()
 	return d
 }
 

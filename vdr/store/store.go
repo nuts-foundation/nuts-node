@@ -61,11 +61,7 @@ func NewStore(storeProvider storage.Provider) vdr.Store {
 func (s *store) Configure(_ core.ServerConfig) error {
 	var err error
 	s.db, err = s.storeProvider.GetKVStore(didStoreName, storage.PersistentStorageClass)
-	if err != nil {
-		return err
-	}
-	// shelfs must be initialized here for boot order
-	return storage.InitializeShelfs(s.db, latestShelf, metadataShelf, transactionIndexShelf, documentShelf)
+	return err
 }
 
 func (s *store) Start() error {
