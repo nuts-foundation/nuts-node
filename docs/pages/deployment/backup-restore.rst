@@ -27,15 +27,15 @@ By default, the BBolt store isn't backed up. To enable backups add these configu
             directory: /opt/nuts/shelf
             interval: 1h
 
-The `directory` must point to a local or mounted directory.
-The `interval` must be formatted as a number and time unit. Valid time units are `s`(seconds), `m`(minutes), `h`(hours).
+The ``directory`` must point to a local or mounted directory.
+The ``interval`` must be formatted as a number and time unit. Valid time units are ``s``(seconds), ``m``(minutes), ``h``(hours).
 
 The Nuts node will place backups at the set interval in the configured directory. It'll create sub-directories for different components.
-The file names are the same as the store names in the `datadir`.
+The file names are the same as the store names in the ``datadir``.
 The backup process will write to a temporary file first and when done rename that file.
 
 The backup process will only keep a single file per store.
-If you want to keep hourly, daily and weekly backups, you'll have to solve this by using tools like `rsync` and `rsnapshot` (or others).
+If you want to keep hourly, daily and weekly backups, you'll have to solve this by using tools like ``rsync`` and ``rsnapshot`` (or others).
 
 Restore
 =======
@@ -43,10 +43,10 @@ Restore
 To restore a backup, follow the following steps:
 
 - shutdown the node.
-- remove the following directories from the `datadir`: `events`, `network`, `vcr` and `vdr`
-- copy `network/data.db`, `vcr/issued-credentials-backup.db` and `vdr/didstore.db` from your backup to the `datadir`
-- make an empty POST call to /internal/network/v1/reprocess?type=application/vc+json
-- make an empty POST call to /internal/network/v1/reprocess?type=application/ld+json;type=revocation
+- remove the following directories from the ``datadir``: ``events``, ``network``, ``vcr`` and ``vdr``
+- copy ``network/data.db``, ``vcr/issued-credentials-backup.db`` and ``vdr/didstore.db`` from your backup to the ``datadir``
+- make an empty POST call to ``/internal/network/v1/reprocess?type=application/vc+json``
+- make an empty POST call to ``/internal/network/v1/reprocess?type=application/ld+json;type=revocation``
 - startup your node
 
 When making the API calls, make sure you use the proper URL escaping.
