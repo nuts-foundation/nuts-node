@@ -59,3 +59,4 @@ To restore a backup, follow the following steps:
 - start your node
 
 When making the API calls, make sure you use the proper URL escaping.
+Reprocess calls return immediately and will do the work in the background.
