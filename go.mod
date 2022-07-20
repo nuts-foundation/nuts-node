@@ -22,7 +22,7 @@ require (
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.3.0
 	github.com/nuts-foundation/go-leia/v3 v3.1.3
-	github.com/nuts-foundation/go-stoabs v0.0.0-20220719133546-476d48396576
+	github.com/nuts-foundation/go-stoabs v0.0.0-20220720081705-ae381c30be41
 	github.com/piprate/json-gold v0.4.1
 	github.com/privacybydesign/irmago v0.10.0
 	github.com/prometheus/client_golang v1.12.2

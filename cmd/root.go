@@ -156,7 +156,6 @@ func startServer(ctx context.Context, system *core.System) error {
 	}()
 
 	// Wait until instructed to shut down when instructed through context cancellation (e.g. SIGINT signal or Echo server error/exit)
-	logrus.Debug("Started, waiting for SIGINT/SIGTERM")
 	<-serverCtx.Done()
 	logrus.Info("Shutting down...")
 	echoServer.Shutdown()
