@@ -30,6 +30,4 @@ scrape_configs:
         - '<address>:9100'  # metrics exposed by node-exporter
 ```
 
-Note: metrics prepended with `go_` from the `node-exporter` and `nuts-node` targets are different. 
-Perhaps these relate to the target process (nuts-node / node-exporter) itself??
-
+Note: metrics prepended with `go_` are from the target that exposes them, so `node-exporter` and `nuts-node`.
