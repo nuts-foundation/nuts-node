@@ -6,6 +6,15 @@ Backup & restore procedures
 The Nuts node supports different backends for storing data. This page describes the backup and restore procedures per backend.
 A restore procedure may contain additional steps to take besides restoring the data from backup.
 
+Private keys
+************
+
+The private keys are the most important of all data.
+When lost, all data has to be recreated which might include asking customer to resign certain documents.
+The Nuts node provides two ways of storing private keys: local filesystem and via Hashicorp Vault.
+Vault is the recommended store for storing private keys in a production environment.
+Please consult the Vault documentation on how to manage your backups.
+
 BBolt
 *****
 
