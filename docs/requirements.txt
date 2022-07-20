@@ -1,1 +1,2 @@
 sphinx-jsonschema>=1.17.2
+sphinx-rtd-theme
