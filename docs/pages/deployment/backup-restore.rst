@@ -40,7 +40,7 @@ The ``directory`` must point to a local or mounted directory.
 The ``interval`` must be formatted as a number and time unit. Valid time units are ``s`` (seconds), ``m`` (minutes), ``h`` (hours).
 
 The Nuts node will place backups at the set interval in the configured directory. It'll create sub-directories for different components.
-The file names are the same as the store names in the ``datadir``.
+The file names are the same as in the node's ``datadir``.
 The backup process will write to a temporary file first and when done rename that file.
 
 The backup process will only keep a single file per store.
