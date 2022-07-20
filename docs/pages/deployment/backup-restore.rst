@@ -44,7 +44,7 @@ To restore a backup, follow the following steps:
 
 - shutdown the node.
 - remove the following directories from the ``datadir``: ``events``, ``network``, ``vcr`` and ``vdr``
-- copy ``network/data.db``, ``vcr/issued-credentials-backup.db`` and ``vdr/didstore.db`` from your backup to the ``datadir``
+- copy ``network/data.db``, ``vcr/issued-credentials-backup.db`` and ``vdr/didstore.db`` from your backup to the ``datadir`` (keep directory structure).
 - make an empty POST call to ``/internal/network/v1/reprocess?type=application/vc+json``
 - make an empty POST call to ``/internal/network/v1/reprocess?type=application/ld+json;type=revocation``
 - startup your node
