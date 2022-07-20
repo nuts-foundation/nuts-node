@@ -56,6 +56,6 @@ To restore a backup, follow the following steps:
 - copy ``network/data.db``, ``vcr/issued-credentials-backup.db`` and ``vdr/didstore.db`` from your backup to the ``datadir`` (keep directory structure).
 - make an empty POST call to ``/internal/network/v1/reprocess?type=application/vc+json``
 - make an empty POST call to ``/internal/network/v1/reprocess?type=application/ld+json;type=revocation``
-- startup your node
+- start your node
 
 When making the API calls, make sure you use the proper URL escaping.
