@@ -42,6 +42,7 @@ func TestDirectory(t *testing.T) string {
 				_, _ = os.Stderr.WriteString(fmt.Sprintf("Unable to remove temporary directory for test (%s): %v\n", dir, err))
 			}
 		})
+
 		return dir
 	}
 }

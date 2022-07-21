@@ -74,14 +74,14 @@ func TestNetwork_ListTransactionsInRange(t *testing.T) {
 	defer ctrl.Finish()
 	t.Run("ok - full dag", func(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
-		cxt.state.EXPECT().FindBetweenLC(uint32(0), uint32(dag.MaxLamportClock)).Return([]dag.Transaction{dag.CreateTestTransactionWithJWK(1)}, nil)
+		cxt.state.EXPECT().FindBetweenLC(gomock.Any(), uint32(0), uint32(dag.MaxLamportClock)).Return([]dag.Transaction{dag.CreateTestTransactionWithJWK(1)}, nil)
 		docs, err := cxt.network.ListTransactionsInRange(0, dag.MaxLamportClock)
 		assert.Len(t, docs, 1)
 		assert.NoError(t, err)
 	})
 	t.Run("ok - range query", func(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
-		cxt.state.EXPECT().FindBetweenLC(uint32(3), uint32(5))
+		cxt.state.EXPECT().FindBetweenLC(gomock.Any(), uint32(3), uint32(5))
 		_, err := cxt.network.ListTransactionsInRange(3, 5)
 		assert.NoError(t, err)
 	})
@@ -751,7 +751,7 @@ func TestNetwork_Reprocess(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx, eventManager := setup(t)
-		ctx.state.EXPECT().FindBetweenLC(uint32(0), uint32(1000)).Return([]dag.Transaction{tx}, nil)
+		ctx.state.EXPECT().FindBetweenLC(gomock.Any(), uint32(0), uint32(1000)).Return([]dag.Transaction{tx}, nil)
 		ctx.state.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).Return([]byte("payload"), nil)
 
 		var found int
@@ -768,7 +768,7 @@ func TestNetwork_Reprocess(t *testing.T) {
 
 	t.Run("ignores other transactions", func(t *testing.T) {
 		ctx, eventManager := setup(t)
-		ctx.state.EXPECT().FindBetweenLC(uint32(0), uint32(1000)).Return([]dag.Transaction{tx}, nil)
+		ctx.state.EXPECT().FindBetweenLC(gomock.Any(), uint32(0), uint32(1000)).Return([]dag.Transaction{tx}, nil)
 		ctx.state.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).Return([]byte("payload"), nil)
 
 		var found int
@@ -787,7 +787,7 @@ func TestNetwork_Reprocess(t *testing.T) {
 
 	t.Run("stops on error", func(t *testing.T) {
 		ctx, eventManager := setup(t)
-		ctx.state.EXPECT().FindBetweenLC(uint32(0), uint32(1000)).Return(nil, errors.New("b00m!"))
+		ctx.state.EXPECT().FindBetweenLC(gomock.Any(), uint32(0), uint32(1000)).Return(nil, errors.New("b00m!"))
 
 		var found int
 		subscribe(&found, eventManager)
@@ -805,7 +805,7 @@ func TestNetwork_Reprocess(t *testing.T) {
 
 	t.Run("stops on error 2", func(t *testing.T) {
 		ctx, eventManager := setup(t)
-		ctx.state.EXPECT().FindBetweenLC(uint32(0), uint32(1000)).Return([]dag.Transaction{tx}, nil)
+		ctx.state.EXPECT().FindBetweenLC(gomock.Any(), uint32(0), uint32(1000)).Return([]dag.Transaction{tx}, nil)
 		ctx.state.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).Return(nil, errors.New("b00m!"))
 
 		var found int

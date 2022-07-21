@@ -19,6 +19,7 @@
 package dag
 
 import (
+	"context"
 	"crypto"
 	"encoding/binary"
 	"fmt"
@@ -126,7 +127,7 @@ func addTx(t *testing.T, graph *dag, transactions ...Transaction) {
 
 // addTx is a helper to add transactions to the DAG. It creates an Update bbolt TX and returns the error
 func addTxErr(graph *dag, transactions ...Transaction) error {
-	return graph.db.Write(func(tx stoabs.WriteTx) error {
+	return graph.db.Write(context.Background(), func(tx stoabs.WriteTx) error {
 		return graph.add(tx, transactions...)
 	})
 }

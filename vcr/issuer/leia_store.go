@@ -84,7 +84,7 @@ func (s leiaIssuerStore) StoreCredential(vc vc.VerifiableCredential) error {
 	ref := s.issuedCredentials.Reference(vcAsBytes)
 
 	// first in backup
-	if err := s.backupStore.WriteShelf(issuedBackupShelf, func(writer stoabs.Writer) error {
+	if err := s.backupStore.WriteShelf(context.Background(), issuedBackupShelf, func(writer stoabs.Writer) error {
 		return writer.Put(stoabs.BytesKey(ref), vcAsBytes)
 	}); err != nil {
 		return err
@@ -146,7 +146,7 @@ func (s leiaIssuerStore) StoreRevocation(revocation credential.Revocation) error
 	ref := s.revokedCredentials.Reference(revocationAsBytes)
 
 	// first in backup
-	if err := s.backupStore.WriteShelf(revocationBackupShelf, func(writer stoabs.Writer) error {
+	if err := s.backupStore.WriteShelf(context.Background(), revocationBackupShelf, func(writer stoabs.Writer) error {
 		return writer.Put(stoabs.BytesKey(ref), revocationAsBytes)
 	}); err != nil {
 		return err
@@ -203,10 +203,10 @@ func (s leiaIssuerStore) handleRestore(collection leia.Collection, backupShelf s
 	if !storePresent {
 		log.Logger().Infof("Missing index for %s, rebuilding", backupShelf)
 		// empty node, backup has been restored, refill store
-		return s.backupStore.ReadShelf(backupShelf, func(reader stoabs.Reader) error {
+		return s.backupStore.ReadShelf(context.Background(), backupShelf, func(reader stoabs.Reader) error {
 			return reader.Iterate(func(key stoabs.Key, value []byte) error {
 				return collection.Add([]leia.Document{value})
-			})
+			}, stoabs.BytesKey{})
 		})
 	}
 
@@ -222,7 +222,7 @@ func (s leiaIssuerStore) handleRestore(collection leia.Collection, backupShelf s
 	}
 	var set []refDoc
 	writeDocuments := func(set []refDoc) error {
-		return s.backupStore.Write(func(tx stoabs.WriteTx) error {
+		return s.backupStore.Write(context.Background(), func(tx stoabs.WriteTx) error {
 			writer, err := tx.GetShelfWriter(backupShelf)
 			if err != nil {
 				return err
@@ -257,11 +257,11 @@ func (s leiaIssuerStore) handleRestore(collection leia.Collection, backupShelf s
 func (s leiaIssuerStore) backupStorePresent(backupShelf string) bool {
 	backupPresent := false
 
-	_ = s.backupStore.ReadShelf(backupShelf, func(reader stoabs.Reader) error {
+	_ = s.backupStore.ReadShelf(context.Background(), backupShelf, func(reader stoabs.Reader) error {
 		return reader.Iterate(func(key stoabs.Key, value []byte) error {
 			backupPresent = true
 			return nil
-		})
+		}, stoabs.BytesKey{})
 	})
 
 	return backupPresent

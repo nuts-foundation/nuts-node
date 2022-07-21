@@ -73,6 +73,7 @@ func createBBoltDatabase(datadir string, config BBoltConfig) (*bboltDatabase, er
 }
 
 func (b bboltDatabase) createStore(moduleName string, storeName string) (stoabs.KVStore, error) {
+	log.Logger().Debugf("Creating BBolt store (module=%s,store=%s)", moduleName, storeName)
 	databasePath := path.Join(b.datadir, b.getRelativeStorePath(moduleName, storeName))
 	store, err := bbolt.CreateBBoltStore(databasePath)
 	if store != nil {
@@ -123,7 +124,7 @@ func (b bboltDatabase) performBackup(moduleName string, storeName string, store 
 	// Write backup to "store.db.work"
 	// Rename existing backup ("store.db") to "store.db.previous"
 	// Rename "store.db.work" to "store.db"
-	return store.Read(func(tx stoabs.ReadTx) error {
+	return store.Read(context.Background(), func(tx stoabs.ReadTx) error {
 		// Make sure the parent directory exists
 		err := os.MkdirAll(path.Dir(backupFilePath), os.ModePerm)
 		if err != nil {

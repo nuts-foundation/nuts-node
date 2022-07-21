@@ -67,18 +67,18 @@ func (mr *MockStateMockRecorder) Diagnostics() *gomock.Call {
 }
 
 // FindBetweenLC mocks base method.
-func (m *MockState) FindBetweenLC(startInclusive, endExclusive uint32) ([]Transaction, error) {
+func (m *MockState) FindBetweenLC(ctx context.Context, startInclusive, endExclusive uint32) ([]Transaction, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FindBetweenLC", startInclusive, endExclusive)
+	ret := m.ctrl.Call(m, "FindBetweenLC", ctx, startInclusive, endExclusive)
 	ret0, _ := ret[0].([]Transaction)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // FindBetweenLC indicates an expected call of FindBetweenLC.
-func (mr *MockStateMockRecorder) FindBetweenLC(startInclusive, endExclusive interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) FindBetweenLC(ctx, startInclusive, endExclusive interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindBetweenLC", reflect.TypeOf((*MockState)(nil).FindBetweenLC), startInclusive, endExclusive)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindBetweenLC", reflect.TypeOf((*MockState)(nil).FindBetweenLC), ctx, startInclusive, endExclusive)
 }
 
 // GetTransaction mocks base method.
@@ -247,31 +247,31 @@ func (mr *MockStateMockRecorder) Statistics(ctx interface{}) *gomock.Call {
 }
 
 // Verify mocks base method.
-func (m *MockState) Verify() error {
+func (m *MockState) Verify(ctx context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Verify")
+	ret := m.ctrl.Call(m, "Verify", ctx)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Verify indicates an expected call of Verify.
-func (mr *MockStateMockRecorder) Verify() *gomock.Call {
+func (mr *MockStateMockRecorder) Verify(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockState)(nil).Verify))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockState)(nil).Verify), ctx)
 }
 
 // WritePayload mocks base method.
-func (m *MockState) WritePayload(transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
+func (m *MockState) WritePayload(ctx context.Context, transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WritePayload", transaction, payloadHash, data)
+	ret := m.ctrl.Call(m, "WritePayload", ctx, transaction, payloadHash, data)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // WritePayload indicates an expected call of WritePayload.
-func (mr *MockStateMockRecorder) WritePayload(transaction, payloadHash, data interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) WritePayload(ctx, transaction, payloadHash, data interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WritePayload", reflect.TypeOf((*MockState)(nil).WritePayload), transaction, payloadHash, data)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WritePayload", reflect.TypeOf((*MockState)(nil).WritePayload), ctx, transaction, payloadHash, data)
 }
 
 // XOR mocks base method.

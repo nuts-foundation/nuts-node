@@ -19,6 +19,7 @@ var key = stoabs.BytesKey{1, 2, 3}
 var value = []byte{4, 5, 6}
 
 func Test_bboltDatabase_performBackup(t *testing.T) {
+	ctx := context.Background()
 	datadir := io.TestDirectory(t)
 	backupDir := path.Join(datadir, "backups")
 	db, _ := createBBoltDatabase(datadir, BBoltConfig{BBoltBackupConfig{
@@ -28,9 +29,9 @@ func Test_bboltDatabase_performBackup(t *testing.T) {
 
 	t.Run("write some data, then backup, then assert the entry can be read", func(t *testing.T) {
 		store, _ := db.createStore(moduleName, storeName)
-		defer store.Close(context.Background())
+		defer store.Close(ctx)
 
-		_ = store.WriteShelf("data", func(writer stoabs.Writer) error {
+		_ = store.WriteShelf(ctx, "data", func(writer stoabs.Writer) error {
 			return writer.Put(key, value)
 		})
 
@@ -52,7 +53,7 @@ func Test_bboltDatabase_performBackup(t *testing.T) {
 		}
 		// Read value and compare
 		var actualValue []byte
-		err = store.ReadShelf("data", func(reader stoabs.Reader) error {
+		err = store.ReadShelf(ctx, "data", func(reader stoabs.Reader) error {
 			actualValue, _ = reader.Get(key)
 			return nil
 		})
@@ -69,12 +70,12 @@ func Test_bboltDatabase_performBackup(t *testing.T) {
 		var newValue = []byte{10, 11, 12}
 
 		// Write data, then backup, then overwrite the value and backup again. Check that the backup contains the most recent data.
-		_ = store.WriteShelf("data", func(writer stoabs.Writer) error {
+		_ = store.WriteShelf(ctx, "data", func(writer stoabs.Writer) error {
 			return writer.Put(key, value)
 		})
 		_ = db.performBackup(moduleName, storeName, store)
 
-		_ = store.WriteShelf("data", func(writer stoabs.Writer) error {
+		_ = store.WriteShelf(ctx, "data", func(writer stoabs.Writer) error {
 			return writer.Put(key, newValue)
 		})
 		_ = db.performBackup(moduleName, storeName, store)
@@ -86,7 +87,7 @@ func Test_bboltDatabase_performBackup(t *testing.T) {
 
 		// Read value and compare
 		var actualValue []byte
-		err := store.ReadShelf("data", func(reader stoabs.Reader) error {
+		err := store.ReadShelf(ctx, "data", func(reader stoabs.Reader) error {
 			actualValue, _ = reader.Get(key)
 			return nil
 		})
@@ -110,7 +111,7 @@ func Test_bboltDatabase_startBackup(t *testing.T) {
 		store, _ := db.createStore(moduleName, storeName)
 		defer store.Close(context.Background())
 
-		_ = store.WriteShelf("data", func(writer stoabs.Writer) error {
+		_ = store.WriteShelf(context.Background(), "data", func(writer stoabs.Writer) error {
 			return writer.Put(key, value)
 		})
 

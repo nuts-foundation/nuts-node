@@ -194,7 +194,7 @@ func (p *notifier) Run() error {
 	if !p.isPersistent() {
 		return nil
 	}
-	return p.db.ReadShelf(p.shelfName(), func(reader stoabs.Reader) error {
+	return p.db.ReadShelf(p.ctx, p.shelfName(), func(reader stoabs.Reader) error {
 		return reader.Iterate(func(k stoabs.Key, v []byte) error {
 			event := Event{}
 			_ = json.Unmarshal(v, &event)
@@ -202,12 +202,12 @@ func (p *notifier) Run() error {
 			p.retry(event)
 
 			return nil
-		})
+		}, stoabs.BytesKey{})
 	})
 }
 
 func (p *notifier) GetFailedEvents() (events []Event, err error) {
-	err = p.db.ReadShelf(p.shelfName(), func(reader stoabs.Reader) error {
+	err = p.db.ReadShelf(p.ctx, p.shelfName(), func(reader stoabs.Reader) error {
 		return reader.Iterate(func(k stoabs.Key, data []byte) error {
 			if data != nil {
 				event := Event{}
@@ -218,7 +218,7 @@ func (p *notifier) GetFailedEvents() (events []Event, err error) {
 				}
 			}
 			return nil
-		})
+		}, stoabs.BytesKey{})
 	})
 
 	return
@@ -305,7 +305,7 @@ func (p *notifier) retry(event Event) {
 func (p *notifier) notifyNow(event Event) error {
 	var dbEvent = &event
 	if p.isPersistent() {
-		if err := p.db.ReadShelf(p.shelfName(), func(reader stoabs.Reader) error {
+		if err := p.db.ReadShelf(p.ctx, p.shelfName(), func(reader stoabs.Reader) error {
 			var err error
 			dbEvent, err = p.readEvent(reader, event.Hash)
 			return err
@@ -320,7 +320,7 @@ func (p *notifier) notifyNow(event Event) error {
 
 	dbEvent.Retries++
 	if p.isPersistent() {
-		if err := p.db.WriteShelf(p.shelfName(), func(writer stoabs.Writer) error {
+		if err := p.db.WriteShelf(p.ctx, p.shelfName(), func(writer stoabs.Writer) error {
 			return p.writeEvent(writer, *dbEvent)
 		}); err != nil {
 			return retry.Unrecoverable(err)
@@ -368,7 +368,7 @@ func (p *notifier) Finished(hash hash.SHA256Hash) error {
 	if !p.isPersistent() {
 		return nil
 	}
-	return p.db.WriteShelf(p.shelfName(), func(writer stoabs.Writer) error {
+	return p.db.WriteShelf(p.ctx, p.shelfName(), func(writer stoabs.Writer) error {
 		return writer.Delete(stoabs.BytesKey(hash.Slice()))
 	})
 }

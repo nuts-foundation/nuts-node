@@ -33,6 +33,7 @@ Nuts documentation
     pages/deployment/administering-your-node.rst
     pages/deployment/backup-restore.rst
     pages/deployment/cli-reference.rst
+    pages/deployment/database-configuration.rst
     pages/deployment/production-configuration.rst
 
 .. toctree::

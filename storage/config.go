@@ -20,12 +20,11 @@ package storage
 
 // Config specifies config for the storage engine.
 type Config struct {
-	// Databases specifies config for supported databases.
-	Databases DatabasesConfig `koanf:"storage.databases"`
-	Test      string          `koanf:"storage.test"`
+	BBolt BBoltConfig `koanf:"storage.bbolt"`
+	Redis RedisConfig `koanf:"storage.redis"`
 }
 
-// DatabasesConfig specifies config for a database.
-type DatabasesConfig struct {
-	BBolt BBoltConfig `koanf:"bbolt"`
+// DefaultConfig returns the default configuration for the module.
+func DefaultConfig() Config {
+	return Config{}
 }
