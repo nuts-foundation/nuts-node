@@ -51,7 +51,7 @@ Filesystem
 ==========
 
 This is the default backend but not recommended for production. It stores keys unencrypted on disk.
-Make sure to include the directory in your backups and keep these on a safe place.
+Make sure to include the directory in your backups and keep these in a safe place.
 If you want to use filesystem in strict mode, you have to set it explicitly, otherwise the node fails during startup.
 
 Vault
@@ -64,14 +64,14 @@ There needs to be a KV Secrets Engine (v1) enabled under this prefix path.
 All private keys are stored under the path ``<prefix>/nuts-private-keys/*``.
 Each key is stored under the kid, resulting in a full key path like ``kv/nuts-private-keys/did:nuts:123#abc``.
 A Vault token must be provided by either configuring it using the config ``crypto.vault.token`` or setting the VAULT_TOKEN environment variable.
-The token must have a vault policy which enables READ and WRITES rights on the path. In addition it needs to READ the token information "auth/token/lookup-self" which should be part of the default policy.
+The token must have a vault policy which has READ and WRITES rights on the path. In addition it needs to READ the token information "auth/token/lookup-self" which should be part of the default policy.
 
-Migrating from to Vault
-=======================
+Migrating to Vault
+==================
 
-Migrating your private keys storage from the filesystem to Vault is relatively easy: just upload the keys to Vault under ``kv/nuts-private-keys``.
+Migrating your private keys from the filesystem to Vault is relatively easy: just upload the keys to Vault under ``kv/nuts-private-keys``.
 
-Alternatively you can use the ``fs2vault`` crypto command, which takes the directory containing the private keys as argument (it assumes the container is called `nuts-node`):
+Alternatively you can use the ``fs2vault`` crypto command, which takes the directory containing the private keys as argument (the example assumes the container is called `nuts-node`):
 
 .. code-block:: shell
 
