@@ -6,6 +6,19 @@ Release notes
 Whats has been changed, and how to update between versions.
 
 ***************
+Chestnut (v4.0.0)
+***************
+
+Release date: 2022-07-22
+
+This release introduces a pluggable storage system and support for:
+
+* BBolt backups
+* Experimental Redis support
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v3.0.0...v4.0.0
+
+***************
 Cashew (v3.0.0)
 ***************
 
