@@ -1,0 +1,15 @@
+<Issuer version="4">
+    <ID>geant-incubator</ID>
+    <ShortName>
+        <en>Demo GÉANT Trust and Identity Incubator</en>
+        <nl>Demo GÉANT Trust and Identity Incubator</nl>
+    </ShortName>
+    <Name>
+        <en>Demo GÉANT Trust and Identity Incubator</en>
+        <nl>Demo GÉANT Trust and Identity Incubator</nl>
+    </Name>
+    <SchemeManager>irma-demo</SchemeManager>
+    <ContactAddress>https://wiki.geant.org/display/gn43wp5/T2+-+Trust+and+Identity+Incubator</ContactAddress>
+    <ContactEMail>niels.vandijk@surf.nl</ContactEMail>
+    <baseURL></baseURL>
+</Issuer>

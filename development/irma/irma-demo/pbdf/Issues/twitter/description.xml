@@ -1,0 +1,68 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo Twitter</en>
+		<nl>Demo Twitter</nl>
+	</Name>
+	<ShortName>
+		<en>Demo Twitter</en>
+		<nl>Demo Twitter</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>pbdf</IssuerID>
+	<CredentialID>twitter</CredentialID>
+	<Description>
+		<en>Twitter attributes from your Twitter account</en>
+		<nl>Twitter attributen uit je Twitter account</nl>
+	</Description>
+	<ShouldBeSingleton>false</ShouldBeSingleton>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.pbdf.twitter.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.pbdf.twitter.html</nl>
+	</IssueURL>
+
+	<ForegroundColor>#15222E</ForegroundColor>
+	<BackgroundGradientStart>#1DA1F2</BackgroundGradientStart>
+	<BackgroundGradientEnd>#71C9F8</BackgroundGradientEnd>
+	<Attributes>
+		<Attribute id="username">
+			<Name>
+				<en>Username</en>
+				<nl>Gebruikersnaam</nl>
+			</Name>
+			<Description>
+				<en>Your username at Twitter, as registered by Twitter</en>
+				<nl>Je gebruikersnaam bij Twitter, zoals geregistreerd bij Twitter</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="fullname">
+			<Name>
+				<en>Full name</en>
+				<nl>Volledige naam</nl>
+			</Name>
+			<Description>
+				<en>Your full name, as registered by Twitter</en>
+				<nl>Je volledige naam, zoals geregistreerd bij Twitter</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="email">
+			<Name>
+				<en>Email address</en>
+				<nl>E-mailadres</nl>
+			</Name>
+			<Description>
+				<en>Your email address, as registered by Twitter</en>
+				<nl>Je e-mailadres, zoals geregistreerd bij Twitter</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="profileurl">
+			<Name>
+				<en>Profile</en>
+				<nl>Profiel</nl>
+			</Name>
+			<Description>
+				<en>URL to your Twitter profile</en>
+				<nl>URL naar je Twitter-profiel</nl>
+			</Description>
+		</Attribute>
+	</Attributes>
+</IssueSpecification>

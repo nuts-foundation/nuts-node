@@ -1,0 +1,35 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo BSN</en>
+		<nl>Demo BSN</nl>
+	</Name>
+	<ShortName>
+		<en>Demo BSN</en>
+		<nl>Demo BSN</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>nijmegen</IssuerID>
+	<CredentialID>bsn</CredentialID>
+	<Description>
+		<en>Your Dutch Citizen service number (BSN), from the Dutch population register</en>
+		<nl>Uw Burgerservicenummer (BSN), afkomstig uit de Nederlandse Basisregistratie Persoonsgegevens</nl>
+	</Description>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.nijmegen.bsn.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.nijmegen.bsn.html</nl>
+	</IssueURL>
+	<ShouldBeSingleton>true</ShouldBeSingleton>
+
+	<Attributes>
+		<Attribute id="bsn">
+			<Name>
+				<en>BSN</en>
+				<nl>BSN</nl>
+			</Name>
+			<Description>
+				<en>Your Dutch Citizen service number (BSN)</en>
+				<nl>Uw Burgerservicenummer (BSN)</nl>
+			</Description>
+		</Attribute>
+	</Attributes>
+</IssueSpecification>

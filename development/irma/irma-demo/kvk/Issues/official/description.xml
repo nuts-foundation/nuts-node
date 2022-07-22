@@ -1,0 +1,103 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo Official of a legal entity</en>
+		<nl>Demo Functionaris voor een rechtspersoon</nl>
+	</Name>
+	<ShortName>
+		<en>Demo Official</en>
+		<nl>Demo Functionaris</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>kvk</IssuerID>
+	<CredentialID>official</CredentialID>
+	<Description>
+		<en>The personal information of an official of a legal entity</en>
+		<nl>The persoonlijke informatie van een functionaris voor een rechtspersoon</nl>
+	</Description>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.kvk.official.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.kvk.official.html</nl>
+	</IssueURL>
+	<Attributes>
+		<Attribute id="legalEntity">
+			<Name>
+				<en>Legal entity</en>
+				<nl>Onderneming</nl>
+			</Name>
+			<Description>
+				<en>Legal entity</en>
+				<nl>Onderneming</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="fullname">
+			<Name>
+				<en>Full name of official</en>
+				<nl>Volledige naam functionaris</nl>
+			</Name>
+			<Description>
+				<en>Full name of official</en>
+				<nl>Volledige naam functionaris</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="position">
+			<Name>
+				<en>Position</en>
+				<nl>Functie</nl>
+			</Name>
+			<Description>
+				<en>Position</en>
+				<nl>Functie</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="authority">
+			<Name>
+				<en>Authority</en>
+				<nl>Bevoegdheid</nl>
+			</Name>
+			<Description>
+				<en>Authority</en>
+				<nl>Bevoegdheid</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="officeAddress">
+			<Name>
+				<en>Registered office</en>
+				<nl>Vestiging</nl>
+			</Name>
+			<Description>
+				<en>Registered office</en>
+				<nl>Vestiging</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="officePhone">
+			<Name>
+				<en>Phone</en>
+				<nl>Telefoon</nl>
+			</Name>
+			<Description>
+				<en>Phone</en>
+				<nl>Telefoon</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="kvkNumber">
+			<Name>
+				<en>KVK number</en>
+				<nl>KVK nummer</nl>
+			</Name>
+			<Description>
+				<en>KVK number</en>
+				<nl>KVK nummer</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="sbiCode">
+			<Name>
+				<en>SBI code</en>
+				<nl>SBI code</nl>
+			</Name>
+			<Description>
+				<en>SBI code</en>
+				<nl>SBI code</nl>
+			</Description>
+		</Attribute>
+	</Attributes>
+</IssueSpecification>

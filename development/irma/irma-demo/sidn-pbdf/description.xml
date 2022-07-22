@@ -1,0 +1,15 @@
+<Issuer version="4">
+	<ID>sidn-pbdf</ID>
+	<ShortName>
+		<en>Demo PbDF via SIDN</en>
+		<nl>Demo PbDF via SIDN</nl>
+	</ShortName>
+	<Name>
+		<en>Demo Privacy by Design Foundation via SIDN</en>
+		<nl>Demo Stichting Privacy by Design via SIDN</nl>
+	</Name>
+	<SchemeManager>irma-demo</SchemeManager>
+	<ContactAddress>https://www.sidn.nl</ContactAddress>
+	<ContactEMail>support@sidn.nl</ContactEMail>
+	<baseURL></baseURL>
+</Issuer>

@@ -1,0 +1,15 @@
+<Issuer version="4">
+  <ID>maas</ID>
+  <Name>
+	  <en>Demo MaaS</en>
+	  <nl>Demo Maas</nl>
+  </Name>
+  <ShortName>
+	  <en>Demo Maas</en>
+	  <nl>Demo MaaS</nl>
+  </ShortName>
+  <SchemeManager>irma-demo</SchemeManager>
+  <ContactAddress>http://www.acceptinstitute.eu/</ContactAddress>
+  <ContactEMail></ContactEMail>
+  <baseURL></baseURL>
+</Issuer>

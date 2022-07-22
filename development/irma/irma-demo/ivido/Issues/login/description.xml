@@ -1,0 +1,35 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo Ivido Login</en>
+		<nl>Demo Ivido Login</nl>
+	</Name>
+	<ShortName>
+		<en>Demo Ivido Login</en>
+		<nl>Demo Ivido Login</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>ivido</IssuerID>
+	<CredentialID>login</CredentialID>
+	<Description>
+		<en>Attributen benodigd voor het inloggen bij Ivido</en>
+		<nl>Attributes required for logging in at Ivido</nl>
+	</Description>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.ivido.login.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.ivido.login.html</nl>
+	</IssueURL>
+	<ShouldBeSingleton>true</ShouldBeSingleton>
+
+	<Attributes>
+		<Attribute id="identifier">
+			<Name>
+				<en>Identifier</en>
+				<nl>Identifier</nl>
+			</Name>
+			<Description>
+				<en>Unique identifier for Ivido</en>
+				<nl>Unieke identifier voor Ivido</nl>
+			</Description>
+		</Attribute>
+	</Attributes>
+</IssueSpecification>

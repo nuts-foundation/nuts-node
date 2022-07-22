@@ -1,0 +1,40 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo Root</en>
+		<nl>Demo Root</nl>
+	</Name>
+	<ShortName>
+		<en>Demo Root</en>
+		<nl>Demo Root</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>MijnOverheid</IssuerID>
+	<CredentialID>root</CredentialID>
+	<Description>
+		<en>Root credential issued by MijnOverheid.nl</en>
+		<nl>Root-credential uitgegeven door MijnOverheid.nl</nl>
+	</Description>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.MijnOverheid.root.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.MijnOverheid.root.html</nl>
+	</IssueURL>
+	<ShouldBeSingleton>true</ShouldBeSingleton>
+	<RevocationServers>
+		<RevocationServer>https://demo.privacybydesign.foundation/backend/irma</RevocationServer>
+	</RevocationServers>
+
+	<Attributes>
+		<Attribute id="BSN">
+			<Name>
+				<en>BSN</en>
+				<nl>BSN</nl>
+			</Name>
+			<Description>
+				<en>Your BSN-number</en>
+				<nl>Uw BSN-nummer</nl>
+			</Description>
+		</Attribute>
+		<Attribute revocation="true" />
+	</Attributes>
+
+</IssueSpecification>

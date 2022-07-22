@@ -1,0 +1,68 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo Senior Age limits</en>
+		<nl>Demo Senior-leeftijdslimieten</nl>
+	</Name>
+	<ShortName>
+		<en>Demo Age (Senior)</en>
+		<nl>Demo Leeftijd (senior)</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>MijnOverheid</IssuerID>
+	<CredentialID>ageHigher</CredentialID>
+	<Description>
+		<en>Your senior age limits issued by MijnOverheid based on GBA data</en>
+		<nl>Uw senior-leeftijdslimieten uitgegeven door MijnOverheid gebaseeerd op GBA-data</nl>
+	</Description>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.MijnOverheid.ageHigher.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.MijnOverheid.ageHigher.html</nl>
+	</IssueURL>
+	<ShouldBeSingleton>true</ShouldBeSingleton>
+
+
+
+	<Attributes>
+		<Attribute id="over50">
+			<Name>
+				<en>Over 50</en>
+				<nl>Ouder dan 50</nl>
+			</Name>
+			<Description>
+				<en>If you are over 50</en>
+				<nl>Of u ouder bent dan 50</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="over60">
+			<Name>
+				<en>Over 60</en>
+				<nl>Ouder dan 60</nl>
+			</Name>
+			<Description>
+				<en>If you are over 60</en>
+				<nl>>Of u ouder bent dan 60</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="over65">
+			<Name>
+				<en>Over 65</en>
+				<nl>Ouder dan 65</nl>
+			</Name>
+			<Description>
+				<en>If you are over 65</en>
+				<nl>>Of u ouder bent dan 65</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="over75">
+			<Name>
+				<en>Over 75</en>
+				<nl>Ouder dan 75</nl>
+			</Name>
+			<Description>
+				<en>If you are over 75</en>
+				<nl>>Of u ouder bent dan 75</nl>
+			</Description>
+		</Attribute>
+
+	</Attributes>
+</IssueSpecification>

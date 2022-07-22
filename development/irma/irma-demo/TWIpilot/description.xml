@@ -1,0 +1,15 @@
+<Issuer version="4">
+	<ID>TWIpilot</ID>
+	<Name>
+		<en>Demo TWI Pilot</en>
+		<nl>Demo TWI Pilot</nl>
+	</Name>
+	<ShortName>
+		<en>Demo TWI Pilot</en>
+		<nl>Demo TWI Pilot</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<ContactAddress>https://minszw.nl/</ContactAddress>
+	<ContactEMail>christoph@ovrhd.nl</ContactEMail>
+	<baseURL></baseURL>
+</Issuer>

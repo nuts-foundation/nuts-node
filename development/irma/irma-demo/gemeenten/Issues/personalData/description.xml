@@ -1,0 +1,188 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo Personal data</en>
+		<nl>Demo Persoonsgegevens</nl>
+	</Name>
+	<ShortName>
+		<en>Demo Personal data</en>
+		<nl>Demo Persoonsgegevens</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>gemeenten</IssuerID>
+	<CredentialID>personalData</CredentialID>
+	<Description>
+		<en>Your personal data, from the Dutch population register</en>
+		<nl>Uw persoonsgegevens, afkomstig uit de Nederlandse Basisregistratie Persoonsgegevens</nl>
+	</Description>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.gemeenten.personalData.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.gemeenten.personalData.html</nl>
+	</IssueURL>
+	<ShouldBeSingleton>true</ShouldBeSingleton>
+
+	<Attributes>
+		<Attribute id="initials">
+			<Name>
+				<en>Initials</en>
+				<nl>Voorletters</nl>
+			</Name>
+			<Description>
+				<en>Your initials, abbreviating your first names</en>
+				<nl>Uw voorletters, een afkorting van uw voornamen</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="firstnames">
+			<Name>
+				<en>First names</en>
+				<nl>Voornamen</nl>
+			</Name>
+			<Description>
+				<en>Your first names</en>
+				<nl>Uw voornamen</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="prefix" optional="true">
+			<Name>
+				<en>Prefix</en>
+				<nl>Voorvoegsel</nl>
+			</Name>
+			<Description>
+				<en>Prefix of your family name</en>
+				<nl>Voorvoegsel van uw achternaam</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="familyname">
+			<Name>
+				<en>Family name</en>
+				<nl>Geslachtsnaam</nl>
+			</Name>
+			<Description>
+				<en>Your family name, as given to you at birth</en>
+				<nl>Uw achternaam, zoals aan u toegekend bij uw geboorte</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="fullname" optional="true">
+			<Name>
+				<en>Full name</en>
+				<nl>Volledige naam</nl>
+			</Name>
+			<Description>
+				<en>Your full name</en>
+				<nl>Uw volledige naam</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="gender">
+			<Name>
+				<en>Gender</en>
+				<nl>Geslacht</nl>
+			</Name>
+			<Description>
+				<en>Your gender</en>
+				<nl>Uw geslacht</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="nationality" optional="true">
+			<Name>
+				<en>Dutch nationality</en>
+				<nl>Nederlandse nationaliteit</nl>
+			</Name>
+			<Description>
+				<en>Whether you have the dutch nationality</en>
+				<nl>Of u de Nederlandse nationaliteit bezit</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="surname">
+			<Name>
+				<en>Surname</en>
+				<nl>Achternaam</nl>
+			</Name>
+			<Description>
+				<en>Your full family name: your family name or (a combination with) that of your partner</en>
+				<nl>Uw volledige achternaam: uw geslachtsnaam of (een combinatie met) die van uw partner</nl>
+			</Description>
+		</Attribute>
+
+		<Attribute id="dateofbirth">
+			<Name>
+				<en>Date of birth</en>
+				<nl>Geboortedatum</nl>
+			</Name>
+			<Description>
+				<en>Your date of birth</en>
+				<nl>Uw geboortedatum</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="over12">
+			<Name>
+				<en>Over 12</en>
+				<nl>Ouder dan 12</nl>
+			</Name>
+			<Description>
+				<en>Whether you are over 12</en>
+				<nl>Of u ouder dan 12 bent</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="over16">
+			<Name>
+				<en>Over 16</en>
+				<nl>Ouder dan 16</nl>
+			</Name>
+			<Description>
+				<en>Whether you are over 16</en>
+				<nl>Of u ouder dan 16 bent</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="over18">
+			<Name>
+				<en>Over 18</en>
+				<nl>Ouder dan 18</nl>
+			</Name>
+			<Description>
+				<en>Whether you are over 18</en>
+				<nl>Of u ouder dan 18 bent</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="over21">
+			<Name>
+				<en>Over 21</en>
+				<nl>Ouder dan 21</nl>
+			</Name>
+			<Description>
+				<en>Whether you are over 21</en>
+				<nl>Of u ouder dan 21 bent</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="over65">
+			<Name>
+				<en>Over 65</en>
+				<nl>Ouder dan 65</nl>
+			</Name>
+			<Description>
+				<en>Whether you are over 65</en>
+				<nl>Of u ouder dan 65 bent</nl>
+			</Description>
+		</Attribute>
+
+		<Attribute id="bsn">
+			<Name>
+				<en>BSN</en>
+				<nl>BSN</nl>
+			</Name>
+			<Description>
+				<en>Your Dutch Citizen service number (BSN)</en>
+				<nl>Uw Burgerservicenummer (BSN)</nl>
+			</Description>
+		</Attribute>
+
+		<Attribute id="digidlevel">
+			<Name>
+				<en>DigiD assurance level</en>
+				<nl>DigiD betrouwbaarheidsniveau</nl>
+			</Name>
+			<Description>
+				<en>Het DigiD betrouwbaarheidsniveau waarmee uw identiteit is vastgesteld</en>
+				<nl>The DigiD assurance level with which your identity was verified</nl>
+			</Description>
+		</Attribute>
+	</Attributes>
+</IssueSpecification>

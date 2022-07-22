@@ -1,0 +1,65 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo Account</en>
+		<nl>Demo Account</nl>
+	</Name>
+	<ShortName>
+		<en>Demo Accountdata</en>
+		<nl>Demo Accountgegevens</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>irvn</IssuerID>
+	<CredentialID>account</CredentialID>
+	<Description>
+		<en>Your account data, issued by ict rijk van Nijmegen (iRvN)</en>
+		<nl>Je account gegevens, uitgegeven door ict rijk van Nijmegen (iRvN)</nl>
+	</Description>
+	<ShouldBeSingleton>true</ShouldBeSingleton>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.irvn.account.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.irvn.account.html</nl>
+	</IssueURL>
+
+	<Attributes>
+		<Attribute id="email">
+			<Name>
+				<en>Email address</en>
+				<nl>E-mailadres</nl>
+			</Name>
+			<Description>
+				<en>Your verified email address</en>
+				<nl>Je geverifieerde e-mailadres</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="domain" optional="true">
+			<Name>
+				<en>Email domain name</en>
+				<nl>E-mail domeinnaam</nl>
+			</Name>
+			<Description>
+				<en>The domain name of your email address</en>
+				<nl>De domeinnaam van je e-mailadres</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="userid" optional="true">
+			<Name>
+				<en>userid</en>
+				<nl>userid</nl>
+			</Name>
+			<Description>
+				<en>userid in iRvN environment</en>
+				<nl>userid in iRvN omgeving</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="username" optional="true">
+			<Name>
+				<en>username</en>
+				<nl>username</nl>
+			</Name>
+			<Description>
+				<en>username in iRvN environment</en>
+				<nl>username in iRvN omgeving</nl>
+			</Description>
+		</Attribute>
+	</Attributes>
+</IssueSpecification>

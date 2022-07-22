@@ -1,0 +1,46 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo Gebiedonline</en>
+		<nl>Demo Gebiedonline</nl>
+	</Name>
+	<ShortName>
+		<en>Demo Gebiedonline</en>
+		<nl>Demo Gebiedonline</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>gebiedonline</IssuerID>
+	<CredentialID>locality2</CredentialID>
+	
+	<Description>
+		<en>Gebiedonline Locality</en>
+		<nl>Gebiedonline buurt en plaats</nl>
+	</Description>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.gebiedonline.locality2.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/en/irma-demo.gebiedonline.locality2.html</nl>
+	</IssueURL>
+
+	<Attributes>
+		<Attribute id="homePostcodeDigits">
+			<Name>
+				<en>4 digits of postcode of residential address</en>
+				<nl>4 cijfers van de postcode van het woonadres</nl>
+			</Name>
+			<Description>
+				<en>Lives in the city/neightborhood with the given 4 digits of the postal code</en>
+				<nl>Woont in het gebied aangeduid met deze 4 cijfers van de postcode</nl>
+			</Description>
+		</Attribute>
+		
+		<Attribute id="workPostcodeDigits">
+			<Name>
+				<en>4 digits of postcode of work address</en>
+				<nl>4 cijfers van de postcode van het werkadres</nl>
+			</Name>
+			<Description>
+				<en>Works or has economic ties with the area denoted ny the four postcode digits</en>
+				<nl>Werkt of heeft economische binding met het gebied aangeduid met de 4 cijfers van de postcode</nl>
+			</Description>
+		</Attribute>
+	</Attributes>
+</IssueSpecification>

@@ -1,0 +1,54 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo IRMATube Member</en>
+		<nl>Demo IRMATube Member</nl>
+	</Name>
+	<ShortName>
+		<en>IRMATube</en>
+		<nl>IRMATube</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>IRMATube</IssuerID>
+	<CredentialID>member</CredentialID>
+	<Description>
+		<en>Your IRMATube membership.</en>
+		<nl>Uw IRMATube lidmaatschapsattributen</nl>
+	</Description>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.IRMATube.member.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.IRMATube.member.html</nl>
+	</IssueURL>
+
+	<Attributes>
+		<Attribute id="type">
+			<Name>
+				<en>type</en>
+				<nl>type</nl>
+			</Name>
+			<Description>
+				<en>Your membership type</en>
+				<nl>Uw lidmaatschapstype</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="id">
+			<Name>
+				<en>id</en>
+				<nl>id</nl>
+			</Name>
+			<Description>
+				<en>The membership id</en>
+				<nl>Uw lidmaatschapsnummer</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="fullname" optional="true">
+			<Name>
+				<en>Full name</en>
+				<nl>Volledige naam</nl>
+			</Name>
+			<Description>
+				<en>Your full name</en>
+				<nl>Uw volledige naam</nl>
+			</Description>
+		</Attribute>
+	</Attributes>
+</IssueSpecification>

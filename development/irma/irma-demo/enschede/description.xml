@@ -1,0 +1,15 @@
+<Issuer version="4">
+  <ID>enschede</ID>
+  <Name>
+	  <en>Demo Gemeente Enschede</en>
+	  <nl>Demo Gemeente Enschede</nl>
+  </Name>
+  <ShortName>
+	  <en>Demo Gemeente Enschede</en>
+	  <nl>Demo Gemeente Enschede</nl>
+  </ShortName>
+  <SchemeManager>irma-demo</SchemeManager>
+  <ContactAddress>https://enschede.nl/</ContactAddress>
+  <ContactEMail>k.masselink@enschede.nl</ContactEMail>
+  <baseURL></baseURL>
+</Issuer>

@@ -1,0 +1,79 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo Facebook</en>
+		<nl>Demo Facebook</nl>
+	</Name>
+	<ShortName>
+		<en>Demo Facebook</en>
+		<nl>Demo Facebook</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>pbdf</IssuerID>
+	<CredentialID>facebook</CredentialID>
+	<Description>
+		<en>Facebook attributes obtained using Facebook Connect</en>
+		<nl>Facebook-attributen verkregen via Facebook Connect</nl>
+	</Description>
+	<ShouldBeSingleton>false</ShouldBeSingleton>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.pbdf.facebook.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.pbdf.facebook.html</nl>
+	</IssueURL>
+
+	<ForegroundColor>#ffffff</ForegroundColor>
+	<BackgroundGradientStart>#4267B2</BackgroundGradientStart>
+	<BackgroundGradientEnd>#19397B</BackgroundGradientEnd>
+
+	<Attributes>
+		<Attribute id="fullname">
+			<Name>
+				<en>Full name</en>
+				<nl>Volledige naam</nl>
+			</Name>
+			<Description>
+				<en>Your full name, as registered by Facebook</en>
+				<nl>Je volledige naam, zoals geregistreerd bij Facebook</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="firstname">
+			<Name>
+				<en>First name</en>
+				<nl>Voornaam</nl>
+			</Name>
+			<Description>
+				<en>Your first name, as registered by Facebook</en>
+				<nl>Je voornaam, zoals geregistreerd bij Facebook</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="familyname">
+			<Name>
+				<en>Family name</en>
+				<nl>Achternaam</nl>
+			</Name>
+			<Description>
+				<en>Your family name, as registered by Facebook</en>
+				<nl>Je achternaam, zoals geregistreerd bij Facebook</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="email">
+			<Name>
+				<en>Email address</en>
+				<nl>E-mailadres</nl>
+			</Name>
+			<Description>
+				<en>Your email address, as registered by Facebook</en>
+				<nl>Je e-mailadres, zoals geregistreerd bij Facebook</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="dateofbirth" optional="true">
+			<Name>
+				<en>Date of birth</en>
+				<nl>Geboortedatum</nl>
+			</Name>
+			<Description>
+				<en>Your date of birth, as registered in Facebook</en>
+				<nl>Je geboortedatum, zoals opgegeven bij Facebook</nl>
+			</Description>
+		</Attribute>
+	</Attributes>
+</IssueSpecification>

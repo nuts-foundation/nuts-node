@@ -1,0 +1,134 @@
+<IssueSpecification version="4">
+    <Name>
+        <en>Demo GÉANT Incubator eduGAIN proxy</en>
+        <nl>Demo GÉANT Incubator eduGAIN proxy</nl>
+    </Name>
+    <ShortName>
+        <en>edugain-proxy</en>
+        <nl>edugain-proxy</nl>
+    </ShortName>
+    <SchemeManager>irma-demo</SchemeManager>
+    <IssuerID>geant-incubator</IssuerID>
+    <CredentialID>edugain-proxy</CredentialID>
+    <Description>
+        <en>This credential is used as part of the Distributed Identity for Research (DI4R) IRMA demo in the GÉANT Trust and Identity Incubator.\nThis credential allows users to load profile information as provided by their home institution into an IRMA wallet for login to services lateron.</en>
+        <nl>Deze credential wordt gebruikt als onderdeel van de Distributed Identity for Research (DI4R) IRMA demo, wat onderdeel is van de GÉANT Trust and Identity Incubator.\nMiddels deze credential kunnen gebruikers profiel informatie van hun instelling inladen in een IRMA wallet om later bij diensten te gebruiken om in te loggen.</nl>
+    </Description>
+    <ShouldBeSingleton>false</ShouldBeSingleton>
+    <IssueURL>
+        <en>https://privacybydesign.foundation/attribute-index/en/irma-demo.incubator.geant-incubator.edugain-proxy.html</en>
+        <nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.incubator.geant-incubator.edugain-proxy.html</nl>
+    </IssueURL>
+    <ForegroundColor>#15222E</ForegroundColor>
+    <BackgroundGradientStart>#EBEBEB</BackgroundGradientStart>
+    <BackgroundGradientEnd>#FFFFFF</BackgroundGradientEnd>
+    <IsInCredentialStore>false</IsInCredentialStore>
+    <Category>
+        <en>Education / research</en>
+        <nl></nl>
+    </Category>
+    <FAQIntro>
+        <en>Add your credentials from your education or research institution to your IRMA app.</en>
+        <nl>Voeg credentials van je onderwijs of onderzoeksinstelling toe aan je IRMA app.</nl>
+    </FAQIntro>
+    <FAQPurpose>
+        <en>By adding credentials to your your IRMA Wallet, you may gain access to services provided by your research collaboration.</en>
+        <nl></nl>
+    </FAQPurpose>
+    <FAQContent>
+        <en>You may add the following data:\n•home organization domain name\n•shared user identifier\n•person name\n•email address\n•affiliation\n•assurance information</en>
+        <nl></nl>
+    </FAQContent>
+    <FAQHowto>
+        <en>To add credentials to your wallet please scan the QR code with your IRMA wallet app.</en>
+        <nl></nl>
+    </FAQHowto>
+    <Attributes>
+       <!-- organization -->
+       <Attribute id="schacHomeOrganization" optional="true">
+          <Name>
+             <en>Home organization</en>
+             <nl></nl>
+          </Name>
+          <Description>
+             <en>Specifies a person's home organization using the domain name of the organization</en>
+             <nl></nl>
+          </Description>
+       </Attribute>
+       <!-- affiliation and organization -->
+       <Attribute id="eduPersonScopedAffiliation" optional="true">
+          <Name>
+             <en>Affiliation</en>
+             <nl></nl>
+          </Name>
+          <Description>
+             <en>Specifies the person's affiliation within a particular security domain in broad categories such as student, faculty, staff, alum, etc.</en>
+             <nl></nl>
+          </Description>
+       </Attribute>
+       <!-- shared user identifier -->
+       <Attribute id="subject-id" optional="true">
+          <Name>
+             <en>Identifier</en>
+             <nl></nl>
+          </Name>
+          <Description>
+             <en>A unique identification of subjects. May be either a globally-unique identifier, or a pairwise identifier suitable for more specialized uses.</en>
+             <nl></nl>
+          </Description>
+       </Attribute>
+       <!-- person name -->
+       <Attribute id="displayName" optional="true">
+          <Name>
+             <en>Display Name</en>
+             <nl></nl>
+          </Name>
+          <Description>
+             <en>Preferred name of a person to be used when displaying entries.</en>
+             <nl></nl>
+          </Description>
+       </Attribute>
+       <Attribute id="givenName" optional="true">
+          <Name>
+             <en>Given Name</en>
+             <nl></nl>
+          </Name>
+          <Description>
+             <en>Name strings that are the part of a person's name that is not their surname</en>
+             <nl></nl>
+          </Description>
+       </Attribute>
+       <Attribute id="sn" optional="true">
+          <Name>
+             <en>Surname</en>
+             <nl></nl>
+          </Name>
+          <Description>
+             <en>Surname or family name.</en>
+             <nl></nl>
+          </Description>
+       </Attribute>
+       <!-- email address -->
+       <Attribute id="mail" optional="true">
+          <Name>
+             <en>Email</en>
+             <nl></nl>
+          </Name>
+          <Description>
+             <en>Internet mail addresses</en>
+             <nl></nl>
+          </Description>
+       </Attribute>
+       <!-- assurance -->
+       <Attribute id="eduPersonAssurance" optional="true">
+          <Name>
+             <en>Assurance</en>
+             <nl></nl>
+          </Name>
+          <Description>
+             <en>This attribute represents identity assurance profiles, which are the set of standards that are met by an identity assertion, based on the Issuer's identity management processes, the type of authentication credential used, the strength of its binding, etc.</en>
+             <nl></nl>
+          </Description>
+       </Attribute>
+    </Attributes>
+</IssueSpecification>

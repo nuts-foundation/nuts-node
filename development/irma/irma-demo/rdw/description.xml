@@ -1,0 +1,16 @@
+<Issuer version="4">
+	<ID>rdw</ID>
+	<ShortName>
+		<en>Demo RDW</en>
+		<nl>Demo RDW</nl>
+	</ShortName>
+	<Name>
+		<en>Demo RDW</en>
+		<nl>Demo RDW</nl>
+	</Name>
+	<SchemeManager>irma-demo</SchemeManager>
+	<ContactAddress></ContactAddress>
+	<ContactEMail></ContactEMail>
+	<baseURL></baseURL>
+</Issuer>
+

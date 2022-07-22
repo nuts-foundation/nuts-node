@@ -1,0 +1,130 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo Education and research</en>
+		<nl>Demo Onderwijs en onderzoek</nl>
+	</Name>
+	<ShortName>
+		<en>Demo Education and research</en>
+		<nl>Demo Onderwijs en onderzoek</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>pbdf</IssuerID>
+	<CredentialID>surfnet-2</CredentialID>
+	<Description>
+		<en>Education and research personal data, obtained through SURFconext</en>
+		<nl>Onderwijs en onderzoek persoonsgegevens, verkregen via SURFconext</nl>
+	</Description>
+	<ShouldBeSingleton>false</ShouldBeSingleton>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.pbdf.surfnet-2.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.pbdf.surfnet-2.html</nl>
+	</IssueURL>
+
+	<ForegroundColor>#15222E</ForegroundColor>
+	<BackgroundGradientStart>#EBEBEB</BackgroundGradientStart>
+	<BackgroundGradientEnd>#FFFFFF</BackgroundGradientEnd>
+	<IsInCredentialStore>false</IsInCredentialStore>
+	<Category>
+		<en>Education / research</en>
+		<nl>Onderwijs / onderzoek</nl>
+	</Category>
+	<FAQIntro>
+		<en>Add your education and research data to your IRMA app.</en>
+		<nl>Laad je onderwijs en onderzoek gegevens in je IRMA-app.</nl>
+	</FAQIntro>
+	<FAQPurpose>
+		<en>You can use your education and research data in your IRMA app to prove that you are studying or working at a particular school, university or research institute.</en>
+		<nl>Met jouw onderwijs en onderzoek gegevens in de IRMA-app kun je bewijzen dat je studeert of werkt bij een bepaalde school, universiteit of onderzoeksinstelling.</nl>
+	</FAQPurpose>
+	<FAQContent>
+		<en>You will add the following data.\n•first name\n• last name\n• e-mail address\n• institution\n• employee/student\n• local registration number</en>
+		<nl>Je laadt de volgende gegevens.\n• voornaam\n• achternaam\n• e-mailadres\n• instelling\n• medewerker/student\n• lokaal registratienummer</nl>
+	</FAQContent>
+	<FAQHowto>
+		<en>If you study or work at a participating education / research institution, you can add personal data from this institution to your IRMA app.\n\n Complete the following steps.\n1. Select your own institution within the SURFconext environment; if it is not listed, your institution is not participating and you cannot add this card.\n2. Log in at the website of your own institution, in the usual manner.\n3. Confirm that you wish to add your data to IRMA. \n\nYou now receive a card with your education / research details.</en>
+		<nl>Als je studeert of werkt bij een deelnemende onderwijs- / onderzoeks-sinstelling kun je persoonsgegevens van deze instelling toevoegen in je IRMA app.\n\nDoorloop de volgende stappen.\n1. Selecteer je eigen instelling in de SURFconext omgeving; als die instelling niet voorkomt in de lijst, doet die niet mee en kun je dit kaartje niet laden.\n2. Log in op website van je eigen instelling op gebruikelijke wijze.\n3. Kies voor het overzetten van je gegevens naar je IRMA app.\n\nJe ontvangt nu een kaartje met je onderwijs- / onderzoeks-gegevens.</nl>
+	</FAQHowto>
+
+	<Attributes>
+		<Attribute id="institute" optional="true">
+			<Name>
+				<en>Institution</en>
+				<nl>Instituut</nl>
+			</Name>
+			<Description>
+				<en>The institution where you study or work</en>
+				<nl>De instelling waar je studeert of werkt</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="type" optional="true">
+			<Name>
+				<en>Type</en>
+				<nl>Type</nl>
+			</Name>
+			<Description>
+				<en>Your role at your institution</en>
+				<nl>Je rol bij je instelling</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="id" optional="true">
+			<Name>
+				<en>Registration number</en>
+				<nl>Registratienummer</nl>
+			</Name>
+			<Description>
+				<en>Your registration number at your institution</en>
+				<nl>Je registratienummer bij je instelling</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="fullid" optional="true">
+			<Name>
+				<en>Extended registration</en>
+				<nl>Uitgebreide registratie</nl>
+			</Name>
+			<Description>
+				<en>Extended registration number at your institution</en>
+				<nl>Uitgebreide registratie bij je instantie</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="fullname" optional="true">
+			<Name>
+				<en>Full name</en>
+				<nl>Volledige naam</nl>
+			</Name>
+			<Description>
+				<en>Your full name, as registered by your institution</en>
+				<nl>Je volledige naam, zoals geregistreerd bij je instantie</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="firstname" optional="true">
+			<Name>
+				<en>First name</en>
+				<nl>Voornaam</nl>
+			</Name>
+			<Description>
+				<en>Your first name, as registered by your institution</en>
+				<nl>Je voornaam, zoals geregistreerd bij je instantie</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="familyname" optional="true">
+			<Name>
+				<en>Family name</en>
+				<nl>Achternaam</nl>
+			</Name>
+			<Description>
+				<en>Your family name, as registered by your institution</en>
+				<nl>Je achternaam, zoals geregistreerd bij je instantie</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="email" optional="true">
+			<Name>
+				<en>Email address</en>
+				<nl>E-mailadres</nl>
+			</Name>
+			<Description>
+				<en>Your email address at your institution</en>
+				<nl>Je e-mailadres bij je instelling</nl>
+			</Description>
+		</Attribute>
+	</Attributes>
+</IssueSpecification>

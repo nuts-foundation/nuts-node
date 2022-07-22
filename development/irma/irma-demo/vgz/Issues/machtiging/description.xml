@@ -1,0 +1,55 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo Mandate</en>
+		<nl>Demo Machtiging</nl>
+	</Name>
+	<ShortName>
+		<en>Demo Mandate</en>
+		<nl>Demo Machtiging</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>vgz</IssuerID>
+	<CredentialID>machtiging</CredentialID>
+	<Description>
+		<en>With this mandate you can submit claims to VGZ on behalf of the person who mandated you</en>
+		<nl>Met deze machtiging kunt u declaraties indienen bij VGZ namens de verzekerde die u deze machtiging gegeven heeft</nl>
+	</Description>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.vgz.machtiging.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.vgz.machtiging.html</nl>
+	</IssueURL>
+	<ShouldBeSingleton>false</ShouldBeSingleton>
+
+	<Attributes>
+		<Attribute id="clientnumber">
+			<Name>
+				<en>VGZ Customer number</en>
+				<nl>VGZ Klantnummer</nl>
+			</Name>
+			<Description>
+				<en>The VGZ customer number of the VGZ client who mandated you</en>
+				<nl>Het VGZ klantnummer van de VGZ verzekerde die deze machtiging aan u gegeven heeft</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="clientfullname">
+			<Name>
+				<en>Insured person</en>
+				<nl>Verzekerde</nl>
+			</Name>
+			<Description>
+				<en>The name of the VGZ customer who mandated you</en>
+				<nl>De naam van de VGZ verzekerde die deze machtiging aan u gegevens heeft</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="mandateid">
+			<Name>
+				<en>MandateID</en>
+				<nl>MachtigingID</nl>
+			</Name>
+			<Description>
+				<en>A unique ID for this mandate</en>
+				<nl>Een uniek ID voor deze machtiging</nl>
+			</Description>
+		</Attribute>
+	</Attributes>
+</IssueSpecification>

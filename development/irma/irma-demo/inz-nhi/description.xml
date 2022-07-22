@@ -1,0 +1,15 @@
+<Issuer version="4">
+    <ID>inz-nhi</ID>
+    <Name>
+        <en>Demo INZ NHI</en>
+        <nl>Demo INZ NHI</nl>
+    </Name>
+    <ShortName>
+        <en>Demo NHI</en>
+        <nl></nl>
+    </ShortName>
+    <SchemeManager>irma-demo</SchemeManager>
+    <ContactAddress>https://demo.irma.nz</ContactAddress>
+    <ContactEMail>commercial@internetnz.net.nz</ContactEMail>
+    <baseURL></baseURL>
+</Issuer>

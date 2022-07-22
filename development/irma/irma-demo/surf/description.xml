@@ -1,0 +1,15 @@
+<Issuer version="4">
+	<ID>surf</ID>
+	<ShortName>
+		<en>Demo SURF</en>
+		<nl>Demo SURF</nl>
+	</ShortName>
+	<Name>
+		<en>Demo SURF</en>
+		<nl>Demo SURF</nl>
+	</Name>
+	<SchemeManager>irma-demo</SchemeManager>
+	<ContactAddress>https://surfnet.nl</ContactAddress>
+	<ContactEMail>info@surfnet.nl</ContactEMail>
+	<baseURL></baseURL>
+</Issuer>

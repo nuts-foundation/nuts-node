@@ -1,0 +1,35 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo Suwinet Income</en>
+		<nl>Demo Suwinet Inkomensgegevens</nl>
+	</Name>
+	<ShortName>
+		<en>Demo Suwinet Income</en>
+		<nl>Demo Suwinet Inkomensgegevens</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>suwinet</IssuerID>
+	<CredentialID>income</CredentialID>
+	<Description>
+		<en>Income according to Suwinet</en>
+		<nl>Inkomen volgens Suwinet</nl>
+	</Description>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.suwinet.income.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.suwinet.income.html</nl>
+	</IssueURL>
+	<ShouldBeSingleton>true</ShouldBeSingleton>
+
+	<Attributes>
+		<Attribute id="income">
+			<Name>
+				<en>Income</en>
+				<nl>Inkomen</nl>
+			</Name>
+			<Description>
+				<en>Income according to Suwinet</en>
+				<nl>Inkomen volgens Suwinet</nl>
+			</Description>
+		</Attribute>
+	</Attributes>
+</IssueSpecification>

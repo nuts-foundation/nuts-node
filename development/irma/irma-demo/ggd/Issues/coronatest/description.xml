@@ -1,0 +1,105 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo corona test result</en>
+		<nl>Demo corona testuitslag</nl>
+	</Name>
+	<ShortName>
+		<en>Demo corona test result</en>
+		<nl>Demo corona testuitslag</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>ggd</IssuerID>
+	<CredentialID>coronatest</CredentialID>
+	<Description>
+		<en>Your demo corona test result</en>
+		<nl>Uw demo corona testuitslag</nl>
+	</Description>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.ggd.coronatest.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.ggd.coronatest.html</nl>
+	</IssueURL>
+	<ShouldBeSingleton>true</ShouldBeSingleton>
+
+	<Attributes>
+		<Attribute id="negativetestresult" optional="true" displayIndex="1">
+			<Name>
+				<en>Negative test result</en>
+				<nl>Negatieve testuitslag</nl>
+			</Name>
+			<Description>
+				<en>Whether your test result was negative for the corona virus (SARS-CoV-2)</en>
+				<nl>Of uw testuitslag negatief was voor het coronavirus (SARS-CoV-2)</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="kind" displayIndex="2">
+			<Name>
+				<en>Test kind</en>
+				<nl>Testsoort</nl>
+			</Name>
+			<Description>
+				<en>The test kind (e.g. PCR or antigen)</en>
+				<nl>De testsoort (bijvoorbeeld PCR of antigeentest)</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="date" displayIndex="3">
+			<Name>
+				<en>Test date</en>
+				<nl>Testdatum</nl>
+			</Name>
+			<Description>
+				<en>The date on which you were tested</en>
+				<nl>De datum waarop u bent getest</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="performer" displayIndex="4">
+			<Name>
+				<en>Performer</en>
+				<nl>Uitvoerder</nl>
+			</Name>
+			<Description>
+				<en>The name of the performer of the test</en>
+				<nl>De naam van de uitvoerder van de test</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="firstnames" displayIndex="5">
+			<Name>
+				<en>First names</en>
+				<nl>Voornamen</nl>
+			</Name>
+			<Description>
+				<en>Your first names</en>
+				<nl>Uw voornamen</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="familyname" displayIndex="6">
+			<Name>
+				<en>Family name</en>
+				<nl>Geslachtsnaam</nl>
+			</Name>
+			<Description>
+				<en>Your family name, as given to you at birth</en>
+				<nl>Uw achternaam, zoals aan u toegekend bij uw geboorte</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="dateofbirth" displayIndex="7">
+			<Name>
+				<en>Date of birth</en>
+				<nl>Geboortedatum</nl>
+			</Name>
+			<Description>
+				<en>Your date of birth</en>
+				<nl>Uw geboortedatum</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="testresult" optional="true" displayIndex="0">
+			<Name>
+				<en>Test result</en>
+				<nl>Testuitslag</nl>
+			</Name>
+			<Description>
+				<en>Your test result for the corona virus (SARS-CoV-2)</en>
+				<nl>Uw testuitslag voor het coronavirus (SARS-CoV-2)</nl>
+			</Description>
+		</Attribute>
+	</Attributes>
+</IssueSpecification>

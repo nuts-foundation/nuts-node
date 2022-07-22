@@ -1,0 +1,15 @@
+<Issuer version="4">
+	<ID>ivido</ID>
+	<ShortName>
+		<en>Demo Ivido</en>
+		<nl>Demo Ivido</nl>
+	</ShortName>
+	<Name>
+		<en>Demo Ivido</en>
+		<nl>Demo Ivido</nl>
+	</Name>
+	<SchemeManager>irma-demo</SchemeManager>
+	<ContactAddress>https://ivido.nl</ContactAddress>
+	<ContactEMail>info@ivido.nl</ContactEMail>
+	<baseURL></baseURL>
+</Issuer>

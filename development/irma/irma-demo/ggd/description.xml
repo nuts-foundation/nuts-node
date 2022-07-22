@@ -1,0 +1,15 @@
+<Issuer version="4">
+  <ID>ggd</ID>
+  <Name>
+	  <en>Demo corona issuer</en>
+	  <nl>Demo corona issuer</nl>
+  </Name>
+  <ShortName>
+	  <en>Demo corona issuer</en>
+	  <nl>Demo corona issuer</nl>
+  </ShortName>
+  <SchemeManager>irma-demo</SchemeManager>
+  <ContactAddress></ContactAddress>
+  <ContactEMail>info@privacybydesign.foundation</ContactEMail>
+  <baseURL></baseURL>
+</Issuer>

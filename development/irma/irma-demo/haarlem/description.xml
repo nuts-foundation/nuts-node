@@ -1,0 +1,16 @@
+<Issuer version="4">
+  <ID>haarlem</ID>
+  <Name>
+	  <en>Demo Municipality Haarlem</en>
+	  <nl>Demo Gemeente Haarlem</nl>
+  </Name>
+  <ShortName>
+	  <en>Demo Haarlem</en>
+	  <nl>Demo Haarlem</nl>
+  </ShortName>
+  <SchemeManager>irma-demo</SchemeManager>
+  <ContactAddress>https://haarlem.nl/</ContactAddress>
+  <ContactEMail>info@haarlem.nl</ContactEMail>
+
+  <baseURL></baseURL>
+</Issuer>

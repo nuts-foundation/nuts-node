@@ -1,0 +1,55 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo SURFdrive license</en>
+		<nl>Demo SURFdrive licentie</nl>
+	</Name>
+	<ShortName>
+		<en>Demo SURFdrive license</en>
+		<nl>Demo SURFdrive licentie</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>surf</IssuerID>
+	<CredentialID>surfdrive</CredentialID>
+	<Description>
+		<en>Your SURFdrive licence, for logging in at SURFdrive</en>
+		<nl>Uw SURFdrive licentie, waarmee u in kunt loggen op SURFdrive</nl>
+	</Description>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.surf.surfdrive.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.surf.surfdrive.html</nl>
+	</IssueURL>
+	<ShouldBeSingleton>false</ShouldBeSingleton>
+
+	<Attributes>
+		<Attribute id="eppn">
+			<Name>
+				<en>Institution user ID</en>
+				<nl>Instelling gebruikers-ID</nl>
+			</Name>
+			<Description>
+				<en>Your ID at your institute</en>
+				<nl>Uw ID bij uw instelling</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="emailadres">
+			<Name>
+				<en>Email address</en>
+				<nl>E-mailadres</nl>
+			</Name>
+			<Description>
+				<en>Your email address</en>
+				<nl>Uw e-mailadres</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="displayname">
+			<Name>
+				<en>Name</en>
+				<nl>Naam</nl>
+			</Name>
+			<Description>
+				<en>Your name</en>
+				<nl>Uw naam</nl>
+			</Description>
+		</Attribute>
+	</Attributes>
+</IssueSpecification>

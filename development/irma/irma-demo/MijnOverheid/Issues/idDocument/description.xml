@@ -1,0 +1,65 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo ID Document</en>
+		<nl>Demo Identiteitsbewijs</nl>
+	</Name>
+	<ShortName>
+		<en>Demo ID Document</en>
+		<nl>Demo Identiteitsbewijs</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>MijnOverheid</IssuerID>
+	<CredentialID>idDocument</CredentialID>
+	<Description>
+		<en>An identity document issued by the government.</en>
+		<nl>Een identiteitsbewijs uitgegeven door de overheid.</nl>
+	</Description>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.MijnOverheid.idDocument.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.MijnOverheid.idDocument.html</nl>
+	</IssueURL>
+
+	<Attributes>
+		<Attribute id="type">
+			<Name>
+				<en>Type</en>
+				<nl>Type</nl>
+			</Name>
+			<Description>
+				<en>The type of identity document</en>
+				<nl>Type van het identiteitsbewijs</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="number">
+			<Name>
+				<en>Number</en>
+				<nl>Nummer</nl>
+			</Name>
+			<Description>
+				<en>The document number</en>
+				<nl>Documentnummer van het identiteitsbewijs</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="expires">
+			<Name>
+				<en>Expires</en>
+				<nl>Verloopdatum</nl>
+			</Name>
+			<Description>
+				<en>The expiry date of the document</en>
+				<nl>Verloopdatum van het identiteitsbewijs</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="nationality">
+			<Name>
+				<en>Nationality</en>
+				<nl>Nationaliteit</nl>
+			</Name>
+			<Description>
+				<en>The nationality of the owner</en>
+				<nl>Nationaliteit van de eigenaar</nl>
+			</Description>
+		</Attribute>
+	</Attributes>
+
+</IssueSpecification>

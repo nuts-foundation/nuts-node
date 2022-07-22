@@ -1,0 +1,44 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo Yearly Basic Income Registration</en>
+		<nl>Demo Jaarlijks Basisregistratie Inkomen</nl>
+	</Name>
+	<ShortName>
+		<en>Demo BRI</en>
+		<nl>Demo BRI</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>discipl</IssuerID>
+	<CredentialID>demoBRI</CredentialID>
+	<Description>
+		<en>Demo Basic Income Registration (BRI) using API's</en>
+		<nl>Demo Basisregistratie Inkomen (BRI) using API's</nl>
+	</Description>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.discipl.demoBRI.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.discipl.demoBRI.html</nl>
+	</IssueURL>
+
+	<Attributes>
+		<Attribute id="registeredIncome" displayIndex="1">
+			<Name>
+				<en>Registered income</en>
+				<nl>Het geregistreerde inkomen</nl>
+			</Name>
+			<Description>
+				<en>The registered income is the income that the tax authorities register in the basic income registration (BRI).</en>
+				<nl>Het geregistreerde inkomen is het inkomen dat de belastingdienst registreert in de basisregistratie inkomen (BRI).</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="taxYear" optional="true" displayIndex="0">
+			<Name>
+				<en>Year</en>
+				<nl>Jaar</nl>
+			</Name>
+			<Description>
+				<en>Calender year concerning the registerd income.</en>
+				<nl>Het kalenderjaar waarover het geregistreerde inomen is bepaald.</nl>
+			</Description>
+		</Attribute>
+	</Attributes>
+</IssueSpecification>

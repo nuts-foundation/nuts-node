@@ -1,0 +1,15 @@
+<Issuer version="4">
+	<ID>pbdf</ID>
+	<ShortName>
+		<en>Demo PbD.f</en>
+		<nl>Demo PbD.f</nl>
+	</ShortName>
+	<Name>
+		<en>Demo Privacy by Design Foundation</en>
+		<nl>Demo Stichting Privacy by Design</nl>
+	</Name>
+	<SchemeManager>irma-demo</SchemeManager>
+	<ContactAddress></ContactAddress>
+	<ContactEMail>info@privacybydesign.foundation</ContactEMail>
+	<baseURL></baseURL>
+</Issuer>

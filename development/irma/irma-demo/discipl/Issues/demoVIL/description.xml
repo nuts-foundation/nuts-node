@@ -1,0 +1,104 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo Virtueel Inkomstenloket</en>
+		<nl>Demo Virtueel Inkomstenloket</nl>
+	</Name>
+	<ShortName>
+		<en>Demo VIL</en>
+		<nl>Demo VIL</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>discipl</IssuerID>
+	<CredentialID>demoVIL</CredentialID>
+	<Description>
+		<en>Demo Virtueel Inkomstenloket (VIL) using Rule Services</en>
+		<nl>Demo Virtueel Inkomstenloket (VIL) die gebruik maakt van Regel Services</nl>
+	</Description>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.discipl.demoVIL.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.discipl.demoVIL.html</nl>
+	</IssueURL>
+
+	<Attributes>
+		<Attribute id="woonplaats">
+			<Name>
+				<en>Residence</en>
+				<nl>Woonplaats</nl>
+			</Name>
+			<Description>
+				<en>Residence</en>
+				<nl>Woonplaats</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="geboortedatum">
+			<Name>
+				<en>Date of birth</en>
+				<nl>Geboortedatum</nl>
+			</Name>
+			<Description>
+				<en>Date of birth</en>
+				<nl>Geboortedatum</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="aowLeeftijdBehaald">
+			<Name>
+				<en>Retirement age</en>
+				<nl>AOW leeftijd behaald</nl>
+			</Name>
+			<Description>
+				<en>Retirement age</en>
+				<nl>AOW leeftijd behaald</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="ouderDan21">
+			<Name>
+				<en>Older than 21</en>
+				<nl>Ouder dan 21</nl>
+			</Name>
+			<Description>
+				<en>Older than 21</en>
+				<nl>Ouder dan 21</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="alleenstaande">
+			<Name>
+				<en>Single</en>
+				<nl>Alleenstaande</nl>
+			</Name>
+			<Description>
+				<en>Single</en>
+				<nl>Alleenstaande</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="thuiswonendeKinderen">
+			<Name>
+				<en>Children living at home</en>
+				<nl>Thuiswonende kinderen</nl>
+			</Name>
+			<Description>
+				<en>Children living at home</en>
+				<nl>Thuiswonende kinderen</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="inkomenPerMaand">
+			<Name>
+				<en>Income per month</en>
+				<nl>Inkomen per maand</nl>
+			</Name>
+			<Description>
+				<en>Income per month</en>
+				<nl>Inkomen per maand</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="vermogen">
+			<Name>
+				<en>Capital</en>
+				<nl>Vermogen</nl>
+			</Name>
+			<Description>
+				<en>Capital</en>
+				<nl>Vermogen</nl>
+			</Description>
+		</Attribute>
+	</Attributes>
+</IssueSpecification>

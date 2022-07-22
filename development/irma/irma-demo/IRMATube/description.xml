@@ -1,0 +1,18 @@
+<Issuer version="4">
+  <ID>IRMATube</ID>
+  <Name>
+	  <en>Demo IRMATube</en>
+	  <nl>Demo IRMATube</nl>
+  </Name>
+  <ShortName>
+	  <en>Demo IRMATube</en>
+	  <nl>Demo IRMATube</nl>
+  </ShortName>
+  <SchemeManager>irma-demo</SchemeManager>
+  <ContactAddress>Radboud Universiteit Nijmegen
+Comeniuslaan 4
+6525 HP Nijmegen</ContactAddress>
+  <ContactEMail>info@irmatube.nl</ContactEMail>
+
+  <baseURL>http://www.irmacard.org/credentials/phase1/IRMATube/</baseURL>
+</Issuer>

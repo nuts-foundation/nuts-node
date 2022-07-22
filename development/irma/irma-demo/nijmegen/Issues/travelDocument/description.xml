@@ -1,0 +1,75 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo Travel Document</en>
+		<nl>Demo Reisdocument</nl>
+	</Name>
+	<ShortName>
+		<en>Demo Travel Document</en>
+		<nl>Demo Reisdocument</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>nijmegen</IssuerID>
+	<CredentialID>travelDocument</CredentialID>
+	<Description>
+		<en>Your Dutch passport or identity card, from the Dutch population register</en>
+		<nl>Uw Nederlandse paspoort of identiteitskaart, afkomstig uit de Nederlandse Basisregistratie Persoonsgegevens</nl>
+	</Description>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.nijmegen.travelDocument.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.nijmegen.travelDocument.html</nl>
+	</IssueURL>
+	<ShouldBeSingleton>false</ShouldBeSingleton>
+
+	<Attributes>
+		<Attribute id="kind">
+			<Name>
+				<en>Document kind</en>
+				<nl>Soort document</nl>
+			</Name>
+			<Description>
+				<en>The document kind (passport or identity card)</en>
+				<nl>Het soort reisdocument (paspoort of identiteitskaart)</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="number">
+			<Name>
+				<en>Document number</en>
+				<nl>Documentnummer</nl>
+			</Name>
+			<Description>
+				<en>The travel document number</en>
+				<nl>Het documentnummer</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="issuancedate">
+			<Name>
+				<en>Issuance date</en>
+				<nl>Datum uitgifte</nl>
+			</Name>
+			<Description>
+				<en>Date of issuance of the travel document</en>
+				<nl>Datum van uitgifte van het reisdocument</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="expirydate">
+			<Name>
+				<en>Expiry date</en>
+				<nl>Verloopdatum</nl>
+			</Name>
+			<Description>
+				<en>Expiry date of the travel document</en>
+				<nl>Verloopdatum van het reisdocument</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="documentissuer" optional="true">
+			<Name>
+				<en>Document issuer</en>
+				<nl>Uitgever</nl>
+			</Name>
+			<Description>
+				<en>Issuer of the travel document</en>
+				<nl>Autoriteit van afgifte reisdocument</nl>
+			</Description>
+		</Attribute>
+	</Attributes>
+</IssueSpecification>

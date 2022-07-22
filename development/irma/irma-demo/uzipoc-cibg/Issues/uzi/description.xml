@@ -1,0 +1,94 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo Uzi data</en>
+		<nl>Demo Uzi data</nl>
+	</Name>
+	<ShortName>
+		<en>Uzi data</en>
+		<nl>Uzi data</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>uzipoc-cibg</IssuerID>
+	<CredentialID>uzi</CredentialID>
+	<Description>
+		<en>Demo uzipas attributen</en>
+		<nl>Demo uzipas gegevens</nl>
+	</Description>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.uzipoc-cibg.uzi.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.uzipoc-cibg.uzi.html</nl>
+	</IssueURL>
+
+	<Attributes>
+		<Attribute id="uraName">
+			<Name>
+				<en>Ura name</en>
+				<nl>Ura naam</nl>
+			</Name>
+			<Description>
+				<en>The name of a ura healthcare organisation</en>
+				<nl>De naam van een ura zorgaanbieder</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="uraNumber">
+			<Name>
+				<en>Ura number</en>
+				<nl>Uranummer</nl>
+			</Name>
+			<Description>
+				<en>The ura number of a ura healthcare organisation</en>
+				<nl>Het ura nummer van een ura zorgaanbieder</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="uziNumber">
+			<Name>
+				<en>Uzi Number</en>
+				<nl>Uzinummer</nl>
+			</Name>
+			<Description>
+				<en>Your uzi number</en>
+				<nl>Uw uzinummer</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="hasRole01-041" displayHint="yesno">
+			<Name>
+				<en>Doctor Rheumatology</en>
+				<nl>Dokter Reumatoloog</nl>
+			</Name>
+			<Description>
+				<en>Whether you have the Doctor Rheumatology role</en>
+				<nl>Of u de Dokter Reumatoloog role hebt</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="hasRole30-000" displayHint="yesno">
+			<Name>
+				<en>Nurse</en>
+				<nl>Verpleegkundige</nl>
+			</Name>
+			<Description>
+				<en>Whether you have the nurse role</en>
+				<nl>Of u de verpleegkundige role hebt</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="hasRole01-010" displayHint="yesno">
+			<Name>
+				<en>Doctor Cardiology</en>
+				<nl>Dokter Cardioloog</nl>
+			</Name>
+			<Description>
+				<en>Whether you have the Doctor Cardiology role</en>
+				<nl>Of u de Dokter Cardioloog role hebt</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="hasRole01-011" displayHint="yesno">
+			<Name>
+				<en>Doctor Cardio-thoracic surgery</en>
+				<nl>Dokter thoraxchirurgie</nl>
+			</Name>
+			<Description>
+				<en>Whether you have the Doctor Cardio-thoracic surgery role</en>
+				<nl>Of u de Dokter thoraxchirurgie role hebt</nl>
+			</Description>
+		</Attribute>
+	</Attributes>
+</IssueSpecification>

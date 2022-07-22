@@ -1,0 +1,138 @@
+<IssueSpecification version="4">
+    <Name>
+        <en>Demo INZ ID Card</en>
+        <nl>Demo INZ ID Card</nl>
+    </Name>
+    <ShortName>
+        <en>ID Card</en>
+        <nl></nl>
+    </ShortName>
+    <SchemeManager>irma-demo</SchemeManager>
+    <IssuerID>inz-id-card</IssuerID>
+    <CredentialID>idCard</CredentialID>
+    <Description>
+        <en>ID Card</en>
+        <nl></nl>
+    </Description>
+    <ShouldBeSingleton>true</ShouldBeSingleton>
+    <IssueURL>
+        <en>https://demo.irma.nz/id-card/index.html</en>
+        <nl>https://demo.irma.nz/id-card/index.html</nl>
+    </IssueURL>
+    <Category>
+        <en>Personal</en>
+        <nl></nl>
+    </Category>
+
+    <ForegroundColor>#15222E</ForegroundColor>
+    <BackgroundGradientStart>#E2CDA8</BackgroundGradientStart>
+    <BackgroundGradientEnd>#E4DCCD</BackgroundGradientEnd>
+
+    <RevocationServers>
+        <RevocationServer>https://pnonvsmdy9.execute-api.ap-southeast-2.amazonaws.com/dev</RevocationServer>
+    </RevocationServers>
+
+    <Attributes>
+        <Attribute id="firstName">
+            <Name>
+                <en>Person first name</en>
+                <nl></nl>
+            </Name>
+            <Description>
+                <en>Person first name</en>
+                <nl></nl>
+            </Description>
+        </Attribute>
+        <Attribute id="lastName">
+            <Name>
+                <en>Person last name</en>
+                <nl></nl>
+            </Name>
+            <Description>
+                <en>Person last name</en>
+                <nl></nl>
+            </Description>
+        </Attribute>
+        <Attribute id="fullName">
+        <Name>
+            <en>Person full name</en>
+            <nl></nl>
+        </Name>
+        <Description>
+            <en>Person full name</en>
+            <nl></nl>
+        </Description>
+        </Attribute>
+        <Attribute id="birthdate">
+            <Name>
+                <en>Birthdate</en>
+                <nl></nl>
+            </Name>
+            <Description>
+                <en>Birthdate</en>
+                <nl></nl>
+            </Description>
+        </Attribute>
+        <Attribute id="over18">
+            <Name>
+                <en>Over 18</en>
+                <nl></nl>
+            </Name>
+            <Description>
+                <en>Over 18</en>
+                <nl></nl>
+            </Description>
+        </Attribute>
+        <Attribute id="over20">
+            <Name>
+                <en>Over 20</en>
+                <nl></nl>
+            </Name>
+            <Description>
+                <en>Over 20</en>
+                <nl></nl>
+            </Description>
+        </Attribute>
+        <Attribute id="over65">
+            <Name>
+                <en>Over 65</en>
+                <nl></nl>
+            </Name>
+            <Description>
+                <en>Over 65</en>
+                <nl></nl>
+            </Description>
+        </Attribute>
+        <Attribute id="issueDate">
+            <Name>
+                <en>Card Issue Date</en>
+                <nl></nl>
+            </Name>
+            <Description>
+                <en>The issue date of the ID Card</en>
+                <nl></nl>
+            </Description>
+        </Attribute>
+        <Attribute id="expiryDate">
+            <Name>
+                <en>Card Expiry Date</en>
+                <nl></nl>
+            </Name>
+            <Description>
+                <en>The expiry date of the Id Card</en>
+                <nl></nl>
+            </Description>
+        </Attribute>
+        <Attribute id="number">
+            <Name>
+                <en>Card ID Number</en>
+                <nl></nl>
+            </Name>
+            <Description>
+                <en>Your card number</en>
+                <nl></nl>
+            </Description>
+        </Attribute>
+        <Attribute revocation="true" />
+    </Attributes>
+</IssueSpecification>

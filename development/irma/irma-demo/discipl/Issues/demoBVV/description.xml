@@ -1,0 +1,54 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo Keten Derdenbeslag</en>
+		<nl>Demo Keten Derdenbeslag</nl>
+	</Name>
+	<ShortName>
+		<en>Demo BVV</en>
+		<nl>Demo BVV</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>discipl</IssuerID>
+	<CredentialID>demoBVV</CredentialID>
+	<Description>
+		<en>Demo Beslagvrije Voet (BVV) using API's</en>
+		<nl>Demo Beslagvrije Voet (BVV) using API's</nl>
+	</Description>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.discipl.demoBVV.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.discipl.demoBVV.html</nl>
+	</IssueURL>
+
+	<Attributes>
+		<Attribute id="calculatedBVV">
+			<Name>
+				<en>Beslagvrije Voet</en>
+				<nl>Beslagvrije Voet</nl>
+			</Name>
+			<Description>
+				<en>Calculated Beslagvrije Voet</en>
+				<nl>Berekende Beslagvrije Voet</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="debtCollector">
+			<Name>
+				<en>Bailiff</en>
+				<nl>Gerechtsdeurwaarder</nl>
+			</Name>
+			<Description>
+				<en>Coordinating Bailiff</en>
+				<nl>Coördinerend Gerechtsdeurwaarder</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="incomeUsedForBVV">
+			<Name>
+				<en>Income used for BVV</en>
+				<nl>Gehanteerde inkomen voor BVV</nl>
+			</Name>
+			<Description>
+				<en>Income used calculating Beslagvrije Voet</en>
+				<nl>Gehanteerde inkomen voor berekening Beslagvrije Voet</nl>
+			</Description>
+		</Attribute>
+	</Attributes>
+</IssueSpecification>

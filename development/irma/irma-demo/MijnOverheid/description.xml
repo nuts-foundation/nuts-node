@@ -1,0 +1,15 @@
+<Issuer version="4">
+  <ID>MijnOverheid</ID>
+  <Name>
+	  <en>Demo MijnOverheid.nl</en>
+	  <nl>Demo MijnOverheid.nl</nl>
+  </Name>
+  <ShortName>
+	  <en>Demo MijnOverheid.nl</en>
+	  <nl>Demo MijnOverheid.nl</nl>
+  </ShortName>
+  <SchemeManager>irma-demo</SchemeManager>
+  <ContactAddress>Een demo-overheid</ContactAddress>
+  <ContactEMail>demoverheid@example.com</ContactEMail>
+  <baseURL>http://www.irmacard.org/credentials/phase1/MijnOverheid/</baseURL>
+</Issuer>

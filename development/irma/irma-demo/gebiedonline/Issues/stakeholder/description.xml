@@ -1,0 +1,36 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo Gebiedonline</en>
+		<nl>Demo Gebiedonline</nl>
+	</Name>
+	<ShortName>
+		<en>Demo Gebiedonline</en>
+		<nl>Demo Gebiedonline</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>gebiedonline</IssuerID>
+	<CredentialID>stakeholder</CredentialID>
+	<Description>
+		<en>User of Gebiedonline platform</en>
+		<nl>Gebruiker van Gebiedonline platform</nl>
+	</Description>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.gebiedonline.stakeholder.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/en/irma-demo.gebiedonline.stakeholder.html</nl>
+	</IssueURL>
+
+	<Attributes>
+
+		<Attribute id="logincode">
+			<Name>
+				<en>Login code of Gebiedonline</en>
+				<nl>Login code van Gebiedonline</nl>
+			</Name>
+			<Description>
+				<en>Person can log into any Gebiedonline platform with specified code.</en>
+				<nl>Persoon kan in een Gebiedonline platform inloggen met code.</nl>
+			</Description>
+		</Attribute>
+
+	</Attributes>
+</IssueSpecification>

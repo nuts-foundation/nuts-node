@@ -1,0 +1,105 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo Driving license</en>
+		<nl>Demo Rijbewijs</nl>
+	</Name>
+	<ShortName>
+		<en>Demo Driving license</en>
+		<nl>Demo Rijbewijs</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>MijnOverheid</IssuerID>
+	<CredentialID>drivinglicense</CredentialID>
+	<Description>
+		<en>Demo Driving license</en>
+		<nl>Demo Rijbewijs</nl>
+	</Description>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.MijnOverheid.drivinglicense.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.MijnOverheid.drivinglicense.html</nl>
+	</IssueURL>
+
+	<Attributes>
+		<Attribute id="firstnames">
+			<Name>
+				<en>firstnames</en>
+				<nl>firstnames</nl>
+			</Name>
+			<Description>
+				<en></en>
+				<nl></nl>
+			</Description>
+		</Attribute>
+		<Attribute id="familyname">
+			<Name>
+				<en>familyname</en>
+				<nl>familyname</nl>
+			</Name>
+			<Description>
+				<en></en>
+				<nl></nl>
+			</Description>
+		</Attribute>
+		<Attribute id="dateofbirth">
+			<Name>
+				<en>dateofbirth</en>
+				<nl>dateofbirth</nl>
+			</Name>
+			<Description>
+				<en></en>
+				<nl></nl>
+			</Description>
+		</Attribute>
+		<Attribute id="placeofbirth">
+			<Name>
+				<en>placeofbirth</en>
+				<nl>placeofbirth</nl>
+			</Name>
+			<Description>
+				<en></en>
+				<nl></nl>
+			</Description>
+		</Attribute>
+		<Attribute id="licensed">
+			<Name>
+				<en>licensed</en>
+				<nl>licensed</nl>
+			</Name>
+			<Description>
+				<en></en>
+				<nl></nl>
+			</Description>
+		</Attribute>
+		<Attribute id="country">
+			<Name>
+				<en>country</en>
+				<nl>country</nl>
+			</Name>
+			<Description>
+				<en></en>
+				<nl></nl>
+			</Description>
+		</Attribute>
+		<Attribute id="number">
+			<Name>
+				<en>number</en>
+				<nl>number</nl>
+			</Name>
+			<Description>
+				<en></en>
+				<nl></nl>
+			</Description>
+		</Attribute>
+		<Attribute id="expires">
+			<Name>
+				<en>expires</en>
+				<nl>expires</nl>
+			</Name>
+			<Description>
+				<en></en>
+				<nl></nl>
+			</Description>
+		</Attribute>
+	</Attributes>
+
+</IssueSpecification>

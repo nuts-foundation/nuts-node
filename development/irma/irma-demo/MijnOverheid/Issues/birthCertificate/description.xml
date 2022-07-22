@@ -1,0 +1,66 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo Birth Certificate</en>
+		<nl>Demo geboorteakte</nl>
+	</Name>
+	<ShortName>
+		<en>Demo Birth Certificate</en>
+		<nl>Demo geboorteakte</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>MijnOverheid</IssuerID>
+	<CredentialID>birthCertificate</CredentialID>
+	<Description>
+		<en>Your birth certificate</en>
+		<nl>Uw geboorteakte</nl>
+	</Description>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.MijnOverheid.birthCertificate.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.MijnOverheid.birthCertificate.html</nl>
+	</IssueURL>
+	<ShouldBeSingleton>true</ShouldBeSingleton>
+
+	<Attributes>
+		<Attribute id="dateofbirth">
+			<Name>
+				<en>Date of birth</en>
+				<nl>Geboortedatum</nl>
+			</Name>
+			<Description>
+				<en>Your birth date</en>
+				<nl>Uw geboortedatum</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="placeofbirth">
+			<Name>
+				<en>Place of birth</en>
+				<nl>Uw geboorteplaats</nl>
+			</Name>
+			<Description>
+				<en>Your place of birth</en>
+				<nl>Uw geboorteplaats</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="countryofbirth">
+			<Name>
+				<en>Country of birth</en>
+				<nl>Geboorteland</nl>
+			</Name>
+			<Description>
+				<en>Your birth country</en>
+				<nl>Land waar u geboren bent</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="gender">
+			<Name>
+				<en>Gender</en>
+				<nl>Geslacht</nl>
+			</Name>
+			<Description>
+				<en>Your gender</en>
+				<nl>Uw geslacht</nl>
+			</Description>
+		</Attribute>
+
+	</Attributes>
+</IssueSpecification>

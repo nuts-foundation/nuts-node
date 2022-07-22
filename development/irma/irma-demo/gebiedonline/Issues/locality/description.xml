@@ -1,0 +1,69 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo Gebiedonline</en>
+		<nl>Demo Gebiedonline</nl>
+	</Name>
+	<ShortName>
+		<en>Demo Gebiedonline</en>
+		<nl>Demo Gebiedonline</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>gebiedonline</IssuerID>
+	<CredentialID>locality</CredentialID>
+	<Description>
+		<en>Gebiedonline Locality</en>
+		<nl>Gebiedonline buurt en plaats</nl>
+	</Description>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.gebiedonline.locality.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/en/irma-demo.gebiedonline.locality.html</nl>
+	</IssueURL>
+
+	<Attributes>
+
+		<Attribute id="locality">
+			<Name>
+				<en>Stakeholder local neighbourhood</en>
+				<nl>Belanghebbende in locale buurt</nl>
+			</Name>
+			<Description>
+				<en>Lives or works in local (sub-) neighbourhood</en>
+				<nl>Belanghebbende; woont of werkt in de buurt</nl>
+			</Description>
+		</Attribute>
+
+		<Attribute id="neighbourhood">
+			<Name>
+				<en>Stakeholder neighbourhood</en>
+				<nl>Belanghebbende in wijk</nl>
+			</Name>
+			<Description>
+				<en>Lives or works in neighbourhood</en>
+				<nl>Belanghebbende; woont of werkt in de wijk</nl>
+			</Description>
+		</Attribute>
+
+		<Attribute id="district">
+			<Name>
+				<en>Stakeholder district</en>
+				<nl>Belanghebbende in gebied / stadsdeel</nl>
+			</Name>
+			<Description>
+				<en>Lives or works in district</en>
+				<nl>Belanghebbende; woont of werkt in gebied of stadsdeel</nl>
+			</Description>
+		</Attribute>
+
+		<Attribute id="municipality">
+			<Name>
+				<en>Stakeholder municipality</en>
+				<nl>Belanghebbende in de stad of plaats</nl>
+			</Name>
+			<Description>
+				<en>Lives or works in municipality</en>
+				<nl>Belanghebbende; woont of werkt in plaats</nl>
+			</Description>
+		</Attribute>
+
+	</Attributes>
+</IssueSpecification>

@@ -1,0 +1,79 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo LinkedIn</en>
+		<nl>Demo LinkedIn</nl>
+	</Name>
+	<ShortName>
+		<en>Demo LinkedIn</en>
+		<nl>Demo LinkedIn</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>pbdf</IssuerID>
+	<CredentialID>linkedin</CredentialID>
+	<Description>
+		<en>LinkedIn attributes from your LinkedIn account</en>
+		<nl>LinkedIn attributen uit je LinkedIn account</nl>
+	</Description>
+	<ShouldBeSingleton>false</ShouldBeSingleton>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.pbdf.linkedin.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.pbdf.linkedin.html</nl>
+	</IssueURL>
+
+	<ForegroundColor>#15222E</ForegroundColor>
+	<BackgroundGradientStart>#0277B5</BackgroundGradientStart>
+	<BackgroundGradientEnd>#196E9F</BackgroundGradientEnd>
+
+	<Attributes>
+		<Attribute id="fullname" optional="true">
+			<Name>
+				<en>Full name</en>
+				<nl>Volledige naam</nl>
+			</Name>
+			<Description>
+				<en>Your full name, as registered by LinkedIn</en>
+				<nl>Je volledige naam, zoals geregistreerd bij LinkedIn</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="firstname">
+			<Name>
+				<en>First name</en>
+				<nl>Voornaam</nl>
+			</Name>
+			<Description>
+				<en>Your first name, as registered by LinkedIn</en>
+				<nl>Je voornaam, zoals geregistreerd bij LinkedIn</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="familyname">
+			<Name>
+				<en>Family name</en>
+				<nl>Achternaam</nl>
+			</Name>
+			<Description>
+				<en>Your family name, as registered by LinkedIn</en>
+				<nl>Je achternaam, zoals geregistreerd bij LinkedIn</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="email">
+			<Name>
+				<en>Email address</en>
+				<nl>E-mailadres</nl>
+			</Name>
+			<Description>
+				<en>Your email address, as registered by LinkedIn</en>
+				<nl>Je e-mailadres, zoals geregistreerd bij LinkedIn</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="profileurl" optional="true">
+			<Name>
+				<en>Profile</en>
+				<nl>Profiel</nl>
+			</Name>
+			<Description>
+				<en>URL to your LinkedIn profile</en>
+				<nl>URL naar je LinkedIn-profiel</nl>
+			</Description>
+		</Attribute>
+	</Attributes>
+</IssueSpecification>

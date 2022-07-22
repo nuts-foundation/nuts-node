@@ -1,0 +1,71 @@
+<IssueSpecification version="4">
+  <Name>
+    <en>Demo Voting Card</en>
+    <nl>Demo Stempas</nl>
+  </Name>
+  <ShortName>
+    <en>Demo Voting Card</en>
+    <nl>Demo Stempas</nl>
+  </ShortName>
+  <SchemeManager>irma-demo</SchemeManager>
+  <IssuerID>stemmen</IssuerID>
+  <CredentialID>stempas</CredentialID>
+  <Description>
+    <en>Your voting card</en>
+    <nl>Uw stempas</nl>
+  </Description>
+  <ShouldBeSingleton>false</ShouldBeSingleton>
+
+  <Attributes>
+    <Attribute id="election" displayIndex="0">
+      <Name>
+        <en>Election</en>
+        <nl>Verkiezing</nl>
+      </Name>
+      <Description>
+        <en>Election</en>
+        <nl>Verkiezing</nl>
+      </Description>
+    </Attribute>
+    <Attribute id="votingnumber" randomblind="true" displayIndex="4">
+      <Name>
+        <en>Anonymous voting number</en>
+        <nl>Anonieme stemcode</nl>
+      </Name>
+      <Description>
+        <en>Anonymous voting number</en>
+        <nl>Anonieme stemcode</nl>
+      </Description>
+    </Attribute>
+    <Attribute id="voteURL" displayIndex="1">
+      <Name>
+        <en>Election website</en>
+        <nl>Verkiezingswebsite</nl>
+      </Name>
+      <Description>
+        <en>The URL on which votes can be registered</en>
+        <nl>De URL waarop u uw stem uit kan brengen</nl>
+      </Description>
+    </Attribute>
+    <Attribute id="start" displayIndex="2">
+      <Name>
+        <en>Start date</en>
+        <nl>Startdatum</nl>
+      </Name>
+      <Description>
+        <en>The date after which votes can be registered</en>
+        <nl>De datum vanaf wanneer u uw stem uit kan brengen</nl>
+      </Description>
+    </Attribute>
+    <Attribute id="end" displayIndex="3">
+      <Name>
+        <en>End date</en>
+        <nl>Einddatum</nl>
+      </Name>
+      <Description>
+        <en>The date after which votes can no longer be registered</en>
+        <nl>De datum vanaf wanneer u uw stem niet meer uit kan brengen</nl>
+      </Description>
+    </Attribute>
+  </Attributes>
+</IssueSpecification>

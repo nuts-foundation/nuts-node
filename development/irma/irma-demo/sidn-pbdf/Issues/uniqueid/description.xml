@@ -1,0 +1,45 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo Login data</en>
+		<nl>Demo Inloggegevens</nl>
+	</Name>
+	<ShortName>
+		<en>Demo Login data</en>
+		<nl>Demo Inloggegevens</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>sidn-pbdf</IssuerID>
+	<CredentialID>uniqueid</CredentialID>
+	<Description>
+		<en>Your unique login data.</en>
+		<nl>Jouw unieke inloggegevens.</nl>
+	</Description>
+	<ShouldBeSingleton>false</ShouldBeSingleton>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.sidn-pbdf.uniqueid.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.sidn-pbdf.uniqueid.html</nl>
+	</IssueURL>
+
+	<Attributes>
+		<Attribute id="uniqueid">
+			<Name>
+				<en>Login code</en>
+				<nl>Inlogcode</nl>
+			</Name>
+			<Description>
+				<en>Your unique login code.</en>
+				<nl>Je unieke inlogcode.</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="organization">
+			<Name>
+				<en>Organization</en>
+				<nl>Organisatie</nl>
+			</Name>
+			<Description>
+				<en>The organization that uses this login.</en>
+				<nl>De organisatie die gebruik maakt van deze login.</nl>
+			</Description>
+		</Attribute>
+	</Attributes>
+</IssueSpecification>

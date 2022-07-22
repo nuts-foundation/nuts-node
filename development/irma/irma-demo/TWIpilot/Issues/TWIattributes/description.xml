@@ -1,0 +1,244 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo TWIpilot attributen</en>
+		<nl>Demo TWIpilot attributes</nl>
+	</Name>
+	<ShortName>
+		<en>Demo TWIpilot</en>
+		<nl>Demo TWIpilot</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>TWIpilot</IssuerID>
+	<CredentialID>TWIattributes</CredentialID>
+	<Description>
+		<en>Attributes for TWi Pilots</en>
+		<nl>Attributen voor Pilots van TWI</nl>
+	</Description>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.TWIpilot.TWIattributes.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.TWIpilot.TWIattributes.html</nl>
+	</IssueURL>
+
+	<Attributes>
+		<Attribute id="inleven" optional="true">
+			<Name>
+				<en>Alive</en>
+				<nl>In Leven</nl>
+			</Name>
+			<Description>
+				<en>Indicatie dat een inwoner in leven is</en>
+				<nl>Indicatie dat een inwoner in leven is</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="gezinssituatie" optional="true">
+			<Name>
+				<en>Gezinssituatie</en>
+				<nl>Gezinssituatie</nl>
+			</Name>
+			<Description>
+				<en>Status van de gezinssituatie, zoals: alleenstaand, alleenstaande ouder of met een partner is</en>
+				<nl>Status van de gezinssituatie, zoals: alleenstaand, alleenstaande ouder of met een partner is</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="rechtwtos" optional="true">
+			<Name>
+				<en>Recht WTOS</en>
+				<nl>Recht WTOS</nl>
+			</Name>
+			<Description>
+				<en>Indicatie of iemand recht heeft op WTOS</en>
+				<nl>Indicatie of iemand recht heeft op WTOS</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="rechtwsf" optional="true">
+			<Name>
+				<en>Recht WSF</en>
+				<nl>Recht WSF</nl>
+			</Name>
+			<Description>
+				<en>Indicatie of iemand recht heeft op WSF</en>
+				<nl>Indicatie of iemand recht heeft op WSF</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="ontvangenwajong" optional="true">
+			<Name>
+				<en>Ontvangen Wajong</en>
+				<nl>Ontvangen Wajong</nl>
+			</Name>
+			<Description>
+				<en>Indicatie of iemand Wajong ontvangt</en>
+				<nl>Indicatie of iemand Wajong ontvangt</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="medischebeperking" optional="true">
+			<Name>
+				<en>Medische Beperking</en>
+				<nl>Medische Beperking</nl>
+			</Name>
+			<Description>
+				<en>Indicatie of iemand een medische beperking heeft</en>
+				<nl>Indicatie of iemand een medische beperking heeft</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="inschrijvingopleiding" optional="true">
+			<Name>
+				<en>Inschrijving opleiding</en>
+				<nl>Inschrijving opleiding</nl>
+			</Name>
+			<Description>
+				<en>Indicatie of iemand ingeschreven staat bij een opleiding</en>
+				<nl>Indicatie of iemand ingeschreven staat bij een opleiding</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="banksaldo" optional="true">
+			<Name>
+				<en>Bank- en Spaarrekening</en>
+				<nl>Bank- en Spaarrekening</nl>
+			</Name>
+			<Description>
+				<en>Het totaalbedrag dat op de rekeningen staat</en>
+				<nl>Het totaalbedrag dat op de rekeningen staat</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="schulden" optional="true">
+			<Name>
+				<en>Schulden</en>
+				<nl>Schulden</nl>
+			</Name>
+			<Description>
+				<en>Het totaalbedrag aan schulden</en>
+				<nl>Het totaalbedrag aan schulden</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="waardepapieren" optional="true">
+			<Name>
+				<en>Vermogen waardepapieren</en>
+				<nl>Vermogen waardepapieren</nl>
+			</Name>
+			<Description>
+				<en>Het totaalbedrag aan waardepapieren</en>
+				<nl>Het totaalbedrag aan waardepapieren</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="bezittingen" optional="true">
+			<Name>
+				<en>Vermogen waardevolle bezittingen</en>
+				<nl>Vermogen waardevolle bezittingen</nl>
+			</Name>
+			<Description>
+				<en>Indicatie of iemand in het bezit is van (on)roerende goederen</en>
+				<nl> Indicatie of iemand in het bezit is van (on)roerende goederen</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="aantalkinderen" optional="true">
+			<Name>
+				<en>Inwonende kinderen</en>
+				<nl>Inwonende kinderen</nl>
+			</Name>
+			<Description>
+				<en>Het aantal inwonende kinderen dat een ouder heeft</en>
+				<nl>Het aantal inwonende kinderen dat een ouder heeft</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="leeftijdkinderen" optional="true">
+			<Name>
+				<en>Leeftijd kinderen</en>
+				<nl>Leeftijd kinderen</nl>
+			</Name>
+			<Description>
+				<en>De leeftijd van kinderen van een ouder</en>
+				<nl>De leeftijd van kinderen van een ouder</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="reintegratietraject" optional="true">
+			<Name>
+				<en>Re-integratietraject</en>
+				<nl>Re-integratietraject</nl>
+			</Name>
+			<Description>
+				<en>Indicatie of iemand een re-integratietraject volgt</en>
+				<nl>Indicatie of iemand een re-integratietraject volgt</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="uwvuitkering" optional="true">
+			<Name>
+				<en>Ontvangen UWV uitkering</en>
+				<nl>Ontvangen UWV uitkering</nl>
+			</Name>
+			<Description>
+				<en>Indicatie of iemand een uitkering ontvangt van UWV</en>
+				<nl>Indicatie of iemand een uitkering ontvangt van UWV</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="svbuitkering" optional="true">
+			<Name>
+				<en>Ontvangen SVB uitkering</en>
+				<nl>Ontvangen SVB uitkering</nl>
+			</Name>
+			<Description>
+				<en>Indicatie of iemand een uitkering ontvangt van SVB</en>
+				<nl>Indicatie of iemand een uitkering ontvangt van SVB</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="sociaalmedischeindicatie" optional="true">
+			<Name>
+				<en>Sociaal Medische Indicatie</en>
+				<nl>Sociaal Medische Indicatie</nl>
+			</Name>
+			<Description>
+				<en>Of iemand een Sociaal Medische Indicatie heeft</en>
+				<nl>Of iemand een Sociaal Medische Indicatie heeft</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="overeenkomstkinderopvang" optional="true">
+			<Name>
+				<en>Overeenkomst Kinderopvang</en>
+				<nl>Overeenkomst Kinderopvang</nl>
+			</Name>
+			<Description>
+				<en>Indicatie of er een overeenkomst met de kinderopvang aanwezig is</en>
+				<nl>Indicatie of er een overeenkomst met de kinderopvang aanwezig is</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="overzichtkinderopvang" optional="true">
+			<Name>
+				<en>Berekeningsoverzicht Kinderopvang</en>
+				<nl>Berekeningsoverzicht Kinderopvang</nl>
+			</Name>
+			<Description>
+				<en>Bedragen op de het berekeningsoverzicht van de Kinderopvang</en>
+				<nl>Bedragen op de het berekeningsoverzicht van de Kinderopvang</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="rechtinkomenstoeslag" optional="true">
+			<Name>
+				<en>Recht Inkomenstoeslag</en>
+				<nl>Recht Inkomenstoeslag</nl>
+			</Name>
+			<Description>
+				<en>Indicatie of iemand recht heeft op Inkomenstoeslag</en>
+				<nl>Indicatie of iemand recht heeft op Inkomenstoeslag</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="ontvangenioawuitkering" optional="true">
+			<Name>
+				<en>Ontvangen IOAW uitkering</en>
+				<nl>Ontvangen IOAW uitkering</nl>
+			</Name>
+			<Description>
+				<en>Indicatie of iemand een IOAW uitkering ontvangt</en>
+				<nl>Indicatie of iemand een IOAW uitkering ontvangt</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="ontvangenbijstandsuitkering" optional="true">
+			<Name>
+				<en>Ontvangen Bijstandsuitkering</en>
+				<nl>Ontvangen Bijstandsuitkering</nl>
+			</Name>
+			<Description>
+				<en>Indicatie of iemand een Bijstandsuitkering ontvangt</en>
+				<nl>Indicatie of iemand een Bijstandsuitkering ontvangt</nl>
+			</Description>
+		</Attribute>
+	</Attributes>
+</IssueSpecification>

@@ -1,0 +1,96 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo iDIN data</en>
+		<nl>Demo iDIN data</nl>
+	</Name>
+	<ShortName>
+		<en>Demo iDIN data</en>
+		<nl>Demo iDIN data</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>RU</IssuerID>
+	<CredentialID>idinData</CredentialID>
+	<Description>
+		<en>iDIN personal data, issued by the Radboud University Nijmegen.</en>
+		<nl></nl>
+	</Description>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.RU.idinData.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.RU.idinData.html</nl>
+	</IssueURL>
+
+
+
+	<Attributes>
+		<Attribute id="initials">
+			<Name>
+				<en>initials</en>
+				<nl></nl>
+			</Name>
+			<Description>
+				<en>First letters of your name(s)</en>
+				<nl></nl>
+			</Description>
+		</Attribute>
+		<Attribute id="familyName">
+			<Name>
+				<en>familyName</en>
+				<nl></nl>
+			</Name>
+			<Description>
+				<en>Your family name</en>
+				<nl></nl>
+			</Description>
+		</Attribute>
+		<Attribute id="dateOfBirth">
+			<Name>
+				<en>dateOfBirth</en>
+				<nl></nl>
+			</Name>
+			<Description>
+				<en>Your date of birth</en>
+				<nl></nl>
+			</Description>
+		</Attribute>
+		<Attribute id="sex">
+			<Name>
+				<en>sex</en>
+				<nl></nl>
+			</Name>
+			<Description>
+				<en>Your sex</en>
+				<nl></nl>
+			</Description>
+		</Attribute>
+		<Attribute id="address">
+			<Name>
+				<en>address</en>
+				<nl></nl>
+			</Name>
+			<Description>
+				<en>The address at which you live</en>
+				<nl></nl>
+			</Description>
+		</Attribute>
+		<Attribute id="zipcode">
+			<Name>
+				<en>zipcode</en>
+				<nl></nl>
+			</Name>
+			<Description>
+				<en>Your zipcode</en>
+				<nl></nl>
+			</Description>
+		</Attribute>
+		<Attribute id="city">
+			<Name>
+				<en>city</en>
+				<nl></nl>
+			</Name>
+			<Description>
+				<en>The city at which you live</en>
+				<nl></nl>
+			</Description>
+		</Attribute>
+	</Attributes>
+</IssueSpecification>

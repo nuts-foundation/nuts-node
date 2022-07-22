@@ -1,0 +1,36 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo Photos</en>
+		<nl>Demo Pasfoto's</nl>
+	</Name>
+	<ShortName>
+		<en>Demo Photos</en>
+		<nl>Demo Pasfoto's</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>irmages</IssuerID>
+	<CredentialID>photos</CredentialID>
+	<Description>
+		<en>Your photos from your passport.</en>
+		<nl>De foto's uit uw paspoort.</nl>
+	</Description>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.irmages.photos.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.irmages.photos.html</nl>
+	</IssueURL>
+	<ShouldBeSingleton>true</ShouldBeSingleton>
+
+	<Attributes>
+		<Attribute id="photo">
+			<Name>
+				<en>Photo</en>
+				<nl>Foto</nl>
+			</Name>
+			<Description>
+				<en>Your high quality portrait photo</en>
+				<nl>Uw pasfoto in hoge kwaliteit</nl>
+			</Description>
+			<Type>image</Type>
+		</Attribute>
+	</Attributes>
+</IssueSpecification>

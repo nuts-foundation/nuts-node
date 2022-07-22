@@ -1,0 +1,65 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo Address</en>
+		<nl>Demo Adres</nl>
+	</Name>
+	<ShortName>
+		<en>Demo Address</en>
+		<nl>Demo Adres</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>MijnOverheid</IssuerID>
+	<CredentialID>address</CredentialID>
+	<Description>
+		<en>Address description issued by MijnOverheid based on GBA data</en>
+		<nl>Adres uitgegeven door MijnOverheid gebaseerd op GBA-gegevens</nl>
+	</Description>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.MijnOverheid.address.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.MijnOverheid.address.html</nl>
+	</IssueURL>
+
+	<Attributes>
+		<Attribute id="country">
+			<Name>
+				<en>Country</en>
+				<nl>Land</nl>
+			</Name>
+			<Description>
+				<en>The country you live in</en>
+				<nl>Het land waarin u woont</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="city">
+			<Name>
+				<en>City</en>
+				<nl>Stad</nl>
+			</Name>
+			<Description>
+				<en>The city you live in</en>
+				<nl>Uw woonplaats</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="street">
+			<Name>
+				<en>Street</en>
+				<nl>Straat</nl>
+			</Name>
+			<Description>
+				<en>Your street and house number</en>
+				<nl>Uw straat en huisnummer</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="zipcode">
+			<Name>
+				<en>ZIP code</en>
+				<nl>Postcode</nl>
+			</Name>
+			<Description>
+				<en>Your ZIP code</en>
+				<nl>Uw postcode</nl>
+			</Description>
+		</Attribute>
+
+	</Attributes>
+</IssueSpecification>

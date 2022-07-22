@@ -1,0 +1,70 @@
+<IssueSpecification version="4">
+    <Name>
+        <en>Demo INZ Emailer E-mail</en>
+        <nl>Demo INZ Emailer E-mail</nl>
+    </Name>
+    <ShortName>
+        <en>E-mail</en>
+        <nl>E-mail</nl>
+    </ShortName>
+    <SchemeManager>irma-demo</SchemeManager>
+    <IssuerID>inz-emailer</IssuerID>
+    <CredentialID>email</CredentialID>
+    <Description>
+        <en>E-mail</en>
+        <nl>E-mail</nl>
+    </Description>
+    <ShouldBeSingleton>false</ShouldBeSingleton>
+    <IssueURL>
+        <en>https://demo.irma.nz</en>
+        <nl>https://demo.irma.nz</nl>
+    </IssueURL>
+    <Category>
+        <en>Personal</en>
+        <nl>Persoonlijk</nl>
+    </Category>
+    <FAQIntro>
+        <en>Add your email address to your IRMA app. You can add multiple email addresses.</en>
+        <nl>Laad je e-mailadres in je IRMA-app. Je kunt meerdere e-mailadressen toevoegen.</nl>
+    </FAQIntro>
+    <FAQPurpose>
+        <en>With your email address in your IRMA app, you can show that this address is really yours. For instance, you
+            can use your email address to fill in a line in a form, or to login at a website.
+        </en>
+        <nl>Met jouw e-mailadres in de IRMA-app kun je laten zien dat dit adres echt bij jou hoort. Je kunt bijvoorbeeld
+            je e-mailadres gebruiken om een regel in een formulier in te vullen of om op een website in te loggen.
+        </nl>
+    </FAQPurpose>
+    <FAQContent>
+        <en>You will add the following data.\n• emailaddress\n• email domain name</en>
+        <nl>Je laadt de volgende gegevens.\n• e-mailadres\n• e-mail domeinnaam</nl>
+    </FAQContent>
+    <FAQHowto>
+        <en>Complete the following steps.\n1. Enter your e-mail address.\n2. Open your email application and go to your
+            Inbox (if there is no new mail soon, please check your Spam folder).\n3. Click the link in the email
+            message, sent by the Privacy by Design Foundation. If you see a QR code on your computer screen, scan it
+            with the QR scanner in your IRMA app. The Privacy by Design Foundation copies your email data into your IRMA
+            app.\n\nYou now receive a card with your email address and its domain name in your IRMA app. Repeat this
+            process for other email addresses that you wish to add.
+        </en>
+        <nl>Doorloop de volgende stappen.\n1. Vul je e-mailadres in.\n2. Open je e-maillezer en ga naar 'inkomende
+            berichten' (als er geen mail verschijnt, controleer zonodig je Spam folder).\n3. Open de link in het
+            e-mailbericht van de stichting Privacy by Design. Als je een QR-code te zien krijgt, scan deze met je
+            IRMA-app. De stichting Privacy by Design voegt je e-mail gegevens toe in je IRMA-app.\n\nJe ontvangt nu een
+            kaartje met je e-mailadres en de domeinnaam van dat adres in je IRMA app. Herhaal dit proces voor ieder
+            e-mail adres dat je toe wil voegen.
+        </nl>
+    </FAQHowto>
+    <Attributes>
+        <Attribute id="email">
+            <Name>
+                <en>User e-mail address</en>
+                <nl>E-mailadres</nl>
+            </Name>
+            <Description>
+                <en>Your verified e-mail address</en>
+                <nl>Je geverifieerde e-mailadres</nl>
+            </Description>
+        </Attribute>
+    </Attributes>
+</IssueSpecification>

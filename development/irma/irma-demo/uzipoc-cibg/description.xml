@@ -1,0 +1,15 @@
+<Issuer version="4">
+  <ID>uzipoc-cibg</ID>
+  <Name>
+	  <en>Demo authority for issuing UZI credentials</en>
+	  <nl>Demo authoriteit voor het uitgeven van UZI credentials</nl>
+  </Name>
+  <ShortName>
+	  <en>Uzipoc CIBG</en>
+	  <nl>Uzipoc CIBG</nl>
+  </ShortName>
+  <SchemeManager>irma-demo</SchemeManager>
+  <ContactAddress></ContactAddress>
+  <ContactEMail>example@example.com</ContactEMail>
+  <baseURL>http://www.irmacard.org/credentials/phase1/uzipoc-cibg/</baseURL>
+</Issuer>

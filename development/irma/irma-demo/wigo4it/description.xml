@@ -1,0 +1,16 @@
+<Issuer version="4">
+  <ID>wigo4it</ID>
+  <Name>
+	  <en>Demo WIGO4IT</en>
+	  <nl>Demo WIGO4IT</nl>
+  </Name>
+  <ShortName>
+	  <en>Demo WIGO4IT</en>
+	  <nl>Demo WIGO4IT</nl>
+  </ShortName>
+  <SchemeManager>irma-demo</SchemeManager>
+  <ContactAddress>https://wigo4it.nl/</ContactAddress>
+  <ContactEMail>sjef.van.leeuwen@wigo4it.nl</ContactEMail>
+
+  <baseURL></baseURL>
+</Issuer>

@@ -1,0 +1,48 @@
+<IssueSpecification version="4">
+    <Name>
+        <en>Demo INZ Personal Data Age Limits</en>
+        <nl>Demo INZ Personal Data Age Limits</nl>
+    </Name>
+    <ShortName>
+        <en>Age Limits</en>
+        <nl>Age Limits</nl>
+    </ShortName>
+    <SchemeManager>irma-demo</SchemeManager>
+    <IssuerID>inz-personal-data</IssuerID>
+    <CredentialID>ageLimits</CredentialID>
+    <Description>
+        <en>Age Limits - Over 18 and Over 65 years</en>
+        <nl></nl>
+    </Description>
+    <ShouldBeSingleton>true</ShouldBeSingleton>
+    <IssueURL>
+        <en>http://demo.irma.nz/</en>
+        <nl>http://demo.irma.nz/</nl>
+    </IssueURL>
+    <Category>
+        <en>Personal</en>
+        <nl>Persoonlijk</nl>
+    </Category>
+    <Attributes>
+        <Attribute id="over18">
+            <Name>
+                <en>Over 18</en>
+                <nl></nl>
+            </Name>
+            <Description>
+                <en>Over 18</en>
+                <nl></nl>
+            </Description>
+        </Attribute>
+        <Attribute id="over65" optional="true">
+            <Name>
+                <en>Over 65</en>
+                <nl></nl>
+            </Name>
+            <Description>
+                <en>Over 65</en>
+                <nl></nl>
+            </Description>
+        </Attribute>
+    </Attributes>
+</IssueSpecification>

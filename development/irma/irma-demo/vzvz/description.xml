@@ -1,0 +1,15 @@
+<Issuer version="4">
+	<ID>vzvz</ID>
+	<ShortName>
+		<en>Demo VZVZ</en>
+		<nl>Demo VZVZ</nl>
+	</ShortName>
+	<Name>
+		<en>Demo VZVZ</en>
+		<nl>Demo VZVZ</nl>
+	</Name>
+	<SchemeManager>irma-demo</SchemeManager>
+	<ContactAddress>https://www.vzvz.nl</ContactAddress>
+	<ContactEMail>support@vzvz.nl</ContactEMail>
+	<baseURL></baseURL>
+</Issuer>

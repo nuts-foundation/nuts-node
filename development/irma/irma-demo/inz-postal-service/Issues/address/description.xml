@@ -1,0 +1,34 @@
+<IssueSpecification version="4">
+    <Name>
+        <en>Demo INZ Postal Service Address</en>
+        <nl>Demo INZ Postal Service Address</nl>
+    </Name>
+    <ShortName>
+        <en>Address</en>
+        <nl>Address</nl>
+    </ShortName>
+    <SchemeManager>irma-demo</SchemeManager>
+    <IssuerID>inz-postal-service</IssuerID>
+    <CredentialID>address</CredentialID>
+    <Description>
+        <en>Full address</en>
+        <nl></nl>
+    </Description>
+    <ShouldBeSingleton>true</ShouldBeSingleton>
+    <IssueURL>
+        <en>https://demo.irma.nz</en>
+        <nl>https://demo.irma.nz</nl>
+    </IssueURL>
+    <Attributes>
+        <Attribute id="fullAddress">
+            <Name>
+                <en>Full address</en>
+                <nl></nl>
+            </Name>
+            <Description>
+                <en>Number, Road name, Suburb/locality, City/Town name</en>
+                <nl></nl>
+            </Description>
+        </Attribute>
+    </Attributes>
+</IssueSpecification>

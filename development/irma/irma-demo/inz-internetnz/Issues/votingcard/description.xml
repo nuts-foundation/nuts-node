@@ -1,0 +1,69 @@
+<IssueSpecification version="4">
+    <Name>
+        <en>Demo INZ Voting Card</en>
+        <nl>Demo INZ Voting Card</nl>
+    </Name>
+    <ShortName>
+        <en>InternetNZ Voting Card</en>
+        <nl>InternetNZ Voting Card</nl>
+    </ShortName>
+    <SchemeManager>irma-demo</SchemeManager>
+    <IssuerID>inz-internetnz</IssuerID>
+    <CredentialID>votingcard</CredentialID>
+    <Description>
+        <en>InternetNZ voting card</en>
+        <nl></nl>
+    </Description>
+    <ShouldBeSingleton>false</ShouldBeSingleton>
+    <IssueURL>
+        <en>https://demo.irma.nz/votingcard.html</en>
+        <nl>https://demo.irma.nz/votingcard.html</nl>
+    </IssueURL>
+
+    <ForegroundColor>#15222E</ForegroundColor>
+    <BackgroundGradientStart>#FF66FC</BackgroundGradientStart>
+    <BackgroundGradientEnd>#FFB3FE</BackgroundGradientEnd>
+
+<Attributes>
+    <Attribute id="election" displayIndex="0">
+      <Name>
+        <en>Election</en>
+        <nl></nl>
+      </Name>
+      <Description>
+        <en>Election Title</en>
+        <nl></nl>
+      </Description>
+    </Attribute>
+    <Attribute id="start" displayIndex="1">
+      <Name>
+        <en>Start date</en>
+        <nl></nl>
+      </Name>
+      <Description>
+        <en>The date after which votes can be registered</en>
+        <nl></nl>
+      </Description>
+    </Attribute>
+    <Attribute id="end" displayIndex="2">
+      <Name>
+        <en>End date</en>
+        <nl></nl>
+      </Name>
+      <Description>
+        <en>The date after which votes can no longer be registered</en>
+        <nl></nl>
+      </Description>
+    </Attribute>
+    <Attribute id="votingnumber" randomblind="true" displayIndex="3">
+      <Name>
+        <en>Anonymous voting number</en>
+        <nl></nl>
+      </Name>
+      <Description>
+        <en>Anonymous voting number</en>
+        <nl></nl>
+      </Description>
+    </Attribute>
+  </Attributes>
+</IssueSpecification>

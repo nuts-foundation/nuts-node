@@ -1,0 +1,15 @@
+<Issuer version="4">
+	<ID>gebiedonline</ID>
+	<Name>
+		<en>Demo Gebiedonline</en>
+		<nl>Demo Gebiedonline</nl>
+	</Name>
+	<ShortName>
+		<en>Demo Gebiedonline</en>
+		<nl>Demo Gebiedonline</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<ContactAddress>https://gebiedonline.nl/</ContactAddress>
+	<ContactEMail>info@gebiedonline.nl</ContactEMail>
+	<baseURL></baseURL>
+</Issuer>

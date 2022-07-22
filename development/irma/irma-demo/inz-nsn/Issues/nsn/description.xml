@@ -1,0 +1,34 @@
+<IssueSpecification version="4">
+    <Name>
+        <en>Demo INZ NSN</en>
+        <nl>Demo INZ NSN</nl>
+    </Name>
+    <ShortName>
+        <en>NSN</en>
+        <nl>NSN</nl>
+    </ShortName>
+    <SchemeManager>irma-demo</SchemeManager>
+    <IssuerID>inz-nsn</IssuerID>
+    <CredentialID>nsn</CredentialID>
+    <Description>
+        <en>Demo New Zealand National Student Number</en>
+        <nl>Demo New Zealand National Student Number</nl>
+    </Description>
+    <ShouldBeSingleton>false</ShouldBeSingleton>
+    <IssueURL>
+        <en>https://demo.irma.nz</en>
+        <nl>https://demo.irma.nz</nl>
+    </IssueURL>
+    <Attributes>
+        <Attribute id="number">
+            <Name>
+                <en>national student number</en>
+                <nl></nl>
+            </Name>
+            <Description>
+                <en>national student number</en>
+                <nl></nl>
+            </Description>
+        </Attribute>
+    </Attributes>
+</IssueSpecification>

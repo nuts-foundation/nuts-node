@@ -1,0 +1,14 @@
+<Issuer version="4">
+	<ID>kvk</ID>
+	<ShortName>
+		<en>Demo KVK</en>
+		<nl>Demo KVK</nl>
+	</ShortName>
+	<Name>
+		<en>Demo Netherlands Chamber of Commerce</en>
+		<nl>Demo Kamer van Koophandel</nl>
+	</Name>
+	<SchemeManager>irma-demo</SchemeManager>
+	<ContactAddress>https://www.kvk.nl</ContactAddress>
+	<ContactEMail>info@example.com</ContactEMail>
+</Issuer>

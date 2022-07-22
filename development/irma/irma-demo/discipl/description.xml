@@ -1,0 +1,15 @@
+<Issuer version="4">
+  <ID>discipl</ID>
+  <Name>
+	  <en>Demo Discipl</en>
+	  <nl>Demo Discipl</nl>
+  </Name>
+  <ShortName>
+	  <en>Demo Discipl</en>
+	  <nl>Demo Discipl</nl>
+  </ShortName>
+  <SchemeManager>irma-demo</SchemeManager>
+  <ContactAddress>https://discipl.org/</ContactAddress>
+  <ContactEMail>steven.gort@ictu.nl</ContactEMail>
+  <baseURL>https://discipl.org/</baseURL>
+</Issuer>

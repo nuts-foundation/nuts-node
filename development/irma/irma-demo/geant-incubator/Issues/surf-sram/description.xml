@@ -1,0 +1,225 @@
+<IssueSpecification version="4">
+    <Name>
+        <en>Demo SURF Research Access Management</en>
+        <nl>Demo SURF Research Access Management</nl>
+    </Name>
+    <ShortName>
+        <en>surf-sram</en>
+        <nl>surf-sram</nl>
+    </ShortName>
+    <SchemeManager>irma-demo</SchemeManager>
+    <IssuerID>geant-incubator</IssuerID>
+    <CredentialID>surf-sram</CredentialID>
+    <Description>
+        <en>This credential is used as part of the Distributed Identity for Research (DI4R) IRMA demo in the GÉANT Trust and Identity Incubator.\nThis credential allows users to load profile information as provided by SURF Research Access Management (SRAM) into an IRMA wallet for login to your research community services.</en>
+        <nl>Deze credential wordt gebruikt als onderdeel van de Distributed Identity for Research (DI4R) IRMA demo, wat onderdeel is van de GÉANT Trust and Identity Incubator.\nMiddels deze credential kunnen gebruikers profiel informatie van hun onderzoekssamenwerking zoals deze is vastgelegd in SURF Research Access Management (SRAM) inladen in een IRMA wallet om deze later bij hun onderzoeksdiensten te kunnen gebruiken om in te loggen.</nl>
+    </Description>
+    <ShouldBeSingleton>false</ShouldBeSingleton>
+    <IssueURL>
+        <en>https://privacybydesign.foundation/attribute-index/en/irma-demo.incubator.geant-incubator.surf-sram.html</en>
+        <nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.incubator.geant-incubator.surf-sram.html</nl>
+    </IssueURL>
+    <ForegroundColor>#15222E</ForegroundColor>
+    <BackgroundGradientStart>#EBEBEB</BackgroundGradientStart>
+    <BackgroundGradientEnd>#FFFFFF</BackgroundGradientEnd>
+    <IsInCredentialStore>false</IsInCredentialStore>
+    <Category>
+        <en>Education / research</en>
+        <nl></nl>
+    </Category>
+    <FAQIntro>
+        <en>Add your credentials from your education or research institution to your IRMA app.</en>
+        <nl>Voeg credentials van je onderwijs of onderzoeksinstelling toe aan je IRMA app.</nl>
+    </FAQIntro>
+    <FAQPurpose>
+        <en>By adding credentials from from your research collaboration(s) to your IRMA Wallet, you may gain access to services provided by your research collaboration.</en>
+        <nl></nl>
+    </FAQPurpose>
+    <FAQContent>
+        <en>You may add the following data:\n•name(s)\n• e-mail addres(s)\n• affiliation\n• identifier(s)\n• your roles and rights in the context of your collaboration\n• assurance information</en>
+        <nl></nl>
+    </FAQContent>
+    <FAQHowto>
+        <en>If you are a member of a research collaboration that has is using SURF SRAM to manage access to it services, you may add personal data from this collaboration to your IRMA app.\n\n Complete the following steps.\n1. Select your own research collaboration\n2. Log in at SRAM in the usual manner.\n3. Confirm that you wish to add your data to IRMA. \n\nYou now receive a card with your Research community attributes.</en>
+        <nl></nl>
+    </FAQHowto>
+    <Attributes>
+       <!-- user identifier(s)  -->
+       <Attribute id="subject-id" optional="true">
+          <Name>
+             <en>subject Identifier</en>
+             <nl></nl>
+          </Name>
+          <Description>
+             <en>A unique identification of subjects. May be either a globally-unique identifier, or a pairwise identifier suitable for more specialized uses.</en>
+             <nl></nl>
+          </Description>
+       </Attribute>
+       <Attribute id="eduPersonPrincipalName" optional="true">
+          <Name>
+             <en>Principal Name</en>
+             <nl></nl>
+          </Name>
+          <Description>
+             <en>A scoped identifier for a person.</en>
+             <nl></nl>
+          </Description>
+       </Attribute>
+       <Attribute id="eduPersonOrcid" optional="true">
+          <Name>
+             <en>Orcid</en>
+             <nl></nl>
+          </Name>
+          <Description>
+             <en>ORCID iDs are persistent digital identifiers for individual researchers. Their primary purpose is to unambiguously and definitively link them with their scholarly work products. ORCID iDs are assigned, managed and maintained by the ORCID organization.</en>
+             <nl></nl>
+          </Description>
+       </Attribute>        
+       <Attribute id="eduperson_unique_id" optional="true">
+          <Name>
+             <en>Unique ID</en>
+             <nl></nl>
+          </Name>
+          <Description>
+             <en>Unique persistent identifier for the user</en>
+             <nl></nl>
+          </Description>
+       </Attribute>
+       <Attribute id="UID" optional="true">
+          <Name>
+             <en>UID</en>
+             <nl></nl>
+          </Name>
+          <Description>
+             <en>Short, human-readably username for login to a backend systems</en>
+             <nl></nl>
+          </Description>
+       </Attribute>
+       <Attribute id="voperson_external_id" optional="true">
+          <Name>
+             <en>External ID</en>
+             <nl></nl>
+          </Name>
+          <Description>
+             <en>Identifier from the user's home organization</en>
+             <nl></nl>
+          </Description>
+       </Attribute>
+       <Attribute id="ssh_public_key" optional="true">
+          <Name>
+             <en>SSH public key</en>
+             <nl></nl>
+          </Name>
+          <Description>
+             <en>Public SSH key which the user has configured to log into backend systems</en>
+             <nl></nl>
+          </Description>
+       </Attribute>
+       <!-- organization(s) -->
+       <Attribute id="schacHomeOrganization" optional="true">
+          <Name>
+             <en>Home organization</en>
+             <nl></nl>
+          </Name>
+          <Description>
+             <en>Specifies a person's home organization using the domain name of the organization</en>
+             <nl></nl>
+          </Description>
+       </Attribute>       
+       <!-- person name  -->
+       <Attribute id="displayName" optional="true">
+          <Name>
+             <en>Display Name</en>
+             <nl></nl>
+          </Name>
+          <Description>
+             <en>Preferred name of a person to be used when displaying entries.</en>
+             <nl></nl>
+          </Description>
+       </Attribute>
+       <Attribute id="givenName" optional="true">
+          <Name>
+             <en>Given Name</en>
+             <nl></nl>
+          </Name>
+          <Description>
+             <en>Name strings that are the part of a person's name that is not their surname</en>
+             <nl></nl>
+          </Description>
+       </Attribute>
+       <Attribute id="sn" optional="true">
+          <Name>
+             <en>Surname</en>
+             <nl></nl>
+          </Name>
+          <Description>
+             <en>Surname or family name.</en>
+             <nl></nl>
+          </Description>
+       </Attribute>
+       <!-- email addres(s)  -->
+       <Attribute id="mail" optional="true">
+          <Name>
+             <en>Email</en>
+             <nl></nl>
+          </Name>
+          <Description>
+             <en>Internet mail addresses</en>
+             <nl></nl>
+          </Description>
+       </Attribute>        
+       <!-- affiliation(s)  -->
+       <Attribute id="eduPersonAffiliation" optional="true">
+          <Name>
+             <en>Affiliation</en>
+             <nl></nl>
+          </Name>
+          <Description>
+             <en>Specifies the person's relationship(s) to the institution in broad categories such as student, faculty, staff, alum.</en>
+             <nl></nl>
+          </Description>
+       </Attribute>
+       <Attribute id="eduPersonScopedAffiliation" optional="true">
+          <Name>
+             <en>Scoped Affiliation</en>
+             <nl></nl>
+          </Name>
+          <Description>
+             <en>Specifies the person's affiliation within a particular security domain in broad categories such as student, faculty, staff, alum, etc.</en>
+             <nl></nl>
+          </Description>
+       </Attribute>       
+       <Attribute id="voperson_external_affiliation" optional="true">
+          <Name>
+             <en>External Affiliation</en>
+             <nl></nl>
+          </Name>
+          <Description>
+             <en>User's role(s) in their home organization. Only present if supplied by the user's home institution.</en>
+             <nl></nl>
+          </Description>
+       </Attribute>
+       <!-- membership(s) and entitlement(s)  -->
+       <Attribute id="eduPersonEntitlement" optional="true">
+          <Name>
+             <en>Entitlements</en>
+             <nl></nl>
+          </Name>
+          <Description>
+             <en>URI (either URN or URL) that indicates a set of rights to specific resources.</en>
+             <nl></nl>
+          </Description>
+       </Attribute>        
+       <!-- assurance -->
+       <Attribute id="eduPersonAssurance" optional="true">
+          <Name>
+             <en>Assurance</en>
+             <nl></nl>
+          </Name>
+          <Description>
+             <en>This multi-valued claim represents identity assurance profiles, which are the set of standards that are met by an identity assertion, based on the Issuer's identity management processes, the type of authentication credential used, the strength of its binding, etc.</en>
+             <nl></nl>
+          </Description>
+       </Attribute>
+    </Attributes>
+</IssueSpecification>

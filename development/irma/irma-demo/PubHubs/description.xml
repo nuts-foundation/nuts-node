@@ -1,0 +1,15 @@
+<Issuer version="4">
+  <ID>PubHubs</ID>
+  <Name>
+	  <en>Demo PubHubs</en>
+	  <nl>Demo PubHubs</nl>
+  </Name>
+  <ShortName>
+	  <en>Demo PubHubs</en>
+	  <nl>Demo PubHubs</nl>
+  </ShortName>
+  <SchemeManager>irma-demo</SchemeManager>
+  <ContactAddress>https://pubhubs.net/</ContactAddress>
+  <ContactEMail>contact@pubhubs.net</ContactEMail>
+  <baseURL></baseURL>
+</Issuer>

@@ -1,0 +1,15 @@
+<Issuer version="4">
+	<ID>ideal</ID>
+	<ShortName>
+		<en>Demo iDeal</en>
+		<nl>Demo iDeal</nl>
+	</ShortName>
+	<Name>
+		<en>Demo iDeal</en>
+		<nl>Demo iDeal</nl>
+	</Name>
+	<SchemeManager>irma-demo</SchemeManager>
+	<ContactAddress></ContactAddress>
+	<ContactEMail></ContactEMail>
+	<baseURL></baseURL>
+</Issuer>

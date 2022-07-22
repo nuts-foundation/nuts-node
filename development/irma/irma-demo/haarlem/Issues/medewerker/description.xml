@@ -1,0 +1,44 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo Employee</en>
+		<nl>Demo Medewerker</nl>
+	</Name>
+	<ShortName>
+		<en>Demo Employee</en>
+		<nl>Demo Medewerker</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>haarlem</IssuerID>
+	<CredentialID>medewerker</CredentialID>
+	<Description>
+		<en>Attributes for Haarlem employees</en>
+		<nl>Attributen werknemers van Haarlem</nl>
+	</Description>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.haarlem.medewerker.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.haarlem.medewerker.html</nl>
+	</IssueURL>
+
+	<Attributes>
+		<Attribute id="personeelsnummer">
+			<Name>
+				<en>Employee number</en>
+				<nl>Personeelsnummer</nl>
+			</Name>
+			<Description>
+				<en>Unique number for employee registration</en>
+				<nl>Uniek nummer voor personeelregistratie</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="organisatie">
+			<Name>
+				<en>Organisation</en>
+				<nl>Organisatie</nl>
+			</Name>
+			<Description>
+				<en>Organisation within this municipality</en>
+				<nl>Organisatie binnen gemeente</nl>
+			</Description>
+		</Attribute>
+	</Attributes>
+</IssueSpecification>

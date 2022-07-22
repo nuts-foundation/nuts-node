@@ -1,0 +1,34 @@
+<IssueSpecification version="4">
+    <Name>
+        <en>Demo INZ NHI</en>
+        <nl>Demo INZ NHI</nl>
+    </Name>
+    <ShortName>
+        <en>NHI</en>
+        <nl>NHI</nl>
+    </ShortName>
+    <SchemeManager>irma-demo</SchemeManager>
+    <IssuerID>inz-nhi</IssuerID>
+    <CredentialID>nhi</CredentialID>
+    <Description>
+        <en>Demo New Zealand National Health Index</en>
+        <nl>Demo New Zealand National Health Index</nl>
+    </Description>
+    <ShouldBeSingleton>false</ShouldBeSingleton>
+    <IssueURL>
+        <en>https://demo.irma.nz</en>
+        <nl>https://demo.irma.nz</nl>
+    </IssueURL>
+    <Attributes>
+        <Attribute id="number">
+            <Name>
+                <en>NHI number</en>
+                <nl></nl>
+            </Name>
+            <Description>
+                <en>NHI number</en>
+                <nl></nl>
+            </Description>
+        </Attribute>
+    </Attributes>
+</IssueSpecification>

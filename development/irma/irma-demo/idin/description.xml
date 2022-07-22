@@ -1,0 +1,15 @@
+<Issuer version="4">
+	<ID>idin</ID>
+	<ShortName>
+		<en>Demo iDIN</en>
+		<nl>Demo iDIN</nl>
+	</ShortName>
+	<Name>
+		<en>Demo iDIN</en>
+		<nl>Demo iDIN</nl>
+	</Name>
+	<SchemeManager>irma-demo</SchemeManager>
+	<ContactAddress></ContactAddress>
+	<ContactEMail></ContactEMail>
+	<baseURL></baseURL>
+</Issuer>

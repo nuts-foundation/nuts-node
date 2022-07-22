@@ -1,0 +1,62 @@
+<IssueSpecification version="4">
+	<Name>
+		<en>Demo Email address</en>
+		<nl>Demo E-mailadres</nl>
+	</Name>
+	<ShortName>
+		<en>Demo Email</en>
+		<nl>Demo E-mail</nl>
+	</ShortName>
+	<SchemeManager>irma-demo</SchemeManager>
+	<IssuerID>sidn-pbdf</IssuerID>
+	<CredentialID>email</CredentialID>
+	<Description>
+		<en>Your verified email address</en>
+		<nl>Je geverifieerde e-mailadres</nl>
+	</Description>
+	<ShouldBeSingleton>false</ShouldBeSingleton>
+	<IssueURL>
+		<en>https://privacybydesign.foundation/attribute-index/en/irma-demo.sidn-pbdf.email.html</en>
+		<nl>https://privacybydesign.foundation/attribute-index/nl/irma-demo.sidn-pbdf.email.html</nl>
+	</IssueURL>
+
+	<ForegroundColor>#15222E</ForegroundColor>
+	<BackgroundGradientStart>#3BB992</BackgroundGradientStart>
+	<BackgroundGradientEnd>#6CE6C1</BackgroundGradientEnd>
+	<IsInCredentialStore>false</IsInCredentialStore>
+	<Category>
+		<en>Personal</en>
+		<nl>Persoonlijk</nl>
+	</Category>
+	<FAQIntro>
+		<en>Add your email address to your IRMA app. You can add multiple email addresses.</en>
+		<nl>Laad je e-mailadres in je IRMA-app. Je kunt meerdere e-mailadressen toevoegen.</nl>
+	</FAQIntro>
+	<FAQPurpose>
+		<en>With your email address in your IRMA app, you can show that this address is really yours. For instance, you can use your email address to fill in a line in a form, or to login at a website.</en>
+		<nl>Met jouw e-mailadres in de IRMA-app kun je laten zien dat dit adres echt bij jou hoort. Je kunt bijvoorbeeld je e-mailadres gebruiken om een regel in een formulier in te vullen of om op een website in te loggen.</nl>
+	</FAQPurpose>
+
+	<Attributes>
+		<Attribute id="email">
+			<Name>
+				<en>Email address</en>
+				<nl>E-mailadres</nl>
+			</Name>
+			<Description>
+				<en>Your verified email address</en>
+				<nl>Je geverifieerde e-mailadres</nl>
+			</Description>
+		</Attribute>
+		<Attribute id="domain" optional="true">
+			<Name>
+				<en>Email domain name</en>
+				<nl>E-mail domeinnaam</nl>
+			</Name>
+			<Description>
+				<en>The domain name of your email address</en>
+				<nl>De domeinnaam van je e-mailadres</nl>
+			</Description>
+		</Attribute>
+	</Attributes>
+</IssueSpecification>

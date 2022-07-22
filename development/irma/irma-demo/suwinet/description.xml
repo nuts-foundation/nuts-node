@@ -1,0 +1,15 @@
+<Issuer version="4">
+	<ID>suwinet</ID>
+	<ShortName>
+		<en>Demo Suwinet</en>
+		<nl>Demo Suwinet</nl>
+	</ShortName>
+	<Name>
+		<en>Demo Suwinet</en>
+		<nl>Demo Suwinet</nl>
+	</Name>
+	<SchemeManager>irma-demo</SchemeManager>
+	<ContactAddress>https://example.org</ContactAddress>
+	<ContactEMail>example@example.org</ContactEMail>
+	<baseURL></baseURL>
+</Issuer>

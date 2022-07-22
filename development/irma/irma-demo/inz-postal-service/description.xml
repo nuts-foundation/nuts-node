@@ -1,0 +1,15 @@
+<Issuer version="4">
+    <ID>inz-postal-service</ID>
+    <Name>
+        <en>Demo INZ Postal Service Issuer</en>
+        <nl>Demo INZ Postal Service Issuer</nl>
+    </Name>
+    <ShortName>
+        <en>INZ Postal Service</en>
+        <nl>INZ Postal Service</nl>
+    </ShortName>
+    <SchemeManager>irma-demo</SchemeManager>
+    <ContactAddress>https://demo.irma.nz</ContactAddress>
+    <ContactEMail>commercial@internetnz.net.nz</ContactEMail>
+    <baseURL></baseURL>
+</Issuer>

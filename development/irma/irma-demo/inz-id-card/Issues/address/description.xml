@@ -1,0 +1,33 @@
+<IssueSpecification version="4">
+    <Name>
+        <en>Demo INZ Address</en>
+        <nl>Demo INZ Address</nl>
+    </Name>
+    <ShortName>
+        <en>Address</en>
+        <nl></nl>
+    </ShortName>
+    <SchemeManager>irma-demo</SchemeManager>
+    <IssuerID>inz-id-card</IssuerID>
+    <CredentialID>address</CredentialID>
+    <Description>
+        <en>Full address</en>
+        <nl></nl>
+    </Description>
+    <IssueURL>
+        <en>https://demo.irma.nz/id-card/index.html</en>
+        <nl>https://demo.irma.nz/id-card/index.html</nl>
+    </IssueURL>
+    <Attributes>
+        <Attribute id="fullAddress">
+            <Name>
+                <en>Full address</en>
+                <nl></nl>
+            </Name>
+            <Description>
+                <en>Number, Road name, Suburb/locality, City/Town name</en>
+                <nl></nl>
+            </Description>
+        </Attribute>
+    </Attributes>
+</IssueSpecification>

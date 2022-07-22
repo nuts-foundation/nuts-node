@@ -1,0 +1,83 @@
+<IssueSpecification version="4">
+    <Name>
+        <en>Demo INZ InternetNZ Nethui Access Pass</en>
+        <nl>Demo INZ InternetNZ Nethui Access Pass</nl>
+    </Name>
+    <ShortName>
+        <en>Nethui Access Pass</en>
+        <nl>Nethui Access Pass</nl>
+    </ShortName>
+    <SchemeManager>irma-demo</SchemeManager>
+    <IssuerID>inz-internetnz</IssuerID>
+    <CredentialID>nethuiAccessPass</CredentialID>
+    <Description>
+        <en>Nethui Access Pass</en>
+        <nl></nl>
+    </Description>
+    <IssueURL>
+        <en>https://demo.irma.nz/event-access-pass.html</en>
+        <nl>https://demo.irma.nz/event-access-pass.html</nl>
+    </IssueURL>
+    <Attributes>
+        <Attribute id="id">
+            <Name>
+                <en>Access Pass ID</en>
+                <nl></nl>
+            </Name>
+            <Description>
+                <en>Access Pass ID number</en>
+                <nl></nl>
+            </Description>
+        </Attribute>
+        <Attribute id="event">
+            <Name>
+                <en>Event</en>
+                <nl></nl>
+            </Name>
+            <Description>
+                <en>Event</en>
+                <nl></nl>
+            </Description>
+        </Attribute>
+        <Attribute id="eventDate">
+            <Name>
+                <en>Event date</en>
+                <nl></nl>
+            </Name>
+            <Description>
+                <en>Event date</en>
+                <nl></nl>
+            </Description>
+        </Attribute>
+        <Attribute id="accessPassType">
+            <Name>
+                <en>Access Pass type</en>
+                <nl></nl>
+            </Name>
+            <Description>
+                <en>Access Pass type</en>
+                <nl></nl>
+            </Description>
+        </Attribute>
+        <Attribute id="purchaseDate">
+            <Name>
+                <en>Purchase date</en>
+                <nl></nl>
+            </Name>
+            <Description>
+                <en>Date of purchase</en>
+                <nl></nl>
+            </Description>
+        </Attribute>
+        <Attribute id="price">
+            <Name>
+                <en>Price</en>
+                <nl></nl>
+            </Name>
+            <Description>
+                <en>Price</en>
+                <nl></nl>
+            </Description>
+        </Attribute>
+    </Attributes>
+</IssueSpecification>

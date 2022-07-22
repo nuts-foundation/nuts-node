@@ -1,0 +1,38 @@
+<IssueSpecification version="4">
+    <Name>
+        <en>Demo INZ Personal Data Birthdate</en>
+        <nl>Demo INZ Personal Data Birthdate</nl>
+    </Name>
+    <ShortName>
+        <en>Birthdate</en>
+        <nl>Birthdate</nl>
+    </ShortName>
+    <SchemeManager>irma-demo</SchemeManager>
+    <IssuerID>inz-personal-data</IssuerID>
+    <CredentialID>birthdate</CredentialID>
+    <Description>
+        <en>Birthdate</en>
+        <nl></nl>
+    </Description>
+    <ShouldBeSingleton>true</ShouldBeSingleton>
+    <IssueURL>
+        <en>http://demo.irma.nz/</en>
+        <nl>http://demo.irma.nz/</nl>
+    </IssueURL>
+    <Category>
+        <en>Personal</en>
+        <nl>Persoonlijk</nl>
+    </Category>
+    <Attributes>
+        <Attribute id="birthdate">
+            <Name>
+                <en>Birthdate</en>
+                <nl></nl>
+            </Name>
+            <Description>
+                <en>Birthdate</en>
+                <nl></nl>
+            </Description>
+        </Attribute>
+    </Attributes>
+</IssueSpecification>

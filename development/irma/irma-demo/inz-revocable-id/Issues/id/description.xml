@@ -1,0 +1,40 @@
+<IssueSpecification version="4">
+    <Name>
+        <en>Demo INZ Revocable ID</en>
+        <nl>Demo INZ Revocable ID</nl>
+    </Name>
+    <ShortName>
+        <en>Revocable ID</en>
+        <nl></nl>
+    </ShortName>
+    <SchemeManager>irma-demo</SchemeManager>
+    <IssuerID>inz-revocable-id</IssuerID>
+    <CredentialID>id</CredentialID>
+    <Description>
+        <en>Demo Revocable ID</en>
+        <nl></nl>
+    </Description>
+    <ShouldBeSingleton>true</ShouldBeSingleton>
+    <IssueURL>
+        <en>https://demo.irma.nz</en>
+        <nl>https://demo.irma.nz</nl>
+    </IssueURL>
+
+    <RevocationServers>
+        <RevocationServer>https://1k1q3wt2y5.execute-api.ap-southeast-2.amazonaws.com/dev</RevocationServer>
+    </RevocationServers>
+
+    <Attributes>
+        <Attribute revocation="true" />
+        <Attribute id="number">
+            <Name>
+                <en>number</en>
+                <nl></nl>
+            </Name>
+            <Description>
+                <en>ID number</en>
+                <nl></nl>
+            </Description>
+        </Attribute>
+    </Attributes>
+</IssueSpecification>
