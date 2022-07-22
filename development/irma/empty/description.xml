@@ -1,0 +1,15 @@
+<SchemeManager version="7">
+	<Id>test</Id>
+	<Name>
+		<en>Test</en>
+		<nl>Test</nl>
+	</Name>
+	<Description>
+		<en>Test scheme</en>
+		<nl>Test scheme</nl>
+	</Description>
+	<MinimumAppVersion>
+		<Android>49</Android>
+		<iOS>33</iOS>
+	</MinimumAppVersion>
+</SchemeManager>
