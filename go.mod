@@ -42,7 +42,7 @@ require (
 	gopkg.in/Regis24GmbH/go-phonetics.v2 v2.0.2
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
-	schneider.vip/problem v1.6.0
+	schneider.vip/problem v1.7.0
 )
 
 require (

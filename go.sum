@@ -1311,5 +1311,5 @@ rsc.io/qr v0.2.0 h1:6vBLea5/NRMVTz8V66gipeLycZMl/+UlFmk8DvqQ6WY=
 rsc.io/qr v0.2.0/go.mod h1:IF+uZjkb9fqyeF/4tlBoynqmQxUoPfWEKh921coOuXs=
 rsc.io/quote/v3 v3.1.0/go.mod h1:yEA65RcK8LyAZtP9Kv3t0HmxON59tX3rD+tICJqUlj0=
 rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
-schneider.vip/problem v1.6.0 h1:Kv4UcErwb6kh0tqq+WVo8pq2YFsm8nx8A+RitMuFpJE=
-schneider.vip/problem v1.6.0/go.mod h1:6hLRfO1e1MQWdG23Kl5b3Yp5FSexE+YiGVqCkAp3HUQ=
+schneider.vip/problem v1.7.0 h1:bUpimfVIUsrxLZzu38Ph3BLo3T2N88XF7kjYssMTQIc=
+schneider.vip/problem v1.7.0/go.mod h1:6hLRfO1e1MQWdG23Kl5b3Yp5FSexE+YiGVqCkAp3HUQ=
