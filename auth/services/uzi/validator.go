@@ -47,6 +47,7 @@ type proof struct {
 
 type uziVPVerificationResult struct {
 	validity            contract.State
+	reason              string
 	vpType              string
 	disclosedAttributes map[string]string
 	contractAttributes  map[string]string
@@ -54,6 +55,10 @@ type uziVPVerificationResult struct {
 
 func (I uziVPVerificationResult) Validity() contract.State {
 	return I.validity
+}
+
+func (I uziVPVerificationResult) Reason() string {
+	return I.reason
 }
 
 func (I uziVPVerificationResult) VPType() string {
@@ -107,6 +112,7 @@ func (u Verifier) VerifyVP(vp vc.VerifiablePresentation, _ *time.Time) (contract
 	if err := u.UziValidator.Verify(signedToken); err != nil {
 		return uziVPVerificationResult{
 			validity: contract.Invalid,
+			reason:   err.Error(),
 		}, nil
 	}
 

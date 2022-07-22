@@ -205,7 +205,7 @@ func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (
 		}
 
 		if context.contractVerificationResult.Validity() != contract.Valid {
-			return nil, errors.New("identity validation failed")
+			return nil, fmt.Errorf("identity validation failed: %s", context.contractVerificationResult.Reason())
 		}
 
 		// checks if the name from the login contract matches with the registered name of the issuer.

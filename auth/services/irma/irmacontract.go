@@ -170,6 +170,7 @@ func (cv *contractVerifier) verifyAll(signedContract *SignedIrmaContract, checkT
 		res.DisclosedAttributes = signedContract.attributes
 	} else {
 		res.ValidationResult = services.Invalid
+		res.FailureReason = fmt.Sprintf("irma proof invalid: %s", signedContract.proofStatus)
 	}
 
 	var err error
@@ -194,6 +195,7 @@ func (cv *contractVerifier) validateContractContents(signedContract *SignedIrmaC
 	// Validate time frame
 	if err := signedContract.contract.VerifyForGivenTime(checkTime); err != nil {
 		validationResult.ValidationResult = services.Invalid
+		validationResult.FailureReason = err.Error()
 		return validationResult, nil
 	}
 
@@ -237,7 +239,9 @@ func (cv *contractVerifier) verifyRequiredAttributes(signedIrmaContract *SignedI
 			disclosedAttributes = append(disclosedAttributes, k)
 		}
 		validationResult.ValidationResult = services.Invalid
-		log.Logger().Warnf("missing required attributes in signature. found: %v, needed: %v, disclosed: %v", foundAttributes, requiredAttributes, disclosedAttributes)
+		msg := fmt.Sprintf("missing required attributes in signature. found: %v, needed: %v, disclosed: %v", foundAttributes, requiredAttributes, disclosedAttributes)
+		validationResult.FailureReason = msg
+		log.Logger().Warn(msg)
 	}
 
 	return validationResult, nil

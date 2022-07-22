@@ -94,6 +94,7 @@ func (t *NutsAccessToken) FromMap(m map[string]interface{}) error {
 // ContractValidationResult contains the result of a contract validation
 type ContractValidationResult struct {
 	ValidationResult ValidationState `json:"validation_result"`
+	FailureReason    string          `json:"failure_reason"`
 	ContractFormat   ContractFormat  `json:"contract_format"`
 	// DisclosedAttributes contain the attributes used to sign this contract
 	DisclosedAttributes map[string]string `json:"disclosed_attributes"`

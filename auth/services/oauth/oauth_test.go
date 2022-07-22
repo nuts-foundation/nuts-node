@@ -162,7 +162,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx.privateKeyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(true)
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(authorizerDID, gomock.Any()).MinTimes(1).Return(authorizerSigningKeyID.String(), nil)
-		ctx.contractNotary.EXPECT().VerifyVP(gomock.Any(), nil).Return(services.TestVPVerificationResult{Val: contract.Invalid}, nil)
+		ctx.contractNotary.EXPECT().VerifyVP(gomock.Any(), nil).Return(services.TestVPVerificationResult{Val: contract.Invalid, Cause: "because of reasons"}, nil)
 
 		tokenCtx := validContext()
 		signToken(tokenCtx)
@@ -170,7 +170,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
 		assert.Nil(t, response)
 		if assert.NotNil(t, err) {
-			assert.Contains(t, err.Error(), "identity validation failed")
+			assert.Contains(t, err.Error(), "identity validation failed: because of reasons")
 		}
 	})
 

@@ -23,6 +23,7 @@ import "github.com/nuts-foundation/nuts-node/auth/contract"
 
 type TestVPVerificationResult struct {
 	Val         contract.State
+	Cause       string
 	Type        string
 	DAttributes map[string]string
 	CAttributes map[string]string
@@ -30,6 +31,10 @@ type TestVPVerificationResult struct {
 
 func (t TestVPVerificationResult) Validity() contract.State {
 	return t.Val
+}
+
+func (t TestVPVerificationResult) Reason() string {
+	return t.Cause
 }
 
 func (t TestVPVerificationResult) VPType() string {

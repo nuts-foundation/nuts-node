@@ -53,6 +53,8 @@ type VPVerificationResult interface {
 	// Validators must only set the Validity to "VALID" if the whole VP, including the embedded
 	// contract are valid at the given moment in time.
 	Validity() State
+	// Reason returns the reason why the state is INVALID
+	Reason() string
 	// VPType returns the the VP type like "NutsUziPresentation".
 	VPType() string
 	// DisclosedAttribute returns the attribute value used to sign this contract

@@ -124,6 +124,10 @@ func (d dummyVPVerificationResult) Validity() contract.State {
 	return contract.Valid
 }
 
+func (d dummyVPVerificationResult) Reason() string {
+	return ""
+}
+
 func (d dummyVPVerificationResult) VPType() string {
 	return VerifiablePresentationType
 }
