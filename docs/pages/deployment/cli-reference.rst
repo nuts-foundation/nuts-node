@@ -55,6 +55,7 @@ Prints the current config
       --network.enablediscovery                       Whether to enable automatic connecting to other nodes. (default true)
       --network.enabletls certfile                    Whether to enable TLS for incoming and outgoing gRPC connections. When certfile or `certkeyfile` is specified it defaults to `true`, otherwise `false`. (default true)
       --network.grpcaddr string                       Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made). (default ":5555")
+      --network.maxbackoff 1h                         Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. 1h, `30m`). (default 24h0m0s)
       --network.nodedid string                        Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
       --network.protocols ints                        Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.
       --network.truststorefile string                 PEM file containing the trusted CA certificates for authenticating remote gRPC servers.
@@ -109,6 +110,7 @@ Imports private keys from filesystem based storage into Vault. The given directo
       --network.enablediscovery                       Whether to enable automatic connecting to other nodes. (default true)
       --network.enabletls certfile                    Whether to enable TLS for incoming and outgoing gRPC connections. When certfile or `certkeyfile` is specified it defaults to `true`, otherwise `false`. (default true)
       --network.grpcaddr string                       Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made). (default ":5555")
+      --network.maxbackoff 1h                         Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. 1h, `30m`). (default 24h0m0s)
       --network.nodedid string                        Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
       --network.protocols ints                        Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.
       --network.truststorefile string                 PEM file containing the trusted CA certificates for authenticating remote gRPC servers.
@@ -262,6 +264,7 @@ Starts the Nuts server
       --network.enablediscovery                       Whether to enable automatic connecting to other nodes. (default true)
       --network.enabletls certfile                    Whether to enable TLS for incoming and outgoing gRPC connections. When certfile or `certkeyfile` is specified it defaults to `true`, otherwise `false`. (default true)
       --network.grpcaddr string                       Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made). (default ":5555")
+      --network.maxbackoff 1h                         Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. 1h, `30m`). (default 24h0m0s)
       --network.nodedid string                        Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
       --network.protocols ints                        Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.
       --network.truststorefile string                 PEM file containing the trusted CA certificates for authenticating remote gRPC servers.

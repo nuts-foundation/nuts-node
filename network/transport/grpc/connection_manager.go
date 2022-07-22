@@ -23,11 +23,8 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-stoabs"
-	"net"
-	"sync"
-
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
@@ -35,6 +32,8 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	grpcPeer "google.golang.org/grpc/peer"
+	"net"
+	"sync"
 )
 
 const defaultMaxMessageSizeInBytes = 1024 * 512
@@ -444,7 +443,7 @@ func (s *grpcConnectionManager) startTracking(address string, connection Connect
 		}
 	}
 
-	backoff := NewPersistedBackoff(s.connectionStore, address, defaultBackoff())
+	backoff := NewPersistedBackoff(s.connectionStore, address, s.config.backoffCreator())
 	cfg := connectorConfig{
 		address:           address,
 		tls:               tlsConfig,

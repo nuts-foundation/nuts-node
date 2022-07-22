@@ -583,7 +583,7 @@ func Test_grpcConnectionManager_openOutboundStream(t *testing.T) {
 		existingConn.EXPECT().disconnect()
 		existingConn.EXPECT().stopConnecting() // due to ConnectionManager.Stop()
 
-		cm := NewGRPCConnectionManager(Config{peerID: "local"}, createKVStore(t), &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
+		cm := NewGRPCConnectionManager(NewConfig("localhost", "local"), createKVStore(t), &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
 		cm.connections.list = append(cm.connections.list, existingConn)
 
 		defer cm.Stop()
@@ -601,7 +601,11 @@ func Test_grpcConnectionManager_openOutboundStream(t *testing.T) {
 		// New outbound connection's connector should be stopped, peer address copied to existing connection's connector
 		newConn.EXPECT().stopConnecting()
 		newConn.EXPECT().Peer().Return(transport.Peer{ID: "remote", Address: "remote-address"})
-		existingConn.EXPECT().startConnecting(connectorConfig{address: "remote-address"}, gomock.Any(), gomock.Any())
+		existingConn.EXPECT().startConnecting(connectorConfig{
+			address:           "remote-address",
+			tls:               nil,
+			connectionTimeout: NewConfig("", "").connectionTimeout,
+		}, gomock.Any(), gomock.Any())
 
 		stream, err := cm.openOutboundStream(newConn, protocol, grpcConn, metadata.MD{})
 
