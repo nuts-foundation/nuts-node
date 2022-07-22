@@ -45,6 +45,8 @@ require (
 	schneider.vip/problem v1.6.0
 )
 
+replace github.com/nuts-foundation/go-stoabs => ../go-stoabs
+
 require (
 	github.com/alexandrevicenzi/go-sse v1.6.0 // indirect
 	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
@@ -63,7 +65,10 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
+	github.com/dgraph-io/badger/v3 v3.2103.2 // indirect
+	github.com/dgraph-io/ristretto v0.1.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
+	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/edsrzf/mmap-go v1.0.0 // indirect
 	github.com/eknkc/basex v1.0.0 // indirect
 	github.com/fatih/color v1.13.0 // indirect
@@ -76,10 +81,14 @@ require (
 	github.com/go-redsync/redsync/v4 v4.5.1 // indirect
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/goccy/go-json v0.9.7 // indirect
+	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/golang-jwt/jwt/v4 v4.2.0 // indirect
+	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
+	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
+	github.com/google/flatbuffers v1.12.1 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-hclog v1.0.0 // indirect
@@ -152,6 +161,7 @@ require (
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/yuin/gopher-lua v0.0.0-20210529063254-f4c35e4016d9 // indirect
+	go.opencensus.io v0.23.0 // indirect
 	golang.org/x/crypto v0.0.0-20220513210258-46612604a0f9 // indirect
 	golang.org/x/net v0.0.0-20220513224357-95641704303c // indirect
 	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8 // indirect

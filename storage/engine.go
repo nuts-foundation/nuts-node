@@ -98,11 +98,11 @@ func (e *engine) Configure(config core.ServerConfig) error {
 		log.Logger().Info("Redis database support enabled.")
 		log.Logger().Warn("Redis database support is still experimental: do not use for production environments!")
 	}
-	bboltDB, err := createBBoltDatabase(config.Datadir, e.config.BBolt)
+	badgerDB, err := createBadgerDatabase(config.Datadir)
 	if err != nil {
-		return fmt.Errorf("unable to configure BBolt database: %w", err)
+		return fmt.Errorf("unable to configure Badger database: %w", err)
 	}
-	e.databases = append(e.databases, bboltDB)
+	e.databases = append(e.databases, badgerDB)
 	return nil
 }
 

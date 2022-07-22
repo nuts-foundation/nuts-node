@@ -33,6 +33,13 @@ func main() {
 	ctx := context.Background()
 	ctx, _ = signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 
+	//f, err := os.Create("cpuprofile")
+	//if err != nil {
+	//	panic(err)
+	//}
+	//pprof.StartCPUProfile(f)
+	//defer pprof.StopCPUProfile()
+
 	err := cmd.Execute(ctx, cmd.CreateSystem())
 	if err != nil {
 		logrus.Error(err)
