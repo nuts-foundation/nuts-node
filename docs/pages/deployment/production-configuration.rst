@@ -79,7 +79,7 @@ X.509 server and client certificates issued by a Certificate Authority trusted b
 other Nuts nodes to be able to connect to the node and vice versa.
 
 Direct WAN Connection
----------------------
+^^^^^^^^^^^^^^^^^^^^^
 
 This is the simplest layout where the Nuts node is directly accessible from the internet:
 
@@ -92,7 +92,7 @@ This layout has the following requirements:
 * SSL/TLS terminator must use the trust anchors as specified by the network as root CA trust bundle.
 
 SSL/TLS Offloading
-------------------
+^^^^^^^^^^^^^^^^^^^^^
 
 In this layout incoming TLS traffic is decrypted on a SSL/TLS terminator and then being forwarded to the Nuts node.
 This is layout is typically used to provide layer 7 load balancing and/or securing traffic "at the gates":
@@ -107,7 +107,7 @@ This layout has the following requirements:
 * SSL/TLS terminator must use the trust anchors as specified by the network as root CA trust bundle.
 
 SSL/TLS Pass-through
---------------------
+^^^^^^^^^^^^^^^^^^^^^
 
 In this layout incoming TLS traffic is forwarded to the Nuts node without being decrypted:
 

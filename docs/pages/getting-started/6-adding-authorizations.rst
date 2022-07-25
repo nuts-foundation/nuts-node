@@ -76,7 +76,7 @@ The following paragraphs will dig deeper into the different parts.
 issuer
 ======
 The `issuer` is the resource owner. It must be a DID of an organization for which you control the private key.
-The DID typically comes from your own administration, see also :ref:`Getting Started on customer integration <connecting-crm>`_.
+The DID typically comes from your own administration, see also :ref:`Getting Started on customer integration <connecting-crm>`.
 
 type
 ====
@@ -113,7 +113,7 @@ The following call will search for an organization with the name *CareBears*.
         }
     }
 
-The :ref:`VC manual <using-vcs>`_ contains some more information on how to perform searches.
+The :ref:`VC manual <using-vcs>` contains some more information on how to perform searches.
 
 credentialSubject.purposeOfUse
 ==============================
