@@ -10,6 +10,8 @@ This page describes the different layouts for TLS and how to configure them for 
 In all layouts your node's certificate must issued by a Certificate Authority, trusted by the other nodes in the network.
 Each layout requires ``network.certfile``, ``network.certkeyfile`` and ``network.truststorefile`` to be configured.
 
+You can also find working setups in the `end-2-end test suite <https://github.com/nuts-foundation/nuts-go-e2e-test>`_.
+
 No TLS Offloading
 *****************
 
