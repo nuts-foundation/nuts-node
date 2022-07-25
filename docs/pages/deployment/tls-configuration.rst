@@ -31,6 +31,24 @@ When using a (level 4) load balancer that does not inspect or alter requests, TL
 
 This set up does not need additional configuration.
 
+Configuration for `HAProxy <https://www.haproxy.com/>`_ could look like this:
+
+.. code-block::
+
+    listen grpc
+        bind *:5555
+        mode tcp
+
+        use_backend nuts_node_grpc
+
+    backend nuts_node_grpc
+        mode tcp
+
+        server node1 nodeA-backend:5555 check
+
+
+Refer to the HAProxy documentation for more information.
+
 TLS Offloading
 **************
 
