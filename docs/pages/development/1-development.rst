@@ -64,13 +64,13 @@ All              ``make run-generators``
 Docs Generation
 ***************
 
-To generate the documentation, you'll need ``python3``, ``sphinx`` and a bunch of other stuff.
-After you have installed ``python3`` (and ``pip3`` if this not already installed) run
+To generate the documentation, you'll need to build a docker image and run it from the docs directory:
 
 .. code-block:: shell
 
-    pip3 install -r docs/requirements.txt
-
+    cd docs
+    docker build -t nutsfoundation/nuts-node-docs .
+    docker run --rm -v $PWD:/docs nutsfoundation/nuts-node-docs make html
 
 README
 ======
