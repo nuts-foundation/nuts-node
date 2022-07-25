@@ -59,7 +59,7 @@ CLI Command Reference
 func generateClientOptions() {
 	flags := make(map[string]*pflag.FlagSet)
 	flags[""] = core.ClientConfigFlags()
-	generatePartitionedConfigOptionsDocs("docs/pages/client_options.rst", flags)
+	generatePartitionedConfigOptionsDocs("Client Options", "docs/pages/client_options.rst", flags)
 }
 
 func generateServerOptions(system *core.System) {
@@ -84,7 +84,7 @@ func generateServerOptions(system *core.System) {
 		}
 	})
 
-	generatePartitionedConfigOptionsDocs("docs/pages/deployment/server_options.rst", flags)
+	generatePartitionedConfigOptionsDocs("Server Options", "docs/pages/deployment/server_options.rst", flags)
 }
 
 func extractFlagsForEngine(flagSet *pflag.FlagSet, config interface{}) (*pflag.FlagSet, error) {
@@ -124,7 +124,7 @@ func extractFlagsForEngine(flagSet *pflag.FlagSet, config interface{}) (*pflag.F
 	return &result, nil
 }
 
-func generatePartitionedConfigOptionsDocs(fileName string, flags map[string]*pflag.FlagSet) {
+func generatePartitionedConfigOptionsDocs(tableName, fileName string, flags map[string]*pflag.FlagSet) {
 	sortedKeys := make([]string, 0)
 	for key := range flags {
 		sortedKeys = append(sortedKeys, key)
@@ -141,7 +141,7 @@ func generatePartitionedConfigOptionsDocs(fileName string, flags map[string]*pfl
 		}
 		values = append(values, flagsToSortedValues(flags[key])...)
 	}
-	generateRstTable(fileName, values)
+	generateRstTable(tableName, fileName, values)
 }
 
 func flagsToSortedValues(flags *pflag.FlagSet) [][]rstValue {
@@ -171,12 +171,14 @@ func flagsToSortedValues(flags *pflag.FlagSet) [][]rstValue {
 	return values
 }
 
-func generateRstTable(fileName string, values [][]rstValue) {
+func generateRstTable(tableName, fileName string, values [][]rstValue) {
 	optionsFile, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
 	if err != nil {
 		panic(err)
 	}
 	defer optionsFile.Close()
+	optionsFile.WriteString(fmt.Sprintf(".. table:: %s\n", tableName))
+	optionsFile.WriteString("    :widths: 20 30 50\n\n")
 	printRstTable(vals("Key", "Default", "Description"), values, optionsFile)
 	if err := optionsFile.Sync(); err != nil {
 		panic(err)
