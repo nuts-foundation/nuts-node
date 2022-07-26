@@ -5,7 +5,7 @@ go 1.18
 replace github.com/go-redsync/redsync/v4 => github.com/reinkrul/redsync/v4 v4.5.2-0.20220708083509-60b83c036585
 
 require (
-	github.com/alicebob/miniredis/v2 v2.21.0
+	github.com/alicebob/miniredis/v2 v2.22.0
 	github.com/avast/retry-go/v4 v4.1.0
 	github.com/cbroglie/mustache v1.4.0
 	github.com/deepmap/oapi-codegen v1.11.0
