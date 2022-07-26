@@ -170,7 +170,7 @@ func (cv *contractVerifier) verifyAll(signedContract *SignedIrmaContract, checkT
 		res.DisclosedAttributes = signedContract.attributes
 	} else {
 		res.ValidationResult = services.Invalid
-		res.FailureReason = fmt.Sprintf("irma proof invalid: %s", signedContract.proofStatus)
+		res.FailureReason = fmt.Sprintf("IRMA proof invalid: %s", signedContract.proofStatus)
 	}
 
 	var err error
