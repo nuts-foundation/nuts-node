@@ -34,7 +34,7 @@ func (t TestVPVerificationResult) Validity() contract.State {
 }
 
 func (t TestVPVerificationResult) Reason() string {
-	return t.Cause
+	return t.Reason
 }
 
 func (t TestVPVerificationResult) VPType() string {
