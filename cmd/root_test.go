@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path"
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/test"
@@ -85,6 +86,7 @@ func Test_rootCmd(t *testing.T) {
 		assert.NoError(t, err)
 		actual := buf.String()
 		assert.Contains(t, actual, "--configfile string")
+		assert.Contains(t, actual, "--cpuprofile string")
 		assert.Contains(t, actual, "--datadir")
 		assert.Contains(t, actual, "--strictmode")
 		assert.Contains(t, actual, "--verbosity")
@@ -130,6 +132,34 @@ func Test_serverCmd(t *testing.T) {
 		assert.Equal(t, testDirectory, system.Config.Datadir)
 		// Assert engine config is injected
 		assert.Equal(t, testDirectory, engine1.TestConfig.Datadir)
+	})
+	t.Run("output cpuprofile", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		echoServer := core.NewMockEchoServer(ctrl)
+		echoServer.EXPECT().Add(http.MethodGet, gomock.Any(), gomock.Any()).AnyTimes()
+		echoServer.EXPECT().Add(http.MethodPost, gomock.Any(), gomock.Any()).AnyTimes()
+		echoServer.EXPECT().Add(http.MethodPut, gomock.Any(), gomock.Any()).AnyTimes()
+		echoServer.EXPECT().Start(gomock.Any())
+		echoServer.EXPECT().Shutdown(gomock.Any())
+
+		os.Setenv(grpcListenAddressEnvKey, fmt.Sprintf("localhost:%d", test.FreeTCPPort()))
+		defer os.Unsetenv(grpcListenAddressEnvKey)
+
+		testDirectory := io.TestDirectory(t)
+		cpuprofile := path.Join(testDirectory, "profile.dmp")
+		os.Setenv("NUTS_DATADIR", testDirectory)
+		defer os.Unsetenv("NUTS_DATADIR")
+		os.Args = []string{"nuts", "server", fmt.Sprintf("--cpuprofile=%s", cpuprofile)}
+
+		system := core.NewSystem()
+		system.EchoCreator = func(_ core.HTTPConfig, _ bool) (core.EchoServer, error) {
+			return echoServer, nil
+		}
+
+		err := Execute(ctx, system)
+		assert.NoError(t, err)
+		_, err = os.Stat(cpuprofile)
+		assert.NoError(t, err)
 	})
 	t.Run("defaults and alt binds are used", func(t *testing.T) {
 		os.Setenv(grpcListenAddressEnvKey, fmt.Sprintf("localhost:%d", test.FreeTCPPort()))
