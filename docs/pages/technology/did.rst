@@ -13,7 +13,7 @@ The Nuts specification for the `nuts` DID method can be found on https://nuts-sp
 Nuts DIDs are designed so they represent public/private key pairs. Any party can generate and claim a key pair.
 Only when information is added to the key pair, the key pair becomes important.
 
-DIDs can gather claims through :ref:`Verifiable Credentials <vcs>`. This allows a DID to actually represent something known in real life.
+DIDs can gather claims through Verifiable Credentials. This allows a DID to actually represent something known in real life.
 For example: adding an organization name credential connects the key pair to the name of the organization. It connects the digital world to the real world.
 
 DID Documents

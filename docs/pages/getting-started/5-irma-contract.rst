@@ -61,8 +61,8 @@ Setting up the frontend
 ***********************
 
 For the frontend we'll be using the `irma-frontend-packages <https://github.com/privacybydesign/irma-frontend-packages>`_ javascript library.
-More info on how to use this library can be found on `https://irma.app/docs/irma-frontend/`_.
-You can choose to load the IRMA frontend packages javascript via an HTML tag, in which case you'll need to build the javascript file yourself given the instructions on `https://github.com/privacybydesign/irma-frontend-packages`_ or you can choose to use ``npm``:
+More info on how to use this library can be found on `<https://irma.app/docs/irma-frontend/>`_.
+You can choose to load the IRMA frontend packages javascript via an HTML tag, in which case you'll need to build the javascript file yourself given the instructions on `<https://github.com/privacybydesign/irma-frontend-packages>`_ or you can choose to use ``npm``:
 
 .. code-block:: json
 
@@ -294,7 +294,7 @@ The call to the Nuts node will return the following response:
     {
         "status": "completed",
         "verifiablePresentation": {
-            ...
+            // ...
         }
     }
 
@@ -315,7 +315,7 @@ with
 
     {
         "checkTime": "2006-01-02T15:54:05+02:00",
-        "verifiablePresentation": <vp>
+        "verifiablePresentation": "<vp>"
     }
 
 

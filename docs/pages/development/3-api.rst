@@ -8,7 +8,7 @@ When developing APIs, please follow these guidelines.
 Contract first
 **************
 
-The Nuts node APIs are specified in `Open API Specification (OAS)<https://swagger.io/specification/>`_.
+The Nuts node APIs are specified in `Open API Specification (OAS) <https://swagger.io/specification/>`_.
 The files are located under ``/docs/_static/<engine>/<version>.yaml``.
 Where ``<engine>`` is a specific module like ``crypto`` or ``auth`` and ``<version>`` defines the version of the API.
 We use version ``3.0.y`` of the OAS.
