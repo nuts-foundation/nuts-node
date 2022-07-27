@@ -29,6 +29,7 @@ Nuts documentation
 
     pages/deployment/recommended-deployment.rst
     pages/deployment/configuration.rst
+    pages/deployment/custom-credentials.rst
     pages/deployment/monitoring.rst
     pages/deployment/administering-your-node.rst
     pages/deployment/backup-restore.rst
