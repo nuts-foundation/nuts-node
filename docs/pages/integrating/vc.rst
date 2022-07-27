@@ -67,6 +67,8 @@ Will be expanded by the node to:
 
 The `visibility` property indicates the contents of the VC are published on the network, so it can be read by everyone.
 
+.. _searching-vcs:
+
 Searching VCs
 *************
 

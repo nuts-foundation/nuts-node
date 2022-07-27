@@ -41,11 +41,16 @@ Example configuration with an allowed remote context and another locally mapped 
           - https://relative-path-usage/v42/ldjson: "./data/vcr/contexts/v42.ldjson"
 
 
-Caching
-*******
+Fetching & Caching
+******************
 
-During startup of the node, remote contexts are fetched and cached. If the contents of a remote context changes, the node must be restarted in order for these changes to have effect.
-Local mappings can be used to pin a version of a context, so no unseen changes can be made. It is also useful for developing purposes when the remote context is older or non-existent. When you work with local mappings, make sure all nodes involved in the use-case have the same custom context configured.
+During startup of the node, remote contexts are fetched and cached. If the contents of a remote context changes, the node must be restarted in order for these changes to have effect. Only remote context listed in the `remoteallowlist` are fetched.
+Local mappings can be used to pin a version of a context, so no unseen changes can be made. Working with local mappings is also useful for developing purposes when the remote context is older or non-existent. When you work with local mappings, make sure all nodes involved in the use-case have the same custom context configured.
+
+Searching and indexing
+**********************
+
+Searching for custom credentials works just as Nuts provided credentials as described in :ref:`searching-vcs`. Note however that the extra fields in the `credentialSubject` added by the custom credential are not indexed by the credential store. Searching for these fields is notably slower (depending on the query and amount of custom credentials). If this becomes a problem, inform the Nuts development team so an appropriate solution can be found.
 
 Resources
 *********
