@@ -200,7 +200,7 @@ The Nuts service executable exports the following metrics by default. These cove
 
 
 Network DAG Visualization
-=========================
+*************************
 
 All network transactions form a directed acyclic graph (DAG) which helps achieving consistency and data completeness.
 Since it's a hard to debug, complex structure, the network API provides a visualization which can be queried
@@ -215,3 +215,17 @@ Using query parameters `start` and `end` it is possible to retrieve a range of t
 `/internal/network/v1/diagnostics/graph?start=10&end=12` will return a graph with all transactions containing Lamport Clock 10 and 11.
 Both parameters need to be non-negative integers, and `start` < `end`. If no value is provided, `start=0` and `end=inf`.
 Querying a range can be useful if only a certain range is of interest, but may also be required to generate the graph using `dot`.
+
+CPU profiling
+*************
+
+It's possible to enable CPU profiling by passing the ``cpuprofile=/some/location.dmp`` option.
+This will write a CPU profile to the given location when the node shuts down.
+The resulting file can be analyzed with Go tooling:
+
+.. code-block:: shell
+
+    go tool pprof /some/location.dmp
+
+The tooling includes a help function to get you started. To get started use the ``web`` command inside the tooling.
+It'll open a SVG in a browser and gives a nice overview of what the node was doing.

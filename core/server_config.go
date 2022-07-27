@@ -33,6 +33,7 @@ import (
 
 const defaultConfigFile = "nuts.yaml"
 const configFileFlag = "configfile"
+const cpuprofileFlag = "cpuprofile"
 const serverAddressFlag = "http.default.address"
 const datadirFlag = "datadir"
 const httpCORSOriginFlag = "http.default.cors.origin"
@@ -52,6 +53,7 @@ const configValueListSeparator = ","
 type ServerConfig struct {
 	Verbosity    string           `koanf:"verbosity"`
 	LoggerFormat string           `koanf:"loggerformat"`
+	CPUProfile   string           `koanf:"cpuprofile"`
 	Strictmode   bool             `koanf:"strictmode"`
 	Datadir      string           `koanf:"datadir"`
 	HTTP         GlobalHTTPConfig `koanf:"http"`
@@ -177,6 +179,7 @@ func resolveConfigFilePath(flags *pflag.FlagSet) string {
 func FlagSet() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("server", pflag.ContinueOnError)
 	flagSet.String(configFileFlag, defaultConfigFile, "Nuts config file")
+	flagSet.String(cpuprofileFlag, "", "When set, a CPU profile is written to the given path. Ignored when strictmode is set.")
 	flagSet.String(loggerLevelFlag, defaultLogLevel, "Log level (trace, debug, info, warn, error)")
 	flagSet.String(loggerFormatFlag, defaultLoggerFormat, "Log format (text, json)")
 	flagSet.String(serverAddressFlag, defaultHTTPInterface, "Address and port the server will be listening to")
