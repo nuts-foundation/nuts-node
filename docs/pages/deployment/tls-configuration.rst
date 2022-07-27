@@ -7,6 +7,12 @@ Connections between Nuts nodes are secured using mutual TLS (both client and ser
 This applies to both gRPC and HTTP connections. Your TLS configuration depends mostly on where you terminate the TLS connection.
 This page describes the different layouts for TLS and how to configure them for gRPC.
 
+.. note::
+
+    HTTP connections between nodes (all calls to ``/n2n``) must be secured using TLS which is not handled by the Nuts node.
+    You need to have a reverse proxy in front of the Nuts node for terminating the (node-to-node) HTTPS traffic and forwarding it to the Nuts node.
+    Refer to :ref:`Interfaces/Endpoints <nuts-node-recommended-deployment>` for the requirements on this HTTP endpoint (and others).
+
 In all layouts your node's certificate must issued by a Certificate Authority, trusted by the other nodes in the network.
 Each layout requires ``network.certfile``, ``network.certkeyfile`` and ``network.truststorefile`` to be configured.
 

@@ -49,18 +49,18 @@ Prints the current config
       --jsonld.contexts.remoteallowlist strings       In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here. (default [https://schema.org,https://www.w3.org/2018/credentials/v1,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json])
       --loggerformat string                           Log format (text, json) (default "text")
       --network.bootstrapnodes <host>:<port>          List of bootstrap nodes (<host>:<port>) which the node initially connect to.
-      --network.certfile enableTLS                    PEM file containing the server certificate for the gRPC server. Required when enableTLS is `true`.
+      --network.certfile network.enabletls            PEM file containing the server certificate for the gRPC server. Required when network.enabletls is `true`.
       --network.certkeyfile network.enabletls         PEM file containing the private key of the server certificate. Required when network.enabletls is `true`.
       --network.connectiontimeout int                 Timeout before an outbound connection attempt times out (in milliseconds). (default 5000)
       --network.disablenodeauthentication             Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes. Not allowed in strict-mode.
       --network.enablediscovery                       Whether to enable automatic connecting to other nodes. (default true)
-      --network.enabletls certfile                    Whether to enable TLS for gRPC connections. When certfile or `certkeyfile` is specified it defaults to `true`, otherwise `false`. (default true)
+      --network.enabletls network.tls.offload         Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see network.tls.offload). (default true)
       --network.grpcaddr string                       Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made). (default ":5555")
       --network.maxbackoff 1h                         Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. 1h, `30m`). (default 24h0m0s)
       --network.nodedid string                        Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
       --network.protocols ints                        Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.
       --network.tls.certheader string                 Name of the HTTP header that will contain the client certificate when TLS is offloaded.
-      --network.tls.offload network.tls.offload       Whether to enable TLS offloading for incoming connections. If enabled network.tls.offload must be configured as well.
+      --network.tls.offload network.tls.certheader    Whether to enable TLS offloading for incoming connections. If enabled network.tls.certheader must be configured as well.
       --network.truststorefile string                 PEM file containing the trusted CA certificates for authenticating remote gRPC servers.
       --network.v2.diagnosticsinterval int            Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable). (default 5000)
       --network.v2.gossipinterval int                 Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes. (default 5000)
@@ -107,18 +107,18 @@ Imports private keys from filesystem based storage into Vault. The given directo
       --jsonld.contexts.remoteallowlist strings       In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here. (default [https://schema.org,https://www.w3.org/2018/credentials/v1,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json])
       --loggerformat string                           Log format (text, json) (default "text")
       --network.bootstrapnodes <host>:<port>          List of bootstrap nodes (<host>:<port>) which the node initially connect to.
-      --network.certfile enableTLS                    PEM file containing the server certificate for the gRPC server. Required when enableTLS is `true`.
+      --network.certfile network.enabletls            PEM file containing the server certificate for the gRPC server. Required when network.enabletls is `true`.
       --network.certkeyfile network.enabletls         PEM file containing the private key of the server certificate. Required when network.enabletls is `true`.
       --network.connectiontimeout int                 Timeout before an outbound connection attempt times out (in milliseconds). (default 5000)
       --network.disablenodeauthentication             Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes. Not allowed in strict-mode.
       --network.enablediscovery                       Whether to enable automatic connecting to other nodes. (default true)
-      --network.enabletls certfile                    Whether to enable TLS for gRPC connections. When certfile or `certkeyfile` is specified it defaults to `true`, otherwise `false`. (default true)
+      --network.enabletls network.tls.offload         Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see network.tls.offload). (default true)
       --network.grpcaddr string                       Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made). (default ":5555")
       --network.maxbackoff 1h                         Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. 1h, `30m`). (default 24h0m0s)
       --network.nodedid string                        Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
       --network.protocols ints                        Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.
       --network.tls.certheader string                 Name of the HTTP header that will contain the client certificate when TLS is offloaded.
-      --network.tls.offload network.tls.offload       Whether to enable TLS offloading for incoming connections. If enabled network.tls.offload must be configured as well.
+      --network.tls.offload network.tls.certheader    Whether to enable TLS offloading for incoming connections. If enabled network.tls.certheader must be configured as well.
       --network.truststorefile string                 PEM file containing the trusted CA certificates for authenticating remote gRPC servers.
       --network.v2.diagnosticsinterval int            Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable). (default 5000)
       --network.v2.gossipinterval int                 Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes. (default 5000)
@@ -264,18 +264,18 @@ Starts the Nuts server
       --jsonld.contexts.remoteallowlist strings       In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here. (default [https://schema.org,https://www.w3.org/2018/credentials/v1,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json])
       --loggerformat string                           Log format (text, json) (default "text")
       --network.bootstrapnodes <host>:<port>          List of bootstrap nodes (<host>:<port>) which the node initially connect to.
-      --network.certfile enableTLS                    PEM file containing the server certificate for the gRPC server. Required when enableTLS is `true`.
+      --network.certfile network.enabletls            PEM file containing the server certificate for the gRPC server. Required when network.enabletls is `true`.
       --network.certkeyfile network.enabletls         PEM file containing the private key of the server certificate. Required when network.enabletls is `true`.
       --network.connectiontimeout int                 Timeout before an outbound connection attempt times out (in milliseconds). (default 5000)
       --network.disablenodeauthentication             Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes. Not allowed in strict-mode.
       --network.enablediscovery                       Whether to enable automatic connecting to other nodes. (default true)
-      --network.enabletls certfile                    Whether to enable TLS for gRPC connections. When certfile or `certkeyfile` is specified it defaults to `true`, otherwise `false`. (default true)
+      --network.enabletls network.tls.offload         Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see network.tls.offload). (default true)
       --network.grpcaddr string                       Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made). (default ":5555")
       --network.maxbackoff 1h                         Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. 1h, `30m`). (default 24h0m0s)
       --network.nodedid string                        Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
       --network.protocols ints                        Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.
       --network.tls.certheader string                 Name of the HTTP header that will contain the client certificate when TLS is offloaded.
-      --network.tls.offload network.tls.offload       Whether to enable TLS offloading for incoming connections. If enabled network.tls.offload must be configured as well.
+      --network.tls.offload network.tls.certheader    Whether to enable TLS offloading for incoming connections. If enabled network.tls.certheader must be configured as well.
       --network.truststorefile string                 PEM file containing the trusted CA certificates for authenticating remote gRPC servers.
       --network.v2.diagnosticsinterval int            Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable). (default 5000)
       --network.v2.gossipinterval int                 Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes. (default 5000)
