@@ -178,7 +178,8 @@ func generateRstTable(tableName, fileName string, values [][]rstValue) {
 	}
 	defer optionsFile.Close()
 	optionsFile.WriteString(fmt.Sprintf(".. table:: %s\n", tableName))
-	optionsFile.WriteString("    :widths: 20 30 50\n\n")
+	optionsFile.WriteString("    :widths: 20 30 50\n")
+	optionsFile.WriteString("    :class: options-table\n\n")
 	printRstTable(vals("Key", "Default", "Description"), values, optionsFile)
 	if err := optionsFile.Sync(); err != nil {
 		panic(err)

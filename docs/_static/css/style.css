@@ -23,3 +23,10 @@ ul.current {
 .wy-table-responsive table td, .wy-table-responsive table th {
     white-space: normal;
 }
+/* Fix for overflowing option tables.
+ * Option tables 2nd column contains values like JSON which require different wrapping style.
+ * This fix is needed for Chrome which has different word-brake behaviour than Firefox.
+ */
+.options-table tbody tr td:nth-child(2) {
+    word-break: break-all;
+}
