@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/test"
+	io_prometheus_client "github.com/prometheus/client_model/go"
 	"go.uber.org/atomic"
 	"math"
 	"path/filepath"
@@ -364,6 +365,38 @@ func TestState_IBLT(t *testing.T) {
 	})
 }
 
+func TestState_InitialTransactionCountMetric(t *testing.T) {
+	// create state
+	ctx := context.Background()
+	txState := createState(t).(*state)
+	payload := []byte("payload")
+	tx, _, _ := CreateTestTransactionEx(1, hash.SHA256Sum(payload), nil)
+	dagClock := 3 * PageSize / 2
+	tx.(*transaction).lamportClock = dagClock
+	err := txState.Add(ctx, tx, payload)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	assertMetric := func() {
+		metric := &io_prometheus_client.Metric{}
+		txState.transactionCount.Write(metric)
+		assert.Equal(t, 1.0, *metric.Counter.Value)
+	}
+
+	t.Run("count == 1", func(t *testing.T) {
+		assertMetric()
+	})
+
+	t.Run("count survives restart", func(t *testing.T) {
+		txState.Shutdown()
+		txState.transactionCount = transactionCountCollector()
+		txState.Start()
+
+		assertMetric()
+	})
+}
+
 func TestState_updateTrees(t *testing.T) {
 	setup := func(t *testing.T) State {
 		txState := createState(t)
@@ -400,8 +433,14 @@ func createState(t *testing.T, verifier ...Verifier) State {
 	if err != nil {
 		t.Fatal("failed to create store: ", err)
 	}
-	s, _ := NewState(bboltStore, verifier...)
-	s.Start()
+	s, err := NewState(bboltStore, verifier...)
+	if err != nil {
+		t.Fatal("failed to create store: ", err)
+	}
+	err = s.Start()
+	if err != nil {
+		t.Fatal("failed to start store: ", err)
+	}
 	t.Cleanup(func() {
 		s.Shutdown()
 	})
