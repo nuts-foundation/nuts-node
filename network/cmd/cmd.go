@@ -43,6 +43,7 @@ func FlagSet() *pflag.FlagSet {
 		"If empty the gRPC server won't be started and other nodes will not be able to connect to this node "+
 		"(outbound connections can still be made).")
 	flagSet.Int("network.connectiontimeout", defs.ConnectionTimeout, "Timeout before an outbound connection attempt times out (in milliseconds).")
+	flagSet.Duration("network.maxbackoff", defs.MaxBackoff, "Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. `1h`, `30m`).")
 	flagSet.StringSlice("network.bootstrapnodes", defs.BootstrapNodes, "List of bootstrap nodes (`<host>:<port>`) which the node initially connect to.")
 	flagSet.Bool("network.enablediscovery", defs.EnableDiscovery, "Whether to enable automatic connecting to other nodes.")
 	flagSet.Bool("network.enabletls", defs.EnableTLS, "Whether to enable TLS for incoming and outgoing gRPC connections. "+

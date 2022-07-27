@@ -46,6 +46,9 @@ func NewConfig(grpcAddress string, peerID networkTypes.PeerID, options ...Config
 		dialer:            grpc.DialContext,
 		listener:          tcpListenerCreator,
 		connectionTimeout: 5 * time.Second,
+		backoffCreator: func() Backoff {
+			return BoundedBackoff(time.Second, time.Hour)
+		},
 	}
 	for _, opt := range options {
 		opt(&cfg)
@@ -74,6 +77,12 @@ func WithConnectionTimeout(value time.Duration) ConfigOption {
 	}
 }
 
+func WithBackoff(value func() Backoff) ConfigOption {
+	return func(config *Config) {
+		config.backoffCreator = value
+	}
+}
+
 // Config holds values for configuring the gRPC ConnectionManager.
 type Config struct {
 	// PeerID contains the ID of the local node.
@@ -97,6 +106,8 @@ type Config struct {
 	listener func(string) (net.Listener, error)
 	// dialer holds a function to open connections to remote gRPC services.
 	dialer dialer
+	// backoffCreator holds a function that creates a Backoff.
+	backoffCreator func() Backoff
 }
 
 func (cfg Config) tlsEnabled() bool {
