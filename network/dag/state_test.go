@@ -266,7 +266,7 @@ func TestState_Add(t *testing.T) {
 
 func TestState_Diagnostics(t *testing.T) {
 	ctx := context.Background()
-	txState := createState(t)
+	txState := createState(t).(*state)
 	payload := []byte("payload")
 	doc1, _, _ := CreateTestTransactionEx(2, hash.SHA256Sum(payload), nil)
 	err := txState.Add(ctx, doc1, payload)
@@ -279,16 +279,11 @@ func TestState_Diagnostics(t *testing.T) {
 		lines = append(lines, diagnostic.Name()+": "+diagnostic.String())
 	}
 	sort.Strings(lines)
-
-	dbSize := txState.Statistics(context.Background())
-	assert.NotZero(t, dbSize)
-
 	actual := strings.Join(lines, "\n")
-	expected := fmt.Sprintf(`dag_xor: %s
-heads: [%s]
-stored_database_size_bytes: %d
-transaction_count: 1`, doc1.Ref(), doc1.Ref(), dbSize.DataSize)
-	assert.Equal(t, expected, actual)
+
+	assert.Contains(t, actual, fmt.Sprintf("dag_xor: %s", doc1.Ref()))
+	assert.Contains(t, actual, fmt.Sprintf("heads: [%s]", doc1.Ref()))
+	assert.Contains(t, actual, "transaction_count: 1")
 }
 
 func TestState_XOR(t *testing.T) {

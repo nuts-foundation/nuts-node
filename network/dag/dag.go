@@ -48,6 +48,9 @@ const headsShelf = "heads"
 // clockShelf is the name of the shelf that uses the Lamport clock as index to a set of TX refs.
 const clockShelf = "clocks"
 
+// TransactionCountDiagnostic is the name of the diagnostics result for the transaction count
+const TransactionCountDiagnostic = "transaction_count"
+
 type dag struct {
 	db stoabs.KVStore
 }
@@ -78,7 +81,7 @@ func (n numberOfTransactionsStatistic) Result() interface{} {
 }
 
 func (n numberOfTransactionsStatistic) Name() string {
-	return "transaction_count"
+	return TransactionCountDiagnostic
 }
 
 func (n numberOfTransactionsStatistic) String() string {

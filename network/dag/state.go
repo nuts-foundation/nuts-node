@@ -339,15 +339,6 @@ func (s *state) Start() error {
 	return nil
 }
 
-func (s *state) Statistics(ctx context.Context) Statistics {
-	var stats Statistics
-	_ = s.db.Read(ctx, func(tx stoabs.ReadTx) error {
-		stats = s.graph.statistics(tx)
-		return nil
-	})
-	return stats
-}
-
 // Verify can be used to verify the entire DAG.
 // TODO problematic for large sets. Currently not used, see #1216
 func (s *state) Verify(ctx context.Context) error {

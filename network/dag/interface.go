@@ -69,8 +69,6 @@ type State interface {
 	Shutdown() error
 	// Start the publisher and verifier
 	Start() error
-	// Statistics returns data for the statistics page
-	Statistics(ctx context.Context) Statistics
 	// Verify checks the integrity of the DAG. Should be called when it's loaded, e.g. from disk.
 	Verify(ctx context.Context) error
 	// XOR returns the xor of all transaction references between the DAG root and the clock closest to the requested clock value.
