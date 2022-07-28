@@ -71,7 +71,6 @@ func Cmd() *cobra.Command {
 	cmd.AddCommand(payloadCommand())
 	cmd.AddCommand(peersCommand())
 	cmd.AddCommand(reprocessCommand())
-	cmd.AddCommand(analyzeCommand())
 	return cmd
 }
 
