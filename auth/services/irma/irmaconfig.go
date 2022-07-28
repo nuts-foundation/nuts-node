@@ -54,12 +54,23 @@ func GetIrmaConfig(validatorConfig ValidatorConfig) (irmaConfig *irma.Configurat
 // GetIrmaServer creates and starts the irma server instance.
 // The server can be used by a IRMA client like the app to handle IRMA sessions
 func GetIrmaServer(validatorConfig ValidatorConfig, irmaConfig *irma.Configuration) (*irmaserver.Server, error) {
-	logger := log.Logger().Logger
+	// Customize logger to have it clearly log "IRMA" in module field.
+	// We need a decorator because IRMA config takes a logrus.Logger instead of logrus.Entry
+	logger := *logrus.StandardLogger()
+	formatter := logger.Formatter
+	logger.Formatter = &decoratingFormatter{
+		formatter: formatter,
+		decorator: func(entry *logrus.Entry) *logrus.Entry {
+			entry.Data["module"] = "Auth/IRMA"
+			return entry
+		},
+	}
+
 	config := &server.Configuration{
 		IrmaConfiguration:    irmaConfig,
 		URL:                  validatorConfig.PublicURL + IrmaMountPath,
-		Logger:               logger,
-		Verbose:              irmaLogLevel(logger),
+		Logger:               &logger,
+		Verbose:              irmaLogLevel(&logger),
 		SchemesPath:          validatorConfig.IrmaConfigPath,
 		DisableSchemesUpdate: !validatorConfig.AutoUpdateIrmaSchemas,
 	}
@@ -79,4 +90,13 @@ func irmaLogLevel(logger *logrus.Logger) int {
 	default:
 		return 0
 	}
+}
+
+type decoratingFormatter struct {
+	formatter logrus.Formatter
+	decorator func(entry *logrus.Entry) *logrus.Entry
+}
+
+func (f decoratingFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	return f.formatter.Format(f.decorator(entry))
 }
