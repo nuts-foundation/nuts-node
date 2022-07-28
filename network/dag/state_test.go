@@ -371,8 +371,6 @@ func TestState_InitialTransactionCountMetric(t *testing.T) {
 	txState := createState(t).(*state)
 	payload := []byte("payload")
 	tx, _, _ := CreateTestTransactionEx(1, hash.SHA256Sum(payload), nil)
-	dagClock := 3 * PageSize / 2
-	tx.(*transaction).lamportClock = dagClock
 	err := txState.Add(ctx, tx, payload)
 	if !assert.NoError(t, err) {
 		return

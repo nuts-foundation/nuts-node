@@ -87,7 +87,7 @@ func transactionCountCollector() prometheus.Counter {
 		prometheus.CounterOpts{
 			Namespace: "nuts",
 			Subsystem: "dag",
-			Name:      "transaction_count",
+			Name:      "transactions_total",
 			Help:      "Number of transactions stored in the DAG",
 		},
 	)
