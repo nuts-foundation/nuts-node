@@ -214,11 +214,16 @@ func reprocessCommand() *cobra.Command {
 }
 
 func analyzeCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "analyze [file]",
-		Short: "Analyze the given BBolt network state database.",
-		Args:  cobra.ExactArgs(1),
+	result := &cobra.Command{
+		Use: "analyze",
+	}
+	result.AddCommand(&cobra.Command{
+		Use: "signers",
+		Short: "Analyze the number of transactions per signer (DID). " +
+			"It takes the server configuration to connect to the node database(s). " +
+			"Note that some file-based databases don't support multiple connections, in that case node needs to be shut down to run this command.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+
 			state, err := dag.NewState(args[0])
 			if err != nil {
 				return err
