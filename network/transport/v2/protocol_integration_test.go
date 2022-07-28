@@ -104,8 +104,8 @@ func TestProtocolV2_Pagination(t *testing.T) {
 	time.Sleep(100 * time.Millisecond) // small timeout for TXs to propagate within the node
 
 	// Confirm that both nodes have the same non-empty XOR
-	assert.NotEqual(t, node1.state.Diagnostics()[3].Result(), hash.EmptyHash())
-	assert.Equal(t, node1.state.Diagnostics()[3].Result(), node2.state.Diagnostics()[3].Result())
+	assert.NotEqual(t, node1.state.Diagnostics()[2].Result(), hash.EmptyHash())
+	assert.Equal(t, node1.state.Diagnostics()[2].Result(), node2.state.Diagnostics()[2].Result())
 }
 
 type integrationTestContext struct {

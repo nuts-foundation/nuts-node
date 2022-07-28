@@ -228,18 +228,6 @@ func TestDAG_Add(t *testing.T) {
 			return nil
 		})
 	})
-	t.Run("error - cyclic graph", func(t *testing.T) {
-		t.Skip("Algorithm for detecting cycles is not yet decided on")
-		// A -> B -> C -> B
-		A := CreateTestTransactionWithJWK(0)
-		B := CreateTestTransactionWithJWK(1, A).(*transaction)
-		C := CreateTestTransactionWithJWK(2, B)
-		B.prevs = append(B.prevs, C.Ref())
-
-		graph := CreateDAG(t)
-		err := addTxErr(graph, A, B, C)
-		assert.EqualError(t, err, "")
-	})
 }
 
 func TestNewDAG_addToLCIndex(t *testing.T) {

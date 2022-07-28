@@ -252,13 +252,14 @@ func (s *state) ReadPayload(ctx context.Context, hash hash.SHA256Hash) (payload 
 	return
 }
 
-func (s *state) Heads(ctx context.Context) []hash.SHA256Hash {
-	heads := make([]hash.SHA256Hash, 0)
-	_ = s.db.Read(ctx, func(tx stoabs.ReadTx) error {
-		heads = s.graph.heads(tx)
-		return nil
+func (s *state) Head(ctx context.Context) (hash.SHA256Hash, error) {
+	var head hash.SHA256Hash
+	var err error
+	err = s.db.Read(ctx, func(tx stoabs.ReadTx) error {
+		head, err = s.graph.getHead(tx)
+		return err
 	})
-	return heads
+	return head, err
 }
 
 func (s *state) Notifier(name string, receiver ReceiverFn, options ...NotifierOption) (Notifier, error) {
