@@ -108,6 +108,7 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 		Transaction: transaction,
 		Payload:     payload,
 	}
+	txAdded := false
 	emitPayloadEvent := false
 
 	return s.db.Write(ctx, func(tx stoabs.WriteTx) error {
@@ -115,6 +116,8 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 		if present {
 			return nil
 		}
+		// control the afterCommit hooks
+		txAdded = true
 
 		if err := s.verifyTX(tx, transaction); err != nil {
 			return err
@@ -145,12 +148,16 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 		log.Logger().Warn("Reloading the XOR and IBLT trees due to a DB transaction Rollback")
 		s.loadTrees(ctx)
 	}), stoabs.AfterCommit(func() {
-		s.notify(txEvent)
-		if emitPayloadEvent {
-			s.notify(payloadEvent)
+		if txAdded {
+			s.notify(txEvent)
+			if emitPayloadEvent {
+				s.notify(payloadEvent)
+			}
 		}
 	}), stoabs.AfterCommit(func() {
-		s.transactionCount.Inc()
+		if txAdded {
+			s.transactionCount.Inc()
+		}
 	}), stoabs.WithWriteLock())
 }
 

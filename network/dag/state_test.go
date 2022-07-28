@@ -262,6 +262,33 @@ func TestState_Add(t *testing.T) {
 
 		assert.EqualError(t, err, "tx.PayloadHash does not match hash of payload")
 	})
+
+	t.Run("afterCommit is not called for duplicate TX", func(t *testing.T) {
+		ctx := context.Background()
+		s := createState(t).(*state)
+
+		err := s.Add(ctx, transaction{}, nil)
+		if !assert.NoError(t, err) {
+			return
+		}
+		assertCountMetric(t, s, 1)
+
+		// check for Notifier not being called
+		s.Notifier(t.Name(), func(event Event) (bool, error) {
+			t.Fail()
+			return true, nil
+		}, WithSelectionFilter(func(event Event) bool {
+			return event.Type == TransactionEventType
+		}))
+
+		// add again
+		err = s.Add(ctx, transaction{}, nil)
+		if !assert.NoError(t, err) {
+			return
+		}
+		time.Sleep(100 * time.Millisecond) // checking nothing happened is hard
+		assertCountMetric(t, s, 1)
+	})
 }
 
 func TestState_Diagnostics(t *testing.T) {
@@ -371,14 +398,8 @@ func TestState_InitialTransactionCountMetric(t *testing.T) {
 		return
 	}
 
-	assertMetric := func() {
-		metric := &io_prometheus_client.Metric{}
-		txState.transactionCount.Write(metric)
-		assert.Equal(t, 1.0, *metric.Counter.Value)
-	}
-
 	t.Run("count == 1", func(t *testing.T) {
-		assertMetric()
+		assertCountMetric(t, txState, 1)
 	})
 
 	t.Run("count survives restart", func(t *testing.T) {
@@ -386,7 +407,7 @@ func TestState_InitialTransactionCountMetric(t *testing.T) {
 		txState.transactionCount = transactionCountCollector()
 		txState.Start()
 
-		assertMetric()
+		assertCountMetric(t, txState, 1)
 	})
 }
 
@@ -438,4 +459,10 @@ func createState(t *testing.T, verifier ...Verifier) State {
 		s.Shutdown()
 	})
 	return s
+}
+
+func assertCountMetric(t *testing.T, state *state, count float64) {
+	metric := &io_prometheus_client.Metric{}
+	state.transactionCount.Write(metric)
+	assert.Equal(t, count, *metric.Counter.Value)
 }
