@@ -69,8 +69,6 @@ type State interface {
 	Shutdown() error
 	// Start the publisher and verifier
 	Start() error
-	// Statistics returns data for the statistics page
-	Statistics(ctx context.Context) Statistics
 	// Verify checks the integrity of the DAG. Should be called when it's loaded, e.g. from disk.
 	Verify(ctx context.Context) error
 	// XOR returns the xor of all transaction references between the DAG root and the clock closest to the requested clock value.
@@ -108,12 +106,6 @@ type PayloadStore interface {
 	// WritePayload writes contents for the specified payload, identified by the given hash.
 	writePayload(tx stoabs.WriteTx, payloadHash hash.SHA256Hash, data []byte) error
 }
-
-// Observer defines the signature of an observer which can be called by an Observable.
-type Observer func(tx stoabs.WriteTx, transaction Transaction) error
-
-// PayloadObserver defines the signature of an observer which can be called by an Observable.
-type PayloadObserver func(transaction Transaction, payload []byte) error
 
 // MaxLamportClock is the highest Lamport Clock value a transaction on the DAG can have.
 const MaxLamportClock = math.MaxUint32

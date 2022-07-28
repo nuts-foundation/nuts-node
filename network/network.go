@@ -162,7 +162,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	var candidateProtocols []transport.Protocol
 	if n.protocols == nil {
 		candidateProtocols = []transport.Protocol{
-			v2.New(v2Cfg, n.nodeDIDResolver, n.state, n.didDocumentResolver, n.decrypter, n.collectDiagnostics, dagStore),
+			v2.New(v2Cfg, n.nodeDIDResolver, n.state, n.didDocumentResolver, n.decrypter, n.collectDiagnosticsForPeers, dagStore),
 		}
 	} else {
 		// Only set protocols if not already set: improves testability
@@ -644,10 +644,18 @@ func (n *Network) Reprocess(contentType string) {
 	}()
 }
 
-func (n *Network) collectDiagnostics() transport.Diagnostics {
+func (n *Network) collectDiagnosticsForPeers() transport.Diagnostics {
+	stateDiagnostics := n.state.Diagnostics()
+	transactionCount := uint(0)
+	for _, diagnostic := range stateDiagnostics {
+		if diagnostic.Name() == dag.TransactionCountDiagnostic {
+			transactionCount = diagnostic.Result().(uint)
+		}
+	}
+
 	result := transport.Diagnostics{
 		Uptime:               time.Now().Sub(n.startTime.Load().(time.Time)),
-		NumberOfTransactions: uint32(n.state.Statistics(context.Background()).NumberOfTransactions),
+		NumberOfTransactions: uint32(transactionCount),
 		SoftwareVersion:      fmt.Sprintf("%s (%s)", core.GitBranch, core.GitCommit),
 		SoftwareID:           softwareID,
 	}

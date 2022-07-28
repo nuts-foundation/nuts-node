@@ -168,6 +168,9 @@ The Nuts service executable exports the following metrics by default. These cove
     # HELP go_threads Number of OS threads created.
     # TYPE go_threads gauge
     go_threads 18
+    # HELP nuts_dag_transaction_count Number of transactions stored in the DAG
+    # TYPE nuts_dag_transaction_count counter
+    nuts_dag_transaction_count 0
     # HELP process_cpu_seconds_total Total user and system CPU time spent in seconds.
     # TYPE process_cpu_seconds_total counter
     process_cpu_seconds_total 2.58

@@ -232,20 +232,6 @@ func (mr *MockStateMockRecorder) Start() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockState)(nil).Start))
 }
 
-// Statistics mocks base method.
-func (m *MockState) Statistics(ctx context.Context) Statistics {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Statistics", ctx)
-	ret0, _ := ret[0].(Statistics)
-	return ret0
-}
-
-// Statistics indicates an expected call of Statistics.
-func (mr *MockStateMockRecorder) Statistics(ctx interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Statistics", reflect.TypeOf((*MockState)(nil).Statistics), ctx)
-}
-
 // Verify mocks base method.
 func (m *MockState) Verify(ctx context.Context) error {
 	m.ctrl.T.Helper()
