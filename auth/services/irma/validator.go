@@ -80,6 +80,7 @@ type VPProof struct {
 
 type irmaVPVerificationResult struct {
 	validity            contract.State
+	reason              string
 	vpType              string
 	disclosedAttributes map[string]string
 	contractAttributes  map[string]string
@@ -87,6 +88,10 @@ type irmaVPVerificationResult struct {
 
 func (I irmaVPVerificationResult) Validity() contract.State {
 	return I.validity
+}
+
+func (I irmaVPVerificationResult) Reason() string {
+	return I.reason
 }
 
 func (I irmaVPVerificationResult) VPType() string {
@@ -154,6 +159,7 @@ func (v Service) VerifyVP(vp vc.VerifiablePresentation, checkTime *time.Time) (c
 
 	return irmaVPVerificationResult{
 		validity:            contract.State(cvr.ValidationResult),
+		reason:              cvr.FailureReason,
 		vpType:              string(cvr.ContractFormat),
 		disclosedAttributes: signerAttributes,
 		contractAttributes:  signedContract.Contract().Params,

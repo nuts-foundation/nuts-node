@@ -22,14 +22,19 @@ package services
 import "github.com/nuts-foundation/nuts-node/auth/contract"
 
 type TestVPVerificationResult struct {
-	Val         contract.State
-	Type        string
-	DAttributes map[string]string
-	CAttributes map[string]string
+	Val           contract.State
+	FailureReason string
+	Type          string
+	DAttributes   map[string]string
+	CAttributes   map[string]string
 }
 
 func (t TestVPVerificationResult) Validity() contract.State {
 	return t.Val
+}
+
+func (t TestVPVerificationResult) Reason() string {
+	return t.FailureReason
 }
 
 func (t TestVPVerificationResult) VPType() string {
