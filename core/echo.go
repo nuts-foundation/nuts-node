@@ -177,6 +177,7 @@ func (c MultiEcho) Shutdown() {
 	}
 }
 
+// Use applies the given middleware function to all Echo servers.
 func (c MultiEcho) Use(middleware ...echo.MiddlewareFunc) {
 	for _, curr := range c.interfaces {
 		curr.Use(middleware...)
