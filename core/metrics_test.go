@@ -20,11 +20,11 @@
 package core
 
 import (
-	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/labstack/echo/v4"
@@ -36,32 +36,68 @@ func TestMetricsEngine_Name(t *testing.T) {
 	assert.Equal(t, "Metrics", named.Name())
 }
 
-func TestNewMetricsEngine(t *testing.T) {
-	mEngine := NewMetricsEngine().(*metrics)
-	_ = mEngine.Configure(ServerConfig{})
+func TestNewMetricsEngine_Metrics(t *testing.T) {
+	engine := NewMetricsEngine().(*metrics)
+	_ = engine.Configure(ServerConfig{})
+	defer engine.Shutdown()
 	e := echo.New()
-	mEngine.Routes(e)
+	engine.Routes(e)
 
-	t.Run("Metrics endpoint returns information about current process", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	requestPath := func(path string) string {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
 		rec := httptest.NewRecorder()
 		e.ServeHTTP(rec, req)
 		defer rec.Result().Body.Close()
-
 		bodyBytes, _ := io.ReadAll(rec.Result().Body)
+		return string(bodyBytes)
+	}
+	requestMetrics := func() string {
+		return requestPath("/metrics")
+	}
 
-		fmt.Println(string(bodyBytes))
+	t.Run("go process metrics", func(t *testing.T) {
+		response := requestMetrics()
 
-		bodyString := string(bodyBytes)
-
-		assert.True(t, strings.Contains(bodyString, "go_goroutines"))
-		assert.True(t, strings.Contains(bodyString, "go_memstats"))
-		assert.True(t, strings.Contains(bodyString, "go_threads"))
-		assert.True(t, strings.Contains(bodyString, "promhttp_metric_handler_requests_in_flight"))
+		assert.Contains(t, response, "go_goroutines")
+		assert.Contains(t, response, "go_memstats")
+		assert.Contains(t, response, "go_threads")
 	})
 
+	t.Run("promhttp metrics", func(t *testing.T) {
+		response := requestMetrics()
+
+		assert.Contains(t, response, "promhttp_metric_handler_requests_in_flight")
+	})
+
+	t.Run("http metrics", func(t *testing.T) {
+		// Request an HTTP endpoint to make sure some HTTP metrics are collected
+		_ = requestPath("/status/diagnostics")
+
+		response := requestMetrics()
+
+		assert.Contains(t, response, "http_request_duration_")
+	})
+
+}
+
+func TestMetricsEngine_Lifecycle(t *testing.T) {
+	t.Run("shutdown unregisters metrics", func(t *testing.T) {
+		engine := NewMetricsEngine().(*metrics)
+		_ = engine.Configure(ServerConfig{})
+
+		e := echo.New()
+		engine.Routes(e)
+
+		err := engine.Shutdown()
+		assert.NoError(t, err)
+
+		// Assert we can register previously registered metrics, which indicates they were unregistered by Shutdown()
+		assert.NoError(t, prometheus.Register(collectors.NewGoCollector()))
+	})
 	t.Run("calling configure twice is ok", func(t *testing.T) {
-		err := mEngine.Configure(ServerConfig{})
+		engine := NewMetricsEngine().(*metrics)
+		defer engine.Shutdown()
+		err := engine.Configure(ServerConfig{})
 
 		assert.NoError(t, err)
 	})

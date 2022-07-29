@@ -253,6 +253,22 @@ func (mr *MockEchoServerMockRecorder) TRACE(path, h interface{}, m ...interface{
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TRACE", reflect.TypeOf((*MockEchoServer)(nil).TRACE), varargs...)
 }
 
+// Use mocks base method.
+func (m *MockEchoServer) Use(middleware ...echo.MiddlewareFunc) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{}
+	for _, a := range middleware {
+		varargs = append(varargs, a)
+	}
+	m.ctrl.Call(m, "Use", varargs...)
+}
+
+// Use indicates an expected call of Use.
+func (mr *MockEchoServerMockRecorder) Use(middleware ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Use", reflect.TypeOf((*MockEchoServer)(nil).Use), middleware...)
+}
+
 // MockEchoRouter is a mock of EchoRouter interface.
 type MockEchoRouter struct {
 	ctrl     *gomock.Controller
@@ -464,4 +480,20 @@ func (mr *MockEchoRouterMockRecorder) TRACE(path, h interface{}, m ...interface{
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{path, h}, m...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TRACE", reflect.TypeOf((*MockEchoRouter)(nil).TRACE), varargs...)
+}
+
+// Use mocks base method.
+func (m *MockEchoRouter) Use(middleware ...echo.MiddlewareFunc) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{}
+	for _, a := range middleware {
+		varargs = append(varargs, a)
+	}
+	m.ctrl.Call(m, "Use", varargs...)
+}
+
+// Use indicates an expected call of Use.
+func (mr *MockEchoRouterMockRecorder) Use(middleware ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Use", reflect.TypeOf((*MockEchoRouter)(nil).Use), middleware...)
 }

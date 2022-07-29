@@ -20,10 +20,11 @@
 package core
 
 import (
+	promEcho "github.com/labstack/echo-contrib/prometheus"
+	"github.com/prometheus/client_golang/prometheus"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -36,31 +37,52 @@ func NewMetricsEngine() Engine {
 	return &metrics{}
 }
 
-type metrics struct{}
+type metrics struct {
+	prometheusMiddleware *promEcho.Prometheus
+	collectors           []prometheus.Collector
+}
 
 func (e *metrics) Name() string {
 	return metricsEngine
 }
 
+func (e *metrics) Start() error {
+	return nil
+}
+
+func (e *metrics) Shutdown() error {
+	for _, collector := range e.collectors {
+		prometheus.Unregister(collector)
+	}
+	// echo-contrib/prometheus does not unregister metrics on shutdown, so we do it manually
+	for _, curr := range e.prometheusMiddleware.MetricsList {
+		prometheus.Unregister(curr.MetricCollector)
+	}
+	return nil
+}
+
 func (e *metrics) Routes(router EchoRouter) {
+	router.Use(e.prometheusMiddleware.HandlerFunc)
 	router.Add(http.MethodGet, "/metrics", echo.WrapHandler(promhttp.Handler()))
 }
 
 // Configure configures the MetricsEngine.
 // It configures and registers the prometheus collector
-func (*metrics) Configure(_ ServerConfig) error {
-	prometheusCollectors := []prometheus.Collector{
+func (e *metrics) Configure(_ ServerConfig) error {
+	// Built-in collectors
+	e.collectors = []prometheus.Collector{
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 	}
-
 	are := prometheus.AlreadyRegisteredError{}
-
-	for _, c := range prometheusCollectors {
+	for _, c := range e.collectors {
 		if err := prometheus.Register(c); err != nil && err.Error() != are.Error() {
 			return err
 		}
 	}
+
+	// Echo collector
+	e.prometheusMiddleware = promEcho.NewPrometheus("http", nil)
 
 	return nil
 }
