@@ -249,7 +249,7 @@ func loggerMiddleware(config loggerConfig) echo.MiddlewareFunc {
 	}
 }
 
-func createEchoServer(cfg HTTPConfig, strictmode bool) (*echo.Echo, error) {
+func createEchoServer(cfg HTTPConfig, strictmode, rateLimiter bool) (*echo.Echo, error) {
 	echoServer := echo.New()
 	echoServer.HideBanner = true
 
@@ -273,21 +273,27 @@ func createEchoServer(cfg HTTPConfig, strictmode bool) (*echo.Echo, error) {
 
 	echoServer.Use(loggerMiddleware(loggerConfig{Skipper: requestsStatusEndpoint, logger: Logger()}))
 
-	echoServer.Use(NewInternalRateLimiter([]string{
-		"/internal/vcr/v2/issuer/vc", // issuing new VCs
-		"/internal/vdr/v1/did",       // creating new DIDs
-	}, 24*time.Hour, 3000, 30))
+	// Always enabled in strict mode
+	if strictmode || rateLimiter {
+		echoServer.Use(NewInternalRateLimiter(map[string][]string{
+			http.MethodPost: {
+				"/internal/vcr/v2/issuer/vc", // issuing new VCs
+				"/internal/vdr/v1/did",       // creating new DIDs
+			}}, 24*time.Hour, 3000, 30),
+		)
+	}
 
 	return echoServer, nil
 }
 
 // NewInternalRateLimiter creates a new internal rate limiter based on the echo middleware RateLimiter.
 // It accepts a list of paths which will become limited. These paths are exact matches, no fancy pattern matching.
-func NewInternalRateLimiter(protectedPaths []string, interval time.Duration, limitPerInterval rate.Limit, burst int) echo.MiddlewareFunc {
+// By default, the rateLimiter fails the http request with a http error, but when onlyWarn is set, it allows the request and logs.
+func NewInternalRateLimiter(protectedPaths map[string][]string, interval time.Duration, limitPerInterval rate.Limit, burst int) echo.MiddlewareFunc {
 	return middleware.RateLimiterWithConfig(middleware.RateLimiterConfig{
 		// Returning true means skipping the middleware
 		Skipper: func(c echo.Context) bool {
-			for _, path := range protectedPaths {
+			for _, path := range protectedPaths[c.Request().Method] {
 				if c.Request().URL.Path == path {
 					return false
 				}
@@ -321,6 +327,7 @@ func NewInternalRateLimiter(protectedPaths []string, interval time.Duration, lim
 // It should only be used for internal paths since it does not register the rate limit per caller.
 type InternalRateLimiterStore struct {
 	limiter *rate.Limiter
+	devMode bool
 }
 
 // Allow checks if the amount of calls has not exceeded the limited amount. It ignores the callers' identifier.

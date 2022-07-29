@@ -111,19 +111,19 @@ func TestSystem_Migrate(t *testing.T) {
 func TestSystem_DefaultEchoServer(t *testing.T) {
 	t.Run("no args", func(t *testing.T) {
 		system := NewSystem()
-		server, err := system.EchoCreator(HTTPConfig{}, true)
+		server, err := system.EchoCreator(HTTPConfig{}, true, true)
 		assert.NotNil(t, server)
 		assert.NoError(t, err)
 	})
 	t.Run("enable CORS", func(t *testing.T) {
 		system := NewSystem()
-		server, err := system.EchoCreator(HTTPConfig{CORS: HTTPCORSConfig{[]string{"*"}}}, false)
+		server, err := system.EchoCreator(HTTPConfig{CORS: HTTPCORSConfig{[]string{"*"}}}, false, true)
 		assert.NotNil(t, server)
 		assert.NoError(t, err)
 	})
 	t.Run("enable CORS (* not allowed in strict mode)", func(t *testing.T) {
 		system := NewSystem()
-		server, err := system.EchoCreator(HTTPConfig{CORS: HTTPCORSConfig{[]string{"*"}}}, true)
+		server, err := system.EchoCreator(HTTPConfig{CORS: HTTPCORSConfig{[]string{"*"}}}, true, true)
 		assert.Error(t, err)
 		assert.Nil(t, server)
 	})

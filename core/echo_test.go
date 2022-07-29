@@ -164,7 +164,7 @@ func Test_getGroup(t *testing.T) {
 
 func Test_createEchoServer(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		instance, err := createEchoServer(NewServerConfig().HTTP.HTTPConfig, true)
+		instance, err := createEchoServer(NewServerConfig().HTTP.HTTPConfig, true, true)
 		assert.NotNil(t, instance)
 		assert.NoError(t, err)
 	})
@@ -172,21 +172,21 @@ func Test_createEchoServer(t *testing.T) {
 		t.Run("strict mode", func(t *testing.T) {
 			cfg := NewServerConfig().HTTP.HTTPConfig
 			cfg.CORS.Origin = []string{"test.nl"}
-			instance, err := createEchoServer(cfg, true)
+			instance, err := createEchoServer(cfg, true, true)
 			assert.NotNil(t, instance)
 			assert.NoError(t, err)
 		})
 		t.Run("strict mode - wildcard not allowed", func(t *testing.T) {
 			cfg := NewServerConfig().HTTP.HTTPConfig
 			cfg.CORS.Origin = []string{"*"}
-			instance, err := createEchoServer(cfg, true)
+			instance, err := createEchoServer(cfg, true, true)
 			assert.Nil(t, instance)
 			assert.EqualError(t, err, "wildcard CORS origin is not allowed in strict mode")
 		})
 		t.Run("lenient mode", func(t *testing.T) {
 			cfg := NewServerConfig().HTTP.HTTPConfig
 			cfg.CORS.Origin = []string{"*"}
-			instance, err := createEchoServer(cfg, false)
+			instance, err := createEchoServer(cfg, false, true)
 			assert.NotNil(t, instance)
 			assert.NoError(t, err)
 		})
@@ -294,28 +294,31 @@ func Test_loggerMiddleware(t *testing.T) {
 func TestNewInternalRateLimiter(t *testing.T) {
 	t.Run("it works", func(t *testing.T) {
 		e := echo.New()
-		rlMiddleware := NewInternalRateLimiter([]string{"/foo"}, time.Minute, 30, 2)
+		rlMiddleware := NewInternalRateLimiter(map[string][]string{http.MethodPost: {"/foo"}}, time.Minute, 30, 2)
 
 		handler := func(c echo.Context) error {
 			return c.String(http.StatusOK, "test")
 		}
 
 		testcases := []struct {
+			method            string
 			expectedStatus    int
 			waitBeforeRequest time.Duration
 			path              string
 		}{
-			{http.StatusOK, 0, "/foo"},               // first request in burst
-			{http.StatusOK, 0, "/foo"},               // second request in burst
-			{http.StatusTooManyRequests, 0, "/foo"},  // bucket empty
-			{http.StatusOK, 0, "/other"},             // unprotected path should still work
-			{http.StatusOK, 2 * time.Second, "/foo"}, // wait 2 seconds to refill bucket
-			{http.StatusTooManyRequests, 0, "/foo"},  // bucket empty again
+			{http.MethodPost, http.StatusOK, 0, "/foo"},               // first request in burst
+			{http.MethodPost, http.StatusOK, 0, "/foo"},               // second request in burst
+			{http.MethodPost, http.StatusTooManyRequests, 0, "/foo"},  // bucket empty
+			{http.MethodPost, http.StatusOK, 0, "/other"},             // unprotected path should still work
+			{http.MethodGet, http.StatusOK, 0, "/foo"},                // other method same path should still work
+			{http.MethodPost, http.StatusTooManyRequests, 0, "/foo"},  // check bucket still empty
+			{http.MethodPost, http.StatusOK, 2 * time.Second, "/foo"}, // wait 2 seconds to refill bucket
+			{http.MethodPost, http.StatusTooManyRequests, 0, "/foo"},  // bucket empty again
 		}
 
 		for _, testcase := range testcases {
 			time.Sleep(testcase.waitBeforeRequest)
-			req := httptest.NewRequest(http.MethodGet, testcase.path, nil)
+			req := httptest.NewRequest(testcase.method, testcase.path, nil)
 			rec := httptest.NewRecorder()
 			c := e.NewContext(req, rec)
 			_ = rlMiddleware(handler)(c)
