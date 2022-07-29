@@ -46,7 +46,9 @@ func (c *vcr) StoreCredential(credential vc.VerifiableCredential, validAt *time.
 		existingCredential, err := c.find(*credential.ID)
 		if err == nil {
 			if reflect.DeepEqual(existingCredential, credential) {
-				log.Logger().Infof("Credential already exists (id=%s)", credential.ID)
+				log.Logger().
+					WithField("credentialID", *credential.ID).
+					Info("Credential already exists", credential.ID)
 				return nil
 			}
 			return fmt.Errorf("credential with same ID but different content already exists (id=%s)", credential.ID)

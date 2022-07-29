@@ -168,7 +168,9 @@ func (s *grpcConnectionManager) Start() error {
 		}
 	}(s.grpcServer, s.listener)
 
-	log.Logger().Infof("gRPC server started on %s", s.config.listenAddress)
+	log.Logger().
+		WithField("address", s.config.listenAddress).
+		Info("gRPC server started")
 	return nil
 }
 
@@ -205,7 +207,9 @@ func (s grpcConnectionManager) Connect(peerAddress string, options ...transport.
 	}
 	connection, isNew := s.connections.getOrRegister(s.ctx, peer, s.dialer)
 	if !isNew {
-		log.Logger().Infof("A connection for %s already exists.", peer.Address)
+		log.Logger().
+			WithField("address", peer.Address).
+			Info("Connection for peer already exists.")
 		return
 	}
 	s.startTracking(peer.Address, connection)

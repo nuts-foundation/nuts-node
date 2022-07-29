@@ -233,7 +233,10 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, propos
 		return fmt.Errorf("unable to register DID document: %w", err)
 	}
 
-	log.Logger().Infof("DID document registered (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
+	log.Logger().
+		WithField("txRef", transaction.Ref()).
+		WithField("did", proposedDIDDocument.ID.String()).
+		Info("DID document registered")
 
 	return nil
 }
@@ -311,7 +314,10 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 	}
 	err = n.didStore.Update(proposedDIDDocument.ID, currentDIDMeta.Hash, proposedDIDDocument, &documentMetadata)
 	if err == nil {
-		log.Logger().Infof("DID document updated (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
+		log.Logger().
+			WithField("txRef", transaction.Ref()).
+			WithField("did", proposedDIDDocument.ID).
+			Info("DID document updated")
 	}
 	return err
 }

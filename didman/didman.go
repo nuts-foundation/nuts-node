@@ -86,10 +86,18 @@ func (d *didman) Name() string {
 }
 
 func (d *didman) AddEndpoint(id did.DID, serviceType string, u url.URL) (*did.Service, error) {
-	log.Logger().Debugf("Adding endpoint (did: %s, type: %s, url: %s)", id.String(), serviceType, u.String())
+	log.Logger().
+		WithField("did", id.String()).
+		WithField("serviceType", id.String()).
+		WithField("serviceEndpoint", u.String()).
+		Debug("Adding endpoint")
 	service, err := d.addService(id, serviceType, u.String(), nil)
 	if err == nil {
-		log.Logger().Infof("Endpoint added (did: %s, type: %s, url: %s)", id.String(), serviceType, u.String())
+		log.Logger().
+			WithField("did", id.String()).
+			WithField("serviceType", id.String()).
+			WithField("serviceEndpoint", u.String()).
+			Info("Endpoint added")
 	}
 	return service, err
 }
@@ -138,7 +146,11 @@ func (d *didman) AddCompoundService(id did.DID, serviceType string, endpoints ma
 
 	service, err := d.addService(id, serviceType, serviceEndpoint, nil)
 	if err == nil {
-		log.Logger().Infof("Compound service added (did: %s, type: %s, endpoints: %s)", id.String(), serviceType, endpoints)
+		log.Logger().
+			WithField("did", id.String()).
+			WithField("serviceType", id.String()).
+			WithField("serviceEndpoint", endpoints).
+			Info("Compound service added")
 	}
 
 	return service, err
@@ -226,7 +238,9 @@ func (d *didman) DeleteService(serviceID ssi.URI) error {
 
 	err = d.vdr.Update(*id, meta.Hash, *doc, nil)
 	if err == nil {
-		log.Logger().Infof("Service removed (id: %s)", serviceID.String())
+		log.Logger().
+			WithField("serviceID", id.String()).
+			Info("Service removed")
 	}
 	return err
 }
@@ -254,7 +268,9 @@ func (d *didman) UpdateContactInformation(id did.DID, information ContactInforma
 		doc.Service = doc.Service[0:i]
 	})
 	if err == nil {
-		log.Logger().Infof("Contact Information Endpoint added (did: %s)", id.String())
+		log.Logger().
+			WithField("did", id.String()).
+			Info("Contact Information Endpoint added")
 	}
 	return &information, err
 }

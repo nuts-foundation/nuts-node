@@ -147,10 +147,10 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	} else if !config.Strictmode {
 		// If node DID is not set we can wire the automatic node DID resolver, which makes testing/workshops/development easier.
 		// Might cause unexpected behavior though, so it can't be used in strict mode.
-		log.Logger().Infof("Node DID not set, will be auto-discovered.")
+		log.Logger().Info("Node DID not set, will be auto-discovered.")
 		n.nodeDIDResolver = transport.NewAutoNodeDIDResolver(n.privateKeyResolver, n.didDocumentFinder)
 	} else {
-		log.Logger().Warnf("Node DID not set, sending/receiving private transactions is disabled.")
+		log.Logger().Warn("Node DID not set, sending/receiving private transactions is disabled.")
 	}
 
 	// Configure protocols
@@ -348,7 +348,10 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 					log.Logger().Warnf("invalid NutsComm address from service (did=%s, str=%s): %v", node.ID.String(), nutsCommStr, err)
 					continue inner
 				}
-				log.Logger().Infof("Discovered Nuts node (address=%s), published by %s", address, node.ID)
+				log.Logger().
+					WithField("nodeAddress", address).
+					WithField("nodeDID", nodeDID).
+					Info("Discovered Nuts node")
 				n.connectionManager.Connect(address)
 			}
 		}
@@ -507,7 +510,11 @@ func (n *Network) CreateTransaction(template Template) (dag.Transaction, error) 
 	if err = n.state.Add(ctx, transaction, template.Payload); err != nil {
 		return nil, fmt.Errorf("unable to add newly created transaction to State: %w", err)
 	}
-	log.Logger().Infof("Transaction created (ref=%s,type=%s,length=%d)", transaction.Ref(), template.Type, len(template.Payload))
+	log.Logger().
+		WithField("txRef", transaction.Ref()).
+		WithField("txType", template.Type).
+		WithField("txPayloadLen", template.Payload).
+		Info("Transaction created")
 	return transaction, nil
 }
 

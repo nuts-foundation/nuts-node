@@ -101,7 +101,10 @@ func (p networkPublisher) PublishCredential(verifiableCredential vc.VerifiableCr
 	if err != nil {
 		return fmt.Errorf("failed to publish credential, error while creating transaction: %w", err)
 	}
-	log.Logger().Infof("Verifiable Credential published (id=%s,type=%s)", verifiableCredential.ID, verifiableCredential.Type)
+	log.Logger().
+		WithField("credentialID", verifiableCredential.ID).
+		WithField("credentialType", verifiableCredential.Type).
+		Info("Verifiable Credential published")
 
 	return nil
 }

@@ -91,7 +91,10 @@ func (b bboltDatabase) startBackup(moduleName string, storeName string, store st
 		return
 	}
 	interval := b.config.Backup.Interval
-	log.Logger().Infof("BBolt database %s/%s will be backuped at interval of %s", moduleName, storeName, interval)
+	fullStoreName := moduleName + "/" + storeName
+	log.Logger().
+		WithField("store", fullStoreName).
+		Infof("BBolt database will be backuped at interval of %s", interval)
 	ticker := time.NewTicker(interval)
 
 	shutdown := b.ctx.Done()
@@ -103,7 +106,10 @@ func (b bboltDatabase) startBackup(moduleName string, storeName string, store st
 			case _ = <-ticker.C:
 				err := b.performBackup(moduleName, storeName, store)
 				if err != nil {
-					log.Logger().Errorf("Unable to complete BBolt backup for %s/%s: %s", moduleName, storeName, err)
+					log.Logger().
+						WithError(err).
+						WithField("store", fullStoreName).
+						Errorf("Unable to complete BBolt backup")
 				}
 			case _ = <-shutdown:
 				break loop
@@ -114,8 +120,11 @@ func (b bboltDatabase) startBackup(moduleName string, storeName string, store st
 }
 
 func (b bboltDatabase) performBackup(moduleName string, storeName string, store stoabs.KVStore) error {
+	fullStoreName := moduleName + "/" + storeName
 	backupFilePath := path.Join(b.config.Backup.Directory, b.getRelativeStorePath(moduleName, storeName))
-	log.Logger().Debugf("Starting BBolt database backup (store: %s/%s), target: %s", moduleName, storeName, backupFilePath)
+	log.Logger().
+		WithField("store", fullStoreName).
+		Debugf("Starting BBolt database backup to: %s", backupFilePath)
 	startTime := time.Now()
 	wipFilePath := backupFilePath + ".work"
 	previousFilePath := backupFilePath + ".previous"
@@ -166,7 +175,9 @@ func (b bboltDatabase) performBackup(moduleName string, storeName string, store 
 		if err != nil {
 			return err
 		}
-		log.Logger().Debugf("BBolt database backup (store: %s/%s) finished in %s", moduleName, storeName, time.Now().Sub(startTime))
+		log.Logger().
+			WithField("store", fullStoreName).
+			Debugf("BBolt database backup finished in %s", time.Now().Sub(startTime))
 		return nil
 	})
 }

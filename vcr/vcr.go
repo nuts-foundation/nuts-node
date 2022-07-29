@@ -324,7 +324,10 @@ func (c *vcr) find(ID ssi.URI) (vc.VerifiableCredential, error) {
 func (c *vcr) Trust(credentialType ssi.URI, issuer ssi.URI) error {
 	err := c.trustConfig.AddTrust(credentialType, issuer)
 	if err != nil {
-		log.Logger().Infof("Added trust for Verifiable Credential issuer (type=%s, issuer=%s)", credentialType, issuer)
+		log.Logger().
+			WithField("credentialType", credentialType).
+			WithField("issuer", issuer).
+			Info("Added trust for Verifiable Credential issuer")
 	}
 	return err
 }
@@ -332,7 +335,10 @@ func (c *vcr) Trust(credentialType ssi.URI, issuer ssi.URI) error {
 func (c *vcr) Untrust(credentialType ssi.URI, issuer ssi.URI) error {
 	err := c.trustConfig.RemoveTrust(credentialType, issuer)
 	if err != nil {
-		log.Logger().Infof("Untrusted for Verifiable Credential issuer (type=%s, issuer=%s)", credentialType, issuer)
+		log.Logger().
+			WithField("credentialType", credentialType).
+			WithField("issuer", issuer).
+			Info("Untrusted for Verifiable Credential issuer")
 	}
 	return err
 }

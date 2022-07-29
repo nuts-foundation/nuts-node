@@ -238,7 +238,10 @@ func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 			if err != nil {
 				errStatus, isStatusError := status.FromError(err)
 				if errors.Is(err, io.EOF) || (isStatusError && errStatus.Code() == codes.Canceled) {
-					log.Logger().Infof("%s: Peer closed connection (peer=%s)", protocol.MethodName(), peer)
+					log.Logger().
+						WithField("protocol", protocol.MethodName()).
+						WithField("peer", peer).
+						Info("Peer closed connection")
 				} else {
 					log.Logger().Warnf("%s: Peer connection error (peer=%s): %v", protocol.MethodName(), peer, err)
 				}

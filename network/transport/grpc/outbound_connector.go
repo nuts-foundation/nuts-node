@@ -111,7 +111,10 @@ func (c *outboundConnector) start() {
 			if err != nil {
 				// either tryConnect or connectedCallback returned an error
 				waitPeriod := c.backoff.Backoff()
-				log.Logger().Infof("Couldn't connect to peer, reconnecting in %d seconds (peer=%s,err=%v)", int(waitPeriod.Seconds()), c.address, err)
+				log.Logger().
+					WithField("address", c.address).
+					WithError(err).
+					Infof("Couldn't connect to peer, reconnecting in %d seconds", int(waitPeriod.Seconds()))
 				sleepWithCancel(cancelCtx, waitPeriod)
 			}
 		}
@@ -126,7 +129,9 @@ func (c *outboundConnector) stop() {
 }
 
 func (c *outboundConnector) tryConnect() (*grpcLib.ClientConn, error) {
-	log.Logger().Infof("Connecting to peer: %s", c.address)
+	log.Logger().
+		WithField("address", c.address).
+		Info("Connecting to peer")
 	atomic.AddUint32(c.attempts, 1)
 	c.lastAttempt.Store(time.Now())
 
@@ -150,7 +155,9 @@ func (c *outboundConnector) tryConnect() (*grpcLib.ClientConn, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect: %w", err)
 	}
-	log.Logger().Infof("Connected to peer (outbound): %s", c.address)
+	log.Logger().
+		WithField("address", c.address).
+		Info("Connected to peer (outbound)")
 	return grpcConn, nil
 }
 

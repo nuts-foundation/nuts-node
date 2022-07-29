@@ -147,7 +147,9 @@ func (r VDR) Create(options types.DIDCreationOptions) (*did.Document, crypto.Key
 		return nil, nil, fmt.Errorf("could not store DID document in network: %w", err)
 	}
 
-	log.Logger().Infof("New DID Document created (DID=%s)", doc.ID)
+	log.Logger().
+		WithField("did", doc.ID).
+		Info("New DID Document created")
 
 	return doc, key, nil
 }
@@ -201,7 +203,9 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 	tx := network.TransactionTemplate(didDocumentType, payload, key).WithAdditionalPrevs(previousTransactions)
 	_, err = r.network.CreateTransaction(tx)
 	if err == nil {
-		log.Logger().Infof("DID Document updated (DID=%s)", id)
+		log.Logger().
+			WithField("did", id).
+			Info("DID Document updated")
 	} else {
 		log.Logger().WithError(err).Warn("Unable to update DID document")
 		if errors.Is(err, crypto.ErrPrivateKeyNotFound) {
