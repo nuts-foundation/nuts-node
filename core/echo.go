@@ -327,7 +327,6 @@ func NewInternalRateLimiter(protectedPaths map[string][]string, interval time.Du
 // It should only be used for internal paths since it does not register the rate limit per caller.
 type InternalRateLimiterStore struct {
 	limiter *rate.Limiter
-	devMode bool
 }
 
 // Allow checks if the amount of calls has not exceeded the limited amount. It ignores the callers' identifier.
