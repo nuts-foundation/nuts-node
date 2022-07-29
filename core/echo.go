@@ -273,20 +273,22 @@ func createEchoServer(cfg HTTPConfig, strictmode bool) (*echo.Echo, error) {
 
 	echoServer.Use(loggerMiddleware(loggerConfig{Skipper: requestsStatusEndpoint, logger: Logger()}))
 
-	echoServer.Use(middleware.RateLimiterWithConfig(middleware.RateLimiterConfig{
+	echoServer.Use(NewInternalRateLimiter([]string{
+		"/internal/vcr/v2/issuer/vc", // issuing new VCs
+		"/internal/vdr/v1/did",       // creating new DIDs
+	}, 24*time.Hour, 3000, 30))
+
+	return echoServer, nil
+}
+
+// NewInternalRateLimiter creates a new internal rate limiter based on the echo middleware RateLimiter.
+// It accepts a list of paths which will become limited. These paths are exact matches, no fancy pattern matching.
+func NewInternalRateLimiter(protectedPaths []string, interval time.Duration, limitPerInterval rate.Limit, burst int) echo.MiddlewareFunc {
+	return middleware.RateLimiterWithConfig(middleware.RateLimiterConfig{
 		// Returning true means skipping the middleware
 		Skipper: func(c echo.Context) bool {
-			// only limit post requests
-			if c.Request().Method != http.MethodPost {
-				return true
-			}
-
-			limitedPaths := []string{
-				"/internal/vcr/v2/issuer/vc", // issuing new VCs
-				"/internal/vdr/v1/did",       // creating new DIDs
-			}
-			for _, path := range limitedPaths {
-				if c.Path() == path {
+			for _, path := range protectedPaths {
+				if c.Request().URL.Path == path {
 					return false
 				}
 			}
@@ -311,10 +313,8 @@ func createEchoServer(cfg HTTPConfig, strictmode bool) (*echo.Echo, error) {
 			}
 		},
 		// use a store for max 3000 calls a day with a burst rate of 30
-		Store: NewInternalRateLimiterStore(24*time.Hour, 3000, 30),
-	}))
-
-	return echoServer, nil
+		Store: NewInternalRateLimiterStore(interval, limitPerInterval, burst),
+	})
 }
 
 // InternalRateLimiterStore uses a simple TokenBucket for limiting the amount of internal requests.

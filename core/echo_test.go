@@ -22,7 +22,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/labstack/echo/v4"
@@ -287,4 +289,38 @@ func Test_loggerMiddleware(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, hook.LastEntry().Data["status"])
 		ctrl.Finish()
 	})
+}
+
+func TestNewInternalRateLimiter(t *testing.T) {
+	t.Run("it works", func(t *testing.T) {
+		e := echo.New()
+		rlMiddleware := NewInternalRateLimiter([]string{"/foo"}, time.Minute, 30, 2)
+
+		handler := func(c echo.Context) error {
+			return c.String(http.StatusOK, "test")
+		}
+
+		testcases := []struct {
+			expectedStatus    int
+			waitBeforeRequest time.Duration
+			path              string
+		}{
+			{http.StatusOK, 0, "/foo"},               // first request in burst
+			{http.StatusOK, 0, "/foo"},               // second request in burst
+			{http.StatusTooManyRequests, 0, "/foo"},  // bucket empty
+			{http.StatusOK, 0, "/other"},             // unprotected path should still work
+			{http.StatusOK, 2 * time.Second, "/foo"}, // wait 2 seconds to refill bucket
+			{http.StatusTooManyRequests, 0, "/foo"},  // bucket empty again
+		}
+
+		for _, testcase := range testcases {
+			time.Sleep(testcase.waitBeforeRequest)
+			req := httptest.NewRequest(http.MethodGet, testcase.path, nil)
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
+			_ = rlMiddleware(handler)(c)
+			assert.Equal(t, testcase.expectedStatus, rec.Code)
+		}
+	})
+
 }
