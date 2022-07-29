@@ -265,7 +265,11 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 
 		clientStream, err := s.openOutboundStream(connection, protocol, grpcConn, md)
 		if err != nil {
-			log.Logger().Warnf("%T: Failed to open gRPC stream (addr=%s): %v", protocol, grpcConn.Target(), err)
+			log.Logger().
+				WithError(err).
+				WithField("address", grpcConn.Target()).
+				WithField("protocol", protocol.MethodName()).
+				Warn("Failed to open gRPC stream")
 			if errors.Is(err, fatalError{}) {
 				// Error indicates connection should be closed.
 				return err
@@ -349,7 +353,9 @@ func (s *grpcConnectionManager) openOutboundStream(connection Connection, protoc
 
 	if !connection.registerStream(protocol, clientStream) {
 		// This can happen when the peer connected to us previously, and now we connect back to them.
-		log.Logger().Warnf("We connected to a peer that we're already connected to (peer=%s)", peerID)
+		log.Logger().
+			WithField("peer", peer).
+			Warn("We connected to a peer that we're already connected to")
 		return nil, fatalError{error: ErrAlreadyConnected}
 	}
 
@@ -360,7 +366,11 @@ func (s *grpcConnectionManager) authenticate(nodeDID did.DID, peer transport.Pee
 	if !nodeDID.Empty() {
 		authenticatedPeer, err := s.authenticator.Authenticate(nodeDID, *peerFromCtx, peer)
 		if err != nil {
-			log.Logger().WithField("peer", peer).Warnf("Peer node DID could not be authenticated (did=%s): %v", nodeDID, err)
+			log.Logger().
+				WithError(err).
+				WithField("peer", peer).
+				WithField("did", nodeDID).
+				Warn("Peer node DID could not be authenticated")
 			// Error message is spec'd by RFC017, because it is returned to the peer
 			return transport.Peer{}, ErrNodeDIDAuthFailed
 		}

@@ -340,17 +340,24 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 			if service.Type == transport.NutsCommServiceType {
 				var nutsCommStr string
 				if err = service.UnmarshalServiceEndpoint(&nutsCommStr); err != nil {
-					log.Logger().Warnf("failed to extract NutsComm address from service (did=%s): %v", node.ID.String(), err)
+					log.Logger().
+						WithError(err).
+						WithField("did", node.ID.String()).
+						Warn("Failed to extract NutsComm address from service")
 					continue inner
 				}
 				address, err := transport.ParseAddress(nutsCommStr)
 				if err != nil {
-					log.Logger().Warnf("invalid NutsComm address from service (did=%s, str=%s): %v", node.ID.String(), nutsCommStr, err)
+					log.Logger().
+						WithError(err).
+						WithField("did", node.ID.String()).
+						WithField("address", nutsCommStr).
+						Warn("Invalid NutsComm address in service")
 					continue inner
 				}
 				log.Logger().
 					WithField("nodeAddress", address).
-					WithField("nodeDID", nodeDID).
+					WithField("did", nodeDID).
 					Info("Discovered Nuts node")
 				n.connectionManager.Connect(address)
 			}

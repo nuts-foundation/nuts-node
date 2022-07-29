@@ -161,7 +161,9 @@ func (v vaultKVStorage) ListPrivateKeys() []string {
 	path := privateKeyListPath(v.config.PathPrefix)
 	response, err := v.client.ReadWithData(path, map[string][]string{"list": {"true"}})
 	if err != nil {
-		log.Logger().Errorf("Could not list private keys in Vault: %v", err)
+		log.Logger().
+			WithError(err).
+			Error("Could not list private keys in Vault")
 		return nil
 	}
 	if response == nil {

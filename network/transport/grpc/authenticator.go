@@ -50,7 +50,9 @@ type tlsAuthenticator struct {
 func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, peer transport.Peer) (transport.Peer, error) {
 	withOverride := func(peer transport.Peer, err error) (transport.Peer, error) {
 		if peer.AcceptUnauthenticated {
-			log.Logger().Warnf("Connection manually authenticated, authentication error: %v", err)
+			log.Logger().
+				WithError(err).
+				Warn("Connection manually authenticated with authentication error")
 			peer.NodeDID = nodeDID
 			return peer, nil
 		}

@@ -369,7 +369,10 @@ func (d *didman) resolveOrganizationDIDDocuments(organizations []vc.VerifiableCr
 		}
 		if document == nil {
 			// DID Document might be deactivated, so just log a warning and omit this entry from the search.
-			log.Logger().Warnf("Unable to resolve organization DID Document (DID=%s): %v", organizationDID, err)
+			log.Logger().
+				WithError(err).
+				WithField("did", organizationDID.String()).
+				Warn("Unable to resolve organization DID Document")
 			continue
 		}
 		didDocuments[j] = document

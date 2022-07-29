@@ -443,7 +443,10 @@ func (w Wrapper) IntrospectAccessToken(ctx echo.Context) error {
 		for _, credentialID := range claims.Credentials {
 			credential, err := w.resolveCredential(credentialID)
 			if err != nil {
-				log.Logger().WithError(err).Warnf("Error while resolving credential (id=%s)", credentialID)
+				log.Logger().
+					WithError(err).
+					WithField("credentialID", credentialID).
+					Warn("Error while resolving credential")
 				continue
 			}
 			resolvedVCs = append(resolvedVCs, *credential)

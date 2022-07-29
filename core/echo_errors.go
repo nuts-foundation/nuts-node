@@ -69,7 +69,9 @@ func createHTTPErrorHandler() echo.HTTPErrorHandler {
 				logger.Error(err)
 			}
 		} else {
-			logger.Warnf("Unable to send error back to client, response already committed: %v", err)
+			logger.
+				WithError(err).
+				Warn("Unable to send error back to client, response already committed")
 		}
 	}
 }

@@ -92,7 +92,9 @@ func (p *protocol) handle(peer transport.Peer, envelope *Envelope) error {
 			// add to channel for processing
 		default:
 			// when 100 lists are waiting to be processed
-			log.Logger().Warnf("Can't handle TransactionList message from %s: channel full", peer)
+			log.Logger().
+				WithField("peer", peer).
+				Warn("Can't handle TransactionList message from peer: channel full")
 		}
 
 		return nil
@@ -133,7 +135,10 @@ func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, envelope *
 		// Private TX, verify connection
 		if peer.NodeDID.Empty() {
 			// Connection isn't authenticated
-			log.Logger().Warnf("Peer requested private transaction over unauthenticated connection (peer=%s,tx=%s)", peer, tx.Ref())
+			log.Logger().
+				WithField("peer", peer).
+				WithField("txRef", tx.Ref()).
+				Warn("Peer requested private transaction over unauthenticated connection")
 			return p.send(peer, emptyResponse)
 		}
 		epal := dag.EncryptedPAL(tx.PAL())
@@ -146,12 +151,18 @@ func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, envelope *
 
 		// We weren't able to decrypt the PAL, so it wasn't meant for us
 		if pal == nil {
-			log.Logger().Warnf("Peer requested private transaction we can't decode (peer=%s,tx=%s)", peer, tx.Ref())
+			log.Logger().
+				WithField("peer", peer).
+				WithField("txRef", tx.Ref()).
+				Warn("Peer requested private transaction we can't decode")
 			return p.send(peer, emptyResponse)
 		}
 
 		if !pal.Contains(peer.NodeDID) {
-			log.Logger().Warnf("Peer requested private transaction illegally (peer=%s,tx=%s)", peer, tx.Ref())
+			log.Logger().
+				WithField("peer", peer).
+				WithField("txRef", tx.Ref()).
+				Warn("Peer requested private transaction illegally")
 			return p.send(peer, emptyResponse)
 		}
 		// successful assertions fall through
@@ -290,7 +301,9 @@ func (p *protocol) handleTransactionListQuery(peer transport.Peer, envelope *Env
 	}
 
 	if len(requestedRefs) == 0 {
-		log.Logger().Warnf("peer sent request for 0 transactions (peer=%s)", peer.ID)
+		log.Logger().
+			WithField("peer", peer).
+			Warn("Peer sent request for 0 transactions")
 		return nil
 	}
 
@@ -306,7 +319,10 @@ func (p *protocol) handleTransactionListQuery(peer transport.Peer, envelope *Env
 		if transaction != nil {
 			unsorted = append(unsorted, transaction)
 		} else {
-			log.Logger().Warnf("peer requested transaction we don't have (peer=%s, node=%s, ref=%s)", peer.ID, peer.NodeDID.String(), ref.String())
+			log.Logger().
+				WithField("peer", peer).
+				WithField("txRef", ref.String()).
+				Warn("Peer requested transaction we don't have")
 		}
 	}
 

@@ -245,7 +245,10 @@ func (s *service) validateRequester(context *validationContext) error {
 	actualName := context.contractVerificationResult.ContractAttribute(contract.LegalEntityAttr)
 	actualCity := context.contractVerificationResult.ContractAttribute(contract.LegalEntityCityAttr)
 	if actualName != context.requesterName || actualCity != context.requesterCity {
-		log.Logger().Warnf("Token request validation failed, legal entity mismatch (expected name=%s, actual name=%s, expected city=%s, actual city=%s)", context.requesterName, actualName, context.requesterCity, actualCity)
+		log.Logger().
+			WithField("organizationName", context.requesterName).
+			WithField("organizationCity", context.requesterCity).
+			Warnf("Token request validation failed, organization name/city does not match (given name=%s, given city=%s)", actualName, actualCity)
 		return errors.New("legal entity mismatch")
 	}
 	return nil

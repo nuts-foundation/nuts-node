@@ -98,7 +98,11 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 		if err = p.state.Add(ctx, tx, msg.Transactions[i].Payload); err != nil {
 			if errors.Is(err, dag.ErrPreviousTransactionMissing) {
 				p.cMan.done(cid)
-				log.Logger().Warnf("ignoring remainder of TransactionList due to missing prevs (conversation=%s, Tx with missing prevs=%s)", cid, tx.Ref())
+				log.Logger().
+					WithField("peer", peer).
+					WithField("conversationID", cid).
+					WithField("txRef", tx.Ref()).
+					Warn("Ignoring remainder of TransactionList due to missing prevs")
 				xor, clock := p.state.XOR(ctx, math.MaxUint32)
 				return p.sender.sendState(peer.ID, xor, clock)
 			}
