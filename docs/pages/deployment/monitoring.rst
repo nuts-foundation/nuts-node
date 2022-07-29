@@ -219,7 +219,7 @@ Querying a range can be useful if only a certain range is of interest, but may a
 CPU profiling
 *************
 
-It's possible to enable CPU profiling by passing the ``cpuprofile=/some/location.dmp`` option.
+It's possible to enable CPU profiling by passing the ``--cpuprofile=/some/location.dmp`` option.
 This will write a CPU profile to the given location when the node shuts down.
 The resulting file can be analyzed with Go tooling:
 
