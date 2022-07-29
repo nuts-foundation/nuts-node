@@ -295,7 +295,11 @@ func (p *notifier) retry(event Event) {
 			}),
 		)
 		if err != nil {
-			log.Logger().Errorf("retry for %s receiver failed (ref=%s): %v", p.name, event.Hash.String(), err)
+			log.Logger().
+				WithError(err).
+				WithField("txRef", event.Hash.String()).
+				WithField("eventSubscriber", p.name).
+				Errorf("Retry failed")
 		}
 	}(p.ctx)
 }
@@ -328,7 +332,11 @@ func (p *notifier) notifyNow(event Event) error {
 	}
 
 	if finished, err := p.receiver(*dbEvent); err != nil {
-		log.Logger().Errorf("Retry for %s receiver failed (ref=%s): %v", p.name, dbEvent.Hash.String(), err)
+		log.Logger().
+			WithError(err).
+			WithField("txRef", dbEvent.Hash.String()).
+			WithField("eventSubscriber", p.name).
+			Errorf("Retry failed")
 	} else if finished {
 		return p.Finished(dbEvent.Hash)
 	}

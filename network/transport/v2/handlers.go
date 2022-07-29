@@ -50,7 +50,11 @@ func (p *protocol) Handle(peer transport.Peer, raw interface{}) error {
 
 	err := p.handle(peer, envelope)
 	if err != nil {
-		log.Logger().Errorf("Error handling %T (peer=%s): %s", envelope.Message, peer, err)
+		log.Logger().
+			WithError(err).
+			WithField("peer", peer).
+			WithField("messageType", fmt.Sprintf("%T", envelope.Message)).
+			Error("Error handling message")
 		// Only return allowed errors
 		for _, allowedError := range allowedErrors {
 			if err == allowedError {
@@ -68,7 +72,11 @@ type handleFunc func(peer transport.Peer, envelope *Envelope) error
 func handleASync(peer transport.Peer, envelope *Envelope, f handleFunc) error {
 	go func() {
 		if err := f(peer, envelope); err != nil {
-			log.Logger().Errorf("Error handling %T (peer=%s): %s", envelope.Message, peer, err)
+			log.Logger().
+				WithError(err).
+				WithField("peer", peer).
+				WithField("messageType", fmt.Sprintf("%T", envelope.Message)).
+				Error("Error handling message")
 		}
 	}()
 	return nil
@@ -145,7 +153,11 @@ func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, envelope *
 
 		pal, err := p.decryptPAL(epal)
 		if err != nil {
-			log.Logger().Errorf("Peer requested private transaction but decoding failed (peer=%s,tx=%s): %v", peer, tx.Ref(), err)
+			log.Logger().
+				WithError(err).
+				WithField("peer", peer).
+				WithField("txRef", tx.Ref()).
+				Error("Peer requested private transaction but decryption failed")
 			return p.send(peer, emptyResponse)
 		}
 

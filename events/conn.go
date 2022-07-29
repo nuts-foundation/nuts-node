@@ -120,7 +120,10 @@ func (pool *NATSConnectionPool) Acquire(ctx context.Context) (Conn, JetStreamCon
 			}
 		}
 
-		log.Logger().Errorf("failed to connect to %s: %s", addr, err.Error())
+		log.Logger().
+			WithError(err).
+			WithField("address", addr).
+			Error("Failed to connect")
 
 		select {
 		case <-ctx.Done():

@@ -217,7 +217,10 @@ func (p *protocol) gossipTransaction(event dag.Event) (bool, error) {
 
 func (p *protocol) sendGossip(id transport.PeerID, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) bool {
 	if err := p.sendGossipMsg(id, refs, xor, clock); err != nil {
-		log.Logger().Errorf("failed to send Gossip message (peer=%s): %v", id, err)
+		log.Logger().
+			WithError(err).
+			WithField("peerID", id.String()).
+			Error("failed to send Gossip message")
 		return false
 	}
 
@@ -294,7 +297,9 @@ func (p protocol) Diagnostics() []core.DiagnosticResult {
 	// Feels weird to ignore the error here but diagnostics shouldn't fail
 	failedJobs, err := p.privatePayloadReceiver.GetFailedEvents()
 	if err != nil {
-		log.Logger().Errorf("failed to get failed jobs: %v", err)
+		log.Logger().
+			WithError(err).
+			Error("Failed to get failed jobs")
 	}
 
 	return []core.DiagnosticResult{&core.GenericDiagnosticResult{

@@ -295,7 +295,10 @@ func (n *Network) Start() error {
 			if n.strictMode {
 				return fmt.Errorf("invalid NodeDID configuration: %w", err)
 			}
-			log.Logger().Errorf("Node DID is invalid, exchanging private TXs will not work: %v", err)
+			log.Logger().
+				WithError(err).
+				WithField("did", nodeDID).
+				Error("Node DID is invalid, exchanging private TXs will not work")
 		}
 	}
 
@@ -417,7 +420,11 @@ func (n *Network) publish(eventType EventType, transaction dag.Transaction, payl
 			continue
 		}
 		if err := receiver(transaction, payload); err != nil {
-			log.Logger().Errorf("Transaction subscriber returned an error (ref=%s,type=%s): %v", transaction.Ref(), transaction.PayloadType(), err)
+			log.Logger().
+				WithError(err).
+				WithField("txRef", transaction.Ref()).
+				WithField("txType", transaction.PayloadType()).
+				Error("Transaction subscriber returned an error")
 		}
 	}
 }
@@ -581,7 +588,9 @@ func (n *Network) Diagnostics() []core.DiagnosticResult {
 	// NodeDID
 	nodeDID, err := n.nodeDIDResolver.Resolve()
 	if err != nil {
-		log.Logger().Errorf("Unable to resolve node DID for diagnostics: %v", err)
+		log.Logger().
+			WithError(err).
+			Error("Unable to resolve node DID for diagnostics")
 	}
 	results = append(results, core.GenericDiagnosticResult{
 		Title:   "node_did",
@@ -615,7 +624,9 @@ func (n *Network) Reprocess(contentType string) {
 		ctx := context.Background()
 		_, js, err := n.eventPublisher.Pool().Acquire(context.Background())
 		if err != nil {
-			log.Logger().Errorf("Failed to start reprocessing transactions: %v", err)
+			log.Logger().
+				WithError(err).
+				Error("Failed to start reprocessing transactions")
 		}
 
 		lastLC := uint32(999)
@@ -624,7 +635,9 @@ func (n *Network) Reprocess(contentType string) {
 			end := start + batchSize
 			txs, err := n.state.FindBetweenLC(ctx, start, end)
 			if err != nil {
-				log.Logger().Errorf("Failed to Reprocess transactions (start: %d, end: %d): %v", start, end, err)
+				log.Logger().
+					WithError(err).
+					Errorf("Failed to reprocess transactions (start: %d, end: %d)", start, end)
 				return
 			}
 
@@ -634,7 +647,11 @@ func (n *Network) Reprocess(contentType string) {
 					subject := fmt.Sprintf("%s.%s", events.ReprocessStream, contentType)
 					payload, err := n.state.ReadPayload(ctx, tx.PayloadHash())
 					if err != nil {
-						log.Logger().Errorf("Failed to publish transaction (subject: %s, ref: %s): %v", subject, tx.Ref().String(), err)
+						log.Logger().
+							WithError(err).
+							WithField("txRef", tx.Ref()).
+							WithField("eventSubject", subject).
+							Error("Failed to publish transaction")
 						return
 					}
 					twp := events.TransactionWithPayload{
@@ -645,7 +662,11 @@ func (n *Network) Reprocess(contentType string) {
 					log.Logger().Tracef("Publishing transaction (subject=%s, ref=%s)", subject, tx.Ref().String())
 					_, err = js.PublishAsync(subject, data)
 					if err != nil {
-						log.Logger().Errorf("Failed to publish transaction (subject: %s, ref: %s): %v", subject, tx.Ref().String(), err)
+						log.Logger().
+							WithError(err).
+							WithField("txRef", tx.Ref()).
+							WithField("eventSubject", subject).
+							Error("Failed to publish transaction")
 						return
 					}
 				}

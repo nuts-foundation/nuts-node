@@ -117,19 +117,28 @@ func (n ambassador) handleReprocessEvent(msg *nats.Msg) {
 	twp := events.TransactionWithPayload{}
 
 	if err := msg.Ack(); err != nil {
-		log.Logger().Errorf("Failed to process %s event: failed to ack message: %v", msg.Subject, err)
+		log.Logger().
+			WithError(err).
+			WithField("evenSubject", msg.Subject).
+			Error("Failed to process event: failed to ack message")
 		return
 	}
 
 	if err := json.Unmarshal(jsonBytes, &twp); err != nil {
-		log.Logger().Errorf("Failed to process %s event: failed to unmarshall data: %v", msg.Subject, err)
+		log.Logger().
+			WithError(err).
+			WithField("evenSubject", msg.Subject).
+			Error("Failed to process event: failed to unmarshall data")
 		return
 	}
 
 	if len(twp.Payload) != 0 { // private TXs not intended for us
 		callback := n.getCallbackFn(twp.Transaction.PayloadType())
 		if err := callback(twp.Transaction, twp.Payload); err != nil {
-			log.Logger().Errorf("Failed to process %s event: %v", msg.Subject, err)
+			log.Logger().
+				WithError(err).
+				WithField("evenSubject", msg.Subject).
+				Error("Failed to process event")
 			return
 		}
 	}

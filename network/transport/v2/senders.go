@@ -233,7 +233,10 @@ func (p *protocol) broadcastDiagnostics(diagnostics transport.Diagnostics) {
 	for _, curr := range p.connectionList.AllMatching(grpc.ByConnected()) {
 		err := curr.Send(p, envelope, false)
 		if err != nil {
-			log.Logger().Errorf("error broadcasting diagnostics (peer=%s): %s", curr.Peer(), err)
+			log.Logger().
+				WithError(err).
+				WithField("peer", curr).
+				Error("Error broadcasting diagnostics")
 		}
 	}
 }

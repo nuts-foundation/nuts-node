@@ -109,17 +109,23 @@ func (n *ambassador) handleReprocessEvent(msg *nats.Msg) {
 	twp := events.TransactionWithPayload{}
 
 	if err := msg.Ack(); err != nil {
-		log.Logger().Errorf("Failed to process REPROCESS.application/did+json event: failed to ack message: %v", err)
+		log.Logger().
+			WithError(err).
+			Error("Failed to process REPROCESS.application/did+json event: failed to ack message")
 		return
 	}
 
 	if err := json.Unmarshal(jsonBytes, &twp); err != nil {
-		log.Logger().Errorf("Failed to process REPROCESS.application/did+json event: failed to unmarshall data: %v", err)
+		log.Logger().
+			WithError(err).
+			Error("Failed to process REPROCESS.application/did+json event: failed to unmarshall data")
 		return
 	}
 
 	if err := n.callback(twp.Transaction, twp.Payload); err != nil {
-		log.Logger().Errorf("Failed to process REPROCESS.application/did+json event: %v", err)
+		log.Logger().
+			WithError(err).
+			Error("Failed to process REPROCESS.application/did+json event")
 		return
 	}
 

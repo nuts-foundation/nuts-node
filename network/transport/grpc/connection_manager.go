@@ -163,7 +163,9 @@ func (s *grpcConnectionManager) Start() error {
 	go func(server *grpc.Server, listener net.Listener) {
 		err := server.Serve(listener)
 		if err != nil && !errors.Is(err, grpc.ErrServerStopped) {
-			log.Logger().Errorf("gRPC server errored: %v", err)
+			log.Logger().
+				WithError(err).
+				Error("gRPC server errored")
 			s.Stop()
 		}
 	}(s.grpcServer, s.listener)
@@ -389,7 +391,10 @@ func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundSt
 		return err
 	}
 	if err := inboundStream.SendHeader(md); err != nil {
-		log.Logger().Errorf("Unable to accept gRPC stream (remote address: %s), unable to send headers: %v", peerFromCtx.Addr, err)
+		log.Logger().
+			WithError(err).
+			WithField("address", peerFromCtx.Addr).
+			Error("Unable to accept gRPC stream, unable to send headers")
 		return errors.New("unable to send headers")
 	}
 
@@ -466,7 +471,10 @@ func (s *grpcConnectionManager) startTracking(address string, connection Connect
 	connection.startConnecting(cfg, backoff, func(grpcConn *grpc.ClientConn) bool {
 		err := s.openOutboundStreams(connection, grpcConn, backoff)
 		if err != nil {
-			log.Logger().Errorf("Error while setting up outbound gRPC streams, disconnecting (peer=%s): %v", connection.Peer(), err)
+			log.Logger().
+				WithError(err).
+				WithField("peer", connection.Peer()).
+				Error("Error while setting up outbound gRPC streams, disconnecting")
 			connection.disconnect()
 			_ = grpcConn.Close()
 			return false

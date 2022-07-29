@@ -237,7 +237,9 @@ func (d *dag) add(tx stoabs.WriteTx, transactions ...Transaction) error {
 func (d dag) getNumberOfTransactions(tx stoabs.ReadTx) uint64 {
 	value, err := tx.GetShelfReader(metadataShelf).Get(stoabs.BytesKey(numberOfTransactionsKey))
 	if err != nil {
-		log.Logger().Errorf("Unable to retrieve number of transactions: %v", err)
+		log.Logger().
+			WithError(err).
+			Error("Unable to retrieve number of transactions")
 		return 0
 	}
 	if value != nil {
@@ -260,7 +262,9 @@ func (d dag) setNumberOfTransactions(tx stoabs.WriteTx, count uint64) error {
 func (d dag) getHighestClockValue(tx stoabs.ReadTx) uint32 {
 	value, err := tx.GetShelfReader(metadataShelf).Get(stoabs.BytesKey(highestClockValue))
 	if err != nil {
-		log.Logger().Errorf("Unable to retrieve highest LC value: %v", err)
+		log.Logger().
+			WithError(err).
+			Error("Unable to retrieve highest LC value")
 		return 0
 	}
 	if value == nil {
@@ -282,7 +286,9 @@ func (d dag) getHighestClockLegacy(tx stoabs.ReadTx) uint32 {
 		return nil
 	}, stoabs.Uint32Key(0))
 	if err != nil {
-		log.Logger().Errorf("failed to read clock shelf: %s", err)
+		log.Logger().
+			WithError(err).
+			Error("Failed to read clock shelf")
 		return 0
 	}
 	return clock
