@@ -228,4 +228,4 @@ The resulting file can be analyzed with Go tooling:
     go tool pprof /some/location.dmp
 
 The tooling includes a help function to get you started. To get started use the ``web`` command inside the tooling.
-It'll open a SVG in a browser and gives a nice overview of what the node was doing.
+It'll open a SVG in a browser and give an overview of what the node was doing.
