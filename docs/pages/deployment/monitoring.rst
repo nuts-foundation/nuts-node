@@ -33,7 +33,7 @@ It'll return some text displaying the current status of the various services:
     Logging
         verbosity: INFO
 
-If you supply `application/json` for the `Accept` HTTP header it will return the diagnostics in JSON format.
+If you supply ``application/json`` for the ``Accept`` HTTP header it will return the diagnostics in JSON format.
 
 Metrics
 *******
@@ -60,7 +60,6 @@ Below is a minimal configuration file that will only gather Nuts metrics:
     # - "second_rules.yml"
 
     # A scrape configuration containing exactly one endpoint to scrape:
-    # Here it's Prometheus itself.
     scrape_configs:
       # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
       - job_name: 'nuts'
@@ -74,7 +73,7 @@ It's important to enter the correct IP/domain and port where the Nuts node can b
 Exported metrics
 ================
 
-The Nuts service executable exports the following metrics by default. These cover the basic needs for monitoring the process and http layer.
+The Nuts service executable exports the following metrics by default. These cover the basic needs for monitoring the process.
 
 .. code-block:: text
 
@@ -168,9 +167,9 @@ The Nuts service executable exports the following metrics by default. These cove
     # HELP go_threads Number of OS threads created.
     # TYPE go_threads gauge
     go_threads 18
-    # HELP nuts_dag_transaction_count Number of transactions stored in the DAG
-    # TYPE nuts_dag_transaction_count counter
-    nuts_dag_transaction_count 0
+    # HELP nuts_dag_transactions_total Number of transactions stored in the DAG
+    # TYPE nuts_dag_transactions_total counter
+    nuts_dag_transactions_total 0
     # HELP process_cpu_seconds_total Total user and system CPU time spent in seconds.
     # TYPE process_cpu_seconds_total counter
     process_cpu_seconds_total 2.58
