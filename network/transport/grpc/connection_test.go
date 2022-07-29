@@ -138,3 +138,55 @@ func Test_conn_startSending(t *testing.T) {
 		}, 5*time.Second, "waiting for all goroutines to exit")
 	})
 }
+
+func TestConn_Send(t *testing.T) {
+	t.Run("buffer overflow softlimit", func(t *testing.T) {
+		connection := createConnection(context.Background(), nil, transport.Peer{}).(*conn)
+		stream := newServerStream("foo", "")
+		protocol := &TestProtocol{}
+		_ = connection.registerStream(protocol, stream)
+		connection.cancelCtx()
+		time.Sleep(time.Millisecond)
+
+		for i := 0; i < outboxSoftLimit; i++ {
+			err := connection.Send(protocol, struct{}{}, false)
+			if !assert.NoError(t, err) {
+				return
+			}
+		}
+
+		t.Run("outbox overflows without overdrive", func(t *testing.T) {
+			err := connection.Send(protocol, struct{}{}, false)
+
+			assert.EqualError(t, err, "peer's outbound message backlog has reached max desired capacity, message is dropped (peer=@,backlog-size=100)")
+		})
+
+		t.Run("outbox doesn't overflow with overdrive", func(t *testing.T) {
+			err := connection.Send(protocol, struct{}{}, true)
+
+			assert.NoError(t, err)
+		})
+	})
+
+	t.Run("buffer overflow hardlimit", func(t *testing.T) {
+		connection := createConnection(context.Background(), nil, transport.Peer{}).(*conn)
+		stream := newServerStream("foo", "")
+		protocol := &TestProtocol{}
+		_ = connection.registerStream(protocol, stream)
+		connection.cancelCtx()
+		time.Sleep(time.Millisecond)
+
+		for i := 0; i < outboxHardLimit; i++ {
+			err := connection.Send(protocol, struct{}{}, true)
+			if !assert.NoError(t, err) {
+				return
+			}
+		}
+
+		t.Run("outbox overflows without overdrive", func(t *testing.T) {
+			err := connection.Send(protocol, struct{}{}, true)
+
+			assert.EqualError(t, err, "peer's outbound message backlog has reached hard limit, message is dropped (peer=@,backlog-size=5000)")
+		})
+	})
+}

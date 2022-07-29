@@ -192,7 +192,7 @@ func (mc *conn) Send(protocol Protocol, envelope interface{}, overdrive bool) er
 		return fmt.Errorf("peer's outbound message backlog has reached hard limit, message is dropped (peer=%s,backlog-size=%d)", mc.Peer(), cap(outbox))
 	}
 	if len(outbox) >= outboxSoftLimit && !overdrive {
-		return fmt.Errorf("peer's outbound message backlog has reached max desired capacity, message is dropped (peer=%s,backlog-size=%d)", mc.Peer(), cap(outbox))
+		return fmt.Errorf("peer's outbound message backlog has reached max desired capacity, message is dropped (peer=%s,backlog-size=%d)", mc.Peer(), outboxSoftLimit)
 	}
 	outbox <- envelope
 
