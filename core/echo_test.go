@@ -133,6 +133,7 @@ func Test_MultiEcho_Methods(t *testing.T) {
 		defaultServer.EXPECT().Add("OPTIONS", "/options", gomock.Any()),
 		defaultServer.EXPECT().Add("CONNECT", "/connect", gomock.Any()),
 		defaultServer.EXPECT().Add("TRACE", "/trace", gomock.Any()),
+		defaultServer.EXPECT().Use(gomock.Any()),
 	)
 
 	createFn := func(_ HTTPConfig) (EchoServer, error) {
@@ -149,6 +150,7 @@ func Test_MultiEcho_Methods(t *testing.T) {
 	m.OPTIONS("/options", nil)
 	m.CONNECT("/connect", nil)
 	m.TRACE("/trace", nil)
+	m.Use(nil)
 }
 
 func Test_getGroup(t *testing.T) {
