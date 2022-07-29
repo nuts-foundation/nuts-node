@@ -142,7 +142,7 @@ type StubConnection struct {
 }
 
 // Send sends a message to the connection
-func (s *StubConnection) Send(_ Protocol, envelope interface{}) error {
+func (s *StubConnection) Send(_ Protocol, envelope interface{}, _ bool) error {
 	s.SentMsgs = append(s.SentMsgs, envelope)
 
 	return nil

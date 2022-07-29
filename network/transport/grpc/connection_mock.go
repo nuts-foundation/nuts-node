@@ -78,17 +78,17 @@ func (mr *MockConnectionMockRecorder) Peer() *gomock.Call {
 }
 
 // Send mocks base method.
-func (m *MockConnection) Send(protocol Protocol, envelope interface{}) error {
+func (m *MockConnection) Send(protocol Protocol, envelope interface{}, overdrive bool) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Send", protocol, envelope)
+	ret := m.ctrl.Call(m, "Send", protocol, envelope, overdrive)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Send indicates an expected call of Send.
-func (mr *MockConnectionMockRecorder) Send(protocol, envelope interface{}) *gomock.Call {
+func (mr *MockConnectionMockRecorder) Send(protocol, envelope, overdrive interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockConnection)(nil).Send), protocol, envelope)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockConnection)(nil).Send), protocol, envelope, overdrive)
 }
 
 // disconnect mocks base method.

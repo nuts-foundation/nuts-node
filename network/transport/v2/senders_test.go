@@ -54,7 +54,7 @@ func TestProtocol_sendGossip(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
 		mockConnection := grpc.NewMockConnection(mocks.Controller)
 		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peerID)).Return(mockConnection)
-		mockConnection.EXPECT().Send(proto, envelope)
+		mockConnection.EXPECT().Send(proto, envelope, false)
 
 		err := proto.sendGossipMsg(peerID, []hash.SHA256Hash{hash.EmptyHash()}, xor, clock)
 
@@ -89,7 +89,7 @@ func TestProtocol_sendTransactionList(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
 		mockConnection := grpc.NewMockConnection(mocks.Controller)
 		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peer.ID)).Return(mockConnection)
-		mockConnection.EXPECT().Send(proto, envelope)
+		mockConnection.EXPECT().Send(proto, envelope, true)
 
 		err := proto.sendTransactionList(peer.ID, conversationID, networkTXs)
 
@@ -107,7 +107,7 @@ func TestProtocol_sendTransactionList(t *testing.T) {
 				MessageNumber:  1,
 				TotalMessages:  2,
 			},
-		}})
+		}}, true)
 		mockConnection.EXPECT().Send(proto, &Envelope{Message: &Envelope_TransactionList{
 			TransactionList: &TransactionList{
 				ConversationID: conversationID.slice(),
@@ -115,7 +115,7 @@ func TestProtocol_sendTransactionList(t *testing.T) {
 				MessageNumber:  2,
 				TotalMessages:  2,
 			},
-		}})
+		}}, true)
 
 		err := proto.sendTransactionList(peer.ID, conversationID, []*Transaction{&largeTransaction, &largeTransaction})
 
@@ -138,7 +138,7 @@ func TestProtocol_sendTransactionRangeQuery(t *testing.T) {
 		mockConnection := grpc.NewMockConnection(mocks.Controller)
 		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peerID)).Return(mockConnection)
 		var actualEnvelope *Envelope
-		mockConnection.EXPECT().Send(proto, gomock.Any()).DoAndReturn(func(p *protocol, e *Envelope) error {
+		mockConnection.EXPECT().Send(proto, gomock.Any(), false).DoAndReturn(func(p *protocol, e *Envelope, _ bool) error {
 			actualEnvelope = e
 			return nil
 		})
@@ -169,7 +169,7 @@ func TestProtocol_sendTransactionListQuery(t *testing.T) {
 		mockConnection := grpc.NewMockConnection(mocks.Controller)
 		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peerID)).Return(mockConnection)
 		var actualEnvelope *Envelope
-		mockConnection.EXPECT().Send(proto, gomock.Any()).DoAndReturn(func(p *protocol, e *Envelope) error {
+		mockConnection.EXPECT().Send(proto, gomock.Any(), false).DoAndReturn(func(p *protocol, e *Envelope, _ bool) error {
 			actualEnvelope = e
 			return nil
 		})
@@ -284,7 +284,7 @@ func TestProtocol_sendState(t *testing.T) {
 
 		mockConnection := grpc.NewMockConnection(mocks.Controller)
 		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peerID)).Return(mockConnection)
-		mockConnection.EXPECT().Send(proto, gomock.Any()).DoAndReturn(func(p *protocol, e *Envelope) error {
+		mockConnection.EXPECT().Send(proto, gomock.Any(), false).DoAndReturn(func(p *protocol, e *Envelope, _ bool) error {
 			actualEnvelope = e
 			return nil
 		})
@@ -326,7 +326,7 @@ func TestProtocol_sendTransactionSet(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
 		mockConnection := grpc.NewMockConnection(mocks.Controller)
 		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peer.ID)).Return(mockConnection)
-		mockConnection.EXPECT().Send(proto, envelope)
+		mockConnection.EXPECT().Send(proto, envelope, false)
 
 		err := proto.sendTransactionSet(peer.ID, conversationID, clockReq, clock, *iblt)
 
@@ -355,10 +355,10 @@ func TestProtocol_broadcastDiagnostics(t *testing.T) {
 
 	proto, mocks := newTestProtocol(t, nil)
 	conn1 := grpc.NewMockConnection(mocks.Controller)
-	conn1.EXPECT().Send(proto, envelope)
+	conn1.EXPECT().Send(proto, envelope, false)
 	// Second connection returns an error, which is just logged
 	conn2 := grpc.NewMockConnection(mocks.Controller)
-	conn2.EXPECT().Send(proto, envelope).Return(errors.New("error"))
+	conn2.EXPECT().Send(proto, envelope, false).Return(errors.New("error"))
 	conn2.EXPECT().Peer().Return(transport.Peer{})
 	mocks.ConnectionList.EXPECT().AllMatching(grpc.ByConnected()).Return([]grpc.Connection{conn1, conn2})
 
@@ -376,7 +376,7 @@ func performSendErrorTest(t *testing.T, peerID transport.PeerID, envelope gomock
 		proto, mocks := newTestProtocol(t, nil)
 		mockConnection := grpc.NewMockConnection(mocks.Controller)
 		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peerID)).Return(mockConnection)
-		mockConnection.EXPECT().Send(proto, envelope).Return(errors.New("custom"))
+		mockConnection.EXPECT().Send(proto, envelope, gomock.Any()).Return(errors.New("custom"))
 
 		err := sender(proto, mocks)
 
@@ -407,7 +407,7 @@ func performMultipleConversationsTest(t *testing.T, peerID transport.PeerID, sen
 		proto, mocks := newTestProtocol(t, nil)
 		mockConnection := grpc.NewMockConnection(mocks.Controller)
 		mocks.ConnectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByPeerID(peerID)).Return(mockConnection)
-		mockConnection.EXPECT().Send(proto, gomock.Any()).Return(nil)
+		mockConnection.EXPECT().Send(proto, gomock.Any(), false).Return(nil)
 		// existing conversation for other peer
 		proto.cMan.conversations[conv.conversationID.String()] = conv
 		proto.cMan.lastPeerConversationID["other peer"] = conv.conversationID

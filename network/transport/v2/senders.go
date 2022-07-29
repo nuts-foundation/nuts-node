@@ -60,7 +60,7 @@ func (p *protocol) sendGossipMsg(id transport.PeerID, refs []hash.SHA256Hash, xo
 			LC:           clock,
 			Transactions: refsAsBytes,
 		},
-	}})
+	}}, false)
 }
 
 func (p *protocol) sendTransactionListQuery(id transport.PeerID, refs []hash.SHA256Hash) error {
@@ -92,7 +92,7 @@ func (p *protocol) sendTransactionListQuery(id transport.PeerID, refs []hash.SHA
 
 	log.Logger().Debugf("requesting transactionList from peer (peer=%s, conversationID=%s, #=%d)", id, conversation.conversationID.String(), len(refs))
 
-	return conn.Send(p, &Envelope{Message: msg})
+	return conn.Send(p, &Envelope{Message: msg}, false)
 }
 
 // sendTransactionList sorts transactions on LC value and filters private transaction payloads.
@@ -112,7 +112,7 @@ func (p *protocol) sendTransactionList(peerID transport.PeerID, conversationID c
 				TotalMessages:  uint32(len(chunks)),
 				MessageNumber:  uint32(chunkNumber + 1),
 			},
-		}}); err != nil {
+		}}, true); err != nil {
 			return err
 		}
 	}
@@ -140,7 +140,7 @@ func (p *protocol) sendTransactionRangeQuery(id transport.PeerID, lcStart uint32
 
 	log.Logger().Debugf("requesting transaction range (peer=%s, conversationID=%s, start=%d, end=%d)", id.String(), conversation.conversationID.String(), lcStart, lcEnd)
 
-	return conn.Send(p, &Envelope{Message: msg})
+	return conn.Send(p, &Envelope{Message: msg}, false)
 }
 
 // chunkTransactionList splits a large set of transactions into smaller sets. Each set adheres to the maximum message size.
@@ -196,7 +196,7 @@ func (p *protocol) sendState(id transport.PeerID, xor hash.SHA256Hash, clock uin
 
 	log.Logger().Debugf("requesting state from peer (peer=%s, conversationID=%s)", id, conversation.conversationID.String())
 
-	return conn.Send(p, &Envelope{Message: msg})
+	return conn.Send(p, &Envelope{Message: msg}, false)
 }
 
 func (p *protocol) sendTransactionSet(id transport.PeerID, conversationID conversationID, LCReq uint32, LC uint32, iblt tree.Iblt) error {
@@ -215,7 +215,7 @@ func (p *protocol) sendTransactionSet(id transport.PeerID, conversationID conver
 		LCReq:          LCReq,
 		LC:             LC,
 		IBLT:           ibltBytes,
-	}}})
+	}}}, false)
 }
 
 func (p *protocol) broadcastDiagnostics(diagnostics transport.Diagnostics) {
@@ -231,7 +231,7 @@ func (p *protocol) broadcastDiagnostics(diagnostics transport.Diagnostics) {
 	envelope := &Envelope{Message: &Envelope_DiagnosticsBroadcast{DiagnosticsBroadcast: message}}
 
 	for _, curr := range p.connectionList.AllMatching(grpc.ByConnected()) {
-		err := curr.Send(p, envelope)
+		err := curr.Send(p, envelope, false)
 		if err != nil {
 			log.Logger().Errorf("error broadcasting diagnostics (peer=%s): %s", curr.Peer(), err)
 		}

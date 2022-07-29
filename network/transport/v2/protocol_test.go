@@ -158,7 +158,7 @@ func TestProtocol_send(t *testing.T) {
 		p := &protocol{}
 		p.connectionList = connectionList
 		msg := &Envelope_TransactionPayloadQuery{}
-		connection.EXPECT().Send(p, &Envelope{Message: msg})
+		connection.EXPECT().Send(p, &Envelope{Message: msg}, false)
 
 		err := p.send(transport.Peer{ID: "123"}, msg)
 
@@ -372,7 +372,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 			TransactionPayloadQuery: &TransactionPayloadQuery{
 				TransactionRef: txOk.Ref().Slice(),
 			},
-		}}).Return(errors.New("random error"))
+		}}, false).Return(errors.New("random error"))
 		connectionList := grpc.NewMockConnectionList(mocks.Controller)
 		connectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByNodeDID(*peerDID)).Return(conn)
 		proto.connectionList = connectionList
@@ -397,7 +397,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 			TransactionPayloadQuery: &TransactionPayloadQuery{
 				TransactionRef: txOk.Ref().Slice(),
 			},
-		}}).Return(nil)
+		}}, false).Return(nil)
 		connectionList := grpc.NewMockConnectionList(mocks.Controller)
 		connectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByNodeDID(*peerDID)).Return(conn)
 		proto.connectionList = connectionList
@@ -433,14 +433,14 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 			TransactionPayloadQuery: &TransactionPayloadQuery{
 				TransactionRef: tx.Ref().Slice(),
 			},
-		}}).Return(nil)
+		}}, false).Return(nil)
 		// Connection to other peer
 		conn2 := grpc.NewMockConnection(mocks.Controller)
 		conn2.EXPECT().Send(proto, &Envelope{Message: &Envelope_TransactionPayloadQuery{
 			TransactionPayloadQuery: &TransactionPayloadQuery{
 				TransactionRef: tx.Ref().Slice(),
 			},
-		}}).Return(nil)
+		}}, false).Return(nil)
 		connectionList := grpc.NewMockConnectionList(mocks.Controller)
 		connectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByNodeDID(*nodeDID)).Return(nil)
 		connectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByNodeDID(*peerDID)).Return(conn1)
