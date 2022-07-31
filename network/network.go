@@ -455,7 +455,13 @@ func (n *Network) ListTransactionsInRange(startInclusive uint32, endExclusive ui
 // CreateTransaction creates a new transaction from the given template.
 func (n *Network) CreateTransaction(template Template) (dag.Transaction, error) {
 	payloadHash := hash.SHA256Sum(template.Payload)
-	log.Logger().Debugf("Creating transaction (payload hash=%s,type=%s,length=%d,signingKey=%s,private=%v)", payloadHash, template.Type, len(template.Payload), template.Key.KID(), len(template.Participants) > 0)
+	log.Logger().
+		WithField("txType", template.Type).
+		WithField("txPayloadHash", payloadHash).
+		WithField("txPayloadLen", len(template.Payload)).
+		WithField("txIsPrivate", len(template.Participants) > 0).
+		WithField("kid", template.Key.KID()).
+		Debug("Creating transaction")
 
 	// Assert that all additional prevs are present and its Payload is there
 	ctx := context.Background()

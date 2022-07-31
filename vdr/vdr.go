@@ -156,7 +156,9 @@ func (r VDR) Create(options types.DIDCreationOptions) (*did.Document, crypto.Key
 
 // Update updates a DID Document based on the DID and current hash
 func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *types.DocumentMetadata) error {
-	log.Logger().Debugf("Updating DID Document (DID=%s)", id)
+	log.Logger().
+		WithField("did", id).
+		Debug("Updating DID Document")
 	resolverMetadata := &types.ResolveMetadata{
 		Hash:             &current,
 		AllowDeactivated: true,

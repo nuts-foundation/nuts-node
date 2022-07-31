@@ -81,12 +81,16 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 	// Check whether one of the DNS names matches one of the NutsComm endpoints
 	err = peerCertificate.VerifyHostname(nutsCommURL.Hostname())
 	if err == nil {
-		log.Logger().Debugf("Connection successfully authenticated (nodeDID=%s)", nodeDID)
+		log.Logger().
+			WithField("did", nodeDID).
+			Debug("Connection successfully authenticated")
 		peer.NodeDID = nodeDID
 		return peer, nil
 	}
 
-	log.Logger().Debugf("DNS names in peer certificate: %s", strings.Join(peerCertificate.DNSNames, ", "))
+	log.Logger().
+		WithField("did", nodeDID).
+		Debugf("DNS names in peer certificate: %s", strings.Join(peerCertificate.DNSNames, ", "))
 	return withOverride(peer, fmt.Errorf("none of the DNS names in the peer's TLS certificate match the NutsComm endpoint (nodeDID=%s)", nodeDID))
 }
 

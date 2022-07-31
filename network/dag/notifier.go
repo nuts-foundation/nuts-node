@@ -291,7 +291,9 @@ func (p *notifier) retry(event Event) {
 			retry.Context(ctx),
 			retry.LastErrorOnly(true),
 			retry.OnRetry(func(n uint, err error) {
-				log.Logger().Debugf("retrying event (count=%d) with ref: %s", n, event.Hash.String())
+				log.Logger().
+					WithField("txRef", event.Hash.String()).
+					Debugf("Retrying event (attempt %d/%d)", n, maxRetries)
 			}),
 		)
 		if err != nil {

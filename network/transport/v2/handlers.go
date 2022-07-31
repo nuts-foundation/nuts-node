@@ -279,7 +279,9 @@ func (p *protocol) handleGossip(peer transport.Peer, envelope *Envelope) error {
 		}
 	}
 	refs = refs[:i]
-	log.Logger().Debugf("received %d new transaction references via Gossip from peer=%s", len(refs), peer.ID)
+	log.Logger().
+		WithField("peer", peer).
+		Debugf("Received %d new transaction references via Gossip from peer", len(refs))
 
 	// request missing refs
 	// If our DAG is just missing the TXs from the gossip to get in sync with the peer's DAG, send TransactionListQuery.
@@ -292,9 +294,13 @@ func (p *protocol) handleGossip(peer transport.Peer, envelope *Envelope) error {
 
 	// send State if node is missing more refs than referenced in this Gossip
 	if len(refs) == 0 {
-		log.Logger().Debugf("xor is different from peer=%s but Gossip contained no new transactions", peer.ID)
+		log.Logger().
+			WithField("peer", peer).
+			Debug("XOR is different from peer but Gossip contained no new transactions")
 	} else {
-		log.Logger().Debugf("xor is different from peer=%s and peers clock is equal or higher", peer.ID)
+		log.Logger().
+			WithField("peer", peer).
+			Debug("XOR is different from peer and peer's clock is equal or higher")
 	}
 	return p.sender.sendState(peer.ID, xor, clock)
 }
@@ -434,7 +440,10 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope)
 	_, missing, err := iblt.Decode()
 	if err != nil {
 		if errors.Is(err, tree.ErrDecodeNotPossible) {
-			log.Logger().Debugf("peer IBLT decode failed (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
+			log.Logger().
+				WithField("peer", peer).
+				WithField("conversationID", cid.String()).
+				Debugf("Peer IBLT decode failed")
 
 			// request fist page if decode of first page fails
 			if minLC < dag.PageSize {
@@ -444,7 +453,10 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope)
 			previousPageLimit := pageClockStart(clockToPageNum(minLC)) - 1
 			xor, _ := p.state.XOR(ctx, math.MaxUint32)
 
-			log.Logger().Debugf("requesting state of previous page (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
+			log.Logger().
+				WithField("peer", peer).
+				WithField("conversationID", cid.String()).
+				Debug("Requesting state of previous page")
 			return p.sender.sendState(peer.ID, xor, previousPageLimit)
 		}
 		return err
@@ -452,7 +464,7 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope)
 
 	// request missing decoded transactions
 	if len(missing) > 0 {
-		log.Logger().Debugf("peer IBLT decode succesful, requesting %d transactions", len(missing))
+		log.Logger().Debugf("Peer IBLT decode succesful, requesting %d transactions", len(missing))
 		return p.sender.sendTransactionListQuery(peer.ID, missing)
 	}
 
@@ -460,7 +472,9 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope)
 	_, localLC := p.state.XOR(ctx, math.MaxUint32)
 	peerPageNum, localPageNum, reqPageNum := clockToPageNum(msg.LC), clockToPageNum(localLC), clockToPageNum(msg.LCReq)
 	if peerPageNum > reqPageNum {
-		log.Logger().Debugf("peer has higher LC values, requesting transactions by range (%d<%d)", reqPageNum, peerPageNum)
+		log.Logger().
+			WithField("peer", peer).
+			Debugf("Peer has higher LC values, requesting transactions by range (%d<%d)", reqPageNum, peerPageNum)
 
 		if localPageNum > reqPageNum {
 			// only ask for next page when reconciling historical pages

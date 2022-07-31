@@ -93,12 +93,14 @@ func (v Service) StartSigningSession(rawContractText string) (contract.SessionPo
 
 	// Start an IRMA session
 	sessionPointer, token, _, err := v.IrmaSessionHandler.StartSession(signatureRequest, func(result *server.SessionResult) {
-		log.Logger().Debugf("session done, result: %s", server.ToJson(result))
+		log.Logger().Debug("Session done")
+		log.Logger().Trace(server.ToJson(result))
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error while creating session: %w", err)
 	}
-	log.Logger().Debugf("session created with token: %s", token)
+	log.Logger().Debug("Session created")
+	log.Logger().Tracef("Token: %s", token)
 
 	// Return the sessionPointer and sessionId
 	challenge := SessionPtr{
@@ -109,7 +111,7 @@ func (v Service) StartSigningSession(rawContractText string) (contract.SessionPo
 	if log.Logger().Level >= logrus.DebugLevel {
 		printQrCode(string(jsonResult))
 	}
-	log.Logger().Debugf("sessionPointer: %s", string(jsonResult))
+	log.Logger().Tracef("SessionPointer: %s", string(jsonResult))
 
 	return challenge, nil
 }

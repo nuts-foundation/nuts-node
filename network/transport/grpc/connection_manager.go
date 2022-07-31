@@ -120,7 +120,9 @@ func (s *grpcConnectionManager) Start() error {
 		return nil
 	}
 
-	log.Logger().Debugf("Starting gRPC server on %s", s.config.listenAddress)
+	log.Logger().
+		WithField("address", s.config.listenAddress).
+		Debug("Starting gRPC server")
 	serverOpts := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(MaxMessageSizeInBytes),
 		grpc.MaxSendMsgSize(MaxMessageSizeInBytes),
@@ -222,7 +224,11 @@ func (s *grpcConnectionManager) RegisterObserver(observer transport.StreamStateO
 }
 
 func (s *grpcConnectionManager) notifyObservers(peer transport.Peer, protocol transport.Protocol, state transport.StreamState) {
-	log.Logger().Debugf("Observed stream state change (peer=%s, protocol=V%d, state=%s)", peer.ID, protocol.Version(), state)
+	log.Logger().
+		WithField("peer", peer).
+		WithField("protocolVersion", protocol.Version()).
+		WithField("connectionState", state).
+		Debug("Observed stream state change")
 	for _, observer := range s.observers {
 		observer(peer, state, protocol)
 	}
@@ -280,7 +286,10 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 			continue
 		}
 		peer := connection.Peer() // work with a copy of peer to avoid race condition due to disconnect() resetting it
-		log.Logger().Debugf("%T: Opened gRPC stream (peer=%s)", prot, peer)
+		log.Logger().
+			WithField("protocol", fmt.Sprintf("%T", prot)).
+			WithField("peer", peer).
+			Debug("Opened gRPC stream")
 		s.notifyObservers(peer, protocol, transport.StateConnected)
 
 		go func() {
@@ -412,7 +421,10 @@ func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundSt
 		ID:      peerID,
 		Address: peerFromCtx.Addr.String(),
 	}
-	log.Logger().Debugf("New inbound stream from peer (peer=%s,protocol=%T)", peer, inboundStream)
+	log.Logger().
+		WithField("peer", peer).
+		WithField("protocol", fmt.Sprintf("%T", inboundStream)).
+		Debug("New inbound stream from peer")
 	peer, err = s.authenticate(nodeDID, peer, peerFromCtx)
 	if err != nil {
 		return err

@@ -148,7 +148,9 @@ var thumbprintAlg = crypto.SHA256
 // payload should be a json encoded did.document
 // Duplicates are handled as updates and will be merged. Merging two exactly the same DID Documents results in the original document.
 func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
-	log.Logger().Debugf("Processing DID document received from Nuts Network (ref=%s)", tx.Ref())
+	log.Logger().
+		WithField("txRef", tx.Ref()).
+		Debug("Processing DID document received from Nuts Network")
 	if err := checkTransactionIntegrity(tx); err != nil {
 		return fmt.Errorf("could not process new DID Document: %w", err)
 	}
@@ -159,7 +161,9 @@ func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
 		return fmt.Errorf("could not process new DID Document: %w", err)
 	}
 	if processed {
-		log.Logger().Debugf("Skipping DID document, already exists (tx=%s)", tx.Ref().String())
+		log.Logger().
+			WithField("txRef", tx.Ref()).
+			Debug("Skipping DID document, already exists")
 		return nil
 	}
 
@@ -180,7 +184,10 @@ func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
 }
 
 func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, proposedDIDDocument did.Document) error {
-	log.Logger().Debugf("Handling DID document creation (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
+	log.Logger().
+		WithField("txRef", transaction.Ref()).
+		WithField("did", proposedDIDDocument.ID).
+		Debug("Handling DID document creation")
 	// Check if the DID matches the fingerprint of the tx signing key:
 	if transaction.SigningKey() == nil {
 		return fmt.Errorf("callback could not process new DID Document: signingKey for new DID Documents must be set")
@@ -248,7 +255,10 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, propos
 }
 
 func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, proposedDIDDocument did.Document) error {
-	log.Logger().Debugf("Handling DID document update (tx=%s,did=%s)", transaction.Ref(), proposedDIDDocument.ID)
+	log.Logger().
+		WithField("txRef", transaction.Ref()).
+		WithField("did", proposedDIDDocument.ID).
+		Debug("Handling DID document update")
 	// Resolve latest version of DID Document
 	currentDIDDocument, currentDIDMeta, err := n.didStore.Resolve(proposedDIDDocument.ID, &types.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {

@@ -133,7 +133,11 @@ func (d *didman) GetCompoundServices(id did.DID) ([]did.Service, error) {
 }
 
 func (d *didman) AddCompoundService(id did.DID, serviceType string, endpoints map[string]ssi.URI) (*did.Service, error) {
-	log.Logger().Debugf("Adding compound service (did: %s, type: %s, endpoints: %v)", id.String(), serviceType, endpoints)
+	log.Logger().
+		WithField("did", id.String()).
+		WithField("serviceType", serviceType).
+		WithField("serviceEndpoint", fmt.Sprintf("%v", endpoints)).
+		Debug("Adding compound service")
 	if err := d.validateCompoundServiceEndpoint(endpoints); err != nil {
 		return nil, err
 	}
@@ -201,7 +205,9 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 }
 
 func (d *didman) DeleteService(serviceID ssi.URI) error {
-	log.Logger().Debugf("Deleting service (id: %s)", serviceID.String())
+	log.Logger().
+		WithField("serviceID", serviceID.String()).
+		Debug("Deleting service")
 	id, err := did.ParseDIDURL(serviceID.String())
 	if err != nil {
 		return err
@@ -246,7 +252,10 @@ func (d *didman) DeleteService(serviceID ssi.URI) error {
 }
 
 func (d *didman) UpdateContactInformation(id did.DID, information ContactInformation) (*ContactInformation, error) {
-	log.Logger().Debugf("Updating contact information service (did: %s, info: %v)", id.String(), information)
+
+	log.Logger().
+		WithField("did", id.String()).
+		Debugf("Updating contact information service: %v", information)
 
 	// transform ContactInformation to map[string]interface{}
 	serviceEndpoint := map[string]interface{}{

@@ -33,6 +33,7 @@ import (
 )
 
 const fileMode = 0640
+const bboltDbExtension = ".db"
 
 type bboltDatabase struct {
 	datadir         string
@@ -73,11 +74,14 @@ func createBBoltDatabase(datadir string, config BBoltConfig) (*bboltDatabase, er
 }
 
 func (b bboltDatabase) createStore(moduleName string, storeName string) (stoabs.KVStore, error) {
-	log.Logger().Debugf("Creating BBolt store (module=%s,store=%s)", moduleName, storeName)
-	databasePath := path.Join(b.datadir, b.getRelativeStorePath(moduleName, storeName))
+	fullStoreName := path.Join(moduleName, storeName)
+	log.Logger().
+		WithField("store", fullStoreName).
+		Debug("Creating BBolt store")
+	databasePath := path.Join(b.datadir, fullStoreName) + bboltDbExtension
 	store, err := bbolt.CreateBBoltStore(databasePath, stoabs.WithLockAcquireTimeout(lockAcquireTimeout))
 	if store != nil {
-		b.startBackup(moduleName, storeName, store)
+		b.startBackup(fullStoreName, store)
 	}
 	return store, err
 }
@@ -86,12 +90,11 @@ func (b bboltDatabase) getClass() Class {
 	return VolatileStorageClass
 }
 
-func (b bboltDatabase) startBackup(moduleName string, storeName string, store stoabs.KVStore) {
+func (b bboltDatabase) startBackup(fullStoreName string, store stoabs.KVStore) {
 	if !b.config.Backup.Enabled() {
 		return
 	}
 	interval := b.config.Backup.Interval
-	fullStoreName := moduleName + "/" + storeName
 	log.Logger().
 		WithField("store", fullStoreName).
 		Infof("BBolt database will be backuped at interval of %s", interval)
@@ -104,7 +107,7 @@ func (b bboltDatabase) startBackup(moduleName string, storeName string, store st
 		for {
 			select {
 			case _ = <-ticker.C:
-				err := b.performBackup(moduleName, storeName, store)
+				err := b.performBackup(fullStoreName, store)
 				if err != nil {
 					log.Logger().
 						WithError(err).
@@ -119,9 +122,8 @@ func (b bboltDatabase) startBackup(moduleName string, storeName string, store st
 	}(b.shutdownWatcher)
 }
 
-func (b bboltDatabase) performBackup(moduleName string, storeName string, store stoabs.KVStore) error {
-	fullStoreName := moduleName + "/" + storeName
-	backupFilePath := path.Join(b.config.Backup.Directory, b.getRelativeStorePath(moduleName, storeName))
+func (b bboltDatabase) performBackup(fullStoreName string, store stoabs.KVStore) error {
+	backupFilePath := path.Join(b.config.Backup.Directory, fullStoreName+bboltDbExtension)
 	log.Logger().
 		WithField("store", fullStoreName).
 		Debugf("Starting BBolt database backup to: %s", backupFilePath)
@@ -187,8 +189,4 @@ func (b bboltDatabase) close() {
 	b.cancel()
 	// Wait for backup processes to finish
 	b.shutdownWatcher.Wait()
-}
-
-func (b bboltDatabase) getRelativeStorePath(moduleName string, storeName string) string {
-	return path.Join(moduleName, storeName+".db")
 }
