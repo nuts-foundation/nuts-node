@@ -109,6 +109,9 @@ Reverse Proxy
 Process that protects and routes HTTP access (specified above) to the Nuts Node. Typically a standalone HTTP proxy that resides in a DMZ and/or an ingress service on a cloud platform.
 It will act as SSL/TLS terminator, with only a server certificate or requiring a client certificate as well (depending on the endpoint).
 
+The Nuts Node looks for a header called `X-Forwarded-For` to determine the client IP when logging HTTP calls.
+Refer to the documentation of your proxy on how to set this header.
+
 Nuts Node Client
 ^^^^^^^^^^^^^^^^
 
