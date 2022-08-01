@@ -51,6 +51,8 @@ type EchoRouter interface {
 	POST(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 	PUT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 	TRACE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
+
+	Use(middleware ...echo.MiddlewareFunc)
 }
 
 const defaultEchoGroup = ""
@@ -172,6 +174,13 @@ func (c MultiEcho) Shutdown() {
 		if err := echoServer.Shutdown(context.Background()); err != nil {
 			logrus.Errorf("Unable to shutdown interface (address=%s): %v", address, err)
 		}
+	}
+}
+
+// Use applies the given middleware function to all Echo servers.
+func (c MultiEcho) Use(middleware ...echo.MiddlewareFunc) {
+	for _, curr := range c.interfaces {
+		curr.Use(middleware...)
 	}
 }
 
