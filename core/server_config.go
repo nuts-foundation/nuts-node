@@ -39,6 +39,7 @@ const datadirFlag = "datadir"
 const httpCORSOriginFlag = "http.default.cors.origin"
 const defaultHTTPInterface = ":1323"
 const strictModeFlag = "strictmode"
+const internalRateLimiter = "internalratelimiter"
 const defaultStrictMode = false
 const defaultDatadir = "./data"
 const defaultLogLevel = "info"
@@ -51,13 +52,14 @@ const configValueListSeparator = ","
 
 // ServerConfig has global server settings.
 type ServerConfig struct {
-	Verbosity    string           `koanf:"verbosity"`
-	LoggerFormat string           `koanf:"loggerformat"`
-	CPUProfile   string           `koanf:"cpuprofile"`
-	Strictmode   bool             `koanf:"strictmode"`
-	Datadir      string           `koanf:"datadir"`
-	HTTP         GlobalHTTPConfig `koanf:"http"`
-	configMap    *koanf.Koanf
+	Verbosity           string           `koanf:"verbosity"`
+	LoggerFormat        string           `koanf:"loggerformat"`
+	CPUProfile          string           `koanf:"cpuprofile"`
+	Strictmode          bool             `koanf:"strictmode"`
+	InternalRateLimiter bool             `koanf:"internalratelimiter"`
+	Datadir             string           `koanf:"datadir"`
+	HTTP                GlobalHTTPConfig `koanf:"http"`
+	configMap           *koanf.Koanf
 }
 
 // GlobalHTTPConfig is the top-level config struct for HTTP interfaces.
@@ -184,6 +186,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String(loggerFormatFlag, defaultLoggerFormat, "Log format (text, json)")
 	flagSet.String(serverAddressFlag, defaultHTTPInterface, "Address and port the server will be listening to")
 	flagSet.Bool(strictModeFlag, defaultStrictMode, "When set, insecure settings are forbidden.")
+	flagSet.Bool(internalRateLimiter, true, "When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode.")
 	flagSet.String(datadirFlag, defaultDatadir, "Directory where the node stores its files.")
 	flagSet.StringSlice(httpCORSOriginFlag, nil, "When set, enables CORS from the specified origins for the on default HTTP interface.")
 

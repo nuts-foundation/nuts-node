@@ -42,8 +42,8 @@ func NewSystem() *System {
 		Config:  NewServerConfig(),
 		Routers: []Routable{},
 	}
-	result.EchoCreator = func(cfg HTTPConfig, strictmode bool) (EchoServer, error) {
-		return createEchoServer(cfg, strictmode)
+	result.EchoCreator = func(cfg HTTPConfig, strictmode, rateLimiter bool) (EchoServer, error) {
+		return createEchoServer(cfg, strictmode, rateLimiter)
 	}
 	return result
 }
@@ -57,7 +57,7 @@ type System struct {
 	// Routers is used to connect API handlers to the echo server
 	Routers []Routable
 	// EchoCreator is the function that's used to create the echo server/
-	EchoCreator func(cfg HTTPConfig, strictmode bool) (EchoServer, error)
+	EchoCreator func(cfg HTTPConfig, strictmode, rateLimiter bool) (EchoServer, error)
 }
 
 var coreLogger = logrus.StandardLogger().WithField("module", "core")

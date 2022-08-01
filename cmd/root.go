@@ -146,7 +146,7 @@ func startServer(ctx context.Context, system *core.System) error {
 
 	// init HTTP interfaces and routes
 	echoServer := core.NewMultiEcho(func(cfg core.HTTPConfig) (core.EchoServer, error) {
-		return system.EchoCreator(cfg, system.Config.Strictmode)
+		return system.EchoCreator(cfg, system.Config.Strictmode, system.Config.InternalRateLimiter)
 	}, system.Config.HTTP.HTTPConfig)
 	for httpGroup, httpConfig := range system.Config.HTTP.AltBinds {
 		logrus.Infof("Binding /%s -> %s", httpGroup, httpConfig.Address)
