@@ -254,6 +254,9 @@ func createEchoServer(cfg HTTPConfig, strictmode bool) (*echo.Echo, error) {
 	// ErrorHandler
 	echoServer.HTTPErrorHandler = createHTTPErrorHandler()
 
+	// Reverse proxies must set the X-Forwarded-For header to the original client IP.
+	echoServer.IPExtractor = echo.ExtractIPFromXFFHeader()
+
 	// CORS Configuration
 	if cfg.CORS.Enabled() {
 		if strictmode {
