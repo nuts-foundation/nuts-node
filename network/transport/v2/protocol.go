@@ -260,7 +260,7 @@ func (p *protocol) handlePrivateTxRetry(event dag.Event) (bool, error) {
 				TransactionPayloadQuery: &TransactionPayloadQuery{
 					TransactionRef: event.Hash.Slice(),
 				},
-			}})
+			}}, false)
 
 			if err != nil {
 				log.Logger().Warnf("Failed to send TransactionPayloadQuery msg to private TX participant (tx=%s, PAL=%v): %v", event.Hash.String(), pal, err)
@@ -308,7 +308,7 @@ func (p *protocol) send(peer transport.Peer, message isEnvelope_Message) error {
 	if connection == nil {
 		return fmt.Errorf("unable to send msg, connection not found (peer=%s)", peer)
 	}
-	return connection.Send(p, &Envelope{Message: message})
+	return connection.Send(p, &Envelope{Message: message}, false)
 }
 
 // decryptPAL returns nil, nil if the PAL couldn't be decoded

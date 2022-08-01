@@ -34,6 +34,14 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// outboxHardLimit defines how many outgoing messages may be queued per protocol
+// this is the hard limit of the underlying channel
+const outboxHardLimit = 5000
+
+// outboxSoftLimit defines how many outgoing messages are desirable to be queued per protocol
+// If needed the channel may grow to outboxHardLimit
+const outboxSoftLimit = 100
+
 // Connection is created by grpcConnectionManager to register a connection to a peer.
 // The connection can be either inbound or outbound. The presence of a Connection for a peer doesn't imply
 // there's an actual connection, because it might still be trying to establish an outbound connection to the given peer.
@@ -55,7 +63,9 @@ type Connection interface {
 
 	// Send tries to send the given message over the stream of the given protocol.
 	// If there's no active stream for the protocol, or something else goes wrong, an error is returned.
-	Send(protocol Protocol, envelope interface{}) error
+	// A sender may specify ignoreSoftLimit=true to allow extra messages to be sent.
+	// This is needed to finish sending a TransactionList that falls within a single page.
+	Send(protocol Protocol, envelope interface{}, ignoreSoftLimit bool) error
 
 	// setPeer sets the peer of this connection.
 	setPeer(peer transport.Peer)
@@ -168,7 +178,7 @@ func (mc *conn) setPeer(peer transport.Peer) {
 	mc.peer.Store(peer)
 }
 
-func (mc *conn) Send(protocol Protocol, envelope interface{}) error {
+func (mc *conn) Send(protocol Protocol, envelope interface{}, ignoreSoftLimit bool) error {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
 
@@ -176,9 +186,13 @@ func (mc *conn) Send(protocol Protocol, envelope interface{}) error {
 	if outbox == nil {
 		return fmt.Errorf("can't send message, protocol not connected: %s", protocol.MethodName())
 	}
+
 	if len(outbox) >= cap(outbox) {
 		// This node is a slow responder, we'll have to drop this message because our backlog is full.
-		return fmt.Errorf("peer's outbound message backlog has reached max capacity, message is dropped (peer=%s,backlog-size=%d)", mc.Peer(), cap(outbox))
+		return fmt.Errorf("peer's outbound message backlog has reached hard limit, message is dropped (peer=%s,backlog-size=%d)", mc.Peer(), cap(outbox))
+	}
+	if len(outbox) >= outboxSoftLimit && !ignoreSoftLimit {
+		return fmt.Errorf("peer's outbound message backlog has reached max desired capacity, message is dropped (peer=%s,backlog-size=%d)", mc.Peer(), outboxSoftLimit)
 	}
 	outbox <- envelope
 
@@ -199,7 +213,7 @@ func (mc *conn) registerStream(protocol Protocol, stream Stream) bool {
 	}
 
 	mc.streams[methodName] = stream
-	mc.outboxes[methodName] = make(chan interface{}, 20)
+	mc.outboxes[methodName] = make(chan interface{}, outboxHardLimit)
 
 	mc.startReceiving(protocol, stream)
 	mc.startSending(protocol, stream)
