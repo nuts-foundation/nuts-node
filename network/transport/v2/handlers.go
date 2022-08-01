@@ -47,7 +47,7 @@ var allowedErrors = []error{
 func (p *protocol) Handle(peer transport.Peer, raw interface{}) error {
 	envelope := raw.(*Envelope)
 	log.Logger().
-		WithField("peer", peer).
+		WithField("peer", peer.String()).
 		WithField("messageType", fmt.Sprintf("%T", envelope.Message)).
 		Trace("Handling message from peer")
 
@@ -55,7 +55,7 @@ func (p *protocol) Handle(peer transport.Peer, raw interface{}) error {
 	if err != nil {
 		log.Logger().
 			WithError(err).
-			WithField("peer", peer).
+			WithField("peer", peer.String()).
 			WithField("messageType", fmt.Sprintf("%T", envelope.Message)).
 			Error("Error handling message")
 		// Only return allowed errors
@@ -77,7 +77,7 @@ func handleASync(peer transport.Peer, envelope *Envelope, f handleFunc) error {
 		if err := f(peer, envelope); err != nil {
 			log.Logger().
 				WithError(err).
-				WithField("peer", peer).
+				WithField("peer", peer.String()).
 				WithField("messageType", fmt.Sprintf("%T", envelope.Message)).
 				Error("Error handling message")
 		}
@@ -104,7 +104,7 @@ func (p *protocol) handle(peer transport.Peer, envelope *Envelope) error {
 		default:
 			// when 100 lists are waiting to be processed
 			log.Logger().
-				WithField("peer", peer).
+				WithField("peer", peer.String()).
 				Warn("Can't handle TransactionList message from peer: channel full")
 		}
 
@@ -132,7 +132,7 @@ func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, envelope *
 	ctx := context.Background()
 
 	log.Logger().
-		WithField("peer", peer).
+		WithField("peer", peer.String()).
 		WithField("conversationID", msg.ConversationID).
 		WithField("txRef", hash.FromSlice(msg.TransactionRef)).
 		Trace("Handling TransactionPayloadQuery")
@@ -151,7 +151,7 @@ func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, envelope *
 		if peer.NodeDID.Empty() {
 			// Connection isn't authenticated
 			log.Logger().
-				WithField("peer", peer).
+				WithField("peer", peer.String()).
 				WithField("txRef", tx.Ref()).
 				Warn("Peer requested private transaction over unauthenticated connection")
 			return p.send(peer, emptyResponse)
@@ -162,7 +162,7 @@ func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, envelope *
 		if err != nil {
 			log.Logger().
 				WithError(err).
-				WithField("peer", peer).
+				WithField("peer", peer.String()).
 				WithField("txRef", tx.Ref()).
 				Error("Peer requested private transaction but decryption failed")
 			return p.send(peer, emptyResponse)
@@ -171,7 +171,7 @@ func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, envelope *
 		// We weren't able to decrypt the PAL, so it wasn't meant for us
 		if pal == nil {
 			log.Logger().
-				WithField("peer", peer).
+				WithField("peer", peer.String()).
 				WithField("txRef", tx.Ref()).
 				Warn("Peer requested private transaction we can't decode")
 			return p.send(peer, emptyResponse)
@@ -179,7 +179,7 @@ func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, envelope *
 
 		if !pal.Contains(peer.NodeDID) {
 			log.Logger().
-				WithField("peer", peer).
+				WithField("peer", peer.String()).
 				WithField("txRef", tx.Ref()).
 				Warn("Peer requested private transaction illegally")
 			return p.send(peer, emptyResponse)
@@ -200,7 +200,7 @@ func (p *protocol) handleTransactionPayload(peer transport.Peer, envelope *Envel
 	ref := hash.FromSlice(msg.TransactionRef)
 
 	log.Logger().
-		WithField("peer", peer).
+		WithField("peer", peer.String()).
 		WithField("conversationID", msg.ConversationID).
 		WithField("txRef", ref).
 		Trace("Handling TransactionPayload")
@@ -236,7 +236,7 @@ func (p *protocol) handleTransactionRangeQuery(peer transport.Peer, envelope *En
 	msg := envelope.GetTransactionRangeQuery()
 
 	log.Logger().
-		WithField("peer", peer).
+		WithField("peer", peer.String()).
 		WithField("conversationID", msg.ConversationID).
 		Trace("Handling TransactionRangeQuery")
 
@@ -263,7 +263,7 @@ func (p *protocol) handleGossip(peer transport.Peer, envelope *Envelope) error {
 	ctx := context.Background()
 
 	log.Logger().
-		WithField("peer", peer).
+		WithField("peer", peer.String()).
 		Trace("Handling Gossip", peer.ID.String())
 
 	xor, clock := p.state.XOR(ctx, math.MaxUint32)
@@ -296,7 +296,7 @@ func (p *protocol) handleGossip(peer transport.Peer, envelope *Envelope) error {
 	}
 	refs = refs[:i]
 	log.Logger().
-		WithField("peer", peer).
+		WithField("peer", peer.String()).
 		Debugf("Received %d new transaction references via Gossip from peer", len(refs))
 
 	// request missing refs
@@ -311,11 +311,11 @@ func (p *protocol) handleGossip(peer transport.Peer, envelope *Envelope) error {
 	// send State if node is missing more refs than referenced in this Gossip
 	if len(refs) == 0 {
 		log.Logger().
-			WithField("peer", peer).
+			WithField("peer", peer.String()).
 			Debug("XOR is different from peer but Gossip contained no new transactions")
 	} else {
 		log.Logger().
-			WithField("peer", peer).
+			WithField("peer", peer.String()).
 			Debug("XOR is different from peer and peer's clock is equal or higher")
 	}
 	return p.sender.sendState(peer.ID, xor, clock)
@@ -329,7 +329,7 @@ func (p *protocol) handleTransactionListQuery(peer transport.Peer, envelope *Env
 	cid := conversationID(msg.ConversationID)
 
 	log.Logger().
-		WithField("peer", peer).
+		WithField("peer", peer.String()).
 		WithField("conversationID", cid).
 		Trace("Handling TransactionListQuery")
 
@@ -339,7 +339,7 @@ func (p *protocol) handleTransactionListQuery(peer transport.Peer, envelope *Env
 
 	if len(requestedRefs) == 0 {
 		log.Logger().
-			WithField("peer", peer).
+			WithField("peer", peer.String()).
 			Warn("Peer sent request for 0 transactions")
 		return nil
 	}
@@ -357,7 +357,7 @@ func (p *protocol) handleTransactionListQuery(peer transport.Peer, envelope *Env
 			unsorted = append(unsorted, transaction)
 		} else {
 			log.Logger().
-				WithField("peer", peer).
+				WithField("peer", peer.String()).
 				WithField("txRef", ref.String()).
 				Warn("Peer requested transaction we don't have")
 		}
@@ -405,7 +405,7 @@ func (p *protocol) handleState(peer transport.Peer, envelope *Envelope) error {
 	cid := conversationID(msg.ConversationID)
 
 	log.Logger().
-		WithField("peer", peer).
+		WithField("peer", peer.String()).
 		WithField("conversationID", cid).
 		Trace("Handling State from peer")
 
@@ -429,7 +429,7 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope)
 	data := handlerData{}
 
 	log.Logger().
-		WithField("peer", peer).
+		WithField("peer", peer.String()).
 		WithField("conversationID", cid).
 		Trace("Handling TransactionSet from peer")
 
@@ -466,7 +466,7 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope)
 	if err != nil {
 		if errors.Is(err, tree.ErrDecodeNotPossible) {
 			log.Logger().
-				WithField("peer", peer).
+				WithField("peer", peer.String()).
 				WithField("conversationID", cid.String()).
 				Debugf("Peer IBLT decode failed")
 
@@ -479,7 +479,7 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope)
 			xor, _ := p.state.XOR(ctx, math.MaxUint32)
 
 			log.Logger().
-				WithField("peer", peer).
+				WithField("peer", peer.String()).
 				WithField("conversationID", cid.String()).
 				Debug("Requesting state of previous page")
 			return p.sender.sendState(peer.ID, xor, previousPageLimit)
@@ -498,7 +498,7 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope)
 	peerPageNum, localPageNum, reqPageNum := clockToPageNum(msg.LC), clockToPageNum(localLC), clockToPageNum(msg.LCReq)
 	if peerPageNum > reqPageNum {
 		log.Logger().
-			WithField("peer", peer).
+			WithField("peer", peer.String()).
 			Debugf("Peer has higher LC values, requesting transactions by range (%d<%d)", reqPageNum, peerPageNum)
 
 		if localPageNum > reqPageNum {

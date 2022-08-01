@@ -240,13 +240,13 @@ func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 				if errors.Is(err, io.EOF) || (isStatusError && errStatus.Code() == codes.Canceled) {
 					log.Logger().
 						WithField("protocol", protocol.MethodName()).
-						WithField("peer", peer).
+						WithField("peer", peer.String()).
 						Info("Peer closed connection")
 				} else {
 					log.Logger().
 						WithError(err).
 						WithField("protocol", protocol.MethodName()).
-						WithField("peer", peer).
+						WithField("peer", peer.String()).
 						Warn("Peer connection error")
 				}
 				cancel()
@@ -258,7 +258,7 @@ func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 				log.Logger().
 					WithError(err).
 					WithField("protocol", protocol.MethodName()).
-					WithField("peer", peer).
+					WithField("peer", peer.String()).
 					WithField("messageType", fmt.Sprintf("%T", protocol.UnwrapMessage(message))).
 					Warn("Error handling message")
 			}
@@ -291,7 +291,7 @@ func (mc *conn) startSending(protocol Protocol, stream Stream) {
 					log.Logger().
 						WithError(err).
 						WithField("protocol", protocol.MethodName()).
-						WithField("peer", mc.Peer()).
+						WithField("peer", mc.Peer().String()).
 						WithField("messageType", fmt.Sprintf("%T", envelope)).
 						Warn("Unable to send message, message is dropped")
 				}

@@ -297,7 +297,7 @@ func (n *Network) Start() error {
 			}
 			log.Logger().
 				WithError(err).
-				WithField("did", nodeDID).
+				WithField("did", nodeDID.String()).
 				Error("Node DID is invalid, exchanging private TXs will not work")
 		}
 	}
@@ -360,7 +360,7 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 				}
 				log.Logger().
 					WithField("nodeAddress", address).
-					WithField("did", nodeDID).
+					WithField("did", nodeDID.String()).
 					Info("Discovered Nuts node")
 				n.connectionManager.Connect(address)
 			}

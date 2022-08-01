@@ -250,7 +250,7 @@ func (p *protocol) broadcastDiagnostics(diagnostics transport.Diagnostics) {
 		if err != nil {
 			log.Logger().
 				WithError(err).
-				WithField("peer", curr).
+				WithField("peer", curr.Peer().String()).
 				Error("Error broadcasting diagnostics")
 		}
 	}
