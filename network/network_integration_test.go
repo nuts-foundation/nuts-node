@@ -882,7 +882,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 	_ = instance.Subscribe(t.Name(), func(event dag.Event) (bool, error) {
 		mutex.Lock()
 		defer mutex.Unlock()
-		log.Logger().Infof("transaction %s arrived at %s", string(event.Payload), name)
+		log.Logger().Infof("Transaction %s arrived at %s", string(event.Payload), name)
 		receivedTransactions[name] = append(receivedTransactions[name], event.Transaction)
 		return true, nil
 	}, WithSelectionFilter(func(event dag.Event) bool {

@@ -21,6 +21,7 @@ package transport
 import (
 	"errors"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"net/url"
 	"time"
 
@@ -58,6 +59,15 @@ type Peer struct {
 	NodeDID did.DID
 	// AcceptUnauthenticated indicates if a connection may be made with this Peer even if the NodeDID could not be authenticated.
 	AcceptUnauthenticated bool
+}
+
+// ToFields returns the peer as a map of fields, to be used when logging the peer details.
+func (p Peer) ToFields() logrus.Fields {
+	return map[string]interface{}{
+		"peerID":   p.ID.String(),
+		"peerAddr": p.Address,
+		"peerDID":  p.NodeDID.String(),
+	}
 }
 
 // String returns the peer as string.

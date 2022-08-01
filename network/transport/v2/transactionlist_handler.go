@@ -66,7 +66,7 @@ func (tlh *transactionListHandler) start() {
 				if err := tlh.fn(pe.peer, pe.envelope); err != nil {
 					log.Logger().
 						WithError(err).
-						WithField("peer", pe.peer.String()).
+						WithFields(pe.peer.ToFields()).
 						WithField("messageType", fmt.Sprintf("%T", pe.envelope.Message)).
 						Error("Error handling message")
 				}
@@ -82,7 +82,7 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 	data := handlerData{}
 
 	log.Logger().
-		WithField("peer", peer.String()).
+		WithFields(peer.ToFields()).
 		WithField("conversationID", cid).
 		Tracef("Handling handleTransactionList from peer (message=%d/%d)", msg.MessageNumber, msg.TotalMessages)
 
@@ -106,7 +106,7 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 			if errors.Is(err, dag.ErrPreviousTransactionMissing) {
 				p.cMan.done(cid)
 				log.Logger().
-					WithField("peer", peer.String()).
+					WithFields(peer.ToFields()).
 					WithField("conversationID", cid).
 					WithField("txRef", tx.Ref()).
 					Warn("Ignoring remainder of TransactionList due to missing prevs")

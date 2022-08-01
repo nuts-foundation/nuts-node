@@ -80,7 +80,7 @@ func NewNATSConnectionPool(config Config) *NATSConnectionPool {
 
 // Acquire returns a NATS connection and JetStream context, it will connect if not already connected
 func (pool *NATSConnectionPool) Acquire(ctx context.Context) (Conn, JetStreamContext, error) {
-	log.Logger().Trace("trying to acquire a NATS connection")
+	log.Logger().Trace("Trying to acquire a NATS connection")
 
 	// If the connection is already set, return it
 	data := pool.conn.Load()
@@ -103,7 +103,7 @@ func (pool *NATSConnectionPool) Acquire(ctx context.Context) (Conn, JetStreamCon
 	// We're the leader, let's connect!
 	addr := fmt.Sprintf("%s:%d", pool.config.Hostname, pool.config.Port)
 
-	log.Logger().Tracef("connectionState to %s", addr)
+	log.Logger().Tracef("ConnectionState to %s", addr)
 
 	for {
 		conn, err := pool.connectFunc(
@@ -135,7 +135,7 @@ func (pool *NATSConnectionPool) Acquire(ctx context.Context) (Conn, JetStreamCon
 }
 
 func (pool *NATSConnectionPool) Shutdown() {
-	log.Logger().Trace("shutting down NATS connection pool")
+	log.Logger().Trace("Shutting down NATS connection pool")
 
 	// Just make sure no other connections are trying to connect while we're not connected
 	if pool.connecting.Swap(true) == nil {

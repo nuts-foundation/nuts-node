@@ -257,7 +257,7 @@ func loggerMiddleware(config loggerConfig) echo.MiddlewareFunc {
 				"method":    req.Method,
 				"uri":       req.RequestURI,
 				"status":    status,
-			}).Info("request")
+			}).Info("HTTP request")
 			return
 		}
 	}

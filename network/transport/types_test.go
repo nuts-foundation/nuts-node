@@ -19,6 +19,7 @@
 package transport
 
 import (
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -44,4 +45,17 @@ func Test_ParseAddress(t *testing.T) {
 		assert.Empty(t, addr)
 		assert.EqualError(t, err, "invalid URL scheme")
 	})
+}
+
+func TestPeer_ToFields(t *testing.T) {
+	peer := Peer{
+		ID:      "abc",
+		Address: "def",
+		NodeDID: did.MustParseDID("did:abc:123"),
+	}
+
+	assert.Len(t, peer.ToFields(), 3)
+	assert.Equal(t, "abc", peer.ToFields()["peerID"])
+	assert.Equal(t, "def", peer.ToFields()["peerAddr"])
+	assert.Equal(t, "did:abc:123", peer.ToFields()["peerDID"])
 }

@@ -239,14 +239,14 @@ func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 				errStatus, isStatusError := status.FromError(err)
 				if errors.Is(err, io.EOF) || (isStatusError && errStatus.Code() == codes.Canceled) {
 					log.Logger().
-						WithField("protocol", protocol.MethodName()).
-						WithField("peer", peer.String()).
+						WithField("protocolVersion", protocol.Version()).
+						WithFields(peer.ToFields()).
 						Info("Peer closed connection")
 				} else {
 					log.Logger().
 						WithError(err).
-						WithField("protocol", protocol.MethodName()).
-						WithField("peer", peer.String()).
+						WithField("protocolVersion", protocol.Version()).
+						WithFields(peer.ToFields()).
 						Warn("Peer connection error")
 				}
 				cancel()
@@ -257,8 +257,8 @@ func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 			if err != nil {
 				log.Logger().
 					WithError(err).
-					WithField("protocol", protocol.MethodName()).
-					WithField("peer", peer.String()).
+					WithField("protocolVersion", protocol.Version()).
+					WithFields(peer.ToFields()).
 					WithField("messageType", fmt.Sprintf("%T", protocol.UnwrapMessage(message))).
 					Warn("Error handling message")
 			}
@@ -290,8 +290,8 @@ func (mc *conn) startSending(protocol Protocol, stream Stream) {
 				if err != nil {
 					log.Logger().
 						WithError(err).
-						WithField("protocol", protocol.MethodName()).
-						WithField("peer", mc.Peer().String()).
+						WithField("protocolVersion", protocol.Version()).
+						WithFields(mc.Peer().ToFields()).
 						WithField("messageType", fmt.Sprintf("%T", envelope)).
 						Warn("Unable to send message, message is dropped")
 				}
@@ -304,7 +304,7 @@ func (mc *conn) startSending(protocol Protocol, stream Stream) {
 			if err != nil {
 				log.Logger().
 					WithError(err).
-					WithField("protocol", protocol.MethodName()).
+					WithField("protocolVersion", protocol.Version()).
 					Warn("Error while closing client for gRPC stream")
 			}
 		}

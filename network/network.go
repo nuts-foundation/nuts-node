@@ -533,7 +533,7 @@ func (n *Network) CreateTransaction(template Template) (dag.Transaction, error) 
 	log.Logger().
 		WithField("txRef", transaction.Ref()).
 		WithField("txType", template.Type).
-		WithField("txPayloadLen", template.Payload).
+		WithField("txPayloadLen", len(template.Payload)).
 		Info("Transaction created")
 	return transaction, nil
 }

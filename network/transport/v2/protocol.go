@@ -270,7 +270,7 @@ func (p *protocol) handlePrivateTxRetry(event dag.Event) (bool, error) {
 			if err != nil {
 				log.Logger().
 					WithError(err).
-					WithField("peer", conn.Peer().String()).
+					WithFields(conn.Peer().ToFields()).
 					WithField("txRef", event.Hash.String()).
 					Warn("Failed to send TransactionPayloadQuery msg to private TX participant")
 			} else {
