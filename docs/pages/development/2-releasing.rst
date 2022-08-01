@@ -10,15 +10,15 @@ Nuts Node and auxiliary tools/applications follow a semantic versioning scheme (
     2. MINOR version when you add functionality in a backwards compatible manner, and
     3. PATCH version when you make backwards compatible bug fixes.
 
-(Taken from `semver.org<https://semver.org/`_)
+(Taken from `semver.org <https://semver.org/>`_)
 
     Note: "API" is a broad term, it covers every interface interacted with by applications or other nodes (including Nuts network protocols).
 
 Aside from the Nuts Node itself, the projects below need to be released.
 They follow the major version from the Nuts Node, but minor and patch versions may differ.
 
-- `Registry Admin Demo<https://github.com/nuts-foundation/nuts-registry-admin-demo/releases>`_
-- `Demo EHR<https://github.com/nuts-foundation/nuts-demo-ehr/releases>`_
+- `Registry Admin Demo <https://github.com/nuts-foundation/nuts-registry-admin-demo/releases>`_
+- `Demo EHR <https://github.com/nuts-foundation/nuts-demo-ehr/releases>`_
 
 Major release
 *************

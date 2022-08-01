@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/test"
+	io_prometheus_client "github.com/prometheus/client_model/go"
 	"go.uber.org/atomic"
 	"math"
 	"path/filepath"
@@ -261,11 +262,38 @@ func TestState_Add(t *testing.T) {
 
 		assert.EqualError(t, err, "tx.PayloadHash does not match hash of payload")
 	})
+
+	t.Run("afterCommit is not called for duplicate TX", func(t *testing.T) {
+		ctx := context.Background()
+		s := createState(t).(*state)
+
+		err := s.Add(ctx, transaction{}, nil)
+		if !assert.NoError(t, err) {
+			return
+		}
+		assertCountMetric(t, s, 1)
+
+		// check for Notifier not being called
+		s.Notifier(t.Name(), func(event Event) (bool, error) {
+			t.Fail()
+			return true, nil
+		}, WithSelectionFilter(func(event Event) bool {
+			return event.Type == TransactionEventType
+		}))
+
+		// add again
+		err = s.Add(ctx, transaction{}, nil)
+		if !assert.NoError(t, err) {
+			return
+		}
+		time.Sleep(100 * time.Millisecond) // checking nothing happened is hard
+		assertCountMetric(t, s, 1)
+	})
 }
 
 func TestState_Diagnostics(t *testing.T) {
 	ctx := context.Background()
-	txState := createState(t)
+	txState := createState(t).(*state)
 	payload := []byte("payload")
 	doc1, _, _ := CreateTestTransactionEx(2, hash.SHA256Sum(payload), nil)
 	err := txState.Add(ctx, doc1, payload)
@@ -278,16 +306,11 @@ func TestState_Diagnostics(t *testing.T) {
 		lines = append(lines, diagnostic.Name()+": "+diagnostic.String())
 	}
 	sort.Strings(lines)
-
-	dbSize := txState.Statistics(context.Background())
-	assert.NotZero(t, dbSize)
-
 	actual := strings.Join(lines, "\n")
-	expected := fmt.Sprintf(`dag_xor: %s
-heads: [%s]
-stored_database_size_bytes: %d
-transaction_count: 1`, doc1.Ref(), doc1.Ref(), dbSize.DataSize)
-	assert.Equal(t, expected, actual)
+
+	assert.Contains(t, actual, fmt.Sprintf("dag_xor: %s", doc1.Ref()))
+	assert.Contains(t, actual, fmt.Sprintf("heads: [%s]", doc1.Ref()))
+	assert.Contains(t, actual, "transaction_count: 1")
 }
 
 func TestState_XOR(t *testing.T) {
@@ -364,6 +387,30 @@ func TestState_IBLT(t *testing.T) {
 	})
 }
 
+func TestState_InitialTransactionCountMetric(t *testing.T) {
+	// create state
+	ctx := context.Background()
+	txState := createState(t).(*state)
+	payload := []byte("payload")
+	tx, _, _ := CreateTestTransactionEx(1, hash.SHA256Sum(payload), nil)
+	err := txState.Add(ctx, tx, payload)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	t.Run("count == 1", func(t *testing.T) {
+		assertCountMetric(t, txState, 1)
+	})
+
+	t.Run("count survives restart", func(t *testing.T) {
+		txState.Shutdown()
+		txState.transactionCount = transactionCountCollector()
+		txState.Start()
+
+		assertCountMetric(t, txState, 1)
+	})
+}
+
 func TestState_updateTrees(t *testing.T) {
 	setup := func(t *testing.T) State {
 		txState := createState(t)
@@ -400,10 +447,22 @@ func createState(t *testing.T, verifier ...Verifier) State {
 	if err != nil {
 		t.Fatal("failed to create store: ", err)
 	}
-	s, _ := NewState(bboltStore, verifier...)
-	s.Start()
+	s, err := NewState(bboltStore, verifier...)
+	if err != nil {
+		t.Fatal("failed to create store: ", err)
+	}
+	err = s.Start()
+	if err != nil {
+		t.Fatal("failed to start store: ", err)
+	}
 	t.Cleanup(func() {
 		s.Shutdown()
 	})
 	return s
+}
+
+func assertCountMetric(t *testing.T, state *state, count float64) {
+	metric := &io_prometheus_client.Metric{}
+	state.transactionCount.Write(metric)
+	assert.Equal(t, count, *metric.Counter.Value)
 }

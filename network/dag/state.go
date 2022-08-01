@@ -23,6 +23,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
 	"math"
 
 	"github.com/nuts-foundation/go-stoabs"
@@ -43,17 +44,14 @@ const (
 
 // State has references to the DAG and the payload store.
 type state struct {
-	db                               stoabs.KVStore
-	graph                            *dag
-	payloadStore                     PayloadStore
-	transactionalObservers           []Observer
-	nonTransactionalObservers        []Observer
-	transactionalPayloadObservers    []PayloadObserver
-	nonTransactionalPayloadObservers []PayloadObserver
-	txVerifiers                      []Verifier
-	notifiers                        map[string]Notifier
-	xorTree                          *treeStore
-	ibltTree                         *treeStore
+	db               stoabs.KVStore
+	graph            *dag
+	payloadStore     PayloadStore
+	txVerifiers      []Verifier
+	notifiers        map[string]Notifier
+	xorTree          *treeStore
+	ibltTree         *treeStore
+	transactionCount prometheus.Counter
 }
 
 func (s *state) Migrate() error {
@@ -65,17 +63,34 @@ func NewState(db stoabs.KVStore, verifiers ...Verifier) (State, error) {
 	graph := newDAG(db)
 
 	payloadStore := NewPayloadStore()
+	transactionCount := transactionCountCollector()
+	err := prometheus.Register(transactionCount)
+	if err != nil && err.Error() != (prometheus.AlreadyRegisteredError{}).Error() { // No unwrap on prometheus.AlreadyRegisteredError
+		return nil, err
+	}
 	newState := &state{
-		db:           db,
-		graph:        graph,
-		payloadStore: payloadStore,
-		txVerifiers:  verifiers,
-		notifiers:    map[string]Notifier{},
-		xorTree:      newTreeStore(xorShelf, tree.New(tree.NewXor(), PageSize)),
-		ibltTree:     newTreeStore(ibltShelf, tree.New(tree.NewIblt(IbltNumBuckets), PageSize)),
+		db:               db,
+		graph:            graph,
+		payloadStore:     payloadStore,
+		txVerifiers:      verifiers,
+		notifiers:        map[string]Notifier{},
+		xorTree:          newTreeStore(xorShelf, tree.New(tree.NewXor(), PageSize)),
+		ibltTree:         newTreeStore(ibltShelf, tree.New(tree.NewIblt(IbltNumBuckets), PageSize)),
+		transactionCount: transactionCount,
 	}
 
 	return newState, nil
+}
+
+func transactionCountCollector() prometheus.Counter {
+	return prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: "nuts",
+			Subsystem: "dag",
+			Name:      "transactions_total",
+			Help:      "Number of transactions stored in the DAG",
+		},
+	)
 }
 
 func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte) error {
@@ -93,6 +108,7 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 		Transaction: transaction,
 		Payload:     payload,
 	}
+	txAdded := false
 	emitPayloadEvent := false
 
 	return s.db.Write(ctx, func(tx stoabs.WriteTx) error {
@@ -100,6 +116,8 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 		if present {
 			return nil
 		}
+		// control the afterCommit hooks
+		txAdded = true
 
 		if err := s.verifyTX(tx, transaction); err != nil {
 			return err
@@ -130,9 +148,15 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 		log.Logger().Warn("Reloading the XOR and IBLT trees due to a DB transaction Rollback")
 		s.loadTrees(ctx)
 	}), stoabs.AfterCommit(func() {
-		s.notify(txEvent)
-		if emitPayloadEvent {
-			s.notify(payloadEvent)
+		if txAdded {
+			s.notify(txEvent)
+			if emitPayloadEvent {
+				s.notify(payloadEvent)
+			}
+		}
+	}), stoabs.AfterCommit(func() {
+		if txAdded {
+			s.transactionCount.Inc()
 		}
 	}), stoabs.WithWriteLock())
 }
@@ -294,11 +318,23 @@ func (s *state) lamportClock(ctx context.Context) uint32 {
 }
 
 func (s *state) Shutdown() error {
+	if s.transactionCount != nil {
+		prometheus.Unregister(s.transactionCount)
+	}
 	return nil
 }
 
 func (s *state) Start() error {
 	s.loadTrees(context.Background())
+
+	err := s.db.Read(context.Background(), func(tx stoabs.ReadTx) error {
+		currentTXCount := s.graph.getNumberOfTransactions(tx)
+		s.transactionCount.Add(float64(currentTXCount))
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to set initial transaction count metric: %w", err)
+	}
 
 	// resume all notifiers
 	for _, curr := range s.notifiers {
@@ -308,15 +344,6 @@ func (s *state) Start() error {
 	}
 
 	return nil
-}
-
-func (s *state) Statistics(ctx context.Context) Statistics {
-	var stats Statistics
-	_ = s.db.Read(ctx, func(tx stoabs.ReadTx) error {
-		stats = s.graph.statistics(tx)
-		return nil
-	})
-	return stats
 }
 
 // Verify can be used to verify the entire DAG.

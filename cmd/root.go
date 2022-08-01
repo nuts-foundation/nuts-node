@@ -27,6 +27,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"runtime/pprof"
 
 	"github.com/nuts-foundation/nuts-node/storage"
 
@@ -116,6 +117,21 @@ func startServer(ctx context.Context, system *core.System) error {
 	// check config on all engines
 	if err := system.Configure(); err != nil {
 		return err
+	}
+
+	// enable CPU profile if needed
+	if system.Config.CPUProfile != "" {
+		if !system.Config.Strictmode {
+			logrus.Debugf("Outputting profiling info to %s", system.Config.CPUProfile)
+			f, err := os.Create(system.Config.CPUProfile)
+			if err != nil {
+				return err
+			}
+			pprof.StartCPUProfile(f)
+			defer pprof.StopCPUProfile()
+		} else {
+			logrus.Warn("Ignoring CPU profile option, strictmode is enabled")
+		}
 	}
 
 	// migrate DBs if needed

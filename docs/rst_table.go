@@ -65,7 +65,7 @@ func printRow(values []rstValue, columnLengths []int, writer io.StringWriter) {
 		if i < len(values) {
 			cell = values[i]
 		}
-		writer.WriteString(cell.render() + strings.Repeat(" ", columnLengths[i]-len(cell.value)))
+		writer.WriteString("    " + cell.render() + strings.Repeat(" ", columnLengths[i]-len(cell.value)))
 		first = false
 	}
 	writer.WriteString("\n")

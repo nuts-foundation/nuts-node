@@ -20,6 +20,7 @@ package network
 
 import (
 	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
+	"time"
 )
 
 // Config holds the config for Transactions
@@ -28,6 +29,8 @@ type Config struct {
 	GrpcAddr string `koanf:"network.grpcaddr"`
 	// ConnectionTimeout specifies the timeout before an outbound connection attempt times out (in milliseconds).
 	ConnectionTimeout int `koanf:"network.connectiontimeout"`
+	// MaxBackoff specifies the maximum backoff for outbound connections
+	MaxBackoff time.Duration `koanf:"network.maxbackoff"`
 	// EnableTLS specifies whether to enable TLS for incoming connections.
 	EnableTLS bool `koanf:"network.enabletls"`
 	// Public address of this nodes other nodes can use to connect to this node.
@@ -74,6 +77,7 @@ func DefaultConfig() Config {
 	return Config{
 		GrpcAddr:          ":5555",
 		ConnectionTimeout: 5000,
+		MaxBackoff:        24 * time.Hour,
 		EnableTLS:         true,
 		ProtocolV2:        v2.DefaultConfig(),
 		EnableDiscovery:   true,

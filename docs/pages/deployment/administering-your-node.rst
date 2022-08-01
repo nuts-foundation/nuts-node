@@ -19,19 +19,27 @@ Commands
 
 Run the executable without command or flags, or with the `help` command to find out what commands are supported:
 
-    $ nuts
+.. code-block:: shell
+
+    nuts
 
 For example, to list all network transactions in your node (replace the value of `NUTS_ADDRESS` with the HTTP address of your Nuts node):
 
-    $ NUTS_ADDRESS=my-node:1323 nuts network list
+.. code-block:: shell
+
+    NUTS_ADDRESS=my-node:1323 nuts network list
 
 You can also use the Nuts docker image to run a command (against a remote Nuts node):
 
-    $ docker run nutsfoundation/nuts-node --address=http://my-node:1323 network list
+.. code-block:: shell
+
+    docker run nutsfoundation/nuts-node --address=http://my-node:1323 network list
 
 Or inside a running Nuts docker container (against the running Nuts node):
 
-    $ docker exec nuts-container-name nuts network list
+.. code-block:: shell
+
+    docker exec nuts-container-name nuts network list
 
 See :ref:`nuts-cli-reference` for the available commands.
 
