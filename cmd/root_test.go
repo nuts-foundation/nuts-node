@@ -155,7 +155,7 @@ func Test_serverCmd(t *testing.T) {
 		}()
 
 		system := core.NewSystem()
-		system.EchoCreator = func(_ core.HTTPConfig, _ bool) (core.EchoServer, error) {
+		system.EchoCreator = func(_ core.HTTPConfig, _, _ bool) (core.EchoServer, error) {
 			return echoServer, nil
 		}
 
