@@ -23,6 +23,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	grpcLib "google.golang.org/grpc"
@@ -112,7 +113,7 @@ func (c *outboundConnector) start() {
 				// either tryConnect or connectedCallback returned an error
 				waitPeriod := c.backoff.Backoff()
 				log.Logger().
-					WithField("address", c.address).
+					WithField(core.LogFieldPeerAddr, c.address).
 					WithError(err).
 					Infof("Couldn't connect to peer, reconnecting in %d seconds", int(waitPeriod.Seconds()))
 				sleepWithCancel(cancelCtx, waitPeriod)
@@ -130,7 +131,7 @@ func (c *outboundConnector) stop() {
 
 func (c *outboundConnector) tryConnect() (*grpcLib.ClientConn, error) {
 	log.Logger().
-		WithField("address", c.address).
+		WithField(core.LogFieldPeerAddr, c.address).
 		Info("Connecting to peer")
 	atomic.AddUint32(c.attempts, 1)
 	c.lastAttempt.Store(time.Now())
@@ -156,7 +157,7 @@ func (c *outboundConnector) tryConnect() (*grpcLib.ClientConn, error) {
 		return nil, fmt.Errorf("unable to connect: %w", err)
 	}
 	log.Logger().
-		WithField("address", c.address).
+		WithField(core.LogFieldPeerAddr, c.address).
 		Info("Connected to peer (outbound)")
 	return grpcConn, nil
 }

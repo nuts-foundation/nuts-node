@@ -120,9 +120,7 @@ func (s *grpcConnectionManager) Start() error {
 		return nil
 	}
 
-	log.Logger().
-		WithField("address", s.config.listenAddress).
-		Debug("Starting gRPC server")
+	log.Logger().Debugf("Starting gRPC server on %s", s.config.listenAddress)
 	serverOpts := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(MaxMessageSizeInBytes),
 		grpc.MaxSendMsgSize(MaxMessageSizeInBytes),
@@ -172,9 +170,7 @@ func (s *grpcConnectionManager) Start() error {
 		}
 	}(s.grpcServer, s.listener)
 
-	log.Logger().
-		WithField("address", s.config.listenAddress).
-		Info("gRPC server started")
+	log.Logger().Infof("gRPC server started on %s", s.config.listenAddress)
 	return nil
 }
 
@@ -212,7 +208,7 @@ func (s grpcConnectionManager) Connect(peerAddress string, options ...transport.
 	connection, isNew := s.connections.getOrRegister(s.ctx, peer, s.dialer)
 	if !isNew {
 		log.Logger().
-			WithField("address", peer.Address).
+			WithField(core.LogFieldPeerAddr, peer.Address).
 			Info("Connection for peer already exists.")
 		return
 	}
@@ -226,9 +222,8 @@ func (s *grpcConnectionManager) RegisterObserver(observer transport.StreamStateO
 func (s *grpcConnectionManager) notifyObservers(peer transport.Peer, protocol transport.Protocol, state transport.StreamState) {
 	log.Logger().
 		WithFields(peer.ToFields()).
-		WithField("protocolVersion", protocol.Version()).
-		WithField("connectionState", state).
-		Debug("Observed stream state change")
+		WithField(core.LogFieldProtocolVersion, protocol.Version()).
+		Debugf("Stream state changed to %s", state)
 	for _, observer := range s.observers {
 		observer(peer, state, protocol)
 	}
@@ -275,8 +270,8 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 		if err != nil {
 			log.Logger().
 				WithError(err).
-				WithField("address", grpcConn.Target()).
-				WithField("protocolVersion", protocol.Version()).
+				WithField(core.LogFieldPeerAddr, grpcConn.Target()).
+				WithField(core.LogFieldProtocolVersion, protocol.Version()).
 				Warn("Failed to open gRPC stream")
 			if errors.Is(err, fatalError{}) {
 				// Error indicates connection should be closed.
@@ -287,7 +282,7 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 		}
 		peer := connection.Peer() // work with a copy of peer to avoid race condition due to disconnect() resetting it
 		log.Logger().
-			WithField("protocolVersion", prot.Version()).
+			WithField(core.LogFieldProtocolVersion, prot.Version()).
 			WithFields(peer.ToFields()).
 			Debug("Opened gRPC stream")
 		s.notifyObservers(peer, protocol, transport.StateConnected)
@@ -380,7 +375,7 @@ func (s *grpcConnectionManager) authenticate(nodeDID did.DID, peer transport.Pee
 			log.Logger().
 				WithError(err).
 				WithFields(peer.ToFields()).
-				WithField("did", nodeDID).
+				WithField(core.LogFieldDID, nodeDID).
 				Warn("Peer node DID could not be authenticated")
 			// Error message is spec'd by RFC017, because it is returned to the peer
 			return transport.Peer{}, ErrNodeDIDAuthFailed
@@ -393,7 +388,7 @@ func (s *grpcConnectionManager) authenticate(nodeDID did.DID, peer transport.Pee
 func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundStream grpc.ServerStream) error {
 	peerFromCtx, _ := grpcPeer.FromContext(inboundStream.Context())
 	log.Logger().
-		WithField("address", peerFromCtx.Addr.String()).
+		WithField(core.LogFieldPeerAddr, peerFromCtx.Addr.String()).
 		Trace("New peer connected")
 
 	// Send our headers
@@ -404,7 +399,7 @@ func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundSt
 	if err := inboundStream.SendHeader(md); err != nil {
 		log.Logger().
 			WithError(err).
-			WithField("address", peerFromCtx.Addr.String()).
+			WithField(core.LogFieldPeerAddr, peerFromCtx.Addr.String()).
 			Error("Unable to accept gRPC stream, unable to send headers")
 		return errors.New("unable to send headers")
 	}
@@ -425,7 +420,7 @@ func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundSt
 	}
 	log.Logger().
 		WithFields(peer.ToFields()).
-		WithField("protocolVersion", protocol.Version()).
+		WithField(core.LogFieldProtocolVersion, protocol.Version()).
 		Debug("New inbound stream from peer")
 	peer, err = s.authenticate(nodeDID, peer, peerFromCtx)
 	if err != nil {

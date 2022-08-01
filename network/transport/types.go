@@ -21,6 +21,7 @@ package transport
 import (
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/sirupsen/logrus"
 	"net/url"
 	"time"
@@ -64,9 +65,9 @@ type Peer struct {
 // ToFields returns the peer as a map of fields, to be used when logging the peer details.
 func (p Peer) ToFields() logrus.Fields {
 	return map[string]interface{}{
-		"peerID":   p.ID.String(),
-		"peerAddr": p.Address,
-		"peerDID":  p.NodeDID.String(),
+		core.LogFieldPeerID:      p.ID.String(),
+		core.LogFieldPeerAddr:    p.Address,
+		core.LogFieldPeerNodeDID: p.NodeDID.String(),
 	}
 }
 

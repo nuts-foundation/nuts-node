@@ -21,6 +21,7 @@ package grpc
 import (
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
@@ -82,14 +83,14 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 	err = peerCertificate.VerifyHostname(nutsCommURL.Hostname())
 	if err == nil {
 		log.Logger().
-			WithField("did", nodeDID).
+			WithField(core.LogFieldDID, nodeDID).
 			Debug("Connection successfully authenticated")
 		peer.NodeDID = nodeDID
 		return peer, nil
 	}
 
 	log.Logger().
-		WithField("did", nodeDID).
+		WithField(core.LogFieldDID, nodeDID).
 		Debugf("DNS names in peer certificate: %s", strings.Join(peerCertificate.DNSNames, ", "))
 	return withOverride(peer, fmt.Errorf("none of the DNS names in the peer's TLS certificate match the NutsComm endpoint (nodeDID=%s)", nodeDID))
 }

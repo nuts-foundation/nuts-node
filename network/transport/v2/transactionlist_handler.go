@@ -23,6 +23,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/core"
 	"math"
 
 	"github.com/nuts-foundation/nuts-node/network/dag"
@@ -67,7 +68,7 @@ func (tlh *transactionListHandler) start() {
 					log.Logger().
 						WithError(err).
 						WithFields(pe.peer.ToFields()).
-						WithField("messageType", fmt.Sprintf("%T", pe.envelope.Message)).
+						WithField(core.LogFieldMessageType, fmt.Sprintf("%T", pe.envelope.Message)).
 						Error("Error handling message")
 				}
 			}
@@ -83,7 +84,7 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 
 	log.Logger().
 		WithFields(peer.ToFields()).
-		WithField("conversationID", cid).
+		WithField(core.LogFieldConversationID, cid).
 		Tracef("Handling handleTransactionList from peer (message=%d/%d)", msg.MessageNumber, msg.TotalMessages)
 
 	// check if response matches earlier request
@@ -107,8 +108,8 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 				p.cMan.done(cid)
 				log.Logger().
 					WithFields(peer.ToFields()).
-					WithField("conversationID", cid).
-					WithField("txRef", tx.Ref()).
+					WithField(core.LogFieldConversationID, cid).
+					WithField(core.LogFieldTransactionRef, tx.Ref()).
 					Warn("Ignoring remainder of TransactionList due to missing prevs")
 				xor, clock := p.state.XOR(ctx, math.MaxUint32)
 				return p.sender.sendState(peer.ID, xor, clock)

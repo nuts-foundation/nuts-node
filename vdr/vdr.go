@@ -148,7 +148,7 @@ func (r VDR) Create(options types.DIDCreationOptions) (*did.Document, crypto.Key
 	}
 
 	log.Logger().
-		WithField("did", doc.ID).
+		WithField(core.LogFieldDID, doc.ID).
 		Info("New DID Document created")
 
 	return doc, key, nil
@@ -157,7 +157,7 @@ func (r VDR) Create(options types.DIDCreationOptions) (*did.Document, crypto.Key
 // Update updates a DID Document based on the DID and current hash
 func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *types.DocumentMetadata) error {
 	log.Logger().
-		WithField("did", id).
+		WithField(core.LogFieldDID, id).
 		Debug("Updating DID Document")
 	resolverMetadata := &types.ResolveMetadata{
 		Hash:             &current,
@@ -206,7 +206,7 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 	_, err = r.network.CreateTransaction(tx)
 	if err == nil {
 		log.Logger().
-			WithField("did", id).
+			WithField(core.LogFieldDID, id).
 			Info("DID Document updated")
 	} else {
 		log.Logger().WithError(err).Warn("Unable to update DID document")

@@ -19,10 +19,11 @@
 package log
 
 import (
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/sirupsen/logrus"
 )
 
-var _logger = logrus.StandardLogger().WithField("module", "Crypto")
+var _logger = logrus.StandardLogger().WithField(core.LogFieldModule, "Crypto")
 
 // Logger returns a logger with the module field set to 'Crypto'
 func Logger() *logrus.Entry {

@@ -219,7 +219,7 @@ func (p *protocol) sendGossip(id transport.PeerID, refs []hash.SHA256Hash, xor h
 	if err := p.sendGossipMsg(id, refs, xor, clock); err != nil {
 		log.Logger().
 			WithError(err).
-			WithField("peerID", id.String()).
+			WithField(core.LogFieldPeerID, id.String()).
 			Error("failed to send Gossip message")
 		return false
 	}
@@ -238,7 +238,7 @@ func (p *protocol) handlePrivateTxRetry(event dag.Event) (bool, error) {
 	if payload != nil {
 		// stop retrying
 		log.Logger().
-			WithField("txRef", event.Hash.String()).
+			WithField(core.LogFieldTransactionRef, event.Hash.String()).
 			Debug("Transaction payload already present, not querying")
 		return true, nil
 	}
@@ -271,7 +271,7 @@ func (p *protocol) handlePrivateTxRetry(event dag.Event) (bool, error) {
 				log.Logger().
 					WithError(err).
 					WithFields(conn.Peer().ToFields()).
-					WithField("txRef", event.Hash.String()).
+					WithField(core.LogFieldTransactionRef, event.Hash.String()).
 					Warn("Failed to send TransactionPayloadQuery msg to private TX participant")
 			} else {
 				sent = true

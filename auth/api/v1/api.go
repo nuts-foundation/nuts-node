@@ -445,7 +445,7 @@ func (w Wrapper) IntrospectAccessToken(ctx echo.Context) error {
 			if err != nil {
 				log.Logger().
 					WithError(err).
-					WithField("credentialID", credentialID).
+					WithField(core.LogFieldCredentialID, credentialID).
 					Warn("Error while resolving credential")
 				continue
 			}

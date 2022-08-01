@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/core"
 	"io"
 	"sync"
 	"sync/atomic"
@@ -239,13 +240,13 @@ func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 				errStatus, isStatusError := status.FromError(err)
 				if errors.Is(err, io.EOF) || (isStatusError && errStatus.Code() == codes.Canceled) {
 					log.Logger().
-						WithField("protocolVersion", protocol.Version()).
+						WithField(core.LogFieldProtocolVersion, protocol.Version()).
 						WithFields(peer.ToFields()).
 						Info("Peer closed connection")
 				} else {
 					log.Logger().
 						WithError(err).
-						WithField("protocolVersion", protocol.Version()).
+						WithField(core.LogFieldProtocolVersion, protocol.Version()).
 						WithFields(peer.ToFields()).
 						Warn("Peer connection error")
 				}
@@ -257,9 +258,9 @@ func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 			if err != nil {
 				log.Logger().
 					WithError(err).
-					WithField("protocolVersion", protocol.Version()).
+					WithField(core.LogFieldProtocolVersion, protocol.Version()).
 					WithFields(peer.ToFields()).
-					WithField("messageType", fmt.Sprintf("%T", protocol.UnwrapMessage(message))).
+					WithField(core.LogFieldMessageType, fmt.Sprintf("%T", protocol.UnwrapMessage(message))).
 					Warn("Error handling message")
 			}
 		}
@@ -290,9 +291,9 @@ func (mc *conn) startSending(protocol Protocol, stream Stream) {
 				if err != nil {
 					log.Logger().
 						WithError(err).
-						WithField("protocolVersion", protocol.Version()).
+						WithField(core.LogFieldProtocolVersion, protocol.Version()).
 						WithFields(mc.Peer().ToFields()).
-						WithField("messageType", fmt.Sprintf("%T", envelope)).
+						WithField(core.LogFieldMessageType, fmt.Sprintf("%T", envelope)).
 						Warn("Unable to send message, message is dropped")
 				}
 			}
@@ -304,7 +305,7 @@ func (mc *conn) startSending(protocol Protocol, stream Stream) {
 			if err != nil {
 				log.Logger().
 					WithError(err).
-					WithField("protocolVersion", protocol.Version()).
+					WithField(core.LogFieldProtocolVersion, protocol.Version()).
 					Warn("Error while closing client for gRPC stream")
 			}
 		}

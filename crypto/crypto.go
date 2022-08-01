@@ -73,7 +73,7 @@ func (client *Crypto) Config() interface{} {
 
 func (client *Crypto) setupFSBackend(config core.ServerConfig) error {
 	log.Logger().Info("Setting up FileSystem backend for storage of private key material. " +
-		"Discouraged for production use unless backups and encryption is properly set up. If not, consider using the Vault backend.")
+		"Discouraged for production use unless backups and encryption is properly set up. Consider using the Hashicorp Vault backend.")
 	fsPath := path.Join(config.Datadir, "crypto")
 	var err error
 	client.Storage, err = storage.NewFileSystemBackend(fsPath)
@@ -139,7 +139,7 @@ func generateKeyPairAndKID(namingFunc KIDNamingFunc) (*ecdsa.PrivateKey, string,
 		return nil, "", err
 	}
 	log.Logger().
-		WithField("keyID", kid).
+		WithField(core.LogFieldKeyID, kid).
 		Info("Generated new key pair")
 	return keyPair, kid, nil
 }

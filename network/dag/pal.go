@@ -23,6 +23,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/core"
 	"strings"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -98,7 +99,7 @@ outer:
 	for _, encrypted := range epal {
 		for _, kak := range keyAgreementKIDs {
 			log.Logger().
-				WithField("keyID", kak).
+				WithField(core.LogFieldKeyID, kak).
 				Trace("Trying key to decrypt PAL header...")
 			decrypted, err = decryptor.Decrypt(kak, encrypted)
 			if errors.Is(err, crypto.ErrPrivateKeyNotFound) {

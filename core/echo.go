@@ -210,7 +210,7 @@ func getGroup(path string) string {
 	return ""
 }
 
-var _logger = logrus.StandardLogger().WithField("module", "http-server")
+var _logger = logrus.StandardLogger().WithField(LogFieldModule, "http-server")
 
 // Logger returns a logger which should be used for logging in this engine. It adds fields so
 // log entries from this engine can be recognized as such.

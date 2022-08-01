@@ -186,7 +186,7 @@ func (i issuer) Revoke(credentialID ssi.URI) (*credential.Revocation, error) {
 	}
 
 	log.Logger().
-		WithField("credentialID", credentialToRevoke.ID).
+		WithField(core.LogFieldCredentialID, credentialToRevoke.ID).
 		Info("Verifiable Credential revoked")
 	return revocation, nil
 }

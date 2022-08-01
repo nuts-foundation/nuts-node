@@ -297,7 +297,7 @@ func (n *Network) Start() error {
 			}
 			log.Logger().
 				WithError(err).
-				WithField("did", nodeDID.String()).
+				WithField(core.LogFieldDID, nodeDID.String()).
 				Error("Node DID is invalid, exchanging private TXs will not work")
 		}
 	}
@@ -345,7 +345,7 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 				if err = service.UnmarshalServiceEndpoint(&nutsCommStr); err != nil {
 					log.Logger().
 						WithError(err).
-						WithField("did", node.ID.String()).
+						WithField(core.LogFieldDID, node.ID.String()).
 						Warn("Failed to extract NutsComm address from service")
 					continue inner
 				}
@@ -353,14 +353,14 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 				if err != nil {
 					log.Logger().
 						WithError(err).
-						WithField("did", node.ID.String()).
-						WithField("address", nutsCommStr).
+						WithField(core.LogFieldDID, node.ID.String()).
+						WithField(core.LogFieldNodeAddress, nutsCommStr).
 						Warn("Invalid NutsComm address in service")
 					continue inner
 				}
 				log.Logger().
-					WithField("nodeAddress", address).
-					WithField("did", nodeDID.String()).
+					WithField(core.LogFieldNodeAddress, address).
+					WithField(core.LogFieldDID, nodeDID.String()).
 					Info("Discovered Nuts node")
 				n.connectionManager.Connect(address)
 			}
@@ -422,8 +422,8 @@ func (n *Network) publish(eventType EventType, transaction dag.Transaction, payl
 		if err := receiver(transaction, payload); err != nil {
 			log.Logger().
 				WithError(err).
-				WithField("txRef", transaction.Ref()).
-				WithField("txType", transaction.PayloadType()).
+				WithField(core.LogFieldTransactionRef, transaction.Ref()).
+				WithField(core.LogFieldTransactionType, transaction.PayloadType()).
 				Error("Transaction subscriber returned an error")
 		}
 	}
@@ -456,11 +456,11 @@ func (n *Network) ListTransactionsInRange(startInclusive uint32, endExclusive ui
 func (n *Network) CreateTransaction(template Template) (dag.Transaction, error) {
 	payloadHash := hash.SHA256Sum(template.Payload)
 	log.Logger().
-		WithField("txType", template.Type).
-		WithField("txPayloadHash", payloadHash).
-		WithField("txPayloadLen", len(template.Payload)).
-		WithField("txIsPrivate", len(template.Participants) > 0).
-		WithField("keyID", template.Key.KID()).
+		WithField(core.LogFieldTransactionType, template.Type).
+		WithField(core.LogFieldTransactionPayloadHash, payloadHash).
+		WithField(core.LogFieldTransactionPayloadLength, len(template.Payload)).
+		WithField(core.LogFieldTransactionIsPrivate, len(template.Participants) > 0).
+		WithField(core.LogFieldKeyID, template.Key.KID()).
 		Debug("Creating transaction")
 
 	// Assert that all additional prevs are present and its Payload is there
@@ -531,9 +531,9 @@ func (n *Network) CreateTransaction(template Template) (dag.Transaction, error) 
 		return nil, fmt.Errorf("unable to add newly created transaction to State: %w", err)
 	}
 	log.Logger().
-		WithField("txRef", transaction.Ref()).
-		WithField("txType", template.Type).
-		WithField("txPayloadLen", len(template.Payload)).
+		WithField(core.LogFieldTransactionRef, transaction.Ref()).
+		WithField(core.LogFieldTransactionType, template.Type).
+		WithField(core.LogFieldTransactionPayloadLength, len(template.Payload)).
 		Info("Transaction created")
 	return transaction, nil
 }
@@ -655,8 +655,8 @@ func (n *Network) Reprocess(contentType string) {
 					if err != nil {
 						log.Logger().
 							WithError(err).
-							WithField("txRef", tx.Ref()).
-							WithField("eventSubject", subject).
+							WithField(core.LogFieldTransactionRef, tx.Ref()).
+							WithField(core.LogFieldEventSubject, subject).
 							Error("Failed to publish transaction")
 						return
 					}
@@ -666,15 +666,15 @@ func (n *Network) Reprocess(contentType string) {
 					}
 					data, _ := json.Marshal(twp)
 					log.Logger().
-						WithField("txRef", tx.Ref()).
-						WithField("eventSubject", subject).
+						WithField(core.LogFieldTransactionRef, tx.Ref()).
+						WithField(core.LogFieldEventSubject, subject).
 						Trace("Publishing transaction")
 					_, err = js.PublishAsync(subject, data)
 					if err != nil {
 						log.Logger().
 							WithError(err).
-							WithField("txRef", tx.Ref()).
-							WithField("eventSubject", subject).
+							WithField(core.LogFieldTransactionRef, tx.Ref()).
+							WithField(core.LogFieldEventSubject, subject).
 							Error("Failed to publish transaction")
 						return
 					}

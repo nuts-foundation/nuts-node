@@ -19,10 +19,11 @@
 package log
 
 import (
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/sirupsen/logrus"
 )
 
-var _logger = logrus.StandardLogger().WithField("module", "Storage")
+var _logger = logrus.StandardLogger().WithField(core.LogFieldModule, "Storage")
 
 // Logger returns the logger for the storage engine.
 func Logger() *logrus.Entry {

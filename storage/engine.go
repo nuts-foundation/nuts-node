@@ -78,7 +78,7 @@ func (e engine) Shutdown() error {
 		if err != nil {
 			log.Logger().
 				WithError(err).
-				WithField("store", storeName).
+				WithField(core.LogFieldStore, storeName).
 				Error("Failed to close store")
 			failures = true
 		}

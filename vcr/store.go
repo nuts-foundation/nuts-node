@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/core"
 	"reflect"
 	"time"
 
@@ -47,7 +48,7 @@ func (c *vcr) StoreCredential(credential vc.VerifiableCredential, validAt *time.
 		if err == nil {
 			if reflect.DeepEqual(existingCredential, credential) {
 				log.Logger().
-					WithField("credentialID", *credential.ID).
+					WithField(core.LogFieldCredentialID, *credential.ID).
 					Info("Credential already exists", credential.ID)
 				return nil
 			}
@@ -70,8 +71,8 @@ func (c *vcr) writeCredential(subject vc.VerifiableCredential) error {
 	vcType := credential.ExtractTypes(subject)[0]
 
 	log.Logger().
-		WithField("credentialID", subject.ID).
-		WithField("credentialType", vcType).
+		WithField(core.LogFieldCredentialID, subject.ID).
+		WithField(core.LogFieldCredentialType, vcType).
 		Debug("Writing credential to store")
 	log.Logger().Tracef("%+v", subject)
 

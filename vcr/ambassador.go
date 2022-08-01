@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/nats-io/nats.go"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 
@@ -119,7 +120,7 @@ func (n ambassador) handleReprocessEvent(msg *nats.Msg) {
 	if err := msg.Ack(); err != nil {
 		log.Logger().
 			WithError(err).
-			WithField("evenSubject", msg.Subject).
+			WithField(core.LogFieldEventSubject, msg.Subject).
 			Error("Failed to process event: failed to ack message")
 		return
 	}
@@ -127,7 +128,7 @@ func (n ambassador) handleReprocessEvent(msg *nats.Msg) {
 	if err := json.Unmarshal(jsonBytes, &twp); err != nil {
 		log.Logger().
 			WithError(err).
-			WithField("evenSubject", msg.Subject).
+			WithField(core.LogFieldEventSubject, msg.Subject).
 			Error("Failed to process event: failed to unmarshall data")
 		return
 	}
@@ -137,7 +138,7 @@ func (n ambassador) handleReprocessEvent(msg *nats.Msg) {
 		if err := callback(twp.Transaction, twp.Payload); err != nil {
 			log.Logger().
 				WithError(err).
-				WithField("evenSubject", msg.Subject).
+				WithField(core.LogFieldEventSubject, msg.Subject).
 				Error("Failed to process event")
 			return
 		}
@@ -164,7 +165,7 @@ func (n ambassador) getCallbackFn(contentType string) func(dag.Transaction, []by
 // payload should be a json encoded vc.VerifiableCredential
 func (n ambassador) vcCallback(tx dag.Transaction, payload []byte) error {
 	log.Logger().
-		WithField("txRef", tx.Ref()).
+		WithField(core.LogFieldTransactionRef, tx.Ref()).
 		Debug("Processing VC received from Nuts Network")
 
 	target := vc.VerifiableCredential{}
@@ -184,7 +185,7 @@ func (n ambassador) vcCallback(tx dag.Transaction, payload []byte) error {
 // payload should be a json encoded Revocation
 func (n ambassador) jsonLDRevocationCallback(tx dag.Transaction, payload []byte) error {
 	log.Logger().
-		WithField("txRef", tx.Ref()).
+		WithField(core.LogFieldTransactionRef, tx.Ref()).
 		Debug("Processing VC revocation received from Nuts Network")
 
 	r := credential.Revocation{}

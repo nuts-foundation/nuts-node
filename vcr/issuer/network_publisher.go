@@ -24,6 +24,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/transport"
@@ -102,8 +103,8 @@ func (p networkPublisher) PublishCredential(verifiableCredential vc.VerifiableCr
 		return fmt.Errorf("failed to publish credential, error while creating transaction: %w", err)
 	}
 	log.Logger().
-		WithField("credentialID", verifiableCredential.ID).
-		WithField("credentialType", verifiableCredential.Type).
+		WithField(core.LogFieldCredentialID, verifiableCredential.ID).
+		WithField(core.LogFieldCredentialType, verifiableCredential.Type).
 		Info("Verifiable Credential published")
 
 	return nil

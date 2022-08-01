@@ -329,8 +329,8 @@ func (c *vcr) Trust(credentialType ssi.URI, issuer ssi.URI) error {
 	err := c.trustConfig.AddTrust(credentialType, issuer)
 	if err != nil {
 		log.Logger().
-			WithField("credentialType", credentialType).
-			WithField("issuer", issuer).
+			WithField(core.LogFieldCredentialType, credentialType).
+			WithField(core.LogFieldCredentialIssuer, issuer).
 			Info("Added trust for Verifiable Credential issuer")
 	}
 	return err
@@ -340,8 +340,8 @@ func (c *vcr) Untrust(credentialType ssi.URI, issuer ssi.URI) error {
 	err := c.trustConfig.RemoveTrust(credentialType, issuer)
 	if err != nil {
 		log.Logger().
-			WithField("credentialType", credentialType).
-			WithField("issuer", issuer).
+			WithField(core.LogFieldCredentialType, credentialType).
+			WithField(core.LogFieldCredentialIssuer, issuer).
 			Info("Untrusted for Verifiable Credential issuer")
 	}
 	return err
@@ -394,7 +394,7 @@ func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
 	if err != nil {
 		if errors.Is(err, leia.ErrNoIndex) {
 			log.Logger().
-				WithField("credentialType", credentialType).
+				WithField(core.LogFieldCredentialType, credentialType).
 				Warn("No index with field 'issuer' found for credential")
 
 			return nil, types.ErrInvalidCredential

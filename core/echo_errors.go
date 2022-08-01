@@ -178,7 +178,7 @@ func getContextLogger(ctx echo.Context) *logrus.Entry {
 	fields := logrus.Fields{}
 	moduleName := ctx.Get(ModuleNameContextKey)
 	if moduleName != nil {
-		fields["module"] = moduleName
+		fields[LogFieldModule] = moduleName
 	}
 	operationID := ctx.Get(OperationIDContextKey)
 	if operationID != nil {

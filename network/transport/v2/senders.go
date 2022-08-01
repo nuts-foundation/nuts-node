@@ -20,6 +20,7 @@
 package v2
 
 import (
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 	"github.com/nuts-foundation/nuts-node/network/log"
@@ -86,15 +87,15 @@ func (p *protocol) sendTransactionListQuery(id transport.PeerID, refs []hash.SHA
 	conversation := p.cMan.startConversation(msg, id)
 	if conversation == nil {
 		log.Logger().
-			WithField("peerID", id).
+			WithField(core.LogFieldPeerID, id).
 			Debug("Did not request a TransactionList while another conversation is in progress")
 		return nil
 	}
 	conversation.set("refs", refs)
 
 	log.Logger().
-		WithField("peerID", id).
-		WithField("conversationID", conversation.conversationID.String()).
+		WithField(core.LogFieldPeerID, id).
+		WithField(core.LogFieldConversationID, conversation.conversationID.String()).
 		Debugf("Requesting transactionList from peer (%d transactions)", len(refs))
 
 	return conn.Send(p, &Envelope{Message: msg}, false)
@@ -140,14 +141,14 @@ func (p *protocol) sendTransactionRangeQuery(id transport.PeerID, lcStart uint32
 	conversation := p.cMan.startConversation(msg, id)
 	if conversation == nil {
 		log.Logger().
-			WithField("peerID", id).
+			WithField(core.LogFieldPeerID, id).
 			Debugf("Did not request a TransactionRange while another conversation is in progress (start=%d, end=%d)", lcStart, lcEnd)
 		return nil
 	}
 
 	log.Logger().
-		WithField("peerID", id).
-		WithField("conversationID", conversation.conversationID.String()).
+		WithField(core.LogFieldPeerID, id).
+		WithField(core.LogFieldConversationID, conversation.conversationID.String()).
 		Debugf("Requesting transaction range (start=%d, end=%d)", lcStart, lcEnd)
 
 	return conn.Send(p, &Envelope{Message: msg}, false)
@@ -201,14 +202,14 @@ func (p *protocol) sendState(id transport.PeerID, xor hash.SHA256Hash, clock uin
 	conversation := p.cMan.startConversation(msg, id)
 	if conversation == nil {
 		log.Logger().
-			WithField("peerID", id).
+			WithField(core.LogFieldPeerID, id).
 			Debug("Did not request State while another conversation is in progress")
 		return nil
 	}
 
 	log.Logger().
-		WithField("peerID", id).
-		WithField("conversationID", conversation.conversationID.String()).
+		WithField(core.LogFieldPeerID, id).
+		WithField(core.LogFieldConversationID, conversation.conversationID.String()).
 		Debug("Requesting state from peer")
 
 	return conn.Send(p, &Envelope{Message: msg}, false)

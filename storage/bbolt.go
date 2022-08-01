@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
 	bboltLib "go.etcd.io/bbolt"
 	"os"
@@ -76,7 +77,7 @@ func createBBoltDatabase(datadir string, config BBoltConfig) (*bboltDatabase, er
 func (b bboltDatabase) createStore(moduleName string, storeName string) (stoabs.KVStore, error) {
 	fullStoreName := path.Join(moduleName, storeName)
 	log.Logger().
-		WithField("store", fullStoreName).
+		WithField(core.LogFieldStore, fullStoreName).
 		Debug("Creating BBolt store")
 	databasePath := path.Join(b.datadir, fullStoreName) + bboltDbExtension
 	store, err := bbolt.CreateBBoltStore(databasePath, stoabs.WithLockAcquireTimeout(lockAcquireTimeout))
@@ -96,7 +97,7 @@ func (b bboltDatabase) startBackup(fullStoreName string, store stoabs.KVStore) {
 	}
 	interval := b.config.Backup.Interval
 	log.Logger().
-		WithField("store", fullStoreName).
+		WithField(core.LogFieldStore, fullStoreName).
 		Infof("BBolt database will be backuped at interval of %s", interval)
 	ticker := time.NewTicker(interval)
 
@@ -111,7 +112,7 @@ func (b bboltDatabase) startBackup(fullStoreName string, store stoabs.KVStore) {
 				if err != nil {
 					log.Logger().
 						WithError(err).
-						WithField("store", fullStoreName).
+						WithField(core.LogFieldStore, fullStoreName).
 						Errorf("Unable to complete BBolt backup")
 				}
 			case _ = <-shutdown:
@@ -125,7 +126,7 @@ func (b bboltDatabase) startBackup(fullStoreName string, store stoabs.KVStore) {
 func (b bboltDatabase) performBackup(fullStoreName string, store stoabs.KVStore) error {
 	backupFilePath := path.Join(b.config.Backup.Directory, fullStoreName+bboltDbExtension)
 	log.Logger().
-		WithField("store", fullStoreName).
+		WithField(core.LogFieldStore, fullStoreName).
 		Debugf("Starting BBolt database backup to: %s", backupFilePath)
 	startTime := time.Now()
 	wipFilePath := backupFilePath + ".work"
@@ -178,7 +179,7 @@ func (b bboltDatabase) performBackup(fullStoreName string, store stoabs.KVStore)
 			return err
 		}
 		log.Logger().
-			WithField("store", fullStoreName).
+			WithField(core.LogFieldStore, fullStoreName).
 			Debugf("BBolt database backup finished in %s", time.Now().Sub(startTime))
 		return nil
 	})

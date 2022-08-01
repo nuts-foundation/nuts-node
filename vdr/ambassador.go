@@ -27,6 +27,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nats-io/nats.go"
+	"github.com/nuts-foundation/nuts-node/core"
 	"sort"
 	"time"
 
@@ -149,7 +150,7 @@ var thumbprintAlg = crypto.SHA256
 // Duplicates are handled as updates and will be merged. Merging two exactly the same DID Documents results in the original document.
 func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
 	log.Logger().
-		WithField("txRef", tx.Ref()).
+		WithField(core.LogFieldTransactionRef, tx.Ref()).
 		Debug("Processing DID document received from Nuts Network")
 	if err := checkTransactionIntegrity(tx); err != nil {
 		return fmt.Errorf("could not process new DID Document: %w", err)
@@ -162,7 +163,7 @@ func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
 	}
 	if processed {
 		log.Logger().
-			WithField("txRef", tx.Ref()).
+			WithField(core.LogFieldTransactionRef, tx.Ref()).
 			Debug("Skipping DID document, already exists")
 		return nil
 	}
@@ -185,8 +186,8 @@ func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
 
 func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, proposedDIDDocument did.Document) error {
 	log.Logger().
-		WithField("txRef", transaction.Ref()).
-		WithField("did", proposedDIDDocument.ID).
+		WithField(core.LogFieldTransactionRef, transaction.Ref()).
+		WithField(core.LogFieldDID, proposedDIDDocument.ID).
 		Debug("Handling DID document creation")
 	// Check if the DID matches the fingerprint of the tx signing key:
 	if transaction.SigningKey() == nil {
@@ -247,8 +248,8 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, propos
 	}
 
 	log.Logger().
-		WithField("txRef", transaction.Ref()).
-		WithField("did", proposedDIDDocument.ID.String()).
+		WithField(core.LogFieldTransactionRef, transaction.Ref()).
+		WithField(core.LogFieldDID, proposedDIDDocument.ID.String()).
 		Info("DID document registered")
 
 	return nil
@@ -256,8 +257,8 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, propos
 
 func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, proposedDIDDocument did.Document) error {
 	log.Logger().
-		WithField("txRef", transaction.Ref()).
-		WithField("did", proposedDIDDocument.ID).
+		WithField(core.LogFieldTransactionRef, transaction.Ref()).
+		WithField(core.LogFieldDID, proposedDIDDocument.ID).
 		Debug("Handling DID document update")
 	// Resolve latest version of DID Document
 	currentDIDDocument, currentDIDMeta, err := n.didStore.Resolve(proposedDIDDocument.ID, &types.ResolveMetadata{AllowDeactivated: true})
@@ -331,8 +332,8 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 	err = n.didStore.Update(proposedDIDDocument.ID, currentDIDMeta.Hash, proposedDIDDocument, &documentMetadata)
 	if err == nil {
 		log.Logger().
-			WithField("txRef", transaction.Ref()).
-			WithField("did", proposedDIDDocument.ID).
+			WithField(core.LogFieldTransactionRef, transaction.Ref()).
+			WithField(core.LogFieldDID, proposedDIDDocument.ID).
 			Info("DID document updated")
 	}
 	return err

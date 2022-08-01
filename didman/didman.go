@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/core"
 	"net/url"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -87,16 +88,16 @@ func (d *didman) Name() string {
 
 func (d *didman) AddEndpoint(id did.DID, serviceType string, u url.URL) (*did.Service, error) {
 	log.Logger().
-		WithField("did", id.String()).
-		WithField("serviceType", id.String()).
-		WithField("serviceEndpoint", u.String()).
+		WithField(core.LogFieldDID, id.String()).
+		WithField(core.LogFieldServiceType, serviceType).
+		WithField(core.LogFieldServiceEndpoint, u.String()).
 		Debug("Adding endpoint")
 	service, err := d.addService(id, serviceType, u.String(), nil)
 	if err == nil {
 		log.Logger().
-			WithField("did", id.String()).
-			WithField("serviceType", id.String()).
-			WithField("serviceEndpoint", u.String()).
+			WithField(core.LogFieldDID, id.String()).
+			WithField(core.LogFieldServiceType, serviceType).
+			WithField(core.LogFieldServiceEndpoint, u.String()).
 			Info("Endpoint added")
 	}
 	return service, err
@@ -134,9 +135,9 @@ func (d *didman) GetCompoundServices(id did.DID) ([]did.Service, error) {
 
 func (d *didman) AddCompoundService(id did.DID, serviceType string, endpoints map[string]ssi.URI) (*did.Service, error) {
 	log.Logger().
-		WithField("did", id.String()).
-		WithField("serviceType", serviceType).
-		WithField("serviceEndpoint", fmt.Sprintf("%v", endpoints)).
+		WithField(core.LogFieldDID, id.String()).
+		WithField(core.LogFieldServiceType, serviceType).
+		WithField(core.LogFieldServiceEndpoint, endpoints).
 		Debug("Adding compound service")
 	if err := d.validateCompoundServiceEndpoint(endpoints); err != nil {
 		return nil, err
@@ -151,9 +152,9 @@ func (d *didman) AddCompoundService(id did.DID, serviceType string, endpoints ma
 	service, err := d.addService(id, serviceType, serviceEndpoint, nil)
 	if err == nil {
 		log.Logger().
-			WithField("did", id.String()).
-			WithField("serviceType", id.String()).
-			WithField("serviceEndpoint", endpoints).
+			WithField(core.LogFieldDID, id.String()).
+			WithField(core.LogFieldServiceType, serviceType).
+			WithField(core.LogFieldServiceEndpoint, endpoints).
 			Info("Compound service added")
 	}
 
@@ -206,7 +207,7 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 
 func (d *didman) DeleteService(serviceID ssi.URI) error {
 	log.Logger().
-		WithField("serviceID", serviceID.String()).
+		WithField(core.LogFieldServiceID, serviceID.String()).
 		Debug("Deleting service")
 	id, err := did.ParseDIDURL(serviceID.String())
 	if err != nil {
@@ -245,7 +246,7 @@ func (d *didman) DeleteService(serviceID ssi.URI) error {
 	err = d.vdr.Update(*id, meta.Hash, *doc, nil)
 	if err == nil {
 		log.Logger().
-			WithField("serviceID", id.String()).
+			WithField(core.LogFieldServiceID, serviceID.String()).
 			Info("Service removed")
 	}
 	return err
@@ -254,7 +255,7 @@ func (d *didman) DeleteService(serviceID ssi.URI) error {
 func (d *didman) UpdateContactInformation(id did.DID, information ContactInformation) (*ContactInformation, error) {
 
 	log.Logger().
-		WithField("did", id.String()).
+		WithField(core.LogFieldDID, id.String()).
 		Debugf("Updating contact information service: %v", information)
 
 	// transform ContactInformation to map[string]interface{}
@@ -278,7 +279,7 @@ func (d *didman) UpdateContactInformation(id did.DID, information ContactInforma
 	})
 	if err == nil {
 		log.Logger().
-			WithField("did", id.String()).
+			WithField(core.LogFieldDID, id.String()).
 			Info("Contact Information Endpoint added")
 	}
 	return &information, err
@@ -380,7 +381,7 @@ func (d *didman) resolveOrganizationDIDDocuments(organizations []vc.VerifiableCr
 			// DID Document might be deactivated, so just log a warning and omit this entry from the search.
 			log.Logger().
 				WithError(err).
-				WithField("did", organizationDID.String()).
+				WithField(core.LogFieldDID, organizationDID.String()).
 				Warn("Unable to resolve organization DID Document")
 			continue
 		}

@@ -22,6 +22,7 @@ import (
 	"github.com/go-redis/redis/v9"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/redis7"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
 	"path"
 	"strings"
@@ -59,7 +60,7 @@ func createRedisDatabase(config RedisConfig) (*redisDatabase, error) {
 
 func (b redisDatabase) createStore(moduleName string, storeName string) (stoabs.KVStore, error) {
 	log.Logger().
-		WithField("store", path.Join(moduleName, storeName)).
+		WithField(core.LogFieldStore, path.Join(moduleName, storeName)).
 		Debug("Creating Redis store")
 	var prefixParts []string
 	if len(b.databaseName) > 0 {

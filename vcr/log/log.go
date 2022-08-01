@@ -19,10 +19,11 @@
 package log
 
 import (
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/sirupsen/logrus"
 )
 
-var _logger = logrus.StandardLogger().WithField("module", "VCR")
+var _logger = logrus.StandardLogger().WithField(core.LogFieldModule, "VCR")
 
 // Logger returns a logger which should be used for logging in this engine. It adds fields so
 // log entries from this engine can be recognized as such.
