@@ -56,8 +56,9 @@ func (cid conversationID) String() string {
 }
 
 type conversation struct {
-	conversationID   conversationID
-	createdAt        time.Time
+	conversationID conversationID
+	// lastValidAt is the time the conversation was created or when the last message for the conversation was successfully processed.
+	lastValidAt      time.Time
 	conversationData checkable
 	mux              sync.RWMutex
 	// properties can be used to store extra info on the conversation, e.g. to check if a conversation is done
@@ -127,8 +128,8 @@ func (cMan *conversationManager) evict() {
 	defer cMan.mutex.Unlock()
 
 	for k, v := range cMan.conversations {
-		createdAt := v.createdAt
-		if createdAt.Add(cMan.validity).Before(time.Now()) {
+		lastValidAt := v.lastValidAt
+		if lastValidAt.Add(cMan.validity).Before(time.Now()) {
 			delete(cMan.conversations, k)
 		}
 	}
@@ -142,6 +143,15 @@ func (cMan *conversationManager) done(cid conversationID) {
 	delete(cMan.conversations, cid.String())
 }
 
+func (cMan *conversationManager) resetTimeout(cid conversationID) {
+	cMan.mutex.Lock()
+	defer cMan.mutex.Unlock()
+
+	if conversation, exists := cMan.conversations[cid.String()]; exists {
+		conversation.lastValidAt = time.Now()
+	}
+}
+
 // startConversation sets a conversationID on the envelope and stores the conversation
 func (cMan *conversationManager) startConversation(msg checkable, id transport.PeerID) *conversation {
 	cid := newConversationID()
@@ -149,7 +159,7 @@ func (cMan *conversationManager) startConversation(msg checkable, id transport.P
 	msg.setConversationID(cid)
 	newConversation := &conversation{
 		conversationID:   cid,
-		createdAt:        time.Now(),
+		lastValidAt:      time.Now(),
 		conversationData: msg,
 		properties:       map[string]interface{}{},
 	}
@@ -172,7 +182,7 @@ func (cMan *conversationManager) startConversation(msg checkable, id transport.P
 func (cMan *conversationManager) hasActiveConversation(id transport.PeerID) bool {
 	if lastPeerConv, ok := cMan.lastPeerConversationID[id]; ok {
 		if conversation, ok := cMan.conversations[lastPeerConv.String()]; ok {
-			if conversation.createdAt.Add(cMan.validity).After(time.Now()) {
+			if conversation.lastValidAt.Add(cMan.validity).After(time.Now()) {
 				return true
 			}
 		}
