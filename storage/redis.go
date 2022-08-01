@@ -60,7 +60,7 @@ func createRedisDatabase(config RedisConfig) (*redisDatabase, error) {
 func (b redisDatabase) createStore(moduleName string, storeName string) (stoabs.KVStore, error) {
 	log.Logger().
 		WithField("store", path.Join(moduleName, storeName)).
-		Debug("Creating Redis store (module=%s,store=%s)", moduleName, storeName)
+		Debug("Creating Redis store")
 	var prefixParts []string
 	if len(b.databaseName) > 0 {
 		prefixParts = append(prefixParts, b.databaseName)

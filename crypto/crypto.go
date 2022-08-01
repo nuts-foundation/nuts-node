@@ -140,7 +140,7 @@ func generateKeyPairAndKID(namingFunc KIDNamingFunc) (*ecdsa.PrivateKey, string,
 	}
 	log.Logger().
 		WithField("keyID", kid).
-		Info("Generated new key pair (id=%s)", kid)
+		Info("Generated new key pair")
 	return keyPair, kid, nil
 }
 
