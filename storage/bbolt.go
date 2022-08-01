@@ -75,7 +75,7 @@ func createBBoltDatabase(datadir string, config BBoltConfig) (*bboltDatabase, er
 func (b bboltDatabase) createStore(moduleName string, storeName string) (stoabs.KVStore, error) {
 	log.Logger().Debugf("Creating BBolt store (module=%s,store=%s)", moduleName, storeName)
 	databasePath := path.Join(b.datadir, b.getRelativeStorePath(moduleName, storeName))
-	store, err := bbolt.CreateBBoltStore(databasePath)
+	store, err := bbolt.CreateBBoltStore(databasePath, stoabs.WithLockAcquireTimeout(lockAcquireTimeout))
 	if store != nil {
 		b.startBackup(moduleName, storeName, store)
 	}

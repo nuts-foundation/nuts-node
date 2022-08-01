@@ -21,7 +21,10 @@ package storage
 import (
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
+	"time"
 )
+
+const lockAcquireTimeout = time.Second
 
 // Engine defines the interface for the storage engine.
 type Engine interface {

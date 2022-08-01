@@ -65,7 +65,7 @@ func (b redisDatabase) createStore(moduleName string, storeName string) (stoabs.
 	prefixParts = append(prefixParts, moduleName)
 	prefixParts = append(prefixParts, storeName)
 	prefix := strings.ToLower(strings.Join(prefixParts, "_"))
-	return redis7.CreateRedisStore(prefix, b.options)
+	return redis7.CreateRedisStore(prefix, b.options, stoabs.WithLockAcquireTimeout(lockAcquireTimeout))
 }
 
 func (b redisDatabase) getClass() Class {
