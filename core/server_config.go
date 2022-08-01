@@ -54,7 +54,7 @@ const configValueListSeparator = ","
 type ServerConfig struct {
 	Verbosity           string           `koanf:"verbosity"`
 	LoggerFormat        string           `koanf:"loggerformat"`
-  CPUProfile          string           `koanf:"cpuprofile"`
+	CPUProfile          string           `koanf:"cpuprofile"`
 	Strictmode          bool             `koanf:"strictmode"`
 	InternalRateLimiter bool             `koanf:"internalratelimiter"`
 	Datadir             string           `koanf:"datadir"`
