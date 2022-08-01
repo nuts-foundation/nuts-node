@@ -155,20 +155,20 @@ func TestConn_Send(t *testing.T) {
 			}
 		}
 
-		t.Run("outbox overflows without overdrive", func(t *testing.T) {
+		t.Run("outbox overflows without ignoreSoftLimit", func(t *testing.T) {
 			err := connection.Send(protocol, struct{}{}, false)
 
 			assert.EqualError(t, err, "peer's outbound message backlog has reached max desired capacity, message is dropped (peer=@,backlog-size=100)")
 		})
 
-		t.Run("outbox doesn't overflow with overdrive", func(t *testing.T) {
+		t.Run("outbox doesn't overflow with ignoreSoftLimit", func(t *testing.T) {
 			err := connection.Send(protocol, struct{}{}, true)
 
 			assert.NoError(t, err)
 		})
 	})
 
-	t.Run("buffer overflow hardlimit", func(t *testing.T) {
+	t.Run("buffer overflow hardLimit", func(t *testing.T) {
 		connection := createConnection(context.Background(), nil, transport.Peer{}).(*conn)
 		stream := newServerStream("foo", "")
 		protocol := &TestProtocol{}
@@ -183,7 +183,7 @@ func TestConn_Send(t *testing.T) {
 			}
 		}
 
-		t.Run("outbox overflows without overdrive", func(t *testing.T) {
+		t.Run("outbox overflows without ignoreSoftLimit", func(t *testing.T) {
 			err := connection.Send(protocol, struct{}{}, true)
 
 			assert.EqualError(t, err, "peer's outbound message backlog has reached hard limit, message is dropped (peer=@,backlog-size=5000)")

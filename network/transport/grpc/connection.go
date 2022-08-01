@@ -63,9 +63,9 @@ type Connection interface {
 
 	// Send tries to send the given message over the stream of the given protocol.
 	// If there's no active stream for the protocol, or something else goes wrong, an error is returned.
-	// A sender may specify overdrive=true to allow extra messages to be sent.
+	// A sender may specify ignoreSoftLimit=true to allow extra messages to be sent.
 	// This is needed to finish sending a TransactionList that falls within a single page.
-	Send(protocol Protocol, envelope interface{}, overdrive bool) error
+	Send(protocol Protocol, envelope interface{}, ignoreSoftLimit bool) error
 
 	// setPeer sets the peer of this connection.
 	setPeer(peer transport.Peer)
@@ -178,7 +178,7 @@ func (mc *conn) setPeer(peer transport.Peer) {
 	mc.peer.Store(peer)
 }
 
-func (mc *conn) Send(protocol Protocol, envelope interface{}, overdrive bool) error {
+func (mc *conn) Send(protocol Protocol, envelope interface{}, ignoreSoftLimit bool) error {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
 
@@ -191,7 +191,7 @@ func (mc *conn) Send(protocol Protocol, envelope interface{}, overdrive bool) er
 		// This node is a slow responder, we'll have to drop this message because our backlog is full.
 		return fmt.Errorf("peer's outbound message backlog has reached hard limit, message is dropped (peer=%s,backlog-size=%d)", mc.Peer(), cap(outbox))
 	}
-	if len(outbox) >= outboxSoftLimit && !overdrive {
+	if len(outbox) >= outboxSoftLimit && !ignoreSoftLimit {
 		return fmt.Errorf("peer's outbound message backlog has reached max desired capacity, message is dropped (peer=%s,backlog-size=%d)", mc.Peer(), outboxSoftLimit)
 	}
 	outbox <- envelope
