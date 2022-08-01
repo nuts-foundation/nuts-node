@@ -150,6 +150,9 @@ func Test_serverCmd(t *testing.T) {
 		os.Setenv("NUTS_DATADIR", testDirectory)
 		defer os.Unsetenv("NUTS_DATADIR")
 		os.Args = []string{"nuts", "server", fmt.Sprintf("--cpuprofile=%s", cpuprofile)}
+		defer func() {
+			os.Args = []string{}
+		}()
 
 		system := core.NewSystem()
 		system.EchoCreator = func(_ core.HTTPConfig, _ bool) (core.EchoServer, error) {
