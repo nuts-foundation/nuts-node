@@ -52,7 +52,7 @@ func (p *protocol) sendGossipMsg(id transport.PeerID, refs []hash.SHA256Hash, xo
 		refsAsBytes[i] = ref.Slice()
 	}
 
-	log.Logger().Tracef("GOSSIP: LC=%d, xor=%s, xor refs=%s, refs=%v", clock, xor, hash.EmptyHash().Xor(refs...), refs)
+	log.Logger().Tracef("Sending gossip: LC=%d, xor=%s, xor refs=%s, refs=%v", clock, xor, hash.EmptyHash().Xor(refs...), refs)
 
 	return conn.Send(p, &Envelope{Message: &Envelope_Gossip{
 		Gossip: &Gossip{

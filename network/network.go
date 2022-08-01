@@ -460,7 +460,7 @@ func (n *Network) CreateTransaction(template Template) (dag.Transaction, error) 
 		WithField("txPayloadHash", payloadHash).
 		WithField("txPayloadLen", len(template.Payload)).
 		WithField("txIsPrivate", len(template.Participants) > 0).
-		WithField("kid", template.Key.KID()).
+		WithField("keyID", template.Key.KID()).
 		Debug("Creating transaction")
 
 	// Assert that all additional prevs are present and its Payload is there
@@ -665,7 +665,10 @@ func (n *Network) Reprocess(contentType string) {
 						Payload:     payload,
 					}
 					data, _ := json.Marshal(twp)
-					log.Logger().Tracef("Publishing transaction (subject=%s, ref=%s)", subject, tx.Ref().String())
+					log.Logger().
+						WithField("txRef", tx.Ref()).
+						WithField("eventSubject", subject).
+						Trace("Publishing transaction")
 					_, err = js.PublishAsync(subject, data)
 					if err != nil {
 						log.Logger().

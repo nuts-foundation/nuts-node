@@ -392,7 +392,9 @@ func (s *grpcConnectionManager) authenticate(nodeDID did.DID, peer transport.Pee
 
 func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundStream grpc.ServerStream) error {
 	peerFromCtx, _ := grpcPeer.FromContext(inboundStream.Context())
-	log.Logger().Tracef("New peer connected from %s", peerFromCtx.Addr)
+	log.Logger().
+		WithField("address", peerFromCtx.Addr).
+		Trace("New peer connected")
 
 	// Send our headers
 	md, err := s.constructMetadata()

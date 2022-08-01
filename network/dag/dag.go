@@ -329,7 +329,9 @@ func (d *dag) addSingle(tx stoabs.WriteTx, transaction Transaction) error {
 		return err
 	}
 	if exists(transactions, ref) {
-		log.Logger().Tracef("Transaction %s already exists, not adding it again.", ref)
+		log.Logger().
+			WithField("txRef", ref).
+			Trace("Transaction already exists, not adding it again.")
 		return nil
 	}
 	if len(transaction.Previous()) == 0 {
@@ -380,7 +382,9 @@ func indexClockValue(tx stoabs.WriteTx, transaction Transaction) error {
 		return err
 	}
 
-	log.Logger().Tracef("storing transaction logical clock, txRef: %s, clock: %d", ref.String(), clockKey)
+	log.Logger().
+		WithField("txRef", ref).
+		Tracef("Storing transaction logical clock (LC: %d)", clockKey)
 
 	return nil
 }

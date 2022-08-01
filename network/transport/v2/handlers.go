@@ -46,7 +46,10 @@ var allowedErrors = []error{
 
 func (p *protocol) Handle(peer transport.Peer, raw interface{}) error {
 	envelope := raw.(*Envelope)
-	log.Logger().Tracef("Handling %T from peer: %s", envelope.Message, peer)
+	log.Logger().
+		WithField("peer", peer).
+		WithField("messageType", fmt.Sprintf("%T", envelope.Message)).
+		Trace("Handling message from peer")
 
 	err := p.handle(peer, envelope)
 	if err != nil {
@@ -128,7 +131,11 @@ func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, envelope *
 	msg := envelope.GetTransactionPayloadQuery()
 	ctx := context.Background()
 
-	log.Logger().Tracef("handling TransactionPayloadQuery from peer (peer=%s, conversationID=%s, payload=%s)", peer.ID.String(), msg.ConversationID, msg.TransactionRef)
+	log.Logger().
+		WithField("peer", peer).
+		WithField("conversationID", msg.ConversationID).
+		WithField("txRef", hash.FromSlice(msg.TransactionRef)).
+		Trace("Handling TransactionPayloadQuery")
 
 	tx, err := p.state.GetTransaction(ctx, hash.FromSlice(msg.TransactionRef))
 	if err != nil {
@@ -192,7 +199,11 @@ func (p *protocol) handleTransactionPayload(peer transport.Peer, envelope *Envel
 	ctx := context.Background()
 	ref := hash.FromSlice(msg.TransactionRef)
 
-	log.Logger().Tracef("handling TransactionPayload from peer (peer=%s, conversationID=%s, payload=%s)", peer.ID.String(), msg.ConversationID, ref)
+	log.Logger().
+		WithField("peer", peer).
+		WithField("conversationID", msg.ConversationID).
+		WithField("txRef", ref).
+		Trace("Handling TransactionPayload")
 
 	if ref.Empty() {
 		return errors.New("msg is missing transaction reference")
@@ -224,7 +235,10 @@ func (p *protocol) handleTransactionPayload(peer transport.Peer, envelope *Envel
 func (p *protocol) handleTransactionRangeQuery(peer transport.Peer, envelope *Envelope) error {
 	msg := envelope.GetTransactionRangeQuery()
 
-	log.Logger().Tracef("handling TransactionRangeQuery from peer (peer=%s, conversationID=%s)", peer.ID.String(), msg.ConversationID)
+	log.Logger().
+		WithField("peer", peer).
+		WithField("conversationID", msg.ConversationID).
+		Trace("Handling TransactionRangeQuery")
 
 	if msg.Start >= msg.End {
 		return errors.New("invalid range query")
@@ -248,7 +262,9 @@ func (p *protocol) handleGossip(peer transport.Peer, envelope *Envelope) error {
 	msg := envelope.GetGossip()
 	ctx := context.Background()
 
-	log.Logger().Tracef("handling Gossip from peer (peer=%s)", peer.ID.String())
+	log.Logger().
+		WithField("peer", peer).
+		Trace("Handling Gossip", peer.ID.String())
 
 	xor, clock := p.state.XOR(ctx, math.MaxUint32)
 	peerXor := hash.FromSlice(msg.XOR)
@@ -312,7 +328,10 @@ func (p *protocol) handleTransactionListQuery(peer transport.Peer, envelope *Env
 
 	cid := conversationID(msg.ConversationID)
 
-	log.Logger().Tracef("handling TransactionListQuery from peer (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
+	log.Logger().
+		WithField("peer", peer).
+		WithField("conversationID", cid).
+		Trace("Handling TransactionListQuery")
 
 	for i, refBytes := range msg.Refs {
 		requestedRefs[i] = hash.FromSlice(refBytes)
@@ -385,7 +404,10 @@ func (p *protocol) handleState(peer transport.Peer, envelope *Envelope) error {
 	msg := envelope.GetState()
 	cid := conversationID(msg.ConversationID)
 
-	log.Logger().Tracef("handling State from peer (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
+	log.Logger().
+		WithField("peer", peer).
+		WithField("conversationID", cid).
+		Trace("Handling State from peer")
 
 	ctx := context.Background()
 	xor, lc := p.state.XOR(ctx, math.MaxUint32)
@@ -406,7 +428,10 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope)
 	cid := conversationID(msg.ConversationID)
 	data := handlerData{}
 
-	log.Logger().Tracef("handling TransactionSet from peer (peer=%s, conversationID=%s)", peer.ID.String(), cid.String())
+	log.Logger().
+		WithField("peer", peer).
+		WithField("conversationID", cid).
+		Trace("Handling TransactionSet from peer")
 
 	// check if response matches earlier request
 	if _, err := p.cMan.check(subEnvelope, data); err != nil {
