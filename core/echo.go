@@ -291,8 +291,15 @@ func createEchoServer(cfg HTTPConfig, strictmode, rateLimiter bool) (*echo.Echo,
 	if strictmode || rateLimiter {
 		echoServer.Use(NewInternalRateLimiter(map[string][]string{
 			http.MethodPost: {
-				"/internal/vcr/v2/issuer/vc", // issuing new VCs
-				"/internal/vdr/v1/did",       // creating new DIDs
+				"/internal/vcr/v2/issuer/vc",                   // issuing new VCs
+				"/internal/vdr/v1/did",                         // creating new DIDs
+				"/internal/vdr/v1/did/:did/verificationmethod", // add VM to DID
+				"/internal/didman/v1/did/:did/endpoint",        // add endpoint to DID
+				"/internal/didman/v1/did/:did/compoundservice", // add compound service to DID
+			},
+			http.MethodPut: {
+				"/internal/vdr/v1/did/:did",                // updating DIDs
+				"/internal/didman/v1/did/:did/contactinfo", // updating contactinfo in DID
 			}}, 24*time.Hour, 3000, 30),
 		)
 	}
@@ -301,14 +308,14 @@ func createEchoServer(cfg HTTPConfig, strictmode, rateLimiter bool) (*echo.Echo,
 }
 
 // NewInternalRateLimiter creates a new internal rate limiter based on the echo middleware RateLimiter.
-// It accepts a list of paths which will become limited. These paths are exact matches, no fancy pattern matching.
+// It accepts a list of paths which will become limited. Paths are matched against the exact router path, so you can use paths that contain a variable.
 // By default, the rateLimiter fails the http request with a http error, but when onlyWarn is set, it allows the request and logs.
 func NewInternalRateLimiter(protectedPaths map[string][]string, interval time.Duration, limitPerInterval rate.Limit, burst int) echo.MiddlewareFunc {
 	return middleware.RateLimiterWithConfig(middleware.RateLimiterConfig{
 		// Returning true means skipping the middleware
 		Skipper: func(c echo.Context) bool {
 			for _, path := range protectedPaths[c.Request().Method] {
-				if c.Request().URL.Path == path {
+				if c.Path() == path {
 					return false
 				}
 			}
