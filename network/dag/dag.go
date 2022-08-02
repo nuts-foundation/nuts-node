@@ -140,7 +140,20 @@ func (d *dag) Migrate() error {
 			log.Logger().Info("Head not stored in metadata, migrating...")
 			heads := d.headsLegacy(tx)
 			if len(heads) != 0 { // ignore for empty node
-				err = d.setHead(tx, heads[0])
+				var latestHead hash.SHA256Hash
+				var latestLC uint32
+
+				for _, ref := range heads {
+					transaction, err := getTransaction(ref, tx)
+					if err != nil {
+						return err
+					}
+					if transaction.Clock() >= latestLC {
+						latestHead = ref
+					}
+				}
+
+				err = d.setHead(tx, latestHead)
 				if err != nil {
 					return err
 				}

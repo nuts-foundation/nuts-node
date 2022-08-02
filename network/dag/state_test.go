@@ -24,6 +24,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/test"
 	io_prometheus_client "github.com/prometheus/client_model/go"
 	"go.uber.org/atomic"
