@@ -115,7 +115,7 @@ func TestDAG_Migrate(t *testing.T) {
 	ctx := context.Background()
 	txRoot := CreateTestTransactionWithJWK(0)
 	tx1 := CreateTestTransactionWithJWK(1, txRoot)
-	tx2 := CreateTestTransactionWithJWK(2, txRoot)
+	tx2 := CreateTestTransactionWithJWK(2, tx1)
 
 	t.Run("migrate LC value and transaction count to metadata storage", func(t *testing.T) {
 		graph := CreateDAG(t)
@@ -171,7 +171,9 @@ func TestDAG_Migrate(t *testing.T) {
 			return
 		}
 		err = graph.db.WriteShelf(ctx, headsShelf, func(writer stoabs.Writer) error {
-			return writer.Put(stoabs.BytesKey(tx2.Ref().Slice()), []byte{1})
+			_ = writer.Put(stoabs.BytesKey(txRoot.Ref().Slice()), []byte{1})
+			_ = writer.Put(stoabs.BytesKey(tx2.Ref().Slice()), []byte{1})
+			return writer.Put(stoabs.BytesKey(tx1.Ref().Slice()), []byte{1})
 		})
 		if !assert.NoError(t, err) {
 			return

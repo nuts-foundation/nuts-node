@@ -150,6 +150,7 @@ func (d *dag) Migrate() error {
 					}
 					if transaction.Clock() >= latestLC {
 						latestHead = ref
+						latestLC = transaction.Clock()
 					}
 				}
 
