@@ -83,7 +83,9 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 		p := &TestProtocol{}
 		config := NewConfig("", "test")
 		ts, _ := core.LoadTrustStore("../../test/truststore.pem")
+		clientCert, _ := tls.LoadX509KeyPair("../../test/certificate-and-key.pem", "../../test/certificate-and-key.pem")
 		config.trustStore = ts.CertPool
+		config.clientCert = &clientCert
 		cm := NewGRPCConnectionManager(config, createKVStore(t), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
 
 		cm.Connect(fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort()))
@@ -214,6 +216,9 @@ func Test_grpcConnectionManager_Peers(t *testing.T) {
 }
 
 func Test_grpcConnectionManager_Start(t *testing.T) {
+	trustStore, _ := core.LoadTrustStore("../../test/truststore.pem")
+	serverCert, _ := tls.LoadX509KeyPair("../../test/certificate-and-key.pem", "../../test/certificate-and-key.pem")
+
 	t.Run("ok - gRPC server not bound", func(t *testing.T) {
 		cm := NewGRPCConnectionManager(Config{}, nil, &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
 		assert.NoError(t, cm.Start())
@@ -224,8 +229,6 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
-		trustStore, _ := core.LoadTrustStore("../../test/truststore.pem")
-		serverCert, _ := tls.LoadX509KeyPair("../../test/certificate-and-key.pem", "../../test/certificate-and-key.pem")
 		cfg := NewConfig(
 			fmt.Sprintf("127.0.0.1:%d",
 				test.FreeTCPPort()),
@@ -240,6 +243,43 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 		defer cm.Stop()
 
 		assert.NotNil(t, cm.listener)
+	})
+
+	t.Run("ok - gRPC server bound, incoming TLS offloaded", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		cfg := NewConfig(
+			fmt.Sprintf("127.0.0.1:%d",
+				test.FreeTCPPort()),
+			"foo",
+			WithTLS(serverCert, trustStore, 10),
+			WithTLSOffloading("client-cert"),
+		)
+		cm := NewGRPCConnectionManager(cfg, nil, &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
+		err := cm.Start()
+		if !assert.NoError(t, err) {
+			return
+		}
+		defer cm.Stop()
+
+		assert.NotNil(t, cm.listener)
+	})
+	t.Run("ok - gRPC server bound, incoming TLS offloaded (but HTTP client cert name is invalid)", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		cfg := NewConfig(
+			fmt.Sprintf("127.0.0.1:%d",
+				test.FreeTCPPort()),
+			"foo",
+			WithTLS(serverCert, trustStore, 10),
+			WithTLSOffloading(""),
+		)
+		cm := NewGRPCConnectionManager(cfg, nil, &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
+		err := cm.Start()
+
+		assert.EqualError(t, err, "clientCertHeaderName must be configured to enable TLS offloading ")
 	})
 
 	t.Run("ok - gRPC server bound, TLS disabled", func(t *testing.T) {
@@ -270,6 +310,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 		cm := NewGRPCConnectionManager(Config{
 			listenAddress:      fmt.Sprintf(":%d", test.FreeTCPPort()),
 			trustStore:         x509.NewCertPool(),
+			serverCert:         &serverCert,
 			crlValidator:       validator,
 			maxCRLValidityDays: 10,
 			listener:           tcpListenerCreator,

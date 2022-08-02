@@ -29,7 +29,8 @@ import (
 // MinTLSVersion defines the minimal TLS version used by all components that use TLS
 const MinTLSVersion uint16 = tls.VersionTLS12
 
-func parseCertificates(data []byte) (certificates []*x509.Certificate, _ error) {
+// ParseCertificates reads PEM encoded X.509 certificates from the given input.
+func ParseCertificates(data []byte) (certificates []*x509.Certificate, _ error) {
 	for len(data) > 0 {
 		var block *pem.Block
 
@@ -71,7 +72,7 @@ func LoadTrustStore(trustStoreFile string) (*TrustStore, error) {
 		return nil, fmt.Errorf("unable to read trust store (file=%s): %w", trustStoreFile, err)
 	}
 
-	certificates, err := parseCertificates(data)
+	certificates, err := ParseCertificates(data)
 	if err != nil {
 		return nil, err
 	}

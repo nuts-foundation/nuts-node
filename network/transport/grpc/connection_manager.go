@@ -131,22 +131,36 @@ func (s *grpcConnectionManager) Start() error {
 		return err
 	}
 	// Configure TLS if enabled
+	var tlsConfig *tls.Config
 	if s.config.tlsEnabled() {
-		tlsConfig := &tls.Config{
-			Certificates: []tls.Certificate{s.config.serverCert},
-			ClientAuth:   tls.RequireAndVerifyClientCert,
-			ClientCAs:    s.config.trustStore,
-			MinVersion:   core.MinTLSVersion,
-		}
-		serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsConfig)))
+		// Some form of TLS is enabled
+		if s.config.serverCert != nil {
+			// TLS is terminated at the Nuts node (no offloading)
+			tlsConfig = &tls.Config{
+				Certificates: []tls.Certificate{*s.config.serverCert},
+				ClientAuth:   tls.RequireAndVerifyClientCert,
+				ClientCAs:    s.config.trustStore,
+				MinVersion:   core.MinTLSVersion,
+			}
+			serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsConfig)))
 
-		// Configure support for checking revoked certificates
-		var crlValidatorCtx context.Context
-		crlValidatorCtx, s.stopCRLValidator = context.WithCancel(context.Background())
-		s.config.crlValidator.SyncLoop(crlValidatorCtx)
-		s.config.crlValidator.Configure(tlsConfig, s.config.maxCRLValidityDays)
+			// Configure support for checking revoked certificates
+			var crlValidatorCtx context.Context
+			crlValidatorCtx, s.stopCRLValidator = context.WithCancel(context.Background())
+			s.config.crlValidator.SyncLoop(crlValidatorCtx)
+			s.config.crlValidator.Configure(tlsConfig, s.config.maxCRLValidityDays)
+		} else {
+			// TLS offloading for incoming traffic
+			if s.config.clientCertHeaderName == "" {
+				// Invalid config
+				return errors.New("clientCertHeaderName must be configured to enable TLS offloading ")
+			}
+			serverOpts = append(serverOpts, grpc.StreamInterceptor((&tlsOffloadingAuthenticator{
+				clientCertHeaderName: s.config.clientCertHeaderName,
+			}).Intercept))
+		}
 	} else {
-		log.Logger().Info("TLS is disabled, make sure the Nuts Node is behind a TLS terminator which performs TLS authentication.")
+		log.Logger().Info("TLS is disabled, this is very unsecure and only suitable for demo/development environments.")
 	}
 
 	// Create gRPC server for inbound connectionList and associate it with the protocols
@@ -464,7 +478,7 @@ func (s *grpcConnectionManager) startTracking(address string, connection Connect
 	if s.config.tlsEnabled() {
 		tlsConfig = &tls.Config{
 			Certificates: []tls.Certificate{
-				s.config.clientCert,
+				*s.config.clientCert,
 			},
 			RootCAs:    s.config.trustStore,
 			MinVersion: core.MinTLSVersion,

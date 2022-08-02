@@ -24,9 +24,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/storage"
+	grpc2 "google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 	"hash/crc32"
 	"math"
 	"math/rand"
+	"net/url"
+	"os"
 	"path"
 	"sync"
 	"testing"
@@ -763,6 +768,79 @@ func TestNetworkIntegration_AddedTransactionsAsEvents(t *testing.T) {
 
 	assert.Equal(t, uint32(0), event.Transaction.Clock())
 	assert.Equal(t, "payload", string(event.Payload))
+}
+
+func TestNetworkIntegration_TLSOffloading(t *testing.T) {
+	resetIntegrationTest()
+
+	t.Run("server offloads incoming TLS", func(t *testing.T) {
+		t.Run("ok", func(t *testing.T) {
+			testDirectory := io.TestDirectory(t)
+			// Start server node (node1)
+			_ = startNode(t, "node1", testDirectory, func(cfg *Config) {
+				cfg.TLS.Offload = OffloadIncomingTLS
+				cfg.TLS.ClientCertHeaderName = "client-cert"
+			})
+
+			// Create client (node2) that connects to server node
+			grpcConn, err := grpc2.Dial(nameToAddress(t, "node1"), grpc2.WithTransportCredentials(insecure.NewCredentials()))
+			if !assert.NoError(t, err) {
+				return
+			}
+			defer grpcConn.Close()
+			ctx := context.Background()
+			outgoingMD := metadata.MD{}
+			outgoingMD.Set("peerID", "client")
+			outgoingMD.Set("nodeDID", "did:nuts:node2")
+			// Load client cert and set as HTTP request header, as will be done by a TLS terminator
+			clientCertBytes, err := os.ReadFile("test/certificate-and-key.pem")
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			outgoingMD.Set("client-cert", url.QueryEscape(string(clientCertBytes)))
+			outgoingContext := metadata.NewOutgoingContext(ctx, outgoingMD)
+			client := v2.NewProtocolClient(grpcConn)
+			result, err := client.Stream(outgoingContext)
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			// Assert connection is OK
+			msg, err := result.Recv()
+			assert.NoError(t, err)
+			assert.NotNil(t, msg)
+		})
+		t.Run("authentication fails", func(t *testing.T) {
+			testDirectory := io.TestDirectory(t)
+			// Start server node (node1)
+			_ = startNode(t, "node1", testDirectory, func(cfg *Config) {
+				cfg.TLS.Offload = OffloadIncomingTLS
+				cfg.TLS.ClientCertHeaderName = "client-cert"
+			})
+
+			// Create client (node2) that connects to server node
+			grpcConn, err := grpc2.Dial(nameToAddress(t, "node1"), grpc2.WithTransportCredentials(insecure.NewCredentials()))
+			if !assert.NoError(t, err) {
+				return
+			}
+			ctx := context.Background()
+			outgoingMD := metadata.MD{}
+			outgoingMD.Set("peerID", "client")
+			outgoingMD.Set("nodeDID", "did:nuts:node2")
+			outgoingContext := metadata.NewOutgoingContext(ctx, outgoingMD)
+			client := v2.NewProtocolClient(grpcConn)
+			result, err := client.Stream(outgoingContext)
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			// Assert connection is rejected
+			msg, err := result.Recv()
+			assert.EqualError(t, err, "rpc error: code = Unauthenticated desc = TLS client certificate authentication failed")
+			assert.Nil(t, msg)
+		})
+	})
 }
 
 func resetIntegrationTest() {
