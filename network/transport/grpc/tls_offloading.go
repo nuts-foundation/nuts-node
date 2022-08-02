@@ -42,7 +42,9 @@ type tlsOffloadingAuthenticator struct {
 func (t *tlsOffloadingAuthenticator) Intercept(srv interface{}, serverStream grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 	certificates, err := t.authenticate(serverStream)
 	if err != nil {
-		log.Logger().Warnf("Unable to authenticate offloaded TLS: %s", err)
+		log.Logger().
+			WithError(err).
+			Warnf("Unable to authenticate offloaded TLS")
 		return status.Error(codes.Unauthenticated, "TLS client certificate authentication failed")
 	}
 
