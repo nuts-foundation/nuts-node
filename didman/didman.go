@@ -247,7 +247,7 @@ func (d *didman) DeleteService(serviceID ssi.URI) error {
 	if err == nil {
 		log.Logger().
 			WithField(core.LogFieldServiceID, serviceID.String()).
-			Info("Service removed")
+			Info("Service deleted")
 	}
 	return err
 }
@@ -256,7 +256,7 @@ func (d *didman) UpdateContactInformation(id did.DID, information ContactInforma
 
 	log.Logger().
 		WithField(core.LogFieldDID, id.String()).
-		Debugf("Updating contact information service: %v", information)
+		Debugf("Updating contact information service")
 
 	// transform ContactInformation to map[string]interface{}
 	serviceEndpoint := map[string]interface{}{
@@ -280,7 +280,7 @@ func (d *didman) UpdateContactInformation(id did.DID, information ContactInforma
 	if err == nil {
 		log.Logger().
 			WithField(core.LogFieldDID, id.String()).
-			Info("Contact Information Endpoint added")
+			Info("Contact Information service added/updated")
 	}
 	return &information, err
 }
