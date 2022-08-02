@@ -285,7 +285,7 @@ func createEchoServer(cfg HTTPConfig, strictmode, rateLimiter bool) (*echo.Echo,
 	// Use middleware to decode URL encoded path parameters like did%3Anuts%3A123 -> did:nuts:123
 	echoServer.Use(DecodeURIPath)
 
-	echoServer.Use(loggerMiddleware(loggerConfig{Skipper: requestsStatusEndpoint, logger: Logger()}))
+	echoServer.Use(loggerMiddleware(loggerConfig{Skipper: skipLogRequest, logger: Logger()}))
 
 	// Always enabled in strict mode
 	if strictmode || rateLimiter {
@@ -358,6 +358,6 @@ func NewInternalRateLimiterStore(interval time.Duration, limitPerInterval rate.L
 	}
 }
 
-func requestsStatusEndpoint(context echo.Context) bool {
-	return context.Request().RequestURI == "/status"
+func skipLogRequest(context echo.Context) bool {
+	return context.Request().RequestURI == "/status" || context.Request().RequestURI == "/metrics"
 }
