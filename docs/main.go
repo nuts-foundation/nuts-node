@@ -30,8 +30,6 @@ func main() {
 
 	param := os.Args[1]
 	switch param {
-	case "api":
-		generateCode()
 	case "docs":
 		generateDocs()
 	case "copyright":
