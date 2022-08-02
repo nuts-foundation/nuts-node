@@ -46,15 +46,12 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.Duration("network.maxbackoff", defs.MaxBackoff, "Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. `1h`, `30m`).")
 	flagSet.StringSlice("network.bootstrapnodes", defs.BootstrapNodes, "List of bootstrap nodes (`<host>:<port>`) which the node initially connect to.")
 	flagSet.Bool("network.enablediscovery", defs.EnableDiscovery, "Whether to enable automatic connecting to other nodes.")
-	flagSet.Bool("network.enabletls", defs.EnableTLS, "Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see `network.tls.offload`).")
+	flagSet.Bool("network.enabletls", defs.EnableTLS, "Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see `tls.offload`).")
 	flagSet.String("network.certfile", defs.CertFile, "PEM file containing the server certificate for the gRPC server. "+
 		"Required when `network.enabletls` is `true`.")
 	flagSet.String("network.certkeyfile", defs.CertKeyFile, "PEM file containing the private key of the server certificate. "+
 		"Required when `network.enabletls` is `true`.")
 	flagSet.String("network.truststorefile", defs.TrustStoreFile, "PEM file containing the trusted CA certificates for authenticating remote gRPC servers.")
-	flagSet.String("network.tls.offload", string(defs.TLS.Offload), "Whether to enable TLS offloading for incoming connections. If enabled `network.tls.certheader` must be configured as well.")
-	flagSet.String("network.tls.certheader", defs.TLS.ClientCertHeaderName, "Name of the HTTP header that will contain the client certificate when TLS is offloaded.")
-
 	flagSet.Bool("network.disablenodeauthentication", defs.DisableNodeAuthentication, "Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes. Not allowed in strict-mode.")
 	flagSet.String("network.nodedid", defs.NodeDID, "Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.")
 	flagSet.IntSlice("network.protocols", defs.Protocols, "Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.")

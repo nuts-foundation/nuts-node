@@ -127,11 +127,11 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 func TestNetworkIntegration_Messages(t *testing.T) {
 	resetIntegrationTest()
 
-	testNodes := func(t *testing.T, opts ...func(cfg *Config)) (node, node) {
+	testNodes := func(t *testing.T, opts ...func(_ *core.ServerConfig, cfg *Config)) (node, node) {
 		testDirectory := io.TestDirectory(t)
 		resetIntegrationTest()
 
-		allOpts := append([]func(*Config){func(cfg *Config) {
+		allOpts := append([]func(*core.ServerConfig, *Config){func(_ *core.ServerConfig, cfg *Config) {
 			cfg.Protocols = []int{2}
 		}}, opts...)
 		bootstrap := startNode(t, "integration_bootstrap", testDirectory, allOpts...)
@@ -184,11 +184,11 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 		resetIntegrationTest()
 
 		// start nodes with v1 disabled, and disable Gossip for bootstrap node
-		bootstrap := startNode(t, "integration_bootstrap", testDirectory, func(cfg *Config) {
+		bootstrap := startNode(t, "integration_bootstrap", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
 			cfg.Protocols = []int{2}
 			cfg.ProtocolV2 = v2.Config{GossipInterval: 100000} // disable Gossip to simulate node1 always being behind
 		})
-		node1 := startNode(t, "integration_node1", testDirectory, func(cfg *Config) {
+		node1 := startNode(t, "integration_node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
 			cfg.Protocols = []int{2}
 			cfg.ProtocolV2 = v2.Config{GossipInterval: 100}
 		})
@@ -263,15 +263,15 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		resetIntegrationTest()
 
-		node1 := startNode(t, "integration_node1", testDirectory, func(cfg *Config) {
+		node1 := startNode(t, "integration_node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
 			cfg.Protocols = []int{2}
 			cfg.ProtocolV2.GossipInterval = 500
 		})
-		node2 := startNode(t, "integration_node2", testDirectory, func(cfg *Config) {
+		node2 := startNode(t, "integration_node2", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
 			cfg.Protocols = []int{2}
 			cfg.ProtocolV2.GossipInterval = 500
 		})
-		node3 := startNode(t, "integration_node3", testDirectory, func(cfg *Config) {
+		node3 := startNode(t, "integration_node3", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
 			cfg.Protocols = []int{2}
 			cfg.ProtocolV2.GossipInterval = 500
 		})
@@ -307,7 +307,7 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 	})
 
 	t.Run("Peer Diagnostics", func(t *testing.T) {
-		bootstrap, node1 := testNodes(t, func(cfg *Config) {
+		bootstrap, node1 := testNodes(t, func(_ *core.ServerConfig, cfg *Config) {
 			cfg.ProtocolV2.DiagnosticsInterval = 50
 		})
 		node1.network.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"))
@@ -377,10 +377,10 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 		resetIntegrationTest()
 
 		// Start 2 nodes: node1 and node2, where node1 specifies a node DID that node2 can't authenticate
-		node1 := startNode(t, "node1", testDirectory, func(cfg *Config) {
+		node1 := startNode(t, "node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
 			cfg.NodeDID = "did:nuts:node1"
 		})
-		node2 := startNode(t, "node2", testDirectory, func(cfg *Config) {
+		node2 := startNode(t, "node2", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
 			cfg.NodeDID = "did:nuts:node2"
 		})
 		// Now connect node1 to node2 and wait for them to set up
@@ -395,7 +395,7 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 		resetIntegrationTest()
 
 		// Start 2 nodes: node1 and node2, where node1 specifies a node DID that node2 can't authenticate
-		node1 := startNode(t, "node1", testDirectory, func(cfg *Config) {
+		node1 := startNode(t, "node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
 			cfg.NodeDID = "did:nuts:node1"
 		})
 		node2 := startNode(t, "node2", testDirectory)
@@ -425,7 +425,7 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 
 		// Start 2 nodes: node1 and node2, where node2 specifies a node DID that node1 can't authenticate
 		node1 := startNode(t, "node1", testDirectory)
-		node2 := startNode(t, "node2", testDirectory, func(cfg *Config) {
+		node2 := startNode(t, "node2", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
 			cfg.NodeDID = "did:nuts:node2"
 		})
 
@@ -457,10 +457,10 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		key := nutsCrypto.NewTestKey("key")
 
 		// Start 2 nodes: node1 and node2, node1 sends a private TX to node 2
-		node1 := startNode(t, "node1", testDirectory, func(cfg *Config) {
+		node1 := startNode(t, "node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
 			cfg.NodeDID = "did:nuts:node1"
 		})
-		node2 := startNode(t, "node2", testDirectory, func(cfg *Config) {
+		node2 := startNode(t, "node2", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
 			cfg.NodeDID = "did:nuts:node2"
 		})
 		// Now connect node1 to node2 and wait for them to set up
@@ -493,10 +493,10 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		key := nutsCrypto.NewTestKey("key")
 
 		// Start 2 nodes: node1 and node2, node1 sends a private TX to node 2
-		node1 := startNode(t, "node1", testDirectory, func(cfg *Config) {
+		node1 := startNode(t, "node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
 			cfg.NodeDID = "did:nuts:node1"
 		})
-		node2 := startNode(t, "node2", testDirectory, func(cfg *Config) {
+		node2 := startNode(t, "node2", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
 			cfg.NodeDID = "did:nuts:node2"
 		})
 		// Now connect node1 to node2 and wait for them to set up
@@ -548,13 +548,13 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		key := nutsCrypto.NewTestKey("key")
 
 		// Start 2 nodes: node1 and node2, node1 sends a private TX to node 2
-		node1 := startNode(t, "node1", testDirectory, func(cfg *Config) {
+		node1 := startNode(t, "node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
 			cfg.NodeDID = "did:nuts:node1"
 		})
-		node2 := startNode(t, "node2", testDirectory, func(cfg *Config) {
+		node2 := startNode(t, "node2", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
 			cfg.NodeDID = "did:nuts:node2"
 		})
-		node3 := startNode(t, "node3", testDirectory, func(cfg *Config) {
+		node3 := startNode(t, "node3", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
 			cfg.NodeDID = "did:nuts:node3"
 		})
 		// Now connect node1 to node2 and wait for them to set up
@@ -595,13 +595,13 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		key := nutsCrypto.NewTestKey("key")
 
 		// Start 3 nodes: node1, node2 and node3. Node 1 sends a private TX to node 2 and node 3, which both should receive.
-		node1 := startNode(t, "node1", testDirectory, func(cfg *Config) {
+		node1 := startNode(t, "node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
 			cfg.NodeDID = "did:nuts:node1"
 		})
-		node2 := startNode(t, "node2", testDirectory, func(cfg *Config) {
+		node2 := startNode(t, "node2", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
 			cfg.NodeDID = "did:nuts:node2"
 		})
-		node3 := startNode(t, "node3", testDirectory, func(cfg *Config) {
+		node3 := startNode(t, "node3", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
 			cfg.NodeDID = "did:nuts:node3"
 		})
 		// Make a full mesh
@@ -642,10 +642,10 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		key := nutsCrypto.NewTestKey("key")
 
 		// Start 2 nodes: node1 and node2, node1 sends a private TX to node 2
-		node1 := startNode(t, "node1", testDirectory, func(cfg *Config) {
+		node1 := startNode(t, "node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
 			cfg.NodeDID = "did:nuts:node1"
 		})
-		node2 := startNode(t, "node2", testDirectory, func(cfg *Config) {
+		node2 := startNode(t, "node2", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
 			cfg.NodeDID = "did:nuts:node2"
 		})
 
@@ -777,9 +777,9 @@ func TestNetworkIntegration_TLSOffloading(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
 			testDirectory := io.TestDirectory(t)
 			// Start server node (node1)
-			_ = startNode(t, "node1", testDirectory, func(cfg *Config) {
-				cfg.TLS.Offload = OffloadIncomingTLS
-				cfg.TLS.ClientCertHeaderName = "client-cert"
+			_ = startNode(t, "node1", testDirectory, func(serverCfg *core.ServerConfig, cfg *Config) {
+				serverCfg.TLS.Offload = core.OffloadIncomingTLS
+				serverCfg.TLS.ClientCertHeaderName = "client-cert"
 			})
 
 			// Create client (node2) that connects to server node
@@ -814,9 +814,9 @@ func TestNetworkIntegration_TLSOffloading(t *testing.T) {
 		t.Run("authentication fails", func(t *testing.T) {
 			testDirectory := io.TestDirectory(t)
 			// Start server node (node1)
-			_ = startNode(t, "node1", testDirectory, func(cfg *Config) {
-				cfg.TLS.Offload = OffloadIncomingTLS
-				cfg.TLS.ClientCertHeaderName = "client-cert"
+			_ = startNode(t, "node1", testDirectory, func(serverCfg *core.ServerConfig, cfg *Config) {
+				serverCfg.TLS.Offload = core.OffloadIncomingTLS
+				serverCfg.TLS.ClientCertHeaderName = "client-cert"
 			})
 
 			// Create client (node2) that connects to server node
@@ -905,10 +905,13 @@ func waitForTransaction(t *testing.T, tx dag.Transaction, receivers ...string) b
 	return true
 }
 
-func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg *Config)) node {
+func startNode(t *testing.T, name string, testDirectory string, opts ...func(serverConfig *core.ServerConfig, moduleConfig *Config)) node {
 	log.Logger().Infof("Starting node: %s", name)
 	logrus.SetLevel(logrus.DebugLevel)
-	core.NewServerConfig().Load(core.FlagSet())
+	serverConfig := core.NewServerConfig()
+	_ = serverConfig.Load(core.FlagSet())
+	serverConfig.Datadir = path.Join(testDirectory, name)
+
 	// Create Network instance
 	config := Config{
 		GrpcAddr:       fmt.Sprintf("localhost:%d", nameToPort(t, name)),
@@ -924,12 +927,11 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 		ConnectionTimeout: 5000,
 	}
 	for _, f := range opts {
-		f(&config)
+		f(serverConfig, &config)
 	}
 
 	eventPublisher := events.NewManager()
-	serverConfig := core.ServerConfig{Datadir: path.Join(testDirectory, name)}
-	if err := eventPublisher.(core.Configurable).Configure(serverConfig); err != nil {
+	if err := eventPublisher.(core.Configurable).Configure(*serverConfig); err != nil {
 		t.Fatal(err)
 	}
 	if err := eventPublisher.(core.Runnable).Start(); err != nil {
@@ -951,7 +953,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(cfg
 		subscribers:         map[EventType]map[string]Receiver{},
 	}
 
-	if err := instance.Configure(serverConfig); err != nil {
+	if err := instance.Configure(*serverConfig); err != nil {
 		t.Fatal(err)
 	}
 	if err := instance.Start(); err != nil {

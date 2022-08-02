@@ -84,12 +84,12 @@ func TestNewClientConfigFromConfigMap(t *testing.T) {
 		clientConfig := NewClientConfigForCommand(cmd)
 		assert.Equal(t, defaultClientTimeout, clientConfig.Timeout)
 		assert.Equal(t, defaultAddress, clientConfig.Address)
-		assert.Equal(t, defaultLogLevel, clientConfig.Verbosity)
+		assert.Equal(t, "info", clientConfig.Verbosity)
 	})
 
 	t.Run("it uses configured values", func(t *testing.T) {
 		cmd := &cobra.Command{}
-		args := []string{"nuts", "--" + clientAddressFlag + "=localhost:1111", "--" + clientTimeoutFlag + "=20ms", "--" + loggerLevelFlag + "=foo"}
+		args := []string{"nuts", "--" + clientAddressFlag + "=localhost:1111", "--" + clientTimeoutFlag + "=20ms", "--" + ("verbosity") + "=foo"}
 		flags := ClientConfigFlags()
 		assert.NoError(t, flags.Parse(args))
 		cmd.Flags().AddFlagSet(flags)

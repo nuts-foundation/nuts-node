@@ -46,7 +46,7 @@ Prints the current config
       --http.default.address string                   Address and port the server will be listening to (default ":1323")
       --http.default.cors.origin strings              When set, enables CORS from the specified origins for the on default HTTP interface.
       --internalratelimiter                           When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode. (default true)
-      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson,https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson])
+      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson])
       --jsonld.contexts.remoteallowlist strings       In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here. (default [https://schema.org,https://www.w3.org/2018/credentials/v1,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json])
       --loggerformat string                           Log format (text, json) (default "text")
       --network.bootstrapnodes <host>:<port>          List of bootstrap nodes (<host>:<port>) which the node initially connect to.
@@ -55,13 +55,11 @@ Prints the current config
       --network.connectiontimeout int                 Timeout before an outbound connection attempt times out (in milliseconds). (default 5000)
       --network.disablenodeauthentication             Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes. Not allowed in strict-mode.
       --network.enablediscovery                       Whether to enable automatic connecting to other nodes. (default true)
-      --network.enabletls network.tls.offload         Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see network.tls.offload). (default true)
+      --network.enabletls tls.offload                 Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see tls.offload). (default true)
       --network.grpcaddr string                       Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made). (default ":5555")
       --network.maxbackoff 1h                         Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. 1h, `30m`). (default 24h0m0s)
       --network.nodedid string                        Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
       --network.protocols ints                        Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.
-      --network.tls.certheader string                 Name of the HTTP header that will contain the client certificate when TLS is offloaded.
-      --network.tls.offload network.tls.certheader    Whether to enable TLS offloading for incoming connections. If enabled network.tls.certheader must be configured as well.
       --network.truststorefile string                 PEM file containing the trusted CA certificates for authenticating remote gRPC servers.
       --network.v2.diagnosticsinterval int            Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable). (default 5000)
       --network.v2.gossipinterval int                 Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes. (default 5000)
@@ -72,6 +70,8 @@ Prints the current config
       --storage.redis.password string                 Redis database password.
       --storage.redis.username string                 Redis database username.
       --strictmode                                    When set, insecure settings are forbidden.
+      --tls.certheader string                         Name of the HTTP header that will contain the client certificate when TLS is offloaded.
+      --tls.offload tls.certheader                    Whether to enable TLS offloading for incoming connections. If enabled tls.certheader must be configured as well.
       --verbosity string                              Log level (trace, debug, info, warn, error) (default "info")
 
 nuts crypto fs2vault
@@ -105,7 +105,7 @@ Imports private keys from filesystem based storage into Vault. The given directo
       --http.default.address string                   Address and port the server will be listening to (default ":1323")
       --http.default.cors.origin strings              When set, enables CORS from the specified origins for the on default HTTP interface.
       --internalratelimiter                           When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode. (default true)
-      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson,https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson])
+      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson])
       --jsonld.contexts.remoteallowlist strings       In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here. (default [https://schema.org,https://www.w3.org/2018/credentials/v1,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json])
       --loggerformat string                           Log format (text, json) (default "text")
       --network.bootstrapnodes <host>:<port>          List of bootstrap nodes (<host>:<port>) which the node initially connect to.
@@ -114,13 +114,11 @@ Imports private keys from filesystem based storage into Vault. The given directo
       --network.connectiontimeout int                 Timeout before an outbound connection attempt times out (in milliseconds). (default 5000)
       --network.disablenodeauthentication             Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes. Not allowed in strict-mode.
       --network.enablediscovery                       Whether to enable automatic connecting to other nodes. (default true)
-      --network.enabletls network.tls.offload         Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see network.tls.offload). (default true)
+      --network.enabletls tls.offload                 Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see tls.offload). (default true)
       --network.grpcaddr string                       Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made). (default ":5555")
       --network.maxbackoff 1h                         Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. 1h, `30m`). (default 24h0m0s)
       --network.nodedid string                        Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
       --network.protocols ints                        Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.
-      --network.tls.certheader string                 Name of the HTTP header that will contain the client certificate when TLS is offloaded.
-      --network.tls.offload network.tls.certheader    Whether to enable TLS offloading for incoming connections. If enabled network.tls.certheader must be configured as well.
       --network.truststorefile string                 PEM file containing the trusted CA certificates for authenticating remote gRPC servers.
       --network.v2.diagnosticsinterval int            Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable). (default 5000)
       --network.v2.gossipinterval int                 Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes. (default 5000)
@@ -131,6 +129,8 @@ Imports private keys from filesystem based storage into Vault. The given directo
       --storage.redis.password string                 Redis database password.
       --storage.redis.username string                 Redis database username.
       --strictmode                                    When set, insecure settings are forbidden.
+      --tls.certheader string                         Name of the HTTP header that will contain the client certificate when TLS is offloaded.
+      --tls.offload tls.certheader                    Whether to enable TLS offloading for incoming connections. If enabled tls.certheader must be configured as well.
       --verbosity string                              Log level (trace, debug, info, warn, error) (default "info")
 
 nuts didman svc add
@@ -263,7 +263,7 @@ Starts the Nuts server
       --http.default.address string                   Address and port the server will be listening to (default ":1323")
       --http.default.cors.origin strings              When set, enables CORS from the specified origins for the on default HTTP interface.
       --internalratelimiter                           When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode. (default true)
-      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson,https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson])
+      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson])
       --jsonld.contexts.remoteallowlist strings       In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here. (default [https://schema.org,https://www.w3.org/2018/credentials/v1,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json])
       --loggerformat string                           Log format (text, json) (default "text")
       --network.bootstrapnodes <host>:<port>          List of bootstrap nodes (<host>:<port>) which the node initially connect to.
@@ -272,13 +272,11 @@ Starts the Nuts server
       --network.connectiontimeout int                 Timeout before an outbound connection attempt times out (in milliseconds). (default 5000)
       --network.disablenodeauthentication             Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes. Not allowed in strict-mode.
       --network.enablediscovery                       Whether to enable automatic connecting to other nodes. (default true)
-      --network.enabletls network.tls.offload         Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see network.tls.offload). (default true)
+      --network.enabletls tls.offload                 Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see tls.offload). (default true)
       --network.grpcaddr string                       Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made). (default ":5555")
       --network.maxbackoff 1h                         Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. 1h, `30m`). (default 24h0m0s)
       --network.nodedid string                        Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
       --network.protocols ints                        Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.
-      --network.tls.certheader string                 Name of the HTTP header that will contain the client certificate when TLS is offloaded.
-      --network.tls.offload network.tls.certheader    Whether to enable TLS offloading for incoming connections. If enabled network.tls.certheader must be configured as well.
       --network.truststorefile string                 PEM file containing the trusted CA certificates for authenticating remote gRPC servers.
       --network.v2.diagnosticsinterval int            Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable). (default 5000)
       --network.v2.gossipinterval int                 Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes. (default 5000)
@@ -289,6 +287,8 @@ Starts the Nuts server
       --storage.redis.password string                 Redis database password.
       --storage.redis.username string                 Redis database username.
       --strictmode                                    When set, insecure settings are forbidden.
+      --tls.certheader string                         Name of the HTTP header that will contain the client certificate when TLS is offloaded.
+      --tls.offload tls.certheader                    Whether to enable TLS offloading for incoming connections. If enabled tls.certheader must be configured as well.
       --verbosity string                              Log level (trace, debug, info, warn, error) (default "info")
 
 nuts status
