@@ -172,14 +172,11 @@ func (c MultiEcho) Start() error {
 // Shutdown stops all Echo servers.
 func (c MultiEcho) Shutdown() {
 	for address, echoServer := range c.interfaces {
-		logrus.
-			WithField("address", address).
-			Trace("Stopping interface")
+		logrus.Tracef("Stopping interface: %s", address)
 		if err := echoServer.Shutdown(context.Background()); err != nil {
 			logrus.
 				WithError(err).
-				WithField("address", address).
-				Error("Unable to shutdown interface")
+				Errorf("Unable to shutdown interface: %s", address)
 		}
 	}
 }

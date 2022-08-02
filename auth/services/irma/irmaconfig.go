@@ -75,9 +75,7 @@ func GetIrmaServer(validatorConfig ValidatorConfig, irmaConfig *irma.Configurati
 		DisableSchemesUpdate: !validatorConfig.AutoUpdateIrmaSchemas,
 	}
 
-	log.Logger().
-		WithField("url", config.URL).
-		Debug("Initializing IRMA library...")
+	log.Logger().Debugf("Initializing IRMA library (baseURL=%s)...", config.URL)
 
 	return irmaserver.New(config)
 }
