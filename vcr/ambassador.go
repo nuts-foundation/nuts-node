@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/nats-io/nats.go"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 
@@ -117,19 +118,28 @@ func (n ambassador) handleReprocessEvent(msg *nats.Msg) {
 	twp := events.TransactionWithPayload{}
 
 	if err := msg.Ack(); err != nil {
-		log.Logger().Errorf("Failed to process %s event: failed to ack message: %v", msg.Subject, err)
+		log.Logger().
+			WithError(err).
+			WithField(core.LogFieldEventSubject, msg.Subject).
+			Error("Failed to process event: failed to ack message")
 		return
 	}
 
 	if err := json.Unmarshal(jsonBytes, &twp); err != nil {
-		log.Logger().Errorf("Failed to process %s event: failed to unmarshall data: %v", msg.Subject, err)
+		log.Logger().
+			WithError(err).
+			WithField(core.LogFieldEventSubject, msg.Subject).
+			Error("Failed to process event: failed to unmarshall data")
 		return
 	}
 
 	if len(twp.Payload) != 0 { // private TXs not intended for us
 		callback := n.getCallbackFn(twp.Transaction.PayloadType())
 		if err := callback(twp.Transaction, twp.Payload); err != nil {
-			log.Logger().Errorf("Failed to process %s event: %v", msg.Subject, err)
+			log.Logger().
+				WithError(err).
+				WithField(core.LogFieldEventSubject, msg.Subject).
+				Error("Failed to process event")
 			return
 		}
 	}
@@ -154,7 +164,9 @@ func (n ambassador) getCallbackFn(contentType string) func(dag.Transaction, []by
 // The VCR is used to verify the contents of the credential.
 // payload should be a json encoded vc.VerifiableCredential
 func (n ambassador) vcCallback(tx dag.Transaction, payload []byte) error {
-	log.Logger().Debugf("Processing VC received from Nuts Network (ref=%s)", tx.Ref())
+	log.Logger().
+		WithField(core.LogFieldTransactionRef, tx.Ref()).
+		Debug("Processing VC received from Nuts Network")
 
 	target := vc.VerifiableCredential{}
 	if err := json.Unmarshal(payload, &target); err != nil {
@@ -172,7 +184,9 @@ func (n ambassador) vcCallback(tx dag.Transaction, payload []byte) error {
 // The VCR is used to verify the contents of the revocation.
 // payload should be a json encoded Revocation
 func (n ambassador) jsonLDRevocationCallback(tx dag.Transaction, payload []byte) error {
-	log.Logger().Debugf("Processing VC revocation received from Nuts Network (ref=%s)", tx.Ref())
+	log.Logger().
+		WithField(core.LogFieldTransactionRef, tx.Ref()).
+		Debug("Processing VC revocation received from Nuts Network")
 
 	r := credential.Revocation{}
 	if err := json.Unmarshal(payload, &r); err != nil {

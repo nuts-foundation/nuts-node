@@ -160,7 +160,9 @@ func (p persistingBackoff) write(backoff time.Duration) {
 		return writer.Put(stoabs.BytesKey(p.peerAddress), buf.Bytes())
 	})
 	if err != nil {
-		log.Logger().Errorf("Failed to persist backoff: %v", err)
+		log.Logger().
+			WithError(err).
+			Error("Failed to persist backoff")
 	}
 }
 
@@ -177,7 +179,9 @@ func (p persistingBackoff) read() persistedBackoff {
 		return gob.NewDecoder(bytes.NewReader(data)).Decode(&result)
 	})
 	if err != nil {
-		log.Logger().Errorf("Failed to read persisted backoff: %v", err)
+		log.Logger().
+			WithError(err).
+			Error("Failed to read persisted backoff")
 	}
 	return result
 }

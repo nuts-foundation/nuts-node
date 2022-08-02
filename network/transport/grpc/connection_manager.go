@@ -163,7 +163,9 @@ func (s *grpcConnectionManager) Start() error {
 	go func(server *grpc.Server, listener net.Listener) {
 		err := server.Serve(listener)
 		if err != nil && !errors.Is(err, grpc.ErrServerStopped) {
-			log.Logger().Errorf("gRPC server errored: %v", err)
+			log.Logger().
+				WithError(err).
+				Error("gRPC server errored")
 			s.Stop()
 		}
 	}(s.grpcServer, s.listener)
@@ -205,7 +207,9 @@ func (s grpcConnectionManager) Connect(peerAddress string, options ...transport.
 	}
 	connection, isNew := s.connections.getOrRegister(s.ctx, peer, s.dialer)
 	if !isNew {
-		log.Logger().Infof("A connection for %s already exists.", peer.Address)
+		log.Logger().
+			WithField(core.LogFieldPeerAddr, peer.Address).
+			Info("Connection for peer already exists.")
 		return
 	}
 	s.startTracking(peer.Address, connection)
@@ -216,7 +220,10 @@ func (s *grpcConnectionManager) RegisterObserver(observer transport.StreamStateO
 }
 
 func (s *grpcConnectionManager) notifyObservers(peer transport.Peer, protocol transport.Protocol, state transport.StreamState) {
-	log.Logger().Debugf("Observed stream state change (peer=%s, protocol=V%d, state=%s)", peer.ID, protocol.Version(), state)
+	log.Logger().
+		WithFields(peer.ToFields()).
+		WithField(core.LogFieldProtocolVersion, protocol.Version()).
+		Debugf("Stream state changed to %s", state)
 	for _, observer := range s.observers {
 		observer(peer, state, protocol)
 	}
@@ -261,7 +268,11 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 
 		clientStream, err := s.openOutboundStream(connection, protocol, grpcConn, md)
 		if err != nil {
-			log.Logger().Warnf("%T: Failed to open gRPC stream (addr=%s): %v", protocol, grpcConn.Target(), err)
+			log.Logger().
+				WithError(err).
+				WithField(core.LogFieldPeerAddr, grpcConn.Target()).
+				WithField(core.LogFieldProtocolVersion, protocol.Version()).
+				Warn("Failed to open gRPC stream")
 			if errors.Is(err, fatalError{}) {
 				// Error indicates connection should be closed.
 				return err
@@ -270,7 +281,10 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 			continue
 		}
 		peer := connection.Peer() // work with a copy of peer to avoid race condition due to disconnect() resetting it
-		log.Logger().Debugf("%T: Opened gRPC stream (peer=%s)", prot, peer)
+		log.Logger().
+			WithField(core.LogFieldProtocolVersion, prot.Version()).
+			WithFields(peer.ToFields()).
+			Debug("Opened gRPC stream")
 		s.notifyObservers(peer, protocol, transport.StateConnected)
 
 		go func() {
@@ -345,7 +359,9 @@ func (s *grpcConnectionManager) openOutboundStream(connection Connection, protoc
 
 	if !connection.registerStream(protocol, clientStream) {
 		// This can happen when the peer connected to us previously, and now we connect back to them.
-		log.Logger().Warnf("We connected to a peer that we're already connected to (peer=%s)", peerID)
+		log.Logger().
+			WithFields(peer.ToFields()).
+			Warn("We connected to a peer that we're already connected to")
 		return nil, fatalError{error: ErrAlreadyConnected}
 	}
 
@@ -356,7 +372,11 @@ func (s *grpcConnectionManager) authenticate(nodeDID did.DID, peer transport.Pee
 	if !nodeDID.Empty() {
 		authenticatedPeer, err := s.authenticator.Authenticate(nodeDID, *peerFromCtx, peer)
 		if err != nil {
-			log.Logger().WithField("peer", peer).Warnf("Peer node DID could not be authenticated (did=%s): %v", nodeDID, err)
+			log.Logger().
+				WithError(err).
+				WithFields(peer.ToFields()).
+				WithField(core.LogFieldDID, nodeDID).
+				Warn("Peer node DID could not be authenticated")
 			// Error message is spec'd by RFC017, because it is returned to the peer
 			return transport.Peer{}, ErrNodeDIDAuthFailed
 		}
@@ -367,7 +387,9 @@ func (s *grpcConnectionManager) authenticate(nodeDID did.DID, peer transport.Pee
 
 func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundStream grpc.ServerStream) error {
 	peerFromCtx, _ := grpcPeer.FromContext(inboundStream.Context())
-	log.Logger().Tracef("New peer connected from %s", peerFromCtx.Addr)
+	log.Logger().
+		WithField(core.LogFieldPeerAddr, peerFromCtx.Addr.String()).
+		Trace("New peer connected")
 
 	// Send our headers
 	md, err := s.constructMetadata()
@@ -375,7 +397,10 @@ func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundSt
 		return err
 	}
 	if err := inboundStream.SendHeader(md); err != nil {
-		log.Logger().Errorf("Unable to accept gRPC stream (remote address: %s), unable to send headers: %v", peerFromCtx.Addr, err)
+		log.Logger().
+			WithError(err).
+			WithField(core.LogFieldPeerAddr, peerFromCtx.Addr.String()).
+			Error("Unable to accept gRPC stream, unable to send headers")
 		return errors.New("unable to send headers")
 	}
 
@@ -393,7 +418,10 @@ func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundSt
 		ID:      peerID,
 		Address: peerFromCtx.Addr.String(),
 	}
-	log.Logger().Debugf("New inbound stream from peer (peer=%s,protocol=%T)", peer, inboundStream)
+	log.Logger().
+		WithFields(peer.ToFields()).
+		WithField(core.LogFieldProtocolVersion, protocol.Version()).
+		Debug("New inbound stream from peer")
 	peer, err = s.authenticate(nodeDID, peer, peerFromCtx)
 	if err != nil {
 		return err
@@ -452,7 +480,10 @@ func (s *grpcConnectionManager) startTracking(address string, connection Connect
 	connection.startConnecting(cfg, backoff, func(grpcConn *grpc.ClientConn) bool {
 		err := s.openOutboundStreams(connection, grpcConn, backoff)
 		if err != nil {
-			log.Logger().Errorf("Error while setting up outbound gRPC streams, disconnecting (peer=%s): %v", connection.Peer(), err)
+			log.Logger().
+				WithError(err).
+				WithFields(connection.Peer().ToFields()).
+				Error("Error while setting up outbound gRPC streams, disconnecting")
 			connection.disconnect()
 			_ = grpcConn.Close()
 			return false

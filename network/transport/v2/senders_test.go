@@ -359,7 +359,7 @@ func TestProtocol_broadcastDiagnostics(t *testing.T) {
 	// Second connection returns an error, which is just logged
 	conn2 := grpc.NewMockConnection(mocks.Controller)
 	conn2.EXPECT().Send(proto, envelope, false).Return(errors.New("error"))
-	conn2.EXPECT().Peer().Return(transport.Peer{})
+	conn2.EXPECT().Peer()
 	mocks.ConnectionList.EXPECT().AllMatching(grpc.ByConnected()).Return([]grpc.Connection{conn1, conn2})
 
 	proto.broadcastDiagnostics(transport.Diagnostics{

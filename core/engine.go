@@ -60,7 +60,7 @@ type System struct {
 	EchoCreator func(cfg HTTPConfig, strictmode, rateLimiter bool) (EchoServer, error)
 }
 
-var coreLogger = logrus.StandardLogger().WithField("module", "core")
+var coreLogger = logrus.StandardLogger().WithField(LogFieldModule, "core")
 
 // Load loads the config and injects config values into engines
 func (system *System) Load(flags *pflag.FlagSet) error {

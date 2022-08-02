@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
 	bboltLib "go.etcd.io/bbolt"
 	"os"
@@ -33,6 +34,7 @@ import (
 )
 
 const fileMode = 0640
+const bboltDbExtension = ".db"
 
 type bboltDatabase struct {
 	datadir         string
@@ -73,11 +75,14 @@ func createBBoltDatabase(datadir string, config BBoltConfig) (*bboltDatabase, er
 }
 
 func (b bboltDatabase) createStore(moduleName string, storeName string) (stoabs.KVStore, error) {
-	log.Logger().Debugf("Creating BBolt store (module=%s,store=%s)", moduleName, storeName)
-	databasePath := path.Join(b.datadir, b.getRelativeStorePath(moduleName, storeName))
+	fullStoreName := path.Join(moduleName, storeName)
+	log.Logger().
+		WithField(core.LogFieldStore, fullStoreName).
+		Debug("Creating BBolt store")
+	databasePath := path.Join(b.datadir, fullStoreName) + bboltDbExtension
 	store, err := bbolt.CreateBBoltStore(databasePath, stoabs.WithLockAcquireTimeout(lockAcquireTimeout))
 	if store != nil {
-		b.startBackup(moduleName, storeName, store)
+		b.startBackup(fullStoreName, store)
 	}
 	return store, err
 }
@@ -86,12 +91,14 @@ func (b bboltDatabase) getClass() Class {
 	return VolatileStorageClass
 }
 
-func (b bboltDatabase) startBackup(moduleName string, storeName string, store stoabs.KVStore) {
+func (b bboltDatabase) startBackup(fullStoreName string, store stoabs.KVStore) {
 	if !b.config.Backup.Enabled() {
 		return
 	}
 	interval := b.config.Backup.Interval
-	log.Logger().Infof("BBolt database %s/%s will be backuped at interval of %s", moduleName, storeName, interval)
+	log.Logger().
+		WithField(core.LogFieldStore, fullStoreName).
+		Infof("BBolt database will be backuped at interval of %s", interval)
 	ticker := time.NewTicker(interval)
 
 	shutdown := b.ctx.Done()
@@ -101,9 +108,12 @@ func (b bboltDatabase) startBackup(moduleName string, storeName string, store st
 		for {
 			select {
 			case _ = <-ticker.C:
-				err := b.performBackup(moduleName, storeName, store)
+				err := b.performBackup(fullStoreName, store)
 				if err != nil {
-					log.Logger().Errorf("Unable to complete BBolt backup for %s/%s: %s", moduleName, storeName, err)
+					log.Logger().
+						WithError(err).
+						WithField(core.LogFieldStore, fullStoreName).
+						Errorf("Unable to complete BBolt backup")
 				}
 			case _ = <-shutdown:
 				break loop
@@ -113,9 +123,11 @@ func (b bboltDatabase) startBackup(moduleName string, storeName string, store st
 	}(b.shutdownWatcher)
 }
 
-func (b bboltDatabase) performBackup(moduleName string, storeName string, store stoabs.KVStore) error {
-	backupFilePath := path.Join(b.config.Backup.Directory, b.getRelativeStorePath(moduleName, storeName))
-	log.Logger().Debugf("Starting BBolt database backup (store: %s/%s), target: %s", moduleName, storeName, backupFilePath)
+func (b bboltDatabase) performBackup(fullStoreName string, store stoabs.KVStore) error {
+	backupFilePath := path.Join(b.config.Backup.Directory, fullStoreName+bboltDbExtension)
+	log.Logger().
+		WithField(core.LogFieldStore, fullStoreName).
+		Debugf("Starting BBolt database backup to: %s", backupFilePath)
 	startTime := time.Now()
 	wipFilePath := backupFilePath + ".work"
 	previousFilePath := backupFilePath + ".previous"
@@ -166,7 +178,9 @@ func (b bboltDatabase) performBackup(moduleName string, storeName string, store 
 		if err != nil {
 			return err
 		}
-		log.Logger().Debugf("BBolt database backup (store: %s/%s) finished in %s", moduleName, storeName, time.Now().Sub(startTime))
+		log.Logger().
+			WithField(core.LogFieldStore, fullStoreName).
+			Debugf("BBolt database backup finished in %s", time.Now().Sub(startTime))
 		return nil
 	})
 }
@@ -176,8 +190,4 @@ func (b bboltDatabase) close() {
 	b.cancel()
 	// Wait for backup processes to finish
 	b.shutdownWatcher.Wait()
-}
-
-func (b bboltDatabase) getRelativeStorePath(moduleName string, storeName string) string {
-	return path.Join(moduleName, storeName+".db")
 }

@@ -21,6 +21,7 @@ package gossip
 
 import (
 	"context"
+	"github.com/nuts-foundation/nuts-node/core"
 	"sync"
 	"time"
 
@@ -87,7 +88,9 @@ func (m *manager) GossipReceived(id transport.PeerID, refs ...hash.SHA256Hash) {
 
 	peer, ok := m.peers[string(id)]
 	if !ok {
-		log.Logger().Errorf("received gossip from peer, but gossip administration is missing, peer=%s", string(id))
+		log.Logger().
+			WithField(core.LogFieldPeerID, id).
+			Error("Received gossip from peer, but gossip administration is missing")
 		return
 	}
 

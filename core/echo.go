@@ -174,7 +174,9 @@ func (c MultiEcho) Shutdown() {
 	for address, echoServer := range c.interfaces {
 		logrus.Tracef("Stopping interface: %s", address)
 		if err := echoServer.Shutdown(context.Background()); err != nil {
-			logrus.Errorf("Unable to shutdown interface (address=%s): %v", address, err)
+			logrus.
+				WithError(err).
+				Errorf("Unable to shutdown interface: %s", address)
 		}
 	}
 }
@@ -205,7 +207,7 @@ func getGroup(path string) string {
 	return ""
 }
 
-var _logger = logrus.StandardLogger().WithField("module", "http-server")
+var _logger = logrus.StandardLogger().WithField(LogFieldModule, "http-server")
 
 // Logger returns a logger which should be used for logging in this engine. It adds fields so
 // log entries from this engine can be recognized as such.
@@ -252,7 +254,7 @@ func loggerMiddleware(config loggerConfig) echo.MiddlewareFunc {
 				"method":    req.Method,
 				"uri":       req.RequestURI,
 				"status":    status,
-			}).Info("request")
+			}).Info("HTTP request")
 			return
 		}
 	}

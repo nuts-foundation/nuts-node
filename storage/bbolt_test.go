@@ -14,6 +14,7 @@ import (
 
 const moduleName = "test"
 const storeName = "store"
+const fullStoreName = moduleName + "/" + storeName
 
 var key = stoabs.BytesKey{1, 2, 3}
 var value = []byte{4, 5, 6}
@@ -35,12 +36,12 @@ func Test_bboltDatabase_performBackup(t *testing.T) {
 			return writer.Put(key, value)
 		})
 
-		err := db.performBackup(moduleName, storeName, store)
+		err := db.performBackup(fullStoreName, store)
 
 		if !assert.NoError(t, err) {
 			return
 		}
-		backupFile := path.Join(backupDir, db.getRelativeStorePath(moduleName, storeName))
+		backupFile := path.Join(backupDir, fullStoreName+bboltDbExtension)
 		if !assert.FileExists(t, backupFile) {
 			return
 		}
@@ -73,15 +74,15 @@ func Test_bboltDatabase_performBackup(t *testing.T) {
 		_ = store.WriteShelf(ctx, "data", func(writer stoabs.Writer) error {
 			return writer.Put(key, value)
 		})
-		_ = db.performBackup(moduleName, storeName, store)
+		_ = db.performBackup(fullStoreName, store)
 
 		_ = store.WriteShelf(ctx, "data", func(writer stoabs.Writer) error {
 			return writer.Put(key, newValue)
 		})
-		_ = db.performBackup(moduleName, storeName, store)
+		_ = db.performBackup(fullStoreName, store)
 
 		// Close the store, reopen backup
-		backupFile := path.Join(backupDir, db.getRelativeStorePath(moduleName, storeName))
+		backupFile := path.Join(backupDir, fullStoreName+bboltDbExtension)
 		_ = store.Close(context.Background())
 		store, _ = bbolt.CreateBBoltStore(backupFile)
 
@@ -120,7 +121,7 @@ func Test_bboltDatabase_startBackup(t *testing.T) {
 		db.close()
 
 		db.shutdownWatcher.Wait()
-		assert.FileExists(t, path.Join(backupDir, db.getRelativeStorePath(moduleName, storeName)))
+		assert.FileExists(t, path.Join(backupDir, fullStoreName+bboltDbExtension))
 	})
 }
 

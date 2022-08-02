@@ -178,7 +178,9 @@ func (s *state) loadTrees(ctx context.Context) {
 		}
 		return nil
 	}); err != nil {
-		log.Logger().Errorf("Failed to load the XOR and IBLT trees: %s", err)
+		log.Logger().
+			WithError(err).
+			Errorf("Failed to load the XOR and IBLT trees")
 	}
 	log.Logger().Trace("Loaded the XOR and IBLT trees")
 }

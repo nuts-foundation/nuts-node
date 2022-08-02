@@ -21,6 +21,7 @@ package grpc
 import (
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
@@ -50,7 +51,9 @@ type tlsAuthenticator struct {
 func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, peer transport.Peer) (transport.Peer, error) {
 	withOverride := func(peer transport.Peer, err error) (transport.Peer, error) {
 		if peer.AcceptUnauthenticated {
-			log.Logger().Warnf("Connection manually authenticated, authentication error: %v", err)
+			log.Logger().
+				WithError(err).
+				Warn("Connection manually authenticated with authentication error")
 			peer.NodeDID = nodeDID
 			return peer, nil
 		}
@@ -79,12 +82,16 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 	// Check whether one of the DNS names matches one of the NutsComm endpoints
 	err = peerCertificate.VerifyHostname(nutsCommURL.Hostname())
 	if err == nil {
-		log.Logger().Debugf("Connection successfully authenticated (nodeDID=%s)", nodeDID)
+		log.Logger().
+			WithField(core.LogFieldDID, nodeDID).
+			Debug("Connection successfully authenticated")
 		peer.NodeDID = nodeDID
 		return peer, nil
 	}
 
-	log.Logger().Debugf("DNS names in peer certificate: %s", strings.Join(peerCertificate.DNSNames, ", "))
+	log.Logger().
+		WithField(core.LogFieldDID, nodeDID).
+		Debugf("DNS names in peer certificate: %s", strings.Join(peerCertificate.DNSNames, ", "))
 	return withOverride(peer, fmt.Errorf("none of the DNS names in the peer's TLS certificate match the NutsComm endpoint (nodeDID=%s)", nodeDID))
 }
 

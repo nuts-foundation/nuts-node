@@ -76,7 +76,10 @@ func (e engine) Shutdown() error {
 	for storeName, store := range e.stores {
 		err := shutdown(store)
 		if err != nil {
-			log.Logger().Errorf("Failed to close store '%s': %s", storeName, err)
+			log.Logger().
+				WithError(err).
+				WithField(core.LogFieldStore, storeName).
+				Error("Failed to close store")
 			failures = true
 		}
 	}

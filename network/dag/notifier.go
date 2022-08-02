@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"github.com/avast/retry-go/v4"
 	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"time"
@@ -291,11 +292,17 @@ func (p *notifier) retry(event Event) {
 			retry.Context(ctx),
 			retry.LastErrorOnly(true),
 			retry.OnRetry(func(n uint, err error) {
-				log.Logger().Debugf("retrying event (count=%d) with ref: %s", n, event.Hash.String())
+				log.Logger().
+					WithField(core.LogFieldTransactionRef, event.Hash.String()).
+					Debugf("Retrying event (attempt %d/%d)", n, maxRetries)
 			}),
 		)
 		if err != nil {
-			log.Logger().Errorf("retry for %s receiver failed (ref=%s): %v", p.name, event.Hash.String(), err)
+			log.Logger().
+				WithError(err).
+				WithField(core.LogFieldTransactionRef, event.Hash.String()).
+				WithField(core.LogFieldEventSubscriber, p.name).
+				Errorf("Retry failed")
 		}
 	}(p.ctx)
 }
@@ -328,7 +335,11 @@ func (p *notifier) notifyNow(event Event) error {
 	}
 
 	if finished, err := p.receiver(*dbEvent); err != nil {
-		log.Logger().Errorf("Retry for %s receiver failed (ref=%s): %v", p.name, dbEvent.Hash.String(), err)
+		log.Logger().
+			WithError(err).
+			WithField(core.LogFieldTransactionRef, dbEvent.Hash.String()).
+			WithField(core.LogFieldEventSubscriber, p.name).
+			Errorf("Retry failed")
 	} else if finished {
 		return p.Finished(dbEvent.Hash)
 	}

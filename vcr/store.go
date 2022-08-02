@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/core"
 	"reflect"
 	"time"
 
@@ -46,7 +47,9 @@ func (c *vcr) StoreCredential(credential vc.VerifiableCredential, validAt *time.
 		existingCredential, err := c.find(*credential.ID)
 		if err == nil {
 			if reflect.DeepEqual(existingCredential, credential) {
-				log.Logger().Infof("Credential already exists (id=%s)", credential.ID)
+				log.Logger().
+					WithField(core.LogFieldCredentialID, *credential.ID).
+					Info("Credential already exists", credential.ID)
 				return nil
 			}
 			return fmt.Errorf("credential with same ID but different content already exists (id=%s)", credential.ID)
@@ -67,7 +70,10 @@ func (c *vcr) writeCredential(subject vc.VerifiableCredential) error {
 	// validation has made sure there's exactly one!
 	vcType := credential.ExtractTypes(subject)[0]
 
-	log.Logger().Debugf("Writing %s to store", vcType)
+	log.Logger().
+		WithField(core.LogFieldCredentialID, subject.ID).
+		WithField(core.LogFieldCredentialType, vcType).
+		Debug("Writing credential to store")
 	log.Logger().Tracef("%+v", subject)
 
 	doc, _ := json.Marshal(subject)

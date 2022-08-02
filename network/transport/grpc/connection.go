@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/core"
 	"io"
 	"sync"
 	"sync/atomic"
@@ -238,9 +239,16 @@ func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 			if err != nil {
 				errStatus, isStatusError := status.FromError(err)
 				if errors.Is(err, io.EOF) || (isStatusError && errStatus.Code() == codes.Canceled) {
-					log.Logger().Infof("%s: Peer closed connection (peer=%s)", protocol.MethodName(), peer)
+					log.Logger().
+						WithField(core.LogFieldProtocolVersion, protocol.Version()).
+						WithFields(peer.ToFields()).
+						Info("Peer closed connection")
 				} else {
-					log.Logger().Warnf("%s: Peer connection error (peer=%s): %v", protocol.MethodName(), peer, err)
+					log.Logger().
+						WithError(err).
+						WithField(core.LogFieldProtocolVersion, protocol.Version()).
+						WithFields(peer.ToFields()).
+						Warn("Peer connection error")
 				}
 				cancel()
 				break
@@ -248,7 +256,12 @@ func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 
 			err = protocol.Handle(peer, message)
 			if err != nil {
-				log.Logger().Warnf("%s: Error handling message %T (peer=%s): %v", protocol.MethodName(), protocol.UnwrapMessage(message), peer, err)
+				log.Logger().
+					WithError(err).
+					WithField(core.LogFieldProtocolVersion, protocol.Version()).
+					WithFields(peer.ToFields()).
+					WithField(core.LogFieldMessageType, fmt.Sprintf("%T", protocol.UnwrapMessage(message))).
+					Warn("Error handling message")
 			}
 		}
 	}(&mc.activeGoroutines, mc.cancelCtx)
@@ -276,7 +289,12 @@ func (mc *conn) startSending(protocol Protocol, stream Stream) {
 				}
 				err := stream.SendMsg(envelope)
 				if err != nil {
-					log.Logger().Warnf("Unable to send message %T, message is dropped (peer=%s): %v", envelope, mc.Peer(), err)
+					log.Logger().
+						WithError(err).
+						WithField(core.LogFieldProtocolVersion, protocol.Version()).
+						WithFields(mc.Peer().ToFields()).
+						WithField(core.LogFieldMessageType, fmt.Sprintf("%T", envelope)).
+						Warn("Unable to send message, message is dropped")
 				}
 			}
 		}
@@ -285,7 +303,10 @@ func (mc *conn) startSending(protocol Protocol, stream Stream) {
 		if ok {
 			err := clientStream.CloseSend()
 			if err != nil {
-				log.Logger().Warnf("Error while closing client for gRPC stream %s: %v", protocol.MethodName(), err)
+				log.Logger().
+					WithError(err).
+					WithField(core.LogFieldProtocolVersion, protocol.Version()).
+					Warn("Error while closing client for gRPC stream")
 			}
 		}
 	}(&mc.activeGoroutines)

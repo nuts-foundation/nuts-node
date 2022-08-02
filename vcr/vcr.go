@@ -172,11 +172,15 @@ func (c *vcr) Start() error {
 func (c *vcr) Shutdown() error {
 	err := c.issuerStore.Close()
 	if err != nil {
-		log.Logger().Errorf("Unable to close issuer store: %v", err)
+		log.Logger().
+			WithError(err).
+			Error("Unable to close issuer store")
 	}
 	err = c.verifierStore.Close()
 	if err != nil {
-		log.Logger().Errorf("Unable to close verifier store: %v", err)
+		log.Logger().
+			WithError(err).
+			Error("Unable to close verifier store")
 	}
 	return c.store.Close()
 }
@@ -324,7 +328,10 @@ func (c *vcr) find(ID ssi.URI) (vc.VerifiableCredential, error) {
 func (c *vcr) Trust(credentialType ssi.URI, issuer ssi.URI) error {
 	err := c.trustConfig.AddTrust(credentialType, issuer)
 	if err != nil {
-		log.Logger().Infof("Added trust for Verifiable Credential issuer (type=%s, issuer=%s)", credentialType, issuer)
+		log.Logger().
+			WithField(core.LogFieldCredentialType, credentialType).
+			WithField(core.LogFieldCredentialIssuer, issuer).
+			Info("Added trust for Verifiable Credential issuer")
 	}
 	return err
 }
@@ -332,7 +339,10 @@ func (c *vcr) Trust(credentialType ssi.URI, issuer ssi.URI) error {
 func (c *vcr) Untrust(credentialType ssi.URI, issuer ssi.URI) error {
 	err := c.trustConfig.RemoveTrust(credentialType, issuer)
 	if err != nil {
-		log.Logger().Infof("Untrusted for Verifiable Credential issuer (type=%s, issuer=%s)", credentialType, issuer)
+		log.Logger().
+			WithField(core.LogFieldCredentialType, credentialType).
+			WithField(core.LogFieldCredentialIssuer, issuer).
+			Info("Untrusted for Verifiable Credential issuer")
 	}
 	return err
 }
@@ -383,7 +393,9 @@ func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
 	})
 	if err != nil {
 		if errors.Is(err, leia.ErrNoIndex) {
-			log.Logger().Warnf("No index with field 'issuer' found for %s", credentialType.String())
+			log.Logger().
+				WithField(core.LogFieldCredentialType, credentialType).
+				Warn("No index with field 'issuer' found for credential")
 
 			return nil, types.ErrInvalidCredential
 		}

@@ -185,7 +185,9 @@ func (i issuer) Revoke(credentialID ssi.URI) (*credential.Revocation, error) {
 		return nil, fmt.Errorf("unable to store revocation: %w", err)
 	}
 
-	log.Logger().Infof("Verifiable Credential revoked (id=%s)", credentialToRevoke.ID)
+	log.Logger().
+		WithField(core.LogFieldCredentialID, credentialToRevoke.ID).
+		Info("Verifiable Credential revoked")
 	return revocation, nil
 }
 
