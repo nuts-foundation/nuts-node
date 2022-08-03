@@ -6,6 +6,17 @@ Release notes
 Whats has been changed, and how to update between versions.
 
 *****************
+Chestnut update (v4.1.0)
+*****************
+
+Release date: 2022-08-04
+
+This minor release adds TLS offloading for grpc connections.
+The :ref:`tls-configuration` page contains instructions on how to setup various TLS deployment schemes.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.0.0...v4.1.0
+
+*****************
 Chestnut (v4.0.0)
 *****************
 
