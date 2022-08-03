@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/prometheus/client_golang/prometheus"
 	"time"
 )
 
@@ -59,7 +60,8 @@ type Notifier interface {
 	Finished(hash hash.SHA256Hash) error
 	// Run retries all existing events.
 	Run() error
-	// GetFailedEvents retrieves the hashes of failed events
+	// GetFailedEvents retrieves the hashes of failed events.
+	// If the notifier is not persistent it'll always return 0.
 	GetFailedEvents() ([]Event, error)
 	// Close cancels all running events. It does not remove them from the DB
 	Close() error
@@ -151,6 +153,13 @@ func WithContext(ctx context.Context) NotifierOption {
 	}
 }
 
+func withCounters(notifiedCounter prometheus.Counter, finishedCounter prometheus.Counter) NotifierOption {
+	return func(notifier *notifier) {
+		notifier.notifiedCounter = notifiedCounter
+		notifier.finishedCounter = finishedCounter
+	}
+}
+
 // NewNotifier returns a Notifier that handles transaction events with the given function.
 // Various settings can be changed via a NotifierOption
 // A default retry delay of 10 seconds is used.
@@ -173,13 +182,15 @@ func NewNotifier(name string, receiverFn ReceiverFn, options ...NotifierOption) 
 }
 
 type notifier struct {
-	db         stoabs.KVStore
-	name       string
-	retryDelay time.Duration
-	receiver   ReceiverFn
-	ctx        context.Context
-	cancel     context.CancelFunc
-	filters    []NotificationFilter
+	db              stoabs.KVStore
+	name            string
+	retryDelay      time.Duration
+	receiver        ReceiverFn
+	ctx             context.Context
+	cancel          context.CancelFunc
+	filters         []NotificationFilter
+	notifiedCounter prometheus.Counter
+	finishedCounter prometheus.Counter
 }
 
 func (p *notifier) shelfName() string {
@@ -208,6 +219,9 @@ func (p *notifier) Run() error {
 }
 
 func (p *notifier) GetFailedEvents() (events []Event, err error) {
+	if !p.isPersistent() {
+		return []Event{}, nil
+	}
 	err = p.db.ReadShelf(p.ctx, p.shelfName(), func(reader stoabs.Reader) error {
 		return reader.Iterate(func(k stoabs.Key, data []byte) error {
 			if data != nil {
@@ -310,6 +324,8 @@ func (p *notifier) retry(event Event) {
 // notifyNow is used to call the receiverFn synchronously.
 // This is used for the first run and with every retry.
 func (p *notifier) notifyNow(event Event) error {
+	p.incNotified()
+
 	var dbEvent = &event
 	if p.isPersistent() {
 		if err := p.db.ReadShelf(p.ctx, p.shelfName(), func(reader stoabs.Reader) error {
@@ -376,6 +392,7 @@ func (p *notifier) readEvent(reader stoabs.Reader, hash hash.SHA256Hash) (*Event
 }
 
 func (p *notifier) Finished(hash hash.SHA256Hash) error {
+	p.incFinished()
 	if !p.isPersistent() {
 		return nil
 	}
@@ -387,4 +404,16 @@ func (p *notifier) Finished(hash hash.SHA256Hash) error {
 func (p *notifier) Close() error {
 	p.cancel()
 	return nil
+}
+
+func (p *notifier) incFinished() {
+	if p.finishedCounter != nil {
+		p.finishedCounter.Inc()
+	}
+}
+
+func (p *notifier) incNotified() {
+	if p.notifiedCounter != nil {
+		p.notifiedCounter.Inc()
+	}
 }

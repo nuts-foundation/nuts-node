@@ -30,6 +30,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/prometheus/client_golang/prometheus"
+	io_prometheus_client "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
 	"path"
 	"sync"
@@ -281,6 +283,23 @@ func TestSubscriber_Notify(t *testing.T) {
 		assert.Equal(t, 1, counter.read())
 	})
 
+	t.Run("OK - prometheus counters updated", func(t *testing.T) {
+		counter := callbackCounter{}
+		notifyCounter := &prometheusCounter{}
+		finishedCounter := &prometheusCounter{}
+		s := NewNotifier(t.Name(), counter.callbackFinished, withCounters(notifyCounter, finishedCounter))
+		defer s.Close()
+
+		s.Notify(Event{})
+
+		test.WaitFor(t, func() (bool, error) {
+			return counter.read() == 1, nil
+		}, time.Second, "timeout while waiting for receiver")
+
+		assert.Equal(t, 1, notifyCounter.count)
+		assert.Equal(t, 1, finishedCounter.count)
+	})
+
 	t.Run("OK - retried once", func(t *testing.T) {
 		counter := callbackCounter{}
 		s := NewNotifier(t.Name(), counter.callback, WithRetryDelay(10*time.Millisecond))
@@ -434,8 +453,9 @@ func TestSubscriber_VariousFlows(t *testing.T) {
 		filePath := io.TestDirectory(t)
 		kvStore, _ := bbolt.CreateBBoltStore(path.Join(filePath, "test.db"))
 		counter := callbackCounter{}
+		notifiedCounter := &prometheusCounter{}
 		event := Event{Hash: hash.EmptyHash(), Transaction: transaction, Retries: 95}
-		s := NewNotifier(t.Name(), counter.callbackFailure, WithPersistency(kvStore), WithRetryDelay(time.Nanosecond)).(*notifier)
+		s := NewNotifier(t.Name(), counter.callbackFailure, WithPersistency(kvStore), WithRetryDelay(time.Nanosecond), withCounters(notifiedCounter, nil)).(*notifier)
 		defer s.Close()
 
 		_ = kvStore.Write(ctx, func(tx stoabs.WriteTx) error {
@@ -458,6 +478,7 @@ func TestSubscriber_VariousFlows(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.Len(t, events, 1)
+		assert.Equal(t, 5, notifiedCounter.count)
 	})
 }
 
@@ -496,4 +517,32 @@ func (cc *callbackCounter) read() int {
 	defer cc.mutex.Unlock()
 
 	return cc.count
+}
+
+type prometheusCounter struct {
+	count int
+}
+
+func (t prometheusCounter) Desc() *prometheus.Desc {
+	panic("implement me")
+}
+
+func (t prometheusCounter) Write(metric *io_prometheus_client.Metric) error {
+	panic("implement me")
+}
+
+func (t prometheusCounter) Describe(descs chan<- *prometheus.Desc) {
+	panic("implement me")
+}
+
+func (t prometheusCounter) Collect(metrics chan<- prometheus.Metric) {
+	panic("implement me")
+}
+
+func (t *prometheusCounter) Inc() {
+	t.count++
+}
+
+func (t prometheusCounter) Add(f float64) {
+	panic("implement me")
 }
