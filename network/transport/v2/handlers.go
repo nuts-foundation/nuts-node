@@ -90,9 +90,6 @@ func (p *protocol) handle(peer transport.Peer, envelope *Envelope) error {
 	switch envelope.Message.(type) {
 	case *Envelope_Gossip:
 		return handleASync(peer, envelope, p.handleGossip)
-	case *Envelope_Hello:
-		log.Logger().Infof("%T: %s said hello", p, peer)
-		return nil
 	case *Envelope_TransactionList:
 		// in order handling of transactionLists
 		pe := peerEnvelope{
