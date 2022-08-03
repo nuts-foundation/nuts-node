@@ -43,10 +43,10 @@ func TestNewNutsConfig_Load(t *testing.T) {
 			return
 		}
 
-		assert.Equal(t, defaultLogLevel, cfg.Verbosity)
-		assert.Equal(t, defaultLoggerFormat, cfg.LoggerFormat)
-		assert.Equal(t, defaultStrictMode, cfg.Strictmode)
-		assert.Equal(t, defaultHTTPInterface, cfg.HTTP.Address)
+		assert.Equal(t, "info", cfg.Verbosity)
+		assert.Equal(t, "text", cfg.LoggerFormat)
+		assert.Equal(t, false, cfg.Strictmode)
+		assert.Equal(t, ":1323", cfg.HTTP.Address)
 		assert.Empty(t, cfg.HTTP.AltBinds)
 	})
 

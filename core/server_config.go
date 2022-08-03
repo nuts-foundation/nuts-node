@@ -33,19 +33,7 @@ import (
 
 const defaultConfigFile = "nuts.yaml"
 const configFileFlag = "configfile"
-const cpuprofileFlag = "cpuprofile"
-const serverAddressFlag = "http.default.address"
-const datadirFlag = "datadir"
-const httpCORSOriginFlag = "http.default.cors.origin"
-const defaultHTTPInterface = ":1323"
-const strictModeFlag = "strictmode"
-const internalRateLimiter = "internalratelimiter"
-const defaultStrictMode = false
-const defaultDatadir = "./data"
-const defaultLogLevel = "info"
-const loggerLevelFlag = "verbosity"
-const defaultLoggerFormat = "text"
-const loggerFormatFlag = "loggerformat"
+
 const defaultPrefix = "NUTS_"
 const defaultDelimiter = "."
 const configValueListSeparator = ","
@@ -59,8 +47,32 @@ type ServerConfig struct {
 	InternalRateLimiter bool             `koanf:"internalratelimiter"`
 	Datadir             string           `koanf:"datadir"`
 	HTTP                GlobalHTTPConfig `koanf:"http"`
+	TLS                 TLSConfig        `koanf:"tls"`
 	configMap           *koanf.Koanf
 }
+
+// TLSConfig specifies how TLS should be configured for connections.
+// For v5, network.enabletls, network.truststorefile, network.certfile and network.certkeyfile must be moved to this struct.
+type TLSConfig struct {
+	// Offload specifies the TLS offloading mode for incoming/outgoing traffic.
+	Offload TLSOffloadingMode `koanf:"offload"`
+	// ClientCertHeaderName specifies the name of the HTTP header in which the TLS offloader puts the client certificate in.
+	// It is required when TLS offloading for incoming traffic is enabled. The client certificate must be in PEM format.
+	ClientCertHeaderName string `koanf:"certheader"`
+}
+
+// TLSOffloadingMode defines configurable modes for TLS offloading.
+type TLSOffloadingMode string
+
+const (
+	// NoOffloading specifies that TLS is not offloaded,
+	// meaning incoming and outgoing TLS traffic is terminated at the local node, and not by a proxy inbetween.
+	NoOffloading TLSOffloadingMode = ""
+	// OffloadIncomingTLS specifies that incoming TLS traffic should be offloaded.
+	// It will assume there is a reverse proxy at which TLS is terminated,
+	// and which puts the client certificate in PEM format in a configured header.
+	OffloadIncomingTLS = "incoming"
+)
 
 // GlobalHTTPConfig is the top-level config struct for HTTP interfaces.
 type GlobalHTTPConfig struct {
@@ -181,14 +193,16 @@ func resolveConfigFilePath(flags *pflag.FlagSet) string {
 func FlagSet() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("server", pflag.ContinueOnError)
 	flagSet.String(configFileFlag, defaultConfigFile, "Nuts config file")
-	flagSet.String(cpuprofileFlag, "", "When set, a CPU profile is written to the given path. Ignored when strictmode is set.")
-	flagSet.String(loggerLevelFlag, defaultLogLevel, "Log level (trace, debug, info, warn, error)")
-	flagSet.String(loggerFormatFlag, defaultLoggerFormat, "Log format (text, json)")
-	flagSet.String(serverAddressFlag, defaultHTTPInterface, "Address and port the server will be listening to")
-	flagSet.Bool(strictModeFlag, defaultStrictMode, "When set, insecure settings are forbidden.")
-	flagSet.Bool(internalRateLimiter, true, "When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode.")
-	flagSet.String(datadirFlag, defaultDatadir, "Directory where the node stores its files.")
-	flagSet.StringSlice(httpCORSOriginFlag, nil, "When set, enables CORS from the specified origins for the on default HTTP interface.")
+	flagSet.String("cpuprofile", "", "When set, a CPU profile is written to the given path. Ignored when strictmode is set.")
+	flagSet.String("verbosity", "info", "Log level (trace, debug, info, warn, error)")
+	flagSet.String("loggerformat", "text", "Log format (text, json)")
+	flagSet.String("http.default.address", ":1323", "Address and port the server will be listening to")
+	flagSet.Bool("strictmode", false, "When set, insecure settings are forbidden.")
+	flagSet.Bool("internalratelimiter", true, "When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode.")
+	flagSet.String("datadir", "./data", "Directory where the node stores its files.")
+	flagSet.StringSlice("http.default.cors.origin", nil, "When set, enables CORS from the specified origins for the on default HTTP interface.")
+	flagSet.String("tls.offload", "", "Whether to enable TLS offloading for incoming connections. If enabled `tls.certheader` must be configured as well.")
+	flagSet.String("tls.certheader", "", "Name of the HTTP header that will contain the client certificate when TLS is offloaded.")
 
 	return flagSet
 }

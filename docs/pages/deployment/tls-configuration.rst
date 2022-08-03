@@ -70,8 +70,8 @@ Your proxy must add the TLS client certificate as request header. The certificat
 
 In addition to the general TLS configuration, you need to configure the following options:
 
-* ``network.tls.offload`` needs to be set to ``incoming``
-* ``network.tls.certheader`` needs to be set to the name of the header in which your proxy sets the certificate (e.g. ``X-SSl-CERT``).
+* ``tls.offload`` needs to be set to ``incoming``
+* ``tls.certheader`` needs to be set to the name of the header in which your proxy sets the certificate (e.g. ``X-SSl-CERT``).
 
 For `NGINX <https://www.nginx.com/>`_ the proxy configuration could look as follows:
 
