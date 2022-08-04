@@ -24,6 +24,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/test"
 	io_prometheus_client "github.com/prometheus/client_model/go"
 	"go.uber.org/atomic"
@@ -34,7 +35,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
@@ -101,11 +101,14 @@ func TestState_relayingFuncs(t *testing.T) {
 		assert.Equal(t, payload, result)
 	})
 
-	t.Run("State", func(t *testing.T) {
-		heads := txState.Heads(ctx)
+	t.Run("Head", func(t *testing.T) {
+		head, err := txState.Head(ctx)
 
-		assert.Len(t, heads, 1)
-		assert.Equal(t, lastTx.Ref(), heads[0])
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Equal(t, lastTx.Ref(), head)
 	})
 }
 
@@ -299,7 +302,7 @@ func TestState_Diagnostics(t *testing.T) {
 	err := txState.Add(ctx, doc1, payload)
 	assert.NoError(t, err)
 	diagnostics := txState.Diagnostics()
-	assert.Len(t, diagnostics, 4)
+	assert.Len(t, diagnostics, 3)
 	// Assert actual diagnostics
 	lines := make([]string, 0)
 	for _, diagnostic := range diagnostics {
@@ -309,7 +312,6 @@ func TestState_Diagnostics(t *testing.T) {
 	actual := strings.Join(lines, "\n")
 
 	assert.Contains(t, actual, fmt.Sprintf("dag_xor: %s", doc1.Ref()))
-	assert.Contains(t, actual, fmt.Sprintf("heads: [%s]", doc1.Ref()))
 	assert.Contains(t, actual, "transaction_count: 1")
 }
 

@@ -39,6 +39,9 @@ const numberOfTransactionsKey = "tx_num"
 // highestClockValue is the key of the metadata property that holds the highest lamport clock value of all transactions on the DAG
 const highestClockValue = "lc_high"
 
+// headRefKey is the of the metadata property that holds the latest HEAD of the DAG
+const headRefKey = "head_ref"
+
 // transactionsShelf is the name of the shelf that holds the actual transactions.
 const transactionsShelf = "documents"
 
@@ -53,23 +56,6 @@ const TransactionCountDiagnostic = "transaction_count"
 
 type dag struct {
 	db stoabs.KVStore
-}
-
-type headsStatistic struct {
-	// SHA256Hash is the last consistency hash.
-	heads []hash.SHA256Hash
-}
-
-func (h headsStatistic) Result() interface{} {
-	return h.heads
-}
-
-func (h headsStatistic) Name() string {
-	return "heads"
-}
-
-func (h headsStatistic) String() string {
-	return fmt.Sprintf("%v", h.heads)
 }
 
 type numberOfTransactionsStatistic struct {
@@ -116,6 +102,7 @@ func (d *dag) Migrate() error {
 			return err
 		}
 		// Migrate highest LC value
+		// Todo: remove after V5 release
 		highestLCBytes, err := writer.Get(stoabs.BytesKey(highestClockValue))
 		if err != nil {
 			return err
@@ -129,6 +116,7 @@ func (d *dag) Migrate() error {
 			}
 		}
 		// Migrate number of TXs
+		// Todo: remove after V5 release
 		numberOfTXs, err := writer.Get(stoabs.BytesKey(numberOfTransactionsKey))
 		if err != nil {
 			return err
@@ -141,27 +129,56 @@ func (d *dag) Migrate() error {
 				return err
 			}
 		}
+
+		// Migrate headsLegacy to single head
+		// Todo: remove after V6 release => then remove headsShelf
+		headRef, err := writer.Get(stoabs.BytesKey(headRefKey))
+		if err != nil {
+			return err
+		}
+		if headRef == nil {
+			log.Logger().Info("Head not stored in metadata, migrating...")
+			heads := d.headsLegacy(tx)
+			if len(heads) != 0 { // ignore for empty node
+				var latestHead hash.SHA256Hash
+				var latestLC uint32
+
+				for _, ref := range heads {
+					transaction, err := getTransaction(ref, tx)
+					if err != nil {
+						return err
+					}
+					if transaction.Clock() >= latestLC {
+						latestHead = ref
+						latestLC = transaction.Clock()
+					}
+				}
+
+				err = d.setHead(tx, latestHead)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
 		return nil
 	})
 }
 
 func (d *dag) diagnostics(ctx context.Context) []core.DiagnosticResult {
 	var stats Statistics
-	var heads []hash.SHA256Hash
 	_ = d.db.Read(ctx, func(tx stoabs.ReadTx) error {
 		stats = d.statistics(tx)
-		heads = d.heads(tx)
 		return nil
 	})
 
 	result := make([]core.DiagnosticResult, 0)
-	result = append(result, headsStatistic{heads: heads})
 	result = append(result, numberOfTransactionsStatistic{numberOfTransactions: stats.NumberOfTransactions})
 	result = append(result, dataSizeStatistic{sizeInBytes: stats.DataSize})
 	return result
 }
 
-func (d dag) heads(ctx stoabs.ReadTx) []hash.SHA256Hash {
+func (d dag) headsLegacy(ctx stoabs.ReadTx) []hash.SHA256Hash {
 	result := make([]hash.SHA256Hash, 0)
 	reader := ctx.GetShelfReader(headsShelf)
 	_ = reader.Iterate(func(key stoabs.Key, _ []byte) error {
@@ -212,14 +229,16 @@ func (d *dag) isPresent(tx stoabs.ReadTx, ref hash.SHA256Hash) bool {
 
 func (d *dag) add(tx stoabs.WriteTx, transactions ...Transaction) error {
 	highestLC := d.getHighestClockValue(tx)
+	headRef := hash.EmptyHash()
 
 	for _, transaction := range transactions {
 		if transaction != nil {
 			if err := d.addSingle(tx, transaction); err != nil {
 				return err
 			}
-			if transaction.Clock() > highestLC {
+			if transaction.Clock() > highestLC || transaction.Clock() == 0 {
 				highestLC = transaction.Clock()
+				headRef = transaction.Ref()
 			}
 		}
 	}
@@ -227,6 +246,13 @@ func (d *dag) add(tx stoabs.WriteTx, transactions ...Transaction) error {
 	// update highest LC
 	if err := d.setHighestClockValue(tx, highestLC); err != nil {
 		return err
+	}
+
+	// update head
+	if !headRef.Equals(hash.EmptyHash()) {
+		if err := d.setHead(tx, headRef); err != nil {
+			return err
+		}
 	}
 
 	// update TX count
@@ -257,6 +283,15 @@ func (d dag) setNumberOfTransactions(tx stoabs.WriteTx, count uint64) error {
 	binary.BigEndian.PutUint64(bytes[:], count)
 
 	return writer.Put(stoabs.BytesKey(numberOfTransactionsKey), bytes)
+}
+
+func (d dag) setHead(tx stoabs.WriteTx, ref hash.SHA256Hash) error {
+	writer, err := tx.GetShelfWriter(metadataShelf)
+	if err != nil {
+		return err
+	}
+
+	return writer.Put(stoabs.BytesKey(headRefKey), ref.Slice())
 }
 
 func (d dag) getHighestClockValue(tx stoabs.ReadTx) uint32 {
@@ -294,6 +329,15 @@ func (d dag) getHighestClockLegacy(tx stoabs.ReadTx) uint32 {
 	return clock
 }
 
+func (d dag) getHead(tx stoabs.ReadTx) (hash.SHA256Hash, error) {
+	head, err := tx.GetShelfReader(metadataShelf).Get(stoabs.BytesKey(headRefKey))
+	if err != nil {
+		return hash.EmptyHash(), err
+	}
+
+	return hash.FromSlice(head), nil
+}
+
 // getNumberOfTransactionsLegacy is used for migration.
 // Remove after V5 or V6 release?
 func (d dag) getNumberOfTransactionsLegacy(tx stoabs.ReadTx) uint64 {
@@ -324,7 +368,7 @@ func (d dag) statistics(tx stoabs.ReadTx) Statistics {
 func (d *dag) addSingle(tx stoabs.WriteTx, transaction Transaction) error {
 	ref := transaction.Ref()
 	refKey := stoabs.NewHashKey(ref)
-	transactions, lc, heads, err := getBuckets(tx)
+	transactions, lc, err := getBuckets(tx)
 	if err != nil {
 		return err
 	}
@@ -342,22 +386,7 @@ func (d *dag) addSingle(tx stoabs.WriteTx, transaction Transaction) error {
 	if err := indexClockValue(tx, transaction); err != nil {
 		return fmt.Errorf("unable to calculate LC value for %s: %w", ref, err)
 	}
-	if err := transactions.Put(refKey, transaction.Data()); err != nil {
-		return err
-	}
-	// Store forward references ([C -> prev A, B] is stored as [A -> C, B -> C])
-	for _, prev := range transaction.Previous() {
-		// The TX's previous transactions are probably current heads (if there's no other TX referring to it as prev),
-		// so it should be unmarked as head.
-		if err := heads.Delete(stoabs.NewHashKey(prev)); err != nil {
-			return fmt.Errorf("unable to unmark earlier head: %w", err)
-		}
-	}
-	// Transactions are added in order, so the latest TX is always a head
-	if err := heads.Put(refKey, []byte{1}); err != nil {
-		return fmt.Errorf("unable to mark transaction as head (ref=%s): %w", ref, err)
-	}
-	return nil
+	return transactions.Put(refKey, transaction.Data())
 }
 
 func indexClockValue(tx stoabs.WriteTx, transaction Transaction) error {
@@ -397,14 +426,11 @@ func bytesToCount(clockBytes []byte) uint64 {
 	return binary.BigEndian.Uint64(clockBytes)
 }
 
-func getBuckets(tx stoabs.WriteTx) (transactions, lc, heads stoabs.Writer, err error) {
+func getBuckets(tx stoabs.WriteTx) (transactions, lc stoabs.Writer, err error) {
 	if transactions, err = tx.GetShelfWriter(transactionsShelf); err != nil {
 		return
 	}
 	if lc, err = tx.GetShelfWriter(clockShelf); err != nil {
-		return
-	}
-	if heads, err = tx.GetShelfWriter(headsShelf); err != nil {
 		return
 	}
 	return

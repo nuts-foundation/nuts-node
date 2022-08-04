@@ -489,15 +489,22 @@ func (n *Network) CreateTransaction(template Template) (dag.Transaction, error) 
 		}
 	}
 
-	// Collect prevs
-	prevs := n.state.Heads(ctx)
+	// get head
+	head, err := n.state.Head(ctx)
+	prevs := make([]hash.SHA256Hash, 0)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get current head of the DAG: %w", err)
+	}
+	if !head.Equals(hash.EmptyHash()) {
+		prevs = append(prevs, head)
+	}
+	// and additional prevs
 	for _, addPrev := range template.AdditionalPrevs {
 		prevs = append(prevs, addPrev)
 	}
 
 	// Encrypt PAL, making the TX private (if participants are specified)
 	var pal [][]byte
-	var err error
 	if len(template.Participants) > 0 {
 		pal, err = template.Participants.Encrypt(n.keyResolver)
 		if err != nil {
@@ -506,6 +513,7 @@ func (n *Network) CreateTransaction(template Template) (dag.Transaction, error) 
 	}
 
 	// Calculate clock value
+	// Todo: optimize with getting current Head. LC will always be Head LC + 1
 	lamportClock, err := n.calculateLamportClock(ctx, prevs)
 	if err != nil {
 		return nil, fmt.Errorf("unable to calculate clock value for new transaction: %w", err)
