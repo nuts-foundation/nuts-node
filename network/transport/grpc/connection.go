@@ -35,12 +35,12 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// outboxHardLimit defines how many outgoing messages may be queued per protocol
+// OutboxHardLimit defines how many outgoing messages may be queued per protocol
 // this is the hard limit of the underlying channel
-const outboxHardLimit = 5000
+const OutboxHardLimit = 5000
 
 // outboxSoftLimit defines how many outgoing messages are desirable to be queued per protocol
-// If needed the channel may grow to outboxHardLimit
+// If needed the channel may grow to OutboxHardLimit
 const outboxSoftLimit = 100
 
 // Connection is created by grpcConnectionManager to register a connection to a peer.
@@ -214,7 +214,7 @@ func (mc *conn) registerStream(protocol Protocol, stream Stream) bool {
 	}
 
 	mc.streams[methodName] = stream
-	mc.outboxes[methodName] = make(chan interface{}, outboxHardLimit)
+	mc.outboxes[methodName] = make(chan interface{}, OutboxHardLimit)
 
 	mc.startReceiving(protocol, stream)
 	mc.startSending(protocol, stream)

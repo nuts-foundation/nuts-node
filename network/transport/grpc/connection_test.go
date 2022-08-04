@@ -176,7 +176,7 @@ func TestConn_Send(t *testing.T) {
 		connection.cancelCtx()
 		time.Sleep(time.Millisecond)
 
-		for i := 0; i < outboxHardLimit; i++ {
+		for i := 0; i < OutboxHardLimit; i++ {
 			err := connection.Send(protocol, struct{}{}, true)
 			if !assert.NoError(t, err) {
 				return

@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	"math"
 
 	"github.com/nuts-foundation/nuts-node/network/dag"
@@ -48,7 +49,8 @@ type transactionListHandler struct {
 // newTransactionListHandler creates a new transactionListHandler.
 // The passed context is used to stop the go routine when cancelled.
 func newTransactionListHandler(ctx context.Context, fn handleFunc) *transactionListHandler {
-	ch := make(chan peerEnvelope, 100)
+	// limit must be the same as outbound limit
+	ch := make(chan peerEnvelope, grpc.OutboxHardLimit)
 
 	return &transactionListHandler{
 		ctx: ctx,
@@ -120,6 +122,8 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 
 	if msg.MessageNumber >= msg.TotalMessages {
 		p.cMan.done(cid)
+	} else {
+		p.cMan.resetTimeout(cid)
 	}
 
 	return nil

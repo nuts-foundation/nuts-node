@@ -132,6 +132,8 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request, peerID)
 		conversation.set("refs", []hash.SHA256Hash{h1, h2})
+		cStartTime := conversation.expiry.Add(-1 * time.Millisecond)
+		conversation.expiry = cStartTime
 		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(nil)
 
 		err := p.handleTransactionList(peer, &Envelope{Message: &Envelope_TransactionList{
@@ -145,6 +147,8 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, p.cMan.conversations[conversation.conversationID.String()])
+		// timeout is reset
+		assert.True(t, conversation.expiry.After(cStartTime))
 	})
 
 	t.Run("error - State.Add failed", func(t *testing.T) {
