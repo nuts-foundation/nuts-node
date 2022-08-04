@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	"math"
 
 	"github.com/nuts-foundation/nuts-node/network/dag"
