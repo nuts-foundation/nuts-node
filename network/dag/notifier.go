@@ -82,24 +82,27 @@ type NotifierOption func(notifier *notifier)
 // The Hash is used as identifier for the Event.
 type Event struct {
 	// Type of an event, can be used to filter
-	Type string `json:"type"`
+	Type string `json:"type,omitempty"`
 	// Hash is the ID of the Event, usually the same as the dag.Transaction.Ref()
 	Hash hash.SHA256Hash `json:"Hash"`
 	// Retries is the current number of retries
 	Retries int `json:"retries"`
 	// Transaction that was added to the DAG or for which the Payload was written. Mandatory.
 	Transaction Transaction `json:"transaction"`
-	// Payload that was written to the PayloadStore, optional (private TXs)
-	Payload []byte `json:"payload"`
+	// Payload that was written to the PayloadStore, optional (private TXs).
+	Payload []byte `json:"payload,omitempty"`
+	// Error contains the error of the last try if any.
+	Error string `json:"error,omitempty"`
 }
 
 func (j *Event) UnmarshalJSON(bytes []byte) error {
 	tmp := &struct {
-		Type        string          `json:"type"`
+		Type        string          `json:"type,omitempty"`
 		Hash        hash.SHA256Hash `json:"Hash"`
 		Retries     int             `json:"retries"`
 		Transaction string          `json:"transaction"`
-		Payload     []byte          `json:"payload"`
+		Payload     []byte          `json:"payload,omitempty"`
+		Error       string          `json:"error,omitempty"`
 	}{}
 
 	if err := json.Unmarshal(bytes, tmp); err != nil {
@@ -110,6 +113,7 @@ func (j *Event) UnmarshalJSON(bytes []byte) error {
 	j.Hash = tmp.Hash
 	j.Retries = tmp.Retries
 	j.Payload = tmp.Payload
+	j.Error = tmp.Error
 
 	tx, err := ParseTransaction([]byte(tmp.Transaction))
 	if err != nil {
@@ -341,6 +345,18 @@ func (p *notifier) notifyNow(event Event) error {
 		}
 	}
 
+	if finished, err := p.receiver(*dbEvent); err != nil {
+		log.Logger().
+			WithError(err).
+			WithField(core.LogFieldTransactionRef, dbEvent.Hash.String()).
+			WithField(core.LogFieldEventSubscriber, p.name).
+			Errorf("Retry failed")
+
+		dbEvent.Error = err.Error()
+	} else if finished {
+		return p.Finished(dbEvent.Hash)
+	}
+
 	dbEvent.Retries++
 	if p.isPersistent() {
 		if err := p.db.WriteShelf(p.ctx, p.shelfName(), func(writer stoabs.Writer) error {
@@ -348,16 +364,6 @@ func (p *notifier) notifyNow(event Event) error {
 		}); err != nil {
 			return retry.Unrecoverable(err)
 		}
-	}
-
-	if finished, err := p.receiver(*dbEvent); err != nil {
-		log.Logger().
-			WithError(err).
-			WithField(core.LogFieldTransactionRef, dbEvent.Hash.String()).
-			WithField(core.LogFieldEventSubscriber, p.name).
-			Errorf("Retry failed")
-	} else if finished {
-		return p.Finished(dbEvent.Hash)
 	}
 
 	// has to return an error since `retry.Do` needs to retry until it's marked as finished

@@ -479,6 +479,7 @@ func TestSubscriber_VariousFlows(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Len(t, events, 1)
 		assert.Equal(t, 5, notifiedCounter.count)
+		assert.Equal(t, "error", events[0].Error)
 	})
 }
 
