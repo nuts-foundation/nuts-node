@@ -53,7 +53,7 @@ Prints the current config
       --network.certfile network.enabletls            PEM file containing the server certificate for the gRPC server. Required when network.enabletls is `true`.
       --network.certkeyfile network.enabletls         PEM file containing the private key of the server certificate. Required when network.enabletls is `true`.
       --network.connectiontimeout int                 Timeout before an outbound connection attempt times out (in milliseconds). (default 5000)
-      --network.disablenodeauthentication             Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes so it's not allowed in strict-mode. Automatically enabed when TLS is disabled.
+      --network.disablenodeauthentication             Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes so it's not allowed in strict-mode. Automatically enabled when TLS is disabled.
       --network.enablediscovery                       Whether to enable automatic connecting to other nodes. (default true)
       --network.enabletls tls.offload                 Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see tls.offload). Disabling TLS is not allowed in strict-mode (default true)
       --network.grpcaddr string                       Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made). (default ":5555")
@@ -112,7 +112,7 @@ Imports private keys from filesystem based storage into Vault. The given directo
       --network.certfile network.enabletls            PEM file containing the server certificate for the gRPC server. Required when network.enabletls is `true`.
       --network.certkeyfile network.enabletls         PEM file containing the private key of the server certificate. Required when network.enabletls is `true`.
       --network.connectiontimeout int                 Timeout before an outbound connection attempt times out (in milliseconds). (default 5000)
-      --network.disablenodeauthentication             Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes so it's not allowed in strict-mode. Automatically enabed when TLS is disabled.
+      --network.disablenodeauthentication             Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes so it's not allowed in strict-mode. Automatically enabled when TLS is disabled.
       --network.enablediscovery                       Whether to enable automatic connecting to other nodes. (default true)
       --network.enabletls tls.offload                 Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see tls.offload). Disabling TLS is not allowed in strict-mode (default true)
       --network.grpcaddr string                       Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made). (default ":5555")
@@ -270,7 +270,7 @@ Starts the Nuts server
       --network.certfile network.enabletls            PEM file containing the server certificate for the gRPC server. Required when network.enabletls is `true`.
       --network.certkeyfile network.enabletls         PEM file containing the private key of the server certificate. Required when network.enabletls is `true`.
       --network.connectiontimeout int                 Timeout before an outbound connection attempt times out (in milliseconds). (default 5000)
-      --network.disablenodeauthentication             Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes so it's not allowed in strict-mode. Automatically enabed when TLS is disabled.
+      --network.disablenodeauthentication             Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes so it's not allowed in strict-mode. Automatically enabled when TLS is disabled.
       --network.enablediscovery                       Whether to enable automatic connecting to other nodes. (default true)
       --network.enabletls tls.offload                 Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see tls.offload). Disabling TLS is not allowed in strict-mode (default true)
       --network.grpcaddr string                       Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made). (default ":5555")
