@@ -30,6 +30,7 @@ import (
 	"io/ioutil"
 	"math/big"
 	"net/http"
+	"os"
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -39,8 +40,9 @@ import (
 
 const (
 	pkiOverheidRootCA   = "../network/test/pkioverheid-server-bundle.pem"
-	revokedSerialNumber = "700448342687279468507609366171471963528520738260"
-	revokedIssuerName   = "CN=Staat der Nederlanden Domein Server CA 2020,O=Staat der Nederlanden,C=NL"
+	pkiOverheidCRL      = "../network/test/pkioverheid.crl"
+	revokedSerialNumber = "10000026"
+	revokedIssuerName   = "CN=Staat der Nederlanden EV Root CA,O=Staat der Nederlanden,C=NL"
 )
 
 type fakeTransport struct {
@@ -118,13 +120,19 @@ func TestValidator_IsRevoked(t *testing.T) {
 		t.FailNow()
 	}
 
+	data, err := os.ReadFile(pkiOverheidCRL)
+	if !assert.NoError(t, err) {
+		return
+	}
+	httpClient := &http.Client{Transport: &fakeTransport{responseData: data}}
+
 	t.Run("should return true if the certificate was revoked", func(t *testing.T) {
 		t.Parallel()
 
 		store, err := core.LoadTrustStore(pkiOverheidRootCA)
 		assert.NoError(t, err)
 
-		crlValidator := NewValidator(store.Certificates())
+		crlValidator := NewValidatorWithHTTPClient(store.Certificates(), httpClient)
 
 		err = crlValidator.Sync()
 		assert.NoError(t, err)
@@ -141,7 +149,7 @@ func TestValidator_IsRevoked(t *testing.T) {
 		store, err := core.LoadTrustStore(pkiOverheidRootCA)
 		assert.NoError(t, err)
 
-		crlValidator := NewValidator(store.Certificates()).(*validator)
+		crlValidator := NewValidatorWithHTTPClient(store.Certificates(), httpClient).(*validator)
 
 		err = crlValidator.Sync()
 		assert.NoError(t, err)
@@ -161,7 +169,7 @@ func TestValidator_IsRevoked(t *testing.T) {
 		store, err := core.LoadTrustStore(pkiOverheidRootCA)
 		assert.NoError(t, err)
 
-		crlValidator := NewValidator(store.Certificates()).(*validator)
+		crlValidator := NewValidatorWithHTTPClient(store.Certificates(), httpClient).(*validator)
 
 		err = crlValidator.Sync()
 		assert.NoError(t, err)
