@@ -196,6 +196,13 @@ func (n *Network) Configure(config core.ServerConfig) error {
 			if config.TLS.Offload == core.OffloadIncomingTLS {
 				grpcOpts = append(grpcOpts, grpc.WithTLSOffloading(config.TLS.ClientCertHeaderName))
 			}
+		} else {
+			// Not allowed in strict mode for security reasons: only intended for demo/workshop purposes.
+			if config.Strictmode {
+				return errors.New("disabling TLS in strict mode is not allowed")
+			}
+			log.Logger().Warn("TLS is disabled, which is only meant for demo/workshop purposes!")
+			n.config.DisableNodeAuthentication = true
 		}
 
 		// Instantiate

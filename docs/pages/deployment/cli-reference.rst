@@ -53,9 +53,9 @@ Prints the current config
       --network.certfile network.enabletls            PEM file containing the server certificate for the gRPC server. Required when network.enabletls is `true`.
       --network.certkeyfile network.enabletls         PEM file containing the private key of the server certificate. Required when network.enabletls is `true`.
       --network.connectiontimeout int                 Timeout before an outbound connection attempt times out (in milliseconds). (default 5000)
-      --network.disablenodeauthentication             Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes. Not allowed in strict-mode.
+      --network.disablenodeauthentication             Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes so it's not allowed in strict-mode. Automatically enabed when TLS is disabled.
       --network.enablediscovery                       Whether to enable automatic connecting to other nodes. (default true)
-      --network.enabletls tls.offload                 Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see tls.offload). (default true)
+      --network.enabletls tls.offload                 Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see tls.offload). Disabling TLS is not allowed in strict-mode (default true)
       --network.grpcaddr string                       Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made). (default ":5555")
       --network.maxbackoff 1h                         Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. 1h, `30m`). (default 24h0m0s)
       --network.nodedid string                        Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
@@ -112,9 +112,9 @@ Imports private keys from filesystem based storage into Vault. The given directo
       --network.certfile network.enabletls            PEM file containing the server certificate for the gRPC server. Required when network.enabletls is `true`.
       --network.certkeyfile network.enabletls         PEM file containing the private key of the server certificate. Required when network.enabletls is `true`.
       --network.connectiontimeout int                 Timeout before an outbound connection attempt times out (in milliseconds). (default 5000)
-      --network.disablenodeauthentication             Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes. Not allowed in strict-mode.
+      --network.disablenodeauthentication             Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes so it's not allowed in strict-mode. Automatically enabed when TLS is disabled.
       --network.enablediscovery                       Whether to enable automatic connecting to other nodes. (default true)
-      --network.enabletls tls.offload                 Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see tls.offload). (default true)
+      --network.enabletls tls.offload                 Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see tls.offload). Disabling TLS is not allowed in strict-mode (default true)
       --network.grpcaddr string                       Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made). (default ":5555")
       --network.maxbackoff 1h                         Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. 1h, `30m`). (default 24h0m0s)
       --network.nodedid string                        Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
@@ -270,9 +270,9 @@ Starts the Nuts server
       --network.certfile network.enabletls            PEM file containing the server certificate for the gRPC server. Required when network.enabletls is `true`.
       --network.certkeyfile network.enabletls         PEM file containing the private key of the server certificate. Required when network.enabletls is `true`.
       --network.connectiontimeout int                 Timeout before an outbound connection attempt times out (in milliseconds). (default 5000)
-      --network.disablenodeauthentication             Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes. Not allowed in strict-mode.
+      --network.disablenodeauthentication             Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes so it's not allowed in strict-mode. Automatically enabed when TLS is disabled.
       --network.enablediscovery                       Whether to enable automatic connecting to other nodes. (default true)
-      --network.enabletls tls.offload                 Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see tls.offload). (default true)
+      --network.enabletls tls.offload                 Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see tls.offload). Disabling TLS is not allowed in strict-mode (default true)
       --network.grpcaddr string                       Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made). (default ":5555")
       --network.maxbackoff 1h                         Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. 1h, `30m`). (default 24h0m0s)
       --network.nodedid string                        Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
