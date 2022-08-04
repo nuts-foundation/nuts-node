@@ -19,6 +19,7 @@
 package storage
 
 import (
+	"crypto/tls"
 	"github.com/go-redis/redis/v9"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/redis7"
@@ -28,6 +29,8 @@ import (
 	"strings"
 )
 
+var defaultRedisTLSConfig = &tls.Config{}
+
 type redisDatabase struct {
 	databaseName string
 	options      *redis.Options
@@ -35,10 +38,11 @@ type redisDatabase struct {
 
 // RedisConfig specifies config for Redis databases.
 type RedisConfig struct {
-	Address  string `koanf:"address"`
-	Username string `koanf:"username"`
-	Password string `koanf:"password"`
-	Database string `koanf:"database"`
+	Address    string `koanf:"address"`
+	Username   string `koanf:"username"`
+	Password   string `koanf:"password"`
+	Database   string `koanf:"database"`
+	TLSEnabled bool   `koanf:"tls"`
 }
 
 // IsConfigured returns true if config the indicates Redis support should be enabled.
@@ -47,15 +51,20 @@ func (r RedisConfig) IsConfigured() bool {
 }
 
 func createRedisDatabase(config RedisConfig) (*redisDatabase, error) {
-	result := redisDatabase{
-		options: &redis.Options{
-			Addr:     config.Address,
-			Username: config.Username,
-			Password: config.Password,
-		},
-		databaseName: config.Database,
+	opts := &redis.Options{
+		Addr:     config.Address,
+		Username: config.Username,
+		Password: config.Password,
 	}
-	return &result, nil
+	if config.TLSEnabled {
+		log.Logger().Debug("Configuring TLS for Redis connections")
+		opts.TLSConfig = defaultRedisTLSConfig.Clone()
+	}
+
+	return &redisDatabase{
+		options:      opts,
+		databaseName: config.Database,
+	}, nil
 }
 
 func (b redisDatabase) createStore(moduleName string, storeName string) (stoabs.KVStore, error) {

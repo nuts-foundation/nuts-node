@@ -46,7 +46,7 @@ Prints the current config
       --http.default.address string                   Address and port the server will be listening to (default ":1323")
       --http.default.cors.origin strings              When set, enables CORS from the specified origins for the on default HTTP interface.
       --internalratelimiter                           When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode. (default true)
-      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson])
+      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://schema.org=assets/contexts/schema-org-v13.ldjson,https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson])
       --jsonld.contexts.remoteallowlist strings       In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here. (default [https://schema.org,https://www.w3.org/2018/credentials/v1,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json])
       --loggerformat string                           Log format (text, json) (default "text")
       --network.bootstrapnodes <host>:<port>          List of bootstrap nodes (<host>:<port>) which the node initially connect to.
@@ -68,6 +68,7 @@ Prints the current config
       --storage.redis.address string                  Redis database server address.
       --storage.redis.database string                 Redis database name, which is used as prefix every key. Can be used to have multiple instances use the same Redis instance.
       --storage.redis.password string                 Redis database password.
+      --storage.redis.tls                             Enables TLS for Redis connections (server certificate only). It uses the host's CA certificate bundle for verification.
       --storage.redis.username string                 Redis database username.
       --strictmode                                    When set, insecure settings are forbidden.
       --tls.certheader string                         Name of the HTTP header that will contain the client certificate when TLS is offloaded.
@@ -105,7 +106,7 @@ Imports private keys from filesystem based storage into Vault. The given directo
       --http.default.address string                   Address and port the server will be listening to (default ":1323")
       --http.default.cors.origin strings              When set, enables CORS from the specified origins for the on default HTTP interface.
       --internalratelimiter                           When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode. (default true)
-      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson])
+      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://schema.org=assets/contexts/schema-org-v13.ldjson,https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson])
       --jsonld.contexts.remoteallowlist strings       In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here. (default [https://schema.org,https://www.w3.org/2018/credentials/v1,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json])
       --loggerformat string                           Log format (text, json) (default "text")
       --network.bootstrapnodes <host>:<port>          List of bootstrap nodes (<host>:<port>) which the node initially connect to.
@@ -127,6 +128,7 @@ Imports private keys from filesystem based storage into Vault. The given directo
       --storage.redis.address string                  Redis database server address.
       --storage.redis.database string                 Redis database name, which is used as prefix every key. Can be used to have multiple instances use the same Redis instance.
       --storage.redis.password string                 Redis database password.
+      --storage.redis.tls                             Enables TLS for Redis connections (server certificate only). It uses the host's CA certificate bundle for verification.
       --storage.redis.username string                 Redis database username.
       --strictmode                                    When set, insecure settings are forbidden.
       --tls.certheader string                         Name of the HTTP header that will contain the client certificate when TLS is offloaded.
@@ -263,7 +265,7 @@ Starts the Nuts server
       --http.default.address string                   Address and port the server will be listening to (default ":1323")
       --http.default.cors.origin strings              When set, enables CORS from the specified origins for the on default HTTP interface.
       --internalratelimiter                           When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode. (default true)
-      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson])
+      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://schema.org=assets/contexts/schema-org-v13.ldjson,https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson])
       --jsonld.contexts.remoteallowlist strings       In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here. (default [https://schema.org,https://www.w3.org/2018/credentials/v1,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json])
       --loggerformat string                           Log format (text, json) (default "text")
       --network.bootstrapnodes <host>:<port>          List of bootstrap nodes (<host>:<port>) which the node initially connect to.
@@ -285,6 +287,7 @@ Starts the Nuts server
       --storage.redis.address string                  Redis database server address.
       --storage.redis.database string                 Redis database name, which is used as prefix every key. Can be used to have multiple instances use the same Redis instance.
       --storage.redis.password string                 Redis database password.
+      --storage.redis.tls                             Enables TLS for Redis connections (server certificate only). It uses the host's CA certificate bundle for verification.
       --storage.redis.username string                 Redis database username.
       --strictmode                                    When set, insecure settings are forbidden.
       --tls.certheader string                         Name of the HTTP header that will contain the client certificate when TLS is offloaded.
