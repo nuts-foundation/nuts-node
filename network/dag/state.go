@@ -308,6 +308,14 @@ func (s *state) Notifier(name string, receiver ReceiverFn, options ...NotifierOp
 	return notifier, nil
 }
 
+func (s *state) Notifiers() []Notifier {
+	notifiers := make([]Notifier, 0)
+	for _, notifier := range s.notifiers {
+		notifiers = append(notifiers, notifier)
+	}
+	return notifiers
+}
+
 func (s *state) XOR(ctx context.Context, reqClock uint32) (hash.SHA256Hash, uint32) {
 	var data tree.Data
 

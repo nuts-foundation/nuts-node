@@ -75,7 +75,6 @@ type Network struct {
 	nodeDIDResolver     transport.NodeDIDResolver
 	didDocumentFinder   types.DocFinder
 	eventPublisher      events.Event
-	subscribers         map[EventType]map[string]Receiver
 	connectionStore     stoabs.KVStore
 	storeProvider       storage.Provider
 }
@@ -105,7 +104,6 @@ func NewNetworkInstance(
 		nodeDIDResolver:     &transport.FixedNodeDIDResolver{},
 		eventPublisher:      eventPublisher,
 		storeProvider:       storeProvider,
-		subscribers:         map[EventType]map[string]Receiver{},
 	}
 }
 
@@ -419,24 +417,12 @@ func (n *Network) Subscribe(name string, subscriber dag.ReceiverFn, options ...S
 	return err
 }
 
-func (n *Network) publish(eventType EventType, transaction dag.Transaction, payload []byte) {
-	subs := n.subscribers[eventType]
-	if subs == nil {
-		return
+func (n *Network) Subscribers() []dag.Notifier {
+	if n.state != nil {
+		return n.state.Notifiers()
 	}
-	for _, payloadType := range []string{transaction.PayloadType(), AnyPayloadType} {
-		receiver := subs[payloadType]
-		if receiver == nil {
-			continue
-		}
-		if err := receiver(transaction, payload); err != nil {
-			log.Logger().
-				WithError(err).
-				WithField(core.LogFieldTransactionRef, transaction.Ref()).
-				WithField(core.LogFieldTransactionType, transaction.PayloadType()).
-				Error("Transaction subscriber returned an error")
-		}
-	}
+
+	return []dag.Notifier{}
 }
 
 // GetTransaction retrieves the transaction for the given reference. If the transaction is not known, an error is returned.

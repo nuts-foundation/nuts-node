@@ -161,6 +161,17 @@ func TestState_Notifier(t *testing.T) {
 	})
 }
 
+func TestState_Notifiers(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		s := createState(t).(*state)
+		_, _ = s.Notifier(t.Name(), dummyFunc)
+
+		notifiers := s.Notifiers()
+
+		assert.Len(t, notifiers, 1)
+	})
+}
+
 func TestState_WritePayload(t *testing.T) {
 	t.Run("notifies receiver for payload", func(t *testing.T) {
 		txState := createState(t)

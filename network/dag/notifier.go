@@ -46,6 +46,8 @@ const (
 // Storing the event in the DB is separated from notifying the subscribers.
 // The event is sent to subscribers after the transaction is committed to prevent timing issues.
 type Notifier interface {
+	// Name returns the name of the notifier
+	Name() string
 	// Save an event that needs to be retried even after a crash.
 	// It will not yet be sent, use Notify to notify the receiver.
 	// The event may be ignored due to configured filters.
@@ -195,6 +197,10 @@ type notifier struct {
 	filters         []NotificationFilter
 	notifiedCounter prometheus.Counter
 	finishedCounter prometheus.Counter
+}
+
+func (p *notifier) Name() string {
+	return p.name
 }
 
 func (p *notifier) shelfName() string {

@@ -124,6 +124,32 @@ func (a Wrapper) RenderGraph(ctx echo.Context, params RenderGraphParams) error {
 	return ctx.String(http.StatusOK, visitor.Render())
 }
 
+func (a Wrapper) ListEvents(ctx echo.Context) error {
+	response := make([]EventSubscriber, 0)
+	for _, notifier := range a.Service.Subscribers() {
+		eventSubscriber := EventSubscriber{
+			Name: notifier.Name(),
+		}
+		events, err := notifier.GetFailedEvents()
+		if err != nil {
+			return err
+		}
+		for _, event := range events {
+			eventError := event.Error
+			eventType := event.Type
+			eventSubscriber.Events = append(eventSubscriber.Events, Event{
+				Error:       &eventError,
+				Hash:        event.Hash.String(),
+				Retries:     event.Retries,
+				Transaction: event.Transaction.Ref().String(),
+				Type:        &eventType,
+			})
+		}
+		response = append(response, eventSubscriber)
+	}
+	return ctx.JSON(http.StatusOK, response)
+}
+
 func toInt(v *int, def int64) int64 {
 	if v == nil {
 		return def

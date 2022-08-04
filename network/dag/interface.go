@@ -63,7 +63,9 @@ type State interface {
 	// A Notifier should only be created during `configuration` step since the `start` step will redeliver all events that have not been delivered yet.
 	// Returns an error when the Notifier already exists
 	Notifier(name string, receiver ReceiverFn, filters ...NotifierOption) (Notifier, error)
-	// Head returns the reference to a transactions that have not been referenced in the prevs of other transactions.
+	// Notifiers returns all registered notifiers
+	Notifiers() []Notifier
+	// Head returns the reference to a transactions that has not been referenced in the prevs of other transactions.
 	// Returns hash.EmptyHash when no head is stored.
 	Head(ctx context.Context) (hash.SHA256Hash, error)
 	// Shutdown the DB

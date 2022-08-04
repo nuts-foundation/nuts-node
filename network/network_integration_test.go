@@ -950,7 +950,6 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 		nodeDIDResolver:     &transport.FixedNodeDIDResolver{},
 		eventPublisher:      eventPublisher,
 		storeProvider:       storeProvider.GetProvider(ModuleName),
-		subscribers:         map[EventType]map[string]Receiver{},
 	}
 
 	if err := instance.Configure(*serverConfig); err != nil {

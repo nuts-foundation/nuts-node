@@ -103,7 +103,13 @@ func TestNewSubscriber(t *testing.T) {
 	})
 }
 
-func TestSubscriber_Save(t *testing.T) {
+func TestNotifier_Name(t *testing.T) {
+	n := NewNotifier("test", dummyFunc)
+
+	assert.Equal(t, "test", n.Name())
+}
+
+func TestNotifier_Save(t *testing.T) {
 	ctx := context.Background()
 	transaction, _, _ := CreateTestTransaction(0)
 	payload := "payload"
@@ -255,7 +261,7 @@ func TestSubscriber_Save(t *testing.T) {
 	})
 }
 
-func TestSubscriber_Notify(t *testing.T) {
+func TestNotifier_Notify(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("ignored with inclusion filter", func(t *testing.T) {
@@ -366,7 +372,7 @@ func TestSubscriber_Notify(t *testing.T) {
 	})
 }
 
-func TestSubscriber_Run(t *testing.T) {
+func TestNotifier_Run(t *testing.T) {
 	ctx := context.Background()
 	filePath := io.TestDirectory(t)
 	transaction, _, _ := CreateTestTransaction(0)
@@ -394,7 +400,7 @@ func TestSubscriber_Run(t *testing.T) {
 	}, time.Second, "timeout while waiting for receiver")
 }
 
-func TestSubscriber_VariousFlows(t *testing.T) {
+func TestNotifier_VariousFlows(t *testing.T) {
 	ctx := context.Background()
 	transaction, _, _ := CreateTestTransaction(0)
 	event := Event{Hash: hash.EmptyHash(), Transaction: transaction}

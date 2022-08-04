@@ -171,8 +171,70 @@ paths:
       responses:
         "202":
           description: "The request was accepted, process was started"
+  /internal/network/v1/events:
+    get:
+      summary: "Lists the state of the internal events"
+      description: >
+        Internal events are used to update network state, retrieve private transactions and update the VDR and VCR.
+        New transactions will cause events to be omitted. In normal operation no events should remain.
+        The diagnostics page displays the number of failed events. If there are any, this API can be used to get the cause.
+        Events are listed by subscriber.
+        
+        error returns:
+        * 500 - internal server error
+      operationId: "ListEvents"
+      tags:
+        - diagnostics
+      responses:
+        "200":
+          description: "Successfully listed the events"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventSubscriber'
+        default:
+          $ref: '../common/error_response.yaml'
 components:
   schemas:
+    Event:
+      type: object
+      description: Non-completed event. An event represents a transaction that is of interest to a specific part of the Nuts node.
+      required:
+        - hash
+        - retries
+        - transaction
+      properties:
+        'type':
+          description: "'transaction' or 'payload'"
+          type: string
+        hash:
+          description: Hash is the ID of the Event, usually the same as the transaction reference.
+          type: string
+        retries:
+          description: Number of times the event has been retried.
+          type: integer
+        transaction:
+          description: The transaction reference
+          type: string
+        error:
+          description: Lists the error if the event processing failed due to an error.
+          type: string
+    EventSubscriber:
+      type: object
+      description: Non-completed events for a subscriber
+      required:
+        - name
+        - events
+      properties:
+        name:
+          description: Name of the subscriber component
+          type: string
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/Event'
     PeerDiagnostics:
       type: object
       description: Diagnostic information of a peer.
