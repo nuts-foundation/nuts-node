@@ -19,10 +19,11 @@
 package log
 
 import (
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/sirupsen/logrus"
 )
 
-var _logger = logrus.StandardLogger().WithField("module", "Didman")
+var _logger = logrus.StandardLogger().WithField(core.LogFieldModule, "Didman")
 
 // Logger returns a logger with the module field set to the ModuleName
 func Logger() *logrus.Entry {

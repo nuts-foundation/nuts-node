@@ -38,7 +38,9 @@ type payloadStore struct{}
 func (store payloadStore) isPayloadPresent(tx stoabs.ReadTx, payloadHash hash.SHA256Hash) bool {
 	data, err := store.readPayload(tx, payloadHash)
 	if err != nil {
-		log.Logger().Errorf("failed to verify payload existence: %s", err)
+		log.Logger().
+			WithError(err).
+			Error("Failed to verify payload existence")
 		return false
 	}
 	return len(data) > 0

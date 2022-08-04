@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -201,7 +202,9 @@ func (s leiaIssuerStore) handleRestore(collection leia.Collection, backupShelf s
 	}
 
 	if !storePresent {
-		log.Logger().Infof("Missing index for %s, rebuilding", backupShelf)
+		log.Logger().
+			WithField(core.LogFieldStoreShelf, backupShelf).
+			Info("Missing index for shelf, rebuilding")
 		// empty node, backup has been restored, refill store
 		return s.backupStore.ReadShelf(context.Background(), backupShelf, func(reader stoabs.Reader) error {
 			return reader.Iterate(func(key stoabs.Key, value []byte) error {
@@ -210,7 +213,9 @@ func (s leiaIssuerStore) handleRestore(collection leia.Collection, backupShelf s
 		})
 	}
 
-	log.Logger().Infof("Missing store for %s, creating from index", backupShelf)
+	log.Logger().
+		WithField(core.LogFieldStoreShelf, backupShelf).
+		Info("Missing store for shelf, creating from index")
 
 	// else !backupPresent, process per 100
 	query := leia.New(leia.NotNil(leia.NewJSONPath(jsonSearchPath)))

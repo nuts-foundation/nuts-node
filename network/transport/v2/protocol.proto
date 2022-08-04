@@ -42,12 +42,7 @@ message Envelope {
     TransactionSet transactionSet = 301;
     TransactionList transactionList = 302;
     TransactionPayload transactionPayload = 304;
-
-    HelloMessage hello = 1000;
   }
-}
-
-message HelloMessage {
 }
 
 // Transaction represents a transaction on the DAG.

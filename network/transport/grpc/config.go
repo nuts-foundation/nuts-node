@@ -59,7 +59,7 @@ func NewConfig(grpcAddress string, peerID networkTypes.PeerID, options ...Config
 // WithTLS enables TLS for gRPC ConnectionManager.
 func WithTLS(clientCertificate tls.Certificate, trustStore *core.TrustStore, maxCRLValidityDays int) ConfigOption {
 	return func(config *Config) {
-		config.clientCert = clientCertificate
+		config.clientCert = &clientCertificate
 		config.trustStore = trustStore.CertPool
 		config.crlValidator = crl.NewValidator(trustStore.Certificates())
 		config.maxCRLValidityDays = maxCRLValidityDays
@@ -67,6 +67,15 @@ func WithTLS(clientCertificate tls.Certificate, trustStore *core.TrustStore, max
 		if config.listenAddress != "" {
 			config.serverCert = config.clientCert
 		}
+	}
+}
+
+// WithTLSOffloading enables TLS for outgoing connections, but is offloaded for incoming connections.
+// It MUST be used in conjunction, but after with WithTLS.
+func WithTLSOffloading(clientCertHeaderName string) ConfigOption {
+	return func(config *Config) {
+		config.clientCertHeaderName = clientCertHeaderName
+		config.serverCert = nil
 	}
 }
 
@@ -91,15 +100,17 @@ type Config struct {
 	// If not set, the node will not accept incoming connectionList (but outbound connectionList can still be made).
 	listenAddress string
 	// clientCert specifies the TLS client certificate. If set the client should open a TLS socket, otherwise plain TCP.
-	clientCert tls.Certificate
+	clientCert *tls.Certificate
 	// serverCert specifies the TLS server certificate. If set the server should open a TLS socket, otherwise plain TCP.
-	serverCert tls.Certificate
+	serverCert *tls.Certificate
 	// trustStore contains the trust anchors used when verifying remote a peer's TLS certificate.
 	trustStore *x509.CertPool
 	// crlValidator contains the database for revoked certificates
 	crlValidator crl.Validator
 	// maxCRLValidityDays contains the number of days that a CRL can be outdated
 	maxCRLValidityDays int
+	// clientCertHeaderName specifies the name of the HTTP header that contains the client certificate, if TLS is offloaded.
+	clientCertHeaderName string
 	// connectionTimeout specifies the time before an outbound connection attempt times out.
 	connectionTimeout time.Duration
 	// listener holds a function to create the net.Listener that is used for inbound connections.

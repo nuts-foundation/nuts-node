@@ -217,7 +217,10 @@ func (p *protocol) gossipTransaction(event dag.Event) (bool, error) {
 
 func (p *protocol) sendGossip(id transport.PeerID, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) bool {
 	if err := p.sendGossipMsg(id, refs, xor, clock); err != nil {
-		log.Logger().Errorf("failed to send Gossip message (peer=%s): %v", id, err)
+		log.Logger().
+			WithError(err).
+			WithField(core.LogFieldPeerID, id.String()).
+			Error("failed to send Gossip message")
 		return false
 	}
 
@@ -234,7 +237,9 @@ func (p *protocol) handlePrivateTxRetry(event dag.Event) (bool, error) {
 
 	if payload != nil {
 		// stop retrying
-		log.Logger().Debugf("Transaction payload already present, not querying (tx=%s)", event.Hash)
+		log.Logger().
+			WithField(core.LogFieldTransactionRef, event.Hash.String()).
+			Debug("Transaction payload already present, not querying")
 		return true, nil
 	}
 
@@ -263,7 +268,11 @@ func (p *protocol) handlePrivateTxRetry(event dag.Event) (bool, error) {
 			}}, false)
 
 			if err != nil {
-				log.Logger().Warnf("Failed to send TransactionPayloadQuery msg to private TX participant (tx=%s, PAL=%v): %v", event.Hash.String(), pal, err)
+				log.Logger().
+					WithError(err).
+					WithFields(conn.Peer().ToFields()).
+					WithField(core.LogFieldTransactionRef, event.Hash.String()).
+					Warn("Failed to send TransactionPayloadQuery msg to private TX participant")
 			} else {
 				sent = true
 			}
@@ -290,7 +299,9 @@ func (p protocol) Diagnostics() []core.DiagnosticResult {
 	// Feels weird to ignore the error here but diagnostics shouldn't fail
 	failedJobs, err := p.privatePayloadReceiver.GetFailedEvents()
 	if err != nil {
-		log.Logger().Errorf("failed to get failed jobs: %v", err)
+		log.Logger().
+			WithError(err).
+			Error("Failed to get failed jobs")
 	}
 
 	return []core.DiagnosticResult{&core.GenericDiagnosticResult{

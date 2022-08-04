@@ -27,6 +27,9 @@ type StubEchoServer struct {
 	BoundAddress string
 }
 
+func (s StubEchoServer) Use(middleware ...echo.MiddlewareFunc) {
+}
+
 func (s StubEchoServer) CONNECT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
 	panic("implement me")
 }

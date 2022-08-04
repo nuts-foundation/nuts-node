@@ -1,3 +1,21 @@
+/*
+ * Copyright (C) 2022 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package storage
 
 import (
@@ -14,6 +32,7 @@ import (
 
 const moduleName = "test"
 const storeName = "store"
+const fullStoreName = moduleName + "/" + storeName
 
 var key = stoabs.BytesKey{1, 2, 3}
 var value = []byte{4, 5, 6}
@@ -35,12 +54,12 @@ func Test_bboltDatabase_performBackup(t *testing.T) {
 			return writer.Put(key, value)
 		})
 
-		err := db.performBackup(moduleName, storeName, store)
+		err := db.performBackup(fullStoreName, store)
 
 		if !assert.NoError(t, err) {
 			return
 		}
-		backupFile := path.Join(backupDir, db.getRelativeStorePath(moduleName, storeName))
+		backupFile := path.Join(backupDir, fullStoreName+bboltDbExtension)
 		if !assert.FileExists(t, backupFile) {
 			return
 		}
@@ -73,15 +92,15 @@ func Test_bboltDatabase_performBackup(t *testing.T) {
 		_ = store.WriteShelf(ctx, "data", func(writer stoabs.Writer) error {
 			return writer.Put(key, value)
 		})
-		_ = db.performBackup(moduleName, storeName, store)
+		_ = db.performBackup(fullStoreName, store)
 
 		_ = store.WriteShelf(ctx, "data", func(writer stoabs.Writer) error {
 			return writer.Put(key, newValue)
 		})
-		_ = db.performBackup(moduleName, storeName, store)
+		_ = db.performBackup(fullStoreName, store)
 
 		// Close the store, reopen backup
-		backupFile := path.Join(backupDir, db.getRelativeStorePath(moduleName, storeName))
+		backupFile := path.Join(backupDir, fullStoreName+bboltDbExtension)
 		_ = store.Close(context.Background())
 		store, _ = bbolt.CreateBBoltStore(backupFile)
 
@@ -120,7 +139,7 @@ func Test_bboltDatabase_startBackup(t *testing.T) {
 		db.close()
 
 		db.shutdownWatcher.Wait()
-		assert.FileExists(t, path.Join(backupDir, db.getRelativeStorePath(moduleName, storeName)))
+		assert.FileExists(t, path.Join(backupDir, fullStoreName+bboltDbExtension))
 	})
 }
 

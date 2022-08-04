@@ -23,7 +23,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
+	"github.com/nuts-foundation/nuts-node/core"
 	"math"
 
 	"github.com/nuts-foundation/nuts-node/network/dag"
@@ -66,7 +66,11 @@ func (tlh *transactionListHandler) start() {
 				return
 			case pe := <-tlh.ch:
 				if err := tlh.fn(pe.peer, pe.envelope); err != nil {
-					log.Logger().Errorf("Error handling %T (peer=%s): %s", pe.envelope.Message, pe.peer, err)
+					log.Logger().
+						WithError(err).
+						WithFields(pe.peer.ToFields()).
+						WithField(core.LogFieldMessageType, fmt.Sprintf("%T", pe.envelope.Message)).
+						Error("Error handling message")
 				}
 			}
 		}
@@ -79,7 +83,10 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 	cid := conversationID(msg.ConversationID)
 	data := handlerData{}
 
-	log.Logger().Tracef("Handling handleTransactionList from peer (peer=%s, conversationID=%s, message=%d/%d)", peer.ID, cid, msg.MessageNumber, msg.TotalMessages)
+	log.Logger().
+		WithFields(peer.ToFields()).
+		WithField(core.LogFieldConversationID, cid).
+		Tracef("Handling handleTransactionList from peer (message=%d/%d)", msg.MessageNumber, msg.TotalMessages)
 
 	// check if response matches earlier request
 	if _, err := p.cMan.check(subEnvelope, data); err != nil {
@@ -100,7 +107,11 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 		if err = p.state.Add(ctx, tx, msg.Transactions[i].Payload); err != nil {
 			if errors.Is(err, dag.ErrPreviousTransactionMissing) {
 				p.cMan.done(cid)
-				log.Logger().Warnf("ignoring remainder of TransactionList due to missing prevs (conversation=%s, Tx with missing prevs=%s)", cid, tx.Ref())
+				log.Logger().
+					WithFields(peer.ToFields()).
+					WithField(core.LogFieldConversationID, cid).
+					WithField(core.LogFieldTransactionRef, tx.Ref()).
+					Warn("Ignoring remainder of TransactionList due to missing prevs")
 				xor, clock := p.state.XOR(ctx, math.MaxUint32)
 				return p.sender.sendState(peer.ID, xor, clock)
 			}

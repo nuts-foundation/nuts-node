@@ -368,6 +368,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 		}, nil, nil)
 		mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), []byte{1}).Return([]byte(peerDID.String()), nil)
 		conn := grpc.NewMockConnection(mocks.Controller)
+		conn.EXPECT().Peer()
 		conn.EXPECT().Send(proto, &Envelope{Message: &Envelope_TransactionPayloadQuery{
 			TransactionPayloadQuery: &TransactionPayloadQuery{
 				TransactionRef: txOk.Ref().Slice(),

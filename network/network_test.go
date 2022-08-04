@@ -236,6 +236,20 @@ func TestNetwork_Configure(t *testing.T) {
 		}
 	})
 
+	t.Run("error - TLS disabled in strict mode", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		ctx := createNetwork(t, ctrl, func(config *Config) {
+			config.EnableTLS = false
+		})
+		ctx.protocol.EXPECT().Configure(gomock.Any())
+		ctx.network.connectionManager = nil
+
+		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t), Strictmode: true})
+
+		assert.EqualError(t, err, "disabling TLS in strict mode is not allowed")
+	})
+
 	t.Run("ok - node DID check disabled", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
@@ -415,7 +429,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 			return
 		}
 
-		cxt.state.EXPECT().Heads(gomock.Any())
+		cxt.state.EXPECT().Head(gomock.Any())
 		cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
 
 		_, err = cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key).WithAttachKey())
@@ -430,7 +444,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		cxt.state.EXPECT().Heads(gomock.Any())
+		cxt.state.EXPECT().Head(gomock.Any())
 		cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
 		tx, err := cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key))
 		assert.NoError(t, err)
@@ -450,7 +464,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.state.EXPECT().GetTransaction(gomock.Any(), rootTX.Ref()).Return(rootTX, nil)
 		cxt.state.EXPECT().GetTransaction(gomock.Any(), additionalPrev.Ref()).Return(additionalPrev, nil).Times(2)
 		cxt.state.EXPECT().IsPayloadPresent(gomock.Any(), additionalPrev.PayloadHash()).Return(true, nil)
-		cxt.state.EXPECT().Heads(gomock.Any()).Return([]hash.SHA256Hash{rootTX.Ref()})
+		cxt.state.EXPECT().Head(gomock.Any()).Return(rootTX.Ref(), nil)
 
 		cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
 
@@ -507,7 +521,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 
-			cxt.state.EXPECT().Heads(gomock.Any())
+			cxt.state.EXPECT().Head(gomock.Any())
 			cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
 
 			cxt.keyResolver.EXPECT().ResolveKeyAgreementKey(*sender).Return(senderKey.Public(), nil)
@@ -541,7 +555,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.state.EXPECT().GetTransaction(gomock.Any(), rootTX.Ref()).Return(nil, errors.New("custom"))
 		cxt.state.EXPECT().GetTransaction(gomock.Any(), additionalPrev.Ref()).Return(additionalPrev, nil)
 		cxt.state.EXPECT().IsPayloadPresent(gomock.Any(), additionalPrev.PayloadHash()).Return(true, nil)
-		cxt.state.EXPECT().Heads(gomock.Any()).Return([]hash.SHA256Hash{rootTX.Ref()})
+		cxt.state.EXPECT().Head(gomock.Any()).Return(rootTX.Ref(), nil)
 
 		_, err := cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key).WithAdditionalPrevs([]hash.SHA256Hash{additionalPrev.Ref()}))
 

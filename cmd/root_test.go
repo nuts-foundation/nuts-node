@@ -120,7 +120,7 @@ func Test_serverCmd(t *testing.T) {
 		engine2 := &core.TestEngine{ShutdownError: true} // One engine's Shutdown() fails
 
 		system := core.NewSystem()
-		system.EchoCreator = func(_ core.HTTPConfig, _ bool) (core.EchoServer, error) {
+		system.EchoCreator = func(_ core.HTTPConfig, _, _ bool) (core.EchoServer, error) {
 			return echoServer, nil
 		}
 		system.RegisterEngine(engine1)
@@ -155,7 +155,7 @@ func Test_serverCmd(t *testing.T) {
 		}()
 
 		system := core.NewSystem()
-		system.EchoCreator = func(_ core.HTTPConfig, _ bool) (core.EchoServer, error) {
+		system.EchoCreator = func(_ core.HTTPConfig, _, _ bool) (core.EchoServer, error) {
 			return echoServer, nil
 		}
 
@@ -172,7 +172,7 @@ func Test_serverCmd(t *testing.T) {
 
 		var echoServers []*http2.StubEchoServer
 		system := CreateSystem()
-		system.EchoCreator = func(_ core.HTTPConfig, _ bool) (core.EchoServer, error) {
+		system.EchoCreator = func(_ core.HTTPConfig, _, _ bool) (core.EchoServer, error) {
 			s := &http2.StubEchoServer{}
 			echoServers = append(echoServers, s)
 			return s, nil
@@ -205,7 +205,7 @@ func Test_serverCmd(t *testing.T) {
 		echoServer.EXPECT().Shutdown(gomock.Any()).Times(2)
 
 		system := core.NewSystem()
-		system.EchoCreator = func(_ core.HTTPConfig, _ bool) (core.EchoServer, error) {
+		system.EchoCreator = func(_ core.HTTPConfig, _, _ bool) (core.EchoServer, error) {
 			return echoServer, nil
 		}
 		system.Config = core.NewServerConfig()

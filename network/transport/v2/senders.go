@@ -20,6 +20,7 @@
 package v2
 
 import (
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 	"github.com/nuts-foundation/nuts-node/network/log"
@@ -52,7 +53,7 @@ func (p *protocol) sendGossipMsg(id transport.PeerID, refs []hash.SHA256Hash, xo
 		refsAsBytes[i] = ref.Slice()
 	}
 
-	log.Logger().Tracef("GOSSIP: LC=%d, xor=%s, xor refs=%s, refs=%v", clock, xor, hash.EmptyHash().Xor(refs...), refs)
+	log.Logger().Tracef("Sending gossip: LC=%d, xor=%s, xor refs=%s, refs=%v", clock, xor, hash.EmptyHash().Xor(refs...), refs)
 
 	return conn.Send(p, &Envelope{Message: &Envelope_Gossip{
 		Gossip: &Gossip{
@@ -85,12 +86,17 @@ func (p *protocol) sendTransactionListQuery(id transport.PeerID, refs []hash.SHA
 
 	conversation := p.cMan.startConversation(msg, id)
 	if conversation == nil {
-		log.Logger().Debugf("did not request a TransactionList while another conversation is in progress (peer=%s)", id.String())
+		log.Logger().
+			WithField(core.LogFieldPeerID, id).
+			Debug("Did not request a TransactionList while another conversation is in progress")
 		return nil
 	}
 	conversation.set("refs", refs)
 
-	log.Logger().Debugf("requesting transactionList from peer (peer=%s, conversationID=%s, #=%d)", id, conversation.conversationID.String(), len(refs))
+	log.Logger().
+		WithField(core.LogFieldPeerID, id).
+		WithField(core.LogFieldConversationID, conversation.conversationID.String()).
+		Debugf("Requesting transactionList from peer (%d transactions)", len(refs))
 
 	return conn.Send(p, &Envelope{Message: msg}, false)
 }
@@ -134,11 +140,16 @@ func (p *protocol) sendTransactionRangeQuery(id transport.PeerID, lcStart uint32
 
 	conversation := p.cMan.startConversation(msg, id)
 	if conversation == nil {
-		log.Logger().Debugf("did not request a TransactionRange while another conversation is in progress (peer=%s, start=%d, end=%d)", id.String(), lcStart, lcEnd)
+		log.Logger().
+			WithField(core.LogFieldPeerID, id).
+			Debugf("Did not request a TransactionRange while another conversation is in progress (start=%d, end=%d)", lcStart, lcEnd)
 		return nil
 	}
 
-	log.Logger().Debugf("requesting transaction range (peer=%s, conversationID=%s, start=%d, end=%d)", id.String(), conversation.conversationID.String(), lcStart, lcEnd)
+	log.Logger().
+		WithField(core.LogFieldPeerID, id).
+		WithField(core.LogFieldConversationID, conversation.conversationID.String()).
+		Debugf("Requesting transaction range (start=%d, end=%d)", lcStart, lcEnd)
 
 	return conn.Send(p, &Envelope{Message: msg}, false)
 }
@@ -190,11 +201,16 @@ func (p *protocol) sendState(id transport.PeerID, xor hash.SHA256Hash, clock uin
 	}
 	conversation := p.cMan.startConversation(msg, id)
 	if conversation == nil {
-		log.Logger().Debugf("did not request State while another conversation is in progress (peer=%s)", id.String())
+		log.Logger().
+			WithField(core.LogFieldPeerID, id).
+			Debug("Did not request State while another conversation is in progress")
 		return nil
 	}
 
-	log.Logger().Debugf("requesting state from peer (peer=%s, conversationID=%s)", id, conversation.conversationID.String())
+	log.Logger().
+		WithField(core.LogFieldPeerID, id).
+		WithField(core.LogFieldConversationID, conversation.conversationID.String()).
+		Debug("Requesting state from peer")
 
 	return conn.Send(p, &Envelope{Message: msg}, false)
 }
@@ -233,7 +249,10 @@ func (p *protocol) broadcastDiagnostics(diagnostics transport.Diagnostics) {
 	for _, curr := range p.connectionList.AllMatching(grpc.ByConnected()) {
 		err := curr.Send(p, envelope, false)
 		if err != nil {
-			log.Logger().Errorf("error broadcasting diagnostics (peer=%s): %s", curr.Peer(), err)
+			log.Logger().
+				WithError(err).
+				WithFields(curr.Peer().ToFields()).
+				Error("Error broadcasting diagnostics")
 		}
 	}
 }

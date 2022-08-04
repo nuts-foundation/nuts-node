@@ -22,9 +22,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"golang.org/x/time/rate"
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -51,6 +53,8 @@ type EchoRouter interface {
 	POST(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 	PUT(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 	TRACE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
+
+	Use(middleware ...echo.MiddlewareFunc)
 }
 
 const defaultEchoGroup = ""
@@ -170,8 +174,17 @@ func (c MultiEcho) Shutdown() {
 	for address, echoServer := range c.interfaces {
 		logrus.Tracef("Stopping interface: %s", address)
 		if err := echoServer.Shutdown(context.Background()); err != nil {
-			logrus.Errorf("Unable to shutdown interface (address=%s): %v", address, err)
+			logrus.
+				WithError(err).
+				Errorf("Unable to shutdown interface: %s", address)
 		}
+	}
+}
+
+// Use applies the given middleware function to all Echo servers.
+func (c MultiEcho) Use(middleware ...echo.MiddlewareFunc) {
+	for _, curr := range c.interfaces {
+		curr.Use(middleware...)
 	}
 }
 
@@ -194,7 +207,7 @@ func getGroup(path string) string {
 	return ""
 }
 
-var _logger = logrus.StandardLogger().WithField("module", "http-server")
+var _logger = logrus.StandardLogger().WithField(LogFieldModule, "http-server")
 
 // Logger returns a logger which should be used for logging in this engine. It adds fields so
 // log entries from this engine can be recognized as such.
@@ -241,18 +254,21 @@ func loggerMiddleware(config loggerConfig) echo.MiddlewareFunc {
 				"method":    req.Method,
 				"uri":       req.RequestURI,
 				"status":    status,
-			}).Info("request")
+			}).Info("HTTP request")
 			return
 		}
 	}
 }
 
-func createEchoServer(cfg HTTPConfig, strictmode bool) (*echo.Echo, error) {
+func createEchoServer(cfg HTTPConfig, strictmode, rateLimiter bool) (*echo.Echo, error) {
 	echoServer := echo.New()
 	echoServer.HideBanner = true
 
 	// ErrorHandler
 	echoServer.HTTPErrorHandler = createHTTPErrorHandler()
+
+	// Reverse proxies must set the X-Forwarded-For header to the original client IP.
+	echoServer.IPExtractor = echo.ExtractIPFromXFFHeader()
 
 	// CORS Configuration
 	if cfg.CORS.Enabled() {
@@ -269,11 +285,79 @@ func createEchoServer(cfg HTTPConfig, strictmode bool) (*echo.Echo, error) {
 	// Use middleware to decode URL encoded path parameters like did%3Anuts%3A123 -> did:nuts:123
 	echoServer.Use(DecodeURIPath)
 
-	echoServer.Use(loggerMiddleware(loggerConfig{Skipper: requestsStatusEndpoint, logger: Logger()}))
+	echoServer.Use(loggerMiddleware(loggerConfig{Skipper: skipLogRequest, logger: Logger()}))
+
+	// Always enabled in strict mode
+	if strictmode || rateLimiter {
+		echoServer.Use(NewInternalRateLimiter(map[string][]string{
+			http.MethodPost: {
+				"/internal/vcr/v2/issuer/vc", // issuing new VCs
+				"/internal/vdr/v1/did",       // creating new DIDs
+			}}, 24*time.Hour, 3000, 30),
+		)
+	}
 
 	return echoServer, nil
 }
 
-func requestsStatusEndpoint(context echo.Context) bool {
-	return context.Request().RequestURI == "/status"
+// NewInternalRateLimiter creates a new internal rate limiter based on the echo middleware RateLimiter.
+// It accepts a list of paths which will become limited. These paths are exact matches, no fancy pattern matching.
+// By default, the rateLimiter fails the http request with a http error, but when onlyWarn is set, it allows the request and logs.
+func NewInternalRateLimiter(protectedPaths map[string][]string, interval time.Duration, limitPerInterval rate.Limit, burst int) echo.MiddlewareFunc {
+	return middleware.RateLimiterWithConfig(middleware.RateLimiterConfig{
+		// Returning true means skipping the middleware
+		Skipper: func(c echo.Context) bool {
+			for _, path := range protectedPaths[c.Request().Method] {
+				if c.Request().URL.Path == path {
+					return false
+				}
+			}
+
+			return true
+		},
+		IdentifierExtractor: func(ctx echo.Context) (string, error) {
+			return "", nil // we use the limiter only for internal calls, so no identifier such as an IP is used
+		},
+		ErrorHandler: func(context echo.Context, err error) error {
+			return &echo.HTTPError{
+				Code:     middleware.ErrExtractorError.Code,
+				Message:  middleware.ErrExtractorError.Message,
+				Internal: err,
+			}
+		},
+		DenyHandler: func(context echo.Context, identifier string, err error) error {
+			return &echo.HTTPError{
+				Code:     middleware.ErrRateLimitExceeded.Code,
+				Message:  middleware.ErrRateLimitExceeded.Message,
+				Internal: err,
+			}
+		},
+		// use a store for max 3000 calls a day with a burst rate of 30
+		Store: NewInternalRateLimiterStore(interval, limitPerInterval, burst),
+	})
+}
+
+// InternalRateLimiterStore uses a simple TokenBucket for limiting the amount of internal requests.
+// It should only be used for internal paths since it does not register the rate limit per caller.
+type InternalRateLimiterStore struct {
+	limiter *rate.Limiter
+}
+
+// Allow checks if the amount of calls has not exceeded the limited amount. It ignores the callers' identifier.
+func (s *InternalRateLimiterStore) Allow(_ string) (bool, error) {
+	// no need for locks since this is already managed by the limiter
+	return s.limiter.Allow(), nil
+}
+
+// NewInternalRateLimiterStore creates a new rate limiter store for internal paths
+func NewInternalRateLimiterStore(interval time.Duration, limitPerInterval rate.Limit, burst int) *InternalRateLimiterStore {
+	// e.g. limiter for 3000 tx a day with a burst size of 30.
+	// This allows a request every 30 seconds: (1/(3000/(3600*24)))
+	return &InternalRateLimiterStore{
+		limiter: rate.NewLimiter(limitPerInterval*rate.Every(interval), burst),
+	}
+}
+
+func skipLogRequest(context echo.Context) bool {
+	return context.Request().RequestURI == "/status" || context.Request().RequestURI == "/metrics"
 }

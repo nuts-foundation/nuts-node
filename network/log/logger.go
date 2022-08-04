@@ -19,10 +19,11 @@
 package log
 
 import (
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/sirupsen/logrus"
 )
 
-var _logger = logrus.StandardLogger().WithField("module", "Network")
+var _logger = logrus.StandardLogger().WithField(core.LogFieldModule, "Network")
 
 // Logger returns the logger for the network engine.
 func Logger() *logrus.Entry {

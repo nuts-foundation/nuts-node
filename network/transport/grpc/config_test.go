@@ -37,8 +37,8 @@ func TestNewConfig(t *testing.T) {
 		cfg := NewConfig(":1234", "foo")
 		assert.Equal(t, transport.PeerID("foo"), cfg.peerID)
 		assert.Equal(t, ":1234", cfg.listenAddress)
-		assert.Nil(t, cfg.serverCert.PrivateKey)
-		assert.Nil(t, cfg.clientCert.PrivateKey)
+		assert.Nil(t, cfg.serverCert)
+		assert.Nil(t, cfg.clientCert)
 		assert.Nil(t, cfg.trustStore)
 	})
 	t.Run("with TLS", func(t *testing.T) {
@@ -47,8 +47,8 @@ func TestNewConfig(t *testing.T) {
 			CertPool: x509.NewCertPool(),
 		}
 		cfg := NewConfig(":1234", "foo", WithTLS(cert, ts, 10))
-		assert.Equal(t, cert, cfg.clientCert)
-		assert.Equal(t, cert, cfg.serverCert)
+		assert.Equal(t, &cert, cfg.clientCert)
+		assert.Equal(t, &cert, cfg.serverCert)
 		assert.Same(t, ts.CertPool, cfg.trustStore)
 		assert.Equal(t, 10, cfg.maxCRLValidityDays)
 	})

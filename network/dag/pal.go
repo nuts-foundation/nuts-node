@@ -23,6 +23,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/core"
 	"strings"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -97,13 +98,17 @@ func (epal EncryptedPAL) Decrypt(keyAgreementKIDs []string, decryptor crypto.Dec
 outer:
 	for _, encrypted := range epal {
 		for _, kak := range keyAgreementKIDs {
-			log.Logger().Tracef("Trying key %s to decrypt PAL header...", kak)
+			log.Logger().
+				WithField(core.LogFieldKeyID, kak).
+				Trace("Trying key to decrypt PAL header...")
 			decrypted, err = decryptor.Decrypt(kak, encrypted)
 			if errors.Is(err, crypto.ErrPrivateKeyNotFound) {
 				return nil, fmt.Errorf("private key of DID keyAgreement not found (kid=%s)", kak)
 			}
 			if err != nil {
-				log.Logger().Tracef("Unsuccessful: %v", err)
+				log.Logger().
+					WithError(err).
+					Trace("Unsuccessful")
 			} else {
 				break outer
 			}
