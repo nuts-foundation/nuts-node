@@ -37,7 +37,9 @@ You can configure username/password authentication using ``storage.redis.usernam
 If you need to prefix the keys (e.g. you have multiple Nuts nodes using the same Redis server) you can set ``storage.redis.database``
 with an alphanumeric string. All keys written to Redis will then have that prefix followed by a separator.
 
-You can connect to your Redis server over TLS by enabling ``storage.redis.tls``. If enabled, the server's certificate will be verified against the OS' CA bundle.
+You can connect to your Redis server over TLS by specifying a Redis connection URL in ``storage.redis.address``,
+e.g.: ``rediss://database.mycluster.com:1234567``.
+The server's certificate will be verified against the OS' CA bundle.
 
 Make sure to `configure persistence for your Redis server <https://redis.io/docs/manual/persistence/>`_.
 

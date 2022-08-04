@@ -29,7 +29,9 @@ import (
 	"strings"
 )
 
-var defaultRedisTLSConfig = &tls.Config{}
+var redisTLSModifier = func(conf *tls.Config) {
+	// do nothing by default, used for testing
+}
 
 type redisDatabase struct {
 	databaseName string
@@ -38,11 +40,10 @@ type redisDatabase struct {
 
 // RedisConfig specifies config for Redis databases.
 type RedisConfig struct {
-	Address    string `koanf:"address"`
-	Username   string `koanf:"username"`
-	Password   string `koanf:"password"`
-	Database   string `koanf:"database"`
-	TLSEnabled bool   `koanf:"tls"`
+	Address  string `koanf:"address"`
+	Username string `koanf:"username"`
+	Password string `koanf:"password"`
+	Database string `koanf:"database"`
 }
 
 // IsConfigured returns true if config the indicates Redis support should be enabled.
@@ -51,20 +52,33 @@ func (r RedisConfig) IsConfigured() bool {
 }
 
 func createRedisDatabase(config RedisConfig) (*redisDatabase, error) {
-	opts := &redis.Options{
-		Addr:     config.Address,
-		Username: config.Username,
-		Password: config.Password,
+	// Backwards compatibility: if not an address URL, assume simply TCP with host:port
+	if !isRedisURL(config.Address) {
+		config.Address = "redis://" + config.Address
 	}
-	if config.TLSEnabled {
-		log.Logger().Debug("Configuring TLS for Redis connections")
-		opts.TLSConfig = defaultRedisTLSConfig.Clone()
+
+	opts, err := redis.ParseURL(config.Address)
+	if err != nil {
+		return nil, err
+	}
+	redisTLSModifier(opts.TLSConfig)
+	if len(config.Username) > 0 {
+		opts.Username = config.Username
+	}
+	if len(config.Password) > 0 {
+		opts.Password = config.Password
 	}
 
 	return &redisDatabase{
 		options:      opts,
 		databaseName: config.Database,
 	}, nil
+}
+
+func isRedisURL(address string) bool {
+	return strings.HasPrefix(address, "redis://") ||
+		strings.HasPrefix(address, "rediss://") ||
+		strings.HasPrefix(address, "unix://")
 }
 
 func (b redisDatabase) createStore(moduleName string, storeName string) (stoabs.KVStore, error) {

@@ -82,7 +82,7 @@ func Test_redisDatabase_createStore(t *testing.T) {
 		keys := redis.Keys()
 		assert.Equal(t, []string{"unit_test:someshelf.6d7367"}, keys)
 	})
-	t.Run("with TLS", func(t *testing.T) {
+	t.Run("using redis.ParseURL() to connect over TLS", func(t *testing.T) {
 		logrus.SetLevel(logrus.TraceLevel)
 
 		// Setup server-side TLS
@@ -102,11 +102,13 @@ func Test_redisDatabase_createStore(t *testing.T) {
 
 		// Setup client-side TLS config
 		rootCA, _ := ioutil.ReadFile("test/truststore.pem")
-		defaultRedisTLSConfig.InsecureSkipVerify = true
-		defaultRedisTLSConfig.RootCAs = x509.NewCertPool()
-		defaultRedisTLSConfig.RootCAs.AppendCertsFromPEM(rootCA)
+		redisTLSModifier = func(conf *tls.Config) {
+			conf.InsecureSkipVerify = true
+			conf.RootCAs = x509.NewCertPool()
+			conf.RootCAs.AppendCertsFromPEM(rootCA)
+		}
 
-		db, err := createRedisDatabase(RedisConfig{Address: redis.Addr(), Database: "db", TLSEnabled: true})
+		db, err := createRedisDatabase(RedisConfig{Address: "rediss://" + redis.Addr()})
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -115,14 +117,7 @@ func Test_redisDatabase_createStore(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		defer store.Close(context.Background())
-
-		// Assert: write some data and check keys
-		_ = store.WriteShelf(context.Background(), "someshelf", func(writer stoabs.Writer) error {
-			return writer.Put(stoabs.BytesKey(key), value)
-		})
-		keys := redis.Keys()
-		assert.Equal(t, []string{"db_unit_test:someshelf.6d7367"}, keys)
+		_ = store.Close(context.Background())
 	})
 }
 
