@@ -400,7 +400,7 @@ func performNoConnectionAvailableTest(t *testing.T, peerID transport.PeerID, sen
 func performMultipleConversationsTest(t *testing.T, peerID transport.PeerID, sender func(*protocol, protocolMocks) error) {
 	conv := &conversation{
 		conversationID: newConversationID(),
-		lastValidAt:    time.Now().Add(time.Minute),
+		expiry:         time.Now().Add(time.Minute),
 	}
 
 	t.Run("ok - new peer can have new conversation", func(t *testing.T) {

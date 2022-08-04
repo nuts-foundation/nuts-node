@@ -131,7 +131,7 @@ func TestConversationManager_startConversation(t *testing.T) {
 	t.Run("previous conversation expired", func(t *testing.T) {
 		cMan := newConversationManager(time.Millisecond)
 		previousConv := cMan.startConversation(msg, "peer")
-		previousConv.lastValidAt = time.Time{}
+		previousConv.expiry = time.Time{}
 
 		conv := cMan.startConversation(msg, "peer")
 
@@ -171,11 +171,11 @@ func TestConversationManager_resetTimeout(t *testing.T) {
 		TransactionListQuery: &TransactionListQuery{},
 	}
 	c := cMan.startConversation(envelope, "peerID")
-	c.lastValidAt = time.Time{}
+	c.expiry = time.Time{}
 
 	cMan.resetTimeout(c.conversationID)
 
-	assert.True(t, c.lastValidAt.After(time.Time{}))
+	assert.True(t, c.expiry.After(time.Time{}))
 }
 
 func TestEnvelope_TransactionList_ParseTransactions(t *testing.T) {

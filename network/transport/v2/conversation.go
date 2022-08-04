@@ -57,8 +57,8 @@ func (cid conversationID) String() string {
 
 type conversation struct {
 	conversationID conversationID
-	// lastValidAt is the time the conversation was created or when the last message for the conversation was successfully processed.
-	lastValidAt      time.Time
+	// expiry is the time the conversation expires.
+	expiry           time.Time
 	conversationData checkable
 	mux              sync.RWMutex
 	// properties can be used to store extra info on the conversation, e.g. to check if a conversation is done
@@ -128,8 +128,7 @@ func (cMan *conversationManager) evict() {
 	defer cMan.mutex.Unlock()
 
 	for k, v := range cMan.conversations {
-		lastValidAt := v.lastValidAt
-		if lastValidAt.Add(cMan.validity).Before(time.Now()) {
+		if v.expiry.Before(time.Now()) {
 			delete(cMan.conversations, k)
 		}
 	}
@@ -148,7 +147,7 @@ func (cMan *conversationManager) resetTimeout(cid conversationID) {
 	defer cMan.mutex.Unlock()
 
 	if conversation, exists := cMan.conversations[cid.String()]; exists {
-		conversation.lastValidAt = time.Now()
+		conversation.expiry = time.Now().Add(cMan.validity)
 	}
 }
 
@@ -159,7 +158,7 @@ func (cMan *conversationManager) startConversation(msg checkable, id transport.P
 	msg.setConversationID(cid)
 	newConversation := &conversation{
 		conversationID:   cid,
-		lastValidAt:      time.Now(),
+		expiry:           time.Now().Add(cMan.validity),
 		conversationData: msg,
 		properties:       map[string]interface{}{},
 	}
@@ -182,7 +181,7 @@ func (cMan *conversationManager) startConversation(msg checkable, id transport.P
 func (cMan *conversationManager) hasActiveConversation(id transport.PeerID) bool {
 	if lastPeerConv, ok := cMan.lastPeerConversationID[id]; ok {
 		if conversation, ok := cMan.conversations[lastPeerConv.String()]; ok {
-			if conversation.lastValidAt.Add(cMan.validity).After(time.Now()) {
+			if conversation.expiry.After(time.Now()) {
 				return true
 			}
 		}
