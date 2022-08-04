@@ -27,10 +27,11 @@ To make this possible, each of the nodes must meet the following requirements:
 - The network transactions share the same root transaction.
 - Use and accept network protocol versions from an agreed upon set.
 
-There are 3 official Nuts networks:
+There are 4 official Nuts networks:
 
 - `development` where new features are tested. Nodes will generally run the newest (not yet released) version of the Nuts node.
 - `stable` for integrating your software with Nuts and testing with other vendors. Nodes will generally run the latest released version (or at least a recent one).
+- `test` for acceptance testing with other vendors and customers. Nodes will generally run the latest released version (or at least a recent one).
 - `production` for production uses. Connecting to this network involves PKIoverheid certificates and outside the scope of this tutorial.
 
 Node TLS Certificate
