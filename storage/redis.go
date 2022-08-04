@@ -19,6 +19,7 @@
 package storage
 
 import (
+	"crypto/tls"
 	"github.com/go-redis/redis/v9"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/redis7"
@@ -27,6 +28,10 @@ import (
 	"path"
 	"strings"
 )
+
+var redisTLSModifier = func(conf *tls.Config) {
+	// do nothing by default, used for testing
+}
 
 type redisDatabase struct {
 	databaseName string
@@ -47,15 +52,33 @@ func (r RedisConfig) IsConfigured() bool {
 }
 
 func createRedisDatabase(config RedisConfig) (*redisDatabase, error) {
-	result := redisDatabase{
-		options: &redis.Options{
-			Addr:     config.Address,
-			Username: config.Username,
-			Password: config.Password,
-		},
-		databaseName: config.Database,
+	// Backwards compatibility: if not an address URL, assume simply TCP with host:port
+	if !isRedisURL(config.Address) {
+		config.Address = "redis://" + config.Address
 	}
-	return &result, nil
+
+	opts, err := redis.ParseURL(config.Address)
+	if err != nil {
+		return nil, err
+	}
+	redisTLSModifier(opts.TLSConfig)
+	if len(config.Username) > 0 {
+		opts.Username = config.Username
+	}
+	if len(config.Password) > 0 {
+		opts.Password = config.Password
+	}
+
+	return &redisDatabase{
+		options:      opts,
+		databaseName: config.Database,
+	}, nil
+}
+
+func isRedisURL(address string) bool {
+	return strings.HasPrefix(address, "redis://") ||
+		strings.HasPrefix(address, "rediss://") ||
+		strings.HasPrefix(address, "unix://")
 }
 
 func (b redisDatabase) createStore(moduleName string, storeName string) (stoabs.KVStore, error) {
