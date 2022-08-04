@@ -20,6 +20,7 @@ package core
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"golang.org/x/time/rate"
@@ -37,6 +38,7 @@ import (
 type EchoServer interface {
 	EchoRouter
 	Start(address string) error
+	StartTLS(address string, certFile, keyFile interface{}) error
 	Shutdown(ctx context.Context) error
 }
 
@@ -59,23 +61,27 @@ type EchoRouter interface {
 
 const defaultEchoGroup = ""
 
+type EchoCreator func(config HTTPConfig) (server EchoServer, starter func() error, err error)
+
 // NewMultiEcho creates a new MultiEcho which uses the given function to create EchoServers. If a route is registered
 // for an unknown group is is bound to the given defaultInterface.
-func NewMultiEcho(creatorFn func(cfg HTTPConfig) (EchoServer, error), defaultInterface HTTPConfig) *MultiEcho {
+func NewMultiEcho(defaultInterface HTTPConfig, creator EchoCreator) (*MultiEcho, error) {
 	instance := &MultiEcho{
 		interfaces: map[string]EchoServer{},
+		starters:   map[string]func() error{},
 		groups:     map[string]string{},
-		creatorFn:  creatorFn,
+		creatorFn:  creator,
 	}
-	_ = instance.Bind(defaultEchoGroup, defaultInterface)
-	return instance
+	err := instance.Bind(defaultEchoGroup, defaultInterface)
+	return instance, err
 }
 
 // MultiEcho allows to bind specific URLs to specific HTTP interfaces
 type MultiEcho struct {
 	interfaces map[string]EchoServer
+	starters   map[string]func() error
 	groups     map[string]string
-	creatorFn  func(cfg HTTPConfig) (EchoServer, error)
+	creatorFn  EchoCreator
 }
 
 // CONNECT registers a new CONNECT route for the given path with optional middleware.
@@ -146,11 +152,12 @@ func (c *MultiEcho) Bind(group string, interfaceConfig HTTPConfig) error {
 	}
 	c.groups[group] = interfaceConfig.Address
 	if _, addressBound := c.interfaces[interfaceConfig.Address]; !addressBound {
-		server, err := c.creatorFn(interfaceConfig)
+		server, starter, err := c.creatorFn(interfaceConfig)
 		if err != nil {
 			return err
 		}
 		c.interfaces[interfaceConfig.Address] = server
+		c.starters[interfaceConfig.Address] = starter
 	}
 	return nil
 }
@@ -160,8 +167,13 @@ func (c MultiEcho) Start() error {
 	wg := &sync.WaitGroup{}
 	wg.Add(len(c.interfaces))
 	errChan := make(chan error, len(c.interfaces))
-	for address, echoServer := range c.interfaces {
-		c.start(address, echoServer, wg, errChan)
+	for _, starter := range c.starters {
+		go func(starter func() error) {
+			if err := starter(); err != nil {
+				errChan <- err
+			}
+			wg.Done()
+		}(starter)
 	}
 	wg.Wait()
 	if len(errChan) > 0 {
@@ -188,16 +200,6 @@ func (c MultiEcho) Use(middleware ...echo.MiddlewareFunc) {
 		curr.Use(middleware...)
 	}
 }
-
-func (c *MultiEcho) start(address string, server EchoServer, wg *sync.WaitGroup, errChan chan error) {
-	go func() {
-		if err := server.Start(address); err != nil {
-			errChan <- err
-		}
-		wg.Done()
-	}()
-}
-
 func getGroup(path string) string {
 	parts := strings.Split(path, "/")
 	for _, part := range parts {
@@ -261,7 +263,7 @@ func loggerMiddleware(config loggerConfig) echo.MiddlewareFunc {
 	}
 }
 
-func createEchoServer(cfg HTTPConfig, strictmode, rateLimiter bool) (*echo.Echo, error) {
+func createEchoServer(cfg HTTPConfig, tlsConfig *tls.Config, strictmode, rateLimiter bool) (*echo.Echo, func() error, error) {
 	echoServer := echo.New()
 	echoServer.HideBanner = true
 	echoServer.HidePort = true
@@ -277,7 +279,7 @@ func createEchoServer(cfg HTTPConfig, strictmode, rateLimiter bool) (*echo.Echo,
 		if strictmode {
 			for _, origin := range cfg.CORS.Origin {
 				if strings.TrimSpace(origin) == "*" {
-					return nil, errors.New("wildcard CORS origin is not allowed in strict mode")
+					return nil, nil, errors.New("wildcard CORS origin is not allowed in strict mode")
 				}
 			}
 		}
@@ -306,7 +308,33 @@ func createEchoServer(cfg HTTPConfig, strictmode, rateLimiter bool) (*echo.Echo,
 		)
 	}
 
-	return echoServer, nil
+	var starter func() error
+	switch cfg.TLSMode {
+	case ServerCertTLSMode:
+		fallthrough
+	case MutualTLSMode:
+		if tlsConfig == nil {
+			return nil, nil, fmt.Errorf("TLS must be enabled (without offloading) to enable it on HTTP endpoints")
+		}
+		serverTLSConfig := tlsConfig.Clone()
+		if cfg.TLSMode == MutualTLSMode {
+			serverTLSConfig.ClientAuth = tls.RequireAndVerifyClientCert
+		}
+
+		echoServer.TLSServer.TLSConfig = serverTLSConfig
+		echoServer.TLSServer.Addr = cfg.Address
+		starter = func() error {
+			return echoServer.StartServer(echoServer.TLSServer)
+		}
+	default:
+		fallthrough
+	case DisabledHTTPTLSMode:
+		starter = func() error {
+			return echoServer.Start(cfg.Address)
+		}
+	}
+
+	return echoServer, starter, nil
 }
 
 // NewInternalRateLimiter creates a new internal rate limiter based on the echo middleware RateLimiter.

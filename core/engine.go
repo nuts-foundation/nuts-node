@@ -20,6 +20,7 @@
 package core
 
 import (
+	"crypto/tls"
 	"fmt"
 	"github.com/spf13/pflag"
 	"net/url"
@@ -42,8 +43,8 @@ func NewSystem() *System {
 		Config:  NewServerConfig(),
 		Routers: []Routable{},
 	}
-	result.EchoCreator = func(cfg HTTPConfig, strictmode, rateLimiter bool) (EchoServer, error) {
-		return createEchoServer(cfg, strictmode, rateLimiter)
+	result.EchoCreator = func(cfg HTTPConfig, tlsConfig *tls.Config, strictmode, rateLimiter bool) (EchoServer, func() error, error) {
+		return createEchoServer(cfg, tlsConfig, strictmode, rateLimiter)
 	}
 	return result
 }
@@ -56,8 +57,8 @@ type System struct {
 	Config *ServerConfig
 	// Routers is used to connect API handlers to the echo server
 	Routers []Routable
-	// EchoCreator is the function that's used to create the echo server/
-	EchoCreator func(cfg HTTPConfig, strictmode, rateLimiter bool) (EchoServer, error)
+	// EchoCreator is the function that's used to create the echo server
+	EchoCreator func(cfg HTTPConfig, tlsConfig *tls.Config, strictmode, rateLimiter bool) (EchoServer, func() error, error)
 }
 
 var coreLogger = logrus.StandardLogger().WithField(LogFieldModule, "core")

@@ -21,13 +21,42 @@ You can also find working setups in the `end-2-end test suite <https://github.co
 No TLS Offloading
 *****************
 
-By default, the TLS connection is terminated on the Nuts node.
-This means there is no system between the remote and local Nuts nodes that accepts TLS connections and forwards them as plain HTTP.
+Having no TLS offloading means the secure connection starts at the remote system and ends at the Nuts node.
+No systems in between can alter or inspect the TLS connection.
 
 .. raw:: html
     :file: ../../_static/images/diagrams/network infrastructure layouts-Direct-WAN-Connection.svg
 
-No additional configuration is required.
+For this setup you need to configure TLS and set up the HTTP interfaces so the endpoints are secured as required.
+The example below shows how to:
+
+* configure TLS for HTTP and gRPC connections,
+* enable TLS (with required client certificate) for node-to-node HTTPS connections on port ``8443``,
+* enable TLS (server certificate only) for public HTTPS connections on port ``443``.
+
+.. code-block:: yaml
+
+    tls:
+      certfile: my-certificate.pem
+      certkeyfile: my-certificate.pem
+      truststorefile: truststore.pem
+    http:
+      default:
+        address: :1323
+      alt:
+        public:
+          address: :443
+          tls: server-cert
+        n2n:
+          address: :8443
+          tls: server-and-client-cert
+
+.. note::
+
+    In the example above ``/internal`` endpoints bind to the default HTTP interface, which does not apply any access control.
+    To secure your node you must restrict access this endpoint, e.g. by not exposing it to the outside world.
+    It's generally preferable to use an external load balancer (see "TLS Pass-through") or firewall to decrease the risk of misconfiguration of the node.
+    You can bind ``/internal`` to its own HTTP interface to further decrease the risk.
 
 TLS Pass-through
 ^^^^^^^^^^^^^^^^
@@ -39,20 +68,36 @@ When using a (level 4) load balancer that does not inspect or alter requests, TL
 
 This set up does not need additional configuration.
 
-Configuration for `HAProxy <https://www.haproxy.com/>`_ could look like this:
+Configuration for `HAProxy <https://www.haproxy.com/>`_ could look like this (given the TLS configuration in the previous section):
 
 .. code-block::
 
     listen grpc
         bind *:5555
         mode tcp
-
         use_backend nuts_node_grpc
 
     backend nuts_node_grpc
         mode tcp
-
         server node1 nodeA-backend:5555 check
+
+    listen public_https
+        bind *:443
+        mode tcp
+        use_backend nuts_node_public_https
+
+    backend nuts_node_public_https
+        mode tcp
+        server node1 nodeA-backend:443 check
+
+    listen n2n_https
+        bind *:8443
+        mode tcp
+        use_backend nuts_node_n2n_https
+
+    backend nuts_node_n2n_https
+        mode tcp
+        server node1 nodeA-backend:8443 check
 
 
 Refer to the HAProxy documentation for more information.
@@ -73,6 +118,7 @@ In addition to the general TLS configuration, you need to configure the followin
 * ``tls.offload`` needs to be set to ``incoming``
 * ``tls.certheader`` needs to be set to the name of the header in which your proxy sets the certificate (e.g. ``X-SSl-CERT``).
   The certificate must in be PEM or base64 encoded DER format.
+* Disable/remove TLS configuration for HTTP interfaces.
 
 The certificate and truststore will still need to be available to the Nuts node for making outbound connections.
 

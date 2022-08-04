@@ -20,6 +20,8 @@
 package core
 
 import (
+	"crypto/tls"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -55,11 +57,41 @@ type ServerConfig struct {
 // TLSConfig specifies how TLS should be configured for connections.
 // For v5, network.enabletls, network.truststorefile, network.certfile and network.certkeyfile must be moved to this struct.
 type TLSConfig struct {
+	Enabled bool `koanf:"enabled"`
 	// Offload specifies the TLS offloading mode for incoming/outgoing traffic.
 	Offload TLSOffloadingMode `koanf:"offload"`
 	// ClientCertHeaderName specifies the name of the HTTP header in which the TLS offloader puts the client certificate in.
 	// It is required when TLS offloading for incoming traffic is enabled. The client certificate must be in PEM format.
 	ClientCertHeaderName string `koanf:"certheader"`
+	CertFile             string `koanf:"certfile"`
+	CertKeyFile          string `koanf:"certkeyfile"`
+	TrustStoreFile       string `koanf:"truststorefile"`
+}
+
+// Load creates tls.Config from the given configuration. If TLS is disabled or offloaded it returns nil.
+func (t TLSConfig) Load() (*tls.Config, error) {
+	if !t.Enabled || t.Offload != NoOffloading {
+		return nil, nil
+	}
+
+	if len(t.CertFile) == 0 || len(t.CertKeyFile) == 0 || len(t.TrustStoreFile) == 0 {
+		return nil, errors.New("tls.certfile, tls.certkeyfile and tls.truststorefile must be configured when TLS is enabled")
+	}
+	certificate, err := tls.LoadX509KeyPair(t.CertFile, t.CertKeyFile)
+	if err != nil {
+		return nil, err
+	}
+	trustStore, err := LoadTrustStore(t.TrustStoreFile)
+	if err != nil {
+		return nil, err
+	}
+	config := &tls.Config{
+		MinVersion:   MinTLSVersion,
+		Certificates: []tls.Certificate{certificate},
+		RootCAs:      trustStore.CertPool,
+		ClientCAs:    trustStore.CertPool,
+	}
+	return config, nil
 }
 
 // NetworkTLSConfig is temporarily here to support having the network engine's TLS config available to both the network and auth engine.
@@ -107,7 +139,18 @@ type HTTPConfig struct {
 	Address string `koanf:"address"`
 	// CORS holds the configuration for Cross Origin Resource Sharing.
 	CORS HTTPCORSConfig `koanf:"cors"`
+	// TLSMode specifies whether TLS is enabled for this interface, and which flavor.
+	TLSMode HTTPTLSMode `koanf:"tls"`
 }
+
+// HTTPTLSMode defines the values for TLS modes
+type HTTPTLSMode string
+
+const (
+	DisabledHTTPTLSMode HTTPTLSMode = "disabled"
+	ServerCertTLSMode               = "server-cert"
+	MutualTLSMode                   = "server-and-client-cert"
+)
 
 // HTTPCORSConfig contains configuration for Cross Origin Resource Sharing.
 type HTTPCORSConfig struct {
@@ -214,10 +257,15 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("verbosity", "info", "Log level (trace, debug, info, warn, error)")
 	flagSet.String("loggerformat", "text", "Log format (text, json)")
 	flagSet.String("http.default.address", ":1323", "Address and port the server will be listening to")
+	flagSet.String("http.default.tls", string(DisabledHTTPTLSMode), fmt.Sprintf("Whether to enable TLS for the default interface (options are `%s`, `%s`, `%s`).", DisabledHTTPTLSMode, ServerCertTLSMode, MutualTLSMode))
 	flagSet.Bool("strictmode", false, "When set, insecure settings are forbidden.")
 	flagSet.Bool("internalratelimiter", true, "When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode.")
 	flagSet.String("datadir", "./data", "Directory where the node stores its files.")
 	flagSet.StringSlice("http.default.cors.origin", nil, "When set, enables CORS from the specified origins for the on default HTTP interface.")
+	flagSet.Bool("tls.enabled", true, "Whether to enable TLS for incoming and outgoing connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see `tls.offload`).")
+	flagSet.String("tls.certfile", "", "PEM file containing the certificate for the server (also used as client certificate). Required when `network.enabletls` is `true`.")
+	flagSet.String("tls.certkeyfile", "", "PEM file containing the private key of the server certificate. Required when `tls.enable` is `true`.")
+	flagSet.String("tls.truststorefile", "truststore.pem", "PEM file containing the trusted CA certificates for authenticating remote servers.")
 	flagSet.String("tls.offload", "", "Whether to enable TLS offloading for incoming connections. If enabled `tls.certheader` must be configured as well.")
 	flagSet.String("tls.certheader", "", "Name of the HTTP header that will contain the client certificate when TLS is offloaded.")
 	// Legacy TLS settings, to be removed in v6:
