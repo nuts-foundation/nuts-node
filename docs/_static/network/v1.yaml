@@ -219,7 +219,7 @@ components:
           description: The transaction reference
           type: string
         error:
-          description: Lists the error if the event processing failed due to an error.
+          description: Lists the last error if the event processing failed due to an error.
           type: string
     EventSubscriber:
       type: object
