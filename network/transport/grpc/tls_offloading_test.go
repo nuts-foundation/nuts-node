@@ -29,6 +29,7 @@ import (
 	"testing"
 )
 
+const certAsDER = "MIIBLDCB06ADAgECAgkAmIRh+hEybUEwCgYIKoZIzj0EAwIwEjEQMA4GA1UEAwwHUm9vdCBDQTAeFw0yMTAyMjIxMjI4MDJaFw0yMzA1MjgxMjI4MDJaMBAxDjAMBgNVBAMMBW5vZGVCMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEDj3lVuuswobsBm1hpLWJ3occMPnHRv31Z84t4xzTePeqHZkWgwhdoffRoWDFonBeC/pPyIdYPnyImTZTVYx6oaMUMBIwEAYDVR0RBAkwB4IFbm9kZUIwCgYIKoZIzj0EAwIDSAAwRQIhAJvWKKcU/JCjcR/Ub4XDfmbAAFacq1bqeU/3BXU+K6cIAiB20w4Tq+wb3MvK6j/MGz+DHPW0V4PGREsMS/kfnzWdTw=="
 const certAsPEM = `-----BEGIN CERTIFICATE-----
 MIIDJjCCAg6gAwIBAgIJAJES+D3F7kfeMA0GCSqGSIb3DQEBCwUAMBIxEDAOBgNV
 BAMMB1Jvb3QgQ0EwHhcNMjEwMTI2MTE1MzUwWhcNMjMwNTAxMTE1MzUwWjAUMRIw
@@ -47,6 +48,9 @@ qMLwpds9lcJZelsO/rar0mIiuradUUrISz9DTBqC/aE2hsRw0i4m/wF+slVQY7Aa
 ZnECVkHdrKGz6OMFF8uU9t7N+xbzx5nFswEbJXw4AjTklXlyHeyuC0y09ZmWcUDs
 16Gop6VMff6NkShfyUP3EPtvR4Mr33BDAXl8ePp6BFQFd1+IzBY//gfnNBObOqlA
 zG0zvbFZM8oAu/AWf85MH4Ex06cbsimNUsJqu/cx4rDzqNF5iC2uKfKJ
+-----END CERTIFICATE-----`
+const invalidCertAsPEM = `-----BEGIN CERTIFICATE-----
+invalid
 -----END CERTIFICATE-----`
 
 func Test_tlsOffloadingAuthenticator(t *testing.T) {
@@ -111,6 +115,14 @@ func Test_tlsOffloadingAuthenticator(t *testing.T) {
 
 			certs, err := auth.authenticate(serverStream)
 
+			assert.EqualError(t, err, "unable to base64 decode client cert header: illegal base64 data at input byte 3")
+			assert.Nil(t, certs)
+		})
+		t.Run("PEM: invalid certificate", func(t *testing.T) {
+			serverStream.ctx = contextWithMD(url.QueryEscape(invalidCertAsPEM))
+
+			certs, err := auth.authenticate(serverStream)
+
 			assert.EqualError(t, err, "invalid client certificate(s) in header: unable to decode PEM encoded data")
 			assert.Nil(t, certs)
 		})
@@ -119,16 +131,24 @@ func Test_tlsOffloadingAuthenticator(t *testing.T) {
 
 			certs, err := auth.authenticate(serverStream)
 
-			assert.EqualError(t, err, "expected exactly 1 client certificate in header, found 0")
+			assert.EqualError(t, err, "unable to DER decode client cert: x509: malformed certificate")
 			assert.Nil(t, certs)
 		})
-		t.Run("multiple certs", func(t *testing.T) {
+		t.Run("PEM: multiple certs", func(t *testing.T) {
 			serverStream.ctx = contextWithMD(url.QueryEscape(certAsPEM + "\n" + certAsPEM))
 
 			certs, err := auth.authenticate(serverStream)
 
 			assert.EqualError(t, err, "expected exactly 1 client certificate in header, found 2")
 			assert.Nil(t, certs)
+		})
+		t.Run("DER: ok", func(t *testing.T) {
+			serverStream.ctx = contextWithMD(certAsDER)
+
+			certs, err := auth.authenticate(serverStream)
+
+			assert.NoError(t, err)
+			assert.Len(t, certs, 1)
 		})
 	})
 

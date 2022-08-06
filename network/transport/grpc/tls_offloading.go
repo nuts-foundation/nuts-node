@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -33,6 +34,7 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 	"net/url"
+	"strings"
 )
 
 type tlsOffloadingAuthenticator struct {
@@ -78,12 +80,38 @@ func (t *tlsOffloadingAuthenticator) authenticate(serverStream grpc.ServerStream
 	if err != nil {
 		return nil, errors.New("TLS client header escaping is invalid")
 	}
-	certificates, err := core.ParseCertificates([]byte(unescaped))
+
+	var certificates []*x509.Certificate
+	if strings.Contains(unescaped, "-----BEGIN CERTIFICATE-----") {
+		certificates, err = t.parsePEMCert(unescaped)
+	} else {
+		certificates, err = t.parseDERCert(values[0])
+	}
 	if err != nil {
-		return nil, fmt.Errorf("invalid client certificate(s) in header: %w", err)
+		return nil, err
 	}
 	if len(certificates) != 1 {
 		return nil, fmt.Errorf("expected exactly 1 client certificate in header, found %d", len(certificates))
+	}
+	return certificates, err
+}
+
+func (t *tlsOffloadingAuthenticator) parseDERCert(data string) ([]*x509.Certificate, error) {
+	bytes, err := base64.StdEncoding.DecodeString(data)
+	if err != nil {
+		return nil, fmt.Errorf("unable to base64 decode client cert header: %w", err)
+	}
+	certificate, err := x509.ParseCertificate(bytes)
+	if err != nil {
+		return nil, fmt.Errorf("unable to DER decode client cert: %w", err)
+	}
+	return []*x509.Certificate{certificate}, nil
+}
+
+func (t *tlsOffloadingAuthenticator) parsePEMCert(data string) ([]*x509.Certificate, error) {
+	certificates, err := core.ParseCertificates([]byte(data))
+	if err != nil {
+		return nil, fmt.Errorf("invalid client certificate(s) in header: %w", err)
 	}
 	return certificates, nil
 }
