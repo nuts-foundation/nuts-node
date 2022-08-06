@@ -73,6 +73,8 @@ In addition to the general TLS configuration, you need to configure the followin
 * ``tls.offload`` needs to be set to ``incoming``
 * ``tls.certheader`` needs to be set to the name of the header in which your proxy sets the certificate (e.g. ``X-SSl-CERT``).
 
+The certificate and truststore will still need to be available to the Nuts node for making outbound connections.
+
 For `NGINX <https://www.nginx.com/>`_ the proxy configuration could look as follows:
 
 .. code-block::
@@ -83,7 +85,7 @@ For `NGINX <https://www.nginx.com/>`_ the proxy configuration could look as foll
 
     server {
       server_name nuts;
-      listen                    443 ssl http2;
+      listen                    5555 ssl http2;
       ssl_certificate           /etc/nginx/ssl/server.pem;
       ssl_certificate_key       /etc/nginx/ssl/key.pem;
       ssl_client_certificate    /etc/nginx/ssl/truststore.pem;
@@ -96,7 +98,19 @@ For `NGINX <https://www.nginx.com/>`_ the proxy configuration could look as foll
       }
     }
 
-The certificate and truststore will still need to be available to the Nuts node for making outbound connections.
+For `HAProxy <https://www.haproxy.com/>`_ the proxy configuration could look as follows:
+
+.. code-block::
+
+    frontend grpc_service
+        mode http
+        bind :5555 proto h2 ssl crt /certificate.pem ca-file /truststore.pem verify required
+        default_backend grpc_servers
+
+    backend grpc_servers
+        mode http
+        http-request set-header X-SSL-CERT %{+Q}[ssl_c_der,base64]
+        server node1 nuts_node:5555 check proto h2
 
 No TLS
 ******
