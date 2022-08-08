@@ -15,6 +15,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/vault/api v1.7.2
 	github.com/knadh/koanf v1.4.2
+	github.com/labstack/echo-contrib v0.13.0
 	github.com/labstack/echo/v4 v4.7.2
 	github.com/lestrrat-go/jwx v1.2.25
 	github.com/magiconair/properties v1.8.6
@@ -27,7 +28,7 @@ require (
 	github.com/nuts-foundation/go-stoabs v0.0.0-20220801125019-c5537ed90d27
 	github.com/piprate/json-gold v0.4.1
 	github.com/privacybydesign/irmago v0.10.0
-	github.com/prometheus/client_golang v1.12.2
+	github.com/prometheus/client_golang v1.13.0
 	github.com/prometheus/client_model v0.2.0
 	github.com/shengdoushi/base58 v1.0.0
 	github.com/sirupsen/logrus v1.9.0
@@ -38,6 +39,7 @@ require (
 	go.etcd.io/bbolt v1.3.6
 	go.uber.org/atomic v1.9.0
 	go.uber.org/goleak v1.1.12
+	golang.org/x/time v0.0.0-20220722155302-e5dcc9cfc0b9
 	google.golang.org/grpc v1.48.0
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/Regis24GmbH/go-phonetics.v2 v2.0.2
@@ -104,7 +106,6 @@ require (
 	github.com/jinzhu/gorm v1.9.12 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/klauspost/compress v1.14.4 // indirect
-	github.com/labstack/echo-contrib v0.13.0 // indirect
 	github.com/labstack/gommon v0.3.1 // indirect
 	github.com/lestrrat-go/backoff/v2 v2.0.8 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.1 // indirect
@@ -158,7 +159,6 @@ require (
 	golang.org/x/sys v0.0.0-20220728004956-3c1f35247d10 // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.3.7 // indirect
-	golang.org/x/time v0.0.0-20220722155302-e5dcc9cfc0b9 // indirect
 	google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa // indirect
 	gopkg.in/Regis24GmbH/go-diacritics.v2 v2.0.2 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1 // indirect
