@@ -325,8 +325,9 @@ func TestNewInternalRateLimiter(t *testing.T) {
 			req := httptest.NewRequest(testcase.method, testcase.path, nil)
 			rec := httptest.NewRecorder()
 			c := e.NewContext(req, rec)
+			c.SetPath(testcase.path)
 			_ = rlMiddleware(handler)(c)
-			assert.Equal(t, testcase.expectedStatus, rec.Code)
+			assert.Equalf(t, testcase.expectedStatus, rec.Code, "unexpected HTTP response for %s on %s", testcase.method, testcase.path)
 		}
 	})
 
