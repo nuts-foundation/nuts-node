@@ -279,7 +279,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 		cm := NewGRPCConnectionManager(cfg, nil, &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
 		err := cm.Start()
 
-		assert.EqualError(t, err, "clientCertHeaderName must be configured to enable TLS offloading ")
+		assert.EqualError(t, err, "tls.certheader must be configured to enable TLS offloading ")
 	})
 
 	t.Run("ok - gRPC server bound, TLS disabled", func(t *testing.T) {
