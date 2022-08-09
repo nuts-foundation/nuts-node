@@ -41,24 +41,6 @@ type EchoServer interface {
 	Shutdown(ctx context.Context) error
 }
 
-type echoHttpInterface struct {
-	server *echo.Echo
-	tls    bool
-}
-
-func (e echoHttpInterface) Start(address string) error {
-	if e.tls {
-		e.server.TLSServer.Addr = address
-		return e.server.StartServer(e.server.TLSServer)
-	}
-	return e.server.Start(address)
-}
-
-func (e echoHttpInterface) Shutdown(ctx context.Context) error {
-	//TODO implement me
-	panic("implement me")
-}
-
 // EchoRouter is the interface the generated server API's will require as the Routes func argument
 type EchoRouter interface {
 	Add(method, path string, handler echo.HandlerFunc, middleware ...echo.MiddlewareFunc) *echo.Route
@@ -78,8 +60,11 @@ type EchoRouter interface {
 
 const defaultEchoGroup = ""
 
+// EchoCreator is a function used to create an Echo server.
+// It's TLS agnostic, so it also returns an EchoStarter that can be used to start both TLS and non-TLS servers.
 type EchoCreator func(config HTTPConfig) (server EchoServer, starter EchoStarter, err error)
 
+// EchoStarter is a function used to start an Echo server.
 type EchoStarter func(address string) error
 
 // NewMultiEcho creates a new MultiEcho which uses the given function to create EchoServers. If a route is registered

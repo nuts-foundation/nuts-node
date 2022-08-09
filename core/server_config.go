@@ -67,6 +67,7 @@ type TLSConfig struct {
 	TrustStoreFile       string `koanf:"truststorefile"`
 }
 
+// Enabled returns whether TLS should be enabled, according to the global config.
 func (t TLSConfig) Enabled() bool {
 	return (len(t.CertFile) > 0 || len(t.CertKeyFile) > 0) && t.Offload == NoOffloading
 }
@@ -150,9 +151,12 @@ type HTTPConfig struct {
 type HTTPTLSMode string
 
 const (
+	// DisabledHTTPTLSMode specifies that TLS is not enabled for this interface.
 	DisabledHTTPTLSMode HTTPTLSMode = "disabled"
-	ServerCertTLSMode               = "server-cert"
-	MutualTLSMode                   = "server-and-client-cert"
+	// ServerCertTLSMode specifies that TLS is enabled for this interface, but no client certificate is required.
+	ServerCertTLSMode = "server-cert"
+	// MutualTLSMode specifies that TLS is enabled for this interface, and that it will require a client certificate.
+	MutualTLSMode = "server-and-client-cert"
 )
 
 // HTTPCORSConfig contains configuration for Cross Origin Resource Sharing.
