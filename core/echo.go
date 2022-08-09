@@ -314,31 +314,7 @@ func createEchoServer(cfg HTTPConfig, tlsConfig *tls.Config, strictmode, rateLim
 		)
 	}
 
-	var starter EchoStarter
-	switch cfg.TLSMode {
-	case ServerCertTLSMode:
-		fallthrough
-	case MutualTLSMode:
-		if tlsConfig == nil {
-			return nil, nil, fmt.Errorf("TLS must be enabled (without offloading) to enable it on HTTP endpoints")
-		}
-		serverTLSConfig := tlsConfig.Clone()
-		if cfg.TLSMode == MutualTLSMode {
-			serverTLSConfig.ClientAuth = tls.RequireAndVerifyClientCert
-		}
-
-		echoServer.TLSServer.TLSConfig = serverTLSConfig
-		starter = func(address string) error {
-			echoServer.TLSServer.Addr = address
-			return echoServer.StartServer(echoServer.TLSServer)
-		}
-	default:
-		fallthrough
-	case DisabledHTTPTLSMode:
-		starter = echoServer.Start
-	}
-
-	return echoServer, starter, nil
+	return configureTLS(cfg, tlsConfig, echoServer)
 }
 
 // NewInternalRateLimiter creates a new internal rate limiter based on the echo middleware RateLimiter.
@@ -397,6 +373,33 @@ func NewInternalRateLimiterStore(interval time.Duration, limitPerInterval rate.L
 	return &InternalRateLimiterStore{
 		limiter: rate.NewLimiter(limitPerInterval*rate.Every(interval), burst),
 	}
+}
+
+func configureTLS(cfg HTTPConfig, tlsConfig *tls.Config, echoServer *echo.Echo) (*echo.Echo, EchoStarter, error) {
+	var starter EchoStarter
+	switch cfg.TLSMode {
+	case ServerCertTLSMode:
+		fallthrough
+	case MutualTLSMode:
+		if tlsConfig == nil {
+			return nil, nil, fmt.Errorf("TLS must be enabled (without offloading) to enable it on HTTP endpoints")
+		}
+		serverTLSConfig := tlsConfig.Clone()
+		if cfg.TLSMode == MutualTLSMode {
+			serverTLSConfig.ClientAuth = tls.RequireAndVerifyClientCert
+		}
+		echoServer.TLSServer.TLSConfig = serverTLSConfig
+		starter = func(address string) error {
+			echoServer.TLSServer.Addr = address
+			return echoServer.StartServer(echoServer.TLSServer)
+		}
+	default:
+		fallthrough
+	case DisabledHTTPTLSMode:
+		starter = echoServer.Start
+	}
+
+	return echoServer, starter, nil
 }
 
 func skipLogRequest(context echo.Context) bool {
