@@ -128,7 +128,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	var trustStore *core.TrustStore
 	if config.LegacyTLS.Enabled {
 		var err error
-		clientCert, trustStore, err = loadCertificateAndTrustStore(n.config.tls)
+		clientCert, trustStore, err = loadCertificateAndTrustStore(config)
 		if err != nil {
 			return err
 		}
@@ -264,12 +264,32 @@ func (n *Network) emitEvents(event dag.Event) (bool, error) {
 	return true, nil
 }
 
-func loadCertificateAndTrustStore(tlsConfig core.NetworkTLSConfig) (tls.Certificate, *core.TrustStore, error) {
-	clientCertificate, err := tls.LoadX509KeyPair(tlsConfig.CertFile, tlsConfig.CertKeyFile)
-	if err != nil {
-		return tls.Certificate{}, nil, fmt.Errorf("unable to load node TLS client certificate (certfile=%s,certkeyfile=%s): %w", tlsConfig.CertFile, tlsConfig.CertKeyFile, err)
+func loadCertificateAndTrustStore(config core.ServerConfig) (tls.Certificate, *core.TrustStore, error) {
+	var certFile, certKeyFile, trustStoreFile string
+	if len(config.LegacyTLS.CertFile) > 0 {
+		log.Logger().Warn("Deprecated: use `tls.certfile` instead of `network.certfile`")
+		certFile = config.LegacyTLS.CertFile
+	} else {
+		certFile = config.TLS.CertFile
 	}
-	trustStore, err := core.LoadTrustStore(tlsConfig.TrustStoreFile)
+	if len(config.LegacyTLS.CertKeyFile) > 0 {
+		log.Logger().Warn("Deprecated: use `tls.certkeyfile` instead of `network.certkeyfile`")
+		certKeyFile = config.LegacyTLS.CertKeyFile
+	} else {
+		certKeyFile = config.TLS.CertKeyFile
+	}
+	if len(config.LegacyTLS.TrustStoreFile) > 0 {
+		log.Logger().Warn("Deprecated: use `tls.truststorefile` instead of `network.truststorefile`")
+		trustStoreFile = config.LegacyTLS.TrustStoreFile
+	} else {
+		trustStoreFile = config.TLS.TrustStoreFile
+	}
+
+	clientCertificate, err := tls.LoadX509KeyPair(certFile, certKeyFile)
+	if err != nil {
+		return tls.Certificate{}, nil, fmt.Errorf("unable to load node TLS client certificate (certfile=%s,certkeyfile=%s): %w", certFile, certKeyFile, err)
+	}
+	trustStore, err := core.LoadTrustStore(trustStoreFile)
 	if err != nil {
 		return tls.Certificate{}, nil, err
 	}

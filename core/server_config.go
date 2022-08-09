@@ -57,7 +57,6 @@ type ServerConfig struct {
 // TLSConfig specifies how TLS should be configured for connections.
 // For v5, network.enabletls, network.truststorefile, network.certfile and network.certkeyfile must be moved to this struct.
 type TLSConfig struct {
-	Enabled bool `koanf:"enabled"`
 	// Offload specifies the TLS offloading mode for incoming/outgoing traffic.
 	Offload TLSOffloadingMode `koanf:"offload"`
 	// ClientCertHeaderName specifies the name of the HTTP header in which the TLS offloader puts the client certificate in.
@@ -68,9 +67,13 @@ type TLSConfig struct {
 	TrustStoreFile       string `koanf:"truststorefile"`
 }
 
+func (t TLSConfig) Enabled() bool {
+	return (len(t.CertFile) > 0 || len(t.CertKeyFile) > 0) && t.Offload == NoOffloading
+}
+
 // Load creates tls.Config from the given configuration. If TLS is disabled or offloaded it returns nil.
 func (t TLSConfig) Load() (*tls.Config, error) {
-	if !t.Enabled || t.Offload != NoOffloading {
+	if !t.Enabled() {
 		return nil, nil
 	}
 
@@ -262,7 +265,6 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.Bool("internalratelimiter", true, "When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode.")
 	flagSet.String("datadir", "./data", "Directory where the node stores its files.")
 	flagSet.StringSlice("http.default.cors.origin", nil, "When set, enables CORS from the specified origins for the on default HTTP interface.")
-	flagSet.Bool("tls.enabled", true, "Whether to enable TLS for incoming and outgoing connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see `tls.offload`).")
 	flagSet.String("tls.certfile", "", "PEM file containing the certificate for the server (also used as client certificate). Required when `network.enabletls` is `true`.")
 	flagSet.String("tls.certkeyfile", "", "PEM file containing the private key of the server certificate. Required when `tls.enable` is `true`.")
 	flagSet.String("tls.truststorefile", "truststore.pem", "PEM file containing the trusted CA certificates for authenticating remote servers.")
@@ -270,11 +272,11 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("tls.certheader", "", "Name of the HTTP header that will contain the client certificate when TLS is offloaded.")
 	// Legacy TLS settings, to be removed in v6:
 	flagSet.Bool("network.enabletls", true, "Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see `tls.offload`). Disabling TLS is not allowed in strict-mode.")
-	flagSet.String("network.certfile", "", "PEM file containing the server certificate for the gRPC server. "+
+	flagSet.String("network.certfile", "", "Deprecated: use `tls.certfile`. PEM file containing the server certificate for the gRPC server. "+
 		"Required when `network.enabletls` is `true`.")
-	flagSet.String("network.certkeyfile", "", "PEM file containing the private key of the server certificate. "+
+	flagSet.String("network.certkeyfile", "", "Deprecated: use `tls.certkeyfile`. PEM file containing the private key of the server certificate. "+
 		"Required when `network.enabletls` is `true`.")
-	flagSet.String("network.truststorefile", "truststore.pem", "PEM file containing the trusted CA certificates for authenticating remote gRPC servers.")
+	flagSet.String("network.truststorefile", "", "Deprecated: use `tls.truststorefile`. PEM file containing the trusted CA certificates for authenticating remote gRPC servers.")
 
 	return flagSet
 }

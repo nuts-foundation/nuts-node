@@ -20,10 +20,17 @@
 package core
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
 )
+
+type HttpInterface interface {
+	Start(address string) error
+	Shutdown(ctx context.Context) error
+	Router() EchoRouter
+}
 
 func TestResponseCode(expectedStatusCode int, response *http.Response) error {
 	if response.StatusCode != expectedStatusCode {

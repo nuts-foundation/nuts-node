@@ -145,15 +145,7 @@ func startServer(ctx context.Context, system *core.System) error {
 	}
 
 	// init HTTP interfaces and routes
-	tlsConfig, err := system.Config.TLS.Load()
-	if err != nil {
-		return err
-	}
-
-	echoCreator := func(cfg core.HTTPConfig) (core.EchoServer, func() error, error) {
-		return system.EchoCreator(cfg, tlsConfig, system.Config.Strictmode, system.Config.InternalRateLimiter)
-	}
-	echoServer, err := core.NewMultiEcho(system.Config.HTTP.HTTPConfig, echoCreator)
+	echoServer, err := core.NewMultiEcho(system.EchoCreator, system.Config.HTTP.HTTPConfig)
 	if err != nil {
 		return err
 	}

@@ -21,6 +21,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	nutsTest "github.com/nuts-foundation/nuts-node/test"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -40,8 +41,8 @@ func Test_MultiEcho_Bind(t *testing.T) {
 		defer ctrl.Finish()
 
 		cfg := NewServerConfig().HTTP.HTTPConfig
-		m := NewMultiEcho(func(_ HTTPConfig) (EchoServer, error) {
-			return NewMockEchoServer(ctrl), nil
+		m, _ := NewMultiEcho(func(_ HTTPConfig) (EchoServer, EchoStarter, error) {
+			return NewMockEchoServer(ctrl), nil, nil
 		}, cfg)
 		err := m.Bind("", cfg)
 		assert.EqualError(t, err, "http bind group already exists: ")
@@ -54,10 +55,12 @@ func Test_MultiEcho_Start(t *testing.T) {
 		defer ctrl.Finish()
 
 		cfg := NewServerConfig().HTTP.HTTPConfig
-		m := NewMultiEcho(func(_ HTTPConfig) (EchoServer, error) {
+		m, _ := NewMultiEcho(func(_ HTTPConfig) (EchoServer, EchoStarter, error) {
 			server := NewMockEchoServer(ctrl)
 			server.EXPECT().Start(gomock.Any()).Return(fmt.Errorf("unable to start"))
-			return server, nil
+			return server, func(addr string) error {
+				return server.Start(addr)
+			}, nil
 		}, cfg)
 		m.Bind("group2", HTTPConfig{Address: ":8080"})
 		err := m.Start()
@@ -86,15 +89,15 @@ func Test_MultiEcho(t *testing.T) {
 	publicServer.EXPECT().Start("public:8080")
 
 	createFnCalled := 0
-	createFn := func(_ HTTPConfig) (EchoServer, error) {
+	createFn := func(_ HTTPConfig) (EchoServer, EchoStarter, error) {
 		servers := []EchoServer{defaultServer, internalServer, publicServer}
 		s := servers[createFnCalled]
 		createFnCalled++
-		return s, nil
+		return s, s.Start, nil
 	}
 
 	// Bind interfaces
-	m := NewMultiEcho(createFn, defaultHttpCfg)
+	m, _ := NewMultiEcho(createFn, defaultHttpCfg)
 	err := m.Bind("internal", HTTPConfig{Address: "internal:8080"})
 	if !assert.NoError(t, err) {
 		return
@@ -138,11 +141,11 @@ func Test_MultiEcho_Methods(t *testing.T) {
 		defaultServer.EXPECT().Use(gomock.Any()),
 	)
 
-	createFn := func(_ HTTPConfig) (EchoServer, error) {
-		return defaultServer, nil
+	createFn := func(_ HTTPConfig) (EchoServer, EchoStarter, error) {
+		return defaultServer, nil, nil
 	}
 
-	m := NewMultiEcho(createFn, NewServerConfig().HTTP.HTTPConfig)
+	m, _ := NewMultiEcho(createFn, NewServerConfig().HTTP.HTTPConfig)
 	m.GET("/get", nil)
 	m.POST("/post", nil)
 	m.PUT("/put", nil)
@@ -165,30 +168,77 @@ func Test_getGroup(t *testing.T) {
 }
 
 func Test_createEchoServer(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		instance, err := createEchoServer(NewServerConfig().HTTP.HTTPConfig, true, true)
+	t.Run("ok, no TLS", func(t *testing.T) {
+		instance, starter, err := createEchoServer(NewServerConfig().HTTP.HTTPConfig, nil, true, true)
 		assert.NotNil(t, instance)
+		assert.NotNil(t, starter)
 		assert.NoError(t, err)
+	})
+	t.Run("TLS", func(t *testing.T) {
+		serverCfg := NewServerConfig()
+		serverCfg.TLS.CertFile = "../test/pki/certificate-and-key.pem"
+		serverCfg.TLS.CertKeyFile = "../test/pki/certificate-and-key.pem"
+		serverCfg.TLS.TrustStoreFile = "../test/pki/truststore.pem"
+		serverCfg.TLS.Enabled = true
+		tlsConfig, err := serverCfg.TLS.Load()
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		t.Run("error - TLS not configured", func(t *testing.T) {
+			httpCfg := serverCfg.HTTP.HTTPConfig
+			httpCfg.TLSMode = ServerCertTLSMode
+
+			instance, starter, err := createEchoServer(httpCfg, nil, true, false)
+
+			assert.Nil(t, instance)
+			assert.Nil(t, starter)
+			assert.EqualError(t, err, "TLS must be enabled (without offloading) to enable it on HTTP endpoints")
+		})
+		t.Run("server certificate", func(t *testing.T) {
+			port := nutsTest.FreeTCPPort()
+			httpCfg := serverCfg.HTTP.HTTPConfig
+			httpCfg.TLSMode = ServerCertTLSMode
+			httpCfg.Address = fmt.Sprintf("localhost:%d", port)
+
+			instance, starter, err := createEchoServer(httpCfg, tlsConfig, true, false)
+
+			assert.NotNil(t, instance)
+			assert.NotNil(t, starter)
+			assert.NoError(t, err)
+		})
+		t.Run("client certificate", func(t *testing.T) {
+			port := nutsTest.FreeTCPPort()
+			httpCfg := serverCfg.HTTP.HTTPConfig
+			httpCfg.TLSMode = MutualTLSMode
+			httpCfg.Address = fmt.Sprintf("localhost:%d", port)
+
+			instance, starter, err := createEchoServer(httpCfg, tlsConfig, true, false)
+
+			assert.NotNil(t, instance)
+			assert.NotNil(t, starter)
+			assert.NoError(t, err)
+		})
 	})
 	t.Run("CORS", func(t *testing.T) {
 		t.Run("strict mode", func(t *testing.T) {
 			cfg := NewServerConfig().HTTP.HTTPConfig
 			cfg.CORS.Origin = []string{"test.nl"}
-			instance, err := createEchoServer(cfg, true, true)
+			instance, _, err := createEchoServer(cfg, nil, true, true)
 			assert.NotNil(t, instance)
 			assert.NoError(t, err)
 		})
 		t.Run("strict mode - wildcard not allowed", func(t *testing.T) {
 			cfg := NewServerConfig().HTTP.HTTPConfig
 			cfg.CORS.Origin = []string{"*"}
-			instance, err := createEchoServer(cfg, true, true)
+			instance, _, err := createEchoServer(cfg, nil, true, true)
 			assert.Nil(t, instance)
 			assert.EqualError(t, err, "wildcard CORS origin is not allowed in strict mode")
 		})
 		t.Run("lenient mode", func(t *testing.T) {
 			cfg := NewServerConfig().HTTP.HTTPConfig
 			cfg.CORS.Origin = []string{"*"}
-			instance, err := createEchoServer(cfg, false, true)
+			instance, _, err := createEchoServer(cfg, nil, false, true)
 			assert.NotNil(t, instance)
 			assert.NoError(t, err)
 		})

@@ -47,6 +47,34 @@ func TestDirectory(t *testing.T) string {
 	}
 }
 
+// TestWorkingDirectory is like TestDirectory but also changes the working directory to the test directory.
+func TestWorkingDirectory(t *testing.T) string {
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+		return ""
+	}
+	if dir, err := ioutil.TempDir("", normalizeTestName(t)); err != nil {
+		t.Fatal(err)
+		return ""
+	} else {
+		if err := os.Chdir(dir); err != nil {
+			t.Fatal(err)
+			return ""
+		}
+		t.Cleanup(func() {
+			if err := os.RemoveAll(dir); err != nil {
+				_, _ = os.Stderr.WriteString(fmt.Sprintf("Unable to remove temporary directory for test (%s): %v\n", dir, err))
+			}
+			if err := os.Chdir(oldWd); err != nil {
+				panic(err)
+			}
+		})
+
+		return dir
+	}
+}
+
 func normalizeTestName(t *testing.T) string {
 	return invalidPathCharRegex.ReplaceAllString(t.Name(), "_")
 }

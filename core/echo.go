@@ -38,8 +38,25 @@ import (
 type EchoServer interface {
 	EchoRouter
 	Start(address string) error
-	StartTLS(address string, certFile, keyFile interface{}) error
 	Shutdown(ctx context.Context) error
+}
+
+type echoHttpInterface struct {
+	server *echo.Echo
+	tls    bool
+}
+
+func (e echoHttpInterface) Start(address string) error {
+	if e.tls {
+		e.server.TLSServer.Addr = address
+		return e.server.StartServer(e.server.TLSServer)
+	}
+	return e.server.Start(address)
+}
+
+func (e echoHttpInterface) Shutdown(ctx context.Context) error {
+	//TODO implement me
+	panic("implement me")
 }
 
 // EchoRouter is the interface the generated server API's will require as the Routes func argument
@@ -61,14 +78,15 @@ type EchoRouter interface {
 
 const defaultEchoGroup = ""
 
-type EchoCreator func(config HTTPConfig) (server EchoServer, starter func() error, err error)
+type EchoCreator func(config HTTPConfig) (server EchoServer, starter EchoStarter, err error)
+
+type EchoStarter func(address string) error
 
 // NewMultiEcho creates a new MultiEcho which uses the given function to create EchoServers. If a route is registered
 // for an unknown group is is bound to the given defaultInterface.
-func NewMultiEcho(defaultInterface HTTPConfig, creator EchoCreator) (*MultiEcho, error) {
+func NewMultiEcho(creator EchoCreator, defaultInterface HTTPConfig) (*MultiEcho, error) {
 	instance := &MultiEcho{
-		interfaces: map[string]EchoServer{},
-		starters:   map[string]func() error{},
+		interfaces: map[string]echoInterface{},
 		groups:     map[string]string{},
 		creatorFn:  creator,
 	}
@@ -78,10 +96,14 @@ func NewMultiEcho(defaultInterface HTTPConfig, creator EchoCreator) (*MultiEcho,
 
 // MultiEcho allows to bind specific URLs to specific HTTP interfaces
 type MultiEcho struct {
-	interfaces map[string]EchoServer
-	starters   map[string]func() error
+	interfaces map[string]echoInterface
 	groups     map[string]string
 	creatorFn  EchoCreator
+}
+
+type echoInterface struct {
+	server  EchoServer
+	startFn EchoStarter
 }
 
 // CONNECT registers a new CONNECT route for the given path with optional middleware.
@@ -135,9 +157,9 @@ func (c *MultiEcho) Add(method, path string, handler echo.HandlerFunc, middlewar
 	groupAddress := c.groups[group]
 	var iface EchoServer
 	if groupAddress != "" {
-		iface = c.interfaces[groupAddress]
+		iface = c.interfaces[groupAddress].server
 	} else {
-		iface = c.interfaces[c.groups[defaultEchoGroup]]
+		iface = c.interfaces[c.groups[defaultEchoGroup]].server
 	}
 	return iface.Add(method, path, handler, middleware...)
 }
@@ -156,8 +178,7 @@ func (c *MultiEcho) Bind(group string, interfaceConfig HTTPConfig) error {
 		if err != nil {
 			return err
 		}
-		c.interfaces[interfaceConfig.Address] = server
-		c.starters[interfaceConfig.Address] = starter
+		c.interfaces[interfaceConfig.Address] = echoInterface{server, starter}
 	}
 	return nil
 }
@@ -167,13 +188,13 @@ func (c MultiEcho) Start() error {
 	wg := &sync.WaitGroup{}
 	wg.Add(len(c.interfaces))
 	errChan := make(chan error, len(c.interfaces))
-	for _, starter := range c.starters {
-		go func(starter func() error) {
-			if err := starter(); err != nil {
+	for addr, curr := range c.interfaces {
+		go func(addr string, start EchoStarter) {
+			if err := start(addr); err != nil {
 				errChan <- err
 			}
 			wg.Done()
-		}(starter)
+		}(addr, curr.startFn)
 	}
 	wg.Wait()
 	if len(errChan) > 0 {
@@ -184,9 +205,9 @@ func (c MultiEcho) Start() error {
 
 // Shutdown stops all Echo servers.
 func (c MultiEcho) Shutdown() {
-	for address, echoServer := range c.interfaces {
+	for address, curr := range c.interfaces {
 		logrus.Tracef("Stopping interface: %s", address)
-		if err := echoServer.Shutdown(context.Background()); err != nil {
+		if err := curr.server.Shutdown(context.Background()); err != nil {
 			logrus.
 				WithError(err).
 				Errorf("Unable to shutdown interface: %s", address)
@@ -197,7 +218,7 @@ func (c MultiEcho) Shutdown() {
 // Use applies the given middleware function to all Echo servers.
 func (c MultiEcho) Use(middleware ...echo.MiddlewareFunc) {
 	for _, curr := range c.interfaces {
-		curr.Use(middleware...)
+		curr.server.Use(middleware...)
 	}
 }
 func getGroup(path string) string {
@@ -263,7 +284,7 @@ func loggerMiddleware(config loggerConfig) echo.MiddlewareFunc {
 	}
 }
 
-func createEchoServer(cfg HTTPConfig, tlsConfig *tls.Config, strictmode, rateLimiter bool) (*echo.Echo, func() error, error) {
+func createEchoServer(cfg HTTPConfig, tlsConfig *tls.Config, strictmode, rateLimiter bool) (*echo.Echo, EchoStarter, error) {
 	echoServer := echo.New()
 	echoServer.HideBanner = true
 	echoServer.HidePort = true
@@ -308,7 +329,7 @@ func createEchoServer(cfg HTTPConfig, tlsConfig *tls.Config, strictmode, rateLim
 		)
 	}
 
-	var starter func() error
+	var starter EchoStarter
 	switch cfg.TLSMode {
 	case ServerCertTLSMode:
 		fallthrough
@@ -322,16 +343,14 @@ func createEchoServer(cfg HTTPConfig, tlsConfig *tls.Config, strictmode, rateLim
 		}
 
 		echoServer.TLSServer.TLSConfig = serverTLSConfig
-		echoServer.TLSServer.Addr = cfg.Address
-		starter = func() error {
+		starter = func(address string) error {
+			echoServer.TLSServer.Addr = address
 			return echoServer.StartServer(echoServer.TLSServer)
 		}
 	default:
 		fallthrough
 	case DisabledHTTPTLSMode:
-		starter = func() error {
-			return echoServer.Start(cfg.Address)
-		}
+		starter = echoServer.Start
 	}
 
 	return echoServer, starter, nil

@@ -234,6 +234,20 @@ func (mr *MockEchoServerMockRecorder) Start(address interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockEchoServer)(nil).Start), address)
 }
 
+// StartTLS mocks base method.
+func (m *MockEchoServer) StartTLS(address string, certFile, keyFile interface{}) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StartTLS", address, certFile, keyFile)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// StartTLS indicates an expected call of StartTLS.
+func (mr *MockEchoServerMockRecorder) StartTLS(address, certFile, keyFile interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartTLS", reflect.TypeOf((*MockEchoServer)(nil).StartTLS), address, certFile, keyFile)
+}
+
 // TRACE mocks base method.
 func (m_2 *MockEchoServer) TRACE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route {
 	m_2.ctrl.T.Helper()

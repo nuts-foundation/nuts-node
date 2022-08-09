@@ -47,12 +47,12 @@ Prints the current config
       --http.default.cors.origin strings              When set, enables CORS from the specified origins for the on default HTTP interface.
       --http.default.tls disabled                     Whether to enable TLS for the default interface (options are disabled, `server-cert`, `server-and-client-cert`). (default "disabled")
       --internalratelimiter                           When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode. (default true)
-      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson,https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson])
+      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson])
       --jsonld.contexts.remoteallowlist strings       In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here. (default [https://schema.org,https://www.w3.org/2018/credentials/v1,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json])
       --loggerformat string                           Log format (text, json) (default "text")
       --network.bootstrapnodes <host>:<port>          List of bootstrap nodes (<host>:<port>) which the node initially connect to.
-      --network.certfile network.enabletls            PEM file containing the server certificate for the gRPC server. Required when network.enabletls is `true`.
-      --network.certkeyfile network.enabletls         PEM file containing the private key of the server certificate. Required when network.enabletls is `true`.
+      --network.certfile tls.certfile                 Deprecated: use tls.certfile. PEM file containing the server certificate for the gRPC server. Required when `network.enabletls` is `true`.
+      --network.certkeyfile tls.certkeyfile           Deprecated: use tls.certkeyfile. PEM file containing the private key of the server certificate. Required when `network.enabletls` is `true`.
       --network.connectiontimeout int                 Timeout before an outbound connection attempt times out (in milliseconds). (default 5000)
       --network.disablenodeauthentication             Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes so it's not allowed in strict-mode. Automatically enabled when TLS is disabled.
       --network.enablediscovery                       Whether to enable automatic connecting to other nodes. (default true)
@@ -61,7 +61,7 @@ Prints the current config
       --network.maxbackoff 1h                         Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. 1h, `30m`). (default 24h0m0s)
       --network.nodedid string                        Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
       --network.protocols ints                        Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.
-      --network.truststorefile string                 PEM file containing the trusted CA certificates for authenticating remote gRPC servers. (default "truststore.pem")
+      --network.truststorefile tls.truststorefile     Deprecated: use tls.truststorefile. PEM file containing the trusted CA certificates for authenticating remote gRPC servers.
       --network.v2.diagnosticsinterval int            Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable). (default 5000)
       --network.v2.gossipinterval int                 Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes. (default 5000)
       --storage.bbolt.backup.directory string         Target directory for BBolt database backups.
@@ -74,7 +74,6 @@ Prints the current config
       --tls.certfile network.enabletls                PEM file containing the certificate for the server (also used as client certificate). Required when network.enabletls is `true`.
       --tls.certheader string                         Name of the HTTP header that will contain the client certificate when TLS is offloaded.
       --tls.certkeyfile tls.enable                    PEM file containing the private key of the server certificate. Required when tls.enable is `true`.
-      --tls.enabled tls.offload                       Whether to enable TLS for incoming and outgoing connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see tls.offload). (default true)
       --tls.offload tls.certheader                    Whether to enable TLS offloading for incoming connections. If enabled tls.certheader must be configured as well.
       --tls.truststorefile string                     PEM file containing the trusted CA certificates for authenticating remote servers. (default "truststore.pem")
       --verbosity string                              Log level (trace, debug, info, warn, error) (default "info")
@@ -111,12 +110,12 @@ Imports private keys from filesystem based storage into Vault. The given directo
       --http.default.cors.origin strings              When set, enables CORS from the specified origins for the on default HTTP interface.
       --http.default.tls disabled                     Whether to enable TLS for the default interface (options are disabled, `server-cert`, `server-and-client-cert`). (default "disabled")
       --internalratelimiter                           When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode. (default true)
-      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson,https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson])
+      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson])
       --jsonld.contexts.remoteallowlist strings       In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here. (default [https://schema.org,https://www.w3.org/2018/credentials/v1,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json])
       --loggerformat string                           Log format (text, json) (default "text")
       --network.bootstrapnodes <host>:<port>          List of bootstrap nodes (<host>:<port>) which the node initially connect to.
-      --network.certfile network.enabletls            PEM file containing the server certificate for the gRPC server. Required when network.enabletls is `true`.
-      --network.certkeyfile network.enabletls         PEM file containing the private key of the server certificate. Required when network.enabletls is `true`.
+      --network.certfile tls.certfile                 Deprecated: use tls.certfile. PEM file containing the server certificate for the gRPC server. Required when `network.enabletls` is `true`.
+      --network.certkeyfile tls.certkeyfile           Deprecated: use tls.certkeyfile. PEM file containing the private key of the server certificate. Required when `network.enabletls` is `true`.
       --network.connectiontimeout int                 Timeout before an outbound connection attempt times out (in milliseconds). (default 5000)
       --network.disablenodeauthentication             Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes so it's not allowed in strict-mode. Automatically enabled when TLS is disabled.
       --network.enablediscovery                       Whether to enable automatic connecting to other nodes. (default true)
@@ -125,7 +124,7 @@ Imports private keys from filesystem based storage into Vault. The given directo
       --network.maxbackoff 1h                         Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. 1h, `30m`). (default 24h0m0s)
       --network.nodedid string                        Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
       --network.protocols ints                        Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.
-      --network.truststorefile string                 PEM file containing the trusted CA certificates for authenticating remote gRPC servers. (default "truststore.pem")
+      --network.truststorefile tls.truststorefile     Deprecated: use tls.truststorefile. PEM file containing the trusted CA certificates for authenticating remote gRPC servers.
       --network.v2.diagnosticsinterval int            Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable). (default 5000)
       --network.v2.gossipinterval int                 Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes. (default 5000)
       --storage.bbolt.backup.directory string         Target directory for BBolt database backups.
@@ -138,7 +137,6 @@ Imports private keys from filesystem based storage into Vault. The given directo
       --tls.certfile network.enabletls                PEM file containing the certificate for the server (also used as client certificate). Required when network.enabletls is `true`.
       --tls.certheader string                         Name of the HTTP header that will contain the client certificate when TLS is offloaded.
       --tls.certkeyfile tls.enable                    PEM file containing the private key of the server certificate. Required when tls.enable is `true`.
-      --tls.enabled tls.offload                       Whether to enable TLS for incoming and outgoing connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see tls.offload). (default true)
       --tls.offload tls.certheader                    Whether to enable TLS offloading for incoming connections. If enabled tls.certheader must be configured as well.
       --tls.truststorefile string                     PEM file containing the trusted CA certificates for authenticating remote servers. (default "truststore.pem")
       --verbosity string                              Log level (trace, debug, info, warn, error) (default "info")
@@ -274,12 +272,12 @@ Starts the Nuts server
       --http.default.cors.origin strings              When set, enables CORS from the specified origins for the on default HTTP interface.
       --http.default.tls disabled                     Whether to enable TLS for the default interface (options are disabled, `server-cert`, `server-and-client-cert`). (default "disabled")
       --internalratelimiter                           When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode. (default true)
-      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson,https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson])
+      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson])
       --jsonld.contexts.remoteallowlist strings       In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here. (default [https://schema.org,https://www.w3.org/2018/credentials/v1,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json])
       --loggerformat string                           Log format (text, json) (default "text")
       --network.bootstrapnodes <host>:<port>          List of bootstrap nodes (<host>:<port>) which the node initially connect to.
-      --network.certfile network.enabletls            PEM file containing the server certificate for the gRPC server. Required when network.enabletls is `true`.
-      --network.certkeyfile network.enabletls         PEM file containing the private key of the server certificate. Required when network.enabletls is `true`.
+      --network.certfile tls.certfile                 Deprecated: use tls.certfile. PEM file containing the server certificate for the gRPC server. Required when `network.enabletls` is `true`.
+      --network.certkeyfile tls.certkeyfile           Deprecated: use tls.certkeyfile. PEM file containing the private key of the server certificate. Required when `network.enabletls` is `true`.
       --network.connectiontimeout int                 Timeout before an outbound connection attempt times out (in milliseconds). (default 5000)
       --network.disablenodeauthentication             Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes so it's not allowed in strict-mode. Automatically enabled when TLS is disabled.
       --network.enablediscovery                       Whether to enable automatic connecting to other nodes. (default true)
@@ -288,7 +286,7 @@ Starts the Nuts server
       --network.maxbackoff 1h                         Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. 1h, `30m`). (default 24h0m0s)
       --network.nodedid string                        Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
       --network.protocols ints                        Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.
-      --network.truststorefile string                 PEM file containing the trusted CA certificates for authenticating remote gRPC servers. (default "truststore.pem")
+      --network.truststorefile tls.truststorefile     Deprecated: use tls.truststorefile. PEM file containing the trusted CA certificates for authenticating remote gRPC servers.
       --network.v2.diagnosticsinterval int            Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable). (default 5000)
       --network.v2.gossipinterval int                 Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes. (default 5000)
       --storage.bbolt.backup.directory string         Target directory for BBolt database backups.
@@ -301,7 +299,6 @@ Starts the Nuts server
       --tls.certfile network.enabletls                PEM file containing the certificate for the server (also used as client certificate). Required when network.enabletls is `true`.
       --tls.certheader string                         Name of the HTTP header that will contain the client certificate when TLS is offloaded.
       --tls.certkeyfile tls.enable                    PEM file containing the private key of the server certificate. Required when tls.enable is `true`.
-      --tls.enabled tls.offload                       Whether to enable TLS for incoming and outgoing connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see tls.offload). (default true)
       --tls.offload tls.certheader                    Whether to enable TLS offloading for incoming connections. If enabled tls.certheader must be configured as well.
       --tls.truststorefile string                     PEM file containing the trusted CA certificates for authenticating remote servers. (default "truststore.pem")
       --verbosity string                              Log level (trace, debug, info, warn, error) (default "info")
