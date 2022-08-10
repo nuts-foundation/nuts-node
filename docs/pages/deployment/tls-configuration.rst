@@ -175,6 +175,7 @@ For `NGINX <https://www.nginx.com/>`_ the proxy configuration could look as foll
       location / {
         grpc_pass grpc://nuts-node-grpc;
         grpc_set_header X-SSL-CERT $ssl_client_escaped_cert;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; // for correct IP logging
       }
     }
 
@@ -189,6 +190,7 @@ For `NGINX <https://www.nginx.com/>`_ the proxy configuration could look as foll
 
       location / {
         proxy_pass http://nuts-node-http-n2n
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; // for correct IP logging
       }
     }
 
@@ -200,6 +202,7 @@ For `NGINX <https://www.nginx.com/>`_ the proxy configuration could look as foll
 
       location / {
         proxy_pass http://nuts-node-http-public
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; // for correct IP logging
       }
     }
 
