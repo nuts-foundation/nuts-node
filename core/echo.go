@@ -139,6 +139,7 @@ func (c *MultiEcho) Add(method, path string, handler echo.HandlerFunc, middlewar
 // Bind binds the given group (first part of the URL) to the given HTTP interface. Calling Bind for the same group twice
 // results in an error being returned.
 func (c *MultiEcho) Bind(group string, interfaceConfig HTTPConfig) error {
+	Logger().Infof("Binding /%s -> %s", group, interfaceConfig.Address)
 	normGroup := strings.ToLower(group)
 	if _, groupExists := c.groups[normGroup]; groupExists {
 		return fmt.Errorf("http bind group already exists: %s", group)
@@ -263,6 +264,7 @@ func loggerMiddleware(config loggerConfig) echo.MiddlewareFunc {
 func createEchoServer(cfg HTTPConfig, strictmode, rateLimiter bool) (*echo.Echo, error) {
 	echoServer := echo.New()
 	echoServer.HideBanner = true
+	echoServer.HidePort = true
 
 	// ErrorHandler
 	echoServer.HTTPErrorHandler = createHTTPErrorHandler()
