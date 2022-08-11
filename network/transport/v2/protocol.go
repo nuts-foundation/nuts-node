@@ -42,22 +42,6 @@ import (
 
 var _ grpc.Protocol = (*protocol)(nil)
 
-// messages lists all messages of the protocol, used for testing and asserting all cases are covered.
-var messages = []isEnvelope_Message{
-	// broadcasts
-	&Envelope_Gossip{&Gossip{}},
-	&Envelope_DiagnosticsBroadcast{&Diagnostics{}},
-	// requests
-	&Envelope_State{&State{}},
-	&Envelope_TransactionListQuery{&TransactionListQuery{}},
-	&Envelope_TransactionRangeQuery{&TransactionRangeQuery{}},
-	&Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{}},
-	// responses
-	&Envelope_TransactionSet{&TransactionSet{}},
-	&Envelope_TransactionList{&TransactionList{}},
-	&Envelope_TransactionPayload{&TransactionPayload{}},
-}
-
 // Config specifies config for protocol v2
 type Config struct {
 	// Datadir from core.Config
