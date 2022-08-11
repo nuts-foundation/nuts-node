@@ -16,7 +16,7 @@ require (
 	github.com/hashicorp/vault/api v1.7.2
 	github.com/knadh/koanf v1.4.2
 	github.com/labstack/echo-contrib v0.13.0
-	github.com/labstack/echo/v4 v4.7.2
+	github.com/labstack/echo/v4 v4.8.0
 	github.com/lestrrat-go/jwx v1.2.25
 	github.com/magiconair/properties v1.8.6
 	github.com/mdp/qrterminal/v3 v3.0.0
