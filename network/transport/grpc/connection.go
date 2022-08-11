@@ -287,6 +287,7 @@ func (mc *conn) startSending(protocol Protocol, stream Stream) {
 					// This sometimes triggered a panic during test teardown on slow systems
 					break loop
 				}
+
 				err := stream.SendMsg(envelope)
 				if err != nil {
 					log.Logger().
@@ -299,7 +300,11 @@ func (mc *conn) startSending(protocol Protocol, stream Stream) {
 			}
 		}
 		// Connection closed, see if we need to close the gRPC stream
-		clientStream, ok := stream.(grpc.ClientStream)
+		unwrappedStream := stream
+		if unwrappable, ok := stream.(interface{ Unwrap() Stream }); ok {
+			unwrappedStream = unwrappable.Unwrap()
+		}
+		clientStream, ok := unwrappedStream.(grpc.ClientStream)
 		if ok {
 			err := clientStream.CloseSend()
 			if err != nil {

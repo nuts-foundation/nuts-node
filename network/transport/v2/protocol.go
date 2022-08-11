@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -40,6 +41,22 @@ import (
 )
 
 var _ grpc.Protocol = (*protocol)(nil)
+
+// messages lists all messages of the protocol, used for testing and asserting all cases are covered.
+var messages = []isEnvelope_Message{
+	// broadcasts
+	&Envelope_Gossip{&Gossip{}},
+	&Envelope_DiagnosticsBroadcast{&Diagnostics{}},
+	// requests
+	&Envelope_State{&State{}},
+	&Envelope_TransactionListQuery{&TransactionListQuery{}},
+	&Envelope_TransactionRangeQuery{&TransactionRangeQuery{}},
+	&Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{}},
+	// responses
+	&Envelope_TransactionSet{&TransactionSet{}},
+	&Envelope_TransactionList{&TransactionList{}},
+	&Envelope_TransactionPayload{&TransactionPayload{}},
+}
 
 // Config specifies config for protocol v2
 type Config struct {
@@ -137,6 +154,14 @@ func (p protocol) CreateEnvelope() interface{} {
 
 func (p protocol) UnwrapMessage(envelope interface{}) interface{} {
 	return envelope.(*Envelope).Message
+}
+
+func (p protocol) GetMessageType(envelope interface{}) string {
+	if _, ok := envelope.(*Envelope); ok {
+		result := fmt.Sprintf("%T", p.UnwrapMessage(envelope))
+		return strings.TrimPrefix(result, "*v2.Envelope_")
+	}
+	return "unknown"
 }
 
 func (p *protocol) Configure(_ transport.PeerID) error {

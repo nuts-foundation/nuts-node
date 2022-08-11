@@ -72,6 +72,11 @@ func (s *TestProtocol) UnwrapMessage(envelope interface{}) interface{} {
 	panic("implement me")
 }
 
+// UnwrapMessage is not implemented.
+func (s *TestProtocol) GetMessageType(envelope interface{}) string {
+	return "TestMessage"
+}
+
 func (s *TestProtocol) DoStuff(serverStream Test_DoStuffServer) error {
 	s.inboundCalled = true
 	return s.acceptor(serverStream)

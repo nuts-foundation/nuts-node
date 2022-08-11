@@ -95,6 +95,20 @@ func (mr *MockProtocolMockRecorder) Diagnostics() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Diagnostics", reflect.TypeOf((*MockProtocol)(nil).Diagnostics))
 }
 
+// GetMessageType mocks base method.
+func (m *MockProtocol) GetMessageType(envelope interface{}) string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMessageType", envelope)
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// GetMessageType indicates an expected call of GetMessageType.
+func (mr *MockProtocolMockRecorder) GetMessageType(envelope interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMessageType", reflect.TypeOf((*MockProtocol)(nil).GetMessageType), envelope)
+}
+
 // Handle mocks base method.
 func (m *MockProtocol) Handle(peer transport.Peer, envelope interface{}) error {
 	m.ctrl.T.Helper()
