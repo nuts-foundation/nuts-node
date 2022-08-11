@@ -72,7 +72,6 @@ func (s *TestProtocol) UnwrapMessage(envelope interface{}) interface{} {
 	panic("implement me")
 }
 
-// UnwrapMessage is not implemented.
 func (s *TestProtocol) GetMessageType(envelope interface{}) string {
 	return "TestMessage"
 }
