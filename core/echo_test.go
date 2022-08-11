@@ -179,7 +179,6 @@ func Test_createEchoServer(t *testing.T) {
 		serverCfg.TLS.CertFile = "../test/pki/certificate-and-key.pem"
 		serverCfg.TLS.CertKeyFile = "../test/pki/certificate-and-key.pem"
 		serverCfg.TLS.TrustStoreFile = "../test/pki/truststore.pem"
-		serverCfg.TLS.Enabled = true
 		tlsConfig, err := serverCfg.TLS.Load()
 		if !assert.NoError(t, err) {
 			return
