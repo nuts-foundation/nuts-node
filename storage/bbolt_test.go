@@ -20,11 +20,14 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
+	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"os"
 	"path"
 	"testing"
 	"time"
@@ -118,15 +121,15 @@ func Test_bboltDatabase_performBackup(t *testing.T) {
 }
 
 func Test_bboltDatabase_startBackup(t *testing.T) {
-	logrus.SetLevel(logrus.DebugLevel)
-	datadir := io.TestDirectory(t)
-	backupDir := path.Join(datadir, "backups")
-	db, _ := createBBoltDatabase(datadir, BBoltConfig{BBoltBackupConfig{
-		Directory: backupDir,
-		Interval:  time.Second,
-	}})
-
 	t.Run("scheduled backup is performed", func(t *testing.T) {
+		logrus.SetLevel(logrus.DebugLevel)
+		datadir := io.TestDirectory(t)
+		backupDir := path.Join(datadir, "backups")
+		db, _ := createBBoltDatabase(datadir, BBoltConfig{Backup: BBoltBackupConfig{
+			Directory: backupDir,
+			Interval:  100 * time.Millisecond,
+		}})
+
 		store, _ := db.createStore(moduleName, storeName)
 		defer store.Close(context.Background())
 
@@ -135,11 +138,18 @@ func Test_bboltDatabase_startBackup(t *testing.T) {
 		})
 
 		// Wait for backup to be performed, then close database (which allows running backup procedures to finish)
-		time.Sleep(time.Second)
-		db.close()
-
-		db.shutdownWatcher.Wait()
-		assert.FileExists(t, path.Join(backupDir, fullStoreName+bboltDbExtension))
+		test.WaitFor(t, func() (bool, error) {
+			if _, err := os.Stat(path.Join(backupDir, fullStoreName+bboltDbExtension)); errors.Is(err, os.ErrNotExist) {
+				// File does not exist
+				return false, nil
+			} else if err != nil {
+				// Other error occurred
+				return false, err
+			} else {
+				// File exists
+				return true, nil
+			}
+		}, 5*time.Second, "time-out while waiting for backup to be written")
 	})
 }
 
