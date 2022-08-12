@@ -387,12 +387,72 @@ func initMockEcho(networkClient *network.MockTransactions) (*echo.Echo, *ServerI
 
 func TestWrapper_Preprocess(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
 	w := &Wrapper{}
 	ctx := mock.NewMockContext(ctrl)
 	ctx.EXPECT().Set(core.OperationIDContextKey, "foo")
 	ctx.EXPECT().Set(core.ModuleNameContextKey, "Network")
 
 	w.Preprocess("foo", ctx)
+}
+
+func TestWrapper_ListEvents(t *testing.T) {
+	tx, _, _ := dag.CreateTestTransaction(0)
+	testEvent := dag.Event{
+		Error:       "error",
+		Hash:        hash.EmptyHash(),
+		Retries:     1,
+		Transaction: tx,
+		Type:        dag.TransactionEventType,
+	}
+
+	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		mockNetwork := network.NewMockTransactions(ctrl)
+		ctx := mock.NewMockContext(ctrl)
+		w := &Wrapper{Service: mockNetwork}
+		subscriberMock := dag.NewMockNotifier(ctrl)
+		mockNetwork.EXPECT().Subscribers().Return([]dag.Notifier{subscriberMock})
+		subscriberMock.EXPECT().Name().Return("test")
+		subscriberMock.EXPECT().GetFailedEvents().Return([]dag.Event{testEvent}, nil)
+		var capturedEventSubscriber []EventSubscriber
+		ctx.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(
+			func(_ interface{}, eventObject interface{}) error {
+				capturedEventSubscriber = eventObject.([]EventSubscriber)
+				return nil
+			})
+
+		err := w.ListEvents(ctx)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		if !assert.Len(t, capturedEventSubscriber, 1) {
+			return
+		}
+		assert.Equal(t, "test", capturedEventSubscriber[0].Name)
+		if !assert.Len(t, capturedEventSubscriber[0].Events, 1) {
+			return
+		}
+		capturedEvent := capturedEventSubscriber[0].Events[0]
+		assert.Equal(t, testEvent.Hash.String(), capturedEvent.Hash)
+		assert.Equal(t, testEvent.Type, *capturedEvent.Type)
+		assert.Equal(t, tx.Ref().String(), capturedEvent.Transaction)
+		assert.Equal(t, testEvent.Retries, capturedEvent.Retries)
+		assert.Equal(t, testEvent.Error, *capturedEvent.Error)
+	})
+
+	t.Run("error", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		mockNetwork := network.NewMockTransactions(ctrl)
+		ctx := mock.NewMockContext(ctrl)
+		w := &Wrapper{Service: mockNetwork}
+		subscriberMock := dag.NewMockNotifier(ctrl)
+		mockNetwork.EXPECT().Subscribers().Return([]dag.Notifier{subscriberMock})
+		subscriberMock.EXPECT().Name().Return("test")
+		subscriberMock.EXPECT().GetFailedEvents().Return(nil, errors.New("error"))
+
+		err := w.ListEvents(ctx)
+
+		assert.Error(t, err)
+	})
 }

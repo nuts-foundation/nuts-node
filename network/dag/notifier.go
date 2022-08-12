@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/prometheus/client_golang/prometheus"
 	"time"
 )
 
@@ -45,6 +46,8 @@ const (
 // Storing the event in the DB is separated from notifying the subscribers.
 // The event is sent to subscribers after the transaction is committed to prevent timing issues.
 type Notifier interface {
+	// Name returns the name of the notifier
+	Name() string
 	// Save an event that needs to be retried even after a crash.
 	// It will not yet be sent, use Notify to notify the receiver.
 	// The event may be ignored due to configured filters.
@@ -59,7 +62,8 @@ type Notifier interface {
 	Finished(hash hash.SHA256Hash) error
 	// Run retries all existing events.
 	Run() error
-	// GetFailedEvents retrieves the hashes of failed events
+	// GetFailedEvents retrieves the hashes of failed events.
+	// If the notifier is not persistent it'll always return 0.
 	GetFailedEvents() ([]Event, error)
 	// Close cancels all running events. It does not remove them from the DB
 	Close() error
@@ -80,24 +84,27 @@ type NotifierOption func(notifier *notifier)
 // The Hash is used as identifier for the Event.
 type Event struct {
 	// Type of an event, can be used to filter
-	Type string `json:"type"`
+	Type string `json:"type,omitempty"`
 	// Hash is the ID of the Event, usually the same as the dag.Transaction.Ref()
 	Hash hash.SHA256Hash `json:"Hash"`
 	// Retries is the current number of retries
 	Retries int `json:"retries"`
 	// Transaction that was added to the DAG or for which the Payload was written. Mandatory.
 	Transaction Transaction `json:"transaction"`
-	// Payload that was written to the PayloadStore, optional (private TXs)
-	Payload []byte `json:"payload"`
+	// Payload that was written to the PayloadStore, optional (private TXs).
+	Payload []byte `json:"payload,omitempty"`
+	// Error contains the error of the last try if any.
+	Error string `json:"error,omitempty"`
 }
 
 func (j *Event) UnmarshalJSON(bytes []byte) error {
 	tmp := &struct {
-		Type        string          `json:"type"`
+		Type        string          `json:"type,omitempty"`
 		Hash        hash.SHA256Hash `json:"Hash"`
 		Retries     int             `json:"retries"`
 		Transaction string          `json:"transaction"`
-		Payload     []byte          `json:"payload"`
+		Payload     []byte          `json:"payload,omitempty"`
+		Error       string          `json:"error,omitempty"`
 	}{}
 
 	if err := json.Unmarshal(bytes, tmp); err != nil {
@@ -108,6 +115,7 @@ func (j *Event) UnmarshalJSON(bytes []byte) error {
 	j.Hash = tmp.Hash
 	j.Retries = tmp.Retries
 	j.Payload = tmp.Payload
+	j.Error = tmp.Error
 
 	tx, err := ParseTransaction([]byte(tmp.Transaction))
 	if err != nil {
@@ -151,6 +159,13 @@ func WithContext(ctx context.Context) NotifierOption {
 	}
 }
 
+func withCounters(notifiedCounter prometheus.Counter, finishedCounter prometheus.Counter) NotifierOption {
+	return func(notifier *notifier) {
+		notifier.notifiedCounter = notifiedCounter
+		notifier.finishedCounter = finishedCounter
+	}
+}
+
 // NewNotifier returns a Notifier that handles transaction events with the given function.
 // Various settings can be changed via a NotifierOption
 // A default retry delay of 10 seconds is used.
@@ -173,13 +188,19 @@ func NewNotifier(name string, receiverFn ReceiverFn, options ...NotifierOption) 
 }
 
 type notifier struct {
-	db         stoabs.KVStore
-	name       string
-	retryDelay time.Duration
-	receiver   ReceiverFn
-	ctx        context.Context
-	cancel     context.CancelFunc
-	filters    []NotificationFilter
+	db              stoabs.KVStore
+	name            string
+	retryDelay      time.Duration
+	receiver        ReceiverFn
+	ctx             context.Context
+	cancel          context.CancelFunc
+	filters         []NotificationFilter
+	notifiedCounter prometheus.Counter
+	finishedCounter prometheus.Counter
+}
+
+func (p *notifier) Name() string {
+	return p.name
 }
 
 func (p *notifier) shelfName() string {
@@ -208,6 +229,9 @@ func (p *notifier) Run() error {
 }
 
 func (p *notifier) GetFailedEvents() (events []Event, err error) {
+	if !p.isPersistent() {
+		return []Event{}, nil
+	}
 	err = p.db.ReadShelf(p.ctx, p.shelfName(), func(reader stoabs.Reader) error {
 		return reader.Iterate(func(k stoabs.Key, data []byte) error {
 			if data != nil {
@@ -310,6 +334,8 @@ func (p *notifier) retry(event Event) {
 // notifyNow is used to call the receiverFn synchronously.
 // This is used for the first run and with every retry.
 func (p *notifier) notifyNow(event Event) error {
+	p.incNotified()
+
 	var dbEvent = &event
 	if p.isPersistent() {
 		if err := p.db.ReadShelf(p.ctx, p.shelfName(), func(reader stoabs.Reader) error {
@@ -325,6 +351,18 @@ func (p *notifier) notifyNow(event Event) error {
 		}
 	}
 
+	if finished, err := p.receiver(*dbEvent); err != nil {
+		log.Logger().
+			WithError(err).
+			WithField(core.LogFieldTransactionRef, dbEvent.Hash.String()).
+			WithField(core.LogFieldEventSubscriber, p.name).
+			Errorf("Retry failed")
+
+		dbEvent.Error = err.Error()
+	} else if finished {
+		return p.Finished(dbEvent.Hash)
+	}
+
 	dbEvent.Retries++
 	if p.isPersistent() {
 		if err := p.db.WriteShelf(p.ctx, p.shelfName(), func(writer stoabs.Writer) error {
@@ -332,16 +370,6 @@ func (p *notifier) notifyNow(event Event) error {
 		}); err != nil {
 			return retry.Unrecoverable(err)
 		}
-	}
-
-	if finished, err := p.receiver(*dbEvent); err != nil {
-		log.Logger().
-			WithError(err).
-			WithField(core.LogFieldTransactionRef, dbEvent.Hash.String()).
-			WithField(core.LogFieldEventSubscriber, p.name).
-			Errorf("Retry failed")
-	} else if finished {
-		return p.Finished(dbEvent.Hash)
 	}
 
 	// has to return an error since `retry.Do` needs to retry until it's marked as finished
@@ -376,6 +404,7 @@ func (p *notifier) readEvent(reader stoabs.Reader, hash hash.SHA256Hash) (*Event
 }
 
 func (p *notifier) Finished(hash hash.SHA256Hash) error {
+	p.incFinished()
 	if !p.isPersistent() {
 		return nil
 	}
@@ -387,4 +416,16 @@ func (p *notifier) Finished(hash hash.SHA256Hash) error {
 func (p *notifier) Close() error {
 	p.cancel()
 	return nil
+}
+
+func (p *notifier) incFinished() {
+	if p.finishedCounter != nil {
+		p.finishedCounter.Inc()
+	}
+}
+
+func (p *notifier) incNotified() {
+	if p.notifiedCounter != nil {
+		p.notifiedCounter.Inc()
+	}
 }

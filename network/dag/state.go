@@ -44,14 +44,16 @@ const (
 
 // State has references to the DAG and the payload store.
 type state struct {
-	db               stoabs.KVStore
-	graph            *dag
-	payloadStore     PayloadStore
-	txVerifiers      []Verifier
-	notifiers        map[string]Notifier
-	xorTree          *treeStore
-	ibltTree         *treeStore
-	transactionCount prometheus.Counter
+	db                  stoabs.KVStore
+	graph               *dag
+	payloadStore        PayloadStore
+	txVerifiers         []Verifier
+	notifiers           map[string]Notifier
+	xorTree             *treeStore
+	ibltTree            *treeStore
+	transactionCount    prometheus.Counter
+	eventsNotifyCount   prometheus.Counter
+	eventsFinishedCount prometheus.Counter
 }
 
 func (s *state) Migrate() error {
@@ -63,20 +65,18 @@ func NewState(db stoabs.KVStore, verifiers ...Verifier) (State, error) {
 	graph := newDAG(db)
 
 	payloadStore := NewPayloadStore()
-	transactionCount := transactionCountCollector()
-	err := prometheus.Register(transactionCount)
+	newState := &state{
+		db:           db,
+		graph:        graph,
+		payloadStore: payloadStore,
+		txVerifiers:  verifiers,
+		notifiers:    map[string]Notifier{},
+		xorTree:      newTreeStore(xorShelf, tree.New(tree.NewXor(), PageSize)),
+		ibltTree:     newTreeStore(ibltShelf, tree.New(tree.NewIblt(IbltNumBuckets), PageSize)),
+	}
+	err := newState.initPrometheusCounters()
 	if err != nil && err.Error() != (prometheus.AlreadyRegisteredError{}).Error() { // No unwrap on prometheus.AlreadyRegisteredError
 		return nil, err
-	}
-	newState := &state{
-		db:               db,
-		graph:            graph,
-		payloadStore:     payloadStore,
-		txVerifiers:      verifiers,
-		notifiers:        map[string]Notifier{},
-		xorTree:          newTreeStore(xorShelf, tree.New(tree.NewXor(), PageSize)),
-		ibltTree:         newTreeStore(ibltShelf, tree.New(tree.NewIblt(IbltNumBuckets), PageSize)),
-		transactionCount: transactionCount,
 	}
 
 	return newState, nil
@@ -91,6 +91,40 @@ func transactionCountCollector() prometheus.Counter {
 			Help:      "Number of transactions stored in the DAG",
 		},
 	)
+}
+
+func (s *state) initPrometheusCounters() error {
+	s.transactionCount = transactionCountCollector()
+	err := prometheus.Register(s.transactionCount)
+	if err != nil && err.Error() != (prometheus.AlreadyRegisteredError{}).Error() { // No unwrap on prometheus.AlreadyRegisteredError
+		return err
+	}
+	s.eventsNotifyCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: "nuts",
+			Subsystem: "dag",
+			Name:      "events_notified_total",
+			Help:      "Number of DAG transaction notifications that were emitted (includes retries)",
+		},
+	)
+	err = prometheus.Register(s.transactionCount)
+	if err != nil && err.Error() != (prometheus.AlreadyRegisteredError{}).Error() { // No unwrap on prometheus.AlreadyRegisteredError
+		return err
+	}
+	s.eventsFinishedCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: "nuts",
+			Subsystem: "dag",
+			Name:      "events_finished_total",
+			Help:      "Number of DAG transaction notifications that were completed",
+		},
+	)
+	err = prometheus.Register(s.transactionCount)
+	if err != nil && err.Error() != (prometheus.AlreadyRegisteredError{}).Error() { // No unwrap on prometheus.AlreadyRegisteredError
+		return err
+	}
+
+	return nil
 }
 
 func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte) error {
@@ -266,11 +300,20 @@ func (s *state) Notifier(name string, receiver ReceiverFn, options ...NotifierOp
 	if _, exists := s.notifiers[name]; exists {
 		return nil, fmt.Errorf("notifier already exists (name=%s)", name)
 	}
+	options = append(options, withCounters(s.eventsNotifyCount, s.eventsFinishedCount))
 
 	notifier := NewNotifier(name, receiver, options...)
 	s.notifiers[name] = notifier
 
 	return notifier, nil
+}
+
+func (s *state) Notifiers() []Notifier {
+	notifiers := make([]Notifier, 0)
+	for _, notifier := range s.notifiers {
+		notifiers = append(notifiers, notifier)
+	}
+	return notifiers
 }
 
 func (s *state) XOR(ctx context.Context, reqClock uint32) (hash.SHA256Hash, uint32) {
@@ -382,8 +425,22 @@ func (s *state) notify(event Event) {
 	}
 }
 
+func (s *state) getFailedEvents() []Event {
+	failedEvents := make([]Event, 0)
+	for name, notifier := range s.notifiers {
+		events, err := notifier.GetFailedEvents()
+		if err != nil {
+			log.Logger().Errorf("Failed to retrieve failed events: %v (notifier=%s)", err, name)
+			continue
+		}
+		failedEvents = append(failedEvents, events...)
+	}
+	return failedEvents
+}
+
 func (s *state) Diagnostics() []core.DiagnosticResult {
 	diag := s.graph.diagnostics(context.Background())
 	diag = append(diag, &core.GenericDiagnosticResult{Title: "dag_xor", Outcome: s.xorTree.getRoot().(*tree.Xor).Hash()})
+	diag = append(diag, &core.GenericDiagnosticResult{Title: "failed_events", Outcome: len(s.getFailedEvents())})
 	return diag
 }

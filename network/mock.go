@@ -141,6 +141,20 @@ func (mr *MockTransactionsMockRecorder) Subscribe(name, receiver interface{}, fi
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribe", reflect.TypeOf((*MockTransactions)(nil).Subscribe), varargs...)
 }
 
+// Subscribers mocks base method.
+func (m *MockTransactions) Subscribers() []dag.Notifier {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Subscribers")
+	ret0, _ := ret[0].([]dag.Notifier)
+	return ret0
+}
+
+// Subscribers indicates an expected call of Subscribers.
+func (mr *MockTransactionsMockRecorder) Subscribers() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscribers", reflect.TypeOf((*MockTransactions)(nil).Subscribers))
+}
+
 // WithPersistency mocks base method.
 func (m *MockTransactions) WithPersistency() SubscriberOption {
 	m.ctrl.T.Helper()

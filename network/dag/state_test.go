@@ -161,6 +161,17 @@ func TestState_Notifier(t *testing.T) {
 	})
 }
 
+func TestState_Notifiers(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		s := createState(t).(*state)
+		_, _ = s.Notifier(t.Name(), dummyFunc)
+
+		notifiers := s.Notifiers()
+
+		assert.Len(t, notifiers, 1)
+	})
+}
+
 func TestState_WritePayload(t *testing.T) {
 	t.Run("notifies receiver for payload", func(t *testing.T) {
 		txState := createState(t)
@@ -302,7 +313,7 @@ func TestState_Diagnostics(t *testing.T) {
 	err := txState.Add(ctx, doc1, payload)
 	assert.NoError(t, err)
 	diagnostics := txState.Diagnostics()
-	assert.Len(t, diagnostics, 3)
+	assert.Len(t, diagnostics, 4)
 	// Assert actual diagnostics
 	lines := make([]string, 0)
 	for _, diagnostic := range diagnostics {
@@ -313,6 +324,7 @@ func TestState_Diagnostics(t *testing.T) {
 
 	assert.Contains(t, actual, fmt.Sprintf("dag_xor: %s", doc1.Ref()))
 	assert.Contains(t, actual, "transaction_count: 1")
+	assert.Contains(t, actual, "failed_events: 0")
 }
 
 func TestState_XOR(t *testing.T) {

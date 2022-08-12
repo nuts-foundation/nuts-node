@@ -33,6 +33,8 @@ type Transactions interface {
 	// A filter can be passed as option with the WithSelectionFilter function.
 	// The events for the receiver can be made persistent by passing the network.WithPersistency() option.
 	Subscribe(name string, receiver dag.ReceiverFn, filters ...SubscriberOption) error
+	// Subscribers returns the list of notifiers on the DAG that emit events to subscribers.
+	Subscribers() []dag.Notifier
 	// GetTransactionPayload retrieves the transaction Payload for the given transaction. If the transaction or Payload is not found
 	// nil is returned.
 	GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte, error)

@@ -837,6 +837,19 @@ func TestNetwork_Reprocess(t *testing.T) {
 	})
 }
 
+func TestNetwork_Subscribers(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	cxt := createNetwork(t, ctrl)
+	notifier := dag.NewNotifier("test", func(event dag.Event) (bool, error) {
+		return true, nil
+	})
+	cxt.state.EXPECT().Notifiers().Return([]dag.Notifier{notifier})
+
+	subscribers := cxt.network.Subscribers()
+
+	assert.Len(t, subscribers, 1)
+}
+
 func TestNetwork_collectDiagnostics(t *testing.T) {
 	const txNum = 5
 	const expectedVersion = "development (0)"
@@ -844,7 +857,6 @@ func TestNetwork_collectDiagnostics(t *testing.T) {
 	expectedPeer := transport.Peer{ID: "abc", Address: "123"}
 
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	cxt := createNetwork(t, ctrl)
 	cxt.state.EXPECT().Diagnostics().Return([]core.DiagnosticResult{core.GenericDiagnosticResult{Title: dag.TransactionCountDiagnostic, Outcome: uint(txNum)}})
 

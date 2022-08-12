@@ -190,6 +190,20 @@ func (mr *MockStateMockRecorder) Notifier(name, receiver interface{}, filters ..
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Notifier", reflect.TypeOf((*MockState)(nil).Notifier), varargs...)
 }
 
+// Notifiers mocks base method.
+func (m *MockState) Notifiers() []Notifier {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Notifiers")
+	ret0, _ := ret[0].([]Notifier)
+	return ret0
+}
+
+// Notifiers indicates an expected call of Notifiers.
+func (mr *MockStateMockRecorder) Notifiers() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Notifiers", reflect.TypeOf((*MockState)(nil).Notifiers))
+}
+
 // ReadPayload mocks base method.
 func (m *MockState) ReadPayload(ctx context.Context, payloadHash hash.SHA256Hash) ([]byte, error) {
 	m.ctrl.T.Helper()

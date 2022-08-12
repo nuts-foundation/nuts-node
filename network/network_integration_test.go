@@ -539,7 +539,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			foundMutex.Lock()
 			defer foundMutex.Unlock()
 			return len(found) > 0, nil
-		}, 10*time.Millisecond, "timeout waiting for message")
+		}, 100*time.Millisecond, "timeout waiting for message")
 	})
 
 	t.Run("third node knows nothing", func(t *testing.T) {
@@ -950,7 +950,6 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 		nodeDIDResolver:     &transport.FixedNodeDIDResolver{},
 		eventPublisher:      eventPublisher,
 		storeProvider:       storeProvider.GetProvider(ModuleName),
-		subscribers:         map[EventType]map[string]Receiver{},
 	}
 
 	if err := instance.Configure(*serverConfig); err != nil {
