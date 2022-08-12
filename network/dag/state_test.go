@@ -313,7 +313,7 @@ func TestState_Diagnostics(t *testing.T) {
 	err := txState.Add(ctx, doc1, payload)
 	assert.NoError(t, err)
 	diagnostics := txState.Diagnostics()
-	assert.Len(t, diagnostics, 5)
+	assert.Len(t, diagnostics, 4)
 	// Assert actual diagnostics
 	lines := make([]string, 0)
 	for _, diagnostic := range diagnostics {
