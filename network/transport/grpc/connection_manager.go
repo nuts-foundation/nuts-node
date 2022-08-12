@@ -111,6 +111,7 @@ type grpcConnectionManager struct {
 	stopCRLValidator    func()
 	observers           []transport.StreamStateObserverFunc
 	connectionStore     stoabs.KVStore
+	peersCounter        prometheus.Gauge
 	recvMessagesCounter *prometheus.CounterVec
 	sentMessagesCounter *prometheus.CounterVec
 }
@@ -218,6 +219,7 @@ func (s *grpcConnectionManager) Stop() {
 	}
 
 	if s.sentMessagesCounter != nil {
+		prometheus.Unregister(s.peersCounter)
 		prometheus.Unregister(s.sentMessagesCounter)
 		prometheus.Unregister(s.recvMessagesCounter)
 	}
@@ -322,6 +324,10 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 	if protocolNum == 0 {
 		return fmt.Errorf("could not use any of the supported protocols to communicate with peer (id=%s)", connection.Peer())
 	}
+
+	s.peersCounter.Inc()
+	defer s.peersCounter.Dec()
+
 	// Connection is OK, reset backoff it can immediately try reconnecting when it disconnects
 	backoff.Reset(0)
 	// Function must block until streams are closed or disconnect() is called.
@@ -453,7 +459,12 @@ func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundSt
 
 	// TODO: Need to authenticate PeerID, to make sure a second stream with a known PeerID is from the same node (maybe even connection).
 	//       Use address from peer context?
-	connection, _ := s.connections.getOrRegister(s.ctx, peer, s.dialer)
+	connection, created := s.connections.getOrRegister(s.ctx, peer, s.dialer)
+	if created {
+		// If created is false, it's a second (or third...) protocol on the same connection
+		s.peersCounter.Inc()
+		defer s.peersCounter.Dec()
+	}
 	wrappedStream := s.wrapStream(inboundStream, protocol)
 	if !connection.registerStream(protocol, wrappedStream) {
 		return ErrAlreadyConnected
@@ -527,6 +538,13 @@ func (s *grpcConnectionManager) wrapStream(stream Stream, protocol Protocol) pro
 }
 
 func (s *grpcConnectionManager) registerPrometheusMetrics() {
+	s.peersCounter = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: "nuts",
+		Subsystem: "network",
+		Name:      "peers",
+		Help:      "Number of connected gRPC peers.",
+	})
+	_ = prometheus.Register(s.peersCounter)
 	s.sentMessagesCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "nuts",
 		Subsystem: "network_grpc",
