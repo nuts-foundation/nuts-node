@@ -17,7 +17,7 @@ System Landscape
 
 The diagram below depicts the users and systems that interact with the Nuts node of the local SP.
 
-.. image:: ../../diagrams/deployment/system-landscape-diagram.svg
+.. image:: ../../_static/images/diagrams/deployment-diagram-System-Landscape-Diagram.svg
 
 Containers
 **********
@@ -25,7 +25,7 @@ Containers
 This section details the system with involved containers (which can be native or containerized processes, physical or remote database servers or even networked filesystems).
 It lists the interfaces of the Nuts node, who uses them and how they should be secured.
 
-.. image:: ../../diagrams/deployment/container-diagram.svg
+.. image:: ../../_static/images/diagrams/deployment-diagram-Container-Diagram.svg
 
 .. note::
 
