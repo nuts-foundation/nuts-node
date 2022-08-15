@@ -153,7 +153,7 @@ func (s *grpcConnectionManager) Start() error {
 			// TLS offloading for incoming traffic
 			if s.config.clientCertHeaderName == "" {
 				// Invalid config
-				return errors.New("clientCertHeaderName must be configured to enable TLS offloading ")
+				return errors.New("tls.certheader must be configured to enable TLS offloading ")
 			}
 			serverOpts = append(serverOpts, grpc.StreamInterceptor((&tlsOffloadingAuthenticator{
 				clientCertHeaderName: s.config.clientCertHeaderName,
