@@ -149,7 +149,6 @@ func startServer(ctx context.Context, system *core.System) error {
 		return system.EchoCreator(cfg, system.Config.Strictmode, system.Config.InternalRateLimiter)
 	}, system.Config.HTTP.HTTPConfig)
 	for httpGroup, httpConfig := range system.Config.HTTP.AltBinds {
-		logrus.Infof("Binding /%s -> %s", httpGroup, httpConfig.Address)
 		if err := echoServer.Bind(httpGroup, httpConfig); err != nil {
 			return err
 		}
