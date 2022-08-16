@@ -41,6 +41,8 @@ type Protocol interface {
 	Handle(peer transport.Peer, envelope interface{}) error
 	// UnwrapMessage is used to extract the inner message from the envelope.
 	UnwrapMessage(envelope interface{}) interface{}
+	// GetMessageType returns a string key identifying the message type.
+	GetMessageType(envelope interface{}) string
 }
 
 // Stream bundles common functions from grpc.ServerStream and grpc.ClientStream, providing a common interface.

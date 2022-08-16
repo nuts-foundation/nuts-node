@@ -56,6 +56,20 @@ type protocolMocks struct {
 	DagStore         *stoabs.MockKVStore
 }
 
+func getMessageTypes() []isEnvelope_Message {
+	// Magic const 0 is the first message in the protobuf definition
+	msgs := file_transport_v2_protocol_proto_msgTypes[0].OneofWrappers
+	var result []isEnvelope_Message
+	for _, msg := range msgs {
+		result = append(result, msg.(isEnvelope_Message))
+	}
+	if len(result) == 0 {
+		// Just so the tests break when the protobuf definition changes
+		panic("expected one-of in first protobuf message")
+	}
+	return result
+}
+
 func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) {
 	ctrl := gomock.NewController(t)
 	dirname := io.TestDirectory(t)
@@ -76,14 +90,15 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 
 	cfg := DefaultConfig()
 	cfg.Datadir = dirname
-	proto := New(cfg, nodeDIDResolver, state, docResolver, decrypter, nil, storage)
-	proto.(*protocol).privatePayloadReceiver = payloadScheduler
-	proto.(*protocol).gManager = gMan
-	proto.(*protocol).cMan = newConversationManager(time.Second)
-	proto.(*protocol).connectionList = connectionList
-	proto.(*protocol).sender = sender
+	proto := New(cfg, nodeDIDResolver, state, docResolver, decrypter, nil, storage).(*protocol)
+	proto.privatePayloadReceiver = payloadScheduler
+	proto.gManager = gMan
+	proto.cMan = newConversationManager(time.Second)
+	proto.connectionList = connectionList
+	proto.sender = sender
+	proto.listHandler = newTransactionListHandler(context.Background(), proto.handleTransactionList)
 
-	return proto.(*protocol), protocolMocks{
+	return proto, protocolMocks{
 		Controller:       ctrl,
 		State:            state,
 		PayloadScheduler: payloadScheduler,
@@ -529,5 +544,23 @@ func TestProtocol_decryptPAL(t *testing.T) {
 		}
 
 		assert.Equal(t, dag.PAL([]did.DID{*testDID, *testDID2}), pal)
+	})
+}
+
+func Test_protocol_GetMessageType(t *testing.T) {
+	p := &protocol{}
+	t.Run("known case", func(t *testing.T) {
+		actual := p.GetMessageType(&Envelope{Message: &Envelope_Gossip{}})
+		assert.Equal(t, "Gossip", actual)
+	})
+	t.Run("all message types are handled", func(t *testing.T) {
+		for _, msg := range getMessageTypes() {
+			actual := p.GetMessageType(&Envelope{Message: msg})
+			assert.NotEqual(t, "unknown", actual)
+		}
+	})
+	t.Run("unknown msg", func(t *testing.T) {
+		actual := p.GetMessageType("not an envelope")
+		assert.Equal(t, "unknown", actual)
 	})
 }

@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
@@ -88,27 +89,31 @@ func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nod
 		dialer:          config.dialer,
 		connectionStore: connectionStore,
 	}
+	cm.registerPrometheusMetrics()
 	cm.ctx, cm.ctxCancel = context.WithCancel(context.Background())
 	return cm
 }
 
 // grpcConnectionManager is a ConnectionManager that does not discover peers on its own, but just connects to the peers for which Connect() is called.
 type grpcConnectionManager struct {
-	protocols        []Protocol
-	config           Config
-	connections      *connectionList
-	grpcServer       *grpc.Server
-	grpcServerMutex  *sync.Mutex
-	ctx              context.Context
-	ctxCancel        func()
-	listener         net.Listener
-	listenerCreator  func(string) (net.Listener, error)
-	dialer           dialer
-	authenticator    Authenticator
-	nodeDIDResolver  transport.NodeDIDResolver
-	stopCRLValidator func()
-	observers        []transport.StreamStateObserverFunc
-	connectionStore  stoabs.KVStore
+	protocols           []Protocol
+	config              Config
+	connections         *connectionList
+	grpcServer          *grpc.Server
+	grpcServerMutex     *sync.Mutex
+	ctx                 context.Context
+	ctxCancel           func()
+	listener            net.Listener
+	listenerCreator     func(string) (net.Listener, error)
+	dialer              dialer
+	authenticator       Authenticator
+	nodeDIDResolver     transport.NodeDIDResolver
+	stopCRLValidator    func()
+	observers           []transport.StreamStateObserverFunc
+	connectionStore     stoabs.KVStore
+	peersCounter        prometheus.Gauge
+	recvMessagesCounter *prometheus.CounterVec
+	sentMessagesCounter *prometheus.CounterVec
 }
 
 func (s *grpcConnectionManager) Start() error {
@@ -212,6 +217,12 @@ func (s *grpcConnectionManager) Stop() {
 	if s.stopCRLValidator != nil {
 		s.stopCRLValidator()
 	}
+
+	if s.sentMessagesCounter != nil {
+		prometheus.Unregister(s.peersCounter)
+		prometheus.Unregister(s.sentMessagesCounter)
+		prometheus.Unregister(s.recvMessagesCounter)
+	}
 }
 
 func (s grpcConnectionManager) Connect(peerAddress string, options ...transport.ConnectionOption) {
@@ -313,6 +324,10 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 	if protocolNum == 0 {
 		return fmt.Errorf("could not use any of the supported protocols to communicate with peer (id=%s)", connection.Peer())
 	}
+
+	s.peersCounter.Inc()
+	defer s.peersCounter.Dec()
+
 	// Connection is OK, reset backoff it can immediately try reconnecting when it disconnects
 	backoff.Reset(0)
 	// Function must block until streams are closed or disconnect() is called.
@@ -371,7 +386,8 @@ func (s *grpcConnectionManager) openOutboundStream(connection Connection, protoc
 
 	connection.setPeer(authenticatedPeer)
 
-	if !connection.registerStream(protocol, clientStream) {
+	wrappedStream := s.wrapStream(clientStream, protocol)
+	if !connection.registerStream(protocol, wrappedStream) {
 		// This can happen when the peer connected to us previously, and now we connect back to them.
 		log.Logger().
 			WithFields(peer.ToFields()).
@@ -443,8 +459,14 @@ func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundSt
 
 	// TODO: Need to authenticate PeerID, to make sure a second stream with a known PeerID is from the same node (maybe even connection).
 	//       Use address from peer context?
-	connection, _ := s.connections.getOrRegister(s.ctx, peer, s.dialer)
-	if !connection.registerStream(protocol, inboundStream) {
+	connection, created := s.connections.getOrRegister(s.ctx, peer, s.dialer)
+	if created {
+		// If created is false, it's a second (or third...) protocol on the same connection
+		s.peersCounter.Inc()
+		defer s.peersCounter.Dec()
+	}
+	wrappedStream := s.wrapStream(inboundStream, protocol)
+	if !connection.registerStream(protocol, wrappedStream) {
 		return ErrAlreadyConnected
 	}
 
@@ -504,4 +526,37 @@ func (s *grpcConnectionManager) startTracking(address string, connection Connect
 		}
 		return true
 	})
+}
+
+func (s *grpcConnectionManager) wrapStream(stream Stream, protocol Protocol) prometheusStreamWrapper {
+	return prometheusStreamWrapper{
+		stream:              stream,
+		protocol:            protocol,
+		recvMessagesCounter: s.recvMessagesCounter,
+		sentMessagesCounter: s.sentMessagesCounter,
+	}
+}
+
+func (s *grpcConnectionManager) registerPrometheusMetrics() {
+	s.peersCounter = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: "nuts",
+		Subsystem: "network",
+		Name:      "peers",
+		Help:      "Number of connected gRPC peers.",
+	})
+	_ = prometheus.Register(s.peersCounter)
+	s.sentMessagesCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "nuts",
+		Subsystem: "network_grpc",
+		Name:      "messages_sent",
+		Help:      "Number of gRPC messages sent per protocol and message type.",
+	}, []string{"protocol", "message_type"})
+	_ = prometheus.Register(s.sentMessagesCounter)
+	s.recvMessagesCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "nuts",
+		Subsystem: "network_grpc",
+		Name:      "messages_received",
+		Help:      "Number of gRPC messages received per protocol and message type.",
+	}, []string{"protocol", "message_type"})
+	_ = prometheus.Register(s.recvMessagesCounter)
 }

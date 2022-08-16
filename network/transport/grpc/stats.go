@@ -19,8 +19,10 @@
 package grpc
 
 import (
+	"context"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/prometheus/client_golang/prometheus"
 	"sort"
 	"strings"
 )
@@ -107,4 +109,38 @@ func (a ConnectorsStats) String() string {
 		items = append(items, fmt.Sprintf("%s (connect_attempts=%d)", curr.Address, curr.Attempts))
 	}
 	return strings.Join(items, " ")
+}
+
+type prometheusStreamWrapper struct {
+	stream              Stream
+	protocol            Protocol
+	recvMessagesCounter *prometheus.CounterVec
+	sentMessagesCounter *prometheus.CounterVec
+}
+
+func (p prometheusStreamWrapper) Unwrap() Stream {
+	return p.stream
+}
+
+func (p prometheusStreamWrapper) Context() context.Context {
+	return p.stream.Context()
+}
+
+func (p prometheusStreamWrapper) SendMsg(m interface{}) error {
+	p.sentMessagesCounter.WithLabelValues(
+		fmt.Sprintf("v%d", p.protocol.Version()),
+		p.protocol.GetMessageType(m),
+	).Inc()
+	return p.stream.SendMsg(m)
+}
+
+func (p prometheusStreamWrapper) RecvMsg(m interface{}) error {
+	err := p.stream.RecvMsg(m)
+	if err == nil {
+		p.recvMessagesCounter.WithLabelValues(
+			fmt.Sprintf("v%d", p.protocol.Version()),
+			p.protocol.GetMessageType(m),
+		).Inc()
+	}
+	return err
 }

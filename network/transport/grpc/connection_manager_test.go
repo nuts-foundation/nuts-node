@@ -27,6 +27,7 @@ import (
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/storage"
 	io2 "github.com/nuts-foundation/nuts-node/test/io"
+	io_prometheus_client "github.com/prometheus/client_model/go"
 	"hash/crc32"
 	"io"
 	"net"
@@ -558,9 +559,20 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 
 		connectedWG.Wait()
 
+		// Assert peer gauge is incremented
+		metric := &io_prometheus_client.Metric{}
+		test.WaitFor(t, func() (bool, error) {
+			_ = client.peersCounter.Write(metric)
+			return metric.Gauge.GetValue() == 1, nil
+		}, time.Second, "Waiting for peer counter to be incremented")
+
 		// Explicitly disconnect to clear peer.
 		c.disconnect()
 		disconnectedWG.Wait()
+
+		// Assert peer gauge is decremented
+		_ = client.peersCounter.Write(metric)
+		assert.Equal(t, float64(0), *metric.Gauge.Value)
 
 		// Assert that the peer is passed correctly to the observer
 		assert.Equal(t, transport.Peer{ID: "server"}, capturedPeer.Load())
@@ -672,7 +684,12 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}, nil, &stubNodeDIDReader{}, authenticator).(*grpcConnectionManager)
 		defer cm.Stop()
 
-		go cm.handleInboundStream(protocol, serverStream)
+		handlerExited := &sync.WaitGroup{}
+		handlerExited.Add(1)
+		go func() {
+			_ = cm.handleInboundStream(protocol, serverStream)
+			handlerExited.Done()
+		}()
 		test.WaitFor(t, func() (bool, error) {
 			return len(cm.Peers()) == 1, nil
 		}, 5*time.Second, "time-out while waiting for peer")
@@ -688,6 +705,19 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 
 		// Assert connection was registered
 		assert.Len(t, cm.connections.list, 1)
+
+		// Assert peer counter is incremented
+		metric := &io_prometheus_client.Metric{}
+		_ = cm.peersCounter.Write(metric)
+		assert.Equal(t, float64(1), *metric.Gauge.Value)
+
+		// Close the stream
+		serverStream.cancelFunc()
+		handlerExited.Wait()
+
+		// Assert peer counter is decremented
+		_ = cm.peersCounter.Write(metric)
+		assert.Equal(t, float64(0), *metric.Gauge.Value)
 	})
 	t.Run("peer didn't send ID", func(t *testing.T) {
 		expectedPeer := transport.Peer{

@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -137,6 +138,14 @@ func (p protocol) CreateEnvelope() interface{} {
 
 func (p protocol) UnwrapMessage(envelope interface{}) interface{} {
 	return envelope.(*Envelope).Message
+}
+
+func (p protocol) GetMessageType(envelope interface{}) string {
+	if _, ok := envelope.(*Envelope); ok {
+		result := fmt.Sprintf("%T", p.UnwrapMessage(envelope))
+		return strings.TrimPrefix(result, "*v2.Envelope_")
+	}
+	return "unknown"
 }
 
 func (p *protocol) Configure(_ transport.PeerID) error {
