@@ -25,7 +25,7 @@ By default, the TLS connection is terminated on the Nuts node.
 This means there is no system between the remote and local Nuts nodes that accepts TLS connections and forwards them as plain HTTP.
 
 .. raw:: html
-    :file: ../../_static/images/network_layouts_directwan.svg
+    :file: ../../_static/images/diagrams/network infrastructure layouts-Direct-WAN-Connection.svg
 
 No additional configuration is required.
 
@@ -35,7 +35,7 @@ TLS Pass-through
 When using a (level 4) load balancer that does not inspect or alter requests, TLS is still terminated on the Nuts node.
 
 .. raw:: html
-    :file: ../../_static/images/network_layouts_tlspassthrough.svg
+    :file: ../../_static/images/diagrams/network infrastructure layouts-TLS-Pass-through.svg
 
 This set up does not need additional configuration.
 
@@ -63,7 +63,7 @@ TLS Offloading
 In many setups TLS is terminated on a reverse proxy in front of the backend services over plain HTTP (HTTP/2 in our case).
 
 .. raw:: html
-    :file: ../../_static/images/network_layouts_tlsoffloading.svg
+    :file: ../../_static/images/diagrams/network infrastructure layouts-TLS-Offloading.svg
 
 To configure this setup your proxy needs to support HTTP/2 or gRPC traffic.
 Your proxy must add the TLS client certificate as request header. The certificate must be in PEM format and URL encoded.

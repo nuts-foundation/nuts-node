@@ -64,13 +64,19 @@ gen-protobuf:
 gen-docs:
 	go run ./docs docs
 
+DIR ?= "$(shell pwd)"
+gen-diagrams:
+	rm ${DIR}/docs/_static/images/diagrams/*.svg
+	docker run -v ${DIR}/docs/diagrams:/data rlespinasse/drawio-export -f svg
+	mv ${DIR}/docs/diagrams/export/* ${DIR}/docs/_static/images/diagrams/
+
 fix-copyright:
 	go run ./docs copyright
 
 test:
 	go test ./...
 
-update-docs: gen-docs gen-readme
+update-docs: gen-docs gen-readme gen-diagrams
 
 OUTPUT ?= "$(shell pwd)/nuts"
 GIT_COMMIT ?= "$(shell git rev-list -1 HEAD)"

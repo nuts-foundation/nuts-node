@@ -17,7 +17,7 @@ System Landscape
 
 The diagram below depicts the users and systems that interact with the Nuts node of the local SP.
 
-.. image:: ../../diagrams/deployment/system-landscape-diagram.svg
+.. image:: ../../_static/images/diagrams/deployment-diagram-System-Landscape-Diagram.svg
 
 Containers
 **********
@@ -25,14 +25,12 @@ Containers
 This section details the system with involved containers (which can be native or containerized processes, physical or remote database servers or even networked filesystems).
 It lists the interfaces of the Nuts node, who uses them and how they should be secured.
 
-.. image:: ../../diagrams/deployment/container-diagram.svg
+.. image:: ../../_static/images/diagrams/deployment-diagram-Container-Diagram.svg
 
 .. note::
 
-    There's a number of upcoming features that will change the recommended deployment, notably:
+    There are features that will change the recommended deployment, notably:
 
-    * SSL/TLS termination for gRPC traffic on a reverse proxy
-    * Redis database support
     * Clustering support
 
 Nuts Node
@@ -106,10 +104,12 @@ These exact subdomain names are by no means required and can be adjusted to your
 Reverse Proxy
 ^^^^^^^^^^^^^
 
-Process that protects and routes HTTP access (specified above) to the Nuts Node. Typically a standalone HTTP proxy that resides in a DMZ and/or an ingress service on a cloud platform.
-It will act as SSL/TLS terminator, with only a server certificate or requiring a client certificate as well (depending on the endpoint).
+Process that protects and routes HTTP and gRPC access (specified above) to the Nuts Node. Typically a standalone HTTP proxy that resides in a DMZ and/or an ingress service on a cloud platform.
+It will act as TLS terminator, with only a server certificate or requiring a client certificate as well (depending on the endpoint).
 
-The Nuts Node looks for a header called `X-Forwarded-For` to determine the client IP when logging HTTP calls.
+If terminating TLS on this proxy, make sure to properly verify client certificates for gRPC traffic and HTTP calls to ``/n2n``.
+
+The Nuts Node looks for a header called ``X-Forwarded-For`` to determine the client IP when logging HTTP calls.
 Refer to the documentation of your proxy on how to set this header.
 
 Nuts Node Client
