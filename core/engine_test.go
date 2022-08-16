@@ -174,7 +174,7 @@ func TestSystem_VisitEnginesE(t *testing.T) {
 func TestSystem_Load(t *testing.T) {
 	cmd := testCommand()
 	e := &TestEngine{
-		flagSet:    &pflag.FlagSet{},
+		flagSet:    testFlagSet(),
 		TestConfig: TestEngineConfig{},
 	}
 	ctl := System{
@@ -183,8 +183,11 @@ func TestSystem_Load(t *testing.T) {
 	}
 	e.FlagSet().String("key", "", "")
 	cmd.Flags().AddFlagSet(FlagSet())
-	cmd.Flags().AddFlagSet(e.FlagSet())
-	e.FlagSet().Parse([]string{"--key", "value"})
+	cmd.Flags().AddFlagSet(e.flagSet)
+	err := e.FlagSet().Parse([]string{"--testengine.key", "value"})
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	t.Run("loads Config without error", func(t *testing.T) {
 		assert.NoError(t, ctl.Load(cmd.Flags()))

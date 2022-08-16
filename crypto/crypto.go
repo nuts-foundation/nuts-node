@@ -38,8 +38,8 @@ const (
 
 // Config holds the values for the crypto engine
 type Config struct {
-	Storage string              `koanf:"crypto.storage"`
-	Vault   storage.VaultConfig `koanf:"crypto.vault"`
+	Storage string              `koanf:"storage"`
+	Vault   storage.VaultConfig `koanf:"vault"`
 }
 
 // DefaultCryptoConfig returns a Config with sane defaults

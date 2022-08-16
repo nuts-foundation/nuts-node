@@ -28,7 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 )
 
-const moduleName = "Event manager"
+const moduleName = "Events"
 
 type manager struct {
 	config  Config
@@ -62,8 +62,8 @@ func (m *manager) Pool() ConnectionPool {
 // Configure the storageDir and setup the predefined set of streams.
 // Nats is very picky about the stream and consumer setup, therefore we predefine them all in this engine.
 func (m *manager) Configure(config core.ServerConfig) error {
-	if m.config.StorageDir == "" {
-		m.config.StorageDir = path.Join(config.Datadir, "events")
+	if m.config.Nats.StorageDir == "" {
+		m.config.Nats.StorageDir = path.Join(config.Datadir, "events")
 	}
 
 	m.pool = NewNATSConnectionPool(m.config)
@@ -99,9 +99,9 @@ func (m *manager) GetStream(streamName string) Stream {
 func (m *manager) Start() error {
 	server, err := natsServer.NewServer(&natsServer.Options{
 		JetStream: true,
-		Port:      m.config.Port,
-		Host:      m.config.Hostname,
-		StoreDir:  m.config.StorageDir,
+		Port:      m.config.Nats.Port,
+		Host:      m.config.Nats.Hostname,
+		StoreDir:  m.config.Nats.StorageDir,
 		NoSigs:    true, // Signals are handled by Nuts node, Nats Server is shut down when Event Engine is shut down.
 	})
 	if err != nil {

@@ -114,6 +114,8 @@ func Test_serverCmd(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		os.Setenv("NUTS_DATADIR", testDirectory)
 		defer os.Unsetenv("NUTS_DATADIR")
+		os.Setenv("NUTS_TESTENGINE_KEY", testDirectory)
+		defer os.Unsetenv("NUTS_TESTENGINE_KEY")
 		os.Args = []string{"nuts", "server"}
 
 		engine1 := &core.TestEngine{}
@@ -131,7 +133,7 @@ func Test_serverCmd(t *testing.T) {
 		// Assert global config contains overridden property
 		assert.Equal(t, testDirectory, system.Config.Datadir)
 		// Assert engine config is injected
-		assert.Equal(t, testDirectory, engine1.TestConfig.Datadir)
+		assert.Equal(t, testDirectory, engine1.TestConfig.Key)
 	})
 	t.Run("output cpuprofile", func(t *testing.T) {
 		ctrl := gomock.NewController(t)

@@ -39,7 +39,7 @@ func TestManager_Start(t *testing.T) {
 	eventManager := createManager(t)
 
 	t.Run("Starts a Nats server", func(t *testing.T) {
-		conn, err := nats.Connect(fmt.Sprintf("nats://127.0.0.1:%d", eventManager.config.Port))
+		conn, err := nats.Connect(fmt.Sprintf("nats://127.0.0.1:%d", eventManager.config.Nats.Port))
 
 		if !assert.NoError(t, err) {
 			return

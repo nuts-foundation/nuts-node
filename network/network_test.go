@@ -209,11 +209,19 @@ func TestNetwork_Configure(t *testing.T) {
 	t.Run("ok - TLS enabled", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		ctx := createNetwork(t, ctrl)
+		ctx := createNetwork(t, ctrl, func(config *Config) {
+			config.EnableTLS = true
+		})
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 		ctx.network.connectionManager = nil
 
-		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		err := ctx.network.Configure(core.ServerConfig{
+			Datadir: io.TestDirectory(t),
+			LegacyTLS: core.NetworkTLSConfig{
+				TrustStoreFile: "test/truststore.pem",
+				CertFile:       "test/certificate-and-key.pem",
+				CertKeyFile:    "test/certificate-and-key.pem",
+			}})
 
 		if !assert.NoError(t, err) {
 			return
@@ -272,11 +280,20 @@ func TestNetwork_Configure(t *testing.T) {
 
 		ctx := createNetwork(t, ctrl, func(config *Config) {
 			config.DisableNodeAuthentication = true
+			config.EnableTLS = true
 		})
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 		ctx.network.connectionManager = nil
 
-		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t), Strictmode: true})
+		err := ctx.network.Configure(core.ServerConfig{
+			Datadir:    io.TestDirectory(t),
+			Strictmode: true,
+			LegacyTLS: core.NetworkTLSConfig{
+				TrustStoreFile: "test/truststore.pem",
+				CertFile:       "test/certificate-and-key.pem",
+				CertKeyFile:    "test/certificate-and-key.pem",
+			},
+		})
 		assert.EqualError(t, err, "disabling node DID in strict mode is not allowed")
 	})
 
@@ -315,11 +332,16 @@ func TestNetwork_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		ctx := createNetwork(t, ctrl, func(config *Config) {
-			config.CertFile = "test/non-existent.pem"
-			config.CertKeyFile = "test/non-existent.pem"
+			config.EnableTLS = true
 		})
 
-		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		err := ctx.network.Configure(core.ServerConfig{
+			Datadir: io.TestDirectory(t),
+			LegacyTLS: core.NetworkTLSConfig{
+				CertFile:    "test/non-existent.pem",
+				CertKeyFile: "test/non-existent.pem",
+			},
+		})
 
 		assert.EqualError(t, err, "unable to load node TLS client certificate (certfile=test/non-existent.pem,certkeyfile=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
 	})
@@ -1024,10 +1046,8 @@ func createNetwork(t *testing.T, ctrl *gomock.Controller, cfgFn ...func(config *
 	prot.EXPECT().Version().AnyTimes().Return(math.MaxInt)
 	connectionManager := transport.NewMockConnectionManager(ctrl)
 	networkConfig := TestNetworkConfig()
-	networkConfig.EnableTLS = true
-	networkConfig.TrustStoreFile = "test/truststore.pem"
-	networkConfig.CertFile = "test/certificate-and-key.pem"
-	networkConfig.CertKeyFile = "test/certificate-and-key.pem"
+	networkConfig.EnableTLS = false
+
 	for _, fn := range cfgFn {
 		fn(&networkConfig)
 	}

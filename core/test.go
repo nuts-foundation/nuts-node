@@ -23,13 +23,14 @@ import (
 	"github.com/spf13/pflag"
 )
 
+const testEngineName = "testengine"
+
 // TestEngineConfig defines the configuration for the test engine
 type TestEngineConfig struct {
-	Key     string               `koanf:"key"`
-	Datadir string               `koanf:"datadir"`
-	Sub     TestEngineSubConfig  `koanf:"sub"`
-	SubPtr  *TestEngineSubConfig `koanf:"subptr"`
-	List    []string             `koanf:"testengine.list"`
+	Key    string               `koanf:"key"`
+	Sub    TestEngineSubConfig  `koanf:"sub"`
+	SubPtr *TestEngineSubConfig `koanf:"subptr"`
+	List   []string             `koanf:"list"`
 }
 
 // TestEngineSubConfig defines the `sub` configuration for the test engine
@@ -69,14 +70,15 @@ func (i *TestEngine) FlagSet() *pflag.FlagSet {
 }
 
 func (i *TestEngine) Name() string {
-	return "test"
+	return testEngineName
 }
 
 func testFlagSet() *pflag.FlagSet {
-	flags := pflag.NewFlagSet("testengine", pflag.ContinueOnError)
+	flags := pflag.NewFlagSet(testEngineName, pflag.ContinueOnError)
 
-	//defs := testDefaultConfig()
-	flags.StringSlice("testengine.list", testDefaultConfig().List, "sets the values of list")
+	defs := testDefaultConfig()
+	flags.StringSlice(testEngineName+".list", defs.List, "sets the values of list")
+	flags.String(testEngineName+".key", defs.Key, "another flag")
 
 	return flags
 }

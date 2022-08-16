@@ -911,14 +911,14 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 	serverConfig := core.NewServerConfig()
 	_ = serverConfig.Load(core.FlagSet())
 	serverConfig.Datadir = path.Join(testDirectory, name)
+	serverConfig.LegacyTLS.CertFile = "test/certificate-and-key.pem"
+	serverConfig.LegacyTLS.CertKeyFile = "test/certificate-and-key.pem"
+	serverConfig.LegacyTLS.TrustStoreFile = "test/truststore.pem"
 
 	// Create Network instance
 	config := Config{
-		GrpcAddr:       fmt.Sprintf("localhost:%d", nameToPort(t, name)),
-		CertFile:       "test/certificate-and-key.pem",
-		CertKeyFile:    "test/certificate-and-key.pem",
-		TrustStoreFile: "test/truststore.pem",
-		EnableTLS:      true,
+		GrpcAddr:  fmt.Sprintf("localhost:%d", nameToPort(t, name)),
+		EnableTLS: true,
 		ProtocolV2: v2.Config{
 			GossipInterval:      500,
 			PayloadRetryDelay:   50 * time.Millisecond,

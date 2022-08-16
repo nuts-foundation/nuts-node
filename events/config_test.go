@@ -27,8 +27,10 @@ import (
 
 func Test_DefaultConfig(t *testing.T) {
 	assert.Equal(t, Config{
-		Port:     4222,
-		Timeout:  30,
-		Hostname: "localhost",
+		Nats: NatsConfig{
+			Port:     4222,
+			Timeout:  30,
+			Hostname: "localhost",
+		},
 	}, DefaultConfig())
 }

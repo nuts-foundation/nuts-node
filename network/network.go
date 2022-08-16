@@ -109,6 +109,8 @@ func NewNetworkInstance(
 
 // Configure configures the Network subsystem
 func (n *Network) Configure(config core.ServerConfig) error {
+	n.config.tls = config.LegacyTLS
+
 	var err error
 	dagStore, err := n.storeProvider.GetKVStore("data", storage.PersistentStorageClass)
 	if err != nil {
@@ -126,11 +128,11 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	var trustStore *core.TrustStore
 	if n.config.EnableTLS {
 		var err error
-		clientCert, trustStore, err = loadCertificateAndTrustStore(n.config)
+		clientCert, trustStore, err = loadCertificateAndTrustStore(n.config.tls)
 		if err != nil {
 			return err
 		}
-	} else if len(n.config.CertFile) > 0 || len(n.config.CertKeyFile) > 0 {
+	} else if len(n.config.tls.CertFile) > 0 || len(n.config.tls.CertKeyFile) > 0 {
 		log.Logger().Warn("TLS is disabled but CertFile and/or CertKeyFile is set. Did you really mean to disable TLS?")
 	}
 
@@ -190,7 +192,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		}
 		// Configure TLS
 		if n.config.EnableTLS {
-			grpcOpts = append(grpcOpts, grpc.WithTLS(clientCert, trustStore, n.config.MaxCRLValidityDays))
+			grpcOpts = append(grpcOpts, grpc.WithTLS(clientCert, trustStore, n.config.tls.MaxCRLValidityDays))
 			if config.TLS.Offload == core.OffloadIncomingTLS {
 				grpcOpts = append(grpcOpts, grpc.WithTLSOffloading(config.TLS.ClientCertHeaderName))
 			}
@@ -262,12 +264,12 @@ func (n *Network) emitEvents(event dag.Event) (bool, error) {
 	return true, nil
 }
 
-func loadCertificateAndTrustStore(moduleConfig Config) (tls.Certificate, *core.TrustStore, error) {
-	clientCertificate, err := tls.LoadX509KeyPair(moduleConfig.CertFile, moduleConfig.CertKeyFile)
+func loadCertificateAndTrustStore(tlsConfig core.NetworkTLSConfig) (tls.Certificate, *core.TrustStore, error) {
+	clientCertificate, err := tls.LoadX509KeyPair(tlsConfig.CertFile, tlsConfig.CertKeyFile)
 	if err != nil {
-		return tls.Certificate{}, nil, fmt.Errorf("unable to load node TLS client certificate (certfile=%s,certkeyfile=%s): %w", moduleConfig.CertFile, moduleConfig.CertKeyFile, err)
+		return tls.Certificate{}, nil, fmt.Errorf("unable to load node TLS client certificate (certfile=%s,certkeyfile=%s): %w", tlsConfig.CertFile, tlsConfig.CertKeyFile, err)
 	}
-	trustStore, err := core.LoadTrustStore(moduleConfig.TrustStoreFile)
+	trustStore, err := core.LoadTrustStore(tlsConfig.TrustStoreFile)
 	if err != nil {
 		return tls.Certificate{}, nil, err
 	}

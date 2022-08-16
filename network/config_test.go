@@ -19,7 +19,6 @@
 package network
 
 import (
-	"github.com/nuts-foundation/nuts-node/core"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -43,29 +42,5 @@ func TestConfig_IsProtocolEnabled(t *testing.T) {
 		defs.Protocols = []int{2}
 		assert.False(t, defs.IsProtocolEnabled(1))
 		assert.True(t, defs.IsProtocolEnabled(2))
-	})
-}
-
-func TestConfig_loadTrustStore(t *testing.T) {
-	t.Run("configured", func(t *testing.T) {
-		cfg := DefaultConfig()
-		cfg.TrustStoreFile = "test/truststore.pem"
-		store, err := core.LoadTrustStore(cfg.TrustStoreFile)
-		assert.NoError(t, err)
-		assert.NotNil(t, store)
-	})
-	t.Run("invalid PEM file", func(t *testing.T) {
-		cfg := DefaultConfig()
-		cfg.TrustStoreFile = "config_test.go"
-		store, err := core.LoadTrustStore(cfg.TrustStoreFile)
-		assert.Error(t, err)
-		assert.Nil(t, store)
-	})
-	t.Run("not configured", func(t *testing.T) {
-		cfg := DefaultConfig()
-		cfg.TrustStoreFile = ""
-		store, err := core.LoadTrustStore(cfg.TrustStoreFile)
-		assert.Error(t, err)
-		assert.Nil(t, store)
 	})
 }

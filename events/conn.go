@@ -101,7 +101,7 @@ func (pool *NATSConnectionPool) Acquire(ctx context.Context) (Conn, JetStreamCon
 	}
 
 	// We're the leader, let's connect!
-	addr := fmt.Sprintf("%s:%d", pool.config.Hostname, pool.config.Port)
+	addr := fmt.Sprintf("%s:%d", pool.config.Nats.Hostname, pool.config.Nats.Port)
 
 	log.Logger().Tracef("ConnectionState to %s", addr)
 
@@ -109,7 +109,7 @@ func (pool *NATSConnectionPool) Acquire(ctx context.Context) (Conn, JetStreamCon
 		conn, err := pool.connectFunc(
 			addr,
 			nats.RetryOnFailedConnect(true),
-			nats.Timeout(time.Second*time.Duration(pool.config.Timeout)),
+			nats.Timeout(time.Second*time.Duration(pool.config.Nats.Timeout)),
 		)
 		if err == nil {
 			js, err := conn.JetStream()

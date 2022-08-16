@@ -21,17 +21,23 @@ package events
 
 // Config holds all the configuration params
 type Config struct {
-	Port       int    `koanf:"events.nats.port"`
-	Timeout    int    `koanf:"events.nats.timeout"`
-	Hostname   string `koanf:"events.nats.hostname"`
-	StorageDir string `koanf:"events.nats.storagedir"`
+	Nats NatsConfig `koanf:"nats"`
+}
+
+type NatsConfig struct {
+	Port       int    `koanf:"port"`
+	Timeout    int    `koanf:"timeout"`
+	Hostname   string `koanf:"hostname"`
+	StorageDir string `koanf:"storagedir"`
 }
 
 // DefaultConfig returns an instance of Config with the default values.
 func DefaultConfig() Config {
 	return Config{
-		Port:     4222,
-		Timeout:  30,
-		Hostname: "localhost",
+		Nats: NatsConfig{
+			Port:     4222,
+			Timeout:  30,
+			Hostname: "localhost",
+		},
 	}
 }
