@@ -74,7 +74,7 @@ func generateServerOptions(system *core.System) {
 
 	system.VisitEngines(func(engine core.Engine) {
 		if m, ok := engine.(core.Injectable); ok {
-			flagsForEngine, err := extractFlagsForEngine(globalFlags, m.Config())
+			flagsForEngine, err := extractFlagsForEngine(globalFlags, m.Config(), strings.ToLower(m.Name()))
 			if err != nil {
 				panic(fmt.Sprintf("unable to generate server options for engine '%s': %s", m.Name(), err.Error()))
 			}
@@ -87,37 +87,24 @@ func generateServerOptions(system *core.System) {
 	generatePartitionedConfigOptionsDocs("Server Options", "docs/pages/deployment/server_options.rst", flags)
 }
 
-func extractFlagsForEngine(flagSet *pflag.FlagSet, config interface{}) (*pflag.FlagSet, error) {
+func extractFlagsForEngine(flagSet *pflag.FlagSet, config interface{}, engineName string) (*pflag.FlagSet, error) {
 	result := pflag.FlagSet{}
-	flagNames := []string{}
 	structType := reflect.TypeOf(config).Elem()
 
 	if structType.Kind() != reflect.Struct {
 		return nil, errors.New("config has not the type struct (perhaps it's a pointer?)")
 	}
 
-	for i := 0; i < structType.NumField(); i++ {
-		fieldType := structType.Field(i)
-
-		tag, ok := fieldType.Tag.Lookup("koanf")
-		if !ok {
-			continue
-		}
-
-		flagNames = append(flagNames, tag)
-	}
-
 	flagSet.VisitAll(func(current *pflag.Flag) {
-		for _, flagName := range flagNames {
-			if current.Name == flagName ||
-				strings.HasPrefix(current.Name, fmt.Sprintf("%s.", flagName)) {
-				// This flag belongs to this engine, so copy it and hide it in the input flag set
-				flagCopy := *current
-				current.Hidden = true
-				result.AddFlag(&flagCopy)
+		println(current.Name, engineName)
+		if current.Name == engineName ||
+			strings.HasPrefix(current.Name, engineName+".") {
+			// This flag belongs to this engine, so copy it and hide it in the input flag set
+			flagCopy := *current
+			current.Hidden = true
+			result.AddFlag(&flagCopy)
 
-				return
-			}
+			return
 		}
 	})
 
