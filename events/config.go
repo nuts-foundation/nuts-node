@@ -24,6 +24,7 @@ type Config struct {
 	Nats NatsConfig `koanf:"nats"`
 }
 
+// NatsConfig holds the configuration for the NATS server
 type NatsConfig struct {
 	Port       int    `koanf:"port"`
 	Timeout    int    `koanf:"timeout"`
