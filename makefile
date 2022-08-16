@@ -67,7 +67,7 @@ gen-docs:
 DIR ?= "$(shell pwd)"
 gen-diagrams:
 	rm ${DIR}/docs/_static/images/diagrams/*.svg
-	docker run -it -v ${DIR}/docs/diagrams:/data rlespinasse/drawio-export -f svg
+	docker run -v ${DIR}/docs/diagrams:/data rlespinasse/drawio-export -f svg
 	mv ${DIR}/docs/diagrams/export/* ${DIR}/docs/_static/images/diagrams/
 
 fix-copyright:
