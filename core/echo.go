@@ -378,7 +378,7 @@ func NewInternalRateLimiterStore(interval time.Duration, limitPerInterval rate.L
 func configureTLS(cfg HTTPConfig, tlsConfig *tls.Config, echoServer *echo.Echo) (*echo.Echo, EchoStarter, error) {
 	var starter EchoStarter
 	switch cfg.TLSMode {
-	case ServerCertTLSMode:
+	case TLSMode:
 		fallthrough
 	case MutualTLSMode:
 		if tlsConfig == nil {

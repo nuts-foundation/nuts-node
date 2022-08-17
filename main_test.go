@@ -92,7 +92,7 @@ func Test_TLSConfiguration(t *testing.T) {
 	}
 	serverConfig.HTTP.AltBinds["metrics"] = core.HTTPConfig{
 		Address: fmt.Sprintf("localhost:%d", test.FreeTCPPort()),
-		TLSMode: core.ServerCertTLSMode,
+		TLSMode: core.TLSMode,
 	}
 	startCtx := startServer(testDirectory, nodeStoppedCallback, append(additionalCfg, serverConfig)...)
 

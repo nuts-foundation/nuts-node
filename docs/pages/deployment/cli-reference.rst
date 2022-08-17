@@ -45,9 +45,9 @@ Prints the current config
   -h, --help                                          help for config
       --http.default.address string                   Address and port the server will be listening to (default ":1323")
       --http.default.cors.origin strings              When set, enables CORS from the specified origins for the on default HTTP interface.
-      --http.default.tls string                       Whether to enable TLS for the default interface (options are 'disabled', 'server-cert', 'server-and-client-cert'). (default "disabled")
+      --http.default.tls string                       Whether to enable TLS for the default interface (options are 'disabled', 'tls', 'mutual-tls'). (default "disabled")
       --internalratelimiter                           When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode. (default true)
-      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson])
+      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson,https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson])
       --jsonld.contexts.remoteallowlist strings       In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here. (default [https://schema.org,https://www.w3.org/2018/credentials/v1,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json])
       --loggerformat string                           Log format (text, json) (default "text")
       --network.bootstrapnodes strings                List of bootstrap nodes ('<host>:<port>') which the node initially connect to.
@@ -74,7 +74,7 @@ Prints the current config
       --tls.certfile string                           PEM file containing the certificate for the server (also used as client certificate).
       --tls.certheader string                         Name of the HTTP header that will contain the client certificate when TLS is offloaded.
       --tls.certkeyfile string                        PEM file containing the private key of the server certificate.
-      --tls.offload string                            Whether to enable TLS offloading for incoming connections. If enabled 'tls.certheader' must be configured as well.
+      --tls.offload string                            Whether to enable TLS offloading for incoming connections. Enable by setting it to 'incoming'. If enabled 'tls.certheader' must be configured as well.
       --tls.truststorefile string                     PEM file containing the trusted CA certificates for authenticating remote servers. (default "truststore.pem")
       --verbosity string                              Log level (trace, debug, info, warn, error) (default "info")
 
@@ -108,9 +108,9 @@ Imports private keys from filesystem based storage into Vault. The given directo
   -h, --help                                          help for fs2vault
       --http.default.address string                   Address and port the server will be listening to (default ":1323")
       --http.default.cors.origin strings              When set, enables CORS from the specified origins for the on default HTTP interface.
-      --http.default.tls string                       Whether to enable TLS for the default interface (options are 'disabled', 'server-cert', 'server-and-client-cert'). (default "disabled")
+      --http.default.tls string                       Whether to enable TLS for the default interface (options are 'disabled', 'tls', 'mutual-tls'). (default "disabled")
       --internalratelimiter                           When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode. (default true)
-      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson])
+      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson,https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson])
       --jsonld.contexts.remoteallowlist strings       In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here. (default [https://schema.org,https://www.w3.org/2018/credentials/v1,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json])
       --loggerformat string                           Log format (text, json) (default "text")
       --network.bootstrapnodes strings                List of bootstrap nodes ('<host>:<port>') which the node initially connect to.
@@ -137,7 +137,7 @@ Imports private keys from filesystem based storage into Vault. The given directo
       --tls.certfile string                           PEM file containing the certificate for the server (also used as client certificate).
       --tls.certheader string                         Name of the HTTP header that will contain the client certificate when TLS is offloaded.
       --tls.certkeyfile string                        PEM file containing the private key of the server certificate.
-      --tls.offload string                            Whether to enable TLS offloading for incoming connections. If enabled 'tls.certheader' must be configured as well.
+      --tls.offload string                            Whether to enable TLS offloading for incoming connections. Enable by setting it to 'incoming'. If enabled 'tls.certheader' must be configured as well.
       --tls.truststorefile string                     PEM file containing the trusted CA certificates for authenticating remote servers. (default "truststore.pem")
       --verbosity string                              Log level (trace, debug, info, warn, error) (default "info")
 
@@ -270,9 +270,9 @@ Starts the Nuts server
   -h, --help                                          help for server
       --http.default.address string                   Address and port the server will be listening to (default ":1323")
       --http.default.cors.origin strings              When set, enables CORS from the specified origins for the on default HTTP interface.
-      --http.default.tls string                       Whether to enable TLS for the default interface (options are 'disabled', 'server-cert', 'server-and-client-cert'). (default "disabled")
+      --http.default.tls string                       Whether to enable TLS for the default interface (options are 'disabled', 'tls', 'mutual-tls'). (default "disabled")
       --internalratelimiter                           When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode. (default true)
-      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson])
+      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson,https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson])
       --jsonld.contexts.remoteallowlist strings       In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here. (default [https://schema.org,https://www.w3.org/2018/credentials/v1,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json])
       --loggerformat string                           Log format (text, json) (default "text")
       --network.bootstrapnodes strings                List of bootstrap nodes ('<host>:<port>') which the node initially connect to.
@@ -299,7 +299,7 @@ Starts the Nuts server
       --tls.certfile string                           PEM file containing the certificate for the server (also used as client certificate).
       --tls.certheader string                         Name of the HTTP header that will contain the client certificate when TLS is offloaded.
       --tls.certkeyfile string                        PEM file containing the private key of the server certificate.
-      --tls.offload string                            Whether to enable TLS offloading for incoming connections. If enabled 'tls.certheader' must be configured as well.
+      --tls.offload string                            Whether to enable TLS offloading for incoming connections. Enable by setting it to 'incoming'. If enabled 'tls.certheader' must be configured as well.
       --tls.truststorefile string                     PEM file containing the trusted CA certificates for authenticating remote servers. (default "truststore.pem")
       --verbosity string                              Log level (trace, debug, info, warn, error) (default "info")
 

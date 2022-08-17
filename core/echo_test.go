@@ -186,7 +186,7 @@ func Test_createEchoServer(t *testing.T) {
 
 		t.Run("error - TLS not configured", func(t *testing.T) {
 			httpCfg := serverCfg.HTTP.HTTPConfig
-			httpCfg.TLSMode = ServerCertTLSMode
+			httpCfg.TLSMode = TLSMode
 
 			instance, starter, err := createEchoServer(httpCfg, nil, true, false)
 
@@ -197,7 +197,7 @@ func Test_createEchoServer(t *testing.T) {
 		t.Run("server certificate", func(t *testing.T) {
 			port := nutsTest.FreeTCPPort()
 			httpCfg := serverCfg.HTTP.HTTPConfig
-			httpCfg.TLSMode = ServerCertTLSMode
+			httpCfg.TLSMode = TLSMode
 			httpCfg.Address = fmt.Sprintf("localhost:%d", port)
 
 			instance, starter, err := createEchoServer(httpCfg, tlsConfig, true, false)

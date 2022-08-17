@@ -153,10 +153,10 @@ type HTTPTLSMode string
 const (
 	// DisabledHTTPTLSMode specifies that TLS is not enabled for this interface.
 	DisabledHTTPTLSMode HTTPTLSMode = "disabled"
-	// ServerCertTLSMode specifies that TLS is enabled for this interface, but no client certificate is required.
-	ServerCertTLSMode = "server-cert"
+	// TLSMode specifies that TLS is enabled for this interface, but no client certificate is required.
+	TLSMode HTTPTLSMode = "tls"
 	// MutualTLSMode specifies that TLS is enabled for this interface, and that it will require a client certificate.
-	MutualTLSMode = "server-and-client-cert"
+	MutualTLSMode HTTPTLSMode = "mutual-tls"
 )
 
 // HTTPCORSConfig contains configuration for Cross Origin Resource Sharing.
@@ -264,7 +264,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("verbosity", "info", "Log level (trace, debug, info, warn, error)")
 	flagSet.String("loggerformat", "text", "Log format (text, json)")
 	flagSet.String("http.default.address", ":1323", "Address and port the server will be listening to")
-	flagSet.String("http.default.tls", string(DisabledHTTPTLSMode), fmt.Sprintf("Whether to enable TLS for the default interface (options are '%s', '%s', '%s').", DisabledHTTPTLSMode, ServerCertTLSMode, MutualTLSMode))
+	flagSet.String("http.default.tls", string(DisabledHTTPTLSMode), fmt.Sprintf("Whether to enable TLS for the default interface (options are '%s', '%s', '%s').", DisabledHTTPTLSMode, TLSMode, MutualTLSMode))
 	flagSet.Bool("strictmode", false, "When set, insecure settings are forbidden.")
 	flagSet.Bool("internalratelimiter", true, "When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode.")
 	flagSet.String("datadir", "./data", "Directory where the node stores its files.")
@@ -272,7 +272,8 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("tls.certfile", "", "PEM file containing the certificate for the server (also used as client certificate).")
 	flagSet.String("tls.certkeyfile", "", "PEM file containing the private key of the server certificate.")
 	flagSet.String("tls.truststorefile", "truststore.pem", "PEM file containing the trusted CA certificates for authenticating remote servers.")
-	flagSet.String("tls.offload", "", "Whether to enable TLS offloading for incoming connections. If enabled 'tls.certheader' must be configured as well.")
+	flagSet.String("tls.offload", string(NoOffloading), fmt.Sprintf("Whether to enable TLS offloading for incoming connections. "+
+		"Enable by setting it to '%s'. If enabled 'tls.certheader' must be configured as well.", OffloadIncomingTLS))
 	flagSet.String("tls.certheader", "", "Name of the HTTP header that will contain the client certificate when TLS is offloaded.")
 	// Legacy TLS settings, to be removed in v6:
 	flagSet.Bool("network.enabletls", true, "Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see 'tls.offload'). Disabling TLS is not allowed in strict-mode.")

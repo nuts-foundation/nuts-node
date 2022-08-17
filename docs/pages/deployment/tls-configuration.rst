@@ -52,10 +52,10 @@ Your Nuts node configuration could look like this:
       alt:
         public:
           address: :443
-          tls: server-cert
+          tls: tls
         n2n:
           address: :8443
-          tls: server-and-client-cert
+          tls: mutual-tls
 
 .. note::
 
