@@ -15,8 +15,8 @@ Generally speaking:
 Your TLS configuration depends mostly on where you `terminate the TLS connection <https://en.wikipedia.org/wiki/TLS_termination_proxy>`_.
 This page describes the different layouts for TLS and how to configure them.
 
-All layouts your node's certificate must be issued by a Certificate Authority which is trusted by the other nodes in the network.
-Each layout requires ``tls.certfile``, ``tls.certkeyfile`` and ``tls.truststorefile`` to be configured.
+In all layouts your node's certificate must be issued by a Certificate Authority which is trusted by the other nodes in the network.
+Any case using TLS requires ``tls.certfile``, ``tls.certkeyfile`` and ``tls.truststorefile`` to be configured.
 
 .. note::
 
