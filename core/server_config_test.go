@@ -205,11 +205,11 @@ func TestNewNutsConfig_InjectIntoEngine(t *testing.T) {
 
 	cmd := testCommand()
 	flagSet := pflag.NewFlagSet("dummy", pflag.ContinueOnError)
-	flagSet.String("key", "", "")
-	flagSet.String("sub.test", "", "")
-	flagSet.String("subptr.test", "", "")
+	flagSet.String("testengine.key", "", "")
+	flagSet.String("testengine.sub.test", "", "")
+	flagSet.String("testengine.subptr.test", "", "")
 
-	err := flagSet.Parse([]string{"--key", "value", "--sub.test", "testvalue", "--subptr.test", "test2value"})
+	err := flagSet.Parse([]string{"--testengine.key", "value", "--testengine.sub.test", "testvalue", "--testengine.subptr.test", "test2value"})
 	assert.NoError(t, err)
 
 	cmd.Flags().AddFlagSet(flagSet)

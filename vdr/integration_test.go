@@ -301,7 +301,6 @@ func setup(t *testing.T) testContext {
 
 	// Startup the network layer
 	networkCfg := network.DefaultConfig()
-	networkCfg.EnableTLS = false
 	nutsNetwork := network.NewNetworkInstance(
 		networkCfg,
 		doc.KeyResolver{Store: didStore},

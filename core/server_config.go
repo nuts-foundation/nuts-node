@@ -48,6 +48,7 @@ type ServerConfig struct {
 	Datadir             string           `koanf:"datadir"`
 	HTTP                GlobalHTTPConfig `koanf:"http"`
 	TLS                 TLSConfig        `koanf:"tls"`
+	LegacyTLS           NetworkTLSConfig `koanf:"network"`
 	configMap           *koanf.Koanf
 }
 
@@ -59,6 +60,22 @@ type TLSConfig struct {
 	// ClientCertHeaderName specifies the name of the HTTP header in which the TLS offloader puts the client certificate in.
 	// It is required when TLS offloading for incoming traffic is enabled. The client certificate must be in PEM format.
 	ClientCertHeaderName string `koanf:"certheader"`
+}
+
+// NetworkTLSConfig is temporarily here to support having the network engine's TLS config available to both the network and auth engine.
+// This was introduced by https://github.com/nuts-foundation/nuts-node/pull/375 but leads to issues when unmarshalling non-flattened child structs.
+// This works for ServerConfig, because Koanf's FlatPaths decoding option is `false` there,
+// but for engine config the PR above requires it to be `true`, which leads to different behavior when unmarshalling engine config (v.s. server config).
+// It was a bad idea then, and will be fixed by https://github.com/nuts-foundation/nuts-node/pull/1334 because it moves TLS config to the ServerConfig,
+// so it can be used by any module requiring TLS. But since we don't want to break backwards compatibility within 1 release,
+// this needs to stay here for v5 and be removed in v6.
+type NetworkTLSConfig struct {
+	Enabled        bool   `koanf:"enabletls"`
+	CertFile       string `koanf:"certfile"`
+	CertKeyFile    string `koanf:"certkeyfile"`
+	TrustStoreFile string `koanf:"truststorefile"`
+	// MaxCRLValidityDays defines the number of days a CRL can be outdated, after that it will hard-fail
+	MaxCRLValidityDays int `koanf:"maxcrlvaliditydays"`
 }
 
 // TLSOffloadingMode defines configurable modes for TLS offloading.
@@ -203,6 +220,13 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.StringSlice("http.default.cors.origin", nil, "When set, enables CORS from the specified origins for the on default HTTP interface.")
 	flagSet.String("tls.offload", "", "Whether to enable TLS offloading for incoming connections. If enabled `tls.certheader` must be configured as well.")
 	flagSet.String("tls.certheader", "", "Name of the HTTP header that will contain the client certificate when TLS is offloaded.")
+	// Legacy TLS settings, to be removed in v6:
+	flagSet.Bool("network.enabletls", true, "Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see `tls.offload`). Disabling TLS is not allowed in strict-mode.")
+	flagSet.String("network.certfile", "", "PEM file containing the server certificate for the gRPC server. "+
+		"Required when `network.enabletls` is `true`.")
+	flagSet.String("network.certkeyfile", "", "PEM file containing the private key of the server certificate. "+
+		"Required when `network.enabletls` is `true`.")
+	flagSet.String("network.truststorefile", "truststore.pem", "PEM file containing the trusted CA certificates for authenticating remote gRPC servers.")
 
 	return flagSet
 }
@@ -214,7 +238,7 @@ func (ngc *ServerConfig) PrintConfig() string {
 
 // InjectIntoEngine takes the loaded config and sets the engine's config struct
 func (ngc *ServerConfig) InjectIntoEngine(e Injectable) error {
-	return unmarshalRecursive([]string{}, e.Config(), ngc.configMap)
+	return unmarshalRecursive([]string{strings.ToLower(e.Name())}, e.Config(), ngc.configMap)
 }
 
 func elemType(ty reflect.Type) (reflect.Type, bool) {
@@ -229,7 +253,7 @@ func elemType(ty reflect.Type) (reflect.Type, bool) {
 
 func unmarshalRecursive(path []string, config interface{}, configMap *koanf.Koanf) error {
 	decoderConfig := koanf.UnmarshalConf{
-		FlatPaths: true,
+		FlatPaths: false,
 	}
 	if err := configMap.UnmarshalWithConf(strings.Join(path, "."), config, decoderConfig); err != nil {
 		return err
@@ -251,7 +275,8 @@ func unmarshalRecursive(path []string, config interface{}, configMap *koanf.Koan
 			tagValue := field.Tag.Get("koanf")
 
 			// Unmarshal this field if it's a struct, and it has a `koanf` tag
-			if fieldType.Kind() == reflect.Struct && tagValue != "" {
+			if (fieldType.Kind() == reflect.Struct || fieldType.Kind() == reflect.Map) &&
+				tagValue != "" {
 				fieldAddr := valueOfConfig.Field(i).Addr()
 
 				if err := unmarshalRecursive(append(path, tagValue), fieldAddr.Interface(), configMap); err != nil {

@@ -31,20 +31,23 @@ import (
 )
 
 func TestAuth_Configure(t *testing.T) {
+	tlsServerConfig := *core.NewServerConfig()
+	tlsServerConfig.LegacyTLS.TrustStoreFile = "test/certs/ca.pem"
+	tlsServerConfig.LegacyTLS.CertKeyFile = "test/certs/example.com.key"
+	tlsServerConfig.LegacyTLS.CertFile = "test/certs/example.com.pem"
+
 	t.Run("ok", func(t *testing.T) {
 		os.Setenv("NUTS_NETWORK_ENABLETLS", "false")
 		defer os.Unsetenv("NUTS_NETWORK_ENABLETLS")
 		i := NewTestAuthInstance(t)
-		_ = i.Configure(*core.NewServerConfig())
+		_ = i.Configure(tlsServerConfig)
 	})
 
 	t.Run("ok - TLS files loaded", func(t *testing.T) {
 		authCfg := TestConfig()
-		authCfg.TrustStoreFile = "test/certs/ca.pem"
-		authCfg.CertKeyFile = "test/certs/example.com.key"
-		authCfg.CertFile = "test/certs/example.com.pem"
+
 		i := testInstance(t, authCfg)
-		err := i.Configure(*core.NewServerConfig())
+		err := i.Configure(tlsServerConfig)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -54,12 +57,9 @@ func TestAuth_Configure(t *testing.T) {
 
 	t.Run("ok - TLS is properly configured", func(t *testing.T) {
 		authCfg := TestConfig()
-		authCfg.CertKeyFile = "test/certs/example.com.key"
-		authCfg.CertFile = "test/certs/example.com.pem"
-		authCfg.TrustStoreFile = "test/certs/ca.pem"
 
 		i := testInstance(t, authCfg)
-		err := i.Configure(*core.NewServerConfig())
+		err := i.Configure(tlsServerConfig)
 		assert.NoError(t, err)
 
 		assert.Equal(t, core.MinTLSVersion, i.TLSConfig().MinVersion)
@@ -78,7 +78,7 @@ func TestAuth_Configure(t *testing.T) {
 		authCfg := TestConfig()
 		authCfg.IrmaSchemeManager = "non-existing"
 		i := testInstance(t, authCfg)
-		err := i.Configure(*core.NewServerConfig())
+		err := i.Configure(tlsServerConfig)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -88,7 +88,7 @@ func TestAuth_Configure(t *testing.T) {
 		authCfg := TestConfig()
 		authCfg.IrmaSchemeManager = ""
 		i := testInstance(t, authCfg)
-		err := i.Configure(*core.NewServerConfig())
+		err := i.Configure(tlsServerConfig)
 		assert.EqualError(t, err, "IRMA SchemeManager must be set")
 	})
 
@@ -114,12 +114,11 @@ func TestAuth_Configure(t *testing.T) {
 
 	t.Run("error - unknown truststore when TLS enabled", func(t *testing.T) {
 		authCfg := TestConfig()
-		authCfg.CertKeyFile = "test/certs/example.com.key"
-		authCfg.CertFile = "test/certs/example.com.pem"
-		authCfg.TrustStoreFile = "non-existing"
+		invalidTLSServerConfig := tlsServerConfig
+		invalidTLSServerConfig.LegacyTLS.TrustStoreFile = "non-existing"
 
 		i := testInstance(t, authCfg)
-		err := i.Configure(*core.NewServerConfig())
+		err := i.Configure(invalidTLSServerConfig)
 		assert.EqualError(t, err, "unable to read trust store (file=non-existing): open non-existing: no such file or directory")
 	})
 }

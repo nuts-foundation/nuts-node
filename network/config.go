@@ -19,6 +19,7 @@
 package network
 
 import (
+	"github.com/nuts-foundation/nuts-node/core"
 	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
 	"time"
 )
@@ -26,37 +27,30 @@ import (
 // Config holds the config for Transactions
 type Config struct {
 	// Socket address for gRPC to listen on
-	GrpcAddr string `koanf:"network.grpcaddr"`
+	GrpcAddr string `koanf:"grpcaddr"`
 	// ConnectionTimeout specifies the timeout before an outbound connection attempt times out (in milliseconds).
-	ConnectionTimeout int `koanf:"network.connectiontimeout"`
+	ConnectionTimeout int `koanf:"connectiontimeout"`
 	// MaxBackoff specifies the maximum backoff for outbound connections
-	MaxBackoff time.Duration `koanf:"network.maxbackoff"`
-	// EnableTLS specifies whether to enable TLS for incoming connections.
-	EnableTLS bool `koanf:"network.enabletls"`
+	MaxBackoff time.Duration `koanf:"maxbackoff"`
 	// Public address of this nodes other nodes can use to connect to this node.
-	BootstrapNodes []string `koanf:"network.bootstrapnodes"`
+	BootstrapNodes []string `koanf:"bootstrapnodes"`
 	// Protocols is the list of network protocols to enable on the server. They are specified by version (v1, v2).
-	Protocols   []int  `koanf:"network.protocols"`
-	CertFile    string `koanf:"network.certfile"`
-	CertKeyFile string `koanf:"network.certkeyfile"`
+	Protocols []int `koanf:"protocols"`
 	// EnableDiscovery tells the node to automatically connect to other nodes
-	EnableDiscovery bool   `koanf:"network.enablediscovery"`
-	TrustStoreFile  string `koanf:"network.truststorefile"`
-
-	// MaxCRLValidityDays defines the number of days a CRL can be outdated, after that it will hard-fail
-	MaxCRLValidityDays int `koanf:"network.maxcrlvaliditydays"`
-
+	EnableDiscovery bool `koanf:"enablediscovery"`
 	// DisableNodeAuthentication allows for bypassing node DID authentication on connections.
 	// The SAN from a client certificate is used for this, in development/test certificates might not be availabe.
 	// Can't be set to true in strictmode.
-	DisableNodeAuthentication bool `koanf:"network.disablenodeauthentication"`
+	DisableNodeAuthentication bool `koanf:"disablenodeauthentication"`
 
 	// NodeDID defines the DID of the organization that operates this node, typically a vendor for EPD software.
 	// It is used to identify it on the network.
-	NodeDID string `koanf:"network.nodedid"`
+	NodeDID string `koanf:"nodedid"`
 
 	// ProtocolV2 specifies config for protocol v2
-	ProtocolV2 v2.Config `koanf:"network.v2"`
+	ProtocolV2 v2.Config `koanf:"v2"`
+
+	tls core.NetworkTLSConfig
 }
 
 // IsProtocolEnabled returns true if the protocol is enabled, otherwise false.
@@ -78,7 +72,6 @@ func DefaultConfig() Config {
 		GrpcAddr:          ":5555",
 		ConnectionTimeout: 5000,
 		MaxBackoff:        24 * time.Hour,
-		EnableTLS:         true,
 		ProtocolV2:        v2.DefaultConfig(),
 		EnableDiscovery:   true,
 	}

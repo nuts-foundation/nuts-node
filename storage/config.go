@@ -20,8 +20,8 @@ package storage
 
 // Config specifies config for the storage engine.
 type Config struct {
-	BBolt BBoltConfig `koanf:"storage.bbolt"`
-	Redis RedisConfig `koanf:"storage.redis"`
+	BBolt BBoltConfig `koanf:"bbolt"`
+	Redis RedisConfig `koanf:"redis"`
 }
 
 // DefaultConfig returns the default configuration for the module.

@@ -131,17 +131,18 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		ContractValidity:      contractValidity,
 	}, auth.vcr, doc.KeyResolver{Store: auth.registry}, auth.keyStore, auth.jsonldManager)
 
-	if config.Strictmode && !auth.config.tlsEnabled() {
+	tlsEnabled := len(config.LegacyTLS.CertFile) > 0 || len(config.LegacyTLS.CertKeyFile) > 0
+	if config.Strictmode && !tlsEnabled {
 		return errors.New("in strictmode TLS must be enabled")
 	}
 
-	if auth.config.tlsEnabled() {
-		clientCertificate, err := tls.LoadX509KeyPair(auth.config.CertFile, auth.config.CertKeyFile)
+	if tlsEnabled {
+		clientCertificate, err := tls.LoadX509KeyPair(config.LegacyTLS.CertFile, config.LegacyTLS.CertKeyFile)
 		if err != nil {
-			return fmt.Errorf("unable to load node TLS client certificate (certfile=%s,certkeyfile=%s): %w", auth.config.CertFile, auth.config.CertKeyFile, err)
+			return fmt.Errorf("unable to load node TLS client certificate (certfile=%s,certkeyfile=%s): %w", config.LegacyTLS.CertFile, config.LegacyTLS.CertKeyFile, err)
 		}
 
-		trustStore, err := core.LoadTrustStore(auth.config.TrustStoreFile)
+		trustStore, err := core.LoadTrustStore(config.LegacyTLS.TrustStoreFile)
 		if err != nil {
 			return err
 		}
@@ -153,7 +154,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		}
 
 		validator := crl.NewValidator(trustStore.Certificates())
-		validator.Configure(tlsConfig, auth.config.MaxCRLValidityDays)
+		validator.Configure(tlsConfig, config.LegacyTLS.MaxCRLValidityDays)
 
 		auth.crlValidator = validator
 		auth.tlsConfig = tlsConfig
