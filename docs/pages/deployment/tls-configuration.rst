@@ -72,6 +72,7 @@ In addition to the general TLS configuration, you need to configure the followin
 
 * ``tls.offload`` needs to be set to ``incoming``
 * ``tls.certheader`` needs to be set to the name of the header in which your proxy sets the certificate (e.g. ``X-SSl-CERT``).
+  The certificate must in be PEM or base64 encoded DER format.
 
 The certificate and truststore will still need to be available to the Nuts node for making outbound connections.
 
