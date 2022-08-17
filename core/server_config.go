@@ -70,6 +70,7 @@ type TLSConfig struct {
 // so it can be used by any module requiring TLS. But since we don't want to break backwards compatibility within 1 release,
 // this needs to stay here for v5 and be removed in v6.
 type NetworkTLSConfig struct {
+	Enabled        bool   `koanf:"enabletls"`
 	CertFile       string `koanf:"certfile"`
 	CertKeyFile    string `koanf:"certkeyfile"`
 	TrustStoreFile string `koanf:"truststorefile"`
@@ -220,6 +221,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("tls.offload", "", "Whether to enable TLS offloading for incoming connections. If enabled `tls.certheader` must be configured as well.")
 	flagSet.String("tls.certheader", "", "Name of the HTTP header that will contain the client certificate when TLS is offloaded.")
 	// Legacy TLS settings, to be removed in v6:
+	flagSet.Bool("network.enabletls", true, "Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see `tls.offload`). Disabling TLS is not allowed in strict-mode.")
 	flagSet.String("network.certfile", "", "PEM file containing the server certificate for the gRPC server. "+
 		"Required when `network.enabletls` is `true`.")
 	flagSet.String("network.certkeyfile", "", "PEM file containing the private key of the server certificate. "+

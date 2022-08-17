@@ -126,7 +126,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	// TLS
 	var clientCert tls.Certificate
 	var trustStore *core.TrustStore
-	if n.config.EnableTLS {
+	if config.LegacyTLS.Enabled {
 		var err error
 		clientCert, trustStore, err = loadCertificateAndTrustStore(n.config.tls)
 		if err != nil {
@@ -191,7 +191,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 			}),
 		}
 		// Configure TLS
-		if n.config.EnableTLS {
+		if config.LegacyTLS.Enabled {
 			grpcOpts = append(grpcOpts, grpc.WithTLS(clientCert, trustStore, n.config.tls.MaxCRLValidityDays))
 			if config.TLS.Offload == core.OffloadIncomingTLS {
 				grpcOpts = append(grpcOpts, grpc.WithTLSOffloading(config.TLS.ClientCertHeaderName))

@@ -32,8 +32,6 @@ type Config struct {
 	ConnectionTimeout int `koanf:"connectiontimeout"`
 	// MaxBackoff specifies the maximum backoff for outbound connections
 	MaxBackoff time.Duration `koanf:"maxbackoff"`
-	// EnableTLS specifies whether to enable TLS for incoming connections.
-	EnableTLS bool `koanf:"enabletls"`
 	// Public address of this nodes other nodes can use to connect to this node.
 	BootstrapNodes []string `koanf:"bootstrapnodes"`
 	// Protocols is the list of network protocols to enable on the server. They are specified by version (v1, v2).
@@ -74,7 +72,6 @@ func DefaultConfig() Config {
 		GrpcAddr:          ":5555",
 		ConnectionTimeout: 5000,
 		MaxBackoff:        24 * time.Hour,
-		EnableTLS:         true,
 		ProtocolV2:        v2.DefaultConfig(),
 		EnableDiscovery:   true,
 	}
