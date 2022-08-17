@@ -56,8 +56,8 @@ func Test_ServerLifecycle(t *testing.T) {
 	testDirectory := io.TestWorkingDirectory(t)
 
 	runningCtx, nodeStoppedCallback := context.WithCancel(context.Background())
-	serverConfig, additionalCfg := getIntegrationTestConfig(testDirectory)
-	startCtx := startServer(testDirectory, nodeStoppedCallback, append(additionalCfg, serverConfig)...)
+	serverConfig, moduleConfig := getIntegrationTestConfig(testDirectory)
+	startCtx := startServer(testDirectory, nodeStoppedCallback, serverConfig, moduleConfig)
 
 	// Wait for the Nuts node to start
 	<-startCtx.Done()
@@ -78,7 +78,7 @@ func Test_TLSConfiguration(t *testing.T) {
 	testDirectory := io.TestWorkingDirectory(t)
 
 	runningCtx, nodeStoppedCallback := context.WithCancel(context.Background())
-	serverConfig, additionalCfg := getIntegrationTestConfig(testDirectory)
+	serverConfig, moduleConfig := getIntegrationTestConfig(testDirectory)
 	// Configure TLS on /n2n and /metrics
 	certFile := path.Join(projectDir, "test/pki/certificate-and-key.pem")
 	serverConfig.TLS.CertFile = certFile
@@ -94,7 +94,7 @@ func Test_TLSConfiguration(t *testing.T) {
 		Address: fmt.Sprintf("localhost:%d", test.FreeTCPPort()),
 		TLSMode: core.TLSMode,
 	}
-	startCtx := startServer(testDirectory, nodeStoppedCallback, append(additionalCfg, serverConfig)...)
+	startCtx := startServer(testDirectory, nodeStoppedCallback, serverConfig, moduleConfig)
 
 	// Wait for the Nuts node to start
 	<-startCtx.Done()
@@ -147,8 +147,8 @@ func Test_LoadExistingDAG(t *testing.T) {
 
 	// Start Nuts node
 	runningCtx, nodeStoppedCallback := context.WithCancel(context.Background())
-	serverConfig, additionalCfg := getIntegrationTestConfig(testDirectory)
-	startCtx := startServer(testDirectory, nodeStoppedCallback, append(additionalCfg, serverConfig)...)
+	serverConfig, moduleConfig := getIntegrationTestConfig(testDirectory)
+	startCtx := startServer(testDirectory, nodeStoppedCallback, serverConfig, moduleConfig)
 	<-startCtx.Done()
 	if !errors.Is(startCtx.Err(), context.Canceled) {
 		t.Fatalf("Process didn't start before the time-out expired: %v", startCtx.Err())
@@ -170,8 +170,8 @@ func Test_LoadExistingDAG(t *testing.T) {
 	stopNode(t, runningCtx)
 	runningCtx, nodeStoppedCallback = context.WithCancel(context.Background())
 	// Make sure we get "fresh" ports since the OS might not immediately free closed sockets
-	serverConfig, additionalCfg = getIntegrationTestConfig(testDirectory)
-	startCtx = startServer(testDirectory, nodeStoppedCallback, append(additionalCfg, serverConfig)...)
+	serverConfig, moduleConfig = getIntegrationTestConfig(testDirectory)
+	startCtx = startServer(testDirectory, nodeStoppedCallback, serverConfig, moduleConfig)
 	<-startCtx.Done()
 	if !errors.Is(startCtx.Err(), context.Canceled) {
 		t.Fatalf("Process didn't start before the time-out expired: %v", startCtx.Err())
@@ -200,16 +200,18 @@ func stopNode(t *testing.T, ctx context.Context) {
 	t.Log("Nuts node shut down successfully.")
 }
 
-func startServer(testDirectory string, exitCallback func(), configStructs ...interface{}) context.Context {
+func startServer(testDirectory string, exitCallback func(), serverConfig core.ServerConfig, moduleConfig ModuleConfig) context.Context {
 	// Create YAML file of server config + additional configs. Write it to disk and pass it to the server.
 	koanfInstance := koanf.New(".")
 	yamlParser := yaml.Parser()
 
-	for _, configStruct := range configStructs {
-		err := koanfInstance.Load(structs.ProviderWithDelim(configStruct, "koanf", "."), nil)
-		if err != nil {
-			panic(err)
-		}
+	err := koanfInstance.Load(structs.ProviderWithDelim(serverConfig, "koanf", "."), nil)
+	if err != nil {
+		panic(err)
+	}
+	err = koanfInstance.Load(structs.ProviderWithDelim(moduleConfig, "koanf", "."), nil)
+	if err != nil {
+		panic(err)
 	}
 
 	bytes, err := koanfInstance.Marshal(yamlParser)
@@ -273,7 +275,7 @@ func isHttpRunning(address string) bool {
 	return response.StatusCode == http.StatusOK
 }
 
-func getIntegrationTestConfig(testDirectory string) (core.ServerConfig, []interface{}) {
+func getIntegrationTestConfig(testDirectory string) (core.ServerConfig, ModuleConfig) {
 	system := cmd.CreateSystem()
 	for _, subCmd := range cmd.CreateCommand(system).Commands() {
 		if subCmd.Name() == "server" {
@@ -281,22 +283,31 @@ func getIntegrationTestConfig(testDirectory string) (core.ServerConfig, []interf
 			break
 		}
 	}
+
 	config := *system.Config
+	config.LegacyTLS.Enabled = false
 
 	config.Datadir = testDirectory
 	config.HTTP.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
 
 	networkConfig := network.DefaultConfig()
-	networkConfig.EnableTLS = false
 	networkConfig.GrpcAddr = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
 
 	authConfig := auth.DefaultConfig()
 	authConfig.ContractValidators = []string{"dummy"} // disables IRMA
 
 	eventsConfig := events.DefaultConfig()
-	eventsConfig.Port = test.FreeTCPPort()
+	eventsConfig.Nats.Port = test.FreeTCPPort()
 
-	return config, []interface{}{
-		networkConfig, authConfig, eventsConfig,
+	return config, ModuleConfig{
+		Network: networkConfig,
+		Auth:    authConfig,
+		Events:  eventsConfig,
 	}
+}
+
+type ModuleConfig struct {
+	Network network.Config `koanf:"network"`
+	Auth    auth.Config    `koanf:"auth"`
+	Events  events.Config  `koanf:"events"`
 }
