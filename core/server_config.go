@@ -77,11 +77,6 @@ type NetworkTLSConfig struct {
 	MaxCRLValidityDays int `koanf:"maxcrlvaliditydays"`
 }
 
-// Enabled returns whether TLS is enabled according to this configuration.
-func (c NetworkTLSConfig) Enabled() bool {
-	return len(c.CertFile) > 0 || len(c.CertKeyFile) > 0
-}
-
 // TLSOffloadingMode defines configurable modes for TLS offloading.
 type TLSOffloadingMode string
 
