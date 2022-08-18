@@ -122,8 +122,8 @@ func Test_serverCmd(t *testing.T) {
 		engine2 := &core.TestEngine{ShutdownError: true} // One engine's Shutdown() fails
 
 		system := core.NewSystem()
-		system.EchoCreator = func(_ core.HTTPConfig, _, _ bool) (core.EchoServer, error) {
-			return echoServer, nil
+		system.EchoCreator = func(_ core.HTTPConfig) (core.EchoServer, core.EchoStarter, error) {
+			return echoServer, echoServer.Start, nil
 		}
 		system.RegisterEngine(engine1)
 		system.RegisterEngine(engine2)
@@ -157,8 +157,8 @@ func Test_serverCmd(t *testing.T) {
 		}()
 
 		system := core.NewSystem()
-		system.EchoCreator = func(_ core.HTTPConfig, _, _ bool) (core.EchoServer, error) {
-			return echoServer, nil
+		system.EchoCreator = func(_ core.HTTPConfig) (core.EchoServer, core.EchoStarter, error) {
+			return echoServer, echoServer.Start, nil
 		}
 
 		err := Execute(ctx, system)
@@ -174,10 +174,10 @@ func Test_serverCmd(t *testing.T) {
 
 		var echoServers []*http2.StubEchoServer
 		system := CreateSystem()
-		system.EchoCreator = func(_ core.HTTPConfig, _, _ bool) (core.EchoServer, error) {
+		system.EchoCreator = func(_ core.HTTPConfig) (core.EchoServer, core.EchoStarter, error) {
 			s := &http2.StubEchoServer{}
 			echoServers = append(echoServers, s)
-			return s, nil
+			return s, s.Start, nil
 		}
 		cmd := testCommand()
 		system.Load(cmd.Flags())
@@ -207,8 +207,8 @@ func Test_serverCmd(t *testing.T) {
 		echoServer.EXPECT().Shutdown(gomock.Any()).Times(2)
 
 		system := core.NewSystem()
-		system.EchoCreator = func(_ core.HTTPConfig, _, _ bool) (core.EchoServer, error) {
-			return echoServer, nil
+		system.EchoCreator = func(_ core.HTTPConfig) (core.EchoServer, core.EchoStarter, error) {
+			return echoServer, echoServer.Start, nil
 		}
 		system.Config = core.NewServerConfig()
 		system.Config.Datadir = io.TestDirectory(t)

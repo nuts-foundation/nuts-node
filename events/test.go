@@ -34,7 +34,9 @@ func NewTestManager(t *testing.T) Event {
 		config:  config,
 		streams: map[string]Stream{},
 	}
-	if err := eventManager.Configure(core.ServerConfig{Datadir: testDir}); err != nil {
+	cfg := *core.NewServerConfig()
+	cfg.Datadir = testDir
+	if err := eventManager.Configure(cfg); err != nil {
 		t.Fatal(err)
 	}
 	if err := eventManager.Start(); err != nil {

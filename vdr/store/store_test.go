@@ -47,7 +47,7 @@ func newTestStore(t *testing.T) types.Store {
 	}
 	mockProvider.EXPECT().GetKVStore(gomock.Any(), gomock.Any()).Return(bboltStore, nil)
 
-	err = store.(core.Configurable).Configure(core.ServerConfig{})
+	err = store.(core.Configurable).Configure(*core.NewServerConfig())
 	if !assert.NoError(t, err) {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func TestStore_Configure(t *testing.T) {
 		store := NewStore(mockProvider).(core.Configurable)
 		mockProvider.EXPECT().GetKVStore(gomock.Any(), gomock.Any()).Return(nil, errors.New("custom"))
 
-		err := store.Configure(core.ServerConfig{Datadir: "a_file_not_a_dir.go"})
+		err := store.Configure(core.TestServerConfig(core.ServerConfig{Datadir: "a_file_not_a_dir.go"}))
 
 		assert.Error(t, err)
 	})
@@ -73,7 +73,7 @@ func TestStore_Configure(t *testing.T) {
 
 func TestStore_Start(t *testing.T) {
 	store := NewStore(storage.NewTestStorageEngine(io.TestDirectory(t)).GetProvider(moduleName)).(core.Runnable)
-	err := store.(core.Configurable).Configure(core.ServerConfig{})
+	err := store.(core.Configurable).Configure(core.TestServerConfig(core.ServerConfig{}))
 	if !assert.NoError(t, err) {
 		return
 	}

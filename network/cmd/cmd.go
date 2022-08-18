@@ -43,8 +43,8 @@ func FlagSet() *pflag.FlagSet {
 		"If empty the gRPC server won't be started and other nodes will not be able to connect to this node "+
 		"(outbound connections can still be made).")
 	flagSet.Int("network.connectiontimeout", defs.ConnectionTimeout, "Timeout before an outbound connection attempt times out (in milliseconds).")
-	flagSet.Duration("network.maxbackoff", defs.MaxBackoff, "Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. `1h`, `30m`).")
-	flagSet.StringSlice("network.bootstrapnodes", defs.BootstrapNodes, "List of bootstrap nodes (`<host>:<port>`) which the node initially connect to.")
+	flagSet.Duration("network.maxbackoff", defs.MaxBackoff, "Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. '1h', '30m').")
+	flagSet.StringSlice("network.bootstrapnodes", defs.BootstrapNodes, "List of bootstrap nodes ('<host>:<port>') which the node initially connect to.")
 	flagSet.Bool("network.enablediscovery", defs.EnableDiscovery, "Whether to enable automatic connecting to other nodes.")
 	flagSet.Bool("network.disablenodeauthentication", defs.DisableNodeAuthentication, "Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes so it's not allowed in strict-mode. Automatically enabled when TLS is disabled.")
 	flagSet.String("network.nodedid", defs.NodeDID, "Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.")

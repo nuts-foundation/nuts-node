@@ -29,7 +29,7 @@ func FlagSet() *pflag.FlagSet {
 	defs := storage.DefaultConfig()
 	flagSet.String("storage.bbolt.backup.directory", defs.BBolt.Backup.Directory, "Target directory for BBolt database backups.")
 	flagSet.Duration("storage.bbolt.backup.interval", defs.BBolt.Backup.Interval, "Interval, formatted as Golang duration (e.g. 10m, 1h) at which BBolt database backups will be performed.")
-	flagSet.String("storage.redis.address", defs.Redis.Address, "Redis database server address. This can be a simple `host:port` or a Redis connection URL with scheme, auth and other options.")
+	flagSet.String("storage.redis.address", defs.Redis.Address, "Redis database server address. This can be a simple 'host:port' or a Redis connection URL with scheme, auth and other options.")
 	flagSet.String("storage.redis.username", defs.Redis.Username, "Redis database username. If set, it overrides the username in the connection URL.")
 	flagSet.String("storage.redis.password", defs.Redis.Password, "Redis database password. If set, it overrides the username in the connection URL.")
 	flagSet.String("storage.redis.database", defs.Redis.Database, "Redis database name, which is used as prefix every key. Can be used to have multiple instances use the same Redis instance.")

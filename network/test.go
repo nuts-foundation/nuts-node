@@ -46,7 +46,7 @@ func NewTestNetworkInstance(testDirectory string) *Network {
 		eventPublisher,
 		storage.NewTestStorageEngine(testDirectory).GetProvider(ModuleName),
 	)
-	if err := newInstance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
+	if err := newInstance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
 		logrus.Fatal(err)
 	}
 	return newInstance

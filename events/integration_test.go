@@ -104,7 +104,9 @@ func createManager(t *testing.T) *manager {
 	testDir := io.TestDirectory(t)
 	eventManager := NewManager().(*manager)
 	eventManager.config.Nats.Port = test.FreeTCPPort()
-	err := eventManager.Configure(core.ServerConfig{Datadir: testDir})
+	cfg := *core.NewServerConfig()
+	cfg.Datadir = testDir
+	err := eventManager.Configure(cfg)
 	assert.NoError(t, err)
 	err = eventManager.Start()
 	assert.NoError(t, err)

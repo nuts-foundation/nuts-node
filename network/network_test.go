@@ -158,7 +158,7 @@ func TestNetwork_Configure(t *testing.T) {
 		})
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 
-		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
 
 		if !assert.NoError(t, err) {
 			return
@@ -174,7 +174,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx := createNetwork(t, ctrl)
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 
-		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -186,7 +186,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx := createNetwork(t, ctrl)
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 
-		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t), Strictmode: true})
+		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t), Strictmode: true}))
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -202,7 +202,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx := createNetwork(t, ctrl)
 		ctx.network.config.NodeDID = "invalid"
 
-		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
 		assert.EqualError(t, err, "configured NodeDID is invalid: invalid DID: input does not begin with 'did:' prefix")
 	})
 
@@ -213,14 +213,15 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 		ctx.network.connectionManager = nil
 
-		err := ctx.network.Configure(core.ServerConfig{
-			Datadir: io.TestDirectory(t),
-			LegacyTLS: core.NetworkTLSConfig{
-				Enabled:        true,
-				TrustStoreFile: "test/truststore.pem",
-				CertFile:       "test/certificate-and-key.pem",
-				CertKeyFile:    "test/certificate-and-key.pem",
-			}})
+		cfg := *core.NewServerConfig()
+		cfg.Datadir = io.TestDirectory(t)
+		*cfg.LegacyTLS = core.NetworkTLSConfig{
+			Enabled:        true,
+			TrustStoreFile: "test/truststore.pem",
+			CertFile:       "test/certificate-and-key.pem",
+			CertKeyFile:    "test/certificate-and-key.pem",
+		}
+		err := ctx.network.Configure(cfg)
 
 		if !assert.NoError(t, err) {
 			return
@@ -234,7 +235,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 		ctx.network.connectionManager = nil
 
-		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
 
 		if !assert.NoError(t, err) {
 			return
@@ -248,7 +249,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 		ctx.network.connectionManager = nil
 
-		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t), Strictmode: true})
+		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t), Strictmode: true}))
 
 		assert.EqualError(t, err, "disabling TLS in strict mode is not allowed")
 	})
@@ -263,7 +264,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 		ctx.network.connectionManager = nil
 
-		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -279,16 +280,17 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 		ctx.network.connectionManager = nil
 
-		err := ctx.network.Configure(core.ServerConfig{
-			Datadir:    io.TestDirectory(t),
-			Strictmode: true,
-			LegacyTLS: core.NetworkTLSConfig{
-				Enabled:        true,
-				TrustStoreFile: "test/truststore.pem",
-				CertFile:       "test/certificate-and-key.pem",
-				CertKeyFile:    "test/certificate-and-key.pem",
-			},
-		})
+		cfg := *core.NewServerConfig()
+		cfg.Datadir = io.TestDirectory(t)
+		cfg.Strictmode = true
+		*cfg.LegacyTLS = core.NetworkTLSConfig{
+			Enabled:        true,
+			TrustStoreFile: "test/truststore.pem",
+			CertFile:       "test/certificate-and-key.pem",
+			CertKeyFile:    "test/certificate-and-key.pem",
+		}
+
+		err := ctx.network.Configure(cfg)
 		assert.EqualError(t, err, "disabling node DID in strict mode is not allowed")
 	})
 
@@ -300,28 +302,11 @@ func TestNetwork_Configure(t *testing.T) {
 		})
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 
-		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
 
 		if !assert.NoError(t, err) {
 			return
 		}
-	})
-
-	t.Run("error - unable to load key pair from file", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-		ctx := createNetwork(t, ctrl)
-
-		err := ctx.network.Configure(core.ServerConfig{
-			Datadir: io.TestDirectory(t),
-			LegacyTLS: core.NetworkTLSConfig{
-				Enabled:     true,
-				CertFile:    "test/non-existent.pem",
-				CertKeyFile: "test/non-existent.pem",
-			},
-		})
-
-		assert.EqualError(t, err, "unable to load node TLS client certificate (certfile=test/non-existent.pem,certkeyfile=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
 	})
 
 	t.Run("error - unable to configure protocol", func(t *testing.T) {
@@ -331,7 +316,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx := createNetwork(t, ctrl)
 		ctx.protocol.EXPECT().Configure(gomock.Any()).Return(errors.New("failed"))
 
-		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
 		assert.EqualError(t, err, "error while configuring protocol *transport.MockProtocol: failed")
 	})
 	t.Run("unable to create datadir", func(t *testing.T) {
@@ -344,7 +329,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx.network.connectionManager = nil
 		prov.EXPECT().GetKVStore(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
 
-		err := ctx.network.Configure(core.ServerConfig{Datadir: "network_test.go"})
+		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: "network_test.go"}))
 		assert.Error(t, err)
 	})
 	t.Run("ok - protocol not enabled", func(t *testing.T) {
@@ -354,7 +339,7 @@ func TestNetwork_Configure(t *testing.T) {
 			config.Protocols = []int{2} // do not enable TestProtocol with version math.MaxInt
 		})
 
-		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
 
 		assert.NoError(t, err)
 		assert.Empty(t, ctx.network.protocols)
@@ -372,7 +357,7 @@ func TestNetwork_Configure(t *testing.T) {
 		prov.EXPECT().GetKVStore(gomock.Any(), gomock.Any())
 		prov.EXPECT().GetKVStore(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
 
-		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
 
 		assert.EqualError(t, err, "failed to open connections store: failed")
 	})
@@ -710,7 +695,7 @@ func TestNetwork_Shutdown(t *testing.T) {
 		ctx.protocol.EXPECT().Stop()
 		ctx.connectionManager.EXPECT().Stop()
 
-		err := ctx.network.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
 
 		if !assert.NoError(t, err) {
 			return

@@ -145,9 +145,10 @@ func startServer(ctx context.Context, system *core.System) error {
 	}
 
 	// init HTTP interfaces and routes
-	echoServer := core.NewMultiEcho(func(cfg core.HTTPConfig) (core.EchoServer, error) {
-		return system.EchoCreator(cfg, system.Config.Strictmode, system.Config.InternalRateLimiter)
-	}, system.Config.HTTP.HTTPConfig)
+	echoServer, err := core.NewMultiEcho(system.EchoCreator, system.Config.HTTP.HTTPConfig)
+	if err != nil {
+		return err
+	}
 	for httpGroup, httpConfig := range system.Config.HTTP.AltBinds {
 		if err := echoServer.Bind(httpGroup, httpConfig); err != nil {
 			return err

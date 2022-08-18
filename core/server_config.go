@@ -20,6 +20,7 @@
 package core
 
 import (
+	"crypto/tls"
 	"fmt"
 	"reflect"
 	"strings"
@@ -40,15 +41,15 @@ const configValueListSeparator = ","
 
 // ServerConfig has global server settings.
 type ServerConfig struct {
-	Verbosity           string           `koanf:"verbosity"`
-	LoggerFormat        string           `koanf:"loggerformat"`
-	CPUProfile          string           `koanf:"cpuprofile"`
-	Strictmode          bool             `koanf:"strictmode"`
-	InternalRateLimiter bool             `koanf:"internalratelimiter"`
-	Datadir             string           `koanf:"datadir"`
-	HTTP                GlobalHTTPConfig `koanf:"http"`
-	TLS                 TLSConfig        `koanf:"tls"`
-	LegacyTLS           NetworkTLSConfig `koanf:"network"`
+	Verbosity           string            `koanf:"verbosity"`
+	LoggerFormat        string            `koanf:"loggerformat"`
+	CPUProfile          string            `koanf:"cpuprofile"`
+	Strictmode          bool              `koanf:"strictmode"`
+	InternalRateLimiter bool              `koanf:"internalratelimiter"`
+	Datadir             string            `koanf:"datadir"`
+	HTTP                GlobalHTTPConfig  `koanf:"http"`
+	TLS                 TLSConfig         `koanf:"tls"`
+	LegacyTLS           *NetworkTLSConfig `koanf:"network"`
 	configMap           *koanf.Koanf
 }
 
@@ -60,6 +61,89 @@ type TLSConfig struct {
 	// ClientCertHeaderName specifies the name of the HTTP header in which the TLS offloader puts the client certificate in.
 	// It is required when TLS offloading for incoming traffic is enabled. The client certificate must be in PEM format.
 	ClientCertHeaderName string `koanf:"certheader"`
+	CertFile             string `koanf:"certfile"`
+	CertKeyFile          string `koanf:"certkeyfile"`
+	TrustStoreFile       string `koanf:"truststorefile"`
+	legacyTLS            *NetworkTLSConfig
+	CRL                  CRLConfig `koanf:"crl"`
+}
+
+// CRLConfig holds configuration properties for checking Certificate Revocation Lists.
+type CRLConfig struct {
+	// MaxValidityDays defines the number of days a CRL can be outdated, after that it will hard-fail
+	MaxValidityDays int `koanf:"maxvaliditydays"`
+}
+
+// Enabled returns whether TLS should be enabled, according to the global config.
+func (t TLSConfig) Enabled() bool {
+	return len(t.CertFile) > 0 || len(t.CertKeyFile) > 0 ||
+		len(t.legacyTLS.CertFile) > 0 || len(t.legacyTLS.CertKeyFile) > 0
+}
+
+// GetCRLMaxValidityDays returns the maximum validity days for the CRL.
+func (t TLSConfig) GetCRLMaxValidityDays() int {
+	if t.legacyTLS.MaxCRLValidityDays > 0 {
+		logrus.Warn("Deprecated: use `tls.crl.maxvaliditydays` instead of `network.maxcrlvaliditydays`")
+		return t.legacyTLS.MaxCRLValidityDays
+	}
+	return t.CRL.MaxValidityDays
+}
+
+// LoadCertificate loads the TLS certificate from the configured location.
+func (t TLSConfig) LoadCertificate() (tls.Certificate, error) {
+	var certFile, certKeyFile string
+	if len(t.legacyTLS.CertFile) > 0 {
+		logrus.Warn("Deprecated: use `tls.certfile` instead of `network.certfile`")
+		certFile = t.legacyTLS.CertFile
+	} else {
+		certFile = t.CertFile
+	}
+	if len(t.legacyTLS.CertKeyFile) > 0 {
+		logrus.Warn("Deprecated: use `tls.certkeyfile` instead of `network.certkeyfile`")
+		certKeyFile = t.legacyTLS.CertKeyFile
+	} else {
+		certKeyFile = t.CertKeyFile
+	}
+	certificate, err := tls.LoadX509KeyPair(certFile, certKeyFile)
+	if err != nil {
+		return tls.Certificate{}, fmt.Errorf("unable to load node TLS client certificate (certfile=%s,certkeyfile=%s): %w", certFile, certKeyFile, err)
+	}
+	return certificate, nil
+}
+
+// LoadTrustStore loads the TLS trust store from the configured location.
+func (t TLSConfig) LoadTrustStore() (*TrustStore, error) {
+	var trustStoreFile string
+	if len(t.legacyTLS.TrustStoreFile) > 0 {
+		logrus.Warn("Deprecated: use `tls.truststorefile` instead of `network.truststorefile`")
+		trustStoreFile = t.legacyTLS.TrustStoreFile
+	} else {
+		trustStoreFile = t.TrustStoreFile
+	}
+	return LoadTrustStore(trustStoreFile)
+}
+
+// Load creates tls.Config from the given configuration. If TLS is disabled it returns nil.
+func (t TLSConfig) Load() (*tls.Config, error) {
+	if !t.Enabled() {
+		return nil, nil
+	}
+
+	certificate, err := t.LoadCertificate()
+	if err != nil {
+		return nil, err
+	}
+	trustStore, err := t.LoadTrustStore()
+	if err != nil {
+		return nil, err
+	}
+	config := &tls.Config{
+		MinVersion:   MinTLSVersion,
+		Certificates: []tls.Certificate{certificate},
+		RootCAs:      trustStore.CertPool,
+		ClientCAs:    trustStore.CertPool,
+	}
+	return config, nil
 }
 
 // NetworkTLSConfig is temporarily here to support having the network engine's TLS config available to both the network and auth engine.
@@ -107,7 +191,21 @@ type HTTPConfig struct {
 	Address string `koanf:"address"`
 	// CORS holds the configuration for Cross Origin Resource Sharing.
 	CORS HTTPCORSConfig `koanf:"cors"`
+	// TLSMode specifies whether TLS is enabled for this interface, and which flavor.
+	TLSMode HTTPTLSMode `koanf:"tls"`
 }
+
+// HTTPTLSMode defines the values for TLS modes
+type HTTPTLSMode string
+
+const (
+	// DisabledHTTPTLSMode specifies that TLS is not enabled for this interface.
+	DisabledHTTPTLSMode HTTPTLSMode = "disabled"
+	// TLSServerCertMode specifies that TLS is enabled for this interface, but no client certificate is required.
+	TLSServerCertMode HTTPTLSMode = "server"
+	// TLServerClientCertMode specifies that TLS is enabled for this interface, and that it will require a client certificate.
+	TLServerClientCertMode HTTPTLSMode = "server-client"
+)
 
 // HTTPCORSConfig contains configuration for Cross Origin Resource Sharing.
 type HTTPCORSConfig struct {
@@ -122,11 +220,16 @@ func (cors HTTPCORSConfig) Enabled() bool {
 
 // NewServerConfig creates an initialized empty server config
 func NewServerConfig() *ServerConfig {
+	legacyTLS := &NetworkTLSConfig{}
 	return &ServerConfig{
 		configMap: koanf.New(defaultDelimiter),
 		HTTP: GlobalHTTPConfig{
 			HTTPConfig: HTTPConfig{},
 			AltBinds:   map[string]HTTPConfig{},
+		},
+		LegacyTLS: legacyTLS,
+		TLS: TLSConfig{
+			legacyTLS: legacyTLS,
 		},
 	}
 }
@@ -214,19 +317,26 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("verbosity", "info", "Log level (trace, debug, info, warn, error)")
 	flagSet.String("loggerformat", "text", "Log format (text, json)")
 	flagSet.String("http.default.address", ":1323", "Address and port the server will be listening to")
+	flagSet.String("http.default.tls", string(DisabledHTTPTLSMode), fmt.Sprintf("Whether to enable TLS for the default interface (options are '%s', '%s', '%s').", DisabledHTTPTLSMode, TLSServerCertMode, TLServerClientCertMode))
 	flagSet.Bool("strictmode", false, "When set, insecure settings are forbidden.")
 	flagSet.Bool("internalratelimiter", true, "When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode.")
 	flagSet.String("datadir", "./data", "Directory where the node stores its files.")
 	flagSet.StringSlice("http.default.cors.origin", nil, "When set, enables CORS from the specified origins for the on default HTTP interface.")
-	flagSet.String("tls.offload", "", "Whether to enable TLS offloading for incoming connections. If enabled `tls.certheader` must be configured as well.")
+	flagSet.String("tls.certfile", "", "PEM file containing the certificate for the server (also used as client certificate).")
+	flagSet.String("tls.certkeyfile", "", "PEM file containing the private key of the server certificate.")
+	flagSet.String("tls.truststorefile", "truststore.pem", "PEM file containing the trusted CA certificates for authenticating remote servers.")
+	flagSet.String("tls.offload", string(NoOffloading), fmt.Sprintf("Whether to enable TLS offloading for incoming connections. "+
+		"Enable by setting it to '%s'. If enabled 'tls.certheader' must be configured as well.", OffloadIncomingTLS))
+	flagSet.Int("tls.crl.maxvaliditydays", 0, "The number of days a CRL can be outdated, after that it will hard-fail.")
 	flagSet.String("tls.certheader", "", "Name of the HTTP header that will contain the client certificate when TLS is offloaded.")
 	// Legacy TLS settings, to be removed in v6:
-	flagSet.Bool("network.enabletls", true, "Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see `tls.offload`). Disabling TLS is not allowed in strict-mode.")
-	flagSet.String("network.certfile", "", "PEM file containing the server certificate for the gRPC server. "+
-		"Required when `network.enabletls` is `true`.")
-	flagSet.String("network.certkeyfile", "", "PEM file containing the private key of the server certificate. "+
-		"Required when `network.enabletls` is `true`.")
-	flagSet.String("network.truststorefile", "truststore.pem", "PEM file containing the trusted CA certificates for authenticating remote gRPC servers.")
+	flagSet.Bool("network.enabletls", true, "Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see 'tls.offload'). Disabling TLS is not allowed in strict-mode.")
+	flagSet.String("network.certfile", "", "Deprecated: use 'tls.certfile'. PEM file containing the server certificate for the gRPC server. "+
+		"Required when 'network.enabletls' is 'true'.")
+	flagSet.String("network.certkeyfile", "", "Deprecated: use 'tls.certkeyfile'. PEM file containing the private key of the server certificate. "+
+		"Required when 'network.enabletls' is 'true'.")
+	flagSet.String("network.truststorefile", "", "Deprecated: use 'tls.truststorefile'. PEM file containing the trusted CA certificates for authenticating remote gRPC servers.")
+	flagSet.Int("network.maxcrlvaliditydays", 0, "Deprecated: use 'tls.crl.maxvaliditydays'. The number of days a CRL can be outdated, after that it will hard-fail.")
 
 	return flagSet
 }

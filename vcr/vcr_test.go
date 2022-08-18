@@ -52,7 +52,7 @@ func TestVCR_Start(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		instance := NewVCRInstance(nil, nil, nil, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(testDirectory)).(*vcr)
 
-		_ = instance.Configure(core.ServerConfig{Datadir: "test"})
+		_ = instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: "test"}))
 		err := instance.Start()
 		assert.EqualError(t, err, "mkdir test/vcr: not a directory")
 	})
@@ -75,7 +75,7 @@ func TestVCR_Start(t *testing.T) {
 			events.NewTestManager(t),
 			storage.NewTestStorageEngine(testDirectory),
 		).(*vcr)
-		if err := instance.Configure(core.ServerConfig{Datadir: testDirectory}); err != nil {
+		if err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
 			t.Fatal(err)
 		}
 		if err := instance.Start(); err != nil {

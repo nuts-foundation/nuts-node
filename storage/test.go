@@ -26,7 +26,7 @@ import (
 
 func NewTestStorageEngine(testDirectory string) Engine {
 	result := New()
-	_ = result.Configure(core.ServerConfig{Datadir: testDirectory + "/data"})
+	_ = result.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory + "/data"}))
 	return result
 }
 

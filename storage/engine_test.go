@@ -55,7 +55,7 @@ func Test_engine_lifecycle(t *testing.T) {
 
 func Test_engine_GetProvider(t *testing.T) {
 	sut := New()
-	_ = sut.Configure(core.ServerConfig{})
+	_ = sut.Configure(*core.NewServerConfig())
 	t.Run("moduleName is empty", func(t *testing.T) {
 		store, err := sut.GetProvider("").GetKVStore("store", VolatileStorageClass)
 		assert.Nil(t, store)
@@ -65,7 +65,7 @@ func Test_engine_GetProvider(t *testing.T) {
 
 func Test_engine_GetKVStore(t *testing.T) {
 	sut := New()
-	_ = sut.Configure(core.ServerConfig{})
+	_ = sut.Configure(*core.NewServerConfig())
 	t.Run("store is empty", func(t *testing.T) {
 		store, err := sut.GetProvider("engine").GetKVStore("", VolatileStorageClass)
 		assert.Nil(t, store)

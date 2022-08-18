@@ -19,7 +19,6 @@
 package network
 
 import (
-	"github.com/nuts-foundation/nuts-node/core"
 	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
 	"time"
 )
@@ -49,8 +48,6 @@ type Config struct {
 
 	// ProtocolV2 specifies config for protocol v2
 	ProtocolV2 v2.Config `koanf:"v2"`
-
-	tls core.NetworkTLSConfig
 }
 
 // IsProtocolEnabled returns true if the protocol is enabled, otherwise false.
