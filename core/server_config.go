@@ -42,15 +42,15 @@ const configValueListSeparator = ","
 
 // ServerConfig has global server settings.
 type ServerConfig struct {
-	Verbosity           string           `koanf:"verbosity"`
-	LoggerFormat        string           `koanf:"loggerformat"`
-	CPUProfile          string           `koanf:"cpuprofile"`
-	Strictmode          bool             `koanf:"strictmode"`
-	InternalRateLimiter bool             `koanf:"internalratelimiter"`
-	Datadir             string           `koanf:"datadir"`
-	HTTP                GlobalHTTPConfig `koanf:"http"`
-	TLS                 TLSConfig        `koanf:"tls"`
-	LegacyTLS           NetworkTLSConfig `koanf:"network"`
+	Verbosity           string            `koanf:"verbosity"`
+	LoggerFormat        string            `koanf:"loggerformat"`
+	CPUProfile          string            `koanf:"cpuprofile"`
+	Strictmode          bool              `koanf:"strictmode"`
+	InternalRateLimiter bool              `koanf:"internalratelimiter"`
+	Datadir             string            `koanf:"datadir"`
+	HTTP                GlobalHTTPConfig  `koanf:"http"`
+	TLS                 TLSConfig         `koanf:"tls"`
+	LegacyTLS           *NetworkTLSConfig `koanf:"network"`
 	configMap           *koanf.Koanf
 }
 
@@ -65,11 +65,40 @@ type TLSConfig struct {
 	CertFile             string `koanf:"certfile"`
 	CertKeyFile          string `koanf:"certkeyfile"`
 	TrustStoreFile       string `koanf:"truststorefile"`
+	legacyTLS            *NetworkTLSConfig
 }
 
 // Enabled returns whether TLS should be enabled, according to the global config.
 func (t TLSConfig) Enabled() bool {
-	return (len(t.CertFile) > 0 || len(t.CertKeyFile) > 0) && t.Offload == NoOffloading
+	return len(t.CertFile) > 0 || len(t.CertKeyFile) > 0
+}
+
+func (t TLSConfig) LoadCertificate() (tls.Certificate, error) {
+	var certFile, certKeyFile string
+	if len(t.legacyTLS.CertFile) > 0 {
+		logrus.Warn("Deprecated: use `tls.certfile` instead of `network.certfile`")
+		certFile = t.legacyTLS.CertFile
+	} else {
+		certFile = t.CertFile
+	}
+	if len(t.legacyTLS.CertKeyFile) > 0 {
+		logrus.Warn("Deprecated: use `tls.certkeyfile` instead of `network.certkeyfile`")
+		certKeyFile = t.legacyTLS.CertKeyFile
+	} else {
+		certKeyFile = t.CertKeyFile
+	}
+	return tls.LoadX509KeyPair(certFile, certKeyFile)
+}
+
+func (t TLSConfig) LoadTrustStore() (*TrustStore, error) {
+	var trustStoreFile string
+	if len(t.legacyTLS.TrustStoreFile) > 0 {
+		logrus.Warn("Deprecated: use `tls.truststorefile` instead of `network.truststorefile`")
+		trustStoreFile = t.legacyTLS.TrustStoreFile
+	} else {
+		trustStoreFile = t.TrustStoreFile
+	}
+	return LoadTrustStore(trustStoreFile)
 }
 
 // Load creates tls.Config from the given configuration. If TLS is disabled or offloaded it returns nil.
@@ -172,11 +201,16 @@ func (cors HTTPCORSConfig) Enabled() bool {
 
 // NewServerConfig creates an initialized empty server config
 func NewServerConfig() *ServerConfig {
+	legacyTLS := &NetworkTLSConfig{}
 	return &ServerConfig{
 		configMap: koanf.New(defaultDelimiter),
 		HTTP: GlobalHTTPConfig{
 			HTTPConfig: HTTPConfig{},
 			AltBinds:   map[string]HTTPConfig{},
+		},
+		LegacyTLS: legacyTLS,
+		TLS: TLSConfig{
+			legacyTLS: legacyTLS,
 		},
 	}
 }
