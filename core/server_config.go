@@ -68,6 +68,7 @@ type TLSConfig struct {
 	CRL                  CRLConfig `koanf:"crl"`
 }
 
+// CRLConfig holds configuration properties for checking Certificate Revocation Lists.
 type CRLConfig struct {
 	// MaxValidityDays defines the number of days a CRL can be outdated, after that it will hard-fail
 	MaxValidityDays int `koanf:"maxvaliditydays"`
@@ -84,9 +85,8 @@ func (t TLSConfig) GetCRLMaxValidityDays() int {
 	if t.legacyTLS.MaxCRLValidityDays > 0 {
 		logrus.Warn("Deprecated: use `tls.crl.maxvaliditydays` instead of `network.maxcrlvaliditydays`")
 		return t.legacyTLS.MaxCRLValidityDays
-	} else {
-		return t.CRL.MaxValidityDays
 	}
+	return t.CRL.MaxValidityDays
 }
 
 // LoadCertificate loads the TLS certificate from the configured location.

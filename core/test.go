@@ -33,6 +33,7 @@ type TestEngineConfig struct {
 	List   []string             `koanf:"list"`
 }
 
+// TestServerConfig returns a new ServerConfig with the given template applied.
 func TestServerConfig(template ServerConfig) ServerConfig {
 	config := NewServerConfig()
 	// Most commonly used properties
