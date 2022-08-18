@@ -3,7 +3,18 @@
 Release notes
 #############
 
-Whats has been changed, and how to update between versions.
+What has been changed, and how to update between versions.
+
+*****************
+Chestnut update (v4.1.1)
+*****************
+
+Release date: 2022-08-18
+
+This patch adds TLS offloading for gRPC connections with support for DER encoded client certificates.
+This is required for supporting TLS offloading on HAProxy.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.1.0...v4.1.1
 
 *****************
 Chestnut update (v4.1.0)
