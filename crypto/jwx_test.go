@@ -61,6 +61,31 @@ func TestSignJWT(t *testing.T) {
 		assert.Equal(t, "nuts", token.Issuer())
 	})
 
+	t.Run("builds with multiple claims; predefined: 'iss' & private claim: 'k2'", func(t *testing.T) {
+		expK2 := "k2"
+		expV2 := "v2"
+		claims[expK2] = expV2
+
+		rsaKey := test.GenerateRSAKey()
+		key, _ := jwkKey(rsaKey)
+		tokenString, err := SignJWT(key, claims, nil)
+
+		assert.Nil(t, err)
+
+		token, err := ParseJWT(tokenString, func(kid string) (crypto.PublicKey, error) {
+			return rsaKey.Public(), nil
+		})
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		pc := token.PrivateClaims()
+
+		assert.Equal(t, "nuts", token.Issuer())
+		assert.Equal(t, expV2, pc[expK2])
+	})
+
 	t.Run("creates valid JWT using ec keys", func(t *testing.T) {
 		p256, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		p384, _ := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
@@ -111,7 +136,7 @@ func TestSignJWT(t *testing.T) {
 	t.Run("invalid claim", func(t *testing.T) {
 		tokenString, err := SignJWT(nil, map[string]interface{}{jwt.IssuedAtKey: "foobar"}, nil)
 		assert.Empty(t, tokenString)
-		assert.EqualError(t, err, "invalid value for iat key: invalid epoch value \"foobar\"")
+		assert.EqualError(t, err, "failed to set claim \"iat\": invalid value for iat key: invalid epoch value \"foobar\"")
 	})
 }
 

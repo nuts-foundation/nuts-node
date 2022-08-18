@@ -93,13 +93,17 @@ func jwkKey(signer crypto.Signer) (key jwk.Key, err error) {
 // SignJWT signs claims with the signer and returns the compacted token. The headers param can be used to add additional headers
 func SignJWT(key jwk.Key, claims map[string]interface{}, headers map[string]interface{}) (token string, err error) {
 	var sig []byte
-	t := jwt.New()
+	b := jwt.NewBuilder()
 
 	for k, v := range claims {
-		if err := t.Set(k, v); err != nil {
-			return "", err
-		}
+		b.Claim(k, v)
 	}
+
+	t, err := b.Build()
+	if err != nil {
+		return "", err
+	}
+
 	hdr := convertHeaders(headers)
 
 	sig, err = jwt.Sign(t, jwa.SignatureAlgorithm(key.Algorithm()), key, jwt.WithHeaders(hdr))
