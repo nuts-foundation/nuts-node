@@ -88,11 +88,11 @@ func Test_TLSConfiguration(t *testing.T) {
 	serverConfig.TLS.TrustStoreFile = trustStoreFile
 	serverConfig.HTTP.AltBinds["internal"] = core.HTTPConfig{
 		Address: fmt.Sprintf("localhost:%d", test.FreeTCPPort()),
-		TLSMode: core.MutualTLSMode,
+		TLSMode: core.TLServerClientCertMode,
 	}
 	serverConfig.HTTP.AltBinds["metrics"] = core.HTTPConfig{
 		Address: fmt.Sprintf("localhost:%d", test.FreeTCPPort()),
-		TLSMode: core.TLSMode,
+		TLSMode: core.TLSServerCertMode,
 	}
 	startCtx := startServer(testDirectory, nodeStoppedCallback, serverConfig, moduleConfig)
 

@@ -378,14 +378,14 @@ func NewInternalRateLimiterStore(interval time.Duration, limitPerInterval rate.L
 func configureTLS(cfg HTTPConfig, tlsConfig *tls.Config, echoServer *echo.Echo) (*echo.Echo, EchoStarter, error) {
 	var starter EchoStarter
 	switch cfg.TLSMode {
-	case TLSMode:
+	case TLSServerCertMode:
 		fallthrough
-	case MutualTLSMode:
+	case TLServerClientCertMode:
 		if tlsConfig == nil {
 			return nil, nil, fmt.Errorf("TLS must be enabled (without offloading) to enable it on HTTP endpoints")
 		}
 		serverTLSConfig := tlsConfig.Clone()
-		if cfg.TLSMode == MutualTLSMode {
+		if cfg.TLSMode == TLServerClientCertMode {
 			serverTLSConfig.ClientAuth = tls.RequireAndVerifyClientCert
 		}
 		echoServer.TLSServer.TLSConfig = serverTLSConfig

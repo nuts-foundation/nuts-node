@@ -153,10 +153,10 @@ type HTTPTLSMode string
 const (
 	// DisabledHTTPTLSMode specifies that TLS is not enabled for this interface.
 	DisabledHTTPTLSMode HTTPTLSMode = "disabled"
-	// TLSMode specifies that TLS is enabled for this interface, but no client certificate is required.
-	TLSMode HTTPTLSMode = "tls"
-	// MutualTLSMode specifies that TLS is enabled for this interface, and that it will require a client certificate.
-	MutualTLSMode HTTPTLSMode = "mutual-tls"
+	// TLSServerCertMode specifies that TLS is enabled for this interface, but no client certificate is required.
+	TLSServerCertMode HTTPTLSMode = "server"
+	// TLServerClientCertMode specifies that TLS is enabled for this interface, and that it will require a client certificate.
+	TLServerClientCertMode HTTPTLSMode = "server-client"
 )
 
 // HTTPCORSConfig contains configuration for Cross Origin Resource Sharing.
@@ -264,7 +264,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("verbosity", "info", "Log level (trace, debug, info, warn, error)")
 	flagSet.String("loggerformat", "text", "Log format (text, json)")
 	flagSet.String("http.default.address", ":1323", "Address and port the server will be listening to")
-	flagSet.String("http.default.tls", string(DisabledHTTPTLSMode), fmt.Sprintf("Whether to enable TLS for the default interface (options are '%s', '%s', '%s').", DisabledHTTPTLSMode, TLSMode, MutualTLSMode))
+	flagSet.String("http.default.tls", string(DisabledHTTPTLSMode), fmt.Sprintf("Whether to enable TLS for the default interface (options are '%s', '%s', '%s').", DisabledHTTPTLSMode, TLSServerCertMode, TLServerClientCertMode))
 	flagSet.Bool("strictmode", false, "When set, insecure settings are forbidden.")
 	flagSet.Bool("internalratelimiter", true, "When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode.")
 	flagSet.String("datadir", "./data", "Directory where the node stores its files.")
