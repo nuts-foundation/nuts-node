@@ -45,7 +45,7 @@ Prints the current config
   -h, --help                                          help for config
       --http.default.address string                   Address and port the server will be listening to (default ":1323")
       --http.default.cors.origin strings              When set, enables CORS from the specified origins for the on default HTTP interface.
-      --http.default.tls string                       Whether to enable TLS for the default interface (options are 'disabled', 'tls', 'mutual-tls'). (default "disabled")
+      --http.default.tls string                       Whether to enable TLS for the default interface (options are 'disabled', 'server', 'server-client'). (default "disabled")
       --internalratelimiter                           When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode. (default true)
       --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson])
       --jsonld.contexts.remoteallowlist strings       In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here. (default [https://schema.org,https://www.w3.org/2018/credentials/v1,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json])
@@ -108,7 +108,7 @@ Imports private keys from filesystem based storage into Vault. The given directo
   -h, --help                                          help for fs2vault
       --http.default.address string                   Address and port the server will be listening to (default ":1323")
       --http.default.cors.origin strings              When set, enables CORS from the specified origins for the on default HTTP interface.
-      --http.default.tls string                       Whether to enable TLS for the default interface (options are 'disabled', 'tls', 'mutual-tls'). (default "disabled")
+      --http.default.tls string                       Whether to enable TLS for the default interface (options are 'disabled', 'server', 'server-client'). (default "disabled")
       --internalratelimiter                           When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode. (default true)
       --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson])
       --jsonld.contexts.remoteallowlist strings       In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here. (default [https://schema.org,https://www.w3.org/2018/credentials/v1,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json])
@@ -270,7 +270,7 @@ Starts the Nuts server
   -h, --help                                          help for server
       --http.default.address string                   Address and port the server will be listening to (default ":1323")
       --http.default.cors.origin strings              When set, enables CORS from the specified origins for the on default HTTP interface.
-      --http.default.tls string                       Whether to enable TLS for the default interface (options are 'disabled', 'tls', 'mutual-tls'). (default "disabled")
+      --http.default.tls string                       Whether to enable TLS for the default interface (options are 'disabled', 'server', 'server-client'). (default "disabled")
       --internalratelimiter                           When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode. (default true)
       --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson])
       --jsonld.contexts.remoteallowlist strings       In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here. (default [https://schema.org,https://www.w3.org/2018/credentials/v1,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json])
