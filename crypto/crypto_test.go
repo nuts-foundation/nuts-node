@@ -106,7 +106,8 @@ func TestCrypto_Resolve(t *testing.T) {
 
 func TestCrypto_Configure(t *testing.T) {
 	directory := io.TestDirectory(t)
-	cfg := core.ServerConfig{Datadir: directory}
+	cfg := *core.NewServerConfig()
+	cfg.Datadir = directory
 	t.Run("ok", func(t *testing.T) {
 		e := createCrypto(t)
 		err := e.Configure(cfg)

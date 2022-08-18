@@ -109,8 +109,6 @@ func NewNetworkInstance(
 
 // Configure configures the Network subsystem
 func (n *Network) Configure(config core.ServerConfig) error {
-	n.config.tls = config.LegacyTLS
-
 	var err error
 	dagStore, err := n.storeProvider.GetKVStore("data", storage.PersistentStorageClass)
 	if err != nil {
@@ -127,13 +125,14 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	var clientCert tls.Certificate
 	var trustStore *core.TrustStore
 	if config.LegacyTLS.Enabled {
-		var err error
-		clientCert, trustStore, err = loadCertificateAndTrustStore(config)
+		clientCert, err = config.TLS.LoadCertificate()
 		if err != nil {
 			return err
 		}
-	} else if len(n.config.tls.CertFile) > 0 || len(n.config.tls.CertKeyFile) > 0 {
-		log.Logger().Warn("TLS is disabled but CertFile and/or CertKeyFile is set. Did you really mean to disable TLS?")
+		trustStore, err = config.TLS.LoadTrustStore()
+		if err != nil {
+			return err
+		}
 	}
 
 	// Resolve node DID
@@ -192,7 +191,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		}
 		// Configure TLS
 		if config.LegacyTLS.Enabled {
-			grpcOpts = append(grpcOpts, grpc.WithTLS(clientCert, trustStore, n.config.tls.MaxCRLValidityDays))
+			grpcOpts = append(grpcOpts, grpc.WithTLS(clientCert, trustStore, config.TLS.GetCRLMaxValidityDays()))
 			if config.TLS.Offload == core.OffloadIncomingTLS {
 				grpcOpts = append(grpcOpts, grpc.WithTLSOffloading(config.TLS.ClientCertHeaderName))
 			}
@@ -262,38 +261,6 @@ func (n *Network) emitEvents(event dag.Event) (bool, error) {
 	}
 
 	return true, nil
-}
-
-func loadCertificateAndTrustStore(config core.ServerConfig) (tls.Certificate, *core.TrustStore, error) {
-	var certFile, certKeyFile, trustStoreFile string
-	if len(config.LegacyTLS.CertFile) > 0 {
-		log.Logger().Warn("Deprecated: use `tls.certfile` instead of `network.certfile`")
-		certFile = config.LegacyTLS.CertFile
-	} else {
-		certFile = config.TLS.CertFile
-	}
-	if len(config.LegacyTLS.CertKeyFile) > 0 {
-		log.Logger().Warn("Deprecated: use `tls.certkeyfile` instead of `network.certkeyfile`")
-		certKeyFile = config.LegacyTLS.CertKeyFile
-	} else {
-		certKeyFile = config.TLS.CertKeyFile
-	}
-	if len(config.LegacyTLS.TrustStoreFile) > 0 {
-		log.Logger().Warn("Deprecated: use `tls.truststorefile` instead of `network.truststorefile`")
-		trustStoreFile = config.LegacyTLS.TrustStoreFile
-	} else {
-		trustStoreFile = config.TLS.TrustStoreFile
-	}
-
-	clientCertificate, err := tls.LoadX509KeyPair(certFile, certKeyFile)
-	if err != nil {
-		return tls.Certificate{}, nil, fmt.Errorf("unable to load node TLS client certificate (certfile=%s,certkeyfile=%s): %w", certFile, certKeyFile, err)
-	}
-	trustStore, err := core.LoadTrustStore(trustStoreFile)
-	if err != nil {
-		return tls.Certificate{}, nil, err
-	}
-	return clientCertificate, trustStore, nil
 }
 
 // Name returns the module name.

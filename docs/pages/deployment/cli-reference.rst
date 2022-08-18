@@ -59,6 +59,7 @@ Prints the current config
       --network.enabletls                             Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see 'tls.offload'). Disabling TLS is not allowed in strict-mode. (default true)
       --network.grpcaddr string                       Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made). (default ":5555")
       --network.maxbackoff duration                   Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. '1h', '30m'). (default 24h0m0s)
+      --network.maxcrlvaliditydays int                Deprecated: use 'tls.crl.maxvaliditydays'. The number of days a CRL can be outdated, after that it will hard-fail.
       --network.nodedid string                        Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
       --network.protocols ints                        Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.
       --network.truststorefile string                 Deprecated: use 'tls.truststorefile'. PEM file containing the trusted CA certificates for authenticating remote gRPC servers.
@@ -74,6 +75,7 @@ Prints the current config
       --tls.certfile string                           PEM file containing the certificate for the server (also used as client certificate).
       --tls.certheader string                         Name of the HTTP header that will contain the client certificate when TLS is offloaded.
       --tls.certkeyfile string                        PEM file containing the private key of the server certificate.
+      --tls.crl.maxvaliditydays int                   The number of days a CRL can be outdated, after that it will hard-fail.
       --tls.offload string                            Whether to enable TLS offloading for incoming connections. Enable by setting it to 'incoming'. If enabled 'tls.certheader' must be configured as well.
       --tls.truststorefile string                     PEM file containing the trusted CA certificates for authenticating remote servers. (default "truststore.pem")
       --verbosity string                              Log level (trace, debug, info, warn, error) (default "info")
@@ -122,6 +124,7 @@ Imports private keys from filesystem based storage into Vault. The given directo
       --network.enabletls                             Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see 'tls.offload'). Disabling TLS is not allowed in strict-mode. (default true)
       --network.grpcaddr string                       Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made). (default ":5555")
       --network.maxbackoff duration                   Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. '1h', '30m'). (default 24h0m0s)
+      --network.maxcrlvaliditydays int                Deprecated: use 'tls.crl.maxvaliditydays'. The number of days a CRL can be outdated, after that it will hard-fail.
       --network.nodedid string                        Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
       --network.protocols ints                        Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.
       --network.truststorefile string                 Deprecated: use 'tls.truststorefile'. PEM file containing the trusted CA certificates for authenticating remote gRPC servers.
@@ -137,6 +140,7 @@ Imports private keys from filesystem based storage into Vault. The given directo
       --tls.certfile string                           PEM file containing the certificate for the server (also used as client certificate).
       --tls.certheader string                         Name of the HTTP header that will contain the client certificate when TLS is offloaded.
       --tls.certkeyfile string                        PEM file containing the private key of the server certificate.
+      --tls.crl.maxvaliditydays int                   The number of days a CRL can be outdated, after that it will hard-fail.
       --tls.offload string                            Whether to enable TLS offloading for incoming connections. Enable by setting it to 'incoming'. If enabled 'tls.certheader' must be configured as well.
       --tls.truststorefile string                     PEM file containing the trusted CA certificates for authenticating remote servers. (default "truststore.pem")
       --verbosity string                              Log level (trace, debug, info, warn, error) (default "info")
@@ -284,6 +288,7 @@ Starts the Nuts server
       --network.enabletls                             Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see 'tls.offload'). Disabling TLS is not allowed in strict-mode. (default true)
       --network.grpcaddr string                       Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made). (default ":5555")
       --network.maxbackoff duration                   Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. '1h', '30m'). (default 24h0m0s)
+      --network.maxcrlvaliditydays int                Deprecated: use 'tls.crl.maxvaliditydays'. The number of days a CRL can be outdated, after that it will hard-fail.
       --network.nodedid string                        Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
       --network.protocols ints                        Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.
       --network.truststorefile string                 Deprecated: use 'tls.truststorefile'. PEM file containing the trusted CA certificates for authenticating remote gRPC servers.
@@ -299,6 +304,7 @@ Starts the Nuts server
       --tls.certfile string                           PEM file containing the certificate for the server (also used as client certificate).
       --tls.certheader string                         Name of the HTTP header that will contain the client certificate when TLS is offloaded.
       --tls.certkeyfile string                        PEM file containing the private key of the server certificate.
+      --tls.crl.maxvaliditydays int                   The number of days a CRL can be outdated, after that it will hard-fail.
       --tls.offload string                            Whether to enable TLS offloading for incoming connections. Enable by setting it to 'incoming'. If enabled 'tls.certheader' must be configured as well.
       --tls.truststorefile string                     PEM file containing the trusted CA certificates for authenticating remote servers. (default "truststore.pem")
       --verbosity string                              Log level (trace, debug, info, warn, error) (default "info")

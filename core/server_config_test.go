@@ -279,3 +279,15 @@ func testCommand() *cobra.Command {
 	cmd.Flags().AddFlagSet(fs)
 	return cmd
 }
+
+func TestTLSConfig_LoadCertificate(t *testing.T) {
+	t.Run("error - cert file does not exist", func(t *testing.T) {
+		cfg := *NewServerConfig()
+		cfg.TLS.CertFile = "test/non-existent.pem"
+		cfg.TLS.CertKeyFile = "test/non-existent.pem"
+		certificate, err := cfg.TLS.LoadCertificate()
+
+		assert.Empty(t, certificate)
+		assert.EqualError(t, err, "unable to load node TLS client certificate (certfile=test/non-existent.pem,certkeyfile=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
+	})
+}

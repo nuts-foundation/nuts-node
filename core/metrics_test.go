@@ -38,7 +38,7 @@ func TestMetricsEngine_Name(t *testing.T) {
 
 func TestNewMetricsEngine_Metrics(t *testing.T) {
 	engine := NewMetricsEngine().(*metrics)
-	_ = engine.Configure(ServerConfig{})
+	_ = engine.Configure(*NewServerConfig())
 	defer engine.Shutdown()
 	e := echo.New()
 	engine.Routes(e)
@@ -83,7 +83,7 @@ func TestNewMetricsEngine_Metrics(t *testing.T) {
 func TestMetricsEngine_Lifecycle(t *testing.T) {
 	t.Run("shutdown unregisters metrics", func(t *testing.T) {
 		engine := NewMetricsEngine().(*metrics)
-		_ = engine.Configure(ServerConfig{})
+		_ = engine.Configure(*NewServerConfig())
 
 		e := echo.New()
 		engine.Routes(e)
@@ -97,7 +97,7 @@ func TestMetricsEngine_Lifecycle(t *testing.T) {
 	t.Run("calling configure twice is ok", func(t *testing.T) {
 		engine := NewMetricsEngine().(*metrics)
 		defer engine.Shutdown()
-		err := engine.Configure(ServerConfig{})
+		err := engine.Configure(*NewServerConfig())
 
 		assert.NoError(t, err)
 	})

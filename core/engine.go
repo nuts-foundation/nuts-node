@@ -20,6 +20,7 @@
 package core
 
 import (
+	"crypto/tls"
 	"fmt"
 	"github.com/spf13/pflag"
 	"net/url"
@@ -43,10 +44,15 @@ func NewSystem() *System {
 		Config:  serverCfg,
 		Routers: []Routable{},
 		EchoCreator: func(cfg HTTPConfig) (EchoServer, EchoStarter, error) {
-			tlsConfig, err := serverCfg.TLS.Load()
-			if err != nil {
-				return nil, nil, err
+			var tlsConfig *tls.Config
+			var err error
+			if serverCfg.TLS.Offload == NoOffloading {
+				tlsConfig, err = serverCfg.TLS.Load()
+				if err != nil {
+					return nil, nil, err
+				}
 			}
+
 			return createEchoServer(cfg, tlsConfig, serverCfg.Strictmode, serverCfg.InternalRateLimiter)
 		},
 	}

@@ -257,7 +257,7 @@ func TestVDR_Configure(t *testing.T) {
 	tx.EXPECT().Subscribe("vdr", gomock.Any(), gomock.Any())
 	cfg := Config{}
 	vdr := NewVDR(cfg, nil, tx, nil, nil)
-	err := vdr.Configure(core.ServerConfig{})
+	err := vdr.Configure(*core.NewServerConfig())
 	assert.NoError(t, err)
 }
 

@@ -33,6 +33,15 @@ type TestEngineConfig struct {
 	List   []string             `koanf:"list"`
 }
 
+func TestServerConfig(template ServerConfig) ServerConfig {
+	config := NewServerConfig()
+	// Most commonly used properties
+	config.Datadir = template.Datadir
+	config.Strictmode = template.Strictmode
+	config.InternalRateLimiter = template.InternalRateLimiter
+	return *config
+}
+
 // TestEngineSubConfig defines the `sub` configuration for the test engine
 type TestEngineSubConfig struct {
 	Test string `koanf:"test"`
