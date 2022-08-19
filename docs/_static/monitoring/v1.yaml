@@ -10,7 +10,9 @@ servers:
 paths:
   /status:
     get:
-      summary: "check if node is up and running"
+      summary: "healthcheck to confirm node is up and running"
+      description: |
+        Check if the node is up and running.
       operationId: getStatus
       tags:
         - status
@@ -24,6 +26,11 @@ paths:
   /status/diagnostics:
     get:
       summary: "get node diagnostics"
+      description: |
+        Get basic information on the
+        * connected peers
+        * DAG state
+        * node build info
       operationId: getDiagnostics
       tags:
         - status
@@ -37,6 +44,15 @@ paths:
   /metrics:
     get:
       summary: "collect metrics"
+      description: |
+        Collect metrics in prometheus format.
+        
+        Metrics are exported in the following namespaces:
+        * `nuts_` contains metrics related to the functioning of the Nuts node
+        * `process_` contains OS metrics related to the process
+        * `go_` contains Go metrics related to the process
+        * `http_` contains metrics related to HTTP calls to the Nuts node
+        * `promhttp_` contains prometheus metrics related to HTTP calls to the `/metrics` endpoint
       operationId: getMetrics
       tags:
         - metrics
@@ -46,4 +62,4 @@ paths:
           content:
             text/plain:
               schema:
-                type: object
+                type: string
