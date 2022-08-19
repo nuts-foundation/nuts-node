@@ -1,6 +1,6 @@
-openapi: 3.0.0
+openapi: "3.0.0"
 info:
-  title: Nuts Auth Service API
+  title: Nuts Auth Service API spec
   version: 1.0.0
 servers:
   - url: http://localhost:1323

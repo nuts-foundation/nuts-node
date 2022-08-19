@@ -1,0 +1,49 @@
+openapi: "3.0.0"
+info:
+  title: Nuts Node Monitoring API spec
+  description: API specification for monitoring of the nuts node
+  version: 1.0.0
+  license:
+    name: GPLv3
+servers:
+  - url: http://localhost:1323
+paths:
+  /status:
+    get:
+      summary: "check if node is up and running"
+      operationId: getStatus
+      tags:
+        - status
+      responses:
+        200:
+          description: '"OK" when the node is up and running'
+          content:
+            text/plain:
+              schema:
+                type: string
+  /status/diagnostics:
+    get:
+      summary: "get node diagnostics"
+      operationId: getDiagnostics
+      tags:
+        - status
+      responses:
+        200:
+          description: Basic nuts-node diagnostics
+          content:
+            application/json:
+              schema:
+                type: object
+  /metrics:
+    get:
+      summary: "collect metrics"
+      operationId: getMetrics
+      tags:
+        - metrics
+      responses:
+        200:
+          description: Monitoring metrics
+          content:
+            text/plain:
+              schema:
+                type: object
