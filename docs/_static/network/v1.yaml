@@ -1,8 +1,8 @@
 openapi: "3.0.0"
 info:
-  title: Nuts network API spec
+  title: Nuts Network API spec
   description: API specification for RPC services available at the nuts-network
-  version: 0.1.0
+  version: 1.0.0
   license:
     name: GPLv3
 servers:

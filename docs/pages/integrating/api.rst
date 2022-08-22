@@ -12,6 +12,7 @@ Below you can discover the Nuts Node APIs and download their OpenAPI specificati
 - `Verifiable Data Registry <../../_static/vdr/v1.yaml>`_
 - `Network <../../_static/network/v1.yaml>`_
 - `Auth <../../_static/auth/v1.yaml>`_
+- `Monitoring <../../_static/monitoring/v1.yaml>`_
 
 .. raw:: html
 
@@ -34,6 +35,7 @@ Below you can discover the Nuts Node APIs and download their OpenAPI specificati
                     {url: "../../_static/vdr/v1.yaml", name: "Verifiable Data Registry"},
                     {url: "../../_static/network/v1.yaml", name: "Network"},
                     {url: "../../_static/auth/v1.yaml", name: "Auth"},
+                    {url: "../../_static/monitoring/v1.yaml", name: "Monitoring"},
                     ],
                 presets: [
                     SwaggerUIBundle.presets.apis,

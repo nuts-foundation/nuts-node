@@ -1,6 +1,6 @@
 openapi: "3.0.0"
 info:
-  title: Crypto
+  title: Nuts Crypto Service API spec
   description: API specification for crypto services available within nuts node
   version: 1.0.0
   license:

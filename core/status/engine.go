@@ -40,7 +40,7 @@ type status struct {
 	startTime time.Time
 }
 
-//NewStatusEngine creates a new Engine for viewing all engines
+// NewStatusEngine creates a new Engine for viewing all engines
 func NewStatusEngine(system *core.System) core.Engine {
 	return &status{
 		system:    system,
@@ -64,7 +64,10 @@ func (s *status) diagnosticsOverview(ctx echo.Context) error {
 		return ctx.JSON(http.StatusOK, s.diagnosticsSummaryAsMap(diagnostics))
 	}
 	// Return as YAML but serve as text/plain, because we always allowed easy diagnostics viewing through the browser.
-	// When serving it as application/yaml, it is downloaded by the browser instead of rendered directly (tested on Chrome).
+	// When serving it as application/yaml, it is downloaded by the browser instead of rendered directly, so only set header if requested.
+	if strings.HasPrefix(hdr, "application/yaml") {
+		ctx.Response().Header().Set("Content-Type", "application/yaml")
+	}
 	return ctx.String(http.StatusOK, s.diagnosticsSummaryAsYAML(diagnostics))
 }
 

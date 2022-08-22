@@ -18,7 +18,7 @@ import (
 
 // Non-completed event. An event represents a transaction that is of interest to a specific part of the Nuts node.
 type Event struct {
-	// Lists the error if the event processing failed due to an error.
+	// Lists the last error if the event processing failed due to an error.
 	Error *string `json:"error,omitempty"`
 
 	// Hash is the ID of the Event, usually the same as the transaction reference.
