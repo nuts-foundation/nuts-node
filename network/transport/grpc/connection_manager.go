@@ -254,7 +254,7 @@ func (s *grpcConnectionManager) notifyObservers(peer transport.Peer, protocol tr
 	}
 }
 
-func (s grpcConnectionManager) Peers() []transport.Peer {
+func (s *grpcConnectionManager) Peers() []transport.Peer {
 	var peers []transport.Peer
 	for _, curr := range s.connections.All() {
 		if curr.IsConnected() {

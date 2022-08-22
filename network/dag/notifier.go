@@ -199,15 +199,15 @@ type notifier struct {
 	finishedCounter prometheus.Counter
 }
 
-func (p *notifier) Name() string {
+func (p notifier) Name() string {
 	return p.name
 }
 
-func (p *notifier) shelfName() string {
+func (p notifier) shelfName() string {
 	return fmt.Sprintf("_%s_jobs", p.name)
 }
 
-func (p *notifier) isPersistent() bool {
+func (p notifier) isPersistent() bool {
 	return p.db != nil
 }
 

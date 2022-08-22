@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
 	"math"
+	"sync"
 
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -54,6 +55,7 @@ type state struct {
 	transactionCount    prometheus.Counter
 	eventsNotifyCount   prometheus.Counter
 	eventsFinishedCount prometheus.Counter
+	notifiersMux        *sync.RWMutex
 }
 
 func (s *state) Migrate() error {
@@ -73,6 +75,7 @@ func NewState(db stoabs.KVStore, verifiers ...Verifier) (State, error) {
 		notifiers:    map[string]Notifier{},
 		xorTree:      newTreeStore(xorShelf, tree.New(tree.NewXor(), PageSize)),
 		ibltTree:     newTreeStore(ibltShelf, tree.New(tree.NewIblt(IbltNumBuckets), PageSize)),
+		notifiersMux: &sync.RWMutex{},
 	}
 	err := newState.initPrometheusCounters()
 	if err != nil && err.Error() != (prometheus.AlreadyRegisteredError{}).Error() { // No unwrap on prometheus.AlreadyRegisteredError
@@ -297,6 +300,9 @@ func (s *state) Head(ctx context.Context) (hash.SHA256Hash, error) {
 }
 
 func (s *state) Notifier(name string, receiver ReceiverFn, options ...NotifierOption) (Notifier, error) {
+	s.notifiersMux.Lock()
+	defer s.notifiersMux.Unlock()
+
 	if _, exists := s.notifiers[name]; exists {
 		return nil, fmt.Errorf("notifier already exists (name=%s)", name)
 	}
@@ -309,6 +315,9 @@ func (s *state) Notifier(name string, receiver ReceiverFn, options ...NotifierOp
 }
 
 func (s *state) Notifiers() []Notifier {
+	s.notifiersMux.RLock()
+	defer s.notifiersMux.RUnlock()
+
 	notifiers := make([]Notifier, 0)
 	for _, notifier := range s.notifiers {
 		notifiers = append(notifiers, notifier)
@@ -383,6 +392,8 @@ func (s *state) Start() error {
 	}
 
 	// resume all notifiers
+	s.notifiersMux.RLock()
+	defer s.notifiersMux.RUnlock()
 	for _, curr := range s.notifiers {
 		if err := curr.Run(); err != nil {
 			return err
@@ -410,6 +421,9 @@ func (s *state) Verify(ctx context.Context) error {
 }
 
 func (s *state) saveEvent(tx stoabs.WriteTx, event Event) error {
+	s.notifiersMux.RLock()
+	defer s.notifiersMux.RUnlock()
+
 	for _, notifier := range s.notifiers {
 		if err := notifier.Save(tx, event); err != nil {
 			return err
@@ -420,12 +434,18 @@ func (s *state) saveEvent(tx stoabs.WriteTx, event Event) error {
 }
 
 func (s *state) notify(event Event) {
+	s.notifiersMux.RLock()
+	defer s.notifiersMux.RUnlock()
+
 	for _, notifier := range s.notifiers {
 		notifier.Notify(event)
 	}
 }
 
 func (s *state) getFailedEvents() []Event {
+	s.notifiersMux.RLock()
+	defer s.notifiersMux.RUnlock()
+
 	failedEvents := make([]Event, 0)
 	for name, notifier := range s.notifiers {
 		events, err := notifier.GetFailedEvents()
