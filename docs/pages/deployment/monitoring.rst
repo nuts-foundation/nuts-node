@@ -17,6 +17,13 @@ The main goal of the service is to give a YES/NO answer for if the service is ru
 
 It'll return an "OK" response and a 200 status code.
 
+.. note::
+
+The provided Docker containers are configured to perform this healthcheck out of the box.
+However, if the default port (:1323) has been changed or if the `/status` endpoint has been bound to a different port,
+the default healthcheck will fail and Docker will mark the container as unhealthy.
+Override the default healthcheck to solve this.
+
 Basic diagnostics
 *****************
 
