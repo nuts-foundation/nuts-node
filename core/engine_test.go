@@ -53,16 +53,43 @@ func TestSystem_Start(t *testing.T) {
 }
 
 func TestSystem_Shutdown(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+	t.Run("returns error", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 
-	r := NewMockRunnable(ctrl)
-	r.EXPECT().Shutdown()
+		r := NewMockRunnable(ctrl)
+		r.EXPECT().Shutdown().Return(errors.New("failure"))
 
-	system := NewSystem()
-	system.RegisterEngine(TestEngine{})
-	system.RegisterEngine(r)
-	assert.Nil(t, system.Shutdown())
+		system := NewSystem()
+		system.RegisterEngine(r)
+
+		assert.EqualError(t, system.Shutdown(), "failure")
+	})
+	t.Run("start and shutdown are called in opposite order", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		r1 := NewMockRunnable(ctrl)
+		r2 := NewMockRunnable(ctrl)
+
+		gomock.InOrder(
+			r1.EXPECT().Start(),
+			r2.EXPECT().Start(),
+		)
+
+		gomock.InOrder(
+			r2.EXPECT().Shutdown(),
+			r1.EXPECT().Shutdown(),
+		)
+
+		system := NewSystem()
+		system.RegisterEngine(r1)
+		system.RegisterEngine(r2)
+
+		_ = system.Start()
+		_ = system.Shutdown()
+	})
+
 }
 
 func TestSystem_Configure(t *testing.T) {
