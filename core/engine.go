@@ -115,15 +115,21 @@ func (system *System) Start() error {
 
 // Shutdown shuts down all engines in the system.
 func (system *System) Shutdown() error {
-	var err error
-	return system.VisitEnginesE(func(engine Engine) error {
+	var engines []Runnable
+	system.VisitEngines(func(engine Engine) {
 		if m, ok := engine.(Runnable); ok {
-			coreLogger.Infof("Stopping %s...", getEngineName(engine))
-			err = m.Shutdown()
-			coreLogger.Infof("Stopped %s", getEngineName(engine))
+			engines = append(engines, m)
 		}
-		return err
 	})
+	for i := len(engines) - 1; i >= 0; i-- {
+		curr := engines[i]
+		coreLogger.Infof("Stopping %s...", getEngineName(curr))
+		if err := curr.Shutdown(); err != nil {
+			return err
+		}
+		coreLogger.Infof("Stopped %s", getEngineName(curr))
+	}
+	return nil
 }
 
 // Configure configures all engines in the system.
@@ -159,6 +165,7 @@ func (system *System) Migrate() error {
 }
 
 // VisitEngines applies the given function on all engines in the system.
+// It visits the engines in order they were registered.
 func (system *System) VisitEngines(visitor func(engine Engine)) {
 	_ = system.VisitEnginesE(func(engine Engine) error {
 		visitor(engine)
@@ -168,6 +175,7 @@ func (system *System) VisitEngines(visitor func(engine Engine)) {
 
 // VisitEnginesE applies the given function on all engines in the system, stopping when an error is returned. The error
 // is passed through.
+// It visits the engines in order they were registered.
 func (system *System) VisitEnginesE(visitor func(engine Engine) error) error {
 	for _, e := range system.engines {
 		if err := visitor(e); err != nil {
