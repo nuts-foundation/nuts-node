@@ -37,7 +37,7 @@ func FlagSet() *pflag.FlagSet {
 	defs := http.DefaultConfig()
 	flags.String("http.default.address", defs.Address, "Address and port the server will be listening to")
 	flags.StringSlice("http.default.cors.origin", defs.CORS.Origin, "When set, enables CORS from the specified origins on the default HTTP interface.")
-	flags.String("http.default.tls", string(defs.TLSMode), fmt.Sprintf("Whether to enable TLS for the default interface (options are '%s', '%s', '%s').", http.TLSDisabledMode, http.TLSServerCertMode, http.TLServerClientCertMode))
+	flags.String("http.default.tls", string(defs.TLSMode), fmt.Sprintf("Whether to enable TLS for the default interface, options are '%s', '%s', '%s'. Leaving it empty is synonymous to '%s',", http.TLSDisabledMode, http.TLSServerCertMode, http.TLServerClientCertMode, http.TLSDisabledMode))
 	flags.String("http.default.auth.type", string(defs.Auth.Type), fmt.Sprintf("Whether to enable authentication for the default interface, specify '%s' for bearer token authentication.", http.BearerTokenAuth))
 
 	return flags

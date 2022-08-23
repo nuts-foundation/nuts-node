@@ -42,13 +42,13 @@ type HTTPRequestDoer interface {
 	Do(*http.Request) (*http.Response, error)
 }
 
-// HTTPRequestDoerAdapter wraps a HTTPRequestFn in a struct, so it can be used where HTTPRequestDoer is required.
-type HTTPRequestDoerAdapter struct {
+// httpRequestDoerAdapter wraps a HTTPRequestFn in a struct, so it can be used where HTTPRequestDoer is required.
+type httpRequestDoerAdapter struct {
 	fn HTTPRequestFn
 }
 
 // Do calls the wrapped HTTPRequestFn.
-func (w HTTPRequestDoerAdapter) Do(req *http.Request) (*http.Response, error) {
+func (w httpRequestDoerAdapter) Do(req *http.Request) (*http.Response, error) {
 	return w.fn(req)
 }
 
@@ -57,11 +57,11 @@ func (w HTTPRequestDoerAdapter) Do(req *http.Request) (*http.Response, error) {
 // This does not use the generated client options for e.g. authentication,
 // because each generated OpenAPI client reimplements the client options using structs,
 // which makes them incompatible with each other, making it impossible to use write generic client code for common traits like authorization.
-func CreateHTTPClient(cfg ClientConfig) (*HTTPRequestDoerAdapter, error) {
-	var result *HTTPRequestDoerAdapter
+func CreateHTTPClient(cfg ClientConfig) (*httpRequestDoerAdapter, error) {
+	var result *httpRequestDoerAdapter
 	client := &http.Client{}
 	client.Timeout = cfg.Timeout
-	result = &HTTPRequestDoerAdapter{
+	result = &httpRequestDoerAdapter{
 		fn: client.Do,
 	}
 
@@ -72,7 +72,7 @@ func CreateHTTPClient(cfg ClientConfig) (*HTTPRequestDoerAdapter, error) {
 	}
 	if len(authToken) > 0 {
 		fn := result.fn
-		result = &HTTPRequestDoerAdapter{fn: func(req *http.Request) (*http.Response, error) {
+		result = &httpRequestDoerAdapter{fn: func(req *http.Request) (*http.Response, error) {
 			req.Header.Set("Authorization", "Bearer "+authToken)
 			return fn(req)
 		}}

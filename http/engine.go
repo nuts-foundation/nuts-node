@@ -127,7 +127,7 @@ func (h *Engine) createEchoServer(cfg InterfaceConfig, tlsConfig *tls.Config) (*
 		startFn = func(address string) error {
 			return echoServer.StartServer(echoServer.TLSServer)
 		}
-	case TLSMode(""):
+	case "":
 		fallthrough
 	case TLSDisabledMode:
 		startFn = echoServer.Start

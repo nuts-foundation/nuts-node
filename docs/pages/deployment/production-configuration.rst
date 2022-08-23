@@ -10,63 +10,92 @@ your node for running in a production environment and what to consider.
 Persistence
 ***********
 
-Make sure your :ref:`database configuration <database-configuration>` is set up to :ref:`backup your node's data and private keys <backup-restore>`.
+Make sure your :ref:`database configuration <database-configuration>` is set up to :ref:`backup your node's data and private keys <backup-restore>.
 
 Strict mode
 ***********
 
 By default the node runs in a mode which allows the operator run configure the node in such a way that it is less secure.
-For production it is recommended to enable `strictmode` which blocks some of the unsafe configuration options
+For production it is recommended to enable ``strictmode`` which blocks some of the unsafe configuration options
 (e.g. using the IRMA demo scheme).
 
-HTTP Interface Binding
-**********************
+HTTP Interface Configuration
+****************************
 
-By default all HTTP endpoints get bound on `:1323` which generally isn't usable for production, since some endpoints
-are required to be accessible by the public and others only meant for administrator or your own XIS. You can determine
-the intended public by looking at the first part of the URL.
+By default all HTTP endpoints get bound to the default HTTP interface on ``:1323``.
+You can configure endpoints to have alternative configuration (e.g. CORS, TLS, authentication) and/or be bound on an alternative port using the ``alt`` property.
+All configuration properties that apply to the ``http.default`` HTTP interface are applicable to the alternative interface you configure as well (see the example below).
 
-* Endpoints that start with `/public` should be accessible by the general public,
-* `/internal` is meant for XIS application integration and administrators.
+For production there are a few points to consider; enabling CORS, using alternative HTTP interfaces and authentication.
 
-It's advisable to make sure internal endpoints aren't reachable from public networks. The HTTP configuration facilitates
-this by allowing you to bind sets of endpoints to a different HTTP port. This is done through the `http` configuration:
+Binding HTTP interfaces
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Some HTTP endpoints are required to be accessible by the public and others only meant for administrator or your own XIS.
+You can determine the intended public by observing the first part of the URL:
+
+* Endpoints that start with ``/public`` should be accessible by the general public,
+* ``/internal`` is meant for XIS application integration and administrators.
+
+It's advisable to make sure internal endpoints aren't reachable from public networks.
+You can achieve this by binding it to a different port, by using a reverse proxy, or both.
+Use the ``address`` property of a HTTP binding to expose it on a different port:
 
 .. code-block:: yaml
 
     http:
       # The following is the default binding which endpoints are bound to,
-      # which don't have an alternative bind specified under `alt`. Since it's a default it can be left out or
+      # which don't have an alternative bind specified under ``alt``. Since it's a default it can be left out or
       # be used to override the default bind address.
+      # If you specify an alt bind without address, it binds to the default HTTP interface, but
+      # the configuration of the default bind will NOT apply to the alt bind. If required, you need to repeat the config (e.g. cors/auth) for the alt bind.
       default:
         address: :1323
       alt:
-        # The following binds all endpoints starting with `/internal` to `internal.lan:1111`
+        # The following binds all endpoints starting with ``/internal`` to ``internal.lan:1111``
         internal:
           address: internal.lan:1111
-        # The following binds all endpoints starting with `/public` to `nuts.vendor.nl:443`
+          auth:
+            type: token
+        # The following binds all endpoints starting with ``/public`` to ``:443`` and enables TLS for it
         public:
-          address: nuts.vendor.nl:443
+          address: :443
+          # Given we bind on port 443, we probably want to enable TLS for this endpoint
+          tls: server
           # The following enables cross-domain requests (CORS) from irma.vendor.nl
           cors:
             origin:
               - irma.vendor.nl
-        # The following binds all endpoints starting with `/status` to all interfaces on `:80`
-        status:
-          address: :80
 
 Cross Origin Resource Sharing (CORS)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 In some deployments CORS can be required for the public IRMA authentication endpoints when the user-facing
 authentication page is hosted on a (sub)domain that differs from Nuts Node's IRMA backend. CORS can be enabled on a
-specific HTTP interface by specifying the domains allowed to make CORS requests as `cors.origin` (see the example above).
+specific HTTP interface by specifying the domains allowed to make CORS requests as `cors.origin`` (see the example above).
 Although you can enable CORS on the default endpoint it's not advised to do so in a production environment,
 because CORS itself opens up new attack vectors on node administrators.
+
+Authentication
+^^^^^^^^^^^^^^
+
+You might want to secure some HTTP endpoints (notably ``/internal``) with authentication.
+The Nuts node supports JWT Bearer Token authentication which can be enabled on any HTTP endpoint.
+You can enable it by setting ``auth.type`` (see example above) to ``token``.
+The specified path, and its all subpaths, will then require a JWT token generated by the Nuts node.
+You can generate a token using the following command, which needs to be executed on the Nuts node itself:
+
+ .. code-block:: shell
+
+    nuts http gen-token admin 365
+
+This command generates a token for a user named "admin" which is valid for 365 days. The user name is used for logging HTTP requests.
+It outputs the token, which should be passed using ``--token`` when performing CLI operations or as ``Authorization`` Bearer token header for other clients, such as XIS applications.
+See the server configuration and CLI command reference for more information.
 
 Diagnostics
 ***********
 
 To aid problem diagnosis every node in a network should share some information about itself; the type and version of software it's running,
 which peers it is connected to and how long it's been up. This helps others diagnosing issues when others experience communication problems with your, and other nodes.
-Although discouraged, this can be disabled by specifying `0` for `network.advertdiagnosticsinterval`.
+Although discouraged, this can be disabled by specifying ``0`` for ``network.advertdiagnosticsinterval``.

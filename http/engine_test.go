@@ -27,6 +27,27 @@ func TestEngine_Configure(t *testing.T) {
 	t.Run("ok, no TLS (default)", func(t *testing.T) {
 		engine := New(noop, nil)
 		engine.config.InterfaceConfig.Address = fmt.Sprintf(":%d", test.FreeTCPPort())
+		engine.config.InterfaceConfig.TLSMode = ""
+
+		err := engine.Configure(*core.NewServerConfig())
+		if !assert.NoError(t, err) {
+			return
+		}
+		err = engine.Start()
+		if !assert.NoError(t, err) {
+			return
+		}
+		defer engine.Shutdown()
+
+		assertHTTPRequest(t, engine.config.InterfaceConfig.Address)
+
+		err = engine.Shutdown()
+		assert.NoError(t, err)
+	})
+	t.Run("ok, no TLS (explicitly disabled)", func(t *testing.T) {
+		engine := New(noop, nil)
+		engine.config.InterfaceConfig.Address = fmt.Sprintf(":%d", test.FreeTCPPort())
+		engine.config.InterfaceConfig.TLSMode = TLSDisabledMode
 
 		err := engine.Configure(*core.NewServerConfig())
 		if !assert.NoError(t, err) {
@@ -49,6 +70,15 @@ func TestEngine_Configure(t *testing.T) {
 		serverCfg.TLS.CertKeyFile = "../test/pki/certificate-and-key.pem"
 		serverCfg.TLS.TrustStoreFile = "../test/pki/truststore.pem"
 		tlsConfig, _ := serverCfg.TLS.Load()
+
+		t.Run("error - invalid TLS mode", func(t *testing.T) {
+			engine := New(noop, nil)
+			engine.config.InterfaceConfig.TLSMode = "oopsies"
+
+			err := engine.Configure(*core.NewServerConfig())
+
+			assert.EqualError(t, err, "invalid TLS mode: oopsies")
+		})
 
 		t.Run("error - TLS not configured (default interface)", func(t *testing.T) {
 			engine := New(noop, nil)
