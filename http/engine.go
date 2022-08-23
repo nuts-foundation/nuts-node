@@ -127,10 +127,12 @@ func (h *Engine) createEchoServer(cfg InterfaceConfig, tlsConfig *tls.Config) (*
 		startFn = func(address string) error {
 			return echoServer.StartServer(echoServer.TLSServer)
 		}
-	default:
+	case TLSMode(""):
 		fallthrough
 	case TLSDisabledMode:
 		startFn = echoServer.Start
+	default:
+		return nil, fmt.Errorf("invalid TLS mode: %s", cfg.TLSMode)
 	}
 
 	return &echoAdapter{
