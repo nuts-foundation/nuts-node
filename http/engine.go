@@ -129,7 +129,7 @@ func (h *Engine) createEchoServer(cfg InterfaceConfig, tlsConfig *tls.Config) (*
 		}
 	default:
 		fallthrough
-	case DisabledHTTPTLSMode:
+	case TLSDisabledMode:
 		startFn = echoServer.Start
 	}
 

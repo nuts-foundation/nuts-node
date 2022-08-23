@@ -36,8 +36,8 @@ type InterfaceConfig struct {
 type TLSMode string
 
 const (
-	// DisabledHTTPTLSMode specifies that TLS is not enabled for this interface.
-	DisabledHTTPTLSMode TLSMode = "disabled"
+	// TLSDisabledMode specifies that TLS is not enabled for this interface.
+	TLSDisabledMode TLSMode = "disabled"
 	// TLSServerCertMode specifies that TLS is enabled for this interface, but no client certificate is required.
 	TLSServerCertMode TLSMode = "server"
 	// TLServerClientCertMode specifies that TLS is enabled for this interface, and that it will require a client certificate.
@@ -48,8 +48,6 @@ const (
 type AuthType string
 
 const (
-	// NoAuth specifies that no authentication is required.
-	NoAuth AuthType = "no"
 	// BearerTokenAuth specifies that a bearer token is required.
 	BearerTokenAuth AuthType = "token"
 )
