@@ -78,8 +78,7 @@ func (d transactionSigner) Sign(input UnsignedTransaction, signingTime time.Time
 	normalizedMoment := signingTime.UTC()
 	headerMap := map[string]interface{}{
 		jws.ContentTypeKey: input.PayloadType(),
-		// TODO add lamportClockHeader after v4.0.0 tag
-		jws.CriticalKey:    []string{signingTimeHeader, versionHeader, previousHeader},
+		jws.CriticalKey:    []string{signingTimeHeader, versionHeader, previousHeader, lamportClockHeader},
 		signingTimeHeader:  normalizedMoment.Unix(),
 		previousHeader:     prevsAsString,
 		versionHeader:      input.Version(),

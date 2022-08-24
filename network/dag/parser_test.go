@@ -37,7 +37,7 @@ func TestParseTransaction(t *testing.T) {
 	key := generateKey()
 	payload, _ := hash.ParseHex("3d2c482831de294af919a4c4604c97156cf0ba46fcf6f96e50774597470f8db8")
 	payloadAsBytes := []byte(payload.String())
-	t.Run("ok", func(t *testing.T) {
+	t.Run("v1", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", true)
 		_ = headers.Set("pal", []string{base64.StdEncoding.EncodeToString([]byte{5, 6, 7})})
 		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
@@ -278,8 +278,7 @@ func makeJWSHeaders(key crypto.Signer, kid string, embedKey bool) jws.Headers {
 	headerMap := map[string]interface{}{
 		jws.AlgorithmKey:   jwa.ES256,
 		jws.ContentTypeKey: "foo/bar",
-		// TODO add lamportClockHeader after v4.0.0 tag
-		jws.CriticalKey:    []string{signingTimeHeader, versionHeader, previousHeader},
+		jws.CriticalKey:    []string{signingTimeHeader, versionHeader, previousHeader, lamportClockHeader},
 		lamportClockHeader: 0,
 		signingTimeHeader:  time.Now().UTC().Unix(),
 		versionHeader:      1,
