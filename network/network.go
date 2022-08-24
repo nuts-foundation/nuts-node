@@ -562,12 +562,9 @@ func (n *Network) Shutdown() error {
 	n.connectionManager.Stop()
 
 	// Close State and underlying DBs
-	if n.state != nil {
-		err := n.state.Shutdown()
-		if err != nil {
-			return err
-		}
-		n.state = nil
+	err := n.state.Shutdown()
+	if err != nil {
+		return err
 	}
 	return nil
 }
