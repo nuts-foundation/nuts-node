@@ -21,12 +21,10 @@ package storage
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
 	"testing"
 )
 
@@ -101,14 +99,16 @@ func Test_redisDatabase_createStore(t *testing.T) {
 		})
 
 		// Setup client-side TLS config
-		rootCA, _ := ioutil.ReadFile("test/truststore.pem")
 		redisTLSModifier = func(conf *tls.Config) {
 			conf.InsecureSkipVerify = true
-			conf.RootCAs = x509.NewCertPool()
-			conf.RootCAs.AppendCertsFromPEM(rootCA)
 		}
 
-		db, err := createRedisDatabase(RedisConfig{Address: "rediss://" + redis.Addr()})
+		db, err := createRedisDatabase(RedisConfig{
+			Address: "rediss://" + redis.Addr(),
+			TLS: RedisTLSConfig{
+				TrustStoreFile: "test/truststore.pem",
+			},
+		})
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -118,6 +118,16 @@ func Test_redisDatabase_createStore(t *testing.T) {
 			return
 		}
 		_ = store.Close(context.Background())
+	})
+	t.Run("error - TLS configured, but not connecting to a TLS server", func(t *testing.T) {
+		db, err := createRedisDatabase(RedisConfig{
+			Address: "redis://test:1234",
+			TLS: RedisTLSConfig{
+				TrustStoreFile: "test/truststore.pem",
+			},
+		})
+		assert.EqualError(t, err, "TLS configured but not connecting to a Redis TLS server")
+		assert.Nil(t, db)
 	})
 }
 
