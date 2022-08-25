@@ -33,7 +33,7 @@ import (
 // Version defines a type for distributed transaction format version.
 type Version int
 
-const currentVersion = 1
+const currentVersion = 2
 
 var allowedVersion = []Version{1, 2}
 
