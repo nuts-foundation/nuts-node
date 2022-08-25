@@ -110,23 +110,3 @@ func Test_loggerMiddleware(t *testing.T) {
 		ctrl.Finish()
 	})
 }
-
-//
-//func Test_skipLogRequest(t *testing.T) {
-//	req := &http.Request{}
-//	ctx := echo.New().NewContext(req, nil)
-//	t.Run("matches", func(t *testing.T) {
-//		req.RequestURI = "/status"
-//		assert.True(t, skipLogRequest(ctx))
-//		req.RequestURI = "/metrics"
-//		assert.True(t, skipLogRequest(ctx))
-//	})
-//	t.Run("no match", func(t *testing.T) {
-//		req.RequestURI = "/status/"
-//		assert.False(t, skipLogRequest(ctx))
-//		req.RequestURI = "/status/foo"
-//		assert.False(t, skipLogRequest(ctx))
-//		req.RequestURI = "/foobar"
-//		assert.False(t, skipLogRequest(ctx))
-//	})
-//}

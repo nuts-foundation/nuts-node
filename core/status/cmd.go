@@ -19,7 +19,6 @@
 package status
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 
@@ -40,8 +39,8 @@ func Cmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if response.StatusCode != http.StatusOK {
-				return fmt.Errorf("unexpected HTTP response code (url=%s): %d", targetURL, response.StatusCode)
+			if err = core.TestResponseCode(http.StatusOK, response); err != nil {
+				return err
 			}
 			bytes, _ := io.ReadAll(response.Body)
 			cmd.Println(string(bytes))

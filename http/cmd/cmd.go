@@ -94,7 +94,7 @@ func createTokenCommand() *cobra.Command {
 			cmd.Println(token)
 			cmd.Println()
 			cmd.Println("You can provide it manually when executing CLI commands (using --token), " +
-				"or save it in a file named `auth.token` to have the CLI read it.")
+				"or save it in a file and use --token-file to have the CLI read it.")
 
 			return nil
 		},
