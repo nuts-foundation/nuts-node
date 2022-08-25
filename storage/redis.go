@@ -54,6 +54,7 @@ func (r RedisConfig) IsConfigured() bool {
 	return len(r.Address) > 0
 }
 
+// RedisTLSConfig species properties for connecting to a Redis server over TLS.
 type RedisTLSConfig struct {
 	TrustStoreFile string `koanf:"truststorefile"`
 }
