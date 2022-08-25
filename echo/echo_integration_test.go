@@ -38,7 +38,22 @@ import (
 
 // TestStatusCodes tests if the returned errors from the API implementations are correctly translated to status codes
 func TestStatusCodes(t *testing.T) {
-	httpPort := startServer(t)
+	const configFile = `verbosity: debug
+network:
+  disablenodeauthentication: true
+  enablediscovery: false
+  enabletls: false
+auth:
+  contractvalidators:
+    - dummy
+  irma:
+    autoupdateschemas: false
+events:
+  nats:
+    port: 4222
+`
+
+	httpPort := startServer(t, configFile)
 	defer resetEnv()
 
 	baseUrl := fmt.Sprintf("http://localhost%s", httpPort)
@@ -67,7 +82,7 @@ func TestStatusCodes(t *testing.T) {
 	})
 }
 
-func startServer(t *testing.T) string {
+func startServer(t *testing.T, configFileContents string) string {
 	testDir := io.TestDirectory(t)
 	var system *core.System
 	system = cmd.CreateSystem(func() {
@@ -76,7 +91,8 @@ func startServer(t *testing.T) string {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// command line arguments
-	configFile := path.Join(".", "nuts.yaml")
+	configFile := path.Join(testDir, "nuts.yaml")
+	_ = os.WriteFile(configFile, []byte(configFileContents), os.ModePerm)
 	grpcPort := fmt.Sprintf(":%d", test.FreeTCPPort())
 	natsPort := fmt.Sprintf("%d", test.FreeTCPPort())
 	httpPort := fmt.Sprintf(":%d", test.FreeTCPPort())
