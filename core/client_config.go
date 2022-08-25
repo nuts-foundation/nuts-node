@@ -81,7 +81,7 @@ func newClientConfigFromConfigMap(configMap *koanf.Koanf) ClientConfig {
 	return cfg
 }
 
-// GetAddress normalizes and gets the address of the remote server
+// GetAddress normalizes and gets the address of the server
 func (cfg ClientConfig) GetAddress() string {
 	addr := cfg.Address
 	if !strings.HasPrefix(addr, "http") {
@@ -120,7 +120,7 @@ func (cfg ClientConfig) GetAuthToken() (string, error) {
 // ClientConfigFlags returns the flags for configuring the client config.
 func ClientConfigFlags() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("client", pflag.ContinueOnError)
-	flagSet.String(clientAddressFlag, defaultAddress, "Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended.")
+	flagSet.String(clientAddressFlag, defaultAddress, "Address of the node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended.")
 	flagSet.Duration(clientTimeoutFlag, defaultClientTimeout, "Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax.")
 	flagSet.String("verbosity", "info", "Log level (trace, debug, info, warn, error)")
 	flagSet.String("token", "", fmt.Sprintf("Token to be used for authenticating on the remote node. Takes precedence over 'token-file'."))
