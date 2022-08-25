@@ -34,9 +34,6 @@ func TestResponseCode(expectedStatusCode int, response *http.Response) error {
 	return nil
 }
 
-// HTTPRequestFn defines a function that can be used to execute an HTTP request.
-type HTTPRequestFn func(req *http.Request) (*http.Response, error)
-
 // HTTPRequestDoer defines the Do method of the http.Client interface.
 type HTTPRequestDoer interface {
 	Do(*http.Request) (*http.Response, error)
@@ -44,7 +41,7 @@ type HTTPRequestDoer interface {
 
 // httpRequestDoerAdapter wraps a HTTPRequestFn in a struct, so it can be used where HTTPRequestDoer is required.
 type httpRequestDoerAdapter struct {
-	fn HTTPRequestFn
+	fn func(req *http.Request) (*http.Response, error)
 }
 
 // Do calls the wrapped HTTPRequestFn.
