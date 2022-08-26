@@ -30,30 +30,30 @@ import (
 	"sync"
 )
 
-// DefaultEchoGroup is the group used for routes that don't map to a configured group.
-const DefaultEchoGroup = ""
+// RootPath is the path used for routes that don't map to a configured bind.
+const RootPath = "/"
 
 // EchoCreator is a function used to create an Echo server.
 type EchoCreator func() (EchoServer, error)
 
 // NewMultiEcho creates a new MultiEcho which uses the given function to create core.EchoServers. If a route is registered
-// for an unknown group is is bound to the given defaultInterface.
+// for an unknown path is bound to the given defaultInterface.
 func NewMultiEcho() *MultiEcho {
 	instance := &MultiEcho{
 		interfaces: map[string]EchoServer{},
-		groups:     map[string]string{},
+		binds:      map[string]string{},
 	}
 
 	// Add adds a route to the Echo server.
 	instance.echoAdapter.useFn = instance.Use
 	instance.echoAdapter.addFn = func(method, path string, handler echo.HandlerFunc, middleware ...echo.MiddlewareFunc) *echo.Route {
-		group := getGroup(path)
-		groupAddress := instance.groups[group]
+		bind := instance.getBindFromPath(path)
+		bindAddress := instance.binds[bind]
 		var iface EchoServer
-		if groupAddress != "" {
-			iface = instance.interfaces[groupAddress]
+		if bindAddress != "" {
+			iface = instance.interfaces[bindAddress]
 		} else {
-			iface = instance.interfaces[instance.groups[DefaultEchoGroup]]
+			iface = instance.interfaces[instance.binds[RootPath]]
 		}
 		return iface.Add(method, path, handler, middleware...)
 	}
@@ -65,19 +65,23 @@ type MultiEcho struct {
 	echoAdapter
 
 	interfaces map[string]EchoServer
-	groups     map[string]string
+	binds      map[string]string
 }
 
-// Bind binds the given group (first part of the URL) to the given HTTP interface. Calling Bind for the same group twice
+// Bind binds the given path (first part of the URL) to the given HTTP interface. Calling Bind for the same path twice
 // results in an error being returned.
-// If address wasn't used for another group and thus leads to creating a new Echo server, it returns true.
+// If address wasn't used for another bind and thus leads to creating a new Echo server, it returns true.
 // If an existing Echo server is returned, it returns false.
-func (c *MultiEcho) Bind(group string, address string, creatorFn func() (EchoServer, error)) error {
-	normGroup := strings.ToLower(group)
-	if _, groupExists := c.groups[normGroup]; groupExists {
-		return fmt.Errorf("http bind group already exists: %s", group)
+func (c *MultiEcho) Bind(path string, address string, creatorFn func() (EchoServer, error)) error {
+	err := c.validateBindPath(path)
+	if err != nil {
+		return err
 	}
-	c.groups[group] = address
+	path = c.getBindFromPath(path)
+	if _, pathExists := c.binds[path]; pathExists {
+		return fmt.Errorf("http bind already exists: %s", path)
+	}
+	c.binds[path] = address
 	if _, addressBound := c.interfaces[address]; !addressBound {
 		server, err := creatorFn()
 		if err != nil {
@@ -140,17 +144,27 @@ func (c *MultiEcho) start(address string, server EchoServer, wg *sync.WaitGroup,
 }
 
 func (c *MultiEcho) getInterface(path string) EchoServer {
-	return c.interfaces[c.groups[strings.ToLower(path)]]
+	bind := c.getBindFromPath(path)
+	return c.interfaces[c.binds[bind]]
 }
 
-func getGroup(path string) string {
-	parts := strings.Split(path, "/")
-	for _, part := range parts {
-		if strings.TrimSpace(part) != "" {
-			return strings.ToLower(part)
-		}
+func (c *MultiEcho) validateBindPath(path string) error {
+	path = strings.Trim(path, "/")
+	if strings.Contains(path, "/") {
+		return fmt.Errorf("bind can't contain subpaths: %s", path)
 	}
-	return ""
+	return nil
+}
+
+func (c *MultiEcho) getBindFromPath(path string) string {
+	path = strings.Trim(path, "/")
+	parts := strings.Split(path, "/")
+	if len(parts) == 0 {
+		path = RootPath
+	} else {
+		path = "/" + strings.ToLower(parts[0])
+	}
+	return path
 }
 
 // EchoServer implements both the EchoRouter interface and Start function to aid testing.

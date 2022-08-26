@@ -34,13 +34,21 @@ func Test_MultiEcho_Bind(t *testing.T) {
 		defer ctrl.Finish()
 
 		m := NewMultiEcho()
-		_ = m.Bind("", defaultAddress, func() (EchoServer, error) {
-			return echo.New(), nil
-		})
 		err := m.Bind("", defaultAddress, func() (EchoServer, error) {
 			return echo.New(), nil
 		})
-		assert.EqualError(t, err, "http bind group already exists: ")
+		if !assert.NoError(t, err) {
+			return
+		}
+		err = m.Bind("", defaultAddress, func() (EchoServer, error) {
+			return echo.New(), nil
+		})
+		assert.EqualError(t, err, "http bind already exists: /")
+	})
+	t.Run("error - group contains subpaths", func(t *testing.T) {
+		m := NewMultiEcho()
+		err := m.Bind("internal/vdr", defaultAddress, nil)
+		assert.EqualError(t, err, "bind can't contain subpaths: internal/vdr")
 	})
 }
 
@@ -82,7 +90,7 @@ func Test_MultiEcho(t *testing.T) {
 
 	// Bind interfaces
 	m := NewMultiEcho()
-	err := m.Bind(DefaultEchoGroup, defaultAddress, func() (EchoServer, error) {
+	err := m.Bind(RootPath, defaultAddress, func() (EchoServer, error) {
 		return defaultServer, nil
 	})
 	if !assert.NoError(t, err) {
@@ -138,7 +146,7 @@ func Test_MultiEcho_Methods(t *testing.T) {
 	)
 
 	m := NewMultiEcho()
-	m.Bind(DefaultEchoGroup, ":1323", func() (EchoServer, error) {
+	m.Bind(RootPath, ":1323", func() (EchoServer, error) {
 		return defaultServer, nil
 	})
 	m.GET("/get", nil)
@@ -153,11 +161,12 @@ func Test_MultiEcho_Methods(t *testing.T) {
 	m.Use(nil)
 }
 
-func Test_getGroup(t *testing.T) {
-	assert.Equal(t, "internal", getGroup("/internal/vdr/v1/did"))
-	assert.Equal(t, "internal", getGroup("/internal"))
-	assert.Equal(t, "internal", getGroup("internal"))
-	assert.Equal(t, "internal", getGroup("internal/"))
-	assert.Equal(t, "", getGroup(""))
-	assert.Equal(t, "", getGroup("/"))
+func Test_getBindFromPath(t *testing.T) {
+	m := NewMultiEcho()
+	assert.Equal(t, "/internal", m.getBindFromPath("/internal/vdr/v1/did"))
+	assert.Equal(t, "/internal", m.getBindFromPath("/internal"))
+	assert.Equal(t, "/internal", m.getBindFromPath("internal"))
+	assert.Equal(t, "/internal", m.getBindFromPath("internal/"))
+	assert.Equal(t, "/", m.getBindFromPath(""))
+	assert.Equal(t, "/", m.getBindFromPath("/"))
 }

@@ -80,8 +80,8 @@ func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 	}
 
 	h.server = NewMultiEcho()
-	log.Logger().Infof("Binding /%s -> %s", DefaultEchoGroup, h.config.Address)
-	if err = h.server.Bind(DefaultEchoGroup, h.config.Address, func() (EchoServer, error) {
+	log.Logger().Infof("Binding /%s -> %s", RootPath, h.config.Address)
+	if err = h.server.Bind(RootPath, h.config.Address, func() (EchoServer, error) {
 		return h.createEchoServer(h.config.InterfaceConfig, tlsConfig)
 	}); err != nil {
 		return err
@@ -112,7 +112,7 @@ func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 		paths = append(paths, httpPath)
 	}
 	// Apply path-dependent config for root path, but exclude configured HTTP paths to avoid enabling middleware twice.
-	return h.applyBindMiddleware(h.server.getInterface(DefaultEchoGroup), DefaultEchoGroup, paths, serverConfig, h.config.InterfaceConfig)
+	return h.applyBindMiddleware(h.server.getInterface(RootPath), RootPath, paths, serverConfig, h.config.InterfaceConfig)
 }
 
 func (h *Engine) createEchoServer(cfg InterfaceConfig, tlsConfig *tls.Config) (*echoAdapter, error) {
