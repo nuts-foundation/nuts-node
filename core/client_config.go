@@ -20,7 +20,10 @@
 package core
 
 import (
+	"fmt"
 	"github.com/spf13/cobra"
+	"os"
+	"path"
 	"strings"
 	"time"
 
@@ -31,13 +34,19 @@ import (
 const defaultClientTimeout = 10 * time.Second
 const clientTimeoutFlag = "timeout"
 const clientAddressFlag = "address"
-const defaultAddress = "localhost" + (":1323")
+const defaultAddress = "localhost:1323"
+const clientConfigFileName = ".nuts-client.cfg"
+
+// userHomeDirFn is settable for testing purposes
+var userHomeDirFn = os.UserHomeDir
 
 // ClientConfig has CLI client settings.
 type ClientConfig struct {
 	Address   string        `koanf:"address"`
 	Verbosity string        `koanf:"verbosity"`
 	Timeout   time.Duration `koanf:"timeout"`
+	Token     string        `koanf:"token"`
+	TokenFile string        `koanf:"token-file"`
 }
 
 // NewClientConfigForCommand loads all the values for a given command into the provided configMap.
@@ -72,7 +81,7 @@ func newClientConfigFromConfigMap(configMap *koanf.Koanf) ClientConfig {
 	return cfg
 }
 
-// GetAddress normalizes and gets the address of the remote server
+// GetAddress normalizes and gets the address of the server
 func (cfg ClientConfig) GetAddress() string {
 	addr := cfg.Address
 	if !strings.HasPrefix(addr, "http") {
@@ -81,11 +90,41 @@ func (cfg ClientConfig) GetAddress() string {
 	return addr
 }
 
+// GetAuthToken returns the configured auth token. If not set, it tries to read it from the filesystem.
+// If the client config file does not exist, it returns an empty string.
+func (cfg ClientConfig) GetAuthToken() (string, error) {
+	if len(cfg.Token) > 0 {
+		return cfg.Token, nil
+	}
+	tokenFile := cfg.TokenFile
+	mustExist := true
+	if len(tokenFile) == 0 {
+		// token-file not set, try to read from user home dir
+		mustExist = false
+		dir, err := userHomeDirFn()
+		if err != nil {
+			return "", fmt.Errorf("unable to read auth token from file: %w", err)
+		}
+		tokenFile = path.Join(dir, clientConfigFileName)
+	}
+
+	tokenFileData, err := os.ReadFile(tokenFile)
+	if err == nil {
+		return strings.TrimSpace(string(tokenFileData)), nil
+	} else if mustExist || !os.IsNotExist(err) {
+		return "", fmt.Errorf("unable to read auth token from file '%s': %w", tokenFile, err)
+	}
+	return "", nil
+}
+
 // ClientConfigFlags returns the flags for configuring the client config.
 func ClientConfigFlags() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("client", pflag.ContinueOnError)
-	flagSet.String(clientAddressFlag, defaultAddress, "Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended.")
+	flagSet.String(clientAddressFlag, defaultAddress, "Address of the node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended.")
 	flagSet.Duration(clientTimeoutFlag, defaultClientTimeout, "Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax.")
 	flagSet.String("verbosity", "info", "Log level (trace, debug, info, warn, error)")
+	flagSet.String("token", "", fmt.Sprintf("Token to be used for authenticating on the remote node. Takes precedence over 'token-file'."))
+	flagSet.String("token-file", "", fmt.Sprintf("File from which the authentication token will be read. "+
+		"If not specified it will try to read the token from the '%s' file in the user's home dir.", clientConfigFileName))
 	return flagSet
 }

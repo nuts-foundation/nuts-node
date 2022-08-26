@@ -31,7 +31,8 @@ import (
 
 func TestHttpErrorHandler(t *testing.T) {
 	err := errors.New("error 2")
-	es, _, _ := createEchoServer(HTTPConfig{}, nil, false, true)
+	es := echo.New()
+	es.HTTPErrorHandler = CreateHTTPErrorHandler()
 	server := httptest.NewServer(es)
 	client := http.Client{}
 

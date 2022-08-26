@@ -38,9 +38,14 @@ const OperationIDContextKey = "!!OperationId"
 // ModuleNameContextKey contains the key for the Echo context parameter that specifies the module that contains the OpenAPI operation being called,
 // for logging/error returning.
 const ModuleNameContextKey = "!!ModuleName"
+
+// UserContextKey is the key used to store the user in HTTP contexts.
+const UserContextKey = "user"
+
 const unmappedStatusCode = 0
 
-func createHTTPErrorHandler() echo.HTTPErrorHandler {
+// CreateHTTPErrorHandler returns an Echo HTTPErrorHandler that logs the error withe xtra fields and returns it as a HTTP response.
+func CreateHTTPErrorHandler() echo.HTTPErrorHandler {
 	return func(err error, ctx echo.Context) {
 		// HTTPErrors occur e.g. when a parameter bind fails. We map this to a httpStatusCodeError so its status code
 		// and message get directly mapped to a problem.
@@ -59,10 +64,15 @@ func createHTTPErrorHandler() echo.HTTPErrorHandler {
 		statusCode := getHTTPStatusCode(err, ctx)
 		result := problem.New(problem.Title(title), problem.Status(statusCode), problem.Detail(err.Error()))
 		logger := getContextLogger(ctx)
+		logMsg := logger.
+			WithField("operationID", operationID).
+			WithField("requestURI", ctx.Request().RequestURI).
+			WithField("user", ctx.Get(UserContextKey)).
+			WithError(err)
 		if statusCode == http.StatusInternalServerError {
-			logger.WithError(err).Error(title)
+			logMsg.Error(title)
 		} else {
-			logger.WithError(err).Warn(title)
+			logMsg.Warn(title)
 		}
 		if !ctx.Response().Committed {
 			if _, err := result.WriteTo(ctx.Response()); err != nil {

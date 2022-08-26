@@ -217,7 +217,6 @@ func sortTransactions(transactions []dag.Transaction, sortFlag string) {
 // httpClient creates a remote client
 func httpClient(config core.ClientConfig) v1.HTTPClient {
 	return v1.HTTPClient{
-		ServerAddress: config.GetAddress(),
-		Timeout:       config.Timeout,
+		ClientConfig: config,
 	}
 }

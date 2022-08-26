@@ -1,0 +1,102 @@
+/*
+ * Copyright (C) 2021 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
+package cmd
+
+import (
+	"crypto"
+	"fmt"
+	"github.com/lestrrat-go/jwx/jwt"
+	cryptoCmd "github.com/nuts-foundation/nuts-node/crypto/cmd"
+	"github.com/nuts-foundation/nuts-node/http"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"strconv"
+	"time"
+)
+
+// FlagSet defines the set of flags that sets the engine configuration
+func FlagSet() *pflag.FlagSet {
+	flags := pflag.NewFlagSet("http", pflag.ContinueOnError)
+
+	defs := http.DefaultConfig()
+	flags.String("http.default.address", defs.Address, "Address and port the server will be listening to")
+	flags.StringSlice("http.default.cors.origin", defs.CORS.Origin, "When set, enables CORS from the specified origins on the default HTTP interface.")
+	flags.String("http.default.tls", string(defs.TLSMode), fmt.Sprintf("Whether to enable TLS for the default interface, options are '%s', '%s', '%s'. Leaving it empty is synonymous to '%s',", http.TLSDisabledMode, http.TLSServerCertMode, http.TLServerClientCertMode, http.TLSDisabledMode))
+	flags.String("http.default.auth.type", string(defs.Auth.Type), fmt.Sprintf("Whether to enable authentication for the default interface, specify '%s' for bearer token authentication.", http.BearerTokenAuth))
+
+	return flags
+}
+
+// ServerCmd contains sub-commands for the HTTP engine
+func ServerCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "http",
+		Short: "http commands",
+	}
+	cmd.AddCommand(createTokenCommand())
+	return cmd
+}
+
+func createTokenCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "gen-token [user name] [days valid]",
+		Short: "Generates an access token for administrative operations.",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			daysValid, err := strconv.Atoi(args[1])
+			if err != nil {
+				return err
+			}
+			user := args[0]
+
+			cmd.Println(fmt.Sprintf("Generating API token for user %s, valid for %d days...", user, daysValid))
+
+			instance, err := cryptoCmd.LoadCryptoModule(cmd)
+			if err != nil {
+				return err
+			}
+
+			if !instance.Exists(http.AdminTokenSigningKID) {
+				cmd.Println("Token signing key not found, generating new key...")
+				_, err := instance.New(func(key crypto.PublicKey) (string, error) {
+					return http.AdminTokenSigningKID, nil
+				})
+				if err != nil {
+					return err
+				}
+			}
+			token, err := instance.SignJWT(map[string]interface{}{
+				jwt.SubjectKey:    user,
+				jwt.ExpirationKey: time.Now().AddDate(0, 0, daysValid),
+			}, http.AdminTokenSigningKID)
+			if err != nil {
+				return err
+			}
+			cmd.Println()
+			cmd.Println("Token:")
+			cmd.Println()
+			cmd.Println(token)
+			cmd.Println()
+			cmd.Println("You can provide it manually when executing CLI commands (using --token), " +
+				"or save it in a file and use --token-file to have the CLI read it.")
+
+			return nil
+		},
+	}
+}

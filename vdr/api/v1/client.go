@@ -23,24 +23,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"time"
-
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
+	"io"
+	"net/http"
 )
 
 // HTTPClient holds the server address and other basic settings for the http client
 type HTTPClient struct {
-	ServerAddress string
-	Timeout       time.Duration
+	core.ClientConfig
 }
 
 func (hb HTTPClient) client() ClientInterface {
-	url := hb.ServerAddress
-
-	response, err := NewClientWithResponses(url)
+	response, err := NewClientWithResponses(hb.GetAddress(), WithHTTPClient(core.MustCreateHTTPClient(hb.ClientConfig)))
 	if err != nil {
 		panic(err)
 	}
@@ -49,8 +44,7 @@ func (hb HTTPClient) client() ClientInterface {
 
 // Create calls the server and creates a new DID Document
 func (hb HTTPClient) Create(createRequest DIDCreateRequest) (*did.Document, error) {
-	ctx, cancel := hb.withTimeout()
-	defer cancel()
+	ctx := context.Background()
 
 	if response, err := hb.client().CreateDID(ctx, CreateDIDJSONRequestBody(createRequest)); err != nil {
 		return nil, err
@@ -63,8 +57,7 @@ func (hb HTTPClient) Create(createRequest DIDCreateRequest) (*did.Document, erro
 
 // Get returns a DID document and metadata based on a DID
 func (hb HTTPClient) Get(DID string) (*DIDDocument, *DIDDocumentMetadata, error) {
-	ctx, cancel := hb.withTimeout()
-	defer cancel()
+	ctx := context.Background()
 
 	response, err := hb.client().GetDID(ctx, DID, &GetDIDParams{})
 	if err != nil {
@@ -83,8 +76,7 @@ func (hb HTTPClient) Get(DID string) (*DIDDocument, *DIDDocumentMetadata, error)
 
 // ConflictedDIDs returns the conflicted DID Documents and their metadata
 func (hb HTTPClient) ConflictedDIDs() ([]DIDResolutionResult, error) {
-	ctx, cancel := hb.withTimeout()
-	defer cancel()
+	ctx := context.Background()
 
 	response, err := hb.client().ConflictedDIDs(ctx)
 	if err != nil {
@@ -103,8 +95,7 @@ func (hb HTTPClient) ConflictedDIDs() ([]DIDResolutionResult, error) {
 
 // Update a DID Document given a DID and its current hash.
 func (hb HTTPClient) Update(DID string, current string, next did.Document) (*did.Document, error) {
-	ctx, cancel := hb.withTimeout()
-	defer cancel()
+	ctx := context.Background()
 
 	requestBody := UpdateDIDJSONRequestBody{
 		Document:    next,
@@ -124,8 +115,7 @@ func (hb HTTPClient) Update(DID string, current string, next did.Document) (*did
 // Deactivate a DID Document given a DID.
 // It expects a status 200 response from the server, returns an error otherwise.
 func (hb HTTPClient) Deactivate(DID string) error {
-	ctx, cancel := hb.withTimeout()
-	defer cancel()
+	ctx := context.Background()
 	response, err := hb.client().DeactivateDID(ctx, DID)
 	if err != nil {
 		return err
@@ -139,8 +129,7 @@ func (hb HTTPClient) Deactivate(DID string) error {
 // AddNewVerificationMethod creates a new verificationMethod and adds it to the DID document
 // It expects a status 200 response from the server, returns an error otherwise
 func (hb HTTPClient) AddNewVerificationMethod(DID string) (*did.VerificationMethod, error) {
-	ctx, cancel := hb.withTimeout()
-	defer cancel()
+	ctx := context.Background()
 
 	response, err := hb.client().AddNewVerificationMethod(ctx, DID)
 	if err != nil {
@@ -156,18 +145,13 @@ func (hb HTTPClient) AddNewVerificationMethod(DID string) (*did.VerificationMeth
 // DeleteVerificationMethod deletes a specified verificationMethod from the DID document
 // It expects a status 204 response from the server, returns an error otherwise
 func (hb HTTPClient) DeleteVerificationMethod(DID, kid string) error {
-	ctx, cancel := hb.withTimeout()
-	defer cancel()
+	ctx := context.Background()
 
 	response, err := hb.client().DeleteVerificationMethod(ctx, DID, kid)
 	if err != nil {
 		return err
 	}
 	return core.TestResponseCode(http.StatusNoContent, response)
-}
-
-func (hb HTTPClient) withTimeout() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), hb.Timeout)
 }
 
 func readDIDDocument(reader io.Reader) (*did.Document, error) {

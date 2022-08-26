@@ -187,9 +187,9 @@ func TestNewVaultKVStorage(t *testing.T) {
 	})
 
 	t.Run("error - wrong URL", func(t *testing.T) {
-		storage, err := NewVaultKVStorage(VaultConfig{Address: "http://localhost"})
+		storage, err := NewVaultKVStorage(VaultConfig{Address: "http://non-existing"})
 		assert.Error(t, err)
-		assert.True(t, strings.HasSuffix(err.Error(), "connect: connection refused"))
+		assert.ErrorContains(t, err, "no such host")
 		assert.Nil(t, storage)
 	})
 }

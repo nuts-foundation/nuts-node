@@ -22,7 +22,7 @@ To use IRMA as a means for signing a contract, the following is required:
 IRMA flow
 *********
 
-We use the Nuts node as IRMA server and as tool to start an IRMA session. This follow the flow as described on this `IRMA Github page <https://github.com/privacybydesign/irma-frontend-packages#supported-irma-flows>`_.
+We use the Nuts node as IRMA server and as tool to start an IRMA session. This follows the flow as described on this `IRMA Github page <https://github.com/privacybydesign/irma-frontend-packages#supported-irma-flows>`_.
 The XIS/ECD will have to provide two endpoints for the frontend. One endpoint to start a session and one to get the session result.
 More info on these endpoints will be provided further down.
 
@@ -49,13 +49,13 @@ This can be done by the following snippet:
 
 .. code-block:: yaml
 
-    http:
-        default:
-            cors:
-                origin: "other.com"
+  http:
+    default:
+      cors:
+        origin: "other.com"
 
 Where *other.com* is the domain serving the frontend. For development purposes ``*`` is also allowed.
-If the public APIs are mounted on a different port/interface in the nuts config then the ``default`` key should be changed to ``public`` in the example above.
+If the public APIs are mounted on a different port/interface in the nuts config then the ``default`` key should be changed to ``alt.public`` in the example above.
 
 Setting up the frontend
 ***********************
@@ -234,7 +234,7 @@ With the following body:
     }
 
 The ``type`` must be one of the valid Nuts contract types, currently only ``BehandelaarLogin`` for Dutch and ``PractitionerLogin`` for English are supported.
-The `language`` selects the correct language, ``NL`` for Dutch and ``EN`` for english. The ``version`` must be ``v3``.
+The ``language``` selects the correct language, ``NL`` for Dutch and ``EN`` for english. The ``version`` must be ``v3``.
 The ``legalEntity`` must refer to the DID of the current organization. The user either selects an organization to login for, or is already logged in.
 The organization must have a DID as described in :ref:`Getting Started on customer integration <connecting-crm>`.
 ``validFrom`` is a RFC3339 compliant time string. ``validDuration`` describes how long the contract is valid for. Time unit strings are used like ``1h`` or ``60m``, the valid time units are: "ns", "us" (or "µs"), "ms", "s", "m", "h". The local system timezone is used to format the date and time string.

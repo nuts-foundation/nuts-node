@@ -60,8 +60,7 @@ func NewHTTPClient(serverAddress string, timeout time.Duration, opts ...ClientOp
 
 // CreateAccessToken creates an access token and overrides the url by the 'endpointURL' input argument
 func (h HTTPClient) CreateAccessToken(endpointURL url.URL, bearerToken string) (*AccessTokenResponse, error) {
-	ctx, cancel := h.withTimeout()
-	defer cancel()
+	ctx := context.Background()
 
 	values := url.Values{}
 	values.Set("assertion", bearerToken)
@@ -87,10 +86,6 @@ func (h HTTPClient) CreateAccessToken(endpointURL url.URL, bearerToken string) (
 	}
 
 	return result.JSON200, nil
-}
-
-func (h HTTPClient) withTimeout() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), h.Timeout)
 }
 
 func withURL(uri url.URL) RequestEditorFn {

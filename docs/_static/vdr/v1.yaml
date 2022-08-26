@@ -406,5 +406,11 @@ components:
           type: boolean
           description: whether the generated DID Document can be altered with its own capabilityInvocation key.
           default: true
+  securitySchemes:
+    jwtBearerAuth:
+      type: http
+      scheme: bearer
 
-
+security:
+  - {}
+  - jwtBearerAuth: []

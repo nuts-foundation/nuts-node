@@ -702,7 +702,6 @@ func TestNetwork_Shutdown(t *testing.T) {
 		}
 		err = ctx.network.Shutdown()
 		assert.NoError(t, err)
-		assert.Nil(t, ctx.network.state)
 	})
 
 	t.Run("multiple calls", func(t *testing.T) {

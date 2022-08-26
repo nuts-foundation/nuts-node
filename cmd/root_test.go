@@ -23,15 +23,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"path"
 	"testing"
-
-	"github.com/nuts-foundation/nuts-node/test"
-
-	http2 "github.com/nuts-foundation/nuts-node/test/http"
-	"github.com/spf13/cobra"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -100,17 +94,6 @@ func Test_serverCmd(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("start in server mode", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		echoServer := core.NewMockEchoServer(ctrl)
-		echoServer.EXPECT().Add(http.MethodGet, gomock.Any(), gomock.Any()).AnyTimes()
-		echoServer.EXPECT().Add(http.MethodPost, gomock.Any(), gomock.Any()).AnyTimes()
-		echoServer.EXPECT().Add(http.MethodPut, gomock.Any(), gomock.Any()).AnyTimes()
-		echoServer.EXPECT().Start(gomock.Any())
-		echoServer.EXPECT().Shutdown(gomock.Any())
-
-		os.Setenv(grpcListenAddressEnvKey, fmt.Sprintf("localhost:%d", test.FreeTCPPort()))
-		defer os.Unsetenv(grpcListenAddressEnvKey)
-
 		testDirectory := io.TestDirectory(t)
 		os.Setenv("NUTS_DATADIR", testDirectory)
 		defer os.Unsetenv("NUTS_DATADIR")
@@ -119,16 +102,16 @@ func Test_serverCmd(t *testing.T) {
 		os.Args = []string{"nuts", "server"}
 
 		engine1 := &core.TestEngine{}
-		engine2 := &core.TestEngine{ShutdownError: true} // One engine's Shutdown() fails
+		engine2 := &core.TestEngine{}
 
 		system := core.NewSystem()
-		system.EchoCreator = func(_ core.HTTPConfig) (core.EchoServer, core.EchoStarter, error) {
-			return echoServer, echoServer.Start, nil
-		}
 		system.RegisterEngine(engine1)
 		system.RegisterEngine(engine2)
 
+		ctx, cancelFn := context.WithCancel(ctx)
+		cancelFn()
 		err := Execute(ctx, system)
+
 		assert.NoError(t, err)
 		// Assert global config contains overridden property
 		assert.Equal(t, testDirectory, system.Config.Datadir)
@@ -136,17 +119,6 @@ func Test_serverCmd(t *testing.T) {
 		assert.Equal(t, testDirectory, engine1.TestConfig.Key)
 	})
 	t.Run("output cpuprofile", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		echoServer := core.NewMockEchoServer(ctrl)
-		echoServer.EXPECT().Add(http.MethodGet, gomock.Any(), gomock.Any()).AnyTimes()
-		echoServer.EXPECT().Add(http.MethodPost, gomock.Any(), gomock.Any()).AnyTimes()
-		echoServer.EXPECT().Add(http.MethodPut, gomock.Any(), gomock.Any()).AnyTimes()
-		echoServer.EXPECT().Start(gomock.Any())
-		echoServer.EXPECT().Shutdown(gomock.Any())
-
-		os.Setenv(grpcListenAddressEnvKey, fmt.Sprintf("localhost:%d", test.FreeTCPPort()))
-		defer os.Unsetenv(grpcListenAddressEnvKey)
-
 		testDirectory := io.TestDirectory(t)
 		cpuprofile := path.Join(testDirectory, "profile.dmp")
 		os.Setenv("NUTS_DATADIR", testDirectory)
@@ -157,39 +129,14 @@ func Test_serverCmd(t *testing.T) {
 		}()
 
 		system := core.NewSystem()
-		system.EchoCreator = func(_ core.HTTPConfig) (core.EchoServer, core.EchoStarter, error) {
-			return echoServer, echoServer.Start, nil
-		}
 
+		ctx, cancelFn := context.WithCancel(ctx)
+		cancelFn()
 		err := Execute(ctx, system)
+
 		assert.NoError(t, err)
 		_, err = os.Stat(cpuprofile)
 		assert.NoError(t, err)
-	})
-	t.Run("defaults and alt binds are used", func(t *testing.T) {
-		os.Setenv(grpcListenAddressEnvKey, fmt.Sprintf("localhost:%d", test.FreeTCPPort()))
-		defer os.Unsetenv(grpcListenAddressEnvKey)
-		os.Setenv(enableTLSEnvKey, "false")
-		defer os.Unsetenv(enableTLSEnvKey)
-
-		var echoServers []*http2.StubEchoServer
-		system := CreateSystem()
-		system.EchoCreator = func(_ core.HTTPConfig) (core.EchoServer, core.EchoStarter, error) {
-			s := &http2.StubEchoServer{}
-			echoServers = append(echoServers, s)
-			return s, s.Start, nil
-		}
-		cmd := testCommand()
-		system.Load(cmd.Flags())
-		system.Config.Datadir = io.TestDirectory(t)
-		system.Config.HTTP.AltBinds["internal"] = core.HTTPConfig{Address: "localhost:7642"}
-		err := startServer(ctx, system)
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.Len(t, echoServers, 2)
-		assert.Equal(t, system.Config.HTTP.Address, echoServers[0].BoundAddress)
-		assert.Equal(t, "localhost:7642", echoServers[1].BoundAddress)
 	})
 	t.Run("unable to configure system", func(t *testing.T) {
 		system := core.NewSystem()
@@ -197,24 +144,6 @@ func Test_serverCmd(t *testing.T) {
 		system.Config.Datadir = "root_test.go"
 		err := startServer(ctx, system)
 		assert.Error(t, err, "unable to start")
-	})
-	t.Run("alt binds error", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
-		echoServer := core.NewMockEchoServer(ctrl)
-		echoServer.EXPECT().Start(gomock.Any()).Return(errors.New("unable to start")).Times(2)
-		echoServer.EXPECT().Shutdown(gomock.Any()).Times(2)
-
-		system := core.NewSystem()
-		system.EchoCreator = func(_ core.HTTPConfig) (core.EchoServer, core.EchoStarter, error) {
-			return echoServer, echoServer.Start, nil
-		}
-		system.Config = core.NewServerConfig()
-		system.Config.Datadir = io.TestDirectory(t)
-		system.Config.HTTP.AltBinds["internal"] = core.HTTPConfig{Address: "localhost:7642"}
-		err := startServer(ctx, system)
-		assert.EqualError(t, err, "unable to start")
 	})
 	t.Run("migration fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -231,22 +160,13 @@ func Test_serverCmd(t *testing.T) {
 }
 
 func Test_CreateSystem(t *testing.T) {
-	system := CreateSystem()
+	system := CreateSystem(func() {
+
+	})
 	assert.NotNil(t, system)
 	numEngines := 0
 	system.VisitEngines(func(engine core.Engine) {
 		numEngines++
 	})
-	assert.Equal(t, 12, numEngines)
-}
-
-func testCommand() *cobra.Command {
-	cmd := &cobra.Command{}
-	fs := core.FlagSet()
-
-	// this is done by the cobra command and may only be done once
-	fs.Parse(os.Args)
-
-	cmd.Flags().AddFlagSet(fs)
-	return cmd
+	assert.Equal(t, 13, numEngines)
 }

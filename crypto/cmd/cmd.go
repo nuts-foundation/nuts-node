@@ -61,17 +61,7 @@ func fs2VaultCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Println("Importing keys on FileSystem storage into Vault...")
 
-			cfg := core.NewServerConfig()
-			err := cfg.Load(cmd.Flags())
-			if err != nil {
-				return err
-			}
-			instance := cryptoEngine.NewCryptoInstance()
-			err = cfg.InjectIntoEngine(instance)
-			if err != nil {
-				return nil
-			}
-			err = instance.Configure(*cfg)
+			instance, err := LoadCryptoModule(cmd)
 			if err != nil {
 				return err
 			}
@@ -99,4 +89,23 @@ func fs2VaultCommand() *cobra.Command {
 		},
 	}
 	return cmd
+}
+
+// LoadCryptoModule creates a Crypto module instance and configures it using the given server root command.
+func LoadCryptoModule(cmd *cobra.Command) (*cryptoEngine.Crypto, error) {
+	cfg := core.NewServerConfig()
+	err := cfg.Load(cmd.Flags())
+	if err != nil {
+		return nil, err
+	}
+	instance := cryptoEngine.NewCryptoInstance()
+	err = cfg.InjectIntoEngine(instance)
+	if err != nil {
+		return nil, err
+	}
+	err = instance.Configure(*cfg)
+	if err != nil {
+		return nil, err
+	}
+	return instance, nil
 }

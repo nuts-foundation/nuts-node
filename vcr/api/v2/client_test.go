@@ -20,6 +20,7 @@
 package v2
 
 import (
+	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -35,7 +36,12 @@ var credentialType = "type"
 func TestHttpClient_Trust(t *testing.T) {
 
 	s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNoContent})
-	c := &HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+	c := &HTTPClient{
+		ClientConfig: core.ClientConfig{
+			Address: s.URL,
+			Timeout: time.Second,
+		},
+	}
 	funcs := []func(string, string) error{
 		c.Trust,
 		c.Untrust,
@@ -60,7 +66,12 @@ func TestHttpClient_Trust(t *testing.T) {
 	}
 
 	t.Run("trust - error - connection problem", func(t *testing.T) {
-		c := &HTTPClient{ServerAddress: "unknown", Timeout: time.Second}
+		c := &HTTPClient{
+			ClientConfig: core.ClientConfig{
+				Address: "unknown",
+				Timeout: time.Second,
+			},
+		}
 
 		err := c.Trust(credentialType, didString)
 
@@ -68,7 +79,12 @@ func TestHttpClient_Trust(t *testing.T) {
 	})
 
 	t.Run("untrust - error - connection problem", func(t *testing.T) {
-		c := &HTTPClient{ServerAddress: "unknown", Timeout: time.Second}
+		c := &HTTPClient{
+			ClientConfig: core.ClientConfig{
+				Address: "unknown",
+				Timeout: time.Second,
+			},
+		}
 
 		err := c.Untrust(credentialType, didString)
 
@@ -81,7 +97,12 @@ func TestHttpClient_Trusted(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		result := []string{didString}
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: result})
-		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		c := &HTTPClient{
+			ClientConfig: core.ClientConfig{
+				Address: s.URL,
+				Timeout: time.Second,
+			},
+		}
 
 		dids, err := c.Trusted(credentialType)
 
@@ -93,7 +114,12 @@ func TestHttpClient_Trusted(t *testing.T) {
 
 	t.Run("error - not found", func(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNotFound})
-		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		c := &HTTPClient{
+			ClientConfig: core.ClientConfig{
+				Address: s.URL,
+				Timeout: time.Second,
+			},
+		}
 
 		_, err := c.Trusted(credentialType)
 
@@ -101,7 +127,12 @@ func TestHttpClient_Trusted(t *testing.T) {
 	})
 
 	t.Run("error - connection problem", func(t *testing.T) {
-		c := HTTPClient{ServerAddress: "unknown", Timeout: time.Second}
+		c := &HTTPClient{
+			ClientConfig: core.ClientConfig{
+				Address: "unknown",
+				Timeout: time.Second,
+			},
+		}
 
 		_, err := c.Trusted(credentialType)
 
@@ -110,7 +141,12 @@ func TestHttpClient_Trusted(t *testing.T) {
 
 	t.Run("error - wrong content", func(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"})
-		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		c := &HTTPClient{
+			ClientConfig: core.ClientConfig{
+				Address: s.URL,
+				Timeout: time.Second,
+			},
+		}
 
 		_, err := c.Trusted(credentialType)
 
@@ -123,7 +159,12 @@ func TestHttpClient_Untrusted(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		result := []string{didString}
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: result})
-		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		c := &HTTPClient{
+			ClientConfig: core.ClientConfig{
+				Address: s.URL,
+				Timeout: time.Second,
+			},
+		}
 
 		dids, err := c.Untrusted(credentialType)
 

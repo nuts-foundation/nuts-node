@@ -1,7 +1,7 @@
 .. _nuts-node-api:
 
-Nuts Node APIs
-==============
+API Reference
+=============
 
 Below you can discover the Nuts Node APIs and download their OpenAPI specifications:
 

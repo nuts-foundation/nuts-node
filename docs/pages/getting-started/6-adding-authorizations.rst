@@ -24,7 +24,7 @@ Bolt
 ====
 
 A Bolt is a functional and technical specification that translates a care process to technical requirements.
-An authorization is created for a particular Bolt. A Bolt specifies what the possible values of `purposeOfUse` can be.
+An authorization is created for a particular Bolt. A Bolt specifies what the possible values of ``purposeOfUse`` can be.
 Each value corresponds to an access policy defined by the Bolt.
 Creating an authorization credential that is not according to a Bolt specification will have little effect or will even hinder interoperability.
 Particular requirements for a Bolt are not validated by the node, the node will only do the validations as specified.
@@ -41,7 +41,7 @@ Registering a NutsAuthorizationCredential
 *****************************************
 
 Issuing an authorization credential is similar to issuing an organization credential. Both use the same API.
-New credentials will automatically receive an `id`, `issuanceDate`, `context` and `proof`.
+New credentials will automatically receive an ``id``, ``issuanceDate``, ``context`` and ``proof``.
 A DID requires a valid `assertionMethod key <https://nuts-foundation.gitbook.io/drafts/rfc/rfc011-verifiable-credential#3-1-1-jsonwebsignature2020>`_.
 
 The credential can be issued with the following call:
@@ -75,12 +75,12 @@ The following paragraphs will dig deeper into the different parts.
 
 issuer
 ======
-The `issuer` is the resource owner. It must be a DID of an organization for which you control the private key.
+The ``issuer`` is the resource owner. It must be a DID of an organization for which you control the private key.
 The DID typically comes from your own administration, see also :ref:`Getting Started on customer integration <connecting-crm>`.
 
 type
 ====
-The `type` must equal `["NutsAuthorizationCredential"]`, no exceptions.
+The ``type`` must equal to ``["NutsAuthorizationCredential"]``, no exceptions.
 
 visibility
 ==========
@@ -91,7 +91,7 @@ When the VC is to be read by anyone on the network, it should be published publi
 
 credentialSubject.id
 ====================
-The `credentialSubject.id` is the receiver or *holder* of the credential.
+The ``credentialSubject.id`` is the receiver or *holder* of the credential.
 It must be a DID of an organization. This DID is typically found via a search call.
 The following call will search for an organization with the name *CareBears*.
 
@@ -113,16 +113,16 @@ The following call will search for an organization with the name *CareBears*.
         }
     }
 
-The :ref:`VC manual <using-vcs>` contains some more information on how to perform searches.
+The :ref:``VC manual <using-vcs>`` contains some more information on how to perform searches.
 
 credentialSubject.purposeOfUse
 ==============================
-The `credentialSubject.purposeOfUse` field will be filled with a fixed value.
+The ``credentialSubject.purposeOfUse`` field will be filled with a fixed value.
 A Bolt specification will describe what value to put here.
 
 credentialSubject.subject
 =========================
-The `credentialSubject.subject` field identifies the patient.
+The ``credentialSubject.subject`` field identifies the patient.
 Resources that are scoped to a patient will have an authorization record with a patient identifier.
 It's possible for authorization records to not include this field.
 A Bolt specification should describe when to use this field and when not.
@@ -131,13 +131,13 @@ The contents in this example is a **urn** with a Dutch citizens number.
 credentialSubject.legalBase
 ===========================
 This field describes the legal base from which the authorization credential originates.
-A Bolt will what values are to be entered.
+A Bolt will specify what values are to be entered.
 
 credentialSubject.resources
 ===========================
 The resources array describes what resources may be accessed with the authorization credential.
 Unless stated otherwise by the Bolt, these resources are in addition to any common resources listed by the access policy of the Bolt.
-A resource has 3 members: `path`, `operations` and `userContext`.
+A resource has 3 members: ``path``, ``operations`` and ``userContext``.
 See `the Nuts specification <https://nuts-foundation.gitbook.io/drafts/rfc/rfc014-authorization-credential#3-2-4-resources>`_ for more detail.
 
 Searching for authorization credentials
@@ -169,14 +169,14 @@ To find all authorization credentials of a single patient:
         }
     }
 
-The call above includes a query for a particular *receiver* via the `credentialSubject.id` key.
+The call above includes a query for a particular *receiver* via the ``credentialSubject.id`` key.
 This would typically be a DID from your own administration.
 The second parameter defines the patient.
-This example will return a list of authorization credentials where the `credentialSubject.purposeOfUse` field will indicate what kind of information can be retrieved.
-The `untrusted` query parameter must be added because authorization credentials are not issued by a trusted third party but by organizations themselves.
+This example will return a list of authorization credentials where the ``credentialSubject.purposeOfUse`` field will indicate what kind of information can be retrieved.
+The ``untrusted`` query parameter must be added because authorization credentials are not issued by a trusted third party but by organizations themselves.
 
 It can also be the case that you need to find an authorization that covers a certain request.
-If you want to call `/patient/2250f7ab-6517-4923-ac00-88ed26f85843` for a particular Bolt, you can use:
+If you want to call ``/patient/2250f7ab-6517-4923-ac00-88ed26f85843`` for a particular Bolt, you can use:
 
 .. code-block:: text
 
@@ -201,15 +201,15 @@ If you want to call `/patient/2250f7ab-6517-4923-ac00-88ed26f85843` for a partic
         }
     }
 
-This call will return all authorization credentials with a `purposeOfUse` equal to `test-service` and with which you are allowed to call the resource located at `/patient/2250f7ab-6517-4923-ac00-88ed26f85843`
+This call will return all authorization credentials with a ``purposeOfUse`` equal to ``test-service`` that you are allowed to call for the resource located at ``/patient/2250f7ab-6517-4923-ac00-88ed26f85843``
 Any value in an authorization credential can be used as a param in the search API.
-The search `key` requires a valid JSON path expression.
+The search ``key`` requires a valid JSON path expression.
 
 Return values
 =============
 
 When searching for authorization credentials, the credentials are returned as a verifiable credential.
-Most of the time, you'll only need the credential identifier, available in the root `id` field.
+Most of the time, you'll only need the credential identifier, available in the root ``id`` field.
 
 Example return value:
 

@@ -19,6 +19,7 @@
 package v1
 
 import (
+	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -38,18 +39,21 @@ func TestHTTPClient_UpdateContactInformation(t *testing.T) {
 	}
 	t.Run("ok", func(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: info})
-		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		c := getClient(s)
 		err := c.UpdateContactInformation("abc", info)
 		assert.NoError(t, err)
 	})
 	t.Run("error - server error", func(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})
-		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		c := getClient(s)
 		err := c.UpdateContactInformation("def", info)
 		assert.Error(t, err)
 	})
 	t.Run("error - wrong address", func(t *testing.T) {
-		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
+		c := HTTPClient{
+			ClientConfig: core.ClientConfig{
+				Address: "not_an_address", Timeout: time.Second},
+		}
 		err := c.UpdateContactInformation("def", info)
 		assert.Error(t, err)
 	})
@@ -64,21 +68,21 @@ func TestHTTPClient_GetContactInformation(t *testing.T) {
 	}
 	t.Run("ok", func(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: expected})
-		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		c := getClient(s)
 		actual, err := c.GetContactInformation("abc")
 		assert.NoError(t, err)
 		assert.Equal(t, expected, *actual)
 	})
 	t.Run("no contact info", func(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNotFound, ResponseData: nil})
-		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		c := getClient(s)
 		actual, err := c.GetContactInformation("abc")
 		assert.NoError(t, err)
 		assert.Nil(t, actual)
 	})
 	t.Run("error", func(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: nil})
-		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		c := getClient(s)
 		actual, err := c.GetContactInformation("abc")
 		assert.Error(t, err)
 		assert.Nil(t, actual)
@@ -93,22 +97,25 @@ func TestHTTPClient_AddEndpoint(t *testing.T) {
 			Type:            "eOverdracht",
 		}
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: endpoint})
-		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		c := getClient(s)
 		res, err := c.AddEndpoint("did:nuts:123", "type", "some-url")
 		assert.NoError(t, err)
 		assert.Equal(t, endpoint, *res)
 	})
 	t.Run("error - server error", func(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})
-		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		c := getClient(s)
 		endpoint, err := c.AddEndpoint("abc", "type", "some-url")
 		assert.EqualError(t, err, "server returned HTTP 500 (expected: 200), response: ")
 		assert.Nil(t, endpoint)
 	})
 	t.Run("error - wrong address", func(t *testing.T) {
-		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
+		c := HTTPClient{
+			ClientConfig: core.ClientConfig{
+				Address: "not_an_address", Timeout: time.Second},
+		}
 		endpoint, err := c.AddEndpoint("abc", "type", "some-url")
-		assert.EqualError(t, err, `Post "/not_an_address/internal/didman/v1/did/abc/endpoint": unsupported protocol scheme ""`)
+		assert.ErrorContains(t, err, "no such host")
 		assert.Nil(t, endpoint)
 	})
 }
@@ -116,20 +123,23 @@ func TestHTTPClient_AddEndpoint(t *testing.T) {
 func TestHTTPClient_DeleteEndpointsByType(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNoContent})
-		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		c := getClient(s)
 		err := c.DeleteEndpointsByType("did:nuts:123", "eOverdracht")
 		assert.NoError(t, err)
 	})
 	t.Run("error - server error", func(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError})
-		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		c := getClient(s)
 		err := c.DeleteEndpointsByType("did:nuts:123", "eOverdracht")
 		assert.EqualError(t, err, "server returned HTTP 500 (expected: 204), response: null")
 	})
 	t.Run("error - wrong address", func(t *testing.T) {
-		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
+		c := HTTPClient{
+			ClientConfig: core.ClientConfig{
+				Address: "not_an_address", Timeout: time.Second},
+		}
 		err := c.DeleteEndpointsByType("did:nuts:123", "eOverdracht")
-		assert.EqualError(t, err, `Delete "/not_an_address/internal/didman/v1/did/did:nuts:123/endpoint/eOverdracht": unsupported protocol scheme ""`)
+		assert.ErrorContains(t, err, "no such host")
 	})
 }
 
@@ -145,19 +155,22 @@ func TestHTTPClient_AddCompoundService(t *testing.T) {
 		}
 
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: res})
-		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		c := getClient(s)
 		cs, err := c.AddCompoundService("abc", "type", refs)
 		assert.NoError(t, err)
 		assert.Equal(t, res, cs)
 	})
 	t.Run("error - server error", func(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})
-		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		c := getClient(s)
 		_, err := c.AddCompoundService("abc", "type", refs)
 		assert.Error(t, err)
 	})
 	t.Run("error - wrong address", func(t *testing.T) {
-		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
+		c := HTTPClient{
+			ClientConfig: core.ClientConfig{
+				Address: "not_an_address", Timeout: time.Second},
+		}
 		_, err := c.AddCompoundService("abc", "type", refs)
 		assert.Error(t, err)
 	})
@@ -167,19 +180,22 @@ func TestHTTPClient_DeleteService(t *testing.T) {
 	id := ssi.MustParseURI("did:123#abc")
 	t.Run("ok", func(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNoContent})
-		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		c := getClient(s)
 		err := c.DeleteService(id)
 		assert.NoError(t, err)
 	})
 
 	t.Run("error - internal server error", func(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: nil})
-		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		c := getClient(s)
 		err := c.DeleteService(id)
 		assert.Error(t, err)
 	})
 	t.Run("error - wrong address", func(t *testing.T) {
-		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
+		c := HTTPClient{
+			ClientConfig: core.ClientConfig{
+				Address: "not_an_address", Timeout: time.Second},
+		}
 		err := c.DeleteService(id)
 		assert.Error(t, err)
 	})
@@ -193,24 +209,31 @@ func TestHTTPClient_GetCompoundServices(t *testing.T) {
 			Type:            "eOverdracht",
 		}}
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: cServices})
-		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		c := getClient(s)
 		res, err := c.GetCompoundServices("did:nuts:123")
 		assert.NoError(t, err)
 		assert.Equal(t, cServices, res)
 	})
 	t.Run("error - internal server error", func(t *testing.T) {
 		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: nil})
-		c := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
+		c := getClient(s)
 		res, err := c.GetCompoundServices("did:nuts:123")
 		assert.Error(t, err)
 		assert.EqualError(t, err, "server returned HTTP 500 (expected: 200), response: null")
 		assert.Nil(t, res)
 	})
 	t.Run("error - wrong address", func(t *testing.T) {
-		c := HTTPClient{ServerAddress: "not_an_address", Timeout: time.Second}
+		c := HTTPClient{
+			ClientConfig: core.ClientConfig{
+				Address: "not_an_address", Timeout: time.Second},
+		}
 		res, err := c.GetCompoundServices("did:nuts:123")
-		assert.EqualError(t, err, `Get "/not_an_address/internal/didman/v1/did/did:nuts:123/compoundservice": unsupported protocol scheme ""`)
+		assert.ErrorContains(t, err, "no such host")
 		assert.Nil(t, res)
 	})
 
+}
+
+func getClient(s *httptest.Server) HTTPClient {
+	return HTTPClient{ClientConfig: core.ClientConfig{Address: s.URL, Timeout: time.Second}}
 }

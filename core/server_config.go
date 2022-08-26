@@ -47,7 +47,6 @@ type ServerConfig struct {
 	Strictmode          bool              `koanf:"strictmode"`
 	InternalRateLimiter bool              `koanf:"internalratelimiter"`
 	Datadir             string            `koanf:"datadir"`
-	HTTP                GlobalHTTPConfig  `koanf:"http"`
 	TLS                 TLSConfig         `koanf:"tls"`
 	LegacyTLS           *NetworkTLSConfig `koanf:"network"`
 	configMap           *koanf.Koanf
@@ -175,58 +174,11 @@ const (
 	OffloadIncomingTLS = "incoming"
 )
 
-// GlobalHTTPConfig is the top-level config struct for HTTP interfaces.
-type GlobalHTTPConfig struct {
-	// HTTPConfig contains the config for the default HTTP interface.
-	HTTPConfig `koanf:"default"`
-	// AltBinds contains binds for alternative HTTP interfaces. The key of the map is the first part of the path
-	// of the URL (e.g. `/internal/some-api` -> `internal`), the value is the HTTP interface it must be bound to.
-	AltBinds map[string]HTTPConfig `koanf:"alt"`
-}
-
-// HTTPConfig contains configuration for an HTTP interface, e.g. address.
-// It will probably contain security related properties in the future (TLS configuration, user/pwd requirements).
-type HTTPConfig struct {
-	// Address holds the interface address the HTTP service must be bound to, in the format of `interface:port` (e.g. localhost:5555).
-	Address string `koanf:"address"`
-	// CORS holds the configuration for Cross Origin Resource Sharing.
-	CORS HTTPCORSConfig `koanf:"cors"`
-	// TLSMode specifies whether TLS is enabled for this interface, and which flavor.
-	TLSMode HTTPTLSMode `koanf:"tls"`
-}
-
-// HTTPTLSMode defines the values for TLS modes
-type HTTPTLSMode string
-
-const (
-	// DisabledHTTPTLSMode specifies that TLS is not enabled for this interface.
-	DisabledHTTPTLSMode HTTPTLSMode = "disabled"
-	// TLSServerCertMode specifies that TLS is enabled for this interface, but no client certificate is required.
-	TLSServerCertMode HTTPTLSMode = "server"
-	// TLServerClientCertMode specifies that TLS is enabled for this interface, and that it will require a client certificate.
-	TLServerClientCertMode HTTPTLSMode = "server-client"
-)
-
-// HTTPCORSConfig contains configuration for Cross Origin Resource Sharing.
-type HTTPCORSConfig struct {
-	// Origin specifies the AllowOrigin option. If no origins are given CORS is considered to be disabled.
-	Origin []string `koanf:"origin"`
-}
-
-// Enabled returns whether CORS is enabled according to this configuration.
-func (cors HTTPCORSConfig) Enabled() bool {
-	return len(cors.Origin) > 0
-}
-
 // NewServerConfig creates an initialized empty server config
 func NewServerConfig() *ServerConfig {
 	legacyTLS := &NetworkTLSConfig{}
 	return &ServerConfig{
 		configMap: koanf.New(defaultDelimiter),
-		HTTP: GlobalHTTPConfig{
-			HTTPConfig: HTTPConfig{},
-			AltBinds:   map[string]HTTPConfig{},
-		},
 		LegacyTLS: legacyTLS,
 		TLS: TLSConfig{
 			legacyTLS: legacyTLS,
@@ -316,12 +268,9 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("cpuprofile", "", "When set, a CPU profile is written to the given path. Ignored when strictmode is set.")
 	flagSet.String("verbosity", "info", "Log level (trace, debug, info, warn, error)")
 	flagSet.String("loggerformat", "text", "Log format (text, json)")
-	flagSet.String("http.default.address", ":1323", "Address and port the server will be listening to")
-	flagSet.String("http.default.tls", string(DisabledHTTPTLSMode), fmt.Sprintf("Whether to enable TLS for the default interface (options are '%s', '%s', '%s').", DisabledHTTPTLSMode, TLSServerCertMode, TLServerClientCertMode))
 	flagSet.Bool("strictmode", false, "When set, insecure settings are forbidden.")
 	flagSet.Bool("internalratelimiter", true, "When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode.")
 	flagSet.String("datadir", "./data", "Directory where the node stores its files.")
-	flagSet.StringSlice("http.default.cors.origin", nil, "When set, enables CORS from the specified origins for the on default HTTP interface.")
 	flagSet.String("tls.certfile", "", "PEM file containing the certificate for the server (also used as client certificate).")
 	flagSet.String("tls.certkeyfile", "", "PEM file containing the private key of the server certificate.")
 	flagSet.String("tls.truststorefile", "truststore.pem", "PEM file containing the trusted CA certificates for authenticating remote servers.")

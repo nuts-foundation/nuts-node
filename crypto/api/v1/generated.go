@@ -17,6 +17,10 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+const (
+	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
+)
+
 // SignJwtRequest defines model for SignJwtRequest.
 type SignJwtRequest struct {
 	Claims map[string]interface{} `json:"claims"`
@@ -290,6 +294,8 @@ type ServerInterfaceWrapper struct {
 // SignJwt converts echo context to params.
 func (w *ServerInterfaceWrapper) SignJwt(ctx echo.Context) error {
 	var err error
+
+	ctx.Set(JwtBearerAuthScopes, []string{""})
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.SignJwt(ctx)

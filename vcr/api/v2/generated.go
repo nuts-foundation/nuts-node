@@ -18,6 +18,10 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+const (
+	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
+)
+
 // Defines values for IssueVCRequestVisibility.
 const (
 	Private IssueVCRequestVisibility = "private"
@@ -1911,6 +1915,8 @@ type ServerInterfaceWrapper struct {
 func (w *ServerInterfaceWrapper) CreateVP(ctx echo.Context) error {
 	var err error
 
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.CreateVP(ctx)
 	return err
@@ -1920,6 +1926,8 @@ func (w *ServerInterfaceWrapper) CreateVP(ctx echo.Context) error {
 func (w *ServerInterfaceWrapper) IssueVC(ctx echo.Context) error {
 	var err error
 
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.IssueVC(ctx)
 	return err
@@ -1928,6 +1936,8 @@ func (w *ServerInterfaceWrapper) IssueVC(ctx echo.Context) error {
 // SearchIssuedVCs converts echo context to params.
 func (w *ServerInterfaceWrapper) SearchIssuedVCs(ctx echo.Context) error {
 	var err error
+
+	ctx.Set(JwtBearerAuthScopes, []string{""})
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params SearchIssuedVCsParams
@@ -1968,6 +1978,8 @@ func (w *ServerInterfaceWrapper) RevokeVC(ctx echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
 	}
 
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.RevokeVC(ctx, id)
 	return err
@@ -1976,6 +1988,8 @@ func (w *ServerInterfaceWrapper) RevokeVC(ctx echo.Context) error {
 // SearchVCs converts echo context to params.
 func (w *ServerInterfaceWrapper) SearchVCs(ctx echo.Context) error {
 	var err error
+
+	ctx.Set(JwtBearerAuthScopes, []string{""})
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.SearchVCs(ctx)
@@ -1993,6 +2007,8 @@ func (w *ServerInterfaceWrapper) ResolveVC(ctx echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
 	}
 
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.ResolveVC(ctx, id)
 	return err
@@ -2001,6 +2017,8 @@ func (w *ServerInterfaceWrapper) ResolveVC(ctx echo.Context) error {
 // UntrustIssuer converts echo context to params.
 func (w *ServerInterfaceWrapper) UntrustIssuer(ctx echo.Context) error {
 	var err error
+
+	ctx.Set(JwtBearerAuthScopes, []string{""})
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.UntrustIssuer(ctx)
@@ -2011,6 +2029,8 @@ func (w *ServerInterfaceWrapper) UntrustIssuer(ctx echo.Context) error {
 func (w *ServerInterfaceWrapper) TrustIssuer(ctx echo.Context) error {
 	var err error
 
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.TrustIssuer(ctx)
 	return err
@@ -2020,6 +2040,8 @@ func (w *ServerInterfaceWrapper) TrustIssuer(ctx echo.Context) error {
 func (w *ServerInterfaceWrapper) VerifyVC(ctx echo.Context) error {
 	var err error
 
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.VerifyVC(ctx)
 	return err
@@ -2028,6 +2050,8 @@ func (w *ServerInterfaceWrapper) VerifyVC(ctx echo.Context) error {
 // VerifyVP converts echo context to params.
 func (w *ServerInterfaceWrapper) VerifyVP(ctx echo.Context) error {
 	var err error
+
+	ctx.Set(JwtBearerAuthScopes, []string{""})
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.VerifyVP(ctx)
@@ -2045,6 +2069,8 @@ func (w *ServerInterfaceWrapper) ListTrusted(ctx echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter credentialType: %s", err))
 	}
 
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.ListTrusted(ctx, credentialType)
 	return err
@@ -2060,6 +2086,8 @@ func (w *ServerInterfaceWrapper) ListUntrusted(ctx echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter credentialType: %s", err))
 	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{""})
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.ListUntrusted(ctx, credentialType)

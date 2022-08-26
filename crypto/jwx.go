@@ -50,6 +50,9 @@ func isAlgorithmSupported(alg jwa.SignatureAlgorithm) bool {
 
 // SignJWT creates a signed JWT given a legalEntity and map of claims
 func (client *Crypto) SignJWT(claims map[string]interface{}, kid string) (token string, err error) {
+	if err = validateKID(kid); err != nil {
+		return "", err
+	}
 	privateKey, err := client.Storage.GetPrivateKey(kid)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {

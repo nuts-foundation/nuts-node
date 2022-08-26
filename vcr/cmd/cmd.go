@@ -131,7 +131,6 @@ func listUntrustedCmd() *cobra.Command {
 // httpClient creates a remote client
 func httpClient(config core.ClientConfig) api.HTTPClient {
 	return api.HTTPClient{
-		ServerAddress: config.GetAddress(),
-		Timeout:       config.Timeout,
+		ClientConfig: config,
 	}
 }

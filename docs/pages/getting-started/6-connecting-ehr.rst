@@ -21,8 +21,8 @@ Searching organizations
 =======================
 
 To find care organizations (registered in the Nuts registry) that support a specific Bolt, the search organization API can be used.
-It takes a query parameter that's used to match organization names and optionally a service type (from its DID document).
-If the DID service type is supplied the API only returns organizations which DID Document has a service with that type.
+It requires the ``query`` parameter to match organization names, and optionally a ``didServiceType`` (from its DID document).
+If the DID service type is supplied, the API only returns the organizations who's DID Document contains a service of that type.
 
 For example, the following API call searches the Nuts registry for organizations which name matches "Ziekenhuis" and have a service of type "secure-direct-messaging" on their DID Document:
 
@@ -65,8 +65,8 @@ The API call returns a list of search results where each entry contains the orga
 For an organization to be returned as search results the following requirements must be met:
 
 - It must have an active DID Document.
-- The issuer of its verifiable credential (``NutsOrganizationCredential``) must be trusted by the local node.
-- Its verifiable credential must not be expired or revoked.
+- The issuer of this DID document's verifiable credential (``NutsOrganizationCredential``) must be trusted by the local node.
+- The verifiable credential must not be expired or revoked.
 
 The ``query`` parameter is used to phonetically match the organization name: it supports partial matches and matches that sound like the given query.
 
