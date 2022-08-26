@@ -65,7 +65,7 @@ func TestCrypto_New(t *testing.T) {
 	})
 
 	t.Run("error - invalid KID", func(t *testing.T) {
-		kid := "../certifucate"
+		kid := "../certificate"
 
 		key, err := client.New(StringNamingFunc(kid))
 
