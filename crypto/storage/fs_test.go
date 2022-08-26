@@ -50,7 +50,7 @@ func Test_fs_GetPrivateKey(t *testing.T) {
 	t.Run("private key invalid", func(t *testing.T) {
 		storage, _ := NewFileSystemBackend(io.TestDirectory(t))
 		kid := "kid"
-		path, _ := storage.(*fileSystemBackend).getEntryPath(kid, privateKeyEntry)
+		path := storage.(*fileSystemBackend).getEntryPath(kid, privateKeyEntry)
 		file, _ := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0644)
 		_, err := file.WriteString("hello world")
 		if !assert.NoError(t, err) {
