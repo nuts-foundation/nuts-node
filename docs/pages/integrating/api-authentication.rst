@@ -15,6 +15,6 @@ The example below generates a token for a user named "admin", valid for 3 months
 
 .. code-block:: shell
 
-    nuts http gen-token admin 180
+    nuts http gen-token admin 90
 
 When authentication fails the API will return ``HTTP 401 Unauthorized`` with an explanatory message.
