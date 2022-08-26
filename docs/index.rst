@@ -17,6 +17,7 @@ Nuts documentation
     :glob:
 
     pages/integrating/api.rst
+    pages/integrating/authentication.rst
     pages/integrating/vc.rst
     pages/integrating/faq-errors.rst
     pages/release_notes.rst

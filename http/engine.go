@@ -80,7 +80,7 @@ func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 	}
 
 	h.server = NewMultiEcho()
-	log.Logger().Infof("Binding /%s -> %s", RootPath, h.config.Address)
+	log.Logger().Infof("Binding %s -> %s", RootPath, h.config.Address)
 	if err = h.server.Bind(RootPath, h.config.Address, func() (EchoServer, error) {
 		return h.createEchoServer(h.config.InterfaceConfig, tlsConfig)
 	}); err != nil {
@@ -234,7 +234,7 @@ func (h Engine) applyGlobalMiddleware(echoServer core.EchoRouter, serverConfig c
 	echoServer.Use(decodeURIPath)
 
 	skipper := func(c echo.Context) bool {
-		return !matchesPath(c.Request().RequestURI, "/metrics") && !matchesPath(c.Request().RequestURI, "/status")
+		return matchesPath(c.Request().RequestURI, "/metrics") || matchesPath(c.Request().RequestURI, "/status")
 	}
 	echoServer.Use(loggerMiddleware(loggerConfig{Skipper: skipper, logger: log.Logger()}))
 
