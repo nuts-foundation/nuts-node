@@ -93,8 +93,8 @@ Network DAG Visualization
 
 All network transactions form a directed acyclic graph (DAG) which helps achieving consistency and data completeness.
 Since it's a hard to debug, complex structure, the network API provides a visualization which can be queried
-from ``/internal/network/v1/diagnostics/graph``. It is returned in the ``dot`` format which can then be rendered to an image using
-``dot`` or ``graphviz`` (given you saved the output to ``input.dot``):
+from ``/internal/network/v1/diagnostics/graph``. It is returned in the *dot* format which can then be rendered to an image using
+*dot* or *graphviz* (given you saved the output to ``input.dot``):
 
 .. code-block:: shell
 

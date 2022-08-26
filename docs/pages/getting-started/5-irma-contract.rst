@@ -51,8 +51,8 @@ This can be done by the following snippet:
 
   http:
     default:
-        cors:
-            origin: "other.com"
+      cors:
+        origin: "other.com"
 
 Where *other.com* is the domain serving the frontend. For development purposes ``*`` is also allowed.
 If the public APIs are mounted on a different port/interface in the nuts config then the ``default`` key should be changed to ``alt.public`` in the example above.

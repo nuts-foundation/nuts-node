@@ -174,7 +174,6 @@ A credential can be issued with the following call:
 
     POST <internal-node-address>/internal/vcr/v2/issuer/vc
     {
-        "@context": "https://nuts.nl/credentials/v1",
         "type": "NutsOrganizationCredential",
         "issuer": "<issuer-did>",
         "credentialSubject": {
