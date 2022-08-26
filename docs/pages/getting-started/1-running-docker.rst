@@ -5,7 +5,7 @@ Running on Docker
 
 If you already use Docker, the easiest way to get your Nuts Node up and running for development or production is
 using Docker. This guide helps you to configure the Nuts node in Docker.
-To use the most recent ``master`` build use ``nutsfoundation/nuts-node:master`` (for production environments it's advisable to use a specific version or the ``latest`` build).
+To use the most recent ``master`` build use ``nutsfoundation/nuts-node:master`` (for production environments it's advised to use a specific version or the ``latest`` build).
 
 First determine the working directory for the Nuts node which will contain configuration and data. These which will be mounted into the Docker container.
 Follow the :ref:`configuration <configure-node>` to setup the configuration of your node.

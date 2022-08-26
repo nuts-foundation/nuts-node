@@ -108,6 +108,11 @@ Configuration for `HAProxy <https://www.haproxy.com/>`_ could look like this (gi
 
 Refer to the HAProxy documentation for more information.
 
+.. note::
+
+    In a (level 4) pass-through configuration, the origin IP address for all connections to the Nuts node will be equal to that of the load balancer.
+    You will have to handle IP logging in this configuration yourself.
+
 TLS Offloading
 **************
 
@@ -217,6 +222,7 @@ For `HAProxy <https://www.haproxy.com/>`_ the proxy configuration could look as 
 
     backend grpc_servers
         mode http
+        option forwardfor  # for correct IP logging
         http-request set-header X-SSL-CERT %{+Q}[ssl_c_der,base64]
         server node1 nuts_node:5555 check proto h2
 

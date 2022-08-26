@@ -41,13 +41,15 @@ You can connect to your Redis server over TLS by specifying a Redis connection U
 e.g.: ``rediss://database.mycluster.com:1234567``.
 The server's certificate will be verified against the OS' CA bundle.
 
-Make sure to `configure persistence for your Redis server <https://redis.io/docs/manual/persistence/>`_.
+.. note::
+
+    Make sure to `configure persistence for your Redis server <https://redis.io/docs/manual/persistence/>`_.
 
 Private Keys
 ************
 
 Your node generates and stores private keys when you create DID documents or add new keys to it.
-Private keys are very sensitive, if you leak them others could alter your presence on the Nuts network and possibly worse.
+Private keys are very sensitive! If you leak them, others could alter your presence on the Nuts network and possibly worse.
 If you lose them you need to re-register your presence on the Nuts network, which could be very cumbersome.
 Thus, it's very important the private key storage is both secure and reliable.
 
@@ -75,7 +77,7 @@ Migrating to Vault
 
 Migrating your private keys from the filesystem to Vault is relatively easy: just upload the keys to Vault under ``kv/nuts-private-keys``.
 
-Alternatively you can use the ``fs2vault`` crypto command, which takes the directory containing the private keys as argument (the example assumes the container is called `nuts-node`):
+Alternatively you can use the ``fs2vault`` crypto command, which takes the directory containing the private keys as argument (the example assumes the container is called `nuts-node` and `NUTS_DATADIR=/opt/nuts/data`):
 
 .. code-block:: shell
 

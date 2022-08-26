@@ -39,26 +39,26 @@ The error definition can be used in a OAS file:
 
 .. code-block:: yaml
 
-    paths:
-        /some/path:
-            get:
-                responses:
-                    default:
-                      $ref: '../common/error_response.yaml'
+  paths:
+    /some/path:
+      get:
+        responses:
+          default:
+            $ref: '../common/error_response.yaml'
 
 The error responses will not be listed as responses in the online generated documentation.
 To describe error responses, the specific responses need to be added to the API description:
 
 .. code-block:: yaml
 
-    paths:
-        /some/path:
-            post:
-                description: |
-                    Some description on the API
+  paths:
+    /some/path:
+      post:
+        description: |
+          Some description on the API
 
-                    error returns:
-                    * 400 - incorrect input
+          error returns:
+          * 400 - incorrect input
 
 Paths
 *****
@@ -78,7 +78,7 @@ All paths start with a security ``<context>``:
 - ``/n2n/**`` These APIs must be available to other nodes from the network.
   This means they must be protected with the required client certificate as specified by `RFC011 <https://nuts-foundation.gitbook.io/drafts/rfc/rfc011-verifiable-credential>`_.
   The creation of an access token is one example of such an API.
-- ``/public/**`` These APIs must be publicly available on a valid domain. No security must be set.
+- ``/public/**`` These APIs must be publicly available on a valid domain. Must set NO security other than a server certificate.
   These APIs are used by mobile devices.
 
 After the context, the ``<engine>`` is expected. An engine defines a logical unit of functionality.

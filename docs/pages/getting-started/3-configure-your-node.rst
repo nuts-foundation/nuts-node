@@ -29,15 +29,15 @@ To make this possible, each of the nodes must meet the following requirements:
 
 There are 4 official Nuts networks:
 
-- ``development`` where new features are tested. Nodes will generally run the newest (not yet released) version of the Nuts node.
-- ``stable`` for integrating your software with Nuts and testing with other vendors. Nodes will generally run the latest released version (or at least a recent one).
-- ``test`` for acceptance testing with other vendors and customers. Nodes will generally run the latest released version (or at least a recent one).
-- ``production`` for production uses. Connecting to this network involves PKIoverheid certificates and outside the scope of this tutorial.
+- *development* where new features are tested. Nodes will generally run the newest (not yet released) version of the Nuts node.
+- *stable* for integrating your software with Nuts and testing with other vendors. Nodes will generally run the latest released version (or at least a recent one).
+- *test* for acceptance testing with other vendors and customers. Nodes will generally run the latest released version (or at least a recent one).
+- *production* for production uses. Connecting to this network involves PKIoverheid certificates and outside the scope of this tutorial.
 
 Node TLS Certificate
 ====================
 
-Before you can join a network, your node needs a certificate from the correct Certificate Authority (CA). The ``development`` and``stable`` networks are open for everyone to join. Contrary to the ``production`` network (where we will be using a real Certificate Authority like PKIoverheid) the CA certificate and private key for these networks are available on github. This way you can generate your own certificate.
+Before you can join a network, your node needs a certificate from the correct Certificate Authority (CA). The ``development`` and ``stable`` networks are open for everyone to join. Contrary to the ``production`` network (where we will be using a real Certificate Authority like PKIoverheid) the CA certificate and private key for these networks are available on github. This way you can generate your own certificate.
 
 To generate the certificate for your own node you need the ``https://github.com/nuts-foundation/nuts-development-network-ca`` repository. It contains handy scripts and the needed key material. For more information how to use, consult the `README <https://github.com/nuts-foundation/nuts-development-network-ca/blob/master/README.md>`_
 
