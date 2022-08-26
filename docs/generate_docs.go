@@ -21,6 +21,8 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/spf13/cobra"
+	"io"
 	"os"
 	"reflect"
 	"sort"
@@ -31,6 +33,22 @@ import (
 	"github.com/spf13/pflag"
 )
 
+const newline = "\n"
+
+type stringSlice []string
+
+func (sl stringSlice) contains(s string) bool {
+	for _, curr := range sl {
+		if curr == s {
+			return true
+		}
+	}
+	return false
+}
+
+// serverCommands lists the commands that use the server config. The options server commands are only printed once, because the list is quite long.
+var serverCommands stringSlice = []string{"nuts status", "nuts config", "nuts server", "nuts crypto fs2vault"}
+
 func generateDocs() {
 	system := cmd.CreateSystem()
 	generateClientOptions()
@@ -40,20 +58,45 @@ func generateDocs() {
 
 func generateCLICommands(system *core.System) {
 	const targetFile = "docs/pages/deployment/cli-reference.rst"
-	const base = `.. _nuts-cli-reference:
+	writer, _ := os.OpenFile(targetFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
+	defer writer.Close()
 
-CLI Command Reference
-*********************
+	_, _ = writer.WriteString(".. _nuts-cli-reference:" + newline + newline)
+	writeHeader(writer, "CLI Command Reference", 0)
 
-`
-	indexFile, _ := os.OpenFile(targetFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
-	defer indexFile.Close()
-	_, _ = indexFile.WriteString(base)
+	_, _ = writer.WriteString("There are 2 types of commands: server command and client commands. " +
+		"Server commands (e.g. ``nuts server``) can only be run on the system where the node is (or will be) running, because they require the node's config. " +
+		"Client commands are used to remotely administer a Nuts node and require the node's API address." + newline + newline)
 
-	err := GenerateCommandDocs(cmd.CreateCommand(system), indexFile)
+	// Server commands
+	writeHeader(writer, "Server Commands", 1)
+	_, _ = writer.WriteString("The following options apply to the server commands below:" + newline + newline)
+
+	_, _ = io.WriteString(writer, newline+"::"+newline+newline)
+	writeCommandOptions(writer, cmd.CreateCommand(system).Commands()[0])
+
+	err := GenerateCommandDocs(cmd.CreateCommand(system), writer, func(cmd *cobra.Command) bool {
+		return serverCommands.contains(cmd.CommandPath()) && cmd.CommandPath() != "nuts"
+	}, false)
 	if err != nil {
 		panic(err)
 	}
+	_, _ = io.WriteString(writer, newline)
+
+	// Client commands
+	writeHeader(writer, "Client Commands", 1)
+	err = GenerateCommandDocs(cmd.CreateCommand(system), writer, func(cmd *cobra.Command) bool {
+		return !serverCommands.contains(cmd.CommandPath()) && cmd.CommandPath() != "nuts"
+	}, true)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func writeHeader(writer io.Writer, header string, level int) {
+	c := []string{"#", "*", "^", "-"}[level]
+	_, _ = writer.Write([]byte(header + newline))
+	_, _ = writer.Write([]byte(strings.Repeat(c, len(header)) + newline + newline))
 }
 
 func generateClientOptions() {
