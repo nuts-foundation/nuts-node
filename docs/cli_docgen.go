@@ -21,47 +21,36 @@ package main
 import (
 	"github.com/spf13/cobra"
 	"io"
-	"strings"
 )
 
-func GenerateCommandDocs(cmd *cobra.Command, writer io.Writer) error {
-	const newline = "\n"
+func GenerateCommandDocs(cmd *cobra.Command, writer io.Writer, filter func(command *cobra.Command) bool, printOptions bool) error {
 
 	cmd.InitDefaultHelpCmd()
 	cmd.InitDefaultHelpFlag()
 
 	if cmd.Runnable() {
-		// Command name
-		name := cmd.CommandPath()
-		_, _ = io.WriteString(writer, newline)
-		_, _ = io.WriteString(writer, name)
-		_, _ = io.WriteString(writer, newline)
-		_, _ = io.WriteString(writer, strings.Repeat("^", len(name)))
-		_, _ = io.WriteString(writer, newline)
-		_, _ = io.WriteString(writer, newline)
+		if filter(cmd) {
+			// Command name
+			name := cmd.CommandPath()
+			_, _ = io.WriteString(writer, newline)
+			writeHeader(writer, name, 2)
 
-		// Description
-		if len(cmd.Long) > 0 {
-			_, _ = io.WriteString(writer, cmd.Long)
-		} else {
-			_, _ = io.WriteString(writer, cmd.Short)
-		}
-		_, _ = io.WriteString(writer, newline)
+			// Description
+			if len(cmd.Long) > 0 {
+				_, _ = io.WriteString(writer, cmd.Long)
+			} else {
+				_, _ = io.WriteString(writer, cmd.Short)
+			}
+			_, _ = io.WriteString(writer, newline)
 
-		// Options
-		_, _ = io.WriteString(writer, "\n::\n\n")
-		_, _ = io.WriteString(writer, "  "+cmd.UseLine())
-		_, _ = io.WriteString(writer, newline)
-		_, _ = io.WriteString(writer, newline)
-		flags := cmd.NonInheritedFlags()
-		if flags.HasAvailableFlags() {
-			flags.SetOutput(writer)
-			flags.PrintDefaults()
-		}
-		parentFlags := cmd.InheritedFlags()
-		if parentFlags.HasAvailableFlags() {
-			parentFlags.SetOutput(writer)
-			parentFlags.PrintDefaults()
+			// Usage
+			_, _ = io.WriteString(writer, "\n::\n\n")
+			_, _ = io.WriteString(writer, "  "+cmd.UseLine())
+			_, _ = io.WriteString(writer, newline)
+			_, _ = io.WriteString(writer, newline)
+			if printOptions {
+				writeCommandOptions(writer, cmd)
+			}
 		}
 	} else {
 		println("Not generating documentation for non-runnable command:", cmd.CommandPath())
@@ -72,10 +61,23 @@ func GenerateCommandDocs(cmd *cobra.Command, writer io.Writer) error {
 		if !c.IsAvailableCommand() || c.IsAdditionalHelpTopicCommand() {
 			continue
 		}
-		if err := GenerateCommandDocs(c, writer); err != nil {
+		if err := GenerateCommandDocs(c, writer, filter, printOptions); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func writeCommandOptions(writer io.Writer, cmd *cobra.Command) {
+	flags := cmd.NonInheritedFlags()
+	if flags.HasAvailableFlags() {
+		flags.SetOutput(writer)
+		flags.PrintDefaults()
+	}
+	parentFlags := cmd.InheritedFlags()
+	if parentFlags.HasAvailableFlags() {
+		parentFlags.SetOutput(writer)
+		parentFlags.PrintDefaults()
+	}
 }

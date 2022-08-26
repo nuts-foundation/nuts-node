@@ -256,7 +256,20 @@ func Execute(ctx context.Context, system *core.System) error {
 	return command.ExecuteContext(ctx)
 }
 
-func addSubCommands(system *core.System, root *cobra.Command) {
+func AddServerCommands(system *core.System, root *cobra.Command) {
+	// Register server commands
+	serverCommands := []*cobra.Command{
+		createServerCommand(system),
+		createPrintConfigCommand(system),
+		cryptoCmd.ServerCmd(),
+	}
+	flagSet := serverConfigFlags()
+	registerFlags(serverCommands, flagSet)
+
+	root.AddCommand(serverCommands...)
+}
+
+func AddClientCommands(root *cobra.Command) {
 	// Register client commands
 	clientCommands := []*cobra.Command{
 		status.Cmd(),
@@ -270,17 +283,11 @@ func addSubCommands(system *core.System, root *cobra.Command) {
 		clientCommand.PersistentFlags().AddFlagSet(clientFlags)
 	}
 	root.AddCommand(clientCommands...)
+}
 
-	// Register server commands
-	serverCommands := []*cobra.Command{
-		createServerCommand(system),
-		createPrintConfigCommand(system),
-		cryptoCmd.ServerCmd(),
-	}
-	flagSet := serverConfigFlags()
-	registerFlags(serverCommands, flagSet)
-
-	root.AddCommand(serverCommands...)
+func addSubCommands(system *core.System, root *cobra.Command) {
+	AddClientCommands(root)
+	AddServerCommands(system, root)
 }
 
 func registerFlags(cmds []*cobra.Command, flags *pflag.FlagSet) {
