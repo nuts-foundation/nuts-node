@@ -26,13 +26,10 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 )
 
 type entryType string
-
-var kidPattern = regexp.MustCompile(`^[\da-zA-Z_\- :#.]+$`)
 
 const (
 	privateKeyEntry entryType = "private.pem"
@@ -78,11 +75,7 @@ func NewFileSystemBackend(fspath string) (Storage, error) {
 }
 
 func (fsc *fileSystemBackend) PrivateKeyExists(kid string) bool {
-	path, err := fsc.getEntryPath(kid, privateKeyEntry)
-	if err != nil {
-		return false
-	}
-	_, err = os.Stat(path)
+	_, err := os.Stat(fsc.getEntryPath(kid, privateKeyEntry))
 	return err == nil
 }
 
@@ -101,10 +94,7 @@ func (fsc *fileSystemBackend) GetPrivateKey(kid string) (crypto.Signer, error) {
 
 // SavePrivateKey saves the private key for the given key to disk. Files are postfixed with '_private.pem'. Keys are stored in pem format.
 func (fsc *fileSystemBackend) SavePrivateKey(kid string, key crypto.PrivateKey) error {
-	filenamePath, err := fsc.getEntryPath(kid, privateKeyEntry)
-	if err != nil {
-		return err
-	}
+	filenamePath := fsc.getEntryPath(kid, privateKeyEntry)
 	outFile, err := os.Create(filenamePath)
 
 	if err != nil {
@@ -138,10 +128,7 @@ func (fsc *fileSystemBackend) ListPrivateKeys() []string {
 }
 
 func (fsc fileSystemBackend) readEntry(kid string, entryType entryType) ([]byte, error) {
-	filePath, err := fsc.getEntryPath(kid, entryType)
-	if err != nil {
-		return nil, err
-	}
+	filePath := fsc.getEntryPath(kid, entryType)
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -152,11 +139,8 @@ func (fsc fileSystemBackend) readEntry(kid string, entryType entryType) ([]byte,
 	return data, nil
 }
 
-func (fsc fileSystemBackend) getEntryPath(key string, entryType entryType) (string, error) {
-	if !kidPattern.MatchString(key) {
-		return "", errors.New("invalid key ID")
-	}
-	return filepath.Join(fsc.fspath, getEntryFileName(key, entryType)), nil
+func (fsc fileSystemBackend) getEntryPath(key string, entryType entryType) string {
+	return filepath.Join(fsc.fspath, getEntryFileName(key, entryType))
 }
 
 func (fsc *fileSystemBackend) createDirs() error {
