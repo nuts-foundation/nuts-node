@@ -50,7 +50,7 @@ func (sl stringSlice) contains(s string) bool {
 var serverCommands stringSlice = []string{"nuts status", "nuts config", "nuts server", "nuts crypto fs2vault"}
 
 func generateDocs() {
-	system := cmd.CreateSystem()
+	system := cmd.CreateSystem(func() {})
 	generateClientOptions()
 	generateServerOptions(system)
 	generateCLICommands(system)

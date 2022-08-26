@@ -641,3 +641,11 @@ components:
           description: a credential type
           example: NutsOrganizationCredential
           type: string
+  securitySchemes:
+    jwtBearerAuth:
+      type: http
+      scheme: bearer
+
+security:
+  - {}
+  - jwtBearerAuth: []

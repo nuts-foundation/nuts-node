@@ -671,3 +671,11 @@ components:
           type: string
           description: End-User's preferred e-mail address. Should be a personal email and can be used to uniquely identify a user. Just like the email used for an account.
           example: w.debruijn@example.org
+  securitySchemes:
+    jwtBearerAuth:
+      type: http
+      scheme: bearer
+
+security:
+  - {}
+  - jwtBearerAuth: []

@@ -416,3 +416,11 @@ components:
         endpoint:
           type: string
           description: The endpoint URL.
+  securitySchemes:
+    jwtBearerAuth:
+      type: http
+      scheme: bearer
+
+security:
+  - {}
+  - jwtBearerAuth: []

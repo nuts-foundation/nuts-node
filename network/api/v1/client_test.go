@@ -20,6 +20,7 @@ package v1
 
 import (
 	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -47,8 +48,7 @@ func TestHttpClient_ListTransactions(t *testing.T) {
 		expected := dag.CreateTestTransactionWithJWK(1)
 		data, _ := json.Marshal([]string{string(expected.Data())})
 		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: data})
-		httpClient := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		actual, err := httpClient.ListTransactions()
+		actual, err := getClient(s).ListTransactions()
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -63,22 +63,19 @@ func TestHttpClient_GetTransaction(t *testing.T) {
 	t.Run("200", func(t *testing.T) {
 		expected := dag.CreateTestTransactionWithJWK(1)
 		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: expected.Data()})
-		httpClient := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		actual, err := httpClient.GetTransaction(expected.Ref())
+		actual, err := getClient(s).GetTransaction(expected.Ref())
 		assert.NoError(t, err)
 		assert.Equal(t, expected, actual)
 	})
 	t.Run("not found (404)", func(t *testing.T) {
 		s := httptest.NewServer(handler{statusCode: http.StatusNotFound})
-		httpClient := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		actual, err := httpClient.GetTransaction(hash.EmptyHash())
+		actual, err := getClient(s).GetTransaction(hash.EmptyHash())
 		assert.NoError(t, err)
 		assert.Nil(t, actual)
 	})
 	t.Run("server error (500)", func(t *testing.T) {
 		s := httptest.NewServer(handler{statusCode: http.StatusInternalServerError})
-		httpClient := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		actual, err := httpClient.GetTransaction(hash.EmptyHash())
+		actual, err := getClient(s).GetTransaction(hash.EmptyHash())
 		assert.Error(t, err)
 		assert.Nil(t, actual)
 	})
@@ -88,22 +85,19 @@ func TestHttpClient_GetTransactionPayload(t *testing.T) {
 	t.Run("200", func(t *testing.T) {
 		expected := []byte{5, 4, 3, 2, 1}
 		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: expected})
-		httpClient := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		actual, err := httpClient.GetTransactionPayload(hash.SHA256Sum([]byte{1, 2, 3}))
+		actual, err := getClient(s).GetTransactionPayload(hash.SHA256Sum([]byte{1, 2, 3}))
 		assert.NoError(t, err)
 		assert.Equal(t, expected, actual)
 	})
 	t.Run("not found (404)", func(t *testing.T) {
 		s := httptest.NewServer(handler{statusCode: http.StatusNotFound})
-		httpClient := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		actual, err := httpClient.GetTransactionPayload(hash.EmptyHash())
+		actual, err := getClient(s).GetTransactionPayload(hash.EmptyHash())
 		assert.NoError(t, err)
 		assert.Nil(t, actual)
 	})
 	t.Run("server error (500)", func(t *testing.T) {
 		s := httptest.NewServer(handler{statusCode: http.StatusInternalServerError})
-		httpClient := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		actual, err := httpClient.GetTransactionPayload(hash.EmptyHash())
+		actual, err := getClient(s).GetTransactionPayload(hash.EmptyHash())
 		assert.Error(t, err)
 		assert.Nil(t, actual)
 	})
@@ -114,15 +108,13 @@ func TestHTTPClient_GetPeerDiagnostics(t *testing.T) {
 		expected := map[transport.PeerID]PeerDiagnostics{"foo": {Uptime: 50 * time.Second}}
 		expectedData, _ := json.Marshal(expected)
 		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: expectedData})
-		httpClient := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		actual, err := httpClient.GetPeerDiagnostics()
+		actual, err := getClient(s).GetPeerDiagnostics()
 		assert.NoError(t, err)
 		assert.Equal(t, expected, actual)
 	})
 	t.Run("server error (500)", func(t *testing.T) {
 		s := httptest.NewServer(handler{statusCode: http.StatusInternalServerError})
-		httpClient := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		actual, err := httpClient.GetPeerDiagnostics()
+		actual, err := getClient(s).GetPeerDiagnostics()
 		assert.Error(t, err)
 		assert.Nil(t, actual)
 	})
@@ -131,14 +123,21 @@ func TestHTTPClient_GetPeerDiagnostics(t *testing.T) {
 func TestHTTPClient_Reprocess(t *testing.T) {
 	t.Run("202", func(t *testing.T) {
 		s := httptest.NewServer(handler{statusCode: http.StatusAccepted})
-		httpClient := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		err := httpClient.Reprocess("application/did+json")
+		err := getClient(s).Reprocess("application/did+json")
 		assert.NoError(t, err)
 	})
 	t.Run("bad request (400)", func(t *testing.T) {
 		s := httptest.NewServer(handler{statusCode: http.StatusBadRequest})
-		httpClient := HTTPClient{ServerAddress: s.URL, Timeout: time.Second}
-		err := httpClient.Reprocess("")
+		err := getClient(s).Reprocess("")
 		assert.Error(t, err)
 	})
+}
+
+func getClient(s *httptest.Server) HTTPClient {
+	return HTTPClient{
+		ClientConfig: core.ClientConfig{
+			Address: s.URL,
+			Timeout: time.Second,
+		},
+	}
 }

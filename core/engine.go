@@ -20,14 +20,11 @@
 package core
 
 import (
-	"crypto/tls"
+	"context"
 	"fmt"
-	"github.com/spf13/pflag"
-	"net/url"
-	"os"
-
-	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/pflag"
+	"os"
 )
 
 // Routable enables connecting a REST API to the echo server. The API wrappers should implement this interface
@@ -43,18 +40,6 @@ func NewSystem() *System {
 		engines: []Engine{},
 		Config:  serverCfg,
 		Routers: []Routable{},
-		EchoCreator: func(cfg HTTPConfig) (EchoServer, EchoStarter, error) {
-			var tlsConfig *tls.Config
-			var err error
-			if serverCfg.TLS.Offload == NoOffloading {
-				tlsConfig, err = serverCfg.TLS.Load()
-				if err != nil {
-					return nil, nil, err
-				}
-			}
-
-			return createEchoServer(cfg, tlsConfig, serverCfg.Strictmode, serverCfg.InternalRateLimiter)
-		},
 	}
 	return result
 }
@@ -67,8 +52,10 @@ type System struct {
 	Config *ServerConfig
 	// Routers is used to connect API handlers to the echo server
 	Routers []Routable
-	// EchoCreator is the function that's used to create the echo server
-	EchoCreator func(cfg HTTPConfig) (EchoServer, EchoStarter, error)
+	// Context is cancelled when the system shuts down.
+	Context context.Context
+	// ContextCancel is a function to signal the system should shut down.
+	ContextCancel context.CancelFunc
 }
 
 var coreLogger = logrus.StandardLogger().WithField(LogFieldModule, "core")
@@ -243,24 +230,6 @@ type Injectable interface {
 	Named
 	// Config returns a pointer to the struct that holds the Config.
 	Config() interface{}
-}
-
-// DecodeURIPath is a echo middleware that decodes path parameters
-func DecodeURIPath(next echo.HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		// FIXME: This is a hack because of https://github.com/labstack/echo/issues/1258
-		newValues := make([]string, len(c.ParamValues()))
-		for i, value := range c.ParamValues() {
-			path, err := url.PathUnescape(value)
-			if err != nil {
-				path = value
-			}
-			newValues[i] = path
-		}
-		c.SetParamNames(c.ParamNames()...)
-		c.SetParamValues(newValues...)
-		return next(c)
-	}
 }
 
 func getEngineName(engine Engine) string {

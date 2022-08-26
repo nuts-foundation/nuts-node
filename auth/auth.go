@@ -113,12 +113,8 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 	}
 
 	// TODO: this is verifier/signer specific
-	if auth.config.PublicURL == "" {
-		if config.Strictmode {
-			return ErrMissingPublicURL
-		}
-
-		auth.config.PublicURL = "http://" + config.HTTP.Address
+	if auth.config.PublicURL == "" && config.Strictmode {
+		return ErrMissingPublicURL
 	}
 
 	auth.contractNotary = contract.NewNotary(contract.Config{

@@ -16,6 +16,10 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+const (
+	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
+)
+
 // Non-completed event. An event represents a transaction that is of interest to a specific part of the Nuts node.
 type Event struct {
 	// Lists the last error if the event processing failed due to an error.
@@ -953,6 +957,8 @@ type ServerInterfaceWrapper struct {
 func (w *ServerInterfaceWrapper) RenderGraph(ctx echo.Context) error {
 	var err error
 
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
 	// Parameter object where we will unmarshal all parameters from the context
 	var params RenderGraphParams
 	// ------------- Optional query parameter "start" -------------
@@ -978,6 +984,8 @@ func (w *ServerInterfaceWrapper) RenderGraph(ctx echo.Context) error {
 func (w *ServerInterfaceWrapper) GetPeerDiagnostics(ctx echo.Context) error {
 	var err error
 
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.GetPeerDiagnostics(ctx)
 	return err
@@ -987,6 +995,8 @@ func (w *ServerInterfaceWrapper) GetPeerDiagnostics(ctx echo.Context) error {
 func (w *ServerInterfaceWrapper) ListEvents(ctx echo.Context) error {
 	var err error
 
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.ListEvents(ctx)
 	return err
@@ -995,6 +1005,8 @@ func (w *ServerInterfaceWrapper) ListEvents(ctx echo.Context) error {
 // Reprocess converts echo context to params.
 func (w *ServerInterfaceWrapper) Reprocess(ctx echo.Context) error {
 	var err error
+
+	ctx.Set(JwtBearerAuthScopes, []string{""})
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params ReprocessParams
@@ -1014,6 +1026,8 @@ func (w *ServerInterfaceWrapper) Reprocess(ctx echo.Context) error {
 func (w *ServerInterfaceWrapper) ListTransactions(ctx echo.Context) error {
 	var err error
 
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.ListTransactions(ctx)
 	return err
@@ -1030,6 +1044,8 @@ func (w *ServerInterfaceWrapper) GetTransaction(ctx echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter ref: %s", err))
 	}
 
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.GetTransaction(ctx, ref)
 	return err
@@ -1045,6 +1061,8 @@ func (w *ServerInterfaceWrapper) GetTransactionPayload(ctx echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter ref: %s", err))
 	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{""})
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.GetTransactionPayload(ctx, ref)

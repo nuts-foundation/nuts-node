@@ -18,6 +18,10 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+const (
+	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
+)
+
 // Defines values for AccessTokenRequestFailedResponseError.
 const (
 	InvalidGrant         AccessTokenRequestFailedResponseError = "invalid_grant"
@@ -1760,6 +1764,8 @@ type ServerInterfaceWrapper struct {
 func (w *ServerInterfaceWrapper) IntrospectAccessToken(ctx echo.Context) error {
 	var err error
 
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.IntrospectAccessToken(ctx)
 	return err
@@ -1768,6 +1774,8 @@ func (w *ServerInterfaceWrapper) IntrospectAccessToken(ctx echo.Context) error {
 // VerifyAccessToken converts echo context to params.
 func (w *ServerInterfaceWrapper) VerifyAccessToken(ctx echo.Context) error {
 	var err error
+
+	ctx.Set(JwtBearerAuthScopes, []string{""})
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params VerifyAccessTokenParams
@@ -1800,6 +1808,8 @@ func (w *ServerInterfaceWrapper) VerifyAccessToken(ctx echo.Context) error {
 func (w *ServerInterfaceWrapper) DrawUpContract(ctx echo.Context) error {
 	var err error
 
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.DrawUpContract(ctx)
 	return err
@@ -1808,6 +1818,8 @@ func (w *ServerInterfaceWrapper) DrawUpContract(ctx echo.Context) error {
 // CreateJwtGrant converts echo context to params.
 func (w *ServerInterfaceWrapper) CreateJwtGrant(ctx echo.Context) error {
 	var err error
+
+	ctx.Set(JwtBearerAuthScopes, []string{""})
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.CreateJwtGrant(ctx)
@@ -1818,6 +1830,8 @@ func (w *ServerInterfaceWrapper) CreateJwtGrant(ctx echo.Context) error {
 func (w *ServerInterfaceWrapper) RequestAccessToken(ctx echo.Context) error {
 	var err error
 
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.RequestAccessToken(ctx)
 	return err
@@ -1826,6 +1840,8 @@ func (w *ServerInterfaceWrapper) RequestAccessToken(ctx echo.Context) error {
 // CreateSignSession converts echo context to params.
 func (w *ServerInterfaceWrapper) CreateSignSession(ctx echo.Context) error {
 	var err error
+
+	ctx.Set(JwtBearerAuthScopes, []string{""})
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.CreateSignSession(ctx)
@@ -1843,6 +1859,8 @@ func (w *ServerInterfaceWrapper) GetSignSessionStatus(ctx echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter sessionID: %s", err))
 	}
 
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.GetSignSessionStatus(ctx, sessionID)
 	return err
@@ -1852,6 +1870,8 @@ func (w *ServerInterfaceWrapper) GetSignSessionStatus(ctx echo.Context) error {
 func (w *ServerInterfaceWrapper) VerifySignature(ctx echo.Context) error {
 	var err error
 
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.VerifySignature(ctx)
 	return err
@@ -1860,6 +1880,8 @@ func (w *ServerInterfaceWrapper) VerifySignature(ctx echo.Context) error {
 // CreateAccessToken converts echo context to params.
 func (w *ServerInterfaceWrapper) CreateAccessToken(ctx echo.Context) error {
 	var err error
+
+	ctx.Set(JwtBearerAuthScopes, []string{""})
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.CreateAccessToken(ctx)
@@ -1876,6 +1898,8 @@ func (w *ServerInterfaceWrapper) GetContractByType(ctx echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter contractType: %s", err))
 	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{""})
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetContractByTypeParams

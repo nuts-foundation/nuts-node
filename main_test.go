@@ -21,7 +21,6 @@ package main
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"errors"
 	"fmt"
 	"github.com/knadh/koanf"
@@ -31,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/cmd"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/events"
+	httpEngine "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
@@ -39,7 +39,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 	"syscall"
 	"testing"
@@ -70,69 +69,6 @@ func Test_ServerLifecycle(t *testing.T) {
 	}
 }
 
-// Test_TLSConfiguration tests HTTP TLS termination on the Nuts node.
-// - /n2n is configured to have TLS with server certificate
-// - /public is configured to have TLS with server certificate, requiring a client certificate
-func Test_TLSConfiguration(t *testing.T) {
-	projectDir, _ := os.Getwd()
-	testDirectory := io.TestWorkingDirectory(t)
-
-	runningCtx, nodeStoppedCallback := context.WithCancel(context.Background())
-	serverConfig, moduleConfig := getIntegrationTestConfig(testDirectory)
-	// Configure TLS on /n2n and /metrics
-	certFile := path.Join(projectDir, "test/pki/certificate-and-key.pem")
-	serverConfig.TLS.CertFile = certFile
-	certKeyFile := path.Join(projectDir, "test/pki/certificate-and-key.pem")
-	serverConfig.TLS.CertKeyFile = certKeyFile
-	trustStoreFile := path.Join(projectDir, "test/pki/truststore.pem")
-	serverConfig.TLS.TrustStoreFile = trustStoreFile
-	serverConfig.HTTP.AltBinds["internal"] = core.HTTPConfig{
-		Address: fmt.Sprintf("localhost:%d", test.FreeTCPPort()),
-		TLSMode: core.TLServerClientCertMode,
-	}
-	serverConfig.HTTP.AltBinds["metrics"] = core.HTTPConfig{
-		Address: fmt.Sprintf("localhost:%d", test.FreeTCPPort()),
-		TLSMode: core.TLSServerCertMode,
-	}
-	startCtx := startServer(testDirectory, nodeStoppedCallback, serverConfig, moduleConfig)
-
-	// Wait for the Nuts node to start
-	<-startCtx.Done()
-	if !errors.Is(startCtx.Err(), context.Canceled) {
-		t.Fatalf("Process didn't start before the time-out expired: %v", startCtx.Err())
-	}
-	defer stopNode(t, runningCtx)
-
-	// Assert expected usage of TLS on configured interfaces
-	t.Run("no TLS", func(t *testing.T) {
-		assert.True(t, isHttpRunning(fmt.Sprintf("http://%s/status", serverConfig.HTTP.Address)))
-	})
-	t.Run("server-side TLS", func(t *testing.T) {
-		tlsConfig := tls.Config{
-			RootCAs: x509.NewCertPool(),
-		}
-		trustStoreBytes, _ := os.ReadFile(trustStoreFile)
-		_ = tlsConfig.RootCAs.AppendCertsFromPEM(trustStoreBytes)
-
-		assert.True(t, isHttpsRunning(fmt.Sprintf("https://%s/metrics", serverConfig.HTTP.AltBinds["metrics"].Address), &tlsConfig))
-	})
-	t.Run("server- and client side TLS", func(t *testing.T) {
-		tlsConfig := tls.Config{
-			RootCAs: x509.NewCertPool(),
-		}
-		trustStoreBytes, _ := os.ReadFile(trustStoreFile)
-		_ = tlsConfig.RootCAs.AppendCertsFromPEM(trustStoreBytes)
-
-		tlsConfigWithClientCert := tlsConfig.Clone()
-		clientCert, _ := tls.LoadX509KeyPair(certFile, certKeyFile)
-		tlsConfigWithClientCert.Certificates = []tls.Certificate{clientCert}
-
-		target := fmt.Sprintf("https://%s/internal/network/v1/transaction", serverConfig.HTTP.AltBinds["internal"].Address)
-		assert.False(t, isHttpsRunning(target, &tlsConfig))
-		assert.True(t, isHttpsRunning(target, tlsConfigWithClientCert))
-	})
-}
-
 // Test_LoadExistingDAG tests the lifecycle and persistence of the DAG:
 // - It starts the Nuts node
 // - It creates and then updates a DID document
@@ -156,7 +92,7 @@ func Test_LoadExistingDAG(t *testing.T) {
 	defer stopNode(t, runningCtx)
 
 	// Create and update a DID document
-	vdrClient := createVDRClient(serverConfig.HTTP.Address)
+	vdrClient := createVDRClient(moduleConfig.HTTP.Address)
 	didDocument, err := vdrClient.Create(v1.DIDCreateRequest{})
 	if !assert.NoError(t, err) {
 		return
@@ -178,7 +114,7 @@ func Test_LoadExistingDAG(t *testing.T) {
 	}
 
 	// Assert we can read the DID document
-	vdrClient = createVDRClient(serverConfig.HTTP.Address)
+	vdrClient = createVDRClient(moduleConfig.HTTP.Address)
 	doc, _, err := vdrClient.Get(didDocument.ID.String())
 	if !assert.NoError(t, err) {
 		return
@@ -188,8 +124,10 @@ func Test_LoadExistingDAG(t *testing.T) {
 
 func createVDRClient(address string) v1.HTTPClient {
 	vdrClient := v1.HTTPClient{
-		ServerAddress: "http://" + address,
-		Timeout:       5 * time.Second,
+		ClientConfig: core.ClientConfig{
+			Address: "http://" + address,
+			Timeout: 5 * time.Second,
+		},
 	}
 	return vdrClient
 }
@@ -233,7 +171,7 @@ func startServer(testDirectory string, exitCallback func(), serverConfig core.Se
 		// Wait for the Nuts node to start, until the given timeout. Check every 100ms
 		interval := 100 * time.Millisecond
 		attempts := int(timeout / interval)
-		address := fmt.Sprintf("http://%s/status", koanfInstance.String("http.default.address"))
+		address := fmt.Sprintf("http://%s/status", moduleConfig.HTTP.Address)
 		for i := 0; i < attempts; i++ {
 			if isHttpRunning(address) {
 				cancel()
@@ -276,7 +214,9 @@ func isHttpRunning(address string) bool {
 }
 
 func getIntegrationTestConfig(testDirectory string) (core.ServerConfig, ModuleConfig) {
-	system := cmd.CreateSystem()
+	system := cmd.CreateSystem(func() {
+		panic("test error")
+	})
 	for _, subCmd := range cmd.CreateCommand(system).Commands() {
 		if subCmd.Name() == "server" {
 			_ = system.Load(subCmd.Flags())
@@ -288,7 +228,6 @@ func getIntegrationTestConfig(testDirectory string) (core.ServerConfig, ModuleCo
 	config.LegacyTLS.Enabled = false
 
 	config.Datadir = testDirectory
-	config.HTTP.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
 
 	networkConfig := network.DefaultConfig()
 	networkConfig.GrpcAddr = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
@@ -299,15 +238,20 @@ func getIntegrationTestConfig(testDirectory string) (core.ServerConfig, ModuleCo
 	eventsConfig := events.DefaultConfig()
 	eventsConfig.Nats.Port = test.FreeTCPPort()
 
+	httpConfig := httpEngine.DefaultConfig()
+	httpConfig.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
+
 	return config, ModuleConfig{
 		Network: networkConfig,
 		Auth:    authConfig,
 		Events:  eventsConfig,
+		HTTP:    httpConfig,
 	}
 }
 
 type ModuleConfig struct {
-	Network network.Config `koanf:"network"`
-	Auth    auth.Config    `koanf:"auth"`
-	Events  events.Config  `koanf:"events"`
+	Network network.Config    `koanf:"network"`
+	Auth    auth.Config       `koanf:"auth"`
+	Events  events.Config     `koanf:"events"`
+	HTTP    httpEngine.Config `koanf:"http"`
 }

@@ -46,3 +46,11 @@ components:
           type: string
         claims:
           type: object
+  securitySchemes:
+    jwtBearerAuth:
+      type: http
+      scheme: bearer
+
+security:
+  - {}
+  - jwtBearerAuth: []
