@@ -72,7 +72,7 @@ Cross Origin Resource Sharing (CORS)
 
 In some deployments CORS can be required for the public IRMA authentication endpoints when the user-facing
 authentication page is hosted on a (sub)domain that differs from Nuts Node's IRMA backend. CORS can be enabled on a
-specific HTTP interface by specifying the domains allowed to make CORS requests as `cors.origin`` (see the example above).
+specific HTTP interface by specifying the domains allowed to make CORS requests as ``cors.origin`` (see the example above).
 Although you can enable CORS on the default endpoint it's not advised to do so in a production environment,
 because CORS itself opens up new attack vectors on node administrators.
 
@@ -99,4 +99,4 @@ Diagnostics
 
 To aid problem diagnosis every node in a network should share some information about itself; the type and version of software it's running,
 which peers it is connected to and how long it's been up. This helps others diagnosing issues when others experience communication problems with your, and other nodes.
-Although discouraged, this can be disabled by specifying ``0`` for ``network.advertdiagnosticsinterval``.
+Although discouraged, this can be disabled by specifying ``0`` for ``network.v2.diagnosticsinterval``.

@@ -40,7 +40,7 @@ Your CRM must store the DIDs created for your vendor and your customers. A DID i
 
     did:nuts:2mF6KT6eiSx5y2fwTP4Y42yMUh91zGVkbu4KMARvCJz9
 
-The DID we're about to create is your *vendor DID*. It will be used in the all of the next steps.
+The DID we're about to create is your *vendor DID*. It will be used in all of the next steps.
 For the API calls that will need to be made to the Nuts node, we'll use ``<internal-node-address>`` as the address where the internal API's are exposed.
 Consult the :ref:`configuration reference <nuts-node-config>` on how to configure the node address.
 
@@ -174,6 +174,7 @@ A credential can be issued with the following call:
 
     POST <internal-node-address>/internal/vcr/v2/issuer/vc
     {
+        "@context": "https://nuts.nl/credentials/v1",
         "type": "NutsOrganizationCredential",
         "issuer": "<issuer-did>",
         "credentialSubject": {
@@ -186,7 +187,7 @@ A credential can be issued with the following call:
         "visibility": "public"
     }
 
-Where ``<issuer-did>`` must be replaced with the vendor DID, ``<holder-did>`` must be replaced with the organization DID,``<name>`` and ``<city>`` must be replaced with the correct information.
+Where ``<issuer-did>`` must be replaced with the vendor DID, ``<holder-did>`` must be replaced with the organization DID, ``<name>`` and ``<city>`` must be replaced with the correct information.
 The API will respond with the full Verifiable Credential. It's not required to do anything with that since issued credentials can be found again.
 
 Trusting other vendors as issuer

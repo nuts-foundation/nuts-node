@@ -19,10 +19,10 @@ It'll return an "OK" response and a 200 status code.
 
 .. note::
 
-The provided Docker containers are configured to perform this healthcheck out of the box.
-However, if the default port (:1323) has been changed or if the `/status` endpoint has been bound to a different port,
-the default healthcheck will fail and Docker will mark the container as unhealthy.
-Override the default healthcheck to solve this.
+    The provided Docker containers are configured to perform this healthcheck out of the box.
+    However, if the default port (:1323) has been changed or if the ``/status`` endpoint has been bound to a different port,
+    the default healthcheck will fail and Docker will mark the container as unhealthy.
+    Override the default healthcheck to solve this.
 
 Basic diagnostics
 *****************
@@ -93,17 +93,17 @@ Network DAG Visualization
 
 All network transactions form a directed acyclic graph (DAG) which helps achieving consistency and data completeness.
 Since it's a hard to debug, complex structure, the network API provides a visualization which can be queried
-from `/internal/network/v1/diagnostics/graph`. It is returned in the `dot` format which can then be rendered to an image using
-`dot` or `graphviz` (given you saved the output to `input.dot`):
+from ``/internal/network/v1/diagnostics/graph``. It is returned in the ``dot`` format which can then be rendered to an image using
+``dot`` or ``graphviz`` (given you saved the output to ``input.dot``):
 
 .. code-block:: shell
 
     dot -T png -o output.png input.dot
 
-Using query parameters `start` and `end` it is possible to retrieve a range of transactions.
-`/internal/network/v1/diagnostics/graph?start=10&end=12` will return a graph with all transactions containing Lamport Clock 10 and 11.
-Both parameters need to be non-negative integers, and `start` < `end`. If no value is provided, `start=0` and `end=inf`.
-Querying a range can be useful if only a certain range is of interest, but may also be required to generate the graph using `dot`.
+Using query parameters ``start`` and ``end`` it is possible to retrieve a range of transactions.
+``/internal/network/v1/diagnostics/graph?start=10&end=12`` will return a graph with all transactions containing Lamport Clock 10 and 11.
+Both parameters need to be non-negative integers, and ``start`` < ``end``. If no value is provided, ``start=0`` and ``end=inf``.
+Querying a range can be useful if only a certain range is of interest, but may also be required to generate the graph using ``dot``.
 
 CPU profiling
 *************
