@@ -18,7 +18,7 @@ First check out the project using:
     git clone https://github.com/nuts-foundation/nuts-node
     cd nuts-node
 
-Then create the executable using the `make` command:
+Then create the executable using the ``make`` command:
 
 .. code-block:: shell
 
@@ -30,14 +30,14 @@ Or if make is not available:
 
     go build -ldflags="-w -s -X 'github.com/nuts-foundation/nuts-node/core.GitCommit=GIT_COMMIT' -X 'github.com/nuts-foundation/nuts-node/core.GitBranch=GIT_BRANCH' -X 'github.com/nuts-foundation/nuts-node/core.GitVersion=GIT_VERSION'" -o /path/to/nuts
 
-Make sure `GIT_COMMIT`, `GIT_BRANCH` and `GIT_VERSION` are set as environment variables.
+Make sure ``GIT_COMMIT``, ``GIT_BRANCH`` and ``GIT_VERSION`` are set as environment variables.
 These variables help identifying an administrator and other nodes what version your node is using.
-If this isn't important then replace `GIT_COMMIT` with `0`, `GIT_BRANCH` with `master` and `GIT_VERSION` with `undefined`.
+If this isn't important then replace ``GIT_COMMIT`` with ``0``, ``GIT_BRANCH`` with ``master`` and ``GIT_VERSION`` with ``undefined``.
 
 Starting
 ********
 
-Start the server using the `server` command:
+Start the server using the ``server`` command:
 
 .. code-block:: shell
 

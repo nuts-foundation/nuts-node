@@ -30,7 +30,7 @@ Config parameters for engines are prepended by the ``engine.ConfigKey`` by defau
 is equal to ``$ nuts --engine.nested.parameter X`` is equal to ``$ NUTS_ENGINE_NESTED_PARAMETER=X nuts``
 
 While most options are a single value, some are represented as a list (indicated with the square brackets in the table below).
-To provide multiple values through flags or environment variables you can separate them with a comma (``,``).
+To provide multiple values through flags or environment variables you can separate them with a comma (``var1,var2``).
 
 Ordering
 ********
