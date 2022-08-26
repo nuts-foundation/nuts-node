@@ -73,6 +73,9 @@ type MultiEcho struct {
 // If address wasn't used for another bind and thus leads to creating a new Echo server, it returns true.
 // If an existing Echo server is returned, it returns false.
 func (c *MultiEcho) Bind(path string, address string, creatorFn func() (EchoServer, error)) error {
+	if len(address) == 0 {
+		return errors.New("empty address")
+	}
 	err := c.validateBindPath(path)
 	if err != nil {
 		return err
@@ -146,6 +149,10 @@ func (c *MultiEcho) start(address string, server EchoServer, wg *sync.WaitGroup,
 func (c *MultiEcho) getInterface(path string) EchoServer {
 	bind := c.getBindFromPath(path)
 	return c.interfaces[c.binds[bind]]
+}
+
+func (c *MultiEcho) getAddressForPath(path string) string {
+	return c.binds[c.getBindFromPath(path)]
 }
 
 func (c *MultiEcho) validateBindPath(path string) error {

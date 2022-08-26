@@ -88,8 +88,12 @@ func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 	}
 
 	for httpPath, httpConfig := range h.config.AltBinds {
-		log.Logger().Infof("Binding /%s -> %s", httpPath, httpConfig.Address)
-		if err := h.server.Bind(httpPath, httpConfig.Address, func() (EchoServer, error) {
+		address := httpConfig.Address
+		if len(address) == 0 {
+			address = h.config.Address
+		}
+		log.Logger().Infof("Binding /%s -> %s", httpPath, address)
+		if err := h.server.Bind(httpPath, address, func() (EchoServer, error) {
 			return h.createEchoServer(httpConfig, tlsConfig)
 		}); err != nil {
 			return err
@@ -273,9 +277,11 @@ func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludeP
 		return false
 	}
 
+	address := h.server.getAddressForPath(path)
+
 	// CORS
 	if cfg.CORS.Enabled() {
-		log.Logger().Infof("Enabling CORS for HTTP endpoint: %s/%s", cfg.Address, path)
+		log.Logger().Infof("Enabling CORS for HTTP endpoint: %s%s", address, path)
 		if serverConfig.Strictmode {
 			for _, origin := range cfg.CORS.Origin {
 				if strings.TrimSpace(origin) == "*" {
@@ -288,7 +294,7 @@ func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludeP
 
 	// Auth
 	if cfg.Auth.Type == BearerTokenAuth {
-		log.Logger().Infof("Enabling token authentication for HTTP interface: %s%s", cfg.Address, path)
+		log.Logger().Infof("Enabling token authentication for HTTP interface: %s%s", address, path)
 		echoServer.Use(middleware.JWTWithConfig(middleware.JWTConfig{
 			KeyFunc: func(_ *jwt.Token) (interface{}, error) {
 				signingKey, err := h.signingKeyResolver.Resolve(AdminTokenSigningKID)
