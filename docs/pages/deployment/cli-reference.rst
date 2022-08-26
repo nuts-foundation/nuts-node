@@ -36,7 +36,7 @@ The following options apply to the server commands below:
       --http.default.cors.origin strings              When set, enables CORS from the specified origins on the default HTTP interface.
       --http.default.tls string                       Whether to enable TLS for the default interface, options are 'disabled', 'server', 'server-client'. Leaving it empty is synonymous to 'disabled',
       --internalratelimiter                           When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode. (default true)
-      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson,https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson])
+      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson])
       --jsonld.contexts.remoteallowlist strings       In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here. (default [https://schema.org,https://www.w3.org/2018/credentials/v1,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json])
       --loggerformat string                           Log format (text, json) (default "text")
       --network.bootstrapnodes strings                List of bootstrap nodes ('<host>:<port>') which the node initially connect to.
@@ -124,7 +124,7 @@ Adds a service of the specified type to DID document identified by the given DID
   nuts didman svc add [DID] [type] [endpoint] [flags]
 
   -h, --help   help for add
-      --address string      Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
+      --address string      Address of the node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
       --timeout duration    Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax. (default 10s)
       --token string        Token to be used for authenticating on the remote node. Takes precedence over 'token-file'.
       --token-file string   File from which the authentication token will be read. If not specified it will try to read the token from the '.nuts-client.cfg' file in the user's home dir.
@@ -140,7 +140,7 @@ Deletes a service from a DID document.
   nuts didman svc delete [DID] [type] [flags]
 
   -h, --help   help for delete
-      --address string      Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
+      --address string      Address of the node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
       --timeout duration    Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax. (default 10s)
       --token string        Token to be used for authenticating on the remote node. Takes precedence over 'token-file'.
       --token-file string   File from which the authentication token will be read. If not specified it will try to read the token from the '.nuts-client.cfg' file in the user's home dir.
@@ -223,7 +223,7 @@ Gets a transaction from the network
   nuts network get [ref] [flags]
 
   -h, --help   help for get
-      --address string      Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
+      --address string      Address of the node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
       --timeout duration    Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax. (default 10s)
       --token string        Token to be used for authenticating on the remote node. Takes precedence over 'token-file'.
       --token-file string   File from which the authentication token will be read. If not specified it will try to read the token from the '.nuts-client.cfg' file in the user's home dir.
@@ -240,7 +240,7 @@ Lists the transactions on the network
 
   -h, --help          help for list
       --sort string   sort the results on either time or type (default "time")
-      --address string      Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
+      --address string      Address of the node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
       --timeout duration    Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax. (default 10s)
       --token string        Token to be used for authenticating on the remote node. Takes precedence over 'token-file'.
       --token-file string   File from which the authentication token will be read. If not specified it will try to read the token from the '.nuts-client.cfg' file in the user's home dir.
@@ -256,7 +256,7 @@ Retrieves the payload of a transaction from the network
   nuts network payload [ref] [flags]
 
   -h, --help   help for payload
-      --address string      Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
+      --address string      Address of the node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
       --timeout duration    Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax. (default 10s)
       --token string        Token to be used for authenticating on the remote node. Takes precedence over 'token-file'.
       --token-file string   File from which the authentication token will be read. If not specified it will try to read the token from the '.nuts-client.cfg' file in the user's home dir.
@@ -272,7 +272,7 @@ Get diagnostic information of the node's peers
   nuts network peers [flags]
 
   -h, --help   help for peers
-      --address string      Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
+      --address string      Address of the node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
       --timeout duration    Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax. (default 10s)
       --token string        Token to be used for authenticating on the remote node. Takes precedence over 'token-file'.
       --token-file string   File from which the authentication token will be read. If not specified it will try to read the token from the '.nuts-client.cfg' file in the user's home dir.
@@ -288,7 +288,7 @@ Reprocess all transactions with the give contentType (ex: application/did+json)
   nuts network reprocess [contentType] [flags]
 
   -h, --help   help for reprocess
-      --address string      Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
+      --address string      Address of the node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
       --timeout duration    Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax. (default 10s)
       --token string        Token to be used for authenticating on the remote node. Takes precedence over 'token-file'.
       --token-file string   File from which the authentication token will be read. If not specified it will try to read the token from the '.nuts-client.cfg' file in the user's home dir.
@@ -304,7 +304,7 @@ List trusted issuers for given credential type
   nuts vcr list-trusted [type] [flags]
 
   -h, --help   help for list-trusted
-      --address string      Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
+      --address string      Address of the node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
       --timeout duration    Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax. (default 10s)
       --token string        Token to be used for authenticating on the remote node. Takes precedence over 'token-file'.
       --token-file string   File from which the authentication token will be read. If not specified it will try to read the token from the '.nuts-client.cfg' file in the user's home dir.
@@ -320,7 +320,7 @@ List untrusted issuers for given credential type
   nuts vcr list-untrusted [type] [flags]
 
   -h, --help   help for list-untrusted
-      --address string      Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
+      --address string      Address of the node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
       --timeout duration    Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax. (default 10s)
       --token string        Token to be used for authenticating on the remote node. Takes precedence over 'token-file'.
       --token-file string   File from which the authentication token will be read. If not specified it will try to read the token from the '.nuts-client.cfg' file in the user's home dir.
@@ -336,7 +336,7 @@ Trust VCs of a certain credential type when published by the given issuer.
   nuts vcr trust [type] [issuer DID] [flags]
 
   -h, --help   help for trust
-      --address string      Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
+      --address string      Address of the node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
       --timeout duration    Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax. (default 10s)
       --token string        Token to be used for authenticating on the remote node. Takes precedence over 'token-file'.
       --token-file string   File from which the authentication token will be read. If not specified it will try to read the token from the '.nuts-client.cfg' file in the user's home dir.
@@ -352,7 +352,7 @@ Untrust VCs of a certain credential type when published by the given issuer.
   nuts vcr untrust [type] [issuer DID] [flags]
 
   -h, --help   help for untrust
-      --address string      Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
+      --address string      Address of the node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
       --timeout duration    Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax. (default 10s)
       --token string        Token to be used for authenticating on the remote node. Takes precedence over 'token-file'.
       --token-file string   File from which the authentication token will be read. If not specified it will try to read the token from the '.nuts-client.cfg' file in the user's home dir.
@@ -368,7 +368,7 @@ Add a key agreement key to the DID document. It must be a reference to an existi
   nuts vdr add-keyagreement [KID] [flags]
 
   -h, --help   help for add-keyagreement
-      --address string      Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
+      --address string      Address of the node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
       --timeout duration    Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax. (default 10s)
       --token string        Token to be used for authenticating on the remote node. Takes precedence over 'token-file'.
       --token-file string   File from which the authentication token will be read. If not specified it will try to read the token from the '.nuts-client.cfg' file in the user's home dir.
@@ -384,7 +384,7 @@ Add a verification method key to the DID document.
   nuts vdr addvm [DID] [flags]
 
   -h, --help   help for addvm
-      --address string      Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
+      --address string      Address of the node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
       --timeout duration    Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax. (default 10s)
       --token string        Token to be used for authenticating on the remote node. Takes precedence over 'token-file'.
       --token-file string   File from which the authentication token will be read. If not specified it will try to read the token from the '.nuts-client.cfg' file in the user's home dir.
@@ -402,7 +402,7 @@ Print conflicted documents and their metadata
       --document   Pass 'true' to only print the document (unless other flags are provided as well).
   -h, --help       help for conflicted
       --metadata   Pass 'true' to only print the metadata (unless other flags are provided as well).
-      --address string      Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
+      --address string      Address of the node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
       --timeout duration    Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax. (default 10s)
       --token string        Token to be used for authenticating on the remote node. Takes precedence over 'token-file'.
       --token-file string   File from which the authentication token will be read. If not specified it will try to read the token from the '.nuts-client.cfg' file in the user's home dir.
@@ -425,7 +425,7 @@ Registers a new DID
   -h, --help                   help for create-did
       --keyAgreement           Pass 'true' to enable keyAgreement capabilities.
       --selfControl            Pass 'false' to disable DID Document control. (default true)
-      --address string      Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
+      --address string      Address of the node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
       --timeout duration    Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax. (default 10s)
       --token string        Token to be used for authenticating on the remote node. Takes precedence over 'token-file'.
       --token-file string   File from which the authentication token will be read. If not specified it will try to read the token from the '.nuts-client.cfg' file in the user's home dir.
@@ -441,7 +441,7 @@ Deactivate a DID document based on its DID
   nuts vdr deactivate [DID] [flags]
 
   -h, --help   help for deactivate
-      --address string      Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
+      --address string      Address of the node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
       --timeout duration    Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax. (default 10s)
       --token string        Token to be used for authenticating on the remote node. Takes precedence over 'token-file'.
       --token-file string   File from which the authentication token will be read. If not specified it will try to read the token from the '.nuts-client.cfg' file in the user's home dir.
@@ -457,7 +457,7 @@ Deletes a verification method from the DID document.
   nuts vdr delvm [DID] [kid] [flags]
 
   -h, --help   help for delvm
-      --address string      Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
+      --address string      Address of the node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
       --timeout duration    Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax. (default 10s)
       --token string        Token to be used for authenticating on the remote node. Takes precedence over 'token-file'.
       --token-file string   File from which the authentication token will be read. If not specified it will try to read the token from the '.nuts-client.cfg' file in the user's home dir.
@@ -475,7 +475,7 @@ Resolve a DID document based on its DID
       --document   Pass 'true' to only print the document (unless other flags are provided as well).
   -h, --help       help for resolve
       --metadata   Pass 'true' to only print the metadata (unless other flags are provided as well).
-      --address string      Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
+      --address string      Address of the node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
       --timeout duration    Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax. (default 10s)
       --token string        Token to be used for authenticating on the remote node. Takes precedence over 'token-file'.
       --token-file string   File from which the authentication token will be read. If not specified it will try to read the token from the '.nuts-client.cfg' file in the user's home dir.
@@ -491,7 +491,7 @@ Update a DID with the given DID document, this replaces the DID document. If no 
   nuts vdr update [DID] [hash] [file] [flags]
 
   -h, --help   help for update
-      --address string      Address of the remote node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
+      --address string      Address of the node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
       --timeout duration    Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax. (default 10s)
       --token string        Token to be used for authenticating on the remote node. Takes precedence over 'token-file'.
       --token-file string   File from which the authentication token will be read. If not specified it will try to read the token from the '.nuts-client.cfg' file in the user's home dir.
