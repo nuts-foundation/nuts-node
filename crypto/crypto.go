@@ -29,12 +29,15 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"path"
+	"regexp"
 )
 
 const (
 	// ModuleName contains the name of this module
 	ModuleName = "Crypto"
 )
+
+var kidPattern = regexp.MustCompile(`^[\da-zA-Z_\- :#.]+$`)
 
 // Config holds the values for the crypto engine
 type Config struct {
@@ -119,6 +122,9 @@ func (client *Crypto) New(namingFunc KIDNamingFunc) (Key, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err = validateKID(kid); err != nil {
+		return nil, err
+	}
 	if err = client.Storage.SavePrivateKey(kid, keyPair); err != nil {
 		return nil, fmt.Errorf("could not create new keypair: could not save private key: %w", err)
 	}
@@ -150,10 +156,16 @@ func generateECKeyPair() (*ecdsa.PrivateKey, error) {
 
 // Exists checks storage for an entry for the given legal entity and returns true if it exists
 func (client *Crypto) Exists(kid string) bool {
+	if err := validateKID(kid); err != nil {
+		return false
+	}
 	return client.Storage.PrivateKeyExists(kid)
 }
 
 func (client *Crypto) Resolve(kid string) (Key, error) {
+	if err := validateKID(kid); err != nil {
+		return nil, err
+	}
 	keypair, err := client.Storage.GetPrivateKey(kid)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
@@ -182,4 +194,11 @@ func (e keySelector) KID() string {
 
 func (e keySelector) Public() crypto.PublicKey {
 	return e.privateKey.Public()
+}
+
+func validateKID(kid string) error {
+	if !kidPattern.MatchString(kid) {
+		return fmt.Errorf("invalid key ID: %s", kid)
+	}
+	return nil
 }

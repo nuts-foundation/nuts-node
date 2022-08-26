@@ -173,6 +173,12 @@ func TestCrypto_SignJWT(t *testing.T) {
 
 		assert.True(t, errors.Is(err, ErrPrivateKeyNotFound))
 	})
+
+	t.Run("returns error for invalid KID", func(t *testing.T) {
+		_, err := client.SignJWT(map[string]interface{}{"iss": "nuts"}, "../certificate")
+
+		assert.ErrorContains(t, err, "invalid key ID")
+	})
 }
 
 func TestSignJWS(t *testing.T) {

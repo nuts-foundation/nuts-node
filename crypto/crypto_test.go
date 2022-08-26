@@ -33,7 +33,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCrypto_PrivateKeyExists(t *testing.T) {
+func TestCrypto_Exists(t *testing.T) {
 	client := createCrypto(t)
 
 	kid := "kid"
@@ -45,6 +45,10 @@ func TestCrypto_PrivateKeyExists(t *testing.T) {
 
 	t.Run("returns false for non-existing key", func(t *testing.T) {
 		assert.False(t, client.Exists("unknown"))
+	})
+
+	t.Run("returns false for invalid kid", func(t *testing.T) {
+		assert.False(t, client.Exists("../"))
 	})
 }
 
@@ -58,6 +62,15 @@ func TestCrypto_New(t *testing.T) {
 		assert.NotNil(t, key.Signer())
 		assert.NotNil(t, key.Public())
 		assert.Equal(t, kid, key.KID())
+	})
+
+	t.Run("error - invalid KID", func(t *testing.T) {
+		kid := "../certifucate"
+
+		key, err := client.New(StringNamingFunc(kid))
+
+		assert.ErrorContains(t, err, "invalid key ID")
+		assert.Nil(t, key)
 	})
 
 	t.Run("error - NamingFunction returns err", func(t *testing.T) {
@@ -97,7 +110,14 @@ func TestCrypto_Resolve(t *testing.T) {
 		assert.Equal(t, key, resolvedKey)
 	})
 
-	t.Run("not found", func(t *testing.T) {
+	t.Run("error - invalid kid", func(t *testing.T) {
+		resolvedKey, err := client.Resolve("../certificate")
+
+		assert.ErrorContains(t, err, "invalid key ID")
+		assert.Nil(t, resolvedKey)
+	})
+
+	t.Run("error - not found", func(t *testing.T) {
 		_, err := client.Resolve("no kidding")
 
 		assert.Equal(t, ErrPrivateKeyNotFound, err)
@@ -155,4 +175,19 @@ func createCrypto(t *testing.T) *Crypto {
 		Storage: backend,
 	}
 	return &c
+}
+
+func Test_validateKID(t *testing.T) {
+	t.Run("good KIDs", func(t *testing.T) {
+		assert.NoError(t, validateKID("admin-token-signing-key"))
+		assert.NoError(t, validateKID("did:nuts:2pgo54Z3ytC5EdjBicuJPe5gHyAsjF6rVio1FadSX74j#GxL7A5XNFr_tHcBW_fKCndGGko8DKa2ivPgJAGR0krA"))
+		assert.NoError(t, validateKID("did:nuts:3dGjPPeEuHsyNMgJwHkGX3HuJkEEnZ8H19qBqTaqLDbt#JwIR4Vct-EELNKeeB0BZ8Uff_rCZIrOhoiyp5LDFl68"))
+		assert.NoError(t, validateKID("did:nuts:BC5MtUzAncmfuGejPFGEgM2k8UfrKZVbbGyFeoG9JEEn#l2swLI0wus8gnzbI3sQaaiE7Yvv2qOUioaIZ8y_JZXs"))
+	})
+	t.Run("bad KIDs", func(t *testing.T) {
+		assert.Error(t, validateKID("../server-certificate"))
+		assert.Error(t, validateKID("\\"))
+		assert.Error(t, validateKID(""))
+		assert.Error(t, validateKID("\t"))
+	})
 }
