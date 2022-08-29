@@ -13,7 +13,7 @@ paths:
       summary: Creates a new Nuts DID
       description: |
         The DID Document will be created according to the given request. If a combination of options is not allowed, a 400 is returned.
-        The default values for selfControl, assertionMethod and capabilityInvocation are true. The default for controllers is an empty list. All other options default to false.
+        The default values for selfControl, assertionMethod, keyAgreement, and capabilityInvocation are true. The default for controllers is an empty list. All other options default to false.
         Only a single keypair will be generated. All enabled methods will reuse the same key pair. A seperate keypair will be generated to generate the DID if SelfControl is false.
 
         error returns:
