@@ -65,10 +65,11 @@ Prints the current config
       --network.v2.gossipinterval int                 Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes. (default 5000)
       --storage.bbolt.backup.directory string         Target directory for BBolt database backups.
       --storage.bbolt.backup.interval duration        Interval, formatted as Golang duration (e.g. 10m, 1h) at which BBolt database backups will be performed.
-      --storage.redis.address string                  Redis database server address.
+      --storage.redis.address host:port               Redis database server address. This can be a simple host:port or a Redis connection URL with scheme, auth and other options.
       --storage.redis.database string                 Redis database name, which is used as prefix every key. Can be used to have multiple instances use the same Redis instance.
-      --storage.redis.password string                 Redis database password.
-      --storage.redis.username string                 Redis database username.
+      --storage.redis.password string                 Redis database password. If set, it overrides the username in the connection URL.
+      --storage.redis.tls.truststorefile string       PEM file containing the trusted CA certificate(s) for authenticating remote Redis servers. Can only be used when connecting over TLS (use 'rediss://' as scheme in address).
+      --storage.redis.username string                 Redis database username. If set, it overrides the username in the connection URL.
       --strictmode                                    When set, insecure settings are forbidden.
       --tls.certheader string                         Name of the HTTP header that will contain the client certificate when TLS is offloaded.
       --tls.offload tls.certheader                    Whether to enable TLS offloading for incoming connections. If enabled tls.certheader must be configured as well.
@@ -124,10 +125,11 @@ Imports private keys from filesystem based storage into Vault. The given directo
       --network.v2.gossipinterval int                 Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes. (default 5000)
       --storage.bbolt.backup.directory string         Target directory for BBolt database backups.
       --storage.bbolt.backup.interval duration        Interval, formatted as Golang duration (e.g. 10m, 1h) at which BBolt database backups will be performed.
-      --storage.redis.address string                  Redis database server address.
+      --storage.redis.address host:port               Redis database server address. This can be a simple host:port or a Redis connection URL with scheme, auth and other options.
       --storage.redis.database string                 Redis database name, which is used as prefix every key. Can be used to have multiple instances use the same Redis instance.
-      --storage.redis.password string                 Redis database password.
-      --storage.redis.username string                 Redis database username.
+      --storage.redis.password string                 Redis database password. If set, it overrides the username in the connection URL.
+      --storage.redis.tls.truststorefile string       PEM file containing the trusted CA certificate(s) for authenticating remote Redis servers. Can only be used when connecting over TLS (use 'rediss://' as scheme in address).
+      --storage.redis.username string                 Redis database username. If set, it overrides the username in the connection URL.
       --strictmode                                    When set, insecure settings are forbidden.
       --tls.certheader string                         Name of the HTTP header that will contain the client certificate when TLS is offloaded.
       --tls.offload tls.certheader                    Whether to enable TLS offloading for incoming connections. If enabled tls.certheader must be configured as well.
@@ -282,10 +284,11 @@ Starts the Nuts server
       --network.v2.gossipinterval int                 Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes. (default 5000)
       --storage.bbolt.backup.directory string         Target directory for BBolt database backups.
       --storage.bbolt.backup.interval duration        Interval, formatted as Golang duration (e.g. 10m, 1h) at which BBolt database backups will be performed.
-      --storage.redis.address string                  Redis database server address.
+      --storage.redis.address host:port               Redis database server address. This can be a simple host:port or a Redis connection URL with scheme, auth and other options.
       --storage.redis.database string                 Redis database name, which is used as prefix every key. Can be used to have multiple instances use the same Redis instance.
-      --storage.redis.password string                 Redis database password.
-      --storage.redis.username string                 Redis database username.
+      --storage.redis.password string                 Redis database password. If set, it overrides the username in the connection URL.
+      --storage.redis.tls.truststorefile string       PEM file containing the trusted CA certificate(s) for authenticating remote Redis servers. Can only be used when connecting over TLS (use 'rediss://' as scheme in address).
+      --storage.redis.username string                 Redis database username. If set, it overrides the username in the connection URL.
       --strictmode                                    When set, insecure settings are forbidden.
       --tls.certheader string                         Name of the HTTP header that will contain the client certificate when TLS is offloaded.
       --tls.offload tls.certheader                    Whether to enable TLS offloading for incoming connections. If enabled tls.certheader must be configured as well.
