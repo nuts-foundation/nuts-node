@@ -78,7 +78,7 @@ All paths start with a security ``<context>``:
 - ``/n2n/**`` These APIs must be available to other nodes from the network.
   This means they must be protected with the required client certificate as specified by `RFC011 <https://nuts-foundation.gitbook.io/drafts/rfc/rfc011-verifiable-credential>`_.
   The creation of an access token is one example of such an API.
-- ``/public/**`` These APIs must be publicly available on a valid domain. Must set NO security other than a server certificate.
+- ``/public/**`` These APIs must be publicly available on a valid domain. No security must be configured other than a server certificate.
   These APIs are used by mobile devices.
 
 After the context, the ``<engine>`` is expected. An engine defines a logical unit of functionality.

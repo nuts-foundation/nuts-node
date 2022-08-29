@@ -96,11 +96,11 @@ You typically configure 2 subdomains for these, given `example.com` and the acce
 
 * `nuts-acc.example.com` for traffic between nodes:
 
-   * HTTP traffic to `/n2n`
+   * HTTP traffic to ``/n2n``
 
-   * gRPC traffic. gRPC will have to be bound on a separate port, e.g. `5555` (default).
+   * gRPC traffic, which will have to be bound on a separate port, e.g. ``5555`` (default).
 
-* `nuts-public-acc.example.com` for HTTP traffic to `/public`
+* ``nuts-public-acc.example.com`` for HTTP traffic to ``/public``
 
 These exact subdomain names are by no means required and can be adjusted to your organization's requirements.
 

@@ -15,7 +15,7 @@ The main goal of the service is to give a YES/NO answer for if the service is ru
 
     GET /status
 
-Returns an "OK" response body wit status code 200.
+Returns an "OK" response body with status code ``200``.
 
 .. note::
 
@@ -31,7 +31,7 @@ Basic diagnostics
 
     GET /status/diagnostics
 
-Returns some text displaying the current status of the various services in ``yaml`` format:
+Returns the status of the various services in ``yaml`` format:
 
 .. code-block:: text
 
