@@ -3,7 +3,7 @@ generate:
   echo-server: true
   client: true
   models: true
-  spec: true
+  embedded-spec: true
 output-options:
   user-templates:
     echo/echo-register.tmpl: "// PATCH: This template file was taken from pkg/codegen/templates/echo/echo-register.tmpl\n\n//

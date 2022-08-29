@@ -3,7 +3,7 @@ generate:
   echo-server: true
   client: true
   models: true
-  spec: true
+  embedded-spec: true
 output-options:
   skip-prune: true
   user-templates:

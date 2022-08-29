@@ -22,6 +22,10 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+type RouteRegisterer interface {
+	RegisterRoutes(routable Routable)
+}
+
 // EchoRouter is the interface the generated server API's will require as the Routes func argument
 type EchoRouter interface {
 	Add(method, path string, handler echo.HandlerFunc, middleware ...echo.MiddlewareFunc) *echo.Route

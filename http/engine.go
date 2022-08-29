@@ -58,6 +58,22 @@ type Engine struct {
 	config             Config
 }
 
+func (h Engine) RegisterRoutes(routable core.Routable) {
+	routable.Routes(h.server)
+	if routeSpec, ok := routable.(core.RouteSpec); ok {
+		path := fmt.Sprintf("/spec/%s/v%d", strings.ToLower(routeSpec.Name()), routeSpec.Version())
+		log.Logger().Debugf("OpenAPI spec registered on %s", path)
+		h.server.GET(path, func(c echo.Context) error {
+			spec, err := routeSpec.JsonSpec()
+			if err != nil {
+				// TODO: When can this occur?
+				return err
+			}
+			return c.Blob(http.StatusOK, "application/json", spec)
+		})
+	}
+}
+
 // Router returns the router of the HTTP engine, which can be used by other engines to register HTTP handlers.
 func (h Engine) Router() core.EchoRouter {
 	return h.server

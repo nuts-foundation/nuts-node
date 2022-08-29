@@ -1,6 +1,6 @@
 package: ssiTypes
 generate:
   models: true
-  spec: true
+  embedded-spec: true
 output-options:
   skip-prune: true

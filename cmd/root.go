@@ -137,14 +137,14 @@ func startServer(ctx context.Context, system *core.System) error {
 	}
 
 	// register HTTP routes (lookup router in engines first)
-	var router core.EchoRouter
+	var routeRegisterer core.RouteRegisterer
 	system.VisitEngines(func(curr core.Engine) {
-		if instance, ok := curr.(*httpEngine.Engine); ok {
-			router = instance.Router()
+		if instance, ok := curr.(core.RouteRegisterer); ok {
+			routeRegisterer = instance
 		}
 	})
 	for _, r := range system.Routers {
-		r.Routes(router)
+		routeRegisterer.RegisterRoutes(r)
 	}
 
 	// start engines

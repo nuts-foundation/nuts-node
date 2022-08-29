@@ -33,8 +33,7 @@ type Routable interface {
 	Routes(router EchoRouter)
 }
 
-type RoutableWithSpec interface {
-	Routable
+type RouteSpec interface {
 	// Version returns the version number of the API.
 	Version() int
 	// JsonSpec returns the OpenAPI specification for the API in JSON format.

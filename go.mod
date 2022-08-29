@@ -9,6 +9,7 @@ require (
 	github.com/avast/retry-go/v4 v4.1.0
 	github.com/cbroglie/mustache v1.4.0
 	github.com/deepmap/oapi-codegen v1.11.0
+	github.com/getkin/kin-openapi v0.94.0
 	github.com/go-redis/redis/v9 v9.0.0-beta.2
 	github.com/golang/mock v1.6.0
 	github.com/goodsign/monday v1.0.0
@@ -74,8 +75,11 @@ require (
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/fxamacker/cbor v1.5.0 // indirect
 	github.com/getsentry/raven-go v0.0.0-20180121060056-563b81fc02b7 // indirect
+	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-chi/chi v3.3.3+incompatible // indirect
 	github.com/go-errors/errors v1.0.1 // indirect
+	github.com/go-openapi/jsonpointer v0.19.5 // indirect
+	github.com/go-openapi/swag v0.21.1 // indirect
 	github.com/go-redis/redis/v8 v8.11.4 // indirect
 	github.com/go-redsync/redsync/v4 v4.5.1 // indirect
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
@@ -106,6 +110,7 @@ require (
 	github.com/jasonlvhit/gocron v0.0.0-20180312192515-54194c9749d4 // indirect
 	github.com/jinzhu/gorm v1.9.12 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/josharian/intern v1.0.0 // indirect
 	github.com/klauspost/compress v1.14.4 // indirect
 	github.com/labstack/gommon v0.3.1 // indirect
 	github.com/lestrrat-go/backoff/v2 v2.0.8 // indirect
@@ -114,6 +119,7 @@ require (
 	github.com/lestrrat-go/iter v1.0.2 // indirect
 	github.com/lestrrat-go/option v1.0.0 // indirect
 	github.com/lib/pq v1.3.0 // indirect
+	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect

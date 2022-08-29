@@ -43,7 +43,7 @@ import (
 
 var _ ServerInterface = (*Wrapper)(nil)
 var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
-var _ core.RoutableWithSpec = (*Wrapper)(nil)
+var _ core.RouteSpec = (*Wrapper)(nil)
 
 var clockFn = func() time.Time {
 	return time.Now()
