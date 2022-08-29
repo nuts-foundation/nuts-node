@@ -401,7 +401,7 @@ components:
         keyAgreement:
           type: boolean
           description: indicates if the generated key pair can be used for Key agreements.
-          default: false
+          default: true
         selfControl:
           type: boolean
           description: whether the generated DID Document can be altered with its own capabilityInvocation key.
