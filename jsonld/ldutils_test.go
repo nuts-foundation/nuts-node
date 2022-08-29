@@ -157,24 +157,21 @@ func TestNewContextLoader(t *testing.T) {
 		// loader.LoadDocument("http://schema.org")
 		mux := http.NewServeMux()
 
-		// Stage 1 of the stub
-		f1 := func(w http.ResponseWriter, r *http.Request) {
+		// Stage 1 of the stub;
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/html")
 			w.Header().Add("Link", `</docs/jsonldcontext.jsonld>; rel="alternate"; type="application/ld+json"`)
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprintln(w, "{}") // Empty valid JSON
-		}
+		})
 
-		// Stage 2 of the stub
-		f2 := func(w http.ResponseWriter, r *http.Request) {
+		// Stage 2 of the stub;
+		mux.HandleFunc("/docs/", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/ld+json")
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprintln(w, "{}") // Empty valid JSON
-		}
+		})
 
-		// Register stub routes
-		mux.HandleFunc("/", f1)
-		mux.HandleFunc("/docs/", f2)
 		stubSrv := httptest.NewServer(mux)
 
 		defer stubSrv.Close()
