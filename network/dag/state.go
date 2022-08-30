@@ -150,17 +150,31 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 
 	// the tx may contain a large number of prevs. Reading those TXs inside the write-transaction may cause it to timeout.
 	// See https://github.com/nuts-foundation/nuts-node/issues/1391
+	var present bool
 	if err := s.db.Read(ctx, func(tx stoabs.ReadTx) error {
+		// Check TX presence before calling verifiers to avoid executing expensive checks (e.g. TXs with lots of prevs, signatures)
+		present = s.graph.isPresent(tx, transaction.Ref())
+		if present {
+			return nil
+		}
 		return s.verifyTX(tx, transaction)
 	}); err != nil {
 		return err
 	}
+	if present {
+		// TX already present on DAG, nothing to do
+		return nil
+	}
 
 	return s.db.Write(ctx, func(tx stoabs.WriteTx) error {
-		present := s.graph.isPresent(tx, transaction.Ref())
-		if present {
+		// TX already present on DAG, nothing to do
+		// We need to do this check again, because a concurrent call could've added the TX (e.g. we got it from another peer).
+		// This is due to verifications being performed in a separate read-transaction above.
+		// A TX must not be added twice, because it will corrupt the XOR and IBLT trees.
+		if s.graph.isPresent(tx, transaction.Ref()) {
 			return nil
 		}
+
 		// control the afterCommit hooks
 		txAdded = true
 
