@@ -596,6 +596,10 @@ github.com/nuts-foundation/go-leia/v3 v3.1.3 h1:Kfo0SOOEoKy4DJ0CkZMtGipc6JFqqaP4
 github.com/nuts-foundation/go-leia/v3 v3.1.3/go.mod h1:Md202F2wpwkXGtOUzyqs0p1Y96+wOY8lpmDT9nuaxE0=
 github.com/nuts-foundation/go-stoabs v0.0.0-20220801125019-c5537ed90d27 h1:HvR3pHRNCGm3HgBhwH1NTHRtcN70ig7664OgiflJMVc=
 github.com/nuts-foundation/go-stoabs v0.0.0-20220801125019-c5537ed90d27/go.mod h1:LRp5bOKVmTMTPzbIJsNN3AQ9CfyrKWOk+wSCQ9tG0CU=
+github.com/nuts-foundation/go-stoabs v0.0.0-20220815085639-c07fa38039e8 h1:BAfceb+f4dTgk7fXbnru4+psmn8zB8TcCN9+CNvBkQ8=
+github.com/nuts-foundation/go-stoabs v0.0.0-20220815085639-c07fa38039e8/go.mod h1:FzYovtpUhAjYFaiVvgFfT06iF0+MRaTgcaqQ6MVIq7Y=
+github.com/nuts-foundation/go-stoabs v0.0.0-20220830130753-e6e5db9265d3 h1:wlUsEfhiFbKhy0/EIe0xOHqnC90K1Om9FrXr4bPDGMM=
+github.com/nuts-foundation/go-stoabs v0.0.0-20220830130753-e6e5db9265d3/go.mod h1:FzYovtpUhAjYFaiVvgFfT06iF0+MRaTgcaqQ6MVIq7Y=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=
 github.com/nxadm/tail v1.4.8/go.mod h1:+ncqLTQzXmGhMZNUePPaPqPvBxHAIsmXswZKocGu+AU=
