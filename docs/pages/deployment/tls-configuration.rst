@@ -110,8 +110,7 @@ Refer to the HAProxy documentation for more information.
 
 .. note::
 
-    In a (level 4) pass-through configuration, the origin IP address for all connections to the Nuts node will be equal to that of the load balancer.
-    You will have to handle IP logging in this configuration yourself.
+    In a (level 4) pass-through configuration, the Nuts node will see the load balancer as origin (IP) for all incoming connections.
 
 TLS Offloading
 **************
@@ -129,7 +128,7 @@ In addition to the general TLS configuration, you need to configure the followin
 
 * ``tls.offload`` needs to be set to ``incoming``
 * ``tls.certheader`` needs to be set to the name of the header in which your proxy sets the certificate (e.g. ``X-SSl-CERT``).
-  The certificate must in be PEM or base64 encoded DER format.
+  The certificate must be in PEM or base64 encoded DER format.
 * Disable/remove TLS configuration for HTTP interfaces.
 * Bind the ``/n2n`` and ``/public`` endpoints to specific different HTTP interfaces to avoid accidentally exposing internal HTTP endpoints.
 
