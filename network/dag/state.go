@@ -148,6 +148,14 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 	txAdded := false
 	emitPayloadEvent := false
 
+	// the tx may contain a large number of prevs. Reading those TXs inside the write-transaction may cause it to timeout.
+	// See https://github.com/nuts-foundation/nuts-node/issues/1391
+	if err := s.db.Read(ctx, func(tx stoabs.ReadTx) error {
+		return s.verifyTX(tx, transaction)
+	}); err != nil {
+		return err
+	}
+
 	return s.db.Write(ctx, func(tx stoabs.WriteTx) error {
 		present := s.graph.isPresent(tx, transaction.Ref())
 		if present {
@@ -156,9 +164,6 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 		// control the afterCommit hooks
 		txAdded = true
 
-		if err := s.verifyTX(tx, transaction); err != nil {
-			return err
-		}
 		if payload != nil {
 			emitPayloadEvent = true
 			payloadHash := hash.SHA256Sum(payload)
