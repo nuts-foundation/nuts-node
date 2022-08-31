@@ -6,7 +6,7 @@ Release notes
 What has been changed, and how to update between versions.
 
 *****************
-Chestnut update (v4.2.1)
+Chestnut update (v4.2.2)
 *****************
 
 Release date: 2022-08-31
