@@ -153,6 +153,7 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 	var present bool
 	if err := s.db.Read(ctx, func(tx stoabs.ReadTx) error {
 		// Check TX presence before calling verifiers to avoid executing expensive checks (e.g. TXs with lots of prevs, signatures)
+		// It does not prevent 100% of duplicate checks since race conditions may apply during a read TX.
 		present = s.graph.isPresent(tx, transaction.Ref())
 		if present {
 			return nil
