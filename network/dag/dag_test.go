@@ -21,7 +21,6 @@ package dag
 import (
 	"context"
 	"github.com/nuts-foundation/go-stoabs"
-	"math"
 	"sort"
 	"strings"
 	"testing"
@@ -273,7 +272,7 @@ func TestDAG_Add(t *testing.T) {
 
 		_ = graph.db.Read(ctx, func(tx stoabs.ReadTx) error {
 			// Assert we can find the TX, but make sure it's only there once
-			actual, _ := graph.findBetweenLC(tx, 0, math.MaxUint32)
+			actual, _ := graph.findBetweenLC(tx, 0, MaxLamportClock)
 			assert.Len(t, actual, 1)
 			return nil
 		})
@@ -287,7 +286,7 @@ func TestDAG_Add(t *testing.T) {
 		err := addTxErr(graph, root2)
 		assert.EqualError(t, err, "root transaction already exists")
 		_ = graph.db.Read(ctx, func(tx stoabs.ReadTx) error {
-			actual, _ := graph.findBetweenLC(tx, 0, math.MaxUint32)
+			actual, _ := graph.findBetweenLC(tx, 0, MaxLamportClock)
 			assert.Len(t, actual, 1)
 			return nil
 		})

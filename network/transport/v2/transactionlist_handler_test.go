@@ -23,7 +23,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -104,7 +103,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		conversation := p.cMan.startConversation(request, peerID)
 		envelope := envelopeWithConversation(conversation)
 		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(dag.ErrPreviousTransactionMissing)
-		mocks.State.EXPECT().XOR(context.Background(), uint32(math.MaxUint32)).Return(hash.FromSlice([]byte("stateXor")), uint32(7))
+		mocks.State.EXPECT().XOR(context.Background(), uint32(dag.MaxLamportClock)).Return(hash.FromSlice([]byte("stateXor")), uint32(7))
 		mocks.Sender.EXPECT().sendState(peer.ID, hash.FromSlice([]byte("stateXor")), uint32(7))
 
 		err := p.handleTransactionList(peer, envelope)

@@ -24,7 +24,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
-	"math"
 	"sync"
 
 	"github.com/nuts-foundation/go-stoabs"
@@ -427,7 +426,7 @@ func (s *state) Start() error {
 // TODO problematic for large sets. Currently not used, see #1216
 func (s *state) Verify(ctx context.Context) error {
 	return s.db.Read(ctx, func(dbTx stoabs.ReadTx) error {
-		transactions, err := s.graph.findBetweenLC(dbTx, 0, math.MaxUint32)
+		transactions, err := s.graph.findBetweenLC(dbTx, 0, MaxLamportClock)
 		if err != nil {
 			return err
 		}
