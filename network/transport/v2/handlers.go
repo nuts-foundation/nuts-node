@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
-	"math"
 	"sort"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -264,7 +263,7 @@ func (p *protocol) handleGossip(peer transport.Peer, envelope *Envelope) error {
 		WithFields(peer.ToFields()).
 		Trace("Handling Gossip", peer.ID.String())
 
-	xor, clock := p.state.XOR(ctx, math.MaxUint32)
+	xor, clock := p.state.XOR(ctx, dag.MaxLamportClock)
 	peerXor := hash.FromSlice(msg.XOR)
 	if xor.Equals(peerXor) {
 		return nil
@@ -408,7 +407,7 @@ func (p *protocol) handleState(peer transport.Peer, envelope *Envelope) error {
 		Trace("Handling State from peer")
 
 	ctx := context.Background()
-	xor, lc := p.state.XOR(ctx, math.MaxUint32)
+	xor, lc := p.state.XOR(ctx, dag.MaxLamportClock)
 
 	// nothing to do if peers are now synced
 	if xor.Equals(hash.FromSlice(msg.XOR)) {
@@ -474,7 +473,7 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope)
 			}
 			// send new state message, request one page lower than the current evaluation
 			previousPageLimit := pageClockStart(clockToPageNum(minLC)) - 1
-			xor, _ := p.state.XOR(ctx, math.MaxUint32)
+			xor, _ := p.state.XOR(ctx, dag.MaxLamportClock)
 
 			log.Logger().
 				WithFields(peer.ToFields()).
@@ -492,7 +491,7 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope)
 	}
 
 	// request next page(s) if peer's DAG has more pages
-	_, localLC := p.state.XOR(ctx, math.MaxUint32)
+	_, localLC := p.state.XOR(ctx, dag.MaxLamportClock)
 	peerPageNum, localPageNum, reqPageNum := clockToPageNum(msg.LC), clockToPageNum(localLC), clockToPageNum(msg.LCReq)
 	if peerPageNum > reqPageNum {
 		log.Logger().
@@ -504,7 +503,7 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope)
 			return p.sender.sendTransactionRangeQuery(peer.ID, pageClockStart(reqPageNum+1), pageClockStart(reqPageNum+2))
 		}
 		// TODO: Distribute synchronization of new nodes over multiple peers.
-		return p.sender.sendTransactionRangeQuery(peer.ID, pageClockStart(reqPageNum+1), math.MaxUint32)
+		return p.sender.sendTransactionRangeQuery(peer.ID, pageClockStart(reqPageNum+1), dag.MaxLamportClock)
 	}
 
 	// peer is behind

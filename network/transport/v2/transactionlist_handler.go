@@ -24,12 +24,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
-	"math"
-
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 )
 
 // peerEnvelope is a structure to communicate both the message and the peer over a channel
@@ -113,7 +111,7 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 					WithField(core.LogFieldConversationID, cid).
 					WithField(core.LogFieldTransactionRef, tx.Ref()).
 					Warn("Ignoring remainder of TransactionList due to missing prevs")
-				xor, clock := p.state.XOR(ctx, math.MaxUint32)
+				xor, clock := p.state.XOR(ctx, dag.MaxLamportClock)
 				return p.sender.sendState(peer.ID, xor, clock)
 			}
 			return fmt.Errorf("unable to add received transaction to DAG (tx=%s): %w", tx.Ref(), err)

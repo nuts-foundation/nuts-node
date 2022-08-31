@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
-	"math"
 	"strings"
 	"time"
 
@@ -203,7 +202,7 @@ func (p *protocol) connectionStateCallback(peer transport.Peer, state transport.
 	if protocol.Version() == p.Version() {
 		switch state {
 		case transport.StateConnected:
-			xor, clock := p.state.XOR(context.Background(), math.MaxUint32)
+			xor, clock := p.state.XOR(context.Background(), dag.MaxLamportClock)
 			p.gManager.PeerConnected(peer, xor, clock)
 			p.diagnosticsMan.add(peer.ID)
 		case transport.StateDisconnected:
@@ -218,7 +217,7 @@ func (p *protocol) gossipTransaction(event dag.Event) (bool, error) {
 	ctx := context.Background()
 	// race conditions may occur since the XOR may have been updated in parallel.
 	// If this is the case, nodes will fall back to using the IBLT.
-	xor, clock := p.state.XOR(ctx, math.MaxUint32)
+	xor, clock := p.state.XOR(ctx, dag.MaxLamportClock)
 	p.gManager.TransactionRegistered(event.Hash, xor, clock)
 
 	return true, nil

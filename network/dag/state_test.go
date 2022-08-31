@@ -28,7 +28,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/test"
 	io_prometheus_client "github.com/prometheus/client_model/go"
 	"go.uber.org/atomic"
-	"math"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -342,7 +341,7 @@ func TestState_XOR(t *testing.T) {
 	}
 
 	t.Run("requested clock larger than dag", func(t *testing.T) {
-		xor, actualClock := txState.XOR(ctx, math.MaxUint32)
+		xor, actualClock := txState.XOR(ctx, MaxLamportClock)
 
 		assert.Equal(t, dagClock, actualClock)
 		assert.Equal(t, tx.Ref(), xor)
@@ -381,7 +380,7 @@ func TestState_IBLT(t *testing.T) {
 	}
 
 	t.Run("requested clock larger than dag", func(t *testing.T) {
-		iblt, actualClock := txState.IBLT(ctx, math.MaxUint32)
+		iblt, actualClock := txState.IBLT(ctx, MaxLamportClock)
 		_ = iblt.Subtract(dagIBLT)
 
 		assert.Equal(t, dagClock, actualClock)

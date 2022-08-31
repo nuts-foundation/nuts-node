@@ -28,7 +28,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 	"hash/crc32"
-	"math"
 	"math/rand"
 	"net/url"
 	"os"
@@ -108,7 +107,7 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 				docs []dag.Transaction
 				err  error
 			)
-			if docs, err = state.FindBetweenLC(context.Background(), 0, math.MaxUint32); err != nil {
+			if docs, err = state.FindBetweenLC(context.Background(), 0, dag.MaxLamportClock); err != nil {
 				return false, err
 			}
 			return len(docs) == expectedDocLogSize, nil
@@ -146,7 +145,7 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 				docs []dag.Transaction
 				err  error
 			)
-			if docs, err = state.FindBetweenLC(context.Background(), 0, math.MaxUint32); err != nil {
+			if docs, err = state.FindBetweenLC(context.Background(), 0, dag.MaxLamportClock); err != nil {
 				return false, err
 			}
 			return len(docs) == expectedDocLogSize, nil
@@ -299,9 +298,9 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 		node3.network.connectionManager.Connect(nameToAddress(t, "integration_node2"))
 		waitForTransactions("node 3", node3.network.state, expectedDocLogSize)
 
-		xor1, _ := node1.network.state.XOR(context.Background(), math.MaxUint32)
-		xor2, _ := node2.network.state.XOR(context.Background(), math.MaxUint32)
-		xor3, _ := node3.network.state.XOR(context.Background(), math.MaxUint32)
+		xor1, _ := node1.network.state.XOR(context.Background(), dag.MaxLamportClock)
+		xor2, _ := node2.network.state.XOR(context.Background(), dag.MaxLamportClock)
+		xor3, _ := node3.network.state.XOR(context.Background(), dag.MaxLamportClock)
 		assert.True(t, xor1.Equals(xor3))
 		assert.True(t, xor2.Equals(xor3))
 	})
@@ -482,8 +481,8 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		waitForTransaction(t, tx, "node2")
 
 		// assert not only TX is transfered, but state is updates as well
-		xor1, _ := node1.network.state.XOR(context.Background(), math.MaxUint32)
-		xor2, _ := node2.network.state.XOR(context.Background(), math.MaxUint32)
+		xor1, _ := node1.network.state.XOR(context.Background(), dag.MaxLamportClock)
+		xor2, _ := node2.network.state.XOR(context.Background(), dag.MaxLamportClock)
 		assert.Equal(t, xor1.String(), xor2.String())
 	})
 
