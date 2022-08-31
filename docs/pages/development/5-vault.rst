@@ -12,15 +12,15 @@ You can start a development Vault server as follows:
     --name=dev-vault \
     vault
 
-The server will start unsealed, with root token `unsafe`.
+The server will start unsealed, with root token ``unsafe``.
 
-Now log in and enable a key-value secret engine names `kv`:
+Now log in and enable a key-value secret engine named ``kv``:
 
 .. code-block:: shell
 
     docker exec -e 'VAULT_ADDR=http://0.0.0.0:8200' dev-vault vault login
 
-Enter the root token `unsafe`, then enable the `kv` engine:
+Enter the root token ``unsafe``, then enable the ``kv`` engine:
 
 .. code-block:: shell
 

@@ -15,7 +15,7 @@ The main goal of the service is to give a YES/NO answer for if the service is ru
 
     GET /status
 
-It'll return an "OK" response and a 200 status code.
+Returns an "OK" response body with status code ``200``.
 
 .. note::
 
@@ -31,14 +31,26 @@ Basic diagnostics
 
     GET /status/diagnostics
 
-It'll return some text displaying the current status of the various services:
+Returns the status of the various services in ``yaml`` format:
 
 .. code-block:: text
 
-    Status
-        Registered engines: [Status Logging]
-    Logging
-        verbosity: INFO
+    network:
+        connections:
+            connected_peers:
+                - id: d38c6df5-63d2-4b2c-87f4-2e8bbfa5612f
+                  address: nuts.nl:5555
+                  nodedid: did:nuts:abc123
+            connected_peers_count: 1
+        state:
+            dag_xor: 6aada4464e380db16d0316e597956fcdaeada0e8f6023be82eeb9c798e1815c6
+            stored_database_size_bytes: 106496005
+            transaction_count: 9001
+    status:
+        git_commit: d36837bae48b780bfb76134e85b506472fc207a6
+        os_arch: linux/amd64
+        software_version: master
+        uptime: 4h14m12s
 
 If you supply ``application/json`` for the ``Accept`` HTTP header it will return the diagnostics in JSON format.
 
@@ -94,7 +106,7 @@ Network DAG Visualization
 All network transactions form a directed acyclic graph (DAG) which helps achieving consistency and data completeness.
 Since it's a hard to debug, complex structure, the network API provides a visualization which can be queried
 from ``/internal/network/v1/diagnostics/graph``. It is returned in the *dot* format which can then be rendered to an image using
-*dot* or *graphviz* (given you saved the output to ``input.dot``):
+**dot** or **graphviz** (given you saved the output to ``input.dot``):
 
 .. code-block:: shell
 

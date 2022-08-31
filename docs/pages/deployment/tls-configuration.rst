@@ -108,6 +108,10 @@ Configuration for `HAProxy <https://www.haproxy.com/>`_ could look like this (gi
 
 Refer to the HAProxy documentation for more information.
 
+.. note::
+
+    In a (level 4) pass-through configuration, the Nuts node will see the load balancer as origin (IP) for all incoming connections.
+
 TLS Offloading
 **************
 
@@ -124,7 +128,7 @@ In addition to the general TLS configuration, you need to configure the followin
 
 * ``tls.offload`` needs to be set to ``incoming``
 * ``tls.certheader`` needs to be set to the name of the header in which your proxy sets the certificate (e.g. ``X-SSl-CERT``).
-  The certificate must in be PEM or base64 encoded DER format.
+  The certificate must be in PEM or base64 encoded DER format.
 * Disable/remove TLS configuration for HTTP interfaces.
 * Bind the ``/n2n`` and ``/public`` endpoints to specific different HTTP interfaces to avoid accidentally exposing internal HTTP endpoints.
 
@@ -217,6 +221,7 @@ For `HAProxy <https://www.haproxy.com/>`_ the proxy configuration could look as 
 
     backend grpc_servers
         mode http
+        option forwardfor  # for correct IP logging
         http-request set-header X-SSL-CERT %{+Q}[ssl_c_der,base64]
         server node1 nuts_node:5555 check proto h2
 

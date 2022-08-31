@@ -10,7 +10,7 @@ Private keys
 ************
 
 The private keys are the most important of all data.
-When lost, all data has to be recreated which might include asking customer to resign certain documents.
+When lost, all data has to be recreated which might include asking customer to re-sign certain documents.
 The Nuts node provides two ways of storing private keys: local filesystem and via Hashicorp Vault.
 Vault is the recommended store for storing private keys in a production environment.
 Please consult the Vault documentation on how to manage your backups.
@@ -19,8 +19,8 @@ BBolt
 *****
 
 The default storage for a Nuts node is BBolt. BBolt is a key-value store that stores data on disk.
-A BBolt store can only be accessed by a single process.
 Private keys are not stored in BBolt and have their own backup/restore procedure.
+A BBolt store can only be accessed by a single process, so backups have to be managed by the Nuts node.
 
 Backup
 ======
@@ -39,12 +39,12 @@ By default, the BBolt store isn't backed up. To enable backups add these configu
 The ``directory`` must point to a local or mounted directory.
 The ``interval`` must be formatted as a number and time unit. Valid time units are ``s`` (seconds), ``m`` (minutes), ``h`` (hours).
 
-The Nuts node will place backups at the set interval in the configured directory. It'll create sub-directories for different components.
-The file names are the same as in the node's ``datadir``.
+The Nuts node will place backups at the set interval in the configured directory. It creates sub-directories for different components.
+The file names follow the same structure as in the node's ``datadir``.
 The backup process will write to a temporary file first and when done rename that file.
 
 The backup process will only keep a single file per store.
-If you want to keep hourly, daily and weekly backups, you'll have to solve this by using tools like ``rsync`` and ``rsnapshot`` (or others).
+If you want to keep hourly, daily, and weekly backups, you can achieve this with tools like ``rsync`` and ``rsnapshot`` (or others).
 
 Restore
 =======

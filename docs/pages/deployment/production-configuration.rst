@@ -10,7 +10,7 @@ your node for running in a production environment and what to consider.
 Persistence
 ***********
 
-Make sure your :ref:`database configuration <database-configuration>` is set up to :ref:`backup your node's data and private keys <backup-restore>.
+Make sure your :ref:`database configuration <database-configuration>` is set up to :ref:`backup your node's data and private keys <backup-restore>`.
 
 Strict mode
 ***********
@@ -26,7 +26,7 @@ By default all HTTP endpoints get bound to the default HTTP interface on ``:1323
 You can configure endpoints to have alternative configuration (e.g. CORS, TLS, authentication) and/or be bound on an alternative port using the ``alt`` property.
 All configuration properties that apply to the ``http.default`` HTTP interface are applicable to the alternative interface you configure as well (see the example below).
 
-For production there are a few points to consider; enabling CORS, using alternative HTTP interfaces and authentication.
+For production there are a few points to consider; enabling CORS, using alternative HTTP interfaces, and authentication.
 
 Binding HTTP interfaces
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -89,7 +89,7 @@ You can generate a token using the following command, which needs to be executed
 
     nuts http gen-token admin 365
 
-This command generates a token for a user named "admin" which is valid for 365 days. The user name is used for logging HTTP requests.
+This command generates a token for a user named "admin" which is valid for 365 days. The user's name is used for logging HTTP requests.
 It outputs the token, which should be passed using ``--token`` or ``--token-file`` when performing CLI operations or as ``Authorization`` Bearer token header for other clients, such as XIS applications.
 You can also save it to a file named ``.nuts-client.cfg`` in your user's home directory, which will be read by CLI when no other token flags are passed.
 See the server configuration and CLI command reference for more information.
