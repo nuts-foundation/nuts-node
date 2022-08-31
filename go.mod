@@ -1,6 +1,6 @@
 module github.com/nuts-foundation/nuts-node
 
-go 1.18
+go 1.19
 
 replace github.com/go-redsync/redsync/v4 => github.com/reinkrul/redsync/v4 v4.5.2-0.20220801105510-6be544bc80cd
 
