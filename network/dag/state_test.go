@@ -266,8 +266,9 @@ func TestState_Add(t *testing.T) {
 	t.Run("afterCommit is not called for duplicate TX", func(t *testing.T) {
 		ctx := context.Background()
 		s := createState(t).(*state)
+		tx := CreateTestTransactionWithJWK(1)
 
-		err := s.Add(ctx, transaction{}, nil)
+		err := s.Add(ctx, tx, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -282,7 +283,7 @@ func TestState_Add(t *testing.T) {
 		}))
 
 		// add again
-		err = s.Add(ctx, transaction{}, nil)
+		err = s.Add(ctx, tx, nil)
 		if !assert.NoError(t, err) {
 			return
 		}
