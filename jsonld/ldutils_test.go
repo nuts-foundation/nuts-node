@@ -21,10 +21,14 @@ package jsonld
 import (
 	"embed"
 	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/piprate/json-gold/ld"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 //go:embed test/*
@@ -43,7 +47,6 @@ func (t *testLoader) LoadDocument(u string) (*ld.RemoteDocument, error) {
 }
 
 func Test_embeddedFSDocumentLoader_LoadDocument(t *testing.T) {
-
 	t.Run("it loads a document", func(t *testing.T) {
 		loader := NewEmbeddedFSDocumentLoader(testfs, nil)
 		assert.NotNil(t, loader)
@@ -146,9 +149,36 @@ func TestNewContextLoader(t *testing.T) {
 	t.Run("it resolves an external doc when allowingExternalCalls is true", func(t *testing.T) {
 		loader, err := NewContextLoader(true, DefaultContextConfig())
 		assert.NoError(t, err)
-		doc, err := loader.LoadDocument("http://schema.org")
+
+		// Arrange the stubSrv; stubSrv logic is included inline,
+		// it makes the test story telling more clear.
+		//
+		// Stub behavior is based on the code behavior when processing:
+		// loader.LoadDocument("http://schema.org")
+		mux := http.NewServeMux()
+
+		// Stage 1 of the stub;
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/html")
+			w.Header().Add("Link", `</docs/jsonldcontext.jsonld>; rel="alternate"; type="application/ld+json"`)
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintln(w, "{}") // Empty valid JSON
+		})
+
+		// Stage 2 of the stub;
+		mux.HandleFunc("/docs/", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/ld+json")
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintln(w, "{}") // Empty valid JSON
+		})
+
+		stubSrv := httptest.NewServer(mux)
+
+		defer stubSrv.Close()
+
+		doc, err := loader.LoadDocument(stubSrv.URL)
 		assert.NoError(t, err)
-		assert.Equal(t, "https://schema.org/docs/jsonldcontext.jsonld", doc.DocumentURL)
+		assert.Equal(t, fmt.Sprintf("%v/docs/jsonldcontext.jsonld", stubSrv.URL), doc.DocumentURL)
 	})
 }
 
