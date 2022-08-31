@@ -8,7 +8,7 @@ Requirements
 
 .. marker-for-readme
 
-Go >= 1.18 is required.
+Go >= 1.19 is required.
 
 Building
 ********
