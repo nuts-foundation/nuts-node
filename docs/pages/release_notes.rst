@@ -6,6 +6,26 @@ Release notes
 What has been changed, and how to update between versions.
 
 *****************
+Chestnut update (v4.2.1)
+*****************
+
+Release date: 2022-08-31
+
+Bugfix for Redis: not being able to load state data from database.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.2.0...v4.2.1
+
+*****************
+Chestnut update (v4.2.0)
+*****************
+
+Release date: 2022-08-29
+
+Backports upstream features for connecting to Redis over TLS.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.1.1...v4.2.0
+
+*****************
 Chestnut update (v4.1.1)
 *****************
 
