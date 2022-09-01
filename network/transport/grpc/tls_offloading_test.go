@@ -65,13 +65,13 @@ func Test_tlsOffloadingAuthenticator(t *testing.T) {
 		return metadata.NewIncomingContext(context.Background(), md)
 	}
 
-	t.Run("Intercept", func(t *testing.T) {
+	t.Run("intercept", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
 			var peerInfo *peer.Peer
 			var success bool
 			serverStream.ctx = contextWithMD(encodedCert)
 
-			err := auth.Intercept(nil, serverStream, nil, func(srv interface{}, wrappedStream grpc.ServerStream) error {
+			err := auth.intercept(nil, serverStream, nil, func(srv interface{}, wrappedStream grpc.ServerStream) error {
 				peerInfo, success = peer.FromContext(wrappedStream.Context())
 				return nil
 			})
@@ -85,7 +85,7 @@ func Test_tlsOffloadingAuthenticator(t *testing.T) {
 		t.Run("auth fails", func(t *testing.T) {
 			serverStream.ctx = contextWithMD("invalid cert")
 
-			err := auth.Intercept(nil, serverStream, nil, func(srv interface{}, wrappedStream grpc.ServerStream) error {
+			err := auth.intercept(nil, serverStream, nil, func(srv interface{}, wrappedStream grpc.ServerStream) error {
 				t.Fatal("should not be called")
 				return nil
 			})

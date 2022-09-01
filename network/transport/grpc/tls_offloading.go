@@ -37,11 +37,17 @@ import (
 	"strings"
 )
 
+func newAuthenticationInterceptor(clientCertHeaderName string) grpc.StreamServerInterceptor {
+	return (&tlsOffloadingAuthenticator{
+		clientCertHeaderName: clientCertHeaderName,
+	}).intercept
+}
+
 type tlsOffloadingAuthenticator struct {
 	clientCertHeaderName string
 }
 
-func (t *tlsOffloadingAuthenticator) Intercept(srv interface{}, serverStream grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+func (t *tlsOffloadingAuthenticator) intercept(srv interface{}, serverStream grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 	certificates, err := t.authenticate(serverStream)
 	if err != nil {
 		log.Logger().
