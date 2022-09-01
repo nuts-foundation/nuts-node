@@ -90,10 +90,8 @@ func (d transactionSigner) Sign(input UnsignedTransaction, signingTime time.Time
 	}
 
 	if d.attach {
-		headerMap[jws.CriticalKey] = append(headerMap[jws.CriticalKey].([]string), jws.JWKKey)
 		headerMap[jws.JWKKey] = key
 	} else {
-		headerMap[jws.CriticalKey] = append(headerMap[jws.CriticalKey].([]string), jws.KeyIDKey)
 		headerMap[jws.KeyIDKey] = d.key.KID()
 	}
 
