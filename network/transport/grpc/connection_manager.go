@@ -167,9 +167,11 @@ func (s *grpcConnectionManager) Start() error {
 		log.Logger().Info("TLS is disabled, this is very unsecure and only suitable for demo/development environments.")
 	}
 
-	// Chain interceptors. ipExtractor is added last so it is processed first.
+	// Chain interceptors. ipInterceptor is added last, so it processes the stream first.
 	s.serverInterceptors = append(s.serverInterceptors, ipInterceptor)
-	serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(s.serverInterceptors...))
+	if len(s.serverInterceptors) > 0 {
+		serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(s.serverInterceptors...))
+	}
 
 	// Create gRPC server for inbound connectionList and associate it with the protocols
 	s.grpcServer = grpc.NewServer(serverOpts...)
