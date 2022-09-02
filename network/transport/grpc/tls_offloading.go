@@ -38,9 +38,7 @@ import (
 )
 
 func newAuthenticationInterceptor(clientCertHeaderName string) grpc.StreamServerInterceptor {
-	return (&tlsOffloadingAuthenticator{
-		clientCertHeaderName: clientCertHeaderName,
-	}).intercept
+	return (&tlsOffloadingAuthenticator{clientCertHeaderName: clientCertHeaderName}).intercept
 }
 
 type tlsOffloadingAuthenticator struct {

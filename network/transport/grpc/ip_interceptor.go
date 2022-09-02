@@ -9,6 +9,8 @@ import (
 	"google.golang.org/grpc/peer"
 )
 
+const headerXForwardedFor = "X-Forwarded-For"
+
 // ipInterceptor tries to extract the IP from the X-Forwarded-For header and sets this as the peers address.
 // No address is set if the header is unavailable.
 func ipInterceptor(srv interface{}, serverStream grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
@@ -37,7 +39,7 @@ func extractIPFromXFFHeader(serverStream grpc.ServerStream) string {
 	if !ok {
 		return ipUnknown
 	}
-	xffs := md.Get("X-Forwarded-For")
+	xffs := md.Get(headerXForwardedFor)
 	if len(xffs) == 0 {
 		return ipUnknown
 	}
