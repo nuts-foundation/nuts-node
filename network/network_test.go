@@ -926,7 +926,7 @@ func Test_connectToKnownNodes(t *testing.T) {
 			},
 		}
 		peerDID, _ := did.ParseDID("did:nuts:peer")
-		peerAddress := "peer:5555"
+		peerAddress := "peer.com:5555"
 		peerDocument := did.Document{
 			ID: *peerDID,
 			Service: []did.Service{
