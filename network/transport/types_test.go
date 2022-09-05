@@ -19,32 +19,50 @@
 package transport
 
 import (
+	"errors"
+	"testing"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func Test_ParseAddress(t *testing.T) {
-	t.Run("valid - with port", func(t *testing.T) {
-		addr, err := ParseAddress("grpc://foo:5050")
-		assert.NoError(t, err)
-		assert.Equal(t, "foo:5050", addr)
-	})
-	t.Run("valid - without port", func(t *testing.T) {
-		addr, err := ParseAddress("grpc://foo")
-		assert.NoError(t, err)
-		assert.Equal(t, "foo", addr)
-	})
-	t.Run("invalid - no scheme", func(t *testing.T) {
-		addr, err := ParseAddress("foo")
-		assert.Empty(t, addr)
-		assert.EqualError(t, err, "invalid URL scheme")
-	})
-	t.Run("invalid - invalid scheme", func(t *testing.T) {
-		addr, err := ParseAddress("http://foo")
-		assert.Empty(t, addr)
-		assert.EqualError(t, err, "invalid URL scheme")
-	})
+	errScheme := errors.New("invalid URL scheme")
+	errIsIp := errors.New("hostname is IP")
+	errIsReserved := errors.New("hostname is reserved")
+
+	tests := []struct {
+		input  string
+		output string
+		err    error
+	}{
+		{"grpc://foo.bar:5050", "foo.bar:5050", nil},
+		{"grpc://foo.BAR", "foo.BAR", nil},
+		{"foo.bar", "", errScheme},
+		{"http://foo.bar", "", errScheme},
+		{"grpc://1.2.3.4:5555", "", errIsIp},
+		{"grpc://[::1]:5555", "", errIsIp},
+		{"grpc://localhost", "", errIsReserved},
+		{"grpc://my.localhost:5555", "", errIsReserved},
+		{"grpc://my.local", "", errIsReserved},
+		{"grpc://LOCALhost:5555", "", errIsReserved},
+		{"grpc://:5555", "", errIsReserved},
+		{"grpc://example.com", "", errIsReserved},
+		{"grpc://my.example.com:5555", "", errIsReserved},
+	}
+
+	for _, tc := range tests {
+		addr, err := ParseNutsCommAddress(tc.input)
+		if tc.err == nil {
+			// valid test cases
+			assert.Equal(t, tc.output, addr, "test case: %V", tc)
+			assert.NoError(t, err, "test case: %V", tc)
+		} else {
+			// invalid test cases
+			assert.Empty(t, addr, "test case: %V", tc)
+			assert.EqualError(t, err, tc.err.Error(), "test case: %V", tc)
+		}
+	}
 }
 
 func TestPeer_ToFields(t *testing.T) {

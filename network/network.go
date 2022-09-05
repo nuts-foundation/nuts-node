@@ -346,7 +346,7 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 						Warn("Failed to extract NutsComm address from service")
 					continue inner
 				}
-				address, err := transport.ParseAddress(nutsCommStr)
+				address, err := transport.ParseNutsCommAddress(nutsCommStr)
 				if err != nil {
 					log.Logger().
 						WithError(err).
