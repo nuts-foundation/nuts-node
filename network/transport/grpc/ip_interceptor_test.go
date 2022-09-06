@@ -7,6 +7,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 	"net"
+	"net/netip"
 	"strings"
 	"testing"
 )
@@ -33,7 +34,16 @@ func Test_ipInterceptor(t *testing.T) {
 	}
 
 	t.Run("XFF header", func(t *testing.T) {
-		externalXFFAddr, _ := net.ResolveIPAddr("ip", "8.8.4.4")
+		externalIPv4XFFAddr := &net.IPAddr{IP: []byte{8, 8, 4, 4}}
+		ipv6 := "2001:4860:4860::8844"
+		ipAddr, err := netip.ParseAddr(ipv6)
+		if !assert.NoError(t, err) {
+			panic("failed to parse IPv6")
+		}
+		externalIPv6XFFAddr := &net.IPAddr{
+			IP:   ipAddr.AsSlice(),
+			Zone: ipAddr.Zone(),
+		}
 		internalXFFAddr, _ := net.ResolveIPAddr("ip", internalIPs[0])
 		peerNoAddres := net.Addr(nil)
 
@@ -41,13 +51,14 @@ func Test_ipInterceptor(t *testing.T) {
 			xffIPs   []string
 			expected net.Addr
 		}{
-			{append([]string{"8.8.8.8", "8.8.4.4"}, internalIPs...), externalXFFAddr},    // should be read right to left, so this is the first external IP
-			{internalIPs, internalXFFAddr},                                               // all are internal, so select the IP the furthest away from server
-			{append([]string{"invalid IP", "8.8.4.4"}, internalIPs...), externalXFFAddr}, // should be read right to left, so this is accepted
-			{append([]string{"8.8.4.4", "invalid IP"}, internalIPs...), peerNoAddres},    // should be read right to left, so this is NOT accepted
-			{append([]string{"8.8.8.8", "localhost"}, internalIPs...), peerNoAddres},     // localhost is not accepted
-			{append([]string{"8.8.8.8", " 8.8.4.4 "}, internalIPs...), externalXFFAddr},  // spaces are trimmed
-			{[]string{}, peerNoAddres},                                                   // empty header
+			{append([]string{"8.8.8.8", "8.8.4.4"}, internalIPs...), externalIPv4XFFAddr},    // should be read right to left, so this is the first external IP
+			{append([]string{"8.8.8.8", ipv6}, internalIPs...), externalIPv6XFFAddr},         // should be read right to left, so this is the first external IP
+			{internalIPs, internalXFFAddr},                                                   // all are internal, so select the IP the furthest away from server
+			{append([]string{"invalid IP", "8.8.4.4"}, internalIPs...), externalIPv4XFFAddr}, // should be read right to left, so this is accepted
+			{append([]string{"8.8.4.4", "invalid IP"}, internalIPs...), peerNoAddres},        // should be read right to left, so this is NOT accepted
+			{append([]string{"8.8.8.8", "localhost"}, internalIPs...), peerNoAddres},         // localhost is not accepted
+			{append([]string{"8.8.8.8", " 8.8.4.4 "}, internalIPs...), externalIPv4XFFAddr},  // spaces are trimmed
+			{[]string{}, peerNoAddres}, // empty header
 		}
 
 		for _, tc := range tests {

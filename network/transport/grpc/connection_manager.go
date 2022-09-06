@@ -114,7 +114,6 @@ type grpcConnectionManager struct {
 	peersCounter        prometheus.Gauge
 	recvMessagesCounter *prometheus.CounterVec
 	sentMessagesCounter *prometheus.CounterVec
-	serverInterceptors  []grpc.StreamServerInterceptor
 }
 
 func (s *grpcConnectionManager) Start() error {
@@ -136,6 +135,8 @@ func (s *grpcConnectionManager) Start() error {
 	if err != nil {
 		return err
 	}
+
+	serverInterceptors := []grpc.StreamServerInterceptor{}
 	// Configure TLS if enabled
 	var tlsConfig *tls.Config
 	if s.config.tlsEnabled() {
@@ -161,17 +162,15 @@ func (s *grpcConnectionManager) Start() error {
 				// Invalid config
 				return errors.New("tls.certheader must be configured to enable TLS offloading ")
 			}
-			s.serverInterceptors = append(s.serverInterceptors, newAuthenticationInterceptor(s.config.clientCertHeaderName))
+			serverInterceptors = append(serverInterceptors, newAuthenticationInterceptor(s.config.clientCertHeaderName))
 		}
 	} else {
 		log.Logger().Info("TLS is disabled, this is very unsecure and only suitable for demo/development environments.")
 	}
 
 	// Chain interceptors. ipInterceptor is added last, so it processes the stream first.
-	s.serverInterceptors = append(s.serverInterceptors, ipInterceptor)
-	if len(s.serverInterceptors) > 0 {
-		serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(s.serverInterceptors...))
-	}
+	serverInterceptors = append(serverInterceptors, ipInterceptor)
+	serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(serverInterceptors...))
 
 	// Create gRPC server for inbound connectionList and associate it with the protocols
 	s.grpcServer = grpc.NewServer(serverOpts...)

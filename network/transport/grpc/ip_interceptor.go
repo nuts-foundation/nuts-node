@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"net"
+	"net/netip"
 	"strings"
 
 	"google.golang.org/grpc"
@@ -65,11 +66,14 @@ func addrFrom(ip string) net.Addr {
 	if ip == "" {
 		return nil
 	}
-	addr, err := net.ResolveIPAddr("ip", ip)
+	ipAddr, err := netip.ParseAddr(ip)
 	if err != nil {
 		return nil
 	}
-	return addr
+	return &net.IPAddr{
+		IP:   ipAddr.AsSlice(),
+		Zone: ipAddr.Zone(),
+	}
 }
 
 func isInternal(ip net.IP) bool {
