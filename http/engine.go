@@ -280,14 +280,14 @@ func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludeP
 		}
 		return matchesPath(c.Request().RequestURI, "/metrics") || matchesPath(c.Request().RequestURI, "/status")
 	}
-	echoServer.Use(requestLoggerMiddleware(func(c echo.Context) bool {
+	if cfg.Log != LogNothingLevel {
 		// Log when level is set to metadata or request-reply
-		return cfg.Log == LogNothingLevel || loggerSkipper(c)
-	}, log.Logger()))
-	echoServer.Use(bodyLoggerMiddleware(func(c echo.Context) bool {
+		echoServer.Use(requestLoggerMiddleware(loggerSkipper, log.Logger()))
+	}
+	if cfg.Log == LogRequestReplyLevel {
 		// Log when level is set to request-reply
-		return cfg.Log != LogRequestReplyLevel || skipper(c)
-	}, log.Logger()))
+		echoServer.Use(bodyLoggerMiddleware(skipper, log.Logger()))
+	}
 
 	address := h.server.getAddressForPath(path)
 
