@@ -78,19 +78,19 @@ Configuration for `HAProxy <https://www.haproxy.com/>`_ could look like this (gi
 
 .. code-block::
 
-    default
-        mode tcp
-
     listen grpc
         bind *:5555
+        mode tcp
         server node1 nodeA-backend:5555 check
 
     listen public
         bind *:443
+        mode tcp
         server node1 nodeA-backend:443 check
 
     listen n2n
         bind *:8443
+        mode tcp
         server node1 nodeA-backend:8443 check
 
 
