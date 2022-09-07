@@ -776,7 +776,7 @@ func TestNetworkIntegration_TLSOffloading(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
 			testDirectory := io.TestDirectory(t)
 			// Start server node (node1)
-			_ = startNode(t, "node1", testDirectory, func(serverCfg *core.ServerConfig, cfg *Config) {
+			node1 := startNode(t, "node1", testDirectory, func(serverCfg *core.ServerConfig, cfg *Config) {
 				serverCfg.TLS.Offload = core.OffloadIncomingTLS
 				serverCfg.TLS.ClientCertHeaderName = "client-cert"
 			})
@@ -797,6 +797,8 @@ func TestNetworkIntegration_TLSOffloading(t *testing.T) {
 				return
 			}
 
+			xffHeader := "8.8.8.8,8.8.4.4,127.0.0.1"
+			outgoingMD.Set("X-Forwarded-For", xffHeader)
 			outgoingMD.Set("client-cert", url.QueryEscape(string(clientCertBytes)))
 			outgoingContext := metadata.NewOutgoingContext(ctx, outgoingMD)
 			client := v2.NewProtocolClient(grpcConn)
@@ -809,6 +811,7 @@ func TestNetworkIntegration_TLSOffloading(t *testing.T) {
 			msg, err := result.Recv()
 			assert.NoError(t, err)
 			assert.NotNil(t, msg)
+			assert.Contains(t, node1.network.Diagnostics()[0].String(), "client(did:nuts:node2)@8.8.4.4")
 		})
 		t.Run("authentication fails", func(t *testing.T) {
 			testDirectory := io.TestDirectory(t)
