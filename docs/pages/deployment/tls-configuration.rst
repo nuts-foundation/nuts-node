@@ -72,7 +72,7 @@ When using a (level 4) load balancer that does not inspect or alter requests, TL
 .. raw:: html
     :file: ../../_static/images/diagrams/network infrastructure layouts-TLS-Pass-through.svg
 
-This set up does not need additional configuration.
+This setup does not need additional configuration.
 
 Configuration for `HAProxy <https://www.haproxy.com/>`_ could look like this (given the TLS configuration in the previous section):
 
@@ -81,27 +81,15 @@ Configuration for `HAProxy <https://www.haproxy.com/>`_ could look like this (gi
     listen grpc
         bind *:5555
         mode tcp
-        use_backend nuts_node_grpc
-
-    backend nuts_node_grpc
-        mode tcp
         server node1 nodeA-backend:5555 check
 
-    listen public_https
+    listen public
         bind *:443
-        mode tcp
-        use_backend nuts_node_public_https
-
-    backend nuts_node_public_https
         mode tcp
         server node1 nodeA-backend:443 check
 
-    listen n2n_https
+    listen n2n
         bind *:8443
-        mode tcp
-        use_backend nuts_node_n2n_https
-
-    backend nuts_node_n2n_https
         mode tcp
         server node1 nodeA-backend:8443 check
 
