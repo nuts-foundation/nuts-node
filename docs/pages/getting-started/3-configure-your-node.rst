@@ -37,7 +37,7 @@ There are 4 official Nuts networks:
 Node TLS Certificate
 ====================
 
-Before you can join a network, your node needs a certificate from the correct Certificate Authority (CA). The ``development`` and ``stable`` networks are open for everyone to join. Contrary to the ``production`` network (where we will be using a real Certificate Authority like PKIoverheid) the CA certificate and private key for these networks are available on github. This way you can generate your own certificate.
+Before you can join a network, your node needs a certificate from the correct Certificate Authority (CA). The ``development`` and ``stable`` networks are open for everyone to join. Contrary to the ``test`` and ``production`` networks (where we will be using a real Certificate Authority like PKIoverheid) the CA certificate and private key for these networks are available on github. This way you can generate your own certificate.
 
 To generate the certificate for your own node you need the ``https://github.com/nuts-foundation/nuts-development-network-ca`` repository. It contains handy scripts and the needed key material. For more information how to use, consult the `README <https://github.com/nuts-foundation/nuts-development-network-ca/blob/master/README.md>`_
 
@@ -140,6 +140,10 @@ You can register the ``NutsComm`` endpoint by calling ``addEndpoint`` on the DID
         "endpoint": "grpc://nuts.nl:5555"
     }
 
+.. note::
+
+    The domain registered in the ``NutsComm` endpoint must be listed as a DNS SAN in the node's TLS certificate.
+    Node Discovery will ignore endpoints containing IP-addresses and reserved addresses as specified in `RFC2606 <https://datatracker.ietf.org/doc/html/rfc2606>`_.
 
 Care Organizations
 ******************
