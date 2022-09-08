@@ -39,7 +39,7 @@ require (
 	github.com/twmb/murmur3 v1.1.6
 	go.etcd.io/bbolt v1.3.6
 	go.uber.org/atomic v1.10.0
-	go.uber.org/goleak v1.1.12
+	go.uber.org/goleak v1.2.0
 	golang.org/x/time v0.0.0-20220722155302-e5dcc9cfc0b9
 	google.golang.org/grpc v1.49.0
 	google.golang.org/protobuf v1.28.1
@@ -144,7 +144,6 @@ require (
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/sietseringers/go-sse v0.0.0-20200801161811-e2cf2c63ca50 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
-	github.com/stretchr/objx v0.4.0 // indirect
 	github.com/templexxx/cpufeat v0.0.0-20180724012125-cef66df7f161 // indirect
 	github.com/templexxx/xor v0.0.0-20181023030647-4e92f724b73b // indirect
 	github.com/tidwall/gjson v1.14.1 // indirect
