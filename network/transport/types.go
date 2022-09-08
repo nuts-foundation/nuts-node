@@ -21,12 +21,14 @@ package transport
 import (
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/sirupsen/logrus"
+	"net"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/sirupsen/logrus"
 )
 
 // PeerID defines a peer's unique identifier.
@@ -35,18 +37,6 @@ type PeerID string
 // String returns the PeerID as string.
 func (p PeerID) String() string {
 	return string(p)
-}
-
-// ParseAddress parses the given input string to a gRPC target address. The input must include the protocol scheme (e.g. grpc://).
-func ParseAddress(input string) (string, error) {
-	parsed, err := url.Parse(input)
-	if err != nil {
-		return "", err
-	}
-	if parsed.Scheme != "grpc" {
-		return "", errors.New("invalid URL scheme")
-	}
-	return parsed.Host, nil
 }
 
 // Peer holds the properties of a remote node we're connected to
@@ -106,3 +96,59 @@ type ConnectorStats struct {
 
 // NutsCommServiceType holds the DID document service type that specifies the Nuts network service address of the Nuts node.
 const NutsCommServiceType = "NutsComm"
+
+// ParseNutsCommAddress parses the given input string to a gRPC target address.
+// The input must include the protocol scheme (e.g. grpc://).
+// The address must NOT be an IP address.
+// The input must not be a reserved address or TLD as described in RFC2606 or https://www.ietf.org/archive/id/draft-chapin-rfc2606bis-00.html.
+func ParseNutsCommAddress(input string) (string, error) {
+	parsed, err := url.Parse(input)
+	if err != nil {
+		return "", err
+	}
+	if parsed.Scheme != "grpc" {
+		return "", errors.New("invalid URL scheme")
+	}
+	if net.ParseIP(parsed.Hostname()) != nil {
+		return "", errors.New("hostname is IP")
+	}
+	if isReserved(parsed) {
+		return "", errors.New("hostname is reserved")
+	}
+	return parsed.Host, nil
+}
+
+// isReserved returns true if URL uses any of the reserved TLDs or addresses
+func isReserved(URL *url.URL) bool {
+	parts := strings.Split(strings.ToLower(URL.Hostname()), ".")
+	if len(parts) < 2 {
+		// valid address contains at least a 2nd level address + tld
+		return true
+	}
+
+	tld := parts[len(parts)-1]
+	if contains(reservedTLDs, tld) {
+		return true
+	}
+
+	l2address := strings.Join(parts[len(parts)-2:], ".")
+	return contains(reservedAddresses, l2address)
+}
+
+var reservedTLDs = []string{
+	"test",
+	"example",
+	"invalid",
+	"localhost",
+	"local",
+	"localdomain",
+	"lan",
+	"home",
+	"host",
+	"corp",
+}
+var reservedAddresses = []string{
+	"example.com",
+	"example.net",
+	"example.org",
+}
