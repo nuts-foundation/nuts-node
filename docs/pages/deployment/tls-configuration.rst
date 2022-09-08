@@ -161,8 +161,6 @@ For `NGINX <https://www.nginx.com/>`_ the proxy configuration could look as foll
 
           location / {
             grpc_pass grpc://nuts-node:5555;
-            proxy_buffering off; # immediately forward all traffic to node
-            grpc_buffer_size 128M; # prevents node syncing issues
             grpc_set_header X-SSL-CERT $ssl_client_escaped_cert;        # add peer's SSL cert
             grpc_set_header X-Forwarded-For $proxy_add_x_forwarded_for; # for correct IP logging
           }
