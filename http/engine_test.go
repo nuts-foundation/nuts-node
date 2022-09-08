@@ -408,7 +408,7 @@ func TestEngine_LoggingMiddleware(t *testing.T) {
 	t.Run("request/reply body is logged", func(t *testing.T) {
 		engine := New(noop, nil)
 		engine.config.InterfaceConfig.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
-		engine.config.InterfaceConfig.Log = LogRequestReplyLevel
+		engine.config.InterfaceConfig.Log = LogMetadataAndBodyLevel
 
 		err := engine.Configure(*core.NewServerConfig())
 		if !assert.NoError(t, err) {

@@ -61,8 +61,8 @@ const (
 	LogNothingLevel LogLevel = "nothing"
 	// LogMetadataLevel indicates that only metadata (HTTP URI, method, response code, etc) will be logged for incoming/outgoing HTTP traffic.
 	LogMetadataLevel = "metadata"
-	// LogRequestReplyLevel indicates that metadata and full request/reply bodies  will be logged for incoming/outgoing HTTP traffic.
-	LogRequestReplyLevel = "request-reply"
+	// LogMetadataAndBodyLevel indicates that metadata and full request/reply bodies will be logged for incoming/outgoing HTTP traffic.
+	LogMetadataAndBodyLevel = "metadata-and-body"
 )
 
 // TLSMode defines the values for TLS modes

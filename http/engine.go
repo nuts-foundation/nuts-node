@@ -281,11 +281,11 @@ func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludeP
 		return matchesPath(c.Request().RequestURI, "/metrics") || matchesPath(c.Request().RequestURI, "/status")
 	}
 	if cfg.Log != LogNothingLevel {
-		// Log when level is set to metadata or request-reply
+		// Log when level is set to metadata or request-response
 		echoServer.Use(requestLoggerMiddleware(loggerSkipper, log.Logger()))
 	}
-	if cfg.Log == LogRequestReplyLevel {
-		// Log when level is set to request-reply
+	if cfg.Log == LogMetadataAndBodyLevel {
+		// Log when level is set to request-response
 		echoServer.Use(bodyLoggerMiddleware(skipper, log.Logger()))
 	}
 
