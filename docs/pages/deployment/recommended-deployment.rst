@@ -29,7 +29,7 @@ It lists the interfaces of the Nuts node, who uses them and how they should be s
 
 .. note::
 
-    There are features that will might the recommended deployment, e.g.:
+    There are features that might change the recommended deployment, e.g.:
 
     * Clustering support
 
