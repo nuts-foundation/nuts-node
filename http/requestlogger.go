@@ -23,34 +23,24 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/sirupsen/logrus"
+	"mime"
 	"net/http"
 )
 
-// loggerConfig Contains the configuration for the loggerMiddleware.
-// Currently, this only allows for configuration of skip paths
-type loggerConfig struct {
-	// Skipper defines a function to skip middleware.
-	Skipper middleware.Skipper
-	logger  *logrus.Entry
-}
-
-// loggerMiddleware Is a custom logger middleware.
+// requestLoggerMiddleware returns middleware that logs metadata of HTTP requests.
 // Should be added as the outer middleware to catch all errors and potential status rewrites
-// The current RequestLogger is not usable with our custom problem errors.
-// See https://github.com/labstack/echo/issues/2015
-func loggerMiddleware(config loggerConfig) echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) (err error) {
-			if config.Skipper != nil && config.Skipper(c) {
-				return next(c)
-			}
-			err = next(c)
-			req := c.Request()
-			res := c.Response()
-
-			status := res.Status
-			if err != nil {
-				switch errWithStatus := err.(type) {
+func requestLoggerMiddleware(skipper middleware.Skipper, logger *logrus.Entry) echo.MiddlewareFunc {
+	return middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+		Skipper:     skipper,
+		LogURI:      true,
+		LogStatus:   true,
+		LogMethod:   true,
+		LogRemoteIP: true,
+		LogError:    true,
+		LogValuesFunc: func(c echo.Context, values middleware.RequestLoggerValues) error {
+			status := values.Status
+			if values.Error != nil {
+				switch errWithStatus := values.Error.(type) {
 				case *echo.HTTPError:
 					status = errWithStatus.Code
 				case core.HTTPStatusCodeError:
@@ -60,13 +50,53 @@ func loggerMiddleware(config loggerConfig) echo.MiddlewareFunc {
 				}
 			}
 
-			config.logger.WithFields(logrus.Fields{
-				"remote_ip": c.RealIP(),
-				"method":    req.Method,
-				"uri":       req.RequestURI,
+			logger.WithFields(logrus.Fields{
+				"remote_ip": values.RemoteIP,
+				"method":    values.Method,
+				"uri":       values.URI,
 				"status":    status,
 			}).Info("HTTP request")
-			return
-		}
+
+			return nil
+		},
+	})
+}
+
+// bodyLoggerMiddleware returns middleware that logs body of HTTP requests and their replies.
+// Should be added as the outer middleware to catch all errors and potential status rewrites
+func bodyLoggerMiddleware(skipper middleware.Skipper, logger *logrus.Entry) echo.MiddlewareFunc {
+	return middleware.BodyDumpWithConfig(middleware.BodyDumpConfig{
+		Handler: func(e echo.Context, request []byte, response []byte) {
+			requestContentType := e.Request().Header.Get("Content-Type")
+			requestBody := "(not loggable: " + requestContentType + ")"
+			if isLoggableContentType(requestContentType) {
+				requestBody = string(request)
+			}
+
+			responseContentType := e.Response().Header().Get("Content-Type")
+			responseBody := "(not loggable: " + responseContentType + ")"
+			if isLoggableContentType(responseContentType) {
+				responseBody = string(response)
+			}
+
+			logger.Infof("HTTP request body: %s", requestBody)
+			logger.Infof("HTTP response body: %s", responseBody)
+		},
+		Skipper: skipper,
+	})
+}
+
+func isLoggableContentType(contentType string) bool {
+	mediaType, _, _ := mime.ParseMediaType(contentType)
+	switch mediaType {
+	case "application/json":
+		fallthrough
+	case "application/did+json":
+		fallthrough
+	case "application/vc+json":
+		fallthrough
+	case "application/x-www-form-urlencoded":
+		return true
 	}
+	return false
 }

@@ -237,11 +237,6 @@ func (h Engine) applyGlobalMiddleware(echoServer core.EchoRouter, serverConfig c
 	// Use middleware to decode URL encoded path parameters like did%3Anuts%3A123 -> did:nuts:123
 	echoServer.Use(decodeURIPath)
 
-	skipper := func(c echo.Context) bool {
-		return matchesPath(c.Request().RequestURI, "/metrics") || matchesPath(c.Request().RequestURI, "/status")
-	}
-	echoServer.Use(loggerMiddleware(loggerConfig{Skipper: skipper, logger: log.Logger()}))
-
 	// Always enabled in strict mode
 	if serverConfig.Strictmode || serverConfig.InternalRateLimiter {
 		echoServer.Use(newInternalRateLimiter(map[string][]string{
@@ -275,6 +270,23 @@ func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludeP
 			}
 		}
 		return false
+	}
+
+	// Logging
+	loggerSkipper := func(c echo.Context) bool {
+		// Aside from interface-driven skipper, skip logging for metrics and status
+		if skipper(c) {
+			return true
+		}
+		return matchesPath(c.Request().RequestURI, "/metrics") || matchesPath(c.Request().RequestURI, "/status")
+	}
+	if cfg.Log != LogNothingLevel {
+		// Log when level is set to metadata or request-response
+		echoServer.Use(requestLoggerMiddleware(loggerSkipper, log.Logger()))
+	}
+	if cfg.Log == LogMetadataAndBodyLevel {
+		// Log when level is set to request-response
+		echoServer.Use(bodyLoggerMiddleware(skipper, log.Logger()))
 	}
 
 	address := h.server.getAddressForPath(path)

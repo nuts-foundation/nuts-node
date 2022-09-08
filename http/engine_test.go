@@ -31,7 +31,6 @@ import (
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/http/log"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/writer"
@@ -368,7 +367,7 @@ func TestEngine_Configure(t *testing.T) {
 	})
 }
 
-func TestEngine_ApplyGlobalMiddleware(t *testing.T) {
+func TestEngine_LoggingMiddleware(t *testing.T) {
 	output := new(bytes.Buffer)
 	logrus.StandardLogger().AddHook(&writer.Hook{
 		Writer:    output,
@@ -377,8 +376,7 @@ func TestEngine_ApplyGlobalMiddleware(t *testing.T) {
 
 	noop := func() {}
 
-	t.Run("global middleware not applied to /status and /metrics", func(t *testing.T) {
-		log.Logger()
+	t.Run("not applied to /status and /metrics", func(t *testing.T) {
 		engine := New(noop, nil)
 		engine.config.InterfaceConfig.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
 
@@ -406,9 +404,32 @@ func TestEngine_ApplyGlobalMiddleware(t *testing.T) {
 		output.Reset()
 		_, _ = http.Get("http://" + engine.config.InterfaceConfig.Address + "/some-path")
 		assert.Contains(t, output.String(), "HTTP request")
+	})
+	t.Run("request/reply body is logged", func(t *testing.T) {
+		engine := New(noop, nil)
+		engine.config.InterfaceConfig.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
+		engine.config.InterfaceConfig.Log = LogMetadataAndBodyLevel
 
-		err = engine.Shutdown()
-		assert.NoError(t, err)
+		err := engine.Configure(*core.NewServerConfig())
+		if !assert.NoError(t, err) {
+			return
+		}
+		engine.Router().POST("/", func(c echo.Context) error {
+			return c.JSON(200, "hello, world")
+		})
+
+		err = engine.Start()
+		if !assert.NoError(t, err) {
+			return
+		}
+		defer engine.Shutdown()
+
+		output.Reset()
+
+		_, _ = http.Post("http://"+engine.config.InterfaceConfig.Address, "application/json", bytes.NewReader([]byte("{}")))
+
+		assert.Contains(t, output.String(), "HTTP request body: {}")
+		assert.Contains(t, output.String(), `HTTP response body: \"hello, world\"`)
 	})
 }
 

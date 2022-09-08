@@ -19,6 +19,7 @@
 package http
 
 import (
+	"bytes"
 	"errors"
 	"github.com/golang/mock/gomock"
 	"github.com/labstack/echo/v4"
@@ -28,10 +29,11 @@ import (
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
-func Test_loggerMiddleware(t *testing.T) {
+func Test_requestLoggerMiddleware(t *testing.T) {
 	t.Run("it logs", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		response := &echo.Response{}
@@ -42,7 +44,9 @@ func Test_loggerMiddleware(t *testing.T) {
 		echoMock.EXPECT().RealIP().Return("::1")
 
 		logger, hook := test.NewNullLogger()
-		logFunc := loggerMiddleware(loggerConfig{logger: logger.WithFields(logrus.Fields{})})
+		logFunc := requestLoggerMiddleware(func(c echo.Context) bool {
+			return false
+		}, logger.WithFields(logrus.Fields{}))
 		err := logFunc(func(context echo.Context) error {
 			return context.NoContent(http.StatusNoContent)
 		})(echoMock)
@@ -63,7 +67,9 @@ func Test_loggerMiddleware(t *testing.T) {
 		echoMock.EXPECT().RealIP().Return("::1")
 
 		logger, hook := test.NewNullLogger()
-		logFunc := loggerMiddleware(loggerConfig{logger: logger.WithFields(logrus.Fields{})})
+		logFunc := requestLoggerMiddleware(func(_ echo.Context) bool {
+			return false
+		}, logger.WithFields(logrus.Fields{}))
 		_ = logFunc(func(context echo.Context) error {
 			return echo.NewHTTPError(http.StatusForbidden)
 		})(echoMock)
@@ -82,7 +88,9 @@ func Test_loggerMiddleware(t *testing.T) {
 		echoMock.EXPECT().RealIP().Return("::1")
 
 		logger, hook := test.NewNullLogger()
-		logFunc := loggerMiddleware(loggerConfig{logger: logger.WithFields(logrus.Fields{})})
+		logFunc := requestLoggerMiddleware(func(_ echo.Context) bool {
+			return false
+		}, logger.WithFields(logrus.Fields{}))
 		_ = logFunc(func(context echo.Context) error {
 			return core.NotFoundError("not found")
 		})(echoMock)
@@ -100,7 +108,9 @@ func Test_loggerMiddleware(t *testing.T) {
 		echoMock.EXPECT().RealIP().Return("::1")
 
 		logger, hook := test.NewNullLogger()
-		logFunc := loggerMiddleware(loggerConfig{logger: logger.WithFields(logrus.Fields{})})
+		logFunc := requestLoggerMiddleware(func(_ echo.Context) bool {
+			return false
+		}, logger.WithFields(logrus.Fields{}))
 		_ = logFunc(func(context echo.Context) error {
 			return errors.New("failed")
 		})(echoMock)
@@ -108,5 +118,70 @@ func Test_loggerMiddleware(t *testing.T) {
 		assert.Len(t, hook.Entries, 1)
 		assert.Equal(t, http.StatusInternalServerError, hook.LastEntry().Data["status"])
 		ctrl.Finish()
+	})
+}
+
+func Test_bodyLoggerMiddleware(t *testing.T) {
+	t.Run("it logs", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		e := echo.New()
+		request := httptest.NewRequest("GET", "/", bytes.NewReader([]byte(`"request"`)))
+		request.Header.Set("Content-Type", "application/json")
+		responseRecorder := httptest.NewRecorder()
+		response := echo.NewResponse(responseRecorder, e)
+		response.Header().Set("Content-Type", "application/json")
+		echoMock := mock.NewMockContext(ctrl)
+		echoMock.EXPECT().NoContent(http.StatusNoContent).Do(func(status int) {
+			response.Status = status
+			response.Write([]byte(`"response"`))
+		})
+		echoMock.EXPECT().Request().MinTimes(1).Return(request)
+		echoMock.EXPECT().Response().MinTimes(1).Return(response)
+
+		logger, hook := test.NewNullLogger()
+		logFunc := bodyLoggerMiddleware(func(c echo.Context) bool {
+			return false
+		}, logger.WithFields(logrus.Fields{}))
+		err := logFunc(func(context echo.Context) error {
+			return context.NoContent(http.StatusNoContent)
+		})(echoMock)
+
+		assert.NoError(t, err)
+		assert.Len(t, hook.Entries, 2)
+		assert.Equal(t, `HTTP request body: "request"`, hook.AllEntries()[0].Message)
+		assert.Equal(t, `HTTP response body: "response"`, hook.AllEntries()[1].Message)
+	})
+	t.Run("request and response not loggable", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		e := echo.New()
+		request := httptest.NewRequest("GET", "/", bytes.NewReader([]byte{1, 2, 3}))
+		request.Header.Set("Content-Type", "application/binary")
+		responseRecorder := httptest.NewRecorder()
+		response := echo.NewResponse(responseRecorder, e)
+		response.Header().Set("Content-Type", "application/binary")
+		echoMock := mock.NewMockContext(ctrl)
+		echoMock.EXPECT().NoContent(http.StatusNoContent).Do(func(status int) {
+			response.Status = status
+			response.Write([]byte{1, 2, 3})
+		})
+		echoMock.EXPECT().Request().MinTimes(1).Return(request)
+		echoMock.EXPECT().Response().MinTimes(1).Return(response)
+
+		logger, hook := test.NewNullLogger()
+		logFunc := bodyLoggerMiddleware(func(c echo.Context) bool {
+			return false
+		}, logger.WithFields(logrus.Fields{}))
+		err := logFunc(func(context echo.Context) error {
+			return context.NoContent(http.StatusNoContent)
+		})(echoMock)
+
+		assert.NoError(t, err)
+		assert.Len(t, hook.Entries, 2)
+		assert.Equal(t, `HTTP request body: (not loggable: application/binary)`, hook.AllEntries()[0].Message)
+		assert.Equal(t, `HTTP response body: (not loggable: application/binary)`, hook.AllEntries()[1].Message)
 	})
 }
