@@ -84,3 +84,9 @@ Alternatively you can use the ``fs2vault`` crypto command, which takes the direc
     docker exec nuts-node nuts crypto fs2vault /opt/nuts/data/crypto
 
 In any case, make sure the key-value secret engine exists before trying to migrate (default engine name is ``kv``).
+
+Trusted issuers
+***************
+
+The Nuts node stores your trusted issuers inside the ``<datadir>/vcr/trusted_issuers.yaml``.
+This file should be kept persistent and should be part of the backup procedure.
