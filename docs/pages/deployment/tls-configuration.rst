@@ -145,10 +145,6 @@ For `NGINX <https://www.nginx.com/>`_ the proxy configuration could look as foll
 
 .. code-block::
 
-    events {
-        worker_connections  1024;
-    }
-
     http {
         server {
           server_name nuts-grpc;
@@ -198,7 +194,7 @@ For `NGINX <https://www.nginx.com/>`_ the proxy configuration could look as foll
 .. note::
 
     During synchronization of a new Nuts node it is possible that the gRPC stream contains messages larger than NGINX is willing to accept.
-    To limit these issues add ``proxy_buffering off`` to the grpc config section, and increase the buffer size to any reasonably large number by adding ``grpc_buffer_size 128M``.
+    To limit these issues add ``proxy_buffering off`` to the gRPC config section, and increase the buffer size to some sanely large number e.g., ``grpc_buffer_size 128M``.
 
 For `HAProxy <https://www.haproxy.com/>`_ the proxy configuration could look as follows:
 
