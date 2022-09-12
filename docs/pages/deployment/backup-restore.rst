@@ -49,7 +49,7 @@ If you want to keep hourly, daily, and weekly backups, you can achieve this with
 Other
 =====
 
-There's one additional piece of data that requires a backup: the list of trusted DIDs.
+Additionaly, the list of trusted VC issuers must be backed up as well. 
 Trusted issuers of VCs are stored in  ``vcr/trusted_issuers.yaml`` inside the ``datadir`` directory.
 If the contents of this file is your primary store for trusted issuers (you're not managing them in an external administrative system), make sure to make a backup.
 
