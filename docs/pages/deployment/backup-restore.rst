@@ -51,7 +51,7 @@ Other
 
 There's one additional piece of data that requires a backup: the list of trusted DIDs.
 Trusted issuers of VCs are stored in  ``vcr/trusted_issuers.yaml`` inside the ``datadir`` directory.
-If the contents of this file is your primary store for trusted DIDs, make sure to make a backup.
+If the contents of this file is your primary store for trusted issuers (you're not managing them in an external administrative system), make sure to make a backup.
 
 Restore
 *******
