@@ -72,4 +72,4 @@ Reprocess calls return immediately and will do the work in the background.
 BBolt
 =====
 
-In the fourth step copy ``network/data.db``, ``vcr/backup-issued-credentials.db`` and ``vdr/didstore.db`` from your backup to the ``datadir`` (keep directory structure).
+In the fourth step copy ``network/data.db``, ``vcr/backup-issued-credentials.db`` and ``vdr/didstore.db`` from your backup to the ``datadir`` (keep the directory structure).
