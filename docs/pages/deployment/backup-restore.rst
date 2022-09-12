@@ -60,7 +60,7 @@ To restore a backup, follow the following steps:
 
 - shutdown the node.
 - remove the following directories from the ``datadir``: ``events``, ``network``, ``vcr`` and ``vdr``
-- follow the restore procedure for your storage (BBolt, Redis, Vault)
+- follow the restore procedure for your storage (BBolt, Redis, Hashicorp Vault)
 - restore the ``vcr/trusted_issuers.yaml`` file inside ``datadir``.
 - start your node
 - make an empty POST call to ``/internal/network/v1/reprocess?type=application/vc+json``
