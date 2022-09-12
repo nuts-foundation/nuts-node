@@ -88,5 +88,5 @@ In any case, make sure the key-value secret engine exists before trying to migra
 Trusted issuers
 ***************
 
-The Nuts node stores your trusted issuers inside the ``<datadir>/vcr/trusted_issuers.yaml``.
+The Nuts node stores your trusted issuers in ``<datadir>/vcr/trusted_issuers.yaml``.
 This file should be kept persistent and should be part of the backup procedure.
