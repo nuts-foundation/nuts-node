@@ -145,58 +145,56 @@ For `NGINX <https://www.nginx.com/>`_ the proxy configuration could look as foll
 
 .. code-block::
 
-    upstream nuts-node-http-public {
-      server nuts-node:80;
-    }
-    upstream nuts-node-http-n2n {
-      server nuts-node:8080;
-    }
-    upstream nuts-node-grpc {
-      server nuts-node:5555;
+    http {
+        server {
+          server_name nuts-grpc;
+          listen                    5555 ssl http2;
+          ssl_certificate           /etc/nginx/ssl/server.pem;
+          ssl_certificate_key       /etc/nginx/ssl/key.pem;
+          ssl_client_certificate    /etc/nginx/ssl/truststore.pem;
+          ssl_verify_client         on;
+          ssl_verify_depth          1;
+
+          location / {
+            grpc_pass grpc://nuts-node:5555;
+            grpc_set_header X-SSL-CERT $ssl_client_escaped_cert;        # add peer's SSL cert
+            grpc_set_header X-Forwarded-For $proxy_add_x_forwarded_for; # for correct IP logging
+          }
+        }
+
+
+        server {
+          server_name nuts-n2n;
+          listen                    443 ssl;
+          ssl_certificate           /etc/nginx/ssl/server.pem;
+          ssl_certificate_key       /etc/nginx/ssl/key.pem;
+          ssl_client_certificate    /etc/nginx/ssl/truststore.pem;
+          ssl_verify_client         on;
+          ssl_verify_depth          1;
+
+          location /n2n {
+            proxy_pass http://nuts-node:8080;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; # for correct IP logging
+          }
+        }
+
+        server {
+          server_name nuts-public;
+          listen                    443 ssl;
+          ssl_certificate           /etc/nginx/ssl/server.pem;
+          ssl_certificate_key       /etc/nginx/ssl/key.pem;
+
+          location /public {
+            proxy_pass http://nuts-node:80;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; # for correct IP logging
+          }
+        }
     }
 
-    server {
-      server_name nuts-grpc;
-      listen                    5555 ssl http2;
-      ssl_certificate           /etc/nginx/ssl/server.pem;
-      ssl_certificate_key       /etc/nginx/ssl/key.pem;
-      ssl_client_certificate    /etc/nginx/ssl/truststore.pem;
-      ssl_verify_client         on;
-      ssl_verify_depth          1;
+.. note::
 
-      location / {
-        grpc_pass grpc://nuts-node-grpc;
-        grpc_set_header X-SSL-CERT $ssl_client_escaped_cert;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; // for correct IP logging
-      }
-    }
-
-    server {
-      server_name nuts-n2n;
-      listen                    443 ssl http;
-      ssl_certificate           /etc/nginx/ssl/server.pem;
-      ssl_certificate_key       /etc/nginx/ssl/key.pem;
-      ssl_client_certificate    /etc/nginx/ssl/truststore.pem;
-      ssl_verify_client         on;
-      ssl_verify_depth          1;
-
-      location / {
-        proxy_pass http://nuts-node-http-n2n
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; // for correct IP logging
-      }
-    }
-
-    server {
-      server_name nuts-public;
-      listen                    443 ssl http;
-      ssl_certificate           /etc/nginx/ssl/server.pem;
-      ssl_certificate_key       /etc/nginx/ssl/key.pem;
-
-      location / {
-        proxy_pass http://nuts-node-http-public
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; // for correct IP logging
-      }
-    }
+    During synchronization of a new Nuts node it is possible that the gRPC stream contains messages larger than NGINX is willing to accept.
+    To limit these issues add ``proxy_buffering off`` to the gRPC config section, and increase the buffer size to some sanely large number e.g., ``grpc_buffer_size 128M``.
 
 For `HAProxy <https://www.haproxy.com/>`_ the proxy configuration could look as follows:
 
