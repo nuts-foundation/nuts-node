@@ -10,7 +10,7 @@ your node for running in a production environment and what to consider.
 Persistence
 ***********
 
-Make sure your :ref:`database configuration <database-configuration>` is set up to :ref:`backup your node's data and private keys <backup-restore>`.
+Make sure your :ref:`storage configuration <storage-configuration>` is set up to :ref:`backup your node's data and private keys <backup-restore>`.
 
 Strict mode
 ***********
