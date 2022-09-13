@@ -404,3 +404,29 @@ func (c *vcr) Untrusted(credentialType ssi.URI) ([]ssi.URI, error) {
 
 	return untrusted, nil
 }
+
+func (c *vcr) Diagnostics() []core.DiagnosticResult {
+	var credentialCount int
+	var err error
+	credentialCount, err = c.credentialCollection().DocumentCount()
+	if err != nil {
+		credentialCount = -1
+		log.Logger().
+			WithError(err).
+			Warn("unable to retrieve credential document count")
+	}
+	return []core.DiagnosticResult{
+		core.DiagnosticResultMap{
+			Title: "issuer",
+			Items: c.issuerStore.Diagnostics(),
+		},
+		core.DiagnosticResultMap{
+			Title: "verifier",
+			Items: c.verifierStore.Diagnostics(),
+		},
+		core.GenericDiagnosticResult{
+			Title:   "credential_count",
+			Outcome: credentialCount,
+		},
+	}
+}

@@ -20,6 +20,7 @@ package issuer
 
 import (
 	"errors"
+	"github.com/nuts-foundation/nuts-node/core"
 	"io"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -66,6 +67,7 @@ var ErrMultipleFound = errors.New("multiple found")
 // Store defines the interface for an issuer store.
 // An implementation stores all the issued credentials and the revocations.
 type Store interface {
+	core.Diagnosable
 	// GetCredential retrieves an issued credential by ID
 	// Returns an ErrNotFound when the credential is not in the store
 	// Returns an ErrMultipleFound when there are multiple credentials with this ID in the store

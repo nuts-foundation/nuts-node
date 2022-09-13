@@ -307,3 +307,33 @@ func (s leiaIssuerStore) createRevokedIndices(collection leia.Collection) error 
 		leia.NewFieldIndexer(leia.NewJSONPath(credential.RevocationSubjectPath)))
 	return s.revokedCredentials.AddIndex(revocationBySubjectIDIndex)
 }
+
+func (s leiaIssuerStore) Diagnostics() []core.DiagnosticResult {
+	var err error
+	var issuedCredentialCount int
+	issuedCredentialCount, err = s.issuedCredentials.DocumentCount()
+	if err != nil {
+		issuedCredentialCount = -1
+		log.Logger().
+			WithError(err).
+			Warn("unable to retrieve issuedCredentials document count")
+	}
+	var revokedCredentialsCount int
+	revokedCredentialsCount, err = s.revokedCredentials.DocumentCount()
+	if err != nil {
+		revokedCredentialsCount = -1
+		log.Logger().
+			WithError(err).
+			Warn("unable to retrieve revokedCredentials document count")
+	}
+	return []core.DiagnosticResult{
+		core.GenericDiagnosticResult{
+			Title:   "issued_credentials_count",
+			Outcome: issuedCredentialCount,
+		},
+		core.GenericDiagnosticResult{
+			Title:   "revoked_credentials_count",
+			Outcome: revokedCredentialsCount,
+		},
+	}
+}

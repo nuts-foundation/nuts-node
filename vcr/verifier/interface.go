@@ -20,6 +20,7 @@ package verifier
 
 import (
 	"errors"
+	"github.com/nuts-foundation/nuts-node/core"
 	"io"
 	"time"
 
@@ -60,6 +61,7 @@ const verifiableCredentialType = "VerifiableCredential"
 // The store is filled with public information such as revoked credentials,
 // as well as local defined trust relations between issuer and credential type.
 type Store interface {
+	core.Diagnosable
 	// GetRevocations returns all revocations for a credential ID
 	// Returns an ErrNotFound when the revocation is not in the store
 	GetRevocations(id ssi.URI) ([]*credential.Revocation, error)

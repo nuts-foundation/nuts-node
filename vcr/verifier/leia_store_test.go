@@ -91,3 +91,29 @@ func Test_leiaVerifierStore_GetRevocation(t *testing.T) {
 		assert.Nil(t, result)
 	})
 }
+
+func Test_leiaVerifierStore_Diagnostics(t *testing.T) {
+	t.Run("empty", func(t *testing.T) {
+		testDir := io.TestDirectory(t)
+		verifierStorePath := path.Join(testDir, "vcr", "verifier-store.db")
+		sut, _ := NewLeiaVerifierStore(verifierStorePath)
+
+		actual := sut.Diagnostics()
+		assert.Len(t, actual, 1)
+		assert.Equal(t, "revocations_count", actual[0].Name())
+		assert.Equal(t, 0, actual[0].Result())
+	})
+	t.Run("not empty", func(t *testing.T) {
+		testDir := io.TestDirectory(t)
+		verifierStorePath := path.Join(testDir, "vcr", "verifier-store.db")
+		sut, _ := NewLeiaVerifierStore(verifierStorePath)
+
+		subjectID := ssi.MustParseURI("did:nuts:123#ab-c")
+		revocation := &credential.Revocation{Subject: subjectID}
+		_ = sut.StoreRevocation(*revocation)
+
+		actual := sut.Diagnostics()
+		assert.Len(t, actual, 1)
+		assert.Equal(t, 1, actual[0].Result())
+	})
+}
