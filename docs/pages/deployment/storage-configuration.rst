@@ -1,6 +1,6 @@
-.. _database-configuration:
+.. _storage-configuration:
 
-Database Configuration
+Storage Configuration
 ######################
 
 The Nuts node supports different backends for storage. This page describes the particulars of each backend and how to configure it.
@@ -20,6 +20,12 @@ Data
 
 Data is everything your node produces and stores, except private keys. It is also everything that is produced and published by other nodes in the network.
 
+.. note::
+
+    Even if you configure external data storage (Redis), certain data is still stored on disk (e.g. search indexes).
+    Although this does not need to be in backup, depending on the network state size it can take a long time to rebuild it.
+    So you should always retain the data directory when restarting or upgrading the node.
+
 BBolt
 =====
 
@@ -30,7 +36,7 @@ You can back up volatile data, but it is not required.
 Redis
 =====
 
-If the node is configured to use Redis it stores all non-volatile data in the configured Redis server.
+If the node is configured to use Redis it stores network state in the configured Redis server.
 To use Redis, configure ``storage.redis.address``.
 You can configure username/password authentication using ``storage.redis.username`` and ``storage.redis.password``.
 
@@ -60,8 +66,8 @@ This is the default backend but not recommended for production. It stores keys u
 Make sure to include the directory in your backups and keep these in a safe place.
 If you want to use filesystem in strict mode, you have to set it explicitly, otherwise the node fails during startup.
 
-Vault
-=====
+Hasicorp Vault
+==============
 
 This storage backend is the recommended way of storing secrets. It uses the `Vault KV version 1 store <https://www.vaultproject.io/docs/secrets/kv/kv-v1>`_.
 The prefix defaults to ``kv`` and can be configured using the ``crypto.vault.pathprefix`` option.
@@ -72,8 +78,8 @@ Each key is stored under the kid, resulting in a full key path like ``kv/nuts-pr
 A Vault token must be provided by either configuring it using the config ``crypto.vault.token`` or setting the VAULT_TOKEN environment variable.
 The token must have a vault policy which has READ and WRITES rights on the path. In addition it needs to READ the token information "auth/token/lookup-self" which should be part of the default policy.
 
-Migrating to Vault
-==================
+Migrating to Hashicorp Vault
+============================
 
 Migrating your private keys from the filesystem to Vault is relatively easy: just upload the keys to Vault under ``kv/nuts-private-keys``.
 
