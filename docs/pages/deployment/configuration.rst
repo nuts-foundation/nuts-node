@@ -36,7 +36,9 @@ Ordering
 ********
 
 Command line parameters have the highest priority, then environment variables, then parameters from the configfile and lastly defaults.
-The location of the configfile is determined by the environment variable ``NUTS_CONFIGFILE`` or the commandline parameter ``--configfile``. If both are missing the default location ``./nuts.yaml`` is used.
+The location of the configfile is determined by the environment variable ``NUTS_CONFIGFILE`` or the commandline parameter ``--configfile``. If both are missing the default location ``./nuts.yaml`` is used. ::
+
+    CLI > ENV > Config File > Defaults
 
 Server options
 **************

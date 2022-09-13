@@ -56,7 +56,7 @@ Consult the :ref:`configuration reference <nuts-node-config>` on how to configur
 
 The request above instructs the node to create a new DID and DID Document. The DID Document will be published to all other nodes.
 The node will generate a new keypair and store it in the crypto backend.
-The options above will instruct the node to allow the DID Document to be changed by itself (``selfControl = true AND capabilityInvocation = true``) and that the DID can be used to issue credentials (``assertionMethod = true``).
+The options above will instruct the node to allow the DID Document to be changed by itself (``selfControl = true`` AND ``capabilityInvocation = true``) and that the DID can be used to issue credentials (``assertionMethod = true``).
 If all is well, the node will respond with a DID Document similar to:
 
 .. code-block:: json
