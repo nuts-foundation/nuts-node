@@ -40,7 +40,7 @@ import (
 )
 
 // ErrMissingPublicURL is returned when the publicUrl is missing from the config
-var ErrMissingPublicURL = errors.New("missing publicUrl")
+var ErrMissingPublicURL = errors.New("auth.publicurl must be set in strictmode")
 
 const contractValidity = 60 * time.Minute
 
