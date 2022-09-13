@@ -82,7 +82,7 @@ func TestClientConfigFlags(t *testing.T) {
 func TestNewClientConfigFromConfigMap(t *testing.T) {
 	t.Run("it contains the default values", func(t *testing.T) {
 		cmd := &cobra.Command{}
-		cmd.PersistentFlags().AddFlagSet(ClientConfigFlags())
+		cmd.Flags().AddFlagSet(ClientConfigFlags())
 		clientConfig := NewClientConfigForCommand(cmd)
 		assert.Equal(t, defaultClientTimeout, clientConfig.Timeout)
 		assert.Equal(t, defaultAddress, clientConfig.Address)
@@ -96,8 +96,9 @@ func TestNewClientConfigFromConfigMap(t *testing.T) {
 		assert.NoError(t, flags.Parse(args))
 		cmd.Flags().AddFlagSet(flags)
 		configMap := koanf.New(defaultDelimiter)
+		clientConfig := ClientConfig{}
 		loadFromFlagSet(configMap, cmd.Flags())
-		clientConfig := newClientConfigFromConfigMap(configMap)
+		loadConfigIntoStruct(&clientConfig, configMap)
 		duration, err := flags.GetDuration(clientTimeoutFlag)
 		assert.NoError(t, err)
 		assert.Equal(t, duration, clientConfig.Timeout)
@@ -109,7 +110,7 @@ func TestNewClientConfigFromConfigMap(t *testing.T) {
 func TestNewClientConfigForCommand(t *testing.T) {
 	t.Run("default values", func(t *testing.T) {
 		cmd := &cobra.Command{}
-		cmd.PersistentFlags().AddFlagSet(ClientConfigFlags())
+		cmd.Flags().AddFlagSet(ClientConfigFlags())
 		cfg := NewClientConfigForCommand(cmd)
 
 		assert.Equal(t, "localhost:1323", cfg.Address)

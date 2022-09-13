@@ -32,7 +32,7 @@ import (
 	"strings"
 )
 
-func loadConfigIntoStruct(flags *pflag.FlagSet, target interface{}, configMap *koanf.Koanf) error {
+func loadConfigIntoStruct(target interface{}, configMap *koanf.Koanf) error {
 	// load into struct
 	return configMap.UnmarshalWithConf("", target, koanf.UnmarshalConf{
 		FlatPaths: false,
@@ -56,8 +56,8 @@ func loadFromFile(configMap *koanf.Koanf, filepath string) error {
 
 // loadFromEnv loads the values from the environment variables into the configMap
 func loadFromEnv(configMap *koanf.Koanf) error {
-	e := env.ProviderWithValue(defaultPrefix, defaultDelimiter, func(rawKey string, rawValue string) (string, interface{}) {
-		key := strings.Replace(strings.ToLower(strings.TrimPrefix(rawKey, defaultPrefix)), "_", defaultDelimiter, -1)
+	e := env.ProviderWithValue(defaultEnvPrefix, defaultDelimiter, func(rawKey string, rawValue string) (string, interface{}) {
+		key := strings.Replace(strings.ToLower(strings.TrimPrefix(rawKey, defaultEnvPrefix)), defaultEnvDelimiter, defaultDelimiter, -1)
 
 		// Support multiple values separated by a comma
 		if strings.Contains(rawValue, configValueListSeparator) {
@@ -74,13 +74,8 @@ func loadFromEnv(configMap *koanf.Koanf) error {
 	return configMap.Load(e, nil)
 }
 
-// loadDefaultsFromFlagset loads the default values, set in the flags, into the configMap.
-// Note: This method should be used first to seed the configMap so other providers can override/alter the configMap.
-func loadDefaultsFromFlagset(configMap *koanf.Koanf, flags *pflag.FlagSet) error {
-	return configMap.Load(posflag.Provider(flags, defaultDelimiter, configMap), nil)
-}
-
 // loadFromFlagSet loads the config values set in the command line options into the configMap.
+// Als sets default value for all flags in the provided pflag.FlagSet if the values do not yet exist in the configMap.
 func loadFromFlagSet(configMap *koanf.Koanf, flags *pflag.FlagSet) error {
 	return configMap.Load(posflag.Provider(flags, defaultDelimiter, configMap), nil)
 }

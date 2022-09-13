@@ -251,9 +251,8 @@ func addSubCommands(system *core.System, root *cobra.Command) {
 		didmanCmd.Cmd(),
 	}
 	clientFlags := core.ClientConfigFlags()
-	for _, clientCommand := range clientCommands {
-		clientCommand.PersistentFlags().AddFlagSet(clientFlags)
-	}
+	registerFlags(clientCommands, clientFlags)
+
 	root.AddCommand(clientCommands...)
 
 	// Register server commands

@@ -50,32 +50,20 @@ type ClientConfig struct {
 }
 
 // NewClientConfigForCommand loads all the values for a given command into the provided configMap.
-// It loads the default values and then (when defined) overwrites them respectively with values from
-// environment variables and command line flags.
-// env and command line args cannot throw errors
+// defaults < ENV < CLI. Does not load config from file.
 func NewClientConfigForCommand(cmd *cobra.Command) ClientConfig {
 	configMap := koanf.New(defaultDelimiter)
-	if err := loadDefaultsFromFlagset(configMap, cmd.Flags()); err != nil {
-		panic(err)
-	}
-
 	if err := loadFromEnv(configMap); err != nil {
 		panic(err)
 	}
 
-	if err := loadFromFlagSet(configMap, cmd.PersistentFlags()); err != nil {
+	// also sets defaults that aren't in configMap yet
+	if err := loadFromFlagSet(configMap, cmd.Flags()); err != nil {
 		panic(err)
 	}
-	return newClientConfigFromConfigMap(configMap)
-}
 
-// newClientConfigFromConfigMap returns an initialized ClientConfig with values set from the provided configMap
-func newClientConfigFromConfigMap(configMap *koanf.Koanf) ClientConfig {
 	cfg := ClientConfig{}
-	if err := configMap.UnmarshalWithConf("", &cfg, koanf.UnmarshalConf{
-		FlatPaths: false,
-	}); err != nil {
-		// this should not happen, otherwise panic.
+	if err := loadConfigIntoStruct(&cfg, configMap); err != nil {
 		panic(err)
 	}
 	return cfg
