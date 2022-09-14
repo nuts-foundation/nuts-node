@@ -41,18 +41,14 @@ The following options apply to the server commands below:
       --jsonld.contexts.remoteallowlist strings       In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here. (default [https://schema.org,https://www.w3.org/2018/credentials/v1,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json])
       --loggerformat string                           Log format (text, json) (default "text")
       --network.bootstrapnodes strings                List of bootstrap nodes ('<host>:<port>') which the node initially connect to.
-      --network.certfile string                       Deprecated: use 'tls.certfile'. PEM file containing the server certificate for the gRPC server. Required when 'network.enabletls' is 'true'.
-      --network.certkeyfile string                    Deprecated: use 'tls.certkeyfile'. PEM file containing the private key of the server certificate. Required when 'network.enabletls' is 'true'.
       --network.connectiontimeout int                 Timeout before an outbound connection attempt times out (in milliseconds). (default 5000)
       --network.disablenodeauthentication             Disable node DID authentication using client certificate, causing all node DIDs to be accepted. Unsafe option, only intended for workshops/demo purposes so it's not allowed in strict-mode. Automatically enabled when TLS is disabled.
       --network.enablediscovery                       Whether to enable automatic connecting to other nodes. (default true)
       --network.enabletls                             Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see 'tls.offload'). Disabling TLS is not allowed in strict-mode. (default true)
       --network.grpcaddr string                       Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made). (default ":5555")
       --network.maxbackoff duration                   Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. '1h', '30m'). (default 24h0m0s)
-      --network.maxcrlvaliditydays int                Deprecated: use 'tls.crl.maxvaliditydays'. The number of days a CRL can be outdated, after that it will hard-fail.
       --network.nodedid string                        Specifies the DID of the organization that operates this node, typically a vendor for EPD software. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
       --network.protocols ints                        Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.
-      --network.truststorefile string                 Deprecated: use 'tls.truststorefile'. PEM file containing the trusted CA certificates for authenticating remote gRPC servers.
       --network.v2.diagnosticsinterval int            Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable). (default 5000)
       --network.v2.gossipinterval int                 Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes. (default 5000)
       --storage.bbolt.backup.directory string         Target directory for BBolt database backups.
@@ -109,16 +105,6 @@ Starts the Nuts server
 ::
 
   nuts server [flags]
-
-
-nuts status
-^^^^^^^^^^^
-
-Shows the status of the Nuts Node.
-
-::
-
-  nuts status [flags]
 
 
 Client Commands
@@ -233,6 +219,22 @@ Reprocess all transactions with the give contentType (ex: application/did+json)
 
   -h, --help   help for reprocess
       --address string      Address of the node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
+      --timeout duration    Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax. (default 10s)
+      --token string        Token to be used for authenticating on the remote node. Takes precedence over 'token-file'.
+      --token-file string   File from which the authentication token will be read. If not specified it will try to read the token from the '.nuts-client.cfg' file in the user's home dir.
+      --verbosity string    Log level (trace, debug, info, warn, error) (default "info")
+
+nuts status
+^^^^^^^^^^^
+
+Shows the status of the Nuts Node.
+
+::
+
+  nuts status [flags]
+
+      --address string      Address of the node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
+  -h, --help                help for status
       --timeout duration    Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax. (default 10s)
       --token string        Token to be used for authenticating on the remote node. Takes precedence over 'token-file'.
       --token-file string   File from which the authentication token will be read. If not specified it will try to read the token from the '.nuts-client.cfg' file in the user's home dir.

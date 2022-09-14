@@ -287,6 +287,11 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("network.truststorefile", "", "Deprecated: use 'tls.truststorefile'. PEM file containing the trusted CA certificates for authenticating remote gRPC servers.")
 	flagSet.Int("network.maxcrlvaliditydays", 0, "Deprecated: use 'tls.crl.maxvaliditydays'. The number of days a CRL can be outdated, after that it will hard-fail.")
 
+	flagSet.MarkDeprecated("network.certfile", "use 'tls.certfile' instead")
+	flagSet.MarkDeprecated("network.certkeyfile", "use 'tls.certkeyfile' instead")
+	flagSet.MarkDeprecated("network.truststorefile", "use 'tls.truststorefile' instead")
+	flagSet.MarkDeprecated("network.maxcrlvaliditydays", "use 'tls.crl.maxvaliditydays' instead")
+
 	return flagSet
 }
 
