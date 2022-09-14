@@ -15,6 +15,3 @@ Required storage depends on network state which grows over time, so make sure to
 
 If you use Redis for network state storage the storage requirements will be lower,
 but since search indexes are kept on disk it will still grow over time (although at a lower rate).
-
-Since search indexes use a memory-mapped file memory usage will grow over time as well, although 512 MB is a good starting point.
-When you experience degrading performance when searching, monitor RAM usage and consider upgrading it.
