@@ -16,7 +16,7 @@ The private keys are the most important of all data.
 When lost, all data has to be recreated which might include asking customer to re-sign certain documents.
 The Nuts node provides two ways of storing private keys: local filesystem and via Hashicorp Vault.
 Vault is the recommended store for storing private keys in a production environment.
-Please consult the Vault documentation on how to manage your backups.
+Please consult the `Vault documentation <https://learn.hashicorp.com/tutorials/vault/sop-backup>`_ on how to manage your backups.
 
 BBolt
 =====
@@ -45,6 +45,11 @@ The backup process will write to a temporary file first and when done rename tha
 
 The backup process will only keep a single file per store.
 If you want to keep hourly, daily, and weekly backups, you can achieve this with tools like ``rsync`` and ``rsnapshot`` (or others).
+
+Redis
+=====
+
+Refer to the `Redis documentation <https://redis.io/docs/manual/persistence/>`_ on how to deal with backups.
 
 Other
 =====
