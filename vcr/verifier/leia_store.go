@@ -22,6 +22,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vcr/log"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-leia/v3"
@@ -92,4 +94,22 @@ func (s leiaVerifierStore) createIndices(collection leia.Collection) error {
 	revocationBySubjectIDIndex := collection.NewIndex("revocationBySubjectIDIndex",
 		leia.NewFieldIndexer(leia.NewJSONPath(credential.RevocationSubjectPath)))
 	return s.revocations.AddIndex(revocationBySubjectIDIndex)
+}
+
+func (s leiaVerifierStore) Diagnostics() []core.DiagnosticResult {
+	var count int
+	var err error
+	count, err = s.revocations.DocumentCount()
+	if err != nil {
+		count = -1
+		log.Logger().
+			WithError(err).
+			Warn("unable to retrieve revocations document count")
+	}
+	return []core.DiagnosticResult{
+		core.GenericDiagnosticResult{
+			Title:   "revocations_count",
+			Outcome: count,
+		},
+	}
 }

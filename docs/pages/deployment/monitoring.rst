@@ -46,6 +46,13 @@ Returns the status of the various services in ``yaml`` format:
             dag_xor: 6aada4464e380db16d0316e597956fcdaeada0e8f6023be82eeb9c798e1815c6
             stored_database_size_bytes: 106496005
             transaction_count: 9001
+    vcr:
+        credential_count: 7
+        issuer:
+            issued_credentials_count: 0
+            revoked_credentials_count: 0
+        verifier:
+            revocations_count: 18
     status:
         git_commit: d36837bae48b780bfb76134e85b506472fc207a6
         os_arch: linux/amd64
@@ -53,6 +60,13 @@ Returns the status of the various services in ``yaml`` format:
         uptime: 4h14m12s
 
 If you supply ``application/json`` for the ``Accept`` HTTP header it will return the diagnostics in JSON format.
+
+Explanation of ambiguous/complex entries in the diagnostics:
+
+* ``vcr.credential_count`` holds the total number of credentials known to the node (public VCs, and private VCs issued to a DID on the local node)
+* ``vcr.issuer.issued_credentials_count`` holds the total number of credentials issued by the local node
+* ``vcr.issuer.revoked_credentials_count`` holds the total number of revoked credentials issued by the local node
+* ``vcr.verifier.revocations_count`` holds the total number of revoked credentials (public and private VCs)
 
 Metrics
 *******

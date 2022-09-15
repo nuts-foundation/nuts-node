@@ -419,6 +419,44 @@ func TestLeiaIssuerStore_handleRestore(t *testing.T) {
 	})
 }
 
+func Test_leiaIssuerStore_Diagnostics(t *testing.T) {
+	t.Run("empty", func(t *testing.T) {
+		store := newStore(t)
+
+		actual := store.Diagnostics()
+
+		assert.Len(t, actual, 2)
+		assert.Equal(t, 0, actual[0].Result())
+		assert.Equal(t, 0, actual[1].Result())
+	})
+	t.Run("credential", func(t *testing.T) {
+		store := newStore(t)
+		vcToStore := vc.VerifiableCredential{}
+		_ = json.Unmarshal([]byte(jsonld.TestCredential), &vcToStore)
+		_ = store.StoreCredential(vcToStore)
+
+		actual := store.Diagnostics()
+
+		assert.Len(t, actual, 2)
+		assert.Equal(t, "issued_credentials_count", actual[0].Name())
+		assert.Equal(t, 1, actual[0].Result())
+		assert.Equal(t, "revoked_credentials_count", actual[1].Name())
+		assert.Equal(t, 0, actual[1].Result())
+	})
+	t.Run("revocation", func(t *testing.T) {
+		store := newStore(t)
+		subjectID := ssi.MustParseURI("did:nuts:123#ab-c")
+		revocation := &credential.Revocation{Subject: subjectID}
+		_ = store.StoreRevocation(*revocation)
+
+		actual := store.Diagnostics()
+
+		assert.Len(t, actual, 2)
+		assert.Equal(t, 0, actual[0].Result())
+		assert.Equal(t, 1, actual[1].Result())
+	})
+}
+
 func newStore(t *testing.T) Store {
 	testDir := io.TestDirectory(t)
 	return newStoreInDir(t, testDir)

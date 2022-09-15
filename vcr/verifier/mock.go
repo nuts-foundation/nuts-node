@@ -11,6 +11,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
 	vc "github.com/nuts-foundation/go-did/vc"
+	core "github.com/nuts-foundation/nuts-node/core"
 	credential "github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
@@ -159,6 +160,20 @@ func (m *MockStore) Close() error {
 func (mr *MockStoreMockRecorder) Close() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockStore)(nil).Close))
+}
+
+// Diagnostics mocks base method.
+func (m *MockStore) Diagnostics() []core.DiagnosticResult {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Diagnostics")
+	ret0, _ := ret[0].([]core.DiagnosticResult)
+	return ret0
+}
+
+// Diagnostics indicates an expected call of Diagnostics.
+func (mr *MockStoreMockRecorder) Diagnostics() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Diagnostics", reflect.TypeOf((*MockStore)(nil).Diagnostics))
 }
 
 // GetRevocations mocks base method.

@@ -111,6 +111,36 @@ func TestVCR_Start(t *testing.T) {
 	})
 }
 
+func TestVCR_Diagnostics(t *testing.T) {
+	testDirectory := io.TestDirectory(t)
+	instance := NewVCRInstance(
+		nil,
+		nil,
+		nil,
+		network.NewTestNetworkInstance(path.Join(testDirectory, "network")),
+		jsonld.NewTestJSONLDManager(t),
+		events.NewTestManager(t),
+		storage.NewTestStorageEngine(testDirectory),
+	).(*vcr)
+	if err := instance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
+		t.Fatal(err)
+	}
+	if err := instance.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer instance.Shutdown()
+
+	diagnostics := instance.Diagnostics()
+
+	assert.Len(t, diagnostics, 3)
+	assert.Equal(t, "issuer", diagnostics[0].Name())
+	assert.NotEmpty(t, diagnostics[0].Result())
+	assert.Equal(t, "verifier", diagnostics[1].Name())
+	assert.NotEmpty(t, diagnostics[1].Result())
+	assert.Equal(t, "credential_count", diagnostics[2].Name())
+	assert.Equal(t, 0, diagnostics[2].Result())
+}
+
 func TestVCR_Resolve(t *testing.T) {
 
 	testInstance := func(t2 *testing.T) mockContext {
