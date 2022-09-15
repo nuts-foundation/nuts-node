@@ -212,6 +212,7 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 
 	t.Run("v1", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
+			logrus.SetLevel(logrus.DebugLevel)
 			v := validV1NutsAuthorizationCredential()
 
 			err := validator.Validate(*v)

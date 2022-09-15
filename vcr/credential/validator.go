@@ -26,6 +26,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/piprate/json-gold/ld"
+	"reflect"
 	"strings"
 
 	"github.com/nuts-foundation/go-did/vc"
@@ -88,6 +89,23 @@ func (d defaultCredentialValidator) Validate(credential vc.VerifiableCredential)
 	return d.validateAllFieldsKnown(credential)
 }
 
+func unslice(input map[string]interface{}) {
+	for key, v := range input {
+		value := reflect.ValueOf(v)
+		if value.Kind() == reflect.Slice && value.Len() == 1 {
+			// Should be unsliced
+			input[key] = value.Slice(0, 1)
+		}
+		// If value is a slice, iterate all children
+		value.Kind() == reflect.Slice
+
+		asMap, isMap := input[key].(map[string]interface{})
+		if isMap {
+			unslice(asMap)
+		}
+	}
+}
+
 // validateAllFieldsKnown verifies that all fields in the VC are specified by the JSON-LD context.
 func (d defaultCredentialValidator) validateAllFieldsKnown(input vc.VerifiableCredential) error {
 	// First expand, then compact and marshal to JSON, then compare
@@ -95,23 +113,26 @@ func (d defaultCredentialValidator) validateAllFieldsKnown(input vc.VerifiableCr
 	inputAsMap := make(map[string]interface{})
 	_ = json.Unmarshal(inputAsJSON, &inputAsMap)
 
+	unslice(inputAsMap)
+	delete(inputAsMap, "proof")
+
 	processor := ld.NewJsonLdProcessor()
-	options := ld.NewJsonLdOptions("") // TODO: why?
+	options := ld.NewJsonLdOptions("")
 	options.DocumentLoader = d.documentLoader
 	compactedAsMap, err := processor.Compact(inputAsMap, inputAsMap, options)
 	if err != nil {
 		return fmt.Errorf("unable to compact JSON-LD VC: %w", err)
 	}
+	delete(compactedAsMap, "proof")
+	unslice(compactedAsMap)
 	expectedAsJSON, _ := json.Marshal(inputAsMap)
 
 	// Now marshal compacted document to JSON and compare
 	compactedAsJSON, _ := json.Marshal(compactedAsMap)
 	if string(expectedAsJSON) != string(compactedAsJSON) {
 		log.Logger().Debug("VC validation failed, not all fields are defined by JSON-LD context")
-		log.Logger().Debugf("Given VC: %s", string(expectedAsJSON))
+		log.Logger().Debugf("Given VC:                                    %s", string(expectedAsJSON))
 		log.Logger().Debugf("Compacted VC (all undefined fields removed): %s", string(compactedAsJSON))
-		println(string(expectedAsJSON))
-		println(string(compactedAsJSON))
 		return failure("not all fields are defined by JSON-LD context")
 	}
 	return nil
@@ -201,7 +222,11 @@ func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableC
 	}
 
 	if credential.ContainsContext(NutsV2ContextURI) {
-		switch cs.LegalBase.ConsentType {
+		var legalBase LegalBase
+		if cs.LegalBase != nil {
+			legalBase = *cs.LegalBase
+		}
+		switch legalBase.ConsentType {
 		case "implied":
 			// no additional requirements
 			break
