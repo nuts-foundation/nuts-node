@@ -172,7 +172,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 
 	t.Run("failed - missing default context", func(t *testing.T) {
 		v := validNutsOrganizationCredential()
-		v.Context = []ssi.URI{stringToURI(NutsContext)}
+		v.Context = []ssi.URI{stringToURI(NutsV1Context)}
 
 		err := validator.Validate(*v)
 
@@ -374,7 +374,7 @@ func validNutsOrganizationCredential() *vc.VerifiableCredential {
 	id := issuer.URI()
 	id.Fragment = "#"
 	return &vc.VerifiableCredential{
-		Context:           []ssi.URI{vc.VCContextV1URI(), *NutsContextURI},
+		Context:           []ssi.URI{vc.VCContextV1URI(), NutsV1ContextURI},
 		ID:                &id,
 		Type:              []ssi.URI{*NutsOrganizationCredentialTypeURI, vc.VerifiableCredentialTypeV1URI()},
 		Issuer:            stringToURI(issuer.String()),
