@@ -142,7 +142,7 @@ You can register the ``NutsComm`` endpoint by calling ``addEndpoint`` on the DID
 
 .. note::
 
-    The domain registered in the ``NutsComm` endpoint must be listed as a DNS SAN in the node's TLS certificate.
+    The domain registered in the ``NutsComm`` endpoint must be listed as a DNS SAN in the node's TLS certificate.
     Node Discovery will ignore endpoints containing IP-addresses and reserved addresses as specified in `RFC2606 <https://datatracker.ietf.org/doc/html/rfc2606>`_.
 
 Care Organizations

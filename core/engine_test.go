@@ -209,7 +209,7 @@ func TestSystem_Load(t *testing.T) {
 
 		assert.NoError(t, flagSet.Parse([]string{"command", "--f", "once"}))
 		assert.NoError(t, ctl.Config.Load(flagSet))
-		assert.NoError(t, loadConfigIntoStruct(flagSet, &target, ctl.Config.configMap))
+		assert.NoError(t, loadConfigIntoStruct(&target, ctl.Config.configMap))
 		if assert.Len(t, target.F, 1) {
 			assert.Equal(t, "once", target.F[0])
 		}

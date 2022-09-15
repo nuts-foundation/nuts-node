@@ -22,12 +22,12 @@ package core
 import (
 	"crypto/tls"
 	"fmt"
+	"github.com/knadh/koanf/providers/env"
+	"github.com/knadh/koanf/providers/posflag"
 	"reflect"
 	"strings"
 
 	"github.com/knadh/koanf"
-	"github.com/knadh/koanf/providers/env"
-	"github.com/knadh/koanf/providers/posflag"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 )
@@ -35,7 +35,8 @@ import (
 const defaultConfigFile = "nuts.yaml"
 const configFileFlag = "configfile"
 
-const defaultPrefix = "NUTS_"
+const defaultEnvPrefix = "NUTS_"
+const defaultEnvDelimiter = "_"
 const defaultDelimiter = "."
 const configValueListSeparator = ","
 
@@ -186,12 +187,8 @@ func NewServerConfig() *ServerConfig {
 	}
 }
 
-// loadConfigMap populates the configMap with values from the config file, environment and pFlags
+// loadConfigMap populates the configMap with values from the defaults < config file < environment < cli
 func (ngc *ServerConfig) loadConfigMap(flags *pflag.FlagSet) error {
-	if err := loadDefaultsFromFlagset(ngc.configMap, flags); err != nil {
-		return err
-	}
-
 	if err := loadFromFile(ngc.configMap, resolveConfigFilePath(flags)); err != nil {
 		return err
 	}
@@ -200,6 +197,7 @@ func (ngc *ServerConfig) loadConfigMap(flags *pflag.FlagSet) error {
 		return err
 	}
 
+	// Besides CLI, also sets default values for flags not yet set in the configMap.
 	if err := loadFromFlagSet(ngc.configMap, flags); err != nil {
 		return err
 	}
@@ -213,9 +211,7 @@ func (ngc *ServerConfig) Load(flags *pflag.FlagSet) (err error) {
 		return err
 	}
 
-	if err := ngc.configMap.UnmarshalWithConf("", ngc, koanf.UnmarshalConf{
-		FlatPaths: false,
-	}); err != nil {
+	if err := loadConfigIntoStruct(ngc, ngc.configMap); err != nil {
 		return err
 	}
 
@@ -247,9 +243,9 @@ func resolveConfigFilePath(flags *pflag.FlagSet) string {
 	k := koanf.New(defaultDelimiter)
 
 	// load env flags
-	e := env.Provider(defaultPrefix, defaultDelimiter, func(s string) string {
+	e := env.Provider(defaultEnvPrefix, defaultDelimiter, func(s string) string {
 		return strings.Replace(strings.ToLower(
-			strings.TrimPrefix(s, defaultPrefix)), "_", defaultDelimiter, -1)
+			strings.TrimPrefix(s, defaultEnvPrefix)), defaultEnvDelimiter, defaultDelimiter, -1)
 	})
 	// can't return error
 	_ = k.Load(e, nil)
