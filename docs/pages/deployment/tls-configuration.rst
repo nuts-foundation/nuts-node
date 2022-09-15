@@ -65,7 +65,7 @@ Your Nuts node configuration could look like this:
     You can bind ``/internal`` to its own HTTP interface to further decrease the risk.
 
 TLS Pass-through
-^^^^^^^^^^^^^^^^
+****************
 
 When using a (level 4) load balancer that does not inspect or alter requests, TLS is still terminated on the Nuts node.
 
@@ -210,6 +210,14 @@ For `HAProxy <https://www.haproxy.com/>`_ the proxy configuration could look as 
         option forwardfor  # for correct IP logging
         http-request set-header X-SSL-CERT %{+Q}[ssl_c_der,base64]
         server node1 nuts_node:5555 check proto h2
+
+Revoked Certificates
+^^^^^^^^^^^^^^^^^^^^
+
+Proxies should always check whether the presented client certificate is revoked, e.g. in case its private was leaked.
+Many proxies don't automatically check certification revocation status unless explicitly configured.
+For HAProxy and NGINX you need to download/update the CRLs yourself and configure the proxy to use it (generally achieved using a scheduled script).
+This is not included in the examples above.
 
 No TLS
 ******
