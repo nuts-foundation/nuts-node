@@ -21,7 +21,9 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"github.com/nuts-foundation/nuts-node/core"
+	v2 "github.com/nuts-foundation/nuts-node/vcr/api/v2"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -32,8 +34,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestCmd test the nuts vcr * commands
-func TestCmd(t *testing.T) {
+// TestCmd_Trust tests the nuts vcr trust related commands
+func TestCmd_Trust(t *testing.T) {
 	didString := "did:nuts:1"
 	credentialType := "type"
 
@@ -57,7 +59,7 @@ func TestCmd(t *testing.T) {
 		t.Run(c, func(t *testing.T) {
 			t.Run("ok", func(t *testing.T) {
 				cmd := newCmd(t)
-				s := setupServer(cmd, http.StatusOK, []string{didString})
+				s, _ := setupServer(http.StatusOK, []string{didString})
 				defer reset(s)
 
 				cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
@@ -73,7 +75,7 @@ func TestCmd(t *testing.T) {
 
 			t.Run("error - server error", func(t *testing.T) {
 				cmd := newCmd(t)
-				s := setupServer(cmd, http.StatusInternalServerError, nil)
+				s, _ := setupServer(http.StatusInternalServerError, nil)
 				defer reset(s)
 				cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
@@ -114,7 +116,7 @@ func TestCmd(t *testing.T) {
 		t.Run(c, func(t *testing.T) {
 			t.Run("ok", func(t *testing.T) {
 				cmd := newCmd(t)
-				s := setupServer(cmd, http.StatusNoContent, nil)
+				s, _ := setupServer(http.StatusNoContent, nil)
 				defer reset(s)
 				cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
@@ -130,7 +132,7 @@ func TestCmd(t *testing.T) {
 
 			t.Run("error - server error", func(t *testing.T) {
 				cmd := newCmd(t)
-				s := setupServer(cmd, http.StatusInternalServerError, nil)
+				s, _ := setupServer(http.StatusInternalServerError, nil)
 				defer reset(s)
 				cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
@@ -164,10 +166,125 @@ func TestCmd(t *testing.T) {
 	}
 }
 
-func setupServer(cmd *cobra.Command, statusCode int, responseData interface{}) *httptest.Server {
-	s := httptest.NewServer(http2.Handler{StatusCode: statusCode, ResponseData: responseData})
+func TestCmd_Issue(t *testing.T) {
+	const issuerDID = "did:nuts:1"
+	const credentialType = "VCType"
+	const credentialSubject = `{"ID": "did:nuts:subject"}`
+	var contextURI = "http://context"
+	var visibility = v2.IssueVCRequestVisibility("private")
+	var boolFalse = false
+	var boolTrue = true
+
+	buf := new(bytes.Buffer)
+
+	// Setup new VCR commands with output to a bytes buffer
+	newCmd := func(t *testing.T) *cobra.Command {
+		t.Helper()
+		buf.Reset()
+		command := Cmd()
+		command.SetOut(buf)
+		return command
+	}
+
+	t.Run("ok", func(t *testing.T) {
+		cmd := newCmd(t)
+		s, handler := setupServer(http.StatusOK, "{}")
+		defer reset(s)
+		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
+		cmd.SetArgs([]string{"issue", contextURI, credentialType, issuerDID, credentialSubject})
+
+		err := cmd.Execute()
+
+		assert.NoError(t, err)
+		var request = v2.IssueVCRequest{
+			Context: &contextURI,
+			CredentialSubject: map[string]interface{}{
+				"ID": "did:nuts:subject",
+			},
+			Issuer:           issuerDID,
+			PublishToNetwork: &boolTrue,
+			Type:             credentialType,
+			Visibility:       &visibility,
+		}
+		expected, _ := json.Marshal(request)
+		assert.JSONEq(t, string(expected), string(handler.RequestData))
+	})
+	t.Run("ok - with expiration date", func(t *testing.T) {
+		var expirationDate = "2022-09-15T20:03:53.8489928Z"
+		cmd := newCmd(t)
+		s, handler := setupServer(http.StatusOK, "{}")
+		defer reset(s)
+		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
+		cmd.SetArgs([]string{"issue", "--expiration=" + expirationDate, contextURI, credentialType, issuerDID, credentialSubject})
+
+		err := cmd.Execute()
+
+		assert.NoError(t, err)
+		var request = v2.IssueVCRequest{
+			Context: &contextURI,
+			CredentialSubject: map[string]interface{}{
+				"ID": "did:nuts:subject",
+			},
+			Issuer:           issuerDID,
+			PublishToNetwork: &boolTrue,
+			Type:             credentialType,
+			Visibility:       &visibility,
+			ExpirationDate:   &expirationDate,
+		}
+		expected, _ := json.Marshal(request)
+		assert.JSONEq(t, string(expected), string(handler.RequestData))
+	})
+	t.Run("ok - do not publish", func(t *testing.T) {
+		cmd := newCmd(t)
+		s, handler := setupServer(http.StatusOK, "{}")
+		defer reset(s)
+		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
+		cmd.SetArgs([]string{"issue", "--publish=false", contextURI, credentialType, issuerDID, credentialSubject})
+
+		err := cmd.Execute()
+
+		assert.NoError(t, err)
+		var request = v2.IssueVCRequest{
+			Context: &contextURI,
+			CredentialSubject: map[string]interface{}{
+				"ID": "did:nuts:subject",
+			},
+			Issuer:           issuerDID,
+			PublishToNetwork: &boolFalse,
+			Type:             credentialType,
+		}
+		expected, _ := json.Marshal(request)
+		assert.JSONEq(t, string(expected), string(handler.RequestData))
+	})
+	t.Run("error - invalid subject", func(t *testing.T) {
+		cmd := newCmd(t)
+		s, _ := setupServer(http.StatusOK, "{}")
+		defer reset(s)
+		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
+		cmd.SetArgs([]string{"issue", contextURI, credentialType, issuerDID, `""`})
+
+		err := cmd.Execute()
+
+		assert.ErrorContains(t, err, "invalid credential subject")
+	})
+	t.Run("error - server error", func(t *testing.T) {
+		cmd := newCmd(t)
+		s, _ := setupServer(http.StatusInternalServerError, "{}")
+		defer reset(s)
+		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
+		cmd.SetArgs([]string{"issue", contextURI, credentialType, issuerDID, `{}`})
+
+		err := cmd.Execute()
+
+		assert.ErrorContains(t, err, "server returned HTTP 500")
+	})
+}
+
+func setupServer(statusCode int, responseData interface{}) (*httptest.Server, *http2.Handler) {
+	handler := &http2.Handler{StatusCode: statusCode, ResponseData: responseData}
+	s := httptest.NewServer(handler)
 	os.Setenv("NUTS_ADDRESS", s.URL)
-	return s
+	return s, handler
 }
 
 func reset(httpServer *httptest.Server) {

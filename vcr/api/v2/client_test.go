@@ -35,7 +35,7 @@ var credentialType = "type"
 
 func TestHttpClient_Trust(t *testing.T) {
 
-	s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNoContent})
+	s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusNoContent})
 	c := &HTTPClient{
 		ClientConfig: core.ClientConfig{
 			Address: s.URL,
@@ -55,9 +55,9 @@ func TestHttpClient_Trust(t *testing.T) {
 		})
 
 		t.Run("error - other status code", func(t *testing.T) {
-			s.Config.Handler = http2.Handler{StatusCode: http.StatusInternalServerError}
+			s.Config.Handler = &http2.Handler{StatusCode: http.StatusInternalServerError}
 			defer func() {
-				s.Config.Handler = http2.Handler{StatusCode: http.StatusNoContent}
+				s.Config.Handler = &http2.Handler{StatusCode: http.StatusNoContent}
 			}()
 			err := fn(credentialType, didString)
 
@@ -96,7 +96,7 @@ func TestHttpClient_Trusted(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		result := []string{didString}
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: result})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: result})
 		c := &HTTPClient{
 			ClientConfig: core.ClientConfig{
 				Address: s.URL,
@@ -113,7 +113,7 @@ func TestHttpClient_Trusted(t *testing.T) {
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNotFound})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusNotFound})
 		c := &HTTPClient{
 			ClientConfig: core.ClientConfig{
 				Address: s.URL,
@@ -140,7 +140,7 @@ func TestHttpClient_Trusted(t *testing.T) {
 	})
 
 	t.Run("error - wrong content", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"})
 		c := &HTTPClient{
 			ClientConfig: core.ClientConfig{
 				Address: s.URL,
@@ -158,7 +158,7 @@ func TestHttpClient_Untrusted(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		result := []string{didString}
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: result})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: result})
 		c := &HTTPClient{
 			ClientConfig: core.ClientConfig{
 				Address: s.URL,
@@ -172,5 +172,40 @@ func TestHttpClient_Untrusted(t *testing.T) {
 			return
 		}
 		assert.NotNil(t, dids)
+	})
+}
+
+func TestHttpClient_IssueVC(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		const vcID = "did:nuts:123#321"
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: map[string]interface{}{
+			"id": vcID,
+		}})
+		c := &HTTPClient{
+			ClientConfig: core.ClientConfig{
+				Address: s.URL,
+				Timeout: time.Second,
+			},
+		}
+
+		credential, err := c.IssueVC(IssueVCRequest{})
+
+		assert.NoError(t, err)
+		assert.NotNil(t, credential)
+		assert.Equal(t, vcID, credential.ID.String())
+	})
+	t.Run("error - not status 200", func(t *testing.T) {
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusInternalServerError})
+		c := &HTTPClient{
+			ClientConfig: core.ClientConfig{
+				Address: s.URL,
+				Timeout: time.Second,
+			},
+		}
+
+		credential, err := c.IssueVC(IssueVCRequest{})
+
+		assert.Error(t, err)
+		assert.Nil(t, credential)
 	})
 }
