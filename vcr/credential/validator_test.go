@@ -185,7 +185,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 
 		err := validator.Validate(*v)
 
-		assert.EqualError(t, err, "validation failed: context 'https://nuts.nl/credentials/v1' is required")
+		assert.EqualError(t, err, "validation failed: context 'https://nuts.nl/credentials/v1' or 'https://nuts.nl/credentials/v2' is required")
 	})
 
 	t.Run("failed - missing issuanceDate", func(t *testing.T) {
@@ -266,7 +266,7 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 		err := validator.Validate(*v)
 
 		assert.Error(t, err)
-		assert.EqualError(t, err, "validation failed: context 'https://nuts.nl/credentials/v1' is required")
+		assert.EqualError(t, err, "validation failed: context 'https://nuts.nl/credentials/v1' or 'https://nuts.nl/credentials/v2' is required")
 	})
 
 	t.Run("failed - missing authorization VC type", func(t *testing.T) {
