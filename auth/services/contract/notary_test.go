@@ -108,7 +108,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		timeNow = func() time.Time {
-			return time.Time{}.Add(10 * time.Second)
+			return time.Unix(0, 0).Add(10 * time.Second)
 		}
 		defer func() { timeNow = time.Now }()
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, time.Time{}, 0)
@@ -117,7 +117,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		}
 
 		assert.NotNil(t, drawnUpContract)
-		assert.Equal(t, "Organisation Name: CareBears in Caretown, valid from Monday, 1 January 0001 00:17:40 to Monday, 1 January 0001 00:32:40", drawnUpContract.RawContractText)
+		assert.Equal(t, "Organisation Name: CareBears in Caretown, valid from Thursday, 1 January 1970 01:00:10 to Thursday, 1 January 1970 01:15:10", drawnUpContract.RawContractText)
 	})
 
 	t.Run("nok - unknown organization", func(t *testing.T) {
