@@ -49,8 +49,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 	template := contract.Template{
 		Template: "Organisation Name: {{legal_entity}} in {{legal_entity_city}}, valid from {{valid_from}} to {{valid_to}}",
 	}
-	// Add 1 second so !time.Zero()
-	validFrom := time.Time{}.Add(time.Second)
+	validFrom := time.Unix(0, 0)
 	duration := 10 * time.Minute
 
 	// Create DID document for org
@@ -80,7 +79,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		}
 
 		assert.NotNil(t, drawnUpContract)
-		assert.Equal(t, "Organisation Name: CareBears in Caretown, valid from Monday, 1 January 0001 00:19:33 to Monday, 1 January 0001 00:29:33", drawnUpContract.RawContractText)
+		assert.Equal(t, "Organisation Name: CareBears in Caretown, valid from Thursday, 1 January 1970 01:00:00 to Thursday, 1 January 1970 01:10:00", drawnUpContract.RawContractText)
 	})
 
 	t.Run("no given duration uses default", func(t *testing.T) {
@@ -97,7 +96,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		}
 
 		assert.NotNil(t, drawnUpContract)
-		assert.Equal(t, "Organisation Name: CareBears in Caretown, valid from Monday, 1 January 0001 00:19:33 to Monday, 1 January 0001 00:34:33", drawnUpContract.RawContractText)
+		assert.Equal(t, "Organisation Name: CareBears in Caretown, valid from Thursday, 1 January 1970 01:00:00 to Thursday, 1 January 1970 01:15:00", drawnUpContract.RawContractText)
 	})
 
 	t.Run("no given time uses time.Now()", func(t *testing.T) {
@@ -118,7 +117,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		}
 
 		assert.NotNil(t, drawnUpContract)
-		assert.Equal(t, "Organisation Name: CareBears in Caretown, valid from Monday, 1 January 0001 00:19:42 to Monday, 1 January 0001 00:34:42", drawnUpContract.RawContractText)
+		assert.Equal(t, "Organisation Name: CareBears in Caretown, valid from Monday, 1 January 0001 00:17:40 to Monday, 1 January 0001 00:32:40", drawnUpContract.RawContractText)
 	})
 
 	t.Run("nok - unknown organization", func(t *testing.T) {
@@ -209,7 +208,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		}
 
 		assert.NotNil(t, drawnUpContract)
-		assert.Equal(t, "Organisation Name: CareBears in Caretown, valid from Monday, 1 January 0001 00:19:33 to Monday, 1 January 0001 00:29:33", drawnUpContract.RawContractText)
+		assert.Equal(t, "Organisation Name: CareBears in Caretown, valid from Thursday, 1 January 1970 01:00:00 to Thursday, 1 January 1970 01:10:00", drawnUpContract.RawContractText)
 	})
 
 	t.Run("nok - multiple non-matching VCs", func(t *testing.T) {
