@@ -594,6 +594,14 @@ github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b h1:80
 github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b/go.mod h1:6YUioYirD6/8IahZkoS4Ypc8xbeJW76Xdk1QKcziNTM=
 github.com/nuts-foundation/go-did v0.3.0 h1:uZoFnwiAlJgVWWsr8b7tJXSMUgW2bajaLANE0f43fu4=
 github.com/nuts-foundation/go-did v0.3.0/go.mod h1:MD2sE53BOvsQHZ9CmGI+EGXPUk1QiU9bUqB062y9+N8=
+github.com/nuts-foundation/go-leia/v3 v3.1.3 h1:Kfo0SOOEoKy4DJ0CkZMtGipc6JFqqaP4UTN4jKWlzGY=
+github.com/nuts-foundation/go-leia/v3 v3.1.3/go.mod h1:Md202F2wpwkXGtOUzyqs0p1Y96+wOY8lpmDT9nuaxE0=
+github.com/nuts-foundation/go-stoabs v1.0.0 h1:1T385ghGzM849VgXYrEIr2EABfIGtjNpRL9S7D/hgmg=
+github.com/nuts-foundation/go-stoabs v1.0.0/go.mod h1:FzYovtpUhAjYFaiVvgFfT06iF0+MRaTgcaqQ6MVIq7Y=
+github.com/nuts-foundation/go-stoabs v1.0.1-0.20220916100843-4ae7b4227d91 h1:N+CN9kt0S5qwd5u9dgCGfQt+JDjFKy/rmTIKXj2mxno=
+github.com/nuts-foundation/go-stoabs v1.0.1-0.20220916100843-4ae7b4227d91/go.mod h1:FzYovtpUhAjYFaiVvgFfT06iF0+MRaTgcaqQ6MVIq7Y=
+github.com/nuts-foundation/go-stoabs v1.0.1-0.20220916115949-8d4df96bbe0c h1:nn2znKB0RoURuonXMUydcPI1kLD/0bj7ks5iFC3rD7I=
+github.com/nuts-foundation/go-stoabs v1.0.1-0.20220916115949-8d4df96bbe0c/go.mod h1:FzYovtpUhAjYFaiVvgFfT06iF0+MRaTgcaqQ6MVIq7Y=
 github.com/nuts-foundation/go-leia/v3 v3.2.0 h1:Z2+QAcvM2A0wlfW0NYa7VcB+u9CE0MmoJm+TZZZqnVQ=
 github.com/nuts-foundation/go-leia/v3 v3.2.0/go.mod h1:Md202F2wpwkXGtOUzyqs0p1Y96+wOY8lpmDT9nuaxE0=
 github.com/nuts-foundation/go-stoabs v1.2.0 h1:HSFF71iQalZLRI41VkXSJHyP0gUIeAAY0Km2Gzb9cNA=

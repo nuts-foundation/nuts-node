@@ -102,7 +102,7 @@ func Test_loadConfigIntoStruct(t *testing.T) {
 		assert.Equal(t, "nvironment", target.E)
 	})
 	t.Run("support for listed values from env and CLI", func(t *testing.T) {
-		os.Setenv("NUTS_LIST", "a, b, c,d")
+		os.Setenv("NUTS_LIST", ",a, b, c,d,value-\\,-with-escaped-comma,")
 		defer os.Unsetenv("NUTS_LIST")
 		flagSet := pflag.NewFlagSet("test", pflag.ContinueOnError)
 		type Target struct {
@@ -114,7 +114,7 @@ func Test_loadConfigIntoStruct(t *testing.T) {
 		assert.NoError(t, loadFromEnv(configMap))
 		err := loadConfigIntoStruct(&target, configMap)
 		assert.NoError(t, err)
-		assert.Equal(t, []string{"a", "b", "c", "d"}, target.List)
+		assert.Equal(t, []string{"", "a", "b", "c", "d", "value-,-with-escaped-comma", ""}, target.List)
 	})
 }
 

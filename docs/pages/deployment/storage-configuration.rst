@@ -51,6 +51,30 @@ The server's certificate will be verified against the OS' CA bundle.
 
     Make sure to `configure persistence for your Redis server <https://redis.io/docs/manual/persistence/>`_.
 
+Redis Sentinel
+^^^^^^^^^^^^^^
+
+You can enable Redis Sentinel by providing ``sentinelMasterName`` as the connecting string parameter.
+Specify multiple Sentinel instance addresses separated by a comma.
+Other Sentinel-specific parameters that can be used in the connecting string are ``sentinelUsername`` and ``sentinelPassword``.
+Configuration and parameters not specific to Sentinel still apply.
+
+.. code-block:: yaml
+
+    storage:
+      redis:
+        address: redis://instance1:1234,instance2:4321?sentinelMasterName=some-master-name
+
+Since commas (``,``) are used to specify a list of values when configuring through environment variables or command line flags,
+you need to escape them when you configure the Sentinel instances. You do so by escaping the comma with a backslash (``\,``).
+This does not apply to YAML configuration.
+
+.. code-block:: yaml
+
+    storage:
+      redis:
+        address: redis://instance1:1234,instance2:4321?sentinelMasterName=some-master-name
+
 Private Keys
 ************
 

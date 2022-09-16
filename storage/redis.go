@@ -131,6 +131,11 @@ func parseRedisSentinelURL(config RedisConfig) (*redis.FailoverOptions, error) {
 	// Parse Sentinel addresses
 	sentinelAddrs := strings.Split(sentinelURI.Host, ",")
 
+	// Make tls.Config.ServerName empty if set, since otherwise it will pin a single server name, but sentinel will connect to any/multiple.
+	if opts.TLSConfig != nil {
+		opts.TLSConfig.ServerName = ""
+	}
+
 	return &redis.FailoverOptions{
 		MasterName:       masterName,
 		SentinelAddrs:    sentinelAddrs,

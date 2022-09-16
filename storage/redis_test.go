@@ -150,6 +150,7 @@ func Test_redisDatabase_createStore(t *testing.T) {
 		assert.Equal(t, "password", db.sentinelOptions.Password)
 		// Assert sentinel-specific options
 		assert.Equal(t, "master", db.sentinelOptions.MasterName)
+		assert.Empty(t, db.sentinelOptions.TLSConfig.ServerName)
 		assert.Equal(t, []string{"instance1:1234", "instance2:4321"}, db.sentinelOptions.SentinelAddrs)
 		assert.Equal(t, "sentinel-user", db.sentinelOptions.SentinelUsername)
 		assert.Equal(t, "sentinel-password", db.sentinelOptions.SentinelPassword)
