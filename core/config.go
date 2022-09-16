@@ -60,16 +60,14 @@ func loadFromEnv(configMap *koanf.Koanf) error {
 		key := strings.Replace(strings.ToLower(strings.TrimPrefix(rawKey, defaultPrefix)), "_", defaultDelimiter, -1)
 
 		// Support multiple values separated by a comma
-		if strings.Contains(rawValue, configValueListSeparator) {
-			values := strings.Split(rawValue, configValueListSeparator)
-			for i, value := range values {
-				values[i] = strings.TrimSpace(value)
-			}
-			return key, values
+		values := splitWithEscaping(rawValue, configValueListSeparator, "\\")
+		for i, value := range values {
+			values[i] = strings.TrimSpace(value)
 		}
-
-		// Just a single value
-		return key, rawValue
+		if len(values) == 1 {
+			return key, values[0]
+		}
+		return key, values
 	})
 	return configMap.Load(e, nil)
 }
@@ -83,4 +81,14 @@ func loadDefaultsFromFlagset(configMap *koanf.Koanf, flags *pflag.FlagSet) error
 // loadFromFlagSet loads the config values set in the command line options into the configMap.
 func loadFromFlagSet(configMap *koanf.Koanf, flags *pflag.FlagSet) error {
 	return configMap.Load(posflag.Provider(flags, defaultDelimiter, configMap), nil)
+}
+
+// splitWithEscaping see https://codereview.stackexchange.com/questions/259270/golang-splitting-a-string-by-a-separator-not-prefixed-by-an-escape-string/259382
+func splitWithEscaping(s, separator, escape string) []string {
+	s = strings.ReplaceAll(s, escape+separator, "\x00")
+	tokens := strings.Split(s, separator)
+	for i, token := range tokens {
+		tokens[i] = strings.ReplaceAll(token, "\x00", separator)
+	}
+	return tokens
 }
