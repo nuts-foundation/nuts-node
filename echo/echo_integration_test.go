@@ -85,9 +85,7 @@ events:
 func startServer(t *testing.T, configFileContents string) string {
 	testDir := io.TestDirectory(t)
 	var system *core.System
-	system = cmd.CreateSystem(func() {
-		_ = system.Shutdown()
-	})
+	system = cmd.CreateSystem(func() {})
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// command line arguments
