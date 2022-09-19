@@ -312,8 +312,8 @@ func (v verifier) doVerifyVP(vcVerifier Verifier, vp vc.VerifiablePresentation, 
 
 func (v *verifier) validateType(credential vc.VerifiableCredential) error {
 	// VCs must contain 2 types: "VerifiableCredential" and specific type
-	if len(credential.Type) != 2 {
-		return errors.New("verifiable credential must list exactly 2 types")
+	if len(credential.Type) > 2 {
+		return errors.New("verifiable credential must list at most 2 types")
 	}
 	// "VerifiableCredential" should be one of the types
 	for _, curr := range credential.Type {
