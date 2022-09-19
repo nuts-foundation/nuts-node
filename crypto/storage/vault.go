@@ -91,7 +91,7 @@ func configureVaultClient(cfg VaultConfig) (*vault.Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize Vault client: %w", err)
 	}
-	// The Redis client will automatically use the env var VAULT_TOKEN
+	// The Vault client will automatically use the env var VAULT_TOKEN
 	// the client.SetToken overrides this value, so only set when not empty
 	if cfg.Token != "" {
 		client.SetToken(cfg.Token)
