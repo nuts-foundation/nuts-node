@@ -39,7 +39,7 @@ func FindValidatorAndBuilder(credential vc.VerifiableCredential) (Validator, Bui
 			}
 		}
 	}
-	return defaultCredentialValidator{}, nil
+	return defaultCredentialValidator{}, defaultBuilder{vcType: vc.VerifiableCredentialType}
 }
 
 // ExtractTypes extract additional VC types from the VC as strings

@@ -28,11 +28,11 @@ import (
 )
 
 func TestFindValidatorAndBuilder(t *testing.T) {
-	t.Run("an unknown type returns the default validator and no builder", func(t *testing.T) {
+	t.Run("an unknown type returns the default validator and builder", func(t *testing.T) {
 		v, b := FindValidatorAndBuilder(vc.VerifiableCredential{})
 
 		assert.NotNil(t, t, v)
-		assert.Nil(t, b)
+		assert.NotNil(t, b)
 	})
 
 	t.Run("validator and builder found for NutsOrganizationCredential", func(t *testing.T) {

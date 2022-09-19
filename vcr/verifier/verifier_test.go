@@ -87,9 +87,9 @@ func Test_verifier_Validate(t *testing.T) {
 			ctx := newMockContext(t)
 			instance := ctx.verifier
 
-			err := instance.Validate(vc.VerifiableCredential{Type: []ssi.URI{vc.VerifiableCredentialTypeV1URI()}}, nil)
+			err := instance.Validate(vc.VerifiableCredential{Type: []ssi.URI{vc.VerifiableCredentialTypeV1URI(), ssi.MustParseURI("a"), ssi.MustParseURI("b")}}, nil)
 
-			assert.EqualError(t, err, "verifiable credential must list exactly 2 types")
+			assert.EqualError(t, err, "verifiable credential must list at most 2 types")
 		})
 		t.Run("does not contain v1 context", func(t *testing.T) {
 			ctx := newMockContext(t)
