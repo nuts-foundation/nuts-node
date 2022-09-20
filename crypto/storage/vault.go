@@ -155,12 +155,8 @@ func (v vaultKVStorage) storeValue(path, key string, value string) error {
 
 func (v vaultKVStorage) PrivateKeyExists(kid string) bool {
 	path := privateKeyPath(v.config.PathPrefix, kid)
-	result, err := v.client.Read(path)
-	if err != nil {
-		return false
-	}
-	_, ok := result.Data[keyName]
-	return ok
+	_, err := v.getValue(path, keyName)
+	return err == nil
 }
 
 func (v vaultKVStorage) ListPrivateKeys() []string {
