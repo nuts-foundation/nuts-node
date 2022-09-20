@@ -22,6 +22,7 @@ import (
 	crypto2 "crypto"
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/core"
 	"path"
 	"testing"
 	"time"
@@ -109,7 +110,7 @@ func Test_issuer_buildVC(t *testing.T) {
 			}
 			result, err := sut.buildVC(credentialOptions)
 
-			assert.EqualError(t, err, "can only issue credential with 1 type")
+			assert.ErrorIs(t, err, core.InvalidInputError("can only issue credential with 1 type"))
 			assert.Nil(t, result)
 		})
 
@@ -121,7 +122,7 @@ func Test_issuer_buildVC(t *testing.T) {
 			}
 			result, err := sut.buildVC(credentialOptions)
 
-			assert.EqualError(t, err, "failed to parse issuer: invalid DID: input length is less than 7")
+			assert.ErrorIs(t, err, did.ErrInvalidDID)
 			assert.Nil(t, result)
 		})
 	})
@@ -156,7 +157,7 @@ func Test_issuer_buildVC(t *testing.T) {
 				Issuer: issuerID,
 			}
 			_, err := sut.buildVC(credentialOptions)
-			assert.EqualError(t, err, "failed to sign credential: could not resolve an assertionKey for issuer: unable to find the DID document")
+			assert.ErrorIs(t, err, core.InvalidInputError("failed to sign credential: could not resolve an assertionKey for issuer: unable to find the DID document"))
 		})
 
 	})

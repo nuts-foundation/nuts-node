@@ -66,6 +66,7 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 		vcrTypes.ErrRevoked:         http.StatusConflict,
 		vdrTypes.ErrNotFound:        http.StatusBadRequest,
 		vdrTypes.ErrKeyNotFound:     http.StatusBadRequest,
+		did.ErrInvalidDID:           http.StatusBadRequest,
 	})
 }
 
