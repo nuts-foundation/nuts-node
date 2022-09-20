@@ -145,7 +145,7 @@ func (v *verifier) Validate(credentialToVerify vc.VerifiableCredential, at *time
 // It currently checks if the credential has the required fields and values, if it is valid at the given time and optional the signature.
 func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrusted bool, checkSignature bool, validAt *time.Time) error {
 	// it must have valid content
-	validator, _ := credential.FindValidatorAndBuilder(credentialToVerify)
+	validator := credential.FindValidator(credentialToVerify)
 	if err := validator.Validate(credentialToVerify); err != nil {
 		return err
 	}
