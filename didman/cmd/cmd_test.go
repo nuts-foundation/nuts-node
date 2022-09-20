@@ -42,7 +42,7 @@ func TestCmd_AddService(t *testing.T) {
 			Type:            "type",
 			ServiceEndpoint: serviceEndpoint,
 		}
-		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: response}
+		handler := &http2.Handler{StatusCode: http.StatusOK, ResponseData: response}
 		s := httptest.NewServer(handler)
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")
@@ -64,7 +64,7 @@ func TestCmd_AddService(t *testing.T) {
 			Type:            "type",
 			ServiceEndpoint: serviceEndpoint,
 		}
-		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: response}
+		handler := &http2.Handler{StatusCode: http.StatusOK, ResponseData: response}
 		s := httptest.NewServer(handler)
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")
@@ -86,7 +86,7 @@ func TestCmd_AddService(t *testing.T) {
 func TestCmd_DeleteService(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		cmd := Cmd()
-		handler := http2.Handler{StatusCode: http.StatusNoContent, ResponseData: ""}
+		handler := &http2.Handler{StatusCode: http.StatusNoContent, ResponseData: ""}
 		s := httptest.NewServer(handler)
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")

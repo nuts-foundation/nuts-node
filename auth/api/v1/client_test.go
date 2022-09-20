@@ -33,7 +33,7 @@ import (
 
 func TestHTTPClient_CreateAccessToken(t *testing.T) {
 	t.Run("happy_path", func(t *testing.T) {
-		server := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK})
+		server := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK})
 		serverURL, _ := url.Parse(server.URL)
 
 		client, _ := NewHTTPClient("", time.Second)
@@ -45,7 +45,7 @@ func TestHTTPClient_CreateAccessToken(t *testing.T) {
 	})
 
 	t.Run("error_internal_server_error", func(t *testing.T) {
-		server := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError})
+		server := httptest.NewServer(&http2.Handler{StatusCode: http.StatusInternalServerError})
 		serverURL, _ := url.Parse(server.URL)
 
 		client, _ := NewHTTPClient("", time.Second)

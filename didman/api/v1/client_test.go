@@ -38,13 +38,13 @@ func TestHTTPClient_UpdateContactInformation(t *testing.T) {
 		Website: "website",
 	}
 	t.Run("ok", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: info})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: info})
 		c := getClient(s)
 		err := c.UpdateContactInformation("abc", info)
 		assert.NoError(t, err)
 	})
 	t.Run("error - server error", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})
 		c := getClient(s)
 		err := c.UpdateContactInformation("def", info)
 		assert.Error(t, err)
@@ -67,21 +67,21 @@ func TestHTTPClient_GetContactInformation(t *testing.T) {
 		Website: "website",
 	}
 	t.Run("ok", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: expected})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: expected})
 		c := getClient(s)
 		actual, err := c.GetContactInformation("abc")
 		assert.NoError(t, err)
 		assert.Equal(t, expected, *actual)
 	})
 	t.Run("no contact info", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNotFound, ResponseData: nil})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusNotFound, ResponseData: nil})
 		c := getClient(s)
 		actual, err := c.GetContactInformation("abc")
 		assert.NoError(t, err)
 		assert.Nil(t, actual)
 	})
 	t.Run("error", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: nil})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: nil})
 		c := getClient(s)
 		actual, err := c.GetContactInformation("abc")
 		assert.Error(t, err)
@@ -96,14 +96,14 @@ func TestHTTPClient_AddEndpoint(t *testing.T) {
 			ID:              ssi.MustParseURI("did:nuts:123#abc"),
 			Type:            "eOverdracht",
 		}
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: endpoint})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: endpoint})
 		c := getClient(s)
 		res, err := c.AddEndpoint("did:nuts:123", "type", "some-url")
 		assert.NoError(t, err)
 		assert.Equal(t, endpoint, *res)
 	})
 	t.Run("error - server error", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})
 		c := getClient(s)
 		endpoint, err := c.AddEndpoint("abc", "type", "some-url")
 		assert.EqualError(t, err, "server returned HTTP 500 (expected: 200), response: ")
@@ -122,13 +122,13 @@ func TestHTTPClient_AddEndpoint(t *testing.T) {
 
 func TestHTTPClient_DeleteEndpointsByType(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNoContent})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusNoContent})
 		c := getClient(s)
 		err := c.DeleteEndpointsByType("did:nuts:123", "eOverdracht")
 		assert.NoError(t, err)
 	})
 	t.Run("error - server error", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusInternalServerError})
 		c := getClient(s)
 		err := c.DeleteEndpointsByType("did:nuts:123", "eOverdracht")
 		assert.EqualError(t, err, "server returned HTTP 500 (expected: 204), response: null")
@@ -154,14 +154,14 @@ func TestHTTPClient_AddCompoundService(t *testing.T) {
 			Type:            "type",
 		}
 
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: res})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: res})
 		c := getClient(s)
 		cs, err := c.AddCompoundService("abc", "type", refs)
 		assert.NoError(t, err)
 		assert.Equal(t, res, cs)
 	})
 	t.Run("error - server error", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})
 		c := getClient(s)
 		_, err := c.AddCompoundService("abc", "type", refs)
 		assert.Error(t, err)
@@ -179,14 +179,14 @@ func TestHTTPClient_AddCompoundService(t *testing.T) {
 func TestHTTPClient_DeleteService(t *testing.T) {
 	id := ssi.MustParseURI("did:123#abc")
 	t.Run("ok", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNoContent})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusNoContent})
 		c := getClient(s)
 		err := c.DeleteService(id)
 		assert.NoError(t, err)
 	})
 
 	t.Run("error - internal server error", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: nil})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: nil})
 		c := getClient(s)
 		err := c.DeleteService(id)
 		assert.Error(t, err)
@@ -208,14 +208,14 @@ func TestHTTPClient_GetCompoundServices(t *testing.T) {
 			ServiceEndpoint: map[string]interface{}{"auth": "did:nuts:123/serviceEndpoint?type=token-server"},
 			Type:            "eOverdracht",
 		}}
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: cServices})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: cServices})
 		c := getClient(s)
 		res, err := c.GetCompoundServices("did:nuts:123")
 		assert.NoError(t, err)
 		assert.Equal(t, cServices, res)
 	})
 	t.Run("error - internal server error", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: nil})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: nil})
 		c := getClient(s)
 		res, err := c.GetCompoundServices("did:nuts:123")
 		assert.Error(t, err)

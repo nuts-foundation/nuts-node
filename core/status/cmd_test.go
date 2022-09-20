@@ -33,7 +33,7 @@ import (
 func TestEngine_Command(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		cmd := Cmd()
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: "diagnostics"})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: "diagnostics"})
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")
 		core.NewServerConfig().Load(cmd.Flags())
@@ -52,7 +52,7 @@ func TestEngine_Command(t *testing.T) {
 	})
 	t.Run("unexpected status code", func(t *testing.T) {
 		cmd := Cmd()
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")
 		core.NewServerConfig().Load(cmd.Flags())

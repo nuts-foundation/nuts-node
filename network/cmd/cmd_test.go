@@ -56,7 +56,7 @@ func TestCmd_List(t *testing.T) {
 	// mock the sever response
 	response := []interface{}{string(t1.Data()), string(t2.Data()), string(t3.Data())}
 	// start the mock server
-	s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: response})
+	s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: response})
 	defer s.Close()
 
 	t.Run("it lists sorted by time on default", func(t *testing.T) {
@@ -120,7 +120,7 @@ func TestCmd_Get(t *testing.T) {
 		cmd := Cmd()
 		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 		response := dag.CreateTestTransactionWithJWK(1)
-		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: string(response.Data())}
+		handler := &http2.Handler{StatusCode: http.StatusOK, ResponseData: string(response.Data())}
 		s := httptest.NewServer(handler)
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")
@@ -136,7 +136,7 @@ func TestCmd_Get(t *testing.T) {
 		cmd.SetErr(outBuf)
 
 		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
-		handler := http2.Handler{StatusCode: http.StatusNotFound, ResponseData: "not found"}
+		handler := &http2.Handler{StatusCode: http.StatusNotFound, ResponseData: "not found"}
 		s := httptest.NewServer(handler)
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")
@@ -167,7 +167,7 @@ func TestCmd_Payload(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		cmd := Cmd()
 		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
-		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: []byte("Hello, World!")}
+		handler := &http2.Handler{StatusCode: http.StatusOK, ResponseData: []byte("Hello, World!")}
 		s := httptest.NewServer(handler)
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")
@@ -178,7 +178,7 @@ func TestCmd_Payload(t *testing.T) {
 		assert.NoError(t, err)
 	})
 	t.Run("not found", func(t *testing.T) {
-		handler := http2.Handler{StatusCode: http.StatusNotFound, ResponseData: []byte("Hello, World!")}
+		handler := &http2.Handler{StatusCode: http.StatusNotFound, ResponseData: []byte("Hello, World!")}
 		s := httptest.NewServer(handler)
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")
@@ -209,7 +209,7 @@ func TestCmd_Peers(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		cmd := Cmd()
 		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
-		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: map[string]v1.PeerDiagnostics{"foo": {Uptime: 50 * time.Second}}}
+		handler := &http2.Handler{StatusCode: http.StatusOK, ResponseData: map[string]v1.PeerDiagnostics{"foo": {Uptime: 50 * time.Second}}}
 		s := httptest.NewServer(handler)
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")
@@ -242,7 +242,7 @@ foo
 func TestCmd_Reprocess(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		cmd := Cmd()
-		handler := http2.Handler{StatusCode: http.StatusAccepted}
+		handler := &http2.Handler{StatusCode: http.StatusAccepted}
 		s := httptest.NewServer(handler)
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")
@@ -255,7 +255,7 @@ func TestCmd_Reprocess(t *testing.T) {
 
 	t.Run("missing type", func(t *testing.T) {
 		cmd := Cmd()
-		handler := http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: "{\"detail\":\"missing type\"}"}
+		handler := &http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: "{\"detail\":\"missing type\"}"}
 		s := httptest.NewServer(handler)
 		os.Setenv("NUTS_ADDRESS", s.URL)
 		defer os.Unsetenv("NUTS_ADDRESS")
