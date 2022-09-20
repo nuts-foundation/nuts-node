@@ -29,7 +29,7 @@ It lists the interfaces of the Nuts node, who uses them and how they should be s
 
 .. note::
 
-    There are features that will change the recommended deployment, notably:
+    There are features that might change the recommended deployment, e.g.:
 
     * Clustering support
 
@@ -53,20 +53,20 @@ Interfaces/Endpoints
 
   *Users*: IRMA app.
 
-  *Security*: HTTPS with server certificate (on proxy). Monitor traffic to detect attacks.
+  *Security*: HTTPS with **publicly trusted** server certificate (on proxy). Monitor traffic to detect attacks.
 
 * **HTTP /n2n**: for providing Nuts services to other nodes (e.g. creating access tokens).
   The local node also calls other nodes on their `/n2n` endpoint, these outgoing calls are subject to the same security requirements.
 
   *Users*: Nuts nodes of other SPs.
 
-  *Security*: HTTPS with server- and client certificates (mTLS) according to network trust anchors (on proxy). Monitor traffic to detect attacks.
+  *Security*: HTTPS with server- and client certificates (mTLS) **according to network trust anchors** (on proxy). Monitor traffic to detect attacks.
 
 * **gRPC**: for communicating with other Nuts nodes according to the network protocol. Uses HTTP/2 as transport, both outbound and inbound.
 
   *Users*: Nuts nodes of other SPs.
 
-  *Security*: HTTPS with server- and client certificates (mTLS) according to network trust anchors. This is provided by the Nuts node.
+  *Security*: HTTPS with server- and client certificates (mTLS) **according to network trust anchors** (on proxy). This is provided by the Nuts node.
 
 * **HTTP /status**: for inspecting the health of the server, returns ``OK`` if healthy.
 
@@ -107,12 +107,13 @@ These exact subdomain names are by no means required and can be adjusted to your
 Reverse Proxy
 ^^^^^^^^^^^^^
 
-Process that protects and routes HTTP and gRPC access (specified above) to the Nuts Node. Typically a standalone HTTP proxy that resides in a DMZ and/or an ingress service on a cloud platform.
+Process that protects and routes HTTP and gRPC access (specified above) to the Nuts Node. Typically a standalone HTTP proxy (e.g. NGINX or HAProxy) that resides in a DMZ and/or an ingress service on a cloud platform.
 It will act as TLS terminator, with only a server certificate or requiring a client certificate as well (depending on the endpoint).
 
-If terminating TLS on this proxy, make sure to properly verify client certificates for gRPC traffic and HTTP calls to ``/n2n``.
+When terminating TLS on this proxy, make sure to properly verify client certificates for gRPC traffic and HTTP calls to ``/n2n``.
+HTTP calls to ``/public`` require a publicly trusted certificate, because mobile devices will query it (the IRMA app).
 
-The Nuts Node looks for a header called ``X-Forwarded-For`` to determine the client IP when logging HTTP calls.
+The Nuts Node looks for a header called ``X-Forwarded-For`` to determine the client IP when logging HTTP and gRPC calls.
 Refer to the documentation of your proxy on how to set this header.
 
 Nuts Node Client
