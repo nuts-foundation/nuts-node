@@ -10,9 +10,9 @@ Chestnut update (v4.2.3)
 
 Release date: 2022-09-21
 
-Bugfix for Hashicorp Vault key store backend: stacktrace on missing key (#1470 and #1410)
+Bugfix for Hashicorp Vault key store backend: stacktrace on missing key
 
-Bugfix VAULT_TOKEN gets overwritten with empty default (#1465)
+Bugfix VAULT_TOKEN gets overwritten with empty default
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.2.2...v4.2.3
 
