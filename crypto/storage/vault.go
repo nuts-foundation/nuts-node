@@ -88,7 +88,11 @@ func configureVaultClient(cfg VaultConfig) (*vault.Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize Vault client: %w", err)
 	}
-	client.SetToken(cfg.Token)
+	// The Vault client will automatically use the env var VAULT_TOKEN
+	// the client.SetToken overrides this value, so only set when not empty
+	if cfg.Token != "" {
+		client.SetToken(cfg.Token)
+	}
 	if cfg.Address != "" {
 		if err = client.SetAddress(cfg.Address); err != nil {
 			return nil, fmt.Errorf("vault address invalid: %w", err)
