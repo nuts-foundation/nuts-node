@@ -42,6 +42,10 @@ func (t *testServerInterface) SignJwt(_ echo.Context) error {
 	return t.err
 }
 
+func (t *testServerInterface) SignJws(_ echo.Context) error {
+	return t.err
+}
+
 var siws = []*ServerInterfaceWrapper{
 	serverInterfaceWrapper(nil), serverInterfaceWrapper(errors.New("Server error")),
 }
@@ -67,6 +71,7 @@ func TestRegisterHandlers(t *testing.T) {
 		echo := core.NewMockEchoRouter(ctrl)
 
 		echo.EXPECT().POST("/internal/crypto/v1/sign_jwt", gomock.Any())
+		echo.EXPECT().POST("/internal/crypto/v1/sign_jws", gomock.Any())
 
 		RegisterHandlers(echo, &testServerInterface{})
 	})

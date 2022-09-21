@@ -34,6 +34,32 @@ paths:
                 example: "aa==.bb==.cc=="
         default:
           $ref: '../common/error_response.yaml'
+  /internal/crypto/v1/sign_jws:
+    post:
+      summary: "sign a payload and headers with the private key of the given kid into a JWS object"
+      description: |
+        Sign a payload and headers with the private key of the given kid into a JWS object
+
+        error returns:
+        * 400 - incorrect input
+      operationId: signJws
+      tags:
+        - crypto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignJwsRequest'
+      responses:
+        '200':
+          description: "OK response, body holds JWS"
+          content:
+            text/plain:
+              schema:
+                example: "aa==.bb==.cc=="
+        default:
+          $ref: '../common/error_response.yaml'
 
 components:
   schemas:
@@ -45,6 +71,21 @@ components:
         kid:
           type: string
         claims:
+          type: object
+    SignJwsRequest:
+      required:
+        - headers
+        - claims
+        - kid
+      properties:
+        detached:
+          type: boolean
+          default: false
+        kid:
+          type: string
+        claims:
+          type: object
+        headers:
           type: object
   securitySchemes:
     jwtBearerAuth:

@@ -181,6 +181,43 @@ func TestCrypto_SignJWT(t *testing.T) {
 	})
 }
 
+func TestCrypto_SignJWS(t *testing.T) {
+	client := createCrypto(t)
+
+	kid := "kid"
+	key, _ := client.New(StringNamingFunc(kid))
+
+	t.Run("creates valid JWS", func(t *testing.T) {
+		tokenString, err := client.SignJWS(map[string]interface{}{"typ": "JWT"}, map[string]interface{}{"iss": "nuts"}, kid, false)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		token, err := ParseJWS(tokenString, func(kid string) (crypto.PublicKey, error) {
+			return key.Public(), nil
+		})
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Equal(t, "nuts", token["iss"])
+	})
+
+	t.Run("returns error for not found", func(t *testing.T) {
+		_, err := client.SignJWS(map[string]interface{}{"typ": "JWT"}, map[string]interface{}{"iss": "nuts"}, "unknown", false)
+
+		assert.True(t, errors.Is(err, ErrPrivateKeyNotFound))
+	})
+
+	t.Run("returns error for invalid KID", func(t *testing.T) {
+		_, err := client.SignJWS(map[string]interface{}{"typ": "JWT"}, map[string]interface{}{"iss": "nuts"}, "../certificate", false)
+
+		assert.ErrorContains(t, err, "invalid key ID")
+	})
+}
+
 func TestSignJWS(t *testing.T) {
 	client := createCrypto(t)
 	kid := "kid"

@@ -66,6 +66,9 @@ type JWTSigner interface {
 	// SignJWT creates a signed JWT using the indicated key and map of claims.
 	// Returns ErrPrivateKeyNotFound when indicated private key is not present.
 	SignJWT(claims map[string]interface{}, kid string) (string, error)
+	// SignJWS creates a signed JWS using the indicated key and map of headers and map of claims.
+	// Returns ErrPrivateKeyNotFound when indicated private key is not present.
+	SignJWS(headers, claims map[string]interface{}, kid string, detached bool) (string, error)
 }
 
 // Key is a helper interface which holds a crypto.Signer, KID and public key for a key.

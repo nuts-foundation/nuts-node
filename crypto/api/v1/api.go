@@ -65,6 +65,18 @@ func (signRequest SignJwtRequest) validate() error {
 	return nil
 }
 
+func (signRequest SignJwsRequest) validate() error {
+	if len(signRequest.Kid) == 0 {
+		return errors.New("missing kid")
+	}
+
+	if len(signRequest.Claims) == 0 {
+		return errors.New("missing claims")
+	}
+
+	return nil
+}
+
 const (
 	problemTitleSignJwt = "SignJWT failed"
 )
@@ -82,6 +94,28 @@ func (w *Wrapper) SignJwt(ctx echo.Context) error {
 	}
 
 	sig, err := w.C.SignJWT(signRequest.Claims, signRequest.Kid)
+	if err != nil {
+		return err
+	}
+
+	return ctx.String(http.StatusOK, sig)
+}
+
+func (w *Wrapper) SignJws(ctx echo.Context) error {
+	var signRequest = &SignJwsRequest{}
+	err := ctx.Bind(signRequest)
+	if err != nil {
+		return err
+	}
+
+	if err := signRequest.validate(); err != nil {
+		return core.InvalidInputError("invalid sign request: %w", err)
+	}
+	detached := false
+	if signRequest.Detached != nil {
+		detached = *signRequest.Detached
+	}
+	sig, err := w.C.SignJWS(signRequest.Headers, signRequest.Claims, signRequest.Kid, detached)
 	if err != nil {
 		return err
 	}

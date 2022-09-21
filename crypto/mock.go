@@ -211,6 +211,21 @@ func (mr *MockKeyStoreMockRecorder) Resolve(kid interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockKeyStore)(nil).Resolve), kid)
 }
 
+// SignJWS mocks base method.
+func (m *MockKeyStore) SignJWS(headers, claims map[string]interface{}, kid string, detached bool) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SignJWS", headers, claims, kid, detached)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SignJWS indicates an expected call of SignJWS.
+func (mr *MockKeyStoreMockRecorder) SignJWS(headers, claims, kid, detached interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignJWS", reflect.TypeOf((*MockKeyStore)(nil).SignJWS), headers, claims, kid, detached)
+}
+
 // SignJWT mocks base method.
 func (m *MockKeyStore) SignJWT(claims map[string]interface{}, kid string) (string, error) {
 	m.ctrl.T.Helper()
@@ -285,6 +300,21 @@ func NewMockJWTSigner(ctrl *gomock.Controller) *MockJWTSigner {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockJWTSigner) EXPECT() *MockJWTSignerMockRecorder {
 	return m.recorder
+}
+
+// SignJWS mocks base method.
+func (m *MockJWTSigner) SignJWS(headers, claims map[string]interface{}, kid string, detached bool) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SignJWS", headers, claims, kid, detached)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SignJWS indicates an expected call of SignJWS.
+func (mr *MockJWTSignerMockRecorder) SignJWS(headers, claims, kid, detached interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignJWS", reflect.TypeOf((*MockJWTSigner)(nil).SignJWS), headers, claims, kid, detached)
 }
 
 // SignJWT mocks base method.

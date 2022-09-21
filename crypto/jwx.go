@@ -23,9 +23,9 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/rsa"
+	"encoding/json"
 	"errors"
 	"fmt"
-
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
@@ -71,6 +71,38 @@ func (client *Crypto) SignJWT(claims map[string]interface{}, kid string) (token 
 
 	token, err = SignJWT(key, claims, nil)
 	return
+}
+
+// SignJWS creates a signed JWS given a kid, map of headers and map of claims
+func (client *Crypto) SignJWS(headers, claims map[string]interface{}, kid string, detached bool) (token string, err error) {
+	if err = validateKID(kid); err != nil {
+		return "", err
+	}
+	privateKey, err := client.Storage.GetPrivateKey(kid)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return "", ErrPrivateKeyNotFound
+		}
+		return "", err
+	}
+	key, err := jwkKey(privateKey)
+	if err != nil {
+		return "", err
+	}
+
+	if err = key.Set(jwk.KeyIDKey, kid); err != nil {
+		return "", err
+	}
+
+	body, err := json.Marshal(claims)
+	if err != nil {
+		return "", err
+	}
+
+	headers[jws.KeyIDKey] = key.KeyID()
+
+	token, err = signJWS(body, headers, privateKey, detached)
+	return token, err
 }
 
 func jwkKey(signer crypto.Signer) (key jwk.Key, err error) {
@@ -150,6 +182,58 @@ func ParseJWT(tokenString string, f PublicKeyFunc, options ...jwt.ParseOption) (
 	options = append(options, jwt.WithValidate(true))
 
 	return jwt.ParseString(tokenString, options...)
+}
+
+// ParseJWT parses a token, validates and verifies it.
+func ParseJWS(tokenString string, f PublicKeyFunc) (map[string]interface{}, error) {
+	kid, alg, err := JWTKidAlg(tokenString)
+	if err != nil {
+		return nil, err
+	}
+
+	key, err := f(kid)
+	if err != nil {
+		return nil, err
+	}
+
+	if !isAlgorithmSupported(alg) {
+		return nil, fmt.Errorf("token signing algorithm is not supported: %s", alg)
+	}
+
+	message, err := jws.ParseString(tokenString)
+	if err != nil {
+		return nil, err
+	}
+	headers, body, _, err := jws.SplitCompactString(tokenString)
+	if err != nil {
+		return nil, err
+	}
+	signatures := message.Signatures()
+	for i := range signatures {
+		signature := signatures[i]
+		verifier, err := jws.NewVerifier(signature.ProtectedHeaders().Algorithm())
+		if err != nil {
+			return nil, err
+		}
+		payload := append(headers, "."...)
+		payload = append(payload, body...)
+		err = verifier.Verify(payload, signature.Signature(), key)
+		if err != nil {
+			return nil, err
+		}
+	}
+	var rv = make(map[string]interface{})
+	//var decoded = make(byte[]{})
+	//decodeString, err := base64.StdEncoding.Decode(decoded, body)
+	//if err != nil {
+	//	return nil, err
+	//}
+	err = json.Unmarshal(message.Payload(), &rv)
+	if err != nil {
+		return nil, err
+	}
+
+	return rv, nil
 }
 
 // SignJWS signs the payload using the JWS format with the provided signer.
