@@ -42,8 +42,12 @@ func (m mockVaultClient) Read(path string) (*vault.Secret, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
+	data, ok := m.store[path]
+	if !ok {
+		return nil, nil
+	}
 	return &vault.Secret{
-		Data: m.store[path],
+		Data: data,
 	}, nil
 }
 
@@ -101,11 +105,27 @@ func TestVaultKVStorage(t *testing.T) {
 		assert.False(t, result, "expected PrivateKeyExists to return false")
 	})
 
-	t.Run("error - key not found", func(t *testing.T) {
+	t.Run("error - key not found (empty response)", func(t *testing.T) {
 		vaultStorage := vaultKVStorage{config: DefaultVaultConfig(), client: mockVaultClient{store: map[string]map[string]interface{}{}}}
 		_, err := vaultStorage.GetPrivateKey(kid)
 		assert.Error(t, err, "expected error on unknown kid")
 		assert.EqualError(t, err, "key not found")
+
+		exists := vaultStorage.PrivateKeyExists(kid)
+		assert.False(t, exists)
+	})
+
+	t.Run("error - key not found (key not present in data field)", func(t *testing.T) {
+		store := map[string]map[string]interface{}{
+			"kv/nuts-private-keys/" + kid: {},
+		}
+		vaultStorage := vaultKVStorage{config: DefaultVaultConfig(), client: mockVaultClient{store: store}}
+		_, err := vaultStorage.GetPrivateKey(kid)
+		assert.Error(t, err, "expected error on unknown kid")
+		assert.EqualError(t, err, "key not found")
+
+		exists := vaultStorage.PrivateKeyExists(kid)
+		assert.False(t, exists)
 	})
 
 	t.Run("error - encoding issues", func(t *testing.T) {

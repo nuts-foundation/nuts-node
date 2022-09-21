@@ -20,6 +20,7 @@ package storage
 
 import (
 	"crypto"
+	"errors"
 	"fmt"
 	vault "github.com/hashicorp/vault/api"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
@@ -31,6 +32,8 @@ import (
 const privateKeyPathName = "nuts-private-keys"
 const defaultPathPrefix = "kv"
 const keyName = "key"
+
+var errKeyNotFound = errors.New("key not found")
 
 // VaultConfig contains the config options to configure the vaultKVStorage backend
 type VaultConfig struct {
@@ -131,11 +134,14 @@ func (v vaultKVStorage) GetPrivateKey(kid string) (crypto.Signer, error) {
 func (v vaultKVStorage) getValue(path, key string) ([]byte, error) {
 	result, err := v.client.Read(path)
 	if err != nil {
-		return nil, fmt.Errorf("unable to read private key from vault: %w", err)
+		return nil, fmt.Errorf("unable to read key from vault: %w", err)
+	}
+	if result == nil || result.Data == nil {
+		return nil, errKeyNotFound
 	}
 	rawValue, ok := result.Data[key]
 	if !ok {
-		return nil, fmt.Errorf("key not found")
+		return nil, errKeyNotFound
 	}
 	value, ok := rawValue.(string)
 	if !ok {
@@ -153,12 +159,8 @@ func (v vaultKVStorage) storeValue(path, key string, value string) error {
 
 func (v vaultKVStorage) PrivateKeyExists(kid string) bool {
 	path := privateKeyPath(v.config.PathPrefix, kid)
-	result, err := v.client.Read(path)
-	if err != nil {
-		return false
-	}
-	_, ok := result.Data[keyName]
-	return ok
+	_, err := v.getValue(path, keyName)
+	return err == nil
 }
 
 func (v vaultKVStorage) ListPrivateKeys() []string {
