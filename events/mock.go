@@ -361,6 +361,26 @@ func (mr *MockJetStreamContextMockRecorder) DeleteStream(name interface{}, opts 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteStream", reflect.TypeOf((*MockJetStreamContext)(nil).DeleteStream), varargs...)
 }
 
+// GetLastMsg mocks base method.
+func (m *MockJetStreamContext) GetLastMsg(name, subject string, opts ...nats_go.JSOpt) (*nats_go.RawStreamMsg, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{name, subject}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "GetLastMsg", varargs...)
+	ret0, _ := ret[0].(*nats_go.RawStreamMsg)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetLastMsg indicates an expected call of GetLastMsg.
+func (mr *MockJetStreamContextMockRecorder) GetLastMsg(name, subject interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{name, subject}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLastMsg", reflect.TypeOf((*MockJetStreamContext)(nil).GetLastMsg), varargs...)
+}
+
 // GetMsg mocks base method.
 func (m *MockJetStreamContext) GetMsg(name string, seq uint64, opts ...nats_go.JSOpt) (*nats_go.RawStreamMsg, error) {
 	m.ctrl.T.Helper()
@@ -596,6 +616,25 @@ func (mr *MockJetStreamContextMockRecorder) QueueSubscribeSync(subj, queue inter
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{subj, queue}, opts...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueueSubscribeSync", reflect.TypeOf((*MockJetStreamContext)(nil).QueueSubscribeSync), varargs...)
+}
+
+// SecureDeleteMsg mocks base method.
+func (m *MockJetStreamContext) SecureDeleteMsg(name string, seq uint64, opts ...nats_go.JSOpt) error {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{name, seq}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "SecureDeleteMsg", varargs...)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SecureDeleteMsg indicates an expected call of SecureDeleteMsg.
+func (mr *MockJetStreamContextMockRecorder) SecureDeleteMsg(name, seq interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{name, seq}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SecureDeleteMsg", reflect.TypeOf((*MockJetStreamContext)(nil).SecureDeleteMsg), varargs...)
 }
 
 // StreamInfo mocks base method.
