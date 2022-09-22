@@ -23,10 +23,17 @@ const (
 
 // SignJwsRequest defines model for SignJwsRequest.
 type SignJwsRequest struct {
-	Claims   map[string]interface{} `json:"claims"`
-	Detached *bool                  `json:"detached,omitempty"`
-	Headers  map[string]interface{} `json:"headers"`
-	Kid      string                 `json:"kid"`
+	// In detached mode the payload is signed but NOT included in the retured JWS object. Instead, the space between the first and second dot is empty, for example: <header>..<signature> Defaults to false.
+	Detached *bool `json:"detached,omitempty"`
+
+	// The map of protected headers
+	Headers map[string]interface{} `json:"headers"`
+
+	// Reference to the key ID used for signing the JWS.
+	Kid string `json:"kid"`
+
+	// The object to be signed as bytes. The bytes encoded as base64 characters.
+	Payload []byte `json:"payload"`
 }
 
 // SignJwtRequest defines model for SignJwtRequest.

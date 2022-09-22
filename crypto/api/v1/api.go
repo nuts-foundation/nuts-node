@@ -69,9 +69,11 @@ func (signRequest SignJwsRequest) validate() error {
 	if len(signRequest.Kid) == 0 {
 		return errors.New("missing kid")
 	}
-
-	if len(signRequest.Claims) == 0 {
-		return errors.New("missing claims")
+	if signRequest.Headers == nil {
+		return errors.New("missing headers")
+	}
+	if signRequest.Payload == nil {
+		return errors.New("missing payload")
 	}
 
 	return nil
@@ -115,7 +117,8 @@ func (w *Wrapper) SignJws(ctx echo.Context) error {
 	if signRequest.Detached != nil {
 		detached = *signRequest.Detached
 	}
-	sig, err := w.C.SignJWS(signRequest.Headers, signRequest.Claims, signRequest.Kid, detached)
+
+	sig, err := w.C.SignJWS(signRequest.Headers, signRequest.Payload, signRequest.Kid, detached)
 	if err != nil {
 		return err
 	}

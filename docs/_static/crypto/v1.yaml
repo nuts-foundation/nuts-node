@@ -75,18 +75,25 @@ components:
     SignJwsRequest:
       required:
         - headers
-        - claims
+        - payload
         - kid
       properties:
+        kid:
+          type: string
+          description: "Reference to the key ID used for signing the JWS."
+        headers:
+          type: object
+          description: "The map of protected headers"
+        payload:
+          type: string
+          format: byte
+          description: "The payload to be signed as bytes. The bytes must be encoded with base64 encoding."
         detached:
           type: boolean
           default: false
-        kid:
-          type: string
-        claims:
-          type: object
-        headers:
-          type: object
+          description: "In detached mode the payload is signed but NOT included in the returned JWS object. 
+          Instead, the space between the first and second dot is empty, like this: \"<header>..<signature>\".
+          Defaults to false."
   securitySchemes:
     jwtBearerAuth:
       type: http

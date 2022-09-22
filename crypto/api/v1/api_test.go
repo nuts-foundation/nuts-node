@@ -141,7 +141,7 @@ func TestWrapper_SignJwt(t *testing.T) {
 }
 
 func TestWrapper_SignJws(t *testing.T) {
-	t.Run("error - missing claim", func(t *testing.T) {
+	t.Run("error - no payload", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
 
@@ -157,15 +157,15 @@ func TestWrapper_SignJws(t *testing.T) {
 
 		err := ctx.client.SignJws(ctx.echo)
 
-		assert.EqualError(t, err, "invalid sign request: missing claims")
+		assert.EqualError(t, err, "invalid sign request: missing payload")
 	})
 
 	t.Run("Missing kid returns 400", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
-
+		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
 		jsonRequest := SignJwsRequest{
-			Claims: map[string]interface{}{"iss": "nuts"},
+			Payload: payload,
 		}
 		jsonData, _ := json.Marshal(jsonRequest)
 
@@ -181,30 +181,31 @@ func TestWrapper_SignJws(t *testing.T) {
 	t.Run("error - SignJWS fails", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
-
+		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
 		jsonRequest := SignJwsRequest{
-			Kid:    "kid",
-			Claims: map[string]interface{}{"iss": "nuts"},
+			Kid:     "kid",
+			Payload: payload,
+			Headers: map[string]interface{}{"typ": "JWM"},
 		}
 		jsonData, _ := json.Marshal(jsonRequest)
 
 		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
 			_ = json.Unmarshal(jsonData, f)
 		})
-		ctx.keyStore.EXPECT().SignJWS(gomock.Any(), gomock.Any(), "kid").Return("", errors.New("b00m!"))
+		ctx.keyStore.EXPECT().SignJWS(gomock.Any(), gomock.Any(), "kid", false).Return("", errors.New("b00m!"))
 
 		err := ctx.client.SignJws(ctx.echo)
 
 		assert.EqualError(t, err, "b00m!")
 	})
 
-	t.Run("All OK returns 200, no headers", func(t *testing.T) {
+	t.Run("error - no headers", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
-
+		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
 		jsonRequest := SignJwsRequest{
-			Kid:    "kid",
-			Claims: map[string]interface{}{"iss": "nuts"},
+			Kid:     "kid",
+			Payload: payload,
 		}
 
 		jsonData, _ := json.Marshal(jsonRequest)
@@ -212,7 +213,28 @@ func TestWrapper_SignJws(t *testing.T) {
 		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
 			_ = json.Unmarshal(jsonData, f)
 		})
-		ctx.keyStore.EXPECT().SignJWS(gomock.Any(), gomock.Any(), "kid").Return("token", nil)
+
+		err := ctx.client.SignJws(ctx.echo)
+
+		assert.EqualError(t, err, "invalid sign request: missing headers")
+	})
+
+	t.Run("All OK returns 200, with payload", func(t *testing.T) {
+		ctx := newMockContext(t)
+		defer ctx.ctrl.Finish()
+		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
+		jsonRequest := SignJwsRequest{
+			Kid:     "kid",
+			Headers: map[string]interface{}{"typ": "JWM"},
+			Payload: payload,
+		}
+
+		jsonData, _ := json.Marshal(jsonRequest)
+
+		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
+			_ = json.Unmarshal(jsonData, f)
+		})
+		ctx.keyStore.EXPECT().SignJWS(gomock.Any(), gomock.Any(), "kid", false).Return("token", nil)
 		ctx.echo.EXPECT().String(http.StatusOK, "token")
 
 		err := ctx.client.SignJws(ctx.echo)
@@ -220,14 +242,16 @@ func TestWrapper_SignJws(t *testing.T) {
 		assert.Nil(t, err)
 	})
 
-	t.Run("All OK returns 200, with headers", func(t *testing.T) {
+	t.Run("All OK returns 200, with payload, detached", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
-
+		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
+		detached := true
 		jsonRequest := SignJwsRequest{
-			Kid:     "kid",
-			Headers: map[string]interface{}{"typ": "JWM"},
-			Claims:  map[string]interface{}{"iss": "nuts"},
+			Kid:      "kid",
+			Headers:  map[string]interface{}{"typ": "JWM"},
+			Payload:  payload,
+			Detached: &detached,
 		}
 
 		jsonData, _ := json.Marshal(jsonRequest)
@@ -235,7 +259,7 @@ func TestWrapper_SignJws(t *testing.T) {
 		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
 			_ = json.Unmarshal(jsonData, f)
 		})
-		ctx.keyStore.EXPECT().SignJWS(gomock.Any(), gomock.Any(), "kid").Return("token", nil)
+		ctx.keyStore.EXPECT().SignJWS(gomock.Any(), gomock.Any(), "kid", true).Return("token", nil)
 		ctx.echo.EXPECT().String(http.StatusOK, "token")
 
 		err := ctx.client.SignJws(ctx.echo)

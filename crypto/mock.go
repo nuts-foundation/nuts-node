@@ -212,18 +212,18 @@ func (mr *MockKeyStoreMockRecorder) Resolve(kid interface{}) *gomock.Call {
 }
 
 // SignJWS mocks base method.
-func (m *MockKeyStore) SignJWS(headers, claims map[string]interface{}, kid string, detached bool) (string, error) {
+func (m *MockKeyStore) SignJWS(headers map[string]interface{}, payload []byte, kid string, detached bool) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SignJWS", headers, claims, kid, detached)
+	ret := m.ctrl.Call(m, "SignJWS", headers, payload, kid, detached)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // SignJWS indicates an expected call of SignJWS.
-func (mr *MockKeyStoreMockRecorder) SignJWS(headers, claims, kid, detached interface{}) *gomock.Call {
+func (mr *MockKeyStoreMockRecorder) SignJWS(headers, payload, kid, detached interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignJWS", reflect.TypeOf((*MockKeyStore)(nil).SignJWS), headers, claims, kid, detached)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignJWS", reflect.TypeOf((*MockKeyStore)(nil).SignJWS), headers, payload, kid, detached)
 }
 
 // SignJWT mocks base method.
@@ -303,18 +303,18 @@ func (m *MockJWTSigner) EXPECT() *MockJWTSignerMockRecorder {
 }
 
 // SignJWS mocks base method.
-func (m *MockJWTSigner) SignJWS(headers, claims map[string]interface{}, kid string, detached bool) (string, error) {
+func (m *MockJWTSigner) SignJWS(headers map[string]interface{}, payload []byte, kid string, detached bool) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SignJWS", headers, claims, kid, detached)
+	ret := m.ctrl.Call(m, "SignJWS", headers, payload, kid, detached)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // SignJWS indicates an expected call of SignJWS.
-func (mr *MockJWTSignerMockRecorder) SignJWS(headers, claims, kid, detached interface{}) *gomock.Call {
+func (mr *MockJWTSignerMockRecorder) SignJWS(headers, payload, kid, detached interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignJWS", reflect.TypeOf((*MockJWTSigner)(nil).SignJWS), headers, claims, kid, detached)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignJWS", reflect.TypeOf((*MockJWTSigner)(nil).SignJWS), headers, payload, kid, detached)
 }
 
 // SignJWT mocks base method.
