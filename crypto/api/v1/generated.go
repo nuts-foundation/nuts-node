@@ -23,7 +23,7 @@ const (
 
 // SignJwsRequest defines model for SignJwsRequest.
 type SignJwsRequest struct {
-	// In detached mode the payload is signed but NOT included in the retured JWS object. Instead, the space between the first and second dot is empty, for example: <header>..<signature> Defaults to false.
+	// In detached mode the payload is signed but NOT included in the returned JWS object. Instead, the space between the first and second dot is empty, like this: "<header>..<signature>". Defaults to false.
 	Detached *bool `json:"detached,omitempty"`
 
 	// The map of protected headers
@@ -32,7 +32,7 @@ type SignJwsRequest struct {
 	// Reference to the key ID used for signing the JWS.
 	Kid string `json:"kid"`
 
-	// The object to be signed as bytes. The bytes encoded as base64 characters.
+	// The payload to be signed as bytes. The bytes must be encoded with base64 encoding.
 	Payload []byte `json:"payload"`
 }
 

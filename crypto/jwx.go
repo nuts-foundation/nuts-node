@@ -73,8 +73,8 @@ func (client *Crypto) SignJWT(claims map[string]interface{}, kid string) (token 
 	return
 }
 
-// SignJWS creates a signed JWS given a kid, map of headers and map of claims
-func (client *Crypto) SignJWS(headers map[string]interface{}, payload []byte, kid string, detached bool) (token string, err error) {
+// SignJWS creates a signed JWS using the indicated key and map of headers and payload as bytes.
+func (client *Crypto) SignJWS(payload []byte, headers map[string]interface{}, kid string, detached bool) (token string, err error) {
 	if err = validateKID(kid); err != nil {
 		return "", err
 	}

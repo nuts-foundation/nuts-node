@@ -118,7 +118,7 @@ func (w *Wrapper) SignJws(ctx echo.Context) error {
 		detached = *signRequest.Detached
 	}
 
-	sig, err := w.C.SignJWS(signRequest.Headers, signRequest.Payload, signRequest.Kid, detached)
+	sig, err := w.C.SignJWS(signRequest.Payload, signRequest.Headers, signRequest.Kid, detached)
 	if err != nil {
 		return err
 	}
