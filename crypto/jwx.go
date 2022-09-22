@@ -179,52 +179,45 @@ func ParseJWT(tokenString string, f PublicKeyFunc, options ...jwt.ParseOption) (
 	return jwt.ParseString(tokenString, options...)
 }
 
-// ParseJWT parses a token, validates and verifies it.
-func ParseJWS(tokenString string, f PublicKeyFunc) (map[string]interface{}, error) {
-	kid, alg, err := JWTKidAlg(tokenString)
+// ParseJWS parses JWS a object, validates and verifies it.
+func ParseJWS(payload []byte, f PublicKeyFunc) (map[string]interface{}, error) {
+	message, err := jws.Parse(payload)
 	if err != nil {
 		return nil, err
 	}
-
-	key, err := f(kid)
-	if err != nil {
-		return nil, err
-	}
-
-	if !isAlgorithmSupported(alg) {
-		return nil, fmt.Errorf("token signing algorithm is not supported: %s", alg)
-	}
-
-	message, err := jws.ParseString(tokenString)
-	if err != nil {
-		return nil, err
-	}
-	headers, body, _, err := jws.SplitCompactString(tokenString)
+	headers, body, _, err := jws.SplitCompact(payload)
 	if err != nil {
 		return nil, err
 	}
 	signatures := message.Signatures()
 	for i := range signatures {
 		signature := signatures[i]
-		verifier, err := jws.NewVerifier(signature.ProtectedHeaders().Algorithm())
+		// Get and check the algorithm
+		alg := signature.ProtectedHeaders().Algorithm()
+		if !isAlgorithmSupported(alg) {
+			return nil, fmt.Errorf("token signing algorithm is not supported: %s", alg)
+		}
+		// Get the verifier for the algorithm
+		verifier, err := jws.NewVerifier(alg)
 		if err != nil {
 			return nil, err
 		}
-		payload := append(headers, "."...)
-		payload = append(payload, body...)
+		// Get the key id, and get the associated key
+		kid := signature.ProtectedHeaders().KeyID()
+		key, err := f(kid)
+		if err != nil {
+			return nil, err
+		}
+		// This seems an awkward way of appending 3 arrays.
+		payload := append(append(headers, "."...), body...)
 		err = verifier.Verify(payload, signature.Signature(), key)
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	var rv = make(map[string]interface{})
-	//var decoded = make(byte[]{})
-	//decodeString, err := base64.StdEncoding.Decode(decoded, body)
-	//if err != nil {
-	//	return nil, err
-	//}
-	err = json.Unmarshal(message.Payload(), &rv)
-	if err != nil {
+	if err = json.Unmarshal(message.Payload(), &rv); err != nil {
 		return nil, err
 	}
 

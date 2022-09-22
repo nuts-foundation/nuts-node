@@ -196,7 +196,7 @@ func TestCrypto_SignJWS(t *testing.T) {
 			return
 		}
 
-		token, err := ParseJWS(tokenString, func(kid string) (crypto.PublicKey, error) {
+		token, err := ParseJWS([]byte(tokenString), func(kid string) (crypto.PublicKey, error) {
 			return key.Public(), nil
 		})
 
