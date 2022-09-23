@@ -141,10 +141,12 @@ func TestWrapper_SignJwt(t *testing.T) {
 }
 
 func TestWrapper_SignJws(t *testing.T) {
+	payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
+	headers := map[string]interface{}{"typ": "JWM"}
+
 	t.Run("Missing kid returns 400", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
-		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
 		jsonRequest := SignJwsRequest{
 			Payload: payload,
 		}
@@ -162,11 +164,10 @@ func TestWrapper_SignJws(t *testing.T) {
 	t.Run("error - SignJWS fails", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
-		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
 		jsonRequest := SignJwsRequest{
 			Kid:     "kid",
 			Payload: payload,
-			Headers: map[string]interface{}{"typ": "JWM"},
+			Headers: headers,
 		}
 		jsonData, _ := json.Marshal(jsonRequest)
 
@@ -183,10 +184,9 @@ func TestWrapper_SignJws(t *testing.T) {
 	t.Run("All OK returns 200, with payload", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
-		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
 		jsonRequest := SignJwsRequest{
 			Kid:     "kid",
-			Headers: map[string]interface{}{"typ": "JWM"},
+			Headers: headers,
 			Payload: payload,
 		}
 
@@ -206,11 +206,10 @@ func TestWrapper_SignJws(t *testing.T) {
 	t.Run("All OK returns 200, with payload, detached", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
-		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
 		detached := true
 		jsonRequest := SignJwsRequest{
 			Kid:      "kid",
-			Headers:  map[string]interface{}{"typ": "JWM"},
+			Headers:  headers,
 			Payload:  payload,
 			Detached: &detached,
 		}
