@@ -141,25 +141,6 @@ func TestWrapper_SignJwt(t *testing.T) {
 }
 
 func TestWrapper_SignJws(t *testing.T) {
-	t.Run("error - no payload", func(t *testing.T) {
-		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
-
-		jsonRequest := SignJwsRequest{
-			Kid:     "kid",
-			Headers: map[string]interface{}{"typ": "JWM"},
-		}
-		jsonData, _ := json.Marshal(jsonRequest)
-
-		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
-			_ = json.Unmarshal(jsonData, f)
-		})
-
-		err := ctx.client.SignJws(ctx.echo)
-
-		assert.EqualError(t, err, "invalid sign request: missing payload")
-	})
-
 	t.Run("Missing kid returns 400", func(t *testing.T) {
 		ctx := newMockContext(t)
 		defer ctx.ctrl.Finish()
@@ -197,26 +178,6 @@ func TestWrapper_SignJws(t *testing.T) {
 		err := ctx.client.SignJws(ctx.echo)
 
 		assert.EqualError(t, err, "b00m!")
-	})
-
-	t.Run("error - no headers", func(t *testing.T) {
-		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
-		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
-		jsonRequest := SignJwsRequest{
-			Kid:     "kid",
-			Payload: payload,
-		}
-
-		jsonData, _ := json.Marshal(jsonRequest)
-
-		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
-			_ = json.Unmarshal(jsonData, f)
-		})
-
-		err := ctx.client.SignJws(ctx.echo)
-
-		assert.EqualError(t, err, "invalid sign request: missing headers")
 	})
 
 	t.Run("All OK returns 200, with payload", func(t *testing.T) {
