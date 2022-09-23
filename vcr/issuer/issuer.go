@@ -98,7 +98,7 @@ func (i issuer) Issue(credentialOptions vc.VerifiableCredential, publish, public
 
 func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
 	if len(credentialOptions.Type) != 1 {
-		return nil, errors.New("can only issue credential with 1 type")
+		return nil, core.InvalidInputError("can only issue credential with 1 type")
 	}
 
 	issuerDID, err := did.ParseDID(credentialOptions.Issuer.String())
