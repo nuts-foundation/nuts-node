@@ -209,7 +209,11 @@ func ParseJWS(payload []byte, f PublicKeyFunc) (map[string]interface{}, error) {
 			return nil, err
 		}
 		// This seems an awkward way of appending 3 arrays.
-		payload := append(append(headers, "."...), body...)
+		var payload []byte
+		parts := [][]byte{headers, []byte("."), body}
+		for _, part := range parts {
+			payload = append(payload, part...)
+		}
 		err = verifier.Verify(payload, signature.Signature(), key)
 		if err != nil {
 			return nil, err
