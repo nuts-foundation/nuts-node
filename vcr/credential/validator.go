@@ -109,8 +109,8 @@ func (d nutsOrganizationCredentialValidator) Validate(credential vc.VerifiableCr
 		return failure("type '%s' is required", NutsOrganizationCredentialType)
 	}
 
-	if !credential.ContainsContext(*NutsContextURI) {
-		return failure("context '%s' is required", NutsContextURI.String())
+	if !credential.ContainsContext(NutsV1ContextURI) && !credential.ContainsContext(NutsV2ContextURI) {
+		return failure("context '%s' or '%s' is required", NutsV1ContextURI.String(), NutsV2ContextURI.String())
 	}
 
 	// if it fails, length check will trigger
@@ -159,8 +159,8 @@ func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableC
 		return failure("type '%s' is required", NutsAuthorizationCredentialType)
 	}
 
-	if !credential.ContainsContext(*NutsContextURI) {
-		return failure("context '%s' is required", NutsContextURI.String())
+	if !credential.ContainsContext(NutsV1ContextURI) && !credential.ContainsContext(NutsV2ContextURI) {
+		return failure("context '%s' or '%s' is required", NutsV1ContextURI.String(), NutsV2ContextURI.String())
 	}
 
 	// if it fails, length check will trigger

@@ -1,0 +1,97 @@
+{
+  "@context": {
+    "@version": 1.1,
+    "@protected": true,
+    "@base": "https://nuts.nl/credentials/v2",
+    "@vocab": "#",
+
+    "id": "@id",
+    "type": "@type",
+    "schema": "http://schema.org/",
+    "nuts": "https://nuts.nl/credentials/v2#",
+
+    "CredentialRevocation": {
+      "@id": "nuts:CredentialRevocation",
+      "@context": {
+        "@version": 1.1,
+        "@protected": true,
+
+        "id": "@id",
+        "type": "@type",
+        "cred": "https://www.w3.org/2018/credentials#",
+        "nuts": "https://nuts.nl/credentials/v2#",
+
+        "issuer": {"@id": "cred:issuer", "@type": "@id"},
+        "date": {"@id": "nuts:date", "@type": "xsd:dateTime"},
+        "subject": {"@id": "cred:credentialSubject", "@type": "@id"}
+      }
+    },
+    "NutsOrganizationCredential": {
+      "@id": "nuts:NutsOrganizationCredential",
+      "@context": {
+        "@version": 1.1,
+        "@protected": true,
+        "@propagate": true,
+
+        "id": "@id",
+        "type": "@type",
+        "cred": "https://www.w3.org/2018/credentials#",
+        "nuts": "https://nuts.nl/credentials/v2#",
+
+        "organization": {
+          "@id":"schema:organization",
+          "@type": "@id",
+          "@context": {
+            "@version": 1.1,
+            "@protected": true,
+            "city": "schema:city",
+            "name": "schema:legalname"
+          }
+        }
+      }
+    },
+    "NutsAuthorizationCredential": {
+      "@id": "nuts:NutsAuthorizationCredential",
+      "@context": {
+        "@version": 1.1,
+        "@protected": true,
+        "@propagate": true,
+
+        "id": "@id",
+        "type": "@type",
+        "cred": "https://www.w3.org/2018/credentials#",
+        "nuts": "https://nuts.nl/credentials/v2#",
+
+        "subject": {"@id": "nuts:subject", "@type": "@id"},
+        "purposeOfUse": "nuts:purposeOfUse",
+        "resources": {
+          "@id":"nuts:resources",
+          "@context": {
+            "nuts": "https://nuts.nl/credentials/v2#",
+
+            "path": "nuts:path",
+            "operations": {"@id": "nuts:operations", "@container": "@set"},
+            "userContext": "nuts:userContext"
+          }
+        },
+        "localParameters": {"@id": "nuts:localParameters", "@container": "@graph"},
+        "legalBase": {
+          "@id":"nuts:legalBase",
+          "@context": {
+            "@version": 1.1,
+            "@protected": true,
+            "consentType": "nuts:consentType",
+            "evidence": {
+              "@context": {
+                "@version": 1.1,
+                "@protected": true,
+                "path": "nuts:path",
+                "type": "schema:contentType"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

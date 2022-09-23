@@ -51,7 +51,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 	credentialType := ssi.MustParseURI("ExampleType")
 
 	expectedRequestedVC := vc.VerifiableCredential{
-		Context:           []ssi.URI{*credential.NutsContextURI},
+		Context:           []ssi.URI{credential.NutsV1ContextURI},
 		Type:              []ssi.URI{credentialType},
 		Issuer:            issuerURI,
 		CredentialSubject: []interface{}{map[string]interface{}{"id": "did:nuts:456"}},

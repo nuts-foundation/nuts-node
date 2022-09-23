@@ -116,7 +116,7 @@ func (w Wrapper) IssueVC(ctx echo.Context) error {
 
 	// Set default context, if not set
 	if issueRequest.Context == nil {
-		context := credential.NutsContext
+		context := credential.NutsV1Context
 		issueRequest.Context = &context
 	}
 
