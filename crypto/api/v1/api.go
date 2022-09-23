@@ -103,6 +103,7 @@ func (w *Wrapper) SignJwt(ctx echo.Context) error {
 	return ctx.String(http.StatusOK, sig)
 }
 
+// SignJws handles api calls for signing a JWS
 func (w *Wrapper) SignJws(ctx echo.Context) error {
 	var signRequest = &SignJwsRequest{}
 	err := ctx.Bind(signRequest)
