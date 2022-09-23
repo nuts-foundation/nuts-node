@@ -179,7 +179,9 @@ func ParseJWT(tokenString string, f PublicKeyFunc, options ...jwt.ParseOption) (
 	return jwt.ParseString(tokenString, options...)
 }
 
-// ParseJWS parses JWS a object, validates and verifies it.
+// ParseJWS parses a JWS byte array object, validates and verifies it.
+// This method returns the value of the payload as map, or an error if
+// the parsing fails at any level.
 func ParseJWS(payload []byte, f PublicKeyFunc) (map[string]interface{}, error) {
 	message, err := jws.Parse(payload)
 	if err != nil {
