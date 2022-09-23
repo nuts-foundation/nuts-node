@@ -227,6 +227,25 @@ func (mr *MockJetStreamContextMockRecorder) ConsumerNames(stream interface{}, op
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConsumerNames", reflect.TypeOf((*MockJetStreamContext)(nil).ConsumerNames), varargs...)
 }
 
+// Consumers mocks base method.
+func (m *MockJetStreamContext) Consumers(stream string, opts ...nats_go.JSOpt) <-chan *nats_go.ConsumerInfo {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{stream}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Consumers", varargs...)
+	ret0, _ := ret[0].(<-chan *nats_go.ConsumerInfo)
+	return ret0
+}
+
+// Consumers indicates an expected call of Consumers.
+func (mr *MockJetStreamContextMockRecorder) Consumers(stream interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{stream}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Consumers", reflect.TypeOf((*MockJetStreamContext)(nil).Consumers), varargs...)
+}
+
 // ConsumersInfo mocks base method.
 func (m *MockJetStreamContext) ConsumersInfo(stream string, opts ...nats_go.JSOpt) <-chan *nats_go.ConsumerInfo {
 	m.ctrl.T.Helper()
@@ -429,6 +448,42 @@ func (m *MockJetStreamContext) ObjectStore(bucket string) (nats_go.ObjectStore, 
 func (mr *MockJetStreamContextMockRecorder) ObjectStore(bucket interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ObjectStore", reflect.TypeOf((*MockJetStreamContext)(nil).ObjectStore), bucket)
+}
+
+// ObjectStoreNames mocks base method.
+func (m *MockJetStreamContext) ObjectStoreNames(opts ...nats_go.ObjectOpt) <-chan string {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "ObjectStoreNames", varargs...)
+	ret0, _ := ret[0].(<-chan string)
+	return ret0
+}
+
+// ObjectStoreNames indicates an expected call of ObjectStoreNames.
+func (mr *MockJetStreamContextMockRecorder) ObjectStoreNames(opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ObjectStoreNames", reflect.TypeOf((*MockJetStreamContext)(nil).ObjectStoreNames), opts...)
+}
+
+// ObjectStores mocks base method.
+func (m *MockJetStreamContext) ObjectStores(opts ...nats_go.ObjectOpt) <-chan nats_go.ObjectStore {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "ObjectStores", varargs...)
+	ret0, _ := ret[0].(<-chan nats_go.ObjectStore)
+	return ret0
+}
+
+// ObjectStores indicates an expected call of ObjectStores.
+func (mr *MockJetStreamContextMockRecorder) ObjectStores(opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ObjectStores", reflect.TypeOf((*MockJetStreamContext)(nil).ObjectStores), opts...)
 }
 
 // Publish mocks base method.
@@ -673,6 +728,24 @@ func (m *MockJetStreamContext) StreamNames(opts ...nats_go.JSOpt) <-chan string 
 func (mr *MockJetStreamContextMockRecorder) StreamNames(opts ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StreamNames", reflect.TypeOf((*MockJetStreamContext)(nil).StreamNames), opts...)
+}
+
+// Streams mocks base method.
+func (m *MockJetStreamContext) Streams(opts ...nats_go.JSOpt) <-chan *nats_go.StreamInfo {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Streams", varargs...)
+	ret0, _ := ret[0].(<-chan *nats_go.StreamInfo)
+	return ret0
+}
+
+// Streams indicates an expected call of Streams.
+func (mr *MockJetStreamContextMockRecorder) Streams(opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Streams", reflect.TypeOf((*MockJetStreamContext)(nil).Streams), opts...)
 }
 
 // StreamsInfo mocks base method.
