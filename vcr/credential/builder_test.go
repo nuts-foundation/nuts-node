@@ -70,7 +70,7 @@ func TestDefaultBuilder_Fill(t *testing.T) {
 
 	t.Run("adds context", func(t *testing.T) {
 		assert.True(t, subject.ContainsContext(vc.VCContextV1URI()))
-		assert.True(t, subject.ContainsContext(*NutsContextURI))
+		assert.True(t, subject.ContainsContext(NutsV1ContextURI))
 	})
 
 	t.Run("adds type", func(t *testing.T) {

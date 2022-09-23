@@ -172,7 +172,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 
 	t.Run("failed - missing default context", func(t *testing.T) {
 		v := validNutsOrganizationCredential()
-		v.Context = []ssi.URI{stringToURI(NutsContext)}
+		v.Context = []ssi.URI{stringToURI(NutsV1Context)}
 
 		err := validator.Validate(*v)
 
@@ -185,7 +185,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 
 		err := validator.Validate(*v)
 
-		assert.EqualError(t, err, "validation failed: context 'https://nuts.nl/credentials/v1' is required")
+		assert.EqualError(t, err, "validation failed: context 'https://nuts.nl/credentials/v1' or 'https://nuts.nl/credentials/v2' is required")
 	})
 
 	t.Run("failed - missing issuanceDate", func(t *testing.T) {
@@ -266,7 +266,7 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 		err := validator.Validate(*v)
 
 		assert.Error(t, err)
-		assert.EqualError(t, err, "validation failed: context 'https://nuts.nl/credentials/v1' is required")
+		assert.EqualError(t, err, "validation failed: context 'https://nuts.nl/credentials/v1' or 'https://nuts.nl/credentials/v2' is required")
 	})
 
 	t.Run("failed - missing authorization VC type", func(t *testing.T) {
@@ -374,7 +374,7 @@ func validNutsOrganizationCredential() *vc.VerifiableCredential {
 	id := issuer.URI()
 	id.Fragment = "#"
 	return &vc.VerifiableCredential{
-		Context:           []ssi.URI{vc.VCContextV1URI(), *NutsContextURI},
+		Context:           []ssi.URI{vc.VCContextV1URI(), NutsV1ContextURI},
 		ID:                &id,
 		Type:              []ssi.URI{*NutsOrganizationCredentialTypeURI, vc.VerifiableCredentialTypeV1URI()},
 		Issuer:            stringToURI(issuer.String()),

@@ -577,7 +577,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		credentials := []vc.VerifiableCredential{
 			{
-				Context:      []ssi.URI{vc.VCContextV1URI(), *credential.NutsContextURI},
+				Context:      []ssi.URI{vc.VCContextV1URI(), credential.NutsV1ContextURI},
 				ID:           &ssi.URI{},
 				Type:         []ssi.URI{*credential.NutsAuthorizationCredentialTypeURI, vc.VerifiableCredentialTypeV1URI()},
 				Issuer:       vdr.TestDIDA.URI(),
