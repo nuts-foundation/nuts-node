@@ -199,12 +199,18 @@ func TestCrypto_SignJWS(t *testing.T) {
 		token, err := ParseJWS([]byte(tokenString), func(kid string) (crypto.PublicKey, error) {
 			return key.Public(), nil
 		})
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		var body = make(map[string]interface{})
+		err = json.Unmarshal(token, &body)
 
 		if !assert.NoError(t, err) {
 			return
 		}
 
-		assert.Equal(t, "nuts", token["iss"])
+		assert.Equal(t, "nuts", body["iss"])
 	})
 
 	t.Run("returns error for not found", func(t *testing.T) {

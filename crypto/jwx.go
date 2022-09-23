@@ -23,7 +23,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/rsa"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/jwa"
@@ -180,14 +179,14 @@ func ParseJWT(tokenString string, f PublicKeyFunc, options ...jwt.ParseOption) (
 }
 
 // ParseJWS parses a JWS byte array object, validates and verifies it.
-// This method returns the value of the payload as map, or an error if
+// This method returns the value of the payload as byte array, or an error if
 // the parsing fails at any level.
-func ParseJWS(payload []byte, f PublicKeyFunc) (map[string]interface{}, error) {
-	message, err := jws.Parse(payload)
+func ParseJWS(token []byte, f PublicKeyFunc) (payload []byte, err error) {
+	message, err := jws.Parse(token)
 	if err != nil {
 		return nil, err
 	}
-	headers, body, _, err := jws.SplitCompact(payload)
+	headers, body, _, err := jws.SplitCompact(token)
 	if err != nil {
 		return nil, err
 	}
@@ -222,12 +221,8 @@ func ParseJWS(payload []byte, f PublicKeyFunc) (map[string]interface{}, error) {
 		}
 	}
 
-	var rv = make(map[string]interface{})
-	if err = json.Unmarshal(message.Payload(), &rv); err != nil {
-		return nil, err
-	}
-
-	return rv, nil
+	body = message.Payload()
+	return body, nil
 }
 
 // SignJWS signs the payload using the JWS format with the provided signer.
