@@ -25,6 +25,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"testing"
@@ -176,6 +177,52 @@ func TestCrypto_SignJWT(t *testing.T) {
 
 	t.Run("returns error for invalid KID", func(t *testing.T) {
 		_, err := client.SignJWT(map[string]interface{}{"iss": "nuts"}, "../certificate")
+
+		assert.ErrorContains(t, err, "invalid key ID")
+	})
+}
+
+func TestCrypto_SignJWS(t *testing.T) {
+	client := createCrypto(t)
+
+	kid := "kid"
+	key, _ := client.New(StringNamingFunc(kid))
+
+	t.Run("creates valid JWS", func(t *testing.T) {
+		payload, err := json.Marshal(map[string]interface{}{"iss": "nuts"})
+		tokenString, err := client.SignJWS(payload, map[string]interface{}{"typ": "JWT"}, kid, false)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		token, err := ParseJWS([]byte(tokenString), func(kid string) (crypto.PublicKey, error) {
+			return key.Public(), nil
+		})
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		var body = make(map[string]interface{})
+		err = json.Unmarshal(token, &body)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Equal(t, "nuts", body["iss"])
+	})
+
+	t.Run("returns error for not found", func(t *testing.T) {
+		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
+		_, err := client.SignJWS(payload, map[string]interface{}{"typ": "JWT"}, "unknown", false)
+
+		assert.True(t, errors.Is(err, ErrPrivateKeyNotFound))
+	})
+
+	t.Run("returns error for invalid KID", func(t *testing.T) {
+		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
+		_, err := client.SignJWS(payload, map[string]interface{}{"typ": "JWT"}, "../certificate", false)
 
 		assert.ErrorContains(t, err, "invalid key ID")
 	})

@@ -21,6 +21,7 @@ package v1
 import (
 	"errors"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -42,6 +43,10 @@ func (t *testServerInterface) SignJwt(_ echo.Context) error {
 	return t.err
 }
 
+func (t *testServerInterface) SignJws(_ echo.Context) error {
+	return t.err
+}
+
 var siws = []*ServerInterfaceWrapper{
 	serverInterfaceWrapper(nil), serverInterfaceWrapper(errors.New("Server error")),
 }
@@ -57,6 +62,20 @@ func TestServerInterfaceWrapper_SignJwt(t *testing.T) {
 			tsi := siw.Handler.(*testServerInterface)
 			assert.Equal(t, tsi.err, err)
 		})
+		t.Run("Test BASE64 decoding of the payload attribute", func(t *testing.T) {
+			req := httptest.NewRequest(echo.POST, "/", strings.NewReader(`{
+			  "headers": {},
+			  "payload": "eyJ0ZXN0IjogImNsYWltIn0=",
+			  "kid": "did:nuts:..."
+			}`))
+			req.Header.Add("content-type", "application/json")
+			rec := httptest.NewRecorder()
+			c := echo.New().NewContext(req, rec)
+			var signRequest = &SignJwsRequest{}
+			err := c.Bind(signRequest)
+			assert.Equal(t, err, nil)
+			assert.Equal(t, string(signRequest.Payload), "{\"test\": \"claim\"}")
+		})
 	}
 }
 
@@ -67,6 +86,7 @@ func TestRegisterHandlers(t *testing.T) {
 		echo := core.NewMockEchoRouter(ctrl)
 
 		echo.EXPECT().POST("/internal/crypto/v1/sign_jwt", gomock.Any())
+		echo.EXPECT().POST("/internal/crypto/v1/sign_jws", gomock.Any())
 
 		RegisterHandlers(echo, &testServerInterface{})
 	})

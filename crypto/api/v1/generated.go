@@ -21,14 +21,35 @@ const (
 	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
 )
 
+// SignJwsRequest defines model for SignJwsRequest.
+type SignJwsRequest struct {
+	// In detached mode the payload is signed but NOT included in the returned JWS object. Instead, the space between the first and second dot is empty, like this: "<header>..<signature>". Defaults to false.
+	Detached *bool `json:"detached,omitempty"`
+
+	// The map of protected headers
+	Headers map[string]interface{} `json:"headers"`
+
+	// Reference to the key ID used for signing the JWS.
+	Kid string `json:"kid"`
+
+	// The payload to be signed as bytes. The bytes must be encoded with base64 encoding.
+	Payload []byte `json:"payload"`
+}
+
 // SignJwtRequest defines model for SignJwtRequest.
 type SignJwtRequest struct {
 	Claims map[string]interface{} `json:"claims"`
 	Kid    string                 `json:"kid"`
 }
 
+// SignJwsJSONBody defines parameters for SignJws.
+type SignJwsJSONBody = SignJwsRequest
+
 // SignJwtJSONBody defines parameters for SignJwt.
 type SignJwtJSONBody = SignJwtRequest
+
+// SignJwsJSONRequestBody defines body for SignJws for application/json ContentType.
+type SignJwsJSONRequestBody = SignJwsJSONBody
 
 // SignJwtJSONRequestBody defines body for SignJwt for application/json ContentType.
 type SignJwtJSONRequestBody = SignJwtJSONBody
@@ -106,10 +127,39 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// SignJws request with any body
+	SignJwsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	SignJws(ctx context.Context, body SignJwsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// SignJwt request with any body
 	SignJwtWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	SignJwt(ctx context.Context, body SignJwtJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+func (c *Client) SignJwsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSignJwsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) SignJws(ctx context.Context, body SignJwsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSignJwsRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 func (c *Client) SignJwtWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -134,6 +184,46 @@ func (c *Client) SignJwt(ctx context.Context, body SignJwtJSONRequestBody, reqEd
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+// NewSignJwsRequest calls the generic SignJws builder with application/json body
+func NewSignJwsRequest(server string, body SignJwsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSignJwsRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSignJwsRequestWithBody generates requests for SignJws with any type of body
+func NewSignJwsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/crypto/v1/sign_jws")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
 }
 
 // NewSignJwtRequest calls the generic SignJwt builder with application/json body
@@ -219,10 +309,36 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// SignJws request with any body
+	SignJwsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SignJwsResponse, error)
+
+	SignJwsWithResponse(ctx context.Context, body SignJwsJSONRequestBody, reqEditors ...RequestEditorFn) (*SignJwsResponse, error)
+
 	// SignJwt request with any body
 	SignJwtWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SignJwtResponse, error)
 
 	SignJwtWithResponse(ctx context.Context, body SignJwtJSONRequestBody, reqEditors ...RequestEditorFn) (*SignJwtResponse, error)
+}
+
+type SignJwsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r SignJwsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SignJwsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type SignJwtResponse struct {
@@ -246,6 +362,23 @@ func (r SignJwtResponse) StatusCode() int {
 	return 0
 }
 
+// SignJwsWithBodyWithResponse request with arbitrary body returning *SignJwsResponse
+func (c *ClientWithResponses) SignJwsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SignJwsResponse, error) {
+	rsp, err := c.SignJwsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSignJwsResponse(rsp)
+}
+
+func (c *ClientWithResponses) SignJwsWithResponse(ctx context.Context, body SignJwsJSONRequestBody, reqEditors ...RequestEditorFn) (*SignJwsResponse, error) {
+	rsp, err := c.SignJws(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSignJwsResponse(rsp)
+}
+
 // SignJwtWithBodyWithResponse request with arbitrary body returning *SignJwtResponse
 func (c *ClientWithResponses) SignJwtWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SignJwtResponse, error) {
 	rsp, err := c.SignJwtWithBody(ctx, contentType, body, reqEditors...)
@@ -261,6 +394,22 @@ func (c *ClientWithResponses) SignJwtWithResponse(ctx context.Context, body Sign
 		return nil, err
 	}
 	return ParseSignJwtResponse(rsp)
+}
+
+// ParseSignJwsResponse parses an HTTP response from a SignJwsWithResponse call
+func ParseSignJwsResponse(rsp *http.Response) (*SignJwsResponse, error) {
+	bodyBytes, err := ioutil.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SignJwsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
 }
 
 // ParseSignJwtResponse parses an HTTP response from a SignJwtWithResponse call
@@ -281,6 +430,9 @@ func ParseSignJwtResponse(rsp *http.Response) (*SignJwtResponse, error) {
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// sign a payload and headers with the private key of the given kid into a JWS object
+	// (POST /internal/crypto/v1/sign_jws)
+	SignJws(ctx echo.Context) error
 	// sign a JWT payload with the private key of the given kid
 	// (POST /internal/crypto/v1/sign_jwt)
 	SignJwt(ctx echo.Context) error
@@ -289,6 +441,17 @@ type ServerInterface interface {
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
+}
+
+// SignJws converts echo context to params.
+func (w *ServerInterfaceWrapper) SignJws(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.SignJws(ctx)
+	return err
 }
 
 // SignJwt converts echo context to params.
@@ -342,6 +505,10 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 
 	// PATCH: This alteration wraps the call to the implementation in a function that sets the "OperationId" context parameter,
 	// so it can be used in error reporting middleware.
+	router.POST(baseURL+"/internal/crypto/v1/sign_jws", func(context echo.Context) error {
+		si.(Preprocessor).Preprocess("SignJws", context)
+		return wrapper.SignJws(context)
+	})
 	router.POST(baseURL+"/internal/crypto/v1/sign_jwt", func(context echo.Context) error {
 		si.(Preprocessor).Preprocess("SignJwt", context)
 		return wrapper.SignJwt(context)

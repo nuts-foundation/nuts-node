@@ -25,7 +25,6 @@ import (
 	"crypto/rsa"
 	"errors"
 	"fmt"
-
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
@@ -71,6 +70,33 @@ func (client *Crypto) SignJWT(claims map[string]interface{}, kid string) (token 
 
 	token, err = SignJWT(key, claims, nil)
 	return
+}
+
+// SignJWS creates a signed JWS using the indicated key and map of headers and payload as bytes.
+func (client *Crypto) SignJWS(payload []byte, headers map[string]interface{}, kid string, detached bool) (token string, err error) {
+	if err = validateKID(kid); err != nil {
+		return "", err
+	}
+	privateKey, err := client.Storage.GetPrivateKey(kid)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return "", ErrPrivateKeyNotFound
+		}
+		return "", err
+	}
+	key, err := jwkKey(privateKey)
+	if err != nil {
+		return "", err
+	}
+
+	if err = key.Set(jwk.KeyIDKey, kid); err != nil {
+		return "", err
+	}
+
+	headers[jws.KeyIDKey] = key.KeyID()
+
+	token, err = signJWS(payload, headers, privateKey, detached)
+	return token, err
 }
 
 func jwkKey(signer crypto.Signer) (key jwk.Key, err error) {
@@ -150,6 +176,53 @@ func ParseJWT(tokenString string, f PublicKeyFunc, options ...jwt.ParseOption) (
 	options = append(options, jwt.WithValidate(true))
 
 	return jwt.ParseString(tokenString, options...)
+}
+
+// ParseJWS parses a JWS byte array object, validates and verifies it.
+// This method returns the value of the payload as byte array, or an error if
+// the parsing fails at any level.
+func ParseJWS(token []byte, f PublicKeyFunc) (payload []byte, err error) {
+	message, err := jws.Parse(token)
+	if err != nil {
+		return nil, err
+	}
+	headers, body, _, err := jws.SplitCompact(token)
+	if err != nil {
+		return nil, err
+	}
+	signatures := message.Signatures()
+	for i := range signatures {
+		signature := signatures[i]
+		// Get and check the algorithm
+		alg := signature.ProtectedHeaders().Algorithm()
+		if !isAlgorithmSupported(alg) {
+			return nil, fmt.Errorf("token signing algorithm is not supported: %s", alg)
+		}
+		// Get the verifier for the algorithm
+		verifier, err := jws.NewVerifier(alg)
+		if err != nil {
+			return nil, err
+		}
+		// Get the key id, and get the associated key
+		kid := signature.ProtectedHeaders().KeyID()
+		key, err := f(kid)
+		if err != nil {
+			return nil, err
+		}
+		// This seems an awkward way of appending 3 arrays.
+		var payload []byte
+		parts := [][]byte{headers, []byte("."), body}
+		for _, part := range parts {
+			payload = append(payload, part...)
+		}
+		err = verifier.Verify(payload, signature.Signature(), key)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	body = message.Payload()
+	return body, nil
 }
 
 // SignJWS signs the payload using the JWS format with the provided signer.
