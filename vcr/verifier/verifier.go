@@ -145,7 +145,7 @@ func (v *verifier) Validate(credentialToVerify vc.VerifiableCredential, at *time
 // It currently checks if the credential has the required fields and values, if it is valid at the given time and optional the signature.
 func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrusted bool, checkSignature bool, validAt *time.Time) error {
 	// it must have valid content
-	validator, _ := credential.FindValidatorAndBuilder(credentialToVerify)
+	validator := credential.FindValidator(credentialToVerify)
 	if err := validator.Validate(credentialToVerify); err != nil {
 		return err
 	}
@@ -312,8 +312,8 @@ func (v verifier) doVerifyVP(vcVerifier Verifier, vp vc.VerifiablePresentation, 
 
 func (v *verifier) validateType(credential vc.VerifiableCredential) error {
 	// VCs must contain 2 types: "VerifiableCredential" and specific type
-	if len(credential.Type) != 2 {
-		return errors.New("verifiable credential must list exactly 2 types")
+	if len(credential.Type) > 2 {
+		return errors.New("verifiable credential must list at most 2 types")
 	}
 	// "VerifiableCredential" should be one of the types
 	for _, curr := range credential.Type {

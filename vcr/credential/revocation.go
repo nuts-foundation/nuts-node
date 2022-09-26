@@ -45,6 +45,9 @@ type Revocation struct {
 	Proof *vc.JSONWebSignature2020Proof `json:"proof,omitempty"`
 }
 
+// nowFunc is used to store a function that returns the current time. This can be changed when you want to mock the current time.
+var nowFunc = time.Now
+
 // RevocationType contains the JSON-LD type for a revocation
 var RevocationType = ssi.MustParseURI("CredentialRevocation")
 

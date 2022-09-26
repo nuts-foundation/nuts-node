@@ -69,7 +69,7 @@ func (i issuer) Issue(credentialOptions vc.VerifiableCredential, publish, public
 		return nil, err
 	}
 
-	validator, _ := credential.FindValidatorAndBuilder(*createdVC)
+	validator := credential.FindValidator(*createdVC)
 	if err := validator.Validate(*createdVC); err != nil {
 		return nil, err
 	}

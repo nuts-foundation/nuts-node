@@ -23,23 +23,20 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 )
 
-// FindValidatorAndBuilder finds the Validator and Builder for the credential Type
-// It only supports VCs with one additional type next to the default VerifiableCredential type.
-// When no additional type is provided, it returns the default validator and a nil builder
-func FindValidatorAndBuilder(credential vc.VerifiableCredential) (Validator, Builder) {
+// FindValidator finds the Validator the provided credential based on its Type
+// When no additional type is provided, it returns the default validator
+func FindValidator(credential vc.VerifiableCredential) Validator {
 	if vcTypes := ExtractTypes(credential); len(vcTypes) > 0 {
 		for _, t := range vcTypes {
 			switch t {
 			case NutsOrganizationCredentialType:
-				return nutsOrganizationCredentialValidator{}, defaultBuilder{vcType: t}
+				return nutsOrganizationCredentialValidator{}
 			case NutsAuthorizationCredentialType:
-				return nutsAuthorizationCredentialValidator{}, defaultBuilder{vcType: t}
-			default:
-				return defaultCredentialValidator{}, defaultBuilder{vcType: t}
+				return nutsAuthorizationCredentialValidator{}
 			}
 		}
 	}
-	return defaultCredentialValidator{}, nil
+	return defaultCredentialValidator{}
 }
 
 // ExtractTypes extract additional VC types from the VC as strings
