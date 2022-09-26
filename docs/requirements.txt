@@ -1,3 +1,2 @@
 sphinx-jsonschema>=1.17.2
 sphinx-rtd-theme
--e git+https://github.com/OpenDataServices/sphinxcontrib-opendataservices.git@23ce17656feaa237584af8822bd57ac39b498f93#egg=sphinxcontrib-opendataservices

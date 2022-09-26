@@ -12,15 +12,9 @@ Within Verifiable Credentials, JSON-LD is used to convert it to a normalized doc
 Nuts Context V2
 ***************
 
-```{eval-rst}
-.. jsoninclude:: https://raw.githubusercontent.com/nuts-foundation/nuts-node/master/vcr/assets/assets/contexts/nuts-v2.ldjson
-    :jsonpointer: /
-```
+https://raw.githubusercontent.com/nuts-foundation/nuts-node/master/vcr/assets/assets/contexts/nuts-v2.ldjson
 
 Nuts Context V1
 ***************
 
-```{eval-rst}
-.. jsoninclude:: https://raw.githubusercontent.com/nuts-foundation/nuts-node/master/vcr/assets/assets/contexts/nuts.ldjson
-    :jsonpointer: /
-```
+https://raw.githubusercontent.com/nuts-foundation/nuts-node/master/vcr/assets/assets/contexts/nuts.ldjson
