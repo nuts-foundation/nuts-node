@@ -320,8 +320,7 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 	// Stable order for metadata.SourceTransactions (derived from unordered maps): makes it easier to analyse and test.
 	sortHashes(sourceTransactions)
 
-	deactivated := store.IsDeactivated(*currentDIDDocument)
-	if len(sourceTransactions) == 1 && deactivated {
+	if len(sourceTransactions) == 1 && currentDIDMeta.Deactivated {
 		// resurrecting a deactivated document without creating a conflict.
 		return types.ErrDeactivated
 	}

@@ -435,10 +435,6 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		didDocPayload, _ := json.Marshal(didDocument)
 		payloadHash := hash.SHA256Sum(didDocPayload)
 
-		tx := newTX()
-		tx.signingKeyID = didDocument.CapabilityInvocation[0].ID.String()
-		tx.payloadHash = payloadHash
-
 		storedDocument := did.Document{}
 		json.Unmarshal(didDocPayload, &storedDocument)
 
@@ -446,34 +442,65 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		deactivatedDocument.ID = storedDocument.ID
 		didDocPayload, _ = json.Marshal(deactivatedDocument)
 
-		currentPayloadHash := hash.SHA256Sum([]byte("currentPayloadHash"))
+		t.Run("deactivation", func(t *testing.T) {
+			tx := newTX()
+			tx.signingKeyID = didDocument.CapabilityInvocation[0].ID.String()
+			tx.payloadHash = payloadHash
 
-		// This is the metadata of the current version of the document which will be returned by the resolver
-		currentMetadata := &types.DocumentMetadata{
-			Created: createdAt,
-			Updated: nil,
-			Hash:    currentPayloadHash,
-		}
+			currentPayloadHash := hash.SHA256Sum([]byte("currentPayloadHash"))
 
-		// This is the metadata that will be written during the update
-		expectedNextMetadata := types.DocumentMetadata{
-			Created:            createdAt,
-			Updated:            &signingTime,
-			Hash:               payloadHash,
-			Deactivated:        true,
-			PreviousHash:       &currentPayloadHash,
-			SourceTransactions: []hash.SHA256Hash{tx.Ref()},
-		}
-		var pKey crypto2.PublicKey
-		signingKey.Raw(&pKey)
+			// This is the metadata of the current version of the document which will be returned by the resolver
+			currentMetadata := &types.DocumentMetadata{
+				Created: createdAt,
+				Updated: nil,
+				Hash:    currentPayloadHash,
+			}
 
-		ctx.didStore.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&storedDocument, currentMetadata, nil)
-		ctx.resolver.EXPECT().ResolveControllers(storedDocument, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{storedDocument}, nil)
-		ctx.keyStore.EXPECT().ResolvePublicKey(storedDocument.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
-		ctx.didStore.EXPECT().Update(storedDocument.ID, currentMetadata.Hash, deactivatedDocument, &expectedNextMetadata)
+			// This is the metadata that will be written during the update
+			expectedNextMetadata := types.DocumentMetadata{
+				Created:            createdAt,
+				Updated:            &signingTime,
+				Hash:               payloadHash,
+				Deactivated:        true,
+				PreviousHash:       &currentPayloadHash,
+				SourceTransactions: []hash.SHA256Hash{tx.Ref()},
+			}
+			var pKey crypto2.PublicKey
+			signingKey.Raw(&pKey)
 
-		err = ctx.ambassador.handleUpdateDIDDocument(tx, deactivatedDocument)
-		assert.NoError(t, err)
+			ctx.didStore.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&storedDocument, currentMetadata, nil)
+			ctx.resolver.EXPECT().ResolveControllers(storedDocument, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{storedDocument}, nil)
+			ctx.keyStore.EXPECT().ResolvePublicKey(storedDocument.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
+			ctx.didStore.EXPECT().Update(storedDocument.ID, currentMetadata.Hash, deactivatedDocument, &expectedNextMetadata)
+
+			err = ctx.ambassador.handleUpdateDIDDocument(tx, deactivatedDocument)
+			assert.NoError(t, err)
+		})
+		t.Run("second time: ErrDeactivated", func(t *testing.T) {
+			tx := newTX()
+			tx.signingKeyID = didDocument.CapabilityInvocation[0].ID.String()
+			tx.payloadHash = payloadHash
+
+			currentPayloadHash := hash.SHA256Sum([]byte("currentPayloadHash"))
+
+			// This is the metadata of the current version of the document which will be returned by the resolver
+			currentMetadata := &types.DocumentMetadata{
+				Created:     createdAt,
+				Updated:     nil,
+				Hash:        currentPayloadHash,
+				Deactivated: true,
+			}
+
+			var pKey crypto2.PublicKey
+			signingKey.Raw(&pKey)
+
+			ctx.didStore.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&storedDocument, currentMetadata, nil)
+			ctx.resolver.EXPECT().ResolveControllers(storedDocument, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{storedDocument}, nil)
+			ctx.keyStore.EXPECT().ResolvePublicKey(storedDocument.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
+
+			err = ctx.ambassador.handleUpdateDIDDocument(tx, deactivatedDocument)
+			assert.Equal(t, types.ErrDeactivated, err)
+		})
 	})
 
 	t.Run("update ok - with the exact same document", func(t *testing.T) {
