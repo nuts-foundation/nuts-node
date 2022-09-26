@@ -118,13 +118,16 @@ func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.Verifiab
 
 	credentialID := ssi.MustParseURI(fmt.Sprintf("%s#%s", issuerDID.String(), uuid.New().String()))
 	unsignedCredential := vc.VerifiableCredential{
-		Context:           append(credentialOptions.Context, vc.VCContextV1URI()),
+		Context:           credentialOptions.Context,
 		ID:                &credentialID,
 		Type:              credentialOptions.Type,
 		CredentialSubject: credentialOptions.CredentialSubject,
 		Issuer:            credentialOptions.Issuer,
 		ExpirationDate:    credentialOptions.ExpirationDate,
 		IssuanceDate:      time.Now(),
+	}
+	if !unsignedCredential.ContainsContext(vc.VCContextV1URI()) {
+		unsignedCredential.Context = append(unsignedCredential.Context, vc.VCContextV1URI())
 	}
 
 	defaultType := vc.VerifiableCredentialTypeV1URI()

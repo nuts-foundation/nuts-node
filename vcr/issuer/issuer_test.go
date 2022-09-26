@@ -101,6 +101,31 @@ func Test_issuer_buildVC(t *testing.T) {
 		assert.Equal(t, issuance, proofs[0].Created)
 	})
 
+	t.Run("it does not add the default context twice", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		kid := "did:nuts:123#abc"
+
+		keyResolverMock := NewMockkeyResolver(ctrl)
+		keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any()).Return(crypto.NewTestKey(kid), nil)
+		jsonldManager := jsonld.NewTestJSONLDManager(t)
+		sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager}
+
+		credentialOptions := vc.VerifiableCredential{
+			Context:      []ssi.URI{vc.VCContextV1URI()},
+			Type:         []ssi.URI{credentialType},
+			Issuer:       issuerID,
+			IssuanceDate: time.Now(),
+		}
+
+		result, err := sut.buildVC(credentialOptions)
+
+		if !assert.NoError(t, err) || !assert.NotNil(t, result) {
+			return
+		}
+		assert.Len(t, result.Context, 2)
+		assert.Contains(t, result.Context, vc.VCContextV1URI())
+	})
+
 	t.Run("error - invalid params", func(t *testing.T) {
 		t.Run("wrong amount of credential types", func(t *testing.T) {
 			sut := issuer{}
