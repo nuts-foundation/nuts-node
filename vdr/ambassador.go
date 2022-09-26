@@ -320,6 +320,12 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 	// Stable order for metadata.SourceTransactions (derived from unordered maps): makes it easier to analyse and test.
 	sortHashes(sourceTransactions)
 
+	deactivated := store.IsDeactivated(*currentDIDDocument)
+	if len(sourceTransactions) == 1 && deactivated {
+		// resurrecting a deactivated document without creating a conflict.
+		return types.ErrDeactivated
+	}
+
 	updatedAt := transaction.SigningTime()
 	documentMetadata := types.DocumentMetadata{
 		Created:            currentDIDMeta.Created,
@@ -329,6 +335,7 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 		Deactivated:        store.IsDeactivated(proposedDIDDocument),
 		SourceTransactions: sourceTransactions,
 	}
+
 	err = n.didStore.Update(proposedDIDDocument.ID, currentDIDMeta.Hash, proposedDIDDocument, &documentMetadata)
 	if err == nil {
 		log.Logger().
