@@ -742,7 +742,7 @@ func TestNetworkIntegration_AddedTransactionsAsEvents(t *testing.T) {
 	defer conn.Close()
 	var found []byte
 	foundMutex := sync.Mutex{}
-	err = stream.Subscribe(conn, "TEST", "TRANSACTIONS.tx", func(msg *nats.Msg) {
+	_ = stream.Subscribe(conn, "TEST", "TRANSACTIONS.tx", func(msg *nats.Msg) {
 		foundMutex.Lock()
 		defer foundMutex.Unlock()
 		found = msg.Data
@@ -751,9 +751,6 @@ func TestNetworkIntegration_AddedTransactionsAsEvents(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	if !assert.NoError(t, err) {
-		t.Fatal("failed to subscribe to stream")
-	}
 
 	// add a transaction
 	key := nutsCrypto.NewTestKey("key")
