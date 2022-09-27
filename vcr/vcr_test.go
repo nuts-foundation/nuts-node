@@ -91,10 +91,10 @@ func TestVCR_Start(t *testing.T) {
 
 		dbPath := instance.credentialsDBPath()
 		db, err := bbolt.Open(dbPath, os.ModePerm, nil)
-		defer db.Close()
 		if err != nil {
 			t.Fatal(err)
 		}
+		defer db.Close()
 		db.View(func(tx *bbolt.Tx) error {
 			mainBucket := tx.Bucket([]byte("credentials"))
 

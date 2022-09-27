@@ -143,8 +143,6 @@ func (n ambassador) handleReprocessEvent(msg *nats.Msg) {
 			return
 		}
 	}
-
-	return
 }
 
 func (n ambassador) getCallbackFn(contentType string) func(dag.Transaction, []byte) error {

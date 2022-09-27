@@ -481,9 +481,7 @@ func (n *Network) CreateTransaction(template Template) (dag.Transaction, error) 
 		prevs = append(prevs, head)
 	}
 	// and additional prevs
-	for _, addPrev := range template.AdditionalPrevs {
-		prevs = append(prevs, addPrev)
-	}
+	prevs = append(prevs, template.AdditionalPrevs...)
 
 	// Encrypt PAL, making the TX private (if participants are specified)
 	var pal [][]byte
@@ -509,8 +507,7 @@ func (n *Network) CreateTransaction(template Template) (dag.Transaction, error) 
 
 	// Sign it
 	var transaction dag.Transaction
-	var signer dag.TransactionSigner
-	signer = dag.NewTransactionSigner(template.Key, template.AttachKey)
+	signer := dag.NewTransactionSigner(template.Key, template.AttachKey)
 	timestamp := time.Now()
 	if !template.Timestamp.IsZero() {
 		timestamp = template.Timestamp
@@ -687,7 +684,7 @@ func (n *Network) collectDiagnosticsForPeers() transport.Diagnostics {
 	}
 
 	result := transport.Diagnostics{
-		Uptime:               time.Now().Sub(n.startTime.Load().(time.Time)),
+		Uptime:               time.Since(n.startTime.Load().(time.Time)),
 		NumberOfTransactions: uint32(transactionCount),
 		SoftwareVersion:      fmt.Sprintf("%s (%s)", core.GitBranch, core.GitCommit),
 		SoftwareID:           softwareID,

@@ -105,13 +105,12 @@ func jwkKey(signer crypto.Signer) (key jwk.Key, err error) {
 		return nil, err
 	}
 
-	switch signer.(type) {
+	switch k := signer.(type) {
 	case *rsa.PrivateKey:
 		key.Set(jwk.AlgorithmKey, jwa.PS256)
 	case *ecdsa.PrivateKey:
-		ecKey := signer.(*ecdsa.PrivateKey)
 		var alg jwa.SignatureAlgorithm
-		alg, err = ecAlg(ecKey)
+		alg, err = ecAlg(k)
 		key.Set(jwk.AlgorithmKey, alg)
 	default:
 		err = errors.New("unsupported signing private key")
@@ -281,10 +280,8 @@ func signJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey
 func convertHeaders(headers map[string]interface{}) (hdr jws.Headers) {
 	hdr = jws.NewHeaders()
 
-	if headers != nil {
-		for k, v := range headers {
-			hdr.Set(k, v)
-		}
+	for k, v := range headers {
+		hdr.Set(k, v)
 	}
 	return
 }
@@ -328,17 +325,15 @@ func SignatureAlgorithm(key crypto.PublicKey) (jwa.SignatureAlgorithm, error) {
 		ptr = v
 	}
 
-	switch ptr.(type) {
+	switch k := ptr.(type) {
 	case *rsa.PrivateKey:
 		return jwa.PS256, nil
 	case *rsa.PublicKey:
 		return jwa.PS256, nil
 	case *ecdsa.PrivateKey:
-		sk := ptr.(*ecdsa.PrivateKey)
-		return ecAlgUsingPublicKey(sk.PublicKey)
+		return ecAlgUsingPublicKey(k.PublicKey)
 	case *ecdsa.PublicKey:
-		pk := ptr.(*ecdsa.PublicKey)
-		return ecAlgUsingPublicKey(*pk)
+		return ecAlgUsingPublicKey(*k)
 	case ed25519.PrivateKey:
 		return jwa.EdDSA, nil
 	case ed25519.PublicKey:

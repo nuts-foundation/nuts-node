@@ -180,7 +180,7 @@ func (b bboltDatabase) performBackup(fullStoreName string, store stoabs.KVStore)
 		}
 		log.Logger().
 			WithField(core.LogFieldStore, fullStoreName).
-			Debugf("BBolt database backup finished in %s", time.Now().Sub(startTime))
+			Debugf("BBolt database backup finished in %s", time.Since(startTime))
 		return nil
 	})
 }

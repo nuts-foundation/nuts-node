@@ -129,8 +129,6 @@ func (n *ambassador) handleReprocessEvent(msg *nats.Msg) {
 			Error("Failed to process REPROCESS.application/did+json event")
 		return
 	}
-
-	return
 }
 
 func (n *ambassador) handleNetworkEvent(event dag.Event) (bool, error) {

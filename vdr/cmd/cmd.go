@@ -340,7 +340,7 @@ func askYesNo(question string, cmd *cobra.Command) (answer bool) {
 	reader := bufio.NewReader(cmd.InOrStdin())
 	question += "[yes/no]: "
 
-	for true {
+	for {
 		cmd.Print(question)
 		s, err := reader.ReadString('\n')
 		if err != nil {

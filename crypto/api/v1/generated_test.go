@@ -48,7 +48,7 @@ func (t *testServerInterface) SignJws(_ echo.Context) error {
 }
 
 var siws = []*ServerInterfaceWrapper{
-	serverInterfaceWrapper(nil), serverInterfaceWrapper(errors.New("Server error")),
+	serverInterfaceWrapper(nil), serverInterfaceWrapper(errors.New("server error")),
 }
 
 func TestServerInterfaceWrapper_SignJwt(t *testing.T) {

@@ -175,7 +175,7 @@ func TestNewNutsConfig_PrintConfig(t *testing.T) {
 	bs := cfg.PrintConfig()
 
 	t.Run("output contains key", func(t *testing.T) {
-		if strings.Index(bs, "camelCaseKey") == -1 {
+		if !strings.Contains(bs, "camelCaseKey") {
 			t.Error("Expected camelCaseKey to be in output")
 		}
 	})

@@ -39,10 +39,10 @@ func Test_pub_sub(t *testing.T) {
 	stream := eventManager.GetStream(TransactionsStream)
 
 	conn, js, err := eventManager.Pool().Acquire(context.Background())
-	defer conn.Close()
 	if !assert.NoError(t, err) {
 		return
 	}
+	defer conn.Close()
 	var found []byte
 	foundMutex := sync.Mutex{}
 	err = stream.Subscribe(conn, "TEST", "TRANSACTIONS.tx", func(msg *nats.Msg) {
@@ -65,7 +65,7 @@ func Test_pub_sub(t *testing.T) {
 	test.WaitFor(t, func() (bool, error) {
 		foundMutex.Lock()
 		defer foundMutex.Unlock()
-		return bytes.Compare(found, []byte{1}) == 0, nil
+		return bytes.Equal(found, []byte{1}), nil
 	}, 100*time.Millisecond, "timeout waiting for message")
 	if !assert.NoError(t, err) {
 		return

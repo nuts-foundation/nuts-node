@@ -90,13 +90,13 @@ func PemToPrivateKey(bytes []byte) (signer crypto.Signer, err error) {
 	case "PRIVATE KEY":
 		var key interface{}
 		key, err = x509.ParsePKCS8PrivateKey(block.Bytes)
-		switch key.(type) {
+		switch k := key.(type) {
 		case *rsa.PrivateKey:
-			signer = key.(*rsa.PrivateKey)
+			signer = k
 		case *ecdsa.PrivateKey:
-			signer = key.(*ecdsa.PrivateKey)
+			signer = k
 		case ed25519.PrivateKey:
-			signer = key.(ed25519.PrivateKey)
+			signer = k
 		}
 	}
 	return

@@ -189,10 +189,7 @@ func NewContextLoader(allowUnlistedExternalCalls bool, contexts ContextsConfig) 
 	// If unlisted calls are not allowed, filter all calls to the defaultLoader
 	if !allowUnlistedExternalCalls {
 		// only allow explicitly allowed remote urls and listed local files:
-		allowed := []string{}
-		for _, url := range contexts.RemoteAllowList {
-			allowed = append(allowed, url)
-		}
+		allowed := contexts.RemoteAllowList
 		for url := range contexts.LocalFileMapping {
 			allowed = append(allowed, url)
 		}

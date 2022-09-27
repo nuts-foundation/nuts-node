@@ -260,10 +260,9 @@ func (s *grpcConnectionManager) notifyObservers(peer transport.Peer, protocol tr
 
 func (s *grpcConnectionManager) Peers() []transport.Peer {
 	var peers []transport.Peer
-	for _, curr := range s.connections.All() {
-		if curr.IsConnected() {
-			peers = append(peers, curr.Peer())
-		}
+
+	for _, curr := range s.connections.AllMatching(ByConnected()) {
+		peers = append(peers, curr.Peer())
 	}
 	return peers
 }
@@ -288,13 +287,7 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 
 	protocolNum := 0
 	// Call gRPC-enabled protocols, block until they close
-	for _, prot := range s.protocols {
-		protocol, ok := prot.(Protocol)
-		if !ok {
-			// Not a gRPC streaming protocol
-			continue
-		}
-
+	for _, protocol := range s.protocols {
 		clientStream, err := s.openOutboundStream(connection, protocol, grpcConn, md)
 		if err != nil {
 			log.Logger().
@@ -311,7 +304,7 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 		}
 		peer := connection.Peer() // work with a copy of peer to avoid race condition due to disconnect() resetting it
 		log.Logger().
-			WithField(core.LogFieldProtocolVersion, prot.Version()).
+			WithField(core.LogFieldProtocolVersion, protocol.Version()).
 			WithFields(peer.ToFields()).
 			Debug("Opened gRPC stream")
 		s.notifyObservers(peer, protocol, transport.StateConnected)

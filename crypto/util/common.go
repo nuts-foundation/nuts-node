@@ -29,4 +29,4 @@ var ErrWrongPublicKey = errors.New("failed to decode PEM block containing public
 var ErrWrongPrivateKey = errors.New("failed to decode PEM block containing private key")
 
 // ErrRsaPubKeyConversion indicates a public key could not be converted to an RSA public key
-var ErrRsaPubKeyConversion = errors.New("Unable to convert public key to RSA public key")
+var ErrRsaPubKeyConversion = errors.New("unable to convert public key to RSA public key")
