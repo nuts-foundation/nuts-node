@@ -92,7 +92,7 @@ func (m *manager) Configure(config core.ServerConfig) error {
 }
 
 func (m *manager) GetStream(streamName string) Stream {
-	s, _ := m.streams[streamName]
+	s := m.streams[streamName]
 	return s
 }
 

@@ -42,7 +42,7 @@ type SenderFunc func(id transport.PeerID, refs []hash.SHA256Hash, xor hash.SHA25
 // It keeps track of transaction hashes that still have to be send to a peer in a queue.
 // If a peer gossips a particular hash, that hash is removed from the peer queue to reduce traffic.
 // It also keeps a small log of received hashes from a peer.
-//When a transaction is added to the DAG but exists in that log, it won't be gossipped to that peer.
+// When a transaction is added to the DAG but exists in that log, it won't be gossipped to that peer.
 type Manager interface {
 	// GossipReceived is to be called each time a peer sends a Gossip message.
 	// All hashes should be removed from the peer's queue and added to the log.
@@ -124,7 +124,7 @@ func (m *manager) PeerConnected(transportPeer transport.Peer, xor hash.SHA256Has
 				// stop ticker and exit when queue.unregister is called.
 				ticker.Stop()
 				return
-			case _ = <-ticker.C:
+			case <-ticker.C:
 				callSenders(transportPeer.ID, &pq, senders)
 			}
 		}

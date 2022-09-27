@@ -107,7 +107,7 @@ func (b bboltDatabase) startBackup(fullStoreName string, store stoabs.KVStore) {
 	loop:
 		for {
 			select {
-			case _ = <-ticker.C:
+			case <-ticker.C:
 				err := b.performBackup(fullStoreName, store)
 				if err != nil {
 					log.Logger().
@@ -115,7 +115,7 @@ func (b bboltDatabase) startBackup(fullStoreName string, store stoabs.KVStore) {
 						WithField(core.LogFieldStore, fullStoreName).
 						Errorf("Unable to complete BBolt backup")
 				}
-			case _ = <-shutdown:
+			case <-shutdown:
 				break loop
 			}
 		}
