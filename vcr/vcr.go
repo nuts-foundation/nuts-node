@@ -54,11 +54,6 @@ import (
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-var timeFunc = time.Now
-
-// noSync is used to disable bbolt syncing on go-leia during tests
-var noSync bool
-
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
 func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions, jsonldManager jsonld.JSONLD, eventManager events.Event, storageClient storage.Engine) VCR {
 	r := &vcr{

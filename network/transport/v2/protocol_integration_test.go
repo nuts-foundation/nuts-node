@@ -46,7 +46,6 @@ import (
 )
 
 const integrationTestTimeout = 10 * time.Second
-const integrationTestPayloadType = "application/did+json"
 
 // TestProtocolV2_Pagination tests whether TransactionList messages are paginated when the transactions on the DAG
 // about 15 transactions fit into a message with max size 4k

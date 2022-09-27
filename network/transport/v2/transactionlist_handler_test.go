@@ -116,7 +116,6 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request, peerID)
 		envelope := envelopeWithConversation(conversation)
-		conversation.set("refs", []hash.SHA256Hash{h1})
 		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(nil)
 
 		err := p.handleTransactionList(peer, envelope)
@@ -127,10 +126,9 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 
 	t.Run("ok - conversation not marked as done", func(t *testing.T) {
 		tx2, _, _ := dag.CreateTestTransaction(0)
-		h2 := tx2.Ref()
+		request2 := &Envelope_TransactionListQuery{TransactionListQuery: &TransactionListQuery{Refs: [][]byte{h1.Slice(), tx2.Ref().Slice()}}}
 		p, mocks := newTestProtocol(t, nil)
-		conversation := p.cMan.startConversation(request, peerID)
-		conversation.set("refs", []hash.SHA256Hash{h1, h2})
+		conversation := p.cMan.startConversation(request2, peerID)
 		cStartTime := conversation.expiry.Add(-1 * time.Millisecond)
 		conversation.expiry = cStartTime
 		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(nil)

@@ -91,7 +91,6 @@ func (p *protocol) sendTransactionListQuery(id transport.PeerID, refs []hash.SHA
 			Debug("Did not request a TransactionList while another conversation is in progress")
 		return nil
 	}
-	conversation.set("refs", refs)
 
 	log.Logger().
 		WithField(core.LogFieldPeerID, id).

@@ -137,15 +137,6 @@ func (c MultiEcho) Use(middleware ...echo.MiddlewareFunc) {
 	}
 }
 
-func (c *MultiEcho) start(address string, server EchoServer, wg *sync.WaitGroup, errChan chan error) {
-	go func() {
-		if err := server.Start(address); err != nil {
-			errChan <- err
-		}
-		wg.Done()
-	}()
-}
-
 func (c *MultiEcho) getInterface(path string) EchoServer {
 	bind := c.getBindFromPath(path)
 	return c.interfaces[c.binds[bind]]

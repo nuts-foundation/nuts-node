@@ -101,16 +101,6 @@ func (s *status) Diagnostics() []core.DiagnosticResult {
 	}
 }
 
-func (s *status) listAllEngines() []string {
-	var names []string
-	s.system.VisitEngines(func(engine core.Engine) {
-		if m, ok := engine.(core.Named); ok {
-			names = append(names, m.Name())
-		}
-	})
-	return names
-}
-
 func (s *status) collectDiagnostics() map[string][]core.DiagnosticResult {
 	result := make(map[string][]core.DiagnosticResult, 0)
 	s.system.VisitEngines(func(engine core.Engine) {

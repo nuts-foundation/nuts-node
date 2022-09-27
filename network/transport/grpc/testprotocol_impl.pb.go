@@ -30,10 +30,8 @@ var _ Protocol = (*TestProtocol)(nil)
 
 // TestProtocol is an implementation of a gRPC-based protocol for testing.
 type TestProtocol struct {
-	peer           transport.Peer
-	inboundCalled  bool
-	outboundCalled bool
-	acceptor       func(stream grpc.ServerStream) error
+	inboundCalled bool
+	acceptor      func(stream grpc.ServerStream) error
 }
 
 func (s *TestProtocol) Version() int {

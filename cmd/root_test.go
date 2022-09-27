@@ -33,9 +33,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const grpcListenAddressEnvKey = "NUTS_NETWORK_GRPCADDR"
-const enableTLSEnvKey = "NUTS_NETWORK_ENABLETLS"
-
 func Test_rootCmd(t *testing.T) {
 	ctx := context.Background()
 

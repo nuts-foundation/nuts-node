@@ -67,7 +67,6 @@ type outboundConnector struct {
 	connectionTimeout time.Duration
 	backoff           Backoff
 	tlsConfig         *tls.Config
-	localPeerID       transport.PeerID
 	// connectedCallback is called when the outbound connection was successful and application-level operations can be performed.
 	// If these fail and the connector should backoff before retrying, the callback should return 'false'.
 	connectedCallback func(conn *grpcLib.ClientConn) bool

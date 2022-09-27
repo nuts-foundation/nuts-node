@@ -20,7 +20,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"github.com/knadh/koanf"
@@ -187,20 +186,6 @@ func startServer(testDirectory string, exitCallback func(), serverConfig core.Se
 	}()
 
 	return ctx
-}
-
-func isHttpsRunning(address string, tlsConfig *tls.Config) bool {
-	client := &http.Client{Transport: &http.Transport{
-		TLSClientConfig: tlsConfig,
-	}}
-
-	response, err := client.Get(address)
-	if err != nil {
-		println(err.Error())
-		return false
-	}
-	_, _ = ioutil.ReadAll(response.Body)
-	return response.StatusCode == http.StatusOK
 }
 
 func isHttpRunning(address string) bool {

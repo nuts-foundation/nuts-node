@@ -42,10 +42,11 @@ type SignedIrmaContract struct {
 }
 
 // SignerAttributes returns a map of irma attributes minus the root:
-// {
-//   "gemeente.personalData.fullname": "Henk de Vries",
-//   "sidn-pbdf.email.email": "henk.devries@example.com",
-// },
+//
+//	{
+//	  "gemeente.personalData.fullname": "Henk de Vries",
+//	  "sidn-pbdf.email.email": "henk.devries@example.com",
+//	},
 func (s SignedIrmaContract) SignerAttributes() (map[string]string, error) {
 	return s.attributes, nil
 }
@@ -56,11 +57,12 @@ func (s SignedIrmaContract) Contract() contract.Contract {
 }
 
 // A IrmaContract is valid when:
-//  it has a valid signature
-//  it contains a message that is a known Contract
-//  its signature is signed with all attributes required by the Contract
-//  it has a valid time period
-//  the acting party named in the contract is the same as the one making the request
+//
+//	it has a valid signature
+//	it contains a message that is a known Contract
+//	its signature is signed with all attributes required by the Contract
+//	it has a valid time period
+//	the acting party named in the contract is the same as the one making the request
 type contractVerifier struct {
 	irmaConfig     *irma.Configuration
 	validContracts contract.TemplateStore
@@ -124,15 +126,6 @@ func (cv *contractVerifier) Verify(token services.SignedToken) error {
 		return fmt.Errorf("irma proof invalid: %s", irmaToken.proofStatus)
 	}
 	return token.Contract().Verify()
-}
-
-// parseSignedIrmaContract parses a json string containing a signed irma contract.
-func (cv *contractVerifier) parseSignedIrmaContract(rawContract string) (*SignedIrmaContract, error) {
-	signedToken, err := cv.Parse(rawContract)
-	if err != nil {
-		return nil, err
-	}
-	return signedToken.(*SignedIrmaContract), nil
 }
 
 func parseSignerAttributes(strictMode bool, attributes [][]*irma.DisclosedAttribute) map[string]string {

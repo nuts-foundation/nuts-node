@@ -115,7 +115,6 @@ func (s sessionPointer) MarshalJSON() ([]byte, error) {
 }
 
 type dummyVPVerificationResult struct {
-	contractID          string
 	disclosedAttributes map[string]string
 	contractAttributes  map[string]string
 }

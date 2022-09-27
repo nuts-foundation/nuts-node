@@ -60,21 +60,6 @@ type conversation struct {
 	// expiry is the time the conversation expires.
 	expiry           time.Time
 	conversationData checkable
-	mux              sync.RWMutex
-	// properties can be used to store extra info on the conversation, e.g. to check if a conversation is done
-	properties map[string]interface{}
-}
-
-func (conversation *conversation) get(key string) interface{} {
-	conversation.mux.RLock()
-	defer conversation.mux.RUnlock()
-	return conversation.properties[key]
-}
-
-func (conversation *conversation) set(key string, value interface{}) {
-	conversation.mux.Lock()
-	defer conversation.mux.Unlock()
-	conversation.properties[key] = value
 }
 
 type blockable interface {
@@ -160,7 +145,6 @@ func (cMan *conversationManager) startConversation(msg checkable, id transport.P
 		conversationID:   cid,
 		expiry:           time.Now().Add(cMan.validity),
 		conversationData: msg,
-		properties:       map[string]interface{}{},
 	}
 
 	cMan.mutex.Lock()

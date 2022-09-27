@@ -160,12 +160,6 @@ func TestVCR_Resolve(t *testing.T) {
 	_ = json.Unmarshal([]byte(jsonld.TestOrganizationCredential), &testVC)
 
 	now := time.Now()
-	timeFunc = func() time.Time {
-		return now
-	}
-	defer func() {
-		timeFunc = time.Now
-	}()
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := testInstance(t)
