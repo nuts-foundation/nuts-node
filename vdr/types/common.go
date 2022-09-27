@@ -39,7 +39,7 @@ var ErrDIDNotManagedByThisNode = errors.New("DID document not managed by this no
 // ErrNotFound The DID resolver was unable to find the DID document resulting from this resolution request.
 var ErrNotFound = errors.New("unable to find the DID document")
 
-// ErrDeactivated The DID document has been deactivated.
+// ErrDeactivated signals rejection due to document deactivation.
 var ErrDeactivated = deactivatedError{msg: "the DID document has been deactivated"}
 
 // ErrNoActiveController The DID supplied to the DID resolution does not have any active controllers.
