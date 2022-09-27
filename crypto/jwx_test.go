@@ -189,7 +189,7 @@ func TestCrypto_SignJWS(t *testing.T) {
 	key, _ := client.New(StringNamingFunc(kid))
 
 	t.Run("creates valid JWS", func(t *testing.T) {
-		payload, err := json.Marshal(map[string]interface{}{"iss": "nuts"})
+		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
 		tokenString, err := client.SignJWS(payload, map[string]interface{}{"typ": "JWT"}, kid, false)
 
 		if !assert.NoError(t, err) {

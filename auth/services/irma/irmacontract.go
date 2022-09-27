@@ -98,6 +98,9 @@ func (cv *contractVerifier) ParseIrmaContract(jsonIrmaContract []byte) (services
 	}
 
 	attributes, status, err := signedIrmaContract.IrmaContract.Verify(cv.irmaConfig, nil)
+	if err != nil {
+		return nil, err
+	}
 	signerAttributes := parseSignerAttributes(cv.strictMode, attributes)
 
 	contractMessage := signedIrmaContract.IrmaContract.Message

@@ -751,6 +751,9 @@ func TestNetworkIntegration_AddedTransactionsAsEvents(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
+	if !assert.NoError(t, err) {
+		t.Fatal("failed to subscribe to stream")
+	}
 
 	// add a transaction
 	key := nutsCrypto.NewTestKey("key")

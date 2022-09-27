@@ -272,7 +272,7 @@ func TestConversationManager_checkTransactionRangeQuery(t *testing.T) {
 			},
 		}
 
-		c, err := cMan.check(response, handlerData{})
+		_, err := cMan.check(response, handlerData{})
 
 		assert.EqualError(t, err, "TX is not within the requested range (tx="+tx2.Ref().String()+")")
 	})

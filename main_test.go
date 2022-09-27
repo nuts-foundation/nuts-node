@@ -103,7 +103,7 @@ func Test_LoadExistingDAG(t *testing.T) {
 
 	// Now stop node, and start it again
 	stopNode(t, runningCtx)
-	runningCtx, nodeStoppedCallback = context.WithCancel(context.Background())
+	_, nodeStoppedCallback = context.WithCancel(context.Background())
 	// Make sure we get "fresh" ports since the OS might not immediately free closed sockets
 	serverConfig, moduleConfig = getIntegrationTestConfig(testDirectory)
 	startCtx = startServer(testDirectory, nodeStoppedCallback, serverConfig, moduleConfig)

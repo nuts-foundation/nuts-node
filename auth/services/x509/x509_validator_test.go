@@ -300,7 +300,7 @@ func TestJwtX509Validator_SubjectAltNameOtherName(t *testing.T) {
 
 	t.Run("ok - own certificate", func(t *testing.T) {
 		// Create the extension
-		otherNameValue, err := asn1.Marshal("foo:bar")
+		otherNameValue, _ := asn1.Marshal("foo:bar")
 		othernameExt, err := asn1.Marshal(generalNames{
 			OtherName: otherName{
 				OID:   asn1.ObjectIdentifier{2, 5, 5, 5},
@@ -324,6 +324,9 @@ func TestJwtX509Validator_SubjectAltNameOtherName(t *testing.T) {
 			return
 		}
 		cert, err := createTestCert(nil, template, &priv.PublicKey, priv)
+		if !assert.NoError(t, err) {
+			return
+		}
 
 		token := JwtX509Token{chain: []*x509.Certificate{cert}}
 		sans, err := token.SubjectAltNameOtherNames()

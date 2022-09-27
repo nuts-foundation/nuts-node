@@ -21,6 +21,7 @@ package issuer
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"path"
 	"testing"
@@ -317,6 +318,36 @@ _:c14n0 <https://www.w3.org/2018/credentials#issuer> <did:nuts:123> .
 `
 
 		assert.Equal(t, expectedCanonicalForm, string(res))
+	})
+
+	t.Run("error - returned from used services", func(t *testing.T) {
+		testVC := *credential.ValidExplicitNutsAuthorizationCredential()
+		issuerDID := did.MustParseDID(testVC.Issuer.String())
+
+		t.Run("no assertionKey for issuer", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			keyResolverMock := NewMockkeyResolver(ctrl)
+			keyResolverMock.EXPECT().ResolveAssertionKey(issuerDID).Return(nil, errors.New("b00m!"))
+			sut := issuer{keyResolver: keyResolverMock}
+
+			_, err := sut.buildRevocation(testVC)
+			assert.EqualError(t, err, fmt.Sprintf("failed to revoke credential (%s): could not resolve an assertionKey for issuer: b00m!", testVC.ID))
+		})
+
+		t.Run("no DID Document for issuer", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			keyResolverMock := NewMockkeyResolver(ctrl)
+			keyResolverMock.EXPECT().ResolveAssertionKey(issuerDID).Return(nil, vdr.ErrNotFound)
+			sut := issuer{keyResolver: keyResolverMock}
+
+			_, err := sut.buildRevocation(testVC)
+			assert.ErrorIs(t, err, core.InvalidInputError("failed to revoke credential: could not resolve an assertionKey for issuer: unable to find the DID document"))
+		})
+
 	})
 
 }
