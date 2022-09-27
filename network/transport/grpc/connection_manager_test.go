@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	io2 "github.com/nuts-foundation/nuts-node/test/io"
 	io_prometheus_client "github.com/prometheus/client_model/go"
+	"google.golang.org/grpc/credentials/insecure"
 	"hash/crc32"
 	"io"
 	"net"
@@ -66,7 +67,7 @@ func withBufconnDialer(listener *bufconn.Listener) ConfigOption {
 		config.dialer = func(ctx context.Context, target string, opts ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
 			return grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
 				return listener.Dial()
-			}), grpc.WithInsecure())
+			}), grpc.WithTransportCredentials(insecure.NewCredentials()))
 		}
 	}
 }

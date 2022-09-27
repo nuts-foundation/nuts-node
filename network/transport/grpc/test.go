@@ -20,6 +20,7 @@ package grpc
 
 import (
 	"context"
+	"google.golang.org/grpc/credentials/insecure"
 	"net"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -85,7 +86,7 @@ func WithBufconnDialer(listener *bufconn.Listener) ConfigOption {
 		config.dialer = func(ctx context.Context, target string, opts ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
 			return grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
 				return listener.Dial()
-			}), grpc.WithInsecure())
+			}), grpc.WithTransportCredentials(insecure.NewCredentials()))
 		}
 	}
 }

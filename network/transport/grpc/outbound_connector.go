@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	grpcLib "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"sync/atomic"
 	"time"
 )
@@ -149,7 +150,7 @@ func (c *outboundConnector) tryConnect() (*grpcLib.ClientConn, error) {
 	if c.tlsConfig != nil {
 		dialOptions = append(dialOptions, grpcLib.WithTransportCredentials(credentials.NewTLS(c.tlsConfig))) // TLS authentication
 	} else {
-		dialOptions = append(dialOptions, grpcLib.WithInsecure()) // No TLS, requires 'insecure' flag
+		dialOptions = append(dialOptions, grpcLib.WithTransportCredentials(insecure.NewCredentials())) // No TLS, requires 'insecure' flag
 	}
 	grpcConn, err := c.dialer(dialContext, c.address, dialOptions...)
 	if err != nil {
