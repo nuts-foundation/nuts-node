@@ -155,7 +155,7 @@ func NewTransaction(payload hash.SHA256Hash, payloadType string, prevs []hash.SH
 		lamportClock: lamportClock,
 	}
 	if len(deduplicated) > 0 {
-		result.prevs = append(deduplicated)
+		result.prevs = deduplicated
 	}
 	return &result, nil
 }
@@ -217,7 +217,7 @@ func (d transaction) PayloadHash() hash.SHA256Hash {
 }
 
 func (d transaction) Previous() []hash.SHA256Hash {
-	return append(d.prevs)
+	return d.prevs
 }
 
 func (d transaction) Ref() hash.SHA256Hash {
