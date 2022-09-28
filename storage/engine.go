@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/go-redis/redis/v9"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
@@ -100,6 +101,7 @@ func (e *engine) Configure(config core.ServerConfig) error {
 		e.databases = append(e.databases, redisDB)
 		log.Logger().Info("Redis database support enabled.")
 		log.Logger().Warn("Redis database support is still experimental: do not use for production environments!")
+		redis.SetLogger(redisLogWriter{logger: log.Logger()})
 	}
 	bboltDB, err := createBBoltDatabase(config.Datadir, e.config.BBolt)
 	if err != nil {

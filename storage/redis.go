@@ -19,6 +19,7 @@
 package storage
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -27,6 +28,7 @@ import (
 	"github.com/nuts-foundation/go-stoabs/redis7"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
+	"github.com/sirupsen/logrus"
 	"net/url"
 	"path"
 	"strings"
@@ -213,4 +215,16 @@ func (b redisDatabase) getClass() Class {
 
 func (b redisDatabase) close() {
 	// Nothing to do
+}
+
+// redisLogWriter is a wrapper to redirect redis log to our logger
+type redisLogWriter struct {
+	logger *logrus.Entry
+}
+
+// Printf expects entries in the form:
+// redis: sentinel.go:628: sentinel: new master="mymaster" addr="172.20.0.4:6379"
+// All logs are written as Warning
+func (t redisLogWriter) Printf(_ context.Context, format string, v ...interface{}) {
+	t.logger.Warnf(format, v...)
 }
