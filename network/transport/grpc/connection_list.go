@@ -109,7 +109,8 @@ func (c *connectionList) All() []Connection {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
-	result := append([]Connection{}, c.list...)
+	result := make([]Connection, len(c.list))
+	copy(result, c.list)
 	return result
 }
 
