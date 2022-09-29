@@ -26,7 +26,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/sirupsen/logrus"
-	"io/ioutil"
+	"io"
 	"math"
 	"math/big"
 	"net/http"
@@ -149,7 +149,7 @@ func (v *validator) downloadCRL(endpoint string) error {
 
 	defer response.Body.Close()
 
-	data, err := ioutil.ReadAll(response.Body)
+	data, err := io.ReadAll(response.Body)
 	if err != nil {
 		return fmt.Errorf("unable to download CRL (url=%s): %w", endpoint, err)
 	}

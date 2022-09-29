@@ -49,13 +49,6 @@ func TestVcr_StoreCredential(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
-		now := time.Now()
-		timeFunc = func() time.Time {
-			return now
-		}
-		defer func() {
-			timeFunc = time.Now
-		}()
 
 		ctx.keyResolver.EXPECT().ResolveSigningKey(gomock.Any(), nil).Return(pk, nil)
 

@@ -79,10 +79,6 @@ func (signRequest SignJwsRequest) validate() error {
 	return nil
 }
 
-const (
-	problemTitleSignJwt = "SignJWT failed"
-)
-
 // SignJwt handles api calls for signing a Jwt
 func (w *Wrapper) SignJwt(ctx echo.Context) error {
 	var signRequest = &SignJwtRequest{}

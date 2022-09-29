@@ -97,7 +97,7 @@ func (n *ambassador) Start() error {
 		return fmt.Errorf("failed to subscribe to REPROCESS event stream: %v", err)
 	}
 
-	err = stream.Subscribe(conn, "VDR", fmt.Sprintf("%s.%s", events.ReprocessStream, "application/did+json"), n.handleReprocessEvent)
+	err = stream.Subscribe(conn, "VDR", fmt.Sprintf("%s.%s", events.ReprocessStream, didDocumentType), n.handleReprocessEvent)
 
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to REPROCESS event stream: %v", err)
@@ -129,8 +129,6 @@ func (n *ambassador) handleReprocessEvent(msg *nats.Msg) {
 			Error("Failed to process REPROCESS.application/did+json event")
 		return
 	}
-
-	return
 }
 
 func (n *ambassador) handleNetworkEvent(event dag.Event) (bool, error) {

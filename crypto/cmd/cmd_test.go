@@ -25,9 +25,9 @@ import (
 	"crypto/rand"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
-	"github.com/nuts-foundation/nuts-node/test/io"
+	testIo "github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -76,7 +76,7 @@ func Test_fs2VaultCommand(t *testing.T) {
 	// Set up webserver that stubs Vault
 	importRequests := make(map[string]string, 0)
 	s := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		data, err := ioutil.ReadAll(request.Body)
+		data, err := io.ReadAll(request.Body)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -97,7 +97,7 @@ func Test_fs2VaultCommand(t *testing.T) {
 	// Set up crypto filesystem with some keys
 	pk1, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	pk2, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	testDirectory := io.TestDirectory(t)
+	testDirectory := testIo.TestDirectory(t)
 	fs, _ := storage.NewFileSystemBackend(testDirectory)
 	_ = fs.SavePrivateKey("pk1", pk1)
 	_ = fs.SavePrivateKey("pk2", pk2)

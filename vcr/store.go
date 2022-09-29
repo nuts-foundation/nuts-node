@@ -36,8 +36,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
-const revocationCollection = "_revocation"
-
 // maxFindExecutionTime indicates how long a "find by id" type query may take
 const maxFindExecutionTime = 1 * time.Second
 

@@ -62,7 +62,7 @@ func extractIPFromXFFHeader(serverStream grpc.ServerStream) string {
 	if len(xffs) == 0 {
 		return ipUnknown
 	}
-	ips := append(strings.Split(strings.Join(xffs, ","), ","))
+	ips := strings.Split(strings.Join(xffs, ","), ",")
 	for i := len(ips) - 1; i >= 0; i-- {
 		ip := net.ParseIP(strings.TrimSpace(ips[i]))
 		if ip == nil {

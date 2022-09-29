@@ -20,7 +20,6 @@
 package dag
 
 import (
-	bytes2 "bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -61,7 +60,7 @@ func TestEvent_UnmarshalJSON(t *testing.T) {
 	assert.True(t, transaction.Ref().Equals(event.Hash))
 	assert.Equal(t, 1, event.Retries)
 	assert.Equal(t, payload, string(event.Payload))
-	assert.True(t, bytes2.Compare(transaction.Data(), event.Transaction.Data()) == 0)
+	assert.Equal(t, transaction.Data(), event.Transaction.Data())
 }
 
 func TestNewSubscriber(t *testing.T) {

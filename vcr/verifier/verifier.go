@@ -213,7 +213,7 @@ func (v *verifier) GetRevocation(credentialID ssi.URI) (*credential.Revocation, 
 }
 
 func (v *verifier) RegisterRevocation(revocation credential.Revocation) error {
-	asBytes, err := json.Marshal(revocation)
+	asBytes, _ := json.Marshal(revocation)
 	document := proof.SignedDocument{}
 	if err := json.Unmarshal(asBytes, &document); err != nil {
 		return err

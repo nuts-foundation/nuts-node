@@ -57,13 +57,6 @@ func (store *treeStore) getZeroTo(clock uint32) (tree.Data, uint32) {
 	return store.tree.GetZeroTo(clock)
 }
 
-func (store *treeStore) isEmpty() bool {
-	store.mutex.Lock()
-	defer store.mutex.Unlock()
-
-	return store.tree.GetRoot().IsEmpty()
-}
-
 // write inserts a transaction reference to the in-memory tree and to persistent storage.
 // The tree is not aware of previously seen transactions, so it should be transactional with updates to the dag.
 func (store *treeStore) write(tx stoabs.WriteTx, transaction Transaction) error {

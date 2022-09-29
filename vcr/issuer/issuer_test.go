@@ -19,9 +19,9 @@
 package issuer
 
 import (
-	crypto2 "crypto"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"path"
 	"testing"
@@ -43,23 +43,6 @@ import (
 	vcr "github.com/nuts-foundation/nuts-node/vcr/types"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
-
-type testKey struct {
-	priv crypto2.Signer
-	kid  string
-}
-
-func (t testKey) Signer() crypto2.Signer {
-	return t.priv
-}
-
-func (t testKey) KID() string {
-	return t.kid
-}
-
-func (t testKey) Public() crypto2.PublicKey {
-	return t.priv.Public()
-}
 
 func Test_issuer_buildVC(t *testing.T) {
 	credentialType := ssi.MustParseURI("TestCredential")
@@ -335,6 +318,36 @@ _:c14n0 <https://www.w3.org/2018/credentials#issuer> <did:nuts:123> .
 `
 
 		assert.Equal(t, expectedCanonicalForm, string(res))
+	})
+
+	t.Run("error - returned from used services", func(t *testing.T) {
+		testVC := *credential.ValidExplicitNutsAuthorizationCredential()
+		issuerDID := did.MustParseDID(testVC.Issuer.String())
+
+		t.Run("no assertionKey for issuer", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			keyResolverMock := NewMockkeyResolver(ctrl)
+			keyResolverMock.EXPECT().ResolveAssertionKey(issuerDID).Return(nil, errors.New("b00m!"))
+			sut := issuer{keyResolver: keyResolverMock}
+
+			_, err := sut.buildRevocation(testVC)
+			assert.EqualError(t, err, fmt.Sprintf("failed to revoke credential (%s): could not resolve an assertionKey for issuer: b00m!", testVC.ID))
+		})
+
+		t.Run("no DID Document for issuer", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			keyResolverMock := NewMockkeyResolver(ctrl)
+			keyResolverMock.EXPECT().ResolveAssertionKey(issuerDID).Return(nil, vdr.ErrNotFound)
+			sut := issuer{keyResolver: keyResolverMock}
+
+			_, err := sut.buildRevocation(testVC)
+			assert.ErrorIs(t, err, core.InvalidInputError("failed to revoke credential: could not resolve an assertionKey for issuer: unable to find the DID document"))
+		})
+
 	})
 
 }

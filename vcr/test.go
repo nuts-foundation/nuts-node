@@ -20,27 +20,24 @@
 package vcr
 
 import (
-	"github.com/nuts-foundation/nuts-node/storage"
-	"path"
-	"testing"
-
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/network"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"path"
+	"testing"
 )
 
 // NewTestVCRInstance returns a new vcr instance to be used for integration tests. Any data is stored in the
 // specified test directory.
 func NewTestVCRInstance(t *testing.T) *vcr {
-	// speedup tests
-	noSync = true
 	testDirectory := io.TestDirectory(t)
 	// give network a sub directory to avoid duplicate networks in tests
 	newInstance := NewVCRInstance(
@@ -74,10 +71,6 @@ type mockContext struct {
 }
 
 func newMockContext(t *testing.T) mockContext {
-	// speedup tests
-	// TODO remove since bbolt control has gone to storage
-	noSync = true
-
 	testDir := io.TestDirectory(t)
 	ctrl := gomock.NewController(t)
 	crypto := crypto.NewMockKeyStore(ctrl)

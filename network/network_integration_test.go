@@ -742,7 +742,7 @@ func TestNetworkIntegration_AddedTransactionsAsEvents(t *testing.T) {
 	defer conn.Close()
 	var found []byte
 	foundMutex := sync.Mutex{}
-	err = stream.Subscribe(conn, "TEST", "TRANSACTIONS.tx", func(msg *nats.Msg) {
+	_ = stream.Subscribe(conn, "TEST", "TRANSACTIONS.tx", func(msg *nats.Msg) {
 		foundMutex.Lock()
 		defer foundMutex.Unlock()
 		found = msg.Data

@@ -51,5 +51,6 @@ func TestNutsV2Context(t *testing.T) {
 		expanded, err := processor.Expand(compacted, options)
 
 		assert.Equal(t, documents[0], expanded[0])
+		assert.NoError(t, err)
 	})
 }

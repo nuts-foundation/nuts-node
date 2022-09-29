@@ -320,6 +320,7 @@ func TestEngine_Command(t *testing.T) {
 			}
 			resultingMethod := did.VerificationMethod{}
 			err = json.Unmarshal(buf.Bytes(), &resultingMethod)
+			assert.NoError(t, err)
 			assert.Equal(t, *verificationMethod, resultingMethod)
 			assert.Empty(t, errBuf.Bytes())
 

@@ -27,7 +27,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
-	"io/ioutil"
 	"math/big"
 	"net/http"
 	"os"
@@ -189,8 +188,7 @@ func TestValidator_Configured(t *testing.T) {
 	crlValidator.Configure(config, 0)
 
 	assert.NotNil(t, config.VerifyPeerCertificate)
-
-	data, err := ioutil.ReadFile(pkiOverheidRootCA)
+	data, err := os.ReadFile(pkiOverheidRootCA)
 	assert.NoError(t, err)
 
 	block, _ := pem.Decode(data)

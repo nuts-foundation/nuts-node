@@ -272,13 +272,7 @@ func (validator JwtX509Validator) verifyCertChain(chain []*x509.Certificate, che
 // checkCertRevocation checks a given certificate chain for revoked certificates.
 // The order of the certificates should be that each certificate is issued by the next one. The root comes last.
 func (validator JwtX509Validator) checkCertRevocation(verifiedChain []*x509.Certificate) error {
-	for i, certificate := range verifiedChain {
-		// issuer is normally the next cert in the chain, except for the root which is self-signed
-		issuerIdx := 1 + i
-
-		if issuerIdx == len(verifiedChain) {
-			issuerIdx = i
-		}
+	for _, certificate := range verifiedChain {
 
 		if validator.crlValidator.IsRevoked(certificate.Issuer.String(), certificate.SerialNumber) {
 			return fmt.Errorf("cert with serial '%s' and subject '%s' is revoked", certificate.SerialNumber.String(), certificate.Subject.String())

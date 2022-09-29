@@ -58,12 +58,6 @@ func TestVCR_Search(t *testing.T) {
 
 	reqCtx := context.Background()
 	now := time.Now()
-	timeFunc = func() time.Time {
-		return now
-	}
-	defer func() {
-		timeFunc = time.Now
-	}()
 
 	t.Run("ok", func(t *testing.T) {
 		ctx, searchTerms := testInstance(t)

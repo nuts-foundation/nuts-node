@@ -121,8 +121,11 @@ func TestAmbassador_handleReprocessEvent(t *testing.T) {
 
 	// Publish a VC
 	payload, _ := json.Marshal(vc)
-	unsignedTransaction, err := dag.NewTransaction(hash.SHA256Sum(payload), "application/vc+json", nil, nil, uint32(0))
+	unsignedTransaction, _ := dag.NewTransaction(hash.SHA256Sum(payload), types.VcDocumentType, nil, nil, uint32(0))
 	signedTransaction, err := dag.NewTransactionSigner(key, true).Sign(unsignedTransaction, time.Now())
+	if !assert.NoError(t, err) {
+		return
+	}
 	twp := events.TransactionWithPayload{
 		Transaction: signedTransaction,
 		Payload:     payload,

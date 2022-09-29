@@ -111,7 +111,7 @@ func ClientConfigFlags() *pflag.FlagSet {
 	flagSet.String(clientAddressFlag, defaultAddress, "Address of the node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended.")
 	flagSet.Duration(clientTimeoutFlag, defaultClientTimeout, "Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax.")
 	flagSet.String("verbosity", "info", "Log level (trace, debug, info, warn, error)")
-	flagSet.String("token", "", fmt.Sprintf("Token to be used for authenticating on the remote node. Takes precedence over 'token-file'."))
+	flagSet.String("token", "", "Token to be used for authenticating on the remote node. Takes precedence over 'token-file'.")
 	flagSet.String("token-file", "", fmt.Sprintf("File from which the authentication token will be read. "+
 		"If not specified it will try to read the token from the '%s' file in the user's home dir.", clientConfigFileName))
 	return flagSet

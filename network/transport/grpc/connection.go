@@ -277,7 +277,7 @@ func (mc *conn) startSending(protocol Protocol, stream Stream) {
 	loop:
 		for {
 			select {
-			case _ = <-done:
+			case <-done:
 				break loop
 			case envelope := <-outbox:
 				if envelope == nil {

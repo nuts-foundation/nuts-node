@@ -5,12 +5,9 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 )
-
-var yearRegex = regexp.MustCompilePOSIX("Copyright \\(C\\) ([0-9]{4})(\\.?) Nuts community")
 
 var yearRegexReplacement = fmt.Sprintf("Copyright (C) %d Nuts community", time.Now().Year())
 

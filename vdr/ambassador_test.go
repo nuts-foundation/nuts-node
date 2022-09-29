@@ -444,7 +444,6 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		deactivatedDocument := doc.CreateDocument()
 		deactivatedDocument.ID = storedDocument.ID
-		didDocPayload, _ = json.Marshal(deactivatedDocument)
 
 		currentPayloadHash := hash.SHA256Sum([]byte("currentPayloadHash"))
 

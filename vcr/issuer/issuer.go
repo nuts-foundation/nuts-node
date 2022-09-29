@@ -202,6 +202,14 @@ func (i issuer) buildRevocation(credentialToRevoke vc.VerifiableCredential) (*cr
 	}
 
 	assertionKey, err := i.keyResolver.ResolveAssertionKey(*issuerDID)
+	if err != nil {
+		const errString = "failed to revoke credential (%s): could not resolve an assertionKey for issuer: %w"
+		// Differentiate between a DID document not found and some other error:
+		if errors.Is(err, vdr.ErrNotFound) {
+			return nil, core.InvalidInputError(errString, credentialToRevoke.ID, err)
+		}
+		return nil, fmt.Errorf(errString, credentialToRevoke.ID, err)
+	}
 	// set defaults
 	revocation := credential.BuildRevocation(credentialToRevoke)
 

@@ -92,7 +92,7 @@ func (d *DotGraphVisitor) label(transaction Transaction) string {
 }
 
 func (d *DotGraphVisitor) getAlias(ref string, aliaser func(ref string) string) string {
-	alias, _ := d.aliases[ref]
+	alias := d.aliases[ref]
 	if alias == "" {
 		alias = aliaser(ref)
 		d.aliases[ref] = alias

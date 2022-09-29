@@ -20,7 +20,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"github.com/knadh/koanf"
@@ -33,10 +32,10 @@ import (
 	httpEngine "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/test"
-	"github.com/nuts-foundation/nuts-node/test/io"
+	testIo "github.com/nuts-foundation/nuts-node/test/io"
 	v1 "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -52,7 +51,7 @@ import (
 // - Waits for the main function to return
 // This test was introduced because the shutdown sequence was never called, due to kill signals not being handled.
 func Test_ServerLifecycle(t *testing.T) {
-	testDirectory := io.TestWorkingDirectory(t)
+	testDirectory := testIo.TestWorkingDirectory(t)
 
 	runningCtx, nodeStoppedCallback := context.WithCancel(context.Background())
 	serverConfig, moduleConfig := getIntegrationTestConfig(testDirectory)
@@ -79,7 +78,7 @@ func Test_ServerLifecycle(t *testing.T) {
 // It also tests that file resources (that are locked) are properly freed by the shutdown sequence,
 // because it uses the same files when restarting again (without exiting the main process).
 func Test_LoadExistingDAG(t *testing.T) {
-	testDirectory := io.TestWorkingDirectory(t)
+	testDirectory := testIo.TestWorkingDirectory(t)
 
 	// Start Nuts node
 	runningCtx, nodeStoppedCallback := context.WithCancel(context.Background())
@@ -104,7 +103,7 @@ func Test_LoadExistingDAG(t *testing.T) {
 
 	// Now stop node, and start it again
 	stopNode(t, runningCtx)
-	runningCtx, nodeStoppedCallback = context.WithCancel(context.Background())
+	_, nodeStoppedCallback = context.WithCancel(context.Background())
 	// Make sure we get "fresh" ports since the OS might not immediately free closed sockets
 	serverConfig, moduleConfig = getIntegrationTestConfig(testDirectory)
 	startCtx = startServer(testDirectory, nodeStoppedCallback, serverConfig, moduleConfig)
@@ -189,27 +188,13 @@ func startServer(testDirectory string, exitCallback func(), serverConfig core.Se
 	return ctx
 }
 
-func isHttpsRunning(address string, tlsConfig *tls.Config) bool {
-	client := &http.Client{Transport: &http.Transport{
-		TLSClientConfig: tlsConfig,
-	}}
-
-	response, err := client.Get(address)
-	if err != nil {
-		println(err.Error())
-		return false
-	}
-	_, _ = ioutil.ReadAll(response.Body)
-	return response.StatusCode == http.StatusOK
-}
-
 func isHttpRunning(address string) bool {
 	response, err := http.Get(address)
 	if err != nil {
 		println(err.Error())
 		return false
 	}
-	_, _ = ioutil.ReadAll(response.Body)
+	_, _ = io.ReadAll(response.Body)
 	return response.StatusCode == http.StatusOK
 }
 

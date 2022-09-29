@@ -28,8 +28,6 @@ import (
 	"time"
 )
 
-const backoffValueByteSize = 8
-
 var nowFunc = time.Now
 
 // Backoff defines an API for delaying calls (or connections) to a remote system when its unresponsive,

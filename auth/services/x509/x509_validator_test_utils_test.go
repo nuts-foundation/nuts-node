@@ -19,7 +19,6 @@
 package x509
 
 import (
-	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -123,29 +122,4 @@ func createLeafCert(parent *x509.Certificate, caKey *rsa.PrivateKey) (*x509.Cert
 	}
 	cert, err := createTestCert(parent, template, &priv.PublicKey, caKey)
 	return cert, priv, err
-}
-
-func createCrl(currentCrl *x509.RevocationList, issuer *x509.Certificate, priv crypto.Signer, certsToRevoke []*x509.Certificate) ([]byte, error) {
-	if currentCrl == nil {
-		randSerial, _ := rand.Int(rand.Reader, big.NewInt(big.MaxExp))
-		currentCrl = &x509.RevocationList{Number: randSerial}
-	}
-
-	revokedCerts := currentCrl.RevokedCertificates
-	for _, cert := range certsToRevoke {
-		revokedCert := pkix.RevokedCertificate{
-			SerialNumber:   cert.SerialNumber,
-			RevocationTime: time.Now(),
-		}
-		revokedCerts = append(revokedCerts, revokedCert)
-	}
-
-	template := &x509.RevocationList{
-		//SignatureAlgorithm:  x509.SHA256WithRSA,
-		RevokedCertificates: revokedCerts,
-		Number:              big.NewInt(0).Add(currentCrl.Number, big.NewInt(1)),
-		ThisUpdate:          time.Now(),
-		NextUpdate:          time.Now().Add(24 * time.Hour),
-	}
-	return x509.CreateRevocationList(rand.Reader, template, issuer, priv)
 }

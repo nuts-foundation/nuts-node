@@ -68,7 +68,7 @@ type Config struct {
 
 func (c Config) hasContractValidator(cv string) bool {
 	for _, curr := range c.ContractValidators {
-		if strings.ToLower(cv) == strings.ToLower(curr) {
+		if strings.EqualFold(cv, curr) {
 			return true
 		}
 	}

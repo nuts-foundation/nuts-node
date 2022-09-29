@@ -228,8 +228,11 @@ func TestVDRIntegration_ReprocessEvents(t *testing.T) {
 	// Publish a DID Document
 	didDoc, key, _ := ctx.docCreator.Create(doc.DefaultCreationOptions())
 	payload, _ := json.Marshal(didDoc)
-	unsignedTransaction, err := dag.NewTransaction(hash.SHA256Sum(payload), "application/did+json", nil, nil, uint32(0))
+	unsignedTransaction, _ := dag.NewTransaction(hash.SHA256Sum(payload), didDocumentType, nil, nil, uint32(0))
 	signedTransaction, err := dag.NewTransactionSigner(key, true).Sign(unsignedTransaction, time.Now())
+	if !assert.NoError(t, err) {
+		return
+	}
 	twp := events.TransactionWithPayload{
 		Transaction: signedTransaction,
 		Payload:     payload,
