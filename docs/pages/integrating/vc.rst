@@ -10,13 +10,16 @@ As a node, you can issue credentials with each DID you control (whether they are
 A credential is issued through the API or CLI.
 The node will add sensible defaults for:
 
-- @context
 - id
 - issuanceDate
 - proof
 
-You are required to provide the `credentialSubject`, the `issuer`, the `type` and an optional `expirationDate`.
-So calling `/internal/vcr/v2/issuer/vc` with
+You are required to provide the ``credentialSubject``, the ``issuer``, the ``type`` and an optional ``@context`` and ``expirationDate``.
+If you do not pass a `@context`, it'll be set: ``["https://www.w3.org/2018/credentials/v1", "https://nuts.nl/credentials/v1"]``.
+Note that this default does not include the latest version of the Nuts JSON-LD context.
+The latest Nuts JSON-LD context can be found :ref:`here <jsonld>`.
+
+Calling `/internal/vcr/v2/issuer/vc` with
 
 .. code-block:: json
 
@@ -38,7 +41,7 @@ Will be expanded by the node to:
 .. code-block:: json
 
     {
-      "context": [
+      "@context": [
         "https://www.w3.org/2018/credentials/v1",
         "https://nuts.nl/credentials/v1"
       ],
@@ -84,7 +87,7 @@ The example below searches for a `NutsOrganizationCredential` (note that the `qu
         "query": {
             "@context": [
                 "https://www.w3.org/2018/credentials/v1",
-                "https://nuts.nl/credentials/v1"
+                "https://nuts.nl/credentials/v2"
             ],
             "type": ["VerifiableCredential" ,"NutsOrganizationCredential"],
             "credentialSubject": {
@@ -108,7 +111,7 @@ The following query does not return all `NutsOrganizationCredential` but **all**
         "query": {
             "@context": [
                 "https://www.w3.org/2018/credentials/v1",
-                "https://nuts.nl/credentials/v1"
+                "https://nuts.nl/credentials/v2"
             ],
             "type": ["VerifiableCredential" ,"NutsOrganizationCredential"],
         }
@@ -125,7 +128,7 @@ By default, field selection is done by matching the given value as prefix.
         "query": {
             "@context": [
                 "https://www.w3.org/2018/credentials/v1",
-                "https://nuts.nl/credentials/v1"
+                "https://nuts.nl/credentials/v2"
             ],
             "type": ["VerifiableCredential" ,"NutsOrganizationCredential"],
             "credentialSubject": {

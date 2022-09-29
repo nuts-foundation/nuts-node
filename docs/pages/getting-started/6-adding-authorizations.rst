@@ -102,7 +102,7 @@ The following call will search for an organization with the name *CareBears*.
         "query": {
             "@context": [
                 "https://www.w3.org/2018/credentials/v1",
-                "https://nuts.nl/credentials/v1"
+                "https://nuts.nl/credentials/v2"
             ],
             "type": ["VerifiableCredential" ,"NutsOrganizationCredential"],
             "credentialSubject": {
@@ -156,7 +156,7 @@ To find all authorization credentials of a single patient:
         "query": {
             "@context": [
                 "https://www.w3.org/2018/credentials/v1",
-                "https://nuts.nl/credentials/v1"
+                "https://nuts.nl/credentials/v2"
             ],
             "type": ["VerifiableCredential" ,"NutsAuthorizationCredential"],
             "credentialSubject": {
@@ -185,7 +185,7 @@ If you want to call ``/patient/2250f7ab-6517-4923-ac00-88ed26f85843`` for a part
         "query": {
             "@context": [
                 "https://www.w3.org/2018/credentials/v1",
-                "https://nuts.nl/credentials/v1"
+                "https://nuts.nl/credentials/v2"
             ],
             "type": ["VerifiableCredential" ,"NutsOrganizationCredential"],
             "credentialSubject": {
@@ -219,7 +219,7 @@ Example return value:
         {
             "@context": [
                 "https://www.w3.org/2018/credentials/v1",
-                "https://nuts.nl/credentials/v1"
+                "https://nuts.nl/credentials/v2"
             ],
             "credentialSubject": {
                 "id": "did:nuts:JCJEi3waNGNhkmwVvFB3wdUsmDYPnTcZxYiWThZqgWKv",
