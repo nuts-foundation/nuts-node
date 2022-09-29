@@ -129,6 +129,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		AutoUpdateIrmaSchemas: auth.config.IrmaAutoUpdateSchemas,
 		ContractValidators:    auth.config.ContractValidators,
 		ContractValidity:      contractValidity,
+		StrictMode:            config.Strictmode,
 	}, auth.vcr, doc.KeyResolver{Store: auth.registry}, auth.keyStore, auth.jsonldManager)
 
 	if config.Strictmode && !auth.config.tlsEnabled() {

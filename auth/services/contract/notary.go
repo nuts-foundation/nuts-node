@@ -241,6 +241,8 @@ func (n *notary) configureIrma(config Config) (irmaServer *irmaserver.Server, ir
 		IrmaConfigPath:        config.IrmaConfigPath,
 		IrmaSchemeManager:     config.IrmaSchemeManager,
 		AutoUpdateIrmaSchemas: config.AutoUpdateIrmaSchemas,
+		// Deduce IRMA production mode from the nuts strict-mode
+		Production: config.StrictMode,
 	}
 	if irmaConfig, err = irma.GetIrmaConfig(n.irmaServiceConfig); err != nil {
 		return
