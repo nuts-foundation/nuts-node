@@ -70,6 +70,9 @@ type ValidatorConfig struct {
 	IrmaSchemeManager string
 	// Auto update the schemas every x minutes or not?
 	AutoUpdateIrmaSchemas bool
+	// Use the IRMA server in production mode. Without this the IRMA app needs to be in "developer mode"
+	// https://irma.app/docs/irma-app/#developer-mode
+	Production bool
 }
 
 // VPProof is a specific IrmaProof for the specific VerifiablePresentation
