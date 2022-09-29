@@ -4,6 +4,18 @@ Release notes
 #############
 
 What has been changed, and how to update between versions.
+
+*****************
+Chestnut update (v4.2.4)
+*****************
+
+Release date: 2022-09-29
+
+Set IRMA to production mode when the Nuts node is in strict-mode.
+This allows an IRMA app in non-developers-mode to connect to the Nuts node.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.2.3...v4.2.4
+
 *****************
 Chestnut update (v4.2.3)
 *****************
