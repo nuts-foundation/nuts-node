@@ -42,7 +42,7 @@ func TestHTTPClient_Create(t *testing.T) {
 	}
 
 	t.Run("ok", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: didDoc})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: didDoc})
 		c := getClient(s.URL)
 		doc, err := c.Create(DIDCreateRequest{})
 		if !assert.NoError(t, err) {
@@ -52,7 +52,7 @@ func TestHTTPClient_Create(t *testing.T) {
 	})
 
 	t.Run("error - server error", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})
 		c := getClient(s.URL)
 		_, err := c.Create(DIDCreateRequest{})
 		assert.Error(t, err)
@@ -76,7 +76,7 @@ func TestHttpClient_Get(t *testing.T) {
 			Document:         didDoc,
 			DocumentMetadata: meta,
 		}
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: resolutionResult})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: resolutionResult})
 		c := getClient(s.URL)
 		doc, meta, err := c.Get(vdr.TestDIDA.String())
 		if !assert.NoError(t, err) {
@@ -87,7 +87,7 @@ func TestHttpClient_Get(t *testing.T) {
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNotFound, ResponseData: ""})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusNotFound, ResponseData: ""})
 		c := getClient(s.URL)
 
 		_, _, err := c.Get(vdr.TestDIDA.String())
@@ -96,7 +96,7 @@ func TestHttpClient_Get(t *testing.T) {
 	})
 
 	t.Run("error - invalid response", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"})
 		c := getClient(s.URL)
 
 		_, _, err := c.Get(vdr.TestDIDA.String())
@@ -122,7 +122,7 @@ func TestHTTPClient_ConflictedDIDs(t *testing.T) {
 			Document:         didDoc,
 			DocumentMetadata: meta,
 		}}
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: resolutionResults})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: resolutionResults})
 		c := getClient(s.URL)
 		docs, err := c.ConflictedDIDs()
 		if !assert.NoError(t, err) {
@@ -132,7 +132,7 @@ func TestHTTPClient_ConflictedDIDs(t *testing.T) {
 	})
 
 	t.Run("error", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: problem.Problem{}})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: problem.Problem{}})
 		c := getClient(s.URL)
 
 		_, err := c.ConflictedDIDs()
@@ -148,7 +148,7 @@ func TestHTTPClient_Update(t *testing.T) {
 	hash := "0000000000000000000000000000000000000000"
 
 	t.Run("ok", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: didDoc})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: didDoc})
 		c := getClient(s.URL)
 		doc, err := c.Update(vdr.TestDIDA.String(), hash, didDoc)
 		if !assert.NoError(t, err) {
@@ -158,7 +158,7 @@ func TestHTTPClient_Update(t *testing.T) {
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNotFound, ResponseData: ""})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusNotFound, ResponseData: ""})
 		c := getClient(s.URL)
 
 		_, err := c.Update(vdr.TestDIDA.String(), hash, didDoc)
@@ -167,7 +167,7 @@ func TestHTTPClient_Update(t *testing.T) {
 	})
 
 	t.Run("error - invalid response", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"})
 		c := getClient(s.URL)
 
 		_, err := c.Update(vdr.TestDIDA.String(), hash, didDoc)
@@ -185,7 +185,7 @@ func TestHTTPClient_Update(t *testing.T) {
 func TestHTTPClient_Deactivate(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK})
 		c := getClient(s.URL)
 		err := c.Deactivate(vdr.TestDIDA.String())
 		if !assert.NoError(t, err) {
@@ -205,19 +205,17 @@ func TestHTTPClient_AddNewVerificationMethod(t *testing.T) {
 	methodJSON, _ := json.Marshal(method)
 
 	t.Run("ok", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusOK, ResponseData: string(methodJSON)})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: string(methodJSON)})
 		c := getClient(s.URL)
-		// methodResponse, err := c.AddNewVerificationMethod(didString)
-		_, err := c.AddNewVerificationMethod(vdr.TestDIDA.String())
+		methodResponse, err := c.AddNewVerificationMethod(vdr.TestDIDA.String())
 		if !assert.NoError(t, err) {
 			return
 		}
-		// this fails because of https://github.com/nuts-foundation/go-did/issues/33
-		//assert.Equal(t, method, methodResponse)
+		assert.Equal(t, method, methodResponse)
 	})
 
 	t.Run("error - a non 200 response", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusForbidden})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusForbidden})
 		c := getClient(s.URL)
 		_, err := c.AddNewVerificationMethod(vdr.TestDIDA.String())
 		assert.Error(t, err)
@@ -233,7 +231,7 @@ func TestHTTPClient_AddNewVerificationMethod(t *testing.T) {
 
 func TestHTTPClient_DeleteVerificationMethod(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusNoContent})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusNoContent})
 		c := getClient(s.URL)
 		err := c.DeleteVerificationMethod(vdr.TestDIDA.String(), vdr.TestMethodDIDA.String())
 		if !assert.NoError(t, err) {
@@ -242,7 +240,7 @@ func TestHTTPClient_DeleteVerificationMethod(t *testing.T) {
 	})
 
 	t.Run("error - a non 204 response", func(t *testing.T) {
-		s := httptest.NewServer(http2.Handler{StatusCode: http.StatusForbidden})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusForbidden})
 		c := getClient(s.URL)
 		err := c.DeleteVerificationMethod(vdr.TestDIDA.String(), vdr.TestMethodDIDA.String())
 		assert.Error(t, err)

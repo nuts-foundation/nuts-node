@@ -51,6 +51,15 @@ func GenerateCommandDocs(cmd *cobra.Command, writer io.Writer, filter func(comma
 			if printOptions {
 				writeCommandOptions(writer, cmd)
 			}
+
+			// Example
+			if len(cmd.Example) > 0 {
+				_, _ = io.WriteString(writer, "\n**Example**\n")
+				_, _ = io.WriteString(writer, "\n::\n\n")
+				_, _ = io.WriteString(writer, "  "+cmd.Example)
+				_, _ = io.WriteString(writer, newline)
+				_, _ = io.WriteString(writer, newline)
+			}
 		}
 	} else {
 		println("Not generating documentation for non-runnable command:", cmd.CommandPath())

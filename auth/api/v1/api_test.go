@@ -550,7 +550,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 				BearerToken: "jwt-bearer-token",
 			}, nil)
 
-		server := httptest.NewServer(http2.Handler{
+		server := httptest.NewServer(&http2.Handler{
 			StatusCode: http.StatusBadGateway,
 		})
 		serverURL, _ := url.Parse(server.URL)
@@ -622,7 +622,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 				BearerToken: "jwt-bearer-token",
 			}, nil)
 
-		server := httptest.NewServer(http2.Handler{
+		server := httptest.NewServer(&http2.Handler{
 			StatusCode: http.StatusOK,
 			ResponseData: &AccessTokenResponse{
 				TokenType:   "token-type",

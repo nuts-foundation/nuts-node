@@ -240,6 +240,32 @@ Shows the status of the Nuts Node.
       --token-file string   File from which the authentication token will be read. If not specified it will try to read the token from the '.nuts-client.cfg' file in the user's home dir.
       --verbosity string    Log level (trace, debug, info, warn, error) (default "info")
 
+nuts vcr issue
+^^^^^^^^^^^^^^
+
+Issues a Verifiable Credential as the given issuer (as DID). The context must be a single JSON-LD context URI (e.g. 'https://nuts.nl/credentials/v1'). The type must be a single VC type (not being VerifiableCredential). The subject must be the credential subject in JSON format. It prints the issued VC if successfully issued.
+
+::
+
+  nuts vcr issue [context] [type] [issuer-did] [subject] [flags]
+
+      --address string      Address of the node. Must contain at least host and port, URL scheme may be omitted. In that case it 'http://' is prepended. (default "localhost:1323")
+  -e, --expiration string   Date in RFC3339 format when the VC expires.
+  -h, --help                help for issue
+  -p, --publish             Whether to publish the credential to the network. (default true)
+      --timeout duration    Client time-out when performing remote operations, such as '500ms' or '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax. (default 10s)
+      --token string        Token to be used for authenticating on the remote node. Takes precedence over 'token-file'.
+      --token-file string   File from which the authentication token will be read. If not specified it will try to read the token from the '.nuts-client.cfg' file in the user's home dir.
+      --verbosity string    Log level (trace, debug, info, warn, error) (default "info")
+  -v, --visibility string   Whether to publish the credential publicly ('public') or privately ('private'). (default "private")
+
+**Example**
+
+::
+
+  nuts vcr issue "https://nuts.nl/credentials/v1" "NutsAuthorizationCredential" "did:nuts:1234" "{'id': 'did:nuts:4321', 'purposeOfUse': 'eOverdracht-sender', 'etc': 'etcetc'}"
+
+
 nuts vcr list-trusted
 ^^^^^^^^^^^^^^^^^^^^^
 

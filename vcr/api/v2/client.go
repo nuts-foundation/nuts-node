@@ -89,6 +89,24 @@ func (hb HTTPClient) Untrusted(credentialType string) ([]string, error) {
 	return handleTrustedResponse(hb.client().ListUntrusted(ctx, credentialType))
 }
 
+// IssueVC issues a new Verifiable Credential and returns it
+func (hb HTTPClient) IssueVC(request IssueVCRequest) (*VerifiableCredential, error) {
+	ctx := context.Background()
+
+	httpResponse, err := hb.client().IssueVC(ctx, request)
+	if err != nil {
+		return nil, err
+	} else if err := core.TestResponseCode(http.StatusOK, httpResponse); err != nil {
+		return nil, err
+	}
+
+	response, err := ParseIssueVCResponse(httpResponse)
+	if err != nil {
+		return nil, err
+	}
+	return response.JSON200, err
+}
+
 func handleTrustedResponse(response *http.Response, err error) ([]string, error) {
 	if err != nil {
 		return nil, err

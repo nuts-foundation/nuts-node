@@ -19,7 +19,9 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"strings"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -34,15 +36,11 @@ func Cmd() *cobra.Command {
 		Use:   "vcr",
 		Short: "Verifiable Credential Registry commands",
 	}
-
 	cmd.AddCommand(trustCmd())
-
 	cmd.AddCommand(untrustCmd())
-
 	cmd.AddCommand(listTrustedCmd())
-
 	cmd.AddCommand(listUntrustedCmd())
-
+	cmd.AddCommand(issueVC())
 	return cmd
 }
 
@@ -126,6 +124,54 @@ func listUntrustedCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func issueVC() *cobra.Command {
+	var publish bool
+	var visibilityStr string
+	var expirationDate string
+	result := &cobra.Command{
+		Use:   "issue [context] [type] [issuer-did] [subject]",
+		Short: "Issues a Verifiable Credential",
+		Long: "Issues a Verifiable Credential as the given issuer (as DID). " +
+			"The context must be a single JSON-LD context URI (e.g. '" + credential.NutsV1Context + "'). " +
+			"The type must be a single VC type (not being VerifiableCredential). " +
+			"The subject must be the credential subject in JSON format. " +
+			"It prints the issued VC if successfully issued.",
+		Example: `nuts vcr issue "` + credential.NutsV1Context + `" "NutsAuthorizationCredential" "did:nuts:1234" "{'id': 'did:nuts:4321', 'purposeOfUse': 'eOverdracht-sender', 'etc': 'etcetc'}"`,
+		Args:    cobra.ExactArgs(4),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			credentialSubject := make(map[string]interface{}, 0)
+			if err := json.Unmarshal([]byte(args[3]), &credentialSubject); err != nil {
+				return fmt.Errorf("invalid credential subject: %w", err)
+			}
+			request := api.IssueVCRequest{
+				Context:           &args[0],
+				Type:              args[1],
+				Issuer:            args[2],
+				CredentialSubject: credentialSubject,
+				PublishToNetwork:  &publish,
+			}
+			if publish {
+				visibility := api.IssueVCRequestVisibility(visibilityStr)
+				request.Visibility = &visibility
+			}
+			if len(expirationDate) > 0 {
+				request.ExpirationDate = &expirationDate
+			}
+			issuedVC, err := httpClient(core.NewClientConfigForCommand(cmd)).IssueVC(request)
+			if err != nil {
+				return err
+			}
+			formattedVC, _ := json.MarshalIndent(issuedVC, "", "  ")
+			cmd.Println(string(formattedVC))
+			return nil
+		},
+	}
+	result.Flags().BoolVarP(&publish, "publish", "p", true, "Whether to publish the credential to the network.")
+	result.Flags().StringVarP(&visibilityStr, "visibility", "v", "private", "Whether to publish the credential publicly ('public') or privately ('private').")
+	result.Flags().StringVarP(&expirationDate, "expiration", "e", "", "Date in RFC3339 format when the VC expires.")
+	return result
 }
 
 // httpClient creates a remote client

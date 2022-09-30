@@ -18,6 +18,7 @@ package http
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 )
 
@@ -29,10 +30,13 @@ import (
 // must be configured in the client.
 type Handler struct {
 	StatusCode   int
+	RequestData  []byte
 	ResponseData interface{}
 }
 
-func (h Handler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
+func (h *Handler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
+	h.RequestData, _ = io.ReadAll(req.Body)
+
 	var bytes []byte
 	if s, ok := h.ResponseData.(string); ok {
 		bytes = []byte(s)

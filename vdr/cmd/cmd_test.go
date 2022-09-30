@@ -73,7 +73,7 @@ func TestEngine_Command(t *testing.T) {
 		return command
 	}
 
-	newCmdWithServer := func(t *testing.T, handler http2.Handler) *cobra.Command {
+	newCmdWithServer := func(t *testing.T, handler *http2.Handler) *cobra.Command {
 		cmd := newCmd(t)
 		s := httptest.NewServer(handler)
 		assert.NoError(t, os.Setenv("NUTS_ADDRESS", s.URL), "unable to set the NUTS_ADDRESS env var")
@@ -87,7 +87,7 @@ func TestEngine_Command(t *testing.T) {
 
 	t.Run("create-did", func(t *testing.T) {
 		t.Run("ok - write to stdout", func(t *testing.T) {
-			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
+			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
 			cmd.SetArgs([]string{"create-did"})
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
@@ -105,7 +105,7 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("error - server error", func(t *testing.T) {
-			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: "b00m!"})
+			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: "b00m!"})
 			cmd.SetArgs([]string{"create-did"})
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
@@ -120,7 +120,7 @@ func TestEngine_Command(t *testing.T) {
 
 	t.Run("resolve", func(t *testing.T) {
 		t.Run("ok - write to stdout", func(t *testing.T) {
-			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDRsolution})
+			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDRsolution})
 			cmd.SetArgs([]string{"resolve", "did"})
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
@@ -133,7 +133,7 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("ok - print metadata only", func(t *testing.T) {
-			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDRsolution})
+			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDRsolution})
 			cmd.SetArgs([]string{"resolve", "did", "--metadata"})
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
@@ -146,7 +146,7 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("ok - print document only", func(t *testing.T) {
-			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDRsolution})
+			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDRsolution})
 			cmd.SetArgs([]string{"resolve", "did", "--document"})
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
@@ -160,7 +160,7 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("error - not found", func(t *testing.T) {
-			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusNotFound, ResponseData: "not found"})
+			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusNotFound, ResponseData: "not found"})
 			cmd.SetArgs([]string{"resolve", "did"})
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
@@ -175,7 +175,7 @@ func TestEngine_Command(t *testing.T) {
 
 	t.Run("conflicted", func(t *testing.T) {
 		t.Run("ok - write to stdout", func(t *testing.T) {
-			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: []v1.DIDResolutionResult{exampleDIDRsolution}})
+			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusOK, ResponseData: []v1.DIDResolutionResult{exampleDIDRsolution}})
 			cmd.SetArgs([]string{"conflicted"})
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
@@ -188,7 +188,7 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("ok - print metadata only", func(t *testing.T) {
-			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: []v1.DIDResolutionResult{exampleDIDRsolution}})
+			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusOK, ResponseData: []v1.DIDResolutionResult{exampleDIDRsolution}})
 			cmd.SetArgs([]string{"conflicted", "--metadata"})
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
@@ -201,7 +201,7 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("ok - print document only", func(t *testing.T) {
-			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: []v1.DIDResolutionResult{exampleDIDRsolution}})
+			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusOK, ResponseData: []v1.DIDResolutionResult{exampleDIDRsolution}})
 			cmd.SetArgs([]string{"conflicted", "--document"})
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
@@ -217,7 +217,7 @@ func TestEngine_Command(t *testing.T) {
 
 	t.Run("update", func(t *testing.T) {
 		t.Run("ok - write to stdout", func(t *testing.T) {
-			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
+			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
 			cmd.SetArgs([]string{"update", "did", "hash", "../test/diddocument.json"})
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 			err := cmd.Execute()
@@ -230,7 +230,7 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("error - incorrect input", func(t *testing.T) {
-			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
+			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
 			cmd.SetArgs([]string{"update", "did", "hash", "../test/syntax_error.json"})
 
 			err := cmd.Execute()
@@ -241,7 +241,7 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("error - server error", func(t *testing.T) {
-			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: "invalid"})
+			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: "invalid"})
 			cmd.SetArgs([]string{"update", "did", "hash", "../test/diddocument.json"})
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
@@ -256,7 +256,7 @@ func TestEngine_Command(t *testing.T) {
 
 	t.Run("deactivate", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
-			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK})
+			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusOK})
 
 			inBuf.Write([]byte{'y', '\n'})
 			cmd.SetArgs([]string{"deactivate", "did"})
@@ -287,7 +287,7 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("error - DID document not found", func(t *testing.T) {
-			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusNotFound})
+			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusNotFound})
 
 			inBuf.Write([]byte{'y', '\n'})
 			cmd.SetArgs([]string{"deactivate", "did"})
@@ -306,7 +306,7 @@ func TestEngine_Command(t *testing.T) {
 		verificationMethod, _ := did.NewVerificationMethod(*vdr.TestMethodDIDA, ssi.JsonWebKey2020, *vdr.TestDIDA, pair.PublicKey)
 
 		t.Run("ok", func(t *testing.T) {
-			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: verificationMethod})
+			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusOK, ResponseData: verificationMethod})
 
 			cmd.SetArgs([]string{"addvm", vdr.TestDIDA.String()})
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
@@ -327,7 +327,7 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("error - DID document not found", func(t *testing.T) {
-			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusNotFound})
+			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusNotFound})
 
 			cmd.SetArgs([]string{"addvm", vdr.TestDIDA.String()})
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
@@ -342,7 +342,7 @@ func TestEngine_Command(t *testing.T) {
 
 	t.Run("deleteVerificationMethod", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
-			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusNoContent})
+			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusNoContent})
 			cmd.SetArgs([]string{"delvm", vdr.TestDIDA.String(), vdr.TestMethodDIDA.String()})
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 			err := cmd.Execute()
@@ -354,7 +354,7 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("error - DID document not found", func(t *testing.T) {
-			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusNotFound})
+			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusNotFound})
 
 			cmd.SetArgs([]string{"delvm", vdr.TestDIDA.String(), vdr.TestMethodDIDA.String()})
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
@@ -380,7 +380,7 @@ func TestEngine_Command(t *testing.T) {
 				Document:         document,
 				DocumentMetadata: v1.DIDDocumentMetadata{},
 			}
-			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: resolution})
+			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusOK, ResponseData: resolution})
 
 			cmd.SetArgs([]string{"add-keyagreement", kid.String()})
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
@@ -390,7 +390,7 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("error - DID document is deactivated", func(t *testing.T) {
-			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: v1.DIDResolutionResult{
+			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusOK, ResponseData: v1.DIDResolutionResult{
 				Document:         did.Document{ID: *vdr.TestDIDA},
 				DocumentMetadata: v1.DIDDocumentMetadata{Deactivated: true},
 			}})
@@ -404,7 +404,7 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("error - KID is not a DID URL", func(t *testing.T) {
-			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK})
+			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusOK})
 
 			cmd.SetArgs([]string{"add-keyagreement", "not a DID"})
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
@@ -415,7 +415,7 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("error - KID does not refer to an existing verification method key", func(t *testing.T) {
-			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusOK, ResponseData: did.Document{}})
+			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusOK, ResponseData: did.Document{}})
 
 			cmd.SetArgs([]string{"add-keyagreement", kid.String()})
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
@@ -426,7 +426,7 @@ func TestEngine_Command(t *testing.T) {
 		})
 
 		t.Run("error - DID document not found", func(t *testing.T) {
-			cmd := newCmdWithServer(t, http2.Handler{StatusCode: http.StatusNotFound})
+			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusNotFound})
 
 			cmd.SetArgs([]string{"add-keyagreement", kid.String()})
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
