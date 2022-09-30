@@ -596,8 +596,8 @@ github.com/nuts-foundation/go-did v0.3.0 h1:uZoFnwiAlJgVWWsr8b7tJXSMUgW2bajaLANE
 github.com/nuts-foundation/go-did v0.3.0/go.mod h1:MD2sE53BOvsQHZ9CmGI+EGXPUk1QiU9bUqB062y9+N8=
 github.com/nuts-foundation/go-leia/v3 v3.2.0 h1:Z2+QAcvM2A0wlfW0NYa7VcB+u9CE0MmoJm+TZZZqnVQ=
 github.com/nuts-foundation/go-leia/v3 v3.2.0/go.mod h1:Md202F2wpwkXGtOUzyqs0p1Y96+wOY8lpmDT9nuaxE0=
-github.com/nuts-foundation/go-stoabs v1.0.0 h1:1T385ghGzM849VgXYrEIr2EABfIGtjNpRL9S7D/hgmg=
-github.com/nuts-foundation/go-stoabs v1.0.0/go.mod h1:FzYovtpUhAjYFaiVvgFfT06iF0+MRaTgcaqQ6MVIq7Y=
+github.com/nuts-foundation/go-stoabs v1.1.0 h1:WzEW+HS+U3NALPROTTmaQT2Q585pxFxXVMAnoyo+kBM=
+github.com/nuts-foundation/go-stoabs v1.1.0/go.mod h1:FzYovtpUhAjYFaiVvgFfT06iF0+MRaTgcaqQ6MVIq7Y=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=
 github.com/nxadm/tail v1.4.8/go.mod h1:+ncqLTQzXmGhMZNUePPaPqPvBxHAIsmXswZKocGu+AU=
@@ -682,8 +682,6 @@ github.com/prometheus/procfs v0.6.0/go.mod h1:cz+aTbrPOrUb4q7XlbU9ygM+/jj0fzG6c1
 github.com/prometheus/procfs v0.7.3/go.mod h1:cz+aTbrPOrUb4q7XlbU9ygM+/jj0fzG6c1xBZuNvfVA=
 github.com/prometheus/procfs v0.8.0 h1:ODq8ZFEaYeCaZOJlZZdJA2AbQR98dSHSM1KW/You5mo=
 github.com/prometheus/procfs v0.8.0/go.mod h1:z7EfXMXOkbkqb9IINtpCn86r/to3BnA0uaxHdg830/4=
-github.com/reinkrul/redsync/v4 v4.5.2-0.20220801105510-6be544bc80cd h1:bX1Z5ZCp7BEaG81KFyXHgiqVAGlbPD622rLRj6eOQ80=
-github.com/reinkrul/redsync/v4 v4.5.2-0.20220801105510-6be544bc80cd/go.mod h1:IxV3sygNwjOERTXrj3XvNMSb1tgNgic8GvM8alwnWcM=
 github.com/rhnvrm/simples3 v0.6.1/go.mod h1:Y+3vYm2V7Y4VijFoJHHTrja6OgPrJ2cBti8dPGkC3sA=
 github.com/robertkrimen/godocdown v0.0.0-20130622164427-0bfa04905481/go.mod h1:C9WhFzY47SzYBIvzFqSvHIR6ROgDo4TtdTuRaOMjF/s=
 github.com/rogpeppe/fastuuid v1.2.0/go.mod h1:jVj6XXZzXRy/MSR5jhDC/2q6DgLz+nrA6LYCDYWNEvQ=
