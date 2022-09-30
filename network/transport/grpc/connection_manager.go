@@ -57,15 +57,17 @@ type fatalError struct {
 }
 
 func (s fatalError) Error() string {
-	return s.error.Error()
+	// use Sprintf in case error is nil
+	return fmt.Sprintf("%s", s.error)
 }
 
 func (s fatalError) Is(other error) bool {
 	_, is := other.(fatalError)
-	if !is {
-		return errors.Is(s.error, other)
-	}
 	return is
+}
+
+func (s fatalError) Unwrap() error {
+	return s.error
 }
 
 // NewGRPCConnectionManager creates a new ConnectionManager that accepts/creates connections which communicate using the given protocols.
