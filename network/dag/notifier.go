@@ -42,6 +42,28 @@ const (
 	PayloadEventType = "payload"
 )
 
+func UnrecoverableEvent(err error) error {
+	return &ErrUnrecoverableEvent{err}
+}
+
+// ErrUnrecoverableEvent signals that Event notification failed and should not be retried.
+type ErrUnrecoverableEvent struct {
+	error
+}
+
+func (e ErrUnrecoverableEvent) Unwrap() error {
+	return e.error
+}
+
+func (e ErrUnrecoverableEvent) Is(other error) bool {
+	_, ok := other.(ErrUnrecoverableEvent)
+	return ok
+}
+
+func isUnrecoverable(err error) bool {
+	return errors.Is(err, ErrUnrecoverableEvent{})
+}
+
 // Notifier defines methods for a persistent retry mechanism.
 // Storing the event in the DB is separated from notifying the subscribers.
 // The event is sent to subscribers after the transaction is committed to prevent timing issues.
@@ -71,6 +93,7 @@ type Notifier interface {
 
 // ReceiverFn is the function type that needs to be registered for a notifier
 // Returns true if event is received and done, false otherwise
+// The Notifiers retry mechanism is aborted when this function returns an ErrUnrecoverableEvent
 type ReceiverFn func(event Event) (bool, error)
 
 // NotificationFilter can be added to a notifier to filter out any unwanted events
@@ -291,7 +314,15 @@ func (p *notifier) Notify(event Event) {
 	}
 
 	if err := p.notifyNow(event); err != nil {
-		p.retry(event)
+		if isUnrecoverable(err) {
+			log.Logger().
+				WithError(err).
+				WithField(core.LogFieldTransactionRef, event.Hash.String()).
+				WithField(core.LogFieldEventSubscriber, p.name).
+				Errorf("Notify failed")
+		} else {
+			p.retry(event)
+		}
 	}
 }
 
@@ -357,6 +388,11 @@ func (p *notifier) notifyNow(event Event) error {
 			WithField(core.LogFieldTransactionRef, dbEvent.Hash.String()).
 			WithField(core.LogFieldEventSubscriber, p.name).
 			Errorf("Retry failed")
+
+		if isUnrecoverable(err) {
+			_ = p.Finished(dbEvent.Hash)
+			return retry.Unrecoverable(err)
+		}
 
 		dbEvent.Error = err.Error()
 	} else if finished {

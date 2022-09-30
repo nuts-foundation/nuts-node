@@ -22,6 +22,7 @@ package vcr
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -101,14 +102,24 @@ func (n ambassador) Start() error {
 
 func (n *ambassador) handleNetworkVCs(event dag.Event) (bool, error) {
 	if err := n.vcCallback(event.Transaction, event.Payload); err != nil {
-		return false, err
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			// context errors need to be retried
+			return false, err
+		}
+		// TODO: error is recoverable when it is due to DB issues. Inconsistencies with DAG can be fixed by Reprocess contentType types.VcDocumentType
+		return false, dag.UnrecoverableEvent(err)
 	}
 	return true, nil
 }
 
 func (n *ambassador) handleNetworkRevocations(event dag.Event) (bool, error) {
 	if err := n.jsonLDRevocationCallback(event.Transaction, event.Payload); err != nil {
-		return false, err
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			// context errors need to be retried
+			return false, err
+		}
+		// TODO: error is recoverable when it is due to DB issues. Inconsistencies with DAG can be fixed by Reprocess contentType types.RevocationLDDocumentType
+		return false, dag.UnrecoverableEvent(err)
 	}
 	return true, nil
 }
