@@ -2,8 +2,6 @@ module github.com/nuts-foundation/nuts-node
 
 go 1.19
 
-replace github.com/go-redsync/redsync/v4 => github.com/reinkrul/redsync/v4 v4.5.2-0.20220801105510-6be544bc80cd
-
 require (
 	github.com/alicebob/miniredis/v2 v2.23.0
 	github.com/avast/retry-go/v4 v4.1.0
@@ -78,7 +76,7 @@ require (
 	github.com/go-chi/chi v3.3.3+incompatible // indirect
 	github.com/go-errors/errors v1.0.1 // indirect
 	github.com/go-redis/redis/v8 v8.11.4 // indirect
-	github.com/go-redsync/redsync/v4 v4.5.1 // indirect
+	github.com/go-redsync/redsync/v4 v4.6.0 // indirect
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/goccy/go-json v0.9.7 // indirect
 	github.com/golang-jwt/jwt/v4 v4.2.0 // indirect
