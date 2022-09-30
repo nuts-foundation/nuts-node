@@ -59,7 +59,7 @@ func loadFromEnv(configMap *koanf.Koanf) error {
 	e := env.ProviderWithValue(defaultEnvPrefix, defaultDelimiter, func(rawKey string, rawValue string) (string, interface{}) {
 		key := strings.Replace(strings.ToLower(strings.TrimPrefix(rawKey, defaultEnvPrefix)), defaultEnvDelimiter, defaultDelimiter, -1)
 
-		// Support multiple values separated by a comma
+		// Support multiple values separated by a comma, but let them be escaped with a backslash
 		values := splitWithEscaping(rawValue, configValueListSeparator, "\\")
 		for i, value := range values {
 			values[i] = strings.TrimSpace(value)
