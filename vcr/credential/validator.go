@@ -183,7 +183,7 @@ func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableC
 			// no additional requirements
 			break
 		case "explicit":
-			if cs.Subject == nil || len(strings.TrimSpace(*cs.Subject)) == 0 {
+			if cs.Subject == nil || strings.TrimSpace(*cs.Subject) == "" {
 				return failure("'credentialSubject.Subject' is required when consentType is 'explicit'")
 			}
 		default:
