@@ -134,9 +134,9 @@ func (n *ambassador) handleReprocessEvent(msg *nats.Msg) {
 
 func (n *ambassador) handleNetworkEvent(event dag.Event) (bool, error) {
 	if err := n.callback(event.Transaction, event.Payload); err != nil {
-		if !errors.Is(err, stoabs.ErrDatabase{}) {
+		if !errors.As(err, new(stoabs.ErrDatabase)) {
 			// anything that is not a database error will not be retried
-			return false, dag.UnrecoverableEvent(err)
+			return false, dag.NewEventFatal(err)
 		}
 		return false, err
 	}

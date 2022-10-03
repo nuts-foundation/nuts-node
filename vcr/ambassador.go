@@ -107,7 +107,7 @@ func (n *ambassador) handleNetworkVCs(event dag.Event) (bool, error) {
 			return false, err
 		}
 		// TODO: error is recoverable when it is due to DB issues. Inconsistencies with DAG can be fixed by Reprocess contentType types.VcDocumentType
-		return false, dag.UnrecoverableEvent(err)
+		return false, dag.NewEventFatal(err)
 	}
 	return true, nil
 }
@@ -119,7 +119,7 @@ func (n *ambassador) handleNetworkRevocations(event dag.Event) (bool, error) {
 			return false, err
 		}
 		// TODO: error is recoverable when it is due to DB issues. Inconsistencies with DAG can be fixed by Reprocess contentType types.RevocationLDDocumentType
-		return false, dag.UnrecoverableEvent(err)
+		return false, dag.NewEventFatal(err)
 	}
 	return true, nil
 }

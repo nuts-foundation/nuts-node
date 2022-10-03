@@ -286,12 +286,13 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 	t.Run("errors when reading payload errors", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
 
-		mocks.State.EXPECT().ReadPayload(gomock.Any(), txOk.PayloadHash()).Return(nil, errors.New("random error"))
+		mocks.State.EXPECT().ReadPayload(gomock.Any(), txOk.PayloadHash()).Return(nil, stoabs.DatabaseError(errors.New("random error")))
 
 		finished, err := proto.handlePrivateTxRetry(event)
 
 		assert.False(t, finished)
-		assert.EqualError(t, err, fmt.Sprintf("unable to read payload (tx=%s): random error", txOk.Ref().String()))
+		assert.False(t, errors.As(err, new(dag.EventFatal)))
+		assert.EqualError(t, err, fmt.Sprintf("unable to read payload (tx=%s): Database Error: random error", txOk.Ref().String()))
 	})
 
 	t.Run("Finishes job when payload is already there", func(t *testing.T) {
@@ -322,18 +323,20 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 		finished, err := proto.handlePrivateTxRetry(event)
 
 		assert.False(t, finished)
+		assert.True(t, errors.As(err, new(dag.EventFatal)))
 		assert.EqualError(t, err, fmt.Sprintf("failed to decrypt PAL header (tx=%s): node DID is not set", txOk.Ref()))
 	})
 
 	t.Run("errors when resolving the node DID document fails", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, testDID)
 		mocks.State.EXPECT().ReadPayload(context.Background(), txOk.PayloadHash()).Return(nil, nil)
-		mocks.DocResolver.EXPECT().Resolve(*testDID, nil).Return(nil, nil, errors.New("random error"))
+		mocks.DocResolver.EXPECT().Resolve(*testDID, nil).Return(nil, nil, stoabs.DatabaseError(errors.New("random error")))
 
 		finished, err := proto.handlePrivateTxRetry(event)
 
 		assert.False(t, finished)
-		assert.EqualError(t, err, fmt.Sprintf("failed to decrypt PAL header (tx=%s): random error", txOk.Ref()))
+		assert.False(t, errors.As(err, new(dag.EventFatal)))
+		assert.EqualError(t, err, fmt.Sprintf("failed to decrypt PAL header (tx=%s): Database Error: random error", txOk.Ref()))
 	})
 
 	t.Run("errors when decryption fails because the key-agreement key could not be found", func(t *testing.T) {
@@ -350,6 +353,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 		finished, err := proto.handlePrivateTxRetry(event)
 
 		assert.False(t, finished)
+		assert.True(t, errors.As(err, new(dag.EventFatal)))
 		assert.EqualError(t, err, fmt.Sprintf("failed to decrypt PAL header (tx=%s): private key of DID keyAgreement not found (kid=%s)", txOk.Ref().String(), keyDID.String()))
 	})
 
@@ -369,6 +373,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 		finished, err := proto.handlePrivateTxRetry(event)
 
 		assert.False(t, finished)
+		assert.False(t, errors.As(err, new(dag.EventFatal)))
 		assert.EqualError(t, err, fmt.Sprintf("no connection to any of the participants (tx=%s, PAL=[did:nuts:peer])", txOk.Ref().String()))
 	})
 
@@ -395,6 +400,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 		finished, err := proto.handlePrivateTxRetry(event)
 
 		assert.False(t, finished)
+		assert.False(t, errors.As(err, new(dag.EventFatal)))
 		assert.EqualError(t, err, fmt.Sprintf("no connection to any of the participants (tx=%s, PAL=[did:nuts:peer])", txOk.Ref().String()))
 	})
 

@@ -34,6 +34,7 @@ import (
 	"github.com/nats-io/nats.go"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/stretchr/testify/assert"
 
@@ -181,7 +182,26 @@ func TestAmbassador_handleNetworkEvent(t *testing.T) {
 		am := ambassador{}
 		value, err := am.handleNetworkEvent(dag.Event{Transaction: tx})
 		assert.False(t, value)
+		assert.True(t, errors.As(err, new(dag.EventFatal)))
 		assert.EqualError(t, err, "could not process new DID Document: wrong payload type for this subscriber. Can handle: application/did+json, got: ")
+	})
+	t.Run("nok - ", func(t *testing.T) {
+		ctx := newMockContext(t)
+		am := ambassador{didStore: ctx.didStore}
+		tx := testTransaction{
+			signingKeyID: signingKeyID,
+			signingTime:  time.Unix(1628000000, 0),
+			ref:          hash.SHA256Sum([]byte("ref")),
+			payloadHash:  hash.SHA256Sum([]byte("payload")),
+			payloadType:  didDocumentType,
+		}
+		ctx.didStore.EXPECT().Processed(tx.Ref()).Return(false, stoabs.ErrStoreIsClosed)
+
+		value, err := am.handleNetworkEvent(dag.Event{Transaction: tx})
+
+		assert.False(t, value)
+		assert.False(t, errors.As(err, new(dag.EventFatal)))
+		assert.EqualError(t, err, fmt.Sprintf("could not process new DID Document: %s", stoabs.ErrStoreIsClosed))
 	})
 }
 

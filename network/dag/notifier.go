@@ -42,26 +42,23 @@ const (
 	PayloadEventType = "payload"
 )
 
-func UnrecoverableEvent(err error) error {
-	return &ErrUnrecoverableEvent{err}
+// NewEventFatal is used by a subscriber to signal that it cannot process an Event,
+// and notification of the Event should not be retried.
+// Returns nil when err == nil.
+func NewEventFatal(err error) error {
+	if err == nil {
+		return nil
+	}
+	return EventFatal{err}
 }
 
-// ErrUnrecoverableEvent signals that Event notification failed and should not be retried.
-type ErrUnrecoverableEvent struct {
+// EventFatal signals that an Event receiver encountered a fatal error and should not be retried.
+type EventFatal struct {
 	error
 }
 
-func (e ErrUnrecoverableEvent) Unwrap() error {
+func (e EventFatal) Unwrap() error {
 	return e.error
-}
-
-func (e ErrUnrecoverableEvent) Is(other error) bool {
-	_, ok := other.(ErrUnrecoverableEvent)
-	return ok
-}
-
-func isUnrecoverable(err error) bool {
-	return errors.Is(err, ErrUnrecoverableEvent{})
 }
 
 // Notifier defines methods for a persistent retry mechanism.
@@ -93,7 +90,7 @@ type Notifier interface {
 
 // ReceiverFn is the function type that needs to be registered for a notifier
 // Returns true if event is received and done, false otherwise
-// The Notifiers retry mechanism is aborted when this function returns an ErrUnrecoverableEvent
+// The Notifier's retry mechanism is aborted when this function's error is wrapped by NewEventFatal
 type ReceiverFn func(event Event) (bool, error)
 
 // NotificationFilter can be added to a notifier to filter out any unwanted events
@@ -314,15 +311,16 @@ func (p *notifier) Notify(event Event) {
 	}
 
 	if err := p.notifyNow(event); err != nil {
-		if isUnrecoverable(err) {
-			log.Logger().
-				WithError(err).
-				WithField(core.LogFieldTransactionRef, event.Hash.String()).
-				WithField(core.LogFieldEventSubscriber, p.name).
-				Errorf("Notify failed")
-		} else {
+		retryErrMsg := "Notify event dropped"
+		if !errors.As(err, new(EventFatal)) {
 			p.retry(event)
+			retryErrMsg = "Notify event rescheduled"
 		}
+		log.Logger().
+			WithError(err).
+			WithField(core.LogFieldTransactionRef, event.Hash.String()).
+			WithField(core.LogFieldEventSubscriber, p.name).
+			Errorf(retryErrMsg)
 	}
 }
 
@@ -347,12 +345,15 @@ func (p *notifier) retry(event Event) {
 			retry.Context(ctx),
 			retry.LastErrorOnly(true),
 			retry.OnRetry(func(n uint, err error) {
+				// logs after every failed attempt
 				log.Logger().
+					WithError(err).
 					WithField(core.LogFieldTransactionRef, event.Hash.String()).
 					Debugf("Retrying event (attempt %d/%d)", n, maxRetries)
 			}),
 		)
 		if err != nil {
+			// logs after maxRetries failed attempts, or receiving a retry.Unrecoverable() error
 			log.Logger().
 				WithError(err).
 				WithField(core.LogFieldTransactionRef, event.Hash.String()).
@@ -382,21 +383,20 @@ func (p *notifier) notifyNow(event Event) error {
 		}
 	}
 
-	if finished, err := p.receiver(*dbEvent); err != nil {
-		log.Logger().
-			WithError(err).
-			WithField(core.LogFieldTransactionRef, dbEvent.Hash.String()).
-			WithField(core.LogFieldEventSubscriber, p.name).
-			Errorf("Retry failed")
-
-		if isUnrecoverable(err) {
-			_ = p.Finished(dbEvent.Hash)
-			return retry.Unrecoverable(err)
+	finished, err := p.receiver(*dbEvent)
+	if err != nil {
+		if errors.As(err, new(EventFatal)) {
+			// mark as failed event
+			dbEvent.Retries = maxRetries
+			err = retry.Unrecoverable(err)
 		}
 
 		dbEvent.Error = err.Error()
 	} else if finished {
 		return p.Finished(dbEvent.Hash)
+	} else {
+		// not sure if the event is handled by the receiver, so must return an error to trigger a retry
+		err = errors.New("receiver did not finish or fail")
 	}
 
 	dbEvent.Retries++
@@ -409,7 +409,7 @@ func (p *notifier) notifyNow(event Event) error {
 	}
 
 	// has to return an error since `retry.Do` needs to retry until it's marked as finished
-	return fmt.Errorf("event handling by receiver failed, but might be retried (count=%d, max=%d)", dbEvent.Retries, maxRetries)
+	return err
 }
 
 func (p *notifier) writeEvent(writer stoabs.Writer, event Event) error {

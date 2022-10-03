@@ -199,11 +199,8 @@ func TestAmbassador_handleNetworkVCs(t *testing.T) {
 	tx, _ := dag.NewTransaction(hash.EmptyHash(), types.VcDocumentType, nil, nil, 0)
 	stx := tx.(dag.Transaction)
 
-	t.Run("error - invalid payload", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		wMock := NewMockWriter(ctrl)
-
-		a := NewAmbassador(nil, wMock, nil, nil).(*ambassador)
+	t.Run("error - invalid payload is dag.EventFatal", func(t *testing.T) {
+		a := NewAmbassador(nil, nil, nil, nil).(*ambassador)
 
 		value, err := a.handleNetworkVCs(dag.Event{
 			Transaction: stx,
@@ -211,11 +208,26 @@ func TestAmbassador_handleNetworkVCs(t *testing.T) {
 		})
 
 		assert.False(t, value)
-		assert.Error(t, err)
+		assert.True(t, errors.As(err, new(dag.EventFatal)))
+	})
+	t.Run("error - context canceled is not dag.EventFatal", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		wMock := NewMockWriter(ctrl)
+
+		a := NewAmbassador(nil, wMock, nil, nil).(*ambassador)
+		wMock.EXPECT().StoreCredential(gomock.Any(), gomock.Any()).Return(context.Canceled)
+
+		value, err := a.handleNetworkVCs(dag.Event{
+			Transaction: stx,
+			Payload:     []byte(jsonld.TestCredential),
+		})
+
+		assert.False(t, value)
+		assert.False(t, errors.As(err, new(dag.EventFatal)))
 	})
 }
 
-func Test_ambassador_jsonLDRevocationCallback(t *testing.T) {
+func Test_ambassador_handleNetworkRevocations(t *testing.T) {
 	payload, _ := os.ReadFile("test/ld-revocation.json")
 	tx, _ := dag.NewTransaction(hash.EmptyHash(), types.RevocationLDDocumentType, nil, nil, 0)
 	stx := tx.(dag.Transaction)
@@ -231,15 +243,25 @@ func Test_ambassador_jsonLDRevocationCallback(t *testing.T) {
 		mockVerifier.EXPECT().RegisterRevocation(revocation)
 		a := NewAmbassador(nil, nil, mockVerifier, nil).(*ambassador)
 
-		err := a.jsonLDRevocationCallback(stx, payload)
+		value, err := a.handleNetworkRevocations(dag.Event{
+			Transaction: stx,
+			Payload:     payload,
+		})
+		assert.True(t, value)
 		assert.NoError(t, err)
 	})
 
 	t.Run("error - invalid payload", func(t *testing.T) {
 		a := NewAmbassador(nil, nil, nil, nil).(*ambassador)
 
-		err := a.jsonLDRevocationCallback(stx, []byte("b00m"))
+		//err := a.jsonLDRevocationCallback(stx, []byte("b00m"))
+		value, err := a.handleNetworkRevocations(dag.Event{
+			Transaction: stx,
+			Payload:     []byte("b00m"),
+		})
+		assert.False(t, value)
 		assert.EqualError(t, err, "revocation processing failed: invalid character 'b' looking for beginning of value")
+		assert.True(t, errors.As(err, new(dag.EventFatal)))
 	})
 
 	t.Run("error - storing fails", func(t *testing.T) {
@@ -250,7 +272,28 @@ func Test_ambassador_jsonLDRevocationCallback(t *testing.T) {
 		mockVerifier.EXPECT().RegisterRevocation(gomock.Any()).Return(errors.New("foo"))
 		a := NewAmbassador(nil, nil, mockVerifier, nil).(*ambassador)
 
-		err := a.jsonLDRevocationCallback(stx, payload)
+		value, err := a.handleNetworkRevocations(dag.Event{
+			Transaction: stx,
+			Payload:     payload,
+		})
+		assert.False(t, value)
 		assert.EqualError(t, err, "foo")
+		assert.True(t, errors.As(err, new(dag.EventFatal)))
+	})
+
+	t.Run("error - cantext error is not fatal", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockVerifier := verifier.NewMockVerifier(ctrl)
+		mockVerifier.EXPECT().RegisterRevocation(gomock.Any()).Return(context.Canceled)
+		a := NewAmbassador(nil, nil, mockVerifier, nil).(*ambassador)
+
+		value, err := a.handleNetworkRevocations(dag.Event{
+			Transaction: stx,
+			Payload:     payload,
+		})
+		assert.False(t, value)
+		assert.False(t, errors.As(err, new(dag.EventFatal)))
 	})
 }
