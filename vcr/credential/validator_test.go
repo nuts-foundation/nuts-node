@@ -210,155 +210,166 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 	validator := nutsAuthorizationCredentialValidator{}
 
-	t.Run("ok - implied", func(t *testing.T) {
-		v := validImpliedNutsAuthorizationCredential()
+	t.Run("v1", func(t *testing.T) {
+		t.Run("ok", func(t *testing.T) {
+			v := validV1NutsAuthorizationCredential()
 
-		err := validator.Validate(*v)
+			err := validator.Validate(*v)
 
-		assert.NoError(t, err)
+			assert.NoError(t, err)
+		})
 	})
+	t.Run("v2", func(t *testing.T) {
+		t.Run("ok - implied", func(t *testing.T) {
+			v := validV2ImpliedNutsAuthorizationCredential()
 
-	t.Run("ok - explicit", func(t *testing.T) {
-		v := ValidExplicitNutsAuthorizationCredential()
+			err := validator.Validate(*v)
 
-		err := validator.Validate(*v)
+			assert.NoError(t, err)
+		})
 
-		assert.NoError(t, err)
-	})
+		t.Run("ok - explicit", func(t *testing.T) {
+			v := ValidV2ExplicitNutsAuthorizationCredential()
 
-	t.Run("failed - invalid ID", func(t *testing.T) {
-		v := validImpliedNutsAuthorizationCredential()
-		otherID := vdr.TestDIDB.URI()
-		v.ID = &otherID
+			err := validator.Validate(*v)
 
-		err := validator.Validate(*v)
+			assert.NoError(t, err)
+		})
 
-		assert.Error(t, err)
-		assert.EqualError(t, err, "validation failed: credential ID must start with issuer")
-	})
+		t.Run("failed - invalid ID", func(t *testing.T) {
+			v := validV2ImpliedNutsAuthorizationCredential()
+			otherID := vdr.TestDIDB.URI()
+			v.ID = &otherID
 
-	t.Run("failed - wrong consentType", func(t *testing.T) {
-		v := validImpliedNutsAuthorizationCredential()
-		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-		cs.LegalBase.ConsentType = "unknown"
-		v.CredentialSubject[0] = cs
+			err := validator.Validate(*v)
 
-		err := validator.Validate(*v)
+			assert.Error(t, err)
+			assert.EqualError(t, err, "validation failed: credential ID must start with issuer")
+		})
 
-		assert.Error(t, err)
-		assert.EqualError(t, err, "validation failed: 'credentialSubject.LegalBase.ConsentType' must be 'implied' or 'explicit'")
-	})
+		t.Run("failed - wrong consentType", func(t *testing.T) {
+			v := validV2ImpliedNutsAuthorizationCredential()
+			cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
+			cs.LegalBase.ConsentType = "unknown"
+			v.CredentialSubject[0] = cs
 
-	t.Run("failed - missing VC type", func(t *testing.T) {
-		v := validImpliedNutsAuthorizationCredential()
-		v.Type = []ssi.URI{}
+			err := validator.Validate(*v)
 
-		err := validator.Validate(*v)
+			assert.Error(t, err)
+			assert.EqualError(t, err, "validation failed: 'credentialSubject.LegalBase.ConsentType' must be 'implied' or 'explicit'")
+		})
 
-		assert.Error(t, err)
-		assert.EqualError(t, err, "validation failed: type 'VerifiableCredential' is required")
-	})
+		t.Run("failed - missing VC type", func(t *testing.T) {
+			v := validV2ImpliedNutsAuthorizationCredential()
+			v.Type = []ssi.URI{}
 
-	t.Run("failed - missing Nuts context", func(t *testing.T) {
-		v := validImpliedNutsAuthorizationCredential()
-		v.Context = []ssi.URI{vc.VCContextV1URI()}
+			err := validator.Validate(*v)
 
-		err := validator.Validate(*v)
+			assert.Error(t, err)
+			assert.EqualError(t, err, "validation failed: type 'VerifiableCredential' is required")
+		})
 
-		assert.Error(t, err)
-		assert.EqualError(t, err, "validation failed: context 'https://nuts.nl/credentials/v1' or 'https://nuts.nl/credentials/v2' is required")
-	})
+		t.Run("failed - missing Nuts context", func(t *testing.T) {
+			v := validV2ImpliedNutsAuthorizationCredential()
+			v.Context = []ssi.URI{vc.VCContextV1URI()}
 
-	t.Run("failed - missing authorization VC type", func(t *testing.T) {
-		v := validImpliedNutsAuthorizationCredential()
-		v.Type = []ssi.URI{vc.VerifiableCredentialTypeV1URI()}
+			err := validator.Validate(*v)
 
-		err := validator.Validate(*v)
+			assert.Error(t, err)
+			assert.EqualError(t, err, "validation failed: context 'https://nuts.nl/credentials/v1' or 'https://nuts.nl/credentials/v2' is required")
+		})
 
-		assert.Error(t, err)
-		assert.EqualError(t, err, "validation failed: type 'NutsAuthorizationCredential' is required")
-	})
+		t.Run("failed - missing authorization VC type", func(t *testing.T) {
+			v := validV2ImpliedNutsAuthorizationCredential()
+			v.Type = []ssi.URI{vc.VerifiableCredentialTypeV1URI()}
 
-	t.Run("failed - missing credentialSubject", func(t *testing.T) {
-		v := validImpliedNutsAuthorizationCredential()
-		v.CredentialSubject = []interface{}{}
+			err := validator.Validate(*v)
 
-		err := validator.Validate(*v)
+			assert.Error(t, err)
+			assert.EqualError(t, err, "validation failed: type 'NutsAuthorizationCredential' is required")
+		})
 
-		assert.Error(t, err)
-		assert.EqualError(t, err, "validation failed: single CredentialSubject expected")
-	})
+		t.Run("failed - missing credentialSubject", func(t *testing.T) {
+			v := validV2ImpliedNutsAuthorizationCredential()
+			v.CredentialSubject = []interface{}{}
 
-	t.Run("failed - missing credentialSubject.ID", func(t *testing.T) {
-		v := validImpliedNutsAuthorizationCredential()
-		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-		cs.ID = ""
-		v.CredentialSubject[0] = cs
+			err := validator.Validate(*v)
 
-		err := validator.Validate(*v)
+			assert.Error(t, err)
+			assert.EqualError(t, err, "validation failed: single CredentialSubject expected")
+		})
 
-		assert.Error(t, err)
-		assert.EqualError(t, err, "validation failed: 'credentialSubject.ID' is nil")
-	})
+		t.Run("failed - missing credentialSubject.ID", func(t *testing.T) {
+			v := validV2ImpliedNutsAuthorizationCredential()
+			cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
+			cs.ID = ""
+			v.CredentialSubject[0] = cs
 
-	t.Run("failed - missing purposeOfUse", func(t *testing.T) {
-		v := validImpliedNutsAuthorizationCredential()
-		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-		cs.PurposeOfUse = ""
-		v.CredentialSubject[0] = cs
+			err := validator.Validate(*v)
 
-		err := validator.Validate(*v)
+			assert.Error(t, err)
+			assert.EqualError(t, err, "validation failed: 'credentialSubject.ID' is nil")
+		})
 
-		assert.Error(t, err)
-		assert.EqualError(t, err, "validation failed: 'credentialSubject.PurposeOfUse' is nil")
-	})
+		t.Run("failed - missing purposeOfUse", func(t *testing.T) {
+			v := validV2ImpliedNutsAuthorizationCredential()
+			cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
+			cs.PurposeOfUse = ""
+			v.CredentialSubject[0] = cs
 
-	t.Run("failed - resources: missing path", func(t *testing.T) {
-		v := validImpliedNutsAuthorizationCredential()
-		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-		cs.Resources[0].Path = ""
-		v.CredentialSubject[0] = cs
+			err := validator.Validate(*v)
 
-		err := validator.Validate(*v)
+			assert.Error(t, err)
+			assert.EqualError(t, err, "validation failed: 'credentialSubject.PurposeOfUse' is nil")
+		})
 
-		assert.Error(t, err)
-		assert.EqualError(t, err, "validation failed: 'credentialSubject.Resources[].Path' is required'")
-	})
+		t.Run("failed - resources: missing path", func(t *testing.T) {
+			v := validV2ImpliedNutsAuthorizationCredential()
+			cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
+			cs.Resources[0].Path = ""
+			v.CredentialSubject[0] = cs
 
-	t.Run("failed - resources: missing operation", func(t *testing.T) {
-		v := validImpliedNutsAuthorizationCredential()
-		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-		cs.Resources[0].Operations = []string{}
-		v.CredentialSubject[0] = cs
+			err := validator.Validate(*v)
 
-		err := validator.Validate(*v)
+			assert.Error(t, err)
+			assert.EqualError(t, err, "validation failed: 'credentialSubject.Resources[].Path' is required'")
+		})
 
-		assert.Error(t, err)
-		assert.EqualError(t, err, "validation failed: 'credentialSubject.Resources[].Operations[]' requires at least one value")
-	})
+		t.Run("failed - resources: missing operation", func(t *testing.T) {
+			v := validV2ImpliedNutsAuthorizationCredential()
+			cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
+			cs.Resources[0].Operations = []string{}
+			v.CredentialSubject[0] = cs
 
-	t.Run("failed - resources: invalid operation", func(t *testing.T) {
-		v := validImpliedNutsAuthorizationCredential()
-		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-		cs.Resources[0].Operations = []string{"unknown"}
-		v.CredentialSubject[0] = cs
+			err := validator.Validate(*v)
 
-		err := validator.Validate(*v)
+			assert.Error(t, err)
+			assert.EqualError(t, err, "validation failed: 'credentialSubject.Resources[].Operations[]' requires at least one value")
+		})
 
-		assert.Error(t, err)
-		assert.EqualError(t, err, "validation failed: 'credentialSubject.Resources[].Operations[]' contains an invalid operation 'unknown'")
-	})
+		t.Run("failed - resources: invalid operation", func(t *testing.T) {
+			v := validV2ImpliedNutsAuthorizationCredential()
+			cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
+			cs.Resources[0].Operations = []string{"unknown"}
+			v.CredentialSubject[0] = cs
 
-	t.Run("failed - missing subject for explicit", func(t *testing.T) {
-		v := ValidExplicitNutsAuthorizationCredential()
-		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-		cs.Subject = nil
-		v.CredentialSubject[0] = cs
+			err := validator.Validate(*v)
 
-		err := validator.Validate(*v)
+			assert.Error(t, err)
+			assert.EqualError(t, err, "validation failed: 'credentialSubject.Resources[].Operations[]' contains an invalid operation 'unknown'")
+		})
 
-		assert.Error(t, err)
-		assert.EqualError(t, err, "validation failed: 'credentialSubject.Subject' is required when consentType is 'explicit'")
+		t.Run("failed - missing subject for explicit", func(t *testing.T) {
+			v := ValidV2ExplicitNutsAuthorizationCredential()
+			cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
+			cs.Subject = nil
+			v.CredentialSubject[0] = cs
+
+			err := validator.Validate(*v)
+
+			assert.Error(t, err)
+			assert.EqualError(t, err, "validation failed: 'credentialSubject.Subject' is required when consentType is 'explicit'")
+		})
 	})
 }
 
