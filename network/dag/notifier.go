@@ -346,10 +346,19 @@ func (p *notifier) retry(event Event) {
 			retry.LastErrorOnly(true),
 			retry.OnRetry(func(n uint, err error) {
 				// logs after every failed attempt
-				log.Logger().
-					WithError(err).
-					WithField(core.LogFieldTransactionRef, event.Hash.String()).
-					Debugf("Retrying event (attempt %d/%d)", n, maxRetries)
+				if errors.Is(err, errEventIncomplete) {
+					// debug level if errEventIncomplete
+					log.Logger().
+						WithError(err).
+						WithField(core.LogFieldTransactionRef, event.Hash.String()).
+						Debugf("Retrying event (attempt %d/%d)", n, maxRetries)
+				} else {
+					// error level for all other errors
+					log.Logger().
+						WithError(err).
+						WithField(core.LogFieldTransactionRef, event.Hash.String()).
+						Errorf("Retrying event (attempt %d/%d)", n, maxRetries)
+				}
 			}),
 		)
 		if err != nil {
@@ -362,6 +371,8 @@ func (p *notifier) retry(event Event) {
 		}
 	}(p.ctx)
 }
+
+var errEventIncomplete = errors.New("receiver did not finish or fail")
 
 // notifyNow is used to call the receiverFn synchronously.
 // This is used for the first run and with every retry.
@@ -396,7 +407,7 @@ func (p *notifier) notifyNow(event Event) error {
 		return p.Finished(dbEvent.Hash)
 	} else {
 		// not sure if the event was handled by the receiver, so must return an error to trigger a retry
-		err = errors.New("receiver did not finish or fail")
+		err = errEventIncomplete
 	}
 
 	dbEvent.Retries++
