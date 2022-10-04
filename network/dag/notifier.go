@@ -311,16 +311,16 @@ func (p *notifier) Notify(event Event) {
 	}
 
 	if err := p.notifyNow(event); err != nil {
-		retryErrMsg := "Notify event dropped"
+		notifyErrMsg := "Notify event dropped"
 		if !errors.As(err, new(EventFatal)) {
 			p.retry(event)
-			retryErrMsg = "Notify event rescheduled"
+			notifyErrMsg = "Notify event rescheduled"
 		}
 		log.Logger().
 			WithError(err).
 			WithField(core.LogFieldTransactionRef, event.Hash.String()).
 			WithField(core.LogFieldEventSubscriber, p.name).
-			Errorf(retryErrMsg)
+			Errorf(notifyErrMsg)
 	}
 }
 
