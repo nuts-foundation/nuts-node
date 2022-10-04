@@ -69,12 +69,6 @@ Since commas (``,``) are used to specify a list of values when configuring throu
 you need to escape them when you configure the Sentinel instances. You do so by escaping the comma with a backslash (``\,``).
 This does not apply to YAML configuration.
 
-.. code-block:: yaml
-
-    storage:
-      redis:
-        address: redis://instance1:1234,instance2:4321?sentinelMasterName=some-master-name
-
 Private Keys
 ************
 
