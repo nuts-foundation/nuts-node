@@ -193,7 +193,7 @@ func Test_redisDatabase_createStore(t *testing.T) {
 		redis7.PingAttemptBackoff = 0
 		_, err = db.createStore("unit", "test")
 		// We don't have Sentinel support in Miniredis, but we can check that the client attempted to connect using Sentinel
-		assert.EqualError(t, err, "unable to connect to Redis database: redis: all sentinels specified in configuration are unreachable")
+		assert.EqualError(t, err, "unable to connect to Redis database: Database Error: redis: all sentinels specified in configuration are unreachable")
 	})
 }
 
