@@ -176,16 +176,19 @@ func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableC
 	if len(strings.TrimSpace(cs.PurposeOfUse)) == 0 {
 		return failure("'credentialSubject.PurposeOfUse' is nil")
 	}
-	switch cs.LegalBase.ConsentType {
-	case "implied":
-		// no additional requirements
-		break
-	case "explicit":
-		if cs.Subject == nil || len(strings.TrimSpace(*cs.Subject)) == 0 {
-			return failure("'credentialSubject.Subject' is required when consentType is 'explicit'")
+
+	if credential.ContainsContext(NutsV2ContextURI) {
+		switch cs.LegalBase.ConsentType {
+		case "implied":
+			// no additional requirements
+			break
+		case "explicit":
+			if cs.Subject == nil || strings.TrimSpace(*cs.Subject) == "" {
+				return failure("'credentialSubject.Subject' is required when consentType is 'explicit'")
+			}
+		default:
+			return failure("'credentialSubject.LegalBase.ConsentType' must be 'implied' or 'explicit'")
 		}
-	default:
-		return failure("'credentialSubject.LegalBase.ConsentType' must be 'implied' or 'explicit'")
 	}
 
 	return validateResources(cs.Resources)
