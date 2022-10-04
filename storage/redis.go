@@ -102,17 +102,29 @@ func createRedisDatabase(config RedisConfig) (*redisDatabase, error) {
 // If so, it returns true, the parsed URL without Sentinel options (because otherwise redis.ParseURL() would fail later on),
 // If the connectionString doesn't specify Redis Sentinel options, it returns false.
 func parseRedisSentinelURL(config RedisConfig) (*redis.FailoverOptions, error) {
-	//uriString := "redis://host1:1234,host2:4321?sentinelMasterName=bla"
 	// Errors return by url.Parse() are ignored, because they only happen in edge, extremely edge situations.
 	// We just return from the function, and the error occurs and gets captured again when using redis.ParseURL().
 	sentinelURI, _ := url.Parse(config.Address)
 	if sentinelURI == nil {
 		return nil, nil
 	}
-	masterName := sentinelURI.Query().Get(sentinelMasterNameParam)
-	if len(masterName) == 0 {
+
+	// Preliminary check, are there sentinel options present in the connection string?
+	// If not, we can quickly return.
+	hasSentinelOpts := false
+	for _, key := range sentinelParamKeys {
+		if sentinelURI.Query().Get(key) != "" {
+			hasSentinelOpts = true
+		}
+	}
+	if !hasSentinelOpts {
 		// Sentinel not enabled
 		return nil, nil
+	}
+
+	masterName := sentinelURI.Query().Get(sentinelMasterNameParam)
+	if len(masterName) == 0 {
+		return nil, fmt.Errorf("Redis Sentinel options specified in connection string, but missing required option: %s", sentinelMasterNameParam)
 	}
 
 	// Parse Redis options without Sentinel options, because they are unofficial
