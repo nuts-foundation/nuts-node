@@ -27,7 +27,45 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr"
 )
 
-func validImpliedNutsAuthorizationCredential() *vc.VerifiableCredential {
+func validV1NutsAuthorizationCredential() *vc.VerifiableCredential {
+	id := stringToURI(vdr.TestDIDA.String() + "#1")
+	return &vc.VerifiableCredential{
+		Context:      []ssi.URI{vc.VCContextV1URI(), NutsV1ContextURI},
+		ID:           &id,
+		Type:         []ssi.URI{*NutsAuthorizationCredentialTypeURI, vc.VerifiableCredentialTypeV1URI()},
+		Issuer:       stringToURI(vdr.TestDIDA.String()),
+		IssuanceDate: time.Now(),
+		CredentialSubject: []interface{}{
+			NutsAuthorizationCredentialSubject{
+				ID:           vdr.TestDIDB.String(),
+				PurposeOfUse: "eTransfer",
+				Resources: []Resource{
+					{
+						Path:        "/composition/1",
+						Operations:  []string{"read"},
+						UserContext: true,
+					},
+				},
+			},
+		},
+		Proof: []interface{}{vc.Proof{}},
+	}
+}
+
+func validV2NutsAuthorizationCredential(credentialSubject NutsAuthorizationCredentialSubject) *vc.VerifiableCredential {
+	id := stringToURI(vdr.TestDIDA.String() + "#1")
+	return &vc.VerifiableCredential{
+		Context:           []ssi.URI{vc.VCContextV1URI(), NutsV2ContextURI},
+		ID:                &id,
+		Type:              []ssi.URI{*NutsAuthorizationCredentialTypeURI, vc.VerifiableCredentialTypeV1URI()},
+		Issuer:            stringToURI(vdr.TestDIDA.String()),
+		IssuanceDate:      time.Now(),
+		CredentialSubject: []interface{}{credentialSubject},
+		Proof:             []interface{}{vc.Proof{}},
+	}
+}
+
+func validV2ImpliedNutsAuthorizationCredential() *vc.VerifiableCredential {
 	credentialSubject := NutsAuthorizationCredentialSubject{
 		ID: vdr.TestDIDB.String(),
 		LegalBase: LegalBase{
@@ -42,10 +80,10 @@ func validImpliedNutsAuthorizationCredential() *vc.VerifiableCredential {
 			},
 		},
 	}
-	return validNutsAuthorizationCredential(credentialSubject)
+	return validV2NutsAuthorizationCredential(credentialSubject)
 }
 
-func ValidExplicitNutsAuthorizationCredential() *vc.VerifiableCredential {
+func ValidV2ExplicitNutsAuthorizationCredential() *vc.VerifiableCredential {
 	patient := "urn:oid:2.16.840.1.113883.2.4.6.3:123456780"
 	credentialSubject := NutsAuthorizationCredentialSubject{
 		ID: vdr.TestDIDB.String(),
@@ -59,20 +97,7 @@ func ValidExplicitNutsAuthorizationCredential() *vc.VerifiableCredential {
 		PurposeOfUse: "careViewer",
 		Subject:      &patient,
 	}
-	return validNutsAuthorizationCredential(credentialSubject)
-}
-
-func validNutsAuthorizationCredential(credentialSubject NutsAuthorizationCredentialSubject) *vc.VerifiableCredential {
-	id := stringToURI(vdr.TestDIDA.String() + "#1")
-	return &vc.VerifiableCredential{
-		Context:           []ssi.URI{vc.VCContextV1URI(), NutsV1ContextURI},
-		ID:                &id,
-		Type:              []ssi.URI{*NutsAuthorizationCredentialTypeURI, vc.VerifiableCredentialTypeV1URI()},
-		Issuer:            stringToURI(vdr.TestDIDA.String()),
-		IssuanceDate:      time.Now(),
-		CredentialSubject: []interface{}{credentialSubject},
-		Proof:             []interface{}{vc.Proof{}},
-	}
+	return validV2NutsAuthorizationCredential(credentialSubject)
 }
 
 func stringToURI(input string) ssi.URI {
