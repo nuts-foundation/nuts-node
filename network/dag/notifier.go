@@ -395,7 +395,7 @@ func (p *notifier) notifyNow(event Event) error {
 	} else if finished {
 		return p.Finished(dbEvent.Hash)
 	} else {
-		// not sure if the event is handled by the receiver, so must return an error to trigger a retry
+		// not sure if the event was handled by the receiver, so must return an error to trigger a retry
 		err = errors.New("receiver did not finish or fail")
 	}
 
