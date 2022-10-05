@@ -35,10 +35,12 @@ func CreateTestBBoltStore(filePath string) (stoabs.KVStore, error) {
 	return bbolt.CreateBBoltStore(filePath, stoabs.WithNoSync())
 }
 
+// StaticKVStoreProvider contains a single store.
 type StaticKVStoreProvider struct {
 	Store stoabs.KVStore
 }
 
+// GetKVStore ignores the inputs and returns the Store, or an error when Store == nil.
 func (p *StaticKVStoreProvider) GetKVStore(_ string, _ Class) (stoabs.KVStore, error) {
 	if p.Store == nil {
 		return nil, errors.New("no store available")
