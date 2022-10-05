@@ -65,8 +65,11 @@ func (c *vcr) StoreCredential(credential vc.VerifiableCredential, validAt *time.
 }
 
 func (c *vcr) writeCredential(subject vc.VerifiableCredential) error {
-	// validation has made sure there's exactly one!
-	vcType := credential.ExtractTypes(subject)[0]
+	vcType := "VerifiableCredential"
+	customTypes := credential.ExtractTypes(subject)
+	if len(customTypes) > 0 {
+		vcType = customTypes[0]
+	}
 
 	log.Logger().
 		WithField(core.LogFieldCredentialID, subject.ID).

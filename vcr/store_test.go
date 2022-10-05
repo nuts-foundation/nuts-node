@@ -131,4 +131,20 @@ func TestStore_writeCredential(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, doc)
 	})
+
+	t.Run("ok - accepts credentials without custom type", func(t *testing.T) {
+		ctx := newMockContext(t)
+		vc := vc.VerifiableCredential{}
+		vcBytes, _ := json.Marshal(vc)
+		ref := sha1.Sum(vcBytes)
+
+		err := ctx.vcr.writeCredential(vc)
+
+		if !assert.NoError(t, err) {
+			return
+		}
+		doc, err := ctx.vcr.credentialCollection().Get(ref[:])
+		assert.NoError(t, err)
+		assert.NotNil(t, doc)
+	})
 }
