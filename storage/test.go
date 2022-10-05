@@ -19,6 +19,7 @@
 package storage
 
 import (
+	"errors"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -32,4 +33,15 @@ func NewTestStorageEngine(testDirectory string) Engine {
 
 func CreateTestBBoltStore(filePath string) (stoabs.KVStore, error) {
 	return bbolt.CreateBBoltStore(filePath, stoabs.WithNoSync())
+}
+
+type StaticKVStoreProvider struct {
+	Store stoabs.KVStore
+}
+
+func (p *StaticKVStoreProvider) GetKVStore(_ string, _ Class) (stoabs.KVStore, error) {
+	if p.Store == nil {
+		return nil, errors.New("no store available")
+	}
+	return p.Store, nil
 }

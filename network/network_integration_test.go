@@ -92,8 +92,6 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	}
 	expectedDocLogSize++
 
-	time.Sleep(100 * time.Millisecond) // Need a small delay for root transaction to propagate within the nodes.
-
 	// Now the graph has a root, and node2 can publish a transaction
 	if !addTransactionAndWaitForItToArrive(t, "doc2", key, node2, "integration_node1", "integration_bootstrap") {
 		return
@@ -900,10 +898,10 @@ func waitForTransaction(t *testing.T, tx dag.Transaction, receivers ...string) b
 				}
 			}
 			return false, nil
-		}, 15*time.Second, "time-out while waiting for transaction to arrive at %s", receiver) {
+		}, defaultTimeout, "time-out while waiting for transaction to arrive at %s", receiver) {
 			return false
 		}
-	} // TODO: reduce timeout when store sync is configurable, https://github.com/nuts-foundation/nuts-node/issues/1218
+	}
 	return true
 }
 
@@ -922,7 +920,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 	config := Config{
 		GrpcAddr: fmt.Sprintf("localhost:%d", nameToPort(t, name)),
 		ProtocolV2: v2.Config{
-			GossipInterval:      500,
+			GossipInterval:      50,
 			PayloadRetryDelay:   50 * time.Millisecond,
 			DiagnosticsInterval: int(time.Minute.Milliseconds()),
 		},
@@ -940,7 +938,14 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 		t.Fatal(err)
 	}
 
-	storeProvider := storage.NewTestStorageEngine(serverConfig.Datadir)
+	memstore, err := storage.CreateTestBBoltStore(serverConfig.Datadir + "/test.db")
+	if err != nil {
+		panic(err)
+	}
+	t.Cleanup(func() {
+		_ = memstore.Close(context.Background())
+	})
+	storeProvider := storage.StaticKVStoreProvider{memstore}
 
 	instance := &Network{
 		config:              config,
@@ -951,7 +956,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 		keyResolver:         doc.KeyResolver{Store: vdrStore},
 		nodeDIDResolver:     &transport.FixedNodeDIDResolver{},
 		eventPublisher:      eventPublisher,
-		storeProvider:       storeProvider.GetProvider(ModuleName),
+		storeProvider:       &storeProvider,
 	}
 
 	if err := instance.Configure(*serverConfig); err != nil {
@@ -973,7 +978,6 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 	result := node{
 		network:        instance,
 		eventPublisher: eventPublisher,
-		storeProvider:  storeProvider,
 	}
 	t.Cleanup(func() {
 		result.shutdown()
@@ -984,15 +988,15 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 type node struct {
 	network        *Network
 	eventPublisher events.Event
-	storeProvider  storage.Engine
 }
 
 func (n node) shutdown() {
-	_ = n.network.Shutdown()
-	err := n.storeProvider.Shutdown()
+	kvStore, _ := n.network.storeProvider.GetKVStore(ModuleName, storage.PersistentStorageClass)
+	err := kvStore.Close(context.Background())
 	if err != nil {
 		panic(err)
 	}
+	_ = n.network.Shutdown()
 	_ = n.eventPublisher.(core.Runnable).Shutdown()
 }
 
