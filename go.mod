@@ -25,7 +25,7 @@ require (
 	github.com/nuts-foundation/go-did v0.3.0
 	github.com/nuts-foundation/go-leia/v3 v3.2.0
 	github.com/nuts-foundation/go-stoabs v1.2.0
-	github.com/piprate/json-gold v0.4.1
+	github.com/piprate/json-gold v0.4.2
 	github.com/privacybydesign/irmago v0.10.0
 	github.com/prometheus/client_golang v1.13.0
 	github.com/prometheus/client_model v0.2.0
