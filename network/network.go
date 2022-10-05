@@ -107,12 +107,10 @@ func NewNetworkInstance(
 	}
 }
 
-var dagStorageClass storage.Class = storage.PersistentStorageClass
-
 // Configure configures the Network subsystem
 func (n *Network) Configure(config core.ServerConfig) error {
 	var err error
-	dagStore, err := n.storeProvider.GetKVStore("data", dagStorageClass)
+	dagStore, err := n.storeProvider.GetKVStore("data", storage.PersistentStorageClass)
 	if err != nil {
 		return fmt.Errorf("unable to create database: %w", err)
 	}
