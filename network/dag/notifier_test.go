@@ -492,7 +492,8 @@ func TestNotifier_VariousFlows(t *testing.T) {
 		filePath := io.TestDirectory(t)
 		kvStore, _ := bbolt.CreateBBoltStore(path.Join(filePath, "test.db"))
 		counter := callbackCounter{}
-		s := NewNotifier(t.Name(), counter.callbackFatalFailure, WithPersistency(kvStore), WithRetryDelay(time.Nanosecond)).(*notifier)
+		counter.setCallbackError(NewEventFatal(errors.New("fatal error")))
+		s := NewNotifier(t.Name(), counter.callbackFailure, WithPersistency(kvStore), WithRetryDelay(time.Nanosecond)).(*notifier)
 		defer s.Close()
 		ctx := context.Background()
 
@@ -508,7 +509,7 @@ func TestNotifier_VariousFlows(t *testing.T) {
 				e, _ = s.readEvent(reader, hash.EmptyHash())
 				return nil
 			})
-			return e.Retries == maxRetries+1, nil
+			return e.Retries >= maxRetries, nil
 		}, time.Second, "timeout while waiting for receiver")
 
 		events, err := s.GetFailedEvents()
@@ -537,12 +538,12 @@ func TestNotifier_VariousFlows(t *testing.T) {
 			var e *Event
 			kvStore.ReadShelf(ctx, s.shelfName(), func(reader stoabs.Reader) error {
 				e, _ = s.readEvent(reader, hash.EmptyHash())
+				if e.Retries == 5 {
+					counter.setCallbackError(NewEventFatal(errors.New("fatal error")))
+				}
 				return nil
 			})
-			if e.Retries == 5 {
-				s.receiver = counter.callbackFatalFailure
-			}
-			return e.Retries == maxRetries+1, nil
+			return e.Retries >= maxRetries, nil
 		}, time.Second, "timeout while waiting for receiver")
 
 		events, err := s.GetFailedEvents()
@@ -562,6 +563,7 @@ type callbackCounter struct {
 	count int
 	// mutex to prevent data race during test
 	mutex sync.Mutex
+	err   error
 }
 
 func (cc *callbackCounter) callback(_ Event) (bool, error) {
@@ -585,15 +587,17 @@ func (cc *callbackCounter) callbackFailure(_ Event) (bool, error) {
 	defer cc.mutex.Unlock()
 
 	cc.count++
+	if cc.err != nil {
+		return false, cc.err
+	}
 	return false, errors.New("error")
 }
 
-func (cc *callbackCounter) callbackFatalFailure(_ Event) (bool, error) {
+func (cc *callbackCounter) setCallbackError(err error) {
 	cc.mutex.Lock()
 	defer cc.mutex.Unlock()
 
-	cc.count++
-	return false, NewEventFatal(errors.New("fatal error"))
+	cc.err = err
 }
 
 func (cc *callbackCounter) read() int {
