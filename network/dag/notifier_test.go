@@ -492,7 +492,7 @@ func TestNotifier_VariousFlows(t *testing.T) {
 		filePath := io.TestDirectory(t)
 		kvStore, _ := bbolt.CreateBBoltStore(path.Join(filePath, "test.db"))
 		counter := callbackCounter{}
-		counter.setCallbackError(NewEventFatal(errors.New("fatal error")))
+		counter.setCallbackError(EventFatal{errors.New("fatal error")})
 		s := NewNotifier(t.Name(), counter.callbackFailure, WithPersistency(kvStore), WithRetryDelay(time.Nanosecond)).(*notifier)
 		defer s.Close()
 		ctx := context.Background()
@@ -539,7 +539,7 @@ func TestNotifier_VariousFlows(t *testing.T) {
 			kvStore.ReadShelf(ctx, s.shelfName(), func(reader stoabs.Reader) error {
 				e, _ = s.readEvent(reader, hash.EmptyHash())
 				if e.Retries == 5 {
-					counter.setCallbackError(NewEventFatal(errors.New("fatal error")))
+					counter.setCallbackError(EventFatal{errors.New("fatal error")})
 				}
 				return nil
 			})

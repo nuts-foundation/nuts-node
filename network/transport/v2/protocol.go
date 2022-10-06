@@ -241,7 +241,7 @@ func (p *protocol) handlePrivateTxRetry(event dag.Event) (bool, error) {
 	payload, err := p.state.ReadPayload(context.Background(), event.Transaction.PayloadHash())
 	if err != nil {
 		if !errors.As(err, new(stoabs.ErrDatabase)) {
-			err = dag.NewEventFatal(err)
+			err = dag.EventFatal{err}
 		}
 		return false, fmt.Errorf("unable to read payload (tx=%s): %w", event.Hash, err)
 	}
@@ -259,7 +259,7 @@ func (p *protocol) handlePrivateTxRetry(event dag.Event) (bool, error) {
 	pal, err := p.decryptPAL(epal)
 	if err != nil {
 		if !errors.As(err, new(stoabs.ErrDatabase)) {
-			err = dag.NewEventFatal(err)
+			err = dag.EventFatal{err}
 		}
 		return false, fmt.Errorf("failed to decrypt PAL header (tx=%s): %w", event.Hash, err)
 	}

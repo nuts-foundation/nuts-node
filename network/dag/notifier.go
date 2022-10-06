@@ -42,23 +42,18 @@ const (
 	PayloadEventType = "payload"
 )
 
-// NewEventFatal is used by a subscriber to signal that it cannot process an Event,
-// and notification of the Event should not be retried.
-// Returns nil when err == nil.
-func NewEventFatal(err error) error {
-	if err == nil {
-		return nil
-	}
-	return EventFatal{err}
+// EventFatal signals that an Event receiver encountered a fatal error and that the Event should not be retried.
+type EventFatal struct {
+	Err error
 }
 
-// EventFatal signals that an Event receiver encountered a fatal error and should not be retried.
-type EventFatal struct {
-	error
+func (e EventFatal) Error() string {
+	// Sprintf in case Err == nil
+	return fmt.Sprintf("%s", e.Err)
 }
 
 func (e EventFatal) Unwrap() error {
-	return e.error
+	return e.Err
 }
 
 // Notifier defines methods for a persistent retry mechanism.
@@ -90,7 +85,7 @@ type Notifier interface {
 
 // ReceiverFn is the function type that needs to be registered for a notifier
 // Returns true if event is received and done, false otherwise
-// The Notifier's retry mechanism is aborted when this function's error is wrapped by NewEventFatal
+// The Notifier's retry mechanism is aborted when this function's error is wrapped by EventFatal
 type ReceiverFn func(event Event) (bool, error)
 
 // NotificationFilter can be added to a notifier to filter out any unwanted events
