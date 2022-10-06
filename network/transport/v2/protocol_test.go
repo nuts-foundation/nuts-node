@@ -230,7 +230,7 @@ func TestProtocol_Start(t *testing.T) {
 func TestProtocol_connectionStateCallback(t *testing.T) {
 	t.Run("ok - connected", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
-		mocks.State.EXPECT().XOR(gomock.Any(), uint32(dag.MaxLamportClock)).Return(hash.EmptyHash(), uint32(5))
+		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(hash.EmptyHash(), uint32(5))
 		mocks.Gossip.EXPECT().PeerConnected(peer, hash.EmptyHash(), uint32(5))
 
 		proto.connectionStateCallback(peer, transport.StateConnected, proto)
@@ -257,7 +257,7 @@ func TestProtocol_gossipTransaction(t *testing.T) {
 	t.Run("ok - to gossipManager", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
 		tx, _, _ := dag.CreateTestTransaction(0)
-		mocks.State.EXPECT().XOR(gomock.Any(), uint32(dag.MaxLamportClock))
+		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock))
 		mocks.Gossip.EXPECT().TransactionRegistered(tx.Ref(), hash.EmptyHash(), uint32(0))
 		event := dag.Event{
 			Type:        dag.TransactionEventType,

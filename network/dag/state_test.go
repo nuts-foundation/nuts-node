@@ -341,19 +341,19 @@ func TestState_XOR(t *testing.T) {
 	}
 
 	t.Run("requested clock larger than dag", func(t *testing.T) {
-		xor, actualClock := txState.XOR(ctx, MaxLamportClock)
+		xor, actualClock := txState.XOR(MaxLamportClock)
 
 		assert.Equal(t, dagClock, actualClock)
 		assert.Equal(t, tx.Ref(), xor)
 	})
 	t.Run("requested clock before last page", func(t *testing.T) {
-		xor, actualClock := txState.XOR(ctx, uint32(1))
+		xor, actualClock := txState.XOR(uint32(1))
 
 		assert.Equal(t, PageSize-1, actualClock)
 		assert.Equal(t, hash.EmptyHash(), xor)
 	})
 	t.Run("requested clock on last page, lower than dag", func(t *testing.T) {
-		xor, actualClock := txState.XOR(ctx, PageSize+1)
+		xor, actualClock := txState.XOR(PageSize + 1)
 
 		assert.Equal(t, dagClock, actualClock)
 		assert.Equal(t, tx.Ref(), xor)
@@ -380,20 +380,20 @@ func TestState_IBLT(t *testing.T) {
 	}
 
 	t.Run("requested clock larger than dag", func(t *testing.T) {
-		iblt, actualClock := txState.IBLT(ctx, MaxLamportClock)
+		iblt, actualClock := txState.IBLT(MaxLamportClock)
 		_ = iblt.Subtract(dagIBLT)
 
 		assert.Equal(t, dagClock, actualClock)
 		assert.True(t, iblt.IsEmpty(), iblt)
 	})
 	t.Run("requested clock before last page", func(t *testing.T) {
-		iblt, actualClock := txState.IBLT(ctx, uint32(1))
+		iblt, actualClock := txState.IBLT(uint32(1))
 
 		assert.Equal(t, PageSize-1, actualClock)
 		assert.True(t, iblt.IsEmpty(), iblt)
 	})
 	t.Run("requested clock on last page, lower than dag", func(t *testing.T) {
-		iblt, actualClock := txState.IBLT(ctx, PageSize+1)
+		iblt, actualClock := txState.IBLT(PageSize + 1)
 		_ = iblt.Subtract(dagIBLT)
 
 		assert.Equal(t, dagClock, actualClock)
@@ -446,7 +446,7 @@ func TestState_updateTrees(t *testing.T) {
 			return
 		}
 
-		xor, _ := txState.XOR(ctx, 1)
+		xor, _ := txState.XOR(1)
 		assert.False(t, hash.EmptyHash().Equals(xor))
 	})
 }

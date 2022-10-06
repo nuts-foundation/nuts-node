@@ -298,9 +298,9 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 		node3.network.connectionManager.Connect(nameToAddress(t, "integration_node2"))
 		waitForTransactions("node 3", node3.network.state, expectedDocLogSize)
 
-		xor1, _ := node1.network.state.XOR(context.Background(), dag.MaxLamportClock)
-		xor2, _ := node2.network.state.XOR(context.Background(), dag.MaxLamportClock)
-		xor3, _ := node3.network.state.XOR(context.Background(), dag.MaxLamportClock)
+		xor1, _ := node1.network.state.XOR(dag.MaxLamportClock)
+		xor2, _ := node2.network.state.XOR(dag.MaxLamportClock)
+		xor3, _ := node3.network.state.XOR(dag.MaxLamportClock)
 		assert.True(t, xor1.Equals(xor3))
 		assert.True(t, xor2.Equals(xor3))
 	})
@@ -481,8 +481,8 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		waitForTransaction(t, tx, "node2")
 
 		// assert not only TX is transfered, but state is updates as well
-		xor1, _ := node1.network.state.XOR(context.Background(), dag.MaxLamportClock)
-		xor2, _ := node2.network.state.XOR(context.Background(), dag.MaxLamportClock)
+		xor1, _ := node1.network.state.XOR(dag.MaxLamportClock)
+		xor2, _ := node2.network.state.XOR(dag.MaxLamportClock)
 		assert.Equal(t, xor1.String(), xor2.String())
 	})
 
@@ -669,8 +669,8 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		}, defaultTimeout, "time-out while waiting for node1 to connect to node2")
 
 		test.WaitFor(t, func() (bool, error) {
-			xor1, _ := node1.network.state.XOR(context.Background(), 10)
-			xor2, _ := node2.network.state.XOR(context.Background(), 10)
+			xor1, _ := node1.network.state.XOR(10)
+			xor2, _ := node2.network.state.XOR(10)
 			return xor1.Equals(xor2), nil
 		}, 10*time.Second, "%s: time-out while waiting for transactions", node2.network.Name())
 	})

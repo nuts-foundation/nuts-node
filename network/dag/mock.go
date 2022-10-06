@@ -112,18 +112,18 @@ func (mr *MockStateMockRecorder) Head(ctx interface{}) *gomock.Call {
 }
 
 // IBLT mocks base method.
-func (m *MockState) IBLT(ctx context.Context, reqClock uint32) (tree.Iblt, uint32) {
+func (m *MockState) IBLT(reqClock uint32) (tree.Iblt, uint32) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IBLT", ctx, reqClock)
+	ret := m.ctrl.Call(m, "IBLT", reqClock)
 	ret0, _ := ret[0].(tree.Iblt)
 	ret1, _ := ret[1].(uint32)
 	return ret0, ret1
 }
 
 // IBLT indicates an expected call of IBLT.
-func (mr *MockStateMockRecorder) IBLT(ctx, reqClock interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) IBLT(reqClock interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IBLT", reflect.TypeOf((*MockState)(nil).IBLT), ctx, reqClock)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IBLT", reflect.TypeOf((*MockState)(nil).IBLT), reqClock)
 }
 
 // IsPayloadPresent mocks base method.
@@ -276,18 +276,18 @@ func (mr *MockStateMockRecorder) WritePayload(ctx, transaction, payloadHash, dat
 }
 
 // XOR mocks base method.
-func (m *MockState) XOR(ctx context.Context, reqClock uint32) (hash.SHA256Hash, uint32) {
+func (m *MockState) XOR(reqClock uint32) (hash.SHA256Hash, uint32) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "XOR", ctx, reqClock)
+	ret := m.ctrl.Call(m, "XOR", reqClock)
 	ret0, _ := ret[0].(hash.SHA256Hash)
 	ret1, _ := ret[1].(uint32)
 	return ret0, ret1
 }
 
 // XOR indicates an expected call of XOR.
-func (mr *MockStateMockRecorder) XOR(ctx, reqClock interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) XOR(reqClock interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "XOR", reflect.TypeOf((*MockState)(nil).XOR), ctx, reqClock)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "XOR", reflect.TypeOf((*MockState)(nil).XOR), reqClock)
 }
 
 // MockPayloadStore is a mock of PayloadStore interface.

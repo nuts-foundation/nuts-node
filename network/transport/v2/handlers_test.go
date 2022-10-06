@@ -244,7 +244,7 @@ func TestProtocol_handleGossip(t *testing.T) {
 
 	t.Run("ok - xors match", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
-		mocks.State.EXPECT().XOR(gomock.Any(), uint32(dag.MaxLamportClock)).Return(xorPeer, clockPeer)
+		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(xorPeer, clockPeer)
 
 		err := p.handleGossip(peer, envelope)
 
@@ -257,7 +257,7 @@ func TestProtocol_handleGossip(t *testing.T) {
 		envelope := &Envelope{Message: &Envelope_Gossip{&Gossip{XOR: xorPeer.Slice(), LC: clockPeer, Transactions: [][]byte{xorPeer.Slice()}}}}
 
 		p, mocks := newTestProtocol(t, nil)
-		mocks.State.EXPECT().XOR(gomock.Any(), uint32(dag.MaxLamportClock)).Return(xorLocal, clockLocal)
+		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(xorLocal, clockLocal)
 		mocks.State.EXPECT().IsPresent(gomock.Any(), xorPeer).Return(false, nil)
 		mocks.Gossip.EXPECT().GossipReceived(peer.ID, xorPeer)
 		mocks.Sender.EXPECT().sendTransactionListQuery(peer.ID, []hash.SHA256Hash{xorPeer}).Return(nil)
@@ -269,7 +269,7 @@ func TestProtocol_handleGossip(t *testing.T) {
 
 	t.Run("ok - new transaction ref, xors still unequal but peers is behind", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
-		mocks.State.EXPECT().XOR(gomock.Any(), uint32(dag.MaxLamportClock)).Return(xorLocal, clockPeer+1)
+		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(xorLocal, clockPeer+1)
 		mocks.State.EXPECT().IsPresent(gomock.Any(), xorPeer).Return(false, nil)
 		mocks.Gossip.EXPECT().GossipReceived(peer.ID, xorPeer)
 		mocks.Sender.EXPECT().sendTransactionListQuery(peer.ID, []hash.SHA256Hash{xorPeer}).Return(nil)
@@ -283,7 +283,7 @@ func TestProtocol_handleGossip(t *testing.T) {
 
 	t.Run("ok - xors don't match, peer is behind", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
-		mocks.State.EXPECT().XOR(gomock.Any(), uint32(dag.MaxLamportClock)).Return(xorLocal, clockPeer+1)
+		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(xorLocal, clockPeer+1)
 		mocks.State.EXPECT().IsPresent(gomock.Any(), xorPeer).Return(true, nil)
 		mocks.Gossip.EXPECT().GossipReceived(peer.ID, xorPeer)
 		mocks.Sender.EXPECT().sendState(peer.ID, xorLocal, clockPeer+1)
@@ -296,7 +296,7 @@ func TestProtocol_handleGossip(t *testing.T) {
 	t.Run("ok - new transaction ref, xors still unequal", func(t *testing.T) {
 		xorLocal := hash.FromSlice([]byte("completely different"))
 		p, mocks := newTestProtocol(t, nil)
-		mocks.State.EXPECT().XOR(gomock.Any(), uint32(dag.MaxLamportClock)).Return(xorLocal, clockLocal)
+		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(xorLocal, clockLocal)
 		mocks.State.EXPECT().IsPresent(gomock.Any(), xorPeer).Return(false, nil)
 		mocks.Gossip.EXPECT().GossipReceived(peer.ID, xorPeer)
 		mocks.Sender.EXPECT().sendState(peer.ID, xorLocal, clockLocal).Return(nil)
@@ -310,7 +310,7 @@ func TestProtocol_handleGossip(t *testing.T) {
 		envelope := &Envelope{Message: &Envelope_Gossip{&Gossip{XOR: xorPeer.Slice(), LC: clockLocal}}}
 
 		p, mocks := newTestProtocol(t, nil)
-		mocks.State.EXPECT().XOR(gomock.Any(), uint32(dag.MaxLamportClock)).Return(xorLocal, clockLocal)
+		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(xorLocal, clockLocal)
 		mocks.Sender.EXPECT().sendState(peer.ID, xorLocal, clockLocal).Return(nil)
 
 		err := p.handleGossip(peer, envelope)
@@ -322,7 +322,7 @@ func TestProtocol_handleGossip(t *testing.T) {
 		envelope := &Envelope{Message: &Envelope_Gossip{&Gossip{XOR: xorPeer.Slice(), LC: clockLocal, Transactions: [][]byte{xorLocal.Slice()}}}}
 
 		p, mocks := newTestProtocol(t, nil)
-		mocks.State.EXPECT().XOR(gomock.Any(), uint32(dag.MaxLamportClock)).Return(xorLocal, clockLocal)
+		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(xorLocal, clockLocal)
 		mocks.State.EXPECT().IsPresent(gomock.Any(), xorLocal).Return(true, nil)
 		mocks.Gossip.EXPECT().GossipReceived(peer.ID, xorLocal)
 		mocks.Sender.EXPECT().sendState(peer.ID, xorLocal, clockLocal).Return(nil)
@@ -338,7 +338,7 @@ func TestProtocol_handleGossip(t *testing.T) {
 		envelope := &Envelope{Message: &Envelope_Gossip{&Gossip{XOR: xorPeer.Slice(), LC: clockLocal - 1, Transactions: [][]byte{xorPeer.Slice()}}}}
 
 		p, mocks := newTestProtocol(t, nil)
-		mocks.State.EXPECT().XOR(gomock.Any(), uint32(dag.MaxLamportClock)).Return(xorLocal, clockLocal)
+		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(xorLocal, clockLocal)
 		mocks.State.EXPECT().IsPresent(gomock.Any(), xorPeer).Return(false, nil)
 		mocks.Gossip.EXPECT().GossipReceived(peer.ID, xorPeer)
 
@@ -351,7 +351,7 @@ func TestProtocol_handleGossip(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
-		mocks.State.EXPECT().XOR(gomock.Any(), uint32(dag.MaxLamportClock)).Return(xorLocal, clockLocal)
+		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(xorLocal, clockLocal)
 		mocks.State.EXPECT().IsPresent(gomock.Any(), xorPeer).Return(false, errors.New("custom"))
 		mocks.Gossip.EXPECT().GossipReceived(peer.ID, xorPeer)
 
@@ -529,7 +529,7 @@ func TestProtocol_handleState(t *testing.T) {
 	t.Run("ok - xors are the same", func(t *testing.T) {
 		msg := &Envelope_State{State: &State{LC: peerClock, XOR: peerXor.Slice()}}
 		p, mocks := newTestProtocol(t, nil)
-		mocks.State.EXPECT().XOR(context.Background(), uint32(dag.MaxLamportClock)).Return(peerXor, localClock)
+		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(peerXor, localClock)
 
 		err := p.handleState(peer, &Envelope{Message: msg})
 
@@ -541,8 +541,8 @@ func TestProtocol_handleState(t *testing.T) {
 		iblt := *tree.NewIblt(10)
 		p, mocks := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(msg, "peerID")
-		mocks.State.EXPECT().XOR(context.Background(), uint32(dag.MaxLamportClock)).Return(localXor, localClock)
-		mocks.State.EXPECT().IBLT(context.Background(), peerClock).Return(iblt, uint32(0))
+		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(localXor, localClock)
+		mocks.State.EXPECT().IBLT(peerClock).Return(iblt, uint32(0))
 		mocks.Sender.EXPECT().sendTransactionSet(peer.ID, conversation.conversationID, peerClock, localClock, iblt)
 
 		err := p.handleState(peer, &Envelope{Message: msg})
@@ -569,8 +569,8 @@ func TestProtocol_handleTransactionSet(t *testing.T) {
 		localLC := requestLC
 		p, mocks := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request, peerID)
-		mocks.State.EXPECT().IBLT(context.Background(), peerLC).Return(*oneHashIblt.Clone().(*tree.Iblt), dag.PageSize-1)
-		mocks.State.EXPECT().XOR(context.Background(), uint32(dag.MaxLamportClock)).Return(hash.FromSlice([]byte("ignored")), localLC)
+		mocks.State.EXPECT().IBLT(peerLC).Return(*oneHashIblt.Clone().(*tree.Iblt), dag.PageSize-1)
+		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(hash.FromSlice([]byte("ignored")), localLC)
 
 		err := p.handleTransactionSet(peer, &Envelope{Message: &Envelope_TransactionSet{
 			TransactionSet: &TransactionSet{ConversationID: conversation.conversationID.slice(), LCReq: requestLC, LC: peerLC, IBLT: emptyIbltBytes},
@@ -584,7 +584,7 @@ func TestProtocol_handleTransactionSet(t *testing.T) {
 		peerLC := requestLC - 1
 		p, mocks := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request, peerID)
-		mocks.State.EXPECT().IBLT(context.Background(), peerLC).Return(*emptyIblt.Clone().(*tree.Iblt), dag.PageSize-1)
+		mocks.State.EXPECT().IBLT(peerLC).Return(*emptyIblt.Clone().(*tree.Iblt), dag.PageSize-1)
 		mocks.Sender.EXPECT().sendTransactionListQuery(peer.ID, []hash.SHA256Hash{hash1.Ref()}).Return(nil)
 
 		err := p.handleTransactionSet(peer, &Envelope{Message: &Envelope_TransactionSet{
@@ -600,8 +600,8 @@ func TestProtocol_handleTransactionSet(t *testing.T) {
 		peerLC := requestLC + dag.PageSize*3
 		p, mocks := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request, peerID)
-		mocks.State.EXPECT().IBLT(context.Background(), requestLC).Return(*oneHashIblt.Clone().(*tree.Iblt), dag.PageSize-1)
-		mocks.State.EXPECT().XOR(context.Background(), uint32(dag.MaxLamportClock)).Return(hash.FromSlice([]byte("ignored")), localLC)
+		mocks.State.EXPECT().IBLT(requestLC).Return(*oneHashIblt.Clone().(*tree.Iblt), dag.PageSize-1)
+		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(hash.FromSlice([]byte("ignored")), localLC)
 		mocks.Sender.EXPECT().sendTransactionRangeQuery(peer.ID, dag.PageSize, 2*dag.PageSize).Return(nil)
 
 		err := p.handleTransactionSet(peer, &Envelope{Message: &Envelope_TransactionSet{
@@ -616,8 +616,8 @@ func TestProtocol_handleTransactionSet(t *testing.T) {
 		peerLC := requestLC + dag.PageSize
 		p, mocks := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request, peerID)
-		mocks.State.EXPECT().IBLT(context.Background(), requestLC).Return(*oneHashIblt.Clone().(*tree.Iblt), dag.PageSize-1)
-		mocks.State.EXPECT().XOR(context.Background(), uint32(dag.MaxLamportClock)).Return(hash.FromSlice([]byte("ignored")), requestLC)
+		mocks.State.EXPECT().IBLT(requestLC).Return(*oneHashIblt.Clone().(*tree.Iblt), dag.PageSize-1)
+		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(hash.FromSlice([]byte("ignored")), requestLC)
 		mocks.Sender.EXPECT().sendTransactionRangeQuery(peer.ID, dag.PageSize, uint32(dag.MaxLamportClock)).Return(nil)
 
 		err := p.handleTransactionSet(peer, &Envelope{Message: &Envelope_TransactionSet{
@@ -637,8 +637,8 @@ func TestProtocol_handleTransactionSet(t *testing.T) {
 		conflictingIblt.Insert(hash1.Ref())
 		p, mocks := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request, peerID)
-		mocks.State.EXPECT().IBLT(context.Background(), page1RequestLC).Return(*conflictingIblt, dag.PageSize-1)
-		mocks.State.EXPECT().XOR(context.Background(), uint32(dag.MaxLamportClock)).Return(localXor, uint32(0))
+		mocks.State.EXPECT().IBLT(page1RequestLC).Return(*conflictingIblt, dag.PageSize-1)
+		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(localXor, uint32(0))
 		mocks.Sender.EXPECT().sendState(peer.ID, localXor, dag.PageSize-1).Return(nil)
 
 		err := p.handleTransactionSet(peer, &Envelope{Message: &Envelope_TransactionSet{
@@ -655,7 +655,7 @@ func TestProtocol_handleTransactionSet(t *testing.T) {
 		conflictingIblt.Insert(hash1.Ref())
 		p, mocks := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request, peerID)
-		mocks.State.EXPECT().IBLT(context.Background(), requestLC).Return(*conflictingIblt, dag.PageSize-1)
+		mocks.State.EXPECT().IBLT(requestLC).Return(*conflictingIblt, dag.PageSize-1)
 		mocks.Sender.EXPECT().sendTransactionRangeQuery(peer.ID, uint32(0), dag.PageSize).Return(nil)
 
 		err := p.handleTransactionSet(peer, &Envelope{Message: &Envelope_TransactionSet{
@@ -682,7 +682,7 @@ func TestProtocol_handleTransactionSet(t *testing.T) {
 	t.Run("error - iblt subtract fails", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request, peerID)
-		mocks.State.EXPECT().IBLT(context.Background(), requestLC).Return(*tree.NewIblt(20), dag.PageSize-1)
+		mocks.State.EXPECT().IBLT(requestLC).Return(*tree.NewIblt(20), dag.PageSize-1)
 
 		emptyIbltBytes, _ := emptyIblt.MarshalBinary()
 
