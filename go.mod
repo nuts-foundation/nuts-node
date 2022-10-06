@@ -7,7 +7,7 @@ require (
 	github.com/avast/retry-go/v4 v4.1.0
 	github.com/cbroglie/mustache v1.4.0
 	github.com/deepmap/oapi-codegen v1.11.0
-	github.com/go-redis/redis/v9 v9.0.0-beta.2
+	github.com/go-redis/redis/v9 v9.0.0-beta.3
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/golang/mock v1.6.0
 	github.com/goodsign/monday v1.0.0
