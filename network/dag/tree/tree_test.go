@@ -19,8 +19,6 @@
 package tree
 
 import (
-	"fmt"
-	"math"
 	"math/rand"
 	"testing"
 
@@ -372,29 +370,4 @@ func filledTestTree(data Data, leafSize uint32) (*tree, treeData) {
 */
 type treeData struct {
 	r, p0, p1, c0, c1, c2, c3 Data
-}
-
-func BenchmarkTree_LoadIblt(b *testing.B) {
-	leafSize := uint32(512)
-	proto := NewIblt(1024)
-	tree := New(proto, leafSize)
-	benchTree := New(proto, leafSize)
-
-	for d := 0; d < 16; d++ {
-		numLeaves := uint32(math.Pow(2, float64(d)))
-		lastLeaf := uint32(0)
-		b.Run(fmt.Sprintf("Depth=%d Transactions=%d", d, numLeaves*leafSize), func(b *testing.B) {
-			for i := lastLeaf; i < numLeaves; i++ {
-				tree.Insert(hash.RandomHash(), i*leafSize)
-				lastLeaf++
-			}
-			dirties, _ := tree.GetUpdates()
-			benchTree = New(proto, leafSize)
-
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				_ = benchTree.Load(dirties)
-			}
-		})
-	}
 }

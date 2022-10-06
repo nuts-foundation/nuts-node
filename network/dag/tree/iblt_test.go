@@ -19,7 +19,6 @@
 package tree
 
 import (
-	"crypto/rand"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -27,57 +26,11 @@ import (
 
 const numTestBuckets = 1024
 
-// benchmarks
-func BenchmarkIblt_BinaryMarshal(b *testing.B) {
-	iblt, _ := getIbltWithRandomData(numTestBuckets, 128)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, _ = iblt.MarshalBinary()
-	}
-}
-
-func BenchmarkIblt_BinaryUnmarshal(b *testing.B) {
-	iblt, _ := getIbltWithRandomData(numTestBuckets, 128)
-	bytes, _ := iblt.MarshalBinary()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		iblt = &Iblt{}
-		_ = iblt.UnmarshalBinary(bytes)
-	}
-}
-
-func BenchmarkIblt_Add(b *testing.B) {
-	numBuckets := 1024
-	iblt1, iblt2 := NewIblt(numBuckets), NewIblt(numBuckets)
-	iblt1.Insert(hash.RandomHash())
-	iblt2.Insert(hash.RandomHash())
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = iblt1.Add(iblt2)
-	}
-}
-
-func BenchmarkIblt_Insert(b *testing.B) {
-	numBuckets := 1024
-	iblt := NewIblt(numBuckets)
-	iblt.Insert(hash.RandomHash())
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		iblt.Insert(hash.RandomHash())
-	}
-}
-
 func getIbltWithRandomData(numBuckets, numHashes int) (*Iblt, map[hash.SHA256Hash]struct{}) {
 	iblt := getEmptyTestIblt(numBuckets)
-	// add hashes
-	newRandomTx := func() hash.SHA256Hash {
-		ref := hash.EmptyHash()
-		_, _ = rand.Read(ref[:])
-		return ref
-	}
 	hashes := make(map[hash.SHA256Hash]struct{}, numHashes)
 	for i := 0; i < numHashes; i++ {
-		ref := newRandomTx()
+		ref := hash.RandomHash()
 		iblt.Insert(ref)
 		hashes[ref] = struct{}{}
 	}

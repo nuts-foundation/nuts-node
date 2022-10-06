@@ -1,0 +1,149 @@
+package tree
+
+import (
+	"fmt"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"math"
+	"testing"
+)
+
+func BenchmarkTree(b *testing.B) {
+	b.Run("IBLT", func(b *testing.B) {
+		BenchAll(b, NewIblt(1024))
+	})
+
+	b.Run("Xor", func(b *testing.B) {
+		BenchAll(b, NewXor())
+	})
+}
+
+func BenchAll(b *testing.B, proto Data) {
+	b.Run("tree.Load()", func(b *testing.B) { BenchTree_Load(b, proto) })
+	b.Run("Data", func(b *testing.B) { BenchData(b, proto) })
+}
+
+func BenchTree_Load(b *testing.B, proto Data) {
+	leafSize := uint32(512)
+	tree := New(proto, leafSize)
+	benchTree := New(proto, leafSize)
+	nextLeaf := uint32(0)
+
+	for d := 0; d < 16; d++ {
+		numLeaves := uint32(math.Pow(2, float64(d)))
+		dirties := map[uint32][]byte{}
+		b.Run(fmt.Sprintf("Depth=%d Transactions=%d", d, numLeaves*leafSize), func(b *testing.B) {
+			for i := nextLeaf; i < numLeaves; i++ {
+				tree.Insert(hash.RandomHash(), i*leafSize)
+				nextLeaf++
+			}
+			dirties, _ = tree.GetUpdates()
+
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_ = benchTree.Load(dirties)
+			}
+		})
+	}
+}
+
+func BenchData(b *testing.B, proto Data) {
+
+	b.Run("New()", func(b *testing.B) {
+		var data Data
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			data = proto.New()
+		}
+		_ = data
+	})
+
+	b.Run("Clone()", func(b *testing.B) {
+		data, _ := dataWithRandomHashes(proto, 128)
+		var clone Data
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			clone = data.Clone()
+		}
+		_ = clone
+	})
+
+	b.Run("Insert()", func(b *testing.B) {
+		data, _ := dataWithRandomHashes(proto, 128)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			data.Insert(hash.RandomHash())
+		}
+	})
+
+	b.Run("Delete()", func(b *testing.B) {
+		data, _ := dataWithRandomHashes(proto, 128)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			data.Delete(hash.RandomHash())
+		}
+	})
+
+	b.Run("Add()", func(b *testing.B) {
+		data1, _ := dataWithRandomHashes(proto, 128)
+		data2, _ := dataWithRandomHashes(proto, 128)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = data1.Add(data2)
+		}
+	})
+
+	b.Run("Subtract()", func(b *testing.B) {
+		data1, _ := dataWithRandomHashes(proto, 128)
+		data2, _ := dataWithRandomHashes(proto, 128)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = data1.Subtract(data2)
+		}
+	})
+
+	b.Run("IsEmpty()", func(b *testing.B) {
+		b.Run("true", func(b *testing.B) {
+			data := proto.New()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_ = data.IsEmpty()
+			}
+		})
+		b.Run("false", func(b *testing.B) {
+			data, _ := dataWithRandomHashes(proto, 128)
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_ = data.IsEmpty()
+			}
+		})
+	})
+
+	b.Run("MarshalBinary()", func(b *testing.B) {
+		data, _ := dataWithRandomHashes(proto, 128)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_, _ = data.MarshalBinary()
+		}
+	})
+
+	b.Run("UnmarshalBinary()", func(b *testing.B) {
+		data, _ := dataWithRandomHashes(proto, 128)
+		bytes, _ := data.MarshalBinary()
+		data = data.New()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = data.UnmarshalBinary(bytes)
+		}
+	})
+}
+
+func dataWithRandomHashes(proto Data, numHashes int) (Data, map[hash.SHA256Hash]struct{}) {
+	data := proto.New()
+	hashes := make(map[hash.SHA256Hash]struct{}, numHashes)
+	for i := 0; i < numHashes; i++ {
+		ref := hash.RandomHash()
+		data.Insert(ref)
+		hashes[ref] = struct{}{}
+	}
+	return data, hashes
+}
