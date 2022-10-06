@@ -865,10 +865,5 @@ func (s stubNodeDIDReader) Resolve() (did.DID, error) {
 }
 
 func createKVStore(t *testing.T) stoabs.KVStore {
-	testDirectory := io2.TestDirectory(t)
-	db, err := storage.CreateTestBBoltStore(filepath.Join(testDirectory, "grpc.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return db
+	return storage.CreateTestBBoltStore(t, filepath.Join(io2.TestDirectory(t), "grpc.db"))
 }

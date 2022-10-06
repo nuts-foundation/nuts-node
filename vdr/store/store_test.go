@@ -38,16 +38,12 @@ const moduleName = "VDR"
 func newTestStore(t *testing.T) types.Store {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	mockProvider := storage.NewMockProvider(ctrl)
-	store := NewStore(mockProvider)
-
-	bboltStore, err := storage.CreateTestBBoltStore(path.Join(io.TestDirectory(t), moduleName, "didstore.db"))
-	if !assert.NoError(t, err) {
-		t.Fatal(err)
+	storeProvider := storage.StaticKVStoreProvider{
+		Store: storage.CreateTestBBoltStore(t, path.Join(io.TestDirectory(t), moduleName, "didstore.db")),
 	}
-	mockProvider.EXPECT().GetKVStore(gomock.Any(), gomock.Any()).Return(bboltStore, nil)
+	store := NewStore(&storeProvider)
 
-	err = store.(core.Configurable).Configure(*core.NewServerConfig())
+	err := store.(core.Configurable).Configure(*core.NewServerConfig())
 	if !assert.NoError(t, err) {
 		t.Fatal(err)
 	}

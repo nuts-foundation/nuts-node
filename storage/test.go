@@ -19,10 +19,12 @@
 package storage
 
 import (
+	"context"
 	"errors"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/core"
+	"testing"
 )
 
 func NewTestStorageEngine(testDirectory string) Engine {
@@ -31,8 +33,16 @@ func NewTestStorageEngine(testDirectory string) Engine {
 	return result
 }
 
-func CreateTestBBoltStore(filePath string) (stoabs.KVStore, error) {
-	return bbolt.CreateBBoltStore(filePath, stoabs.WithNoSync())
+// CreateTestBBoltStore creates an in-memory bbolt store
+func CreateTestBBoltStore(tb testing.TB, filePath string) stoabs.KVStore {
+	db, err := bbolt.CreateBBoltStore(filePath, stoabs.WithNoSync())
+	if err != nil {
+		tb.Fatal(err)
+	}
+	tb.Cleanup(func() {
+		db.Close(context.Background())
+	})
+	return db
 }
 
 // StaticKVStoreProvider contains a single store.

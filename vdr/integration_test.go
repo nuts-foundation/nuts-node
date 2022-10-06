@@ -22,8 +22,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/go-stoabs"
-
 	"net/url"
 	"sync"
 	"testing"
@@ -283,14 +281,9 @@ func setup(t *testing.T) testContext {
 	cryptoInstance.Configure(nutsConfig)
 
 	// Storage
-	var memstore stoabs.KVStore
-	if memstore, err = storage.CreateTestBBoltStore(testDir + "/test.db"); err != nil {
-		t.Fatal(err)
+	storageProvider := storage.StaticKVStoreProvider{
+		Store: storage.CreateTestBBoltStore(t, testDir+"/test.db"),
 	}
-	storageProvider := storage.StaticKVStoreProvider{memstore}
-	t.Cleanup(func() {
-		memstore.Close(context.Background())
-	})
 
 	// DID Store
 	didStore := store.NewMemoryStore()

@@ -938,14 +938,9 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 		t.Fatal(err)
 	}
 
-	memstore, err := storage.CreateTestBBoltStore(serverConfig.Datadir + "/test.db")
-	if err != nil {
-		panic(err)
+	storeProvider := storage.StaticKVStoreProvider{
+		Store: storage.CreateTestBBoltStore(t, serverConfig.Datadir+"/test.db"),
 	}
-	t.Cleanup(func() {
-		_ = memstore.Close(context.Background())
-	})
-	storeProvider := storage.StaticKVStoreProvider{memstore}
 
 	instance := &Network{
 		config:              config,
