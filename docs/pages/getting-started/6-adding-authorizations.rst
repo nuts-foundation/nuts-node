@@ -187,7 +187,7 @@ If you want to call ``/patient/2250f7ab-6517-4923-ac00-88ed26f85843`` for a part
                 "https://www.w3.org/2018/credentials/v1",
                 "https://nuts.nl/credentials/v2"
             ],
-            "type": ["VerifiableCredential" ,"NutsOrganizationCredential"],
+            "type": ["VerifiableCredential" ,"NutsAuthorizationCredential"],
             "credentialSubject": {
                 "id": "did:nuts:JCJEi3waNGNhkmwVvFB3wdUsmDYPnTcZxYiWThZqgWKv",
                 "purposeOfUse": "test-service",
