@@ -89,20 +89,44 @@ func (d defaultCredentialValidator) Validate(credential vc.VerifiableCredential)
 	return d.validateAllFieldsKnown(credential)
 }
 
-func unslice(input map[string]interface{}) {
-	for key, v := range input {
-		value := reflect.ValueOf(v)
-		if value.Kind() == reflect.Slice && value.Len() == 1 {
-			// Should be unsliced
-			input[key] = value.Slice(0, 1)
+func unslice(input interface{}, setter func(newValue interface{})) {
+	value := reflect.ValueOf(input)
+	// If it's a slice with a single value, unslice it
+	if value.Kind() == reflect.Slice {
+		switch value.Len() {
+		case 0:
+			// Empty slice, do nothing
+		case 1:
+			// Slice with 1 entry, unslice it
+			input = value.Index(0)
+			setter(input)
+		default:
+			// Slice with zero or more entries, iterate
+			unsliceSliceValue(value)
 		}
-		// If value is a slice, iterate all children
-		value.Kind() == reflect.Slice
+	}
 
-		asMap, isMap := input[key].(map[string]interface{})
-		if isMap {
-			unslice(asMap)
-		}
+	asMap, isMap := input.(map[string]interface{})
+	if isMap {
+		unsliceMap(asMap)
+	}
+}
+
+func unsliceSliceValue(input reflect.Value) {
+	length := input.Len()
+	for i := 0; i < length; i++ {
+		current := input.Index(i)
+		unslice(current, func(newValue interface{}) {
+			current.Set(reflect.ValueOf(newValue))
+		})
+	}
+}
+
+func unsliceMap(input map[string]interface{}) {
+	for key, v := range input {
+		unslice(v, func(newValue interface{}) {
+			input[key] = newValue
+		})
 	}
 }
 
@@ -113,7 +137,7 @@ func (d defaultCredentialValidator) validateAllFieldsKnown(input vc.VerifiableCr
 	inputAsMap := make(map[string]interface{})
 	_ = json.Unmarshal(inputAsJSON, &inputAsMap)
 
-	unslice(inputAsMap)
+	unsliceMap(inputAsMap)
 	delete(inputAsMap, "proof")
 
 	processor := ld.NewJsonLdProcessor()
@@ -124,7 +148,7 @@ func (d defaultCredentialValidator) validateAllFieldsKnown(input vc.VerifiableCr
 		return fmt.Errorf("unable to compact JSON-LD VC: %w", err)
 	}
 	delete(compactedAsMap, "proof")
-	unslice(compactedAsMap)
+	unsliceMap(compactedAsMap)
 	expectedAsJSON, _ := json.Marshal(inputAsMap)
 
 	// Now marshal compacted document to JSON and compare
