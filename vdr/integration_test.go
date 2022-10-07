@@ -22,7 +22,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
 	"net/url"
 	"sync"
 	"testing"
@@ -282,7 +281,9 @@ func setup(t *testing.T) testContext {
 	cryptoInstance.Configure(nutsConfig)
 
 	// Storage
-	storageProvider := storage.NewTestStorageEngine(testDir)
+	storageProvider := storage.StaticKVStoreProvider{
+		Store: storage.CreateTestBBoltStore(t, testDir+"/test.db"),
+	}
 
 	// DID Store
 	didStore := store.NewMemoryStore()
@@ -312,7 +313,7 @@ func setup(t *testing.T) testContext {
 		docResolver,
 		docFinder,
 		eventPublisher,
-		storageProvider.GetProvider(network.ModuleName),
+		&storageProvider,
 	)
 	nutsNetwork.Configure(nutsConfig)
 	nutsNetwork.Start()
