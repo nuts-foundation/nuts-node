@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/test"
 	io_prometheus_client "github.com/prometheus/client_model/go"
 	"go.uber.org/atomic"
+	"math"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -455,7 +456,7 @@ func Test_createStore(t *testing.T) {
 	assert.NotNil(t, createState(t))
 }
 
-func createState(t *testing.T, verifier ...Verifier) State {
+func createState(t testing.TB, verifier ...Verifier) State {
 	testDir := io.TestDirectory(t)
 	bboltStore, err := bbolt.CreateBBoltStore(filepath.Join(testDir, "test_state"), stoabs.WithNoSync())
 	if err != nil {
@@ -479,4 +480,33 @@ func assertCountMetric(t *testing.T, state *state, count float64) {
 	metric := &io_prometheus_client.Metric{}
 	state.transactionCount.Write(metric)
 	assert.Equal(t, count, *metric.Counter.Value)
+}
+
+func BenchmarkState_loadTrees(b *testing.B) {
+	state := createState(b).(*state)
+	ctx := context.Background()
+
+	// add a bunch of transactions
+	maxDepth := 16
+	nextLeaf := uint32(0)
+	var current Transaction
+	next, _, _ := CreateTestTransaction(0)
+	for depth := 0; depth < maxDepth; depth++ {
+		numLeaves := uint32(math.Pow(2, float64(depth)))
+		for l := nextLeaf; l < numLeaves; l++ {
+			current = next
+			current.(*transaction).lamportClock = l * PageSize
+			_ = state.Add(ctx, current, nil)
+			next, _, _ = CreateTestTransaction(l, current)
+			nextLeaf++
+		}
+
+		// benchmark reload state
+		b.Run(fmt.Sprintf("Depth=%d Transactions=%d", depth, current.(*transaction).lamportClock+PageSize), func(b *testing.B) {
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				state.loadTrees(ctx)
+			}
+		})
+	}
 }

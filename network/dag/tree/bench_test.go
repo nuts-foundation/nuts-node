@@ -31,13 +31,13 @@ func BenchTree_Load(b *testing.B, proto Data) {
 	for d := 0; d < 16; d++ {
 		numLeaves := uint32(math.Pow(2, float64(d)))
 		dirties := map[uint32][]byte{}
-		b.Run(fmt.Sprintf("Depth=%d Transactions=%d", d, numLeaves*leafSize), func(b *testing.B) {
-			for i := nextLeaf; i < numLeaves; i++ {
-				tree.Insert(hash.RandomHash(), i*leafSize)
-				nextLeaf++
-			}
-			dirties, _ = tree.GetUpdates()
+		for i := nextLeaf; i < numLeaves; i++ {
+			tree.Insert(hash.RandomHash(), i*leafSize)
+			nextLeaf++
+		}
+		dirties, _ = tree.GetUpdates()
 
+		b.Run(fmt.Sprintf("Depth=%d Transactions=%d", d, numLeaves*leafSize), func(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				_ = benchTree.Load(dirties)
