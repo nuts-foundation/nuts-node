@@ -42,6 +42,20 @@ const (
 	PayloadEventType = "payload"
 )
 
+// EventFatal signals that an Event receiver encountered a fatal error and that the Event should not be retried.
+type EventFatal struct {
+	Err error
+}
+
+func (e EventFatal) Error() string {
+	// Sprintf in case Err == nil
+	return fmt.Sprintf("%s", e.Err)
+}
+
+func (e EventFatal) Unwrap() error {
+	return e.Err
+}
+
 // Notifier defines methods for a persistent retry mechanism.
 // Storing the event in the DB is separated from notifying the subscribers.
 // The event is sent to subscribers after the transaction is committed to prevent timing issues.
@@ -71,6 +85,7 @@ type Notifier interface {
 
 // ReceiverFn is the function type that needs to be registered for a notifier
 // Returns true if event is received and done, false otherwise
+// The Notifier's retry mechanism is aborted when this function's error is wrapped by EventFatal
 type ReceiverFn func(event Event) (bool, error)
 
 // NotificationFilter can be added to a notifier to filter out any unwanted events
@@ -291,7 +306,16 @@ func (p *notifier) Notify(event Event) {
 	}
 
 	if err := p.notifyNow(event); err != nil {
-		p.retry(event)
+		notifyErrMsg := "Notify event dropped"
+		if !errors.As(err, new(EventFatal)) {
+			p.retry(event)
+			notifyErrMsg = "Notify event rescheduled"
+		}
+		log.Logger().
+			WithError(err).
+			WithField(core.LogFieldTransactionRef, event.Hash.String()).
+			WithField(core.LogFieldEventSubscriber, p.name).
+			Errorf(notifyErrMsg)
 	}
 }
 
@@ -316,12 +340,24 @@ func (p *notifier) retry(event Event) {
 			retry.Context(ctx),
 			retry.LastErrorOnly(true),
 			retry.OnRetry(func(n uint, err error) {
-				log.Logger().
-					WithField(core.LogFieldTransactionRef, event.Hash.String()).
-					Debugf("Retrying event (attempt %d/%d)", n, maxRetries)
+				// logs after every failed attempt
+				if errors.Is(err, errEventIncomplete) {
+					// debug level if errEventIncomplete
+					log.Logger().
+						WithError(err).
+						WithField(core.LogFieldTransactionRef, event.Hash.String()).
+						Debugf("Retrying event (attempt %d/%d)", n, maxRetries)
+				} else {
+					// error level for all other errors
+					log.Logger().
+						WithError(err).
+						WithField(core.LogFieldTransactionRef, event.Hash.String()).
+						Errorf("Retrying event (attempt %d/%d)", n, maxRetries)
+				}
 			}),
 		)
 		if err != nil {
+			// logs after maxRetries failed attempts, or receiving a retry.Unrecoverable() error
 			log.Logger().
 				WithError(err).
 				WithField(core.LogFieldTransactionRef, event.Hash.String()).
@@ -330,6 +366,8 @@ func (p *notifier) retry(event Event) {
 		}
 	}(p.ctx)
 }
+
+var errEventIncomplete = errors.New("receiver did not finish or fail")
 
 // notifyNow is used to call the receiverFn synchronously.
 // This is used for the first run and with every retry.
@@ -351,16 +389,20 @@ func (p *notifier) notifyNow(event Event) error {
 		}
 	}
 
-	if finished, err := p.receiver(*dbEvent); err != nil {
-		log.Logger().
-			WithError(err).
-			WithField(core.LogFieldTransactionRef, dbEvent.Hash.String()).
-			WithField(core.LogFieldEventSubscriber, p.name).
-			Errorf("Retry failed")
+	finished, err := p.receiver(*dbEvent)
+	if err != nil {
+		if errors.As(err, new(EventFatal)) {
+			// mark as failed event
+			dbEvent.Retries = maxRetries
+			err = retry.Unrecoverable(err)
+		}
 
 		dbEvent.Error = err.Error()
 	} else if finished {
 		return p.Finished(dbEvent.Hash)
+	} else {
+		// not sure if the event was handled by the receiver, so must return an error to trigger a retry
+		err = errEventIncomplete
 	}
 
 	dbEvent.Retries++
@@ -373,7 +415,7 @@ func (p *notifier) notifyNow(event Event) error {
 	}
 
 	// has to return an error since `retry.Do` needs to retry until it's marked as finished
-	return fmt.Errorf("event handling by receiver failed, but might be retried (count=%d, max=%d)", dbEvent.Retries, maxRetries)
+	return err
 }
 
 func (p *notifier) writeEvent(writer stoabs.Writer, event Event) error {

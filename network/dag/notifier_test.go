@@ -483,8 +483,75 @@ func TestNotifier_VariousFlows(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.Len(t, events, 1)
+		assert.Equal(t, 5, counter.read())
 		assert.Equal(t, 5, notifiedCounter.count)
 		assert.Equal(t, "error", events[0].Error)
+	})
+
+	t.Run("fails on fatal event before scheduling retry ", func(t *testing.T) {
+		filePath := io.TestDirectory(t)
+		kvStore, _ := bbolt.CreateBBoltStore(path.Join(filePath, "test.db"))
+		counter := callbackCounter{}
+		counter.setCallbackError(EventFatal{errors.New("fatal error")})
+		s := NewNotifier(t.Name(), counter.callbackFailure, WithPersistency(kvStore), WithRetryDelay(time.Nanosecond)).(*notifier)
+		defer s.Close()
+		ctx := context.Background()
+
+		_ = kvStore.Write(ctx, func(tx stoabs.WriteTx) error {
+			return s.Save(tx, event)
+		})
+
+		s.Notify(event)
+
+		test.WaitFor(t, func() (bool, error) {
+			var e *Event
+			kvStore.ReadShelf(ctx, s.shelfName(), func(reader stoabs.Reader) error {
+				e, _ = s.readEvent(reader, hash.EmptyHash())
+				return nil
+			})
+			return e.Retries >= maxRetries, nil
+		}, time.Second, "timeout while waiting for receiver")
+
+		events, err := s.GetFailedEvents()
+
+		assert.NoError(t, err)
+		assert.Len(t, events, 1)
+		assert.Equal(t, 1, counter.read())
+		assert.Equal(t, "fatal error", events[0].Error)
+	})
+
+	t.Run("fails on fatal event while retrying", func(t *testing.T) {
+		filePath := io.TestDirectory(t)
+		kvStore, _ := bbolt.CreateBBoltStore(path.Join(filePath, "test.db"))
+		counter := callbackCounter{}
+		s := NewNotifier(t.Name(), counter.callbackFailure, WithPersistency(kvStore), WithRetryDelay(time.Millisecond)).(*notifier)
+		defer s.Close()
+		ctx := context.Background()
+
+		_ = kvStore.Write(ctx, func(tx stoabs.WriteTx) error {
+			return s.Save(tx, event)
+		})
+
+		s.Notify(event)
+
+		test.WaitFor(t, func() (bool, error) {
+			var e *Event
+			kvStore.ReadShelf(ctx, s.shelfName(), func(reader stoabs.Reader) error {
+				e, _ = s.readEvent(reader, hash.EmptyHash())
+				if e.Retries == 5 {
+					counter.setCallbackError(EventFatal{errors.New("fatal error")})
+				}
+				return nil
+			})
+			return e.Retries >= maxRetries, nil
+		}, time.Second, "timeout while waiting for receiver")
+
+		events, err := s.GetFailedEvents()
+
+		assert.NoError(t, err)
+		assert.Len(t, events, 1)
+		assert.Equal(t, 6, counter.read())
+		assert.Equal(t, "fatal error", events[0].Error)
 	})
 }
 
@@ -496,6 +563,7 @@ type callbackCounter struct {
 	count int
 	// mutex to prevent data race during test
 	mutex sync.Mutex
+	err   error
 }
 
 func (cc *callbackCounter) callback(_ Event) (bool, error) {
@@ -515,7 +583,21 @@ func (cc *callbackCounter) callbackFinished(_ Event) (bool, error) {
 }
 
 func (cc *callbackCounter) callbackFailure(_ Event) (bool, error) {
+	cc.mutex.Lock()
+	defer cc.mutex.Unlock()
+
+	cc.count++
+	if cc.err != nil {
+		return false, cc.err
+	}
 	return false, errors.New("error")
+}
+
+func (cc *callbackCounter) setCallbackError(err error) {
+	cc.mutex.Lock()
+	defer cc.mutex.Unlock()
+
+	cc.err = err
 }
 
 func (cc *callbackCounter) read() int {

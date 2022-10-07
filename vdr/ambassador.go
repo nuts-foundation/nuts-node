@@ -27,6 +27,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nats-io/nats.go"
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"sort"
 	"time"
@@ -133,6 +134,10 @@ func (n *ambassador) handleReprocessEvent(msg *nats.Msg) {
 
 func (n *ambassador) handleNetworkEvent(event dag.Event) (bool, error) {
 	if err := n.callback(event.Transaction, event.Payload); err != nil {
+		if !errors.As(err, new(stoabs.ErrDatabase)) {
+			// anything that is not a database error will not be retried
+			return false, dag.EventFatal{err}
+		}
 		return false, err
 	}
 	return true, nil
