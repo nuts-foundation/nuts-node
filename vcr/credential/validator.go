@@ -89,74 +89,29 @@ func (d defaultCredentialValidator) Validate(credential vc.VerifiableCredential)
 	return d.validateAllFieldsKnown(credential)
 }
 
-func unslice(input interface{}, setter func(newValue interface{})) {
-	value := reflect.ValueOf(input)
-	// If it's a slice with a single value, unslice it
-	if value.Kind() == reflect.Slice {
-		switch value.Len() {
-		case 0:
-			// Empty slice, do nothing
-		case 1:
-			// Slice with 1 entry, unslice it
-			input = value.Index(0)
-			setter(input)
-		default:
-			// Slice with zero or more entries, iterate
-			unsliceSliceValue(value)
-		}
-	}
-
-	asMap, isMap := input.(map[string]interface{})
-	if isMap {
-		unsliceMap(asMap)
-	}
-}
-
-func unsliceSliceValue(input reflect.Value) {
-	length := input.Len()
-	for i := 0; i < length; i++ {
-		current := input.Index(i)
-		unslice(current, func(newValue interface{}) {
-			current.Set(reflect.ValueOf(newValue))
-		})
-	}
-}
-
-func unsliceMap(input map[string]interface{}) {
-	for key, v := range input {
-		unslice(v, func(newValue interface{}) {
-			input[key] = newValue
-		})
-	}
-}
-
 // validateAllFieldsKnown verifies that all fields in the VC are specified by the JSON-LD context.
 func (d defaultCredentialValidator) validateAllFieldsKnown(input vc.VerifiableCredential) error {
 	// First expand, then compact and marshal to JSON, then compare
 	inputAsJSON, _ := input.MarshalJSON()
 	inputAsMap := make(map[string]interface{})
 	_ = json.Unmarshal(inputAsJSON, &inputAsMap)
-
-	unsliceMap(inputAsMap)
-	delete(inputAsMap, "proof")
+	normalizeJSONLDVC(inputAsMap)
+	expectedAsJSON, _ := json.Marshal(inputAsMap)
 
 	processor := ld.NewJsonLdProcessor()
 	options := ld.NewJsonLdOptions("")
 	options.DocumentLoader = d.documentLoader
 	compactedAsMap, err := processor.Compact(inputAsMap, inputAsMap, options)
 	if err != nil {
-		return fmt.Errorf("unable to compact JSON-LD VC: %w", err)
+		return failure("unable to compact JSON-LD VC: %s", err)
 	}
-	delete(compactedAsMap, "proof")
-	unsliceMap(compactedAsMap)
-	expectedAsJSON, _ := json.Marshal(inputAsMap)
-
-	// Now marshal compacted document to JSON and compare
+	normalizeJSONLDVC(compactedAsMap)
 	compactedAsJSON, _ := json.Marshal(compactedAsMap)
+
 	if string(expectedAsJSON) != string(compactedAsJSON) {
-		log.Logger().Debug("VC validation failed, not all fields are defined by JSON-LD context")
-		log.Logger().Debugf("Given VC:                                    %s", string(expectedAsJSON))
-		log.Logger().Debugf("Compacted VC (all undefined fields removed): %s", string(compactedAsJSON))
+		log.Logger().Debugf("VC validation failed, not all fields are defined by JSON-LD context\n"+
+			"  Given VC:      %s\n"+
+			"  Cleaned up VC: %s", string(expectedAsJSON), string(compactedAsJSON))
 		return failure("not all fields are defined by JSON-LD context")
 	}
 	return nil
@@ -312,4 +267,63 @@ func validateNutsCredentialID(credential vc.VerifiableCredential) error {
 		return failure("credential ID must start with issuer")
 	}
 	return nil
+}
+
+// normalizeJSONLDVC takes a JSON-LD Verifiable Credential unmarshaled into a map and normalizes it, to structure it the same JSON-LD compaction would do.
+// This is used for validating whether JSON-LD stays the same after compaction (for checking whether all fields are defined in the context).
+// The following changes are made by normalizing:
+// - Slices with 1 entry are "unsliced", so it becomes a scalar value
+// - Empty map entries are removed
+func normalizeJSONLDVC(input map[string]interface{}) {
+	delete(input, "proof")
+	normalizeJSONMap(input)
+}
+
+// normalizeJSONMap see normalizeJSONLDVC
+func normalizeJSONMap(input map[string]interface{}) {
+	for key, v := range input {
+		if v == nil {
+			// Remove empty properties
+			delete(input, key)
+			continue
+		}
+		normalizeJSONProperty(v, func(newValue interface{}) {
+			input[key] = newValue
+		})
+	}
+}
+
+// normalizeJSONProperty see normalizeJSONLDVC
+func normalizeJSONProperty(input interface{}, setter func(newValue interface{})) {
+	value := reflect.ValueOf(input)
+	// If it's a slice with a single value, unslice it
+	if value.Kind() == reflect.Slice {
+		switch value.Len() {
+		case 0:
+			// Empty slice, do nothing
+		case 1:
+			// Slice with 1 entry, unslice it
+			input = value.Index(0)
+			setter(input)
+		default:
+			// Slice with zero or more entries, iterate
+			normalizeJSONSlice(value)
+		}
+	}
+
+	asMap, isMap := input.(map[string]interface{})
+	if isMap {
+		normalizeJSONMap(asMap)
+	}
+}
+
+// normalizeJSONSlice see normalizeJSONLDVC
+func normalizeJSONSlice(input reflect.Value) {
+	length := input.Len()
+	for i := 0; i < length; i++ {
+		current := input.Index(i)
+		normalizeJSONProperty(current, func(newValue interface{}) {
+			current.Set(reflect.ValueOf(newValue))
+		})
+	}
 }

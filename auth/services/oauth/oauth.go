@@ -378,7 +378,7 @@ func (s *service) validateAuthorizationCredentials(context *validationContext) e
 			return fmt.Errorf(errInvalidVCClaim, err)
 		}
 
-		//The credential issuer equals the sub field of the JWT.
+		// The credential issuer equals the sub field of the JWT.
 		if authCred.Issuer.String() != sub {
 			return fmt.Errorf("issuer %s of authorization credential with ID: %s does not match jwt.sub: %s", authCred.Issuer.String(), authCred.ID.String(), sub)
 		}

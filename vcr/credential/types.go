@@ -63,13 +63,13 @@ type NutsAuthorizationCredentialSubject struct {
 	// ID contains the DID of the subject
 	ID string `json:"id"`
 	// LegalBase contains information about the type of consent that is the basis for the authorization.
-	LegalBase *LegalBase `json:"legalBase,omitempty"`
+	LegalBase *LegalBase `json:"legalBase"`
 	// PurposeOfUse refers to the Bolt access policy
 	PurposeOfUse string `json:"purposeOfUse"`
 	// Resources contains additional individual resources that can be accessed.
 	Resources []Resource `json:"resources"`
 	// Subject contains a URN referring to the subject of care (not the credential subject)
-	Subject *string `json:"subject,omitempty"`
+	Subject *string `json:"subject"`
 }
 
 // LegalBase is part of the NutsAuthorizationCredential credentialSubject
@@ -77,7 +77,7 @@ type LegalBase struct {
 	// ConsentType defines the type of consent that has been given (implied or explicit)
 	ConsentType string `json:"consentType"`
 	// Evidence contains a link to a resource when ConsentType == 'explicit'
-	Evidence *Evidence `json:"evidence,omitempty"`
+	Evidence *Evidence `json:"evidence"`
 }
 
 // Evidence is part of the NutsAuthorizationCredential credentialSubject.legalBase

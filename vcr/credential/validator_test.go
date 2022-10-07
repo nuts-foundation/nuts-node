@@ -206,13 +206,15 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 }
 
 func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
+	// Input/expected VC fields are logged on debug
+	logrus.SetLevel(logrus.DebugLevel)
+
 	jsonldInstance := jsonld.NewJSONLDInstance()
 	_ = jsonldInstance.(core.Configurable).Configure(core.ServerConfig{})
 	validator := nutsAuthorizationCredentialValidator{jsonldInstance.DocumentLoader()}
 
 	t.Run("v1", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
-			logrus.SetLevel(logrus.DebugLevel)
 			v := validV1NutsAuthorizationCredential()
 
 			err := validator.Validate(*v)
@@ -231,6 +233,69 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 
 		t.Run("ok - explicit", func(t *testing.T) {
 			v := ValidV2ExplicitNutsAuthorizationCredential()
+
+			err := validator.Validate(*v)
+
+			assert.NoError(t, err)
+		})
+
+		t.Run("ok - multiple resources", func(t *testing.T) {
+			v := ValidV2ExplicitNutsAuthorizationCredential()
+			subject := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
+			subject.Resources = []Resource{
+				{
+					Path:        "/Task/1",
+					UserContext: false,
+					Operations:  []string{"read"},
+				},
+				{
+					Path:        "/Task/2",
+					UserContext: true,
+					Operations:  []string{"read"},
+				},
+				{
+					Path:       "/Task/3",
+					Operations: []string{"read", "update"},
+				},
+			}
+			v.CredentialSubject[0] = subject
+
+			err := validator.Validate(*v)
+
+			assert.NoError(t, err)
+		})
+
+		t.Run("ok - multiple resources", func(t *testing.T) {
+			v := ValidV2ExplicitNutsAuthorizationCredential()
+			subject := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
+			subject.Resources = []Resource{
+				{
+					Path:        "/Task/1",
+					UserContext: false,
+					Operations:  []string{"read"},
+				},
+				{
+					Path:        "/Task/2",
+					UserContext: true,
+					Operations:  []string{"read"},
+				},
+				{
+					Path:       "/Task/3",
+					Operations: []string{"read", "update"},
+				},
+			}
+			v.CredentialSubject[0] = subject
+
+			err := validator.Validate(*v)
+
+			assert.NoError(t, err)
+		})
+
+		t.Run("ok - empty resources array", func(t *testing.T) {
+			v := ValidV2ExplicitNutsAuthorizationCredential()
+			subject := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
+			subject.Resources = []Resource{}
+			v.CredentialSubject[0] = subject
 
 			err := validator.Validate(*v)
 
@@ -260,9 +325,19 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 			assert.EqualError(t, err, "validation failed: 'credentialSubject.LegalBase.ConsentType' must be 'implied' or 'explicit'")
 		})
 
-		t.Run("failed - missing VC type", func(t *testing.T) {
+		t.Run("failed - missing Nuts VC type", func(t *testing.T) {
 			v := validV2ImpliedNutsAuthorizationCredential()
-			v.Type = []ssi.URI{}
+			v.Type = []ssi.URI{vc.VerifiableCredentialTypeV1URI()}
+
+			err := validator.Validate(*v)
+
+			assert.Error(t, err)
+			assert.EqualError(t, err, "validation failed: type 'NutsAuthorizationCredential' is required")
+		})
+
+		t.Run("failed - missing Nuts VC type", func(t *testing.T) {
+			v := validV2ImpliedNutsAuthorizationCredential()
+			v.Type = []ssi.URI{*NutsAuthorizationCredentialTypeURI}
 
 			err := validator.Validate(*v)
 

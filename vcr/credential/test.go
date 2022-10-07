@@ -96,6 +96,13 @@ func ValidV2ExplicitNutsAuthorizationCredential() *vc.VerifiableCredential {
 		},
 		PurposeOfUse: "careViewer",
 		Subject:      &patient,
+		Resources: []Resource{
+			{
+				Path:        "/Task/1",
+				Operations:  []string{"read", "update"},
+				UserContext: false,
+			},
+		},
 	}
 	return validV2NutsAuthorizationCredential(credentialSubject)
 }
