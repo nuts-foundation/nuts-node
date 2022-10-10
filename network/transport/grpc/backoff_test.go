@@ -30,7 +30,7 @@ import (
 )
 
 func TestBoundedRandomBackoff_Backoff(t *testing.T) {
-	b := defaultBackoff().(*boundedRandomBackoff)
+	b := newTestBackoff().(*boundedRandomBackoff)
 	// Initially the backoff should be min-backoff
 	assert.Equal(t, b.min, b.Backoff())
 
@@ -41,7 +41,7 @@ func TestBoundedRandomBackoff_Backoff(t *testing.T) {
 }
 
 func TestBoundedRandomBackoff_Reset(t *testing.T) {
-	b := defaultBackoff().(*boundedRandomBackoff)
+	b := newTestBackoff().(*boundedRandomBackoff)
 	b.Backoff()
 	assert.True(t, b.Backoff() > b.min)
 	b.Reset(0)
@@ -49,7 +49,7 @@ func TestBoundedRandomBackoff_Reset(t *testing.T) {
 }
 
 func TestBoundedRandomBackoff_DefaultValues(t *testing.T) {
-	b := defaultBackoff().(*boundedRandomBackoff)
+	b := newTestBackoff().(*boundedRandomBackoff)
 	assert.Equal(t, time.Second, b.min)
 	assert.Equal(t, time.Hour, b.max)
 }
@@ -64,7 +64,7 @@ func TestPersistedBackoff_Backoff(t *testing.T) {
 		// Create back-off
 		db, _ := bbolt.CreateBBoltStore(path.Join(testDirectory, "backoff.db"))
 		defer db.Close(context.Background())
-		b := NewPersistedBackoff(db, "test", defaultBackoff())
+		b := NewPersistedBackoff(db, "test", newTestBackoff())
 
 		// Do some back-off
 		var prev time.Duration
@@ -78,7 +78,7 @@ func TestPersistedBackoff_Backoff(t *testing.T) {
 		_ = db.Close(context.Background())
 		db, _ = bbolt.CreateBBoltStore(path.Join(testDirectory, "backoff.db"))
 		defer db.Close(context.Background())
-		b = NewPersistedBackoff(db, "test", defaultBackoff())
+		b = NewPersistedBackoff(db, "test", newTestBackoff())
 		assert.Equal(t, int(prev.Seconds()), int(b.Value().Seconds()))
 		backoffAfterPersist := b.Backoff()
 		assert.Truef(t, backoffAfterPersist > prev, "%s should be greater than %s", backoffAfterPersist, prev)
@@ -86,7 +86,7 @@ func TestPersistedBackoff_Backoff(t *testing.T) {
 	t.Run("persisted max backoff", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		initialDate := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-		maxBackoff := defaultBackoff().(*boundedRandomBackoff).max
+		maxBackoff := newTestBackoff().(*boundedRandomBackoff).max
 		nowFunc = func() time.Time {
 			return initialDate
 		}
@@ -94,7 +94,7 @@ func TestPersistedBackoff_Backoff(t *testing.T) {
 		// Create back-off
 		db, _ := bbolt.CreateBBoltStore(path.Join(testDirectory, "backoff.db"))
 		defer db.Close(context.Background())
-		b := NewPersistedBackoff(db, "test", defaultBackoff())
+		b := NewPersistedBackoff(db, "test", newTestBackoff())
 
 		// Set backoff to
 		b.Reset(maxBackoff)
@@ -107,7 +107,7 @@ func TestPersistedBackoff_Backoff(t *testing.T) {
 		_ = db.Close(context.Background())
 		db, _ = bbolt.CreateBBoltStore(path.Join(testDirectory, "backoff.db"))
 		defer db.Close(context.Background())
-		b = NewPersistedBackoff(db, "test", defaultBackoff())
+		b = NewPersistedBackoff(db, "test", newTestBackoff())
 		assert.Equal(t, maxBackoff/2, b.Value())
 		assert.Equal(t, maxBackoff, b.Backoff())
 	})
@@ -119,7 +119,7 @@ func TestPersistedBackoff_Reset(t *testing.T) {
 	// Create back-off
 	db, _ := bbolt.CreateBBoltStore(path.Join(testDirectory, "backoff.db"))
 	defer db.Close(context.Background())
-	b := NewPersistedBackoff(db, "test", defaultBackoff())
+	b := NewPersistedBackoff(db, "test", newTestBackoff())
 
 	// Do some back-off
 	for i := 0; i < 5; i++ {
@@ -132,7 +132,7 @@ func TestPersistedBackoff_Reset(t *testing.T) {
 	_ = db.Close(context.Background())
 	db, _ = bbolt.CreateBBoltStore(path.Join(testDirectory, "backoff.db"))
 	defer db.Close(context.Background())
-	b = NewPersistedBackoff(db, "test", defaultBackoff())
+	b = NewPersistedBackoff(db, "test", newTestBackoff())
 	backoffAfterPersist := b.Value()
 	assert.Equal(t, time.Duration(0), backoffAfterPersist)
 }
@@ -145,3 +145,5 @@ func TestRandomBackoff(t *testing.T) {
 		assert.True(t, val >= min && val <= max)
 	}
 }
+
+func newTestBackoff() Backoff { return BoundedBackoff(time.Second, time.Hour) }

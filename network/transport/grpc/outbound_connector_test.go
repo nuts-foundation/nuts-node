@@ -63,7 +63,7 @@ func Test_connector_stats(t *testing.T) {
 			return true
 		}, func(_ *grpc.ClientConn) bool {
 			return true
-		}, defaultBackoff())
+		}, newTestBackoff())
 
 		stats := connector.stats()
 
@@ -78,7 +78,7 @@ func Test_connector_stats(t *testing.T) {
 			return true
 		}, func(_ *grpc.ClientConn) bool {
 			return true
-		}, defaultBackoff())
+		}, newTestBackoff())
 
 		connector.tryConnect()
 		stats := connector.stats()

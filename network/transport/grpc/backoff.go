@@ -78,10 +78,6 @@ func (b *boundedRandomBackoff) Backoff() time.Duration {
 	return b.value
 }
 
-func defaultBackoff() Backoff {
-	return BoundedBackoff(time.Second, time.Hour)
-}
-
 func BoundedBackoff(min time.Duration, max time.Duration) Backoff {
 	return &boundedRandomBackoff{
 		multiplier: 1.5,
