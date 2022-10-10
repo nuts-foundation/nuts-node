@@ -111,34 +111,3 @@ func CreateNewVerificationMethodForDID(id did.DID, keyCreator nutsCrypto.KeyCrea
 	}
 	return method, nil
 }
-
-// getVerificationMethodDiff is a helper function that makes a diff of verificationMethods between
-// a provided current and a proposedDocument. It returns a list with new and removed verificationMethods
-func getVerificationMethodDiff(currentDocument, proposedDocument did.Document) (new, removed []*did.VerificationMethod) {
-	for _, vmp := range proposedDocument.VerificationMethod {
-		found := false
-		for _, mpc := range currentDocument.VerificationMethod {
-			if vmp.ID.Equals(mpc.ID) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			new = append(new, vmp)
-		}
-	}
-	// check which are not present in the proposed document
-	for _, vmc := range currentDocument.VerificationMethod {
-		found := false
-		for _, vmp := range proposedDocument.VerificationMethod {
-			if vmp.ID.Equals(vmc.ID) {
-				found = true
-				break
-			}
-		}
-		if !found {
-			removed = append(removed, vmc)
-		}
-	}
-	return
-}
