@@ -20,9 +20,8 @@ package tree
 
 import (
 	"encoding"
-	"math"
-
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"math"
 )
 
 // Data is the interface for data held in each node of the Tree
@@ -73,11 +72,11 @@ type Tree interface {
 
 /*
 tree creates a binary tree, where the leaves contain Data over a fixed range (one page) of Lamport Clock values.
-	- The Data of the parent node is the sum of that of its children. Thus root contains the sum of all Data in the tree.
-	- The value that splits a node into its children is used as a nodeID since it is unique, even after tree resizing.
-	- Since the leaves are of fixed size, a new root is created when added something to a clock outside the current root range.
-	- Whenever a new branch is created, a string of left Nodes is created all the way down to the leaf.
-	- Since the tree is agnostic to its content, great care must be taken to prevent adding the same data more than once.
+  - The Data of the parent node is the sum of that of its children. Thus root contains the sum of all Data in the tree.
+  - The value that splits a node into its children is used as a nodeID since it is unique, even after tree resizing.
+  - Since the leaves are of fixed size, a new root is created when added something to a clock outside the current root range.
+  - Whenever a new branch is created, a string of left Nodes is created all the way down to the leaf.
+  - Since the tree is agnostic to its content, great care must be taken to prevent adding the same data more than once.
 */
 type tree struct {
 	treeSize uint32

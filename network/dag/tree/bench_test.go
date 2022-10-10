@@ -24,11 +24,15 @@ func BenchAll(b *testing.B, proto Data) {
 
 func BenchTree_Load(b *testing.B, proto Data) {
 	leafSize := uint32(512)
+	maxDepth := 16
 	tree := New(proto, leafSize)
-	benchTree := New(proto, leafSize)
+	//benchTree := New(proto, leafSize)
 	nextLeaf := uint32(0)
+	type newTreeFn func(Data, uint32) Tree
+	treeFns := []newTreeFn{New, NewBottomUp, NewBottomUpUnmarshal, NewBottomUpSort}
+	treeFnNames := []string{"Build Tree Top Down", "Build Tree Bottom Up", "Unmarshal & Sort Leaves", "Sort Leaves"}
 
-	for d := 0; d < 16; d++ {
+	for d := 0; d < maxDepth; d++ {
 		numLeaves := uint32(math.Pow(2, float64(d)))
 		dirties := map[uint32][]byte{}
 		for i := nextLeaf; i < numLeaves; i++ {
@@ -37,12 +41,17 @@ func BenchTree_Load(b *testing.B, proto Data) {
 		}
 		dirties, _ = tree.GetUpdates()
 
-		b.Run(fmt.Sprintf("Depth=%d Transactions=%d", d, numLeaves*leafSize), func(b *testing.B) {
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				_ = benchTree.Load(dirties)
-			}
-		})
+		for n, newTree := range treeFns {
+			b.Run(fmt.Sprintf(treeFnNames[n]), func(b *testing.B) {
+				benchTree := newTree(proto, leafSize)
+				b.Run(fmt.Sprintf("Depth=%d Transactions=%d", d, numLeaves*leafSize), func(b *testing.B) {
+					b.ResetTimer()
+					for i := 0; i < b.N; i++ {
+						_ = benchTree.Load(dirties)
+					}
+				})
+			})
+		}
 	}
 }
 
