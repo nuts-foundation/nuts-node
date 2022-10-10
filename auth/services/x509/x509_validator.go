@@ -166,9 +166,6 @@ func (validator JwtX509Validator) parseBase64EncodedCertList(certsFromHeader []s
 	return chain, nil
 }
 
-// nowFunc can be overwritten during tests to return a different time
-var nowFunc = time.Now
-
 // Verify verifies a JwtX509Token.
 // It checks the signature algorithm
 // It verifies if the certificate used to sign the token has a valid chain
