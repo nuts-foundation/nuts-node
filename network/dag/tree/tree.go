@@ -68,6 +68,7 @@ type Tree interface {
 	// ResetUpdate forgets all currently tracked changes.
 	ResetUpdate()
 	// Load builds a tree from binary leaf data. The keys in leaves correspond to a node's split value.
+	// All consecutive leaves must be present. Gaps must be filled with zero value of the corresponding Data implementation.
 	Load(leaves map[uint32][]byte) error
 }
 
