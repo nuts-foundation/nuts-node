@@ -22,7 +22,6 @@ metadata:
   annotations:
     "helm.sh/resource-policy": keep
 spec:
-  storageClassName: "" # Empty string must be explicitly set otherwise default StorageClass will be set
   accessModes: {{ required "Please define `nuts.data.persistedVolume.accessModes` in `values.yaml`" .Values.nuts.data.persistedVolume.accessModes }}
   resources:
     requests:
