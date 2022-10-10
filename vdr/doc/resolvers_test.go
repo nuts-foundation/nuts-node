@@ -45,7 +45,7 @@ func TestResolveSigningKey(t *testing.T) {
 	didStore.Write(*doc, types.DocumentMetadata{})
 
 	t.Run("ok", func(t *testing.T) {
-		key, err := keyResolver.ResolveSigningKey(kid, nil)
+		key, err := keyResolver.ResolveSigningKey(mockKID, nil)
 
 		if !assert.NoError(t, err) {
 			return
@@ -63,7 +63,7 @@ func TestResolveSigningKey(t *testing.T) {
 	})
 
 	t.Run("signing key not found in document", func(t *testing.T) {
-		_, err := keyResolver.ResolveSigningKey(kid[:len(kid)-2], nil)
+		_, err := keyResolver.ResolveSigningKey(mockKID[:len(mockKID)-2], nil)
 
 		assert.Error(t, err)
 		assert.Equal(t, types.ErrKeyNotFound, err)
@@ -92,7 +92,7 @@ func TestResolveSigningKeyID(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Equal(t, kid, actual)
+		assert.Equal(t, mockKID, actual)
 	})
 
 	t.Run("unable to resolve", func(t *testing.T) {
@@ -135,7 +135,7 @@ func TestKeyResolver_ResolveAssertionKeyID(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Equal(t, kid, actual.String())
+		assert.Equal(t, mockKID, actual.String())
 	})
 
 	t.Run("unable to resolve", func(t *testing.T) {
@@ -443,7 +443,7 @@ func TestKeyResolver_ResolvePublicKey(t *testing.T) {
 	didStore.Write(*doc, types.DocumentMetadata{SourceTransactions: []hash.SHA256Hash{txHash}})
 
 	t.Run("ok by hash", func(t *testing.T) {
-		key, err := keyResolver.ResolvePublicKey(kid, []hash.SHA256Hash{txHash})
+		key, err := keyResolver.ResolvePublicKey(mockKID, []hash.SHA256Hash{txHash})
 		if !assert.NoError(t, err) {
 			return
 		}
