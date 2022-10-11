@@ -682,7 +682,8 @@ func TestProtocol_handleTransactionSet(t *testing.T) {
 	t.Run("error - iblt subtract fails", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request, peerID)
-		mocks.State.EXPECT().IBLT(context.Background(), requestLC).Return(*tree.NewIblt(), dag.PageSize-1)
+		invalidIblt := tree.Iblt{}
+		mocks.State.EXPECT().IBLT(context.Background(), requestLC).Return(invalidIblt, dag.PageSize-1)
 
 		emptyIbltBytes, _ := emptyIblt.MarshalBinary()
 
@@ -692,7 +693,7 @@ func TestProtocol_handleTransactionSet(t *testing.T) {
 
 		err := p.handleTransactionSet(peer, response)
 
-		assert.EqualError(t, err, "number of buckets do not match, expected (20) got (10)")
+		assert.EqualError(t, err, "hk do not match, expected (0) got (1)")
 	})
 }
 
