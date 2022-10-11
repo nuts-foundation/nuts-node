@@ -425,7 +425,7 @@ func TestState_InitialTransactionCountMetric(t *testing.T) {
 	})
 }
 
-func TestState_updateTrees(t *testing.T) {
+func TestState_updateState(t *testing.T) {
 	setup := func(t *testing.T) State {
 		txState := createState(t)
 		err := txState.Start()
@@ -453,6 +453,27 @@ func TestState_updateTrees(t *testing.T) {
 
 func Test_createStore(t *testing.T) {
 	assert.NotNil(t, createState(t))
+}
+
+func Test_highestLC(t *testing.T) {
+	t.Run("get()", func(t *testing.T) {
+		assert.Equal(t, uint32(0), (&highestLC{}).get())
+		assert.Equal(t, uint32(5), (&highestLC{value: 5}).get())
+	})
+	t.Run("set()", func(t *testing.T) {
+		lc := highestLC{value: 5}
+		lc.set(6)
+		assert.Equal(t, uint32(6), lc.value)
+		lc.set(4)
+		assert.Equal(t, uint32(4), lc.value)
+	})
+	t.Run("setIfBigger()", func(t *testing.T) {
+		lc := highestLC{value: 5}
+		lc.setIfBigger(6)
+		assert.Equal(t, uint32(6), lc.value)
+		lc.setIfBigger(4)
+		assert.Equal(t, uint32(6), lc.value)
+	})
 }
 
 func createState(t *testing.T, verifier ...Verifier) State {

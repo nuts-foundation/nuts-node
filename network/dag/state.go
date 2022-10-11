@@ -23,14 +23,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus"
-	"sync"
-
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 	"github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/prometheus/client_golang/prometheus"
+	"sync"
 )
 
 const (
@@ -223,9 +222,7 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 }
 
 func (s *state) updateState(tx stoabs.WriteTx, transaction Transaction) error {
-	if s.highestLC.get() < transaction.Clock() {
-		s.highestLC.set(transaction.Clock())
-	}
+	s.highestLC.setIfBigger(transaction.Clock())
 	if err := s.ibltTree.write(tx, transaction); err != nil {
 		return err
 	}
@@ -483,8 +480,8 @@ func (s *state) Diagnostics() []core.DiagnosticResult {
 }
 
 type highestLC struct {
-	mux   sync.RWMutex
 	value uint32
+	mux   sync.RWMutex
 }
 
 func (h *highestLC) get() uint32 {
@@ -498,4 +495,12 @@ func (h *highestLC) set(lc uint32) {
 	h.mux.Lock()
 	defer h.mux.Unlock()
 	h.value = lc
+}
+
+func (h *highestLC) setIfBigger(lc uint32) {
+	h.mux.Lock()
+	defer h.mux.Unlock()
+	if h.value < lc {
+		h.value = lc
+	}
 }
