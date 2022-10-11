@@ -27,7 +27,8 @@ Breaking changes
 While Nuts RFC014 (Authorization Credential) required ``legalBase`` to be present in all ``NutsAuthorizationCredential``s,
 this property was missing in the Nuts v1 JSON-LD context. When issuing Verifiable Credentials, now all fields must be defined in its context(s).
 This means, starting this version, the ``legalBase`` property can't used in new v1 ``NutsAuthorizationCredential``s.
-It has been added to the future v2 version of the credential, in which it can be used again.
+Until the next major version (v6.0.0) it should be removed.
+Then when v6.0.0 is released, upgrade to the v2 JSON-LD context version and re-add the ``legalBase``.
 
 *****************
 Chestnut update (v4.2.4)
