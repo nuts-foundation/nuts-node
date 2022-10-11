@@ -31,6 +31,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/mock"
+	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -468,7 +469,7 @@ func TestWrapper_GetCompoundServiceEndpoint(t *testing.T) {
 	t.Run("error mapping", func(t *testing.T) {
 		ctx := newMockContext(t)
 		assert.Equal(t, http.StatusNotFound, ctx.wrapper.ResolveStatusCode(types.ErrServiceNotFound))
-		assert.Equal(t, http.StatusBadRequest, ctx.wrapper.ResolveStatusCode(types.ErrInvalidServiceQuery{}))
+		assert.Equal(t, http.StatusBadRequest, ctx.wrapper.ResolveStatusCode(doc.DIDServiceQueryError{errors.New("arbitrary")}))
 		assert.Equal(t, http.StatusNotAcceptable, ctx.wrapper.ResolveStatusCode(types.ErrServiceReferenceToDeep))
 		assert.Equal(t, http.StatusNotAcceptable, ctx.wrapper.ResolveStatusCode(didman.ErrReferencedServiceNotAnEndpoint{}))
 		assert.Equal(t, http.StatusNotFound, ctx.wrapper.ResolveStatusCode(types.ErrNotFound))

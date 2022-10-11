@@ -534,7 +534,7 @@ func TestServiceResolver_Resolve(t *testing.T) {
 
 		actual, err := NewServiceResolver(docResolver).Resolve(MakeServiceReference(*didB, "invalid-ref"), DefaultMaxServiceReferenceDepth)
 
-		assert.EqualError(t, err, "service query is invalid: URL path must be '/serviceEndpoint'")
+		assert.EqualError(t, err, "DID service query invalid: endpoint URI path must be /serviceEndpoint")
 		assert.Empty(t, actual)
 	})
 	t.Run("error - service not found", func(t *testing.T) {

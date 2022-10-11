@@ -26,7 +26,7 @@ import (
 	"net/url"
 	"strings"
 
-	vdrDoc "github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/labstack/echo/v4"
@@ -46,19 +46,32 @@ type Wrapper struct {
 
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
 func (w *Wrapper) ResolveStatusCode(err error) int {
-	return core.ResolveStatusCode(err, map[error]int{
-		did.ErrInvalidDID:                          http.StatusBadRequest,
-		types.ErrNotFound:                          http.StatusNotFound,
-		types.ErrDIDNotManagedByThisNode:           http.StatusBadRequest,
-		types.ErrDeactivated:                       http.StatusConflict,
-		types.ErrDuplicateService:                  http.StatusConflict,
-		didman.ErrServiceInUse:                     http.StatusConflict,
-		vdrDoc.ErrInvalidOptions:                   http.StatusBadRequest,
-		types.ErrServiceNotFound:                   http.StatusNotFound,
-		types.ErrInvalidServiceQuery{}:             http.StatusBadRequest,
-		types.ErrServiceReferenceToDeep:            http.StatusNotAcceptable,
-		didman.ErrReferencedServiceNotAnEndpoint{}: http.StatusNotAcceptable,
-	})
+	switch {
+	case errors.Is(err, did.ErrInvalidDID):
+		return http.StatusBadRequest
+	case errors.Is(err, types.ErrNotFound):
+		return http.StatusNotFound
+	case errors.Is(err, types.ErrDIDNotManagedByThisNode):
+		return http.StatusBadRequest
+	case errors.Is(err, types.ErrDeactivated):
+		return http.StatusConflict
+	case errors.Is(err, types.ErrDuplicateService):
+		return http.StatusConflict
+	case errors.Is(err, didman.ErrServiceInUse):
+		return http.StatusConflict
+	case errors.Is(err, doc.ErrInvalidOptions):
+		return http.StatusBadRequest
+	case errors.Is(err, types.ErrServiceNotFound):
+		return http.StatusNotFound
+	case errors.As(err, new(doc.DIDServiceQueryError)):
+		return http.StatusBadRequest
+	case errors.Is(err, types.ErrServiceReferenceToDeep):
+		return http.StatusNotAcceptable
+	case errors.As(err, new(didman.ErrReferencedServiceNotAnEndpoint)):
+		return http.StatusNotAcceptable
+	default:
+		return http.StatusInternalServerError
+	}
 }
 
 // Preprocess is called just before the API operation itself is invoked.
