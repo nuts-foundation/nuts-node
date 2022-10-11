@@ -360,12 +360,13 @@ func filledTestTree(data Data, leafSize uint32) (*tree, treeData) {
 	return tr, td
 }
 
-/* treeData for the following structure
-       r
-	   / \
-    p0   p1
-   / \   / \
-  c0 c1 c2 c3
+/*
+	 treeData for the following structure
+	       r
+		  / \
+	    p0   p1
+	   / \   / \
+	  c0 c1 c2 c3
 */
 type treeData struct {
 	r, p0, p1, c0, c1, c2, c3 Data

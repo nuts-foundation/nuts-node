@@ -106,19 +106,19 @@ func (t *tree) resetDefaults(leafSize uint32) {
 	t.orphanedLeaves = nil
 }
 
+/*
+Load builds the tree from the bottom-up.
+
+Trees are build by:
+  - Clone-ing Data from the even numbered children (or leaves) to generate the parent nodes,
+	and setting the cloned node as its left child.
+  - Add-ing the Data from the odd numbered children (if it exists) to the corresponding parent,
+	and setting the odd node as its right child.
+  - Parents then become the children and the process repeats until a single root node remains.
+
+It is assumed that all leaves are present. The tree will be corrupt when this is not the case.
+*/
 func (t *tree) Load(leaves map[uint32][]byte) error {
-	/*
-		Load builds the tree from the bottom-up.
-
-		Trees are build by:
-		- Clone-ing Data from the even numbered children (or leaves) to generate the parent nodes,
-		and setting the cloned node as its left child.
-		- Add-ing the Data from the odd numbered nodes (if it exists) to the corresponding parent,
-		and setting the odd node as its right child.
-		- Parents then become the children and the process repeats until a single root node remains.
-
-		It is assumed that all leaves are present. The tree will be corrupt when this is not the case.
-	*/
 
 	// nothing to load
 	if len(leaves) == 0 {
