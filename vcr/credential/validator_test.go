@@ -21,18 +21,20 @@ package credential
 
 import (
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/sirupsen/logrus"
-	"os"
-	"testing"
-	"time"
-
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
+
+func init() {
+	// Input/expected VC fields are logged on debug
+	logrus.SetLevel(logrus.DebugLevel)
+}
 
 func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 	jsonldInstance := jsonld.NewJSONLDInstance()
@@ -54,15 +56,6 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 		err := validator.Validate(*v)
 
 		assert.EqualError(t, err, "validation failed: type 'NutsOrganizationCredential' is required")
-	})
-
-	t.Run("failed - missing default type", func(t *testing.T) {
-		v := validNutsOrganizationCredential()
-		v.Type = []ssi.URI{stringToURI(NutsOrganizationCredentialType)}
-
-		err := validator.Validate(*v)
-
-		assert.EqualError(t, err, "validation failed: type 'VerifiableCredential' is required")
 	})
 
 	t.Run("failed - missing credential subject", func(t *testing.T) {
@@ -168,15 +161,6 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 		assert.EqualError(t, err, "validation failed: credential ID must start with issuer")
 	})
 
-	t.Run("failed - missing default context", func(t *testing.T) {
-		v := validNutsOrganizationCredential()
-		v.Context = []ssi.URI{stringToURI(NutsV1Context)}
-
-		err := validator.Validate(*v)
-
-		assert.EqualError(t, err, "validation failed: default context is required")
-	})
-
 	t.Run("failed - missing nuts context", func(t *testing.T) {
 		v := validNutsOrganizationCredential()
 		v.Context = []ssi.URI{stringToURI("https://www.w3.org/2018/credentials/v1")}
@@ -185,30 +169,9 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 
 		assert.EqualError(t, err, "validation failed: context 'https://nuts.nl/credentials/v1' or 'https://nuts.nl/credentials/v2' is required")
 	})
-
-	t.Run("failed - missing issuanceDate", func(t *testing.T) {
-		v := validNutsOrganizationCredential()
-		v.IssuanceDate = time.Time{}
-
-		err := validator.Validate(*v)
-
-		assert.EqualError(t, err, "validation failed: 'issuanceDate' is required")
-	})
-
-	t.Run("failed - missing proof", func(t *testing.T) {
-		v := validNutsOrganizationCredential()
-		v.Proof = nil
-
-		err := validator.Validate(*v)
-
-		assert.EqualError(t, err, "validation failed: 'proof' is required")
-	})
 }
 
 func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
-	// Input/expected VC fields are logged on debug
-	logrus.SetLevel(logrus.DebugLevel)
-
 	jsonldInstance := jsonld.NewJSONLDInstance()
 	_ = jsonldInstance.(core.Configurable).Configure(core.ServerConfig{})
 	validator := nutsAuthorizationCredentialValidator{jsonldInstance.DocumentLoader()}
@@ -325,26 +288,6 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 			assert.EqualError(t, err, "validation failed: 'credentialSubject.LegalBase.ConsentType' must be 'implied' or 'explicit'")
 		})
 
-		t.Run("failed - missing Nuts VC type", func(t *testing.T) {
-			v := validV2ImpliedNutsAuthorizationCredential()
-			v.Type = []ssi.URI{vc.VerifiableCredentialTypeV1URI()}
-
-			err := validator.Validate(*v)
-
-			assert.Error(t, err)
-			assert.EqualError(t, err, "validation failed: type 'NutsAuthorizationCredential' is required")
-		})
-
-		t.Run("failed - missing Nuts VC type", func(t *testing.T) {
-			v := validV2ImpliedNutsAuthorizationCredential()
-			v.Type = []ssi.URI{*NutsAuthorizationCredentialTypeURI}
-
-			err := validator.Validate(*v)
-
-			assert.Error(t, err)
-			assert.EqualError(t, err, "validation failed: type 'VerifiableCredential' is required")
-		})
-
 		t.Run("failed - missing Nuts context", func(t *testing.T) {
 			v := validV2ImpliedNutsAuthorizationCredential()
 			v.Context = []ssi.URI{vc.VCContextV1URI()}
@@ -449,17 +392,30 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 	})
 }
 
-func validNutsOrganizationCredential() *vc.VerifiableCredential {
-	inputVC := vc.VerifiableCredential{}
-	vcJSON, _ := os.ReadFile("../test/vc.json")
-	_ = json.Unmarshal(vcJSON, &inputVC)
-	return &inputVC
-}
-
 func TestDefaultCredentialValidator(t *testing.T) {
 	jsonldInstance := jsonld.NewJSONLDInstance()
 	_ = jsonldInstance.(core.Configurable).Configure(core.ServerConfig{})
 	validator := defaultCredentialValidator{jsonldInstance.DocumentLoader()}
+
+	t.Run("ok - NutsOrganizationCredential", func(t *testing.T) {
+		err := validator.Validate(*validNutsOrganizationCredential())
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("ok - credential with just ID in credentialSubject", func(t *testing.T) {
+		// compaction replaces credentialSubject map with ID, with just the ID as string
+		credential := *validV1NutsAuthorizationCredential()
+		credential.CredentialSubject = []interface{}{
+			map[string]interface{}{
+				"id": "1234",
+			},
+		}
+
+		err := validator.Validate(credential)
+
+		assert.NoError(t, err)
+	})
 
 	t.Run("failed - missing ID", func(t *testing.T) {
 		v := validNutsOrganizationCredential()
@@ -469,13 +425,8 @@ func TestDefaultCredentialValidator(t *testing.T) {
 
 		assert.EqualError(t, err, "validation failed: 'ID' is required")
 	})
-	t.Run("ok", func(t *testing.T) {
-		err := validator.Validate(*validNutsOrganizationCredential())
 
-		assert.NoError(t, err)
-	})
-	t.Run("invalid fields", func(t *testing.T) {
-		logrus.SetLevel(logrus.DebugLevel)
+	t.Run("failed - invalid fields", func(t *testing.T) {
 		var invalidCredentialSubject = make(map[string]interface{})
 		invalidCredentialSubject["id"] = vdr.TestDIDB.String()
 		invalidCredentialSubject["organizationButIncorrectFieldName"] = map[string]interface{}{
@@ -489,6 +440,33 @@ func TestDefaultCredentialValidator(t *testing.T) {
 		err := validator.Validate(inputVC)
 
 		assert.EqualError(t, err, "validation failed: not all fields are defined by JSON-LD context")
+	})
+
+	t.Run("failed - missing proof", func(t *testing.T) {
+		v := validNutsOrganizationCredential()
+		v.Proof = nil
+
+		err := validator.Validate(*v)
+
+		assert.EqualError(t, err, "validation failed: 'proof' is required")
+	})
+
+	t.Run("failed - missing default context", func(t *testing.T) {
+		v := validNutsOrganizationCredential()
+		v.Context = []ssi.URI{stringToURI(NutsV1Context)}
+
+		err := validator.Validate(*v)
+
+		assert.EqualError(t, err, "validation failed: default context is required")
+	})
+
+	t.Run("failed - missing default type", func(t *testing.T) {
+		v := validNutsOrganizationCredential()
+		v.Type = []ssi.URI{stringToURI(NutsOrganizationCredentialType)}
+
+		err := validator.Validate(*v)
+
+		assert.EqualError(t, err, "validation failed: type 'VerifiableCredential' is required")
 	})
 }
 

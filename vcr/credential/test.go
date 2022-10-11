@@ -20,6 +20,8 @@
 package credential
 
 import (
+	"encoding/json"
+	"os"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -89,7 +91,7 @@ func ValidV2ExplicitNutsAuthorizationCredential() *vc.VerifiableCredential {
 		ID: vdr.TestDIDB.String(),
 		LegalBase: &LegalBase{
 			ConsentType: "explicit",
-			Evidence: &Evidence{
+			Evidence: Evidence{
 				Path: "/1.pdf",
 				Type: "application/pdf",
 			},
@@ -105,6 +107,13 @@ func ValidV2ExplicitNutsAuthorizationCredential() *vc.VerifiableCredential {
 		},
 	}
 	return validV2NutsAuthorizationCredential(credentialSubject)
+}
+
+func validNutsOrganizationCredential() *vc.VerifiableCredential {
+	inputVC := vc.VerifiableCredential{}
+	vcJSON, _ := os.ReadFile("../test/vc.json")
+	_ = json.Unmarshal(vcJSON, &inputVC)
+	return &inputVC
 }
 
 func stringToURI(input string) ssi.URI {

@@ -172,7 +172,7 @@ func Test_issuer_buildVC(t *testing.T) {
 }
 
 func Test_issuer_Issue(t *testing.T) {
-	credentialType := ssi.MustParseURI("TestCredential")
+	credentialType := ssi.MustParseURI("HumanCredential")
 	issuerID := ssi.MustParseURI("did:nuts:123")
 	credentialOptions := vc.VerifiableCredential{
 		Context: []ssi.URI{credential.NutsV1ContextURI},
@@ -198,7 +198,9 @@ func Test_issuer_Issue(t *testing.T) {
 		sut := issuer{keyResolver: keyResolverMock, store: mockStore, jsonldManager: jsonldManager, trustConfig: trustConfig}
 
 		result, err := sut.Issue(credentialOptions, false, true)
-		assert.NoError(t, err)
+		if !assert.NoError(t, err) {
+			return
+		}
 		assert.Contains(t, result.Type, credentialType, "expected vc to be of right type")
 		proofs, _ := result.Proofs()
 		assert.Equal(t, kid, proofs[0].VerificationMethod.String(), "expected to be signed with the kid")

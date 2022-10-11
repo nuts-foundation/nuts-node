@@ -303,8 +303,8 @@ func normalizeJSONProperty(input interface{}, setter func(newValue interface{}))
 			// Empty slice, do nothing
 		case 1:
 			// Slice with 1 entry, unslice it
-			newValue := value.Index(0)
-			setter(newValue.Interface())
+			input = value.Index(0).Interface()
+			setter(input)
 		default:
 			// Slice with zero or more entries, iterate
 			normalizeJSONSlice(value)
@@ -313,7 +313,11 @@ func normalizeJSONProperty(input interface{}, setter func(newValue interface{}))
 
 	asMap, isMap := input.(map[string]interface{})
 	if isMap {
-		normalizeJSONMap(asMap)
+		if idValue, hasID := asMap["id"]; hasID && len(asMap) == 1 {
+			setter(idValue)
+		} else {
+			normalizeJSONMap(asMap)
+		}
 	}
 }
 

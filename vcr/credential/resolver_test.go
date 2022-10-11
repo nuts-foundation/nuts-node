@@ -27,7 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFindValidatorAndBuilder(t *testing.T) {
+func TestFindValidator(t *testing.T) {
 	t.Run("an unknown type returns the default validator", func(t *testing.T) {
 		v := FindValidator(vc.VerifiableCredential{}, nil)
 

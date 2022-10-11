@@ -77,7 +77,7 @@ type LegalBase struct {
 	// ConsentType defines the type of consent that has been given (implied or explicit)
 	ConsentType string `json:"consentType"`
 	// Evidence contains a link to a resource when ConsentType == 'explicit'
-	Evidence *Evidence `json:"evidence"`
+	Evidence Evidence `json:"evidence"`
 }
 
 // Evidence is part of the NutsAuthorizationCredential credentialSubject.legalBase
