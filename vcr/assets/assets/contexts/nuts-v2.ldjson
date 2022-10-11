@@ -82,6 +82,7 @@
             "@protected": true,
             "consentType": "nuts:consentType",
             "evidence": {
+              "@id":"nuts:evidence",
               "@context": {
                 "@version": 1.1,
                 "@protected": true,
