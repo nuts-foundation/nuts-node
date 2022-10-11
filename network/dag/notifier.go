@@ -29,6 +29,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
 	"time"
 )
 
@@ -311,11 +312,11 @@ func (p *notifier) Notify(event Event) {
 			p.retry(event)
 			notifyErrMsg = "Notify event rescheduled"
 		}
-		log.Logger().
-			WithError(err).
-			WithField(core.LogFieldTransactionRef, event.Hash.String()).
-			WithField(core.LogFieldEventSubscriber, p.name).
-			Errorf(notifyErrMsg)
+		if errors.Is(err, errEventIncomplete) {
+			p.logNotificationResponse(event, err, logrus.DebugLevel, notifyErrMsg)
+		} else {
+			p.logNotificationResponse(event, err, logrus.ErrorLevel, notifyErrMsg)
+		}
 	}
 }
 
@@ -343,28 +344,26 @@ func (p *notifier) retry(event Event) {
 				// logs after every failed attempt
 				if errors.Is(err, errEventIncomplete) {
 					// debug level if errEventIncomplete
-					log.Logger().
-						WithError(err).
-						WithField(core.LogFieldTransactionRef, event.Hash.String()).
-						Debugf("Retrying event (attempt %d/%d)", n, maxRetries)
+					p.logNotificationResponse(event, err, logrus.DebugLevel, "Retrying event (attempt %d/%d)", n, maxRetries)
 				} else {
 					// error level for all other errors
-					log.Logger().
-						WithError(err).
-						WithField(core.LogFieldTransactionRef, event.Hash.String()).
-						Errorf("Retrying event (attempt %d/%d)", n, maxRetries)
+					p.logNotificationResponse(event, err, logrus.ErrorLevel, "Retrying event (attempt %d/%d)", n, maxRetries)
 				}
 			}),
 		)
 		if err != nil {
 			// logs after maxRetries failed attempts, or receiving a retry.Unrecoverable() error
-			log.Logger().
-				WithError(err).
-				WithField(core.LogFieldTransactionRef, event.Hash.String()).
-				WithField(core.LogFieldEventSubscriber, p.name).
-				Errorf("Retry failed")
+			p.logNotificationResponse(event, err, logrus.ErrorLevel, "Retry failed")
 		}
 	}(p.ctx)
+}
+
+func (p *notifier) logNotificationResponse(event Event, err error, level logrus.Level, msg string, args ...interface{}) {
+	log.Logger().
+		WithError(err).
+		WithField(core.LogFieldTransactionRef, event.Hash.String()).
+		WithField(core.LogFieldEventSubscriber, p.name).
+		Logf(level, msg, args...)
 }
 
 var errEventIncomplete = errors.New("receiver did not finish or fail")
