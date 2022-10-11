@@ -295,7 +295,7 @@ func TestTree_Load(t *testing.T) {
 	t.Run("fail - incorrect data prototype", func(t *testing.T) {
 		tr, _ := filledTestTree(NewXor(), testLeafSize)
 		dirty, _ := tr.GetUpdates()
-		loadedTree := New(NewIblt(1024), 0)
+		loadedTree := New(NewIblt(), 0)
 
 		err := loadedTree.Load(dirty)
 

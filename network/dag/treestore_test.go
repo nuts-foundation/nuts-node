@@ -128,7 +128,7 @@ func TestTree_read(t *testing.T) {
 	})
 
 	t.Run("fail - incorrect prototype", func(t *testing.T) {
-		store := newTreeStore("real bucket", tree.New(tree.NewIblt(0), testLeafSize))
+		store := newTreeStore("real bucket", tree.New(tree.NewIblt(), testLeafSize))
 
 		err := db.Read(ctx, func(tx stoabs.ReadTx) error {
 			return store.read(tx)

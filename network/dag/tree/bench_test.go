@@ -9,7 +9,7 @@ import (
 
 func BenchmarkTree(b *testing.B) {
 	b.Run("IBLT", func(b *testing.B) {
-		BenchAll(b, NewIblt(1024))
+		BenchAll(b, NewIblt())
 	})
 
 	b.Run("Xor", func(b *testing.B) {

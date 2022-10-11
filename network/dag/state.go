@@ -35,11 +35,9 @@ import (
 
 const (
 	// PageSize specifies the Lamport Clock range over which data is summarized and is used in set reconciliation.
-	PageSize = uint32(512)
-	// IbltNumBuckets is the number of buckets in the IBLT used in set reconciliation.
-	IbltNumBuckets = 1024
-	xorShelf       = "xorBucket"
-	ibltShelf      = "ibltBucket"
+	PageSize  = uint32(512)
+	xorShelf  = "xorBucket"
+	ibltShelf = "ibltBucket"
 )
 
 // State has references to the DAG and the payload store.
@@ -73,7 +71,7 @@ func NewState(db stoabs.KVStore, verifiers ...Verifier) (State, error) {
 		txVerifiers:  verifiers,
 		notifiers:    map[string]Notifier{},
 		xorTree:      newTreeStore(xorShelf, tree.New(tree.NewXor(), PageSize)),
-		ibltTree:     newTreeStore(ibltShelf, tree.New(tree.NewIblt(IbltNumBuckets), PageSize)),
+		ibltTree:     newTreeStore(ibltShelf, tree.New(tree.NewIblt(), PageSize)),
 		notifiersMux: &sync.RWMutex{},
 	}
 	err := newState.initPrometheusCounters()

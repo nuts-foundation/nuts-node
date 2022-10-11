@@ -444,7 +444,7 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope)
 		// peers DAG might be behind. IBLTs cannot be decoded if their range difference is too large.
 		minLC = msg.LC
 	}
-	peerIblt := tree.NewIblt(dag.IbltNumBuckets)
+	peerIblt := tree.NewIblt()
 	err := peerIblt.UnmarshalBinary(msg.IBLT)
 	if err != nil {
 		return err

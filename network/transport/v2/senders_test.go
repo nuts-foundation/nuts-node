@@ -313,7 +313,7 @@ func TestProtocol_sendTransactionSet(t *testing.T) {
 	conversationID := newConversationID()
 	clock := uint32(5)
 	clockReq := uint32(4)
-	iblt := tree.NewIblt(1)
+	iblt := tree.NewIblt()
 	ibltBytes, _ := iblt.MarshalBinary()
 	envelope := &Envelope{Message: &Envelope_TransactionSet{TransactionSet: &TransactionSet{
 		ConversationID: conversationID.slice(),

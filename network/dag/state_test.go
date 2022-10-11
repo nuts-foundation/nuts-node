@@ -374,7 +374,7 @@ func TestState_IBLT(t *testing.T) {
 		return
 	}
 	// expected iblt
-	dagIBLT := tree.NewIblt(IbltNumBuckets)
+	dagIBLT := tree.NewIblt()
 	dagIBLT.Insert(tx.Ref())
 	if !assert.False(t, dagIBLT.IsEmpty()) {
 		return

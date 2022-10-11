@@ -19,15 +19,14 @@
 package tree
 
 import (
+	"bytes"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
-const numTestBuckets = 1024
-
-func getIbltWithRandomData(numBuckets, numHashes int) (*Iblt, map[hash.SHA256Hash]struct{}) {
-	iblt := getEmptyTestIblt(numBuckets)
+func getIbltWithRandomData(numHashes int) (*Iblt, map[hash.SHA256Hash]struct{}) {
+	iblt := NewIblt()
 	hashes := make(map[hash.SHA256Hash]struct{}, numHashes)
 	for i := 0; i < numHashes; i++ {
 		ref := hash.RandomHash()
@@ -37,35 +36,23 @@ func getIbltWithRandomData(numBuckets, numHashes int) (*Iblt, map[hash.SHA256Has
 	return iblt, hashes
 }
 
-func getEmptyTestIblt(numBuckets int) *Iblt {
-	if numBuckets < int(ibltK) {
-		panic("cannot have less than k buckets")
-	}
-	iblt := &Iblt{
-		hc:      ibltHc,
-		hk:      ibltHk,
-		k:       ibltK,
-		buckets: make([]*bucket, numBuckets),
-	}
-	for i := range iblt.buckets {
-		iblt.buckets[i] = new(bucket)
-	}
-	return iblt
-}
-
 // tests iblt
 func TestNewIblt(t *testing.T) {
-	iblt := NewIblt(numTestBuckets)
+	iblt := NewIblt()
+	expected := &Iblt{
+		hc: ibltHc,
+		hk: ibltHk,
+		k:  ibltK,
+	}
 
 	assert.Equal(t, ibltHc, iblt.hc)
 	assert.Equal(t, ibltHk, iblt.hk)
 	assert.Equal(t, ibltK, iblt.k)
-	assert.Equal(t, numTestBuckets, len(iblt.buckets))
-	assert.Equal(t, numTestBuckets, iblt.numBuckets())
+	assert.Equal(t, numBuckets, len(iblt.buckets))
 	for i, b := range iblt.buckets {
 		assert.Truef(t, b.isEmpty(), "bucket %d was not empty", i)
 	}
-	assert.True(t, equals(getEmptyTestIblt(numTestBuckets), iblt), "test function(s) invalid")
+	assert.True(t, equals(expected, iblt), "test function(s) invalid")
 }
 
 func equals(iblt1, iblt2 *Iblt) bool {
@@ -74,7 +61,7 @@ func equals(iblt1, iblt2 *Iblt) bool {
 		return false
 	}
 	for i := range iblt1.buckets {
-		if !iblt1.buckets[i].equals(*iblt2.buckets[i]) {
+		if !iblt1.buckets[i].equals(&iblt2.buckets[i]) {
 			return false
 		}
 	}
@@ -82,8 +69,7 @@ func equals(iblt1, iblt2 *Iblt) bool {
 }
 
 func TestIblt_New(t *testing.T) {
-	nBuckets := 6
-	iblt := getEmptyTestIblt(nBuckets)
+	iblt := NewIblt()
 	h := hash.FromSlice([]byte{1})
 	iblt.Insert(h)
 
@@ -93,12 +79,11 @@ func TestIblt_New(t *testing.T) {
 	}
 
 	assert.False(t, equals(iblt, newIblt))
-	assert.True(t, equals(getEmptyTestIblt(nBuckets), newIblt))
+	assert.True(t, equals(NewIblt(), newIblt))
 }
 
 func TestIblt_Clone(t *testing.T) {
-	nBuckets := 6
-	iblt := getEmptyTestIblt(nBuckets)
+	iblt := NewIblt()
 	h := hash.FromSlice([]byte{1})
 
 	newIblt, ok := iblt.Clone().(*Iblt)
@@ -108,13 +93,13 @@ func TestIblt_Clone(t *testing.T) {
 	newIblt.Insert(h)
 
 	assert.False(t, equals(iblt, newIblt))
-	assert.True(t, equals(getEmptyTestIblt(nBuckets), iblt))
+	assert.True(t, equals(NewIblt(), iblt))
 }
 
 func TestIblt_Insert(t *testing.T) {
-	iblt := getEmptyTestIblt(numTestBuckets)
+	iblt := NewIblt()
 	h := hash.FromSlice([]byte{1})
-	bExp := bucket{
+	bExp := &bucket{
 		count:   1,
 		hashSum: iblt.hashKey(h),
 		keySum:  h,
@@ -133,9 +118,9 @@ func TestIblt_Insert(t *testing.T) {
 }
 
 func TestIblt_Delete(t *testing.T) {
-	iblt := getEmptyTestIblt(int(ibltK))
+	iblt := NewIblt()
 	h := hash.FromSlice([]byte{1})
-	bExp := bucket{
+	bExp := &bucket{
 		count:   -1,
 		hashSum: iblt.hashKey(h),
 		keySum:  h,
@@ -143,15 +128,20 @@ func TestIblt_Delete(t *testing.T) {
 
 	iblt.Delete(h)
 
-	for i, b := range iblt.buckets {
-		assert.Truef(t, b.equals(bExp), "bucket %d did not match", i)
+	var counts uint8
+	for idx := range iblt.buckets {
+		if iblt.buckets[idx].equals(bExp) {
+			counts++
+		}
 	}
+
+	assert.Equal(t, ibltK, counts)
 }
 
 func TestIblt_validate(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		iblt1 := getEmptyTestIblt(int(ibltK))
-		iblt2 := getEmptyTestIblt(int(ibltK))
+		iblt1 := NewIblt()
+		iblt2 := NewIblt()
 
 		out, err := iblt1.validate(iblt2)
 
@@ -160,7 +150,7 @@ func TestIblt_validate(t *testing.T) {
 	})
 
 	t.Run("fail - data types don't match", func(t *testing.T) {
-		iblt := getEmptyTestIblt(int(ibltK))
+		iblt := NewIblt()
 		notIblt := &Xor{}
 
 		_, err := iblt.validate(notIblt)
@@ -169,8 +159,8 @@ func TestIblt_validate(t *testing.T) {
 	})
 
 	t.Run("fail - hc don't match", func(t *testing.T) {
-		iblt1 := getEmptyTestIblt(int(ibltK))
-		iblt2 := getEmptyTestIblt(int(ibltK))
+		iblt1 := NewIblt()
+		iblt2 := NewIblt()
 		iblt2.hc++
 
 		_, err := iblt1.validate(iblt2)
@@ -179,8 +169,8 @@ func TestIblt_validate(t *testing.T) {
 	})
 
 	t.Run("fail - hk don't match", func(t *testing.T) {
-		iblt1 := getEmptyTestIblt(int(ibltK))
-		iblt2 := getEmptyTestIblt(int(ibltK))
+		iblt1 := NewIblt()
+		iblt2 := NewIblt()
 		iblt2.hk++
 
 		_, err := iblt1.validate(iblt2)
@@ -189,29 +179,20 @@ func TestIblt_validate(t *testing.T) {
 	})
 
 	t.Run("fail - k don't match", func(t *testing.T) {
-		iblt1 := getEmptyTestIblt(int(ibltK))
-		iblt2 := getEmptyTestIblt(int(ibltK))
+		iblt1 := NewIblt()
+		iblt2 := NewIblt()
 		iblt2.k++
 
 		_, err := iblt1.validate(iblt2)
 
 		assert.EqualError(t, err, "unequal number of k, expected (6) got (7)")
 	})
-
-	t.Run("fail - #buckets don't match", func(t *testing.T) {
-		iblt1 := getEmptyTestIblt(10)
-		iblt2 := getEmptyTestIblt(11)
-
-		_, err := iblt1.validate(iblt2)
-
-		assert.EqualError(t, err, "number of buckets do not match, expected (10) got (11)")
-	})
 }
 
 func TestIblt_Add(t *testing.T) {
 	t.Run("ok - Add two *iblt", func(t *testing.T) {
 		h1, h2 := hash.FromSlice([]byte{1}), hash.FromSlice([]byte{2})
-		iblt1, iblt2, ibltAdd := getEmptyTestIblt(int(ibltK)), getEmptyTestIblt(int(ibltK)), getEmptyTestIblt(int(ibltK))
+		iblt1, iblt2, ibltAdd := NewIblt(), NewIblt(), NewIblt()
 		iblt1.Insert(h1)
 		iblt2.Insert(h2)
 		ibltAdd.Insert(h1)
@@ -224,18 +205,19 @@ func TestIblt_Add(t *testing.T) {
 	})
 
 	t.Run("fail - make sure validate is called", func(t *testing.T) {
-		iblt1, iblt2 := getEmptyTestIblt(10), getEmptyTestIblt(20)
+		iblt1, iblt2 := NewIblt(), NewIblt()
+		iblt2.k = ibltK + 1
 
 		err := iblt1.Add(iblt2)
 
-		assert.EqualError(t, err, "number of buckets do not match, expected (10) got (20)")
+		assert.EqualError(t, err, "unequal number of k, expected (6) got (7)")
 	})
 }
 
 func TestIblt_Subtract(t *testing.T) {
 	t.Run("ok - Add two *iblt", func(t *testing.T) {
 		h1, h2 := hash.FromSlice([]byte{1}), hash.FromSlice([]byte{2})
-		iblt1, iblt2, ibltSubtract := getEmptyTestIblt(int(ibltK)), getEmptyTestIblt(int(ibltK)), getEmptyTestIblt(int(ibltK))
+		iblt1, iblt2, ibltSubtract := NewIblt(), NewIblt(), NewIblt()
 		iblt1.Insert(h1)
 		iblt2.Insert(h2)
 		ibltSubtract.Insert(h1)
@@ -248,11 +230,12 @@ func TestIblt_Subtract(t *testing.T) {
 	})
 
 	t.Run("fail - make sure validate is called", func(t *testing.T) {
-		iblt1, iblt2 := getEmptyTestIblt(10), getEmptyTestIblt(20)
+		iblt1, iblt2 := NewIblt(), NewIblt()
+		iblt2.k = ibltK + 1
 
 		err := iblt1.Subtract(iblt2)
 
-		assert.EqualError(t, err, "number of buckets do not match, expected (10) got (20)")
+		assert.EqualError(t, err, "unequal number of k, expected (6) got (7)")
 	})
 }
 
@@ -260,7 +243,7 @@ func TestIblt_Decode(t *testing.T) {
 
 	t.Run("ok - Inserts only", func(t *testing.T) {
 		numHashes := 3
-		iblt, inserts := getIbltWithRandomData(numTestBuckets, numHashes)
+		iblt, inserts := getIbltWithRandomData(numHashes)
 
 		remaining, missing, err := iblt.Decode()
 
@@ -275,8 +258,8 @@ func TestIblt_Decode(t *testing.T) {
 
 	t.Run("ok - Inserts and Deletes", func(t *testing.T) {
 		numHashes := 3
-		ibltIns, inserts := getIbltWithRandomData(numTestBuckets, numHashes)
-		ibltDels, deletes := getIbltWithRandomData(numTestBuckets, numHashes)
+		ibltIns, inserts := getIbltWithRandomData(numHashes)
+		ibltDels, deletes := getIbltWithRandomData(numHashes)
 		_ = ibltIns.Subtract(ibltDels)
 
 		remaining, missing, err := ibltIns.Decode()
@@ -295,7 +278,7 @@ func TestIblt_Decode(t *testing.T) {
 
 	t.Run("fail - loop detection", func(t *testing.T) {
 		key := hash.FromSlice([]byte("looper"))
-		iblt := NewIblt(numTestBuckets)
+		iblt := NewIblt()
 		iblt.Insert(key)
 		keyHash := iblt.hashKey(key)
 		// if the key-keyHash pair is missing from one of the buckets,
@@ -308,7 +291,7 @@ func TestIblt_Decode(t *testing.T) {
 	})
 
 	t.Run("fail - too many hashes", func(t *testing.T) {
-		iblt, _ := getIbltWithRandomData(numTestBuckets, numTestBuckets)
+		iblt, _ := getIbltWithRandomData(numBuckets)
 		clone := iblt.Clone().(*Iblt)
 
 		remaining, _, err := iblt.Decode()
@@ -322,7 +305,7 @@ func TestIblt_Decode(t *testing.T) {
 
 	t.Run("fail - hash inserted twice", func(t *testing.T) {
 		h := hash.FromSlice([]byte("random hash"))
-		iblt := getEmptyTestIblt(numTestBuckets)
+		iblt := NewIblt()
 		iblt.Insert(h)
 		iblt.Insert(h)
 
@@ -334,13 +317,13 @@ func TestIblt_Decode(t *testing.T) {
 
 func TestIblt_IsEmpty(t *testing.T) {
 	t.Run("true - new iblt", func(t *testing.T) {
-		iblt := NewIblt(numTestBuckets)
+		iblt := NewIblt()
 
 		assert.True(t, iblt.IsEmpty())
 	})
 
 	t.Run("false - insert", func(t *testing.T) {
-		iblt := NewIblt(numTestBuckets)
+		iblt := NewIblt()
 		h := hash.FromSlice([]byte("test hash"))
 
 		iblt.Insert(h)
@@ -349,7 +332,7 @@ func TestIblt_IsEmpty(t *testing.T) {
 	})
 
 	t.Run("true - insert and delete same hash", func(t *testing.T) {
-		iblt := NewIblt(numTestBuckets)
+		iblt := NewIblt()
 		h := hash.FromSlice([]byte("test hash"))
 
 		iblt.Insert(h)
@@ -361,32 +344,38 @@ func TestIblt_IsEmpty(t *testing.T) {
 
 func TestIblt_MarshalBinary(t *testing.T) {
 	hash1, _, hash1BucketBytes := marshalBucketWithHash1()
-	iblt := getEmptyTestIblt(int(ibltK))
+	iblt := NewIblt()
 	iblt.Insert(hash1)
 
 	bs, err := iblt.MarshalBinary()
 
 	assert.NoError(t, err)
 
-	for i := 0; i < int(ibltK); i++ {
-		assert.Equal(t, hash1BucketBytes, bs[i*bucketBytes:(i+1)*bucketBytes])
+	var count uint8
+	for i := 0; i < len(iblt.buckets); i++ {
+		if bytes.Equal(hash1BucketBytes, bs[i*bucketBytes:(i+1)*bucketBytes]) {
+			count++
+		}
 	}
+	assert.Equal(t, ibltK, count)
 }
 
 func TestIblt_UnmarshalBinary(t *testing.T) {
 	_, hash1Bucket, hash1BucketBytes := marshalBucketWithHash1()
-	ibltExpected := getEmptyTestIblt(int(ibltK))
+	ibltExpected := NewIblt()
 	iblt := ibltExpected.New().(*Iblt)
-	var data []byte
-	for i := 0; i < int(ibltK); i++ {
-		data = append(data, hash1BucketBytes...)
-		ibltExpected.buckets[i] = hash1Bucket.clone()
+	data := make([]byte, bucketBytes*numBuckets)
+
+	for _, i := range []int{1, 45, 145, 465, 798, 1002} {
+		copy(data[i*bucketBytes:], hash1BucketBytes)
+		ibltExpected.buckets[i] = *hash1Bucket
 	}
 
 	err := iblt.UnmarshalBinary(data)
 
 	assert.NoError(t, err)
-	assert.True(t, equals(ibltExpected, iblt))
+	assert.Equal(t, ibltExpected, iblt)
+	assert.False(t, iblt.IsEmpty())
 }
 
 // tests bucket
@@ -406,7 +395,7 @@ func TestBucket_UnmarshalBinary(t *testing.T) {
 		err := b.UnmarshalBinary(hash1BucketBytes)
 
 		assert.NoError(t, err)
-		assert.True(t, b.equals(*hash1Bucket))
+		assert.True(t, b.equals(hash1Bucket))
 	})
 
 	t.Run("fail - invalid data length", func(t *testing.T) {

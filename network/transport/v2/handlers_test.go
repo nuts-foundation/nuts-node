@@ -538,7 +538,7 @@ func TestProtocol_handleState(t *testing.T) {
 
 	t.Run("ok - TransactionSet response", func(t *testing.T) {
 		msg := &Envelope_State{State: &State{LC: peerClock, XOR: peerXor.Slice()}}
-		iblt := *tree.NewIblt(10)
+		iblt := *tree.NewIblt()
 		p, mocks := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(msg, "peerID")
 		mocks.State.EXPECT().XOR(context.Background(), uint32(dag.MaxLamportClock)).Return(localXor, localClock)
@@ -556,7 +556,7 @@ func TestProtocol_handleTransactionSet(t *testing.T) {
 	request := &Envelope_State{State: &State{LC: requestLC, XOR: hash.FromSlice([]byte("requestXOR")).Slice()}}
 	peerID := transport.PeerID("peerID")
 
-	emptyIblt := tree.NewIblt(10)
+	emptyIblt := tree.NewIblt()
 	emptyIbltBytes, _ := emptyIblt.MarshalBinary()
 
 	hash1, _, _ := dag.CreateTestTransaction(1)
@@ -682,7 +682,7 @@ func TestProtocol_handleTransactionSet(t *testing.T) {
 	t.Run("error - iblt subtract fails", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request, peerID)
-		mocks.State.EXPECT().IBLT(context.Background(), requestLC).Return(*tree.NewIblt(20), dag.PageSize-1)
+		mocks.State.EXPECT().IBLT(context.Background(), requestLC).Return(*tree.NewIblt(), dag.PageSize-1)
 
 		emptyIbltBytes, _ := emptyIblt.MarshalBinary()
 

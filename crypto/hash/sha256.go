@@ -92,9 +92,9 @@ func (h SHA256Hash) Compare(other SHA256Hash) int {
 
 // Xor returns the xor of this Hash and all others. It does not change this Hash.
 func (h SHA256Hash) Xor(others ...SHA256Hash) SHA256Hash {
-	for _, o := range others {
-		for i := range o {
-			h[i] ^= o[i]
+	for n := range others {
+		for i := range others[n] {
+			h[i] ^= others[n][i]
 		}
 	}
 	return h
