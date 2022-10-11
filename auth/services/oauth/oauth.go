@@ -429,14 +429,6 @@ func (s *service) CreateJwtGrant(request services.CreateJwtGrantRequest) (*servi
 
 	for _, verifiableCredential := range request.Credentials {
 		validator := credential.FindValidator(verifiableCredential, s.jsonldManager.DocumentLoader())
-		if validator == nil {
-			if err := validator.Validate(verifiableCredential); err != nil {
-				return nil, fmt.Errorf("invalid VerifiableCredential: %w", err)
-			}
-
-			continue
-		}
-
 		if err := validator.Validate(verifiableCredential); err != nil {
 			return nil, fmt.Errorf("invalid VerifiableCredential: %w", err)
 		}

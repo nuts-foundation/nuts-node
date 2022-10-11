@@ -201,11 +201,7 @@ func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableC
 	}
 
 	if credential.ContainsContext(NutsV2ContextURI) {
-		var legalBase LegalBase
-		if cs.LegalBase != nil {
-			legalBase = *cs.LegalBase
-		}
-		switch legalBase.ConsentType {
+		switch cs.LegalBase.ConsentType {
 		case "implied":
 			// no additional requirements
 			break
