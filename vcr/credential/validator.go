@@ -109,9 +109,9 @@ func (d defaultCredentialValidator) validateAllFieldsKnown(input vc.VerifiableCr
 	compactedAsJSON, _ := json.Marshal(compactedAsMap)
 
 	if string(expectedAsJSON) != string(compactedAsJSON) {
-		log.Logger().Debugf("VC validation failed, not all fields are defined by JSON-LD context\n"+
-			"  Given VC:      %s\n"+
-			"  Cleaned up VC: %s", string(expectedAsJSON), string(compactedAsJSON))
+		log.Logger().Debug("VC validation failed, not all fields are defined by JSON-LD context")
+		log.Logger().Debugf(" Given VC:      %s", string(expectedAsJSON))
+		log.Logger().Debugf(" Cleaned up VC: %s", string(compactedAsJSON))
 		return failure("not all fields are defined by JSON-LD context")
 	}
 	return nil
@@ -303,8 +303,8 @@ func normalizeJSONProperty(input interface{}, setter func(newValue interface{}))
 			// Empty slice, do nothing
 		case 1:
 			// Slice with 1 entry, unslice it
-			input = value.Index(0)
-			setter(input)
+			newValue := value.Index(0)
+			setter(newValue.Interface())
 		default:
 			// Slice with zero or more entries, iterate
 			normalizeJSONSlice(value)

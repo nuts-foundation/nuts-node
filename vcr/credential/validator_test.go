@@ -491,3 +491,17 @@ func TestDefaultCredentialValidator(t *testing.T) {
 		assert.EqualError(t, err, "validation failed: not all fields are defined by JSON-LD context")
 	})
 }
+
+func TestNormalizeJSONMap(t *testing.T) {
+	t.Run("slice in slice", func(t *testing.T) {
+		// Test can't be covered by one of the VC types, so a simple unit test suffices
+		input := `{"outer": [["first"]]}`
+		inputAsMap := make(map[string]interface{})
+		_ = json.Unmarshal([]byte(input), &inputAsMap)
+
+		normalizeJSONMap(inputAsMap)
+
+		actual, _ := json.Marshal(inputAsMap)
+		assert.JSONEq(t, `{"outer":["first"]}`, string(actual))
+	})
+}
