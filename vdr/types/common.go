@@ -136,31 +136,36 @@ type ResolveMetadata struct {
 // CompoundService is a service type that can be used as target for github.com/nuts-foundation/go-did/did/document.go#UnmarshalServiceEndpoint
 type CompoundService map[string]string
 
+// KeyUsage is a bitmask used for specifying for what purposes a key in a DID document can be used (a.k.a. Verification Method relationships).
+type KeyUsage int
+
+func (k KeyUsage) Is(other KeyUsage) bool {
+	return k&other == other
+}
+
+const (
+	// AssertionMethodUsage indicates if the generated key pair can be used for assertions.
+	AssertionMethodUsage KeyUsage = 1
+	// AuthenticationUsage indicates if the generated key pair can be used for authentication.
+	AuthenticationUsage = 2
+	// CapabilityDelegationUsage indicates if the generated key pair can be used for altering DID Documents.
+	CapabilityDelegationUsage = 4
+	// CapabilityInvocationUsage indicates if the generated key pair can be used for capability invocations.
+	CapabilityInvocationUsage = 8
+	// KeyAgreementUsage indicates if the generated key pair can be used for Key agreements.
+	KeyAgreementUsage = 16
+)
+
 // DIDCreationOptions defines options for creating a DID Document.
 type DIDCreationOptions struct {
-
 	// Controllers lists the DIDs that can control the new DID Document. If selfControl = true and controllers is not empty,
 	// the newly generated DID will be added to the list of controllers.
 	Controllers []did.DID
 
-	// AssertionMethod indicates if the generated key pair can be used for assertions.
-	AssertionMethod bool
+	// KeyUsage specifies for what purposes the generated key can be used
+	KeyUsage KeyUsage
 
-	// Authentication indicates if the generated key pair can be used for authentication.
-	Authentication bool
-
-	// CapabilityDelegation indicates if the generated key pair can be used for altering DID Documents.
-	// In combination with selfControl = true, the key can be used to alter the new DID Document.
-	// Defaults to true when not given.
-	CapabilityDelegation bool
-
-	// CapabilityInvocation indicates if the generated key pair can be used for capability invocations.
-	CapabilityInvocation bool
-
-	// KeyAgreement indicates if the generated key pair can be used for Key agreements.
-	KeyAgreement bool
-
-	// SelfControl indicates wether the generated DID Document can be altered with its own capabilityInvocation key.
+	// SelfControl indicates whether the generated DID Document can be altered with its own capabilityInvocation key.
 	// Defaults to true when not given.
 	SelfControl bool
 }

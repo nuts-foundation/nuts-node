@@ -131,7 +131,7 @@ func (hb HTTPClient) Deactivate(DID string) error {
 func (hb HTTPClient) AddNewVerificationMethod(DID string) (*did.VerificationMethod, error) {
 	ctx := context.Background()
 
-	response, err := hb.client().AddNewVerificationMethod(ctx, DID)
+	response, err := hb.client().AddNewVerificationMethod(ctx, DID, AddNewVerificationMethodJSONRequestBody{})
 	if err != nil {
 		return nil, err
 	}

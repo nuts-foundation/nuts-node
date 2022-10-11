@@ -17,6 +17,7 @@ package v1
 
 import (
 	"errors"
+	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"net/http"
 	"testing"
 	"time"
@@ -81,13 +82,15 @@ func TestWrapper_CreateDID(t *testing.T) {
 		varFalse := false
 		controllers := []string{"did:nuts:2"}
 		didCreateRequest := DIDCreateRequest{
-			AssertionMethod:      &varFalse,
-			Authentication:       &varTrue,
-			CapabilityDelegation: &varTrue,
-			CapabilityInvocation: &varFalse,
-			KeyAgreement:         &varTrue,
-			SelfControl:          &varFalse,
-			Controllers:          &controllers,
+			VerificationMethodRelationship: VerificationMethodRelationship{
+				AssertionMethod:      &varFalse,
+				Authentication:       &varTrue,
+				CapabilityDelegation: &varTrue,
+				CapabilityInvocation: &varFalse,
+				KeyAgreement:         &varTrue,
+			},
+			SelfControl: &varFalse,
+			Controllers: &controllers,
 		}
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			p := f.(*DIDCreateRequest)
@@ -505,10 +508,38 @@ func TestWrapper_AddNewVerificationMethod(t *testing.T) {
 
 	newMethod := &did.VerificationMethod{ID: *did123Method}
 
-	t.Run("ok", func(t *testing.T) {
+	t.Run("ok - without key usage", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docUpdater.EXPECT().AddVerificationMethod(*did123).Return(newMethod, nil)
+		ctx.docUpdater.EXPECT().AddVerificationMethod(*did123, doc.DefaultCreationOptions().KeyUsage).Return(newMethod, nil)
 
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			return nil
+		})
+		var createdMethodResult did.VerificationMethod
+		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
+			createdMethodResult = f2.(did.VerificationMethod)
+			return nil
+		})
+		err := ctx.client.AddNewVerificationMethod(ctx.echo, did123.String())
+		assert.NoError(t, err)
+		assert.Equal(t, *newMethod, createdMethodResult)
+	})
+
+	t.Run("ok - with key usage", func(t *testing.T) {
+		ctx := newMockContext(t)
+
+		expectedKeyUsage := doc.DefaultCreationOptions().KeyUsage | types.AuthenticationUsage | types.CapabilityDelegationUsage
+		ctx.docUpdater.EXPECT().AddVerificationMethod(*did123, expectedKeyUsage).Return(newMethod, nil)
+		trueBool := true
+		requestBody := AddNewVerificationMethodJSONRequestBody{
+			Authentication:       &trueBool,
+			CapabilityDelegation: &trueBool,
+		}
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			p := f.(*AddNewVerificationMethodJSONRequestBody)
+			*p = requestBody
+			return nil
+		})
 		var createdMethodResult did.VerificationMethod
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f interface{}, f2 interface{}) error {
 			createdMethodResult = f2.(did.VerificationMethod)
@@ -530,7 +561,10 @@ func TestWrapper_AddNewVerificationMethod(t *testing.T) {
 
 	t.Run("error - internal error", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docUpdater.EXPECT().AddVerificationMethod(*did123).Return(nil, errors.New("something went wrong"))
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			return nil
+		})
+		ctx.docUpdater.EXPECT().AddVerificationMethod(gomock.Any(), gomock.Any()).Return(nil, errors.New("something went wrong"))
 
 		err := ctx.client.AddNewVerificationMethod(ctx.echo, did123.String())
 

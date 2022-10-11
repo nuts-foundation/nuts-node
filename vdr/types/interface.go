@@ -155,5 +155,5 @@ type DocManipulator interface {
 	// It returns an ErrNotFound when the DID document could not be found.
 	// It returns an ErrDeactivated when the DID document has the deactivated state.
 	// It returns an ErrDIDNotManagedByThisNode if the DID document is not managed by this node.
-	AddVerificationMethod(id did.DID) (*did.VerificationMethod, error)
+	AddVerificationMethod(id did.DID, keyUsage KeyUsage) (*did.VerificationMethod, error)
 }

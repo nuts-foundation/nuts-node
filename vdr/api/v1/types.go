@@ -25,3 +25,64 @@ type DIDDocument = did.Document
 
 // DIDDocumentMetadata is an alias
 type DIDDocumentMetadata = types.DocumentMetadata
+
+// DIDCreateRequest defines model for DIDCreateRequest.
+type DIDCreateRequest struct {
+	VerificationMethodRelationship
+
+	// List of DIDs that can control the new DID Document. If selfControl = true and controllers is not empty,
+	// the newly generated DID will be added to the list of controllers.
+	Controllers *[]string `json:"controllers,omitempty"`
+
+	// whether the generated DID Document can be altered with its own capabilityInvocation key.
+	SelfControl *bool `json:"selfControl,omitempty"`
+}
+
+// VerificationMethodRelationship defines model for VerificationMethodRelationship.
+type VerificationMethodRelationship struct {
+	// indicates if the generated key pair can be used for assertions.
+	AssertionMethod *bool `json:"assertionMethod,omitempty"`
+
+	// indicates if the generated key pair can be used for authentication.
+	Authentication *bool `json:"authentication,omitempty"`
+
+	// indicates if the generated key pair can be used for capability delegations.
+	CapabilityDelegation *bool `json:"capabilityDelegation,omitempty"`
+
+	// indicates if the generated key pair can be used for altering DID Documents.
+	// In combination with selfControl = true, the key can be used to alter the new DID Document.
+	// Defaults to true when not given.
+	// default: true
+	CapabilityInvocation *bool `json:"capabilityInvocation,omitempty"`
+
+	// indicates if the generated key pair can be used for Key agreements.
+	KeyAgreement *bool `json:"keyAgreement,omitempty"`
+}
+
+// ToKeyUsage takes a default key usage, and enabled/disables the usage which is set on the VerificationMethodRelationship,
+// and the result is returned.
+func (r VerificationMethodRelationship) ToKeyUsage(defaults types.KeyUsage) types.KeyUsage {
+	result := defaults
+	result = setKeyUsage(result, r.Authentication, types.AuthenticationUsage)
+	result = setKeyUsage(result, r.AssertionMethod, types.AssertionMethodUsage)
+	result = setKeyUsage(result, r.CapabilityDelegation, types.CapabilityDelegationUsage)
+	result = setKeyUsage(result, r.CapabilityInvocation, types.CapabilityInvocationUsage)
+	result = setKeyUsage(result, r.KeyAgreement, types.KeyAgreementUsage)
+	return result
+}
+
+func setKeyUsage(current types.KeyUsage, value *bool, keyUsageToSet types.KeyUsage) types.KeyUsage {
+	// If not set, do nothing (keep existing value)
+	// If set (may be true or false), disable or enable
+	if value != nil {
+		// Override default
+		if *value {
+			// Enable
+			return current | keyUsageToSet
+		} else {
+			// Disable
+			return current ^ keyUsageToSet
+		}
+	}
+	return current
+}

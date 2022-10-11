@@ -49,13 +49,9 @@ type Creator struct {
 // DefaultCreationOptions returns the default DIDCreationOptions when creating DID Documents.
 func DefaultCreationOptions() vdr.DIDCreationOptions {
 	return vdr.DIDCreationOptions{
-		Controllers:          []did.DID{},
-		AssertionMethod:      true,
-		Authentication:       false,
-		CapabilityDelegation: false,
-		CapabilityInvocation: true,
-		KeyAgreement:         true,
-		SelfControl:          true,
+		Controllers: []did.DID{},
+		KeyUsage:    vdr.AssertionMethodUsage | vdr.CapabilityInvocationUsage | vdr.KeyAgreementUsage,
+		SelfControl: true,
 	}
 }
 
@@ -115,7 +111,7 @@ func (n Creator) Create(options vdr.DIDCreationOptions) (*did.Document, nutsCryp
 	var key nutsCrypto.Key
 	var err error
 
-	if options.SelfControl && !options.CapabilityInvocation {
+	if options.SelfControl && !options.KeyUsage.Is(vdr.CapabilityInvocationUsage) {
 		return nil, nil, ErrInvalidOptions
 	}
 
@@ -170,23 +166,27 @@ func (n Creator) Create(options vdr.DIDCreationOptions) (*did.Document, nutsCryp
 		}
 	}
 
-	// set all methods
-	if options.CapabilityDelegation {
-		doc.AddCapabilityDelegation(verificationMethod)
-	}
-	if options.CapabilityInvocation {
-		doc.AddCapabilityInvocation(verificationMethod)
-	}
-	if options.Authentication {
-		doc.AddAuthenticationMethod(verificationMethod)
-	}
-	if options.AssertionMethod {
-		doc.AddAssertionMethod(verificationMethod)
-	}
-	if options.KeyAgreement {
-		doc.AddKeyAgreement(verificationMethod)
-	}
+	applyKeyUsage(&doc, verificationMethod, options.KeyUsage)
 
 	// return the doc and the keyCreator that created the private key
 	return &doc, key, nil
+}
+
+// applyKeyUsage checks intendedKeyUsage and adds the given verificationMethod to every relationship specified as key usage.
+func applyKeyUsage(document *did.Document, keyToAdd *did.VerificationMethod, intendedKeyUsage vdr.KeyUsage) {
+	if intendedKeyUsage.Is(vdr.CapabilityDelegationUsage) {
+		document.AddCapabilityDelegation(keyToAdd)
+	}
+	if intendedKeyUsage.Is(vdr.CapabilityInvocationUsage) {
+		document.AddCapabilityInvocation(keyToAdd)
+	}
+	if intendedKeyUsage.Is(vdr.AuthenticationUsage) {
+		document.AddAuthenticationMethod(keyToAdd)
+	}
+	if intendedKeyUsage.Is(vdr.AssertionMethodUsage) {
+		document.AddAssertionMethod(keyToAdd)
+	}
+	if intendedKeyUsage.Is(vdr.KeyAgreementUsage) {
+		document.AddKeyAgreement(keyToAdd)
+	}
 }

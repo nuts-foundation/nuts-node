@@ -102,7 +102,7 @@ func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 
 	h.applyGlobalMiddleware(h.server, serverConfig)
 
-	// Apply path-dependent config for configured HTTP paths
+	// ToKeyUsage path-dependent config for configured HTTP paths
 	var paths []string
 	for httpPath, httpConfig := range h.config.AltBinds {
 		boundServer := h.server.getInterface(httpPath)
@@ -115,7 +115,7 @@ func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 		}
 		paths = append(paths, httpPath)
 	}
-	// Apply path-dependent config for root path, but exclude configured HTTP paths to avoid enabling middleware twice.
+	// ToKeyUsage path-dependent config for root path, but exclude configured HTTP paths to avoid enabling middleware twice.
 	return h.applyBindMiddleware(h.server.getInterface(RootPath), RootPath, paths, serverConfig, h.config.InterfaceConfig)
 }
 

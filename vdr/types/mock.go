@@ -549,18 +549,18 @@ func (m *MockDocManipulator) EXPECT() *MockDocManipulatorMockRecorder {
 }
 
 // AddVerificationMethod mocks base method.
-func (m *MockDocManipulator) AddVerificationMethod(id did.DID) (*did.VerificationMethod, error) {
+func (m *MockDocManipulator) AddVerificationMethod(id did.DID, keyUsage KeyUsage) (*did.VerificationMethod, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddVerificationMethod", id)
+	ret := m.ctrl.Call(m, "AddVerificationMethod", id, keyUsage)
 	ret0, _ := ret[0].(*did.VerificationMethod)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AddVerificationMethod indicates an expected call of AddVerificationMethod.
-func (mr *MockDocManipulatorMockRecorder) AddVerificationMethod(id interface{}) *gomock.Call {
+func (mr *MockDocManipulatorMockRecorder) AddVerificationMethod(id, keyUsage interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddVerificationMethod", reflect.TypeOf((*MockDocManipulator)(nil).AddVerificationMethod), id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddVerificationMethod", reflect.TypeOf((*MockDocManipulator)(nil).AddVerificationMethod), id, keyUsage)
 }
 
 // Deactivate mocks base method.

@@ -67,6 +67,10 @@ func TestManipulator_RemoveVerificationMethod(t *testing.T) {
 	publicKey := crypto.NewTestKey("did:nuts:123").Public()
 	vm, _ := did.NewVerificationMethod(*id123Method, ssi.JsonWebKey2020, did.DID{}, publicKey)
 	doc.AddCapabilityInvocation(vm)
+	doc.AddCapabilityDelegation(vm)
+	doc.AddAssertionMethod(vm)
+	doc.AddAuthenticationMethod(vm)
+	doc.AddKeyAgreement(vm)
 	assert.Equal(t, vm, doc.CapabilityInvocation[0].VerificationMethod)
 	assert.Equal(t, vm, doc.VerificationMethod[0])
 
@@ -80,6 +84,10 @@ func TestManipulator_RemoveVerificationMethod(t *testing.T) {
 			return
 		}
 		assert.Empty(t, doc.CapabilityInvocation)
+		assert.Empty(t, doc.CapabilityDelegation)
+		assert.Empty(t, doc.AssertionMethod)
+		assert.Empty(t, doc.Authentication)
+		assert.Empty(t, doc.KeyAgreement)
 		assert.Empty(t, doc.VerificationMethod)
 	})
 
@@ -138,7 +146,7 @@ func TestManipulator_AddKey(t *testing.T) {
 			updatedDocument = doc
 		})
 
-		key, err := ctx.manipulator.AddVerificationMethod(*id)
+		key, err := ctx.manipulator.AddVerificationMethod(*id, types.AuthenticationUsage)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -146,7 +154,9 @@ func TestManipulator_AddKey(t *testing.T) {
 		assert.Equal(t, key.Controller, *id,
 			"expected method to have DID as controller")
 		assert.Len(t, updatedDocument.VerificationMethod, 2)
+		assert.Len(t, updatedDocument.Authentication, 1)
 		assert.Contains(t, updatedDocument.VerificationMethod, key)
+		assert.Equal(t, updatedDocument.Authentication[0].VerificationMethod, key)
 	})
 
 	t.Run("error - vdr.update throws an error", func(t *testing.T) {
@@ -157,7 +167,7 @@ func TestManipulator_AddKey(t *testing.T) {
 		ctx.mockResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{Hash: currentHash}, nil)
 		ctx.mockUpdater.EXPECT().Update(*id, currentHash, gomock.Any(), nil).Return(types.ErrNotFound)
 
-		key, err := ctx.manipulator.AddVerificationMethod(*id)
+		key, err := ctx.manipulator.AddVerificationMethod(*id, 0)
 		if !assert.Error(t, err) {
 			return
 		}
@@ -171,7 +181,7 @@ func TestManipulator_AddKey(t *testing.T) {
 		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
 		ctx.mockResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{Hash: currentHash, Deactivated: true}, nil)
 
-		key, err := ctx.manipulator.AddVerificationMethod(*id)
+		key, err := ctx.manipulator.AddVerificationMethod(*id, 0)
 		if !assert.Error(t, err) {
 			return
 		}

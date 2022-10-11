@@ -135,6 +135,30 @@ type VerificationMethod struct {
 	Type string `json:"type"`
 }
 
+// VerificationMethodRelationship defines model for VerificationMethodRelationship.
+type VerificationMethodRelationship struct {
+	// indicates if the generated key pair can be used for assertions.
+	AssertionMethod *bool `json:"assertionMethod,omitempty"`
+
+	// indicates if the generated key pair can be used for authentication.
+	Authentication *bool `json:"authentication,omitempty"`
+
+	// indicates if the generated key pair can be used for capability delegations.
+	CapabilityDelegation *bool `json:"capabilityDelegation,omitempty"`
+
+	// indicates if the generated key pair can be used for altering DID Documents.
+	// In combination with selfControl = true, the key can be used to alter the new DID Document.
+	// Defaults to true when not given.
+	// default: true
+	CapabilityInvocation *bool `json:"capabilityInvocation,omitempty"`
+
+	// indicates if the generated key pair can be used for Key agreements.
+	KeyAgreement *bool `json:"keyAgreement,omitempty"`
+
+	// whether the generated DID Document can be altered with its own capabilityInvocation key.
+	SelfControl *bool `json:"selfControl,omitempty"`
+}
+
 // CreateDIDJSONBody defines parameters for CreateDID.
 type CreateDIDJSONBody = DIDCreateRequest
 
@@ -157,8 +181,14 @@ type GetDIDParams struct {
 // UpdateDIDJSONBody defines parameters for UpdateDID.
 type UpdateDIDJSONBody = DIDUpdateRequest
 
+// AddNewVerificationMethodJSONBody defines parameters for AddNewVerificationMethod.
+type AddNewVerificationMethodJSONBody = VerificationMethodRelationship
+
 // CreateDIDJSONRequestBody defines body for CreateDID for application/json ContentType.
 type CreateDIDJSONRequestBody = CreateDIDJSONBody
 
 // UpdateDIDJSONRequestBody defines body for UpdateDID for application/json ContentType.
 type UpdateDIDJSONRequestBody = UpdateDIDJSONBody
+
+// AddNewVerificationMethodJSONRequestBody defines body for AddNewVerificationMethod for application/json ContentType.
+type AddNewVerificationMethodJSONRequestBody = AddNewVerificationMethodJSONBody

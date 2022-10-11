@@ -37,6 +37,7 @@ paths:
                 $ref: '#/components/schemas/DIDDocument'
         default:
           $ref: '../common/error_response.yaml'
+          $ref: '../common/error_response.yaml'
   /internal/vdr/v1/did/{did}:
     parameters:
       - name: did
@@ -173,7 +174,10 @@ paths:
     post:
       summary: Creates and adds a new verificationMethod to the DID document.
       description: |
-        It create a new private public keypair. The public key is wrapped in  verificationMethod. This method is added to the DID Document.
+        It creates a new private public keypair. The public key is wrapped in verificationMethod. This method is added to the DID Document.
+        
+        By default, the key usage (verificationMethod relationships) is the same as when creating a new DID document.
+        To alter this, provide a body specifying the key usage.
 
         error returns:
         * 403 - Verification method could not be added because the DID is not managed by this node
@@ -182,6 +186,11 @@ paths:
       operationId: addNewVerificationMethod
       tags:
         - DID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationMethodRelationship'
       responses:
         "200":
           description: "New verification method has been created and added successfully. Returns the DID document."
@@ -379,6 +388,35 @@ components:
             type: string
             description: DID according to Nuts specification
             example: "did:nuts:128903fjgfslcnmgpe84"
+        assertionMethod:
+          type: boolean
+          description: indicates if the generated key pair can be used for assertions.
+          default: true
+        authentication:
+          type: boolean
+          description: indicates if the generated key pair can be used for authentication.
+          default: false
+        capabilityInvocation:
+          type: boolean
+          description: |
+            indicates if the generated key pair can be used for altering DID Documents.
+            In combination with selfControl = true, the key can be used to alter the new DID Document.
+            Defaults to true when not given.
+            default: true
+        capabilityDelegation:
+          type: boolean
+          description: indicates if the generated key pair can be used for capability delegations.
+          default: true
+        keyAgreement:
+          type: boolean
+          description: indicates if the generated key pair can be used for Key agreements.
+          default: true
+        selfControl:
+          type: boolean
+          description: whether the generated DID Document can be altered with its own capabilityInvocation key.
+          default: true
+    VerificationMethodRelationship:
+      properties:
         assertionMethod:
           type: boolean
           description: indicates if the generated key pair can be used for assertions.

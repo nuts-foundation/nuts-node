@@ -89,8 +89,12 @@ func (a *Wrapper) AddNewVerificationMethod(ctx echo.Context, id string) error {
 	if err != nil {
 		return err
 	}
+	req := AddNewVerificationMethodJSONRequestBody{}
+	if err := ctx.Bind(&req); err != nil {
+		return err
+	}
 
-	vm, err := a.DocManipulator.AddVerificationMethod(*d)
+	vm, err := a.DocManipulator.AddVerificationMethod(*d, req.ToKeyUsage(vdrDoc.DefaultCreationOptions().KeyUsage))
 	if err != nil {
 		return err
 	}
@@ -118,22 +122,7 @@ func (a Wrapper) CreateDID(ctx echo.Context) error {
 			options.Controllers = append(options.Controllers, *id)
 		}
 	}
-
-	if req.Authentication != nil {
-		options.Authentication = *req.Authentication
-	}
-	if req.AssertionMethod != nil {
-		options.AssertionMethod = *req.AssertionMethod
-	}
-	if req.CapabilityDelegation != nil {
-		options.CapabilityDelegation = *req.CapabilityDelegation
-	}
-	if req.CapabilityInvocation != nil {
-		options.CapabilityInvocation = *req.CapabilityInvocation
-	}
-	if req.KeyAgreement != nil && *req.KeyAgreement {
-		options.KeyAgreement = *req.KeyAgreement
-	}
+	options.KeyUsage = req.VerificationMethodRelationship.ToKeyUsage(options.KeyUsage)
 	if req.SelfControl != nil {
 		options.SelfControl = *req.SelfControl
 	}
