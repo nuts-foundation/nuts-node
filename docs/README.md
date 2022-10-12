@@ -1,6 +1,6 @@
 # Nuts Node Documentation
 
-Documentation gets compiled with a mixture of tooling.
+Documentation gets compiled with a mixture of tooling into the `_build` directory.
 
 ```shell
 docker build -t nutsfoundation/nuts-node-docs .
