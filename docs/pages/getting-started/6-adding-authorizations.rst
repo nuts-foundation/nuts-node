@@ -54,9 +54,6 @@ The credential can be issued with the following call:
         "type": "NutsAuthorizationCredential",
         "credentialSubject": {
             "id": "did:nuts:JCJEi3waNGNhkmwVvFB3wdUsmDYPnTcZxYiWThZqgWKv",
-            "legalBase": {
-                "consentType": "implied"
-            },
             "resources": [
                 {
                     "path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843",
@@ -127,11 +124,6 @@ Resources that are scoped to a patient will have an authorization record with a 
 It's possible for authorization records to not include this field.
 A Bolt specification should describe when to use this field and when not.
 The contents in this example is a **urn** with a Dutch citizens number.
-
-credentialSubject.legalBase
-===========================
-This field describes the legal base from which the authorization credential originates.
-A Bolt will what values are to be entered.
 
 credentialSubject.resources
 ===========================
@@ -223,9 +215,6 @@ Example return value:
             ],
             "credentialSubject": {
                 "id": "did:nuts:JCJEi3waNGNhkmwVvFB3wdUsmDYPnTcZxYiWThZqgWKv",
-                "legalBase": {
-                    "consentType": "implied"
-                },
                 "purposeOfUse": "test-service",
                 "resources": [
                     {
