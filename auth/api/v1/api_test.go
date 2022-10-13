@@ -584,7 +584,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 				IssuanceDate: time.Now(),
 				CredentialSubject: []interface{}{credential.NutsAuthorizationCredentialSubject{
 					ID: vdr.TestDIDB.String(),
-					LegalBase: credential.LegalBase{
+					LegalBase: &credential.LegalBase{
 						ConsentType: "implied",
 					},
 					PurposeOfUse: "eTransfer",
