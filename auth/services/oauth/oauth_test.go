@@ -668,10 +668,7 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 		Issuer:       vdr.TestDIDA.URI(),
 		IssuanceDate: time.Now(),
 		CredentialSubject: []interface{}{credential.NutsAuthorizationCredentialSubject{
-			ID: vdr.TestDIDB.String(),
-			LegalBase: credential.LegalBase{
-				ConsentType: "implied",
-			},
+			ID:           vdr.TestDIDB.String(),
 			PurposeOfUse: "eTransfer",
 			Resources: []credential.Resource{
 				{
@@ -714,7 +711,9 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 
 		token, err := ctx.oauthService.CreateJwtGrant(validRequest)
 
-		assert.NoError(t, err)
+		if !assert.NoError(t, err) {
+			return
+		}
 		assert.Equal(t, "token", token.BearerToken)
 	})
 

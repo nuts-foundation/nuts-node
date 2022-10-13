@@ -20,6 +20,8 @@
 package credential
 
 import (
+	"encoding/json"
+	"os"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -68,7 +70,7 @@ func validV2NutsAuthorizationCredential(credentialSubject NutsAuthorizationCrede
 func validV2ImpliedNutsAuthorizationCredential() *vc.VerifiableCredential {
 	credentialSubject := NutsAuthorizationCredentialSubject{
 		ID: vdr.TestDIDB.String(),
-		LegalBase: LegalBase{
+		LegalBase: &LegalBase{
 			ConsentType: "implied",
 		},
 		PurposeOfUse: "eTransfer",
@@ -87,7 +89,7 @@ func ValidV2ExplicitNutsAuthorizationCredential() *vc.VerifiableCredential {
 	patient := "urn:oid:2.16.840.1.113883.2.4.6.3:123456780"
 	credentialSubject := NutsAuthorizationCredentialSubject{
 		ID: vdr.TestDIDB.String(),
-		LegalBase: LegalBase{
+		LegalBase: &LegalBase{
 			ConsentType: "explicit",
 			Evidence: &Evidence{
 				Path: "/1.pdf",
@@ -96,8 +98,22 @@ func ValidV2ExplicitNutsAuthorizationCredential() *vc.VerifiableCredential {
 		},
 		PurposeOfUse: "careViewer",
 		Subject:      &patient,
+		Resources: []Resource{
+			{
+				Path:        "/Task/1",
+				Operations:  []string{"read", "update"},
+				UserContext: false,
+			},
+		},
 	}
 	return validV2NutsAuthorizationCredential(credentialSubject)
+}
+
+func validNutsOrganizationCredential() *vc.VerifiableCredential {
+	inputVC := vc.VerifiableCredential{}
+	vcJSON, _ := os.ReadFile("../test/vc.json")
+	_ = json.Unmarshal(vcJSON, &inputVC)
+	return &inputVC
 }
 
 func stringToURI(input string) ssi.URI {

@@ -13,8 +13,22 @@ Release date: 2022-10-14
 
 - HTTPS TLS offloading is now also possible at the Nuts node. Checkout the docs on TLS offloading for the details.
     By default this is turned off which corresponds to the current behaviour.
+- Issuing a Verifiable Credential will now fail when it includes a property not defined in its JSON-LD context(s).
+  The behavior was changed because undefined fields are not secured by the JSON-LD proof,
+  which allows an attacker to alter it while the developer assumes it is secured by the signature.
+  It also helps developers noticing they misspelled a property, which it previously accepted but may have caused issues at processing systems downstream.
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.0.0...v5.0.0
+
+========
+Breaking changes
+========
+
+While Nuts RFC014 (Authorization Credential) required ``legalBase`` to be present in all ``NutsAuthorizationCredential``s,
+this property was missing in the Nuts v1 JSON-LD context. When issuing Verifiable Credentials, now all fields must be defined in its context(s).
+This means, starting this version, the ``legalBase`` property can't used in new v1 ``NutsAuthorizationCredential``s.
+Until the next major version (v6.0.0) it should be removed.
+Then when v6.0.0 is released, upgrade to the v2 JSON-LD context version and re-add the ``legalBase``.
 
 *****************
 Chestnut update (v4.2.4)
