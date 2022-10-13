@@ -23,6 +23,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"reflect"
 	"strings"
 	"time"
@@ -84,6 +86,11 @@ func (c *vcr) Search(ctx context.Context, searchTerms []SearchTerm, allowUntrust
 
 		if err = c.verifier.Verify(foundCredential, allowUntrusted, false, resolveTime); err == nil {
 			VCs = append(VCs, foundCredential)
+		} else {
+			log.Logger().
+				WithError(err).
+				WithField(core.LogFieldCredentialID, foundCredential.ID).
+				Info("Encountered invalid VC, omitting from search results.")
 		}
 	}
 
