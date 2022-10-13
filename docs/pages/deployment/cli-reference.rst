@@ -56,6 +56,10 @@ The following options apply to the server commands below:
       --storage.redis.address string                  Redis database server address. This can be a simple 'host:port' or a Redis connection URL with scheme, auth and other options.
       --storage.redis.database string                 Redis database name, which is used as prefix every key. Can be used to have multiple instances use the same Redis instance.
       --storage.redis.password string                 Redis database password. If set, it overrides the username in the connection URL.
+      --storage.redis.sentinel.master string          Name of the Redis Sentinel master. Setting this property enables Redis Sentinel.
+      --storage.redis.sentinel.nodes strings          Addresses of the Redis Sentinels to connect to initially. Setting this property enables Redis Sentinel.
+      --storage.redis.sentinel.password string        Password for authenticating to Redis Sentinels.
+      --storage.redis.sentinel.username string        Username for authenticating to Redis Sentinels.
       --storage.redis.tls.truststorefile string       PEM file containing the trusted CA certificate(s) for authenticating remote Redis servers. Can only be used when connecting over TLS (use 'rediss://' as scheme in address).
       --storage.redis.username string                 Redis database username. If set, it overrides the username in the connection URL.
       --strictmode                                    When set, insecure settings are forbidden.

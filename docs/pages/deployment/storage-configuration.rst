@@ -54,20 +54,27 @@ The server's certificate will be verified against the OS' CA bundle.
 Redis Sentinel
 ^^^^^^^^^^^^^^
 
-You can enable Redis Sentinel by providing ``sentinelMasterName`` as the connecting string parameter.
-Specify multiple Sentinel instance addresses separated by a comma.
-Other Sentinel-specific parameters that can be used in the connecting string are ``sentinelUsername`` and ``sentinelPassword``.
-Configuration and parameters not specific to Sentinel still apply.
+You can enable Redis Sentinel by configuring ``storage.redis.sentinel``. The following properties must be configured:
+
+- ``master`` must contain the name of the Redis Sentinel master
+- ``nodes`` must contain a list of Redis Sentinel to initially connect to.
+
+If using a connection URL for ``storage.redis.address`` (e.g. to enable TLS) the host in the URL won't be used.
+However, it still must be provided but can be any arbitrary value.
+Other configuration and connection URL parameters (not specific) to Sentinel still apply.
 
 .. code-block:: yaml
 
     storage:
       redis:
-        address: redis://instance1:1234,instance2:4321?sentinelMasterName=some-master-name
+        address: redis://irrelevant
+        sentinel:
+          master: sentinel-master
+          nodes:
+            - instance1:1234
+            - instance2:5678
 
-Since commas (``,``) are used to specify a list of values when configuring through environment variables or command line flags,
-you need to escape them when you configure the Sentinel instances. You do so by escaping the comma with a backslash (``\,``).
-This does not apply to YAML configuration.
+Review the configuration reference for additional Redis Sentinel configuration parameters.
 
 Private Keys
 ************
