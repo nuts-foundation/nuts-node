@@ -93,7 +93,7 @@ func (e engine) Shutdown() error {
 func (e *engine) Configure(config core.ServerConfig) error {
 	e.datadir = config.Datadir
 
-	if e.config.Redis.IsConfigured() {
+	if e.config.Redis.isConfigured() {
 		redisDB, err := createRedisDatabase(e.config.Redis)
 		if err != nil {
 			return fmt.Errorf("unable to configure Redis database: %w", err)

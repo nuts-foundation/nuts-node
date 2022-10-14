@@ -34,5 +34,9 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("storage.redis.password", defs.Redis.Password, "Redis database password. If set, it overrides the username in the connection URL.")
 	flagSet.String("storage.redis.database", defs.Redis.Database, "Redis database name, which is used as prefix every key. Can be used to have multiple instances use the same Redis instance.")
 	flagSet.String("storage.redis.tls.truststorefile", defs.Redis.TLS.TrustStoreFile, "PEM file containing the trusted CA certificate(s) for authenticating remote Redis servers. Can only be used when connecting over TLS (use 'rediss://' as scheme in address).")
+	flagSet.String("storage.redis.sentinel.master", defs.Redis.Sentinel.Master, "Name of the Redis Sentinel master. Setting this property enables Redis Sentinel.")
+	flagSet.StringSlice("storage.redis.sentinel.nodes", defs.Redis.Sentinel.Nodes, "Addresses of the Redis Sentinels to connect to initially. Setting this property enables Redis Sentinel.")
+	flagSet.String("storage.redis.sentinel.username", defs.Redis.Sentinel.Username, "Username for authenticating to Redis Sentinels.")
+	flagSet.String("storage.redis.sentinel.password", defs.Redis.Sentinel.Password, "Password for authenticating to Redis Sentinels.")
 	return flagSet
 }
