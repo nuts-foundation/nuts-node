@@ -28,8 +28,9 @@ Breaking changes
 
 While Nuts RFC014 (Authorization Credential) required ``legalBase`` to be present in all ``NutsAuthorizationCredential``s,
 this property was missing in the Nuts v1 JSON-LD context. When issuing Verifiable Credentials, now all fields must be defined in its context(s).
-This means, starting this version, the ``legalBase`` property can't used in new v1 ``NutsAuthorizationCredential``s.
-Until the next major version (v6.0.0) it should be removed.
+This means, starting this version, the ``legalBase`` property shouldn't used in new v1 ``NutsAuthorizationCredential``s.
+But, to maintain backwards compatibility, especially in mixed networks (nodes running v4, others running v5), it only generates a warning.
+Still, until the next major version (v6.0.0) the ``legalBase`` should be removed.
 Then when v6.0.0 is released, upgrade to the v2 JSON-LD context version and re-add the ``legalBase``.
 
 Redis Sentinel was configured through a Redis connection URL by passing Sentinel-specific query parameters,
