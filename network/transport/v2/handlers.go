@@ -134,14 +134,14 @@ func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, envelope *
 		WithField(core.LogFieldTransactionRef, hash.FromSlice(msg.TransactionRef)).
 		Trace("Handling TransactionPayloadQuery")
 
+	emptyResponse := &Envelope_TransactionPayload{TransactionPayload: &TransactionPayload{TransactionRef: msg.TransactionRef}}
 	tx, err := p.state.GetTransaction(ctx, hash.FromSlice(msg.TransactionRef))
 	if err != nil {
+		if errors.Is(err, dag.ErrTransactionNotFound) {
+			// Transaction not found
+			return p.send(peer, emptyResponse)
+		}
 		return err
-	}
-	emptyResponse := &Envelope_TransactionPayload{TransactionPayload: &TransactionPayload{TransactionRef: msg.TransactionRef}}
-	if tx == nil {
-		// Transaction not found
-		return p.send(peer, emptyResponse)
 	}
 	if len(tx.PAL()) > 0 {
 		// Private TX, verify connection
@@ -210,11 +210,11 @@ func (p *protocol) handleTransactionPayload(peer transport.Peer, envelope *Envel
 	}
 	tx, err := p.state.GetTransaction(ctx, ref)
 	if err != nil {
+		if errors.Is(err, dag.ErrTransactionNotFound) {
+			// Weird case: transaction not present on DAG (might be attack attempt).
+			return fmt.Errorf("peer sent payload for non-existing transaction (tx=%s)", ref)
+		}
 		return err
-	}
-	if tx == nil {
-		// Weird case: transaction not present on DAG (might be attack attempt).
-		return fmt.Errorf("peer sent payload for non-existing transaction (tx=%s)", ref)
 	}
 	payloadHash := hash.SHA256Sum(msg.Data)
 	if !tx.PayloadHash().Equals(payloadHash) {
@@ -347,17 +347,17 @@ func (p *protocol) handleTransactionListQuery(peer transport.Peer, envelope *Env
 	for _, ref := range requestedRefs {
 		transaction, err := p.state.GetTransaction(ctx, ref)
 		if err != nil {
+			if errors.Is(err, dag.ErrTransactionNotFound) {
+				// TODO: Should the entire ListQuery be aborted?
+				log.Logger().
+					WithFields(peer.ToFields()).
+					WithField(core.LogFieldTransactionRef, ref.String()).
+					Warn("Peer requested transaction we don't have")
+				continue
+			}
 			return err
 		}
-		// If a transaction is not present, we stop any further transaction gathering.
-		if transaction != nil {
-			unsorted = append(unsorted, transaction)
-		} else {
-			log.Logger().
-				WithFields(peer.ToFields()).
-				WithField(core.LogFieldTransactionRef, ref.String()).
-				Warn("Peer requested transaction we don't have")
-		}
+		unsorted = append(unsorted, transaction)
 	}
 
 	// now we sort on LC value
@@ -384,10 +384,10 @@ func (p *protocol) collectTransactionList(ctx context.Context, txs []dag.Transac
 		if len(transaction.PAL()) == 0 {
 			payload, err := p.state.ReadPayload(ctx, transaction.PayloadHash())
 			if err != nil {
+				if errors.Is(err, dag.ErrPayloadNotFound) {
+					return nil, fmt.Errorf("transaction is missing payload (ref=%s)", transaction.Ref())
+				}
 				return nil, err
-			}
-			if payload == nil {
-				return nil, fmt.Errorf("transaction is missing payload (ref=%s)", transaction.Ref())
 			}
 			networkTX.Payload = payload
 		}

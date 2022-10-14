@@ -19,6 +19,7 @@
 package v1
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -65,10 +66,10 @@ func (a Wrapper) GetTransaction(ctx echo.Context, hashAsString string) error {
 	}
 	transaction, err := a.Service.GetTransaction(hash)
 	if err != nil {
+		if errors.Is(err, dag.ErrTransactionNotFound) {
+			return core.NotFoundError("transaction not found")
+		}
 		return err
-	}
-	if transaction == nil {
-		return core.NotFoundError("transaction not found")
 	}
 	ctx.Response().Header().Set(echo.HeaderContentType, "application/jose")
 	ctx.Response().WriteHeader(http.StatusOK)
@@ -84,10 +85,10 @@ func (a Wrapper) GetTransactionPayload(ctx echo.Context, hashAsString string) er
 	}
 	data, err := a.Service.GetTransactionPayload(hash)
 	if err != nil {
+		if errors.Is(err, dag.ErrPayloadNotFound) {
+			return core.NotFoundError("transaction or contents not found")
+		}
 		return err
-	}
-	if data == nil {
-		return core.NotFoundError("transaction or contents not found")
 	}
 	ctx.Response().Header().Set(echo.HeaderContentType, "application/octet-stream")
 	ctx.Response().WriteHeader(http.StatusOK)

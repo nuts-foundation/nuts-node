@@ -102,7 +102,7 @@ func TestProtocol_handleTransactionPayload(t *testing.T) {
 
 	t.Run("error - tx not present", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
-		mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(nil, nil)
+		mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(nil, dag.ErrTransactionNotFound)
 
 		err := p.handleTransactionPayload(peer, &Envelope{Message: &Envelope_TransactionPayload{&TransactionPayload{TransactionRef: tx.Ref().Slice(), Data: payload}}})
 
@@ -135,7 +135,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 
 		t.Run("transaction not found", func(t *testing.T) {
 			p, mocks := newTestProtocol(t, nil)
-			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(nil, nil)
+			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(nil, dag.ErrTransactionNotFound)
 
 			conns := &grpc.StubConnectionList{
 				Conn: &grpc.StubConnection{PeerID: peer.ID},
@@ -399,8 +399,8 @@ func TestProtocol_handleTransactionListQuery(t *testing.T) {
 
 	t.Run("ok - tx not present", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
-		mocks.State.EXPECT().GetTransaction(context.Background(), h1).Return(nil, nil)
-		mocks.State.EXPECT().GetTransaction(context.Background(), h2).Return(nil, nil)
+		mocks.State.EXPECT().GetTransaction(context.Background(), h1).Return(nil, dag.ErrTransactionNotFound)
+		mocks.State.EXPECT().GetTransaction(context.Background(), h2).Return(nil, dag.ErrTransactionNotFound)
 
 		mocks.Sender.EXPECT().sendTransactionList(peer.ID, conversationID, gomock.Any())
 
@@ -447,7 +447,7 @@ func TestProtocol_handleTransactionListQuery(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		mocks.State.EXPECT().GetTransaction(context.Background(), h1).Return(dagT1, nil)
 		mocks.State.EXPECT().GetTransaction(context.Background(), h2).Return(dagT2, nil)
-		mocks.State.EXPECT().ReadPayload(context.Background(), dagT1.PayloadHash()).Return(nil, nil)
+		mocks.State.EXPECT().ReadPayload(context.Background(), dagT1.PayloadHash()).Return(nil, dag.ErrPayloadNotFound)
 
 		err := p.handleTransactionListQuery(peer, &Envelope{
 			Message: &Envelope_TransactionListQuery{&TransactionListQuery{

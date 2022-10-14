@@ -52,6 +52,9 @@ func (store payloadStore) readPayload(tx stoabs.ReadTx, payloadHash hash.SHA256H
 	if err != nil {
 		return nil, fmt.Errorf("failed to read payload (hash=%s): %w", payloadHash, err)
 	}
+	if data == nil {
+		return nil, ErrPayloadNotFound
+	}
 	return data, nil
 }
 

@@ -35,10 +35,11 @@ type Transactions interface {
 	Subscribe(name string, receiver dag.ReceiverFn, filters ...SubscriberOption) error
 	// Subscribers returns the list of notifiers on the DAG that emit events to subscribers.
 	Subscribers() []dag.Notifier
-	// GetTransactionPayload retrieves the transaction Payload for the given transaction. If the transaction or Payload is not found
-	// nil is returned.
+	// GetTransactionPayload retrieves the transaction Payload for the given transaction.
+	// If the transaction or Payload is not found, dag.ErrPayloadNotFound is returned.
 	GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte, error)
-	// GetTransaction retrieves the transaction for the given reference. If the transaction is not known, an error is returned.
+	// GetTransaction retrieves the transaction for the given reference.
+	// If the transaction is not found, a dag.ErrTransactionNotFound is returned.
 	GetTransaction(transactionRef hash.SHA256Hash) (dag.Transaction, error)
 	// CreateTransaction creates a new transaction according to the given spec.
 	CreateTransaction(spec Template) (dag.Transaction, error)

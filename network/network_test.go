@@ -118,9 +118,18 @@ func TestNetwork_GetTransactionPayload(t *testing.T) {
 	t.Run("ok - TX not found", func(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
 		transaction := dag.CreateTestTransactionWithJWK(1)
-		cxt.state.EXPECT().GetTransaction(gomock.Any(), transaction.Ref()).Return(nil, nil)
+		cxt.state.EXPECT().GetTransaction(gomock.Any(), transaction.Ref()).Return(nil, dag.ErrTransactionNotFound)
 		payload, err := cxt.network.GetTransactionPayload(transaction.Ref())
-		assert.NoError(t, err)
+		assert.ErrorIs(t, err, dag.ErrPayloadNotFound)
+		assert.Nil(t, payload)
+	})
+	t.Run("ok - payload not found", func(t *testing.T) {
+		cxt := createNetwork(t, ctrl)
+		transaction := dag.CreateTestTransactionWithJWK(1)
+		cxt.state.EXPECT().GetTransaction(gomock.Any(), transaction.Ref()).Return(transaction, nil)
+		cxt.state.EXPECT().ReadPayload(gomock.Any(), transaction.PayloadHash()).Return(nil, dag.ErrPayloadNotFound)
+		payload, err := cxt.network.GetTransactionPayload(transaction.Ref())
+		assert.ErrorIs(t, err, dag.ErrPayloadNotFound)
 		assert.Nil(t, payload)
 	})
 }

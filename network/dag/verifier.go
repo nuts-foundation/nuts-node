@@ -70,10 +70,10 @@ func NewPrevTransactionsVerifier() Verifier {
 		for _, prev := range transaction.Previous() {
 			previousTransaction, err := getTransaction(prev, tx)
 			if err != nil {
+				if errors.Is(err, ErrTransactionNotFound) {
+					return ErrPreviousTransactionMissing
+				}
 				return err
-			}
-			if previousTransaction == nil {
-				return ErrPreviousTransactionMissing
 			}
 			if int(previousTransaction.Clock()) >= highestLamportClock {
 				highestLamportClock = int(previousTransaction.Clock())

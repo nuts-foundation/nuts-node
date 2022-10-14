@@ -912,9 +912,9 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 	_ = serverConfig.Load(core.FlagSet())
 	serverConfig.Datadir = path.Join(testDirectory, name)
 	serverConfig.LegacyTLS.Enabled = true
-	serverConfig.LegacyTLS.CertFile = "test/certificate-and-key.pem"
-	serverConfig.LegacyTLS.CertKeyFile = "test/certificate-and-key.pem"
-	serverConfig.LegacyTLS.TrustStoreFile = "test/truststore.pem"
+	serverConfig.TLS.CertFile = "test/certificate-and-key.pem"
+	serverConfig.TLS.CertKeyFile = "test/certificate-and-key.pem"
+	serverConfig.TLS.TrustStoreFile = "test/truststore.pem"
 
 	// Create Network instance
 	config := Config{

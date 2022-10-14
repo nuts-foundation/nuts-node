@@ -103,7 +103,7 @@ func TestDAG_Get(t *testing.T) {
 		graph := CreateDAG(t)
 		_ = graph.db.Write(ctx, func(tx stoabs.WriteTx) error {
 			actual, err := getTransaction(hash.SHA256Sum([]byte{1, 2, 3}), tx)
-			assert.NoError(t, err)
+			assert.ErrorIs(t, err, ErrTransactionNotFound)
 			assert.Nil(t, actual)
 			return nil
 		})
