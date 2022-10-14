@@ -159,6 +159,7 @@ is equal to ``$ nuts --engine.nested.parameter X`` is equal to ``$ NUTS_ENGINE_N
 
 While most options are a single value, some are represented as a list (indicated with the square brackets in the table below).
 To provide multiple values through flags or environment variables you can separate them with a comma (``var1,var2``).
+If you need to provide an actual value with a comma, you can escape it with a backslash (``\,``) to avoid it having split into multiple values.
 
 Ordering
 ********
