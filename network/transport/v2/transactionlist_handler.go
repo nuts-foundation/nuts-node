@@ -111,7 +111,7 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 					WithField(core.LogFieldConversationID, cid).
 					WithField(core.LogFieldTransactionRef, tx.Ref()).
 					Warn("Ignoring remainder of TransactionList due to missing prevs")
-				xor, clock := p.state.XOR(ctx, dag.MaxLamportClock)
+				xor, clock := p.state.XOR(dag.MaxLamportClock)
 				return p.sender.sendState(peer.ID, xor, clock)
 			}
 			return fmt.Errorf("unable to add received transaction to DAG (tx=%s): %w", tx.Ref(), err)

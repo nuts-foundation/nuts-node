@@ -263,7 +263,7 @@ func (p *protocol) handleGossip(peer transport.Peer, envelope *Envelope) error {
 		WithFields(peer.ToFields()).
 		Trace("Handling Gossip", peer.ID.String())
 
-	xor, clock := p.state.XOR(ctx, dag.MaxLamportClock)
+	xor, clock := p.state.XOR(dag.MaxLamportClock)
 	peerXor := hash.FromSlice(msg.XOR)
 	if xor.Equals(peerXor) {
 		return nil
@@ -406,15 +406,14 @@ func (p *protocol) handleState(peer transport.Peer, envelope *Envelope) error {
 		WithField(core.LogFieldConversationID, cid).
 		Trace("Handling State from peer")
 
-	ctx := context.Background()
-	xor, lc := p.state.XOR(ctx, dag.MaxLamportClock)
+	xor, lc := p.state.XOR(dag.MaxLamportClock)
 
 	// nothing to do if peers are now synced
 	if xor.Equals(hash.FromSlice(msg.XOR)) {
 		return nil
 	}
 
-	iblt, _ := p.state.IBLT(ctx, msg.LC)
+	iblt, _ := p.state.IBLT(msg.LC)
 
 	return p.sender.sendTransactionSet(peer.ID, cid, msg.LC, lc, iblt)
 }
@@ -451,8 +450,7 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope)
 	}
 
 	// get iblt difference
-	ctx := context.Background()
-	iblt, _ := p.state.IBLT(ctx, minLC)
+	iblt, _ := p.state.IBLT(minLC)
 	err = iblt.Subtract(peerIblt)
 	if err != nil {
 		return err
@@ -473,7 +471,7 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope)
 			}
 			// send new state message, request one page lower than the current evaluation
 			previousPageLimit := pageClockStart(clockToPageNum(minLC)) - 1
-			xor, _ := p.state.XOR(ctx, dag.MaxLamportClock)
+			xor, _ := p.state.XOR(dag.MaxLamportClock)
 
 			log.Logger().
 				WithFields(peer.ToFields()).
@@ -491,7 +489,7 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope)
 	}
 
 	// request next page(s) if peer's DAG has more pages
-	_, localLC := p.state.XOR(ctx, dag.MaxLamportClock)
+	_, localLC := p.state.XOR(dag.MaxLamportClock)
 	peerPageNum, localPageNum, reqPageNum := clockToPageNum(msg.LC), clockToPageNum(localLC), clockToPageNum(msg.LCReq)
 	if peerPageNum > reqPageNum {
 		log.Logger().
