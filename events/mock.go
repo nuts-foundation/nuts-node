@@ -435,6 +435,34 @@ func (mr *MockJetStreamContextMockRecorder) KeyValue(bucket interface{}) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "KeyValue", reflect.TypeOf((*MockJetStreamContext)(nil).KeyValue), bucket)
 }
 
+// KeyValueStoreNames mocks base method.
+func (m *MockJetStreamContext) KeyValueStoreNames() <-chan string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "KeyValueStoreNames")
+	ret0, _ := ret[0].(<-chan string)
+	return ret0
+}
+
+// KeyValueStoreNames indicates an expected call of KeyValueStoreNames.
+func (mr *MockJetStreamContextMockRecorder) KeyValueStoreNames() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "KeyValueStoreNames", reflect.TypeOf((*MockJetStreamContext)(nil).KeyValueStoreNames))
+}
+
+// KeyValueStores mocks base method.
+func (m *MockJetStreamContext) KeyValueStores() <-chan nats_go.KeyValueStatus {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "KeyValueStores")
+	ret0, _ := ret[0].(<-chan nats_go.KeyValueStatus)
+	return ret0
+}
+
+// KeyValueStores indicates an expected call of KeyValueStores.
+func (mr *MockJetStreamContextMockRecorder) KeyValueStores() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "KeyValueStores", reflect.TypeOf((*MockJetStreamContext)(nil).KeyValueStores))
+}
+
 // ObjectStore mocks base method.
 func (m *MockJetStreamContext) ObjectStore(bucket string) (nats_go.ObjectStore, error) {
 	m.ctrl.T.Helper()
@@ -469,14 +497,14 @@ func (mr *MockJetStreamContextMockRecorder) ObjectStoreNames(opts ...interface{}
 }
 
 // ObjectStores mocks base method.
-func (m *MockJetStreamContext) ObjectStores(opts ...nats_go.ObjectOpt) <-chan nats_go.ObjectStore {
+func (m *MockJetStreamContext) ObjectStores(opts ...nats_go.ObjectOpt) <-chan nats_go.ObjectStoreStatus {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{}
 	for _, a := range opts {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "ObjectStores", varargs...)
-	ret0, _ := ret[0].(<-chan nats_go.ObjectStore)
+	ret0, _ := ret[0].(<-chan nats_go.ObjectStoreStatus)
 	return ret0
 }
 
