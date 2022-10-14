@@ -79,13 +79,13 @@ type State interface {
 	//	- upper-limit of the page that contains the requested clock
 	//	- highest lamport clock in the DAG
 	// A requested clock of math.MaxUint32 will return the xor of the entire DAG
-	XOR(ctx context.Context, reqClock uint32) (hash.SHA256Hash, uint32)
+	XOR(reqClock uint32) (hash.SHA256Hash, uint32)
 	// IBLT returns the iblt of all transaction references between the DAG root and the clock closest to the requested clock value.
 	// This closest clock value is also returned, and is defined as the lowest of:
 	//	- upper-limit of the page that contains the requested clock
 	//	- highest lamport clock in the DAG
 	// A requested clock of math.MaxUint32 will return the iblt of the entire DAG
-	IBLT(ctx context.Context, reqClock uint32) (tree.Iblt, uint32)
+	IBLT(reqClock uint32) (tree.Iblt, uint32)
 }
 
 // Statistics holds data about the current state of the DAG.
