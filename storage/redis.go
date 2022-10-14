@@ -29,16 +29,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
 	"github.com/sirupsen/logrus"
-	"net/url"
 	"path"
 	"strings"
 )
-
-const sentinelMasterNameParam = "sentinelMasterName"
-const sentinelUsernameParam = "sentinelUsername"
-const sentinelPasswordParam = "sentinelPassword"
-
-var sentinelParamKeys = []string{sentinelMasterNameParam, sentinelUsernameParam, sentinelPasswordParam}
 
 var redisTLSModifier = func(conf *tls.Config) {
 	// do nothing by default, used for testing
@@ -52,16 +45,108 @@ type redisDatabase struct {
 
 // RedisConfig specifies config for Redis databases.
 type RedisConfig struct {
-	Address  string         `koanf:"address"`
-	Username string         `koanf:"username"`
-	Password string         `koanf:"password"`
-	Database string         `koanf:"database"`
-	TLS      RedisTLSConfig `koanf:"tls"`
+	Address  string              `koanf:"address"`
+	Username string              `koanf:"username"`
+	Password string              `koanf:"password"`
+	Database string              `koanf:"database"`
+	TLS      RedisTLSConfig      `koanf:"tls"`
+	Sentinel RedisSentinelConfig `koanf:"sentinel"`
 }
 
-// IsConfigured returns true if config the indicates Redis support should be enabled.
-func (r RedisConfig) IsConfigured() bool {
+// isConfigured returns true if config the indicates Redis support should be enabled.
+func (r RedisConfig) isConfigured() bool {
 	return len(r.Address) > 0
+}
+
+func (r RedisConfig) parse() (*redis.Options, error) {
+	// Backwards compatibility: if not an address URL, assume simply TCP with host:port
+	addr := r.Address
+	if !isRedisURL(addr) {
+		addr = "redis://" + addr
+	}
+
+	opts, err := redis.ParseURL(addr)
+	if err != nil {
+		return nil, err
+	}
+
+	// Setup user/password auth
+	if len(r.Username) > 0 {
+		opts.Username = r.Username
+	}
+	if len(r.Password) > 0 {
+		opts.Password = r.Password
+	}
+
+	// Setup TLS
+	if len(r.TLS.TrustStoreFile) > 0 {
+		if opts.TLSConfig == nil {
+			return nil, errors.New("TLS configured but not connecting to a Redis TLS server")
+		}
+		trustStore, err := core.LoadTrustStore(r.TLS.TrustStoreFile)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load truststore for Redis database: %w", err)
+		}
+		opts.TLSConfig.RootCAs = trustStore.CertPool
+	}
+	redisTLSModifier(opts.TLSConfig)
+	return opts, nil
+}
+
+// RedisSentinelConfig specifies properties for connecting to a Redis Sentinel cluster.
+type RedisSentinelConfig struct {
+	Master   string   `koanf:"master"`
+	Nodes    []string `koanf:"nodes"`
+	Username string   `koanf:"username"`
+	Password string   `koanf:"password"`
+}
+
+func (r RedisSentinelConfig) enabled() bool {
+	return r.Master != "" || len(r.Nodes) > 0
+}
+
+// parse build redis.FailoverOptions from the given base options (which are copied) and the Sentinel-specific configuration.
+func (r RedisSentinelConfig) parse(baseOpts redis.Options) (*redis.FailoverOptions, error) {
+	// Master and node addresses are required options
+	if r.Master == "" {
+		return nil, errors.New("master is not configured")
+	}
+	if len(r.Nodes) == 0 {
+		return nil, errors.New("node addresses are not configured")
+	}
+
+	var tlsConfig *tls.Config
+	if baseOpts.TLSConfig != nil {
+		tlsConfig = baseOpts.TLSConfig.Clone() // avoid mutating passed struct
+		// Make tls.Config.ServerName empty, since otherwise it will pin a single server name, but sentinel clients will connect to any/multiple.
+		tlsConfig.ServerName = ""
+	}
+
+	return &redis.FailoverOptions{
+		// Sentinel-specific options
+		MasterName:       r.Master,
+		SentinelAddrs:    r.Nodes,
+		SentinelUsername: r.Username,
+		SentinelPassword: r.Password,
+		// Generic options
+		Username:        baseOpts.Username,
+		Password:        baseOpts.Password,
+		DB:              baseOpts.DB,
+		MaxRetries:      baseOpts.MaxRetries,
+		MinRetryBackoff: baseOpts.MinRetryBackoff,
+		MaxRetryBackoff: baseOpts.MaxRetryBackoff,
+		DialTimeout:     baseOpts.DialTimeout,
+		ReadTimeout:     baseOpts.ReadTimeout,
+		WriteTimeout:    baseOpts.WriteTimeout,
+		PoolFIFO:        baseOpts.PoolFIFO,
+		PoolSize:        baseOpts.PoolSize,
+		PoolTimeout:     baseOpts.PoolTimeout,
+		MinIdleConns:    baseOpts.MinIdleConns,
+		MaxIdleConns:    baseOpts.MaxIdleConns,
+		ConnMaxIdleTime: baseOpts.ConnMaxIdleTime,
+		ConnMaxLifetime: baseOpts.ConnMaxLifetime,
+		TLSConfig:       tlsConfig,
+	}, nil
 }
 
 // RedisTLSConfig specifies properties for connecting to a Redis server over TLS.
@@ -70,94 +155,25 @@ type RedisTLSConfig struct {
 }
 
 func createRedisDatabase(config RedisConfig) (*redisDatabase, error) {
-	// Backwards compatibility: if not an address URL, assume simply TCP with host:port
-	if !isRedisURL(config.Address) {
-		config.Address = "redis://" + config.Address
-	}
-
-	// Redis Sentinel support: if sentinelMasterName is present in the connection URL, crete a Sentinel client.
-	sentinelOptions, err := parseRedisSentinelURL(config)
+	opts, err := config.parse()
 	if err != nil {
-		return nil, fmt.Errorf("unable to configure Redis Sentinel client: %w", err)
+		return nil, err
 	}
-	if sentinelOptions != nil {
+	// Configure Sentinel if enabled
+	if config.Sentinel.enabled() {
+		sentinelOpts, err := config.Sentinel.parse(*opts)
+		if err != nil {
+			return nil, fmt.Errorf("unable to configure Redis Sentinel client: %w", err)
+		}
 		return &redisDatabase{
-			sentinelOptions: sentinelOptions,
+			sentinelOptions: sentinelOpts,
 			databaseName:    config.Database,
 		}, nil
 	}
-
-	// Regular Redis client
-	opts, err := parseRedisConfig(config)
-	if err != nil {
-		return nil, err
-	}
+	// Otherwise, regular Redis client
 	return &redisDatabase{
 		options:      opts,
 		databaseName: config.Database,
-	}, nil
-}
-
-// parseRedisSentinelURL parses connectionString as URL to see if Redis Sentinel support must be enabled.
-// If so, it returns true, the parsed URL without Sentinel options (because otherwise redis.ParseURL() would fail later on),
-// If the connectionString doesn't specify Redis Sentinel options, it returns false.
-func parseRedisSentinelURL(config RedisConfig) (*redis.FailoverOptions, error) {
-	//uriString := "redis://host1:1234,host2:4321?sentinelMasterName=bla"
-	// Errors return by url.Parse() are ignored, because they only happen in edge, extremely edge situations.
-	// We just return from the function, and the error occurs and gets captured again when using redis.ParseURL().
-	sentinelURI, _ := url.Parse(config.Address)
-	if sentinelURI == nil {
-		return nil, nil
-	}
-	masterName := sentinelURI.Query().Get(sentinelMasterNameParam)
-	if len(masterName) == 0 {
-		// Sentinel not enabled
-		return nil, nil
-	}
-
-	// Parse Redis options without Sentinel options, because they are unofficial
-	redisURI := *sentinelURI
-	newQuery := sentinelURI.Query()
-	for _, key := range sentinelParamKeys {
-		newQuery.Del(key)
-	}
-	redisURI.RawQuery = newQuery.Encode()
-	config.Address = redisURI.String()
-	opts, err := parseRedisConfig(config)
-	if err != nil {
-		return nil, err
-	}
-
-	// Parse Sentinel addresses
-	sentinelAddrs := strings.Split(sentinelURI.Host, ",")
-
-	// Make tls.Config.ServerName empty if set, since otherwise it will pin a single server name, but sentinel will connect to any/multiple.
-	if opts.TLSConfig != nil {
-		opts.TLSConfig.ServerName = ""
-	}
-
-	return &redis.FailoverOptions{
-		MasterName:       masterName,
-		SentinelAddrs:    sentinelAddrs,
-		SentinelUsername: sentinelURI.Query().Get(sentinelUsernameParam),
-		SentinelPassword: sentinelURI.Query().Get(sentinelPasswordParam),
-		Username:         opts.Username,
-		Password:         opts.Password,
-		DB:               opts.DB,
-		MaxRetries:       opts.MaxRetries,
-		MinRetryBackoff:  opts.MinRetryBackoff,
-		MaxRetryBackoff:  opts.MaxRetryBackoff,
-		DialTimeout:      opts.DialTimeout,
-		ReadTimeout:      opts.ReadTimeout,
-		WriteTimeout:     opts.WriteTimeout,
-		PoolFIFO:         opts.PoolFIFO,
-		PoolSize:         opts.PoolSize,
-		PoolTimeout:      opts.PoolTimeout,
-		MinIdleConns:     opts.MinIdleConns,
-		MaxIdleConns:     opts.MaxIdleConns,
-		ConnMaxIdleTime:  opts.ConnMaxIdleTime,
-		ConnMaxLifetime:  opts.ConnMaxLifetime,
-		TLSConfig:        opts.TLSConfig,
 	}, nil
 }
 
@@ -165,35 +181,6 @@ func isRedisURL(address string) bool {
 	return strings.HasPrefix(address, "redis://") ||
 		strings.HasPrefix(address, "rediss://") ||
 		strings.HasPrefix(address, "unix://")
-}
-
-func parseRedisConfig(config RedisConfig) (*redis.Options, error) {
-	opts, err := redis.ParseURL(config.Address)
-	if err != nil {
-		return nil, err
-	}
-
-	// Setup user/password auth
-	if len(config.Username) > 0 {
-		opts.Username = config.Username
-	}
-	if len(config.Password) > 0 {
-		opts.Password = config.Password
-	}
-
-	// Setup TLS
-	if len(config.TLS.TrustStoreFile) > 0 {
-		if opts.TLSConfig == nil {
-			return nil, errors.New("TLS configured but not connecting to a Redis TLS server")
-		}
-		trustStore, err := core.LoadTrustStore(config.TLS.TrustStoreFile)
-		if err != nil {
-			return nil, fmt.Errorf("unable to load truststore for Redis database: %w", err)
-		}
-		opts.TLSConfig.RootCAs = trustStore.CertPool
-	}
-	redisTLSModifier(opts.TLSConfig)
-	return opts, nil
 }
 
 func (b redisDatabase) createStore(moduleName string, storeName string) (stoabs.KVStore, error) {

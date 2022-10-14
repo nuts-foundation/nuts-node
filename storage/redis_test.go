@@ -130,76 +130,117 @@ func Test_redisDatabase_createStore(t *testing.T) {
 		assert.EqualError(t, err, "TLS configured but not connecting to a Redis TLS server")
 		assert.Nil(t, db)
 	})
-	t.Run("with Sentinel support", func(t *testing.T) {
-		db, err := createRedisDatabase(RedisConfig{
-			Address: "rediss://instance1:1234,instance2:4321?sentinelMasterName=master&sentinelUsername=sentinel-user&sentinelPassword=sentinel-password",
-			TLS: RedisTLSConfig{
-				TrustStoreFile: "test/truststore.pem",
-			},
-			Username: "username",
-			Password: "password",
+	t.Run("Sentinel", func(t *testing.T) {
+		t.Run("configure", func(t *testing.T) {
+			db, err := createRedisDatabase(RedisConfig{
+				Address: "rediss://foo",
+				TLS: RedisTLSConfig{
+					TrustStoreFile: "test/truststore.pem",
+				},
+				Username: "username",
+				Password: "password",
+				Sentinel: RedisSentinelConfig{
+					Master: "master",
+					Nodes: []string{
+						"instance1:1234",
+						"instance2:4321",
+					},
+					Username: "sentinel-user",
+					Password: "sentinel-password",
+				},
+			})
+
+			if !assert.NoError(t, err) {
+				return
+			}
+			assert.NotNil(t, db.sentinelOptions)
+			// Assert non-sentinel-specific options are still parsed
+			assert.NotNil(t, db.sentinelOptions.TLSConfig)
+			assert.Equal(t, "username", db.sentinelOptions.Username)
+			assert.Equal(t, "password", db.sentinelOptions.Password)
+			// Assert sentinel-specific options
+			assert.Equal(t, "master", db.sentinelOptions.MasterName)
+			assert.Empty(t, db.sentinelOptions.TLSConfig.ServerName)
+			assert.Equal(t, []string{"instance1:1234", "instance2:4321"}, db.sentinelOptions.SentinelAddrs)
+			assert.Equal(t, "sentinel-user", db.sentinelOptions.SentinelUsername)
+			assert.Equal(t, "sentinel-password", db.sentinelOptions.SentinelPassword)
 		})
 
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.NotNil(t, db.sentinelOptions)
-		// Assert non-sentinel-specific options are still parsed
-		assert.NotNil(t, db.sentinelOptions.TLSConfig)
-		assert.Equal(t, "username", db.sentinelOptions.Username)
-		assert.Equal(t, "password", db.sentinelOptions.Password)
-		// Assert sentinel-specific options
-		assert.Equal(t, "master", db.sentinelOptions.MasterName)
-		assert.Empty(t, db.sentinelOptions.TLSConfig.ServerName)
-		assert.Equal(t, []string{"instance1:1234", "instance2:4321"}, db.sentinelOptions.SentinelAddrs)
-		assert.Equal(t, "sentinel-user", db.sentinelOptions.SentinelUsername)
-		assert.Equal(t, "sentinel-password", db.sentinelOptions.SentinelPassword)
-	})
-	t.Run("with Sentinel support (connect)", func(t *testing.T) {
-		// Setup server-side TLS
-		cert, err := tls.LoadX509KeyPair("test/certificate.pem", "test/certificate.pem")
-		if !assert.NoError(t, err) {
-			return
-		}
-		redis, err := miniredis.RunTLS(&tls.Config{
-			Certificates: []tls.Certificate{cert},
-		})
-		if !assert.NoError(t, err) {
-			return
-		}
-		t.Cleanup(func() {
-			redis.Close()
+		t.Run("error - master not configured", func(t *testing.T) {
+			_, err := createRedisDatabase(RedisConfig{
+				Address: "rediss://foo",
+				Sentinel: RedisSentinelConfig{
+					Nodes: []string{
+						"instance1:1234",
+						"instance2:4321",
+					},
+				},
+			})
+
+			assert.EqualError(t, err, "unable to configure Redis Sentinel client: master is not configured")
 		})
 
-		// Setup client-side TLS config
-		redisTLSModifier = func(conf *tls.Config) {
-			conf.InsecureSkipVerify = true
-		}
+		t.Run("error - nodes not configured", func(t *testing.T) {
+			_, err := createRedisDatabase(RedisConfig{
+				Address: "rediss://foo",
+				Sentinel: RedisSentinelConfig{
+					Master: "foo",
+				},
+			})
 
-		db, err := createRedisDatabase(RedisConfig{
-			Address: "rediss://" + redis.Addr() + "?sentinelMasterName=master",
-			TLS: RedisTLSConfig{
-				TrustStoreFile: "test/truststore.pem",
-			},
+			assert.EqualError(t, err, "unable to configure Redis Sentinel client: node addresses are not configured")
 		})
-		if !assert.NoError(t, err) {
-			return
-		}
 
-		oldPingAttemptBackoff := redis7.PingAttemptBackoff
-		defer func() {
-			redis7.PingAttemptBackoff = oldPingAttemptBackoff
-		}()
-		redis7.PingAttemptBackoff = 0
-		_, err = db.createStore("unit", "test")
-		// We don't have Sentinel support in Miniredis, but we can check that the client attempted to connect using Sentinel
-		assert.EqualError(t, err, "unable to connect to Redis database: Database Error: redis: all sentinels specified in configuration are unreachable")
+		t.Run("try to connect", func(t *testing.T) {
+			// Setup server-side TLS
+			cert, err := tls.LoadX509KeyPair("test/certificate.pem", "test/certificate.pem")
+			if !assert.NoError(t, err) {
+				return
+			}
+			redis, err := miniredis.RunTLS(&tls.Config{
+				Certificates: []tls.Certificate{cert},
+			})
+			if !assert.NoError(t, err) {
+				return
+			}
+			t.Cleanup(func() {
+				redis.Close()
+			})
+
+			// Setup client-side TLS config
+			redisTLSModifier = func(conf *tls.Config) {
+				conf.InsecureSkipVerify = true
+			}
+
+			db, err := createRedisDatabase(RedisConfig{
+				Address: "rediss://" + redis.Addr(),
+				TLS: RedisTLSConfig{
+					TrustStoreFile: "test/truststore.pem",
+				},
+				Sentinel: RedisSentinelConfig{
+					Master: "master",
+					Nodes:  []string{redis.Addr()},
+				},
+			})
+			if !assert.NoError(t, err) {
+				return
+			}
+
+			oldPingAttemptBackoff := redis7.PingAttemptBackoff
+			defer func() {
+				redis7.PingAttemptBackoff = oldPingAttemptBackoff
+			}()
+			redis7.PingAttemptBackoff = 0
+			_, err = db.createStore("unit", "test")
+			// We don't have Sentinel support in Miniredis, but we can check that the client attempted to connect using Sentinel
+			assert.EqualError(t, err, "unable to connect to Redis database: Database Error: redis: all sentinels specified in configuration are unreachable")
+		})
 	})
 }
 
 func TestRedisConfig_IsConfigured(t *testing.T) {
-	assert.False(t, RedisConfig{}.IsConfigured())
-	assert.True(t, RedisConfig{Address: "something"}.IsConfigured())
+	assert.False(t, RedisConfig{}.isConfigured())
+	assert.True(t, RedisConfig{Address: "something"}.isConfigured())
 }
 
 func Test_redisDatabase_getClass(t *testing.T) {
