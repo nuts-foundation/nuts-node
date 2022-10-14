@@ -378,7 +378,7 @@ func (s *service) validateAuthorizationCredentials(context *validationContext) e
 			return fmt.Errorf(errInvalidVCClaim, err)
 		}
 
-		//The credential issuer equals the sub field of the JWT.
+		// The credential issuer equals the sub field of the JWT.
 		if authCred.Issuer.String() != sub {
 			return fmt.Errorf("issuer %s of authorization credential with ID: %s does not match jwt.sub: %s", authCred.Issuer.String(), authCred.ID.String(), sub)
 		}
@@ -428,15 +428,7 @@ func (s *service) CreateJwtGrant(request services.CreateJwtGrantRequest) (*servi
 	}
 
 	for _, verifiableCredential := range request.Credentials {
-		validator := credential.FindValidator(verifiableCredential)
-		if validator == nil {
-			if err := credential.Validate(verifiableCredential); err != nil {
-				return nil, fmt.Errorf("invalid VerifiableCredential: %w", err)
-			}
-
-			continue
-		}
-
+		validator := credential.FindValidator(verifiableCredential, s.jsonldManager.DocumentLoader())
 		if err := validator.Validate(verifiableCredential); err != nil {
 			return nil, fmt.Errorf("invalid VerifiableCredential: %w", err)
 		}
