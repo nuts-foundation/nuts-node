@@ -36,6 +36,22 @@ import (
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 )
 
+const mockKID = "did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE"
+
+// mockKeyCreator can create new keys based on a predefined key
+type mockKeyCreator struct {
+	kid string
+}
+
+func newMockKeyCreator() *mockKeyCreator {
+	return &mockKeyCreator{kid: mockKID}
+}
+
+// New uses a predefined ECDSA key and calls the namingFunc to get the kid
+func (m *mockKeyCreator) New(namingFunc nutsCrypto.KIDNamingFunc) (nutsCrypto.Key, error) {
+	return nutsCrypto.NewTestKey(m.kid), nil
+}
+
 var jwkString = `{"crv":"P-256","kid":"did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE","kty":"EC","x":"Qn6xbZtOYFoLO2qMEAczcau9uGGWwa1bT+7JmAVLtg4=","y":"d20dD0qlT+d1djVpAfrfsAfKOUxKwKkn1zqFSIuJ398="},"type":"JsonWebKey2020"}`
 
 func TestDefaultCreationOptions(t *testing.T) {
@@ -230,7 +246,7 @@ func Test_didKIDNamingFunc(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Equal(t, keyID, kid, keyID)
+		assert.Equal(t, keyID, mockKID, keyID)
 	})
 
 	t.Run("nok - wrong key type", func(t *testing.T) {

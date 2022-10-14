@@ -23,7 +23,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -125,13 +124,6 @@ func TestUziValidator(t *testing.T) {
 		assert.Equal(t, contract.Type("BehandelaarLogin"), signedToken.Contract().Template.Type)
 		assert.Equal(t, contract.Language("NL"), signedToken.Contract().Template.Language)
 		assert.Equal(t, contract.Version("v1"), signedToken.Contract().Template.Version)
-
-		// Replace the time func with one that returns a time the crl is valid
-		oldNowFunc := nowFunc
-		defer func() {
-			nowFunc = oldNowFunc
-		}()
-		nowFunc = func() time.Time { return time.Date(2020, 10, 29, 0, 0, 0, 0, time.UTC) }
 
 		err = uziValidator.Verify(signedToken)
 		assert.NoError(t, err)
