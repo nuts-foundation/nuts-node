@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/piprate/json-gold/ld"
 	"reflect"
@@ -223,7 +224,25 @@ func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableC
 		return err
 	}
 
-	return (defaultCredentialValidator{d.documentLoader}).Validate(credential)
+	err = (defaultCredentialValidator{d.documentLoader}).Validate(credential)
+	// Backwards compatibility: previously NutsAuthorizationCredential (v1) always contained LegalBase,
+	// which was missing from the JSON-LD context. Since disallowing VCs with undefined fields,
+	// these credentials wouldn't be accepted anymore. This is a problem for both already issued credentials,
+	// and networks that have a mix of v4 and v5 nodes, because v4 nodes require LegalBase to be present.
+	// Therefore, we accept NutsAuthorizationCredential (v1) with undefined fields for now to maintain
+	// backwards compatibility with v4, by just logging the validation error.
+	// For v6, we can then break backwards compatibility with v4 and block when undefined fields (LegalBase) is encountered.
+	if err != nil &&
+		err.Error() == "validation failed: not all fields are defined by JSON-LD context" &&
+		credential.ContainsContext(NutsV1ContextURI) {
+		log.Logger().
+			WithField(core.LogFieldCredentialID, credential.ID).
+			Warn("Validation failed for NutsAuthorizationCredential (v1) due to undefined fields, " +
+				"maybe 'legalBase' is still present? This indicates a bug in the application that issued the credential (see v5 release notes). " +
+				"This is tolerated for now to maintain backwards compatibility, but will become blocking in future.")
+		return nil
+	}
+	return err
 }
 
 func validOperationTypes() []string {

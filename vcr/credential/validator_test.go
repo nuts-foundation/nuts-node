@@ -184,6 +184,25 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 
 			assert.NoError(t, err)
 		})
+		t.Run("ok - backwards compatibility for LegalBase", func(t *testing.T) {
+			// Tests with a credential with LegalBase which was required up to v4,
+			// but disallowed starting v5 since it isn't defined in the JSON-LD context.
+			// But to maintain backwards compatibility, it's allowed and logged as a warning.
+			v := validV1NutsAuthorizationCredential()
+			v.CredentialSubject = []interface{}{
+				NutsAuthorizationCredentialSubject{
+					ID:           vdr.TestDIDB.String(),
+					PurposeOfUse: "eTransfer",
+					LegalBase: &LegalBase{
+						ConsentType: "implied",
+					},
+				},
+			}
+
+			err := validator.Validate(*v)
+
+			assert.NoError(t, err)
+		})
 	})
 	t.Run("v2", func(t *testing.T) {
 		t.Run("ok - implied", func(t *testing.T) {
