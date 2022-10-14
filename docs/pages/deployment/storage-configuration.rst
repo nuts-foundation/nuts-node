@@ -69,7 +69,7 @@ Other configuration and connection URL parameters (not specific) to Sentinel sti
       redis:
         address: redis://irrelevant
         sentinel:
-          master: sentinel-master
+          master: mymaster
           nodes:
             - instance1:1234
             - instance2:5678
