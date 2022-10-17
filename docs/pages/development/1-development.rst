@@ -61,17 +61,6 @@ Protobuf + gRCP  ``make gen-protobuf``
 All              ``make run-generators``
 ================ =======================
 
-Docs Generation
-***************
-
-To generate the documentation, you'll need to build a docker image and run it from the docs directory:
-
-.. code-block:: shell
-
-    cd docs
-    docker build -t nutsfoundation/nuts-node-docs .
-    docker run --rm -v $PWD:/docs nutsfoundation/nuts-node-docs make html
-
 README
 ======
 
