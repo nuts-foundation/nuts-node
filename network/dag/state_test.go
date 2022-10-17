@@ -147,7 +147,7 @@ func TestState_Notifier(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Len(t, s.notifiers, 1)
+		assert.Len(t, s.Notifiers(), 1)
 	})
 
 	t.Run("error on adding same notifier twice", func(t *testing.T) {
