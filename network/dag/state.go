@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"sync"
+	"sync/atomic"
 )
 
 const (
@@ -42,19 +43,20 @@ const (
 )
 
 // State has references to the DAG and the payload store.
+// Multiple goroutines may invoke methods on a state simultaneously.
 type state struct {
-	db                  stoabs.KVStore
-	graph               *dag
-	payloadStore        PayloadStore
-	txVerifiers         []Verifier
-	notifiers           map[string]Notifier
-	xorTree             *treeStore
-	ibltTree            *treeStore
-	highestLC           highestLC
-	transactionCount    prometheus.Counter
-	eventsNotifyCount   prometheus.Counter
-	eventsFinishedCount prometheus.Counter
-	notifiersMux        *sync.RWMutex
+	db                     stoabs.KVStore
+	graph                  *dag
+	payloadStore           PayloadStore
+	txVerifiers            []Verifier
+	notifiers              map[string]Notifier
+	xorTree                *treeStore
+	ibltTree               *treeStore
+	atomicLamportClockHigh uint32
+	transactionCount       prometheus.Counter
+	eventsNotifyCount      prometheus.Counter
+	eventsFinishedCount    prometheus.Counter
+	notifiersMux           *sync.RWMutex
 }
 
 func (s *state) Migrate() error {
@@ -75,10 +77,6 @@ func NewState(db stoabs.KVStore, verifiers ...Verifier) (State, error) {
 		xorTree:      newTreeStore(xorShelf, tree.New(tree.NewXor(), PageSize)),
 		ibltTree:     newTreeStore(ibltShelf, tree.New(tree.NewIblt(IbltNumBuckets), PageSize)),
 		notifiersMux: &sync.RWMutex{},
-		highestLC: highestLC{
-			mux:   sync.RWMutex{},
-			value: 0,
-		},
 	}
 	err := newState.initPrometheusCounters()
 	if err != nil && err.Error() != (prometheus.AlreadyRegisteredError{}).Error() { // No unwrap on prometheus.AlreadyRegisteredError
@@ -222,7 +220,13 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 }
 
 func (s *state) updateState(tx stoabs.WriteTx, transaction Transaction) error {
-	s.highestLC.setIfBigger(transaction.Clock())
+	clock := transaction.Clock()
+	for {
+		v := atomic.LoadUint32(&s.atomicLamportClockHigh)
+		if v >= clock || atomic.CompareAndSwapUint32(&s.atomicLamportClockHigh, v, clock) {
+			break
+		}
+	}
 	if err := s.ibltTree.write(tx, transaction); err != nil {
 		return err
 	}
@@ -231,7 +235,7 @@ func (s *state) updateState(tx stoabs.WriteTx, transaction Transaction) error {
 
 func (s *state) loadState(ctx context.Context) {
 	if err := s.db.Read(ctx, func(tx stoabs.ReadTx) error {
-		s.highestLC.set(s.graph.getHighestClockValue(tx))
+		atomic.StoreUint32(&s.atomicLamportClockHigh, s.graph.getHighestClockValue(tx))
 		if err := s.xorTree.read(tx); err != nil {
 			return fmt.Errorf("failed to read xorTree: %w", err)
 		}
@@ -353,7 +357,7 @@ func (s *state) Notifiers() []Notifier {
 func (s *state) XOR(reqClock uint32) (hash.SHA256Hash, uint32) {
 	var data tree.Data
 
-	currentClock := s.highestLC.get()
+	currentClock := atomic.LoadUint32(&s.atomicLamportClockHigh)
 	dataClock := currentClock
 	if reqClock < currentClock {
 		var pageClock uint32
@@ -371,7 +375,7 @@ func (s *state) XOR(reqClock uint32) (hash.SHA256Hash, uint32) {
 func (s *state) IBLT(reqClock uint32) (tree.Iblt, uint32) {
 	var data tree.Data
 
-	currentClock := s.highestLC.get()
+	currentClock := atomic.LoadUint32(&s.atomicLamportClockHigh)
 	dataClock := currentClock
 	if reqClock < currentClock {
 		var pageClock uint32
@@ -477,30 +481,4 @@ func (s *state) Diagnostics() []core.DiagnosticResult {
 	diag = append(diag, &core.GenericDiagnosticResult{Title: "dag_xor", Outcome: s.xorTree.getRoot().(*tree.Xor).Hash()})
 	diag = append(diag, &core.GenericDiagnosticResult{Title: "failed_events", Outcome: len(s.getFailedEvents())})
 	return diag
-}
-
-type highestLC struct {
-	value uint32
-	mux   sync.RWMutex
-}
-
-func (h *highestLC) get() uint32 {
-	h.mux.RLock()
-	defer h.mux.RUnlock()
-	lc := h.value
-	return lc
-}
-
-func (h *highestLC) set(lc uint32) {
-	h.mux.Lock()
-	defer h.mux.Unlock()
-	h.value = lc
-}
-
-func (h *highestLC) setIfBigger(lc uint32) {
-	h.mux.Lock()
-	defer h.mux.Unlock()
-	if h.value < lc {
-		h.value = lc
-	}
 }
