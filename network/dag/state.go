@@ -45,17 +45,17 @@ const (
 // State has references to the DAG and the payload store.
 // Multiple goroutines may invoke methods on a state simultaneously.
 type state struct {
-	db                     stoabs.KVStore
-	graph                  *dag
-	payloadStore           PayloadStore
-	txVerifiers            []Verifier
-	notifiers              sync.Map
-	xorTree                *treeStore
-	ibltTree               *treeStore
-	atomicLamportClockHigh uint32
-	transactionCount       prometheus.Counter
-	eventsNotifyCount      prometheus.Counter
-	eventsFinishedCount    prometheus.Counter
+	db                  stoabs.KVStore
+	graph               *dag
+	payloadStore        PayloadStore
+	txVerifiers         []Verifier
+	notifiers           sync.Map
+	xorTree             *treeStore
+	ibltTree            *treeStore
+	lamportClockHigh    atomic.Uint32
+	transactionCount    prometheus.Counter
+	eventsNotifyCount   prometheus.Counter
+	eventsFinishedCount prometheus.Counter
 }
 
 func (s *state) Migrate() error {
@@ -219,8 +219,8 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 func (s *state) updateState(tx stoabs.WriteTx, transaction Transaction) error {
 	clock := transaction.Clock()
 	for {
-		v := atomic.LoadUint32(&s.atomicLamportClockHigh)
-		if v >= clock || atomic.CompareAndSwapUint32(&s.atomicLamportClockHigh, v, clock) {
+		v := s.lamportClockHigh.Load()
+		if v >= clock || s.lamportClockHigh.CompareAndSwap(v, clock) {
 			break
 		}
 	}
@@ -232,7 +232,7 @@ func (s *state) updateState(tx stoabs.WriteTx, transaction Transaction) error {
 
 func (s *state) loadState(ctx context.Context) {
 	if err := s.db.Read(ctx, func(tx stoabs.ReadTx) error {
-		atomic.StoreUint32(&s.atomicLamportClockHigh, s.graph.getHighestClockValue(tx))
+		s.lamportClockHigh.Store(s.graph.getHighestClockValue(tx))
 		if err := s.xorTree.read(tx); err != nil {
 			return fmt.Errorf("failed to read xorTree: %w", err)
 		}
@@ -351,7 +351,7 @@ func (s *state) Notifiers() []Notifier {
 func (s *state) XOR(reqClock uint32) (hash.SHA256Hash, uint32) {
 	var data tree.Data
 
-	currentClock := atomic.LoadUint32(&s.atomicLamportClockHigh)
+	currentClock := s.lamportClockHigh.Load()
 	dataClock := currentClock
 	if reqClock < currentClock {
 		var pageClock uint32
@@ -369,7 +369,7 @@ func (s *state) XOR(reqClock uint32) (hash.SHA256Hash, uint32) {
 func (s *state) IBLT(reqClock uint32) (tree.Iblt, uint32) {
 	var data tree.Data
 
-	currentClock := atomic.LoadUint32(&s.atomicLamportClockHigh)
+	currentClock := s.lamportClockHigh.Load()
 	dataClock := currentClock
 	if reqClock < currentClock {
 		var pageClock uint32
