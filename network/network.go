@@ -425,6 +425,7 @@ func (n *Network) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte,
 	transaction, err := n.state.GetTransaction(context.Background(), transactionRef)
 	if err != nil {
 		if errors.Is(err, dag.ErrTransactionNotFound) {
+			// convert ErrPayloadNotFound for simpler error handling
 			return nil, dag.ErrPayloadNotFound
 		}
 		return nil, err

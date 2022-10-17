@@ -246,6 +246,7 @@ func (p *protocol) handlePrivateTxRetry(event dag.Event) (bool, error) {
 	}
 
 	if isPresent {
+		// stop retrying
 		log.Logger().
 			WithField(core.LogFieldTransactionRef, event.Hash.String()).
 			Debug("Transaction payload already present, not querying")
