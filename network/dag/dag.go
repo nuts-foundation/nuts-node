@@ -148,12 +148,9 @@ func (d *dag) Migrate() error {
 					transaction, err := getTransaction(ref, tx)
 					if err != nil {
 						if errors.Is(err, ErrTransactionNotFound) {
-							return fmt.Errorf("database migration failed: head not found (%s=%s)", core.LogFieldTransactionRef, ref)
+							return fmt.Errorf("database migration failed: %w (%s=%s)", err, core.LogFieldTransactionRef, ref)
 						}
 						return err
-					}
-					if transaction == nil {
-
 					}
 					if transaction.Clock() >= latestLC {
 						latestHead = ref
