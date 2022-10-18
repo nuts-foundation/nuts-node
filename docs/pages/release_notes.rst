@@ -6,6 +6,18 @@ Release notes
 What has been changed, and how to update between versions.
 
 *****************
+Chestnut update (v4.3.0)
+*****************
+
+Release date: 2022-10-??
+
+Adds forward compatibility support for the upcoming Nuts Node v5 release.
+The upcoming v5 release fixes ``legalBase`` not being defined in the Nuts JSON-LD context by releasing a new version of the Nuts JSON-LD context (v2).
+Since the v5 issue will issue VCs using this new context by default, users MUST upgrade their v4 node to maintain compatibility.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.2.4...v4.3.0
+
+*****************
 Chestnut update (v4.2.4)
 *****************
 
@@ -36,7 +48,7 @@ Release date: 2022-08-31
 
 Bugfix for Redis: not being able to load state data from database.
 
-**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.2.0...v4.2.1
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.2.0...v4.2.2
 
 *****************
 Chestnut update (v4.2.0)
