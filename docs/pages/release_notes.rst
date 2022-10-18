@@ -6,10 +6,10 @@ Release notes
 What has been changed, and how to update between versions.
 
 *****************
-Coconut (v5.0.0)
+TBA: Coconut (v5.0.0)
 *****************
 
-Release date: 2022-10-14
+Release date: 2022-??-?? (not yet released)
 
 - HTTPS TLS offloading is now also possible at the Nuts node. Checkout the docs on TLS offloading for the details.
   By default this is turned off which corresponds to the current behaviour.
