@@ -333,7 +333,7 @@ func (s *state) Notifier(name string, receiver ReceiverFn, options ...NotifierOp
 
 	_, loaded := s.notifiers.LoadOrStore(name, n)
 	if loaded {
-		return nil, fmt.Errorf("event receiver %q registarion denied on duplicate name", name)
+		return nil, fmt.Errorf("Nuts event receiver %q registration denied on duplicate name", name)
 	}
 	return n, nil
 }
