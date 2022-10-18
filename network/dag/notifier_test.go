@@ -33,7 +33,7 @@ import (
 	io_prometheus_client "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
 	"path"
-	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -282,10 +282,10 @@ func TestNotifier_Notify(t *testing.T) {
 		s.Notify(Event{})
 
 		test.WaitFor(t, func() (bool, error) {
-			return counter.read() == 1, nil
+			return counter.N.Load() == 1, nil
 		}, time.Second, "timeout while waiting for receiver")
 
-		assert.Equal(t, 1, counter.read())
+		assert.Equal(t, int64(1), counter.N.Load())
 	})
 
 	t.Run("OK - prometheus counters updated", func(t *testing.T) {
@@ -298,11 +298,11 @@ func TestNotifier_Notify(t *testing.T) {
 		s.Notify(Event{})
 
 		test.WaitFor(t, func() (bool, error) {
-			return counter.read() == 1, nil
+			return counter.N.Load() == 1, nil
 		}, time.Second, "timeout while waiting for receiver")
 
-		assert.Equal(t, 1, notifyCounter.count)
-		assert.Equal(t, 1, finishedCounter.count)
+		assert.Equal(t, int64(1), notifyCounter.N.Load())
+		assert.Equal(t, int64(1), finishedCounter.N.Load())
 	})
 
 	t.Run("OK - retried once", func(t *testing.T) {
@@ -313,10 +313,10 @@ func TestNotifier_Notify(t *testing.T) {
 		s.Notify(Event{})
 
 		test.WaitFor(t, func() (bool, error) {
-			return counter.read() == 2, nil
+			return counter.N.Load() == 2, nil
 		}, time.Second, "timeout while waiting for receiver")
 
-		assert.Equal(t, 2, counter.read())
+		assert.Equal(t, int64(2), counter.N.Load())
 	})
 
 	t.Run("OK - updates DB", func(t *testing.T) {
@@ -334,7 +334,7 @@ func TestNotifier_Notify(t *testing.T) {
 		s.Notify(event)
 
 		test.WaitFor(t, func() (bool, error) {
-			return counter.read() == 1, nil
+			return counter.N.Load() == 1, nil
 		}, time.Second, "timeout while waiting for receiver")
 		kvStore.ReadShelf(ctx, s.shelfName(), func(reader stoabs.Reader) error {
 			e, err := s.readEvent(reader, hash.EmptyHash())
@@ -347,7 +347,7 @@ func TestNotifier_Notify(t *testing.T) {
 			return nil
 		})
 
-		assert.Equal(t, 1, counter.read())
+		assert.Equal(t, int64(1), counter.N.Load())
 	})
 
 	t.Run("OK - stops when no longer available in DB", func(t *testing.T) {
@@ -367,7 +367,7 @@ func TestNotifier_Notify(t *testing.T) {
 
 		time.Sleep(20 * time.Millisecond)
 
-		assert.Equal(t, 0, counter.read())
+		assert.Equal(t, int64(0), counter.N.Load())
 	})
 }
 
@@ -395,7 +395,7 @@ func TestNotifier_Run(t *testing.T) {
 	s.Run()
 
 	test.WaitFor(t, func() (bool, error) {
-		return counter.read() == 1, nil
+		return counter.N.Load() == 1, nil
 	}, time.Second, "timeout while waiting for receiver")
 }
 
@@ -417,7 +417,7 @@ func TestNotifier_VariousFlows(t *testing.T) {
 		s.Notify(event)
 
 		test.WaitFor(t, func() (bool, error) {
-			return counter.read() == 2, nil
+			return counter.N.Load() == 2, nil
 		}, time.Second, "timeout while waiting for receiver")
 
 		kvStore.ReadShelf(ctx, s.shelfName(), func(reader stoabs.Reader) error {
@@ -483,9 +483,9 @@ func TestNotifier_VariousFlows(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.Len(t, events, 1)
-		assert.Equal(t, 5, counter.read())
-		assert.Equal(t, 5, notifiedCounter.count)
-		assert.Equal(t, "error", events[0].Error)
+		assert.Equal(t, int64(5), counter.N.Load())
+		assert.Equal(t, int64(5), notifiedCounter.N.Load())
+		assert.Equal(t, "default callblackCounter test error", events[0].Error)
 	})
 
 	t.Run("fails on fatal event before scheduling retry ", func(t *testing.T) {
@@ -516,7 +516,7 @@ func TestNotifier_VariousFlows(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.Len(t, events, 1)
-		assert.Equal(t, 1, counter.read())
+		assert.Equal(t, int64(1), counter.N.Load())
 		assert.Equal(t, "fatal error", events[0].Error)
 	})
 
@@ -550,7 +550,7 @@ func TestNotifier_VariousFlows(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.Len(t, events, 1)
-		assert.Equal(t, 6, counter.read())
+		assert.Equal(t, int64(6), counter.N.Load())
 		assert.Equal(t, "fatal error", events[0].Error)
 	})
 }
@@ -560,55 +560,35 @@ func dummyFunc(_ Event) (bool, error) {
 }
 
 type callbackCounter struct {
-	count int
-	// mutex to prevent data race during test
-	mutex sync.Mutex
-	err   error
+	N   atomic.Int64
+	Err atomic.Pointer[error]
 }
 
-func (cc *callbackCounter) callback(_ Event) (bool, error) {
-	cc.mutex.Lock()
-	defer cc.mutex.Unlock()
-
-	cc.count++
+func (c *callbackCounter) callback(_ Event) (bool, error) {
+	c.N.Add(1)
 	return false, nil
 }
 
-func (cc *callbackCounter) callbackFinished(_ Event) (bool, error) {
-	cc.mutex.Lock()
-	defer cc.mutex.Unlock()
-
-	cc.count++
+func (c *callbackCounter) callbackFinished(_ Event) (bool, error) {
+	c.N.Add(1)
 	return true, nil
 }
 
 func (cc *callbackCounter) callbackFailure(_ Event) (bool, error) {
-	cc.mutex.Lock()
-	defer cc.mutex.Unlock()
-
-	cc.count++
-	if cc.err != nil {
-		return false, cc.err
+	cc.N.Add(1)
+	err := cc.Err.Load()
+	if err != nil {
+		return false, *err
 	}
-	return false, errors.New("error")
+	return false, errors.New("default callblackCounter test error")
 }
 
-func (cc *callbackCounter) setCallbackError(err error) {
-	cc.mutex.Lock()
-	defer cc.mutex.Unlock()
-
-	cc.err = err
-}
-
-func (cc *callbackCounter) read() int {
-	cc.mutex.Lock()
-	defer cc.mutex.Unlock()
-
-	return cc.count
+func (c *callbackCounter) setCallbackError(err error) {
+	c.Err.Store(&err)
 }
 
 type prometheusCounter struct {
-	count int
+	N atomic.Int64
 }
 
 func (t prometheusCounter) Desc() *prometheus.Desc {
@@ -628,7 +608,7 @@ func (t prometheusCounter) Collect(metrics chan<- prometheus.Metric) {
 }
 
 func (t *prometheusCounter) Inc() {
-	t.count++
+	t.N.Add(1)
 }
 
 func (t prometheusCounter) Add(f float64) {

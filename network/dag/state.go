@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"sync"
+	"sync/atomic"
 )
 
 const (
@@ -42,19 +43,19 @@ const (
 )
 
 // State has references to the DAG and the payload store.
+// Multiple goroutines may invoke methods on a state simultaneously.
 type state struct {
 	db                  stoabs.KVStore
 	graph               *dag
 	payloadStore        PayloadStore
 	txVerifiers         []Verifier
-	notifiers           map[string]Notifier
+	notifiers           sync.Map
 	xorTree             *treeStore
 	ibltTree            *treeStore
-	highestLC           highestLC
+	lamportClockHigh    atomic.Uint32
 	transactionCount    prometheus.Counter
 	eventsNotifyCount   prometheus.Counter
 	eventsFinishedCount prometheus.Counter
-	notifiersMux        *sync.RWMutex
 }
 
 func (s *state) Migrate() error {
@@ -71,14 +72,8 @@ func NewState(db stoabs.KVStore, verifiers ...Verifier) (State, error) {
 		graph:        graph,
 		payloadStore: payloadStore,
 		txVerifiers:  verifiers,
-		notifiers:    map[string]Notifier{},
 		xorTree:      newTreeStore(xorShelf, tree.New(tree.NewXor(), PageSize)),
 		ibltTree:     newTreeStore(ibltShelf, tree.New(tree.NewIblt(IbltNumBuckets), PageSize)),
-		notifiersMux: &sync.RWMutex{},
-		highestLC: highestLC{
-			mux:   sync.RWMutex{},
-			value: 0,
-		},
 	}
 	err := newState.initPrometheusCounters()
 	if err != nil && err.Error() != (prometheus.AlreadyRegisteredError{}).Error() { // No unwrap on prometheus.AlreadyRegisteredError
@@ -222,7 +217,13 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 }
 
 func (s *state) updateState(tx stoabs.WriteTx, transaction Transaction) error {
-	s.highestLC.setIfBigger(transaction.Clock())
+	clock := transaction.Clock()
+	for {
+		v := s.lamportClockHigh.Load()
+		if v >= clock || s.lamportClockHigh.CompareAndSwap(v, clock) {
+			break
+		}
+	}
 	if err := s.ibltTree.write(tx, transaction); err != nil {
 		return err
 	}
@@ -231,7 +232,7 @@ func (s *state) updateState(tx stoabs.WriteTx, transaction Transaction) error {
 
 func (s *state) loadState(ctx context.Context) {
 	if err := s.db.Read(ctx, func(tx stoabs.ReadTx) error {
-		s.highestLC.set(s.graph.getHighestClockValue(tx))
+		s.lamportClockHigh.Store(s.graph.getHighestClockValue(tx))
 		if err := s.xorTree.read(tx); err != nil {
 			return fmt.Errorf("failed to read xorTree: %w", err)
 		}
@@ -324,36 +325,33 @@ func (s *state) Head(ctx context.Context) (hash.SHA256Hash, error) {
 	return head, err
 }
 
+// Notifier registers receiver under a unique name.
 func (s *state) Notifier(name string, receiver ReceiverFn, options ...NotifierOption) (Notifier, error) {
-	s.notifiersMux.Lock()
-	defer s.notifiersMux.Unlock()
-
-	if _, exists := s.notifiers[name]; exists {
-		return nil, fmt.Errorf("notifier already exists (name=%s)", name)
-	}
 	options = append(options, withCounters(s.eventsNotifyCount, s.eventsFinishedCount))
 
-	notifier := NewNotifier(name, receiver, options...)
-	s.notifiers[name] = notifier
+	n := NewNotifier(name, receiver, options...)
 
-	return notifier, nil
+	_, loaded := s.notifiers.LoadOrStore(name, n)
+	if loaded {
+		return nil, fmt.Errorf("Nuts event receiver %q registration denied on duplicate name", name)
+	}
+	return n, nil
 }
 
+// Notifiers returns new slice with each registered instance in arbitrary order.
 func (s *state) Notifiers() []Notifier {
-	s.notifiersMux.RLock()
-	defer s.notifiersMux.RUnlock()
-
-	notifiers := make([]Notifier, 0)
-	for _, notifier := range s.notifiers {
-		notifiers = append(notifiers, notifier)
-	}
-	return notifiers
+	var a []Notifier
+	s.notifiers.Range(func(_, value any) bool {
+		a = append(a, value.(Notifier))
+		return true
+	})
+	return a
 }
 
 func (s *state) XOR(reqClock uint32) (hash.SHA256Hash, uint32) {
 	var data tree.Data
 
-	currentClock := s.highestLC.get()
+	currentClock := s.lamportClockHigh.Load()
 	dataClock := currentClock
 	if reqClock < currentClock {
 		var pageClock uint32
@@ -371,7 +369,7 @@ func (s *state) XOR(reqClock uint32) (hash.SHA256Hash, uint32) {
 func (s *state) IBLT(reqClock uint32) (tree.Iblt, uint32) {
 	var data tree.Data
 
-	currentClock := s.highestLC.get()
+	currentClock := s.lamportClockHigh.Load()
 	dataClock := currentClock
 	if reqClock < currentClock {
 		var pageClock uint32
@@ -406,15 +404,11 @@ func (s *state) Start() error {
 	}
 
 	// resume all notifiers
-	s.notifiersMux.RLock()
-	defer s.notifiersMux.RUnlock()
-	for _, curr := range s.notifiers {
-		if err := curr.Run(); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	s.notifiers.Range(func(_, value any) bool {
+		err = value.(Notifier).Run()
+		return err == nil
+	})
+	return err
 }
 
 // Verify can be used to verify the entire DAG.
@@ -435,72 +429,37 @@ func (s *state) Verify(ctx context.Context) error {
 }
 
 func (s *state) saveEvent(tx stoabs.WriteTx, event Event) error {
-	s.notifiersMux.RLock()
-	defer s.notifiersMux.RUnlock()
-
-	for _, notifier := range s.notifiers {
-		if err := notifier.Save(tx, event); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	var err error
+	s.notifiers.Range(func(_, value any) bool {
+		err := value.(Notifier).Save(tx, event)
+		return err == nil
+	})
+	return err
 }
 
 func (s *state) notify(event Event) {
-	s.notifiersMux.RLock()
-	defer s.notifiersMux.RUnlock()
-
-	for _, notifier := range s.notifiers {
-		notifier.Notify(event)
-	}
+	s.notifiers.Range(func(_, value any) bool {
+		value.(Notifier).Notify(event)
+		return true
+	})
 }
 
-func (s *state) getFailedEvents() []Event {
-	s.notifiersMux.RLock()
-	defer s.notifiersMux.RUnlock()
-
-	failedEvents := make([]Event, 0)
-	for name, notifier := range s.notifiers {
-		events, err := notifier.GetFailedEvents()
+func (s *state) failedEventCount() int {
+	var n int
+	s.notifiers.Range(func(key, value any) bool {
+		events, err := value.(Notifier).GetFailedEvents()
 		if err != nil {
-			log.Logger().Errorf("Failed to retrieve failed events: %v (notifier=%s)", err, name)
-			continue
+			log.Logger().WithError(err).Errorf("failed events from %q omitted", key)
 		}
-		failedEvents = append(failedEvents, events...)
-	}
-	return failedEvents
+		n += len(events)
+		return true
+	})
+	return n
 }
 
 func (s *state) Diagnostics() []core.DiagnosticResult {
 	diag := s.graph.diagnostics(context.Background())
 	diag = append(diag, &core.GenericDiagnosticResult{Title: "dag_xor", Outcome: s.xorTree.getRoot().(*tree.Xor).Hash()})
-	diag = append(diag, &core.GenericDiagnosticResult{Title: "failed_events", Outcome: len(s.getFailedEvents())})
+	diag = append(diag, &core.GenericDiagnosticResult{Title: "failed_events", Outcome: s.failedEventCount()})
 	return diag
-}
-
-type highestLC struct {
-	value uint32
-	mux   sync.RWMutex
-}
-
-func (h *highestLC) get() uint32 {
-	h.mux.RLock()
-	defer h.mux.RUnlock()
-	lc := h.value
-	return lc
-}
-
-func (h *highestLC) set(lc uint32) {
-	h.mux.Lock()
-	defer h.mux.Unlock()
-	h.value = lc
-}
-
-func (h *highestLC) setIfBigger(lc uint32) {
-	h.mux.Lock()
-	defer h.mux.Unlock()
-	if h.value < lc {
-		h.value = lc
-	}
 }
