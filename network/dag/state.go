@@ -449,7 +449,7 @@ func (s *state) failedEventCount() int {
 	s.notifiers.Range(func(key, value any) bool {
 		events, err := value.(Notifier).GetFailedEvents()
 		if err != nil {
-			log.Logger().Errorf("failed events lookup %q: %s", key, err)
+			log.Logger().WithError(err).Errorf("failed events from %q omitted", key)
 		}
 		n += len(events)
 		return true
