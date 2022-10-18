@@ -23,7 +23,6 @@ import (
 	"encoding/json"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/sirupsen/logrus"
@@ -37,9 +36,7 @@ func init() {
 }
 
 func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
-	jsonldInstance := jsonld.NewJSONLDInstance()
-	_ = jsonldInstance.(core.Configurable).Configure(core.ServerConfig{})
-	validator := nutsOrganizationCredentialValidator{jsonldInstance.DocumentLoader()}
+	validator := nutsOrganizationCredentialValidator{}
 
 	t.Run("ok", func(t *testing.T) {
 		v := validNutsOrganizationCredential()
@@ -172,9 +169,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 }
 
 func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
-	jsonldInstance := jsonld.NewJSONLDInstance()
-	_ = jsonldInstance.(core.Configurable).Configure(core.ServerConfig{})
-	validator := nutsAuthorizationCredentialValidator{jsonldInstance.DocumentLoader()}
+	validator := nutsAuthorizationCredentialValidator{}
 
 	t.Run("ok", func(t *testing.T) {
 		v := ValidNutsAuthorizationCredential()
@@ -349,10 +344,38 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 	})
 }
 
+func TestAllFieldsDefinedValidator(t *testing.T) {
+	validator := AllFieldsDefinedValidator{jsonld.NewTestJSONLDManager(t).DocumentLoader()}
+	t.Run("ok", func(t *testing.T) {
+		var invalidCredentialSubject = make(map[string]interface{})
+		invalidCredentialSubject["id"] = vdr.TestDIDB.String()
+
+		inputVC := *validNutsOrganizationCredential()
+		inputVC.CredentialSubject[0] = invalidCredentialSubject
+
+		err := validator.Validate(inputVC)
+
+		assert.NoError(t, err)
+	})
+	t.Run("failed - invalid fields", func(t *testing.T) {
+		var invalidCredentialSubject = make(map[string]interface{})
+		invalidCredentialSubject["id"] = vdr.TestDIDB.String()
+		invalidCredentialSubject["organizationButIncorrectFieldName"] = map[string]interface{}{
+			"name": "Because we care B.V.",
+			"city": "EIbergen",
+		}
+
+		inputVC := *validNutsOrganizationCredential()
+		inputVC.CredentialSubject[0] = invalidCredentialSubject
+
+		err := validator.Validate(inputVC)
+
+		assert.EqualError(t, err, "validation failed: not all fields are defined by JSON-LD context")
+	})
+}
+
 func TestDefaultCredentialValidator(t *testing.T) {
-	jsonldInstance := jsonld.NewJSONLDInstance()
-	_ = jsonldInstance.(core.Configurable).Configure(core.ServerConfig{})
-	validator := defaultCredentialValidator{jsonldInstance.DocumentLoader()}
+	validator := defaultCredentialValidator{}
 
 	t.Run("ok - NutsOrganizationCredential", func(t *testing.T) {
 		err := validator.Validate(*validNutsOrganizationCredential())
@@ -381,22 +404,6 @@ func TestDefaultCredentialValidator(t *testing.T) {
 		err := validator.Validate(*v)
 
 		assert.EqualError(t, err, "validation failed: 'ID' is required")
-	})
-
-	t.Run("failed - invalid fields", func(t *testing.T) {
-		var invalidCredentialSubject = make(map[string]interface{})
-		invalidCredentialSubject["id"] = vdr.TestDIDB.String()
-		invalidCredentialSubject["organizationButIncorrectFieldName"] = map[string]interface{}{
-			"name": "Because we care B.V.",
-			"city": "EIbergen",
-		}
-
-		inputVC := *validNutsOrganizationCredential()
-		inputVC.CredentialSubject[0] = invalidCredentialSubject
-
-		err := validator.Validate(inputVC)
-
-		assert.EqualError(t, err, "validation failed: not all fields are defined by JSON-LD context")
 	})
 
 	t.Run("failed - missing proof", func(t *testing.T) {

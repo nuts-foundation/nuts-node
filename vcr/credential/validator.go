@@ -61,8 +61,38 @@ func failure(err string, args ...interface{}) error {
 	return &validationError{errStr}
 }
 
+type AllFieldsDefinedValidator struct {
+	DocumentLoader ld.DocumentLoader
+}
+
+func (d AllFieldsDefinedValidator) Validate(input vc.VerifiableCredential) error {
+	// First expand, then compact and marshal to JSON, then compare
+	inputAsJSON, _ := input.MarshalJSON()
+	inputAsMap := make(map[string]interface{})
+	_ = json.Unmarshal(inputAsJSON, &inputAsMap)
+	normalizeJSONLDVC(inputAsMap)
+	expectedAsJSON, _ := json.Marshal(inputAsMap)
+
+	processor := ld.NewJsonLdProcessor()
+	options := ld.NewJsonLdOptions("")
+	options.DocumentLoader = d.DocumentLoader
+	compactedAsMap, err := processor.Compact(inputAsMap, inputAsMap, options)
+	if err != nil {
+		return failure("unable to compact JSON-LD VC: %s", err)
+	}
+	normalizeJSONLDVC(compactedAsMap)
+	compactedAsJSON, _ := json.Marshal(compactedAsMap)
+
+	if string(expectedAsJSON) != string(compactedAsJSON) {
+		log.Logger().Debug("VC validation failed, not all fields are defined by JSON-LD context")
+		log.Logger().Debugf(" Given VC:      %s", string(expectedAsJSON))
+		log.Logger().Debugf(" Cleaned up VC: %s", string(compactedAsJSON))
+		return failure("not all fields are defined by JSON-LD context")
+	}
+	return nil
+}
+
 type defaultCredentialValidator struct {
-	documentLoader ld.DocumentLoader
 }
 
 func (d defaultCredentialValidator) Validate(credential vc.VerifiableCredential) error {
@@ -86,40 +116,11 @@ func (d defaultCredentialValidator) Validate(credential vc.VerifiableCredential)
 		return failure("'proof' is required")
 	}
 
-	return d.validateAllFieldsKnown(credential)
-}
-
-// validateAllFieldsKnown verifies that all fields in the VC are specified by the JSON-LD context.
-func (d defaultCredentialValidator) validateAllFieldsKnown(input vc.VerifiableCredential) error {
-	// First expand, then compact and marshal to JSON, then compare
-	inputAsJSON, _ := input.MarshalJSON()
-	inputAsMap := make(map[string]interface{})
-	_ = json.Unmarshal(inputAsJSON, &inputAsMap)
-	normalizeJSONLDVC(inputAsMap)
-	expectedAsJSON, _ := json.Marshal(inputAsMap)
-
-	processor := ld.NewJsonLdProcessor()
-	options := ld.NewJsonLdOptions("")
-	options.DocumentLoader = d.documentLoader
-	compactedAsMap, err := processor.Compact(inputAsMap, inputAsMap, options)
-	if err != nil {
-		return failure("unable to compact JSON-LD VC: %s", err)
-	}
-	normalizeJSONLDVC(compactedAsMap)
-	compactedAsJSON, _ := json.Marshal(compactedAsMap)
-
-	if string(expectedAsJSON) != string(compactedAsJSON) {
-		log.Logger().Debug("VC validation failed, not all fields are defined by JSON-LD context")
-		log.Logger().Debugf(" Given VC:      %s", string(expectedAsJSON))
-		log.Logger().Debugf(" Cleaned up VC: %s", string(compactedAsJSON))
-		return failure("not all fields are defined by JSON-LD context")
-	}
 	return nil
 }
 
 // nutsOrganizationCredentialValidator checks if there's a 'name' and 'city' in the 'organization' struct
 type nutsOrganizationCredentialValidator struct {
-	documentLoader ld.DocumentLoader
 }
 
 func (d nutsOrganizationCredentialValidator) Validate(credential vc.VerifiableCredential) error {
@@ -160,13 +161,12 @@ func (d nutsOrganizationCredentialValidator) Validate(credential vc.VerifiableCr
 		return failure("'credentialSubject.city' is empty")
 	}
 
-	return (defaultCredentialValidator{d.documentLoader}).Validate(credential)
+	return (defaultCredentialValidator{}).Validate(credential)
 }
 
 // nutsAuthorizationCredentialValidator checks for mandatory fields: id, purposeOfUse.
 // Also checks whether the specified resources
 type nutsAuthorizationCredentialValidator struct {
-	documentLoader ld.DocumentLoader
 }
 
 func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableCredential) error {
@@ -204,7 +204,7 @@ func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableC
 		return err
 	}
 
-	return (defaultCredentialValidator{d.documentLoader}).Validate(credential)
+	return (defaultCredentialValidator{}).Validate(credential)
 }
 
 func validOperationTypes() []string {
