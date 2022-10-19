@@ -115,7 +115,7 @@ func TestApiWrapper_GetTransaction(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		e, wrapper := initMockEcho(networkClient)
-		networkClient.EXPECT().GetTransaction(gomock.Any()).Return(nil, nil)
+		networkClient.EXPECT().GetTransaction(gomock.Any()).Return(nil, dag.ErrTransactionNotFound)
 
 		req := httptest.NewRequest(echo.GET, "/", nil)
 		rec := httptest.NewRecorder()
@@ -254,7 +254,7 @@ func TestApiWrapper_GetTransactionPayload(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		e, wrapper := initMockEcho(networkClient)
-		networkClient.EXPECT().GetTransactionPayload(gomock.Any()).Return(nil, nil)
+		networkClient.EXPECT().GetTransactionPayload(gomock.Any()).Return(nil, dag.ErrPayloadNotFound)
 
 		req := httptest.NewRequest(echo.GET, "/", nil)
 		rec := httptest.NewRecorder()

@@ -237,7 +237,7 @@ func (p *protocol) sendGossip(id transport.PeerID, refs []hash.SHA256Hash, xor h
 
 func (p *protocol) handlePrivateTxRetry(event dag.Event) (bool, error) {
 	// Sanity check: if we have the payload, mark this job as finished
-	payload, err := p.state.ReadPayload(context.Background(), event.Transaction.PayloadHash())
+	isPresent, err := p.state.IsPayloadPresent(context.Background(), event.Transaction.PayloadHash())
 	if err != nil {
 		if !errors.As(err, new(stoabs.ErrDatabase)) {
 			err = dag.EventFatal{err}
@@ -245,7 +245,7 @@ func (p *protocol) handlePrivateTxRetry(event dag.Event) (bool, error) {
 		return false, fmt.Errorf("unable to read payload (tx=%s): %w", event.Hash, err)
 	}
 
-	if payload != nil {
+	if isPresent {
 		// stop retrying
 		log.Logger().
 			WithField(core.LogFieldTransactionRef, event.Hash.String()).

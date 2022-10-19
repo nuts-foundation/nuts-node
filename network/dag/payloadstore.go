@@ -19,6 +19,7 @@
 package dag
 
 import (
+	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -38,9 +39,11 @@ type payloadStore struct{}
 func (store payloadStore) isPayloadPresent(tx stoabs.ReadTx, payloadHash hash.SHA256Hash) bool {
 	data, err := store.readPayload(tx, payloadHash)
 	if err != nil {
-		log.Logger().
-			WithError(err).
-			Error("Failed to verify payload existence")
+		if !errors.Is(err, ErrPayloadNotFound) {
+			log.Logger().
+				WithError(err).
+				Error("Failed to verify payload existence")
+		}
 		return false
 	}
 	return len(data) > 0
@@ -51,6 +54,9 @@ func (store payloadStore) readPayload(tx stoabs.ReadTx, payloadHash hash.SHA256H
 	data, err := reader.Get(stoabs.NewHashKey(payloadHash))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read payload (hash=%s): %w", payloadHash, err)
+	}
+	if data == nil {
+		return nil, ErrPayloadNotFound
 	}
 	return data, nil
 }

@@ -21,6 +21,7 @@ package dag
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"sort"
 
@@ -146,6 +147,9 @@ func (d *dag) Migrate() error {
 				for _, ref := range heads {
 					transaction, err := getTransaction(ref, tx)
 					if err != nil {
+						if errors.Is(err, ErrTransactionNotFound) {
+							return fmt.Errorf("database migration failed: %w (%s=%s)", err, core.LogFieldTransactionRef, ref)
+						}
 						return err
 					}
 					if transaction.Clock() >= latestLC {
@@ -444,12 +448,16 @@ func getRoots(lcBucket stoabs.Reader) []hash.SHA256Hash {
 	return parseHashList(roots) // no need to copy, calls FromSlice() (which copies)
 }
 
+// getTransaction returns the transaction, or an error. returns ErrTransactionNotFound if the transaction cannot be found.
 func getTransaction(hash hash.SHA256Hash, tx stoabs.ReadTx) (Transaction, error) {
 	transactions := tx.GetShelfReader(transactionsShelf)
 
 	transactionBytes, err := transactions.Get(stoabs.NewHashKey(hash))
-	if err != nil || transactionBytes == nil {
+	if err != nil {
 		return nil, err
+	}
+	if transactionBytes == nil {
+		return nil, ErrTransactionNotFound
 	}
 	parsedTx, err := ParseTransaction(transactionBytes)
 	if err != nil {

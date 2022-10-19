@@ -308,7 +308,7 @@ func (s *state) WritePayload(ctx context.Context, transaction Transaction, paylo
 }
 
 func (s *state) ReadPayload(ctx context.Context, hash hash.SHA256Hash) (payload []byte, err error) {
-	_ = s.db.Read(ctx, func(tx stoabs.ReadTx) error {
+	err = s.db.Read(ctx, func(tx stoabs.ReadTx) error {
 		payload, err = s.payloadStore.readPayload(tx, hash)
 		return err
 	})

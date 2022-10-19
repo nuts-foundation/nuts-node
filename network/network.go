@@ -424,10 +424,11 @@ func (n *Network) GetTransaction(transactionRef hash.SHA256Hash) (dag.Transactio
 func (n *Network) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte, error) {
 	transaction, err := n.state.GetTransaction(context.Background(), transactionRef)
 	if err != nil {
+		if errors.Is(err, dag.ErrTransactionNotFound) {
+			// convert ErrPayloadNotFound for simpler error handling
+			return nil, dag.ErrPayloadNotFound
+		}
 		return nil, err
-	}
-	if transaction == nil {
-		return nil, nil
 	}
 	return n.state.ReadPayload(context.Background(), transaction.PayloadHash())
 }
@@ -479,6 +480,8 @@ func (n *Network) CreateTransaction(template Template) (dag.Transaction, error) 
 	}
 	if !head.Equals(hash.EmptyHash()) {
 		prevs = append(prevs, head)
+	} else if len(template.AdditionalPrevs) != 0 {
+		return nil, fmt.Errorf("cannot have previous transactions on root transaction")
 	}
 	// and additional prevs
 	prevs = append(prevs, template.AdditionalPrevs...)
@@ -698,10 +701,10 @@ func (n *Network) collectDiagnosticsForPeers() transport.Diagnostics {
 func (n *Network) isPayloadPresent(ctx context.Context, txRef hash.SHA256Hash) (bool, error) {
 	tx, err := n.state.GetTransaction(ctx, txRef)
 	if err != nil {
+		if errors.Is(err, dag.ErrTransactionNotFound) {
+			return false, nil
+		}
 		return false, err
-	}
-	if tx == nil {
-		return false, nil
 	}
 	return n.state.IsPayloadPresent(ctx, tx.PayloadHash())
 }
