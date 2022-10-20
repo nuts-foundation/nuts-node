@@ -28,7 +28,7 @@ See the `documentation <https://nuts-node.readthedocs.io/en/stable/>`_ for how t
 .. image:: https://img.shields.io/github/go-mod/go-version/nuts-foundation/nuts-node
    :alt: GitHub go.mod Go version
 
-.. image:: https://img.shields.io/badge/Slack-Nuts%20Community-informational?logo=slack
+.. image:: https://img.shields.io/badge/-Nuts_Community-informational?labelColor=grey&logo=slack
    :target: https://join.slack.com/t/nuts-foundation/shared_invite/zt-19av5q5ur-5fNbZVIFGUw5vDKSy5mqCw
    :alt: Nuts Community on Slack
 
