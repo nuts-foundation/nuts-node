@@ -843,41 +843,6 @@ func TestNetworkIntegration_TLSOffloading(t *testing.T) {
 	})
 }
 
-func TestNetworkIntegration_Rebuild(t *testing.T) {
-	testDirectory := io.TestDirectory(t)
-	resetIntegrationTest()
-	key := nutsCrypto.NewTestKey("key")
-	expectedDocLogSize := 0
-
-	// single node
-	bootstrap := startNode(t, "bootstrap", testDirectory)
-
-	// Add transaction on 3 pages
-	for i := uint32(0); i <= dag.PageSize*100; i++ { // 51200 transactions ->
-		if !addTransactionAndWaitForItToArrive(t, fmt.Sprintf("doc%d", i), key, bootstrap, "bootstrap") {
-			return
-		}
-		expectedDocLogSize++
-	}
-
-	// Now assert that all nodes have received all transactions
-	waitForTransactions := func(node string, state dag.State) bool {
-		return test.WaitFor(t, func() (bool, error) {
-			var (
-				docs []dag.Transaction
-				err  error
-			)
-			if docs, err = state.FindBetweenLC(context.Background(), 0, dag.MaxLamportClock); err != nil {
-				return false, err
-			}
-			return len(docs) == expectedDocLogSize, nil
-		}, defaultTimeout, "%s: time-out while waiting for %d transactions", node, expectedDocLogSize)
-	}
-	waitForTransactions("bootstrap", bootstrap.network.state)
-
-	bootstrap.network.Rebuild()
-}
-
 func resetIntegrationTest() {
 	// in an integration test we want everything to work as intended, disable test speedup and re-enable file sync for bbolt
 	defaultBBoltOptions.NoSync = false
