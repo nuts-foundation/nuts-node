@@ -506,10 +506,28 @@ func BenchmarkState_Rebuild(b *testing.B) {
 	}
 
 	// benchmark
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		if err = s.Rebuild(ctx); err != nil {
-			b.Fatal(err)
+	b.Run("Rebuild", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			if err = s.Rebuild(ctx); err != nil {
+				b.Fatal(err)
+			}
 		}
-	}
+	})
+	b.Run("rebuildDAG", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			if err = s.db.Write(ctx, s.graph.rebuild, stoabs.WithWriteLock()); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("rebuildTrees", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			if err = s.rebuildTrees(ctx); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
 }
