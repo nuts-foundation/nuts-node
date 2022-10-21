@@ -29,7 +29,7 @@ var invalidPathCharRegex = regexp.MustCompile("([^a-zA-Z0-9])")
 
 // TestDirectory returns a temporary directory for this test only. Calling TestDirectory multiple times for the same
 // instance of t returns a new directory every time.
-func TestDirectory(t *testing.T) string {
+func TestDirectory(t testing.TB) string {
 	if dir, err := os.MkdirTemp("", normalizeTestName(t)); err != nil {
 		t.Fatal(err)
 		return ""
@@ -45,7 +45,7 @@ func TestDirectory(t *testing.T) string {
 }
 
 // TestWorkingDirectory is like TestDirectory but also changes the working directory to the test directory.
-func TestWorkingDirectory(t *testing.T) string {
+func TestWorkingDirectory(t testing.TB) string {
 	oldWd, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
@@ -72,6 +72,6 @@ func TestWorkingDirectory(t *testing.T) string {
 	}
 }
 
-func normalizeTestName(t *testing.T) string {
+func normalizeTestName(t testing.TB) string {
 	return invalidPathCharRegex.ReplaceAllString(t.Name(), "_")
 }

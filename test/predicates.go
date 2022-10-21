@@ -30,7 +30,7 @@ import (
 
 type Predicate func() (bool, error)
 
-func WaitFor(t *testing.T, p Predicate, timeout time.Duration, message string, msgArgs ...interface{}) bool {
+func WaitFor(t testing.TB, p Predicate, timeout time.Duration, message string, msgArgs ...interface{}) bool {
 	deadline := time.Now().Add(timeout)
 	for {
 		b, err := p()
@@ -60,7 +60,7 @@ func WaitFor(t *testing.T, p Predicate, timeout time.Duration, message string, m
 	}
 }
 
-func WaitForNoFail(t *testing.T, p Predicate, timeout time.Duration) bool {
+func WaitForNoFail(t testing.TB, p Predicate, timeout time.Duration) bool {
 	deadline := time.Now().Add(timeout)
 	for {
 		b, err := p()
