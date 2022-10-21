@@ -219,6 +219,20 @@ func (mr *MockStateMockRecorder) ReadPayload(ctx, payloadHash interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadPayload", reflect.TypeOf((*MockState)(nil).ReadPayload), ctx, payloadHash)
 }
 
+// Rebuild mocks base method.
+func (m *MockState) Rebuild(ctx context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Rebuild", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Rebuild indicates an expected call of Rebuild.
+func (mr *MockStateMockRecorder) Rebuild(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Rebuild", reflect.TypeOf((*MockState)(nil).Rebuild), ctx)
+}
+
 // Shutdown mocks base method.
 func (m *MockState) Shutdown() error {
 	m.ctrl.T.Helper()

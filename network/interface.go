@@ -51,6 +51,9 @@ type Transactions interface {
 	// Reprocess walks the DAG and publishes all transactions matching the contentType via Nats
 	// This is an async process and will not return any feedback
 	Reprocess(contentType string)
+	// Rebuild walks the DAG, verifies all derived data in the Network engine, and fixes any inconsistencies.
+	// This is a resource intensive operation. Duration of the process depends on the number of corrections made.
+	Rebuild()
 	// WithPersistency returns a SubscriberOption for persistency. It allows the DAG KVStore to be used as persistent store for notifications.
 	// The notifications will then have ACID properties
 	WithPersistency() SubscriberOption

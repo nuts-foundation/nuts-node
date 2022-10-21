@@ -79,6 +79,8 @@ type State interface {
 	Shutdown() error
 	// Start the publisher and verifier
 	Start() error
+	// Rebuild walks the DAG one page at a time and fixes the in-memory state where needed.
+	Rebuild(ctx context.Context) error
 	// Verify checks the integrity of the DAG. Should be called when it's loaded, e.g. from disk.
 	Verify(ctx context.Context) error
 	// XOR returns the xor of all transaction references between the DAG root and the clock closest to the requested clock value.

@@ -19,7 +19,9 @@
 package dag
 
 import (
+	"bytes"
 	"encoding/binary"
+	"errors"
 	"sync"
 
 	"github.com/nuts-foundation/go-stoabs"
@@ -27,16 +29,16 @@ import (
 )
 
 type treeStore struct {
-	bucketName string
-	tree       tree.Tree
-	mutex      sync.Mutex
+	shelf string
+	tree  tree.Tree
+	mutex sync.Mutex
 }
 
 // newTreeStore returns an instance of a tree store.
-func newTreeStore(bucketName string, tree tree.Tree) *treeStore {
+func newTreeStore(shelfName string, tree tree.Tree) *treeStore {
 	return &treeStore{
-		bucketName: bucketName,
-		tree:       tree,
+		shelf: shelfName,
+		tree:  tree,
 	}
 }
 
@@ -63,14 +65,14 @@ func (store *treeStore) write(tx stoabs.WriteTx, transaction Transaction) error 
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
 
-	writer, err := tx.GetShelfWriter(store.bucketName)
+	writer, err := tx.GetShelfWriter(store.shelf)
 	if err != nil {
 		return err
 	}
 
 	store.tree.Insert(transaction.Ref(), transaction.Clock())
 	dirties, orphaned := store.tree.GetUpdates()
-	store.tree.ResetUpdate() // failure after this point results in rollback anyway
+	store.tree.ResetUpdates() // failure after this point results in rollback anyway
 
 	// delete orphaned leaves
 	for _, orphan := range orphaned { // always zero
@@ -90,26 +92,76 @@ func (store *treeStore) write(tx stoabs.WriteTx, transaction Transaction) error 
 	return nil
 }
 
-// read fills the tree with data in the bucket.
-// Returns an error the bucket does not exist, or if data in the bucket doesn't match the tree's Data prototype.
+// read fills the tree with data in the shelf.
+// Returns an error if data in the shelf doesn't match the tree's Data prototype.
+// Does not alter the tree if the shelf does not exist.
 func (store *treeStore) read(tx stoabs.ReadTx) error {
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
 
-	reader := tx.GetShelfReader(store.bucketName)
-
 	// get data
-	rawData := map[uint32][]byte{}
-	err := reader.Iterate(func(k stoabs.Key, v []byte) error {
-		rawData[keyToClock(k)] = v
-		return nil
-	}, clockToKey(0))
+	rawData, err := readRaw(tx, store.shelf)
 	if err != nil {
 		return err
 	}
 
 	// build tree
-	return store.tree.Load(rawData)
+	return store.tree.Load(rawData) // does nothing if len(rawData) == 0, when the shelf does not exist for instance.
+}
+
+func readRaw(tx stoabs.ReadTx, shelf string) (map[uint32][]byte, error) {
+	rawData := map[uint32][]byte{}
+	err := tx.GetShelfReader(shelf).Iterate(func(k stoabs.Key, v []byte) error {
+		rawData[keyToClock(k)] = v
+		return nil
+	}, clockToKey(0))
+	if err != nil {
+		return nil, err
+	}
+	return rawData, nil
+}
+
+func (store *treeStore) rebuildPage(tx stoabs.WriteTx, clock uint32, dagData tree.Data) error {
+	store.mutex.Lock()
+	defer store.mutex.Unlock()
+
+	treeData := store.tree.Prototype()
+	if treeData == nil {
+		return errors.New("tree has no Data prototype")
+	}
+
+	// read treeData
+	leafID := clockToPage(clock)
+	writer, err := tx.GetShelfWriter(store.shelf)
+	treeBytes, err := writer.Get(clockToKey(leafID))
+	if err != nil {
+		return err
+	}
+
+	// compare dag with tree
+	dagBytes, err := dagData.MarshalBinary()
+	if !bytes.Equal(dagBytes, treeBytes) {
+		// page needs to be corrected
+		// TODO: add logging
+		// write page
+		if err = writer.Put(clockToKey(leafID), dagBytes); err != nil {
+			return err
+		}
+
+		// must reload tree within the context of the mutex lock to guarantee db/mem are in sync
+		rawData, err := readRaw(tx, store.shelf)
+		if err != nil {
+			return err
+		}
+		// new page is not committed yet
+		rawData[leafID] = dagBytes
+		return store.tree.Load(rawData)
+	}
+	return nil
+}
+
+func clockToPage(clock uint32) uint32 {
+	return (clock/PageSize)*PageSize + PageSize/2
 }
 
 func clockToKey(clock uint32) stoabs.Key {
@@ -120,4 +172,16 @@ func clockToKey(clock uint32) stoabs.Key {
 
 func keyToClock(key stoabs.Key) uint32 {
 	return binary.LittleEndian.Uint32(key.Bytes())
+}
+
+type PageNotFoundError struct {
+	Err error
+}
+
+func (e PageNotFoundError) Error() string {
+	return e.Err.Error()
+}
+
+func (e PageNotFoundError) Unwrap() error {
+	return e.Err
 }

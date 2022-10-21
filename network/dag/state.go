@@ -244,6 +244,7 @@ func (s *state) loadState(ctx context.Context) {
 		log.Logger().
 			WithError(err).
 			Errorf("Failed to load the XOR and IBLT trees")
+		return
 	}
 	log.Logger().Trace("Loaded the XOR and IBLT trees")
 }
@@ -409,6 +410,112 @@ func (s *state) Start() error {
 		return err == nil
 	})
 	return err
+}
+
+/*
+Rebuild walks the DAG and validates that derived data (everything not on the transactionsShelf) is consistent with the DAG (transactionsShelf). Any incorrect derived data is corrected.
+
+Validation and correction is done in 2 steps.
+First the DAG is rebuild by locking the DAG with a stoabs.WithWriteLock and walking the entire thing to fix any mistakes on the clockShelf + metadataShelf.
+Then the clockShelf is walked page-by-page to rebuild the state trees, where each page is processed in the context of a stoabs.WithWriteLock to ensure corrections are still valid when they are applied.
+
+The DAG is thus walked twice, potentially locking the database for a long time.
+
+Shelfs:
+
+  - transactionsShelf: this is the actual DAG and is leading. TODO: should signatures be verified here?
+
+  - clockShelf: maps lamport clock values to transaction references.
+
+  - metadataShelf:
+    -> highestClock: updated first since it is part of the loop condition.
+    -> headRef: handle to 'prev' for a new transactions. No deterministic way to select "correct" head, so assumed correct if head is in any of the Txs with highestClock.
+    -> numTransactions: total transaction in the DAG. Hard to fix since any 'historical' additions to the DAG during a 'batched' Rebuild will be missed.
+
+  - ibltShelf + xorShelf: summarizes the DAG one PageSize at a time. Raw data for the state.ibltTree and state.xorTree. Fixing this from the clockShelf saves unmarshalling of all transactions, but clockShelf is derived data as well.
+*/
+func (s *state) Rebuild(ctx context.Context) error {
+	if err := s.db.Write(ctx, s.graph.rebuild, stoabs.WithWriteLock()); err != nil {
+		return err
+	}
+	return s.rebuildTrees(ctx)
+}
+
+// rebuildTrees runs on the clockShelf since this shelf contains all data needed, prevents parsing of all transactions, and would be used in any LC based query on the DAG anyway.
+// This requires/assumes the clockShelf to be in sync with the transactionsShelf.
+func (s *state) rebuildTrees(ctx context.Context) error {
+	var err error
+	var ibltDAG *tree.Iblt // truth from the DAG
+	var xorDAG *tree.Xor   // truth from the DAG
+	//var ibltState, xorState tree.Data // currently in State
+	var clockMap map[uint32][]hash.SHA256Hash
+	var hashes []hash.SHA256Hash
+	var lastLC uint32
+
+	// reload state to make sure disk-state and mem-state are the same
+	s.loadState(ctx)
+
+	// loop over DAG page-by-page
+	keepWalking := true
+	for pageStart := uint32(0); keepWalking; pageStart += PageSize { // TODO: does this get the current highestLC at every iteration of the loop?
+		// reset loop values
+		ibltDAG = tree.NewIblt(IbltNumBuckets)
+		xorDAG = tree.NewXor()
+
+		// read a page of txs, and a page of the trees
+		err = s.db.Write(ctx, func(tx stoabs.WriteTx) error {
+			// collect data over a single page of the DAG
+			clockMap, err = s.graph.findHashesBetweenLC(tx, pageStart, pageStart+PageSize)
+			if err != nil {
+				return err
+			}
+			for clock := pageStart; clock < pageStart+PageSize; clock++ {
+				hashes = clockMap[clock]
+				if len(hashes) == 0 {
+					// reached the end of the DAG
+					keepWalking = false
+					break
+				}
+
+				lastLC = clock
+				for i, _ := range hashes {
+					ibltDAG.Insert(hashes[i])
+					xorDAG.Insert(hashes[i])
+				}
+			}
+
+			if !keepWalking {
+				// NOTE: there is a 1:PageSize chance this doesn't happen under the same write lock.
+				// graph.rebuild + graph.rebuildMetadataShelf fixes the clock in a safe way
+				if s.lamportClockHigh.Load() != lastLC {
+					// TODO: add logging
+					s.lamportClockHigh.Store(lastLC)
+					if err = s.graph.setHighestClockValue(tx, lastLC); err != nil {
+						return err
+					}
+				}
+				// TODO: might be possible to rebuild the metadataShelf from here
+			}
+
+			// get data from a single page of the trees and compare to the DAG.
+			// Must be done within the context of the WriteLock so any errors can be corrected immediately.
+			if err = s.ibltTree.rebuildPage(tx, pageStart, ibltDAG); err != nil {
+				return err
+			}
+			if err = s.xorTree.rebuildPage(tx, pageStart, xorDAG); err != nil {
+				return err
+			}
+
+			return nil
+		}, stoabs.OnRollback(func() {
+			s.loadState(ctx)
+		}), stoabs.WithWriteLock())
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Verify can be used to verify the entire DAG.

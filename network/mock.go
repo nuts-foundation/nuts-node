@@ -110,6 +110,18 @@ func (mr *MockTransactionsMockRecorder) PeerDiagnostics() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PeerDiagnostics", reflect.TypeOf((*MockTransactions)(nil).PeerDiagnostics))
 }
 
+// Rebuild mocks base method.
+func (m *MockTransactions) Rebuild() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Rebuild")
+}
+
+// Rebuild indicates an expected call of Rebuild.
+func (mr *MockTransactionsMockRecorder) Rebuild() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Rebuild", reflect.TypeOf((*MockTransactions)(nil).Rebuild))
+}
+
 // Reprocess mocks base method.
 func (m *MockTransactions) Reprocess(contentType string) {
 	m.ctrl.T.Helper()

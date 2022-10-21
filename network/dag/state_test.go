@@ -480,3 +480,36 @@ func assertCountMetric(t testing.TB, state *state, count float64) {
 	state.transactionCount.Write(metric)
 	assert.Equal(t, count, *metric.Counter.Value)
 }
+
+func BenchmarkState_Rebuild(b *testing.B) {
+	ctx := context.Background()
+	s := createState(b).(*state)
+
+	// add root
+	tx, _, _ := CreateTestTransaction(0)
+	err := s.Add(ctx, tx, nil)
+	if !assert.NoError(b, err) {
+		b.Fatal(err)
+	}
+	expectedClock := uint32(0)
+
+	// add other transactions
+	for i := uint32(1); i <= PageSize*100; i++ { // 51200 transactions -> 101 pages
+		tx, _, _ = CreateTestTransaction(i, tx)
+		if err = s.Add(ctx, tx, nil); err != nil {
+			panic(err)
+		}
+		expectedClock++
+	}
+	if !assert.Equal(b, expectedClock, s.lamportClockHigh.Load()) {
+		b.Fatalf("unexpected highest lamport clock: got %d, want %d", s.lamportClockHigh.Load(), expectedClock)
+	}
+
+	// benchmark
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if err = s.Rebuild(ctx); err != nil {
+			b.Fatal(err)
+		}
+	}
+}

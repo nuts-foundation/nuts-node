@@ -65,11 +65,13 @@ type Tree interface {
 	// GetUpdates return the leaves that have been orphaned or updated since the last call to ResetUpdate.
 	// dirty and orphaned are mutually exclusive.
 	GetUpdates() (dirty map[uint32][]byte, orphaned []uint32)
-	// ResetUpdate forgets all currently tracked changes.
-	ResetUpdate()
+	// ResetUpdates forgets all currently tracked changes.
+	ResetUpdates()
 	// Load builds a tree from binary leaf data. The keys in leaves correspond to a node's split value.
 	// All consecutive leaves must be present. Gaps must be filled with zero value of the corresponding Data implementation.
 	Load(leaves map[uint32][]byte) error
+	// Prototype returns an empty instance of the Tree's Data prototype. Returns nil if the Tree's Data prototype is not set.
+	Prototype() Data
 }
 
 /*
@@ -98,6 +100,13 @@ func New(prototype Data, leafSize uint32) Tree {
 	return tr
 }
 
+func (t *tree) Prototype() Data {
+	if t.prototype == nil {
+		return nil
+	}
+	return t.prototype.New()
+}
+
 func (t *tree) resetDefaults(leafSize uint32) {
 	t.root = newNode(leafSize/2, leafSize, t.prototype.New())
 	t.leafSize = leafSize
@@ -111,9 +120,9 @@ Load builds the tree from the bottom-up.
 
 Trees are build by:
   - Clone-ing Data from the even numbered children (or leaves) to generate the parent nodes,
-	and setting the cloned node as its left child.
+    and setting the cloned node as its left child.
   - Add-ing the Data from the odd numbered children (if it exists) to the corresponding parent,
-	and setting the odd node as its right child.
+    and setting the odd node as its right child.
   - Parents then become the children and the process repeats until a single root node remains.
 
 It is assumed that all leaves are present. The tree will be corrupt when this is not the case.
@@ -183,7 +192,7 @@ func (t *tree) Load(leaves map[uint32][]byte) error {
 	t.root = children[0]
 	t.leafSize = 2 * keys[0]
 	t.treeSize = t.root.limitLC
-	t.ResetUpdate()
+	t.ResetUpdates()
 
 	return nil
 }
@@ -314,7 +323,7 @@ func (t *tree) getDirty() map[uint32][]byte {
 	return dirty
 }
 
-func (t *tree) ResetUpdate() {
+func (t *tree) ResetUpdates() {
 	t.dirtyLeaves = map[uint32]*node{}
 	t.orphanedLeaves = nil
 }

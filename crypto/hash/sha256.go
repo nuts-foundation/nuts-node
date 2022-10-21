@@ -74,7 +74,7 @@ func (h SHA256Hash) Slice() []byte {
 
 // Equals determines whether the given Hash is exactly the same (bytes match).
 func (h SHA256Hash) Equals(other SHA256Hash) bool {
-	return h.Compare(other) == 0
+	return bytes.Equal(h[:], other[:])
 }
 
 // Compare compares this Hash to another Hash using bytes.Compare.

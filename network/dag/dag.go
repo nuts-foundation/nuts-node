@@ -37,8 +37,8 @@ const metadataShelf = "metadata"
 // numberOfTransactionsKey is the key of the metadata property that holds the number of transactions on the DAG
 const numberOfTransactionsKey = "tx_num"
 
-// highestClockValue is the key of the metadata property that holds the highest lamport clock value of all transactions on the DAG
-const highestClockValue = "lc_high"
+// highestClockKey is the key of the metadata property that holds the highest lamport clock value of all transactions on the DAG
+const highestClockKey = "lc_high"
 
 // headRefKey is the of the metadata property that holds the latest HEAD of the DAG
 const headRefKey = "head_ref"
@@ -47,6 +47,7 @@ const headRefKey = "head_ref"
 const transactionsShelf = "documents"
 
 // headsShelf contains the name of the shelf the holds the heads.
+// migrated to metadataShelf -> headRefKey
 const headsShelf = "heads"
 
 // clockShelf is the name of the shelf that uses the Lamport clock as index to a set of TX refs.
@@ -104,7 +105,7 @@ func (d *dag) Migrate() error {
 		}
 		// Migrate highest LC value
 		// Todo: remove after V5 release
-		highestLCBytes, err := writer.Get(stoabs.BytesKey(highestClockValue))
+		highestLCBytes, err := writer.Get(stoabs.BytesKey(highestClockKey))
 		if err != nil {
 			return err
 		}
@@ -169,6 +170,133 @@ func (d *dag) Migrate() error {
 	})
 }
 
+func (d *dag) rebuild(tx stoabs.WriteTx) error {
+	graphReader := tx.GetShelfReader(transactionsShelf)
+	if _, ok := graphReader.(stoabs.NilReader); ok {
+		return fmt.Errorf("rebuild failed: %s shelf not found", transactionsShelf)
+	}
+
+	clockMap := make(map[uint32][]hash.SHA256Hash, d.getHighestClockValue(tx)) // this can get huge!!
+	var highestClock, txClock uint32
+	var numberOfTransactions uint64
+	var err error
+
+	// parse DAG
+	var parsedTx Transaction
+	err = graphReader.Iterate(func(txRef stoabs.Key, transactionBytes []byte) error {
+		numberOfTransactions++
+
+		parsedTx, err = ParseTransaction(transactionBytes)
+		if err != nil {
+			return err
+		}
+
+		txClock = parsedTx.Clock()
+		if highestClock < txClock {
+			highestClock = txClock
+		}
+
+		clockMap[txClock] = append(clockMap[txClock], parsedTx.Ref())
+
+		return nil
+	}, stoabs.HashKey{})
+	if err != nil {
+		return err
+	}
+
+	if err = d.rebuildMetadataShelf(tx, clockMap[highestClock], highestClock, numberOfTransactions); err != nil {
+		return err
+	}
+
+	clockWriter, err := tx.GetShelfWriter(clockShelf)
+	if err != nil {
+		return err
+	}
+	if err = rebuildClockShelf(clockWriter, clockMap); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// rebuildClockShelf iterates over the clockShelf and corrects any deviations from clockMap.
+// clockMap contains the mapping from lamport clock value to transaction references.
+func rebuildClockShelf(shelf stoabs.Writer, clockMap map[uint32][]hash.SHA256Hash) error {
+	// compare transactionsShelf with clockShelf
+	var clock uint32
+	var clockTransactions, dagTransactions []hash.SHA256Hash
+	err := shelf.Iterate(func(key stoabs.Key, value []byte) error {
+		clock = keyToClock(key)
+		clockTransactions = parseHashList(value)
+		dagTransactions = clockMap[clock]
+		// virtually impossible that this returns a false positive if the DAG is not corrupt (contains empty/duplicate hashes)
+		if len(dagTransactions) != len(clockTransactions) && hash.EmptyHash().Xor(dagTransactions...).Xor(clockTransactions...).Empty() {
+			// delete valid clockMap entries to keep a list that needs to be updated
+			delete(clockMap, clock)
+		}
+		return nil
+	}, stoabs.Uint32Key(0))
+	if err != nil {
+		return err
+	}
+
+	// update incorrect and missing data to clockShelf
+	for clock, refs := range clockMap {
+		// TODO: add logging
+		refBytes := make([]byte, 0, len(refs)*hash.SHA256HashSize)
+		for _, ref := range refs {
+			refBytes = append(refBytes, ref.Slice()...)
+		}
+		if err = shelf.Put(clockToKey(clock), refBytes); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (d *dag) rebuildMetadataShelf(tx stoabs.WriteTx, possibleHeads []hash.SHA256Hash, highestLC uint32, numberOfTransactions uint64) error {
+	// head
+	var headCorrect bool
+	head, err := d.getHead(tx)
+	if err != nil {
+		return err
+	}
+	for _, ref := range possibleHeads {
+		if ref.Equals(head) {
+			headCorrect = true
+			break
+		}
+	}
+	if !headCorrect {
+		// TODO: add logging
+		if len(possibleHeads) < 1 {
+			return errors.New("list of possible heads is empty")
+		}
+		if err = d.setHead(tx, possibleHeads[0]); err != nil {
+			return err
+		}
+	}
+
+	// numberOfTransactions
+	if numberOfTransactions != d.getNumberOfTransactions(tx) {
+		// TODO: add logging
+		if err = d.setNumberOfTransactions(tx, numberOfTransactions); err != nil {
+			return err
+		}
+	}
+
+	// # highestClock
+	if highestLC != d.getHighestClockValue(tx) {
+		//	TODO: add logging
+		if err = d.setHighestClockValue(tx, highestLC); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (d *dag) diagnostics(ctx context.Context) []core.DiagnosticResult {
 	var stats Statistics
 	_ = d.db.Read(ctx, func(tx stoabs.ReadTx) error {
@@ -225,6 +353,27 @@ func (d *dag) visitBetweenLC(tx stoabs.ReadTx, startInclusive uint32, endExclusi
 		}
 		return nil
 	}, true)
+}
+
+func (d *dag) findHashesBetweenLC(tx stoabs.ReadTx, startInclusive uint32, endExclusive uint32) (map[uint32][]hash.SHA256Hash, error) {
+	reader := tx.GetShelfReader(clockShelf)
+	var clockMap map[uint32][]hash.SHA256Hash
+	if endExclusive == MaxLamportClock {
+		// keep map size to a minimum
+		clockMap = make(map[uint32][]hash.SHA256Hash, d.getHighestClockLegacy(tx)+1-startInclusive)
+	} else {
+		clockMap = make(map[uint32][]hash.SHA256Hash, endExclusive-startInclusive)
+	}
+
+	err := reader.Range(stoabs.Uint32Key(startInclusive), stoabs.Uint32Key(endExclusive), func(key stoabs.Key, value []byte) error {
+		unsorted := parseHashList(value)
+		clockMap[keyToClock(key)] = unsorted
+		return nil
+	}, true)
+	if err != nil {
+		return nil, err
+	}
+	return clockMap, nil
 }
 
 func (d *dag) isPresent(tx stoabs.ReadTx, ref hash.SHA256Hash) bool {
@@ -299,7 +448,7 @@ func (d dag) setHead(tx stoabs.WriteTx, ref hash.SHA256Hash) error {
 }
 
 func (d dag) getHighestClockValue(tx stoabs.ReadTx) uint32 {
-	value, err := tx.GetShelfReader(metadataShelf).Get(stoabs.BytesKey(highestClockValue))
+	value, err := tx.GetShelfReader(metadataShelf).Get(stoabs.BytesKey(highestClockKey))
 	if err != nil {
 		log.Logger().
 			WithError(err).
@@ -357,7 +506,7 @@ func (d dag) setHighestClockValue(tx stoabs.WriteTx, count uint32) error {
 	bytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(bytes[:], count)
 
-	return writer.Put(stoabs.BytesKey(highestClockValue), bytes)
+	return writer.Put(stoabs.BytesKey(highestClockKey), bytes)
 }
 
 func (d dag) statistics(tx stoabs.ReadTx) Statistics {

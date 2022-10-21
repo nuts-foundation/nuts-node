@@ -40,6 +40,16 @@ func TestNew(t *testing.T) {
 	assert.True(t, emptyTree.root.isLeaf())
 }
 
+func TestTree_Prototype(t *testing.T) {
+	t.Run("correct prototype", func(t *testing.T) {
+		assert.Equal(t, NewXor(), (&tree{prototype: NewXor()}).Prototype())
+		assert.Equal(t, NewIblt(numTestBuckets), (&tree{prototype: NewIblt(numTestBuckets)}).Prototype())
+	})
+	t.Run("prototype not set", func(t *testing.T) {
+		assert.Nil(t, (&tree{}).Prototype())
+	})
+}
+
 func TestTree_Insert(t *testing.T) {
 	t.Run("insert single Tx", func(t *testing.T) {
 		ref := hash.FromSlice([]byte{123})
@@ -199,7 +209,7 @@ func TestTree_reRoot(t *testing.T) {
 	})
 }
 
-func TestTree_GetUpdate(t *testing.T) {
+func TestTree_GetUpdates(t *testing.T) {
 	t.Run("dirty leaves after insert", func(t *testing.T) {
 		tr := newTestTree(NewXor(), testLeafSize)
 		h := hash.FromSlice([]byte{1})
@@ -246,12 +256,12 @@ func TestTree_GetUpdate(t *testing.T) {
 	})
 }
 
-func TestTree_ResetUpdate(t *testing.T) {
+func TestTree_ResetUpdates(t *testing.T) {
 	tr, _ := filledTestTree(NewXor(), testLeafSize)
 	tr.DropLeaves()
 
 	dirty, orphaned := tr.GetUpdates()
-	tr.ResetUpdate()
+	tr.ResetUpdates()
 	dirtyReset, orphanedReset := tr.GetUpdates()
 
 	assert.Equal(t, 3, len(orphaned))
