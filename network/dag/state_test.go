@@ -455,7 +455,7 @@ func Test_createStore(t *testing.T) {
 	assert.NotNil(t, createState(t))
 }
 
-func createState(t *testing.T, verifier ...Verifier) State {
+func createState(t testing.TB, verifier ...Verifier) State {
 	testDir := io.TestDirectory(t)
 	bboltStore, err := bbolt.CreateBBoltStore(filepath.Join(testDir, "test_state"), stoabs.WithNoSync())
 	if err != nil {
@@ -475,7 +475,7 @@ func createState(t *testing.T, verifier ...Verifier) State {
 	return s
 }
 
-func assertCountMetric(t *testing.T, state *state, count float64) {
+func assertCountMetric(t testing.TB, state *state, count float64) {
 	metric := &io_prometheus_client.Metric{}
 	state.transactionCount.Write(metric)
 	assert.Equal(t, count, *metric.Counter.Value)
