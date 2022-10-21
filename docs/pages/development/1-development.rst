@@ -9,9 +9,9 @@ Requirements
 .. marker-for-readme
 
 .. |gover| image:: https://img.shields.io/github/go-mod/go-version/nuts-foundation/nuts-node
-   :alt: GitHub go.mod Go version
+    :alt: GitHub go.mod Go version
 
-|gover| is required.
+|gover| or higher is required.
 
 Building
 ********
