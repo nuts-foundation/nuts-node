@@ -935,7 +935,7 @@ func TestAuth_GetOAuthEndpointURL(t *testing.T) {
 func validContext() *validationContext {
 	usi := vc.VerifiablePresentation{Type: []ssi.URI{ssi.MustParseURI("TestPresentation")}}
 
-	cred := credential.ValidV2ExplicitNutsAuthorizationCredential()
+	cred := credential.ValidNutsAuthorizationCredential()
 	credString, _ := json.Marshal(cred)
 	credMap := map[string]interface{}{}
 	_ = json.Unmarshal(credString, &credMap)

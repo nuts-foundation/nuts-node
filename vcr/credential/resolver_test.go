@@ -42,7 +42,7 @@ func TestFindValidator(t *testing.T) {
 	})
 
 	t.Run("validator and builder found for NutsAuthorizationCredential", func(t *testing.T) {
-		vc := validV2ImpliedNutsAuthorizationCredential()
+		vc := ValidNutsAuthorizationCredential()
 		v := FindValidator(*vc, nil)
 
 		assert.NotNil(t, v)

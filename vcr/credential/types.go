@@ -30,8 +30,6 @@ const (
 	NutsAuthorizationCredentialType = "NutsAuthorizationCredential"
 	// NutsV1Context is the nuts V1 json-ld context
 	NutsV1Context = "https://nuts.nl/credentials/v1"
-	// NutsV2Context is the nuts V2 json-ld context
-	NutsV2Context = "https://nuts.nl/credentials/v2"
 )
 
 var (
@@ -41,8 +39,6 @@ var (
 	NutsAuthorizationCredentialTypeURI, _ = ssi.ParseURI(NutsAuthorizationCredentialType)
 	// NutsV1ContextURI is the nuts V1 json-ld context as URI
 	NutsV1ContextURI = ssi.MustParseURI(NutsV1Context)
-	// NutsV2ContextURI is the nuts V2 json-ld context as URI
-	NutsV2ContextURI = ssi.MustParseURI(NutsV2Context)
 )
 
 const (
