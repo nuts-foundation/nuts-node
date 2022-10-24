@@ -28,8 +28,8 @@ const (
 	NutsOrganizationCredentialType = "NutsOrganizationCredential"
 	// NutsAuthorizationCredentialType is the VC type for a NutsAuthorizationCredential
 	NutsAuthorizationCredentialType = "NutsAuthorizationCredential"
-	// NutsContext is the nuts specific json-ld context
-	NutsContext = "https://nuts.nl/credentials/v1"
+	// NutsV1Context is the nuts V1 json-ld context
+	NutsV1Context = "https://nuts.nl/credentials/v1"
 )
 
 var (
@@ -37,8 +37,8 @@ var (
 	NutsOrganizationCredentialTypeURI, _ = ssi.ParseURI(NutsOrganizationCredentialType)
 	// NutsAuthorizationCredentialTypeURI is the VC type for a NutsAuthorizationCredentialType as URI
 	NutsAuthorizationCredentialTypeURI, _ = ssi.ParseURI(NutsAuthorizationCredentialType)
-	// NutsContextURI is the nuts specific json-ld context as URI
-	NutsContextURI, _ = ssi.ParseURI(NutsContext)
+	// NutsV1ContextURI is the nuts V1 json-ld context as URI
+	NutsV1ContextURI = ssi.MustParseURI(NutsV1Context)
 )
 
 const (
@@ -58,30 +58,12 @@ type NutsOrganizationCredentialSubject struct {
 type NutsAuthorizationCredentialSubject struct {
 	// ID contains the DID of the subject
 	ID string `json:"id"`
-	// LegalBase contains information about the type of consent that is the basis for the authorization.
-	LegalBase LegalBase `json:"legalBase"`
 	// PurposeOfUse refers to the Bolt access policy
 	PurposeOfUse string `json:"purposeOfUse"`
 	// Resources contains additional individual resources that can be accessed.
 	Resources []Resource `json:"resources"`
 	// Subject contains a URN referring to the subject of care (not the credential subject)
 	Subject *string `json:"subject"`
-}
-
-// LegalBase is part of the NutsAuthorizationCredential credentialSubject
-type LegalBase struct {
-	// ConsentType defines the type of consent that has been given (implied or explicit)
-	ConsentType string `json:"consentType"`
-	// Evidence contains a link to a resource when ConsentType == 'explicit'
-	Evidence *Evidence `json:"evidence"`
-}
-
-// Evidence is part of the NutsAuthorizationCredential credentialSubject.legalBase
-type Evidence struct {
-	// Path is the relative path (relative to the FHIR base path of the mentioned service)
-	Path string `json:"path"`
-	// Type indicates the MIME type of the resource.
-	Type string `json:"type"`
 }
 
 // Resource defines a single accessbile resource

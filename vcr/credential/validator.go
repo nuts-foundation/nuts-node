@@ -22,6 +22,7 @@ package credential
 import (
 	"errors"
 	"fmt"
+	"github.com/piprate/json-gold/ld"
 	"strings"
 
 	"github.com/nuts-foundation/go-did/vc"
@@ -109,8 +110,8 @@ func (d nutsOrganizationCredentialValidator) Validate(credential vc.VerifiableCr
 		return failure("type '%s' is required", NutsOrganizationCredentialType)
 	}
 
-	if !credential.ContainsContext(*NutsContextURI) {
-		return failure("context '%s' is required", NutsContextURI.String())
+	if !credential.ContainsContext(NutsV1ContextURI) {
+		return failure("context '%s' is required", NutsV1ContextURI.String())
 	}
 
 	// if it fails, length check will trigger
@@ -138,10 +139,11 @@ func (d nutsOrganizationCredentialValidator) Validate(credential vc.VerifiableCr
 	return nil
 }
 
-// nutsAuthorizationCredentialValidator checks for mandatory fields: id, legalBase, purposeOfUse.
-// It checks if the value for legalBase.consentType is either 'explicit' or 'implied'.
-// When 'explicit', both the evidence and subject subfields must be filled.
-type nutsAuthorizationCredentialValidator struct{}
+// nutsAuthorizationCredentialValidator checks for mandatory fields: id, purposeOfUse.
+// Also checks whether the specified resources
+type nutsAuthorizationCredentialValidator struct {
+	documentLoader ld.DocumentLoader
+}
 
 func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableCredential) error {
 	var target = make([]NutsAuthorizationCredentialSubject, 0)
@@ -159,8 +161,8 @@ func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableC
 		return failure("type '%s' is required", NutsAuthorizationCredentialType)
 	}
 
-	if !credential.ContainsContext(*NutsContextURI) {
-		return failure("context '%s' is required", NutsContextURI.String())
+	if !credential.ContainsContext(NutsV1ContextURI) {
+		return failure("context '%s' is required", NutsV1ContextURI.String())
 	}
 
 	// if it fails, length check will trigger
@@ -176,19 +178,13 @@ func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableC
 	if len(strings.TrimSpace(cs.PurposeOfUse)) == 0 {
 		return failure("'credentialSubject.PurposeOfUse' is nil")
 	}
-	switch cs.LegalBase.ConsentType {
-	case "implied":
-		// no additional requirements
-		break
-	case "explicit":
-		if cs.Subject == nil || len(strings.TrimSpace(*cs.Subject)) == 0 {
-			return failure("'credentialSubject.Subject' is required when consentType is 'explicit'")
-		}
-	default:
-		return failure("'credentialSubject.LegalBase.ConsentType' must be 'implied' or 'explicit'")
+
+	err = validateResources(cs.Resources)
+	if err != nil {
+		return err
 	}
 
-	return validateResources(cs.Resources)
+	return (defaultCredentialValidator{}).Validate(credential)
 }
 
 func validOperationTypes() []string {

@@ -662,16 +662,13 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 	id := vdr.TestDIDA.URI()
 	id.Fragment = "1"
 	validCredential := vc.VerifiableCredential{
-		Context:      []ssi.URI{vc.VCContextV1URI(), *credential.NutsContextURI},
+		Context:      []ssi.URI{vc.VCContextV1URI(), credential.NutsV1ContextURI},
 		ID:           &id,
 		Type:         []ssi.URI{*credential.NutsAuthorizationCredentialTypeURI, vc.VerifiableCredentialTypeV1URI()},
 		Issuer:       vdr.TestDIDA.URI(),
 		IssuanceDate: time.Now(),
 		CredentialSubject: []interface{}{credential.NutsAuthorizationCredentialSubject{
-			ID: vdr.TestDIDB.String(),
-			LegalBase: credential.LegalBase{
-				ConsentType: "implied",
-			},
+			ID:           vdr.TestDIDB.String(),
 			PurposeOfUse: "eTransfer",
 			Resources: []credential.Resource{
 				{
@@ -936,7 +933,7 @@ func TestAuth_GetOAuthEndpointURL(t *testing.T) {
 func validContext() *validationContext {
 	usi := vc.VerifiablePresentation{Type: []ssi.URI{ssi.MustParseURI("TestPresentation")}}
 
-	cred := credential.ValidExplicitNutsAuthorizationCredential()
+	cred := credential.ValidNutsAuthorizationCredential()
 	credString, _ := json.Marshal(cred)
 	credMap := map[string]interface{}{}
 	_ = json.Unmarshal(credString, &credMap)

@@ -166,7 +166,7 @@ func Test_issuer_Issue(t *testing.T) {
 	credentialType := ssi.MustParseURI("TestCredential")
 	issuerID := ssi.MustParseURI("did:nuts:123")
 	credentialOptions := vc.VerifiableCredential{
-		Context: []ssi.URI{*credential.NutsContextURI},
+		Context: []ssi.URI{credential.NutsV1ContextURI},
 		Type:    []ssi.URI{credentialType},
 		Issuer:  issuerID,
 		CredentialSubject: []interface{}{map[string]interface{}{
@@ -194,7 +194,7 @@ func Test_issuer_Issue(t *testing.T) {
 		proofs, _ := result.Proofs()
 		assert.Equal(t, kid, proofs[0].VerificationMethod.String(), "expected to be signed with the kid")
 		assert.Equal(t, issuerID.String(), result.Issuer.String(), "expected correct issuer")
-		assert.Contains(t, result.Context, *credential.NutsContextURI)
+		assert.Contains(t, result.Context, credential.NutsV1ContextURI)
 		assert.Contains(t, result.Context, vc.VCContextV1URI())
 		// Assert issuing a credential makes it trusted
 		assert.True(t, trustConfig.IsTrusted(credentialType, result.Issuer))
@@ -310,7 +310,6 @@ _:c14n0 <https://www.w3.org/2018/credentials#issuer> <did:nuts:123> .
 
 		assert.Equal(t, expectedCanonicalForm, string(res))
 	})
-
 }
 func Test_issuer_Revoke(t *testing.T) {
 	credentialID := "did:nuts:123#abc"

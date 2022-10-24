@@ -46,7 +46,7 @@ type defaultBuilder struct {
 var nowFunc = time.Now
 
 func (d defaultBuilder) Fill(credential *vc.VerifiableCredential) {
-	credential.Context = []ssi.URI{vc.VCContextV1URI(), *NutsContextURI}
+	credential.Context = []ssi.URI{vc.VCContextV1URI(), NutsV1ContextURI}
 
 	defaultType := vc.VerifiableCredentialTypeV1URI()
 	if !credential.IsType(defaultType) {

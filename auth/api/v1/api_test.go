@@ -577,16 +577,13 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		credentials := []vc.VerifiableCredential{
 			{
-				Context:      []ssi.URI{vc.VCContextV1URI(), *credential.NutsContextURI},
+				Context:      []ssi.URI{vc.VCContextV1URI(), credential.NutsV1ContextURI},
 				ID:           &ssi.URI{},
 				Type:         []ssi.URI{*credential.NutsAuthorizationCredentialTypeURI, vc.VerifiableCredentialTypeV1URI()},
 				Issuer:       vdr.TestDIDA.URI(),
 				IssuanceDate: time.Now(),
 				CredentialSubject: []interface{}{credential.NutsAuthorizationCredentialSubject{
-					ID: vdr.TestDIDB.String(),
-					LegalBase: credential.LegalBase{
-						ConsentType: "implied",
-					},
+					ID:           vdr.TestDIDB.String(),
 					PurposeOfUse: "eTransfer",
 					Resources: []credential.Resource{
 						{
