@@ -155,14 +155,14 @@ func extractFlagsForEngine(flagSet *pflag.FlagSet, config interface{}, engineNam
 }
 
 func generatePartitionedConfigOptionsDocs(tableName, fileName string, flags map[string]*pflag.FlagSet) {
-	sortedKeys := make([]string, 0)
+	var keys KeyList
 	for key := range flags {
-		sortedKeys = append(sortedKeys, key)
+		keys = append(keys, key)
 	}
-	sort.Strings(sortedKeys)
+	sort.Sort(keys)
 
 	values := make([][]rstValue, 0)
-	for _, key := range sortedKeys {
+	for _, key := range keys {
 		if key != "" {
 			values = append(values, []rstValue{{
 				value: key,
@@ -214,4 +214,34 @@ func generateRstTable(tableName, fileName string, values [][]rstValue) {
 	if err := optionsFile.Sync(); err != nil {
 		panic(err)
 	}
+}
+
+// KeyList sorts keys alphabetically, with any nested content at the end.
+type KeyList []string
+
+// Len implements sort.Iterface.
+func (l KeyList) Len() int { return len(l) }
+
+// Swap implements sort.Iterface.
+func (l KeyList) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
+
+// Less implements sort.Iterface.
+func (l KeyList) Less(i, j int) bool {
+	a := strings.Split(l[i], ".")
+	b := strings.Split(l[j], ".")
+
+	for i := range a {
+		switch {
+		case a[i] == b[i]:
+			continue
+		case len(a)-i == 1 && len(b)-i != 1:
+			return true // j is a subgroup of i
+		case len(a)-i != 1 && len(b)-i == 1:
+			return false // i is a subgroup of j
+		default:
+			return a[i] < b[i]
+		}
+	}
+
+	return false // equal actually
 }
