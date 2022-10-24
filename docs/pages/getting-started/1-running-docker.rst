@@ -53,7 +53,7 @@ This setup uses the following ``nuts.yaml`` configuration file:
     The command above uses ``pwd`` and ``bash`` functions, which do not work on Windows. If running on Windows replace
     it with the path of the working directory.
 
-You can test whether your Nuts Node is running properly by visiting ``http://localhost:1323/status/diagnostics``. It should
+You can test whether your Nuts Node is running properly by visiting ``http://localhost:8080/status/diagnostics``. It should
 display diagnostic information about the state of the node.
 
 Docker Compose
