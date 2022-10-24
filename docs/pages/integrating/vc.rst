@@ -87,7 +87,7 @@ The example below searches for a `NutsOrganizationCredential` (note that the `qu
         "query": {
             "@context": [
                 "https://www.w3.org/2018/credentials/v1",
-                "https://nuts.nl/credentials/v2"
+                "https://nuts.nl/credentials/v1"
             ],
             "type": ["VerifiableCredential" ,"NutsOrganizationCredential"],
             "credentialSubject": {
@@ -111,7 +111,7 @@ The following query does not return all `NutsOrganizationCredential` but **all**
         "query": {
             "@context": [
                 "https://www.w3.org/2018/credentials/v1",
-                "https://nuts.nl/credentials/v2"
+                "https://nuts.nl/credentials/v1"
             ],
             "type": ["VerifiableCredential" ,"NutsOrganizationCredential"],
         }
@@ -128,7 +128,7 @@ By default, field selection is done by matching the given value as prefix.
         "query": {
             "@context": [
                 "https://www.w3.org/2018/credentials/v1",
-                "https://nuts.nl/credentials/v2"
+                "https://nuts.nl/credentials/v1"
             ],
             "type": ["VerifiableCredential" ,"NutsOrganizationCredential"],
             "credentialSubject": {
