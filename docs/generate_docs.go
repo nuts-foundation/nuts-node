@@ -155,11 +155,11 @@ func extractFlagsForEngine(flagSet *pflag.FlagSet, config interface{}, engineNam
 }
 
 func generatePartitionedConfigOptionsDocs(tableName, fileName string, flags map[string]*pflag.FlagSet) {
-	var keys KeyList
+	var keys []string
 	for key := range flags {
 		keys = append(keys, key)
 	}
-	sort.Sort(keys)
+	sort.Strings(keys)
 
 	values := make([][]rstValue, 0)
 	for _, key := range keys {
@@ -175,30 +175,15 @@ func generatePartitionedConfigOptionsDocs(tableName, fileName string, flags map[
 }
 
 func flagsToSortedValues(flags *pflag.FlagSet) [][]rstValue {
-	values := make([][]rstValue, 0)
+	var l KeyList
 	flags.VisitAll(func(f *pflag.Flag) {
 		if f.Hidden {
 			return
 		}
-		values = append(values, vals(f.Name, f.DefValue, f.Usage))
+		l = append(l, vals(f.Name, f.DefValue, f.Usage))
 	})
-	// We want global properties (the ones without dots) to appear at the top, so we need some custom sorting
-	sort.Slice(values, func(i, j int) bool {
-		s1 := values[i][0].value
-		s2 := values[j][0].value
-		if strings.Contains(s1, ".") {
-			if strings.Contains(s2, ".") {
-				return s1 < s2
-			}
-			return false
-		} else {
-			if strings.Contains(s2, ".") {
-				return true
-			}
-			return s1 < s2
-		}
-	})
-	return values
+	sort.Sort(l)
+	return [][]rstValue(l)
 }
 
 func generateRstTable(tableName, fileName string, values [][]rstValue) {
@@ -217,7 +202,7 @@ func generateRstTable(tableName, fileName string, values [][]rstValue) {
 }
 
 // KeyList sorts keys alphabetically, with any nested content at the end.
-type KeyList []string
+type KeyList [][]rstValue
 
 // Len implements sort.Iterface.
 func (l KeyList) Len() int { return len(l) }
@@ -227,8 +212,8 @@ func (l KeyList) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
 
 // Less implements sort.Iterface.
 func (l KeyList) Less(i, j int) bool {
-	a := strings.Split(l[i], ".")
-	b := strings.Split(l[j], ".")
+	a := strings.Split(l[i][0].value, ".")
+	b := strings.Split(l[j][0].value, ".")
 
 	for i := range a {
 		switch {

@@ -7,31 +7,31 @@ import (
 
 func TestKeyList(t *testing.T) {
 	got := KeyList{
-		"storage.bbolt.backup.directory",
-		"storage.bbolt.backup.interval",
-		"storage.redis.address",
-		"storage.redis.database",
-		"storage.redis.password",
-		"storage.redis.sentinel.master",
-		"storage.redis.sentinel.nodes",
-		"storage.redis.sentinel.password",
-		"storage.redis.sentinel.username",
-		"storage.redis.tls.truststorefile",
-		"storage.redis.username",
+		[]rstValue{{value: "storage.bbolt.backup.directory"}},
+		[]rstValue{{value: "storage.bbolt.backup.interval"}},
+		[]rstValue{{value: "storage.redis.address"}},
+		[]rstValue{{value: "storage.redis.database"}},
+		[]rstValue{{value: "storage.redis.password"}},
+		[]rstValue{{value: "storage.redis.sentinel.master"}},
+		[]rstValue{{value: "storage.redis.sentinel.nodes"}},
+		[]rstValue{{value: "storage.redis.sentinel.password"}},
+		[]rstValue{{value: "storage.redis.sentinel.username"}},
+		[]rstValue{{value: "storage.redis.tls.truststorefile"}},
+		[]rstValue{{value: "storage.redis.username"}},
 	}
 
 	want := KeyList{
-		"storage.bbolt.backup.directory",
-		"storage.bbolt.backup.interval",
-		"storage.redis.address",
-		"storage.redis.database",
-		"storage.redis.password",
-		"storage.redis.username",
-		"storage.redis.sentinel.master",
-		"storage.redis.sentinel.nodes",
-		"storage.redis.sentinel.password",
-		"storage.redis.sentinel.username",
-		"storage.redis.tls.truststorefile",
+		[]rstValue{{value: "storage.bbolt.backup.directory"}},
+		[]rstValue{{value: "storage.bbolt.backup.interval"}},
+		[]rstValue{{value: "storage.redis.address"}},
+		[]rstValue{{value: "storage.redis.database"}},
+		[]rstValue{{value: "storage.redis.password"}},
+		[]rstValue{{value: "storage.redis.username"}},
+		[]rstValue{{value: "storage.redis.sentinel.master"}},
+		[]rstValue{{value: "storage.redis.sentinel.nodes"}},
+		[]rstValue{{value: "storage.redis.sentinel.password"}},
+		[]rstValue{{value: "storage.redis.sentinel.username"}},
+		[]rstValue{{value: "storage.redis.tls.truststorefile"}},
 	}
 	if len(got) != len(want) {
 		t.Fatal("sample set length mismatch")
@@ -39,8 +39,8 @@ func TestKeyList(t *testing.T) {
 
 	sort.Sort(got)
 	for i := range got {
-		if got[i] != want[i] {
-			t.Errorf("[%d] got %q, want %q", i, got[i], want[i])
+		if got[i][0].value != want[i][0].value {
+			t.Errorf("[%d] got %q, want %q", i, got[i][0].value, want[i][0].value)
 		}
 	}
 }
