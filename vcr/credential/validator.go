@@ -138,9 +138,7 @@ func (d nutsOrganizationCredentialValidator) Validate(credential vc.VerifiableCr
 	return nil
 }
 
-// nutsAuthorizationCredentialValidator checks for mandatory fields: id, legalBase, purposeOfUse.
-// It checks if the value for legalBase.consentType is either 'explicit' or 'implied'.
-// When 'explicit', both the evidence and subject subfields must be filled.
+// nutsAuthorizationCredentialValidator checks for mandatory fields: id, purposeOfUse.
 type nutsAuthorizationCredentialValidator struct{}
 
 func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableCredential) error {
@@ -176,18 +174,6 @@ func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableC
 	if len(strings.TrimSpace(cs.PurposeOfUse)) == 0 {
 		return failure("'credentialSubject.PurposeOfUse' is nil")
 	}
-	switch cs.LegalBase.ConsentType {
-	case "implied":
-		// no additional requirements
-		break
-	case "explicit":
-		if cs.Subject == nil || len(strings.TrimSpace(*cs.Subject)) == 0 {
-			return failure("'credentialSubject.Subject' is required when consentType is 'explicit'")
-		}
-	default:
-		return failure("'credentialSubject.LegalBase.ConsentType' must be 'implied' or 'explicit'")
-	}
-
 	return validateResources(cs.Resources)
 }
 

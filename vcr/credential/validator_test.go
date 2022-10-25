@@ -237,18 +237,6 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 		assert.EqualError(t, err, "validation failed: credential ID must start with issuer")
 	})
 
-	t.Run("failed - wrong consentType", func(t *testing.T) {
-		v := validImpliedNutsAuthorizationCredential()
-		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-		cs.LegalBase.ConsentType = "unknown"
-		v.CredentialSubject[0] = cs
-
-		err := validator.Validate(*v)
-
-		assert.Error(t, err)
-		assert.EqualError(t, err, "validation failed: 'credentialSubject.LegalBase.ConsentType' must be 'implied' or 'explicit'")
-	})
-
 	t.Run("failed - missing VC type", func(t *testing.T) {
 		v := validImpliedNutsAuthorizationCredential()
 		v.Type = []ssi.URI{}
@@ -347,18 +335,6 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, "validation failed: 'credentialSubject.Resources[].Operations[]' contains an invalid operation 'unknown'")
-	})
-
-	t.Run("failed - missing subject for explicit", func(t *testing.T) {
-		v := ValidExplicitNutsAuthorizationCredential()
-		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-		cs.Subject = nil
-		v.CredentialSubject[0] = cs
-
-		err := validator.Validate(*v)
-
-		assert.Error(t, err)
-		assert.EqualError(t, err, "validation failed: 'credentialSubject.Subject' is required when consentType is 'explicit'")
 	})
 }
 
