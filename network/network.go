@@ -636,8 +636,6 @@ func (n *Network) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 }
 
 func (n *Network) Reprocess(contentType string) {
-	batchSize := uint32(1000)
-
 	log.Logger().Infof("Starting reprocess of %s", contentType)
 
 	go func() {
@@ -649,15 +647,21 @@ func (n *Network) Reprocess(contentType string) {
 				Error("Failed to start reprocessing transactions")
 		}
 
-		lastLC := uint32(999)
-		for i := uint32(0); (lastLC+uint32(1))%batchSize == 0; i++ {
-			start := i * batchSize
-			end := start + batchSize
-			txs, err := n.state.FindBetweenLC(ctx, start, end)
+		// The Lamport's clock stamps count from 0, with a step size of 1.
+		lastClock := -1
+		const clockSteps = 1000
+
+		for offset := 0; offset >= lastClock+1; offset += clockSteps {
+			end := offset + clockSteps
+			if end >= 1<<32 {
+				log.Logger().Error("reprocess abort on Lamport clock uint32 overflow")
+				return
+			}
+			txs, err := n.state.FindBetweenLC(ctx, uint32(offset), uint32(end))
 			if err != nil {
 				log.Logger().
 					WithError(err).
-					Errorf("Failed to reprocess transactions (start: %d, end: %d)", start, end)
+					Errorf("reprocess abort on transaction lookup in clock range [%d, %d)", offset, end)
 				return
 			}
 
@@ -693,7 +697,7 @@ func (n *Network) Reprocess(contentType string) {
 						return
 					}
 				}
-				lastLC = tx.Clock()
+				lastClock = int(uint(tx.Clock()))
 			}
 
 			// give some time for Update transactions that require all read transactions to be closed
