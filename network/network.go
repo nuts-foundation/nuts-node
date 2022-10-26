@@ -707,6 +707,14 @@ func (n *Network) ReprocessContentType(ctx context.Context, contentType string) 
 		time.Sleep(time.Second)
 	}
 
+	// flush publish queue
+	select {
+	case <-js.PublishAsyncComplete():
+		break
+	case <-ctx.Done():
+		return nil, fmt.Errorf("reprocess terminate during final flush: %w", ctx.Err())
+	}
+
 	return new(ReprocessReport), nil
 }
 
