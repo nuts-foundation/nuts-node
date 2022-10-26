@@ -640,7 +640,11 @@ func (n *Network) Reprocess(contentType string) {
 		err := n.ReprocessContentType(context.Background(), contentType)
 		if err != nil {
 			log.Logger().Error(err)
+			return
 		}
+
+		// message in use by issue #1445
+		log.Logger().Infof("reprocess %q complete", contentType)
 	}()
 }
 
