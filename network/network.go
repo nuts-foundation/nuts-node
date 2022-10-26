@@ -636,75 +636,76 @@ func (n *Network) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 }
 
 func (n *Network) Reprocess(contentType string) {
+	go n.ReprocessContentType(context.Background(), contentType)
+}
+
+func (n *Network) ReprocessContentType(ctx context.Context, contentType string) {
 	log.Logger().Infof("Starting reprocess of %s", contentType)
 
-	go func() {
-		ctx := context.Background()
-		_, js, err := n.eventPublisher.Pool().Acquire(context.Background())
+	_, js, err := n.eventPublisher.Pool().Acquire(ctx)
+	if err != nil {
+		log.Logger().
+			WithError(err).
+			Error("Failed to start reprocessing transactions")
+	}
+
+	// The Lamport's clock stamps count from 0, with a step size of 1.
+	const clockSteps = 1000
+	for offset := 0; ; offset += clockSteps {
+		end := offset + clockSteps
+		if end >= 1<<32 {
+			log.Logger().Error("reprocess abort on Lamport clock uint32 overflow")
+			return
+		}
+		txs, err := n.state.FindBetweenLC(ctx, uint32(offset), uint32(end))
 		if err != nil {
 			log.Logger().
 				WithError(err).
-				Error("Failed to start reprocessing transactions")
+				Errorf("reprocess abort on transaction lookup in clock range [%d, %d)", offset, end)
+			return
 		}
 
-		// The Lamport's clock stamps count from 0, with a step size of 1.
-		const clockSteps = 1000
-		for offset := 0; ; offset += clockSteps {
-			end := offset + clockSteps
-			if end >= 1<<32 {
-				log.Logger().Error("reprocess abort on Lamport clock uint32 overflow")
-				return
-			}
-			txs, err := n.state.FindBetweenLC(ctx, uint32(offset), uint32(end))
-			if err != nil {
-				log.Logger().
-					WithError(err).
-					Errorf("reprocess abort on transaction lookup in clock range [%d, %d)", offset, end)
-				return
-			}
-
-			for _, tx := range txs {
-				if tx.PayloadType() == contentType {
-					// add to Nats
-					subject := fmt.Sprintf("%s.%s", events.ReprocessStream, contentType)
-					payload, err := n.state.ReadPayload(ctx, tx.PayloadHash())
-					if err != nil {
-						log.Logger().
-							WithError(err).
-							WithField(core.LogFieldTransactionRef, tx.Ref()).
-							WithField(core.LogFieldEventSubject, subject).
-							Error("Failed to publish transaction")
-						return
-					}
-					twp := events.TransactionWithPayload{
-						Transaction: tx,
-						Payload:     payload,
-					}
-					data, _ := json.Marshal(twp)
+		for _, tx := range txs {
+			if tx.PayloadType() == contentType {
+				// add to Nats
+				subject := fmt.Sprintf("%s.%s", events.ReprocessStream, contentType)
+				payload, err := n.state.ReadPayload(ctx, tx.PayloadHash())
+				if err != nil {
 					log.Logger().
+						WithError(err).
 						WithField(core.LogFieldTransactionRef, tx.Ref()).
 						WithField(core.LogFieldEventSubject, subject).
-						Trace("Publishing transaction")
-					_, err = js.PublishAsync(subject, data)
-					if err != nil {
-						log.Logger().
-							WithError(err).
-							WithField(core.LogFieldTransactionRef, tx.Ref()).
-							WithField(core.LogFieldEventSubject, subject).
-							Error("Failed to publish transaction")
-						return
-					}
+						Error("Failed to publish transaction")
+					return
+				}
+				twp := events.TransactionWithPayload{
+					Transaction: tx,
+					Payload:     payload,
+				}
+				data, _ := json.Marshal(twp)
+				log.Logger().
+					WithField(core.LogFieldTransactionRef, tx.Ref()).
+					WithField(core.LogFieldEventSubject, subject).
+					Trace("Publishing transaction")
+				_, err = js.PublishAsync(subject, data)
+				if err != nil {
+					log.Logger().
+						WithError(err).
+						WithField(core.LogFieldTransactionRef, tx.Ref()).
+						WithField(core.LogFieldEventSubject, subject).
+						Error("Failed to publish transaction")
+					return
 				}
 			}
-
-			if len(txs) == 0 || int(uint(txs[len(txs)-1].Clock())) < end - 1 {
-				break
-			}
-
-			// give some time for Update transactions that require all read transactions to be closed
-			time.Sleep(time.Second)
 		}
-	}()
+
+		if len(txs) == 0 || int(uint(txs[len(txs)-1].Clock())) < end-1 {
+			break
+		}
+
+		// give some time for Update transactions that require all read transactions to be closed
+		time.Sleep(time.Second)
+	}
 }
 
 func (n *Network) collectDiagnosticsForPeers() transport.Diagnostics {
