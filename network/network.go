@@ -637,7 +637,7 @@ func (n *Network) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 
 func (n *Network) Reprocess(contentType string) {
 	go func() {
-		err := n.ReprocessContentType(context.Background(), contentType)
+		_, err := n.ReprocessContentType(context.Background(), contentType)
 		if err != nil {
 			log.Logger().Error(err)
 			return
@@ -648,12 +648,17 @@ func (n *Network) Reprocess(contentType string) {
 	}()
 }
 
-func (n *Network) ReprocessContentType(ctx context.Context, contentType string) error {
+// ReprocessReport describes the reprocess exection.
+type ReprocessReport struct {
+	// reserved for future use
+}
+
+func (n *Network) ReprocessContentType(ctx context.Context, contentType string) (*ReprocessReport, error) {
 	log.Logger().Infof("Starting reprocess of %s", contentType)
 
 	_, js, err := n.eventPublisher.Pool().Acquire(ctx)
 	if err != nil {
-		return fmt.Errorf("reprocess abort on message client: %w", err)
+		return nil, fmt.Errorf("reprocess abort on message client: %w", err)
 	}
 
 	// The Lamport's clock stamps count from 0, with a step size of 1.
@@ -661,11 +666,11 @@ func (n *Network) ReprocessContentType(ctx context.Context, contentType string) 
 	for offset := 0; ; offset += clockSteps {
 		end := offset + clockSteps
 		if end >= 1<<32 {
-			return errors.New("reprocess abort on Lamport clock uint32 overflow")
+			return nil, errors.New("reprocess abort on Lamport clock uint32 overflow")
 		}
 		txs, err := n.state.FindBetweenLC(ctx, uint32(offset), uint32(end))
 		if err != nil {
-			return fmt.Errorf("reprocess abort on transaction lookup, clock range [%d, %d): %w", offset, end, err)
+			return nil, fmt.Errorf("reprocess abort on transaction lookup, clock range [%d, %d): %w", offset, end, err)
 		}
 
 		for _, tx := range txs {
@@ -677,7 +682,7 @@ func (n *Network) ReprocessContentType(ctx context.Context, contentType string) 
 			subject := fmt.Sprintf("%s.%s", events.ReprocessStream, contentType)
 			payload, err := n.state.ReadPayload(ctx, tx.PayloadHash())
 			if err != nil {
-				return fmt.Errorf("reprocess abort on transaction %#x payload %#x: %w", tx.Ref(), tx.PayloadHash(), err)
+				return nil, fmt.Errorf("reprocess abort on transaction %#x payload %#x: %w", tx.Ref(), tx.PayloadHash(), err)
 			}
 			twp := events.TransactionWithPayload{
 				Transaction: tx,
@@ -690,7 +695,7 @@ func (n *Network) ReprocessContentType(ctx context.Context, contentType string) 
 				Trace("Publishing transaction")
 			_, err = js.PublishAsync(subject, data)
 			if err != nil {
-				return fmt.Errorf("reprocess abort on transaction %#x publish: %w", tx.Ref(), err)
+				return nil, fmt.Errorf("reprocess abort on transaction %#x publish: %w", tx.Ref(), err)
 			}
 		}
 
@@ -702,7 +707,7 @@ func (n *Network) ReprocessContentType(ctx context.Context, contentType string) 
 		time.Sleep(time.Second)
 	}
 
-	return nil
+	return new(ReprocessReport), nil
 }
 
 func (n *Network) collectDiagnosticsForPeers() transport.Diagnostics {
