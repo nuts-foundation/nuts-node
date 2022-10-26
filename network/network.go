@@ -666,36 +666,38 @@ func (n *Network) ReprocessContentType(ctx context.Context, contentType string) 
 		}
 
 		for _, tx := range txs {
-			if tx.PayloadType() == contentType {
-				// add to Nats
-				subject := fmt.Sprintf("%s.%s", events.ReprocessStream, contentType)
-				payload, err := n.state.ReadPayload(ctx, tx.PayloadHash())
-				if err != nil {
-					log.Logger().
-						WithError(err).
-						WithField(core.LogFieldTransactionRef, tx.Ref()).
-						WithField(core.LogFieldEventSubject, subject).
-						Error("Failed to publish transaction")
-					return
-				}
-				twp := events.TransactionWithPayload{
-					Transaction: tx,
-					Payload:     payload,
-				}
-				data, _ := json.Marshal(twp)
+			if tx.PayloadType() != contentType {
+				continue // filter
+			}
+
+			// add to Nats
+			subject := fmt.Sprintf("%s.%s", events.ReprocessStream, contentType)
+			payload, err := n.state.ReadPayload(ctx, tx.PayloadHash())
+			if err != nil {
 				log.Logger().
+					WithError(err).
 					WithField(core.LogFieldTransactionRef, tx.Ref()).
 					WithField(core.LogFieldEventSubject, subject).
-					Trace("Publishing transaction")
-				_, err = js.PublishAsync(subject, data)
-				if err != nil {
-					log.Logger().
-						WithError(err).
-						WithField(core.LogFieldTransactionRef, tx.Ref()).
-						WithField(core.LogFieldEventSubject, subject).
-						Error("Failed to publish transaction")
-					return
-				}
+					Error("Failed to publish transaction")
+				return
+			}
+			twp := events.TransactionWithPayload{
+				Transaction: tx,
+				Payload:     payload,
+			}
+			data, _ := json.Marshal(twp)
+			log.Logger().
+				WithField(core.LogFieldTransactionRef, tx.Ref()).
+				WithField(core.LogFieldEventSubject, subject).
+				Trace("Publishing transaction")
+			_, err = js.PublishAsync(subject, data)
+			if err != nil {
+				log.Logger().
+					WithError(err).
+					WithField(core.LogFieldTransactionRef, tx.Ref()).
+					WithField(core.LogFieldEventSubject, subject).
+					Error("Failed to publish transaction")
+				return
 			}
 		}
 
