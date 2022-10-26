@@ -167,7 +167,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 
 		err := validator.Validate(*v)
 
-		assert.EqualError(t, err, "validation failed: context 'https://nuts.nl/credentials/v1' or 'https://nuts.nl/credentials/v2' is required")
+		assert.EqualError(t, err, "validation failed: context 'https://nuts.nl/credentials/v1' is required")
 	})
 }
 
@@ -176,219 +176,176 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 	_ = jsonldInstance.(core.Configurable).Configure(core.ServerConfig{})
 	validator := nutsAuthorizationCredentialValidator{jsonldInstance.DocumentLoader()}
 
-	t.Run("v1", func(t *testing.T) {
-		t.Run("ok", func(t *testing.T) {
-			v := validV1NutsAuthorizationCredential()
+	t.Run("ok", func(t *testing.T) {
+		v := ValidNutsAuthorizationCredential()
 
-			err := validator.Validate(*v)
+		err := validator.Validate(*v)
 
-			assert.NoError(t, err)
-		})
+		assert.NoError(t, err)
 	})
-	t.Run("v2", func(t *testing.T) {
-		t.Run("ok - implied", func(t *testing.T) {
-			v := validV2ImpliedNutsAuthorizationCredential()
 
-			err := validator.Validate(*v)
+	t.Run("ok - multiple resources", func(t *testing.T) {
+		v := ValidNutsAuthorizationCredential()
+		subject := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
+		subject.Resources = []Resource{
+			{
+				Path:        "/Task/1",
+				UserContext: false,
+				Operations:  []string{"read"},
+			},
+			{
+				Path:        "/Task/2",
+				UserContext: true,
+				Operations:  []string{"read"},
+			},
+			{
+				Path:       "/Task/3",
+				Operations: []string{"read", "update"},
+			},
+		}
+		v.CredentialSubject[0] = subject
 
-			assert.NoError(t, err)
-		})
+		err := validator.Validate(*v)
 
-		t.Run("ok - explicit", func(t *testing.T) {
-			v := ValidV2ExplicitNutsAuthorizationCredential()
+		assert.NoError(t, err)
+	})
 
-			err := validator.Validate(*v)
+	t.Run("ok - multiple resources", func(t *testing.T) {
+		v := ValidNutsAuthorizationCredential()
+		subject := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
+		subject.Resources = []Resource{
+			{
+				Path:        "/Task/1",
+				UserContext: false,
+				Operations:  []string{"read"},
+			},
+			{
+				Path:        "/Task/2",
+				UserContext: true,
+				Operations:  []string{"read"},
+			},
+			{
+				Path:       "/Task/3",
+				Operations: []string{"read", "update"},
+			},
+		}
+		v.CredentialSubject[0] = subject
 
-			assert.NoError(t, err)
-		})
+		err := validator.Validate(*v)
 
-		t.Run("ok - multiple resources", func(t *testing.T) {
-			v := ValidV2ExplicitNutsAuthorizationCredential()
-			subject := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-			subject.Resources = []Resource{
-				{
-					Path:        "/Task/1",
-					UserContext: false,
-					Operations:  []string{"read"},
-				},
-				{
-					Path:        "/Task/2",
-					UserContext: true,
-					Operations:  []string{"read"},
-				},
-				{
-					Path:       "/Task/3",
-					Operations: []string{"read", "update"},
-				},
-			}
-			v.CredentialSubject[0] = subject
+		assert.NoError(t, err)
+	})
 
-			err := validator.Validate(*v)
+	t.Run("ok - empty resources array", func(t *testing.T) {
+		v := ValidNutsAuthorizationCredential()
+		subject := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
+		subject.Resources = []Resource{}
+		v.CredentialSubject[0] = subject
 
-			assert.NoError(t, err)
-		})
+		err := validator.Validate(*v)
 
-		t.Run("ok - multiple resources", func(t *testing.T) {
-			v := ValidV2ExplicitNutsAuthorizationCredential()
-			subject := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-			subject.Resources = []Resource{
-				{
-					Path:        "/Task/1",
-					UserContext: false,
-					Operations:  []string{"read"},
-				},
-				{
-					Path:        "/Task/2",
-					UserContext: true,
-					Operations:  []string{"read"},
-				},
-				{
-					Path:       "/Task/3",
-					Operations: []string{"read", "update"},
-				},
-			}
-			v.CredentialSubject[0] = subject
+		assert.NoError(t, err)
+	})
 
-			err := validator.Validate(*v)
+	t.Run("failed - invalid ID", func(t *testing.T) {
+		v := ValidNutsAuthorizationCredential()
+		otherID := vdr.TestDIDB.URI()
+		v.ID = &otherID
 
-			assert.NoError(t, err)
-		})
+		err := validator.Validate(*v)
 
-		t.Run("ok - empty resources array", func(t *testing.T) {
-			v := ValidV2ExplicitNutsAuthorizationCredential()
-			subject := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-			subject.Resources = []Resource{}
-			v.CredentialSubject[0] = subject
+		assert.Error(t, err)
+		assert.EqualError(t, err, "validation failed: credential ID must start with issuer")
+	})
 
-			err := validator.Validate(*v)
+	t.Run("failed - missing Nuts context", func(t *testing.T) {
+		v := ValidNutsAuthorizationCredential()
+		v.Context = []ssi.URI{vc.VCContextV1URI()}
 
-			assert.NoError(t, err)
-		})
+		err := validator.Validate(*v)
 
-		t.Run("failed - invalid ID", func(t *testing.T) {
-			v := validV2ImpliedNutsAuthorizationCredential()
-			otherID := vdr.TestDIDB.URI()
-			v.ID = &otherID
+		assert.Error(t, err)
+		assert.EqualError(t, err, "validation failed: context 'https://nuts.nl/credentials/v1' is required")
+	})
 
-			err := validator.Validate(*v)
+	t.Run("failed - missing authorization VC type", func(t *testing.T) {
+		v := ValidNutsAuthorizationCredential()
+		v.Type = []ssi.URI{vc.VerifiableCredentialTypeV1URI()}
 
-			assert.Error(t, err)
-			assert.EqualError(t, err, "validation failed: credential ID must start with issuer")
-		})
+		err := validator.Validate(*v)
 
-		t.Run("failed - wrong consentType", func(t *testing.T) {
-			v := validV2ImpliedNutsAuthorizationCredential()
-			cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-			cs.LegalBase.ConsentType = "unknown"
-			v.CredentialSubject[0] = cs
+		assert.Error(t, err)
+		assert.EqualError(t, err, "validation failed: type 'NutsAuthorizationCredential' is required")
+	})
 
-			err := validator.Validate(*v)
+	t.Run("failed - missing credentialSubject", func(t *testing.T) {
+		v := ValidNutsAuthorizationCredential()
+		v.CredentialSubject = []interface{}{}
 
-			assert.Error(t, err)
-			assert.EqualError(t, err, "validation failed: 'credentialSubject.LegalBase.ConsentType' must be 'implied' or 'explicit'")
-		})
+		err := validator.Validate(*v)
 
-		t.Run("failed - missing Nuts context", func(t *testing.T) {
-			v := validV2ImpliedNutsAuthorizationCredential()
-			v.Context = []ssi.URI{vc.VCContextV1URI()}
+		assert.Error(t, err)
+		assert.EqualError(t, err, "validation failed: single CredentialSubject expected")
+	})
 
-			err := validator.Validate(*v)
+	t.Run("failed - missing credentialSubject.ID", func(t *testing.T) {
+		v := ValidNutsAuthorizationCredential()
+		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
+		cs.ID = ""
+		v.CredentialSubject[0] = cs
 
-			assert.Error(t, err)
-			assert.EqualError(t, err, "validation failed: context 'https://nuts.nl/credentials/v1' or 'https://nuts.nl/credentials/v2' is required")
-		})
+		err := validator.Validate(*v)
 
-		t.Run("failed - missing authorization VC type", func(t *testing.T) {
-			v := validV2ImpliedNutsAuthorizationCredential()
-			v.Type = []ssi.URI{vc.VerifiableCredentialTypeV1URI()}
+		assert.Error(t, err)
+		assert.EqualError(t, err, "validation failed: 'credentialSubject.ID' is nil")
+	})
 
-			err := validator.Validate(*v)
+	t.Run("failed - missing purposeOfUse", func(t *testing.T) {
+		v := ValidNutsAuthorizationCredential()
+		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
+		cs.PurposeOfUse = ""
+		v.CredentialSubject[0] = cs
 
-			assert.Error(t, err)
-			assert.EqualError(t, err, "validation failed: type 'NutsAuthorizationCredential' is required")
-		})
+		err := validator.Validate(*v)
 
-		t.Run("failed - missing credentialSubject", func(t *testing.T) {
-			v := validV2ImpliedNutsAuthorizationCredential()
-			v.CredentialSubject = []interface{}{}
+		assert.Error(t, err)
+		assert.EqualError(t, err, "validation failed: 'credentialSubject.PurposeOfUse' is nil")
+	})
 
-			err := validator.Validate(*v)
+	t.Run("failed - resources: missing path", func(t *testing.T) {
+		v := ValidNutsAuthorizationCredential()
+		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
+		cs.Resources[0].Path = ""
+		v.CredentialSubject[0] = cs
 
-			assert.Error(t, err)
-			assert.EqualError(t, err, "validation failed: single CredentialSubject expected")
-		})
+		err := validator.Validate(*v)
 
-		t.Run("failed - missing credentialSubject.ID", func(t *testing.T) {
-			v := validV2ImpliedNutsAuthorizationCredential()
-			cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-			cs.ID = ""
-			v.CredentialSubject[0] = cs
+		assert.Error(t, err)
+		assert.EqualError(t, err, "validation failed: 'credentialSubject.Resources[].Path' is required'")
+	})
 
-			err := validator.Validate(*v)
+	t.Run("failed - resources: missing operation", func(t *testing.T) {
+		v := ValidNutsAuthorizationCredential()
+		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
+		cs.Resources[0].Operations = []string{}
+		v.CredentialSubject[0] = cs
 
-			assert.Error(t, err)
-			assert.EqualError(t, err, "validation failed: 'credentialSubject.ID' is nil")
-		})
+		err := validator.Validate(*v)
 
-		t.Run("failed - missing purposeOfUse", func(t *testing.T) {
-			v := validV2ImpliedNutsAuthorizationCredential()
-			cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-			cs.PurposeOfUse = ""
-			v.CredentialSubject[0] = cs
+		assert.Error(t, err)
+		assert.EqualError(t, err, "validation failed: 'credentialSubject.Resources[].Operations[]' requires at least one value")
+	})
 
-			err := validator.Validate(*v)
+	t.Run("failed - resources: invalid operation", func(t *testing.T) {
+		v := ValidNutsAuthorizationCredential()
+		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
+		cs.Resources[0].Operations = []string{"unknown"}
+		v.CredentialSubject[0] = cs
 
-			assert.Error(t, err)
-			assert.EqualError(t, err, "validation failed: 'credentialSubject.PurposeOfUse' is nil")
-		})
+		err := validator.Validate(*v)
 
-		t.Run("failed - resources: missing path", func(t *testing.T) {
-			v := validV2ImpliedNutsAuthorizationCredential()
-			cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-			cs.Resources[0].Path = ""
-			v.CredentialSubject[0] = cs
-
-			err := validator.Validate(*v)
-
-			assert.Error(t, err)
-			assert.EqualError(t, err, "validation failed: 'credentialSubject.Resources[].Path' is required'")
-		})
-
-		t.Run("failed - resources: missing operation", func(t *testing.T) {
-			v := validV2ImpliedNutsAuthorizationCredential()
-			cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-			cs.Resources[0].Operations = []string{}
-			v.CredentialSubject[0] = cs
-
-			err := validator.Validate(*v)
-
-			assert.Error(t, err)
-			assert.EqualError(t, err, "validation failed: 'credentialSubject.Resources[].Operations[]' requires at least one value")
-		})
-
-		t.Run("failed - resources: invalid operation", func(t *testing.T) {
-			v := validV2ImpliedNutsAuthorizationCredential()
-			cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-			cs.Resources[0].Operations = []string{"unknown"}
-			v.CredentialSubject[0] = cs
-
-			err := validator.Validate(*v)
-
-			assert.Error(t, err)
-			assert.EqualError(t, err, "validation failed: 'credentialSubject.Resources[].Operations[]' contains an invalid operation 'unknown'")
-		})
-
-		t.Run("failed - missing subject for explicit", func(t *testing.T) {
-			v := ValidV2ExplicitNutsAuthorizationCredential()
-			cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
-			cs.Subject = nil
-			v.CredentialSubject[0] = cs
-
-			err := validator.Validate(*v)
-
-			assert.Error(t, err)
-			assert.EqualError(t, err, "validation failed: 'credentialSubject.Subject' is required when consentType is 'explicit'")
-		})
+		assert.Error(t, err)
+		assert.EqualError(t, err, "validation failed: 'credentialSubject.Resources[].Operations[]' contains an invalid operation 'unknown'")
 	})
 }
 
@@ -405,7 +362,7 @@ func TestDefaultCredentialValidator(t *testing.T) {
 
 	t.Run("ok - credential with just ID in credentialSubject", func(t *testing.T) {
 		// compaction replaces credentialSubject map with ID, with just the ID as string
-		credential := *validV1NutsAuthorizationCredential()
+		credential := *ValidNutsAuthorizationCredential()
 		credential.CredentialSubject = []interface{}{
 			map[string]interface{}{
 				"id": "1234",

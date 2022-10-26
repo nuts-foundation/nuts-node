@@ -30,8 +30,6 @@ const (
 	NutsAuthorizationCredentialType = "NutsAuthorizationCredential"
 	// NutsV1Context is the nuts V1 json-ld context
 	NutsV1Context = "https://nuts.nl/credentials/v1"
-	// NutsV2Context is the nuts V2 json-ld context
-	NutsV2Context = "https://nuts.nl/credentials/v2"
 )
 
 var (
@@ -41,8 +39,6 @@ var (
 	NutsAuthorizationCredentialTypeURI, _ = ssi.ParseURI(NutsAuthorizationCredentialType)
 	// NutsV1ContextURI is the nuts V1 json-ld context as URI
 	NutsV1ContextURI = ssi.MustParseURI(NutsV1Context)
-	// NutsV2ContextURI is the nuts V2 json-ld context as URI
-	NutsV2ContextURI = ssi.MustParseURI(NutsV2Context)
 )
 
 const (
@@ -62,30 +58,12 @@ type NutsOrganizationCredentialSubject struct {
 type NutsAuthorizationCredentialSubject struct {
 	// ID contains the DID of the subject
 	ID string `json:"id"`
-	// LegalBase contains information about the type of consent that is the basis for the authorization.
-	LegalBase *LegalBase `json:"legalBase,omitempty"`
 	// PurposeOfUse refers to the Bolt access policy
 	PurposeOfUse string `json:"purposeOfUse"`
 	// Resources contains additional individual resources that can be accessed.
 	Resources []Resource `json:"resources,omitempty"`
 	// Subject contains a URN referring to the subject of care (not the credential subject)
 	Subject *string `json:"subject,omitempty"`
-}
-
-// LegalBase is part of the NutsAuthorizationCredential credentialSubject
-type LegalBase struct {
-	// ConsentType defines the type of consent that has been given (implied or explicit)
-	ConsentType string `json:"consentType"`
-	// Evidence contains a link to a resource when ConsentType == 'explicit'
-	Evidence *Evidence `json:"evidence,omitempty"`
-}
-
-// Evidence is part of the NutsAuthorizationCredential credentialSubject.legalBase
-type Evidence struct {
-	// Path is the relative path (relative to the FHIR base path of the mentioned service)
-	Path string `json:"path"`
-	// Type indicates the MIME type of the resource.
-	Type string `json:"type"`
 }
 
 // Resource defines a single accessbile resource

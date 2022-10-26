@@ -134,8 +134,8 @@ func (d nutsOrganizationCredentialValidator) Validate(credential vc.VerifiableCr
 		return failure("type '%s' is required", NutsOrganizationCredentialType)
 	}
 
-	if !credential.ContainsContext(NutsV1ContextURI) && !credential.ContainsContext(NutsV2ContextURI) {
-		return failure("context '%s' or '%s' is required", NutsV1ContextURI.String(), NutsV2ContextURI.String())
+	if !credential.ContainsContext(NutsV1ContextURI) {
+		return failure("context '%s' is required", NutsV1ContextURI.String())
 	}
 
 	// if it fails, length check will trigger
@@ -163,9 +163,8 @@ func (d nutsOrganizationCredentialValidator) Validate(credential vc.VerifiableCr
 	return (defaultCredentialValidator{d.documentLoader}).Validate(credential)
 }
 
-// nutsAuthorizationCredentialValidator checks for mandatory fields: id, legalBase, purposeOfUse.
-// It checks if the value for legalBase.consentType is either 'explicit' or 'implied'.
-// When 'explicit', both the evidence and subject subfields must be filled.
+// nutsAuthorizationCredentialValidator checks for mandatory fields: id, purposeOfUse.
+// Also checks whether the specified resources
 type nutsAuthorizationCredentialValidator struct {
 	documentLoader ld.DocumentLoader
 }
@@ -182,8 +181,8 @@ func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableC
 		return failure("type '%s' is required", NutsAuthorizationCredentialType)
 	}
 
-	if !credential.ContainsContext(NutsV1ContextURI) && !credential.ContainsContext(NutsV2ContextURI) {
-		return failure("context '%s' or '%s' is required", NutsV1ContextURI.String(), NutsV2ContextURI.String())
+	if !credential.ContainsContext(NutsV1ContextURI) {
+		return failure("context '%s' is required", NutsV1ContextURI.String())
 	}
 
 	// if it fails, length check will trigger
@@ -198,24 +197,6 @@ func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableC
 	}
 	if len(strings.TrimSpace(cs.PurposeOfUse)) == 0 {
 		return failure("'credentialSubject.PurposeOfUse' is nil")
-	}
-
-	if credential.ContainsContext(NutsV2ContextURI) {
-		var consentType string
-		if cs.LegalBase != nil {
-			consentType = cs.LegalBase.ConsentType
-		}
-		switch consentType {
-		case "implied":
-			// no additional requirements
-			break
-		case "explicit":
-			if cs.Subject == nil || strings.TrimSpace(*cs.Subject) == "" {
-				return failure("'credentialSubject.Subject' is required when consentType is 'explicit'")
-			}
-		default:
-			return failure("'credentialSubject.LegalBase.ConsentType' must be 'implied' or 'explicit'")
-		}
 	}
 
 	err = validateResources(cs.Resources)

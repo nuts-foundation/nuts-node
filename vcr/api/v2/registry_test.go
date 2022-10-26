@@ -117,7 +117,7 @@ func TestWrapper_SearchVCs(t *testing.T) {
 			_ = json.Unmarshal([]byte(organizationQuery), f)
 		})
 		// Not an organization VC, but doesn't matter
-		actualVC := *credential.ValidV2ExplicitNutsAuthorizationCredential()
+		actualVC := *credential.ValidNutsAuthorizationCredential()
 		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{actualVC}, nil)
 		ctx.mockVerifier.EXPECT().GetRevocation(*actualVC.ID).Return(nil, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any())
@@ -218,7 +218,7 @@ func TestWrapper_SearchVCs(t *testing.T) {
 			_ = json.Unmarshal([]byte(organizationQuery), f)
 		})
 		// Not an organization VC, but doesn't matter
-		actualVC := *credential.ValidV2ExplicitNutsAuthorizationCredential()
+		actualVC := *credential.ValidNutsAuthorizationCredential()
 		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{actualVC}, nil)
 		ctx.mockVerifier.EXPECT().GetRevocation(*actualVC.ID).Return(nil, errors.New("failure"))
 

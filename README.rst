@@ -3,7 +3,7 @@ nuts-node
 
 Distributed registry for storing and querying health care providers their vendors and technical endpoints.
 
-See the `documentation <https://nuts-node.readthedocs.io/en/latest/>`_ for how to set up, integrate and use the Nuts node.
+See the `documentation <https://nuts-node.readthedocs.io/en/stable/>`_ for how to set up, integrate and use the Nuts node.
 
 .. image:: https://circleci.com/gh/nuts-foundation/nuts-node.svg?style=svg
     :target: https://circleci.com/gh/nuts-foundation/nuts-node
@@ -18,12 +18,16 @@ See the `documentation <https://nuts-node.readthedocs.io/en/latest/>`_ for how t
     :alt: Code coverage
 
 .. image:: https://api.codeclimate.com/v1/badges/69f77bd34f3ac253cae0/maintainability
-   :target: https://codeclimate.com/github/nuts-foundation/nuts-node/maintainability
-   :alt: Maintainability
+    :target: https://codeclimate.com/github/nuts-foundation/nuts-node/maintainability
+    :alt: Maintainability
 
 .. image:: https://github.com/nuts-foundation/nuts-node/actions/workflows/build-images.yaml/badge.svg
-   :target: https://github.com/nuts-foundation/nuts-node/actions/workflows/build-images.yaml
-   :alt: Build Docker images
+    :target: https://github.com/nuts-foundation/nuts-node/actions/workflows/build-images.yaml
+    :alt: Build Docker images
+
+.. image:: https://img.shields.io/badge/-Nuts_Community-informational?labelColor=grey&logo=slack
+    :target: https://join.slack.com/t/nuts-foundation/shared_invite/zt-19av5q5ur-5fNbZVIFGUw5vDKSy5mqCw
+    :alt: Nuts Community on Slack
 
 Hello, World!
 ^^^^^^^^^^^^^
@@ -48,7 +52,10 @@ After the services have started you can try the following endpoints:
 Development
 ^^^^^^^^^^^
 
-Go >= 1.19 is required.
+.. |gover| image:: https://img.shields.io/github/go-mod/go-version/nuts-foundation/nuts-node
+    :alt: GitHub go.mod Go version
+
+|gover| or higher is required.
 
 Building
 ********

@@ -158,7 +158,6 @@ func DefaultContextConfig() ContextsConfig {
 		RemoteAllowList: DefaultAllowList(),
 		LocalFileMapping: map[string]string{
 			"https://nuts.nl/credentials/v1": "assets/contexts/nuts.ldjson",
-			"https://nuts.nl/credentials/v2": "assets/contexts/nuts-v2.ldjson",
 			W3cVcContext:                     "assets/contexts/w3c-credentials-v1.ldjson",
 			Jws2020Context:                   "assets/contexts/lds-jws2020-v1.ldjson",
 			SchemaOrgContext:                 "assets/contexts/schema-org-v13.ldjson",

@@ -26,11 +26,11 @@ Release date: 2022-??-?? (not yet released)
 Breaking changes
 ========
 
-While Nuts RFC014 (Authorization Credential) required ``legalBase`` to be present in all ``NutsAuthorizationCredential``s,
-this property was missing in the Nuts v1 JSON-LD context. When issuing Verifiable Credentials, now all fields must be defined in its context(s).
+When issuing Verifiable Credentials, now all fields must be defined in its context(s). This impacts the issuance of NutsAuthorizationCredentials:
+Nuts RFC014 (Authorization Credential) required ``legalBase`` to be present in all ``NutsAuthorizationCredential``s,
+but this property was missing in the Nuts v1 JSON-LD context.
+Since it can't simply be added afterwards, it (``legalBase``) is removed altogether.
 This means, starting this version, the ``legalBase`` property can't used in new v1 ``NutsAuthorizationCredential``s.
-Until the next major version (v6.0.0) it should be removed.
-Then when v6.0.0 is released, upgrade to the v2 JSON-LD context version and re-add the ``legalBase``.
 
 Redis Sentinel was configured through a Redis connection URL by passing Sentinel-specific query parameters,
 which has been replaced with structured configuration. To use Redis Sentinel in v5 move the following connection URL parameters to configuration:
