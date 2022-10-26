@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/network/log"
 	"sync"
 
 	"github.com/nuts-foundation/go-stoabs"
@@ -142,7 +143,14 @@ func (store *treeStore) rebuildPage(tx stoabs.WriteTx, clock uint32, dagData tre
 	dagBytes, err := dagData.MarshalBinary()
 	if !bytes.Equal(dagBytes, treeBytes) {
 		// page needs to be corrected
-		// TODO: add logging
+		log.Logger().
+			WithFields(map[string]interface{}{
+				"shelf":     store.shelf,
+				"key":       leafID,
+				"new_value": dagBytes,
+				"old_value": treeBytes,
+			}).
+			Warn("Rebuild correction")
 		// write page
 		if err = writer.Put(clockToKey(leafID), dagBytes); err != nil {
 			return err

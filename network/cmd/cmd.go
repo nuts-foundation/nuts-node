@@ -65,6 +65,7 @@ func Cmd() *cobra.Command {
 	cmd.AddCommand(payloadCommand())
 	cmd.AddCommand(peersCommand())
 	cmd.AddCommand(reprocessCommand())
+	cmd.AddCommand(rebuildCommand())
 	return cmd
 }
 
@@ -199,6 +200,23 @@ func reprocessCommand() *cobra.Command {
 				return fmt.Errorf("unable to reprocess transactions: %w", err)
 			}
 			cmd.Printf("Reprocessing transactions with contentType: %s\n", args[0])
+			return nil
+		},
+	}
+}
+
+func rebuildCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "rebuild",
+		Short: "Rebuild network state by walking over entire DAG",
+		Args:  cobra.ExactArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientConfig := core.NewClientConfigForCommand(cmd)
+			if err := httpClient(clientConfig).Rebuild(); err != nil {
+				// prints help on 400
+				return fmt.Errorf("unable to rebuild state: %w", err)
+			}
+			cmd.Println("Rebuilding network state")
 			return nil
 		},
 	}

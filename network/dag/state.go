@@ -435,7 +435,14 @@ Shelfs:
   - ibltShelf + xorShelf: summarizes the DAG one PageSize at a time. Raw data for the state.ibltTree and state.xorTree. Fixing this from the clockShelf saves unmarshalling of all transactions, but clockShelf is derived data as well.
 */
 func (s *state) Rebuild(ctx context.Context) error {
-	if err := s.db.Write(ctx, s.graph.rebuild, stoabs.WithWriteLock()); err != nil {
+	err := s.db.Write(ctx, s.graph.rebuild, stoabs.WithWriteLock(),
+		stoabs.AfterCommit(func() {
+			log.Logger().Warn("Rebuild DAG complete")
+		}),
+		stoabs.OnRollback(func() {
+			log.Logger().Warn("Rebuild DAG failed")
+		}))
+	if err != nil {
 		return err
 	}
 	return s.rebuildTrees(ctx)

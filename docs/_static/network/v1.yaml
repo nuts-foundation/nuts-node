@@ -171,6 +171,18 @@ paths:
       responses:
         "202":
           description: "The request was accepted, process was started"
+  /internal/network/v1/rebuild:
+    post:
+      summary: "Rebuild the network state by walking over all transactions, verifying derived data, and correcting any inconsistencies that are found."
+      description: >
+        TODO
+
+      operationId: rebuild
+      tags:
+        - admin
+      responses:
+        "202":
+          description: "The request was accepted, process was started"
   /internal/network/v1/events:
     get:
       summary: "Lists the state of the internal events"

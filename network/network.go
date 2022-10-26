@@ -679,13 +679,15 @@ func (n *Network) Reprocess(contentType string) {
 
 func (n *Network) Rebuild() {
 	log.Logger().Warn("Rebuilding Network...") // TODO: log level?
-	if err := n.state.Rebuild(context.Background()); err != nil {
-		log.Logger().
-			WithError(err).
-			Error("Rebuild failed")
-		return
-	}
-	log.Logger().Warn("Rebuild complete") // TODO: log level?
+	go func() {
+		if err := n.state.Rebuild(context.Background()); err != nil {
+			log.Logger().
+				WithError(err).
+				Error("Rebuild failed")
+			return
+		}
+		log.Logger().Warn("Rebuild complete") // TODO: log level?
+	}()
 }
 
 func (n *Network) collectDiagnosticsForPeers() transport.Diagnostics {

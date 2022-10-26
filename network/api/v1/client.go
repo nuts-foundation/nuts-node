@@ -125,6 +125,19 @@ func (hb HTTPClient) Reprocess(contentType string) error {
 	return nil
 }
 
+// Rebuild triggers rebuilding of the network state
+func (hb HTTPClient) Rebuild() error {
+	ctx := context.Background()
+	response, err := hb.client().Rebuild(ctx)
+	if err != nil {
+		return err
+	}
+	if err = core.TestResponseCode(http.StatusAccepted, response); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (hb HTTPClient) client() ClientInterface {
 	response, err := NewClientWithResponses(hb.GetAddress(), WithHTTPClient(core.MustCreateHTTPClient(hb.ClientConfig)))
 	if err != nil {

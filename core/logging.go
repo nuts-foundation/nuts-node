@@ -39,7 +39,8 @@ const (
 	// LogFieldStore is the log field key for the name of a store managed by the storage module.
 	LogFieldStore = "store"
 	// LogFieldStoreShelf is the log field key for the name of a shelf, in a store managed by the storage module.
-	LogFieldStoreShelf = "storeShelf"
+	LogFieldStoreShelf    = "storeShelf"
+	LogFieldStoreShelfKey = "shelfKey"
 
 	// LogFieldKeyID is the log field key for the unique ID of a key from the VDR or crypto module.
 	LogFieldKeyID = "keyID"

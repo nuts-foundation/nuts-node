@@ -230,7 +230,7 @@ func rebuildClockShelf(shelf stoabs.Writer, clockMap map[uint32][]hash.SHA256Has
 		clockTransactions = parseHashList(value)
 		dagTransactions = clockMap[clock]
 		// virtually impossible that this returns a false positive if the DAG is not corrupt (contains empty/duplicate hashes)
-		if len(dagTransactions) != len(clockTransactions) && hash.EmptyHash().Xor(dagTransactions...).Xor(clockTransactions...).Empty() {
+		if len(dagTransactions) == len(clockTransactions) && hash.EmptyHash().Xor(dagTransactions...).Xor(clockTransactions...).Empty() {
 			// delete valid clockMap entries to keep a list that needs to be updated
 			delete(clockMap, clock)
 		}
@@ -242,7 +242,13 @@ func rebuildClockShelf(shelf stoabs.Writer, clockMap map[uint32][]hash.SHA256Has
 
 	// update incorrect and missing data to clockShelf
 	for clock, refs := range clockMap {
-		// TODO: add logging
+		log.Logger().
+			WithFields(map[string]interface{}{
+				"shelf":     clockShelf,
+				"key":       clock,
+				"new_value": refs,
+			}).
+			Warn("Rebuild correction")
 		refBytes := make([]byte, 0, len(refs)*hash.SHA256HashSize)
 		for _, ref := range refs {
 			refBytes = append(refBytes, ref.Slice()...)
@@ -258,37 +264,60 @@ func rebuildClockShelf(shelf stoabs.Writer, clockMap map[uint32][]hash.SHA256Has
 func (d *dag) rebuildMetadataShelf(tx stoabs.WriteTx, possibleHeads []hash.SHA256Hash, highestLC uint32, numberOfTransactions uint64) error {
 	// head
 	var headCorrect bool
-	head, err := d.getHead(tx)
+	currentHead, err := d.getHead(tx)
 	if err != nil {
 		return err
 	}
 	for _, ref := range possibleHeads {
-		if ref.Equals(head) {
+		if ref.Equals(currentHead) {
 			headCorrect = true
 			break
 		}
 	}
 	if !headCorrect {
-		// TODO: add logging
 		if len(possibleHeads) < 1 {
 			return errors.New("list of possible heads is empty")
 		}
+		log.Logger().
+			WithFields(map[string]interface{}{
+				"shelf":     metadataShelf,
+				"key":       headRefKey,
+				"new_value": possibleHeads[0].String(),
+				"old_value": currentHead.String(),
+			}).
+			Warn("Rebuild correction")
 		if err = d.setHead(tx, possibleHeads[0]); err != nil {
 			return err
 		}
 	}
 
 	// numberOfTransactions
-	if numberOfTransactions != d.getNumberOfTransactions(tx) {
-		// TODO: add logging
+	currentNumberOfTransactions := d.getNumberOfTransactions(tx)
+	if numberOfTransactions != currentNumberOfTransactions {
+		log.Logger().
+			WithFields(map[string]interface{}{
+				"shelf":     metadataShelf,
+				"key":       numberOfTransactionsKey,
+				"new_value": numberOfTransactions,
+				"old_value": currentNumberOfTransactions,
+			}).
+			Warn("Rebuild correction")
 		if err = d.setNumberOfTransactions(tx, numberOfTransactions); err != nil {
 			return err
 		}
 	}
 
-	// # highestClock
-	if highestLC != d.getHighestClockValue(tx) {
-		//	TODO: add logging
+	// highestClock
+	currentHighestClock := d.getHighestClockValue(tx)
+	if highestLC != currentHighestClock {
+		log.Logger().
+			WithFields(map[string]interface{}{
+				"shelf":     metadataShelf,
+				"key":       highestClockKey,
+				"new_value": highestLC,
+				"old_value": currentHighestClock,
+			}).
+			Warn("Rebuild correction")
 		if err = d.setHighestClockValue(tx, highestLC); err != nil {
 			return err
 		}

@@ -168,6 +168,11 @@ func (a Wrapper) Reprocess(ctx echo.Context, params ReprocessParams) error {
 	return ctx.NoContent(http.StatusAccepted)
 }
 
+func (a Wrapper) Rebuild(ctx echo.Context) error {
+	a.Service.Rebuild()
+	return ctx.NoContent(http.StatusAccepted)
+}
+
 func parseHash(hashAsString string) (hash2.SHA256Hash, error) {
 	hash, err := hash2.ParseHex(hashAsString)
 	if err != nil {
