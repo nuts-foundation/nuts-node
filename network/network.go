@@ -648,10 +648,8 @@ func (n *Network) Reprocess(contentType string) {
 		}
 
 		// The Lamport's clock stamps count from 0, with a step size of 1.
-		lastClock := -1
 		const clockSteps = 1000
-
-		for offset := 0; offset >= lastClock+1; offset += clockSteps {
+		for offset := 0; ; offset += clockSteps {
 			end := offset + clockSteps
 			if end >= 1<<32 {
 				log.Logger().Error("reprocess abort on Lamport clock uint32 overflow")
@@ -697,7 +695,10 @@ func (n *Network) Reprocess(contentType string) {
 						return
 					}
 				}
-				lastClock = int(uint(tx.Clock()))
+			}
+
+			if len(txs) == 0 || int(uint(txs[len(txs)-1].Clock())) < end - 1 {
+				break
 			}
 
 			// give some time for Update transactions that require all read transactions to be closed
