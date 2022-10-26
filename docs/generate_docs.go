@@ -204,13 +204,13 @@ func generateRstTable(tableName, fileName string, values [][]rstValue) {
 // KeyList sorts keys alphabetically, with any nested content at the end.
 type KeyList [][]rstValue
 
-// Len implements sort.Iterface.
+// Len implements sort.Interface.
 func (l KeyList) Len() int { return len(l) }
 
-// Swap implements sort.Iterface.
+// Swap implements sort.Interface.
 func (l KeyList) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
 
-// Less implements sort.Iterface.
+// Less implements sort.Interface.
 func (l KeyList) Less(i, j int) bool {
 	a := strings.Split(l[i][0].value, ".")
 	b := strings.Split(l[j][0].value, ".")
