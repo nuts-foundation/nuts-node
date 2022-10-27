@@ -376,7 +376,7 @@ func TestState_IBLT(t *testing.T) {
 	// expected iblt
 	dagIBLT := tree.NewIblt(IbltNumBuckets)
 	dagIBLT.Insert(tx.Ref())
-	if !assert.False(t, dagIBLT.IsEmpty()) {
+	if !assert.False(t, dagIBLT.Empty()) {
 		return
 	}
 
@@ -385,20 +385,20 @@ func TestState_IBLT(t *testing.T) {
 		_ = iblt.Subtract(dagIBLT)
 
 		assert.Equal(t, dagClock, actualClock)
-		assert.True(t, iblt.IsEmpty(), iblt)
+		assert.True(t, iblt.Empty(), iblt)
 	})
 	t.Run("requested clock before last page", func(t *testing.T) {
 		iblt, actualClock := txState.IBLT(uint32(1))
 
 		assert.Equal(t, PageSize-1, actualClock)
-		assert.True(t, iblt.IsEmpty(), iblt)
+		assert.True(t, iblt.Empty(), iblt)
 	})
 	t.Run("requested clock on last page, lower than dag", func(t *testing.T) {
 		iblt, actualClock := txState.IBLT(PageSize + 1)
 		_ = iblt.Subtract(dagIBLT)
 
 		assert.Equal(t, dagClock, actualClock)
-		assert.True(t, iblt.IsEmpty(), iblt)
+		assert.True(t, iblt.Empty(), iblt)
 	})
 }
 

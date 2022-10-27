@@ -39,8 +39,8 @@ type Data interface {
 	Add(other Data) error
 	// Subtract other Data from this one. Returns an error if the underlying datastructures are incompatible.
 	Subtract(other Data) error
-	// IsEmpty returns true if the concrete type is in its default/empty state.
-	IsEmpty() bool
+	// Empty returns true if the concrete type is in its default/empty state.
+	Empty() bool
 	encoding.BinaryMarshaler
 	encoding.BinaryUnmarshaler
 }
@@ -53,20 +53,20 @@ type Tree interface {
 	Insert(ref hash.SHA256Hash, clock uint32)
 	// Delete a transaction reference without checking if ref is in the Tree
 	Delete(ref hash.SHA256Hash, clock uint32)
-	// GetRoot returns the accumulated Data for the entire tree
-	GetRoot() Data
-	// GetZeroTo returns the LC value closest to the requested clock value together with Data of the same leaf/page.
+	// Root returns the accumulated Data for the entire tree
+	Root() Data
+	// ZeroTo returns the LC value closest to the requested clock value together with Data of the same leaf/page.
 	// The LC value closest to requested clock is defined as the lowest of:
 	// 	- highest LC known to the Tree
 	// 	- highest LC of the leaf that clock is on: ceil(clock/leafSize)*leafSize - 1
-	GetZeroTo(clock uint32) (Data, uint32)
+	ZeroTo(clock uint32) (Data, uint32)
 	// DropLeaves shrinks the tree by dropping all leaves. The parent of a leaf will become the new leaf.
 	DropLeaves()
-	// GetUpdates return the leaves that have been orphaned or updated since the last call to ResetUpdate.
+	// Updates return the leaves that have been orphaned or updated since the last call to ResetUpdate.
 	// dirty and orphaned are mutually exclusive.
-	GetUpdates() (dirty map[uint32][]byte, orphaned []uint32)
-	// ResetUpdate forgets all currently tracked changes.
-	ResetUpdate()
+	Updates() (dirty map[uint32][]byte, orphaned []uint32)
+	// ResetUpdates forgets all currently tracked changes.
+	ResetUpdates()
 	// Load builds a tree from binary leaf data. The keys in leaves correspond to a node's split value.
 	// All consecutive leaves must be present. Gaps must be filled with zero value of the corresponding Data implementation.
 	Load(leaves map[uint32][]byte) error
@@ -174,7 +174,7 @@ func (t *tree) Load(leaves map[uint32][]byte) error {
 	t.root = nodes[0]
 	t.leafSize = 2 * keys[0]
 	t.treeSize = t.root.limitLC
-	t.ResetUpdate()
+	t.ResetUpdates()
 
 	return nil
 }
@@ -247,11 +247,11 @@ func (t *tree) getNextNode(n *node, clock uint32) *node {
 	return n.right
 }
 
-func (t *tree) GetRoot() Data {
+func (t *tree) Root() Data {
 	return t.root.data.Clone()
 }
 
-func (t *tree) GetZeroTo(clock uint32) (Data, uint32) {
+func (t *tree) ZeroTo(clock uint32) (Data, uint32) {
 	data := t.root.data.Clone()
 	next := t.root
 	for {
@@ -284,7 +284,7 @@ func rightmostLeafClock(n *node) uint32 {
 	}
 }
 
-func (t *tree) GetUpdates() (dirty map[uint32][]byte, orphaned []uint32) {
+func (t *tree) Updates() (dirty map[uint32][]byte, orphaned []uint32) {
 	dirty = t.getDirty()
 
 	for k := range t.orphanedLeaves {
@@ -304,7 +304,7 @@ func (t *tree) getDirty() map[uint32][]byte {
 	return dirty
 }
 
-func (t *tree) ResetUpdate() {
+func (t *tree) ResetUpdates() {
 	t.dirtyLeaves = map[uint32]*node{}
 	t.orphanedLeaves = nil
 }

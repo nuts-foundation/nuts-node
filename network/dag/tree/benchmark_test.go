@@ -36,7 +36,7 @@ func BenchTree_Load(b *testing.B, proto Data) {
 			tree.Insert(hash.RandomHash(), i*leafSize)
 			nextLeaf++
 		}
-		dirties, _ = tree.GetUpdates() // tree.ResetUpdate() is never called, so dirties contains all leaves.
+		dirties, _ = tree.Updates() // tree.ResetUpdates() is never called, so dirties contains all leaves.
 
 		b.Run(fmt.Sprintf("Depth=%d Transactions=%d", d, numLeaves*leafSize), func(b *testing.B) {
 			b.ResetTimer()
@@ -102,19 +102,19 @@ func BenchData(b *testing.B, proto Data) {
 		}
 	})
 
-	b.Run("IsEmpty()", func(b *testing.B) {
+	b.Run("Empty()", func(b *testing.B) {
 		b.Run("true", func(b *testing.B) {
 			data := proto.New()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				_ = data.IsEmpty()
+				_ = data.Empty()
 			}
 		})
 		b.Run("false", func(b *testing.B) {
 			data, _ := dataWithRandomHashes(proto, 128)
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				_ = data.IsEmpty()
+				_ = data.Empty()
 			}
 		})
 	})

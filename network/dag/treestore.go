@@ -45,7 +45,7 @@ func (store *treeStore) getRoot() tree.Data {
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
 
-	return store.tree.GetRoot()
+	return store.tree.Root()
 }
 
 // getZeroTo returns the tree.Data sum of all tree pages/leaves upto and including the one containing the requested Lamport Clock value.
@@ -54,7 +54,7 @@ func (store *treeStore) getZeroTo(clock uint32) (tree.Data, uint32) {
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
 
-	return store.tree.GetZeroTo(clock)
+	return store.tree.ZeroTo(clock)
 }
 
 // write inserts a transaction reference to the in-memory tree and to persistent storage.
@@ -69,8 +69,8 @@ func (store *treeStore) write(tx stoabs.WriteTx, transaction Transaction) error 
 	}
 
 	store.tree.Insert(transaction.Ref(), transaction.Clock())
-	dirties, orphaned := store.tree.GetUpdates()
-	store.tree.ResetUpdate() // failure after this point results in rollback anyway
+	dirties, orphaned := store.tree.Updates()
+	store.tree.ResetUpdates() // failure after this point results in rollback anyway
 
 	// delete orphaned leaves
 	for _, orphan := range orphaned { // always zero

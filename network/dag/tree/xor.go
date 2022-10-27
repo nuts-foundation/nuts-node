@@ -69,7 +69,7 @@ func (x *Xor) Subtract(data Data) error {
 	}
 }
 
-func (x *Xor) IsEmpty() bool {
+func (x *Xor) Empty() bool {
 	return *x == Xor{}
 }
 

@@ -360,7 +360,7 @@ func TestIblt_IsEmpty(t *testing.T) {
 	t.Run("true - new iblt", func(t *testing.T) {
 		iblt := NewIblt(numTestBuckets)
 
-		assert.True(t, iblt.IsEmpty())
+		assert.True(t, iblt.Empty())
 	})
 
 	t.Run("false - insert", func(t *testing.T) {
@@ -369,7 +369,7 @@ func TestIblt_IsEmpty(t *testing.T) {
 
 		iblt.Insert(h)
 
-		assert.False(t, iblt.IsEmpty())
+		assert.False(t, iblt.Empty())
 	})
 
 	t.Run("true - insert and delete same hash", func(t *testing.T) {
@@ -379,7 +379,7 @@ func TestIblt_IsEmpty(t *testing.T) {
 		iblt.Insert(h)
 		iblt.Delete(h)
 
-		assert.True(t, iblt.IsEmpty())
+		assert.True(t, iblt.Empty())
 	})
 }
 

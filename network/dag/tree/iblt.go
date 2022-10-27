@@ -179,7 +179,7 @@ func (i *Iblt) Decode() (remaining []hash.SHA256Hash, missing []hash.SHA256Hash,
 
 		// if no pures exist, the iblt is empty or cannot be decoded
 		if !updated {
-			if !i.IsEmpty() {
+			if !i.Empty() {
 				err = ErrDecodeNotPossible
 			}
 			break
@@ -189,7 +189,7 @@ func (i *Iblt) Decode() (remaining []hash.SHA256Hash, missing []hash.SHA256Hash,
 	return remaining, missing, err
 }
 
-func (i *Iblt) IsEmpty() bool {
+func (i *Iblt) Empty() bool {
 	for idx := range i.buckets {
 		if !i.buckets[idx].isEmpty() {
 			return false
