@@ -9,7 +9,7 @@ What has been changed, and how to update between versions.
 Chestnut update (v4.3.0)
 *****************
 
-Release date: 2022-10-28
+Release date: 2022-10-27
 
 This update adds forward compatibility with the upcoming v5 release.
 It removes validation of ``legalBase`` from ``NutsAuthorizationCredential``, which was never properly defined in the JSON-LD contexts.
