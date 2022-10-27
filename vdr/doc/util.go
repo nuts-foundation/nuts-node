@@ -79,8 +79,9 @@ func ValidateServiceReference(endpointURI ssi.URI) error {
 		return DIDServiceQueryError{errors.New("endpoint URI with multiple " + serviceTypeQueryParameter + " query parameters")}
 	}
 
+	// “Other query parameters, paths or fragments SHALL NOT be used.”
+	// — RFC006, subsection 4.2
 	if len(q) > 1 {
-		// weird requirement; needs explaination why
 		return DIDServiceQueryError{errors.New("endpoint URI with query parameter other than " + serviceTypeQueryParameter)}
 	}
 
