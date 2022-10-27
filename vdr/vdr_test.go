@@ -388,3 +388,14 @@ func TestVDR_resolveControllerKey(t *testing.T) {
 		assert.Equal(t, types.ErrDIDNotManagedByThisNode, err)
 	})
 }
+
+func TestPatchContext(t *testing.T) {
+	id, _ := did.ParseDID("did:nuts:123")
+	document := did.Document{ID: *id}
+
+	patched := patchContext(document)
+
+	assert.Len(t, patched.Context, 2)
+	assert.Equal(t, doc.NutsDIDContextV1URI(), patched.Context[0])
+	assert.Equal(t, doc.JWS2020ContextV1URI(), patched.Context[1])
+}

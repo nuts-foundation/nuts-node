@@ -32,6 +32,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 	"github.com/sirupsen/logrus"
+	"strings"
 
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/network"
@@ -176,6 +177,9 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 		return err
 	}
 
+	// #1530: add nuts and JWS context if not present
+	next = patchContext(next)
+
 	payload, err := json.Marshal(next)
 	if err != nil {
 		return err
@@ -242,4 +246,26 @@ func (r VDR) resolveControllerWithKey(doc did.Document) (did.Document, crypto.Ke
 	}
 
 	return did.Document{}, nil, fmt.Errorf("could not find capabilityInvocation key for updating the DID document: %w", err)
+}
+
+func patchContext(next did.Document) did.Document {
+	NutsContextPresent := false
+	JWSContextPresent := false
+
+	for _, c := range next.Context {
+		if strings.EqualFold(c.String(), doc.NutsDIDContextV1) {
+			NutsContextPresent = true
+		}
+		if strings.EqualFold(c.String(), doc.JWS2020ContextV1) {
+			JWSContextPresent = true
+		}
+	}
+
+	if !NutsContextPresent {
+		next.Context = append(next.Context, doc.NutsDIDContextV1URI())
+	}
+	if !JWSContextPresent {
+		next.Context = append(next.Context, doc.JWS2020ContextV1URI())
+	}
+	return next
 }
