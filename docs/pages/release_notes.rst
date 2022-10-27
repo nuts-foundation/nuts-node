@@ -88,7 +88,7 @@ Release date: 2022-08-31
 
 Bugfix for Redis: not being able to load state data from database.
 
-**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.2.0...v4.2.1
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.2.0...v4.2.2
 
 *****************
 Chestnut update (v4.2.0)
