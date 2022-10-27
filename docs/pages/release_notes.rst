@@ -42,6 +42,22 @@ which has been replaced with structured configuration. To use Redis Sentinel in 
 - ``sentinelPassword`` becomes ``storage.redis.sentinel.password``
 
 *****************
+Chestnut update (v4.3.0)
+*****************
+
+Release date: 2022-10-27
+
+This update adds forward compatibility with the upcoming v5 release.
+It removes validation of ``legalBase`` from ``NutsAuthorizationCredential``, which was never properly defined in the JSON-LD contexts.
+The upcoming v5 release will refuse to issue credentials with fields that were not defined in the credential's context.
+But, since ``legalBase`` is required up until v4.3.0, it would mean future ``NutsAuthorizationCredentials`` issued by upcoming v5 can't be used in v4.
+Hence, the removal of the validation, to become forwards compatible with v5.
+
+See https://github.com/nuts-foundation/nuts-node/issues/1580 for more information
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.2.4...v4.3.0
+
+*****************
 Chestnut update (v4.2.4)
 *****************
 
@@ -72,7 +88,17 @@ Release date: 2022-08-31
 
 Bugfix for Redis: not being able to load state data from database.
 
-**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.2.0...v4.2.1
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.2.0...v4.2.2
+
+*****************
+Chestnut update (v4.2.0)
+*****************
+
+Release date: 2022-08-29
+
+Backports upstream features for connecting to Redis over TLS.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.1.1...v4.2.0
 
 *****************
 Chestnut update (v4.1.1)
