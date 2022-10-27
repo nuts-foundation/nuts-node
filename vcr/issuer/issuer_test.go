@@ -184,11 +184,11 @@ func Test_issuer_Issue(t *testing.T) {
 	}
 
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
+	kid := "did:nuts:123#abc"
 
 	t.Run("ok - unpublished", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		kid := "did:nuts:123#abc"
 
 		trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config"))
 		keyResolverMock := NewMockkeyResolver(ctrl)
@@ -215,7 +215,6 @@ func Test_issuer_Issue(t *testing.T) {
 		t.Run("could not store credential", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			kid := "did:nuts:123#abc"
 
 			trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config"))
 			keyResolverMock := NewMockkeyResolver(ctrl)
@@ -232,7 +231,6 @@ func Test_issuer_Issue(t *testing.T) {
 		t.Run("could not publish credential", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			kid := "did:nuts:123#abc"
 
 			trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config"))
 			keyResolverMock := NewMockkeyResolver(ctrl)
@@ -261,6 +259,26 @@ func Test_issuer_Issue(t *testing.T) {
 
 			result, err := sut.Issue(credentialOptions, true, true)
 			assert.EqualError(t, err, "can only issue credential with 1 type")
+			assert.Nil(t, result)
+
+		})
+
+		t.Run("validator fails (undefined fields)", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			keyResolverMock := NewMockkeyResolver(ctrl)
+			keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any()).Return(crypto.NewTestKey(kid), nil)
+			mockStore := NewMockStore(ctrl)
+			sut := issuer{keyResolver: keyResolverMock, store: mockStore, jsonldManager: jsonldManager}
+
+			invalidCred := credentialOptions
+			invalidCred.CredentialSubject = []interface{}{
+				map[string]interface{}{"foo": "bar"},
+			}
+
+			result, err := sut.Issue(invalidCred, true, true)
+			assert.EqualError(t, err, "validation failed: not all fields are defined by JSON-LD context")
 			assert.Nil(t, result)
 
 		})

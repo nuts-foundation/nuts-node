@@ -21,23 +21,22 @@ package credential
 
 import (
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/piprate/json-gold/ld"
 )
 
 // FindValidator finds the Validator the provided credential based on its Type
 // When no additional type is provided, it returns the default validator
-func FindValidator(credential vc.VerifiableCredential, documentLoader ld.DocumentLoader) Validator {
+func FindValidator(credential vc.VerifiableCredential) Validator {
 	if vcTypes := ExtractTypes(credential); len(vcTypes) > 0 {
 		for _, t := range vcTypes {
 			switch t {
 			case NutsOrganizationCredentialType:
-				return nutsOrganizationCredentialValidator{documentLoader: documentLoader}
+				return nutsOrganizationCredentialValidator{}
 			case NutsAuthorizationCredentialType:
-				return nutsAuthorizationCredentialValidator{documentLoader: documentLoader}
+				return nutsAuthorizationCredentialValidator{}
 			}
 		}
 	}
-	return defaultCredentialValidator{documentLoader: documentLoader}
+	return defaultCredentialValidator{}
 }
 
 // ExtractTypes extract additional VC types from the VC as strings

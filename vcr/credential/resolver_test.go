@@ -29,21 +29,21 @@ import (
 
 func TestFindValidator(t *testing.T) {
 	t.Run("an unknown type returns the default validator", func(t *testing.T) {
-		v := FindValidator(vc.VerifiableCredential{}, nil)
+		v := FindValidator(vc.VerifiableCredential{})
 
 		assert.NotNil(t, t, v)
 	})
 
 	t.Run("validator and builder found for NutsOrganizationCredential", func(t *testing.T) {
 		vc := validNutsOrganizationCredential()
-		v := FindValidator(*vc, nil)
+		v := FindValidator(*vc)
 
 		assert.NotNil(t, v)
 	})
 
 	t.Run("validator and builder found for NutsAuthorizationCredential", func(t *testing.T) {
 		vc := ValidNutsAuthorizationCredential()
-		v := FindValidator(*vc, nil)
+		v := FindValidator(*vc)
 
 		assert.NotNil(t, v)
 	})
