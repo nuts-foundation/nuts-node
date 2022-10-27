@@ -6,6 +6,21 @@ Release notes
 What has been changed, and how to update between versions.
 
 *****************
+Chestnut update (v4.3.0)
+*****************
+
+Release date: 2022-10-28
+
+This update adds forward compatibility with the upcoming v5 release.
+It removes validation of ``legalBase`` from ``NutsAuthorizationCredential``, which was never properly defined in the JSON-LD contexts.
+The upcoming v5 release will refuse to issue credentials with fields that were not defined in the credential's context.
+But, since ``legalBase`` is currently required, this means ``NutsAuthorizationCredentials`` can't be issued any more.
+
+See https://github.com/nuts-foundation/nuts-node/issues/1580 for more information
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.2.4...v4.3.0
+
+*****************
 Chestnut update (v4.2.4)
 *****************
 
