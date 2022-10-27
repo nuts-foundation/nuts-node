@@ -1,0 +1,26 @@
+{
+  "@context": {
+    "@version": 1.1,
+    "@protected": true,
+    "@base": "https://nuts.nl/did/v1",
+    "@vocab": "#",
+    "id": "@id",
+    "type": "@type",
+    "schema": "http://schema.org/",
+    "nuts": "https://nuts.nl/did/v1",
+    "node-contact-info": {
+      "@id": "nuts:NodeContactInfo",
+      "@context": {
+        "@version": 1.1,
+        "@protected": true,
+        "@propagate": true,
+        "id": "@id",
+        "type": "@type",
+        "name": "schema:legalname",
+        "phone": "schema:telephone",
+        "website": "schema:url",
+        "email": "schema:email"
+      }
+    }
+  }
+}
