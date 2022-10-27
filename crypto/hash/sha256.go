@@ -22,7 +22,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"math/rand"
 )
 
 // SHA256HashSize holds the size of a sha256 hash in bytes.
@@ -59,14 +58,6 @@ func (h SHA256Hash) Empty() bool {
 		}
 	}
 	return true
-}
-
-// RandomHash returns a Hash that is initialized with math/rand.
-// So NOT a cryptographic secure random Hash, but does generate reproducible results in tests.
-func RandomHash() SHA256Hash {
-	h := EmptyHash()
-	_, _ = rand.Read(h[:])
-	return h
 }
 
 // Clone returns a copy of the Hash.

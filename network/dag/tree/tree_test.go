@@ -19,7 +19,6 @@
 package tree
 
 import (
-	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -107,7 +106,7 @@ func TestTree_GetRoot(t *testing.T) {
 		var ref hash.SHA256Hash
 
 		for i := uint32(0); i < N; i++ {
-			rand.Read(ref[:])
+			ref = hash.RandomHash()
 			allRefs = allRefs.Xor(ref)
 			tr.Insert(ref, N-i)
 		}
