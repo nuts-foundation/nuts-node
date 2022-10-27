@@ -703,7 +703,8 @@ func (n *Network) ReprocessContentType(ctx context.Context, contentType string) 
 			break
 		}
 
-		// give some time for Update transactions that require all read transactions to be closed
+		// Workaround Nuts stoabs package which locks updates on any pending read
+		// transactions.
 		time.Sleep(time.Second)
 	}
 
