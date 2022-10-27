@@ -22,6 +22,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 )
 
 // SHA256HashSize holds the size of a sha256 hash in bytes.
@@ -52,12 +53,20 @@ func EmptyHash() SHA256Hash {
 
 // Empty tests whether the Hash is empty (all zeros).
 func (h SHA256Hash) Empty() bool {
-	for _, b := range h {
-		if b != 0 {
+	for i := range h {
+		if h[i] != 0 {
 			return false
 		}
 	}
 	return true
+}
+
+// RandomHash returns a Hash that is initialized with math/rand.
+// So NOT a cryptographic secure random Hash, but does generate reproducible results in tests.
+func RandomHash() SHA256Hash {
+	h := EmptyHash()
+	_, _ = rand.Read(h[:])
+	return h
 }
 
 // Clone returns a copy of the Hash.
@@ -74,7 +83,7 @@ func (h SHA256Hash) Slice() []byte {
 
 // Equals determines whether the given Hash is exactly the same (bytes match).
 func (h SHA256Hash) Equals(other SHA256Hash) bool {
-	return h.Compare(other) == 0
+	return bytes.Equal(h[:], other[:])
 }
 
 // Compare compares this Hash to another Hash using bytes.Compare.
@@ -84,9 +93,9 @@ func (h SHA256Hash) Compare(other SHA256Hash) int {
 
 // Xor returns the xor of this Hash and all others. It does not change this Hash.
 func (h SHA256Hash) Xor(others ...SHA256Hash) SHA256Hash {
-	for _, o := range others {
-		for i := range o {
-			h[i] ^= o[i]
+	for n := range others {
+		for i := range others[n] {
+			h[i] ^= others[n][i]
 		}
 	}
 	return h

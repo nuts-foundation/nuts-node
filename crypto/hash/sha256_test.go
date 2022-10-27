@@ -182,3 +182,12 @@ func TestHash_Xor(t *testing.T) {
 	assert.Equal(t, EmptyHash(), h0, "original Hash should not change")
 	assert.Equal(t, expected, actual)
 }
+
+func TestHash_RandomHash(t *testing.T) {
+	h1 := RandomHash()
+	h2 := RandomHash()
+
+	assert.False(t, h1.Equals(h2))
+	assert.False(t, h1.Empty())
+	assert.False(t, h2.Empty())
+}

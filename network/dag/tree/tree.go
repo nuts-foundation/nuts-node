@@ -111,15 +111,14 @@ Load builds the tree from the bottom-up.
 
 Trees are build by:
   - Clone-ing Data from the even numbered children (or leaves) to generate the parent nodes,
-	and setting the cloned node as its left child.
+    and setting the cloned node as its left child.
   - Add-ing the Data from the odd numbered children (if it exists) to the corresponding parent,
-	and setting the odd node as its right child.
+    and setting the odd node as its right child.
   - Parents then become the children and the process repeats until a single root node remains.
 
 It is assumed that all leaves are present. The tree will be corrupt when this is not the case.
 */
 func (t *tree) Load(leaves map[uint32][]byte) error {
-
 	// nothing to load
 	if len(leaves) == 0 {
 		return nil
@@ -135,52 +134,44 @@ func (t *tree) Load(leaves map[uint32][]byte) error {
 	})
 
 	halfNode := keys[0]
-	children := make([]*node, len(keys))
-	var child *node
+	nodes := make([]*node, len(keys))
 	var err error
 	for i, k := range keys {
-		child = &node{
+		nodes[i] = &node{ // add the leafs
 			splitLC: k,
 			limitLC: k + halfNode,
 			data:    t.prototype.New(),
 		}
-		if err = child.data.UnmarshalBinary(leaves[k]); err != nil {
+		if err = nodes[i].data.UnmarshalBinary(leaves[k]); err != nil {
 			return err
 		}
-		children[i] = child
 	}
 
 	// build tree
-	parents := make([]*node, 0, (len(keys)+1)/2)
-	var parent *node
-	for len(children) > 1 {
+	for len(nodes) > 1 {
 		halfNode *= 2
-		for i := 0; i < len(children); i++ {
+		for i := 0; i < len(nodes); i++ {
 			// left child
-			child = children[i]
-			parent = &node{
-				splitLC: child.limitLC,
-				limitLC: child.limitLC + halfNode,
-				data:    child.data.Clone(),
-				left:    child,
+			nodes[i/2] = &node{
+				splitLC: nodes[i].limitLC,
+				limitLC: nodes[i].limitLC + halfNode,
+				data:    nodes[i].data.Clone(),
+				left:    nodes[i],
 			}
 			// right child if it exists
 			i++
-			if i < len(children) {
-				child = children[i]
-				if err = parent.data.Add(child.data); err != nil {
+			if i < len(nodes) {
+				if err = nodes[i/2].data.Add(nodes[i].data); err != nil {
 					return err
 				}
-				parent.right = child
+				nodes[i/2].right = nodes[i]
 			}
-			parents = append(parents, parent)
 		}
-		children = parents
-		parents = make([]*node, 0, (len(keys)+1)/2)
+		nodes = nodes[:(len(nodes)+1)/2] // left half now points to the parents that serve as children for the next iteration
 	}
 
 	// set tree values
-	t.root = children[0]
+	t.root = nodes[0]
 	t.leafSize = 2 * keys[0]
 	t.treeSize = t.root.limitLC
 	t.ResetUpdate()
@@ -195,7 +186,6 @@ func (t *tree) Insert(ref hash.SHA256Hash, clock uint32) {
 }
 
 func (t *tree) Delete(ref hash.SHA256Hash, clock uint32) {
-
 	t.updateOrCreatePath(clock, func(n *node) {
 		n.data.Delete(ref)
 	})
