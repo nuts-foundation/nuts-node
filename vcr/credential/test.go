@@ -29,10 +29,7 @@ import (
 
 func validImpliedNutsAuthorizationCredential() *vc.VerifiableCredential {
 	credentialSubject := NutsAuthorizationCredentialSubject{
-		ID: vdr.TestDIDB.String(),
-		LegalBase: LegalBase{
-			ConsentType: "implied",
-		},
+		ID:           vdr.TestDIDB.String(),
 		PurposeOfUse: "eTransfer",
 		Resources: []Resource{
 			{
@@ -48,14 +45,7 @@ func validImpliedNutsAuthorizationCredential() *vc.VerifiableCredential {
 func ValidExplicitNutsAuthorizationCredential() *vc.VerifiableCredential {
 	patient := "urn:oid:2.16.840.1.113883.2.4.6.3:123456780"
 	credentialSubject := NutsAuthorizationCredentialSubject{
-		ID: vdr.TestDIDB.String(),
-		LegalBase: LegalBase{
-			ConsentType: "explicit",
-			Evidence: &Evidence{
-				Path: "/1.pdf",
-				Type: "application/pdf",
-			},
-		},
+		ID:           vdr.TestDIDB.String(),
 		PurposeOfUse: "careViewer",
 		Subject:      &patient,
 	}
