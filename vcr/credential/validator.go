@@ -61,10 +61,12 @@ func failure(err string, args ...interface{}) error {
 	return &validationError{errStr}
 }
 
+// AllFieldsDefinedValidator is a Validator that tests whether all fields are defined in the JSON-LD context.
 type AllFieldsDefinedValidator struct {
 	DocumentLoader ld.DocumentLoader
 }
 
+// Validate implements Validator.Validate.
 func (d AllFieldsDefinedValidator) Validate(input vc.VerifiableCredential) error {
 	// First expand, then compact and marshal to JSON, then compare
 	inputAsJSON, _ := input.MarshalJSON()

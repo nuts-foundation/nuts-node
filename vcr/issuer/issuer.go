@@ -68,7 +68,7 @@ func (i issuer) Issue(credentialOptions vc.VerifiableCredential, publish, public
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Sanity check: all provided fields must be defined by the context: otherwise they're not protected by the signature
 	err = credential.AllFieldsDefinedValidator{
 		DocumentLoader: i.jsonldManager.DocumentLoader(),
