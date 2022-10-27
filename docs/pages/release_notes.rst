@@ -14,7 +14,8 @@ Release date: 2022-10-27
 This update adds forward compatibility with the upcoming v5 release.
 It removes validation of ``legalBase`` from ``NutsAuthorizationCredential``, which was never properly defined in the JSON-LD contexts.
 The upcoming v5 release will refuse to issue credentials with fields that were not defined in the credential's context.
-But, since ``legalBase`` is currently required, this means ``NutsAuthorizationCredentials`` can't be issued any more.
+But, since ``legalBase`` is required up until v4.3.0, it would mean future ``NutsAuthorizationCredentials`` issued by upcoming v5 can't be used in v4.
+Hence, the removal of the validation, to become forwards compatible with v5.
 
 See https://github.com/nuts-foundation/nuts-node/issues/1580 for more information
 
