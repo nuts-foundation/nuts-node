@@ -165,12 +165,12 @@ func TestXor_Subtract(t *testing.T) {
 func TestXor_IsEmpty(t *testing.T) {
 	t.Run("is empty", func(t *testing.T) {
 		x := NewXor()
-		assert.True(t, x.IsEmpty())
+		assert.True(t, x.Empty())
 	})
 
 	t.Run("is not empty", func(t *testing.T) {
 		x := Xor(hash.FromSlice([]byte("not empty")))
-		assert.False(t, x.IsEmpty())
+		assert.False(t, x.Empty())
 	})
 }
 

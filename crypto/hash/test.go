@@ -18,7 +18,10 @@
 
 package hash
 
-import "github.com/golang/mock/gomock"
+import (
+	"github.com/golang/mock/gomock"
+	"math/rand"
+)
 
 func EqHash(hash SHA256Hash) gomock.Matcher {
 	return &hashMatcher{expected: hash}
@@ -38,4 +41,12 @@ func (h hashMatcher) Matches(x interface{}) bool {
 
 func (h hashMatcher) String() string {
 	return "Hash matches: " + h.expected.String()
+}
+
+// RandomHash returns a Hash that is initialized with math/rand.
+// So NOT a cryptographic secure random Hash, but does generate reproducible results in tests.
+func RandomHash() SHA256Hash {
+	h := EmptyHash()
+	_, _ = rand.Read(h[:])
+	return h
 }

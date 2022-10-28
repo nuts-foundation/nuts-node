@@ -39,8 +39,8 @@ type Data interface {
 	Add(other Data) error
 	// Subtract other Data from this one. Returns an error if the underlying datastructures are incompatible.
 	Subtract(other Data) error
-	// IsEmpty returns true if the concrete type is in its default/empty state.
-	IsEmpty() bool
+	// Empty returns true if the concrete type is in its default/empty state.
+	Empty() bool
 	encoding.BinaryMarshaler
 	encoding.BinaryUnmarshaler
 }
@@ -53,20 +53,20 @@ type Tree interface {
 	Insert(ref hash.SHA256Hash, clock uint32)
 	// Delete a transaction reference without checking if ref is in the Tree
 	Delete(ref hash.SHA256Hash, clock uint32)
-	// GetRoot returns the accumulated Data for the entire tree
-	GetRoot() Data
-	// GetZeroTo returns the LC value closest to the requested clock value together with Data of the same leaf/page.
+	// Root returns the accumulated Data for the entire tree
+	Root() Data
+	// ZeroTo returns the LC value closest to the requested clock value together with Data of the same leaf/page.
 	// The LC value closest to requested clock is defined as the lowest of:
 	// 	- highest LC known to the Tree
 	// 	- highest LC of the leaf that clock is on: ceil(clock/leafSize)*leafSize - 1
-	GetZeroTo(clock uint32) (Data, uint32)
+	ZeroTo(clock uint32) (Data, uint32)
 	// DropLeaves shrinks the tree by dropping all leaves. The parent of a leaf will become the new leaf.
 	DropLeaves()
-	// GetUpdates return the leaves that have been orphaned or updated since the last call to ResetUpdate.
+	// Updates return the leaves that have been orphaned or updated since the last call to ResetUpdate.
 	// dirty and orphaned are mutually exclusive.
-	GetUpdates() (dirty map[uint32][]byte, orphaned []uint32)
-	// ResetUpdate forgets all currently tracked changes.
-	ResetUpdate()
+	Updates() (dirty map[uint32][]byte, orphaned []uint32)
+	// ResetUpdates forgets all currently tracked changes.
+	ResetUpdates()
 	// Load builds a tree from binary leaf data. The keys in leaves correspond to a node's split value.
 	// All consecutive leaves must be present. Gaps must be filled with zero value of the corresponding Data implementation.
 	Load(leaves map[uint32][]byte) error
@@ -111,15 +111,14 @@ Load builds the tree from the bottom-up.
 
 Trees are build by:
   - Clone-ing Data from the even numbered children (or leaves) to generate the parent nodes,
-	and setting the cloned node as its left child.
+    and setting the cloned node as its left child.
   - Add-ing the Data from the odd numbered children (if it exists) to the corresponding parent,
-	and setting the odd node as its right child.
+    and setting the odd node as its right child.
   - Parents then become the children and the process repeats until a single root node remains.
 
 It is assumed that all leaves are present. The tree will be corrupt when this is not the case.
 */
 func (t *tree) Load(leaves map[uint32][]byte) error {
-
 	// nothing to load
 	if len(leaves) == 0 {
 		return nil
@@ -135,55 +134,47 @@ func (t *tree) Load(leaves map[uint32][]byte) error {
 	})
 
 	halfNode := keys[0]
-	children := make([]*node, len(keys))
-	var child *node
+	nodes := make([]*node, len(keys))
 	var err error
 	for i, k := range keys {
-		child = &node{
+		nodes[i] = &node{ // add the leafs
 			splitLC: k,
 			limitLC: k + halfNode,
 			data:    t.prototype.New(),
 		}
-		if err = child.data.UnmarshalBinary(leaves[k]); err != nil {
+		if err = nodes[i].data.UnmarshalBinary(leaves[k]); err != nil {
 			return err
 		}
-		children[i] = child
 	}
 
 	// build tree
-	parents := make([]*node, 0, (len(keys)+1)/2)
-	var parent *node
-	for len(children) > 1 {
+	for len(nodes) > 1 {
 		halfNode *= 2
-		for i := 0; i < len(children); i++ {
+		for i := 0; i < len(nodes); i++ {
 			// left child
-			child = children[i]
-			parent = &node{
-				splitLC: child.limitLC,
-				limitLC: child.limitLC + halfNode,
-				data:    child.data.Clone(),
-				left:    child,
+			nodes[i/2] = &node{
+				splitLC: nodes[i].limitLC,
+				limitLC: nodes[i].limitLC + halfNode,
+				data:    nodes[i].data.Clone(),
+				left:    nodes[i],
 			}
 			// right child if it exists
 			i++
-			if i < len(children) {
-				child = children[i]
-				if err = parent.data.Add(child.data); err != nil {
+			if i < len(nodes) {
+				if err = nodes[i/2].data.Add(nodes[i].data); err != nil {
 					return err
 				}
-				parent.right = child
+				nodes[i/2].right = nodes[i]
 			}
-			parents = append(parents, parent)
 		}
-		children = parents
-		parents = make([]*node, 0, (len(keys)+1)/2)
+		nodes = nodes[:(len(nodes)+1)/2] // left half now points to the parents that serve as children for the next iteration
 	}
 
 	// set tree values
-	t.root = children[0]
+	t.root = nodes[0]
 	t.leafSize = 2 * keys[0]
 	t.treeSize = t.root.limitLC
-	t.ResetUpdate()
+	t.ResetUpdates()
 
 	return nil
 }
@@ -195,7 +186,6 @@ func (t *tree) Insert(ref hash.SHA256Hash, clock uint32) {
 }
 
 func (t *tree) Delete(ref hash.SHA256Hash, clock uint32) {
-
 	t.updateOrCreatePath(clock, func(n *node) {
 		n.data.Delete(ref)
 	})
@@ -257,11 +247,11 @@ func (t *tree) getNextNode(n *node, clock uint32) *node {
 	return n.right
 }
 
-func (t *tree) GetRoot() Data {
+func (t *tree) Root() Data {
 	return t.root.data.Clone()
 }
 
-func (t *tree) GetZeroTo(clock uint32) (Data, uint32) {
+func (t *tree) ZeroTo(clock uint32) (Data, uint32) {
 	data := t.root.data.Clone()
 	next := t.root
 	for {
@@ -294,7 +284,7 @@ func rightmostLeafClock(n *node) uint32 {
 	}
 }
 
-func (t *tree) GetUpdates() (dirty map[uint32][]byte, orphaned []uint32) {
+func (t *tree) Updates() (dirty map[uint32][]byte, orphaned []uint32) {
 	dirty = t.getDirty()
 
 	for k := range t.orphanedLeaves {
@@ -314,7 +304,7 @@ func (t *tree) getDirty() map[uint32][]byte {
 	return dirty
 }
 
-func (t *tree) ResetUpdate() {
+func (t *tree) ResetUpdates() {
 	t.dirtyLeaves = map[uint32]*node{}
 	t.orphanedLeaves = nil
 }

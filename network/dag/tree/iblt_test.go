@@ -69,10 +69,10 @@ func getEmptyTestIblt(numBuckets int) *Iblt {
 		hc:      ibltHc,
 		hk:      ibltHk,
 		k:       ibltK,
-		buckets: make([]*bucket, numBuckets),
+		buckets: make([]bucket, numBuckets),
 	}
 	for i := range iblt.buckets {
-		iblt.buckets[i] = new(bucket)
+		iblt.buckets[i] = *new(bucket)
 	}
 	return iblt
 }
@@ -98,7 +98,7 @@ func equals(iblt1, iblt2 *Iblt) bool {
 		return false
 	}
 	for i := range iblt1.buckets {
-		if !iblt1.buckets[i].equals(*iblt2.buckets[i]) {
+		if !iblt1.buckets[i].equals(&iblt2.buckets[i]) {
 			return false
 		}
 	}
@@ -148,7 +148,7 @@ func TestIblt_Insert(t *testing.T) {
 
 	numMatches := 0
 	for _, b := range iblt.buckets {
-		if b.equals(bExp) {
+		if b.equals(&bExp) {
 			numMatches++
 		}
 	}
@@ -168,7 +168,7 @@ func TestIblt_Delete(t *testing.T) {
 	iblt.Delete(h)
 
 	for i, b := range iblt.buckets {
-		assert.Truef(t, b.equals(bExp), "bucket %d did not match", i)
+		assert.Truef(t, b.equals(&bExp), "bucket %d did not match", i)
 	}
 }
 
@@ -360,7 +360,7 @@ func TestIblt_IsEmpty(t *testing.T) {
 	t.Run("true - new iblt", func(t *testing.T) {
 		iblt := NewIblt(numTestBuckets)
 
-		assert.True(t, iblt.IsEmpty())
+		assert.True(t, iblt.Empty())
 	})
 
 	t.Run("false - insert", func(t *testing.T) {
@@ -369,7 +369,7 @@ func TestIblt_IsEmpty(t *testing.T) {
 
 		iblt.Insert(h)
 
-		assert.False(t, iblt.IsEmpty())
+		assert.False(t, iblt.Empty())
 	})
 
 	t.Run("true - insert and delete same hash", func(t *testing.T) {
@@ -379,7 +379,7 @@ func TestIblt_IsEmpty(t *testing.T) {
 		iblt.Insert(h)
 		iblt.Delete(h)
 
-		assert.True(t, iblt.IsEmpty())
+		assert.True(t, iblt.Empty())
 	})
 }
 
@@ -404,7 +404,7 @@ func TestIblt_UnmarshalBinary(t *testing.T) {
 	var data []byte
 	for i := 0; i < int(ibltK); i++ {
 		data = append(data, hash1BucketBytes...)
-		ibltExpected.buckets[i] = hash1Bucket.clone()
+		ibltExpected.buckets[i] = hash1Bucket
 	}
 
 	err := iblt.UnmarshalBinary(data)
@@ -430,7 +430,7 @@ func TestBucket_UnmarshalBinary(t *testing.T) {
 		err := b.UnmarshalBinary(hash1BucketBytes)
 
 		assert.NoError(t, err)
-		assert.True(t, b.equals(*hash1Bucket))
+		assert.True(t, b.equals(&hash1Bucket))
 	})
 
 	t.Run("fail - invalid data length", func(t *testing.T) {
@@ -444,9 +444,9 @@ func TestBucket_UnmarshalBinary(t *testing.T) {
 }
 
 // creates a bucket containing hash.FromSlice([]byte{1})
-func marshalBucketWithHash1() (hash.SHA256Hash, *bucket, []byte) {
+func marshalBucketWithHash1() (hash.SHA256Hash, bucket, []byte) {
 	hash1 := hash.FromSlice([]byte{1})
-	hash1Bucket := &bucket{
+	hash1Bucket := bucket{
 		count:   1,
 		hashSum: uint64(6332109210212100501),
 		keySum:  hash1,

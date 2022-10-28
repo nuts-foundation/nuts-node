@@ -33,11 +33,11 @@ func NewXor() *Xor {
 }
 
 // Hash returns a copy as a hash.SHA256Hash
-func (x Xor) Hash() hash.SHA256Hash {
-	return hash.SHA256Hash(x)
+func (x *Xor) Hash() hash.SHA256Hash {
+	return hash.SHA256Hash(*x).Clone()
 }
 
-func (x Xor) New() Data {
+func (x *Xor) New() Data {
 	return new(Xor)
 }
 
@@ -69,11 +69,11 @@ func (x *Xor) Subtract(data Data) error {
 	}
 }
 
-func (x Xor) IsEmpty() bool {
-	return x == Xor{}
+func (x *Xor) Empty() bool {
+	return *x == Xor{}
 }
 
-func (x Xor) MarshalBinary() ([]byte, error) {
+func (x *Xor) MarshalBinary() ([]byte, error) {
 	return x.Clone().(*Xor)[:], nil
 }
 

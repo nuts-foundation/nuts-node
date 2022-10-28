@@ -19,7 +19,6 @@
 package tree
 
 import (
-	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -88,7 +87,7 @@ func TestTree_GetRoot(t *testing.T) {
 	t.Run("root Data is zero", func(t *testing.T) {
 		tr := newTestTree(NewXor(), testLeafSize)
 
-		assert.Equal(t, hash.EmptyHash(), tr.GetRoot().(*Xor).Hash())
+		assert.Equal(t, hash.EmptyHash(), tr.Root().(*Xor).Hash())
 	})
 
 	t.Run("root after re-rooting", func(t *testing.T) {
@@ -97,7 +96,7 @@ func TestTree_GetRoot(t *testing.T) {
 
 		tr.Insert(ref, testLeafSize)
 
-		assert.Equal(t, ref, tr.GetRoot().(*Xor).Hash())
+		assert.Equal(t, ref, tr.Root().(*Xor).Hash())
 	})
 
 	t.Run("root of many Tx", func(t *testing.T) {
@@ -107,22 +106,22 @@ func TestTree_GetRoot(t *testing.T) {
 		var ref hash.SHA256Hash
 
 		for i := uint32(0); i < N; i++ {
-			rand.Read(ref[:])
+			ref = hash.RandomHash()
 			allRefs = allRefs.Xor(ref)
 			tr.Insert(ref, N-i)
 		}
 
-		assert.Equal(t, allRefs, tr.GetRoot().(*Xor).Hash())
+		assert.Equal(t, allRefs, tr.Root().(*Xor).Hash())
 	})
 }
 
 func TestTree_GetZeroTo(t *testing.T) {
 	tr, td := filledTestTree(NewXor(), testLeafSize)
 
-	c0t, lc0 := tr.GetZeroTo(0 * testLeafSize)
-	p0t, lc1 := tr.GetZeroTo(1 * testLeafSize)
-	r0t, lc2 := tr.GetZeroTo(2 * testLeafSize)
-	root, lcMax := tr.GetZeroTo(2 * tr.treeSize)
+	c0t, lc0 := tr.ZeroTo(0 * testLeafSize)
+	p0t, lc1 := tr.ZeroTo(1 * testLeafSize)
+	r0t, lc2 := tr.ZeroTo(2 * testLeafSize)
+	root, lcMax := tr.ZeroTo(2 * tr.treeSize)
 
 	assert.Equal(t, td.c0, c0t)
 	assert.Equal(t, testLeafSize-1, lc0)
@@ -205,7 +204,7 @@ func TestTree_GetUpdate(t *testing.T) {
 		h := hash.FromSlice([]byte{1})
 		tr.Insert(h, 2*testLeafSize)
 
-		dirty, orphaned := tr.GetUpdates()
+		dirty, orphaned := tr.Updates()
 
 		assert.Equal(t, 0, len(orphaned))
 		assert.Equal(t, 2, len(dirty))
@@ -215,13 +214,13 @@ func TestTree_GetUpdate(t *testing.T) {
 		assert.True(t, ok)
 	})
 
-	t.Run("GetUpdates does not reset update tracking", func(t *testing.T) {
+	t.Run("Updates does not reset update tracking", func(t *testing.T) {
 		tr := newTestTree(NewXor(), testLeafSize)
 		h := hash.FromSlice([]byte{1})
 		tr.Insert(h, 2*testLeafSize)
 
-		_, _ = tr.GetUpdates()
-		dirty, orphaned := tr.GetUpdates()
+		_, _ = tr.Updates()
+		dirty, orphaned := tr.Updates()
 
 		assert.Equal(t, 0, len(orphaned))
 		assert.Equal(t, 2, len(dirty))
@@ -235,7 +234,7 @@ func TestTree_GetUpdate(t *testing.T) {
 		tr, _ := filledTestTree(NewXor(), testLeafSize)
 		tr.DropLeaves()
 
-		dirty, orphaned := tr.GetUpdates()
+		dirty, orphaned := tr.Updates()
 
 		assert.Equal(t, 3, len(orphaned))
 		assert.Equal(t, 2, len(dirty))
@@ -250,9 +249,9 @@ func TestTree_ResetUpdate(t *testing.T) {
 	tr, _ := filledTestTree(NewXor(), testLeafSize)
 	tr.DropLeaves()
 
-	dirty, orphaned := tr.GetUpdates()
-	tr.ResetUpdate()
-	dirtyReset, orphanedReset := tr.GetUpdates()
+	dirty, orphaned := tr.Updates()
+	tr.ResetUpdates()
+	dirtyReset, orphanedReset := tr.Updates()
 
 	assert.Equal(t, 3, len(orphaned))
 	assert.Equal(t, 0, len(orphanedReset))
@@ -263,7 +262,7 @@ func TestTree_ResetUpdate(t *testing.T) {
 func TestTree_Load(t *testing.T) {
 	t.Run("ok - tree reconstructed from bytes", func(t *testing.T) {
 		tr, _ := filledTestTree(NewXor(), testLeafSize)
-		dirty, _ := tr.GetUpdates()
+		dirty, _ := tr.Updates()
 		loadedTree := New(NewXor(), 0).(*tree)
 
 		err := loadedTree.Load(dirty)
@@ -274,8 +273,8 @@ func TestTree_Load(t *testing.T) {
 		assert.Equal(t, tr.root, loadedTree.root)
 
 		for lc := testLeafSize - 1; lc < loadedTree.treeSize; lc += testLeafSize {
-			expData, expLc := tr.GetZeroTo(lc)
-			actualData, actualLc := loadedTree.GetZeroTo(lc)
+			expData, expLc := tr.ZeroTo(lc)
+			actualData, actualLc := loadedTree.ZeroTo(lc)
 			assert.Equal(t, expData, actualData)
 			assert.Equal(t, expLc, actualLc)
 		}
@@ -294,7 +293,7 @@ func TestTree_Load(t *testing.T) {
 
 	t.Run("fail - incorrect data prototype", func(t *testing.T) {
 		tr, _ := filledTestTree(NewXor(), testLeafSize)
-		dirty, _ := tr.GetUpdates()
+		dirty, _ := tr.Updates()
 		loadedTree := New(NewIblt(1024), 0)
 
 		err := loadedTree.Load(dirty)
