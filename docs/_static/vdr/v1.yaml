@@ -37,7 +37,6 @@ paths:
                 $ref: '#/components/schemas/DIDDocument'
         default:
           $ref: '../common/error_response.yaml'
-          $ref: '../common/error_response.yaml'
   /internal/vdr/v1/did/{did}:
     parameters:
       - name: did
