@@ -389,13 +389,21 @@ func TestVDR_resolveControllerKey(t *testing.T) {
 	})
 }
 
-func TestPatchContext(t *testing.T) {
+func TestWithJSONLDContext(t *testing.T) {
 	id, _ := did.ParseDID("did:nuts:123")
-	document := did.Document{ID: *id}
+	expected := did.Document{ID: *id, Context: []ssi.URI{doc.NutsDIDContextV1URI()}}
 
-	patched := patchContext(document)
+	t.Run("added if not present", func(t *testing.T) {
+		document := did.Document{ID: *id}
 
-	assert.Len(t, patched.Context, 2)
-	assert.Equal(t, doc.NutsDIDContextV1URI(), patched.Context[0])
-	assert.Equal(t, doc.JWS2020ContextV1URI(), patched.Context[1])
+		patched := withJSONLDContext(document, doc.NutsDIDContextV1URI())
+
+		assert.EqualValues(t, expected.Context, patched.Context)
+	})
+
+	t.Run("no changes if existing", func(t *testing.T) {
+		patched := withJSONLDContext(expected, doc.NutsDIDContextV1URI())
+
+		assert.EqualValues(t, expected.Context, patched.Context)
+	})
 }

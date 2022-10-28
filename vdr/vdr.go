@@ -27,16 +27,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/events"
+	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
-	"github.com/sirupsen/logrus"
-	"strings"
-
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/sirupsen/logrus"
 
 	"github.com/nuts-foundation/nuts-node/vdr/log"
 
@@ -178,7 +177,8 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 	}
 
 	// #1530: add nuts and JWS context if not present
-	next = patchContext(next)
+	next = withJSONLDContext(next, doc.NutsDIDContextV1URI())
+	next = withJSONLDContext(next, doc.JWS2020ContextV1URI())
 
 	payload, err := json.Marshal(next)
 	if err != nil {
@@ -248,24 +248,17 @@ func (r VDR) resolveControllerWithKey(doc did.Document) (did.Document, crypto.Ke
 	return did.Document{}, nil, fmt.Errorf("could not find capabilityInvocation key for updating the DID document: %w", err)
 }
 
-func patchContext(next did.Document) did.Document {
-	NutsContextPresent := false
-	JWSContextPresent := false
+func withJSONLDContext(document did.Document, ctx ssi.URI) did.Document {
+	contextPresent := false
 
-	for _, c := range next.Context {
-		if strings.EqualFold(c.String(), doc.NutsDIDContextV1) {
-			NutsContextPresent = true
-		}
-		if strings.EqualFold(c.String(), doc.JWS2020ContextV1) {
-			JWSContextPresent = true
+	for _, c := range document.Context {
+		if c.String() == ctx.String() {
+			contextPresent = true
 		}
 	}
 
-	if !NutsContextPresent {
-		next.Context = append(next.Context, doc.NutsDIDContextV1URI())
+	if !contextPresent {
+		document.Context = append(document.Context, ctx)
 	}
-	if !JWSContextPresent {
-		next.Context = append(next.Context, doc.JWS2020ContextV1URI())
-	}
-	return next
+	return document
 }
