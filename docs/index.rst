@@ -34,8 +34,9 @@ Nuts documentation
     pages/deployment/custom-credentials.rst
     pages/deployment/monitoring.rst
     pages/deployment/administering-your-node.rst
-    pages/deployment/backup-restore.rst
     pages/deployment/cli-reference.rst
+    pages/deployment/backup-restore.rst
+    pages/deployment/key-rotation.rst
     pages/deployment/storage-configuration.rst
     pages/deployment/tls-configuration.rst
     pages/deployment/production-configuration.rst
