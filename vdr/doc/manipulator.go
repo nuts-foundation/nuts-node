@@ -74,7 +74,6 @@ func (u Manipulator) AddVerificationMethod(id did.DID, keyUsage types.KeyUsage) 
 }
 
 // RemoveVerificationMethod is a helper function to remove a verificationMethod from a DID Document
-// When the verificationMethod is used in an assertion or authentication method, it is also removed there.
 func (u Manipulator) RemoveVerificationMethod(id, keyID did.DID) error {
 	doc, meta, err := u.Resolver.Resolve(id, &types.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {

@@ -139,6 +139,7 @@ type CompoundService map[string]string
 // KeyUsage is a bitmask used for specifying for what purposes a key in a DID document can be used (a.k.a. Verification Method relationships).
 type KeyUsage int
 
+// Is returns whether the specified KeyUsage is enabled.
 func (k KeyUsage) Is(other KeyUsage) bool {
 	return k&other == other
 }

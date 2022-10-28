@@ -79,10 +79,9 @@ func setKeyUsage(current types.KeyUsage, value *bool, keyUsageToSet types.KeyUsa
 		if *value {
 			// Enable
 			return current | keyUsageToSet
-		} else {
-			// Disable
-			return current ^ keyUsageToSet
 		}
+		// Disable
+		return current ^ keyUsageToSet
 	}
 	return current
 }
