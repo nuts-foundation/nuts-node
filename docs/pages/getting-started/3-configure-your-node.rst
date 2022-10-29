@@ -5,6 +5,19 @@ Setting up your node for a network
 
 After you managed to start your node using either :ref:`docker <running-docker>` or :ref:`native <running-native>` it's time to connect to a network.
 
+Steps
+*****
+
+The steps to connect and register on a network look as follows:
+
+1. configure bootstrap node address,
+2. (re)start your node,
+3. let it synchronize,
+4. create node DID and configure it,
+5. restart
+
+These steps are explained in detail below.
+
 Prerequisites
 *************
 
@@ -90,7 +103,7 @@ Certain data (e.g. private credentials) can only be exchanged when a peer's DID 
 To make sure other nodes can authenticate your node's DID you need to configure your node's identity,
 and make sure the DID document contains a ``NutsComm`` service that matches the TLS certificate.
 
-Your node identity is expressed by a DID that is managed by your node, also known as your *vendor DID*.
+Your node identity is expressed by a DID that is managed by your node, also known as your *node DID*.
 So make sure you have created a DID specific for your node and configure it as ``network.nodedid`` (see :ref:`configuration reference <nuts-node-config>`).
 
 Then you make sure the associated DID Document contains a ``NutsComm`` endpoint,
