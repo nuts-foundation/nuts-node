@@ -699,7 +699,8 @@ func (n *Network) ReprocessContentType(ctx context.Context, contentType string) 
 			}
 		}
 
-		if len(txs) == 0 || int(uint(txs[len(txs)-1].Clock())) < end-1 {
+		lastTick := txs[len(txs)-1].Clock()
+		if len(txs) == 0 || int(uint(lastTick))+1 < end {
 			break
 		}
 
