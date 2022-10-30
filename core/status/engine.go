@@ -21,6 +21,7 @@ package status
 
 import (
 	"bytes"
+	"context"
 	"gopkg.in/yaml.v3"
 	"net/http"
 	"strings"
@@ -34,6 +35,7 @@ import (
 const moduleName = "Status"
 const diagnosticsEndpoint = "/status/diagnostics"
 const statusEndpoint = "/status"
+const checkHealthEndpoint = "/health"
 
 type status struct {
 	system    *core.System
@@ -55,6 +57,7 @@ func (s *status) Name() string {
 func (s *status) Routes(router core.EchoRouter) {
 	router.Add(http.MethodGet, diagnosticsEndpoint, s.diagnosticsOverview)
 	router.Add(http.MethodGet, statusEndpoint, statusOK)
+	router.Add(http.MethodGet, checkHealthEndpoint, s.checkHealth)
 }
 
 func (s *status) diagnosticsOverview(ctx echo.Context) error {
@@ -108,6 +111,54 @@ func (s *status) collectDiagnostics() map[string][]core.DiagnosticResult {
 			result[strings.ToLower(m.Name())] = m.Diagnostics()
 		}
 	})
+	return result
+}
+
+func (s *status) checkHealth(ctx echo.Context) error {
+	checkCtx, cancel := context.WithTimeout(ctx.Request().Context(), 5*time.Second)
+	defer cancel()
+
+	result := s.doCheckHealth(checkCtx)
+	responseCode := 200
+	if result.Status != core.HealthStatusUp {
+		responseCode = 503
+	}
+
+	return ctx.JSON(responseCode, result)
+}
+
+func (s *status) doCheckHealth(ctx context.Context) core.HealthCheckResult {
+	results := make(map[string]core.HealthCheckResult, 0)
+	err := s.system.VisitEnginesE(func(engine core.Engine) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		checker, ok := engine.(core.HealthCheckable)
+		if ok {
+			for name, result := range checker.CheckHealth(ctx) {
+				results[core.GetEngineName(engine)+"."+name] = result
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		results["healthcheck"] = core.HealthCheckResult{
+			Status:  core.HealthStatusUnknown,
+			Details: "health check aborted due to time-out",
+		}
+	}
+
+	// Overall status is derived from the performed checks. The most severe status is returned (UP < UNKNOWN < DOWN).
+	overallStatus := core.HealthStatusUp
+	for _, result := range results {
+		if result.Status.Severity() > overallStatus.Severity() {
+			overallStatus = result.Status
+		}
+	}
+	result := core.HealthCheckResult{
+		Status:  overallStatus,
+		Details: results,
+	}
 	return result
 }
 

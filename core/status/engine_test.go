@@ -19,14 +19,14 @@
 package status
 
 import (
+	"context"
+	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/mock"
 	"github.com/nuts-foundation/nuts-node/test"
+	"github.com/stretchr/testify/assert"
 	"net/http"
 	"testing"
-
-	"github.com/golang/mock/gomock"
-	"github.com/nuts-foundation/nuts-node/mock"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestNewStatusEngine_Routes(t *testing.T) {
@@ -37,6 +37,7 @@ func TestNewStatusEngine_Routes(t *testing.T) {
 
 		echo.EXPECT().Add(http.MethodGet, "/status/diagnostics", gomock.Any())
 		echo.EXPECT().Add(http.MethodGet, "/status", gomock.Any())
+		echo.EXPECT().Add(http.MethodGet, "/health", gomock.Any())
 
 		NewStatusEngine(core.NewSystem()).(*status).Routes(echo)
 	})
@@ -102,4 +103,155 @@ func TestStatusOK(t *testing.T) {
 	echo.EXPECT().String(http.StatusOK, "OK")
 
 	statusOK(echo)
+}
+
+func Test_status_healthChecks(t *testing.T) {
+	t.Run("status UP", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		echoContext := mock.NewMockContext(ctrl)
+		echoContext.EXPECT().Request().Return(&http.Request{})
+		echoContext.EXPECT().JSON(200, core.HealthCheckResult{
+			Status:  core.HealthStatusUp,
+			Details: make(map[string]core.HealthCheckResult),
+		})
+		s := status{system: core.NewSystem()}
+
+		err := s.checkHealth(echoContext)
+
+		assert.NoError(t, err)
+	})
+	t.Run("status DOWN", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		echoContext := mock.NewMockContext(ctrl)
+		echoContext.EXPECT().Request().Return(&http.Request{})
+		echoContext.EXPECT().JSON(503, gomock.Any())
+		system := core.NewSystem()
+		system.RegisterEngine(&healthCheckingEngine{
+			name: "engine1",
+			check: func(_ context.Context) map[string]core.HealthCheckResult {
+				return map[string]core.HealthCheckResult{
+					"check1": {
+						Status: core.HealthStatusDown,
+					},
+				}
+			},
+		})
+		s := status{system: system}
+
+		err := s.checkHealth(echoContext)
+
+		assert.NoError(t, err)
+	})
+}
+
+func Test_status_doHealthChecks(t *testing.T) {
+	t.Run("no engines", func(t *testing.T) {
+		s := status{system: core.NewSystem()}
+
+		result := s.doCheckHealth(context.Background())
+
+		assert.Equal(t, core.HealthStatusUp, result.Status)
+		assert.Empty(t, result.Details)
+	})
+	t.Run("time-out", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		system := core.NewSystem()
+		system.RegisterEngine(&healthCheckingEngine{
+			name: "engine1",
+			check: func(ctx context.Context) map[string]core.HealthCheckResult {
+				cancel() // causes health checking to quit
+				return map[string]core.HealthCheckResult{
+					"check1": {
+						Status:  core.HealthStatusUp,
+						Details: "all is fine",
+					},
+				}
+			},
+		})
+		system.RegisterEngine(&healthCheckingEngine{
+			name: "engine2",
+			check: func(_ context.Context) map[string]core.HealthCheckResult {
+				return map[string]core.HealthCheckResult{
+					"check2": {
+						Status:  core.HealthStatusUp,
+						Details: "all is fine",
+					},
+				}
+			},
+		})
+		s := status{system: system}
+
+		result := s.doCheckHealth(ctx)
+
+		assert.Equal(t, core.HealthStatusUnknown, result.Status)
+		// Due to time-out before checking engine2, only the check results of engine1 should be there,
+		// and a result of the healthcheck indicating the time-out.
+		checks := result.Details.(map[string]core.HealthCheckResult)
+		assert.Len(t, checks, 2)
+		assert.Contains(t, checks, "engine1.check1")
+		assert.NotContains(t, checks, "engine2.check2")
+		assert.Contains(t, checks, "healthcheck")
+		assert.Equal(t, core.HealthStatusUnknown, checks["healthcheck"].Status)
+		assert.Equal(t, "health check aborted due to time-out", checks["healthcheck"].Details)
+	})
+	t.Run("overall status DOWN", func(t *testing.T) {
+		system := core.NewSystem()
+		system.RegisterEngine(&healthCheckingEngine{
+			name: "engine1",
+			check: func(_ context.Context) map[string]core.HealthCheckResult {
+				return map[string]core.HealthCheckResult{
+					"check1": {
+						Status: core.HealthStatusUp,
+					},
+					"check2": {
+						Status: core.HealthStatusUnknown,
+					},
+					"check3": {
+						Status: core.HealthStatusDown,
+					},
+				}
+			},
+		})
+		s := status{system: system}
+
+		result := s.doCheckHealth(context.Background())
+
+		assert.Equal(t, core.HealthStatusDown, result.Status)
+	})
+	t.Run("overall status UNKNOWN", func(t *testing.T) {
+		system := core.NewSystem()
+		system.RegisterEngine(&healthCheckingEngine{
+			name: "engine1",
+			check: func(_ context.Context) map[string]core.HealthCheckResult {
+				return map[string]core.HealthCheckResult{
+					"check1": {
+						Status: core.HealthStatusUp,
+					},
+					"check2": {
+						Status: core.HealthStatusUnknown,
+					},
+				}
+			},
+		})
+		s := status{system: system}
+
+		result := s.doCheckHealth(context.Background())
+
+		assert.Equal(t, core.HealthStatusUnknown, result.Status)
+	})
+}
+
+type healthCheckingEngine struct {
+	name  string
+	check func(ctx context.Context) map[string]core.HealthCheckResult
+}
+
+func (h healthCheckingEngine) CheckHealth(ctx context.Context) map[string]core.HealthCheckResult {
+	return h.check(ctx)
+}
+
+func (h healthCheckingEngine) Name() string {
+	return h.name
 }

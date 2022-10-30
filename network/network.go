@@ -21,6 +21,7 @@ package network
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -62,6 +63,8 @@ var defaultBBoltOptions = bbolt.DefaultOptions
 // Network implements Transactions interface and Engine functions.
 type Network struct {
 	config              Config
+	certificate         tls.Certificate
+	trustStore          *core.TrustStore
 	strictMode          bool
 	protocols           []transport.Protocol
 	connectionManager   transport.ConnectionManager
@@ -77,6 +80,28 @@ type Network struct {
 	eventPublisher      events.Event
 	connectionStore     stoabs.KVStore
 	storeProvider       storage.Provider
+}
+
+func (n *Network) CheckHealth(_ context.Context) map[string]core.HealthCheckResult {
+	results := make(map[string]core.HealthCheckResult)
+	if n.certificate.Leaf != nil {
+		// TLS enabled, verify the configured certificate
+		_, err := n.certificate.Leaf.Verify(x509.VerifyOptions{
+			Roots:         core.MakeCertPool(n.trustStore.RootCAs),
+			Intermediates: core.MakeCertPool(n.trustStore.IntermediateCAs),
+		})
+		if err != nil {
+			results["tls"] = core.HealthCheckResult{
+				Status:  core.HealthStatusDown,
+				Details: err.Error(),
+			}
+		} else {
+			results["tls"] = core.HealthCheckResult{
+				Status: core.HealthStatusUp,
+			}
+		}
+	}
+	return results
 }
 
 func (n *Network) Migrate() error {
@@ -122,14 +147,12 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	n.peerID = transport.PeerID(uuid.New().String())
 
 	// TLS
-	var clientCert tls.Certificate
-	var trustStore *core.TrustStore
 	if config.LegacyTLS.Enabled {
-		clientCert, err = config.TLS.LoadCertificate()
+		n.certificate, err = config.TLS.LoadCertificate()
 		if err != nil {
 			return err
 		}
-		trustStore, err = config.TLS.LoadTrustStore()
+		n.trustStore, err = config.TLS.LoadTrustStore()
 		if err != nil {
 			return err
 		}
@@ -191,7 +214,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		}
 		// Configure TLS
 		if config.LegacyTLS.Enabled {
-			grpcOpts = append(grpcOpts, grpc.WithTLS(clientCert, trustStore, config.TLS.GetCRLMaxValidityDays()))
+			grpcOpts = append(grpcOpts, grpc.WithTLS(n.certificate, n.trustStore, config.TLS.GetCRLMaxValidityDays()))
 			if config.TLS.Offload == core.OffloadIncomingTLS {
 				grpcOpts = append(grpcOpts, grpc.WithTLSOffloading(config.TLS.ClientCertHeaderName))
 			}

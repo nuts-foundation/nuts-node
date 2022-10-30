@@ -19,6 +19,7 @@
 package core
 
 import (
+	"bytes"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -54,10 +55,21 @@ func ParseCertificates(data []byte) (certificates []*x509.Certificate, _ error) 
 	return
 }
 
+// MakeCertPool creates a new x509.CertPool and adds all given certificates to it.
+func MakeCertPool(certificates []*x509.Certificate) *x509.CertPool {
+	pool := x509.NewCertPool()
+	for _, certificate := range certificates {
+		pool.AddCert(certificate)
+	}
+	return pool
+}
+
 // TrustStore contains both a CertPool and the actual certificates
 type TrustStore struct {
-	CertPool     *x509.CertPool
-	certificates []*x509.Certificate
+	CertPool        *x509.CertPool
+	RootCAs         []*x509.Certificate
+	IntermediateCAs []*x509.Certificate
+	certificates    []*x509.Certificate
 }
 
 // Certificates returns a copy of the certificates within the CertPool
@@ -72,21 +84,24 @@ func LoadTrustStore(trustStoreFile string) (*TrustStore, error) {
 		return nil, fmt.Errorf("unable to read trust store (file=%s): %w", trustStoreFile, err)
 	}
 
-	certificates, err := ParseCertificates(data)
+	trustStore := new(TrustStore)
+
+	trustStore.certificates, err = ParseCertificates(data)
 	if err != nil {
 		return nil, err
 	}
+	trustStore.CertPool = MakeCertPool(trustStore.certificates)
 
-	var (
-		certPool = x509.NewCertPool()
-	)
-
-	for _, certificate := range certificates {
-		certPool.AddCert(certificate)
+	for _, certificate := range trustStore.certificates {
+		// Certificate v1 don't have extensions and thus lack basicConstraints.IsCA
+		if certificate.IsCA || certificate.Version == 1 {
+			if bytes.Equal(certificate.RawSubject, certificate.RawIssuer) {
+				trustStore.RootCAs = append(trustStore.RootCAs, certificate)
+			} else {
+				trustStore.IntermediateCAs = append(trustStore.IntermediateCAs, certificate)
+			}
+		}
 	}
 
-	return &TrustStore{
-		CertPool:     certPool,
-		certificates: certificates,
-	}, nil
+	return trustStore, nil
 }

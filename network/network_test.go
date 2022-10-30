@@ -23,6 +23,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/storage"
@@ -963,6 +965,36 @@ func TestNetwork_calculateLamportClock(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Equal(t, uint32(0), clock)
+	})
+}
+
+func TestNetwork_checkHealth(t *testing.T) {
+	t.Run("up", func(t *testing.T) {
+		trustStore, _ := core.LoadTrustStore("test/truststore.pem")
+		certificate, _ := tls.LoadX509KeyPair("test/certificate-and-key.pem", "test/certificate-and-key.pem")
+		certificate.Leaf, _ = x509.ParseCertificate(certificate.Certificate[0])
+		n := Network{
+			trustStore:  trustStore,
+			certificate: certificate,
+		}
+
+		result := n.CheckHealth(context.Background())
+
+		assert.Equal(t, core.HealthStatusUp, result["tls"].Status)
+	})
+	t.Run("expired", func(t *testing.T) {
+		trustStore, _ := core.LoadTrustStore("test/truststore.pem")
+		certificate, _ := tls.LoadX509KeyPair("test/expired-cert.pem", "test/expired-cert.pem")
+		certificate.Leaf, _ = x509.ParseCertificate(certificate.Certificate[0])
+		n := Network{
+			trustStore:  trustStore,
+			certificate: certificate,
+		}
+
+		result := n.CheckHealth(context.Background())
+
+		assert.Equal(t, core.HealthStatusDown, result["tls"].Status)
+		assert.Equal(t, "x509: certificate signed by unknown authority", result["tls"].Details)
 	})
 }
 
