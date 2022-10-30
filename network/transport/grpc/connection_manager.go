@@ -52,6 +52,9 @@ var ErrAlreadyConnected = errors.New("already connected")
 // MaxMessageSizeInBytes defines the maximum size of an in- or outbound gRPC/Protobuf message
 var MaxMessageSizeInBytes = defaultMaxMessageSizeInBytes
 
+// defaultInterceptors aids testing
+var defaultInterceptors []grpc.StreamServerInterceptor
+
 type fatalError struct {
 	error
 }
@@ -136,7 +139,8 @@ func (s *grpcConnectionManager) Start() error {
 		return err
 	}
 
-	serverInterceptors := []grpc.StreamServerInterceptor{}
+	var serverInterceptors []grpc.StreamServerInterceptor
+	serverInterceptors = append(serverInterceptors, defaultInterceptors...)
 	// Configure TLS if enabled
 	var tlsConfig *tls.Config
 	if s.config.tlsEnabled() {

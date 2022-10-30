@@ -146,6 +146,7 @@ func (c *outboundConnector) tryConnect() (*grpcLib.ClientConn, error) {
 			grpcLib.MaxCallRecvMsgSize(MaxMessageSizeInBytes),
 			grpcLib.MaxCallSendMsgSize(MaxMessageSizeInBytes),
 		),
+		grpcLib.WithUserAgent(core.UserAgent()),
 	}
 	if c.tlsConfig != nil {
 		dialOptions = append(dialOptions, grpcLib.WithTransportCredentials(credentials.NewTLS(c.tlsConfig))) // TLS authentication
