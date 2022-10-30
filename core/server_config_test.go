@@ -20,10 +20,14 @@
 package core
 
 import (
+	"bytes"
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/writer"
 	"github.com/stretchr/testify/require"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -270,6 +274,26 @@ func TestTLSConfig_LoadCertificate(t *testing.T) {
 
 		assert.Empty(t, certificate)
 		assert.EqualError(t, err, "unable to load node TLS client certificate (certfile=test/non-existent.pem,certkeyfile=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
+	})
+	t.Run("certificate expired", func(t *testing.T) {
+		timeFunc = func() time.Time {
+			return time.Date(2024, 11, 1, 0, 0, 0, 0, time.UTC)
+		}
+
+		output := new(bytes.Buffer)
+		logrus.StandardLogger().AddHook(&writer.Hook{
+			Writer:    output,
+			LogLevels: []logrus.Level{logrus.ErrorLevel},
+		})
+
+		cfg := *NewServerConfig()
+		cfg.TLS.CertFile = "test/expired-cert.pem"
+		cfg.TLS.CertKeyFile = "test/expired-cert.pem"
+		certificate, err := cfg.TLS.LoadCertificate()
+
+		assert.NotEmpty(t, certificate)
+		assert.NoError(t, err)
+		assert.Contains(t, output.String(), "expired")
 	})
 }
 

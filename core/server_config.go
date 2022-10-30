@@ -21,11 +21,13 @@ package core
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/posflag"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/knadh/koanf"
 	"github.com/sirupsen/logrus"
@@ -39,6 +41,8 @@ const defaultEnvPrefix = "NUTS_"
 const defaultEnvDelimiter = "_"
 const defaultDelimiter = "."
 const configValueListSeparator = ","
+
+var timeFunc = time.Now
 
 // ServerConfig has global server settings.
 type ServerConfig struct {
@@ -107,6 +111,14 @@ func (t TLSConfig) LoadCertificate() (tls.Certificate, error) {
 	certificate, err := tls.LoadX509KeyPair(certFile, certKeyFile)
 	if err != nil {
 		return tls.Certificate{}, fmt.Errorf("unable to load node TLS client certificate (certfile=%s,certkeyfile=%s): %w", certFile, certKeyFile, err)
+	}
+	// #818 help user when using an expired certificate
+	certificate.Leaf, err = x509.ParseCertificate(certificate.Certificate[0])
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+	if timeFunc().After(certificate.Leaf.NotAfter) {
+		logrus.Error("Node TLS client certificate has expired, connections to other nodes will fail!")
 	}
 	return certificate, nil
 }
