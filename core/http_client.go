@@ -20,6 +20,7 @@
 package core
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -31,6 +32,13 @@ func TestResponseCode(expectedStatusCode int, response *http.Response) error {
 		return fmt.Errorf("server returned HTTP %d (expected: %d), response: %s",
 			response.StatusCode, expectedStatusCode, string(responseData))
 	}
+	return nil
+}
+
+// UserAgentRequestEditor can be used as request editor function for generated OpenAPI clients,
+// to set the HTTP User-Agent header to identify the Nuts node.
+func UserAgentRequestEditor(_ context.Context, req *http.Request) error {
+	req.Header.Set("User-Agent", UserAgent())
 	return nil
 }
 

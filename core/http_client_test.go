@@ -78,6 +78,15 @@ func TestHTTPClient(t *testing.T) {
 	})
 }
 
+func TestUserAgentRequestEditor(t *testing.T) {
+	req := &stdHttp.Request{Header: map[string][]string{}}
+
+	err := UserAgentRequestEditor(nil, req)
+
+	assert.NoError(t, err)
+	assert.Equal(t, "nuts-node-refimpl/development", req.UserAgent())
+}
+
 func TestTestResponseCode(t *testing.T) {
 	assert.NoError(t, TestResponseCode(stdHttp.StatusOK, &stdHttp.Response{StatusCode: stdHttp.StatusOK}))
 	assert.Error(t, TestResponseCode(stdHttp.StatusOK, &stdHttp.Response{StatusCode: stdHttp.StatusUnauthorized, Body: readCloser([]byte{1, 2, 3})}))

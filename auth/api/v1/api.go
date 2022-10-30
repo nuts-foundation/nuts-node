@@ -320,7 +320,7 @@ func (w Wrapper) RequestAccessToken(ctx echo.Context) error {
 		}
 	}
 
-	authClient, err := NewHTTPClient("", w.Auth.HTTPTimeout(), WithHTTPClient(httpClient))
+	authClient, err := NewHTTPClient("", w.Auth.HTTPTimeout(), WithHTTPClient(httpClient), WithRequestEditorFn(core.UserAgentRequestEditor))
 	if err != nil {
 		return fmt.Errorf("unable to create HTTP client: %w", err)
 	}
