@@ -39,11 +39,7 @@ func Version() string {
 	if GitVersion != "" && GitVersion != "undefined" {
 		return GitVersion
 	}
-	const shortCommitLength = 7
-	if len(GitCommit) < shortCommitLength {
-		return GitCommit
-	}
-	return GitCommit[:shortCommitLength]
+	return GitBranch
 }
 
 // OSArch returns the OS and Arch

@@ -28,18 +28,7 @@ import (
 func TestBuildInfo(t *testing.T) {
 	bi := BuildInfo()
 
-	assert.Contains(t, bi, "Git version: 0")
+	assert.Contains(t, bi, "Git version: development")
 	assert.Contains(t, bi, "Git commit: 0")
 	assert.Contains(t, bi, "OS/Arch:")
-}
-
-func TestVersion(t *testing.T) {
-	t.Run("no version, long commit ID", func(t *testing.T) {
-		GitCommit = "abcdefghjiklmn"
-		assert.Equal(t, "abcdefg", Version())
-	})
-	t.Run("no version, short commit ID", func(t *testing.T) {
-		GitCommit = "abc"
-		assert.Equal(t, "abc", Version())
-	})
 }
