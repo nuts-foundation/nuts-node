@@ -619,14 +619,15 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 				BearerToken: "jwt-bearer-token",
 			}, nil)
 
-		server := httptest.NewServer(&http2.Handler{
+		serverHandler := &http2.Handler{
 			StatusCode: http.StatusOK,
 			ResponseData: &AccessTokenResponse{
 				TokenType:   "token-type",
 				ExpiresIn:   10,
 				AccessToken: "actual-token",
 			},
-		})
+		}
+		server := httptest.NewServer(serverHandler)
 		serverURL, _ := url.Parse(server.URL)
 
 		t.Cleanup(server.Close)
@@ -646,6 +647,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 		err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
 
 		assert.NoError(t, err)
+		assert.Equal(t, "nuts-node-refimpl/unknown", serverHandler.RequestHeaders.Get("User-Agent"))
 	})
 }
 

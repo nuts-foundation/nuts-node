@@ -24,7 +24,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -36,23 +38,43 @@ var testConnectorConfig = connectorConfig{
 }
 
 func Test_connector_tryConnect(t *testing.T) {
+	// Set up gRPC stream interceptor to capture headers sent by client
+	actualUserAgent := atomic.Value{}
+	defaultInterceptors = append(defaultInterceptors, func(_ interface{}, stream grpc.ServerStream, _ *grpc.StreamServerInfo, h grpc.StreamHandler) error {
+		m, _ := metadata.FromIncomingContext(stream.Context())
+		actualUserAgent.Store(m.Get("User-Agent")[0])
+		return nil
+	})
+
+	// Setup server
 	serverConfig := NewConfig(fmt.Sprintf("localhost:%d", test.FreeTCPPort()), "server")
-	cm := NewGRPCConnectionManager(serverConfig, createKVStore(t), &TestNodeDIDResolver{}, nil)
+	cm := NewGRPCConnectionManager(serverConfig, createKVStore(t), &TestNodeDIDResolver{}, nil, &TestProtocol{})
 	if !assert.NoError(t, cm.Start()) {
 		return
 	}
 	defer cm.Stop()
 
+	// Setup connector to test
 	bo := &trackingBackoff{}
 	cfg := testConnectorConfig
 	cfg.address = serverConfig.listenAddress
 	connector := createOutboundConnector(cfg, grpc.DialContext, func() bool {
 		return false
 	}, nil, bo)
+
+	// Connect and call protocol function to set up streams, required to assert headers.
+	// Then wait for stream to be set up
 	grpcConn, err := connector.tryConnect()
-	assert.NoError(t, err)
-	assert.NotNil(t, grpcConn)
+	if !assert.NoError(t, err) || !assert.NotNil(t, grpcConn) {
+		return
+	}
+	_, _ = (&TestProtocol{}).CreateClientStream(context.Background(), grpcConn)
+	test.WaitFor(t, func() (bool, error) {
+		return actualUserAgent.Load() != nil, nil
+	}, time.Second, "time-out while waiting for connection to be set up")
+
 	assert.Equal(t, uint32(1), connector.stats().Attempts)
+	assert.Contains(t, actualUserAgent.Load().(string), "nuts-node-refimpl/unknown")
 }
 
 func Test_connector_stats(t *testing.T) {

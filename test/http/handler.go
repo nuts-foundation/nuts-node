@@ -24,18 +24,20 @@ import (
 
 // Handler is a custom http handler useful in testing.
 // Usage:
-//  s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: someStruct})
-// Then:
-//  s.URL
-// must be configured in the client.
+//
+//	s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: someStruct})
+//
+// Then s.URL must be configured in the client.
 type Handler struct {
-	StatusCode   int
-	RequestData  []byte
-	ResponseData interface{}
+	RequestHeaders http.Header
+	StatusCode     int
+	RequestData    []byte
+	ResponseData   interface{}
 }
 
 func (h *Handler) ServeHTTP(writer http.ResponseWriter, req *http.Request) {
 	h.RequestData, _ = io.ReadAll(req.Body)
+	h.RequestHeaders = req.Header.Clone()
 
 	var bytes []byte
 	if s, ok := h.ResponseData.(string); ok {

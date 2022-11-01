@@ -32,3 +32,13 @@ func TestBuildInfo(t *testing.T) {
 	assert.Contains(t, bi, "Git commit: 0")
 	assert.Contains(t, bi, "OS/Arch:")
 }
+
+func TestUserAgent(t *testing.T) {
+	t.Run("GitVersion not set", func(t *testing.T) {
+		assert.Equal(t, "nuts-node-refimpl/unknown", UserAgent())
+	})
+	t.Run("GitVersion set", func(t *testing.T) {
+		GitVersion = "abc"
+		assert.Equal(t, "nuts-node-refimpl/abc", UserAgent())
+	})
+}
