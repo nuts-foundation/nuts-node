@@ -79,12 +79,13 @@ func TestHTTPClient(t *testing.T) {
 }
 
 func TestUserAgentRequestEditor(t *testing.T) {
+	GitVersion = ""
 	req := &stdHttp.Request{Header: map[string][]string{}}
 
 	err := UserAgentRequestEditor(nil, req)
 
 	assert.NoError(t, err)
-	assert.Equal(t, "nuts-node-refimpl/development", req.UserAgent())
+	assert.Equal(t, "nuts-node-refimpl/unknown", req.UserAgent())
 }
 
 func TestTestResponseCode(t *testing.T) {

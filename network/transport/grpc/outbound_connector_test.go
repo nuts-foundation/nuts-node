@@ -74,7 +74,7 @@ func Test_connector_tryConnect(t *testing.T) {
 	}, time.Second, "time-out while waiting for connection to be set up")
 
 	assert.Equal(t, uint32(1), connector.stats().Attempts)
-	assert.Contains(t, actualUserAgent.Load().(string), "nuts-node-refimpl/development")
+	assert.Contains(t, actualUserAgent.Load().(string), "nuts-node-refimpl/unknown")
 }
 
 func Test_connector_stats(t *testing.T) {

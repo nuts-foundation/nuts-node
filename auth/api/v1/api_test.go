@@ -647,7 +647,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 		err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
 
 		assert.NoError(t, err)
-		assert.Equal(t, "nuts-node-refimpl/development", serverHandler.RequestHeaders.Get("User-Agent"))
+		assert.Equal(t, "nuts-node-refimpl/unknown", serverHandler.RequestHeaders.Get("User-Agent"))
 	})
 }
 

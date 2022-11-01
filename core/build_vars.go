@@ -67,6 +67,9 @@ func BuildInfo() string {
 
 // UserAgent returns a string that can be used as HTTP user agent, containing the version of the node (e.g. nuts-node-refimpl/5.0.0)
 func UserAgent() string {
-	// Remove leading "v" from version to keep it standard for user agent strings.
-	return "nuts-node-refimpl/" + GitVersion
+	version := GitVersion
+	if version == "" {
+		version = "unknown"
+	}
+	return "nuts-node-refimpl/" + version
 }
