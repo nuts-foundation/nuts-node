@@ -95,7 +95,7 @@ func (n *ambassador) Start() error {
 		network.MaxReprocessBufferSize)
 	conn, _, err := n.eventManager.Pool().Acquire(context.Background())
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to REPROCESS event stream: %v", err)
+		return fmt.Errorf("time-out acquiring NATS connection from pool: %w", err)
 	}
 
 	err = stream.Subscribe(conn, "VDR", fmt.Sprintf("%s.%s", events.ReprocessStream, didDocumentType), n.handleReprocessEvent)

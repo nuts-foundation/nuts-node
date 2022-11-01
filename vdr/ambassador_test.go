@@ -151,7 +151,7 @@ func TestAmbassador_Start(t *testing.T) {
 
 		err := ctx.ambassador.Start()
 
-		assert.EqualError(t, err, "failed to subscribe to REPROCESS event stream: b00m!")
+		assert.EqualError(t, err, "time-out acquiring NATS connection from pool: b00m!")
 	})
 }
 

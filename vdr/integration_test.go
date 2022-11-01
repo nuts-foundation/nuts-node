@@ -292,17 +292,8 @@ func setup(t *testing.T) testContext {
 	docCreator := doc.Creator{KeyStore: cryptoInstance}
 
 	// Startup events
-	eventPublisher := events.NewManager()
-	if err = eventPublisher.(core.Configurable).Configure(nutsConfig); err != nil {
-		t.Fatal(err)
-	}
-	if err = eventPublisher.(core.Runnable).Start(); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		eventPublisher.(core.Runnable).Shutdown()
-	})
-
+	eventPublisher := events.NewTestManager(t)
+	
 	// Startup the network layer
 	networkCfg := network.DefaultConfig()
 	nutsNetwork := network.NewNetworkInstance(
