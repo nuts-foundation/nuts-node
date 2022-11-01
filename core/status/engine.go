@@ -136,7 +136,7 @@ func (s *status) doCheckHealth(ctx context.Context) core.HealthCheckResult {
 		checker, ok := engine.(core.HealthCheckable)
 		if ok {
 			for name, result := range checker.CheckHealth(ctx) {
-				results[core.GetEngineName(engine)+"."+name] = result
+				results[strings.ToLower(core.GetEngineName(engine))+"."+name] = result
 			}
 		}
 		return nil

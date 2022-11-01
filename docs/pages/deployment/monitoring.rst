@@ -3,26 +3,60 @@
 Monitoring the Nuts Node
 ########################
 
-Basic service health
-********************
+Health checks
+*************
 
-A status endpoint is provided to check if the service is running and if the web server has been started.
-The endpoint is available over http so it can be used by a wide range of health checking services.
+An endpoint is provided to perform health checks on the Nuts node.
+It reports in a format compatible with :ref:`Spring Boot's Health Actuator <https://docs.spring.io/spring-boot/docs/2.0.x/actuator-api/html/#health>`.
+The endpoint is available over HTTP:
+
+.. code-block:: text
+
+    GET /health
+
+Example response when all checks succeeded (formatted for readability):
+
+.. code-block:: json
+
+    {
+      "status": "UP",
+      "details": {
+        "network.tls": {
+          "status": "UP"
+        }
+      }
+    }
+
+Example response when one or more checks failed:
+
+.. code-block:: json
+
+    {
+      "status": "DOWN",
+      "details": {
+        "network.tls": {
+          "status": "DOWN",
+          "details": "x509: certificate signed by unknown authority"
+        }
+      }
+    }
+
+.. note::
+
+    The provided Docker containers are configured to perform this healthcheck out of the box.
+    However, if the default port (:1323) has been changed or if the ``/health`` endpoint has been bound to a different port,
+    the default healthcheck will fail and Docker will mark the container as unhealthy.
+    Override the default healthcheck to solve this.
+
+There's also a status endpoint to check whether the service has been started.
 It does not provide any information on the individual engines running as part of the executable.
-The main goal of the service is to give a YES/NO answer for if the service is running?
+The main goal of the service is to give a YES/NO answer for if the service is running:
 
 .. code-block:: text
 
     GET /status
 
 Returns an "OK" response body with status code ``200``.
-
-.. note::
-
-    The provided Docker containers are configured to perform this healthcheck out of the box.
-    However, if the default port (:1323) has been changed or if the ``/status`` endpoint has been bound to a different port,
-    the default healthcheck will fail and Docker will mark the container as unhealthy.
-    Override the default healthcheck to solve this.
 
 Basic diagnostics
 *****************
