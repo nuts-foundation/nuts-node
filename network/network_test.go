@@ -984,7 +984,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 	})
 	t.Run("expired", func(t *testing.T) {
 		trustStore, _ := core.LoadTrustStore("test/truststore.pem")
-		certificate, _ := tls.LoadX509KeyPair("test/expired-cert.pem", "test/expired-cert.pem")
+		certificate, _ := tls.LoadX509KeyPair("test/invalid-cert.pem", "test/invalid-cert.pem")
 		certificate.Leaf, _ = x509.ParseCertificate(certificate.Certificate[0])
 		n := Network{
 			trustStore:  trustStore,
