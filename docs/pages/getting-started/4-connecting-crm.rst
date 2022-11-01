@@ -27,7 +27,7 @@ As a vendor, you're in power of:
 - issuing name credentials for organizations
 - trusting other vendors
 
-The last three points require a setup where a vendor DID is created. This DID will act as the controller of all organization DID Documents.
+The last three points require a setup where a vendor DID (node DID) is created. This DID will act as the controller of all organization DID Documents.
 This will allow for reuse of service endpoints and issuance of Verifiable Credentials.
 Since every DID issuing Verifiable Credentials must be trusted individually, it's easier for other vendors when the vendor uses a single DID for issuing credentials.
 
@@ -40,9 +40,13 @@ Your CRM must store the DIDs created for your vendor and your customers. A DID i
 
     did:nuts:2mF6KT6eiSx5y2fwTP4Y42yMUh91zGVkbu4KMARvCJz9
 
-The DID we're about to create is your *vendor DID*. It will be used in all of the next steps.
+The DID we're about to create is your *vendor DID* (a.k.a node DID). It will be used in all of the next steps.
 For the API calls that will need to be made to the Nuts node, we'll use ``<internal-node-address>`` as the address where the internal API's are exposed.
 Consult the :ref:`configuration reference <nuts-node-config>` on how to configure the node address.
+
+.. note::
+
+    If you already created your node DID you can skip this step.
 
 .. code-block:: text
 
