@@ -243,6 +243,8 @@ type HealthCheckable interface {
 // HealthStatus defines the result status of a health check.
 type HealthStatus string
 
+// Severity returns an integer indicating the seriousness of a startup.
+// 0 means all is OK, higher is worse.
 func (h HealthStatus) Severity() int {
 	switch h {
 	case HealthStatusDown:

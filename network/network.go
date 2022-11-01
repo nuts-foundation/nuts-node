@@ -82,6 +82,7 @@ type Network struct {
 	storeProvider       storage.Provider
 }
 
+// CheckHealth performs health checks for the network engine.
 func (n *Network) CheckHealth(_ context.Context) map[string]core.HealthCheckResult {
 	results := make(map[string]core.HealthCheckResult)
 	if n.certificate.Leaf != nil {
