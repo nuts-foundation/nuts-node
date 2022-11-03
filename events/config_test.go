@@ -21,6 +21,7 @@ package events
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -29,7 +30,7 @@ func Test_DefaultConfig(t *testing.T) {
 	assert.Equal(t, Config{
 		Nats: NatsConfig{
 			Port:     4222,
-			Timeout:  30,
+			Timeout:  15 * time.Second,
 			Hostname: "localhost",
 		},
 	}, DefaultConfig())

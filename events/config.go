@@ -19,6 +19,8 @@
 
 package events
 
+import "time"
+
 // Config holds all the configuration params
 type Config struct {
 	Nats NatsConfig `koanf:"nats"`
@@ -26,10 +28,10 @@ type Config struct {
 
 // NatsConfig holds the configuration for the NATS server
 type NatsConfig struct {
-	Port       int    `koanf:"port"`
-	Timeout    int    `koanf:"timeout"`
-	Hostname   string `koanf:"hostname"`
-	StorageDir string `koanf:"storagedir"`
+	Port       int           `koanf:"port"`
+	Timeout    time.Duration `koanf:"timeout"`
+	Hostname   string        `koanf:"hostname"`
+	StorageDir string        `koanf:"storagedir"`
 }
 
 // DefaultConfig returns an instance of Config with the default values.
@@ -37,7 +39,7 @@ func DefaultConfig() Config {
 	return Config{
 		Nats: NatsConfig{
 			Port:     4222,
-			Timeout:  30,
+			Timeout:  15 * time.Second,
 			Hostname: "localhost",
 		},
 	}

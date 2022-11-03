@@ -31,18 +31,24 @@ import (
 )
 
 func TestNATSConnectionPool_Acquire(t *testing.T) {
-	t.Run("fails when context was cancelled", func(t *testing.T) {
+	t.Run("fails when context was cancelled (waiting to acquire lock)", func(t *testing.T) {
 		pool := NewNATSConnectionPool(Config{})
 		pool.connectFunc = func(url string, options ...nats.Option) (Conn, error) {
+			time.Sleep(time.Second)
 			return nil, errors.New("random error")
 		}
+
+		// Make sure there's another routine already connecting
+		go func() {
+			_, _, _ = pool.Acquire(context.Background())
+		}()
 
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
 		conn, js, err := pool.Acquire(ctx)
 
-		assert.Equal(t, context.Canceled, err)
+		assert.EqualError(t, err, "time-out/cancelled while acquiring NATS connection: context canceled")
 		assert.Nil(t, conn)
 		assert.Nil(t, js)
 	})
@@ -56,7 +62,7 @@ func TestNATSConnectionPool_Acquire(t *testing.T) {
 		mockConn := NewMockConn(ctrl)
 		mockConn.EXPECT().JetStream().Return(mockJs, nil)
 
-		pool := NewNATSConnectionPool(Config{})
+		pool := NewNATSConnectionPool(DefaultConfig())
 		pool.connectFunc = func(url string, options ...nats.Option) (Conn, error) {
 			if called {
 				return mockConn, nil
@@ -77,6 +83,23 @@ func TestNATSConnectionPool_Acquire(t *testing.T) {
 		assert.NotNil(t, js)
 	})
 
+	t.Run("fails on time-out", func(t *testing.T) {
+		pool := NewNATSConnectionPool(Config{Nats: NatsConfig{Timeout: 100 * time.Millisecond}})
+		pool.connectFunc = func(url string, options ...nats.Option) (Conn, error) {
+			time.Sleep(time.Second)
+			return nil, errors.New("random error")
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		conn, js, err := pool.Acquire(ctx)
+
+		assert.EqualError(t, err, "time-out/cancelled while acquiring NATS connection: context deadline exceeded")
+		assert.Nil(t, conn)
+		assert.Nil(t, js)
+	})
+
 	t.Run("ok - NATS integration test", func(t *testing.T) {
 		manager := createManager(t)
 
@@ -95,9 +118,12 @@ func TestNATSConnectionPool_Acquire(t *testing.T) {
 			go func() {
 				conn, js, err := pool.Acquire(ctx)
 
-				assert.NoError(t, err)
-				assert.NotNil(t, js)
-				assert.NotNil(t, conn)
+				if err != nil {
+					panic("Acquire returned error: " + err.Error())
+				}
+				if js == nil || conn == nil {
+					panic("Acquire returned nil connection")
+				}
 
 				wc.Done()
 			}()

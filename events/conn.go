@@ -64,14 +64,15 @@ type NATSConnectFunc func(url string, options ...nats.Option) (Conn, error)
 type NATSConnectionPool struct {
 	config      Config
 	conn        atomic.Value
-	connecting  atomic.Value
+	connecting  chan struct{}
 	connectFunc NATSConnectFunc
 }
 
 // NewNATSConnectionPool creates a new NATSConnectionPool
 func NewNATSConnectionPool(config Config) *NATSConnectionPool {
 	return &NATSConnectionPool{
-		config: config,
+		connecting: make(chan struct{}, 1),
+		config:     config,
 		connectFunc: func(url string, options ...nats.Option) (Conn, error) {
 			return nats.Connect(url, options...)
 		},
@@ -81,36 +82,39 @@ func NewNATSConnectionPool(config Config) *NATSConnectionPool {
 // Acquire returns a NATS connection and JetStream context, it will connect if not already connected
 func (pool *NATSConnectionPool) Acquire(ctx context.Context) (Conn, JetStreamContext, error) {
 	log.Logger().Trace("Trying to acquire a NATS connection")
-
 	// If the connection is already set, return it
-	data := pool.conn.Load()
-	if data != nil {
-		if conn, ok := data.(connectionAndContext); ok {
-			return conn.conn, conn.js, nil
-		}
+	if data := pool.conn.Load(); data != nil {
+		return data.(connectionAndContext).conn, data.(connectionAndContext).js, nil
 	}
 
-	// Are we already trying to connect? If so, just wait
-	if !pool.connecting.CompareAndSwap(nil, true) {
-		select {
-		case <-ctx.Done():
-			return nil, nil, context.Canceled
-		case <-time.After(time.Second):
-			return pool.Acquire(ctx)
-		}
+	// use channels to synchronize connection attempts and allow timing out/cancellation while waiting.
+	ctx, cancel := context.WithTimeout(ctx, pool.config.Nats.Timeout)
+	defer cancel()
+	// either get the lock or time-out/cancelled
+	select {
+	case <-ctx.Done():
+		// Cancelled or time-out
+		return nil, nil, fmt.Errorf("time-out/cancelled while acquiring NATS connection: %w", ctx.Err())
+	case pool.connecting <- struct{}{}:
+		// lock acquired, we can now connect
+		defer func() {
+			<-pool.connecting
+		}()
+	}
+	// connection could've been set while we were waiting
+	if data := pool.conn.Load(); data != nil {
+		return data.(connectionAndContext).conn, data.(connectionAndContext).js, nil
 	}
 
-	// We're the leader, let's connect!
+	// now connect until it succeeds or is timed-out/cancelled
 	addr := fmt.Sprintf("%s:%d", pool.config.Nats.Hostname, pool.config.Nats.Port)
-
-	log.Logger().Tracef("ConnectionState to %s", addr)
-
+	log.Logger().Tracef("Connecting to %s", addr)
 	for {
-		conn, err := pool.connectFunc(
-			addr,
-			nats.RetryOnFailedConnect(true),
-			nats.Timeout(time.Second*time.Duration(pool.config.Nats.Timeout)),
-		)
+		if ctx.Err() != nil {
+			// Cancelled or time-out
+			return nil, nil, fmt.Errorf("time-out/cancelled while acquiring NATS connection: %w", ctx.Err())
+		}
+		conn, err := pool.connectFunc(addr, nats.Timeout(pool.config.Nats.Timeout))
 		if err == nil {
 			js, err := conn.JetStream()
 			if err == nil {
@@ -119,14 +123,14 @@ func (pool *NATSConnectionPool) Acquire(ctx context.Context) (Conn, JetStreamCon
 				return conn, js, nil
 			}
 		}
-
 		log.Logger().
 			WithError(err).
-			Errorf("Failed to connect to %s", addr)
+			Errorf("Failed to connect to NATS server at %s", addr)
 
+		// wait a bit before reconnecting to avoid spinning failure
 		select {
 		case <-ctx.Done():
-			return nil, nil, context.Canceled
+			return nil, nil, fmt.Errorf("time-out/cancelled while acquiring NATS connection: %w", ctx.Err())
 		case <-time.After(time.Second):
 			continue
 		}
@@ -136,16 +140,8 @@ func (pool *NATSConnectionPool) Acquire(ctx context.Context) (Conn, JetStreamCon
 func (pool *NATSConnectionPool) Shutdown() {
 	log.Logger().Trace("Shutting down NATS connection pool")
 
-	// Just make sure no other connections are trying to connect while we're not connected
-	if pool.connecting.Swap(true) == nil {
-		return
-	}
-
 	// Only close the connection if it was opened in the first place
-	data := pool.conn.Load()
-	if data != nil {
-		if conn, ok := data.(connectionAndContext); ok {
-			conn.conn.Close()
-		}
+	if data := pool.conn.Load(); data != nil {
+		data.(connectionAndContext).conn.Close()
 	}
 }
