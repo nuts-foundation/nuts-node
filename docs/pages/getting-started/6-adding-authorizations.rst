@@ -77,7 +77,7 @@ The DID typically comes from your own administration, see also :ref:`Getting Sta
 
 type
 ====
-The ``type`` must equal to ``["NutsAuthorizationCredential"]``, no exceptions.
+The ``type`` must equal to ``"NutsAuthorizationCredential"``, no exceptions.
 
 visibility
 ==========
