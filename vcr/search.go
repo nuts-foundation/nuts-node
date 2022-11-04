@@ -64,12 +64,14 @@ func (c *vcr) Search(ctx context.Context, searchTerms []SearchTerm, allowUntrust
 		}
 
 		switch searchTerm.Type {
-		case Exact:
-			query = query.And(leia.Eq(leia.NewIRIPath(searchTerm.IRIPath...), scalar))
 		case NotNil:
 			query = query.And(leia.NotNil(leia.NewIRIPath(searchTerm.IRIPath...)))
-		default:
+		case Prefix:
 			query = query.And(leia.Prefix(leia.NewIRIPath(searchTerm.IRIPath...), scalar))
+		default:
+			fallthrough
+		case Exact:
+			query = query.And(leia.Eq(leia.NewIRIPath(searchTerm.IRIPath...), scalar))
 		}
 	}
 

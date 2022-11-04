@@ -109,12 +109,88 @@ func TestWrapper_SearchVCs(t *testing.T) {
 		{IRIPath: jsonld.OrganizationNamePath, Value: "Zorggroep de Nootjes"},
 	}
 
-	t.Run("ok - results", func(t *testing.T) {
+	t.Run("ok - exact match returns results", func(t *testing.T) {
 		ctx := newMockContext(t)
 		req := httptest.NewRequest(http.MethodPost, "/", nil)
 		ctx.echo.EXPECT().Request().Return(req)
 		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
 			_ = json.Unmarshal([]byte(organizationQuery), f)
+		})
+		// Not an organization VC, but doesn't matter
+		actualVC := *credential.ValidNutsAuthorizationCredential()
+		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{actualVC}, nil)
+		ctx.mockVerifier.EXPECT().GetRevocation(*actualVC.ID).Return(nil, nil)
+		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any())
+
+		err := ctx.client.SearchVCs(ctx.echo)
+
+		assert.NoError(t, err)
+	})
+	t.Run("ok - prefix match returns results", func(t *testing.T) {
+		const prefixQuery = `
+{
+	"query": {
+		"@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
+		"type": ["VerifiableCredential", "NutsOrganizationCredential"],
+		"credentialSubject":{
+			"id":"did:nuts:123",
+			"organization": {
+				"name": "Zorg*",
+				"city": "Aman*"
+			}
+		}
+	}
+}
+`
+
+		searchTerms := []vcr.SearchTerm{
+			{IRIPath: jsonld.CredentialSubjectPath, Value: "did:nuts:123"},
+			{IRIPath: jsonld.OrganizationCityPath, Value: "Aman", Type: vcr.Prefix},
+			{IRIPath: jsonld.OrganizationNamePath, Value: "Zorg", Type: vcr.Prefix},
+		}
+
+		ctx := newMockContext(t)
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
+		ctx.echo.EXPECT().Request().Return(req)
+		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
+			_ = json.Unmarshal([]byte(prefixQuery), f)
+		})
+		// Not an organization VC, but doesn't matter
+		actualVC := *credential.ValidNutsAuthorizationCredential()
+		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{actualVC}, nil)
+		ctx.mockVerifier.EXPECT().GetRevocation(*actualVC.ID).Return(nil, nil)
+		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any())
+
+		err := ctx.client.SearchVCs(ctx.echo)
+
+		assert.NoError(t, err)
+	})
+	t.Run("ok - wildcard indicating not nil", func(t *testing.T) {
+		const wildcardOnlyQuery = `
+{
+	"query": {
+		"@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
+		"type": ["VerifiableCredential", "NutsOrganizationCredential"],
+		"credentialSubject":{
+			"id":"did:nuts:123",
+			"organization": {
+				"name": "*"
+			}
+		}
+	}
+}
+`
+
+		searchTerms := []vcr.SearchTerm{
+			{IRIPath: jsonld.CredentialSubjectPath, Value: "did:nuts:123"},
+			{IRIPath: jsonld.OrganizationNamePath, Type: vcr.NotNil},
+		}
+
+		ctx := newMockContext(t)
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
+		ctx.echo.EXPECT().Request().Return(req)
+		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
+			_ = json.Unmarshal([]byte(wildcardOnlyQuery), f)
 		})
 		// Not an organization VC, but doesn't matter
 		actualVC := *credential.ValidNutsAuthorizationCredential()

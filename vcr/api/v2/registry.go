@@ -128,10 +128,24 @@ func flattenMap(expanded map[string]interface{}, currentPath []string) []vcr.Sea
 		case "@id":
 			fallthrough
 		case "@value":
-			results = append(results, vcr.SearchTerm{
+			searchTerm := vcr.SearchTerm{
 				IRIPath: currentPath,
 				Value:   v,
-			})
+			}
+			// prefix matching for strings when it ends with an asterisk (*)
+			if str, ok := v.(string); ok {
+				if strings.HasSuffix(str, "*") {
+					// search query with just * means: must be present, otherwise it's a prefix query
+					if len(str) == 1 {
+						searchTerm.Type = vcr.NotNil
+						searchTerm.Value = nil
+					} else {
+						searchTerm.Type = vcr.Prefix
+						searchTerm.Value = str[:len(str)-1]
+					}
+				}
+			}
+			results = append(results, searchTerm)
 		case "@list":
 			results = append(results, flatten(v, currentPath)...)
 		default:
