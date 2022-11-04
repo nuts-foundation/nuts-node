@@ -62,8 +62,7 @@ Corresponding REST API operation: ``GET /internal/vdr/v1/did/{did}``
 2. Register a new key
 ==================
 
-Then, you add a new key which will be used to sign future transactions.
-This generates a new key pair in your crypto storage and adds it to the DID document.
+Then, you add a new key which generates a new key pair in your crypto storage and adds it to the DID document:
 
 .. code-block:: shell
 

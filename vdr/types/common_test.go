@@ -83,6 +83,38 @@ func TestDocumentMetadata_IsConflicted(t *testing.T) {
 	})
 }
 
+func TestKeyUsage_Is(t *testing.T) {
+	types := []KeyUsage{AssertionMethodUsage, AuthenticationUsage, CapabilityDelegationUsage, CapabilityInvocationUsage, KeyAgreementUsage}
+	t.Run("one usage", func(t *testing.T) {
+		for _, usage := range types {
+			for _, other := range types {
+				if usage == other {
+					assert.True(t, usage.Is(other))
+					assert.True(t, other.Is(usage)) // assert symmetry
+				} else {
+					assert.False(t, usage.Is(other))
+					assert.False(t, other.Is(usage)) // assert symmetry
+				}
+			}
+		}
+	})
+	t.Run("multiple usage", func(t *testing.T) {
+		value := AssertionMethodUsage | CapabilityDelegationUsage | KeyAgreementUsage
+		for _, other := range types {
+			switch other {
+			case AssertionMethodUsage:
+				fallthrough
+			case CapabilityDelegationUsage:
+				fallthrough
+			case KeyAgreementUsage:
+				assert.True(t, value.Is(other))
+			default:
+				assert.False(t, value.Is(other))
+			}
+		}
+	})
+}
+
 func Test_deactivatedError_Is(t *testing.T) {
 	assert.ErrorIs(t, ErrDeactivated, ErrDeactivated)
 	assert.ErrorIs(t, ErrNoActiveController, ErrDeactivated)

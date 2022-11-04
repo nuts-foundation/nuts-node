@@ -146,15 +146,15 @@ func (k KeyUsage) Is(other KeyUsage) bool {
 
 const (
 	// AssertionMethodUsage indicates if the generated key pair can be used for assertions.
-	AssertionMethodUsage KeyUsage = 1
+	AssertionMethodUsage KeyUsage = 1 << iota
 	// AuthenticationUsage indicates if the generated key pair can be used for authentication.
-	AuthenticationUsage = 2
+	AuthenticationUsage
 	// CapabilityDelegationUsage indicates if the generated key pair can be used for altering DID Documents.
-	CapabilityDelegationUsage = 4
+	CapabilityDelegationUsage
 	// CapabilityInvocationUsage indicates if the generated key pair can be used for capability invocations.
-	CapabilityInvocationUsage = 8
+	CapabilityInvocationUsage
 	// KeyAgreementUsage indicates if the generated key pair can be used for Key agreements.
-	KeyAgreementUsage = 16
+	KeyAgreementUsage
 )
 
 // DIDCreationOptions defines options for creating a DID Document.
