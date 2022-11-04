@@ -10,10 +10,10 @@ Overview
 
 The steps to connect and register on a network look as follows:
 
-1. configure bootstrap node address and start node,
-2. let it synchronize,
-3. register node DID and configure it (and restart),
-4. verify discovered network nodes and authentication.
+- :ref:`configuring_step_bootstrap_node_tls_cert`
+- :ref:`configuring_step_initial_synchronization`
+- :ref:`configuring_step_registering_configuring_node_did`
+- :ref:`configuring_step_verify`
 
 These steps are explained in detail below.
 
@@ -22,10 +22,10 @@ Prerequisites
 
 The following is needed to connect a Nuts node to a network:
 
-1. A runnable node.
-2. A network you want to join.
-3. A TLS client- and server certificate which is accepted by the other nodes in the network (e.g. PKIoverheid).
-4. The public address of one or more remote nodes you'd like to use as bootstrap nodes.
+- A runnable node.
+- A network you want to join.
+- A TLS client- and server certificate which is accepted by the other nodes in the network (e.g. PKIoverheid).
+- The public address of one or more remote nodes you'd like to use as bootstrap nodes.
 
 Networks
 ========
@@ -75,6 +75,8 @@ Steps
 
 Follow the steps below to connect your node to a network and register its presence (node DID).
 
+.. _configuring_step_bootstrap_node_tls_cert:
+
 1. Configure bootstrap node(s) and TLS certificate
 ==================================================
 
@@ -85,8 +87,20 @@ These transactions contain endpoints of other nodes. After a reboot, your node w
 
 Consult the community on `Slack <https://nuts-foundation.slack.com/>`_ in the ``#development`` channel to find out which public bootstrap nodes are available to connect to your network of choice.
 
-1. Configure the bootstrap nodes using ``network.bootstrapnodes``.
-2. Configure TLS using ``tls.certfile``, ``tls.certkeyfile`` and ``tls.truststorefile``.
+- configure the bootstrap nodes using ``network.bootstrapnodes``
+- configure TLS using ``tls.certfile``, ``tls.certkeyfile`` and ``tls.truststorefile``
+
+If you're using a YAML file to configure your node, the following snippet how to configure these properties:
+
+.. code-block:: yaml
+
+  tls:
+    truststorefile: /path/to/truststore-development.pem
+    certfile: /path/to/nuts.yourdomain.example-development.pem
+    certkeyfile: /path/to/nuts.yourdomain.example-development.key
+  network:
+    bootstrapnodes:
+      - nuts-development.other-service-provider.example:5555
 
 See :ref:`configuration reference <nuts-node-config>` for a detailed explanation on how to exactly configure the Nuts node.
 
@@ -94,6 +108,8 @@ See :ref:`configuration reference <nuts-node-config>` for a detailed explanation
 
     You can start the node without configuring the network, but it won't connect and thus exchange data with other nodes.
     You'll have a private network with one single node. Perfect for local development, but a bit lonely.
+
+.. _configuring_step_initial_synchronization:
 
 2. Initial synchronization
 ==========================
@@ -103,8 +119,10 @@ If you view the diagnostics page of the node, you should see it receiving transa
 The time it takes for initial synchronization to complete highly depends on network state size and your node's rsources (CPU, memory and network bandwidth).
 Your node is in sync when it stops receiving new transactions. You can then register your node's presence on the network.
 
-3. Register Node DID
-====================
+.. _configuring_step_registering_configuring_node_did:
+
+3. Registering and configuring Node DID
+=======================================
 
 Certain data (e.g. private credentials) can only be exchanged when a node's identity has been authenticated.
 Your node identity is expressed by a DID managed by your node, also known as your *node DID*.
@@ -115,7 +133,7 @@ You first need to create a new DID document:
 
     POST <internal-node-address>/internal/vdr/v1/did
 
-Take note of the returned DID since it will become your node DID.
+Take note of the ``id`` field in the returned DID document; it will become your node DID.
 
 You then need to make sure the DID document contains a ``NutsComm`` service,
 which specifies the gRPC address other nodes will use to connect to your node.
@@ -123,7 +141,7 @@ The address must be in the form of ``grpc://<host>:<port>`` (e.g. ``grpc://nuts.
 The domain in the address (e.g. ``nuts.nl``) must exactly match (one of) the DNS SANs in your node's TLS certificate,
 otherwise other nodes can't authenticate your node DID.
 
-You can register the ``NutsComm`` service by calling ``addEndpoint`` on the DIDMan API:
+You can register the ``NutsComm`` service by calling the following DIDMan API:
 
 .. code-block:: text
 
@@ -141,31 +159,23 @@ and restart your node for the changes to take effect.
     - Multiple nodes may share the same DID, if they're governed by the same organization (e.g., clustered setups).
     - Node Discovery will ignore endpoints containing IP-addresses and reserved addresses as specified in `RFC2606 <https://datatracker.ietf.org/doc/html/rfc2606>`_.
 
-3. Verify Node Discovery and Authentication
+.. _configuring_step_verify:
+
+4. Verify Node Discovery and Authentication
 ===========================================
 
-After restarting you can observe the following on the diagnostics page:
+After restarting, check the diagnostics page:
 
-- Your node discovered new nodes and connected to them.
-- Your node DID is configured.
+.. code-block:: text
+
+    GET <internal-node-address>/status/diagnostics
+
+It will tell you:
+
+- Which new nodes it discovered new nodes to which ones it is now connected.
+- That your node DID is configured.
 
 You're now set up to exchange data with other nodes.
-
-YAML Configuration
-******************
-
-If you're using a YAML file to configure your node, the following snippet shows an example for the network related configuration:
-
-.. code-block:: yaml
-
-  tls:
-    truststorefile: /path/to/truststore-development.pem
-    certfile: /path/to/nuts.yourdomain.example-development.pem
-    certkeyfile: /path/to/nuts.yourdomain.example-development.key
-  network:
-    nodedid: did:nuts:123
-    bootstrapnodes:
-      - nuts-development.other-service-provider.example:5555
 
 Care Organizations
 ******************
