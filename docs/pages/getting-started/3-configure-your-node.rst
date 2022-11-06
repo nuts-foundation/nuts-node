@@ -90,7 +90,7 @@ Consult the community on `Slack <https://nuts-foundation.slack.com/>`_ in the ``
 - configure the bootstrap nodes using ``network.bootstrapnodes``
 - configure TLS using ``tls.certfile``, ``tls.certkeyfile`` and ``tls.truststorefile``
 
-If you're using a YAML file to configure your node, the following snippet how to configure these properties:
+If you're using a YAML file to configure your node, the following snippet shows how to configure these properties:
 
 .. code-block:: yaml
 
