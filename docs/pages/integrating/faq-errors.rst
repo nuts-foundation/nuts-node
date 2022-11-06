@@ -27,3 +27,21 @@ because it can't find the private key that was used to create the token. You pro
 
 #. Try to introspect a token that your node didn't create: only node that issued the token can introspect it. Or:
 #. Your node's private key storage is corrupt and your node lost access to its private keys (less probable).
+
+Error: `root transaction already exists`
+****************************************
+
+When you start your node, the following error can occur:
+
+    Rolling back transaction application due to error (error: root transaction already exists)
+
+This means your network state is incompatible with the node you're connecting to. This can be caused by:
+
+#. an issue on the remote node's side or,
+#. your node received/generated data from another network.
+
+It's probably the latter problem. This typically happens when you create transactions (e.g. a DID document) before connecting to a network,
+or when you (re)configure a bootstrap node which belongs to a different network.
+The first situation (you created transactions before connecting to a network) is fixed by removing your node's data directory,
+and following the :ref:`getting started documentation<configure-node>`.
+The second situation is fixed by configuring the correct bootstrap node.
