@@ -310,7 +310,7 @@ func (d *didman) GetContactInformation(id did.DID) (*ContactInformation, error) 
 
 func (d *didman) SearchOrganizations(ctx context.Context, query string, didServiceType *string) ([]OrganizationSearchResult, error) {
 	searchTerms := []vcr.SearchTerm{
-		{IRIPath: jsonld.OrganizationNamePath, Value: query},
+		{IRIPath: jsonld.OrganizationNamePath, Value: query, Type: vcr.Prefix},
 		{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
 	}
 

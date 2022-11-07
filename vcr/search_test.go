@@ -34,7 +34,18 @@ import (
 
 func TestVCR_Search(t *testing.T) {
 	vc := jsonld.TestVC()
-	testInstance := func(t2 *testing.T) (mockContext, []SearchTerm) {
+
+	// Create query
+	eyeColourPath := []string{"https://www.w3.org/2018/credentials#credentialSubject", "http://example.org/human", "http://example.org/eyeColour"}
+	prefixSearchTerms := []SearchTerm{
+		{
+			IRIPath: eyeColourPath,
+			Value:   "blue",
+			Type:    Prefix,
+		},
+	}
+
+	testInstance := func(t2 *testing.T) mockContext {
 		ctx := newMockContext(t2)
 
 		// add document
@@ -43,33 +54,31 @@ func TestVCR_Search(t *testing.T) {
 		if !assert.NoError(t2, err) {
 			t2.Fatal(err)
 		}
-
-		// query
-		eyeColourPath := []string{"https://www.w3.org/2018/credentials#credentialSubject", "http://example.org/human", "http://example.org/eyeColour"}
-		searchTerms := []SearchTerm{
-			{
-				IRIPath: eyeColourPath,
-				Value:   "blue",
-				Type:    Prefix,
-			},
-		}
-		return ctx, searchTerms
+		return ctx
 	}
 
 	reqCtx := context.Background()
 	now := time.Now()
 
-	t.Run("ok", func(t *testing.T) {
-		ctx, searchTerms := testInstance(t)
+	t.Run("ok - exact match", func(t *testing.T) {
+		ctx := testInstance(t)
 		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
 		ctx.vcr.Trust(vc.Type[1], vc.Issuer)
 
-		searchResult, err := ctx.vcr.Search(reqCtx, searchTerms, false, &now)
+		exactSearchTerms := []SearchTerm{
+			{
+				IRIPath: eyeColourPath,
+				Value:   "blue/grey",
+				Type:    Exact,
+			},
+		}
 
-		if !assert.NoError(t, err) {
+		searchResult, err := ctx.vcr.Search(reqCtx, exactSearchTerms, false, &now)
+
+		if assert.NoError(t, err) {
 			return
 		}
-		if !assert.Len(t, searchResult, 1) {
+		if assert.Len(t, searchResult, 1) {
 			return
 		}
 
@@ -78,9 +87,37 @@ func TestVCR_Search(t *testing.T) {
 		c := m["human"].(map[string]interface{})
 		assert.Equal(t, "fair", c["hairColour"])
 	})
+	t.Run("ok - default (exact match)", func(t *testing.T) {
+		ctx := testInstance(t)
+		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
+		ctx.vcr.Trust(vc.Type[1], vc.Issuer)
+
+		exactSearchTerms := []SearchTerm{
+			{
+				IRIPath: eyeColourPath,
+				Value:   "blue/grey",
+			},
+		}
+
+		searchResult, err := ctx.vcr.Search(reqCtx, exactSearchTerms, false, &now)
+
+		assert.NoError(t, err)
+		assert.Len(t, searchResult, 1)
+	})
+
+	t.Run("ok - prefix", func(t *testing.T) {
+		ctx := testInstance(t)
+		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
+		ctx.vcr.Trust(vc.Type[1], vc.Issuer)
+
+		searchResult, err := ctx.vcr.Search(reqCtx, prefixSearchTerms, false, &now)
+
+		assert.NoError(t, err)
+		assert.Len(t, searchResult, 1)
+	})
 
 	t.Run("ok - not nil", func(t *testing.T) {
-		ctx, _ := testInstance(t)
+		ctx := testInstance(t)
 		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
 		ctx.vcr.Trust(vc.Type[1], vc.Issuer)
 		searchTerms := []SearchTerm{
@@ -92,16 +129,14 @@ func TestVCR_Search(t *testing.T) {
 
 		searchResult, err := ctx.vcr.Search(reqCtx, searchTerms, false, &now)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		assert.NoError(t, err)
 		assert.Len(t, searchResult, 1)
 	})
 
 	t.Run("ok - untrusted", func(t *testing.T) {
-		ctx, searchTerms := testInstance(t)
+		ctx := testInstance(t)
 
-		searchResult, err := ctx.vcr.Search(reqCtx, searchTerms, false, &now)
+		searchResult, err := ctx.vcr.Search(reqCtx, prefixSearchTerms, false, &now)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -110,9 +145,9 @@ func TestVCR_Search(t *testing.T) {
 	})
 
 	t.Run("ok - untrusted but allowed", func(t *testing.T) {
-		ctx, searchTerms := testInstance(t)
+		ctx := testInstance(t)
 
-		searchResult, err := ctx.vcr.Search(reqCtx, searchTerms, true, &now)
+		searchResult, err := ctx.vcr.Search(reqCtx, prefixSearchTerms, true, &now)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -122,13 +157,13 @@ func TestVCR_Search(t *testing.T) {
 
 	// Todo: use ldproof revocation and issuer store after switch
 	t.Run("ok - revoked", func(t *testing.T) {
-		ctx, searchTerms := testInstance(t)
+		ctx := testInstance(t)
 		ctx.vcr.Trust(vc.Type[0], vc.Issuer)
 		mockVerifier := verifier.NewMockVerifier(ctx.ctrl)
 		ctx.vcr.verifier = mockVerifier
 		mockVerifier.EXPECT().Verify(vc, true, false, gomock.Any()).Return(types.ErrRevoked)
 
-		creds, err := ctx.vcr.Search(reqCtx, searchTerms, true, nil)
+		creds, err := ctx.vcr.Search(reqCtx, prefixSearchTerms, true, nil)
 
 		if !assert.NoError(t, err) {
 			return

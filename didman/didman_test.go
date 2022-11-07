@@ -670,7 +670,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 	}
 	reqCtx := context.Background()
 	searchTerms := []vcr.SearchTerm{
-		{IRIPath: jsonld.OrganizationNamePath, Value: "query"},
+		{IRIPath: jsonld.OrganizationNamePath, Value: "query", Type: vcr.Prefix},
 		{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
 	}
 	testCredential := vc.VerifiableCredential{}
