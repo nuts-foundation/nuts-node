@@ -136,17 +136,17 @@ type ResolveMetadata struct {
 // CompoundService is a service type that can be used as target for github.com/nuts-foundation/go-did/did/document.go#UnmarshalServiceEndpoint
 type CompoundService map[string]string
 
-// KeyUsage is a bitmask used for specifying for what purposes a key in a DID document can be used (a.k.a. Verification Method relationships).
-type KeyUsage int
+// DIDKeyFlags is a bitmask used for specifying for what purposes a key in a DID document can be used (a.k.a. Verification Method relationships).
+type DIDKeyFlags uint
 
-// Is returns whether the specified KeyUsage is enabled.
-func (k KeyUsage) Is(other KeyUsage) bool {
+// Is returns whether the specified DIDKeyFlags is enabled.
+func (k DIDKeyFlags) Is(other DIDKeyFlags) bool {
 	return k&other == other
 }
 
 const (
 	// AssertionMethodUsage indicates if the generated key pair can be used for assertions.
-	AssertionMethodUsage KeyUsage = 1 << iota
+	AssertionMethodUsage DIDKeyFlags = 1 << iota
 	// AuthenticationUsage indicates if the generated key pair can be used for authentication.
 	AuthenticationUsage
 	// CapabilityDelegationUsage indicates if the generated key pair can be used for altering DID Documents.
@@ -163,8 +163,8 @@ type DIDCreationOptions struct {
 	// the newly generated DID will be added to the list of controllers.
 	Controllers []did.DID
 
-	// KeyUsage specifies for what purposes the generated key can be used
-	KeyUsage KeyUsage
+	// KeyFlags specifies for what purposes the generated key can be used
+	KeyFlags DIDKeyFlags
 
 	// SelfControl indicates whether the generated DID Document can be altered with its own capabilityInvocation key.
 	// Defaults to true when not given.

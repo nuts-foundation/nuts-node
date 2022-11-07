@@ -57,7 +57,7 @@ var jwkString = `{"crv":"P-256","kid":"did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg
 func TestDefaultCreationOptions(t *testing.T) {
 	ops := DefaultCreationOptions()
 
-	usage := ops.KeyUsage
+	usage := ops.KeyFlags
 	assert.True(t, usage.Is(types.AssertionMethodUsage))
 	assert.False(t, usage.Is(types.AuthenticationUsage))
 	assert.False(t, usage.Is(types.CapabilityDelegationUsage))
@@ -89,7 +89,7 @@ func TestCreator_Create(t *testing.T) {
 
 		t.Run("all keys", func(t *testing.T) {
 			ops := types.DIDCreationOptions{
-				KeyUsage: types.AssertionMethodUsage |
+				KeyFlags: types.AssertionMethodUsage |
 					types.AuthenticationUsage |
 					types.CapabilityDelegationUsage |
 					types.CapabilityInvocationUsage |
@@ -112,7 +112,7 @@ func TestCreator_Create(t *testing.T) {
 		t.Run("extra controller", func(t *testing.T) {
 			c, _ := did.ParseDID("did:nuts:controller")
 			ops := types.DIDCreationOptions{
-				KeyUsage:    types.AssertionMethodUsage | types.CapabilityInvocationUsage,
+				KeyFlags:    types.AssertionMethodUsage | types.CapabilityInvocationUsage,
 				SelfControl: true,
 				Controllers: []did.DID{*c},
 			}
@@ -141,7 +141,7 @@ func TestCreator_Create(t *testing.T) {
 			})
 
 			ops := types.DIDCreationOptions{
-				KeyUsage:    types.AssertionMethodUsage,
+				KeyFlags:    types.AssertionMethodUsage,
 				SelfControl: false,
 			}
 			doc, docCreationKey, err := creator.Create(ops)
@@ -199,7 +199,7 @@ func TestCreator_Create(t *testing.T) {
 		defer ctrl.Finish()
 		creator := Creator{KeyStore: mockKeyStore}
 		ops := types.DIDCreationOptions{
-			KeyUsage:    types.AssertionMethodUsage,
+			KeyFlags:    types.AssertionMethodUsage,
 			SelfControl: false,
 		}
 		mockKeyStore.EXPECT().New(gomock.Any()).Return(nil, errors.New("b00m!"))

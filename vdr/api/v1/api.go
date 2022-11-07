@@ -94,7 +94,7 @@ func (a *Wrapper) AddNewVerificationMethod(ctx echo.Context, id string) error {
 		return err
 	}
 
-	vm, err := a.DocManipulator.AddVerificationMethod(*d, req.ToKeyUsage(vdrDoc.DefaultCreationOptions().KeyUsage))
+	vm, err := a.DocManipulator.AddVerificationMethod(*d, req.ToFlags(vdrDoc.DefaultCreationOptions().KeyFlags))
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func (a Wrapper) CreateDID(ctx echo.Context) error {
 			options.Controllers = append(options.Controllers, *id)
 		}
 	}
-	options.KeyUsage = req.VerificationMethodRelationship.ToKeyUsage(options.KeyUsage)
+	options.KeyFlags = req.VerificationMethodRelationship.ToFlags(options.KeyFlags)
 	if req.SelfControl != nil {
 		options.SelfControl = *req.SelfControl
 	}

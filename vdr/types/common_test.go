@@ -84,7 +84,7 @@ func TestDocumentMetadata_IsConflicted(t *testing.T) {
 }
 
 func TestKeyUsage_Is(t *testing.T) {
-	types := []KeyUsage{AssertionMethodUsage, AuthenticationUsage, CapabilityDelegationUsage, CapabilityInvocationUsage, KeyAgreementUsage}
+	types := []DIDKeyFlags{AssertionMethodUsage, AuthenticationUsage, CapabilityDelegationUsage, CapabilityInvocationUsage, KeyAgreementUsage}
 	t.Run("one usage", func(t *testing.T) {
 		for _, usage := range types {
 			for _, other := range types {

@@ -549,7 +549,7 @@ func (m *MockDocManipulator) EXPECT() *MockDocManipulatorMockRecorder {
 }
 
 // AddVerificationMethod mocks base method.
-func (m *MockDocManipulator) AddVerificationMethod(id did.DID, keyUsage KeyUsage) (*did.VerificationMethod, error) {
+func (m *MockDocManipulator) AddVerificationMethod(id did.DID, keyUsage DIDKeyFlags) (*did.VerificationMethod, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddVerificationMethod", id, keyUsage)
 	ret0, _ := ret[0].(*did.VerificationMethod)

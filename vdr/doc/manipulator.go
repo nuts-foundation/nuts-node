@@ -52,7 +52,7 @@ func (u Manipulator) Deactivate(id did.DID) error {
 
 // AddVerificationMethod adds a new key as a VerificationMethod to the document.
 // The key is added to the VerficationMethod relationships specified by keyUsage.
-func (u Manipulator) AddVerificationMethod(id did.DID, keyUsage types.KeyUsage) (*did.VerificationMethod, error) {
+func (u Manipulator) AddVerificationMethod(id did.DID, keyUsage types.DIDKeyFlags) (*did.VerificationMethod, error) {
 	doc, meta, err := u.Resolver.Resolve(id, &types.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {
 		return nil, err

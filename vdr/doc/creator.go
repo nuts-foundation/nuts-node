@@ -50,7 +50,7 @@ type Creator struct {
 func DefaultCreationOptions() vdr.DIDCreationOptions {
 	return vdr.DIDCreationOptions{
 		Controllers: []did.DID{},
-		KeyUsage:    vdr.AssertionMethodUsage | vdr.CapabilityInvocationUsage | vdr.KeyAgreementUsage,
+		KeyFlags:    vdr.AssertionMethodUsage | vdr.CapabilityInvocationUsage | vdr.KeyAgreementUsage,
 		SelfControl: true,
 	}
 }
@@ -111,7 +111,7 @@ func (n Creator) Create(options vdr.DIDCreationOptions) (*did.Document, nutsCryp
 	var key nutsCrypto.Key
 	var err error
 
-	if options.SelfControl && !options.KeyUsage.Is(vdr.CapabilityInvocationUsage) {
+	if options.SelfControl && !options.KeyFlags.Is(vdr.CapabilityInvocationUsage) {
 		return nil, nil, ErrInvalidOptions
 	}
 
@@ -166,14 +166,14 @@ func (n Creator) Create(options vdr.DIDCreationOptions) (*did.Document, nutsCryp
 		}
 	}
 
-	applyKeyUsage(&doc, verificationMethod, options.KeyUsage)
+	applyKeyUsage(&doc, verificationMethod, options.KeyFlags)
 
 	// return the doc and the keyCreator that created the private key
 	return &doc, key, nil
 }
 
 // applyKeyUsage checks intendedKeyUsage and adds the given verificationMethod to every relationship specified as key usage.
-func applyKeyUsage(document *did.Document, keyToAdd *did.VerificationMethod, intendedKeyUsage vdr.KeyUsage) {
+func applyKeyUsage(document *did.Document, keyToAdd *did.VerificationMethod, intendedKeyUsage vdr.DIDKeyFlags) {
 	if intendedKeyUsage.Is(vdr.CapabilityDelegationUsage) {
 		document.AddCapabilityDelegation(keyToAdd)
 	}

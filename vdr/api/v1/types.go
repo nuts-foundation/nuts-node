@@ -59,29 +59,29 @@ type VerificationMethodRelationship struct {
 	KeyAgreement *bool `json:"keyAgreement,omitempty"`
 }
 
-// ToKeyUsage takes a default key usage, and enabled/disables the usage which is set on the VerificationMethodRelationship,
+// ToFlags takes default key flags, and enabled/disables the flags which are set on the VerificationMethodRelationship,
 // and the result is returned.
-func (r VerificationMethodRelationship) ToKeyUsage(defaults types.KeyUsage) types.KeyUsage {
+func (r VerificationMethodRelationship) ToFlags(defaults types.DIDKeyFlags) types.DIDKeyFlags {
 	result := defaults
-	result = setKeyUsage(result, r.Authentication, types.AuthenticationUsage)
-	result = setKeyUsage(result, r.AssertionMethod, types.AssertionMethodUsage)
-	result = setKeyUsage(result, r.CapabilityDelegation, types.CapabilityDelegationUsage)
-	result = setKeyUsage(result, r.CapabilityInvocation, types.CapabilityInvocationUsage)
-	result = setKeyUsage(result, r.KeyAgreement, types.KeyAgreementUsage)
+	result = withKeyFlag(result, types.AuthenticationUsage, r.Authentication)
+	result = withKeyFlag(result, types.AssertionMethodUsage, r.AssertionMethod)
+	result = withKeyFlag(result, types.CapabilityDelegationUsage, r.CapabilityDelegation)
+	result = withKeyFlag(result, types.CapabilityInvocationUsage, r.CapabilityInvocation)
+	result = withKeyFlag(result, types.KeyAgreementUsage, r.KeyAgreement)
 	return result
 }
 
-func setKeyUsage(current types.KeyUsage, value *bool, keyUsageToSet types.KeyUsage) types.KeyUsage {
-	// If not set, do nothing (keep existing value)
-	// If set (may be true or false), disable or enable
-	if value != nil {
-		// Override default
-		if *value {
-			// Enable
-			return current | keyUsageToSet
-		}
-		// Disable
-		return current ^ keyUsageToSet
+// withKeyFlag enables/disables the given flag on the current flag value, depending on the supplied bool.
+// - bool == nil: do nothing
+// - bool == true: enable flag
+// - bool == false: disable flag
+func withKeyFlag(current, flag types.DIDKeyFlags, value *bool) types.DIDKeyFlags {
+	switch {
+	case value == nil: // no setting
+		return current
+	case *value: // true
+		return current | flag
+	default: // false
+		return current &^ flag
 	}
-	return current
 }
