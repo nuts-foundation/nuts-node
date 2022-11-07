@@ -54,7 +54,7 @@ func JWS2020ContextV1URI() ssi.URI {
 // CreateDocument creates an empty DID document with baseline properties set.
 func CreateDocument() did.Document {
 	return did.Document{
-		Context: []ssi.URI{did.DIDContextV1URI(), JWS2020ContextV1URI(), NutsDIDContextV1URI()},
+		Context: []ssi.URI{NutsDIDContextV1URI(), JWS2020ContextV1URI(), did.DIDContextV1URI()},
 	}
 }
 
