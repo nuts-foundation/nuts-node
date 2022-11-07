@@ -19,7 +19,6 @@
 package core
 
 import (
-	"bytes"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -93,9 +92,9 @@ func LoadTrustStore(trustStoreFile string) (*TrustStore, error) {
 	trustStore.CertPool = NewCertPool(trustStore.certificates)
 
 	for _, certificate := range trustStore.certificates {
-		// Certificate v1 don't have extensions and thus lack basicConstraints.IsCA
+		// Certificate v1 don't have extensions and thus lack basicConstraints.IsCA, just check issuer == subject in that case.
 		if certificate.IsCA || certificate.Version == 1 {
-			if bytes.Equal(certificate.RawSubject, certificate.RawIssuer) {
+			if certificate.Subject.String() == certificate.Issuer.String() {
 				trustStore.RootCAs = append(trustStore.RootCAs, certificate)
 			} else {
 				trustStore.IntermediateCAs = append(trustStore.IntermediateCAs, certificate)

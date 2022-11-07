@@ -21,7 +21,6 @@ package status
 
 import (
 	"bytes"
-	"context"
 	"gopkg.in/yaml.v3"
 	"net/http"
 	"strings"
@@ -115,10 +114,7 @@ func (s *status) collectDiagnostics() map[string][]core.DiagnosticResult {
 }
 
 func (s *status) checkHealth(ctx echo.Context) error {
-	checkCtx, cancel := context.WithTimeout(ctx.Request().Context(), 5*time.Second)
-	defer cancel()
-
-	result := s.doCheckHealth(checkCtx)
+	result := s.doCheckHealth()
 	responseCode := 200
 	if result.Status != core.HealthStatusUp {
 		responseCode = 503
@@ -127,26 +123,16 @@ func (s *status) checkHealth(ctx echo.Context) error {
 	return ctx.JSON(responseCode, result)
 }
 
-func (s *status) doCheckHealth(ctx context.Context) core.HealthCheckResult {
+func (s *status) doCheckHealth() core.HealthCheckResult {
 	results := make(map[string]core.HealthCheckResult, 0)
-	err := s.system.VisitEnginesE(func(engine core.Engine) error {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
+	s.system.VisitEngines(func(engine core.Engine) {
 		checker, ok := engine.(core.HealthCheckable)
 		if ok {
-			for name, result := range checker.CheckHealth(ctx) {
+			for name, result := range checker.CheckHealth() {
 				results[strings.ToLower(core.GetEngineName(engine))+"."+name] = result
 			}
 		}
-		return nil
 	})
-	if err != nil {
-		results["healthcheck"] = core.HealthCheckResult{
-			Status:  core.HealthStatusUnknown,
-			Details: "health check aborted due to time-out",
-		}
-	}
 
 	// Overall status is derived from the performed checks. The most severe status is returned (UP < UNKNOWN < DOWN).
 	overallStatus := core.HealthStatusUp

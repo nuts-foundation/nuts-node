@@ -48,6 +48,7 @@ import (
 )
 
 var _ Transactions = (*Network)(nil)
+var _ core.HealthCheckable = (*Network)(nil)
 
 const (
 	// ModuleName specifies the name of this module.
@@ -83,7 +84,7 @@ type Network struct {
 }
 
 // CheckHealth performs health checks for the network engine.
-func (n *Network) CheckHealth(_ context.Context) map[string]core.HealthCheckResult {
+func (n *Network) CheckHealth() map[string]core.HealthCheckResult {
 	results := make(map[string]core.HealthCheckResult)
 	if n.certificate.Leaf != nil {
 		// TLS enabled, verify the configured certificate

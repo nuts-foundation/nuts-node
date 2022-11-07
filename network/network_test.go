@@ -978,7 +978,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 			certificate: certificate,
 		}
 
-		result := n.CheckHealth(context.Background())
+		result := n.CheckHealth()
 
 		assert.Equal(t, core.HealthStatusUp, result["tls"].Status)
 	})
@@ -991,7 +991,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 			certificate: certificate,
 		}
 
-		result := n.CheckHealth(context.Background())
+		result := n.CheckHealth()
 
 		assert.Equal(t, core.HealthStatusDown, result["tls"].Status)
 		assert.Equal(t, "x509: certificate signed by unknown authority", result["tls"].Details)

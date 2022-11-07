@@ -235,9 +235,9 @@ type Injectable interface {
 
 // HealthCheckable is the interface for engines that can perform health checks, which result can be reported to monitoring tooling.
 type HealthCheckable interface {
-	// CheckHealth performs health checks and returns the result. The caller may cancel the operation if it takes too long,
-	// so it should observe the context and abort on cancellation.
-	CheckHealth(ctx context.Context) map[string]HealthCheckResult
+	// CheckHealth performs health checks and returns the result. The function should not perform expensive or slow operations
+	// and should return as fast as possible.
+	CheckHealth() map[string]HealthCheckResult
 }
 
 // HealthStatus defines the result status of a health check.
@@ -249,10 +249,10 @@ func (h HealthStatus) Severity() int {
 	switch h {
 	case HealthStatusDown:
 		return 2
-	case HealthStatusUnknown:
-		return 1
 	default:
 		fallthrough
+	case HealthStatusUnknown:
+		return 1
 	case HealthStatusUp:
 		return 0
 	}

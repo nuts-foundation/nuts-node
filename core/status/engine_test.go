@@ -150,51 +150,10 @@ func Test_status_doHealthChecks(t *testing.T) {
 	t.Run("no engines", func(t *testing.T) {
 		s := status{system: core.NewSystem()}
 
-		result := s.doCheckHealth(context.Background())
+		result := s.doCheckHealth()
 
 		assert.Equal(t, core.HealthStatusUp, result.Status)
 		assert.Empty(t, result.Details)
-	})
-	t.Run("time-out", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		system := core.NewSystem()
-		system.RegisterEngine(&healthCheckingEngine{
-			name: "engine1",
-			check: func(ctx context.Context) map[string]core.HealthCheckResult {
-				cancel() // causes health checking to quit
-				return map[string]core.HealthCheckResult{
-					"check1": {
-						Status:  core.HealthStatusUp,
-						Details: "all is fine",
-					},
-				}
-			},
-		})
-		system.RegisterEngine(&healthCheckingEngine{
-			name: "engine2",
-			check: func(_ context.Context) map[string]core.HealthCheckResult {
-				return map[string]core.HealthCheckResult{
-					"check2": {
-						Status:  core.HealthStatusUp,
-						Details: "all is fine",
-					},
-				}
-			},
-		})
-		s := status{system: system}
-
-		result := s.doCheckHealth(ctx)
-
-		assert.Equal(t, core.HealthStatusUnknown, result.Status)
-		// Due to time-out before checking engine2, only the check results of engine1 should be there,
-		// and a result of the healthcheck indicating the time-out.
-		checks := result.Details.(map[string]core.HealthCheckResult)
-		assert.Len(t, checks, 2)
-		assert.Contains(t, checks, "engine1.check1")
-		assert.NotContains(t, checks, "engine2.check2")
-		assert.Contains(t, checks, "healthcheck")
-		assert.Equal(t, core.HealthStatusUnknown, checks["healthcheck"].Status)
-		assert.Equal(t, "health check aborted due to time-out", checks["healthcheck"].Details)
 	})
 	t.Run("overall status DOWN", func(t *testing.T) {
 		system := core.NewSystem()
@@ -216,7 +175,7 @@ func Test_status_doHealthChecks(t *testing.T) {
 		})
 		s := status{system: system}
 
-		result := s.doCheckHealth(context.Background())
+		result := s.doCheckHealth()
 
 		assert.Equal(t, core.HealthStatusDown, result.Status)
 	})
@@ -237,7 +196,7 @@ func Test_status_doHealthChecks(t *testing.T) {
 		})
 		s := status{system: system}
 
-		result := s.doCheckHealth(context.Background())
+		result := s.doCheckHealth()
 
 		assert.Equal(t, core.HealthStatusUnknown, result.Status)
 	})
