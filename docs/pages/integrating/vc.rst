@@ -122,6 +122,8 @@ By default, matching is exact: it only returns the result when the given value e
 There are 2 other matchers for strings:
 - ``"*"`` to match credential fields that contain the field (non-empty)
 - ``*`` as postfix to match credential fields that start with the given string, e.g. ``Hospital Amst*``
+When ``*`` is used anywhere else in the string it won't be interpreted as wildcard and matched as-is.
+Wildcards are not supported for other types than strings.
 
 The following example showcases both matchers:
 
