@@ -88,8 +88,8 @@ func (n *Network) CheckHealth(_ context.Context) map[string]core.HealthCheckResu
 	if n.certificate.Leaf != nil {
 		// TLS enabled, verify the configured certificate
 		_, err := n.certificate.Leaf.Verify(x509.VerifyOptions{
-			Roots:         core.MakeCertPool(n.trustStore.RootCAs),
-			Intermediates: core.MakeCertPool(n.trustStore.IntermediateCAs),
+			Roots:         core.NewCertPool(n.trustStore.RootCAs),
+			Intermediates: core.NewCertPool(n.trustStore.IntermediateCAs),
 		})
 		if err != nil {
 			results["tls"] = core.HealthCheckResult{

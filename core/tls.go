@@ -55,8 +55,8 @@ func ParseCertificates(data []byte) (certificates []*x509.Certificate, _ error) 
 	return
 }
 
-// MakeCertPool creates a new x509.CertPool and adds all given certificates to it.
-func MakeCertPool(certificates []*x509.Certificate) *x509.CertPool {
+// NewCertPool creates a new x509.CertPool and adds all given certificates to it.
+func NewCertPool(certificates []*x509.Certificate) *x509.CertPool {
 	pool := x509.NewCertPool()
 	for _, certificate := range certificates {
 		pool.AddCert(certificate)
@@ -90,7 +90,7 @@ func LoadTrustStore(trustStoreFile string) (*TrustStore, error) {
 	if err != nil {
 		return nil, err
 	}
-	trustStore.CertPool = MakeCertPool(trustStore.certificates)
+	trustStore.CertPool = NewCertPool(trustStore.certificates)
 
 	for _, certificate := range trustStore.certificates {
 		// Certificate v1 don't have extensions and thus lack basicConstraints.IsCA
