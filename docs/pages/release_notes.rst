@@ -19,6 +19,7 @@ Release date: 2022-??-?? (not yet released)
   It also helps developers noticing they misspelled a property, which it previously accepted but may have caused issues at processing systems downstream.
 - Redis Sentinel is now configured through configuration parameters, rather than via the Redis connection URL as introduced in v4.
   This is done to improve documentation and reduce complexity.
+- Searching VCs (using REST API) now requires a wildcard to do a partial (prefix) search on strings.
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.0.0...v5.0.0
 
@@ -26,12 +27,14 @@ Release date: 2022-??-?? (not yet released)
 Breaking changes
 ========
 
+**NutsAuthorizationCredential LegalBase**
 When issuing Verifiable Credentials, now all fields must be defined in its context(s). This impacts the issuance of NutsAuthorizationCredentials:
 Nuts RFC014 (Authorization Credential) required ``legalBase`` to be present in all ``NutsAuthorizationCredential``s,
 but this property was missing in the Nuts v1 JSON-LD context.
 Since it can't simply be added afterwards, it (``legalBase``) is removed altogether.
 This means, starting this version, the ``legalBase`` property can't used in new v1 ``NutsAuthorizationCredential``s.
 
+**Redis Sentinel**
 Redis Sentinel was configured through a Redis connection URL by passing Sentinel-specific query parameters,
 which has been replaced with structured configuration. To use Redis Sentinel in v5 move the following connection URL parameters to configuration:
 
@@ -40,6 +43,11 @@ which has been replaced with structured configuration. To use Redis Sentinel in 
   If using a Redis connection URL, its host won't be used set, so set the host to any irrelevant value.
 - ``sentinelUsername`` becomes ``storage.redis.sentinel.username``
 - ``sentinelPassword`` becomes ``storage.redis.sentinel.password``
+
+**Searching VCs**
+Before v5, searching for VCs would use partial (prefix) matching for strings by default.
+Starting v5 it will use exact matching on strings by default. To match on a prefix (string starting with a specific value), add an asterisk (``*``) at the end of the string.
+To match for a non-nil string, use just an asterisk (``*``) meaning anything will match (but it must be present).
 
 *****************
 Chestnut update (v4.3.0)
