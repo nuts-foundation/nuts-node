@@ -27,15 +27,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/events"
+	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
-	"github.com/sirupsen/logrus"
-
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/sirupsen/logrus"
 
 	"github.com/nuts-foundation/nuts-node/vdr/log"
 
@@ -176,6 +176,10 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 		return err
 	}
 
+	// #1530: add nuts and JWS context if not present
+	next = withJSONLDContext(next, doc.NutsDIDContextV1URI())
+	next = withJSONLDContext(next, doc.JWS2020ContextV1URI())
+
 	payload, err := json.Marshal(next)
 	if err != nil {
 		return err
@@ -242,4 +246,19 @@ func (r VDR) resolveControllerWithKey(doc did.Document) (did.Document, crypto.Ke
 	}
 
 	return did.Document{}, nil, fmt.Errorf("could not find capabilityInvocation key for updating the DID document: %w", err)
+}
+
+func withJSONLDContext(document did.Document, ctx ssi.URI) did.Document {
+	contextPresent := false
+
+	for _, c := range document.Context {
+		if c.String() == ctx.String() {
+			contextPresent = true
+		}
+	}
+
+	if !contextPresent {
+		document.Context = append(document.Context, ctx)
+	}
+	return document
 }

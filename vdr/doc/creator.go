@@ -35,9 +35,27 @@ import (
 // NutsDIDMethodName is the DID method name used by Nuts
 const NutsDIDMethodName = "nuts"
 
+// NutsDIDContextV1 contains the Nuts specific JSON-LD context for a DID Document
+const NutsDIDContextV1 = "https://nuts.nl/did/v1"
+
+// JWS2020ContextV1 contains the JSON-LD context for JWS and JWK
+const JWS2020ContextV1 = "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
+
+// NutsDIDContextV1URI returns NutsDIDContextV1 as a URI
+func NutsDIDContextV1URI() ssi.URI {
+	return ssi.MustParseURI(NutsDIDContextV1)
+}
+
+// JWS2020ContextV1URI returns JWS2020ContextV1 as a URI
+func JWS2020ContextV1URI() ssi.URI {
+	return ssi.MustParseURI(JWS2020ContextV1)
+}
+
 // CreateDocument creates an empty DID document with baseline properties set.
 func CreateDocument() did.Document {
-	return did.Document{Context: []ssi.URI{did.DIDContextV1URI()}}
+	return did.Document{
+		Context: []ssi.URI{NutsDIDContextV1URI(), JWS2020ContextV1URI(), did.DIDContextV1URI()},
+	}
 }
 
 // Creator implements the DocCreator interface and can create Nuts DID Documents.

@@ -388,3 +388,22 @@ func TestVDR_resolveControllerKey(t *testing.T) {
 		assert.Equal(t, types.ErrDIDNotManagedByThisNode, err)
 	})
 }
+
+func TestWithJSONLDContext(t *testing.T) {
+	id, _ := did.ParseDID("did:nuts:123")
+	expected := did.Document{ID: *id, Context: []ssi.URI{doc.NutsDIDContextV1URI()}}
+
+	t.Run("added if not present", func(t *testing.T) {
+		document := did.Document{ID: *id}
+
+		patched := withJSONLDContext(document, doc.NutsDIDContextV1URI())
+
+		assert.EqualValues(t, expected.Context, patched.Context)
+	})
+
+	t.Run("no changes if existing", func(t *testing.T) {
+		patched := withJSONLDContext(expected, doc.NutsDIDContextV1URI())
+
+		assert.EqualValues(t, expected.Context, patched.Context)
+	})
+}
