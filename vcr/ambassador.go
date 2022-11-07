@@ -90,7 +90,7 @@ func (n ambassador) Start() error {
 		network.MaxReprocessBufferSize)
 	conn, _, err := n.eventManager.Pool().Acquire(context.Background())
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to REPROCESS event stream: %v", err)
+		return fmt.Errorf("failed to subscribe to REPROCESS event stream: %w", err)
 	}
 
 	err = stream.Subscribe(conn, "VCR", fmt.Sprintf("%s.*", events.ReprocessStream), n.handleReprocessEvent)

@@ -20,6 +20,7 @@
 package events
 
 import (
+	"github.com/nuts-foundation/nuts-node/test"
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -28,6 +29,7 @@ import (
 
 func NewTestManager(t *testing.T) Event {
 	config := DefaultConfig()
+	config.Nats.Port = test.FreeTCPPort()
 	testDir := io.TestDirectory(t)
 
 	eventManager := &manager{
