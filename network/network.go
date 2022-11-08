@@ -84,8 +84,8 @@ type Network struct {
 }
 
 // CheckHealth performs health checks for the network engine.
-func (n *Network) CheckHealth() map[string]core.HealthCheckResult {
-	results := make(map[string]core.HealthCheckResult)
+func (n *Network) CheckHealth() map[string]core.Health {
+	results := make(map[string]core.Health)
 	if n.certificate.Leaf != nil {
 		// TLS enabled, verify the configured certificate
 		_, err := n.certificate.Leaf.Verify(x509.VerifyOptions{
@@ -93,12 +93,12 @@ func (n *Network) CheckHealth() map[string]core.HealthCheckResult {
 			Intermediates: core.NewCertPool(n.trustStore.IntermediateCAs),
 		})
 		if err != nil {
-			results["tls"] = core.HealthCheckResult{
+			results["tls"] = core.Health{
 				Status:  core.HealthStatusDown,
 				Details: err.Error(),
 			}
 		} else {
-			results["tls"] = core.HealthCheckResult{
+			results["tls"] = core.Health{
 				Status: core.HealthStatusUp,
 			}
 		}

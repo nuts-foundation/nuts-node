@@ -19,7 +19,6 @@
 package status
 
 import (
-	"context"
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/mock"
@@ -110,10 +109,9 @@ func Test_status_healthChecks(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		echoContext := mock.NewMockContext(ctrl)
-		echoContext.EXPECT().Request().Return(&http.Request{})
-		echoContext.EXPECT().JSON(200, core.HealthCheckResult{
+		echoContext.EXPECT().JSON(200, core.Health{
 			Status:  core.HealthStatusUp,
-			Details: make(map[string]core.HealthCheckResult),
+			Details: make(map[string]core.Health),
 		})
 		s := status{system: core.NewSystem()}
 
@@ -125,13 +123,12 @@ func Test_status_healthChecks(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		echoContext := mock.NewMockContext(ctrl)
-		echoContext.EXPECT().Request().Return(&http.Request{})
 		echoContext.EXPECT().JSON(503, gomock.Any())
 		system := core.NewSystem()
 		system.RegisterEngine(&healthCheckingEngine{
 			name: "engine1",
-			check: func(_ context.Context) map[string]core.HealthCheckResult {
-				return map[string]core.HealthCheckResult{
+			check: func() map[string]core.Health {
+				return map[string]core.Health{
 					"check1": {
 						Status: core.HealthStatusDown,
 					},
@@ -159,8 +156,8 @@ func Test_status_doHealthChecks(t *testing.T) {
 		system := core.NewSystem()
 		system.RegisterEngine(&healthCheckingEngine{
 			name: "engine1",
-			check: func(_ context.Context) map[string]core.HealthCheckResult {
-				return map[string]core.HealthCheckResult{
+			check: func() map[string]core.Health {
+				return map[string]core.Health{
 					"check1": {
 						Status: core.HealthStatusUp,
 					},
@@ -183,8 +180,8 @@ func Test_status_doHealthChecks(t *testing.T) {
 		system := core.NewSystem()
 		system.RegisterEngine(&healthCheckingEngine{
 			name: "engine1",
-			check: func(_ context.Context) map[string]core.HealthCheckResult {
-				return map[string]core.HealthCheckResult{
+			check: func() map[string]core.Health {
+				return map[string]core.Health{
 					"check1": {
 						Status: core.HealthStatusUp,
 					},
@@ -202,13 +199,15 @@ func Test_status_doHealthChecks(t *testing.T) {
 	})
 }
 
+var _ core.HealthCheckable = (*healthCheckingEngine)(nil)
+
 type healthCheckingEngine struct {
 	name  string
-	check func(ctx context.Context) map[string]core.HealthCheckResult
+	check func() map[string]core.Health
 }
 
-func (h healthCheckingEngine) CheckHealth(ctx context.Context) map[string]core.HealthCheckResult {
-	return h.check(ctx)
+func (h healthCheckingEngine) CheckHealth() map[string]core.Health {
+	return h.check()
 }
 
 func (h healthCheckingEngine) Name() string {

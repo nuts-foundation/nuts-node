@@ -235,9 +235,10 @@ type Injectable interface {
 
 // HealthCheckable is the interface for engines that can perform health checks, which result can be reported to monitoring tooling.
 type HealthCheckable interface {
+	Named
 	// CheckHealth performs health checks and returns the result. The function should not perform expensive or slow operations
 	// and should return as fast as possible.
-	CheckHealth() map[string]HealthCheckResult
+	CheckHealth() map[string]Health
 }
 
 // HealthStatus defines the result status of a health check.
@@ -267,8 +268,8 @@ const (
 	HealthStatusUnknown HealthStatus = "UNKNOWN"
 )
 
-// HealthCheckResult is the result of a health check.
-type HealthCheckResult struct {
+// Health is the result of a health check.
+type Health struct {
 	// Status contains the status of the health check.
 	Status HealthStatus `json:"status"`
 	// Details contains optional details of the health check, can be nil.

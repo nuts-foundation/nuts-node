@@ -123,13 +123,13 @@ func (s *status) checkHealth(ctx echo.Context) error {
 	return ctx.JSON(responseCode, result)
 }
 
-func (s *status) doCheckHealth() core.HealthCheckResult {
-	results := make(map[string]core.HealthCheckResult, 0)
+func (s *status) doCheckHealth() core.Health {
+	results := make(map[string]core.Health, 0)
 	s.system.VisitEngines(func(engine core.Engine) {
 		checker, ok := engine.(core.HealthCheckable)
 		if ok {
 			for name, result := range checker.CheckHealth() {
-				results[strings.ToLower(core.GetEngineName(engine))+"."+name] = result
+				results[strings.ToLower(checker.Name()+"."+name)] = result
 			}
 		}
 	})
@@ -141,7 +141,7 @@ func (s *status) doCheckHealth() core.HealthCheckResult {
 			overallStatus = result.Status
 		}
 	}
-	result := core.HealthCheckResult{
+	result := core.Health{
 		Status:  overallStatus,
 		Details: results,
 	}
