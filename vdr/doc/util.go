@@ -19,20 +19,20 @@
 package doc
 
 import (
+	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"strings"
 )
 
 const serviceTypeQueryParameter = "type"
-const serviceEndpointPath = "serviceEndpoint"
+const serviceEndpointPath = "/serviceEndpoint"
 
 // MakeServiceReference creates a service reference, which can be used as query when looking up services.
 func MakeServiceReference(subjectDID did.DID, serviceType string) ssi.URI {
 	ref := subjectDID.URI()
-	ref.Opaque += "/" + serviceEndpointPath
+	ref.Opaque += serviceEndpointPath
 	ref.Fragment = ""
 	ref.RawQuery = fmt.Sprintf("%s=%s", serviceTypeQueryParameter, serviceType)
 	return ref
@@ -43,31 +43,47 @@ func IsServiceReference(endpoint string) bool {
 	return strings.HasPrefix(endpoint, "did:")
 }
 
+// DIDServiceQueryError denies the query based on validation constraints.
+type DIDServiceQueryError struct {
+	Err error // cause
+}
+
+// Error implements the error interface.
+func (e DIDServiceQueryError) Error() string {
+	return "DID service query invalid: " + e.Err.Error()
+}
+
+// Unwrap implements the errors.Unwrap convention.
+func (e DIDServiceQueryError) Unwrap() error { return e.Err }
+
 // ValidateServiceReference checks whether the given URI matches the format for a service reference.
 func ValidateServiceReference(endpointURI ssi.URI) error {
 	// Parse it as DID URL since DID URLs are rootless and thus opaque (RFC 3986), meaning the path will be part of the URI body, rather than the URI path.
 	// For DID URLs the path is parsed properly.
 	didEndpointURL, err := did.ParseDIDURL(endpointURI.String())
 	if err != nil {
-		return types.ErrInvalidServiceQuery{Cause: err}
+		return DIDServiceQueryError{err}
 	}
-	if didEndpointURL.Path != serviceEndpointPath {
-		// Service reference doesn't refer to `/serviceEndpoint`
-		return types.ErrInvalidServiceQuery{Cause: fmt.Errorf("URL path must be '/%s'", serviceEndpointPath)}
+
+	if "/"+didEndpointURL.Path != serviceEndpointPath {
+		return DIDServiceQueryError{errors.New("endpoint URI path must be " + serviceEndpointPath)}
 	}
-	queriedServiceType := endpointURI.Query().Get(serviceTypeQueryParameter)
-	typeQueryParameterError := types.ErrInvalidServiceQuery{Cause: fmt.Errorf("URL must contain exactly one '%s' query parameter, with exactly one value", serviceTypeQueryParameter)}
-	if len(queriedServiceType) == 0 {
-		// Service reference doesn't contain `type` query parameter
-		return typeQueryParameterError
+
+	q := endpointURI.Query()
+	switch len(q[serviceTypeQueryParameter]) {
+	case 1:
+		break // good
+	case 0:
+		return DIDServiceQueryError{errors.New("endpoint URI without " + serviceTypeQueryParameter + " query parameter")}
+	default:
+		return DIDServiceQueryError{errors.New("endpoint URI with multiple " + serviceTypeQueryParameter + " query parameters")}
 	}
-	if len(endpointURI.Query()[serviceTypeQueryParameter]) > 1 {
-		// Service reference contains more than 1 `type` query parameter
-		return typeQueryParameterError
+
+	// “Other query parameters, paths or fragments SHALL NOT be used.”
+	// — RFC006, subsection 4.2
+	if len(q) > 1 {
+		return DIDServiceQueryError{errors.New("endpoint URI with query parameter other than " + serviceTypeQueryParameter)}
 	}
-	if len(endpointURI.Query()) > 1 {
-		// Service reference contains more than just `type` query parameter
-		return typeQueryParameterError
-	}
+
 	return nil
 }

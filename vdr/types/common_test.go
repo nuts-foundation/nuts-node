@@ -88,12 +88,3 @@ func Test_deactivatedError_Is(t *testing.T) {
 	assert.ErrorIs(t, ErrNoActiveController, ErrDeactivated)
 	assert.NotErrorIs(t, io.EOF, ErrDeactivated)
 }
-
-func Test_ErrInvalidServiceQuery_Is(t *testing.T) {
-	assert.ErrorIs(t, ErrInvalidServiceQuery{}, ErrInvalidServiceQuery{})
-	assert.NotErrorIs(t, ErrInvalidServiceQuery{}, io.EOF)
-}
-
-func Test_ErrInvalidServiceQuery_Error(t *testing.T) {
-	assert.EqualError(t, ErrInvalidServiceQuery{Cause: io.EOF}, "service query is invalid: EOF")
-}
