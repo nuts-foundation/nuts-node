@@ -19,8 +19,6 @@
 package doc
 
 import (
-	"errors"
-
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
@@ -82,18 +80,13 @@ func (u Manipulator) RemoveVerificationMethod(id, keyID did.DID) error {
 	if meta.Deactivated {
 		return types.ErrDeactivated
 	}
-	removedVM := doc.VerificationMethod.Remove(keyID)
-	// Check if it is actually found and removed:
-	if removedVM == nil {
-		return errors.New("verificationMethod not found in document")
+	lenBefore := len(doc.VerificationMethod)
+	doc.RemoveVerificationMethod(keyID)
+	if lenBefore == len(doc.VerificationMethod) {
+		// do not update if nothing has changed
+		return nil
 	}
-
-	doc.AssertionMethod.Remove(keyID)
-	doc.Authentication.Remove(keyID)
-	doc.CapabilityInvocation.Remove(keyID)
-	doc.CapabilityDelegation.Remove(keyID)
-	doc.KeyAgreement.Remove(keyID)
-
+	
 	return u.Updater.Update(id, meta.Hash, *doc, nil)
 }
 

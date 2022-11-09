@@ -96,7 +96,8 @@ func TestManipulator_RemoveVerificationMethod(t *testing.T) {
 		ctx.mockResolver.EXPECT().Resolve(*id123, &types.ResolveMetadata{AllowDeactivated: true}).Return(&did.Document{ID: *id123}, &types.DocumentMetadata{}, nil)
 
 		err := ctx.manipulator.RemoveVerificationMethod(*id123, *id123Method)
-		assert.EqualError(t, err, "verificationMethod not found in document")
+
+		assert.NoError(t, err)
 	})
 
 	t.Run("error - document is deactivated", func(t *testing.T) {
