@@ -51,8 +51,8 @@ func (u Manipulator) Deactivate(id did.DID) error {
 }
 
 // AddVerificationMethod adds a new key as a VerificationMethod to the document.
-// The key is not used yet and should be manually added to one of the VerificationRelationships
-func (u Manipulator) AddVerificationMethod(id did.DID) (*did.VerificationMethod, error) {
+// The key is added to the VerficationMethod relationships specified by keyUsage.
+func (u Manipulator) AddVerificationMethod(id did.DID, keyUsage types.DIDKeyFlags) (*did.VerificationMethod, error) {
 	doc, meta, err := u.Resolver.Resolve(id, &types.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {
 		return nil, err
@@ -66,6 +66,7 @@ func (u Manipulator) AddVerificationMethod(id did.DID) (*did.VerificationMethod,
 	}
 	method.Controller = doc.ID
 	doc.VerificationMethod.Add(method)
+	applyKeyUsage(doc, method, keyUsage)
 	if err = u.Updater.Update(id, meta.Hash, *doc, nil); err != nil {
 		return nil, err
 	}
@@ -73,7 +74,6 @@ func (u Manipulator) AddVerificationMethod(id did.DID) (*did.VerificationMethod,
 }
 
 // RemoveVerificationMethod is a helper function to remove a verificationMethod from a DID Document
-// When the verificationMethod is used in an assertion or authentication method, it is also removed there.
 func (u Manipulator) RemoveVerificationMethod(id, keyID did.DID) error {
 	doc, meta, err := u.Resolver.Resolve(id, &types.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {
@@ -88,9 +88,12 @@ func (u Manipulator) RemoveVerificationMethod(id, keyID did.DID) error {
 		return errors.New("verificationMethod not found in document")
 	}
 
-	doc.CapabilityInvocation.Remove(keyID)
-	doc.Authentication.Remove(keyID)
 	doc.AssertionMethod.Remove(keyID)
+	doc.Authentication.Remove(keyID)
+	doc.CapabilityInvocation.Remove(keyID)
+	doc.CapabilityDelegation.Remove(keyID)
+	doc.KeyAgreement.Remove(keyID)
+
 	return u.Updater.Update(id, meta.Hash, *doc, nil)
 }
 

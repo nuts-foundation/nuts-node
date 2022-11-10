@@ -57,11 +57,12 @@ var jwkString = `{"crv":"P-256","kid":"did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg
 func TestDefaultCreationOptions(t *testing.T) {
 	ops := DefaultCreationOptions()
 
-	assert.True(t, ops.AssertionMethod)
-	assert.False(t, ops.Authentication)
-	assert.False(t, ops.CapabilityDelegation)
-	assert.True(t, ops.CapabilityInvocation)
-	assert.True(t, ops.KeyAgreement)
+	usage := ops.KeyFlags
+	assert.True(t, usage.Is(types.AssertionMethodUsage))
+	assert.False(t, usage.Is(types.AuthenticationUsage))
+	assert.False(t, usage.Is(types.CapabilityDelegationUsage))
+	assert.True(t, usage.Is(types.CapabilityInvocationUsage))
+	assert.True(t, usage.Is(types.KeyAgreementUsage))
 	assert.True(t, ops.SelfControl)
 	assert.Empty(t, ops.Controllers)
 }
@@ -88,12 +89,12 @@ func TestCreator_Create(t *testing.T) {
 
 		t.Run("all keys", func(t *testing.T) {
 			ops := types.DIDCreationOptions{
-				AssertionMethod:      true,
-				Authentication:       true,
-				CapabilityDelegation: true,
-				CapabilityInvocation: true,
-				KeyAgreement:         true,
-				SelfControl:          true,
+				KeyFlags: types.AssertionMethodUsage |
+					types.AuthenticationUsage |
+					types.CapabilityDelegationUsage |
+					types.CapabilityInvocationUsage |
+					types.KeyAgreementUsage,
+				SelfControl: true,
 			}
 			doc, _, err := creator.Create(ops)
 
@@ -111,10 +112,9 @@ func TestCreator_Create(t *testing.T) {
 		t.Run("extra controller", func(t *testing.T) {
 			c, _ := did.ParseDID("did:nuts:controller")
 			ops := types.DIDCreationOptions{
-				AssertionMethod:      true,
-				CapabilityInvocation: true,
-				SelfControl:          true,
-				Controllers:          []did.DID{*c},
+				KeyFlags:    types.AssertionMethodUsage | types.CapabilityInvocationUsage,
+				SelfControl: true,
+				Controllers: []did.DID{*c},
 			}
 			doc, _, err := creator.Create(ops)
 
@@ -141,12 +141,8 @@ func TestCreator_Create(t *testing.T) {
 			})
 
 			ops := types.DIDCreationOptions{
-				AssertionMethod:      true,
-				Authentication:       false,
-				CapabilityDelegation: false,
-				CapabilityInvocation: false,
-				KeyAgreement:         false,
-				SelfControl:          false,
+				KeyFlags:    types.AssertionMethodUsage,
+				SelfControl: false,
 			}
 			doc, docCreationKey, err := creator.Create(ops)
 
@@ -172,8 +168,8 @@ func TestCreator_Create(t *testing.T) {
 
 	t.Run("error - invalid combination", func(t *testing.T) {
 		ops := types.DIDCreationOptions{
-			CapabilityInvocation: false,
-			SelfControl:          true,
+			// CapabilityInvocation is not enabled, required when SelfControl = true
+			SelfControl: true,
 		}
 		kc := newMockKeyCreator()
 		creator := Creator{KeyStore: kc}
@@ -203,12 +199,8 @@ func TestCreator_Create(t *testing.T) {
 		defer ctrl.Finish()
 		creator := Creator{KeyStore: mockKeyStore}
 		ops := types.DIDCreationOptions{
-			AssertionMethod:      true,
-			Authentication:       false,
-			CapabilityDelegation: false,
-			CapabilityInvocation: false,
-			KeyAgreement:         false,
-			SelfControl:          false,
+			KeyFlags:    types.AssertionMethodUsage,
+			SelfControl: false,
 		}
 		mockKeyStore.EXPECT().New(gomock.Any()).Return(nil, errors.New("b00m!"))
 

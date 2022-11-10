@@ -22,34 +22,6 @@ const (
 	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
 )
 
-// DIDCreateRequest defines model for DIDCreateRequest.
-type DIDCreateRequest struct {
-	// indicates if the generated key pair can be used for assertions.
-	AssertionMethod *bool `json:"assertionMethod,omitempty"`
-
-	// indicates if the generated key pair can be used for authentication.
-	Authentication *bool `json:"authentication,omitempty"`
-
-	// indicates if the generated key pair can be used for capability delegations.
-	CapabilityDelegation *bool `json:"capabilityDelegation,omitempty"`
-
-	// indicates if the generated key pair can be used for altering DID Documents.
-	// In combination with selfControl = true, the key can be used to alter the new DID Document.
-	// Defaults to true when not given.
-	// default: true
-	CapabilityInvocation *bool `json:"capabilityInvocation,omitempty"`
-
-	// List of DIDs that can control the new DID Document. If selfControl = true and controllers is not empty,
-	// the newly generated DID will be added to the list of controllers.
-	Controllers *[]string `json:"controllers,omitempty"`
-
-	// indicates if the generated key pair can be used for Key agreements.
-	KeyAgreement *bool `json:"keyAgreement,omitempty"`
-
-	// whether the generated DID Document can be altered with its own capabilityInvocation key.
-	SelfControl *bool `json:"selfControl,omitempty"`
-}
-
 // DIDResolutionResult defines model for DIDResolutionResult.
 type DIDResolutionResult struct {
 	// A DID document according to the W3C spec following the Nuts Method rules as defined in [Nuts RFC006]
@@ -90,11 +62,17 @@ type GetDIDParams struct {
 // UpdateDIDJSONBody defines parameters for UpdateDID.
 type UpdateDIDJSONBody = DIDUpdateRequest
 
+// AddNewVerificationMethodJSONBody defines parameters for AddNewVerificationMethod.
+type AddNewVerificationMethodJSONBody = VerificationMethodRelationship
+
 // CreateDIDJSONRequestBody defines body for CreateDID for application/json ContentType.
 type CreateDIDJSONRequestBody = CreateDIDJSONBody
 
 // UpdateDIDJSONRequestBody defines body for UpdateDID for application/json ContentType.
 type UpdateDIDJSONRequestBody = UpdateDIDJSONBody
+
+// AddNewVerificationMethodJSONRequestBody defines body for AddNewVerificationMethod for application/json ContentType.
+type AddNewVerificationMethodJSONRequestBody = AddNewVerificationMethodJSONBody
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -188,8 +166,10 @@ type ClientInterface interface {
 
 	UpdateDID(ctx context.Context, did string, body UpdateDIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// AddNewVerificationMethod request
-	AddNewVerificationMethod(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// AddNewVerificationMethod request with any body
+	AddNewVerificationMethodWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	AddNewVerificationMethod(ctx context.Context, did string, body AddNewVerificationMethodJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteVerificationMethod request
 	DeleteVerificationMethod(ctx context.Context, did string, kid string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -279,8 +259,20 @@ func (c *Client) UpdateDID(ctx context.Context, did string, body UpdateDIDJSONRe
 	return c.Client.Do(req)
 }
 
-func (c *Client) AddNewVerificationMethod(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewAddNewVerificationMethodRequest(c.Server, did)
+func (c *Client) AddNewVerificationMethodWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddNewVerificationMethodRequestWithBody(c.Server, did, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) AddNewVerificationMethod(ctx context.Context, did string, body AddNewVerificationMethodJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddNewVerificationMethodRequest(c.Server, did, body)
 	if err != nil {
 		return nil, err
 	}
@@ -521,8 +513,19 @@ func NewUpdateDIDRequestWithBody(server string, did string, contentType string, 
 	return req, nil
 }
 
-// NewAddNewVerificationMethodRequest generates requests for AddNewVerificationMethod
-func NewAddNewVerificationMethodRequest(server string, did string) (*http.Request, error) {
+// NewAddNewVerificationMethodRequest calls the generic AddNewVerificationMethod builder with application/json body
+func NewAddNewVerificationMethodRequest(server string, did string, body AddNewVerificationMethodJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAddNewVerificationMethodRequestWithBody(server, did, "application/json", bodyReader)
+}
+
+// NewAddNewVerificationMethodRequestWithBody generates requests for AddNewVerificationMethod with any type of body
+func NewAddNewVerificationMethodRequestWithBody(server string, did string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -547,10 +550,12 @@ func NewAddNewVerificationMethodRequest(server string, did string) (*http.Reques
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	req, err := http.NewRequest("POST", queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -658,8 +663,10 @@ type ClientWithResponsesInterface interface {
 
 	UpdateDIDWithResponse(ctx context.Context, did string, body UpdateDIDJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateDIDResponse, error)
 
-	// AddNewVerificationMethod request
-	AddNewVerificationMethodWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*AddNewVerificationMethodResponse, error)
+	// AddNewVerificationMethod request with any body
+	AddNewVerificationMethodWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddNewVerificationMethodResponse, error)
+
+	AddNewVerificationMethodWithResponse(ctx context.Context, did string, body AddNewVerificationMethodJSONRequestBody, reqEditors ...RequestEditorFn) (*AddNewVerificationMethodResponse, error)
 
 	// DeleteVerificationMethod request
 	DeleteVerificationMethodWithResponse(ctx context.Context, did string, kid string, reqEditors ...RequestEditorFn) (*DeleteVerificationMethodResponse, error)
@@ -875,9 +882,17 @@ func (c *ClientWithResponses) UpdateDIDWithResponse(ctx context.Context, did str
 	return ParseUpdateDIDResponse(rsp)
 }
 
-// AddNewVerificationMethodWithResponse request returning *AddNewVerificationMethodResponse
-func (c *ClientWithResponses) AddNewVerificationMethodWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*AddNewVerificationMethodResponse, error) {
-	rsp, err := c.AddNewVerificationMethod(ctx, did, reqEditors...)
+// AddNewVerificationMethodWithBodyWithResponse request with arbitrary body returning *AddNewVerificationMethodResponse
+func (c *ClientWithResponses) AddNewVerificationMethodWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddNewVerificationMethodResponse, error) {
+	rsp, err := c.AddNewVerificationMethodWithBody(ctx, did, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddNewVerificationMethodResponse(rsp)
+}
+
+func (c *ClientWithResponses) AddNewVerificationMethodWithResponse(ctx context.Context, did string, body AddNewVerificationMethodJSONRequestBody, reqEditors ...RequestEditorFn) (*AddNewVerificationMethodResponse, error) {
+	rsp, err := c.AddNewVerificationMethod(ctx, did, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
