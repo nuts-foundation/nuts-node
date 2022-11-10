@@ -172,8 +172,7 @@ func TestCmd_Issue(t *testing.T) {
 	const credentialSubject = `{"ID": "did:nuts:subject"}`
 	var contextURI = "http://context"
 	var visibility = v2.IssueVCRequestVisibility("private")
-	var boolFalse = false
-	var boolTrue = true
+	truep := func() *bool { t := true; return &t }
 
 	buf := new(bytes.Buffer)
 
@@ -202,7 +201,7 @@ func TestCmd_Issue(t *testing.T) {
 				"ID": "did:nuts:subject",
 			},
 			Issuer:           issuerDID,
-			PublishToNetwork: &boolTrue,
+			PublishToNetwork: truep(),
 			Type:             credentialType,
 			Visibility:       &visibility,
 		}
@@ -226,7 +225,7 @@ func TestCmd_Issue(t *testing.T) {
 				"ID": "did:nuts:subject",
 			},
 			Issuer:           issuerDID,
-			PublishToNetwork: &boolTrue,
+			PublishToNetwork: truep(),
 			Type:             credentialType,
 			Visibility:       &visibility,
 			ExpirationDate:   &expirationDate,
@@ -250,7 +249,7 @@ func TestCmd_Issue(t *testing.T) {
 				"ID": "did:nuts:subject",
 			},
 			Issuer:           issuerDID,
-			PublishToNetwork: &boolFalse,
+			PublishToNetwork: new(bool),
 			Type:             credentialType,
 		}
 		expected, _ := json.Marshal(request)

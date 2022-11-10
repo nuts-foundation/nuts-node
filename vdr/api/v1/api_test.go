@@ -78,18 +78,17 @@ func TestWrapper_CreateDID(t *testing.T) {
 		ctx := newMockContext(t)
 
 		var didDocReturn did.Document
-		varTrue := true
-		varFalse := false
 		controllers := []string{"did:nuts:2"}
+		truep := func() *bool { t := true; return &t }
 		didCreateRequest := DIDCreateRequest{
 			VerificationMethodRelationship: VerificationMethodRelationship{
-				AssertionMethod:      &varFalse,
-				Authentication:       &varTrue,
-				CapabilityDelegation: &varTrue,
-				CapabilityInvocation: &varFalse,
-				KeyAgreement:         &varTrue,
+				AssertionMethod:      new(bool),
+				Authentication:       truep(),
+				CapabilityDelegation: truep(),
+				CapabilityInvocation: new(bool),
+				KeyAgreement:         truep(),
 			},
-			SelfControl: &varFalse,
+			SelfControl: new(bool),
 			Controllers: &controllers,
 		}
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
