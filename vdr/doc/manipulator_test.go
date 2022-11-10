@@ -91,7 +91,7 @@ func TestManipulator_RemoveVerificationMethod(t *testing.T) {
 		assert.Empty(t, doc.VerificationMethod)
 	})
 
-	t.Run("error - verificationMethod is not part of the document", func(t *testing.T) {
+	t.Run("ok - verificationMethod is not part of the document", func(t *testing.T) {
 		ctx := newManipulatorTestContext(t)
 		ctx.mockResolver.EXPECT().Resolve(*id123, &types.ResolveMetadata{AllowDeactivated: true}).Return(&did.Document{ID: *id123}, &types.DocumentMetadata{}, nil)
 
