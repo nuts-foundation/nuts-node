@@ -23,6 +23,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/sha1"
 	"encoding/json"
+	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
 	"time"
@@ -124,9 +125,7 @@ func TestStore_writeCredential(t *testing.T) {
 
 		err := ctx.vcr.writeCredential(target)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		doc, err := ctx.vcr.credentialCollection().Get(ref[:])
 		assert.NoError(t, err)
 		assert.NotNil(t, doc)
@@ -140,9 +139,7 @@ func TestStore_writeCredential(t *testing.T) {
 
 		err := ctx.vcr.writeCredential(vc)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		doc, err := ctx.vcr.credentialCollection().Get(ref[:])
 		assert.NoError(t, err)
 		assert.NotNil(t, doc)

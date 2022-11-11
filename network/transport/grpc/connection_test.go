@@ -21,6 +21,7 @@ package grpc
 import (
 	"context"
 	"github.com/nuts-foundation/nuts-node/test"
+	"github.com/stretchr/testify/require"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -150,9 +151,7 @@ func TestConn_Send(t *testing.T) {
 
 		for i := 0; i < outboxSoftLimit; i++ {
 			err := connection.Send(protocol, struct{}{}, false)
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 		}
 
 		t.Run("outbox overflows without ignoreSoftLimit", func(t *testing.T) {
@@ -178,9 +177,7 @@ func TestConn_Send(t *testing.T) {
 
 		for i := 0; i < OutboxHardLimit; i++ {
 			err := connection.Send(protocol, struct{}{}, true)
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 		}
 
 		t.Run("outbox overflows without ignoreSoftLimit", func(t *testing.T) {

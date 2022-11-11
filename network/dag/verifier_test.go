@@ -24,6 +24,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
@@ -128,9 +129,7 @@ func TestTransactionSignatureVerifier(t *testing.T) {
 		keyResolver.EXPECT().ResolvePublicKey(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
 
 		err := NewTransactionSignatureVerifier(keyResolver)(nil, d)
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 
 		assert.Contains(t, err.Error(), "unable to verify transaction signature, can't resolve key by TX ref")
 		assert.Contains(t, err.Error(), "failed")

@@ -21,6 +21,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -29,17 +30,13 @@ import (
 func TestPublicKeyEntry_UnmarshalJSON(t *testing.T) {
 	t.Run("error - incorrect json", func(t *testing.T) {
 		err := (&PublicKeyEntry{}).UnmarshalJSON([]byte("}"))
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 		assert.Equal(t, "invalid character '}' looking for beginning of value", err.Error())
 	})
 
 	t.Run("error - invalid publicKeyJwk format", func(t *testing.T) {
 		err := (&PublicKeyEntry{}).UnmarshalJSON([]byte("{\"publicKeyJwk\":{}}"))
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 		assert.Equal(t, "could not parse publicKeyEntry: invalid publickeyJwk: invalid key type from JSON ()", err.Error())
 	})
 }
@@ -50,9 +47,7 @@ func TestPublicKeyEntry_FromJWK(t *testing.T) {
 
 	entry := PublicKeyEntry{}
 	err := entry.FromJWK(pk)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	assert.NotEmpty(t, entry.Key)
 	assert.Same(t, pk, entry.parsedJWK)
 }

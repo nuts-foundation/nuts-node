@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"testing"
 
@@ -851,9 +852,7 @@ func TestWrapper_Trusted(t *testing.T) {
 
 		err := ctx.client.ListTrusted(ctx.echo, credentialType.String())
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.Len(t, capturedList, 1)
 		assert.Equal(t, credentialType.String(), capturedList[0])
@@ -886,9 +885,7 @@ func TestWrapper_Untrusted(t *testing.T) {
 
 		err := ctx.client.ListUntrusted(ctx.echo, credentialType.String())
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.Len(t, capturedList, 1)
 		assert.Equal(t, credentialType.String(), capturedList[0])

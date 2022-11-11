@@ -21,6 +21,7 @@ package grpc
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
 
@@ -59,9 +60,7 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 
 		authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transport.Peer{})
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, authenticatedPeer.NodeDID, nodeDID)
 	})
 	t.Run("ok - case insensitive comparison", func(t *testing.T) {
@@ -72,9 +71,7 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 
 		authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transport.Peer{})
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, authenticatedPeer.NodeDID, nodeDID)
 	})
 	t.Run("ok - wildcard comparison", func(t *testing.T) {
@@ -92,9 +89,7 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 
 		authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transport.Peer{})
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, authenticatedPeer.NodeDID, nodeDID)
 	})
 	t.Run("without acceptUnauthenticated", func(t *testing.T) {

@@ -25,6 +25,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/piprate/json-gold/ld"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
 )
@@ -47,9 +48,7 @@ func TestNutsV1Context(t *testing.T) {
 		processor := ld.NewJsonLdProcessor()
 
 		compacted, err := processor.Compact(documents[0], nil, options)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		expanded, err := processor.Expand(compacted, options)
 
 		assert.Equal(t, documents[0], expanded[0])
@@ -67,9 +66,7 @@ func TestNutsV1Context(t *testing.T) {
 		processor := ld.NewJsonLdProcessor()
 
 		compacted, err := processor.Compact(documents[0], nil, options)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		expanded, err := processor.Expand(compacted, options)
 
 		assert.Equal(t, documents[0], expanded[0])

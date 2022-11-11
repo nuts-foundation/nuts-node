@@ -21,6 +21,7 @@ package crypto
 import (
 	"crypto"
 	"errors"
+	"github.com/stretchr/testify/require"
 	"reflect"
 	"testing"
 
@@ -103,9 +104,7 @@ func TestCrypto_Resolve(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		resolvedKey, err := client.Resolve("kid")
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.Equal(t, key, resolvedKey)
 	})
@@ -136,9 +135,7 @@ func TestCrypto_Configure(t *testing.T) {
 	t.Run("ok - default = fs backend", func(t *testing.T) {
 		client := createCrypto(t)
 		err := client.Configure(cfg)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		storageType := reflect.TypeOf(client.Storage).String()
 		assert.Equal(t, "*storage.fileSystemBackend", storageType)
 	})

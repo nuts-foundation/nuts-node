@@ -23,6 +23,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/stretchr/testify/require"
 	"hash/crc32"
 	"path"
 	"sync"
@@ -63,18 +64,14 @@ func TestProtocolV2_Pagination(t *testing.T) {
 	t.Logf("Creating %d transactions...", numberOfTransactions)
 	rootTX, _, _ := dag.CreateTestTransaction(1)
 	err := node1.state.Add(context.Background(), rootTX, []byte{0, 0, 0, 1})
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	prev := rootTX
 	transactions := make([]dag.Transaction, numberOfTransactions)
 	transactions[0] = rootTX
 	for i := 0; i < numberOfTransactions-1; i++ { // minus 1 to subtract root TX
 		tx, _, _ := dag.CreateTestTransaction(uint32(i+2), prev)
 		err := node1.state.Add(context.Background(), tx, []byte{0, 0, 0, byte(i + 2)})
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		prev = tx
 		transactions[i+1] = tx
 	}

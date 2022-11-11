@@ -20,6 +20,7 @@
 package jsonld
 
 import (
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -29,36 +30,28 @@ func TestParseScalar(t *testing.T) {
 	t.Run("ok - string", func(t *testing.T) {
 		s, err := ParseScalar("string")
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, "string", s.Value())
 	})
 
 	t.Run("ok - number", func(t *testing.T) {
 		s, err := ParseScalar(1.0)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, 1.0, s.Value())
 	})
 
 	t.Run("ok - true", func(t *testing.T) {
 		s, err := ParseScalar(true)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, true, s.Value())
 	})
 
 	t.Run("ok - false", func(t *testing.T) {
 		s, err := ParseScalar(false)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, false, s.Value())
 	})
 

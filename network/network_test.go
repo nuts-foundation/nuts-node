@@ -26,6 +26,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/stretchr/testify/require"
 	"math"
 	"sync"
 	"testing"
@@ -169,9 +170,7 @@ func TestNetwork_Configure(t *testing.T) {
 
 		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		actual, err := ctx.network.nodeDIDResolver.Resolve()
 		assert.IsType(t, &transport.FixedNodeDIDResolver{}, ctx.network.nodeDIDResolver)
 		assert.NoError(t, err)
@@ -184,9 +183,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 
 		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.IsType(t, transport.NewAutoNodeDIDResolver(nil, nil), ctx.network.nodeDIDResolver)
 	})
 	t.Run("ok - no DID set in strict mode, should return empty node DID", func(t *testing.T) {
@@ -196,9 +193,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 
 		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t), Strictmode: true}))
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		actual, err := ctx.network.nodeDIDResolver.Resolve()
 		assert.IsType(t, &transport.FixedNodeDIDResolver{}, ctx.network.nodeDIDResolver)
 		assert.NoError(t, err)
@@ -232,9 +227,7 @@ func TestNetwork_Configure(t *testing.T) {
 		}
 		err := ctx.network.Configure(cfg)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 	})
 
 	t.Run("ok - TLS disabled", func(t *testing.T) {
@@ -246,9 +239,7 @@ func TestNetwork_Configure(t *testing.T) {
 
 		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 	})
 
 	t.Run("error - TLS disabled in strict mode", func(t *testing.T) {
@@ -274,9 +265,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx.network.connectionManager = nil
 
 		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 	})
 
 	t.Run("error - disabling node DID check not allowed in strict mode", func(t *testing.T) {
@@ -313,9 +302,7 @@ func TestNetwork_Configure(t *testing.T) {
 
 		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 	})
 
 	t.Run("error - unable to configure protocol", func(t *testing.T) {
@@ -401,9 +388,7 @@ func TestNetwork_PeerDiagnostics(t *testing.T) {
 	cxt.network.protocols = append(cxt.network.protocols, protocol2)
 
 	err := cxt.start()
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	actual := cxt.network.PeerDiagnostics()
 
@@ -419,9 +404,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		payload := []byte("Hello, World!")
 		cxt := createNetwork(t, ctrl)
 		err := cxt.start()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		cxt.state.EXPECT().Head(gomock.Any())
 		cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
@@ -435,9 +418,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		defer ctrl.Finish()
 		cxt := createNetwork(t, ctrl)
 		err := cxt.start()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		cxt.state.EXPECT().Head(gomock.Any())
 		cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
 		tx, err := cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key))
@@ -463,15 +444,11 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
 
 		err := cxt.start()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		tx, err := cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key).WithAdditionalPrevs([]hash.SHA256Hash{additionalPrev.Ref()}))
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Len(t, tx.Previous(), 2)
 		assert.Equal(t, rootTX.Ref(), tx.Previous()[0])
 		assert.Equal(t, additionalPrev.Ref(), tx.Previous()[1])
@@ -482,9 +459,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		defer ctrl.Finish()
 		cxt := createNetwork(t, ctrl)
 		err := cxt.start()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		// 'Register' prev on DAG
 		prev, _, _ := dag.CreateTestTransaction(1)
@@ -509,9 +484,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 			payload := []byte("Hello, World!")
 			cxt := createNetwork(t, ctrl)
 			err := cxt.start()
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 
@@ -530,9 +503,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 			payload := []byte("Hello, World!")
 			cxt := createNetwork(t, ctrl)
 			err := cxt.start()
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 
 			_, err = cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key).WithPrivate([]did.DID{*sender, *receiver}))
 			assert.EqualError(t, err, "node DID must be configured to create private transactions")
@@ -565,9 +536,7 @@ func TestNetwork_Start(t *testing.T) {
 
 		err := cxt.start()
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.NotNil(t, cxt.network.startTime.Load())
 	})
 	t.Run("ok - connects to bootstrap nodes", func(t *testing.T) {
@@ -580,9 +549,7 @@ func TestNetwork_Start(t *testing.T) {
 		cxt.connectionManager.EXPECT().Connect("bootstrap-node-1", gomock.Any()).Do(func(arg1 interface{}, arg2 interface{}) {
 			// assert that transport.WithUnauthenticated() is passed as option
 			f, ok := arg2.(transport.ConnectionOption)
-			if !assert.True(t, ok) {
-				return
-			}
+			require.True(t, ok)
 			peer := transport.Peer{}
 			f(&peer)
 			assert.True(t, peer.AcceptUnauthenticated)
@@ -591,9 +558,7 @@ func TestNetwork_Start(t *testing.T) {
 
 		err := cxt.start()
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 	})
 	t.Run("error - state start failed", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -706,9 +671,7 @@ func TestNetwork_Shutdown(t *testing.T) {
 
 		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		err = ctx.network.Shutdown()
 		assert.NoError(t, err)
 	})
@@ -963,9 +926,7 @@ func TestNetwork_calculateLamportClock(t *testing.T) {
 
 		clock, err := cxt.network.calculateLamportClock(context.Background(), nil)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, uint32(0), clock)
 	})
 
@@ -976,9 +937,7 @@ func TestNetwork_calculateLamportClock(t *testing.T) {
 
 		clock, err := cxt.network.calculateLamportClock(context.Background(), []hash.SHA256Hash{root.Ref()})
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, uint32(1), clock)
 	})
 
@@ -993,9 +952,7 @@ func TestNetwork_calculateLamportClock(t *testing.T) {
 
 		clock, err := cxt.network.calculateLamportClock(context.Background(), []hash.SHA256Hash{C.Ref(), root.Ref()})
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, uint32(4), clock)
 	})
 

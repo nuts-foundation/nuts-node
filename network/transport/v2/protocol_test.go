@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
+	"github.com/stretchr/testify/require"
 	"strings"
 	"testing"
 	"time"
@@ -509,9 +510,7 @@ func TestProtocol_decryptPAL(t *testing.T) {
 
 		pal, err := proto.decryptPAL([][]byte{})
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.Nil(t, pal)
 	})
@@ -544,9 +543,7 @@ func TestProtocol_decryptPAL(t *testing.T) {
 
 		pal, err := proto.decryptPAL(tx.PAL())
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.Equal(t, dag.PAL([]did.DID{*testDID, *testDID2}), pal)
 	})

@@ -1,22 +1,22 @@
 indices:
   - name: index_id
     parts:
-      - iriPath: []
+      - iriPath: [ ]
   - name: index_issuer
     parts:
-      - iriPath: ["https://www.w3.org/2018/credentials#issuer"]
+      - iriPath: [ "https://www.w3.org/2018/credentials#issuer" ]
   - name: index_subject
     parts:
-      - iriPath: ["https://www.w3.org/2018/credentials#credentialSubject"]
+      - iriPath: [ "https://www.w3.org/2018/credentials#credentialSubject" ]
   - name: index_organization
     parts:
-      - iriPath: ["https://www.w3.org/2018/credentials#credentialSubject", "http://schema.org/organization", "http://schema.org/legalname"]
+      - iriPath: [ "https://www.w3.org/2018/credentials#credentialSubject", "http://schema.org/organization", "http://schema.org/legalname" ]
         tokenizer: whitespaceOrExact
         transformer: cologne
-      - iriPath: ["https://www.w3.org/2018/credentials#credentialSubject", "http://schema.org/organization", "http://schema.org/city"]
+      - iriPath: [ "https://www.w3.org/2018/credentials#credentialSubject", "http://schema.org/organization", "http://schema.org/city" ]
         tokenizer: whitespaceOrExact
         transformer: cologne
   - name: index_auth_subject
     parts:
-      - iriPath: ["https://www.w3.org/2018/credentials#credentialSubject"]
-      - iriPath: ["https://www.w3.org/2018/credentials#credentialSubject", "https://nuts.nl/credentials/v1#subject"]
+      - iriPath: [ "https://www.w3.org/2018/credentials#credentialSubject" ]
+      - iriPath: [ "https://www.w3.org/2018/credentials#credentialSubject", "https://nuts.nl/credentials/v1#subject" ]

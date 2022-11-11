@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/stretchr/testify/require"
 	"os"
 	"path"
 	"sort"
@@ -53,9 +54,7 @@ func Test_fs_GetPrivateKey(t *testing.T) {
 		path := storage.(*fileSystemBackend).getEntryPath(kid, privateKeyEntry)
 		file, _ := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0644)
 		_, err := file.WriteString("hello world")
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		key, err := storage.GetPrivateKey(kid)
 
@@ -68,16 +67,12 @@ func Test_fs_GetPrivateKey(t *testing.T) {
 		kid := "kid"
 
 		err := storage.SavePrivateKey(kid, pk)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		key, err := storage.GetPrivateKey(kid)
 
 		assert.NoError(t, err)
-		if !assert.NotNil(t, key) {
-			return
-		}
+		require.NotNil(t, key)
 		assert.Equal(t, pk, key)
 	})
 }

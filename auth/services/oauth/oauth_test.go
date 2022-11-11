@@ -27,6 +27,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"net/url"
 	"testing"
 	"time"
@@ -116,9 +117,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 
 		response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: "foo"})
 		assert.Nil(t, response)
-		if assert.NotNil(t, err) {
-			assert.Contains(t, err.Error(), "jwt bearer token validation failed")
-		}
+		require.ErrorContains(t, err, "jwt bearer token validation failed")
 	})
 
 	t.Run("broken identity token", func(t *testing.T) {
@@ -134,9 +133,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
 
 		assert.Nil(t, response)
-		if assert.NotNil(t, err) {
-			assert.Contains(t, err.Error(), "identity validation failed")
-		}
+		require.ErrorContains(t, err, "identity validation failed")
 	})
 
 	t.Run("JWT validity too long", func(t *testing.T) {
@@ -149,10 +146,9 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		signToken(tokenCtx)
 
 		response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
+
 		assert.Nil(t, response)
-		if assert.NotNil(t, err) {
-			assert.Contains(t, err.Error(), "JWT validity too long")
-		}
+		require.ErrorContains(t, err, "JWT validity too long")
 	})
 
 	t.Run("invalid identity token", func(t *testing.T) {
@@ -168,10 +164,9 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		signToken(tokenCtx)
 
 		response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
+
 		assert.Nil(t, response)
-		if assert.NotNil(t, err) {
-			assert.Contains(t, err.Error(), "identity validation failed: because of reasons")
-		}
+		require.ErrorContains(t, err, "identity validation failed: because of reasons")
 	})
 
 	t.Run("valid - without user identity", func(t *testing.T) {
@@ -191,9 +186,8 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		signToken(tokenCtx)
 
 		response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
-		if !assert.NoError(t, err) {
-			return
-		}
+
+		require.NoError(t, err)
 		assert.Equal(t, "expectedAccessToken", response.AccessToken)
 	})
 
@@ -218,9 +212,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		signToken(tokenCtx)
 
 		response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, "expectedAT", response.AccessToken)
 	})
 }
@@ -323,9 +315,7 @@ func TestService_validateSubject(t *testing.T) {
 		ctx.privateKeyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(false)
 
 		err := ctx.oauthService.validateSubject(tokenCtx)
-		if assert.NotNil(t, err) {
-			assert.Contains(t, err.Error(), "is not managed by this node")
-		}
+		require.ErrorContains(t, err, "is not managed by this node")
 	})
 }
 
@@ -338,9 +328,7 @@ func TestService_validatePurposeOfUse(t *testing.T) {
 
 		err := ctx.oauthService.validatePurposeOfUse(tokenCtx)
 
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 
 		assert.EqualError(t, err, "no purposeOfUse given")
 	})
@@ -367,9 +355,7 @@ func TestService_validateAud(t *testing.T) {
 
 		err := ctx.oauthService.validateAudience(tokenCtx)
 
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 
 		assert.EqualError(t, err, "aud does not contain a single URI")
 	})
@@ -382,9 +368,7 @@ func TestService_validateAud(t *testing.T) {
 
 		err := ctx.oauthService.validateAudience(tokenCtx)
 
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 
 		assert.Equal(t, types.ErrNotFound, err)
 	})
@@ -398,9 +382,7 @@ func TestService_validateAud(t *testing.T) {
 
 		err := ctx.oauthService.validateAudience(tokenCtx)
 
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 
 		assert.EqualError(t, err, "aud does not contain correct endpoint URL")
 	})
@@ -417,9 +399,7 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 		ctx.verifier.EXPECT().Verify(gomock.Any(), true, true, gomock.Any()).Return(nil)
 		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.NotNil(t, tokenCtx.credentialIDs)
 		assert.Equal(t, "did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW#1", tokenCtx.credentialIDs[0])
@@ -452,9 +432,7 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 
 		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 		assert.EqualError(t, err, "invalid jwt.vcs: field does not contain an array of credentials")
 	})
 
@@ -465,9 +443,7 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 
 		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 		assert.EqualError(t, err, "invalid jwt.vcs: cannot unmarshal authorization credential: json: cannot unmarshal string into Go value of type map[string]interface {}")
 	})
 
@@ -479,9 +455,7 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 
 		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 		assert.EqualError(t, err, "credentialSubject.ID did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY of authorization credential with ID: did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW#1 does not match jwt.iss: unknown")
 	})
 
@@ -493,9 +467,7 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 
 		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 		assert.EqualError(t, err, "issuer did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW of authorization credential with ID: did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW#1 does not match jwt.sub: unknown")
 	})
 
@@ -507,9 +479,7 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 
 		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 		assert.EqualError(t, err, "invalid jwt.vcs: credential is revoked")
 	})
 }
@@ -546,9 +516,7 @@ func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 		hdrs := jws.NewHeaders()
 		hdrs.Set(jws.KeyIDKey, keyID)
 		signedToken, err := jwt.Sign(token, jwa.RS256, privateKey, jwt.WithHeaders(hdrs))
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		tokenCtx := &validationContext{
 			rawJwtBearerToken: string(signedToken),
@@ -642,9 +610,7 @@ func TestService_buildAccessToken(t *testing.T) {
 		assert.Equal(t, "expectedAT", token)
 		assert.Equal(t, authorizerDID.String(), recordedClaims["iss"])
 		recordedCredentials, ok := recordedClaims["vcs"].([]interface{})
-		if !assert.True(t, ok) {
-			return
-		}
+		require.True(t, ok)
 		assert.Equal(t, "credential", recordedCredentials[0])
 	})
 }
@@ -691,9 +657,8 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 
 		token, err := ctx.oauthService.CreateJwtGrant(request)
 
-		if !assert.Nil(t, err) || !assert.NotEmpty(t, token.BearerToken) {
-			t.FailNow()
-		}
+		require.Nil(t, err)
+		require.NotEmpty(t, token.BearerToken)
 
 		assert.Equal(t, "token", token.BearerToken)
 		assert.Equal(t, expectedAudience, token.AuthorizationServerEndpoint)
@@ -712,9 +677,7 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 
 		token, err := ctx.oauthService.CreateJwtGrant(validRequest)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, "token", token.BearerToken)
 	})
 
@@ -840,9 +803,8 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 
 		// Then validate it
 		claims, err := ctx.oauthService.IntrospectAccessToken(tokenCtx.rawJwtBearerToken)
-		if !assert.NoError(t, err) || !assert.NotNil(t, claims) {
-			t.FailNow()
-		}
+		require.NoError(t, err)
+		require.NotNil(t, claims)
 
 		assert.Equal(t, tokenCtx.jwtBearerToken.Subject(), claims.Subject)
 		assert.Equal(t, tokenCtx.jwtBearerToken.Issuer(), claims.Issuer)

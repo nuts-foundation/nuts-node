@@ -27,6 +27,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"github.com/stretchr/testify/require"
 	"math/big"
 	"net/http"
 	"os"
@@ -73,9 +74,7 @@ func TestValidator_downloadCRL(t *testing.T) {
 		httpClient := &http.Client{Transport: &fakeTransport{}}
 		v := NewValidatorWithHTTPClient(nil, httpClient).(*validator)
 		err := v.downloadCRL("file:///non-existing")
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "file:///non-existing")
 	})
 	t.Run("invalid CRL", func(t *testing.T) {
@@ -90,9 +89,7 @@ func TestValidator_downloadCRL(t *testing.T) {
 		trustStore, _ := core.LoadTrustStore(pkiOverheidRootCA)
 		privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		crlWithInvalidSig, err := x509.CreateRevocationList(rand.Reader, &x509.RevocationList{Number: big.NewInt(1024)}, trustStore.Certificates()[0], privateKey)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		httpClient := &http.Client{Transport: &fakeTransport{responseData: crlWithInvalidSig}}
 		v := NewValidatorWithHTTPClient(nil, httpClient).(*validator)
@@ -126,9 +123,7 @@ func TestValidator_IsRevoked(t *testing.T) {
 	}
 
 	data, err := os.ReadFile(pkiOverheidCRL)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	httpClient := &http.Client{Transport: &fakeTransport{responseData: data}}
 
 	t.Run("should return true if the certificate was revoked", func(t *testing.T) {

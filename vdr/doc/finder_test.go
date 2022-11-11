@@ -21,6 +21,7 @@ package doc
 
 import (
 	"errors"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
@@ -108,9 +109,7 @@ func TestVDR_Find(t *testing.T) {
 
 		docs, err := finder.Find(IsActive())
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Len(t, docs, 1)
 	})
 

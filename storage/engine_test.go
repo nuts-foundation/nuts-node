@@ -25,6 +25,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -39,18 +40,12 @@ func Test_engine_Name(t *testing.T) {
 func Test_engine_lifecycle(t *testing.T) {
 	sut := NewTestStorageEngine(io.TestDirectory(t))
 	err := sut.Start()
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	// Get a KV store so there's something to shut down
 	_, err = sut.GetProvider("test").GetKVStore("store", VolatileStorageClass)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	err = sut.Shutdown()
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 }
 
 func Test_engine_GetProvider(t *testing.T) {

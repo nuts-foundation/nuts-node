@@ -20,6 +20,7 @@
 package core
 
 import (
+	"github.com/stretchr/testify/require"
 	"os"
 	"strings"
 	"testing"
@@ -39,9 +40,7 @@ func TestNewNutsConfig_Load(t *testing.T) {
 		cmd := testCommand()
 
 		err := cfg.Load(cmd.Flags())
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.Equal(t, "info", cfg.Verbosity)
 		assert.Equal(t, "text", cfg.LoggerFormat)
@@ -55,9 +54,7 @@ func TestNewNutsConfig_Load(t *testing.T) {
 		defer os.Unsetenv("NUTS_KEY")
 
 		err := cfg.Load(cmd.Flags())
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		if value := cfg.configMap.Get("key"); value != "value" {
 			t.Errorf("Expected key to have [value], got [%v]", value)
@@ -141,9 +138,7 @@ func TestNewNutsConfig_Load(t *testing.T) {
 
 		err := cfg.Load(cmd.Flags())
 
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 	})
 
 	t.Run("ok - env overrides default flag", func(t *testing.T) {
@@ -156,9 +151,7 @@ func TestNewNutsConfig_Load(t *testing.T) {
 
 		err := cfg.Load(cmd.Flags())
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.Equal(t, "warn", cfg.Verbosity)
 	})
@@ -206,9 +199,7 @@ func TestNewNutsConfig_InjectIntoEngine(t *testing.T) {
 		assert.NoError(t, err)
 
 		err = cfg.InjectIntoEngine(in)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.Equal(t, "value", in.TestConfig.Key)
 	})
@@ -218,9 +209,7 @@ func TestNewNutsConfig_InjectIntoEngine(t *testing.T) {
 		assert.NoError(t, err)
 
 		err = cfg.InjectIntoEngine(in)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.Equal(t, "testvalue", in.TestConfig.Sub.Test)
 		assert.Equal(t, "test2value", in.TestConfig.SubPtr.Test)

@@ -19,6 +19,7 @@
 package auth
 
 import (
+	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
 
@@ -48,9 +49,7 @@ func TestAuth_Configure(t *testing.T) {
 
 		i := testInstance(t, authCfg)
 		err := i.Configure(tlsServerConfig)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.NotNil(t, i.tlsConfig)
 	})
@@ -79,9 +78,7 @@ func TestAuth_Configure(t *testing.T) {
 		authCfg.IrmaSchemeManager = "non-existing"
 		i := testInstance(t, authCfg)
 		err := i.Configure(tlsServerConfig)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 	})
 
 	t.Run("error - IRMA scheme manager not set", func(t *testing.T) {

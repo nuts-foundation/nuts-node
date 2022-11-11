@@ -20,6 +20,7 @@ package v1
 import (
 	"encoding/json"
 	"errors"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -407,16 +408,10 @@ func TestWrapper_ListEvents(t *testing.T) {
 
 		err := w.ListEvents(ctx)
 
-		if !assert.NoError(t, err) {
-			return
-		}
-		if !assert.Len(t, capturedEventSubscriber, 1) {
-			return
-		}
+		require.NoError(t, err)
+		require.Len(t, capturedEventSubscriber, 1)
 		assert.Equal(t, "test", capturedEventSubscriber[0].Name)
-		if !assert.Len(t, capturedEventSubscriber[0].Events, 1) {
-			return
-		}
+		require.Len(t, capturedEventSubscriber[0].Events, 1)
 		capturedEvent := capturedEventSubscriber[0].Events[0]
 		assert.Equal(t, testEvent.Hash.String(), capturedEvent.Hash)
 		assert.Equal(t, testEvent.Type, *capturedEvent.Type)

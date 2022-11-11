@@ -22,6 +22,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
+	"github.com/stretchr/testify/require"
 	"os"
 	"path"
 	"testing"
@@ -47,9 +48,7 @@ import (
 func testCredential(t *testing.T) vc.VerifiableCredential {
 	subject := vc.VerifiableCredential{}
 	vcJSON, _ := os.ReadFile("../test/vc.json")
-	if !assert.NoError(t, json.Unmarshal(vcJSON, &subject)) {
-		t.FailNow()
-	}
+	require.NoError(t, json.Unmarshal(vcJSON, &subject))
 	return subject
 }
 
@@ -128,9 +127,7 @@ func Test_verifier_Validate(t *testing.T) {
 
 		err := instance.Validate(vc2, nil)
 
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to verify signature")
 	})
 
@@ -147,9 +144,7 @@ func Test_verifier_Validate(t *testing.T) {
 
 		err := instance.Validate(vc2, nil)
 
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to verify signature")
 	})
 
@@ -161,9 +156,7 @@ func Test_verifier_Validate(t *testing.T) {
 
 		err := instance.Validate(vc2, nil)
 
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unable to extract ldproof from signed document: json: cannot unmarshal array into Go value of type proof.LDProof")
 	})
 
@@ -179,9 +172,7 @@ func Test_verifier_Validate(t *testing.T) {
 
 		err := instance.Validate(vc2, nil)
 
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid 'jws' value in proof")
 	})
 
@@ -197,9 +188,7 @@ func Test_verifier_Validate(t *testing.T) {
 
 		err := instance.Validate(vc2, nil)
 
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "illegal base64 data")
 	})
 
@@ -238,9 +227,7 @@ func TestVerifier_Verify(t *testing.T) {
 
 		err := instance.Verify(subject, true, false, nil)
 
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 		assert.EqualError(t, err, "unknown credential type")
 	})
 
@@ -394,9 +381,7 @@ func Test_verifier_validateAtTime(t *testing.T) {
 
 		t.Run("credential is invalid when timeAt is before issuance", func(t *testing.T) {
 			beforeIssuance, err := time.Parse(time.RFC3339, "2006-10-05T14:33:12+02:00")
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			timeToCheck = &beforeIssuance
 			sut := verifier{}
 			credentialToTest := testCredential(t)
@@ -406,9 +391,7 @@ func Test_verifier_validateAtTime(t *testing.T) {
 
 		t.Run("credential is invalid when timeAt is after expiration", func(t *testing.T) {
 			expireTime, err := time.Parse(time.RFC3339, "2021-10-05T14:33:12+02:00")
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			afterExpire := expireTime.Add(10 * time.Hour)
 			timeToCheck = &afterExpire
 			sut := verifier{}
@@ -428,13 +411,9 @@ func Test_verifier_CheckAndStoreRevocation(t *testing.T) {
 	rawRevocation, _ := os.ReadFile("../test/ld-revocation.json")
 
 	verificationMethod := did.VerificationMethod{}
-	if !assert.NoError(t, json.Unmarshal(rawVerificationMethod, &verificationMethod)) {
-		return
-	}
+	require.NoError(t, json.Unmarshal(rawVerificationMethod, &verificationMethod))
 	key, err := verificationMethod.PublicKey()
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	document := proof.SignedDocument{}
 	assert.NoError(t, json.Unmarshal(rawRevocation, &document))

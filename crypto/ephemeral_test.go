@@ -21,6 +21,7 @@ package crypto
 
 import (
 	"errors"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -30,9 +31,7 @@ func TestNewEphemeralKey(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		key, err := NewEphemeralKey(StringNamingFunc("kid"))
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.NotNil(t, key)
 		assert.NotNil(t, key.Signer())
@@ -43,9 +42,7 @@ func TestNewEphemeralKey(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		_, err := NewEphemeralKey(ErrorNamingFunc(errors.New("b00m!")))
 
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 
 		assert.Equal(t, "b00m!", err.Error())
 	})

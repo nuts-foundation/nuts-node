@@ -20,6 +20,7 @@ package doc
 
 import (
 	"errors"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -80,9 +81,7 @@ func TestManipulator_RemoveVerificationMethod(t *testing.T) {
 		ctx.mockUpdater.EXPECT().Update(*id123, hash.SHA256Hash{}, did.Document{ID: *id123}, nil)
 
 		err := ctx.manipulator.RemoveVerificationMethod(*id123, *id123Method)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Empty(t, doc.CapabilityInvocation)
 		assert.Empty(t, doc.CapabilityDelegation)
 		assert.Empty(t, doc.AssertionMethod)
@@ -119,9 +118,7 @@ func TestManipulator_CreateNewAuthenticationMethodForDID(t *testing.T) {
 		// Prepare a document with an authenticationMethod:
 		document := &did.Document{ID: *id123}
 		method, err := CreateNewVerificationMethodForDID(document.ID, kc)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		document.AddCapabilityInvocation(method)
 
 		assert.NotNil(t, method)
@@ -148,9 +145,7 @@ func TestManipulator_AddKey(t *testing.T) {
 		})
 
 		key, err := ctx.manipulator.AddVerificationMethod(*id, types.AuthenticationUsage)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.NotNil(t, key)
 		assert.Equal(t, key.Controller, *id,
 			"expected method to have DID as controller")
@@ -169,9 +164,7 @@ func TestManipulator_AddKey(t *testing.T) {
 		ctx.mockUpdater.EXPECT().Update(*id, currentHash, gomock.Any(), nil).Return(types.ErrNotFound)
 
 		key, err := ctx.manipulator.AddVerificationMethod(*id, 0)
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 		assert.True(t, errors.Is(err, types.ErrNotFound))
 		assert.Nil(t, key)
 	})
@@ -183,9 +176,7 @@ func TestManipulator_AddKey(t *testing.T) {
 		ctx.mockResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{Hash: currentHash, Deactivated: true}, nil)
 
 		key, err := ctx.manipulator.AddVerificationMethod(*id, 0)
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 		assert.True(t, errors.Is(err, types.ErrDeactivated))
 		assert.Nil(t, key)
 	})
@@ -207,7 +198,5 @@ func TestManipulator_Deactivate(t *testing.T) {
 	ctx.mockUpdater.EXPECT().Update(*id, currentHash, expectedDocument, nil)
 
 	err := ctx.manipulator.Deactivate(*id)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 }

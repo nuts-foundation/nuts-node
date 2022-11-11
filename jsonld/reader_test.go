@@ -21,6 +21,7 @@ package jsonld
 
 import (
 	"encoding/json"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/piprate/json-gold/ld"
@@ -38,9 +39,7 @@ func TestDocumentReader_FromStruct(t *testing.T) {
 		document, err := reader.Read(object)
 		values := document.ValueAt(NewPath())
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.NotNil(t, document)
 		assert.Len(t, values, 1)
@@ -53,9 +52,7 @@ func TestDocumentReader_FromStruct(t *testing.T) {
 		document, err := reader.Read(object)
 		values := document.ValueAt(NewPath("https://www.w3.org/2018/credentials#credentialSubject", "http://example.org/human", "http://example.org/eyeColour"))
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.NotNil(t, document)
 		assert.Len(t, values, 1)
@@ -72,9 +69,7 @@ func TestDocumentReader_FromBytes(t *testing.T) {
 		document, err := reader.ReadBytes([]byte(JSONLDExample))
 		values := document.ValueAt(NewPath())
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.NotNil(t, document)
 		assert.Len(t, values, 1)

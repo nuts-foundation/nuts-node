@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	io2 "github.com/nuts-foundation/nuts-node/test/io"
 	io_prometheus_client "github.com/prometheus/client_model/go"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/credentials/insecure"
 	"hash/crc32"
 	"io"
@@ -239,9 +240,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 		)
 		cm := NewGRPCConnectionManager(cfg, nil, &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
 		err := cm.Start()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		defer cm.Stop()
 
 		assert.NotNil(t, cm.listener)
@@ -260,9 +259,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 		)
 		cm := NewGRPCConnectionManager(cfg, nil, &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
 		err := cm.Start()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		defer cm.Stop()
 
 		assert.NotNil(t, cm.listener)
@@ -287,9 +284,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 	t.Run("ok - gRPC server bound, TLS disabled", func(t *testing.T) {
 		cm := NewGRPCConnectionManager(NewConfig(fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort()), "foo"), nil, &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
 		err := cm.Start()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		defer cm.Stop()
 
 		assert.NotNil(t, cm.listener)
@@ -400,9 +395,7 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 		client := NewGRPCConnectionManager(clientCfg, nil, &transport.FixedNodeDIDResolver{}, nil, &TestProtocol{}).(*grpcConnectionManager)
 		c := createConnection(context.Background(), clientCfg.dialer, transport.Peer{})
 		grpcConn, err := clientCfg.dialer(context.Background(), "server")
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		md, _ := client.constructMetadata()
 
 		outboundStream, err := client.openOutboundStream(c, &TestProtocol{}, grpcConn, md)
@@ -421,9 +414,7 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 		client := NewGRPCConnectionManager(clientCfg, nil, &transport.FixedNodeDIDResolver{}, nil, &TestProtocol{}).(*grpcConnectionManager)
 		c := createConnection(context.Background(), clientCfg.dialer, transport.Peer{})
 		grpcConn, err := clientCfg.dialer(context.Background(), "server")
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		md, _ := client.constructMetadata()
 
 		// First stream
@@ -477,16 +468,12 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 		client := NewGRPCConnectionManager(clientCfg, nil, &transport.FixedNodeDIDResolver{}, nil, &TestProtocol{}).(*grpcConnectionManager)
 		c := createConnection(context.Background(), clientCfg.dialer, transport.Peer{})
 		grpcConn, err := clientCfg.dialer(context.Background(), "server")
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		md, _ := client.constructMetadata()
 		// Initial connection should be OK
 		_, err = client.openOutboundStream(c, &TestProtocol{}, grpcConn, md)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		// Second connection should error out
 		clientStream, err := client.openOutboundStream(c, &TestProtocol{}, grpcConn, md)
@@ -509,9 +496,7 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 		client := NewGRPCConnectionManager(clientCfg, nil, &transport.FixedNodeDIDResolver{}, authenticator, &TestProtocol{}).(*grpcConnectionManager)
 		c := createConnection(context.Background(), clientCfg.dialer, transport.Peer{})
 		grpcConn, err := clientCfg.dialer(context.Background(), "server")
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		md, _ := client.constructMetadata()
 		clientStream, err := client.openOutboundStream(c, &TestProtocol{}, grpcConn, md)
@@ -532,9 +517,7 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 		client := NewGRPCConnectionManager(clientCfg, nil, &transport.FixedNodeDIDResolver{}, nil, &TestProtocol{}).(*grpcConnectionManager)
 		c := createConnection(context.Background(), clientCfg.dialer, transport.Peer{})
 		grpcConn, err := clientCfg.dialer(context.Background(), "server")
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		var capturedPeer atomic.Value
 		connectedWG := sync.WaitGroup{}
 		connectedWG.Add(1)
@@ -553,9 +536,7 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 		backoff := &trackingBackoff{mux: &sync.Mutex{}}
 		go func() {
 			err = client.openOutboundStreams(c, grpcConn, backoff)
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 		}()
 
 		connectedWG.Wait()

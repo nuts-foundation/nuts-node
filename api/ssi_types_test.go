@@ -20,6 +20,7 @@ package ssiTypes
 
 import (
 	"encoding/json"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
@@ -192,19 +193,13 @@ func createDidDocumentMetadata() vdrTypes.DocumentMetadata {
 
 func remarshallTest(t *testing.T, source, target any) {
 	jsonSource, err := json.Marshal(source)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	err = json.Unmarshal(jsonSource, &target)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	jsonTarget, err := json.Marshal(target)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	assert.JSONEq(t, string(jsonSource), string(jsonTarget))
 }

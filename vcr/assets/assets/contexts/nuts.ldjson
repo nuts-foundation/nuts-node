@@ -4,26 +4,31 @@
     "@protected": true,
     "@base": "https://nuts.nl/credentials/v1",
     "@vocab": "#",
-
     "id": "@id",
     "type": "@type",
     "schema": "http://schema.org/",
     "nuts": "https://nuts.nl/credentials/v1#",
-
     "CredentialRevocation": {
       "@id": "nuts:CredentialRevocation",
       "@context": {
         "@version": 1.1,
         "@protected": true,
-
         "id": "@id",
         "type": "@type",
         "cred": "https://www.w3.org/2018/credentials#",
         "nuts": "https://nuts.nl/credentials/v1#",
-
-        "issuer": {"@id": "cred:issuer", "@type": "@id"},
-        "date": {"@id": "nuts:date", "@type": "xsd:dateTime"},
-        "subject": {"@id": "cred:credentialSubject", "@type": "@id"}
+        "issuer": {
+          "@id": "cred:issuer",
+          "@type": "@id"
+        },
+        "date": {
+          "@id": "nuts:date",
+          "@type": "xsd:dateTime"
+        },
+        "subject": {
+          "@id": "cred:credentialSubject",
+          "@type": "@id"
+        }
       }
     },
     "NutsOrganizationCredential": {
@@ -32,14 +37,12 @@
         "@version": 1.1,
         "@protected": true,
         "@propagate": true,
-
         "id": "@id",
         "type": "@type",
         "cred": "https://www.w3.org/2018/credentials#",
         "nuts": "https://nuts.nl/credentials/v1#",
-
         "organization": {
-          "@id":"schema:organization",
+          "@id": "schema:organization",
           "@type": "@id",
           "@context": {
             "@version": 1.1,
@@ -56,25 +59,31 @@
         "@version": 1.1,
         "@protected": true,
         "@propagate": true,
-
         "id": "@id",
         "type": "@type",
         "cred": "https://www.w3.org/2018/credentials#",
         "nuts": "https://nuts.nl/credentials/v1#",
-
-        "subject": {"@id": "nuts:subject", "@type": "@id"},
+        "subject": {
+          "@id": "nuts:subject",
+          "@type": "@id"
+        },
         "purposeOfUse": "nuts:purposeOfUse",
         "resources": {
-          "@id":"nuts:resources",
+          "@id": "nuts:resources",
           "@context": {
             "nuts": "https://nuts.nl/credentials/v1#",
-
             "path": "nuts:path",
-            "operations": {"@id": "nuts:operations", "@container": "@set"},
+            "operations": {
+              "@id": "nuts:operations",
+              "@container": "@set"
+            },
             "userContext": "nuts:userContext"
           }
         },
-        "localParameters": {"@id": "nuts:localParameters", "@container": "@graph"}
+        "localParameters": {
+          "@id": "nuts:localParameters",
+          "@container": "@graph"
+        }
       }
     }
   }

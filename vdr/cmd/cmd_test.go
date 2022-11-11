@@ -24,6 +24,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/json"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -92,12 +93,8 @@ func TestEngine_Command(t *testing.T) {
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()
-			if !assert.NoError(t, err) {
-				return
-			}
-			if !assert.Contains(t, buf.String(), "did:nuts:") {
-				return
-			}
+			require.NoError(t, err)
+			require.Contains(t, buf.String(), "did:nuts:")
 			document := did.Document{}
 			err = json.Unmarshal(buf.Bytes(), &document)
 			assert.Empty(t, errBuf.Bytes())
@@ -110,9 +107,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()
-			if !assert.Error(t, err) {
-				return
-			}
+			require.Error(t, err)
 			assert.Contains(t, errBuf.String(), "unable to create new DID")
 			assert.Contains(t, errBuf.String(), "b00m!")
 		})
@@ -125,9 +120,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			assert.Contains(t, buf.String(), "did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7")
 			assert.Empty(t, errBuf.Bytes())
 		})
@@ -138,9 +131,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			assert.NotContains(t, buf.String(), "did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7")
 			assert.Empty(t, errBuf.Bytes())
 		})
@@ -151,9 +142,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			assert.Contains(t, buf.String(), "did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7")
 			assert.NotContains(t, buf.String(), "version")
 			assert.Empty(t, errBuf.Bytes())
@@ -165,9 +154,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()
-			if !assert.Error(t, err) {
-				return
-			}
+			require.Error(t, err)
 			assert.Contains(t, errBuf.String(), "failed to resolve DID document")
 			assert.Contains(t, errBuf.String(), "not found")
 		})
@@ -180,9 +167,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			assert.Contains(t, buf.String(), "did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7")
 			assert.Empty(t, errBuf.Bytes())
 		})
@@ -193,9 +178,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			assert.NotContains(t, buf.String(), "did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7")
 			assert.Empty(t, errBuf.Bytes())
 		})
@@ -206,9 +189,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			assert.Contains(t, buf.String(), "did:nuts:Fx8kamg7Bom4gyEzmJc9t9QmWTkCwSxu3mrp3CbkehR7")
 			assert.NotContains(t, buf.String(), "version")
 			assert.Empty(t, errBuf.Bytes())
@@ -222,9 +203,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 			err := cmd.Execute()
 
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			assert.Contains(t, buf.String(), "DID document updated")
 			assert.Empty(t, errBuf.Bytes())
 		})
@@ -234,9 +213,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd.SetArgs([]string{"update", "did", "hash", "../test/syntax_error.json"})
 
 			err := cmd.Execute()
-			if !assert.Error(t, err) {
-				return
-			}
+			require.Error(t, err)
 			assert.Contains(t, errBuf.String(), "failed to parse DID document")
 		})
 
@@ -246,9 +223,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()
-			if !assert.Error(t, err) {
-				return
-			}
+			require.Error(t, err)
 			assert.Contains(t, errBuf.String(), "failed to update DID document")
 			assert.Contains(t, errBuf.String(), "invalid")
 		})
@@ -264,9 +239,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 			err := cmd.Execute()
 
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			assert.Contains(t, buf.String(), "This will delete the DID document, are you sure?")
 			assert.Contains(t, buf.String(), "DID document deactivated\n")
 			assert.Empty(t, errBuf.Bytes())
@@ -279,9 +252,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()
-			if !assert.Nil(t, err) {
-				return
-			}
+			require.Nil(t, err)
 			assert.Contains(t, buf.String(), "Deactivation cancelled")
 			assert.Empty(t, errBuf.Bytes())
 		})
@@ -294,9 +265,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()
-			if !assert.Error(t, err) {
-				return
-			}
+			require.Error(t, err)
 			assert.Contains(t, errBuf.String(), "failed to deactivate DID document: server returned HTTP 404 (expected: 200)")
 		})
 	})
@@ -312,12 +281,8 @@ func TestEngine_Command(t *testing.T) {
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 			err := cmd.Execute()
 
-			if !assert.NoError(t, err) {
-				return
-			}
-			if !assert.Contains(t, buf.String(), vdr.TestMethodDIDA.String()) {
-				return
-			}
+			require.NoError(t, err)
+			require.Contains(t, buf.String(), vdr.TestMethodDIDA.String())
 			resultingMethod := did.VerificationMethod{}
 			err = json.Unmarshal(buf.Bytes(), &resultingMethod)
 			assert.NoError(t, err)
@@ -333,9 +298,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()
-			if !assert.Error(t, err) {
-				return
-			}
+			require.Error(t, err)
 			assert.Contains(t, errBuf.String(), "failed to add a new verification method to DID document: server returned HTTP 404 (expected: 200), response: null")
 		})
 	})
@@ -347,9 +310,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 			err := cmd.Execute()
 
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			assert.Empty(t, errBuf.String())
 		})
 
@@ -359,9 +320,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd.SetArgs([]string{"delvm", vdr.TestDIDA.String(), vdr.TestMethodDIDA.String()})
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 			err := cmd.Execute()
-			if !assert.Error(t, err) {
-				return
-			}
+			require.Error(t, err)
 			assert.Contains(t, errBuf.String(), "failed to delete the verification method from DID document: server returned HTTP 404 (expected: 204), response: null")
 		})
 	})

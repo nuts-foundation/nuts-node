@@ -22,6 +22,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,16 +36,12 @@ var uziSignedJwt = `eyJ4NWMiOlsiTUlJSGN6Q0NCVnVnQXdJQkFnSVVIUFU4cVZYS3FEZXByWUhD
 func TestNewUziValidator(t *testing.T) {
 	t.Run("production certificates", func(t *testing.T) {
 		_, err := NewUziValidator(UziProduction, &contract.StandardContractTemplates, nil)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 	})
 
 	t.Run("acceptation certificates", func(t *testing.T) {
 		_, err := NewUziValidator(UziAcceptation, &contract.StandardContractTemplates, nil)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 	})
 }
 
@@ -94,19 +91,12 @@ func TestUziValidator(t *testing.T) {
 
 	t.Run("ok - acceptation environment", func(t *testing.T) {
 		uziValidator, err := NewUziValidator(UziAcceptation, &contract.StandardContractTemplates, nil)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		signedToken, err := uziValidator.Parse(uziSignedJwt)
 
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		if !assert.Implements(t, (*services.SignedToken)(nil), signedToken) {
-			return
-		}
+		require.NoError(t, err)
+		require.Implements(t, (*services.SignedToken)(nil), signedToken)
 
 		expected := map[string]string{
 			"agbCode":  "00000000",

@@ -21,5 +21,6 @@ package assets
 import "embed"
 
 // TestAssets contains the embedded test files needed for VCR.
+//
 //go:embed test_assets/*
 var TestAssets embed.FS

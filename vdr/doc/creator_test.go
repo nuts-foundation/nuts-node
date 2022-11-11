@@ -25,6 +25,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -98,9 +99,7 @@ func TestCreator_Create(t *testing.T) {
 			}
 			doc, _, err := creator.Create(ops)
 
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 
 			assert.Len(t, doc.AssertionMethod, 1)
 			assert.Len(t, doc.Authentication, 1)
@@ -118,9 +117,7 @@ func TestCreator_Create(t *testing.T) {
 			}
 			doc, _, err := creator.Create(ops)
 
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 
 			assert.Len(t, doc.Controller, 2)
 		})
@@ -146,9 +143,7 @@ func TestCreator_Create(t *testing.T) {
 			}
 			doc, docCreationKey, err := creator.Create(ops)
 
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 
 			assert.Len(t, doc.CapabilityInvocation, 0)
 			assert.Len(t, doc.VerificationMethod, 1)
@@ -187,9 +182,7 @@ func TestCreator_Create(t *testing.T) {
 
 		_, _, err := creator.Create(DefaultCreationOptions())
 
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 		assert.EqualError(t, err, "b00m!")
 	})
 
@@ -206,9 +199,7 @@ func TestCreator_Create(t *testing.T) {
 
 		_, _, err := creator.Create(ops)
 
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 		assert.EqualError(t, err, "b00m!")
 	})
 }
@@ -216,36 +207,26 @@ func TestCreator_Create(t *testing.T) {
 func Test_didKIDNamingFunc(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		if assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		keyID, err := didKIDNamingFunc(privateKey.PublicKey)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.NotEmpty(t, keyID)
 		assert.Contains(t, keyID, "did:nuts")
 	})
 
 	t.Run("ok - predefined key", func(t *testing.T) {
 		pub, err := jwkToPublicKey(t, jwkString)
-		if assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		keyID, err := didKIDNamingFunc(pub)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, keyID, mockKID, keyID)
 	})
 
 	t.Run("nok - wrong key type", func(t *testing.T) {
 		keyID, err := didKIDNamingFunc(unknownPublicKey{})
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 		assert.Equal(t, "could not generate kid: invalid key type 'doc.unknownPublicKey' for jwk.New", err.Error())
 		assert.Empty(t, keyID)
 
@@ -258,13 +239,9 @@ func Test_didSubKIDNamingFunc(t *testing.T) {
 		owningDID, _ := did.ParseDID("did:nuts:bladiebla")
 
 		keyID, err := didSubKIDNamingFunc(*owningDID)(privateKey.PublicKey)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		parsedKeyID, err := did.ParseDIDURL(keyID)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		// Make sure the idString part of the key ID is taken from the owning DID document
 		assert.Equal(t, parsedKeyID.ID, owningDID.ID)
 		assert.NotEmpty(t, parsedKeyID.Fragment)
@@ -276,13 +253,11 @@ type unknownPublicKey struct{}
 func jwkToPublicKey(t *testing.T, jwkStr string) (crypto.PublicKey, error) {
 	t.Helper()
 	keySet, err := jwk.ParseString(jwkStr)
-	if !assert.NoError(t, err) {
-		return nil, err
-	}
+	require.NoError(t, err)
 	key, _ := keySet.Get(0)
 	var rawKey crypto.PublicKey
 	if err = key.Raw(&rawKey); err != nil {
 		return nil, err
 	}
-	return &rawKey, nil
+	return rawKey, nil
 }

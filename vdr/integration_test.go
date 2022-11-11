@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"net/url"
 	"sync"
 	"testing"
@@ -52,18 +53,14 @@ func TestVDRIntegration_Test(t *testing.T) {
 
 	// Start with a first and fresh document named DocumentA.
 	docA, _, err := ctx.vdr.Create(doc.DefaultCreationOptions())
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	assert.NotNil(t, docA)
 
 	docAID := docA.ID
 
 	// Check if the document can be found in the store
 	docA, metadataDocA, err := ctx.docResolver.Resolve(docA.ID, nil)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	assert.NotNil(t, docA)
 	assert.NotNil(t, metadataDocA)
@@ -80,27 +77,18 @@ func TestVDRIntegration_Test(t *testing.T) {
 	docA.Service = append(docA.Service, newService)
 
 	err = ctx.vdr.Update(docAID, metadataDocA.Hash, *docA, nil)
-	if !assert.NoError(t, err,
-		"unable to update docA with a new service") {
-		return
-	}
+	require.NoError(t, err, "unable to update docA with a new service")
 
 	// Resolve the document and check it contents
 	docA, metadataDocA, err = ctx.docResolver.Resolve(docA.ID, nil)
-	if !assert.NoError(t, err,
-		"unable to resolve updated document") {
-		return
-	}
+	require.NoError(t, err, "unable to resolve updated document")
 	assert.Len(t, docA.Service, 1)
 	assert.Equal(t, newService, docA.Service[0],
 		"expected updated docA to have a service")
 
 	// Create a new DID Document we name DocumentB
 	docB, _, err := ctx.vdr.Create(doc.DefaultCreationOptions())
-	if !assert.NoError(t, err,
-		"unexpected error while creating DocumentB") {
-		return
-	}
+	require.NoError(t, err, "unexpected error while creating DocumentB")
 	assert.NotNil(t, docB,
 		"a new document should have been created")
 	_, _, err = ctx.docResolver.Resolve(docB.ID, nil)
@@ -115,17 +103,11 @@ func TestVDRIntegration_Test(t *testing.T) {
 	docA.VerificationMethod = []*did.VerificationMethod{}
 	docA.KeyAgreement = []did.VerificationRelationship{}
 	err = ctx.vdr.Update(docAID, metadataDocA.Hash, *docA, nil)
-	if !assert.NoError(t, err,
-		"unable to update documentA with a new controller") {
-		return
-	}
+	require.NoError(t, err, "unable to update documentA with a new controller")
 
 	// Resolve and check DocumentA
 	docA, metadataDocA, err = ctx.docResolver.Resolve(docA.ID, nil)
-	if !assert.NoError(t, err,
-		"unable to resolve updated documentA") {
-		return
-	}
+	require.NoError(t, err, "unable to resolve updated documentA")
 	assert.Equal(t, []did.DID{docB.ID}, docA.Controller,
 		"expected updated documentA to have documentB as its controller")
 
@@ -142,20 +124,11 @@ func TestVDRIntegration_Test(t *testing.T) {
 	docA.Service = append(docA.Service, newService)
 
 	err = ctx.vdr.Update(docA.ID, metadataDocA.Hash, *docA, nil)
-	if !assert.NoError(t, err,
-		"unable to update documentA with a new service") {
-		return
-	}
+	require.NoError(t, err, "unable to update documentA with a new service")
 	// Resolve and check if the service has been added
 	docA, metadataDocA, err = ctx.docResolver.Resolve(docA.ID, nil)
-	if !assert.NoError(t, err,
-		"unable to resolve updated documentA") {
-		return
-	}
-	if !assert.Len(t, docA.Service, 2,
-		"expected documentA to have 2 services after the update") {
-		return
-	}
+	require.NoError(t, err, "unable to resolve updated documentA")
+	require.Len(t, docA.Service, 2, "expected documentA to have 2 services after the update")
 	assert.Equal(t, newService, docA.Service[1],
 		"news service of document a does not contain expected values")
 
@@ -187,16 +160,12 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 
 	// Start with a first and fresh document named DocumentA.
 	initialDoc, _, err := ctx.vdr.Create(doc.DefaultCreationOptions())
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	assert.NotNil(t, initialDoc)
 
 	// Check if the document can be found in the store
 	initialDoc, _, err = ctx.docResolver.Resolve(initialDoc.ID, nil)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	const procs = 10
 	wg := sync.WaitGroup{}
@@ -229,9 +198,7 @@ func TestVDRIntegration_ReprocessEvents(t *testing.T) {
 	payload, _ := json.Marshal(didDoc)
 	unsignedTransaction, _ := dag.NewTransaction(hash.SHA256Sum(payload), didDocumentType, nil, nil, uint32(0))
 	signedTransaction, err := dag.NewTransactionSigner(key, true).Sign(unsignedTransaction, time.Now())
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	twp := events.TransactionWithPayload{
 		Transaction: signedTransaction,
 		Payload:     payload,
@@ -241,9 +208,7 @@ func TestVDRIntegration_ReprocessEvents(t *testing.T) {
 	_, js, _ := ctx.eventPublisher.Pool().Acquire(context.Background())
 	_, err = js.Publish("REPROCESS.application/did+json", twpBytes)
 
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	test.WaitFor(t, func() (bool, error) {
 		_, _, err := ctx.docResolver.Resolve(didDoc.ID, nil)
@@ -293,7 +258,7 @@ func setup(t *testing.T) testContext {
 
 	// Startup events
 	eventPublisher := events.NewTestManager(t)
-	
+
 	// Startup the network layer
 	networkCfg := network.DefaultConfig()
 	nutsNetwork := network.NewNetworkInstance(

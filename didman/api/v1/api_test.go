@@ -21,6 +21,7 @@ package v1
 
 import (
 	"errors"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/url"
 	"testing"
@@ -83,9 +84,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 
 		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
 
-		if !assert.Nil(t, err) {
-			return
-		}
+		require.Nil(t, err)
 		assert.Equal(t, id, parsedDID.String())
 		assert.Equal(t, request.Endpoint, parsedURL.String())
 		assert.Equal(t, request.Type, parsedType)
@@ -224,9 +223,7 @@ func TestWrapper_DeleteEndpointsByType(t *testing.T) {
 
 		err := ctx.wrapper.DeleteEndpointsByType(ctx.echo, idStr, endpointType)
 
-		if !assert.Nil(t, err) {
-			return
-		}
+		require.Nil(t, err)
 	})
 
 	t.Run("error - invalid did", func(t *testing.T) {
@@ -287,9 +284,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 
 		err := ctx.wrapper.AddCompoundService(ctx.echo, id)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, id, parsedDID.String())
 		assert.Len(t, parsedEndpoint, 2)
 		assert.Equal(t, request.ServiceEndpoint["foo"], parsedEndpoint["foo"].String())
@@ -491,9 +486,7 @@ func TestWrapper_DeleteService(t *testing.T) {
 
 		err := ctx.wrapper.DeleteService(ctx.echo, id)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, id, parsedURI.String())
 	})
 
@@ -539,9 +532,7 @@ func TestWrapper_UpdateContactInformation(t *testing.T) {
 		ctx.echo.EXPECT().JSON(http.StatusOK, &request)
 
 		err := ctx.wrapper.UpdateContactInformation(ctx.echo, idStr)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 	})
 
 	t.Run("error - incorrect DID", func(t *testing.T) {

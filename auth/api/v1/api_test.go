@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -420,9 +421,7 @@ func TestWrapper_CreateJwtGrant(t *testing.T) {
 		}, nil)
 		expectStatusOK(ctx, response)
 
-		if !assert.Nil(t, ctx.wrapper.CreateJwtGrant(ctx.echoMock)) {
-			t.FailNow()
-		}
+		assert.Nil(t, ctx.wrapper.CreateJwtGrant(ctx.echoMock))
 	})
 }
 
@@ -503,13 +502,9 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
 
-		assert.EqualError(t, err, "unable to create access token: server returned HTTP 502 (expected: 200), response: null")
-
-		statusCodeErr, ok := err.(core.HTTPStatusCodeError)
-
-		if assert.True(t, ok, "error should implement HTTPStatusCodeError interface") {
-			assert.Equal(t, http.StatusBadGateway, statusCodeErr.StatusCode())
-		}
+		require.EqualError(t, err, "unable to create access token: server returned HTTP 502 (expected: 200), response: null")
+		require.Implements(t, new(core.HTTPStatusCodeError), err)
+		require.Equal(t, http.StatusBadGateway, err.(core.HTTPStatusCodeError).StatusCode())
 	})
 
 	t.Run("happy_path", func(t *testing.T) {
@@ -984,9 +979,7 @@ func TestWrapper_VerifySignature(t *testing.T) {
 		}
 
 		checkTime, err := time.Parse(time.RFC3339, checkTimeParam)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		ctx.contractClientMock.EXPECT().VerifyVP(gomock.Any(), &checkTime).Return(verificationResult, nil)
 		ctx.echoMock.EXPECT().JSON(http.StatusOK, expectedResponse)

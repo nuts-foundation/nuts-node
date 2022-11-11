@@ -22,6 +22,7 @@ import (
 	"crypto/rand"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -112,9 +113,7 @@ func TestIblt_New(t *testing.T) {
 	iblt.Insert(h)
 
 	newIblt, ok := iblt.New().(*Iblt)
-	if !assert.True(t, ok, "type assertion failed") {
-		return
-	}
+	require.True(t, ok, "type assertion failed")
 
 	assert.False(t, equals(iblt, newIblt))
 	assert.True(t, equals(getEmptyTestIblt(nBuckets), newIblt))
@@ -126,9 +125,7 @@ func TestIblt_Clone(t *testing.T) {
 	h := hash.FromSlice([]byte{1})
 
 	newIblt, ok := iblt.Clone().(*Iblt)
-	if !assert.True(t, ok, "type assertion failed") {
-		return
-	}
+	require.True(t, ok, "type assertion failed")
 	newIblt.Insert(h)
 
 	assert.False(t, equals(iblt, newIblt))

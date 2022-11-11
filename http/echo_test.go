@@ -23,6 +23,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"testing"
 )
@@ -37,9 +38,7 @@ func Test_MultiEcho_Bind(t *testing.T) {
 		err := m.Bind("", defaultAddress, func() (EchoServer, error) {
 			return echo.New(), nil
 		})
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		err = m.Bind("", defaultAddress, func() (EchoServer, error) {
 			return echo.New(), nil
 		})
@@ -93,28 +92,20 @@ func Test_MultiEcho(t *testing.T) {
 	err := m.Bind(RootPath, defaultAddress, func() (EchoServer, error) {
 		return defaultServer, nil
 	})
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	err = m.Bind("internal", "internal:8080", func() (EchoServer, error) {
 		return internalServer, nil
 	})
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	err = m.Bind("public", "public:8080", func() (EchoServer, error) {
 		return publicServer, nil
 	})
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	err = m.Bind("extra-public", "public:8080", func() (EchoServer, error) {
 		t.Fatal("should not be called!")
 		return nil, nil
 	})
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	m.addFn(http.MethodPost, "/public/pub-endpoint", nil)
 	m.addFn(http.MethodDelete, "/extra-public/extra-pub-endpoint", nil)
@@ -122,9 +113,7 @@ func Test_MultiEcho(t *testing.T) {
 	m.addFn(http.MethodPatch, "/other/default-endpoint", nil)
 
 	err = m.Start()
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 }
 
 func Test_MultiEcho_Methods(t *testing.T) {

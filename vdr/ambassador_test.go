@@ -26,6 +26,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
@@ -224,9 +225,7 @@ func TestAmbassador_callback(t *testing.T) {
 	t.Run("ok - duplicate if skipped", func(t *testing.T) {
 		ctx := newMockContext(t)
 		didDocument, _, err := newDidDoc()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		didDocPayload, _ := json.Marshal(didDocument)
 		expectedDocument := did.Document{}
 		json.Unmarshal(didDocPayload, &expectedDocument)
@@ -302,9 +301,7 @@ func TestAmbassador_handleCreateDIDDocument(t *testing.T) {
 
 	t.Run("create ok", func(t *testing.T) {
 		didDocument, signingKey, err := newDidDoc()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		tx := newCreateTX(signingKey)
 
@@ -349,9 +346,7 @@ func TestAmbassador_handleCreateDIDDocument(t *testing.T) {
 	t.Run("create failed for duplicate transaction", func(t *testing.T) {
 		ctx := newMockContext(t)
 		didDocument, signingKey, err := newDidDoc()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		tx := newCreateTX(signingKey)
 
@@ -380,9 +375,7 @@ func TestAmbassador_handleCreateDIDDocument(t *testing.T) {
 		ctx := newMockContext(t)
 
 		didDocument, signingKey, err := newDidDoc()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		tx := newCreateTX(signingKey)
 
@@ -420,9 +413,7 @@ func TestAmbassador_handleCreateDIDDocument(t *testing.T) {
 
 		err := ctx.ambassador.handleCreateDIDDocument(tx, doc)
 
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 		assert.Equal(t, ErrThumbprintMismatch, err)
 	})
 }
@@ -448,9 +439,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		ctx := newMockContext(t)
 
 		didDocument, signingKey, err := newDidDoc()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		didDocPayload, _ := json.Marshal(didDocument)
 		payloadHash := hash.SHA256Sum(didDocPayload)
@@ -526,9 +515,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		ctx := newMockContext(t)
 
 		didDocument, signingKey, err := newDidDoc()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		didDocPayload, _ := json.Marshal(didDocument)
 		payloadHash := hash.SHA256Sum(didDocPayload)
@@ -661,15 +648,11 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		// Create a fresh DID Document
 		didDocument, _, err := newDidDoc()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		// Create the DID docs controller
 		didDocumentController, controllerSigningKey, err := newDidDoc()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		var pKey crypto2.PublicKey
 		controllerSigningKey.Raw(&pKey)
@@ -732,15 +715,11 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		// Create a fresh DID Document
 		didDocument, documentSigningKey, err := newDidDoc()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		// Create the DID docs controller
 		didDocumentController, _, err := newDidDoc()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		// We still use the document signing key, not the one from the controller
 		var pKey crypto2.PublicKey
@@ -801,9 +780,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		}
 
 		didDocument, signingKey, err := newDidDoc()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		didMetadata := types.DocumentMetadata{
 			SourceTransactions: []hash.SHA256Hash{hash.EmptyHash()},
 			Hash:               hash.EmptyHash(),

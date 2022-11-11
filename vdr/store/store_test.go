@@ -17,6 +17,7 @@ package store
 
 import (
 	"errors"
+	"github.com/stretchr/testify/require"
 	"path"
 	"sync"
 	"testing"
@@ -44,9 +45,7 @@ func newTestStore(t *testing.T) types.Store {
 	store := NewStore(&storeProvider)
 
 	err := store.(core.Configurable).Configure(*core.NewServerConfig())
-	if !assert.NoError(t, err) {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	return store
 }
 
@@ -70,9 +69,7 @@ func TestStore_Configure(t *testing.T) {
 func TestStore_Start(t *testing.T) {
 	store := NewStore(storage.NewTestStorageEngine(io.TestDirectory(t)).GetProvider(moduleName)).(core.Runnable)
 	err := store.(core.Configurable).Configure(core.TestServerConfig(core.ServerConfig{}))
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	err = store.Start()
 
@@ -118,25 +115,19 @@ func TestStore_Processed(t *testing.T) {
 	}
 
 	err := store.Write(doc, meta)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	t.Run("returns true for processed hash", func(t *testing.T) {
 		processed, err := store.Processed(hash.EmptyHash())
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.True(t, processed)
 	})
 
 	t.Run("returns false for non-processed hash", func(t *testing.T) {
 		processed, err := store.Processed(hash.SHA256Sum([]byte{1}))
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.False(t, processed)
 	})
 }
@@ -181,9 +172,7 @@ func TestStore_Resolve(t *testing.T) {
 
 		t.Run("returns the last document without resolve metadata", func(t *testing.T) {
 			d, m, err := store.Resolve(*did1, nil)
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			assert.NotNil(t, d)
 			assert.NotNil(t, m)
 			assert.Equal(t, m.Hash, latestHash)
@@ -194,9 +183,7 @@ func TestStore_Resolve(t *testing.T) {
 			d, m, err := store.Resolve(*did1, &types.ResolveMetadata{
 				ResolveTime: &now,
 			})
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			assert.NotNil(t, d)
 			assert.NotNil(t, m)
 			assert.Equal(t, m.Hash, latestHash)
@@ -217,9 +204,7 @@ func TestStore_Resolve(t *testing.T) {
 				ResolveTime: &before,
 			})
 
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			assert.NotNil(t, d)
 			assert.NotNil(t, m)
 			assert.Equal(t, firstHash.String(), m.Hash.String())
@@ -229,9 +214,7 @@ func TestStore_Resolve(t *testing.T) {
 			d, m, err := store.Resolve(*did1, &types.ResolveMetadata{
 				Hash: &firstHash,
 			})
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			assert.NotNil(t, d)
 			assert.NotNil(t, m)
 		})
@@ -240,9 +223,7 @@ func TestStore_Resolve(t *testing.T) {
 			d, m, err := store.Resolve(*did1, &types.ResolveMetadata{
 				SourceTransaction: &txHash,
 			})
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			assert.NotNil(t, d)
 			assert.NotNil(t, m)
 		})
@@ -251,9 +232,7 @@ func TestStore_Resolve(t *testing.T) {
 			_, _, err := store.Resolve(*did1, &types.ResolveMetadata{
 				SourceTransaction: &latestHash,
 			})
-			if !assert.Error(t, err) {
-				return
-			}
+			require.Error(t, err)
 			assert.Equal(t, types.ErrNotFound, err)
 		})
 	})
@@ -263,9 +242,7 @@ func TestStore_Resolve(t *testing.T) {
 
 		_, _, err := store.Resolve(*did1, nil)
 
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 		assert.Equal(t, types.ErrNotFound, err)
 	})
 
@@ -292,19 +269,13 @@ func TestStore_Update(t *testing.T) {
 
 	t.Run("returns no error on duplicate update", func(t *testing.T) {
 		err := store.Update(*did1, h, doc, &meta)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		err = store.Update(*did1, h, doc, &meta)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		// check version
 		_, m, err := store.Resolve(*did1, nil)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Nil(t, m.PreviousHash)
 		assert.Equal(t, h, m.Hash)
 	})
@@ -388,9 +359,7 @@ func TestStore_Iterate(t *testing.T) {
 
 		err := store.Iterate(fn)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, 0, count)
 	})
 
@@ -401,9 +370,7 @@ func TestStore_Iterate(t *testing.T) {
 
 		err := store.Iterate(fn)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, 1, count)
 	})
 

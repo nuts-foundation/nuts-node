@@ -25,6 +25,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -70,9 +71,7 @@ func Test_AutoNodeDIDResolver(t *testing.T) {
 
 		actual, err := resolver.Resolve()
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, *didLocal, actual)
 
 		// Call again, mocks should not be triggered again

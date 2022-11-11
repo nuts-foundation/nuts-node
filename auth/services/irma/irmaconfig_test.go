@@ -19,6 +19,7 @@
 package irma
 
 import (
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -34,13 +35,9 @@ func TestGetIrmaServer(t *testing.T) {
 
 	t.Run("when the config in initialized, the server can be fetched", func(t *testing.T) {
 		irmaConfig, err := GetIrmaConfig(validatorConfig)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		irmaServer, err := GetIrmaServer(validatorConfig, irmaConfig)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.NotNil(t, irmaServer, "expected an IRMA server instance")
 	})
 }

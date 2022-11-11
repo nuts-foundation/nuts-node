@@ -19,6 +19,7 @@
 package grpc
 
 import (
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -31,9 +32,7 @@ func Test_readMetadata(t *testing.T) {
 			peerIDHeader:  "1234",
 			nodeDIDHeader: "did:nuts:test",
 		}))
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, "1234", peerID.String())
 		assert.Equal(t, "did:nuts:test", nodeDID.String())
 	})

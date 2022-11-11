@@ -21,6 +21,7 @@ package tree
 import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -37,9 +38,7 @@ func TestXor_New(t *testing.T) {
 	xor1.Insert(h1)
 
 	xorN, ok := xor1.New().(*Xor)
-	if !assert.True(t, ok, "type assertion failed") {
-		return
-	}
+	require.True(t, ok, "type assertion failed")
 
 	assert.Equal(t, Xor(h1), xor1)
 	assert.Equal(t, Xor{}, *xorN)
@@ -51,9 +50,7 @@ func TestXor_Clone(t *testing.T) {
 	xor1.Insert(h1)
 
 	xorN, ok := xor1.Clone().(*Xor)
-	if !assert.True(t, ok, "type assertion failed") {
-		return
-	}
+	require.True(t, ok, "type assertion failed")
 	xorN.Insert(h2)
 
 	assert.Equal(t, h1, xor1.Hash())

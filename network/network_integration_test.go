@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/stretchr/testify/require"
 	grpc2 "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
@@ -193,12 +194,8 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 		// set root
 		key := nutsCrypto.NewTestKey("key")
 		rootTx, err := bootstrap.network.CreateTransaction(TransactionTemplate(payloadType, []byte("root_tx"), key).WithAttachKey())
-		if !assert.NoError(t, err) {
-			return
-		}
-		if !assert.NoError(t, node1.network.state.Add(context.Background(), rootTx, []byte("root_tx"))) {
-			return
-		}
+		require.NoError(t, err)
+		require.NoError(t, node1.network.state.Add(context.Background(), rootTx, []byte("root_tx")))
 		expectedDocLogSize := 1
 
 		// create some transactions on the bootstrap node to get it ahead of node 1
@@ -473,9 +470,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			WithAttachKey().
 			WithPrivate([]did.DID{node1DID, node2DID})
 		tx, err := node1.network.CreateTransaction(tpl)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		waitForTransaction(t, tx, "node2")
 
 		// assert not only TX is transfered, but state is updates as well
@@ -506,9 +501,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		// setup eventListener
 		stream := node2.network.eventPublisher.GetStream(events.TransactionsStream)
 		conn, _, err := node2.network.eventPublisher.Pool().Acquire(context.Background())
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		defer conn.Close()
 		var found []byte
 		foundMutex := sync.Mutex{}
@@ -528,9 +521,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			WithAttachKey().
 			WithPrivate([]did.DID{node1DID, node2DID})
 		_, err = node1.network.CreateTransaction(tpl)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		test.WaitFor(t, func() (bool, error) {
 			foundMutex.Lock()
@@ -568,9 +559,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			WithAttachKey().
 			WithPrivate([]did.DID{node1DID, node2DID})
 		tx, err := node1.network.CreateTransaction(tpl)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		arrived := test.WaitForNoFail(t, func() (bool, error) {
 			mutex.Lock()
 			defer mutex.Unlock()
@@ -627,9 +616,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			WithAttachKey().
 			WithPrivate(pal)
 		tx, err := node1.network.CreateTransaction(tpl)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		waitForTransaction(t, tx, "node1", "node2", "node3")
 	})
 
@@ -654,9 +641,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 				WithAttachKey().
 				WithPrivate([]did.DID{node1DID, node2DID})
 			_, err := node1.network.CreateTransaction(tpl)
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 		}
 
 		// Now connect node1 to node2 and wait for them to set up
@@ -781,9 +766,7 @@ func TestNetworkIntegration_TLSOffloading(t *testing.T) {
 
 			// Create client (node2) that connects to server node
 			grpcConn, err := grpc2.Dial(nameToAddress(t, "node1"), grpc2.WithTransportCredentials(insecure.NewCredentials()))
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			defer grpcConn.Close()
 			ctx := context.Background()
 			outgoingMD := metadata.MD{}
@@ -791,9 +774,7 @@ func TestNetworkIntegration_TLSOffloading(t *testing.T) {
 			outgoingMD.Set("nodeDID", "did:nuts:node2")
 			// Load client cert and set as HTTP request header, as will be done by a TLS terminator
 			clientCertBytes, err := os.ReadFile("test/certificate-and-key.pem")
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 
 			xffHeader := "8.8.8.8,8.8.4.4,127.0.0.1"
 			outgoingMD.Set("X-Forwarded-For", xffHeader)
@@ -801,9 +782,7 @@ func TestNetworkIntegration_TLSOffloading(t *testing.T) {
 			outgoingContext := metadata.NewOutgoingContext(ctx, outgoingMD)
 			client := v2.NewProtocolClient(grpcConn)
 			result, err := client.Stream(outgoingContext)
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 
 			// Assert connection is OK
 			msg, err := result.Recv()
@@ -821,9 +800,7 @@ func TestNetworkIntegration_TLSOffloading(t *testing.T) {
 
 			// Create client (node2) that connects to server node
 			grpcConn, err := grpc2.Dial(nameToAddress(t, "node1"), grpc2.WithTransportCredentials(insecure.NewCredentials()))
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			ctx := context.Background()
 			outgoingMD := metadata.MD{}
 			outgoingMD.Set("peerID", "client")
@@ -831,9 +808,7 @@ func TestNetworkIntegration_TLSOffloading(t *testing.T) {
 			outgoingContext := metadata.NewOutgoingContext(ctx, outgoingMD)
 			client := v2.NewProtocolClient(grpcConn)
 			result, err := client.Stream(outgoingContext)
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 
 			// Assert connection is rejected
 			msg, err := result.Recv()

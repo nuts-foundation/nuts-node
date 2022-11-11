@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
@@ -72,23 +73,15 @@ func TestLDProof_Verify(t *testing.T) {
 	}`
 
 	verificationMethod := did.VerificationMethod{}
-	if !assert.NoError(t, json.Unmarshal([]byte(rawVerificationMethod), &verificationMethod)) {
-		return
-	}
+	require.NoError(t, json.Unmarshal([]byte(rawVerificationMethod), &verificationMethod))
 	pk, err := verificationMethod.PublicKey()
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	signedDocument := SignedDocument{}
-	if !assert.NoError(t, json.Unmarshal([]byte(vc_0), &signedDocument)) {
-		return
-	}
+	require.NoError(t, json.Unmarshal([]byte(vc_0), &signedDocument))
 
 	contextLoader, err := jsonld.NewContextLoader(true, jsonld.ContextsConfig{})
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	t.Run("ok - JSONWebSignature2020 test vector", func(t *testing.T) {
 		ldProof := LDProof{}
@@ -196,9 +189,8 @@ func TestLDProof_Sign(t *testing.T) {
 		ldProof := NewLDProof(pOptions)
 
 		result, err := ldProof.Sign(document, signature.JSONWebSignature2020{ContextLoader: contextLoader}, testKey)
-		if !assert.NoError(t, err) || !assert.NotNil(t, result) {
-			return
-		}
+		require.NoError(t, err)
+		require.NotNil(t, result)
 		signedDocument := result.(SignedDocument)
 		t.Logf("%+v", signedDocument)
 

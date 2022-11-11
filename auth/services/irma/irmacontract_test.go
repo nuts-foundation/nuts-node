@@ -19,6 +19,7 @@
 package irma
 
 import (
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
@@ -37,12 +38,8 @@ func TestSignedIrmaContract_VerifySignature(t *testing.T) {
 	irmaConfig := func(t *testing.T) *irma.Configuration {
 		t.Helper()
 		irmaConfig, err := irma.NewConfiguration("../../../development/irma", irma.ConfigurationOptions{})
-		if !assert.NoError(t, err) {
-			t.FailNow()
-		}
-		if !assert.NoError(t, irmaConfig.ParseFolder()) {
-			t.FailNow()
-		}
+		require.NoError(t, err)
+		require.NoError(t, irmaConfig.ParseFolder())
 		return irmaConfig
 	}
 
@@ -55,9 +52,7 @@ func TestSignedIrmaContract_VerifySignature(t *testing.T) {
 		sic := &SignedIrmaContract{}
 		cv := irmaContractVerifier(t)
 		res, err := cv.verifyAll(sic, nil)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, services.Invalid, res.ValidationResult)
 	})
 
@@ -67,9 +62,7 @@ func TestSignedIrmaContract_VerifySignature(t *testing.T) {
 		cv := irmaContractVerifier(t)
 
 		sic, err := cv.ParseIrmaContract([]byte(validJsonContract))
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		location, _ := time.LoadLocation(contract.AmsterdamTimeZone)
 		checkTime := time.Date(2019, time.October, 1, 13, 46, 00, 0, location)
@@ -97,9 +90,7 @@ func TestSignedIrmaContract_VerifySignature(t *testing.T) {
 
 		validJsonContract := test.ValidIrmaContract2
 		sic, err := cv.ParseIrmaContract([]byte(validJsonContract))
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		res, err := cv.verifyAll(sic.(*SignedIrmaContract), nil)
 		assert.NoError(t, err)
 		assert.Equal(t, services.Invalid, res.ValidationResult)

@@ -22,6 +22,7 @@ import (
 	"encoding"
 	"encoding/json"
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -36,9 +37,7 @@ func TestHash_Empty(t *testing.T) {
 	})
 	t.Run("non empty", func(t *testing.T) {
 		h, err := ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.False(t, h.Empty())
 	})
 	t.Run("returns new hash every time", func(t *testing.T) {
@@ -53,9 +52,7 @@ func TestHash_Empty(t *testing.T) {
 func TestHash_Slice(t *testing.T) {
 	t.Run("slice parsed hash", func(t *testing.T) {
 		h, err := ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, h, FromSlice(h.Slice()))
 	})
 	t.Run("returns new slice every time", func(t *testing.T) {
@@ -112,9 +109,7 @@ func TestSHA256Hash_MarshalJSON(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		bytes, err := json.Marshal(h)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, fmt.Sprintf("\"%s\"", s), string(bytes))
 	})
 }
@@ -126,9 +121,7 @@ func TestSHA256Hash_UnmarshalJSON(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		h := EmptyHash()
 		err := json.Unmarshal([]byte(j), &h)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, s, h.String())
 	})
 

@@ -21,6 +21,7 @@ package vdr
 import (
 	"encoding/json"
 	"errors"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -203,9 +204,7 @@ func TestVDR_Create(t *testing.T) {
 		nextDIDDocument := doc.CreateDocument()
 		nextDIDDocument.ID = *id
 		vm, err := did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, did.DID{}, key.Public())
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		nextDIDDocument.AddCapabilityInvocation(vm)
 		nextDIDDocument.AddAssertionMethod(vm)
 		nextDIDDocument.AddKeyAgreement(vm)
@@ -268,9 +267,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			vdr := NewVDR(Config{}, nil, nil, s, nil)
 			results := vdr.Diagnostics()
 
-			if !assert.Len(t, results, 1) {
-				return
-			}
+			require.Len(t, results, 1)
 			assert.Equal(t, "0", results[0].String())
 		})
 
@@ -282,9 +279,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			s.Write(doc, metadata)
 			results := vdr.Diagnostics()
 
-			if !assert.Len(t, results, 1) {
-				return
-			}
+			require.Len(t, results, 1)
 			assert.Equal(t, "1", results[0].String())
 		})
 	})
@@ -294,9 +289,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			vdr := NewVDR(Config{}, nil, nil, s, nil)
 			docs, meta, err := vdr.ConflictedDocuments()
 
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			assert.Len(t, docs, 0)
 			assert.Len(t, meta, 0)
 		})
@@ -309,9 +302,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			s.Write(doc, metadata)
 			docs, meta, err := vdr.ConflictedDocuments()
 
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			assert.Len(t, docs, 1)
 			assert.Len(t, meta, 1)
 		})
@@ -331,9 +322,7 @@ func TestVDR_resolveControllerKey(t *testing.T) {
 
 		controller, key, err := ctx.vdr.resolveControllerWithKey(currentDIDDocument)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, keyID.String(), key.KID())
 		assert.Equal(t, *id, controller.ID)
 	})
@@ -351,9 +340,7 @@ func TestVDR_resolveControllerKey(t *testing.T) {
 
 		_, key, err := ctx.vdr.resolveControllerWithKey(currentDIDDocument)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, keyID.String(), key.KID())
 		assert.Equal(t, *controllerId, controller.ID)
 	})
@@ -366,9 +353,7 @@ func TestVDR_resolveControllerKey(t *testing.T) {
 
 		_, _, err := ctx.vdr.resolveControllerWithKey(currentDIDDocument)
 
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 		assert.Equal(t, "could not find capabilityInvocation key for updating the DID document: b00m!", err.Error())
 	})
 
@@ -382,9 +367,7 @@ func TestVDR_resolveControllerKey(t *testing.T) {
 
 		_, _, err := ctx.vdr.resolveControllerWithKey(currentDIDDocument)
 
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 		assert.Equal(t, types.ErrDIDNotManagedByThisNode, err)
 	})
 }

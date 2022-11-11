@@ -22,6 +22,7 @@ package vcr
 import (
 	"encoding/json"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/stretchr/testify/require"
 	"os"
 	"path"
 	"strings"
@@ -166,9 +167,7 @@ func TestVCR_Resolve(t *testing.T) {
 		ctx.vcr.trustConfig.AddTrust(ssi.MustParseURI("NutsOrganizationCredential"), testVC.Issuer)
 
 		vc, err := ctx.vcr.Resolve(*testVC.ID, &now)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.Equal(t, testVC, *vc)
 	})
@@ -244,9 +243,7 @@ func TestVcr_Untrusted(t *testing.T) {
 
 	// reindex
 	err := instance.initJSONLDIndices()
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	// add document
 	doc := []byte(jsonld.TestOrganizationCredential)
@@ -282,9 +279,7 @@ func TestVcr_Untrusted(t *testing.T) {
 func confirmUntrustedStatus(t *testing.T, fn func(issuer ssi.URI) ([]ssi.URI, error), numUntrusted int) {
 	trusted, err := fn(ssi.MustParseURI("NutsOrganizationCredential"))
 
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	assert.Len(t, trusted, numUntrusted)
 }
@@ -296,9 +291,7 @@ func confirmTrustedStatus(t *testing.T, trustManager TrustManager, issuer ssi.UR
 	}()
 	trusted, err := fn(ssi.MustParseURI("NutsOrganizationCredential"))
 
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	assert.Len(t, trusted, numTrusted)
 }
