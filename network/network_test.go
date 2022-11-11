@@ -970,9 +970,12 @@ func TestNetwork_calculateLamportClock(t *testing.T) {
 
 func TestNetwork_checkHealth(t *testing.T) {
 	t.Run("up", func(t *testing.T) {
-		trustStore, _ := core.LoadTrustStore("test/truststore.pem")
-		certificate, _ := tls.LoadX509KeyPair("test/certificate-and-key.pem", "test/certificate-and-key.pem")
-		certificate.Leaf, _ = x509.ParseCertificate(certificate.Certificate[0])
+		trustStore, err := core.LoadTrustStore("test/truststore.pem")
+		require.NoError(t, err)
+		certificate, err := tls.LoadX509KeyPair("test/certificate-and-key.pem", "test/certificate-and-key.pem")
+		require.NoError(t, err)
+		certificate.Leaf, err = x509.ParseCertificate(certificate.Certificate[0])
+		require.NoError(t, err)
 		n := Network{
 			trustStore:  trustStore,
 			certificate: certificate,
@@ -983,9 +986,12 @@ func TestNetwork_checkHealth(t *testing.T) {
 		assert.Equal(t, core.HealthStatusUp, result["tls"].Status)
 	})
 	t.Run("expired", func(t *testing.T) {
-		trustStore, _ := core.LoadTrustStore("test/truststore.pem")
-		certificate, _ := tls.LoadX509KeyPair("test/invalid-cert.pem", "test/invalid-cert.pem")
-		certificate.Leaf, _ = x509.ParseCertificate(certificate.Certificate[0])
+		trustStore, err := core.LoadTrustStore("test/truststore.pem")
+		require.NoError(t, err)
+		certificate, err := tls.LoadX509KeyPair("test/invalid-cert.pem", "test/invalid-cert.pem")
+		require.NoError(t, err)
+		certificate.Leaf, err = x509.ParseCertificate(certificate.Certificate[0])
+		require.NoError(t, err)
 		n := Network{
 			trustStore:  trustStore,
 			certificate: certificate,
