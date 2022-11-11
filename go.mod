@@ -23,7 +23,7 @@ require (
 	github.com/nats-io/nats.go v1.19.0
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.3.0
-	github.com/nuts-foundation/go-leia/v3 v3.2.0
+	github.com/nuts-foundation/go-leia/v3 v3.3.0
 	github.com/nuts-foundation/go-stoabs v1.3.0
 	github.com/piprate/json-gold v0.4.2
 	github.com/privacybydesign/irmago v0.10.0
