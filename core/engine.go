@@ -92,9 +92,9 @@ func (system *System) Start() error {
 	var err error
 	return system.VisitEnginesE(func(engine Engine) error {
 		if m, ok := engine.(Runnable); ok {
-			coreLogger.Infof("Starting %s...", getEngineName(engine))
+			coreLogger.Infof("Starting %s...", engineName(engine))
 			err = m.Start()
-			coreLogger.Infof("Started %s", getEngineName(engine))
+			coreLogger.Infof("Started %s", engineName(engine))
 		}
 		return err
 	})
@@ -110,11 +110,11 @@ func (system *System) Shutdown() error {
 	})
 	for i := len(engines) - 1; i >= 0; i-- {
 		curr := engines[i]
-		coreLogger.Infof("Stopping %s...", getEngineName(curr))
+		coreLogger.Infof("Stopping %s...", engineName(curr))
 		if err := curr.Shutdown(); err != nil {
 			return err
 		}
-		coreLogger.Infof("Stopped %s", getEngineName(curr))
+		coreLogger.Infof("Stopped %s", engineName(curr))
 	}
 	return nil
 }
@@ -129,9 +129,9 @@ func (system *System) Configure() error {
 	return system.VisitEnginesE(func(engine Engine) error {
 		// only if Engine is dynamically configurable
 		if m, ok := engine.(Configurable); ok {
-			coreLogger.Debugf("Configuring %s", getEngineName(engine))
+			coreLogger.Debugf("Configuring %s", engineName(engine))
 			err = m.Configure(*system.Config)
-			coreLogger.Debugf("Configured %s", getEngineName(engine))
+			coreLogger.Debugf("Configured %s", engineName(engine))
 		}
 		return err
 	})
@@ -143,9 +143,9 @@ func (system *System) Migrate() error {
 	return system.VisitEnginesE(func(engine Engine) error {
 		// only if Engine is migratable
 		if m, ok := engine.(Migratable); ok {
-			coreLogger.Debugf("Migrating %s", getEngineName(engine))
+			coreLogger.Debugf("Migrating %s", engineName(engine))
 			err = m.Migrate()
-			coreLogger.Debugf("Migrated %s", getEngineName(engine))
+			coreLogger.Debugf("Migrated %s", engineName(engine))
 		}
 		return err
 	})
@@ -232,7 +232,7 @@ type Injectable interface {
 	Config() interface{}
 }
 
-func getEngineName(engine Engine) string {
+func engineName(engine Engine) string {
 	var name string
 	if named, ok := engine.(Named); ok {
 		name = named.Name()
