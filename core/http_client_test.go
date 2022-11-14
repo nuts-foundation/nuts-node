@@ -19,6 +19,7 @@
 package core
 
 import (
+	"context"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
 	io2 "io"
@@ -82,7 +83,7 @@ func TestUserAgentRequestEditor(t *testing.T) {
 	GitVersion = ""
 	req := &stdHttp.Request{Header: map[string][]string{}}
 
-	err := UserAgentRequestEditor(nil, req)
+	err := UserAgentRequestEditor(context.TODO(), req)
 
 	assert.NoError(t, err)
 	assert.Equal(t, "nuts-node-refimpl/unknown", req.UserAgent())

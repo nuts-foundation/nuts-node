@@ -411,11 +411,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/VerifiablePresentation"
-
-
+        default:
+          $ref: '../common/error_response.yaml'
 
 components:
   schemas:
+    VerifiableCredential:
+      $ref: '../common/ssi_types.yaml#/components/schemas/VerifiableCredential'
+    CredentialSubject:
+      $ref: '../common/ssi_types.yaml#/components/schemas/CredentialSubject'
+    VerifiablePresentation:
+      $ref: '../common/ssi_types.yaml#/components/schemas/VerifiablePresentation'
+    Revocation:
+      $ref: '../common/ssi_types.yaml#/components/schemas/Revocation'
+    DID:
+      $ref: '../common/ssi_types.yaml#/components/schemas/DID'
+
     IssueVCRequest:
       type: object
       description: A request for issuing a new Verifiable Credential.
@@ -460,8 +471,6 @@ components:
             default: private
         credentialSubject:
           $ref: '#/components/schemas/CredentialSubject'
-    VerifiableCredential:
-      $ref: '../common/ssi_types.yaml#/components/schemas/VerifiableCredential'
     SearchVCRequest:
       type: object
       description: request body for searching VCs
@@ -500,32 +509,6 @@ components:
           description: If set to true, VCs from an untrusted issuer are returned.
           type: boolean
           default: false
-    Revocation:
-      type: object
-      description: Credential revocation record
-      required:
-        - issuer
-        - subject
-        - date
-      properties:
-        issuer:
-          $ref: '#/components/schemas/DID'
-        subject:
-          type: string
-          description: subject refers to the credential identifier that is revoked (not the credential subject)
-        reason:
-          type: string
-          description: reason describes why the VC has been revoked
-        date:
-          type: string
-          description: date is a rfc3339 formatted datetime.
-        proof:
-          type: object
-          description: Proof contains the cryptographic proof(s).
-    DID:
-      $ref: '../common/ssi_types.yaml#/components/schemas/DID'
-    CredentialSubject:
-      $ref: '../common/ssi_types.yaml#/components/schemas/CredentialSubject'
 
     VCVerificationRequest:
       required:
@@ -625,8 +608,6 @@ components:
           items:
             $ref: '#/components/schemas/VerifiableCredential'
 
-    VerifiablePresentation:
-      $ref: '../common/ssi_types.yaml#/components/schemas/VerifiablePresentation'
     CredentialIssuer:
       type: object
       required:
