@@ -33,9 +33,9 @@ output-options:
       func(context echo.Context) error {\n        si.(Preprocessor).Preprocess(\"{{.OperationId}}\",
       context)\n        return wrapper.{{.OperationId}}(context)\n    })\n{{end}}\n}\n"
   exclude-schemas:
-  - VerifiableCredential
-  - DID
   - CredentialSubject
+  - DID
   - Revocation
-  - VerifiablePresentation
   - SearchVCRequest
+  - VerifiableCredential
+  - VerifiablePresentation

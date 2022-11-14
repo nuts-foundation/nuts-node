@@ -34,7 +34,7 @@ paths:
       summary: Add a predetermined DID Service with real life contact information
       description: |
         In case of emergency or support questions a service provider operating a nuts node should
-        provide contact inforamtion such as an emergency phone number and support email address.
+        provide contact information such as an emergency phone number and support email address.
 
         There is at most one contact-information service per DID.
       tags:
@@ -325,12 +325,12 @@ components:
         id:
           type: string
         type:
-          description: type of the endpoint. May be freely choosen.
+          description: type of the endpoint. May be freely chosen.
           type: string
         serviceEndpoint:
           description: An endpoint URL or a reference to another service.
           type: string
-          example: did:nuts:123/serviceEndpoint?type=eOverdracht-fhir
+          example: 'did:nuts:123/serviceEndpoint?type=eOverdracht-fhir'
     EndpointProperties:
       type: object
       description: A combination of type and URL.
@@ -339,12 +339,12 @@ components:
         - endpoint
       properties:
         type:
-          description: type of the endpoint. May be freely choosen.
+          description: type of the endpoint. May be freely chosen.
           type: string
         endpoint:
           description: An endpoint URL or a reference to another service.
           type: string
-          example: did:nuts:123/serviceEndpoint?type=eOverdracht-fhir
+          example: 'did:nuts:123/serviceEndpoint?type=eOverdracht-fhir'
     CompoundServiceProperties:
       type: object
       description: A creation request for a compound service that contains endpoints. The endpoints can be either absolute endpoints or references.
@@ -353,7 +353,7 @@ components:
         - serviceEndpoint
       properties:
         type:
-          description: type of the endpoint. May be freely choosen.
+          description: type of the endpoint. May be freely chosen.
           type: string
         serviceEndpoint:
           description: A map containing service references and/or endpoints.
@@ -370,7 +370,7 @@ components:
         id:
           type: string
         type:
-          description: type of the endpoint. May be freely choosen.
+          description: type of the endpoint. May be freely chosen.
           type: string
         serviceEndpoint:
           description: A map containing service references and/or endpoints.
@@ -399,7 +399,7 @@ components:
           description: URL of the public website of this Service Provider. Can point to a Nuts specific page with more information about the node and how to contact.
     OrganizationSearchResult:
       type: object
-      description: An entry resulting from the organozation search.
+      description: An entry resulting from the organization search.
       properties:
         organization:
           type: object
@@ -407,7 +407,7 @@ components:
             An object describing the found entity, modelled as a concept as specified by VCR's OpenAPI specification.
             See https://nuts-node.readthedocs.io/en/latest/pages/development/3-vc.html for examples on which concepts are supported and how they're structured.
         didDocument:
-          $ref: '../vdr/v1.yaml#/components/schemas/DIDDocument'
+          $ref: '../common/ssi_types.yaml#/components/schemas/DIDDocument'
     EndpointResponse:
       type: object
       required:

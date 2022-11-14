@@ -23,12 +23,22 @@ import (
 	"testing"
 	"time"
 
-	ssi "github.com/nuts-foundation/go-did"
-	vcr "github.com/nuts-foundation/nuts-node/vcr/api/v2"
 	"github.com/stretchr/testify/assert"
+
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	vcr "github.com/nuts-foundation/nuts-node/vcr/api/v2"
+	vdrTypes "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-func TestSsiTypes_VerifiableCredential(t *testing.T) {
+const (
+	didString = "did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey"
+	idString  = "did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey#c4199b74-0c0a-4e09-a463-6927553e65f5"
+)
+
+func Test_VerifiableCredential(t *testing.T) {
 	t.Run("required fields only", func(t *testing.T) {
 		remarshallTest(t, createVerifiableCredential(), VerifiableCredential{})
 	})
@@ -44,7 +54,7 @@ func TestSsiTypes_VerifiableCredential(t *testing.T) {
 	})
 }
 
-func TestSsiTypes_VerifiablePresentation(t *testing.T) {
+func Test_VerifiablePresentation(t *testing.T) {
 	t.Run("required fields only", func(t *testing.T) {
 		remarshallTest(t, createVerifiablePresentation(), VerifiableCredential{})
 	})
@@ -63,6 +73,53 @@ func TestSsiTypes_VerifiablePresentation(t *testing.T) {
 	})
 }
 
+func Test_Revocation(t *testing.T) {
+	t.Run("required fields only", func(t *testing.T) {
+		remarshallTest(t, createRevocation(), Revocation{})
+	})
+
+	t.Run("all fields", func(t *testing.T) {
+		revocation := createRevocation()
+		revocation.Context = []ssi.URI{
+			ssi.MustParseURI("https://nuts.nl/credentials/v1"),
+		}
+		revocation.Type = []ssi.URI{
+			ssi.MustParseURI("VerifiableCredential"),
+			ssi.MustParseURI("CredentialRevocation"),
+		}
+		revocation.Reason = "why not"
+		revocation.Proof = &vc.JSONWebSignature2020Proof{
+			Proof: vc.Proof{},
+			Jws:   "signature",
+		}
+
+		remarshallTest(t, revocation, Revocation{})
+	})
+}
+
+func Test_DIDDocument(t *testing.T) {
+	t.Run("all fields", func(t *testing.T) {
+		remarshallTest(t, createDidDocument(), DIDDocument{})
+	})
+}
+
+func Test_DIDDocumentMetadata(t *testing.T) {
+	t.Run("required fields only", func(t *testing.T) {
+		remarshallTest(t, createDidDocumentMetadata(), DIDDocumentMetadata{})
+	})
+
+	t.Run("all fields ", func(t *testing.T) {
+		dm := createDidDocumentMetadata()
+		now := time.Now()
+		previous := hash.RandomHash()
+		dm.Updated = &now
+		dm.PreviousHash = &previous
+		dm.SourceTransactions = []hash.SHA256Hash{previous}
+
+		remarshallTest(t, dm, DIDDocumentMetadata{})
+	})
+}
+
 func createVerifiableCredential() vcr.VerifiableCredential {
 	return vcr.VerifiableCredential{
 		Context: []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1")},
@@ -77,6 +134,14 @@ func createVerifiableCredential() vcr.VerifiableCredential {
 	}
 }
 
+func createRevocation() vcr.Revocation {
+	return vcr.Revocation{
+		Issuer:  ssi.MustParseURI(didString),
+		Subject: ssi.MustParseURI(idString),
+		Date:    time.Now(),
+	}
+}
+
 func createVerifiablePresentation() vcr.VerifiablePresentation {
 	return vcr.VerifiablePresentation{
 		Context: []ssi.URI{
@@ -84,6 +149,44 @@ func createVerifiablePresentation() vcr.VerifiablePresentation {
 			ssi.MustParseURI("https://nuts.nl/credentials/v1"),
 		},
 		Type: []ssi.URI{ssi.MustParseURI("VerifiablePresentation")},
+	}
+}
+
+func createDidDocument() did.Document {
+	verificationMethod := &did.VerificationMethod{
+		ID:         did.MustParseDIDURL(idString),
+		Type:       "Secp256k1VerificationKey2018",
+		Controller: did.MustParseDID(didString),
+	}
+	verificationRelationship := did.VerificationRelationship{VerificationMethod: verificationMethod}
+	return did.Document{
+		Context: []ssi.URI{
+			ssi.MustParseURI("https://www.w3.org/ns/did/v1"),
+			ssi.MustParseURI("https://www.w3.org/ns/did/v2"),
+		},
+		AssertionMethod:      did.VerificationRelationships{verificationRelationship},
+		Authentication:       did.VerificationRelationships{verificationRelationship},
+		CapabilityDelegation: did.VerificationRelationships{verificationRelationship},
+		CapabilityInvocation: did.VerificationRelationships{verificationRelationship},
+		KeyAgreement:         did.VerificationRelationships{verificationRelationship},
+		VerificationMethod:   did.VerificationMethods{verificationMethod},
+		Controller:           []did.DID{did.MustParseDID("did:example:controller")},
+		ID:                   verificationMethod.ID,
+		Service: []did.Service{
+			{
+				ID:              ssi.MustParseURI("example"),
+				Type:            "type",
+				ServiceEndpoint: "foo",
+			},
+		},
+	}
+}
+
+func createDidDocumentMetadata() vdrTypes.DocumentMetadata {
+	return vdrTypes.DocumentMetadata{
+		Created:     time.Now(),
+		Hash:        hash.RandomHash(),
+		Deactivated: true,
 	}
 }
 

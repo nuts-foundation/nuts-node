@@ -77,9 +77,7 @@ func (i *Iblt) Clone() Data {
 		k:       i.k,
 		buckets: make([]bucket, i.numBuckets()),
 	}
-	for idx := range i.buckets {
-		clone.buckets[idx] = i.buckets[idx]
-	}
+	copy(clone.buckets, i.buckets)
 	return clone
 }
 

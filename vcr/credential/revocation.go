@@ -27,7 +27,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 )
 
-// Revocation defines a proof that a VC has been revoked by it's issuer.
+// Revocation defines a proof that a VC has been revoked by its issuer.
 type Revocation struct {
 	// Context contains the json-ld contexts
 	Context []ssi.URI `json:"@context,omitempty"`

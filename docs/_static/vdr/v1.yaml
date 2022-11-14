@@ -234,91 +234,16 @@ paths:
           description: Verification Method was successfully deleted
         default:
           $ref: '../common/error_response.yaml'
+
 components:
   schemas:
     DIDDocument:
-      type: object
-      description: A DID document according to the W3C spec following the Nuts Method rules as defined in [Nuts RFC006]
-      required:
-        - id
-        - '@context'
-      properties:
-        '@context':
-          description: The JSON-LD contexts that define the types used in this document. Can be a single string, or a list of strings.
-        controller:
-          description: Single DID (as string) or List of DIDs that have control over the DID document
-        id:
-          description: DID according to Nuts specification
-          example: "did:nuts:1"
-          type: string
-        keyAgreement:
-          description: List of KIDs that can be used for encryption
-          type: array
-          items:
-            type: string
-        service:
-          description: List of supported services by the DID subject
-          type: array
-          items:
-            $ref: '#/components/schemas/Service'
-        verificationMethod:
-          description: list of keys
-          type: array
-          items:
-            $ref: '#/components/schemas/VerificationMethod'
-        assertionMethod:
-          description: List of KIDs that may sign JWTs, JWSs and VCs
-          type: array
-          items:
-            type: string
-        authentication:
-          description: List of KIDs that may alter DID documents that they control
-          type: array
-          items:
-            type: string
-        capabilityDelegation:
-          description: List of KIDs that can be used to delegate capabilities that can be invoked using the DID document.
-          type: array
-          items:
-            type: string
-        capabilityInvocation:
-          description: List of KIDs that can be used for signing
-          type: array
-          items:
-            type: string
+      $ref: '../common/ssi_types.yaml#/components/schemas/DIDDocument'
     DIDDocumentMetadata:
-      type: object
-      description: The DID document metadata.
-      required:
-        - created
-        - hash
-        - deactivated
-        - txs
-      properties:
-        created:
-          description: Time when DID document was created in rfc3339 form.
-          type: string
-        updated:
-          description: Time when DID document was updated in rfc3339 form.
-          type: string
-        hash:
-          description: Sha256 in hex form of the DID document contents.
-          type: string
-        previousHash:
-          description: Sha256 in hex form of the previous version of this DID document.
-          type: string
-        txs:
-          description: |
-            txs lists the transaction(s) that created the current version of this DID Document.
-            If multiple transactions are listed, the DID Document is conflicted
-          type: array
-          items:
-            type: string
-            description: Sha256 in hex form of the transaction
-            example: "24af55bd08bfe42c603b87565c31ae8f2770e820c4b32e1e928244775ab3ed19"
-        deactivated:
-          description: Whether the DID document has been deactivated.
-          type: boolean
+      $ref: '../common/ssi_types.yaml#/components/schemas/DIDDocumentMetadata'
+    VerificationMethod:
+      $ref: '../common/ssi_types.yaml#/components/schemas/VerificationMethod'
+
     DIDResolutionResult:
       required:
         - document
@@ -328,22 +253,6 @@ components:
           $ref: '#/components/schemas/DIDDocument'
         documentMetadata:
           $ref: '#/components/schemas/DIDDocumentMetadata'
-    Service:
-      type: object
-      description: A service supported by a DID subject.
-      required:
-        - id
-        - type
-        - serviceEndpoint
-      properties:
-        id:
-          description: ID of the service.
-          type: string
-        type:
-          description: The type of the endpoint.
-          type: string
-        serviceEndpoint:
-          description: Either a URI or a complex object.
     DIDUpdateRequest:
       required:
         - document
@@ -354,28 +263,6 @@ components:
         currentHash:
           type: string
           description: The hash of the document in hex format.
-    VerificationMethod:
-      description: A public key in JWK form.
-      required:
-        - id
-        - type
-        - controller
-        - publicKeyJwk
-      properties:
-        controller:
-          description: The DID subject this key belongs to.
-          example: "did:nuts:1"
-          type: string
-        id:
-          description: The ID of the key, used as KID in various JWX technologies.
-          type: string
-        publicKeyJwk:
-          description: The public key formatted according rfc7517.
-          type: object
-        type:
-          description: The type of the key.
-          example: "JsonWebKey2020"
-          type: string
     DIDCreateRequest:
       properties:
         controllers:

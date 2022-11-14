@@ -3,7 +3,7 @@
 run-generators: gen-mocks gen-api gen-protobuf
 
 install-tools:
-	go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen@v1.11.0
+	go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen@v1.12.2
 	go install github.com/golang/mock/mockgen@v1.6.0
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
@@ -47,14 +47,13 @@ gen-mocks:
 	mockgen -destination=storage/mock.go -package storage -source=storage/interface.go
 
 gen-api:
+	oapi-codegen --config codegen/configs/common_ssi_types.yaml docs/_static/common/ssi_types.yaml | gofmt > api/ssi_types.go
 	oapi-codegen --config codegen/configs/crypto_v1.yaml -package v1 docs/_static/crypto/v1.yaml | gofmt > crypto/api/v1/generated.go
 	oapi-codegen --config codegen/configs/vdr_v1.yaml docs/_static/vdr/v1.yaml | gofmt > vdr/api/v1/generated.go
-	oapi-codegen --config codegen/configs/vdr_v1_test.yaml -package v1 docs/_static/vdr/v1.yaml | gofmt > vdr/api/v1/test/generated.go
 	oapi-codegen --config codegen/configs/network_v1.yaml docs/_static/network/v1.yaml | gofmt > network/api/v1/generated.go
 	oapi-codegen --config codegen/configs/vcr_v2.yaml docs/_static/vcr/v2.yaml | gofmt > vcr/api/v2/generated.go
 	oapi-codegen --config codegen/configs/auth_v1.yaml docs/_static/auth/v1.yaml | gofmt > auth/api/v1/generated.go
 	oapi-codegen --config codegen/configs/didman_v1.yaml docs/_static/didman/v1.yaml | gofmt > didman/api/v1/generated.go
-	oapi-codegen --config codegen/configs/common_ssi_types.yaml docs/_static/common/ssi_types.yaml | gofmt > api/ssi_types.go
 
 gen-protobuf:
 	protoc --go_out=paths=source_relative:network -I network network/transport/v2/protocol.proto

@@ -5,7 +5,7 @@ API Reference
 
 Below you can discover the Nuts Node APIs and download their OpenAPI specifications:
 
-- `Common (required by others) <../../_static/common/error_response.yaml>`_
+- Common: `SSI types <../../_static/common/ssi_types.yaml>`_, `Default Error <../../_static/common/error_response.yaml>`_
 - `DID Manager <../../_static/didman/v1.yaml>`_
 - `Crypto <../../_static/crypto/v1.yaml>`_
 - `Verifiable Credential Registry (v2) <../../_static/vcr/v2.yaml>`_

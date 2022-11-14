@@ -1,5 +1,6 @@
 components:
   schemas:
+# VC
     VerifiableCredential:
       type: object
       description: A credential according to the W3C and Nuts specs.
@@ -36,13 +37,34 @@ components:
           $ref: '#/components/schemas/CredentialSubject'
         proof:
           description: one or multiple cryptographic proofs
-    DID:
-      type: string
-      description: DID according to Nuts specification
-      example: "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY"
+
     CredentialSubject:
       description: Subject of a Verifiable Credential identifying the holder and expressing claims.
 
+    Revocation:
+      type: object
+      description: Credential revocation record
+      required:
+        - issuer
+        - subject
+        - date
+      properties:
+        issuer:
+          $ref: '#/components/schemas/DID'
+        subject:
+          type: string
+          description: subject refers to the credential identifier that is revoked (not the credential subject)
+        reason:
+          type: string
+          description: reason describes why the VC has been revoked
+        date:
+          type: string
+          description: date is a rfc3339 formatted datetime.
+        proof:
+          type: object
+          description: Proof contains the cryptographic proof(s).
+
+# VP
     VerifiablePresentation:
       type: object
       description: Verifiable Presentation
@@ -85,6 +107,7 @@ components:
             the data, such as a Linked Data Signature.
           example:
             $ref: "#/components/schemas/EmbeddedProof"
+
     EmbeddedProof:
       title: Embedded Proof
       type: object
@@ -141,3 +164,132 @@ components:
           type: string
           description: JSON Web Signature
           example: eyJhbGciOiJFUzI1NksifQ.eyJzdWIiOiJFQlNJIDIwMTkifQ.oggE3ft3kJYPGGa9eBibpbjgeJXw4fLbVMouVoM2NfcDxsl_UUUIarsS1VpBoYEs7s9cBlc4uC0EbnJCHfVJIw
+
+# DID
+    DID:
+      type: string
+      description: DID according to Nuts specification
+      example: "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY"
+
+    DIDDocument:
+      type: object
+      description: A DID document according to the W3C spec following the Nuts Method rules as defined in [Nuts RFC006]
+      required:
+        - id
+        - '@context'
+      properties:
+        '@context':
+          description: The JSON-LD contexts that define the types used in this document. Can be a single string, or a list of strings.
+        controller:
+          description: Single DID (as string) or List of DIDs that have control over the DID document
+        id:
+          $ref: '#/components/schemas/DID'
+        keyAgreement:
+          description: List of KIDs that can be used for encryption
+          type: array
+          items:
+            type: string
+        service:
+          description: List of supported services by the DID subject
+          type: array
+          items:
+            $ref: '#/components/schemas/Service'
+        verificationMethod:
+          description: list of keys
+          type: array
+          items:
+            $ref: '#/components/schemas/VerificationMethod'
+        assertionMethod:
+          description: List of KIDs that may sign JWTs, JWSs and VCs
+          type: array
+          items:
+            type: string
+        authentication:
+          description: List of KIDs that may alter DID documents that they control
+          type: array
+          items:
+            type: string
+        capabilityDelegation:
+          description: List of KIDs that can be used to delegate capabilities that can be invoked using the DID document.
+          type: array
+          items:
+            type: string
+        capabilityInvocation:
+          description: List of KIDs that can be used for signing
+          type: array
+          items:
+            type: string
+
+    DIDDocumentMetadata:
+      type: object
+      description: The DID document metadata.
+      required:
+        - created
+        - hash
+        - deactivated
+        - txs
+      properties:
+        created:
+          description: Time when DID document was created in rfc3339 form.
+          type: string
+        updated:
+          description: Time when DID document was updated in rfc3339 form.
+          type: string
+        hash:
+          description: Sha256 in hex form of the DID document contents.
+          type: string
+        previousHash:
+          description: Sha256 in hex form of the previous version of this DID document.
+          type: string
+        txs:
+          description: |
+            txs lists the transaction(s) that created the current version of this DID Document.
+            If multiple transactions are listed, the DID Document is conflicted
+          type: array
+          items:
+            type: string
+            description: Sha256 in hex form of the transaction
+            example: "24af55bd08bfe42c603b87565c31ae8f2770e820c4b32e1e928244775ab3ed19"
+        deactivated:
+          description: Whether the DID document has been deactivated.
+          type: boolean
+
+    VerificationMethod:
+      description: A public key in JWK form.
+      required:
+        - id
+        - type
+        - controller
+        - publicKeyJwk
+      properties:
+        controller:
+          description: The DID subject this key belongs to.
+          example: "did:nuts:1"
+          type: string
+        id:
+          description: The ID of the key, used as KID in various JWX technologies.
+          type: string
+        publicKeyJwk:
+          description: The public key formatted according rfc7517.
+          type: object
+        type:
+          description: The type of the key.
+          example: "JsonWebKey2020"
+          type: string
+
+    Service:  # TODO: same as Endpoint in didman...
+      type: object
+      description: A service supported by a DID subject.
+      required:
+        - id
+        - type
+        - serviceEndpoint
+      properties:
+        id:
+          description: ID of the service.
+          type: string
+        type:
+          description: The type of the endpoint.
+          type: string
+        serviceEndpoint:
+          description: Either a URI or a complex object.
