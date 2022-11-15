@@ -13,7 +13,7 @@ LABEL maintainer="wout.slakhorst@nuts.nl"
 RUN apk update \
  && apk add --no-cache \
             gcc=11.2.1_git20220219-r2 \
-            musl-dev=1.2.3-r1 \
+            musl-dev=1.2.3-r2 \
  && update-ca-certificates
 
 ENV GO111MODULE on
@@ -28,7 +28,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s -X 'github.com/nuts-foundation/nuts-node/core.GitCommit=${GIT_COMMIT}' -X 'github.com/nuts-foundation/nuts-node/core.GitBranch=${GIT_BRANCH}' -X 'github.com/nuts-foundation/nuts-node/core.GitVersion=${GIT_VERSION}'" -o /opt/nuts/nuts
 
 # alpine
-FROM alpine:3.16.2
+FROM alpine:3.16.3
 RUN apk update \
   && apk add --no-cache \
              tzdata \
