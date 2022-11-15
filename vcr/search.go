@@ -92,7 +92,7 @@ func (c *vcr) Search(ctx context.Context, searchTerms []SearchTerm, allowUntrust
 			log.Logger().
 				WithError(err).
 				WithField(core.LogFieldCredentialID, foundCredential.ID).
-				Info("Encountered invalid VC, omitting from search results.")
+				Debug("Encountered invalid VC, omitting from search results.")
 		}
 	}
 
