@@ -24,6 +24,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/test"
 	io_prometheus_client "github.com/prometheus/client_model/go"
@@ -202,6 +203,18 @@ func TestState_Add(t *testing.T) {
 		err := txState.Add(ctx, transaction{}, nil)
 
 		assert.Error(t, err)
+	})
+
+	t.Run("error when Notifier.Save fails", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		subscriberMock := NewMockNotifier(ctrl)
+		subscriberMock.EXPECT().Save(gomock.Any(), gomock.Any()).Return(errors.New("notifier error"))
+		s := createState(t).(*state)
+		s.notifiers.LoadOrStore(t.Name(), subscriberMock)
+
+		err := s.Add(context.Background(), transaction{}, nil)
+
+		assert.EqualError(t, err, "notifier error")
 	})
 
 	t.Run("notifies receiver for transaction", func(t *testing.T) {

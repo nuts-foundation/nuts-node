@@ -431,7 +431,7 @@ func (s *state) Verify(ctx context.Context) error {
 func (s *state) saveEvent(tx stoabs.WriteTx, event Event) error {
 	var err error
 	s.notifiers.Range(func(_, value any) bool {
-		err := value.(Notifier).Save(tx, event)
+		err = value.(Notifier).Save(tx, event)
 		return err == nil
 	})
 	return err
