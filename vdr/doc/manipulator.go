@@ -86,7 +86,7 @@ func (u Manipulator) RemoveVerificationMethod(id, keyID did.DID) error {
 		// do not update if nothing has changed
 		return nil
 	}
-	
+
 	return u.Updater.Update(id, meta.Hash, *doc, nil)
 }
 
