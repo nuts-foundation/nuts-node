@@ -52,9 +52,7 @@ func TestVCR_Search(t *testing.T) {
 		// add document
 		doc := []byte(jsonld.TestCredential)
 		err := ctx.vcr.credentialCollection().Add([]leia.Document{doc})
-		if !assert.NoError(t2, err) {
-			t2.Fatal(err)
-		}
+		require.NoError(t, err)
 		return ctx
 	}
 

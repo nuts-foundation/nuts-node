@@ -410,9 +410,7 @@ func TestState_updateState(t *testing.T) {
 	setup := func(t *testing.T) State {
 		txState := createState(t)
 		err := txState.Start()
-		if !assert.NoError(t, err) {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 		return txState
 	}
 	ctx := context.Background()

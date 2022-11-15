@@ -148,7 +148,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
 
 		assert.Nil(t, response)
-		require.ErrorContains(t, err, "JWT validity too long")
+		assert.ErrorContains(t, err, "JWT validity too long")
 	})
 
 	t.Run("invalid identity token", func(t *testing.T) {
@@ -166,7 +166,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
 
 		assert.Nil(t, response)
-		require.ErrorContains(t, err, "identity validation failed: because of reasons")
+		assert.ErrorContains(t, err, "identity validation failed: because of reasons")
 	})
 
 	t.Run("valid - without user identity", func(t *testing.T) {
@@ -315,7 +315,8 @@ func TestService_validateSubject(t *testing.T) {
 		ctx.privateKeyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(false)
 
 		err := ctx.oauthService.validateSubject(tokenCtx)
-		require.ErrorContains(t, err, "is not managed by this node")
+		
+		assert.ErrorContains(t, err, "is not managed by this node")
 	})
 }
 
@@ -327,8 +328,6 @@ func TestService_validatePurposeOfUse(t *testing.T) {
 		tokenCtx.jwtBearerToken.Remove(purposeOfUseClaim)
 
 		err := ctx.oauthService.validatePurposeOfUse(tokenCtx)
-
-		require.Error(t, err)
 
 		assert.EqualError(t, err, "no purposeOfUse given")
 	})

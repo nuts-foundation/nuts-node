@@ -20,7 +20,6 @@ package contract
 
 import (
 	"errors"
-	"github.com/stretchr/testify/require"
 	"reflect"
 	"testing"
 	"time"
@@ -71,7 +70,7 @@ func TestContract_extractParams(t *testing.T) {
 
 		err := contract.initParams()
 
-		require.ErrorContains(t, err, "invalid contract text")
+		assert.ErrorContains(t, err, "invalid contract text")
 		assert.Equal(t, 0, len(contract.Params))
 	})
 }
@@ -132,7 +131,7 @@ func TestContract_Verify(t *testing.T) {
 
 			err := contract.Verify()
 
-			require.EqualError(t, err, "invalid contract text: invalid period: contract is not yet valid")
+			assert.EqualError(t, err, "invalid contract text: invalid period: contract is not yet valid")
 		})
 
 		t.Run("an expired contract is invalid", func(t *testing.T) {
@@ -147,7 +146,7 @@ func TestContract_Verify(t *testing.T) {
 
 			err := contract.Verify()
 
-			require.EqualError(t, err, "invalid contract text: invalid period: contract is expired")
+			assert.EqualError(t, err, "invalid contract text: invalid period: contract is expired")
 		})
 	})
 

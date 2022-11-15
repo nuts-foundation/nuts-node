@@ -53,10 +53,10 @@ func TestHTTPClient_CreateAccessToken(t *testing.T) {
 
 		response, err := client.CreateAccessToken(*serverURL, "bearer_token")
 
-		require.Nil(t, response)
-		require.EqualError(t, err, "server returned HTTP 500 (expected: 200), response: null")
+		assert.Nil(t, response)
+		assert.EqualError(t, err, "server returned HTTP 500 (expected: 200), response: null")
 		require.Implements(t, new(core.HTTPStatusCodeError), err)
-		require.Equal(t, http.StatusInternalServerError, err.(core.HTTPStatusCodeError).StatusCode())
+		assert.Equal(t, http.StatusInternalServerError, err.(core.HTTPStatusCodeError).StatusCode())
 	})
 
 	t.Run("error_invalid_endpoint", func(t *testing.T) {

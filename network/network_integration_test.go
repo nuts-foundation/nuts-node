@@ -510,9 +510,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			defer foundMutex.Unlock()
 			found = msg.Data
 			err := msg.Ack()
-			if !assert.NoError(t, err) {
-				t.Fatal(err)
-			}
+			require.NoError(t, err)
 		})
 
 		node1DID, _ := node1.network.nodeDIDResolver.Resolve()
@@ -719,9 +717,7 @@ func TestNetworkIntegration_AddedTransactionsAsEvents(t *testing.T) {
 	// setup eventListener
 	stream := node2.network.eventPublisher.GetStream(events.TransactionsStream)
 	conn, _, err := node2.network.eventPublisher.Pool().Acquire(context.Background())
-	if !assert.NoError(t, err) {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer conn.Close()
 	var found []byte
 	foundMutex := sync.Mutex{}
@@ -730,9 +726,7 @@ func TestNetworkIntegration_AddedTransactionsAsEvents(t *testing.T) {
 		defer foundMutex.Unlock()
 		found = msg.Data
 		err := msg.Ack()
-		if !assert.NoError(t, err) {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 	})
 
 	// add a transaction

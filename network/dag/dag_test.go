@@ -72,9 +72,7 @@ func TestDAG_findBetweenLC(t *testing.T) {
 		err := graph.db.Read(ctx, func(tx stoabs.ReadTx) error {
 			actual, err := graph.findBetweenLC(tx, 1, 3)
 
-			if !assert.NoError(t, err) {
-				return nil
-			}
+			require.NoError(t, err)
 			assert.Len(t, actual, 3)
 			assert.Contains(t, actual, tx2)
 			assert.Contains(t, actual, tx3)
@@ -93,9 +91,7 @@ func TestDAG_Get(t *testing.T) {
 		_ = graph.db.Write(ctx, func(tx stoabs.WriteTx) error {
 			_ = graph.add(tx, transaction)
 			actual, err := getTransaction(transaction.Ref(), tx)
-			if !assert.NoError(t, err) {
-				return err
-			}
+			require.NoError(t, err)
 			assert.Equal(t, transaction, actual)
 			return nil
 		})

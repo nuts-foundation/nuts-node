@@ -123,7 +123,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
 
-		require.EqualError(t, err, "could not draw up contract: no valid organization credential at provided validFrom date")
+		assert.EqualError(t, err, "could not draw up contract: no valid organization credential at provided validFrom date")
 		assert.Nil(t, drawnUpContract)
 	})
 
@@ -136,7 +136,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
 
-		require.EqualError(t, err, "could not draw up contract: organization is not managed by this node: missing organization private key")
+		assert.EqualError(t, err, "could not draw up contract: organization is not managed by this node: missing organization private key")
 		assert.Nil(t, drawnUpContract)
 	})
 
@@ -148,7 +148,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
 
-		require.EqualError(t, err, "could not draw up contract: error occurred")
+		assert.EqualError(t, err, "could not draw up contract: error occurred")
 		assert.Nil(t, drawnUpContract)
 	})
 
@@ -162,7 +162,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
 
-		require.EqualError(t, err, "could not find a credential: error occurred")
+		assert.EqualError(t, err, "could not find a credential: error occurred")
 		assert.Nil(t, drawnUpContract)
 	})
 
@@ -180,7 +180,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
 
-		require.EqualError(t, err, "could not draw up contract: could not render contract template: line 1: unmatched open tag")
+		assert.EqualError(t, err, "could not draw up contract: could not render contract template: line 1: unmatched open tag")
 		assert.Nil(t, drawnUpContract)
 	})
 
@@ -193,8 +193,8 @@ func TestContract_DrawUpContract(t *testing.T) {
 		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential, testCredential}, nil)
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
-		require.NoError(t, err)
 
+		require.NoError(t, err)
 		assert.NotNil(t, drawnUpContract)
 		assert.Equal(t, "Organisation Name: CareBears in Caretown, valid from Thursday, 1 January 1970 01:00:00 to Thursday, 1 January 1970 01:10:00", drawnUpContract.RawContractText)
 	})
@@ -211,6 +211,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential, testCredential2}, nil)
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
+
 		assert.EqualError(t, err, "found multiple non-matching VCs, which is not supported")
 		assert.Nil(t, drawnUpContract)
 	})
@@ -343,9 +344,8 @@ func TestContract_SigningSessionStatus(t *testing.T) {
 		sessionID := "123"
 		signingSesionResult, err := validator.SigningSessionStatus(sessionID)
 
-		require.Error(t, err)
-		require.Nil(t, signingSesionResult)
-		assert.Equal(t, "session not found", err.Error())
+		assert.Nil(t, signingSesionResult)
+		assert.EqualError(t, err, "session not found")
 	})
 }
 

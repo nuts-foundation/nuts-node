@@ -713,9 +713,7 @@ func TestNetwork_Reprocess(t *testing.T) {
 			defer foundMutex.Unlock()
 			*counter++
 			err := msg.Ack()
-			if !assert.NoError(t, err) {
-				t.Fatal(err)
-			}
+			require.NoError(t, err)
 		})
 	}
 

@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -47,9 +48,7 @@ func TestPayloadStore_ReadWrite(t *testing.T) {
 		}
 		// Add payload
 		err := payloadStore.writePayload(tx, hash, payload)
-		if !assert.NoError(t, err) {
-			return nil
-		}
+		require.NoError(t, err)
 		// Now it should be present
 		present = payloadStore.isPayloadPresent(tx, hash)
 		if !assert.True(t, present, "payload should be present") {

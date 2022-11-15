@@ -150,9 +150,7 @@ func TestVCR_Resolve(t *testing.T) {
 		// add document
 		doc := []byte(jsonld.TestOrganizationCredential)
 		err := ctx.vcr.credentialCollection().Add([]leia.Document{doc})
-		if !assert.NoError(t2, err) {
-			t2.Fatal(err)
-		}
+		require.NoError(t2, err)
 
 		return ctx
 	}

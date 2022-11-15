@@ -62,7 +62,7 @@ func TestNewJwtX509Validator(t *testing.T) {
 
 		t.Run("nok - intermediate missing from token", func(t *testing.T) {
 			leaf, chain, err := validator.verifyCertChain([]*x509.Certificate{leafCert}, time.Now())
-			require.ErrorContains(t, err, "unable to verify certificate chain: x509: certificate signed by unknown authority")
+			assert.ErrorContains(t, err, "unable to verify certificate chain: x509: certificate signed by unknown authority")
 			assert.Nil(t, leaf)
 			assert.Nil(t, chain)
 		})
@@ -98,7 +98,7 @@ func TestNewJwtX509Validator(t *testing.T) {
 
 		t.Run("nok - token without leaf cert", func(t *testing.T) {
 			leaf, chain, err := validator.verifyCertChain([]*x509.Certificate{}, time.Now())
-			require.ErrorContains(t, err, "JWT x5c field does not contain certificates")
+			assert.ErrorContains(t, err, "JWT x5c field does not contain certificates")
 			assert.Nil(t, leaf)
 			assert.Nil(t, chain)
 		})
@@ -107,7 +107,7 @@ func TestNewJwtX509Validator(t *testing.T) {
 	t.Run("nok - validator without roots", func(t *testing.T) {
 		validator := NewJwtX509Validator(nil, []*x509.Certificate{rootCert, intermediateCert}, nil, nil)
 		_, _, err := validator.verifyCertChain([]*x509.Certificate{leafCert, intermediateCert}, time.Now())
-		require.ErrorContains(t, err, "unable to verify certificate chain: x509: certificate signed by unknown authority")
+		assert.ErrorContains(t, err, "unable to verify certificate chain: x509: certificate signed by unknown authority")
 	})
 }
 
@@ -136,7 +136,7 @@ func TestJwtX509Validator_Parse(t *testing.T) {
 	t.Run("nok - invalid header", func(t *testing.T) {
 		token, err := validator.Parse("header.payload.signature")
 		assert.Nil(t, token)
-		require.ErrorContains(t, err, "could not parse jwt headers: invalid character")
+		assert.ErrorContains(t, err, "could not parse jwt headers: invalid character")
 	})
 
 	priv, err := rsa.GenerateKey(rand.Reader, 1024)
@@ -148,7 +148,7 @@ func TestJwtX509Validator_Parse(t *testing.T) {
 		require.NoError(t, err)
 		token, err := validator.Parse(string(signedJwt))
 		assert.Nil(t, token)
-		require.ErrorContains(t, err, "the jwt x5c field should contain at least 1 certificate")
+		assert.ErrorContains(t, err, "the jwt x5c field should contain at least 1 certificate")
 	})
 
 	t.Run("nok - invalid base64 data in x5c header", func(t *testing.T) {
@@ -159,7 +159,7 @@ func TestJwtX509Validator_Parse(t *testing.T) {
 		require.NoError(t, err)
 		token, err := validator.Parse(string(signedJwt))
 		assert.Nil(t, token)
-		require.ErrorContains(t, err, "could not parse certificates from headers: could not base64 decode certificate: illegal base64 data at input byte 0")
+		assert.ErrorContains(t, err, "could not parse certificates from headers: could not base64 decode certificate: illegal base64 data at input byte 0")
 
 	})
 	t.Run("nok - invalid cert in x5c header", func(t *testing.T) {

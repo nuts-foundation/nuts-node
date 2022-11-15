@@ -502,9 +502,9 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
 
-		require.EqualError(t, err, "unable to create access token: server returned HTTP 502 (expected: 200), response: null")
+		assert.EqualError(t, err, "unable to create access token: server returned HTTP 502 (expected: 200), response: null")
 		require.Implements(t, new(core.HTTPStatusCodeError), err)
-		require.Equal(t, http.StatusBadGateway, err.(core.HTTPStatusCodeError).StatusCode())
+		assert.Equal(t, http.StatusBadGateway, err.(core.HTTPStatusCodeError).StatusCode())
 	})
 
 	t.Run("happy_path", func(t *testing.T) {
