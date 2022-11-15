@@ -5,6 +5,7 @@
 package grpc
 
 import (
+	x509 "crypto/x509"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -49,4 +50,18 @@ func (m *MockAuthenticator) Authenticate(nodeDID did.DID, grpcPeer peer.Peer, pe
 func (mr *MockAuthenticatorMockRecorder) Authenticate(nodeDID, grpcPeer, peer interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Authenticate", reflect.TypeOf((*MockAuthenticator)(nil).Authenticate), nodeDID, grpcPeer, peer)
+}
+
+// AuthenticateNodeDID mocks base method.
+func (m *MockAuthenticator) AuthenticateNodeDID(nodeDID did.DID, certificate x509.Certificate) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AuthenticateNodeDID", nodeDID, certificate)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AuthenticateNodeDID indicates an expected call of AuthenticateNodeDID.
+func (mr *MockAuthenticatorMockRecorder) AuthenticateNodeDID(nodeDID, certificate interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthenticateNodeDID", reflect.TypeOf((*MockAuthenticator)(nil).AuthenticateNodeDID), nodeDID, certificate)
 }

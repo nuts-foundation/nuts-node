@@ -21,6 +21,7 @@ package grpc
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
@@ -122,6 +123,11 @@ type grpcConnectionManager struct {
 func (s *grpcConnectionManager) Start() error {
 	s.grpcServerMutex.Lock()
 	defer s.grpcServerMutex.Unlock()
+
+	// verify that node is configured correctly to pass peer's connection authentication
+	if err := s.authenticateNodeDID(); err != nil {
+		return fmt.Errorf("node self-authentication failed: %w", err)
+	}
 
 	if s.config.listenAddress == "" {
 		log.Logger().Info("Not starting gRPC server, connections will only be outbound.")
@@ -414,6 +420,28 @@ func (s *grpcConnectionManager) authenticate(nodeDID did.DID, peer transport.Pee
 		return authenticatedPeer, nil
 	}
 	return peer, nil
+}
+
+func (s *grpcConnectionManager) authenticateNodeDID() error {
+	if !s.config.tlsEnabled() {
+		return nil
+	}
+	nodeDID, err := s.nodeDIDResolver.Resolve()
+	if err != nil {
+		return fmt.Errorf("failed to resolve nodeDID: %w", err)
+	}
+	if nodeDID.Empty() {
+		// no self-authentication when there is no nodeDID
+		return nil
+	}
+
+	cert, err := x509.ParseCertificate(s.config.clientCert.Certificate[0])
+	if err != nil {
+		// should never happen since this has been parsed before
+		return err
+	}
+	// cert cannot be nil when s.config.tlsEnabled() == true
+	return s.authenticator.AuthenticateNodeDID(nodeDID, *cert)
 }
 
 func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundStream grpc.ServerStream) error {

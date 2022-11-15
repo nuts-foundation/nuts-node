@@ -19,6 +19,7 @@
 package grpc
 
 import (
+	"crypto/x509"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -37,6 +38,9 @@ type Authenticator interface {
 	// When authentication is successful adds authenticated peer info to the given transport.Peer and returns it.
 	// When authentication fails, an error is returned.
 	Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, peer transport.Peer) (transport.Peer, error)
+	// AuthenticateNodeDID verifies that the certificate matches the NutsComm address in the nodeDID.
+	// When authentication fails, an error is returned.
+	AuthenticateNodeDID(nodeDID did.DID, certificate x509.Certificate) error
 }
 
 // NewTLSAuthenticator creates an Authenticator that verifies node identities using TLS certificates.
@@ -53,6 +57,7 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 		if peer.AcceptUnauthenticated {
 			log.Logger().
 				WithError(err).
+				WithField(core.LogFieldDID, nodeDID).
 				Warn("Connection manually authenticated with authentication error")
 			peer.NodeDID = nodeDID
 			return peer, nil
@@ -67,6 +72,18 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 	}
 	peerCertificate := tlsInfo.State.PeerCertificates[0]
 
+	if err := t.AuthenticateNodeDID(nodeDID, *peerCertificate); err != nil {
+		return withOverride(peer, err)
+	}
+
+	log.Logger().
+		WithField(core.LogFieldDID, nodeDID).
+		Debug("Connection successfully authenticated")
+	peer.NodeDID = nodeDID
+	return peer, nil
+}
+
+func (t tlsAuthenticator) AuthenticateNodeDID(nodeDID did.DID, certificate x509.Certificate) error {
 	// Resolve NutsComm endpoint of contained in DID document associated with node DID
 	nutsCommService, err := t.serviceResolver.Resolve(doc.MakeServiceReference(nodeDID, transport.NutsCommServiceType), doc.DefaultMaxServiceReferenceDepth)
 	var nutsCommURL *url.URL
@@ -76,23 +93,18 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 		nutsCommURL, err = url.Parse(nutsCommURLStr)
 	}
 	if err != nil {
-		return withOverride(peer, fmt.Errorf("can't resolve %s service (nodeDID=%s): %w", transport.NutsCommServiceType, nodeDID, err))
+		return fmt.Errorf("can't resolve %s service (nodeDID=%s): %w", transport.NutsCommServiceType, nodeDID, err)
 	}
 
 	// Check whether one of the DNS names matches one of the NutsComm endpoints
-	err = peerCertificate.VerifyHostname(nutsCommURL.Hostname())
-	if err == nil {
+	err = certificate.VerifyHostname(nutsCommURL.Hostname())
+	if err != nil {
 		log.Logger().
 			WithField(core.LogFieldDID, nodeDID).
-			Debug("Connection successfully authenticated")
-		peer.NodeDID = nodeDID
-		return peer, nil
+			Debugf("DNS names in peer certificate: %s", strings.Join(certificate.DNSNames, ", "))
+		return fmt.Errorf("none of the DNS names in the TLS certificate match the %s endpoint (nodeDID=%s)", transport.NutsCommServiceType, nodeDID)
 	}
-
-	log.Logger().
-		WithField(core.LogFieldDID, nodeDID).
-		Debugf("DNS names in peer certificate: %s", strings.Join(peerCertificate.DNSNames, ", "))
-	return withOverride(peer, fmt.Errorf("none of the DNS names in the peer's TLS certificate match the NutsComm endpoint (nodeDID=%s)", nodeDID))
+	return nil
 }
 
 // NewDummyAuthenticator creates an Authenticator that does not verify node identities
@@ -105,4 +117,8 @@ type dummyAuthenticator struct{}
 func (d dummyAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, peer transport.Peer) (transport.Peer, error) {
 	peer.NodeDID = nodeDID
 	return peer, nil
+}
+
+func (d dummyAuthenticator) AuthenticateNodeDID(nodeDID did.DID, certificate x509.Certificate) error {
+	return nil
 }

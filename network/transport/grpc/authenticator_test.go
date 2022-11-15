@@ -35,7 +35,7 @@ import (
 	"google.golang.org/grpc/peer"
 )
 
-func Test_tlsAuthenticator_Authenticate(t *testing.T) {
+func TestTlsAuthenticator_Authenticate(t *testing.T) {
 	certData, _ := os.ReadFile("test/nuts.nl.cer")
 	cert, _ := x509.ParseCertificate(certData)
 	wildcardCertData, _ := os.ReadFile("test/wildcard.nuts.nl.cer")
@@ -107,7 +107,7 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 
 			authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transportPeer)
 
-			assert.EqualError(t, err, "none of the DNS names in the peer's TLS certificate match the NutsComm endpoint (nodeDID=did:nuts:test)")
+			assert.EqualError(t, err, "none of the DNS names in the TLS certificate match the NutsComm endpoint (nodeDID=did:nuts:test)")
 			assert.Empty(t, authenticatedPeer)
 		})
 		t.Run("no TLS info", func(t *testing.T) {
@@ -182,5 +182,13 @@ func TestDummyAuthenticator_Authenticate(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.Equal(t, *nodeDID, peer.NodeDID)
+	})
+}
+
+func TestDummyAuthenticator_AuthenticateNodeDID(t *testing.T) {
+	t.Run("always ok", func(t *testing.T) {
+		authenticator := NewDummyAuthenticator(nil)
+
+		assert.Nil(t, authenticator.AuthenticateNodeDID(*nodeDID, x509.Certificate{}))
 	})
 }
