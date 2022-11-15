@@ -2,9 +2,11 @@
   "@context": {
     "@version": 1.1,
     "@protected": true,
+
     "id": "@id",
     "type": "@type",
     "ex": "http://example.org/",
+
     "HumanCredential": {
       "@id": "http://example.org/HumanCredential",
       "@context": {
@@ -14,7 +16,7 @@
         "type": "@type",
         "@propagate": true,
         "human": {
-          "@id": "ex:human",
+          "@id":"ex:human",
           "@context": {
             "eyeColour": "ex:eyeColour",
             "hairColour": "ex:hairColour"

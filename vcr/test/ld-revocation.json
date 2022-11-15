@@ -1,19 +1,19 @@
 {
-  "@context": [
-    "https://nuts.nl/credentials/v1",
-    "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
-  ],
-  "type": [
-    "CredentialRevocation"
-  ],
-  "issuer": "did:nuts:4NWLJrsTXirWdpnaxva6cqmnvzHzePsK5KxLjydWWpby",
-  "subject": "did:nuts:4NWLJrsTXirWdpnaxva6cqmnvzHzePsK5KxLjydWWpby#6b585f85-ce8f-4aa6-9ebe-4ef56f011a4d",
-  "date": "2022-03-01T16:26:44.021655+01:00",
-  "proof": {
-    "type": "JsonWebSignature2020",
-    "proofPurpose": "assertionMethod",
-    "verificationMethod": "did:nuts:4NWLJrsTXirWdpnaxva6cqmnvzHzePsK5KxLjydWWpby#MhVssUgHJtSLIZ6r2VwKOzkGp2LFu2-MLHmJ3ACJ9WA",
-    "created": "2022-03-01T16:26:44.021697+01:00",
-    "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..Cspr0IqATSv1oohfOYeAofy8RTezE5ksZ9Q-8lmjerLLA74CAmabVD8PuAAaca_-jtyHGbtpYSnVegv_pYr5Iw"
-  }
+    "@context": [
+        "https://nuts.nl/credentials/v1",
+        "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
+    ],
+    "type": [
+        "CredentialRevocation"
+    ],
+    "issuer": "did:nuts:4NWLJrsTXirWdpnaxva6cqmnvzHzePsK5KxLjydWWpby",
+    "subject": "did:nuts:4NWLJrsTXirWdpnaxva6cqmnvzHzePsK5KxLjydWWpby#6b585f85-ce8f-4aa6-9ebe-4ef56f011a4d",
+    "date": "2022-03-01T16:26:44.021655+01:00",
+    "proof": {
+        "type": "JsonWebSignature2020",
+        "proofPurpose": "assertionMethod",
+        "verificationMethod": "did:nuts:4NWLJrsTXirWdpnaxva6cqmnvzHzePsK5KxLjydWWpby#MhVssUgHJtSLIZ6r2VwKOzkGp2LFu2-MLHmJ3ACJ9WA",
+        "created": "2022-03-01T16:26:44.021697+01:00",
+        "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..Cspr0IqATSv1oohfOYeAofy8RTezE5ksZ9Q-8lmjerLLA74CAmabVD8PuAAaca_-jtyHGbtpYSnVegv_pYr5Iw"
+    }
 }
