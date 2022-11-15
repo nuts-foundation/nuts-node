@@ -696,6 +696,7 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 		}
 
 		assert.Equal(t, "token", token.BearerToken)
+		assert.Equal(t, expectedAudience, token.AuthorizationServerEndpoint)
 	})
 
 	t.Run("create a JwtBearerToken with valid credentials", func(t *testing.T) {

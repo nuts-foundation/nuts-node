@@ -451,7 +451,7 @@ func (s *service) CreateJwtGrant(request services.CreateJwtGrantRequest) (*servi
 		return nil, err
 	}
 
-	return &services.JwtBearerTokenResult{BearerToken: signingString}, nil
+	return &services.JwtBearerTokenResult{BearerToken: signingString, AuthorizationServerEndpoint: endpointURL}, nil
 }
 
 var timeFunc = time.Now
