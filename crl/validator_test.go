@@ -31,6 +31,7 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
 
@@ -118,6 +119,14 @@ func TestValidator_IsRevoked(t *testing.T) {
 	if _, ok := sn.SetString(revokedSerialNumber, 10); !ok {
 		t.FailNow()
 	}
+
+	// overwrite the nowFunc so the CRL is valid
+	nowFunc = func() time.Time {
+		return time.Date(2021, 12, 1, 0, 0, 0, 0, time.UTC)
+	}
+	t.Cleanup(func() {
+		nowFunc = time.Now
+	})
 
 	data, err := os.ReadFile(pkiOverheidCRL)
 	if !assert.NoError(t, err) {

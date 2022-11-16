@@ -39,6 +39,8 @@ import (
 // Should be set to a number where the possibility for hash collisions is low
 const defaultBitSetSize = 500
 
+var nowFunc = time.Now
+
 func hash(issuer string, serialNumber *big.Int) int64 {
 	data := append([]byte(issuer), serialNumber.Bytes()...)
 	sum := int64(murmur3.Sum64(data))
@@ -192,7 +194,7 @@ func (v *validator) IsSynced(maxOffsetDays int) bool {
 	}
 
 	// Verify that none of the CRLs are outdated
-	now := time.Now().Add(time.Duration(-maxOffsetDays) * (time.Hour * 24))
+	now := nowFunc().Add(time.Duration(-maxOffsetDays) * (time.Hour * 24))
 
 	for _, list := range v.lists {
 		if list.HasExpired(now) {
