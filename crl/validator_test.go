@@ -124,9 +124,6 @@ func TestValidator_IsRevoked(t *testing.T) {
 	nowFunc = func() time.Time {
 		return time.Date(2021, 12, 1, 0, 0, 0, 0, time.UTC)
 	}
-	t.Cleanup(func() {
-		nowFunc = time.Now
-	})
 
 	data, err := os.ReadFile(pkiOverheidCRL)
 	if !assert.NoError(t, err) {
@@ -135,8 +132,6 @@ func TestValidator_IsRevoked(t *testing.T) {
 	httpClient := &http.Client{Transport: &fakeTransport{responseData: data}}
 
 	t.Run("should return true if the certificate was revoked", func(t *testing.T) {
-		t.Parallel()
-
 		store, err := core.LoadTrustStore(pkiOverheidRootCA)
 		assert.NoError(t, err)
 
@@ -151,9 +146,24 @@ func TestValidator_IsRevoked(t *testing.T) {
 		assert.True(t, crlValidator.IsSynced(0))
 	})
 
-	t.Run("should return false if the certificate was not revoked even though the bit was set", func(t *testing.T) {
-		t.Parallel()
+	t.Run("should return false if the crl is expired", func(t *testing.T) {
+		oldNowFunc := nowFunc
+		nowFunc = func() time.Time {
+			return time.Date(2022, 12, 1, 0, 0, 0, 0, time.UTC)
+		}
 
+		store, err := core.LoadTrustStore(pkiOverheidRootCA)
+		assert.NoError(t, err)
+
+		crlValidator := NewValidatorWithHTTPClient(store.Certificates(), httpClient)
+		crlValidator.Sync()
+
+		assert.False(t, crlValidator.IsSynced(0))
+
+		nowFunc = oldNowFunc
+	})
+
+	t.Run("should return false if the certificate was not revoked even though the bit was set", func(t *testing.T) {
 		store, err := core.LoadTrustStore(pkiOverheidRootCA)
 		assert.NoError(t, err)
 
@@ -172,8 +182,6 @@ func TestValidator_IsRevoked(t *testing.T) {
 	})
 
 	t.Run("should return false when the bit was not set and shouldn't check the actual certificate", func(t *testing.T) {
-		t.Parallel()
-
 		store, err := core.LoadTrustStore(pkiOverheidRootCA)
 		assert.NoError(t, err)
 
