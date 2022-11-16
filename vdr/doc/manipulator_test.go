@@ -164,8 +164,7 @@ func TestManipulator_AddKey(t *testing.T) {
 		ctx.mockUpdater.EXPECT().Update(*id, currentHash, gomock.Any(), nil).Return(types.ErrNotFound)
 
 		key, err := ctx.manipulator.AddVerificationMethod(*id, 0)
-		require.Error(t, err)
-		assert.True(t, errors.Is(err, types.ErrNotFound))
+		assert.ErrorIs(t, err, types.ErrNotFound)
 		assert.Nil(t, key)
 	})
 
@@ -176,8 +175,8 @@ func TestManipulator_AddKey(t *testing.T) {
 		ctx.mockResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{Hash: currentHash, Deactivated: true}, nil)
 
 		key, err := ctx.manipulator.AddVerificationMethod(*id, 0)
-		require.Error(t, err)
-		assert.True(t, errors.Is(err, types.ErrDeactivated))
+
+		assert.ErrorIs(t, err, types.ErrDeactivated)
 		assert.Nil(t, key)
 	})
 }

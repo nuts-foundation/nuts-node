@@ -81,9 +81,7 @@ func TestUziValidator_VerifyVP(t *testing.T) {
 
 		res, err := uziVerifier.VerifyVP(vp, nil)
 
-		require.Error(t, err)
-		assert.Equal(t, "could not verify empty proof", err.Error())
-
+		assert.EqualError(t, err, "could not verify empty proof")
 		assert.Nil(t, res)
 	})
 
@@ -106,11 +104,9 @@ func TestUziValidator_VerifyVP(t *testing.T) {
 		uziVerifier := &Verifier{UziValidator: tokenParser}
 
 		res, err := uziVerifier.VerifyVP(vp, nil)
-		require.Error(t, err)
-		assert.Equal(t, "could not verify this verification type: '[VerifiablePresentation OtherPresentation]', should contain type: NutsUziPresentation", err.Error())
 
+		assert.EqualError(t, err, "could not verify this verification type: '[VerifiablePresentation OtherPresentation]', should contain type: NutsUziPresentation")
 		assert.Nil(t, res)
-
 	})
 
 	t.Run("nok - unparseable proof", func(t *testing.T) {
@@ -123,9 +119,7 @@ func TestUziValidator_VerifyVP(t *testing.T) {
 
 		res, err := uziVerifier.VerifyVP(vp, nil)
 
-		require.Error(t, err)
-		assert.Equal(t, "could not verify verifiable presentation: could not parse the proof: could not parse", err.Error())
-
+		assert.EqualError(t, err, "could not verify verifiable presentation: could not parse the proof: could not parse")
 		assert.Nil(t, res)
 	})
 
@@ -143,9 +137,7 @@ func TestUziValidator_VerifyVP(t *testing.T) {
 
 		res, err := uziVerifier.VerifyVP(vp, nil)
 
-		require.Error(t, err)
-		assert.Equal(t, "could not get disclosed attributes from signed contract: could not parse certificate", err.Error())
-
+		assert.EqualError(t, err, "could not get disclosed attributes from signed contract: could not parse certificate")
 		assert.Nil(t, res)
 	})
 

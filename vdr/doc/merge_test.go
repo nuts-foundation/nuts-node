@@ -132,8 +132,6 @@ func TestMerge(t *testing.T) {
 	t.Run("error no matching IDs", func(t *testing.T) {
 		_, err := MergeDocuments(did.Document{ID: *didA}, did.Document{ID: *didB})
 
-		require.Error(t, err)
-
 		assert.Equal(t, ErrDiffID, err)
 	})
 

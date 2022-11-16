@@ -119,7 +119,6 @@ func TestDidman_AddEndpoint(t *testing.T) {
 
 		_, err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
 
-		require.Error(t, err)
 		assert.Equal(t, types.ErrNotFound, err)
 	})
 }

@@ -71,7 +71,6 @@ func Test_networkPublisher_resolveNutsCommServiceOwner(t *testing.T) {
 
 		_, err := sut.resolveNutsCommServiceOwner(*vdr.TestDIDA)
 
-		require.Error(t, err)
 		assert.EqualError(t, err, "could not resolve NutsComm service owner: b00m!")
 	})
 }

@@ -182,7 +182,6 @@ func TestCreator_Create(t *testing.T) {
 
 		_, _, err := creator.Create(DefaultCreationOptions())
 
-		require.Error(t, err)
 		assert.EqualError(t, err, "b00m!")
 	})
 
@@ -199,7 +198,6 @@ func TestCreator_Create(t *testing.T) {
 
 		_, _, err := creator.Create(ops)
 
-		require.Error(t, err)
 		assert.EqualError(t, err, "b00m!")
 	})
 }
@@ -226,10 +224,8 @@ func Test_didKIDNamingFunc(t *testing.T) {
 
 	t.Run("nok - wrong key type", func(t *testing.T) {
 		keyID, err := didKIDNamingFunc(unknownPublicKey{})
-		require.Error(t, err)
-		assert.Equal(t, "could not generate kid: invalid key type 'doc.unknownPublicKey' for jwk.New", err.Error())
+		assert.EqualError(t, err, "could not generate kid: invalid key type 'doc.unknownPublicKey' for jwk.New")
 		assert.Empty(t, keyID)
-
 	})
 }
 

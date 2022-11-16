@@ -329,8 +329,6 @@ func TestSignatureAlgorithm(t *testing.T) {
 		ecKey224, _ := ecdsa.GenerateKey(elliptic.P224(), rand.Reader)
 		_, err := SignatureAlgorithm(ecKey224)
 
-		require.Error(t, err)
-
 		assert.Equal(t, ErrUnsupportedSigningKey, err)
 	})
 

@@ -127,8 +127,7 @@ func Test_verifier_Validate(t *testing.T) {
 
 		err := instance.Validate(vc2, nil)
 
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to verify signature")
+		assert.ErrorContains(t, err, "failed to verify signature")
 	})
 
 	t.Run("error - wrong hashed proof", func(t *testing.T) {
@@ -144,8 +143,7 @@ func Test_verifier_Validate(t *testing.T) {
 
 		err := instance.Validate(vc2, nil)
 
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to verify signature")
+		assert.ErrorContains(t, err, "failed to verify signature")
 	})
 
 	t.Run("error - no proof", func(t *testing.T) {
@@ -156,8 +154,7 @@ func Test_verifier_Validate(t *testing.T) {
 
 		err := instance.Validate(vc2, nil)
 
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "unable to extract ldproof from signed document: json: cannot unmarshal array into Go value of type proof.LDProof")
+		assert.ErrorContains(t, err, "unable to extract ldproof from signed document: json: cannot unmarshal array into Go value of type proof.LDProof")
 	})
 
 	t.Run("error - wrong jws in proof", func(t *testing.T) {
@@ -172,8 +169,7 @@ func Test_verifier_Validate(t *testing.T) {
 
 		err := instance.Validate(vc2, nil)
 
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "invalid 'jws' value in proof")
+		assert.ErrorContains(t, err, "invalid 'jws' value in proof")
 	})
 
 	t.Run("error - wrong base64 encoding in jws", func(t *testing.T) {
@@ -188,8 +184,7 @@ func Test_verifier_Validate(t *testing.T) {
 
 		err := instance.Validate(vc2, nil)
 
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "illegal base64 data")
+		assert.ErrorContains(t, err, "illegal base64 data")
 	})
 
 	t.Run("error - resolving key", func(t *testing.T) {
@@ -227,7 +222,6 @@ func TestVerifier_Verify(t *testing.T) {
 
 		err := instance.Verify(subject, true, false, nil)
 
-		require.Error(t, err)
 		assert.EqualError(t, err, "unknown credential type")
 	})
 

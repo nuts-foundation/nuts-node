@@ -85,8 +85,7 @@ func TestService_VerifyVP(t *testing.T) {
 		validationResult, err := validator.VerifyVP(vp, nil)
 
 		assert.Nil(t, validationResult)
-		require.Error(t, err)
-		assert.Equal(t, "could not verify VP: invalid number of proofs, got 0, want 1", err.Error())
+		assert.EqualError(t, err, "could not verify VP: invalid number of proofs, got 0, want 1")
 
 	})
 }

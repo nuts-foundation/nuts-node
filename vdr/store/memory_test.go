@@ -44,7 +44,6 @@ func TestMemory_Write(t *testing.T) {
 
 	t.Run("returns error when already exist", func(t *testing.T) {
 		err := store.Write(doc, meta)
-		require.Error(t, err)
 		assert.Equal(t, types.ErrDIDAlreadyExists, err)
 	})
 }
@@ -121,7 +120,6 @@ func TestMemory_Resolve(t *testing.T) {
 		_, _, err := store.Resolve(*did1, &types.ResolveMetadata{
 			SourceTransaction: &h,
 		})
-		require.Error(t, err)
 		assert.Equal(t, types.ErrNotFound, err)
 	})
 }

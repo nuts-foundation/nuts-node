@@ -42,8 +42,6 @@ func TestNewEphemeralKey(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		_, err := NewEphemeralKey(ErrorNamingFunc(errors.New("b00m!")))
 
-		require.Error(t, err)
-
-		assert.Equal(t, "b00m!", err.Error())
+		assert.EqualError(t, err, "b00m!")
 	})
 }

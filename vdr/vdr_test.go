@@ -353,8 +353,7 @@ func TestVDR_resolveControllerKey(t *testing.T) {
 
 		_, _, err := ctx.vdr.resolveControllerWithKey(currentDIDDocument)
 
-		require.Error(t, err)
-		assert.Equal(t, "could not find capabilityInvocation key for updating the DID document: b00m!", err.Error())
+		assert.EqualError(t, err,"could not find capabilityInvocation key for updating the DID document: b00m!")
 	})
 
 	t.Run("error - no keys from any controller", func(t *testing.T) {
@@ -367,7 +366,6 @@ func TestVDR_resolveControllerKey(t *testing.T) {
 
 		_, _, err := ctx.vdr.resolveControllerWithKey(currentDIDDocument)
 
-		require.Error(t, err)
 		assert.Equal(t, types.ErrDIDNotManagedByThisNode, err)
 	})
 }

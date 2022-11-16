@@ -413,7 +413,6 @@ func TestAmbassador_handleCreateDIDDocument(t *testing.T) {
 
 		err := ctx.ambassador.handleCreateDIDDocument(tx, doc)
 
-		require.Error(t, err)
 		assert.Equal(t, ErrThumbprintMismatch, err)
 	})
 }

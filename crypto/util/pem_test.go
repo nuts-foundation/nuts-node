@@ -53,8 +53,6 @@ func TestCrypto_pemToPublicKey(t *testing.T) {
 	t.Run("wrong PEM block gives error", func(t *testing.T) {
 		_, err := PemToPublicKey([]byte{})
 
-		require.Error(t, err)
-
 		assert.Equal(t, ErrWrongPublicKey, err)
 	})
 

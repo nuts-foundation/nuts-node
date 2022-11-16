@@ -232,7 +232,6 @@ func TestStore_Resolve(t *testing.T) {
 			_, _, err := store.Resolve(*did1, &types.ResolveMetadata{
 				SourceTransaction: &latestHash,
 			})
-			require.Error(t, err)
 			assert.Equal(t, types.ErrNotFound, err)
 		})
 	})
@@ -242,7 +241,6 @@ func TestStore_Resolve(t *testing.T) {
 
 		_, _, err := store.Resolve(*did1, nil)
 
-		require.Error(t, err)
 		assert.Equal(t, types.ErrNotFound, err)
 	})
 

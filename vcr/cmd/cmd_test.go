@@ -81,9 +81,7 @@ func TestCmd_Trust(t *testing.T) {
 				cmd.SetArgs([]string{c, credentialType})
 				err := cmd.Execute()
 
-				require.Error(t, err)
-
-				assert.Contains(t, err.Error(), "server returned HTTP 500")
+				assert.ErrorContains(t, err, "server returned HTTP 500")
 			})
 
 			t.Run("error - not enough args", func(t *testing.T) {
@@ -134,9 +132,7 @@ func TestCmd_Trust(t *testing.T) {
 				cmd.SetArgs([]string{c, credentialType, didString})
 				err := cmd.Execute()
 
-				require.Error(t, err)
-
-				assert.Contains(t, err.Error(), "server returned HTTP 500")
+				assert.ErrorContains(t, err, "server returned HTTP 500")
 			})
 
 			t.Run("error - not enough args", func(t *testing.T) {

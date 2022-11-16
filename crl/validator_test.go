@@ -74,8 +74,8 @@ func TestValidator_downloadCRL(t *testing.T) {
 		httpClient := &http.Client{Transport: &fakeTransport{}}
 		v := NewValidatorWithHTTPClient(nil, httpClient).(*validator)
 		err := v.downloadCRL("file:///non-existing")
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "file:///non-existing")
+
+		assert.ErrorContains(t, err, "file:///non-existing")
 	})
 	t.Run("invalid CRL", func(t *testing.T) {
 		httpClient := &http.Client{Transport: &fakeTransport{responseData: []byte("Definitely not a CRL")}}

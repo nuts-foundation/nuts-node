@@ -303,9 +303,8 @@ func TestContract_VerifyVP(t *testing.T) {
 
 		validationResult, err := validator.VerifyVP(rawVP, nil)
 
-		require.Error(t, err)
-		require.Nil(t, validationResult)
-		assert.Equal(t, "unknown VerifiablePresentation type: bar", err.Error())
+		assert.Nil(t, validationResult)
+		assert.EqualError(t, err, "unknown VerifiablePresentation type: bar")
 	})
 
 	t.Run("nok - missing custom type", func(t *testing.T) {
@@ -316,9 +315,8 @@ func TestContract_VerifyVP(t *testing.T) {
 
 		validationResult, err := validator.VerifyVP(rawVP, nil)
 
-		require.Error(t, err)
-		require.Nil(t, validationResult)
-		assert.Equal(t, "unprocessable VerifiablePresentation, exactly 1 custom type is expected", err.Error())
+		assert.Nil(t, validationResult)
+		assert.EqualError(t, err, "unprocessable VerifiablePresentation, exactly 1 custom type is expected")
 	})
 }
 

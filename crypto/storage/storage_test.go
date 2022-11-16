@@ -30,14 +30,12 @@ import (
 func TestPublicKeyEntry_UnmarshalJSON(t *testing.T) {
 	t.Run("error - incorrect json", func(t *testing.T) {
 		err := (&PublicKeyEntry{}).UnmarshalJSON([]byte("}"))
-		require.Error(t, err)
-		assert.Equal(t, "invalid character '}' looking for beginning of value", err.Error())
+		assert.EqualError(t, err, "invalid character '}' looking for beginning of value")
 	})
 
 	t.Run("error - invalid publicKeyJwk format", func(t *testing.T) {
 		err := (&PublicKeyEntry{}).UnmarshalJSON([]byte("{\"publicKeyJwk\":{}}"))
-		require.Error(t, err)
-		assert.Equal(t, "could not parse publicKeyEntry: invalid publickeyJwk: invalid key type from JSON ()", err.Error())
+		assert.EqualError(t, err, "could not parse publicKeyEntry: invalid publickeyJwk: invalid key type from JSON ()")
 	})
 }
 

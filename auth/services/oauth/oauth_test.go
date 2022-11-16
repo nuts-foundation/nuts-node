@@ -116,6 +116,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx := createContext(t)
 
 		response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: "foo"})
+
 		assert.Nil(t, response)
 		require.ErrorContains(t, err, "jwt bearer token validation failed")
 	})
@@ -315,7 +316,7 @@ func TestService_validateSubject(t *testing.T) {
 		ctx.privateKeyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(false)
 
 		err := ctx.oauthService.validateSubject(tokenCtx)
-		
+
 		assert.ErrorContains(t, err, "is not managed by this node")
 	})
 }
@@ -354,8 +355,6 @@ func TestService_validateAud(t *testing.T) {
 
 		err := ctx.oauthService.validateAudience(tokenCtx)
 
-		require.Error(t, err)
-
 		assert.EqualError(t, err, "aud does not contain a single URI")
 	})
 
@@ -366,8 +365,6 @@ func TestService_validateAud(t *testing.T) {
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return("", types.ErrNotFound)
 
 		err := ctx.oauthService.validateAudience(tokenCtx)
-
-		require.Error(t, err)
 
 		assert.Equal(t, types.ErrNotFound, err)
 	})
@@ -380,8 +377,6 @@ func TestService_validateAud(t *testing.T) {
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
 
 		err := ctx.oauthService.validateAudience(tokenCtx)
-
-		require.Error(t, err)
 
 		assert.EqualError(t, err, "aud does not contain correct endpoint URL")
 	})
@@ -431,7 +426,6 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 
 		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 
-		require.Error(t, err)
 		assert.EqualError(t, err, "invalid jwt.vcs: field does not contain an array of credentials")
 	})
 
@@ -442,7 +436,6 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 
 		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 
-		require.Error(t, err)
 		assert.EqualError(t, err, "invalid jwt.vcs: cannot unmarshal authorization credential: json: cannot unmarshal string into Go value of type map[string]interface {}")
 	})
 
@@ -454,7 +447,6 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 
 		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 
-		require.Error(t, err)
 		assert.EqualError(t, err, "credentialSubject.ID did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY of authorization credential with ID: did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW#1 does not match jwt.iss: unknown")
 	})
 
@@ -466,7 +458,6 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 
 		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 
-		require.Error(t, err)
 		assert.EqualError(t, err, "issuer did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW of authorization credential with ID: did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW#1 does not match jwt.sub: unknown")
 	})
 
@@ -478,7 +469,6 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 
 		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 
-		require.Error(t, err)
 		assert.EqualError(t, err, "invalid jwt.vcs: credential is revoked")
 	})
 }

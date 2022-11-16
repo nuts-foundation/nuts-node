@@ -234,7 +234,6 @@ func TestNotifier_Save(t *testing.T) {
 
 		err := s.Save(tx, Event{})
 
-		require.Error(t, err)
 		assert.EqualError(t, err, "failure")
 	})
 
@@ -250,7 +249,6 @@ func TestNotifier_Save(t *testing.T) {
 
 		err := s.Save(tx, Event{Hash: hash.EmptyHash()})
 
-		require.Error(t, err)
 		assert.EqualError(t, err, "failure")
 	})
 }
