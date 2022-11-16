@@ -25,6 +25,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -278,7 +279,7 @@ func (w Wrapper) CreateJwtGrant(ctx echo.Context) error {
 		return core.InvalidInputError(err.Error())
 	}
 
-	return ctx.JSON(http.StatusOK, JwtGrantResponse{BearerToken: response.BearerToken})
+	return ctx.JSON(http.StatusOK, JwtGrantResponse{BearerToken: response.BearerToken, AuthorizationServerEndpoint: response.AuthorizationServerEndpoint})
 }
 
 // RequestAccessToken handles the HTTP request (from the vendor's EPD/XIS) for creating a JWT grant and using it as authorization grant to get an access token from the remote Nuts node.
@@ -301,16 +302,6 @@ func (w Wrapper) RequestAccessToken(ctx echo.Context) error {
 		return core.InvalidInputError(err.Error())
 	}
 
-	authorizerDID, err := did.ParseDID(requestBody.Authorizer)
-	if err != nil {
-		return core.InvalidInputError(err.Error())
-	}
-
-	endpointURL, err := w.Auth.OAuthClient().GetOAuthEndpointURL(requestBody.Service, *authorizerDID)
-	if err != nil {
-		return core.PreconditionFailedError("unable to find the oauth2 service endpoint of the authorizer: %w", err)
-	}
-
 	httpClient := &http.Client{}
 	tlsConfig := w.Auth.TLSConfig()
 
@@ -325,7 +316,11 @@ func (w Wrapper) RequestAccessToken(ctx echo.Context) error {
 		return fmt.Errorf("unable to create HTTP client: %w", err)
 	}
 
-	accessTokenResponse, err := authClient.CreateAccessToken(endpointURL, jwtGrantResponse.BearerToken)
+	authServerEndpoint, err := url.Parse(jwtGrantResponse.AuthorizationServerEndpoint)
+	if err != nil {
+		return err
+	}
+	accessTokenResponse, err := authClient.CreateAccessToken(*authServerEndpoint, jwtGrantResponse.BearerToken)
 	if err != nil {
 		if statusCodeErr, ok := err.(core.HTTPStatusCodeError); ok {
 			return core.Error(statusCodeErr.StatusCode(), "unable to create access token: %w", err)

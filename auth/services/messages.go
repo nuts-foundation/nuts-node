@@ -62,7 +62,8 @@ type AccessTokenResult struct {
 
 // JwtBearerTokenResult defines the return value back to the api for the createJwtBearerToken method
 type JwtBearerTokenResult struct {
-	BearerToken string
+	BearerToken                 string
+	AuthorizationServerEndpoint string
 }
 
 // NutsAccessToken is a OAuth 2.0 access token which provides context to a request.
