@@ -17,6 +17,7 @@ package store
 
 import (
 	"errors"
+	"github.com/stretchr/testify/require"
 	"sync"
 	"testing"
 	"time"
@@ -43,9 +44,6 @@ func TestMemory_Write(t *testing.T) {
 
 	t.Run("returns error when already exist", func(t *testing.T) {
 		err := store.Write(doc, meta)
-		if !assert.Error(t, err) {
-			return
-		}
 		assert.Equal(t, types.ErrDIDAlreadyExists, err)
 	})
 }
@@ -77,9 +75,7 @@ func TestMemory_Resolve(t *testing.T) {
 
 	t.Run("returns document without resolve metadata", func(t *testing.T) {
 		d, m, err := store.Resolve(*did1, nil)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.NotNil(t, d)
 		assert.NotNil(t, m)
 	})
@@ -89,9 +85,7 @@ func TestMemory_Resolve(t *testing.T) {
 		d, m, err := store.Resolve(*did1, &types.ResolveMetadata{
 			ResolveTime: &now,
 		})
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.NotNil(t, d)
 		assert.NotNil(t, m)
 	})
@@ -108,9 +102,7 @@ func TestMemory_Resolve(t *testing.T) {
 		d, m, err := store.Resolve(*did1, &types.ResolveMetadata{
 			Hash: &h,
 		})
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.NotNil(t, d)
 		assert.NotNil(t, m)
 	})
@@ -119,9 +111,7 @@ func TestMemory_Resolve(t *testing.T) {
 		d, m, err := store.Resolve(*did1, &types.ResolveMetadata{
 			SourceTransaction: &txHash,
 		})
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.NotNil(t, d)
 		assert.NotNil(t, m)
 	})
@@ -130,9 +120,6 @@ func TestMemory_Resolve(t *testing.T) {
 		_, _, err := store.Resolve(*did1, &types.ResolveMetadata{
 			SourceTransaction: &h,
 		})
-		if !assert.Error(t, err) {
-			return
-		}
 		assert.Equal(t, types.ErrNotFound, err)
 	})
 }
@@ -304,9 +291,7 @@ func TestMemory_Iterate(t *testing.T) {
 
 		err := store.Iterate(fn)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, 0, count)
 	})
 
@@ -317,9 +302,7 @@ func TestMemory_Iterate(t *testing.T) {
 
 		err := store.Iterate(fn)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, 1, count)
 	})
 

@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/stretchr/testify/require"
 	"path"
 	"testing"
 	"time"
@@ -72,9 +73,8 @@ func Test_issuer_buildVC(t *testing.T) {
 			}},
 		}
 		result, err := sut.buildVC(credentialOptions)
-		if !assert.NoError(t, err) || !assert.NotNil(t, result) {
-			return
-		}
+		require.NoError(t, err)
+		require.NotNil(t, result)
 		assert.Contains(t, result.Type, credentialType, "expected vc to be of right type")
 		proofs, _ := result.Proofs()
 		assert.Equal(t, kid, proofs[0].VerificationMethod.String(), "expected to be signed with the kid")
@@ -102,9 +102,8 @@ func Test_issuer_buildVC(t *testing.T) {
 
 		result, err := sut.buildVC(credentialOptions)
 
-		if !assert.NoError(t, err) || !assert.NotNil(t, result) {
-			return
-		}
+		require.NoError(t, err)
+		require.NotNil(t, result)
 		assert.Len(t, result.Context, 2)
 		assert.Contains(t, result.Context, vc.VCContextV1URI())
 	})
@@ -198,9 +197,7 @@ func Test_issuer_Issue(t *testing.T) {
 		sut := issuer{keyResolver: keyResolverMock, store: mockStore, jsonldManager: jsonldManager, trustConfig: trustConfig}
 
 		result, err := sut.Issue(credentialOptions, false, true)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Contains(t, result.Type, credentialType, "expected vc to be of right type")
 		proofs, _ := result.Proofs()
 		assert.Equal(t, kid, proofs[0].VerificationMethod.String(), "expected to be signed with the kid")
@@ -492,9 +489,7 @@ func Test_issuer_Revoke(t *testing.T) {
 			}
 
 			_, err := sut.Revoke(credentialURI)
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			revocation, err := sut.Revoke(credentialURI)
 
 			assert.ErrorIs(t, err, vcr.ErrRevoked)

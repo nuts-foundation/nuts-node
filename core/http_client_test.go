@@ -22,6 +22,7 @@ import (
 	"context"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	io2 "io"
 	stdHttp "net/http"
 	"net/http/httptest"
@@ -45,9 +46,7 @@ func TestHTTPClient(t *testing.T) {
 
 		authToken = ""
 		client, err := CreateHTTPClient(ClientConfig{})
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		req, _ := stdHttp.NewRequest(stdHttp.MethodGet, server.URL, nil)
 		response, err := client.Do(req)
@@ -66,9 +65,7 @@ func TestHTTPClient(t *testing.T) {
 		client, err := CreateHTTPClient(ClientConfig{
 			Token: "test",
 		})
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		req, _ := stdHttp.NewRequest(stdHttp.MethodGet, server.URL, nil)
 		response, err := client.Do(req)

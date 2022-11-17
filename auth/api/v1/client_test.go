@@ -20,6 +20,7 @@ package v1
 
 import (
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -54,12 +55,8 @@ func TestHTTPClient_CreateAccessToken(t *testing.T) {
 
 		assert.Nil(t, response)
 		assert.EqualError(t, err, "server returned HTTP 500 (expected: 200), response: null")
-
-		statusCodeErr, ok := err.(core.HTTPStatusCodeError)
-
-		if assert.True(t, ok, "error should implement HTTPStatusCodeError") {
-			assert.Equal(t, http.StatusInternalServerError, statusCodeErr.StatusCode())
-		}
+		require.Implements(t, new(core.HTTPStatusCodeError), err)
+		assert.Equal(t, http.StatusInternalServerError, err.(core.HTTPStatusCodeError).StatusCode())
 	})
 
 	t.Run("error_invalid_endpoint", func(t *testing.T) {

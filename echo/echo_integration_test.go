@@ -22,6 +22,7 @@ package echo
 import (
 	"context"
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"net"
 	"net/http"
 	"os"
@@ -72,9 +73,7 @@ events:
 		for _, url := range urls {
 			resp, err := http.Get(fmt.Sprintf("%s%s", baseUrl, url))
 
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 
 			assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 		}

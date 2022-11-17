@@ -20,6 +20,7 @@ package irma
 
 import (
 	"encoding/base64"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/vc"
@@ -70,13 +71,9 @@ func TestService_VerifyVP(t *testing.T) {
 
 		validationResult, err := validator.VerifyVP(vp, nil)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
-		if !assert.NotNil(t, validationResult) {
-			return
-		}
+		require.NotNil(t, validationResult)
 	})
 
 	t.Run("nok - invalid rawVP", func(t *testing.T) {
@@ -88,10 +85,7 @@ func TestService_VerifyVP(t *testing.T) {
 		validationResult, err := validator.VerifyVP(vp, nil)
 
 		assert.Nil(t, validationResult)
-		if !assert.Error(t, err) {
-			return
-		}
-		assert.Equal(t, "could not verify VP: invalid number of proofs, got 0, want 1", err.Error())
+		assert.EqualError(t, err, "could not verify VP: invalid number of proofs, got 0, want 1")
 
 	})
 }

@@ -25,6 +25,7 @@ import (
 	"errors"
 	vault "github.com/hashicorp/vault/api"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -193,9 +194,7 @@ func TestVaultKVStorage_configure(t *testing.T) {
 			Address: "http://localhost:123",
 		})
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, "123", client.Token())
 	})
 }

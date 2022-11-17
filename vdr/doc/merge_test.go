@@ -20,6 +20,7 @@
 package doc
 
 import (
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -131,10 +132,6 @@ func TestMerge(t *testing.T) {
 	t.Run("error no matching IDs", func(t *testing.T) {
 		_, err := MergeDocuments(did.Document{ID: *didA}, did.Document{ID: *didB})
 
-		if !assert.Error(t, err) {
-			return
-		}
-
 		assert.Equal(t, ErrDiffID, err)
 	})
 
@@ -143,9 +140,7 @@ func TestMerge(t *testing.T) {
 			t.Run(test.title, func(t *testing.T) {
 				r, err := MergeDocuments(test.docA, test.docB)
 
-				if !assert.NoError(t, err) {
-					return
-				}
+				require.NoError(t, err)
 				assert.Equal(t, test.exp, *r)
 			})
 		}

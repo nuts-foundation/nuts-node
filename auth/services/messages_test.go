@@ -20,6 +20,7 @@ package services
 
 import (
 	"encoding/json"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -30,9 +31,7 @@ func TestNutsAccessToken_FromMap(t *testing.T) {
 	asJSON, _ := json.Marshal(&expected)
 	var asMap map[string]interface{}
 	err := json.Unmarshal(asJSON, &asMap)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	var actual NutsAccessToken
 	err = actual.FromMap(asMap)
 	assert.NoError(t, err)

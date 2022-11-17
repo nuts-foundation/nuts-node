@@ -22,6 +22,7 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"encoding/base64"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
@@ -43,20 +44,14 @@ func TestParseTransaction(t *testing.T) {
 		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
 
 		transaction, err := ParseTransaction(signature)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		var actualKey ecdsa.PublicKey
 		err = transaction.SigningKey().Raw(&actualKey)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.NotNil(t, transaction)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.Equal(t, payload, transaction.PayloadHash())
 		assert.Equal(t, key.PublicKey, actualKey)
@@ -76,20 +71,14 @@ func TestParseTransaction(t *testing.T) {
 		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
 
 		transaction, err := ParseTransaction(signature)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		var actualKey ecdsa.PublicKey
 		err = transaction.SigningKey().Raw(&actualKey)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.NotNil(t, transaction)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.Equal(t, payload, transaction.PayloadHash())
 		assert.Equal(t, key.PublicKey, actualKey)

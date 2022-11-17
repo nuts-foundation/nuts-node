@@ -28,6 +28,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
@@ -55,9 +56,7 @@ func TestSignJWT(t *testing.T) {
 			return rsaKey.Public(), nil
 		})
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.Equal(t, "nuts", token.Issuer())
 	})
@@ -75,17 +74,13 @@ func TestSignJWT(t *testing.T) {
 				key, _ := jwkKey(ecKey)
 				tokenString, err := SignJWT(key, claims, nil)
 
-				if !assert.NoError(t, err) {
-					return
-				}
+				require.NoError(t, err)
 
 				token, err := ParseJWT(tokenString, func(kid string) (crypto.PublicKey, error) {
 					return ecKey.Public(), nil
 				})
 
-				if !assert.NoError(t, err) {
-					return
-				}
+				require.NoError(t, err)
 				assert.Equal(t, "nuts", token.Issuer())
 			})
 		}
@@ -96,14 +91,10 @@ func TestSignJWT(t *testing.T) {
 		key, _ := jwkKey(ecKey)
 		tokenString, err := SignJWT(key, claims, nil)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		msg, err := jws.ParseString(tokenString)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		hdrs := msg.Signatures()[0].ProtectedHeaders()
 		alg, _ := hdrs.Get(jwk.AlgorithmKey)
 		assert.Equal(t, jwa.ES256, alg)
@@ -137,9 +128,7 @@ func TestParseJWT(t *testing.T) {
 		parsedToken, err := ParseJWT(string(signature), func(_ string) (crypto.PublicKey, error) {
 			return ecKey.Public(), nil
 		}, jwt.WithAcceptableSkew(5000*time.Millisecond))
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.NotNil(t, parsedToken)
 	})
@@ -154,17 +143,13 @@ func TestCrypto_SignJWT(t *testing.T) {
 	t.Run("creates valid JWT", func(t *testing.T) {
 		tokenString, err := client.SignJWT(map[string]interface{}{"iss": "nuts"}, kid)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		token, err := ParseJWT(tokenString, func(kid string) (crypto.PublicKey, error) {
 			return key.Public(), nil
 		})
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.Equal(t, "nuts", token.Issuer())
 	})
@@ -192,23 +177,17 @@ func TestCrypto_SignJWS(t *testing.T) {
 		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
 		tokenString, err := client.SignJWS(payload, map[string]interface{}{"typ": "JWT"}, kid, false)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		token, err := ParseJWS([]byte(tokenString), func(kid string) (crypto.PublicKey, error) {
 			return key.Public(), nil
 		})
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		var body = make(map[string]interface{})
 		err = json.Unmarshal(token, &body)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.Equal(t, "nuts", body["iss"])
 	})
@@ -237,15 +216,9 @@ func TestSignJWS(t *testing.T) {
 		payload := []byte{1, 2, 3}
 		hdrs := map[string]interface{}{"foo": "bar"}
 		signature, err := SignJWS(payload, hdrs, key.Signer())
-		if !assert.NoError(t, err,
-			"error during signing") {
-			return
-		}
+		require.NoError(t, err, "error during signing")
 		message, err := jws.Parse([]byte(signature))
-		if !assert.NoError(t, err,
-			"error during parsing sign result as jws") {
-			return
-		}
+		require.NoError(t, err, "error during parsing sign result as jws")
 		assert.Equal(t, payload, message.Payload(),
 			"parsed message not equal to original payload")
 		sig := message.Signatures()
@@ -257,9 +230,7 @@ func TestSignJWS(t *testing.T) {
 
 		// Sanity check: verify signature
 		actualPayload, err := jws.Verify([]byte(signature), sig[0].ProtectedHeaders().Algorithm(), key.Public())
-		if !assert.NoError(t, err, "the signature could not be validated") {
-			return
-		}
+		require.NoError(t, err, "the signature could not be validated")
 		assert.Equal(t, payload, actualPayload)
 	})
 	t.Run("public key in JWK header is allowed", func(t *testing.T) {
@@ -358,10 +329,6 @@ func TestSignatureAlgorithm(t *testing.T) {
 		ecKey224, _ := ecdsa.GenerateKey(elliptic.P224(), rand.Reader)
 		_, err := SignatureAlgorithm(ecKey224)
 
-		if !assert.Error(t, err) {
-			return
-		}
-
 		assert.Equal(t, ErrUnsupportedSigningKey, err)
 	})
 
@@ -386,9 +353,7 @@ func TestSignatureAlgorithm(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			alg, err := SignatureAlgorithm(test.key)
 
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			assert.Equal(t, test.alg, alg)
 		})
 	}
@@ -401,15 +366,11 @@ func TestThumbprint(t *testing.T) {
 		expectedThumbPrint := base58.Encode([]byte{55, 54, 203, 177, 120, 124, 184, 48, 156, 119, 238, 140, 55, 5, 197, 225, 111, 251, 158, 133, 151, 21, 144, 31, 30, 76, 89, 177, 17, 130, 245, 123}, base58.BitcoinAlphabet)
 
 		set, err := jwk.ParseString(testRsa)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		key, _ := set.Get(0)
 		thumbPrint, err := Thumbprint(key)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.Equal(t, expectedThumbPrint, thumbPrint)
 	})
@@ -418,15 +379,11 @@ func TestThumbprint(t *testing.T) {
 		expectedThumbPrint := "3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn"
 
 		set, err := jwk.ParseString(testEC)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		key, _ := set.Get(0)
 		thumbPrint, err := Thumbprint(key)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.Equal(t, expectedThumbPrint, thumbPrint)
 	})

@@ -20,6 +20,7 @@
 package trust
 
 import (
+	"github.com/stretchr/testify/require"
 	"path"
 	"testing"
 
@@ -39,9 +40,7 @@ func TestTrustConfig_save(t *testing.T) {
 		tc.issuersPerType[nutsTestCredential] = []string{"did:nuts:1"}
 
 		err := tc.save()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		tc2 := Config{
 			filename:       path.Join(testDir, "test.yaml"),
@@ -49,9 +48,7 @@ func TestTrustConfig_save(t *testing.T) {
 		}
 
 		err = tc2.Load()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.Equal(t, []string{"did:nuts:1"}, tc2.issuersPerType[nutsTestCredential])
 	})
@@ -68,9 +65,7 @@ func TestTrustConfig_Load(t *testing.T) {
 		tc := NewConfig("../test/issuers.yaml")
 
 		err := tc.Load()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.Equal(t, []string{"did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey"}, tc.issuersPerType[nutsTestCredential])
 	})
@@ -86,9 +81,7 @@ func TestTrustConfig_IsTrusted(t *testing.T) {
 	tc := NewConfig("../test/issuers.yaml")
 
 	err := tc.Load()
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	c := ssi.MustParseURI(nutsTestCredential)
 
@@ -111,9 +104,7 @@ func TestTrustConfig_List(t *testing.T) {
 	c := ssi.MustParseURI(nutsTestCredential)
 
 	err := tc.Load()
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	trusted := tc.List(c)
 
 	assert.Len(t, trusted, 1)
@@ -153,16 +144,12 @@ func TestConfig_RemoveTrust(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		err := tc.AddTrust(vc.VerifiableCredentialTypeV1URI(), issuer)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.True(t, tc.IsTrusted(vc.VerifiableCredentialTypeV1URI(), issuer))
 		err = tc.RemoveTrust(vc.VerifiableCredentialTypeV1URI(), issuer)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.False(t, tc.IsTrusted(vc.VerifiableCredentialTypeV1URI(), issuer))
 	})
 
@@ -179,9 +166,7 @@ func TestConfig_RemoveTrust(t *testing.T) {
 
 		err := tc.RemoveTrust(vc.VerifiableCredentialTypeV1URI(), issuer)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.True(t, tc.IsTrusted(vc.VerifiableCredentialTypeV1URI(), issuer3))
 	})
 }

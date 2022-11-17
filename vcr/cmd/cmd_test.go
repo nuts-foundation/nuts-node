@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"github.com/nuts-foundation/nuts-node/core"
 	v2 "github.com/nuts-foundation/nuts-node/vcr/api/v2"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -67,9 +68,7 @@ func TestCmd_Trust(t *testing.T) {
 				cmd.SetArgs([]string{c, credentialType})
 				err := cmd.Execute()
 
-				if !assert.NoError(t, err) {
-					return
-				}
+				require.NoError(t, err)
 				assert.Contains(t, buf.String(), didString)
 			})
 
@@ -82,11 +81,7 @@ func TestCmd_Trust(t *testing.T) {
 				cmd.SetArgs([]string{c, credentialType})
 				err := cmd.Execute()
 
-				if !assert.Error(t, err) {
-					return
-				}
-
-				assert.Contains(t, err.Error(), "server returned HTTP 500")
+				assert.ErrorContains(t, err, "server returned HTTP 500")
 			})
 
 			t.Run("error - not enough args", func(t *testing.T) {
@@ -123,9 +118,7 @@ func TestCmd_Trust(t *testing.T) {
 				cmd.SetArgs([]string{c, credentialType, didString})
 				err := cmd.Execute()
 
-				if !assert.NoError(t, err) {
-					return
-				}
+				require.NoError(t, err)
 				assert.Contains(t, buf.String(), didString)
 				assert.Contains(t, buf.String(), credentialType)
 			})
@@ -139,11 +132,7 @@ func TestCmd_Trust(t *testing.T) {
 				cmd.SetArgs([]string{c, credentialType, didString})
 				err := cmd.Execute()
 
-				if !assert.Error(t, err) {
-					return
-				}
-
-				assert.Contains(t, err.Error(), "server returned HTTP 500")
+				assert.ErrorContains(t, err, "server returned HTTP 500")
 			})
 
 			t.Run("error - not enough args", func(t *testing.T) {

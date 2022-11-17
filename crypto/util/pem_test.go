@@ -22,6 +22,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"encoding/pem"
+	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
 
@@ -34,9 +35,7 @@ func TestCrypto_PublicKeyToPem(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		key := test.GenerateRSAKey()
 		result, err := PublicKeyToPem(&key.PublicKey)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Contains(t, result, "-----BEGIN PUBLIC KEY-----")
 		assert.Contains(t, result, "-----END PUBLIC KEY-----")
@@ -54,10 +53,6 @@ func TestCrypto_pemToPublicKey(t *testing.T) {
 	t.Run("wrong PEM block gives error", func(t *testing.T) {
 		_, err := PemToPublicKey([]byte{})
 
-		if !assert.Error(t, err) {
-			return
-		}
-
 		assert.Equal(t, ErrWrongPublicKey, err)
 	})
 
@@ -65,9 +60,7 @@ func TestCrypto_pemToPublicKey(t *testing.T) {
 		pem := "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEny33KMxU+mtPxSBMIztm69lehhNo\nCQD632dFAYSzDGh2LqemmYx9EKFzuzvCqbw87BD3spzbakjj5R315qV0gw==\n-----END PUBLIC KEY-----"
 
 		pk, err := PemToPublicKey([]byte(pem))
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.IsType(t, &ecdsa.PublicKey{}, pk)
 	})
@@ -76,9 +69,7 @@ func TestCrypto_pemToPublicKey(t *testing.T) {
 		pem := "-----BEGIN RSA PUBLIC KEY-----\nMIGJAoGBAMXC7V5p/LRULNuRWNBBcizjCrMPIV57LjNG6RCpkJsFtTfw5Ra+aGFJ\nmoEjlSrOsJ1aRO2krR4UTCijOrv1JNFjCvv81urSK9xSUAXzQcPdogf051ZDt1Ct\nEv4ETZQkXDMibzlbmgXq1V+oib4FXDCk0Emu6SAfOGmov/V9eShNAgMBAAE=\n-----END RSA PUBLIC KEY-----"
 
 		pk, err := PemToPublicKey([]byte(pem))
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.IsType(t, &rsa.PublicKey{}, pk)
 	})
@@ -115,8 +106,6 @@ func TestPemToSigner(t *testing.T) {
 
 	t.Run("Convert garbage", func(t *testing.T) {
 		_, err := PemToPrivateKey([]byte{})
-		if assert.Error(t, err) {
-			assert.Equal(t, ErrWrongPrivateKey, err)
-		}
+		require.ErrorIs(t, err, ErrWrongPrivateKey)
 	})
 }

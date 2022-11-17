@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"sync"
@@ -49,9 +50,7 @@ func Test_connector_tryConnect(t *testing.T) {
 	// Setup server
 	serverConfig := NewConfig(fmt.Sprintf("localhost:%d", test.FreeTCPPort()), "server")
 	cm := NewGRPCConnectionManager(serverConfig, createKVStore(t), &TestNodeDIDResolver{}, nil, &TestProtocol{})
-	if !assert.NoError(t, cm.Start()) {
-		return
-	}
+	require.NoError(t, cm.Start())
 	defer cm.Stop()
 
 	// Setup connector to test
@@ -65,9 +64,8 @@ func Test_connector_tryConnect(t *testing.T) {
 	// Connect and call protocol function to set up streams, required to assert headers.
 	// Then wait for stream to be set up
 	grpcConn, err := connector.tryConnect()
-	if !assert.NoError(t, err) || !assert.NotNil(t, grpcConn) {
-		return
-	}
+	require.NoError(t, err)
+	require.NotNil(t, grpcConn)
 	_, _ = (&TestProtocol{}).CreateClientStream(context.Background(), grpcConn)
 	test.WaitFor(t, func() (bool, error) {
 		return actualUserAgent.Load() != nil, nil

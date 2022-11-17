@@ -21,6 +21,7 @@ package v2
 
 import (
 	"errors"
+	"github.com/stretchr/testify/require"
 	"math"
 	"testing"
 	"time"
@@ -236,9 +237,7 @@ func Test_chunkTransactionList(t *testing.T) {
 
 		chunks := chunkTransactionList(transactions)
 
-		if !assert.Len(t, chunks, 1) {
-			return
-		}
+		require.Len(t, chunks, 1)
 		assert.Len(t, chunks[0], 2)
 	})
 
@@ -250,9 +249,7 @@ func Test_chunkTransactionList(t *testing.T) {
 
 		chunks := chunkTransactionList(transactions)
 
-		if !assert.Len(t, chunks, 2) {
-			return
-		}
+		require.Len(t, chunks, 2)
 		assert.Len(t, chunks[0], 1)
 		assert.Len(t, chunks[1], 1)
 	})
@@ -291,9 +288,7 @@ func TestProtocol_sendState(t *testing.T) {
 
 		err := proto.sendState(peerID, xor, clock)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Len(t, proto.cMan.conversations, 1) // assert a conversation was started
 		assert.NotNil(t, actualEnvelope.GetState().GetConversationID())
 		assert.Equal(t, xor.Slice(), actualEnvelope.GetState().XOR)
@@ -414,9 +409,7 @@ func performMultipleConversationsTest(t *testing.T, peerID transport.PeerID, sen
 
 		err := sender(proto, mocks)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Len(t, proto.cMan.conversations, 2) // new and existing conversation
 	})
 	t.Run("ok - peer already in a conversation", func(t *testing.T) {
@@ -429,9 +422,7 @@ func performMultipleConversationsTest(t *testing.T, peerID transport.PeerID, sen
 
 		err := sender(proto, mocks)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		// assert only conversation is the existing one
 		assert.Len(t, proto.cMan.conversations, 1)
 		assert.Equal(t, conv, proto.cMan.conversations[conv.conversationID.String()])

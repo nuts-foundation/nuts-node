@@ -23,6 +23,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -47,17 +48,13 @@ func TestEncryptPal(t *testing.T) {
 		keyResolver.EXPECT().ResolveKeyAgreementKey(*pB).Return(pkB.Public(), nil)
 		expected := PAL{*pA, *pB}
 		pal, err := expected.Encrypt(keyResolver)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		// Decrypt
 		keyStore := crypto.NewTestCryptoInstance()
 		keyStore.Storage.SavePrivateKey("kid-B", pkB)
 		actual, err := pal.Decrypt([]string{"kid-B"}, keyStore)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, expected, actual)
 	})
 	t.Run("ok - empty input yields empty output", func(t *testing.T) {

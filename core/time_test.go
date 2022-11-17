@@ -18,6 +18,7 @@ package core
 
 import (
 	"encoding/json"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
@@ -27,9 +28,7 @@ import (
 func TestRFC3339Time_MarshalText(t *testing.T) {
 	t1 := RFC3339Time{time.Date(2020, 1, 1, 12, 30, 0, 0, time.UTC)}
 	s, err := json.Marshal(t1)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	assert.Equal(t, "\"2020-01-01T12:30:00Z\"", string(s))
 }
 
@@ -38,9 +37,7 @@ func TestRFC3339Time_UnmarshalJSON(t *testing.T) {
 	j := "2020-01-01T12:30:00Z"
 	rfc := &RFC3339Time{}
 	err := rfc.UnmarshalJSON([]byte(j))
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	assert.Equal(t, t1, *rfc)
 }
 

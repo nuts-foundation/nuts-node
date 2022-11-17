@@ -108,6 +108,7 @@ func PreconditionFailedError(errStr string, args ...interface{}) error {
 
 // HTTPStatusCodeError defines an interface for HTTP errors that includes a HTTP statuscode
 type HTTPStatusCodeError interface {
+	error
 	StatusCode() int
 }
 

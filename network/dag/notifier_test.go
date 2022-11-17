@@ -32,6 +32,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	io_prometheus_client "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"path"
 	"sync/atomic"
 	"testing"
@@ -52,9 +53,7 @@ func TestEvent_UnmarshalJSON(t *testing.T) {
 	bytes, _ := json.Marshal(event)
 	err := json.Unmarshal(bytes, &event)
 
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	assert.Equal(t, TransactionEventType, event.Type)
 	assert.True(t, transaction.Ref().Equals(event.Hash))
@@ -235,9 +234,6 @@ func TestNotifier_Save(t *testing.T) {
 
 		err := s.Save(tx, Event{})
 
-		if !assert.Error(t, err) {
-			return
-		}
 		assert.EqualError(t, err, "failure")
 	})
 
@@ -253,9 +249,6 @@ func TestNotifier_Save(t *testing.T) {
 
 		err := s.Save(tx, Event{Hash: hash.EmptyHash()})
 
-		if !assert.Error(t, err) {
-			return
-		}
 		assert.EqualError(t, err, "failure")
 	})
 }
@@ -340,9 +333,8 @@ func TestNotifier_Notify(t *testing.T) {
 			e, err := s.readEvent(reader, hash.EmptyHash())
 
 			assert.NoError(t, err)
-			if assert.NotNil(t, e) {
-				assert.Equal(t, 1, e.Retries)
-			}
+			require.NotNil(t, e)
+			assert.Equal(t, 1, e.Retries)
 
 			return nil
 		})

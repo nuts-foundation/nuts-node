@@ -23,6 +23,7 @@ import (
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/stretchr/testify/require"
 	"os"
 	"regexp"
 	"strconv"
@@ -60,9 +61,7 @@ func TestGenToken(t *testing.T) {
 	assert.Len(t, matches, 2)
 	token := matches[1]
 	parsedToken, err := jwt.Parse([]byte(token))
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	assert.Less(t, parsedToken.Expiration(), time.Now().AddDate(0, 0, daysValid+1))
 	assert.Greater(t, parsedToken.Expiration(), time.Now().AddDate(0, 0, daysValid-1))
 	assert.Equal(t, "admin", parsedToken.Subject())

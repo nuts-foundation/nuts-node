@@ -21,6 +21,7 @@ package events
 
 import (
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/nats-io/nats.go"
@@ -40,14 +41,10 @@ func TestManager_Start(t *testing.T) {
 
 	t.Run("Starts a Nats server", func(t *testing.T) {
 		conn, err := nats.Connect(fmt.Sprintf("nats://127.0.0.1:%d", eventManager.config.Nats.Port))
+		defer conn.Close()
 
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		if assert.NotNil(t, conn) {
-			conn.Close()
-		}
+		require.NoError(t, err)
+		assert.NotNil(t, conn)
 	})
 }
 

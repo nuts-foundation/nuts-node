@@ -21,6 +21,7 @@ package grpc
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
@@ -55,9 +56,7 @@ func Test_ipInterceptor(t *testing.T) {
 		externalIPv4XFFAddr := &net.IPAddr{IP: []byte{8, 8, 4, 4}}
 		ipv6 := "2001:4860:4860::8844"
 		ipAddr, err := netip.ParseAddr(ipv6)
-		if !assert.NoError(t, err) {
-			panic("failed to parse IPv6")
-		}
+		require.NoError(t, err, "failed to parse IPv6")
 		externalIPv6XFFAddr := &net.IPAddr{
 			IP:   ipAddr.AsSlice(),
 			Zone: ipAddr.Zone(),

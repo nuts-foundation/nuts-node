@@ -21,6 +21,7 @@ package events
 
 import (
 	"encoding/json"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/network/dag"
@@ -42,9 +43,7 @@ func TestTransactionWithPayload_MarshalJSON(t *testing.T) {
 	}
 
 	bytes, err := json.Marshal(twp)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	assert.Contains(t, string(bytes), "\"transaction\":\"eyJhbGciOiJFUzI1NiIsImNyaXQiOlsic2lndCIsInZlciIsInB")
 	assert.Contains(t, string(bytes), "\"payload\":\"cGF5bG9hZA==\"")
@@ -53,9 +52,7 @@ func TestTransactionWithPayload_MarshalJSON(t *testing.T) {
 func TestTransactionWithPayload_UnmarshalJSON(t *testing.T) {
 	twp := TransactionWithPayload{}
 	err := json.Unmarshal([]byte(testJSON), &twp)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	// sha256 of "payload"
 	assert.Equal(t, "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119", twp.Transaction.PayloadHash().String())

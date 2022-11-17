@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
@@ -74,9 +75,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.NotNil(t, drawnUpContract)
 		assert.Equal(t, "Organisation Name: CareBears in Caretown, valid from Thursday, 1 January 1970 01:00:00 to Thursday, 1 January 1970 01:10:00", drawnUpContract.RawContractText)
@@ -91,9 +90,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, 0)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.NotNil(t, drawnUpContract)
 		assert.Equal(t, "Organisation Name: CareBears in Caretown, valid from Thursday, 1 January 1970 01:00:00 to Thursday, 1 January 1970 01:15:00", drawnUpContract.RawContractText)
@@ -112,9 +109,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		}
 		defer func() { timeNow = time.Now }()
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, time.Time{}, 0)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.NotNil(t, drawnUpContract)
 		assert.Equal(t, "Organisation Name: CareBears in Caretown, valid from Thursday, 1 January 1970 01:00:10 to Thursday, 1 January 1970 01:15:10", drawnUpContract.RawContractText)
@@ -127,9 +122,8 @@ func TestContract_DrawUpContract(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return("", types.ErrNotFound)
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
-		if assert.Error(t, err) {
-			assert.Equal(t, "could not draw up contract: no valid organization credential at provided validFrom date", err.Error())
-		}
+
+		assert.EqualError(t, err, "could not draw up contract: no valid organization credential at provided validFrom date")
 		assert.Nil(t, drawnUpContract)
 	})
 
@@ -141,9 +135,8 @@ func TestContract_DrawUpContract(t *testing.T) {
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(false)
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
-		if assert.Error(t, err) {
-			assert.Equal(t, "could not draw up contract: organization is not managed by this node: missing organization private key", err.Error())
-		}
+
+		assert.EqualError(t, err, "could not draw up contract: organization is not managed by this node: missing organization private key")
 		assert.Nil(t, drawnUpContract)
 	})
 
@@ -154,9 +147,8 @@ func TestContract_DrawUpContract(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return("", errors.New("error occurred"))
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
-		if assert.Error(t, err) {
-			assert.Equal(t, "could not draw up contract: error occurred", err.Error())
-		}
+
+		assert.EqualError(t, err, "could not draw up contract: error occurred")
 		assert.Nil(t, drawnUpContract)
 	})
 
@@ -169,9 +161,8 @@ func TestContract_DrawUpContract(t *testing.T) {
 		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return(nil, errors.New("error occurred"))
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
-		if assert.Error(t, err) {
-			assert.Equal(t, "could not find a credential: error occurred", err.Error())
-		}
+
+		assert.EqualError(t, err, "could not find a credential: error occurred")
 		assert.Nil(t, drawnUpContract)
 	})
 
@@ -188,9 +179,8 @@ func TestContract_DrawUpContract(t *testing.T) {
 		}
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
-		if assert.Error(t, err) {
-			assert.Equal(t, "could not draw up contract: could not render contract template: line 1: unmatched open tag", err.Error())
-		}
+
+		assert.EqualError(t, err, "could not draw up contract: could not render contract template: line 1: unmatched open tag")
 		assert.Nil(t, drawnUpContract)
 	})
 
@@ -203,10 +193,8 @@ func TestContract_DrawUpContract(t *testing.T) {
 		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential, testCredential}, nil)
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
-		if !assert.NoError(t, err) {
-			return
-		}
 
+		require.NoError(t, err)
 		assert.NotNil(t, drawnUpContract)
 		assert.Equal(t, "Organisation Name: CareBears in Caretown, valid from Thursday, 1 January 1970 01:00:00 to Thursday, 1 January 1970 01:10:00", drawnUpContract.RawContractText)
 	})
@@ -223,6 +211,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential, testCredential2}, nil)
 
 		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
+
 		assert.EqualError(t, err, "found multiple non-matching VCs, which is not supported")
 		assert.Nil(t, drawnUpContract)
 	})
@@ -240,14 +229,10 @@ func TestNewContractNotary(t *testing.T) {
 			nil,
 		)
 
-		if !assert.NotNil(t, instance) {
-			return
-		}
+		require.NotNil(t, instance)
 
 		n, ok := instance.(*notary)
-		if !assert.True(t, ok) {
-			return
-		}
+		require.True(t, ok)
 
 		assert.NotNil(t, n.vcr)
 		assert.NotNil(t, n.keyResolver)
@@ -271,9 +256,7 @@ func TestService_CreateContractSession(t *testing.T) {
 
 		result, err := ctx.notary.CreateSigningSession(request)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		irmaResult := result.(irmaService.SessionPtr)
 
@@ -310,12 +293,8 @@ func TestContract_VerifyVP(t *testing.T) {
 
 		validationResult, err := validator.VerifyVP(rawVP, nil)
 
-		if !assert.NoError(t, err) {
-			return
-		}
-		if !assert.NotNil(t, validationResult) {
-			return
-		}
+		require.NoError(t, err)
+		require.NotNil(t, validationResult)
 		assert.Equal(t, contract.Valid, validationResult.Validity())
 	})
 
@@ -324,13 +303,8 @@ func TestContract_VerifyVP(t *testing.T) {
 
 		validationResult, err := validator.VerifyVP(rawVP, nil)
 
-		if !assert.Error(t, err) {
-			return
-		}
-		if !assert.Nil(t, validationResult) {
-			return
-		}
-		assert.Equal(t, "unknown VerifiablePresentation type: bar", err.Error())
+		assert.Nil(t, validationResult)
+		assert.EqualError(t, err, "unknown VerifiablePresentation type: bar")
 	})
 
 	t.Run("nok - missing custom type", func(t *testing.T) {
@@ -341,13 +315,8 @@ func TestContract_VerifyVP(t *testing.T) {
 
 		validationResult, err := validator.VerifyVP(rawVP, nil)
 
-		if !assert.Error(t, err) {
-			return
-		}
-		if !assert.Nil(t, validationResult) {
-			return
-		}
-		assert.Equal(t, "unprocessable VerifiablePresentation, exactly 1 custom type is expected", err.Error())
+		assert.Nil(t, validationResult)
+		assert.EqualError(t, err, "unprocessable VerifiablePresentation, exactly 1 custom type is expected")
 	})
 }
 
@@ -364,12 +333,8 @@ func TestContract_SigningSessionStatus(t *testing.T) {
 		validator := notary{signers: map[string]contract.Signer{"bar": mockSigner}}
 
 		signingSessionResult, err := validator.SigningSessionStatus(sessionID)
-		if !assert.NoError(t, err) {
-			return
-		}
-		if !assert.NotNil(t, signingSessionResult) {
-			return
-		}
+		require.NoError(t, err)
+		require.NotNil(t, signingSessionResult)
 	})
 
 	t.Run("nok - session not found", func(t *testing.T) {
@@ -377,13 +342,8 @@ func TestContract_SigningSessionStatus(t *testing.T) {
 		sessionID := "123"
 		signingSesionResult, err := validator.SigningSessionStatus(sessionID)
 
-		if !assert.Error(t, err) {
-			return
-		}
-		if !assert.Nil(t, signingSesionResult) {
-			return
-		}
-		assert.Equal(t, "session not found", err.Error())
+		assert.Nil(t, signingSesionResult)
+		assert.EqualError(t, err, "session not found")
 	})
 }
 

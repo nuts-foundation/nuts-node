@@ -21,6 +21,7 @@ package doc
 
 import (
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"time"
@@ -47,9 +48,7 @@ func TestResolveSigningKey(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		key, err := keyResolver.ResolveSigningKey(mockKID, nil)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.NotNil(t, key)
 	})
 
@@ -89,9 +88,7 @@ func TestResolveSigningKeyID(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		actual, err := keyResolver.ResolveSigningKeyID(doc.ID, nil)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, mockKID, actual)
 	})
 
@@ -110,9 +107,7 @@ func TestResolveSigningKeyID(t *testing.T) {
 		doc2.ID = *did2
 		doc2.AssertionMethod = did.VerificationRelationships{}
 		err := didStore.Write(doc2, types.DocumentMetadata{})
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		_, err = keyResolver.ResolveSigningKeyID(*did2, nil)
 
@@ -132,9 +127,7 @@ func TestKeyResolver_ResolveAssertionKeyID(t *testing.T) {
 	t.Run("ok - resolve a known key", func(t *testing.T) {
 		actual, err := keyResolver.ResolveAssertionKeyID(doc.ID)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, mockKID, actual.String())
 	})
 
@@ -153,9 +146,7 @@ func TestKeyResolver_ResolveAssertionKeyID(t *testing.T) {
 		doc2.ID = *did2
 		doc2.AssertionMethod = did.VerificationRelationships{}
 		err := didStore.Write(doc2, types.DocumentMetadata{})
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		_, err = keyResolver.ResolveAssertionKeyID(*did2)
 
@@ -182,9 +173,7 @@ func TestResolver_Resolve(t *testing.T) {
 
 		resultDoc, _, err := resolver.Resolve(*id123, resolveMD)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.Equal(t, doc.ID, resultDoc.ID)
 	})
@@ -444,9 +433,7 @@ func TestKeyResolver_ResolvePublicKey(t *testing.T) {
 
 	t.Run("ok by hash", func(t *testing.T) {
 		key, err := keyResolver.ResolvePublicKey(mockKID, []hash.SHA256Hash{txHash})
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.NotNil(t, key)
 	})

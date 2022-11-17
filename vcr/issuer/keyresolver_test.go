@@ -26,6 +26,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -34,9 +35,7 @@ func Test_vdrKeyResolver_ResolveAssertionKey(t *testing.T) {
 	methodID := *issuerDID
 	methodID.Fragment = "abc"
 	newMethod, err := did.NewVerificationMethod(methodID, ssi.JsonWebKey2020, *issuerDID, crypto.NewTestKey(issuerDID.String()+"abc").Public())
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	docWithAssertionKey := &did.Document{}
 	docWithAssertionKey.AddAssertionMethod(newMethod)
 

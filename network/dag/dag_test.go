@@ -21,6 +21,7 @@ package dag
 import (
 	"context"
 	"github.com/nuts-foundation/go-stoabs"
+	"github.com/stretchr/testify/require"
 	"sort"
 	"strings"
 	"testing"
@@ -71,9 +72,7 @@ func TestDAG_findBetweenLC(t *testing.T) {
 		err := graph.db.Read(ctx, func(tx stoabs.ReadTx) error {
 			actual, err := graph.findBetweenLC(tx, 1, 3)
 
-			if !assert.NoError(t, err) {
-				return nil
-			}
+			require.NoError(t, err)
 			assert.Len(t, actual, 3)
 			assert.Contains(t, actual, tx2)
 			assert.Contains(t, actual, tx3)
@@ -92,9 +91,7 @@ func TestDAG_Get(t *testing.T) {
 		_ = graph.db.Write(ctx, func(tx stoabs.WriteTx) error {
 			_ = graph.add(tx, transaction)
 			actual, err := getTransaction(transaction.Ref(), tx)
-			if !assert.NoError(t, err) {
-				return err
-			}
+			require.NoError(t, err)
 			assert.Equal(t, transaction, actual)
 			return nil
 		})
@@ -126,9 +123,7 @@ func TestDAG_Migrate(t *testing.T) {
 				return writer.Delete(key)
 			}, stoabs.BytesKey{})
 		})
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		// Check values return 0
 		var stats Statistics
@@ -143,9 +138,7 @@ func TestDAG_Migrate(t *testing.T) {
 
 		// Migrate
 		err = graph.Migrate()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		// Assert
 		_ = graph.db.Read(ctx, func(tx stoabs.ReadTx) error {
@@ -166,17 +159,13 @@ func TestDAG_Migrate(t *testing.T) {
 				return writer.Delete(key)
 			}, stoabs.BytesKey{})
 		})
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		err = graph.db.WriteShelf(ctx, headsShelf, func(writer stoabs.Writer) error {
 			_ = writer.Put(stoabs.BytesKey(txRoot.Ref().Slice()), []byte{1})
 			_ = writer.Put(stoabs.BytesKey(tx2.Ref().Slice()), []byte{1})
 			return writer.Put(stoabs.BytesKey(tx1.Ref().Slice()), []byte{1})
 		})
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		// Check current head is nil
 		var head hash.SHA256Hash
@@ -188,9 +177,7 @@ func TestDAG_Migrate(t *testing.T) {
 
 		// Migrate
 		err = graph.Migrate()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		// Assert
 		_ = graph.db.Read(ctx, func(tx stoabs.ReadTx) error {
@@ -204,9 +191,7 @@ func TestDAG_Migrate(t *testing.T) {
 		addTx(t, graph, txRoot, tx1, tx2)
 
 		err := graph.Migrate()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		stats := Statistics{}
 		var lc uint32
@@ -232,9 +217,7 @@ func TestDAG_Add(t *testing.T) {
 		err := graph.db.Read(ctx, func(dbTx stoabs.ReadTx) error {
 			return graph.visitBetweenLC(dbTx, 0, 1, visitor.Accept)
 		})
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Len(t, visitor.transactions, 1)
 		assert.Equal(t, tx.Ref(), visitor.transactions[0].Ref())
 		err = graph.db.Read(ctx, func(dbTx stoabs.ReadTx) error {
@@ -305,9 +288,7 @@ func TestNewDAG_addToLCIndex(t *testing.T) {
 		lcBucket := tx.GetShelfReader(clockShelf)
 
 		ref, _ := lcBucket.Get(stoabs.Uint32Key(clock))
-		if !assert.NotNil(t, ref) {
-			return
-		}
+		require.NotNil(t, ref)
 
 		refs := parseHashList(ref)
 		sort.Slice(refs, func(i, j int) bool {
@@ -326,9 +307,7 @@ func TestNewDAG_addToLCIndex(t *testing.T) {
 		lcBucket := tx.GetShelfReader(clockShelf)
 
 		hashBytes, _ := lcBucket.Get(stoabs.Uint32Key(clock))
-		if !assert.NotNil(t, hashBytes) {
-			return
-		}
+		require.NotNil(t, hashBytes)
 		hashes := parseHashList(hashBytes)
 		assert.Contains(t, hashes, expected)
 	}

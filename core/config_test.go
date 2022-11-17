@@ -24,6 +24,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
 )
@@ -43,9 +44,7 @@ func Test_ListMerging(t *testing.T) {
 			// load the testEngine
 			system.RegisterEngine(testEngine)
 			// Load the system
-			if !assert.NoError(t, system.Load(cmd.Flags())) {
-				return
-			}
+			require.NoError(t, system.Load(cmd.Flags()))
 			// Configure system and the engines
 			assert.Nil(t, system.Configure())
 
@@ -71,9 +70,7 @@ func Test_ListMerging(t *testing.T) {
 			// load the testEngine
 			system.RegisterEngine(testEngine)
 			// Load the system
-			if !assert.NoError(t, system.Load(cmd.Flags())) {
-				return
-			}
+			require.NoError(t, system.Load(cmd.Flags()))
 			// Configure system and the engines
 			assert.Nil(t, system.Configure())
 

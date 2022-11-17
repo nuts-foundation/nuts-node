@@ -18,6 +18,7 @@ package v1
 import (
 	"errors"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"testing"
 	"time"
@@ -68,9 +69,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 		ctx.vdr.EXPECT().Create(gomock.Any()).Return(didDoc, nil, nil)
 		err := ctx.client.CreateDID(ctx.echo)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, *id, didDocReturn.ID)
 	})
 
@@ -103,9 +102,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 		ctx.vdr.EXPECT().Create(gomock.Any()).Return(didDoc, nil, nil)
 		err := ctx.client.CreateDID(ctx.echo)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, *id, didDocReturn.ID)
 	})
 
@@ -173,9 +170,7 @@ func TestWrapper_GetDID(t *testing.T) {
 		ctx.docResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(didDoc, meta, nil)
 		err := ctx.client.GetDID(ctx.echo, id.String(), GetDIDParams{})
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, *id, didResolutionResult.Document.ID)
 	})
 
@@ -189,14 +184,10 @@ func TestWrapper_GetDID(t *testing.T) {
 		})
 
 		expectedVersionHash, err := hash.ParseHex(versionId)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		ctx.docResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true, Hash: &expectedVersionHash}).Return(didDoc, meta, nil)
 		err = ctx.client.GetDID(ctx.echo, id.String(), GetDIDParams{VersionId: &versionId})
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, *id, didResolutionResult.Document.ID)
 	})
 
@@ -210,15 +201,11 @@ func TestWrapper_GetDID(t *testing.T) {
 		})
 
 		expectedTime, err := time.Parse(time.RFC3339, versionTime)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		ctx.docResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true, ResolveTime: &expectedTime}).Return(didDoc, meta, nil)
 		err = ctx.client.GetDID(ctx.echo, id.String(), GetDIDParams{VersionTime: &versionTime})
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, *id, didResolutionResult.Document.ID)
 	})
 
@@ -301,9 +288,7 @@ func TestWrapper_ConflictedDIDs(t *testing.T) {
 		ctx.vdr.EXPECT().ConflictedDocuments().Return([]did.Document{*didDoc}, []types.DocumentMetadata{*meta}, nil)
 		err := ctx.client.ConflictedDIDs(ctx.echo)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, *id, didResolutionResult[0].Document.ID)
 	})
 
@@ -343,9 +328,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 		ctx.vdr.EXPECT().Update(*id, gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
 		err := ctx.client.UpdateDID(ctx.echo, id.String())
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, *id, didReturn.ID)
 	})
 

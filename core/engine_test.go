@@ -21,6 +21,7 @@ package core
 
 import (
 	"errors"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -186,9 +187,7 @@ func TestSystem_Load(t *testing.T) {
 	cmd.Flags().AddFlagSet(FlagSet())
 	cmd.Flags().AddFlagSet(e.flagSet)
 	err := e.FlagSet().Parse([]string{"--testengine.key", "value"})
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	t.Run("loads Config without error", func(t *testing.T) {
 		assert.NoError(t, ctl.Load(cmd.Flags()))
@@ -210,8 +209,7 @@ func TestSystem_Load(t *testing.T) {
 		assert.NoError(t, flagSet.Parse([]string{"command", "--f", "once"}))
 		assert.NoError(t, ctl.Config.Load(flagSet))
 		assert.NoError(t, loadConfigIntoStruct(&target, ctl.Config.configMap))
-		if assert.Len(t, target.F, 1) {
-			assert.Equal(t, "once", target.F[0])
-		}
+		require.Len(t, target.F, 1)
+		assert.Equal(t, "once", target.F[0])
 	})
 }

@@ -27,6 +27,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"os"
 	"path"
 	"testing"
@@ -59,29 +60,21 @@ func Test_bboltDatabase_performBackup(t *testing.T) {
 
 		err := db.performBackup(fullStoreName, store)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		backupFile := path.Join(backupDir, fullStoreName+bboltDbExtension)
-		if !assert.FileExists(t, backupFile) {
-			return
-		}
+		require.FileExists(t, backupFile)
 
 		// Close the store, reopen backup
 		_ = store.Close(context.Background())
 		store, err = bbolt.CreateBBoltStore(backupFile)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		// Read value and compare
 		var actualValue []byte
 		err = store.ReadShelf(ctx, "data", func(reader stoabs.Reader) error {
 			actualValue, _ = reader.Get(key)
 			return nil
 		})
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, value, actualValue)
 	})
 
@@ -113,9 +106,7 @@ func Test_bboltDatabase_performBackup(t *testing.T) {
 			actualValue, _ = reader.Get(key)
 			return nil
 		})
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, newValue, actualValue)
 	})
 }

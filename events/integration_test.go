@@ -22,6 +22,7 @@ package events
 import (
 	"bytes"
 	"context"
+	"github.com/stretchr/testify/require"
 	"sync"
 	"testing"
 	"time"
@@ -39,9 +40,7 @@ func Test_pub_sub(t *testing.T) {
 	stream := eventManager.GetStream(TransactionsStream)
 
 	conn, js, err := eventManager.Pool().Acquire(context.Background())
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	defer conn.Close()
 	var found []byte
 	foundMutex := sync.Mutex{}
@@ -52,24 +51,18 @@ func Test_pub_sub(t *testing.T) {
 		err = msg.Ack()
 	})
 
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	// the ack comes from the Nats server so we can use Publish (instead of PublishAsync)
 	_, err = js.PublishAsync("TRANSACTIONS.tx", []byte{1})
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	test.WaitFor(t, func() (bool, error) {
 		foundMutex.Lock()
 		defer foundMutex.Unlock()
 		return bytes.Equal(found, []byte{1}), nil
 	}, 100*time.Millisecond, "timeout waiting for message")
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 }
 
 func TestManager_Configure(t *testing.T) {
@@ -93,9 +86,7 @@ func TestManager_Configure(t *testing.T) {
 
 		info, err := js.StreamInfo(eventManager.streams[TransactionsStream].Config().Name)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, TransactionsStream, info.Config.Name)
 	})
 }

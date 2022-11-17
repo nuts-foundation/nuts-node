@@ -21,6 +21,7 @@ package cmd
 import (
 	"bytes"
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -73,9 +74,7 @@ func TestCmd_List(t *testing.T) {
 		err := networkCmd.Execute()
 		assert.NoError(t, err)
 		lines := strings.Split(outBuf.String(), "\n")
-		if !assert.Len(t, lines, 5) {
-			return
-		}
+		require.Len(t, lines, 5)
 		hashStr1 := strings.Split(lines[1], "  ")[0]
 		hashStr2 := strings.Split(lines[2], "  ")[0]
 		hashStr3 := strings.Split(lines[3], "  ")[0]

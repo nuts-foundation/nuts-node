@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -45,9 +46,7 @@ func TestHTTPClient_Create(t *testing.T) {
 		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: didDoc})
 		c := getClient(s.URL)
 		doc, err := c.Create(DIDCreateRequest{})
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.NotNil(t, doc)
 	})
 
@@ -79,9 +78,7 @@ func TestHttpClient_Get(t *testing.T) {
 		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: resolutionResult})
 		c := getClient(s.URL)
 		doc, meta, err := c.Get(vdr.TestDIDA.String())
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.NotNil(t, doc)
 		assert.NotNil(t, meta)
 	})
@@ -125,9 +122,7 @@ func TestHTTPClient_ConflictedDIDs(t *testing.T) {
 		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: resolutionResults})
 		c := getClient(s.URL)
 		docs, err := c.ConflictedDIDs()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.NotNil(t, docs)
 	})
 
@@ -151,9 +146,7 @@ func TestHTTPClient_Update(t *testing.T) {
 		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: didDoc})
 		c := getClient(s.URL)
 		doc, err := c.Update(vdr.TestDIDA.String(), hash, didDoc)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.NotNil(t, doc)
 	})
 
@@ -188,9 +181,7 @@ func TestHTTPClient_Deactivate(t *testing.T) {
 		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK})
 		c := getClient(s.URL)
 		err := c.Deactivate(vdr.TestDIDA.String())
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 	})
 
 	t.Run("error - server problems", func(t *testing.T) {
@@ -208,9 +199,7 @@ func TestHTTPClient_AddNewVerificationMethod(t *testing.T) {
 		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: string(methodJSON)})
 		c := getClient(s.URL)
 		methodResponse, err := c.AddNewVerificationMethod(vdr.TestDIDA.String())
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, method, methodResponse)
 	})
 
@@ -234,9 +223,7 @@ func TestHTTPClient_DeleteVerificationMethod(t *testing.T) {
 		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusNoContent})
 		c := getClient(s.URL)
 		err := c.DeleteVerificationMethod(vdr.TestDIDA.String(), vdr.TestMethodDIDA.String())
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 	})
 
 	t.Run("error - a non 204 response", func(t *testing.T) {

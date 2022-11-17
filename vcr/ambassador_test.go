@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
 	"time"
@@ -123,9 +124,7 @@ func TestAmbassador_handleReprocessEvent(t *testing.T) {
 	payload, _ := json.Marshal(vc)
 	unsignedTransaction, _ := dag.NewTransaction(hash.SHA256Sum(payload), types.VcDocumentType, nil, nil, uint32(0))
 	signedTransaction, err := dag.NewTransactionSigner(key, true).Sign(unsignedTransaction, time.Now())
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	twp := events.TransactionWithPayload{
 		Transaction: signedTransaction,
 		Payload:     payload,
@@ -135,9 +134,7 @@ func TestAmbassador_handleReprocessEvent(t *testing.T) {
 	_, js, _ := ctx.vcr.eventManager.Pool().Acquire(context.Background())
 	_, err = js.Publish("REPROCESS.application/vc+json", twpBytes)
 
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	test.WaitFor(t, func() (bool, error) {
 		_, err := ctx.vcr.Resolve(*vc.ID, nil)
@@ -164,9 +161,7 @@ func TestAmbassador_vcCallback(t *testing.T) {
 
 		err := a.vcCallback(stx, payload)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.Equal(t, "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY#123", target.ID.String())
 	})

@@ -128,11 +128,7 @@ func TestTransactionSignatureVerifier(t *testing.T) {
 		keyResolver.EXPECT().ResolvePublicKey(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
 
 		err := NewTransactionSignatureVerifier(keyResolver)(nil, d)
-		if !assert.Error(t, err) {
-			return
-		}
 
-		assert.Contains(t, err.Error(), "unable to verify transaction signature, can't resolve key by TX ref")
-		assert.Contains(t, err.Error(), "failed")
+		assert.ErrorContains(t, err, "unable to verify transaction signature, can't resolve key by TX ref")
 	})
 }

@@ -20,6 +20,7 @@ package dag
 
 import (
 	"context"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -42,15 +43,11 @@ func TestTree_write(t *testing.T) {
 		err := db.Write(ctx, func(dbTx stoabs.WriteTx) error {
 			return storeWrite.write(dbTx, tx)
 		})
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		err = db.Read(ctx, func(tx stoabs.ReadTx) error {
 			return storeRead.read(tx)
 		})
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.Equal(t, tx.Ref(), storeRead.getRoot().(*tree.Xor).Hash())
 		assert.Equal(t, tx.Ref(), storeWrite.getRoot().(*tree.Xor).Hash())
@@ -99,9 +96,7 @@ func TestTree_read(t *testing.T) {
 	err := db.Write(ctx, func(tx stoabs.WriteTx) error {
 		return storeWrite.write(tx, testTx)
 	})
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	t.Run("ok - read tree successfully", func(t *testing.T) {
 		store := newTreeStore("real bucket", tree.New(tree.NewXor(), testLeafSize))

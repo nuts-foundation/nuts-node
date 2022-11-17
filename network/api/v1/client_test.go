@@ -21,6 +21,7 @@ package v1
 import (
 	"encoding/json"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -49,12 +50,8 @@ func TestHttpClient_ListTransactions(t *testing.T) {
 		data, _ := json.Marshal([]string{string(expected.Data())})
 		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: data})
 		actual, err := getClient(s).ListTransactions()
-		if !assert.NoError(t, err) {
-			return
-		}
-		if !assert.Len(t, actual, 1) {
-			return
-		}
+		require.NoError(t, err)
+		require.Len(t, actual, 1)
 		assert.Equal(t, expected, actual[0])
 	})
 }

@@ -35,6 +35,7 @@ import (
 	testIo "github.com/nuts-foundation/nuts-node/test/io"
 	v1 "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"os"
@@ -93,13 +94,9 @@ func Test_LoadExistingDAG(t *testing.T) {
 	// Create and update a DID document
 	vdrClient := createVDRClient(moduleConfig.HTTP.Address)
 	didDocument, err := vdrClient.Create(v1.DIDCreateRequest{})
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	_, err = vdrClient.AddNewVerificationMethod(didDocument.ID.String())
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	// Now stop node, and start it again
 	stopNode(t, runningCtx)
@@ -115,9 +112,7 @@ func Test_LoadExistingDAG(t *testing.T) {
 	// Assert we can read the DID document
 	vdrClient = createVDRClient(moduleConfig.HTTP.Address)
 	doc, _, err := vdrClient.Get(didDocument.ID.String())
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	assert.NotNil(t, doc)
 }
 

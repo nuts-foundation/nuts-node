@@ -26,6 +26,7 @@ import (
 	"github.com/nuts-foundation/go-stoabs/redis7"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -40,14 +41,10 @@ func Test_redisDatabase_createStore(t *testing.T) {
 		})
 
 		db, err := createRedisDatabase(RedisConfig{Address: redis.Addr(), Database: "db"})
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		store, err := db.createStore("unit", "test")
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		defer store.Close(context.Background())
 
 		// Assert: write some data and check keys
@@ -64,14 +61,10 @@ func Test_redisDatabase_createStore(t *testing.T) {
 		})
 
 		db, err := createRedisDatabase(RedisConfig{Address: redis.Addr()})
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		store, err := db.createStore("unit", "test")
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		defer store.Close(context.Background())
 
 		// Assert: write some data and check keys
@@ -86,15 +79,11 @@ func Test_redisDatabase_createStore(t *testing.T) {
 
 		// Setup server-side TLS
 		cert, err := tls.LoadX509KeyPair("test/certificate.pem", "test/certificate.pem")
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		redis, err := miniredis.RunTLS(&tls.Config{
 			Certificates: []tls.Certificate{cert},
 		})
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		t.Cleanup(func() {
 			redis.Close()
 		})
@@ -110,14 +99,10 @@ func Test_redisDatabase_createStore(t *testing.T) {
 				TrustStoreFile: "test/truststore.pem",
 			},
 		})
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		store, err := db.createStore("unit", "test")
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		_ = store.Close(context.Background())
 	})
 	t.Run("error - TLS configured, but not connecting to a TLS server", func(t *testing.T) {
@@ -150,9 +135,7 @@ func Test_redisDatabase_createStore(t *testing.T) {
 				},
 			})
 
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			assert.NotNil(t, db.sentinelOptions)
 			// Assert non-sentinel-specific options are still parsed
 			assert.NotNil(t, db.sentinelOptions.TLSConfig)
@@ -194,15 +177,11 @@ func Test_redisDatabase_createStore(t *testing.T) {
 		t.Run("try to connect", func(t *testing.T) {
 			// Setup server-side TLS
 			cert, err := tls.LoadX509KeyPair("test/certificate.pem", "test/certificate.pem")
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			redis, err := miniredis.RunTLS(&tls.Config{
 				Certificates: []tls.Certificate{cert},
 			})
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			t.Cleanup(func() {
 				redis.Close()
 			})
@@ -222,9 +201,7 @@ func Test_redisDatabase_createStore(t *testing.T) {
 					Nodes:  []string{redis.Addr()},
 				},
 			})
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 
 			oldPingAttemptBackoff := redis7.PingAttemptBackoff
 			defer func() {

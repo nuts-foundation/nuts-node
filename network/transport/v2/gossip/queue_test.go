@@ -21,6 +21,7 @@ package gossip
 
 import (
 	"context"
+	"github.com/stretchr/testify/require"
 	"sync"
 	"testing"
 	"time"
@@ -97,9 +98,7 @@ func TestQueue_enqueued(t *testing.T) {
 
 		enq, xor, clock := pq.enqueued()
 
-		if !assert.Len(t, enq, 1) {
-			return
-		}
+		require.Len(t, enq, 1)
 		assert.Contains(t, enq, hash.EmptyHash())
 		assert.Equal(t, hash.EmptyHash(), xor)
 		assert.Equal(t, uint32(5), clock)

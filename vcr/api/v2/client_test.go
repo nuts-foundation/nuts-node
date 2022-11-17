@@ -21,6 +21,7 @@ package v2
 
 import (
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -106,9 +107,7 @@ func TestHttpClient_Trusted(t *testing.T) {
 
 		dids, err := c.Trusted(credentialType)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.NotNil(t, dids)
 	})
 
@@ -168,9 +167,7 @@ func TestHttpClient_Untrusted(t *testing.T) {
 
 		dids, err := c.Untrusted(credentialType)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.NotNil(t, dids)
 	})
 }

@@ -21,6 +21,7 @@ package vcr
 
 import (
 	"context"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
@@ -51,9 +52,7 @@ func TestVCR_Search(t *testing.T) {
 		// add document
 		doc := []byte(jsonld.TestCredential)
 		err := ctx.vcr.credentialCollection().Add([]leia.Document{doc})
-		if !assert.NoError(t2, err) {
-			t2.Fatal(err)
-		}
+		require.NoError(t, err)
 		return ctx
 	}
 
@@ -75,12 +74,8 @@ func TestVCR_Search(t *testing.T) {
 
 		searchResult, err := ctx.vcr.Search(reqCtx, exactSearchTerms, false, &now)
 
-		if assert.NoError(t, err) {
-			return
-		}
-		if assert.Len(t, searchResult, 1) {
-			return
-		}
+		require.NoError(t, err)
+		require.Len(t, searchResult, 1)
 
 		cs := searchResult[0].CredentialSubject[0]
 		m := cs.(map[string]interface{})
@@ -137,9 +132,7 @@ func TestVCR_Search(t *testing.T) {
 		ctx := testInstance(t)
 
 		searchResult, err := ctx.vcr.Search(reqCtx, prefixSearchTerms, false, &now)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.Len(t, searchResult, 0, "expected no results since the credential is not trusted")
 	})
@@ -148,9 +141,7 @@ func TestVCR_Search(t *testing.T) {
 		ctx := testInstance(t)
 
 		searchResult, err := ctx.vcr.Search(reqCtx, prefixSearchTerms, true, &now)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.Len(t, searchResult, 1, "expected 1 results since the allowUntrusted flag is set")
 	})
@@ -165,9 +156,7 @@ func TestVCR_Search(t *testing.T) {
 
 		creds, err := ctx.vcr.Search(reqCtx, prefixSearchTerms, true, nil)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		assert.Len(t, creds, 0)
 	})

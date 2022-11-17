@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"io"
 	"net/url"
 	"strings"
@@ -76,9 +77,7 @@ func TestDidman_AddEndpoint(t *testing.T) {
 
 		ep, err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.True(t, strings.HasPrefix(ep.ID.String(), vdr.TestDIDA.String()))
 		assert.Equal(t, "type", ep.Type)
 		assert.Equal(t, u.String(), ep.ServiceEndpoint.(string))
@@ -120,9 +119,6 @@ func TestDidman_AddEndpoint(t *testing.T) {
 
 		_, err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
 
-		if !assert.Error(t, err) {
-			return
-		}
 		assert.Equal(t, types.ErrNotFound, err)
 	})
 }
@@ -192,9 +188,7 @@ func TestDidman_AddCompoundService(t *testing.T) {
 
 		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", references)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Len(t, newDoc.Service, 2)
 		assert.Equal(t, "helloworld", newDoc.Service[1].Type)
 		assert.Equal(t, expectedRefs, newDoc.Service[1].ServiceEndpoint)
@@ -244,9 +238,7 @@ func TestDidman_DeleteService(t *testing.T) {
 
 		err := ctx.instance.DeleteService(uri)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Len(t, newDoc.Service, 0)
 	})
 
@@ -317,9 +309,7 @@ func TestDidman_UpdateContactInformation(t *testing.T) {
 			return vdr.CreateDocumentValidator().Validate(doc)
 		})
 		actual, err := ctx.instance.UpdateContactInformation(*id, expected)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, expected, *actual)
 		services := filterServices(&actualDocument, ContactInformationServiceType)
 		assert.Len(t, services, 1)
@@ -350,9 +340,7 @@ func TestDidman_UpdateContactInformation(t *testing.T) {
 			actualDocument = doc
 		})
 		actual, err := ctx.instance.UpdateContactInformation(*id, expected)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, expected, *actual)
 		services := filterServices(&actualDocument, ContactInformationServiceType)
 		assert.Len(t, services, 1)
@@ -636,15 +624,11 @@ func TestDidman_GetCompoundServiceEndpoint(t *testing.T) {
 
 		careProviderDocument := &did.Document{}
 		err := careProviderDocument.UnmarshalJSON([]byte(careProvider))
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		saasProviderDocument := &did.Document{}
 		err = saasProviderDocument.UnmarshalJSON([]byte(saasProvider))
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		ctx := newMockContext(t)
 		ctx.docResolver.EXPECT().Resolve(careProviderDocument.ID, nil).Return(careProviderDocument, nil, nil)

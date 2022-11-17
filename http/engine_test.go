@@ -35,6 +35,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/writer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -51,13 +52,9 @@ func TestEngine_Configure(t *testing.T) {
 		engine.config.InterfaceConfig.TLSMode = ""
 
 		err := engine.Configure(*core.NewServerConfig())
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		err = engine.Start()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		defer engine.Shutdown()
 
 		assertHTTPRequest(t, engine.config.InterfaceConfig.Address)
@@ -71,13 +68,9 @@ func TestEngine_Configure(t *testing.T) {
 		engine.config.InterfaceConfig.TLSMode = TLSDisabledMode
 
 		err := engine.Configure(*core.NewServerConfig())
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		err = engine.Start()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		defer engine.Shutdown()
 
 		assertHTTPRequest(t, engine.config.InterfaceConfig.Address)
@@ -126,13 +119,9 @@ func TestEngine_Configure(t *testing.T) {
 			engine.config.InterfaceConfig.TLSMode = TLSServerCertMode
 
 			err := engine.Configure(*serverCfg)
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			err = engine.Start()
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			defer engine.Shutdown()
 
 			thisTLSConfig := tlsConfig.Clone()
@@ -148,14 +137,10 @@ func TestEngine_Configure(t *testing.T) {
 			engine.config.InterfaceConfig.TLSMode = TLServerClientCertMode
 
 			err := engine.Configure(*serverCfg)
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			err = engine.Start()
 			time.Sleep(100 * time.Millisecond)
-			if !assert.NoError(t, err) {
-				return
-			}
+			require.NoError(t, err)
 			defer engine.Shutdown()
 
 			assertHTTPSRequest(t, engine.config.InterfaceConfig.Address, tlsConfig)
@@ -182,13 +167,9 @@ func TestEngine_Configure(t *testing.T) {
 				}
 
 				err := engine.Configure(*core.NewServerConfig())
-				if !assert.NoError(t, err) {
-					return
-				}
+				require.NoError(t, err)
 				err = engine.Start()
-				if !assert.NoError(t, err) {
-					return
-				}
+				require.NoError(t, err)
 				defer engine.Shutdown()
 
 				assertHTTPHeader(t, engine.config.InterfaceConfig.Address, "Vary", "Origin")
@@ -226,18 +207,14 @@ func TestEngine_Configure(t *testing.T) {
 				}
 
 				err := engine.Configure(*core.NewServerConfig())
-				if !assert.NoError(t, err) {
-					return
-				}
+				require.NoError(t, err)
 
 				engine.Router().GET("/some-other-path", func(c echo.Context) error {
 					return nil
 				})
 
 				err = engine.Start()
-				if !assert.NoError(t, err) {
-					return
-				}
+				require.NoError(t, err)
 				defer engine.Shutdown()
 
 				// CORS should be enabled on default path and other, but not on alt bind
@@ -381,18 +358,14 @@ func TestEngine_LoggingMiddleware(t *testing.T) {
 		engine.config.InterfaceConfig.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
 
 		err := engine.Configure(*core.NewServerConfig())
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		engine.Router().GET("/some-path", func(c echo.Context) error {
 			return nil
 		})
 
 		err = engine.Start()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		defer engine.Shutdown()
 
 		// Call to /status is not logged
@@ -411,17 +384,13 @@ func TestEngine_LoggingMiddleware(t *testing.T) {
 		engine.config.InterfaceConfig.Log = LogMetadataAndBodyLevel
 
 		err := engine.Configure(*core.NewServerConfig())
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		engine.Router().POST("/", func(c echo.Context) error {
 			return c.JSON(200, "hello, world")
 		})
 
 		err = engine.Start()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		defer engine.Shutdown()
 
 		output.Reset()

@@ -21,6 +21,7 @@ package dag
 import (
 	"crypto/sha1"
 	"encoding/base32"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
@@ -42,15 +43,11 @@ func TestTransactionSigner(t *testing.T) {
 	moment := time.Date(2020, 10, 23, 13, 0, 0, 0, time.FixedZone("test", 1))
 	t.Run("ok - attach key", func(t *testing.T) {
 		tx, err := NewTransaction(payloadHash, contentType, expectedPrevs, nil, 0)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		signer := crypto.NewTestKey(kid)
 		signedTx, err := NewTransactionSigner(signer, true).Sign(tx, moment)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		// JWS headers
 		assert.Equal(t, contentType, signedTx.PayloadType())
 		assert.Empty(t, signedTx.SigningKeyID())
@@ -68,15 +65,11 @@ func TestTransactionSigner(t *testing.T) {
 	})
 	t.Run("ok - with kid", func(t *testing.T) {
 		tx, err := NewTransaction(payloadHash, contentType, expectedPrevs, nil, 0)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		signer := crypto.NewTestKey(kid)
 		signedTx, err := NewTransactionSigner(signer, false).Sign(tx, moment)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, kid, signedTx.SigningKeyID())
 		assert.Nil(t, signedTx.SigningKey())
 		assert.NotEmpty(t, signedTx.Data())

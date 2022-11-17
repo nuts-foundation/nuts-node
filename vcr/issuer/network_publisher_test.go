@@ -34,6 +34,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	vdrTypes "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 )
@@ -55,9 +56,7 @@ func Test_networkPublisher_resolveNutsCommServiceOwner(t *testing.T) {
 
 		serviceOwner, err := sut.resolveNutsCommServiceOwner(*vdr.TestDIDA)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, vdr.TestDIDA, serviceOwner)
 	})
 
@@ -72,9 +71,6 @@ func Test_networkPublisher_resolveNutsCommServiceOwner(t *testing.T) {
 
 		_, err := sut.resolveNutsCommServiceOwner(*vdr.TestDIDA)
 
-		if !assert.Error(t, err) {
-			return
-		}
 		assert.EqualError(t, err, "could not resolve NutsComm service owner: b00m!")
 	})
 }

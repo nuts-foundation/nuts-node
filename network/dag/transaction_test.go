@@ -24,6 +24,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/json"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
@@ -38,9 +39,7 @@ func TestNewTransaction(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		transaction, err := NewTransaction(payloadHash, "some/type", []hash2.SHA256Hash{hash}, nil, 1)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, "some/type", transaction.PayloadType())
 		assert.Equal(t, transaction.PayloadHash(), payloadHash)
 		assert.Equal(t, []hash2.SHA256Hash{hash}, transaction.Previous())
@@ -50,17 +49,13 @@ func TestNewTransaction(t *testing.T) {
 	t.Run("ok - with pal", func(t *testing.T) {
 		transaction, err := NewTransaction(payloadHash, "some/type", []hash2.SHA256Hash{hash}, [][]byte{{1}, {2}}, 0)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Len(t, transaction.PAL(), 2)
 	})
 	t.Run("ok - with duplicates", func(t *testing.T) {
 		transaction, err := NewTransaction(payloadHash, "some/type", []hash2.SHA256Hash{hash, hash}, nil, 0)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, []hash2.SHA256Hash{hash}, transaction.Previous())
 	})
 	t.Run("error - type empty", func(t *testing.T) {
