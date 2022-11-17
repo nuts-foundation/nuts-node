@@ -20,14 +20,13 @@
 package core
 
 import (
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"os"
 	"strings"
 	"testing"
-
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
-	"github.com/stretchr/testify/assert"
 )
 
 var reset = func() {
@@ -260,7 +259,7 @@ func TestTLSConfig_LoadCertificate(t *testing.T) {
 		certificate, err := cfg.TLS.LoadCertificate()
 
 		assert.Empty(t, certificate)
-		assert.EqualError(t, err, "unable to load node TLS client certificate (certfile=test/non-existent.pem,certkeyfile=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
+		assert.EqualError(t, err, "unable to load node TLS certificate (certfile=test/non-existent.pem,certkeyfile=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
 	})
 	t.Run("use of legacy properties", func(t *testing.T) {
 		cfg := *NewServerConfig()
@@ -269,7 +268,7 @@ func TestTLSConfig_LoadCertificate(t *testing.T) {
 		certificate, err := cfg.TLS.LoadCertificate()
 
 		assert.Empty(t, certificate)
-		assert.EqualError(t, err, "unable to load node TLS client certificate (certfile=test/non-existent.pem,certkeyfile=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
+		assert.EqualError(t, err, "unable to load node TLS certificate (certfile=test/non-existent.pem,certkeyfile=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
 	})
 }
 

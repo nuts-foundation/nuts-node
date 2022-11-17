@@ -217,7 +217,8 @@ type Diagnosable interface {
 }
 
 // Engine is the base interface for a modular design
-type Engine interface{}
+type Engine interface {
+}
 
 // Named is the interface for all engines that have a name
 type Named interface {
@@ -230,6 +231,49 @@ type Injectable interface {
 	Named
 	// Config returns a pointer to the struct that holds the Config.
 	Config() interface{}
+}
+
+// HealthCheckable is the interface for engines that can perform health checks, which result can be reported to monitoring tooling.
+type HealthCheckable interface {
+	Named
+	// CheckHealth performs health checks and returns the result. The function should not perform expensive or slow operations
+	// and should return as fast as possible.
+	CheckHealth() map[string]Health
+}
+
+// HealthStatus defines the result status of a health check.
+type HealthStatus string
+
+// Severity returns an integer indicating the seriousness of a startup.
+// 0 means all is OK, higher is worse.
+func (h HealthStatus) Severity() int {
+	switch h {
+	case HealthStatusDown:
+		return 2
+	default:
+		fallthrough
+	case HealthStatusUnknown:
+		return 1
+	case HealthStatusUp:
+		return 0
+	}
+}
+
+const (
+	// HealthStatusUp indicates the health check succeeded
+	HealthStatusUp HealthStatus = "UP"
+	// HealthStatusDown indicates the health check failed
+	HealthStatusDown HealthStatus = "DOWN"
+	// HealthStatusUnknown indicates the status of the health check is unknown
+	HealthStatusUnknown HealthStatus = "UNKNOWN"
+)
+
+// Health is the result of a health check.
+type Health struct {
+	// Status contains the status of the health check.
+	Status HealthStatus `json:"status"`
+	// Details contains optional details of the health check, can be nil.
+	Details interface{} `json:"details,omitempty"`
 }
 
 func engineName(engine Engine) string {

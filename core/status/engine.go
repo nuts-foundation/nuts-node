@@ -34,6 +34,7 @@ import (
 const moduleName = "Status"
 const diagnosticsEndpoint = "/status/diagnostics"
 const statusEndpoint = "/status"
+const checkHealthEndpoint = "/health"
 
 type status struct {
 	system    *core.System
@@ -55,6 +56,7 @@ func (s *status) Name() string {
 func (s *status) Routes(router core.EchoRouter) {
 	router.Add(http.MethodGet, diagnosticsEndpoint, s.diagnosticsOverview)
 	router.Add(http.MethodGet, statusEndpoint, statusOK)
+	router.Add(http.MethodGet, checkHealthEndpoint, s.checkHealth)
 }
 
 func (s *status) diagnosticsOverview(ctx echo.Context) error {
@@ -108,6 +110,41 @@ func (s *status) collectDiagnostics() map[string][]core.DiagnosticResult {
 			result[strings.ToLower(m.Name())] = m.Diagnostics()
 		}
 	})
+	return result
+}
+
+func (s *status) checkHealth(ctx echo.Context) error {
+	result := s.doCheckHealth()
+	responseCode := 200
+	if result.Status != core.HealthStatusUp {
+		responseCode = 503
+	}
+
+	return ctx.JSON(responseCode, result)
+}
+
+func (s *status) doCheckHealth() core.Health {
+	results := make(map[string]core.Health, 0)
+	s.system.VisitEngines(func(engine core.Engine) {
+		checker, ok := engine.(core.HealthCheckable)
+		if ok {
+			for name, result := range checker.CheckHealth() {
+				results[strings.ToLower(checker.Name()+"."+name)] = result
+			}
+		}
+	})
+
+	// Overall status is derived from the performed checks. The most severe status is returned (UP < UNKNOWN < DOWN).
+	overallStatus := core.HealthStatusUp
+	for _, result := range results {
+		if result.Status.Severity() > overallStatus.Severity() {
+			overallStatus = result.Status
+		}
+	}
+	result := core.Health{
+		Status:  overallStatus,
+		Details: results,
+	}
 	return result
 }
 

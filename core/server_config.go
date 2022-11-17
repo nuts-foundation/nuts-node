@@ -21,15 +21,15 @@ package core
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"github.com/knadh/koanf"
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/posflag"
-	"reflect"
-	"strings"
-
-	"github.com/knadh/koanf"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
+	"reflect"
+	"strings"
 )
 
 const defaultConfigFile = "nuts.yaml"
@@ -106,7 +106,11 @@ func (t TLSConfig) LoadCertificate() (tls.Certificate, error) {
 	}
 	certificate, err := tls.LoadX509KeyPair(certFile, certKeyFile)
 	if err != nil {
-		return tls.Certificate{}, fmt.Errorf("unable to load node TLS client certificate (certfile=%s,certkeyfile=%s): %w", certFile, certKeyFile, err)
+		return tls.Certificate{}, fmt.Errorf("unable to load node TLS certificate (certfile=%s,certkeyfile=%s): %w", certFile, certKeyFile, err)
+	}
+	certificate.Leaf, err = x509.ParseCertificate(certificate.Certificate[0])
+	if err != nil {
+		return tls.Certificate{}, err
 	}
 	return certificate, nil
 }

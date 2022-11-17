@@ -8,6 +8,20 @@ info:
 servers:
   - url: http://localhost:1323
 paths:
+  /health:
+    get:
+      summary: "More elaborate health check to conform the node is (probably) functioning correctly"
+      description: "Returns the status in Spring Boot Health format."
+      operationId: checkHealth
+      tags:
+        - status
+      responses:
+        200:
+          description: "Returned when the status is UP"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckHealthResponse"
   /status:
     get:
       summary: "healthcheck to confirm node is up and running"
@@ -69,3 +83,29 @@ paths:
             text/plain:
               schema:
                 type: string
+components:
+  schemas:
+    CheckHealthResponse:
+      required:
+        - status
+        - details
+      properties:
+        status:
+          type: string
+          description: Overall status derived from performed health checks. Values are "UP", "DOWN" and "UNKNOWN".
+        details:
+          type: object
+          description: Map of the performed health checks and their results.
+          additionalProperties:
+            $ref: "#/components/schemas/HealthCheckResult"
+    HealthCheckResult:
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          description: Status of the health check. Values are "UP", "DOWN" and "UNKNOWN".
+        details:
+          description: Details of the health check result.
+
+

@@ -368,3 +368,54 @@ func (mr *MockInjectableMockRecorder) Name() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Name", reflect.TypeOf((*MockInjectable)(nil).Name))
 }
+
+// MockHealthCheckable is a mock of HealthCheckable interface.
+type MockHealthCheckable struct {
+	ctrl     *gomock.Controller
+	recorder *MockHealthCheckableMockRecorder
+}
+
+// MockHealthCheckableMockRecorder is the mock recorder for MockHealthCheckable.
+type MockHealthCheckableMockRecorder struct {
+	mock *MockHealthCheckable
+}
+
+// NewMockHealthCheckable creates a new mock instance.
+func NewMockHealthCheckable(ctrl *gomock.Controller) *MockHealthCheckable {
+	mock := &MockHealthCheckable{ctrl: ctrl}
+	mock.recorder = &MockHealthCheckableMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockHealthCheckable) EXPECT() *MockHealthCheckableMockRecorder {
+	return m.recorder
+}
+
+// CheckHealth mocks base method.
+func (m *MockHealthCheckable) CheckHealth() map[string]Health {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CheckHealth")
+	ret0, _ := ret[0].(map[string]Health)
+	return ret0
+}
+
+// CheckHealth indicates an expected call of CheckHealth.
+func (mr *MockHealthCheckableMockRecorder) CheckHealth() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckHealth", reflect.TypeOf((*MockHealthCheckable)(nil).CheckHealth))
+}
+
+// Name mocks base method.
+func (m *MockHealthCheckable) Name() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Name")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// Name indicates an expected call of Name.
+func (mr *MockHealthCheckableMockRecorder) Name() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Name", reflect.TypeOf((*MockHealthCheckable)(nil).Name))
+}

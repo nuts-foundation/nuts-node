@@ -19,14 +19,13 @@
 package status
 
 import (
+	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/mock"
 	"github.com/nuts-foundation/nuts-node/test"
+	"github.com/stretchr/testify/assert"
 	"net/http"
 	"testing"
-
-	"github.com/golang/mock/gomock"
-	"github.com/nuts-foundation/nuts-node/mock"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestNewStatusEngine_Routes(t *testing.T) {
@@ -37,6 +36,7 @@ func TestNewStatusEngine_Routes(t *testing.T) {
 
 		echo.EXPECT().Add(http.MethodGet, "/status/diagnostics", gomock.Any())
 		echo.EXPECT().Add(http.MethodGet, "/status", gomock.Any())
+		echo.EXPECT().Add(http.MethodGet, "/health", gomock.Any())
 
 		NewStatusEngine(core.NewSystem()).(*status).Routes(echo)
 	})
@@ -102,4 +102,114 @@ func TestStatusOK(t *testing.T) {
 	echo.EXPECT().String(http.StatusOK, "OK")
 
 	statusOK(echo)
+}
+
+func Test_status_healthChecks(t *testing.T) {
+	t.Run("status UP", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		echoContext := mock.NewMockContext(ctrl)
+		echoContext.EXPECT().JSON(200, core.Health{
+			Status:  core.HealthStatusUp,
+			Details: make(map[string]core.Health),
+		})
+		s := status{system: core.NewSystem()}
+
+		err := s.checkHealth(echoContext)
+
+		assert.NoError(t, err)
+	})
+	t.Run("status DOWN", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		echoContext := mock.NewMockContext(ctrl)
+		echoContext.EXPECT().JSON(503, gomock.Any())
+		system := core.NewSystem()
+		system.RegisterEngine(&healthCheckingEngine{
+			name: "engine1",
+			check: func() map[string]core.Health {
+				return map[string]core.Health{
+					"check1": {
+						Status: core.HealthStatusDown,
+					},
+				}
+			},
+		})
+		s := status{system: system}
+
+		err := s.checkHealth(echoContext)
+
+		assert.NoError(t, err)
+	})
+}
+
+func Test_status_doHealthChecks(t *testing.T) {
+	t.Run("no engines", func(t *testing.T) {
+		s := status{system: core.NewSystem()}
+
+		result := s.doCheckHealth()
+
+		assert.Equal(t, core.HealthStatusUp, result.Status)
+		assert.Empty(t, result.Details)
+	})
+	t.Run("overall status DOWN", func(t *testing.T) {
+		system := core.NewSystem()
+		system.RegisterEngine(&healthCheckingEngine{
+			name: "engine1",
+			check: func() map[string]core.Health {
+				return map[string]core.Health{
+					"check1": {
+						Status: core.HealthStatusUp,
+					},
+					"check2": {
+						Status: core.HealthStatusUnknown,
+					},
+					"check3": {
+						Status: core.HealthStatusDown,
+					},
+				}
+			},
+		})
+		s := status{system: system}
+
+		result := s.doCheckHealth()
+
+		assert.Equal(t, core.HealthStatusDown, result.Status)
+	})
+	t.Run("overall status UNKNOWN", func(t *testing.T) {
+		system := core.NewSystem()
+		system.RegisterEngine(&healthCheckingEngine{
+			name: "engine1",
+			check: func() map[string]core.Health {
+				return map[string]core.Health{
+					"check1": {
+						Status: core.HealthStatusUp,
+					},
+					"check2": {
+						Status: core.HealthStatusUnknown,
+					},
+				}
+			},
+		})
+		s := status{system: system}
+
+		result := s.doCheckHealth()
+
+		assert.Equal(t, core.HealthStatusUnknown, result.Status)
+	})
+}
+
+var _ core.HealthCheckable = (*healthCheckingEngine)(nil)
+
+type healthCheckingEngine struct {
+	name  string
+	check func() map[string]core.Health
+}
+
+func (h healthCheckingEngine) CheckHealth() map[string]core.Health {
+	return h.check()
+}
+
+func (h healthCheckingEngine) Name() string {
+	return h.name
 }
