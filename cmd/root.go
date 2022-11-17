@@ -278,6 +278,7 @@ func registerFlags(cmds []*cobra.Command, flags *pflag.FlagSet) {
 // serverConfigFlags returns the flagSet needed for the server command
 func serverConfigFlags() *pflag.FlagSet {
 	set := pflag.NewFlagSet("server", pflag.ContinueOnError)
+
 	set.AddFlagSet(core.FlagSet())
 	set.AddFlagSet(cryptoCmd.FlagSet())
 	set.AddFlagSet(httpCmd.FlagSet())

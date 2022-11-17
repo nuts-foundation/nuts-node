@@ -22,7 +22,6 @@ package core
 import (
 	"bytes"
 	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"github.com/knadh/koanf"
 	"github.com/knadh/koanf/providers/env"
@@ -114,11 +113,7 @@ func (t TLSConfig) LoadCertificate() (tls.Certificate, error) {
 	}
 	certificate, err := tls.LoadX509KeyPair(certFile, certKeyFile)
 	if err != nil {
-		return tls.Certificate{}, fmt.Errorf("unable to load node TLS certificate (certfile=%s,certkeyfile=%s): %w", certFile, certKeyFile, err)
-	}
-	certificate.Leaf, err = x509.ParseCertificate(certificate.Certificate[0])
-	if err != nil {
-		return tls.Certificate{}, err
+		return tls.Certificate{}, fmt.Errorf("unable to load node TLS client certificate (certfile=%s,certkeyfile=%s): %w", certFile, certKeyFile, err)
 	}
 	return certificate, nil
 }
@@ -327,8 +322,7 @@ func (ngc *ServerConfig) PrintConfig() string {
 
 // InjectIntoEngine takes the loaded config and sets the engine's config struct
 func (ngc *ServerConfig) InjectIntoEngine(e Injectable) error {
-	basePath := []string{strings.ToLower(e.Name())}
-	return unmarshalRecursive(basePath, e.Config(), ngc.configMap)
+	return unmarshalRecursive([]string{strings.ToLower(e.Name())}, e.Config(), ngc.configMap)
 }
 
 func elemType(ty reflect.Type) (reflect.Type, bool) {

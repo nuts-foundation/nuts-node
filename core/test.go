@@ -27,11 +27,10 @@ const testEngineName = "testengine"
 
 // TestEngineConfig defines the configuration for the test engine
 type TestEngineConfig struct {
-	Key         string               `koanf:"key"`
-	RedactedKey string               `koanf:"secret" redacted:""`
-	Sub         TestEngineSubConfig  `koanf:"sub"`
-	SubPtr      *TestEngineSubConfig `koanf:"subptr"`
-	List        []string             `koanf:"list"`
+	Key    string               `koanf:"key"`
+	Sub    TestEngineSubConfig  `koanf:"sub"`
+	SubPtr *TestEngineSubConfig `koanf:"subptr"`
+	List   []string             `koanf:"list"`
 }
 
 // TestServerConfig returns a new ServerConfig with the given template applied.
@@ -46,8 +45,7 @@ func TestServerConfig(template ServerConfig) ServerConfig {
 
 // TestEngineSubConfig defines the `sub` configuration for the test engine
 type TestEngineSubConfig struct {
-	Test        string `koanf:"test"`
-	RedactedKey string `koanf:"secret" redacted:""`
+	Test string `koanf:"test"`
 }
 
 type TestEngine struct {
