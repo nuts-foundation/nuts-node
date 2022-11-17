@@ -22,7 +22,6 @@ package core
 import (
 	"github.com/stretchr/testify/require"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -161,16 +160,25 @@ func TestNewNutsConfig_PrintConfig(t *testing.T) {
 	cfg := NewServerConfig()
 	fs := pflag.FlagSet{}
 	fs.String("camelCaseKey", "value", "description")
+	fs.String("redactedKey", "redacted-value", "description")
 	cmd := testCommand()
 	cmd.Flags().AddFlagSet(&fs)
 	cfg.Load(cmd.Flags())
 
-	bs := cfg.PrintConfig()
-
 	t.Run("output contains key", func(t *testing.T) {
-		if !strings.Contains(bs, "camelCaseKey") {
-			t.Error("Expected camelCaseKey to be in output")
-		}
+		bs := cfg.PrintConfig()
+		assert.Contains(t, bs, "camelCaseKey")
+	})
+	t.Run("redacts secret keys", func(t *testing.T) {
+		old := redactedConfigKeys
+		defer func() {
+			redactedConfigKeys = old
+		}()
+		redactedConfigKeys = []string{"redactedKey"}
+
+		bs := cfg.PrintConfig()
+		assert.Contains(t, bs, "redactedKey -> (redacted)")
+		assert.NotContains(t, bs, "redacted-value")
 	})
 }
 
@@ -182,11 +190,21 @@ func TestNewNutsConfig_InjectIntoEngine(t *testing.T) {
 	cmd := testCommand()
 	flagSet := pflag.NewFlagSet("dummy", pflag.ContinueOnError)
 	flagSet.String("testengine.key", "", "")
+	flagSet.String("testengine.secret", "", "")
 	flagSet.String("testengine.sub.test", "", "")
+	flagSet.String("testengine.sub.secret", "", "")
 	flagSet.String("testengine.subptr.test", "", "")
+	flagSet.String("testengine.subptr.secret", "", "")
 
-	err := flagSet.Parse([]string{"--testengine.key", "value", "--testengine.sub.test", "testvalue", "--testengine.subptr.test", "test2value"})
-	assert.NoError(t, err)
+	err := flagSet.Parse([]string{
+		"--testengine.key", "value",
+		"--testengine.secret", "secret_value",
+		"--testengine.sub.test", "testvalue",
+		"--testengine.sub.secret", "secret_subvalue",
+		"--testengine.subptr.test", "test2value",
+		"--testengine.subptr.secret", "secret_ptr_subvalue",
+	})
+	require.NoError(t, err)
 
 	cmd.Flags().AddFlagSet(flagSet)
 
@@ -196,7 +214,7 @@ func TestNewNutsConfig_InjectIntoEngine(t *testing.T) {
 
 	t.Run("param is injected", func(t *testing.T) {
 		err := cfg.Load(cmd.Flags())
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		err = cfg.InjectIntoEngine(in)
 		require.NoError(t, err)
@@ -206,7 +224,7 @@ func TestNewNutsConfig_InjectIntoEngine(t *testing.T) {
 
 	t.Run("param is injected recursively", func(t *testing.T) {
 		err := cfg.Load(cmd.Flags())
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		err = cfg.InjectIntoEngine(in)
 		require.NoError(t, err)

@@ -20,16 +20,17 @@
 package core
 
 import (
+	"bytes"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"github.com/knadh/koanf"
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/posflag"
-	"reflect"
-	"strings"
-
-	"github.com/knadh/koanf"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
+	"reflect"
+	"strings"
 )
 
 const defaultConfigFile = "nuts.yaml"
@@ -39,6 +40,13 @@ const defaultEnvPrefix = "NUTS_"
 const defaultEnvDelimiter = "_"
 const defaultDelimiter = "."
 const configValueListSeparator = ","
+
+// redactedConfigKeys contains the configuration keys that are masked when logged, to avoid leaking secrets.
+var redactedConfigKeys = []string{
+	"crypto.vault.token",
+	"storage.redis.password",
+	"storage.redis.sentinel.password",
+}
 
 // ServerConfig has global server settings.
 type ServerConfig struct {
@@ -106,7 +114,11 @@ func (t TLSConfig) LoadCertificate() (tls.Certificate, error) {
 	}
 	certificate, err := tls.LoadX509KeyPair(certFile, certKeyFile)
 	if err != nil {
-		return tls.Certificate{}, fmt.Errorf("unable to load node TLS client certificate (certfile=%s,certkeyfile=%s): %w", certFile, certKeyFile, err)
+		return tls.Certificate{}, fmt.Errorf("unable to load node TLS certificate (certfile=%s,certkeyfile=%s): %w", certFile, certKeyFile, err)
+	}
+	certificate.Leaf, err = x509.ParseCertificate(certificate.Certificate[0])
+	if err != nil {
+		return tls.Certificate{}, err
 	}
 	return certificate, nil
 }
@@ -293,12 +305,30 @@ func FlagSet() *pflag.FlagSet {
 
 // PrintConfig return the current config in string form
 func (ngc *ServerConfig) PrintConfig() string {
-	return ngc.configMap.Sprint()
+	redacted := func(k string) bool {
+		for _, key := range redactedConfigKeys {
+			if key == k {
+				return true
+			}
+		}
+		return false
+	}
+	buf := bytes.Buffer{}
+	for _, key := range ngc.configMap.Keys() {
+		value := ngc.configMap.Get(key)
+		if redacted(key) {
+			value = "(redacted)"
+		}
+		// Copied from Koanf.ConfigMap.Sprint()
+		buf.Write([]byte(fmt.Sprintf("%s -> %v\n", key, value)))
+	}
+	return buf.String()
 }
 
 // InjectIntoEngine takes the loaded config and sets the engine's config struct
 func (ngc *ServerConfig) InjectIntoEngine(e Injectable) error {
-	return unmarshalRecursive([]string{strings.ToLower(e.Name())}, e.Config(), ngc.configMap)
+	basePath := []string{strings.ToLower(e.Name())}
+	return unmarshalRecursive(basePath, e.Config(), ngc.configMap)
 }
 
 func elemType(ty reflect.Type) (reflect.Type, bool) {
