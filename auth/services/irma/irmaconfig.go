@@ -21,6 +21,7 @@ package irma
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/sirupsen/logrus"
@@ -47,8 +48,24 @@ func GetIrmaConfig(validatorConfig ValidatorConfig) (irmaConfig *irma.Configurat
 		return
 	}
 
+	// This fixes an IRMA bug https://github.com/privacybydesign/irmago/issues/139
+	// It removes any temporary "tempscheme123" directories, leftover from a previous unfinished schema update.
+	dirs, err := filepath.Glob(filepath.Join(validatorConfig.IrmaConfigPath, "tempscheme*"))
+	if err != nil {
+		return nil, err
+	}
+	for _, dir := range dirs {
+		log.Logger().Infof("Removing leftover temporary IRMA scheme dir: %s", dir)
+		// ignore any errors, it will fail below
+		_ = os.RemoveAll(dir)
+	}
+
 	log.Logger().Debug("Loading IRMA schemas...")
-	return irmaConfig, irmaConfig.ParseFolder()
+	if err = irmaConfig.ParseFolder(); err != nil {
+		log.Logger().WithError(err).Error("Could not parse the IRMA schemas, try emptying the IRMA directory and restart the node.")
+		return nil, err
+	}
+	return
 }
 
 // GetIrmaServer creates and starts the irma server instance.
