@@ -45,6 +45,12 @@ There are 4 official Nuts networks:
 - *test* for acceptance testing with other vendors and customers. Nodes will generally run the latest released version (or at least a recent one).
 - *production* for production uses. Connecting to this network involves PKIoverheid certificates and outside the scope of this tutorial.
 
+The root CAs for the development and stable networks can be found in the ``https://github.com/nuts-foundation/nuts-development-network-ca`` repository.
+
+For test and production `PKIoverheid Domein Private Services <https://cert.pkioverheid.nl/>`_ is used.
+Make sure you load both the root certificate ("Stamcertificaat") and all intermediates (under "Domein Private Services").
+Do not load any of the other certificates in your truststore.
+
 Node TLS Certificate
 ====================
 
