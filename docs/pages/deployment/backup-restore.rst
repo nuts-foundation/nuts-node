@@ -70,6 +70,7 @@ To restore a backup, follow the following steps:
 - start your node
 - make an empty POST call to ``/internal/network/v1/reprocess?type=application/vc+json``
 - make an empty POST call to ``/internal/network/v1/reprocess?type=application/ld+json;type=revocation``
+- make an empty POST call to ``/internal/network/v1/reprocess?type=application/did+json``
 
 When making the API calls, make sure you use the proper URL escaping.
 Reprocess calls return immediately and will do the work in the background.
