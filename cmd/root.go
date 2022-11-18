@@ -93,15 +93,14 @@ func createServerCommand(system *core.System) *cobra.Command {
 	return &cobra.Command{
 		Use:   "server",
 		Short: "Starts the Nuts server",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		Run: func(cmd *cobra.Command, args []string) {
 			// Load all config and add generic options
 			if err := system.Load(cmd.Flags()); err != nil {
-				return err
+				logrus.WithError(err).Fatal("Could not start the server")
 			}
 			if err := startServer(cmd.Context(), system); err != nil {
-				return err
+				logrus.WithError(err).Fatal("Could not start the server")
 			}
-			return nil
 		},
 	}
 }
