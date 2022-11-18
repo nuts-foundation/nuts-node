@@ -91,11 +91,8 @@ type Connection interface {
 	// IsProtocolConnected returns whether the given protocol is active on the connection.
 	IsProtocolConnected(protocol Protocol) bool
 
-	// ErrorStatus returns the status when the connection closed with an error or nil otherwise
-	ErrorStatus() *status.Status
-
-	// SetErrorStatus sets the status when the connection closed with an error
-	SetErrorStatus(status *status.Status)
+	// CloseError returns the status when the connection closed with an error or nil otherwise
+	CloseError() *status.Status
 }
 
 func createConnection(parentCtx context.Context, dialer dialer, peer transport.Peer) Connection {
@@ -113,7 +110,7 @@ type conn struct {
 	peer             atomic.Value
 	ctx              context.Context
 	cancelCtx        func()
-	errStatus        *status.Status
+	status           atomic.Pointer[status.Status]
 	mux              sync.RWMutex
 	connector        *outboundConnector
 	streams          map[string]Stream
@@ -257,7 +254,7 @@ func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 						WithFields(peer.ToFields()).
 						Warn("Peer connection error")
 				}
-				mc.SetErrorStatus(errStatus)
+				mc.status.Store(errStatus)
 				cancel()
 				break
 			}
@@ -367,18 +364,11 @@ func (mc *conn) IsProtocolConnected(protocol Protocol) bool {
 	return mc.ctx != nil && mc.streams[protocol.MethodName()] != nil
 }
 
-func (mc *conn) ErrorStatus() *status.Status {
+func (mc *conn) CloseError() *status.Status {
 	mc.mux.RLock()
 	defer mc.mux.RUnlock()
 
-	return mc.errStatus
-}
-
-func (mc *conn) SetErrorStatus(status *status.Status) {
-	mc.mux.Lock()
-	defer mc.mux.Unlock()
-
-	mc.errStatus = status
+	return mc.status.Load()
 }
 
 func (mc *conn) outboundConnector() *outboundConnector {

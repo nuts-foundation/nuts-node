@@ -335,7 +335,7 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 	connection.waitUntilDisconnected()
 	_ = grpcConn.Close()
 
-	if st := connection.ErrorStatus(); st != nil && st.Code() == codes.Unauthenticated {
+	if st := connection.CloseError(); st != nil && st.Code() == codes.Unauthenticated {
 		// other side said unauthenticated, increase backoff
 		backoff.Backoff()
 		// return error so entire connection will be tried anew. Otherwise, backoff isn't honored

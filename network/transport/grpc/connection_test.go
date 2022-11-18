@@ -140,7 +140,7 @@ func Test_conn_startSending(t *testing.T) {
 		}, 5*time.Second, "waiting for all goroutines to exit")
 
 		// err status is set on connection. Due to EOF it's an unknown error
-		assert.Equal(t, codes.Unknown, connection.errStatus.Code())
+		assert.Equal(t, codes.Unknown, connection.status.Load().Code())
 	})
 }
 

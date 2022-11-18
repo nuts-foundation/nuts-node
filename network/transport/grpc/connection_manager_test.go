@@ -516,7 +516,7 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 		clientCfg, _ := newBufconnConfig("client", withBufconnDialer(serverListener))
 		client := NewGRPCConnectionManager(clientCfg, nil, &transport.FixedNodeDIDResolver{}, nil, &TestProtocol{}).(*grpcConnectionManager)
 		c := createConnection(context.Background(), clientCfg.dialer, transport.Peer{}).(*conn)
-		c.errStatus = status.New(codes.Unauthenticated, "unauthenticated")
+		c.status.Store(status.New(codes.Unauthenticated, "unauthenticated"))
 		grpcConn, err := clientCfg.dialer(context.Background(), "server")
 		require.NoError(t, err)
 		connectedWG := sync.WaitGroup{}

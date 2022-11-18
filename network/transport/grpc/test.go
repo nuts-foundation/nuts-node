@@ -167,7 +167,7 @@ func (s *StubConnection) IsProtocolConnected(_ Protocol) bool {
 	return s.Open
 }
 
-func (s *StubConnection) ErrorStatus() *status.Status {
+func (s *StubConnection) CloseError() *status.Status {
 	panic("implement me")
 }
 

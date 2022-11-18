@@ -36,18 +36,18 @@ func (m *MockConnection) EXPECT() *MockConnectionMockRecorder {
 	return m.recorder
 }
 
-// ErrorStatus mocks base method.
-func (m *MockConnection) ErrorStatus() *status.Status {
+// CloseError mocks base method.
+func (m *MockConnection) CloseError() *status.Status {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ErrorStatus")
+	ret := m.ctrl.Call(m, "CloseError")
 	ret0, _ := ret[0].(*status.Status)
 	return ret0
 }
 
-// ErrorStatus indicates an expected call of ErrorStatus.
-func (mr *MockConnectionMockRecorder) ErrorStatus() *gomock.Call {
+// CloseError indicates an expected call of CloseError.
+func (mr *MockConnectionMockRecorder) CloseError() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ErrorStatus", reflect.TypeOf((*MockConnection)(nil).ErrorStatus))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloseError", reflect.TypeOf((*MockConnection)(nil).CloseError))
 }
 
 // IsConnected mocks base method.
@@ -104,18 +104,6 @@ func (m *MockConnection) Send(protocol Protocol, envelope interface{}, ignoreSof
 func (mr *MockConnectionMockRecorder) Send(protocol, envelope, ignoreSoftLimit interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockConnection)(nil).Send), protocol, envelope, ignoreSoftLimit)
-}
-
-// SetErrorStatus mocks base method.
-func (m *MockConnection) SetErrorStatus(status *status.Status) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetErrorStatus", status)
-}
-
-// SetErrorStatus indicates an expected call of SetErrorStatus.
-func (mr *MockConnectionMockRecorder) SetErrorStatus(status interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetErrorStatus", reflect.TypeOf((*MockConnection)(nil).SetErrorStatus), status)
 }
 
 // disconnect mocks base method.
