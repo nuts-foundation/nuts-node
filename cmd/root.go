@@ -96,10 +96,10 @@ func createServerCommand(system *core.System) *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			// Load all config and add generic options
 			if err := system.Load(cmd.Flags()); err != nil {
-				logrus.WithError(err).Fatal("could not start the server")
+				logrus.WithError(err).Fatal("Could not start the server")
 			}
 			if err := startServer(cmd.Context(), system); err != nil {
-				logrus.WithError(err).Fatal("could not start the server")
+				logrus.WithError(err).Fatal("Could not start the server")
 			}
 		},
 	}
