@@ -101,7 +101,6 @@ func createServerCommand(system *core.System) *cobra.Command {
 			}
 			if err := startServer(cmd.Context(), system); err != nil {
 				logrus.WithError(err).Error("could not start the server")
-				return
 			}
 		},
 	}
