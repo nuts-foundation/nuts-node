@@ -29,7 +29,9 @@ import (
 	io2 "github.com/nuts-foundation/nuts-node/test/io"
 	io_prometheus_client "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 	"hash/crc32"
 	"io"
 	"net"
@@ -503,6 +505,50 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 		assert.ErrorIs(t, err, ErrNodeDIDAuthFailed)
 		assert.Nil(t, clientStream)
 	})
+	t.Run("remote authentication fails", func(t *testing.T) {
+		serverCfg, serverListener := newBufconnConfig("server")
+		server := NewGRPCConnectionManager(serverCfg, nil, &transport.FixedNodeDIDResolver{}, nil, &TestProtocol{}).(*grpcConnectionManager)
+		if err := server.Start(); err != nil {
+			t.Fatal(err)
+		}
+		defer server.Stop()
+
+		clientCfg, _ := newBufconnConfig("client", withBufconnDialer(serverListener))
+		client := NewGRPCConnectionManager(clientCfg, nil, &transport.FixedNodeDIDResolver{}, nil, &TestProtocol{}).(*grpcConnectionManager)
+		c := createConnection(context.Background(), clientCfg.dialer, transport.Peer{}).(*conn)
+		c.errStatus = status.New(codes.Unauthenticated, "unauthenticated")
+		grpcConn, err := clientCfg.dialer(context.Background(), "server")
+		require.NoError(t, err)
+		connectedWG := sync.WaitGroup{}
+		connectedWG.Add(1)
+		disconnectedWG := sync.WaitGroup{}
+		disconnectedWG.Add(1)
+		client.RegisterObserver(func(peer transport.Peer, state transport.StreamState, protocol transport.Protocol) {
+			if state == transport.StateConnected {
+				connectedWG.Done()
+			}
+			if state == transport.StateDisconnected {
+				disconnectedWG.Done()
+			}
+		})
+
+		backoff := &trackingBackoff{mux: &sync.Mutex{}}
+		go func() {
+			err = client.openOutboundStreams(c, grpcConn, backoff)
+			assert.Error(t, err)
+		}()
+
+		connectedWG.Wait()
+
+		// Explicitly disconnect to clear peer.
+		c.disconnect()
+		disconnectedWG.Wait()
+
+		// Assert backoff.Backoff() is called
+		resets, backoffs := backoff.counts()
+		assert.Equal(t, 0, resets)
+		assert.Equal(t, 1, backoffs)
+	})
 	t.Run("ok", func(t *testing.T) {
 		// Bug: peer ID is empty when race condition with disconnect() and notify observers occurs.
 		// See https://github.com/nuts-foundation/nuts-node/issues/978
@@ -728,7 +774,7 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}, nil, &stubNodeDIDReader{}, authenticator).(*grpcConnectionManager)
 
 		err := cm.handleInboundStream(protocol, serverStream)
-		assert.EqualError(t, err, "nodeDID authentication failed")
+		assert.Equal(t, err, ErrNodeDIDAuthFailed)
 		assert.Empty(t, cm.connections.list)
 	})
 	t.Run("already connected client", func(t *testing.T) {

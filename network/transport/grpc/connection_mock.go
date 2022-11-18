@@ -10,6 +10,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	transport "github.com/nuts-foundation/nuts-node/network/transport"
 	grpc "google.golang.org/grpc"
+	status "google.golang.org/grpc/status"
 )
 
 // MockConnection is a mock of Connection interface.
@@ -33,6 +34,20 @@ func NewMockConnection(ctrl *gomock.Controller) *MockConnection {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockConnection) EXPECT() *MockConnectionMockRecorder {
 	return m.recorder
+}
+
+// ErrorStatus mocks base method.
+func (m *MockConnection) ErrorStatus() *status.Status {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ErrorStatus")
+	ret0, _ := ret[0].(*status.Status)
+	return ret0
+}
+
+// ErrorStatus indicates an expected call of ErrorStatus.
+func (mr *MockConnectionMockRecorder) ErrorStatus() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ErrorStatus", reflect.TypeOf((*MockConnection)(nil).ErrorStatus))
 }
 
 // IsConnected mocks base method.
@@ -89,6 +104,18 @@ func (m *MockConnection) Send(protocol Protocol, envelope interface{}, ignoreSof
 func (mr *MockConnectionMockRecorder) Send(protocol, envelope, ignoreSoftLimit interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockConnection)(nil).Send), protocol, envelope, ignoreSoftLimit)
+}
+
+// SetErrorStatus mocks base method.
+func (m *MockConnection) SetErrorStatus(status *status.Status) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetErrorStatus", status)
+}
+
+// SetErrorStatus indicates an expected call of SetErrorStatus.
+func (mr *MockConnectionMockRecorder) SetErrorStatus(status interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetErrorStatus", reflect.TypeOf((*MockConnection)(nil).SetErrorStatus), status)
 }
 
 // disconnect mocks base method.
