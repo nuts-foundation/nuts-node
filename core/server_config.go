@@ -20,6 +20,7 @@
 package core
 
 import (
+	"bytes"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -39,6 +40,13 @@ const defaultEnvPrefix = "NUTS_"
 const defaultEnvDelimiter = "_"
 const defaultDelimiter = "."
 const configValueListSeparator = ","
+
+// redactedConfigKeys contains the configuration keys that are masked when logged, to avoid leaking secrets.
+var redactedConfigKeys = []string{
+	"crypto.vault.token",
+	"storage.redis.password",
+	"storage.redis.sentinel.password",
+}
 
 // ServerConfig has global server settings.
 type ServerConfig struct {
@@ -297,7 +305,24 @@ func FlagSet() *pflag.FlagSet {
 
 // PrintConfig return the current config in string form
 func (ngc *ServerConfig) PrintConfig() string {
-	return ngc.configMap.Sprint()
+	redacted := func(k string) bool {
+		for _, key := range redactedConfigKeys {
+			if key == k {
+				return true
+			}
+		}
+		return false
+	}
+	buf := bytes.Buffer{}
+	for _, key := range ngc.configMap.Keys() {
+		value := ngc.configMap.Get(key)
+		if redacted(key) {
+			value = "(redacted)"
+		}
+		// Copied from Koanf.ConfigMap.Sprint()
+		buf.Write([]byte(fmt.Sprintf("%s -> %v\n", key, value)))
+	}
+	return buf.String()
 }
 
 // InjectIntoEngine takes the loaded config and sets the engine's config struct

@@ -25,7 +25,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"os"
-	"strings"
 	"testing"
 )
 
@@ -160,16 +159,25 @@ func TestNewNutsConfig_PrintConfig(t *testing.T) {
 	cfg := NewServerConfig()
 	fs := pflag.FlagSet{}
 	fs.String("camelCaseKey", "value", "description")
+	fs.String("redactedKey", "redacted-value", "description")
 	cmd := testCommand()
 	cmd.Flags().AddFlagSet(&fs)
 	cfg.Load(cmd.Flags())
 
-	bs := cfg.PrintConfig()
-
 	t.Run("output contains key", func(t *testing.T) {
-		if !strings.Contains(bs, "camelCaseKey") {
-			t.Error("Expected camelCaseKey to be in output")
-		}
+		bs := cfg.PrintConfig()
+		assert.Contains(t, bs, "camelCaseKey")
+	})
+	t.Run("redacts secret keys", func(t *testing.T) {
+		old := redactedConfigKeys
+		defer func() {
+			redactedConfigKeys = old
+		}()
+		redactedConfigKeys = []string{"redactedKey"}
+
+		bs := cfg.PrintConfig()
+		assert.Contains(t, bs, "redactedKey -> (redacted)")
+		assert.NotContains(t, bs, "redacted-value")
 	})
 }
 
