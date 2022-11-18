@@ -52,21 +52,18 @@ func GetIrmaConfig(validatorConfig ValidatorConfig) (irmaConfig *irma.Configurat
 	// It removes any temporary "tempscheme123" directories, leftover from a previous unfinished schema update.
 	dirs, err := filepath.Glob(filepath.Join(validatorConfig.IrmaConfigPath, "tempscheme*"))
 	if err != nil {
-		return
+		return nil, err
 	}
 	for _, dir := range dirs {
 		log.Logger().Infof("removing leftover temporary IRMA scheme dir: %s", dir)
-		if err := os.RemoveAll(dir); err != nil {
-			log.Logger().Warnf("unable to remove dir: %s", err)
-		}
+		// ignore any errors, it will fail below
+		_ = os.RemoveAll(dir)
 	}
 
 	log.Logger().Debug("Loading IRMA schemas...")
 	if err = irmaConfig.ParseFolder(); err != nil {
-		log.Logger().Errorf("Could not parse the IRMA schemas: %s", err)
-		log.Logger().Info("You can try emptying the irma schema directory to solve this.")
+		log.Logger().WithError(err).Error("could not parse the IRMA schemas, try emptying the irma directory and restart the node.")
 		return nil, err
-
 	}
 	return
 }
