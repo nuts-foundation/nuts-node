@@ -6,6 +6,20 @@ Release notes
 What has been changed, and how to update between versions.
 
 *****************
+Coconut update (v5.0.1)
+*****************
+
+Release date: 2022-11-18
+
+This patch release fixes the following:
+
+- Redact secrets (e.g. ``crypto.vault.token``) in logging (e.g. at startup). They will now show up as ``(redacted)``.
+- Fix half-downloaded IRMA schemas preventing the server to start. This happens when the node is shut down/crashes while downloading schemas.
+  It now removes IRMA temporary directories which prevents the case from occurring.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.0...v5.0.1
+
+*****************
 Coconut (v5.0.0)
 *****************
 
