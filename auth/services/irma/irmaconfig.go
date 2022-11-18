@@ -55,14 +55,14 @@ func GetIrmaConfig(validatorConfig ValidatorConfig) (irmaConfig *irma.Configurat
 		return nil, err
 	}
 	for _, dir := range dirs {
-		log.Logger().Infof("removing leftover temporary IRMA scheme dir: %s", dir)
+		log.Logger().Infof("Removing leftover temporary IRMA scheme dir: %s", dir)
 		// ignore any errors, it will fail below
 		_ = os.RemoveAll(dir)
 	}
 
 	log.Logger().Debug("Loading IRMA schemas...")
 	if err = irmaConfig.ParseFolder(); err != nil {
-		log.Logger().WithError(err).Error("could not parse the IRMA schemas, try emptying the irma directory and restart the node.")
+		log.Logger().WithError(err).Error("Could not parse the IRMA schemas, try emptying the IRMA directory and restart the node.")
 		return nil, err
 	}
 	return
