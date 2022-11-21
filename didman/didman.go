@@ -92,7 +92,7 @@ type didman struct {
 	store           types.Store
 	vdr             types.VDR
 	vcr             vcr.Finder
-	// callSerializer makes prevents parallel updates to a DID document
+	// callSerializer can be used to (un)lock a resource such as a DID to prevent parallel updates
 	callSerializer keyedMutex
 }
 
