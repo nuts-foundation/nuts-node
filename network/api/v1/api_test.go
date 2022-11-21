@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/stretchr/testify/require"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -46,72 +47,47 @@ var payload = []byte("Hello, World!")
 func TestApiWrapper_GetTransaction(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	transaction := dag.CreateTestTransactionWithJWK(1)
-	path := "/transaction/:ref"
 
 	t.Run("ok", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
-		e, wrapper := initMockEcho(networkClient)
+		wrapper := &Wrapper{Service: networkClient}
 		networkClient.EXPECT().GetTransaction(hash.EqHash(transaction.Ref())).Return(transaction, nil)
 
-		req := httptest.NewRequest(echo.GET, "/", nil)
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
-		c.SetPath(path)
-		c.SetParamNames("ref")
-		c.SetParamValues(transaction.Ref().String())
+		resp, err := wrapper.GetTransaction(nil, GetTransactionRequestObject{Ref: "ref"})
 
-		err := wrapper.GetTransaction(c)
-		assert.NoError(t, err)
-		assert.Equal(t, http.StatusOK, rec.Code)
-		assert.Equal(t, "application/jose", rec.Header().Get("Content-Type"))
-		assert.Equal(t, string(transaction.Data()), rec.Body.String())
+		require.NoError(t, err)
+		actualData, err := io.ReadAll(resp.(GetTransaction200ApplicationjoseResponse).Body)
+		require.NoError(t, err)
+		assert.Equal(t, string(transaction.Data()), string(actualData))
 	})
 	t.Run("error", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
-		e, wrapper := initMockEcho(networkClient)
+		wrapper := &Wrapper{Service: networkClient}
 		networkClient.EXPECT().GetTransaction(gomock.Any()).Return(nil, errors.New("failed"))
 
-		req := httptest.NewRequest(echo.GET, "/", nil)
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
-		c.SetPath(path)
-		c.SetParamNames("ref")
-		c.SetParamValues(hash.SHA256Sum([]byte{1, 2, 3}).String())
-
-		err := wrapper.GetTransaction(c)
+		resp, err := wrapper.GetTransaction(nil, GetTransactionRequestObject{Ref: string([]byte{1, 2, 3})})
 
 		assert.EqualError(t, err, "failed")
+		assert.Nil(t, resp)
 	})
 	t.Run("invalid hash", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
-		e, wrapper := initMockEcho(networkClient)
+		wrapper := &Wrapper{Service: networkClient}
 
-		req := httptest.NewRequest(echo.GET, "/", nil)
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
-		c.SetPath(path)
-		c.SetParamNames("ref")
-		c.SetParamValues("1234")
-
-		err := wrapper.GetTransaction(c)
+		resp, err := wrapper.GetTransaction(nil, GetTransactionRequestObject{Ref: "1234"})
 
 		assert.EqualError(t, err, "invalid hash: incorrect hash length (2)")
+		assert.Nil(t, resp)
 	})
 	t.Run("not found", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
-		e, wrapper := initMockEcho(networkClient)
+		wrapper := &Wrapper{Service: networkClient}
 		networkClient.EXPECT().GetTransaction(gomock.Any()).Return(nil, dag.ErrTransactionNotFound)
 
-		req := httptest.NewRequest(echo.GET, "/", nil)
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
-		c.SetPath(path)
-		c.SetParamNames("ref")
-		c.SetParamValues(transaction.Ref().String())
-
-		err := wrapper.GetTransaction(c)
+		resp, err := wrapper.GetTransaction(nil, GetTransactionRequestObject{Ref: transaction.Ref().String()})
 
 		assert.EqualError(t, err, "transaction not found")
+		assert.Nil(t, resp)
 	})
 }
 
@@ -119,7 +95,7 @@ func TestApiWrapper_GetPeerDiagnostics(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 
 	var networkClient = network.NewMockTransactions(mockCtrl)
-	e, wrapper := initMockEcho(networkClient)
+	wrapper := &Wrapper{Service: networkClient}
 	networkClient.EXPECT().PeerDiagnostics().Return(map[transport.PeerID]transport.Diagnostics{"foo": {
 		Uptime:               1000 * time.Second,
 		Peers:                []transport.PeerID{"bar"},
@@ -127,17 +103,20 @@ func TestApiWrapper_GetPeerDiagnostics(t *testing.T) {
 		SoftwareVersion:      "1.0",
 		SoftwareID:           "Test",
 	}})
+	expected := map[string]PeerDiagnostics{
+		"foo": {
+			Uptime:               1000 * time.Second,
+			Peers:                []transport.PeerID{"bar"},
+			NumberOfTransactions: 5,
+			SoftwareVersion:      "1.0",
+			SoftwareID:           "Test",
+		},
+	}
 
-	req := httptest.NewRequest(echo.GET, "/", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-	c.SetPath("/diagnostics/peers")
+	resp, err := wrapper.GetPeerDiagnostics(nil, GetPeerDiagnosticsRequestObject{})
 
-	err := wrapper.GetPeerDiagnostics(c)
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusOK, rec.Code)
-	assert.Equal(t, "application/json; charset=UTF-8", rec.Header().Get("Content-Type"))
-	assert.Equal(t, `{"foo":{"uptime":1000,"peers":["bar"],"transactionNum":5,"softwareVersion":"1.0","softwareID":"Test"}}`, strings.TrimSpace(rec.Body.String()))
+	require.NoError(t, err)
+	assert.Equal(t, resp.(GetPeerDiagnostics200JSONResponse), GetPeerDiagnostics200JSONResponse(expected))
 }
 
 func TestApiWrapper_RenderGraph(t *testing.T) {
@@ -145,52 +124,39 @@ func TestApiWrapper_RenderGraph(t *testing.T) {
 
 	t.Run("ok - no query params", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
-		e, wrapper := initMockEcho(networkClient)
+		wrapper := &Wrapper{Service: networkClient}
 		networkClient.EXPECT().ListTransactionsInRange(uint32(0), uint32(dag.MaxLamportClock))
 
-		req := httptest.NewRequest(echo.GET, "/", nil)
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
-		c.SetPath("/graph")
+		resp, err := wrapper.RenderGraph(nil, RenderGraphRequestObject{})
 
-		err := wrapper.RenderGraph(c)
 		assert.NoError(t, err)
-		assert.Equal(t, http.StatusOK, rec.Code)
-		assert.Equal(t, "text/vnd.graphviz", rec.Header().Get("Content-Type"))
-		assert.NotEmpty(t, rec.Body.String())
+		actualData, err := io.ReadAll(resp.(RenderGraph200TextvndGraphvizResponse).Body)
+		require.NoError(t, err)
+		assert.NotEmpty(t, actualData)
 	})
 	t.Run("ok - with query params", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
-		e, wrapper := initMockEcho(networkClient)
+		wrapper := &Wrapper{Service: networkClient}
 		networkClient.EXPECT().ListTransactionsInRange(uint32(1), uint32(4))
-		q := make(url.Values)
-		q.Set("start", "1")
-		q.Set("end", "4")
+		start := 1
+		end := 4
 
-		req := httptest.NewRequest(echo.GET, "/?"+q.Encode(), nil)
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
-		c.SetPath("/graph")
+		resp, err := wrapper.RenderGraph(nil, RenderGraphRequestObject{Params: RenderGraphParams{Start: &start, End: &end}})
 
-		err := wrapper.RenderGraph(c)
 		assert.NoError(t, err)
-		assert.Equal(t, http.StatusOK, rec.Code)
-		assert.Equal(t, "text/vnd.graphviz", rec.Header().Get("Content-Type"))
-		assert.NotEmpty(t, rec.Body.String())
+		actualData, err := io.ReadAll(resp.(RenderGraph200TextvndGraphvizResponse).Body)
+		require.NoError(t, err)
+		assert.NotEmpty(t, actualData)
 	})
 	t.Run("error", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
-		e, wrapper := initMockEcho(networkClient)
-		q := make(url.Values) // invalid query params exit before ListTransactionsInRange call
-		q.Set("start", "5")
-		q.Set("end", "0")
+		wrapper := &Wrapper{Service: networkClient}
+		start := 5
+		end := 0
 
-		req := httptest.NewRequest(echo.GET, "/?"+q.Encode(), nil)
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
-		c.SetPath("/graph")
+		resp, err := wrapper.RenderGraph(nil, RenderGraphRequestObject{Params: RenderGraphParams{Start: &start, End: &end}})
 
-		err := wrapper.RenderGraph(c)
+		assert.Nil(t, resp)
 		assert.EqualError(t, err, "invalid range")
 	})
 }
@@ -212,7 +178,7 @@ func TestApiWrapper_GetTransactionPayload(t *testing.T) {
 		c.SetParamNames("ref")
 		c.SetParamValues(transaction.Ref().String())
 
-		err := wrapper.GetTransactionPayload(c)
+		resp, err := wrapper.GetTransactionPayload(c)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Equal(t, string(payload), rec.Body.String())
@@ -376,13 +342,9 @@ func TestApiWrapper_Reprocess(t *testing.T) {
 	})
 }
 
-func initMockEcho(networkClient *network.MockTransactions) (*echo.Echo, *ServerInterfaceWrapper) {
+func initMockEcho(networkClient *network.MockTransactions) (*echo.Echo, StrictServerInterface) {
 	e := echo.New()
-	stub := Wrapper{Service: networkClient}
-	wrapper := &ServerInterfaceWrapper{
-		Handler: stub,
-	}
-	return e, wrapper
+	return e, &Wrapper{Service: networkClient}
 }
 
 func TestWrapper_Preprocess(t *testing.T) {

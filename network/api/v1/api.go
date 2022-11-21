@@ -19,10 +19,10 @@
 package v1
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/network/log"
-	"net/http"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -30,8 +30,9 @@ import (
 	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/network/transport"
 )
+
+var _ StrictServerInterface = (*Wrapper)(nil)
 
 // Wrapper implements the ServerInterface for the network API.
 type Wrapper struct {
@@ -45,108 +46,116 @@ func (a *Wrapper) Preprocess(operationID string, context echo.Context) {
 }
 
 func (a *Wrapper) Routes(router core.EchoRouter) {
-	RegisterHandlers(router, a)
+	RegisterHandlers(router, NewStrictHandler(a, nil))
 }
 
 // ListTransactions lists all transactions
-func (a Wrapper) ListTransactions(ctx echo.Context, params ListTransactionsParams) error {
+func (a *Wrapper) ListTransactions(_ context.Context, request ListTransactionsRequestObject) (ListTransactionsResponseObject, error) {
 	// Parse the start/end params, which have default values
-	start := toInt(params.Start, 0)
-	end := toInt(params.End, dag.MaxLamportClock)
+	var start int
+	if request.Params.Start != nil {
+		start = *request.Params.Start
+	}
+	var end = dag.MaxLamportClock
+	if request.Params.End != nil {
+		end = *request.Params.End
+	}
 	if start < 0 || end < 1 || start >= end {
-		return core.InvalidInputError("invalid range")
+		return nil, core.InvalidInputError("invalid range")
 	}
 
 	// List the specified transaction range (if it exists)
 	transactions, err := a.Service.ListTransactionsInRange(uint32(start), uint32(end))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// The results are returned as a JSON encoded array of strings
-	results := make([]string, len(transactions))
+	results := make(ListTransactions200JSONResponse, len(transactions))
 	for i, transaction := range transactions {
 		results[i] = string(transaction.Data())
 	}
-	return ctx.JSON(http.StatusOK, results)
+	return results, nil
 }
 
 // GetTransaction returns a specific transaction
-func (a Wrapper) GetTransaction(ctx echo.Context, hashAsString string) error {
-	hash, err := parseHash(hashAsString)
+func (a *Wrapper) GetTransaction(_ context.Context, request GetTransactionRequestObject) (GetTransactionResponseObject, error) {
+	hash, err := parseHash(request.Ref)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	transaction, err := a.Service.GetTransaction(hash)
 	if err != nil {
 		if errors.Is(err, dag.ErrTransactionNotFound) {
-			return core.NotFoundError("transaction not found")
+			return nil, core.NotFoundError("transaction not found")
 		}
-		return err
+		return nil, err
 	}
-	ctx.Response().Header().Set(echo.HeaderContentType, "application/jose")
-	ctx.Response().WriteHeader(http.StatusOK)
-	_, err = ctx.Response().Writer.Write(transaction.Data())
-	return err
+	return GetTransaction200ApplicationjoseResponse{
+		Body:          bytes.NewReader(transaction.Data()),
+		ContentLength: int64(len(transaction.Data())),
+	}, nil
 }
 
 // GetTransactionPayload returns the payload of a specific transaction
-func (a Wrapper) GetTransactionPayload(ctx echo.Context, hashAsString string) error {
-	hash, err := parseHash(hashAsString)
+func (a *Wrapper) GetTransactionPayload(_ context.Context, request GetTransactionPayloadRequestObject) (GetTransactionPayloadResponseObject, error) {
+	hash, err := parseHash(request.Ref)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	data, err := a.Service.GetTransactionPayload(hash)
 	if err != nil {
 		if errors.Is(err, dag.ErrPayloadNotFound) {
-			return core.NotFoundError("transaction or contents not found")
+			return nil, core.NotFoundError("transaction or contents not found")
 		}
-		return err
+		return nil, err
 	}
-	ctx.Response().Header().Set(echo.HeaderContentType, "application/octet-stream")
-	ctx.Response().WriteHeader(http.StatusOK)
-	_, err = ctx.Response().Writer.Write(data)
-	return err
+	return GetTransactionPayload200ApplicationoctetStreamResponse{
+		Body:          bytes.NewReader(data),
+		ContentLength: int64(len(data)),
+	}, nil
 }
 
 // GetPeerDiagnostics returns the diagnostics of the node's peers
-func (a Wrapper) GetPeerDiagnostics(ctx echo.Context) error {
+func (a *Wrapper) GetPeerDiagnostics(_ context.Context, request GetPeerDiagnosticsRequestObject) (GetPeerDiagnosticsResponseObject, error) {
 	diagnostics := a.Service.PeerDiagnostics()
-	result := make(map[transport.PeerID]PeerDiagnostics, len(diagnostics))
+	result := make(GetPeerDiagnostics200JSONResponse, len(diagnostics))
 	for k, v := range diagnostics {
-		result[k] = PeerDiagnostics(v)
+		result[k.String()] = PeerDiagnostics(v)
 	}
-	return ctx.JSON(http.StatusOK, result)
+	return result, nil
 }
 
 // RenderGraph visualizes the DAG as Graphviz/dot graph
-func (a Wrapper) RenderGraph(ctx echo.Context, params RenderGraphParams) error {
-	start := toInt(params.Start, 0)
-	end := toInt(params.End, dag.MaxLamportClock)
+func (a Wrapper) RenderGraph(_ context.Context, request RenderGraphRequestObject) (RenderGraphResponseObject, error) {
+	start := toInt(request.Params.Start, 0)
+	end := toInt(request.Params.End, dag.MaxLamportClock)
 	if start < 0 || end < 1 || start >= end {
-		return core.InvalidInputError("invalid range")
+		return nil, core.InvalidInputError("invalid range")
 	}
 	txs, err := a.Service.ListTransactionsInRange(uint32(start), uint32(end))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	visitor := dag.NewDotGraphVisitor(dag.ShowShortRefLabelStyle)
 	for _, tx := range txs {
 		visitor.Accept(tx)
 	}
-	ctx.Response().Header().Set(echo.HeaderContentType, "text/vnd.graphviz")
-	return ctx.String(http.StatusOK, visitor.Render())
+	data := visitor.Render()
+	return RenderGraph200TextvndGraphvizResponse{
+		Body:          bytes.NewReader([]byte(data)),
+		ContentLength: int64(len(data)),
+	}, nil
 }
 
-func (a Wrapper) ListEvents(ctx echo.Context) error {
-	response := make([]EventSubscriber, 0)
+func (a Wrapper) ListEvents(_ context.Context, _ ListEventsRequestObject) (ListEventsResponseObject, error) {
+	response := make(ListEvents200JSONResponse, 0)
 	for _, notifier := range a.Service.Subscribers() {
 		eventSubscriber := EventSubscriber{
 			Name: notifier.Name(),
 		}
 		events, err := notifier.GetFailedEvents()
 		if err != nil {
-			return err
+			return nil, err
 		}
 		for _, event := range events {
 			eventError := event.Error
@@ -163,7 +172,8 @@ func (a Wrapper) ListEvents(ctx echo.Context) error {
 		}
 		response = append(response, eventSubscriber)
 	}
-	return ctx.JSON(http.StatusOK, response)
+
+	return response, nil
 }
 
 func toInt(v *int, def int64) int64 {
@@ -173,19 +183,19 @@ func toInt(v *int, def int64) int64 {
 	return int64(*v)
 }
 
-func (a Wrapper) Reprocess(ctx echo.Context, params ReprocessParams) error {
-	if params.Type == nil {
-		return core.InvalidInputError("missing type")
+func (a Wrapper) Reprocess(_ context.Context, request ReprocessRequestObject) (ReprocessResponseObject, error) {
+	if request.Params.Type == nil {
+		return nil, core.InvalidInputError("missing type")
 	}
 
 	go func() {
-		_, err := a.Service.Reprocess(context.Background(), *params.Type)
+		_, err := a.Service.Reprocess(context.Background(), *request.Params.Type)
 		if err != nil {
 			log.Logger().Error(err)
 		}
 	}()
 
-	return ctx.NoContent(http.StatusAccepted)
+	return Reprocess202Response{}, nil
 }
 
 func parseHash(hashAsString string) (hash2.SHA256Hash, error) {
