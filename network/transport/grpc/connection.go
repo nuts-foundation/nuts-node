@@ -365,9 +365,6 @@ func (mc *conn) IsProtocolConnected(protocol Protocol) bool {
 }
 
 func (mc *conn) CloseError() *status.Status {
-	mc.mux.RLock()
-	defer mc.mux.RUnlock()
-
 	return mc.status.Load()
 }
 
