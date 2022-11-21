@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"net/url"
+	"sync"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -45,6 +46,29 @@ const ModuleName = "Didman"
 
 // ErrServiceInUse is returned when a service is deleted but in use by other services
 var ErrServiceInUse = errors.New("service is referenced by 1 or more services")
+
+// keyedMutex provides a way of preventing parallel updates to a DID Document
+// Note: this does not work in a load balanced environment.
+// for every updated DID, a mutex remains in this map, this should not be a problem
+type keyedMutex struct {
+	mutexes sync.Map
+}
+
+// Lock tries to lock a mutex for a certain key.
+// It returns a function which can be used to unlock mutex for the key
+func (m *keyedMutex) Lock(key string) func() {
+	value, _ := m.mutexes.LoadOrStore(key, &sync.Mutex{})
+	mtx := value.(*sync.Mutex)
+	log.Logger().Debugf("aquiring lock for: %s", key)
+	mtx.Lock()
+	log.Logger().Debugf("lock aquired for: %s", key)
+
+	// use this to unlock the mutex
+	return func() {
+		mtx.Unlock()
+		log.Logger().Debugf("unlocked for: %s", key)
+	}
+}
 
 // ErrReferencedServiceNotAnEndpoint is returned when a compound service contains a reference that does not resolve to a single endpoint URL.
 type ErrReferencedServiceNotAnEndpoint struct {
@@ -68,6 +92,8 @@ type didman struct {
 	store           types.Store
 	vdr             types.VDR
 	vcr             vcr.Finder
+	// callSerializer makes prevents parallel updates to a DID document
+	callSerializer keyedMutex
 }
 
 // NewDidmanInstance creates a new didman instance with services set
@@ -79,6 +105,7 @@ func NewDidmanInstance(docResolver types.DocResolver, store types.Store, vdr typ
 		vdr:             vdr,
 		vcr:             vcr,
 		jsonldManager:   jsonldManager,
+		callSerializer:  keyedMutex{},
 	}
 }
 
@@ -87,6 +114,9 @@ func (d *didman) Name() string {
 }
 
 func (d *didman) AddEndpoint(id did.DID, serviceType string, u url.URL) (*did.Service, error) {
+	unlockFn := d.callSerializer.Lock(id.String())
+	defer unlockFn()
+
 	log.Logger().
 		WithField(core.LogFieldDID, id.String()).
 		WithField(core.LogFieldServiceType, serviceType).
@@ -104,6 +134,9 @@ func (d *didman) AddEndpoint(id did.DID, serviceType string, u url.URL) (*did.Se
 }
 
 func (d *didman) DeleteEndpointsByType(id did.DID, serviceType string) error {
+	unlockFn := d.callSerializer.Lock(id.String())
+	defer unlockFn()
+
 	doc, _, err := d.docResolver.Resolve(id, nil)
 	if err != nil {
 		return err
@@ -113,7 +146,7 @@ func (d *didman) DeleteEndpointsByType(id did.DID, serviceType string) error {
 	for _, s := range doc.Service {
 		if s.Type == serviceType {
 			found = true
-			if err = d.DeleteService(s.ID); err != nil {
+			if err = d.deleteService(s.ID); err != nil {
 				return err
 			}
 		}
@@ -134,6 +167,9 @@ func (d *didman) GetCompoundServices(id did.DID) ([]did.Service, error) {
 }
 
 func (d *didman) AddCompoundService(id did.DID, serviceType string, endpoints map[string]ssi.URI) (*did.Service, error) {
+	unlockFn := d.callSerializer.Lock(id.String())
+	defer unlockFn()
+
 	log.Logger().
 		WithField(core.LogFieldDID, id.String()).
 		WithField(core.LogFieldServiceType, serviceType).
@@ -206,6 +242,20 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 }
 
 func (d *didman) DeleteService(serviceID ssi.URI) error {
+	id, err := did.ParseDIDURL(serviceID.String())
+	if err != nil {
+		return err
+	}
+	id.Fragment = ""
+
+	unlockFn := d.callSerializer.Lock(id.String())
+	defer unlockFn()
+
+	return d.deleteService(serviceID)
+}
+
+// deleteService deletes the service without using the callSerializer locks
+func (d *didman) deleteService(serviceID ssi.URI) error {
 	log.Logger().
 		WithField(core.LogFieldServiceID, serviceID.String()).
 		Debug("Deleting service")
@@ -253,6 +303,8 @@ func (d *didman) DeleteService(serviceID ssi.URI) error {
 }
 
 func (d *didman) UpdateContactInformation(id did.DID, information ContactInformation) (*ContactInformation, error) {
+	unlockFn := d.callSerializer.Lock(id.String())
+	defer unlockFn()
 
 	log.Logger().
 		WithField(core.LogFieldDID, id.String()).

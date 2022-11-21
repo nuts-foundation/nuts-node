@@ -28,6 +28,7 @@ import (
 	"io"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -734,6 +735,20 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, actual)
+	})
+}
+
+func TestKeyedMutex_Lock(t *testing.T) {
+	t.Run("it locks for a certain key", func(t *testing.T) {
+		km := keyedMutex{}
+		unlockKeyFn := km.Lock("key")
+		val, ok := km.mutexes.Load("key")
+		assert.True(t, ok)
+		m := val.(*sync.Mutex)
+
+		assert.False(t, m.TryLock())
+		unlockKeyFn()
+		assert.True(t, m.TryLock())
 	})
 }
 
