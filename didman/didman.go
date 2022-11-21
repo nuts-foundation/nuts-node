@@ -59,14 +59,14 @@ type keyedMutex struct {
 func (m *keyedMutex) Lock(key string) func() {
 	value, _ := m.mutexes.LoadOrStore(key, &sync.Mutex{})
 	mtx := value.(*sync.Mutex)
-	log.Logger().Debugf("aquiring lock for: %s", key)
+	log.Logger().Tracef("aquiring lock for: %s", key)
 	mtx.Lock()
-	log.Logger().Debugf("lock aquired for: %s", key)
+	log.Logger().Tracef("lock aquired for: %s", key)
 
 	// use this to unlock the mutex
 	return func() {
 		mtx.Unlock()
-		log.Logger().Debugf("unlocked for: %s", key)
+		log.Logger().Tracef("unlocked for: %s", key)
 	}
 }
 
