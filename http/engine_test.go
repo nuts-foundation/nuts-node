@@ -37,6 +37,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -57,6 +58,7 @@ func TestEngine_Configure(t *testing.T) {
 		require.NoError(t, err)
 		defer engine.Shutdown()
 
+		assertServerStarted(t, engine.config.InterfaceConfig.Address)
 		assertHTTPRequest(t, engine.config.InterfaceConfig.Address)
 
 		err = engine.Shutdown()
@@ -73,6 +75,7 @@ func TestEngine_Configure(t *testing.T) {
 		require.NoError(t, err)
 		defer engine.Shutdown()
 
+		assertServerStarted(t, engine.config.InterfaceConfig.Address)
 		assertHTTPRequest(t, engine.config.InterfaceConfig.Address)
 
 		err = engine.Shutdown()
@@ -126,6 +129,7 @@ func TestEngine_Configure(t *testing.T) {
 
 			thisTLSConfig := tlsConfig.Clone()
 			thisTLSConfig.Certificates = nil
+			assertServerStarted(t, engine.config.InterfaceConfig.Address)
 			assertHTTPSRequest(t, engine.config.InterfaceConfig.Address, thisTLSConfig)
 
 			err = engine.Shutdown()
@@ -139,10 +143,10 @@ func TestEngine_Configure(t *testing.T) {
 			err := engine.Configure(*serverCfg)
 			require.NoError(t, err)
 			err = engine.Start()
-			time.Sleep(100 * time.Millisecond)
 			require.NoError(t, err)
 			defer engine.Shutdown()
 
+			assertServerStarted(t, engine.config.InterfaceConfig.Address)
 			assertHTTPSRequest(t, engine.config.InterfaceConfig.Address, tlsConfig)
 
 			// Sanity check: the same test without client certificate should fail
@@ -172,6 +176,7 @@ func TestEngine_Configure(t *testing.T) {
 				require.NoError(t, err)
 				defer engine.Shutdown()
 
+				assertServerStarted(t, engine.config.InterfaceConfig.Address)
 				assertHTTPHeader(t, engine.config.InterfaceConfig.Address, "Vary", "Origin")
 
 				err = engine.Shutdown()
@@ -217,6 +222,7 @@ func TestEngine_Configure(t *testing.T) {
 				require.NoError(t, err)
 				defer engine.Shutdown()
 
+				assertServerStarted(t, engine.config.InterfaceConfig.Address)
 				// CORS should be enabled on default path and other, but not on alt bind
 				assertHTTPHeader(t, engine.config.InterfaceConfig.Address+"/", "Vary", "Origin")
 				assertHTTPHeader(t, engine.config.InterfaceConfig.Address+"/some-other-path", "Vary", "Origin")
@@ -280,6 +286,8 @@ func TestEngine_Configure(t *testing.T) {
 				engine.Router().GET("/alt-with-auth", captureUser)
 				_ = engine.Start()
 				defer engine.Shutdown()
+
+				assertServerStarted(t, engine.config.InterfaceConfig.Address)
 
 				t.Run("success - no auth on default bind root path", func(t *testing.T) {
 					capturedUser = ""
@@ -368,6 +376,8 @@ func TestEngine_LoggingMiddleware(t *testing.T) {
 		require.NoError(t, err)
 		defer engine.Shutdown()
 
+		assertServerStarted(t, engine.config.InterfaceConfig.Address)
+
 		// Call to /status is not logged
 		output.Reset()
 		_, _ = http.Get("http://" + engine.config.InterfaceConfig.Address + "/status")
@@ -393,6 +403,7 @@ func TestEngine_LoggingMiddleware(t *testing.T) {
 		require.NoError(t, err)
 		defer engine.Shutdown()
 
+		assertServerStarted(t, engine.config.InterfaceConfig.Address)
 		output.Reset()
 
 		_, _ = http.Post("http://"+engine.config.InterfaceConfig.Address, "application/json", bytes.NewReader([]byte("{}")))
@@ -438,6 +449,21 @@ func TestDecodeURIPath(t *testing.T) {
 		bodyBytes, _ := io.ReadAll(rec.Result().Body)
 		assert.Equal(t, rawParam, string(bodyBytes))
 	})
+}
+
+func assertServerStarted(t *testing.T, address string) {
+	t.Helper()
+	var err error
+	var conn net.Conn
+	for i := 0; i < 10; i++ {
+		conn, err = net.DialTimeout("tcp", address, 100*time.Millisecond)
+		if err == nil {
+			_ = conn.Close()
+			return
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	t.Fatal("Server did not start in time", err)
 }
 
 func assertHTTPSRequest(t *testing.T, address string, tlsConfig *tls.Config) {
