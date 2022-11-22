@@ -45,12 +45,6 @@ There are 4 official Nuts networks:
 - *test* for acceptance testing with other vendors and customers. Nodes will generally run the latest released version (or at least a recent one).
 - *production* for production uses. Connecting to this network involves PKIoverheid certificates and outside the scope of this tutorial.
 
-The root CAs for the development and stable networks can be found in the ``https://github.com/nuts-foundation/nuts-development-network-ca`` repository.
-
-For test and production `PKIoverheid Domein Private Services <https://cert.pkioverheid.nl/>`_ is used.
-Make sure you load both the root certificate ("Stamcertificaat") and all intermediates (under "Domein Private Services").
-Do not load any of the other certificates in your truststore.
-
 Node TLS Certificate
 ====================
 
@@ -58,9 +52,15 @@ Before you can join a network, your node needs a certificate from the correct Ce
 
 To generate the certificate for your own node you need the ``https://github.com/nuts-foundation/nuts-development-network-ca`` repository. It contains handy scripts and the needed key material. For more information how to use, consult the `README <https://github.com/nuts-foundation/nuts-development-network-ca/blob/master/README.md>`_
 
-Your node only accepts connections from other nodes which use a certificate issued by one of the trusted CAs. Trusted CAs are using a truststore file. The truststore is a PEM file which contains one or more certificates from CAs which the network participants all decided on to trust.
-To learn more about how a Nuts network uses certificates, see the specification `RFC008 <https://nuts-foundation.gitbook.io/drafts/rfc/rfc008-certificate-structure>`_.
+.. note::
 
+    Your node only accepts connections from other nodes which use a certificate issued by one of the trusted CAs. Trusted CAs are using a truststore file. The truststore is a PEM file which contains one or more certificates from CAs which the network participants all decided on to trust.
+    The root CAs for the development and stable networks can be found in the ``https://github.com/nuts-foundation/nuts-development-network-ca`` repository.
+    For test and production `PKIoverheid Domein Private Services <https://cert.pkioverheid.nl/>`_ is used.
+    Make sure you load both the root certificate ("Stamcertificaat") and all intermediates (under "Domein Private Services").
+    Do not load any of the other certificates in your truststore.
+
+    See `RFC008 Certificate Structure <https://nuts-foundation.gitbook.io/drafts/rfc/rfc008-certificate-structure>`_ to learn more about how a Nuts network uses certificates.
 
 To generate certificates for the ``development`` network perform the following steps:
 
