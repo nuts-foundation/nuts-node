@@ -35,7 +35,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 )
 
 // ErrMissingPublicURL is returned when the publicUrl is missing from the config
@@ -51,7 +51,7 @@ type Auth struct {
 	contractNotary  services.ContractNotary
 	serviceResolver didman.CompoundServiceResolver
 	keyStore        crypto.KeyStore
-	registry        types.Store
+	registry        didstore.Store
 	vcr             vcr.VCR
 	tlsConfig       *tls.Config
 	crlValidator    crl.Validator
@@ -84,7 +84,7 @@ func (auth *Auth) ContractNotary() services.ContractNotary {
 }
 
 // NewAuthInstance accepts a Config with several Nuts Engines and returns an instance of Auth
-func NewAuthInstance(config Config, registry types.Store, vcr vcr.VCR, keyStore crypto.KeyStore, serviceResolver didman.CompoundServiceResolver, jsonldManager jsonld.JSONLD) *Auth {
+func NewAuthInstance(config Config, registry didstore.Store, vcr vcr.VCR, keyStore crypto.KeyStore, serviceResolver didman.CompoundServiceResolver, jsonldManager jsonld.JSONLD) *Auth {
 	return &Auth{
 		config:          config,
 		jsonldManager:   jsonldManager,

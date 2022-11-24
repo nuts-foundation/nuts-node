@@ -19,13 +19,14 @@ package didservice
 
 import (
 	"errors"
-	"github.com/stretchr/testify/require"
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/store"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -100,10 +101,13 @@ func TestByServiceType(t *testing.T) {
 
 func TestVDR_Find(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		didStore := store.NewTestStore(t)
-		finder := Finder{Store: didStore}
-		_ = didStore.Write(did.Document{ID: store.TestDIDA}, types.DocumentMetadata{Deactivated: false})
-		_ = didStore.Write(did.Document{ID: store.TestDIDB}, types.DocumentMetadata{Deactivated: true})
+		ctrl := gomock.NewController(t)
+		store := didstore.NewMockStore(ctrl)
+		finder := Finder{Store: store}
+		store.EXPECT().Iterate(gomock.Any()).Do(func(arg interface{}) {
+			f := arg.(types.DocIterator)
+			f(did.Document{}, types.DocumentMetadata{})
+		})
 
 		docs, err := finder.Find(IsActive())
 
@@ -113,7 +117,7 @@ func TestVDR_Find(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		store := types.NewMockStore(ctrl)
+		store := didstore.NewMockStore(ctrl)
 		finder := Finder{Store: store}
 		store.EXPECT().Iterate(gomock.Any()).Return(errors.New("b00m!"))
 

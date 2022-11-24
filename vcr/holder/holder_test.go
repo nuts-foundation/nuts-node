@@ -73,6 +73,7 @@ func TestHolder_BuildVP(t *testing.T) {
 	_ = json.Unmarshal([]byte(testCredentialJSON), &testCredential)
 	key := vdr.TestMethodDIDAPrivateKey()
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
+	testDID := vdr.TestDIDA
 
 	t.Run("ok - one VC", func(t *testing.T) {
 		ctrl := gomock.NewController(t)

@@ -41,6 +41,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -163,7 +164,7 @@ func (c validationContext) verifiableCredentials() ([]vc2.VerifiableCredential, 
 }
 
 // NewOAuthService accepts a vendorID, and several Nuts engines and returns an implementation of services.Client
-func NewOAuthService(store types.Store, vcFinder vcr.Finder, vcVerifier verifier.Verifier, serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore, contractNotary services.ContractNotary, jsonldManager jsonld.JSONLD) Client {
+func NewOAuthService(store didstore.Store, vcFinder vcr.Finder, vcVerifier verifier.Verifier, serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore, contractNotary services.ContractNotary, jsonldManager jsonld.JSONLD) Client {
 	return &service{
 		docResolver:     didservice.Resolver{Store: store},
 		keyResolver:     didservice.KeyResolver{Store: store},

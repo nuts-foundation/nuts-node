@@ -105,23 +105,6 @@ type KeyResolver interface {
 // DocIterator is the function type for iterating over the all current DID Documents in the store
 type DocIterator func(doc did.Document, metadata DocumentMetadata) error
 
-// Store is the interface that groups all low level VDR DID storage operations.
-type Store interface {
-	// Processed returns true if a DID Document has already been processed for the given TX hash.
-	Processed(hash hash.SHA256Hash) (bool, error)
-	// Resolve returns the DID Document for the provided DID.
-	// If metadata is not provided the latest version is returned.
-	// If metadata is provided then the result is filtered or scoped on that metadata.
-	// It returns ErrNotFound if there are no corresponding DID documents or when the DID Documents are disjoint with the provided ResolveMetadata
-	Resolve(id did.DID, metadata *ResolveMetadata) (*did.Document, *DocumentMetadata, error)
-	// Iterate loops over all the latest versions of the stored DID Documents and applies fn.
-	// Calling any of the Store's functions from the given fn might cause a deadlock.
-	Iterate(fn DocIterator) error
-
-	DocWriter
-	DocUpdater
-}
-
 // VDR defines the public end facing methods for the Verifiable Data Registry.
 type VDR interface {
 	DocCreator

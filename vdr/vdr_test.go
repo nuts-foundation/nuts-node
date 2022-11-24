@@ -19,6 +19,7 @@
 package vdr
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"testing"
@@ -31,7 +32,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/store"
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -41,32 +42,36 @@ const expectedPayloadType = "application/did+json"
 
 // testCtx contains the controller and mocks needed fot testing the Manipulator
 type vdrTestCtx struct {
-	ctrl         *gomock.Controller
-	vdr          VDR
-	mockStore    *types.MockStore
-	mockNetwork  *network.MockTransactions
-	mockKeyStore *crypto.MockKeyStore
+	ctrl           *gomock.Controller
+	vdr            VDR
+	mockStore      *didstore.MockStore
+	mockNetwork    *network.MockTransactions
+	mockKeyStore   *crypto.MockKeyStore
+	mockAmbassador *MockAmbassador
 }
 
 func newVDRTestCtx(t *testing.T) vdrTestCtx {
 	t.Helper()
 	ctrl := gomock.NewController(t)
-	mockStore := types.NewMockStore(ctrl)
+	mockAmbassador := NewMockAmbassador(ctrl)
+	mockStore := didstore.NewMockStore(ctrl)
 	mockNetwork := network.NewMockTransactions(ctrl)
 	mockKeyStore := crypto.NewMockKeyStore(ctrl)
 	vdr := VDR{
-		store:          mockStore,
-		didDocResolver: didservice.Resolver{Store: mockStore},
-		network:        mockNetwork,
-		keyStore:       mockKeyStore,
-		didDocCreator:  didservice.Creator{KeyStore: mockKeyStore},
+		store:             mockStore,
+		network:           mockNetwork,
+		networkAmbassador: mockAmbassador,
+		didDocCreator:     didservice.Creator{KeyStore: mockKeyStore},
+		didDocResolver:    didservice.Resolver{Store: mockStore},
+		keyStore:          mockKeyStore,
 	}
 	return vdrTestCtx{
-		ctrl:         ctrl,
-		vdr:          vdr,
-		mockStore:    mockStore,
-		mockNetwork:  mockNetwork,
-		mockKeyStore: mockKeyStore,
+		ctrl:           ctrl,
+		vdr:            vdr,
+		mockAmbassador: mockAmbassador,
+		mockStore:      mockStore,
+		mockNetwork:    mockNetwork,
+		mockKeyStore:   mockKeyStore,
 	}
 }
 
@@ -250,35 +255,69 @@ func TestVDR_Configure(t *testing.T) {
 	cfg := Config{}
 	vdr := NewVDR(cfg, nil, tx, nil, nil)
 	err := vdr.Configure(*core.NewServerConfig())
-	assert.NoError(t, err)
+	require.NoError(t, err)
+}
+
+func TestVDR_Migrate(t *testing.T) {
+	t.Run("migrate on 0 document count", func(t *testing.T) {
+		ctx := newVDRTestCtx(t)
+		ctx.mockAmbassador.EXPECT().Start()
+		ctx.mockStore.EXPECT().DocumentCount().Return(uint(0), nil)
+		ctx.mockNetwork.EXPECT().Reprocess(context.Background(), "application/did+json").Return(nil, nil)
+
+		err := ctx.vdr.Start()
+
+		require.NoError(t, err)
+	})
+	t.Run("don't migrate on > 0 document count", func(t *testing.T) {
+		ctx := newVDRTestCtx(t)
+		ctx.mockAmbassador.EXPECT().Start()
+		ctx.mockStore.EXPECT().DocumentCount().Return(uint(1), nil)
+
+		err := ctx.vdr.Start()
+
+		require.NoError(t, err)
+	})
+	t.Run("error on migration error", func(t *testing.T) {
+		ctx := newVDRTestCtx(t)
+		ctx.mockAmbassador.EXPECT().Start()
+		testError := errors.New("test")
+		ctx.mockStore.EXPECT().DocumentCount().Return(uint(0), testError)
+
+		err := ctx.vdr.Start()
+
+		assert.Equal(t, testError, err)
+	})
 }
 
 func TestVDR_ConflictingDocuments(t *testing.T) {
 	t.Run("diagnostics", func(t *testing.T) {
-		t.Run("ok - no conflicts", func(t *testing.T) {
-			s := store.NewTestStore(t)
+		t.Run("ok - no conflicts/no documents", func(t *testing.T) {
+			s := didstore.NewTestStore(t)
 			vdr := NewVDR(Config{}, nil, nil, s, nil)
 			results := vdr.Diagnostics()
 
-			require.Len(t, results, 1)
+			require.Len(t, results, 2)
 			assert.Equal(t, "0", results[0].String())
+			assert.Equal(t, "0", results[1].String())
 		})
 
 		t.Run("ok - 1 conflict", func(t *testing.T) {
-			s := store.NewTestStore(t)
+			s := didstore.NewTestStore(t)
 			vdr := NewVDR(Config{}, nil, nil, s, nil)
-			doc := did.Document{ID: TestDIDA}
-			metadata := types.DocumentMetadata{SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), hash.EmptyHash()}}
-			s.Write(doc, metadata)
+			didDocument := did.Document{ID: TestDIDA}
+			_ = s.Add(didDocument, didstore.TestTransaction(didDocument))
+			_ = s.Add(didDocument, didstore.TestTransaction(didDocument))
 			results := vdr.Diagnostics()
 
-			require.Len(t, results, 1)
+			require.Len(t, results, 2)
 			assert.Equal(t, "1", results[0].String())
+			assert.Equal(t, "1", results[1].String())
 		})
 	})
 	t.Run("list", func(t *testing.T) {
 		t.Run("ok - no conflicts", func(t *testing.T) {
-			s := store.NewTestStore(t)
+			s := didstore.NewTestStore(t)
 			vdr := NewVDR(Config{}, nil, nil, s, nil)
 			docs, meta, err := vdr.ConflictedDocuments()
 
@@ -288,11 +327,11 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 		})
 
 		t.Run("ok - 1 conflict", func(t *testing.T) {
-			s := store.NewTestStore(t)
+			s := didstore.NewTestStore(t)
 			vdr := NewVDR(Config{}, nil, nil, s, nil)
-			doc := did.Document{ID: TestDIDA}
-			metadata := types.DocumentMetadata{SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), hash.EmptyHash()}}
-			s.Write(doc, metadata)
+			didDocument := did.Document{ID: TestDIDA}
+			_ = s.Add(didDocument, didstore.TestTransaction(didDocument))
+			_ = s.Add(didDocument, didstore.TestTransaction(didDocument))
 			docs, meta, err := vdr.ConflictedDocuments()
 
 			require.NoError(t, err)

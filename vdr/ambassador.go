@@ -26,22 +26,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nats-io/nats.go"
-	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"sort"
-	"time"
 
 	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
-	"github.com/nuts-foundation/nuts-node/vdr/store"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -62,14 +61,14 @@ type Ambassador interface {
 
 type ambassador struct {
 	networkClient network.Transactions
-	didStore      types.Store
+	didStore      didstore.Store
 	keyResolver   types.KeyResolver
 	docResolver   types.DocResolver
 	eventManager  events.Event
 }
 
 // NewAmbassador creates a new Ambassador,
-func NewAmbassador(networkClient network.Transactions, didStore types.Store, eventManager events.Event) Ambassador {
+func NewAmbassador(networkClient network.Transactions, didStore didstore.Store, eventManager events.Event) Ambassador {
 	return &ambassador{
 		networkClient: networkClient,
 		didStore:      didStore,
@@ -159,18 +158,6 @@ func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
 		return fmt.Errorf("could not process new DID Document: %w", err)
 	}
 
-	// check if already processed
-	processed, err := n.didStore.Processed(tx.Ref())
-	if err != nil {
-		return fmt.Errorf("could not process new DID Document: %w", err)
-	}
-	if processed {
-		log.Logger().
-			WithField(core.LogFieldTransactionRef, tx.Ref()).
-			Debug("Skipping DID document, already exists")
-		return nil
-	}
-
 	// Unmarshal the next/new proposed version of the DID Document
 	var nextDIDDocument did.Document
 	if err := json.Unmarshal(payload, &nextDIDDocument); err != nil {
@@ -182,12 +169,12 @@ func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
 	}
 
 	if n.isUpdate(tx) {
-		return n.handleUpdateDIDDocument(tx, nextDIDDocument)
+		return n.handleUpdateDIDDocument(tx, nextDIDDocument, payload)
 	}
-	return n.handleCreateDIDDocument(tx, nextDIDDocument)
+	return n.handleCreateDIDDocument(tx, nextDIDDocument, payload)
 }
 
-func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, proposedDIDDocument did.Document) error {
+func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, proposedDIDDocument did.Document, payload []byte) error {
 	log.Logger().
 		WithField(core.LogFieldTransactionRef, transaction.Ref()).
 		WithField(core.LogFieldDID, proposedDIDDocument.ID).
@@ -214,37 +201,13 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, propos
 		return err
 	}
 
-	// check for an existing document, it could have been a parallel create. If existing merge and update.
-	currentDIDDocument, currentDIDMeta, err := n.didStore.Resolve(proposedDIDDocument.ID, nil)
-	if err != nil && !errors.Is(err, types.ErrNotFound) {
-		return fmt.Errorf("unable to register DID document: %w", err)
-	}
-	sourceTransactions := []hash.SHA256Hash{transaction.Ref()}
-	// pointer to updated time required for metadata, nil by default
-	var updatedAtP *time.Time
-	if currentDIDDocument != nil {
-		mergedDoc, err := didservice.MergeDocuments(*currentDIDDocument, proposedDIDDocument)
-		if err != nil {
-			return fmt.Errorf("unable to merge conflicted DID Document: %w", err)
-		}
-		proposedDIDDocument = *mergedDoc
-		sourceTransactions = uniqueTransactions(currentDIDMeta.SourceTransactions, transaction.Ref())
-		updatedAt := transaction.SigningTime()
-		updatedAtP = &updatedAt
-	}
-
-	documentMetadata := types.DocumentMetadata{
-		Created:            transaction.SigningTime(),
-		Updated:            updatedAtP,
-		Hash:               transaction.PayloadHash(),
-		SourceTransactions: sourceTransactions,
-	}
-
-	if currentDIDDocument != nil {
-		err = n.didStore.Update(currentDIDDocument.ID, currentDIDMeta.Hash, proposedDIDDocument, &documentMetadata)
-	} else {
-		err = n.didStore.Write(proposedDIDDocument, documentMetadata)
-	}
+	err = n.didStore.Add(proposedDIDDocument, didstore.Transaction{
+		Clock:       transaction.Clock(),
+		PayloadHash: transaction.PayloadHash(),
+		Previous:    transaction.Previous(),
+		Ref:         transaction.Ref(),
+		SigningTime: transaction.SigningTime(),
+	})
 
 	if err != nil {
 		return fmt.Errorf("unable to register DID document: %w", err)
@@ -258,13 +221,13 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, propos
 	return nil
 }
 
-func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, proposedDIDDocument did.Document) error {
+func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, proposedDIDDocument did.Document, payload []byte) error {
 	log.Logger().
 		WithField(core.LogFieldTransactionRef, transaction.Ref()).
 		WithField(core.LogFieldDID, proposedDIDDocument.ID).
 		Debug("Handling DID document update")
 	// Resolve latest version of DID Document
-	currentDIDDocument, currentDIDMeta, err := n.didStore.Resolve(proposedDIDDocument.ID, &types.ResolveMetadata{AllowDeactivated: true})
+	currentDIDDocument, _, err := n.didStore.Resolve(proposedDIDDocument.ID, &types.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {
 		return fmt.Errorf("unable to update DID document: %w", err)
 	}
@@ -309,36 +272,14 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 		return fmt.Errorf("network document not signed by one of its controllers")
 	}
 
-	// check if the transactions contains all SourceTransactions
-	missedTransactions := missingTransactions(currentDIDMeta.SourceTransactions, transaction.Previous())
-	sourceTransactions := uniqueTransactions(missedTransactions, transaction.Ref())
-	if len(missedTransactions) != 0 {
-		mergedDoc, err := didservice.MergeDocuments(*currentDIDDocument, proposedDIDDocument)
-		if err != nil {
-			return fmt.Errorf("unable to merge conflicted DID Document: %w", err)
-		}
-		proposedDIDDocument = *mergedDoc
-	}
+	err = n.didStore.Add(proposedDIDDocument, didstore.Transaction{
+		Clock:       transaction.Clock(),
+		PayloadHash: transaction.PayloadHash(),
+		Previous:    transaction.Previous(),
+		Ref:         transaction.Ref(),
+		SigningTime: transaction.SigningTime(),
+	})
 
-	// Stable order for metadata.SourceTransactions (derived from unordered maps): makes it easier to analyse and test.
-	sortHashes(sourceTransactions)
-
-	if len(sourceTransactions) == 1 && currentDIDMeta.Deactivated {
-		// resurrecting a deactivated document without creating a conflict.
-		return types.ErrDeactivated
-	}
-
-	updatedAt := transaction.SigningTime()
-	documentMetadata := types.DocumentMetadata{
-		Created:            currentDIDMeta.Created,
-		Updated:            &updatedAt,
-		Hash:               transaction.PayloadHash(),
-		PreviousHash:       &currentDIDMeta.Hash,
-		Deactivated:        store.IsDeactivated(proposedDIDDocument),
-		SourceTransactions: sourceTransactions,
-	}
-
-	err = n.didStore.Update(proposedDIDDocument.ID, currentDIDMeta.Hash, proposedDIDDocument, &documentMetadata)
 	if err == nil {
 		log.Logger().
 			WithField(core.LogFieldTransactionRef, transaction.Ref()).

@@ -24,7 +24,6 @@ import (
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/dag"
 )
 
 // event contains the transaction reference and ordering of all DID document updates
@@ -68,15 +67,6 @@ func (el *eventList) Less(i, j int) bool {
 // Swap is part of the methods required for sorting
 func (el *eventList) Swap(i, j int) {
 	el.Events[i], el.Events[j] = el.Events[j], el.Events[i]
-}
-
-func eventFromTransaction(transaction dag.Transaction) event {
-	return event{
-		Created: transaction.SigningTime(),
-		Clock:   transaction.Clock(),
-		TXRef:   transaction.Ref(),
-		DocRef:  transaction.PayloadHash(),
-	}
 }
 
 // eventList is an in-memory representation of an Events shelf entry

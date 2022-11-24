@@ -15,16 +15,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package didservice
+package didstore
 
 import (
-	"github.com/stretchr/testify/require"
-	"testing"
-
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestMerge(t *testing.T) {
@@ -118,7 +116,12 @@ func TestMerge(t *testing.T) {
 			did.Document{ID: *didA, CapabilityInvocation: []did.VerificationRelationship{*vrB}},
 			did.Document{ID: *didA, CapabilityInvocation: []did.VerificationRelationship{*vrA, *vrB}},
 		},
-
+		{
+			"keyAgreement",
+			did.Document{ID: *didA, KeyAgreement: []did.VerificationRelationship{*vrA}},
+			did.Document{ID: *didA, KeyAgreement: []did.VerificationRelationship{*vrB}},
+			did.Document{ID: *didA, KeyAgreement: []did.VerificationRelationship{*vrA, *vrB}},
+		},
 		{
 			"capabilityDelegation",
 			did.Document{ID: *didA, CapabilityDelegation: []did.VerificationRelationship{*vrA}},
@@ -127,19 +130,12 @@ func TestMerge(t *testing.T) {
 		},
 	}
 
-	t.Run("error no matching IDs", func(t *testing.T) {
-		_, err := MergeDocuments(did.Document{ID: *didA}, did.Document{ID: *didB})
-
-		assert.Equal(t, ErrDiffID, err)
-	})
-
 	t.Run("ok", func(t *testing.T) {
 		for _, test := range tests {
 			t.Run(test.title, func(t *testing.T) {
-				r, err := MergeDocuments(test.docA, test.docB)
+				r := mergeDocuments(test.docA, test.docB)
 
-				require.NoError(t, err)
-				assert.Equal(t, test.exp, *r)
+				assert.Equal(t, test.exp, r)
 			})
 		}
 	})

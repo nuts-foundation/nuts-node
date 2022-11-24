@@ -17,7 +17,9 @@ gen-mocks:
 	mockgen -destination=http/echo_mock.go -package=http -source http/echo.go -imports echo=github.com/labstack/echo/v4
 	mockgen -destination=crypto/mock.go -package=crypto -source=crypto/interface.go
 	mockgen -destination=crypto/storage/mock.go -package=storage -source=crypto/storage/storage.go
+	mockgen -destination=vdr/ambassador_mock.go -package=vdr -source=vdr/ambassador.go
 	mockgen -destination=vdr/types/mock.go -package=types -source=vdr/types/interface.go -self_package github.com/nuts-foundation/nuts-node/vdr/types --imports did=github.com/nuts-foundation/go-did/did
+	mockgen -destination=vdr/didstore/mock.go -package=didstore -source=vdr/didstore/interface.go
 	mockgen -destination=vdr/didservice/resolvers_mock.go -package=didservice -source=vdr/didservice/resolvers.go
 	mockgen -destination=network/mock.go -package=network -source=network/interface.go
 	mockgen -destination=network/transport/connection_manager_mock.go -package=transport -source=network/transport/connection_manager.go

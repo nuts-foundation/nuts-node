@@ -39,7 +39,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/store"
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -132,7 +132,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 		"news service of document a does not contain expected values")
 
 	// deactivate document B
-	docUpdater := &didservice.Manipulator{KeyCreator: ctx.cryptoInstance, Updater: *ctx.vdr, Resolver: ctx.docResolver}
+	docUpdater := &didservice.Manipulator{KeyCreator: ctx.cryptoInstance, Updater: ctx.vdr, Resolver: ctx.docResolver}
 	err = docUpdater.Deactivate(docB.ID)
 	assert.NoError(t, err,
 		"expected deactivation to succeed")
@@ -151,7 +151,6 @@ func TestVDRIntegration_Test(t *testing.T) {
 	docA.Service = docA.Service[1:]
 	err = ctx.vdr.Update(docAID, metadataDocA.Hash, *docA, nil)
 	assert.EqualError(t, err, "could not find any controllers for document")
-
 }
 
 func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
@@ -250,7 +249,7 @@ func setup(t *testing.T) testContext {
 	}
 
 	// DID Store
-	didStore := store.NewTestStore(t)
+	didStore := didstore.NewTestStore(t)
 	docResolver := didservice.Resolver{Store: didStore}
 	docFinder := didservice.Finder{Store: didStore}
 	docCreator := didservice.Creator{KeyStore: cryptoInstance}

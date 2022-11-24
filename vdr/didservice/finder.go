@@ -18,6 +18,7 @@
 package didservice
 
 import (
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"strings"
 	"time"
 
@@ -85,7 +86,7 @@ func (d deactivatedPredicate) Match(_ did.Document, metadata types.DocumentMetad
 
 // Finder is a helper that implements the DocFinder interface
 type Finder struct {
-	Store types.Store
+	Store didstore.Store
 }
 
 func (f Finder) Find(predicate ...types.Predicate) ([]did.Document, error) {

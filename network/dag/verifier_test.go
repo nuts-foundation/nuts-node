@@ -28,6 +28,9 @@ import (
 	"testing"
 	"time"
 
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
+
 	"github.com/golang/mock/gomock"
 	"github.com/lestrrat-go/jwx/jwk"
 	ssi "github.com/nuts-foundation/go-did"
