@@ -26,6 +26,7 @@ import (
 	"os"
 	"path"
 	"sort"
+	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,6 +36,14 @@ func Test_NewFileSystemBackend(t *testing.T) {
 	t.Run("error - path is empty", func(t *testing.T) {
 		storage, err := NewFileSystemBackend("")
 		assert.EqualError(t, err, "filesystem path is empty")
+		assert.Nil(t, storage)
+	})
+	t.Run("error - path is a file", func(t *testing.T) {
+		tempFile, err := os.CreateTemp("", "")
+		require.NoError(t, err)
+		_ = tempFile.Close()
+		storage, err := NewFileSystemBackend(tempFile.Name())
+		assert.ErrorIs(t, err, syscall.ENOTDIR)
 		assert.Nil(t, storage)
 	})
 }

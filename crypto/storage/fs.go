@@ -65,8 +65,8 @@ func NewFileSystemBackend(fspath string) (Storage, error) {
 		fspath,
 	}
 
-	err := fsc.createDirs()
-
+	// Assert base directory is present
+	err := os.MkdirAll(fsc.fspath, os.ModePerm)
 	if err != nil {
 		return nil, err
 	}
@@ -141,20 +141,6 @@ func (fsc fileSystemBackend) readEntry(kid string, entryType entryType) ([]byte,
 
 func (fsc fileSystemBackend) getEntryPath(key string, entryType entryType) string {
 	return filepath.Join(fsc.fspath, getEntryFileName(key, entryType))
-}
-
-func (fsc *fileSystemBackend) createDirs() error {
-	f, err := os.Open(fsc.fspath)
-
-	if f != nil {
-		f.Close()
-	}
-
-	if err != nil {
-		err = os.MkdirAll(fsc.fspath, os.ModePerm)
-	}
-
-	return err
 }
 
 func getEntryFileName(kid string, entryType entryType) string {
