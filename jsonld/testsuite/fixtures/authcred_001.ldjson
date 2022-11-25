@@ -1,0 +1,124 @@
+{
+  "@context": [
+    {
+      "@version": 1.1,
+      "@protected": true,
+      "@base": "https://nuts.nl/credentials/v1",
+
+      "id": "@id",
+      "type": "@type",
+      "schema": "http://schema.org/",
+      "nuts": "https://nuts.nl/credentials/v1#",
+
+      "CredentialRevocation": {
+        "@id": "nuts:CredentialRevocation",
+        "@context": {
+          "@version": 1.1,
+          "@protected": true,
+
+          "id": "@id",
+          "type": "@type",
+          "cred": "https://www.w3.org/2018/credentials#",
+          "nuts": "https://nuts.nl/credentials/v1#",
+
+          "issuer": {"@id": "cred:issuer", "@type": "@id"},
+          "date": {"@id": "nuts:date", "@type": "xsd:dateTime"},
+          "subject": {"@id": "cred:credentialSubject", "@type": "@id"}
+        }
+      },
+      "NutsOrganizationCredential": {
+        "@id": "nuts:NutsOrganizationCredential",
+        "@context": {
+          "@version": 1.1,
+          "@protected": true,
+          "@propagate": true,
+
+          "id": "@id",
+          "type": "@type",
+          "cred": "https://www.w3.org/2018/credentials#",
+          "nuts": "https://nuts.nl/credentials/v1#",
+
+          "organization": {
+            "@id":"schema:organization",
+            "@type": "@id",
+            "@context": {
+              "@version": 1.1,
+              "@protected": true,
+              "city": "schema:city",
+              "name": "schema:legalname"
+            }
+          }
+        }
+      },
+      "NutsAuthorizationCredential": {
+        "@id": "nuts:NutsAuthorizationCredential",
+        "@context": {
+          "@version": 1.1,
+          "@protected": true,
+          "@propagate": true,
+
+          "id": "@id",
+          "type": "@type",
+          "cred": "https://www.w3.org/2018/credentials#",
+          "nuts": "https://nuts.nl/credentials/v1#",
+
+          "subject": {"@id": "nuts:subject", "@type": "@id"},
+          "purposeOfUse": "nuts:purposeOfUse",
+          "resources": {
+            "@id":"nuts:resources",
+            "@context": {
+              "nuts": "https://nuts.nl/credentials/v1#",
+
+              "path": "nuts:path",
+              "operations": {"@id": "nuts:operations", "@container": "@set"},
+              "userContext": "nuts:userContext"
+            }
+          },
+          "localParameters": {
+            "@id": "nuts:localParameters",
+            "@type": "@json"
+          }
+        }
+      }
+    },
+    "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json",
+    "https://www.w3.org/2018/credentials/v1"
+  ],
+  "credentialSubject": {
+    "id": "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY",
+    "localParameters": {
+      "array": [
+        "first-entry",
+        "second-entry"
+      ],
+      "map": {
+        "entry": "value"
+      },
+      "single": "value"
+    },
+    "purposeOfUse": "eTransfer",
+    "resources": [
+      {
+        "operations": [
+          "read"
+        ],
+        "path": "/composition/1",
+        "userContext": true
+      }
+    ]
+  },
+  "id": "did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW#1",
+  "issuanceDate": "2022-11-25T09:44:16.972576+01:00",
+  "issuer": "did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW",
+  "proof": {
+    "created": "2022-11-25T10:26:24.811629+01:00",
+    "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..Eq2uUNVQLyOtNDgk4yyjzjI-3z9vnI5hRbBOaw285jFwYJVKcuIjexUhGMaiTir1tyCofVQ2isjljJHDB5AbXA",
+    "proofPurpose": "assertionMethod",
+    "type": "JsonWebSignature2020",
+    "verificationMethod": "key-id"
+  },
+  "type": [
+    "NutsAuthorizationCredential",
+    "VerifiableCredential"
+  ]
+}

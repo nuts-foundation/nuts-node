@@ -35,7 +35,7 @@ Example configuration with an allowed remote context and another locally mapped 
           - https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json
           - https://other-usecase-website.nl/use-case-context.ldjson
         localmapping:
-          - https://nuts.nl/credentials/v1: "/abs/path/to/contexts/nuts.ldjson"
+          - https://nuts.nl/credentials/v1: "/abs/path/to/contexts/nuts-v1_1.ldjson"
           - https://yourdomain.nl/custom-context.ldjson: "/abs/path/to/contexts/custom-context.ldjson"
           - https://default-context/v1.ldjson: "assets/contexts/lds-jws2020-v1.ldjson"
           - https://relative-path-usage/v42/ldjson: "./data/vcr/contexts/v42.ldjson"

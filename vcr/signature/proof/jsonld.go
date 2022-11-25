@@ -86,6 +86,7 @@ func (p LDProof) Verify(document Document, suite signature.Suite, key crypto.Pub
 	if err != nil {
 		return err
 	}
+	println(string(canonicalDocument))
 
 	preparedProof, err := p.asCanonicalizableMap()
 	if err != nil {

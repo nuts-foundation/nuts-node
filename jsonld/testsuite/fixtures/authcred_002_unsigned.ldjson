@@ -1,0 +1,27 @@
+{
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1",
+    "https://nuts.nl/credentials/v1",
+    "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
+  ],
+  "credentialSubject": {
+    "id": "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY",
+    "purposeOfUse": "eTransfer",
+    "resources": [
+      {
+        "operations": [
+          "read"
+        ],
+        "path": "/composition/1",
+        "userContext": true
+      }
+    ]
+  },
+  "id": "did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW#1",
+  "issuanceDate": "2022-11-25T09:44:16.972576+01:00",
+  "issuer": "did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW",
+  "type": [
+    "NutsAuthorizationCredential",
+    "VerifiableCredential"
+  ]
+}

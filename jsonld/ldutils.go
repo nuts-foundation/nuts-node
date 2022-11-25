@@ -157,10 +157,12 @@ func DefaultContextConfig() ContextsConfig {
 	return ContextsConfig{
 		RemoteAllowList: DefaultAllowList(),
 		LocalFileMapping: map[string]string{
-			"https://nuts.nl/credentials/v1": "assets/contexts/nuts.ldjson",
-			W3cVcContext:                     "assets/contexts/w3c-credentials-v1.ldjson",
-			Jws2020Context:                   "assets/contexts/lds-jws2020-v1.ldjson",
-			SchemaOrgContext:                 "assets/contexts/schema-org-v13.ldjson",
+			"https://nuts.nl/credentials/v1":   "assets/contexts/nuts-v1_1.ldjson",
+			"https://nuts.nl/credentials/v1.0": "assets/contexts/nuts-v1_0.ldjson",
+			"https://nuts.nl/credentials/v1.1": "assets/contexts/nuts-v1_1.ldjson",
+			W3cVcContext:                       "assets/contexts/w3c-credentials-v1.ldjson",
+			Jws2020Context:                     "assets/contexts/lds-jws2020-v1.ldjson",
+			SchemaOrgContext:                   "assets/contexts/schema-org-v13.ldjson",
 		},
 	}
 }
