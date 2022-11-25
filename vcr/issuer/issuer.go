@@ -245,9 +245,9 @@ func (i issuer) isRevoked(credentialID ssi.URI) (bool, error) {
 	switch err {
 	case nil: // revocation found
 		return true, nil
-	case ErrMultipleFound:
+	case vcr.ErrMultipleFound:
 		return true, nil
-	case ErrNotFound:
+	case vcr.ErrNotFound:
 		return false, nil
 	default:
 		return true, err

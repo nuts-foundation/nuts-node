@@ -389,7 +389,7 @@ func Test_issuer_Revoke(t *testing.T) {
 		storeWithActualCredential := func(c *gomock.Controller) *MockStore {
 			store := NewMockStore(c)
 			store.EXPECT().GetCredential(credentialURI).Return(credentialToRevoke(), nil)
-			store.EXPECT().GetRevocation(credentialURI).Return(nil, ErrNotFound)
+			store.EXPECT().GetRevocation(credentialURI).Return(nil, vcr.ErrNotFound)
 			return store
 		}
 
@@ -439,7 +439,7 @@ func Test_issuer_Revoke(t *testing.T) {
 			invalidCredential := vc.VerifiableCredential{}
 			store := NewMockStore(ctrl)
 			store.EXPECT().GetCredential(credentialURI).Return(&invalidCredential, nil)
-			store.EXPECT().GetRevocation(credentialURI).Return(nil, ErrNotFound)
+			store.EXPECT().GetRevocation(credentialURI).Return(nil, vcr.ErrNotFound)
 
 			sut := issuer{
 				store: store,
@@ -500,7 +500,7 @@ func Test_issuer_Revoke(t *testing.T) {
 	t.Run("for an unknown credential", func(t *testing.T) {
 		storeWithoutCredential := func(c *gomock.Controller) Store {
 			store := NewMockStore(c)
-			store.EXPECT().GetCredential(credentialURI).Return(nil, ErrNotFound)
+			store.EXPECT().GetCredential(credentialURI).Return(nil, vcr.ErrNotFound)
 			return store
 		}
 
@@ -513,7 +513,7 @@ func Test_issuer_Revoke(t *testing.T) {
 			}
 
 			revocation, err := sut.Revoke(credentialURI)
-			assert.EqualError(t, err, "could not revoke (id=did:nuts:123#abc): not found")
+			assert.EqualError(t, err, "could not revoke (id=did:nuts:123#abc): credential not found")
 			assert.Nil(t, revocation)
 		})
 	})
@@ -533,7 +533,7 @@ func TestIssuer_isRevoked(t *testing.T) {
 	}
 
 	t.Run("ok - no revocation", func(t *testing.T) {
-		store.EXPECT().GetRevocation(credentialURI).Return(nil, ErrNotFound)
+		store.EXPECT().GetRevocation(credentialURI).Return(nil, vcr.ErrNotFound)
 
 		isRevoked, err := sut.isRevoked(credentialURI)
 
@@ -549,7 +549,7 @@ func TestIssuer_isRevoked(t *testing.T) {
 		assert.True(t, isRevoked)
 	})
 	t.Run("ok - multiple revocations exists", func(t *testing.T) {
-		store.EXPECT().GetRevocation(credentialURI).Return(nil, ErrMultipleFound)
+		store.EXPECT().GetRevocation(credentialURI).Return(nil, vcr.ErrMultipleFound)
 
 		isRevoked, err := sut.isRevoked(credentialURI)
 
