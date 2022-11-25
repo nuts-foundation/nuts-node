@@ -22,6 +22,7 @@ import (
 	"context"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -137,6 +138,9 @@ func Test_conn_startSending(t *testing.T) {
 		test.WaitFor(t, func() (bool, error) {
 			return atomic.LoadInt32(&connection.activeGoroutines) == 0, nil
 		}, 5*time.Second, "waiting for all goroutines to exit")
+
+		// err status is set on connection. Due to EOF it's an unknown error
+		assert.Equal(t, codes.Unknown, connection.status.Load().Code())
 	})
 }
 

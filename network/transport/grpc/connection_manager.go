@@ -30,9 +30,11 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	grpcPeer "google.golang.org/grpc/peer"
+	"google.golang.org/grpc/status"
 	"net"
 	"sync"
 )
@@ -44,7 +46,7 @@ const nodeDIDHeader = "nodeDID"
 
 // ErrNodeDIDAuthFailed is the error message returned to the peer when the node DID it sent could not be authenticated.
 // It is specified by RFC017.
-var ErrNodeDIDAuthFailed = errors.New("nodeDID authentication failed")
+var ErrNodeDIDAuthFailed = status.Error(codes.Unauthenticated, "nodeDID authentication failed")
 
 // ErrAlreadyConnected indicates the node is already connected to the peer.
 var ErrAlreadyConnected = errors.New("already connected")
@@ -233,7 +235,7 @@ func (s *grpcConnectionManager) Stop() {
 	}
 }
 
-func (s grpcConnectionManager) Connect(peerAddress string, options ...transport.ConnectionOption) {
+func (s *grpcConnectionManager) Connect(peerAddress string, options ...transport.ConnectionOption) {
 	peer := transport.Peer{Address: peerAddress}
 	for _, o := range options {
 		o(&peer)
@@ -276,7 +278,7 @@ func (s *grpcConnectionManager) Diagnostics() []core.DiagnosticResult {
 }
 
 // RegisterService implements grpc.ServiceRegistrar to register the gRPC services protocols expose.
-func (s grpcConnectionManager) RegisterService(desc *grpc.ServiceDesc, impl interface{}) {
+func (s *grpcConnectionManager) RegisterService(desc *grpc.ServiceDesc, impl interface{}) {
 	s.grpcServer.RegisterService(desc, impl)
 }
 
@@ -329,11 +331,20 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 	s.peersCounter.Inc()
 	defer s.peersCounter.Dec()
 
-	// Connection is OK, reset backoff it can immediately try reconnecting when it disconnects
-	backoff.Reset(0)
 	// Function must block until streams are closed or disconnect() is called.
 	connection.waitUntilDisconnected()
 	_ = grpcConn.Close()
+
+	if st := connection.CloseError(); st != nil && st.Code() == codes.Unauthenticated {
+		// other side said unauthenticated, increase backoff
+		backoff.Backoff()
+		// return error so entire connection will be tried anew. Otherwise, backoff isn't honored
+		return st.Err()
+	}
+
+	// Connection is OK, reset backoff it can immediately try reconnecting when it disconnects
+	backoff.Reset(0)
+
 	return nil
 }
 
@@ -514,6 +525,7 @@ func (s *grpcConnectionManager) startTracking(address string, connection Connect
 		tls:               tlsConfig,
 		connectionTimeout: s.config.connectionTimeout,
 	}
+
 	connection.startConnecting(cfg, backoff, func(grpcConn *grpc.ClientConn) bool {
 		err := s.openOutboundStreams(connection, grpcConn, backoff)
 		if err != nil {

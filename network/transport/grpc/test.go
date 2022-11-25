@@ -150,7 +150,7 @@ func (s *StubConnection) Send(_ Protocol, envelope interface{}, _ bool) error {
 }
 
 // Peer returns the peer information of the connection
-func (s StubConnection) Peer() transport.Peer {
+func (s *StubConnection) Peer() transport.Peer {
 	return transport.Peer{
 		ID:      s.PeerID,
 		NodeDID: s.NodeDID,
@@ -158,43 +158,51 @@ func (s StubConnection) Peer() transport.Peer {
 }
 
 // IsConnected returns true if the connection is connected
-func (s StubConnection) IsConnected() bool {
+func (s *StubConnection) IsConnected() bool {
 	return s.Open
 }
 
 // IsProtocolConnected returns true if the connection is connected for the given protocol
-func (s StubConnection) IsProtocolConnected(_ Protocol) bool {
+func (s *StubConnection) IsProtocolConnected(_ Protocol) bool {
 	return s.Open
 }
 
-func (s StubConnection) disconnect() {
+func (s *StubConnection) CloseError() *status.Status {
 	panic("implement me")
 }
 
-func (s StubConnection) waitUntilDisconnected() {
+func (s *StubConnection) SetErrorStatus(_ *status.Status) {
 	panic("implement me")
 }
 
-func (s StubConnection) startConnecting(_ connectorConfig, _ Backoff, _ func(_ *grpc.ClientConn) bool) {
+func (s *StubConnection) disconnect() {
 	panic("implement me")
 }
 
-func (s StubConnection) stopConnecting() {
+func (s *StubConnection) waitUntilDisconnected() {
 	panic("implement me")
 }
 
-func (s StubConnection) registerStream(_ Protocol, _ Stream) bool {
+func (s *StubConnection) startConnecting(_ connectorConfig, _ Backoff, _ func(_ *grpc.ClientConn) bool) {
 	panic("implement me")
 }
 
-func (s StubConnection) verifyOrSetPeerID(_ transport.PeerID) bool {
+func (s *StubConnection) stopConnecting() {
 	panic("implement me")
 }
 
-func (s StubConnection) setPeer(_ transport.Peer) {
+func (s *StubConnection) registerStream(_ Protocol, _ Stream) bool {
 	panic("implement me")
 }
 
-func (s StubConnection) outboundConnector() *outboundConnector {
+func (s *StubConnection) verifyOrSetPeerID(_ transport.PeerID) bool {
+	panic("implement me")
+}
+
+func (s *StubConnection) setPeer(_ transport.Peer) {
+	panic("implement me")
+}
+
+func (s *StubConnection) outboundConnector() *outboundConnector {
 	panic("implement me")
 }

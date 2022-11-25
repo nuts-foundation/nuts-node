@@ -10,6 +10,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	transport "github.com/nuts-foundation/nuts-node/network/transport"
 	grpc "google.golang.org/grpc"
+	status "google.golang.org/grpc/status"
 )
 
 // MockConnection is a mock of Connection interface.
@@ -33,6 +34,20 @@ func NewMockConnection(ctrl *gomock.Controller) *MockConnection {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockConnection) EXPECT() *MockConnectionMockRecorder {
 	return m.recorder
+}
+
+// CloseError mocks base method.
+func (m *MockConnection) CloseError() *status.Status {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CloseError")
+	ret0, _ := ret[0].(*status.Status)
+	return ret0
+}
+
+// CloseError indicates an expected call of CloseError.
+func (mr *MockConnectionMockRecorder) CloseError() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloseError", reflect.TypeOf((*MockConnection)(nil).CloseError))
 }
 
 // IsConnected mocks base method.
