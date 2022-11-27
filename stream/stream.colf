@@ -1,0 +1,10 @@
+package stream
+
+// Event is an event-stream record.
+type Event struct {
+	// The transaction signature is a JSON Web Token.
+	JWS text
+
+	// The transaction payload is optional.
+	Content binary
+}
