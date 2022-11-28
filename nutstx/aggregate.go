@@ -17,10 +17,10 @@ type Aggregate interface {
 	ApplyEvent(stream.Event, jws.Headers) error
 
 	// WriteTo dumps a snapshot of the state.
-	io.WriterTo
+	WriteTo(io.Writer) error
 
 	// ReadFrom replaces the current state from a WriteTo.
-	io.ReaderFrom
+	ReadeFrom(io.Reader) error
 }
 
 // SignatureAggregate tracks the public keys in use.
