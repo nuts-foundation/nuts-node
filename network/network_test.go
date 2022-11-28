@@ -588,10 +588,14 @@ func TestNetwork_Start(t *testing.T) {
 			Service: []did.Service{
 				{
 					Type:            transport.NutsCommServiceType,
-					ServiceEndpoint: "grpc://nuts.nl:5555",
+					ServiceEndpoint: "grpc://nuts.nl:5555", // certificate only contains localhost
 				},
 			},
 		}
+		certificate, err := tls.LoadX509KeyPair("test/certificate-and-key.pem", "test/certificate-and-key.pem")
+		require.NoError(t, err)
+		certificate.Leaf, err = x509.ParseCertificate(certificate.Certificate[0])
+		require.NoError(t, err)
 		t.Run("ok - configured node DID successfully resolves", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
@@ -602,6 +606,22 @@ func TestNetwork_Start(t *testing.T) {
 
 			err := cxt.start()
 
+			assert.NoError(t, err)
+		})
+		t.Run("ok - configured node DID successfully resolves with TLS", func(t *testing.T) {
+			old := completeDocument.Service[0].ServiceEndpoint
+			completeDocument.Service[0].ServiceEndpoint = "grpc://localhost:5555" // must match SAN of TLS certificate
+			defer func() { completeDocument.Service[0].ServiceEndpoint = old }()
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			cxt := createNetwork(t, ctrl)
+			cxt.network.certificate = certificate
+			cxt.network.strictMode = true
+			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
+			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
+			cxt.keyStore.EXPECT().Exists(keyID.String()).Return(true)
+			err := cxt.start()
 			assert.NoError(t, err)
 		})
 		t.Run("ok - invalid node DID configuration in non-strict mode", func(t *testing.T) {
@@ -658,6 +678,59 @@ func TestNetwork_Start(t *testing.T) {
 			cxt.state.EXPECT().Start()
 			err := cxt.network.Start()
 			assert.EqualError(t, err, "invalid NodeDID configuration: unable to resolve NutsComm service endpoint, register it on the DID document (did=did:nuts:test): service not found in DID Document")
+		})
+		t.Run("error - cannot marshal NutsComm service", func(t *testing.T) {
+			old := completeDocument.Service[0].ServiceEndpoint
+			completeDocument.Service[0].ServiceEndpoint = struct{}{}
+			defer func() { completeDocument.Service[0].ServiceEndpoint = old }()
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			cxt := createNetwork(t, ctrl)
+			cxt.network.strictMode = true
+			cxt.network.certificate = certificate
+			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
+			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
+			cxt.keyStore.EXPECT().Exists(keyID.String()).Return(true)
+			cxt.state.EXPECT().Start()
+
+			err := cxt.network.Start()
+
+			assert.EqualError(t, err, "invalid NodeDID configuration: invalid NutsComm service endpoint: json: cannot unmarshal object into Go value of type string")
+		})
+		t.Run("error - cannot parse NutsComm service", func(t *testing.T) {
+			old := completeDocument.Service[0].ServiceEndpoint
+			completeDocument.Service[0].ServiceEndpoint = string([]byte{0})
+			defer func() { completeDocument.Service[0].ServiceEndpoint = old }()
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			cxt := createNetwork(t, ctrl)
+			cxt.network.strictMode = true
+			cxt.network.certificate = certificate
+			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
+			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
+			cxt.keyStore.EXPECT().Exists(keyID.String()).Return(true)
+			cxt.state.EXPECT().Start()
+
+			err := cxt.network.Start()
+
+			assert.EqualError(t, err, "invalid NodeDID configuration: invalid NutsComm service endpoint: parse \"\\x00\": net/url: invalid control character in URL")
+		})
+		t.Run("error - NutsComm service does not match with certificate", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			cxt := createNetwork(t, ctrl)
+			cxt.network.strictMode = true
+			cxt.network.certificate = certificate
+			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
+			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
+			cxt.keyStore.EXPECT().Exists(keyID.String()).Return(true)
+			cxt.state.EXPECT().Start()
+
+			err := cxt.network.Start()
+
+			assert.EqualError(t, err, "invalid NodeDID configuration: none of the DNS names in TLS certificate match the NutsComm service endpoint (nodeDID=did:nuts:test, NutsComm=grpc://nuts.nl:5555)")
 		})
 	})
 }
@@ -893,7 +966,7 @@ func Test_connectToKnownNodes(t *testing.T) {
 			Service: []did.Service{
 				{
 					Type:            transport.NutsCommServiceType,
-					ServiceEndpoint: "grpc://local:5555",
+					ServiceEndpoint: "grpc://local.com:5555",
 				},
 			},
 		}

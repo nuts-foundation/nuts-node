@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -411,9 +412,27 @@ func (n *Network) validateNodeDID(nodeDID did.DID) error {
 	// Check if the DID document has a resolvable NutsComm endpoint
 	serviceResolver := doc.NewServiceResolver(n.didDocumentResolver)
 	serviceRef := doc.MakeServiceReference(nodeDID, transport.NutsCommServiceType)
-	_, err = serviceResolver.Resolve(serviceRef, doc.DefaultMaxServiceReferenceDepth)
+	nutsCommService, err := serviceResolver.Resolve(serviceRef, doc.DefaultMaxServiceReferenceDepth)
 	if err != nil {
 		return fmt.Errorf("unable to resolve %s service endpoint, register it on the DID document (did=%s): %v", transport.NutsCommServiceType, nodeDID, err)
+	}
+
+	// Self-authentication requires a certificate. Running non-TLS is evaluated in Configure
+	if n.certificate.Leaf == nil { // n.config.DisableNodeAuthentication is for incoming connections.
+		return nil
+	}
+
+	// Check if the NutsComm endpoint matches a SAN on the certificate
+	var nutsCommURLStr string
+	if err = nutsCommService.UnmarshalServiceEndpoint(&nutsCommURLStr); err != nil {
+		return fmt.Errorf("invalid %s service endpoint: %w", transport.NutsCommServiceType, err)
+	}
+	nutsCommURL, err := url.Parse(nutsCommURLStr)
+	if err != nil {
+		return fmt.Errorf("invalid %s service endpoint: %w", transport.NutsCommServiceType, err)
+	}
+	if err = n.certificate.Leaf.VerifyHostname(nutsCommURL.Hostname()); err != nil {
+		return fmt.Errorf("none of the DNS names in TLS certificate match the %s service endpoint (nodeDID=%s, %s=%s)", transport.NutsCommServiceType, nodeDID, transport.NutsCommServiceType, nutsCommURL.String())
 	}
 	return nil
 }
