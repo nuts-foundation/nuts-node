@@ -156,14 +156,14 @@ paths:
         - name: issuer
           in: query
           description: the DID of the issuer
-          example: did:nuts:123
+          example: did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
           required: true
           schema:
             type: string
         - name: subject
           in: query
           description: the URI which indicates the subject (usually a DID)
-          example: did:nuts:456
+          example: did:nuts:9z72Hjg5P567VkgFFvUNjSHtG6pYzqvcLA1KXnFq6VK7
           required: false
           schema:
             type: string
@@ -451,7 +451,7 @@ components:
           type: string
           example: "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY"
         expirationDate:
-          description: rfc3339 time string until when the credential is valid.
+          description: RFC3339 time string until when the credential is valid.
           type: string
           example: "2012-01-02T12:00:00Z"
         publishToNetwork:

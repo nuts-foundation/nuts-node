@@ -398,7 +398,7 @@ components:
     LegalEntity:
       type: string
       description: DID of the organization as registered in the Nuts registry.
-      example: "did:nuts:128903fjgfslcnmgpe84"
+      example: "did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic"
     Contract:
       required:
         - type
@@ -626,12 +626,12 @@ components:
           type: string
           description: |
             The subject (not a Nuts subject) contains the DID of the authorizer.
-          example: "did:nuts:128903fjgfslcnmgpe84"
+          example: did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
         sub:
           type: string
           description: |
             The subject is always the acting party, thus the care organization requesting access to data.
-          example: "did:nuts:128903fjgfslcnmgpe84"
+          example: did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
         aud:
           type: string
           description: |
