@@ -53,9 +53,9 @@ When starting your node, the following error can occur:
 
     invalid nodeDID configuration: <error details>
 
-Correctly configured nodes have a ``NutsComm`` service endpoint on the did document of the configured ``network.nodeDID``,
+Correctly configured nodes have a ``NutsComm`` service endpoint on the DID document of the configured ``network.nodeDID``,
 and this address must be listed in the Subject Alternative Name section of the configured ``TLS certificate``.
 A misconfiguration in any of these three items means that peers cannot authenticate the connection to your node,
-and in strictmode this will prevent the node from starting. The <error details> will point you to the exact issue.
-Remove the nodeDID from the configuration in strictmode to view or change the ``NutsComm`` address.
-In non-strictmode, the misconfiguration is logged as an error, but is not fatal.
+and in strictmode this will prevent the node from starting. The ``<error details>`` will point you to the exact issue.
+When in strict mode, remove the nodeDID from the configuration to view or change the ``NutsComm`` address.
+In non-strictmode, the misconfiguration is logged as an error but it doesn't prevent the node from starting.
