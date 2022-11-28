@@ -141,6 +141,7 @@ Production Checklist
 Below is a list of items that should be addressed when running a node in production:
 
 * TLS
+  * Use a proxy in front of the node which terminates TLS
   * Require client certificate on HTTP ``/n2n`` and gRPC endpoints.
   * Make sure only correct CA certificates are in truststore (depends on network)
 * Key Management
@@ -151,4 +152,5 @@ Below is a list of items that should be addressed when running a node in product
 * Configuration
   * Make sure ``strictmode`` is enabled
 * Security
-  * Protect access to HTTP ``/internal``
+  * Only allow public access to ``/public``, ``/n2n`` and gRPC endpoints (but the latter 2 still require a client certificate).
+  * Make sure ``/internal`` is properly protected
