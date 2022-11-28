@@ -117,7 +117,7 @@ func TestState_Start(t *testing.T) {
 		// createState already calls Start
 
 		err := txState.(*state).db.Read(context.Background(), func(tx stoabs.ReadTx) error {
-			for _, shelf := range []string{transactionsShelf, headsShelf, clockShelf, payloadsShelf, ibltShelf, xorShelf} {
+			for _, shelf := range []string{transactionsShelf, headsShelf, clockShelf, ibltShelf, xorShelf} {
 				reader := tx.GetShelfReader(shelf)
 				assert.NotNil(t, reader)
 			}

@@ -47,7 +47,7 @@ const (
 type state struct {
 	db                  stoabs.KVStore
 	graph               *dag
-	payloadStore        PayloadStore
+	payloadPerHash      map[hash.SHA256Hash]string
 	txVerifiers         []Verifier
 	notifiers           sync.Map
 	xorTree             *treeStore
@@ -66,11 +66,10 @@ func (s *state) Migrate() error {
 func NewState(db stoabs.KVStore, verifiers ...Verifier) (State, error) {
 	graph := newDAG(db)
 
-	payloadStore := NewPayloadStore()
 	newState := &state{
 		db:           db,
 		graph:        graph,
-		payloadStore: payloadStore,
+		payloadPerHash: make(map[hash.SHA256Hash]string),
 		txVerifiers:  verifiers,
 		xorTree:      newTreeStore(xorShelf, tree.New(tree.NewXor(), PageSize)),
 		ibltTree:     newTreeStore(ibltShelf, tree.New(tree.NewIblt(IbltNumBuckets), PageSize)),
@@ -183,17 +182,15 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 			if !transaction.PayloadHash().Equals(payloadHash) {
 				return errors.New("tx.PayloadHash does not match hash of payload")
 			}
-			if err := s.payloadStore.writePayload(tx, payloadHash, payload); err != nil {
-				return err
-			}
-			if err := s.saveEvent(tx, payloadEvent); err != nil {
+			s.payloadPerHash[hash.SHA256Sum(payload)] = string(payload)
+			if err := s.saveEvent(payloadEvent); err != nil {
 				return err
 			}
 		}
 		if err := s.graph.add(tx, transaction); err != nil {
 			return err
 		}
-		if err := s.saveEvent(tx, txEvent); err != nil {
+		if err := s.saveEvent(txEvent); err != nil {
 			return err
 		}
 
@@ -274,11 +271,8 @@ func (s *state) GetTransaction(ctx context.Context, hash hash.SHA256Hash) (trans
 }
 
 func (s *state) IsPayloadPresent(ctx context.Context, hash hash.SHA256Hash) (present bool, err error) {
-	err = s.db.Read(ctx, func(tx stoabs.ReadTx) error {
-		present = s.payloadStore.isPayloadPresent(tx, hash)
-		return nil
-	})
-	return
+	_, ok := s.payloadPerHash[hash]
+	return ok, nil
 }
 
 func (s *state) IsPresent(ctx context.Context, hash hash.SHA256Hash) (present bool, err error) {
@@ -297,22 +291,20 @@ func (s *state) WritePayload(ctx context.Context, transaction Transaction, paylo
 		Transaction: transaction,
 		Payload:     data,
 	}
-	return s.db.Write(ctx, func(tx stoabs.WriteTx) error {
-		if err := s.saveEvent(tx, event); err != nil {
-			return err
-		}
-		return s.payloadStore.writePayload(tx, payloadHash, data)
-	}, stoabs.AfterCommit(func() {
-		s.notify(event)
-	}), stoabs.WithWriteLock())
+	if err := s.saveEvent(event); err != nil {
+		return err
+	}
+	s.payloadPerHash[payloadHash] = string(data)
+	s.notify(event)
+	return nil
 }
 
 func (s *state) ReadPayload(ctx context.Context, hash hash.SHA256Hash) (payload []byte, err error) {
-	err = s.db.Read(ctx, func(tx stoabs.ReadTx) error {
-		payload, err = s.payloadStore.readPayload(tx, hash)
-		return err
-	})
-	return
+	p, ok := s.payloadPerHash[hash]
+	if !ok {
+		return nil, ErrPayloadNotFound
+	}
+	return []byte(p), nil
 }
 
 func (s *state) Head(ctx context.Context) (hash.SHA256Hash, error) {
@@ -428,10 +420,11 @@ func (s *state) Verify(ctx context.Context) error {
 	})
 }
 
-func (s *state) saveEvent(tx stoabs.WriteTx, event Event) error {
+func (s *state) saveEvent(e Event) error {
 	var err error
 	s.notifiers.Range(func(_, value any) bool {
-		err = value.(Notifier).Save(tx, event)
+		// ⚠️ BUG(pascaldekloe) Notifier Save no longer gets a transaction.
+		err = value.(Notifier).Save(nil, e)
 		return err == nil
 	})
 	return err
