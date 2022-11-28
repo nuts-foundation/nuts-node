@@ -67,12 +67,12 @@ func NewState(db stoabs.KVStore, verifiers ...Verifier) (State, error) {
 	graph := newDAG(db)
 
 	newState := &state{
-		db:           db,
-		graph:        graph,
+		db:             db,
+		graph:          graph,
 		payloadPerHash: make(map[hash.SHA256Hash]string),
-		txVerifiers:  verifiers,
-		xorTree:      newTreeStore(xorShelf, tree.New(tree.NewXor(), PageSize)),
-		ibltTree:     newTreeStore(ibltShelf, tree.New(tree.NewIblt(IbltNumBuckets), PageSize)),
+		txVerifiers:    verifiers,
+		xorTree:        newTreeStore(tree.New(tree.NewXor(), PageSize)),
+		ibltTree:       newTreeStore(tree.New(tree.NewIblt(IbltNumBuckets), PageSize)),
 	}
 	err := newState.initPrometheusCounters()
 	if err != nil && err.Error() != (prometheus.AlreadyRegisteredError{}).Error() { // No unwrap on prometheus.AlreadyRegisteredError
@@ -195,7 +195,8 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 		}
 
 		// update XOR and IBLT
-		return s.updateState(tx, transaction)
+		s.updateState(transaction)
+		return nil
 	}, stoabs.OnRollback(func() {
 		log.Logger().Warn("Reloading the XOR and IBLT trees due to a DB transaction Rollback")
 		s.loadState(ctx)
@@ -213,7 +214,7 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 	}), stoabs.WithWriteLock())
 }
 
-func (s *state) updateState(tx stoabs.WriteTx, transaction Transaction) error {
+func (s *state) updateState(transaction Transaction) {
 	clock := transaction.Clock()
 	for {
 		v := s.lamportClockHigh.Load()
@@ -221,21 +222,13 @@ func (s *state) updateState(tx stoabs.WriteTx, transaction Transaction) error {
 			break
 		}
 	}
-	if err := s.ibltTree.write(tx, transaction); err != nil {
-		return err
-	}
-	return s.xorTree.write(tx, transaction)
+	s.ibltTree.insert(transaction)
+	s.xorTree.insert(transaction)
 }
 
 func (s *state) loadState(ctx context.Context) {
 	if err := s.db.Read(ctx, func(tx stoabs.ReadTx) error {
 		s.lamportClockHigh.Store(s.graph.getHighestClockValue(tx))
-		if err := s.xorTree.read(tx); err != nil {
-			return fmt.Errorf("failed to read xorTree: %w", err)
-		}
-		if err := s.ibltTree.read(tx); err != nil {
-			return fmt.Errorf("failed to read ibltTree: %w", err)
-		}
 		return nil
 	}); err != nil {
 		log.Logger().

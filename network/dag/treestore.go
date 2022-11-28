@@ -19,25 +19,28 @@
 package dag
 
 import (
-	"encoding/binary"
+	"encoding/gob"
+	"fmt"
+	"io"
 	"sync"
 
-	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 )
 
 type treeStore struct {
-	bucketName string
-	tree       tree.Tree
-	mutex      sync.Mutex
+	perClock map[uint32][]byte
+	tree     tree.Tree
+	mutex    sync.Mutex
 }
 
 // newTreeStore returns an instance of a tree store.
-func newTreeStore(bucketName string, tree tree.Tree) *treeStore {
-	return &treeStore{
-		bucketName: bucketName,
-		tree:       tree,
+func newTreeStore(tree tree.Tree) *treeStore {
+	store := treeStore{
+		perClock: make(map[uint32][]byte),
+		tree:     tree,
 	}
+	gob.Register(store.perClock)
+	return &store
 }
 
 // getRoot returns the tree.Data summary of the entire tree.
@@ -57,67 +60,41 @@ func (store *treeStore) getZeroTo(clock uint32) (tree.Data, uint32) {
 	return store.tree.ZeroTo(clock)
 }
 
-// write inserts a transaction reference to the in-memory tree and to persistent storage.
-// The tree is not aware of previously seen transactions, so it should be transactional with updates to the dag.
-func (store *treeStore) write(tx stoabs.WriteTx, transaction Transaction) error {
-	store.mutex.Lock()
-	defer store.mutex.Unlock()
-
-	writer, err := tx.GetShelfWriter(store.bucketName)
-	if err != nil {
-		return err
-	}
-
+func (store *treeStore) insert(transaction Transaction) {
 	store.tree.Insert(transaction.Ref(), transaction.Clock())
+
 	dirties, orphaned := store.tree.Updates()
-	store.tree.ResetUpdates() // failure after this point results in rollback anyway
+	store.tree.ResetUpdates()
 
 	// delete orphaned leaves
-	for _, orphan := range orphaned { // always zero
-		err = writer.Delete(clockToKey(orphan))
-		if err != nil {
-			return err
-		}
+	for _, clock := range orphaned { // always zero
+		delete(store.perClock, clock)
 	}
 
 	// write new/updated leaves
-	for dirty, data := range dirties { // contains exactly 1 dirty
-		err = writer.Put(clockToKey(dirty), data)
-		if err != nil {
-			return err
-		}
+	for clock, data := range dirties { // contains exactly 1 dirty
+		store.perClock[clock] = data
 	}
-	return nil
 }
 
-// read fills the tree with data in the bucket.
-// Returns an error the bucket does not exist, or if data in the bucket doesn't match the tree's Data prototype.
-func (store *treeStore) read(tx stoabs.ReadTx) error {
-	store.mutex.Lock()
-	defer store.mutex.Unlock()
+// ReadFrom implements nutstx.Aggregate.
+func (store *treeStore) ReadFrom(r io.Reader) error {
+	// full reset
+	for key := range store.perClock {
+		delete(store.perClock, key)
+	}
 
-	reader := tx.GetShelfReader(store.bucketName)
-
-	// get data
-	rawData := map[uint32][]byte{}
-	err := reader.Iterate(func(k stoabs.Key, v []byte) error {
-		rawData[keyToClock(k)] = v
-		return nil
-	}, clockToKey(0))
+	// unmarshal dump
+	err := gob.NewDecoder(r).Decode(&store.perClock)
 	if err != nil {
-		return err
+		return fmt.Errorf("tree dump: %w", err)
 	}
 
 	// build tree
-	return store.tree.Load(rawData)
+	return store.tree.Load(store.perClock)
 }
 
-func clockToKey(clock uint32) stoabs.Key {
-	var bytes [4]byte
-	binary.LittleEndian.PutUint32(bytes[:], clock)
-	return stoabs.BytesKey(bytes[:])
-}
-
-func keyToClock(key stoabs.Key) uint32 {
-	return binary.LittleEndian.Uint32(key.Bytes())
+// WriteTo implements nutstx.Aggregate.
+func (store *treeStore) WriteTo(w io.Writer) error {
+	return gob.NewEncoder(w).Encode(store.perClock)
 }
