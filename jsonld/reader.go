@@ -32,6 +32,8 @@ const JSONLdBase = ""
 type Reader struct {
 	// DocumentLoader the document loader that resolves JSON-LD context urls
 	DocumentLoader ld.DocumentLoader
+	// AllowUndefinedProperties specifies whether the reader should return an error when it occurs a property that is not defined in the JSON-LD context.
+	AllowUndefinedProperties bool
 }
 
 // Read transforms a struct to a Document (expanded JSON-LD)
@@ -53,6 +55,7 @@ func (r Reader) ReadBytes(asJSON []byte) (Document, error) {
 
 	processor := ld.NewJsonLdProcessor()
 	options := ld.NewJsonLdOptions(JSONLdBase)
+	options.SafeMode = !r.AllowUndefinedProperties
 	options.DocumentLoader = r.DocumentLoader
 
 	return processor.Expand(compact, options)

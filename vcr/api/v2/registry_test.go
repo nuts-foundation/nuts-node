@@ -286,6 +286,31 @@ func TestWrapper_SearchVCs(t *testing.T) {
 		assert.EqualError(t, err, "can't match on multiple VC subjects")
 	})
 
+	t.Run("error - query contains properties not defined in JSON-LD context returns error", func(t *testing.T) {
+		const query = `
+{
+	"query": {
+		"@context": ["https://www.w3.org/2018/credentials/v1","https://nuts.nl/credentials/v1"],
+		"type": ["VerifiableCredential", "NutsOrganizationCredential"],
+		"credentialSubject":{
+			"id":"did:nuts:123",
+			"organization": {
+				"test": "bla"
+			}
+		}
+	}
+}`
+
+		ctx := newMockContext(t)
+		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
+			_ = json.Unmarshal([]byte(query), f)
+		})
+
+		err := ctx.client.SearchVCs(ctx.echo)
+
+		assert.EqualError(t, err, "failed to convert query to JSON-LD expanded form: invalid property: Dropping property that did not expand into an absolute IRI or keyword.")
+	})
+
 	t.Run("error - error retrieving revocation", func(t *testing.T) {
 		ctx := newMockContext(t)
 		req := httptest.NewRequest(http.MethodPost, "/", nil)

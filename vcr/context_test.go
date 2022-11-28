@@ -55,7 +55,9 @@ func TestNutsV1Context(t *testing.T) {
 		assert.NoError(t, err)
 	})
 	t.Run("NutsAuthorizationCredential", func(t *testing.T) {
-		vcJSON, _ := credential.ValidNutsAuthorizationCredential().MarshalJSON()
+		subject := credential.ValidNutsAuthorizationCredential()
+		subject.Proof = nil
+		vcJSON, _ := subject.MarshalJSON()
 		documents, err := reader.ReadBytes(vcJSON)
 		if err != nil {
 			panic(err)

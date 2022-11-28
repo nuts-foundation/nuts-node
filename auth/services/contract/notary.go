@@ -305,7 +305,10 @@ func (n *notary) findVC(orgID did.DID) (string, string, error) {
 	}
 
 	// expand
-	reader := jsonld.Reader{DocumentLoader: n.jsonldManager.DocumentLoader()}
+	reader := jsonld.Reader{
+		DocumentLoader:           n.jsonldManager.DocumentLoader(),
+		AllowUndefinedProperties: true,
+	}
 	document, err := reader.Read(result[0])
 	if err != nil {
 		return "", "", fmt.Errorf("could not read VC: %w", err)

@@ -309,7 +309,10 @@ func (s *service) validateIssuer(vContext *validationContext) error {
 		return errors.New("requester has no trusted organization VC")
 	}
 
-	reader := jsonld.Reader{DocumentLoader: s.jsonldManager.DocumentLoader()}
+	reader := jsonld.Reader{
+		DocumentLoader:           s.jsonldManager.DocumentLoader(),
+		AllowUndefinedProperties: true,
+	}
 	document, err := reader.Read(vcs[0])
 	if err != nil {
 		return fmt.Errorf("could not expand credential to JSON-LD: %w", err)
