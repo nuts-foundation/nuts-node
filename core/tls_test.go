@@ -29,15 +29,15 @@ func TestLoadTrustStore(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, store)
-		assert.Len(t, store.Certificates(), 3)
+		assert.Len(t, store.Certificates(), 4)
 
 		// Assert root certs
 		assert.Len(t, store.RootCAs, 2)
 		assert.Equal(t, "CN=Root CA", store.RootCAs[0].Subject.String())
 		assert.Equal(t, "CN=Staat der Nederlanden EV Root CA,O=Staat der Nederlanden,C=NL", store.RootCAs[1].Subject.String())
 		// Assert intermediate certs
-		assert.Len(t, store.IntermediateCAs, 1)
-		assert.Equal(t, "CN=Staat der Nederlanden Domein Server CA 2020,O=Staat der Nederlanden,C=NL", store.IntermediateCAs[0].Subject.String())
+		assert.Len(t, store.IntermediateCAs, 2)
+		assert.Equal(t, "CN=Staat der Nederlanden Domein Server CA 2020,O=Staat der Nederlanden,C=NL", store.IntermediateCAs[1].Subject.String())
 	})
 	t.Run("invalid PEM file", func(t *testing.T) {
 		store, err := LoadTrustStore("tls_test.go")

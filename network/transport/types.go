@@ -101,21 +101,21 @@ const NutsCommServiceType = "NutsComm"
 // The input must include the protocol scheme (e.g. grpc://).
 // The address must NOT be an IP address.
 // The input must not be a reserved address or TLD as described in RFC2606 or https://www.ietf.org/archive/id/draft-chapin-rfc2606bis-00.html.
-func ParseNutsCommAddress(input string) (string, error) {
+func ParseNutsCommAddress(input string) (*url.URL, error) {
 	parsed, err := url.Parse(input)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if parsed.Scheme != "grpc" {
-		return "", errors.New("invalid URL scheme")
+		return nil, errors.New("invalid URL scheme")
 	}
 	if net.ParseIP(parsed.Hostname()) != nil {
-		return "", errors.New("hostname is IP")
+		return nil, errors.New("hostname is IP")
 	}
 	if isReserved(parsed) {
-		return "", errors.New("hostname is reserved")
+		return nil, errors.New("hostname is reserved")
 	}
-	return parsed.Host, nil
+	return parsed, nil
 }
 
 // isReserved returns true if URL uses any of the reserved TLDs or addresses

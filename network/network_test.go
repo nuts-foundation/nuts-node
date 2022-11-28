@@ -588,7 +588,7 @@ func TestNetwork_Start(t *testing.T) {
 			Service: []did.Service{
 				{
 					Type:            transport.NutsCommServiceType,
-					ServiceEndpoint: "grpc://nuts.nl:5555", // certificate only contains localhost
+					ServiceEndpoint: "grpc://nuts.nl:5555",
 				},
 			},
 		}
@@ -609,10 +609,6 @@ func TestNetwork_Start(t *testing.T) {
 			assert.NoError(t, err)
 		})
 		t.Run("ok - configured node DID successfully resolves with TLS", func(t *testing.T) {
-			old := completeDocument.Service[0].ServiceEndpoint
-			completeDocument.Service[0].ServiceEndpoint = "grpc://localhost:5555" // must match SAN of TLS certificate
-			defer func() { completeDocument.Service[0].ServiceEndpoint = old }()
-
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			cxt := createNetwork(t, ctrl)
@@ -717,7 +713,25 @@ func TestNetwork_Start(t *testing.T) {
 
 			assert.EqualError(t, err, "invalid NodeDID configuration: invalid NutsComm service endpoint: parse \"\\x00\": net/url: invalid control character in URL")
 		})
-		t.Run("error - NutsComm service does not match with certificate", func(t *testing.T) {
+		t.Run("error - no TLS certificate", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+			cxt := createNetwork(t, ctrl)
+			cxt.network.strictMode = true
+			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
+			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
+			cxt.keyStore.EXPECT().Exists(keyID.String()).Return(true)
+			cxt.state.EXPECT().Start()
+
+			err := cxt.network.Start()
+
+			assert.EqualError(t, err, "invalid NodeDID configuration: missing TLS certificate")
+		})
+		t.Run("error - wrong TLS certificate", func(t *testing.T) {
+			old := completeDocument.Service[0].ServiceEndpoint
+			completeDocument.Service[0].ServiceEndpoint = "grpc://not.nuts.nl:5555"
+			defer func() { completeDocument.Service[0].ServiceEndpoint = old }()
+
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			cxt := createNetwork(t, ctrl)
@@ -730,7 +744,7 @@ func TestNetwork_Start(t *testing.T) {
 
 			err := cxt.network.Start()
 
-			assert.EqualError(t, err, "invalid NodeDID configuration: none of the DNS names in TLS certificate match the NutsComm service endpoint (nodeDID=did:nuts:test, NutsComm=grpc://nuts.nl:5555)")
+			assert.EqualError(t, err, "invalid NodeDID configuration: none of the DNS names in TLS certificate match the NutsComm service endpoint (nodeDID=did:nuts:test, NutsComm=grpc://not.nuts.nl:5555)")
 		})
 	})
 }
