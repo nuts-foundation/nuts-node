@@ -6,6 +6,18 @@ Release notes
 What has been changed, and how to update between versions.
 
 *****************
+Coconut update (v4.3.1)
+*****************
+
+Release date: 2022-11-28
+
+This patch release fixes the following:
+
+- Synchronize calls to DIDMan to avoid parallel calls from clients creating conflicted DID documents
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.3.0...v4.3.1
+
+*****************
 Chestnut update (v4.3.0)
 *****************
 
