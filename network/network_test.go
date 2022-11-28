@@ -966,7 +966,7 @@ func Test_connectToKnownNodes(t *testing.T) {
 			Service: []did.Service{
 				{
 					Type:            transport.NutsCommServiceType,
-					ServiceEndpoint: "grpc://local.com:5555",
+					ServiceEndpoint: "grpc://local.com:5555", // reserved and IP addresses (local) are not auto-discovered
 				},
 			},
 		}
