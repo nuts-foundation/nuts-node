@@ -23,8 +23,10 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/require"
+	"io/fs"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"testing"
 
@@ -36,6 +38,38 @@ func Test_NewFileSystemBackend(t *testing.T) {
 		storage, err := NewFileSystemBackend("")
 		assert.EqualError(t, err, "filesystem path is empty")
 		assert.Nil(t, storage)
+	})
+}
+
+func TestFileSystemBackend_SavePrivateKey(t *testing.T) {
+	pk := test.GenerateECKey()
+	kid := "kid"
+
+	t.Run("it fails when the file already exists", func(t *testing.T) {
+		testDir := io.TestDirectory(t)
+		storage, _ := NewFileSystemBackend(testDir)
+
+		filename := filepath.Join(testDir, getEntryFileName(kid, privateKeyEntry))
+		_, err := os.Create(filename)
+		require.NoError(t, err)
+
+		err = storage.SavePrivateKey(kid, pk)
+		assert.ErrorContains(t, err, "file exists")
+	})
+
+	t.Run("is creates with the right file permissions", func(t *testing.T) {
+		testDir := io.TestDirectory(t)
+		storage, _ := NewFileSystemBackend(testDir)
+
+		err := storage.SavePrivateKey(kid, pk)
+		require.NoError(t, err)
+
+		// Check the file permissions:
+		filename := filepath.Join(testDir, getEntryFileName(kid, privateKeyEntry))
+		info, err := os.Stat(filename)
+		require.NoError(t, err)
+
+		assert.Equal(t, fs.FileMode(0600), info.Mode().Perm())
 	})
 }
 
