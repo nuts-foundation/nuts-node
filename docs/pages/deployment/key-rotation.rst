@@ -3,6 +3,10 @@
 Key rotation procedure
 ######################
 
+.. warning::
+    Rotating keys currently prevents private transactions (e.g. ``NutsAuthorizationCredential``) from being received properly:
+    Do not use this functionality until the `issue has been resolved <https://github.com/nuts-foundation/nuts-node/issues/1688>`_.
+
 To minimize the impact of stolen/leaked keys, private keys should be rotated at a regular, scheduled interval.
 This applies to any (vendor, care organization, or any other) private key used for a longer period of time.
 The node aids this procedure by supporting operations to add and remove keys from DID documents.
