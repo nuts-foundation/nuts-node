@@ -151,7 +151,7 @@ func (fsc *fileSystemBackend) createDirs() error {
 	}
 
 	if err != nil {
-		err = os.MkdirAll(fsc.fspath, os.ModePerm)
+		err = os.MkdirAll(fsc.fspath, 0700)
 	}
 
 	return err

@@ -23,8 +23,10 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/require"
+	"io/fs"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"testing"
 
@@ -114,4 +116,20 @@ func Test_fs_ListPrivateKeys(t *testing.T) {
 	keys := backend.ListPrivateKeys()
 	sort.Strings(keys)
 	assert.Equal(t, []string{"key-0", "key-1", "key-2", "key-3", "key-4"}, keys)
+}
+
+func Test_fileSystemBackend_createDirs(t *testing.T) {
+	t.Run("it creates the dir with the right permissions", func(t *testing.T) {
+		tmpDirPath := t.TempDir()
+		keysDirPath := filepath.Join(tmpDirPath, "keys")
+
+		backend := fileSystemBackend{fspath: keysDirPath}
+		err := backend.createDirs()
+		require.NoError(t, err)
+
+		fileInfo, err := os.Stat(keysDirPath)
+		require.NoError(t, err)
+		assert.Equal(t, fileInfo.IsDir(), true)
+		assert.Equal(t, fs.FileMode(0700), fileInfo.Mode().Perm())
+	})
 }
