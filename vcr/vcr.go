@@ -36,7 +36,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"

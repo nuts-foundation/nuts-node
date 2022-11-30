@@ -25,7 +25,7 @@ import (
 	"sync"
 
 	ssi "github.com/nuts-foundation/go-did"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 // ErrNoFilename is returned when trust actions are performed but no file for storing those is specified.
