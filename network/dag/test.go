@@ -19,18 +19,11 @@
 package dag
 
 import (
-	"context"
 	"crypto"
 	"encoding/binary"
 	"fmt"
-	"github.com/nuts-foundation/go-stoabs"
-	"path"
-	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/test/io"
-
-	"github.com/nuts-foundation/go-stoabs/bbolt"
 	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
@@ -101,33 +94,4 @@ func calculateLamportClock(prevs []Transaction) uint32 {
 	}
 
 	return clock + 1
-}
-
-func createBBoltDB(testDirectory string) stoabs.KVStore {
-	db, err := bbolt.CreateBBoltStore(path.Join(testDirectory, "dag"), stoabs.WithNoSync())
-	if err != nil {
-		panic(err)
-	}
-	return db
-}
-
-func CreateDAG(t *testing.T) *dag {
-	testDirectory := io.TestDirectory(t)
-	d := newDAG(createBBoltDB(testDirectory))
-	return d
-}
-
-// addTx is a helper to add transactions to the DAG. It creates an Update bbolt TX and panics the test on error
-func addTx(t *testing.T, graph *dag, transactions ...Transaction) {
-	err := addTxErr(graph, transactions...)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-// addTx is a helper to add transactions to the DAG. It creates an Update bbolt TX and returns the error
-func addTxErr(graph *dag, transactions ...Transaction) error {
-	return graph.db.Write(context.Background(), func(tx stoabs.WriteTx) error {
-		return graph.add(tx, transactions...)
-	})
 }

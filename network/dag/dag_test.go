@@ -19,18 +19,16 @@
 package dag
 
 import (
-	"context"
-	"github.com/nuts-foundation/go-stoabs"
-	"github.com/stretchr/testify/require"
+	"bytes"
 	"sort"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/test/io"
 )
 
 // trackingVisitor just keeps track of which nodes were visited in what order.
@@ -56,9 +54,8 @@ func (n trackingVisitor) JoinRefsAsString() string {
 }
 
 func TestDAG_findBetweenLC(t *testing.T) {
-	ctx := context.Background()
 	t.Run("ok", func(t *testing.T) {
-		graph := CreateDAG(t)
+		graph := newDAG()
 
 		// tx1 < [tx2, tx3] < tx4 < tx5
 		tx1 := CreateSignedTestTransaction(1, time.Now(), nil, "unit/test", true)
@@ -66,388 +63,168 @@ func TestDAG_findBetweenLC(t *testing.T) {
 		tx3 := CreateSignedTestTransaction(3, time.Now(), nil, "unit/test", true, tx1)
 		tx4 := CreateSignedTestTransaction(4, time.Now(), nil, "unit/test", true, tx2, tx3)
 		tx5 := CreateSignedTestTransaction(5, time.Now(), nil, "unit/test", true, tx4)
-		addTx(t, graph, tx2, tx3, tx4, tx5)
+		require.NoError(t, graph.addTx(tx1))
+		require.NoError(t, graph.addTx(tx2))
+		require.NoError(t, graph.addTx(tx3))
+		require.NoError(t, graph.addTx(tx4))
+		require.NoError(t, graph.addTx(tx5))
 
 		// LC 1..3 should yield tx2, tx3 and tx4
-		err := graph.db.Read(ctx, func(tx stoabs.ReadTx) error {
-			actual, err := graph.findBetweenLC(tx, 1, 3)
-
-			require.NoError(t, err)
-			assert.Len(t, actual, 3)
-			assert.Contains(t, actual, tx2)
-			assert.Contains(t, actual, tx3)
-			assert.Contains(t, actual, tx4)
-			return nil
-		})
-		assert.NoError(t, err)
+		actual := graph.findBetweenLC(1, 3)
+		assert.Len(t, actual, 3)
+		assert.Contains(t, actual, tx2)
+		assert.Contains(t, actual, tx3)
+		assert.Contains(t, actual, tx4)
 	})
 }
 
-func TestDAG_Get(t *testing.T) {
-	ctx := context.Background()
+func TestDAG_TxByHash(t *testing.T) {
 	t.Run("found", func(t *testing.T) {
-		graph := CreateDAG(t)
+		graph := newDAG()
 		transaction := CreateTestTransactionWithJWK(1)
-		_ = graph.db.Write(ctx, func(tx stoabs.WriteTx) error {
-			_ = graph.add(tx, transaction)
-			actual, err := getTransaction(transaction.Ref(), tx)
-			require.NoError(t, err)
-			assert.Equal(t, transaction, actual)
-			return nil
-		})
+		require.NoError(t, graph.addTx(transaction))
+		actual, err := graph.txByHash(transaction.Ref())
+		require.NoError(t, err)
+		assert.Equal(t, transaction, actual)
 	})
 	t.Run("not found", func(t *testing.T) {
-		graph := CreateDAG(t)
-		_ = graph.db.Write(ctx, func(tx stoabs.WriteTx) error {
-			actual, err := getTransaction(hash.SHA256Sum([]byte{1, 2, 3}), tx)
-			assert.ErrorIs(t, err, ErrTransactionNotFound)
-			assert.Nil(t, actual)
-			return nil
-		})
+		graph := newDAG()
+		actual, err := graph.txByHash(hash.SHA256Sum([]byte{1, 2, 3}))
+		assert.ErrorIs(t, err, ErrTransactionNotFound)
+		assert.Nil(t, actual)
 	})
 }
 
-func TestDAG_Migrate(t *testing.T) {
-	ctx := context.Background()
-	txRoot := CreateTestTransactionWithJWK(0)
-	tx1 := CreateTestTransactionWithJWK(1, txRoot)
-	tx2 := CreateTestTransactionWithJWK(2, tx1)
-
-	t.Run("migrate LC value and transaction count to metadata storage", func(t *testing.T) {
-		graph := CreateDAG(t)
-
-		// Setup: add transactions, remove metadata
-		addTx(t, graph, txRoot, tx1, tx2)
-		err := graph.db.WriteShelf(ctx, metadataShelf, func(writer stoabs.Writer) error {
-			return writer.Iterate(func(key stoabs.Key, _ []byte) error {
-				return writer.Delete(key)
-			}, stoabs.BytesKey{})
-		})
-		require.NoError(t, err)
-
-		// Check values return 0
-		var stats Statistics
-		var lc uint32
-		_ = graph.db.Read(ctx, func(tx stoabs.ReadTx) error {
-			stats = graph.statistics(tx)
-			lc = graph.getHighestClockValue(tx)
-			return nil
-		})
-		assert.Equal(t, uint(0), stats.NumberOfTransactions)
-		assert.Equal(t, uint32(0), lc)
-
-		// Migrate
-		err = graph.Migrate()
-		require.NoError(t, err)
-
-		// Assert
-		_ = graph.db.Read(ctx, func(tx stoabs.ReadTx) error {
-			stats = graph.statistics(tx)
-			lc = graph.getHighestClockValue(tx)
-			return nil
-		})
-		assert.Equal(t, uint(3), stats.NumberOfTransactions)
-		assert.Equal(t, tx2.Clock(), lc)
-	})
-	t.Run("migrate head to metadata storage", func(t *testing.T) {
-		graph := CreateDAG(t)
-
-		// Setup: add transactions, remove metadata, add to headsShelf
-		addTx(t, graph, txRoot, tx1, tx2)
-		err := graph.db.WriteShelf(ctx, metadataShelf, func(writer stoabs.Writer) error {
-			return writer.Iterate(func(key stoabs.Key, _ []byte) error {
-				return writer.Delete(key)
-			}, stoabs.BytesKey{})
-		})
-		require.NoError(t, err)
-		err = graph.db.WriteShelf(ctx, headsShelf, func(writer stoabs.Writer) error {
-			_ = writer.Put(stoabs.BytesKey(txRoot.Ref().Slice()), []byte{1})
-			_ = writer.Put(stoabs.BytesKey(tx2.Ref().Slice()), []byte{1})
-			return writer.Put(stoabs.BytesKey(tx1.Ref().Slice()), []byte{1})
-		})
-		require.NoError(t, err)
-
-		// Check current head is nil
-		var head hash.SHA256Hash
-		_ = graph.db.Read(ctx, func(tx stoabs.ReadTx) error {
-			head, _ = graph.getHead(tx)
-			return nil
-		})
-		assert.Equal(t, hash.EmptyHash(), head)
-
-		// Migrate
-		err = graph.Migrate()
-		require.NoError(t, err)
-
-		// Assert
-		_ = graph.db.Read(ctx, func(tx stoabs.ReadTx) error {
-			head, _ = graph.getHead(tx)
-			return nil
-		})
-		assert.Equal(t, tx2.Ref(), head)
-	})
-	t.Run("nothing to migrate", func(t *testing.T) {
-		graph := CreateDAG(t)
-		addTx(t, graph, txRoot, tx1, tx2)
-
-		err := graph.Migrate()
-		require.NoError(t, err)
-
-		stats := Statistics{}
-		var lc uint32
-		_ = graph.db.Read(ctx, func(tx stoabs.ReadTx) error {
-			stats = graph.statistics(tx)
-			lc = graph.getHighestClockValue(tx)
-			return nil
-		})
-		assert.Equal(t, uint(3), stats.NumberOfTransactions)
-		assert.Equal(t, tx2.Clock(), lc)
-	})
-}
-
-func TestDAG_Add(t *testing.T) {
-	ctx := context.Background()
+func TestDAG_AddTx(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		graph := CreateDAG(t)
+		graph := newDAG()
 		tx := CreateTestTransactionWithJWK(0)
-
-		addTx(t, graph, tx)
+		require.NoError(t, graph.addTx(tx))
 
 		visitor := trackingVisitor{}
-		err := graph.db.Read(ctx, func(dbTx stoabs.ReadTx) error {
-			return graph.visitBetweenLC(dbTx, 0, 1, visitor.Accept)
-		})
-		require.NoError(t, err)
+		graph.visitBetweenLC(0, 1, visitor.Accept)
 		assert.Len(t, visitor.transactions, 1)
 		assert.Equal(t, tx.Ref(), visitor.transactions[0].Ref())
-		err = graph.db.Read(ctx, func(dbTx stoabs.ReadTx) error {
-			assert.True(t, graph.isPresent(dbTx, tx.Ref()))
-			return nil
-		})
-		assert.NoError(t, err)
+		assert.True(t, graph.containsTxHash(tx.Ref()))
 	})
 	t.Run("updates metadata", func(t *testing.T) {
-		graph := CreateDAG(t)
+		graph := newDAG()
 		tx1 := CreateTestTransactionWithJWK(0)
 		tx2 := CreateTestTransactionWithJWK(1, tx1)
+		require.NoError(t, graph.addTx(tx1))
+		require.NoError(t, graph.addTx(tx2))
 
-		addTx(t, graph, tx1)
-		addTx(t, graph, tx2)
-
-		err := graph.db.Read(ctx, func(dbTx stoabs.ReadTx) error {
-			head, err := graph.getHead(dbTx)
-			lc := graph.getHighestClockValue(dbTx)
-			count := graph.getNumberOfTransactions(dbTx)
-
-			assert.NoError(t, err)
-			assert.Equal(t, tx2.Ref(), head)
-			assert.Equal(t, uint32(1), lc)
-			assert.Equal(t, uint64(2), count)
-			return nil
-		})
-		assert.NoError(t, err)
+		assert.Equal(t, tx2.Ref(), graph.headTxHash())
+		assert.Equal(t, 1, graph.highestLamportClock())
+		assert.Equal(t, 2, graph.txCount())
 	})
 	t.Run("duplicate", func(t *testing.T) {
-		graph := CreateDAG(t)
+		graph := newDAG()
 		tx := CreateTestTransactionWithJWK(0)
+		require.NoError(t, graph.addTx(tx))
 
-		addTx(t, graph, tx)
-
-		_ = graph.db.Read(ctx, func(tx stoabs.ReadTx) error {
-			// Assert we can find the TX, but make sure it's only there once
-			actual, _ := graph.findBetweenLC(tx, 0, MaxLamportClock)
-			assert.Len(t, actual, 1)
-			return nil
-		})
+		actual := graph.findBetweenLC(0, MaxLamportClock)
+		assert.Len(t, actual, 1)
 	})
 	t.Run("second root", func(t *testing.T) {
-		graph := CreateDAG(t)
+		graph := newDAG()
 		root1 := CreateTestTransactionWithJWK(1)
 		root2 := CreateTestTransactionWithJWK(2)
-
-		addTx(t, graph, root1)
-		err := addTxErr(graph, root2)
-		assert.EqualError(t, err, "root transaction already exists")
-		_ = graph.db.Read(ctx, func(tx stoabs.ReadTx) error {
-			actual, _ := graph.findBetweenLC(tx, 0, MaxLamportClock)
-			assert.Len(t, actual, 1)
-			return nil
-		})
+		require.NoError(t, graph.addTx(root1))
+		assert.EqualError(t, graph.addTx(root2), "root transaction already exists")
+		actual := graph.findBetweenLC(0, MaxLamportClock)
+		assert.Len(t, actual, 1)
 	})
 }
 
-func TestNewDAG_addToLCIndex(t *testing.T) {
-	ctx := context.Background()
-
-	// These three transactions come with a clock value.
-	A := CreateTestTransactionWithJWK(0)
-	B := CreateTestTransactionWithJWK(1, A)
-	C := CreateTestTransactionWithJWK(2, B)
-
-	assertRefs := func(t *testing.T, tx stoabs.ReadTx, clock uint32, expected []hash.SHA256Hash) {
-		lcBucket := tx.GetShelfReader(clockShelf)
-
-		ref, _ := lcBucket.Get(stoabs.Uint32Key(clock))
-		require.NotNil(t, ref)
-
-		refs := parseHashList(ref)
-		sort.Slice(refs, func(i, j int) bool {
-			return refs[i].Compare(refs[j]) <= 0
-		})
-		sort.Slice(expected, func(i, j int) bool {
-			return expected[i].Compare(expected[j]) <= 0
-		})
-
-		assert.Equal(t, len(expected), len(refs))
-		for i := range refs {
-			assert.True(t, refs[i].Equals(expected[i]))
+func TestNewDAG_LCIndex(t *testing.T) {
+	assertClockIndex := func(t *testing.T, graph *dag, clock int, txs ...Transaction) {
+		// pointer comparison difficult, so copy in here
+		var got, want []hash.SHA256Hash
+		for _, p := range graph.hashesPerClock[clock] {
+			got = append(got, *p)
 		}
-	}
-	assertClock := func(t *testing.T, tx stoabs.ReadTx, clock uint32, expected hash.SHA256Hash) {
-		lcBucket := tx.GetShelfReader(clockShelf)
-
-		hashBytes, _ := lcBucket.Get(stoabs.Uint32Key(clock))
-		require.NotNil(t, hashBytes)
-		hashes := parseHashList(hashBytes)
-		assert.Contains(t, hashes, expected)
+		for _, tx := range txs {
+			want = append(want, tx.Ref())
+		}
+		sort.Slice(want, func(i, j int) bool {
+			return bytes.Compare(want[i][:], want[j][:]) < 0
+		})
+		assert.Equal(t, got, want)
 	}
 
 	t.Run("Ok threesome", func(t *testing.T) {
-		testDirectory := io.TestDirectory(t)
-		db := createBBoltDB(testDirectory)
+		a := CreateTestTransactionWithJWK(0)
+		b := CreateTestTransactionWithJWK(1, a)
+		c := CreateTestTransactionWithJWK(2, b)
 
-		err := db.Write(ctx, func(tx stoabs.WriteTx) error {
-			_ = indexClockValue(tx, A)
-			_ = indexClockValue(tx, B)
-			_ = indexClockValue(tx, C)
+		graph := newDAG()
+		require.NoError(t, graph.addTx(a))
+		require.NoError(t, graph.addTx(b))
+		require.NoError(t, graph.addTx(c))
 
-			assertRefs(t, tx, 0, []hash.SHA256Hash{A.Ref()})
-			assertClock(t, tx, 0, A.Ref())
-			assertRefs(t, tx, 1, []hash.SHA256Hash{B.Ref()})
-			assertClock(t, tx, 1, B.Ref())
-			assertRefs(t, tx, 2, []hash.SHA256Hash{C.Ref()})
-			assertClock(t, tx, 2, C.Ref())
-
-			return nil
-		})
-
-		assert.NoError(t, err)
+		require.Equal(t, len(graph.hashesPerClock), 3)
+		assertClockIndex(t, graph, 0, a)
+		assertClockIndex(t, graph, 1, b)
+		assertClockIndex(t, graph, 2, c)
 	})
 
 	t.Run("Ok double add", func(t *testing.T) {
-		testDirectory := io.TestDirectory(t)
-		db := createBBoltDB(testDirectory)
+		a := CreateTestTransactionWithJWK(0)
+		b := CreateTestTransactionWithJWK(1, a)
 
-		err := db.Write(ctx, func(tx stoabs.WriteTx) error {
-			_ = indexClockValue(tx, A)
-			_ = indexClockValue(tx, B)
-			_ = indexClockValue(tx, B)
+		graph := newDAG()
+		require.NoError(t, graph.addTx(a))
+		require.NoError(t, graph.addTx(b))
+		require.NoError(t, graph.addTx(b))
 
-			assertRefs(t, tx, 0, []hash.SHA256Hash{A.Ref()})
-			assertClock(t, tx, 0, A.Ref())
-			assertRefs(t, tx, 1, []hash.SHA256Hash{B.Ref()})
-			assertClock(t, tx, 1, B.Ref())
-
-			return nil
-		})
-
-		assert.NoError(t, err)
+		require.Equal(t, len(graph.hashesPerClock), 2)
+		assertClockIndex(t, graph, 0, a)
+		assertClockIndex(t, graph, 1, b)
 	})
 
-	t.Run("Ok branch", func(t *testing.T) {
-		testDirectory := io.TestDirectory(t)
-		db := createBBoltDB(testDirectory)
-		C := CreateTestTransactionWithJWK(2, A)
+	t.Run("OK branch", func(t *testing.T) {
+		a := CreateTestTransactionWithJWK(0)
+		b := CreateTestTransactionWithJWK(1, a)
+		c := CreateTestTransactionWithJWK(2, a)
 
-		err := db.Write(ctx, func(tx stoabs.WriteTx) error {
-			_ = indexClockValue(tx, A)
-			_ = indexClockValue(tx, B)
-			_ = indexClockValue(tx, C)
+		graph := newDAG()
+		require.NoError(t, graph.addTx(a))
+		require.NoError(t, graph.addTx(b))
+		require.NoError(t, graph.addTx(c))
 
-			assertRefs(t, tx, 0, []hash.SHA256Hash{A.Ref()})
-			assertClock(t, tx, 0, A.Ref())
-			assertRefs(t, tx, 1, []hash.SHA256Hash{B.Ref(), C.Ref()})
-			assertClock(t, tx, 1, B.Ref())
-			assertClock(t, tx, 1, C.Ref())
-
-			return nil
-		})
-
-		assert.NoError(t, err)
-	})
-
-}
-
-func Test_parseHashList(t *testing.T) {
-	t.Run("empty", func(t *testing.T) {
-		assert.Empty(t, parseHashList([]byte{}))
-	})
-	t.Run("1 entry", func(t *testing.T) {
-		h1 := hash.SHA256Sum([]byte("Hello, World!"))
-		actual := parseHashList(h1[:])
-		assert.Len(t, actual, 1)
-		assert.Equal(t, hash.FromSlice(h1[:]), actual[0])
-	})
-	t.Run("2 entries", func(t *testing.T) {
-		h1 := hash.SHA256Sum([]byte("Hello, World!"))
-		h2 := hash.SHA256Sum([]byte("Hello, All!"))
-		actual := parseHashList(append(h1[:], h2[:]...))
-		assert.Len(t, actual, 2)
-		assert.Equal(t, hash.FromSlice(h1[:]), actual[0])
-		assert.Equal(t, hash.FromSlice(h2[:]), actual[1])
-	})
-	t.Run("2 entries, dangling bytes", func(t *testing.T) {
-		h1 := hash.SHA256Sum([]byte("Hello, World!"))
-		h2 := hash.SHA256Sum([]byte("Hello, All!"))
-		input := append(h1[:], h2[:]...)
-		input = append(input, 1, 2, 3) // Add some dangling bytes
-		actual := parseHashList(input)
-		assert.Len(t, actual, 2)
-		assert.Equal(t, hash.FromSlice(h1[:]), actual[0])
-		assert.Equal(t, hash.FromSlice(h2[:]), actual[1])
+		require.Equal(t, len(graph.hashesPerClock), 2)
+		assertClockIndex(t, graph, 0, a)
+		assertClockIndex(t, graph, 1, b, c)
 	})
 }
 
-func TestDAG_getHighestClock(t *testing.T) {
-	ctx := context.Background()
-
+func TestDAG_highestLamportClock(t *testing.T) {
 	t.Run("empty DAG", func(t *testing.T) {
-		graph := CreateDAG(t)
-
-		_ = graph.db.Read(ctx, func(tx stoabs.ReadTx) error {
-			clock := graph.getHighestClockValue(tx)
-
-			assert.Equal(t, uint32(0), clock)
-			return nil
-		})
+		graph := newDAG()
+		assert.Equal(t, -1, graph.highestLamportClock())
 	})
+
 	t.Run("multiple transaction", func(t *testing.T) {
-		graph := CreateDAG(t)
 		tx0, _, _ := CreateTestTransaction(9)
 		tx1, _, _ := CreateTestTransaction(8, tx0)
 		tx2, _, _ := CreateTestTransaction(7, tx1)
-		addTx(t, graph, tx0, tx1, tx2)
-
-		_ = graph.db.Read(ctx, func(tx stoabs.ReadTx) error {
-			clock := graph.getHighestClockValue(tx)
-
-			assert.Equal(t, uint32(2), clock)
-			return nil
-		})
+		graph := newDAG()
+		require.NoError(t, graph.addTx(tx0))
+		require.NoError(t, graph.addTx(tx1))
+		require.NoError(t, graph.addTx(tx2))
+		assert.Equal(t, 2, graph.highestLamportClock())
 	})
+
 	t.Run("out of order transactions", func(t *testing.T) {
-		graph := CreateDAG(t)
+		t.Skip("TODO(pascaldekloe): Not sure what the out-of-order test tries to do. Are we supposed to allow clock gaps with graph insertion? @gerard")
 		tx0, _, _ := CreateTestTransaction(9)
 		tx1, _, _ := CreateTestTransaction(8, tx0)
 		tx2, _, _ := CreateTestTransaction(7, tx1)
-		addTx(t, graph, tx0, tx2)
-		addTx(t, graph, tx1)
-
-		_ = graph.db.Read(ctx, func(tx stoabs.ReadTx) error {
-			clock := graph.getHighestClockValue(tx)
-
-			assert.Equal(t, uint32(2), clock)
-			return nil
-		})
+		graph := newDAG()
+		require.NoError(t, graph.addTx(tx0))
+		require.NoError(t, graph.addTx(tx2))
+		require.NoError(t, graph.addTx(tx1))
+		assert.Equal(t, 2, graph.highestLamportClock())
 	})
 }

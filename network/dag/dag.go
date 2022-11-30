@@ -20,44 +20,39 @@ package dag
 
 import (
 	"context"
-	"encoding/binary"
-	"errors"
 	"fmt"
 	"sort"
 
-	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/log"
 )
 
-// metadataShelf is the name of the shelf that holds metadata.
-const metadataShelf = "metadata"
-
-// numberOfTransactionsKey is the key of the metadata property that holds the number of transactions on the DAG
-const numberOfTransactionsKey = "tx_num"
-
-// highestClockValue is the key of the metadata property that holds the highest lamport clock value of all transactions on the DAG
-const highestClockValue = "lc_high"
-
-// headRefKey is the of the metadata property that holds the latest HEAD of the DAG
-const headRefKey = "head_ref"
-
-// transactionsShelf is the name of the shelf that holds the actual transactions.
-const transactionsShelf = "documents"
-
-// headsShelf contains the name of the shelf the holds the heads.
-const headsShelf = "heads"
-
-// clockShelf is the name of the shelf that uses the Lamport clock as index to a set of TX refs.
-const clockShelf = "clocks"
-
-// TransactionCountDiagnostic is the name of the diagnostics result for the transaction count
-const TransactionCountDiagnostic = "transaction_count"
-
 type dag struct {
-	db stoabs.KVStore
+	// Collect each transaction/JWS by its own data hash.
+	jWSPerHash map[hash.SHA256Hash][]byte
+	jWSByteN   int64 // total size of all JWS entries together
+
+	// Group each transaction/JWS hash in its respective lamport clock tick
+	// sorted as per Nuts RFC004.
+	hashesPerClock [][]*hash.SHA256Hash
 }
+
+// HighestLamportClock returns the latest value present in the graph.
+// with -1 for an empty graph, and 0 for only a root node present.
+func (d *dag) highestLamportClock() int { return len(d.hashesPerClock) - 1 }
+
+// HeadTxHash returns the latest transaction hash present in the graph.
+func (d *dag) headTxHash() hash.SHA256Hash {
+	if len(d.hashesPerClock) == 0 {
+		return hash.SHA256Hash{}
+	}
+	latest := d.hashesPerClock[len(d.hashesPerClock)-1]
+	return *latest[len(latest)-1]
+}
+
+// TxCount returns to total amount of transactions present in the graph.
+func (d *dag) txCount() int { return len(d.jWSPerHash) }
 
 type numberOfTransactionsStatistic struct {
 	numberOfTransactions uint
@@ -68,7 +63,7 @@ func (n numberOfTransactionsStatistic) Result() interface{} {
 }
 
 func (n numberOfTransactionsStatistic) Name() string {
-	return TransactionCountDiagnostic
+	return "transaction_count"
 }
 
 func (n numberOfTransactionsStatistic) String() string {
@@ -92,403 +87,107 @@ func (s dataSizeStatistic) String() string {
 }
 
 // newDAG creates a DAG backed by the given database.
-func newDAG(db stoabs.KVStore) *dag {
-	return &dag{db: db}
-}
-
-func (d *dag) Migrate() error {
-	return d.db.Write(context.Background(), func(tx stoabs.WriteTx) error {
-		writer, err := tx.GetShelfWriter(metadataShelf)
-		if err != nil {
-			return err
-		}
-		// Migrate highest LC value
-		// Todo: remove after V5 release
-		highestLCBytes, err := writer.Get(stoabs.BytesKey(highestClockValue))
-		if err != nil {
-			return err
-		}
-		if highestLCBytes == nil {
-			log.Logger().Info("Highest LC value not stored, migrating...")
-			highestLC := d.getHighestClockLegacy(tx)
-			err = d.setHighestClockValue(tx, highestLC)
-			if err != nil {
-				return err
-			}
-		}
-		// Migrate number of TXs
-		// Todo: remove after V5 release
-		numberOfTXs, err := writer.Get(stoabs.BytesKey(numberOfTransactionsKey))
-		if err != nil {
-			return err
-		}
-		if numberOfTXs == nil {
-			log.Logger().Info("Number of transactions not stored, migrating...")
-			numberOfTXs := d.getNumberOfTransactionsLegacy(tx)
-			err = d.setNumberOfTransactions(tx, numberOfTXs)
-			if err != nil {
-				return err
-			}
-		}
-
-		// Migrate headsLegacy to single head
-		// Todo: remove after V6 release => then remove headsShelf
-		headRef, err := writer.Get(stoabs.BytesKey(headRefKey))
-		if err != nil {
-			return err
-		}
-		if headRef == nil {
-			log.Logger().Info("Head not stored in metadata, migrating...")
-			heads := d.headsLegacy(tx)
-			if len(heads) != 0 { // ignore for empty node
-				var latestHead hash.SHA256Hash
-				var latestLC uint32
-
-				for _, ref := range heads {
-					transaction, err := getTransaction(ref, tx)
-					if err != nil {
-						if errors.Is(err, ErrTransactionNotFound) {
-							return fmt.Errorf("database migration failed: %w (%s=%s)", err, core.LogFieldTransactionRef, ref)
-						}
-						return err
-					}
-					if transaction.Clock() >= latestLC {
-						latestHead = ref
-						latestLC = transaction.Clock()
-					}
-				}
-
-				err = d.setHead(tx, latestHead)
-				if err != nil {
-					return err
-				}
-			}
-		}
-
-		return nil
-	})
+func newDAG() *dag {
+	return &dag{
+		jWSPerHash: make(map[hash.SHA256Hash][]byte),
+	}
 }
 
 func (d *dag) diagnostics(ctx context.Context) []core.DiagnosticResult {
-	var stats Statistics
-	_ = d.db.Read(ctx, func(tx stoabs.ReadTx) error {
-		stats = d.statistics(tx)
-		return nil
-	})
-
-	result := make([]core.DiagnosticResult, 0)
-	result = append(result, numberOfTransactionsStatistic{numberOfTransactions: stats.NumberOfTransactions})
-	result = append(result, dataSizeStatistic{sizeInBytes: stats.DataSize})
-	return result
+	return []core.DiagnosticResult{
+		numberOfTransactionsStatistic{numberOfTransactions: uint(len(d.jWSPerHash))},
+		dataSizeStatistic{sizeInBytes: d.jWSByteN},
+	}
 }
 
-func (d dag) headsLegacy(ctx stoabs.ReadTx) []hash.SHA256Hash {
-	result := make([]hash.SHA256Hash, 0)
-	reader := ctx.GetShelfReader(headsShelf)
-	_ = reader.Iterate(func(key stoabs.Key, _ []byte) error {
-		result = append(result, hash.FromSlice(key.Bytes())) // FromSlice() copies
-		return nil
-	}, stoabs.HashKey{})
-	return result
-}
-
-func (d *dag) findBetweenLC(tx stoabs.ReadTx, startInclusive uint32, endExclusive uint32) ([]Transaction, error) {
-	var result []Transaction
-
-	err := d.visitBetweenLC(tx, startInclusive, endExclusive, func(transaction Transaction) bool {
-		result = append(result, transaction)
+func (d *dag) findBetweenLC(startInclusive, endExclusive uint32) []Transaction {
+	var txs []Transaction
+	d.visitBetweenLC(startInclusive, endExclusive, func(tx Transaction) bool {
+		txs = append(txs, tx)
 		return true
 	})
-	if err != nil {
-		// Make sure not to return results in case of error
-		return nil, err
-	}
-	return result, nil
+	return txs
 }
 
-func (d *dag) visitBetweenLC(tx stoabs.ReadTx, startInclusive uint32, endExclusive uint32, visitor Visitor) error {
-	reader := tx.GetShelfReader(clockShelf)
+func (d *dag) visitBetweenLC(startInclusive uint32, endExclusive uint32, callback Visitor) {
+	if n := len(d.hashesPerClock); n < int(uint(endExclusive)) {
+		endExclusive = uint32(n)
+	}
+	if endExclusive <= startInclusive {
+		return
+	}
 
-	// TODO: update to process in batches
-	return reader.Range(stoabs.Uint32Key(startInclusive), stoabs.Uint32Key(endExclusive), func(_ stoabs.Key, value []byte) error {
-		parsed := parseHashList(value)
-		// according to RFC004, lower byte value refs go first
-		sort.Slice(parsed, func(i, j int) bool {
-			return parsed[i].Compare(parsed[j]) <= 0
-		})
-		for _, next := range parsed {
-			transaction, err := getTransaction(next, tx)
+	for _, hashes := range d.hashesPerClock[startInclusive:endExclusive] {
+		for _, hash := range hashes {
+			bytes, ok := d.jWSPerHash[*hash]
+			if !ok {
+				log.Logger().WithField(core.LogFieldTransactionRef, hash).Error("DAG: JWS entry went missing")
+				continue
+			}
+			p, err := ParseTransaction(bytes)
 			if err != nil {
-				return err
+				log.Logger().WithField(core.LogFieldTransactionRef, hash).WithError(err).Error("DAG: JWS entry corrupted")
+				continue
 			}
-			visitor(transaction)
-		}
-		return nil
-	}, true)
-}
-
-func (d *dag) isPresent(tx stoabs.ReadTx, ref hash.SHA256Hash) bool {
-	return exists(tx.GetShelfReader(transactionsShelf), ref)
-}
-
-func (d *dag) add(tx stoabs.WriteTx, transactions ...Transaction) error {
-	highestLC := d.getHighestClockValue(tx)
-	headRef := hash.EmptyHash()
-
-	for _, transaction := range transactions {
-		if transaction != nil {
-			if err := d.addSingle(tx, transaction); err != nil {
-				return err
-			}
-			if transaction.Clock() > highestLC || transaction.Clock() == 0 {
-				highestLC = transaction.Clock()
-				headRef = transaction.Ref()
+			if !callback(p) {
+				return
 			}
 		}
 	}
-
-	// update highest LC
-	if err := d.setHighestClockValue(tx, highestLC); err != nil {
-		return err
-	}
-
-	// update head
-	if !headRef.Equals(hash.EmptyHash()) {
-		if err := d.setHead(tx, headRef); err != nil {
-			return err
-		}
-	}
-
-	// update TX count
-	txCount := d.getNumberOfTransactions(tx) + uint64(len(transactions))
-	return d.setNumberOfTransactions(tx, txCount)
 }
 
-func (d dag) getNumberOfTransactions(tx stoabs.ReadTx) uint64 {
-	value, err := tx.GetShelfReader(metadataShelf).Get(stoabs.BytesKey(numberOfTransactionsKey))
-	if err != nil {
+func (d *dag) containsTxHash(h hash.SHA256Hash) bool {
+	_, ok := d.jWSPerHash[h]
+	return ok
+}
+
+func (d *dag) addTx(tx Transaction) error {
+	h := tx.Ref()
+
+	if _, ok := d.jWSPerHash[h]; ok {
 		log.Logger().
-			WithError(err).
-			Error("Unable to retrieve number of transactions")
-		return 0
-	}
-	if value != nil {
-		return bytesToCount(value)
-	}
-	return 0
-}
-
-func (d dag) setNumberOfTransactions(tx stoabs.WriteTx, count uint64) error {
-	writer, err := tx.GetShelfWriter(metadataShelf)
-	if err != nil {
-		return err
-	}
-	bytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(bytes[:], count)
-
-	return writer.Put(stoabs.BytesKey(numberOfTransactionsKey), bytes)
-}
-
-func (d dag) setHead(tx stoabs.WriteTx, ref hash.SHA256Hash) error {
-	writer, err := tx.GetShelfWriter(metadataShelf)
-	if err != nil {
-		return err
-	}
-
-	return writer.Put(stoabs.BytesKey(headRefKey), ref.Slice())
-}
-
-func (d dag) getHighestClockValue(tx stoabs.ReadTx) uint32 {
-	value, err := tx.GetShelfReader(metadataShelf).Get(stoabs.BytesKey(highestClockValue))
-	if err != nil {
-		log.Logger().
-			WithError(err).
-			Error("Unable to retrieve highest LC value")
-		return 0
-	}
-	if value == nil {
-		return 0
-	}
-	return bytesToClock(value)
-}
-
-// getHighestClockLegacy is used for migration.
-// Remove after V5 or V6 release?
-func (d dag) getHighestClockLegacy(tx stoabs.ReadTx) uint32 {
-	reader := tx.GetShelfReader(clockShelf)
-	var clock uint32
-	err := reader.Iterate(func(key stoabs.Key, _ []byte) error {
-		currentClock := uint32(key.(stoabs.Uint32Key))
-		if currentClock > clock {
-			clock = currentClock
-		}
-		return nil
-	}, stoabs.Uint32Key(0))
-	if err != nil {
-		log.Logger().
-			WithError(err).
-			Error("Failed to read clock shelf")
-		return 0
-	}
-	return clock
-}
-
-func (d dag) getHead(tx stoabs.ReadTx) (hash.SHA256Hash, error) {
-	head, err := tx.GetShelfReader(metadataShelf).Get(stoabs.BytesKey(headRefKey))
-	if err != nil {
-		return hash.EmptyHash(), err
-	}
-
-	return hash.FromSlice(head), nil
-}
-
-// getNumberOfTransactionsLegacy is used for migration.
-// Remove after V5 or V6 release?
-func (d dag) getNumberOfTransactionsLegacy(tx stoabs.ReadTx) uint64 {
-	reader := tx.GetShelfReader(transactionsShelf)
-	return uint64(reader.Stats().NumEntries)
-}
-
-func (d dag) setHighestClockValue(tx stoabs.WriteTx, count uint32) error {
-	writer, err := tx.GetShelfWriter(metadataShelf)
-	if err != nil {
-		return err
-	}
-	bytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(bytes[:], count)
-
-	return writer.Put(stoabs.BytesKey(highestClockValue), bytes)
-}
-
-func (d dag) statistics(tx stoabs.ReadTx) Statistics {
-	var result Statistics
-	shelfStats := tx.GetShelfReader(transactionsShelf).Stats()
-	result.DataSize = int64(shelfStats.ShelfSize)
-	result.NumberOfTransactions = uint(d.getNumberOfTransactions(tx))
-
-	return result
-}
-
-func (d *dag) addSingle(tx stoabs.WriteTx, transaction Transaction) error {
-	ref := transaction.Ref()
-	refKey := stoabs.NewHashKey(ref)
-	transactions, lc, err := getBuckets(tx)
-	if err != nil {
-		return err
-	}
-	if exists(transactions, ref) {
-		log.Logger().
-			WithField(core.LogFieldTransactionRef, ref).
+			WithField(core.LogFieldTransactionRef, h).
 			Trace("Transaction already exists, not adding it again.")
 		return nil
 	}
-	if len(transaction.Previous()) == 0 {
-		if getRoots(lc) != nil {
-			return errRootAlreadyExists
-		}
-	}
-	if err := indexClockValue(tx, transaction); err != nil {
-		return fmt.Errorf("unable to calculate LC value for %s: %w", ref, err)
-	}
-	return transactions.Put(refKey, transaction.Data())
-}
 
-func indexClockValue(tx stoabs.WriteTx, transaction Transaction) error {
-	lc, err := tx.GetShelfWriter(clockShelf)
-	if err != nil {
-		return err
+	if len(tx.Previous()) == 0 && len(d.hashesPerClock) != 0 {
+		return errRootAlreadyExists
 	}
 
-	clockKey := stoabs.Uint32Key(transaction.Clock())
-	ref := transaction.Ref()
-	currentRefs, err := lc.Get(clockKey)
-	if err != nil {
-		return err
-	}
-	for _, cRef := range parseHashList(currentRefs) {
-		if ref.Equals(cRef) {
-			// should only be in the list once
-			return nil
-		}
-	}
-	if err := lc.Put(clockKey, appendHashList(currentRefs, ref)); err != nil {
-		return err
-	}
+	JWS := tx.Data()
+	d.jWSPerHash[h] = JWS
+	d.jWSByteN += int64(len(JWS))
 
-	log.Logger().
-		WithField(core.LogFieldTransactionRef, ref).
-		Tracef("Storing transaction logical clock (LC: %d)", clockKey)
+	clock := tx.Clock()
+	switch {
+	case int(clock) == len(d.hashesPerClock):
+		d.hashesPerClock = append(d.hashesPerClock, []*hash.SHA256Hash{&h})
+
+	case int(clock) < len(d.hashesPerClock):
+		d.hashesPerClock[clock] = append(d.hashesPerClock[clock], &h)
+		// Sort hashes on byte value per Nuts RFC004.
+		sort.Slice(d.hashesPerClock[clock], func(i, j int) bool {
+			return d.hashesPerClock[clock][i].Compare(*d.hashesPerClock[clock][j]) < 0
+		})
+
+	default:
+		// should not happen ™️ after validation
+		return fmt.Errorf("dag: entry with lamport clock %d denied, last is %d", clock, d.highestLamportClock())
+	}
 
 	return nil
 }
 
-func bytesToClock(clockBytes []byte) uint32 {
-	return binary.BigEndian.Uint32(clockBytes)
-}
-
-func bytesToCount(clockBytes []byte) uint64 {
-	return binary.BigEndian.Uint64(clockBytes)
-}
-
-func getBuckets(tx stoabs.WriteTx) (transactions, lc stoabs.Writer, err error) {
-	if transactions, err = tx.GetShelfWriter(transactionsShelf); err != nil {
-		return
-	}
-	if lc, err = tx.GetShelfWriter(clockShelf); err != nil {
-		return
-	}
-	return
-}
-
-func getRoots(lcBucket stoabs.Reader) []hash.SHA256Hash {
-	roots, err := lcBucket.Get(stoabs.Uint32Key(0))
-	if err != nil {
-		return nil
-	}
-	return parseHashList(roots) // no need to copy, calls FromSlice() (which copies)
-}
-
-// getTransaction returns the transaction, or an error. returns ErrTransactionNotFound if the transaction cannot be found.
-func getTransaction(hash hash.SHA256Hash, tx stoabs.ReadTx) (Transaction, error) {
-	transactions := tx.GetShelfReader(transactionsShelf)
-
-	transactionBytes, err := transactions.Get(stoabs.NewHashKey(hash))
-	if err != nil {
-		return nil, err
-	}
-	if transactionBytes == nil {
+// TxByHash does a lookup with ErrTransactionNotFound for absense.
+func (d *dag) txByHash(hash hash.SHA256Hash) (Transaction, error) {
+	bytes, ok := d.jWSPerHash[hash]
+	if !ok {
 		return nil, ErrTransactionNotFound
 	}
-	parsedTx, err := ParseTransaction(transactionBytes)
+	p, err := ParseTransaction(bytes)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse transaction %s: %w", hash, err)
+		return nil, fmt.Errorf("transaction %s corrupted: %w", hash, err)
 	}
-
-	return parsedTx, nil
-}
-
-// exists checks whether the transaction with the given ref exists.
-func exists(transactions stoabs.Reader, ref hash.SHA256Hash) bool {
-	val, _ := transactions.Get(stoabs.NewHashKey(ref))
-	return val != nil
-}
-
-// parseHashList splits a list of concatenated hashes into separate hashes.
-func parseHashList(input []byte) []hash.SHA256Hash {
-	if len(input) == 0 {
-		return nil
-	}
-	num := (len(input) - (len(input) % hash.SHA256HashSize)) / hash.SHA256HashSize
-	result := make([]hash.SHA256Hash, num)
-	for i := 0; i < num; i++ {
-		result[i] = hash.FromSlice(input[i*hash.SHA256HashSize : i*hash.SHA256HashSize+hash.SHA256HashSize])
-	}
-	return result
-}
-
-func appendHashList(list []byte, h hash.SHA256Hash) []byte {
-	newList := make([]byte, 0, len(list)+hash.SHA256HashSize)
-	newList = append(newList, list...)
-	newList = append(newList, h.Slice()...)
-	return newList
+	return p, nil
 }

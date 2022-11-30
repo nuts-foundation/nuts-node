@@ -814,7 +814,7 @@ func TestNetwork_collectDiagnostics(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	cxt := createNetwork(t, ctrl)
-	cxt.state.EXPECT().Diagnostics().Return([]core.DiagnosticResult{core.GenericDiagnosticResult{Title: dag.TransactionCountDiagnostic, Outcome: uint(txNum)}})
+	cxt.state.EXPECT().Diagnostics().Return([]core.DiagnosticResult{core.GenericDiagnosticResult{Title: "transaction_count", Outcome: uint(txNum)}})
 
 	cxt.connectionManager.EXPECT().Peers().Return([]transport.Peer{expectedPeer})
 

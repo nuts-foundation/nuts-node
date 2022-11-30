@@ -22,7 +22,6 @@ import (
 	crypto2 "crypto"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-stoabs"
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
@@ -37,12 +36,12 @@ var ErrPreviousTransactionMissing = errors.New("transaction is referring to non-
 var ErrInvalidLamportClockValue = errors.New("transaction has an invalid lamport clock value")
 
 // Verifier defines the API of a DAG verifier, used to check the validity of a transaction.
-type Verifier func(tx stoabs.ReadTx, transaction Transaction) error
+type Verifier func(transaction Transaction) error
 
 // NewTransactionSignatureVerifier creates a transaction verifier that checks the signature of the transaction.
 // It uses the given KeyResolver to resolves keys that aren't embedded in the transaction.
-func NewTransactionSignatureVerifier(resolver types.KeyResolver) Verifier {
-	return func(_ stoabs.ReadTx, transaction Transaction) error {
+func newTransactionSignatureVerifier(resolver types.KeyResolver) Verifier {
+	return func(transaction Transaction) error {
 		var signingKey crypto2.PublicKey
 		if transaction.SigningKey() != nil {
 			if err := transaction.SigningKey().Raw(&signingKey); err != nil {
@@ -64,26 +63,32 @@ func NewTransactionSignatureVerifier(resolver types.KeyResolver) Verifier {
 
 // NewPrevTransactionsVerifier creates a transaction verifier that asserts that all previous transactions are known.
 // It also checks if the lamportClock value is correct (if given).
-func NewPrevTransactionsVerifier() Verifier {
-	return func(tx stoabs.ReadTx, transaction Transaction) error {
-		highestLamportClock := -1
-		for _, prev := range transaction.Previous() {
-			previousTransaction, err := getTransaction(prev, tx)
-			if err != nil {
-				if errors.Is(err, ErrTransactionNotFound) {
-					return ErrPreviousTransactionMissing
+func newPrevTransactionsVerifier(graph *dag) Verifier {
+	return func(tx Transaction) error {
+		// “New transaction additions MUST refer [prevs] to a
+		// transaction with the highest lc value present within the
+		// applicable graph. When multiple transactions match the
+		// highest lc value present, then only a single one of them
+		// [arbitrary] SHOULD be refered to.”
+		// — Nuts RFC004
+		previousClock := tx.Clock() - 1
+		var containsPreviousClock bool
+		for _, hash := range tx.Previous() {
+			p, err := graph.txByHash(hash)
+			switch {
+			case err == nil:
+				if p.Clock() == previousClock {
+					containsPreviousClock = true
 				}
+			case errors.Is(err, ErrTransactionNotFound):
+				return ErrPreviousTransactionMissing
+			default:
 				return err
 			}
-			if int(previousTransaction.Clock()) >= highestLamportClock {
-				highestLamportClock = int(previousTransaction.Clock())
-			}
 		}
-
-		if int(transaction.Clock()) != highestLamportClock+1 {
+		if !containsPreviousClock {
 			return ErrInvalidLamportClockValue
 		}
-
 		return nil
 	}
 }

@@ -141,7 +141,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	if err != nil {
 		return fmt.Errorf("unable to create database: %w", err)
 	}
-	if n.state, err = dag.NewState(dagStore, dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(n.keyResolver)); err != nil {
+	if n.state, err = dag.NewStateWithVerifiers(n.keyResolver); err != nil {
 		return fmt.Errorf("failed to configure state: %w", err)
 	}
 
@@ -706,7 +706,7 @@ func (n *Network) collectDiagnosticsForPeers() transport.Diagnostics {
 	stateDiagnostics := n.state.Diagnostics()
 	transactionCount := uint(0)
 	for _, diagnostic := range stateDiagnostics {
-		if diagnostic.Name() == dag.TransactionCountDiagnostic {
+		if diagnostic.Name() == "transaction_count" {
 			transactionCount = diagnostic.Result().(uint)
 		}
 	}

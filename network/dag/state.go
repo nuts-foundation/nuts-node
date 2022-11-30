@@ -23,11 +23,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
 	"github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"sync"
 	"sync/atomic"
@@ -45,7 +45,6 @@ const (
 // State has references to the DAG and the payload store.
 // Multiple goroutines may invoke methods on a state simultaneously.
 type state struct {
-	db                  stoabs.KVStore
 	graph               *dag
 	payloadPerHash      map[hash.SHA256Hash]string
 	txVerifiers         []Verifier
@@ -59,27 +58,39 @@ type state struct {
 }
 
 func (s *state) Migrate() error {
-	return s.graph.Migrate()
+	return nil // nop
 }
 
 // NewState returns a new State. The State is used as entry point, it's methods will start transactions and will notify observers from within those transactions.
-func NewState(db stoabs.KVStore, verifiers ...Verifier) (State, error) {
-	graph := newDAG(db)
+func NewState() (State, error) {
+	graph := newDAG()
 
 	newState := &state{
-		db:             db,
 		graph:          graph,
 		payloadPerHash: make(map[hash.SHA256Hash]string),
-		txVerifiers:    verifiers,
 		xorTree:        newTreeStore(tree.New(tree.NewXor(), PageSize)),
 		ibltTree:       newTreeStore(tree.New(tree.NewIblt(IbltNumBuckets), PageSize)),
 	}
+	// TODO: Better Prometheus library github.com/pascaldekloe/metrics
+	// to prevent error scenario.
 	err := newState.initPrometheusCounters()
 	if err != nil && err.Error() != (prometheus.AlreadyRegisteredError{}).Error() { // No unwrap on prometheus.AlreadyRegisteredError
 		return nil, err
 	}
 
 	return newState, nil
+}
+
+func NewStateWithVerifiers(keyr types.KeyResolver) (State, error) {
+	n, err := NewState()
+	if err != nil {
+		return nil, err
+	}
+	n.(*state).txVerifiers = append(n.(*state).txVerifiers,
+		newPrevTransactionsVerifier(n.(*state).graph),
+		newTransactionSignatureVerifier(keyr),
+	)
+	return n, nil
 }
 
 func transactionCountCollector() prometheus.Counter {
@@ -127,91 +138,58 @@ func (s *state) initPrometheusCounters() error {
 	return nil
 }
 
-func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte) error {
+func (s *state) Add(ctx context.Context, tx Transaction, payload []byte) error {
 	txEvent := Event{
 		Type:        TransactionEventType,
-		Hash:        transaction.Ref(),
+		Hash:        tx.Ref(),
 		Retries:     0,
-		Transaction: transaction,
+		Transaction: tx,
 		Payload:     payload,
 	}
 	payloadEvent := Event{
 		Type:        PayloadEventType,
-		Hash:        transaction.Ref(),
+		Hash:        tx.Ref(),
 		Retries:     0,
-		Transaction: transaction,
+		Transaction: tx,
 		Payload:     payload,
 	}
-	txAdded := false
-	emitPayloadEvent := false
 
-	// the tx may contain a large number of prevs. Reading those TXs inside the write-transaction may cause it to timeout.
-	// See https://github.com/nuts-foundation/nuts-node/issues/1391
-	var present bool
-	if err := s.db.Read(ctx, func(tx stoabs.ReadTx) error {
-		// Check TX presence before calling verifiers to avoid executing expensive checks (e.g. TXs with lots of prevs, signatures)
-		// It does not prevent 100% of duplicate checks since race conditions may apply during a read TX.
-		present = s.graph.isPresent(tx, transaction.Ref())
-		if present {
-			return nil
-		}
-		return s.verifyTX(tx, transaction)
-	}); err != nil {
+	if s.graph.containsTxHash(tx.Ref()) {
+		// TX already present on DAG, nothing to do
+		return nil
+	}
+
+	// Check TX presence before calling verifiers to avoid executing expensive checks (e.g. TXs with lots of prevs, signatures)
+	// It does not prevent 100% of duplicate checks since race conditions may apply during a read TX.
+	if err := s.verifyTx(tx); err != nil {
 		return err
 	}
-	if present {
-		// TX already present on DAG, nothing to do
-		return nil
+	if payload != nil {
+		payloadHash := hash.SHA256Sum(payload)
+		if !tx.PayloadHash().Equals(payloadHash) {
+			return errors.New("tx.PayloadHash does not match hash of payload")
+		}
+
+		s.payloadPerHash[hash.SHA256Sum(payload)] = string(payload)
+		if err := s.saveEvent(payloadEvent); err != nil {
+			return err
+		}
+		s.notify(payloadEvent)
 	}
 
-	return s.db.Write(ctx, func(tx stoabs.WriteTx) error {
-		// TX already present on DAG, nothing to do
-		// We need to do this check again, because a concurrent call could've added the TX (e.g. we got it from another peer).
-		// This is due to verifications being performed in a separate read-transaction above.
-		// A TX must not be added twice, because it will corrupt the XOR and IBLT trees.
-		if s.graph.isPresent(tx, transaction.Ref()) {
-			return nil
-		}
+	if err := s.graph.addTx(tx); err != nil {
+		return err
+	}
+	s.transactionCount.Inc()
 
-		// control the afterCommit hooks
-		txAdded = true
+	if err := s.saveEvent(txEvent); err != nil {
+		return err
+	}
+	s.notify(txEvent)
 
-		if payload != nil {
-			emitPayloadEvent = true
-			payloadHash := hash.SHA256Sum(payload)
-			if !transaction.PayloadHash().Equals(payloadHash) {
-				return errors.New("tx.PayloadHash does not match hash of payload")
-			}
-			s.payloadPerHash[hash.SHA256Sum(payload)] = string(payload)
-			if err := s.saveEvent(payloadEvent); err != nil {
-				return err
-			}
-		}
-		if err := s.graph.add(tx, transaction); err != nil {
-			return err
-		}
-		if err := s.saveEvent(txEvent); err != nil {
-			return err
-		}
-
-		// update XOR and IBLT
-		s.updateState(transaction)
-		return nil
-	}, stoabs.OnRollback(func() {
-		log.Logger().Warn("Reloading the XOR and IBLT trees due to a DB transaction Rollback")
-		s.loadState(ctx)
-	}), stoabs.AfterCommit(func() {
-		if txAdded {
-			s.notify(txEvent)
-			if emitPayloadEvent {
-				s.notify(payloadEvent)
-			}
-		}
-	}), stoabs.AfterCommit(func() {
-		if txAdded {
-			s.transactionCount.Inc()
-		}
-	}), stoabs.WithWriteLock())
+	// update XOR and IBLT
+	s.updateState(tx)
+	return nil
 }
 
 func (s *state) updateState(transaction Transaction) {
@@ -226,41 +204,21 @@ func (s *state) updateState(transaction Transaction) {
 	s.xorTree.insert(transaction)
 }
 
-func (s *state) loadState(ctx context.Context) {
-	if err := s.db.Read(ctx, func(tx stoabs.ReadTx) error {
-		s.lamportClockHigh.Store(s.graph.getHighestClockValue(tx))
-		return nil
-	}); err != nil {
-		log.Logger().
-			WithError(err).
-			Errorf("Failed to load the XOR and IBLT trees")
-	}
-	log.Logger().Trace("Loaded the XOR and IBLT trees")
-}
-
-func (s *state) verifyTX(tx stoabs.ReadTx, transaction Transaction) error {
+func (s *state) verifyTx(tx Transaction) error {
 	for _, verifier := range s.txVerifiers {
-		if err := verifier(tx, transaction); err != nil {
-			return fmt.Errorf("transaction verification failed (tx=%s): %w", transaction.Ref(), err)
+		if err := verifier(tx); err != nil {
+			return fmt.Errorf("transaction verification failed (tx=%s): %w", tx.Ref(), err)
 		}
 	}
 	return nil
 }
 
 func (s *state) FindBetweenLC(ctx context.Context, startInclusive uint32, endExclusive uint32) (transactions []Transaction, err error) {
-	err = s.db.Read(ctx, func(tx stoabs.ReadTx) error {
-		transactions, err = s.graph.findBetweenLC(tx, startInclusive, endExclusive)
-		return err
-	})
-	return
+	return s.graph.findBetweenLC(startInclusive, endExclusive), nil
 }
 
 func (s *state) GetTransaction(ctx context.Context, hash hash.SHA256Hash) (transaction Transaction, err error) {
-	err = s.db.Read(ctx, func(tx stoabs.ReadTx) error {
-		transaction, err = getTransaction(hash, tx)
-		return err
-	})
-	return
+	return s.graph.txByHash(hash)
 }
 
 func (s *state) IsPayloadPresent(ctx context.Context, hash hash.SHA256Hash) (present bool, err error) {
@@ -269,11 +227,7 @@ func (s *state) IsPayloadPresent(ctx context.Context, hash hash.SHA256Hash) (pre
 }
 
 func (s *state) IsPresent(ctx context.Context, hash hash.SHA256Hash) (present bool, err error) {
-	err = s.db.Read(ctx, func(tx stoabs.ReadTx) error {
-		present = s.graph.isPresent(tx, hash)
-		return nil
-	})
-	return
+	return s.graph.containsTxHash(hash), nil
 }
 
 func (s *state) WritePayload(ctx context.Context, transaction Transaction, payloadHash hash.SHA256Hash, data []byte) error {
@@ -301,13 +255,7 @@ func (s *state) ReadPayload(ctx context.Context, hash hash.SHA256Hash) (payload 
 }
 
 func (s *state) Head(ctx context.Context) (hash.SHA256Hash, error) {
-	var head hash.SHA256Hash
-	var err error
-	err = s.db.Read(ctx, func(tx stoabs.ReadTx) error {
-		head, err = s.graph.getHead(tx)
-		return err
-	})
-	return head, err
+	return s.graph.headTxHash(), nil
 }
 
 // Notifier registers receiver under a unique name.
@@ -377,18 +325,10 @@ func (s *state) Shutdown() error {
 }
 
 func (s *state) Start() error {
-	s.loadState(context.Background())
-
-	err := s.db.Read(context.Background(), func(tx stoabs.ReadTx) error {
-		currentTXCount := s.graph.getNumberOfTransactions(tx)
-		s.transactionCount.Add(float64(currentTXCount))
-		return nil
-	})
-	if err != nil {
-		return fmt.Errorf("failed to set initial transaction count metric: %w", err)
-	}
+	s.transactionCount.Add(float64(s.graph.txCount()))
 
 	// resume all notifiers
+	var err error
 	s.notifiers.Range(func(_, value any) bool {
 		err = value.(Notifier).Run()
 		return err == nil
@@ -398,19 +338,12 @@ func (s *state) Start() error {
 
 // Verify can be used to verify the entire DAG.
 // TODO problematic for large sets. Currently not used, see #1216
-func (s *state) Verify(ctx context.Context) error {
-	return s.db.Read(ctx, func(dbTx stoabs.ReadTx) error {
-		transactions, err := s.graph.findBetweenLC(dbTx, 0, MaxLamportClock)
-		if err != nil {
-			return err
-		}
-		for _, tx := range transactions {
-			if err := s.verifyTX(dbTx, tx); err != nil {
-				return err
-			}
-		}
-		return nil
+func (s *state) Verify(ctx context.Context) (err error) {
+	s.graph.visitBetweenLC(0, MaxLamportClock, func(tx Transaction) bool {
+		err = s.verifyTx(tx)
+		return err == nil
 	})
+	return
 }
 
 func (s *state) saveEvent(e Event) error {
