@@ -1,5 +1,5 @@
 # golang alpine
-FROM golang:1.18.5-alpine as builder
+FROM golang:1.19.3-alpine as builder
 
 ARG TARGETARCH
 ARG TARGETOS
@@ -11,9 +11,6 @@ ARG GIT_VERSION=undefined
 LABEL maintainer="wout.slakhorst@nuts.nl"
 
 RUN apk update \
- && apk add --no-cache \
-            gcc=11.2.1_git20220219-r2 \
-            musl-dev=1.2.3-r0 \
  && update-ca-certificates
 
 ENV GO111MODULE on
@@ -28,7 +25,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s -X 'github.com/nuts-foundation/nuts-node/core.GitCommit=${GIT_COMMIT}' -X 'github.com/nuts-foundation/nuts-node/core.GitBranch=${GIT_BRANCH}' -X 'github.com/nuts-foundation/nuts-node/core.GitVersion=${GIT_VERSION}'" -o /opt/nuts/nuts
 
 # alpine
-FROM alpine:3.16.1
+FROM alpine:3.17.0
 RUN apk update \
   && apk add --no-cache \
              tzdata \
