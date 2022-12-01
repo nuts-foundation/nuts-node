@@ -66,7 +66,7 @@ func NewFileSystemBackend(fspath string) (Storage, error) {
 	}
 
 	// Assert base directory is present
-	err := os.MkdirAll(fsc.fspath, os.ModePerm)
+	err := os.MkdirAll(fsc.fspath, 0700)
 	if err != nil {
 		return nil, err
 	}
