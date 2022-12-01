@@ -70,7 +70,7 @@ type IssueVCRequest struct {
 	// CredentialSubject Subject of a Verifiable Credential identifying the holder and expressing claims.
 	CredentialSubject CredentialSubject `json:"credentialSubject"`
 
-	// ExpirationDate rfc3339 time string until when the credential is valid.
+	// ExpirationDate RFC3339 time string until when the credential is valid.
 	ExpirationDate *string `json:"expirationDate,omitempty"`
 
 	// Issuer DID according to Nuts specification.

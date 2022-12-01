@@ -142,7 +142,7 @@ type VerifiableCredential struct {
 	// ExpirationDate rfc3339 time string until when the credential is valid.
 	ExpirationDate *string `json:"expirationDate,omitempty"`
 
-	// Id Credential ID. An URI wich uniquely identifies the credential e.g. the issuers DID concatenated with an uuid.
+	// Id Credential ID. An URI which uniquely identifies the credential e.g. the issuers DID concatenated with a UUID.
 	Id *string `json:"id,omitempty"`
 
 	// IssuanceDate rfc3339 time string when the credential was issued.

@@ -14,7 +14,7 @@ paths:
         in: path
         description: URL encoded DID.
         required: true
-        example: "did:nuts:1234"
+        example: did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
         schema:
           type: string
     get:
@@ -61,7 +61,7 @@ paths:
         in: path
         description: URL encoded DID.
         required: true
-        example: "did:nuts:1234"
+        example: did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
         schema:
           type: string
     post:
@@ -103,14 +103,14 @@ paths:
         in: path
         description: URL encoded DID.
         required: true
-        example: "did:nuts:1234"
+        example: did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
         schema:
           type: string
       - name: type
         in: path
         description: Type of the service
         required: true
-        example: "eOverdracht"
+        example: oauth
         schema:
           type: string
     delete:
@@ -136,7 +136,7 @@ paths:
         in: path
         description: URL encoded DID.
         required: true
-        example: "did:nuts:1234"
+        example: did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
         schema:
           type: string
     get:
@@ -199,7 +199,7 @@ paths:
         in: path
         description: URL encoded DID.
         required: true
-        example: "did:nuts:1234"
+        example: did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
         schema:
           type: string
       - name: compoundServiceType
@@ -258,7 +258,7 @@ paths:
         in: path
         description: URL encoded service ID.
         required: true
-        example: "did:nuts:1234#service-x"
+        example: did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic#7zKW6JtrkWpvcxBisYAoqZw1eavRULtLa8asDc6KJ6yc
         schema:
           type: string
     delete:
@@ -330,7 +330,9 @@ components:
         serviceEndpoint:
           description: An endpoint URL or a reference to another service.
           type: string
-          example: 'did:nuts:123/serviceEndpoint?type=eOverdracht-fhir'
+          example:
+            referenceExample: did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic/serviceEndpoint?type=eOverdracht-fhir
+            urlExample: http://example.com/some/service/endpoint
     EndpointProperties:
       type: object
       description: A combination of type and URL.
@@ -344,7 +346,9 @@ components:
         endpoint:
           description: An endpoint URL or a reference to another service.
           type: string
-          example: 'did:nuts:123/serviceEndpoint?type=eOverdracht-fhir'
+          example:
+            referenceExample: did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic/serviceEndpoint?type=eOverdracht-fhir
+            urlExample: http://example.com/some/service/endpoint
     CompoundServiceProperties:
       type: object
       description: A creation request for a compound service that contains endpoints. The endpoints can be either absolute endpoints or references.
@@ -357,7 +361,7 @@ components:
           type: string
         serviceEndpoint:
           description: A map containing service references and/or endpoints.
-          example: { 'auth': 'did:nuts:1312321/serviceEndpoint?type=auth' }
+          example: { 'auth': 'did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic/serviceEndpoint?type=auth' }
           type: object
     CompoundService:
       type: object
@@ -374,7 +378,7 @@ components:
           type: string
         serviceEndpoint:
           description: A map containing service references and/or endpoints.
-          example: { 'auth': 'did:nuts:1312321/serviceEndpoint?type=auth' }
+          example: { 'auth': 'did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic/serviceEndpoint?type=auth' }
           type: object
     ContactInformation:
       type: object

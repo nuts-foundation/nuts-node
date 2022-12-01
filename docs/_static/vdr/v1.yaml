@@ -43,7 +43,7 @@ paths:
         in: path
         description: URL encoded DID.
         required: true
-        example: "did:nuts:1234"
+        example: did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
         schema:
           type: string
     get:
@@ -167,7 +167,7 @@ paths:
         in: path
         description: URL encoded DID.
         required: true
-        example: "did:nuts:1234"
+        example: did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
         schema:
           type: string
     post:
@@ -205,14 +205,14 @@ paths:
         in: path
         description: URL encoded DID.
         required: true
-        example: "did:nuts:1234"
+        example: did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
         schema:
           type: string
       - name: kid
         in: path
         description: URL encoded DID identifying the verification method.
         required: true
-        example: "did:nuts:1234#abc"
+        example: "did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic#zx1alkbvj2mqxi55WSVYWv_rek0uNO2iTZaqTTULpCE"
         schema:
           type: string
     delete:
@@ -273,7 +273,7 @@ components:
           items:
             type: string
             description: DID according to Nuts specification
-            example: "did:nuts:128903fjgfslcnmgpe84"
+            example: did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
         assertionMethod:
           type: boolean
           description: indicates if the generated key pair can be used for assertions.

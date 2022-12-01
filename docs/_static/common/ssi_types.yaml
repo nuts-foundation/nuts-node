@@ -15,8 +15,8 @@ components:
         "@context":
           description: "List of URIs of JSON-LD contexts of the VC."
         id:
-          description: Credential ID. An URI wich uniquely identifies the credential e.g. the issuers DID concatenated with an uuid.
-          example: "did:nuts:123#B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY"
+          description: Credential ID. An URI which uniquely identifies the credential e.g. the issuers DID concatenated with a UUID.
+          example: did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic#b53bda82-712a-4d20-b673-e67efaf60acc
           type: string
         type:
           description: A single string or array of strings. The value(s) indicate the type of credential. It should contain `VerifiableCredential`. Each type should be defined in the @context.
@@ -99,7 +99,7 @@ components:
           type: string
           description: "URI of the entity that is generating the presentation."
           format: uri
-          example: "did:nuts:123"
+          example: did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
         proof:
           description: |
             Cryptographic proofs that can be used to detect tampering and verify the authorship of a
@@ -159,7 +159,7 @@ components:
             Specifies the public key that can be used to verify the digital signature.
             Dereferencing a public key URL reveals information about the controller of the key,
             which can be checked against the issuer of the credential.
-          example: did:nuts:123#key-5
+          example: did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic#zx1alkbvj2mqxi55WSVYWv_rek0uNO2iTZaqTTULpCE
         jws:
           type: string
           description: JSON Web Signature
@@ -264,7 +264,7 @@ components:
       properties:
         controller:
           description: The DID subject this key belongs to.
-          example: "did:nuts:1"
+          example: did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
           type: string
         id:
           description: The ID of the key, used as KID in various JWX technologies.
