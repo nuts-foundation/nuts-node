@@ -6,6 +6,18 @@ Release notes
 What has been changed, and how to update between versions.
 
 *****************
+Coconut update (v5.0.2)
+*****************
+
+Release date: 2022-11-30
+
+This patch release fixes the following:
+
+- Synchronize calls to DIDMan to avoid parallel calls from clients creating conflicted DID documents
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.1...v5.0.2
+
+*****************
 Coconut update (v5.0.1)
 *****************
 
@@ -62,6 +74,18 @@ which has been replaced with structured configuration. To use Redis Sentinel in 
 Before v5, searching for VCs would use partial (prefix) matching for strings by default.
 Starting v5 it will use exact matching on strings by default. To match on a prefix (string starting with a specific value), add an asterisk (``*``) at the end of the string.
 To match for a non-nil string, use just an asterisk (``*``) meaning anything will match (but it must be present).
+
+*****************
+Coconut update (v4.3.1)
+*****************
+
+Release date: 2022-11-30
+
+This patch release fixes the following:
+
+- Synchronize calls to DIDMan to avoid parallel calls from clients creating conflicted DID documents
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.3.0...v4.3.1
 
 *****************
 Chestnut update (v4.3.0)
