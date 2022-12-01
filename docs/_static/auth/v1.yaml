@@ -548,6 +548,7 @@ components:
           description: The service for which this access token can be used. The right oauth endpoint is selected based on the service.
           example: nuts-patient-transfer
         credentials:
+          description: Verifiable Credentials to be included in the access token. If no VCs are to be included in the access token, the array can be left empty.
           type: array
           items:
             $ref: '#/components/schemas/VerifiableCredential'
