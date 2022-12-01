@@ -331,8 +331,8 @@ components:
           description: An endpoint URL or a reference to another service.
           type: string
           example:
-            - 'did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic/serviceEndpoint?type=eOverdracht-fhir'
-            - 'http://example.com/some/service/endpoint'
+            referenceExample: did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic/serviceEndpoint?type=eOverdracht-fhir
+            urlExample: http://example.com/some/service/endpoint
     EndpointProperties:
       type: object
       description: A combination of type and URL.
@@ -347,8 +347,8 @@ components:
           description: An endpoint URL or a reference to another service.
           type: string
           example:
-            - 'did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic/serviceEndpoint?type=eOverdracht-fhir'
-            - 'http://example.com/some/service/endpoint'
+            referenceExample: did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic/serviceEndpoint?type=eOverdracht-fhir
+            urlExample: http://example.com/some/service/endpoint
     CompoundServiceProperties:
       type: object
       description: A creation request for a compound service that contains endpoints. The endpoints can be either absolute endpoints or references.
