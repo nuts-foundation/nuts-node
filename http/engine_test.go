@@ -361,7 +361,7 @@ func TestEngine_LoggingMiddleware(t *testing.T) {
 
 	noop := func() {}
 
-	t.Run("not applied to /status and /metrics", func(t *testing.T) {
+	t.Run("requestLogger", func(t *testing.T) {
 		engine := New(noop, nil)
 		engine.config.InterfaceConfig.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
 
@@ -378,17 +378,23 @@ func TestEngine_LoggingMiddleware(t *testing.T) {
 
 		assertServerStarted(t, engine.config.InterfaceConfig.Address)
 
-		// Call to /status is not logged
-		output.Reset()
-		_, _ = http.Get("http://" + engine.config.InterfaceConfig.Address + "/status")
-		assert.NotContains(t, output.String(), "HTTP request")
+		t.Run("applies default filters", func(t *testing.T) {
+			// Calls to /status, ... are not logged
+			for _, path := range []string{"/status", "/metrics", "/health"} {
+				output.Reset()
+				_, _ = http.Get("http://" + engine.config.InterfaceConfig.Address + path)
+				assert.Empty(t, output.String(), path+" should not be logged")
+			}
+		})
 
-		// Call to another, registered path is logged
-		output.Reset()
-		_, _ = http.Get("http://" + engine.config.InterfaceConfig.Address + "/some-path")
-		assert.Contains(t, output.String(), "HTTP request")
+		t.Run("logs requests", func(t *testing.T) {
+			// Call to another, registered path is logged
+			output.Reset()
+			_, _ = http.Get("http://" + engine.config.InterfaceConfig.Address + "/some-path")
+			assert.Contains(t, output.String(), "HTTP request")
+		})
 	})
-	t.Run("request/reply body is logged", func(t *testing.T) {
+	t.Run("bodyLogger", func(t *testing.T) {
 		engine := New(noop, nil)
 		engine.config.InterfaceConfig.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
 		engine.config.InterfaceConfig.Log = LogMetadataAndBodyLevel
@@ -404,12 +410,13 @@ func TestEngine_LoggingMiddleware(t *testing.T) {
 		defer engine.Shutdown()
 
 		assertServerStarted(t, engine.config.InterfaceConfig.Address)
-		output.Reset()
 
-		_, _ = http.Post("http://"+engine.config.InterfaceConfig.Address, "application/json", bytes.NewReader([]byte("{}")))
-
-		assert.Contains(t, output.String(), "HTTP request body: {}")
-		assert.Contains(t, output.String(), `HTTP response body: \"hello, world\"`)
+		t.Run("logs bodies", func(t *testing.T) {
+			output.Reset()
+			_, _ = http.Post("http://"+engine.config.InterfaceConfig.Address, "application/json", bytes.NewReader([]byte("{}")))
+			assert.Contains(t, output.String(), "HTTP request body: {}")
+			assert.Contains(t, output.String(), `HTTP response body: \"hello, world\"`)
+		})
 	})
 }
 

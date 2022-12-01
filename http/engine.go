@@ -274,18 +274,24 @@ func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludeP
 
 	// Logging
 	loggerSkipper := func(c echo.Context) bool {
-		// Aside from interface-driven skipper, skip logging for metrics and status
+		// Aside from interface-driven skipper, skip logging for calls to /metrics, /status, and /health
 		if skipper(c) {
 			return true
 		}
-		return matchesPath(c.Request().RequestURI, "/metrics") || matchesPath(c.Request().RequestURI, "/status")
+		//
+		for _, excludePath := range []string{"/metrics", "/status", "/health"} {
+			if matchesPath(c.Request().RequestURI, excludePath) {
+				return true
+			}
+		}
+		return false
 	}
 	if cfg.Log != LogNothingLevel {
-		// Log when level is set to metadata or request-response
+		// Log when level is set to LogMetadataLevel or LogMetadataAndBodyLevel
 		echoServer.Use(requestLoggerMiddleware(loggerSkipper, log.Logger()))
 	}
 	if cfg.Log == LogMetadataAndBodyLevel {
-		// Log when level is set to request-response
+		// Log when level is set to LogMetadataAndBodyLevel
 		echoServer.Use(bodyLoggerMiddleware(skipper, log.Logger()))
 	}
 
