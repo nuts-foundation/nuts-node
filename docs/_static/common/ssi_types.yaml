@@ -15,7 +15,7 @@ components:
         "@context":
           description: "List of URIs of JSON-LD contexts of the VC."
         id:
-          description: Credential ID. An URI which uniquely identifies the credential e.g. the issuers DID concatenated with an UUID.
+          description: Credential ID. An URI which uniquely identifies the credential e.g. the issuers DID concatenated with a UUID.
           example: did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic#b53bda82-712a-4d20-b673-e67efaf60acc
           type: string
         type:
