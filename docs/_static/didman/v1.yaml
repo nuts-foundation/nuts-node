@@ -330,7 +330,7 @@ components:
         serviceEndpoint:
           description: An endpoint URL or a reference to another service.
           type: string
-          example:
+          examples:
             - 'did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic/serviceEndpoint?type=eOverdracht-fhir'
             - 'http://example.com/some/service/endpoint'
     EndpointProperties:
@@ -346,7 +346,7 @@ components:
         endpoint:
           description: An endpoint URL or a reference to another service.
           type: string
-          example:
+          examples:
             - 'did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic/serviceEndpoint?type=eOverdracht-fhir'
             - 'http://example.com/some/service/endpoint'
     CompoundServiceProperties:
