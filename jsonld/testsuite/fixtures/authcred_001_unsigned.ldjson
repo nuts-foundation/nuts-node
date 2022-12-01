@@ -15,17 +15,7 @@
         "path": "/composition/1",
         "userContext": true
       }
-    ],
-    "localParameters": {
-      "single": "value",
-      "array": [
-        "first-entry",
-        "second-entry"
-      ],
-      "map": {
-        "entry": "value"
-      }
-    }
+    ]
   },
   "id": "did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW#1",
   "issuanceDate": "2022-11-25T09:44:16.972576+01:00",

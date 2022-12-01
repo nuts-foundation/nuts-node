@@ -23,13 +23,12 @@ type testCase struct {
 }
 
 var testCases = []testCase{
+	// Note: there is no test for an NutsAuthorizationCredential with localParameters,
+	// because localParameters in v1.1 aren't compatible with v1.0 since its type changed from @graph to @json.
+	// This is not a problem, because nobody actually used it in v1.0.
 	{
-		name: "NutsAuthorizationCredential with localParameters",
+		name: "NutsAuthorizationCredential",
 		file: "authcred_001.ldjson",
-	},
-	{
-		name: "NutsAuthorizationCredential without localParameters",
-		file: "authcred_002.ldjson",
 	},
 	{
 		name: "NutsOrganizationCredential",
@@ -86,35 +85,6 @@ func TestCompatibility(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestNutsV10LocalParametersSignature(t *testing.T) {
-	loader := jsonld.NewMappedDocumentLoader(map[string]string{
-		"https://nuts.nl/credentials/v1": "../../vcr/assets/assets/contexts/nuts-v1_1.ldjson",
-		jsonld.W3cVcContext:              "../../vcr/assets/assets/contexts/w3c-credentials-v1.ldjson",
-		jsonld.Jws2020Context:            "../../vcr/assets/assets/contexts/lds-jws2020-v1.ldjson",
-	}, ld.NewDefaultDocumentLoader(nil))
-
-	data, err := os.ReadFile("fixtures/authcred_001.ldjson")
-	require.NoError(t, err)
-	key := readSigningKey(t)
-
-	var document proof.SignedDocument
-	err = json.Unmarshal(data, &document)
-	require.NoError(t, err)
-
-	// Verify signature without alteration
-	ldProof := proof.LDProof{}
-	err = document.UnmarshalProofValue(&ldProof)
-	require.NoError(t, err)
-	err = ldProof.Verify(document.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: loader}, key.Public())
-	require.NoError(t, err)
-
-	// Alter localParameters field, signature should change
-	document["credentialSubject"].(map[string]interface{})["localParameters"].(map[string]interface{})["single"] = "altered-value"
-	ld.PrintDocument("", document)
-	err = ldProof.Verify(document.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: loader}, key.Public())
-	assert.Error(t, err)
 }
 
 // TestGenerateSignedFixtures is used to generate signed test fixtures of the unsigned test cases.
