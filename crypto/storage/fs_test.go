@@ -23,9 +23,12 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/require"
+	"io/fs"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
+	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -36,6 +39,26 @@ func Test_NewFileSystemBackend(t *testing.T) {
 		storage, err := NewFileSystemBackend("")
 		assert.EqualError(t, err, "filesystem path is empty")
 		assert.Nil(t, storage)
+	})
+	t.Run("error - path is a file", func(t *testing.T) {
+		tempFile, err := os.CreateTemp("", "")
+		require.NoError(t, err)
+		_ = tempFile.Close()
+		storage, err := NewFileSystemBackend(tempFile.Name())
+		assert.ErrorIs(t, err, syscall.ENOTDIR)
+		assert.Nil(t, storage)
+	})
+	t.Run("it creates the dir with the right permissions", func(t *testing.T) {
+		tmpDirPath := t.TempDir()
+		keysDirPath := filepath.Join(tmpDirPath, "keys")
+
+		_, err := NewFileSystemBackend(keysDirPath)
+		require.NoError(t, err)
+
+		fileInfo, err := os.Stat(keysDirPath)
+		require.NoError(t, err)
+		assert.Equal(t, fileInfo.IsDir(), true)
+		assert.Equal(t, fs.FileMode(0700), fileInfo.Mode().Perm())
 	})
 }
 
