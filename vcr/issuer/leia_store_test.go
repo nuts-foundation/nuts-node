@@ -166,7 +166,7 @@ func Test_leiaStore_GetCredential(t *testing.T) {
 	t.Run("no results", func(t *testing.T) {
 		store := newStore(t)
 		foundCredential, err := store.GetCredential(*vcToGet.ID)
-		assert.EqualError(t, err, types.ErrNotFound.Error())
+		assert.ErrorIs(t, err, types.ErrNotFound)
 		assert.Nil(t, foundCredential)
 	})
 
