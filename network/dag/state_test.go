@@ -44,8 +44,7 @@ func TestState_relayingFuncs(t *testing.T) {
 	payload := []byte{0, 0, 0, 1}
 
 	ctx := context.Background()
-	txState, err := NewState()
-	require.NoError(t, err)
+	txState := NewState()
 	require.NoError(t, txState.Add(ctx, tx, payload))
 
 	payloadHash := hash.SHA256Sum(payload)
@@ -100,36 +99,29 @@ func TestState_relayingFuncs(t *testing.T) {
 }
 
 func TestState_Shutdown(t *testing.T) {
-	state, err := NewState()
-	require.NoError(t, err)
+	state := NewState()
 	require.NoError(t, state.Shutdown())
 }
 
 func TestState_Notifier(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		s, err := NewState()
-		require.NoError(t, err)
-
-		_, err = s.Notifier(t.Name(), dummyFunc)
+		s := NewState()
+		_, err := s.Notifier(t.Name(), dummyFunc)
 		require.NoError(t, err)
 		assert.Len(t, s.Notifiers(), 1)
 	})
 
 	t.Run("error on adding same notifier twice", func(t *testing.T) {
-		s, err := NewState()
-		require.NoError(t, err)
-
+		s := NewState()
 		_, _ = s.Notifier(t.Name(), dummyFunc)
-		_, err = s.Notifier(t.Name(), dummyFunc)
+		_, err := s.Notifier(t.Name(), dummyFunc)
 		assert.Error(t, err)
 	})
 }
 
 func TestState_WritePayload(t *testing.T) {
 	t.Run("notifies receiver for payload", func(t *testing.T) {
-		txState, err := NewState()
-		require.NoError(t, err)
-
+		txState := NewState()
 		var received atomic.Bool
 		_, _ = txState.Notifier(t.Name(), func(event Event) (bool, error) {
 			received.Toggle()
@@ -139,7 +131,7 @@ func TestState_WritePayload(t *testing.T) {
 		}))
 		expected := []byte{1}
 
-		err = txState.WritePayload(context.Background(), transaction{}, hash.EmptyHash(), expected)
+		err := txState.WritePayload(context.Background(), transaction{}, hash.EmptyHash(), expected)
 
 		assert.NoError(t, err)
 		assert.True(t, received.Load())
@@ -149,8 +141,7 @@ func TestState_WritePayload(t *testing.T) {
 func TestState_Add(t *testing.T) {
 	t.Run("error for transaction verification failure", func(t *testing.T) {
 		ctx := context.Background()
-		txState, err := NewState()
-		require.NoError(t, err)
+		txState := NewState()
 		txState.(*state).txVerifiers = append(txState.(*state).txVerifiers, func(tx Transaction) error {
 			return errors.New("verification failed")
 		})
@@ -160,9 +151,7 @@ func TestState_Add(t *testing.T) {
 	})
 
 	t.Run("error when Notifier.Save fails", func(t *testing.T) {
-		s, err := NewState()
-		require.NoError(t, err)
-
+		s := NewState()
 		ctrl := gomock.NewController(t)
 		subscriberMock := NewMockNotifier(ctrl)
 		subscriberMock.EXPECT().Save(gomock.Any(), gomock.Any()).Return(errors.New("notifier test error"))
@@ -172,9 +161,7 @@ func TestState_Add(t *testing.T) {
 	})
 
 	t.Run("notifies receiver for transaction", func(t *testing.T) {
-		s, err := NewState()
-		require.NoError(t, err)
-
+		s := NewState()
 		ctx := context.Background()
 		var received atomic.Bool
 		s.Notifier(t.Name(), func(event Event) (bool, error) {
@@ -192,9 +179,7 @@ func TestState_Add(t *testing.T) {
 	})
 
 	t.Run("does not notify receiver for missing payload", func(t *testing.T) {
-		s, err := NewState()
-		require.NoError(t, err)
-
+		s := NewState()
 		ctx := context.Background()
 		s.Notifier(t.Name(), func(event Event) (bool, error) {
 			t.Fail()
@@ -210,9 +195,7 @@ func TestState_Add(t *testing.T) {
 	})
 
 	t.Run("notifies receiver for payload", func(t *testing.T) {
-		s, err := NewState()
-		require.NoError(t, err)
-
+		s := NewState()
 		ctx := context.Background()
 		var received atomic.Bool
 		s.Notifier(t.Name(), func(event Event) (bool, error) {
@@ -233,20 +216,16 @@ func TestState_Add(t *testing.T) {
 	})
 
 	t.Run("transaction added with incorrect payload", func(t *testing.T) {
-		txState, err := NewState()
-		require.NoError(t, err)
-
+		txState := NewState()
 		ctx := context.Background()
 		expected := CreateTestTransactionWithJWK(1)
 
-		err = txState.Add(ctx, expected, []byte{1})
+		err := txState.Add(ctx, expected, []byte{1})
 		assert.EqualError(t, err, "tx.PayloadHash does not match hash of payload")
 	})
 
 	t.Run("afterCommit is not called for duplicate TX", func(t *testing.T) {
-		s, err := NewState()
-		require.NoError(t, err)
-
+		s := NewState()
 		ctx := context.Background()
 		tx := CreateTestTransactionWithJWK(1)
 
@@ -262,17 +241,14 @@ func TestState_Add(t *testing.T) {
 		}))
 
 		// add again
-		err = s.Add(ctx, tx, nil)
-		require.NoError(t, err)
+		require.NoError(t, s.Add(ctx, tx, nil))
 		time.Sleep(100 * time.Millisecond) // checking nothing happened is hard
 		assertCountMetric(t, s, 1)
 	})
 }
 
 func TestState_Diagnostics(t *testing.T) {
-	txState, err := NewState()
-	require.NoError(t, err)
-
+	txState := NewState()
 	ctx := context.Background()
 	payload := []byte("payload")
 	doc1, _, _ := CreateTestTransactionEx(2, hash.SHA256Sum(payload), nil)
@@ -295,9 +271,7 @@ func TestState_Diagnostics(t *testing.T) {
 func TestState_XOR(t *testing.T) {
 	t.Skip("TODO(pascaldekloe): Not sure what the XOR test tries to do. It inserts a transaction with a clock gap. Are we supposed to support this, or is that more of a bug in the test? @gerard")
 
-	txState, err := NewState()
-	require.NoError(t, err)
-
+	txState := NewState()
 	// create state
 	ctx := context.Background()
 	payload := []byte("payload")
@@ -329,9 +303,7 @@ func TestState_XOR(t *testing.T) {
 func TestState_IBLT(t *testing.T) {
 	t.Skip("TODO(pascaldekloe): Not sure what the IBLT test tries to do. It inserts a transaction with a clock gap. Are we supposed to support this, or is that more of a bug in the test? @gerard")
 
-	txState, err := NewState()
-	require.NoError(t, err)
-
+	txState := NewState()
 	ctx := context.Background()
 	payload := []byte("payload")
 	tx, _, _ := CreateTestTransactionEx(1, hash.SHA256Sum(payload), nil)
@@ -366,9 +338,7 @@ func TestState_IBLT(t *testing.T) {
 }
 
 func TestState_InitialTransactionCountMetric(t *testing.T) {
-	txState, err := NewState()
-	require.NoError(t, err)
-
+	txState := NewState()
 	ctx := context.Background()
 	payload := []byte("payload")
 	tx, _, _ := CreateTestTransactionEx(1, hash.SHA256Sum(payload), nil)
@@ -389,8 +359,7 @@ func TestState_InitialTransactionCountMetric(t *testing.T) {
 
 func TestState_updateState(t *testing.T) {
 	setup := func(t *testing.T) State {
-		txState, err := NewState()
-		require.NoError(t, err)
+		txState := NewState()
 		require.NoError(t, txState.Start())
 		return txState
 	}

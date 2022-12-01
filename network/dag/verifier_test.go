@@ -30,7 +30,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -44,8 +43,7 @@ func Test_PrevTransactionVerifier(t *testing.T) {
 	root, _, _ := CreateTestTransactionEx(1, hash.SHA256Sum(rootPayload), nil)
 
 	t.Run("ok - prev is present", func(t *testing.T) {
-		testState, err := NewState()
-		require.NoError(t, err)
+		testState := NewState()
 		payload := []byte{0}
 		tx, _, _ := CreateTestTransactionEx(1, hash.SHA256Sum(payload), nil, root)
 		_ = testState.Add(ctx, root, rootPayload)
@@ -59,8 +57,7 @@ func Test_PrevTransactionVerifier(t *testing.T) {
 	})
 
 	t.Run("error - incorrect lamport clock", func(t *testing.T) {
-		testState, err := NewState()
-		require.NoError(t, err)
+		testState := NewState()
 		_ = testState.Add(ctx, root, rootPayload)
 
 		// malformed TX with LC = 2
@@ -68,7 +65,7 @@ func Test_PrevTransactionVerifier(t *testing.T) {
 		signer := crypto2.NewTestKey("1")
 		signedTransaction, _ := NewTransactionSigner(signer, true).Sign(unsignedTransaction, time.Now())
 
-		err = newPrevTransactionsVerifier(testState.(*state).graph)(signedTransaction)
+		err := newPrevTransactionsVerifier(testState.(*state).graph)(signedTransaction)
 		assert.EqualError(t, err, "transaction has an invalid lamport clock value")
 	})
 }

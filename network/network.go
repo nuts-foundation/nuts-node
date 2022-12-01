@@ -141,9 +141,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	if err != nil {
 		return fmt.Errorf("unable to create database: %w", err)
 	}
-	if n.state, err = dag.NewStateWithVerifiers(n.keyResolver); err != nil {
-		return fmt.Errorf("failed to configure state: %w", err)
-	}
+	n.state = dag.NewStateWithVerifiers(n.keyResolver)
 
 	n.strictMode = config.Strictmode
 	n.peerID = transport.PeerID(uuid.New().String())

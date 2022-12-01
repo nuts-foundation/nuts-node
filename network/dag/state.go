@@ -62,7 +62,7 @@ func (s *state) Migrate() error {
 }
 
 // NewState returns a new State. The State is used as entry point, it's methods will start transactions and will notify observers from within those transactions.
-func NewState() (State, error) {
+func NewState() State {
 	graph := newDAG()
 
 	newState := &state{
@@ -75,22 +75,19 @@ func NewState() (State, error) {
 	// to prevent error scenario.
 	err := newState.initPrometheusCounters()
 	if err != nil && err.Error() != (prometheus.AlreadyRegisteredError{}).Error() { // No unwrap on prometheus.AlreadyRegisteredError
-		return nil, err
+		log.Logger().WithError(err).Fatal("exit on Prometheus")
 	}
 
-	return newState, nil
+	return newState
 }
 
-func NewStateWithVerifiers(keyr types.KeyResolver) (State, error) {
-	n, err := NewState()
-	if err != nil {
-		return nil, err
-	}
+func NewStateWithVerifiers(keyr types.KeyResolver) State {
+	n := NewState()
 	n.(*state).txVerifiers = append(n.(*state).txVerifiers,
 		newPrevTransactionsVerifier(n.(*state).graph),
 		newTransactionSignatureVerifier(keyr),
 	)
-	return n, nil
+	return n
 }
 
 func transactionCountCollector() prometheus.Counter {
