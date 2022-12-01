@@ -27,6 +27,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/stretchr/testify/require"
 	"path"
 	"testing"
@@ -165,7 +166,7 @@ func Test_leiaStore_GetCredential(t *testing.T) {
 	t.Run("no results", func(t *testing.T) {
 		store := newStore(t)
 		foundCredential, err := store.GetCredential(*vcToGet.ID)
-		assert.EqualError(t, err, ErrNotFound.Error())
+		assert.ErrorIs(t, err, types.ErrNotFound)
 		assert.Nil(t, foundCredential)
 	})
 
@@ -183,7 +184,7 @@ func Test_leiaStore_GetCredential(t *testing.T) {
 
 		t.Run("it fails", func(t *testing.T) {
 			foundCredential, err := store.GetCredential(*vcToGet.ID)
-			assert.ErrorIs(t, err, ErrMultipleFound)
+			assert.ErrorIs(t, err, types.ErrMultipleFound)
 			assert.Nil(t, foundCredential)
 		})
 	})
@@ -223,7 +224,7 @@ func Test_leiaIssuerStore_GetRevocation(t *testing.T) {
 
 		result, err := store.GetRevocation(unknownSubjectID)
 
-		assert.ErrorIs(t, err, ErrNotFound)
+		assert.ErrorIs(t, err, types.ErrNotFound)
 		assert.Nil(t, result)
 	})
 
@@ -237,7 +238,7 @@ func Test_leiaIssuerStore_GetRevocation(t *testing.T) {
 
 		result, err := store.GetRevocation(duplicateSubjectID)
 
-		assert.ErrorIs(t, err, ErrMultipleFound)
+		assert.ErrorIs(t, err, types.ErrMultipleFound)
 		assert.Nil(t, result)
 	})
 }

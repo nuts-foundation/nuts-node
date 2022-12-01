@@ -26,6 +26,7 @@ import (
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -129,10 +130,10 @@ func (s leiaIssuerStore) GetCredential(id ssi.URI) (*vc.VerifiableCredential, er
 		return nil, fmt.Errorf("could not get credential by id: %w", err)
 	}
 	if len(results) == 0 {
-		return nil, ErrNotFound
+		return nil, types.ErrNotFound
 	}
 	if len(results) > 1 {
-		return nil, ErrMultipleFound
+		return nil, types.ErrMultipleFound
 	}
 	result := results[0]
 	credential := &vc.VerifiableCredential{}
@@ -165,10 +166,10 @@ func (s leiaIssuerStore) GetRevocation(subject ssi.URI) (*credential.Revocation,
 		return nil, fmt.Errorf("error while getting revocation by id: %w", err)
 	}
 	if len(results) == 0 {
-		return nil, ErrNotFound
+		return nil, types.ErrNotFound
 	}
 	if len(results) > 1 {
-		return nil, ErrMultipleFound
+		return nil, types.ErrMultipleFound
 	}
 	result := results[0]
 	revocation := &credential.Revocation{}

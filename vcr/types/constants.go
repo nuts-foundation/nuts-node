@@ -23,14 +23,11 @@ import (
 	"errors"
 )
 
-// ErrInvalidIssuer is returned when a credential is issued by a DID that is unknown or when the private key is missing.
-var ErrInvalidIssuer = errors.New("invalid credential issuer")
-
-// ErrInvalidSubject is returned when a credential is issued to a DID that is unknown or revoked.
-var ErrInvalidSubject = errors.New("invalid credential subject")
-
 // ErrNotFound is returned when a credential can not be found based on its ID.
 var ErrNotFound = errors.New("credential not found")
+
+// ErrMultipleFound is returned when multiple credentials or revocations are found for the same ID.
+var ErrMultipleFound = errors.New("multiple found")
 
 // ErrRevoked is returned when a credential has been revoked and the required action requires it to not be revoked.
 var ErrRevoked = errors.New("credential is revoked")

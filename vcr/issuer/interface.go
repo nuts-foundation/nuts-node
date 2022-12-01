@@ -19,7 +19,6 @@
 package issuer
 
 import (
-	"errors"
 	"github.com/nuts-foundation/nuts-node/core"
 	"io"
 
@@ -57,12 +56,6 @@ type Issuer interface {
 	Revoke(credentialID ssi.URI) (*credential.Revocation, error)
 	CredentialSearcher
 }
-
-// ErrNotFound is returned when a credential or revocation can not be found based on its ID.
-var ErrNotFound = errors.New("not found")
-
-// ErrMultipleFound is returned when multiple credentials or revocations are found for the same ID.
-var ErrMultipleFound = errors.New("multiple found")
 
 // Store defines the interface for an issuer store.
 // An implementation stores all the issued credentials and the revocations.
