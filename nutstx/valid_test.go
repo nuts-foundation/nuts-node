@@ -1,16 +1,20 @@
 package nutstx
 
 import (
-	"crypto"
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/nuts-foundation/nuts-node/stream"
 )
 
 func BenchmarkValid(b *testing.B) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
 	// single sample
 	var content = []byte{0} // arbitrary transaction data
 	const token = "eyJhbGciOiJFUzI1NiIsImNyaXQiOlsic2lndCIsInZlciIsInByZXZzIiwibGMiXSwiY3R5IjoiYXBwbGljYXRpb24vZGlkK2pzb24iLCJraWQiOiJ0ZXN0LWtleSIsImxjIjowLCJwcmV2cyI6W10sInNpZ3QiOjE2Njg2OTYyMDAsInZlciI6Mn0.NmUzNDBiOWNmZmIzN2E5ODljYTU0NGU2YmI3ODBhMmM3ODkwMWQzZmIzMzczODc2ODUxMWEzMDYxN2FmYTAxZA.OBBnvRxerJEL-Qaerxef3I4P62avq9ihYnSIfHd-SPLVUVhmMQyg8pgxLw8s5FfZchsQ4VaXbuT7eOwtanZBRw"
@@ -21,17 +25,24 @@ func BenchmarkValid(b *testing.B) {
 	}
 	key.X.SetString("63034895643221788472610173124010092768542486664520124763050582067459299772736", 10)
 	key.Y.SetString("67599489229846423951267283483643514095096616923146952670388600905714246400878", 10)
+	signTime := time.Date(2022, 11, 17, 14, 43, 20, 0, time.UTC)
 
-	// key resolver stub
-	byKeyIDOrNil := func(KID string) crypto.PublicKey {
-		if want := "test-key"; KID != want {
-			b.Errorf("key resolver called with KID %q, want %q (for JWS %q)", KID, want, token)
+	// stub aggregate set lookup
+	aggs := NewAggregateSet()
+	aggs.SignatureAggregate.perKeyID["test-key"] = key
+	liveSince := func(ctx context.Context, notBefore time.Time) (*AggregateSet, time.Time, error) {
+		if err := ctx.Err(); err != nil {
+			return nil, time.Time{}, err
 		}
-		return &key
+		if !notBefore.Equal(signTime) {
+			b.Errorf("LiveSince invoked with notBefore %s, want %s from token %s", notBefore, signTime, token)
+		}
+		return aggs, time.Now(), nil
 	}
 
+	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		err := ValidEvent(stream.Event{JWS: token, Content: content}, byKeyIDOrNil)
+		err := ValidEvent(ctx, stream.Event{JWS: token, Content: content}, liveSince)
 		if err != nil {
 			b.Fatal(err)
 		}

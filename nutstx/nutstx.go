@@ -4,54 +4,30 @@ package nutstx
 import (
 	"context"
 	"errors"
+	"io"
 	"log"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/nuts-foundation/nuts-node/stream"
 )
 
-// Feed Aggregates from the event-stream.
-type Feed struct {
-	Aggregates []Aggregate
-	lastLiveMS atomic.Int64
-}
-
-// SyncFrom updates Appender continuously until it encounters a retrieval error.
-func (f *Feed) SyncFrom(ctx context.Context, source stream.Iterator) error {
-	backoff := time.NewTicker(200 * time.Millisecond)
-	defer backoff.Stop()
-
+// SyncFrom applies the stream to the Aggregates until end-of-stream.
+func SyncFrom(source stream.Iterator, dst ...Aggregate) error {
 	for {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-
 		event, err := source.NextEvent()
-		switch err {
-		case nil:
-			f.applyEvent(event)
-
-		case stream.NoData:
-			select {
-			case tick := <-backoff.C:
-				// The tick can be old but that's OK.
-				// It will catch up at some point.
-				// Noth worth an additional time.Now.
-				f.lastLiveMS.Store(tick.UnixMilli())
-			case <-ctx.Done():
-				return ctx.Err()
+		if err != nil {
+			if errors.Is(err, stream.NoData) {
+				return nil // OK
 			}
-
-		default:
 			return err
 		}
+		applyEvent(event, dst)
 	}
 }
 
-func (f *Feed) applyEvent(e stream.Event) {
+func applyEvent(e stream.Event, aggs []Aggregate) {
 	msg, err := jws.ParseString(e.JWS)
 	if err != nil {
 		log.Printf("nutstx: unusable JWS %q from event-stream: %s", e.JWS, err)
@@ -66,14 +42,157 @@ func (f *Feed) applyEvent(e stream.Event) {
 	h := sigs[0].ProtectedHeaders()
 
 	var wg sync.WaitGroup
-	wg.Add(len(f.Aggregates))
-	for _, a := range f.Aggregates {
+	wg.Add(len(aggs))
+	for _, a := range aggs {
 		go func(a Aggregate) {
 			defer wg.Done()
 			a.ApplyEvent(e, h)
 		}(a)
 	}
 	wg.Wait()
+}
+
+// View provides live aggregates from an event stream.
+type View struct {
+	liveQueue chan live
+	livePool  sync.Pool
+
+	filePath string
+}
+
+type live struct {
+	*AggregateSet
+	time.Time
+	stream.Iterator
+}
+
+// NewFileView follows a file (from stream.OpenAppender).
+func NewFileView(file string, queueN int) *View {
+	v := View{
+		liveQueue: make(chan live, queueN),
+		filePath:  file,
+	}
+	go v.enqueueN(queueN)
+	return &v
+}
+
+var ErrLiveFuture = errors.New("nutstx: live view from future not available")
+
+// LiveSince returns aggregates no older than notBefore.
+func (v *View) LiveSince(ctx context.Context, notBefore time.Time) (*AggregateSet, time.Time, error) {
+	tolerance := time.Since(notBefore)
+	if tolerance < 0 {
+		return nil, time.Time{}, ErrLiveFuture
+	}
+
+	// pool cache only works with some tollerance
+	for tolerance >= time.Second {
+		p := v.livePool.Get()
+		if p == nil {
+			break // empty
+		}
+		l := p.(live)
+		if l.Time.Before(notBefore) {
+			continue // discard old
+		}
+		v.livePool.Put(l) // reuse
+		return l.AggregateSet, l.Time, nil
+	}
+
+	// roll queue until within tolerance
+	for {
+		select {
+		case l := <-v.liveQueue:
+			if l.Time.Before(notBefore) {
+				// too old; back in line
+				go v.freshen(l)
+				continue
+			}
+
+			go v.fork(l)
+
+			return l.AggregateSet, l.Time, nil
+
+		case <-ctx.Done():
+			return nil, time.Time{}, ctx.Err()
+		}
+	}
+}
+
+// Freshen gets l all remaining events (since the last .Time) and it enquies l
+// back into liveQueue.
+func (v *View) freshen(l live) {
+	err := SyncFrom(l.Iterator, l.AggregateSet.List()...)
+	if err != nil {
+		log.Print("nutstx: aggregate set stranded on event stream read: ", err)
+		if err := l.Iterator.Close(); err != nil {
+			log.Print(err)
+		}
+		v.enqueueN(1) // replace with new
+		return        // discards l
+	}
+	v.liveQueue <- l // requeue
+}
+
+// Fork uses the Iterator and the snapshots from l to branch of a new child into
+// liveQueue.
+func (v *View) fork(l live) {
+	child := live{
+		AggregateSet: NewAggregateSet(),
+		Iterator:     l.Iterator, // pass
+	}
+	childAggs := child.List()
+	aggs := l.List()
+
+	// copy snapshots of each aggregate
+	errs := make(chan error, len(aggs))
+	for i := range aggs {
+		go func(i int) {
+			r, w := io.Pipe()
+			go func() {
+				w.CloseWithError(aggs[i].WriteTo(w))
+			}()
+			errs <- childAggs[i].ReadFrom(r)
+		}(i)
+	}
+
+	var fatal bool
+	for range aggs {
+		err := <-errs
+		if err != nil {
+			log.Print("nutstx: live set stranded on ", err)
+			fatal = true
+		}
+	}
+	if fatal {
+		v.enqueueN(1) // start form scratch
+	} else {
+		v.freshen(child)
+	}
+}
+
+func (v *View) enqueueN(n int) {
+	for i := 0; i < n; i++ {
+		set := NewAggregateSet()
+		source := stream.OpenIterator(v.filePath)
+		err := SyncFrom(source, set.List()...)
+		if err != nil {
+			backoff := 5 * time.Second
+			t := time.NewTimer(backoff)
+			log.Printf("nutstx: event-stream launch retry in %s on: %s", backoff, err)
+			if err := source.Close(); err != nil {
+				log.Print(err)
+			}
+			<-t.C
+			continue
+		}
+
+		v.liveQueue <- live{
+			AggregateSet: set,
+			Time:         time.Now(),
+			Iterator:     source,
+		}
+	}
 }
 
 // InsertionQueue handles inbound events. It deals with the circular dependency,
@@ -83,21 +202,12 @@ func (f *Feed) applyEvent(e stream.Event) {
 type InsertionQueue struct {
 	stream.Appender // destination
 	stream.Recents  // deduplication
-	SignatureAggregate
-	*Feed // update state reference
+	*View
 }
 
 // Insert commits a stream.Event if it matches the acceptance criteria.
 func (q *InsertionQueue) Insert(ctx context.Context, e stream.Event) error {
-	err := ValidEvent(e, q.SignatureAggregate.ByKeyIDOrNil)
-	if errors.Is(err, ErrKeyNotFound) {
-		// retry with any and all pending transactions applied
-		err := q.awaitLiveAfter(ctx, time.Now())
-		if err != nil {
-			return err
-		}
-		err = ValidEvent(e, q.SignatureAggregate.ByKeyIDOrNil)
-	}
+	err := ValidEvent(ctx, e, q.View.LiveSince)
 	if err != nil {
 		return err
 	}
@@ -111,40 +221,10 @@ func (q *InsertionQueue) Insert(ctx context.Context, e stream.Event) error {
 		if errors.Is(err, stream.ErrSizeMax) {
 			return err
 		}
+
 		// 🚨 event-stream malfuntion is fatal
 		log.Fatal("exit on: ", err)
 	}
 
 	return nil
-}
-
-func (q *InsertionQueue) awaitLiveAfter(ctx context.Context, t time.Time) error {
-	var wait *time.Ticker // lazy initiation
-	for {
-		last := q.Feed.LastLive()
-		if last.After(t) {
-			return nil
-		}
-
-		if wait == nil {
-			wait = time.NewTicker(time.Second)
-			defer wait.Stop()
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-wait.C:
-			continue
-		}
-	}
-}
-
-// LastLive returns the most recent moment where Appender reached
-// the latest event-stream entry available, with zero for never.
-func (f *Feed) LastLive() time.Time {
-	ms := f.lastLiveMS.Load()
-	if ms == 0 {
-		return time.Time{}
-	}
-	return time.UnixMilli(ms)
 }
