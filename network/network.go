@@ -381,10 +381,10 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 					continue inner
 				}
 				log.Logger().
-					WithField(core.LogFieldNodeAddress, address).
 					WithField(core.LogFieldDID, node.ID.String()).
+					WithField(core.LogFieldNodeAddress, address.String()).
 					Info("Discovered Nuts node")
-				n.connectionManager.Connect(address)
+				n.connectionManager.Connect(address.Host)
 			}
 		}
 	}
@@ -408,13 +408,30 @@ func (n *Network) validateNodeDID(nodeDID did.DID) error {
 		}
 	}
 
-	// Check if the DID document has a resolvable NutsComm endpoint
+	// Check if the DID document has a resolvable and valid NutsComm endpoint
 	serviceResolver := doc.NewServiceResolver(n.didDocumentResolver)
 	serviceRef := doc.MakeServiceReference(nodeDID, transport.NutsCommServiceType)
-	_, err = serviceResolver.Resolve(serviceRef, doc.DefaultMaxServiceReferenceDepth)
+	nutsCommService, err := serviceResolver.Resolve(serviceRef, doc.DefaultMaxServiceReferenceDepth)
 	if err != nil {
 		return fmt.Errorf("unable to resolve %s service endpoint, register it on the DID document (did=%s): %v", transport.NutsCommServiceType, nodeDID, err)
 	}
+	var nutsCommURLStr string
+	if err = nutsCommService.UnmarshalServiceEndpoint(&nutsCommURLStr); err != nil {
+		return fmt.Errorf("invalid %s service endpoint: %w", transport.NutsCommServiceType, err)
+	}
+	nutsCommURL, err := transport.ParseNutsCommAddress(nutsCommURLStr)
+	if err != nil {
+		return fmt.Errorf("invalid %s service endpoint: %w", transport.NutsCommServiceType, err)
+	}
+
+	// Check certificate and confirm it contains the NutsComm address
+	if n.certificate.Leaf == nil { // n.config.DisableNodeAuthentication is for incoming connections.
+		return errors.New("missing TLS certificate")
+	}
+	if err = n.certificate.Leaf.VerifyHostname(nutsCommURL.Hostname()); err != nil {
+		return fmt.Errorf("none of the DNS names in TLS certificate match the %s service endpoint (nodeDID=%s, %s=%s)", transport.NutsCommServiceType, nodeDID, transport.NutsCommServiceType, nutsCommURL.String())
+	}
+
 	return nil
 }
 

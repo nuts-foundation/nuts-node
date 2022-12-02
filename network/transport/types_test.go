@@ -56,7 +56,7 @@ func Test_ParseAddress(t *testing.T) {
 		addr, err := ParseNutsCommAddress(tc.input)
 		if tc.err == nil {
 			// valid test cases
-			assert.Equal(t, tc.output, addr, "test case: %v", tc)
+			assert.Equal(t, tc.output, addr.Host, "test case: %v", tc)
 			assert.NoError(t, err, "test case: %v", tc)
 		} else {
 			// invalid test cases
