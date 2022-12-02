@@ -38,6 +38,7 @@ func Test_ParseAddress(t *testing.T) {
 	}{
 		{"grpc://foo.bar:5050", "foo.bar:5050", nil},
 		{"grpc://foo.BAR", "foo.BAR", nil},
+		{"grpc://fooBAR", "fooBAR", nil},
 		{"foo.bar", "", errScheme},
 		{"http://foo.bar", "", errScheme},
 		{"grpc://1.2.3.4:5555", "", errIsIp},
@@ -55,12 +56,12 @@ func Test_ParseAddress(t *testing.T) {
 		addr, err := ParseNutsCommAddress(tc.input)
 		if tc.err == nil {
 			// valid test cases
-			assert.Equal(t, tc.output, addr, "test case: %V", tc)
-			assert.NoError(t, err, "test case: %V", tc)
+			assert.Equal(t, tc.output, addr, "test case: %v", tc)
+			assert.NoError(t, err, "test case: %v", tc)
 		} else {
 			// invalid test cases
-			assert.Empty(t, addr, "test case: %V", tc)
-			assert.EqualError(t, err, tc.err.Error(), "test case: %V", tc)
+			assert.Empty(t, addr, "test case: %v", tc)
+			assert.EqualError(t, err, tc.err.Error(), "test case: %v", tc)
 		}
 	}
 }
