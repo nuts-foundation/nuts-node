@@ -121,31 +121,31 @@ func ParseNutsCommAddress(input string) (string, error) {
 // isReserved returns true if URL uses any of the reserved TLDs or addresses
 func isReserved(URL *url.URL) bool {
 	parts := strings.Split(strings.ToLower(URL.Hostname()), ".")
-	if len(parts) < 2 {
-		// valid address contains at least a 2nd level address + tld
-		return true
-	}
-
 	tld := parts[len(parts)-1]
 	if contains(reservedTLDs, tld) {
 		return true
 	}
 
-	l2address := strings.Join(parts[len(parts)-2:], ".")
-	return contains(reservedAddresses, l2address)
+	if len(parts) > 1 {
+		l2address := strings.Join(parts[len(parts)-2:], ".")
+		return contains(reservedAddresses, l2address)
+	}
+
+	return false
 }
 
 var reservedTLDs = []string{
-	"test",
+	"", // no domain specified
+	"corp",
 	"example",
-	"invalid",
-	"localhost",
-	"local",
-	"localdomain",
-	"lan",
 	"home",
 	"host",
-	"corp",
+	"invalid",
+	"lan",
+	"local",
+	"localdomain",
+	"localhost",
+	"test",
 }
 var reservedAddresses = []string{
 	"example.com",
