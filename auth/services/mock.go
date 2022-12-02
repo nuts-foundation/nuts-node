@@ -6,7 +6,6 @@ package services
 
 import (
 	http "net/http"
-	url "net/url"
 	reflect "reflect"
 	time "time"
 
@@ -15,103 +14,6 @@ import (
 	vc "github.com/nuts-foundation/go-did/vc"
 	contract "github.com/nuts-foundation/nuts-node/auth/contract"
 )
-
-// MockOAuthClient is a mock of OAuthClient interface.
-type MockOAuthClient struct {
-	ctrl     *gomock.Controller
-	recorder *MockOAuthClientMockRecorder
-}
-
-// MockOAuthClientMockRecorder is the mock recorder for MockOAuthClient.
-type MockOAuthClientMockRecorder struct {
-	mock *MockOAuthClient
-}
-
-// NewMockOAuthClient creates a new mock instance.
-func NewMockOAuthClient(ctrl *gomock.Controller) *MockOAuthClient {
-	mock := &MockOAuthClient{ctrl: ctrl}
-	mock.recorder = &MockOAuthClientMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockOAuthClient) EXPECT() *MockOAuthClientMockRecorder {
-	return m.recorder
-}
-
-// Configure mocks base method.
-func (m *MockOAuthClient) Configure(clockSkewInMilliseconds int) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Configure", clockSkewInMilliseconds)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Configure indicates an expected call of Configure.
-func (mr *MockOAuthClientMockRecorder) Configure(clockSkewInMilliseconds interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockOAuthClient)(nil).Configure), clockSkewInMilliseconds)
-}
-
-// CreateAccessToken mocks base method.
-func (m *MockOAuthClient) CreateAccessToken(request CreateAccessTokenRequest) (*AccessTokenResult, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateAccessToken", request)
-	ret0, _ := ret[0].(*AccessTokenResult)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// CreateAccessToken indicates an expected call of CreateAccessToken.
-func (mr *MockOAuthClientMockRecorder) CreateAccessToken(request interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAccessToken", reflect.TypeOf((*MockOAuthClient)(nil).CreateAccessToken), request)
-}
-
-// CreateJwtGrant mocks base method.
-func (m *MockOAuthClient) CreateJwtGrant(request CreateJwtGrantRequest) (*JwtBearerTokenResult, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateJwtGrant", request)
-	ret0, _ := ret[0].(*JwtBearerTokenResult)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// CreateJwtGrant indicates an expected call of CreateJwtGrant.
-func (mr *MockOAuthClientMockRecorder) CreateJwtGrant(request interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateJwtGrant", reflect.TypeOf((*MockOAuthClient)(nil).CreateJwtGrant), request)
-}
-
-// GetOAuthEndpointURL mocks base method.
-func (m *MockOAuthClient) GetOAuthEndpointURL(service string, authorizer did.DID) (url.URL, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetOAuthEndpointURL", service, authorizer)
-	ret0, _ := ret[0].(url.URL)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetOAuthEndpointURL indicates an expected call of GetOAuthEndpointURL.
-func (mr *MockOAuthClientMockRecorder) GetOAuthEndpointURL(service, authorizer interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOAuthEndpointURL", reflect.TypeOf((*MockOAuthClient)(nil).GetOAuthEndpointURL), service, authorizer)
-}
-
-// IntrospectAccessToken mocks base method.
-func (m *MockOAuthClient) IntrospectAccessToken(token string) (*NutsAccessToken, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IntrospectAccessToken", token)
-	ret0, _ := ret[0].(*NutsAccessToken)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// IntrospectAccessToken indicates an expected call of IntrospectAccessToken.
-func (mr *MockOAuthClientMockRecorder) IntrospectAccessToken(token interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IntrospectAccessToken", reflect.TypeOf((*MockOAuthClient)(nil).IntrospectAccessToken), token)
-}
 
 // MockSignedToken is a mock of SignedToken interface.
 type MockSignedToken struct {

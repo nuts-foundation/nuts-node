@@ -24,6 +24,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/auth/services"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 
 	"github.com/nuts-foundation/nuts-node/auth/log"
@@ -39,7 +41,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/didman"
 
 	"github.com/nuts-foundation/nuts-node/auth/contract"
-	"github.com/nuts-foundation/nuts-node/auth/services"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
@@ -55,6 +56,16 @@ const vcClaim = "vcs"
 const purposeOfUseClaim = "purposeOfUseClaim"
 const userIdentityClaim = "usi"
 
+// ErrorResponse models an error returned from an OAuth flow according to RFC6749 (https://tools.ietf.org/html/rfc6749#page-45)
+type ErrorResponse struct {
+	Description error
+	Code        string
+}
+
+func (e ErrorResponse) Error() string {
+	return e.Description.Error()
+}
+
 type service struct {
 	docResolver     types.DocResolver
 	vcFinder        vcr.Finder
@@ -64,6 +75,7 @@ type service struct {
 	contractNotary  services.ContractNotary
 	serviceResolver didman.CompoundServiceResolver
 	jsonldManager   jsonld.JSONLD
+	secureMode      bool
 
 	clockSkew time.Duration
 }
@@ -71,7 +83,9 @@ type service struct {
 type validationContext struct {
 	rawJwtBearerToken               string
 	jwtBearerToken                  jwt.Token
+	authorizer                      *did.DID
 	kid                             string
+	requester                       *did.DID
 	requesterOrganizationIdentities []organizationIdentity
 	purposeOfUse                    string
 	credentialIDs                   []string
@@ -146,8 +160,8 @@ func (c validationContext) verifiableCredentials() ([]vc2.VerifiableCredential, 
 	return vcs, nil
 }
 
-// NewOAuthService accepts a vendorID, and several Nuts engines and returns an implementation of services.OAuthClient
-func NewOAuthService(store types.Store, vcFinder vcr.Finder, vcVerifier verifier.Verifier, serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore, contractNotary services.ContractNotary, jsonldManager jsonld.JSONLD) services.OAuthClient {
+// NewOAuthService accepts a vendorID, and several Nuts engines and returns an implementation of services.Client
+func NewOAuthService(store types.Store, vcFinder vcr.Finder, vcVerifier verifier.Verifier, serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore, contractNotary services.ContractNotary, jsonldManager jsonld.JSONLD) Client {
 	return &service{
 		docResolver:     didservice.Resolver{Store: store},
 		keyResolver:     didservice.KeyResolver{Store: store},
@@ -164,84 +178,119 @@ func NewOAuthService(store types.Store, vcFinder vcr.Finder, vcVerifier verifier
 const BearerTokenMaxValidity = 5
 
 // Configure the service
-func (s *service) Configure(clockSkewInMilliseconds int) error {
+func (s *service) Configure(clockSkewInMilliseconds int, secureMode bool) error {
 	s.clockSkew = time.Duration(clockSkewInMilliseconds) * time.Millisecond
+	s.secureMode = secureMode
 	return nil
 }
 
 // CreateAccessToken extracts the claims out of the request, checks the validity and builds the access token
-func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (*services.AccessTokenResult, error) {
-	context := validationContext{
-		rawJwtBearerToken: request.RawJwtBearerToken,
+func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (*services.AccessTokenResult, *ErrorResponse) {
+	var oauthError *ErrorResponse
+	var result *services.AccessTokenResult
+
+	ctx, err := s.validateAccessTokenRequest(request.RawJwtBearerToken)
+	if err != nil {
+		oauthError = &ErrorResponse{Code: "invalid_request", Description: err}
+	} else {
+		var accessToken string
+		var rawToken services.NutsAccessToken
+		accessToken, rawToken, err = s.buildAccessToken(*ctx.requester, *ctx.authorizer, ctx.purposeOfUse, ctx.contractVerificationResult, ctx.credentialIDs)
+		if err == nil {
+			result = &services.AccessTokenResult{
+				AccessToken: accessToken,
+				ExpiresIn:   int(rawToken.Expiration - rawToken.IssuedAt),
+			}
+		} else {
+			oauthError = &ErrorResponse{Code: "server_error"}
+			if !s.secureMode {
+				// Only set details when secure mode is disabled
+				oauthError.Description = err
+			}
+		}
 	}
+
+	if err != nil {
+		var requesterDID, authorizerDID string
+		if ctx.jwtBearerToken != nil {
+			requesterDID = ctx.jwtBearerToken.Issuer()
+			authorizerDID = ctx.jwtBearerToken.Subject()
+		}
+		log.Logger().
+			WithField(core.LogFieldRequesterDID, requesterDID).
+			WithField(core.LogFieldAuthorizerDID, authorizerDID).
+			WithError(err).
+			Warn("Unable to create access token, probably due to JWT grant token validation")
+	}
+
+	if oauthError == nil {
+		return result, nil
+	}
+	return nil, oauthError
+}
+
+func (s *service) validateAccessTokenRequest(bearerToken string) (*validationContext, error) {
+	ctx := &validationContext{rawJwtBearerToken: bearerToken}
 
 	// extract the JwtBearerToken, validates according to RFC003 §5.2.1.1
 	// also check if used algorithms are according to spec (ES*** and PS***)
 	// and checks basic validity. Set jwtBearerTokenClaims in validationContext
-	if err := s.parseAndValidateJwtBearerToken(&context); err != nil {
-		return nil, fmt.Errorf("jwt bearer token validation failed: %w", err)
+	if err := s.parseAndValidateJwtBearerToken(ctx); err != nil {
+		return ctx, fmt.Errorf("jwt bearer token validation failed: %w", err)
 	}
 
 	// check the maximum validity, according to RFC003 §5.2.1.4
-	if context.jwtBearerToken.Expiration().Sub(context.jwtBearerToken.IssuedAt()).Seconds() > BearerTokenMaxValidity {
-		return nil, errors.New("JWT validity too long")
+	if ctx.jwtBearerToken.Expiration().Sub(ctx.jwtBearerToken.IssuedAt()).Seconds() > BearerTokenMaxValidity {
+		return ctx, errors.New("JWT validity too long")
 	}
 
 	// check the requester against the registry, according to RFC003 §5.2.1.3
 	// checks signing certificate and sets vendor, requesterName in validationContext
-	if err := s.validateIssuer(&context); err != nil {
-		return nil, err
+	if err := s.validateIssuer(ctx); err != nil {
+		return ctx, err
 	}
 
 	// check if the authorizer is registered by this vendor, according to RFC003 §5.2.1.8
-	if err := s.validateSubject(&context); err != nil {
-		return nil, err
+	if err := s.validateSubject(ctx); err != nil {
+		return ctx, err
 	}
 
 	// Validate the AuthTokenContainer, according to RFC003 §5.2.1.5
-	usi, err := context.userIdentity()
+	usi, err := ctx.userIdentity()
 	if err != nil {
-		return nil, err
+		return ctx, err
 	}
 	if usi != nil {
-		if context.contractVerificationResult, err = s.contractNotary.VerifyVP(*usi, nil); err != nil {
-			return nil, fmt.Errorf("identity verification failed: %w", err)
+		if ctx.contractVerificationResult, err = s.contractNotary.VerifyVP(*usi, nil); err != nil {
+			return ctx, fmt.Errorf("identity verification failed: %w", err)
 		}
 
-		if context.contractVerificationResult.Validity() != contract.Valid {
-			return nil, fmt.Errorf("identity validation failed: %s", context.contractVerificationResult.Reason())
+		if ctx.contractVerificationResult.Validity() != contract.Valid {
+			return ctx, fmt.Errorf("identity validation failed: %s", ctx.contractVerificationResult.Reason())
 		}
 
 		// checks if the name from the login contract matches with the registered name of the issuer.
-		if err := s.validateRequester(&context); err != nil {
-			return nil, err
+		if err := s.validateRequester(ctx); err != nil {
+			return ctx, err
 		}
 	}
 
 	// validate the endpoint in aud, according to RFC003 §5.2.1.9
-	if err := s.validatePurposeOfUse(&context); err != nil {
-		return nil, err
+	if err := s.validatePurposeOfUse(ctx); err != nil {
+		return ctx, err
 	}
 
 	// validate the endpoint in aud, according to RFC003 §5.2.1.6
-	if err := s.validateAudience(&context); err != nil {
-		return nil, err
+	if err := s.validateAudience(ctx); err != nil {
+		return ctx, err
 	}
 
 	// validate the legal base, according to RFC003 §5.2.1.7
-	if err = s.validateAuthorizationCredentials(&context); err != nil {
-		return nil, err
+	if err = s.validateAuthorizationCredentials(ctx); err != nil {
+		return ctx, err
 	}
 
-	accessToken, rawToken, err := s.buildAccessToken(&context)
-	if err != nil {
-		return nil, err
-	}
-
-	return &services.AccessTokenResult{
-		AccessToken: accessToken,
-		ExpiresIn:   int(rawToken.Expiration - rawToken.IssuedAt),
-	}, nil
+	return ctx, nil
 }
 
 // checks if the name from the login contract matches with the registered name of the issuer.
@@ -297,8 +346,10 @@ func (s *service) validateAudience(context *validationContext) error {
 // - the signing key (KID) must be present as assertionMethod in the issuer's DID.
 // - the requester name/city which must match the login contract.
 func (s *service) validateIssuer(vContext *validationContext) error {
-	if _, err := did.ParseDID(vContext.jwtBearerToken.Issuer()); err != nil {
+	if requester, err := did.ParseDID(vContext.jwtBearerToken.Issuer()); err != nil {
 		return fmt.Errorf(errInvalidIssuerFmt, err)
+	} else {
+		vContext.requester = requester
 	}
 
 	validationTime := vContext.jwtBearerToken.IssuedAt()
@@ -343,10 +394,15 @@ func (s *service) validateIssuer(vContext *validationContext) error {
 
 // check if the authorizer is registered by this vendor, according to RFC003 §5.2.1.8
 func (s *service) validateSubject(context *validationContext) error {
+	if context.jwtBearerToken.Subject() == "" {
+		return fmt.Errorf(errInvalidSubjectFmt, errors.New("missing"))
+	}
+
 	subject, err := did.ParseDID(context.jwtBearerToken.Subject())
 	if err != nil {
 		return fmt.Errorf(errInvalidSubjectFmt, err)
 	}
+	context.authorizer = subject
 
 	iat := context.jwtBearerToken.IssuedAt()
 	signingKeyID, err := s.keyResolver.ResolveSigningKeyID(*subject, &iat)
@@ -538,65 +594,51 @@ func (s *service) IntrospectAccessToken(accessToken string) (*services.NutsAcces
 // BuildAccessToken builds an access token based on the oauth claims and the identity of the user provided by the identityValidationResult
 // The token gets signed with the authorizers private key and returned as a string.
 // it also returns the claims in the form of a services.NutsAccessToken
-func (s *service) buildAccessToken(context *validationContext) (string, services.NutsAccessToken, error) {
-	at := services.NutsAccessToken{}
-	if context.contractVerificationResult != nil {
-		if context.contractVerificationResult.Validity() != contract.Valid {
-			return "", at, fmt.Errorf("could not build accessToken: %w", errors.New("invalid contract"))
-		}
-	}
-
-	if context.jwtBearerToken.Subject() == "" {
-		return "", at, fmt.Errorf("could not build accessToken: %w", errors.New("subject is missing"))
-	}
-
-	issuer, err := did.ParseDID(context.jwtBearerToken.Subject())
-	if err != nil {
-		return "", at, fmt.Errorf("could not build accessToken, subject is invalid (subject=%s): %w", context.jwtBearerToken.Subject(), err)
-	}
-
+// It performs no additional validation, it just uses the values in the given validationContext
+func (s *service) buildAccessToken(requester did.DID, authorizer did.DID, purposeOfUse string, userIdentity contract.VPVerificationResult, credentialIDs []string) (string, services.NutsAccessToken, error) {
+	accessToken := services.NutsAccessToken{}
 	issueTime := time.Now()
 
-	at.Service = context.purposeOfUse
-	at.Expiration = time.Now().Add(time.Minute * 15).UTC().Unix() // Expires in 15 minutes
-	at.IssuedAt = issueTime.UTC().Unix()
-	at.Issuer = issuer.String()
-	at.Subject = context.jwtBearerToken.Issuer()
+	accessToken.Service = purposeOfUse
+	accessToken.Expiration = time.Now().Add(time.Minute * 15).UTC().Unix() // Expires in 15 minutes
+	accessToken.IssuedAt = issueTime.UTC().Unix()
+	accessToken.Issuer = authorizer.String()
+	accessToken.Subject = requester.String()
 
-	if context.contractVerificationResult != nil {
-		disclosedAttributeFn := context.contractVerificationResult.DisclosedAttribute
+	if userIdentity != nil {
+		disclosedAttributeFn := userIdentity.DisclosedAttribute
 
 		// based on https://openid.net/specs/openid-connect-basic-1_0.html#StandardClaims
-		at.Initials = toStrPtr(disclosedAttributeFn(services.InitialsTokenClaim))
-		at.FamilyName = toStrPtr(disclosedAttributeFn(services.FamilyNameTokenClaim))
-		at.Prefix = toStrPtr(disclosedAttributeFn(services.PrefixTokenClaim))
-		at.Email = toStrPtr(disclosedAttributeFn(services.EmailTokenClaim))
-		at.EidasIAL = toStrPtr(disclosedAttributeFn(services.EidasIALClaim))
+		accessToken.Initials = toStrPtr(disclosedAttributeFn(services.InitialsTokenClaim))
+		accessToken.FamilyName = toStrPtr(disclosedAttributeFn(services.FamilyNameTokenClaim))
+		accessToken.Prefix = toStrPtr(disclosedAttributeFn(services.PrefixTokenClaim))
+		accessToken.Email = toStrPtr(disclosedAttributeFn(services.EmailTokenClaim))
+		accessToken.EidasIAL = toStrPtr(disclosedAttributeFn(services.EidasIALClaim))
 	}
 
-	if len(context.credentialIDs) > 0 {
-		at.Credentials = context.credentialIDs
+	if len(credentialIDs) > 0 {
+		accessToken.Credentials = credentialIDs
 	}
 
 	var keyVals map[string]interface{}
 
-	data, _ := json.Marshal(at)
+	data, _ := json.Marshal(accessToken)
 
 	if err := json.Unmarshal(data, &keyVals); err != nil {
-		return "", at, err
+		return "", accessToken, err
 	}
 
 	// Sign with the private key of the issuer
-	signingKeyID, err := s.keyResolver.ResolveSigningKeyID(*issuer, &issueTime)
+	signingKeyID, err := s.keyResolver.ResolveSigningKeyID(authorizer, &issueTime)
 	if err != nil {
-		return "", at, err
+		return "", accessToken, err
 	}
 	token, err := s.privateKeyStore.SignJWT(keyVals, signingKeyID)
 	if err != nil {
-		return token, at, fmt.Errorf("could not build accessToken: %w", err)
+		return token, accessToken, fmt.Errorf("could not build accessToken: %w", err)
 	}
 
-	return token, at, err
+	return token, accessToken, err
 }
 
 func toStrPtr(value string) *string {

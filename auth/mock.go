@@ -11,6 +11,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	services "github.com/nuts-foundation/nuts-node/auth/services"
+	oauth "github.com/nuts-foundation/nuts-node/auth/services/oauth"
 )
 
 // MockAuthenticationServices is a mock of AuthenticationServices interface.
@@ -65,10 +66,10 @@ func (mr *MockAuthenticationServicesMockRecorder) HTTPTimeout() *gomock.Call {
 }
 
 // OAuthClient mocks base method.
-func (m *MockAuthenticationServices) OAuthClient() services.OAuthClient {
+func (m *MockAuthenticationServices) OAuthClient() oauth.Client {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "OAuthClient")
-	ret0, _ := ret[0].(services.OAuthClient)
+	ret0, _ := ret[0].(oauth.Client)
 	return ret0
 }
 

@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -57,7 +58,7 @@ type TestContext struct {
 	authMock               pkg2.AuthenticationServices
 	notaryMock             *services.MockContractNotary
 	contractClientMock     *services.MockContractNotary
-	oauthClientMock        *services.MockOAuthClient
+	oauthClientMock        *oauth.MockClient
 	wrapper                Wrapper
 	mockCredentialResolver *vcr.MockResolver
 }
@@ -65,7 +66,7 @@ type TestContext struct {
 type mockAuthClient struct {
 	ctrl               *gomock.Controller
 	mockContractNotary *services.MockContractNotary
-	mockOAuthClient    *services.MockOAuthClient
+	mockOAuthClient    *oauth.MockClient
 }
 
 func (m *mockAuthClient) HTTPTimeout() time.Duration {
@@ -76,7 +77,7 @@ func (m *mockAuthClient) TLSConfig() *tls.Config {
 	return nil
 }
 
-func (m *mockAuthClient) OAuthClient() services.OAuthClient {
+func (m *mockAuthClient) OAuthClient() oauth.Client {
 	return m.mockOAuthClient
 }
 
@@ -88,7 +89,7 @@ func createContext(t *testing.T) *TestContext {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	mockContractNotary := services.NewMockContractNotary(ctrl)
-	mockOAuthClient := services.NewMockOAuthClient(ctrl)
+	mockOAuthClient := oauth.NewMockClient(ctrl)
 	mockCredentialResolver := vcr.NewMockResolver(ctrl)
 
 	authMock := &mockAuthClient{
@@ -658,7 +659,10 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 		errorResponse := AccessTokenRequestFailedResponse{ErrorDescription: errorDescription, Error: errOauthInvalidRequest}
 		expectError(ctx, errorResponse)
 
-		ctx.oauthClientMock.EXPECT().CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: validJwt}).Return(nil, fmt.Errorf("oh boy"))
+		ctx.oauthClientMock.EXPECT().CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: validJwt}).Return(nil, &oauth.ErrorResponse{
+			Description: errors.New(errorDescription),
+			Code:        errOauthInvalidRequest,
+		})
 		err := ctx.wrapper.CreateAccessToken(ctx.echoMock)
 
 		assert.Nil(t, err)

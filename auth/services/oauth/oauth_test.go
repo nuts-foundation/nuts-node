@@ -189,7 +189,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 
 		response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
 
-		require.NoError(t, err)
+		require.Nil(t, err) // using NoError casts it to error, weirdly causing it to be non-nil
 		assert.Equal(t, "expectedAccessToken", response.AccessToken)
 	})
 
@@ -214,7 +214,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		signToken(tokenCtx)
 
 		response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
-		require.NoError(t, err)
+		require.Nil(t, err) // using NoError casts it to error, weirdly causing it to be non-nil
 		assert.Equal(t, "expectedAT", response.AccessToken)
 	})
 
@@ -318,6 +318,16 @@ func TestService_validateSubject(t *testing.T) {
 
 		err := ctx.oauthService.validateSubject(tokenCtx)
 		assert.NoError(t, err)
+	})
+	t.Run("missing subject", func(t *testing.T) {
+		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
+
+		tokenCtx := validContext()
+		tokenCtx.jwtBearerToken.Remove("sub")
+
+		err := ctx.oauthService.validateSubject(tokenCtx)
+		assert.EqualError(t, err, "invalid jwt.subject: missing")
 	})
 	t.Run("invalid subject", func(t *testing.T) {
 		ctx := createContext(t)
@@ -574,19 +584,6 @@ func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 }
 
 func TestService_buildAccessToken(t *testing.T) {
-	t.Run("missing subject", func(t *testing.T) {
-		ctx := createContext(t)
-
-		tokenCtx := &validationContext{
-			contractVerificationResult: services.TestVPVerificationResult{Val: contract.Valid},
-			jwtBearerToken:             jwt.New(),
-		}
-
-		token, _, err := ctx.oauthService.buildAccessToken(tokenCtx)
-		assert.Empty(t, token)
-		assert.EqualError(t, err, "could not build accessToken: subject is missing")
-	})
-
 	t.Run("build an access token", func(t *testing.T) {
 		ctx := createContext(t)
 
@@ -599,14 +596,7 @@ func TestService_buildAccessToken(t *testing.T) {
 			return "expectedAT", nil
 		})
 
-		tokenCtx := &validationContext{
-			contractVerificationResult: services.TestVPVerificationResult{Val: contract.Valid},
-			jwtBearerToken:             jwt.New(),
-			credentialIDs:              []string{"credential"},
-		}
-		tokenCtx.jwtBearerToken.Set(jwt.SubjectKey, authorizerDID.String())
-
-		token, _, err := ctx.oauthService.buildAccessToken(tokenCtx)
+		token, _, err := ctx.oauthService.buildAccessToken(requesterDID, authorizerDID, "", &services.TestVPVerificationResult{Val: contract.Valid}, []string{"credential"})
 
 		assert.Nil(t, err)
 		assert.Equal(t, "expectedAT", token)
@@ -844,9 +834,11 @@ func TestAuth_Configure(t *testing.T) {
 	t.Run("ok - config valid", func(t *testing.T) {
 		ctx := createContext(t)
 
-		err := ctx.oauthService.Configure(1000 * 60)
+		err := ctx.oauthService.Configure(1000*60, true)
+
 		assert.NoError(t, err)
 		assert.Equal(t, time.Minute, ctx.oauthService.clockSkew)
+		assert.True(t, ctx.oauthService.secureMode)
 	})
 }
 
