@@ -208,7 +208,7 @@ func TestHTTPClient_AddNewVerificationMethod(t *testing.T) {
 		c := getClient(s.URL)
 		_, err := c.AddNewVerificationMethod(vdr.TestDIDA.String())
 		assert.Error(t, err)
-		assert.EqualError(t, err, "server returned HTTP 403 (expected: 200), response: null")
+		assert.EqualError(t, err, "server returned HTTP 403 (expected: 200)")
 	})
 
 	t.Run("error - server problems", func(t *testing.T) {
@@ -231,7 +231,7 @@ func TestHTTPClient_DeleteVerificationMethod(t *testing.T) {
 		c := getClient(s.URL)
 		err := c.DeleteVerificationMethod(vdr.TestDIDA.String(), vdr.TestMethodDIDA.String())
 		assert.Error(t, err)
-		assert.EqualError(t, err, "server returned HTTP 403 (expected: 204), response: null")
+		assert.EqualError(t, err, "server returned HTTP 403 (expected: 204)")
 	})
 
 	t.Run("error - server problems", func(t *testing.T) {

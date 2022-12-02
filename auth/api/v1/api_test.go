@@ -523,7 +523,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
 
-		assert.EqualError(t, err, "remote server/nuts node returned error creating access token: server returned HTTP 500 (expected: 200), response: null")
+		assert.EqualError(t, err, "remote server/nuts node returned error creating access token: server returned HTTP 502 (expected: 200)")
 		require.Implements(t, new(core.HTTPStatusCodeError), err)
 		assert.Equal(t, http.StatusServiceUnavailable, err.(core.HTTPStatusCodeError).StatusCode())
 	})

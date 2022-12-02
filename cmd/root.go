@@ -21,6 +21,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	httpEngine "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/storage"
@@ -249,6 +250,10 @@ func addSubCommands(system *core.System, root *cobra.Command) {
 		vdrCmd.Cmd(),
 		didmanCmd.Cmd(),
 	}
+	for _, cmd := range clientCommands {
+		registerClientErrorHandler(cmd)
+	}
+
 	clientFlags := core.ClientConfigFlags()
 	registerFlags(clientCommands, clientFlags)
 
@@ -265,6 +270,34 @@ func addSubCommands(system *core.System, root *cobra.Command) {
 	registerFlags(serverCommands, flagSet)
 
 	root.AddCommand(serverCommands...)
+}
+
+func registerClientErrorHandler(cmd *cobra.Command) {
+	if cmd.RunE != nil {
+		cmd.RunE = clientErrorHandler(cmd.RunE)
+	}
+	for _, subCmd := range cmd.Commands() {
+		registerClientErrorHandler(subCmd)
+	}
+}
+
+// CobraRunE defines the signature of a Cobra command that returns an error.
+type CobraRunE func(cmd *cobra.Command, args []string) error
+
+// ClientErrorHandler wraps a Cobra command in a wrapper that logs server error response bodies returned by the HTTP client.
+// It is to be used in CLI commands that use the HTTP client to invoke APIs on the Nuts node.
+func clientErrorHandler(command CobraRunE) CobraRunE {
+	return func(cmd *cobra.Command, args []string) error {
+		err := command(cmd, args)
+		if err != nil {
+			var serverError core.RemoteServerError
+			if errors.As(err, &serverError) && len(serverError.ResponseBody) > 0 {
+				cmd.PrintErrln("Server returned:")
+				cmd.PrintErrln(string(serverError.ResponseBody))
+			}
+		}
+		return err
+	}
 }
 
 func registerFlags(cmds []*cobra.Command, flags *pflag.FlagSet) {

@@ -106,7 +106,7 @@ func TestHTTPClient_AddEndpoint(t *testing.T) {
 		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})
 		c := getClient(s)
 		endpoint, err := c.AddEndpoint("abc", "type", "some-url")
-		assert.EqualError(t, err, "server returned HTTP 500 (expected: 200), response: ")
+		assert.EqualError(t, err, "server returned HTTP 500 (expected: 200)")
 		assert.Nil(t, endpoint)
 	})
 	t.Run("error - wrong address", func(t *testing.T) {
@@ -131,7 +131,7 @@ func TestHTTPClient_DeleteEndpointsByType(t *testing.T) {
 		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusInternalServerError})
 		c := getClient(s)
 		err := c.DeleteEndpointsByType("did:nuts:123", "eOverdracht")
-		assert.EqualError(t, err, "server returned HTTP 500 (expected: 204), response: null")
+		assert.EqualError(t, err, "server returned HTTP 500 (expected: 204)")
 	})
 	t.Run("error - wrong address", func(t *testing.T) {
 		c := HTTPClient{
@@ -219,7 +219,7 @@ func TestHTTPClient_GetCompoundServices(t *testing.T) {
 		c := getClient(s)
 		res, err := c.GetCompoundServices("did:nuts:123")
 		assert.Error(t, err)
-		assert.EqualError(t, err, "server returned HTTP 500 (expected: 200), response: null")
+		assert.EqualError(t, err, "server returned HTTP 500 (expected: 200)")
 		assert.Nil(t, res)
 	})
 	t.Run("error - wrong address", func(t *testing.T) {

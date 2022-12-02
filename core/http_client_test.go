@@ -87,15 +87,27 @@ func TestUserAgentRequestEditor(t *testing.T) {
 }
 
 func TestTestResponseCode(t *testing.T) {
-	assert.NoError(t, TestResponseCode(stdHttp.StatusOK, &stdHttp.Response{StatusCode: stdHttp.StatusOK}))
-	assert.Error(t, TestResponseCode(stdHttp.StatusOK, &stdHttp.Response{StatusCode: stdHttp.StatusUnauthorized, Body: readCloser([]byte{1, 2, 3})}))
+	t.Run("ok", func(t *testing.T) {
+		assert.NoError(t, TestResponseCode(stdHttp.StatusOK, &stdHttp.Response{StatusCode: stdHttp.StatusOK}))
+	})
+	t.Run("error", func(t *testing.T) {
+		data := []byte{1, 2, 3}
+		status := stdHttp.StatusUnauthorized
+
+		err := TestResponseCode(stdHttp.StatusOK, &stdHttp.Response{StatusCode: status, Body: readCloser(data)})
+
+		assert.Error(t, err)
+		require.ErrorAs(t, err, new(RemoteServerError))
+		assert.Equal(t, data, err.(RemoteServerError).ResponseBody)
+		assert.Equal(t, status, err.(RemoteServerError).StatusCode)
+	})
 }
 
 type readCloser []byte
 
 func (r readCloser) Read(p []byte) (n int, err error) {
 	copy(p, r)
-	return 0, io2.EOF
+	return len(r), io2.EOF
 }
 
 func (r readCloser) Close() error {
