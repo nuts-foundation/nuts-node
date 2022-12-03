@@ -678,6 +678,13 @@ func (n *Network) Shutdown() error {
 	return nil
 }
 
+func (n *Network) MappedDiagnostics() map[string]func() core.DiagnosticResult {
+	n.connectionManager.
+	return map[string]func() core.DiagnosticResult{
+		"connectors"
+	}
+}
+
 // Diagnostics collects and returns diagnostics for the Network engine.
 func (n *Network) Diagnostics() []core.DiagnosticResult {
 	var results = make([]core.DiagnosticResult, 0)

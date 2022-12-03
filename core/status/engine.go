@@ -21,6 +21,7 @@ package status
 
 import (
 	"bytes"
+	"embed"
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
@@ -37,6 +38,9 @@ const moduleName = "Status"
 const diagnosticsEndpoint = "/status/diagnostics"
 const statusEndpoint = "/status"
 const checkHealthEndpoint = "/health"
+
+//go:embed overview.html
+var overviewPageResource embed.FS
 
 type status struct {
 	system    *core.System
@@ -56,8 +60,8 @@ func (s *status) Name() string {
 }
 
 func (s *status) Routes(router core.EchoRouter) {
+	router.Add(http.MethodGet, statusEndpoint, echo.StaticFileHandler("overview.html", overviewPageResource))
 	router.Add(http.MethodGet, diagnosticsEndpoint, s.diagnosticsOverview)
-	router.Add(http.MethodGet, statusEndpoint, statusOK)
 	router.Add(http.MethodGet, checkHealthEndpoint, s.checkHealth)
 }
 
@@ -155,9 +159,4 @@ func (s *status) doCheckHealth() core.Health {
 		Details: results,
 	}
 	return result
-}
-
-// statusOK returns 200 OK with an "OK" body
-func statusOK(ctx echo.Context) error {
-	return ctx.String(http.StatusOK, "OK")
 }

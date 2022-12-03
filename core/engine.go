@@ -33,6 +33,12 @@ type Routable interface {
 	Routes(router EchoRouter)
 }
 
+// Routable enables connecting a REST API to the echo server. The API wrappers should implement this interface
+type Routable interface {
+	// Routes configures the HTTP routes on the given router
+	Routes(router EchoRouter)
+}
+
 // NewSystem creates a new, empty System.
 func NewSystem() *System {
 	serverCfg := NewServerConfig()
