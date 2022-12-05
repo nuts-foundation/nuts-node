@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/stretchr/testify/require"
 	"math"
+	"sync"
 	"testing"
 	"time"
 
@@ -692,7 +693,8 @@ func TestNetwork_Shutdown(t *testing.T) {
 	})
 }
 
-func TestNetworkReprocessContentType(t *testing.T) {
+func TestNetwork_Reprocess(t *testing.T) {
+	foundMutex := sync.Mutex{}
 	tx, _, _ := dag.CreateTestTransaction(0)
 
 	newSetup := func(t *testing.T) (*networkTestContext, events.Event) {
@@ -704,26 +706,19 @@ func TestNetworkReprocessContentType(t *testing.T) {
 		return ctx, eventManager
 	}
 
-	subscribe := func(ctx context.Context, t *testing.T, eventManager events.Event) chan *nats.Msg {
-		messages := make(chan *nats.Msg, 99)
-
+	subscribe := func(ctx context.Context, t *testing.T, eventManager events.Event, wg *sync.WaitGroup, counter *int) {
 		conn, _, err := eventManager.Pool().Acquire(ctx)
 		require.NoError(t, err)
 
 		err = events.NewDisposableStream("REPROCESS_test", []string{"REPROCESS.*"}, 10).Subscribe(conn, t.Name(), "REPROCESS.*", func(m *nats.Msg) {
-			select {
-			case messages <- m:
-				break // collected
-			default:
-				assert.Fail(t, "subscription reception exceeds buffer capacity", cap(messages))
-			}
-
+			foundMutex.Lock()
+			defer foundMutex.Unlock()
+			*counter++
+			wg.Done()
 			err := m.Ack()
 			assert.NoError(t, err)
 		})
 		require.NoError(t, err)
-
-		return messages
 	}
 
 	t.Run("hits", func(t *testing.T) {
@@ -733,13 +728,16 @@ func TestNetworkReprocessContentType(t *testing.T) {
 		setup, eventManager := newSetup(t)
 		setup.state.EXPECT().FindBetweenLC(gomock.Any(), uint32(0), uint32(1000)).Return([]dag.Transaction{tx}, nil)
 		setup.state.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).Return([]byte("payload"), nil)
+		var counter int
+		wg := sync.WaitGroup{}
+		wg.Add(1)
 
-		messages := subscribe(ctx, t, eventManager)
+		subscribe(ctx, t, eventManager, &wg, &counter)
 
 		_, err := setup.network.Reprocess(ctx, "application/did+json")
 		require.NoError(t, err)
-
-		assert.Len(t, messages, 1)
+		wg.Wait()
+		assert.Equal(t, 1, counter)
 	})
 
 	t.Run("mismatch", func(t *testing.T) {
@@ -749,13 +747,15 @@ func TestNetworkReprocessContentType(t *testing.T) {
 		setup, eventManager := newSetup(t)
 		setup.state.EXPECT().FindBetweenLC(gomock.Any(), uint32(0), uint32(1000)).Return([]dag.Transaction{tx}, nil)
 		setup.state.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).Return([]byte("payload"), nil)
+		var counter int
+		wg := sync.WaitGroup{}
 
-		messages := subscribe(ctx, t, eventManager)
+		subscribe(ctx, t, eventManager, &wg, &counter)
 
 		_, err := setup.network.Reprocess(ctx, "application/did+vc")
 		require.NoError(t, err)
-
-		assert.Len(t, messages, 0)
+		wg.Wait()
+		assert.Equal(t, 0, counter)
 	})
 
 	t.Run("error", func(t *testing.T) {
@@ -767,13 +767,15 @@ func TestNetworkReprocessContentType(t *testing.T) {
 
 			setup, eventManager := newSetup(t)
 			setup.state.EXPECT().FindBetweenLC(gomock.Any(), uint32(0), uint32(1000)).Return(nil, testErr)
+			var counter int
+			wg := sync.WaitGroup{}
 
-			messages := subscribe(ctx, t, eventManager)
+			subscribe(ctx, t, eventManager, &wg, &counter)
 
 			_, err := setup.network.Reprocess(ctx, "application/did+vc")
-
+			wg.Wait()
 			assert.ErrorIs(t, err, testErr)
-			assert.Len(t, messages, 0)
+			assert.Equal(t, 0, counter)
 		})
 
 		t.Run("payload", func(t *testing.T) {
@@ -785,13 +787,15 @@ func TestNetworkReprocessContentType(t *testing.T) {
 			setup, eventManager := newSetup(t)
 			setup.state.EXPECT().FindBetweenLC(gomock.Any(), uint32(0), uint32(1000)).Return([]dag.Transaction{tx}, nil)
 			setup.state.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).Return(nil, testErr)
+			var counter int
+			wg := sync.WaitGroup{}
 
-			messages := subscribe(ctx, t, eventManager)
+			subscribe(ctx, t, eventManager, &wg, &counter)
 
 			_, err := setup.network.Reprocess(ctx, "application/did+json")
-
+			wg.Wait()
 			assert.ErrorIs(t, err, testErr)
-			assert.Len(t, messages, 0)
+			assert.Equal(t, 0, counter)
 		})
 	})
 }
