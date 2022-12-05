@@ -39,7 +39,7 @@ jobs:
           images: nutsfoundation/nuts-node
           tags: |
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern=v{{major}}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
