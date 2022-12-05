@@ -3,5 +3,5 @@
 Roadmap
 #######
 
-.. image:: ../_static/images/RoadmapQ1_2.png
+.. image:: ../_static/images/roadmap_2023.png
    :width: 900
