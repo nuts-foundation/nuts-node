@@ -40,6 +40,9 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern=v{{major}}
+          flavor: |
+            latest=auto
+            prefix=v,onlatest=false
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
