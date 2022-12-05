@@ -375,11 +375,12 @@ func (p *notifier) notifyNow(event Event) error {
 
 	var dbEvent = &event
 	if p.isPersistent() {
-		if err := p.db.ReadShelf(p.ctx, p.shelfName(), func(reader stoabs.Reader) error {
+		err := p.db.ReadShelf(p.ctx, p.shelfName(), func(reader stoabs.Reader) error {
 			var err error
 			dbEvent, err = p.readEvent(reader, event.Hash)
 			return err
-		}); err != nil {
+		})
+		if err != nil {
 			return retry.Unrecoverable(err)
 		}
 		if dbEvent == nil {
@@ -395,8 +396,6 @@ func (p *notifier) notifyNow(event Event) error {
 			dbEvent.Retries = maxRetries
 			err = retry.Unrecoverable(err)
 		}
-
-		dbEvent.Error = err.Error()
 	} else if finished {
 		return p.Finished(dbEvent.Hash)
 	} else {
@@ -404,6 +403,7 @@ func (p *notifier) notifyNow(event Event) error {
 		err = errEventIncomplete
 	}
 
+	dbEvent.Error = err.Error() // err != nil
 	dbEvent.Retries++
 	if p.isPersistent() {
 		if err := p.db.WriteShelf(p.ctx, p.shelfName(), func(writer stoabs.Writer) error {

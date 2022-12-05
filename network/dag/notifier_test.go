@@ -545,6 +545,35 @@ func TestNotifier_VariousFlows(t *testing.T) {
 		assert.Equal(t, int64(6), counter.N.Load())
 		assert.Equal(t, "fatal error", events[0].Error)
 	})
+
+	t.Run("OK - incomplete event logs error", func(t *testing.T) {
+		counter := callbackCounter{}
+		kvStore, _ := bbolt.CreateBBoltStore(path.Join(t.TempDir(), "test.db"))
+		s := NewNotifier(t.Name(), counter.callback, WithRetryDelay(time.Millisecond), WithPersistency(kvStore)).(*notifier)
+		defer s.Close()
+
+		event := Event{Hash: hash.EmptyHash(), Transaction: transaction}
+		event.Retries = retriesFailedThreshold // needed to appear in failed events
+		_ = kvStore.Write(ctx, func(tx stoabs.WriteTx) error {
+			return s.Save(tx, event)
+		})
+
+		s.Notify(event)
+
+		test.WaitFor(t, func() (bool, error) {
+			var e *Event
+			kvStore.ReadShelf(ctx, s.shelfName(), func(reader stoabs.Reader) error {
+				e, _ = s.readEvent(reader, hash.EmptyHash())
+				return nil
+			})
+			return e.Retries > retriesFailedThreshold, nil // +1 from starting condition
+		}, time.Second, "timeout while waiting for receiver")
+
+		events, err := s.GetFailedEvents()
+		assert.NoError(t, err)
+		require.Len(t, events, 1)
+		assert.Equal(t, errEventIncomplete.Error(), events[0].Error)
+	})
 }
 
 func dummyFunc(_ Event) (bool, error) {
