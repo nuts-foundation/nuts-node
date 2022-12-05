@@ -708,25 +708,20 @@ func TestNetworkReprocessContentType(t *testing.T) {
 		messages := make(chan *nats.Msg, 99)
 
 		conn, _, err := eventManager.Pool().Acquire(ctx)
-		if err != nil {
-			t.Fatal("queue client unavailable:", err)
-		}
+		require.NoError(t, err)
+
 		err = events.NewDisposableStream("REPROCESS_test", []string{"REPROCESS.*"}, 10).Subscribe(conn, "test", "REPROCESS.*", func(m *nats.Msg) {
 			select {
 			case messages <- m:
 				break // collected
 			default:
-				t.Error("subscription reception exceeds buffer capacity", cap(messages))
+				assert.Fail(t, "subscription reception exceeds buffer capacity", cap(messages))
 			}
 
 			err := m.Ack()
-			if err != nil {
-				t.Error("subscription reception:", err)
-			}
+			assert.NoError(t, err)
 		})
-		if err != nil {
-			t.Fatal("test subscription error:", err)
-		}
+		require.NoError(t, err)
 
 		return messages
 	}
@@ -742,13 +737,9 @@ func TestNetworkReprocessContentType(t *testing.T) {
 		messages := subscribe(ctx, t, eventManager)
 
 		_, err := setup.network.ReprocessContentType(ctx, "application/did+json")
-		if err != nil {
-			t.Error("reprocess error:", err)
-		}
+		require.NoError(t, err)
 
-		if len(messages) == 0 {
-			t.Error("subscription received no messages")
-		}
+		assert.Len(t, messages, 1)
 	})
 
 	t.Run("mismatch", func(t *testing.T) {
@@ -762,13 +753,9 @@ func TestNetworkReprocessContentType(t *testing.T) {
 		messages := subscribe(ctx, t, eventManager)
 
 		_, err := setup.network.ReprocessContentType(ctx, "application/did+vc")
-		if err != nil {
-			t.Error("reprocess error:", err)
-		}
+		require.NoError(t, err)
 
-		if n := len(messages); n != 0 {
-			t.Errorf("received %d messages, want 0", n)
-		}
+		assert.Len(t, messages, 0)
 	})
 
 	t.Run("error", func(t *testing.T) {
@@ -784,16 +771,9 @@ func TestNetworkReprocessContentType(t *testing.T) {
 			messages := subscribe(ctx, t, eventManager)
 
 			_, err := setup.network.ReprocessContentType(ctx, "application/did+vc")
-			switch {
-			case err == nil:
-				t.Error("reprocess gave no error")
-			case !errors.Is(err, testErr):
-				t.Errorf("reprocess error did not include error %q: %s", testErr, err)
-			}
 
-			if n := len(messages); n != 0 {
-				t.Errorf("received %d messages, want 0", n)
-			}
+			assert.ErrorIs(t, err, testErr)
+			assert.Len(t, messages, 0)
 		})
 
 		t.Run("payload", func(t *testing.T) {
@@ -809,16 +789,9 @@ func TestNetworkReprocessContentType(t *testing.T) {
 			messages := subscribe(ctx, t, eventManager)
 
 			_, err := setup.network.ReprocessContentType(ctx, "application/did+json")
-			switch {
-			case err == nil:
-				t.Error("reprocess gave no error")
-			case !errors.Is(err, testErr):
-				t.Errorf("reprocess error did not include error %q: %s", testErr, err)
-			}
 
-			if n := len(messages); n != 0 {
-				t.Errorf("received %d messages, want 0", n)
-			}
+			assert.ErrorIs(t, err, testErr)
+			assert.Len(t, messages, 0)
 		})
 	})
 }
