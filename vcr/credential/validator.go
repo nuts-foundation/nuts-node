@@ -20,13 +20,11 @@
 package credential
 
 import (
-	"encoding/json"
+	"bytes"
 	"errors"
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/piprate/json-gold/ld"
-	"reflect"
 	"strings"
 
 	"github.com/nuts-foundation/go-did/vc"
@@ -68,28 +66,20 @@ type AllFieldsDefinedValidator struct {
 
 // Validate implements Validator.Validate.
 func (d AllFieldsDefinedValidator) Validate(input vc.VerifiableCredential) error {
-	// First expand, then compact and marshal to JSON, then compare
+	// Expand with safe mode enabled, which asserts that all properties are defined in the JSON-LD context.
 	inputAsJSON, _ := input.MarshalJSON()
-	inputAsMap := make(map[string]interface{})
-	_ = json.Unmarshal(inputAsJSON, &inputAsMap)
-	normalizeJSONLDVC(inputAsMap)
-	expectedAsJSON, _ := json.Marshal(inputAsMap)
+	document, err := ld.DocumentFromReader(bytes.NewReader(inputAsJSON))
+	if err != nil {
+		return err
+	}
 
 	processor := ld.NewJsonLdProcessor()
 	options := ld.NewJsonLdOptions("")
 	options.DocumentLoader = d.DocumentLoader
-	compactedAsMap, err := processor.Compact(inputAsMap, inputAsMap, options)
-	if err != nil {
-		return failure("unable to compact JSON-LD VC: %s", err)
-	}
-	normalizeJSONLDVC(compactedAsMap)
-	compactedAsJSON, _ := json.Marshal(compactedAsMap)
+	options.SafeMode = true
 
-	if string(expectedAsJSON) != string(compactedAsJSON) {
-		log.Logger().Debug("VC validation failed, not all fields are defined by JSON-LD context")
-		log.Logger().Debugf(" Given VC:      %s", string(expectedAsJSON))
-		log.Logger().Debugf(" Cleaned up VC: %s", string(compactedAsJSON))
-		return failure("not all fields are defined by JSON-LD context")
+	if _, err = processor.Expand(document, options); err != nil {
+		return &validationError{msg: err.Error()}
 	}
 	return nil
 }
@@ -250,67 +240,4 @@ func validateNutsCredentialID(credential vc.VerifiableCredential) error {
 		return failure("credential ID must start with issuer")
 	}
 	return nil
-}
-
-// normalizeJSONLDVC takes a JSON-LD Verifiable Credential unmarshaled into a map and normalizes it, to structure it the same JSON-LD compaction would do.
-// This is used for validating whether JSON-LD stays the same after compaction (for checking whether all fields are defined in the context).
-// The following changes are made by normalizing:
-// - Slices with 1 entry are "unsliced", so it becomes a scalar value
-// - Empty map entries are removed
-func normalizeJSONLDVC(input map[string]interface{}) {
-	delete(input, "proof")
-	normalizeJSONMap(input)
-}
-
-// normalizeJSONMap see normalizeJSONLDVC
-func normalizeJSONMap(input map[string]interface{}) {
-	for key, v := range input {
-		if v == nil {
-			// Remove empty properties
-			delete(input, key)
-			continue
-		}
-		normalizeJSONProperty(v, func(newValue interface{}) {
-			input[key] = newValue
-		})
-	}
-}
-
-// normalizeJSONProperty see normalizeJSONLDVC
-func normalizeJSONProperty(input interface{}, setter func(newValue interface{})) {
-	value := reflect.ValueOf(input)
-	// If it's a slice with a single value, unslice it
-	if value.Kind() == reflect.Slice {
-		switch value.Len() {
-		case 0:
-			// Empty slice, do nothing
-		case 1:
-			// Slice with 1 entry, unslice it
-			input = value.Index(0).Interface()
-			setter(input)
-		default:
-			// Slice with zero or more entries, iterate
-			normalizeJSONSlice(value)
-		}
-	}
-
-	asMap, isMap := input.(map[string]interface{})
-	if isMap {
-		if idValue, hasID := asMap["id"]; hasID && len(asMap) == 1 {
-			setter(idValue)
-		} else {
-			normalizeJSONMap(asMap)
-		}
-	}
-}
-
-// normalizeJSONSlice see normalizeJSONLDVC
-func normalizeJSONSlice(input reflect.Value) {
-	length := input.Len()
-	for i := 0; i < length; i++ {
-		current := input.Index(i)
-		normalizeJSONProperty(current, func(newValue interface{}) {
-			current.Set(reflect.ValueOf(newValue))
-		})
-	}
 }

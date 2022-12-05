@@ -20,7 +20,6 @@
 package credential
 
 import (
-	"encoding/json"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/jsonld"
@@ -347,11 +346,7 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 func TestAllFieldsDefinedValidator(t *testing.T) {
 	validator := AllFieldsDefinedValidator{jsonld.NewTestJSONLDManager(t).DocumentLoader()}
 	t.Run("ok", func(t *testing.T) {
-		var invalidCredentialSubject = make(map[string]interface{})
-		invalidCredentialSubject["id"] = vdr.TestDIDB.String()
-
 		inputVC := *validNutsOrganizationCredential()
-		inputVC.CredentialSubject[0] = invalidCredentialSubject
 
 		err := validator.Validate(inputVC)
 
@@ -370,7 +365,7 @@ func TestAllFieldsDefinedValidator(t *testing.T) {
 
 		err := validator.Validate(inputVC)
 
-		assert.EqualError(t, err, "validation failed: not all fields are defined by JSON-LD context")
+		assert.EqualError(t, err, "validation failed: invalid property: Dropping property that did not expand into an absolute IRI or keyword.")
 	})
 }
 
@@ -431,19 +426,5 @@ func TestDefaultCredentialValidator(t *testing.T) {
 		err := validator.Validate(*v)
 
 		assert.EqualError(t, err, "validation failed: type 'VerifiableCredential' is required")
-	})
-}
-
-func TestNormalizeJSONMap(t *testing.T) {
-	t.Run("slice in slice", func(t *testing.T) {
-		// Test can't be covered by one of the VC types, so a simple unit test suffices
-		input := `{"outer": [["first"]]}`
-		inputAsMap := make(map[string]interface{})
-		_ = json.Unmarshal([]byte(input), &inputAsMap)
-
-		normalizeJSONMap(inputAsMap)
-
-		actual, _ := json.Marshal(inputAsMap)
-		assert.JSONEq(t, `{"outer":["first"]}`, string(actual))
 	})
 }
