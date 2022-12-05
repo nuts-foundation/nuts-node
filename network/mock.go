@@ -5,6 +5,7 @@
 package network
 
 import (
+	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -111,15 +112,18 @@ func (mr *MockTransactionsMockRecorder) PeerDiagnostics() *gomock.Call {
 }
 
 // Reprocess mocks base method.
-func (m *MockTransactions) Reprocess(contentType string) {
+func (m *MockTransactions) Reprocess(ctx context.Context, contentType string) (*ReprocessReport, error) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Reprocess", contentType)
+	ret := m.ctrl.Call(m, "Reprocess", ctx, contentType)
+	ret0, _ := ret[0].(*ReprocessReport)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Reprocess indicates an expected call of Reprocess.
-func (mr *MockTransactionsMockRecorder) Reprocess(contentType interface{}) *gomock.Call {
+func (mr *MockTransactionsMockRecorder) Reprocess(ctx, contentType interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reprocess", reflect.TypeOf((*MockTransactions)(nil).Reprocess), contentType)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reprocess", reflect.TypeOf((*MockTransactions)(nil).Reprocess), ctx, contentType)
 }
 
 // Subscribe mocks base method.

@@ -18,6 +18,7 @@
 package v1
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"github.com/stretchr/testify/require"
@@ -348,7 +349,7 @@ func TestApiWrapper_Reprocess(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		e, wrapper := initMockEcho(networkClient)
-		networkClient.EXPECT().Reprocess("application/did+json")
+		networkClient.EXPECT().Reprocess(context.Background(), "application/did+json")
 
 		req := httptest.NewRequest(echo.GET, "/reprocess?type=application/did%2bjson", nil)
 		rec := httptest.NewRecorder()

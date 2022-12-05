@@ -635,25 +635,12 @@ func (n *Network) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 	return result
 }
 
-func (n *Network) Reprocess(contentType string) {
-	go func() {
-		_, err := n.ReprocessContentType(context.Background(), contentType)
-		if err != nil {
-			log.Logger().Error(err)
-			return
-		}
-
-		// message in use by issue #1445
-		log.Logger().Infof("reprocess %q complete", contentType)
-	}()
-}
-
 // ReprocessReport describes the reprocess exection.
 type ReprocessReport struct {
 	// reserved for future use
 }
 
-func (n *Network) ReprocessContentType(ctx context.Context, contentType string) (*ReprocessReport, error) {
+func (n *Network) Reprocess(ctx context.Context, contentType string) (*ReprocessReport, error) {
 	log.Logger().Infof("Starting reprocess of %s", contentType)
 
 	_, js, err := n.eventPublisher.Pool().Acquire(ctx)
@@ -714,7 +701,7 @@ func (n *Network) ReprocessContentType(ctx context.Context, contentType string) 
 	case <-js.PublishAsyncComplete():
 		break
 	case <-ctx.Done():
-		return nil, fmt.Errorf("reprocess terminate during final flush: %w", ctx.Err())
+		return nil, fmt.Errorf("reprocess terminate before completing succesful: %w", ctx.Err())
 	}
 
 	return new(ReprocessReport), nil

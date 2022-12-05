@@ -736,7 +736,7 @@ func TestNetworkReprocessContentType(t *testing.T) {
 
 		messages := subscribe(ctx, t, eventManager)
 
-		_, err := setup.network.ReprocessContentType(ctx, "application/did+json")
+		_, err := setup.network.Reprocess(ctx, "application/did+json")
 		require.NoError(t, err)
 
 		assert.Len(t, messages, 1)
@@ -752,7 +752,7 @@ func TestNetworkReprocessContentType(t *testing.T) {
 
 		messages := subscribe(ctx, t, eventManager)
 
-		_, err := setup.network.ReprocessContentType(ctx, "application/did+vc")
+		_, err := setup.network.Reprocess(ctx, "application/did+vc")
 		require.NoError(t, err)
 
 		assert.Len(t, messages, 0)
@@ -770,7 +770,7 @@ func TestNetworkReprocessContentType(t *testing.T) {
 
 			messages := subscribe(ctx, t, eventManager)
 
-			_, err := setup.network.ReprocessContentType(ctx, "application/did+vc")
+			_, err := setup.network.Reprocess(ctx, "application/did+vc")
 
 			assert.ErrorIs(t, err, testErr)
 			assert.Len(t, messages, 0)
@@ -788,7 +788,7 @@ func TestNetworkReprocessContentType(t *testing.T) {
 
 			messages := subscribe(ctx, t, eventManager)
 
-			_, err := setup.network.ReprocessContentType(ctx, "application/did+json")
+			_, err := setup.network.Reprocess(ctx, "application/did+json")
 
 			assert.ErrorIs(t, err, testErr)
 			assert.Len(t, messages, 0)

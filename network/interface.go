@@ -19,6 +19,7 @@
 package network
 
 import (
+	"context"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/transport"
@@ -50,7 +51,7 @@ type Transactions interface {
 	PeerDiagnostics() map[transport.PeerID]transport.Diagnostics
 	// Reprocess walks the DAG and publishes all transactions matching the contentType via Nats
 	// This is an async process and will not return any feedback
-	Reprocess(contentType string)
+	Reprocess(ctx context.Context, contentType string) (*ReprocessReport, error)
 	// WithPersistency returns a SubscriberOption for persistency. It allows the DAG KVStore to be used as persistent store for notifications.
 	// The notifications will then have ACID properties
 	WithPersistency() SubscriberOption

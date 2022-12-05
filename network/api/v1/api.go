@@ -19,7 +19,9 @@
 package v1
 
 import (
+	"context"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/network/log"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -163,7 +165,12 @@ func (a Wrapper) Reprocess(ctx echo.Context, params ReprocessParams) error {
 		return core.InvalidInputError("missing type")
 	}
 
-	a.Service.Reprocess(*params.Type)
+	go func() {
+		_, err := a.Service.Reprocess(context.Background(), *params.Type)
+		if err != nil {
+			log.Logger().Error(err)
+		}
+	}()
 
 	return ctx.NoContent(http.StatusAccepted)
 }
