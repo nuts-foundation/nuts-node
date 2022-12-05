@@ -1,0 +1,28 @@
+{
+  "@context": [
+    "https://nuts.nl/credentials/v1",
+    "https://www.w3.org/2018/credentials/v1",
+    "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
+  ],
+  "credentialSubject": {
+    "id": "did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey",
+    "organization": {
+      "city": "IJbergen",
+      "name": "Because we care B.V."
+    }
+  },
+  "id": "did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey#ec8af8cf-67d4-4b54-9bd6-8a861e729e11",
+  "issuanceDate": "2022-06-01T15:34:40.65319+02:00",
+  "issuer": "did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey",
+  "proof": {
+    "created": "2022-12-05T13:47:24.717922+01:00",
+    "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..WyQ-9rd323hXQLgceVAA4eRf1PHwK58dMu_Ugsl63i4WPCj6gNsZQ173qneetZYzNl5IMZWgtuZMGkB5tg-lag",
+    "proofPurpose": "assertionMethod",
+    "type": "JsonWebSignature2020",
+    "verificationMethod": "key-id"
+  },
+  "type": [
+    "NutsOrganizationCredential",
+    "VerifiableCredential"
+  ]
+}
