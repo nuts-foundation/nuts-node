@@ -15,8 +15,8 @@
   "issuanceDate": "2022-06-01T15:34:40.65319+02:00",
   "issuer": "did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey",
   "proof": {
-    "created": "2022-12-05T13:13:04.02985+01:00",
-    "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..vUjgchp5Ss_bmHBzuGRQbw9IN3aMyFfd_w2JFs9CzhVGDcCRnRg6gf22wayhOT4xbcc0ZllZJ9idv2HWF53GCQ",
+    "created": "2022-12-05T13:47:24.717922+01:00",
+    "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..WyQ-9rd323hXQLgceVAA4eRf1PHwK58dMu_Ugsl63i4WPCj6gNsZQ173qneetZYzNl5IMZWgtuZMGkB5tg-lag",
     "proofPurpose": "assertionMethod",
     "type": "JsonWebSignature2020",
     "verificationMethod": "key-id"

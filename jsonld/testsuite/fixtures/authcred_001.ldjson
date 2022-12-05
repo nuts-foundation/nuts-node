@@ -1,8 +1,8 @@
 {
   "@context": [
-    "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json",
     "https://www.w3.org/2018/credentials/v1",
-    "https://nuts.nl/credentials/v1"
+    "https://nuts.nl/credentials/v1",
+    "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
   ],
   "credentialSubject": {
     "id": "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY",
@@ -21,8 +21,8 @@
   "issuanceDate": "2022-11-25T09:44:16.972576+01:00",
   "issuer": "did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW",
   "proof": {
-    "created": "2022-12-05T13:13:04.024955+01:00",
-    "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..kbx9LTSby3LSoKr9DnIBVB9ZlQ5z_a-cz-c9tOeNjxSCpHbZhwHwR64LX3kmyowLTepHSaBv5lLB6icUwlUNGg",
+    "created": "2022-12-05T13:47:24.714488+01:00",
+    "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..8fD_JGQiYLvryd3EPUR7ft41piyqm0rs8_3jYVLZjgld4q9YIjPus-nAE1f4473oo4xh9PW_khbRJaiU-twBMw",
     "proofPurpose": "assertionMethod",
     "type": "JsonWebSignature2020",
     "verificationMethod": "key-id"
