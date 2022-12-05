@@ -48,15 +48,7 @@ func TestCompatibility(t *testing.T) {
 		{
 			version: "1.0",
 			loader: jsonld.NewMappedDocumentLoader(map[string]string{
-				"https://nuts.nl/credentials/v1": "../../vcr/assets/assets/contexts/nuts-v1_0.ldjson",
-				jsonld.W3cVcContext:              "../../vcr/assets/assets/contexts/w3c-credentials-v1.ldjson",
-				jsonld.Jws2020Context:            "../../vcr/assets/assets/contexts/lds-jws2020-v1.ldjson",
-			}, ld.NewDefaultDocumentLoader(nil)),
-		},
-		{
-			version: "1.1",
-			loader: jsonld.NewMappedDocumentLoader(map[string]string{
-				"https://nuts.nl/credentials/v1": "../../vcr/assets/assets/contexts/nuts-v1_1.ldjson",
+				"https://nuts.nl/credentials/v1": "../../vcr/assets/assets/contexts/nuts.ldjson",
 				jsonld.W3cVcContext:              "../../vcr/assets/assets/contexts/w3c-credentials-v1.ldjson",
 				jsonld.Jws2020Context:            "../../vcr/assets/assets/contexts/lds-jws2020-v1.ldjson",
 			}, ld.NewDefaultDocumentLoader(nil)),
@@ -64,9 +56,6 @@ func TestCompatibility(t *testing.T) {
 	}
 
 	for _, ctx := range contexts {
-		if ctx.version == "1.1" {
-			continue
-		}
 		t.Run(ctx.version, func(t *testing.T) {
 			for _, tc := range testCases {
 				t.Run(tc.file, func(t *testing.T) {
@@ -90,13 +79,10 @@ func TestCompatibility(t *testing.T) {
 // TestGenerateSignedFixtures is used to generate signed test fixtures of the unsigned test cases.
 // It's only there as runnable unit test to assert it keeps working.
 func TestGenerateSignedFixtures(t *testing.T) {
-	const saveSigned = false
-
-	jsonldManager := jsonld.NewTestJSONLDManager(t)
-	jsonldManager.DocumentLoader()
+	const saveSigned = true
 
 	loader := jsonld.NewMappedDocumentLoader(map[string]string{
-		"https://nuts.nl/credentials/v1": "../../vcr/assets/assets/contexts/nuts-v1_0.ldjson",
+		"https://nuts.nl/credentials/v1": "../../vcr/assets/assets/contexts/nuts.ldjson",
 		jsonld.W3cVcContext:              "../../vcr/assets/assets/contexts/w3c-credentials-v1.ldjson",
 		jsonld.Jws2020Context:            "../../vcr/assets/assets/contexts/lds-jws2020-v1.ldjson",
 	}, ld.NewDefaultDocumentLoader(nil))
