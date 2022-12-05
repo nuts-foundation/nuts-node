@@ -652,8 +652,8 @@ func (n *Network) Reprocess(ctx context.Context, contentType string) (*Reprocess
 	const clockSteps = 1000
 	for offset := 0; ; offset += clockSteps {
 		end := offset + clockSteps
-		if end >= 1<<32 {
-			return nil, errors.New("reprocess abort on Lamport clock uint32 overflow")
+		if end >= 1<<31 {
+			return nil, errors.New("reprocess abort on Lamport clock int overflow")
 		}
 		txs, err := n.state.FindBetweenLC(ctx, uint32(offset), uint32(end))
 		if err != nil {
