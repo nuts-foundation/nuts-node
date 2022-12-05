@@ -11,7 +11,6 @@ on:
     branches:
       - master
 
-
 jobs:
   docker:
     runs-on: ubuntu-latest
@@ -35,12 +34,12 @@ jobs:
 
       - name: Docker meta
         id: docker_meta
-        uses: crazy-max/ghaction-docker-meta@v4.1.1
+        uses: docker/metadata-action@v4
         with:
           images: nutsfoundation/nuts-node
-          tag-semver: |
-            {{version}}
-            {{major}}.{{minor}}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
