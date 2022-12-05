@@ -710,7 +710,7 @@ func TestNetworkReprocessContentType(t *testing.T) {
 		conn, _, err := eventManager.Pool().Acquire(ctx)
 		require.NoError(t, err)
 
-		err = events.NewDisposableStream("REPROCESS_test", []string{"REPROCESS.*"}, 10).Subscribe(conn, "test", "REPROCESS.*", func(m *nats.Msg) {
+		err = events.NewDisposableStream("REPROCESS_test", []string{"REPROCESS.*"}, 10).Subscribe(conn, t.Name(), "REPROCESS.*", func(m *nats.Msg) {
 			select {
 			case messages <- m:
 				break // collected
