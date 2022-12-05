@@ -79,7 +79,7 @@ func TestCompatibility(t *testing.T) {
 // TestGenerateSignedFixtures is used to generate signed test fixtures of the unsigned test cases.
 // It's only there as runnable unit test to assert it keeps working.
 func TestGenerateSignedFixtures(t *testing.T) {
-	const saveSigned = true
+	const saveSigned = false
 
 	loader := jsonld.NewMappedDocumentLoader(map[string]string{
 		"https://nuts.nl/credentials/v1": "../../vcr/assets/assets/contexts/nuts.ldjson",
