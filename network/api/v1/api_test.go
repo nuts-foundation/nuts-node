@@ -331,10 +331,9 @@ func TestWrapper_GetPeerDiagnostics(t *testing.T) {
 }
 
 func TestApiWrapper_Reprocess(t *testing.T) {
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
-
 	t.Run("error - missing type", func(t *testing.T) {
+		mockCtrl := gomock.NewController(t)
+		defer mockCtrl.Finish()
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		e, wrapper := initMockEcho(networkClient)
 
@@ -347,6 +346,8 @@ func TestApiWrapper_Reprocess(t *testing.T) {
 		assert.EqualError(t, err, "missing type")
 	})
 	t.Run("ok", func(t *testing.T) {
+		mockCtrl := gomock.NewController(t)
+		defer mockCtrl.Finish()
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		e, wrapper := initMockEcho(networkClient)
 		networkClient.EXPECT().Reprocess(context.Background(), "application/did+json")
@@ -357,6 +358,8 @@ func TestApiWrapper_Reprocess(t *testing.T) {
 		c.SetPath("/reprocess")
 
 		err := wrapper.Reprocess(c)
+		// a go procedure is started
+		time.Sleep(10 * time.Millisecond)
 
 		assert.NoError(t, err)
 	})
