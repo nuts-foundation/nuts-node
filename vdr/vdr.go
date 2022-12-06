@@ -32,7 +32,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/nuts-foundation/nuts-node/vdr/diddocuments/dochelper"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/sirupsen/logrus"
@@ -65,8 +65,8 @@ func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.T
 		network:           networkClient,
 		_logger:           log.Logger(),
 		store:             store,
-		didDocCreator:     doc.Creator{KeyStore: cryptoClient},
-		didDocResolver:    doc.Resolver{Store: store},
+		didDocCreator:     dochelper.Creator{KeyStore: cryptoClient},
+		didDocResolver:    dochelper.Resolver{Store: store},
 		networkAmbassador: NewAmbassador(networkClient, store, eventManager),
 		keyStore:          cryptoClient,
 	}
@@ -177,8 +177,8 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 	}
 
 	// #1530: add nuts and JWS context if not present
-	next = withJSONLDContext(next, doc.NutsDIDContextV1URI())
-	next = withJSONLDContext(next, doc.JWS2020ContextV1URI())
+	next = withJSONLDContext(next, dochelper.NutsDIDContextV1URI())
+	next = withJSONLDContext(next, dochelper.JWS2020ContextV1URI())
 
 	payload, err := json.Marshal(next)
 	if err != nil {

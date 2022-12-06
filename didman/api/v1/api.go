@@ -22,11 +22,11 @@ package v1
 import (
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/diddocuments/dochelper"
 	"net/http"
 	"net/url"
 	"strings"
 
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/labstack/echo/v4"
@@ -59,11 +59,11 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 		return http.StatusConflict
 	case errors.Is(err, didman.ErrServiceInUse):
 		return http.StatusConflict
-	case errors.Is(err, doc.ErrInvalidOptions):
+	case errors.Is(err, dochelper.ErrInvalidOptions):
 		return http.StatusBadRequest
 	case errors.Is(err, types.ErrServiceNotFound):
 		return http.StatusNotFound
-	case errors.As(err, new(doc.DIDServiceQueryError)):
+	case errors.As(err, new(dochelper.DIDServiceQueryError)):
 		return http.StatusBadRequest
 	case errors.Is(err, types.ErrServiceReferenceToDeep):
 		return http.StatusNotAcceptable

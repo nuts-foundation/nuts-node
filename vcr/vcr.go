@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vdr/diddocuments/dochelper"
 	"io/fs"
 	"path"
 	"strings"
@@ -50,7 +51,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -61,7 +61,7 @@ func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyRe
 		docResolver:     docResolver,
 		keyStore:        keyStore,
 		keyResolver:     keyResolver,
-		serviceResolver: doc.NewServiceResolver(docResolver),
+		serviceResolver: dochelper.NewServiceResolver(docResolver),
 		network:         network,
 		jsonldManager:   jsonldManager,
 		eventManager:    eventManager,
@@ -77,7 +77,7 @@ type vcr struct {
 	keyStore        crypto.KeyStore
 	docResolver     vdr.DocResolver
 	keyResolver     vdr.KeyResolver
-	serviceResolver doc.ServiceResolver
+	serviceResolver dochelper.ServiceResolver
 	ambassador      Ambassador
 	network         network.Transactions
 	trustConfig     *trust.Config

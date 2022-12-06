@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/diddocuments/dochelper"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -42,7 +43,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	"github.com/nuts-foundation/nuts-node/network/transport/v2"
 	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"go.etcd.io/bbolt"
 )
@@ -236,9 +236,9 @@ func (n *Network) Configure(config core.ServerConfig) error {
 			if config.Strictmode {
 				return errors.New("disabling node DID in strict mode is not allowed")
 			}
-			authenticator = grpc.NewDummyAuthenticator(doc.NewServiceResolver(n.didDocumentResolver))
+			authenticator = grpc.NewDummyAuthenticator(dochelper.NewServiceResolver(n.didDocumentResolver))
 		} else {
-			authenticator = grpc.NewTLSAuthenticator(doc.NewServiceResolver(n.didDocumentResolver))
+			authenticator = grpc.NewTLSAuthenticator(dochelper.NewServiceResolver(n.didDocumentResolver))
 		}
 		n.connectionStore, err = n.storeProvider.GetKVStore("connections", storage.VolatileStorageClass)
 		if err != nil {
@@ -351,7 +351,7 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 	}
 
 	// start connecting to published NutsComm addresses
-	otherNodes, err := n.didDocumentFinder.Find(doc.IsActive(), doc.ValidAt(time.Now()), doc.ByServiceType(transport.NutsCommServiceType))
+	otherNodes, err := n.didDocumentFinder.Find(dochelper.IsActive(), dochelper.ValidAt(time.Now()), dochelper.ByServiceType(transport.NutsCommServiceType))
 	if err != nil {
 		return err
 	}
@@ -409,9 +409,9 @@ func (n *Network) validateNodeDID(nodeDID did.DID) error {
 	}
 
 	// Check if the DID document has a resolvable and valid NutsComm endpoint
-	serviceResolver := doc.NewServiceResolver(n.didDocumentResolver)
-	serviceRef := doc.MakeServiceReference(nodeDID, transport.NutsCommServiceType)
-	nutsCommService, err := serviceResolver.Resolve(serviceRef, doc.DefaultMaxServiceReferenceDepth)
+	serviceResolver := dochelper.NewServiceResolver(n.didDocumentResolver)
+	serviceRef := dochelper.MakeServiceReference(nodeDID, transport.NutsCommServiceType)
+	nutsCommService, err := serviceResolver.Resolve(serviceRef, dochelper.DefaultMaxServiceReferenceDepth)
 	if err != nil {
 		return fmt.Errorf("unable to resolve %s service endpoint, register it on the DID document (did=%s): %v", transport.NutsCommServiceType, nodeDID, err)
 	}

@@ -31,7 +31,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	types "github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/nuts-foundation/nuts-node/vdr/diddocuments/dochelper"
 	vdrTypes "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -49,7 +49,7 @@ func Test_networkPublisher_resolveNutsCommServiceOwner(t *testing.T) {
 		defer ctrl.Finish()
 
 		sut := networkPublisher{}
-		mockServiceResolver := doc.NewMockServiceResolver(ctrl)
+		mockServiceResolver := dochelper.NewMockServiceResolver(ctrl)
 		sut.serviceResolver = mockServiceResolver
 
 		mockServiceResolver.EXPECT().Resolve(expectedURIA, 5).Return(service, nil)
@@ -65,7 +65,7 @@ func Test_networkPublisher_resolveNutsCommServiceOwner(t *testing.T) {
 		defer ctrl.Finish()
 
 		sut := networkPublisher{}
-		mockServiceResolver := doc.NewMockServiceResolver(ctrl)
+		mockServiceResolver := dochelper.NewMockServiceResolver(ctrl)
 		sut.serviceResolver = mockServiceResolver
 		mockServiceResolver.EXPECT().Resolve(expectedURIA, 5).Return(did.Service{}, errors.New("b00m!"))
 
@@ -123,7 +123,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 		mockKeyResolver := NewMockkeyResolver(ctrl)
 		mockDocResolver := vdrTypes.NewMockDocResolver(ctrl)
 		mockNetwork := network.NewMockTransactions(ctrl)
-		mockServiceResolver := doc.NewMockServiceResolver(ctrl)
+		mockServiceResolver := dochelper.NewMockServiceResolver(ctrl)
 
 		sut := networkPublisher{
 			keyResolver:     mockKeyResolver,
@@ -203,7 +203,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			mockServiceResolver := doc.NewMockServiceResolver(ctrl)
+			mockServiceResolver := dochelper.NewMockServiceResolver(ctrl)
 
 			sut := networkPublisher{
 				serviceResolver: mockServiceResolver,

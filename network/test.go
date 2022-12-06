@@ -24,7 +24,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/nuts-foundation/nuts-node/vdr/diddocuments/dochelper"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 	"github.com/sirupsen/logrus"
 	"testing"
@@ -41,11 +41,11 @@ func NewTestNetworkInstance(t *testing.T) *Network {
 	eventPublisher := events.NewManager()
 	newInstance := NewNetworkInstance(
 		config,
-		doc.KeyResolver{Store: vdrStore},
+		dochelper.KeyResolver{Store: vdrStore},
 		cryptoInstance,
 		cryptoInstance,
-		doc.Resolver{Store: vdrStore},
-		doc.Finder{Store: vdrStore},
+		dochelper.Resolver{Store: vdrStore},
+		dochelper.Finder{Store: vdrStore},
 		eventPublisher,
 		storage.NewTestStorageEngine(testDirectory).GetProvider(ModuleName),
 	)
