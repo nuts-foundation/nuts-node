@@ -163,3 +163,5 @@ require (
 	gopkg.in/square/go-jose.v2 v2.5.1 // indirect
 	rsc.io/qr v0.2.0 // indirect
 )
+
+replace github.com/piprate/json-gold => ../json-gold

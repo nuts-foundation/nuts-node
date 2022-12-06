@@ -39,6 +39,8 @@ type ContextsConfig struct {
 	LocalFileMapping map[string]string `koanf:"localmapping"`
 }
 
+var ContextURLNotAllowedErr = errors.New("context not on the remoteallowlist")
+
 // embeddedFSDocumentLoader tries to load documents from an embedded filesystem.
 type embeddedFSDocumentLoader struct {
 	fs         embed.FS
@@ -72,7 +74,7 @@ func (h filteredDocumentLoader) LoadDocument(u string) (*ld.RemoteDocument, erro
 			return h.nextLoader.LoadDocument(u)
 		}
 	}
-	return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, fmt.Sprintf("context not on the remoteallowlist: %s", u))
+	return nil, ld.NewJsonLdError(ld.LoadingDocumentFailed, ContextURLNotAllowedErr)
 }
 
 type mappedDocumentLoader struct {
