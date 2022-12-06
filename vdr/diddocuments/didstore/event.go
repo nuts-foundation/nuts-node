@@ -1,0 +1,133 @@
+/*
+ * Nuts node
+ * Copyright (C) 2022 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+package didstore
+
+import (
+	"sort"
+	"time"
+
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/network/dag"
+)
+
+// event contains the transaction reference and ordering of all DID document updates
+type event struct {
+	// Created is the transaction creation time, used for sorting
+	Created time.Time `json:"created"`
+	// LogicalClock contains the LC header from the transaction
+	LogicalClock uint32 `json:"lc"`
+	// TXRef contains the TX.Ref of the original transaction. Used for ordering
+	TXRef hash.SHA256Hash `json:"txref"`
+	// DocRef contains the reference to the document shelf. Equals transaction payload hash
+	DocRef hash.SHA256Hash `json:"docref"`
+	// MetaRef contains a reference to the documentMetadata shelf. "DID + version"
+	MetaRef string `json:"metaref"`
+	// document contains the created Document. This needs to be added to a new event since we cannot write and read within the same TX.
+	document *did.Document
+	// metadata contains the created Metadata. This needs to be added to a new event since we cannot write and read within the same TX.
+	metadata *documentMetadata
+}
+
+// Len returns the length of the Events slice. Required for sorting.
+func (el *eventList) Len() int {
+	return len(el.Events)
+}
+
+// Less is part of the methods required for sorting
+func (el *eventList) Less(i, j int) bool {
+	left := el.Events[i]
+	right := el.Events[j]
+
+	if left.LogicalClock < right.LogicalClock {
+		return true
+	}
+	if left.LogicalClock > right.LogicalClock {
+		return false
+	}
+
+	return left.Created.Before(right.Created)
+}
+
+// Swap is part of the methods required for sorting
+func (el *eventList) Swap(i, j int) {
+	tmp := el.Events[i]
+	el.Events[i] = el.Events[j]
+	el.Events[j] = tmp
+}
+
+func eventFromTransaction(transaction dag.Transaction) event {
+	return event{
+		Created:      transaction.SigningTime(),
+		LogicalClock: transaction.Clock(),
+		TXRef:        transaction.Ref(),
+		DocRef:       transaction.PayloadHash(),
+	}
+}
+
+// eventList is an in-memory representation of an Events shelf entry
+type eventList struct {
+	Events []event `json:"events"`
+}
+
+func (el *eventList) copy() eventList {
+	return *el
+}
+
+// insert the event at the correct location
+func (el *eventList) insert(e event) {
+	// 1% case
+	if len(el.Events) == 0 {
+		el.Events = []event{e}
+		return
+	}
+
+	// 98.99% case
+	last := el.Events[len(el.Events)-1]
+	el.Events = append(el.Events, e)
+	if last.LogicalClock < e.LogicalClock {
+		return
+	}
+
+	// 0.01% case
+	sort.Stable(el)
+}
+
+// updates returns the latest matching event and a sublist of updates that need to be applied to the latest.
+func (el *eventList) updates(updated eventList) (*event, []event) {
+	if updated.Len() == 0 {
+		return nil, []event{}
+	}
+
+	lastCommonIndex := 0
+	var lastCommonEvent *event
+	for i, e := range el.Events {
+		if !e.TXRef.Equals(updated.Events[i].TXRef) {
+			break
+		}
+		eCopy := e
+		lastCommonEvent = &eCopy
+		lastCommonIndex++
+	}
+
+	newList := eventList{Events: append(el.Events[lastCommonIndex:], updated.Events[lastCommonIndex:]...)}
+	sort.Stable(&newList)
+
+	return lastCommonEvent, newList.Events
+}
