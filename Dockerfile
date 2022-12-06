@@ -11,9 +11,6 @@ ARG GIT_VERSION=undefined
 LABEL maintainer="wout.slakhorst@nuts.nl"
 
 RUN apk update \
- && apk add --no-cache \
-            gcc=11.2.1_git20220219-r2 \
-            musl-dev=1.2.3-r2 \
  && update-ca-certificates
 
 ENV GO111MODULE on
