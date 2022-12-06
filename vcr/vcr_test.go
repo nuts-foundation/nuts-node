@@ -24,7 +24,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/stretchr/testify/require"
 	"os"
-	"path"
 	"strings"
 	"testing"
 	"time"
@@ -71,7 +70,7 @@ func TestVCR_Start(t *testing.T) {
 			nil,
 			nil,
 			nil,
-			network.NewTestNetworkInstance(path.Join(testDirectory, "network")),
+			network.NewTestNetworkInstance(t),
 			jsonld.NewTestJSONLDManager(t),
 			events.NewTestManager(t),
 			storage.NewTestStorageEngine(testDirectory),
@@ -118,7 +117,7 @@ func TestVCR_Diagnostics(t *testing.T) {
 		nil,
 		nil,
 		nil,
-		network.NewTestNetworkInstance(path.Join(testDirectory, "network")),
+		network.NewTestNetworkInstance(t),
 		jsonld.NewTestJSONLDManager(t),
 		events.NewTestManager(t),
 		storage.NewTestStorageEngine(testDirectory),

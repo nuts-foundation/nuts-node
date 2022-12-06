@@ -44,7 +44,7 @@ func NewTestVCRInstance(t *testing.T) *vcr {
 		nil,
 		nil,
 		nil,
-		network.NewTestNetworkInstance(path.Join(testDirectory, "network")),
+		network.NewTestNetworkInstance(t),
 		jsonld.NewTestJSONLDManager(t),
 		events.NewTestManager(t),
 		storage.NewTestStorageEngine(testDirectory),

@@ -47,6 +47,8 @@ const (
 type store struct {
 	db            stoabs.KVStore
 	storeProvider storage.Provider
+	// inMemory is a temporary change to let the current store be in-memory for test.
+	inMemory bool
 }
 
 func (s *store) Name() string {
@@ -54,13 +56,17 @@ func (s *store) Name() string {
 }
 
 // NewStore returns an instance of a VDR store
-func NewStore(storeProvider storage.Provider) vdr.Store {
-	return &store{storeProvider: storeProvider}
+func NewStore(storeProvider storage.Provider, inMemory bool) vdr.Store {
+	return &store{storeProvider: storeProvider, inMemory: inMemory}
 }
 
 func (s *store) Configure(_ core.ServerConfig) error {
 	var err error
-	s.db, err = s.storeProvider.GetKVStore(didStoreName, storage.PersistentStorageClass)
+	if s.inMemory {
+		s.db, err = s.storeProvider.GetKVStore(didStoreName, storage.VolatileStorageClass)
+	} else {
+		s.db, err = s.storeProvider.GetKVStore(didStoreName, storage.PersistentStorageClass)
+	}
 	return err
 }
 
@@ -288,6 +294,10 @@ func (s *store) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (returnDocume
 				return err
 			}
 
+			if metadataRecord.Deactivated && metadata == nil {
+				// We're trying to resolve the latest, it should not return an older (active) version when deactivated
+				return vdr.ErrDeactivated
+			}
 			if matches(metadataRecord, metadata) {
 				returnMetadata = &metadataRecord.Metadata
 				docBytes, err := documentReader.Get(stoabs.NewHashKey(metadataRecord.Metadata.Hash))

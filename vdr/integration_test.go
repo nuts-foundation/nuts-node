@@ -251,7 +251,7 @@ func setup(t *testing.T) testContext {
 	}
 
 	// DID Store
-	didStore := store.NewMemoryStore()
+	didStore := store.NewTestStore(t)
 	docResolver := doc.Resolver{Store: didStore}
 	docFinder := doc.Finder{Store: didStore}
 	docCreator := doc.Creator{KeyStore: cryptoInstance}

@@ -23,17 +23,20 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 	"github.com/sirupsen/logrus"
+	"testing"
 )
 
 // NewTestNetworkInstance creates a new Transactions instance that writes it data to a test directory.
-func NewTestNetworkInstance(testDirectory string) *Network {
+func NewTestNetworkInstance(t *testing.T) *Network {
+	testDirectory := io.TestDirectory(t)
 	// speedup tests by disabling file sync
 	defaultBBoltOptions.NoSync = true
 	config := TestNetworkConfig()
-	vdrStore := store.NewMemoryStore()
+	vdrStore := store.NewTestStore(t)
 	cryptoInstance := crypto.NewTestCryptoInstance()
 	eventPublisher := events.NewManager()
 	newInstance := NewNetworkInstance(

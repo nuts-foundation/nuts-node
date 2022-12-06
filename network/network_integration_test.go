@@ -68,7 +68,7 @@ var keyStore nutsCrypto.KeyStore
 
 func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
-	resetIntegrationTest()
+	resetIntegrationTest(t)
 	key := nutsCrypto.NewTestKey("key")
 	expectedDocLogSize := 0
 
@@ -123,11 +123,11 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 }
 
 func TestNetworkIntegration_Messages(t *testing.T) {
-	resetIntegrationTest()
+	resetIntegrationTest(t)
 
 	testNodes := func(t *testing.T, opts ...func(_ *core.ServerConfig, cfg *Config)) (node, node) {
 		testDirectory := io.TestDirectory(t)
-		resetIntegrationTest()
+		resetIntegrationTest(t)
 
 		allOpts := append([]func(*core.ServerConfig, *Config){func(_ *core.ServerConfig, cfg *Config) {
 			cfg.Protocols = []int{2}
@@ -179,7 +179,7 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 
 	t.Run("Gossip - sync missing transactions from slow peer", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
-		resetIntegrationTest()
+		resetIntegrationTest(t)
 
 		// start nodes with v1 disabled, and disable Gossip for bootstrap node
 		bootstrap := startNode(t, "integration_bootstrap", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
@@ -255,7 +255,7 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 		expectedDocLogSize := 0
 
 		testDirectory := io.TestDirectory(t)
-		resetIntegrationTest()
+		resetIntegrationTest(t)
 
 		node1 := startNode(t, "integration_node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
 			cfg.Protocols = []int{2}
@@ -337,7 +337,7 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 
 func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
-	resetIntegrationTest()
+	resetIntegrationTest(t)
 
 	// Start 2 nodes: node1 and node2, where each connects to the other
 	node1 := startNode(t, "node1", testDirectory)
@@ -368,7 +368,7 @@ func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 	t.Run("mutual auth", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
-		resetIntegrationTest()
+		resetIntegrationTest(t)
 
 		// Start 2 nodes: node1 and node2, where node1 specifies a node DID that node2 can't authenticate
 		node1 := startNode(t, "node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
@@ -386,7 +386,7 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 	})
 	t.Run("node DID auth sent client (authenticated by server) fails", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
-		resetIntegrationTest()
+		resetIntegrationTest(t)
 
 		// Start 2 nodes: node1 and node2, where node1 specifies a node DID that node2 can't authenticate
 		node1 := startNode(t, "node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
@@ -415,7 +415,7 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 	})
 	t.Run("node DID auth sent by server (authenticated by client) fails", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
-		resetIntegrationTest()
+		resetIntegrationTest(t)
 
 		// Start 2 nodes: node1 and node2, where node2 specifies a node DID that node1 can't authenticate
 		node1 := startNode(t, "node1", testDirectory)
@@ -447,7 +447,7 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 	t.Run("happy flow", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
-		resetIntegrationTest()
+		resetIntegrationTest(t)
 		key := nutsCrypto.NewTestKey("key")
 
 		// Start 2 nodes: node1 and node2, node1 sends a private TX to node 2
@@ -481,7 +481,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 
 	t.Run("event received", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
-		resetIntegrationTest()
+		resetIntegrationTest(t)
 		key := nutsCrypto.NewTestKey("key")
 
 		// Start 2 nodes: node1 and node2, node1 sends a private TX to node 2
@@ -530,7 +530,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 
 	t.Run("third node knows nothing", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
-		resetIntegrationTest()
+		resetIntegrationTest(t)
 		key := nutsCrypto.NewTestKey("key")
 
 		// Start 2 nodes: node1 and node2, node1 sends a private TX to node 2
@@ -575,7 +575,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 
 	t.Run("three participants", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
-		resetIntegrationTest()
+		resetIntegrationTest(t)
 		key := nutsCrypto.NewTestKey("key")
 
 		// Start 3 nodes: node1, node2 and node3. Node 1 sends a private TX to node 2 and node 3, which both should receive.
@@ -620,7 +620,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 
 	t.Run("large amount of private transactions", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
-		resetIntegrationTest()
+		resetIntegrationTest(t)
 		key := nutsCrypto.NewTestKey("key")
 
 		// Start 2 nodes: node1 and node2, node1 sends a private TX to node 2
@@ -659,7 +659,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 
 func TestNetworkIntegration_OutboundConnection11Reconnects(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
-	resetIntegrationTest()
+	resetIntegrationTest(t)
 
 	// Given node1 and node2
 	// Given node1 connects to node2
@@ -701,7 +701,7 @@ func TestNetworkIntegration_OutboundConnection11Reconnects(t *testing.T) {
 
 func TestNetworkIntegration_AddedTransactionsAsEvents(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
-	resetIntegrationTest()
+	resetIntegrationTest(t)
 
 	node1 := startNode(t, "node1", testDirectory)
 	node2 := startNode(t, "node2", testDirectory)
@@ -747,7 +747,7 @@ func TestNetworkIntegration_AddedTransactionsAsEvents(t *testing.T) {
 }
 
 func TestNetworkIntegration_TLSOffloading(t *testing.T) {
-	resetIntegrationTest()
+	resetIntegrationTest(t)
 
 	t.Run("server offloads incoming TLS", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
@@ -812,14 +812,14 @@ func TestNetworkIntegration_TLSOffloading(t *testing.T) {
 	})
 }
 
-func resetIntegrationTest() {
+func resetIntegrationTest(t *testing.T) {
 	// in an integration test we want everything to work as intended, disable test speedup and re-enable file sync for bbolt
 	defaultBBoltOptions.NoSync = false
 	mutex.Lock()
 	defer mutex.Unlock()
 
 	receivedTransactions = make(map[string][]dag.Transaction, 0)
-	vdrStore = store.NewMemoryStore()
+	vdrStore = store.NewTestStore(t)
 	keyStore = nutsCrypto.NewTestCryptoInstance()
 
 	// Write DID Document for node1
@@ -834,6 +834,7 @@ func resetIntegrationTest() {
 		verificationMethod, _ := did.NewVerificationMethod(kid, ssi.JsonWebKey2020, *nodeDID, key.Public())
 		document.VerificationMethod.Add(verificationMethod)
 		document.KeyAgreement.Add(verificationMethod)
+		document.CapabilityInvocation.Add(verificationMethod)
 		document.Service = []did.Service{{
 			Type:            transport.NutsCommServiceType,
 			ServiceEndpoint: "grpc://localhost:5555", // Must match TLS SAN DNSName

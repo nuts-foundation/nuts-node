@@ -37,7 +37,7 @@ import (
 )
 
 func TestResolveSigningKey(t *testing.T) {
-	didStore := store.NewMemoryStore()
+	didStore := store.NewTestStore(t)
 	keyResolver := KeyResolver{Store: didStore}
 	keyCreator := newMockKeyCreator()
 	docCreator := Creator{KeyStore: keyCreator}
@@ -77,7 +77,7 @@ func TestResolveSigningKey(t *testing.T) {
 }
 
 func TestResolveSigningKeyID(t *testing.T) {
-	didStore := store.NewMemoryStore()
+	didStore := store.NewTestStore(t)
 	keyResolver := KeyResolver{Store: didStore}
 	keyCreator := newMockKeyCreator()
 	docCreator := Creator{KeyStore: keyCreator}
@@ -116,7 +116,7 @@ func TestResolveSigningKeyID(t *testing.T) {
 }
 
 func TestKeyResolver_ResolveAssertionKeyID(t *testing.T) {
-	didStore := store.NewMemoryStore()
+	didStore := store.NewTestStore(t)
 	keyResolver := KeyResolver{Store: didStore}
 	keyCreator := newMockKeyCreator()
 	docCreator := Creator{KeyStore: keyCreator}
@@ -422,7 +422,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 }
 
 func TestKeyResolver_ResolvePublicKey(t *testing.T) {
-	didStore := store.NewMemoryStore()
+	didStore := store.NewTestStore(t)
 	keyResolver := KeyResolver{Store: didStore}
 	keyCreator := newMockKeyCreator()
 	docCreator := Creator{KeyStore: keyCreator}

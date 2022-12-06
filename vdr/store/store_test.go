@@ -34,15 +34,13 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-const moduleName = "VDR"
-
 func newTestStore(t *testing.T) types.Store {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	storeProvider := storage.StaticKVStoreProvider{
 		Store: storage.CreateTestBBoltStore(t, path.Join(io.TestDirectory(t), moduleName, "didstore.db")),
 	}
-	store := NewStore(&storeProvider)
+	store := NewStore(&storeProvider, false)
 
 	err := store.(core.Configurable).Configure(*core.NewServerConfig())
 	require.NoError(t, err)
@@ -57,7 +55,7 @@ func TestStore_Configure(t *testing.T) {
 	t.Run("error - unable to create DB", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		mockProvider := storage.NewMockProvider(ctrl)
-		store := NewStore(mockProvider).(core.Configurable)
+		store := NewStore(mockProvider, false).(core.Configurable)
 		mockProvider.EXPECT().GetKVStore(gomock.Any(), gomock.Any()).Return(nil, errors.New("custom"))
 
 		err := store.Configure(core.TestServerConfig(core.ServerConfig{Datadir: "a_file_not_a_dir.go"}))
@@ -67,7 +65,7 @@ func TestStore_Configure(t *testing.T) {
 }
 
 func TestStore_Start(t *testing.T) {
-	store := NewStore(storage.NewTestStorageEngine(io.TestDirectory(t)).GetProvider(moduleName)).(core.Runnable)
+	store := NewStore(storage.NewTestStorageEngine(io.TestDirectory(t)).GetProvider(moduleName), false).(core.Runnable)
 	err := store.(core.Configurable).Configure(core.TestServerConfig(core.ServerConfig{}))
 	require.NoError(t, err)
 
@@ -77,7 +75,7 @@ func TestStore_Start(t *testing.T) {
 }
 
 func TestStore_Shutdown(t *testing.T) {
-	store := NewStore(storage.NewTestStorageEngine(io.TestDirectory(t)).GetProvider(moduleName)).(core.Runnable)
+	store := NewStore(storage.NewTestStorageEngine(io.TestDirectory(t)).GetProvider(moduleName), false).(core.Runnable)
 
 	err := store.Shutdown()
 
@@ -398,7 +396,7 @@ func TestStore_DeactivatedFilter(t *testing.T) {
 
 	t.Run("returns error when document is deactivated", func(t *testing.T) {
 		_, _, err := store.Resolve(*did1, nil)
-		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.ErrorIs(t, err, types.ErrDeactivated)
 	})
 
 	t.Run("returns deactivated document when allow deactivated is enabled in metadata", func(t *testing.T) {

@@ -942,7 +942,7 @@ func Test_connectToKnownNodes(t *testing.T) {
 				defer ctrl.Finish()
 
 				// Use actual test instance because the unit test's createNetwork mocks too much for us
-				network := NewTestNetworkInstance(io.TestDirectory(t))
+				network := NewTestNetworkInstance(t)
 				docFinder := vdrTypes.NewMockDocFinder(ctrl)
 				network.didDocumentFinder = docFinder
 				network.config.EnableDiscovery = true
@@ -968,7 +968,7 @@ func Test_connectToKnownNodes(t *testing.T) {
 		defer ctrl.Finish()
 
 		// Use actual test instance because the unit test's createNetwork mocks too much for us
-		network := NewTestNetworkInstance(io.TestDirectory(t))
+		network := NewTestNetworkInstance(t)
 		docFinder := vdrTypes.NewMockDocFinder(ctrl)
 		network.didDocumentFinder = docFinder
 		network.config.EnableDiscovery = true
