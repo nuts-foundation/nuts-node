@@ -278,7 +278,7 @@ func Test_issuer_Issue(t *testing.T) {
 			}
 
 			result, err := sut.Issue(invalidCred, true, true)
-			assert.EqualError(t, err, "validation failed: not all fields are defined by JSON-LD context")
+			assert.EqualError(t, err, "validation failed: invalid property: Dropping property that did not expand into an absolute IRI or keyword.")
 			assert.Nil(t, result)
 
 		})
