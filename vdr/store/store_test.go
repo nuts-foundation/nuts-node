@@ -40,7 +40,7 @@ func newTestStore(t *testing.T) types.Store {
 	storeProvider := storage.StaticKVStoreProvider{
 		Store: storage.CreateTestBBoltStore(t, path.Join(io.TestDirectory(t), moduleName, "didstore.db")),
 	}
-	store := NewStore(&storeProvider, false)
+	store := NewStore(&storeProvider)
 
 	err := store.(core.Configurable).Configure(*core.NewServerConfig())
 	require.NoError(t, err)
@@ -55,7 +55,7 @@ func TestStore_Configure(t *testing.T) {
 	t.Run("error - unable to create DB", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		mockProvider := storage.NewMockProvider(ctrl)
-		store := NewStore(mockProvider, false).(core.Configurable)
+		store := NewStore(mockProvider).(core.Configurable)
 		mockProvider.EXPECT().GetKVStore(gomock.Any(), gomock.Any()).Return(nil, errors.New("custom"))
 
 		err := store.Configure(core.TestServerConfig(core.ServerConfig{Datadir: "a_file_not_a_dir.go"}))
@@ -65,7 +65,7 @@ func TestStore_Configure(t *testing.T) {
 }
 
 func TestStore_Start(t *testing.T) {
-	store := NewStore(storage.NewTestStorageEngine(io.TestDirectory(t)).GetProvider(moduleName), false).(core.Runnable)
+	store := NewStore(storage.NewTestStorageEngine(io.TestDirectory(t)).GetProvider(moduleName)).(core.Runnable)
 	err := store.(core.Configurable).Configure(core.TestServerConfig(core.ServerConfig{}))
 	require.NoError(t, err)
 
@@ -75,7 +75,7 @@ func TestStore_Start(t *testing.T) {
 }
 
 func TestStore_Shutdown(t *testing.T) {
-	store := NewStore(storage.NewTestStorageEngine(io.TestDirectory(t)).GetProvider(moduleName), false).(core.Runnable)
+	store := NewStore(storage.NewTestStorageEngine(io.TestDirectory(t)).GetProvider(moduleName)).(core.Runnable)
 
 	err := store.Shutdown()
 

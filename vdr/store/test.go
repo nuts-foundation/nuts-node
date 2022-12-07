@@ -36,8 +36,11 @@ var TestDIDA = did.MustParseDID("did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYt
 var TestDIDB = did.MustParseDID("did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY")
 
 func NewTestStore(t *testing.T) *store {
-	storageEngine := storage.NewTestStorageEngine(path.Join(io.TestDirectory(t)))
-	s := NewStore(storageEngine.GetProvider(moduleName), true).(*store)
+	testDirectory := io.TestDirectory(t)
+	storageProvider := storage.StaticKVStoreProvider{
+		Store: storage.CreateTestBBoltStore(t, path.Join(testDirectory, "test.db")),
+	}
+	s := NewStore(&storageProvider).(*store)
 	err := s.Configure(core.ServerConfig{})
 	require.NoError(t, err)
 	return s

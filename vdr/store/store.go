@@ -47,8 +47,6 @@ const (
 type store struct {
 	db            stoabs.KVStore
 	storeProvider storage.Provider
-	// inMemory is a temporary change to let the current store be in-memory for test.
-	inMemory bool
 }
 
 func (s *store) Name() string {
@@ -56,17 +54,13 @@ func (s *store) Name() string {
 }
 
 // NewStore returns an instance of a VDR store
-func NewStore(storeProvider storage.Provider, inMemory bool) vdr.Store {
-	return &store{storeProvider: storeProvider, inMemory: inMemory}
+func NewStore(storeProvider storage.Provider) vdr.Store {
+	return &store{storeProvider: storeProvider}
 }
 
 func (s *store) Configure(_ core.ServerConfig) error {
 	var err error
-	if s.inMemory {
-		s.db, err = s.storeProvider.GetKVStore(didStoreName, storage.VolatileStorageClass)
-	} else {
-		s.db, err = s.storeProvider.GetKVStore(didStoreName, storage.PersistentStorageClass)
-	}
+	s.db, err = s.storeProvider.GetKVStore(didStoreName, storage.PersistentStorageClass)
 	return err
 }
 
