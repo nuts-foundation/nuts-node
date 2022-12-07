@@ -42,10 +42,12 @@ import (
 func TestEvent_UnmarshalJSON(t *testing.T) {
 	transaction, _, _ := CreateTestTransaction(0)
 	payload := "payload"
+	now := time.Now()
 	event := Event{
 		Type:        TransactionEventType,
 		Hash:        transaction.Ref(),
 		Retries:     1,
+		Latest:      &now,
 		Transaction: transaction,
 		Payload:     []byte(payload),
 	}
@@ -58,6 +60,7 @@ func TestEvent_UnmarshalJSON(t *testing.T) {
 	assert.Equal(t, TransactionEventType, event.Type)
 	assert.True(t, transaction.Ref().Equals(event.Hash))
 	assert.Equal(t, 1, event.Retries)
+	assert.True(t, now.Equal(*event.Latest))
 	assert.Equal(t, payload, string(event.Payload))
 	assert.Equal(t, transaction.Data(), event.Transaction.Data())
 }
@@ -141,6 +144,7 @@ func TestNotifier_Save(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, 1, e.Retries)
 			assert.Equal(t, event.Hash.String(), e.Hash.String())
+			assert.Nil(t, e.Latest)
 
 			return nil
 		})
@@ -318,6 +322,10 @@ func TestNotifier_Notify(t *testing.T) {
 		kvStore, _ := bbolt.CreateBBoltStore(path.Join(filePath, "test.db"))
 		counter := callbackCounter{}
 		event := Event{Hash: hash.EmptyHash(), Transaction: transaction}
+		now := time.Now()
+		timeFunc = func() time.Time {
+			return now
+		}
 		s := NewNotifier(t.Name(), counter.callback, WithPersistency(kvStore)).(*notifier)
 		defer s.Close()
 		kvStore.Write(ctx, func(tx stoabs.WriteTx) error {
@@ -335,6 +343,7 @@ func TestNotifier_Notify(t *testing.T) {
 			assert.NoError(t, err)
 			require.NotNil(t, e)
 			assert.Equal(t, 1, e.Retries)
+			assert.True(t, now.Equal(*e.Latest))
 
 			return nil
 		})
@@ -612,19 +621,19 @@ type prometheusCounter struct {
 	N atomic.Int64
 }
 
-func (t prometheusCounter) Desc() *prometheus.Desc {
+func (t *prometheusCounter) Desc() *prometheus.Desc {
 	panic("implement me")
 }
 
-func (t prometheusCounter) Write(metric *io_prometheus_client.Metric) error {
+func (t *prometheusCounter) Write(metric *io_prometheus_client.Metric) error {
 	panic("implement me")
 }
 
-func (t prometheusCounter) Describe(descs chan<- *prometheus.Desc) {
+func (t *prometheusCounter) Describe(descs chan<- *prometheus.Desc) {
 	panic("implement me")
 }
 
-func (t prometheusCounter) Collect(metrics chan<- prometheus.Metric) {
+func (t *prometheusCounter) Collect(metrics chan<- prometheus.Metric) {
 	panic("implement me")
 }
 
@@ -632,6 +641,6 @@ func (t *prometheusCounter) Inc() {
 	t.N.Add(1)
 }
 
-func (t prometheusCounter) Add(f float64) {
+func (t *prometheusCounter) Add(f float64) {
 	panic("implement me")
 }

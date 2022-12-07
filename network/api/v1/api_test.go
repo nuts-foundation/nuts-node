@@ -382,10 +382,12 @@ func TestWrapper_Preprocess(t *testing.T) {
 
 func TestWrapper_ListEvents(t *testing.T) {
 	tx, _, _ := dag.CreateTestTransaction(0)
+	sTime := time.Date(2022, time.December, 5, 18, 23, 45, 67, &time.Location{})
 	testEvent := dag.Event{
 		Error:       "error",
 		Hash:        hash.EmptyHash(),
 		Retries:     1,
+		Latest:      &sTime,
 		Transaction: tx,
 		Type:        dag.TransactionEventType,
 	}
@@ -417,6 +419,7 @@ func TestWrapper_ListEvents(t *testing.T) {
 		assert.Equal(t, testEvent.Type, *capturedEvent.Type)
 		assert.Equal(t, tx.Ref().String(), capturedEvent.Transaction)
 		assert.Equal(t, testEvent.Retries, capturedEvent.Retries)
+		assert.Equal(t, "2022-12-05T18:23:45Z", *capturedEvent.Latest)
 		assert.Equal(t, testEvent.Error, *capturedEvent.Error)
 	})
 
