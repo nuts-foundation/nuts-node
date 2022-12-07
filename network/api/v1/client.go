@@ -65,8 +65,15 @@ func (hb HTTPClient) GetTransaction(transactionRef hash.SHA256Hash) (dag.Transac
 
 // ListTransactions returns all transactions known to this network instance.
 func (hb HTTPClient) ListTransactions() ([]dag.Transaction, error) {
+	return hb.ListTransactionsInRange(0, dag.MaxLamportClock)
+}
+
+// ListTransactions returns all transactions known to this network instance.
+func (hb HTTPClient) ListTransactionsInRange(startInclusive int, endExclusive int) ([]dag.Transaction, error) {
 	ctx := context.Background()
-	res, err := hb.client().ListTransactions(ctx)
+
+	params := &ListTransactionsParams{Start: &startInclusive, End: &endExclusive}
+	res, err := hb.client().ListTransactions(ctx, params)
 	if err != nil {
 		return nil, err
 	}

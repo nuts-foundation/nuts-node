@@ -9,6 +9,23 @@ servers:
   - url: http://localhost:1323
 paths:
   /internal/network/v1/transaction:
+    parameters:
+      - name: start
+        description: "Inclusive start of range (in lamport clock)"
+        example: 1
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+      - name: end
+        description: "Exclusive stop of range (in lamport clock)"
+        example: 1000
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
     get:
       summary: "Lists the transactions on the DAG"
       description: >
