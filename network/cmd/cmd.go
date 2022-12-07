@@ -21,6 +21,7 @@ package cmd
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/nuts-foundation/nuts-node/network"
