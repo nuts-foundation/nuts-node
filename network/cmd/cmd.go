@@ -134,12 +134,39 @@ const sortFlagType = "type"
 
 func listCommand() *cobra.Command {
 	var sortFlag string
+	var rangeStart string
+	var rangeEnd string
+
+	// convertRange is a utility function for converting optional string args to *int
+	convertRange := func(s string) *int {
+		// Empty strings are converted to nil
+		if s == "" {
+			return nil
+		}
+	
+		// Non-empty strings are converted (if possible) to int pointers
+		if n, err := strconv.ParseUint(s, 10, 32); err != nil {
+			// Return nil of the integer parsing fails
+			return nil
+		} else {
+			// Upon successful integer parsing return a pointer to the value
+			nInt := int(n)
+			return &nInt
+		}
+	}
+
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "Lists the transactions on the network",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientConfig := core.NewClientConfigForCommand(cmd)
-			transactions, err := httpClient(clientConfig).ListTransactions()
+
+			params := &v1.ListTransactionsParams{
+				Start: convertRange(rangeStart),
+				End: convertRange(rangeEnd),
+			}
+
+			transactions, err := httpClient(clientConfig).ListTransactions(params)
 			if err != nil {
 				return fmt.Errorf("unable to list transactions: %w", err)
 			}
@@ -152,7 +179,11 @@ func listCommand() *cobra.Command {
 			return nil
 		},
 	}
+
 	cmd.Flags().StringVar(&sortFlag, "sort", sortFlagTime, "sort the results on either time or type")
+	cmd.Flags().StringVar(&rangeStart, "start", "", "inclusive start of lamport clock range")
+	cmd.Flags().StringVar(&rangeEnd, "end", "", "exclusive end of lamport clock range")
+
 	return cmd
 }
 
