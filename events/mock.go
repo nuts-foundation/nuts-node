@@ -740,6 +740,26 @@ func (mr *MockJetStreamContextMockRecorder) StreamInfo(stream interface{}, opts 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StreamInfo", reflect.TypeOf((*MockJetStreamContext)(nil).StreamInfo), varargs...)
 }
 
+// StreamNameBySubject mocks base method.
+func (m *MockJetStreamContext) StreamNameBySubject(arg0 string, arg1 ...nats_go.JSOpt) (string, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{arg0}
+	for _, a := range arg1 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "StreamNameBySubject", varargs...)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// StreamNameBySubject indicates an expected call of StreamNameBySubject.
+func (mr *MockJetStreamContextMockRecorder) StreamNameBySubject(arg0 interface{}, arg1 ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{arg0}, arg1...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StreamNameBySubject", reflect.TypeOf((*MockJetStreamContext)(nil).StreamNameBySubject), varargs...)
+}
+
 // StreamNames mocks base method.
 func (m *MockJetStreamContext) StreamNames(opts ...nats_go.JSOpt) <-chan string {
 	m.ctrl.T.Helper()
