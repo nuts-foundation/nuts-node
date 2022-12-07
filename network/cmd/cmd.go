@@ -143,7 +143,7 @@ func listCommand() *cobra.Command {
 		if s == "" {
 			return nil
 		}
-	
+
 		// Non-empty strings are converted (if possible) to int pointers
 		if n, err := strconv.ParseUint(s, 10, 32); err != nil {
 			// Return nil of the integer parsing fails
@@ -163,7 +163,7 @@ func listCommand() *cobra.Command {
 
 			params := &v1.ListTransactionsParams{
 				Start: convertRange(rangeStart),
-				End: convertRange(rangeEnd),
+				End:   convertRange(rangeEnd),
 			}
 
 			transactions, err := httpClient(clientConfig).ListTransactions(params)
