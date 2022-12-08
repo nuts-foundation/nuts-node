@@ -86,6 +86,7 @@ func TestCrypto_New(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		storageMock := storage.NewMockStorage(ctrl)
+		storageMock.EXPECT().PrivateKeyExists("123").Return(false)
 		storageMock.EXPECT().SavePrivateKey(gomock.Any(), gomock.Any()).Return(errors.New("foo"))
 
 		client := &Crypto{Storage: storageMock}
