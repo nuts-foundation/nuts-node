@@ -114,9 +114,8 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 }
 
 // New generates a new key pair.
-// Stores the private key, returns the public key
-// If a key is overwritten is handled by the storage implementation.
-// (it's considered bad practise to reuse a kid for different keys)
+// Stores the private key, returns the public key.
+// It returns an error when a key with the resulting ID already exists.
 func (client *Crypto) New(namingFunc KIDNamingFunc) (Key, error) {
 	keyPair, kid, err := generateKeyPairAndKID(namingFunc)
 	if err != nil {
@@ -124,6 +123,9 @@ func (client *Crypto) New(namingFunc KIDNamingFunc) (Key, error) {
 	}
 	if err = validateKID(kid); err != nil {
 		return nil, err
+	}
+	if client.Storage.PrivateKeyExists(kid) {
+		return nil, errors.New("key with the given ID already exists")
 	}
 	if err = client.Storage.SavePrivateKey(kid, keyPair); err != nil {
 		return nil, fmt.Errorf("could not create new keypair: could not save private key: %w", err)
