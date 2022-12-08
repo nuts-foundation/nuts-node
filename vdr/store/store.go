@@ -267,6 +267,10 @@ func (s *store) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (returnDocume
 				return err
 			}
 
+			if metadataRecord.Deactivated && metadata == nil {
+				// We're trying to resolve the latest, it should not return an older (active) version when deactivated
+				return vdr.ErrDeactivated
+			}
 			if matches(metadataRecord, metadata) {
 				returnMetadata = &metadataRecord.Metadata
 				docBytes, err := documentReader.Get(stoabs.NewHashKey(metadataRecord.Metadata.Hash))

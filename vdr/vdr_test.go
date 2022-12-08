@@ -263,7 +263,7 @@ func TestVDR_Configure(t *testing.T) {
 func TestVDR_ConflictingDocuments(t *testing.T) {
 	t.Run("diagnostics", func(t *testing.T) {
 		t.Run("ok - no conflicts", func(t *testing.T) {
-			s := store.NewMemoryStore()
+			s := store.NewTestStore(t)
 			vdr := NewVDR(Config{}, nil, nil, s, nil)
 			results := vdr.Diagnostics()
 
@@ -272,7 +272,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 		})
 
 		t.Run("ok - 1 conflict", func(t *testing.T) {
-			s := store.NewMemoryStore()
+			s := store.NewTestStore(t)
 			vdr := NewVDR(Config{}, nil, nil, s, nil)
 			doc := did.Document{ID: *TestDIDA}
 			metadata := types.DocumentMetadata{SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), hash.EmptyHash()}}
@@ -285,7 +285,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 	})
 	t.Run("list", func(t *testing.T) {
 		t.Run("ok - no conflicts", func(t *testing.T) {
-			s := store.NewMemoryStore()
+			s := store.NewTestStore(t)
 			vdr := NewVDR(Config{}, nil, nil, s, nil)
 			docs, meta, err := vdr.ConflictedDocuments()
 
@@ -295,7 +295,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 		})
 
 		t.Run("ok - 1 conflict", func(t *testing.T) {
-			s := store.NewMemoryStore()
+			s := store.NewTestStore(t)
 			vdr := NewVDR(Config{}, nil, nil, s, nil)
 			doc := did.Document{ID: *TestDIDA}
 			metadata := types.DocumentMetadata{SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), hash.EmptyHash()}}
@@ -353,7 +353,7 @@ func TestVDR_resolveControllerKey(t *testing.T) {
 
 		_, _, err := ctx.vdr.resolveControllerWithKey(currentDIDDocument)
 
-		assert.EqualError(t, err,"could not find capabilityInvocation key for updating the DID document: b00m!")
+		assert.EqualError(t, err, "could not find capabilityInvocation key for updating the DID document: b00m!")
 	})
 
 	t.Run("error - no keys from any controller", func(t *testing.T) {

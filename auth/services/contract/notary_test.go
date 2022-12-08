@@ -224,7 +224,7 @@ func TestNewContractNotary(t *testing.T) {
 				ContractValidity: 60 * time.Minute,
 			},
 			vcr.NewTestVCRInstance(t),
-			doc.KeyResolver{Store: store.NewMemoryStore()},
+			doc.KeyResolver{Store: store.NewTestStore(t)},
 			crypto.NewTestCryptoInstance(),
 			nil,
 		)

@@ -29,7 +29,7 @@ import (
 func NewTestAuthInstance(t *testing.T) *Auth {
 	return NewAuthInstance(
 		TestConfig(),
-		store.NewMemoryStore(),
+		store.NewTestStore(t),
 		vcr.NewTestVCRInstance(t),
 		crypto.NewTestCryptoInstance(),
 		nil,

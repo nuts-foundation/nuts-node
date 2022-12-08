@@ -102,10 +102,10 @@ func TestByServiceType(t *testing.T) {
 
 func TestVDR_Find(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		didStore := store.NewMemoryStore()
+		didStore := store.NewTestStore(t)
 		finder := Finder{Store: didStore}
-		_ = didStore.Write(did.Document{}, types.DocumentMetadata{Deactivated: false})
-		_ = didStore.Write(did.Document{}, types.DocumentMetadata{Deactivated: true})
+		_ = didStore.Write(did.Document{ID: store.TestDIDA}, types.DocumentMetadata{Deactivated: false})
+		_ = didStore.Write(did.Document{ID: store.TestDIDB}, types.DocumentMetadata{Deactivated: true})
 
 		docs, err := finder.Find(IsActive())
 

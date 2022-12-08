@@ -34,8 +34,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
-const moduleName = "VDR"
-
 func newTestStore(t *testing.T) types.Store {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -398,7 +396,7 @@ func TestStore_DeactivatedFilter(t *testing.T) {
 
 	t.Run("returns error when document is deactivated", func(t *testing.T) {
 		_, _, err := store.Resolve(*did1, nil)
-		assert.ErrorIs(t, err, types.ErrNotFound)
+		assert.ErrorIs(t, err, types.ErrDeactivated)
 	})
 
 	t.Run("returns deactivated document when allow deactivated is enabled in metadata", func(t *testing.T) {
