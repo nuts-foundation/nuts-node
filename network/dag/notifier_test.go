@@ -224,19 +224,6 @@ func TestNotifier_Save(t *testing.T) {
 		})
 	})
 
-	t.Run("error on ShelfWriter", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		kvMock := stoabs.NewMockKVStore(ctrl)
-		tx := stoabs.NewMockWriteTx(ctrl)
-		s := NewNotifier(t.Name(), dummyFunc, WithPersistency(kvMock)).(*notifier)
-		tx.EXPECT().Store().Return(kvMock)
-		tx.EXPECT().GetShelfWriter(s.shelfName()).Return(nil, errors.New("failure"))
-
-		err := s.Save(tx, Event{})
-
-		assert.EqualError(t, err, "failure")
-	})
-
 	t.Run("error on readEvent", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		kvMock := stoabs.NewMockKVStore(ctrl)
@@ -244,7 +231,7 @@ func TestNotifier_Save(t *testing.T) {
 		writer := stoabs.NewMockWriter(ctrl)
 		s := NewNotifier(t.Name(), dummyFunc, WithPersistency(kvMock)).(*notifier)
 		tx.EXPECT().Store().Return(kvMock)
-		tx.EXPECT().GetShelfWriter(s.shelfName()).Return(writer, nil)
+		tx.EXPECT().GetShelfWriter(s.shelfName()).Return(writer)
 		writer.EXPECT().Get(stoabs.BytesKey(hash.EmptyHash().Slice())).Return(nil, errors.New("failure"))
 
 		err := s.Save(tx, Event{Hash: hash.EmptyHash()})

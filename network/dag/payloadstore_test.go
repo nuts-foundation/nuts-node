@@ -89,18 +89,9 @@ func TestPayloadStore_writePayload(t *testing.T) {
 	writer := stoabs.NewMockWriter(ctrl)
 	payloadStore := NewPayloadStore().(*payloadStore)
 
-	t.Run("error - db failure", func(t *testing.T) {
-		tx.EXPECT().GetShelfWriter(payloadsShelf).Return(writer, errors.New("custom"))
+	t.Run("error - write failure", func(t *testing.T) {
 		h := hash.FromSlice([]byte("test write"))
-
-		err := payloadStore.writePayload(tx, h, nil)
-
-		assert.EqualError(t, err, "custom")
-	})
-
-	t.Run("error - read failure", func(t *testing.T) {
-		h := hash.FromSlice([]byte("test write"))
-		tx.EXPECT().GetShelfWriter(payloadsShelf).Return(writer, nil)
+		tx.EXPECT().GetShelfWriter(payloadsShelf).Return(writer)
 		writer.EXPECT().Put(gomock.Any(), gomock.Any()).Return(errors.New("custom"))
 
 		err := payloadStore.writePayload(tx, h, nil)

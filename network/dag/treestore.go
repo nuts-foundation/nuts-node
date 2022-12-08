@@ -63,10 +63,7 @@ func (store *treeStore) write(tx stoabs.WriteTx, transaction Transaction) error 
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
 
-	writer, err := tx.GetShelfWriter(store.bucketName)
-	if err != nil {
-		return err
-	}
+	writer := tx.GetShelfWriter(store.bucketName)
 
 	store.tree.Insert(transaction.Ref(), transaction.Clock())
 	dirties, orphaned := store.tree.Updates()
@@ -74,7 +71,7 @@ func (store *treeStore) write(tx stoabs.WriteTx, transaction Transaction) error 
 
 	// delete orphaned leaves
 	for _, orphan := range orphaned { // always zero
-		err = writer.Delete(clockToKey(orphan))
+		err := writer.Delete(clockToKey(orphan))
 		if err != nil {
 			return err
 		}
@@ -82,7 +79,7 @@ func (store *treeStore) write(tx stoabs.WriteTx, transaction Transaction) error 
 
 	// write new/updated leaves
 	for dirty, data := range dirties { // contains exactly 1 dirty
-		err = writer.Put(clockToKey(dirty), data)
+		err := writer.Put(clockToKey(dirty), data)
 		if err != nil {
 			return err
 		}
