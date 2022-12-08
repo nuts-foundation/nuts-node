@@ -40,7 +40,7 @@ func mustParseHash(hex string) hash.SHA256Hash {
 	return h
 }
 
-func TestEventList_Add(t *testing.T) {
+func TestEventList_insert(t *testing.T) {
 	el := eventList{}
 
 	el.insert(event{})
@@ -98,11 +98,11 @@ func TestEventList_Sort(t *testing.T) {
 	})
 }
 
-func TestEventList_updates(t *testing.T) {
+func TestEventList_diff(t *testing.T) {
 	t.Run("empty lists", func(t *testing.T) {
 		el := eventList{}
 
-		common, list := el.updates(el)
+		common, list := el.diff(el)
 
 		assert.Nil(t, common)
 		assert.Equal(t, 0, len(list))
@@ -113,7 +113,7 @@ func TestEventList_updates(t *testing.T) {
 		to := eventList{}
 		to.insert(event{TXRef: sha0s})
 
-		common, list := from.updates(to)
+		common, list := from.diff(to)
 
 		assert.Nil(t, common)
 		assert.Equal(t, 1, len(list))
@@ -125,7 +125,7 @@ func TestEventList_updates(t *testing.T) {
 		from.insert(event{TXRef: sha1s})
 		to.insert(event{TXRef: sha0s})
 
-		common, list := from.updates(to)
+		common, list := from.diff(to)
 
 		assert.Nil(t, common)
 		assert.Equal(t, 2, len(list))
@@ -138,7 +138,7 @@ func TestEventList_updates(t *testing.T) {
 		to.insert(event{TXRef: sha0s})
 		to.insert(event{TXRef: sha1s, LogicalClock: 1})
 
-		common, list := from.updates(to)
+		common, list := from.diff(to)
 
 		assert.Equal(t, event{TXRef: sha0s}, *common)
 		require.Len(t, list, 1)
@@ -155,7 +155,7 @@ func TestEventList_updates(t *testing.T) {
 		to.insert(event{TXRef: sha2s, LogicalClock: 1})
 		to.insert(event{TXRef: sha3s, LogicalClock: 2})
 
-		common, list := from.updates(to)
+		common, list := from.diff(to)
 
 		assert.Equal(t, event{TXRef: sha0s}, *common)
 		require.Len(t, list, 3)
@@ -163,14 +163,4 @@ func TestEventList_updates(t *testing.T) {
 		assert.Equal(t, event{TXRef: sha1s, LogicalClock: 1, Created: created}, list[1])
 		assert.Equal(t, event{TXRef: sha3s, LogicalClock: 2}, list[2])
 	})
-}
-
-func TestEventList_copy(t *testing.T) {
-	el := eventList{}
-	cp := el.copy()
-
-	el.insert(event{TXRef: sha0s})
-
-	assert.Equal(t, 0, len(cp.Events))
-
 }

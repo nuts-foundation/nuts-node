@@ -27,7 +27,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/dag"
 )
 
-// event contains the transaction reference and ordering of all DID document updates
+// event contains the transaction reference and ordering of all DID document diff
 type event struct {
 	// Created is the transaction creation time, used for sorting
 	Created time.Time `json:"created"`
@@ -67,9 +67,7 @@ func (el *eventList) Less(i, j int) bool {
 
 // Swap is part of the methods required for sorting
 func (el *eventList) Swap(i, j int) {
-	tmp := el.Events[i]
-	el.Events[i] = el.Events[j]
-	el.Events[j] = tmp
+	el.Events[i], el.Events[j] = el.Events[j], el.Events[i]
 }
 
 func eventFromTransaction(transaction dag.Transaction) event {
@@ -86,15 +84,11 @@ type eventList struct {
 	Events []event `json:"events"`
 }
 
-func (el *eventList) copy() eventList {
-	return *el
-}
-
 // insert the event at the correct location
 func (el *eventList) insert(e event) {
 	// 1% case
 	if len(el.Events) == 0 {
-		el.Events = []event{e}
+		el.Events = append(el.Events, e)
 		return
 	}
 
@@ -109,19 +103,22 @@ func (el *eventList) insert(e event) {
 	sort.Stable(el)
 }
 
-// updates returns the latest matching event and a sublist of updates that need to be applied to the latest.
-func (el *eventList) updates(updated eventList) (*event, []event) {
+// diff returns the latest matching event and a sublist of events that need to be applied to the latest.
+// Given transaction orderings A: 1->2->4 and B: 1->2->3.
+// A.diff(B) results in 2, [3,4] where 2 is the last common TX (base version of DID document)
+// and 3,4 are updates that have to be applied to the base version as updates.
+func (el *eventList) diff(updated eventList) (*event, []event) {
 	if updated.Len() == 0 {
 		return nil, []event{}
 	}
 
 	lastCommonIndex := 0
 	var lastCommonEvent *event
-	for i, e := range el.Events {
-		if !e.TXRef.Equals(updated.Events[i].TXRef) {
+	for i := range el.Events {
+		if !el.Events[i].TXRef.Equals(updated.Events[i].TXRef) {
 			break
 		}
-		eCopy := e
+		eCopy := el.Events[i]
 		lastCommonEvent = &eCopy
 		lastCommonIndex++
 	}
