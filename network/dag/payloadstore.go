@@ -62,9 +62,6 @@ func (store payloadStore) readPayload(tx stoabs.ReadTx, payloadHash hash.SHA256H
 }
 
 func (store payloadStore) writePayload(tx stoabs.WriteTx, payloadHash hash.SHA256Hash, data []byte) error {
-	writer, err := tx.GetShelfWriter(payloadsShelf)
-	if err != nil {
-		return err
-	}
+	writer := tx.GetShelfWriter(payloadsShelf)
 	return writer.Put(stoabs.NewHashKey(payloadHash), data)
 }

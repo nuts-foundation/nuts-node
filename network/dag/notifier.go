@@ -276,10 +276,7 @@ func (p *notifier) Save(tx stoabs.WriteTx, event Event) error {
 		return errors.New("trying to save Event on different DB")
 	}
 
-	writer, err := tx.GetShelfWriter(p.shelfName())
-	if err != nil {
-		return err
-	}
+	writer := tx.GetShelfWriter(p.shelfName())
 
 	// apply filters
 	for _, f := range p.filters {

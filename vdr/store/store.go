@@ -91,10 +91,7 @@ func (mr metadataRecord) ref() []byte {
 
 func (s *store) Write(document did.Document, metadata vdr.DocumentMetadata) error {
 	return s.db.Write(context.Background(), func(tx stoabs.WriteTx) error {
-		latestWriter, err := tx.GetShelfWriter(latestShelf)
-		if err != nil {
-			return err
-		}
+		latestWriter := tx.GetShelfWriter(latestShelf)
 
 		didString := document.ID.String()
 
@@ -121,14 +118,8 @@ func (s *store) Write(document did.Document, metadata vdr.DocumentMetadata) erro
 
 func (s *store) Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *vdr.DocumentMetadata) error {
 	return s.db.Write(context.Background(), func(tx stoabs.WriteTx) error {
-		latestWriter, err := tx.GetShelfWriter(latestShelf)
-		if err != nil {
-			return err
-		}
-		metadataWriter, err := tx.GetShelfWriter(metadataShelf)
-		if err != nil {
-			return err
-		}
+		latestWriter := tx.GetShelfWriter(latestShelf)
+		metadataWriter := tx.GetShelfWriter(metadataShelf)
 		didString := id.String()
 
 		// first get latest
@@ -175,23 +166,11 @@ func (s *store) Update(id did.DID, current hash.SHA256Hash, next did.Document, m
 
 func (s *store) writeDocument(tx stoabs.WriteTx, document did.Document, metadataRecord metadataRecord) error {
 	// get shelf writers
-	latestWriter, err := tx.GetShelfWriter(latestShelf)
-	if err != nil {
-		return err
-	}
-	metadataWriter, err := tx.GetShelfWriter(metadataShelf)
-	if err != nil {
-		return err
-	}
-	transactionIndexWriter, err := tx.GetShelfWriter(transactionIndexShelf)
-	if err != nil {
-		return err
-	}
-	documentWriter, err := tx.GetShelfWriter(documentShelf)
-	if err != nil {
-		return err
-	}
-
+	latestWriter := tx.GetShelfWriter(latestShelf)
+	metadataWriter := tx.GetShelfWriter(metadataShelf)
+	transactionIndexWriter := tx.GetShelfWriter(transactionIndexShelf)
+	documentWriter := tx.GetShelfWriter(documentShelf)
+	
 	// store in metadataShelf
 	newRefBytes := metadataRecord.ref()
 	newRecordBytes, _ := json.Marshal(metadataRecord)

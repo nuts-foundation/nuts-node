@@ -229,10 +229,7 @@ func (s leiaIssuerStore) handleRestore(collection leia.Collection, backupShelf s
 	var set []refDoc
 	writeDocuments := func(set []refDoc) error {
 		return s.backupStore.Write(context.Background(), func(tx stoabs.WriteTx) error {
-			writer, err := tx.GetShelfWriter(backupShelf)
-			if err != nil {
-				return err
-			}
+			writer := tx.GetShelfWriter(backupShelf)
 			for _, entry := range set {
 				if err := writer.Put(stoabs.BytesKey(entry.ref), entry.doc); err != nil {
 					return err

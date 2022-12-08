@@ -98,10 +98,7 @@ func newDAG(db stoabs.KVStore) *dag {
 
 func (d *dag) Migrate() error {
 	return d.db.Write(context.Background(), func(tx stoabs.WriteTx) error {
-		writer, err := tx.GetShelfWriter(metadataShelf)
-		if err != nil {
-			return err
-		}
+		writer := tx.GetShelfWriter(metadataShelf)
 		// Migrate highest LC value
 		// Todo: remove after V5 release
 		highestLCBytes, err := writer.Get(stoabs.BytesKey(highestClockValue))
@@ -279,10 +276,7 @@ func (d dag) getNumberOfTransactions(tx stoabs.ReadTx) uint64 {
 }
 
 func (d dag) setNumberOfTransactions(tx stoabs.WriteTx, count uint64) error {
-	writer, err := tx.GetShelfWriter(metadataShelf)
-	if err != nil {
-		return err
-	}
+	writer := tx.GetShelfWriter(metadataShelf)
 	bytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(bytes[:], count)
 
@@ -290,10 +284,7 @@ func (d dag) setNumberOfTransactions(tx stoabs.WriteTx, count uint64) error {
 }
 
 func (d dag) setHead(tx stoabs.WriteTx, ref hash.SHA256Hash) error {
-	writer, err := tx.GetShelfWriter(metadataShelf)
-	if err != nil {
-		return err
-	}
+	writer := tx.GetShelfWriter(metadataShelf)
 
 	return writer.Put(stoabs.BytesKey(headRefKey), ref.Slice())
 }
@@ -350,10 +341,7 @@ func (d dag) getNumberOfTransactionsLegacy(tx stoabs.ReadTx) uint64 {
 }
 
 func (d dag) setHighestClockValue(tx stoabs.WriteTx, count uint32) error {
-	writer, err := tx.GetShelfWriter(metadataShelf)
-	if err != nil {
-		return err
-	}
+	writer := tx.GetShelfWriter(metadataShelf)
 	bytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(bytes[:], count)
 
@@ -372,10 +360,8 @@ func (d dag) statistics(tx stoabs.ReadTx) Statistics {
 func (d *dag) addSingle(tx stoabs.WriteTx, transaction Transaction) error {
 	ref := transaction.Ref()
 	refKey := stoabs.NewHashKey(ref)
-	transactions, lc, err := getBuckets(tx)
-	if err != nil {
-		return err
-	}
+	transactions := tx.GetShelfWriter(transactionsShelf)
+	lc := tx.GetShelfWriter(clockShelf)
 	if exists(transactions, ref) {
 		log.Logger().
 			WithField(core.LogFieldTransactionRef, ref).
@@ -394,10 +380,7 @@ func (d *dag) addSingle(tx stoabs.WriteTx, transaction Transaction) error {
 }
 
 func indexClockValue(tx stoabs.WriteTx, transaction Transaction) error {
-	lc, err := tx.GetShelfWriter(clockShelf)
-	if err != nil {
-		return err
-	}
+	lc := tx.GetShelfWriter(clockShelf)
 
 	clockKey := stoabs.Uint32Key(transaction.Clock())
 	ref := transaction.Ref()
@@ -428,16 +411,6 @@ func bytesToClock(clockBytes []byte) uint32 {
 
 func bytesToCount(clockBytes []byte) uint64 {
 	return binary.BigEndian.Uint64(clockBytes)
-}
-
-func getBuckets(tx stoabs.WriteTx) (transactions, lc stoabs.Writer, err error) {
-	if transactions, err = tx.GetShelfWriter(transactionsShelf); err != nil {
-		return
-	}
-	if lc, err = tx.GetShelfWriter(clockShelf); err != nil {
-		return
-	}
-	return
 }
 
 func getRoots(lcBucket stoabs.Reader) []hash.SHA256Hash {
