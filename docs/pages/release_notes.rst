@@ -6,6 +6,19 @@ Release notes
 What has been changed, and how to update between versions.
 
 *****************
+Coconut update (v5.0.3)
+*****************
+
+Release date: 2022-12-08
+
+This patch release fixes the following:
+
+- remove gcc and musl-dev deps
+- VCR: Fix validator allowing localParameters
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.2...v5.0.3
+
+*****************
 Coconut update (v5.0.2)
 *****************
 
