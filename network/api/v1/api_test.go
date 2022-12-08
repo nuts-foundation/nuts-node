@@ -419,7 +419,7 @@ func TestWrapper_ListEvents(t *testing.T) {
 		assert.Equal(t, testEvent.Type, *capturedEvent.Type)
 		assert.Equal(t, tx.Ref().String(), capturedEvent.Transaction)
 		assert.Equal(t, testEvent.Retries, capturedEvent.Retries)
-		assert.Equal(t, "2022-12-05T18:23:45Z", *capturedEvent.Latest)
+		assert.Equal(t, "2022-12-05T18:23:45Z", *capturedEvent.LatestNotificationAttempt)
 		assert.Equal(t, testEvent.Error, *capturedEvent.Error)
 	})
 

@@ -28,8 +28,8 @@ type Event struct {
 	// Hash Hash is the ID of the Event, usually the same as the transaction reference.
 	Hash string `json:"hash"`
 
-	// Latest Timestamp of the latest notification attempt. Formatted according to RFC3339. Note: calculation of the next attempt does not use this timestamp.
-	Latest *string `json:"latest,omitempty"`
+	// LatestNotificationAttempt Timestamp of the most recent notification attempt. Formatted according to RFC3339. Note: calculation of the next attempt does not use this timestamp.
+	LatestNotificationAttempt *string `json:"latest_notification_attempt,omitempty"`
 
 	// Retries Number of times the event has been retried.
 	Retries int `json:"retries"`

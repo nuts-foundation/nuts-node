@@ -141,12 +141,12 @@ func (a Wrapper) ListEvents(ctx echo.Context) error {
 			eventType := event.Type
 			eventLatest := event.Latest.Format(time.RFC3339)
 			eventSubscriber.Events = append(eventSubscriber.Events, Event{
-				Error:       &eventError,
-				Hash:        event.Hash.String(),
-				Retries:     event.Retries,
-				Latest:      &eventLatest,
-				Transaction: event.Transaction.Ref().String(),
-				Type:        &eventType,
+				Error:                     &eventError,
+				Hash:                      event.Hash.String(),
+				Retries:                   event.Retries,
+				LatestNotificationAttempt: &eventLatest,
+				Transaction:               event.Transaction.Ref().String(),
+				Type:                      &eventType,
 			})
 		}
 		response = append(response, eventSubscriber)
