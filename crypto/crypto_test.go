@@ -94,6 +94,18 @@ func TestCrypto_New(t *testing.T) {
 		assert.Error(t, err)
 		assert.Equal(t, "could not create new keypair: could not save private key: foo", err.Error())
 	})
+
+	t.Run("error - ID already in use", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		storageMock := storage.NewMockStorage(ctrl)
+		storageMock.EXPECT().PrivateKeyExists("123").Return(true)
+
+		client := &Crypto{Storage: storageMock}
+		key, err := client.New(StringNamingFunc("123"))
+		assert.Nil(t, key)
+		assert.EqualError(t, err, "key with the given ID already exists", err)
+	})
 }
 
 func TestCrypto_Resolve(t *testing.T) {
