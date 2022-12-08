@@ -44,6 +44,8 @@ The domain must be configured on the Nuts node:
 The Nuts APIs used for signing will embed this URL in the QR code shown to the user.
 The javascript in the frontend will also use this URL (exposed via the QR code) to check the status of the signing session.
 Therefore the domain which serves the frontend must be able to do requests to that domain.
+The above URL will be expanded to ``https://example.com/public/auth/irmaclient`` as IRMA path.
+IRMA's ``session`` API will be mounted at that base path.
 The browser will require CORS headers to be configured on the domain configured in the Nuts node config.
 This can be done by the following snippet:
 
