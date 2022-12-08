@@ -84,6 +84,13 @@ type eventList struct {
 	Events []event `json:"events"`
 }
 
+func (el *eventList) copy() eventList {
+	cpy := eventList{Events: make([]event, len(el.Events))}
+	copy(cpy.Events, el.Events)
+
+	return cpy
+}
+
 // insert the event at the correct location
 func (el *eventList) insert(e event) {
 	// 1% case

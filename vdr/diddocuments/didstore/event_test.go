@@ -164,3 +164,11 @@ func TestEventList_diff(t *testing.T) {
 		assert.Equal(t, event{TXRef: sha3s, LogicalClock: 2}, list[2])
 	})
 }
+
+func TestEventList_copy(t *testing.T) {
+	el := eventList{}
+
+	cpy := el.copy()
+
+	assert.NotEqual(t, &el.Events, &cpy.Events)
+}
