@@ -124,7 +124,7 @@ func (client *Crypto) New(namingFunc KIDNamingFunc) (Key, error) {
 	if err = validateKID(kid); err != nil {
 		return nil, err
 	}
-	if client.Exists(kid) {
+	if client.Storage.PrivateKeyExists(kid) {
 		return nil, errors.New("key with the given ID already exists")
 	}
 	if err = client.Storage.SavePrivateKey(kid, keyPair); err != nil {
