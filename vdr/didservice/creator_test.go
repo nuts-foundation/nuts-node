@@ -18,6 +18,7 @@
 package didservice
 
 import (
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -48,7 +49,7 @@ func newMockKeyCreator() *mockKeyCreator {
 }
 
 // New uses a predefined ECDSA key and calls the namingFunc to get the kid
-func (m *mockKeyCreator) New(_ nutsCrypto.KIDNamingFunc) (nutsCrypto.Key, error) {
+func (m *mockKeyCreator) New(_ context.Context, _ nutsCrypto.KIDNamingFunc) (nutsCrypto.Key, error) {
 	return nutsCrypto.NewTestKey(m.kid), nil
 }
 
@@ -74,7 +75,7 @@ func TestCreator_Create(t *testing.T) {
 		kc := newMockKeyCreator()
 		creator := Creator{KeyStore: kc}
 		t.Run("defaults", func(t *testing.T) {
-			doc, key, err := creator.Create(defaultOptions)
+			doc, key, err := creator.Create(nil, defaultOptions)
 			assert.NoError(t, err, "create should not return an error")
 			assert.NotNil(t, doc, "create should return a document")
 			assert.NotNil(t, key, "create should return a Key")
@@ -96,7 +97,7 @@ func TestCreator_Create(t *testing.T) {
 					types.KeyAgreementUsage,
 				SelfControl: true,
 			}
-			doc, _, err := creator.Create(ops)
+			doc, _, err := creator.Create(nil, ops)
 
 			require.NoError(t, err)
 
@@ -114,7 +115,7 @@ func TestCreator_Create(t *testing.T) {
 				SelfControl: true,
 				Controllers: []did.DID{*c},
 			}
-			doc, _, err := creator.Create(ops)
+			doc, _, err := creator.Create(nil, ops)
 
 			require.NoError(t, err)
 
@@ -126,7 +127,7 @@ func TestCreator_Create(t *testing.T) {
 			keyCreator := nutsCrypto.NewMockKeyCreator(ctrl)
 			creator := Creator{KeyStore: keyCreator}
 
-			keyCreator.EXPECT().New(gomock.Any()).DoAndReturn(func(fn nutsCrypto.KIDNamingFunc) (nutsCrypto.Key, error) {
+			keyCreator.EXPECT().New(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn nutsCrypto.KIDNamingFunc) (nutsCrypto.Key, error) {
 				key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 				keyName, _ := fn(key.Public())
 				return nutsCrypto.TestKey{
@@ -139,7 +140,7 @@ func TestCreator_Create(t *testing.T) {
 				KeyFlags:    types.AssertionMethodUsage,
 				SelfControl: false,
 			}
-			doc, docCreationKey, err := creator.Create(ops)
+			doc, docCreationKey, err := creator.Create(nil, ops)
 
 			require.NoError(t, err)
 
@@ -151,7 +152,7 @@ func TestCreator_Create(t *testing.T) {
 			subKeyIDWithoutFragment := subKeyID
 			subKeyIDWithoutFragment.Fragment = ""
 
-			// Document has been created with a ephemeral key (one that won't be stored) but contains a verificationMethod
+			// Document has been created with an ephemeral key (one that won't be stored) but contains a verificationMethod
 			// for different purposes (in this case assertionMethod), which is stored. The latter (`subKeyID`) must have the same DID
 			// idString but a different fragment.
 			assert.NotEqual(t, docCreationKey.KID(), subKeyID)
@@ -166,7 +167,7 @@ func TestCreator_Create(t *testing.T) {
 		}
 		kc := newMockKeyCreator()
 		creator := Creator{KeyStore: kc}
-		_, _, err := creator.Create(ops)
+		_, _, err := creator.Create(nil, ops)
 
 		assert.Equal(t, ErrInvalidOptions, err)
 	})
@@ -175,9 +176,9 @@ func TestCreator_Create(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		mockKeyStore := nutsCrypto.NewMockKeyStore(ctrl)
 		creator := Creator{KeyStore: mockKeyStore}
-		mockKeyStore.EXPECT().New(gomock.Any()).Return(nil, errors.New("b00m!"))
+		mockKeyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
 
-		_, _, err := creator.Create(DefaultCreationOptions())
+		_, _, err := creator.Create(nil, DefaultCreationOptions())
 
 		assert.EqualError(t, err, "b00m!")
 	})
@@ -190,9 +191,9 @@ func TestCreator_Create(t *testing.T) {
 			KeyFlags:    types.AssertionMethodUsage,
 			SelfControl: false,
 		}
-		mockKeyStore.EXPECT().New(gomock.Any()).Return(nil, errors.New("b00m!"))
+		mockKeyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
 
-		_, _, err := creator.Create(ops)
+		_, _, err := creator.Create(nil, ops)
 
 		assert.EqualError(t, err, "b00m!")
 	})

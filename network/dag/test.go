@@ -24,6 +24,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"path"
 	"testing"
 	"time"
@@ -51,7 +52,7 @@ func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, pal [
 
 	key := nutsCrypto.NewTestKey(fmt.Sprintf("%d", payloadNum))
 	cryptoInstance := nutsCrypto.NewMemoryCryptoInstance()
-	signedTransaction, err := NewTransactionSigner(cryptoInstance, key, attach).Sign(unsignedTransaction, signingTime)
+	signedTransaction, err := NewTransactionSigner(cryptoInstance, key, attach).Sign(audit.TestContext(), unsignedTransaction, signingTime)
 	if err != nil {
 		panic(err)
 	}
@@ -66,7 +67,7 @@ func CreateTestTransactionEx(num uint32, payloadHash hash.SHA256Hash, participan
 	kid := fmt.Sprintf("%d", num)
 	key := nutsCrypto.NewTestKey(kid)
 	cryptoInstance := nutsCrypto.NewMemoryCryptoInstance()
-	signedTransaction, err := NewTransactionSigner(cryptoInstance, key, false).Sign(unsignedTransaction, time.Now())
+	signedTransaction, err := NewTransactionSigner(cryptoInstance, key, false).Sign(audit.TestContext(), unsignedTransaction, time.Now())
 	if err != nil {
 		panic(err)
 	}

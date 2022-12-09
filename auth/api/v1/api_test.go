@@ -19,10 +19,12 @@
 package v1
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/stretchr/testify/require"
@@ -61,6 +63,7 @@ type TestContext struct {
 	oauthClientMock        *oauth.MockClient
 	wrapper                Wrapper
 	mockCredentialResolver *vcr.MockResolver
+	audit                  context.Context
 }
 
 type mockAuthClient struct {
@@ -98,15 +101,21 @@ func createContext(t *testing.T) *TestContext {
 		mockOAuthClient:    mockOAuthClient,
 	}
 
+	requestCtx := audit.TestContext()
+	echoMock := mock.NewMockContext(ctrl)
+	request, _ := http.NewRequestWithContext(requestCtx, "GET", "/", nil)
+	echoMock.EXPECT().Request().Return(request).AnyTimes()
+
 	return &TestContext{
 		ctrl:                   ctrl,
-		echoMock:               mock.NewMockContext(ctrl),
+		echoMock:               echoMock,
 		authMock:               authMock,
 		notaryMock:             mockContractNotary,
 		contractClientMock:     mockContractNotary,
 		oauthClientMock:        mockOAuthClient,
 		mockCredentialResolver: mockCredentialResolver,
 		wrapper:                Wrapper{Auth: authMock, CredentialResolver: mockCredentialResolver},
+		audit:                  requestCtx,
 	}
 }
 
@@ -436,7 +445,7 @@ func TestWrapper_CreateJwtGrant(t *testing.T) {
 			Service:    "service",
 		}
 
-		ctx.oauthClientMock.EXPECT().CreateJwtGrant(expectedRequest).Return(&services.JwtBearerTokenResult{
+		ctx.oauthClientMock.EXPECT().CreateJwtGrant(gomock.Any(), expectedRequest).Return(&services.JwtBearerTokenResult{
 			BearerToken:                 response.BearerToken,
 			AuthorizationServerEndpoint: response.AuthorizationServerEndpoint,
 		}, nil)
@@ -480,7 +489,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 			})
 
 		ctx.oauthClientMock.EXPECT().
-			CreateJwtGrant(services.CreateJwtGrantRequest{
+			CreateJwtGrant(gomock.Any(), services.CreateJwtGrantRequest{
 				Requester:  vdr.TestDIDA.String(),
 				Authorizer: vdr.TestDIDB.String(),
 				IdentityVP: &testID,
@@ -510,7 +519,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 		t.Cleanup(server.Close)
 
 		ctx.oauthClientMock.EXPECT().
-			CreateJwtGrant(services.CreateJwtGrantRequest{
+			CreateJwtGrant(ctx.audit, services.CreateJwtGrantRequest{
 				Requester:  vdr.TestDIDA.String(),
 				Authorizer: vdr.TestDIDB.String(),
 				IdentityVP: &testID,
@@ -576,7 +585,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 		t.Cleanup(server.Close)
 
 		ctx.oauthClientMock.EXPECT().
-			CreateJwtGrant(services.CreateJwtGrantRequest{
+			CreateJwtGrant(ctx.audit, services.CreateJwtGrantRequest{
 				Requester:   vdr.TestDIDA.String(),
 				Authorizer:  vdr.TestDIDB.String(),
 				IdentityVP:  &testID,
@@ -659,7 +668,7 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 		errorResponse := AccessTokenRequestFailedResponse{ErrorDescription: errorDescription, Error: errOauthInvalidRequest}
 		expectError(ctx, errorResponse)
 
-		ctx.oauthClientMock.EXPECT().CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: validJwt}).Return(nil, &oauth.ErrorResponse{
+		ctx.oauthClientMock.EXPECT().CreateAccessToken(ctx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: validJwt}).Return(nil, &oauth.ErrorResponse{
 			Description: errors.New(errorDescription),
 			Code:        errOauthInvalidRequest,
 		})
@@ -675,7 +684,7 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 		bindPostBody(ctx, params)
 
 		pkgResponse := &services.AccessTokenResult{AccessToken: "foo", ExpiresIn: 800000}
-		ctx.oauthClientMock.EXPECT().CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: validJwt}).Return(pkgResponse, nil)
+		ctx.oauthClientMock.EXPECT().CreateAccessToken(gomock.Any(), services.CreateAccessTokenRequest{RawJwtBearerToken: validJwt}).Return(pkgResponse, nil)
 
 		apiResponse := AccessTokenResponse{
 			AccessToken: pkgResponse.AccessToken,

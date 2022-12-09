@@ -19,6 +19,7 @@
 package crypto
 
 import (
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
@@ -29,6 +30,8 @@ import (
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/shengdoushi/base58"
 )
@@ -48,11 +51,14 @@ func isAlgorithmSupported(alg jwa.SignatureAlgorithm) bool {
 }
 
 // SignJWT creates a JWT from the given claims and signs it with the given key.
-func (client *Crypto) SignJWT(claims map[string]interface{}, key interface{}) (string, error) {
+func (client *Crypto) SignJWT(ctx context.Context, claims map[string]interface{}, key interface{}) (string, error) {
 	privateKey, kid, err := client.getPrivateKey(key)
 	if err != nil {
 		return "", err
 	}
+
+	audit.Log(ctx, log.Logger(), audit.CryptoSignJWTEvent).
+		Infof("Signing a JWT with key: %s (issuer: %s, subject: %s)", kid, claims["iss"], claims["sub"])
 
 	keyAsJWK, err := jwkKey(privateKey)
 	if err != nil {
@@ -67,11 +73,14 @@ func (client *Crypto) SignJWT(claims map[string]interface{}, key interface{}) (s
 }
 
 // SignJWS creates a signed JWS using the indicated key and map of headers and payload as bytes.
-func (client *Crypto) SignJWS(payload []byte, headers map[string]interface{}, key interface{}, detached bool) (string, error) {
-	privateKey, _, err := client.getPrivateKey(key)
+func (client *Crypto) SignJWS(ctx context.Context, payload []byte, headers map[string]interface{}, key interface{}, detached bool) (string, error) {
+	privateKey, kid, err := client.getPrivateKey(key)
 	if err != nil {
 		return "", err
 	}
+
+	audit.Log(ctx, log.Logger(), audit.CryptoSignJWSEvent).Infof("Signing a JWS with key: %s", kid)
+
 	return signJWS(payload, headers, privateKey, detached)
 }
 

@@ -26,19 +26,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nats-io/nats.go"
+	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"sort"
 
 	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
@@ -137,7 +137,7 @@ func (n *ambassador) handleReprocessEvent(msg *nats.Msg) {
 	}
 }
 
-func (n *ambassador) handleNetworkEvent(event dag.Event) (bool, error) {
+func (n *ambassador) handleNetworkEvent(_ context.Context, event dag.Event) (bool, error) {
 	if err := n.callback(event.Transaction, event.Payload); err != nil {
 		if !errors.As(err, new(stoabs.ErrDatabase)) {
 			// anything that is not a database error will not be retried

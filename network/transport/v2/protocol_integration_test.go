@@ -136,7 +136,7 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 	}
 
 	ctx.state, _ = dag.NewState(bboltStore)
-	ctx.state.Notifier(t.Name(), func(event dag.Event) (bool, error) {
+	ctx.state.Notifier(t.Name(), func(_ context.Context, event dag.Event) (bool, error) {
 		log.Logger().Infof("Transaction %s arrived at %s", string(event.Payload), name)
 		ctx.mux.Lock()
 		defer ctx.mux.Unlock()

@@ -20,6 +20,7 @@ package crypto
 
 import (
 	"crypto/ecdsa"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -28,21 +29,23 @@ func TestCrypto_Decrypt(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		client := createCrypto(t)
 		kid := "kid"
-		key, _ := client.New(StringNamingFunc(kid))
+		key, _ := client.New(audit.TestContext(), StringNamingFunc(kid))
 		pubKey := key.Public().(*ecdsa.PublicKey)
+		auditLogs := audit.CaptureLogs(t)
 
 		cipherText, err := EciesEncrypt(pubKey, []byte("hello!"))
 		assert.NoError(t, err)
 
-		plainText, err := client.Decrypt("kid", cipherText)
+		plainText, err := client.Decrypt(audit.TestContext(), "kid", cipherText)
 		assert.NoError(t, err)
 
 		assert.Equal(t, "hello!", string(plainText))
+		auditLogs.AssertContains(t, ModuleName, "Decrypt", audit.TestActor, "Decrypted (ECIES) 6 bytes with key: kid")
 	})
 	t.Run("error - invalid kid", func(t *testing.T) {
 		client := createCrypto(t)
 
-		_, err := client.Decrypt("../ceritifcate", nil)
+		_, err := client.Decrypt(audit.TestContext(), "../ceritifcate", nil)
 
 		assert.ErrorContains(t, err, "invalid key ID")
 	})

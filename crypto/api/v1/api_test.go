@@ -21,6 +21,7 @@ package v1
 import (
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -64,7 +65,7 @@ func TestWrapper_SignJwt(t *testing.T) {
 			Kid:    "kid",
 			Claims: map[string]interface{}{"iss": "nuts"},
 		}
-		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), "kid").Return("", errors.New("b00m!"))
+		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), "kid").Return("", errors.New("b00m!"))
 
 		token, err := ctx.client.SignJwt(nil, SignJwtRequestObject{Body: &request})
 
@@ -78,7 +79,7 @@ func TestWrapper_SignJwt(t *testing.T) {
 			Kid:    "kid",
 			Claims: map[string]interface{}{"iss": "nuts"},
 		}
-		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), "kid").Return("token", nil)
+		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), "kid").Return("token", nil)
 
 		token, err := ctx.client.SignJwt(nil, SignJwtRequestObject{Body: &request})
 
@@ -110,9 +111,9 @@ func TestWrapper_SignJws(t *testing.T) {
 			Payload: payload,
 			Headers: headers,
 		}
-		ctx.keyStore.EXPECT().SignJWS(gomock.Any(), gomock.Any(), "kid", false).Return("", errors.New("b00m!"))
+		ctx.keyStore.EXPECT().SignJWS(gomock.Any(), gomock.Any(), gomock.Any(), "kid", false).Return("", errors.New("b00m!"))
 
-		token, err := ctx.client.SignJws(nil, SignJwsRequestObject{Body: &request})
+		token, err := ctx.client.SignJws(audit.TestContext(), SignJwsRequestObject{Body: &request})
 
 		assert.EqualError(t, err, "b00m!")
 		assert.Empty(t, token)
@@ -125,7 +126,7 @@ func TestWrapper_SignJws(t *testing.T) {
 			Headers: headers,
 			Payload: payload,
 		}
-		ctx.keyStore.EXPECT().SignJWS(gomock.Any(), gomock.Any(), "kid", false).Return("token", nil)
+		ctx.keyStore.EXPECT().SignJWS(gomock.Any(), gomock.Any(), gomock.Any(), "kid", false).Return("token", nil)
 
 		token, err := ctx.client.SignJws(nil, SignJwsRequestObject{Body: &request})
 
@@ -142,7 +143,7 @@ func TestWrapper_SignJws(t *testing.T) {
 			Payload:  payload,
 			Detached: &detached,
 		}
-		ctx.keyStore.EXPECT().SignJWS(gomock.Any(), gomock.Any(), "kid", true).Return("token", nil)
+		ctx.keyStore.EXPECT().SignJWS(gomock.Any(), gomock.Any(), gomock.Any(), "kid", true).Return("token", nil)
 
 		token, err := ctx.client.SignJws(nil, SignJwsRequestObject{Body: &request})
 

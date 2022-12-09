@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"net/url"
 	"sync"
 	"testing"
@@ -51,7 +52,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	ctx := setup(t)
 
 	// Start with a first and fresh document named DocumentA.
-	docA, _, err := ctx.vdr.Create(didservice.DefaultCreationOptions())
+	docA, _, err := ctx.vdr.Create(ctx.audit, didservice.DefaultCreationOptions())
 	require.NoError(t, err)
 	assert.NotNil(t, docA)
 
@@ -75,7 +76,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 
 	docA.Service = append(docA.Service, newService)
 
-	err = ctx.vdr.Update(docAID, *docA)
+	err = ctx.vdr.Update(ctx.audit, docAID, *docA)
 	require.NoError(t, err, "unable to update docA with a new service")
 
 	// Resolve the document and check it contents
@@ -86,7 +87,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 		"expected updated docA to have a service")
 
 	// Create a new DID Document we name DocumentB
-	docB, _, err := ctx.vdr.Create(didservice.DefaultCreationOptions())
+	docB, _, err := ctx.vdr.Create(ctx.audit, didservice.DefaultCreationOptions())
 	require.NoError(t, err, "unexpected error while creating DocumentB")
 	assert.NotNil(t, docB,
 		"a new document should have been created")
@@ -101,7 +102,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	docA.CapabilityInvocation = []did.VerificationRelationship{}
 	docA.VerificationMethod = []*did.VerificationMethod{}
 	docA.KeyAgreement = []did.VerificationRelationship{}
-	err = ctx.vdr.Update(docAID, *docA)
+	err = ctx.vdr.Update(ctx.audit, docAID, *docA)
 	require.NoError(t, err, "unable to update documentA with a new controller")
 
 	// Resolve and check DocumentA
@@ -122,7 +123,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	}
 	docA.Service = append(docA.Service, newService)
 
-	err = ctx.vdr.Update(docA.ID, *docA)
+	err = ctx.vdr.Update(ctx.audit, docA.ID, *docA)
 	require.NoError(t, err, "unable to update documentA with a new service")
 	// Resolve and check if the service has been added
 	docA, metadataDocA, err = ctx.docResolver.Resolve(docA.ID, nil)
@@ -133,7 +134,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 
 	// deactivate document B
 	docUpdater := &didservice.Manipulator{KeyCreator: ctx.cryptoInstance, Updater: ctx.vdr, Resolver: ctx.docResolver}
-	err = docUpdater.Deactivate(docB.ID)
+	err = docUpdater.Deactivate(ctx.audit, docB.ID)
 	assert.NoError(t, err,
 		"expected deactivation to succeed")
 
@@ -143,13 +144,13 @@ func TestVDRIntegration_Test(t *testing.T) {
 		"expected document B to not have any CapabilityInvocation methods after deactivation")
 
 	// try to deactivate the document again
-	err = docUpdater.Deactivate(docB.ID)
+	err = docUpdater.Deactivate(ctx.audit, docB.ID)
 	assert.EqualError(t, err, "the DID document has been deactivated",
 		"expected an error when trying to deactivate an already deactivated document")
 
 	// try to update document A should fail since it no longer has an active controller
 	docA.Service = docA.Service[1:]
-	err = ctx.vdr.Update(docAID, *docA)
+	err = ctx.vdr.Update(ctx.audit, docAID, *docA)
 	assert.EqualError(t, err, "could not find any controllers for document")
 }
 
@@ -157,7 +158,7 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	ctx := setup(t)
 
 	// Start with a first and fresh document named DocumentA.
-	initialDoc, _, err := ctx.vdr.Create(didservice.DefaultCreationOptions())
+	initialDoc, _, err := ctx.vdr.Create(ctx.audit, didservice.DefaultCreationOptions())
 	require.NoError(t, err)
 	assert.NotNil(t, initialDoc)
 
@@ -180,7 +181,7 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 			}
 
 			newDoc.Service = append(currDoc.Service, newService)
-			err := ctx.vdr.Update(currDoc.ID, newDoc)
+			err := ctx.vdr.Update(ctx.audit, currDoc.ID, newDoc)
 			assert.NoError(t, err, "unable to update doc with a new service")
 			wg.Done()
 		}(i)
@@ -192,10 +193,10 @@ func TestVDRIntegration_ReprocessEvents(t *testing.T) {
 	ctx := setup(t)
 
 	// Publish a DID Document
-	didDoc, key, _ := ctx.docCreator.Create(didservice.DefaultCreationOptions())
+	didDoc, key, _ := ctx.docCreator.Create(audit.TestContext(), didservice.DefaultCreationOptions())
 	payload, _ := json.Marshal(didDoc)
 	unsignedTransaction, _ := dag.NewTransaction(hash.SHA256Sum(payload), didDocumentType, nil, nil, uint32(0))
-	signedTransaction, err := dag.NewTransactionSigner(ctx.cryptoInstance, key, true).Sign(unsignedTransaction, time.Now())
+	signedTransaction, err := dag.NewTransactionSigner(ctx.cryptoInstance, key, true).Sign(audit.TestContext(), unsignedTransaction, time.Now())
 	require.NoError(t, err)
 	twp := events.TransactionWithPayload{
 		Transaction: signedTransaction,
@@ -220,6 +221,7 @@ type testContext struct {
 	docCreator     didservice.Creator
 	docResolver    didservice.Resolver
 	cryptoInstance *crypto.Crypto
+	audit          context.Context
 }
 
 func setup(t *testing.T) testContext {
@@ -291,5 +293,6 @@ func setup(t *testing.T) testContext {
 		docCreator:     docCreator,
 		docResolver:    docResolver,
 		cryptoInstance: cryptoInstance,
+		audit:          audit.TestContext(),
 	}
 }

@@ -19,6 +19,7 @@
 package proof
 
 import (
+	"context"
 	"crypto"
 	"encoding/base64"
 	"encoding/json"
@@ -122,7 +123,7 @@ func (p LDProof) Verify(document Document, suite signature.Suite, key crypto.Pub
 
 // Sign signs the provided document with this proof and a signature suit and signer.
 // It returns the complete signed JSON-LD document
-func (p *LDProof) Sign(document Document, suite signature.Suite, key nutsCrypto.Key) (interface{}, error) {
+func (p *LDProof) Sign(ctx context.Context, document Document, suite signature.Suite, key nutsCrypto.Key) (interface{}, error) {
 	p.Type = suite.GetType()
 	p.ProofPurpose = "assertionMethod"
 	if p.Created.IsZero() {
@@ -147,7 +148,7 @@ func (p *LDProof) Sign(document Document, suite signature.Suite, key nutsCrypto.
 
 	tbs := append(suite.CalculateDigest(canonicalProof), suite.CalculateDigest(canonicalDocument)...)
 
-	sig, err := suite.Sign(tbs, key)
+	sig, err := suite.Sign(ctx, tbs, key)
 	if err != nil {
 		return nil, fmt.Errorf("error while signing: %w", err)
 	}

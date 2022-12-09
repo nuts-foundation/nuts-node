@@ -135,7 +135,7 @@ func (w Wrapper) IssueVC(ctx echo.Context) error {
 		return err
 	}
 
-	vcCreated, err := w.VCR.Issuer().Issue(requestedVC, publish, public)
+	vcCreated, err := w.VCR.Issuer().Issue(ctx.Request().Context(), requestedVC, publish, public)
 	if err != nil {
 		return err
 	}
@@ -150,7 +150,7 @@ func (w Wrapper) RevokeVC(ctx echo.Context, id string) error {
 		return core.InvalidInputError("invalid credential id: %w", err)
 	}
 
-	revocation, err := w.VCR.Issuer().Revoke(*credentialID)
+	revocation, err := w.VCR.Issuer().Revoke(ctx.Request().Context(), *credentialID)
 	if err != nil {
 		return err
 	}
@@ -252,7 +252,7 @@ func (w *Wrapper) CreateVP(ctx echo.Context) error {
 		Expires:   expires,
 	}
 
-	vp, err := w.VCR.Holder().BuildVP(request.VerifiableCredentials, proofOptions, signerDID, true)
+	vp, err := w.VCR.Holder().BuildVP(ctx.Request().Context(), request.VerifiableCredentials, proofOptions, signerDID, true)
 	if err != nil {
 		return err
 	}

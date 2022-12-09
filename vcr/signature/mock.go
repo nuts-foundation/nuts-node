@@ -5,6 +5,7 @@
 package signature
 
 import (
+	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -79,16 +80,16 @@ func (mr *MockSuiteMockRecorder) GetType() *gomock.Call {
 }
 
 // Sign mocks base method.
-func (m *MockSuite) Sign(doc []byte, key crypto.Key) ([]byte, error) {
+func (m *MockSuite) Sign(ctx context.Context, doc []byte, key crypto.Key) ([]byte, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Sign", doc, key)
+	ret := m.ctrl.Call(m, "Sign", ctx, doc, key)
 	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Sign indicates an expected call of Sign.
-func (mr *MockSuiteMockRecorder) Sign(doc, key interface{}) *gomock.Call {
+func (mr *MockSuiteMockRecorder) Sign(ctx, doc, key interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sign", reflect.TypeOf((*MockSuite)(nil).Sign), doc, key)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sign", reflect.TypeOf((*MockSuite)(nil).Sign), ctx, doc, key)
 }

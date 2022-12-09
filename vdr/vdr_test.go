@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -47,6 +48,7 @@ type vdrTestCtx struct {
 	mockNetwork    *network.MockTransactions
 	mockKeyStore   *crypto.MockKeyStore
 	mockAmbassador *MockAmbassador
+	audit          context.Context
 }
 
 func newVDRTestCtx(t *testing.T) vdrTestCtx {
@@ -71,6 +73,7 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 		mockStore:      mockStore,
 		mockNetwork:    mockNetwork,
 		mockKeyStore:   mockKeyStore,
+		audit:          audit.TestContext(),
 	}
 }
 
@@ -96,9 +99,9 @@ func TestVDR_Update(t *testing.T) {
 		ctx.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
 		ctx.mockStore.EXPECT().Resolve(*id, nil).Return(&currentDIDDocument, &resolvedMetadata, nil)
 		ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(crypto.NewTestKey(keyID.String()), nil)
-		ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any())
+		ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any())
 
-		err := ctx.vdr.Update(*id, nextDIDDocument)
+		err := ctx.vdr.Update(ctx.audit, *id, nextDIDDocument)
 
 		assert.NoError(t, err)
 	})
@@ -115,7 +118,7 @@ func TestVDR_Update(t *testing.T) {
 		}
 		resolvedMetadata := types.DocumentMetadata{}
 		ctx.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
-		err := ctx.vdr.Update(*id, nextDIDDocument)
+		err := ctx.vdr.Update(ctx.audit, *id, nextDIDDocument)
 		assert.EqualError(t, err, "DID Document validation failed: invalid context")
 	})
 
@@ -129,7 +132,7 @@ func TestVDR_Update(t *testing.T) {
 		}
 		resolvedMetadata := types.DocumentMetadata{}
 		ctx.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&document, &resolvedMetadata, nil)
-		err := ctx.vdr.Update(*id, document)
+		err := ctx.vdr.Update(ctx.audit, *id, document)
 		assert.EqualError(t, err, "the DID document has been deactivated")
 	})
 	t.Run("error - could not resolve current document", func(t *testing.T) {
@@ -139,7 +142,7 @@ func TestVDR_Update(t *testing.T) {
 			AllowDeactivated: true,
 		}
 		ctx.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(nil, nil, types.ErrNotFound)
-		err := ctx.vdr.Update(*id, nextDIDDocument)
+		err := ctx.vdr.Update(ctx.audit, *id, nextDIDDocument)
 		assert.EqualError(t, err, "unable to find the DID document")
 	})
 
@@ -152,7 +155,7 @@ func TestVDR_Update(t *testing.T) {
 		ctx.mockStore.EXPECT().Resolve(*id, gomock.Any()).Times(1).Return(&currentDIDDocument, &types.DocumentMetadata{}, nil)
 		ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(nil, crypto.ErrPrivateKeyNotFound)
 
-		err := ctx.vdr.Update(*id, nextDIDDocument)
+		err := ctx.vdr.Update(ctx.audit, *id, nextDIDDocument)
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, "DID document not managed by this node")
@@ -175,10 +178,10 @@ func TestVDR_Create(t *testing.T) {
 		nextDIDDocument.AddKeyAgreement(vm)
 		expectedPayload, _ := json.Marshal(nextDIDDocument)
 
-		ctx.mockKeyStore.EXPECT().New(gomock.Any()).Return(key, nil)
-		ctx.mockNetwork.EXPECT().CreateTransaction(network.TransactionTemplate(expectedPayloadType, expectedPayload, key).WithAttachKey())
+		ctx.mockKeyStore.EXPECT().New(ctx.audit, gomock.Any()).Return(key, nil)
+		ctx.mockNetwork.EXPECT().CreateTransaction(ctx.audit, network.TransactionTemplate(expectedPayloadType, expectedPayload, key).WithAttachKey())
 
-		didDoc, key, err := ctx.vdr.Create(didservice.DefaultCreationOptions())
+		didDoc, key, err := ctx.vdr.Create(ctx.audit, didservice.DefaultCreationOptions())
 
 		assert.NoError(t, err)
 		assert.NotNil(t, didDoc)
@@ -187,9 +190,9 @@ func TestVDR_Create(t *testing.T) {
 
 	t.Run("error - doc creation", func(t *testing.T) {
 		ctx := newVDRTestCtx(t)
-		ctx.mockKeyStore.EXPECT().New(gomock.Any()).Return(nil, errors.New("b00m!"))
+		ctx.mockKeyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
 
-		_, _, err := ctx.vdr.Create(didservice.DefaultCreationOptions())
+		_, _, err := ctx.vdr.Create(ctx.audit, didservice.DefaultCreationOptions())
 
 		assert.EqualError(t, err, "could not create DID document: b00m!")
 	})
@@ -197,10 +200,10 @@ func TestVDR_Create(t *testing.T) {
 	t.Run("error - transaction failed", func(t *testing.T) {
 		ctx := newVDRTestCtx(t)
 		key := crypto.NewTestKey("did:nuts:123#key-1")
-		ctx.mockKeyStore.EXPECT().New(gomock.Any()).Return(key, nil)
-		ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any()).Return(nil, errors.New("b00m!"))
+		ctx.mockKeyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(key, nil)
+		ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
 
-		_, _, err := ctx.vdr.Create(didservice.DefaultCreationOptions())
+		_, _, err := ctx.vdr.Create(ctx.audit, didservice.DefaultCreationOptions())
 
 		assert.EqualError(t, err, "could not store DID document in network: b00m!")
 	})

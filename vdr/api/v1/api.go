@@ -76,7 +76,7 @@ func (a *Wrapper) DeleteVerificationMethod(ctx echo.Context, didStr string, kidS
 		return core.InvalidInputError("given kid could not be parsed: %w", err)
 	}
 
-	err = a.DocManipulator.RemoveVerificationMethod(*id, *kid)
+	err = a.DocManipulator.RemoveVerificationMethod(ctx.Request().Context(), *id, *kid)
 	if err != nil {
 		return fmt.Errorf("could not remove verification method from document: %w", err)
 	}
@@ -94,7 +94,7 @@ func (a *Wrapper) AddNewVerificationMethod(ctx echo.Context, id string) error {
 		return err
 	}
 
-	vm, err := a.DocManipulator.AddVerificationMethod(*d, req.ToFlags(vdrDoc.DefaultCreationOptions().KeyFlags))
+	vm, err := a.DocManipulator.AddVerificationMethod(ctx.Request().Context(), *d, req.ToFlags(vdrDoc.DefaultCreationOptions().KeyFlags))
 	if err != nil {
 		return err
 	}
@@ -127,7 +127,7 @@ func (a *Wrapper) CreateDID(ctx echo.Context) error {
 		options.SelfControl = *req.SelfControl
 	}
 
-	doc, _, err := a.VDR.Create(options)
+	doc, _, err := a.VDR.Create(ctx.Request().Context(), options)
 	// if this operation leads to an error, it may return a 500
 	if err != nil {
 		return err
@@ -208,7 +208,7 @@ func (a *Wrapper) UpdateDID(ctx echo.Context, targetDID string) error {
 		return err
 	}
 
-	err = a.VDR.Update(*d, req.Document)
+	err = a.VDR.Update(ctx.Request().Context(), *d, req.Document)
 	if err != nil {
 		return err
 	}
@@ -222,7 +222,7 @@ func (a *Wrapper) DeactivateDID(ctx echo.Context, targetDID string) error {
 	if err != nil {
 		return err
 	}
-	err = a.DocManipulator.Deactivate(*id)
+	err = a.DocManipulator.Deactivate(ctx.Request().Context(), *id)
 	if err != nil {
 		return err
 	}

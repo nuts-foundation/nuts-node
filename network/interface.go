@@ -45,7 +45,7 @@ type Transactions interface {
 	// If the transaction is not found, a dag.ErrTransactionNotFound is returned.
 	GetTransaction(transactionRef hash.SHA256Hash) (dag.Transaction, error)
 	// CreateTransaction creates a new transaction according to the given spec.
-	CreateTransaction(spec Template) (dag.Transaction, error)
+	CreateTransaction(ctx context.Context, spec Template) (dag.Transaction, error)
 	// ListTransactionsInRange returns all transactions known to this Network instance with lamport clock value between startInclusive and endExclusive.
 	// endExclusive must be larger than startInclusive.
 	ListTransactionsInRange(startInclusive uint32, endExclusive uint32) ([]dag.Transaction, error)

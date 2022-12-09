@@ -22,6 +22,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
@@ -120,7 +121,7 @@ func TestGenerateSignedFixtures(t *testing.T) {
 
 			signed, err := proof.NewLDProof(proof.ProofOptions{
 				Created: time.Now(),
-			}).Sign(tbs, signature.JSONWebSignature2020{ContextLoader: loader, Signer: keyStore}, privateKey)
+			}).Sign(audit.TestContext(), tbs, signature.JSONWebSignature2020{ContextLoader: loader, Signer: keyStore}, privateKey)
 			require.NoError(t, err)
 
 			var targetFile = "./fixtures/" + testCase.file

@@ -19,6 +19,7 @@
 package issuer
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
@@ -63,7 +64,7 @@ func NewNetworkPublisher(networkTx network.Transactions, docResolver vdr.DocReso
 
 }
 
-func (p networkPublisher) PublishCredential(verifiableCredential vc.VerifiableCredential, public bool) error {
+func (p networkPublisher) PublishCredential(ctx context.Context, verifiableCredential vc.VerifiableCredential, public bool) error {
 	issuerDID, err := did.ParseDIDURL(verifiableCredential.Issuer.String())
 	if err != nil {
 		return fmt.Errorf("invalid credential issuer: %w", err)
@@ -98,7 +99,7 @@ func (p networkPublisher) PublishCredential(verifiableCredential vc.VerifiableCr
 		WithAdditionalPrevs(meta.SourceTransactions).
 		WithPrivate(participants)
 
-	_, err = p.networkTx.CreateTransaction(tx)
+	_, err = p.networkTx.CreateTransaction(ctx, tx)
 	if err != nil {
 		return fmt.Errorf("failed to publish credential, error while creating transaction: %w", err)
 	}
@@ -156,7 +157,7 @@ func (p networkPublisher) resolveNutsCommServiceOwner(DID did.DID) (*did.DID, er
 	return did.ParseDID(serviceID.String())
 }
 
-func (p networkPublisher) PublishRevocation(revocation credential.Revocation) error {
+func (p networkPublisher) PublishRevocation(ctx context.Context, revocation credential.Revocation) error {
 	issuerDID, err := did.ParseDIDURL(revocation.Issuer.String())
 	if err != nil {
 		return fmt.Errorf("invalid revocation issuer: %w", err)
@@ -177,7 +178,7 @@ func (p networkPublisher) PublishRevocation(revocation credential.Revocation) er
 		WithAdditionalPrevs(meta.SourceTransactions).
 		WithTimestamp(revocation.Date)
 
-	_, err = p.networkTx.CreateTransaction(tx)
+	_, err = p.networkTx.CreateTransaction(ctx, tx)
 	if err != nil {
 		return fmt.Errorf("failed to publish revocation, error while creating transaction: %w", err)
 	}

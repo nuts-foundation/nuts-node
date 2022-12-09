@@ -16,7 +16,9 @@
 package v1
 
 import (
+	"context"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"net/http"
 	"testing"
 	"time"
@@ -64,7 +66,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 			didDocReturn = f2.(did.Document)
 			return nil
 		})
-		ctx.vdr.EXPECT().Create(gomock.Any()).Return(didDoc, nil, nil)
+		ctx.vdr.EXPECT().Create(gomock.Any(), gomock.Any()).Return(didDoc, nil, nil)
 		err := ctx.client.CreateDID(ctx.echo)
 
 		require.NoError(t, err)
@@ -97,7 +99,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 			didDocReturn = f2.(did.Document)
 			return nil
 		})
-		ctx.vdr.EXPECT().Create(gomock.Any()).Return(didDoc, nil, nil)
+		ctx.vdr.EXPECT().Create(gomock.Any(), gomock.Any()).Return(didDoc, nil, nil)
 		err := ctx.client.CreateDID(ctx.echo)
 
 		require.NoError(t, err)
@@ -131,7 +133,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 			*p = didCreateRequest
 			return nil
 		})
-		ctx.vdr.EXPECT().Create(gomock.Any()).Return(nil, nil, errors.New("b00m!"))
+		ctx.vdr.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil, nil, errors.New("b00m!"))
 		err := ctx.client.CreateDID(ctx.echo)
 
 		assert.Error(t, err)
@@ -323,7 +325,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 			didReturn = f2.(did.Document)
 			return nil
 		})
-		ctx.vdr.EXPECT().Update(*id, gomock.Any()).Return(nil)
+		ctx.vdr.EXPECT().Update(gomock.Any(), *id, gomock.Any()).Return(nil)
 		err := ctx.client.UpdateDID(ctx.echo, id.String())
 
 		require.NoError(t, err)
@@ -347,7 +349,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 			*p = didUpdate
 			return nil
 		})
-		ctx.vdr.EXPECT().Update(*id, gomock.Any()).Return(types.ErrNotFound)
+		ctx.vdr.EXPECT().Update(gomock.Any(), *id, gomock.Any()).Return(types.ErrNotFound)
 		err := ctx.client.UpdateDID(ctx.echo, id.String())
 
 		assert.ErrorIs(t, err, types.ErrNotFound)
@@ -362,7 +364,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 			*p = didUpdate
 			return nil
 		})
-		ctx.vdr.EXPECT().Update(*id, gomock.Any()).Return(errors.New("b00m!"))
+		ctx.vdr.EXPECT().Update(gomock.Any(), *id, gomock.Any()).Return(errors.New("b00m!"))
 		err := ctx.client.UpdateDID(ctx.echo, id.String())
 
 		assert.EqualError(t, err, "b00m!")
@@ -386,7 +388,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 			return nil
 		})
 
-		ctx.vdr.EXPECT().Update(*id, gomock.Any()).Return(types.ErrDeactivated)
+		ctx.vdr.EXPECT().Update(gomock.Any(), *id, gomock.Any()).Return(types.ErrDeactivated)
 
 		err := ctx.client.UpdateDID(ctx.echo, id.String())
 
@@ -403,7 +405,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 			return nil
 		})
 
-		ctx.vdr.EXPECT().Update(*id, gomock.Any()).Return(types.ErrDIDNotManagedByThisNode)
+		ctx.vdr.EXPECT().Update(gomock.Any(), *id, gomock.Any()).Return(types.ErrDIDNotManagedByThisNode)
 
 		err := ctx.client.UpdateDID(ctx.echo, id.String())
 
@@ -416,7 +418,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 	did123, _ := did.ParseDID("did:nuts:123")
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docUpdater.EXPECT().Deactivate(*did123).Return(nil)
+		ctx.docUpdater.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(nil)
 
 		ctx.echo.EXPECT().NoContent(http.StatusOK)
 		err := ctx.client.DeactivateDID(ctx.echo, did123.String())
@@ -435,7 +437,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 	t.Run("error - not found", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.docUpdater.EXPECT().Deactivate(*did123).Return(types.ErrNotFound)
+		ctx.docUpdater.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(types.ErrNotFound)
 
 		err := ctx.client.DeactivateDID(ctx.echo, did123.String())
 
@@ -445,7 +447,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 
 	t.Run("error - document already deactivated", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docUpdater.EXPECT().Deactivate(*did123).Return(types.ErrDeactivated)
+		ctx.docUpdater.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(types.ErrDeactivated)
 
 		err := ctx.client.DeactivateDID(ctx.echo, did123.String())
 
@@ -455,7 +457,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 
 	t.Run("error - did not managed by this node", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docUpdater.EXPECT().Deactivate(*did123).Return(types.ErrDIDNotManagedByThisNode)
+		ctx.docUpdater.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(types.ErrDIDNotManagedByThisNode)
 
 		err := ctx.client.DeactivateDID(ctx.echo, did123.String())
 
@@ -472,7 +474,7 @@ func TestWrapper_AddNewVerificationMethod(t *testing.T) {
 
 	t.Run("ok - without key usage", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docUpdater.EXPECT().AddVerificationMethod(*did123, didservice.DefaultCreationOptions().KeyFlags).Return(newMethod, nil)
+		ctx.docUpdater.EXPECT().AddVerificationMethod(ctx.requestCtx, *did123, didservice.DefaultCreationOptions().KeyFlags).Return(newMethod, nil)
 
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			return nil
@@ -491,7 +493,7 @@ func TestWrapper_AddNewVerificationMethod(t *testing.T) {
 		ctx := newMockContext(t)
 
 		expectedKeyUsage := didservice.DefaultCreationOptions().KeyFlags | types.AuthenticationUsage | types.CapabilityDelegationUsage
-		ctx.docUpdater.EXPECT().AddVerificationMethod(*did123, expectedKeyUsage).Return(newMethod, nil)
+		ctx.docUpdater.EXPECT().AddVerificationMethod(ctx.requestCtx, *did123, expectedKeyUsage).Return(newMethod, nil)
 		trueBool := true
 		requestBody := AddNewVerificationMethodJSONRequestBody{
 			Authentication:       &trueBool,
@@ -526,7 +528,7 @@ func TestWrapper_AddNewVerificationMethod(t *testing.T) {
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			return nil
 		})
-		ctx.docUpdater.EXPECT().AddVerificationMethod(gomock.Any(), gomock.Any()).Return(nil, errors.New("something went wrong"))
+		ctx.docUpdater.EXPECT().AddVerificationMethod(ctx.requestCtx, gomock.Any(), gomock.Any()).Return(nil, errors.New("something went wrong"))
 
 		err := ctx.client.AddNewVerificationMethod(ctx.echo, did123.String())
 
@@ -540,7 +542,7 @@ func TestWrapper_DeleteVerificationMethod(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docUpdater.EXPECT().RemoveVerificationMethod(*did123, *did123Method).Return(nil)
+		ctx.docUpdater.EXPECT().RemoveVerificationMethod(ctx.requestCtx, *did123, *did123Method).Return(nil)
 		ctx.echo.EXPECT().NoContent(http.StatusNoContent)
 
 		err := ctx.client.DeleteVerificationMethod(ctx.echo, did123.String(), did123Method.String())
@@ -565,7 +567,7 @@ func TestWrapper_DeleteVerificationMethod(t *testing.T) {
 
 	t.Run("error - internal error", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docUpdater.EXPECT().RemoveVerificationMethod(*did123, *did123Method).Return(errors.New("something went wrong"))
+		ctx.docUpdater.EXPECT().RemoveVerificationMethod(ctx.requestCtx, *did123, *did123Method).Return(errors.New("something went wrong"))
 
 		err := ctx.client.DeleteVerificationMethod(ctx.echo, did123.String(), did123Method.String())
 
@@ -584,6 +586,7 @@ type mockContext struct {
 	docResolver *types.MockDocResolver
 	docUpdater  *types.MockDocManipulator
 	client      *Wrapper
+	requestCtx  context.Context
 }
 
 func newMockContext(t *testing.T) mockContext {
@@ -593,13 +596,18 @@ func newMockContext(t *testing.T) mockContext {
 	docManipulator := types.NewMockDocManipulator(ctrl)
 	docResolver := types.NewMockDocResolver(ctrl)
 	client := &Wrapper{VDR: vdr, DocManipulator: docManipulator, DocResolver: docResolver}
+	requestCtx := audit.TestContext()
+	echoMock := mock.NewMockContext(ctrl)
+	request, _ := http.NewRequestWithContext(requestCtx, http.MethodGet, "/", nil)
+	echoMock.EXPECT().Request().Return(request).AnyTimes()
 
 	return mockContext{
 		ctrl:        ctrl,
-		echo:        mock.NewMockContext(ctrl),
+		echo:        echoMock,
 		vdr:         vdr,
 		client:      client,
 		docResolver: docResolver,
 		docUpdater:  docManipulator,
+		requestCtx:  requestCtx,
 	}
 }

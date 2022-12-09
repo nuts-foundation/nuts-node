@@ -5,6 +5,7 @@
 package holder
 
 import (
+	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -37,16 +38,16 @@ func (m *MockHolder) EXPECT() *MockHolderMockRecorder {
 }
 
 // BuildVP mocks base method.
-func (m *MockHolder) BuildVP(credentials []vc.VerifiableCredential, proofOptions proof.ProofOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error) {
+func (m *MockHolder) BuildVP(ctx context.Context, credentials []vc.VerifiableCredential, proofOptions proof.ProofOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BuildVP", credentials, proofOptions, signerDID, validateVC)
+	ret := m.ctrl.Call(m, "BuildVP", ctx, credentials, proofOptions, signerDID, validateVC)
 	ret0, _ := ret[0].(*vc.VerifiablePresentation)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // BuildVP indicates an expected call of BuildVP.
-func (mr *MockHolderMockRecorder) BuildVP(credentials, proofOptions, signerDID, validateVC interface{}) *gomock.Call {
+func (mr *MockHolderMockRecorder) BuildVP(ctx, credentials, proofOptions, signerDID, validateVC interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildVP", reflect.TypeOf((*MockHolder)(nil).BuildVP), credentials, proofOptions, signerDID, validateVC)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildVP", reflect.TypeOf((*MockHolder)(nil).BuildVP), ctx, credentials, proofOptions, signerDID, validateVC)
 }

@@ -20,7 +20,9 @@
 package v1
 
 import (
+	"context"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"net/http"
 	"net/url"
@@ -69,8 +71,8 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 			*p = request
 			return nil
 		})
-		ctx.didman.EXPECT().AddEndpoint(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
-			func(id interface{}, t interface{}, u interface{}) (*did.Service, error) {
+		ctx.didman.EXPECT().AddEndpoint(audit.ContextWithAuditInfo(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+			func(_ context.Context, id interface{}, t interface{}, u interface{}) (*did.Service, error) {
 				parsedDID = id.(did.DID)
 				parsedURL = u.(url.URL)
 				parsedType = t.(string)
@@ -134,7 +136,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 			*p = request
 			return nil
 		})
-		ctx.didman.EXPECT().AddEndpoint(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, types.ErrNotFound)
+		ctx.didman.EXPECT().AddEndpoint(audit.ContextWithAuditInfo(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, types.ErrNotFound)
 
 		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
 
@@ -158,7 +160,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 			*p = request
 			return nil
 		})
-		ctx.didman.EXPECT().AddEndpoint(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, types.ErrDeactivated)
+		ctx.didman.EXPECT().AddEndpoint(audit.ContextWithAuditInfo(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, types.ErrDeactivated)
 
 		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
 
@@ -173,7 +175,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 			*p = request
 			return nil
 		})
-		ctx.didman.EXPECT().AddEndpoint(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, types.ErrDIDNotManagedByThisNode)
+		ctx.didman.EXPECT().AddEndpoint(audit.ContextWithAuditInfo(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, types.ErrDIDNotManagedByThisNode)
 
 		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
 
@@ -188,7 +190,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 			*p = request
 			return nil
 		})
-		ctx.didman.EXPECT().AddEndpoint(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, types.ErrDuplicateService)
+		ctx.didman.EXPECT().AddEndpoint(audit.ContextWithAuditInfo(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, types.ErrDuplicateService)
 
 		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
 
@@ -203,7 +205,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 			*p = request
 			return nil
 		})
-		ctx.didman.EXPECT().AddEndpoint(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, vdr.InvalidServiceError{errors.New("custom error")})
+		ctx.didman.EXPECT().AddEndpoint(audit.ContextWithAuditInfo(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, vdr.InvalidServiceError{errors.New("custom error")})
 
 		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
 
@@ -218,7 +220,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 			*p = request
 			return nil
 		})
-		ctx.didman.EXPECT().AddEndpoint(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
+		ctx.didman.EXPECT().AddEndpoint(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
 
 		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
 
@@ -233,7 +235,7 @@ func TestWrapper_DeleteEndpointsByType(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.didman.EXPECT().DeleteEndpointsByType(*parsedID, endpointType)
+		ctx.didman.EXPECT().DeleteEndpointsByType(audit.ContextWithAuditInfo(), *parsedID, endpointType)
 		ctx.echo.EXPECT().NoContent(http.StatusNoContent)
 
 		err := ctx.wrapper.DeleteEndpointsByType(ctx.echo, idStr, endpointType)
@@ -255,7 +257,7 @@ func TestWrapper_DeleteEndpointsByType(t *testing.T) {
 
 	t.Run("error - didman.DeleteEndpointsByType returns error", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.didman.EXPECT().DeleteEndpointsByType(*parsedID, endpointType).Return(types.ErrNotFound)
+		ctx.didman.EXPECT().DeleteEndpointsByType(audit.ContextWithAuditInfo(), *parsedID, endpointType).Return(types.ErrNotFound)
 		err := ctx.wrapper.DeleteEndpointsByType(ctx.echo, idStr, endpointType)
 		assert.ErrorIs(t, err, types.ErrNotFound)
 	})
@@ -284,8 +286,8 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 			*p = request
 			return nil
 		})
-		ctx.didman.EXPECT().AddCompoundService(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
-			func(subject interface{}, endpointType interface{}, endpoint interface{}) (*did.Service, error) {
+		ctx.didman.EXPECT().AddCompoundService(audit.ContextWithAuditInfo(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+			func(_ context.Context, subject interface{}, endpointType interface{}, endpoint interface{}) (*did.Service, error) {
 				parsedDID = subject.(did.DID)
 				parsedEndpoint = endpoint.(map[string]ssi.URI)
 				parsedType = endpointType.(string)
@@ -314,7 +316,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 			*p = request
 			return nil
 		})
-		ctx.didman.EXPECT().AddCompoundService(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
+		ctx.didman.EXPECT().AddCompoundService(audit.ContextWithAuditInfo(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
 
 		err := ctx.wrapper.AddCompoundService(ctx.echo, id)
 
@@ -383,7 +385,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 			*p = request
 			return nil
 		})
-		ctx.didman.EXPECT().AddCompoundService(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, vdr.InvalidServiceError{errors.New("custom error")})
+		ctx.didman.EXPECT().AddCompoundService(audit.ContextWithAuditInfo(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, vdr.InvalidServiceError{errors.New("custom error")})
 
 		err := ctx.wrapper.AddCompoundService(ctx.echo, id)
 
@@ -448,8 +450,7 @@ func TestWrapper_GetCompoundServiceEndpoint(t *testing.T) {
 	req := http.Request{Header: map[string][]string{}}
 
 	t.Run("ok", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.echo.EXPECT().Request().Return(&req)
+		ctx := newMockContextWithRequest(t, &req)
 		ctx.didman.EXPECT().GetCompoundServiceEndpoint(*id, "csType", "eType", true).Return(expected, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, expectedResult)
 
@@ -458,21 +459,19 @@ func TestWrapper_GetCompoundServiceEndpoint(t *testing.T) {
 		assert.NoError(t, err)
 	})
 	t.Run("ok as text/plain", func(t *testing.T) {
-		ctx := newMockContext(t)
 		req := http.Request{Header: map[string][]string{
 			"Accept": {"text/plain"},
 		}}
+		ctx := newMockContextWithRequest(t, &req)
 
 		ctx.didman.EXPECT().GetCompoundServiceEndpoint(*id, "csType", "eType", true).Return(expected, nil)
-		ctx.echo.EXPECT().Request().Return(&req)
 		ctx.echo.EXPECT().String(http.StatusOK, expected)
 		err := ctx.wrapper.GetCompoundServiceEndpoint(ctx.echo, idStr, "csType", "eType", GetCompoundServiceEndpointParams{})
 
 		assert.NoError(t, err)
 	})
 	t.Run("ok - no resolve", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.echo.EXPECT().Request().Return(&req)
+		ctx := newMockContextWithRequest(t, &req)
 		ctx.didman.EXPECT().GetCompoundServiceEndpoint(*id, "csType", "eType", false).Return(expected, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, expectedResult)
 		f := false
@@ -483,8 +482,7 @@ func TestWrapper_GetCompoundServiceEndpoint(t *testing.T) {
 	})
 	t.Run("error - invalid DID", func(t *testing.T) {
 		invalidDIDStr := "nuts:123"
-		ctx := newMockContext(t)
-		ctx.echo.EXPECT().Request().Return(&req)
+		ctx := newMockContextWithRequest(t, &req)
 
 		err := ctx.wrapper.GetCompoundServiceEndpoint(ctx.echo, invalidDIDStr, "", "", GetCompoundServiceEndpointParams{})
 
@@ -507,8 +505,8 @@ func TestWrapper_DeleteService(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		var parsedURI ssi.URI
-		ctx.didman.EXPECT().DeleteService(gomock.Any()).DoAndReturn(
-			func(id interface{}) error {
+		ctx.didman.EXPECT().DeleteService(audit.ContextWithAuditInfo(), gomock.Any()).DoAndReturn(
+			func(_ context.Context, id interface{}) error {
 				parsedURI = id.(ssi.URI)
 				return nil
 			})
@@ -530,7 +528,7 @@ func TestWrapper_DeleteService(t *testing.T) {
 
 	t.Run("error - service fails", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.didman.EXPECT().DeleteService(gomock.Any()).Return(types.ErrNotFound)
+		ctx.didman.EXPECT().DeleteService(audit.ContextWithAuditInfo(), gomock.Any()).Return(types.ErrNotFound)
 
 		err := ctx.wrapper.DeleteService(ctx.echo, id)
 
@@ -558,7 +556,7 @@ func TestWrapper_UpdateContactInformation(t *testing.T) {
 			return nil
 		})
 
-		ctx.didman.EXPECT().UpdateContactInformation(*id, request).Return(&request, nil)
+		ctx.didman.EXPECT().UpdateContactInformation(audit.ContextWithAuditInfo(), *id, request).Return(&request, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, &request)
 
 		err := ctx.wrapper.UpdateContactInformation(ctx.echo, idStr)
@@ -582,7 +580,7 @@ func TestWrapper_UpdateContactInformation(t *testing.T) {
 			return nil
 		})
 
-		ctx.didman.EXPECT().UpdateContactInformation(*id, request).Return(nil, types.ErrNotFound)
+		ctx.didman.EXPECT().UpdateContactInformation(audit.ContextWithAuditInfo(), *id, request).Return(nil, types.ErrNotFound)
 
 		err := ctx.wrapper.UpdateContactInformation(ctx.echo, idStr)
 
@@ -642,7 +640,6 @@ func TestWrapper_SearchOrganizations(t *testing.T) {
 		ctx := newMockContext(t)
 		serviceType := "service"
 		results := []OrganizationSearchResult{{DIDDocument: did.Document{ID: *id}, Organization: map[string]interface{}{"name": "bar"}}}
-		ctx.echo.EXPECT().Request().Return(&http.Request{})
 		ctx.didman.EXPECT().SearchOrganizations(gomock.Any(), "query", &serviceType).Return(results, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, results)
 
@@ -656,7 +653,6 @@ func TestWrapper_SearchOrganizations(t *testing.T) {
 	t.Run("no results", func(t *testing.T) {
 		ctx := newMockContext(t)
 		serviceType := "service"
-		ctx.echo.EXPECT().Request().Return(&http.Request{})
 		ctx.didman.EXPECT().SearchOrganizations(gomock.Any(), "query", &serviceType).Return(nil, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, []OrganizationSearchResult{})
 
@@ -669,7 +665,6 @@ func TestWrapper_SearchOrganizations(t *testing.T) {
 	})
 	t.Run("error - service fails", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.echo.EXPECT().Request().Return(&http.Request{})
 		ctx.didman.EXPECT().SearchOrganizations(gomock.Any(), "query", nil).Return(nil, types.ErrNotFound)
 		err := ctx.wrapper.SearchOrganizations(ctx.echo, SearchOrganizationsParams{Query: "query"})
 
@@ -678,20 +673,31 @@ func TestWrapper_SearchOrganizations(t *testing.T) {
 }
 
 type mockContext struct {
-	ctrl    *gomock.Controller
-	echo    *mock.MockContext
-	didman  *didman.MockDidman
-	wrapper Wrapper
+	ctrl       *gomock.Controller
+	echo       *mock.MockContext
+	didman     *didman.MockDidman
+	wrapper    Wrapper
+	requestCtx context.Context
 }
 
 func newMockContext(t *testing.T) mockContext {
+	requestCtx := audit.TestContext()
+	request, _ := http.NewRequestWithContext(requestCtx, "GET", "/", nil)
+	return newMockContextWithRequest(t, request)
+}
+
+func newMockContextWithRequest(t *testing.T, request *http.Request) mockContext {
 	ctrl := gomock.NewController(t)
 	didmanMock := didman.NewMockDidman(ctrl)
+	requestCtx := audit.TestContext()
+	echoMock := mock.NewMockContext(ctrl)
+	echoMock.EXPECT().Request().Return(request).AnyTimes()
 
 	return mockContext{
-		ctrl:    ctrl,
-		echo:    mock.NewMockContext(ctrl),
-		didman:  didmanMock,
-		wrapper: Wrapper{didmanMock},
+		ctrl:       ctrl,
+		echo:       echoMock,
+		didman:     didmanMock,
+		wrapper:    Wrapper{didmanMock},
+		requestCtx: requestCtx,
 	}
 }

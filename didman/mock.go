@@ -38,61 +38,61 @@ func (m *MockDidman) EXPECT() *MockDidmanMockRecorder {
 }
 
 // AddCompoundService mocks base method.
-func (m *MockDidman) AddCompoundService(id did.DID, serviceType string, endpoints map[string]go_did.URI) (*did.Service, error) {
+func (m *MockDidman) AddCompoundService(ctx context.Context, id did.DID, serviceType string, endpoints map[string]go_did.URI) (*did.Service, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddCompoundService", id, serviceType, endpoints)
+	ret := m.ctrl.Call(m, "AddCompoundService", ctx, id, serviceType, endpoints)
 	ret0, _ := ret[0].(*did.Service)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AddCompoundService indicates an expected call of AddCompoundService.
-func (mr *MockDidmanMockRecorder) AddCompoundService(id, serviceType, endpoints interface{}) *gomock.Call {
+func (mr *MockDidmanMockRecorder) AddCompoundService(ctx, id, serviceType, endpoints interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCompoundService", reflect.TypeOf((*MockDidman)(nil).AddCompoundService), id, serviceType, endpoints)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCompoundService", reflect.TypeOf((*MockDidman)(nil).AddCompoundService), ctx, id, serviceType, endpoints)
 }
 
 // AddEndpoint mocks base method.
-func (m *MockDidman) AddEndpoint(id did.DID, serviceType string, u url.URL) (*did.Service, error) {
+func (m *MockDidman) AddEndpoint(ctx context.Context, id did.DID, serviceType string, u url.URL) (*did.Service, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddEndpoint", id, serviceType, u)
+	ret := m.ctrl.Call(m, "AddEndpoint", ctx, id, serviceType, u)
 	ret0, _ := ret[0].(*did.Service)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AddEndpoint indicates an expected call of AddEndpoint.
-func (mr *MockDidmanMockRecorder) AddEndpoint(id, serviceType, u interface{}) *gomock.Call {
+func (mr *MockDidmanMockRecorder) AddEndpoint(ctx, id, serviceType, u interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddEndpoint", reflect.TypeOf((*MockDidman)(nil).AddEndpoint), id, serviceType, u)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddEndpoint", reflect.TypeOf((*MockDidman)(nil).AddEndpoint), ctx, id, serviceType, u)
 }
 
 // DeleteEndpointsByType mocks base method.
-func (m *MockDidman) DeleteEndpointsByType(id did.DID, serviceType string) error {
+func (m *MockDidman) DeleteEndpointsByType(ctx context.Context, id did.DID, serviceType string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteEndpointsByType", id, serviceType)
+	ret := m.ctrl.Call(m, "DeleteEndpointsByType", ctx, id, serviceType)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // DeleteEndpointsByType indicates an expected call of DeleteEndpointsByType.
-func (mr *MockDidmanMockRecorder) DeleteEndpointsByType(id, serviceType interface{}) *gomock.Call {
+func (mr *MockDidmanMockRecorder) DeleteEndpointsByType(ctx, id, serviceType interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteEndpointsByType", reflect.TypeOf((*MockDidman)(nil).DeleteEndpointsByType), id, serviceType)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteEndpointsByType", reflect.TypeOf((*MockDidman)(nil).DeleteEndpointsByType), ctx, id, serviceType)
 }
 
 // DeleteService mocks base method.
-func (m *MockDidman) DeleteService(id go_did.URI) error {
+func (m *MockDidman) DeleteService(ctx context.Context, id go_did.URI) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteService", id)
+	ret := m.ctrl.Call(m, "DeleteService", ctx, id)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // DeleteService indicates an expected call of DeleteService.
-func (mr *MockDidmanMockRecorder) DeleteService(id interface{}) *gomock.Call {
+func (mr *MockDidmanMockRecorder) DeleteService(ctx, id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteService", reflect.TypeOf((*MockDidman)(nil).DeleteService), id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteService", reflect.TypeOf((*MockDidman)(nil).DeleteService), ctx, id)
 }
 
 // GetCompoundServiceEndpoint mocks base method.
@@ -156,18 +156,18 @@ func (mr *MockDidmanMockRecorder) SearchOrganizations(ctx, query, didServiceType
 }
 
 // UpdateContactInformation mocks base method.
-func (m *MockDidman) UpdateContactInformation(id did.DID, information ContactInformation) (*ContactInformation, error) {
+func (m *MockDidman) UpdateContactInformation(ctx context.Context, id did.DID, information ContactInformation) (*ContactInformation, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateContactInformation", id, information)
+	ret := m.ctrl.Call(m, "UpdateContactInformation", ctx, id, information)
 	ret0, _ := ret[0].(*ContactInformation)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // UpdateContactInformation indicates an expected call of UpdateContactInformation.
-func (mr *MockDidmanMockRecorder) UpdateContactInformation(id, information interface{}) *gomock.Call {
+func (mr *MockDidmanMockRecorder) UpdateContactInformation(ctx, id, information interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateContactInformation", reflect.TypeOf((*MockDidman)(nil).UpdateContactInformation), id, information)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateContactInformation", reflect.TypeOf((*MockDidman)(nil).UpdateContactInformation), ctx, id, information)
 }
 
 // MockCompoundServiceResolver is a mock of CompoundServiceResolver interface.

@@ -213,7 +213,7 @@ func (p *protocol) connectionStateCallback(peer transport.Peer, state transport.
 }
 
 // gossipTransaction is called when a transaction is added to the DAG
-func (p *protocol) gossipTransaction(event dag.Event) (bool, error) {
+func (p *protocol) gossipTransaction(_ context.Context, event dag.Event) (bool, error) {
 	// race conditions may occur since the XOR may have been updated in parallel.
 	// If this is the case, nodes will fall back to using the IBLT.
 	xor, clock := p.state.XOR(dag.MaxLamportClock)
@@ -235,7 +235,7 @@ func (p *protocol) sendGossip(id transport.PeerID, refs []hash.SHA256Hash, xor h
 	return true
 }
 
-func (p *protocol) handlePrivateTxRetry(event dag.Event) (bool, error) {
+func (p *protocol) handlePrivateTxRetry(ctx context.Context, event dag.Event) (bool, error) {
 	// Sanity check: if we have the payload, mark this job as finished
 	isPresent, err := p.state.IsPayloadPresent(context.Background(), event.Transaction.PayloadHash())
 	if err != nil {
@@ -255,7 +255,7 @@ func (p *protocol) handlePrivateTxRetry(event dag.Event) (bool, error) {
 
 	epal := dag.EncryptedPAL(event.Transaction.PAL())
 
-	pal, err := p.decryptPAL(epal)
+	pal, err := p.decryptPAL(ctx, epal)
 	if err != nil {
 		if !errors.As(err, new(stoabs.ErrDatabase)) {
 			err = dag.EventFatal{err}
@@ -336,7 +336,7 @@ func (p *protocol) send(peer transport.Peer, message isEnvelope_Message) error {
 }
 
 // decryptPAL returns nil, nil if the PAL couldn't be decoded
-func (p *protocol) decryptPAL(encrypted [][]byte) (dag.PAL, error) {
+func (p *protocol) decryptPAL(ctx context.Context, encrypted [][]byte) (dag.PAL, error) {
 	nodeDID, err := p.nodeDIDResolver.Resolve()
 	if err != nil {
 		return nil, err
@@ -359,7 +359,7 @@ func (p *protocol) decryptPAL(encrypted [][]byte) (dag.PAL, error) {
 
 	epal := dag.EncryptedPAL(encrypted)
 
-	return epal.Decrypt(keyAgreementIDs, p.decrypter)
+	return epal.Decrypt(ctx, keyAgreementIDs, p.decrypter)
 }
 
 type protocolServer struct {

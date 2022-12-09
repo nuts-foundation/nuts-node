@@ -22,6 +22,7 @@ import (
 	"crypto"
 	"fmt"
 	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/nuts-foundation/nuts-node/audit"
 	cryptoCmd "github.com/nuts-foundation/nuts-node/crypto/cmd"
 	"github.com/nuts-foundation/nuts-node/http"
 	"github.com/spf13/cobra"
@@ -60,6 +61,13 @@ func createTokenCommand() *cobra.Command {
 		Short: "Generates an access token for administrative operations.",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := audit.Context(cmd.Context(), func() audit.Info {
+				return audit.Info{
+					Actor:     "app-cli",
+					Operation: "http.gen-token",
+				}
+			})
+
 			daysValid, err := strconv.Atoi(args[1])
 			if err != nil {
 				return err
@@ -75,14 +83,14 @@ func createTokenCommand() *cobra.Command {
 
 			if !instance.Exists(http.AdminTokenSigningKID) {
 				cmd.Println("Token signing key not found, generating new key...")
-				_, err := instance.New(func(key crypto.PublicKey) (string, error) {
+				_, err := instance.New(ctx, func(key crypto.PublicKey) (string, error) {
 					return http.AdminTokenSigningKID, nil
 				})
 				if err != nil {
 					return err
 				}
 			}
-			token, err := instance.SignJWT(map[string]interface{}{
+			token, err := instance.SignJWT(ctx, map[string]interface{}{
 				jwt.SubjectKey:    user,
 				jwt.ExpirationKey: time.Now().AddDate(0, 0, daysValid),
 			}, http.AdminTokenSigningKID)

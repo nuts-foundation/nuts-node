@@ -19,12 +19,15 @@
 package crypto
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/crypto/log"
 )
 
 // Decrypt decrypts the `cipherText` with key `kid`
-func (client *Crypto) Decrypt(kid string, cipherText []byte) ([]byte, error) {
+func (client *Crypto) Decrypt(ctx context.Context, kid string, cipherText []byte) ([]byte, error) {
 	key, err := client.storage.GetPrivateKey(kid)
 	if err != nil {
 		return nil, err
@@ -32,7 +35,11 @@ func (client *Crypto) Decrypt(kid string, cipherText []byte) ([]byte, error) {
 
 	switch privateKey := key.(type) {
 	case *ecdsa.PrivateKey:
-		return EciesDecrypt(privateKey, cipherText)
+		plainText, err := EciesDecrypt(privateKey, cipherText)
+		if err == nil {
+			audit.Log(ctx, log.Logger(), audit.CryptoDecryptEvent).Infof("Decrypted (ECIES) %d bytes with key: %s", len(plainText), kid)
+		}
+		return plainText, err
 	default:
 		return nil, errors.New("unsupported decryption key")
 	}

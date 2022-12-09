@@ -274,7 +274,7 @@ func (w Wrapper) CreateJwtGrant(ctx echo.Context) error {
 		Credentials: requestBody.Credentials,
 	}
 
-	response, err := w.Auth.OAuthClient().CreateJwtGrant(request)
+	response, err := w.Auth.OAuthClient().CreateJwtGrant(ctx.Request().Context(), request)
 	if err != nil {
 		return core.InvalidInputError(err.Error())
 	}
@@ -297,7 +297,7 @@ func (w Wrapper) RequestAccessToken(ctx echo.Context) error {
 		Credentials: requestBody.Credentials,
 	}
 
-	jwtGrantResponse, err := w.Auth.OAuthClient().CreateJwtGrant(request)
+	jwtGrantResponse, err := w.Auth.OAuthClient().CreateJwtGrant(ctx.Request().Context(), request)
 	if err != nil {
 		return core.InvalidInputError(err.Error())
 	}
@@ -352,7 +352,7 @@ func (w Wrapper) CreateAccessToken(ctx echo.Context) (err error) {
 	}
 
 	catRequest := services.CreateAccessTokenRequest{RawJwtBearerToken: request.Assertion}
-	acResponse, oauthError := w.Auth.OAuthClient().CreateAccessToken(catRequest)
+	acResponse, oauthError := w.Auth.OAuthClient().CreateAccessToken(ctx.Request().Context(), catRequest)
 	if oauthError != nil {
 		errorResponse := AccessTokenRequestFailedResponse{Error: AccessTokenRequestFailedResponseError(oauthError.Code), ErrorDescription: oauthError.Error()}
 		return ctx.JSON(http.StatusBadRequest, errorResponse)

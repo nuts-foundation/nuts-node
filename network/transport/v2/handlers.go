@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"sort"
 
@@ -155,7 +156,10 @@ func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, envelope *
 		}
 		epal := dag.EncryptedPAL(tx.PAL())
 
-		pal, err := p.decryptPAL(epal)
+		ctx = audit.Context(p.ctx, func() audit.Info {
+			return audit.NewInfo("app-network", "Network.ProtocolV2", "HandleTransactionPayloadQuery")
+		})
+		pal, err := p.decryptPAL(ctx, epal)
 		if err != nil {
 			log.Logger().
 				WithError(err).

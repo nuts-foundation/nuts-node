@@ -18,6 +18,7 @@
 package didservice
 
 import (
+	"context"
 	"crypto"
 	"errors"
 	"fmt"
@@ -123,7 +124,7 @@ var ErrInvalidOptions = errors.New("create request has invalid combination of op
 
 // Create creates a Nuts DID Document with a valid DID id based on a freshly generated keypair.
 // The key is added to the verificationMethod list and referred to from the Authentication list
-func (n Creator) Create(options vdr.DIDCreationOptions) (*did.Document, nutsCrypto.Key, error) {
+func (n Creator) Create(ctx context.Context, options vdr.DIDCreationOptions) (*did.Document, nutsCrypto.Key, error) {
 	var key nutsCrypto.Key
 	var err error
 
@@ -133,7 +134,7 @@ func (n Creator) Create(options vdr.DIDCreationOptions) (*did.Document, nutsCryp
 
 	// First, generate a new keyPair with the correct kid
 	if options.SelfControl {
-		key, err = n.KeyStore.New(didKIDNamingFunc)
+		key, err = n.KeyStore.New(ctx, didKIDNamingFunc)
 	} else {
 		key, err = nutsCrypto.NewEphemeralKey(didKIDNamingFunc)
 	}
@@ -168,7 +169,7 @@ func (n Creator) Create(options vdr.DIDCreationOptions) (*did.Document, nutsCryp
 		}
 	} else {
 		// Generate new key for other key capabilities, store the private key
-		capKey, err := n.KeyStore.New(didSubKIDNamingFunc(didID))
+		capKey, err := n.KeyStore.New(ctx, didSubKIDNamingFunc(didID))
 		if err != nil {
 			return nil, nil, err
 		}

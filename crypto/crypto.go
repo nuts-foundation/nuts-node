@@ -19,12 +19,14 @@
 package crypto
 
 import (
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
@@ -125,11 +127,12 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 // New generates a new key pair.
 // Stores the private key, returns the public basicKey.
 // It returns an error when a key with the resulting ID already exists.
-func (client *Crypto) New(namingFunc KIDNamingFunc) (Key, error) {
+func (client *Crypto) New(ctx context.Context, namingFunc KIDNamingFunc) (Key, error) {
 	keyPair, kid, err := generateKeyPairAndKID(namingFunc)
 	if err != nil {
 		return nil, err
 	}
+	audit.Log(ctx, log.Logger(), audit.CryptoNewKeyEvent).Infof("Generating new key pair: %s", kid)
 	if client.storage.PrivateKeyExists(kid) {
 		return nil, errors.New("key with the given ID already exists")
 	}
@@ -154,7 +157,7 @@ func generateKeyPairAndKID(namingFunc KIDNamingFunc) (*ecdsa.PrivateKey, string,
 	}
 	log.Logger().
 		WithField(core.LogFieldKeyID, kid).
-		Info("Generated new key pair")
+		Debug("Generated new key pair")
 	return keyPair, kid, nil
 }
 

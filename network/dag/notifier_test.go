@@ -26,6 +26,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
@@ -34,6 +35,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"path"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -65,7 +67,7 @@ func TestEvent_UnmarshalJSON(t *testing.T) {
 	assert.Equal(t, transaction.Data(), event.Transaction.Data())
 }
 
-func TestNewSubscriber(t *testing.T) {
+func TestNewNotifier(t *testing.T) {
 	t.Run("sets default delay", func(t *testing.T) {
 		s := NewNotifier(t.Name(), dummyFunc)
 
@@ -248,7 +250,7 @@ func TestNotifier_Notify(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("ignored with inclusion filter", func(t *testing.T) {
-		s := NewNotifier(t.Name(), func(event Event) (bool, error) {
+		s := NewNotifier(t.Name(), func(_ context.Context, event Event) (bool, error) {
 			t.FailNow()
 			return false, nil
 		}, WithSelectionFilter(func(event Event) bool {
@@ -270,6 +272,24 @@ func TestNotifier_Notify(t *testing.T) {
 		}, time.Second, "timeout while waiting for receiver")
 
 		assert.Equal(t, int64(1), counter.N.Load())
+	})
+
+	t.Run("OK - context contains audit information", func(t *testing.T) {
+		wg := &sync.WaitGroup{}
+		wg.Add(1)
+		capturedCtx := &atomic.Pointer[context.Context]{}
+		s := NewNotifier(t.Name(), func(ctx context.Context, event Event) (bool, error) {
+			capturedCtx.Store(&ctx)
+			wg.Done()
+			return true, nil
+		})
+
+		s.Notify(Event{})
+
+		wg.Wait()
+		info := audit.InfoFromContext(*capturedCtx.Load())
+		assert.Equal(t, "app-scheduler", info.Actor)
+		assert.Equal(t, "Network.Scheduler.Notify", info.Operation)
 	})
 
 	t.Run("OK - prometheus counters updated", func(t *testing.T) {
@@ -572,7 +592,7 @@ func TestNotifier_VariousFlows(t *testing.T) {
 	})
 }
 
-func dummyFunc(_ Event) (bool, error) {
+func dummyFunc(_ context.Context, _ Event) (bool, error) {
 	return true, nil
 }
 
@@ -581,17 +601,17 @@ type callbackCounter struct {
 	Err atomic.Pointer[error]
 }
 
-func (c *callbackCounter) callback(_ Event) (bool, error) {
+func (c *callbackCounter) callback(_ context.Context, _ Event) (bool, error) {
 	c.N.Add(1)
 	return false, nil
 }
 
-func (c *callbackCounter) callbackFinished(_ Event) (bool, error) {
+func (c *callbackCounter) callbackFinished(_ context.Context, _ Event) (bool, error) {
 	c.N.Add(1)
 	return true, nil
 }
 
-func (cc *callbackCounter) callbackFailure(_ Event) (bool, error) {
+func (cc *callbackCounter) callbackFailure(_ context.Context, _ Event) (bool, error) {
 	cc.N.Add(1)
 	err := cc.Err.Load()
 	if err != nil {

@@ -19,6 +19,7 @@ package didservice
 
 import (
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"testing"
 	"time"
 
@@ -38,7 +39,7 @@ func TestResolveSigningKey(t *testing.T) {
 	keyResolver := KeyResolver{Store: store}
 	keyCreator := newMockKeyCreator()
 	docCreator := Creator{KeyStore: keyCreator}
-	doc, _, _ := docCreator.Create(DefaultCreationOptions())
+	doc, _, _ := docCreator.Create(nil, DefaultCreationOptions())
 
 	t.Run("ok", func(t *testing.T) {
 		store.EXPECT().Resolve(testDID, gomock.Any()).Return(doc, nil, nil)
@@ -78,7 +79,7 @@ func TestResolveSigningKey(t *testing.T) {
 func TestResolveSigningKeyID(t *testing.T) {
 	keyCreator := newMockKeyCreator()
 	docCreator := Creator{KeyStore: keyCreator}
-	doc, _, _ := docCreator.Create(DefaultCreationOptions())
+	doc, _, _ := docCreator.Create(nil, DefaultCreationOptions())
 
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -119,7 +120,7 @@ func TestResolveSigningKeyID(t *testing.T) {
 func TestKeyResolver_ResolveAssertionKeyID(t *testing.T) {
 	keyCreator := newMockKeyCreator()
 	docCreator := Creator{KeyStore: keyCreator}
-	doc, _, _ := docCreator.Create(DefaultCreationOptions())
+	doc, _, _ := docCreator.Create(nil, DefaultCreationOptions())
 
 	t.Run("ok - resolve a known key", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -160,7 +161,7 @@ func TestKeyResolver_ResolveAssertionKeyID(t *testing.T) {
 func TestKeyResolver_ResolveKeyAgreementKey(t *testing.T) {
 	keyCreator := newMockKeyCreator()
 	docCreator := Creator{KeyStore: keyCreator}
-	doc, _, _ := docCreator.Create(DefaultCreationOptions())
+	doc, _, _ := docCreator.Create(audit.TestContext(), DefaultCreationOptions())
 
 	t.Run("ok - resolve a known key", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -465,7 +466,7 @@ func TestKeyResolver_ResolvePublicKey(t *testing.T) {
 	keyResolver := KeyResolver{Store: store}
 	keyCreator := newMockKeyCreator()
 	docCreator := Creator{KeyStore: keyCreator}
-	doc, _, _ := docCreator.Create(DefaultCreationOptions())
+	doc, _, _ := docCreator.Create(nil, DefaultCreationOptions())
 
 	t.Run("ok by hash", func(t *testing.T) {
 		store.EXPECT().Resolve(testDID, gomock.Any()).Do(func(arg0 interface{}, arg1 interface{}) {

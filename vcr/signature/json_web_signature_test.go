@@ -24,6 +24,7 @@ import (
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/stretchr/testify/assert"
@@ -123,7 +124,7 @@ func TestJsonWebSignature2020_Sign(t *testing.T) {
 		sig := JSONWebSignature2020{Signer: crypto.NewMemoryCryptoInstance()}
 
 		key := crypto.NewTestKey("did:nuts:123#abc")
-		result, err := sig.Sign(doc, key)
+		result, err := sig.Sign(audit.TestContext(), doc, key)
 
 		require.NoError(t, err)
 		msg, err := jws.Parse(result)

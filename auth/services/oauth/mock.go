@@ -5,6 +5,7 @@
 package oauth
 
 import (
+	context "context"
 	url "net/url"
 	reflect "reflect"
 
@@ -51,33 +52,33 @@ func (mr *MockClientMockRecorder) Configure(clockSkewInMilliseconds, secureMode 
 }
 
 // CreateAccessToken mocks base method.
-func (m *MockClient) CreateAccessToken(request services.CreateAccessTokenRequest) (*services.AccessTokenResult, *ErrorResponse) {
+func (m *MockClient) CreateAccessToken(ctx context.Context, request services.CreateAccessTokenRequest) (*services.AccessTokenResult, *ErrorResponse) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateAccessToken", request)
+	ret := m.ctrl.Call(m, "CreateAccessToken", ctx, request)
 	ret0, _ := ret[0].(*services.AccessTokenResult)
 	ret1, _ := ret[1].(*ErrorResponse)
 	return ret0, ret1
 }
 
 // CreateAccessToken indicates an expected call of CreateAccessToken.
-func (mr *MockClientMockRecorder) CreateAccessToken(request interface{}) *gomock.Call {
+func (mr *MockClientMockRecorder) CreateAccessToken(ctx, request interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAccessToken", reflect.TypeOf((*MockClient)(nil).CreateAccessToken), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAccessToken", reflect.TypeOf((*MockClient)(nil).CreateAccessToken), ctx, request)
 }
 
 // CreateJwtGrant mocks base method.
-func (m *MockClient) CreateJwtGrant(request services.CreateJwtGrantRequest) (*services.JwtBearerTokenResult, error) {
+func (m *MockClient) CreateJwtGrant(ctx context.Context, request services.CreateJwtGrantRequest) (*services.JwtBearerTokenResult, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateJwtGrant", request)
+	ret := m.ctrl.Call(m, "CreateJwtGrant", ctx, request)
 	ret0, _ := ret[0].(*services.JwtBearerTokenResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CreateJwtGrant indicates an expected call of CreateJwtGrant.
-func (mr *MockClientMockRecorder) CreateJwtGrant(request interface{}) *gomock.Call {
+func (mr *MockClientMockRecorder) CreateJwtGrant(ctx, request interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateJwtGrant", reflect.TypeOf((*MockClient)(nil).CreateJwtGrant), request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateJwtGrant", reflect.TypeOf((*MockClient)(nil).CreateJwtGrant), ctx, request)
 }
 
 // GetOAuthEndpointURL mocks base method.

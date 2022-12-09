@@ -18,6 +18,7 @@
 package didservice
 
 import (
+	"context"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
@@ -36,7 +37,7 @@ type Manipulator struct {
 
 // Deactivate updates the DID Document so it can no longer be updated
 // It removes key material, services and controllers.
-func (u Manipulator) Deactivate(id did.DID) error {
+func (u Manipulator) Deactivate(ctx context.Context, id did.DID) error {
 	_, _, err := u.Resolver.Resolve(id, &types.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {
 		return err
@@ -44,12 +45,12 @@ func (u Manipulator) Deactivate(id did.DID) error {
 	// A deactivated DID resolves to an empty DID document.
 	emptyDoc := CreateDocument()
 	emptyDoc.ID = id
-	return u.Updater.Update(id, emptyDoc)
+	return u.Updater.Update(ctx, id, emptyDoc)
 }
 
 // AddVerificationMethod adds a new key as a VerificationMethod to the document.
 // The key is added to the VerficationMethod relationships specified by keyUsage.
-func (u Manipulator) AddVerificationMethod(id did.DID, keyUsage types.DIDKeyFlags) (*did.VerificationMethod, error) {
+func (u Manipulator) AddVerificationMethod(ctx context.Context, id did.DID, keyUsage types.DIDKeyFlags) (*did.VerificationMethod, error) {
 	doc, meta, err := u.Resolver.Resolve(id, &types.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {
 		return nil, err
@@ -57,21 +58,21 @@ func (u Manipulator) AddVerificationMethod(id did.DID, keyUsage types.DIDKeyFlag
 	if meta.Deactivated {
 		return nil, types.ErrDeactivated
 	}
-	method, err := CreateNewVerificationMethodForDID(doc.ID, u.KeyCreator)
+	method, err := CreateNewVerificationMethodForDID(ctx, doc.ID, u.KeyCreator)
 	if err != nil {
 		return nil, err
 	}
 	method.Controller = doc.ID
 	doc.VerificationMethod.Add(method)
 	applyKeyUsage(doc, method, keyUsage)
-	if err = u.Updater.Update(id, *doc); err != nil {
+	if err = u.Updater.Update(ctx, id, *doc); err != nil {
 		return nil, err
 	}
 	return method, nil
 }
 
 // RemoveVerificationMethod is a helper function to remove a verificationMethod from a DID Document
-func (u Manipulator) RemoveVerificationMethod(id, keyID did.DID) error {
+func (u Manipulator) RemoveVerificationMethod(ctx context.Context, id, keyID did.DID) error {
 	doc, meta, err := u.Resolver.Resolve(id, &types.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {
 		return err
@@ -86,13 +87,13 @@ func (u Manipulator) RemoveVerificationMethod(id, keyID did.DID) error {
 		return nil
 	}
 
-	return u.Updater.Update(id, *doc)
+	return u.Updater.Update(ctx, id, *doc)
 }
 
 // CreateNewVerificationMethodForDID creates a new VerificationMethod of type JsonWebKey2020
 // with a freshly generated key for a given DID.
-func CreateNewVerificationMethodForDID(id did.DID, keyCreator nutsCrypto.KeyCreator) (*did.VerificationMethod, error) {
-	key, err := keyCreator.New(didSubKIDNamingFunc(id))
+func CreateNewVerificationMethodForDID(ctx context.Context, id did.DID, keyCreator nutsCrypto.KeyCreator) (*did.VerificationMethod, error) {
+	key, err := keyCreator.New(ctx, didSubKIDNamingFunc(id))
 	if err != nil {
 		return nil, err
 	}

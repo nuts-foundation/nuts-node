@@ -140,9 +140,9 @@ func (r *VDR) Diagnostics() []core.DiagnosticResult {
 }
 
 // Create generates a new DID Document
-func (r *VDR) Create(options types.DIDCreationOptions) (*did.Document, crypto.Key, error) {
+func (r *VDR) Create(ctx context.Context, options types.DIDCreationOptions) (*did.Document, crypto.Key, error) {
 	log.Logger().Debug("Creating new DID Document.")
-	doc, key, err := r.didDocCreator.Create(options)
+	doc, key, err := r.didDocCreator.Create(ctx, options)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not create DID document: %w", err)
 	}
@@ -153,7 +153,7 @@ func (r *VDR) Create(options types.DIDCreationOptions) (*did.Document, crypto.Ke
 	}
 
 	tx := network.TransactionTemplate(didDocumentType, payload, key).WithAttachKey()
-	_, err = r.network.CreateTransaction(tx)
+	_, err = r.network.CreateTransaction(ctx, tx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not store DID document in network: %w", err)
 	}
@@ -166,7 +166,7 @@ func (r *VDR) Create(options types.DIDCreationOptions) (*did.Document, crypto.Ke
 }
 
 // Update updates a DID Document based on the DID
-func (r *VDR) Update(id did.DID, next did.Document) error {
+func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 	log.Logger().
 		WithField(core.LogFieldDID, id).
 		Debug("Updating DID Document")
@@ -211,7 +211,7 @@ func (r *VDR) Update(id did.DID, next did.Document) error {
 	previousTransactions := append(currentMeta.SourceTransactions, controllerMeta.SourceTransactions...)
 
 	tx := network.TransactionTemplate(didDocumentType, payload, key).WithAdditionalPrevs(previousTransactions)
-	_, err = r.network.CreateTransaction(tx)
+	_, err = r.network.CreateTransaction(ctx, tx)
 	if err == nil {
 		log.Logger().
 			WithField(core.LogFieldDID, id).

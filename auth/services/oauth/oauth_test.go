@@ -27,6 +27,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"net/url"
 	"testing"
 	"time"
@@ -115,7 +116,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 	t.Run("invalid jwt", func(t *testing.T) {
 		ctx := createContext(t)
 
-		response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: "foo"})
+		response, err := ctx.oauthService.CreateAccessToken(ctx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: "foo"})
 
 		assert.Nil(t, response)
 		require.ErrorContains(t, err, "jwt bearer token validation failed")
@@ -132,7 +133,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		tokenCtx := validContext()
 		signToken(tokenCtx)
 
-		response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
+		response, err := ctx.oauthService.CreateAccessToken(ctx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
 
 		assert.Nil(t, response)
 		require.ErrorContains(t, err, "identity validation failed")
@@ -147,7 +148,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		tokenCtx.jwtBearerToken.Set(jwt.ExpirationKey, time.Now().Add(10*time.Second))
 		signToken(tokenCtx)
 
-		response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
+		response, err := ctx.oauthService.CreateAccessToken(ctx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
 
 		assert.Nil(t, response)
 		assert.ErrorContains(t, err, "JWT validity too long")
@@ -165,7 +166,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		tokenCtx := validContext()
 		signToken(tokenCtx)
 
-		response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
+		response, err := ctx.oauthService.CreateAccessToken(ctx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
 
 		assert.Nil(t, response)
 		assert.ErrorContains(t, err, "identity validation failed: because of reasons")
@@ -191,11 +192,11 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		t.Run("return internal errors when secureMode=false", func(t *testing.T) {
 			ctx := setup(createContext(t))
 			ctx.oauthService.secureMode = false
-			ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any()).Return("", errors.New("signing error"))
+			ctx.keyStore.EXPECT().SignJWT(ctx.audit, gomock.Any(), gomock.Any()).Return("", errors.New("signing error"))
 			tokenCtx := validContext()
 			signToken(tokenCtx)
 
-			response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
+			response, err := ctx.oauthService.CreateAccessToken(ctx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
 
 			require.Error(t, err)
 			assert.Nil(t, response)
@@ -204,11 +205,11 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		t.Run("mask internal errors when secureMode=true", func(t *testing.T) {
 			ctx := setup(createContext(t))
 			ctx.oauthService.secureMode = true
-			ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any()).Return("", errors.New("signing error"))
+			ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any()).Return("", errors.New("signing error"))
 			tokenCtx := validContext()
 			signToken(tokenCtx)
 
-			response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
+			response, err := ctx.oauthService.CreateAccessToken(ctx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
 
 			require.Error(t, err)
 			assert.Nil(t, response)
@@ -217,22 +218,22 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 	})
 
 	t.Run("valid - without user identity", func(t *testing.T) {
-		ctx := createContext(t)
+		testCtx := createContext(t)
 
-		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
-		ctx.keyResolver.EXPECT().ResolveSigningKeyID(authorizerDID, gomock.Any()).MinTimes(1).Return(authorizerSigningKeyID.String(), nil)
-		ctx.nameResolver.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil)
-		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(getAuthorizerDIDDocument(), nil, nil).AnyTimes()
-		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
-		ctx.keyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(true)
-		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), authorizerSigningKeyID.String()).Return("expectedAccessToken", nil)
-		ctx.verifier.EXPECT().Verify(gomock.Any(), true, true, gomock.Any()).Return(nil)
+		testCtx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
+		testCtx.keyResolver.EXPECT().ResolveSigningKeyID(authorizerDID, gomock.Any()).MinTimes(1).Return(authorizerSigningKeyID.String(), nil)
+		testCtx.nameResolver.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil)
+		testCtx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(getAuthorizerDIDDocument(), nil, nil).AnyTimes()
+		testCtx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
+		testCtx.keyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(true)
+		testCtx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), authorizerSigningKeyID.String()).Return("expectedAccessToken", nil)
+		testCtx.verifier.EXPECT().Verify(gomock.Any(), true, true, gomock.Any()).Return(nil)
 
-		tokenCtx := validContext()
-		tokenCtx.jwtBearerToken.Remove(userIdentityClaim)
-		signToken(tokenCtx)
+		ctx := validContext()
+		ctx.jwtBearerToken.Remove(userIdentityClaim)
+		signToken(ctx)
 
-		response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
+		response, err := testCtx.oauthService.CreateAccessToken(testCtx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: ctx.rawJwtBearerToken})
 
 		require.Nil(t, err) // using NoError casts it to error, weirdly causing it to be non-nil
 		assert.Equal(t, "expectedAccessToken", response.AccessToken)
@@ -247,7 +248,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(getAuthorizerDIDDocument(), nil, nil).AnyTimes()
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
 		ctx.keyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(true)
-		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), authorizerSigningKeyID.String()).Return("expectedAT", nil)
+		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), authorizerSigningKeyID.String()).Return("expectedAT", nil)
 		ctx.contractNotary.EXPECT().VerifyVP(gomock.Any(), nil).Return(services.TestVPVerificationResult{
 			Val:         contract.Valid,
 			DAttributes: map[string]string{"name": "Henk de Vries"},
@@ -258,7 +259,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		tokenCtx := validContext()
 		signToken(tokenCtx)
 
-		response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
+		response, err := ctx.oauthService.CreateAccessToken(ctx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
 		require.Nil(t, err) // using NoError casts it to error, weirdly causing it to be non-nil
 		assert.Equal(t, "expectedAT", response.AccessToken)
 	})
@@ -273,7 +274,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		tokenCtx := validContext()
 		signToken(tokenCtx)
 
-		_, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
+		_, err := ctx.oauthService.CreateAccessToken(ctx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
 		require.Error(t, err)
 	})
 }
@@ -634,13 +635,14 @@ func TestService_buildAccessToken(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(authorizerDID, gomock.Any()).MinTimes(1).Return(authorizerSigningKeyID.String(), nil)
 
 		var recordedClaims map[string]interface{}
-		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any()).DoAndReturn(func(claims map[string]interface{}, kid string) (token string, err error) {
-			recordedClaims = claims
+		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any()).
+			DoAndReturn(func(_ context.Context, claims map[string]interface{}, kid string) (token string, err error) {
+				recordedClaims = claims
 
-			return "expectedAT", nil
-		})
+				return "expectedAT", nil
+			})
 
-		token, _, err := ctx.oauthService.buildAccessToken(requesterDID, authorizerDID, "", &services.TestVPVerificationResult{Val: contract.Valid}, []string{"credential"})
+		token, _, err := ctx.oauthService.buildAccessToken(audit.TestContext(), requesterDID, authorizerDID, "", &services.TestVPVerificationResult{Val: contract.Valid}, []string{"credential"})
 
 		assert.Nil(t, err)
 		assert.Equal(t, "expectedAT", token)
@@ -689,9 +691,9 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(authorizerDIDDocument, nil, nil).AnyTimes()
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(requesterDID, gomock.Any()).MinTimes(1).Return(requesterSigningKeyID.String(), nil)
-		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), requesterSigningKeyID.String()).Return("token", nil)
+		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), requesterSigningKeyID.String()).Return("token", nil)
 
-		token, err := ctx.oauthService.CreateJwtGrant(request)
+		token, err := ctx.oauthService.CreateJwtGrant(ctx.audit, request)
 
 		require.Nil(t, err)
 		require.NotEmpty(t, token.BearerToken)
@@ -706,12 +708,12 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(authorizerDIDDocument, nil, nil).AnyTimes()
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(requesterDID, gomock.Any()).MinTimes(1).Return(requesterSigningKeyID.String(), nil)
-		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), requesterSigningKeyID.String()).Return("token", nil)
+		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), requesterSigningKeyID.String()).Return("token", nil)
 
 		validRequest := request
 		validRequest.Credentials = []vc.VerifiableCredential{validCredential}
 
-		token, err := ctx.oauthService.CreateJwtGrant(validRequest)
+		token, err := ctx.oauthService.CreateJwtGrant(ctx.audit, validRequest)
 
 		require.NoError(t, err)
 		assert.Equal(t, "token", token.BearerToken)
@@ -728,7 +730,7 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 
 		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(authorizerDIDDocument, nil, nil).AnyTimes()
 
-		token, err := ctx.oauthService.CreateJwtGrant(invalidRequest)
+		token, err := ctx.oauthService.CreateJwtGrant(ctx.audit, invalidRequest)
 
 		assert.Error(t, err)
 		assert.Empty(t, token)
@@ -741,7 +743,7 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return("", types.ErrServiceNotFound)
 
-		token, err := ctx.oauthService.CreateJwtGrant(request)
+		token, err := ctx.oauthService.CreateJwtGrant(ctx.audit, request)
 
 		assert.Empty(t, token)
 		assert.ErrorIs(t, err, types.ErrServiceNotFound)
@@ -755,7 +757,7 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 			IdentityVP: &usi,
 		}
 
-		token, err := ctx.oauthService.CreateJwtGrant(request)
+		token, err := ctx.oauthService.CreateJwtGrant(ctx.audit, request)
 
 		assert.Empty(t, token)
 		assert.NotNil(t, err)
@@ -767,9 +769,9 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(authorizerDIDDocument, nil, nil).AnyTimes()
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(requesterDID, gomock.Any()).MinTimes(1).Return(requesterSigningKeyID.String(), nil)
-		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), requesterSigningKeyID.String()).Return("", errors.New("boom!"))
+		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), requesterSigningKeyID.String()).Return("", errors.New("boom!"))
 
-		token, err := ctx.oauthService.CreateJwtGrant(request)
+		token, err := ctx.oauthService.CreateJwtGrant(ctx.audit, request)
 
 		assert.Error(t, err)
 		assert.Empty(t, token)
@@ -1010,6 +1012,7 @@ type testContext struct {
 	serviceResolver *didman.MockCompoundServiceResolver
 	oauthService    *service
 	verifier        *verifier2.MockVerifier
+	audit           context.Context
 }
 
 var createContext = func(t *testing.T) *testContext {
@@ -1042,5 +1045,6 @@ var createContext = func(t *testing.T) *testContext {
 			vcVerifier:      verifier,
 			jsonldManager:   jsonld.NewTestJSONLDManager(t),
 		},
+		audit: audit.TestContext(),
 	}
 }

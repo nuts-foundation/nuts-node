@@ -5,6 +5,7 @@
 package types
 
 import (
+	context "context"
 	crypto "crypto"
 	reflect "reflect"
 	time "time"
@@ -173,9 +174,9 @@ func (m *MockDocCreator) EXPECT() *MockDocCreatorMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockDocCreator) Create(options DIDCreationOptions) (*did.Document, crypto0.Key, error) {
+func (m *MockDocCreator) Create(ctx context.Context, options DIDCreationOptions) (*did.Document, crypto0.Key, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create", options)
+	ret := m.ctrl.Call(m, "Create", ctx, options)
 	ret0, _ := ret[0].(*did.Document)
 	ret1, _ := ret[1].(crypto0.Key)
 	ret2, _ := ret[2].(error)
@@ -183,9 +184,9 @@ func (m *MockDocCreator) Create(options DIDCreationOptions) (*did.Document, cryp
 }
 
 // Create indicates an expected call of Create.
-func (mr *MockDocCreatorMockRecorder) Create(options interface{}) *gomock.Call {
+func (mr *MockDocCreatorMockRecorder) Create(ctx, options interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockDocCreator)(nil).Create), options)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockDocCreator)(nil).Create), ctx, options)
 }
 
 // MockDocWriter is a mock of DocWriter interface.
@@ -249,17 +250,17 @@ func (m *MockDocUpdater) EXPECT() *MockDocUpdaterMockRecorder {
 }
 
 // Update mocks base method.
-func (m *MockDocUpdater) Update(id did.DID, next did.Document) error {
+func (m *MockDocUpdater) Update(ctx context.Context, id did.DID, next did.Document) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Update", id, next)
+	ret := m.ctrl.Call(m, "Update", ctx, id, next)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Update indicates an expected call of Update.
-func (mr *MockDocUpdaterMockRecorder) Update(id, next interface{}) *gomock.Call {
+func (mr *MockDocUpdaterMockRecorder) Update(ctx, id, next interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockDocUpdater)(nil).Update), id, next)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockDocUpdater)(nil).Update), ctx, id, next)
 }
 
 // MockKeyResolver is a mock of KeyResolver interface.
@@ -400,9 +401,9 @@ func (mr *MockVDRMockRecorder) ConflictedDocuments() *gomock.Call {
 }
 
 // Create mocks base method.
-func (m *MockVDR) Create(options DIDCreationOptions) (*did.Document, crypto0.Key, error) {
+func (m *MockVDR) Create(ctx context.Context, options DIDCreationOptions) (*did.Document, crypto0.Key, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create", options)
+	ret := m.ctrl.Call(m, "Create", ctx, options)
 	ret0, _ := ret[0].(*did.Document)
 	ret1, _ := ret[1].(crypto0.Key)
 	ret2, _ := ret[2].(error)
@@ -410,23 +411,23 @@ func (m *MockVDR) Create(options DIDCreationOptions) (*did.Document, crypto0.Key
 }
 
 // Create indicates an expected call of Create.
-func (mr *MockVDRMockRecorder) Create(options interface{}) *gomock.Call {
+func (mr *MockVDRMockRecorder) Create(ctx, options interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockVDR)(nil).Create), options)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockVDR)(nil).Create), ctx, options)
 }
 
 // Update mocks base method.
-func (m *MockVDR) Update(id did.DID, next did.Document) error {
+func (m *MockVDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Update", id, next)
+	ret := m.ctrl.Call(m, "Update", ctx, id, next)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Update indicates an expected call of Update.
-func (mr *MockVDRMockRecorder) Update(id, next interface{}) *gomock.Call {
+func (mr *MockVDRMockRecorder) Update(ctx, id, next interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockVDR)(nil).Update), id, next)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockVDR)(nil).Update), ctx, id, next)
 }
 
 // MockDocManipulator is a mock of DocManipulator interface.
@@ -453,44 +454,44 @@ func (m *MockDocManipulator) EXPECT() *MockDocManipulatorMockRecorder {
 }
 
 // AddVerificationMethod mocks base method.
-func (m *MockDocManipulator) AddVerificationMethod(id did.DID, keyUsage DIDKeyFlags) (*did.VerificationMethod, error) {
+func (m *MockDocManipulator) AddVerificationMethod(ctx context.Context, id did.DID, keyUsage DIDKeyFlags) (*did.VerificationMethod, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddVerificationMethod", id, keyUsage)
+	ret := m.ctrl.Call(m, "AddVerificationMethod", ctx, id, keyUsage)
 	ret0, _ := ret[0].(*did.VerificationMethod)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AddVerificationMethod indicates an expected call of AddVerificationMethod.
-func (mr *MockDocManipulatorMockRecorder) AddVerificationMethod(id, keyUsage interface{}) *gomock.Call {
+func (mr *MockDocManipulatorMockRecorder) AddVerificationMethod(ctx, id, keyUsage interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddVerificationMethod", reflect.TypeOf((*MockDocManipulator)(nil).AddVerificationMethod), id, keyUsage)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddVerificationMethod", reflect.TypeOf((*MockDocManipulator)(nil).AddVerificationMethod), ctx, id, keyUsage)
 }
 
 // Deactivate mocks base method.
-func (m *MockDocManipulator) Deactivate(id did.DID) error {
+func (m *MockDocManipulator) Deactivate(ctx context.Context, id did.DID) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Deactivate", id)
+	ret := m.ctrl.Call(m, "Deactivate", ctx, id)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Deactivate indicates an expected call of Deactivate.
-func (mr *MockDocManipulatorMockRecorder) Deactivate(id interface{}) *gomock.Call {
+func (mr *MockDocManipulatorMockRecorder) Deactivate(ctx, id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deactivate", reflect.TypeOf((*MockDocManipulator)(nil).Deactivate), id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deactivate", reflect.TypeOf((*MockDocManipulator)(nil).Deactivate), ctx, id)
 }
 
 // RemoveVerificationMethod mocks base method.
-func (m *MockDocManipulator) RemoveVerificationMethod(id, keyID did.DID) error {
+func (m *MockDocManipulator) RemoveVerificationMethod(ctx context.Context, id, keyID did.DID) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RemoveVerificationMethod", id, keyID)
+	ret := m.ctrl.Call(m, "RemoveVerificationMethod", ctx, id, keyID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // RemoveVerificationMethod indicates an expected call of RemoveVerificationMethod.
-func (mr *MockDocManipulatorMockRecorder) RemoveVerificationMethod(id, keyID interface{}) *gomock.Call {
+func (mr *MockDocManipulatorMockRecorder) RemoveVerificationMethod(ctx, id, keyID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveVerificationMethod", reflect.TypeOf((*MockDocManipulator)(nil).RemoveVerificationMethod), id, keyID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveVerificationMethod", reflect.TypeOf((*MockDocManipulator)(nil).RemoveVerificationMethod), ctx, id, keyID)
 }

@@ -36,32 +36,32 @@ type Didman interface {
 	// AddEndpoint adds a service to a DID Document. The serviceEndpoint is set to the given URL.
 	// It returns ErrDuplicateService if a service with the given type already exists.
 	// It can also return various errors from DocResolver.Resolve and VDR.Update
-	AddEndpoint(id did.DID, serviceType string, u url.URL) (*did.Service, error)
+	AddEndpoint(ctx context.Context, id did.DID, serviceType string, u url.URL) (*did.Service, error)
 
 	// DeleteEndpointsByType takes a did and type and removes all endpoint with the type from the DID Document.
 	// It returns ErrServiceNotFound if no services with the given type can't be found in the DID Document.
 	// It returns ErrServiceInUse if the service is referenced by other services.
 	// It can also return various errors from DocResolver.Resolve
-	DeleteEndpointsByType(id did.DID, serviceType string) error
+	DeleteEndpointsByType(ctx context.Context, id did.DID, serviceType string) error
 
 	// DeleteService removes a service from a DID Document.
 	// It returns ErrServiceInUse if the service is referenced by other services.
 	// It returns ErrServiceNotFound if the service can't be found in the DID Document.
 	// It can also return various errors from DocResolver.Resolve and VDR.Update
-	DeleteService(id ssi.URI) error
+	DeleteService(ctx context.Context, id ssi.URI) error
 
 	// AddCompoundService adds a compound endpoint to a DID Document.
 	// It returns ErrDuplicateService if a service with the given type already exists.
 	// It returns didservice.DIDServiceQueryError if one of the service references is invalid.
 	// It returns ErrReferencedServiceNotAnEndpoint if one of the references does not resolve to a single endpoint URL.
 	// It can also return various errors from DocResolver.Resolve and VDR.Update
-	AddCompoundService(id did.DID, serviceType string, endpoints map[string]ssi.URI) (*did.Service, error)
+	AddCompoundService(ctx context.Context, id did.DID, serviceType string, endpoints map[string]ssi.URI) (*did.Service, error)
 
 	// UpdateContactInformation adds or updates the compoundService with type equal to node-contact-info with provided
 	// contact information to the DID Document.
 	// It returns the contact information when the update was successful.
 	// It can also return various errors from DocResolver.Resolve and VDR.Update
-	UpdateContactInformation(id did.DID, information ContactInformation) (*ContactInformation, error)
+	UpdateContactInformation(ctx context.Context, id did.DID, information ContactInformation) (*ContactInformation, error)
 
 	// GetContactInformation finds and returns the contact information from the provided DID Document.
 	// Returns nil, nil when no contactInformation for the DID was found.

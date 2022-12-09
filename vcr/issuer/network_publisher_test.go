@@ -26,6 +26,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
@@ -94,6 +95,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 	issuerDID, _ := did.ParseDID(issuerID.String())
 	subjectID := ssi.MustParseURI("did:nuts:456")
 	subjectDID, _ := did.ParseDID(subjectID.String())
+	ctx := audit.TestContext()
 
 	t.Run("ok - public", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -123,9 +125,9 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 			AdditionalPrevs: nil,
 			Participants:    []did.DID{},
 		}
-		mockNetwork.EXPECT().CreateTransaction(expectedTemplate).Return(nil, nil)
+		mockNetwork.EXPECT().CreateTransaction(ctx, expectedTemplate).Return(nil, nil)
 
-		err := sut.PublishCredential(credentialToPublish, true)
+		err := sut.PublishCredential(ctx, credentialToPublish, true)
 		assert.NoError(t, err)
 	})
 
@@ -168,9 +170,9 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 			AdditionalPrevs: nil,
 			Participants:    []did.DID{*issuerDID, *subjectDID},
 		}
-		mockNetwork.EXPECT().CreateTransaction(expectedTemplate).Return(nil, nil)
+		mockNetwork.EXPECT().CreateTransaction(ctx, expectedTemplate).Return(nil, nil)
 
-		err := sut.PublishCredential(credentialToPublish, false)
+		err := sut.PublishCredential(ctx, credentialToPublish, false)
 		assert.NoError(t, err)
 
 	})
@@ -184,7 +186,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 			}
 
 			sut := networkPublisher{}
-			err := sut.PublishCredential(credentialToPublish, true)
+			err := sut.PublishCredential(ctx, credentialToPublish, true)
 			assert.EqualError(t, err, "invalid credential issuer: invalid DID: input length is less than 7")
 		})
 
@@ -194,7 +196,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 			}
 
 			sut := networkPublisher{}
-			err := sut.PublishCredential(credentialToPublish, false)
+			err := sut.PublishCredential(ctx, credentialToPublish, false)
 			assert.EqualError(t, err, "missing credentialSubject")
 		})
 
@@ -205,7 +207,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 			}
 
 			sut := networkPublisher{}
-			err := sut.PublishCredential(credentialToPublish, false)
+			err := sut.PublishCredential(ctx, credentialToPublish, false)
 			assert.EqualError(t, err, "failed to determine credentialSubject.ID: invalid DID: input length is less than 7")
 		})
 	})
@@ -227,7 +229,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 			expectedIssuerServiceURI := ssi.MustParseURI("did:nuts:123/serviceEndpoint?type=NutsComm")
 			mockServiceResolver.EXPECT().Resolve(expectedIssuerServiceURI, 5).Return(did.Service{}, vdrTypes.ErrServiceNotFound)
 
-			err := sut.PublishCredential(credentialToPublish, false)
+			err := sut.PublishCredential(ctx, credentialToPublish, false)
 			assert.EqualError(t, err, "failed to resolve participating node (did=did:nuts:123): could not resolve NutsComm service owner: service not found in DID Document")
 		})
 
@@ -244,7 +246,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 
 			mockKeyResolver.EXPECT().ResolveAssertionKey(*issuerDID).Return(nil, errors.New("b00m!"))
 
-			err := sut.PublishCredential(credentialToPublish, true)
+			err := sut.PublishCredential(ctx, credentialToPublish, true)
 			assert.EqualError(t, err, "could not resolve an assertion key for issuer: b00m!")
 		})
 
@@ -276,9 +278,9 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 				AdditionalPrevs: nil,
 				Participants:    make([]did.DID, 0),
 			}
-			mockNetwork.EXPECT().CreateTransaction(expectedTemplate).Return(nil, errors.New("b00m!"))
+			mockNetwork.EXPECT().CreateTransaction(ctx, expectedTemplate).Return(nil, errors.New("b00m!"))
 
-			err := sut.PublishCredential(credentialToPublish, true)
+			err := sut.PublishCredential(ctx, credentialToPublish, true)
 			assert.EqualError(t, err, "failed to publish credential, error while creating transaction: b00m!")
 		})
 
@@ -295,6 +297,7 @@ func Test_networkPublisher_PublishRevocation(t *testing.T) {
 	issuerID := ssi.MustParseURI("did:nuts:123")
 	issuerDID, _ := did.ParseDID(issuerID.String())
 	testKey := crypto.NewTestKey(issuerID.String() + "#abc")
+	ctx := audit.TestContext()
 
 	t.Run("it should publish a revocation", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -320,11 +323,11 @@ func Test_networkPublisher_PublishRevocation(t *testing.T) {
 			AdditionalPrevs: nil,
 			Participants:    nil,
 		}
-		mockNetwork.EXPECT().CreateTransaction(gomock.Eq(expectedTemplate)).Return(nil, nil)
+		mockNetwork.EXPECT().CreateTransaction(ctx, gomock.Eq(expectedTemplate)).Return(nil, nil)
 
 		sut := networkPublisher{keyResolver: mockKeyResolver, didDocResolver: mockDocResolver, networkTx: mockNetwork}
 
-		err := sut.PublishRevocation(revocationToPublish)
+		err := sut.PublishRevocation(ctx, revocationToPublish)
 		assert.NoError(t, err, "expected publishing to succeed")
 	})
 
@@ -332,7 +335,7 @@ func Test_networkPublisher_PublishRevocation(t *testing.T) {
 		t.Run("it checks the issuer", func(t *testing.T) {
 			publisher := NewNetworkPublisher(nil, nil, nil)
 			revocationToPublish := credential.Revocation{}
-			err := publisher.PublishRevocation(revocationToPublish)
+			err := publisher.PublishRevocation(ctx, revocationToPublish)
 			assert.EqualError(t, err, "invalid revocation issuer: invalid DID: input length is less than 7")
 		})
 	})
@@ -354,7 +357,7 @@ func Test_networkPublisher_PublishRevocation(t *testing.T) {
 
 			sut := networkPublisher{keyResolver: mockKeyResolver, didDocResolver: mockDocResolver, networkTx: mockNetwork}
 
-			err := sut.PublishRevocation(revocationToPublish)
+			err := sut.PublishRevocation(ctx, revocationToPublish)
 			assert.EqualError(t, err, "could not resolve an assertion key for issuer: not found")
 
 		})
@@ -375,7 +378,7 @@ func Test_networkPublisher_PublishRevocation(t *testing.T) {
 
 			sut := networkPublisher{keyResolver: mockKeyResolver, didDocResolver: mockDocResolver, networkTx: mockNetwork}
 
-			err := sut.PublishRevocation(revocationToPublish)
+			err := sut.PublishRevocation(ctx, revocationToPublish)
 			assert.EqualError(t, err, "could not resolve issuer DID document: not found")
 		})
 
@@ -388,7 +391,7 @@ func Test_networkPublisher_PublishRevocation(t *testing.T) {
 
 			mockKeyResolver.EXPECT().ResolveAssertionKey(*issuerDID).Return(testKey, nil)
 			mockDocResolver.EXPECT().Resolve(*issuerDID, nil).Return(&did.Document{}, &vdrTypes.DocumentMetadata{}, nil)
-			mockNetwork.EXPECT().CreateTransaction(gomock.Any()).Return(nil, errors.New("foo"))
+			mockNetwork.EXPECT().CreateTransaction(ctx, gomock.Any()).Return(nil, errors.New("foo"))
 
 			revocationToPublish := credential.Revocation{
 				Issuer: issuerID,
@@ -396,7 +399,7 @@ func Test_networkPublisher_PublishRevocation(t *testing.T) {
 
 			sut := networkPublisher{keyResolver: mockKeyResolver, didDocResolver: mockDocResolver, networkTx: mockNetwork}
 
-			err := sut.PublishRevocation(revocationToPublish)
+			err := sut.PublishRevocation(ctx, revocationToPublish)
 			assert.EqualError(t, err, "failed to publish revocation, error while creating transaction: foo")
 		})
 	})

@@ -19,6 +19,7 @@
 package crypto
 
 import (
+	"context"
 	"crypto"
 	"errors"
 )
@@ -31,9 +32,9 @@ type KIDNamingFunc func(key crypto.PublicKey) (string, error)
 
 // KeyCreator is the interface for creating key pairs.
 type KeyCreator interface {
-	// New generates a keypair and returns a Key.
-	// the KIDNamingFunc will provide the kid.
-	New(namingFunc KIDNamingFunc) (Key, error)
+	// New generates a keypair and returns a Key. The context is used to pass audit information.
+	// The KIDNamingFunc will provide the kid.
+	New(ctx context.Context, namingFunc KIDNamingFunc) (Key, error)
 }
 
 // KeyResolver is the interface for resolving keys.
@@ -58,20 +59,23 @@ type KeyStore interface {
 // Decrypter is the interface to support decryption
 type Decrypter interface {
 	// Decrypt decrypts the `cipherText` with key `kid`
-	Decrypt(kid string, ciphertext []byte) ([]byte, error)
+	// The context is used to pass audit information.
+	Decrypt(ctx context.Context, kid string, ciphertext []byte) ([]byte, error)
 }
 
 // JWTSigner is the interface used to sign authorization tokens.
 type JWTSigner interface {
 	// SignJWT creates a signed JWT using the indicated key and map of claims.
-	// The key can be its KID (key ID) or an instance of Key.
+	// The key can be its KID (key ID) or an instance of Key,
+	// the context is used to pass audit information.
 	// Returns ErrPrivateKeyNotFound when the private is not present.
-	SignJWT(claims map[string]interface{}, key interface{}) (string, error)
+	SignJWT(ctx context.Context, claims map[string]interface{}, key interface{}) (string, error)
 	// SignJWS creates a signed JWS using the indicated key and map of headers and payload as bytes.
 	// The detached boolean indicates if the body needs to be excluded from the response (detached mode).
-	// The key can be its KID (key ID) or an instance of Key.
+	// The key can be its KID (key ID) or an instance of Key,
+	// context is used to pass audit information.
 	// Returns ErrPrivateKeyNotFound when the private key is not present.
-	SignJWS(payload []byte, headers map[string]interface{}, key interface{}, detached bool) (string, error)
+	SignJWS(ctx context.Context, payload []byte, headers map[string]interface{}, key interface{}, detached bool) (string, error)
 }
 
 // Key is a helper interface that describes a private key in the crypto module, specifying its KID and public part.

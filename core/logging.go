@@ -84,4 +84,7 @@ const (
 	LogFieldTransactionPayloadHash = "txPayloadHash"
 	// LogFieldTransactionPayloadLength is the log field key for the payload (length in bytes) of a transaction from the network module.
 	LogFieldTransactionPayloadLength = "txPayloadLen"
+
+	// LogFieldAuditSubject is the log field of the subject (e.g. DID, DID document service, etc) of an audit event.
+	LogFieldAuditSubject = "subject"
 )
