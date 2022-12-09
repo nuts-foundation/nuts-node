@@ -38,7 +38,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/test"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -785,7 +784,7 @@ func TestNetwork_Reprocess(t *testing.T) {
 	foundMutex := sync.Mutex{}
 	tx, _, _ := dag.CreateTestTransaction(0)
 
-	setup := func(t *testing.T) (*networkTestContext, events.Event) {
+	newSetup := func(t *testing.T) (*networkTestContext, events.Event) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		ctx := createNetwork(t, ctrl)
@@ -794,89 +793,97 @@ func TestNetwork_Reprocess(t *testing.T) {
 		return ctx, eventManager
 	}
 
-	subscribe := func(counter *int, eventManager events.Event) {
-		conn, _, _ := eventManager.Pool().Acquire(context.Background())
-		stream := events.NewDisposableStream("REPROCESS_test", []string{"REPROCESS.*"}, 10)
-		_ = stream.Subscribe(conn, "test", "REPROCESS.*", func(msg *nats.Msg) {
+	subscribe := func(ctx context.Context, t *testing.T, eventManager events.Event, wg *sync.WaitGroup, counter *int) {
+		conn, _, err := eventManager.Pool().Acquire(ctx)
+		require.NoError(t, err)
+
+		err = events.NewDisposableStream("REPROCESS_test", []string{"REPROCESS.*"}, 10).Subscribe(conn, t.Name(), "REPROCESS.*", func(m *nats.Msg) {
 			foundMutex.Lock()
 			defer foundMutex.Unlock()
 			*counter++
-			err := msg.Ack()
-			require.NoError(t, err)
+			wg.Done()
+			err := m.Ack()
+			assert.NoError(t, err)
 		})
+		require.NoError(t, err)
 	}
 
-	t.Run("ok", func(t *testing.T) {
-		ctx, eventManager := setup(t)
-		ctx.state.EXPECT().FindBetweenLC(gomock.Any(), uint32(0), uint32(1000)).Return([]dag.Transaction{tx}, nil)
-		ctx.state.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).Return([]byte("payload"), nil)
+	t.Run("hits", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
 
-		var found int
-		subscribe(&found, eventManager)
+		setup, eventManager := newSetup(t)
+		setup.state.EXPECT().FindBetweenLC(gomock.Any(), uint32(0), uint32(1000)).Return([]dag.Transaction{tx}, nil)
+		setup.state.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).Return([]byte("payload"), nil)
+		var counter int
+		wg := sync.WaitGroup{}
+		wg.Add(1)
 
-		ctx.network.Reprocess("application/did+json")
+		subscribe(ctx, t, eventManager, &wg, &counter)
 
-		test.WaitFor(t, func() (bool, error) {
-			foundMutex.Lock()
-			defer foundMutex.Unlock()
-			return found > 0, nil
-		}, 100*time.Millisecond, "timeout waiting for event")
+		_, err := setup.network.Reprocess(ctx, "application/did+json")
+		require.NoError(t, err)
+		wg.Wait()
+		assert.Equal(t, 1, counter)
 	})
 
-	t.Run("ignores other transactions", func(t *testing.T) {
-		ctx, eventManager := setup(t)
-		ctx.state.EXPECT().FindBetweenLC(gomock.Any(), uint32(0), uint32(1000)).Return([]dag.Transaction{tx}, nil)
-		ctx.state.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).Return([]byte("payload"), nil)
+	t.Run("mismatch", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
 
-		var found int
-		subscribe(&found, eventManager)
+		setup, eventManager := newSetup(t)
+		setup.state.EXPECT().FindBetweenLC(gomock.Any(), uint32(0), uint32(1000)).Return([]dag.Transaction{tx}, nil)
+		setup.state.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).Return([]byte("payload"), nil)
+		var counter int
+		wg := sync.WaitGroup{}
 
-		ctx.network.Reprocess("application/did+vc")
+		subscribe(ctx, t, eventManager, &wg, &counter)
 
-		test.WaitForNoFail(t, func() (bool, error) {
-			foundMutex.Lock()
-			defer foundMutex.Unlock()
-			return found > 0, nil
-		}, 100*time.Millisecond)
-
-		assert.Equal(t, 0, found)
+		_, err := setup.network.Reprocess(ctx, "application/did+vc")
+		require.NoError(t, err)
+		wg.Wait()
+		assert.Equal(t, 0, counter)
 	})
 
-	t.Run("stops on error", func(t *testing.T) {
-		ctx, eventManager := setup(t)
-		ctx.state.EXPECT().FindBetweenLC(gomock.Any(), uint32(0), uint32(1000)).Return(nil, errors.New("b00m!"))
+	t.Run("error", func(t *testing.T) {
+		t.Run("query", func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
 
-		var found int
-		subscribe(&found, eventManager)
+			testErr := errors.New("test error")
 
-		ctx.network.Reprocess("application/did+vc")
+			setup, eventManager := newSetup(t)
+			setup.state.EXPECT().FindBetweenLC(gomock.Any(), uint32(0), uint32(1000)).Return(nil, testErr)
+			var counter int
+			wg := sync.WaitGroup{}
 
-		test.WaitForNoFail(t, func() (bool, error) {
-			foundMutex.Lock()
-			defer foundMutex.Unlock()
-			return found > 0, nil
-		}, 100*time.Millisecond)
+			subscribe(ctx, t, eventManager, &wg, &counter)
 
-		assert.Equal(t, 0, found)
-	})
+			_, err := setup.network.Reprocess(ctx, "application/did+vc")
+			wg.Wait()
+			assert.ErrorIs(t, err, testErr)
+			assert.Equal(t, 0, counter)
+		})
 
-	t.Run("stops on error 2", func(t *testing.T) {
-		ctx, eventManager := setup(t)
-		ctx.state.EXPECT().FindBetweenLC(gomock.Any(), uint32(0), uint32(1000)).Return([]dag.Transaction{tx}, nil)
-		ctx.state.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).Return(nil, errors.New("b00m!"))
+		t.Run("payload", func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
 
-		var found int
-		subscribe(&found, eventManager)
+			testErr := errors.New("test error")
 
-		ctx.network.Reprocess("application/did+vc")
+			setup, eventManager := newSetup(t)
+			setup.state.EXPECT().FindBetweenLC(gomock.Any(), uint32(0), uint32(1000)).Return([]dag.Transaction{tx}, nil)
+			setup.state.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).Return(nil, testErr)
+			var counter int
+			wg := sync.WaitGroup{}
 
-		test.WaitForNoFail(t, func() (bool, error) {
-			foundMutex.Lock()
-			defer foundMutex.Unlock()
-			return found > 0, nil
-		}, 100*time.Millisecond)
+			subscribe(ctx, t, eventManager, &wg, &counter)
 
-		assert.Equal(t, 0, found)
+			_, err := setup.network.Reprocess(ctx, "application/did+json")
+			wg.Wait()
+			assert.ErrorIs(t, err, testErr)
+			assert.Equal(t, 0, counter)
+		})
 	})
 }
 

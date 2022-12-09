@@ -652,71 +652,76 @@ func (n *Network) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 	return result
 }
 
-func (n *Network) Reprocess(contentType string) {
-	batchSize := uint32(1000)
+// ReprocessReport describes the reprocess exection.
+type ReprocessReport struct {
+	// reserved for future use
+}
 
+func (n *Network) Reprocess(ctx context.Context, contentType string) (*ReprocessReport, error) {
 	log.Logger().Infof("Starting reprocess of %s", contentType)
 
-	go func() {
-		ctx := context.Background()
-		_, js, err := n.eventPublisher.Pool().Acquire(context.Background())
+	_, js, err := n.eventPublisher.Pool().Acquire(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("reprocess abort on message client: %w", err)
+	}
+
+	// The Lamport's clock stamps count from 0, with a step size of 1.
+	const clockSteps = 1000
+	for offset := 0; ; offset += clockSteps {
+		end := offset + clockSteps
+		if end >= 1<<30 {
+			return nil, errors.New("reprocess abort on Lamport clock int overflow")
+		}
+		txs, err := n.state.FindBetweenLC(ctx, uint32(offset), uint32(end))
 		if err != nil {
-			log.Logger().
-				WithError(err).
-				Error("Failed to start reprocessing transactions")
+			return nil, fmt.Errorf("reprocess abort on transaction lookup, clock range [%d, %d): %w", offset, end, err)
 		}
 
-		lastLC := uint32(999)
-		for i := uint32(0); (lastLC+uint32(1))%batchSize == 0; i++ {
-			start := i * batchSize
-			end := start + batchSize
-			txs, err := n.state.FindBetweenLC(ctx, start, end)
+		for _, tx := range txs {
+			if tx.PayloadType() != contentType {
+				continue // filter
+			}
+
+			// add to Nats
+			subject := fmt.Sprintf("%s.%s", events.ReprocessStream, contentType)
+			payload, err := n.state.ReadPayload(ctx, tx.PayloadHash())
 			if err != nil {
-				log.Logger().
-					WithError(err).
-					Errorf("Failed to reprocess transactions (start: %d, end: %d)", start, end)
-				return
+				return nil, fmt.Errorf("reprocess abort on transaction %#x payload %#x: %w", tx.Ref(), tx.PayloadHash(), err)
 			}
-
-			for _, tx := range txs {
-				if tx.PayloadType() == contentType {
-					// add to Nats
-					subject := fmt.Sprintf("%s.%s", events.ReprocessStream, contentType)
-					payload, err := n.state.ReadPayload(ctx, tx.PayloadHash())
-					if err != nil {
-						log.Logger().
-							WithError(err).
-							WithField(core.LogFieldTransactionRef, tx.Ref()).
-							WithField(core.LogFieldEventSubject, subject).
-							Error("Failed to publish transaction")
-						return
-					}
-					twp := events.TransactionWithPayload{
-						Transaction: tx,
-						Payload:     payload,
-					}
-					data, _ := json.Marshal(twp)
-					log.Logger().
-						WithField(core.LogFieldTransactionRef, tx.Ref()).
-						WithField(core.LogFieldEventSubject, subject).
-						Trace("Publishing transaction")
-					_, err = js.PublishAsync(subject, data)
-					if err != nil {
-						log.Logger().
-							WithError(err).
-							WithField(core.LogFieldTransactionRef, tx.Ref()).
-							WithField(core.LogFieldEventSubject, subject).
-							Error("Failed to publish transaction")
-						return
-					}
-				}
-				lastLC = tx.Clock()
+			twp := events.TransactionWithPayload{
+				Transaction: tx,
+				Payload:     payload,
 			}
-
-			// give some time for Update transactions that require all read transactions to be closed
-			time.Sleep(time.Second)
+			data, _ := json.Marshal(twp)
+			log.Logger().
+				WithField(core.LogFieldTransactionRef, tx.Ref()).
+				WithField(core.LogFieldEventSubject, subject).
+				Trace("Publishing transaction")
+			_, err = js.PublishAsync(subject, data)
+			if err != nil {
+				return nil, fmt.Errorf("reprocess abort on transaction %#x publish: %w", tx.Ref(), err)
+			}
 		}
-	}()
+
+		lastTick := txs[len(txs)-1].Clock()
+		if len(txs) == 0 || int(uint(lastTick))+1 < end {
+			break
+		}
+
+		// Workaround Nuts stoabs package which locks updates on any pending read
+		// transactions.
+		time.Sleep(time.Second)
+	}
+
+	// flush publish queue
+	select {
+	case <-js.PublishAsyncComplete():
+		break
+	case <-ctx.Done():
+		return nil, fmt.Errorf("reprocess terminate before completing succesful: %w", ctx.Err())
+	}
+
+	return new(ReprocessReport), nil
 }
 
 func (n *Network) collectDiagnosticsForPeers() transport.Diagnostics {
