@@ -65,7 +65,11 @@ func fs2VaultCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			targetStorage := instance.Storage
+			config := instance.Config().(*cryptoEngine.Config)
+			targetStorage, err := storage.NewVaultKVStorage(config.Vault)
+			if err != nil {
+				return err
+			}
 
 			directory := args[0]
 			sourceStorage, err := storage.NewFileSystemBackend(directory)

@@ -52,7 +52,7 @@ func (client *Crypto) SignJWT(claims map[string]interface{}, kid string) (token 
 	if err = validateKID(kid); err != nil {
 		return "", err
 	}
-	privateKey, err := client.Storage.GetPrivateKey(kid)
+	privateKey, err := client.storage.GetPrivateKey(kid)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
 			return "", ErrPrivateKeyNotFound
@@ -77,7 +77,7 @@ func (client *Crypto) SignJWS(payload []byte, headers map[string]interface{}, ki
 	if err = validateKID(kid); err != nil {
 		return "", err
 	}
-	privateKey, err := client.Storage.GetPrivateKey(kid)
+	privateKey, err := client.storage.GetPrivateKey(kid)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
 			return "", ErrPrivateKeyNotFound

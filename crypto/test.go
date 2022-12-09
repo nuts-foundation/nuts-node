@@ -26,11 +26,15 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 )
 
-// NewTestCryptoInstance returns a new Crypto instance to be used for integration tests. Any data is stored in the
-// specified test directory.
-func NewTestCryptoInstance() *Crypto {
+// NewMemoryCryptoInstance returns a new Crypto instance to be used for tests, storing keys in-memory.
+func NewMemoryCryptoInstance() *Crypto {
+	return NewTestCryptoInstance(NewMemoryStorage())
+}
+
+// NewTestCryptoInstance returns a new Crypto instance to be used for tests, allowing to use of preconfigured storage.
+func NewTestCryptoInstance(storage storage.Storage) *Crypto {
 	newInstance := NewCryptoInstance()
-	newInstance.Storage = NewMemoryStorage()
+	newInstance.storage = storage
 	return newInstance
 }
 

@@ -121,7 +121,7 @@ func TestAuth_Configure(t *testing.T) {
 }
 
 func testInstance(t *testing.T, cfg Config) *Auth {
-	cryptoInstance := crypto.NewTestCryptoInstance()
+	cryptoInstance := crypto.NewMemoryCryptoInstance()
 	vcrInstance := vcr.NewTestVCRInstance(t)
 	return NewAuthInstance(cfg, store.NewTestStore(t), vcrInstance, cryptoInstance, nil, nil)
 }

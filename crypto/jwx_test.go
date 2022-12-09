@@ -255,7 +255,7 @@ func TestSignJWS(t *testing.T) {
 	t.Run("private key in JWK header is not allowed", func(t *testing.T) {
 		payload := []byte{1, 2, 3}
 
-		privateKey, _ := client.Storage.GetPrivateKey(kid)
+		privateKey, _ := client.storage.GetPrivateKey(kid)
 		privateKeyAsJWK, _ := jwk.New(privateKey)
 		hdrs := map[string]interface{}{"jwk": privateKeyAsJWK}
 		signature, err := SignJWS(payload, hdrs, key.Signer())

@@ -28,7 +28,7 @@ func (client *Crypto) Decrypt(kid string, cipherText []byte) ([]byte, error) {
 	if err := validateKID(kid); err != nil {
 		return nil, err
 	}
-	key, err := client.Storage.GetPrivateKey(kid)
+	key, err := client.storage.GetPrivateKey(kid)
 	if err != nil {
 		return nil, err
 	}

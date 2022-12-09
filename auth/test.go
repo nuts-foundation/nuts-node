@@ -31,7 +31,7 @@ func NewTestAuthInstance(t *testing.T) *Auth {
 		TestConfig(),
 		store.NewTestStore(t),
 		vcr.NewTestVCRInstance(t),
-		crypto.NewTestCryptoInstance(),
+		crypto.NewMemoryCryptoInstance(),
 		nil,
 		nil,
 	)

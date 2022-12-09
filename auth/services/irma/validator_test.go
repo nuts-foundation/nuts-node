@@ -149,5 +149,5 @@ func defaultValidator(t *testing.T) (Service, crypto.KeyStore) {
 	return Service{
 		IrmaConfig:        irmaConfig,
 		ContractTemplates: contract.StandardContractTemplates,
-	}, crypto.NewTestCryptoInstance()
+	}, crypto.NewMemoryCryptoInstance()
 }

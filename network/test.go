@@ -37,7 +37,7 @@ func NewTestNetworkInstance(t *testing.T) *Network {
 	defaultBBoltOptions.NoSync = true
 	config := TestNetworkConfig()
 	vdrStore := store.NewTestStore(t)
-	cryptoInstance := crypto.NewTestCryptoInstance()
+	cryptoInstance := crypto.NewMemoryCryptoInstance()
 	eventPublisher := events.NewManager()
 	newInstance := NewNetworkInstance(
 		config,
