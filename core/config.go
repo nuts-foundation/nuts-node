@@ -75,6 +75,20 @@ func loadFromEnv(configMap *koanf.Koanf) error {
 // loadFromFlagSet loads the config values set in the command line options into the configMap.
 // Als sets default value for all flags in the provided pflag.FlagSet if the values do not yet exist in the configMap.
 func loadFromFlagSet(configMap *koanf.Koanf, flags *pflag.FlagSet) error {
+	// error out if flag name ends with .token or .password (which indicates a secret) and is set on the command line
+	var err error
+	flags.VisitAll(func(flag *pflag.Flag) {
+		if strings.HasSuffix(flag.Name, "token") || strings.HasSuffix(flag.Name, "password") {
+			if flag.Changed {
+				err = fmt.Errorf("flag %s is a secret, please set it in the config file or environment variable to avoid leaking it", flag.Name)
+				return
+			}
+		}
+	})
+	if err != nil {
+		return err
+	}
+
 	return configMap.Load(posflag.Provider(flags, defaultDelimiter, configMap), nil)
 }
 
