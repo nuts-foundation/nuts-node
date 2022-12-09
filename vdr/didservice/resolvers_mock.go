@@ -2,7 +2,7 @@
 // Source: vdr/diddocuments/dochelper/resolvers.go
 
 // Package dochelper is a generated GoMock package.
-package dochelper
+package didservice
 
 import (
 	reflect "reflect"

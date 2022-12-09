@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vdr/diddocuments/dochelper"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -41,7 +41,7 @@ func (r vdrKeyResolver) ResolveAssertionKey(issuerDID did.DID) (crypto.Key, erro
 	}
 
 	// resolve an assertionMethod key for issuer
-	kid, err := dochelper.ExtractAssertionKeyID(*document)
+	kid, err := didservice.ExtractAssertionKeyID(*document)
 	if err != nil {
 		return nil, fmt.Errorf("invalid issuer: %w", err)
 	}

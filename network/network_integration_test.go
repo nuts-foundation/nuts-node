@@ -24,7 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vdr/diddocuments/dochelper"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/stretchr/testify/require"
 	grpc2 "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -914,11 +914,11 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 
 	instance := &Network{
 		config:              config,
-		didDocumentResolver: dochelper.Resolver{Store: vdrStore},
-		didDocumentFinder:   dochelper.Finder{Store: vdrStore},
+		didDocumentResolver: didservice.Resolver{Store: vdrStore},
+		didDocumentFinder:   didservice.Finder{Store: vdrStore},
 		privateKeyResolver:  keyStore,
 		decrypter:           keyStore,
-		keyResolver:         dochelper.KeyResolver{Store: vdrStore},
+		keyResolver:         didservice.KeyResolver{Store: vdrStore},
 		nodeDIDResolver:     &transport.FixedNodeDIDResolver{},
 		eventPublisher:      eventPublisher,
 		storeProvider:       &storeProvider,

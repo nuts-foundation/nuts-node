@@ -24,7 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/diddocuments/dochelper"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/jsonld"
@@ -145,8 +145,8 @@ func (c validationContext) verifiableCredentials() ([]vc2.VerifiableCredential, 
 // NewOAuthService accepts a vendorID, and several Nuts engines and returns an implementation of services.OAuthClient
 func NewOAuthService(store types.Store, vcFinder vcr.Finder, vcVerifier verifier.Verifier, serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore, contractNotary services.ContractNotary, jsonldManager jsonld.JSONLD) services.OAuthClient {
 	return &service{
-		docResolver:     dochelper.Resolver{Store: store},
-		keyResolver:     dochelper.KeyResolver{Store: store},
+		docResolver:     didservice.Resolver{Store: store},
+		keyResolver:     didservice.KeyResolver{Store: store},
 		serviceResolver: serviceResolver,
 		contractNotary:  contractNotary,
 		jsonldManager:   jsonldManager,

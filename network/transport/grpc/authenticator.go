@@ -24,7 +24,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/vdr/diddocuments/dochelper"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"google.golang.org/grpc/credentials"
 	grpcPeer "google.golang.org/grpc/peer"
 	"net/url"
@@ -40,12 +40,12 @@ type Authenticator interface {
 }
 
 // NewTLSAuthenticator creates an Authenticator that verifies node identities using TLS certificates.
-func NewTLSAuthenticator(serviceResolver dochelper.ServiceResolver) Authenticator {
+func NewTLSAuthenticator(serviceResolver didservice.ServiceResolver) Authenticator {
 	return &tlsAuthenticator{serviceResolver: serviceResolver}
 }
 
 type tlsAuthenticator struct {
-	serviceResolver dochelper.ServiceResolver
+	serviceResolver didservice.ServiceResolver
 }
 
 func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, peer transport.Peer) (transport.Peer, error) {
@@ -68,7 +68,7 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 	peerCertificate := tlsInfo.State.PeerCertificates[0]
 
 	// Resolve NutsComm endpoint of contained in DID document associated with node DID
-	nutsCommService, err := t.serviceResolver.Resolve(dochelper.MakeServiceReference(nodeDID, transport.NutsCommServiceType), dochelper.DefaultMaxServiceReferenceDepth)
+	nutsCommService, err := t.serviceResolver.Resolve(didservice.MakeServiceReference(nodeDID, transport.NutsCommServiceType), didservice.DefaultMaxServiceReferenceDepth)
 	var nutsCommURL *url.URL
 	if err == nil {
 		var nutsCommURLStr string
@@ -96,7 +96,7 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 }
 
 // NewDummyAuthenticator creates an Authenticator that does not verify node identities
-func NewDummyAuthenticator(serviceResolver dochelper.ServiceResolver) Authenticator {
+func NewDummyAuthenticator(serviceResolver didservice.ServiceResolver) Authenticator {
 	return &dummyAuthenticator{}
 }
 

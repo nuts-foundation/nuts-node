@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package dochelper
+package didservice
 
 import (
 	"crypto"
@@ -222,7 +222,7 @@ func Test_didKIDNamingFunc(t *testing.T) {
 
 	t.Run("nok - wrong key type", func(t *testing.T) {
 		keyID, err := didKIDNamingFunc(unknownPublicKey{})
-		assert.EqualError(t, err, "could not generate kid: invalid key type 'dochelper.unknownPublicKey' for jwk.New")
+		assert.EqualError(t, err, "could not generate kid: invalid key type 'didservice.unknownPublicKey' for jwk.New")
 		assert.Empty(t, keyID)
 	})
 }

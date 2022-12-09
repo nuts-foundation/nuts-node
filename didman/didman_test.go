@@ -24,7 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/diddocuments/dochelper"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/stretchr/testify/require"
 	"io"
 	"net/url"
@@ -127,10 +127,10 @@ func TestDidman_AddEndpoint(t *testing.T) {
 func TestDidman_AddCompoundService(t *testing.T) {
 	meta := &types.DocumentMetadata{Hash: hash.EmptyHash()}
 
-	helloServiceQuery := dochelper.MakeServiceReference(*vdr.TestDIDA, "hello")
-	worldServiceQuery := dochelper.MakeServiceReference(*vdr.TestDIDB, "world")
-	universeServiceQuery := dochelper.MakeServiceReference(*vdr.TestDIDB, "universe")
-	universeNestedServiceQuery := dochelper.MakeServiceReference(*vdr.TestDIDB, "universe-ref")
+	helloServiceQuery := didservice.MakeServiceReference(*vdr.TestDIDA, "hello")
+	worldServiceQuery := didservice.MakeServiceReference(*vdr.TestDIDB, "world")
+	universeServiceQuery := didservice.MakeServiceReference(*vdr.TestDIDB, "universe")
+	universeNestedServiceQuery := didservice.MakeServiceReference(*vdr.TestDIDB, "universe-ref")
 	references := make(map[string]ssi.URI, 0)
 	references["hello"] = helloServiceQuery
 	references["world"] = worldServiceQuery
@@ -288,7 +288,7 @@ func TestDidman_DeleteService(t *testing.T) {
 }
 
 func TestDidman_UpdateContactInformation(t *testing.T) {
-	didDoc := dochelper.CreateDocument()
+	didDoc := didservice.CreateDocument()
 	id, _ := did.ParseDID("did:nuts:123")
 	didDoc.ID = *id
 	meta := &types.DocumentMetadata{Hash: hash.EmptyHash()}

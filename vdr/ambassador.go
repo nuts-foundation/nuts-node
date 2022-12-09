@@ -29,7 +29,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vdr/diddocuments/dochelper"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"sort"
 	"time"
 
@@ -73,8 +73,8 @@ func NewAmbassador(networkClient network.Transactions, didStore types.Store, eve
 	return &ambassador{
 		networkClient: networkClient,
 		didStore:      didStore,
-		keyResolver:   dochelper.KeyResolver{Store: didStore},
-		docResolver:   dochelper.Resolver{Store: didStore},
+		keyResolver:   didservice.KeyResolver{Store: didStore},
+		docResolver:   didservice.Resolver{Store: didStore},
 		eventManager:  eventManager,
 	}
 }
@@ -223,7 +223,7 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, propos
 	// pointer to updated time required for metadata, nil by default
 	var updatedAtP *time.Time
 	if currentDIDDocument != nil {
-		mergedDoc, err := dochelper.MergeDocuments(*currentDIDDocument, proposedDIDDocument)
+		mergedDoc, err := didservice.MergeDocuments(*currentDIDDocument, proposedDIDDocument)
 		if err != nil {
 			return fmt.Errorf("unable to merge conflicted DID Document: %w", err)
 		}
@@ -313,7 +313,7 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 	missedTransactions := missingTransactions(currentDIDMeta.SourceTransactions, transaction.Previous())
 	sourceTransactions := uniqueTransactions(missedTransactions, transaction.Ref())
 	if len(missedTransactions) != 0 {
-		mergedDoc, err := dochelper.MergeDocuments(*currentDIDDocument, proposedDIDDocument)
+		mergedDoc, err := didservice.MergeDocuments(*currentDIDDocument, proposedDIDDocument)
 		if err != nil {
 			return fmt.Errorf("unable to merge conflicted DID Document: %w", err)
 		}

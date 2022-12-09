@@ -27,7 +27,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/diddocuments/dochelper"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/stretchr/testify/require"
 	"net/url"
 	"testing"
@@ -991,7 +991,7 @@ var createContext = func(t *testing.T) *testContext {
 		verifier:        verifier,
 		didResolver:     didResolver,
 		oauthService: &service{
-			docResolver:     dochelper.Resolver{Store: didResolver},
+			docResolver:     didservice.Resolver{Store: didResolver},
 			keyResolver:     keyResolver,
 			contractNotary:  contractNotaryMock,
 			privateKeyStore: privateKeyStore,

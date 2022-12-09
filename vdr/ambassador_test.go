@@ -26,7 +26,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/diddocuments/dochelper"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
@@ -446,7 +446,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		storedDocument := did.Document{}
 		json.Unmarshal(didDocPayload, &storedDocument)
 
-		deactivatedDocument := dochelper.CreateDocument()
+		deactivatedDocument := didservice.CreateDocument()
 		deactivatedDocument.ID = storedDocument.ID
 
 		t.Run("deactivation", func(t *testing.T) {
@@ -604,7 +604,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		currentDoc, signingKey, _ := newDidDoc()
 		newDoc := did.Document{Context: []ssi.URI{did.DIDContextV1URI()}, ID: currentDoc.ID}
-		newCapInv, _ := dochelper.CreateNewVerificationMethodForDID(currentDoc.ID, &mockKeyCreator{})
+		newCapInv, _ := didservice.CreateNewVerificationMethodForDID(currentDoc.ID, &mockKeyCreator{})
 		newDoc.AddCapabilityInvocation(newCapInv)
 
 		didDocPayload, _ := json.Marshal(newDoc)
@@ -775,7 +775,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		am := ambassador{
 			didStore:    didStoreMock,
 			keyResolver: keyStoreMock,
-			docResolver: dochelper.Resolver{Store: didStoreMock},
+			docResolver: didservice.Resolver{Store: didStoreMock},
 		}
 
 		didDocument, signingKey, err := newDidDoc()
@@ -1003,7 +1003,7 @@ func Test_uniqueTransactions(t *testing.T) {
 
 func newDidDocWithOptions(opts types.DIDCreationOptions) (did.Document, jwk.Key, error) {
 	kc := &mockKeyCreator{}
-	docCreator := dochelper.Creator{KeyStore: kc}
+	docCreator := didservice.Creator{KeyStore: kc}
 	didDocument, key, err := docCreator.Create(opts)
 	signingKey, _ := jwk.New(key.Public())
 	thumbStr, _ := crypto.Thumbprint(signingKey)
@@ -1026,7 +1026,7 @@ func newDidDocWithOptions(opts types.DIDCreationOptions) (did.Document, jwk.Key,
 }
 
 func newDidDoc() (did.Document, jwk.Key, error) {
-	return newDidDocWithOptions(dochelper.DefaultCreationOptions())
+	return newDidDocWithOptions(didservice.DefaultCreationOptions())
 }
 
 type mockContext struct {

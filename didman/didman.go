@@ -26,7 +26,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vdr/diddocuments/dochelper"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"net/url"
 	"sync"
 
@@ -88,7 +88,7 @@ func (e ErrReferencedServiceNotAnEndpoint) Is(other error) bool {
 type didman struct {
 	jsonldManager   jsonld.JSONLD
 	docResolver     types.DocResolver
-	serviceResolver dochelper.ServiceResolver
+	serviceResolver didservice.ServiceResolver
 	store           types.Store
 	vdr             types.VDR
 	vcr             vcr.Finder
@@ -100,7 +100,7 @@ type didman struct {
 func NewDidmanInstance(docResolver types.DocResolver, store types.Store, vdr types.VDR, vcr vcr.Finder, jsonldManager jsonld.JSONLD) Didman {
 	return &didman{
 		docResolver:     docResolver,
-		serviceResolver: dochelper.NewServiceResolver(docResolver),
+		serviceResolver: didservice.NewServiceResolver(docResolver),
 		store:           store,
 		vdr:             vdr,
 		vcr:             vcr,
@@ -207,7 +207,7 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 	documentsCache := map[string]*did.Document{document.ID.String(): document}
 
 	// First, resolve the compound endpoint
-	compoundService, err := d.serviceResolver.ResolveEx(dochelper.MakeServiceReference(id, compoundServiceType), referenceDepth, dochelper.DefaultMaxServiceReferenceDepth, documentsCache)
+	compoundService, err := d.serviceResolver.ResolveEx(didservice.MakeServiceReference(id, compoundServiceType), referenceDepth, didservice.DefaultMaxServiceReferenceDepth, documentsCache)
 	if err != nil {
 		return "", ErrReferencedServiceNotAnEndpoint{Cause: fmt.Errorf("unable to resolve compound service: %w", err)}
 	}
@@ -222,13 +222,13 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 	if endpoint == "" {
 		return "", types.ErrServiceNotFound
 	}
-	if resolveReferences && dochelper.IsServiceReference(endpoint) {
+	if resolveReferences && didservice.IsServiceReference(endpoint) {
 		endpointURI, err := ssi.ParseURI(endpoint)
 		if err != nil {
 			// Not sure when this could ever happen
 			return "", err
 		}
-		resolvedEndpoint, err := d.serviceResolver.ResolveEx(*endpointURI, referenceDepth, dochelper.DefaultMaxServiceReferenceDepth, documentsCache)
+		resolvedEndpoint, err := d.serviceResolver.ResolveEx(*endpointURI, referenceDepth, didservice.DefaultMaxServiceReferenceDepth, documentsCache)
 		if err != nil {
 			return "", err
 		}
@@ -469,12 +469,12 @@ func (d *didman) validateCompoundServiceEndpoint(endpoints map[string]ssi.URI) e
 	// Cache resolved DID documents because most of the time a compound service will refer the same DID document in all service references.
 	cache := make(map[string]*did.Document, 0)
 	for _, serviceRef := range endpoints {
-		if dochelper.IsServiceReference(serviceRef.String()) {
-			err := dochelper.ValidateServiceReference(serviceRef)
+		if didservice.IsServiceReference(serviceRef.String()) {
+			err := didservice.ValidateServiceReference(serviceRef)
 			if err != nil {
 				return ErrReferencedServiceNotAnEndpoint{Cause: err}
 			}
-			_, err = d.serviceResolver.ResolveEx(serviceRef, 0, dochelper.DefaultMaxServiceReferenceDepth, cache)
+			_, err = d.serviceResolver.ResolveEx(serviceRef, 0, didservice.DefaultMaxServiceReferenceDepth, cache)
 			if err != nil {
 				return ErrReferencedServiceNotAnEndpoint{Cause: err}
 			}

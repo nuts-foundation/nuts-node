@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
-	vdrDoc "github.com/nuts-foundation/nuts-node/vdr/diddocuments/dochelper"
+	vdrDoc "github.com/nuts-foundation/nuts-node/vdr/didservice"
 
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"

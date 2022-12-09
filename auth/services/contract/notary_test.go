@@ -22,7 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/vdr/diddocuments/dochelper"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
@@ -224,7 +224,7 @@ func TestNewContractNotary(t *testing.T) {
 				ContractValidity: 60 * time.Minute,
 			},
 			vcr.NewTestVCRInstance(t),
-			dochelper.KeyResolver{Store: store.NewTestStore(t)},
+			didservice.KeyResolver{Store: store.NewTestStore(t)},
 			crypto.NewTestCryptoInstance(),
 			nil,
 		)

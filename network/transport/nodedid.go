@@ -21,7 +21,7 @@ package transport
 import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vdr/diddocuments/dochelper"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"sync"
 	"time"
@@ -68,7 +68,7 @@ func (a *autoNodeDIDResolver) Resolve() (did.DID, error) {
 		return result, nil
 	}
 
-	documents, err := a.docFinder.Find(dochelper.IsActive(), dochelper.ValidAt(time.Now()), dochelper.ByServiceType(NutsCommServiceType))
+	documents, err := a.docFinder.Find(didservice.IsActive(), didservice.ValidAt(time.Now()), didservice.ByServiceType(NutsCommServiceType))
 	if err != nil {
 		return did.DID{}, err
 	}
