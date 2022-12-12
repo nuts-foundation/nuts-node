@@ -23,6 +23,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/avast/retry-go/v4"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -30,7 +32,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
-	"time"
 )
 
 const (
@@ -42,6 +43,8 @@ const (
 	// PayloadEventType is used as Type in an Event when a payload is written to the DB.
 	PayloadEventType = "payload"
 )
+
+var timeFunc = time.Now
 
 // EventFatal signals that an Event receiver encountered a fatal error and that the Event should not be retried.
 type EventFatal struct {
@@ -99,12 +102,14 @@ type NotifierOption func(notifier *notifier)
 // Event is the metadata that is stored for a notifier specific event
 // The Hash is used as identifier for the Event.
 type Event struct {
-	// Type of an event, can be used to filter
+	// Type of event, can be used to filter
 	Type string `json:"type,omitempty"`
 	// Hash is the ID of the Event, usually the same as the dag.Transaction.Ref()
 	Hash hash.SHA256Hash `json:"Hash"`
 	// Retries is the current number of retries
 	Retries int `json:"retries"`
+	// Latest records the timestamp of the last notification attempt. It is not used in the backoff calculation.
+	Latest *time.Time `json:"latest,omitempty"`
 	// Transaction that was added to the DAG or for which the Payload was written. Mandatory.
 	Transaction Transaction `json:"transaction"`
 	// Payload that was written to the PayloadStore, optional (private TXs).
@@ -118,6 +123,7 @@ func (j *Event) UnmarshalJSON(bytes []byte) error {
 		Type        string          `json:"type,omitempty"`
 		Hash        hash.SHA256Hash `json:"Hash"`
 		Retries     int             `json:"retries"`
+		Latest      *time.Time      `json:"latest,omitempty"`
 		Transaction string          `json:"transaction"`
 		Payload     []byte          `json:"payload,omitempty"`
 		Error       string          `json:"error,omitempty"`
@@ -130,6 +136,7 @@ func (j *Event) UnmarshalJSON(bytes []byte) error {
 	j.Type = tmp.Type
 	j.Hash = tmp.Hash
 	j.Retries = tmp.Retries
+	j.Latest = tmp.Latest
 	j.Payload = tmp.Payload
 	j.Error = tmp.Error
 
@@ -402,6 +409,8 @@ func (p *notifier) notifyNow(event Event) error {
 
 	dbEvent.Error = err.Error() // err != nil
 	dbEvent.Retries++
+	now := timeFunc()
+	dbEvent.Latest = &now
 	if p.isPersistent() {
 		if err := p.db.WriteShelf(p.ctx, p.shelfName(), func(writer stoabs.Writer) error {
 			return p.writeEvent(writer, *dbEvent)
@@ -424,7 +433,6 @@ func (p *notifier) writeEvent(writer stoabs.Writer, event Event) error {
 }
 
 func (p *notifier) readEvent(reader stoabs.Reader, hash hash.SHA256Hash) (*Event, error) {
-	var event Event
 	data, err := reader.Get(stoabs.BytesKey(hash.Slice()))
 	if err != nil {
 		return nil, err
@@ -434,11 +442,12 @@ func (p *notifier) readEvent(reader stoabs.Reader, hash hash.SHA256Hash) (*Event
 		return nil, nil
 	}
 
-	if err = json.Unmarshal(data, &event); err != nil {
+	event := new(Event)
+	if err = json.Unmarshal(data, event); err != nil {
 		return nil, err
 	}
 
-	return &event, nil
+	return event, nil
 }
 
 func (p *notifier) Finished(hash hash.SHA256Hash) error {

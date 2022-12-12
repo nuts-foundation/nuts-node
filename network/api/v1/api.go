@@ -23,6 +23,7 @@ import (
 	"errors"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -140,12 +141,14 @@ func (a Wrapper) ListEvents(ctx echo.Context) error {
 		for _, event := range events {
 			eventError := event.Error
 			eventType := event.Type
+			eventLatest := event.Latest.Format(time.RFC3339)
 			eventSubscriber.Events = append(eventSubscriber.Events, Event{
-				Error:       &eventError,
-				Hash:        event.Hash.String(),
-				Retries:     event.Retries,
-				Transaction: event.Transaction.Ref().String(),
-				Type:        &eventType,
+				Error:                     &eventError,
+				Hash:                      event.Hash.String(),
+				Retries:                   event.Retries,
+				LatestNotificationAttempt: &eventLatest,
+				Transaction:               event.Transaction.Ref().String(),
+				Type:                      &eventType,
 			})
 		}
 		response = append(response, eventSubscriber)

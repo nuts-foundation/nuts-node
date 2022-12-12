@@ -215,6 +215,9 @@ components:
         retries:
           description: Number of times the event has been retried.
           type: integer
+        latest_notification_attempt:
+          description: "Timestamp of the most recent notification attempt. Formatted according to RFC3339. Note: calculation of the next attempt does not use this timestamp."
+          type: string
         transaction:
           description: The transaction reference
           type: string
