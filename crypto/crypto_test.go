@@ -89,7 +89,7 @@ func TestCrypto_New(t *testing.T) {
 		storageMock.EXPECT().PrivateKeyExists("123").Return(false)
 		storageMock.EXPECT().SavePrivateKey(gomock.Any(), gomock.Any()).Return(errors.New("foo"))
 
-		client := &Crypto{Storage: storageMock}
+		client := &Crypto{storage: storageMock}
 		key, err := client.New(StringNamingFunc("123"))
 		assert.Nil(t, key)
 		assert.Error(t, err)
@@ -102,7 +102,7 @@ func TestCrypto_New(t *testing.T) {
 		storageMock := storage.NewMockStorage(ctrl)
 		storageMock.EXPECT().PrivateKeyExists("123").Return(true)
 
-		client := &Crypto{Storage: storageMock}
+		client := &Crypto{storage: storageMock}
 		key, err := client.New(StringNamingFunc("123"))
 		assert.Nil(t, key)
 		assert.EqualError(t, err, "key with the given ID already exists", err)
@@ -149,7 +149,7 @@ func TestCrypto_Configure(t *testing.T) {
 		client := createCrypto(t)
 		err := client.Configure(cfg)
 		require.NoError(t, err)
-		storageType := reflect.TypeOf(client.Storage).String()
+		storageType := reflect.TypeOf(client.storage).String()
 		assert.Equal(t, "*storage.fileSystemBackend", storageType)
 	})
 	t.Run("error - no backend in strict mode is now allowed", func(t *testing.T) {
@@ -182,7 +182,7 @@ func createCrypto(t *testing.T) *Crypto {
 	dir := io.TestDirectory(t)
 	backend, _ := storage.NewFileSystemBackend(dir)
 	c := Crypto{
-		Storage: backend,
+		storage: backend,
 	}
 	return &c
 }

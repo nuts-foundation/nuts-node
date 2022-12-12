@@ -225,7 +225,7 @@ func TestNewContractNotary(t *testing.T) {
 			},
 			vcr.NewTestVCRInstance(t),
 			didservice.KeyResolver{Store: store.NewTestStore(t)},
-			crypto.NewTestCryptoInstance(),
+			crypto.NewMemoryCryptoInstance(),
 			nil,
 		)
 

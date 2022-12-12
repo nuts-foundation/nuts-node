@@ -55,7 +55,7 @@ func DefaultCryptoConfig() Config {
 
 // Crypto holds references to storage and needed config
 type Crypto struct {
-	Storage storage.Storage
+	storage storage.Storage
 	config  Config
 }
 
@@ -79,20 +79,20 @@ func (client *Crypto) setupFSBackend(config core.ServerConfig) error {
 		"Discouraged for production use unless backups and encryption is properly set up. Consider using the Hashicorp Vault backend.")
 	fsPath := path.Join(config.Datadir, "crypto")
 	var err error
-	client.Storage, err = storage.NewFileSystemBackend(fsPath)
+	client.storage, err = storage.NewFileSystemBackend(fsPath)
 	return err
 }
 
 func (client *Crypto) setupVaultBackend(_ core.ServerConfig) error {
 	log.Logger().Debug("Setting up Vault backend for storage of private key material.")
 	var err error
-	client.Storage, err = storage.NewVaultKVStorage(client.config.Vault)
+	client.storage, err = storage.NewVaultKVStorage(client.config.Vault)
 	return err
 }
 
 // List returns the KIDs of the private keys that are present in the key store.
 func (client *Crypto) List() []string {
-	return client.Storage.ListPrivateKeys()
+	return client.storage.ListPrivateKeys()
 }
 
 // Configure loads the given configurations in the engine. Any wrong combination will return an error
@@ -124,10 +124,10 @@ func (client *Crypto) New(namingFunc KIDNamingFunc) (Key, error) {
 	if err = validateKID(kid); err != nil {
 		return nil, err
 	}
-	if client.Storage.PrivateKeyExists(kid) {
+	if client.storage.PrivateKeyExists(kid) {
 		return nil, errors.New("key with the given ID already exists")
 	}
-	if err = client.Storage.SavePrivateKey(kid, keyPair); err != nil {
+	if err = client.storage.SavePrivateKey(kid, keyPair); err != nil {
 		return nil, fmt.Errorf("could not create new keypair: could not save private key: %w", err)
 	}
 	return keySelector{
@@ -161,14 +161,14 @@ func (client *Crypto) Exists(kid string) bool {
 	if err := validateKID(kid); err != nil {
 		return false
 	}
-	return client.Storage.PrivateKeyExists(kid)
+	return client.storage.PrivateKeyExists(kid)
 }
 
 func (client *Crypto) Resolve(kid string) (Key, error) {
 	if err := validateKID(kid); err != nil {
 		return nil, err
 	}
-	keypair, err := client.Storage.GetPrivateKey(kid)
+	keypair, err := client.storage.GetPrivateKey(kid)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
 			return nil, ErrPrivateKeyNotFound

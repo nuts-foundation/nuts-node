@@ -820,7 +820,7 @@ func resetIntegrationTest(t *testing.T) {
 
 	receivedTransactions = make(map[string][]dag.Transaction, 0)
 	vdrStore = store.NewTestStore(t)
-	keyStore = nutsCrypto.NewTestCryptoInstance()
+	keyStore = nutsCrypto.NewMemoryCryptoInstance()
 
 	// Write DID Document for node1
 	writeDIDDocument := func(subject string) {
