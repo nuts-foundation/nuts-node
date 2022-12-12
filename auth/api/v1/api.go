@@ -322,7 +322,7 @@ func (w Wrapper) RequestAccessToken(ctx echo.Context) error {
 	}
 	accessTokenResponse, err := authClient.CreateAccessToken(*authServerEndpoint, jwtGrantResponse.BearerToken)
 	if err != nil {
-		return core.Error(http.StatusBadGateway, "remote server/nuts node returned error creating access token: %w", err)
+		return core.Error(http.StatusServiceUnavailable, "remote server/nuts node returned error creating access token: %w", err)
 	}
 
 	return ctx.JSON(http.StatusOK, accessTokenResponse)

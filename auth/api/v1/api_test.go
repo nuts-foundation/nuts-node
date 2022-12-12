@@ -504,7 +504,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		assert.EqualError(t, err, "remote server/nuts node returned error creating access token: server returned HTTP 500 (expected: 200), response: null")
 		require.Implements(t, new(core.HTTPStatusCodeError), err)
-		assert.Equal(t, http.StatusBadGateway, err.(core.HTTPStatusCodeError).StatusCode())
+		assert.Equal(t, http.StatusServiceUnavailable, err.(core.HTTPStatusCodeError).StatusCode())
 	})
 
 	t.Run("happy_path", func(t *testing.T) {
