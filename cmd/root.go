@@ -24,6 +24,7 @@ import (
 	"fmt"
 	httpEngine "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/spf13/pflag"
 	"io"
 	"os"
@@ -55,7 +56,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr"
 	vdrAPI "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	vdrCmd "github.com/nuts-foundation/nuts-node/vdr/cmd"
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -182,9 +182,9 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	jsonld := jsonld.NewJSONLDInstance()
 	storageInstance := storage.New()
 	didStore := store.NewStore(storageInstance.GetProvider(vdr.ModuleName))
-	keyResolver := doc.KeyResolver{Store: didStore}
-	docResolver := doc.Resolver{Store: didStore}
-	docFinder := doc.Finder{Store: didStore}
+	keyResolver := didservice.KeyResolver{Store: didStore}
+	docResolver := didservice.Resolver{Store: didStore}
+	docFinder := didservice.Finder{Store: didStore}
 	eventManager := events.NewManager()
 	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), keyResolver, cryptoInstance, cryptoInstance, docResolver, docFinder, eventManager, storageInstance.GetProvider(network.ModuleName))
 	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance, didStore, eventManager)
@@ -198,7 +198,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system.RegisterRoutes(&core.LandingPage{})
 	system.RegisterRoutes(&cryptoAPI.Wrapper{C: cryptoInstance})
 	system.RegisterRoutes(&networkAPI.Wrapper{Service: networkInstance})
-	system.RegisterRoutes(&vdrAPI.Wrapper{VDR: vdrInstance, DocResolver: docResolver, DocManipulator: &doc.Manipulator{
+	system.RegisterRoutes(&vdrAPI.Wrapper{VDR: vdrInstance, DocResolver: docResolver, DocManipulator: &didservice.Manipulator{
 		KeyCreator: cryptoInstance,
 		Updater:    vdrInstance,
 		Resolver:   docResolver,

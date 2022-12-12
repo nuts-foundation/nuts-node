@@ -17,7 +17,7 @@ package v1
 
 import (
 	"errors"
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"testing"
@@ -492,7 +492,7 @@ func TestWrapper_AddNewVerificationMethod(t *testing.T) {
 
 	t.Run("ok - without key usage", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docUpdater.EXPECT().AddVerificationMethod(*did123, doc.DefaultCreationOptions().KeyFlags).Return(newMethod, nil)
+		ctx.docUpdater.EXPECT().AddVerificationMethod(*did123, didservice.DefaultCreationOptions().KeyFlags).Return(newMethod, nil)
 
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			return nil
@@ -510,7 +510,7 @@ func TestWrapper_AddNewVerificationMethod(t *testing.T) {
 	t.Run("ok - with key usage", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		expectedKeyUsage := doc.DefaultCreationOptions().KeyFlags | types.AuthenticationUsage | types.CapabilityDelegationUsage
+		expectedKeyUsage := didservice.DefaultCreationOptions().KeyFlags | types.AuthenticationUsage | types.CapabilityDelegationUsage
 		ctx.docUpdater.EXPECT().AddVerificationMethod(*did123, expectedKeyUsage).Return(newMethod, nil)
 		trueBool := true
 		requestBody := AddNewVerificationMethodJSONRequestBody{

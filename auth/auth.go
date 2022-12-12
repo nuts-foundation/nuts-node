@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"path"
 	"time"
 
@@ -36,7 +37,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
 )
 
 // ErrMissingPublicURL is returned when the publicUrl is missing from the config
@@ -125,7 +125,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		ContractValidators:    auth.config.ContractValidators,
 		ContractValidity:      contractValidity,
 		StrictMode:            config.Strictmode,
-	}, auth.vcr, doc.KeyResolver{Store: auth.registry}, auth.keyStore, auth.jsonldManager)
+	}, auth.vcr, didservice.KeyResolver{Store: auth.registry}, auth.keyStore, auth.jsonldManager)
 
 	tlsEnabled := config.TLS.Enabled()
 	if config.Strictmode && !tlsEnabled {

@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/stretchr/testify/require"
 	"net/url"
 	"sync"
@@ -36,13 +37,12 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nuts-foundation/nuts-node/core"
-	crypto "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
@@ -52,7 +52,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	ctx := setup(t)
 
 	// Start with a first and fresh document named DocumentA.
-	docA, _, err := ctx.vdr.Create(doc.DefaultCreationOptions())
+	docA, _, err := ctx.vdr.Create(didservice.DefaultCreationOptions())
 	require.NoError(t, err)
 	assert.NotNil(t, docA)
 
@@ -87,7 +87,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 		"expected updated docA to have a service")
 
 	// Create a new DID Document we name DocumentB
-	docB, _, err := ctx.vdr.Create(doc.DefaultCreationOptions())
+	docB, _, err := ctx.vdr.Create(didservice.DefaultCreationOptions())
 	require.NoError(t, err, "unexpected error while creating DocumentB")
 	assert.NotNil(t, docB,
 		"a new document should have been created")
@@ -133,7 +133,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 		"news service of document a does not contain expected values")
 
 	// deactivate document B
-	docUpdater := &doc.Manipulator{KeyCreator: ctx.cryptoInstance, Updater: *ctx.vdr, Resolver: ctx.docResolver}
+	docUpdater := &didservice.Manipulator{KeyCreator: ctx.cryptoInstance, Updater: *ctx.vdr, Resolver: ctx.docResolver}
 	err = docUpdater.Deactivate(docB.ID)
 	assert.NoError(t, err,
 		"expected deactivation to succeed")
@@ -159,7 +159,7 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	ctx := setup(t)
 
 	// Start with a first and fresh document named DocumentA.
-	initialDoc, _, err := ctx.vdr.Create(doc.DefaultCreationOptions())
+	initialDoc, _, err := ctx.vdr.Create(didservice.DefaultCreationOptions())
 	require.NoError(t, err)
 	assert.NotNil(t, initialDoc)
 
@@ -194,7 +194,7 @@ func TestVDRIntegration_ReprocessEvents(t *testing.T) {
 	ctx := setup(t)
 
 	// Publish a DID Document
-	didDoc, key, _ := ctx.docCreator.Create(doc.DefaultCreationOptions())
+	didDoc, key, _ := ctx.docCreator.Create(didservice.DefaultCreationOptions())
 	payload, _ := json.Marshal(didDoc)
 	unsignedTransaction, _ := dag.NewTransaction(hash.SHA256Sum(payload), didDocumentType, nil, nil, uint32(0))
 	signedTransaction, err := dag.NewTransactionSigner(key, true).Sign(unsignedTransaction, time.Now())
@@ -219,8 +219,8 @@ func TestVDRIntegration_ReprocessEvents(t *testing.T) {
 type testContext struct {
 	vdr            *VDR
 	eventPublisher events.Event
-	docCreator     doc.Creator
-	docResolver    doc.Resolver
+	docCreator     didservice.Creator
+	docResolver    didservice.Resolver
 	cryptoInstance *crypto.Crypto
 }
 
@@ -252,9 +252,9 @@ func setup(t *testing.T) testContext {
 
 	// DID Store
 	didStore := store.NewTestStore(t)
-	docResolver := doc.Resolver{Store: didStore}
-	docFinder := doc.Finder{Store: didStore}
-	docCreator := doc.Creator{KeyStore: cryptoInstance}
+	docResolver := didservice.Resolver{Store: didStore}
+	docFinder := didservice.Finder{Store: didStore}
+	docCreator := didservice.Creator{KeyStore: cryptoInstance}
 
 	// Startup events
 	eventPublisher := events.NewTestManager(t)
@@ -263,7 +263,7 @@ func setup(t *testing.T) testContext {
 	networkCfg := network.DefaultConfig()
 	nutsNetwork := network.NewNetworkInstance(
 		networkCfg,
-		doc.KeyResolver{Store: didStore},
+		didservice.KeyResolver{Store: didStore},
 		cryptoInstance,
 		cryptoInstance,
 		docResolver,

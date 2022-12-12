@@ -22,7 +22,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -66,7 +66,7 @@ func Test_AutoNodeDIDResolver(t *testing.T) {
 		docFinder := types.NewMockDocFinder(ctrl)
 
 		keyResolver.EXPECT().List().Return([]string{key0ID.String(), key1ID.String()})
-		docFinder.EXPECT().Find(doc.IsActive(), gomock.Any(), doc.ByServiceType(NutsCommServiceType)).Return(didDocuments, nil)
+		docFinder.EXPECT().Find(didservice.IsActive(), gomock.Any(), didservice.ByServiceType(NutsCommServiceType)).Return(didDocuments, nil)
 		resolver := NewAutoNodeDIDResolver(keyResolver, docFinder)
 
 		actual, err := resolver.Resolve()
@@ -86,7 +86,7 @@ func Test_AutoNodeDIDResolver(t *testing.T) {
 		docFinder := types.NewMockDocFinder(ctrl)
 
 		keyResolver.EXPECT().List().Return([]string{})
-		docFinder.EXPECT().Find(doc.IsActive(), gomock.Any(), doc.ByServiceType(NutsCommServiceType)).Return(didDocuments, nil)
+		docFinder.EXPECT().Find(didservice.IsActive(), gomock.Any(), didservice.ByServiceType(NutsCommServiceType)).Return(didDocuments, nil)
 		resolver := NewAutoNodeDIDResolver(keyResolver, docFinder)
 
 		actual, err := resolver.Resolve()
@@ -101,7 +101,7 @@ func Test_AutoNodeDIDResolver(t *testing.T) {
 		docFinder := types.NewMockDocFinder(ctrl)
 
 		keyResolver.EXPECT().List().Return([]string{"non-matching-KID"})
-		docFinder.EXPECT().Find(doc.IsActive(), gomock.Any(), doc.ByServiceType(NutsCommServiceType)).Return(didDocuments, nil)
+		docFinder.EXPECT().Find(didservice.IsActive(), gomock.Any(), didservice.ByServiceType(NutsCommServiceType)).Return(didDocuments, nil)
 		resolver := NewAutoNodeDIDResolver(keyResolver, docFinder)
 
 		actual, err := resolver.Resolve()

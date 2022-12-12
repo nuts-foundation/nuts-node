@@ -29,7 +29,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"path"
 	"testing"
@@ -67,7 +67,7 @@ type mockContext struct {
 	vcr             *vcr
 	keyResolver     *types.MockKeyResolver
 	docResolver     *types.MockDocResolver
-	serviceResolver *doc.MockServiceResolver
+	serviceResolver *didservice.MockServiceResolver
 }
 
 func newMockContext(t *testing.T) mockContext {
@@ -80,7 +80,7 @@ func newMockContext(t *testing.T) mockContext {
 	tx.EXPECT().Subscribe("vcr_revocations", gomock.Any(), gomock.Any())
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	docResolver := types.NewMockDocResolver(ctrl)
-	serviceResolver := doc.NewMockServiceResolver(ctrl)
+	serviceResolver := didservice.NewMockServiceResolver(ctrl)
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	eventManager := events.NewTestManager(t)
 	storageClient := storage.NewTestStorageEngine(testDir)

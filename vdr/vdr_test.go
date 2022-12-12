@@ -21,11 +21,11 @@ package vdr
 import (
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/stretchr/testify/require"
 	"testing"
 
 	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -63,10 +63,10 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 	})
 	vdr := VDR{
 		store:          mockStore,
-		didDocResolver: doc.Resolver{Store: mockStore},
+		didDocResolver: didservice.Resolver{Store: mockStore},
 		network:        mockNetwork,
 		keyStore:       mockKeyStore,
-		didDocCreator:  doc.Creator{KeyStore: mockKeyStore},
+		didDocCreator:  didservice.Creator{KeyStore: mockKeyStore},
 	}
 	return vdrTestCtx{
 		ctrl:         ctrl,
@@ -88,7 +88,7 @@ func TestVDR_Update(t *testing.T) {
 		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
 		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 
-		nextDIDDocument := doc.CreateDocument()
+		nextDIDDocument := didservice.CreateDocument()
 		nextDIDDocument.ID = *id
 		expectedResolverMetadata := &types.ResolveMetadata{
 			Hash:             &currentHash,
@@ -113,7 +113,7 @@ func TestVDR_Update(t *testing.T) {
 		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
 		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 
-		nextDIDDocument := doc.CreateDocument()
+		nextDIDDocument := didservice.CreateDocument()
 		nextDIDDocument.ID = *id
 
 		payload, err := json.Marshal(nextDIDDocument)
@@ -137,7 +137,7 @@ func TestVDR_Update(t *testing.T) {
 
 	t.Run("error - validation failed", func(t *testing.T) {
 		ctx := newVDRTestCtx(t)
-		currentDIDDocument := doc.CreateDocument()
+		currentDIDDocument := didservice.CreateDocument()
 		currentDIDDocument.ID = *id
 		currentDIDDocument.Controller = []did.DID{currentDIDDocument.ID}
 
@@ -154,7 +154,7 @@ func TestVDR_Update(t *testing.T) {
 
 	t.Run("error - no controller for document", func(t *testing.T) {
 		ctx := newVDRTestCtx(t)
-		document := doc.CreateDocument()
+		document := didservice.CreateDocument()
 		document.ID = *id
 
 		expectedResolverMetadata := &types.ResolveMetadata{
@@ -180,7 +180,7 @@ func TestVDR_Update(t *testing.T) {
 
 	t.Run("error - document not managed by this node", func(t *testing.T) {
 		ctx := newVDRTestCtx(t)
-		nextDIDDocument := doc.CreateDocument()
+		nextDIDDocument := didservice.CreateDocument()
 		nextDIDDocument.ID = *id
 		currentDIDDocument := nextDIDDocument
 		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
@@ -201,7 +201,7 @@ func TestVDR_Create(t *testing.T) {
 		key := crypto.NewTestKey("did:nuts:123#key-1")
 		id, _ := did.ParseDID("did:nuts:123")
 		keyID, _ := did.ParseDIDURL(key.KID())
-		nextDIDDocument := doc.CreateDocument()
+		nextDIDDocument := didservice.CreateDocument()
 		nextDIDDocument.ID = *id
 		vm, err := did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, did.DID{}, key.Public())
 		require.NoError(t, err)
@@ -213,7 +213,7 @@ func TestVDR_Create(t *testing.T) {
 		ctx.mockKeyStore.EXPECT().New(gomock.Any()).Return(key, nil)
 		ctx.mockNetwork.EXPECT().CreateTransaction(network.TransactionTemplate(expectedPayloadType, expectedPayload, key).WithAttachKey())
 
-		didDoc, key, err := ctx.vdr.Create(doc.DefaultCreationOptions())
+		didDoc, key, err := ctx.vdr.Create(didservice.DefaultCreationOptions())
 
 		assert.NoError(t, err)
 		assert.NotNil(t, didDoc)
@@ -224,7 +224,7 @@ func TestVDR_Create(t *testing.T) {
 		ctx := newVDRTestCtx(t)
 		ctx.mockKeyStore.EXPECT().New(gomock.Any()).Return(nil, errors.New("b00m!"))
 
-		_, _, err := ctx.vdr.Create(doc.DefaultCreationOptions())
+		_, _, err := ctx.vdr.Create(didservice.DefaultCreationOptions())
 
 		assert.EqualError(t, err, "could not create DID document: b00m!")
 	})
@@ -235,7 +235,7 @@ func TestVDR_Create(t *testing.T) {
 		ctx.mockKeyStore.EXPECT().New(gomock.Any()).Return(key, nil)
 		ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any()).Return(nil, errors.New("b00m!"))
 
-		_, _, err := ctx.vdr.Create(doc.DefaultCreationOptions())
+		_, _, err := ctx.vdr.Create(didservice.DefaultCreationOptions())
 
 		assert.EqualError(t, err, "could not store DID document in network: b00m!")
 	})
@@ -372,18 +372,18 @@ func TestVDR_resolveControllerKey(t *testing.T) {
 
 func TestWithJSONLDContext(t *testing.T) {
 	id, _ := did.ParseDID("did:nuts:123")
-	expected := did.Document{ID: *id, Context: []ssi.URI{doc.NutsDIDContextV1URI()}}
+	expected := did.Document{ID: *id, Context: []ssi.URI{didservice.NutsDIDContextV1URI()}}
 
 	t.Run("added if not present", func(t *testing.T) {
 		document := did.Document{ID: *id}
 
-		patched := withJSONLDContext(document, doc.NutsDIDContextV1URI())
+		patched := withJSONLDContext(document, didservice.NutsDIDContextV1URI())
 
 		assert.EqualValues(t, expected.Context, patched.Context)
 	})
 
 	t.Run("no changes if existing", func(t *testing.T) {
-		patched := withJSONLDContext(expected, doc.NutsDIDContextV1URI())
+		patched := withJSONLDContext(expected, didservice.NutsDIDContextV1URI())
 
 		assert.EqualValues(t, expected.Context, patched.Context)
 	})

@@ -24,6 +24,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"testing"
 	"time"
 
@@ -34,7 +35,6 @@ import (
 	"github.com/nuts-foundation/go-stoabs"
 	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -97,14 +97,14 @@ func TestTransactionSignatureVerifier(t *testing.T) {
 	t.Run("referral with key ID", func(t *testing.T) {
 		transaction, _, publicKey := CreateTestTransaction(1)
 		expected, _ := ParseTransaction(transaction.Data())
-		err := NewTransactionSignatureVerifier(&doc.StaticKeyResolver{Key: publicKey})(nil, expected)
+		err := NewTransactionSignatureVerifier(&didservice.StaticKeyResolver{Key: publicKey})(nil, expected)
 		assert.NoError(t, err)
 	})
 	t.Run("wrong key", func(t *testing.T) {
 		attackerKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		transaction, _, _ := CreateTestTransaction(1)
 		expected, _ := ParseTransaction(transaction.Data())
-		err := NewTransactionSignatureVerifier(&doc.StaticKeyResolver{Key: attackerKey.Public()})(nil, expected)
+		err := NewTransactionSignatureVerifier(&didservice.StaticKeyResolver{Key: attackerKey.Public()})(nil, expected)
 		assert.EqualError(t, err, "failed to verify message: failed to verify signature using ecdsa")
 	})
 	t.Run("key type is incorrect", func(t *testing.T) {

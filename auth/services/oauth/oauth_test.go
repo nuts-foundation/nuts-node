@@ -27,6 +27,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/stretchr/testify/require"
 	"net/url"
 	"testing"
@@ -51,7 +52,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -991,7 +991,7 @@ var createContext = func(t *testing.T) *testContext {
 		verifier:        verifier,
 		didResolver:     didResolver,
 		oauthService: &service{
-			docResolver:     doc.Resolver{Store: didResolver},
+			docResolver:     didservice.Resolver{Store: didResolver},
 			keyResolver:     keyResolver,
 			contractNotary:  contractNotaryMock,
 			privateKeyStore: privateKeyStore,

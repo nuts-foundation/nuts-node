@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
@@ -39,7 +40,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
@@ -224,7 +224,7 @@ func TestNewContractNotary(t *testing.T) {
 				ContractValidity: 60 * time.Minute,
 			},
 			vcr.NewTestVCRInstance(t),
-			doc.KeyResolver{Store: store.NewTestStore(t)},
+			didservice.KeyResolver{Store: store.NewTestStore(t)},
 			crypto.NewTestCryptoInstance(),
 			nil,
 		)

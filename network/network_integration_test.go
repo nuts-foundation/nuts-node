@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/stretchr/testify/require"
 	grpc2 "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -45,7 +46,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
 	"github.com/nuts-foundation/nuts-node/test"
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/sirupsen/logrus"
@@ -914,11 +914,11 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 
 	instance := &Network{
 		config:              config,
-		didDocumentResolver: doc.Resolver{Store: vdrStore},
-		didDocumentFinder:   doc.Finder{Store: vdrStore},
+		didDocumentResolver: didservice.Resolver{Store: vdrStore},
+		didDocumentFinder:   didservice.Finder{Store: vdrStore},
 		privateKeyResolver:  keyStore,
 		decrypter:           keyStore,
-		keyResolver:         doc.KeyResolver{Store: vdrStore},
+		keyResolver:         didservice.KeyResolver{Store: vdrStore},
 		nodeDIDResolver:     &transport.FixedNodeDIDResolver{},
 		eventPublisher:      eventPublisher,
 		storeProvider:       &storeProvider,

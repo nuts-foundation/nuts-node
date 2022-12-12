@@ -31,14 +31,14 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 type networkPublisher struct {
 	networkTx       network.Transactions
 	didDocResolver  vdr.DocResolver
-	serviceResolver doc.ServiceResolver
+	serviceResolver didservice.ServiceResolver
 	keyResolver     keyResolver
 }
 
@@ -54,7 +54,7 @@ func NewNetworkPublisher(networkTx network.Transactions, docResolver vdr.DocReso
 	return &networkPublisher{
 		networkTx:       networkTx,
 		didDocResolver:  docResolver,
-		serviceResolver: doc.NewServiceResolver(docResolver),
+		serviceResolver: didservice.NewServiceResolver(docResolver),
 		keyResolver: vdrKeyResolver{
 			docResolver: docResolver,
 			keyResolver: keyResolver,

@@ -23,6 +23,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/stretchr/testify/require"
 	"hash/crc32"
 	"path"
@@ -39,7 +40,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/sirupsen/logrus"
@@ -160,9 +160,9 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 	}
 	peerID := transport.PeerID(name)
 	listenAddress := fmt.Sprintf("localhost:%d", nameToPort(name))
-	ctx.protocol = New(*cfg, transport.FixedNodeDIDResolver{}, ctx.state, doc.Resolver{Store: vdrStore}, keyStore, nil, bboltStore).(*protocol)
+	ctx.protocol = New(*cfg, transport.FixedNodeDIDResolver{}, ctx.state, didservice.Resolver{Store: vdrStore}, keyStore, nil, bboltStore).(*protocol)
 
-	authenticator := grpc.NewTLSAuthenticator(doc.NewServiceResolver(&doc.Resolver{Store: store.NewTestStore(t)}))
+	authenticator := grpc.NewTLSAuthenticator(didservice.NewServiceResolver(&didservice.Resolver{Store: store.NewTestStore(t)}))
 	connectionsStore, _ := storageClient.GetProvider("network").GetKVStore("connections", storage.VolatileStorageClass)
 	ctx.connectionManager = grpc.NewGRPCConnectionManager(grpc.NewConfig(listenAddress, peerID), connectionsStore, &transport.FixedNodeDIDResolver{NodeDID: did.DID{}}, authenticator, ctx.protocol)
 

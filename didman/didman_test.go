@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/stretchr/testify/require"
 	"io"
 	"net/url"
@@ -40,7 +41,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/doc"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -127,10 +127,10 @@ func TestDidman_AddEndpoint(t *testing.T) {
 func TestDidman_AddCompoundService(t *testing.T) {
 	meta := &types.DocumentMetadata{Hash: hash.EmptyHash()}
 
-	helloServiceQuery := doc.MakeServiceReference(*vdr.TestDIDA, "hello")
-	worldServiceQuery := doc.MakeServiceReference(*vdr.TestDIDB, "world")
-	universeServiceQuery := doc.MakeServiceReference(*vdr.TestDIDB, "universe")
-	universeNestedServiceQuery := doc.MakeServiceReference(*vdr.TestDIDB, "universe-ref")
+	helloServiceQuery := didservice.MakeServiceReference(*vdr.TestDIDA, "hello")
+	worldServiceQuery := didservice.MakeServiceReference(*vdr.TestDIDB, "world")
+	universeServiceQuery := didservice.MakeServiceReference(*vdr.TestDIDB, "universe")
+	universeNestedServiceQuery := didservice.MakeServiceReference(*vdr.TestDIDB, "universe-ref")
 	references := make(map[string]ssi.URI, 0)
 	references["hello"] = helloServiceQuery
 	references["world"] = worldServiceQuery
@@ -288,7 +288,7 @@ func TestDidman_DeleteService(t *testing.T) {
 }
 
 func TestDidman_UpdateContactInformation(t *testing.T) {
-	didDoc := doc.CreateDocument()
+	didDoc := didservice.CreateDocument()
 	id, _ := did.ParseDID("did:nuts:123")
 	didDoc.ID = *id
 	meta := &types.DocumentMetadata{Hash: hash.EmptyHash()}
