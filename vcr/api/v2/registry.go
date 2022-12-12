@@ -19,6 +19,8 @@
 package v2
 
 import (
+	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"net/http"
 	"sort"
 	"strings"
@@ -74,6 +76,10 @@ func (w *Wrapper) SearchVCs(ctx echo.Context) error {
 	if err != nil {
 		return core.InvalidInputError("failed to convert query to JSON-LD expanded form: %w", err)
 	}
+
+	documentAsJson, _ := json.MarshalIndent(document, "", " ")
+	log.Logger().Debug(string(documentAsJson))
+
 	searchTerms := flatten(document, nil)
 
 	// sort terms to aid testing
