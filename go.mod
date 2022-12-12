@@ -17,7 +17,7 @@ require (
 	github.com/labstack/echo-contrib v0.13.0
 	github.com/labstack/echo/v4 v4.9.1
 	github.com/lestrrat-go/jwx v1.2.25
-	github.com/magiconair/properties v1.8.6
+	github.com/magiconair/properties v1.8.7
 	github.com/mdp/qrterminal/v3 v3.0.0
 	github.com/nats-io/nats-server/v2 v2.9.9
 	github.com/nats-io/nats.go v1.21.0
