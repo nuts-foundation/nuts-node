@@ -102,8 +102,16 @@ nuts:
   # Config for the NUTS data mount inside Kubernetes
   data:
     persistedVolume:
+      enabled: true
       capacity: 100Mi
       mountPath: /opt/nuts/data
+      accessModes:
+        - ReadWriteOnce
+      storageClassName: ""
+    persistedVolumeClaim:
+      enabled: true
+      capacity: 100Mi
+      storageClassName: ""
       accessModes:
         - ReadWriteOnce
 
