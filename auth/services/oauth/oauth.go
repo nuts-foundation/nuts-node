@@ -69,14 +69,18 @@ type service struct {
 }
 
 type validationContext struct {
-	rawJwtBearerToken          string
-	jwtBearerToken             jwt.Token
-	kid                        string
-	requesterName              string
-	requesterCity              string
-	purposeOfUse               string
-	credentialIDs              []string
-	contractVerificationResult contract.VPVerificationResult
+	rawJwtBearerToken               string
+	jwtBearerToken                  jwt.Token
+	kid                             string
+	requesterOrganizationIdentities []organizationIdentity
+	purposeOfUse                    string
+	credentialIDs                   []string
+	contractVerificationResult      contract.VPVerificationResult
+}
+
+type organizationIdentity struct {
+	name string
+	city string
 }
 
 func (c validationContext) userIdentity() (*vc2.VerifiablePresentation, error) {
@@ -244,8 +248,14 @@ func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (
 func (s *service) validateRequester(context *validationContext) error {
 	actualName := context.contractVerificationResult.ContractAttribute(contract.LegalEntityAttr)
 	actualCity := context.contractVerificationResult.ContractAttribute(contract.LegalEntityCityAttr)
-	if actualName != context.requesterName || actualCity != context.requesterCity {
-		log.Logger().Warnf("Token request validation failed, legal entity mismatch (expected name=%s, actual name=%s, expected city=%s, actual city=%s)", context.requesterName, actualName, context.requesterCity, actualCity)
+	found := false
+	for _, identity := range context.requesterOrganizationIdentities {
+		if actualName == identity.name && actualCity == identity.city {
+			found = true
+		}
+	}
+	if !found {
+		log.Logger().Warn("Token request validation failed, requester does not have any credentials that match the organization name and city in the contract.")
 		return errors.New("legal entity mismatch")
 	}
 	return nil
@@ -313,16 +323,19 @@ func (s *service) validateIssuer(vContext *validationContext) error {
 		DocumentLoader:           s.jsonldManager.DocumentLoader(),
 		AllowUndefinedProperties: true,
 	}
-	document, err := reader.Read(vcs[0])
-	if err != nil {
-		return fmt.Errorf("could not expand credential to JSON-LD: %w", err)
+	for _, vc := range vcs {
+		document, err := reader.Read(vc)
+		if err != nil {
+			return fmt.Errorf("could not expand credential to JSON-LD: %w", err)
+		}
+		orgNames := document.ValueAt(jsonld.OrganizationNamePath)
+		orgCities := document.ValueAt(jsonld.OrganizationCityPath)
+		vContext.requesterOrganizationIdentities = append(vContext.requesterOrganizationIdentities, organizationIdentity{
+			// must exist because we queried it that way
+			name: orgNames[0].String(),
+			city: orgCities[0].String(),
+		})
 	}
-	orgNames := document.ValueAt(jsonld.OrganizationNamePath)
-	orgCities := document.ValueAt(jsonld.OrganizationCityPath)
-
-	// must exist because we queried it that way
-	vContext.requesterName = orgNames[0].String()
-	vContext.requesterCity = orgCities[0].String()
 
 	return nil
 }
