@@ -115,11 +115,32 @@ func Test_loadConfigIntoStruct(t *testing.T) {
 	})
 }
 
-func TestLoadConfigMap(t *testing.T) {
+func TestServerConfig_Load(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		cmd := &cobra.Command{}
+		cmd.Flags().AddFlagSet(FlagSet())
 		config := NewServerConfig()
-		assert.NoError(t, config.loadConfigMap(cmd.Flags()))
+		assert.NoError(t, config.Load(cmd.Flags()))
+	})
+	t.Run("error - secret (token) password set on commandline", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		cmd.Flags().String("vault.token", "", "")
+		cmd.Flags().Parse([]string{"command", "--vault.token=secret"})
+		config := NewServerConfig()
+
+		err := config.Load(cmd.Flags())
+
+		assert.EqualError(t, err, "flag vault.token is a secret, please set it in the config file or environment variable to avoid leaking it")
+	})
+	t.Run("error - secret (password) password set on commandline", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		cmd.Flags().String("database.password", "", "")
+		cmd.Flags().Parse([]string{"command", "--database.password=secret"})
+		config := NewServerConfig()
+
+		err := config.Load(cmd.Flags())
+
+		assert.EqualError(t, err, "flag database.password is a secret, please set it in the config file or environment variable to avoid leaking it")
 	})
 }
 
@@ -130,9 +151,7 @@ func Test_loadFromFile(t *testing.T) {
 	})
 	t.Run("ok - file exists", func(t *testing.T) {
 		assert.NoError(t, loadFromFile(koanf.New(defaultDelimiter), "test/config/http.yaml"))
-
 	})
-
 	t.Run("ok - default file does not exists", func(t *testing.T) {
 		assert.NoError(t, loadFromFile(koanf.New(defaultDelimiter), defaultConfigFile))
 	})

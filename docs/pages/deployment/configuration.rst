@@ -56,3 +56,8 @@ the options table must be regenerated using the Makefile:
 .. code-block:: shell
 
     $ make update-docs
+
+Secrets
+*******
+
+All options ending with ``token`` or ``password`` are considered secrets and can only be set through environment variables or the config file.
