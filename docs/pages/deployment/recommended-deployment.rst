@@ -154,3 +154,5 @@ Below is a list of items that should be addressed when running a node in product
 * Security
   * Only allow public access to ``/public``, ``/n2n`` and gRPC endpoints (but the latter 2 still require a client certificate).
   * Make sure ``/internal`` is properly protected
+* Availability
+  * Consider (D)DoS detection and protection for ``/public``, ``/n2n`` and gRPC endpoints
