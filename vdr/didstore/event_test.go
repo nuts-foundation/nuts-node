@@ -53,7 +53,7 @@ func TestEventList_Sort(t *testing.T) {
 		el := eventList{}
 
 		el.insert(event{TXRef: sha0s})
-		el.insert(event{TXRef: sha1s, LogicalClock: 1})
+		el.insert(event{TXRef: sha1s, Clock: 1})
 
 		require.Len(t, el.Events, 2)
 		assert.Equal(t, sha0s, el.Events[0].TXRef)
@@ -63,7 +63,7 @@ func TestEventList_Sort(t *testing.T) {
 	t.Run("in reverse", func(t *testing.T) {
 		el := eventList{}
 
-		el.insert(event{TXRef: sha1s, LogicalClock: 1})
+		el.insert(event{TXRef: sha1s, Clock: 1})
 		el.insert(event{TXRef: sha0s})
 
 		require.Len(t, el.Events, 2)
@@ -75,8 +75,8 @@ func TestEventList_Sort(t *testing.T) {
 		el := eventList{}
 
 		el.insert(event{TXRef: sha0s})
-		el.insert(event{TXRef: sha1s, LogicalClock: 1})
-		el.insert(event{TXRef: sha2s, LogicalClock: 1, Created: time.Now()})
+		el.insert(event{TXRef: sha1s, Clock: 1})
+		el.insert(event{TXRef: sha2s, Clock: 1, Created: time.Now()})
 
 		require.Len(t, el.Events, 3)
 		assert.Equal(t, sha0s, el.Events[0].TXRef)
@@ -87,9 +87,9 @@ func TestEventList_Sort(t *testing.T) {
 	t.Run("conflict out of order", func(t *testing.T) {
 		el := eventList{}
 
-		el.insert(event{TXRef: sha2s, LogicalClock: 1, Created: time.Now()})
+		el.insert(event{TXRef: sha2s, Clock: 1, Created: time.Now()})
 		el.insert(event{TXRef: sha0s})
-		el.insert(event{TXRef: sha1s, LogicalClock: 1})
+		el.insert(event{TXRef: sha1s, Clock: 1})
 
 		require.Len(t, el.Events, 3)
 		assert.Equal(t, sha0s, el.Events[0].TXRef)
@@ -136,13 +136,13 @@ func TestEventList_diff(t *testing.T) {
 		to := eventList{}
 		from.insert(event{TXRef: sha0s})
 		to.insert(event{TXRef: sha0s})
-		to.insert(event{TXRef: sha1s, LogicalClock: 1})
+		to.insert(event{TXRef: sha1s, Clock: 1})
 
 		common, list := from.diff(to)
 
 		assert.Equal(t, event{TXRef: sha0s}, *common)
 		require.Len(t, list, 1)
-		assert.Equal(t, event{TXRef: sha1s, LogicalClock: 1}, list[0])
+		assert.Equal(t, event{TXRef: sha1s, Clock: 1}, list[0])
 	})
 
 	t.Run("correctly ordered", func(t *testing.T) {
@@ -150,18 +150,18 @@ func TestEventList_diff(t *testing.T) {
 		to := eventList{}
 		created := time.Now()
 		from.insert(event{TXRef: sha0s})
-		from.insert(event{TXRef: sha1s, LogicalClock: 1, Created: created})
+		from.insert(event{TXRef: sha1s, Clock: 1, Created: created})
 		to.insert(event{TXRef: sha0s})
-		to.insert(event{TXRef: sha2s, LogicalClock: 1})
-		to.insert(event{TXRef: sha3s, LogicalClock: 2})
+		to.insert(event{TXRef: sha2s, Clock: 1})
+		to.insert(event{TXRef: sha3s, Clock: 2})
 
 		common, list := from.diff(to)
 
 		assert.Equal(t, event{TXRef: sha0s}, *common)
 		require.Len(t, list, 3)
-		assert.Equal(t, event{TXRef: sha2s, LogicalClock: 1}, list[0])
-		assert.Equal(t, event{TXRef: sha1s, LogicalClock: 1, Created: created}, list[1])
-		assert.Equal(t, event{TXRef: sha3s, LogicalClock: 2}, list[2])
+		assert.Equal(t, event{TXRef: sha2s, Clock: 1}, list[0])
+		assert.Equal(t, event{TXRef: sha1s, Clock: 1, Created: created}, list[1])
+		assert.Equal(t, event{TXRef: sha3s, Clock: 2}, list[2])
 	})
 }
 

@@ -27,17 +27,17 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/dag"
 )
 
-// event contains the transaction reference and ordering of all DID document diff
+// event contains the transaction reference and ordering of all DID document updates
 type event struct {
 	// Created is the transaction creation time, used for sorting
 	Created time.Time `json:"created"`
-	// LogicalClock contains the LC header from the transaction
-	LogicalClock uint32 `json:"lc"`
+	// Clock contains the LC header from the transaction
+	Clock uint32 `json:"lc"`
 	// TXRef contains the TX.Ref of the original transaction. Used for ordering
 	TXRef hash.SHA256Hash `json:"txref"`
-	// DocRef contains the reference to the document shelf. Equals transaction payload hash
+	// DocRef contains the reference to a document on the document shelf. Equals transaction payload hash
 	DocRef hash.SHA256Hash `json:"docref"`
-	// MetaRef contains a reference to the documentMetadata shelf. "DID + version"
+	// MetaRef contains a reference to a metadata record on the documentMetadata shelf. Formatted as "DID + version"
 	MetaRef string `json:"metaref"`
 	// document contains the created Document. This needs to be added to a new event since we cannot write and read within the same TX.
 	document *did.Document
@@ -55,10 +55,10 @@ func (el *eventList) Less(i, j int) bool {
 	left := el.Events[i]
 	right := el.Events[j]
 
-	if left.LogicalClock < right.LogicalClock {
+	if left.Clock < right.Clock {
 		return true
 	}
-	if left.LogicalClock > right.LogicalClock {
+	if left.Clock > right.Clock {
 		return false
 	}
 
@@ -72,10 +72,10 @@ func (el *eventList) Swap(i, j int) {
 
 func eventFromTransaction(transaction dag.Transaction) event {
 	return event{
-		Created:      transaction.SigningTime(),
-		LogicalClock: transaction.Clock(),
-		TXRef:        transaction.Ref(),
-		DocRef:       transaction.PayloadHash(),
+		Created: transaction.SigningTime(),
+		Clock:   transaction.Clock(),
+		TXRef:   transaction.Ref(),
+		DocRef:  transaction.PayloadHash(),
 	}
 }
 
@@ -102,7 +102,7 @@ func (el *eventList) insert(e event) {
 	// 98.99% case
 	last := el.Events[len(el.Events)-1]
 	el.Events = append(el.Events, e)
-	if last.LogicalClock < e.LogicalClock {
+	if last.Clock < e.Clock {
 		return
 	}
 

@@ -33,7 +33,7 @@ type documentMetadata struct {
 	// Hash of DID document bytes. Is equal to payloadHash in network layer.
 	Hash hash.SHA256Hash `json:"hash"`
 	// PreviousHash of the previous version of this DID document
-	PreviousHash *hash.SHA256Hash `json:"previousHash,omitempty"`
+	PreviousHash *hash.SHA256Hash `json:"previoushash,omitempty"`
 	// PreviousTransaction contains the prevs header. Used for conflict detection
 	PreviousTransaction []hash.SHA256Hash `json:"txprevs"`
 	// SourceTransactions points to the transaction(s) that created the current version of this DID Document.
@@ -51,7 +51,7 @@ func (md documentMetadata) asVDRMetadata() vdr.DocumentMetadata {
 		SourceTransactions: md.SourceTransactions,
 		Deactivated:        md.Deactivated,
 	}
-	if md.Created != md.Updated {
+	if !md.Created.Equal(md.Updated) {
 		result.Updated = &md.Updated
 	}
 
