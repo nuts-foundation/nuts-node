@@ -171,6 +171,43 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		assert.ErrorContains(t, err, "identity validation failed: because of reasons")
 	})
 
+	t.Run("error detail masking", func(t *testing.T) {
+		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil).AnyTimes()
+		ctx.keyResolver.EXPECT().ResolveSigningKeyID(authorizerDID, gomock.Any()).MinTimes(1).Return(authorizerSigningKeyID.String(), nil).AnyTimes()
+		ctx.nameResolver.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil).AnyTimes()
+		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(getAuthorizerDIDDocument(), nil, nil).AnyTimes()
+		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil).AnyTimes()
+		ctx.privateKeyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(true).AnyTimes()
+
+		t.Run("return internal errors when secureMode=false", func(t *testing.T) {
+			ctx.oauthService.secureMode = false
+			ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), authorizerSigningKeyID.String()).Return("", errors.New("signing error"))
+			tokenCtx := validContext()
+			signToken(tokenCtx)
+
+			response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
+
+			require.Error(t, err)
+			assert.Nil(t, response)
+			assert.ErrorContains(t, err, "")
+		})
+		t.Run("mask internal errors when secureMode=true", func(t *testing.T) {
+			ctx.oauthService.secureMode = true
+			ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), authorizerSigningKeyID.String()).Return("", errors.New("signing error"))
+			tokenCtx := validContext()
+			signToken(tokenCtx)
+
+			response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
+
+			require.Error(t, err)
+			assert.Nil(t, response)
+			assert.ErrorContains(t, err, "")
+		})
+	})
+
 	t.Run("valid - without user identity", func(t *testing.T) {
 		ctx := createContext(t)
 
