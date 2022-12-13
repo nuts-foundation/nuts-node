@@ -225,6 +225,7 @@ func TestNewVaultKVStorage(t *testing.T) {
 		storage, err := NewVaultKVStorage(VaultConfig{Address: "http://non-existing"})
 		assert.Error(t, err)
 		assert.Regexp(t, `no such host|Temporary failure in name resolution`, err.Error())
+		require.Error(t, err)
 		assert.Nil(t, storage)
 	})
 }
