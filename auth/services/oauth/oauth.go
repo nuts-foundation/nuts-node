@@ -62,8 +62,13 @@ type ErrorResponse struct {
 	Code        string
 }
 
+// Error returns the error detail, if any. If there's no detailed error message, it returns a generic error message.
+// This aids hiding internal errors from clients.
 func (e ErrorResponse) Error() string {
-	return e.Description.Error()
+	if e.Description != nil {
+		return e.Description.Error()
+	}
+	return "failed"
 }
 
 type service struct {
