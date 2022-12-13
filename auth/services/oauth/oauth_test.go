@@ -114,6 +114,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 	_ = json.Unmarshal([]byte(jsonld.TestOrganizationCredential), &testCredential)
 	t.Run("invalid jwt", func(t *testing.T) {
 		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
 
 		response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: "foo"})
 
@@ -123,6 +124,8 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 
 	t.Run("broken identity token", func(t *testing.T) {
 		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
+
 		ctx.nameResolver.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil)
 		ctx.contractNotary.EXPECT().VerifyVP(gomock.Any(), nil).Return(nil, errors.New("identity validation failed"))
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
@@ -139,6 +142,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 
 	t.Run("JWT validity too long", func(t *testing.T) {
 		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
 
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
 
@@ -154,6 +158,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 
 	t.Run("invalid identity token", func(t *testing.T) {
 		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
 
 		ctx.nameResolver.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil)
 		ctx.privateKeyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(true)
@@ -172,6 +177,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 
 	t.Run("valid - without user identity", func(t *testing.T) {
 		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
 
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(authorizerDID, gomock.Any()).MinTimes(1).Return(authorizerSigningKeyID.String(), nil)
@@ -194,6 +200,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 
 	t.Run("valid - all fields", func(t *testing.T) {
 		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
 
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(authorizerDID, gomock.Any()).MinTimes(1).Return(authorizerSigningKeyID.String(), nil)
@@ -229,6 +236,7 @@ func TestService_validateIssuer(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
 
 		tokenCtx := validContext()
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
@@ -240,6 +248,7 @@ func TestService_validateIssuer(t *testing.T) {
 	})
 	t.Run("invalid issuer", func(t *testing.T) {
 		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
 
 		tokenCtx := validContext()
 		tokenCtx.jwtBearerToken.Set(jwt.IssuerKey, "not a urn")
@@ -271,6 +280,7 @@ func TestService_validateIssuer(t *testing.T) {
 	})
 	t.Run("unable to resolve key", func(t *testing.T) {
 		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
 
 		tokenCtx := validContext()
 
@@ -530,6 +540,7 @@ func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 	t.Run("valid token with clock diff", func(t *testing.T) {
 		// a token created 10 minutes ago, valid until 4 minutes ago. But due to clock skew of 5 minutes, it should still be valid.
 		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
 		ctx.oauthService.clockSkew = 5 * time.Minute
 		tokenCtx := validContext()
 		tokenCtx.jwtBearerToken.Set(jwt.IssuedAtKey, time.Now().Add(-10*time.Minute))
@@ -545,6 +556,7 @@ func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 	t.Run("expired token", func(t *testing.T) {
 		// a token created 10 minutes ago, valid until 4 minutes ago. Just a very small clock skew allowed, so it should be expired.
 		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
 		ctx.oauthService.clockSkew = 1 * time.Millisecond // because 0 multiplied by 0 equals 0, rather use 1 millisecond (small clock skew), better test.
 		tokenCtx := validContext()
 		tokenCtx.jwtBearerToken.Set(jwt.IssuedAtKey, time.Now().Add(-10*time.Minute))
@@ -638,6 +650,7 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 
 	t.Run("create a JwtBearerToken", func(t *testing.T) {
 		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
 
 		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(authorizerDIDDocument, nil, nil).AnyTimes()
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
@@ -655,6 +668,7 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 
 	t.Run("create a JwtBearerToken with valid credentials", func(t *testing.T) {
 		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
 
 		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(authorizerDIDDocument, nil, nil).AnyTimes()
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
@@ -672,6 +686,7 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 
 	t.Run("create a JwtBearerToken with invalid credentials fails", func(t *testing.T) {
 		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
 
 		invalidCredential := validCredential
 		invalidCredential.Type = []ssi.URI{}
@@ -689,6 +704,7 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 
 	t.Run("authorizer without endpoint", func(t *testing.T) {
 		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
 		document := getAuthorizerDIDDocument()
 		document.Service = []did.Service{}
 
@@ -702,6 +718,7 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 
 	t.Run("request without authorizer", func(t *testing.T) {
 		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
 
 		request := services.CreateJwtGrantRequest{
 			Requester:  requesterDID.String(),
@@ -847,6 +864,7 @@ func TestAuth_Configure(t *testing.T) {
 func TestAuth_GetOAuthEndpointURL(t *testing.T) {
 	t.Run("returns_error_when_resolve_compound_service_fails", func(t *testing.T) {
 		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
 
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(*vdr.TestDIDA, expectedService, services.OAuthEndpointType, true).Return("", types.ErrServiceNotFound)
 
@@ -858,6 +876,7 @@ func TestAuth_GetOAuthEndpointURL(t *testing.T) {
 
 	t.Run("returns_parsed_endpoint_url", func(t *testing.T) {
 		ctx := createContext(t)
+		defer ctx.ctrl.Finish()
 		keyID, _ := did.ParseDIDURL("did:nuts:123#key-1")
 		currentDIDDocument := &did.Document{
 			Service: []did.Service{
