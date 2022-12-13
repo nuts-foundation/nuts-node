@@ -22,10 +22,10 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"time"
 
-	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"
 	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network"
@@ -39,14 +39,16 @@ type Wrapper struct {
 	Service network.Transactions
 }
 
-// Preprocess is called just before the API operation itself is invoked.
-func (a *Wrapper) Preprocess(operationID string, context echo.Context) {
-	context.Set(core.OperationIDContextKey, operationID)
-	context.Set(core.ModuleNameContextKey, network.ModuleName)
-}
-
 func (a *Wrapper) Routes(router core.EchoRouter) {
-	RegisterHandlers(router, NewStrictHandler(a, nil))
+	RegisterHandlers(router, NewStrictHandler(a, []StrictMiddlewareFunc{
+		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
+			return func(ctx echo.Context, request interface{}) (response interface{}, err error) {
+				ctx.Set(core.OperationIDContextKey, operationID)
+				ctx.Set(core.ModuleNameContextKey, network.ModuleName)
+				return f(ctx, request)
+			}
+		},
+	}))
 }
 
 // ListTransactions lists all transactions
@@ -116,7 +118,7 @@ func (a *Wrapper) GetTransactionPayload(_ context.Context, request GetTransactio
 }
 
 // GetPeerDiagnostics returns the diagnostics of the node's peers
-func (a *Wrapper) GetPeerDiagnostics(_ context.Context, request GetPeerDiagnosticsRequestObject) (GetPeerDiagnosticsResponseObject, error) {
+func (a *Wrapper) GetPeerDiagnostics(_ context.Context, _ GetPeerDiagnosticsRequestObject) (GetPeerDiagnosticsResponseObject, error) {
 	diagnostics := a.Service.PeerDiagnostics()
 	result := make(GetPeerDiagnostics200JSONResponse, len(diagnostics))
 	for k, v := range diagnostics {
@@ -172,7 +174,6 @@ func (a Wrapper) ListEvents(_ context.Context, _ ListEventsRequestObject) (ListE
 		}
 		response = append(response, eventSubscriber)
 	}
-
 	return response, nil
 }
 
