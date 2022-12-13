@@ -80,7 +80,7 @@ func (w *Wrapper) SearchVCs(ctx echo.Context) error {
 
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
 		documentAsJson, _ := json.MarshalIndent(document, "", " ")
-		log.Logger().Debug(string(documentAsJson))
+		log.Logger().Debugf("Expanded JSON-LD search query:\n%s", string(documentAsJson))
 	}
 
 	searchTerms := flatten(document, nil)
