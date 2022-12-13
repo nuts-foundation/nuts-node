@@ -283,7 +283,6 @@ func TestResolver_ResolveControllers(t *testing.T) {
 
 	t.Run("docA is controller of docB", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		store := types.NewMockStore(ctrl)
 
@@ -306,7 +305,6 @@ func TestResolver_ResolveControllers(t *testing.T) {
 
 	t.Run("docA is controller of docB and docA is deactivated", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		store := types.NewMockStore(ctrl)
 
@@ -326,7 +324,6 @@ func TestResolver_ResolveControllers(t *testing.T) {
 
 	t.Run("docA and docB are both the controllers of docB", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		store := types.NewMockStore(ctrl)
 
@@ -348,7 +345,6 @@ func TestResolver_ResolveControllers(t *testing.T) {
 
 	t.Run("docA, docB and docC are controllers of docA, docB is deactivated", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		store := types.NewMockStore(ctrl)
 
@@ -383,7 +379,6 @@ func TestResolver_ResolveControllers(t *testing.T) {
 
 	t.Run("docA is controller of docB, docA has explicit self link in Controllers", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		store := types.NewMockStore(ctrl)
 
@@ -404,7 +399,6 @@ func TestResolver_ResolveControllers(t *testing.T) {
 
 	t.Run("error - Resolve can not find the document", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		store := types.NewMockStore(ctrl)
 

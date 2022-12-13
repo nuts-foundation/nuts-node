@@ -56,7 +56,6 @@ func Test_requestLoggerMiddleware(t *testing.T) {
 		assert.Equal(t, "::1", hook.LastEntry().Data["remote_ip"])
 		assert.Equal(t, http.StatusNoContent, hook.LastEntry().Data["status"])
 		assert.Equal(t, "/test", hook.LastEntry().Data["uri"])
-		ctrl.Finish()
 	})
 
 	t.Run("it handles echo.HTTPErrors", func(t *testing.T) {
@@ -76,7 +75,6 @@ func Test_requestLoggerMiddleware(t *testing.T) {
 
 		assert.Len(t, hook.Entries, 1)
 		assert.Equal(t, http.StatusForbidden, hook.LastEntry().Data["status"])
-		ctrl.Finish()
 
 	})
 
@@ -97,7 +95,6 @@ func Test_requestLoggerMiddleware(t *testing.T) {
 
 		assert.Len(t, hook.Entries, 1)
 		assert.Equal(t, http.StatusNotFound, hook.LastEntry().Data["status"])
-		ctrl.Finish()
 	})
 
 	t.Run("it handles go errors", func(t *testing.T) {
@@ -117,14 +114,12 @@ func Test_requestLoggerMiddleware(t *testing.T) {
 
 		assert.Len(t, hook.Entries, 1)
 		assert.Equal(t, http.StatusInternalServerError, hook.LastEntry().Data["status"])
-		ctrl.Finish()
 	})
 }
 
 func Test_bodyLoggerMiddleware(t *testing.T) {
 	t.Run("it logs", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		e := echo.New()
 		request := httptest.NewRequest("GET", "/", bytes.NewReader([]byte(`"request"`)))
@@ -155,7 +150,6 @@ func Test_bodyLoggerMiddleware(t *testing.T) {
 	})
 	t.Run("request and response not loggable", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		e := echo.New()
 		request := httptest.NewRequest("GET", "/", bytes.NewReader([]byte{1, 2, 3}))

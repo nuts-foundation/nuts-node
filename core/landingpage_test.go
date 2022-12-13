@@ -25,7 +25,6 @@ import (
 
 func TestLandingPage_Routes(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	e := NewMockEchoRouter(ctrl)
 	e.EXPECT().Add("GET", "/", gomock.Any())

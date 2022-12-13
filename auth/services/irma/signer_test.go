@@ -74,7 +74,6 @@ func TestService_StartSigningSession(t *testing.T) {
 
 	t.Run("error - malformed contract", func(t *testing.T) {
 		ctx := serviceWithMocks(t)
-		defer ctx.ctrl.Finish()
 
 		rawContractText := "not a contract"
 
@@ -85,7 +84,6 @@ func TestService_StartSigningSession(t *testing.T) {
 
 	t.Run("error - irma.StartSession returns error", func(t *testing.T) {
 		ctx := serviceWithMocks(t)
-		defer ctx.ctrl.Finish()
 
 		irmaMock := ctx.service.IrmaSessionHandler.(*mockIrmaClient)
 		irmaMock.err = errors.New("some error")
@@ -98,7 +96,6 @@ func TestService_StartSigningSession(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := serviceWithMocks(t)
-		defer ctx.ctrl.Finish()
 
 		irmaMock := ctx.service.IrmaSessionHandler.(*mockIrmaClient)
 		irmaMock.irmaQr = &irma.Qr{
@@ -123,7 +120,6 @@ func TestService_SigningSessionStatus(t *testing.T) {
 
 	t.Run("error - session not found", func(t *testing.T) {
 		ctx := serviceWithMocks(t)
-		defer ctx.ctrl.Finish()
 
 		irmaMock := ctx.service.IrmaSessionHandler.(*mockIrmaClient)
 		irmaMock.sessionResult = nil
@@ -137,7 +133,6 @@ func TestService_SigningSessionStatus(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := serviceWithMocks(t)
-		defer ctx.ctrl.Finish()
 
 		irmaMock := ctx.service.IrmaSessionHandler.(*mockIrmaClient)
 		irmaMock.sessionResult = &irmaservercore.SessionResult{

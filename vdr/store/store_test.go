@@ -35,8 +35,6 @@ import (
 )
 
 func newTestStore(t *testing.T) types.Store {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	storeProvider := storage.StaticKVStoreProvider{
 		Store: storage.CreateTestBBoltStore(t, path.Join(io.TestDirectory(t), moduleName, "didstore.db")),
 	}

@@ -794,9 +794,6 @@ type mockContext struct {
 
 func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
-	t.Cleanup(func() {
-		ctrl.Finish()
-	})
 	docResolver := types.NewMockDocResolver(ctrl)
 	store := types.NewMockStore(ctrl)
 	mockVDR := types.NewMockVDR(ctrl)

@@ -31,9 +31,6 @@ import (
 func Test_MultiEcho_Bind(t *testing.T) {
 	const defaultAddress = ":1323"
 	t.Run("group already bound", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
 		m := NewMultiEcho()
 		err := m.Bind("", defaultAddress, func() (EchoServer, error) {
 			return echo.New(), nil
@@ -54,7 +51,6 @@ func Test_MultiEcho_Bind(t *testing.T) {
 func Test_MultiEcho_Start(t *testing.T) {
 	t.Run("error while starting returns first error", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		server := NewMockEchoServer(ctrl)
 		server.EXPECT().Start(gomock.Any()).Return(errors.New("unable to start"))
 
@@ -69,7 +65,6 @@ func Test_MultiEcho_Start(t *testing.T) {
 
 func Test_MultiEcho(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	const defaultAddress = ":1323"
 
@@ -118,7 +113,6 @@ func Test_MultiEcho(t *testing.T) {
 
 func Test_MultiEcho_Methods(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	defaultServer := NewMockEchoServer(ctrl)
 	gomock.InOrder(

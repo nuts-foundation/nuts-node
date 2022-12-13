@@ -35,7 +35,6 @@ import (
 
 func TestWrapper_Preprocess(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	w := &Wrapper{}
 	ctx := mock.NewMockContext(ctrl)
@@ -614,9 +613,6 @@ func newMockContext(t *testing.T) mockContext {
 	docResolver := types.NewMockDocResolver(ctrl)
 	client := &Wrapper{VDR: vdr, DocManipulator: docManipulator, DocResolver: docResolver}
 
-	t.Cleanup(func() {
-		ctrl.Finish()
-	})
 	return mockContext{
 		ctrl:        ctrl,
 		echo:        mock.NewMockContext(ctrl),

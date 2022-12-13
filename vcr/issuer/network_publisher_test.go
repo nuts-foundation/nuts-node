@@ -46,7 +46,6 @@ func Test_networkPublisher_resolveNutsCommServiceOwner(t *testing.T) {
 
 	t.Run("ok - correct did from service ID", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		sut := networkPublisher{}
 		mockServiceResolver := didservice.NewMockServiceResolver(ctrl)
@@ -62,7 +61,6 @@ func Test_networkPublisher_resolveNutsCommServiceOwner(t *testing.T) {
 
 	t.Run("error from resolver", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		sut := networkPublisher{}
 		mockServiceResolver := didservice.NewMockServiceResolver(ctrl)
@@ -83,7 +81,6 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 
 	t.Run("ok - public", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		mockKeyResolver := NewMockkeyResolver(ctrl)
 		mockDocResolver := vdrTypes.NewMockDocResolver(ctrl)
@@ -118,7 +115,6 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 
 	t.Run("ok - private", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		mockKeyResolver := NewMockkeyResolver(ctrl)
 		mockDocResolver := vdrTypes.NewMockDocResolver(ctrl)
@@ -201,7 +197,6 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 	t.Run("error - returned from function calls", func(t *testing.T) {
 		t.Run("missing NutsCommEndpoint", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			mockServiceResolver := didservice.NewMockServiceResolver(ctrl)
 
@@ -222,7 +217,6 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 
 		t.Run("unable to resolve an assertionKey for the issuer", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			mockKeyResolver := NewMockkeyResolver(ctrl)
 			sut := networkPublisher{keyResolver: mockKeyResolver}
@@ -240,7 +234,6 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 
 		t.Run("error while creating network transaction", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			mockKeyResolver := NewMockkeyResolver(ctrl)
 			mockDocResolver := vdrTypes.NewMockDocResolver(ctrl)
@@ -289,7 +282,6 @@ func Test_networkPublisher_PublishRevocation(t *testing.T) {
 
 	t.Run("it should publish a revocation", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		mockKeyResolver := NewMockkeyResolver(ctrl)
 		mockDocResolver := vdrTypes.NewMockDocResolver(ctrl)
@@ -332,7 +324,6 @@ func Test_networkPublisher_PublishRevocation(t *testing.T) {
 	t.Run("handling errors from other services", func(t *testing.T) {
 		t.Run("assertion key could not be found", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			mockKeyResolver := NewMockkeyResolver(ctrl)
 			mockDocResolver := vdrTypes.NewMockDocResolver(ctrl)
@@ -354,7 +345,6 @@ func Test_networkPublisher_PublishRevocation(t *testing.T) {
 
 		t.Run("did document of issuer could not be found", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			mockKeyResolver := NewMockkeyResolver(ctrl)
 			mockDocResolver := vdrTypes.NewMockDocResolver(ctrl)
@@ -375,7 +365,6 @@ func Test_networkPublisher_PublishRevocation(t *testing.T) {
 
 		t.Run("network returns error", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			mockKeyResolver := NewMockkeyResolver(ctrl)
 			mockDocResolver := vdrTypes.NewMockDocResolver(ctrl)

@@ -37,7 +37,6 @@ func TestNewSystem(t *testing.T) {
 
 func TestSystem_Start(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	r := NewMockRunnable(ctrl)
 	r.EXPECT().Start()
@@ -51,7 +50,6 @@ func TestSystem_Start(t *testing.T) {
 func TestSystem_Shutdown(t *testing.T) {
 	t.Run("returns error", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		r := NewMockRunnable(ctrl)
 		r.EXPECT().Shutdown().Return(errors.New("failure"))
@@ -63,7 +61,6 @@ func TestSystem_Shutdown(t *testing.T) {
 	})
 	t.Run("start and shutdown are called in opposite order", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		r1 := NewMockRunnable(ctrl)
 		r2 := NewMockRunnable(ctrl)
@@ -133,7 +130,6 @@ func TestSystem_Migrate(t *testing.T) {
 
 func TestSystem_Diagnostics(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	r := NewMockDiagnosable(ctrl)
 	r.EXPECT().Diagnostics().Return([]DiagnosticResult{&GenericDiagnosticResult{Title: "Result"}})

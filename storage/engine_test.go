@@ -71,7 +71,6 @@ func Test_engine_GetKVStore(t *testing.T) {
 func Test_engine_Shutdown(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		store := stoabs.NewMockKVStore(ctrl)
 		store.EXPECT().Close(gomock.Any())
 
@@ -84,7 +83,6 @@ func Test_engine_Shutdown(t *testing.T) {
 	})
 	t.Run("error while closing store results in error, but all stores are closed", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		store1 := stoabs.NewMockKVStore(ctrl)
 		store1.EXPECT().Close(gomock.Any()).Return(errors.New("failed"))
 		store2 := stoabs.NewMockKVStore(ctrl)

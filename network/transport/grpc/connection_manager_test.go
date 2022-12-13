@@ -231,9 +231,6 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 	})
 
 	t.Run("ok - gRPC server bound, TLS enabled", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
 		cfg := NewConfig(
 			fmt.Sprintf("127.0.0.1:%d",
 				test.FreeTCPPort()),
@@ -249,9 +246,6 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 	})
 
 	t.Run("ok - gRPC server bound, incoming TLS offloaded", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
 		cfg := NewConfig(
 			fmt.Sprintf("127.0.0.1:%d",
 				test.FreeTCPPort()),
@@ -267,9 +261,6 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 		assert.NotNil(t, cm.listener)
 	})
 	t.Run("ok - gRPC server bound, incoming TLS offloaded (but HTTP client cert name is invalid)", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
 		cfg := NewConfig(
 			fmt.Sprintf("127.0.0.1:%d",
 				test.FreeTCPPort()),
@@ -293,9 +284,6 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 	})
 
 	t.Run("configures CRL check when TLS is enabled", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
 		p := &TestProtocol{}
 
 		var tlsConfig *tls.Config
@@ -492,7 +480,6 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 
 		clientCfg, _ := newBufconnConfig("client", withBufconnDialer(serverListener))
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		authenticator := NewMockAuthenticator(ctrl)
 		authenticator.EXPECT().Authenticate(*nodeDID, gomock.Any(), gomock.Any()).Return(transport.Peer{}, ErrNodeDIDAuthFailed)
 		client := NewGRPCConnectionManager(clientCfg, nil, &transport.FixedNodeDIDResolver{}, authenticator, &TestProtocol{}).(*grpcConnectionManager)

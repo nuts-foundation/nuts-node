@@ -767,7 +767,6 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 	t.Run("ok - updating a DID Document that results in a conflict", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		didStoreMock := types.NewMockStore(ctrl)
 		keyStoreMock := types.NewMockKeyResolver(ctrl)
@@ -828,7 +827,6 @@ func Test_sortHashes(t *testing.T) {
 func Test_handleUpdateDIDDocument(t *testing.T) {
 	t.Run("error - unable to resolve controllers", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		didStoreMock := types.NewMockStore(ctrl)
 		keyStoreMock := types.NewMockKeyResolver(ctrl)
