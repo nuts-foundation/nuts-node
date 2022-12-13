@@ -63,10 +63,10 @@ type ReprocessParams struct {
 
 // ListTransactionsParams defines parameters for ListTransactions.
 type ListTransactionsParams struct {
-	// Start Inclusive start of range (in lamport clock)
+	// Start Inclusive start of range (in lamport clock); default=0
 	Start *int `form:"start,omitempty" json:"start,omitempty"`
 
-	// End Exclusive stop of range (in lamport clock)
+	// End Exclusive stop of range (in lamport clock); default=∞
 	End *int `form:"end,omitempty" json:"end,omitempty"`
 }
 
@@ -1143,7 +1143,7 @@ type ServerInterface interface {
 	// Reprocess all transactions of the given type, verify and process
 	// (POST /internal/network/v1/reprocess)
 	Reprocess(ctx echo.Context, params ReprocessParams) error
-	// Lists the transactions on the DAG
+	// Lists transactions on the DAG
 	// (GET /internal/network/v1/transaction)
 	ListTransactions(ctx echo.Context, params ListTransactionsParams) error
 	// Retrieves a transaction
