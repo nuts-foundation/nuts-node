@@ -21,6 +21,7 @@ package v2
 import (
 	"encoding/json"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
+	"github.com/sirupsen/logrus"
 	"net/http"
 	"sort"
 	"strings"
@@ -77,8 +78,10 @@ func (w *Wrapper) SearchVCs(ctx echo.Context) error {
 		return core.InvalidInputError("failed to convert query to JSON-LD expanded form: %w", err)
 	}
 
-	documentAsJson, _ := json.MarshalIndent(document, "", " ")
-	log.Logger().Debug(string(documentAsJson))
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		documentAsJson, _ := json.MarshalIndent(document, "", " ")
+		log.Logger().Debug(string(documentAsJson))
+	}
 
 	searchTerms := flatten(document, nil)
 
