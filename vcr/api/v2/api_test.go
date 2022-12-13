@@ -60,7 +60,6 @@ func TestWrapper_IssueVC(t *testing.T) {
 
 	t.Run("ok with an actual credential", func(t *testing.T) {
 		testContext := newMockContext(t)
-		defer testContext.ctrl.Finish()
 
 		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			public := Public
@@ -82,7 +81,6 @@ func TestWrapper_IssueVC(t *testing.T) {
 
 		t.Run("err - missing credential type", func(t *testing.T) {
 			testContext := newMockContext(t)
-			defer testContext.ctrl.Finish()
 
 			testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 				public := Public
@@ -99,7 +97,6 @@ func TestWrapper_IssueVC(t *testing.T) {
 
 		t.Run("err - missing credentialSubject", func(t *testing.T) {
 			testContext := newMockContext(t)
-			defer testContext.ctrl.Finish()
 
 			testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 				public := Public
@@ -120,7 +117,6 @@ func TestWrapper_IssueVC(t *testing.T) {
 
 			t.Run("ok - visibility private", func(t *testing.T) {
 				testContext := newMockContext(t)
-				defer testContext.ctrl.Finish()
 
 				testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 					issueRequest := f.(*IssueVCRequest)
@@ -140,7 +136,6 @@ func TestWrapper_IssueVC(t *testing.T) {
 
 			t.Run("ok - visibility public", func(t *testing.T) {
 				testContext := newMockContext(t)
-				defer testContext.ctrl.Finish()
 
 				testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 					issueRequest := f.(*IssueVCRequest)
@@ -160,7 +155,6 @@ func TestWrapper_IssueVC(t *testing.T) {
 
 			t.Run("err - visibility not set", func(t *testing.T) {
 				testContext := newMockContext(t)
-				defer testContext.ctrl.Finish()
 
 				testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 					issueRequest := f.(*IssueVCRequest)
@@ -176,7 +170,6 @@ func TestWrapper_IssueVC(t *testing.T) {
 
 			t.Run("err - visibility contains invalid value", func(t *testing.T) {
 				testContext := newMockContext(t)
-				defer testContext.ctrl.Finish()
 
 				testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 					issueRequest := f.(*IssueVCRequest)
@@ -194,7 +187,6 @@ func TestWrapper_IssueVC(t *testing.T) {
 
 		t.Run("err - publish false and visibility public", func(t *testing.T) {
 			testContext := newMockContext(t)
-			defer testContext.ctrl.Finish()
 
 			testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 				issueRequest := f.(*IssueVCRequest)
@@ -210,7 +202,6 @@ func TestWrapper_IssueVC(t *testing.T) {
 
 		t.Run("publish is false", func(t *testing.T) {
 			testContext := newMockContext(t)
-			defer testContext.ctrl.Finish()
 
 			testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 				issueRequest := f.(*IssueVCRequest)
@@ -238,7 +229,6 @@ func TestWrapper_IssueVC(t *testing.T) {
 
 		t.Run("error - bind fails", func(t *testing.T) {
 			testContext := newMockContext(t)
-			defer testContext.ctrl.Finish()
 
 			testContext.echo.EXPECT().Bind(gomock.Any()).Return(errors.New("b00m!"))
 			err := testContext.client.IssueVC(testContext.echo)
@@ -275,7 +265,6 @@ func TestWrapper_IssueVC(t *testing.T) {
 		for _, test := range tests {
 			t.Run(test.name, func(t *testing.T) {
 				testContext := newMockContext(t)
-				defer testContext.ctrl.Finish()
 
 				testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 					validIssueRequest(f)
@@ -465,7 +454,6 @@ func TestWrapper_RevokeVC(t *testing.T) {
 	t.Run("test integration with vcr", func(t *testing.T) {
 		t.Run("successful revocation", func(t *testing.T) {
 			testContext := newMockContext(t)
-			defer testContext.ctrl.Finish()
 
 			expectedRevocation := &Revocation{Subject: credentialURI}
 			testContext.mockIssuer.EXPECT().Revoke(credentialURI).Return(expectedRevocation, nil)
@@ -477,7 +465,6 @@ func TestWrapper_RevokeVC(t *testing.T) {
 
 		t.Run("vcr returns an error", func(t *testing.T) {
 			testContext := newMockContext(t)
-			defer testContext.ctrl.Finish()
 
 			testContext.mockIssuer.EXPECT().Revoke(credentialURI).Return(nil, errors.New("credential not found"))
 			err := testContext.client.RevokeVC(testContext.echo, credentialID)
@@ -488,7 +475,6 @@ func TestWrapper_RevokeVC(t *testing.T) {
 	t.Run("param check", func(t *testing.T) {
 		t.Run("invalid credential id format", func(t *testing.T) {
 			testContext := newMockContext(t)
-			defer testContext.ctrl.Finish()
 
 			err := testContext.client.RevokeVC(testContext.echo, "%%")
 			assert.EqualError(t, err, "invalid credential id: parse \"%%\": invalid URL escape \"%%\"")
@@ -739,7 +725,6 @@ func TestWrapper_TrustUntrust(t *testing.T) {
 
 	t.Run("ok - add", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			capturedCombination := f.(*CredentialIssuer)
@@ -756,7 +741,6 @@ func TestWrapper_TrustUntrust(t *testing.T) {
 
 	t.Run("ok - remove", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			capturedCombination := f.(*CredentialIssuer)
@@ -773,7 +757,6 @@ func TestWrapper_TrustUntrust(t *testing.T) {
 
 	t.Run("error - invalid issuer", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			capturedCombination := f.(*CredentialIssuer)
@@ -790,7 +773,6 @@ func TestWrapper_TrustUntrust(t *testing.T) {
 
 	t.Run("error - invalid credential", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			capturedCombination := f.(*CredentialIssuer)
@@ -807,7 +789,6 @@ func TestWrapper_TrustUntrust(t *testing.T) {
 
 	t.Run("error - invalid body", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			return errors.New("b00m!")
@@ -820,7 +801,6 @@ func TestWrapper_TrustUntrust(t *testing.T) {
 
 	t.Run("error - failed to add", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
 			capturedCombination := f.(*CredentialIssuer)
@@ -841,7 +821,6 @@ func TestWrapper_Trusted(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		var capturedList []string
 		ctx.vcr.EXPECT().Trusted(*credentialType).Return([]ssi.URI{*credentialType}, nil)
@@ -860,7 +839,6 @@ func TestWrapper_Trusted(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		err := ctx.client.ListTrusted(ctx.echo, string([]byte{0}))
 
@@ -874,7 +852,6 @@ func TestWrapper_Untrusted(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		var capturedList []string
 		ctx.vcr.EXPECT().Untrusted(*credentialType).Return([]ssi.URI{*credentialType}, nil)
@@ -893,7 +870,6 @@ func TestWrapper_Untrusted(t *testing.T) {
 
 	t.Run("error - malformed input", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		err := ctx.client.ListUntrusted(ctx.echo, string([]byte{0}))
 
@@ -903,7 +879,6 @@ func TestWrapper_Untrusted(t *testing.T) {
 
 	t.Run("error - other", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		ctx.vcr.EXPECT().Untrusted(*credentialType).Return(nil, errors.New("b00m!"))
 
@@ -915,7 +890,6 @@ func TestWrapper_Untrusted(t *testing.T) {
 
 func TestWrapper_Preprocess(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	w := &Wrapper{}
 	ctx := mock.NewMockContext(ctrl)

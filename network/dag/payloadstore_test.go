@@ -65,7 +65,6 @@ func TestPayloadStore_ReadWrite(t *testing.T) {
 
 func TestPayloadStore_readPayload(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	tx := stoabs.NewMockReadTx(ctrl)
 	reader := stoabs.NewMockReader(ctrl)
 	payloadStore := NewPayloadStore().(*payloadStore)
@@ -84,7 +83,6 @@ func TestPayloadStore_readPayload(t *testing.T) {
 
 func TestPayloadStore_writePayload(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	tx := stoabs.NewMockWriteTx(ctrl)
 	writer := stoabs.NewMockWriter(ctrl)
 	payloadStore := NewPayloadStore().(*payloadStore)
@@ -101,7 +99,6 @@ func TestPayloadStore_writePayload(t *testing.T) {
 }
 func TestPayloadStore_isPresent(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	tx := stoabs.NewMockReadTx(ctrl)
 	payloadStore := NewPayloadStore().(*payloadStore)
 	reader := stoabs.NewMockReader(ctrl)

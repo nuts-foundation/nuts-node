@@ -253,7 +253,6 @@ func TestEngine_Configure(t *testing.T) {
 					PrivateKey: signingKey,
 					Kid:        AdminTokenSigningKID,
 				}, nil).AnyTimes()
-				defer ctrl.Finish()
 
 				engine := New(noop, keyResolver)
 				engine.config.InterfaceConfig = InterfaceConfig{

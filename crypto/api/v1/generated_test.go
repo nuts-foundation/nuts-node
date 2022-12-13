@@ -82,7 +82,6 @@ func TestServerInterfaceWrapper_SignJwt(t *testing.T) {
 func TestRegisterHandlers(t *testing.T) {
 	t.Run("Registers routes for crypto module", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		echo := core.NewMockEchoRouter(ctrl)
 
 		echo.EXPECT().POST("/internal/crypto/v1/sign_jwt", gomock.Any())

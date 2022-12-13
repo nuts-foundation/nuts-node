@@ -111,7 +111,6 @@ func createContext(t *testing.T) *TestContext {
 
 func TestWrapper_Preprocess(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	w := &Wrapper{}
 	ctx := mock.NewMockContext(ctrl)
@@ -125,7 +124,6 @@ func TestWrapper_Preprocess(t *testing.T) {
 func TestWrapper_GetSignSessionStatus(t *testing.T) {
 	t.Run("ok - started without VP", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		signingSessionID := "123"
 		signingSessionStatus := "started"
@@ -176,7 +174,6 @@ func TestWrapper_GetSignSessionStatus(t *testing.T) {
 
 	t.Run("nok - SigningSessionStatus returns error", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		signingSessionID := "123"
 		ctx.contractClientMock.EXPECT().SigningSessionStatus(signingSessionID).Return(nil, services.ErrSessionNotFound)
@@ -189,7 +186,6 @@ func TestWrapper_GetSignSessionStatus(t *testing.T) {
 
 	t.Run("nok - unable to build a VP", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		signingSessionID := "123"
 		signingSessionResult := contract.NewMockSigningSessionResult(ctx.ctrl)
@@ -207,7 +203,6 @@ func TestWrapper_GetSignSessionStatus(t *testing.T) {
 func TestWrapper_GetContractByType(t *testing.T) {
 	t.Run("get known contact", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		cType := "PractitionerLogin"
 		cVersion := "v3"
@@ -236,7 +231,6 @@ func TestWrapper_GetContractByType(t *testing.T) {
 
 	t.Run("get an unknown contract", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		cType := "UnknownContract"
 		params := GetContractByTypeParams{}
@@ -258,7 +252,6 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 
 	t.Run("ok - it can draw up a standard contract", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		params := DrawUpContractRequest{
 			Language:    ContractLanguage("EN"),
@@ -290,7 +283,6 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 	t.Run("nok - wrong parameters", func(t *testing.T) {
 		t.Run("invalid formatted validFrom", func(t *testing.T) {
 			ctx := createContext(t)
-			defer ctx.ctrl.Finish()
 
 			validFrom := "02 Jan 2010"
 
@@ -307,7 +299,6 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 
 		t.Run("invalid formatted duration", func(t *testing.T) {
 			ctx := createContext(t)
-			defer ctx.ctrl.Finish()
 
 			duration := "15 minutes"
 
@@ -324,7 +315,6 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 
 		t.Run("unknown contract", func(t *testing.T) {
 			ctx := createContext(t)
-			defer ctx.ctrl.Finish()
 
 			params := DrawUpContractRequest{
 				Language: ContractLanguage("EN"),
@@ -341,7 +331,6 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 
 		t.Run("malformed orgID", func(t *testing.T) {
 			ctx := createContext(t)
-			defer ctx.ctrl.Finish()
 
 			params := DrawUpContractRequest{
 				Language:    ContractLanguage("EN"),
@@ -361,7 +350,6 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 
 	t.Run("nok - error while drawing up contract", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		params := DrawUpContractRequest{
 			Language:    ContractLanguage("EN"),
@@ -393,7 +381,6 @@ func TestWrapper_CreateJwtGrant(t *testing.T) {
 
 	t.Run("make request", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 		body := CreateJwtGrantRequest{
 			Requester:  vdr.TestDIDA.String(),
 			Authorizer: vdr.TestDIDB.String(),
@@ -600,7 +587,6 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 
 	t.Run("unknown grant_type", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		params := CreateAccessTokenRequest{GrantType: "unknown type"}
 		bindPostBody(ctx, params)
@@ -616,7 +602,6 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 
 	t.Run("invalid assertion", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		params := CreateAccessTokenRequest{GrantType: "urn:ietf:params:oauth:grant-type:jwt-bearer", Assertion: "invalid jwt"}
 		bindPostBody(ctx, params)
@@ -632,7 +617,6 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 
 	t.Run("auth.CreateAccessToken returns error", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		params := CreateAccessTokenRequest{GrantType: "urn:ietf:params:oauth:grant-type:jwt-bearer", Assertion: validJwt}
 		bindPostBody(ctx, params)
@@ -649,7 +633,6 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 
 	t.Run("valid request", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		params := CreateAccessTokenRequest{GrantType: "urn:ietf:params:oauth:grant-type:jwt-bearer", Assertion: validJwt}
 		bindPostBody(ctx, params)
@@ -673,7 +656,6 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 func TestWrapper_VerifyAccessToken(t *testing.T) {
 	t.Run("403 - missing header", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 		params := VerifyAccessTokenParams{
 			Authorization: "",
 		}
@@ -685,7 +667,6 @@ func TestWrapper_VerifyAccessToken(t *testing.T) {
 
 	t.Run("403 - incorrect authorization header", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 		params := VerifyAccessTokenParams{
 			Authorization: "34987569ytihua",
 		}
@@ -697,7 +678,6 @@ func TestWrapper_VerifyAccessToken(t *testing.T) {
 
 	t.Run("403 - incorrect token", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 		params := VerifyAccessTokenParams{
 			Authorization: "Bearer token",
 		}
@@ -710,7 +690,6 @@ func TestWrapper_VerifyAccessToken(t *testing.T) {
 
 	t.Run("200 - correct token", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 		params := VerifyAccessTokenParams{
 			Authorization: "Bearer token",
 		}
@@ -735,7 +714,6 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 
 	t.Run("empty token returns active false", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		request := TokenIntrospectionRequest{Token: ""}
 		bindPostBody(ctx, request)
@@ -748,7 +726,6 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 
 	t.Run("introspect a token", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		request := TokenIntrospectionRequest{Token: "123"}
 		bindPostBody(ctx, request)
@@ -839,7 +816,6 @@ func TestWrapper_CreateSignSession(t *testing.T) {
 
 	t.Run("create a dummy signing session", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		dummyMeans := dummy.Dummy{
 			InStrictMode: false,
@@ -865,7 +841,6 @@ func TestWrapper_CreateSignSession(t *testing.T) {
 
 	t.Run("nok - error while creating signing session", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		postParams := SignSessionRequest{}
 		bindPostBody(ctx, postParams)
@@ -888,7 +863,6 @@ func TestWrapper_VerifySignature(t *testing.T) {
 
 	t.Run("ok - VP without checkTime", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		postParams := SignatureVerificationRequest{
 			VerifiablePresentation: VerifiablePresentation{
@@ -926,7 +900,6 @@ func TestWrapper_VerifySignature(t *testing.T) {
 
 	t.Run("ok - but invalid VP", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		postParams := SignatureVerificationRequest{
 			VerifiablePresentation: VerifiablePresentation{}}
@@ -950,7 +923,6 @@ func TestWrapper_VerifySignature(t *testing.T) {
 
 	t.Run("ok - valid checkTime", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		checkTimeParam := "2021-01-15T09:59:00+01:00"
 		postParams := SignatureVerificationRequest{
@@ -990,7 +962,6 @@ func TestWrapper_VerifySignature(t *testing.T) {
 
 	t.Run("nok - invalid checkTime", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		invalidCheckTime := "invalid formatted timestamp"
 		postParams := SignatureVerificationRequest{
@@ -1007,7 +978,6 @@ func TestWrapper_VerifySignature(t *testing.T) {
 
 	t.Run("nok - verification returns an error", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		postParams := SignatureVerificationRequest{
 			VerifiablePresentation: VerifiablePresentation{},

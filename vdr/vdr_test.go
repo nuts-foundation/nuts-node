@@ -59,7 +59,6 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 	mockNetwork := network.NewMockTransactions(ctrl)
 	mockKeyStore := crypto.NewMockKeyStore(ctrl)
 	t.Cleanup(func() {
-		ctrl.Finish()
 	})
 	vdr := VDR{
 		store:          mockStore,

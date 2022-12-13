@@ -84,7 +84,6 @@ func TestCrypto_New(t *testing.T) {
 
 	t.Run("error - save public key returns an error", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		storageMock := storage.NewMockStorage(ctrl)
 		storageMock.EXPECT().PrivateKeyExists("123").Return(false)
 		storageMock.EXPECT().SavePrivateKey(gomock.Any(), gomock.Any()).Return(errors.New("foo"))
@@ -98,7 +97,6 @@ func TestCrypto_New(t *testing.T) {
 
 	t.Run("error - ID already in use", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		storageMock := storage.NewMockStorage(ctrl)
 		storageMock.EXPECT().PrivateKeyExists("123").Return(true)
 

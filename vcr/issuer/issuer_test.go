@@ -137,7 +137,6 @@ func Test_issuer_buildVC(t *testing.T) {
 	t.Run("error - returned from used services", func(t *testing.T) {
 		t.Run("no assertionKey for issuer", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			keyResolverMock := NewMockkeyResolver(ctrl)
 			keyResolverMock.EXPECT().ResolveAssertionKey(*issuerDID).Return(nil, errors.New("b00m!"))
@@ -153,7 +152,6 @@ func Test_issuer_buildVC(t *testing.T) {
 
 		t.Run("no DID Document for issuer", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			keyResolverMock := NewMockkeyResolver(ctrl)
 			keyResolverMock.EXPECT().ResolveAssertionKey(*issuerDID).Return(nil, vdr.ErrNotFound)
@@ -187,7 +185,6 @@ func Test_issuer_Issue(t *testing.T) {
 
 	t.Run("ok - unpublished", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config"))
 		keyResolverMock := NewMockkeyResolver(ctrl)
@@ -211,7 +208,6 @@ func Test_issuer_Issue(t *testing.T) {
 	t.Run("error - from used services", func(t *testing.T) {
 		t.Run("could not store credential", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config"))
 			keyResolverMock := NewMockkeyResolver(ctrl)
@@ -227,7 +223,6 @@ func Test_issuer_Issue(t *testing.T) {
 
 		t.Run("could not publish credential", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config"))
 			keyResolverMock := NewMockkeyResolver(ctrl)
@@ -244,9 +239,6 @@ func Test_issuer_Issue(t *testing.T) {
 		})
 
 		t.Run("validator fails (missing type)", func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-
 			sut := issuer{}
 
 			credentialOptions := vc.VerifiableCredential{
@@ -262,7 +254,6 @@ func Test_issuer_Issue(t *testing.T) {
 
 		t.Run("validator fails (undefined fields)", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			keyResolverMock := NewMockkeyResolver(ctrl)
 			keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any()).Return(crypto.NewTestKey(kid), nil)
@@ -292,7 +283,6 @@ func Test_issuer_buildRevocation(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		kid := "did:nuts:123#abc"
 
 		issuerDID, _ := did.ParseDID("did:nuts:123")
@@ -343,7 +333,6 @@ _:c14n0 <https://www.w3.org/2018/credentials#issuer> <did:nuts:123> .
 
 		t.Run("no assertionKey for issuer", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			keyResolverMock := NewMockkeyResolver(ctrl)
 			keyResolverMock.EXPECT().ResolveAssertionKey(issuerDID).Return(nil, errors.New("b00m!"))
@@ -355,7 +344,6 @@ _:c14n0 <https://www.w3.org/2018/credentials#issuer> <did:nuts:123> .
 
 		t.Run("no DID Document for issuer", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			keyResolverMock := NewMockkeyResolver(ctrl)
 			keyResolverMock.EXPECT().ResolveAssertionKey(issuerDID).Return(nil, vdr.ErrNotFound)
@@ -401,7 +389,6 @@ func Test_issuer_Revoke(t *testing.T) {
 
 		t.Run("it revokes a credential", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			publisher := NewMockPublisher(ctrl)
 			store := storeWithActualCredential(ctrl)
@@ -433,7 +420,6 @@ func Test_issuer_Revoke(t *testing.T) {
 
 		t.Run("it handles a buildRevocation error", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			// the credential does not contain a valid issuer:
 			invalidCredential := vc.VerifiableCredential{}
@@ -451,7 +437,6 @@ func Test_issuer_Revoke(t *testing.T) {
 
 		t.Run("it handles a publication error", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			publisher := NewMockPublisher(ctrl)
 			publisher.EXPECT().PublishRevocation(gomock.Any()).Return(errors.New("foo"))
@@ -470,7 +455,6 @@ func Test_issuer_Revoke(t *testing.T) {
 
 		t.Run("it does not allow double revocation", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			store := storeWithActualCredential(ctrl)
 			publisher := NewMockPublisher(ctrl)
@@ -506,7 +490,6 @@ func Test_issuer_Revoke(t *testing.T) {
 
 		t.Run("it returns an error", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			sut := issuer{
 				store: storeWithoutCredential(ctrl),
@@ -521,7 +504,6 @@ func Test_issuer_Revoke(t *testing.T) {
 
 func TestIssuer_isRevoked(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	credentialID := "did:nuts:123#abc"
 	credentialURI := ssi.MustParseURI(credentialID)

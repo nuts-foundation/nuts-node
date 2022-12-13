@@ -45,7 +45,6 @@ var payload = []byte("Hello, World!")
 
 func TestApiWrapper_GetTransaction(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
 	transaction := dag.CreateTestTransactionWithJWK(1)
 	path := "/transaction/:ref"
 
@@ -118,7 +117,6 @@ func TestApiWrapper_GetTransaction(t *testing.T) {
 
 func TestApiWrapper_GetPeerDiagnostics(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
 
 	var networkClient = network.NewMockTransactions(mockCtrl)
 	e, wrapper := initMockEcho(networkClient)
@@ -144,7 +142,6 @@ func TestApiWrapper_GetPeerDiagnostics(t *testing.T) {
 
 func TestApiWrapper_RenderGraph(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
 
 	t.Run("ok - no query params", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
@@ -200,7 +197,6 @@ func TestApiWrapper_RenderGraph(t *testing.T) {
 
 func TestApiWrapper_GetTransactionPayload(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
 	transaction := dag.CreateTestTransactionWithJWK(1)
 	path := "/transaction/:ref/payload"
 
@@ -272,7 +268,6 @@ func TestApiWrapper_GetTransactionPayload(t *testing.T) {
 
 func TestApiWrapper_ListTransactions(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
 	transaction := dag.CreateTestTransactionWithJWK(1)
 
 	t.Run("200", func(t *testing.T) {
@@ -308,7 +303,6 @@ func TestApiWrapper_ListTransactions(t *testing.T) {
 
 func TestWrapper_GetPeerDiagnostics(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
 
 	t.Run("200", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
@@ -333,7 +327,6 @@ func TestWrapper_GetPeerDiagnostics(t *testing.T) {
 func TestApiWrapper_Reprocess(t *testing.T) {
 	t.Run("error - missing type", func(t *testing.T) {
 		mockCtrl := gomock.NewController(t)
-		defer mockCtrl.Finish()
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		e, wrapper := initMockEcho(networkClient)
 
@@ -347,7 +340,6 @@ func TestApiWrapper_Reprocess(t *testing.T) {
 	})
 	t.Run("ok", func(t *testing.T) {
 		mockCtrl := gomock.NewController(t)
-		defer mockCtrl.Finish()
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		e, wrapper := initMockEcho(networkClient)
 		networkClient.EXPECT().Reprocess(context.Background(), "application/did+json")

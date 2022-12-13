@@ -49,7 +49,6 @@ func TestUziValidator_VerifyVP(t *testing.T) {
 
 	t.Run("ok - valid uzi signed VP", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		signedToken := services.NewMockSignedToken(ctrl)
 		signedToken.EXPECT().SignerAttributes().Return(map[string]string{"name": "Henk de Vries"}, nil)
@@ -70,7 +69,6 @@ func TestUziValidator_VerifyVP(t *testing.T) {
 
 	t.Run("nok - missing proof", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		tokenParser := services.NewMockVPProofValueParser(ctrl)
 		uziVerifier := &Verifier{UziValidator: tokenParser}
@@ -87,7 +85,6 @@ func TestUziValidator_VerifyVP(t *testing.T) {
 
 	t.Run("nok - wrong presentation type", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		vp := vc.VerifiablePresentation{
 			Context: []ssi.URI{vc.VCContextV1URI()},
@@ -111,7 +108,6 @@ func TestUziValidator_VerifyVP(t *testing.T) {
 
 	t.Run("nok - unparseable proof", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		tokenParser := services.NewMockVPProofValueParser(ctrl)
 		tokenParser.EXPECT().Parse(proofValue).Return(nil, errors.New("could not parse"))
@@ -125,7 +121,6 @@ func TestUziValidator_VerifyVP(t *testing.T) {
 
 	t.Run("nok - unparseable signer attributes", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		signedToken := services.NewMockSignedToken(ctrl)
 		signedToken.EXPECT().SignerAttributes().Return(nil, errors.New("could not parse certificate"))
@@ -143,7 +138,6 @@ func TestUziValidator_VerifyVP(t *testing.T) {
 
 	t.Run("nok - invalid proof", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		signedToken := &services.MockSignedToken{}
 

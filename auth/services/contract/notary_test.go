@@ -68,7 +68,6 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 	t.Run("draw up valid contract", func(t *testing.T) {
 		ctx := buildContext(t)
-		defer ctx.ctrl.Finish()
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
@@ -83,7 +82,6 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 	t.Run("no given duration uses default", func(t *testing.T) {
 		ctx := buildContext(t)
-		defer ctx.ctrl.Finish()
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
@@ -98,7 +96,6 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 	t.Run("no given time uses time.Now()", func(t *testing.T) {
 		ctx := buildContext(t)
-		defer ctx.ctrl.Finish()
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
@@ -117,7 +114,6 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 	t.Run("nok - unknown organization", func(t *testing.T) {
 		ctx := buildContext(t)
-		defer ctx.ctrl.Finish()
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return("", types.ErrNotFound)
 
@@ -129,7 +125,6 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 	t.Run("nok - unknown private key", func(t *testing.T) {
 		ctx := buildContext(t)
-		defer ctx.ctrl.Finish()
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(false)
@@ -142,7 +137,6 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 	t.Run("nok - other DID resolver error", func(t *testing.T) {
 		ctx := buildContext(t)
-		defer ctx.ctrl.Finish()
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return("", errors.New("error occurred"))
 
@@ -154,7 +148,6 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 	t.Run("nok - could not find credential", func(t *testing.T) {
 		ctx := buildContext(t)
-		defer ctx.ctrl.Finish()
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
@@ -168,7 +161,6 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 	t.Run("nok - render error", func(t *testing.T) {
 		ctx := buildContext(t)
-		defer ctx.ctrl.Finish()
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
@@ -186,7 +178,6 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 	t.Run("ok - multiple (matching) VCs", func(t *testing.T) {
 		ctx := buildContext(t)
-		defer ctx.ctrl.Finish()
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
@@ -201,7 +192,6 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 	t.Run("nok - multiple non-matching VCs", func(t *testing.T) {
 		ctx := buildContext(t)
-		defer ctx.ctrl.Finish()
 
 		testCredential2 := vc.VerifiableCredential{}
 		_ = json.Unmarshal([]byte(jsonld.TestCredential), &testCredential2)
@@ -246,7 +236,6 @@ const qrURL = "https://api.nuts-test.example" + irmaService.IrmaMountPath + "/12
 func TestService_CreateContractSession(t *testing.T) {
 	t.Run("Create a new session", func(t *testing.T) {
 		ctx := buildContext(t)
-		defer ctx.ctrl.Finish()
 
 		request := services.CreateSessionRequest{
 			Message:      "message to sign",
@@ -323,7 +312,6 @@ func TestContract_VerifyVP(t *testing.T) {
 func TestContract_SigningSessionStatus(t *testing.T) {
 	t.Run("ok - valid session", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		sessionID := "123"
 

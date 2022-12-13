@@ -48,7 +48,6 @@ func newManipulatorTestContext(t *testing.T) manipulatorTestContext {
 	updater := types.NewMockDocUpdater(ctrl)
 	resolver := types.NewMockDocResolver(ctrl)
 	t.Cleanup(func() {
-		ctrl.Finish()
 	})
 	keyCreator := newMockKeyCreator()
 	return manipulatorTestContext{

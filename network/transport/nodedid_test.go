@@ -61,7 +61,6 @@ func Test_AutoNodeDIDResolver(t *testing.T) {
 	}
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		keyResolver := crypto.NewMockKeyResolver(ctrl)
 		docFinder := types.NewMockDocFinder(ctrl)
 
@@ -81,7 +80,6 @@ func Test_AutoNodeDIDResolver(t *testing.T) {
 	})
 	t.Run("no private keys in keystore", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		keyResolver := crypto.NewMockKeyResolver(ctrl)
 		docFinder := types.NewMockDocFinder(ctrl)
 
@@ -96,7 +94,6 @@ func Test_AutoNodeDIDResolver(t *testing.T) {
 	})
 	t.Run("no DID documents match", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		keyResolver := crypto.NewMockKeyResolver(ctrl)
 		docFinder := types.NewMockDocFinder(ctrl)
 

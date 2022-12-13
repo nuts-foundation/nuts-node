@@ -73,7 +73,6 @@ func (cxt *networkTestContext) start() error {
 
 func TestNetwork_ListTransactionsInRange(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	t.Run("ok - full dag", func(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
 		cxt.state.EXPECT().FindBetweenLC(gomock.Any(), uint32(0), uint32(dag.MaxLamportClock)).Return([]dag.Transaction{dag.CreateTestTransactionWithJWK(1)}, nil)
@@ -100,7 +99,6 @@ func TestNetwork_Config(t *testing.T) {
 
 func TestNetwork_GetTransaction(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	t.Run("ok", func(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
 		cxt.state.EXPECT().GetTransaction(gomock.Any(), gomock.Any())
@@ -139,7 +137,6 @@ func TestNetwork_GetTransactionPayload(t *testing.T) {
 func TestNetwork_Diagnostics(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		cxt := createNetwork(t, ctrl, func(config *Config) {
 			config.NodeDID = "did:nuts:localio"
 		})
@@ -213,7 +210,6 @@ func TestNetwork_Configure(t *testing.T) {
 
 	t.Run("ok - TLS enabled", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		ctx := createNetwork(t, ctrl)
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 		ctx.network.connectionManager = nil
@@ -233,7 +229,6 @@ func TestNetwork_Configure(t *testing.T) {
 
 	t.Run("ok - TLS disabled", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		ctx := createNetwork(t, ctrl)
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 		ctx.network.connectionManager = nil
@@ -245,7 +240,6 @@ func TestNetwork_Configure(t *testing.T) {
 
 	t.Run("error - TLS disabled in strict mode", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		ctx := createNetwork(t, ctrl)
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 		ctx.network.connectionManager = nil
@@ -257,7 +251,6 @@ func TestNetwork_Configure(t *testing.T) {
 
 	t.Run("ok - node DID check disabled", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		ctx := createNetwork(t, ctrl, func(config *Config) {
 			config.DisableNodeAuthentication = true
@@ -271,7 +264,6 @@ func TestNetwork_Configure(t *testing.T) {
 
 	t.Run("error - disabling node DID check not allowed in strict mode", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		ctx := createNetwork(t, ctrl, func(config *Config) {
 			config.DisableNodeAuthentication = true
@@ -295,7 +287,6 @@ func TestNetwork_Configure(t *testing.T) {
 
 	t.Run("ok - gRPC server not bound (but outbound connections are still supported)", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		ctx := createNetwork(t, ctrl, func(config *Config) {
 			config.GrpcAddr = ""
 		})
@@ -308,7 +299,6 @@ func TestNetwork_Configure(t *testing.T) {
 
 	t.Run("error - unable to configure protocol", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		ctx := createNetwork(t, ctrl)
 		ctx.protocol.EXPECT().Configure(gomock.Any()).Return(errors.New("failed"))
@@ -318,7 +308,6 @@ func TestNetwork_Configure(t *testing.T) {
 	})
 	t.Run("unable to create datadir", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		prov := storage.NewMockProvider(ctrl)
 		ctx := createNetwork(t, ctrl)
@@ -344,7 +333,6 @@ func TestNetwork_Configure(t *testing.T) {
 
 	t.Run("error - unable to open connections store", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		ctx := createNetwork(t, ctrl)
 		ctx.protocol.EXPECT().Configure(gomock.Any()).AnyTimes()
@@ -362,7 +350,6 @@ func TestNetwork_Configure(t *testing.T) {
 
 func TestNetwork_PeerDiagnostics(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	// Protocol 1: peer A (with diagnostics), B (without diagnostics)
 	// Protocol 2: peer B (with diagnostics)
@@ -401,7 +388,6 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 	key := crypto.NewTestKey("signing-key")
 	t.Run("ok - attach key", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		payload := []byte("Hello, World!")
 		cxt := createNetwork(t, ctrl)
 		err := cxt.start()
@@ -416,7 +402,6 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 	t.Run("ok - detached key", func(t *testing.T) {
 		payload := []byte("Hello, World!")
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		cxt := createNetwork(t, ctrl)
 		err := cxt.start()
 		require.NoError(t, err)
@@ -429,7 +414,6 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 	t.Run("ok - additional prevs", func(t *testing.T) {
 		payload := []byte("Hello, World!")
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		cxt := createNetwork(t, ctrl)
 
 		// Register root TX on head tracker
@@ -457,7 +441,6 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 	t.Run("error - additional prev is missing payload", func(t *testing.T) {
 		payload := []byte("Hello, World!")
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		cxt := createNetwork(t, ctrl)
 		err := cxt.start()
 		require.NoError(t, err)
@@ -481,7 +464,6 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		receiverKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		t.Run("ok", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			payload := []byte("Hello, World!")
 			cxt := createNetwork(t, ctrl)
 			err := cxt.start()
@@ -500,7 +482,6 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		})
 		t.Run("node DID not configured", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			payload := []byte("Hello, World!")
 			cxt := createNetwork(t, ctrl)
 			err := cxt.start()
@@ -532,7 +513,6 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 func TestNetwork_Start(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		cxt := createNetwork(t, ctrl)
 
 		err := cxt.start()
@@ -542,7 +522,6 @@ func TestNetwork_Start(t *testing.T) {
 	})
 	t.Run("ok - connects to bootstrap nodes", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		cxt := createNetwork(t, ctrl, func(config *Config) {
 			config.BootstrapNodes = []string{"bootstrap-node-1", "", "bootstrap-node-2"}
 		})
@@ -563,7 +542,6 @@ func TestNetwork_Start(t *testing.T) {
 	})
 	t.Run("error - state start failed", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		cxt := createNetwork(t, ctrl)
 		cxt.state.EXPECT().Start().Return(errors.New("failed"))
 
@@ -597,7 +575,6 @@ func TestNetwork_Start(t *testing.T) {
 		require.NoError(t, err)
 		t.Run("ok - configured node DID successfully resolves", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			cxt := createNetwork(t, ctrl)
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
@@ -609,7 +586,6 @@ func TestNetwork_Start(t *testing.T) {
 		})
 		t.Run("ok - configured node DID successfully resolves with TLS", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			cxt := createNetwork(t, ctrl)
 			cxt.network.certificate = certificate
 			cxt.network.strictMode = true
@@ -621,7 +597,6 @@ func TestNetwork_Start(t *testing.T) {
 		})
 		t.Run("ok - invalid node DID configuration in non-strict mode", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			cxt := createNetwork(t, ctrl)
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(nil, nil, did.DeactivatedErr)
@@ -630,7 +605,6 @@ func TestNetwork_Start(t *testing.T) {
 		})
 		t.Run("error - configured node DID does not resolve to a DID document", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			cxt := createNetwork(t, ctrl)
 			cxt.network.strictMode = true
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
@@ -641,7 +615,6 @@ func TestNetwork_Start(t *testing.T) {
 		})
 		t.Run("error - configured node DID does not have key agreement key", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			cxt := createNetwork(t, ctrl)
 			cxt.network.strictMode = true
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
@@ -652,7 +625,6 @@ func TestNetwork_Start(t *testing.T) {
 		})
 		t.Run("error - configured node DID has key agreement key, but is not present in key store", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			cxt := createNetwork(t, ctrl)
 			cxt.network.strictMode = true
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
@@ -664,7 +636,6 @@ func TestNetwork_Start(t *testing.T) {
 		})
 		t.Run("error - configured node DID does not have NutsComm service", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			cxt := createNetwork(t, ctrl)
 			cxt.network.strictMode = true
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
@@ -680,7 +651,6 @@ func TestNetwork_Start(t *testing.T) {
 			defer func() { completeDocument.Service[0].ServiceEndpoint = old }()
 
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			cxt := createNetwork(t, ctrl)
 			cxt.network.strictMode = true
 			cxt.network.certificate = certificate
@@ -699,7 +669,6 @@ func TestNetwork_Start(t *testing.T) {
 			defer func() { completeDocument.Service[0].ServiceEndpoint = old }()
 
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			cxt := createNetwork(t, ctrl)
 			cxt.network.strictMode = true
 			cxt.network.certificate = certificate
@@ -714,7 +683,6 @@ func TestNetwork_Start(t *testing.T) {
 		})
 		t.Run("error - no TLS certificate", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			cxt := createNetwork(t, ctrl)
 			cxt.network.strictMode = true
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
@@ -732,7 +700,6 @@ func TestNetwork_Start(t *testing.T) {
 			defer func() { completeDocument.Service[0].ServiceEndpoint = old }()
 
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			cxt := createNetwork(t, ctrl)
 			cxt.network.strictMode = true
 			cxt.network.certificate = certificate
@@ -751,7 +718,6 @@ func TestNetwork_Start(t *testing.T) {
 func TestNetwork_Shutdown(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		ctx := createNetwork(t, ctrl)
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 		ctx.protocol.EXPECT().Stop()
@@ -766,7 +732,6 @@ func TestNetwork_Shutdown(t *testing.T) {
 
 	t.Run("multiple calls", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		cxt := createNetwork(t, ctrl)
 		cxt.state.EXPECT().Shutdown().MinTimes(1)
 		cxt.protocol.EXPECT().Stop().MinTimes(1)
@@ -786,7 +751,6 @@ func TestNetwork_Reprocess(t *testing.T) {
 
 	newSetup := func(t *testing.T) (*networkTestContext, events.Event) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		ctx := createNetwork(t, ctrl)
 		eventManager := events.NewTestManager(t)
 		ctx.network.eventPublisher = eventManager
@@ -833,7 +797,6 @@ func TestNetwork_Reprocess(t *testing.T) {
 
 		setup, eventManager := newSetup(t)
 		setup.state.EXPECT().FindBetweenLC(gomock.Any(), uint32(0), uint32(1000)).Return([]dag.Transaction{tx}, nil)
-		setup.state.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).Return([]byte("payload"), nil)
 		var counter int
 		wg := sync.WaitGroup{}
 
@@ -946,7 +909,6 @@ func Test_connectToKnownNodes(t *testing.T) {
 		for _, sp := range serviceEndpoints {
 			t.Run(sp.name, func(t *testing.T) {
 				ctrl := gomock.NewController(t)
-				defer ctrl.Finish()
 
 				// Use actual test instance because the unit test's createNetwork mocks too much for us
 				network := NewTestNetworkInstance(t)
@@ -972,7 +934,6 @@ func Test_connectToKnownNodes(t *testing.T) {
 	})
 	t.Run("local node should not be discovered", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		// Use actual test instance because the unit test's createNetwork mocks too much for us
 		network := NewTestNetworkInstance(t)

@@ -123,6 +123,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 
 	t.Run("broken identity token", func(t *testing.T) {
 		ctx := createContext(t)
+
 		ctx.nameResolver.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil)
 		ctx.contractNotary.EXPECT().VerifyVP(gomock.Any(), nil).Return(nil, errors.New("identity validation failed"))
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
@@ -249,7 +250,6 @@ func TestService_validateIssuer(t *testing.T) {
 	})
 	t.Run("unable to resolve credential", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		tokenCtx := validContext()
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).Return(requesterSigningKey.Public(), nil)
@@ -260,7 +260,6 @@ func TestService_validateIssuer(t *testing.T) {
 	})
 	t.Run("no matching credential", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		tokenCtx := validContext()
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).Return(requesterSigningKey.Public(), nil)
@@ -284,7 +283,6 @@ func TestService_validateIssuer(t *testing.T) {
 func TestService_validateSubject(t *testing.T) {
 	t.Run("subject managed", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		tokenCtx := validContext()
 		tokenCtx.jwtBearerToken.Set(jwt.SubjectKey, authorizerDID.String())
@@ -297,7 +295,6 @@ func TestService_validateSubject(t *testing.T) {
 	})
 	t.Run("invalid subject", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		tokenCtx := validContext()
 		tokenCtx.jwtBearerToken.Set(jwt.SubjectKey, "not a urn")
@@ -307,7 +304,6 @@ func TestService_validateSubject(t *testing.T) {
 	})
 	t.Run("subject not managed by this node", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		tokenCtx := validContext()
 		tokenCtx.jwtBearerToken.Set(jwt.SubjectKey, authorizerDID.String())
@@ -324,7 +320,6 @@ func TestService_validateSubject(t *testing.T) {
 func TestService_validatePurposeOfUse(t *testing.T) {
 	t.Run("error - no purposeOfUser", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 		tokenCtx := validContext()
 		tokenCtx.jwtBearerToken.Remove(purposeOfUseClaim)
 
@@ -337,7 +332,6 @@ func TestService_validatePurposeOfUse(t *testing.T) {
 func TestService_validateAud(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 		tokenCtx := validContext()
 		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(getAuthorizerDIDDocument(), nil, nil).AnyTimes()
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
@@ -349,7 +343,6 @@ func TestService_validateAud(t *testing.T) {
 
 	t.Run("error - no audience", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 		tokenCtx := validContext()
 		tokenCtx.jwtBearerToken.Set(jwt.AudienceKey, []string{})
 
@@ -360,7 +353,6 @@ func TestService_validateAud(t *testing.T) {
 
 	t.Run("error - endpoint resolve returns error", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 		tokenCtx := validContext()
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return("", types.ErrNotFound)
 
@@ -371,7 +363,6 @@ func TestService_validateAud(t *testing.T) {
 
 	t.Run("error - wrong audience", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 		tokenCtx := validContext()
 		tokenCtx.jwtBearerToken.Set(jwt.AudienceKey, []string{"not_the_right_audience"})
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
@@ -384,7 +375,6 @@ func TestService_validateAud(t *testing.T) {
 
 func TestService_validateAuthorizationCredentials(t *testing.T) {
 	ctx := createContext(t)
-	defer ctx.ctrl.Finish()
 
 	t.Run("ok", func(t *testing.T) {
 		tokenCtx := validContext()
@@ -475,7 +465,6 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 
 func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 	ctx := createContext(t)
-	defer ctx.ctrl.Finish()
 
 	t.Run("malformed JWTs", func(t *testing.T) {
 		tokenCtx := &validationContext{
@@ -561,7 +550,6 @@ func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 func TestService_buildAccessToken(t *testing.T) {
 	t.Run("missing subject", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		tokenCtx := &validationContext{
 			contractVerificationResult: services.TestVPVerificationResult{Val: contract.Valid},
@@ -575,7 +563,6 @@ func TestService_buildAccessToken(t *testing.T) {
 
 	t.Run("build an access token", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(authorizerDID, gomock.Any()).MinTimes(1).Return(authorizerSigningKeyID.String(), nil)
 
@@ -716,7 +703,6 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 
 	t.Run("signing error", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(authorizerDIDDocument, nil, nil).AnyTimes()
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
@@ -731,8 +717,6 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 }
 
 func Test_claimsFromRequest(t *testing.T) {
-	ctx := createContext(t)
-	defer ctx.ctrl.Finish()
 	usi := vc.VerifiablePresentation{}
 
 	t.Run("ok", func(t *testing.T) {
@@ -781,7 +765,6 @@ func Test_claimsFromRequest(t *testing.T) {
 func TestService_IntrospectAccessToken(t *testing.T) {
 	t.Run("validate access token", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
 		ctx.privateKeyStore.EXPECT().Exists(requesterSigningKeyID.String()).Return(true)
@@ -803,7 +786,6 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 
 	t.Run("private key not present", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		ctx.privateKeyStore.EXPECT().Exists(requesterSigningKeyID.String()).Return(false)
 
@@ -818,7 +800,6 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 
 	t.Run("key not present on DID", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		ctx.privateKeyStore.EXPECT().Exists(requesterSigningKeyID.String()).Return(true)
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(nil, types.ErrNotFound)
@@ -836,7 +817,6 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 func TestAuth_Configure(t *testing.T) {
 	t.Run("ok - config valid", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		err := ctx.oauthService.Configure(1000 * 60)
 		assert.NoError(t, err)

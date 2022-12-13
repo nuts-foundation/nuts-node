@@ -74,7 +74,6 @@ func TestHolder_BuildVP(t *testing.T) {
 
 	t.Run("ok - one VC", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		keyResolver := types.NewMockKeyResolver(ctrl)
 		keyStore := crypto.NewMockKeyStore(ctrl)
@@ -92,7 +91,6 @@ func TestHolder_BuildVP(t *testing.T) {
 	})
 	t.Run("ok - multiple VCs", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		keyResolver := types.NewMockKeyResolver(ctrl)
 		keyStore := crypto.NewMockKeyStore(ctrl)
@@ -111,7 +109,6 @@ func TestHolder_BuildVP(t *testing.T) {
 	t.Run("validation", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			created := time.Now()
 
@@ -133,7 +130,6 @@ func TestHolder_BuildVP(t *testing.T) {
 		})
 		t.Run("error", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			created := time.Now()
 
@@ -157,7 +153,6 @@ func TestHolder_BuildVP(t *testing.T) {
 	t.Run("deriving signer from VCs", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			keyResolver := types.NewMockKeyResolver(ctrl)
 			keyStore := crypto.NewMockKeyStore(ctrl)
@@ -178,7 +173,6 @@ func TestHolder_BuildVP(t *testing.T) {
 			secondCredential.CredentialSubject = []interface{}{map[string]interface{}{"id": vdr.TestDIDB.String()}}
 
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			keyResolver := types.NewMockKeyResolver(ctrl)
 			keyStore := crypto.NewMockKeyStore(ctrl)
@@ -196,7 +190,6 @@ func TestHolder_BuildVP(t *testing.T) {
 			secondCredential.CredentialSubject = []interface{}{}
 
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 
 			keyResolver := types.NewMockKeyResolver(ctrl)
 			keyStore := crypto.NewMockKeyStore(ctrl)

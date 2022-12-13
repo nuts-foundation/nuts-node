@@ -31,7 +31,6 @@ import (
 func TestNewStatusEngine_Routes(t *testing.T) {
 	t.Run("Registers a single route for listing all engines", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		echo := core.NewMockEchoRouter(ctrl)
 
 		echo.EXPECT().Add(http.MethodGet, "/status/diagnostics", gomock.Any())
@@ -71,7 +70,6 @@ func TestNewStatusEngine_Diagnostics(t *testing.T) {
 
 	t.Run("diagnosticsOverview() YAML output", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		echo := mock.NewMockContext(ctrl)
 		echo.EXPECT().Request().Return(&http.Request{Header: map[string][]string{}})
 
@@ -84,7 +82,6 @@ func TestNewStatusEngine_Diagnostics(t *testing.T) {
 	})
 	t.Run("diagnosticsOverview() JSON output", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		echo := mock.NewMockContext(ctrl)
 		echo.EXPECT().Request().Return(&http.Request{Header: map[string][]string{"Accept": {"application/json"}}})
 
@@ -96,7 +93,6 @@ func TestNewStatusEngine_Diagnostics(t *testing.T) {
 
 func TestStatusOK(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	echo := mock.NewMockContext(ctrl)
 
 	echo.EXPECT().String(http.StatusOK, "OK")
@@ -107,7 +103,6 @@ func TestStatusOK(t *testing.T) {
 func Test_status_healthChecks(t *testing.T) {
 	t.Run("status UP", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		echoContext := mock.NewMockContext(ctrl)
 		echoContext.EXPECT().JSON(200, core.Health{
 			Status:  core.HealthStatusUp,
@@ -121,7 +116,6 @@ func Test_status_healthChecks(t *testing.T) {
 	})
 	t.Run("status DOWN", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		echoContext := mock.NewMockContext(ctrl)
 		echoContext.EXPECT().JSON(503, gomock.Any())
 		system := core.NewSystem()

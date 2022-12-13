@@ -39,7 +39,6 @@ import (
 
 func TestWrapper_Preprocess(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	w := &Wrapper{}
 	ctx := mock.NewMockContext(ctrl)
@@ -657,7 +656,6 @@ type mockContext struct {
 func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	t.Cleanup(func() {
-		ctrl.Finish()
 	})
 	didmanMock := didman.NewMockDidman(ctrl)
 

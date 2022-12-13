@@ -122,7 +122,6 @@ func TestCreator_Create(t *testing.T) {
 
 		t.Run("using ephemeral key creates different keys for assertion and DID", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
 			keyCreator := nutsCrypto.NewMockKeyCreator(ctrl)
 			creator := Creator{KeyStore: keyCreator}
 
@@ -174,7 +173,6 @@ func TestCreator_Create(t *testing.T) {
 	t.Run("error - failed to create key for selfcontrol", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		mockKeyStore := nutsCrypto.NewMockKeyStore(ctrl)
-		defer ctrl.Finish()
 		creator := Creator{KeyStore: mockKeyStore}
 		mockKeyStore.EXPECT().New(gomock.Any()).Return(nil, errors.New("b00m!"))
 
@@ -186,7 +184,6 @@ func TestCreator_Create(t *testing.T) {
 	t.Run("error - failed to create key for other verification method", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		mockKeyStore := nutsCrypto.NewMockKeyStore(ctrl)
-		defer ctrl.Finish()
 		creator := Creator{KeyStore: mockKeyStore}
 		ops := types.DIDCreationOptions{
 			KeyFlags:    types.AssertionMethodUsage,

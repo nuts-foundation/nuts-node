@@ -34,7 +34,6 @@ import (
 
 func TestWrapper_Preprocess(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	w := &Wrapper{}
 	ctx := mock.NewMockContext(ctrl)
@@ -52,7 +51,6 @@ func Test_ErrorStatusCodes(t *testing.T) {
 func TestWrapper_SignJwt(t *testing.T) {
 	t.Run("error - missing claim", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		jsonRequest := SignJwtRequest{
 			Kid: "kid",
@@ -70,7 +68,6 @@ func TestWrapper_SignJwt(t *testing.T) {
 
 	t.Run("Missing kid returns 400", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		jsonRequest := SignJwtRequest{
 			Claims: map[string]interface{}{"iss": "nuts"},
@@ -88,7 +85,6 @@ func TestWrapper_SignJwt(t *testing.T) {
 
 	t.Run("error - SignJWT fails", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		jsonRequest := SignJwtRequest{
 			Kid:    "kid",
@@ -108,7 +104,6 @@ func TestWrapper_SignJwt(t *testing.T) {
 
 	t.Run("All OK returns 200", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		jsonRequest := SignJwtRequest{
 			Kid:    "kid",
@@ -130,7 +125,6 @@ func TestWrapper_SignJwt(t *testing.T) {
 
 	t.Run("error - bind fails", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().Bind(gomock.Any()).Return(errors.New("missing body in request"))
 
@@ -146,7 +140,6 @@ func TestWrapper_SignJws(t *testing.T) {
 
 	t.Run("Missing kid returns 400", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 		jsonRequest := SignJwsRequest{
 			Payload: payload,
 		}
@@ -163,7 +156,6 @@ func TestWrapper_SignJws(t *testing.T) {
 
 	t.Run("error - SignJWS fails", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 		jsonRequest := SignJwsRequest{
 			Kid:     "kid",
 			Payload: payload,
@@ -183,7 +175,6 @@ func TestWrapper_SignJws(t *testing.T) {
 
 	t.Run("All OK returns 200, with payload", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 		jsonRequest := SignJwsRequest{
 			Kid:     "kid",
 			Headers: headers,
@@ -205,7 +196,6 @@ func TestWrapper_SignJws(t *testing.T) {
 
 	t.Run("All OK returns 200, with payload, detached", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 		detached := true
 		jsonRequest := SignJwsRequest{
 			Kid:      "kid",
@@ -229,7 +219,6 @@ func TestWrapper_SignJws(t *testing.T) {
 
 	t.Run("error - bind fails", func(t *testing.T) {
 		ctx := newMockContext(t)
-		defer ctx.ctrl.Finish()
 
 		ctx.echo.EXPECT().Bind(gomock.Any()).Return(errors.New("missing body in request"))
 

@@ -229,7 +229,6 @@ func Test_ambassador_handleNetworkRevocations(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		revocation := credential.Revocation{}
 		assert.NoError(t, json.Unmarshal(payload, &revocation))
@@ -261,7 +260,6 @@ func Test_ambassador_handleNetworkRevocations(t *testing.T) {
 
 	t.Run("error - storing fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		mockVerifier := verifier.NewMockVerifier(ctrl)
 		mockVerifier.EXPECT().RegisterRevocation(gomock.Any()).Return(errors.New("foo"))
@@ -278,7 +276,6 @@ func Test_ambassador_handleNetworkRevocations(t *testing.T) {
 
 	t.Run("error - cantext error is not fatal", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		mockVerifier := verifier.NewMockVerifier(ctrl)
 		mockVerifier.EXPECT().RegisterRevocation(gomock.Any()).Return(context.Canceled)

@@ -95,7 +95,6 @@ func TestLDProof_Verify(t *testing.T) {
 		assert.NoError(t, signedDocument.UnmarshalProofValue(&ldProof))
 
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		mockSuite := signature.NewMockSuite(ctrl)
 		mockSuite.EXPECT().CanonicalizeDocument(signedDocument.DocumentWithoutProof()).Return(nil, errors.New("foo"))
@@ -108,7 +107,6 @@ func TestLDProof_Verify(t *testing.T) {
 		assert.NoError(t, signedDocument.UnmarshalProofValue(&ldProof))
 
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		mockSuite := signature.NewMockSuite(ctrl)
 
@@ -208,7 +206,6 @@ func TestLDProof_Sign(t *testing.T) {
 		ldProof := LDProof{}
 
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		mockSuite := signature.NewMockSuite(ctrl)
 
@@ -224,7 +221,6 @@ func TestLDProof_Sign(t *testing.T) {
 		ldProof := LDProof{}
 
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 
 		mockSuite := signature.NewMockSuite(ctrl)
 
@@ -240,7 +236,6 @@ func TestLDProof_Sign(t *testing.T) {
 	t.Run("it handles an unknown key type error", func(t *testing.T) {
 		ldProof := LDProof{}
 		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
 		testKey := crypto.NewMockKey(ctrl)
 		testKey.EXPECT().KID().Return(kid)
 		testKey.EXPECT().Signer().AnyTimes().Return(testKey.Signer())
