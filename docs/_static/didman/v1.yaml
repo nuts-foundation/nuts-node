@@ -244,12 +244,12 @@ paths:
             The endpoint of the given type and compound service is returned.
             It returns JSON by default, text if requested through the accept header (text/plain)
           content:
-            text/plain:
-              schema:
-                type: string
             application/json:
               schema:
                 $ref: '#/components/schemas/EndpointResponse'
+            text/plain:
+              schema:
+                type: string
         default:
           $ref: '../common/error_response.yaml'
   /internal/didman/v1/service/{id}:

@@ -52,13 +52,13 @@ paths:
         200:
           description: Basic nuts-node diagnostics
           content:
+            application/json:
+              schema:
+                type: object
             text/plain:
               schema:
                 type: string
             application/yaml:
-              schema:
-                type: object
-            application/json:
               schema:
                 type: object
   /metrics:
