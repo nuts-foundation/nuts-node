@@ -58,8 +58,6 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 	mockStore := types.NewMockStore(ctrl)
 	mockNetwork := network.NewMockTransactions(ctrl)
 	mockKeyStore := crypto.NewMockKeyStore(ctrl)
-	t.Cleanup(func() {
-	})
 	vdr := VDR{
 		store:          mockStore,
 		didDocResolver: didservice.Resolver{Store: mockStore},

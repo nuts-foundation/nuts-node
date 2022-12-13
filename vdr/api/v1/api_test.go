@@ -613,8 +613,6 @@ func newMockContext(t *testing.T) mockContext {
 	docResolver := types.NewMockDocResolver(ctrl)
 	client := &Wrapper{VDR: vdr, DocManipulator: docManipulator, DocResolver: docResolver}
 
-	t.Cleanup(func() {
-	})
 	return mockContext{
 		ctrl:        ctrl,
 		echo:        mock.NewMockContext(ctrl),
