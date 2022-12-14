@@ -297,8 +297,8 @@ func (n *notary) findVC(orgID did.DID) (string, string, error) {
 		return "", "", errors.New("could not find a trusted credential with an organization name and city")
 	}
 
-	// Having multiple VCs with non-matching credentialSubjects for this care organization is not supported.
-	// Will be supported when https://github.com/nuts-foundation/nuts-node/issues/987 is implemented.
+	// Having multiple VCs with non-matching credentialSubjects for this DID is not supported.
+	// If multiple non-matching VCs exist, a preferred VC must be passed to DrawUpContract.
 	if len(result) > 1 {
 		var credentialSubject interface{}
 		for _, current := range result {
