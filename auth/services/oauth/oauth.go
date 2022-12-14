@@ -256,7 +256,7 @@ func (s *service) validateRequester(context *validationContext) error {
 		}
 	}
 	if !found {
-		log.Logger().Warn("Token request validation failed, requester does not have any credentials that match the organization name and city in the contract.")
+		log.Logger().Warn("Token request validation failed, requester does not have any credential that match the organization name and city in the contract.")
 		return errors.New("legal entity mismatch")
 	}
 	return nil
