@@ -24,12 +24,15 @@ import (
 	"github.com/lestrrat-go/jwx/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"net/mail"
+	"net/url"
 )
 
-// CreateDocumentValidator creates a DID Document validator that checks for inconsistencies in the the DID Document:
+// NetworkDocumentValidator creates a DID Document validator that checks for inconsistencies in the DID Document:
 // - validate it according to the W3C DID Core Data Model specification
-// - validate is according to the Nuts DID Method specification:
+// - validate it according to the Nuts DID Method specification:
 //   - it checks validationMethods for the following conditions:
 //   - every validationMethod id must have a fragment
 //   - every validationMethod id should have the DID prefix
@@ -38,12 +41,22 @@ import (
 //   - every service id must have a fragment
 //   - every service id should have the DID prefix
 //   - every service id must be unique
-func CreateDocumentValidator() did.Validator {
+//   - every service type must be unique
+func NetworkDocumentValidator() did.Validator {
 	return &did.MultiValidator{Validators: []did.Validator{
 		did.W3CSpecValidator{},
 		verificationMethodValidator{},
-		serviceValidator{},
+		basicServiceValidator{},
 	}}
+}
+
+// ManagedDocumentValidator extends NetworkDocumentValidator with extra safety checks to be performed on DID documents managed by this node before they are published on the network.
+func ManagedDocumentValidator(serviceResolver didservice.ServiceResolver) did.Validator {
+	validator := NetworkDocumentValidator().(*did.MultiValidator)
+	validator.Validators = append(validator.Validators, managedServiceValidator{
+		serviceResolver: serviceResolver,
+	})
+	return validator
 }
 
 // verificationMethodValidator validates the Verification Methods of a Nuts DID Document.
@@ -74,40 +87,191 @@ func (v verificationMethodValidator) verifyThumbprint(method *did.VerificationMe
 	return nil
 }
 
-// serviceValidator validates the Services of a Nuts DID Document.
-type serviceValidator struct{}
+type invalidServiceError struct {
+	error
+}
 
-func (s serviceValidator) Validate(document did.Document) error {
+func (e invalidServiceError) Error() string {
+	return fmt.Sprintf("invalid service: %s", e.error.Error())
+}
+
+func (e invalidServiceError) Unwrap() error {
+	return e.error
+}
+
+// basicServiceValidator validates service.ID and service.Type of the Services of a DID Document.
+// To be used on DID documents received through the network.
+type basicServiceValidator struct{}
+
+func (b basicServiceValidator) Validate(document did.Document) error {
 	knownServiceIDs := make(map[string]bool, 0)
 	knownServiceTypes := make(map[string]bool, 0)
-	for _, method := range document.Service {
-		var err error
-		if err = verifyDocumentEntryID(document.ID, method.ID, knownServiceIDs); err == nil {
-			if knownServiceTypes[method.Type] {
-				err = types.ErrDuplicateService
+	for _, service := range document.Service {
+		// service.id
+		if err := verifyDocumentEntryID(document.ID, service.ID, knownServiceIDs); err != nil {
+			return invalidServiceError{err}
+		}
+
+		// service.type
+		if knownServiceTypes[service.Type] {
+			// RFC006 §4: A DID Document MAY NOT contain more than one service with the same type.
+			return invalidServiceError{types.ErrDuplicateService}
+		}
+		knownServiceTypes[service.Type] = true
+	}
+	return nil
+}
+
+// managedServiceValidator only validates the Service.ServiceEndpoint in a DID document.
+// Correctness of a service endpoint is the responsibility of the controller. Services on DID documents received through the network should therefor not be validated.
+// This validator is exists to guarantee that the service endpoints are at least valid at time of publication.
+// Should be used together with basicServiceValidator for full service validation.
+type managedServiceValidator struct {
+	serviceResolver didservice.ServiceResolver
+}
+
+func (m managedServiceValidator) Validate(document did.Document) error {
+	// make sure that it resolves when if it's a reference
+	var resolvedEndpoint any
+	var err error
+	// Cache resolved DID documents because most of the time all (compound) services will refer to the same DID document in all service references.
+	cache := make(map[string]*did.Document, 0)
+	for _, service := range document.Service {
+		switch se := service.ServiceEndpoint.(type) {
+		case string:
+			resolvedEndpoint, err = m.resolveOrReturnEndpoint(se, cache)
+		case map[string]string:
+			knownKeys := make(map[string]bool, len(se))
+			resolvedCompoundEndpoint := make(map[string]any, len(se)) // don't know if returned type is string or another map
+			for name, endpoint := range se {
+				if _, exists := knownKeys[name]; exists {
+					err = errors.New("duplicate service key in compound service")
+					break
+				}
+				knownKeys[name] = true
+				if resolvedEndpoint, err = m.resolveOrReturnEndpoint(endpoint, cache); err != nil {
+					break
+				}
+				resolvedCompoundEndpoint[name] = resolvedEndpoint
 			}
+			resolvedEndpoint = resolvedCompoundEndpoint
+		default:
+			err = errors.New("invalid service format")
 		}
 		if err != nil {
-			return fmt.Errorf("invalid service: %w", err)
+			return invalidServiceError{err}
 		}
-		knownServiceTypes[method.Type] = true
+
+		// specific service.Type need additional validation
+		if err = serviceTypeValidation(service.Type, resolvedEndpoint); err != nil {
+			return invalidServiceError{fmt.Errorf("%s: %w", service.Type, err)}
+		}
+	}
+	return nil
+}
+
+func (m managedServiceValidator) resolveOrReturnEndpoint(serviceEndpoint string, cache map[string]*did.Document) (any, error) {
+	// make sure that it resolves if it is a reference
+	if didservice.IsServiceReference(serviceEndpoint) {
+		serviceURI, err := ssi.ParseURI(serviceEndpoint)
+		if err != nil {
+			return nil, err
+		}
+		if err = didservice.ValidateServiceReference(*serviceURI); err != nil {
+			return nil, err
+		}
+		resolvedService, err := m.serviceResolver.ResolveEx(*serviceURI, 0, didservice.DefaultMaxServiceReferenceDepth, cache)
+		if err != nil {
+			return nil, err
+		}
+		return resolvedService.ServiceEndpoint, nil
+	}
+	return serviceEndpoint, nil
+}
+
+func serviceTypeValidation(sType string, endpoint any) error {
+	switch sType {
+	case "NutsComm":
+		return validateNutsCommEndpoint(endpoint)
+	case "node-contact-info":
+		return validateNodeContactInfo(endpoint)
+	default:
+		// no extra type-based validation
+		return nil
+	}
+}
+
+func validateNutsCommEndpoint(endpoint any) error {
+	// RFC015 $3.2: NutsComm rules
+	endpointStr, ok := endpoint.(string)
+	if !ok {
+		return errors.New("endpoint not a string")
+	}
+	if URL, err := url.Parse(endpointStr); err != nil {
+		return err
+	} else if URL.Scheme != "grpc" {
+		return errors.New("scheme must be grpc")
+	}
+	return nil
+}
+
+func validateNodeContactInfo(endpoint any) error {
+	// RFC006 §4.2 Contact information
+	// check format
+	endpointMapAny, ok := endpoint.(map[string]any)
+	if !ok {
+		return errors.New("not a map")
+	}
+	endpointMap := make(map[string]string)
+	for k, v := range endpointMapAny {
+		if vString, ok := v.(string); ok {
+			endpointMap[k] = vString
+		} else {
+			return errors.New(k + " must be a string")
+		}
+	}
+
+	// check content
+	numKeys := 0
+	if _, ok = endpointMap["name"]; ok {
+		numKeys++
+	}
+	if email, ok := endpointMap["email"]; ok {
+		numKeys++
+		if _, err := mail.ParseAddress(email); err != nil {
+			return errors.New("invalid email")
+		}
+	} else {
+		return errors.New("missing email")
+	}
+	if _, ok = endpointMap["telephone"]; ok {
+		numKeys++
+	}
+	if website, ok := endpointMap["website"]; ok {
+		numKeys++
+		if _, err := url.ParseRequestURI(website); err != nil {
+			return errors.New("invalid website")
+		}
+	}
+	if len(endpointMap) != numKeys {
+		return errors.New("must only contain 'name', 'email', 'telephone', and 'website'")
 	}
 	return nil
 }
 
 func verifyDocumentEntryID(owner did.DID, entryID ssi.URI, knownIDs map[string]bool) error {
-	// Check theID has a fragment
-	if len(entryID.Fragment) == 0 {
-		return fmt.Errorf("ID must have a fragment")
+	// Check the ID has a fragment
+	if entryID.Fragment == "" {
+		return errors.New("ID must have a fragment")
 	}
 	// Check if this ID was part of a previous entry
 	entryIDStr := entryID.String()
 	if knownIDs[entryIDStr] {
-		return fmt.Errorf("ID must be unique")
+		return errors.New("ID must be unique")
 	}
 	entryID.Fragment = ""
 	if owner.String() != entryID.String() {
-		return fmt.Errorf("ID must have document prefix")
+		return errors.New("ID must have document prefix")
 	}
 	knownIDs[entryIDStr] = true
 	return nil

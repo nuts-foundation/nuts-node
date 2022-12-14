@@ -177,7 +177,7 @@ func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
 		return fmt.Errorf("unable to unmarshal DID document from network payload: %w", err)
 	}
 
-	if err := CreateDocumentValidator().Validate(nextDIDDocument); err != nil {
+	if err := NetworkDocumentValidator().Validate(nextDIDDocument); err != nil {
 		return fmt.Errorf("callback could not process new DID Document, DID Document integrity check failed: %w", err)
 	}
 

@@ -184,7 +184,7 @@ func TestDidman_AddCompoundService(t *testing.T) {
 			func(_ interface{}, _ interface{}, doc interface{}, _ interface{}) error {
 				newDoc = doc.(did.Document)
 				// trigger validation to check if the added contact information isn't wrong
-				return vdr.CreateDocumentValidator().Validate(newDoc)
+				return vdr.NetworkDocumentValidator().Validate(newDoc)
 			})
 
 		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", references)
@@ -307,7 +307,7 @@ func TestDidman_UpdateContactInformation(t *testing.T) {
 		ctx.vdr.EXPECT().Update(*id, meta.Hash, gomock.Any(), nil).DoAndReturn(func(_ did.DID, _ hash.SHA256Hash, doc did.Document, _ *types.DocumentMetadata) error {
 			actualDocument = doc
 			// trigger validation to check if the added contact information isn't wrong
-			return vdr.CreateDocumentValidator().Validate(doc)
+			return vdr.NetworkDocumentValidator().Validate(doc)
 		})
 		actual, err := ctx.instance.UpdateContactInformation(*id, expected)
 		require.NoError(t, err)

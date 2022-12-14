@@ -172,7 +172,7 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 		return types.ErrDeactivated
 	}
 
-	if err = CreateDocumentValidator().Validate(next); err != nil {
+	if err = NetworkDocumentValidator().Validate(next); err != nil {
 		return err
 	}
 
