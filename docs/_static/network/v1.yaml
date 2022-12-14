@@ -9,12 +9,27 @@ servers:
   - url: http://localhost:1323
 paths:
   /internal/network/v1/transaction:
+    parameters:
+      - name: start
+        description: "Inclusive start of range (in lamport clock); default=0"
+        example: 1
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+      - name: end
+        description: "Exclusive stop of range (in lamport clock); default=∞"
+        example: 1000
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
     get:
-      summary: "Lists the transactions on the DAG"
+      summary: "Lists transactions on the DAG"
       description: >
-        Lists all transactions on the DAG. Since this call returns all transactions on the DAG, care should be taken when there
-        are many of them.
-        TODO: By then we'd need a more elaborate querying interface (ranging over timestamps/hashes, pagination, filtering, etc).
+        Lists transactions on the DAG. Since this call returns all transactions on the DAG, care should be taken when there are many of them. A range (start,end) are recommended at all times to avoid overloading the endpoint.
 
         error returns:
         * 500 - internal server error

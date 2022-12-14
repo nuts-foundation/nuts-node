@@ -146,7 +146,7 @@ func TestApiWrapper_RenderGraph(t *testing.T) {
 	t.Run("ok - no query params", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		e, wrapper := initMockEcho(networkClient)
-		networkClient.EXPECT().ListTransactionsInRange(gomock.Any(), gomock.Any())
+		networkClient.EXPECT().ListTransactionsInRange(uint32(0), uint32(dag.MaxLamportClock))
 
 		req := httptest.NewRequest(echo.GET, "/", nil)
 		rec := httptest.NewRecorder()
@@ -162,10 +162,10 @@ func TestApiWrapper_RenderGraph(t *testing.T) {
 	t.Run("ok - with query params", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		e, wrapper := initMockEcho(networkClient)
-		networkClient.EXPECT().ListTransactionsInRange(gomock.Any(), gomock.Any())
+		networkClient.EXPECT().ListTransactionsInRange(uint32(1), uint32(4))
 		q := make(url.Values)
-		q.Set("start", "0")
-		q.Set("end", "5")
+		q.Set("start", "1")
+		q.Set("end", "4")
 
 		req := httptest.NewRequest(echo.GET, "/?"+q.Encode(), nil)
 		rec := httptest.NewRecorder()
@@ -270,12 +270,31 @@ func TestApiWrapper_ListTransactions(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	transaction := dag.CreateTestTransactionWithJWK(1)
 
-	t.Run("200", func(t *testing.T) {
+	t.Run("200 - no query params", func(t *testing.T) {
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		e, wrapper := initMockEcho(networkClient)
 		networkClient.EXPECT().ListTransactionsInRange(uint32(0), uint32(dag.MaxLamportClock)).Return([]dag.Transaction{transaction}, nil)
 
 		req := httptest.NewRequest(echo.GET, "/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.SetPath("/transaction")
+
+		err := wrapper.ListTransactions(c)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, `["`+string(transaction.Data())+`"]`, strings.TrimSpace(rec.Body.String()))
+	})
+	t.Run("200 - query params", func(t *testing.T) {
+		var networkClient = network.NewMockTransactions(mockCtrl)
+		e, wrapper := initMockEcho(networkClient)
+		networkClient.EXPECT().ListTransactionsInRange(uint32(1), uint32(4)).Return([]dag.Transaction{transaction}, nil)
+		q := make(url.Values)
+		q.Set("start", "1")
+		q.Set("end", "4")
+
+		req := httptest.NewRequest(echo.GET, "/?"+q.Encode(), nil)
+
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		c.SetPath("/transaction")

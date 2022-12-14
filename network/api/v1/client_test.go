@@ -49,7 +49,7 @@ func TestHttpClient_ListTransactions(t *testing.T) {
 		expected := dag.CreateTestTransactionWithJWK(1)
 		data, _ := json.Marshal([]string{string(expected.Data())})
 		s := httptest.NewServer(handler{statusCode: http.StatusOK, responseData: data})
-		actual, err := getClient(s).ListTransactions()
+		actual, err := getClient(s).ListTransactions(&ListTransactionsParams{})
 		require.NoError(t, err)
 		require.Len(t, actual, 1)
 		assert.Equal(t, expected, actual[0])

@@ -20,7 +20,9 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/nuts-foundation/nuts-node/network"
@@ -131,14 +133,44 @@ func getCommand() *cobra.Command {
 const sortFlagTime = "time"
 const sortFlagType = "type"
 
+// convertRange is a utility function for converting optional string args to *int
+func convertRange(s string) *int {
+	// Empty strings are converted to nil
+	if s == "" {
+		return nil
+	}
+
+	// Non-empty strings are converted (if possible) to int pointers
+	if n, err := strconv.ParseUint(s, 10, 32); err == nil {
+		// Upon successful integer parsing return a pointer to the value
+		nInt := int(n)
+		return &nInt
+	}
+
+	// Panic if parsing fails
+	log.Panicf("cannot parse argument: %v", s)
+
+	// Never reached...but needed for the compiler
+	return nil
+}
+
 func listCommand() *cobra.Command {
 	var sortFlag string
+	var rangeStart string
+	var rangeEnd string
+
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "Lists the transactions on the network",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientConfig := core.NewClientConfigForCommand(cmd)
-			transactions, err := httpClient(clientConfig).ListTransactions()
+
+			params := &v1.ListTransactionsParams{
+				Start: convertRange(rangeStart),
+				End:   convertRange(rangeEnd),
+			}
+
+			transactions, err := httpClient(clientConfig).ListTransactions(params)
 			if err != nil {
 				return fmt.Errorf("unable to list transactions: %w", err)
 			}
@@ -151,7 +183,11 @@ func listCommand() *cobra.Command {
 			return nil
 		},
 	}
+
 	cmd.Flags().StringVar(&sortFlag, "sort", sortFlagTime, "sort the results on either time or type")
+	cmd.Flags().StringVar(&rangeStart, "start", "", "inclusive start of lamport clock range")
+	cmd.Flags().StringVar(&rangeEnd, "end", "", "exclusive end of lamport clock range")
+
 	return cmd
 }
 

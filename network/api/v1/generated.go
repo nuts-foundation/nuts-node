@@ -64,6 +64,15 @@ type ReprocessParams struct {
 	Type *string `form:"type,omitempty" json:"type,omitempty"`
 }
 
+// ListTransactionsParams defines parameters for ListTransactions.
+type ListTransactionsParams struct {
+	// Start Inclusive start of range (in lamport clock); default=0
+	Start *int `form:"start,omitempty" json:"start,omitempty"`
+
+	// End Exclusive stop of range (in lamport clock); default=∞
+	End *int `form:"end,omitempty" json:"end,omitempty"`
+}
+
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
 
@@ -150,7 +159,7 @@ type ClientInterface interface {
 	Reprocess(ctx context.Context, params *ReprocessParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListTransactions request
-	ListTransactions(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	ListTransactions(ctx context.Context, params *ListTransactionsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetTransaction request
 	GetTransaction(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -207,8 +216,8 @@ func (c *Client) Reprocess(ctx context.Context, params *ReprocessParams, reqEdit
 	return c.Client.Do(req)
 }
 
-func (c *Client) ListTransactions(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewListTransactionsRequest(c.Server)
+func (c *Client) ListTransactions(ctx context.Context, params *ListTransactionsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListTransactionsRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -408,7 +417,7 @@ func NewReprocessRequest(server string, params *ReprocessParams) (*http.Request,
 }
 
 // NewListTransactionsRequest generates requests for ListTransactions
-func NewListTransactionsRequest(server string) (*http.Request, error) {
+func NewListTransactionsRequest(server string, params *ListTransactionsParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -425,6 +434,42 @@ func NewListTransactionsRequest(server string) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	queryValues := queryURL.Query()
+
+	if params.Start != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "start", runtime.ParamLocationQuery, *params.Start); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	if params.End != nil {
+
+		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "end", runtime.ParamLocationQuery, *params.End); err != nil {
+			return nil, err
+		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+			return nil, err
+		} else {
+			for k, v := range parsed {
+				for _, v2 := range v {
+					queryValues.Add(k, v2)
+				}
+			}
+		}
+
+	}
+
+	queryURL.RawQuery = queryValues.Encode()
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
@@ -558,7 +603,7 @@ type ClientWithResponsesInterface interface {
 	ReprocessWithResponse(ctx context.Context, params *ReprocessParams, reqEditors ...RequestEditorFn) (*ReprocessResponse, error)
 
 	// ListTransactions request
-	ListTransactionsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListTransactionsResponse, error)
+	ListTransactionsWithResponse(ctx context.Context, params *ListTransactionsParams, reqEditors ...RequestEditorFn) (*ListTransactionsResponse, error)
 
 	// GetTransaction request
 	GetTransactionWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*GetTransactionResponse, error)
@@ -814,8 +859,8 @@ func (c *ClientWithResponses) ReprocessWithResponse(ctx context.Context, params 
 }
 
 // ListTransactionsWithResponse request returning *ListTransactionsResponse
-func (c *ClientWithResponses) ListTransactionsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListTransactionsResponse, error) {
-	rsp, err := c.ListTransactions(ctx, reqEditors...)
+func (c *ClientWithResponses) ListTransactionsWithResponse(ctx context.Context, params *ListTransactionsParams, reqEditors ...RequestEditorFn) (*ListTransactionsResponse, error) {
+	rsp, err := c.ListTransactions(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -1101,9 +1146,9 @@ type ServerInterface interface {
 	// Reprocess all transactions of the given type, verify and process
 	// (POST /internal/network/v1/reprocess)
 	Reprocess(ctx echo.Context, params ReprocessParams) error
-	// Lists the transactions on the DAG
+	// Lists transactions on the DAG
 	// (GET /internal/network/v1/transaction)
-	ListTransactions(ctx echo.Context) error
+	ListTransactions(ctx echo.Context, params ListTransactionsParams) error
 	// Retrieves a transaction
 	// (GET /internal/network/v1/transaction/{ref})
 	GetTransaction(ctx echo.Context, ref string) error
@@ -1192,8 +1237,24 @@ func (w *ServerInterfaceWrapper) ListTransactions(ctx echo.Context) error {
 
 	ctx.Set(JwtBearerAuthScopes, []string{""})
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListTransactionsParams
+	// ------------- Optional query parameter "start" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "start", ctx.QueryParams(), &params.Start)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter start: %s", err))
+	}
+
+	// ------------- Optional query parameter "end" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "end", ctx.QueryParams(), &params.End)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter end: %s", err))
+	}
+
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.ListTransactions(ctx)
+	err = w.Handler.ListTransactions(ctx, params)
 	return err
 }
 

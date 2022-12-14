@@ -48,6 +48,22 @@ func TestFlagSet(t *testing.T) {
 	})
 }
 
+func TestConvertRange(t *testing.T) {
+	t.Run("it ignores empty ranges", func(t *testing.T) {
+		assert.Nil(t, convertRange(""))
+	})
+
+	t.Run("it converts positive ints", func(t *testing.T) {
+		i := convertRange("5")
+		assert.NotNil(t, i)
+		assert.Equal(t, *i, 5)
+	})
+
+	t.Run("it ignores negative ints", func(t *testing.T) {
+		assert.Panics(t, func() {convertRange("-5")})
+	})
+}
+
 // Test the 'nuts network list' command.
 func TestCmd_List(t *testing.T) {
 	// Create 3 transactions

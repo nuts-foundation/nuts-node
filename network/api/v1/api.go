@@ -49,11 +49,21 @@ func (a *Wrapper) Routes(router core.EchoRouter) {
 }
 
 // ListTransactions lists all transactions
-func (a Wrapper) ListTransactions(ctx echo.Context) error {
-	transactions, err := a.Service.ListTransactionsInRange(0, dag.MaxLamportClock)
+func (a Wrapper) ListTransactions(ctx echo.Context, params ListTransactionsParams) error {
+	// Parse the start/end params, which have default values
+	start := toInt(params.Start, 0)
+	end := toInt(params.End, dag.MaxLamportClock)
+	if start < 0 || end < 1 || start >= end {
+		return core.InvalidInputError("invalid range")
+	}
+
+	// List the specified transaction range (if it exists)
+	transactions, err := a.Service.ListTransactionsInRange(uint32(start), uint32(end))
 	if err != nil {
 		return err
 	}
+
+	// The results are returned as a JSON encoded array of strings
 	results := make([]string, len(transactions))
 	for i, transaction := range transactions {
 		results[i] = string(transaction.Data())
