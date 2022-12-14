@@ -104,7 +104,7 @@ func NewNotary(config Config, vcr vcr.VCR, keyResolver types.KeyResolver, keySto
 // DrawUpContract accepts a template and fills in the Party, validFrom time and its duration.
 // If validFrom is zero, the current time is used.
 // If the duration is 0 than the default duration is used.
-func (n *notary) DrawUpContract(template contract.Template, orgID did.DID, validFrom time.Time, validDuration time.Duration) (*contract.Contract, error) {
+func (n *notary) DrawUpContract(template contract.Template, orgID did.DID, validFrom time.Time, validDuration time.Duration, organizationCredential *vc.VerifiableCredential) (*contract.Contract, error) {
 	// Test if the org in managed by this node:
 	signingKeyID, err := n.keyResolver.ResolveSigningKeyID(orgID, &validFrom)
 	if errors.Is(err, types.ErrNotFound) {
@@ -117,7 +117,12 @@ func (n *notary) DrawUpContract(template contract.Template, orgID did.DID, valid
 		return nil, fmt.Errorf("could not draw up contract: organization is not managed by this node: %w", ErrMissingOrganizationKey)
 	}
 
-	orgName, orgCity, err := n.findVC(orgID)
+	var orgName, orgCity string
+	if organizationCredential != nil {
+		orgName, orgCity, err = n.attributesFromOrganizationCredential(*organizationCredential)
+	} else {
+		orgName, orgCity, err = n.findVC(orgID)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -304,17 +309,26 @@ func (n *notary) findVC(orgID did.DID) (string, string, error) {
 		}
 	}
 
+	return n.attributesFromOrganizationCredential(result[0])
+}
+
+func (n *notary) attributesFromOrganizationCredential(organizationCredential vc.VerifiableCredential) (string, string, error) {
 	// expand
 	reader := jsonld.Reader{
 		DocumentLoader:           n.jsonldManager.DocumentLoader(),
 		AllowUndefinedProperties: true,
 	}
-	document, err := reader.Read(result[0])
+	document, err := reader.Read(organizationCredential)
 	if err != nil {
 		return "", "", fmt.Errorf("could not read VC: %w", err)
 	}
 
 	orgNames := document.ValueAt(jsonld.OrganizationNamePath)
 	orgCities := document.ValueAt(jsonld.OrganizationCityPath)
+
+	if len(orgNames) == 0 || len(orgCities) == 0 {
+		return "", "", errors.New("verifiable credential does not contain an organization name and city")
+	}
+
 	return orgNames[0].String(), orgCities[0].String(), nil
 }

@@ -19,6 +19,7 @@
 package services
 
 import (
+	"github.com/nuts-foundation/go-did/vc"
 	"net/http"
 	"net/url"
 	"time"
@@ -58,7 +59,7 @@ type ContractNotary interface {
 	contract.VPVerifier
 
 	// DrawUpContract draws up a contract from a template and returns a Contract which than can be signed by the user.
-	DrawUpContract(template contract.Template, orgID did.DID, validFrom time.Time, validDuration time.Duration) (*contract.Contract, error)
+	DrawUpContract(template contract.Template, orgID did.DID, validFrom time.Time, validDuration time.Duration, organizationCredential *vc.VerifiableCredential) (*contract.Contract, error)
 
 	// CreateSigningSession creates a signing session for the requested contract and means
 	CreateSigningSession(sessionRequest CreateSessionRequest) (contract.SessionPointer, error)
@@ -72,7 +73,7 @@ type ContractNotary interface {
 	HandlerFunc() http.HandlerFunc
 }
 
-// CompoundServiceClient defines a function to get a compoundservice by its servicetype
+// CompoundServiceClient defines a function to get a compound service by its servicetype
 type CompoundServiceClient interface {
 	GetCompoundService(id did.DID, serviceType string) (*did.Service, error)
 }

@@ -252,6 +252,7 @@ func (s *service) validateRequester(context *validationContext) error {
 	for _, identity := range context.requesterOrganizationIdentities {
 		if actualName == identity.name && actualCity == identity.city {
 			found = true
+			break
 		}
 	}
 	if !found {

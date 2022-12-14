@@ -240,12 +240,12 @@ func (w Wrapper) DrawUpContract(ctx echo.Context) error {
 	if template == nil {
 		return core.NotFoundError("no contract found for given combination of type, version, and language")
 	}
-	orgID, err := did.ParseDID(string(params.LegalEntity))
+	orgID, err := did.ParseDID(params.LegalEntity)
 	if err != nil {
 		return core.InvalidInputError("invalid value '%s' for param legalEntity: %w", params.LegalEntity, err)
 	}
 
-	drawnUpContract, err := w.Auth.ContractNotary().DrawUpContract(*template, *orgID, vf, validDuration)
+	drawnUpContract, err := w.Auth.ContractNotary().DrawUpContract(*template, *orgID, vf, validDuration, params.OrganizationCredential)
 	if err != nil {
 		return err
 	}
