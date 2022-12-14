@@ -77,7 +77,7 @@ type vcr struct {
 	keyStore        crypto.KeyStore
 	docResolver     vdr.DocResolver
 	keyResolver     vdr.KeyResolver
-	serviceResolver didservice.ServiceResolver
+	serviceResolver vdr.ServiceResolver
 	ambassador      Ambassador
 	network         network.Transactions
 	trustConfig     *trust.Config

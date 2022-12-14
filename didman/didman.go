@@ -25,18 +25,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"net/url"
 	"sync"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/didman/log"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/shengdoushi/base58"
 )
@@ -88,7 +88,7 @@ func (e ErrReferencedServiceNotAnEndpoint) Is(other error) bool {
 type didman struct {
 	jsonldManager   jsonld.JSONLD
 	docResolver     types.DocResolver
-	serviceResolver didservice.ServiceResolver
+	serviceResolver types.ServiceResolver
 	store           types.Store
 	vdr             types.VDR
 	vcr             vcr.Finder

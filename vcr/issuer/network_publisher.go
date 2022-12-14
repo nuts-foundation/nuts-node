@@ -38,7 +38,7 @@ import (
 type networkPublisher struct {
 	networkTx       network.Transactions
 	didDocResolver  vdr.DocResolver
-	serviceResolver didservice.ServiceResolver
+	serviceResolver vdr.ServiceResolver
 	keyResolver     keyResolver
 }
 

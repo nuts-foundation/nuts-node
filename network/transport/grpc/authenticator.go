@@ -25,6 +25,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"google.golang.org/grpc/credentials"
 	grpcPeer "google.golang.org/grpc/peer"
 	"net/url"
@@ -40,12 +41,12 @@ type Authenticator interface {
 }
 
 // NewTLSAuthenticator creates an Authenticator that verifies node identities using TLS certificates.
-func NewTLSAuthenticator(serviceResolver didservice.ServiceResolver) Authenticator {
+func NewTLSAuthenticator(serviceResolver types.ServiceResolver) Authenticator {
 	return &tlsAuthenticator{serviceResolver: serviceResolver}
 }
 
 type tlsAuthenticator struct {
-	serviceResolver didservice.ServiceResolver
+	serviceResolver types.ServiceResolver
 }
 
 func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, peer transport.Peer) (transport.Peer, error) {
@@ -96,7 +97,7 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 }
 
 // NewDummyAuthenticator creates an Authenticator that does not verify node identities
-func NewDummyAuthenticator(serviceResolver didservice.ServiceResolver) Authenticator {
+func NewDummyAuthenticator(serviceResolver types.ServiceResolver) Authenticator {
 	return &dummyAuthenticator{}
 }
 
