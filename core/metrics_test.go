@@ -78,6 +78,19 @@ func TestNewMetricsEngine_Metrics(t *testing.T) {
 		assert.Contains(t, response, "http_request_duration_")
 	})
 
+	t.Run("limit path length", func(t *testing.T) {
+		// Request an HTTP endpoint to make sure some HTTP metrics are collected
+		path := "/status/diagnostics"
+		for i := 1; i < 210; i++ {
+			path += "x"
+		}
+		_ = requestPath(path)
+
+		response := requestMetrics()
+
+		assert.Contains(t, response, "xxx...")
+	})
+
 }
 
 func TestMetricsEngine_Lifecycle(t *testing.T) {

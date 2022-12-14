@@ -83,6 +83,16 @@ func (e *metrics) Configure(_ ServerConfig) error {
 
 	// Echo collector
 	e.prometheusMiddleware = promEcho.NewPrometheus("http", nil)
+	// Fix for NTS-009: Prevent flooding the metrics with garbage
+	e.prometheusMiddleware.RequestCounterURLLabelMappingFunc = func(c echo.Context) string {
+		path := c.Path()
+		runes := []rune(path)
+		const maxPathLength = 200
+		if len(runes) > maxPathLength {
+			return string(runes[:maxPathLength]) + "..."
+		}
+		return path
+	}
 
 	return nil
 }
