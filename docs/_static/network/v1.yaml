@@ -30,7 +30,6 @@ paths:
       summary: "Lists transactions on the DAG"
       description: >
         Lists transactions on the DAG. Since this call returns all transactions on the DAG, care should be taken when there are many of them. A range (start,end) are recommended at all times to avoid overloading the endpoint.
-        TODO: We may need a more elaborate querying interface (pagination, filtering, etc).
 
         error returns:
         * 500 - internal server error
