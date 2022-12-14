@@ -49,9 +49,6 @@ func isAlgorithmSupported(alg jwa.SignatureAlgorithm) bool {
 
 // SignJWT creates a signed JWT given a legalEntity and map of claims
 func (client *Crypto) SignJWT(claims map[string]interface{}, kid string) (token string, err error) {
-	if err = validateKID(kid); err != nil {
-		return "", err
-	}
 	privateKey, err := client.storage.GetPrivateKey(kid)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
@@ -74,9 +71,6 @@ func (client *Crypto) SignJWT(claims map[string]interface{}, kid string) (token 
 
 // SignJWS creates a signed JWS using the indicated key and map of headers and payload as bytes.
 func (client *Crypto) SignJWS(payload []byte, headers map[string]interface{}, kid string, detached bool) (token string, err error) {
-	if err = validateKID(kid); err != nil {
-		return "", err
-	}
 	privateKey, err := client.storage.GetPrivateKey(kid)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {

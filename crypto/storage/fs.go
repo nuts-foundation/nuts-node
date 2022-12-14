@@ -74,13 +74,13 @@ func NewFileSystemBackend(fspath string) (Storage, error) {
 	return fsc, nil
 }
 
-func (fsc *fileSystemBackend) PrivateKeyExists(kid string) bool {
+func (fsc fileSystemBackend) PrivateKeyExists(kid string) bool {
 	_, err := os.Stat(fsc.getEntryPath(kid, privateKeyEntry))
 	return err == nil
 }
 
 // GetPrivateKey loads the private key for the given legalEntity from disk. Since a legalEntity has a URI as identifier, the URI is base64 encoded and postfixed with '_private.pem'. Keys are stored in pem format and are 2k RSA keys.
-func (fsc *fileSystemBackend) GetPrivateKey(kid string) (crypto.Signer, error) {
+func (fsc fileSystemBackend) GetPrivateKey(kid string) (crypto.Signer, error) {
 	data, err := fsc.readEntry(kid, privateKeyEntry)
 	if err != nil {
 		return nil, err
@@ -93,7 +93,7 @@ func (fsc *fileSystemBackend) GetPrivateKey(kid string) (crypto.Signer, error) {
 }
 
 // SavePrivateKey saves the private key for the given key to disk. Files are postfixed with '_private.pem'. Keys are stored in pem format.
-func (fsc *fileSystemBackend) SavePrivateKey(kid string, key crypto.PrivateKey) error {
+func (fsc fileSystemBackend) SavePrivateKey(kid string, key crypto.PrivateKey) error {
 	filenamePath := fsc.getEntryPath(kid, privateKeyEntry)
 	outFile, err := os.OpenFile(filenamePath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, os.FileMode(0600))
 
@@ -113,7 +113,7 @@ func (fsc *fileSystemBackend) SavePrivateKey(kid string, key crypto.PrivateKey) 
 	return err
 }
 
-func (fsc *fileSystemBackend) ListPrivateKeys() []string {
+func (fsc fileSystemBackend) ListPrivateKeys() []string {
 	var result []string
 	_ = filepath.Walk(fsc.fspath, func(path string, info fs.FileInfo, err error) error {
 		if !info.IsDir() && strings.HasSuffix(info.Name(), string(privateKeyEntry)) {
@@ -139,8 +139,8 @@ func (fsc fileSystemBackend) readEntry(kid string, entryType entryType) ([]byte,
 	return data, nil
 }
 
-func (fsc fileSystemBackend) getEntryPath(key string, entryType entryType) string {
-	return filepath.Join(fsc.fspath, getEntryFileName(key, entryType))
+func (fsc fileSystemBackend) getEntryPath(kid string, entryType entryType) string {
+	return filepath.Join(fsc.fspath, getEntryFileName(kid, entryType))
 }
 
 func getEntryFileName(kid string, entryType entryType) string {
