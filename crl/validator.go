@@ -117,13 +117,18 @@ func (v *validator) IsRevoked(issuer string, serialNumber *big.Int) bool {
 	return false
 }
 
-func (v *validator) updateCRL(endpoint string) error {
+func (v *validator) updateCRL(endpoint string, issuer *x509.Certificate) error {
+	if nowFunc().After(issuer.NotAfter) {
+		// Certificate has expired, no need to update CRL since it can't sign any new CRLs.
+		return nil
+	}
+
 	v.listsLock.RLock()
 	crl, ok := v.lists[endpoint]
 	v.listsLock.RUnlock()
 
-	if !ok || crl.HasExpired(time.Now()) {
-		return v.downloadCRL(endpoint)
+	if !ok || crl.HasExpired(nowFunc()) {
+		return v.downloadCRL(endpoint, issuer)
 	}
 
 	return nil
@@ -143,7 +148,7 @@ func (v *validator) verifyCRL(crl *pkix.CertificateList) error {
 	return certificate.CheckCRLSignature(crl)
 }
 
-func (v *validator) downloadCRL(endpoint string) error {
+func (v *validator) downloadCRL(endpoint string, issuer *x509.Certificate) error {
 	response, err := v.httpClient.Get(endpoint)
 	if err != nil {
 		return err
@@ -187,7 +192,11 @@ func (v *validator) IsSynced(maxOffsetDays int) bool {
 	defer v.listsLock.RUnlock()
 
 	// Check if all CRLs have been downloaded
-	for _, endpoint := range endpoints {
+	for endpoint, issuer := range endpoints {
+		if nowFunc().After(issuer.NotAfter) {
+			// Certificate has expired, so CRL can't be updated anymore
+			continue
+		}
 		if _, ok := v.lists[endpoint]; !ok {
 			return false
 		}
@@ -196,8 +205,8 @@ func (v *validator) IsSynced(maxOffsetDays int) bool {
 	// Verify that none of the CRLs are outdated
 	now := nowFunc().Add(time.Duration(-maxOffsetDays) * (time.Hour * 24))
 
-	for _, list := range v.lists {
-		if list.HasExpired(now) {
+	for endpoint, list := range v.lists {
+		if !nowFunc().After(endpoints[endpoint].NotAfter) && list.HasExpired(now) {
 			return false
 		}
 	}
@@ -261,24 +270,22 @@ func (v *validator) Configure(config *tls.Config, maxValidityDays int) {
 	}
 }
 
-func (v *validator) parseCRLEndpoints() (endpoints []string) {
+func (v *validator) parseCRLEndpoints() map[string]*x509.Certificate {
 	v.certificatesLock.RLock()
 	defer v.certificatesLock.RUnlock()
 
+	var result = make(map[string]*x509.Certificate)
 	for _, certificate := range v.certificates {
 	lookup:
 		for _, endpoint := range certificate.CRLDistributionPoints {
-			for _, existingEndpoint := range endpoints {
-				if endpoint == existingEndpoint {
-					continue lookup
-				}
+			if _, ok := result[endpoint]; ok {
+				continue lookup
 			}
-
-			endpoints = append(endpoints, endpoint)
+			result[endpoint] = certificate
 		}
 	}
 
-	return
+	return result
 }
 
 // Sync downloads, updates and verifies CRLs
@@ -295,14 +302,14 @@ func (v *validator) Sync() error {
 		close(errorsChan)
 	}()
 
-	for _, endpoint := range endpoints {
-		go func(e string) {
+	for endpoint, issuer := range endpoints {
+		go func(endpoint string, issuer *x509.Certificate) {
 			defer wc.Done()
 
-			if err := v.updateCRL(e); err != nil {
+			if err := v.updateCRL(endpoint, issuer); err != nil {
 				errorsChan <- err
 			}
-		}(endpoint)
+		}(endpoint, issuer)
 	}
 
 	var syncErrors []error

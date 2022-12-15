@@ -45,6 +45,7 @@ const (
 	revokedSerialNumber = "10000026"
 	revokedIssuerName   = "CN=Staat der Nederlanden EV Root CA,O=Staat der Nederlanden,C=NL"
 )
+var pkiOverheidCRLValidMoment = time.Date(2021, 12, 1, 0, 0, 0, 0, time.UTC)
 
 type fakeTransport struct {
 	responseData []byte
@@ -73,14 +74,14 @@ func TestValidator_downloadCRL(t *testing.T) {
 	t.Run("invalid URL", func(t *testing.T) {
 		httpClient := &http.Client{Transport: &fakeTransport{}}
 		v := NewValidatorWithHTTPClient(nil, httpClient).(*validator)
-		err := v.downloadCRL("file:///non-existing")
+		err := v.downloadCRL("file:///non-existing", nil)
 
 		assert.ErrorContains(t, err, "file:///non-existing")
 	})
 	t.Run("invalid CRL", func(t *testing.T) {
 		httpClient := &http.Client{Transport: &fakeTransport{responseData: []byte("Definitely not a CRL")}}
 		v := NewValidatorWithHTTPClient(nil, httpClient).(*validator)
-		err := v.downloadCRL("URL-to-CRL")
+		err := v.downloadCRL("URL-to-CRL", nil)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "unable to parse downloaded CRL (url=URL-to-CRL)")
 	})
@@ -88,26 +89,54 @@ func TestValidator_downloadCRL(t *testing.T) {
 		// Create a CRL with an invalid signature (valid issuer cert, but signed with random private key)
 		trustStore, _ := core.LoadTrustStore(pkiOverheidRootCA)
 		privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		crlWithInvalidSig, err := x509.CreateRevocationList(rand.Reader, &x509.RevocationList{Number: big.NewInt(1024)}, trustStore.Certificates()[0], privateKey)
+		issuer := trustStore.Certificates()[0]
+		crlWithInvalidSig, err := x509.CreateRevocationList(rand.Reader, &x509.RevocationList{Number: big.NewInt(1024)}, issuer, privateKey)
 		require.NoError(t, err)
 
 		httpClient := &http.Client{Transport: &fakeTransport{responseData: crlWithInvalidSig}}
 		v := NewValidatorWithHTTPClient(nil, httpClient).(*validator)
-		err = v.downloadCRL("CRL with invalid signature")
+		err = v.downloadCRL("CRL with invalid signature", issuer)
 		assert.EqualError(t, err, "CRL verification failed (issuer=CN=Staat der Nederlanden EV Root CA,O=Staat der Nederlanden,C=NL): CRL signature could not be validated against known certificates")
 	})
 }
 
-func TestValidator_Sync(t *testing.T) {
-	store, err := core.LoadTrustStore(pkiOverheidRootCA)
-	assert.NoError(t, err)
+func TestValidator_IsSynced(t *testing.T) {
+	// TODO: Test Sync() with expired certificate
+	t.Run("not in sync", func(t *testing.T) {
+		// overwrite the nowFunc so the CRL is valid
+		nowFunc = func() time.Time {
+			return pkiOverheidCRLValidMoment
+		}
+		crlValidator := load(t)
 
-	httpClient := &http.Client{Transport: &fakeTransport{}}
+		result := crlValidator.IsSynced(0)
 
-	crlValidator := NewValidatorWithHTTPClient(store.Certificates(), httpClient)
+		assert.False(t, result)
+	})
+	t.Run("active certificate, CRL is in sync", func(t *testing.T) {
+		// overwrite the nowFunc so the CRL is valid
+		nowFunc = func() time.Time {
+			return pkiOverheidCRLValidMoment
+		}
+		crlValidator := load(t)
+		require.NoError(t, crlValidator.Sync())
 
-	err = crlValidator.Sync()
-	assert.Error(t, err)
+		result := crlValidator.IsSynced(0)
+
+		assert.True(t, result)
+	})
+	t.Run("issuer certificate has expired (in sync)", func(t *testing.T) {
+		// overwrite the nowFunc so the CRL is valid
+		nowFunc = func() time.Time {
+			return time.Date(2030, 12, 1, 0, 0, 0, 0, time.UTC)
+		}
+		crlValidator := load(t)
+		require.NoError(t, crlValidator.Sync())
+
+		result := crlValidator.IsSynced(0)
+
+		assert.True(t, result)
+	})
 }
 
 func TestValidator_IsRevoked(t *testing.T) {
@@ -119,7 +148,8 @@ func TestValidator_IsRevoked(t *testing.T) {
 
 	// overwrite the nowFunc so the CRL is valid
 	nowFunc = func() time.Time {
-		return time.Date(2021, 12, 1, 0, 0, 0, 0, time.UTC)
+
+		return pkiOverheidCRLValidMoment
 	}
 
 	data, err := os.ReadFile(pkiOverheidCRL)
@@ -209,4 +239,14 @@ func TestValidator_Configured(t *testing.T) {
 		block.Bytes,
 	}, nil)
 	assert.NoError(t, err)
+}
+
+func load(t *testing.T) Validator  {
+	data, err := os.ReadFile(pkiOverheidCRL)
+	require.NoError(t, err)
+	httpClient := &http.Client{Transport: &fakeTransport{responseData: data}}
+
+	store, err := core.LoadTrustStore(pkiOverheidRootCA)
+	require.NoError(t, err)
+	return NewValidatorWithHTTPClient(store.Certificates(), httpClient)
 }
