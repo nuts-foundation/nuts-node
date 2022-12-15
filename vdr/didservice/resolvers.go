@@ -306,6 +306,9 @@ func (s serviceResolver) ResolveEx(endpoint ssi.URI, depth int, maxDepth int, do
 	var service *did.Service
 	for _, curr := range document.Service {
 		if curr.Type == endpoint.Query().Get(serviceTypeQueryParameter) {
+			// If there are multiple services with the same type the document is conflicted.
+			// This can happen temporarily during a service update (delete old, add new).
+			// Both endpoints are likely to be active in the timeframe that the conflict exists, so picking the first entry is preferred for availability over an error.
 			service = &curr
 			break
 		}
