@@ -423,7 +423,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 		Service:    "test-service",
 	}
 
-	t.Run("returns_error_when_request_is_invalid", func(t *testing.T) {
+	t.Run("returns error when request is invalid", func(t *testing.T) {
 		ctx := createContext(t)
 
 		ctx.echoMock.EXPECT().
@@ -435,7 +435,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 		assert.EqualError(t, err, "random error")
 	})
 
-	t.Run("returns_error_when_creating_jwt_grant_fails", func(t *testing.T) {
+	t.Run("returns error when creating jwt grant fails", func(t *testing.T) {
 		ctx := createContext(t)
 
 		ctx.echoMock.EXPECT().
@@ -459,7 +459,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 		assert.EqualError(t, err, "random error")
 	})
 
-	t.Run("returns_error_when_http_create_access_token_fails", func(t *testing.T) {
+	t.Run("returns error when http create access token fails", func(t *testing.T) {
 		ctx := createContext(t)
 
 		ctx.echoMock.EXPECT().
@@ -470,7 +470,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 			})
 
 		server := httptest.NewServer(&http2.Handler{
-			StatusCode: http.StatusBadGateway,
+			StatusCode: http.StatusInternalServerError,
 		})
 
 		t.Cleanup(server.Close)
@@ -489,9 +489,9 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
 
-		assert.EqualError(t, err, "unable to create access token: server returned HTTP 502 (expected: 200), response: null")
+		assert.EqualError(t, err, "remote server/nuts node returned error creating access token: server returned HTTP 500 (expected: 200), response: null")
 		require.Implements(t, new(core.HTTPStatusCodeError), err)
-		assert.Equal(t, http.StatusBadGateway, err.(core.HTTPStatusCodeError).StatusCode())
+		assert.Equal(t, http.StatusServiceUnavailable, err.(core.HTTPStatusCodeError).StatusCode())
 	})
 
 	t.Run("happy_path", func(t *testing.T) {
