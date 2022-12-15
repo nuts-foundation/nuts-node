@@ -155,6 +155,11 @@ func Test_managedServiceValidator(t *testing.T) {
 			didDoc.Service[0].ServiceEndpoint = []string{serviceRef.String()}
 			return didDoc
 		}, errors.New("invalid service: invalid service format")},
+		{"nok - invalid reference", func() did.Document {
+			didDoc, _, _ := newDidDoc()
+			didDoc.Service[0].ServiceEndpoint = "did:invalid:reference"
+			return didDoc
+		}, errors.New("invalid service: DID service query invalid: endpoint URI path must be /serviceEndpoint")},
 	}
 	tableDrivenValidation(t, table, managedServiceValidator{serviceResolver})
 
@@ -226,32 +231,12 @@ func Test_managedServiceValidator(t *testing.T) {
 				didDoc.Service[0].ServiceEndpoint = map[string]string{}
 				return didDoc
 			}, errors.New("invalid service: node-contact-info: missing email")},
-			{"nok - invalid email", func() did.Document {
+			{"nok - not a map", func() did.Document {
 				didDoc, _, _ := newDidDoc()
 				didDoc.Service[0].Type = "node-contact-info"
-				didDoc.Service[0].ServiceEndpoint = map[string]string{
-					"email": "not a valid email",
-				}
+				didDoc.Service[0].ServiceEndpoint = "valid@email.address"
 				return didDoc
-			}, errors.New("invalid service: node-contact-info: invalid email")},
-			{"nok - invalid website", func() did.Document {
-				didDoc, _, _ := newDidDoc()
-				didDoc.Service[0].Type = "node-contact-info"
-				didDoc.Service[0].ServiceEndpoint = map[string]string{
-					"email":   "valid@email.address",
-					"website": "nuts.nl",
-				}
-				return didDoc
-			}, errors.New("invalid service: node-contact-info: invalid website")},
-			{"nok - contains unknown fields", func() did.Document {
-				didDoc, _, _ := newDidDoc()
-				didDoc.Service[0].Type = "node-contact-info"
-				didDoc.Service[0].ServiceEndpoint = map[string]string{
-					"email":      "valid@email.address",
-					"whose this": "I don't know",
-				}
-				return didDoc
-			}, errors.New("invalid service: node-contact-info: must only contain 'name', 'email', 'telephone', and 'website'")},
+			}, errors.New("invalid service: node-contact-info: not a map")},
 		}
 		tableDrivenValidation(t, table, managedServiceValidator{serviceResolver})
 	})

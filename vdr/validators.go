@@ -26,7 +26,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"net/mail"
 	"net/url"
 )
 
@@ -217,44 +216,12 @@ func validateNutsCommEndpoint(endpoint any) error {
 
 func validateNodeContactInfo(endpoint any) error {
 	// RFC006 §4.2 Contact information
-	// check format
 	endpointMapAny, ok := endpoint.(map[string]any)
 	if !ok {
 		return errors.New("not a map")
 	}
-	endpointMap := make(map[string]string)
-	for k, v := range endpointMapAny {
-		if vString, ok := v.(string); ok {
-			endpointMap[k] = vString
-		} else {
-			return errors.New(k + " must be a string")
-		}
-	}
-
-	// check content
-	numKeys := 0
-	if _, ok = endpointMap["name"]; ok {
-		numKeys++
-	}
-	if email, ok := endpointMap["email"]; ok {
-		numKeys++
-		if _, err := mail.ParseAddress(email); err != nil {
-			return errors.New("invalid email")
-		}
-	} else {
+	if _, ok = endpointMapAny["email"]; !ok {
 		return errors.New("missing email")
-	}
-	if _, ok = endpointMap["telephone"]; ok {
-		numKeys++
-	}
-	if website, ok := endpointMap["website"]; ok {
-		numKeys++
-		if _, err := url.ParseRequestURI(website); err != nil {
-			return errors.New("invalid website")
-		}
-	}
-	if len(endpointMap) != numKeys {
-		return errors.New("must only contain 'name', 'email', 'telephone', and 'website'")
 	}
 	return nil
 }
