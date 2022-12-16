@@ -21,21 +21,11 @@ package services
 import (
 	"github.com/nuts-foundation/go-did/vc"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 )
-
-// OAuthClient is the client interface for the OAuth service
-type OAuthClient interface {
-	Configure(clockSkewInMilliseconds int) error
-	CreateAccessToken(request CreateAccessTokenRequest) (*AccessTokenResult, error)
-	CreateJwtGrant(request CreateJwtGrantRequest) (*JwtBearerTokenResult, error)
-	GetOAuthEndpointURL(service string, authorizer did.DID) (url.URL, error)
-	IntrospectAccessToken(token string) (*NutsAccessToken, error)
-}
 
 // SignedToken defines the uniform interface to crypto specific implementations such as Irma or x509 tokens.
 type SignedToken interface {

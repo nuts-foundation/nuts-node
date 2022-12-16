@@ -48,7 +48,7 @@ const contractValidity = 60 * time.Minute
 type Auth struct {
 	config          Config
 	jsonldManager   jsonld.JSONLD
-	oauthClient     services.OAuthClient
+	oauthClient     oauth.Client
 	contractNotary  services.ContractNotary
 	serviceResolver didman.CompoundServiceResolver
 	keyStore        crypto.KeyStore
@@ -98,7 +98,7 @@ func NewAuthInstance(config Config, registry types.Store, vcr vcr.VCR, keyStore 
 }
 
 // OAuthClient returns an instance of OAuthClient
-func (auth *Auth) OAuthClient() services.OAuthClient {
+func (auth *Auth) OAuthClient() oauth.Client {
 	return auth.oauthClient
 }
 
@@ -162,7 +162,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 
 	auth.oauthClient = oauth.NewOAuthService(auth.registry, auth.vcr, auth.vcr.Verifier(), auth.serviceResolver, auth.keyStore, auth.contractNotary, auth.jsonldManager)
 
-	if err := auth.oauthClient.Configure(auth.config.ClockSkew); err != nil {
+	if err := auth.oauthClient.Configure(auth.config.ClockSkew, config.Strictmode); err != nil {
 		return err
 	}
 

@@ -171,6 +171,51 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		assert.ErrorContains(t, err, "identity validation failed: because of reasons")
 	})
 
+	t.Run("error detail masking", func(t *testing.T) {
+		setup := func(ctx *testContext) *testContext {
+			ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil).AnyTimes()
+			ctx.keyResolver.EXPECT().ResolveSigningKeyID(authorizerDID, gomock.Any()).MinTimes(1).Return(authorizerSigningKeyID.String(), nil).AnyTimes()
+			ctx.nameResolver.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil).AnyTimes()
+			ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(getAuthorizerDIDDocument(), nil, nil).AnyTimes()
+			ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil).AnyTimes()
+			ctx.privateKeyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(true).AnyTimes()
+			ctx.verifier.EXPECT().Verify(gomock.Any(), true, true, gomock.Any()).Return(nil).AnyTimes()
+			ctx.contractNotary.EXPECT().VerifyVP(gomock.Any(), nil).Return(services.TestVPVerificationResult{
+				Val:         contract.Valid,
+				DAttributes: map[string]string{"name": "Henk de Vries"},
+				CAttributes: map[string]string{"legal_entity": "CareBears", "legal_entity_city": "Caretown"},
+			}, nil)
+			return ctx
+		}
+
+		t.Run("return internal errors when secureMode=false", func(t *testing.T) {
+			ctx := setup(createContext(t))
+			ctx.oauthService.secureMode = false
+			ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), authorizerSigningKeyID.String()).Return("", errors.New("signing error"))
+			tokenCtx := validContext()
+			signToken(tokenCtx)
+
+			response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
+
+			require.Error(t, err)
+			assert.Nil(t, response)
+			assert.EqualError(t, err, "could not build accessToken: signing error")
+		})
+		t.Run("mask internal errors when secureMode=true", func(t *testing.T) {
+			ctx := setup(createContext(t))
+			ctx.oauthService.secureMode = true
+			ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), authorizerSigningKeyID.String()).Return("", errors.New("signing error"))
+			tokenCtx := validContext()
+			signToken(tokenCtx)
+
+			response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
+
+			require.Error(t, err)
+			assert.Nil(t, response)
+			assert.EqualError(t, err, "failed")
+		})
+	})
+
 	t.Run("valid - without user identity", func(t *testing.T) {
 		ctx := createContext(t)
 
@@ -189,7 +234,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 
 		response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
 
-		require.NoError(t, err)
+		require.Nil(t, err) // using NoError casts it to error, weirdly causing it to be non-nil
 		assert.Equal(t, "expectedAccessToken", response.AccessToken)
 	})
 
@@ -214,7 +259,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		signToken(tokenCtx)
 
 		response, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
-		require.NoError(t, err)
+		require.Nil(t, err) // using NoError casts it to error, weirdly causing it to be non-nil
 		assert.Equal(t, "expectedAT", response.AccessToken)
 	})
 
@@ -318,6 +363,15 @@ func TestService_validateSubject(t *testing.T) {
 
 		err := ctx.oauthService.validateSubject(tokenCtx)
 		assert.NoError(t, err)
+	})
+	t.Run("missing subject", func(t *testing.T) {
+		ctx := createContext(t)
+
+		tokenCtx := validContext()
+		tokenCtx.jwtBearerToken.Remove("sub")
+
+		err := ctx.oauthService.validateSubject(tokenCtx)
+		assert.EqualError(t, err, "invalid jwt.subject: missing")
 	})
 	t.Run("invalid subject", func(t *testing.T) {
 		ctx := createContext(t)
@@ -574,19 +628,6 @@ func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 }
 
 func TestService_buildAccessToken(t *testing.T) {
-	t.Run("missing subject", func(t *testing.T) {
-		ctx := createContext(t)
-
-		tokenCtx := &validationContext{
-			contractVerificationResult: services.TestVPVerificationResult{Val: contract.Valid},
-			jwtBearerToken:             jwt.New(),
-		}
-
-		token, _, err := ctx.oauthService.buildAccessToken(tokenCtx)
-		assert.Empty(t, token)
-		assert.EqualError(t, err, "could not build accessToken: subject is missing")
-	})
-
 	t.Run("build an access token", func(t *testing.T) {
 		ctx := createContext(t)
 
@@ -599,14 +640,7 @@ func TestService_buildAccessToken(t *testing.T) {
 			return "expectedAT", nil
 		})
 
-		tokenCtx := &validationContext{
-			contractVerificationResult: services.TestVPVerificationResult{Val: contract.Valid},
-			jwtBearerToken:             jwt.New(),
-			credentialIDs:              []string{"credential"},
-		}
-		tokenCtx.jwtBearerToken.Set(jwt.SubjectKey, authorizerDID.String())
-
-		token, _, err := ctx.oauthService.buildAccessToken(tokenCtx)
+		token, _, err := ctx.oauthService.buildAccessToken(requesterDID, authorizerDID, "", &services.TestVPVerificationResult{Val: contract.Valid}, []string{"credential"})
 
 		assert.Nil(t, err)
 		assert.Equal(t, "expectedAT", token)
@@ -844,9 +878,11 @@ func TestAuth_Configure(t *testing.T) {
 	t.Run("ok - config valid", func(t *testing.T) {
 		ctx := createContext(t)
 
-		err := ctx.oauthService.Configure(1000 * 60)
+		err := ctx.oauthService.Configure(1000*60, true)
+
 		assert.NoError(t, err)
 		assert.Equal(t, time.Minute, ctx.oauthService.clockSkew)
+		assert.True(t, ctx.oauthService.secureMode)
 	})
 }
 

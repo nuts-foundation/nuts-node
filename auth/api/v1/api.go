@@ -352,16 +352,15 @@ func (w Wrapper) CreateAccessToken(ctx echo.Context) (err error) {
 	}
 
 	catRequest := services.CreateAccessTokenRequest{RawJwtBearerToken: request.Assertion}
-	acResponse, err := w.Auth.OAuthClient().CreateAccessToken(catRequest)
-	if err != nil {
-		errDesc := err.Error()
-		errorResponse := AccessTokenRequestFailedResponse{Error: errOauthInvalidRequest, ErrorDescription: errDesc}
+	acResponse, oauthError := w.Auth.OAuthClient().CreateAccessToken(catRequest)
+	if oauthError != nil {
+		errorResponse := AccessTokenRequestFailedResponse{Error: AccessTokenRequestFailedResponseError(oauthError.Code), ErrorDescription: oauthError.Error()}
 		return ctx.JSON(http.StatusBadRequest, errorResponse)
 	}
 	response := AccessTokenResponse{
 		AccessToken: acResponse.AccessToken,
 		ExpiresIn:   acResponse.ExpiresIn,
-		TokenType:   "bearer", // bearer token type according to RFC6750/	RFC6749
+		TokenType:   "bearer", // bearer token type according to RFC6750/RFC6749
 	}
 
 	return ctx.JSON(http.StatusOK, response)
