@@ -26,8 +26,8 @@ import (
 	"net/http"
 )
 
-// RemoteServerError describes an error returned when invoking a remote server.
-type RemoteServerError struct {
+// HttpError describes an error returned when invoking a remote server.
+type HttpError struct {
 	error
 	StatusCode   int
 	ResponseBody []byte
@@ -38,7 +38,7 @@ type RemoteServerError struct {
 func TestResponseCode(expectedStatusCode int, response *http.Response) error {
 	if response.StatusCode != expectedStatusCode {
 		responseData, _ := io.ReadAll(response.Body)
-		return RemoteServerError{
+		return HttpError{
 			error:        fmt.Errorf("server returned HTTP %d (expected: %d)", response.StatusCode, expectedStatusCode),
 			StatusCode:   response.StatusCode,
 			ResponseBody: responseData,

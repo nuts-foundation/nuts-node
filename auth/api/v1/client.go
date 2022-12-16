@@ -20,13 +20,13 @@ package v1
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/auth/log"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/auth"
+	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/core"
 )
 
@@ -78,7 +78,7 @@ func (h HTTPClient) CreateAccessToken(endpointURL url.URL, bearerToken string) (
 	}
 
 	if err := core.TestResponseCode(http.StatusOK, response); err != nil {
-		rse := err.(core.RemoteServerError)
+		rse := err.(core.HttpError)
 		log.Logger().WithError(err).Debugf("Erroneous CreateAccessToken response: %s", string(rse.ResponseBody))
 		return nil, &oauthAPIError{err: err, statusCode: response.StatusCode}
 	}

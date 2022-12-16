@@ -194,7 +194,7 @@ func Test_ClientCommand_ErrorHandlers(t *testing.T) {
 		responseBody := "Hello, World!"
 		buf := new(bytes.Buffer)
 		cmd := &cobra.Command{RunE: func(cmd *cobra.Command, args []string) error {
-			return core.RemoteServerError{
+			return core.HttpError{
 				ResponseBody: []byte(responseBody),
 			}
 		}}

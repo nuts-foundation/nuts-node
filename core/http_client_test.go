@@ -97,9 +97,9 @@ func TestTestResponseCode(t *testing.T) {
 		err := TestResponseCode(stdHttp.StatusOK, &stdHttp.Response{StatusCode: status, Body: readCloser(data)})
 
 		assert.Error(t, err)
-		require.ErrorAs(t, err, new(RemoteServerError))
-		assert.Equal(t, data, err.(RemoteServerError).ResponseBody)
-		assert.Equal(t, status, err.(RemoteServerError).StatusCode)
+		require.ErrorAs(t, err, new(HttpError))
+		assert.Equal(t, data, err.(HttpError).ResponseBody)
+		assert.Equal(t, status, err.(HttpError).StatusCode)
 	})
 }
 

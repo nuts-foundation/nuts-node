@@ -290,7 +290,7 @@ func clientErrorHandler(command CobraRunE) CobraRunE {
 	return func(cmd *cobra.Command, args []string) error {
 		err := command(cmd, args)
 		if err != nil {
-			var serverError core.RemoteServerError
+			var serverError core.HttpError
 			if errors.As(err, &serverError) && len(serverError.ResponseBody) > 0 {
 				cmd.PrintErrln("Server returned:")
 				cmd.PrintErrln(string(serverError.ResponseBody))
