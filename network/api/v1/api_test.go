@@ -38,10 +38,10 @@ import (
 var payload = []byte("Hello, World!")
 
 func TestApiWrapper_GetTransaction(t *testing.T) {
-	mockCtrl := gomock.NewController(t)
 	transaction := dag.CreateTestTransactionWithJWK(1)
 
 	t.Run("ok", func(t *testing.T) {
+		mockCtrl := gomock.NewController(t)
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		wrapper := &Wrapper{Service: networkClient}
 		networkClient.EXPECT().GetTransaction(hash.EqHash(transaction.Ref())).Return(transaction, nil)
@@ -52,6 +52,7 @@ func TestApiWrapper_GetTransaction(t *testing.T) {
 		assert.Equal(t, string(transaction.Data()), httpTest.GetResponseBody(t, resp.VisitGetTransactionResponse))
 	})
 	t.Run("error", func(t *testing.T) {
+		mockCtrl := gomock.NewController(t)
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		wrapper := &Wrapper{Service: networkClient}
 		networkClient.EXPECT().GetTransaction(gomock.Any()).Return(nil, errors.New("failed"))
@@ -62,6 +63,7 @@ func TestApiWrapper_GetTransaction(t *testing.T) {
 		assert.Nil(t, resp)
 	})
 	t.Run("invalid hash", func(t *testing.T) {
+		mockCtrl := gomock.NewController(t)
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		wrapper := &Wrapper{Service: networkClient}
 
@@ -71,6 +73,7 @@ func TestApiWrapper_GetTransaction(t *testing.T) {
 		assert.Nil(t, resp)
 	})
 	t.Run("not found", func(t *testing.T) {
+		mockCtrl := gomock.NewController(t)
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		wrapper := &Wrapper{Service: networkClient}
 		networkClient.EXPECT().GetTransaction(gomock.Any()).Return(nil, dag.ErrTransactionNotFound)
@@ -132,10 +135,8 @@ func TestApiWrapper_RenderGraph(t *testing.T) {
 
 		resp, err := wrapper.RenderGraph(nil, RenderGraphRequestObject{Params: RenderGraphParams{Start: &start, End: &end}})
 
-		assert.NoError(t, err)
-		actualData, err := io.ReadAll(resp.(RenderGraph200TextvndGraphvizResponse).Body)
 		require.NoError(t, err)
-		assert.NotEmpty(t, actualData)
+		assert.NotEmpty(t, httpTest.GetResponseBody(t, resp.VisitRenderGraphResponse))
 	})
 	t.Run("error", func(t *testing.T) {
 		mockCtrl := gomock.NewController(t)
@@ -188,10 +189,9 @@ func TestApiWrapper_GetTransactionPayload(t *testing.T) {
 }
 
 func TestApiWrapper_ListTransactions(t *testing.T) {
-	mockCtrl := gomock.NewController(t)
 	transaction := dag.CreateTestTransactionWithJWK(1)
-
 	t.Run("200 - no query params", func(t *testing.T) {
+		mockCtrl := gomock.NewController(t)
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		wrapper := &Wrapper{Service: networkClient}
 		networkClient.EXPECT().ListTransactionsInRange(uint32(0), uint32(dag.MaxLamportClock)).Return([]dag.Transaction{transaction}, nil)
@@ -202,18 +202,20 @@ func TestApiWrapper_ListTransactions(t *testing.T) {
 		assert.Equal(t, `["`+string(transaction.Data())+`"]`, strings.TrimSpace(httpTest.GetResponseBody(t, resp.VisitListTransactionsResponse)))
 	})
 	t.Run("200 - query params", func(t *testing.T) {
+		mockCtrl := gomock.NewController(t)
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		wrapper := &Wrapper{Service: networkClient}
-		networkClient.EXPECT().ListTransactionsInRange(uint32(0), uint32(dag.MaxLamportClock)).Return([]dag.Transaction{transaction}, nil)
+		networkClient.EXPECT().ListTransactionsInRange(uint32(1), uint32(4)).Return([]dag.Transaction{transaction}, nil)
 		start := 1
 		end := 4
 
 		resp, err := wrapper.ListTransactions(nil, ListTransactionsRequestObject{Params: ListTransactionsParams{Start: &start, End: &end}})
 
 		assert.NoError(t, err)
-		assert.NotEmpty(t,  httpTest.GetResponseBody(t, resp.VisitListTransactionsResponse))
+		assert.NotEmpty(t, httpTest.GetResponseBody(t, resp.VisitListTransactionsResponse))
 	})
 	t.Run("error", func(t *testing.T) {
+		mockCtrl := gomock.NewController(t)
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		wrapper := &Wrapper{Service: networkClient}
 		networkClient.EXPECT().ListTransactionsInRange(uint32(0), uint32(dag.MaxLamportClock)).Return(nil, errors.New("failed"))
@@ -226,9 +228,8 @@ func TestApiWrapper_ListTransactions(t *testing.T) {
 }
 
 func TestWrapper_GetPeerDiagnostics(t *testing.T) {
-	mockCtrl := gomock.NewController(t)
-
 	t.Run("200", func(t *testing.T) {
+		mockCtrl := gomock.NewController(t)
 		var networkClient = network.NewMockTransactions(mockCtrl)
 		wrapper := &Wrapper{Service: networkClient}
 		expected := map[transport.PeerID]transport.Diagnostics{"foo": {Uptime: 50 * time.Second}}
