@@ -107,64 +107,67 @@ func Test_basicServiceValidator(t *testing.T) {
 }
 
 func Test_managedServiceValidator(t *testing.T) {
+	// table driven testing errors for unexpected (number of) mock calls have poor localisation.
+	// comment out validatorTests in the table to find the culprit.
 	serviceResolver := didservice.NewMockServiceResolver(gomock.NewController(t))
 	service := did.Service{Type: "referenced_service", ServiceEndpoint: "https://nuts.nl"}
-	serviceRef := ssi.MustParseURI("did:nuts:123/serviceEndpoint?type=referenced_service")
-	//TODO: what if Type contains a space? ref should be URL encoded, but what about dereferencing?
+	serviceRef := didservice.MakeServiceReference(*TestDIDA, service.Type)
 
-	table := []validatorTest{
-		{"ok - valid document", func() did.Document {
-			didDoc, _, _ := newDidDoc()
-			return didDoc
-		}, nil},
-		{"ok - doesn't panic", func() did.Document {
-			didDoc, _, _ := newDidDoc()
-			didDoc.Service = nil
-			return didDoc
-		}, nil},
-		{"ok - resolves string", func() did.Document {
-			didDoc, _, _ := newDidDoc()
-			didDoc.Service[0].ServiceEndpoint = serviceRef.String()
+	t.Run("basic", func(t *testing.T) {
+		table := []validatorTest{
+			{"ok - valid document", func() did.Document {
+				didDoc, _, _ := newDidDoc()
+				return didDoc
+			}, nil},
+			{"ok - doesn't panic", func() did.Document {
+				didDoc, _, _ := newDidDoc()
+				didDoc.Service = nil
+				return didDoc
+			}, nil},
+			{"ok - resolves string", func() did.Document {
+				didDoc, _, _ := newDidDoc()
+				didDoc.Service[0].ServiceEndpoint = serviceRef.String()
 
-			serviceResolver.EXPECT().ResolveEx(ssi.MustParseURI(didDoc.Service[0].ServiceEndpoint.(string)), 0, 5, gomock.Any()).Return(service, nil)
+				serviceResolver.EXPECT().ResolveEx(ssi.MustParseURI(didDoc.Service[0].ServiceEndpoint.(string)), 0, 5, gomock.Any()).Return(service, nil)
 
-			return didDoc
-		}, nil},
-		{"ok - resolves map", func() did.Document {
-			didDoc, _, _ := newDidDoc()
-			didDoc.Service[0].ServiceEndpoint = map[string]string{
-				"reference":      serviceRef.String(),
-				"url":            "super invalid but isn't validated",
-				"otherReference": serviceRef.String(),
-			}
+				return didDoc
+			}, nil},
+			{"ok - normalizes and resolves map", func() did.Document {
+				didDoc, _, _ := newDidDoc()
+				didDoc.Service[0].ServiceEndpoint = map[string]interface{}{
+					"reference":      serviceRef, // URI must be normalized
+					"url":            "super invalid but isn't validated",
+					"otherReference": serviceRef.String(),
+				}
 
-			serviceResolver.EXPECT().ResolveEx(serviceRef, 0, 5, gomock.Any()).Return(service, nil).Times(2) // 2 of 3 entries need to be resolved
+				serviceResolver.EXPECT().ResolveEx(serviceRef, 0, 5, gomock.Any()).Return(service, nil).Times(2) // 2 of 3 entries need to be resolved
 
-			return didDoc
-		}, nil},
-		{"nok - resolve fails", func() did.Document {
-			didDoc, _, _ := newDidDoc()
-			didDoc.Service[0].ServiceEndpoint = serviceRef.String()
+				return didDoc
+			}, nil},
+			{"nok - resolve fails", func() did.Document {
+				didDoc, _, _ := newDidDoc()
+				didDoc.Service[0].ServiceEndpoint = serviceRef.String()
 
-			serviceResolver.EXPECT().ResolveEx(serviceRef, 0, 5, gomock.Any()).Return(service, errors.New("resolve failed"))
+				serviceResolver.EXPECT().ResolveEx(serviceRef, 0, 5, gomock.Any()).Return(service, errors.New("resolve failed"))
 
-			return didDoc
-		}, errors.New("invalid service: resolve failed")},
-		{"nok - invalid format", func() did.Document {
-			didDoc, _, _ := newDidDoc()
-			didDoc.Service[0].ServiceEndpoint = []string{serviceRef.String()}
-			return didDoc
-		}, errors.New("invalid service: invalid service format")},
-		{"nok - invalid reference", func() did.Document {
-			didDoc, _, _ := newDidDoc()
-			didDoc.Service[0].ServiceEndpoint = "did:invalid:reference"
-			return didDoc
-		}, errors.New("invalid service: DID service query invalid: endpoint URI path must be /serviceEndpoint")},
-	}
-	tableDrivenValidation(t, table, managedServiceValidator{serviceResolver})
+				return didDoc
+			}, errors.New("invalid service: resolve failed")},
+			{"nok - invalid format", func() did.Document {
+				didDoc, _, _ := newDidDoc()
+				didDoc.Service[0].ServiceEndpoint = []string{serviceRef.String(), serviceRef.String()}
+				return didDoc
+			}, errors.New("invalid service: invalid service format")},
+			{"nok - invalid reference", func() did.Document {
+				didDoc, _, _ := newDidDoc()
+				didDoc.Service[0].ServiceEndpoint = "did:invalid:reference"
+				return didDoc
+			}, errors.New("invalid service: DID service query invalid: endpoint URI path must be /serviceEndpoint")},
+		}
+		tableDrivenValidation(t, table, managedServiceValidator{serviceResolver})
+	})
 
 	t.Run("NutsComm", func(t *testing.T) {
-		table = []validatorTest{
+		table := []validatorTest{
 			{"ok", func() did.Document {
 				didDoc, _, _ := newDidDoc()
 				didDoc.Service[0].Type = "NutsComm"
@@ -196,7 +199,7 @@ func Test_managedServiceValidator(t *testing.T) {
 	})
 
 	t.Run("node-contact-info", func(t *testing.T) {
-		table = []validatorTest{
+		table := []validatorTest{
 			{"ok - node-contact-info all valid", func() did.Document {
 				didDoc, _, _ := newDidDoc()
 				didDoc.Service[0].Type = "node-contact-info"

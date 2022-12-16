@@ -172,13 +172,14 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 		return types.ErrDeactivated
 	}
 
-	if err = NetworkDocumentValidator().Validate(next); err != nil {
-		return err
-	}
-
 	// #1530: add nuts and JWS context if not present
 	next = withJSONLDContext(next, didservice.NutsDIDContextV1URI())
 	next = withJSONLDContext(next, didservice.JWS2020ContextV1URI())
+
+	// Validate document. No more changes should be made to the document after this point.
+	if err = ManagedDocumentValidator(didservice.NewServiceResolver(r.didDocResolver)).Validate(next); err != nil {
+		return err
+	}
 
 	payload, err := json.Marshal(next)
 	if err != nil {

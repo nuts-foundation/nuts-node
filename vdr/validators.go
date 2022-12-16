@@ -51,11 +51,10 @@ func NetworkDocumentValidator() did.Validator {
 
 // ManagedDocumentValidator extends NetworkDocumentValidator with extra safety checks to be performed on DID documents managed by this node before they are published on the network.
 func ManagedDocumentValidator(serviceResolver didservice.ServiceResolver) did.Validator {
-	validator := NetworkDocumentValidator().(*did.MultiValidator)
-	validator.Validators = append(validator.Validators, managedServiceValidator{
-		serviceResolver: serviceResolver,
-	})
-	return validator
+	return &did.MultiValidator{Validators: []did.Validator{
+		NetworkDocumentValidator(),
+		managedServiceValidator{serviceResolver},
+	}}
 }
 
 // verificationMethodValidator validates the Verification Methods of a Nuts DID Document.
@@ -130,16 +129,23 @@ type managedServiceValidator struct {
 }
 
 func (m managedServiceValidator) Validate(document did.Document) error {
+	// normalize services for consistent type checking.
+	// TODO: this should probably happen somewhere else
+	bytes, err := document.MarshalJSON()
+	if err != nil {
+		return invalidServiceError{err}
+	}
+	if err = document.UnmarshalJSON(bytes); err != nil {
+		return invalidServiceError{err}
+	}
+
 	// make sure that it resolves when if it's a reference
 	var resolvedEndpoint any
-	var err error
 	// Cache resolved DID documents because most of the time all (compound) services will refer to the same DID document in all service references.
 	cache := make(map[string]*did.Document, 0)
 	for _, service := range document.Service {
 		switch se := service.ServiceEndpoint.(type) {
-		case string:
-			resolvedEndpoint, err = m.resolveOrReturnEndpoint(se, cache)
-		case map[string]string:
+		case map[string]interface{}:
 			knownKeys := make(map[string]bool, len(se))
 			resolvedCompoundEndpoint := make(map[string]any, len(se)) // don't know if returned type is string or another map
 			for name, endpoint := range se {
@@ -148,12 +154,17 @@ func (m managedServiceValidator) Validate(document did.Document) error {
 					break
 				}
 				knownKeys[name] = true
-				if resolvedEndpoint, err = m.resolveOrReturnEndpoint(endpoint, cache); err != nil {
+				// resolve by treating endpoints as individual services
+				if resolvedEndpoint, err = m.resolveOrReturnEndpoint(did.Service{ServiceEndpoint: endpoint}, cache); err != nil {
 					break
 				}
 				resolvedCompoundEndpoint[name] = resolvedEndpoint
 			}
 			resolvedEndpoint = resolvedCompoundEndpoint
+		case []interface{}:
+			// RFC006 only allows maps or string, not sets.
+			// Since service is not a map, and go-did normalizes everything to plurals, assume this is a string.
+			resolvedEndpoint, err = m.resolveOrReturnEndpoint(service, cache)
 		default:
 			err = errors.New("invalid service format")
 		}
@@ -169,7 +180,11 @@ func (m managedServiceValidator) Validate(document did.Document) error {
 	return nil
 }
 
-func (m managedServiceValidator) resolveOrReturnEndpoint(serviceEndpoint string, cache map[string]*did.Document) (any, error) {
+func (m managedServiceValidator) resolveOrReturnEndpoint(service did.Service, cache map[string]*did.Document) (any, error) {
+	var serviceEndpoint string
+	if err := service.UnmarshalServiceEndpoint(&serviceEndpoint); err != nil {
+		return nil, errors.New("invalid service format")
+	}
 	// make sure that it resolves if it is a reference
 	if didservice.IsServiceReference(serviceEndpoint) {
 		serviceURI, err := ssi.ParseURI(serviceEndpoint)

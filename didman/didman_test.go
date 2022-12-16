@@ -184,7 +184,8 @@ func TestDidman_AddCompoundService(t *testing.T) {
 			func(_ interface{}, _ interface{}, doc interface{}, _ interface{}) error {
 				newDoc = doc.(did.Document)
 				// trigger validation to check if the added contact information isn't wrong
-				return vdr.NetworkDocumentValidator().Validate(newDoc)
+				ctx.serviceResolver.EXPECT().ResolveEx(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(3)
+				return vdr.ManagedDocumentValidator(ctx.serviceResolver).Validate(newDoc)
 			})
 
 		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", references)
@@ -307,7 +308,7 @@ func TestDidman_UpdateContactInformation(t *testing.T) {
 		ctx.vdr.EXPECT().Update(*id, meta.Hash, gomock.Any(), nil).DoAndReturn(func(_ did.DID, _ hash.SHA256Hash, doc did.Document, _ *types.DocumentMetadata) error {
 			actualDocument = doc
 			// trigger validation to check if the added contact information isn't wrong
-			return vdr.NetworkDocumentValidator().Validate(doc)
+			return vdr.ManagedDocumentValidator(ctx.serviceResolver).Validate(doc)
 		})
 		actual, err := ctx.instance.UpdateContactInformation(*id, expected)
 		require.NoError(t, err)
@@ -784,12 +785,13 @@ func TestReferencesService(t *testing.T) {
 }
 
 type mockContext struct {
-	ctrl        *gomock.Controller
-	docResolver *types.MockDocResolver
-	store       *types.MockStore
-	vdr         *types.MockVDR
-	vcr         *vcr.MockFinder
-	instance    Didman
+	ctrl            *gomock.Controller
+	docResolver     *types.MockDocResolver
+	serviceResolver *didservice.MockServiceResolver
+	store           *types.MockStore
+	vdr             *types.MockVDR
+	vcr             *vcr.MockFinder
+	instance        Didman
 }
 
 func newMockContext(t *testing.T) mockContext {
@@ -801,11 +803,12 @@ func newMockContext(t *testing.T) mockContext {
 	instance := NewDidmanInstance(docResolver, store, mockVDR, mockVCR, jsonld.NewTestJSONLDManager(t))
 
 	return mockContext{
-		ctrl:        ctrl,
-		docResolver: docResolver,
-		store:       store,
-		vdr:         mockVDR,
-		vcr:         mockVCR,
-		instance:    instance,
+		ctrl:            ctrl,
+		docResolver:     docResolver,
+		serviceResolver: didservice.NewMockServiceResolver(ctrl),
+		store:           store,
+		vdr:             mockVDR,
+		vcr:             mockVCR,
+		instance:        instance,
 	}
 }
