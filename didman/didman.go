@@ -396,7 +396,10 @@ func (d *didman) SearchOrganizations(ctx context.Context, query string, didServi
 	// Convert organization concepts and DID documents to search results
 	results := make([]OrganizationSearchResult, len(organizations))
 	for i := range organizations {
-		reader := jsonld.Reader{DocumentLoader: d.jsonldManager.DocumentLoader()}
+		reader := jsonld.Reader{
+			DocumentLoader:           d.jsonldManager.DocumentLoader(),
+			AllowUndefinedProperties: true,
+		}
 		document, err := reader.Read(organizations[i])
 		if err != nil {
 			return nil, fmt.Errorf("failed to expand credential to JSON-LD: %w", err)
