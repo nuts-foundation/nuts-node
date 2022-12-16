@@ -25,9 +25,6 @@ import (
 
 // Decrypt decrypts the `cipherText` with key `kid`
 func (client *Crypto) Decrypt(kid string, cipherText []byte) ([]byte, error) {
-	if err := validateKID(kid); err != nil {
-		return nil, err
-	}
 	key, err := client.storage.GetPrivateKey(kid)
 	if err != nil {
 		return nil, err

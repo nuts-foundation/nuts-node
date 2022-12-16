@@ -45,7 +45,7 @@ type Config struct {
 	Vault   storage.VaultConfig `koanf:"vault"`
 }
 
-// DefaultCryptoConfig returns a Config with sane defaults
+// DefaultCryptoConfig returns a Config with a fs backend storage
 func DefaultCryptoConfig() Config {
 	return Config{
 		Storage: "fs",
@@ -79,15 +79,24 @@ func (client *Crypto) setupFSBackend(config core.ServerConfig) error {
 		"Discouraged for production use unless backups and encryption is properly set up. Consider using the Hashicorp Vault backend.")
 	fsPath := path.Join(config.Datadir, "crypto")
 	var err error
-	client.storage, err = storage.NewFileSystemBackend(fsPath)
-	return err
+	fsBackend, err := storage.NewFileSystemBackend(fsPath)
+	if err != nil {
+		return err
+	}
+	client.storage = storage.NewValidatedKIDBackendWrapper(fsBackend, kidPattern)
+	return nil
 }
 
 func (client *Crypto) setupVaultBackend(_ core.ServerConfig) error {
 	log.Logger().Debug("Setting up Vault backend for storage of private key material.")
 	var err error
-	client.storage, err = storage.NewVaultKVStorage(client.config.Vault)
-	return err
+	vaultBackend, err := storage.NewVaultKVStorage(client.config.Vault)
+	if err != nil {
+		return err
+	}
+
+	client.storage = storage.NewValidatedKIDBackendWrapper(vaultBackend, kidPattern)
+	return nil
 }
 
 // List returns the KIDs of the private keys that are present in the key store.
@@ -119,9 +128,6 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 func (client *Crypto) New(namingFunc KIDNamingFunc) (Key, error) {
 	keyPair, kid, err := generateKeyPairAndKID(namingFunc)
 	if err != nil {
-		return nil, err
-	}
-	if err = validateKID(kid); err != nil {
 		return nil, err
 	}
 	if client.storage.PrivateKeyExists(kid) {
@@ -158,16 +164,10 @@ func generateECKeyPair() (*ecdsa.PrivateKey, error) {
 
 // Exists checks storage for an entry for the given legal entity and returns true if it exists
 func (client *Crypto) Exists(kid string) bool {
-	if err := validateKID(kid); err != nil {
-		return false
-	}
 	return client.storage.PrivateKeyExists(kid)
 }
 
 func (client *Crypto) Resolve(kid string) (Key, error) {
-	if err := validateKID(kid); err != nil {
-		return nil, err
-	}
 	keypair, err := client.storage.GetPrivateKey(kid)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
@@ -196,11 +196,4 @@ func (e keySelector) KID() string {
 
 func (e keySelector) Public() crypto.PublicKey {
 	return e.privateKey.Public()
-}
-
-func validateKID(kid string) error {
-	if !kidPattern.MatchString(kid) {
-		return fmt.Errorf("invalid key ID: %s", kid)
-	}
-	return nil
 }

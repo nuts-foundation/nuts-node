@@ -22,6 +22,8 @@ import (
 	"crypto"
 	"errors"
 	"github.com/stretchr/testify/require"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"testing"
 
@@ -134,6 +136,37 @@ func TestCrypto_Resolve(t *testing.T) {
 	})
 }
 
+func TestCrypto_setupBackend(t *testing.T) {
+	directory := io.TestDirectory(t)
+	cfg := *core.NewServerConfig()
+	cfg.Datadir = directory
+
+	t.Run("backends should be wrapped", func(t *testing.T) {
+
+		t.Run("ok - fs backend is wrapped", func(t *testing.T) {
+			client := createCrypto(t)
+			err := client.setupFSBackend(cfg)
+			require.NoError(t, err)
+			storageType := reflect.TypeOf(client.storage).String()
+			assert.Equal(t, "storage.wrapper", storageType)
+		})
+
+		t.Run("ok - vault backend is wrapped", func(t *testing.T) {
+			s := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+				writer.Write([]byte("{\"data\": {\"keys\":[]}}"))
+			}))
+
+			defer s.Close()
+			client := createCrypto(t)
+			client.config.Vault.Address = s.URL
+			err := client.setupVaultBackend(cfg)
+			require.NoError(t, err)
+			storageType := reflect.TypeOf(client.storage).String()
+			assert.Equal(t, "storage.wrapper", storageType)
+		})
+	})
+}
+
 func TestCrypto_Configure(t *testing.T) {
 	directory := io.TestDirectory(t)
 	cfg := *core.NewServerConfig()
@@ -142,13 +175,6 @@ func TestCrypto_Configure(t *testing.T) {
 		e := createCrypto(t)
 		err := e.Configure(cfg)
 		assert.NoError(t, err)
-	})
-	t.Run("ok - default = fs backend", func(t *testing.T) {
-		client := createCrypto(t)
-		err := client.Configure(cfg)
-		require.NoError(t, err)
-		storageType := reflect.TypeOf(client.storage).String()
-		assert.Equal(t, "*storage.fileSystemBackend", storageType)
 	})
 	t.Run("error - no backend in strict mode is now allowed", func(t *testing.T) {
 		client := createCrypto(t)
@@ -180,22 +206,7 @@ func createCrypto(t *testing.T) *Crypto {
 	dir := io.TestDirectory(t)
 	backend, _ := storage.NewFileSystemBackend(dir)
 	c := Crypto{
-		storage: backend,
+		storage: storage.NewValidatedKIDBackendWrapper(backend, kidPattern),
 	}
 	return &c
-}
-
-func Test_validateKID(t *testing.T) {
-	t.Run("good KIDs", func(t *testing.T) {
-		assert.NoError(t, validateKID("admin-token-signing-key"))
-		assert.NoError(t, validateKID("did:nuts:2pgo54Z3ytC5EdjBicuJPe5gHyAsjF6rVio1FadSX74j#GxL7A5XNFr_tHcBW_fKCndGGko8DKa2ivPgJAGR0krA"))
-		assert.NoError(t, validateKID("did:nuts:3dGjPPeEuHsyNMgJwHkGX3HuJkEEnZ8H19qBqTaqLDbt#JwIR4Vct-EELNKeeB0BZ8Uff_rCZIrOhoiyp5LDFl68"))
-		assert.NoError(t, validateKID("did:nuts:BC5MtUzAncmfuGejPFGEgM2k8UfrKZVbbGyFeoG9JEEn#l2swLI0wus8gnzbI3sQaaiE7Yvv2qOUioaIZ8y_JZXs"))
-	})
-	t.Run("bad KIDs", func(t *testing.T) {
-		assert.Error(t, validateKID("../server-certificate"))
-		assert.Error(t, validateKID("\\"))
-		assert.Error(t, validateKID(""))
-		assert.Error(t, validateKID("\t"))
-	})
 }
