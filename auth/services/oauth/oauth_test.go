@@ -172,7 +172,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 	})
 
 	t.Run("error detail masking", func(t *testing.T) {
-		setup := func(ctx *testContext) *testContext  {
+		setup := func(ctx *testContext) *testContext {
 			ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil).AnyTimes()
 			ctx.keyResolver.EXPECT().ResolveSigningKeyID(authorizerDID, gomock.Any()).MinTimes(1).Return(authorizerSigningKeyID.String(), nil).AnyTimes()
 			ctx.nameResolver.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil).AnyTimes()
@@ -190,7 +190,6 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 
 		t.Run("return internal errors when secureMode=false", func(t *testing.T) {
 			ctx := setup(createContext(t))
-			defer ctx.ctrl.Finish()
 			ctx.oauthService.secureMode = false
 			ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), authorizerSigningKeyID.String()).Return("", errors.New("signing error"))
 			tokenCtx := validContext()
@@ -204,7 +203,6 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		})
 		t.Run("mask internal errors when secureMode=true", func(t *testing.T) {
 			ctx := setup(createContext(t))
-			defer ctx.ctrl.Finish()
 			ctx.oauthService.secureMode = true
 			ctx.privateKeyStore.EXPECT().SignJWT(gomock.Any(), authorizerSigningKeyID.String()).Return("", errors.New("signing error"))
 			tokenCtx := validContext()
@@ -368,7 +366,6 @@ func TestService_validateSubject(t *testing.T) {
 	})
 	t.Run("missing subject", func(t *testing.T) {
 		ctx := createContext(t)
-		defer ctx.ctrl.Finish()
 
 		tokenCtx := validContext()
 		tokenCtx.jwtBearerToken.Remove("sub")
