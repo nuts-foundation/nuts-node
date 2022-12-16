@@ -54,14 +54,8 @@ func (a *Wrapper) Routes(router core.EchoRouter) {
 // ListTransactions lists all transactions
 func (a *Wrapper) ListTransactions(_ context.Context, request ListTransactionsRequestObject) (ListTransactionsResponseObject, error) {
 	// Parse the start/end params, which have default values
-	var start int
-	if request.Params.Start != nil {
-		start = *request.Params.Start
-	}
-	var end = dag.MaxLamportClock
-	if request.Params.End != nil {
-		end = *request.Params.End
-	}
+	start := toInt(request.Params.Start, 0)
+	end := toInt(request.Params.End, dag.MaxLamportClock)
 	if start < 0 || end < 1 || start >= end {
 		return nil, core.InvalidInputError("invalid range")
 	}
