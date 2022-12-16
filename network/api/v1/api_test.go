@@ -272,18 +272,6 @@ func TestApiWrapper_Reprocess(t *testing.T) {
 	})
 }
 
-func TestWrapper_Preprocess(t *testing.T) {
-	t.SkipNow()
-	// TODO: Test strict middleware
-	//ctrl := gomock.NewController(t)
-	//w := &Wrapper{}
-	//ctx := mock.NewMockContext(ctrl)
-	//ctx.EXPECT().Set(core.OperationIDContextKey, "foo")
-	//ctx.EXPECT().Set(core.ModuleNameContextKey, "Network")
-	//
-	//w.Preprocess("foo", ctx)
-}
-
 func TestWrapper_ListEvents(t *testing.T) {
 	tx, _, _ := dag.CreateTestTransaction(0)
 	sTime := time.Date(2022, time.December, 5, 18, 23, 45, 67, &time.Location{})
