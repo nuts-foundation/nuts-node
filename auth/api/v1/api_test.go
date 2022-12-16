@@ -504,7 +504,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 			})
 
 		server := httptest.NewServer(&http2.Handler{
-			StatusCode: http.StatusInternalServerError,
+			StatusCode: http.StatusBadGateway,
 		})
 
 		t.Cleanup(server.Close)
