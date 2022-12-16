@@ -73,7 +73,21 @@ func TestContract_DrawUpContract(t *testing.T) {
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
 		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 
-		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
+		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration, nil)
+		require.NoError(t, err)
+
+		assert.NotNil(t, drawnUpContract)
+		assert.Equal(t, "Organisation Name: CareBears in Caretown, valid from Thursday, 1 January 1970 01:00:00 to Thursday, 1 January 1970 01:10:00", drawnUpContract.RawContractText)
+	})
+
+	t.Run("draw up valid contract using preferred VC", func(t *testing.T) {
+		ctx := buildContext(t)
+		defer ctx.ctrl.Finish()
+
+		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
+		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
+
+		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration, &testCredential)
 		require.NoError(t, err)
 
 		assert.NotNil(t, drawnUpContract)
@@ -87,7 +101,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
 		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 
-		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, 0)
+		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, 0, nil)
 		require.NoError(t, err)
 
 		assert.NotNil(t, drawnUpContract)
@@ -105,7 +119,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 			return time.Unix(0, 0).Add(10 * time.Second)
 		}
 		defer func() { timeNow = time.Now }()
-		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, time.Time{}, 0)
+		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, time.Time{}, 0, nil)
 		require.NoError(t, err)
 
 		assert.NotNil(t, drawnUpContract)
@@ -117,7 +131,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return("", types.ErrNotFound)
 
-		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
+		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration, nil)
 
 		assert.EqualError(t, err, "could not draw up contract: no valid organization credential at provided validFrom date")
 		assert.Nil(t, drawnUpContract)
@@ -129,7 +143,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(false)
 
-		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
+		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration, nil)
 
 		assert.EqualError(t, err, "could not draw up contract: organization is not managed by this node: missing organization private key")
 		assert.Nil(t, drawnUpContract)
@@ -140,7 +154,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return("", errors.New("error occurred"))
 
-		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
+		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration, nil)
 
 		assert.EqualError(t, err, "could not draw up contract: error occurred")
 		assert.Nil(t, drawnUpContract)
@@ -153,7 +167,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
 		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return(nil, errors.New("error occurred"))
 
-		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
+		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration, nil)
 
 		assert.EqualError(t, err, "could not find a credential: error occurred")
 		assert.Nil(t, drawnUpContract)
@@ -170,7 +184,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 			Template: "Organisation Name: {{{legal_entity}}, valid from {{valid_from}} to {{valid_to}}",
 		}
 
-		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
+		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration, nil)
 
 		assert.EqualError(t, err, "could not draw up contract: could not render contract template: line 1: unmatched open tag")
 		assert.Nil(t, drawnUpContract)
@@ -183,7 +197,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
 		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential, testCredential}, nil)
 
-		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
+		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration, nil)
 
 		require.NoError(t, err)
 		assert.NotNil(t, drawnUpContract)
@@ -200,9 +214,21 @@ func TestContract_DrawUpContract(t *testing.T) {
 		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
 		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential, testCredential2}, nil)
 
-		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration)
+		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration, nil)
 
 		assert.EqualError(t, err, "found multiple non-matching VCs, which is not supported")
+		assert.Nil(t, drawnUpContract)
+	})
+
+	t.Run("nok - given VC does not contain organization name", func(t *testing.T) {
+		ctx := buildContext(t)
+
+		ctx.keyResolver.EXPECT().ResolveSigningKeyID(orgID, gomock.Any()).Return(keyID.String(), nil)
+		ctx.keyStore.EXPECT().Exists(keyID.String()).Return(true)
+
+		drawnUpContract, err := ctx.notary.DrawUpContract(template, orgID, validFrom, duration, &vc.VerifiableCredential{})
+
+		assert.EqualError(t, err, "verifiable credential does not contain an organization name and city")
 		assert.Nil(t, drawnUpContract)
 	})
 }

@@ -217,6 +217,20 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "expectedAT", response.AccessToken)
 	})
+
+	t.Run("missing organization credential", func(t *testing.T) {
+		ctx := createContext(t)
+
+		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
+		ctx.nameResolver.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{}, nil)
+		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(getAuthorizerDIDDocument(), nil, nil).AnyTimes()
+
+		tokenCtx := validContext()
+		signToken(tokenCtx)
+
+		_, err := ctx.oauthService.CreateAccessToken(services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
+		require.Error(t, err)
+	})
 }
 
 func TestService_validateIssuer(t *testing.T) {
@@ -236,8 +250,20 @@ func TestService_validateIssuer(t *testing.T) {
 		ctx.nameResolver.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		err := ctx.oauthService.validateIssuer(tokenCtx)
-		assert.NoError(t, err)
-		assert.Equal(t, "CareBears", tokenCtx.requesterName)
+		require.NoError(t, err)
+		require.Len(t, tokenCtx.requesterOrganizationIdentities, 1)
+		assert.Equal(t, "CareBears", tokenCtx.requesterOrganizationIdentities[0].name)
+	})
+	t.Run("ok - multiple creds", func(t *testing.T) {
+		ctx := createContext(t)
+
+		tokenCtx := validContext()
+		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
+		ctx.nameResolver.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{testCredential, testCredential}, nil)
+
+		err := ctx.oauthService.validateIssuer(tokenCtx)
+		require.NoError(t, err)
+		assert.Len(t, tokenCtx.requesterOrganizationIdentities, 2)
 	})
 	t.Run("invalid issuer", func(t *testing.T) {
 		ctx := createContext(t)

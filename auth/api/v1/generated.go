@@ -154,6 +154,9 @@ type DrawUpContractRequest struct {
 	// LegalEntity DID of the organization as registered in the Nuts registry.
 	LegalEntity LegalEntity `json:"legalEntity"`
 
+	// OrganizationCredential A credential according to the W3C and Nuts specs.
+	OrganizationCredential *VerifiableCredential `json:"organizationCredential,omitempty"`
+
 	// Type Type of which contract to sign.
 	Type ContractType `json:"type"`
 

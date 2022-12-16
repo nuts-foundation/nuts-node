@@ -490,6 +490,8 @@ components:
           type: string
           description: "The duration this contract is valid, starting from validFrom or current time if validFrom is omitted. Uses this node default when omitted. Valid time units are: 's', 'm', 'h'"
           example: "2h"
+        organizationCredential:
+          $ref: '#/components/schemas/VerifiableCredential'
     #
     # Everything related to JWT Grants
     #

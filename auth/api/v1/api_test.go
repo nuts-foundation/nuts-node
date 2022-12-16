@@ -267,13 +267,46 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 			Template:        template,
 			Params:          nil,
 		}
-		ctx.notaryMock.EXPECT().DrawUpContract(*template, gomock.Any(), gomock.Any(), gomock.Any()).Return(drawnUpContract, nil)
+		ctx.notaryMock.EXPECT().DrawUpContract(*template, gomock.Any(), gomock.Any(), gomock.Any(), nil).Return(drawnUpContract, nil)
 
 		expectedResponse := ContractResponse{
 			Language: ContractLanguage("EN"),
 			Message:  "drawn up contract text",
 			Type:     ContractType("PractitionerLogin"),
 			Version:  ContractVersion("v3"),
+		}
+		ctx.echoMock.EXPECT().JSON(http.StatusOK, expectedResponse)
+		err := ctx.wrapper.DrawUpContract(ctx.echoMock)
+		assert.NoError(t, err)
+	})
+
+	t.Run("ok - it uses an OrganizationCredential", func(t *testing.T) {
+		ctx := createContext(t)
+		vcID := ssi.MustParseURI("did:nuts:1#1")
+		vc := vc.VerifiableCredential{ID: &vcID}
+
+		params := DrawUpContractRequest{
+			Language:               "EN",
+			Type:                   "PractitionerLogin",
+			Version:                "v3",
+			LegalEntity:            vdr.TestDIDA.String(),
+			OrganizationCredential: &vc,
+		}
+		bindPostBody(ctx, params)
+
+		template := contract.StandardContractTemplates["EN"]["PractitionerLogin"]["v3"]
+		drawnUpContract := &contract.Contract{
+			RawContractText: "drawn up contract text",
+			Template:        template,
+			Params:          nil,
+		}
+		ctx.notaryMock.EXPECT().DrawUpContract(*template, gomock.Any(), gomock.Any(), gomock.Any(), &vc).Return(drawnUpContract, nil)
+
+		expectedResponse := ContractResponse{
+			Language: "EN",
+			Message:  "drawn up contract text",
+			Type:     "PractitionerLogin",
+			Version:  "v3",
 		}
 		ctx.echoMock.EXPECT().JSON(http.StatusOK, expectedResponse)
 		err := ctx.wrapper.DrawUpContract(ctx.echoMock)
@@ -359,7 +392,7 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 		}
 		bindPostBody(ctx, params)
 
-		ctx.notaryMock.EXPECT().DrawUpContract(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("unknown error while drawing up the contract"))
+		ctx.notaryMock.EXPECT().DrawUpContract(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), nil).Return(nil, errors.New("unknown error while drawing up the contract"))
 
 		err := ctx.wrapper.DrawUpContract(ctx.echoMock)
 
