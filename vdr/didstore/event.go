@@ -119,7 +119,7 @@ func (el *eventList) diff(updated eventList) (*event, []event) {
 		return nil, []event{}
 	}
 
-	lastCommonIndex := 0
+	firstDifferenceIndex := 0
 	var lastCommonEvent *event
 	for i := range el.Events {
 		if !el.Events[i].TXRef.Equals(updated.Events[i].TXRef) {
@@ -127,11 +127,11 @@ func (el *eventList) diff(updated eventList) (*event, []event) {
 		}
 		eCopy := el.Events[i]
 		lastCommonEvent = &eCopy
-		lastCommonIndex++
+		firstDifferenceIndex++
 	}
 
-	newList := eventList{Events: append(el.Events[lastCommonIndex:], updated.Events[lastCommonIndex:]...)}
-	sort.Stable(&newList)
+	diffList := eventList{Events: append(el.Events[firstDifferenceIndex:], updated.Events[firstDifferenceIndex:]...)}
+	sort.Stable(&diffList)
 
-	return lastCommonEvent, newList.Events
+	return lastCommonEvent, diffList.Events
 }
