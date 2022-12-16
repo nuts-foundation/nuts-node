@@ -22,6 +22,9 @@ import (
 	"crypto"
 	"errors"
 	"github.com/stretchr/testify/require"
+	"net/http"
+	"net/http/httptest"
+	"reflect"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -130,6 +133,37 @@ func TestCrypto_Resolve(t *testing.T) {
 		_, err := client.Resolve("no kidding")
 
 		assert.Equal(t, ErrPrivateKeyNotFound, err)
+	})
+}
+
+func TestCrypto_setupBackend(t *testing.T) {
+	directory := io.TestDirectory(t)
+	cfg := *core.NewServerConfig()
+	cfg.Datadir = directory
+
+	t.Run("backends should be wrapped", func(t *testing.T) {
+
+		t.Run("ok - fs backend is wrapped", func(t *testing.T) {
+			client := createCrypto(t)
+			err := client.setupFSBackend(cfg)
+			require.NoError(t, err)
+			storageType := reflect.TypeOf(client.storage).String()
+			assert.Equal(t, "storage.wrapper", storageType)
+		})
+
+		t.Run("ok - vault backend is wrapped", func(t *testing.T) {
+			s := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+				writer.Write([]byte("{\"data\": {\"keys\":[]}}"))
+			}))
+
+			defer s.Close()
+			client := createCrypto(t)
+			client.config.Vault.Address = s.URL
+			err := client.setupVaultBackend(cfg)
+			require.NoError(t, err)
+			storageType := reflect.TypeOf(client.storage).String()
+			assert.Equal(t, "storage.wrapper", storageType)
+		})
 	})
 }
 
