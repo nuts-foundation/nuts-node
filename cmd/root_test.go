@@ -23,6 +23,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/spf13/cobra"
 	"os"
 	"path"
 	"testing"
@@ -166,4 +167,54 @@ func Test_CreateSystem(t *testing.T) {
 		numEngines++
 	})
 	assert.Equal(t, 13, numEngines)
+}
+
+func Test_ClientCommand_ErrorHandlers(t *testing.T) {
+	t.Run("RunE is not used", func(t *testing.T) {
+		cmd := &cobra.Command{Run: func(cmd *cobra.Command, args []string) {
+			// noop
+		}}
+
+		registerClientErrorHandler(cmd)
+
+		assert.Nil(t, cmd.RunE)
+	})
+	t.Run("no error", func(t *testing.T) {
+		cmd := &cobra.Command{RunE: func(cmd *cobra.Command, args []string) error {
+			return nil
+		}}
+
+		registerClientErrorHandler(cmd)
+
+		err := cmd.RunE(cmd, nil)
+		assert.NoError(t, err)
+	})
+	t.Run("server error", func(t *testing.T) {
+		rootCmd := &cobra.Command{}
+		responseBody := "Hello, World!"
+		buf := new(bytes.Buffer)
+		cmd := &cobra.Command{RunE: func(cmd *cobra.Command, args []string) error {
+			return core.HttpError{
+				ResponseBody: []byte(responseBody),
+			}
+		}}
+		cmd.SetErr(buf)
+		rootCmd.AddCommand(cmd)
+
+		registerClientErrorHandler(rootCmd)
+
+		err := cmd.RunE(cmd, nil)
+		assert.Error(t, err)
+		assert.Contains(t, buf.String(), responseBody)
+	})
+	t.Run("other error", func(t *testing.T) {
+		cmd := &cobra.Command{RunE: func(cmd *cobra.Command, args []string) error {
+			return errors.New("failed")
+		}}
+
+		registerClientErrorHandler(cmd)
+
+		err := cmd.RunE(cmd, nil)
+		assert.Error(t, err)
+	})
 }

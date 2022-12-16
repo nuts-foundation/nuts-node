@@ -110,7 +110,6 @@ func TestEngine_Command(t *testing.T) {
 
 			assert.Error(t, err)
 			assert.Contains(t, errBuf.String(), "unable to create new DID")
-			assert.Contains(t, errBuf.String(), "b00m!")
 		})
 	})
 
@@ -161,7 +160,6 @@ func TestEngine_Command(t *testing.T) {
 
 			assert.Error(t, err)
 			assert.Contains(t, errBuf.String(), "failed to resolve DID document")
-			assert.Contains(t, errBuf.String(), "not found")
 		})
 	})
 
@@ -236,7 +234,6 @@ func TestEngine_Command(t *testing.T) {
 
 			assert.Error(t, err)
 			assert.Contains(t, errBuf.String(), "failed to update DID document")
-			assert.Contains(t, errBuf.String(), "invalid")
 		})
 	})
 
@@ -313,7 +310,7 @@ func TestEngine_Command(t *testing.T) {
 
 			err := cmd.Execute()
 			require.Error(t, err)
-			assert.Contains(t, errBuf.String(), "failed to add a new verification method to DID document: server returned HTTP 404 (expected: 200), response: null")
+			assert.Contains(t, errBuf.String(), "failed to add a new verification method to DID document: server returned HTTP 404 (expected: 200)")
 		})
 	})
 
@@ -335,7 +332,7 @@ func TestEngine_Command(t *testing.T) {
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 			err := cmd.Execute()
 			require.Error(t, err)
-			assert.Contains(t, errBuf.String(), "failed to delete the verification method from DID document: server returned HTTP 404 (expected: 204), response: null")
+			assert.Contains(t, errBuf.String(), "failed to delete the verification method from DID document: server returned HTTP 404 (expected: 204)")
 		})
 	})
 

@@ -33,7 +33,7 @@ import (
 )
 
 func TestHTTPClient_CreateAccessToken(t *testing.T) {
-	t.Run("happy_path", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		server := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK})
 		serverURL, _ := url.Parse(server.URL)
 
@@ -45,8 +45,8 @@ func TestHTTPClient_CreateAccessToken(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("error_internal_server_error", func(t *testing.T) {
-		server := httptest.NewServer(&http2.Handler{StatusCode: http.StatusInternalServerError})
+	t.Run("error - non-OK HTTP status code", func(t *testing.T) {
+		server := httptest.NewServer(&http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: "Hello, World!"})
 		serverURL, _ := url.Parse(server.URL)
 
 		client, _ := NewHTTPClient("", time.Second)
@@ -54,12 +54,12 @@ func TestHTTPClient_CreateAccessToken(t *testing.T) {
 		response, err := client.CreateAccessToken(*serverURL, "bearer_token")
 
 		assert.Nil(t, response)
-		assert.EqualError(t, err, "server returned HTTP 500 (expected: 200), response: null")
+		assert.EqualError(t, err, "server returned HTTP 500 (expected: 200)")
 		require.Implements(t, new(core.HTTPStatusCodeError), err)
 		assert.Equal(t, http.StatusInternalServerError, err.(core.HTTPStatusCodeError).StatusCode())
 	})
 
-	t.Run("error_invalid_endpoint", func(t *testing.T) {
+	t.Run("error - invalid endpoint", func(t *testing.T) {
 		client, _ := NewHTTPClient("", time.Second)
 
 		response, err := client.CreateAccessToken(url.URL{}, "bearer_token")

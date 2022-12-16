@@ -26,11 +26,23 @@ import (
 	"net/http"
 )
 
+// HttpError describes an error returned when invoking a remote server.
+type HttpError struct {
+	error
+	StatusCode   int
+	ResponseBody []byte
+}
+
+// TestResponseCode checks whether the returned HTTP status response code matches the expected code.
+// If it doesn't match it returns an error, containing the received and expected status code, and the response body.
 func TestResponseCode(expectedStatusCode int, response *http.Response) error {
 	if response.StatusCode != expectedStatusCode {
 		responseData, _ := io.ReadAll(response.Body)
-		return fmt.Errorf("server returned HTTP %d (expected: %d), response: %s",
-			response.StatusCode, expectedStatusCode, string(responseData))
+		return HttpError{
+			error:        fmt.Errorf("server returned HTTP %d (expected: %d)", response.StatusCode, expectedStatusCode),
+			StatusCode:   response.StatusCode,
+			ResponseBody: responseData,
+		}
 	}
 	return nil
 }
