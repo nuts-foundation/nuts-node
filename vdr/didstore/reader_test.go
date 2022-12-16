@@ -69,8 +69,8 @@ func Test_readDocument(t *testing.T) {
 		document := did.Document{ID: testDID}
 		metadata := documentMetadata{Version: 1}
 		err := store.db.Write(context.Background(), func(tx stoabs.WriteTx) error {
-			documentShelf, _ := tx.GetShelfWriter(documentShelf)
-			metadataShelf, _ := tx.GetShelfWriter(metadataShelf)
+			documentShelf := tx.GetShelfWriter(documentShelf)
+			metadataShelf := tx.GetShelfWriter(metadataShelf)
 
 			docBytes, _ := json.Marshal(document)
 			metaBytes, _ := json.Marshal(metadata)
@@ -116,7 +116,7 @@ func Test_readEventList(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		el := eventList{Events: []event{{DocRef: hash.RandomHash()}}}
 		err := store.db.Write(context.Background(), func(tx stoabs.WriteTx) error {
-			eventShelf, _ := tx.GetShelfWriter(eventShelf)
+			eventShelf := tx.GetShelfWriter(eventShelf)
 			elBytes, _ := json.Marshal(el)
 			_ = eventShelf.Put(stoabs.BytesKey(testDID.String()), elBytes)
 			return nil
@@ -153,7 +153,7 @@ func Test_isDuplicate(t *testing.T) {
 		transaction := newTestTransaction(did.Document{})
 
 		err := store.db.Write(context.Background(), func(tx stoabs.WriteTx) error {
-			txShelf, _ := tx.GetShelfWriter(transactionIndexShelf)
+			txShelf := tx.GetShelfWriter(transactionIndexShelf)
 			_ = txShelf.Put(stoabs.HashKey(transaction.Ref), []byte{0})
 			return nil
 		})

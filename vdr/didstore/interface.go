@@ -38,9 +38,9 @@ type Transaction struct {
 
 func (t Transaction) toEvent() event {
 	return event{
-		Created:      t.SigningTime,
-		LogicalClock: t.Clock,
-		TXRef:        t.Ref,
-		DocRef:       t.PayloadHash,
+		Created: t.SigningTime,
+		Clock:   t.Clock,
+		TXRef:   t.Ref,
+		DocRef:  t.PayloadHash,
 	}
 }

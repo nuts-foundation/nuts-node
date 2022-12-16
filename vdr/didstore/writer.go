@@ -34,11 +34,8 @@ func writeEventList(tx stoabs.WriteTx, newEventList eventList, id did.DID) error
 	}
 
 	nelBytes, _ := json.Marshal(newEventList)
-	eventShelf, err := tx.GetShelfWriter(eventShelf)
-	if err != nil {
-		return err
-	}
-	err = eventShelf.Put(stoabs.BytesKey(id.String()), nelBytes)
+	eventShelf := tx.GetShelfWriter(eventShelf)
+	err := eventShelf.Put(stoabs.BytesKey(id.String()), nelBytes)
 	if err != nil {
 		return fmt.Errorf("writeEventList: database error: %w", err)
 	}
@@ -51,20 +48,14 @@ func writeDocument(tx stoabs.WriteTx, didDocument did.Document, transaction Tran
 		documentBytes  []byte
 	)
 	// transaction
-	transactionWriter, err := tx.GetShelfWriter(transactionIndexShelf)
-	if err != nil {
-		return err
-	}
-	err = transactionWriter.Put(stoabs.HashKey(transaction.Ref), []byte{0})
+	transactionWriter := tx.GetShelfWriter(transactionIndexShelf)
+	err := transactionWriter.Put(stoabs.HashKey(transaction.Ref), []byte{0})
 	if err != nil {
 		return fmt.Errorf("writeDocument: database error on txRef write: %w", err)
 	}
 
 	// document
-	documentWriter, err = tx.GetShelfWriter(documentShelf)
-	if err != nil {
-		return err
-	}
+	documentWriter = tx.GetShelfWriter(documentShelf)
 	documentBytes, err = json.Marshal(didDocument)
 	if err != nil {
 		return fmt.Errorf("writeDocument: marshalling DID Document: %w", err)
@@ -78,14 +69,11 @@ func writeDocument(tx stoabs.WriteTx, didDocument did.Document, transaction Tran
 
 func writeLatest(tx stoabs.WriteTx, id did.DID, metadata documentMetadata) error {
 	// store latest
-	latestWriter, err := tx.GetShelfWriter(latestShelf)
-	if err != nil {
-		return err
-	}
+	latestWriter := tx.GetShelfWriter(latestShelf)
 
 	// store updated eventList (return new list?)
 	mdID := fmt.Sprintf("%s%d", id.String(), metadata.Version)
-	err = latestWriter.Put(stoabs.BytesKey(id.String()), []byte(mdID))
+	err := latestWriter.Put(stoabs.BytesKey(id.String()), []byte(mdID))
 	if err != nil {
 		return fmt.Errorf("writeDocument: database error on latest write: %w", err)
 	}
@@ -100,14 +88,8 @@ func applyFrom(tx stoabs.WriteTx, base *event, applyList []event) error {
 	// for updating conflicted stats
 	var conflicted bool
 	var conflictedCount uint32
-	statsWriter, err := tx.GetShelfWriter(statsShelf)
-	if err != nil {
-		return err
-	}
-	conflictedWriter, err := tx.GetShelfWriter(conflictedShelf)
-	if err != nil {
-		return err
-	}
+	statsWriter := tx.GetShelfWriter(statsShelf)
+	conflictedWriter := tx.GetShelfWriter(conflictedShelf)
 	cBytes, err := statsWriter.Get(stoabs.BytesKey(conflictedCountKey))
 	if err != nil {
 		return fmt.Errorf("applyFrom: database error on conflictedCount read: %w", err)
@@ -172,10 +154,7 @@ func applyFrom(tx stoabs.WriteTx, base *event, applyList []event) error {
 
 func incrementDocumentCount(tx stoabs.WriteTx) error {
 	docCount := uint32(0)
-	statsWriter, err := tx.GetShelfWriter(statsShelf)
-	if err != nil {
-		return err
-	}
+	statsWriter := tx.GetShelfWriter(statsShelf)
 	cBytes, err := statsWriter.Get(stoabs.BytesKey(documentCountKey))
 	if err != nil {
 		return fmt.Errorf("incrementDocumentCount: database error on read: %w", err)
@@ -200,10 +179,7 @@ func applyEvent(tx stoabs.WriteTx, latestDocument *did.Document, latestMetadata 
 	}
 	*nextDocument, *nextMetadata = applyDocument(latestDocument, latestMetadata, *nextDocument, *nextMetadata)
 	metadataBytes, _ := json.Marshal(nextMetadata)
-	metadataWriter, err := tx.GetShelfWriter(metadataShelf)
-	if err != nil {
-		return nextDocument, nextMetadata, err
-	}
+	metadataWriter := tx.GetShelfWriter(metadataShelf)
 	if err = metadataWriter.Put(stoabs.BytesKey(fmt.Sprintf("%s%d", nextDocument.ID.String(), nextMetadata.Version)), metadataBytes); err != nil {
 		return nextDocument, nextMetadata, fmt.Errorf("applyEvent: database error on documentMetadata write: %w", err)
 	}
@@ -211,10 +187,7 @@ func applyEvent(tx stoabs.WriteTx, latestDocument *did.Document, latestMetadata 
 	// if conflicted write nextDocument
 	if nextMetadata.isConflicted() {
 		docBytes, _ := json.Marshal(nextDocument)
-		documentWriter, err := tx.GetShelfWriter(documentShelf)
-		if err != nil {
-			return nextDocument, nextMetadata, err
-		}
+		documentWriter := tx.GetShelfWriter(documentShelf)
 		if err = documentWriter.Put(stoabs.HashKey(nextMetadata.Hash), docBytes); err != nil {
 			return nextDocument, nextMetadata, fmt.Errorf("applyEvent: database error on document write: %w", err)
 		}

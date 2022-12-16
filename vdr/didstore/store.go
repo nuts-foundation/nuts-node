@@ -105,7 +105,7 @@ func (tl *store) Add(didDocument did.Document, transaction Transaction) error {
 		newEventList := currentEventList.copy()
 		newEventList.insert(newEvent)
 
-		base, applyList := currentEventList.updates(newEventList)
+		base, applyList := currentEventList.diff(newEventList)
 		if err = applyFrom(tx, base, applyList); err != nil {
 			return err
 		}
