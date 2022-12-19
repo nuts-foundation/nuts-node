@@ -117,18 +117,13 @@ func (v *validator) IsRevoked(issuer string, serialNumber *big.Int) bool {
 	return false
 }
 
-func (v *validator) updateCRL(endpoint string, issuer *x509.Certificate) error {
-	if nowFunc().After(issuer.NotAfter) {
-		// Certificate has expired, no need to update CRL since it can't sign any new CRLs.
-		return nil
-	}
-
+func (v *validator) updateCRL(endpoint string) error {
 	v.listsLock.RLock()
 	crl, ok := v.lists[endpoint]
 	v.listsLock.RUnlock()
 
 	if !ok || crl.HasExpired(nowFunc()) {
-		return v.downloadCRL(endpoint, issuer)
+		return v.downloadCRL(endpoint)
 	}
 
 	return nil
@@ -148,7 +143,7 @@ func (v *validator) verifyCRL(crl *pkix.CertificateList) error {
 	return certificate.CheckCRLSignature(crl)
 }
 
-func (v *validator) downloadCRL(endpoint string, issuer *x509.Certificate) error {
+func (v *validator) downloadCRL(endpoint string) error {
 	response, err := v.httpClient.Get(endpoint)
 	if err != nil {
 		return err
@@ -191,12 +186,12 @@ func (v *validator) IsSynced(maxOffsetDays int) bool {
 	v.listsLock.RLock()
 	defer v.listsLock.RUnlock()
 
-	// Check if all CRLs have been downloaded
-	for endpoint, issuer := range endpoints {
-		if nowFunc().After(issuer.NotAfter) {
-			// Certificate has expired, so CRL can't be updated anymore
+	// Check if all CRLs have been downloaded, but if ignore CRL endpoints that are only used by expired certificates.
+	for endpoint, dependingCAs := range endpoints {
+		if !anyCertificateActive(dependingCAs) {
 			continue
 		}
+		// downloaded?
 		if _, ok := v.lists[endpoint]; !ok {
 			return false
 		}
@@ -205,13 +200,25 @@ func (v *validator) IsSynced(maxOffsetDays int) bool {
 	// Verify that none of the CRLs are outdated
 	now := nowFunc().Add(time.Duration(-maxOffsetDays) * (time.Hour * 24))
 
-	for endpoint, list := range v.lists {
-		if !nowFunc().After(endpoints[endpoint].NotAfter) && list.HasExpired(now) {
+	for _, list := range v.lists {
+		if list.HasExpired(now) {
 			return false
 		}
 	}
 
 	return true
+}
+
+// anyCertificateActive returns true if any of the certificates is not expired. If the list is empty, it returns false.
+func anyCertificateActive(certs []*x509.Certificate) bool {
+	result := false
+	for _, cert := range certs {
+		if !nowFunc().After(cert.NotAfter) {
+			// Certificate still active, so CRL needs to be checked
+			result = true
+		}
+	}
+	return result
 }
 
 func (v *validator) appendCertificates(certificates []*x509.Certificate) {
@@ -270,18 +277,16 @@ func (v *validator) Configure(config *tls.Config, maxValidityDays int) {
 	}
 }
 
-func (v *validator) parseCRLEndpoints() map[string]*x509.Certificate {
+// parseCRLEndpoints parses the CRLDistributionPoints from registered CA certificates and returns them.
+// Since multiple CA certificates might use the same CRL (although improbable), it is returned as list.
+func (v *validator) parseCRLEndpoints() map[string][]*x509.Certificate {
 	v.certificatesLock.RLock()
 	defer v.certificatesLock.RUnlock()
 
-	var result = make(map[string]*x509.Certificate)
+	var result = make(map[string][]*x509.Certificate)
 	for _, certificate := range v.certificates {
-	lookup:
 		for _, endpoint := range certificate.CRLDistributionPoints {
-			if _, ok := result[endpoint]; ok {
-				continue lookup
-			}
-			result[endpoint] = certificate
+			result[endpoint] = append(result[endpoint], certificate)
 		}
 	}
 
@@ -302,14 +307,20 @@ func (v *validator) Sync() error {
 		close(errorsChan)
 	}()
 
-	for endpoint, issuer := range endpoints {
-		go func(endpoint string, issuer *x509.Certificate) {
+	for endpoint, dependingCAs := range endpoints {
+		if !anyCertificateActive(dependingCAs) {
+			// No active certificates depending on this CRL endpoint
+			wc.Done()
+			continue
+		}
+
+		go func(endpoint string) {
 			defer wc.Done()
 
-			if err := v.updateCRL(endpoint, issuer); err != nil {
+			if err := v.updateCRL(endpoint); err != nil {
 				errorsChan <- err
 			}
-		}(endpoint, issuer)
+		}(endpoint)
 	}
 
 	var syncErrors []error

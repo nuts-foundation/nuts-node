@@ -75,14 +75,14 @@ func TestValidator_downloadCRL(t *testing.T) {
 	t.Run("invalid URL", func(t *testing.T) {
 		httpClient := &http.Client{Transport: &fakeTransport{}}
 		v := NewValidatorWithHTTPClient(nil, httpClient).(*validator)
-		err := v.downloadCRL("file:///non-existing", nil)
+		err := v.downloadCRL("file:///non-existing")
 
 		assert.ErrorContains(t, err, "file:///non-existing")
 	})
 	t.Run("invalid CRL", func(t *testing.T) {
 		httpClient := &http.Client{Transport: &fakeTransport{responseData: []byte("Definitely not a CRL")}}
 		v := NewValidatorWithHTTPClient(nil, httpClient).(*validator)
-		err := v.downloadCRL("URL-to-CRL", nil)
+		err := v.downloadCRL("URL-to-CRL")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "unable to parse downloaded CRL (url=URL-to-CRL)")
 	})
@@ -96,7 +96,7 @@ func TestValidator_downloadCRL(t *testing.T) {
 
 		httpClient := &http.Client{Transport: &fakeTransport{responseData: crlWithInvalidSig}}
 		v := NewValidatorWithHTTPClient(nil, httpClient).(*validator)
-		err = v.downloadCRL("CRL with invalid signature", issuer)
+		err = v.downloadCRL("CRL with invalid signature")
 		assert.EqualError(t, err, "CRL verification failed (issuer=CN=Staat der Nederlanden EV Root CA,O=Staat der Nederlanden,C=NL): CRL signature could not be validated against known certificates")
 	})
 }
