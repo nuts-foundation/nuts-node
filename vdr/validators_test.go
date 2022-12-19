@@ -27,6 +27,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -109,9 +110,13 @@ func Test_basicServiceValidator(t *testing.T) {
 func Test_managedServiceValidator(t *testing.T) {
 	// table driven testing errors for unexpected (number of) mock calls have poor localisation.
 	// comment out validatorTests in the table to find the culprit.
-	serviceResolver := didservice.NewMockServiceResolver(gomock.NewController(t))
+	referencedDocument, _, _ := newDidDoc()
 	service := did.Service{Type: "referenced_service", ServiceEndpoint: "https://nuts.nl"}
-	serviceRef := didservice.MakeServiceReference(*TestDIDA, service.Type)
+	serviceRef := didservice.MakeServiceReference(referencedDocument.ID, service.Type)
+	referencedDocument.Service = append(referencedDocument.Service, service)
+
+	docResolver := types.NewMockDocResolver(gomock.NewController(t))
+	serviceResolver := didservice.NewServiceResolver(docResolver)
 
 	t.Run("basic", func(t *testing.T) {
 		table := []validatorTest{
@@ -128,7 +133,7 @@ func Test_managedServiceValidator(t *testing.T) {
 				didDoc, _, _ := newDidDoc()
 				didDoc.Service[0].ServiceEndpoint = serviceRef.String()
 
-				serviceResolver.EXPECT().ResolveEx(ssi.MustParseURI(didDoc.Service[0].ServiceEndpoint.(string)), 0, 5, gomock.Any()).Return(service, nil)
+				docResolver.EXPECT().Resolve(referencedDocument.ID, nil).Return(&referencedDocument, nil, nil)
 
 				return didDoc
 			}, nil},
@@ -140,18 +145,31 @@ func Test_managedServiceValidator(t *testing.T) {
 					"otherReference": serviceRef.String(),
 				}
 
-				serviceResolver.EXPECT().ResolveEx(serviceRef, 0, 5, gomock.Any()).Return(service, nil).Times(2) // 2 of 3 entries need to be resolved
+				docResolver.EXPECT().Resolve(referencedDocument.ID, nil).Return(&referencedDocument, nil, nil)
+
+				return didDoc
+			}, nil},
+			{"ok - self reference", func() did.Document {
+				didDoc, _, _ := newDidDoc()
+				didDoc.Service[0].ServiceEndpoint = serviceRef.String()
+				didDoc.Service = append(didDoc.Service, did.Service{
+					ID:              ssi.URI{},
+					Type:            "self_reference",
+					ServiceEndpoint: didservice.MakeServiceReference(didDoc.ID, didDoc.Service[0].Type),
+				})
+
+				docResolver.EXPECT().Resolve(referencedDocument.ID, nil).Return(&referencedDocument, nil, nil)
 
 				return didDoc
 			}, nil},
 			{"nok - resolve fails", func() did.Document {
 				didDoc, _, _ := newDidDoc()
-				didDoc.Service[0].ServiceEndpoint = serviceRef.String()
+				didDoc.Service[0].ServiceEndpoint = didservice.MakeServiceReference(referencedDocument.ID, "does_not_exist")
 
-				serviceResolver.EXPECT().ResolveEx(serviceRef, 0, 5, gomock.Any()).Return(service, errors.New("resolve failed"))
+				docResolver.EXPECT().Resolve(referencedDocument.ID, nil).Return(&referencedDocument, nil, nil)
 
 				return didDoc
-			}, errors.New("invalid service: resolve failed")},
+			}, errors.New("invalid service: service not found in DID Document")},
 			{"nok - invalid format", func() did.Document {
 				didDoc, _, _ := newDidDoc()
 				didDoc.Service[0].ServiceEndpoint = []string{serviceRef.String(), serviceRef.String()}
@@ -181,11 +199,10 @@ func Test_managedServiceValidator(t *testing.T) {
 			}, errors.New("invalid service: NutsComm: scheme must be grpc")},
 			{"nok - validates after resolving", func() did.Document {
 				didDoc, _, _ := newDidDoc()
-				didDoc.Service[0].Type = "NutsComm"
-				didDoc.Service[0].ServiceEndpoint = didDoc.ID.String() + "/serviceEndpoint?type=notNutsComm"
-
-				service := did.Service{Type: "notNutsComm", ServiceEndpoint: "https://nuts.nl"}
-				serviceResolver.EXPECT().ResolveEx(ssi.MustParseURI(didDoc.Service[0].ServiceEndpoint.(string)), 0, 5, gomock.Any()).Return(service, nil)
+				didDoc.Service = append(didDoc.Service, did.Service{
+					Type:            "NutsComm",
+					ServiceEndpoint: didservice.MakeServiceReference(didDoc.ID, didDoc.Service[0].Type),
+				})
 				return didDoc
 			}, errors.New("invalid service: NutsComm: scheme must be grpc")},
 			{"nok - invalid format", func() did.Document {
@@ -221,11 +238,13 @@ func Test_managedServiceValidator(t *testing.T) {
 			}, nil},
 			{"ok - validates after resolving", func() did.Document {
 				didDoc, _, _ := newDidDoc()
-				didDoc.Service[0].Type = "node-contact-info"
-				didDoc.Service[0].ServiceEndpoint = didDoc.ID.String() + "/serviceEndpoint?type=otherService"
-
-				service := did.Service{Type: "otherService", ServiceEndpoint: map[string]any{"email": "valid@email.address"}}
-				serviceResolver.EXPECT().ResolveEx(ssi.MustParseURI(didDoc.Service[0].ServiceEndpoint.(string)), 0, 5, gomock.Any()).Return(service, nil)
+				didDoc.Service[0] = did.Service{
+					Type:            "node-contact-info",
+					ServiceEndpoint: didservice.MakeServiceReference(didDoc.ID, "otherService"),
+				}
+				didDoc.Service = append(didDoc.Service, did.Service{
+					Type:            "otherService",
+					ServiceEndpoint: map[string]any{"email": "valid@email.address"}})
 				return didDoc
 			}, nil},
 			{"nok - missing email", func() did.Document {

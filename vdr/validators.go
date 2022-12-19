@@ -142,7 +142,8 @@ func (m managedServiceValidator) Validate(document did.Document) error {
 	// make sure that it resolves when if it's a reference
 	var resolvedEndpoint any
 	// Cache resolved DID documents because most of the time all (compound) services will refer to the same DID document in all service references.
-	cache := make(map[string]*did.Document, 0)
+	cache := make(map[string]*did.Document, 1)
+	cache[document.ID.String()] = &document // add the updated document to the cache in case it contains self-references
 	for _, service := range document.Service {
 		switch se := service.ServiceEndpoint.(type) {
 		case map[string]interface{}:
@@ -173,7 +174,12 @@ func (m managedServiceValidator) Validate(document did.Document) error {
 		}
 
 		// specific service.Type need additional validation
-		if err = serviceTypeValidation(service.Type, resolvedEndpoint); err != nil {
+		resolvedService := did.Service{
+			ID:              service.ID,
+			Type:            service.Type,
+			ServiceEndpoint: resolvedEndpoint,
+		}
+		if err = serviceTypeValidation(resolvedService); err != nil {
 			return invalidServiceError{fmt.Errorf("%s: %w", service.Type, err)}
 		}
 	}
@@ -203,22 +209,22 @@ func (m managedServiceValidator) resolveOrReturnEndpoint(service did.Service, ca
 	return serviceEndpoint, nil
 }
 
-func serviceTypeValidation(sType string, endpoint any) error {
-	switch sType {
+func serviceTypeValidation(service did.Service) error {
+	switch service.Type {
 	case "NutsComm":
-		return validateNutsCommEndpoint(endpoint)
+		return validateNutsCommEndpoint(service)
 	case "node-contact-info":
-		return validateNodeContactInfo(endpoint)
+		return validateNodeContactInfo(service)
 	default:
 		// no extra type-based validation
 		return nil
 	}
 }
 
-func validateNutsCommEndpoint(endpoint any) error {
+func validateNutsCommEndpoint(service did.Service) error {
 	// RFC015 $3.2: NutsComm rules
-	endpointStr, ok := endpoint.(string)
-	if !ok {
+	var endpointStr string
+	if err := service.UnmarshalServiceEndpoint(&endpointStr); err != nil {
 		return errors.New("endpoint not a string")
 	}
 	if URL, err := url.Parse(endpointStr); err != nil {
@@ -229,13 +235,13 @@ func validateNutsCommEndpoint(endpoint any) error {
 	return nil
 }
 
-func validateNodeContactInfo(endpoint any) error {
+func validateNodeContactInfo(service did.Service) error {
 	// RFC006 §4.2 Contact information
-	endpointMapAny, ok := endpoint.(map[string]any)
-	if !ok {
+	var endpointMap map[string]string
+	if err := service.UnmarshalServiceEndpoint(&endpointMap); err != nil {
 		return errors.New("not a map")
 	}
-	if _, ok = endpointMapAny["email"]; !ok {
+	if _, ok := endpointMap["email"]; !ok {
 		return errors.New("missing email")
 	}
 	return nil
