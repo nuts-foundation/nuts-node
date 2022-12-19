@@ -21,6 +21,7 @@ package didstore
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -37,6 +38,7 @@ func TestStore_ordering(t *testing.T) {
 	txCreate := newTestTransaction(create)
 	txUpdate := newTestTransaction(update, txCreate.Ref)
 	txUpdate.Clock = 1
+	txUpdate.SigningTime = txCreate.SigningTime.Add(time.Second)
 
 	t.Run("create", func(t *testing.T) {
 		store := NewTestStore(t)

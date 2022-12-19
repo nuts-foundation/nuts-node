@@ -100,10 +100,16 @@ func applyFrom(tx stoabs.WriteTx, base *event, applyList []event) error {
 
 	if base != nil {
 		// get DID Document and documentMetadata for base
-		document, metadata, err = readDocumentForEvent(tx, *base)
+		d, err := readDocument(tx, base.DocRef)
 		if err != nil {
 			return err
 		}
+		document = &d
+		m, err := readMetadata(tx, []byte(base.MetaRef))
+		if err != nil {
+			return err
+		}
+		metadata = &m
 		b, err := conflictedWriter.Get(stoabs.BytesKey(document.ID.String()))
 		if err != nil {
 			return fmt.Errorf("applyFrom: database error on conflicted read: %w", err)
@@ -173,15 +179,29 @@ func incrementDocumentCount(tx stoabs.WriteTx) error {
 }
 
 func applyEvent(tx stoabs.WriteTx, latestDocument *did.Document, latestMetadata *documentMetadata, nextEvent event) (*did.Document, *documentMetadata, error) {
-	nextDocument, nextMetadata, err := readDocumentForEvent(tx, nextEvent)
+	nextDocument, err := readDocument(tx, nextEvent.DocRef)
 	if err != nil {
 		return nil, nil, err
 	}
-	*nextDocument, *nextMetadata = applyDocument(latestDocument, latestMetadata, *nextDocument, *nextMetadata)
+	nextMetadata := documentMetadata{
+		Created:             nextEvent.Created,
+		Updated:             nextEvent.Created,
+		Hash:                nextEvent.DocRef,
+		PreviousTransaction: nextEvent.TXPrev,
+		SourceTransactions:  []hash.SHA256Hash{nextEvent.TXRef},
+		Deactivated:         isDeactivated(nextDocument),
+	}
+	if latestMetadata != nil {
+		nextMetadata.Version = latestMetadata.Version + 1
+		nextMetadata.Created = latestMetadata.Created
+		nextMetadata.PreviousHash = &latestMetadata.Hash
+	}
+
+	nextDocument, nextMetadata = applyDocument(latestDocument, latestMetadata, nextDocument, nextMetadata)
 	metadataBytes, _ := json.Marshal(nextMetadata)
 	metadataWriter := tx.GetShelfWriter(metadataShelf)
 	if err = metadataWriter.Put(stoabs.BytesKey(fmt.Sprintf("%s%d", nextDocument.ID.String(), nextMetadata.Version)), metadataBytes); err != nil {
-		return nextDocument, nextMetadata, fmt.Errorf("applyEvent: database error on documentMetadata write: %w", err)
+		return &nextDocument, &nextMetadata, fmt.Errorf("applyEvent: database error on documentMetadata write: %w", err)
 	}
 
 	// if conflicted write nextDocument
@@ -189,11 +209,11 @@ func applyEvent(tx stoabs.WriteTx, latestDocument *did.Document, latestMetadata 
 		docBytes, _ := json.Marshal(nextDocument)
 		documentWriter := tx.GetShelfWriter(documentShelf)
 		if err = documentWriter.Put(stoabs.HashKey(nextMetadata.Hash), docBytes); err != nil {
-			return nextDocument, nextMetadata, fmt.Errorf("applyEvent: database error on document write: %w", err)
+			return &nextDocument, &nextMetadata, fmt.Errorf("applyEvent: database error on document write: %w", err)
 		}
 	}
 
-	return nextDocument, nextMetadata, nil
+	return &nextDocument, &nextMetadata, nil
 }
 
 func applyDocument(currentDoc *did.Document, currentMeta *documentMetadata, newDoc did.Document, newMeta documentMetadata) (did.Document, documentMetadata) {

@@ -22,7 +22,6 @@ package didstore
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -37,63 +36,27 @@ func Test_readDocument(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		err := store.db.Read(context.Background(), func(tx stoabs.ReadTx) error {
-			d, m, err := readDocumentForEvent(tx, event{DocRef: hash.RandomHash()})
+			_, err := readDocument(tx, hash.SHA256Hash{})
 
-			assert.Nil(t, d)
-			assert.Nil(t, m)
 			assert.Equal(t, types.ErrNotFound, err)
-			return nil
-		})
-		require.NoError(t, err)
-	})
-
-	t.Run("returns embedded doc and meta when present", func(t *testing.T) {
-		e := event{
-			document: &did.Document{ID: testDID},
-			metadata: &documentMetadata{Version: 1},
-			DocRef:   hash.RandomHash(),
-		}
-
-		d, m, err := readDocumentForEvent(nil, e)
-
-		require.Nil(t, err)
-		require.NotNil(t, d)
-		require.NotNil(t, m)
-		assert.Equal(t, *e.document, *d)
-		assert.Equal(t, *e.metadata, *m)
-	})
-
-	t.Run("data read from db", func(t *testing.T) {
-		docRef := hash.RandomHash()
-		metaRef := fmt.Sprintf("%s%d", testDID.String(), 0)
-		document := did.Document{ID: testDID}
-		metadata := documentMetadata{Version: 1}
-		err := store.db.Write(context.Background(), func(tx stoabs.WriteTx) error {
-			documentShelf := tx.GetShelfWriter(documentShelf)
-			metadataShelf := tx.GetShelfWriter(metadataShelf)
-
-			docBytes, _ := json.Marshal(document)
-			metaBytes, _ := json.Marshal(metadata)
-
-			_ = documentShelf.Put(stoabs.HashKey(docRef), docBytes)
-			_ = metadataShelf.Put(stoabs.BytesKey(metaRef), metaBytes)
 
 			return nil
 		})
 		require.NoError(t, err)
+	})
+}
 
-		err = store.db.Read(context.Background(), func(tx stoabs.ReadTx) error {
-			d, m, err := readDocumentForEvent(tx, event{DocRef: docRef, MetaRef: metaRef})
+func Test_readMetadata(t *testing.T) {
+	store := NewTestStore(t)
 
-			require.Nil(t, err)
-			require.NotNil(t, d)
-			require.NotNil(t, m)
-			assert.Equal(t, document, *d)
-			assert.Equal(t, metadata, *m)
+	t.Run("not found", func(t *testing.T) {
+		err := store.db.Read(context.Background(), func(tx stoabs.ReadTx) error {
+			_, err := readMetadata(tx, []byte{})
+
+			assert.EqualError(t, err, "readMetadata: documentMetadata not found")
 
 			return nil
 		})
-
 		require.NoError(t, err)
 	})
 }
@@ -106,7 +69,7 @@ func Test_readEventList(t *testing.T) {
 			el, err := readEventList(tx, did.MustParseDID("did:nuts:unknown"))
 
 			require.Nil(t, err)
-			assert.Equal(t, 0, el.Len())
+			assert.Equal(t, 0, len(el.Events))
 
 			return nil
 		})
@@ -127,7 +90,7 @@ func Test_readEventList(t *testing.T) {
 			el, err := readEventList(tx, did.MustParseDID("did:nuts:unknown"))
 
 			require.Nil(t, err)
-			assert.Equal(t, 0, el.Len())
+			assert.Equal(t, 0, len(el.Events))
 
 			return nil
 		})

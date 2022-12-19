@@ -63,40 +63,6 @@ func readMetadata(tx stoabs.ReadTx, ref []byte) (documentMetadata, error) {
 	return metadata, nil
 }
 
-func readDocumentForEvent(tx stoabs.ReadTx, e event) (*did.Document, *documentMetadata, error) {
-	currentDocument := did.Document{}
-	currentMetadata := documentMetadata{}
-
-	// newly created event hold document and documentMetadata
-	if e.document != nil {
-		return e.document, e.metadata, nil
-	}
-
-	documentReader := tx.GetShelfReader(documentShelf)
-	metadataReader := tx.GetShelfReader(metadataShelf)
-	docBytes, err := documentReader.Get(stoabs.HashKey(e.DocRef))
-	if err != nil {
-		return nil, nil, fmt.Errorf("readDocumentForEvent: database error on document read: %w", err)
-	}
-	if len(docBytes) == 0 {
-		return nil, nil, types.ErrNotFound
-	}
-	err = json.Unmarshal(docBytes, &currentDocument)
-	if err != nil {
-		return nil, nil, fmt.Errorf("readDocumentForEvent: unmarshal error on document: %w", err)
-	}
-
-	metadataBytes, err := metadataReader.Get(stoabs.BytesKey(e.MetaRef))
-	if err != nil {
-		return nil, nil, fmt.Errorf("readDocumentForEvent: database error on documentMetadata read: %w", err)
-	}
-	err = json.Unmarshal(metadataBytes, &currentMetadata)
-	if err != nil {
-		return nil, nil, fmt.Errorf("readDocumentForEvent: unmarshal error on documentMetadata: %w", err)
-	}
-	return &currentDocument, &currentMetadata, nil
-}
-
 func readEventList(tx stoabs.ReadTx, id did.DID) (eventList, error) {
 	el := eventList{}
 	eventReader := tx.GetShelfReader(eventShelf)

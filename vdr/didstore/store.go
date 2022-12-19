@@ -26,7 +26,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/storage"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
@@ -94,22 +93,17 @@ func (tl *store) Add(didDocument did.Document, transaction Transaction) error {
 
 		newEvent := transaction.toEvent()
 		newEvent.document = &didDocument
-		newEvent.metadata = &documentMetadata{
-			Created:             transaction.SigningTime,
-			Updated:             transaction.SigningTime,
-			Hash:                transaction.PayloadHash,
-			PreviousTransaction: transaction.Previous,
-			SourceTransactions:  []hash.SHA256Hash{transaction.Ref},
-			Deactivated:         isDeactivated(didDocument),
+		index := currentEventList.insert(newEvent)
+		var base *event
+		applyList := currentEventList.Events[index:]
+		if index > 0 {
+			base = &currentEventList.Events[index-1]
 		}
-		newEventList := currentEventList.copy()
-		newEventList.insert(newEvent)
 
-		base, applyList := currentEventList.diff(newEventList)
 		if err = applyFrom(tx, base, applyList); err != nil {
 			return err
 		}
-		return writeEventList(tx, newEventList, didDocument.ID)
+		return writeEventList(tx, currentEventList, didDocument.ID)
 	})
 	if err != nil {
 		return fmt.Errorf("add: database error on commit: %w", err)

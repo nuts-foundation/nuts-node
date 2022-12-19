@@ -21,6 +21,8 @@ package didstore
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
+	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
@@ -31,6 +33,145 @@ import (
 	"testing"
 	"time"
 )
+
+func TestStore_Add(t *testing.T) {
+	create := did.Document{ID: testDID, Controller: []did.DID{testDID}}
+	txCreate := newTestTransaction(create)
+	update := did.Document{ID: testDID, Controller: []did.DID{testDID}, Service: []did.Service{{ID: ssi.MustParseURI("service")}}}
+	txUpdate := newTestTransaction(update, txCreate.Ref)
+	txUpdate.SigningTime = txCreate.SigningTime
+	txCreate.SigningTime = txCreate.SigningTime.Add(-2 * time.Second)
+
+	t.Run("create ok", func(t *testing.T) {
+		store := NewTestStore(t)
+
+		require.NoError(t, store.Add(create, txCreate))
+
+		t.Run("metadata ok", func(t *testing.T) {
+			err := store.db.ReadShelf(context.Background(), metadataShelf, func(reader stoabs.Reader) error {
+				metaBytes, err := reader.Get(stoabs.BytesKey(fmt.Sprintf("%s0", testDID.String())))
+				if err != nil {
+					return err
+				}
+				metadata := documentMetadata{}
+				err = json.Unmarshal(metaBytes, &metadata)
+				if err != nil {
+					return err
+				}
+
+				assert.Equal(t, txCreate.SigningTime.Unix(), metadata.Created.Unix())
+				assert.Equal(t, txCreate.SigningTime.Unix(), metadata.Updated.Unix())
+				assert.Nil(t, metadata.PreviousHash)
+				assert.Equal(t, txCreate.PayloadHash, metadata.Hash)
+				assert.Nil(t, metadata.PreviousTransaction)
+				assert.Equal(t, []hash.SHA256Hash{txCreate.Ref}, metadata.SourceTransactions)
+				assert.Equal(t, 0, metadata.Version)
+				assert.Equal(t, false, metadata.Deactivated)
+
+				return nil
+			})
+			require.NoError(t, err)
+		})
+
+		t.Run("document ok", func(t *testing.T) {
+			err := store.db.ReadShelf(context.Background(), documentShelf, func(reader stoabs.Reader) error {
+				bytes, err := reader.Get(stoabs.HashKey(txCreate.PayloadHash))
+				if err != nil {
+					return err
+				}
+				document := did.Document{}
+				err = json.Unmarshal(bytes, &document)
+				if err != nil {
+					return err
+				}
+
+				assert.Equal(t, create, document)
+
+				return nil
+			})
+			require.NoError(t, err)
+		})
+
+		t.Run("latest ok", func(t *testing.T) {
+			err := store.db.ReadShelf(context.Background(), latestShelf, func(reader stoabs.Reader) error {
+				bytes, err := reader.Get(stoabs.BytesKey(testDID.String()))
+				if err != nil {
+					return err
+				}
+				assert.Equal(t, fmt.Sprintf("%s0", testDID.String()), string(bytes))
+
+				return nil
+			})
+			require.NoError(t, err)
+		})
+	})
+
+	t.Run("update ok", func(t *testing.T) {
+		store := NewTestStore(t)
+
+		require.NoError(t, store.Add(update, txUpdate))
+		require.NoError(t, store.Add(create, txCreate))
+
+		t.Run("metadata ok", func(t *testing.T) {
+			err := store.db.ReadShelf(context.Background(), metadataShelf, func(reader stoabs.Reader) error {
+				metaBytes, err := reader.Get(stoabs.BytesKey(fmt.Sprintf("%s1", testDID.String())))
+				if err != nil {
+					return err
+				}
+				metadata := documentMetadata{}
+				err = json.Unmarshal(metaBytes, &metadata)
+				if err != nil {
+					return err
+				}
+
+				assert.Equal(t, txCreate.SigningTime.Unix(), metadata.Created.Unix())
+				assert.Equal(t, txUpdate.SigningTime.Unix(), metadata.Updated.Unix())
+				require.NotNil(t, metadata.PreviousHash)
+				assert.Equal(t, txCreate.PayloadHash, *metadata.PreviousHash)
+				assert.Equal(t, txUpdate.PayloadHash, metadata.Hash)
+				assert.Equal(t, []hash.SHA256Hash{txCreate.Ref}, metadata.PreviousTransaction)
+				assert.Equal(t, []hash.SHA256Hash{txUpdate.Ref}, metadata.SourceTransactions)
+				assert.Equal(t, 1, metadata.Version)
+				assert.Equal(t, false, metadata.Deactivated)
+
+				return nil
+			})
+			require.NoError(t, err)
+		})
+
+		t.Run("document ok", func(t *testing.T) {
+			err := store.db.ReadShelf(context.Background(), documentShelf, func(reader stoabs.Reader) error {
+				bytes, err := reader.Get(stoabs.HashKey(txCreate.PayloadHash))
+				if err != nil {
+					return err
+				}
+				document := did.Document{}
+				err = json.Unmarshal(bytes, &document)
+				if err != nil {
+					return err
+				}
+
+				assert.Equal(t, create, document)
+
+				return nil
+			})
+			require.NoError(t, err)
+		})
+
+		t.Run("latest ok", func(t *testing.T) {
+			err := store.db.ReadShelf(context.Background(), latestShelf, func(reader stoabs.Reader) error {
+				bytes, err := reader.Get(stoabs.BytesKey(testDID.String()))
+				if err != nil {
+					return err
+				}
+				assert.Equal(t, fmt.Sprintf("%s1", testDID.String()), string(bytes))
+
+				return nil
+			})
+			require.NoError(t, err)
+		})
+	})
+}
 
 func TestStore_Resolve(t *testing.T) {
 	store := NewTestStore(t)

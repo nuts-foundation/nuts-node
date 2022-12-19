@@ -40,6 +40,7 @@ func (t Transaction) toEvent() event {
 	return event{
 		Created: t.SigningTime,
 		Clock:   t.Clock,
+		TXPrev:  t.Previous,
 		TXRef:   t.Ref,
 		DocRef:  t.PayloadHash,
 	}
