@@ -46,6 +46,8 @@ const (
 	revokedIssuerName   = "CN=Staat der Nederlanden EV Root CA,O=Staat der Nederlanden,C=NL"
 )
 
+var pkiOverheidCRLValidMoment = time.Date(2021, 12, 1, 0, 0, 0, 0, time.UTC)
+
 type fakeTransport struct {
 	responseData []byte
 }
@@ -88,7 +90,8 @@ func TestValidator_downloadCRL(t *testing.T) {
 		// Create a CRL with an invalid signature (valid issuer cert, but signed with random private key)
 		trustStore, _ := core.LoadTrustStore(pkiOverheidRootCA)
 		privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		crlWithInvalidSig, err := x509.CreateRevocationList(rand.Reader, &x509.RevocationList{Number: big.NewInt(1024)}, trustStore.Certificates()[0], privateKey)
+		issuer := trustStore.Certificates()[0]
+		crlWithInvalidSig, err := x509.CreateRevocationList(rand.Reader, &x509.RevocationList{Number: big.NewInt(1024)}, issuer, privateKey)
 		require.NoError(t, err)
 
 		httpClient := &http.Client{Transport: &fakeTransport{responseData: crlWithInvalidSig}}
@@ -99,15 +102,68 @@ func TestValidator_downloadCRL(t *testing.T) {
 }
 
 func TestValidator_Sync(t *testing.T) {
-	store, err := core.LoadTrustStore(pkiOverheidRootCA)
-	assert.NoError(t, err)
+	t.Run("CRL for expired certificate should not be updated", func(t *testing.T) {
+		crlValidator := load(t)
 
-	httpClient := &http.Client{Transport: &fakeTransport{}}
+		err := crlValidator.Sync()
 
-	crlValidator := NewValidatorWithHTTPClient(store.Certificates(), httpClient)
+		crlValidator.listsLock.RLock()
+		defer crlValidator.listsLock.RUnlock()
+		require.NoError(t, err)
+		assert.Empty(t, crlValidator.lists, "no CRLs should have been downloaded")
+	})
+	t.Run("CRL for active certificate should be updated", func(t *testing.T) {
+		// overwrite the nowFunc so the CRL is valid
+		nowFunc = func() time.Time {
+			return pkiOverheidCRLValidMoment
+		}
+		crlValidator := load(t)
 
-	err = crlValidator.Sync()
-	assert.Error(t, err)
+		err := crlValidator.Sync()
+
+		crlValidator.listsLock.RLock()
+		defer crlValidator.listsLock.RUnlock()
+		require.NoError(t, err)
+		assert.NotEmpty(t, crlValidator.lists, "CRLs should have been downloaded")
+	})
+}
+
+func TestValidator_IsSynced(t *testing.T) {
+	t.Run("not in sync", func(t *testing.T) {
+		// overwrite the nowFunc so the CRL is valid
+		nowFunc = func() time.Time {
+			return pkiOverheidCRLValidMoment
+		}
+		crlValidator := load(t)
+
+		result := crlValidator.IsSynced(0)
+
+		assert.False(t, result)
+	})
+	t.Run("active certificate, CRL is in sync", func(t *testing.T) {
+		// overwrite the nowFunc so the CRL is valid
+		nowFunc = func() time.Time {
+			return pkiOverheidCRLValidMoment
+		}
+		crlValidator := load(t)
+		require.NoError(t, crlValidator.Sync())
+
+		result := crlValidator.IsSynced(0)
+
+		assert.True(t, result)
+	})
+	t.Run("issuer certificate has expired (in sync)", func(t *testing.T) {
+		// overwrite the nowFunc so the CRL is valid
+		nowFunc = func() time.Time {
+			return time.Date(2030, 12, 1, 0, 0, 0, 0, time.UTC)
+		}
+		crlValidator := load(t)
+		require.NoError(t, crlValidator.Sync())
+
+		result := crlValidator.IsSynced(0)
+
+		assert.True(t, result)
+	})
 }
 
 func TestValidator_IsRevoked(t *testing.T) {
@@ -119,7 +175,8 @@ func TestValidator_IsRevoked(t *testing.T) {
 
 	// overwrite the nowFunc so the CRL is valid
 	nowFunc = func() time.Time {
-		return time.Date(2021, 12, 1, 0, 0, 0, 0, time.UTC)
+
+		return pkiOverheidCRLValidMoment
 	}
 
 	data, err := os.ReadFile(pkiOverheidCRL)
@@ -209,4 +266,14 @@ func TestValidator_Configured(t *testing.T) {
 		block.Bytes,
 	}, nil)
 	assert.NoError(t, err)
+}
+
+func load(t *testing.T) *validator {
+	data, err := os.ReadFile(pkiOverheidCRL)
+	require.NoError(t, err)
+	httpClient := &http.Client{Transport: &fakeTransport{responseData: data}}
+
+	store, err := core.LoadTrustStore(pkiOverheidRootCA)
+	require.NoError(t, err)
+	return NewValidatorWithHTTPClient(store.Certificates(), httpClient).(*validator)
 }
