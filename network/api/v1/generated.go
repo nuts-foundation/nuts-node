@@ -1294,8 +1294,6 @@ func (w *ServerInterfaceWrapper) GetTransactionPayload(ctx echo.Context) error {
 	return err
 }
 
-// PATCH: This template file was taken from pkg/codegen/templates/echo/echo-register.tmpl
-
 // This is a simple interface which specifies echo.Route addition functions which
 // are present on both echo.Echo and echo.Group, since we want to allow using
 // either of them for path registration
@@ -1311,14 +1309,6 @@ type EchoRouter interface {
 	TRACE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 }
 
-type Preprocessor interface {
-	Preprocess(operationID string, context echo.Context)
-}
-
-type ErrorStatusCodeResolver interface {
-	ResolveStatusCode(err error) int
-}
-
 // RegisterHandlers adds each server route to the EchoRouter.
 func RegisterHandlers(router EchoRouter, si ServerInterface) {
 	RegisterHandlersWithBaseURL(router, si, "")
@@ -1332,35 +1322,493 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	// PATCH: This alteration wraps the call to the implementation in a function that sets the "OperationId" context parameter,
-	// so it can be used in error reporting middleware.
-	router.GET(baseURL+"/internal/network/v1/diagnostics/graph", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("RenderGraph", context)
-		return wrapper.RenderGraph(context)
-	})
-	router.GET(baseURL+"/internal/network/v1/diagnostics/peers", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("GetPeerDiagnostics", context)
-		return wrapper.GetPeerDiagnostics(context)
-	})
-	router.GET(baseURL+"/internal/network/v1/events", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("ListEvents", context)
-		return wrapper.ListEvents(context)
-	})
-	router.POST(baseURL+"/internal/network/v1/reprocess", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("Reprocess", context)
-		return wrapper.Reprocess(context)
-	})
-	router.GET(baseURL+"/internal/network/v1/transaction", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("ListTransactions", context)
-		return wrapper.ListTransactions(context)
-	})
-	router.GET(baseURL+"/internal/network/v1/transaction/:ref", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("GetTransaction", context)
-		return wrapper.GetTransaction(context)
-	})
-	router.GET(baseURL+"/internal/network/v1/transaction/:ref/payload", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("GetTransactionPayload", context)
-		return wrapper.GetTransactionPayload(context)
-	})
+	router.GET(baseURL+"/internal/network/v1/diagnostics/graph", wrapper.RenderGraph)
+	router.GET(baseURL+"/internal/network/v1/diagnostics/peers", wrapper.GetPeerDiagnostics)
+	router.GET(baseURL+"/internal/network/v1/events", wrapper.ListEvents)
+	router.POST(baseURL+"/internal/network/v1/reprocess", wrapper.Reprocess)
+	router.GET(baseURL+"/internal/network/v1/transaction", wrapper.ListTransactions)
+	router.GET(baseURL+"/internal/network/v1/transaction/:ref", wrapper.GetTransaction)
+	router.GET(baseURL+"/internal/network/v1/transaction/:ref/payload", wrapper.GetTransactionPayload)
 
+}
+
+type RenderGraphRequestObject struct {
+	Params RenderGraphParams
+}
+
+type RenderGraphResponseObject interface {
+	VisitRenderGraphResponse(w http.ResponseWriter) error
+}
+
+type RenderGraph200TextvndGraphvizResponse struct {
+	Body          io.Reader
+	ContentLength int64
+}
+
+func (response RenderGraph200TextvndGraphvizResponse) VisitRenderGraphResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "text/vnd.graphviz")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type RenderGraphdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response RenderGraphdefaultJSONResponse) VisitRenderGraphResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type GetPeerDiagnosticsRequestObject struct {
+}
+
+type GetPeerDiagnosticsResponseObject interface {
+	VisitGetPeerDiagnosticsResponse(w http.ResponseWriter) error
+}
+
+type GetPeerDiagnostics200JSONResponse map[string]PeerDiagnostics
+
+func (response GetPeerDiagnostics200JSONResponse) VisitGetPeerDiagnosticsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetPeerDiagnosticsdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response GetPeerDiagnosticsdefaultJSONResponse) VisitGetPeerDiagnosticsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type ListEventsRequestObject struct {
+}
+
+type ListEventsResponseObject interface {
+	VisitListEventsResponse(w http.ResponseWriter) error
+}
+
+type ListEvents200JSONResponse []EventSubscriber
+
+func (response ListEvents200JSONResponse) VisitListEventsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListEventsdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response ListEventsdefaultJSONResponse) VisitListEventsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type ReprocessRequestObject struct {
+	Params ReprocessParams
+}
+
+type ReprocessResponseObject interface {
+	VisitReprocessResponse(w http.ResponseWriter) error
+}
+
+type Reprocess202Response struct {
+}
+
+func (response Reprocess202Response) VisitReprocessResponse(w http.ResponseWriter) error {
+	w.WriteHeader(202)
+	return nil
+}
+
+type ListTransactionsRequestObject struct {
+	Params ListTransactionsParams
+}
+
+type ListTransactionsResponseObject interface {
+	VisitListTransactionsResponse(w http.ResponseWriter) error
+}
+
+type ListTransactions200JSONResponse []string
+
+func (response ListTransactions200JSONResponse) VisitListTransactionsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListTransactionsdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response ListTransactionsdefaultJSONResponse) VisitListTransactionsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type GetTransactionRequestObject struct {
+	Ref string `json:"ref"`
+}
+
+type GetTransactionResponseObject interface {
+	VisitGetTransactionResponse(w http.ResponseWriter) error
+}
+
+type GetTransaction200ApplicationjoseResponse struct {
+	Body          io.Reader
+	ContentLength int64
+}
+
+func (response GetTransaction200ApplicationjoseResponse) VisitGetTransactionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/jose")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type GetTransactiondefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response GetTransactiondefaultJSONResponse) VisitGetTransactionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type GetTransactionPayloadRequestObject struct {
+	Ref string `json:"ref"`
+}
+
+type GetTransactionPayloadResponseObject interface {
+	VisitGetTransactionPayloadResponse(w http.ResponseWriter) error
+}
+
+type GetTransactionPayload200ApplicationoctetStreamResponse struct {
+	Body          io.Reader
+	ContentLength int64
+}
+
+func (response GetTransactionPayload200ApplicationoctetStreamResponse) VisitGetTransactionPayloadResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/octet-stream")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type GetTransactionPayloaddefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response GetTransactionPayloaddefaultJSONResponse) VisitGetTransactionPayloadResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+// StrictServerInterface represents all server handlers.
+type StrictServerInterface interface {
+	// Visualizes the DAG as a graph
+	// (GET /internal/network/v1/diagnostics/graph)
+	RenderGraph(ctx context.Context, request RenderGraphRequestObject) (RenderGraphResponseObject, error)
+	// Gets diagnostic information about the node's peers
+	// (GET /internal/network/v1/diagnostics/peers)
+	GetPeerDiagnostics(ctx context.Context, request GetPeerDiagnosticsRequestObject) (GetPeerDiagnosticsResponseObject, error)
+	// Lists the state of the internal events
+	// (GET /internal/network/v1/events)
+	ListEvents(ctx context.Context, request ListEventsRequestObject) (ListEventsResponseObject, error)
+	// Reprocess all transactions of the given type, verify and process
+	// (POST /internal/network/v1/reprocess)
+	Reprocess(ctx context.Context, request ReprocessRequestObject) (ReprocessResponseObject, error)
+	// Lists transactions on the DAG
+	// (GET /internal/network/v1/transaction)
+	ListTransactions(ctx context.Context, request ListTransactionsRequestObject) (ListTransactionsResponseObject, error)
+	// Retrieves a transaction
+	// (GET /internal/network/v1/transaction/{ref})
+	GetTransaction(ctx context.Context, request GetTransactionRequestObject) (GetTransactionResponseObject, error)
+	// Gets the transaction payload
+	// (GET /internal/network/v1/transaction/{ref}/payload)
+	GetTransactionPayload(ctx context.Context, request GetTransactionPayloadRequestObject) (GetTransactionPayloadResponseObject, error)
+}
+
+type StrictHandlerFunc func(ctx echo.Context, args interface{}) (interface{}, error)
+
+type StrictMiddlewareFunc func(f StrictHandlerFunc, operationID string) StrictHandlerFunc
+
+func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareFunc) ServerInterface {
+	return &strictHandler{ssi: ssi, middlewares: middlewares}
+}
+
+type strictHandler struct {
+	ssi         StrictServerInterface
+	middlewares []StrictMiddlewareFunc
+}
+
+// RenderGraph operation middleware
+func (sh *strictHandler) RenderGraph(ctx echo.Context, params RenderGraphParams) error {
+	var request RenderGraphRequestObject
+
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.RenderGraph(ctx.Request().Context(), request.(RenderGraphRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RenderGraph")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(RenderGraphResponseObject); ok {
+		return validResponse.VisitRenderGraphResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetPeerDiagnostics operation middleware
+func (sh *strictHandler) GetPeerDiagnostics(ctx echo.Context) error {
+	var request GetPeerDiagnosticsRequestObject
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetPeerDiagnostics(ctx.Request().Context(), request.(GetPeerDiagnosticsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetPeerDiagnostics")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetPeerDiagnosticsResponseObject); ok {
+		return validResponse.VisitGetPeerDiagnosticsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ListEvents operation middleware
+func (sh *strictHandler) ListEvents(ctx echo.Context) error {
+	var request ListEventsRequestObject
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListEvents(ctx.Request().Context(), request.(ListEventsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListEvents")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ListEventsResponseObject); ok {
+		return validResponse.VisitListEventsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// Reprocess operation middleware
+func (sh *strictHandler) Reprocess(ctx echo.Context, params ReprocessParams) error {
+	var request ReprocessRequestObject
+
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.Reprocess(ctx.Request().Context(), request.(ReprocessRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "Reprocess")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ReprocessResponseObject); ok {
+		return validResponse.VisitReprocessResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ListTransactions operation middleware
+func (sh *strictHandler) ListTransactions(ctx echo.Context, params ListTransactionsParams) error {
+	var request ListTransactionsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListTransactions(ctx.Request().Context(), request.(ListTransactionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListTransactions")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ListTransactionsResponseObject); ok {
+		return validResponse.VisitListTransactionsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetTransaction operation middleware
+func (sh *strictHandler) GetTransaction(ctx echo.Context, ref string) error {
+	var request GetTransactionRequestObject
+
+	request.Ref = ref
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetTransaction(ctx.Request().Context(), request.(GetTransactionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetTransaction")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetTransactionResponseObject); ok {
+		return validResponse.VisitGetTransactionResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetTransactionPayload operation middleware
+func (sh *strictHandler) GetTransactionPayload(ctx echo.Context, ref string) error {
+	var request GetTransactionPayloadRequestObject
+
+	request.Ref = ref
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetTransactionPayload(ctx.Request().Context(), request.(GetTransactionPayloadRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetTransactionPayload")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetTransactionPayloadResponseObject); ok {
+		return validResponse.VisitGetTransactionPayloadResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
 }

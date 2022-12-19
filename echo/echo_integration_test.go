@@ -22,6 +22,7 @@ package echo
 import (
 	"context"
 	"fmt"
+	logTest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/require"
 	"net"
 	"net/http"
@@ -53,29 +54,51 @@ events:
     port: 4222
 `
 
+	hook := logTest.NewGlobal()
 	httpPort := startServer(t, configFile)
 	defer resetEnv()
 
 	baseUrl := fmt.Sprintf("http://localhost%s", httpPort)
 
+	type operation struct {
+		module    string
+		operation string
+		url       string
+	}
 	t.Run("404s", func(t *testing.T) {
-		urls := []string{
-			"/internal/auth/v1/signature/session/1",
-			"/public/auth/v1/contract/1",
-			"/internal/didman/v1/did/did:nuts:1/compoundservice",
-			"/internal/didman/v1/did/did:nuts:1/compoundservice/1/endpoint/2",
-			"/internal/network/v1/transaction/0000000000000000000000000000000000000000000000000000000000000000",
-			"/internal/network/v1/transaction/0000000000000000000000000000000000000000000000000000000000000000/payload",
-			"/internal/vcr/v2/vc/1",
-			"/internal/vdr/v1/did/did:nuts:1",
+		testCases := []operation{
+			{module: "Auth", operation: "GetSignSessionStatus", url: "/internal/auth/v1/signature/session/1"},
+			{module: "Auth", operation: "GetContractByType", url: "/public/auth/v1/contract/1"},
+			{module: "Didman", operation: "GetCompoundServices", url: "/internal/didman/v1/did/did:nuts:1/compoundservice"},
+			{module: "Didman", operation: "GetCompoundServiceEndpoint", url: "/internal/didman/v1/did/did:nuts:1/compoundservice/1/endpoint/2"},
+			{module: "Network", operation: "GetTransaction", url: "/internal/network/v1/transaction/0000000000000000000000000000000000000000000000000000000000000000"},
+			{module: "Network", operation: "GetTransactionPayload", url: "/internal/network/v1/transaction/0000000000000000000000000000000000000000000000000000000000000000/payload"},
+			{module: "VCR", operation: "ResolveVC", url: "/internal/vcr/v2/vc/1"},
+			{module: "VDR", operation: "GetDID", url: "/internal/vdr/v1/did/did:nuts:1"},
 		}
 
-		for _, url := range urls {
-			resp, err := http.Get(fmt.Sprintf("%s%s", baseUrl, url))
+		for _, testCase := range testCases {
+			resp, err := http.Get(fmt.Sprintf("%s%s", baseUrl, testCase.url))
 
 			require.NoError(t, err)
-
 			assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+			assert.Equal(t, testCase.module, hook.LastEntry().Data["module"].(string))
+			assert.Equal(t, testCase.operation, hook.LastEntry().Data["operation"].(string))
+		}
+	})
+	t.Run("400s", func(t *testing.T) {
+		testCases := []operation{
+			{module: "Network", operation: "GetTransaction", url: "/internal/network/v1/transaction/invalidhash"},
+			{module: "Network", operation: "GetTransactionPayload", url: "/internal/network/v1/transaction/invalidhash/payload"},
+		}
+
+		for _, testCase := range testCases {
+			resp, err := http.Get(fmt.Sprintf("%s%s", baseUrl, testCase.url))
+
+			require.NoError(t, err)
+			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+			assert.Equal(t, testCase.module, hook.LastEntry().Data["module"].(string))
+			assert.Equal(t, testCase.operation, hook.LastEntry().Data["operation"].(string))
 		}
 	})
 }
