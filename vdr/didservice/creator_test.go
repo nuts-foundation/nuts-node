@@ -23,16 +23,15 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
-	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/go-did/did"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
-
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/stretchr/testify/require"
 )
 
 const mockKID = "did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE"
@@ -47,7 +46,7 @@ func newMockKeyCreator() *mockKeyCreator {
 }
 
 // New uses a predefined ECDSA key and calls the namingFunc to get the kid
-func (m *mockKeyCreator) New(namingFunc nutsCrypto.KIDNamingFunc) (nutsCrypto.Key, error) {
+func (m *mockKeyCreator) New(_ nutsCrypto.KIDNamingFunc) (nutsCrypto.Key, error) {
 	return nutsCrypto.NewTestKey(m.kid), nil
 }
 

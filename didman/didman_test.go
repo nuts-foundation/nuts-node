@@ -45,6 +45,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var testDIDA = vdr.TestDIDA
+var testDIDB = vdr.TestDIDB
+
 func TestDidman_Name(t *testing.T) {
 	instance := NewDidmanInstance(nil, nil, nil, nil, nil).(core.Named)
 
@@ -69,14 +72,14 @@ func TestDidman_AddEndpoint(t *testing.T) {
 		ctx := newMockContext(t)
 		doc := &did.Document{}
 		var newDoc did.Document
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(doc, meta, nil)
-		ctx.vdr.EXPECT().Update(*vdr.TestDIDA, meta.Hash, gomock.Any(), nil).DoAndReturn(
+		ctx.docResolver.EXPECT().Resolve(testDIDA, nil).Return(doc, meta, nil)
+		ctx.vdr.EXPECT().Update(testDIDA, meta.Hash, gomock.Any(), nil).DoAndReturn(
 			func(_ interface{}, _ interface{}, doc interface{}, _ interface{}) error {
 				newDoc = doc.(did.Document)
 				return nil
 			})
 
-		ep, err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
+		ep, err := ctx.instance.AddEndpoint(testDIDA, "type", *u)
 
 		require.NoError(t, err)
 		assert.True(t, strings.HasPrefix(ep.ID.String(), vdr.TestDIDA.String()))
@@ -93,10 +96,10 @@ func TestDidman_AddEndpoint(t *testing.T) {
 		ctx := newMockContext(t)
 		doc := &did.Document{}
 		returnError := errors.New("b00m!")
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(doc, meta, nil)
-		ctx.vdr.EXPECT().Update(*vdr.TestDIDA, meta.Hash, gomock.Any(), nil).Return(returnError)
+		ctx.docResolver.EXPECT().Resolve(testDIDA, nil).Return(doc, meta, nil)
+		ctx.vdr.EXPECT().Update(testDIDA, meta.Hash, gomock.Any(), nil).Return(returnError)
 
-		_, err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
+		_, err := ctx.instance.AddEndpoint(testDIDA, "type", *u)
 
 		assert.Equal(t, returnError, err)
 	})
@@ -105,20 +108,20 @@ func TestDidman_AddEndpoint(t *testing.T) {
 		ctx := newMockContext(t)
 		doc := &did.Document{}
 		returnError := errors.New("b00m!")
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(doc, meta, nil).Times(2)
-		ctx.vdr.EXPECT().Update(*vdr.TestDIDA, meta.Hash, gomock.Any(), nil).Return(returnError)
+		ctx.docResolver.EXPECT().Resolve(testDIDA, nil).Return(doc, meta, nil).Times(2)
+		ctx.vdr.EXPECT().Update(testDIDA, meta.Hash, gomock.Any(), nil).Return(returnError)
 
-		_, _ = ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
-		_, err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
+		_, _ = ctx.instance.AddEndpoint(testDIDA, "type", *u)
+		_, err := ctx.instance.AddEndpoint(testDIDA, "type", *u)
 
 		assert.Equal(t, types.ErrDuplicateService, err)
 	})
 
 	t.Run("error - DID not found", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).Return(nil, nil, types.ErrNotFound)
+		ctx.docResolver.EXPECT().Resolve(testDIDA, nil).Return(nil, nil, types.ErrNotFound)
 
-		_, err := ctx.instance.AddEndpoint(*vdr.TestDIDA, "type", *u)
+		_, err := ctx.instance.AddEndpoint(testDIDA, "type", *u)
 
 		assert.Equal(t, types.ErrNotFound, err)
 	})
@@ -127,10 +130,10 @@ func TestDidman_AddEndpoint(t *testing.T) {
 func TestDidman_AddCompoundService(t *testing.T) {
 	meta := &types.DocumentMetadata{Hash: hash.EmptyHash()}
 
-	helloServiceQuery := didservice.MakeServiceReference(*vdr.TestDIDA, "hello")
-	worldServiceQuery := didservice.MakeServiceReference(*vdr.TestDIDB, "world")
-	universeServiceQuery := didservice.MakeServiceReference(*vdr.TestDIDB, "universe")
-	universeNestedServiceQuery := didservice.MakeServiceReference(*vdr.TestDIDB, "universe-ref")
+	helloServiceQuery := didservice.MakeServiceReference(testDIDA, "hello")
+	worldServiceQuery := didservice.MakeServiceReference(testDIDB, "world")
+	universeServiceQuery := didservice.MakeServiceReference(testDIDB, "universe")
+	universeNestedServiceQuery := didservice.MakeServiceReference(testDIDB, "universe-ref")
 	references := make(map[string]ssi.URI, 0)
 	references["hello"] = helloServiceQuery
 	references["world"] = worldServiceQuery
@@ -144,7 +147,7 @@ func TestDidman_AddCompoundService(t *testing.T) {
 	serviceID := ssi.MustParseURI(fmt.Sprintf("%s#1", vdr.TestDIDA.String()))
 	docA := did.Document{
 		Context: []ssi.URI{did.DIDContextV1URI()},
-		ID:      *vdr.TestDIDA,
+		ID:      testDIDA,
 		Service: []did.Service{{
 			ID:              serviceID,
 			Type:            "hello",
@@ -153,7 +156,7 @@ func TestDidman_AddCompoundService(t *testing.T) {
 	}
 	docB := did.Document{
 		Context: []ssi.URI{did.DIDContextV1URI()},
-		ID:      *vdr.TestDIDB,
+		ID:      testDIDB,
 		Service: []did.Service{
 			{
 				Type:            "world",
@@ -177,17 +180,17 @@ func TestDidman_AddCompoundService(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		var newDoc did.Document
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).MinTimes(1).Return(&docA, meta, nil)
+		ctx.docResolver.EXPECT().Resolve(testDIDA, nil).MinTimes(1).Return(&docA, meta, nil)
 		// DID B should be resolved once, since they're cached
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDB, nil).Return(&docB, meta, nil)
-		ctx.vdr.EXPECT().Update(*vdr.TestDIDA, meta.Hash, gomock.Any(), nil).DoAndReturn(
+		ctx.docResolver.EXPECT().Resolve(testDIDB, nil).Return(&docB, meta, nil)
+		ctx.vdr.EXPECT().Update(testDIDA, meta.Hash, gomock.Any(), nil).DoAndReturn(
 			func(_ interface{}, _ interface{}, doc interface{}, _ interface{}) error {
 				newDoc = doc.(did.Document)
 				// trigger validation to check if the added contact information isn't wrong
 				return vdr.CreateDocumentValidator().Validate(newDoc)
 			})
 
-		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "helloworld", references)
+		_, err := ctx.instance.AddCompoundService(testDIDA, "helloworld", references)
 
 		require.NoError(t, err)
 		assert.Len(t, newDoc.Service, 2)
@@ -196,20 +199,20 @@ func TestDidman_AddCompoundService(t *testing.T) {
 	})
 	t.Run("ok - nested reference", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDB, nil).MinTimes(1).Return(&docB, meta, nil)
-		ctx.vdr.EXPECT().Update(*vdr.TestDIDB, meta.Hash, gomock.Any(), nil)
+		ctx.docResolver.EXPECT().Resolve(testDIDB, nil).MinTimes(1).Return(&docB, meta, nil)
+		ctx.vdr.EXPECT().Update(testDIDB, meta.Hash, gomock.Any(), nil)
 
-		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDB, "helloworld", map[string]ssi.URI{"foobar": universeNestedServiceQuery})
+		_, err := ctx.instance.AddCompoundService(testDIDB, "helloworld", map[string]ssi.URI{"foobar": universeNestedServiceQuery})
 
 		assert.NoError(t, err)
 	})
 	t.Run("ok - endpoint is an absolute URL", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docResolver.EXPECT().Resolve(*vdr.TestDIDA, nil).MinTimes(1).Return(&docA, meta, nil)
-		ctx.vdr.EXPECT().Update(*vdr.TestDIDA, meta.Hash, gomock.Any(), nil)
+		ctx.docResolver.EXPECT().Resolve(testDIDA, nil).MinTimes(1).Return(&docA, meta, nil)
+		ctx.vdr.EXPECT().Update(testDIDA, meta.Hash, gomock.Any(), nil)
 
 		s := ssi.MustParseURI("http://nuts.nl")
-		_, err := ctx.instance.AddCompoundService(*vdr.TestDIDA, "hellonuts", map[string]ssi.URI{"foobar": s})
+		_, err := ctx.instance.AddCompoundService(testDIDA, "hellonuts", map[string]ssi.URI{"foobar": s})
 
 		assert.NoError(t, err)
 	})
@@ -642,16 +645,15 @@ func TestDidman_GetCompoundServiceEndpoint(t *testing.T) {
 }
 
 func TestDidman_SearchOrganizations(t *testing.T) {
-	id := vdr.TestDIDB
 	docWithService := did.Document{
-		ID: *id,
+		ID: testDIDB,
 		Service: []did.Service{{
 			Type:            "eOverdracht",
 			ServiceEndpoint: map[string]interface{}{"foo": "http://example.org"},
 		}},
 	}
 	docWithoutService := did.Document{
-		ID: *id,
+		ID: testDIDB,
 	}
 	reqCtx := context.Background()
 	searchTerms := []vcr.SearchTerm{
@@ -674,7 +676,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 	t.Run("ok - no DID service type", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.vcr.EXPECT().Search(reqCtx, searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
-		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(&docWithoutService, nil, nil)
+		ctx.docResolver.EXPECT().Resolve(testDIDB, nil).Return(&docWithoutService, nil, nil)
 
 		actual, err := ctx.instance.SearchOrganizations(reqCtx, "query", nil)
 
@@ -684,7 +686,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 	t.Run("ok - with DID service type (matches)", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.vcr.EXPECT().Search(reqCtx, searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
-		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(&docWithService, nil, nil)
+		ctx.docResolver.EXPECT().Resolve(testDIDB, nil).Return(&docWithService, nil, nil)
 
 		serviceType := "eOverdracht"
 		actual, err := ctx.instance.SearchOrganizations(reqCtx, "query", &serviceType)
@@ -695,7 +697,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 	t.Run("ok - with DID service type (no match)", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.vcr.EXPECT().Search(reqCtx, searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
-		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(&docWithoutService, nil, nil)
+		ctx.docResolver.EXPECT().Resolve(testDIDB, nil).Return(&docWithoutService, nil, nil)
 
 		serviceType := "eOverdracht"
 		actual, err := ctx.instance.SearchOrganizations(reqCtx, "query", &serviceType)
@@ -707,7 +709,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 	t.Run("ok - DID document not found (logs, omits result)", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.vcr.EXPECT().Search(reqCtx, searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
-		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(nil, nil, types.ErrNotFound)
+		ctx.docResolver.EXPECT().Resolve(testDIDB, nil).Return(nil, nil, types.ErrNotFound)
 
 		actual, err := ctx.instance.SearchOrganizations(reqCtx, "query", nil)
 
@@ -718,7 +720,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 	t.Run("ok - DID document deactivated (logs, omits result)", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.vcr.EXPECT().Search(reqCtx, searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
-		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(nil, nil, types.ErrDeactivated)
+		ctx.docResolver.EXPECT().Resolve(testDIDB, nil).Return(nil, nil, types.ErrDeactivated)
 
 		actual, err := ctx.instance.SearchOrganizations(reqCtx, "query", nil)
 
@@ -729,7 +731,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 	t.Run("error - other error while resolving DID document", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.vcr.EXPECT().Search(reqCtx, searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
-		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(nil, nil, io.EOF)
+		ctx.docResolver.EXPECT().Resolve(testDIDB, nil).Return(nil, nil, io.EOF)
 
 		actual, err := ctx.instance.SearchOrganizations(reqCtx, "query", nil)
 
@@ -756,7 +758,7 @@ func TestGenerateIDForService(t *testing.T) {
 	u, _ := url.Parse("https://api.example.com/v1")
 	expectedID := ssi.MustParseURI(fmt.Sprintf("%s#D4eNCVjdtGaeHYMdjsdYHpTQmiwXtQKJmE9QSwwsKKzy", vdr.TestDIDA.String()))
 
-	id := generateIDForService(*vdr.TestDIDA, did.Service{
+	id := generateIDForService(testDIDA, did.Service{
 		Type:            "type",
 		ServiceEndpoint: u.String(),
 	})

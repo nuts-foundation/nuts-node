@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Package doc contains DID Document related functionality that only matters to the current node.
+// Package didservice contains DID Document related functionality that only matters to the current node.
 // All functionality here has zero relations to the network.
 package didservice
 
@@ -103,7 +103,7 @@ func (d Resolver) resolveControllers(doc did.Document, metadata *types.ResolveMe
 		}
 	}
 
-	// resolve all unresolved docs
+	// resolve all unresolved doc
 	for _, ref := range refsToResolve {
 		node, _, err := d.resolve(ref, metadata, depth)
 		if errors.Is(err, types.ErrDeactivated) || errors.Is(err, types.ErrNoActiveController) {
@@ -121,17 +121,13 @@ func (d Resolver) resolveControllers(doc did.Document, metadata *types.ResolveMe
 	// filter deactivated
 	j := 0
 	for _, leaf := range leaves {
-		if !isDeactivated(leaf) {
+		if !IsDeactivated(leaf) {
 			leaves[j] = leaf
 			j++
 		}
 	}
 
 	return leaves[:j], nil
-}
-
-func isDeactivated(document did.Document) bool {
-	return len(document.Controller) == 0 && len(document.CapabilityInvocation) == 0
 }
 
 // KeyResolver implements the KeyResolver interface with a types.Store as backend

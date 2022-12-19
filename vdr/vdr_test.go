@@ -21,24 +21,20 @@ package vdr
 import (
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/stretchr/testify/require"
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/nuts-node/vdr/store"
-
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
-
-	"github.com/golang/mock/gomock"
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/stretchr/testify/assert"
-
-	"github.com/nuts-foundation/nuts-node/network"
-
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/network"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/store"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const expectedPayloadType = "application/did+json"
@@ -271,7 +267,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 		t.Run("ok - 1 conflict", func(t *testing.T) {
 			s := store.NewTestStore(t)
 			vdr := NewVDR(Config{}, nil, nil, s, nil)
-			doc := did.Document{ID: *TestDIDA}
+			doc := did.Document{ID: TestDIDA}
 			metadata := types.DocumentMetadata{SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), hash.EmptyHash()}}
 			s.Write(doc, metadata)
 			results := vdr.Diagnostics()
@@ -294,7 +290,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 		t.Run("ok - 1 conflict", func(t *testing.T) {
 			s := store.NewTestStore(t)
 			vdr := NewVDR(Config{}, nil, nil, s, nil)
-			doc := did.Document{ID: *TestDIDA}
+			doc := did.Document{ID: TestDIDA}
 			metadata := types.DocumentMetadata{SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), hash.EmptyHash()}}
 			s.Write(doc, metadata)
 			docs, meta, err := vdr.ConflictedDocuments()

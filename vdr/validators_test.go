@@ -23,9 +23,10 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
+	"testing"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"testing"
 )
 
 func Test_verificationMethodValidator(t *testing.T) {

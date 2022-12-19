@@ -18,10 +18,11 @@
 package didservice
 
 import (
+	"testing"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func Test_MakeServiceReference(t *testing.T) {

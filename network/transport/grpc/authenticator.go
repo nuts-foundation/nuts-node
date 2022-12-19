@@ -96,7 +96,7 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 }
 
 // NewDummyAuthenticator creates an Authenticator that does not verify node identities
-func NewDummyAuthenticator(serviceResolver didservice.ServiceResolver) Authenticator {
+func NewDummyAuthenticator(_ didservice.ServiceResolver) Authenticator {
 	return &dummyAuthenticator{}
 }
 

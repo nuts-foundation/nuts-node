@@ -23,12 +23,6 @@ import (
 	"crypto"
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/stretchr/testify/require"
-	grpc2 "google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/metadata"
 	"hash/crc32"
 	"math/rand"
 	"net/url"
@@ -41,21 +35,26 @@ import (
 	"github.com/nats-io/nats.go"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/core"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/events"
+	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test"
+	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/nuts-foundation/nuts-node/core"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/network/log"
-	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/stretchr/testify/require"
+	grpc2 "google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 )
 
 const defaultTimeout = 5 * time.Second
@@ -824,14 +823,14 @@ func resetIntegrationTest(t *testing.T) {
 
 	// Write DID Document for node1
 	writeDIDDocument := func(subject string) {
-		nodeDID, _ := did.ParseDID(subject)
-		document := did.Document{ID: *nodeDID}
-		kid := *nodeDID
+		nodeDID := did.MustParseDID(subject)
+		document := did.Document{ID: nodeDID}
+		kid := nodeDID
 		kid.Fragment = "key-1"
 		key, _ := keyStore.New(func(_ crypto.PublicKey) (string, error) {
 			return kid.String(), nil
 		})
-		verificationMethod, _ := did.NewVerificationMethod(kid, ssi.JsonWebKey2020, *nodeDID, key.Public())
+		verificationMethod, _ := did.NewVerificationMethod(kid, ssi.JsonWebKey2020, nodeDID, key.Public())
 		document.VerificationMethod.Add(verificationMethod)
 		document.KeyAgreement.Add(verificationMethod)
 		document.CapabilityInvocation.Add(verificationMethod)

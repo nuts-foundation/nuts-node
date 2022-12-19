@@ -27,8 +27,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/stretchr/testify/require"
 	"net/url"
 	"testing"
 	"time"
@@ -38,28 +36,29 @@ import (
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/lestrrat-go/jwx/jwt"
 	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	verifier2 "github.com/nuts-foundation/nuts-node/vcr/verifier"
-	"github.com/stretchr/testify/assert"
-
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/didman"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
+	verifier2 "github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var requesterSigningKey, _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 var authorizerSigningKey, _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 
-var requesterDID = *vdr.TestDIDB
-var authorizerDID = *vdr.TestDIDA
+var requesterDID = vdr.TestDIDB
+var authorizerDID = vdr.TestDIDA
 var authorizerDIDDocument = getAuthorizerDIDDocument()
 var requesterSigningKeyID = getRequesterSigningKey()
 var authorizerSigningKeyID = getAuthorizerSigningKey()
@@ -890,9 +889,9 @@ func TestAuth_GetOAuthEndpointURL(t *testing.T) {
 	t.Run("returns_error_when_resolve_compound_service_fails", func(t *testing.T) {
 		ctx := createContext(t)
 
-		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(*vdr.TestDIDA, expectedService, services.OAuthEndpointType, true).Return("", types.ErrServiceNotFound)
+		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(vdr.TestDIDA, expectedService, services.OAuthEndpointType, true).Return("", types.ErrServiceNotFound)
 
-		parsedURL, err := ctx.oauthService.GetOAuthEndpointURL(expectedService, *vdr.TestDIDA)
+		parsedURL, err := ctx.oauthService.GetOAuthEndpointURL(expectedService, vdr.TestDIDA)
 
 		assert.ErrorIs(t, err, types.ErrServiceNotFound)
 		assert.Empty(t, parsedURL)
@@ -917,9 +916,9 @@ func TestAuth_GetOAuthEndpointURL(t *testing.T) {
 		}
 		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 		expectedURL, _ := url.Parse("http://localhost")
-		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(*vdr.TestDIDA, expectedService, services.OAuthEndpointType, true).Return(expectedURL.String(), nil)
+		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(vdr.TestDIDA, expectedService, services.OAuthEndpointType, true).Return(expectedURL.String(), nil)
 
-		parsedURL, err := ctx.oauthService.GetOAuthEndpointURL(expectedService, *vdr.TestDIDA)
+		parsedURL, err := ctx.oauthService.GetOAuthEndpointURL(expectedService, vdr.TestDIDA)
 
 		assert.NoError(t, err)
 		assert.Equal(t, *expectedURL, parsedURL)

@@ -36,6 +36,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var testDID = vdr.TestDIDA
+
 func TestHolder_BuildVP(t *testing.T) {
 	var kid = vdr.TestMethodDIDA.String()
 	testCredentialJSON := `
@@ -50,7 +52,7 @@ func TestHolder_BuildVP(t *testing.T) {
             "city": "Hengelo",
             "name": "De beste zorg"
         },
-        "id": "` + vdr.TestDIDA.String() + `"
+        "id": "` + testDID.String() + `"
     },
     "id": "did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H#d2aa8189-db59-4dad-a3e5-60ca54f8fcc0",
     "issuanceDate": "2021-12-24T13:21:29.087205+01:00",
@@ -78,13 +80,13 @@ func TestHolder_BuildVP(t *testing.T) {
 		keyResolver := types.NewMockKeyResolver(ctrl)
 		keyStore := crypto.NewMockKeyStore(ctrl)
 
-		keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(ssi.MustParseURI(kid), nil)
+		keyResolver.EXPECT().ResolveAssertionKeyID(testDID).Return(ssi.MustParseURI(kid), nil)
 		keyStore.EXPECT().Resolve(vdr.TestMethodDIDA.URI().String()).Return(key, nil)
 
 		holder := New(keyResolver, keyStore, nil, jsonldManager)
 
 		options := proof.ProofOptions{}
-		resultingPresentation, err := holder.BuildVP([]vc.VerifiableCredential{testCredential}, options, vdr.TestDIDA, false)
+		resultingPresentation, err := holder.BuildVP([]vc.VerifiableCredential{testCredential}, options, &testDID, false)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, resultingPresentation)
@@ -95,13 +97,13 @@ func TestHolder_BuildVP(t *testing.T) {
 		keyResolver := types.NewMockKeyResolver(ctrl)
 		keyStore := crypto.NewMockKeyStore(ctrl)
 
-		keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(vdr.TestMethodDIDA.URI(), nil)
+		keyResolver.EXPECT().ResolveAssertionKeyID(testDID).Return(vdr.TestMethodDIDA.URI(), nil)
 		keyStore.EXPECT().Resolve(vdr.TestMethodDIDA.URI().String()).Return(key, nil)
 
 		holder := New(keyResolver, keyStore, nil, jsonldManager)
 
 		options := proof.ProofOptions{}
-		resultingPresentation, err := holder.BuildVP([]vc.VerifiableCredential{testCredential, testCredential}, options, vdr.TestDIDA, false)
+		resultingPresentation, err := holder.BuildVP([]vc.VerifiableCredential{testCredential, testCredential}, options, &testDID, false)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, resultingPresentation)
@@ -117,13 +119,13 @@ func TestHolder_BuildVP(t *testing.T) {
 			mockVerifier := verifier.NewMockVerifier(ctrl)
 			mockVerifier.EXPECT().Validate(testCredential, &created)
 
-			keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(ssi.MustParseURI(kid), nil)
+			keyResolver.EXPECT().ResolveAssertionKeyID(testDID).Return(ssi.MustParseURI(kid), nil)
 			keyStore.EXPECT().Resolve(vdr.TestMethodDIDA.URI().String()).Return(key, nil)
 
 			holder := New(keyResolver, keyStore, mockVerifier, jsonldManager)
 
 			options := proof.ProofOptions{Created: created}
-			resultingPresentation, err := holder.BuildVP([]vc.VerifiableCredential{testCredential}, options, vdr.TestDIDA, true)
+			resultingPresentation, err := holder.BuildVP([]vc.VerifiableCredential{testCredential}, options, &testDID, true)
 
 			assert.NoError(t, err)
 			assert.NotNil(t, resultingPresentation)
@@ -138,13 +140,13 @@ func TestHolder_BuildVP(t *testing.T) {
 			mockVerifier := verifier.NewMockVerifier(ctrl)
 			mockVerifier.EXPECT().Validate(testCredential, &created).Return(errors.New("failed"))
 
-			keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(ssi.MustParseURI(kid), nil)
+			keyResolver.EXPECT().ResolveAssertionKeyID(testDID).Return(ssi.MustParseURI(kid), nil)
 			keyStore.EXPECT().Resolve(vdr.TestMethodDIDA.URI().String()).Return(key, nil)
 
 			holder := New(keyResolver, keyStore, mockVerifier, jsonldManager)
 
 			options := proof.ProofOptions{Created: created}
-			resultingPresentation, err := holder.BuildVP([]vc.VerifiableCredential{testCredential}, options, vdr.TestDIDA, true)
+			resultingPresentation, err := holder.BuildVP([]vc.VerifiableCredential{testCredential}, options, &testDID, true)
 
 			assert.EqualError(t, err, "invalid credential (id=did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H#d2aa8189-db59-4dad-a3e5-60ca54f8fcc0): failed")
 			assert.Nil(t, resultingPresentation)
@@ -157,7 +159,7 @@ func TestHolder_BuildVP(t *testing.T) {
 			keyResolver := types.NewMockKeyResolver(ctrl)
 			keyStore := crypto.NewMockKeyStore(ctrl)
 
-			keyResolver.EXPECT().ResolveAssertionKeyID(*vdr.TestDIDA).Return(ssi.MustParseURI(kid), nil)
+			keyResolver.EXPECT().ResolveAssertionKeyID(testDID).Return(ssi.MustParseURI(kid), nil)
 			keyStore.EXPECT().Resolve(vdr.TestMethodDIDA.URI().String()).Return(key, nil)
 
 			holder := New(keyResolver, keyStore, nil, jsonldManager)

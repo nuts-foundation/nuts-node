@@ -22,18 +22,17 @@ package v1
 import (
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"net/http"
 	"net/url"
 	"strings"
-
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/didman"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 var _ ServerInterface = (*Wrapper)(nil)
