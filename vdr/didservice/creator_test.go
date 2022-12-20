@@ -25,8 +25,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/golang/mock/gomock"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/go-did/did"
