@@ -27,18 +27,17 @@ import (
 )
 
 func NewTestAuthInstance(t *testing.T) *Auth {
-	return NewAuthInstance(
-		TestConfig(),
-		store.NewTestStore(t),
-		vcr.NewTestVCRInstance(t),
-		crypto.NewMemoryCryptoInstance(),
-		nil,
-		nil,
-	)
+	return testInstance(t, TestConfig())
 }
 
 func TestConfig() Config {
 	config := DefaultConfig()
 	config.ContractValidators = []string{"dummy"}
 	return config
+}
+
+func testInstance(t *testing.T, cfg Config) *Auth {
+	cryptoInstance := crypto.NewMemoryCryptoInstance()
+	vcrInstance := vcr.NewTestVCRInstance(t)
+	return NewAuthInstance(cfg, store.NewTestStore(t), vcrInstance, cryptoInstance, nil, nil)
 }

@@ -20,22 +20,23 @@ package dag
 
 import (
 	"context"
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/stretchr/testify/assert"
-
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
 	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_PrevTransactionVerifier(t *testing.T) {
@@ -97,14 +98,14 @@ func TestTransactionSignatureVerifier(t *testing.T) {
 	t.Run("referral with key ID", func(t *testing.T) {
 		transaction, _, publicKey := CreateTestTransaction(1)
 		expected, _ := ParseTransaction(transaction.Data())
-		err := NewTransactionSignatureVerifier(&didservice.StaticKeyResolver{Key: publicKey})(nil, expected)
+		err := NewTransactionSignatureVerifier(&staticKeyResolver{Key: publicKey})(nil, expected)
 		assert.NoError(t, err)
 	})
 	t.Run("wrong key", func(t *testing.T) {
 		attackerKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		transaction, _, _ := CreateTestTransaction(1)
 		expected, _ := ParseTransaction(transaction.Data())
-		err := NewTransactionSignatureVerifier(&didservice.StaticKeyResolver{Key: attackerKey.Public()})(nil, expected)
+		err := NewTransactionSignatureVerifier(&staticKeyResolver{Key: attackerKey.Public()})(nil, expected)
 		assert.EqualError(t, err, "failed to verify message: failed to verify signature using ecdsa")
 	})
 	t.Run("key type is incorrect", func(t *testing.T) {
@@ -131,4 +132,28 @@ func TestTransactionSignatureVerifier(t *testing.T) {
 
 		assert.ErrorContains(t, err, "unable to verify transaction signature, can't resolve key by TX ref")
 	})
+}
+
+type staticKeyResolver struct {
+	Key crypto.PublicKey
+}
+
+func (s staticKeyResolver) ResolveKeyAgreementKey(_ did.DID) (crypto.PublicKey, error) {
+	return s.Key, nil
+}
+
+func (s staticKeyResolver) ResolvePublicKey(_ string, _ []hash.SHA256Hash) (crypto.PublicKey, error) {
+	return s.Key, nil
+}
+
+func (s staticKeyResolver) ResolveSigningKeyID(_ did.DID, _ *time.Time) (string, error) {
+	panic("implement me")
+}
+
+func (s staticKeyResolver) ResolveSigningKey(_ string, _ *time.Time) (crypto.PublicKey, error) {
+	panic("implement me")
+}
+
+func (s staticKeyResolver) ResolveAssertionKeyID(_ did.DID) (ssi.URI, error) {
+	panic("implement me")
 }

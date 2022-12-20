@@ -25,7 +25,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -43,6 +42,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	"github.com/nuts-foundation/nuts-node/network/transport/v2"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"go.etcd.io/bbolt"
 )
@@ -703,8 +703,11 @@ func (n *Network) Reprocess(ctx context.Context, contentType string) (*Reprocess
 			}
 		}
 
+		if len(txs) == 0 {
+			break
+		}
 		lastTick := txs[len(txs)-1].Clock()
-		if len(txs) == 0 || int(uint(lastTick))+1 < end {
+		if int(uint(lastTick))+1 < end {
 			break
 		}
 

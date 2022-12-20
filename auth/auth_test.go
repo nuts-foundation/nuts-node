@@ -19,16 +19,12 @@
 package auth
 
 import (
-	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vdr/store"
-
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAuth_Configure(t *testing.T) {
@@ -118,12 +114,6 @@ func TestAuth_Configure(t *testing.T) {
 		err := i.Configure(invalidTLSServerConfig)
 		assert.EqualError(t, err, "unable to read trust store (file=non-existing): open non-existing: no such file or directory")
 	})
-}
-
-func testInstance(t *testing.T, cfg Config) *Auth {
-	cryptoInstance := crypto.NewMemoryCryptoInstance()
-	vcrInstance := vcr.NewTestVCRInstance(t)
-	return NewAuthInstance(cfg, store.NewTestStore(t), vcrInstance, cryptoInstance, nil, nil)
 }
 
 func TestAuth_Name(t *testing.T) {

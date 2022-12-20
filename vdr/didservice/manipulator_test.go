@@ -19,18 +19,16 @@ package didservice
 
 import (
 	"errors"
-	"github.com/stretchr/testify/require"
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/stretchr/testify/assert"
-
-	"github.com/golang/mock/gomock"
-
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // manipulatorTestContext contains the controller and mocks needed for testing the Manipulator

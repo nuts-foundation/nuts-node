@@ -94,6 +94,9 @@ func (system *System) Start() error {
 		if m, ok := engine.(Runnable); ok {
 			coreLogger.Infof("Starting %s...", engineName(engine))
 			err = m.Start()
+			if err != nil {
+				return fmt.Errorf("failed to start %s: %w", engineName(engine), err)
+			}
 			coreLogger.Infof("Started %s", engineName(engine))
 		}
 		return err

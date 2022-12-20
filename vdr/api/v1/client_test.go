@@ -39,7 +39,7 @@ import (
 
 func TestHTTPClient_Create(t *testing.T) {
 	didDoc := did.Document{
-		ID: *vdr.TestDIDA,
+		ID: vdr.TestDIDA,
 	}
 
 	t.Run("ok", func(t *testing.T) {
@@ -66,7 +66,7 @@ func TestHTTPClient_Create(t *testing.T) {
 
 func TestHttpClient_Get(t *testing.T) {
 	didDoc := did.Document{
-		ID: *vdr.TestDIDA,
+		ID: vdr.TestDIDA,
 	}
 	meta := types.DocumentMetadata{}
 
@@ -110,7 +110,7 @@ func TestHttpClient_Get(t *testing.T) {
 
 func TestHTTPClient_ConflictedDIDs(t *testing.T) {
 	didDoc := did.Document{
-		ID: *vdr.TestDIDA,
+		ID: vdr.TestDIDA,
 	}
 	meta := types.DocumentMetadata{}
 
@@ -138,7 +138,7 @@ func TestHTTPClient_ConflictedDIDs(t *testing.T) {
 
 func TestHTTPClient_Update(t *testing.T) {
 	didDoc := did.Document{
-		ID: *vdr.TestDIDA,
+		ID: vdr.TestDIDA,
 	}
 	hash := "0000000000000000000000000000000000000000"
 
@@ -192,7 +192,7 @@ func TestHTTPClient_Deactivate(t *testing.T) {
 }
 func TestHTTPClient_AddNewVerificationMethod(t *testing.T) {
 	pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	method, _ := did.NewVerificationMethod(*vdr.TestMethodDIDA, ssi.JsonWebKey2020, *vdr.TestDIDA, pair.PublicKey)
+	method, _ := did.NewVerificationMethod(vdr.TestMethodDIDA, ssi.JsonWebKey2020, vdr.TestDIDA, pair.PublicKey)
 	methodJSON, _ := json.Marshal(method)
 
 	t.Run("ok", func(t *testing.T) {

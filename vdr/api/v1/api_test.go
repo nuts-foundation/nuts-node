@@ -17,20 +17,19 @@ package v1
 
 import (
 	"errors"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/stretchr/testify/assert"
-
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/mock"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestWrapper_Preprocess(t *testing.T) {

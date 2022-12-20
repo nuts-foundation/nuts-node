@@ -20,9 +20,10 @@ package didservice
 import (
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"strings"
 )
 
 const serviceTypeQueryParameter = "type"
@@ -85,4 +86,9 @@ func ValidateServiceReference(endpointURI ssi.URI) error {
 	}
 
 	return nil
+}
+
+// IsDeactivated returns true if the DID.Document has already been deactivated
+func IsDeactivated(document did.Document) bool {
+	return len(document.Controller) == 0 && len(document.CapabilityInvocation) == 0
 }

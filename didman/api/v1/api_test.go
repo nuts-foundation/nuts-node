@@ -21,8 +21,6 @@ package v1
 
 import (
 	"errors"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/url"
 	"testing"
@@ -33,8 +31,10 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/mock"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestWrapper_Preprocess(t *testing.T) {

@@ -25,14 +25,15 @@ import (
 )
 
 // Two TestDIDs which can be used during testing:
+
 // TestDIDA is a testDID
-var TestDIDA, _ = did.ParseDID("did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW")
+var TestDIDA = did.MustParseDID("did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW")
 
 // TestDIDB is a testDID
-var TestDIDB, _ = did.ParseDID("did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY")
+var TestDIDB = did.MustParseDID("did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY")
 
 // TestMethodDIDA is a test method DID for the TestDIDA
-var TestMethodDIDA, _ = did.ParseDIDURL(TestDIDA.String() + "#abc-method-1")
+var TestMethodDIDA = did.MustParseDIDURL(TestDIDA.String() + "#abc-method-1")
 
 // TestMethodDIDAPrivateKey returns the key for TestMethodDIDA
 func TestMethodDIDAPrivateKey() crypto.TestKey {

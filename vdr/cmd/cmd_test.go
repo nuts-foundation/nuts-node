@@ -283,7 +283,7 @@ func TestEngine_Command(t *testing.T) {
 
 	t.Run("addVerificationMethod", func(t *testing.T) {
 		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		verificationMethod, _ := did.NewVerificationMethod(*vdr.TestMethodDIDA, ssi.JsonWebKey2020, *vdr.TestDIDA, pair.PublicKey)
+		verificationMethod, _ := did.NewVerificationMethod(vdr.TestMethodDIDA, ssi.JsonWebKey2020, vdr.TestDIDA, pair.PublicKey)
 
 		t.Run("ok", func(t *testing.T) {
 			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusOK, ResponseData: verificationMethod})
@@ -338,13 +338,13 @@ func TestEngine_Command(t *testing.T) {
 
 	t.Run("addKeyAgreement", func(t *testing.T) {
 		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		verificationMethod, _ := did.NewVerificationMethod(*vdr.TestMethodDIDA, ssi.JsonWebKey2020, *vdr.TestDIDA, pair.PublicKey)
+		verificationMethod, _ := did.NewVerificationMethod(vdr.TestMethodDIDA, ssi.JsonWebKey2020, vdr.TestDIDA, pair.PublicKey)
 
 		kid := verificationMethod.ID
 
 		t.Run("ok", func(t *testing.T) {
 			document := did.Document{}
-			document.ID = *vdr.TestDIDA
+			document.ID = vdr.TestDIDA
 			document.VerificationMethod.Add(verificationMethod)
 			resolution := v1.DIDResolutionResult{
 				Document:         document,
@@ -361,7 +361,7 @@ func TestEngine_Command(t *testing.T) {
 
 		t.Run("error - DID document is deactivated", func(t *testing.T) {
 			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusOK, ResponseData: v1.DIDResolutionResult{
-				Document:         did.Document{ID: *vdr.TestDIDA},
+				Document:         did.Document{ID: vdr.TestDIDA},
 				DocumentMetadata: v1.DIDDocumentMetadata{Deactivated: true},
 			}})
 

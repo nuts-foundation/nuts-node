@@ -106,7 +106,7 @@ func (a *Wrapper) Routes(router core.EchoRouter) {
 }
 
 // CreateDID creates a new DID Document and returns it.
-func (a Wrapper) CreateDID(ctx echo.Context) error {
+func (a *Wrapper) CreateDID(ctx echo.Context) error {
 	req := DIDCreateRequest{}
 	if err := ctx.Bind(&req); err != nil {
 		return err
@@ -197,7 +197,7 @@ func (a *Wrapper) ConflictedDIDs(ctx echo.Context) error {
 }
 
 // UpdateDID updates a DID Document given a DID and DID Document body. It returns the updated DID Document.
-func (a Wrapper) UpdateDID(ctx echo.Context, targetDID string) error {
+func (a *Wrapper) UpdateDID(ctx echo.Context, targetDID string) error {
 	d, err := did.ParseDID(targetDID)
 	if err != nil {
 		return err

@@ -53,10 +53,10 @@ func Test_networkPublisher_resolveNutsCommServiceOwner(t *testing.T) {
 
 		mockServiceResolver.EXPECT().Resolve(expectedURIA, 5).Return(service, nil)
 
-		serviceOwner, err := sut.resolveNutsCommServiceOwner(*vdr.TestDIDA)
+		serviceOwner, err := sut.resolveNutsCommServiceOwner(vdr.TestDIDA)
 
 		require.NoError(t, err)
-		assert.Equal(t, vdr.TestDIDA, serviceOwner)
+		assert.Equal(t, vdr.TestDIDA, *serviceOwner)
 	})
 
 	t.Run("error from resolver", func(t *testing.T) {
@@ -67,7 +67,7 @@ func Test_networkPublisher_resolveNutsCommServiceOwner(t *testing.T) {
 		sut.serviceResolver = mockServiceResolver
 		mockServiceResolver.EXPECT().Resolve(expectedURIA, 5).Return(did.Service{}, errors.New("b00m!"))
 
-		_, err := sut.resolveNutsCommServiceOwner(*vdr.TestDIDA)
+		_, err := sut.resolveNutsCommServiceOwner(vdr.TestDIDA)
 
 		assert.EqualError(t, err, "could not resolve NutsComm service owner: b00m!")
 	})

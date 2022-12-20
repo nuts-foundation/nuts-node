@@ -21,6 +21,7 @@ package vdr
 import (
 	"errors"
 	"fmt"
+
 	"github.com/lestrrat-go/jwx/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"

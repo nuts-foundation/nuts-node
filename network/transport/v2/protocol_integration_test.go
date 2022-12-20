@@ -22,9 +22,6 @@ package v2
 import (
 	"context"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/stretchr/testify/require"
 	"hash/crc32"
 	"path"
 	"sync"
@@ -38,12 +35,15 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/store"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const integrationTestTimeout = 10 * time.Second
