@@ -296,24 +296,44 @@ func TestState_Add(t *testing.T) {
 
 func TestState_Diagnostics(t *testing.T) {
 	ctx := context.Background()
-	txState := createState(t).(*state)
-	payload := []byte("payload")
-	doc1, _, _ := CreateTestTransactionEx(2, hash.SHA256Sum(payload), nil)
-	err := txState.Add(ctx, doc1, payload)
-	assert.NoError(t, err)
-	diagnostics := txState.Diagnostics()
-	assert.Len(t, diagnostics, 4)
-	// Assert actual diagnostics
-	lines := make([]string, 0)
-	for _, diagnostic := range diagnostics {
-		lines = append(lines, diagnostic.Name()+": "+diagnostic.String())
-	}
-	sort.Strings(lines)
-	actual := strings.Join(lines, "\n")
+	t.Run("non-empty", func(t *testing.T) {
+		txState := createState(t).(*state)
+		payload := []byte("payload")
+		doc1, _, _ := CreateTestTransactionEx(2, hash.SHA256Sum(payload), nil)
+		err := txState.Add(ctx, doc1, payload)
+		assert.NoError(t, err)
+		diagnostics := txState.Diagnostics()
+		assert.Len(t, diagnostics, 5)
+		// Assert actual diagnostics
+		lines := make([]string, 0)
+		for _, diagnostic := range diagnostics {
+			lines = append(lines, diagnostic.Name()+": "+diagnostic.String())
+		}
+		sort.Strings(lines)
+		actual := strings.Join(lines, "\n")
 
-	assert.Contains(t, actual, fmt.Sprintf("dag_xor: %s", doc1.Ref()))
-	assert.Contains(t, actual, "transaction_count: 1")
-	assert.Contains(t, actual, "failed_events: 0")
+		assert.Contains(t, actual, fmt.Sprintf("dag_xor: %s", doc1.Ref()))
+		assert.Contains(t, actual, "transaction_count: 1")
+		assert.Contains(t, actual, "failed_events: 0")
+		assert.Contains(t, actual, "dag_lc_high: 0")
+	})
+	t.Run("empty", func(t *testing.T) {
+		txState := createState(t).(*state)
+		diagnostics := txState.Diagnostics()
+		assert.Len(t, diagnostics, 5)
+		// Assert actual diagnostics
+		lines := make([]string, 0)
+		for _, diagnostic := range diagnostics {
+			lines = append(lines, diagnostic.Name()+": "+diagnostic.String())
+		}
+		sort.Strings(lines)
+		actual := strings.Join(lines, "\n")
+
+		assert.Contains(t, actual, "dag_xor: 00")
+		assert.Contains(t, actual, "transaction_count: 0")
+		assert.Contains(t, actual, "failed_events: 0")
+		assert.Contains(t, actual, "dag_lc_high: 0")
+	})
 }
 
 func TestState_XOR(t *testing.T) {
