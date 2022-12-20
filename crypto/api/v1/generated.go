@@ -516,8 +516,6 @@ func (w *ServerInterfaceWrapper) SignJwt(ctx echo.Context) error {
 	return err
 }
 
-// PATCH: This template file was taken from pkg/codegen/templates/echo/echo-register.tmpl
-
 // This is a simple interface which specifies echo.Route addition functions which
 // are present on both echo.Echo and echo.Group, since we want to allow using
 // either of them for path registration
@@ -533,14 +531,6 @@ type EchoRouter interface {
 	TRACE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 }
 
-type Preprocessor interface {
-	Preprocess(operationID string, context echo.Context)
-}
-
-type ErrorStatusCodeResolver interface {
-	ResolveStatusCode(err error) int
-}
-
 // RegisterHandlers adds each server route to the EchoRouter.
 func RegisterHandlers(router EchoRouter, si ServerInterface) {
 	RegisterHandlersWithBaseURL(router, si, "")
@@ -554,15 +544,166 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	// PATCH: This alteration wraps the call to the implementation in a function that sets the "OperationId" context parameter,
-	// so it can be used in error reporting middleware.
-	router.POST(baseURL+"/internal/crypto/v1/sign_jws", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("SignJws", context)
-		return wrapper.SignJws(context)
-	})
-	router.POST(baseURL+"/internal/crypto/v1/sign_jwt", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("SignJwt", context)
-		return wrapper.SignJwt(context)
-	})
+	router.POST(baseURL+"/internal/crypto/v1/sign_jws", wrapper.SignJws)
+	router.POST(baseURL+"/internal/crypto/v1/sign_jwt", wrapper.SignJwt)
 
+}
+
+type SignJwsRequestObject struct {
+	Body *SignJwsJSONRequestBody
+}
+
+type SignJwsResponseObject interface {
+	VisitSignJwsResponse(w http.ResponseWriter) error
+}
+
+type SignJws200TextResponse string
+
+func (response SignJws200TextResponse) VisitSignJwsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(200)
+
+	_, err := w.Write([]byte(response))
+	return err
+}
+
+type SignJwsdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response SignJwsdefaultJSONResponse) VisitSignJwsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type SignJwtRequestObject struct {
+	Body *SignJwtJSONRequestBody
+}
+
+type SignJwtResponseObject interface {
+	VisitSignJwtResponse(w http.ResponseWriter) error
+}
+
+type SignJwt200TextResponse string
+
+func (response SignJwt200TextResponse) VisitSignJwtResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(200)
+
+	_, err := w.Write([]byte(response))
+	return err
+}
+
+type SignJwtdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response SignJwtdefaultJSONResponse) VisitSignJwtResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+// StrictServerInterface represents all server handlers.
+type StrictServerInterface interface {
+	// sign a payload and headers with the private key of the given kid into a JWS object
+	// (POST /internal/crypto/v1/sign_jws)
+	SignJws(ctx context.Context, request SignJwsRequestObject) (SignJwsResponseObject, error)
+	// sign a JWT payload with the private key of the given kid
+	// (POST /internal/crypto/v1/sign_jwt)
+	SignJwt(ctx context.Context, request SignJwtRequestObject) (SignJwtResponseObject, error)
+}
+
+type StrictHandlerFunc func(ctx echo.Context, args interface{}) (interface{}, error)
+
+type StrictMiddlewareFunc func(f StrictHandlerFunc, operationID string) StrictHandlerFunc
+
+func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareFunc) ServerInterface {
+	return &strictHandler{ssi: ssi, middlewares: middlewares}
+}
+
+type strictHandler struct {
+	ssi         StrictServerInterface
+	middlewares []StrictMiddlewareFunc
+}
+
+// SignJws operation middleware
+func (sh *strictHandler) SignJws(ctx echo.Context) error {
+	var request SignJwsRequestObject
+
+	var body SignJwsJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.SignJws(ctx.Request().Context(), request.(SignJwsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SignJws")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(SignJwsResponseObject); ok {
+		return validResponse.VisitSignJwsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// SignJwt operation middleware
+func (sh *strictHandler) SignJwt(ctx echo.Context) error {
+	var request SignJwtRequestObject
+
+	var body SignJwtJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.SignJwt(ctx.Request().Context(), request.(SignJwtRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SignJwt")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(SignJwtResponseObject); ok {
+		return validResponse.VisitSignJwtResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
 }
