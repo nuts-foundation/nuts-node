@@ -56,6 +56,7 @@ type issuer struct {
 	store         Store
 	publisher     Publisher
 	keyResolver   keyResolver
+	keyStore      crypto.KeyStore
 	trustConfig   *trust.Config
 	jsonldManager jsonld.JSONLD
 }
@@ -155,7 +156,8 @@ func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.Verifiab
 	}
 	proofOptions := proof.ProofOptions{Created: created}
 
-	signingResult, err := proof.NewLDProof(proofOptions).Sign(credentialAsMap, signature.JSONWebSignature2020{ContextLoader: i.jsonldManager.DocumentLoader()}, key)
+	webSig := signature.JSONWebSignature2020{ContextLoader: i.jsonldManager.DocumentLoader(), Signer: i.keyStore}
+	signingResult, err := proof.NewLDProof(proofOptions).Sign(credentialAsMap, webSig, key)
 	if err != nil {
 		return nil, err
 	}
@@ -227,7 +229,8 @@ func (i issuer) buildRevocation(credentialToRevoke vc.VerifiableCredential) (*cr
 	_ = json.Unmarshal(b, &revocationAsMap)
 
 	ldProof := proof.NewLDProof(proof.ProofOptions{Created: time.Now()})
-	signingResult, err := ldProof.Sign(revocationAsMap, signature.JSONWebSignature2020{ContextLoader: i.jsonldManager.DocumentLoader()}, assertionKey)
+	webSig := signature.JSONWebSignature2020{ContextLoader: i.jsonldManager.DocumentLoader(), Signer: i.keyStore}
+	signingResult, err := ldProof.Sign(revocationAsMap, webSig, assertionKey)
 	if err != nil {
 		return nil, err
 	}

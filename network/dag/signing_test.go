@@ -41,12 +41,13 @@ func TestTransactionSigner(t *testing.T) {
 	expectedPrevs := []hash2.SHA256Hash{prev1, prev2}
 	contentType := "foo/bar"
 	moment := time.Date(2020, 10, 23, 13, 0, 0, 0, time.FixedZone("test", 1))
+	jwxSigner := crypto.NewMemoryCryptoInstance()
 	t.Run("ok - attach key", func(t *testing.T) {
 		tx, err := NewTransaction(payloadHash, contentType, expectedPrevs, nil, 0)
 		require.NoError(t, err)
 
-		signer := crypto.NewTestKey(kid)
-		signedTx, err := NewTransactionSigner(signer, true).Sign(tx, moment)
+		key := crypto.NewTestKey(kid)
+		signedTx, err := NewTransactionSigner(jwxSigner, key, true).Sign(tx, moment)
 		require.NoError(t, err)
 		// JWS headers
 		assert.Equal(t, contentType, signedTx.PayloadType())
@@ -67,8 +68,8 @@ func TestTransactionSigner(t *testing.T) {
 		tx, err := NewTransaction(payloadHash, contentType, expectedPrevs, nil, 0)
 		require.NoError(t, err)
 
-		signer := crypto.NewTestKey(kid)
-		signedTx, err := NewTransactionSigner(signer, false).Sign(tx, moment)
+		key := crypto.NewTestKey(kid)
+		signedTx, err := NewTransactionSigner(jwxSigner, key, false).Sign(tx, moment)
 		require.NoError(t, err)
 		assert.Equal(t, kid, signedTx.SigningKeyID())
 		assert.Nil(t, signedTx.SigningKey())
@@ -76,13 +77,13 @@ func TestTransactionSigner(t *testing.T) {
 	})
 	t.Run("signing time is zero", func(t *testing.T) {
 		tx, _ := NewTransaction(payloadHash, contentType, expectedPrevs, nil, 0)
-		signedTransaction, err := NewTransactionSigner(crypto.NewTestKey(kid), false).Sign(tx, time.Time{})
+		signedTransaction, err := NewTransactionSigner(jwxSigner, crypto.NewTestKey(kid), false).Sign(tx, time.Time{})
 		assert.Empty(t, signedTransaction)
 		assert.EqualError(t, err, "signing time is zero")
 	})
 	t.Run("already signed", func(t *testing.T) {
 		tx, _ := NewTransaction(payloadHash, contentType, expectedPrevs, nil, 0)
-		signer := NewTransactionSigner(crypto.NewTestKey(kid), false)
+		signer := NewTransactionSigner(jwxSigner, crypto.NewTestKey(kid), false)
 		signedTransaction, _ := signer.Sign(tx, time.Now())
 		signedTransaction2, err := signer.Sign(signedTransaction, time.Now())
 		assert.Nil(t, signedTransaction2)

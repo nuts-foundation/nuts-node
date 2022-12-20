@@ -20,6 +20,7 @@ package signature
 
 import (
 	"fmt"
+	"github.com/lestrrat-go/jwx/jws"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -31,18 +32,20 @@ import (
 // It bundles the correct implementation of the canonicalize, hash and sign operations.
 type JSONWebSignature2020 struct {
 	ContextLoader ld.DocumentLoader
+	Signer        crypto.JWTSigner
 }
 
 // Sign signs the document as a JWS.
 func (s JSONWebSignature2020) Sign(doc []byte, key crypto.Key) ([]byte, error) {
-	sig, err := crypto.SignDetachedJWS(doc, detachedJWSHeaders(), key.Signer())
+	headers := detachedJWSHeaders()
+	headers[jws.KeyIDKey] = key.KID()
+	sig, err := s.Signer.SignJWS(doc, headers, key, true)
 	return []byte(sig), err
 }
 
 // CanonicalizeDocument canonicalizes a document using the LD canonicalization algorithm.
 // Can be used for both the LD proof as the document. It requires the document to have a valid context.
 func (s JSONWebSignature2020) CanonicalizeDocument(doc interface{}) ([]byte, error) {
-
 	res, err := jsonld.LDUtil{s.ContextLoader}.Canonicalize(doc)
 	if err != nil {
 		return nil, fmt.Errorf("canonicalization failed: %w", err)

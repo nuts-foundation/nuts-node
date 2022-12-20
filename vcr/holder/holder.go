@@ -99,7 +99,7 @@ func (h vcHolder) BuildVP(credentials []vc.VerifiableCredential, proofOptions pr
 	// TODO: choose between different proof types (JWT or LD-Proof)
 	signingResult, err := proof.
 		NewLDProof(proofOptions).
-		Sign(document, signature.JSONWebSignature2020{ContextLoader: h.jsonldManager.DocumentLoader()}, key)
+		Sign(document, signature.JSONWebSignature2020{ContextLoader: h.jsonldManager.DocumentLoader(), Signer: h.keyStore}, key)
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign VP with LD proof: %w", err)
 	}

@@ -43,7 +43,6 @@ func NewTestNetworkInstance(t *testing.T) *Network {
 		config,
 		didservice.KeyResolver{Store: vdrStore},
 		cryptoInstance,
-		cryptoInstance,
 		didservice.Resolver{Store: vdrStore},
 		didservice.Finder{Store: vdrStore},
 		eventPublisher,

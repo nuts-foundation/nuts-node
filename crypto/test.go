@@ -20,10 +20,8 @@ package crypto
 
 import (
 	"crypto"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
+	log "github.com/sirupsen/logrus"
 )
 
 // NewMemoryCryptoInstance returns a new Crypto instance to be used for tests, storing keys in-memory.
@@ -84,11 +82,13 @@ func (m memoryStorage) SavePrivateKey(kid string, key crypto.PrivateKey) error {
 }
 
 func NewTestKey(kid string) Key {
-	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	return keySelector{
-		privateKey: key,
-		kid:        kid,
+	key, err := NewEphemeralKey(func(key crypto.PublicKey) (string, error) {
+		return kid, nil
+	})
+	if err != nil {
+		log.Fatal(err.Error())
 	}
+	return key
 }
 
 // TestKey is a Key impl for testing purposes

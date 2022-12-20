@@ -64,20 +64,25 @@ type Decrypter interface {
 // JWTSigner is the interface used to sign authorization tokens.
 type JWTSigner interface {
 	// SignJWT creates a signed JWT using the indicated key and map of claims.
-	// Returns ErrPrivateKeyNotFound when indicated private key is not present.
-	SignJWT(claims map[string]interface{}, kid string) (string, error)
+	// The key can be its KID (key ID) or an instance of Key.
+	// Returns ErrPrivateKeyNotFound when the private is not present.
+	SignJWT(claims map[string]interface{}, key interface{}) (string, error)
 	// SignJWS creates a signed JWS using the indicated key and map of headers and payload as bytes.
 	// The detached boolean indicates if the body needs to be excluded from the response (detached mode).
-	// Returns ErrPrivateKeyNotFound when indicated private key is not present.
-	SignJWS(payload []byte, headers map[string]interface{}, kid string, detached bool) (string, error)
+	// The key can be its KID (key ID) or an instance of Key.
+	// Returns ErrPrivateKeyNotFound when the private key is not present.
+	SignJWS(payload []byte, headers map[string]interface{}, key interface{}, detached bool) (string, error)
 }
 
-// Key is a helper interface which holds a crypto.Signer, KID and public key for a key.
+// Key is a helper interface that describes a private key in the crypto module, specifying its KID and public part.
 type Key interface {
-	// Signer returns a crypto.Signer.
-	Signer() crypto.Signer
 	// KID returns the unique ID for this key.
 	KID() string
-	// Public returns the public key. This is a short-hand for Signer().Public()
+	// Public returns the public key.
 	Public() crypto.PublicKey
+}
+
+type KeyContainer interface {
+	Key
+	Signer() crypto.Signer
 }

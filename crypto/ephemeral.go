@@ -26,8 +26,11 @@ func NewEphemeralKey(namingFunc KIDNamingFunc) (Key, error) {
 		return nil, err
 	}
 
-	return keySelector{
+	return &memoryKey{
+		basicKey: basicKey{
+			publicKey: keyPair.Public(),
+			kid:       kid,
+		},
 		privateKey: keyPair,
-		kid:        kid,
 	}, nil
 }

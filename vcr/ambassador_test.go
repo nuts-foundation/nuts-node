@@ -108,10 +108,7 @@ func TestAmbassador_handleReprocessEvent(t *testing.T) {
 	// load key
 	pem, _ := os.ReadFile("test/private.pem")
 	signer, _ := util.PemToPrivateKey(pem)
-	key := crypto.TestKey{
-		PrivateKey: signer,
-		Kid:        fmt.Sprintf("%s#1", vc.Issuer.String()),
-	}
+	key := crypto.NewTestKey(fmt.Sprintf("%s#1", vc.Issuer.String()))
 
 	// trust otherwise Resolve wont work
 	ctx.vcr.Trust(vc.Type[0], vc.Issuer)
@@ -123,7 +120,7 @@ func TestAmbassador_handleReprocessEvent(t *testing.T) {
 	// Publish a VC
 	payload, _ := json.Marshal(vc)
 	unsignedTransaction, _ := dag.NewTransaction(hash.SHA256Sum(payload), types.VcDocumentType, nil, nil, uint32(0))
-	signedTransaction, err := dag.NewTransactionSigner(key, true).Sign(unsignedTransaction, time.Now())
+	signedTransaction, err := dag.NewTransactionSigner(ctx.crypto, key, true).Sign(unsignedTransaction, time.Now())
 	require.NoError(t, err)
 	twp := events.TransactionWithPayload{
 		Transaction: signedTransaction,

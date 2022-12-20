@@ -83,7 +83,7 @@ func TestWrapper_SignJwt(t *testing.T) {
 		assert.EqualError(t, err, "invalid sign request: missing kid")
 	})
 
-	t.Run("error - SignJWT fails", func(t *testing.T) {
+	t.Run("error - signJWT fails", func(t *testing.T) {
 		ctx := newMockContext(t)
 
 		jsonRequest := SignJwtRequest{

@@ -34,7 +34,6 @@ func TestNewEphemeralKey(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.NotNil(t, key)
-		assert.NotNil(t, key.Signer())
 		assert.NotNil(t, key.Public())
 		assert.Equal(t, "kid", key.KID())
 	})
