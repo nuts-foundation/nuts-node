@@ -19,7 +19,7 @@ require (
 	github.com/lestrrat-go/jwx v1.2.25
 	github.com/magiconair/properties v1.8.7
 	github.com/mdp/qrterminal/v3 v3.0.0
-	github.com/nats-io/nats-server/v2 v2.9.9
+	github.com/nats-io/nats-server/v2 v2.9.10
 	github.com/nats-io/nats.go v1.21.0
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.4.0
