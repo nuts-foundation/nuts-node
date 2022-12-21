@@ -36,7 +36,7 @@ func Test_writeEventList(t *testing.T) {
 	store := NewTestStore(t)
 
 	t.Run("ok", func(t *testing.T) {
-		el := eventList{Events: []event{{DocRef: hash.RandomHash()}}}
+		el := eventList{Events: []event{{PayloadHash: hash.RandomHash()}}}
 		err := store.db.Write(context.Background(), func(tx stoabs.WriteTx) error {
 			return writeEventList(tx, el, testDID)
 		})

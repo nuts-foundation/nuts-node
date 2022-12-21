@@ -76,24 +76,25 @@ func (tl *store) Configure(_ core.ServerConfig) (err error) {
 func (tl *store) Add(didDocument did.Document, transaction Transaction) error {
 	// prevents parallel execution
 	err := tl.db.Write(context.Background(), func(tx stoabs.WriteTx) error {
-		if isDuplicate(tx, transaction) {
+		if exists, err := transactionExists(tx, transaction.Ref); err != nil {
+			return err
+		} else if exists {
 			return nil
 		}
 
 		currentEventList, err := readEventList(tx, didDocument.ID)
 		if err != nil {
-			return err
+			return fmt.Errorf("read eventList failed: %w", err)
 		}
 
 		// write document to documentShelf
 		err = writeDocument(tx, didDocument, transaction)
 		if err != nil {
-			return err
+			return fmt.Errorf("writeDocument failed: %w", err)
 		}
 
-		newEvent := transaction.toEvent()
-		newEvent.document = &didDocument
-		index := currentEventList.insert(newEvent)
+		transaction.document = &didDocument
+		index := currentEventList.insert(event(transaction))
 		var base *event
 		applyList := currentEventList.Events[index:]
 		if index > 0 {
@@ -101,12 +102,12 @@ func (tl *store) Add(didDocument did.Document, transaction Transaction) error {
 		}
 
 		if err = applyFrom(tx, base, applyList); err != nil {
-			return err
+			return fmt.Errorf("applying event list failed: %w", err)
 		}
 		return writeEventList(tx, currentEventList, didDocument.ID)
 	})
 	if err != nil {
-		return fmt.Errorf("add: database error on commit: %w", err)
+		return fmt.Errorf("database error on commit: %w", err)
 	}
 	return nil
 }
@@ -124,7 +125,7 @@ func (tl *store) Resolve(id did.DID, resolveMetadata *vdr.ResolveMetadata) (retu
 		for {
 			metadata, err := readMetadata(tx, latestMetaRef)
 			if err != nil {
-				return err
+				return fmt.Errorf("read metadata failed: %w", err)
 			}
 
 			if metadata.Deactivated && resolveMetadata == nil {
@@ -136,7 +137,7 @@ func (tl *store) Resolve(id did.DID, resolveMetadata *vdr.ResolveMetadata) (retu
 				returnMetadata = &mdTmp
 				document, err := readDocument(tx, metadata.Hash)
 				if err != nil {
-					return err
+					return fmt.Errorf("read document failed: %w", err)
 				}
 				returnDocument = &document
 				return nil
@@ -158,13 +159,13 @@ func (tl *store) Iterate(fn vdr.DocIterator) error {
 		return latestReader.Iterate(func(didKey stoabs.Key, metadataRecordRef []byte) error {
 			metadata, err := readMetadata(tx, metadataRecordRef)
 			if err != nil {
-				return err
+				return fmt.Errorf("read metadata failed: %w", err)
 			}
 
 			var document did.Document
 			document, err = readDocument(tx, metadata.Hash)
 			if err != nil {
-				return err
+				return fmt.Errorf("read document failed: %w", err)
 			}
 
 			return fn(document, metadata.asVDRMetadata())
@@ -188,12 +189,12 @@ func (tl *store) Conflicted(fn vdr.DocIterator) error {
 			}
 			metadata, err := readMetadata(tx, latestMetaRef)
 			if err != nil {
-				return err
+				return fmt.Errorf("read metadata failed: %w", err)
 			}
 
 			document, err := readDocument(tx, metadata.Hash)
 			if err != nil {
-				return err
+				return fmt.Errorf("read document failed: %w", err)
 			}
 
 			return fn(document, metadata.asVDRMetadata())

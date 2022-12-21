@@ -34,13 +34,13 @@ func readDocument(tx stoabs.ReadTx, documentHash hash.SHA256Hash) (did.Document,
 	documentReader := tx.GetShelfReader(documentShelf)
 	documentBytes, err := documentReader.Get(stoabs.NewHashKey(documentHash))
 	if err != nil {
-		return document, fmt.Errorf("readDocument: database error on document read: %w", err)
+		return document, fmt.Errorf("database error on document read: %w", err)
 	}
 	if len(documentBytes) == 0 {
 		return document, types.ErrNotFound
 	}
 	if err := json.Unmarshal(documentBytes, &document); err != nil {
-		return document, fmt.Errorf("readDocument: unmarshal error on document: %w", err)
+		return document, fmt.Errorf("unmarshal error on document: %w", err)
 	}
 
 	return document, nil
@@ -51,13 +51,13 @@ func readMetadata(tx stoabs.ReadTx, ref []byte) (documentMetadata, error) {
 	metadataReader := tx.GetShelfReader(metadataShelf)
 	metadataBytes, err := metadataReader.Get(stoabs.BytesKey(ref))
 	if err != nil {
-		return metadata, fmt.Errorf("readMetadata: database error on documentMetadata read: %w", err)
+		return metadata, fmt.Errorf("database error on documentMetadata read: %w", err)
 	}
 	if len(metadataBytes) == 0 {
-		return metadata, errors.New("readMetadata: documentMetadata not found")
+		return metadata, errors.New("documentMetadata not found")
 	}
 	if err := json.Unmarshal(metadataBytes, &metadata); err != nil {
-		return metadata, fmt.Errorf("readMetadata: unmarshal error on documentMetadata: %w", err)
+		return metadata, fmt.Errorf("unmarshal error on documentMetadata: %w", err)
 	}
 
 	return metadata, nil
@@ -68,7 +68,7 @@ func readEventList(tx stoabs.ReadTx, id did.DID) (eventList, error) {
 	eventReader := tx.GetShelfReader(eventShelf)
 	eventListBytes, err := eventReader.Get(stoabs.BytesKey(id.String()))
 	if err != nil {
-		return el, fmt.Errorf("readEventList: database error on events read: %w", err)
+		return el, fmt.Errorf("database error on events read: %w", err)
 	}
 	if len(eventListBytes) == 0 {
 		return el, nil
@@ -76,16 +76,16 @@ func readEventList(tx stoabs.ReadTx, id did.DID) (eventList, error) {
 
 	err = json.Unmarshal(eventListBytes, &el)
 	if err != nil {
-		return el, fmt.Errorf("readEventList: unmarshall on eventList: %w", err)
+		return el, fmt.Errorf("unmarshal error on eventList: %w", err)
 	}
 	return el, nil
 }
 
-func isDuplicate(tx stoabs.ReadTx, transaction Transaction) bool {
+func transactionExists(tx stoabs.ReadTx, ref hash.SHA256Hash) (bool, error) {
 	txReader := tx.GetShelfReader(transactionIndexShelf)
-	bytes, err := txReader.Get(stoabs.HashKey(transaction.Ref))
-	if err == nil && len(bytes) > 0 {
-		return true
+	bytes, err := txReader.Get(stoabs.HashKey(ref))
+	if err != nil {
+		return false, nil
 	}
-	return false
+	return len(bytes) > 0, nil
 }

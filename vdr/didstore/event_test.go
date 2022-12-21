@@ -40,60 +40,76 @@ func mustParseHash(hex string) hash.SHA256Hash {
 	return h
 }
 
-func TestEventList_insert(t *testing.T) {
-	el := eventList{}
+func TestEvent_before(t *testing.T) {
+	t.Run("on clock", func(t *testing.T) {
+		assert.True(t, event{}.before(event{Clock: 1}))
+		assert.False(t, event{Clock: 1}.before(event{}))
+	})
 
-	el.insert(event{})
-
-	assert.Len(t, el.Events, 1)
+	t.Run("on signingTime", func(t *testing.T) {
+		assert.True(t, event{}.before(event{SigningTime: time.Now()}))
+		assert.False(t, event{SigningTime: time.Now()}.before(event{}))
+	})
+	t.Run("on ref", func(t *testing.T) {
+		assert.True(t, event{}.before(event{Ref: sha1s}))
+		assert.False(t, event{Ref: sha1s}.before(event{}))
+	})
 }
 
-func TestEventList_Insert(t *testing.T) {
+func TestEventList_insert(t *testing.T) {
+	t.Run("empty list", func(t *testing.T) {
+		el := eventList{}
+
+		el.insert(event{})
+
+		assert.Len(t, el.Events, 1)
+	})
+
 	t.Run("in order", func(t *testing.T) {
 		el := eventList{}
 
-		assert.Equal(t, 0, el.insert(event{TXRef: sha0s}))
-		assert.Equal(t, 1, el.insert(event{TXRef: sha1s, Clock: 1}))
+		assert.Equal(t, 0, el.insert(event{Ref: sha0s}))
+		assert.Equal(t, 1, el.insert(event{Ref: sha1s, Clock: 1}))
 
 		require.Len(t, el.Events, 2)
-		assert.Equal(t, sha0s, el.Events[0].TXRef)
-		assert.Equal(t, sha1s, el.Events[1].TXRef)
+		assert.Equal(t, sha0s, el.Events[0].Ref)
+		assert.Equal(t, sha1s, el.Events[1].Ref)
 	})
 
 	t.Run("in reverse", func(t *testing.T) {
 		el := eventList{}
 
-		assert.Equal(t, 0, el.insert(event{TXRef: sha1s, Clock: 1}))
-		assert.Equal(t, 0, el.insert(event{TXRef: sha0s}))
+		assert.Equal(t, 0, el.insert(event{Ref: sha1s, Clock: 1}))
+		assert.Equal(t, 0, el.insert(event{Ref: sha0s}))
 
 		require.Len(t, el.Events, 2)
-		assert.Equal(t, sha0s, el.Events[0].TXRef)
-		assert.Equal(t, sha1s, el.Events[1].TXRef)
+		assert.Equal(t, sha0s, el.Events[0].Ref)
+		assert.Equal(t, sha1s, el.Events[1].Ref)
 	})
 
 	t.Run("conflict in order", func(t *testing.T) {
 		el := eventList{}
 
-		assert.Equal(t, 0, el.insert(event{TXRef: sha0s}))
-		assert.Equal(t, 1, el.insert(event{TXRef: sha1s, Clock: 1}))
-		assert.Equal(t, 2, el.insert(event{TXRef: sha2s, Clock: 1, Created: time.Now()}))
+		assert.Equal(t, 0, el.insert(event{Ref: sha0s}))
+		assert.Equal(t, 1, el.insert(event{Ref: sha1s, Clock: 1}))
+		assert.Equal(t, 2, el.insert(event{Ref: sha2s, Clock: 1, SigningTime: time.Now()}))
 
 		require.Len(t, el.Events, 3)
-		assert.Equal(t, sha0s, el.Events[0].TXRef)
-		assert.Equal(t, sha1s, el.Events[1].TXRef)
-		assert.Equal(t, sha2s, el.Events[2].TXRef)
+		assert.Equal(t, sha0s, el.Events[0].Ref)
+		assert.Equal(t, sha1s, el.Events[1].Ref)
+		assert.Equal(t, sha2s, el.Events[2].Ref)
 	})
 
 	t.Run("conflict out of order", func(t *testing.T) {
 		el := eventList{}
 
-		assert.Equal(t, 0, el.insert(event{TXRef: sha2s, Clock: 1, Created: time.Now()}))
-		assert.Equal(t, 0, el.insert(event{TXRef: sha0s}))
-		assert.Equal(t, 1, el.insert(event{TXRef: sha1s, Clock: 1}))
+		assert.Equal(t, 0, el.insert(event{Ref: sha2s, Clock: 1, SigningTime: time.Now()}))
+		assert.Equal(t, 0, el.insert(event{Ref: sha0s}))
+		assert.Equal(t, 1, el.insert(event{Ref: sha1s, Clock: 1}))
 
 		require.Len(t, el.Events, 3)
-		assert.Equal(t, sha0s, el.Events[0].TXRef)
-		assert.Equal(t, sha1s, el.Events[1].TXRef)
-		assert.Equal(t, sha2s, el.Events[2].TXRef)
+		assert.Equal(t, sha0s, el.Events[0].Ref)
+		assert.Equal(t, sha1s, el.Events[1].Ref)
+		assert.Equal(t, sha2s, el.Events[2].Ref)
 	})
 }

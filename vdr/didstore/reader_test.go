@@ -52,7 +52,7 @@ func Test_readMetadata(t *testing.T) {
 		err := store.db.Read(context.Background(), func(tx stoabs.ReadTx) error {
 			_, err := readMetadata(tx, []byte{})
 
-			assert.EqualError(t, err, "readMetadata: documentMetadata not found")
+			assert.EqualError(t, err, "documentMetadata not found")
 
 			return nil
 		})
@@ -76,7 +76,7 @@ func Test_readEventList(t *testing.T) {
 	})
 
 	t.Run("ok", func(t *testing.T) {
-		el := eventList{Events: []event{{DocRef: hash.RandomHash()}}}
+		el := eventList{Events: []event{{PayloadHash: hash.RandomHash()}}}
 		err := store.db.Write(context.Background(), func(tx stoabs.WriteTx) error {
 			eventShelf := tx.GetShelfWriter(eventShelf)
 			elBytes, _ := json.Marshal(el)
@@ -97,12 +97,12 @@ func Test_readEventList(t *testing.T) {
 	})
 }
 
-func Test_isDuplicate(t *testing.T) {
+func Test_transactionExists(t *testing.T) {
 	store := NewTestStore(t)
 
 	t.Run("false", func(t *testing.T) {
 		err := store.db.Read(context.Background(), func(tx stoabs.ReadTx) error {
-			dup := isDuplicate(tx, newTestTransaction(did.Document{}))
+			dup, _ := transactionExists(tx, hash.RandomHash())
 
 			assert.False(t, dup)
 
@@ -122,7 +122,7 @@ func Test_isDuplicate(t *testing.T) {
 		require.NoError(t, err)
 
 		err = store.db.Read(context.Background(), func(tx stoabs.ReadTx) error {
-			dup := isDuplicate(tx, transaction)
+			dup, _ := transactionExists(tx, transaction.Ref)
 
 			assert.True(t, dup)
 
