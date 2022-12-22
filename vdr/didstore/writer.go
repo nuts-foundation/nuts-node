@@ -37,32 +37,28 @@ func writeEventList(tx stoabs.WriteTx, newEventList eventList, id did.DID) error
 	eventShelf := tx.GetShelfWriter(eventShelf)
 	err := eventShelf.Put(stoabs.BytesKey(id.String()), nelBytes)
 	if err != nil {
-		return fmt.Errorf("database error: %w", err)
+		return err
 	}
 	return nil
 }
 
 func writeDocument(tx stoabs.WriteTx, didDocument did.Document, transaction Transaction) error {
-	var (
-		documentWriter stoabs.Writer
-		documentBytes  []byte
-	)
 	// transaction
 	transactionWriter := tx.GetShelfWriter(transactionIndexShelf)
 	err := transactionWriter.Put(stoabs.HashKey(transaction.Ref), transaction.PayloadHash.Slice())
 	if err != nil {
-		return fmt.Errorf("database error on txRef write: %w", err)
+		return err
 	}
 
 	// document
-	documentWriter = tx.GetShelfWriter(documentShelf)
-	documentBytes, err = json.Marshal(didDocument)
+	documentWriter := tx.GetShelfWriter(documentShelf)
+	documentBytes, err := json.Marshal(didDocument)
 	if err != nil {
 		return fmt.Errorf("marshalling DID Document: %w", err)
 	}
 	err = documentWriter.Put(stoabs.HashKey(transaction.PayloadHash), documentBytes)
 	if err != nil {
-		return fmt.Errorf("database error on document write: %w", err)
+		return err
 	}
 	return nil
 }
@@ -75,7 +71,7 @@ func writeLatest(tx stoabs.WriteTx, id did.DID, metadata documentMetadata) error
 	mdID := fmt.Sprintf("%s%d", id, metadata.Version)
 	err := latestWriter.Put(stoabs.BytesKey(id.String()), []byte(mdID))
 	if err != nil {
-		return fmt.Errorf("database error on write: %w", err)
+		return err
 	}
 	return nil
 }
@@ -100,7 +96,7 @@ func applyFrom(tx stoabs.WriteTx, base *event, applyList []event) error {
 	conflictedWriter := tx.GetShelfWriter(conflictedShelf)
 	cBytes, err := statsWriter.Get(stoabs.BytesKey(conflictedCountKey))
 	if err != nil {
-		return fmt.Errorf("database error on conflictedCount read: %w", err)
+		return err
 	}
 	if len(cBytes) > 0 {
 		conflictedCount = binary.BigEndian.Uint32(cBytes)
@@ -121,7 +117,7 @@ func applyFrom(tx stoabs.WriteTx, base *event, applyList []event) error {
 		metadata = &m
 		b, err := conflictedWriter.Get(stoabs.BytesKey(document.ID.String()))
 		if err != nil {
-			return fmt.Errorf("database error on conflicted read: %w", err)
+			return err
 		}
 		if len(b) > 0 {
 			// it was already conflicted
@@ -148,13 +144,13 @@ func applyFrom(tx stoabs.WriteTx, base *event, applyList []event) error {
 		err = conflictedWriter.Delete(stoabs.BytesKey(document.ID.String()))
 	}
 	if err != nil {
-		return fmt.Errorf("database error on conflicted write: %w", err)
+		return err
 	}
 	cBytes = make([]byte, 4)
 	binary.BigEndian.PutUint32(cBytes, conflictedCount)
 	err = statsWriter.Put(stoabs.BytesKey(conflictedCountKey), cBytes)
 	if err != nil {
-		return fmt.Errorf("database error on conflictedCount write: %w", err)
+		return err
 	}
 
 	// new document
@@ -172,7 +168,7 @@ func incrementDocumentCount(tx stoabs.WriteTx) error {
 	statsWriter := tx.GetShelfWriter(statsShelf)
 	cBytes, err := statsWriter.Get(stoabs.BytesKey(documentCountKey))
 	if err != nil {
-		return fmt.Errorf("database error on read: %w", err)
+		return err
 	}
 	if len(cBytes) > 0 {
 		docCount = binary.BigEndian.Uint32(cBytes)
@@ -182,7 +178,7 @@ func incrementDocumentCount(tx stoabs.WriteTx) error {
 	binary.BigEndian.PutUint32(cBytes, docCount+1)
 	err = statsWriter.Put(stoabs.BytesKey(documentCountKey), cBytes)
 	if err != nil {
-		return fmt.Errorf("database error on write: %w", err)
+		return err
 	}
 	return nil
 }
@@ -200,11 +196,6 @@ func applyEvent(tx stoabs.WriteTx, latestMetadata *documentMetadata, nextEvent e
 		SourceTransactions:  []hash.SHA256Hash{nextEvent.Ref},
 		Deactivated:         isDeactivated(nextDocument),
 	}
-	if latestMetadata != nil {
-		nextMetadata.Version = latestMetadata.Version + 1
-		nextMetadata.Created = latestMetadata.Created
-		nextMetadata.PreviousHash = &latestMetadata.Hash
-	}
 
 	nextDocument, nextMetadata, err = applyDocument(tx, latestMetadata, nextDocument, nextMetadata)
 	if err != nil {
@@ -213,7 +204,7 @@ func applyEvent(tx stoabs.WriteTx, latestMetadata *documentMetadata, nextEvent e
 	metadataBytes, _ := json.Marshal(nextMetadata)
 	metadataWriter := tx.GetShelfWriter(metadataShelf)
 	if err = metadataWriter.Put(stoabs.BytesKey(fmt.Sprintf("%s%d", nextDocument.ID.String(), nextMetadata.Version)), metadataBytes); err != nil {
-		return &nextDocument, &nextMetadata, fmt.Errorf("database error on documentMetadata write: %w", err)
+		return &nextDocument, &nextMetadata, err
 	}
 
 	// if conflicted write nextDocument
@@ -221,7 +212,7 @@ func applyEvent(tx stoabs.WriteTx, latestMetadata *documentMetadata, nextEvent e
 		docBytes, _ := json.Marshal(nextDocument)
 		documentWriter := tx.GetShelfWriter(documentShelf)
 		if err = documentWriter.Put(stoabs.HashKey(nextMetadata.Hash), docBytes); err != nil {
-			return &nextDocument, &nextMetadata, fmt.Errorf("database error on document write: %w", err)
+			return &nextDocument, &nextMetadata, err
 		}
 	}
 
@@ -236,7 +227,6 @@ func applyDocument(tx stoabs.ReadTx, currentMeta *documentMetadata, newDoc did.D
 	// these can already be updated
 	newMeta.Version = currentMeta.Version + 1
 	newMeta.Created = currentMeta.Created
-	newMeta.Deactivated = isDeactivated(newDoc)
 	newMeta.PreviousHash = &currentMeta.Hash
 
 	unconsumed := map[string]struct{}{}
@@ -261,7 +251,7 @@ outer:
 		// get old doc by txRef ...
 		payloadHashBytes, err := txRefReader.Get(stoabs.HashKey(st))
 		if err != nil {
-			return did.Document{}, documentMetadata{}, fmt.Errorf("database error on reading transactionIndexShelf: %w", err)
+			return did.Document{}, documentMetadata{}, fmt.Errorf("error on reading transactionIndexShelf: %w", err)
 		}
 		if len(payloadHashBytes) == 0 {
 			return did.Document{}, documentMetadata{}, fmt.Errorf("transaction reference %s not found on transactionIndexShelf: %w", k, err)

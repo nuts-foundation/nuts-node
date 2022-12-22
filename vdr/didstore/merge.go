@@ -18,16 +18,12 @@
 package didstore
 
 import (
-	"errors"
 	"sort"
 	"strings"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 )
-
-// ErrDiffID is returned when a merge is done on documents that do not share the same ID
-var ErrDiffID = errors.New("no matching IDs")
 
 // mergeDocuments merges two DID Documents that share the same ID
 func mergeDocuments(docA did.Document, docB did.Document) did.Document {

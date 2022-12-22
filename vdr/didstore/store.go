@@ -30,9 +30,9 @@ import (
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
+// shelfs have a V2 postfix due to overlapping names with previous implementation
 const (
 	// latestShelf has DID as key and latest documentMetadata reference as value.
-	// shelfs have a V2 postfix due to overlapping names with previous implementation
 	latestShelf = "latestV2"
 	// metadataShelf has the documentMetadata reference (DID concatenated with version number, starting at 0) as key and the metadataRecord as value
 	metadataShelf = "metadataV2"
@@ -44,7 +44,7 @@ const (
 	eventShelf = "eventsV2"
 	// conflictedShelf contains all DIDs that are in a conflicted state. The DID is the key and a 0 byte is the value
 	conflictedShelf = "conflictedV2"
-	// statsShelf contains different statistics which are requested frequently: conflictedCount
+	// statsShelf contains different statistics which are requested frequently: conflictedCount, documentCount
 	statsShelf = "statsV2"
 	// conflictedCountKey is the key used on the statsShelf to store the number of conflictedDocuments
 	conflictedCountKey = "conflictedCount"
@@ -105,7 +105,7 @@ func (tl *store) Add(didDocument did.Document, transaction Transaction) error {
 			return fmt.Errorf("applying event list failed: %w", err)
 		}
 		return writeEventList(tx, currentEventList, didDocument.ID)
-	})
+	}, stoabs.WithWriteLock())
 	if err != nil {
 		return fmt.Errorf("database error on commit: %w", err)
 	}
@@ -115,7 +115,10 @@ func (tl *store) Add(didDocument did.Document, transaction Transaction) error {
 func (tl *store) Resolve(id did.DID, resolveMetadata *vdr.ResolveMetadata) (returnDocument *did.Document, returnMetadata *vdr.DocumentMetadata, txErr error) {
 	txErr = tl.db.Read(context.Background(), func(tx stoabs.ReadTx) error {
 		latestReader := tx.GetShelfReader(latestShelf)
-		latestMetaRef, _ := latestReader.Get(stoabs.BytesKey(id.String()))
+		latestMetaRef, err := latestReader.Get(stoabs.BytesKey(id.String()))
+		if err != nil {
+			return err
+		}
 
 		if latestMetaRef == nil {
 			return vdr.ErrNotFound
@@ -183,7 +186,10 @@ func (tl *store) Conflicted(fn vdr.DocIterator) error {
 		latestReader := tx.GetShelfReader(latestShelf)
 
 		return conflictedReader.Iterate(func(key stoabs.Key, _ []byte) error {
-			latestMetaRef, _ := latestReader.Get(key)
+			latestMetaRef, err := latestReader.Get(key)
+			if err != nil {
+				return err
+			}
 			if latestMetaRef == nil {
 				return nil
 			}
@@ -269,14 +275,12 @@ func matches(metadata documentMetadata, resolveMetadata *vdr.ResolveMetadata) bo
 
 	// Filter on SourceTransaction
 	if resolveMetadata.SourceTransaction != nil {
-		for i, keyTx := range metadata.SourceTransactions {
+		for _, keyTx := range metadata.SourceTransactions {
 			if keyTx.Equals(*resolveMetadata.SourceTransaction) {
-				break
-			}
-			if i == len(metadata.SourceTransactions)-1 {
-				return false
+				return true
 			}
 		}
+		return false
 	}
 
 	return true

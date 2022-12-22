@@ -99,7 +99,7 @@ func (r *VDR) Start() error {
 		return err
 	}
 	if count == 0 {
-		// remove after v5.1 release
+		// remove after v6 release
 		_, err = r.network.Reprocess(context.Background(), "application/did+json")
 	}
 

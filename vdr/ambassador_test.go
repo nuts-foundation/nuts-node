@@ -273,7 +273,7 @@ func TestAmbassador_handleCreateDIDDocument(t *testing.T) {
 			ctx := newMockContext(t)
 			ctx.didStore.EXPECT().Add(didDocument, toStoreTX(tx)).Return(nil)
 
-			err = ctx.ambassador.handleCreateDIDDocument(tx, didDocument, nil)
+			err = ctx.ambassador.handleCreateDIDDocument(tx, didDocument)
 
 			assert.NoError(t, err)
 		})
@@ -288,7 +288,7 @@ func TestAmbassador_handleCreateDIDDocument(t *testing.T) {
 
 		ctx.didStore.EXPECT().Add(didDocument, toStoreTX(tx)).Return(errors.New("b00m!"))
 
-		err = ctx.ambassador.handleCreateDIDDocument(tx, didDocument, nil)
+		err = ctx.ambassador.handleCreateDIDDocument(tx, didDocument)
 
 		assert.EqualError(t, err, "unable to register DID document: b00m!")
 	})
@@ -304,7 +304,7 @@ func TestAmbassador_handleCreateDIDDocument(t *testing.T) {
 
 		doc, _, _ := newDidDoc()
 
-		err := ctx.ambassador.handleCreateDIDDocument(tx, doc, nil)
+		err := ctx.ambassador.handleCreateDIDDocument(tx, doc)
 
 		assert.Equal(t, ErrThumbprintMismatch, err)
 	})
@@ -364,7 +364,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 			ctx.keyStore.EXPECT().ResolvePublicKey(storedDocument.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
 			ctx.didStore.EXPECT().Add(deactivatedDocument, toStoreTX(tx))
 
-			err = ctx.ambassador.handleUpdateDIDDocument(tx, deactivatedDocument, nil)
+			err = ctx.ambassador.handleUpdateDIDDocument(tx, deactivatedDocument)
 
 			assert.NoError(t, err)
 		})
@@ -401,7 +401,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		ctx.keyStore.EXPECT().ResolvePublicKey(controllerDoc.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
 		ctx.didStore.EXPECT().Add(expectedDocument, toStoreTX(tx))
 
-		err := ctx.ambassador.handleUpdateDIDDocument(tx, expectedDocument, nil)
+		err := ctx.ambassador.handleUpdateDIDDocument(tx, expectedDocument)
 		assert.NoError(t, err)
 	})
 
@@ -435,7 +435,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		ctx.keyStore.EXPECT().ResolvePublicKey(currentDoc.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
 		ctx.didStore.EXPECT().Add(newDoc, toStoreTX(tx))
 
-		err := ctx.ambassador.handleUpdateDIDDocument(tx, newDoc, nil)
+		err := ctx.ambassador.handleUpdateDIDDocument(tx, newDoc)
 		assert.NoError(t, err)
 	})
 
@@ -490,7 +490,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		ctx.keyStore.EXPECT().ResolvePublicKey(didDocumentController.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
 		ctx.didStore.EXPECT().Add(expectedDocument, toStoreTX(tx))
 
-		err = ctx.ambassador.handleUpdateDIDDocument(tx, expectedDocument, nil)
+		err = ctx.ambassador.handleUpdateDIDDocument(tx, expectedDocument)
 		assert.NoError(t, err)
 	})
 
@@ -550,7 +550,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		ctx.resolver.EXPECT().ResolveControllers(expectedDocument, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{didDocumentController}, nil)
 		ctx.keyStore.EXPECT().ResolvePublicKey(keyID, gomock.Any()).Return(pKey, nil)
 
-		err = ctx.ambassador.handleUpdateDIDDocument(tx, didDocument, nil)
+		err = ctx.ambassador.handleUpdateDIDDocument(tx, didDocument)
 		assert.EqualError(t, err, "network document not signed by one of its controllers")
 	})
 }
@@ -584,7 +584,7 @@ func Test_handleUpdateDIDDocument(t *testing.T) {
 		didStoreMock.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&didDocument, &types.DocumentMetadata{}, nil)
 		docResolverMock.EXPECT().ResolveControllers(didDocument, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return(nil, errors.New("failed"))
 
-		err := am.handleUpdateDIDDocument(&tx, didDocument, nil)
+		err := am.handleUpdateDIDDocument(&tx, didDocument)
 		assert.EqualError(t, err, "unable to resolve DID document's controllers: failed")
 	})
 }

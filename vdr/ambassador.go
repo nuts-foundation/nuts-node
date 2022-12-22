@@ -169,12 +169,12 @@ func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
 	}
 
 	if n.isUpdate(tx) {
-		return n.handleUpdateDIDDocument(tx, nextDIDDocument, payload)
+		return n.handleUpdateDIDDocument(tx, nextDIDDocument)
 	}
-	return n.handleCreateDIDDocument(tx, nextDIDDocument, payload)
+	return n.handleCreateDIDDocument(tx, nextDIDDocument)
 }
 
-func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, proposedDIDDocument did.Document, payload []byte) error {
+func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, proposedDIDDocument did.Document) error {
 	log.Logger().
 		WithField(core.LogFieldTransactionRef, transaction.Ref()).
 		WithField(core.LogFieldDID, proposedDIDDocument.ID).
@@ -221,7 +221,7 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, propos
 	return nil
 }
 
-func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, proposedDIDDocument did.Document, payload []byte) error {
+func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, proposedDIDDocument did.Document) error {
 	log.Logger().
 		WithField(core.LogFieldTransactionRef, transaction.Ref()).
 		WithField(core.LogFieldDID, proposedDIDDocument.ID).

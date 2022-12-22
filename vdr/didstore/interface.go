@@ -44,5 +44,6 @@ type Store interface {
 	Resolve(id did.DID, metadata *vdr.ResolveMetadata) (*did.Document, *vdr.DocumentMetadata, error)
 }
 
-// Transaction is an alias to the didstore.event. Used as abstraction to prevent circular dependency
+// Transaction is an alias to the didstore.event. Internally to the didstore it's an event based on a transaction.
+// Using event as external name is very confusing, so there they are called transaction.
 type Transaction event
