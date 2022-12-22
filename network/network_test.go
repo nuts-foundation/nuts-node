@@ -555,7 +555,7 @@ func TestNetwork_Start(t *testing.T) {
 	t.Run("node DID checks", func(t *testing.T) {
 		keyID := *nodeDID
 		keyID.Fragment = "some-key"
-		key := crypto.NewTestKey(keyID.String()).(crypto.KeyContainer).Signer()
+		key := crypto.NewTestKey(keyID.String()).(*crypto.TestKey).PrivateKey
 		documentWithoutNutsCommService := &did.Document{
 			KeyAgreement: []did.VerificationRelationship{
 				{VerificationMethod: &did.VerificationMethod{ID: keyID}},

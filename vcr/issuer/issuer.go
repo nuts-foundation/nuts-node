@@ -47,6 +47,7 @@ func NewIssuer(store Store, publisher Publisher, docResolver vdr.DocResolver, ke
 		store:         store,
 		publisher:     publisher,
 		keyResolver:   resolver,
+		keyStore:      keyStore,
 		jsonldManager: jsonldManager,
 		trustConfig:   trustConfig,
 	}

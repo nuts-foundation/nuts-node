@@ -88,7 +88,10 @@ func NewTestKey(kid string) Key {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-	return key
+	return &TestKey{
+		Kid:        kid,
+		PrivateKey: key.(*memoryKey).privateKey,
+	}
 }
 
 // TestKey is a Key impl for testing purposes
