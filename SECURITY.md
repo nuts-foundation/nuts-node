@@ -2,11 +2,9 @@
 
 ## Supported Versions
 
-The Nuts node is currently under development. No versions are build, just use the master branch.
+The last 2 released versions are supported (e.g. if the last version is v5.0.1, v4 and v5 are supported).
 
-| Version | Supported          |
-| ------- | ------------------ |
-| master  | :white_check_mark: |
+Important security fixes are backported to supported versions.
 
 ## Reporting a Vulnerability
 
