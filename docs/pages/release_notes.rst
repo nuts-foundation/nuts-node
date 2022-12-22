@@ -6,6 +6,19 @@ Release notes
 What has been changed, and how to update between versions.
 
 *****************
+Coconut update (v5.0.4)
+*****************
+
+Release date: 2022-12-22
+
+This patch release fixes the following:
+
+- SearchVCs input is now validated against the provided JSON-LD context(s). This helps signalling faulty search queries.
+- CRLs of expired certificates are no longer updated, and now don't cause blocking errors any more.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.3...v5.0.4
+
+*****************
 Coconut update (v5.0.3)
 *****************
 
