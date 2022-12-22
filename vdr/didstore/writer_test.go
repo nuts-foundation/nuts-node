@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
@@ -85,8 +86,8 @@ func Test_writeDocument(t *testing.T) {
 			transactionIndexShelf := tx.GetShelfReader(transactionIndexShelf)
 			txIndexBytes, _ := transactionIndexShelf.Get(stoabs.HashKey(transaction.Ref))
 
-			// a single 0 is written
-			assert.Len(t, txIndexBytes, 1)
+			// the payloadHash is written
+			assert.Equal(t, transaction.PayloadHash.Slice(), txIndexBytes)
 
 			return nil
 		})
@@ -236,24 +237,12 @@ func Test_applyDocument(t *testing.T) {
 				m.PreviousHash = &meta0.Hash
 			}),
 		},
-		{
-			"apply parallel update",
-			&doc0,
-			&meta0,
-			doc1,
-			meta1,
-			meta1.copy(func(m *documentMetadata) {
-				m.Created = time0
-				m.Version = 1
-				m.SourceTransactions = []hash.SHA256Hash{tx1.Ref, tx0.Ref}
-				m.PreviousHash = &meta0.Hash
-			}),
-		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, resultMeta := applyDocument(test.currentDoc, test.currentMeta, test.newDoc, test.newMeta)
+			_, resultMeta, err := applyDocument(nil, test.currentMeta, test.newDoc, test.newMeta)
+			require.NoError(t, err)
 
 			assert.Equal(t, test.expectedMeta.Version, resultMeta.Version)
 			assert.Equal(t, test.expectedMeta.Created, resultMeta.Created)
@@ -268,6 +257,37 @@ func Test_applyDocument(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("apply parallel update", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		mockTX := stoabs.NewMockReadTx(ctrl)
+		mockTXShelf := stoabs.NewMockReader(ctrl)
+		mockDocShelf := stoabs.NewMockReader(ctrl)
+		mockTX.EXPECT().GetShelfReader(transactionIndexShelf).Return(mockTXShelf)
+		mockTX.EXPECT().GetShelfReader(documentShelf).Return(mockDocShelf)
+		mockTXShelf.EXPECT().Get(gomock.Any()).Return(meta0.Hash.Slice(), nil)
+		docBytes, _ := json.Marshal(doc0)
+		mockDocShelf.EXPECT().Get(stoabs.HashKey(meta0.Hash)).Return(docBytes, nil)
+		expectedMeta := meta1.copy(func(m *documentMetadata) {
+			m.Created = time0
+			m.Version = 1
+			m.SourceTransactions = []hash.SHA256Hash{tx1.Ref, tx0.Ref}
+			m.PreviousHash = &meta0.Hash
+		})
+
+		_, resultMeta, err := applyDocument(mockTX, &meta0, doc1, meta1)
+		require.NoError(t, err)
+
+		assert.Equal(t, expectedMeta.Version, resultMeta.Version)
+		assert.Equal(t, expectedMeta.Created, resultMeta.Created)
+		assert.Equal(t, expectedMeta.Updated, resultMeta.Updated)
+		assert.Equal(t, expectedMeta.Deactivated, resultMeta.Deactivated)
+		assert.Equal(t, expectedMeta.Hash, resultMeta.Hash)
+		assert.Equal(t, expectedMeta.PreviousTransaction, resultMeta.PreviousTransaction)
+		assert.Equal(t, expectedMeta.SourceTransactions, resultMeta.SourceTransactions)
+		require.NotNil(t, resultMeta.PreviousHash)
+		assert.Equal(t, *expectedMeta.PreviousHash, *resultMeta.PreviousHash)
+	})
 }
 
 func (md documentMetadata) copy(f func(m *documentMetadata)) documentMetadata {

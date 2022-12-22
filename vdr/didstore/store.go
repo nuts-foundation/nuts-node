@@ -36,7 +36,7 @@ const (
 	latestShelf = "latestV2"
 	// metadataShelf has the documentMetadata reference (DID concatenated with version number, starting at 0) as key and the metadataRecord as value
 	metadataShelf = "metadataV2"
-	// transactionIndexShelf has the transaction reference as key and a zero byte as value. Used for duplicate detection
+	// transactionIndexShelf has the transaction reference as key and payloadHash as value. Used for duplicate detection and document mergin
 	transactionIndexShelf = "txRefV2"
 	// documentShelf has payload hash as key and document as value
 	documentShelf = "documentsV2"
@@ -128,7 +128,7 @@ func (tl *store) Resolve(id did.DID, resolveMetadata *vdr.ResolveMetadata) (retu
 				return fmt.Errorf("read metadata failed: %w", err)
 			}
 
-			if metadata.Deactivated && resolveMetadata == nil {
+			if metadata.Deactivated && latestNonDeactivatedRequested(resolveMetadata) {
 				// We're trying to resolve the latest, it should not return an older (active) version when deactivated
 				return vdr.ErrDeactivated
 			}
@@ -280,4 +280,25 @@ func matches(metadata documentMetadata, resolveMetadata *vdr.ResolveMetadata) bo
 	}
 
 	return true
+}
+
+// latestNonDeactivatedRequested is a combination of checks on the resolveMetadata when a deactivated document is resolved
+// if no resolveMetadata is given the latest active document is requested, so it may not be deactivated
+// if resolveTime, hash or sourceTransaction is given, most likely the latest version is not requested
+// the deactivated check is then done in matches()
+// finally, if the latest is requested and it is deactivated, the allowDeactivated flag is checked
+func latestNonDeactivatedRequested(resolveMetadata *vdr.ResolveMetadata) bool {
+	if resolveMetadata == nil {
+		return true
+	}
+	if resolveMetadata.ResolveTime != nil {
+		return false
+	}
+	if resolveMetadata.Hash != nil {
+		return false
+	}
+	if resolveMetadata.SourceTransaction != nil {
+		return false
+	}
+	return !resolveMetadata.AllowDeactivated
 }

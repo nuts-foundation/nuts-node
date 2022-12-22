@@ -23,9 +23,12 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"github.com/alicebob/miniredis/v2"
+	"github.com/go-redis/redis/v9"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/go-stoabs/redis7"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
@@ -225,6 +228,18 @@ func TestStore_Resolve(t *testing.T) {
 
 		assert.Equal(t, types.ErrDeactivated, err)
 	})
+
+	t.Run("deactivated, but specifically asking for !allowDeactivated", func(t *testing.T) {
+		store := NewTestStore(t)
+		update := did.Document{ID: testDID}
+		txUpdate := newTestTransaction(update, txCreate.Ref)
+		add(t, store, create, txCreate)
+		add(t, store, update, txUpdate)
+
+		_, _, err := store.Resolve(testDID, &types.ResolveMetadata{})
+
+		assert.Equal(t, types.ErrDeactivated, err)
+	})
 }
 
 func TestStore_Iterate(t *testing.T) {
@@ -299,6 +314,25 @@ func TestStore_DocumentCount(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, uint(1), count)
 	})
+}
+
+func TestStore_Redis(t *testing.T) {
+	// This test uses github.com/alicebob/miniredis/v2
+	// A separate test for redis is required, because redis does not have transaction isolation
+	// go-stoabs writes all changes to redis on commit, any read during the transaction will read old/stale data.
+	redisServer := miniredis.RunT(t)
+	redisClient, err := redis7.CreateRedisStore("db", &redis.Options{
+		Addr: redisServer.Addr(),
+	})
+	require.NoError(t, err)
+	store := New(nil).(*store)
+	store.db = redisClient
+	create := did.Document{ID: testDID, Controller: []did.DID{testDID}}
+	txCreate := newTestTransaction(create)
+
+	err = store.Add(create, txCreate)
+
+	assert.NoError(t, err)
 }
 
 func Test_matches(t *testing.T) {

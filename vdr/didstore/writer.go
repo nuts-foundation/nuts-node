@@ -49,7 +49,7 @@ func writeDocument(tx stoabs.WriteTx, didDocument did.Document, transaction Tran
 	)
 	// transaction
 	transactionWriter := tx.GetShelfWriter(transactionIndexShelf)
-	err := transactionWriter.Put(stoabs.HashKey(transaction.Ref), []byte{0})
+	err := transactionWriter.Put(stoabs.HashKey(transaction.Ref), transaction.PayloadHash.Slice())
 	if err != nil {
 		return fmt.Errorf("database error on txRef write: %w", err)
 	}
@@ -113,6 +113,7 @@ func applyFrom(tx stoabs.WriteTx, base *event, applyList []event) error {
 			return fmt.Errorf("read document failed: %w", err)
 		}
 		document = &d
+		// get documentMetadata for base
 		m, err := readMetadata(tx, []byte(base.MetaRef))
 		if err != nil {
 			return fmt.Errorf("read metadata failed: %w", err)
@@ -129,7 +130,7 @@ func applyFrom(tx stoabs.WriteTx, base *event, applyList []event) error {
 	}
 
 	for _, nextEvent := range applyList {
-		document, metadata, err = applyEvent(tx, document, metadata, nextEvent)
+		document, metadata, err = applyEvent(tx, metadata, nextEvent)
 		if err != nil {
 			return fmt.Errorf("applying event failed: %w", err)
 		}
@@ -186,8 +187,8 @@ func incrementDocumentCount(tx stoabs.WriteTx) error {
 	return nil
 }
 
-func applyEvent(tx stoabs.WriteTx, latestDocument *did.Document, latestMetadata *documentMetadata, nextEvent event) (*did.Document, *documentMetadata, error) {
-	nextDocument, err := readDocument(tx, nextEvent.PayloadHash)
+func applyEvent(tx stoabs.WriteTx, latestMetadata *documentMetadata, nextEvent event) (*did.Document, *documentMetadata, error) {
+	nextDocument, err := readDocumentFromEvent(tx, nextEvent)
 	if err != nil {
 		return nil, nil, fmt.Errorf("read document failed: %w", err)
 	}
@@ -205,7 +206,10 @@ func applyEvent(tx stoabs.WriteTx, latestDocument *did.Document, latestMetadata 
 		nextMetadata.PreviousHash = &latestMetadata.Hash
 	}
 
-	nextDocument, nextMetadata = applyDocument(latestDocument, latestMetadata, nextDocument, nextMetadata)
+	nextDocument, nextMetadata, err = applyDocument(tx, latestMetadata, nextDocument, nextMetadata)
+	if err != nil {
+		return &nextDocument, &nextMetadata, fmt.Errorf("failed to apply next document: %w", err)
+	}
 	metadataBytes, _ := json.Marshal(nextMetadata)
 	metadataWriter := tx.GetShelfWriter(metadataShelf)
 	if err = metadataWriter.Put(stoabs.BytesKey(fmt.Sprintf("%s%d", nextDocument.ID.String(), nextMetadata.Version)), metadataBytes); err != nil {
@@ -224,9 +228,9 @@ func applyEvent(tx stoabs.WriteTx, latestDocument *did.Document, latestMetadata 
 	return &nextDocument, &nextMetadata, nil
 }
 
-func applyDocument(currentDoc *did.Document, currentMeta *documentMetadata, newDoc did.Document, newMeta documentMetadata) (did.Document, documentMetadata) {
-	if currentDoc == nil {
-		return newDoc, newMeta
+func applyDocument(tx stoabs.ReadTx, currentMeta *documentMetadata, newDoc did.Document, newMeta documentMetadata) (did.Document, documentMetadata, error) {
+	if currentMeta == nil {
+		return newDoc, newMeta, nil
 	}
 
 	// these can already be updated
@@ -247,20 +251,33 @@ outer:
 	}
 	// if new document consumes all the old TXs, just return the new one
 	if len(unconsumed) == 0 {
-		return newDoc, newMeta
+		return newDoc, newMeta, nil
 	}
 
+	txRefReader := tx.GetShelfReader(transactionIndexShelf)
 	for k := range unconsumed {
 		st, _ := hash.ParseHex(k)
 		newMeta.SourceTransactions = append(newMeta.SourceTransactions, st)
+		// get old doc by txRef ...
+		payloadHashBytes, err := txRefReader.Get(stoabs.HashKey(st))
+		if err != nil {
+			return did.Document{}, documentMetadata{}, fmt.Errorf("database error on reading transactionIndexShelf: %w", err)
+		}
+		if len(payloadHashBytes) == 0 {
+			return did.Document{}, documentMetadata{}, fmt.Errorf("transaction reference %s not found on transactionIndexShelf: %w", k, err)
+		}
+		oldDoc, err := readDocument(tx, hash.FromSlice(payloadHashBytes))
+		if err != nil {
+			return did.Document{}, documentMetadata{}, fmt.Errorf("read document failed: %w", err)
+		}
+		newDoc = mergeDocuments(oldDoc, newDoc)
 	}
-	newDoc = mergeDocuments(*currentDoc, newDoc)
 	newDocBytes, _ := json.Marshal(newDoc)
 
 	newMeta.Hash = hash.SHA256Sum(newDocBytes)
 	newMeta.Deactivated = isDeactivated(newDoc)
 
-	return newDoc, newMeta
+	return newDoc, newMeta, nil
 }
 
 func isDeactivated(document did.Document) bool {

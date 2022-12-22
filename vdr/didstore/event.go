@@ -40,6 +40,8 @@ type event struct {
 	// MetaRef contains a reference to a metadata record on the documentMetadata shelf. Formatted as "DID + version"
 	MetaRef string `json:"metaref"`
 	// document contains the created Document. This needs to be added to a new event since we cannot write and read within the same TX.
+	// TODO must be used in a different ReadDocumentFromEvent otherwise redis will fail
+	// TODO also check e2e test
 	document *did.Document
 }
 

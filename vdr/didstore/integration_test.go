@@ -20,6 +20,7 @@ package didstore
 
 import (
 	"encoding/json"
+	ssi "github.com/nuts-foundation/go-did"
 	"testing"
 	"time"
 
@@ -225,4 +226,33 @@ func TestStore_duplicate(t *testing.T) {
 	require.NotNil(t, doc)
 	require.NotNil(t, meta)
 	assert.False(t, meta.IsConflicted())
+}
+
+func TestStore_partialConflictResolve(t *testing.T) {
+	// this test creates a conflict with A and B document updates
+	// C only refers to B creating a new conflict between A and C
+	// DID document data from B should not be present
+	testServiceC := did.Service{ID: ssi.MustParseURI("did:nuts:service:c"), ServiceEndpoint: []interface{}{"http://c"}}
+	docA := did.Document{ID: testDID, Controller: []did.DID{testDID}, Service: []did.Service{testServiceA}}
+	docB := did.Document{ID: testDID, Controller: []did.DID{testDID}, Service: []did.Service{testServiceB}}
+	docC := did.Document{ID: testDID, Controller: []did.DID{testDID}, Service: []did.Service{testServiceC}}
+	txA := newTestTransaction(docA)
+	txB := newTestTransaction(docB)
+	txC := newTestTransaction(docC, txB.Ref)
+	txC.Clock = 1
+	txC.SigningTime = txB.SigningTime.Add(time.Second)
+
+	store := NewTestStore(t)
+	add(t, store, docA, txA)
+	add(t, store, docB, txB)
+	add(t, store, docC, txC)
+
+	doc, meta, err := store.Resolve(testDID, nil)
+	require.NoError(t, err)
+	require.NotNil(t, doc)
+	require.NotNil(t, meta)
+	assert.Len(t, doc.Service, 2)
+	assert.Equal(t, "did:nuts:service:a", doc.Service[0].ID.String())
+	assert.Equal(t, "did:nuts:service:c", doc.Service[1].ID.String())
+	assert.Equal(t, []hash.SHA256Hash{txC.Ref, txA.Ref}, meta.SourceTransactions)
 }

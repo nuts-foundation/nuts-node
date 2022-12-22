@@ -46,6 +46,13 @@ func readDocument(tx stoabs.ReadTx, documentHash hash.SHA256Hash) (did.Document,
 	return document, nil
 }
 
+func readDocumentFromEvent(tx stoabs.ReadTx, e event) (did.Document, error) {
+	if e.document != nil {
+		return *e.document, nil
+	}
+	return readDocument(tx, e.PayloadHash)
+}
+
 func readMetadata(tx stoabs.ReadTx, ref []byte) (documentMetadata, error) {
 	var metadata documentMetadata
 	metadataReader := tx.GetShelfReader(metadataShelf)
