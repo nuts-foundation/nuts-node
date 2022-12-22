@@ -6,6 +6,18 @@ Release notes
 What has been changed, and how to update between versions.
 
 *****************
+Coconut update (v5.0.5)
+*****************
+
+Release date: 2022-12-22
+
+This patch release fixes the following:
+
+- Full version tag in Docker Hub was missing prefix ``v``
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.4...v5.0.5
+
+*****************
 Coconut update (v5.0.4)
 *****************
 
