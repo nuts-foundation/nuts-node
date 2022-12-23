@@ -74,8 +74,8 @@ func TestDidman_AddEndpoint(t *testing.T) {
 		var newDoc did.Document
 		ctx.docResolver.EXPECT().Resolve(testDIDA, nil).Return(doc, meta, nil)
 		ctx.vdr.EXPECT().Update(testDIDA, meta.Hash, gomock.Any(), nil).DoAndReturn(
-			func(_ interface{}, _ interface{}, doc interface{}, _ interface{}) error {
-				newDoc = doc.(did.Document)
+			func(_ interface{}, _ interface{}, doc did.Document, _ interface{}) error {
+				newDoc = doc
 				return nil
 			})
 
@@ -107,14 +107,16 @@ func TestDidman_AddEndpoint(t *testing.T) {
 	t.Run("error - duplicate service", func(t *testing.T) {
 		ctx := newMockContext(t)
 		doc := &did.Document{}
-		returnError := errors.New("b00m!")
 		ctx.docResolver.EXPECT().Resolve(testDIDA, nil).Return(doc, meta, nil).Times(2)
-		ctx.vdr.EXPECT().Update(testDIDA, meta.Hash, gomock.Any(), nil).Return(returnError)
+		ctx.vdr.EXPECT().Update(testDIDA, meta.Hash, gomock.Any(), nil).DoAndReturn(
+			func(_ interface{}, _ interface{}, doc did.Document, _ interface{}) error {
+				return vdr.ManagedDocumentValidator(didservice.NewServiceResolver(ctx.docResolver)).Validate(doc)
+			}) //.Times(2)
 
 		_, _ = ctx.instance.AddEndpoint(testDIDA, "type", *u)
 		_, err := ctx.instance.AddEndpoint(testDIDA, "type", *u)
 
-		assert.Equal(t, types.ErrDuplicateService, err)
+		assert.ErrorIs(t, err, types.ErrDuplicateService)
 	})
 
 	t.Run("error - DID not found", func(t *testing.T) {
