@@ -20,7 +20,6 @@
 package core
 
 import (
-	promEcho "github.com/labstack/echo-contrib/prometheus"
 	"github.com/prometheus/client_golang/prometheus"
 	"net/http"
 
@@ -38,8 +37,7 @@ func NewMetricsEngine() Engine {
 }
 
 type metrics struct {
-	prometheusMiddleware *promEcho.Prometheus
-	collectors           []prometheus.Collector
+	collectors []prometheus.Collector
 }
 
 func (e *metrics) Name() string {
@@ -54,15 +52,10 @@ func (e *metrics) Shutdown() error {
 	for _, collector := range e.collectors {
 		prometheus.Unregister(collector)
 	}
-	// echo-contrib/prometheus does not unregister metrics on shutdown, so we do it manually
-	for _, curr := range e.prometheusMiddleware.MetricsList {
-		prometheus.Unregister(curr.MetricCollector)
-	}
 	return nil
 }
 
 func (e *metrics) Routes(router EchoRouter) {
-	router.Use(e.prometheusMiddleware.HandlerFunc)
 	router.Add(http.MethodGet, "/metrics", echo.WrapHandler(promhttp.Handler()))
 }
 
@@ -79,19 +72,6 @@ func (e *metrics) Configure(_ ServerConfig) error {
 		if err := prometheus.Register(c); err != nil && err.Error() != are.Error() {
 			return err
 		}
-	}
-
-	// Echo collector
-	e.prometheusMiddleware = promEcho.NewPrometheus("http", nil)
-	// Fix for NTS-009: Prevent flooding the metrics with garbage
-	e.prometheusMiddleware.RequestCounterURLLabelMappingFunc = func(c echo.Context) string {
-		path := c.Path()
-		runes := []rune(path)
-		const maxPathLength = 200
-		if len(runes) > maxPathLength {
-			return string(runes[:maxPathLength]) + "..."
-		}
-		return path
 	}
 
 	return nil

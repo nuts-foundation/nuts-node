@@ -39,7 +39,9 @@ func TestMetricsEngine_Name(t *testing.T) {
 func TestNewMetricsEngine_Metrics(t *testing.T) {
 	engine := NewMetricsEngine().(*metrics)
 	_ = engine.Configure(*NewServerConfig())
-	defer engine.Shutdown()
+	defer func(engine *metrics) {
+		_ = engine.Shutdown()
+	}(engine)
 	e := echo.New()
 	engine.Routes(e)
 
@@ -47,7 +49,9 @@ func TestNewMetricsEngine_Metrics(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, path, nil)
 		rec := httptest.NewRecorder()
 		e.ServeHTTP(rec, req)
-		defer rec.Result().Body.Close()
+		defer func(Body io.ReadCloser) {
+			_ = Body.Close()
+		}(rec.Result().Body)
 		bodyBytes, _ := io.ReadAll(rec.Result().Body)
 		return string(bodyBytes)
 	}
@@ -69,28 +73,6 @@ func TestNewMetricsEngine_Metrics(t *testing.T) {
 		assert.Contains(t, response, "promhttp_metric_handler_requests_in_flight")
 	})
 
-	t.Run("http metrics", func(t *testing.T) {
-		// Request an HTTP endpoint to make sure some HTTP metrics are collected
-		_ = requestPath("/status/diagnostics")
-
-		response := requestMetrics()
-
-		assert.Contains(t, response, "http_request_duration_")
-	})
-
-	t.Run("limit path length", func(t *testing.T) {
-		// Request an HTTP endpoint to make sure some HTTP metrics are collected
-		path := "/status/diagnostics"
-		for i := 1; i < 210; i++ {
-			path += "x"
-		}
-		_ = requestPath(path)
-
-		response := requestMetrics()
-
-		assert.Contains(t, response, "xxx...")
-	})
-
 }
 
 func TestMetricsEngine_Lifecycle(t *testing.T) {
@@ -109,7 +91,9 @@ func TestMetricsEngine_Lifecycle(t *testing.T) {
 	})
 	t.Run("calling configure twice is ok", func(t *testing.T) {
 		engine := NewMetricsEngine().(*metrics)
-		defer engine.Shutdown()
+		defer func(engine *metrics) {
+			_ = engine.Shutdown()
+		}(engine)
 		err := engine.Configure(*NewServerConfig())
 
 		assert.NoError(t, err)
