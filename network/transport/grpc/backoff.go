@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/gob"
+	"errors"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"math/rand"
@@ -164,11 +165,11 @@ func (p persistingBackoff) read() persistedBackoff {
 	var result persistedBackoff
 	err := p.store.ReadShelf(context.Background(), "backoff", func(reader stoabs.Reader) error {
 		data, err := reader.Get(stoabs.BytesKey(p.peerAddress))
+		if errors.Is(err, stoabs.ErrKeyNotFound) {
+			return nil
+		}
 		if err != nil {
 			return err
-		}
-		if data == nil {
-			return nil
 		}
 		return gob.NewDecoder(bytes.NewReader(data)).Decode(&result)
 	})

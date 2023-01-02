@@ -224,6 +224,8 @@ github.com/go-redis/redis/v9 v9.0.0-rc.2 h1:IN1eI8AvJJeWHjMW/hlFAv2sAfvTun2DVksD
 github.com/go-redis/redis/v9 v9.0.0-rc.2/go.mod h1:cgBknjwcBJa2prbnuHH/4k/Mlj4r0pWNV2HBanHujfY=
 github.com/go-redsync/redsync/v4 v4.6.0 h1:CXpvsHB3XzktCleBu2Vo9Df0/qInrTG3jgzhvLzyk+U=
 github.com/go-redsync/redsync/v4 v4.6.0/go.mod h1:IxV3sygNwjOERTXrj3XvNMSb1tgNgic8GvM8alwnWcM=
+github.com/go-redsync/redsync/v4 v4.7.1 h1:j5rmHCdN5qCEWp5oA2XEbGwtD4LZblqkhbcjCUsfNhs=
+github.com/go-redsync/redsync/v4 v4.7.1/go.mod h1:IxV3sygNwjOERTXrj3XvNMSb1tgNgic8GvM8alwnWcM=
 github.com/go-sql-driver/mysql v1.4.1/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG5ZlKdlhCg5w=
 github.com/go-sql-driver/mysql v1.5.0 h1:ozyZYNQW3x3HtqT1jira07DN2PArx2v7/mN66gGcHOs=
 github.com/go-sql-driver/mysql v1.5.0/go.mod h1:DCzpHaOWr8IXmIStZouvnhqoel9Qv2LBy8hT2VhHyBg=
@@ -578,6 +580,8 @@ github.com/nuts-foundation/go-leia/v3 v3.3.0 h1:d0AIihk8nF6QCMpA9I01ZS+pp+GCgoJh
 github.com/nuts-foundation/go-leia/v3 v3.3.0/go.mod h1:Md202F2wpwkXGtOUzyqs0p1Y96+wOY8lpmDT9nuaxE0=
 github.com/nuts-foundation/go-stoabs v1.5.1 h1:xQZ3YxwgmALLSiABor1cQQtEDPeB8jVd8CjzRNFYpGk=
 github.com/nuts-foundation/go-stoabs v1.5.1/go.mod h1:cE/Msdaie74PeMCX38ixRy3M9hpdIO7rmSZMCKt7qKg=
+github.com/nuts-foundation/go-stoabs v1.5.2-0.20230102153250-1f45f5144b28 h1:3qCLBEylU8HcReqvfbptZp6bZYVf2irepB6iXJJPr4U=
+github.com/nuts-foundation/go-stoabs v1.5.2-0.20230102153250-1f45f5144b28/go.mod h1:oSAv/Ktj0vVI7qQ7d2RNLVv5VPclTK/eopxqpo+ryTE=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=
 github.com/nxadm/tail v1.4.8/go.mod h1:+ncqLTQzXmGhMZNUePPaPqPvBxHAIsmXswZKocGu+AU=

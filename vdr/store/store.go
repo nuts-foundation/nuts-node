@@ -21,6 +21,7 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -96,12 +97,11 @@ func (s *store) Write(document did.Document, metadata vdr.DocumentMetadata) erro
 		didString := document.ID.String()
 
 		// first get latest
-		latestBytes, err := latestWriter.Get(stoabs.BytesKey(didString))
-		if err != nil {
-			return nil
-		}
-		if latestBytes != nil {
+		_, err := latestWriter.Get(stoabs.BytesKey(didString))
+		if err == nil {
 			return vdr.ErrDIDAlreadyExists
+		} else if !errors.Is(err, stoabs.ErrKeyNotFound) {
+			return nil
 		}
 
 		// add new metadata record pointing to latest
@@ -126,16 +126,18 @@ func (s *store) Update(id did.DID, current hash.SHA256Hash, next did.Document, m
 		var version int
 		var prevMetaRef []byte
 		latestRef, err := latestWriter.Get(stoabs.BytesKey(didString))
+		// check for existence
+		if errors.Is(err, stoabs.ErrKeyNotFound) {
+			return vdr.ErrNotFound
+		}
 		if err != nil {
 			return err
 		}
 
-		// check for existence
-		if latestRef == nil {
-			return vdr.ErrNotFound
-		}
-
 		latestBytes, err := metadataWriter.Get(stoabs.BytesKey(latestRef))
+		if errors.Is(err, stoabs.ErrKeyNotFound) {
+			return vdr.ErrNotFound // TODO: is this correct? existence of a latestRef ~10 lines up means that this error cannot occur
+		}
 		if err != nil {
 			return err
 		}
@@ -170,7 +172,7 @@ func (s *store) writeDocument(tx stoabs.WriteTx, document did.Document, metadata
 	metadataWriter := tx.GetShelfWriter(metadataShelf)
 	transactionIndexWriter := tx.GetShelfWriter(transactionIndexShelf)
 	documentWriter := tx.GetShelfWriter(documentShelf)
-	
+
 	// store in metadataShelf
 	newRefBytes := metadataRecord.ref()
 	newRecordBytes, _ := json.Marshal(metadataRecord)
@@ -200,7 +202,7 @@ func (s *store) Processed(hash hash.SHA256Hash) (processed bool, txErr error) {
 		transactionIndexReader := tx.GetShelfReader(transactionIndexShelf)
 
 		ref, err := transactionIndexReader.Get(stoabs.NewHashKey(hash))
-		if err != nil {
+		if err != nil && !errors.Is(err, stoabs.ErrKeyNotFound) {
 			return err
 		}
 		if ref != nil {
@@ -223,6 +225,7 @@ func (s *store) Iterate(fn vdr.DocIterator) error {
 		return latestReader.Iterate(func(didKey stoabs.Key, metadataRecordRef []byte) error {
 			metadataRecordBytes, err := metadataReader.Get(stoabs.BytesKey(metadataRecordRef))
 			if err != nil {
+				// stoabs.ErrKeyNotFound should never happen here
 				return err
 			}
 			var metadataRecord metadataRecord
@@ -231,6 +234,7 @@ func (s *store) Iterate(fn vdr.DocIterator) error {
 			}
 			documentBytes, err := documentReader.Get(stoabs.NewHashKey(metadataRecord.Metadata.Hash))
 			if err != nil {
+				// stoabs.ErrKeyNotFound should never happen here
 				return err
 			}
 			var document did.Document
@@ -247,9 +251,12 @@ func (s *store) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (returnDocume
 	txErr = s.db.Read(context.Background(), func(tx stoabs.ReadTx) error {
 		// get shelf readers
 		latestReader := tx.GetShelfReader(latestShelf)
-		latestRefBytes, _ := latestReader.Get(stoabs.BytesKey(id.String()))
-		if latestRefBytes == nil {
+		latestRefBytes, err := latestReader.Get(stoabs.BytesKey(id.String()))
+		if errors.Is(err, stoabs.ErrKeyNotFound) {
 			return vdr.ErrNotFound
+		}
+		if err != nil {
+			return err
 		}
 		latestMetadataRef := latestRefBytes
 
@@ -261,6 +268,7 @@ func (s *store) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (returnDocume
 			var metadataRecord metadataRecord
 			metadataBytes, err := metadataReader.Get(stoabs.BytesKey(latestMetadataRef))
 			if err != nil {
+				// stoabs.ErrKeyNotFound should never happen here
 				return err
 			}
 			if err := json.Unmarshal(metadataBytes, &metadataRecord); err != nil {
@@ -275,6 +283,7 @@ func (s *store) Resolve(id did.DID, metadata *vdr.ResolveMetadata) (returnDocume
 				returnMetadata = &metadataRecord.Metadata
 				docBytes, err := documentReader.Get(stoabs.NewHashKey(metadataRecord.Metadata.Hash))
 				if err != nil {
+					// stoabs.ErrKeyNotFound should never happen here
 					return err
 				}
 				var document did.Document
