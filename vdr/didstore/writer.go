@@ -199,12 +199,12 @@ func applyEvent(tx stoabs.WriteTx, latestMetadata *documentMetadata, nextEvent e
 
 	nextDocument, nextMetadata, err = applyDocument(tx, latestMetadata, nextDocument, nextMetadata)
 	if err != nil {
-		return &nextDocument, &nextMetadata, fmt.Errorf("failed to apply next document: %w", err)
+		return nil, nil, fmt.Errorf("failed to apply next document: %w", err)
 	}
 	metadataBytes, _ := json.Marshal(nextMetadata)
 	metadataWriter := tx.GetShelfWriter(metadataShelf)
 	if err = metadataWriter.Put(stoabs.BytesKey(fmt.Sprintf("%s%d", nextDocument.ID.String(), nextMetadata.Version)), metadataBytes); err != nil {
-		return &nextDocument, &nextMetadata, err
+		return nil, nil, err
 	}
 
 	// if conflicted write nextDocument
@@ -212,7 +212,7 @@ func applyEvent(tx stoabs.WriteTx, latestMetadata *documentMetadata, nextEvent e
 		docBytes, _ := json.Marshal(nextDocument)
 		documentWriter := tx.GetShelfWriter(documentShelf)
 		if err = documentWriter.Put(stoabs.HashKey(nextMetadata.Hash), docBytes); err != nil {
-			return &nextDocument, &nextMetadata, err
+			return nil, nil, err
 		}
 	}
 
