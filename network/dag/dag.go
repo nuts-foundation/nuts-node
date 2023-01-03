@@ -106,7 +106,8 @@ func (d *dag) Migrate() error {
 			log.Logger().Info("Highest LC value not stored, migrating...")
 			highestLC := d.getHighestClockLegacy(tx)
 			err = d.setHighestClockValue(tx, highestLC)
-		} else if err != nil {
+		}
+		if err != nil {
 			return err
 		}
 
@@ -117,7 +118,8 @@ func (d *dag) Migrate() error {
 			log.Logger().Info("Number of transactions not stored, migrating...")
 			numberOfTXs := d.getNumberOfTransactionsLegacy(tx)
 			err = d.setNumberOfTransactions(tx, numberOfTXs)
-		} else if err != nil {
+		}
+		if err != nil {
 			return err
 		}
 
@@ -127,6 +129,7 @@ func (d *dag) Migrate() error {
 		if errors.Is(err, stoabs.ErrKeyNotFound) {
 			log.Logger().Info("Head not stored in metadata, migrating...")
 			heads := d.headsLegacy(tx)
+			err = nil            // reset error
 			if len(heads) != 0 { // ignore for empty node
 				var latestHead hash.SHA256Hash
 				var latestLC uint32
@@ -147,7 +150,8 @@ func (d *dag) Migrate() error {
 
 				err = d.setHead(tx, latestHead)
 			}
-		} else if err != nil {
+		}
+		if err != nil {
 			return err
 		}
 
