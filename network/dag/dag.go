@@ -101,40 +101,30 @@ func (d *dag) Migrate() error {
 		writer := tx.GetShelfWriter(metadataShelf)
 		// Migrate highest LC value
 		// Todo: remove after V5 release
-		highestLCBytes, err := writer.Get(stoabs.BytesKey(highestClockValue))
-		if err != nil && !errors.Is(err, stoabs.ErrKeyNotFound) {
-			return err
-		}
-		if highestLCBytes == nil {
+		_, err := writer.Get(stoabs.BytesKey(highestClockValue))
+		if errors.Is(err, stoabs.ErrKeyNotFound) {
 			log.Logger().Info("Highest LC value not stored, migrating...")
 			highestLC := d.getHighestClockLegacy(tx)
 			err = d.setHighestClockValue(tx, highestLC)
-			if err != nil {
-				return err
-			}
-		}
-		// Migrate number of TXs
-		// Todo: remove after V5 release
-		numberOfTXs, err := writer.Get(stoabs.BytesKey(numberOfTransactionsKey))
-		if err != nil && !errors.Is(err, stoabs.ErrKeyNotFound) {
+		} else if err != nil {
 			return err
 		}
-		if numberOfTXs == nil {
+
+		// Migrate number of TXs
+		// Todo: remove after V5 release
+		_, err = writer.Get(stoabs.BytesKey(numberOfTransactionsKey))
+		if errors.Is(err, stoabs.ErrKeyNotFound) {
 			log.Logger().Info("Number of transactions not stored, migrating...")
 			numberOfTXs := d.getNumberOfTransactionsLegacy(tx)
 			err = d.setNumberOfTransactions(tx, numberOfTXs)
-			if err != nil {
-				return err
-			}
+		} else if err != nil {
+			return err
 		}
 
 		// Migrate headsLegacy to single head
 		// Todo: remove after V6 release => then remove headsShelf
-		headRef, err := writer.Get(stoabs.BytesKey(headRefKey))
-		if err != nil && !errors.Is(err, stoabs.ErrKeyNotFound) {
-			return err
-		}
-		if headRef == nil {
+		_, err = writer.Get(stoabs.BytesKey(headRefKey))
+		if errors.Is(err, stoabs.ErrKeyNotFound) {
 			log.Logger().Info("Head not stored in metadata, migrating...")
 			heads := d.headsLegacy(tx)
 			if len(heads) != 0 { // ignore for empty node
@@ -156,10 +146,9 @@ func (d *dag) Migrate() error {
 				}
 
 				err = d.setHead(tx, latestHead)
-				if err != nil {
-					return err
-				}
 			}
+		} else if err != nil {
+			return err
 		}
 
 		return nil
