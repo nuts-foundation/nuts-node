@@ -87,15 +87,15 @@ func (v verificationMethodValidator) verifyThumbprint(method *did.VerificationMe
 }
 
 type InvalidServiceError struct {
-	error
+	Cause error
 }
 
 func (e InvalidServiceError) Error() string {
-	return fmt.Sprintf("invalid service: %s", e.error.Error())
+	return "invalid service: " + e.Cause.Error()
 }
 
 func (e InvalidServiceError) Unwrap() error {
-	return e.error
+	return e.Cause
 }
 
 // basicServiceValidator validates service.ID and service.Type of the Services of a DID Document.
