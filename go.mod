@@ -13,7 +13,7 @@ require (
 	github.com/goodsign/monday v1.0.0
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/vault/api v1.8.2
-	github.com/knadh/koanf v1.4.4
+	github.com/knadh/koanf v1.4.5
 	github.com/labstack/echo-contrib v0.13.0
 	github.com/labstack/echo/v4 v4.10.0
 	github.com/lestrrat-go/jwx v1.2.25
