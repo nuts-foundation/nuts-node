@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-The last 2 released versions are supported (e.g. if the last version is v5.0.1, v4 and v5 are supported).
+The last 2 major versions are supported (e.g. if the last version is v5.0.1, v4 and v5 are supported).
 
 Important security fixes are backported to supported versions.
 
