@@ -48,7 +48,7 @@ type Config struct {
 // DefaultCryptoConfig returns a Config with a fs backend storage
 func DefaultCryptoConfig() Config {
 	return Config{
-		Storage: "fs",
+		Storage: "",
 		Vault:   storage.DefaultVaultConfig(),
 	}
 }
