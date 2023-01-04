@@ -24,7 +24,7 @@ require (
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.4.0
 	github.com/nuts-foundation/go-leia/v3 v3.3.0
-	github.com/nuts-foundation/go-stoabs v1.5.1
+	github.com/nuts-foundation/go-stoabs v1.6.0
 	github.com/piprate/json-gold v0.5.1-0.20221121142341-01873264bae4
 	github.com/privacybydesign/irmago v0.10.0
 	github.com/prometheus/client_golang v1.14.0
@@ -76,7 +76,7 @@ require (
 	github.com/go-chi/chi v3.3.3+incompatible // indirect
 	github.com/go-errors/errors v1.0.1 // indirect
 	github.com/go-redis/redis/v8 v8.11.4 // indirect
-	github.com/go-redsync/redsync/v4 v4.6.0 // indirect
+	github.com/go-redsync/redsync/v4 v4.7.1 // indirect
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/goccy/go-json v0.9.11 // indirect
 	github.com/golang-jwt/jwt/v4 v4.2.0 // indirect
