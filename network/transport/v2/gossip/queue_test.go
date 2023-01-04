@@ -76,7 +76,7 @@ func TestQueue_do(t *testing.T) {
 	assert.False(t, done2.Load())
 	wg.Done()
 	test.WaitFor(t, func() (bool, error) {
-		return done1.Load(), nil
+		return done1.Load() && done2.Load(), nil
 	}, 50*time.Millisecond, "timeout while waiting for mutexes")
 	assert.True(t, done1.Load())
 	assert.True(t, done2.Load())
