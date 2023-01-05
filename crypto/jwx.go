@@ -243,7 +243,7 @@ func signJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey
 func (client *Crypto) getPrivateKey(key interface{}) (crypto.Signer, string, error) {
 	var kid string
 	switch k := key.(type) {
-	case keyContainer:
+	case exportableKey:
 		return k.Signer(), k.KID(), nil
 	case Key:
 		kid = k.KID()

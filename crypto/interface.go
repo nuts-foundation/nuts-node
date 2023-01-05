@@ -82,9 +82,9 @@ type Key interface {
 	Public() crypto.PublicKey
 }
 
-// keyContainer is a Key that contains the private key itself and thus is exportable.
+// exportableKey is a Key that contains the private key itself and thus is exportable.
 // Should only be used for select purposes (e.g. ephemeral keys).
-type keyContainer interface {
+type exportableKey interface {
 	Key
 	// Signer returns the private key.
 	Signer() crypto.Signer
