@@ -6,6 +6,16 @@ Release notes
 What has been changed, and how to update between versions.
 
 *****************
+Coconut update (v5.1.0)
+*****************
+
+Release date: **DRAFT**
+
+- crypto.storage must explicitly be set in strict mode
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.0...v5.1.0
+
+*****************
 Coconut update (v5.0.5)
 *****************
 
