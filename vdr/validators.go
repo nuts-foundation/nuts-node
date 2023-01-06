@@ -21,13 +21,13 @@ package vdr
 import (
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/network/transport"
 
 	"github.com/lestrrat-go/jwx/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"net/url"
 )
 
 // NetworkDocumentValidator creates a DID Document validator that checks for inconsistencies in the DID Document:
@@ -224,14 +224,9 @@ func serviceTypeValidation(service did.Service) error {
 
 func validateNutsCommEndpoint(service did.Service) error {
 	// RFC015 $3.2: NutsComm rules
-	var endpointStr string
-	if err := service.UnmarshalServiceEndpoint(&endpointStr); err != nil {
-		return errors.New("endpoint not a string")
-	}
-	if URL, err := url.Parse(endpointStr); err != nil {
+	var ncEndpoint transport.NutsCommURL
+	if err := service.UnmarshalServiceEndpoint(&ncEndpoint); err != nil {
 		return err
-	} else if URL.Scheme != "grpc" {
-		return errors.New("scheme must be grpc")
 	}
 	return nil
 }

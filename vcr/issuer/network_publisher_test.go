@@ -42,7 +42,7 @@ import (
 func Test_networkPublisher_resolveNutsCommServiceOwner(t *testing.T) {
 	serviceID := ssi.MustParseURI(fmt.Sprintf("%s#1", vdr.TestDIDA.String()))
 	expectedURIA := ssi.MustParseURI(fmt.Sprintf("%s/serviceEndpoint?type=NutsComm", vdr.TestDIDA.String()))
-	service := did.Service{ID: serviceID}
+	service := did.Service{ID: serviceID, ServiceEndpoint: "grpc://foo"}
 
 	t.Run("ok - correct did from service ID", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -57,6 +57,22 @@ func Test_networkPublisher_resolveNutsCommServiceOwner(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, vdr.TestDIDA, *serviceOwner)
+	})
+
+	t.Run("error - service is not a valid NutsComm service", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		sut := networkPublisher{}
+		mockServiceResolver := didservice.NewMockServiceResolver(ctrl)
+		sut.serviceResolver = mockServiceResolver
+
+		service := did.Service{ID: serviceID, ServiceEndpoint: "https://foo"}
+		mockServiceResolver.EXPECT().Resolve(expectedURIA, 5).Return(service, nil)
+
+		_, err := sut.resolveNutsCommServiceOwner(vdr.TestDIDA)
+
+		require.Error(t, err)
+		assert.Equal(t, "could not resolve NutsComm service owner: scheme must be grpc", err.Error())
 	})
 
 	t.Run("error from resolver", func(t *testing.T) {
@@ -140,8 +156,8 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 		mockDocResolver.EXPECT().Resolve(*issuerDID, nil).Return(&did.Document{}, &vdrTypes.DocumentMetadata{}, nil)
 		expectedIssuerServiceURI := ssi.MustParseURI("did:nuts:123/serviceEndpoint?type=NutsComm")
 		expectedSubjectServiceURI := ssi.MustParseURI("did:nuts:456/serviceEndpoint?type=NutsComm")
-		mockServiceResolver.EXPECT().Resolve(expectedIssuerServiceURI, 5).Return(did.Service{ID: issuerID}, nil)
-		mockServiceResolver.EXPECT().Resolve(expectedSubjectServiceURI, 5).Return(did.Service{ID: subjectID}, nil)
+		mockServiceResolver.EXPECT().Resolve(expectedIssuerServiceURI, 5).Return(did.Service{ID: issuerID, ServiceEndpoint: "grpc://foo"}, nil)
+		mockServiceResolver.EXPECT().Resolve(expectedSubjectServiceURI, 5).Return(did.Service{ID: subjectID, ServiceEndpoint: "grpc://foo"}, nil)
 
 		expectedTemplate := network.Template{
 			Key:             testKey,
@@ -330,7 +346,7 @@ func Test_networkPublisher_PublishRevocation(t *testing.T) {
 			mockNetwork := network.NewMockTransactions(ctrl)
 
 			mockKeyResolver.EXPECT().ResolveAssertionKey(*issuerDID).Return(nil, errors.New("not found"))
-			//mockDocResolver.EXPECT().Resolve(*issuerDID, nil).Return(&did.Document{}, &vdrTypes.DocumentMetadata{}, nil)
+			// mockDocResolver.EXPECT().Resolve(*issuerDID, nil).Return(&did.Document{}, &vdrTypes.DocumentMetadata{}, nil)
 
 			revocationToPublish := credential.Revocation{
 				Issuer: issuerID,

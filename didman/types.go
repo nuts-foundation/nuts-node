@@ -21,10 +21,9 @@ package didman
 
 import (
 	"context"
-	"net/url"
-
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"net/url"
 )
 
 // ContactInformationServiceType contains the DID service type used for services that contain node contact information.

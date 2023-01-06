@@ -27,7 +27,7 @@ import (
 )
 
 func Test_ParseAddress(t *testing.T) {
-	errScheme := errors.New("invalid URL scheme")
+	errScheme := errors.New("scheme must be grpc")
 	errIsIp := errors.New("hostname is IP")
 	errIsReserved := errors.New("hostname is reserved")
 
@@ -53,7 +53,7 @@ func Test_ParseAddress(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		addr, err := ParseNutsCommAddress(tc.input)
+		addr, err := parseNutsCommAddress(tc.input)
 		if tc.err == nil {
 			// valid test cases
 			assert.Equal(t, tc.output, addr.Host, "test case: %v", tc)
