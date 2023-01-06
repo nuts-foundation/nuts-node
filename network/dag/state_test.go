@@ -299,9 +299,15 @@ func TestState_Diagnostics(t *testing.T) {
 	t.Run("non-empty", func(t *testing.T) {
 		txState := createState(t).(*state)
 		payload := []byte("payload")
+
 		doc1, _, _ := CreateTestTransactionEx(2, hash.SHA256Sum(payload), nil)
 		err := txState.Add(ctx, doc1, payload)
-		assert.NoError(t, err)
+		require.NoError(t, err)
+
+		doc2, _, _ := CreateTestTransactionEx(3, hash.SHA256Sum(payload), nil, doc1)
+		err = txState.Add(ctx, doc2, payload)
+		require.NoError(t, err)
+
 		diagnostics := txState.Diagnostics()
 		assert.Len(t, diagnostics, 5)
 		// Assert actual diagnostics
@@ -312,10 +318,10 @@ func TestState_Diagnostics(t *testing.T) {
 		sort.Strings(lines)
 		actual := strings.Join(lines, "\n")
 
-		assert.Contains(t, actual, fmt.Sprintf("dag_xor: %s", doc1.Ref()))
-		assert.Contains(t, actual, "transaction_count: 1")
+		assert.Contains(t, actual, fmt.Sprintf("dag_xor: %s", doc1.Ref().Xor(doc2.Ref())))
+		assert.Contains(t, actual, "transaction_count: 2")
 		assert.Contains(t, actual, "failed_events: 0")
-		assert.Contains(t, actual, "dag_lc_high: 0")
+		assert.Contains(t, actual, "dag_lc_high: 1")
 	})
 	t.Run("empty", func(t *testing.T) {
 		txState := createState(t).(*state)
