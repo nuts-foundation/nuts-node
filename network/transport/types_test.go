@@ -78,3 +78,25 @@ func TestPeer_ToFields(t *testing.T) {
 	assert.Equal(t, "def", peer.ToFields()["peerAddr"])
 	assert.Equal(t, "did:abc:123", peer.ToFields()["peerDID"])
 }
+
+func TestNutsCommURL_UnmarshalJSON(t *testing.T) {
+	t.Run("ok - valid url", func(t *testing.T) {
+		var url NutsCommURL
+		err := url.UnmarshalJSON([]byte(`"grpc://foo.bar:5050"`))
+		assert.NoError(t, err)
+		assert.Equal(t, "foo.bar:5050", url.URL().Host)
+	})
+
+	t.Run("error - invalid url, missing grpc", func(t *testing.T) {
+		var url NutsCommURL
+		err := url.UnmarshalJSON([]byte(`"foo.bar:5050"`))
+		assert.EqualError(t, err, "scheme must be grpc")
+	})
+
+	t.Run("error - not a string", func(t *testing.T) {
+		var url NutsCommURL
+		err := url.UnmarshalJSON([]byte(`123`))
+		assert.EqualError(t, err, "endpoint not a string")
+
+	})
+}
