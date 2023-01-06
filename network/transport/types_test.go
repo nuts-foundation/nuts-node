@@ -27,7 +27,7 @@ import (
 )
 
 func Test_ParseAddress(t *testing.T) {
-	errScheme := errors.New("invalid URL scheme")
+	errScheme := errors.New("scheme must be grpc")
 	errIsIp := errors.New("hostname is IP")
 	errIsReserved := errors.New("hostname is reserved")
 
@@ -53,7 +53,7 @@ func Test_ParseAddress(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		addr, err := ParseNutsCommAddress(tc.input)
+		addr, err := parseNutsCommAddress(tc.input)
 		if tc.err == nil {
 			// valid test cases
 			assert.Equal(t, tc.output, addr.Host, "test case: %v", tc)
@@ -77,4 +77,26 @@ func TestPeer_ToFields(t *testing.T) {
 	assert.Equal(t, "abc", peer.ToFields()["peerID"])
 	assert.Equal(t, "def", peer.ToFields()["peerAddr"])
 	assert.Equal(t, "did:abc:123", peer.ToFields()["peerDID"])
+}
+
+func TestNutsCommURL_UnmarshalJSON(t *testing.T) {
+	t.Run("ok - valid url", func(t *testing.T) {
+		var url NutsCommURL
+		err := url.UnmarshalJSON([]byte(`"grpc://foo.bar:5050"`))
+		assert.NoError(t, err)
+		assert.Equal(t, "foo.bar:5050", url.Host)
+	})
+
+	t.Run("error - invalid url, missing grpc", func(t *testing.T) {
+		var url NutsCommURL
+		err := url.UnmarshalJSON([]byte(`"foo.bar:5050"`))
+		assert.EqualError(t, err, "scheme must be grpc")
+	})
+
+	t.Run("error - not a string", func(t *testing.T) {
+		var url NutsCommURL
+		err := url.UnmarshalJSON([]byte(`123`))
+		assert.EqualError(t, err, "endpoint not a string")
+
+	})
 }

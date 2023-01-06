@@ -661,7 +661,7 @@ func TestNetwork_Start(t *testing.T) {
 
 			err := cxt.network.Start()
 
-			assert.EqualError(t, err, "invalid NodeDID configuration: invalid NutsComm service endpoint: json: cannot unmarshal object into Go value of type string")
+			assert.EqualError(t, err, "invalid NodeDID configuration: invalid NutsComm service endpoint: endpoint not a string")
 		})
 		t.Run("error - cannot parse NutsComm service", func(t *testing.T) {
 			old := completeDocument.Service[0].ServiceEndpoint

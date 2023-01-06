@@ -144,6 +144,10 @@ func (p networkPublisher) resolveNutsCommServiceOwner(DID did.DID) (*did.DID, er
 	if err != nil {
 		return nil, fmt.Errorf("could not resolve NutsComm service owner: %w", err)
 	}
+	var nutsCommEndpoint transport.NutsCommURL
+	if err := service.UnmarshalServiceEndpoint(&nutsCommEndpoint); err != nil {
+		return nil, fmt.Errorf("could not resolve NutsComm service owner: %w", err)
+	}
 	serviceID := service.ID
 	serviceID.Fragment = ""
 	serviceID.Path = ""

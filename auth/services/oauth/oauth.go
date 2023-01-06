@@ -458,7 +458,7 @@ func (s *service) validateAuthorizationCredentials(context *validationContext) e
 			return fmt.Errorf("issuer %s of authorization credential with ID: %s does not match jwt.sub: %s", authCred.Issuer.String(), authCred.ID.String(), sub)
 		}
 
-		//The credential credentialSubject.id equals the iss field of the JWT.
+		// The credential credentialSubject.id equals the iss field of the JWT.
 		authCredSubjects := make([]credential.NutsAuthorizationCredentialSubject, 0)
 		if err := authCred.UnmarshalCredentialSubject(&authCredSubjects); err != nil {
 			return fmt.Errorf(errInvalidVCClaim, err)

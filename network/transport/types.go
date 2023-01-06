@@ -19,6 +19,7 @@
 package transport
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -101,13 +102,13 @@ const NutsCommServiceType = "NutsComm"
 // The input must include the protocol scheme (e.g. grpc://).
 // The address must NOT be an IP address.
 // The input must not be a reserved address or TLD as described in RFC2606 or https://www.ietf.org/archive/id/draft-chapin-rfc2606bis-00.html.
-func ParseNutsCommAddress(input string) (*url.URL, error) {
+func parseNutsCommAddress(input string) (*url.URL, error) {
 	parsed, err := url.Parse(input)
 	if err != nil {
 		return nil, err
 	}
 	if parsed.Scheme != "grpc" {
-		return nil, errors.New("invalid URL scheme")
+		return nil, errors.New("scheme must be grpc")
 	}
 	if net.ParseIP(parsed.Hostname()) != nil {
 		return nil, errors.New("hostname is IP")
@@ -151,4 +152,23 @@ var reservedAddresses = []string{
 	"example.com",
 	"example.net",
 	"example.org",
+}
+
+// NutsCommURL is the type which can be used to store a NutsComm endpoint in a DID Document.
+// It contains the checks to validate if the endpoint is valid.
+type NutsCommURL struct {
+	url.URL
+}
+
+func (s *NutsCommURL) UnmarshalJSON(bytes []byte) error {
+	var str string
+	if err := json.Unmarshal(bytes, &str); err != nil {
+		return errors.New("endpoint not a string")
+	}
+	endpoint, err := parseNutsCommAddress(str)
+	if err != nil {
+		return err
+	}
+	*s = NutsCommURL{*endpoint}
+	return nil
 }

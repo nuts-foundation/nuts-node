@@ -363,28 +363,19 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 	inner:
 		for _, service := range node.Service {
 			if service.Type == transport.NutsCommServiceType {
-				var nutsCommStr string
-				if err = service.UnmarshalServiceEndpoint(&nutsCommStr); err != nil {
+				var nutsCommUrl transport.NutsCommURL
+				if err = service.UnmarshalServiceEndpoint(&nutsCommUrl); err != nil {
 					log.Logger().
 						WithError(err).
 						WithField(core.LogFieldDID, node.ID.String()).
 						Warn("Failed to extract NutsComm address from service")
 					continue inner
 				}
-				address, err := transport.ParseNutsCommAddress(nutsCommStr)
-				if err != nil {
-					log.Logger().
-						WithError(err).
-						WithField(core.LogFieldDID, node.ID.String()).
-						WithField(core.LogFieldNodeAddress, nutsCommStr).
-						Warn("Invalid NutsComm address in service")
-					continue inner
-				}
 				log.Logger().
 					WithField(core.LogFieldDID, node.ID.String()).
-					WithField(core.LogFieldNodeAddress, address.String()).
+					WithField(core.LogFieldNodeAddress, nutsCommUrl).
 					Info("Discovered Nuts node")
-				n.connectionManager.Connect(address.Host)
+				n.connectionManager.Connect(nutsCommUrl.Host)
 			}
 		}
 	}
@@ -415,12 +406,8 @@ func (n *Network) validateNodeDID(nodeDID did.DID) error {
 	if err != nil {
 		return fmt.Errorf("unable to resolve %s service endpoint, register it on the DID document (did=%s): %v", transport.NutsCommServiceType, nodeDID, err)
 	}
-	var nutsCommURLStr string
-	if err = nutsCommService.UnmarshalServiceEndpoint(&nutsCommURLStr); err != nil {
-		return fmt.Errorf("invalid %s service endpoint: %w", transport.NutsCommServiceType, err)
-	}
-	nutsCommURL, err := transport.ParseNutsCommAddress(nutsCommURLStr)
-	if err != nil {
+	var nutsCommURL transport.NutsCommURL
+	if err = nutsCommService.UnmarshalServiceEndpoint(&nutsCommURL); err != nil {
 		return fmt.Errorf("invalid %s service endpoint: %w", transport.NutsCommServiceType, err)
 	}
 
