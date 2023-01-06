@@ -20,7 +20,9 @@
 package echo
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	logTest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/require"
@@ -64,6 +66,7 @@ events:
 		module    string
 		operation string
 		url       string
+		body      interface{}
 	}
 	t.Run("404s", func(t *testing.T) {
 		testCases := []operation{
@@ -88,12 +91,20 @@ events:
 	})
 	t.Run("400s", func(t *testing.T) {
 		testCases := []operation{
+			{module: "Crypto", operation: "SignJwt", url: "/internal/crypto/v1/sign_jwt", body: map[string]interface{}{"kid": "fpp", "claims": map[string]interface{}{"foo": "bar"}}},
 			{module: "Network", operation: "GetTransaction", url: "/internal/network/v1/transaction/invalidhash"},
 			{module: "Network", operation: "GetTransactionPayload", url: "/internal/network/v1/transaction/invalidhash/payload"},
 		}
 
 		for _, testCase := range testCases {
-			resp, err := http.Get(fmt.Sprintf("%s%s", baseUrl, testCase.url))
+			var resp *http.Response
+			var err error
+			if testCase.body != nil {
+				body, _ := json.Marshal(testCase.body)
+				resp, err = http.Post(fmt.Sprintf("%s%s", baseUrl, testCase.url), "application/json", bytes.NewReader(body))
+			} else {
+				resp, err = http.Get(fmt.Sprintf("%s%s", baseUrl, testCase.url))
+			}
 
 			require.NoError(t, err)
 			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
