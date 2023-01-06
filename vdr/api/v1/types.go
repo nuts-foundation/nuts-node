@@ -26,6 +26,9 @@ type DIDDocument = did.Document
 // DIDDocumentMetadata is an alias
 type DIDDocumentMetadata = types.DocumentMetadata
 
+// VerificationMethod is an alias
+type VerificationMethod = did.VerificationMethod
+
 // DIDCreateRequest defines model for DIDCreateRequest.
 type DIDCreateRequest struct {
 	VerificationMethodRelationship
