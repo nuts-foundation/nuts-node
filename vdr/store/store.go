@@ -136,7 +136,8 @@ func (s *store) Update(id did.DID, current hash.SHA256Hash, next did.Document, m
 
 		latestBytes, err := metadataWriter.Get(stoabs.BytesKey(latestRef))
 		if errors.Is(err, stoabs.ErrKeyNotFound) {
-			return vdr.ErrNotFound // TODO: is this correct? existence of a latestRef ~10 lines up means that this error cannot occur
+			// Existence of a latestRef means that this error should never occur. Could indicate corrupted DB.
+			err = fmt.Errorf("latest document metadata missing for %s (metadataShelfRef=%s)", didString, latestRef)
 		}
 		if err != nil {
 			return err
