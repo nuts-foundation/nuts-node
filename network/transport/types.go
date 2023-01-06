@@ -156,7 +156,9 @@ var reservedAddresses = []string{
 
 // NutsCommURL is the type which can be used to store a NutsComm endpoint in a DID Document.
 // It contains the checks to validate if the endpoint is valid.
-type NutsCommURL string
+type NutsCommURL struct {
+	url.URL
+}
 
 func (s *NutsCommURL) UnmarshalJSON(bytes []byte) error {
 	var str string
@@ -167,12 +169,6 @@ func (s *NutsCommURL) UnmarshalJSON(bytes []byte) error {
 	if err != nil {
 		return err
 	}
-	*s = NutsCommURL(endpoint.String())
+	*s = NutsCommURL{*endpoint}
 	return nil
-}
-
-func (s *NutsCommURL) URL() *url.URL {
-	// should never fail since it's already validated
-	url, _ := url.Parse(string(*s))
-	return url
 }

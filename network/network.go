@@ -375,7 +375,7 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 					WithField(core.LogFieldDID, node.ID.String()).
 					WithField(core.LogFieldNodeAddress, nutsCommUrl).
 					Info("Discovered Nuts node")
-				n.connectionManager.Connect(nutsCommUrl.URL().Host)
+				n.connectionManager.Connect(nutsCommUrl.Hostname())
 			}
 		}
 	}
@@ -415,7 +415,7 @@ func (n *Network) validateNodeDID(nodeDID did.DID) error {
 	if n.certificate.Leaf == nil { // n.config.DisableNodeAuthentication is for incoming connections.
 		return errors.New("missing TLS certificate")
 	}
-	if err = n.certificate.Leaf.VerifyHostname(nutsCommURL.URL().Hostname()); err != nil {
+	if err = n.certificate.Leaf.VerifyHostname(nutsCommURL.Hostname()); err != nil {
 		return fmt.Errorf("none of the DNS names in TLS certificate match the %s service endpoint (nodeDID=%s, %s=%s)", transport.NutsCommServiceType, nodeDID, transport.NutsCommServiceType, nutsCommURL)
 	}
 
