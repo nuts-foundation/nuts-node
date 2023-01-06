@@ -416,7 +416,7 @@ func (n *Network) validateNodeDID(nodeDID did.DID) error {
 		return errors.New("missing TLS certificate")
 	}
 	if err = n.certificate.Leaf.VerifyHostname(nutsCommURL.Hostname()); err != nil {
-		return fmt.Errorf("none of the DNS names in TLS certificate match the %s service endpoint (nodeDID=%s, %s=%s)", transport.NutsCommServiceType, nodeDID, transport.NutsCommServiceType, nutsCommURL)
+		return fmt.Errorf("none of the DNS names in TLS certificate match the %s service endpoint (nodeDID=%s, %s=%s)", transport.NutsCommServiceType, nodeDID, transport.NutsCommServiceType, nutsCommURL.String())
 	}
 
 	return nil
