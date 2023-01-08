@@ -27,7 +27,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -77,11 +76,8 @@ func TestEngine_Command(t *testing.T) {
 	newCmdWithServer := func(t *testing.T, handler *http2.Handler) *cobra.Command {
 		cmd := newCmd(t)
 		s := httptest.NewServer(handler)
-		assert.NoError(t, os.Setenv("NUTS_ADDRESS", s.URL), "unable to set the NUTS_ADDRESS env var")
-		t.Cleanup(func() {
-			s.Close()
-			assert.NoError(t, os.Unsetenv("NUTS_ADDRESS"))
-		})
+		t.Setenv("NUTS_ADDRESS", s.URL)
+		t.Cleanup(s.Close)
 
 		return cmd
 	}
