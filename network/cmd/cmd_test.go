@@ -24,7 +24,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -60,7 +59,7 @@ func TestConvertRange(t *testing.T) {
 	})
 
 	t.Run("it ignores negative ints", func(t *testing.T) {
-		assert.Panics(t, func() {convertRange("-5")})
+		assert.Panics(t, func() { convertRange("-5") })
 	})
 }
 
@@ -78,8 +77,7 @@ func TestCmd_List(t *testing.T) {
 
 	t.Run("it lists sorted by time on default", func(t *testing.T) {
 		// make sure the test connects to the mock server
-		os.Setenv("NUTS_ADDRESS", s.URL)
-		defer os.Unsetenv("NUTS_ADDRESS")
+		t.Setenv("NUTS_ADDRESS", s.URL)
 
 		outBuf := new(bytes.Buffer)
 		networkCmd := Cmd()
@@ -100,8 +98,7 @@ func TestCmd_List(t *testing.T) {
 	})
 
 	t.Run("it sorts by type", func(t *testing.T) {
-		os.Setenv("NUTS_ADDRESS", s.URL)
-		defer os.Unsetenv("NUTS_ADDRESS")
+		t.Setenv("NUTS_ADDRESS", s.URL)
 
 		outBuf := new(bytes.Buffer)
 		cmd := Cmd()
@@ -137,8 +134,7 @@ func TestCmd_Get(t *testing.T) {
 		response := dag.CreateTestTransactionWithJWK(1)
 		handler := &http2.Handler{StatusCode: http.StatusOK, ResponseData: string(response.Data())}
 		s := httptest.NewServer(handler)
-		os.Setenv("NUTS_ADDRESS", s.URL)
-		defer os.Unsetenv("NUTS_ADDRESS")
+		t.Setenv("NUTS_ADDRESS", s.URL)
 		defer s.Close()
 		cmd.SetArgs([]string{"get", response.Ref().String()})
 		err := cmd.Execute()
@@ -153,8 +149,7 @@ func TestCmd_Get(t *testing.T) {
 		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 		handler := &http2.Handler{StatusCode: http.StatusNotFound, ResponseData: "not found"}
 		s := httptest.NewServer(handler)
-		os.Setenv("NUTS_ADDRESS", s.URL)
-		defer os.Unsetenv("NUTS_ADDRESS")
+		t.Setenv("NUTS_ADDRESS", s.URL)
 		defer s.Close()
 		hashString := hash.SHA256Sum([]byte{1, 2, 3}).String()
 		cmd.SetArgs([]string{"get", hashString})
@@ -184,8 +179,7 @@ func TestCmd_Payload(t *testing.T) {
 		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 		handler := &http2.Handler{StatusCode: http.StatusOK, ResponseData: []byte("Hello, World!")}
 		s := httptest.NewServer(handler)
-		os.Setenv("NUTS_ADDRESS", s.URL)
-		defer os.Unsetenv("NUTS_ADDRESS")
+		t.Setenv("NUTS_ADDRESS", s.URL)
 		defer s.Close()
 		h := hash.SHA256Sum([]byte{1, 2, 3})
 		cmd.SetArgs([]string{"payload", h.String()})
@@ -195,8 +189,7 @@ func TestCmd_Payload(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		handler := &http2.Handler{StatusCode: http.StatusNotFound, ResponseData: []byte("Hello, World!")}
 		s := httptest.NewServer(handler)
-		os.Setenv("NUTS_ADDRESS", s.URL)
-		defer os.Unsetenv("NUTS_ADDRESS")
+		t.Setenv("NUTS_ADDRESS", s.URL)
 		defer s.Close()
 		cmd := Cmd()
 		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
@@ -226,8 +219,7 @@ func TestCmd_Peers(t *testing.T) {
 		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 		handler := &http2.Handler{StatusCode: http.StatusOK, ResponseData: map[string]v1.PeerDiagnostics{"foo": {Uptime: 50 * time.Second}}}
 		s := httptest.NewServer(handler)
-		os.Setenv("NUTS_ADDRESS", s.URL)
-		defer os.Unsetenv("NUTS_ADDRESS")
+		t.Setenv("NUTS_ADDRESS", s.URL)
 		defer s.Close()
 
 		outBuf := new(bytes.Buffer)
@@ -259,8 +251,7 @@ func TestCmd_Reprocess(t *testing.T) {
 		cmd := Cmd()
 		handler := &http2.Handler{StatusCode: http.StatusAccepted}
 		s := httptest.NewServer(handler)
-		os.Setenv("NUTS_ADDRESS", s.URL)
-		defer os.Unsetenv("NUTS_ADDRESS")
+		t.Setenv("NUTS_ADDRESS", s.URL)
 		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 		defer s.Close()
 		cmd.SetArgs([]string{"reprocess", "application/did+json"})
@@ -272,8 +263,7 @@ func TestCmd_Reprocess(t *testing.T) {
 		cmd := Cmd()
 		handler := &http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: "{\"detail\":\"missing type\"}"}
 		s := httptest.NewServer(handler)
-		os.Setenv("NUTS_ADDRESS", s.URL)
-		defer os.Unsetenv("NUTS_ADDRESS")
+		t.Setenv("NUTS_ADDRESS", s.URL)
 		defer s.Close()
 		cmd.SetArgs([]string{"reprocess", "application/did+json"})
 		expected := "Usage:\n  network reprocess [contentType]"

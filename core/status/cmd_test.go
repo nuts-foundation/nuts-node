@@ -22,7 +22,6 @@ import (
 	"bytes"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -34,8 +33,7 @@ func TestEngine_Command(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		cmd := Cmd()
 		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: "diagnostics"})
-		os.Setenv("NUTS_ADDRESS", s.URL)
-		defer os.Unsetenv("NUTS_ADDRESS")
+		t.Setenv("NUTS_ADDRESS", s.URL)
 		core.NewServerConfig().Load(cmd.Flags())
 		defer s.Close()
 
@@ -53,8 +51,7 @@ func TestEngine_Command(t *testing.T) {
 	t.Run("unexpected status code", func(t *testing.T) {
 		cmd := Cmd()
 		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})
-		os.Setenv("NUTS_ADDRESS", s.URL)
-		defer os.Unsetenv("NUTS_ADDRESS")
+		t.Setenv("NUTS_ADDRESS", s.URL)
 		core.NewServerConfig().Load(cmd.Flags())
 		defer s.Close()
 

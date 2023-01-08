@@ -86,17 +86,14 @@ func Test_rootCmd(t *testing.T) {
 }
 
 func Test_serverCmd(t *testing.T) {
-	os.Setenv("NUTS_AUTH_CONTRACTVALIDATORS", "dummy")
-	defer os.Unsetenv("NUTS_AUTH_CONTRACTVALIDATORS")
+	t.Setenv("NUTS_AUTH_CONTRACTVALIDATORS", "dummy")
 
 	ctx := context.Background()
 
 	t.Run("start in server mode", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
-		os.Setenv("NUTS_DATADIR", testDirectory)
-		defer os.Unsetenv("NUTS_DATADIR")
-		os.Setenv("NUTS_TESTENGINE_KEY", testDirectory)
-		defer os.Unsetenv("NUTS_TESTENGINE_KEY")
+		t.Setenv("NUTS_DATADIR", testDirectory)
+		t.Setenv("NUTS_TESTENGINE_KEY", testDirectory)
 		os.Args = []string{"nuts", "server"}
 
 		engine1 := &core.TestEngine{}
@@ -119,8 +116,7 @@ func Test_serverCmd(t *testing.T) {
 	t.Run("output cpuprofile", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		cpuprofile := path.Join(testDirectory, "profile.dmp")
-		os.Setenv("NUTS_DATADIR", testDirectory)
-		defer os.Unsetenv("NUTS_DATADIR")
+		t.Setenv("NUTS_DATADIR", testDirectory)
 		os.Args = []string{"nuts", "server", fmt.Sprintf("--cpuprofile=%s", cpuprofile)}
 		defer func() {
 			os.Args = []string{}

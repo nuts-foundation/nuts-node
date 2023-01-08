@@ -19,7 +19,6 @@
 package auth
 
 import (
-	"os"
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -34,8 +33,7 @@ func TestAuth_Configure(t *testing.T) {
 	tlsServerConfig.LegacyTLS.CertFile = "test/certs/example.com.pem"
 
 	t.Run("ok", func(t *testing.T) {
-		os.Setenv("NUTS_NETWORK_ENABLETLS", "false")
-		defer os.Unsetenv("NUTS_NETWORK_ENABLETLS")
+		t.Setenv("NUTS_NETWORK_ENABLETLS", "false")
 		i := NewTestAuthInstance(t)
 		_ = i.Configure(tlsServerConfig)
 	})

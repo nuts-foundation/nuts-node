@@ -81,8 +81,7 @@ func Test_ListMerging(t *testing.T) {
 
 func Test_loadConfigIntoStruct(t *testing.T) {
 	t.Run("scalar values from env", func(t *testing.T) {
-		os.Setenv("NUTS_E", "nvironment")
-		defer os.Unsetenv("NUTS_E")
+		t.Setenv("NUTS_E", "nvironment")
 		flagSet := pflag.NewFlagSet("test", pflag.ContinueOnError)
 		flagSet.String("f", "lag", "A great option")
 		type Target struct {
@@ -99,8 +98,7 @@ func Test_loadConfigIntoStruct(t *testing.T) {
 		assert.Equal(t, "nvironment", target.E)
 	})
 	t.Run("support for listed values from env and CLI", func(t *testing.T) {
-		os.Setenv("NUTS_LIST", ",a, b, c,d,value-\\,-with-escaped-comma,")
-		defer os.Unsetenv("NUTS_LIST")
+		t.Setenv("NUTS_LIST", ",a, b, c,d,value-\\,-with-escaped-comma,")
 		flagSet := pflag.NewFlagSet("test", pflag.ContinueOnError)
 		type Target struct {
 			List []string `koanf:"list"`

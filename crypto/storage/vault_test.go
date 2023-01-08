@@ -28,7 +28,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 )
@@ -185,10 +184,7 @@ func TestVaultKVStorage_configure(t *testing.T) {
 		assert.EqualError(t, err, "vault address invalid: failed to set address: parse \"%zzzzz\": invalid URL escape \"%zz\"")
 	})
 	t.Run("VAULT_TOKEN not overriden by empty config", func(t *testing.T) {
-		os.Setenv("VAULT_TOKEN", "123")
-		defer func() {
-			os.Unsetenv("VAULT_TOKEN")
-		}()
+		t.Setenv("VAULT_TOKEN", "123")
 
 		client, err := configureVaultClient(VaultConfig{
 			Address: "http://localhost:123",

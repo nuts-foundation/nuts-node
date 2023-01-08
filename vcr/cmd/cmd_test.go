@@ -27,7 +27,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
@@ -60,8 +59,7 @@ func TestCmd_Trust(t *testing.T) {
 		t.Run(c, func(t *testing.T) {
 			t.Run("ok", func(t *testing.T) {
 				cmd := newCmd(t)
-				s, _ := setupServer(http.StatusOK, []string{didString})
-				defer reset(s)
+				_ = setupServer(t, http.StatusOK, []string{didString})
 
 				cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
@@ -74,8 +72,7 @@ func TestCmd_Trust(t *testing.T) {
 
 			t.Run("error - server error", func(t *testing.T) {
 				cmd := newCmd(t)
-				s, _ := setupServer(http.StatusInternalServerError, nil)
-				defer reset(s)
+				_ = setupServer(t, http.StatusInternalServerError, nil)
 				cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 				cmd.SetArgs([]string{c, credentialType})
@@ -111,8 +108,7 @@ func TestCmd_Trust(t *testing.T) {
 		t.Run(c, func(t *testing.T) {
 			t.Run("ok", func(t *testing.T) {
 				cmd := newCmd(t)
-				s, _ := setupServer(http.StatusNoContent, nil)
-				defer reset(s)
+				_ = setupServer(t, http.StatusNoContent, nil)
 				cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 				cmd.SetArgs([]string{c, credentialType, didString})
@@ -125,8 +121,7 @@ func TestCmd_Trust(t *testing.T) {
 
 			t.Run("error - server error", func(t *testing.T) {
 				cmd := newCmd(t)
-				s, _ := setupServer(http.StatusInternalServerError, nil)
-				defer reset(s)
+				_ = setupServer(t, http.StatusInternalServerError, nil)
 				cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 				cmd.SetArgs([]string{c, credentialType, didString})
@@ -176,8 +171,7 @@ func TestCmd_Issue(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		cmd := newCmd(t)
-		s, handler := setupServer(http.StatusOK, "{}")
-		defer reset(s)
+		handler := setupServer(t, http.StatusOK, "{}")
 		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 		cmd.SetArgs([]string{"issue", contextURI, credentialType, issuerDID, credentialSubject})
 
@@ -200,8 +194,7 @@ func TestCmd_Issue(t *testing.T) {
 	t.Run("ok - with expiration date", func(t *testing.T) {
 		var expirationDate = "2022-09-15T20:03:53.8489928Z"
 		cmd := newCmd(t)
-		s, handler := setupServer(http.StatusOK, "{}")
-		defer reset(s)
+		handler := setupServer(t, http.StatusOK, "{}")
 		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 		cmd.SetArgs([]string{"issue", "--expiration=" + expirationDate, contextURI, credentialType, issuerDID, credentialSubject})
 
@@ -224,8 +217,7 @@ func TestCmd_Issue(t *testing.T) {
 	})
 	t.Run("ok - do not publish", func(t *testing.T) {
 		cmd := newCmd(t)
-		s, handler := setupServer(http.StatusOK, "{}")
-		defer reset(s)
+		handler := setupServer(t, http.StatusOK, "{}")
 		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 		cmd.SetArgs([]string{"issue", "--publish=false", contextURI, credentialType, issuerDID, credentialSubject})
 
@@ -246,8 +238,7 @@ func TestCmd_Issue(t *testing.T) {
 	})
 	t.Run("error - invalid subject", func(t *testing.T) {
 		cmd := newCmd(t)
-		s, _ := setupServer(http.StatusOK, "{}")
-		defer reset(s)
+		_ = setupServer(t, http.StatusOK, "{}")
 		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 		cmd.SetArgs([]string{"issue", contextURI, credentialType, issuerDID, `""`})
 
@@ -257,8 +248,7 @@ func TestCmd_Issue(t *testing.T) {
 	})
 	t.Run("error - server error", func(t *testing.T) {
 		cmd := newCmd(t)
-		s, _ := setupServer(http.StatusInternalServerError, "{}")
-		defer reset(s)
+		_ = setupServer(t, http.StatusInternalServerError, "{}")
 		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 		cmd.SetArgs([]string{"issue", contextURI, credentialType, issuerDID, `{}`})
 
@@ -268,14 +258,10 @@ func TestCmd_Issue(t *testing.T) {
 	})
 }
 
-func setupServer(statusCode int, responseData interface{}) (*httptest.Server, *http2.Handler) {
+func setupServer(t *testing.T, statusCode int, responseData interface{}) *http2.Handler {
 	handler := &http2.Handler{StatusCode: statusCode, ResponseData: responseData}
 	s := httptest.NewServer(handler)
-	os.Setenv("NUTS_ADDRESS", s.URL)
-	return s, handler
-}
-
-func reset(httpServer *httptest.Server) {
-	os.Unsetenv("NUTS_ADDRESS")
-	httpServer.Close()
+	t.Setenv("NUTS_ADDRESS", s.URL)
+	t.Cleanup(s.Close)
+	return handler
 }
