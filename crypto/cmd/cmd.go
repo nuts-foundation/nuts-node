@@ -32,11 +32,11 @@ func FlagSet() *pflag.FlagSet {
 	flags := pflag.NewFlagSet("crypto", pflag.ContinueOnError)
 
 	defs := cryptoEngine.DefaultCryptoConfig()
-	flags.String("crypto.storage", defs.Storage, fmt.Sprintf("Storage to use, 'fs' for file system, vaultkv for Vault KV store, default: %s.", defs.Storage))
+	flags.String("crypto.storage", defs.Storage, "Storage to use, 'fs' for file system, 'vaultkv' for Vault KV store.")
 	flags.String("crypto.vault.token", defs.Vault.Token, "The Vault token. If set it overwrites the VAULT_TOKEN env var.")
 	flags.String("crypto.vault.address", defs.Vault.Address, "The Vault address. If set it overwrites the VAULT_ADDR env var.")
 	flags.Duration("crypto.vault.timeout", defs.Vault.Timeout, "Timeout of client calls to Vault, in Golang time.Duration string format (e.g. 5s).")
-	flags.String("crypto.vault.pathprefix", defs.Vault.PathPrefix, fmt.Sprintf("The Vault path prefix. default: %s.", defs.Vault.PathPrefix))
+	flags.String("crypto.vault.pathprefix", defs.Vault.PathPrefix, "The Vault path prefix.")
 
 	return flags
 }
