@@ -30,7 +30,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 
@@ -89,10 +88,8 @@ func Test_fs2VaultCommand(t *testing.T) {
 	defer s.Close()
 
 	// Configure target
-	os.Setenv("NUTS_CRYPTO_STORAGE", "vaultkv")
-	defer os.Unsetenv("NUTS_CRYPTO_STORAGE")
-	os.Setenv("NUTS_CRYPTO_VAULT_ADDRESS", s.URL)
-	defer os.Unsetenv("NUTS_CRYPTO_VAULT_ADDRESS")
+	t.Setenv("NUTS_CRYPTO_STORAGE", "vaultkv")
+	t.Setenv("NUTS_CRYPTO_VAULT_ADDRESS", s.URL)
 
 	// Set up crypto filesystem with some keys
 	pk1, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)

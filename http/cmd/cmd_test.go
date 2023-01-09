@@ -24,7 +24,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/require"
-	"os"
 	"regexp"
 	"strconv"
 	"testing"
@@ -41,8 +40,7 @@ func TestFlagSet(t *testing.T) {
 func TestGenToken(t *testing.T) {
 	const daysValid = 365
 	testDirectory := io.TestDirectory(t)
-	os.Setenv("NUTS_DATADIR", testDirectory)
-	defer os.Unsetenv("NUTS_DATADIR")
+	t.Setenv("NUTS_DATADIR", testDirectory)
 
 	outBuf := new(bytes.Buffer)
 	cmd := ServerCmd()

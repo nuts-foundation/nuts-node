@@ -58,7 +58,6 @@ events:
 
 	hook := logTest.NewGlobal()
 	httpPort := startServer(t, configFile)
-	defer resetEnv()
 
 	baseUrl := fmt.Sprintf("http://localhost%s", httpPort)
 
@@ -126,11 +125,11 @@ func startServer(t *testing.T, configFileContents string) string {
 	natsPort := fmt.Sprintf("%d", test.FreeTCPPort())
 	httpPort := fmt.Sprintf(":%d", test.FreeTCPPort())
 
-	os.Setenv("NUTS_DATADIR", testDir)
-	os.Setenv("NUTS_CONFIGFILE", configFile)
-	os.Setenv("NUTS_HTTP_DEFAULT_ADDRESS", httpPort)
-	os.Setenv("NUTS_NETWORK_GRPCADDR", grpcPort)
-	os.Setenv("NUTS_EVENTS_NATS_PORT", natsPort)
+	t.Setenv("NUTS_DATADIR", testDir)
+	t.Setenv("NUTS_CONFIGFILE", configFile)
+	t.Setenv("NUTS_HTTP_DEFAULT_ADDRESS", httpPort)
+	t.Setenv("NUTS_NETWORK_GRPCADDR", grpcPort)
+	t.Setenv("NUTS_EVENTS_NATS_PORT", natsPort)
 	os.Args = []string{"nuts", "server"}
 
 	go func() {
@@ -164,12 +163,4 @@ func startServer(t *testing.T, configFileContents string) string {
 	})
 
 	return httpPort
-}
-
-func resetEnv() {
-	os.Unsetenv("NUTS_CONFIGFILE")
-	os.Unsetenv("NUTS_DATADIR")
-	os.Unsetenv("NUTS_HTTP_DEFAULT_ADDRESS")
-	os.Unsetenv("NUTS_NETWORK_GRPCADDR")
-	os.Unsetenv("NUTS_EVENTS_NATS_PORT")
 }

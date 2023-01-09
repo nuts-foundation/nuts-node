@@ -32,16 +32,14 @@ import (
 
 func Test_GetAddress(t *testing.T) {
 	t.Run("address has http prefix", func(t *testing.T) {
-		os.Setenv("NUTS_ADDRESS", "https://localhost")
-		defer os.Unsetenv("NUTS_ADDRESS")
+		t.Setenv("NUTS_ADDRESS", "https://localhost")
 		cmd := &cobra.Command{}
 		cmd.PersistentFlags().AddFlagSet(ClientConfigFlags())
 		cfg := NewClientConfigForCommand(cmd)
 		assert.Equal(t, "https://localhost", cfg.GetAddress())
 	})
 	t.Run("address has no http prefix", func(t *testing.T) {
-		os.Setenv("NUTS_ADDRESS", "localhost")
-		defer os.Unsetenv("NUTS_ADDRESS")
+		t.Setenv("NUTS_ADDRESS", "localhost")
 		cmd := &cobra.Command{}
 		cmd.PersistentFlags().AddFlagSet(ClientConfigFlags())
 		cfg := NewClientConfigForCommand(cmd)

@@ -27,7 +27,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 )
 
@@ -44,8 +43,7 @@ func TestCmd_AddService(t *testing.T) {
 		}
 		handler := &http2.Handler{StatusCode: http.StatusOK, ResponseData: response}
 		s := httptest.NewServer(handler)
-		os.Setenv("NUTS_ADDRESS", s.URL)
-		defer os.Unsetenv("NUTS_ADDRESS")
+		t.Setenv("NUTS_ADDRESS", s.URL)
 		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 		defer s.Close()
@@ -66,8 +64,7 @@ func TestCmd_AddService(t *testing.T) {
 		}
 		handler := &http2.Handler{StatusCode: http.StatusOK, ResponseData: response}
 		s := httptest.NewServer(handler)
-		os.Setenv("NUTS_ADDRESS", s.URL)
-		defer os.Unsetenv("NUTS_ADDRESS")
+		t.Setenv("NUTS_ADDRESS", s.URL)
 		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 		defer s.Close()
 
@@ -88,8 +85,7 @@ func TestCmd_DeleteService(t *testing.T) {
 		cmd := Cmd()
 		handler := &http2.Handler{StatusCode: http.StatusNoContent, ResponseData: ""}
 		s := httptest.NewServer(handler)
-		os.Setenv("NUTS_ADDRESS", s.URL)
-		defer os.Unsetenv("NUTS_ADDRESS")
+		t.Setenv("NUTS_ADDRESS", s.URL)
 		cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 		defer s.Close()
 
