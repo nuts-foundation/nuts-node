@@ -179,7 +179,7 @@ func TestNotifier_Save(t *testing.T) {
 		kvStore.ReadShelf(ctx, s.(*notifier).shelfName(), func(reader stoabs.Reader) error {
 			data, err := reader.Get(stoabs.BytesKey(event.Hash.Slice()))
 
-			assert.NoError(t, err)
+			assert.ErrorIs(t, err, stoabs.ErrKeyNotFound)
 			assert.Nil(t, data)
 
 			return nil
@@ -199,7 +199,7 @@ func TestNotifier_Save(t *testing.T) {
 		kvStore.ReadShelf(ctx, s.shelfName(), func(reader stoabs.Reader) error {
 			data, err := reader.Get(stoabs.BytesKey(event.Hash.Slice()))
 
-			assert.NoError(t, err)
+			assert.ErrorIs(t, err, stoabs.ErrKeyNotFound)
 			assert.Nil(t, data)
 
 			return nil

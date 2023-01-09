@@ -293,7 +293,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 
 		assert.False(t, finished)
 		assert.False(t, errors.As(err, new(dag.EventFatal)))
-		assert.EqualError(t, err, fmt.Sprintf("unable to read payload (tx=%s): Database Error: random error", txOk.Ref().String()))
+		assert.EqualError(t, err, fmt.Sprintf("unable to read payload (tx=%s): database error: random error", txOk.Ref().String()))
 	})
 
 	t.Run("Finishes job when payload is already there", func(t *testing.T) {
@@ -337,7 +337,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 
 		assert.False(t, finished)
 		assert.False(t, errors.As(err, new(dag.EventFatal)))
-		assert.EqualError(t, err, fmt.Sprintf("failed to decrypt PAL header (tx=%s): Database Error: random error", txOk.Ref()))
+		assert.EqualError(t, err, fmt.Sprintf("failed to decrypt PAL header (tx=%s): database error: random error", txOk.Ref()))
 	})
 
 	t.Run("errors when decryption fails because the key-agreement key could not be found", func(t *testing.T) {

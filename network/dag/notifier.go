@@ -292,14 +292,17 @@ func (p *notifier) Save(tx stoabs.WriteTx, event Event) error {
 		}
 	}
 
-	if existingEvent, err := p.readEvent(writer, event.Hash); err != nil {
-		return err
-	} else if existingEvent != nil {
-		// do not schedule existing jobs
-		return nil
+	// only schedule new events
+	_, err := p.readEvent(writer, event.Hash)
+	if errors.Is(err, stoabs.ErrKeyNotFound) {
+		return p.writeEvent(writer, event)
 	}
 
-	return p.writeEvent(writer, event)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (p *notifier) Notify(event Event) {
@@ -436,10 +439,6 @@ func (p *notifier) readEvent(reader stoabs.Reader, hash hash.SHA256Hash) (*Event
 	data, err := reader.Get(stoabs.BytesKey(hash.Slice()))
 	if err != nil {
 		return nil, err
-	}
-
-	if data == nil {
-		return nil, nil
 	}
 
 	event := new(Event)
