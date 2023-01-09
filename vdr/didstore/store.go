@@ -21,6 +21,7 @@ package didstore
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -116,7 +117,7 @@ func (tl *store) Resolve(id did.DID, resolveMetadata *vdr.ResolveMetadata) (retu
 	txErr = tl.db.Read(context.Background(), func(tx stoabs.ReadTx) error {
 		latestReader := tx.GetShelfReader(latestShelf)
 		latestMetaRef, err := latestReader.Get(stoabs.BytesKey(id.String()))
-		if err != nil {
+		if err != nil && !errors.Is(err, stoabs.ErrKeyNotFound) {
 			return err
 		}
 
@@ -187,7 +188,7 @@ func (tl *store) Conflicted(fn vdr.DocIterator) error {
 
 		return conflictedReader.Iterate(func(key stoabs.Key, _ []byte) error {
 			latestMetaRef, err := latestReader.Get(key)
-			if err != nil {
+			if err != nil && !errors.Is(err, stoabs.ErrKeyNotFound) {
 				return err
 			}
 			if latestMetaRef == nil {
@@ -217,7 +218,7 @@ func (tl *store) ConflictedCount() (uint, error) {
 
 	err := tl.db.ReadShelf(context.Background(), statsShelf, func(reader stoabs.Reader) error {
 		cBytes, err := reader.Get(stoabs.BytesKey(conflictedCountKey))
-		if err != nil {
+		if err != nil && !errors.Is(err, stoabs.ErrKeyNotFound) {
 			return err
 		}
 		if len(cBytes) > 0 {
@@ -234,7 +235,7 @@ func (tl *store) DocumentCount() (uint, error) {
 
 	err := tl.db.ReadShelf(context.Background(), statsShelf, func(reader stoabs.Reader) error {
 		cBytes, err := reader.Get(stoabs.BytesKey(documentCountKey))
-		if err != nil {
+		if err != nil && !errors.Is(err, stoabs.ErrKeyNotFound) {
 			return err
 		}
 		if len(cBytes) > 0 {

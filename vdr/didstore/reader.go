@@ -33,7 +33,7 @@ func readDocument(tx stoabs.ReadTx, documentHash hash.SHA256Hash) (did.Document,
 	var document did.Document
 	documentReader := tx.GetShelfReader(documentShelf)
 	documentBytes, err := documentReader.Get(stoabs.NewHashKey(documentHash))
-	if err != nil {
+	if err != nil && !errors.Is(err, stoabs.ErrKeyNotFound) {
 		return document, err
 	}
 	if len(documentBytes) == 0 {
@@ -57,7 +57,7 @@ func readMetadata(tx stoabs.ReadTx, ref []byte) (documentMetadata, error) {
 	var metadata documentMetadata
 	metadataReader := tx.GetShelfReader(metadataShelf)
 	metadataBytes, err := metadataReader.Get(stoabs.BytesKey(ref))
-	if err != nil {
+	if err != nil && !errors.Is(err, stoabs.ErrKeyNotFound) {
 		return metadata, err
 	}
 	if len(metadataBytes) == 0 {
@@ -74,7 +74,7 @@ func readEventList(tx stoabs.ReadTx, id did.DID) (eventList, error) {
 	el := eventList{}
 	eventReader := tx.GetShelfReader(eventShelf)
 	eventListBytes, err := eventReader.Get(stoabs.BytesKey(id.String()))
-	if err != nil {
+	if err != nil && !errors.Is(err, stoabs.ErrKeyNotFound) {
 		return el, err
 	}
 	if len(eventListBytes) == 0 {
@@ -92,7 +92,7 @@ func readEventList(tx stoabs.ReadTx, id did.DID) (eventList, error) {
 func transactionExists(tx stoabs.ReadTx, ref hash.SHA256Hash) (bool, error) {
 	txReader := tx.GetShelfReader(transactionIndexShelf)
 	bytes, err := txReader.Get(stoabs.HashKey(ref))
-	if err != nil {
+	if err != nil && !errors.Is(err, stoabs.ErrKeyNotFound) {
 		return false, err
 	}
 	return len(bytes) > 0, nil

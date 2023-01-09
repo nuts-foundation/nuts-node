@@ -21,6 +21,7 @@ package didstore
 import (
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
@@ -95,7 +96,7 @@ func applyFrom(tx stoabs.WriteTx, base *event, applyList []event) error {
 	statsWriter := tx.GetShelfWriter(statsShelf)
 	conflictedWriter := tx.GetShelfWriter(conflictedShelf)
 	cBytes, err := statsWriter.Get(stoabs.BytesKey(conflictedCountKey))
-	if err != nil {
+	if err != nil && !errors.Is(err, stoabs.ErrKeyNotFound) {
 		return err
 	}
 	if len(cBytes) > 0 {
@@ -116,7 +117,7 @@ func applyFrom(tx stoabs.WriteTx, base *event, applyList []event) error {
 		}
 		metadata = &m
 		b, err := conflictedWriter.Get(stoabs.BytesKey(document.ID.String()))
-		if err != nil {
+		if err != nil && !errors.Is(err, stoabs.ErrKeyNotFound) {
 			return err
 		}
 		if len(b) > 0 {
@@ -167,7 +168,7 @@ func incrementDocumentCount(tx stoabs.WriteTx) error {
 	docCount := uint32(0)
 	statsWriter := tx.GetShelfWriter(statsShelf)
 	cBytes, err := statsWriter.Get(stoabs.BytesKey(documentCountKey))
-	if err != nil {
+	if err != nil && !errors.Is(err, stoabs.ErrKeyNotFound) {
 		return err
 	}
 	if len(cBytes) > 0 {
@@ -250,7 +251,7 @@ outer:
 		newMeta.SourceTransactions = append(newMeta.SourceTransactions, st)
 		// get old doc by txRef ...
 		payloadHashBytes, err := txRefReader.Get(stoabs.HashKey(st))
-		if err != nil {
+		if err != nil && !errors.Is(err, stoabs.ErrKeyNotFound) {
 			return did.Document{}, documentMetadata{}, fmt.Errorf("error on reading transactionIndexShelf: %w", err)
 		}
 		if len(payloadHashBytes) == 0 {
