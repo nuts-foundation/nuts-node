@@ -42,7 +42,7 @@ func TestNewNutsConfig_Load(t *testing.T) {
 
 		assert.Equal(t, "info", cfg.Verbosity)
 		assert.Equal(t, "text", cfg.LoggerFormat)
-		assert.Equal(t, false, cfg.Strictmode)
+		assert.Equal(t, true, cfg.Strictmode)
 	})
 
 	t.Run("Sets global Env prefix", func(t *testing.T) {
@@ -104,14 +104,14 @@ func TestNewNutsConfig_Load(t *testing.T) {
 		assert.EqualError(t, err, "invalid formatter: 'fluffy'")
 	})
 
-	t.Run("Strict-mode is off by default", func(t *testing.T) {
+	t.Run("Strict-mode is on by default", func(t *testing.T) {
 		defer reset()
 		os.Args = []string{"command"}
 		cfg := NewServerConfig()
 		cmd := testCommand()
 		err := cfg.Load(cmd.Flags())
 		assert.NoError(t, err)
-		assert.False(t, cfg.Strictmode)
+		assert.True(t, cfg.Strictmode)
 	})
 
 	t.Run("Strict-mode can be turned on", func(t *testing.T) {

@@ -104,7 +104,6 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	var err error
 
 	// store config parameters for use in Start()
-	c.config.strictMode = config.Strictmode
 	c.config.datadir = config.Datadir
 
 	issuerStorePath := path.Join(c.config.datadir, "vcr", "issued-credentials.db")

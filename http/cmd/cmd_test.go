@@ -41,11 +41,11 @@ func TestGenToken(t *testing.T) {
 	const daysValid = 365
 	testDirectory := io.TestDirectory(t)
 	t.Setenv("NUTS_DATADIR", testDirectory)
+	t.Setenv("NUTS_CRYPTO_STORAGE", "fs")
 
 	outBuf := new(bytes.Buffer)
 	cmd := ServerCmd()
 	cmd.Commands()[0].Flags().AddFlagSet(core.FlagSet())
-	cmd.Commands()[0].Flags().AddFlagSet(FlagSet())
 	cmd.SetOut(outBuf)
 	cmd.SetArgs([]string{"gen-token", "admin", strconv.Itoa(daysValid)})
 

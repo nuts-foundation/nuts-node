@@ -12,13 +12,6 @@ Persistence
 
 Make sure your :ref:`storage configuration <storage-configuration>` is set up to :ref:`backup your node's data and private keys <backup-restore>`.
 
-Strict mode
-***********
-
-By default the node runs in a mode which allows the operator run configure the node in such a way that it is less secure.
-For production it is recommended to enable ``strictmode`` which blocks some of the unsafe configuration options
-(e.g. using the IRMA demo scheme).
-
 HTTP Interface Configuration
 ****************************
 

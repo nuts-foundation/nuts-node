@@ -42,6 +42,7 @@ import (
 // TestStatusCodes tests if the returned errors from the API implementations are correctly translated to status codes
 func TestStatusCodes(t *testing.T) {
 	const configFile = `verbosity: debug
+strictmode: false
 network:
   disablenodeauthentication: true
   enablediscovery: false

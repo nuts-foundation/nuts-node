@@ -836,7 +836,7 @@ func resetIntegrationTest(t *testing.T) {
 		document.CapabilityInvocation.Add(verificationMethod)
 		document.Service = []did.Service{{
 			Type:            transport.NutsCommServiceType,
-			ServiceEndpoint: "grpc://localhost:5555", // Must match TLS SAN DNSName
+			ServiceEndpoint: "grpc://nuts.nl:5555", // Must match TLS SAN DNSName
 		}}
 		err := vdrStore.Write(document, vdr.DocumentMetadata{})
 		if err != nil {
