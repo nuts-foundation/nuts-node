@@ -39,14 +39,13 @@ jobs:
           images: nutsfoundation/nuts-node
           tags: |
             # generate 'master' tag for the master branch
-            type=ref,event=branch,enable={{is_default_branch}}
+            type=ref,event=branch,enable={{is_default_branch}},prefix=""
             # generate v5.2.1 tag
             type=semver,pattern=v{{version}}
             # generate v5 tag
             type=semver,pattern=v{{major}}
           flavor: |
             latest=auto
-            prefix=v,onlatest=false
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
