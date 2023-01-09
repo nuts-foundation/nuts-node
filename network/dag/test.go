@@ -31,7 +31,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/test/io"
 
 	"github.com/nuts-foundation/go-stoabs/bbolt"
-	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
@@ -49,8 +49,9 @@ func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, pal [
 	lamportClock := calculateLamportClock(prevs)
 	unsignedTransaction, _ := NewTransaction(payloadHash, payloadType, prevHashes(prevs), pal, lamportClock)
 
-	signer := crypto2.NewTestKey(fmt.Sprintf("%d", payloadNum))
-	signedTransaction, err := NewTransactionSigner(signer, attach).Sign(unsignedTransaction, signingTime)
+	key := nutsCrypto.NewTestKey(fmt.Sprintf("%d", payloadNum))
+	cryptoInstance := nutsCrypto.NewMemoryCryptoInstance()
+	signedTransaction, err := NewTransactionSigner(cryptoInstance, key, attach).Sign(unsignedTransaction, signingTime)
 	if err != nil {
 		panic(err)
 	}
@@ -63,12 +64,13 @@ func CreateTestTransactionEx(num uint32, payloadHash hash.SHA256Hash, participan
 	lamportClock := calculateLamportClock(prevs)
 	unsignedTransaction, _ := NewTransaction(payloadHash, "application/did+json", prevHashes(prevs), participants, lamportClock)
 	kid := fmt.Sprintf("%d", num)
-	signer := crypto2.NewTestKey(kid)
-	signedTransaction, err := NewTransactionSigner(signer, false).Sign(unsignedTransaction, time.Now())
+	key := nutsCrypto.NewTestKey(kid)
+	cryptoInstance := nutsCrypto.NewMemoryCryptoInstance()
+	signedTransaction, err := NewTransactionSigner(cryptoInstance, key, false).Sign(unsignedTransaction, time.Now())
 	if err != nil {
 		panic(err)
 	}
-	return signedTransaction, kid, signer.Public()
+	return signedTransaction, kid, key.Public()
 }
 
 // CreateTestTransaction creates a transaction with the given num as payload hash and signs it with a random EC key.

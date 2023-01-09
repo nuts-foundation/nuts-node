@@ -33,7 +33,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
-	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
@@ -74,8 +74,8 @@ func Test_PrevTransactionVerifier(t *testing.T) {
 
 		// malformed TX with LC = 2
 		unsignedTransaction, _ := NewTransaction(hash.EmptyHash(), "application/did+json", []hash.SHA256Hash{root.Ref()}, nil, 2)
-		signer := crypto2.NewTestKey("1")
-		signedTransaction, _ := NewTransactionSigner(signer, true).Sign(unsignedTransaction, time.Now())
+		signer := nutsCrypto.NewTestKey("1")
+		signedTransaction, _ := NewTransactionSigner(nutsCrypto.NewMemoryCryptoInstance(), signer, true).Sign(unsignedTransaction, time.Now())
 
 		_ = testState.db.Read(ctx, func(dbTx stoabs.ReadTx) error {
 			err := NewPrevTransactionsVerifier()(dbTx, signedTransaction)

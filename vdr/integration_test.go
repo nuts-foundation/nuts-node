@@ -196,7 +196,7 @@ func TestVDRIntegration_ReprocessEvents(t *testing.T) {
 	didDoc, key, _ := ctx.docCreator.Create(didservice.DefaultCreationOptions())
 	payload, _ := json.Marshal(didDoc)
 	unsignedTransaction, _ := dag.NewTransaction(hash.SHA256Sum(payload), didDocumentType, nil, nil, uint32(0))
-	signedTransaction, err := dag.NewTransactionSigner(key, true).Sign(unsignedTransaction, time.Now())
+	signedTransaction, err := dag.NewTransactionSigner(ctx.cryptoInstance, key, true).Sign(unsignedTransaction, time.Now())
 	require.NoError(t, err)
 	twp := events.TransactionWithPayload{
 		Transaction: signedTransaction,
@@ -263,7 +263,6 @@ func setup(t *testing.T) testContext {
 	nutsNetwork := network.NewNetworkInstance(
 		networkCfg,
 		didservice.KeyResolver{Store: didStore},
-		cryptoInstance,
 		cryptoInstance,
 		docResolver,
 		docFinder,

@@ -186,7 +186,7 @@ func TestLDProof_Sign(t *testing.T) {
 
 		ldProof := NewLDProof(pOptions)
 
-		result, err := ldProof.Sign(document, signature.JSONWebSignature2020{ContextLoader: contextLoader}, testKey)
+		result, err := ldProof.Sign(document, signature.JSONWebSignature2020{ContextLoader: contextLoader, Signer: crypto.NewMemoryCryptoInstance()}, testKey)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		signedDocument := result.(SignedDocument)
@@ -198,7 +198,7 @@ func TestLDProof_Sign(t *testing.T) {
 		assert.Equal(t, domain, *proofToVerify.Domain)
 		assert.Equal(t, challenge, *proofToVerify.Challenge)
 
-		err = proofToVerify.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: contextLoader}, testKey.Public())
+		err = proofToVerify.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: contextLoader, Signer: crypto.NewMemoryCryptoInstance()}, testKey.Public())
 		assert.NoError(t, err)
 	})
 
@@ -233,16 +233,15 @@ func TestLDProof_Sign(t *testing.T) {
 		assert.Nil(t, result)
 	})
 
-	t.Run("it handles an unknown key type error", func(t *testing.T) {
+	t.Run("it handles a signing error", func(t *testing.T) {
 		ldProof := LDProof{}
 		ctrl := gomock.NewController(t)
 		testKey := crypto.NewMockKey(ctrl)
-		testKey.EXPECT().KID().Return(kid)
-		testKey.EXPECT().Signer().AnyTimes().Return(testKey.Signer())
+		testKey.EXPECT().KID().AnyTimes().Return(kid)
 
-		// handle first call for the document
-		result, err := ldProof.Sign(document, signature.JSONWebSignature2020{ContextLoader: contextLoader}, testKey)
-		assert.EqualError(t, err, "error while signing: jwk.New requires a non-nil key")
+		result, err := ldProof.Sign(document, signature.JSONWebSignature2020{ContextLoader: contextLoader, Signer: crypto.NewMemoryCryptoInstance()}, testKey)
+		
+		assert.EqualError(t, err, "error while signing: private key not found")
 		assert.Nil(t, result)
 	})
 }

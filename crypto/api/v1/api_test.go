@@ -58,7 +58,7 @@ func TestWrapper_SignJwt(t *testing.T) {
 		assert.Empty(t, token)
 	})
 
-	t.Run("error - SignJWT fails", func(t *testing.T) {
+	t.Run("error - signJWT fails", func(t *testing.T) {
 		ctx := newMockContext(t)
 		request := SignJwtRequest{
 			Kid:    "kid",

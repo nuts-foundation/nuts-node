@@ -70,12 +70,11 @@ type Network struct {
 	protocols           []transport.Protocol
 	connectionManager   transport.ConnectionManager
 	state               dag.State
-	privateKeyResolver  crypto.KeyResolver
+	keyStore            crypto.KeyStore
 	keyResolver         types.KeyResolver
 	startTime           atomic.Value
 	peerID              transport.PeerID
 	didDocumentResolver types.DocResolver
-	decrypter           crypto.Decrypter
 	nodeDIDResolver     transport.NodeDIDResolver
 	didDocumentFinder   types.DocFinder
 	eventPublisher      events.Event
@@ -114,8 +113,7 @@ func (n *Network) Migrate() error {
 func NewNetworkInstance(
 	config Config,
 	keyResolver types.KeyResolver,
-	privateKeyResolver crypto.KeyResolver,
-	decrypter crypto.Decrypter,
+	keyStore crypto.KeyStore,
 	didDocumentResolver types.DocResolver,
 	didDocumentFinder types.DocFinder,
 	eventPublisher events.Event,
@@ -123,9 +121,8 @@ func NewNetworkInstance(
 ) *Network {
 	return &Network{
 		config:              config,
-		decrypter:           decrypter,
 		keyResolver:         keyResolver,
-		privateKeyResolver:  privateKeyResolver,
+		keyStore:            keyStore,
 		didDocumentResolver: didDocumentResolver,
 		didDocumentFinder:   didDocumentFinder,
 		nodeDIDResolver:     &transport.FixedNodeDIDResolver{},
@@ -172,7 +169,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		// If node DID is not set we can wire the automatic node DID resolver, which makes testing/workshops/development easier.
 		// Might cause unexpected behavior though, so it can't be used in strict mode.
 		log.Logger().Info("Node DID not set, will be auto-discovered.")
-		n.nodeDIDResolver = transport.NewAutoNodeDIDResolver(n.privateKeyResolver, n.didDocumentFinder)
+		n.nodeDIDResolver = transport.NewAutoNodeDIDResolver(n.keyStore, n.didDocumentFinder)
 	} else {
 		log.Logger().Warn("Node DID not set, sending/receiving private transactions is disabled.")
 	}
@@ -186,7 +183,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	var candidateProtocols []transport.Protocol
 	if n.protocols == nil {
 		candidateProtocols = []transport.Protocol{
-			v2.New(v2Cfg, n.nodeDIDResolver, n.state, n.didDocumentResolver, n.decrypter, n.collectDiagnosticsForPeers, dagStore),
+			v2.New(v2Cfg, n.nodeDIDResolver, n.state, n.didDocumentResolver, n.keyStore, n.collectDiagnosticsForPeers, dagStore),
 		}
 	} else {
 		// Only set protocols if not already set: improves testability
@@ -394,7 +391,7 @@ func (n *Network) validateNodeDID(nodeDID did.DID) error {
 		return fmt.Errorf("DID document does not contain a keyAgreement key, register a keyAgreement key (did=%s)", nodeDID)
 	}
 	for _, keyAgreement := range document.KeyAgreement {
-		if !n.privateKeyResolver.Exists(keyAgreement.ID.String()) {
+		if !n.keyStore.Exists(keyAgreement.ID.String()) {
 			return fmt.Errorf("keyAgreement private key is not present in key store, recover your key material or register a new keyAgreement key (did=%s,kid=%s)", nodeDID, keyAgreement.ID)
 		}
 	}
@@ -539,7 +536,7 @@ func (n *Network) CreateTransaction(template Template) (dag.Transaction, error) 
 
 	// Sign it
 	var transaction dag.Transaction
-	signer := dag.NewTransactionSigner(template.Key, template.AttachKey)
+	signer := dag.NewTransactionSigner(n.keyStore, template.Key, template.AttachKey)
 	timestamp := time.Now()
 	if !template.Timestamp.IsZero() {
 		timestamp = template.Timestamp

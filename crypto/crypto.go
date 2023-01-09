@@ -123,7 +123,7 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 }
 
 // New generates a new key pair.
-// Stores the private key, returns the public key.
+// Stores the private key, returns the public basicKey.
 // It returns an error when a key with the resulting ID already exists.
 func (client *Crypto) New(namingFunc KIDNamingFunc) (Key, error) {
 	keyPair, kid, err := generateKeyPairAndKID(namingFunc)
@@ -136,9 +136,9 @@ func (client *Crypto) New(namingFunc KIDNamingFunc) (Key, error) {
 	if err = client.storage.SavePrivateKey(kid, keyPair); err != nil {
 		return nil, fmt.Errorf("could not create new keypair: could not save private key: %w", err)
 	}
-	return keySelector{
-		privateKey: keyPair,
-		kid:        kid,
+	return basicKey{
+		publicKey: keyPair.Public(),
+		kid:       kid,
 	}, nil
 }
 
@@ -175,25 +175,31 @@ func (client *Crypto) Resolve(kid string) (Key, error) {
 		}
 		return nil, err
 	}
-	return keySelector{
-		privateKey: keypair,
-		kid:        kid,
+	return basicKey{
+		publicKey: keypair.Public(),
+		kid:       kid,
 	}, nil
 }
 
-type keySelector struct {
+// memoryKey is a Key that is only present in memory and not stored in the key store.
+type memoryKey struct {
+	basicKey
 	privateKey crypto.Signer
-	kid        string
 }
 
-func (e keySelector) Signer() crypto.Signer {
-	return e.privateKey
+func (m memoryKey) Signer() crypto.Signer {
+	return m.privateKey
 }
 
-func (e keySelector) KID() string {
+type basicKey struct {
+	publicKey crypto.PublicKey
+	kid       string
+}
+
+func (e basicKey) KID() string {
 	return e.kid
 }
 
-func (e keySelector) Public() crypto.PublicKey {
-	return e.privateKey.Public()
+func (e basicKey) Public() crypto.PublicKey {
+	return e.publicKey
 }

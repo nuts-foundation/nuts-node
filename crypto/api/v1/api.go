@@ -21,6 +21,7 @@ package v1
 import (
 	"context"
 	"errors"
+	"github.com/lestrrat-go/jwx/jws"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -33,7 +34,7 @@ var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
 
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {
-	C crypto.JWTSigner
+	C crypto.KeyStore
 }
 
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
@@ -105,7 +106,9 @@ func (w *Wrapper) SignJws(_ context.Context, request SignJwsRequestObject) (Sign
 		detached = *signRequest.Detached
 	}
 
-	sig, err := w.C.SignJWS(signRequest.Payload, signRequest.Headers, signRequest.Kid, detached)
+	headers := signRequest.Headers
+	headers[jws.KeyIDKey] = signRequest.Kid // could've been set by caller, but make sure it's set correctly
+	sig, err := w.C.SignJWS(signRequest.Payload, headers, signRequest.Kid, detached)
 	if err != nil {
 		return nil, err
 	}
