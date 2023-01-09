@@ -3,7 +3,15 @@
 Release notes
 #############
 
-What has been changed, and how to update between versions.
+*************************
+(To be released)
+*************************
+
+Release date: ?
+
+- Some VDR OpenAPI operations specified ``application/json+did-document`` as Content-Type, while they actually returned ``application/json``.
+  This inconsistency is fixed by changing the OpenAPI specification to ``application/json``.
+
 
 *************************
 Hazelnut release (v5.1.0)
