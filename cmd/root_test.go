@@ -117,6 +117,7 @@ func Test_serverCmd(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		cpuprofile := path.Join(testDirectory, "profile.dmp")
 		t.Setenv("NUTS_DATADIR", testDirectory)
+		t.Setenv("NUTS_STRICTMODE", "false")
 		os.Args = []string{"nuts", "server", fmt.Sprintf("--cpuprofile=%s", cpuprofile)}
 		defer func() {
 			os.Args = []string{}

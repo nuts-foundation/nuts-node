@@ -223,12 +223,6 @@ func TestVcr_Instance(t *testing.T) {
 	t.Run("ok - name", func(t *testing.T) {
 		assert.Equal(t, moduleName, instance.Name())
 	})
-
-	t.Run("ok - config defaults", func(t *testing.T) {
-		cfg := instance.Config().(*Config)
-
-		assert.Equal(t, DefaultConfig().strictMode, cfg.strictMode)
-	})
 }
 
 func TestVcr_Untrusted(t *testing.T) {

@@ -28,11 +28,11 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/cmd"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/events"
 	httpEngine "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/test"
-	testIo "github.com/nuts-foundation/nuts-node/test/io"
 	v1 "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -52,7 +52,7 @@ import (
 // - Waits for the main function to return
 // This test was introduced because the shutdown sequence was never called, due to kill signals not being handled.
 func Test_ServerLifecycle(t *testing.T) {
-	testDirectory := testIo.TestWorkingDirectory(t)
+	testDirectory := t.TempDir()
 
 	runningCtx, nodeStoppedCallback := context.WithCancel(context.Background())
 	serverConfig, moduleConfig := getIntegrationTestConfig(testDirectory)
@@ -79,7 +79,7 @@ func Test_ServerLifecycle(t *testing.T) {
 // It also tests that file resources (that are locked) are properly freed by the shutdown sequence,
 // because it uses the same files when restarting again (without exiting the main process).
 func Test_LoadExistingDAG(t *testing.T) {
-	testDirectory := testIo.TestWorkingDirectory(t)
+	testDirectory := t.TempDir()
 
 	// Start Nuts node
 	runningCtx, nodeStoppedCallback := context.WithCancel(context.Background())
@@ -205,7 +205,10 @@ func getIntegrationTestConfig(testDirectory string) (core.ServerConfig, ModuleCo
 	}
 
 	config := *system.Config
-	config.LegacyTLS.Enabled = false
+	config.LegacyTLS.Enabled = true
+	config.TLS.CertFile = "test/pki/certificate-and-key.pem"
+	config.TLS.CertKeyFile = "test/pki/certificate-and-key.pem"
+	config.TLS.TrustStoreFile = "test/pki/truststore.pem"
 
 	config.Datadir = testDirectory
 
@@ -214,6 +217,9 @@ func getIntegrationTestConfig(testDirectory string) (core.ServerConfig, ModuleCo
 
 	authConfig := auth.DefaultConfig()
 	authConfig.ContractValidators = []string{"dummy"} // disables IRMA
+	authConfig.PublicURL = "nuts.nl"
+
+	cryptoConfig := crypto.Config{Storage: "fs"}
 
 	eventsConfig := events.DefaultConfig()
 	eventsConfig.Nats.Port = test.FreeTCPPort()
@@ -224,6 +230,7 @@ func getIntegrationTestConfig(testDirectory string) (core.ServerConfig, ModuleCo
 	return config, ModuleConfig{
 		Network: networkConfig,
 		Auth:    authConfig,
+		Crypto:  cryptoConfig,
 		Events:  eventsConfig,
 		HTTP:    httpConfig,
 	}
@@ -232,6 +239,7 @@ func getIntegrationTestConfig(testDirectory string) (core.ServerConfig, ModuleCo
 type ModuleConfig struct {
 	Network network.Config    `koanf:"network"`
 	Auth    auth.Config       `koanf:"auth"`
+	Crypto  crypto.Config     `koanf:"crypto"`
 	Events  events.Config     `koanf:"events"`
 	HTTP    httpEngine.Config `koanf:"http"`
 }

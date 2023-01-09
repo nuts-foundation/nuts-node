@@ -39,6 +39,7 @@ This setup uses the following ``nuts.yaml`` configuration file:
 
 .. code-block:: yaml
 
+  strictmode: false
   datadir: /opt/nuts/data
   tls:
     truststorefile: /opt/nuts/truststore.pem
