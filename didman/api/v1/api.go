@@ -31,6 +31,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/didman"
+	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
@@ -62,6 +63,8 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 		return http.StatusBadRequest
 	case errors.Is(err, types.ErrServiceNotFound):
 		return http.StatusNotFound
+	case errors.As(err, new(vdr.InvalidServiceError)):
+		return http.StatusBadRequest
 	case errors.As(err, new(didservice.DIDServiceQueryError)):
 		return http.StatusBadRequest
 	case errors.Is(err, types.ErrServiceReferenceToDeep):
@@ -192,18 +195,14 @@ func (w *Wrapper) AddCompoundService(ctx echo.Context, didStr string) error {
 		return err
 	}
 
-	endpointRefs := map[string]interface{}{}
 	serviceEndpoints, ok := service.ServiceEndpoint.(map[string]interface{})
 	if !ok {
 		return fmt.Errorf("unable to convert service endpoints")
 	}
-	for k, v := range serviceEndpoints {
-		endpointRefs[k] = v
-	}
 
 	cs := CompoundService{
 		Id:              service.ID.String(),
-		ServiceEndpoint: endpointRefs,
+		ServiceEndpoint: serviceEndpoints,
 		Type:            service.Type,
 	}
 	return ctx.JSON(200, cs)

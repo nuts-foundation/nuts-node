@@ -21,6 +21,7 @@ package v1
 
 import (
 	"errors"
+	"github.com/nuts-foundation/nuts-node/vdr"
 	"net/http"
 	"net/url"
 	"testing"
@@ -195,6 +196,21 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 		assert.Equal(t, http.StatusConflict, ctx.wrapper.ResolveStatusCode(err))
 	})
 
+	t.Run("error - invalid service", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			p := f.(*EndpointProperties)
+			*p = request
+			return nil
+		})
+		ctx.didman.EXPECT().AddEndpoint(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, vdr.InvalidServiceError{errors.New("custom error")})
+
+		err := ctx.wrapper.AddEndpoint(ctx.echo, id)
+
+		assert.ErrorAs(t, err, new(vdr.InvalidServiceError))
+		assert.Equal(t, http.StatusBadRequest, ctx.wrapper.ResolveStatusCode(err))
+	})
+
 	t.Run("error - other", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
@@ -358,6 +374,21 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 		err := ctx.wrapper.AddCompoundService(ctx.echo, id)
 
 		assert.Equal(t, err, core.InvalidInputError("invalid value for type"))
+	})
+
+	t.Run("error - invalid service", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
+			p := f.(*CompoundServiceProperties)
+			*p = request
+			return nil
+		})
+		ctx.didman.EXPECT().AddCompoundService(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, vdr.InvalidServiceError{errors.New("custom error")})
+
+		err := ctx.wrapper.AddCompoundService(ctx.echo, id)
+
+		assert.ErrorAs(t, err, new(vdr.InvalidServiceError))
+		assert.Equal(t, http.StatusBadRequest, ctx.wrapper.ResolveStatusCode(err))
 	})
 
 	t.Run("error - incorrect post body", func(t *testing.T) {
