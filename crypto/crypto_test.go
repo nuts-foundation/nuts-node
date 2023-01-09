@@ -231,6 +231,7 @@ func Test_CryptoGetters(t *testing.T) {
 func TestNewCryptoInstance(t *testing.T) {
 	instance := NewCryptoInstance()
 	assert.NotNil(t, instance)
+	assert.Empty(t, instance.config.Storage)
 }
 
 func createCrypto(t *testing.T) *Crypto {

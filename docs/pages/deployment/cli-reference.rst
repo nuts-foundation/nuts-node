@@ -22,7 +22,7 @@ The following options apply to the server commands below:
       --cpuprofile string                             When set, a CPU profile is written to the given path. Ignored when strictmode is set.
       --crypto.external.address string                Address of the external storage service.
       --crypto.external.timeout duration              Time-out when invoking the external storage backend, in Golang time.Duration string format (e.g. 1s). (default 100ms)
-      --crypto.storage string                         Storage to use, 'external' for an external backend (experimental), 'fs' for file system (for development purposes), 'vaultkv' for Vault KV store (recommended, will be replaced by external backend in future). (default "fs")
+      --crypto.storage string                         Storage to use, 'external' for an external backend (experimental), 'fs' for file system (for development purposes), 'vaultkv' for Vault KV store (recommended, will be replaced by external backend in future).
       --crypto.vault.address string                   The Vault address. If set it overwrites the VAULT_ADDR env var.
       --crypto.vault.pathprefix string                The Vault path prefix. (default "kv")
       --crypto.vault.timeout duration                 Timeout of client calls to Vault, in Golang time.Duration string format (e.g. 1s). (default 5s)
