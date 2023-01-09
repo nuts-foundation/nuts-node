@@ -21,7 +21,7 @@ The following options apply to the server commands below:
       --auth.publicurl string                         public URL which can be reached by a users IRMA client, this should include the scheme and domain: https://example.com. Additional paths should only be added if some sort of url-rewriting is done in a reverse-proxy.
       --configfile string                             Nuts config file (default "nuts.yaml")
       --cpuprofile string                             When set, a CPU profile is written to the given path. Ignored when strictmode is set.
-      --crypto.storage string                         Storage to use, 'fs' for file system, 'vaultkv' for Vault KV store. (default "fs")
+      --crypto.storage string                         Storage to use, 'fs' for file system, 'vaultkv' for Vault KV store.
       --crypto.vault.address string                   The Vault address. If set it overwrites the VAULT_ADDR env var.
       --crypto.vault.pathprefix string                The Vault path prefix. (default "kv")
       --crypto.vault.timeout duration                 Timeout of client calls to Vault, in Golang time.Duration string format (e.g. 5s). (default 5s)
