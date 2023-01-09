@@ -15,10 +15,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package didservice
+package didstore
 
 import (
-	"errors"
 	"sort"
 	"strings"
 
@@ -26,17 +25,10 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 )
 
-// ErrDiffID is returned when a merge is done on documents that do not share the same ID
-var ErrDiffID = errors.New("no matching IDs")
-
-// MergeDocuments merges two DID Documents that share the same ID
-func MergeDocuments(docA did.Document, docB did.Document) (*did.Document, error) {
+// mergeDocuments merges two DID Documents that share the same ID
+func mergeDocuments(docA did.Document, docB did.Document) did.Document {
 	result := &did.Document{}
 	docs := []did.Document{docA, docB}
-
-	if !docA.ID.Equals(docB.ID) {
-		return nil, ErrDiffID
-	}
 
 	mergeBasics(docs, result)
 	mergeKeys(docs, result)
@@ -53,7 +45,7 @@ func MergeDocuments(docA did.Document, docB did.Document) (*did.Document, error)
 	sort.Slice(result.CapabilityInvocation, capabilityInvocationSort(result))
 	sort.Slice(result.CapabilityDelegation, capabilityDelegationSort(result))
 
-	return result, nil
+	return *result
 }
 
 func mergeBasics(docs []did.Document, result *did.Document) {

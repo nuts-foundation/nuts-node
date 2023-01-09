@@ -37,6 +37,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
@@ -47,8 +48,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/store"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -62,7 +62,7 @@ const payloadType = "test/transaction"
 
 var mutex = sync.Mutex{}
 var receivedTransactions = make(map[string][]dag.Transaction, 0)
-var vdrStore vdr.Store
+var didStore didstore.Store
 var keyStore nutsCrypto.KeyStore
 
 func TestNetworkIntegration_HappyFlow(t *testing.T) {
@@ -818,7 +818,8 @@ func resetIntegrationTest(t *testing.T) {
 	defer mutex.Unlock()
 
 	receivedTransactions = make(map[string][]dag.Transaction, 0)
-	vdrStore = store.NewTestStore(t)
+
+	didStore = didstore.NewTestStore(t)
 	keyStore = nutsCrypto.NewMemoryCryptoInstance()
 
 	// Write DID Document for node1
@@ -838,10 +839,16 @@ func resetIntegrationTest(t *testing.T) {
 			Type:            transport.NutsCommServiceType,
 			ServiceEndpoint: "grpc://nuts.nl:5555", // Must match TLS SAN DNSName
 		}}
-		err := vdrStore.Write(document, vdr.DocumentMetadata{})
-		if err != nil {
-			panic(err)
-		}
+		docBytes, _ := json.Marshal(document)
+		tx, _, _ := dag.CreateTestTransactionEx(0, hash.SHA256Sum(docBytes), nil)
+		err := didStore.Add(document, didstore.Transaction{
+			Clock:       tx.Clock(),
+			PayloadHash: tx.PayloadHash(),
+			Previous:    tx.Previous(),
+			Ref:         tx.Ref(),
+			SigningTime: tx.SigningTime(),
+		})
+		require.NoError(t, err)
 	}
 	writeDIDDocument("did:nuts:node1")
 	writeDIDDocument("did:nuts:node2")
@@ -913,10 +920,10 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 
 	instance := &Network{
 		config:              config,
-		didDocumentResolver: didservice.Resolver{Store: vdrStore},
-		didDocumentFinder:   didservice.Finder{Store: vdrStore},
+		didDocumentResolver: didservice.Resolver{Store: didStore},
+		didDocumentFinder:   didservice.Finder{Store: didStore},
 		keyStore:            keyStore,
-		keyResolver:         didservice.KeyResolver{Store: vdrStore},
+		keyResolver:         didservice.KeyResolver{Store: didStore},
 		nodeDIDResolver:     &transport.FixedNodeDIDResolver{},
 		eventPublisher:      eventPublisher,
 		storeProvider:       &storeProvider,

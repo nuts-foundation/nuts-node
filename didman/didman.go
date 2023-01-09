@@ -37,6 +37,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/shengdoushi/base58"
 )
@@ -89,7 +90,7 @@ type didman struct {
 	jsonldManager   jsonld.JSONLD
 	docResolver     types.DocResolver
 	serviceResolver didservice.ServiceResolver
-	store           types.Store
+	store           didstore.Store
 	vdr             types.VDR
 	vcr             vcr.Finder
 	// callSerializer can be used to (un)lock a resource such as a DID to prevent parallel updates
@@ -97,7 +98,7 @@ type didman struct {
 }
 
 // NewDidmanInstance creates a new didman instance with services set
-func NewDidmanInstance(docResolver types.DocResolver, store types.Store, vdr types.VDR, vcr vcr.Finder, jsonldManager jsonld.JSONLD) Didman {
+func NewDidmanInstance(docResolver types.DocResolver, store didstore.Store, vdr types.VDR, vcr vcr.Finder, jsonldManager jsonld.JSONLD) Didman {
 	return &didman{
 		docResolver:     docResolver,
 		serviceResolver: didservice.NewServiceResolver(docResolver),

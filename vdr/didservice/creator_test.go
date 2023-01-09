@@ -36,6 +36,8 @@ import (
 
 const mockKID = "did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE"
 
+var testDID = did.MustParseDID("did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn")
+
 // mockKeyCreator can create new keys based on a predefined key
 type mockKeyCreator struct {
 	kid string

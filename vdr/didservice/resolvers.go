@@ -23,6 +23,7 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -41,14 +42,13 @@ const maxControllerDepth = 5
 
 // Resolver implements the DocResolver interface with a types.Store as backend
 type Resolver struct {
-	Store types.Store
+	Store didstore.Store
 }
 
 func (d Resolver) Resolve(id did.DID, metadata *types.ResolveMetadata) (*did.Document, *types.DocumentMetadata, error) {
 	return d.resolve(id, metadata, 0)
 }
 
-// bug, if one is deactivated => error
 func (d Resolver) resolve(id did.DID, metadata *types.ResolveMetadata, depth int) (*did.Document, *types.DocumentMetadata, error) {
 	if depth >= maxControllerDepth {
 		return nil, nil, ErrNestedDocumentsTooDeep
@@ -132,7 +132,7 @@ func (d Resolver) resolveControllers(doc did.Document, metadata *types.ResolveMe
 
 // KeyResolver implements the KeyResolver interface with a types.Store as backend
 type KeyResolver struct {
-	Store types.Store
+	Store didstore.Store
 }
 
 // ResolveSigningKeyID resolves the ID of the first valid AssertionMethod for a indicated DID document at a given time.

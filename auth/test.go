@@ -21,9 +21,10 @@ package auth
 import (
 	"testing"
 
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
+
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vdr/store"
 )
 
 func NewTestAuthInstance(t *testing.T) *Auth {
@@ -39,5 +40,5 @@ func TestConfig() Config {
 func testInstance(t *testing.T, cfg Config) *Auth {
 	cryptoInstance := crypto.NewMemoryCryptoInstance()
 	vcrInstance := vcr.NewTestVCRInstance(t)
-	return NewAuthInstance(cfg, store.NewTestStore(t), vcrInstance, cryptoInstance, nil, nil)
+	return NewAuthInstance(cfg, didstore.NewTestStore(t), vcrInstance, cryptoInstance, nil, nil)
 }

@@ -26,8 +26,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
@@ -36,14 +34,15 @@ import (
 	"github.com/nats-io/nats.go"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/events"
-	"github.com/stretchr/testify/assert"
-
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // mockKeyCreator creates a single new key
@@ -66,6 +65,7 @@ func (m *mockKeyCreator) New(fn crypto.KIDNamingFunc) (crypto.Key, error) {
 }
 
 type testTransaction struct {
+	clock        uint32
 	signingKey   jwk.Key
 	signingKeyID string
 	signingTime  time.Time
@@ -125,7 +125,7 @@ func (s testTransaction) Data() []byte {
 }
 
 func (s testTransaction) Clock() uint32 {
-	panic("implement me")
+	return s.clock
 }
 
 const signingKeyID = "did:nuts:123#validKeyID123"
@@ -186,24 +186,6 @@ func TestAmbassador_handleNetworkEvent(t *testing.T) {
 		assert.True(t, errors.As(err, new(dag.EventFatal)))
 		assert.EqualError(t, err, "could not process new DID Document: wrong payload type for this subscriber. Can handle: application/did+json, got: ")
 	})
-	t.Run("nok - ", func(t *testing.T) {
-		ctx := newMockContext(t)
-		am := ambassador{didStore: ctx.didStore}
-		tx := testTransaction{
-			signingKeyID: signingKeyID,
-			signingTime:  time.Unix(1628000000, 0),
-			ref:          hash.SHA256Sum([]byte("ref")),
-			payloadHash:  hash.SHA256Sum([]byte("payload")),
-			payloadType:  didDocumentType,
-		}
-		ctx.didStore.EXPECT().Processed(tx.Ref()).Return(false, stoabs.ErrStoreIsClosed)
-
-		value, err := am.handleNetworkEvent(dag.Event{Transaction: tx})
-
-		assert.False(t, value)
-		assert.False(t, errors.As(err, new(dag.EventFatal)))
-		assert.EqualError(t, err, fmt.Sprintf("could not process new DID Document: %s", stoabs.ErrStoreIsClosed))
-	})
 }
 
 func TestAmbassador_callback(t *testing.T) {
@@ -222,26 +204,9 @@ func TestAmbassador_callback(t *testing.T) {
 		}
 	}
 
-	t.Run("ok - duplicate if skipped", func(t *testing.T) {
-		ctx := newMockContext(t)
-		didDocument, _, err := newDidDoc()
-		require.NoError(t, err)
-		didDocPayload, _ := json.Marshal(didDocument)
-		expectedDocument := did.Document{}
-		json.Unmarshal(didDocPayload, &expectedDocument)
-		tx := newTX()
-		txRef := tx.Ref()
-		ctx.didStore.EXPECT().Processed(txRef).Return(true, nil)
-
-		err = ctx.ambassador.callback(tx, didDocPayload)
-
-		assert.NoError(t, err)
-	})
-
 	t.Run("nok - invalid payload", func(t *testing.T) {
 		tx := newTX()
 		ctx := newMockContext(t)
-		ctx.didStore.EXPECT().Processed(tx.ref).Return(false, nil)
 
 		err := ctx.ambassador.callback(tx, []byte("}"))
 
@@ -259,7 +224,6 @@ func TestAmbassador_callback(t *testing.T) {
 	t.Run("nok - DID document invalid according to W3C spec", func(t *testing.T) {
 		tx := newTX()
 		ctx := newMockContext(t)
-		ctx.didStore.EXPECT().Processed(tx.ref).Return(false, nil)
 
 		// Document is missing context
 		id, _ := did.ParseDID("did:foo:bar")
@@ -305,106 +269,35 @@ func TestAmbassador_handleCreateDIDDocument(t *testing.T) {
 
 		tx := newCreateTX(signingKey)
 
-		didDocPayload, _ := json.Marshal(didDocument)
-		expectedDocument := did.Document{}
-		json.Unmarshal(didDocPayload, &expectedDocument)
-
-		expectedMetadata := types.DocumentMetadata{
-			Created:            signingTime,
-			Updated:            nil,
-			Hash:               payloadHash,
-			SourceTransactions: []hash.SHA256Hash{tx.Ref()},
-		}
-
 		t.Run("a new document", func(t *testing.T) {
 			ctx := newMockContext(t)
-			ctx.didStore.EXPECT().Resolve(didDocument.ID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
-			ctx.didStore.EXPECT().Write(didDocument, expectedMetadata)
+			ctx.didStore.EXPECT().Add(didDocument, toStoreTX(tx)).Return(nil)
 
 			err = ctx.ambassador.handleCreateDIDDocument(tx, didDocument)
 
 			assert.NoError(t, err)
 		})
-
-		t.Run("same document", func(t *testing.T) {
-			ctx := newMockContext(t)
-			expectedMetadata := types.DocumentMetadata{
-				Created:            signingTime,
-				Updated:            &signingTime,
-				Hash:               payloadHash,
-				SourceTransactions: []hash.SHA256Hash{tx.Ref()},
-			}
-			ctx.didStore.EXPECT().Resolve(didDocument.ID, gomock.Any()).Return(&expectedDocument, &expectedMetadata, nil)
-			ctx.didStore.EXPECT().Update(didDocument.ID, payloadHash, expectedDocument, &expectedMetadata).Return(nil)
-
-			err = ctx.ambassador.handleCreateDIDDocument(tx, expectedDocument)
-
-			assert.NoError(t, err)
-		})
 	})
 
-	t.Run("create failed for duplicate transaction", func(t *testing.T) {
+	t.Run("create failed", func(t *testing.T) {
 		ctx := newMockContext(t)
 		didDocument, signingKey, err := newDidDoc()
 		require.NoError(t, err)
 
 		tx := newCreateTX(signingKey)
 
-		didDocPayload, _ := json.Marshal(didDocument)
-		expectedDocument := did.Document{}
-		json.Unmarshal(didDocPayload, &expectedDocument)
-
-		expectedMetadata := types.DocumentMetadata{
-			Created:            signingTime,
-			Updated:            &signingTime,
-			Hash:               payloadHash,
-			SourceTransactions: []hash.SHA256Hash{tx.Ref()},
-		}
-		ctx.didStore.EXPECT().Resolve(didDocument.ID, gomock.Any()).Return(&expectedDocument, &expectedMetadata, nil)
-		ctx.didStore.EXPECT().Update(didDocument.ID, payloadHash, expectedDocument, &expectedMetadata).Return(errors.New("b00m!"))
-
-		err = ctx.ambassador.handleCreateDIDDocument(tx, expectedDocument)
-
-		assert.EqualError(t, err, "unable to register DID document: b00m!")
-	})
-
-	// This test recreates the situation where the node gets restarted and the ambassador handles all the
-	//   documents it is subscribed at. Since the did store is non-persistent but the keystore is,
-	//   many keys will already be in the keyStore. This test checks if the ErrKeyAlreadyExists is handled ok
-	t.Run("ok - adding a key which already exists", func(t *testing.T) {
-		ctx := newMockContext(t)
-
-		didDocument, signingKey, err := newDidDoc()
-		require.NoError(t, err)
-
-		tx := newCreateTX(signingKey)
-
-		didDocPayload, _ := json.Marshal(didDocument)
-		expectedDocument := did.Document{}
-		json.Unmarshal(didDocPayload, &expectedDocument)
-
-		var rawKey crypto2.PublicKey
-		signingKey.Raw(&rawKey)
-
-		expectedMetadata := types.DocumentMetadata{
-			Created:            signingTime,
-			Updated:            nil,
-			Hash:               payloadHash,
-			SourceTransactions: []hash.SHA256Hash{tx.Ref()},
-		}
-
-		ctx.didStore.EXPECT().Resolve(didDocument.ID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
-		ctx.didStore.EXPECT().Write(didDocument, expectedMetadata)
+		ctx.didStore.EXPECT().Add(didDocument, toStoreTX(tx)).Return(errors.New("b00m!"))
 
 		err = ctx.ambassador.handleCreateDIDDocument(tx, didDocument)
-		assert.NoError(t, err)
+
+		assert.EqualError(t, err, "unable to register DID document: b00m!")
 	})
 
 	t.Run("create nok - fails when DID does not matches signing key", func(t *testing.T) {
 		ctx := newMockContext(t)
 		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		signingKey, _ := jwk.New(pair.PublicKey)
-		signingKey.Set(jwk.KeyIDKey, "kid123")
+		_ = signingKey.Set(jwk.KeyIDKey, "kid123")
 		tx := newTX()
 		tx.signingKeyID = ""
 		tx.signingKey = signingKey
@@ -444,7 +337,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		payloadHash := hash.SHA256Sum(didDocPayload)
 
 		storedDocument := did.Document{}
-		json.Unmarshal(didDocPayload, &storedDocument)
+		_ = json.Unmarshal(didDocPayload, &storedDocument)
 
 		deactivatedDocument := didservice.CreateDocument()
 		deactivatedDocument.ID = storedDocument.ID
@@ -463,96 +356,18 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 				Hash:    currentPayloadHash,
 			}
 
-			// This is the metadata that will be written during the update
-			expectedNextMetadata := types.DocumentMetadata{
-				Created:            createdAt,
-				Updated:            &signingTime,
-				Hash:               payloadHash,
-				Deactivated:        true,
-				PreviousHash:       &currentPayloadHash,
-				SourceTransactions: []hash.SHA256Hash{tx.Ref()},
-			}
 			var pKey crypto2.PublicKey
-			signingKey.Raw(&pKey)
+			_ = signingKey.Raw(&pKey)
 
 			ctx.didStore.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&storedDocument, currentMetadata, nil)
 			ctx.resolver.EXPECT().ResolveControllers(storedDocument, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{storedDocument}, nil)
 			ctx.keyStore.EXPECT().ResolvePublicKey(storedDocument.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
-			ctx.didStore.EXPECT().Update(storedDocument.ID, currentMetadata.Hash, deactivatedDocument, &expectedNextMetadata)
+			ctx.didStore.EXPECT().Add(deactivatedDocument, toStoreTX(tx))
 
 			err = ctx.ambassador.handleUpdateDIDDocument(tx, deactivatedDocument)
+
 			assert.NoError(t, err)
 		})
-		t.Run("second time: ErrDeactivated", func(t *testing.T) {
-			tx := newTX()
-			tx.signingKeyID = didDocument.CapabilityInvocation[0].ID.String()
-			tx.payloadHash = payloadHash
-
-			currentPayloadHash := hash.SHA256Sum([]byte("currentPayloadHash"))
-
-			// This is the metadata of the current version of the document which will be returned by the resolver
-			currentMetadata := &types.DocumentMetadata{
-				Created:     createdAt,
-				Updated:     nil,
-				Hash:        currentPayloadHash,
-				Deactivated: true,
-			}
-
-			var pKey crypto2.PublicKey
-			signingKey.Raw(&pKey)
-
-			ctx.didStore.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&storedDocument, currentMetadata, nil)
-			ctx.resolver.EXPECT().ResolveControllers(storedDocument, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{storedDocument}, nil)
-			ctx.keyStore.EXPECT().ResolvePublicKey(storedDocument.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
-
-			err = ctx.ambassador.handleUpdateDIDDocument(tx, deactivatedDocument)
-			assert.Equal(t, types.ErrDeactivated, err)
-		})
-	})
-
-	t.Run("update ok - with the exact same document", func(t *testing.T) {
-		ctx := newMockContext(t)
-
-		didDocument, signingKey, err := newDidDoc()
-		require.NoError(t, err)
-
-		didDocPayload, _ := json.Marshal(didDocument)
-		payloadHash := hash.SHA256Sum(didDocPayload)
-
-		tx := newTX()
-		tx.signingKeyID = didDocument.CapabilityInvocation[0].ID.String()
-		tx.payloadHash = payloadHash
-
-		expectedDocument := did.Document{}
-		json.Unmarshal(didDocPayload, &expectedDocument)
-
-		currentPayloadHash := hash.SHA256Sum([]byte("currentPayloadHash"))
-
-		// This is the metadata of the current version of the document which will be returned by the resolver
-		currentMetadata := &types.DocumentMetadata{
-			Created: createdAt,
-			Updated: nil,
-			Hash:    currentPayloadHash,
-		}
-
-		// This is the metadata that will be written during the update
-		expectedNextMetadata := types.DocumentMetadata{
-			Created:            createdAt,
-			Updated:            &signingTime,
-			Hash:               payloadHash,
-			PreviousHash:       &currentPayloadHash,
-			SourceTransactions: []hash.SHA256Hash{tx.Ref()},
-		}
-		var pKey crypto2.PublicKey
-		signingKey.Raw(&pKey)
-
-		ctx.didStore.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&expectedDocument, currentMetadata, nil)
-		ctx.resolver.EXPECT().ResolveControllers(expectedDocument, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{expectedDocument}, nil)
-		ctx.keyStore.EXPECT().ResolvePublicKey(didDocument.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
-		ctx.didStore.EXPECT().Update(didDocument.ID, currentMetadata.Hash, expectedDocument, &expectedNextMetadata)
-
-		err = ctx.ambassador.handleUpdateDIDDocument(tx, expectedDocument)
-		assert.NoError(t, err)
 	})
 
 	t.Run("update ok - where the document is not the controller", func(t *testing.T) {
@@ -569,7 +384,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		tx.payloadHash = payloadHash
 
 		expectedDocument := did.Document{}
-		json.Unmarshal(didDocPayload, &expectedDocument)
+		_ = json.Unmarshal(didDocPayload, &expectedDocument)
 
 		// This is the metadata of the current version of the document which will be returned by the resolver
 		currentMetadata := &types.DocumentMetadata{
@@ -578,22 +393,13 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 			Hash:    hash.SHA256Sum([]byte("currentPayloadHash")),
 		}
 
-		// This is the metadata that will be written during the update
-		expectedNextMetadata := types.DocumentMetadata{
-			Created:            createdAt,
-			Updated:            &signingTime,
-			Hash:               payloadHash,
-			PreviousHash:       &currentMetadata.Hash,
-			SourceTransactions: []hash.SHA256Hash{tx.Ref()},
-		}
 		var pKey crypto2.PublicKey
-		signingKey.Raw(&pKey)
+		_ = signingKey.Raw(&pKey)
 
 		ctx.didStore.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&expectedDocument, currentMetadata, nil)
 		ctx.resolver.EXPECT().ResolveControllers(expectedDocument, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{controllerDoc}, nil)
 		ctx.keyStore.EXPECT().ResolvePublicKey(controllerDoc.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
-
-		ctx.didStore.EXPECT().Update(didDocument.ID, currentMetadata.Hash, expectedDocument, &expectedNextMetadata)
+		ctx.didStore.EXPECT().Add(expectedDocument, toStoreTX(tx))
 
 		err := ctx.ambassador.handleUpdateDIDDocument(tx, expectedDocument)
 		assert.NoError(t, err)
@@ -621,21 +427,13 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 			Hash:    hash.SHA256Sum([]byte("currentPayloadHash")),
 		}
 
-		// This is the metadata that will be written during the update
-		expectedNextMetadata := types.DocumentMetadata{
-			Created:            createdAt,
-			Updated:            &signingTime,
-			Hash:               payloadHash,
-			PreviousHash:       &currentMetadata.Hash,
-			SourceTransactions: []hash.SHA256Hash{tx.Ref()},
-		}
 		var pKey crypto2.PublicKey
-		signingKey.Raw(&pKey)
+		_ = signingKey.Raw(&pKey)
 
 		ctx.didStore.EXPECT().Resolve(currentDoc.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&currentDoc, currentMetadata, nil)
 		ctx.resolver.EXPECT().ResolveControllers(currentDoc, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{currentDoc}, nil)
 		ctx.keyStore.EXPECT().ResolvePublicKey(currentDoc.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
-		ctx.didStore.EXPECT().Update(currentDoc.ID, currentMetadata.Hash, newDoc, &expectedNextMetadata)
+		ctx.didStore.EXPECT().Add(newDoc, toStoreTX(tx))
 
 		err := ctx.ambassador.handleUpdateDIDDocument(tx, newDoc)
 		assert.NoError(t, err)
@@ -654,7 +452,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		require.NoError(t, err)
 
 		var pKey crypto2.PublicKey
-		controllerSigningKey.Raw(&pKey)
+		_ = controllerSigningKey.Raw(&pKey)
 
 		// set the didDocument`s controller to the controller
 		didDocument.Controller = []did.DID{didDocumentController.ID}
@@ -672,11 +470,11 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		// Convert back into a fresh doc because that will set the references correct
 		expectedDocument := did.Document{}
-		json.Unmarshal(didDocPayload, &expectedDocument)
+		_ = json.Unmarshal(didDocPayload, &expectedDocument)
 
 		// Convert back into a fresh doc because that will set the references correct
 		expectedController := did.Document{}
-		json.Unmarshal(didDocControllerPayload, &expectedController)
+		_ = json.Unmarshal(didDocControllerPayload, &expectedController)
 
 		currentPayloadHash := hash.SHA256Sum([]byte("currentPayloadHash"))
 
@@ -687,19 +485,10 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 			Hash:    currentPayloadHash,
 		}
 
-		// This is the metadata that will be written during the update
-		expectedNextMetadata := types.DocumentMetadata{
-			Created:            createdAt,
-			Updated:            &signingTime,
-			Hash:               payloadHash,
-			PreviousHash:       &currentMetadata.Hash,
-			SourceTransactions: []hash.SHA256Hash{tx.Ref()},
-		}
-
 		ctx.didStore.EXPECT().Resolve(didDocument.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&expectedDocument, currentMetadata, nil)
 		ctx.resolver.EXPECT().ResolveControllers(expectedDocument, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{didDocumentController}, nil)
 		ctx.keyStore.EXPECT().ResolvePublicKey(didDocumentController.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
-		ctx.didStore.EXPECT().Update(didDocument.ID, currentMetadata.Hash, expectedDocument, &expectedNextMetadata)
+		ctx.didStore.EXPECT().Add(expectedDocument, toStoreTX(tx))
 
 		err = ctx.ambassador.handleUpdateDIDDocument(tx, expectedDocument)
 		assert.NoError(t, err)
@@ -722,7 +511,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		// We still use the document signing key, not the one from the controller
 		var pKey crypto2.PublicKey
-		documentSigningKey.Raw(&pKey)
+		_ = documentSigningKey.Raw(&pKey)
 
 		// set the didDocument`s controller to the controller
 		didDocument.Controller = []did.DID{didDocumentController.ID}
@@ -742,11 +531,11 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		// Convert back into a fresh doc because that will set the references correct
 		expectedDocument := did.Document{}
-		json.Unmarshal(didDocPayload, &expectedDocument)
+		_ = json.Unmarshal(didDocPayload, &expectedDocument)
 
 		// Convert back into a fresh doc because that will set the references correct
 		expectedController := did.Document{}
-		json.Unmarshal(didDocControllerPayload, &expectedController)
+		_ = json.Unmarshal(didDocControllerPayload, &expectedController)
 
 		currentPayloadHash := hash.SHA256Sum([]byte("currentPayloadHash"))
 
@@ -764,55 +553,6 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		err = ctx.ambassador.handleUpdateDIDDocument(tx, didDocument)
 		assert.EqualError(t, err, "network document not signed by one of its controllers")
 	})
-
-	t.Run("ok - updating a DID Document that results in a conflict", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-
-		didStoreMock := types.NewMockStore(ctrl)
-		keyStoreMock := types.NewMockKeyResolver(ctrl)
-
-		am := ambassador{
-			didStore:    didStoreMock,
-			keyResolver: keyStoreMock,
-			docResolver: didservice.Resolver{Store: didStoreMock},
-		}
-
-		didDocument, signingKey, err := newDidDoc()
-		require.NoError(t, err)
-		didMetadata := types.DocumentMetadata{
-			SourceTransactions: []hash.SHA256Hash{hash.EmptyHash()},
-			Hash:               hash.EmptyHash(),
-			Created:            signingTime,
-		}
-		var pKey crypto2.PublicKey
-		signingKey.Raw(&pKey)
-
-		tx := newTX()
-		tx.signingKeyID = signingKey.KeyID()
-		tx.signingTime = signingTime
-
-		didDocPayload, _ := json.Marshal(didDocument)
-		expectedDocument := did.Document{}
-		json.Unmarshal(didDocPayload, &expectedDocument)
-
-		var rawKey crypto2.PublicKey
-		signingKey.Raw(&rawKey)
-
-		expectedMetadata := types.DocumentMetadata{
-			Created:            signingTime,
-			Updated:            &signingTime,
-			Hash:               payloadHash,
-			PreviousHash:       &didMetadata.Hash,
-			SourceTransactions: []hash.SHA256Hash{hash.EmptyHash(), tx.Ref()},
-		}
-
-		didStoreMock.EXPECT().Resolve(didDocument.ID, gomock.Any()).Return(&didDocument, &didMetadata, nil)
-		keyStoreMock.EXPECT().ResolvePublicKey(signingKey.KeyID(), gomock.Any()).Return(pKey, nil)
-		didStoreMock.EXPECT().Update(didDocument.ID, hash.EmptyHash(), expectedDocument, &expectedMetadata).Return(nil)
-
-		err = am.handleUpdateDIDDocument(tx, expectedDocument)
-		assert.NoError(t, err)
-	})
 }
 
 func Test_sortHashes(t *testing.T) {
@@ -828,7 +568,7 @@ func Test_handleUpdateDIDDocument(t *testing.T) {
 	t.Run("error - unable to resolve controllers", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
-		didStoreMock := types.NewMockStore(ctrl)
+		didStoreMock := didstore.NewMockStore(ctrl)
 		keyStoreMock := types.NewMockKeyResolver(ctrl)
 		docResolverMock := types.NewMockDocResolver(ctrl)
 
@@ -853,7 +593,7 @@ func Test_checkTransactionIntegrity(t *testing.T) {
 	signingTime := time.Now()
 	pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	signingKey, _ := jwk.New(pair.PublicKey)
-	signingKey.Set(jwk.KeyIDKey, "kid123")
+	_ = signingKey.Set(jwk.KeyIDKey, "kid123")
 	payloadHash := hash.SHA256Sum([]byte("payload"))
 	ref := hash.SHA256Sum([]byte("ref"))
 
@@ -1029,7 +769,7 @@ func newDidDoc() (did.Document, jwk.Key, error) {
 
 type mockContext struct {
 	ctrl         *gomock.Controller
-	didStore     *types.MockStore
+	didStore     *didstore.MockStore
 	keyStore     *types.MockKeyResolver
 	resolver     *types.MockDocResolver
 	eventManager *events.MockEvent
@@ -1038,7 +778,7 @@ type mockContext struct {
 
 func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
-	didStoreMock := types.NewMockStore(ctrl)
+	didStoreMock := didstore.NewMockStore(ctrl)
 	keyStoreMock := types.NewMockKeyResolver(ctrl)
 	resolverMock := types.NewMockDocResolver(ctrl)
 	eventManager := events.NewMockEvent(ctrl)
@@ -1056,5 +796,15 @@ func newMockContext(t *testing.T) mockContext {
 		resolver:     resolverMock,
 		ambassador:   am,
 		eventManager: eventManager,
+	}
+}
+
+func toStoreTX(transaction dag.Transaction) didstore.Transaction {
+	return didstore.Transaction{
+		Clock:       transaction.Clock(),
+		PayloadHash: transaction.PayloadHash(),
+		Previous:    transaction.Previous(),
+		Ref:         transaction.Ref(),
+		SigningTime: transaction.SigningTime(),
 	}
 }

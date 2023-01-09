@@ -56,7 +56,7 @@ import (
 	vdrAPI "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	vdrCmd "github.com/nuts-foundation/nuts-node/vdr/cmd"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/store"
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -182,7 +182,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	httpServerInstance := httpEngine.New(shutdownCallback, cryptoInstance)
 	jsonld := jsonld.NewJSONLDInstance()
 	storageInstance := storage.New()
-	didStore := store.NewStore(storageInstance.GetProvider(vdr.ModuleName))
+	didStore := didstore.New(storageInstance.GetProvider(vdr.ModuleName))
 	keyResolver := didservice.KeyResolver{Store: didStore}
 	docResolver := didservice.Resolver{Store: didStore}
 	docFinder := didservice.Finder{Store: didStore}

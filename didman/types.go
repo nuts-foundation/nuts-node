@@ -52,7 +52,7 @@ type Didman interface {
 
 	// AddCompoundService adds a compound endpoint to a DID Document.
 	// It returns ErrDuplicateService if a service with the given type already exists.
-	// It returns doc.DIDServiceQueryError if one of the service references is invalid.
+	// It returns didservice.DIDServiceQueryError if one of the service references is invalid.
 	// It returns ErrReferencedServiceNotAnEndpoint if one of the references does not resolve to a single endpoint URL.
 	// It can also return various errors from DocResolver.Resolve and VDR.Update
 	AddCompoundService(id did.DID, serviceType string, endpoints map[string]ssi.URI) (*did.Service, error)
@@ -79,7 +79,7 @@ type CompoundServiceResolver interface {
 	// It returns the serviceEndpoint of the specified service (which must be an absolute URL endpoint).
 	// If resolveReferences is true and the specified endpointType contains a reference, it is resolved and the referenced endpoint is returned instead.
 	// It returns ErrServiceNotFound if the specified compound service or endpoint can't be found in the DID Document.
-	// It returns doc.DIDServiceQueryError if the endpoint doesn't contain a (valid) reference and resolveReferences = true.
+	// It returns didservice.DIDServiceQueryError if the endpoint doesn't contain a (valid) reference and resolveReferences = true.
 	// It returns ErrServiceReferenceToDeep if the endpoint reference is nested too deep.
 	GetCompoundServiceEndpoint(id did.DID, compoundServiceType string, endpointType string, resolveReferences bool) (string, error)
 

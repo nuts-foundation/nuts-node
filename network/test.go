@@ -19,15 +19,16 @@
 package network
 
 import (
+	"testing"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/store"
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/sirupsen/logrus"
-	"testing"
 )
 
 // NewTestNetworkInstance creates a new Transactions instance that writes it data to a test directory.
@@ -36,15 +37,15 @@ func NewTestNetworkInstance(t *testing.T) *Network {
 	// speedup tests by disabling file sync
 	defaultBBoltOptions.NoSync = true
 	config := TestNetworkConfig()
-	vdrStore := store.NewTestStore(t)
+	store := didstore.NewTestStore(t)
 	cryptoInstance := crypto.NewMemoryCryptoInstance()
 	eventPublisher := events.NewManager()
 	newInstance := NewNetworkInstance(
 		config,
-		didservice.KeyResolver{Store: vdrStore},
+		didservice.KeyResolver{Store: store},
 		cryptoInstance,
-		didservice.Resolver{Store: vdrStore},
-		didservice.Finder{Store: vdrStore},
+		didservice.Resolver{Store: store},
+		didservice.Finder{Store: store},
 		eventPublisher,
 		storage.NewTestStorageEngine(testDirectory).GetProvider(ModuleName),
 	)

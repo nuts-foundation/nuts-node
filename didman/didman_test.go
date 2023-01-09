@@ -24,8 +24,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/stretchr/testify/require"
 	"io"
 	"net/url"
 	"strings"
@@ -41,8 +39,11 @@ import (
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var testDIDA = vdr.TestDIDA
@@ -789,7 +790,7 @@ func TestReferencesService(t *testing.T) {
 type mockContext struct {
 	ctrl        *gomock.Controller
 	docResolver *types.MockDocResolver
-	store       *types.MockStore
+	store       *didstore.MockStore
 	vdr         *types.MockVDR
 	vcr         *vcr.MockFinder
 	instance    Didman
@@ -798,7 +799,7 @@ type mockContext struct {
 func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	docResolver := types.NewMockDocResolver(ctrl)
-	store := types.NewMockStore(ctrl)
+	store := didstore.NewMockStore(ctrl)
 	mockVDR := types.NewMockVDR(ctrl)
 	mockVCR := vcr.NewMockFinder(ctrl)
 	instance := NewDidmanInstance(docResolver, store, mockVDR, mockVCR, jsonld.NewTestJSONLDManager(t))

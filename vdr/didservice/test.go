@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2022 Nuts community
+ * Nuts node
+ * Copyright (C) 2021 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,40 +14,16 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
  */
 
 package didservice
 
 import (
-	"crypto"
-	"time"
-
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 )
 
-type StaticKeyResolver struct {
-	Key crypto.PublicKey
-}
-
-func (s StaticKeyResolver) ResolveKeyAgreementKey(_ did.DID) (crypto.PublicKey, error) {
-	return s.Key, nil
-}
-
-func (s StaticKeyResolver) ResolvePublicKey(_ string, _ []hash.SHA256Hash) (crypto.PublicKey, error) {
-	return s.Key, nil
-}
-
-func (s StaticKeyResolver) ResolveSigningKeyID(_ did.DID, _ *time.Time) (string, error) {
-	panic("implement me")
-}
-
-func (s StaticKeyResolver) ResolveSigningKey(_ string, _ *time.Time) (crypto.PublicKey, error) {
-	panic("implement me")
-}
-
-func (s StaticKeyResolver) ResolveAssertionKeyID(_ did.DID) (ssi.URI, error) {
-	panic("implement me")
-}
+// marshal/unmarshal safe notation
+var testServiceA = did.Service{ID: ssi.MustParseURI("did:nuts:service:a"), ServiceEndpoint: []interface{}{"http://a"}}
+var testServiceB = did.Service{ID: ssi.MustParseURI("did:nuts:service:b"), ServiceEndpoint: []interface{}{"http://b"}}

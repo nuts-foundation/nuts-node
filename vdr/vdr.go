@@ -24,6 +24,7 @@
 package vdr
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -36,8 +37,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
-	"github.com/nuts-foundation/nuts-node/vdr/store"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/sirupsen/logrus"
 )
@@ -47,7 +48,7 @@ import (
 // It is also a Runnable, Diagnosable and Configurable Nuts Engine.
 type VDR struct {
 	config            Config
-	store             types.Store
+	store             didstore.Store
 	network           network.Transactions
 	OnChange          func(registry *VDR)
 	networkAmbassador Ambassador
@@ -58,7 +59,7 @@ type VDR struct {
 }
 
 // NewVDR creates a new VDR with provided params
-func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.Transactions, store types.Store, eventManager events.Event) *VDR {
+func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.Transactions, store didstore.Store, eventManager events.Event) *VDR {
 	return &VDR{
 		config:            config,
 		network:           networkClient,
@@ -87,7 +88,22 @@ func (r *VDR) Configure(_ core.ServerConfig) error {
 }
 
 func (r *VDR) Start() error {
-	return r.networkAmbassador.Start()
+	err := r.networkAmbassador.Start()
+	if err != nil {
+		return err
+	}
+
+	// VDR migration needs to be started after ambassador has started!
+	count, err := r.store.DocumentCount()
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		// remove after v6 release
+		_, err = r.network.Reprocess(context.Background(), "application/did+json")
+	}
+
+	return err
 }
 
 func (r *VDR) Shutdown() error {
@@ -98,11 +114,9 @@ func (r *VDR) ConflictedDocuments() ([]did.Document, []types.DocumentMetadata, e
 	conflictedDocs := make([]did.Document, 0)
 	conflictedMeta := make([]types.DocumentMetadata, 0)
 
-	err := r.store.Iterate(func(doc did.Document, metadata types.DocumentMetadata) error {
-		if metadata.IsConflicted() {
-			conflictedDocs = append(conflictedDocs, doc)
-			conflictedMeta = append(conflictedMeta, metadata)
-		}
+	err := r.store.Conflicted(func(doc did.Document, metadata types.DocumentMetadata) error {
+		conflictedDocs = append(conflictedDocs, doc)
+		conflictedMeta = append(conflictedMeta, metadata)
 		return nil
 	})
 	return conflictedDocs, conflictedMeta, err
@@ -111,24 +125,23 @@ func (r *VDR) ConflictedDocuments() ([]did.Document, []types.DocumentMetadata, e
 // Diagnostics returns the diagnostics for this engine
 func (r *VDR) Diagnostics() []core.DiagnosticResult {
 	// return # conflicted docs
-	count := 0
-	r.store.Iterate(func(_ did.Document, metadata types.DocumentMetadata) error {
-		if metadata.IsConflicted() {
-			count++
-		}
-		return nil
-	})
+	count, _ := r.store.ConflictedCount()
+	docCount, _ := r.store.DocumentCount()
 
 	return []core.DiagnosticResult{
 		&core.GenericDiagnosticResult{
 			Title:   "conflicted_did_documents_count",
 			Outcome: count,
 		},
+		&core.GenericDiagnosticResult{
+			Title:   "did_documents_count",
+			Outcome: docCount,
+		},
 	}
 }
 
 // Create generates a new DID Document
-func (r VDR) Create(options types.DIDCreationOptions) (*did.Document, crypto.Key, error) {
+func (r *VDR) Create(options types.DIDCreationOptions) (*did.Document, crypto.Key, error) {
 	log.Logger().Debug("Creating new DID Document.")
 	doc, key, err := r.didDocCreator.Create(options)
 	if err != nil {
@@ -154,7 +167,7 @@ func (r VDR) Create(options types.DIDCreationOptions) (*did.Document, crypto.Key
 }
 
 // Update updates a DID Document based on the DID and current hash
-func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *types.DocumentMetadata) error {
+func (r *VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *types.DocumentMetadata) error {
 	log.Logger().
 		WithField(core.LogFieldDID, id).
 		Debug("Updating DID Document")
@@ -167,7 +180,7 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 	if err != nil {
 		return err
 	}
-	if store.IsDeactivated(*currentDIDDocument) {
+	if didservice.IsDeactivated(*currentDIDDocument) {
 		return types.ErrDeactivated
 	}
 
@@ -222,7 +235,7 @@ func (r VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *t
 	return err
 }
 
-func (r VDR) resolveControllerWithKey(doc did.Document) (did.Document, crypto.Key, error) {
+func (r *VDR) resolveControllerWithKey(doc did.Document) (did.Document, crypto.Key, error) {
 	controllers, err := r.didDocResolver.ResolveControllers(doc, nil)
 	if err != nil {
 		return did.Document{}, nil, fmt.Errorf("error while finding controllers for document: %w", err)

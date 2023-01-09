@@ -49,6 +49,7 @@ import (
 	verifier2 "github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1004,7 +1005,7 @@ type testContext struct {
 	contractNotary  *services.MockContractNotary
 	keyStore        *crypto.MockKeyStore
 	nameResolver    *vcr.MockFinder
-	didResolver     *types.MockStore
+	didResolver     *didstore.MockStore
 	keyResolver     *types.MockKeyResolver
 	serviceResolver *didman.MockCompoundServiceResolver
 	oauthService    *service
@@ -1019,7 +1020,7 @@ var createContext = func(t *testing.T) *testContext {
 	nameResolver := vcr.NewMockFinder(ctrl)
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	serviceResolver := didman.NewMockCompoundServiceResolver(ctrl)
-	didResolver := types.NewMockStore(ctrl)
+	didResolver := didstore.NewMockStore(ctrl)
 	verifier := verifier2.NewMockVerifier(ctrl)
 
 	return &testContext{

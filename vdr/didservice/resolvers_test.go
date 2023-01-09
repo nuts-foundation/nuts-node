@@ -19,31 +19,30 @@ package didservice
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"testing"
-
 	"time"
 
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/vdr/store"
-	"github.com/stretchr/testify/assert"
-
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestResolveSigningKey(t *testing.T) {
-	didStore := store.NewTestStore(t)
-	keyResolver := KeyResolver{Store: didStore}
+	ctrl := gomock.NewController(t)
+	store := didstore.NewMockStore(ctrl)
+	keyResolver := KeyResolver{Store: store}
 	keyCreator := newMockKeyCreator()
 	docCreator := Creator{KeyStore: keyCreator}
 	doc, _, _ := docCreator.Create(DefaultCreationOptions())
-	doc.AddAssertionMethod(doc.VerificationMethod[0])
-	didStore.Write(*doc, types.DocumentMetadata{})
 
 	t.Run("ok", func(t *testing.T) {
+		store.EXPECT().Resolve(testDID, gomock.Any()).Return(doc, nil, nil)
+
 		key, err := keyResolver.ResolveSigningKey(mockKID, nil)
 
 		require.NoError(t, err)
@@ -51,15 +50,17 @@ func TestResolveSigningKey(t *testing.T) {
 	})
 
 	t.Run("unable to resolve document", func(t *testing.T) {
-		fakeDID := ssi.MustParseURI("did:nuts:fake")
+		store.EXPECT().Resolve(testDID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
 
-		_, err := keyResolver.ResolveSigningKey(fakeDID.String(), nil)
+		_, err := keyResolver.ResolveSigningKey(mockKID, nil)
 
 		assert.Error(t, err)
 		assert.Equal(t, types.ErrNotFound, err)
 	})
 
 	t.Run("signing key not found in document", func(t *testing.T) {
+		store.EXPECT().Resolve(testDID, gomock.Any()).Return(doc, nil, nil)
+
 		_, err := keyResolver.ResolveSigningKey(mockKID[:len(mockKID)-2], nil)
 
 		assert.Error(t, err)
@@ -75,78 +76,123 @@ func TestResolveSigningKey(t *testing.T) {
 }
 
 func TestResolveSigningKeyID(t *testing.T) {
-	didStore := store.NewTestStore(t)
-	keyResolver := KeyResolver{Store: didStore}
 	keyCreator := newMockKeyCreator()
 	docCreator := Creator{KeyStore: keyCreator}
 	doc, _, _ := docCreator.Create(DefaultCreationOptions())
-	doc.AddAssertionMethod(doc.VerificationMethod[0])
-	didStore.Write(*doc, types.DocumentMetadata{})
 
 	t.Run("ok", func(t *testing.T) {
-		actual, err := keyResolver.ResolveSigningKeyID(doc.ID, nil)
+		ctrl := gomock.NewController(t)
+		store := didstore.NewMockStore(ctrl)
+		keyResolver := KeyResolver{Store: store}
+		store.EXPECT().Resolve(testDID, gomock.Any()).Return(doc, nil, nil)
+
+		actual, err := keyResolver.ResolveSigningKeyID(testDID, nil)
 
 		require.NoError(t, err)
 		assert.Equal(t, mockKID, actual)
 	})
 
 	t.Run("unable to resolve", func(t *testing.T) {
-		did, _ := did.ParseDID("did:nuts:a")
+		ctrl := gomock.NewController(t)
+		store := didstore.NewMockStore(ctrl)
+		keyResolver := KeyResolver{Store: store}
+		store.EXPECT().Resolve(testDID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
 
-		_, err := keyResolver.ResolveSigningKeyID(*did, nil)
+		_, err := keyResolver.ResolveSigningKeyID(testDID, nil)
 
 		assert.Error(t, err)
 		assert.Equal(t, types.ErrNotFound, err)
 	})
 
 	t.Run("signing key not found", func(t *testing.T) {
-		did2, _ := did.ParseDID("did:nuts:a")
-		doc2 := *doc
-		doc2.ID = *did2
-		doc2.AssertionMethod = did.VerificationRelationships{}
-		err := didStore.Write(doc2, types.DocumentMetadata{})
-		require.NoError(t, err)
+		ctrl := gomock.NewController(t)
+		store := didstore.NewMockStore(ctrl)
+		keyResolver := KeyResolver{Store: store}
+		store.EXPECT().Resolve(testDID, gomock.Any()).Return(&did.Document{}, nil, nil)
 
-		_, err = keyResolver.ResolveSigningKeyID(*did2, nil)
+		_, err := keyResolver.ResolveSigningKeyID(testDID, nil)
 
 		assert.Equal(t, types.ErrKeyNotFound, err)
 	})
 }
 
 func TestKeyResolver_ResolveAssertionKeyID(t *testing.T) {
-	didStore := store.NewTestStore(t)
-	keyResolver := KeyResolver{Store: didStore}
 	keyCreator := newMockKeyCreator()
 	docCreator := Creator{KeyStore: keyCreator}
 	doc, _, _ := docCreator.Create(DefaultCreationOptions())
-	doc.AddAssertionMethod(doc.VerificationMethod[0])
-	didStore.Write(*doc, types.DocumentMetadata{})
 
 	t.Run("ok - resolve a known key", func(t *testing.T) {
-		actual, err := keyResolver.ResolveAssertionKeyID(doc.ID)
+		ctrl := gomock.NewController(t)
+		store := didstore.NewMockStore(ctrl)
+		keyResolver := KeyResolver{Store: store}
+		store.EXPECT().Resolve(testDID, gomock.Any()).Return(doc, nil, nil)
+
+		actual, err := keyResolver.ResolveAssertionKeyID(testDID)
 
 		require.NoError(t, err)
 		assert.Equal(t, mockKID, actual.String())
 	})
 
 	t.Run("unable to resolve", func(t *testing.T) {
-		did, _ := did.ParseDID("did:nuts:a")
+		ctrl := gomock.NewController(t)
+		store := didstore.NewMockStore(ctrl)
+		keyResolver := KeyResolver{Store: store}
+		store.EXPECT().Resolve(testDID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
 
-		_, err := keyResolver.ResolveAssertionKeyID(*did)
+		_, err := keyResolver.ResolveAssertionKeyID(testDID)
 
 		assert.Error(t, err)
 		assert.Equal(t, types.ErrNotFound, err)
 	})
 
 	t.Run("signing key not found", func(t *testing.T) {
-		did2, _ := did.ParseDID("did:nuts:a")
-		doc2 := *doc
-		doc2.ID = *did2
-		doc2.AssertionMethod = did.VerificationRelationships{}
-		err := didStore.Write(doc2, types.DocumentMetadata{})
-		require.NoError(t, err)
+		ctrl := gomock.NewController(t)
+		store := didstore.NewMockStore(ctrl)
+		keyResolver := KeyResolver{Store: store}
+		store.EXPECT().Resolve(testDID, gomock.Any()).Return(&did.Document{}, nil, nil)
 
-		_, err = keyResolver.ResolveAssertionKeyID(*did2)
+		_, err := keyResolver.ResolveAssertionKeyID(testDID)
+
+		assert.Equal(t, types.ErrKeyNotFound, err)
+	})
+}
+
+func TestKeyResolver_ResolveKeyAgreementKey(t *testing.T) {
+	keyCreator := newMockKeyCreator()
+	docCreator := Creator{KeyStore: keyCreator}
+	doc, _, _ := docCreator.Create(DefaultCreationOptions())
+
+	t.Run("ok - resolve a known key", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		store := didstore.NewMockStore(ctrl)
+		keyResolver := KeyResolver{Store: store}
+		store.EXPECT().Resolve(testDID, gomock.Any()).Return(doc, nil, nil)
+
+		actual, err := keyResolver.ResolveKeyAgreementKey(testDID)
+
+		require.NoError(t, err)
+		assert.NotNil(t, actual)
+	})
+
+	t.Run("unable to resolve", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		store := didstore.NewMockStore(ctrl)
+		keyResolver := KeyResolver{Store: store}
+		store.EXPECT().Resolve(testDID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
+
+		_, err := keyResolver.ResolveKeyAgreementKey(testDID)
+
+		assert.Error(t, err)
+		assert.Equal(t, types.ErrNotFound, err)
+	})
+
+	t.Run("key not found", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		store := didstore.NewMockStore(ctrl)
+		keyResolver := KeyResolver{Store: store}
+		store.EXPECT().Resolve(testDID, gomock.Any()).Return(&did.Document{}, nil, nil)
+
+		_, err := keyResolver.ResolveKeyAgreementKey(testDID)
 
 		assert.Equal(t, types.ErrKeyNotFound, err)
 	})
@@ -162,7 +208,7 @@ func TestResolver_Resolve(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		store := types.NewMockStore(ctrl)
+		store := didstore.NewMockStore(ctrl)
 		resolver := Resolver{Store: store}
 		doc := did.Document{ID: *id123}
 		id123Method1, _ := did.ParseDIDURL("did:nuts:123#method-1")
@@ -179,7 +225,7 @@ func TestResolver_Resolve(t *testing.T) {
 	t.Run("docA is controller of docB and docA is deactivated", func(t *testing.T) {
 		t.Run("err - with resolver metadata", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			store := types.NewMockStore(ctrl)
+			store := didstore.NewMockStore(ctrl)
 			resolver := Resolver{Store: store}
 			store.EXPECT().Resolve(*id456, resolveMD).Return(&docB, &types.DocumentMetadata{}, nil)
 			store.EXPECT().Resolve(*id123, resolveMD).Return(&docA, &types.DocumentMetadata{}, nil)
@@ -193,7 +239,7 @@ func TestResolver_Resolve(t *testing.T) {
 
 		t.Run("err - without resolve metadata", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			store := types.NewMockStore(ctrl)
+			store := didstore.NewMockStore(ctrl)
 			resolver := Resolver{Store: store}
 			store.EXPECT().Resolve(*id456, nil).Return(&docB, &types.DocumentMetadata{}, nil)
 			store.EXPECT().Resolve(*id123, nil).Return(&docA, &types.DocumentMetadata{}, nil)
@@ -207,7 +253,7 @@ func TestResolver_Resolve(t *testing.T) {
 
 		t.Run("ok - allowed deactivated", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			store := types.NewMockStore(ctrl)
+			store := didstore.NewMockStore(ctrl)
 			resolver := Resolver{Store: store}
 			resolveMD := &types.ResolveMetadata{ResolveTime: &resolveTime, AllowDeactivated: true}
 
@@ -228,7 +274,7 @@ func TestResolver_Resolve(t *testing.T) {
 		docs := make([]did.Document, depth)
 		prevID := rootID
 		prevDoc := rootDoc
-		store := types.NewMockStore(ctrl)
+		store := didstore.NewMockStore(ctrl)
 		resolver := Resolver{Store: store}
 		for i := 0; i < depth; i++ {
 			id, _ := did.ParseDID(fmt.Sprintf("did:nuts:%d", i))
@@ -284,7 +330,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 	t.Run("docA is controller of docB", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
-		store := types.NewMockStore(ctrl)
+		store := didstore.NewMockStore(ctrl)
 
 		resolver := Resolver{Store: store}
 		docA := did.Document{ID: *id123}
@@ -306,7 +352,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 	t.Run("docA is controller of docB and docA is deactivated", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
-		store := types.NewMockStore(ctrl)
+		store := didstore.NewMockStore(ctrl)
 
 		resolver := Resolver{Store: store}
 		docA := did.Document{ID: *id123}
@@ -325,7 +371,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 	t.Run("docA and docB are both the controllers of docB", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
-		store := types.NewMockStore(ctrl)
+		store := didstore.NewMockStore(ctrl)
 
 		resolver := Resolver{Store: store}
 		docA := did.Document{ID: *id123}
@@ -346,7 +392,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 	t.Run("docA, docB and docC are controllers of docA, docB is deactivated", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
-		store := types.NewMockStore(ctrl)
+		store := didstore.NewMockStore(ctrl)
 
 		resolver := Resolver{Store: store}
 		// Doc B is deactivated
@@ -380,7 +426,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 	t.Run("docA is controller of docB, docA has explicit self link in Controllers", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
-		store := types.NewMockStore(ctrl)
+		store := didstore.NewMockStore(ctrl)
 
 		resolver := Resolver{Store: store}
 		docA := did.Document{ID: *id123, Controller: []did.DID{*id123}}
@@ -400,7 +446,7 @@ func TestResolver_ResolveControllers(t *testing.T) {
 	t.Run("error - Resolve can not find the document", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
-		store := types.NewMockStore(ctrl)
+		store := didstore.NewMockStore(ctrl)
 
 		resolver := Resolver{Store: store}
 		store.EXPECT().Resolve(*id123, gomock.Any()).Return(nil, nil, types.ErrNotFound)
@@ -414,17 +460,20 @@ func TestResolver_ResolveControllers(t *testing.T) {
 }
 
 func TestKeyResolver_ResolvePublicKey(t *testing.T) {
-	didStore := store.NewTestStore(t)
-	keyResolver := KeyResolver{Store: didStore}
+	ctrl := gomock.NewController(t)
+	store := didstore.NewMockStore(ctrl)
+	keyResolver := KeyResolver{Store: store}
 	keyCreator := newMockKeyCreator()
 	docCreator := Creator{KeyStore: keyCreator}
 	doc, _, _ := docCreator.Create(DefaultCreationOptions())
-	doc.AddAssertionMethod(doc.VerificationMethod[0])
-	txHash := hash.FromSlice([]byte("hash"))
-	didStore.Write(*doc, types.DocumentMetadata{SourceTransactions: []hash.SHA256Hash{txHash}})
 
 	t.Run("ok by hash", func(t *testing.T) {
-		key, err := keyResolver.ResolvePublicKey(mockKID, []hash.SHA256Hash{txHash})
+		store.EXPECT().Resolve(testDID, gomock.Any()).Do(func(arg0 interface{}, arg1 interface{}) {
+			resolveMetadata := arg1.(*types.ResolveMetadata)
+			assert.Equal(t, hash.EmptyHash(), *resolveMetadata.SourceTransaction)
+		}).Return(doc, nil, nil)
+
+		key, err := keyResolver.ResolvePublicKey(mockKID, []hash.SHA256Hash{hash.EmptyHash()})
 		require.NoError(t, err)
 
 		assert.NotNil(t, key)
