@@ -75,8 +75,8 @@ func TestDidman_AddEndpoint(t *testing.T) {
 		var newDoc did.Document
 		ctx.docResolver.EXPECT().Resolve(testDIDA, nil).Return(doc, meta, nil)
 		ctx.vdr.EXPECT().Update(testDIDA, meta.Hash, gomock.Any(), nil).DoAndReturn(
-			func(_ interface{}, _ interface{}, doc interface{}, _ interface{}) error {
-				newDoc = doc.(did.Document)
+			func(_ interface{}, _ interface{}, doc did.Document, _ interface{}) error {
+				newDoc = doc
 				return nil
 			})
 
@@ -108,14 +108,16 @@ func TestDidman_AddEndpoint(t *testing.T) {
 	t.Run("error - duplicate service", func(t *testing.T) {
 		ctx := newMockContext(t)
 		doc := &did.Document{}
-		returnError := errors.New("b00m!")
 		ctx.docResolver.EXPECT().Resolve(testDIDA, nil).Return(doc, meta, nil).Times(2)
-		ctx.vdr.EXPECT().Update(testDIDA, meta.Hash, gomock.Any(), nil).Return(returnError)
+		ctx.vdr.EXPECT().Update(testDIDA, meta.Hash, gomock.Any(), nil).DoAndReturn(
+			func(_ interface{}, _ interface{}, doc did.Document, _ interface{}) error {
+				return vdr.ManagedDocumentValidator(didservice.NewServiceResolver(ctx.docResolver)).Validate(doc)
+			}) //.Times(2)
 
 		_, _ = ctx.instance.AddEndpoint(testDIDA, "type", *u)
 		_, err := ctx.instance.AddEndpoint(testDIDA, "type", *u)
 
-		assert.Equal(t, types.ErrDuplicateService, err)
+		assert.ErrorIs(t, err, types.ErrDuplicateService)
 	})
 
 	t.Run("error - DID not found", func(t *testing.T) {
@@ -185,11 +187,9 @@ func TestDidman_AddCompoundService(t *testing.T) {
 		// DID B should be resolved once, since they're cached
 		ctx.docResolver.EXPECT().Resolve(testDIDB, nil).Return(&docB, meta, nil)
 		ctx.vdr.EXPECT().Update(testDIDA, meta.Hash, gomock.Any(), nil).DoAndReturn(
-			func(_ interface{}, _ interface{}, doc interface{}, _ interface{}) error {
-				newDoc = doc.(did.Document)
-				// trigger validation to check if the added contact information isn't wrong
-				ctx.serviceResolver.EXPECT().ResolveEx(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(3)
-				return vdr.ManagedDocumentValidator(ctx.serviceResolver).Validate(newDoc)
+			func(_ interface{}, _ interface{}, doc did.Document, _ interface{}) error {
+				newDoc = doc
+				return vdr.ManagedDocumentValidator(didservice.NewServiceResolver(ctx.docResolver)).Validate(newDoc)
 			})
 
 		_, err := ctx.instance.AddCompoundService(testDIDA, "helloworld", references)
@@ -312,7 +312,7 @@ func TestDidman_UpdateContactInformation(t *testing.T) {
 		ctx.vdr.EXPECT().Update(*id, meta.Hash, gomock.Any(), nil).DoAndReturn(func(_ did.DID, _ hash.SHA256Hash, doc did.Document, _ *types.DocumentMetadata) error {
 			actualDocument = doc
 			// trigger validation to check if the added contact information isn't wrong
-			return vdr.ManagedDocumentValidator(ctx.serviceResolver).Validate(doc)
+			return vdr.ManagedDocumentValidator(nil).Validate(doc)
 		})
 		actual, err := ctx.instance.UpdateContactInformation(*id, expected)
 		require.NoError(t, err)
@@ -788,13 +788,12 @@ func TestReferencesService(t *testing.T) {
 }
 
 type mockContext struct {
-	ctrl            *gomock.Controller
-	docResolver     *types.MockDocResolver
-	store           *didstore.MockStore
-	serviceResolver *didservice.MockServiceResolver
-	vdr             *types.MockVDR
-	vcr             *vcr.MockFinder
-	instance        Didman
+	ctrl        *gomock.Controller
+	docResolver *types.MockDocResolver
+	store       *didstore.MockStore
+	vdr         *types.MockVDR
+	vcr         *vcr.MockFinder
+	instance    Didman
 }
 
 func newMockContext(t *testing.T) mockContext {
@@ -806,12 +805,11 @@ func newMockContext(t *testing.T) mockContext {
 	instance := NewDidmanInstance(docResolver, store, mockVDR, mockVCR, jsonld.NewTestJSONLDManager(t))
 
 	return mockContext{
-		ctrl:            ctrl,
-		docResolver:     docResolver,
-		serviceResolver: didservice.NewMockServiceResolver(ctrl),
-		store:           store,
-		vdr:             mockVDR,
-		vcr:             mockVCR,
-		instance:        instance,
+		ctrl:        ctrl,
+		docResolver: docResolver,
+		store:       store,
+		vdr:         mockVDR,
+		vcr:         mockVCR,
+		instance:    instance,
 	}
 }

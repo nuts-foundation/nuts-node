@@ -461,5 +461,6 @@ func (s *state) Diagnostics() []core.DiagnosticResult {
 	diag := s.graph.diagnostics(context.Background())
 	diag = append(diag, &core.GenericDiagnosticResult{Title: "dag_xor", Outcome: s.xorTree.getRoot().(*tree.Xor).Hash()})
 	diag = append(diag, &core.GenericDiagnosticResult{Title: "failed_events", Outcome: s.failedEventCount()})
+	diag = append(diag, &core.GenericDiagnosticResult{Title: "dag_lc_high", Outcome: s.lamportClockHigh.Load()})
 	return diag
 }

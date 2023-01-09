@@ -42,14 +42,13 @@ func TestNewNutsConfig_Load(t *testing.T) {
 
 		assert.Equal(t, "info", cfg.Verbosity)
 		assert.Equal(t, "text", cfg.LoggerFormat)
-		assert.Equal(t, false, cfg.Strictmode)
+		assert.Equal(t, true, cfg.Strictmode)
 	})
 
 	t.Run("Sets global Env prefix", func(t *testing.T) {
 		cfg := NewServerConfig()
 		cmd := testCommand()
-		os.Setenv("NUTS_KEY", "value")
-		defer os.Unsetenv("NUTS_KEY")
+		t.Setenv("NUTS_KEY", "value")
 
 		err := cfg.Load(cmd.Flags())
 		require.NoError(t, err)
@@ -62,8 +61,7 @@ func TestNewNutsConfig_Load(t *testing.T) {
 	t.Run("Sets correct key replacer", func(t *testing.T) {
 		cfg := NewServerConfig()
 		cmd := testCommand()
-		os.Setenv("NUTS_SUB_KEY", "value")
-		defer os.Unsetenv("NUTS_SUB_KEY")
+		t.Setenv("NUTS_SUB_KEY", "value")
 
 		cfg.Load(cmd.Flags())
 
@@ -106,14 +104,14 @@ func TestNewNutsConfig_Load(t *testing.T) {
 		assert.EqualError(t, err, "invalid formatter: 'fluffy'")
 	})
 
-	t.Run("Strict-mode is off by default", func(t *testing.T) {
+	t.Run("Strict-mode is on by default", func(t *testing.T) {
 		defer reset()
 		os.Args = []string{"command"}
 		cfg := NewServerConfig()
 		cmd := testCommand()
 		err := cfg.Load(cmd.Flags())
 		assert.NoError(t, err)
-		assert.False(t, cfg.Strictmode)
+		assert.True(t, cfg.Strictmode)
 	})
 
 	t.Run("Strict-mode can be turned on", func(t *testing.T) {
@@ -142,8 +140,7 @@ func TestNewNutsConfig_Load(t *testing.T) {
 	t.Run("ok - env overrides default flag", func(t *testing.T) {
 		defer reset()
 		os.Args = []string{"command", "some", "args"}
-		os.Setenv("NUTS_VERBOSITY", "warn")
-		defer os.Unsetenv("NUTS_VERBOSITY")
+		t.Setenv("NUTS_VERBOSITY", "warn")
 		cfg := NewServerConfig()
 		cmd := testCommand()
 
@@ -240,8 +237,7 @@ func TestNewNutsConfig_resolveConfigFile(t *testing.T) {
 	t.Run("uses configfile from env variable", func(t *testing.T) {
 		defer reset()
 
-		os.Setenv("NUTS_CONFIGFILE", "from_env.yaml")
-		defer os.Unsetenv("NUTS_CONFIGFILE")
+		t.Setenv("NUTS_CONFIGFILE", "from_env.yaml")
 		file := resolveConfigFilePath(FlagSet())
 
 		assert.Equal(t, "from_env.yaml", file)

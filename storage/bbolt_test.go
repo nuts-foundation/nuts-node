@@ -71,8 +71,9 @@ func Test_bboltDatabase_performBackup(t *testing.T) {
 		// Read value and compare
 		var actualValue []byte
 		err = store.ReadShelf(ctx, "data", func(reader stoabs.Reader) error {
-			actualValue, _ = reader.Get(key)
-			return nil
+			var err error
+			actualValue, err = reader.Get(key)
+			return err
 		})
 		require.NoError(t, err)
 		assert.Equal(t, value, actualValue)
@@ -102,11 +103,12 @@ func Test_bboltDatabase_performBackup(t *testing.T) {
 
 		// Read value and compare
 		var actualValue []byte
-		err := store.ReadShelf(ctx, "data", func(reader stoabs.Reader) error {
-			actualValue, _ = reader.Get(key)
-			return nil
+		txErr := store.ReadShelf(ctx, "data", func(reader stoabs.Reader) error {
+			var err error
+			actualValue, err = reader.Get(key)
+			return err
 		})
-		require.NoError(t, err)
+		require.NoError(t, txErr)
 		assert.Equal(t, newValue, actualValue)
 	})
 }

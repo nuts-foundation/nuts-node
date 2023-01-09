@@ -47,50 +47,32 @@ func isAlgorithmSupported(alg jwa.SignatureAlgorithm) bool {
 	return false
 }
 
-// SignJWT creates a signed JWT given a legalEntity and map of claims
-func (client *Crypto) SignJWT(claims map[string]interface{}, kid string) (token string, err error) {
-	privateKey, err := client.storage.GetPrivateKey(kid)
-	if err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			return "", ErrPrivateKeyNotFound
-		}
-		return "", err
-	}
-	key, err := jwkKey(privateKey)
+// SignJWT creates a JWT from the given claims and signs it with the given key.
+func (client *Crypto) SignJWT(claims map[string]interface{}, key interface{}) (string, error) {
+	privateKey, kid, err := client.getPrivateKey(key)
 	if err != nil {
 		return "", err
 	}
 
-	if err = key.Set(jwk.KeyIDKey, kid); err != nil {
+	keyAsJWK, err := jwkKey(privateKey)
+	if err != nil {
 		return "", err
 	}
 
-	token, err = SignJWT(key, claims, nil)
-	return
+	if err = keyAsJWK.Set(jwk.KeyIDKey, kid); err != nil {
+		return "", err
+	}
+
+	return signJWT(keyAsJWK, claims, nil)
 }
 
 // SignJWS creates a signed JWS using the indicated key and map of headers and payload as bytes.
-func (client *Crypto) SignJWS(payload []byte, headers map[string]interface{}, kid string, detached bool) (token string, err error) {
-	privateKey, err := client.storage.GetPrivateKey(kid)
-	if err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			return "", ErrPrivateKeyNotFound
-		}
-		return "", err
-	}
-	key, err := jwkKey(privateKey)
+func (client *Crypto) SignJWS(payload []byte, headers map[string]interface{}, key interface{}, detached bool) (string, error) {
+	privateKey, _, err := client.getPrivateKey(key)
 	if err != nil {
 		return "", err
 	}
-
-	if err = key.Set(jwk.KeyIDKey, kid); err != nil {
-		return "", err
-	}
-
-	headers[jws.KeyIDKey] = key.KeyID()
-
-	token, err = signJWS(payload, headers, privateKey, detached)
-	return token, err
+	return signJWS(payload, headers, privateKey, detached)
 }
 
 func jwkKey(signer crypto.Signer) (key jwk.Key, err error) {
@@ -112,8 +94,8 @@ func jwkKey(signer crypto.Signer) (key jwk.Key, err error) {
 	return
 }
 
-// SignJWT signs claims with the signer and returns the compacted token. The headers param can be used to add additional headers
-func SignJWT(key jwk.Key, claims map[string]interface{}, headers map[string]interface{}) (token string, err error) {
+// signJWT signs claims with the signer and returns the compacted token. The headers param can be used to add additional headers
+func signJWT(key jwk.Key, claims map[string]interface{}, headers map[string]interface{}) (token string, err error) {
 	var sig []byte
 	t := jwt.New()
 
@@ -218,19 +200,6 @@ func ParseJWS(token []byte, f PublicKeyFunc) (payload []byte, err error) {
 	return body, nil
 }
 
-// SignJWS signs the payload using the JWS format with the provided signer.
-// Provided protected headers will be included in the JWS.
-func SignJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey crypto.Signer) (string, error) {
-	return signJWS(payload, protectedHeaders, privateKey, false)
-}
-
-// SignDetachedJWS signs a JWS with a detached payload.
-// This function does not require the payload value to be base64 encoded since it will not be part of the resulting JWS.
-// (If it is not base64 encoded, make sure to set the 'b64' header param to false)
-func SignDetachedJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey crypto.Signer) (string, error) {
-	return signJWS(payload, protectedHeaders, privateKey, true)
-}
-
 func signJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey crypto.Signer, detachedPayload bool) (string, error) {
 	headers := jws.NewHeaders()
 	for key, value := range protectedHeaders {
@@ -269,6 +238,29 @@ func signJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey
 		return "", fmt.Errorf("unable to sign JWS %w", err)
 	}
 	return string(data), nil
+}
+
+func (client *Crypto) getPrivateKey(key interface{}) (crypto.Signer, string, error) {
+	var kid string
+	switch k := key.(type) {
+	case exportableKey:
+		return k.Signer(), k.KID(), nil
+	case Key:
+		kid = k.KID()
+	case string:
+		kid = k
+	default:
+		return nil, "", errors.New("provided key must be either string or Key")
+	}
+
+	privateKey, err := client.storage.GetPrivateKey(kid)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return nil, "", ErrPrivateKeyNotFound
+		}
+		return nil, "", err
+	}
+	return privateKey, kid, nil
 }
 
 func convertHeaders(headers map[string]interface{}) (hdr jws.Headers) {

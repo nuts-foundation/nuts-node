@@ -176,9 +176,6 @@ func (d *didman) AddCompoundService(id did.DID, serviceType string, endpoints ma
 		WithField(core.LogFieldServiceType, serviceType).
 		WithField(core.LogFieldServiceEndpoint, endpoints).
 		Debug("Adding compound service")
-	if err := d.validateCompoundServiceEndpoint(endpoints); err != nil {
-		return nil, err
-	}
 
 	// transform service references to map[string]interface{}
 	serviceEndpoint := map[string]interface{}{}
@@ -466,27 +463,6 @@ func (d *didman) resolveOrganizationDIDDocument(organization vc.VerifiableCreden
 	return document, *organizationDID, err
 }
 
-// validateCompoundServiceEndpoint validates the serviceEndpoint of a compound service. The serviceEndpoint is passed
-// as a map of URIs that are either absolute URL endpoints or references that resolve to absolute URL endpoints. If validation fails an error is returned.
-// If all endpoints are valid nil is returned.
-func (d *didman) validateCompoundServiceEndpoint(endpoints map[string]ssi.URI) error {
-	// Cache resolved DID documents because most of the time a compound service will refer the same DID document in all service references.
-	cache := make(map[string]*did.Document, 0)
-	for _, serviceRef := range endpoints {
-		if didservice.IsServiceReference(serviceRef.String()) {
-			err := didservice.ValidateServiceReference(serviceRef)
-			if err != nil {
-				return ErrReferencedServiceNotAnEndpoint{Cause: err}
-			}
-			_, err = d.serviceResolver.ResolveEx(serviceRef, 0, didservice.DefaultMaxServiceReferenceDepth, cache)
-			if err != nil {
-				return ErrReferencedServiceNotAnEndpoint{Cause: err}
-			}
-		}
-	}
-	return nil
-}
-
 func filterCompoundServices(doc *did.Document) []did.Service {
 	var compoundServices []did.Service
 	for _, service := range doc.Service {
@@ -532,7 +508,6 @@ func (d *didman) addService(id did.DID, serviceType string, serviceEndpoint inte
 		Type:            serviceType,
 		ServiceEndpoint: serviceEndpoint,
 	}
-	service.ID = ssi.URI{}
 	service.ID = generateIDForService(id, *service)
 
 	// Add on DID Document and update

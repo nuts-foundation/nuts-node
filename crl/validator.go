@@ -25,6 +25,7 @@ import (
 	"crypto/x509/pkix"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/crl/log"
 	"github.com/sirupsen/logrus"
 	"io"
 	"math"
@@ -213,8 +214,10 @@ func (v *validator) IsSynced(maxOffsetDays int) bool {
 func anyCertificateActive(certs []*x509.Certificate) bool {
 	result := false
 	for _, cert := range certs {
-		if !nowFunc().After(cert.NotAfter) {
-			// Certificate still active, so CRL needs to be checked
+		if nowFunc().After(cert.NotAfter) {
+			log.Logger().Warnf("Trust store contains expired certificate: %s (s/n: %s)", cert.Subject.String(), cert.SerialNumber.String())
+		} else {
+			// Certificate is active
 			result = true
 		}
 	}

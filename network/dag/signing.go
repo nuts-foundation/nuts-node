@@ -40,16 +40,18 @@ type TransactionSigner interface {
 // NewTransactionSigner creates a TransactionSigner that signs the transaction using the given key.
 // The public key is included in the signed transaction if attach == true. If not attached, the `kid` header is added which refers to the ID
 // of the used key.
-func NewTransactionSigner(key crypto.Key, attach bool) TransactionSigner {
+func NewTransactionSigner(signer crypto.JWTSigner, key crypto.Key, attach bool) TransactionSigner {
 	return &transactionSigner{
 		key:    key,
 		attach: attach,
+		signer: signer,
 	}
 }
 
 type transactionSigner struct {
 	attach bool
 	key    crypto.Key
+	signer crypto.JWTSigner
 }
 
 func (d transactionSigner) Sign(input UnsignedTransaction, signingTime time.Time) (Transaction, error) {
@@ -95,7 +97,7 @@ func (d transactionSigner) Sign(input UnsignedTransaction, signingTime time.Time
 		headerMap[jws.KeyIDKey] = d.key.KID()
 	}
 
-	data, err := crypto.SignJWS([]byte(input.PayloadHash().String()), headerMap, d.key.Signer())
+	data, err := d.signer.SignJWS([]byte(input.PayloadHash().String()), headerMap, d.key, false)
 	if err != nil {
 		return nil, fmt.Errorf(errSigningTransactionFmt, err)
 	}

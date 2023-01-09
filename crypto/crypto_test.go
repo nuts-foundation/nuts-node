@@ -62,7 +62,6 @@ func TestCrypto_New(t *testing.T) {
 		kid := "kid"
 		key, err := client.New(StringNamingFunc(kid))
 		assert.NoError(t, err)
-		assert.NotNil(t, key.Signer())
 		assert.NotNil(t, key.Public())
 		assert.Equal(t, kid, key.KID())
 	})

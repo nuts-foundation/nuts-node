@@ -101,42 +101,35 @@ func (d *dag) Migrate() error {
 		writer := tx.GetShelfWriter(metadataShelf)
 		// Migrate highest LC value
 		// Todo: remove after V5 release
-		highestLCBytes, err := writer.Get(stoabs.BytesKey(highestClockValue))
-		if err != nil {
-			return err
-		}
-		if highestLCBytes == nil {
+		_, err := writer.Get(stoabs.BytesKey(highestClockValue))
+		if errors.Is(err, stoabs.ErrKeyNotFound) {
 			log.Logger().Info("Highest LC value not stored, migrating...")
 			highestLC := d.getHighestClockLegacy(tx)
 			err = d.setHighestClockValue(tx, highestLC)
-			if err != nil {
-				return err
-			}
 		}
-		// Migrate number of TXs
-		// Todo: remove after V5 release
-		numberOfTXs, err := writer.Get(stoabs.BytesKey(numberOfTransactionsKey))
 		if err != nil {
 			return err
 		}
-		if numberOfTXs == nil {
+
+		// Migrate number of TXs
+		// Todo: remove after V5 release
+		_, err = writer.Get(stoabs.BytesKey(numberOfTransactionsKey))
+		if errors.Is(err, stoabs.ErrKeyNotFound) {
 			log.Logger().Info("Number of transactions not stored, migrating...")
 			numberOfTXs := d.getNumberOfTransactionsLegacy(tx)
 			err = d.setNumberOfTransactions(tx, numberOfTXs)
-			if err != nil {
-				return err
-			}
+		}
+		if err != nil {
+			return err
 		}
 
 		// Migrate headsLegacy to single head
 		// Todo: remove after V6 release => then remove headsShelf
-		headRef, err := writer.Get(stoabs.BytesKey(headRefKey))
-		if err != nil {
-			return err
-		}
-		if headRef == nil {
+		_, err = writer.Get(stoabs.BytesKey(headRefKey))
+		if errors.Is(err, stoabs.ErrKeyNotFound) {
 			log.Logger().Info("Head not stored in metadata, migrating...")
 			heads := d.headsLegacy(tx)
+			err = nil            // reset error
 			if len(heads) != 0 { // ignore for empty node
 				var latestHead hash.SHA256Hash
 				var latestLC uint32
@@ -156,10 +149,10 @@ func (d *dag) Migrate() error {
 				}
 
 				err = d.setHead(tx, latestHead)
-				if err != nil {
-					return err
-				}
 			}
+		}
+		if err != nil {
+			return err
 		}
 
 		return nil
@@ -263,16 +256,16 @@ func (d *dag) add(tx stoabs.WriteTx, transactions ...Transaction) error {
 
 func (d dag) getNumberOfTransactions(tx stoabs.ReadTx) uint64 {
 	value, err := tx.GetShelfReader(metadataShelf).Get(stoabs.BytesKey(numberOfTransactionsKey))
+	if errors.Is(err, stoabs.ErrKeyNotFound) {
+		return 0
+	}
 	if err != nil {
 		log.Logger().
 			WithError(err).
 			Error("Unable to retrieve number of transactions")
 		return 0
 	}
-	if value != nil {
-		return bytesToCount(value)
-	}
-	return 0
+	return bytesToCount(value)
 }
 
 func (d dag) setNumberOfTransactions(tx stoabs.WriteTx, count uint64) error {
@@ -291,13 +284,13 @@ func (d dag) setHead(tx stoabs.WriteTx, ref hash.SHA256Hash) error {
 
 func (d dag) getHighestClockValue(tx stoabs.ReadTx) uint32 {
 	value, err := tx.GetShelfReader(metadataShelf).Get(stoabs.BytesKey(highestClockValue))
+	if errors.Is(err, stoabs.ErrKeyNotFound) {
+		return 0
+	}
 	if err != nil {
 		log.Logger().
 			WithError(err).
 			Error("Unable to retrieve highest LC value")
-		return 0
-	}
-	if value == nil {
 		return 0
 	}
 	return bytesToClock(value)
@@ -326,6 +319,9 @@ func (d dag) getHighestClockLegacy(tx stoabs.ReadTx) uint32 {
 
 func (d dag) getHead(tx stoabs.ReadTx) (hash.SHA256Hash, error) {
 	head, err := tx.GetShelfReader(metadataShelf).Get(stoabs.BytesKey(headRefKey))
+	if errors.Is(err, stoabs.ErrKeyNotFound) {
+		return hash.EmptyHash(), nil
+	}
 	if err != nil {
 		return hash.EmptyHash(), err
 	}
@@ -385,7 +381,7 @@ func indexClockValue(tx stoabs.WriteTx, transaction Transaction) error {
 	clockKey := stoabs.Uint32Key(transaction.Clock())
 	ref := transaction.Ref()
 	currentRefs, err := lc.Get(clockKey)
-	if err != nil {
+	if err != nil && !errors.Is(err, stoabs.ErrKeyNotFound) {
 		return err
 	}
 	for _, cRef := range parseHashList(currentRefs) {
@@ -426,11 +422,11 @@ func getTransaction(hash hash.SHA256Hash, tx stoabs.ReadTx) (Transaction, error)
 	transactions := tx.GetShelfReader(transactionsShelf)
 
 	transactionBytes, err := transactions.Get(stoabs.NewHashKey(hash))
+	if errors.Is(err, stoabs.ErrKeyNotFound) {
+		return nil, ErrTransactionNotFound
+	}
 	if err != nil {
 		return nil, err
-	}
-	if transactionBytes == nil {
-		return nil, ErrTransactionNotFound
 	}
 	parsedTx, err := ParseTransaction(transactionBytes)
 	if err != nil {
@@ -442,8 +438,9 @@ func getTransaction(hash hash.SHA256Hash, tx stoabs.ReadTx) (Transaction, error)
 
 // exists checks whether the transaction with the given ref exists.
 func exists(transactions stoabs.Reader, ref hash.SHA256Hash) bool {
-	val, _ := transactions.Get(stoabs.NewHashKey(ref))
-	return val != nil
+	_, err := transactions.Get(stoabs.NewHashKey(ref))
+	// stoabs.ErrKeyNotFound means that it does not exist. default to false for all other errors
+	return err == nil
 }
 
 // parseHashList splits a list of concatenated hashes into separate hashes.

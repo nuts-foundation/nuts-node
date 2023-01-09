@@ -11,7 +11,6 @@ on:
     branches:
       - master
 
-
 jobs:
   docker:
     runs-on: ubuntu-latest
@@ -19,7 +18,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Set version
+      - name: Set version params
         id: version
         shell: bash
         run: |
@@ -27,7 +26,7 @@ jobs:
           echo "::set-output name=git_branch::$(echo ${GITHUB_REF#refs/heads/})"
           echo "::set-output name=git_version::$(git name-rev --tags --name-only $(git rev-parse HEAD))"
 
-      - name: Another step
+      - name: Print version params
         run: |
           echo "Commit: ${{ steps.version.outputs.git_commit }}"
           echo "Branch: ${{ steps.version.outputs.git_branch }}"
@@ -35,12 +34,18 @@ jobs:
 
       - name: Docker meta
         id: docker_meta
-        uses: crazy-max/ghaction-docker-meta@v4.1.1
+        uses: docker/metadata-action@v4
         with:
           images: nutsfoundation/nuts-node
-          tag-semver: |
-            {{version}}
-            {{major}}.{{minor}}
+          tags: |
+            # generate 'master' tag for the master branch
+            type=ref,event=branch,enable={{is_default_branch}}
+            # generate v5.2.1 tag
+            type=semver,pattern=v{{version}}
+            # generate v5 tag
+            type=semver,pattern=v{{major}}
+          flavor: |
+            latest=auto
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2

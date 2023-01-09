@@ -3,8 +3,8 @@ module github.com/nuts-foundation/nuts-node
 go 1.19
 
 require (
-	github.com/alicebob/miniredis/v2 v2.23.1
-	github.com/avast/retry-go/v4 v4.3.1
+	github.com/alicebob/miniredis/v2 v2.30.0
+	github.com/avast/retry-go/v4 v4.3.2
 	github.com/cbroglie/mustache v1.4.0
 	github.com/deepmap/oapi-codegen v1.12.4
 	github.com/go-redis/redis/v9 v9.0.0-rc.2
@@ -13,18 +13,18 @@ require (
 	github.com/goodsign/monday v1.0.0
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/vault/api v1.8.2
-	github.com/knadh/koanf v1.4.4
-	github.com/labstack/echo-contrib v0.13.0
-	github.com/labstack/echo/v4 v4.9.1
+	github.com/knadh/koanf v1.4.5
+	github.com/labstack/echo-contrib v0.13.1
+	github.com/labstack/echo/v4 v4.10.0
 	github.com/lestrrat-go/jwx v1.2.25
 	github.com/magiconair/properties v1.8.7
 	github.com/mdp/qrterminal/v3 v3.0.0
-	github.com/nats-io/nats-server/v2 v2.9.9
-	github.com/nats-io/nats.go v1.21.0
+	github.com/nats-io/nats-server/v2 v2.9.10
+	github.com/nats-io/nats.go v1.22.1
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.4.0
 	github.com/nuts-foundation/go-leia/v3 v3.3.0
-	github.com/nuts-foundation/go-stoabs v1.5.1
+	github.com/nuts-foundation/go-stoabs v1.6.0
 	github.com/piprate/json-gold v0.5.1-0.20221121142341-01873264bae4
 	github.com/privacybydesign/irmago v0.10.0
 	github.com/prometheus/client_golang v1.14.0
@@ -76,7 +76,7 @@ require (
 	github.com/go-chi/chi v3.3.3+incompatible // indirect
 	github.com/go-errors/errors v1.0.1 // indirect
 	github.com/go-redis/redis/v8 v8.11.4 // indirect
-	github.com/go-redsync/redsync/v4 v4.6.0 // indirect
+	github.com/go-redsync/redsync/v4 v4.7.1 // indirect
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/goccy/go-json v0.9.11 // indirect
 	github.com/golang-jwt/jwt/v4 v4.2.0 // indirect
@@ -153,11 +153,11 @@ require (
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64 // indirect
-	golang.org/x/crypto v0.1.0 // indirect
-	golang.org/x/net v0.2.0 // indirect
-	golang.org/x/sys v0.2.0 // indirect
-	golang.org/x/term v0.2.0 // indirect
-	golang.org/x/text v0.4.0 // indirect
+	golang.org/x/crypto v0.2.0 // indirect
+	golang.org/x/net v0.4.0 // indirect
+	golang.org/x/sys v0.3.0 // indirect
+	golang.org/x/term v0.3.0 // indirect
+	golang.org/x/text v0.5.0 // indirect
 	google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa // indirect
 	gopkg.in/Regis24GmbH/go-diacritics.v2 v2.0.2 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1 // indirect

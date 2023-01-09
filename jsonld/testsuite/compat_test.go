@@ -106,6 +106,7 @@ func TestGenerateSignedFixtures(t *testing.T) {
 	}, ld.NewDefaultDocumentLoader(nil))
 
 	privateKey := readSigningKey(t)
+	keyStore := crypto.NewMemoryCryptoInstance()
 
 	for _, testCase := range testCases {
 		t.Run(testCase.file, func(t *testing.T) {
@@ -119,7 +120,7 @@ func TestGenerateSignedFixtures(t *testing.T) {
 
 			signed, err := proof.NewLDProof(proof.ProofOptions{
 				Created: time.Now(),
-			}).Sign(tbs, signature.JSONWebSignature2020{ContextLoader: loader}, privateKey)
+			}).Sign(tbs, signature.JSONWebSignature2020{ContextLoader: loader, Signer: keyStore}, privateKey)
 			require.NoError(t, err)
 
 			var targetFile = "./fixtures/" + testCase.file

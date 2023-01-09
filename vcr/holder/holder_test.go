@@ -75,14 +75,16 @@ func TestHolder_BuildVP(t *testing.T) {
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	testDID := vdr.TestDIDA
 
+	keyStorage := crypto.NewMemoryStorage()
+	_ = keyStorage.SavePrivateKey(key.KID(), key.PrivateKey)
+	keyStore := crypto.NewTestCryptoInstance(keyStorage)
+
 	t.Run("ok - one VC", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		keyResolver := types.NewMockKeyResolver(ctrl)
-		keyStore := crypto.NewMockKeyStore(ctrl)
 
 		keyResolver.EXPECT().ResolveAssertionKeyID(testDID).Return(ssi.MustParseURI(kid), nil)
-		keyStore.EXPECT().Resolve(vdr.TestMethodDIDA.URI().String()).Return(key, nil)
 
 		holder := New(keyResolver, keyStore, nil, jsonldManager)
 
@@ -96,10 +98,8 @@ func TestHolder_BuildVP(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		keyResolver := types.NewMockKeyResolver(ctrl)
-		keyStore := crypto.NewMockKeyStore(ctrl)
 
 		keyResolver.EXPECT().ResolveAssertionKeyID(testDID).Return(vdr.TestMethodDIDA.URI(), nil)
-		keyStore.EXPECT().Resolve(vdr.TestMethodDIDA.URI().String()).Return(key, nil)
 
 		holder := New(keyResolver, keyStore, nil, jsonldManager)
 
@@ -116,12 +116,10 @@ func TestHolder_BuildVP(t *testing.T) {
 			created := time.Now()
 
 			keyResolver := types.NewMockKeyResolver(ctrl)
-			keyStore := crypto.NewMockKeyStore(ctrl)
 			mockVerifier := verifier.NewMockVerifier(ctrl)
 			mockVerifier.EXPECT().Validate(testCredential, &created)
 
 			keyResolver.EXPECT().ResolveAssertionKeyID(testDID).Return(ssi.MustParseURI(kid), nil)
-			keyStore.EXPECT().Resolve(vdr.TestMethodDIDA.URI().String()).Return(key, nil)
 
 			holder := New(keyResolver, keyStore, mockVerifier, jsonldManager)
 
@@ -137,12 +135,10 @@ func TestHolder_BuildVP(t *testing.T) {
 			created := time.Now()
 
 			keyResolver := types.NewMockKeyResolver(ctrl)
-			keyStore := crypto.NewMockKeyStore(ctrl)
 			mockVerifier := verifier.NewMockVerifier(ctrl)
 			mockVerifier.EXPECT().Validate(testCredential, &created).Return(errors.New("failed"))
 
 			keyResolver.EXPECT().ResolveAssertionKeyID(testDID).Return(ssi.MustParseURI(kid), nil)
-			keyStore.EXPECT().Resolve(vdr.TestMethodDIDA.URI().String()).Return(key, nil)
 
 			holder := New(keyResolver, keyStore, mockVerifier, jsonldManager)
 
@@ -158,10 +154,8 @@ func TestHolder_BuildVP(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
 			keyResolver := types.NewMockKeyResolver(ctrl)
-			keyStore := crypto.NewMockKeyStore(ctrl)
 
 			keyResolver.EXPECT().ResolveAssertionKeyID(testDID).Return(ssi.MustParseURI(kid), nil)
-			keyStore.EXPECT().Resolve(vdr.TestMethodDIDA.URI().String()).Return(key, nil)
 
 			holder := New(keyResolver, keyStore, nil, jsonldManager)
 
@@ -178,7 +172,6 @@ func TestHolder_BuildVP(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
 			keyResolver := types.NewMockKeyResolver(ctrl)
-			keyStore := crypto.NewMockKeyStore(ctrl)
 
 			holder := New(keyResolver, keyStore, nil, jsonldManager)
 
@@ -195,7 +188,6 @@ func TestHolder_BuildVP(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
 			keyResolver := types.NewMockKeyResolver(ctrl)
-			keyStore := crypto.NewMockKeyStore(ctrl)
 
 			holder := New(keyResolver, keyStore, nil, jsonldManager)
 

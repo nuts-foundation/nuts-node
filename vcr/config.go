@@ -23,8 +23,6 @@ const moduleName = "VCR"
 
 // Config holds the config for the vcr engine
 type Config struct {
-	// strictMode is a copy from the core server config
-	strictMode bool
 	// datadir holds the location the VCR files are stored
 	datadir string
 }

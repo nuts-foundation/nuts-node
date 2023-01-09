@@ -61,3 +61,29 @@ Secrets
 *******
 
 All options ending with ``token`` or ``password`` are considered secrets and can only be set through environment variables or the config file.
+
+Strict mode
+***********
+
+Several of the server options above allow the node to be configured in a way that is unsafe for production environments, but are convenient for testing or development.
+The node can be configured to run in strict mode (default) to prevent any insecure configurations.
+Below is a summary of the impact ``strictmode=true`` has on the node and its configuration.
+
+Save storage of any private key material requires some serious consideration.
+For this reason the ``crypto.storage`` backend must explicitly be set.
+
+Private transactions can only be exchanged over authenticated nodes.
+Therefore strict mode requires that ``network.enabletls=true``,  ``network.disablenodeauthentication=false``, and the certificate chain``tls.{certfile,certkeyfile,truststore}`` must be provided.
+Since node authentication is bi-directional, the node will try to authenticate itself during startup when a ``network.nodedid`` is provided.
+As a consequence, a valid ``NutsComm`` service must be registered to this ``did`` and the address must match that of the provided TLS certificate or the node will not start.
+See :ref:`getting started <configure-node>` on how to set this up correctly.
+
+The incorporated `IRMA server <https://irma.app/docs/irma-server/#production-mode>`_ is automatically changed to production mode.
+In fact, running in strict mode is the only way to enable IRMA's production mode.
+In addition, it requires ``auth.irma.schememanager=pbdf`` and the ``auth.publicurl`` where the IRMA client can reach the server must be set.
+
+As a general safety precaution ``auth.contractvalidators`` ignores the ``dummy`` option if configured,
+requesting an access token from another node on ``/n2n/auth/v1/accesstoken`` does not return any error details,
+``http.default.cors.origin`` does not allow a wildcard (``*``),
+json-ld context can only be downloaded from trusted domains configured in ``jsonld.contexts.remoteallowlist``,
+and the ``internalratelimiter`` is always on.

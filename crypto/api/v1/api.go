@@ -19,7 +19,9 @@
 package v1
 
 import (
+	"context"
 	"errors"
+	"github.com/lestrrat-go/jwx/jws"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -27,12 +29,12 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 )
 
-var _ ServerInterface = (*Wrapper)(nil)
+var _ StrictServerInterface = (*Wrapper)(nil)
 var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
 
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {
-	C crypto.JWTSigner
+	C crypto.KeyStore
 }
 
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
@@ -42,15 +44,17 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 	})
 }
 
-// Preprocess is called just before the API operation itself is invoked.
-func (w *Wrapper) Preprocess(operationID string, context echo.Context) {
-	context.Set(core.StatusCodeResolverContextKey, w)
-	context.Set(core.OperationIDContextKey, operationID)
-	context.Set(core.ModuleNameContextKey, crypto.ModuleName)
-}
-
 func (w *Wrapper) Routes(router core.EchoRouter) {
-	RegisterHandlers(router, w)
+	RegisterHandlers(router, NewStrictHandler(w, []StrictMiddlewareFunc{
+		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
+			return func(ctx echo.Context, request interface{}) (response interface{}, err error) {
+				ctx.Set(core.OperationIDContextKey, operationID)
+				ctx.Set(core.ModuleNameContextKey, crypto.ModuleName)
+				ctx.Set(core.StatusCodeResolverContextKey, w)
+				return f(ctx, request)
+			}
+		},
+	}))
 }
 
 func (signRequest SignJwtRequest) validate() error {
@@ -80,45 +84,34 @@ func (signRequest SignJwsRequest) validate() error {
 }
 
 // SignJwt handles api calls for signing a Jwt
-func (w *Wrapper) SignJwt(ctx echo.Context) error {
-	var signRequest = &SignJwtRequest{}
-	err := ctx.Bind(signRequest)
+func (w *Wrapper) SignJwt(_ context.Context, signRequest SignJwtRequestObject) (SignJwtResponseObject, error) {
+	if err := signRequest.Body.validate(); err != nil {
+		return nil, core.InvalidInputError("invalid sign request: %w", err)
+	}
+	sig, err := w.C.SignJWT(signRequest.Body.Claims, signRequest.Body.Kid)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	if err := signRequest.validate(); err != nil {
-		return core.InvalidInputError("invalid sign request: %w", err)
-	}
-
-	sig, err := w.C.SignJWT(signRequest.Claims, signRequest.Kid)
-	if err != nil {
-		return err
-	}
-
-	return ctx.String(http.StatusOK, sig)
+	return SignJwt200TextResponse(sig), nil
 }
 
 // SignJws handles api calls for signing a JWS
-func (w *Wrapper) SignJws(ctx echo.Context) error {
-	var signRequest = &SignJwsRequest{}
-	err := ctx.Bind(signRequest)
-	if err != nil {
-		return err
-	}
-
+func (w *Wrapper) SignJws(_ context.Context, request SignJwsRequestObject) (SignJwsResponseObject, error) {
+	signRequest := request.Body
 	if err := signRequest.validate(); err != nil {
-		return core.InvalidInputError("invalid sign request: %w", err)
+		return nil, core.InvalidInputError("invalid sign request: %w", err)
 	}
 	detached := false
 	if signRequest.Detached != nil {
 		detached = *signRequest.Detached
 	}
 
-	sig, err := w.C.SignJWS(signRequest.Payload, signRequest.Headers, signRequest.Kid, detached)
+	headers := signRequest.Headers
+	headers[jws.KeyIDKey] = signRequest.Kid // could've been set by caller, but make sure it's set correctly
+	sig, err := w.C.SignJWS(signRequest.Payload, headers, signRequest.Kid, detached)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return ctx.String(http.StatusOK, sig)
+	return SignJws200TextResponse(sig), nil
 }

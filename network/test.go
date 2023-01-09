@@ -44,7 +44,6 @@ func NewTestNetworkInstance(t *testing.T) *Network {
 		config,
 		didservice.KeyResolver{Store: store},
 		cryptoInstance,
-		cryptoInstance,
 		didservice.Resolver{Store: store},
 		didservice.Finder{Store: store},
 		eventPublisher,

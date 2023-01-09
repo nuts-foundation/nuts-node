@@ -19,11 +19,15 @@
 package signature
 
 import (
+	"context"
 	"encoding/hex"
+	"github.com/lestrrat-go/jwx/jwa"
+	"github.com/lestrrat-go/jwx/jws"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -55,7 +59,7 @@ func TestJsonWebSignature2020_CanonicalizeDocument(t *testing.T) {
 		contextLoader, err := jsonld.NewContextLoader(false, jsonld.DefaultContextConfig())
 		assert.NoError(t, err)
 
-		sig := JSONWebSignature2020{contextLoader}
+		sig := JSONWebSignature2020{ContextLoader: contextLoader}
 		doc := map[string]interface{}{
 			"@context": []interface{}{
 				"https://schema.org",
@@ -72,7 +76,7 @@ func TestJsonWebSignature2020_CanonicalizeDocument(t *testing.T) {
 		contextLoader, err := jsonld.NewContextLoader(false, jsonld.DefaultContextConfig())
 		assert.NoError(t, err)
 
-		sig := JSONWebSignature2020{contextLoader}
+		sig := JSONWebSignature2020{ContextLoader: contextLoader}
 		doc := map[string]interface{}{
 			"@context": []interface{}{
 				"https://example.org",
@@ -116,9 +120,23 @@ func Test_detachedJWSHeaders(t *testing.T) {
 func TestJsonWebSignature2020_Sign(t *testing.T) {
 	t.Run("it returns the signing result", func(t *testing.T) {
 		doc := []byte("foo")
-		sig := JSONWebSignature2020{}
-		result, err := sig.Sign(doc, crypto.NewTestKey("did:nuts:123#abc"))
-		assert.NoError(t, err)
-		assert.Contains(t, string(result), "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19")
+		sig := JSONWebSignature2020{Signer: crypto.NewMemoryCryptoInstance()}
+
+		key := crypto.NewTestKey("did:nuts:123#abc")
+		result, err := sig.Sign(doc, key)
+
+		require.NoError(t, err)
+		msg, err := jws.Parse(result)
+		require.NoError(t, err)
+		assert.Empty(t, msg.Payload(), "payload should be empty (detached)")
+		require.Len(t, msg.Signatures(), 1)
+		expectedHeaders := map[string]interface{}{
+			"alg":  jwa.ES256,
+			"b64":  false,
+			"crit": []string{"b64"},
+			"kid":  "did:nuts:123#abc",
+		}
+		actualHeaders, _ := msg.Signatures()[0].ProtectedHeaders().AsMap(context.Background())
+		assert.Equal(t, expectedHeaders, actualHeaders)
 	})
 }

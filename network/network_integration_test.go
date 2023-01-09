@@ -837,7 +837,7 @@ func resetIntegrationTest(t *testing.T) {
 		document.CapabilityInvocation.Add(verificationMethod)
 		document.Service = []did.Service{{
 			Type:            transport.NutsCommServiceType,
-			ServiceEndpoint: "grpc://localhost:5555", // Must match TLS SAN DNSName
+			ServiceEndpoint: "grpc://nuts.nl:5555", // Must match TLS SAN DNSName
 		}}
 		docBytes, _ := json.Marshal(document)
 		tx, _, _ := dag.CreateTestTransactionEx(0, hash.SHA256Sum(docBytes), nil)
@@ -922,8 +922,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 		config:              config,
 		didDocumentResolver: didservice.Resolver{Store: didStore},
 		didDocumentFinder:   didservice.Finder{Store: didStore},
-		privateKeyResolver:  keyStore,
-		decrypter:           keyStore,
+		keyStore:            keyStore,
 		keyResolver:         didservice.KeyResolver{Store: didStore},
 		nodeDIDResolver:     &transport.FixedNodeDIDResolver{},
 		eventPublisher:      eventPublisher,

@@ -1,6 +1,5 @@
 /*
- * Nuts node
- * Copyright (C) 2021 Nuts community
+ * Copyright (C) 2022 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,20 +16,16 @@
  *
  */
 
-package crypto
+package log
 
-// NewEphemeralKey returns a Key for single use.
-func NewEphemeralKey(namingFunc KIDNamingFunc) (Key, error) {
-	keyPair, kid, err := generateKeyPairAndKID(namingFunc)
-	if err != nil {
-		return nil, err
-	}
+import (
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/sirupsen/logrus"
+)
 
-	return &memoryKey{
-		basicKey: basicKey{
-			publicKey: keyPair.Public(),
-			kid:       kid,
-		},
-		privateKey: keyPair,
-	}, nil
+var _logger = logrus.StandardLogger().WithField(core.LogFieldModule, "CRL")
+
+// Logger returns a logger with the module field set to the ModuleName
+func Logger() *logrus.Entry {
+	return _logger
 }

@@ -100,6 +100,7 @@ If you're using a YAML file to configure your node, the following snippet shows 
 
 .. code-block:: yaml
 
+  strictmode: false  # disable strict mode to simplify this guide
   tls:
     truststorefile: /path/to/truststore-development.pem
     certfile: /path/to/nuts.yourdomain.example-development.pem
@@ -108,7 +109,7 @@ If you're using a YAML file to configure your node, the following snippet shows 
     bootstrapnodes:
       - nuts-development.other-service-provider.example:5555
 
-See :ref:`configuration reference <nuts-node-config>` for a detailed explanation on how to exactly configure the Nuts node.
+See :ref:`configuration reference <nuts-node-config>` for a detailed explanation on how to exactly configure the Nuts node including steps to turn on strict mode.
 
 .. note::
 

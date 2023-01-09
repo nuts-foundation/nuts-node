@@ -62,18 +62,17 @@ func NewTestVCRInstance(t *testing.T) *vcr {
 
 type mockContext struct {
 	ctrl            *gomock.Controller
-	crypto          *crypto.MockKeyStore
 	tx              *network.MockTransactions
 	vcr             *vcr
 	keyResolver     *types.MockKeyResolver
 	docResolver     *types.MockDocResolver
 	serviceResolver *didservice.MockServiceResolver
+	crypto          *crypto.Crypto
 }
 
 func newMockContext(t *testing.T) mockContext {
 	testDir := io.TestDirectory(t)
 	ctrl := gomock.NewController(t)
-	crypto := crypto.NewMockKeyStore(ctrl)
 	tx := network.NewMockTransactions(ctrl)
 	tx.EXPECT().WithPersistency().AnyTimes()
 	tx.EXPECT().Subscribe("vcr_vcs", gomock.Any(), gomock.Any())
@@ -84,7 +83,8 @@ func newMockContext(t *testing.T) mockContext {
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	eventManager := events.NewTestManager(t)
 	storageClient := storage.NewTestStorageEngine(testDir)
-	vcr := NewVCRInstance(crypto, docResolver, keyResolver, tx, jsonldManager, eventManager, storageClient).(*vcr)
+	cryptoInstance := crypto.NewMemoryCryptoInstance()
+	vcr := NewVCRInstance(cryptoInstance, docResolver, keyResolver, tx, jsonldManager, eventManager, storageClient).(*vcr)
 	vcr.serviceResolver = serviceResolver
 	vcr.trustConfig = trust.NewConfig(path.Join(testDir, "trust.yaml"))
 	if err := vcr.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDir})); err != nil {
@@ -100,7 +100,7 @@ func newMockContext(t *testing.T) mockContext {
 	})
 	return mockContext{
 		ctrl:            ctrl,
-		crypto:          crypto,
+		crypto:          cryptoInstance,
 		tx:              tx,
 		vcr:             vcr,
 		keyResolver:     keyResolver,

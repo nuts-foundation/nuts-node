@@ -21,13 +21,13 @@ package vdr
 import (
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/network/transport"
 
 	"github.com/lestrrat-go/jwx/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"net/url"
 )
 
 // NetworkDocumentValidator creates a DID Document validator that checks for inconsistencies in the DID Document:
@@ -86,16 +86,16 @@ func (v verificationMethodValidator) verifyThumbprint(method *did.VerificationMe
 	return nil
 }
 
-type invalidServiceError struct {
-	error
+type InvalidServiceError struct {
+	Cause error
 }
 
-func (e invalidServiceError) Error() string {
-	return fmt.Sprintf("invalid service: %s", e.error.Error())
+func (e InvalidServiceError) Error() string {
+	return "invalid service: " + e.Cause.Error()
 }
 
-func (e invalidServiceError) Unwrap() error {
-	return e.error
+func (e InvalidServiceError) Unwrap() error {
+	return e.Cause
 }
 
 // basicServiceValidator validates service.ID and service.Type of the Services of a DID Document.
@@ -108,13 +108,13 @@ func (b basicServiceValidator) Validate(document did.Document) error {
 	for _, service := range document.Service {
 		// service.id
 		if err := verifyDocumentEntryID(document.ID, service.ID, knownServiceIDs); err != nil {
-			return invalidServiceError{err}
+			return InvalidServiceError{err}
 		}
 
 		// service.type
 		if knownServiceTypes[service.Type] {
 			// RFC006 §4: A DID Document MAY NOT contain more than one service with the same type.
-			return invalidServiceError{types.ErrDuplicateService}
+			return InvalidServiceError{types.ErrDuplicateService}
 		}
 		knownServiceTypes[service.Type] = true
 	}
@@ -134,10 +134,10 @@ func (m managedServiceValidator) Validate(document did.Document) error {
 	// TODO: this should probably happen somewhere else
 	bytes, err := document.MarshalJSON()
 	if err != nil {
-		return invalidServiceError{err}
+		return InvalidServiceError{err}
 	}
 	if err = document.UnmarshalJSON(bytes); err != nil {
-		return invalidServiceError{err}
+		return InvalidServiceError{err}
 	}
 
 	// make sure that it resolves when if it's a reference
@@ -171,7 +171,7 @@ func (m managedServiceValidator) Validate(document did.Document) error {
 			err = errors.New("invalid service format")
 		}
 		if err != nil {
-			return invalidServiceError{err}
+			return InvalidServiceError{err}
 		}
 
 		// specific service.Type need additional validation
@@ -181,7 +181,7 @@ func (m managedServiceValidator) Validate(document did.Document) error {
 			ServiceEndpoint: resolvedEndpoint,
 		}
 		if err = serviceTypeValidation(resolvedService); err != nil {
-			return invalidServiceError{fmt.Errorf("%s: %w", service.Type, err)}
+			return InvalidServiceError{fmt.Errorf("%s: %w", service.Type, err)}
 		}
 	}
 	return nil
@@ -224,14 +224,9 @@ func serviceTypeValidation(service did.Service) error {
 
 func validateNutsCommEndpoint(service did.Service) error {
 	// RFC015 $3.2: NutsComm rules
-	var endpointStr string
-	if err := service.UnmarshalServiceEndpoint(&endpointStr); err != nil {
-		return errors.New("endpoint not a string")
-	}
-	if URL, err := url.Parse(endpointStr); err != nil {
+	var ncEndpoint transport.NutsCommURL
+	if err := service.UnmarshalServiceEndpoint(&ncEndpoint); err != nil {
 		return err
-	} else if URL.Scheme != "grpc" {
-		return errors.New("scheme must be grpc")
 	}
 	return nil
 }
