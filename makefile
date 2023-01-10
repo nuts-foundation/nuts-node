@@ -72,6 +72,7 @@ gen-diagrams:
 	rm ${DIR}/docs/_static/images/diagrams/*.svg
 	docker run -v ${DIR}/docs/diagrams:/data rlespinasse/drawio-export -f svg
 	mv ${DIR}/docs/diagrams/export/* ${DIR}/docs/_static/images/diagrams/
+	cat ${DIR}/docs/diagrams/api-auth-diagram.puml | docker run --rm -i think/plantuml > ${DIR}/docs/_static/images/diagrams/api-auth-diagram.svg
 
 fix-copyright:
 	go run ./docs copyright
