@@ -1,0 +1,21 @@
+@startuml
+title Local Nuts Node CLI
+
+frame Local {
+    actor admin as "Admin"
+    agent cli as "CLI\n<size:10><i>Admin tool for Nuts Node"
+    agent ssh_agent as "ssh-agent\n<size:10><i>Manages private keys"
+    database keys as "Keys"
+}
+
+frame "Remote" {
+    agent nuts_node as "Nuts Node"
+    database allowed_signers as "Allowed Signers"
+}
+
+admin -> cli : Invoke command\n<size:10>[Shell]
+cli -down-> ssh_agent : Sign token\n<size:10>[SSH Agent Protocol]
+cli -> nuts_node : Perform API operation\n<size:10>[HTTP with JWT]
+ssh_agent -left-> keys : Uses
+nuts_node -down-> allowed_signers : Verifies JWT\nusing
+@enduml
