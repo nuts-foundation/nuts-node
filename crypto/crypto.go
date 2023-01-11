@@ -41,8 +41,9 @@ var kidPattern = regexp.MustCompile(`^[\da-zA-Z_\- :#.]+$`)
 
 // Config holds the values for the crypto engine
 type Config struct {
-	Storage string              `koanf:"storage"`
-	Vault   storage.VaultConfig `koanf:"vault"`
+	Storage       string                  `koanf:"storage"`
+	Vault         storage.VaultConfig     `koanf:"vault"`
+	StorageClient storage.APIClientConfig `koanf:"connection"`
 }
 
 // DefaultCryptoConfig returns a Config with a fs backend storage
@@ -87,6 +88,16 @@ func (client *Crypto) setupFSBackend(config core.ServerConfig) error {
 	return nil
 }
 
+func (client *Crypto) setupStorageAPIBackend() error {
+	log.Logger().Info("Setting up StorageAPI backend for storage of private key material.")
+	apiBackend, err := storage.NewAPIClient(client.config.StorageClient.URL)
+	if err != nil {
+		return err
+	}
+	client.storage = storage.NewValidatedKIDBackendWrapper(apiBackend, kidPattern)
+	return nil
+}
+
 func (client *Crypto) setupVaultBackend(_ core.ServerConfig) error {
 	log.Logger().Debug("Setting up Vault backend for storage of private key material.")
 	var err error
@@ -111,6 +122,8 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 		return client.setupFSBackend(config)
 	case "vaultkv":
 		return client.setupVaultBackend(config)
+	case "storageapi":
+		return client.setupStorageAPIBackend()
 	case "":
 		if config.Strictmode {
 			return errors.New("backend must be explicitly set in strict mode")

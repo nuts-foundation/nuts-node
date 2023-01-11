@@ -16,7 +16,11 @@ type APIClient struct {
 	httpClient *httpclient.ClientWithResponses
 }
 
-func NewAPIClient(url string) *APIClient {
+type APIClientConfig struct {
+	URL string `koanf:"url"`
+}
+
+func NewAPIClient(url string) (Storage, error) {
 	client, _ := httpclient.NewClientWithResponses(url)
 	_, err := client.LookupSecretWithResponse(context.Background(), "ping")
 	if err != nil {
