@@ -18,8 +18,12 @@ type APIClient struct {
 
 func NewAPIClient(url string) *APIClient {
 	client, _ := httpclient.NewClientWithResponses(url)
+	_, err := client.LookupSecretWithResponse(context.Background(), "ping")
+	if err != nil {
+		return nil, fmt.Errorf("unable to connect to storage server: %w", err)
+	}
 
-	return &APIClient{httpClient: client}
+	return &APIClient{httpClient: client}, nil
 }
 
 type backendError struct {
