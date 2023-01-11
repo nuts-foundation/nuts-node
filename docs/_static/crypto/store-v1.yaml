@@ -124,7 +124,7 @@ components:
           description: A short, human-readable summary of the problem type.
           example: "Lookup failed. The backend returned an error."
         status:
-          type: number
+          type: integer
           description: HTTP statuscode
           example: 403
         backend:
