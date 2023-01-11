@@ -24,6 +24,7 @@ paths:
           type: string
     get:
       summary: Lookup the secret for the provided path
+      operationId: LookupSecret
       responses:
         "200":
           description: |
@@ -42,6 +43,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
     post:
       summary: Store a new value in the key store
+      operationId: StoreSecret
       requestBody:
         required: true
         content:
@@ -66,6 +68,7 @@ paths:
         "409":
           description: The store operation failed. A secret for this path already exists.
     delete:
+      operationId: DeleteSecret
       summary: Delete a value from the key store
       responses:
         204:
@@ -87,11 +90,15 @@ components:
       example: "secret-value"
     StoreSecretRequest:
       description: Request body to store a secret value.
+      required:
+        - data
       properties:
         data:
           $ref: "#/components/schemas/Secret"
     SecretResponse:
       description: Response object containing the secret value.
+      required:
+        - data
       properties:
         data:
           $ref: "#/components/schemas/Secret"
