@@ -20,7 +20,6 @@ package storage
 
 import (
 	"crypto"
-	"errors"
 	"fmt"
 	vault "github.com/hashicorp/vault/api"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
@@ -32,8 +31,6 @@ import (
 const privateKeyPathName = "nuts-private-keys"
 const defaultPathPrefix = "kv"
 const keyName = "key"
-
-var errKeyNotFound = errors.New("key not found")
 
 // VaultConfig contains the config options to configure the vaultKVStorage backend
 type VaultConfig struct {

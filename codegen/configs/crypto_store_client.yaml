@@ -1,0 +1,5 @@
+package: httpclient
+generate:
+  client: true
+  models: true
+output-options:
