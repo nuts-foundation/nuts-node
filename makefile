@@ -12,42 +12,39 @@ gen-readme:
 	./generate_readme.sh
 
 gen-mocks:
-	mockgen -destination=core/engine_mock.go -package=core -source=core/engine.go -imports echo=github.com/labstack/echo/v4
-	mockgen -destination=core/echo_mock.go -package=core -source core/echo.go -imports echo=github.com/labstack/echo/v4
-	mockgen -destination=http/echo_mock.go -package=http -source http/echo.go -imports echo=github.com/labstack/echo/v4
+	mockgen -destination=auth/contract/signer_mock.go -package=contract -source=auth/contract/signer.go
+	mockgen -destination=auth/services/mock.go -package=services -source=auth/services/services.go
+	mockgen -destination=auth/services/oauth/mock.go -package=oauth -source=auth/services/oauth/interface.go
+	mockgen -destination=core/engine_mock.go -package=core -source=core/engine.go
+	mockgen -destination=core/echo_mock.go -package=core -source=core/echo.go -imports echo=github.com/labstack/echo/v4
+	mockgen -destination=crl/mock.go -package=crl -source=crl/validator.go Validator
 	mockgen -destination=crypto/mock.go -package=crypto -source=crypto/interface.go
 	mockgen -destination=crypto/storage/mock.go -package=storage -source=crypto/storage/storage.go
-	mockgen -destination=vdr/ambassador_mock.go -package=vdr -source=vdr/ambassador.go
-	mockgen -destination=vdr/types/mock.go -package=types -source=vdr/types/interface.go -self_package github.com/nuts-foundation/nuts-node/vdr/types --imports did=github.com/nuts-foundation/go-did/did
-	mockgen -destination=vdr/didstore/mock.go -package=didstore -source=vdr/didstore/interface.go
-	mockgen -destination=vdr/didservice/resolvers_mock.go -package=didservice -source=vdr/didservice/resolvers.go
+	mockgen -destination=didman/mock.go -package=didman -source=didman/types.go
+	mockgen -destination=events/events_mock.go -package=events -source=events/interface.go Event
+	mockgen -destination=events/mock.go -package=events -source=events/conn.go Conn ConnectionPool
+	mockgen -destination=http/echo_mock.go -package=http -source=http/echo.go -imports echo=github.com/labstack/echo/v4
 	mockgen -destination=network/mock.go -package=network -source=network/interface.go
+	mockgen -destination=network/dag/mock.go -package=dag -source=network/dag/interface.go State
+	mockgen -destination=network/dag/notifier_mock.go -package=dag -source=network/dag/notifier.go Notifier
 	mockgen -destination=network/transport/connection_manager_mock.go -package=transport -source=network/transport/connection_manager.go
 	mockgen -destination=network/transport/protocol_mock.go -package=transport -source=network/transport/protocol.go Protocol
 	mockgen -destination=network/transport/grpc/authenticator_mock.go -package=grpc -source=network/transport/grpc/authenticator.go
 	mockgen -destination=network/transport/grpc/connection_list_mock.go -package=grpc -source=network/transport/grpc/connection_list.go
 	mockgen -destination=network/transport/grpc/connection_mock.go -package=grpc -source=network/transport/grpc/connection.go
 	mockgen -destination=network/transport/grpc/interface_mock.go -package=grpc -source=network/transport/grpc/interface.go
-	mockgen -destination=network/transport/v2/protocol_grpc_mock.pb.go -package=v2 -source=network/transport/v2/protocol_grpc.pb.go
 	mockgen -destination=network/transport/v2/senders_mock.go -package=v2 -source=network/transport/v2/senders.go
 	mockgen -destination=network/transport/v2/gossip/mock.go -package=gossip -source=network/transport/v2/gossip/manager.go
-	mockgen -destination=network/dag/mock.go -package=dag -source=network/dag/interface.go State
-	mockgen -destination=network/dag/notifier_mock.go -package=dag -source=network/dag/notifier.go Notifier
+	mockgen -destination=storage/mock.go -package=storage -source=storage/interface.go
 	mockgen -destination=vcr/mock.go -package=vcr -source=vcr/interface.go
 	mockgen -destination=vcr/holder/mock.go -package=holder -source=vcr/holder/interface.go
 	mockgen -destination=vcr/issuer/mock.go -package=issuer -source=vcr/issuer/interface.go
-	mockgen -destination=vcr/verifier/mock.go -package=verifier -source=vcr/verifier/interface.go
 	mockgen -destination=vcr/signature/mock.go -package=signature -source=vcr/signature/signature.go
-	mockgen -destination=auth/mock.go -package=auth -source=auth/interface.go
-	mockgen -destination=auth/services/mock.go -package=services -source=auth/services/services.go
-	mockgen -destination=auth/services/oauth/mock.go -package=oauth -source=auth/services/oauth/interface.go
-	mockgen -destination=auth/contract/signer_mock.go -package=contract -source=auth/contract/signer.go
-	mockgen -destination=didman/mock.go -package=didman -source=didman/types.go
-	mockgen -destination=crl/mock.go -package crl -source=crl/validator.go Validator
-	mockgen -destination=events/events_mock.go -package events -source=events/interface.go Event
-	mockgen -destination=events/mock.go -package events -source=events/conn.go Conn ConnectionPool
-	mockgen -destination=jsonld/mock.go -package jsonld -source=jsonld/interface.go
-	mockgen -destination=storage/mock.go -package storage -source=storage/interface.go
+	mockgen -destination=vcr/verifier/mock.go -package=verifier -source=vcr/verifier/interface.go
+	mockgen -destination=vdr/ambassador_mock.go -package=vdr -source=vdr/ambassador.go
+	mockgen -destination=vdr/didstore/mock.go -package=didstore -source=vdr/didstore/interface.go
+	mockgen -destination=vdr/didservice/resolvers_mock.go -package=didservice -source=vdr/didservice/resolvers.go
+	mockgen -destination=vdr/types/mock.go -package=types -source=vdr/types/interface.go -self_package github.com/nuts-foundation/nuts-node/vdr/types --imports did=github.com/nuts-foundation/go-did/did
 
 gen-api:
 	oapi-codegen --config codegen/configs/common_ssi_types.yaml docs/_static/common/ssi_types.yaml | gofmt > api/ssi_types.go

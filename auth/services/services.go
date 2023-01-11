@@ -62,8 +62,3 @@ type ContractNotary interface {
 	// HandlerFunc returns the Irma server handler func
 	HandlerFunc() http.HandlerFunc
 }
-
-// CompoundServiceClient defines a function to get a compound service by its servicetype
-type CompoundServiceClient interface {
-	GetCompoundService(id did.DID, serviceType string) (*did.Service, error)
-}
