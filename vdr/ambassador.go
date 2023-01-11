@@ -78,16 +78,20 @@ func NewAmbassador(networkClient network.Transactions, didStore didstore.Store, 
 	}
 }
 
-// Configure instructs the ambassador to start receiving DID Documents from the network.
 func (n *ambassador) Configure() error {
-	return n.networkClient.Subscribe("vdr", n.handleNetworkEvent,
+	return nil
+}
+
+func (n *ambassador) Start() error {
+	err := n.networkClient.Subscribe("vdr", n.handleNetworkEvent,
 		n.networkClient.WithPersistency(),
 		network.WithSelectionFilter(func(event dag.Event) bool {
 			return event.Type == dag.PayloadEventType && event.Transaction.PayloadType() == didDocumentType
 		}))
-}
+	if err != nil {
+		return err
+	}
 
-func (n *ambassador) Start() error {
 	stream := events.NewDisposableStream(
 		fmt.Sprintf("%s_%s", events.ReprocessStream, "VDR"),
 		[]string{fmt.Sprintf("%s.%s", events.ReprocessStream, didDocumentType)},
