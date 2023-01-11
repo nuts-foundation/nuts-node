@@ -440,6 +440,25 @@ func (n *Network) Subscribers() []dag.Notifier {
 	return []dag.Notifier{}
 }
 
+func (n *Network) CleanupSubscriberEvents(subscriberName, errorPrefix string) error {
+	for _, subscriber := range n.Subscribers() {
+		if subscriber.Name() == subscriberName {
+			events, err := subscriber.GetFailedEvents()
+			if err != nil {
+				return err
+			}
+			for _, event := range events {
+				if strings.HasPrefix(event.Error, errorPrefix) {
+					if err := subscriber.Finished(event.Hash); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // GetTransaction retrieves the transaction for the given reference. If the transaction is not known, an error is returned.
 func (n *Network) GetTransaction(transactionRef hash.SHA256Hash) (dag.Transaction, error) {
 	return n.state.GetTransaction(context.Background(), transactionRef)
