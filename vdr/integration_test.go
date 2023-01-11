@@ -75,7 +75,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 
 	docA.Service = append(docA.Service, newService)
 
-	err = ctx.vdr.Update(docAID, metadataDocA.Hash, *docA, nil)
+	err = ctx.vdr.Update(docAID, *docA)
 	require.NoError(t, err, "unable to update docA with a new service")
 
 	// Resolve the document and check it contents
@@ -101,7 +101,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	docA.CapabilityInvocation = []did.VerificationRelationship{}
 	docA.VerificationMethod = []*did.VerificationMethod{}
 	docA.KeyAgreement = []did.VerificationRelationship{}
-	err = ctx.vdr.Update(docAID, metadataDocA.Hash, *docA, nil)
+	err = ctx.vdr.Update(docAID, *docA)
 	require.NoError(t, err, "unable to update documentA with a new controller")
 
 	// Resolve and check DocumentA
@@ -122,7 +122,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	}
 	docA.Service = append(docA.Service, newService)
 
-	err = ctx.vdr.Update(docA.ID, metadataDocA.Hash, *docA, nil)
+	err = ctx.vdr.Update(docA.ID, *docA)
 	require.NoError(t, err, "unable to update documentA with a new service")
 	// Resolve and check if the service has been added
 	docA, metadataDocA, err = ctx.docResolver.Resolve(docA.ID, nil)
@@ -149,7 +149,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 
 	// try to update document A should fail since it no longer has an active controller
 	docA.Service = docA.Service[1:]
-	err = ctx.vdr.Update(docAID, metadataDocA.Hash, *docA, nil)
+	err = ctx.vdr.Update(docAID, *docA)
 	assert.EqualError(t, err, "could not find any controllers for document")
 }
 
@@ -168,7 +168,7 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	const procs = 10
 	wg := sync.WaitGroup{}
 	wg.Add(procs)
-	currDoc, currMetadata, _ := ctx.docResolver.Resolve(initialDoc.ID, nil)
+	currDoc, _, _ := ctx.docResolver.Resolve(initialDoc.ID, nil)
 	for i := 0; i < procs; i++ {
 		go func(num int) {
 			newDoc := *currDoc
@@ -180,7 +180,7 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 			}
 
 			newDoc.Service = append(currDoc.Service, newService)
-			err := ctx.vdr.Update(currDoc.ID, currMetadata.Hash, newDoc, nil)
+			err := ctx.vdr.Update(currDoc.ID, newDoc)
 			assert.NoError(t, err, "unable to update doc with a new service")
 			wg.Done()
 		}(i)

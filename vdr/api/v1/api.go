@@ -208,12 +208,7 @@ func (a *Wrapper) UpdateDID(ctx echo.Context, targetDID string) error {
 		return err
 	}
 
-	h, err := hash.ParseHex(req.CurrentHash)
-	if err != nil {
-		return core.InvalidInputError("given hash is not valid: %w", err)
-	}
-
-	err = a.VDR.Update(*d, h, req.Document, nil)
+	err = a.VDR.Update(*d, req.Document)
 	if err != nil {
 		return err
 	}

@@ -323,7 +323,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 			didReturn = f2.(did.Document)
 			return nil
 		})
-		ctx.vdr.EXPECT().Update(*id, gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+		ctx.vdr.EXPECT().Update(*id, gomock.Any()).Return(nil)
 		err := ctx.client.UpdateDID(ctx.echo, id.String())
 
 		require.NoError(t, err)
@@ -347,7 +347,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 			*p = didUpdate
 			return nil
 		})
-		ctx.vdr.EXPECT().Update(*id, gomock.Any(), gomock.Any(), gomock.Any()).Return(types.ErrNotFound)
+		ctx.vdr.EXPECT().Update(*id, gomock.Any()).Return(types.ErrNotFound)
 		err := ctx.client.UpdateDID(ctx.echo, id.String())
 
 		assert.ErrorIs(t, err, types.ErrNotFound)
@@ -362,28 +362,10 @@ func TestWrapper_UpdateDID(t *testing.T) {
 			*p = didUpdate
 			return nil
 		})
-		ctx.vdr.EXPECT().Update(*id, gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("b00m!"))
+		ctx.vdr.EXPECT().Update(*id, gomock.Any()).Return(errors.New("b00m!"))
 		err := ctx.client.UpdateDID(ctx.echo, id.String())
 
 		assert.EqualError(t, err, "b00m!")
-	})
-
-	t.Run("error - wrong hash", func(t *testing.T) {
-		ctx := newMockContext(t)
-
-		didUpdate := DIDUpdateRequest{
-			Document:    *didDoc,
-			CurrentHash: "0",
-		}
-
-		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			p := f.(*DIDUpdateRequest)
-			*p = didUpdate
-			return nil
-		})
-		err := ctx.client.UpdateDID(ctx.echo, id.String())
-
-		assert.ErrorIs(t, err, core.InvalidInputError(""))
 	})
 
 	t.Run("error - bind goes wrong", func(t *testing.T) {
@@ -404,7 +386,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 			return nil
 		})
 
-		ctx.vdr.EXPECT().Update(*id, gomock.Any(), gomock.Any(), gomock.Any()).Return(types.ErrDeactivated)
+		ctx.vdr.EXPECT().Update(*id, gomock.Any()).Return(types.ErrDeactivated)
 
 		err := ctx.client.UpdateDID(ctx.echo, id.String())
 
@@ -421,7 +403,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 			return nil
 		})
 
-		ctx.vdr.EXPECT().Update(*id, gomock.Any(), gomock.Any(), gomock.Any()).Return(types.ErrDIDNotManagedByThisNode)
+		ctx.vdr.EXPECT().Update(*id, gomock.Any()).Return(types.ErrDIDNotManagedByThisNode)
 
 		err := ctx.client.UpdateDID(ctx.echo, id.String())
 

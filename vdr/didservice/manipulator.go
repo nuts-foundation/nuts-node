@@ -37,14 +37,14 @@ type Manipulator struct {
 // Deactivate updates the DID Document so it can no longer be updated
 // It removes key material, services and controllers.
 func (u Manipulator) Deactivate(id did.DID) error {
-	_, meta, err := u.Resolver.Resolve(id, &types.ResolveMetadata{AllowDeactivated: true})
+	_, _, err := u.Resolver.Resolve(id, &types.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {
 		return err
 	}
 	// A deactivated DID resolves to an empty DID document.
 	emptyDoc := CreateDocument()
 	emptyDoc.ID = id
-	return u.Updater.Update(id, meta.Hash, emptyDoc, nil)
+	return u.Updater.Update(id, emptyDoc)
 }
 
 // AddVerificationMethod adds a new key as a VerificationMethod to the document.
@@ -64,7 +64,7 @@ func (u Manipulator) AddVerificationMethod(id did.DID, keyUsage types.DIDKeyFlag
 	method.Controller = doc.ID
 	doc.VerificationMethod.Add(method)
 	applyKeyUsage(doc, method, keyUsage)
-	if err = u.Updater.Update(id, meta.Hash, *doc, nil); err != nil {
+	if err = u.Updater.Update(id, *doc); err != nil {
 		return nil, err
 	}
 	return method, nil
@@ -86,7 +86,7 @@ func (u Manipulator) RemoveVerificationMethod(id, keyID did.DID) error {
 		return nil
 	}
 
-	return u.Updater.Update(id, meta.Hash, *doc, nil)
+	return u.Updater.Update(id, *doc)
 }
 
 // CreateNewVerificationMethodForDID creates a new VerificationMethod of type JsonWebKey2020
