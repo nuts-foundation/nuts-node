@@ -30,11 +30,10 @@ By default, the BBolt store isn't backed up. To enable backups add these configu
 .. code-block:: yaml
 
     storage:
-      databases:
-        bbolt:
-          backup:
-            directory: /opt/nuts/shelf
-            interval: 1h
+      bbolt:
+        backup:
+          directory: /opt/nuts/shelf
+          interval: 1h
 
 The ``directory`` must point to a local or mounted directory.
 The ``interval`` must be formatted as a number and time unit. Valid time units are ``s`` (seconds), ``m`` (minutes), ``h`` (hours).
