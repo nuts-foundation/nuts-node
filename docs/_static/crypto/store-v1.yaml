@@ -14,6 +14,27 @@ servers:
   - url: http://localhost:7863
 paths:
   /secrets/{path}:
+  /health:
+    get:
+      operationId: healthCheck
+      description: |
+        This endpoint implements the API Health Check RFC https://datatracker.ietf.org/doc/html/draft-inadarei-api-health-check.
+        It can be used to check the availability of the services.
+      responses:
+        200:
+          description: |
+            The service is healthy
+          content:
+            application/health+json:
+              schema:
+                $ref: "#/components/schemas/ServiceStatus"
+        503:
+          description: |
+            The service is not healthy
+          content:
+            application/health+json:
+              schema:
+                $ref: "#/components/schemas/ServiceStatus"
     parameters:
       - name: path
         in: path
@@ -84,6 +105,22 @@ paths:
 
 components:
   schemas:
+    ServiceStatus:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          description: |
+            Indicates whether the service status is acceptable. Possible values are:
+            * **pass**: healthy.
+            * **fail**: unhealthy.
+            * **warn**: healthy, with some concerns.
+          enum:
+            - pass
+            - fail
+            - warn
     Secret:
       type: string
       description: "The secret value stored under the provided path. The secret should be a asci string or be base64 encoded."
