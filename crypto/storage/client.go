@@ -96,6 +96,14 @@ func (c APIClient) SavePrivateKey(kid string, key crypto.PrivateKey) error {
 }
 
 func (c APIClient) ListPrivateKeys() []string {
-	// not supported
-	return []string{}
+	response, err := c.httpClient.ListKeysWithResponse(context.Background())
+	if err != nil {
+		return nil
+	}
+	switch response.StatusCode() {
+	case http.StatusOK:
+		return *response.JSON200
+	default:
+		return nil
+	}
 }
