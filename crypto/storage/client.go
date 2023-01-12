@@ -22,9 +22,12 @@ type APIClientConfig struct {
 
 func NewAPIClient(url string) (Storage, error) {
 	client, _ := httpclient.NewClientWithResponses(url)
-	_, err := client.LookupSecretWithResponse(context.Background(), "ping")
+	response, err := client.HealthCheckWithResponse(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect to storage server: %w", err)
+	}
+	if response.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("unable to connect to storage server: unexpected status code: %d", response.StatusCode())
 	}
 
 	return &APIClient{httpClient: client}, nil
