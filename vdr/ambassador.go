@@ -83,6 +83,8 @@ func (n *ambassador) Configure() error {
 }
 
 func (n *ambassador) Start() error {
+	// This subscription is dependent on the network configure operation.
+	// The network is configured/started after the VDR, so these calls can't be in Configure()
 	err := n.networkClient.Subscribe("vdr", n.handleNetworkEvent,
 		n.networkClient.WithPersistency(),
 		network.WithSelectionFilter(func(event dag.Event) bool {
