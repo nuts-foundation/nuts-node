@@ -201,7 +201,7 @@ func TestEngine_Command(t *testing.T) {
 	t.Run("update", func(t *testing.T) {
 		t.Run("ok - write to stdout", func(t *testing.T) {
 			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
-			cmd.SetArgs([]string{"update", "did", "../test/diddocument.json"})
+			cmd.SetArgs([]string{"update", "did", "hash", "../test/diddocument.json"})
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()
@@ -213,7 +213,7 @@ func TestEngine_Command(t *testing.T) {
 
 		t.Run("error - incorrect input", func(t *testing.T) {
 			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusOK, ResponseData: exampleDIDDocument})
-			cmd.SetArgs([]string{"update", "did", "../test/syntax_error.json"})
+			cmd.SetArgs([]string{"update", "did", "hash", "../test/syntax_error.json"})
 
 			err := cmd.Execute()
 
@@ -223,7 +223,7 @@ func TestEngine_Command(t *testing.T) {
 
 		t.Run("error - server error", func(t *testing.T) {
 			cmd := newCmdWithServer(t, &http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: "invalid"})
-			cmd.SetArgs([]string{"update", "did", "../test/diddocument.json"})
+			cmd.SetArgs([]string{"update", "did", "hash", "../test/diddocument.json"})
 			cmd.PersistentFlags().AddFlagSet(core.ClientConfigFlags())
 
 			err := cmd.Execute()

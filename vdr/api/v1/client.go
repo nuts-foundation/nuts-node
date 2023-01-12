@@ -94,11 +94,12 @@ func (hb HTTPClient) ConflictedDIDs() ([]DIDResolutionResult, error) {
 }
 
 // Update a DID Document given a DID and its current hash.
-func (hb HTTPClient) Update(DID string, next did.Document) (*did.Document, error) {
+func (hb HTTPClient) Update(DID string, current string, next did.Document) (*did.Document, error) {
 	ctx := context.Background()
 
 	requestBody := UpdateDIDJSONRequestBody{
 		Document:    next,
+		CurrentHash: current,
 	}
 	response, err := hb.client().UpdateDID(ctx, DID, requestBody)
 	if err != nil {

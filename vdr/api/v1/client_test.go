@@ -140,11 +140,12 @@ func TestHTTPClient_Update(t *testing.T) {
 	didDoc := did.Document{
 		ID: vdr.TestDIDA,
 	}
+	hash := "0000000000000000000000000000000000000000"
 
 	t.Run("ok", func(t *testing.T) {
 		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: didDoc})
 		c := getClient(s.URL)
-		doc, err := c.Update(vdr.TestDIDA.String(), didDoc)
+		doc, err := c.Update(vdr.TestDIDA.String(), hash, didDoc)
 		require.NoError(t, err)
 		assert.NotNil(t, doc)
 	})
@@ -153,7 +154,7 @@ func TestHTTPClient_Update(t *testing.T) {
 		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusNotFound, ResponseData: ""})
 		c := getClient(s.URL)
 
-		_, err := c.Update(vdr.TestDIDA.String(), didDoc)
+		_, err := c.Update(vdr.TestDIDA.String(), hash, didDoc)
 
 		assert.Error(t, err)
 	})
@@ -162,14 +163,14 @@ func TestHTTPClient_Update(t *testing.T) {
 		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"})
 		c := getClient(s.URL)
 
-		_, err := c.Update(vdr.TestDIDA.String(), didDoc)
+		_, err := c.Update(vdr.TestDIDA.String(), hash, didDoc)
 
 		assert.Error(t, err)
 	})
 
 	t.Run("error - wrong address", func(t *testing.T) {
 		c := getClient("not_an_address")
-		_, err := c.Update(vdr.TestDIDA.String(), didDoc)
+		_, err := c.Update(vdr.TestDIDA.String(), hash, didDoc)
 		assert.Error(t, err)
 	})
 }

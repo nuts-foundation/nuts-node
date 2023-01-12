@@ -306,7 +306,8 @@ func TestWrapper_UpdateDID(t *testing.T) {
 		ID: *id,
 	}
 	didUpdate := DIDUpdateRequest{
-		Document: *didDoc,
+		Document:    *didDoc,
+		CurrentHash: "452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620",
 	}
 
 	t.Run("ok", func(t *testing.T) {
