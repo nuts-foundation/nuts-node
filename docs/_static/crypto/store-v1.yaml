@@ -13,7 +13,6 @@ info:
 servers:
   - url: http://localhost:7863
 paths:
-  /secrets/{path}:
   /health:
     get:
       operationId: healthCheck
@@ -35,6 +34,24 @@ paths:
             application/health+json:
               schema:
                 $ref: "#/components/schemas/ServiceStatus"
+  /secrets:
+    get:
+      operationId: listKeys
+      description: List all the keys
+      responses:
+        200:
+          description: The response contains all the keys stored on this storage engine.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KeyList"
+        400:
+          description: The request failed. Check the error response for more details.
+          content:
+            application/problem+json:  # https://tools.ietf.org/html/rfc7807#section-6.1
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /secrets/{key}:
     parameters:
       - name: path
         in: path
@@ -121,6 +138,10 @@ components:
             - pass
             - fail
             - warn
+    KeyList:
+      type: array
+      items:
+        type: string
     Secret:
       type: string
       description: "The secret value stored under the provided path. The secret should be a asci string or be base64 encoded."
