@@ -24,7 +24,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/piprate/json-gold/ld"
 	"github.com/stretchr/testify/require"
+	"net/http"
 	"os"
 	"testing"
 	"time"
@@ -191,31 +193,102 @@ func TestAmbassador_handleNetworkVCs(t *testing.T) {
 	tx, _ := dag.NewTransaction(hash.EmptyHash(), types.VcDocumentType, nil, nil, 0)
 	stx := tx.(dag.Transaction)
 
-	t.Run("error - invalid payload is dag.EventFatal", func(t *testing.T) {
-		a := NewAmbassador(nil, nil, nil, nil).(*ambassador)
+	t.Run("non-recoverable errors", func(t *testing.T) {
+		t.Run("invalid payload is dag.EventFatal", func(t *testing.T) {
+			a := NewAmbassador(nil, nil, nil, nil).(*ambassador)
 
-		value, err := a.handleNetworkVCs(dag.Event{
-			Transaction: stx,
-			Payload:     []byte("{"),
+			value, err := a.handleNetworkVCs(dag.Event{
+				Transaction: stx,
+				Payload:     []byte("{"),
+			})
+
+			assert.False(t, value)
+			assert.True(t, errors.As(err, new(dag.EventFatal)))
 		})
+		t.Run("invalid remote JSON-LD URL (disallowed URL)", func(t *testing.T) {
+			// Use JSON-LD processor to get actual returned error
+			proc := ld.NewJsonLdProcessor()
+			var target map[string]interface{}
+			err := json.Unmarshal([]byte(jsonld.TestCredential), &target)
+			require.NoError(t, err)
+			opts := ld.NewJsonLdOptions("")
+			opts.DocumentLoader = jsonld.NewFilteredLoader(nil, nil)
+			result, err := proc.Expand(target, opts)
+			require.Empty(t, result)
+			require.Error(t, err)
 
-		assert.False(t, value)
-		assert.True(t, errors.As(err, new(dag.EventFatal)))
+			ctrl := gomock.NewController(t)
+			wMock := NewMockWriter(ctrl)
+
+			a := NewAmbassador(nil, wMock, nil, nil).(*ambassador)
+			wMock.EXPECT().StoreCredential(gomock.Any(), gomock.Any()).Return(err)
+
+			value, err := a.handleNetworkVCs(dag.Event{
+				Transaction: stx,
+				Payload:     []byte(jsonld.TestCredential),
+			})
+
+			assert.False(t, value)
+			assert.True(t, errors.As(err, new(dag.EventFatal)))
+		})
 	})
-	t.Run("error - context canceled is not dag.EventFatal", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		wMock := NewMockWriter(ctrl)
+	t.Run("recoverable errors", func(t *testing.T) {
+		t.Run("context.Canceled", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			wMock := NewMockWriter(ctrl)
 
-		a := NewAmbassador(nil, wMock, nil, nil).(*ambassador)
-		wMock.EXPECT().StoreCredential(gomock.Any(), gomock.Any()).Return(context.Canceled)
+			a := NewAmbassador(nil, wMock, nil, nil).(*ambassador)
+			wMock.EXPECT().StoreCredential(gomock.Any(), gomock.Any()).Return(context.Canceled)
 
-		value, err := a.handleNetworkVCs(dag.Event{
-			Transaction: stx,
-			Payload:     []byte(jsonld.TestCredential),
+			value, err := a.handleNetworkVCs(dag.Event{
+				Transaction: stx,
+				Payload:     []byte(jsonld.TestCredential),
+			})
+
+			assert.False(t, value)
+			assert.False(t, errors.As(err, new(dag.EventFatal)))
 		})
+		t.Run("context.DeadlineExceeded", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			wMock := NewMockWriter(ctrl)
 
-		assert.False(t, value)
-		assert.False(t, errors.As(err, new(dag.EventFatal)))
+			a := NewAmbassador(nil, wMock, nil, nil).(*ambassador)
+			wMock.EXPECT().StoreCredential(gomock.Any(), gomock.Any()).Return(context.DeadlineExceeded)
+
+			value, err := a.handleNetworkVCs(dag.Event{
+				Transaction: stx,
+				Payload:     []byte(jsonld.TestCredential),
+			})
+
+			assert.False(t, value)
+			assert.False(t, errors.As(err, new(dag.EventFatal)))
+		})
+		t.Run("error loading remote JSON-LD URL", func(t *testing.T) {
+			// Use JSON-LD processor to get actual returned error
+			proc := ld.NewJsonLdProcessor()
+			var target map[string]interface{}
+			err := json.Unmarshal([]byte(jsonld.TestCredential), &target)
+			require.NoError(t, err)
+			opts := ld.NewJsonLdOptions("")
+			opts.DocumentLoader = ld.NewDefaultDocumentLoader(&http.Client{Transport: &stubRoundTripper{}})
+			result, err := proc.Expand(target, opts)
+			require.Empty(t, result)
+			require.Error(t, err)
+
+			ctrl := gomock.NewController(t)
+			wMock := NewMockWriter(ctrl)
+
+			a := NewAmbassador(nil, wMock, nil, nil).(*ambassador)
+			wMock.EXPECT().StoreCredential(gomock.Any(), gomock.Any()).Return(err)
+
+			value, err := a.handleNetworkVCs(dag.Event{
+				Transaction: stx,
+				Payload:     []byte(jsonld.TestCredential),
+			})
+
+			assert.False(t, value)
+			assert.False(t, errors.As(err, new(dag.EventFatal)), "error loading remote JSON-LD URL should not be fatal: %v", err)
+		})
 	})
 }
 
@@ -285,4 +358,10 @@ func Test_ambassador_handleNetworkRevocations(t *testing.T) {
 		assert.False(t, value)
 		assert.False(t, errors.As(err, new(dag.EventFatal)))
 	})
+}
+
+type stubRoundTripper struct{}
+
+func (s stubRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
+	return &http.Response{StatusCode: http.StatusNotFound}, nil
 }

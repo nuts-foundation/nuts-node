@@ -25,16 +25,17 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nats-io/nats.go"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/events"
-	"github.com/nuts-foundation/nuts-node/vcr/verifier"
-
-	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
+	"github.com/nuts-foundation/nuts-node/vcr/verifier"
+	"github.com/piprate/json-gold/ld"
 )
 
 // Ambassador registers a callback with the network for processing received Verifiable Credentials.
@@ -100,28 +101,39 @@ func (n ambassador) Start() error {
 	return nil
 }
 
-func (n *ambassador) handleNetworkVCs(event dag.Event) (bool, error) {
+func (n ambassador) handleNetworkVCs(event dag.Event) (bool, error) {
 	if err := n.vcCallback(event.Transaction, event.Payload); err != nil {
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			// context errors need to be retried
-			return false, err
-		}
-		// TODO: error is recoverable when it is due to DB issues. Inconsistencies with DAG can be fixed by Reprocess contentType types.VcDocumentType
-		return false, dag.EventFatal{err}
+		return n.handleError(err)
 	}
 	return true, nil
 }
 
-func (n *ambassador) handleNetworkRevocations(event dag.Event) (bool, error) {
+func (n ambassador) handleNetworkRevocations(event dag.Event) (bool, error) {
 	if err := n.jsonLDRevocationCallback(event.Transaction, event.Payload); err != nil {
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			// context errors need to be retried
-			return false, err
-		}
-		// TODO: error is recoverable when it is due to DB issues. Inconsistencies with DAG can be fixed by Reprocess contentType types.RevocationLDDocumentType
-		return false, dag.EventFatal{err}
+		return n.handleError(err)
 	}
 	return true, nil
+}
+
+func (n ambassador) handleError(err error) (bool, error) {
+	// Recoverable: context time-outs and cancellations (e.g. storage taking too long)
+	if errors.Is(err, context.Canceled) ||
+		errors.Is(err, context.DeadlineExceeded) {
+		return false, err
+	}
+	// Recoverable: loading remote JSON-LD documents. Disallowed URLs (configurable) is not recoverable.
+	var jsonLDError *ld.JsonLdError
+	if errors.As(err, &jsonLDError) &&
+		jsonLDError.Code == ld.LoadingRemoteContextFailed &&
+		!errors.Is(err, jsonld.ContextURLNotAllowedErr) {
+		return false, err
+	}
+	// TODO: other database/storage errors are also considered recoverable. VCR only uses go-leia for storage,
+	//  which doesn't define a single error to recognize storage-related errors.
+	//  This means go-leia error, which should be recoverable, can't be recognized as being recoverable.
+	//  If they occur and cause inconsistencies, they can be fixed using `Reprocess(application/vc+json)`.
+	// Other errors are non-recoverable
+	return false, dag.EventFatal{Err: err}
 }
 
 func (n ambassador) handleReprocessEvent(msg *nats.Msg) {
