@@ -103,21 +103,20 @@ func createCmd() *cobra.Command {
 
 func updateCmd() *cobra.Command {
 	return &cobra.Command{
-		Use: "update [DID] [hash] [file]",
+		Use: "update [DID] [file]",
 		Short: "Update a DID with the given DID document, this replaces the DID document. " +
-			"If no file is given, a pipe is assumed. The hash is needed to prevent concurrent updates.",
-		Args: cobra.RangeArgs(2, 3),
+			"If no file is given, a pipe is assumed. ",
+		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id := args[0]
-			hash := args[1]
 
 			var bytes []byte
 			var err error
-			if len(args) == 3 {
+			if len(args) == 2 {
 				// read from file
-				bytes, err = os.ReadFile(args[2])
+				bytes, err = os.ReadFile(args[1])
 				if err != nil {
-					return fmt.Errorf("failed to read file %s: %w", args[2], err)
+					return fmt.Errorf("failed to read file %s: %w", args[1], err)
 				}
 			} else {
 				// read from stdin
@@ -134,7 +133,7 @@ func updateCmd() *cobra.Command {
 			}
 
 			clientConfig := core.NewClientConfigForCommand(cmd)
-			if _, err = httpClient(clientConfig).Update(id, hash, didDoc); err != nil {
+			if _, err = httpClient(clientConfig).Update(id, didDoc); err != nil {
 				return fmt.Errorf("failed to update DID document: %w", err)
 			}
 
@@ -305,7 +304,7 @@ func addKeyAgreementKeyCmd() *cobra.Command {
 
 			document.KeyAgreement.Add(vm)
 
-			document, err = client.Update(targetDID.String(), metadata.Hash.String(), *document)
+			document, err = client.Update(targetDID.String(), *document)
 			if err != nil {
 				return fmt.Errorf("error while updating the DID document: %w", err)
 			}

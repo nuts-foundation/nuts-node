@@ -12,6 +12,7 @@ Coconut update (v5.1.0)
 Release date: **DRAFT**
 
 - Default value of strictmode changed to true
+- ``currentHash`` has been removed from the VDR update API. Existing generated code will still work.
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.0...v5.1.0
 

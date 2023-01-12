@@ -32,9 +32,6 @@ type DIDResolutionResult struct {
 
 // DIDUpdateRequest defines model for DIDUpdateRequest.
 type DIDUpdateRequest struct {
-	// CurrentHash The hash of the document in hex format. No longer used.
-	CurrentHash string `json:"currentHash"`
-
 	// Document A DID document according to the W3C spec following the Nuts Method rules as defined in [Nuts RFC006]
 	Document DIDDocument `json:"document"`
 }
