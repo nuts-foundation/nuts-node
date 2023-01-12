@@ -77,6 +77,7 @@ func newMockContext(t *testing.T) mockContext {
 	tx.EXPECT().WithPersistency().AnyTimes()
 	tx.EXPECT().Subscribe("vcr_vcs", gomock.Any(), gomock.Any())
 	tx.EXPECT().Subscribe("vcr_revocations", gomock.Any(), gomock.Any())
+	tx.EXPECT().Subscribers().AnyTimes().Return(nil)
 	keyResolver := types.NewMockKeyResolver(ctrl)
 	docResolver := types.NewMockDocResolver(ctrl)
 	serviceResolver := didservice.NewMockServiceResolver(ctrl)

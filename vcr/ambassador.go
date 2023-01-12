@@ -36,6 +36,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/piprate/json-gold/ld"
+	"strings"
 )
 
 // Ambassador registers a callback with the network for processing received Verifiable Credentials.
@@ -98,6 +99,15 @@ func (n ambassador) Start() error {
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to REPROCESS event stream: %v", err)
 	}
+
+	// When new
+	err = n.removeUnrecoverableErrors(n.networkClient.Subscribers())
+	if err != nil {
+		log.Logger().
+			WithError(err).
+			Warn("Could not unrecoverable errors from failed event list. If unsolved, it could keep growing.", err)
+	}
+
 	return nil
 }
 
@@ -215,4 +225,37 @@ func (n ambassador) jsonLDRevocationCallback(tx dag.Transaction, payload []byte)
 	}
 
 	return n.verifier.RegisterRevocation(r)
+}
+
+// removeUnrecoverableErrors removes all errors from the failed event list that are not recoverable,
+// but were considered recoverable in a previous version. After these cases were fixed (marked as unrecoverable),
+// the failed events will have to be removed.
+// It is a migration operation, but it can't be an actual Migrate() because those are called before Start() is called,
+// and this function needs the event manager in started state.
+func (n ambassador) removeUnrecoverableErrors(subscribers []dag.Notifier) error {
+	numRemoved := 0
+	// Make sure number of events removed is logged even when an error is returned
+	defer func() {
+		if numRemoved > 0 {
+			log.Logger().Infof("Removed %d uncoverable, failed events from event manager.", numRemoved)
+		}
+	}()
+	for _, subscriber := range subscribers {
+		if subscriber.Name() == "vcr_vcs" {
+			failedEvents, err := subscriber.GetFailedEvents()
+			if err != nil {
+				return err
+			}
+			for _, event := range failedEvents {
+				switch {
+				case strings.Contains(event.Error, "loading document failed: context not on the remoteallowlist"):
+					if err := subscriber.Finished(event.Hash); err != nil {
+						return err
+					}
+					numRemoved++
+				}
+			}
+		}
+	}
+	return nil
 }

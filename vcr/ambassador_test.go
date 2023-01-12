@@ -25,6 +25,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/piprate/json-gold/ld"
+	"github.com/sirupsen/logrus"
+	logTest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"os"
@@ -94,6 +96,66 @@ func TestAmbassador_Start(t *testing.T) {
 		err := ctx.vcr.ambassador.Start()
 
 		assert.EqualError(t, err, "failed to subscribe to REPROCESS event stream: b00m!")
+	})
+}
+
+func TestAmbassador_removeUnrecoverableErrors(t *testing.T) {
+	t.Run("errors are removed", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		notifier := dag.NewMockNotifier(ctrl)
+		notifier.EXPECT().Name().Return("vcr_vcs")
+		matchingEvents := []dag.Event{
+			{Error: "a remoteallowlist error: loading document failed: context not on the remoteallowlist", Hash: hash.RandomHash()},
+			{Error: "another remoteallowlist error: loading document failed: context not on the remoteallowlist", Hash: hash.RandomHash()},
+		}
+		nonMatchingEvents := []dag.Event{
+			{Error: "some other error"},
+			{Error: "and another error"},
+		}
+		notifier.EXPECT().GetFailedEvents().Return(append(nonMatchingEvents, matchingEvents...), nil)
+		for _, matchingEvent := range matchingEvents {
+			notifier.EXPECT().Finished(matchingEvent.Hash)
+		}
+
+		logHook := &logTest.Hook{}
+		logrus.AddHook(logHook)
+
+		err := (&ambassador{}).removeUnrecoverableErrors([]dag.Notifier{notifier})
+
+		require.NoError(t, err)
+		assert.Contains(t, logHook.LastEntry().Message, "Removed 2 uncoverable, failed events from event manager.")
+	})
+	t.Run("no matching events", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		notifier := dag.NewMockNotifier(ctrl)
+		notifier.EXPECT().Name().Return("vcr_vcs")
+		nonMatchingEvents := []dag.Event{
+			{Error: "some other error"},
+			{Error: "and another error"},
+		}
+		notifier.EXPECT().GetFailedEvents().Return(nonMatchingEvents, nil)
+
+		logHook := &logTest.Hook{}
+		logrus.AddHook(logHook)
+
+		err := (&ambassador{}).removeUnrecoverableErrors([]dag.Notifier{notifier})
+
+		require.NoError(t, err)
+		assert.Empty(t, logHook.Entries)
+	})
+	t.Run("no events", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		notifier := dag.NewMockNotifier(ctrl)
+		notifier.EXPECT().Name().Return("vcr_vcs")
+		notifier.EXPECT().GetFailedEvents().Return(nil, nil)
+
+		logHook := &logTest.Hook{}
+		logrus.AddHook(logHook)
+
+		err := (&ambassador{}).removeUnrecoverableErrors([]dag.Notifier{notifier})
+
+		require.NoError(t, err)
+		assert.Empty(t, logHook.Entries)
 	})
 }
 
