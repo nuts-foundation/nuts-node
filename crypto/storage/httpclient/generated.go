@@ -16,6 +16,13 @@ import (
 	"github.com/deepmap/oapi-codegen/pkg/runtime"
 )
 
+// Defines values for ServiceStatusStatus.
+const (
+	Fail ServiceStatusStatus = "fail"
+	Pass ServiceStatusStatus = "pass"
+	Warn ServiceStatusStatus = "warn"
+)
+
 // ErrorResponse The ErrorResponse contains the Problem Details for HTTP APIs as specified in [RFC7807](https://tools.ietf.org/html/rfc7807).
 //
 // It provides more detais about probles occured in the storage server.
@@ -39,6 +46,9 @@ type ErrorResponse struct {
 	Title string `json:"title"`
 }
 
+// KeyList defines model for KeyList.
+type KeyList = []string
+
 // Secret The secret value stored under the provided path. The secret should be a asci string or be base64 encoded.
 type Secret = string
 
@@ -47,6 +57,21 @@ type SecretResponse struct {
 	// Data The secret value stored under the provided path. The secret should be a asci string or be base64 encoded.
 	Data Secret `json:"data"`
 }
+
+// ServiceStatus defines model for ServiceStatus.
+type ServiceStatus struct {
+	// Status Indicates whether the service status is acceptable. Possible values are:
+	// * **pass**: healthy.
+	// * **fail**: unhealthy.
+	// * **warn**: healthy, with some concerns.
+	Status ServiceStatusStatus `json:"status"`
+}
+
+// ServiceStatusStatus Indicates whether the service status is acceptable. Possible values are:
+// * **pass**: healthy.
+// * **fail**: unhealthy.
+// * **warn**: healthy, with some concerns.
+type ServiceStatusStatus string
 
 // StoreSecretRequest Request body to store a secret value.
 type StoreSecretRequest struct {
@@ -130,20 +155,26 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// HealthCheck request
+	HealthCheck(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListKeys request
+	ListKeys(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// DeleteSecret request
-	DeleteSecret(ctx context.Context, path string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	DeleteSecret(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// LookupSecret request
-	LookupSecret(ctx context.Context, path string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	LookupSecret(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// StoreSecret request with any body
-	StoreSecretWithBody(ctx context.Context, path string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	StoreSecretWithBody(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	StoreSecret(ctx context.Context, path string, body StoreSecretJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	StoreSecret(ctx context.Context, key string, body StoreSecretJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
-func (c *Client) DeleteSecret(ctx context.Context, path string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewDeleteSecretRequest(c.Server, path)
+func (c *Client) HealthCheck(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewHealthCheckRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -154,8 +185,8 @@ func (c *Client) DeleteSecret(ctx context.Context, path string, reqEditors ...Re
 	return c.Client.Do(req)
 }
 
-func (c *Client) LookupSecret(ctx context.Context, path string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewLookupSecretRequest(c.Server, path)
+func (c *Client) ListKeys(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListKeysRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -166,8 +197,8 @@ func (c *Client) LookupSecret(ctx context.Context, path string, reqEditors ...Re
 	return c.Client.Do(req)
 }
 
-func (c *Client) StoreSecretWithBody(ctx context.Context, path string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewStoreSecretRequestWithBody(c.Server, path, contentType, body)
+func (c *Client) DeleteSecret(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteSecretRequest(c.Server, key)
 	if err != nil {
 		return nil, err
 	}
@@ -178,8 +209,8 @@ func (c *Client) StoreSecretWithBody(ctx context.Context, path string, contentTy
 	return c.Client.Do(req)
 }
 
-func (c *Client) StoreSecret(ctx context.Context, path string, body StoreSecretJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewStoreSecretRequest(c.Server, path, body)
+func (c *Client) LookupSecret(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewLookupSecretRequest(c.Server, key)
 	if err != nil {
 		return nil, err
 	}
@@ -188,15 +219,93 @@ func (c *Client) StoreSecret(ctx context.Context, path string, body StoreSecretJ
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+func (c *Client) StoreSecretWithBody(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStoreSecretRequestWithBody(c.Server, key, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) StoreSecret(ctx context.Context, key string, body StoreSecretJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStoreSecretRequest(c.Server, key, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// NewHealthCheckRequest generates requests for HealthCheck
+func NewHealthCheckRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/health")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListKeysRequest generates requests for ListKeys
+func NewListKeysRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/secrets")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
 
 // NewDeleteSecretRequest generates requests for DeleteSecret
-func NewDeleteSecretRequest(server string, path string) (*http.Request, error) {
+func NewDeleteSecretRequest(server string, key string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "path", runtime.ParamLocationPath, path)
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "key", runtime.ParamLocationPath, key)
 	if err != nil {
 		return nil, err
 	}
@@ -225,12 +334,12 @@ func NewDeleteSecretRequest(server string, path string) (*http.Request, error) {
 }
 
 // NewLookupSecretRequest generates requests for LookupSecret
-func NewLookupSecretRequest(server string, path string) (*http.Request, error) {
+func NewLookupSecretRequest(server string, key string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "path", runtime.ParamLocationPath, path)
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "key", runtime.ParamLocationPath, key)
 	if err != nil {
 		return nil, err
 	}
@@ -259,23 +368,23 @@ func NewLookupSecretRequest(server string, path string) (*http.Request, error) {
 }
 
 // NewStoreSecretRequest calls the generic StoreSecret builder with application/json body
-func NewStoreSecretRequest(server string, path string, body StoreSecretJSONRequestBody) (*http.Request, error) {
+func NewStoreSecretRequest(server string, key string, body StoreSecretJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewStoreSecretRequestWithBody(server, path, "application/json", bodyReader)
+	return NewStoreSecretRequestWithBody(server, key, "application/json", bodyReader)
 }
 
 // NewStoreSecretRequestWithBody generates requests for StoreSecret with any type of body
-func NewStoreSecretRequestWithBody(server string, path string, contentType string, body io.Reader) (*http.Request, error) {
+func NewStoreSecretRequestWithBody(server string, key string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "path", runtime.ParamLocationPath, path)
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "key", runtime.ParamLocationPath, key)
 	if err != nil {
 		return nil, err
 	}
@@ -348,16 +457,66 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// HealthCheck request
+	HealthCheckWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*HealthCheckResponse, error)
+
+	// ListKeys request
+	ListKeysWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListKeysResponse, error)
+
 	// DeleteSecret request
-	DeleteSecretWithResponse(ctx context.Context, path string, reqEditors ...RequestEditorFn) (*DeleteSecretResponse, error)
+	DeleteSecretWithResponse(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*DeleteSecretResponse, error)
 
 	// LookupSecret request
-	LookupSecretWithResponse(ctx context.Context, path string, reqEditors ...RequestEditorFn) (*LookupSecretResponse, error)
+	LookupSecretWithResponse(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*LookupSecretResponse, error)
 
 	// StoreSecret request with any body
-	StoreSecretWithBodyWithResponse(ctx context.Context, path string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StoreSecretResponse, error)
+	StoreSecretWithBodyWithResponse(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StoreSecretResponse, error)
 
-	StoreSecretWithResponse(ctx context.Context, path string, body StoreSecretJSONRequestBody, reqEditors ...RequestEditorFn) (*StoreSecretResponse, error)
+	StoreSecretWithResponse(ctx context.Context, key string, body StoreSecretJSONRequestBody, reqEditors ...RequestEditorFn) (*StoreSecretResponse, error)
+}
+
+type HealthCheckResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// Status returns HTTPResponse.Status
+func (r HealthCheckResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r HealthCheckResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListKeysResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *KeyList
+	JSON400      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r ListKeysResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListKeysResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type DeleteSecretResponse struct {
@@ -428,9 +587,27 @@ func (r StoreSecretResponse) StatusCode() int {
 	return 0
 }
 
+// HealthCheckWithResponse request returning *HealthCheckResponse
+func (c *ClientWithResponses) HealthCheckWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*HealthCheckResponse, error) {
+	rsp, err := c.HealthCheck(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseHealthCheckResponse(rsp)
+}
+
+// ListKeysWithResponse request returning *ListKeysResponse
+func (c *ClientWithResponses) ListKeysWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListKeysResponse, error) {
+	rsp, err := c.ListKeys(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListKeysResponse(rsp)
+}
+
 // DeleteSecretWithResponse request returning *DeleteSecretResponse
-func (c *ClientWithResponses) DeleteSecretWithResponse(ctx context.Context, path string, reqEditors ...RequestEditorFn) (*DeleteSecretResponse, error) {
-	rsp, err := c.DeleteSecret(ctx, path, reqEditors...)
+func (c *ClientWithResponses) DeleteSecretWithResponse(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*DeleteSecretResponse, error) {
+	rsp, err := c.DeleteSecret(ctx, key, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -438,8 +615,8 @@ func (c *ClientWithResponses) DeleteSecretWithResponse(ctx context.Context, path
 }
 
 // LookupSecretWithResponse request returning *LookupSecretResponse
-func (c *ClientWithResponses) LookupSecretWithResponse(ctx context.Context, path string, reqEditors ...RequestEditorFn) (*LookupSecretResponse, error) {
-	rsp, err := c.LookupSecret(ctx, path, reqEditors...)
+func (c *ClientWithResponses) LookupSecretWithResponse(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*LookupSecretResponse, error) {
+	rsp, err := c.LookupSecret(ctx, key, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -447,20 +624,69 @@ func (c *ClientWithResponses) LookupSecretWithResponse(ctx context.Context, path
 }
 
 // StoreSecretWithBodyWithResponse request with arbitrary body returning *StoreSecretResponse
-func (c *ClientWithResponses) StoreSecretWithBodyWithResponse(ctx context.Context, path string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StoreSecretResponse, error) {
-	rsp, err := c.StoreSecretWithBody(ctx, path, contentType, body, reqEditors...)
+func (c *ClientWithResponses) StoreSecretWithBodyWithResponse(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StoreSecretResponse, error) {
+	rsp, err := c.StoreSecretWithBody(ctx, key, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseStoreSecretResponse(rsp)
 }
 
-func (c *ClientWithResponses) StoreSecretWithResponse(ctx context.Context, path string, body StoreSecretJSONRequestBody, reqEditors ...RequestEditorFn) (*StoreSecretResponse, error) {
-	rsp, err := c.StoreSecret(ctx, path, body, reqEditors...)
+func (c *ClientWithResponses) StoreSecretWithResponse(ctx context.Context, key string, body StoreSecretJSONRequestBody, reqEditors ...RequestEditorFn) (*StoreSecretResponse, error) {
+	rsp, err := c.StoreSecret(ctx, key, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseStoreSecretResponse(rsp)
+}
+
+// ParseHealthCheckResponse parses an HTTP response from a HealthCheckWithResponse call
+func ParseHealthCheckResponse(rsp *http.Response) (*HealthCheckResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &HealthCheckResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseListKeysResponse parses an HTTP response from a ListKeysWithResponse call
+func ParseListKeysResponse(rsp *http.Response) (*ListKeysResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListKeysResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest KeyList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	}
+
+	return response, nil
 }
 
 // ParseDeleteSecretResponse parses an HTTP response from a DeleteSecretWithResponse call
