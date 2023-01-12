@@ -631,3 +631,92 @@ func (t *prometheusCounter) Inc() {
 func (t *prometheusCounter) Add(f float64) {
 	panic("implement me")
 }
+
+func TestFailedEventGarbageCollector_Collect(t *testing.T) {
+	t.Run("matches are removed", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		notifier := NewMockNotifier(ctrl)
+		notifier.EXPECT().Name().Return("subject")
+		h1 := hash.RandomHash()
+		h2 := hash.RandomHash()
+		matchingEvents := []Event{
+			{Hash: h1},
+			{Hash: h2},
+		}
+		nonMatchingEvents := []Event{
+			{Hash: hash.RandomHash()},
+			{Hash: hash.RandomHash()},
+		}
+		notifier.EXPECT().GetFailedEvents().Return(append(nonMatchingEvents, matchingEvents...), nil)
+		for _, matchingEvent := range matchingEvents {
+			notifier.EXPECT().Finished(matchingEvent.Hash)
+		}
+
+		numRemoved, err := FailedEventGarbageCollector{Subscribers: []Notifier{notifier}}.Collect("subject", func(event Event) bool {
+			return event.Hash.Equals(h1) || event.Hash.Equals(h2)
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, len(matchingEvents), numRemoved)
+	})
+	t.Run("no matching events", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		notifier := NewMockNotifier(ctrl)
+		notifier.EXPECT().Name().Return("subject")
+		nonMatchingEvents := []Event{
+			{Hash: hash.RandomHash()},
+			{Hash: hash.RandomHash()},
+		}
+		notifier.EXPECT().GetFailedEvents().Return(nonMatchingEvents, nil)
+
+		numRemoved, err := FailedEventGarbageCollector{Subscribers: []Notifier{notifier}}.Collect("subject", func(event Event) bool {
+			return false
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, 0, numRemoved)
+	})
+	t.Run("no events", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		notifier := NewMockNotifier(ctrl)
+		notifier.EXPECT().Name().Return("subject")
+		notifier.EXPECT().GetFailedEvents().Return(nil, nil)
+
+		numRemoved, err := FailedEventGarbageCollector{Subscribers: []Notifier{notifier}}.Collect("subject", func(event Event) bool {
+			return false
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, 0, numRemoved)
+	})
+	t.Run("error - removing event", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		notifier := NewMockNotifier(ctrl)
+		notifier.EXPECT().Name().Return("subject")
+		notifier.EXPECT().GetFailedEvents().Return([]Event{{Hash: hash.RandomHash()}}, nil)
+		notifier.EXPECT().Finished(gomock.Any()).Return(errors.New("b00m!"))
+
+		numRemoved, err := FailedEventGarbageCollector{Subscribers: []Notifier{notifier}}.Collect("subject", func(event Event) bool {
+			return true
+		})
+
+		assert.Error(t, err)
+		assert.Equal(t, 0, numRemoved)
+	})
+	t.Run("error - getting failed events", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		notifier := NewMockNotifier(ctrl)
+		notifier.EXPECT().Name().Return("subject")
+		notifier.EXPECT().GetFailedEvents().Return(nil, errors.New("b00m!"))
+		predicateCalled := false
+
+		numRemoved, err := FailedEventGarbageCollector{Subscribers: []Notifier{notifier}}.Collect("subject", func(event Event) bool {
+			predicateCalled = true
+			return true
+		})
+
+		assert.Error(t, err)
+		assert.Equal(t, 0, numRemoved)
+		assert.False(t, predicateCalled)
+	})
+}

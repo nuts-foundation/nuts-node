@@ -100,12 +100,11 @@ func (n ambassador) Start() error {
 		return fmt.Errorf("failed to subscribe to REPROCESS event stream: %v", err)
 	}
 
-	// When new
 	err = n.removeUnrecoverableErrors(n.networkClient.Subscribers())
 	if err != nil {
 		log.Logger().
 			WithError(err).
-			Warn("Could not unrecoverable errors from failed event list. If unsolved, it could keep growing.", err)
+			Warn("Could not remove unrecoverable errors from failed event list. If unsolved, it could keep growing.", err)
 	}
 
 	return nil
@@ -233,29 +232,16 @@ func (n ambassador) jsonLDRevocationCallback(tx dag.Transaction, payload []byte)
 // It is a migration operation, but it can't be an actual Migrate() because those are called before Start() is called,
 // and this function needs the event manager in started state.
 func (n ambassador) removeUnrecoverableErrors(subscribers []dag.Notifier) error {
-	numRemoved := 0
-	// Make sure number of events removed is logged even when an error is returned
-	defer func() {
-		if numRemoved > 0 {
-			log.Logger().Infof("Removed %d uncoverable, failed events from event manager.", numRemoved)
+	numRemoved, err := dag.FailedEventGarbageCollector{Subscribers: subscribers}.Collect("vcr_vcs", func(event dag.Event) bool {
+		switch {
+		case strings.Contains(event.Error, "loading document failed: context not on the remoteallowlist"):
+			return true
+		default:
+			return false
 		}
-	}()
-	for _, subscriber := range subscribers {
-		if subscriber.Name() == "vcr_vcs" {
-			failedEvents, err := subscriber.GetFailedEvents()
-			if err != nil {
-				return err
-			}
-			for _, event := range failedEvents {
-				switch {
-				case strings.Contains(event.Error, "loading document failed: context not on the remoteallowlist"):
-					if err := subscriber.Finished(event.Hash); err != nil {
-						return err
-					}
-					numRemoved++
-				}
-			}
-		}
+	})
+	if numRemoved > 0 {
+		log.Logger().Infof("Removed %d uncoverable, failed events from event manager.", numRemoved)
 	}
-	return nil
+	return err
 }

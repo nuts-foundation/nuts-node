@@ -125,62 +125,6 @@ func TestAmbassador_removeUnrecoverableErrors(t *testing.T) {
 		require.NoError(t, err)
 		assert.Contains(t, logHook.LastEntry().Message, "Removed 2 uncoverable, failed events from event manager.")
 	})
-	t.Run("no matching events", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		notifier := dag.NewMockNotifier(ctrl)
-		notifier.EXPECT().Name().Return("vcr_vcs")
-		nonMatchingEvents := []dag.Event{
-			{Error: "some other error"},
-			{Error: "and another error"},
-		}
-		notifier.EXPECT().GetFailedEvents().Return(nonMatchingEvents, nil)
-
-		logHook := &logTest.Hook{}
-		logrus.AddHook(logHook)
-
-		err := (&ambassador{}).removeUnrecoverableErrors([]dag.Notifier{notifier})
-
-		require.NoError(t, err)
-		assert.Empty(t, logHook.Entries)
-	})
-	t.Run("no events", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		notifier := dag.NewMockNotifier(ctrl)
-		notifier.EXPECT().Name().Return("vcr_vcs")
-		notifier.EXPECT().GetFailedEvents().Return(nil, nil)
-
-		logHook := &logTest.Hook{}
-		logrus.AddHook(logHook)
-
-		err := (&ambassador{}).removeUnrecoverableErrors([]dag.Notifier{notifier})
-
-		require.NoError(t, err)
-		assert.Empty(t, logHook.Entries)
-	})
-	t.Run("error - removing event", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		notifier := dag.NewMockNotifier(ctrl)
-		notifier.EXPECT().Name().Return("vcr_vcs")
-		evts := []dag.Event{
-			{Error: "a remoteallowlist error: loading document failed: context not on the remoteallowlist", Hash: hash.RandomHash()},
-		}
-		notifier.EXPECT().GetFailedEvents().Return(evts, nil)
-		notifier.EXPECT().Finished(gomock.Any()).Return(errors.New("b00m!"))
-
-		err := (&ambassador{}).removeUnrecoverableErrors([]dag.Notifier{notifier})
-
-		require.Error(t, err)
-	})
-	t.Run("error - getting failed events", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		notifier := dag.NewMockNotifier(ctrl)
-		notifier.EXPECT().Name().Return("vcr_vcs")
-		notifier.EXPECT().GetFailedEvents().Return(nil, errors.New("b00m!"))
-
-		err := (&ambassador{}).removeUnrecoverableErrors([]dag.Notifier{notifier})
-
-		require.Error(t, err)
-	})
 }
 
 func TestAmbassador_handleReprocessEvent(t *testing.T) {

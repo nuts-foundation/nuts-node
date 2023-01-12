@@ -475,3 +475,38 @@ func (p *notifier) incNotified() {
 		p.notifiedCounter.Inc()
 	}
 }
+
+// EventGarbageCollector is used to clean up events that aren't relevant anymore.
+type EventGarbageCollector interface {
+	// Collect cleans up events from the given subscriber that match the given filter.
+	// It returns the number of events that were cleaned up.
+	Collect(subscriberName string, predicate func(event Event) bool) (int, error)
+}
+
+// FailedEventGarbageCollector is used to clean up failed events that aren't relevant anymore.
+type FailedEventGarbageCollector struct {
+	// Subscribers is a list of subscribers that can be cleaned up.
+	Subscribers []Notifier
+}
+
+func (e FailedEventGarbageCollector) Collect(subscriberName string, predicate func(event Event) bool) (int, error) {
+	numRemoved := 0
+	for _, subscriber := range e.Subscribers {
+		if subscriber.Name() == subscriberName {
+			failedEvents, err := subscriber.GetFailedEvents()
+			if err != nil {
+				return numRemoved, err
+			}
+			for _, event := range failedEvents {
+				if predicate(event) {
+					if err := subscriber.Finished(event.Hash); err != nil {
+						return numRemoved, err
+					}
+					log.Logger().Debugf("Failed event is GC-ed (subscriber: %s, event: %s)", subscriberName, event.Hash)
+					numRemoved++
+				}
+			}
+		}
+	}
+	return numRemoved, nil
+}
