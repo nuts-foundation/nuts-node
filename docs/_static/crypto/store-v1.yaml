@@ -53,11 +53,11 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
   /secrets/{key}:
     parameters:
-      - name: path
+      - name: key
         in: path
-        description: Path to a secret which acts as the key for a key-value store. Special characters must be url encoded.
+        description: "Key under which the value should be stored. Note: The storage engine might encode these keys."
         required: true
-        example: private-keys/identities/123
+        example: private-keys/identities/did:nuts:123
         schema:
           type: string
     get:
@@ -74,7 +74,7 @@ paths:
         "404":
           description: The lookup failed, the secret for the provided path could not be found.
         "400":
-          description: The request was invalid. Check the error response for more details.
+          description: The lookup failed. Check the error response for more details.
           content:
             application/problem+json:  # https://tools.ietf.org/html/rfc7807#section-6.1
               schema:
