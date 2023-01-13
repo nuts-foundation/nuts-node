@@ -48,6 +48,51 @@ func ServerCmd() *cobra.Command {
 		Short: "crypto commands",
 	}
 	cmd.AddCommand(fs2VaultCommand())
+	cmd.AddCommand(fs2StorageAPICommand())
+	return cmd
+}
+
+func fs2StorageAPICommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "fs2StorageAPI [directory]",
+		Short: "Imports private keys from filesystem based storage (located at the given directory) into the server running at the storage API.",
+		Long: "Imports private keys from filesystem based storage into the secret store server. The given directory must contain the private key files." +
+			"The Nuts node must be configured to use storage-api as crypto storage. Can only be run on the local Nuts node, from the directory where nuts.yaml resides.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.Println("Importing keys on FileSystem storage into the storage API service...")
+
+			instance, err := LoadCryptoModule(cmd)
+			if err != nil {
+				return err
+			}
+			config := instance.Config().(*cryptoEngine.Config)
+			targetStorage, err := storage.NewAPIClient(config.StorageClient.URL)
+			if err != nil {
+				return err
+			}
+
+			directory := args[0]
+			sourceStorage, err := storage.NewFileSystemBackend(directory)
+			if err != nil {
+				return fmt.Errorf("unable to initialize filesystem storage: %w", err)
+			}
+
+			for _, kid := range sourceStorage.ListPrivateKeys() {
+				privateKey, err := sourceStorage.GetPrivateKey(kid)
+				if err != nil {
+					return fmt.Errorf("unable to retrieve private key (kid=%s): %w", kid, err)
+				}
+				err = targetStorage.SavePrivateKey(kid, privateKey)
+				if err != nil {
+					return fmt.Errorf("unable to store private key in Vault (kid=%s): %w", kid, err)
+				}
+				cmd.Println("  Imported:", kid)
+			}
+			cmd.Println("Done!")
+			return nil
+		},
+	}
 	return cmd
 }
 
