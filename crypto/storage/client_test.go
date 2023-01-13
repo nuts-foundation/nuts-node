@@ -29,39 +29,55 @@ func serverWithKey(t *testing.T, key *ecdsa.PrivateKey) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		switch request.Method {
 		case http.MethodGet:
-			if request.URL.Path == "/secrets/test" {
+			switch request.URL.Path {
+			case "/health":
+				writer.WriteHeader(http.StatusOK)
+				break
+			case "/secrets":
+				writer.Header().Set("Content-Type", "application/json")
+				writer.WriteHeader(http.StatusOK)
+				_, _ = writer.Write([]byte(`["test"]`))
+				break
+			case "/secrets/test":
 				writer.Header().Set("Content-Type", "application/json")
 				response := httpclient.SecretResponse{Data: pem}
 				responseAsJSON, _ := json.Marshal(response)
 				writer.WriteHeader(http.StatusOK)
 				_, _ = writer.Write(responseAsJSON)
-			} else if request.URL.Path == "/secrets/bad-request" {
+				break
+			case "/secrets/bad-request":
 				writer.Header().Set("Content-Type", "application/json")
 				responseAsJSON, _ := json.Marshal(errResponse)
 				writer.WriteHeader(http.StatusBadRequest)
 				_, _ = writer.Write(responseAsJSON)
-			} else if request.URL.Path == "/secrets/invalid-response" {
+				break
+			case "/secrets/invalid-response":
 				writer.Header().Set("Content-Type", "application/json")
 				writer.WriteHeader(http.StatusOK)
 				_, _ = writer.Write([]byte("invalid"))
-			} else if request.URL.Path == "/secrets/not-pem" {
+				break
+			case "/secrets/not-pem":
 				writer.Header().Set("Content-Type", "application/json")
 				response := httpclient.SecretResponse{Data: "not-pem"}
 				responseAsJSON, _ := json.Marshal(response)
 				writer.WriteHeader(http.StatusOK)
 				_, _ = writer.Write(responseAsJSON)
-			} else if request.URL.Path == "/secrets/not-json" {
+				break
+			case "/secrets/not-json":
 				writer.Header().Set("Content-Type", "xml")
 				writer.WriteHeader(http.StatusOK)
-			} else if request.URL.Path == "/secrets/bad-request-with-wrong-format" {
+				break
+			case "/secrets/bad-request-with-wrong-format":
 				writer.Header().Set("Content-Type", "application/json")
 				responseAsJSON, _ := json.Marshal("not-a-valid-error-response")
 				writer.WriteHeader(http.StatusBadRequest)
 				_, _ = writer.Write(responseAsJSON)
-			} else if request.URL.Path == "/secrets/server-error" {
+				break
+			case "/secrets/server-error":
 				writer.Header().Set("Content-Type", "application/json")
 				writer.WriteHeader(http.StatusInternalServerError)
-			} else {
+				break
+			default:
 				writer.WriteHeader(http.StatusNotFound)
 			}
 			break
@@ -94,13 +110,45 @@ func serverWithKey(t *testing.T, key *ecdsa.PrivateKey) *httptest.Server {
 	}))
 }
 
+func TestNewAPIClient(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		var key, _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		client, err := NewAPIClient(serverWithKey(t, key).URL)
+		require.NoError(t, err)
+		assert.NotNil(t, client)
+	})
+
+	t.Run("invalid url", func(t *testing.T) {
+		client, err := NewAPIClient("invalid-url")
+		assert.EqualError(t, err, "unable to connect to storage server: Get \"/invalid-url/health\": unsupported protocol scheme \"\"")
+		assert.Nil(t, client)
+	})
+
+	t.Run("error - service unavailable", func(t *testing.T) {
+		s := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			switch request.Method {
+			case http.MethodGet:
+				switch request.URL.Path {
+				case "/health":
+					writer.WriteHeader(http.StatusServiceUnavailable)
+					break
+				}
+			}
+		}))
+		client, err := NewAPIClient(s.URL)
+		assert.EqualError(t, err, "unable to connect to storage server: unexpected status code: 503")
+		assert.Nil(t, client)
+	})
+}
+
 func TestAPIClient_GetPrivateKey(t *testing.T) {
 	var key, _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 
 	s := serverWithKey(t, key)
 	t.Run("ok - it should return a private key", func(t *testing.T) {
 
-		client, _ := NewAPIClient(s.URL)
+		client, err := NewAPIClient(s.URL)
+		require.NoError(t, err)
 
 		resolvedKey, err := client.GetPrivateKey("test")
 		require.NoError(t, err)
@@ -108,7 +156,8 @@ func TestAPIClient_GetPrivateKey(t *testing.T) {
 	})
 
 	t.Run("error - invalid response body", func(t *testing.T) {
-		client, _ := NewAPIClient(s.URL)
+		client, err := NewAPIClient(s.URL)
+		require.NoError(t, err)
 
 		result, err := client.GetPrivateKey("invalid-response")
 		require.EqualError(t, err, "unable to get private-key: invalid character 'i' looking for beginning of value")
@@ -242,8 +291,89 @@ func TestAPIClient_PrivateKeyExists(t *testing.T) {
 
 func TestAPIClient_ListPrivateKeys(t *testing.T) {
 	t.Run("ok - it returns an empty list of keys", func(t *testing.T) {
-		client, _ := NewAPIClient("")
+		s := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			switch request.Method {
+			case http.MethodGet:
+				switch request.URL.Path {
+				case "/health":
+					writer.WriteHeader(http.StatusOK)
+					break
+				case "/secrets":
+					writer.Header().Set("Content-Type", "application/json")
+					writer.WriteHeader(http.StatusOK)
+					_, _ = writer.Write([]byte(`[]`))
+					break
+				}
+			}
+		}))
+		client, err := NewAPIClient(s.URL)
+		require.NoError(t, err)
 		keys := client.ListPrivateKeys()
 		require.Equal(t, []string{}, keys)
+	})
+
+	t.Run("ok - it returns a not empty list of keys", func(t *testing.T) {
+		s := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			switch request.Method {
+			case http.MethodGet:
+				switch request.URL.Path {
+				case "/health":
+					writer.WriteHeader(http.StatusOK)
+					break
+				case "/secrets":
+					writer.Header().Set("Content-Type", "application/json")
+					writer.WriteHeader(http.StatusOK)
+					_, _ = writer.Write([]byte(`["key1", "key2"]`))
+					break
+				}
+			}
+		}))
+		client, err := NewAPIClient(s.URL)
+		require.NoError(t, err)
+		keys := client.ListPrivateKeys()
+		require.Equal(t, []string{"key1", "key2"}, keys)
+	})
+
+	t.Run("error - it returns an empty list of keys if the server returns an error", func(t *testing.T) {
+		s := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			switch request.Method {
+			case http.MethodGet:
+				switch request.URL.Path {
+				case "/health":
+					writer.WriteHeader(http.StatusOK)
+					break
+				case "/secrets":
+					writer.Header().Set("Content-Type", "application/json")
+					writer.WriteHeader(http.StatusInternalServerError)
+					break
+				}
+			}
+		}))
+		client, err := NewAPIClient(s.URL)
+		require.NoError(t, err)
+		keys := client.ListPrivateKeys()
+		require.Equal(t, []string(nil), keys)
+	})
+
+	t.Run("error - it returns an empty list of keys if the server returns an invalid response", func(t *testing.T) {
+		s := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			switch request.Method {
+			case http.MethodGet:
+				switch request.URL.Path {
+				case "/health":
+					writer.WriteHeader(http.StatusOK)
+					break
+				case "/secrets":
+					writer.Header().Set("Content-Type", "application/json")
+					writer.WriteHeader(http.StatusOK)
+					_, _ = writer.Write([]byte(`invalid`))
+					break
+				}
+			}
+		}))
+		client, err := NewAPIClient(s.URL)
+		require.NoError(t, err)
+		keys := client.ListPrivateKeys()
+		require.Equal(t, []string(nil), keys)
 	})
 }

@@ -9,6 +9,8 @@ import (
 	"net/http"
 )
 
+const StorageAPIConfigKey = "storage-api"
+
 // APIClient implements the Storage interface. It uses a simple HTTP protocol to connect to an external storage server.
 // This server can either be a secret store itself, or proxy the request to a key store such as Hashicorp Vault or Azure Key Vault.
 // It allows us to keep the codebase clean and allow other parties to write their own adaptor.
@@ -20,6 +22,7 @@ type APIClientConfig struct {
 	URL string `koanf:"url"`
 }
 
+// NewAPIClient create a new API Client to communicate with a remote storage server.
 func NewAPIClient(url string) (Storage, error) {
 	client, _ := httpclient.NewClientWithResponses(url)
 	response, err := client.HealthCheckWithResponse(context.Background())

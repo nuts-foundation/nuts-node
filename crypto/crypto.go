@@ -99,7 +99,8 @@ func (client *Crypto) setupStorageAPIBackend() error {
 }
 
 func (client *Crypto) setupVaultBackend(_ core.ServerConfig) error {
-	log.Logger().Debug("Setting up Vault backend for storage of private key material.")
+	log.Logger().Debug("Setting up Vault backend for storage of private key material. " +
+		"This feature is experimental and may change in the future.")
 	var err error
 	vaultBackend, err := storage.NewVaultKVStorage(client.config.Vault)
 	if err != nil {
@@ -122,7 +123,7 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 		return client.setupFSBackend(config)
 	case "vaultkv":
 		return client.setupVaultBackend(config)
-	case "storageapi":
+	case storage.StorageAPIConfigKey:
 		return client.setupStorageAPIBackend()
 	case "":
 		if config.Strictmode {
@@ -131,7 +132,7 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 		// default to file system and run this setup again
 		return client.setupFSBackend(config)
 	default:
-		return errors.New("invalid config for crypto.storage. Available options are: vaultkv, fs")
+		return fmt.Errorf("invalid config for crypto.storage. Available options are: vaultkv, fs, %s(experimental)", storage.StorageAPIConfigKey)
 	}
 }
 

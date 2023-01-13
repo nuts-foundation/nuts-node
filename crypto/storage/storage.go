@@ -42,7 +42,7 @@ type Storage interface {
 	PrivateKeyExists(kid string) bool
 	// SavePrivateKey stores the key under the kid in the storage backend.
 	SavePrivateKey(kid string, key crypto.PrivateKey) error
-	// ListPrivateKeys returns the KIDs of the private keys that are present.
+	// ListPrivateKeys returns the KIDs of the private keys that are present. Returns a []string(nil) if there was a problem.
 	ListPrivateKeys() []string
 }
 
