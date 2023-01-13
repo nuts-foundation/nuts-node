@@ -6,7 +6,7 @@ info:
     It can be use to implement a secure store or a proxy to a storage solution such as 
     Hashicorp Vault or Azure key store. Usually the Nuts node will be the client.
     
-    The endpoints mounted at /secret/{path} is a key-value store which accepts keys as path.
+    The endpoints mounted at /secret act as a key-value store which accepts keys as path.
   version: 1.0.0
   license:
     name: GPLv3
@@ -18,7 +18,7 @@ paths:
       operationId: healthCheck
       description: |
         This endpoint implements the API Health Check RFC https://datatracker.ietf.org/doc/html/draft-inadarei-api-health-check.
-        It can be used to check the availability of the services.
+        It can be used by clients to check the availability of the services. The server should return a 200 status code if the service is available, and a 503 status code if the service is unavailable.
       responses:
         200:
           description: |
@@ -37,7 +37,11 @@ paths:
   /secrets:
     get:
       operationId: listKeys
-      description: List all the keys
+      description: |
+        List all the keys available in the store.
+        
+        In case the store is used by the Nuts node for storing private keys from DID identities,
+        the Nuts-node usually calls this endpoint during startup or during a key migration.
       responses:
         200:
           description: The response contains all the keys stored on this storage engine.
@@ -57,11 +61,11 @@ paths:
         in: path
         description: "Key under which the value should be stored. Note: The storage engine might encode these keys."
         required: true
-        example: private-keys/identities/did:nuts:123
+        example: privatekeys-identities-did:nuts:123
         schema:
           type: string
     get:
-      summary: Lookup the secret for the provided path
+      summary: Lookup the secret for the provided key
       operationId: LookupSecret
       responses:
         "200":
@@ -72,7 +76,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/SecretResponse'
         "404":
-          description: The lookup failed, the secret for the provided path could not be found.
+          description: The lookup failed, the secret for the provided key could not be found.
         "400":
           description: The lookup failed. Check the error response for more details.
           content:
@@ -80,7 +84,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
     post:
-      summary: Store a new value in the key store
+      summary: Store a new secret under the provided key
       operationId: StoreSecret
       requestBody:
         required: true
@@ -104,15 +108,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         "409":
-          description: The store operation failed. A secret for this path already exists.
+          description: The store operation failed. A secret for this key already exists.
     delete:
       operationId: DeleteSecret
-      summary: Delete a value from the key store
+      summary: Delete the secret for the provided key.
       responses:
         204:
-          description: The deletion succeeded, the secret for the provided path has been deleted from the key store.
+          description: The deletion succeeded, the secret for the provided key has been deleted from the store.
         "404":
-          description: The deletion failed, the secret for the provided path could not be found.
+          description: The deletion failed, the secret for the provided key could not be found.
         "400":
           description: The request was invalid. Check the error response for more details.
           content:
@@ -144,7 +148,7 @@ components:
         type: string
     Secret:
       type: string
-      description: "The secret value stored under the provided path. The secret should be a asci string or be base64 encoded."
+      description: "The secret value stored under the provided key. The secret should be an ASCII string or be base64 encoded."
       example: "secret-value"
     StoreSecretRequest:
       description: Request body to store a secret value.
@@ -164,7 +168,7 @@ components:
       description: |
         The ErrorResponse contains the Problem Details for HTTP APIs as specified in [RFC7807](https://tools.ietf.org/html/rfc7807).
         
-        It provides more detais about probles occured in the storage server.
+        It provides more details about problems occurred in the storage server.
         
         Return values contain the following members:
         - **title** (string) - A short, human-readable summary of the problem type.
@@ -183,7 +187,7 @@ components:
           example: "Lookup failed. The backend returned an error."
         status:
           type: integer
-          description: HTTP statuscode
+          description: HTTP status-code
           example: 403
         backend:
           type: string
