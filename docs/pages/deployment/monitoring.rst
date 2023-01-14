@@ -1,7 +1,7 @@
 .. _nuts-node-monitoring:
 
-Monitoring the Nuts Node
-########################
+Monitoring
+##########
 
 Health checks
 *************
