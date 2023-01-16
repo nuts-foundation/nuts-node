@@ -20,6 +20,7 @@ package crypto
 
 import (
 	"crypto"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	log "github.com/sirupsen/logrus"
 )
@@ -54,6 +55,14 @@ func NewMemoryStorage() storage.Storage {
 }
 
 type memoryStorage map[string]crypto.PrivateKey
+
+func (m memoryStorage) Name() string {
+	return "memory"
+}
+
+func (m memoryStorage) CheckHealth() map[string]core.Health {
+	return map[string]core.Health{"memory": {Status: core.HealthStatusUp}}
+}
 
 func (m memoryStorage) ListPrivateKeys() []string {
 	var result []string

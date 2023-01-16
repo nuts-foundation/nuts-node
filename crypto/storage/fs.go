@@ -22,6 +22,7 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"io/fs"
 	"os"
@@ -33,6 +34,7 @@ type entryType string
 
 const (
 	privateKeyEntry entryType = "private.pem"
+	FSConfigKey               = "fs"
 )
 
 type fileOpenError struct {
@@ -53,6 +55,16 @@ func (f *fileOpenError) Unwrap() error {
 
 type fileSystemBackend struct {
 	fspath string
+}
+
+func (fsc fileSystemBackend) Name() string {
+	return FSConfigKey
+}
+
+func (fsc fileSystemBackend) CheckHealth() map[string]core.Health {
+	return map[string]core.Health{
+		"filesystem": {Status: core.HealthStatusUp},
+	}
 }
 
 // NewFileSystemBackend creates a new filesystem backend, all directories will be created for the given path

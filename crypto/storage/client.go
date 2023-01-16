@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/httpclient"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"net/http"
@@ -18,6 +19,31 @@ type APIClient struct {
 	httpClient *httpclient.ClientWithResponses
 }
 
+func (c APIClient) Name() string {
+	return "Crypto"
+}
+
+func (c APIClient) CheckHealth() map[string]core.Health {
+	results := make(map[string]core.Health)
+	response, err := c.httpClient.HealthCheckWithResponse(context.Background())
+	if err != nil {
+		results[StorageAPIConfigKey] = core.Health{Status: core.HealthStatusDown, Details: fmt.Errorf("unable to connect to storage server: %w", err).Error()}
+	}
+
+	switch response.StatusCode() {
+	case http.StatusOK:
+		results[StorageAPIConfigKey] = core.Health{Status: core.HealthStatusUp}
+		break
+	case http.StatusServiceUnavailable:
+		results[StorageAPIConfigKey] = core.Health{Status: core.HealthStatusDown, Details: fmt.Sprintf("storage server reports to be unavailable: %d", response.StatusCode())}
+		break
+	default:
+		results[StorageAPIConfigKey] = core.Health{Status: core.HealthStatusUnknown, Details: fmt.Sprintf("unexpected status code from storage server: %d", response.StatusCode())}
+	}
+
+	return results
+}
+
 type APIClientConfig struct {
 	URL string `koanf:"url"`
 }
@@ -25,13 +51,6 @@ type APIClientConfig struct {
 // NewAPIClient create a new API Client to communicate with a remote storage server.
 func NewAPIClient(url string) (Storage, error) {
 	client, _ := httpclient.NewClientWithResponses(url)
-	response, err := client.HealthCheckWithResponse(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("unable to connect to storage server: %w", err)
-	}
-	if response.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("unable to connect to storage server: unexpected status code: %d", response.StatusCode())
-	}
 
 	return &APIClient{httpClient: client}, nil
 }

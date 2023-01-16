@@ -22,6 +22,7 @@ import (
 	"crypto"
 	"fmt"
 	vault "github.com/hashicorp/vault/api"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"path/filepath"
@@ -31,6 +32,8 @@ import (
 const privateKeyPathName = "nuts-private-keys"
 const defaultPathPrefix = "kv"
 const keyName = "key"
+
+const VaultConfigKey = "vault"
 
 // VaultConfig contains the config options to configure the vaultKVStorage backend
 type VaultConfig struct {
@@ -62,6 +65,20 @@ type logicaler interface {
 type vaultKVStorage struct {
 	config VaultConfig
 	client logicaler
+}
+
+func (v vaultKVStorage) Name() string {
+	return VaultConfigKey
+}
+
+func (v vaultKVStorage) CheckHealth() map[string]core.Health {
+	health := make(map[string]core.Health)
+	if err := v.checkConnection(); err != nil {
+		health[v.Name()] = core.Health{Status: core.HealthStatusDown, Details: err.Error()}
+	} else {
+		health[v.Name()] = core.Health{Status: core.HealthStatusUp}
+	}
+	return health
 }
 
 // NewVaultKVStorage creates a new Vault backend using the kv version 1 secret engine: https://www.vaultproject.io/docs/secrets/kv

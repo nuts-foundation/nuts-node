@@ -36,6 +36,7 @@ var errKeyAlreadyExists = errors.New("key already exists")
 
 // Storage interface containing functions for storing and retrieving keys.
 type Storage interface {
+	core.HealthCheckable
 	// GetPrivateKey from the storage backend and return its handler as an implementation of crypto.Signer.
 	GetPrivateKey(kid string) (crypto.Signer, error)
 	// PrivateKeyExists checks if the private key indicated with the kid is stored in the storage backend.
