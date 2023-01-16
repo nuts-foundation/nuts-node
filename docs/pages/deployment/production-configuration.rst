@@ -93,3 +93,22 @@ Diagnostics
 To aid problem diagnosis every node in a network should share some information about itself; the type and version of software it's running,
 which peers it is connected to and how long it's been up. This helps others diagnosing issues when others experience communication problems with your, and other nodes.
 Although discouraged, this can be disabled by specifying ``0`` for ``network.v2.diagnosticsinterval``.
+
+Monitoring Harmful Activity
+***************************
+
+Deployment should monitor incoming traffic for potentially harmful activity,
+e.g. excessive amounts of requests or excessive amounts of requests that generate that yield errors.
+by malicious actors that try to cause denial of service or trying to gain access to the system's data.
+
+This is no different than monitoring access to any other valued system,
+so it can be solved using the existing tools to prevent (distributed) denial of service attacks and intrusion detection.
+
+Special attention should be given to:
+
+- the ``/public`` HTTP endpoint (because it has no authentication and is used to access IRMA sessions),
+- the gRPC interface (because it allows other nodes to read/write network transactions),
+- the ``/n2n`` (because it allows other to request access tokens for your systems)
+
+Since the gRPC interface and ``/n2n`` HTTP endpoint are authenticated using the TLS client certificate,
+you can monitor (and potentially deny) access to these endpoint by identifying the exact client.
