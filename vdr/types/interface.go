@@ -72,11 +72,9 @@ type DocWriter interface {
 // DocUpdater is the interface that defines functions that alter the state of a DID document
 type DocUpdater interface {
 	// Update replaces the DID document identified by DID with the nextVersion
-	// To prevent updating stale data a hash of the current version should be provided.
-	// If the given hash does not represent the current version, a ErrUpdateOnOutdatedData is returned
 	// If the DID Document is not found, ErrNotFound is returned
 	// If the DID Document is not managed by this node, ErrDIDNotManagedByThisNode is returned
-	Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *DocumentMetadata) error
+	Update(id did.DID, next did.Document) error
 }
 
 // KeyResolver is the interface for resolving keys.

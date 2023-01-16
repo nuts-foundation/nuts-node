@@ -33,7 +33,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
@@ -166,13 +165,12 @@ func (r *VDR) Create(options types.DIDCreationOptions) (*did.Document, crypto.Ke
 	return doc, key, nil
 }
 
-// Update updates a DID Document based on the DID and current hash
-func (r *VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *types.DocumentMetadata) error {
+// Update updates a DID Document based on the DID
+func (r *VDR) Update(id did.DID, next did.Document) error {
 	log.Logger().
 		WithField(core.LogFieldDID, id).
 		Debug("Updating DID Document")
 	resolverMetadata := &types.ResolveMetadata{
-		Hash:             &current,
 		AllowDeactivated: true,
 	}
 
@@ -196,13 +194,6 @@ func (r *VDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, _ *
 	payload, err := json.Marshal(next)
 	if err != nil {
 		return err
-	}
-
-	payloadHash := hash.SHA256Sum(payload)
-
-	// Nothing changed, so we don't need to update the DID document
-	if current.Equals(payloadHash) {
-		return nil
 	}
 
 	controller, key, err := r.resolveControllerWithKey(*currentDIDDocument)

@@ -262,7 +262,8 @@ components:
           $ref: '#/components/schemas/DIDDocument'
         currentHash:
           type: string
-          description: The hash of the document in hex format.
+          description: The hash of the document in hex format. No longer used, contents ignored.
+          deprecated: true
     DIDCreateRequest:
       properties:
         controllers:

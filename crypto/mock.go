@@ -382,3 +382,68 @@ func (mr *MockKeyMockRecorder) Public() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Public", reflect.TypeOf((*MockKey)(nil).Public))
 }
+
+// MockexportableKey is a mock of exportableKey interface.
+type MockexportableKey struct {
+	ctrl     *gomock.Controller
+	recorder *MockexportableKeyMockRecorder
+}
+
+// MockexportableKeyMockRecorder is the mock recorder for MockexportableKey.
+type MockexportableKeyMockRecorder struct {
+	mock *MockexportableKey
+}
+
+// NewMockexportableKey creates a new mock instance.
+func NewMockexportableKey(ctrl *gomock.Controller) *MockexportableKey {
+	mock := &MockexportableKey{ctrl: ctrl}
+	mock.recorder = &MockexportableKeyMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockexportableKey) EXPECT() *MockexportableKeyMockRecorder {
+	return m.recorder
+}
+
+// KID mocks base method.
+func (m *MockexportableKey) KID() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "KID")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// KID indicates an expected call of KID.
+func (mr *MockexportableKeyMockRecorder) KID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "KID", reflect.TypeOf((*MockexportableKey)(nil).KID))
+}
+
+// Public mocks base method.
+func (m *MockexportableKey) Public() crypto.PublicKey {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Public")
+	ret0, _ := ret[0].(crypto.PublicKey)
+	return ret0
+}
+
+// Public indicates an expected call of Public.
+func (mr *MockexportableKeyMockRecorder) Public() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Public", reflect.TypeOf((*MockexportableKey)(nil).Public))
+}
+
+// Signer mocks base method.
+func (m *MockexportableKey) Signer() crypto.Signer {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Signer")
+	ret0, _ := ret[0].(crypto.Signer)
+	return ret0
+}
+
+// Signer indicates an expected call of Signer.
+func (mr *MockexportableKeyMockRecorder) Signer() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Signer", reflect.TypeOf((*MockexportableKey)(nil).Signer))
+}

@@ -263,7 +263,7 @@ func (d *didman) deleteService(serviceID ssi.URI) error {
 	}
 	id.Fragment = ""
 
-	doc, meta, err := d.docResolver.Resolve(*id, nil)
+	doc, _, err := d.docResolver.Resolve(*id, nil)
 	if err != nil {
 		return err
 	}
@@ -291,7 +291,7 @@ func (d *didman) deleteService(serviceID ssi.URI) error {
 	}
 	doc.Service = doc.Service[:j]
 
-	err = d.vdr.Update(*id, meta.Hash, *doc, nil)
+	err = d.vdr.Update(*id, *doc)
 	if err == nil {
 		log.Logger().
 			WithField(core.LogFieldServiceID, serviceID.String()).
@@ -487,7 +487,7 @@ func filterServices(doc *did.Document, serviceType string) []did.Service {
 }
 
 func (d *didman) addService(id did.DID, serviceType string, serviceEndpoint interface{}, preprocessor func(*did.Document)) (*did.Service, error) {
-	doc, meta, err := d.docResolver.Resolve(id, nil)
+	doc, _, err := d.docResolver.Resolve(id, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -512,7 +512,7 @@ func (d *didman) addService(id did.DID, serviceType string, serviceEndpoint inte
 
 	// Add on DID Document and update
 	doc.Service = append(doc.Service, *service)
-	if err = d.vdr.Update(id, meta.Hash, *doc, nil); err != nil {
+	if err = d.vdr.Update(id, *doc); err != nil {
 		return nil, err
 	}
 	return service, nil

@@ -249,17 +249,17 @@ func (m *MockDocUpdater) EXPECT() *MockDocUpdaterMockRecorder {
 }
 
 // Update mocks base method.
-func (m *MockDocUpdater) Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *DocumentMetadata) error {
+func (m *MockDocUpdater) Update(id did.DID, next did.Document) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Update", id, current, next, metadata)
+	ret := m.ctrl.Call(m, "Update", id, next)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Update indicates an expected call of Update.
-func (mr *MockDocUpdaterMockRecorder) Update(id, current, next, metadata interface{}) *gomock.Call {
+func (mr *MockDocUpdaterMockRecorder) Update(id, next interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockDocUpdater)(nil).Update), id, current, next, metadata)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockDocUpdater)(nil).Update), id, next)
 }
 
 // MockKeyResolver is a mock of KeyResolver interface.
@@ -416,17 +416,17 @@ func (mr *MockVDRMockRecorder) Create(options interface{}) *gomock.Call {
 }
 
 // Update mocks base method.
-func (m *MockVDR) Update(id did.DID, current hash.SHA256Hash, next did.Document, metadata *DocumentMetadata) error {
+func (m *MockVDR) Update(id did.DID, next did.Document) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Update", id, current, next, metadata)
+	ret := m.ctrl.Call(m, "Update", id, next)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Update indicates an expected call of Update.
-func (mr *MockVDRMockRecorder) Update(id, current, next, metadata interface{}) *gomock.Call {
+func (mr *MockVDRMockRecorder) Update(id, next interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockVDR)(nil).Update), id, current, next, metadata)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockVDR)(nil).Update), id, next)
 }
 
 // MockDocManipulator is a mock of DocManipulator interface.

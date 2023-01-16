@@ -88,7 +88,6 @@ func TestVDR_Update(t *testing.T) {
 		nextDIDDocument := didservice.CreateDocument()
 		nextDIDDocument.ID = *id
 		expectedResolverMetadata := &types.ResolveMetadata{
-			Hash:             &currentHash,
 			AllowDeactivated: true,
 		}
 		resolvedMetadata := types.DocumentMetadata{
@@ -99,36 +98,8 @@ func TestVDR_Update(t *testing.T) {
 		ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(crypto.NewTestKey(keyID.String()), nil)
 		ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any())
 
-		err := ctx.vdr.Update(*id, currentHash, nextDIDDocument, nil)
+		err := ctx.vdr.Update(*id, nextDIDDocument)
 
-		assert.NoError(t, err)
-	})
-
-	t.Run("ok - update without changes doesn't create a transaction", func(t *testing.T) {
-		ctx := newVDRTestCtx(t)
-
-		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
-		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
-
-		nextDIDDocument := didservice.CreateDocument()
-		nextDIDDocument.ID = *id
-
-		payload, err := json.Marshal(nextDIDDocument)
-		assert.NoError(t, err)
-
-		payloadHash := hash.SHA256Sum(payload)
-
-		expectedResolverMetadata := &types.ResolveMetadata{
-			Hash:             &payloadHash,
-			AllowDeactivated: true,
-		}
-		resolvedMetadata := types.DocumentMetadata{
-			SourceTransactions: []hash.SHA256Hash{payloadHash},
-		}
-
-		ctx.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
-
-		err = ctx.vdr.Update(*id, payloadHash, nextDIDDocument, nil)
 		assert.NoError(t, err)
 	})
 
@@ -140,12 +111,11 @@ func TestVDR_Update(t *testing.T) {
 
 		nextDIDDocument := did.Document{}
 		expectedResolverMetadata := &types.ResolveMetadata{
-			Hash:             &currentHash,
 			AllowDeactivated: true,
 		}
 		resolvedMetadata := types.DocumentMetadata{}
 		ctx.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
-		err := ctx.vdr.Update(*id, currentHash, nextDIDDocument, nil)
+		err := ctx.vdr.Update(*id, nextDIDDocument)
 		assert.EqualError(t, err, "DID Document validation failed: invalid context")
 	})
 
@@ -155,23 +125,21 @@ func TestVDR_Update(t *testing.T) {
 		document.ID = *id
 
 		expectedResolverMetadata := &types.ResolveMetadata{
-			Hash:             &currentHash,
 			AllowDeactivated: true,
 		}
 		resolvedMetadata := types.DocumentMetadata{}
 		ctx.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&document, &resolvedMetadata, nil)
-		err := ctx.vdr.Update(*id, currentHash, document, nil)
+		err := ctx.vdr.Update(*id, document)
 		assert.EqualError(t, err, "the DID document has been deactivated")
 	})
 	t.Run("error - could not resolve current document", func(t *testing.T) {
 		ctx := newVDRTestCtx(t)
 		nextDIDDocument := did.Document{}
 		expectedResolverMetadata := &types.ResolveMetadata{
-			Hash:             &currentHash,
 			AllowDeactivated: true,
 		}
 		ctx.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(nil, nil, types.ErrNotFound)
-		err := ctx.vdr.Update(*id, currentHash, nextDIDDocument, nil)
+		err := ctx.vdr.Update(*id, nextDIDDocument)
 		assert.EqualError(t, err, "unable to find the DID document")
 	})
 
@@ -184,7 +152,7 @@ func TestVDR_Update(t *testing.T) {
 		ctx.mockStore.EXPECT().Resolve(*id, gomock.Any()).Times(1).Return(&currentDIDDocument, &types.DocumentMetadata{}, nil)
 		ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(nil, crypto.ErrPrivateKeyNotFound)
 
-		err := ctx.vdr.Update(*id, currentHash, nextDIDDocument, nil)
+		err := ctx.vdr.Update(*id, nextDIDDocument)
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, "DID document not managed by this node")
