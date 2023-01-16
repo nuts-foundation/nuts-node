@@ -25,7 +25,7 @@ const (
 
 // ErrorResponse The ErrorResponse contains the Problem Details for HTTP APIs as specified in [RFC7807](https://tools.ietf.org/html/rfc7807).
 //
-// It provides more detais about probles occured in the storage server.
+// It provides more details about problems occurred in the storage server.
 //
 // Return values contain the following members:
 // - **title** (string) - A short, human-readable summary of the problem type.
@@ -39,26 +39,32 @@ type ErrorResponse struct {
 	// Detail A human-readable explanation specific to this occurrence of the problem.
 	Detail string `json:"detail"`
 
-	// Status HTTP statuscode
+	// Status HTTP status-code
 	Status int `json:"status"`
 
 	// Title A short, human-readable summary of the problem type.
 	Title string `json:"title"`
 }
 
-// KeyList defines model for KeyList.
-type KeyList = []string
+// Key The key under which secrets can be stored or retrieved.
+//
+// The key should be considered opaque and no assumptions should be made about its value or format.
+// Since the key is the last part of the URL path no slashes should be used.
+type Key = string
 
-// Secret The secret value stored under the provided path. The secret should be a asci string or be base64 encoded.
+// KeyList List of keys currently stored in the store.
+type KeyList = []Key
+
+// Secret The secret value stored under the provided key.
 type Secret = string
 
 // SecretResponse Response object containing the secret value.
 type SecretResponse struct {
-	// Data The secret value stored under the provided path. The secret should be a asci string or be base64 encoded.
-	Data Secret `json:"data"`
+	// Secret The secret value stored under the provided key.
+	Secret Secret `json:"secret"`
 }
 
-// ServiceStatus defines model for ServiceStatus.
+// ServiceStatus Response for the health check endpoint.
 type ServiceStatus struct {
 	// Status Indicates whether the service status is acceptable. Possible values are:
 	// * **pass**: healthy.
@@ -75,8 +81,8 @@ type ServiceStatusStatus string
 
 // StoreSecretRequest Request body to store a secret value.
 type StoreSecretRequest struct {
-	// Data The secret value stored under the provided path. The secret should be a asci string or be base64 encoded.
-	Data Secret `json:"data"`
+	// Secret The secret value stored under the provided key.
+	Secret Secret `json:"secret"`
 }
 
 // StoreSecretJSONRequestBody defines body for StoreSecret for application/json ContentType.
@@ -162,15 +168,15 @@ type ClientInterface interface {
 	ListKeys(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteSecret request
-	DeleteSecret(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	DeleteSecret(ctx context.Context, key Key, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// LookupSecret request
-	LookupSecret(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	LookupSecret(ctx context.Context, key Key, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// StoreSecret request with any body
-	StoreSecretWithBody(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	StoreSecretWithBody(ctx context.Context, key Key, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	StoreSecret(ctx context.Context, key string, body StoreSecretJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	StoreSecret(ctx context.Context, key Key, body StoreSecretJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) HealthCheck(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -197,7 +203,7 @@ func (c *Client) ListKeys(ctx context.Context, reqEditors ...RequestEditorFn) (*
 	return c.Client.Do(req)
 }
 
-func (c *Client) DeleteSecret(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) DeleteSecret(ctx context.Context, key Key, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDeleteSecretRequest(c.Server, key)
 	if err != nil {
 		return nil, err
@@ -209,7 +215,7 @@ func (c *Client) DeleteSecret(ctx context.Context, key string, reqEditors ...Req
 	return c.Client.Do(req)
 }
 
-func (c *Client) LookupSecret(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) LookupSecret(ctx context.Context, key Key, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewLookupSecretRequest(c.Server, key)
 	if err != nil {
 		return nil, err
@@ -221,7 +227,7 @@ func (c *Client) LookupSecret(ctx context.Context, key string, reqEditors ...Req
 	return c.Client.Do(req)
 }
 
-func (c *Client) StoreSecretWithBody(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) StoreSecretWithBody(ctx context.Context, key Key, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewStoreSecretRequestWithBody(c.Server, key, contentType, body)
 	if err != nil {
 		return nil, err
@@ -233,7 +239,7 @@ func (c *Client) StoreSecretWithBody(ctx context.Context, key string, contentTyp
 	return c.Client.Do(req)
 }
 
-func (c *Client) StoreSecret(ctx context.Context, key string, body StoreSecretJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+func (c *Client) StoreSecret(ctx context.Context, key Key, body StoreSecretJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewStoreSecretRequest(c.Server, key, body)
 	if err != nil {
 		return nil, err
@@ -300,7 +306,7 @@ func NewListKeysRequest(server string) (*http.Request, error) {
 }
 
 // NewDeleteSecretRequest generates requests for DeleteSecret
-func NewDeleteSecretRequest(server string, key string) (*http.Request, error) {
+func NewDeleteSecretRequest(server string, key Key) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -334,7 +340,7 @@ func NewDeleteSecretRequest(server string, key string) (*http.Request, error) {
 }
 
 // NewLookupSecretRequest generates requests for LookupSecret
-func NewLookupSecretRequest(server string, key string) (*http.Request, error) {
+func NewLookupSecretRequest(server string, key Key) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -368,7 +374,7 @@ func NewLookupSecretRequest(server string, key string) (*http.Request, error) {
 }
 
 // NewStoreSecretRequest calls the generic StoreSecret builder with application/json body
-func NewStoreSecretRequest(server string, key string, body StoreSecretJSONRequestBody) (*http.Request, error) {
+func NewStoreSecretRequest(server string, key Key, body StoreSecretJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
@@ -379,7 +385,7 @@ func NewStoreSecretRequest(server string, key string, body StoreSecretJSONReques
 }
 
 // NewStoreSecretRequestWithBody generates requests for StoreSecret with any type of body
-func NewStoreSecretRequestWithBody(server string, key string, contentType string, body io.Reader) (*http.Request, error) {
+func NewStoreSecretRequestWithBody(server string, key Key, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -464,20 +470,22 @@ type ClientWithResponsesInterface interface {
 	ListKeysWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListKeysResponse, error)
 
 	// DeleteSecret request
-	DeleteSecretWithResponse(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*DeleteSecretResponse, error)
+	DeleteSecretWithResponse(ctx context.Context, key Key, reqEditors ...RequestEditorFn) (*DeleteSecretResponse, error)
 
 	// LookupSecret request
-	LookupSecretWithResponse(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*LookupSecretResponse, error)
+	LookupSecretWithResponse(ctx context.Context, key Key, reqEditors ...RequestEditorFn) (*LookupSecretResponse, error)
 
 	// StoreSecret request with any body
-	StoreSecretWithBodyWithResponse(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StoreSecretResponse, error)
+	StoreSecretWithBodyWithResponse(ctx context.Context, key Key, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StoreSecretResponse, error)
 
-	StoreSecretWithResponse(ctx context.Context, key string, body StoreSecretJSONRequestBody, reqEditors ...RequestEditorFn) (*StoreSecretResponse, error)
+	StoreSecretWithResponse(ctx context.Context, key Key, body StoreSecretJSONRequestBody, reqEditors ...RequestEditorFn) (*StoreSecretResponse, error)
 }
 
 type HealthCheckResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON200      *ServiceStatus
+	JSON503      *ServiceStatus
 }
 
 // Status returns HTTPResponse.Status
@@ -523,6 +531,7 @@ type DeleteSecretResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON400      *ErrorResponse
+	JSON404      *ErrorResponse
 }
 
 // Status returns HTTPResponse.Status
@@ -546,6 +555,7 @@ type LookupSecretResponse struct {
 	HTTPResponse *http.Response
 	JSON200      *SecretResponse
 	JSON400      *ErrorResponse
+	JSON404      *ErrorResponse
 }
 
 // Status returns HTTPResponse.Status
@@ -569,6 +579,7 @@ type StoreSecretResponse struct {
 	HTTPResponse *http.Response
 	JSON200      *SecretResponse
 	JSON400      *ErrorResponse
+	JSON409      *ErrorResponse
 }
 
 // Status returns HTTPResponse.Status
@@ -606,7 +617,7 @@ func (c *ClientWithResponses) ListKeysWithResponse(ctx context.Context, reqEdito
 }
 
 // DeleteSecretWithResponse request returning *DeleteSecretResponse
-func (c *ClientWithResponses) DeleteSecretWithResponse(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*DeleteSecretResponse, error) {
+func (c *ClientWithResponses) DeleteSecretWithResponse(ctx context.Context, key Key, reqEditors ...RequestEditorFn) (*DeleteSecretResponse, error) {
 	rsp, err := c.DeleteSecret(ctx, key, reqEditors...)
 	if err != nil {
 		return nil, err
@@ -615,7 +626,7 @@ func (c *ClientWithResponses) DeleteSecretWithResponse(ctx context.Context, key 
 }
 
 // LookupSecretWithResponse request returning *LookupSecretResponse
-func (c *ClientWithResponses) LookupSecretWithResponse(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*LookupSecretResponse, error) {
+func (c *ClientWithResponses) LookupSecretWithResponse(ctx context.Context, key Key, reqEditors ...RequestEditorFn) (*LookupSecretResponse, error) {
 	rsp, err := c.LookupSecret(ctx, key, reqEditors...)
 	if err != nil {
 		return nil, err
@@ -624,7 +635,7 @@ func (c *ClientWithResponses) LookupSecretWithResponse(ctx context.Context, key 
 }
 
 // StoreSecretWithBodyWithResponse request with arbitrary body returning *StoreSecretResponse
-func (c *ClientWithResponses) StoreSecretWithBodyWithResponse(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StoreSecretResponse, error) {
+func (c *ClientWithResponses) StoreSecretWithBodyWithResponse(ctx context.Context, key Key, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StoreSecretResponse, error) {
 	rsp, err := c.StoreSecretWithBody(ctx, key, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
@@ -632,7 +643,7 @@ func (c *ClientWithResponses) StoreSecretWithBodyWithResponse(ctx context.Contex
 	return ParseStoreSecretResponse(rsp)
 }
 
-func (c *ClientWithResponses) StoreSecretWithResponse(ctx context.Context, key string, body StoreSecretJSONRequestBody, reqEditors ...RequestEditorFn) (*StoreSecretResponse, error) {
+func (c *ClientWithResponses) StoreSecretWithResponse(ctx context.Context, key Key, body StoreSecretJSONRequestBody, reqEditors ...RequestEditorFn) (*StoreSecretResponse, error) {
 	rsp, err := c.StoreSecret(ctx, key, body, reqEditors...)
 	if err != nil {
 		return nil, err
@@ -651,6 +662,23 @@ func ParseHealthCheckResponse(rsp *http.Response) (*HealthCheckResponse, error) 
 	response := &HealthCheckResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ServiceStatus
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest ServiceStatus
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON503 = &dest
+
 	}
 
 	return response, nil
@@ -710,6 +738,13 @@ func ParseDeleteSecretResponse(rsp *http.Response) (*DeleteSecretResponse, error
 		}
 		response.JSON400 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
 	}
 
 	return response, nil
@@ -743,6 +778,13 @@ func ParseLookupSecretResponse(rsp *http.Response) (*LookupSecretResponse, error
 		}
 		response.JSON400 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
 	}
 
 	return response, nil
@@ -775,6 +817,13 @@ func ParseStoreSecretResponse(rsp *http.Response) (*StoreSecretResponse, error) 
 			return nil, err
 		}
 		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON409 = &dest
 
 	}
 

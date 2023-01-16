@@ -40,7 +40,7 @@ func serverWithKey(t *testing.T, key *ecdsa.PrivateKey) *httptest.Server {
 				break
 			case "/secrets/test":
 				writer.Header().Set("Content-Type", "application/json")
-				response := httpclient.SecretResponse{Data: pem}
+				response := httpclient.SecretResponse{Secret: pem}
 				responseAsJSON, _ := json.Marshal(response)
 				writer.WriteHeader(http.StatusOK)
 				_, _ = writer.Write(responseAsJSON)
@@ -58,7 +58,7 @@ func serverWithKey(t *testing.T, key *ecdsa.PrivateKey) *httptest.Server {
 				break
 			case "/secrets/not-pem":
 				writer.Header().Set("Content-Type", "application/json")
-				response := httpclient.SecretResponse{Data: "not-pem"}
+				response := httpclient.SecretResponse{Secret: "not-pem"}
 				responseAsJSON, _ := json.Marshal(response)
 				writer.WriteHeader(http.StatusOK)
 				_, _ = writer.Write(responseAsJSON)
@@ -86,7 +86,7 @@ func serverWithKey(t *testing.T, key *ecdsa.PrivateKey) *httptest.Server {
 				body, _ := io.ReadAll(request.Body)
 				storeRequest := httpclient.StoreSecretRequest{}
 				_ = json.Unmarshal(body, &storeRequest)
-				assert.Equal(t, httpclient.StoreSecretRequest{Data: pem}, storeRequest)
+				assert.Equal(t, httpclient.StoreSecretRequest{Secret: pem}, storeRequest)
 				writer.WriteHeader(http.StatusOK)
 			} else if request.URL.Path == "/secrets/bad-request" {
 				writer.Header().Set("Content-Type", "application/json")

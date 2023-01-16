@@ -55,7 +55,7 @@ func (c APIClient) GetPrivateKey(kid string) (crypto.Signer, error) {
 			return nil, fmt.Errorf("unable to get private-key: unexpected content-type: %s", contentType)
 		}
 
-		privateKey, err := util.PemToPrivateKey([]byte(response.JSON200.Data))
+		privateKey, err := util.PemToPrivateKey([]byte(response.JSON200.Secret))
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse private key as pem: %w", err)
 		}
@@ -82,7 +82,7 @@ func (c APIClient) SavePrivateKey(kid string, key crypto.PrivateKey) error {
 	if err != nil {
 		return fmt.Errorf("unable to convert private key to pem format: %w", err)
 	}
-	response, err := c.httpClient.StoreSecretWithResponse(context.Background(), kid, httpclient.StoreSecretJSONRequestBody{Data: pem})
+	response, err := c.httpClient.StoreSecretWithResponse(context.Background(), kid, httpclient.StoreSecretJSONRequestBody{Secret: pem})
 	if err != nil {
 		return fmt.Errorf("unable to save private-key: %w", err)
 	}
