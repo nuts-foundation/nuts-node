@@ -89,7 +89,7 @@ func (client *Crypto) setupFSBackend(config core.ServerConfig) error {
 }
 
 func (client *Crypto) setupStorageAPIBackend() error {
-	log.Logger().Info("Setting up StorageAPI backend for storage of private key material.")
+	log.Logger().Debug("Setting up StorageAPI backend for storage of private key material.")
 	apiBackend, err := storage.NewAPIClient(client.config.StorageClient.URL)
 	if err != nil {
 		return err

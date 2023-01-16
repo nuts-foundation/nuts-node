@@ -9,7 +9,7 @@ import (
 	"net/http"
 )
 
-const StorageAPIConfigKey = "storage-api"
+const StorageAPIConfigKey = "external-store"
 
 // APIClient implements the Storage interface. It uses a simple HTTP protocol to connect to an external storage server.
 // This server can either be a secret store itself, or proxy the request to a key store such as Hashicorp Vault or Azure Key Vault.
@@ -61,7 +61,7 @@ func (c APIClient) GetPrivateKey(kid string) (crypto.Signer, error) {
 		}
 		return privateKey, nil
 	case http.StatusNotFound:
-		return nil, errKeyNotFound
+		return nil, ErrNotFound
 	case http.StatusBadRequest:
 		return nil, backendError{error: *response.JSON400}
 	default:
@@ -92,7 +92,7 @@ func (c APIClient) SavePrivateKey(kid string, key crypto.PrivateKey) error {
 	case http.StatusBadRequest:
 		return backendError{error: *response.JSON400}
 	case http.StatusConflict:
-		return errKeyAlreadyExists
+		return backendError{error: *response.JSON409}
 	default:
 		return fmt.Errorf("unexpected status code from storage server: %d", response.StatusCode())
 	}
