@@ -182,9 +182,9 @@ components:
     SecretResponse:
       description: Response object containing the secret value.
       required:
-        - data
+        - secret
       properties:
-        data:
+        secret:
           $ref: "#/components/schemas/Secret"
     ErrorResponse:
       type: object
