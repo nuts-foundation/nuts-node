@@ -146,7 +146,6 @@ The Nuts service executable exports the following metric namespaces:
 * ``process_`` contains OS metrics related to the process
 * ``go_`` contains Go metrics related to the process
 * ``http_`` contains metrics related to HTTP calls to the Nuts node
-* ``promhttp_`` contains metrics related to HTTP calls to the Nuts node's ``/metrics`` endpoint
 
 Network DAG Visualization
 *************************
