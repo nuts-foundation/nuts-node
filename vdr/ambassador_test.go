@@ -26,6 +26,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/network"
 	"testing"
 	"time"
 
@@ -131,8 +132,20 @@ func (s testTransaction) Clock() uint32 {
 const signingKeyID = "did:nuts:123#validKeyID123"
 
 func TestAmbassador_Start(t *testing.T) {
+	t.Run("error on network subscription", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.network.EXPECT().WithPersistency()
+		ctx.network.EXPECT().Subscribe("vdr", gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("error"))
+
+		err := ctx.ambassador.Start()
+
+		assert.EqualError(t, err, "error")
+	})
+
 	t.Run("error on stream subscription", func(t *testing.T) {
 		ctx := newMockContext(t)
+		ctx.network.EXPECT().WithPersistency()
+		ctx.network.EXPECT().Subscribe("vdr", gomock.Any(), gomock.Any(), gomock.Any())
 		mockPool := events.NewMockConnectionPool(ctx.ctrl)
 		mockConnection := events.NewMockConn(ctx.ctrl)
 		ctx.eventManager.EXPECT().Pool().Return(mockPool)
@@ -146,6 +159,8 @@ func TestAmbassador_Start(t *testing.T) {
 
 	t.Run("error on nats connection acquire", func(t *testing.T) {
 		ctx := newMockContext(t)
+		ctx.network.EXPECT().WithPersistency()
+		ctx.network.EXPECT().Subscribe("vdr", gomock.Any(), gomock.Any(), gomock.Any())
 		mockPool := events.NewMockConnectionPool(ctx.ctrl)
 		ctx.eventManager.EXPECT().Pool().Return(mockPool)
 		mockPool.EXPECT().Acquire(gomock.Any()).Return(nil, nil, errors.New("b00m!"))
@@ -773,6 +788,7 @@ type mockContext struct {
 	keyStore     *types.MockKeyResolver
 	resolver     *types.MockDocResolver
 	eventManager *events.MockEvent
+	network      *network.MockTransactions
 	ambassador   ambassador
 }
 
@@ -782,11 +798,13 @@ func newMockContext(t *testing.T) mockContext {
 	keyStoreMock := types.NewMockKeyResolver(ctrl)
 	resolverMock := types.NewMockDocResolver(ctrl)
 	eventManager := events.NewMockEvent(ctrl)
+	networkMock := network.NewMockTransactions(ctrl)
 	am := ambassador{
-		didStore:     didStoreMock,
-		docResolver:  resolverMock,
-		keyResolver:  keyStoreMock,
-		eventManager: eventManager,
+		didStore:      didStoreMock,
+		docResolver:   resolverMock,
+		keyResolver:   keyStoreMock,
+		eventManager:  eventManager,
+		networkClient: networkMock,
 	}
 
 	return mockContext{
@@ -796,6 +814,7 @@ func newMockContext(t *testing.T) mockContext {
 		resolver:     resolverMock,
 		ambassador:   am,
 		eventManager: eventManager,
+		network:      networkMock,
 	}
 }
 

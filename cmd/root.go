@@ -221,8 +221,8 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system.RegisterEngine(cryptoInstance)
 	// the order of the next 3 modules is fixed due to configure and start dependencies
 	system.RegisterEngine(credentialInstance)
-	system.RegisterEngine(networkInstance)
 	system.RegisterEngine(vdrInstance)
+	system.RegisterEngine(networkInstance)
 	system.RegisterEngine(authInstance)
 	system.RegisterEngine(didmanInstance)
 	// HTTP engine MUST be registered last, because when started it dispatches HTTP calls to the registered routes.

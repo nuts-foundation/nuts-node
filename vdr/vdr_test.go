@@ -27,7 +27,6 @@ import (
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network"
@@ -244,18 +243,6 @@ func TestNewVDR(t *testing.T) {
 	vdr := NewVDR(cfg, nil, nil, nil, nil)
 	assert.IsType(t, &VDR{}, vdr)
 	assert.Equal(t, vdr.config, cfg)
-}
-
-func TestVDR_Configure(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	tx := network.NewMockTransactions(ctrl)
-	// Make sure configuring VDR subscribes to network
-	tx.EXPECT().WithPersistency()
-	tx.EXPECT().Subscribe("vdr", gomock.Any(), gomock.Any())
-	cfg := Config{}
-	vdr := NewVDR(cfg, nil, tx, nil, nil)
-	err := vdr.Configure(*core.NewServerConfig())
-	require.NoError(t, err)
 }
 
 func TestVDR_Migrate(t *testing.T) {
