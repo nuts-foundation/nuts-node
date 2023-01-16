@@ -5,8 +5,6 @@ info:
     API specification for a generic secret store HTTP server. 
     It can be use to implement a secure store or a proxy to a storage solution such as 
     Hashicorp Vault or Azure key store. Usually the Nuts node will be the client.
-    
-    The endpoints mounted at /secret act as a key-value store which accepts keys as path.
   version: 1.0.0
   license:
     name: GPLv3
@@ -16,27 +14,30 @@ paths:
   /health:
     get:
       operationId: healthCheck
+      summary: Health check
       description: |
-        This endpoint implements the API Health Check RFC https://datatracker.ietf.org/doc/html/draft-inadarei-api-health-check.
-        It can be used by clients to check the availability of the services. The server should return a 200 status code if the service is available, and a 503 status code if the service is unavailable.
+        This endpoint provides a healthcheck for the storage server.
+        It can be used by clients to check the availability of the services or the proxied storage solution.
+        The server should return a 200 status code if the service is available, and a 503 status code if the service is unavailable.
       responses:
         200:
           description: |
             The service is healthy
           content:
-            application/health+json:
+            application/json:
               schema:
                 $ref: "#/components/schemas/ServiceStatus"
         503:
           description: |
             The service is not healthy
           content:
-            application/health+json:
+            application/json:
               schema:
                 $ref: "#/components/schemas/ServiceStatus"
   /secrets:
     get:
       operationId: listKeys
+      summary: List all keys in the store
       description: |
         List all the keys available in the store.
         
@@ -52,18 +53,16 @@ paths:
         400:
           description: The request failed. Check the error response for more details.
           content:
-            application/problem+json:  # https://tools.ietf.org/html/rfc7807#section-6.1
+            application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
   /secrets/{key}:
     parameters:
       - name: key
         in: path
-        description: "Key under which the value should be stored. Note: The storage engine might encode these keys."
         required: true
-        example: privatekeys-identities-did:nuts:123
         schema:
-          type: string
+          $ref: "#/components/schemas/Key"
     get:
       summary: Lookup the secret for the provided key
       operationId: LookupSecret
@@ -77,10 +76,14 @@ paths:
                 $ref: '#/components/schemas/SecretResponse'
         "404":
           description: The lookup failed, the secret for the provided key could not be found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         "400":
           description: The lookup failed. Check the error response for more details.
           content:
-            application/problem+json:  # https://tools.ietf.org/html/rfc7807#section-6.1
+            application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
     post:
@@ -100,15 +103,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SecretResponse'
-
         "400":
           description: The request was invalid. Check the error response for more details.
           content:
-            application/problem+json:  # https://tools.ietf.org/html/rfc7807#section-6.1
+            application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         "409":
           description: The store operation failed. A secret for this key already exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     delete:
       operationId: DeleteSecret
       summary: Delete the secret for the provided key.
@@ -117,10 +123,14 @@ paths:
           description: The deletion succeeded, the secret for the provided key has been deleted from the store.
         "404":
           description: The deletion failed, the secret for the provided key could not be found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         "400":
           description: The request was invalid. Check the error response for more details.
           content:
-            application/problem+json:  # https://tools.ietf.org/html/rfc7807#section-6.1
+            application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
@@ -128,6 +138,8 @@ components:
   schemas:
     ServiceStatus:
       type: object
+      description: |
+        Response for the health check endpoint.
       required:
         - status
       properties:
@@ -143,19 +155,29 @@ components:
             - fail
             - warn
     KeyList:
+      description: |
+        List of keys currently stored in the store.
       type: array
       items:
-        type: string
+        $ref: "#/components/schemas/Key"
+    Key:
+      type: string
+      description: | 
+        The key under which the value should be stored.
+        
+        Slashes in the key name should be supported by the server implementation, but must be encoded by the server 
+        to prevent the introduction of sub-paths which may not be supported by the storage engines.
+      example: private-keys/identities/did:nuts:123
     Secret:
       type: string
-      description: "The secret value stored under the provided key. The secret should be an ASCII string or be base64 encoded."
+      description: The secret value stored under the provided key.
       example: "secret-value"
     StoreSecretRequest:
       description: Request body to store a secret value.
       required:
-        - data
+        - secret
       properties:
-        data:
+        secret:
           $ref: "#/components/schemas/Secret"
     SecretResponse:
       description: Response object containing the secret value.
@@ -165,6 +187,7 @@ components:
         data:
           $ref: "#/components/schemas/Secret"
     ErrorResponse:
+      type: object
       description: |
         The ErrorResponse contains the Problem Details for HTTP APIs as specified in [RFC7807](https://tools.ietf.org/html/rfc7807).
         
