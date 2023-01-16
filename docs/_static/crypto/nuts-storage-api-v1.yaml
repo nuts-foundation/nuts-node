@@ -163,11 +163,11 @@ components:
     Key:
       type: string
       description: | 
-        The key under which the value should be stored.
+        The key under which secrets can be stored or retrieved.
         
-        Slashes in the key name should be supported by the server implementation, but must be encoded by the server 
-        to prevent the introduction of sub-paths which may not be supported by the storage engines.
-      example: private-keys/identities/did:nuts:123
+        The key should be considered opaque and no assumptions should be made about its value or format.
+        Since the key is the last part of the URL path no slashes should be used.
+      example: privatekeys-did:nuts:123
     Secret:
       type: string
       description: The secret value stored under the provided key.
