@@ -40,7 +40,7 @@ func TestCrypto_Exists(t *testing.T) {
 	client := createCrypto(t)
 
 	kid := "kid"
-	client.New(StringNamingFunc(kid))
+	_, _ = client.New(StringNamingFunc(kid))
 
 	t.Run("returns true for existing key", func(t *testing.T) {
 		assert.True(t, client.Exists(kid))
@@ -152,7 +152,7 @@ func TestCrypto_setupBackend(t *testing.T) {
 
 		t.Run("ok - vault backend is wrapped", func(t *testing.T) {
 			s := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-				writer.Write([]byte("{\"data\": {\"keys\":[]}}"))
+				_, _ = writer.Write([]byte("{\"data\": {\"keys\":[]}}"))
 			}))
 
 			defer s.Close()
@@ -186,7 +186,7 @@ func TestCrypto_Configure(t *testing.T) {
 		client := createCrypto(t)
 		client.config.Storage = "unknown"
 		err := client.Configure(cfg)
-		assert.EqualError(t, err, "invalid config for crypto.storage. Available options are: vaultkv, fs", "expected error")
+		assert.EqualError(t, err, "invalid config for crypto.storage. Available options are: vaultkv, fs, storage-api(experimental)", "expected error")
 	})
 }
 
