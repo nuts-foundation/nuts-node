@@ -65,12 +65,8 @@ func (s fatalError) Error() string {
 	return s.error.Error()
 }
 
-func (s fatalError) Is(other error) bool {
-	_, is := other.(fatalError)
-	if !is {
-		return errors.Is(s.error, other)
-	}
-	return is
+func (s fatalError) Unwrap() error {
+	return s.error
 }
 
 // NewGRPCConnectionManager creates a new ConnectionManager that accepts/creates connections which communicate using the given protocols.
@@ -301,7 +297,7 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 				WithField(core.LogFieldPeerAddr, grpcConn.Target()).
 				WithField(core.LogFieldProtocolVersion, protocol.Version()).
 				Warn("Failed to open gRPC stream")
-			if errors.Is(err, fatalError{}) {
+			if errors.As(err, new(fatalError)) {
 				// Error indicates connection should be closed.
 				return err
 			}
