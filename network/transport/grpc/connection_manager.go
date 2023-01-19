@@ -36,7 +36,6 @@ import (
 	grpcPeer "google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 	"net"
-	"sync"
 )
 
 const defaultMaxMessageSizeInBytes = 1024 * 512
@@ -85,8 +84,6 @@ func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nod
 		authenticator:   authenticator,
 		config:          config,
 		connections:     &connectionList{},
-		grpcServerMutex: &sync.Mutex{},
-		listenerCreator: config.listener,
 		dialer:          config.dialer,
 		connectionStore: connectionStore,
 	}
@@ -101,15 +98,12 @@ type grpcConnectionManager struct {
 	config              Config
 	connections         *connectionList
 	grpcServer          *grpc.Server
-	grpcServerMutex     *sync.Mutex
 	ctx                 context.Context
 	ctxCancel           func()
 	listener            net.Listener
-	listenerCreator     func(string) (net.Listener, error)
 	dialer              dialer
 	authenticator       Authenticator
 	nodeDIDResolver     transport.NodeDIDResolver
-	stopCRLValidator    func()
 	observers           []transport.StreamStateObserverFunc
 	connectionStore     stoabs.KVStore
 	peersCounter        prometheus.Gauge
@@ -117,54 +111,39 @@ type grpcConnectionManager struct {
 	sentMessagesCounter *prometheus.CounterVec
 }
 
-func (s *grpcConnectionManager) Start() error {
-	s.grpcServerMutex.Lock()
-	defer s.grpcServerMutex.Unlock()
-
-	if s.config.listenAddress == "" {
-		log.Logger().Info("Not starting gRPC server, connections will only be outbound.")
-		return nil
-	}
-
-	log.Logger().Debugf("Starting gRPC server on %s", s.config.listenAddress)
+// newGrpcServer configures a new grpc.Server. context.Context is used to cancel the crlValidator
+func newGrpcServer(ctx context.Context, config Config) (*grpc.Server, error) {
 	serverOpts := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(MaxMessageSizeInBytes),
 		grpc.MaxSendMsgSize(MaxMessageSizeInBytes),
 	}
-	var err error
-	s.listener, err = s.listenerCreator(s.config.listenAddress)
-	if err != nil {
-		return err
-	}
 
 	var serverInterceptors []grpc.StreamServerInterceptor
 	serverInterceptors = append(serverInterceptors, defaultInterceptors...)
+
 	// Configure TLS if enabled
-	var tlsConfig *tls.Config
-	if s.config.tlsEnabled() {
+	if config.tlsEnabled() {
 		// Some form of TLS is enabled
-		if s.config.serverCert != nil {
+		if config.serverCert != nil {
 			// TLS is terminated at the Nuts node (no offloading)
-			tlsConfig = &tls.Config{
-				Certificates: []tls.Certificate{*s.config.serverCert},
+			tlsConfig := &tls.Config{
+				Certificates: []tls.Certificate{*config.serverCert},
 				ClientAuth:   tls.RequireAndVerifyClientCert,
-				ClientCAs:    s.config.trustStore,
+				ClientCAs:    config.trustStore,
 				MinVersion:   core.MinTLSVersion,
 			}
 			serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsConfig)))
 
 			// Configure support for checking revoked certificates
-			var crlValidatorCtx context.Context
-			crlValidatorCtx, s.stopCRLValidator = context.WithCancel(context.Background())
-			s.config.crlValidator.SyncLoop(crlValidatorCtx)
-			s.config.crlValidator.Configure(tlsConfig, s.config.maxCRLValidityDays)
+			config.crlValidator.SyncLoop(ctx)
+			config.crlValidator.Configure(tlsConfig, config.maxCRLValidityDays)
 		} else {
 			// TLS offloading for incoming traffic
-			if s.config.clientCertHeaderName == "" {
+			if config.clientCertHeaderName == "" {
 				// Invalid config
-				return errors.New("tls.certheader must be configured to enable TLS offloading ")
+				return nil, errors.New("tls.certheader must be configured to enable TLS offloading ")
 			}
-			serverInterceptors = append(serverInterceptors, newAuthenticationInterceptor(s.config.clientCertHeaderName))
+			serverInterceptors = append(serverInterceptors, newAuthenticationInterceptor(config.clientCertHeaderName))
 		}
 	} else {
 		log.Logger().Info("TLS is disabled, this is very unsecure and only suitable for demo/development environments.")
@@ -175,13 +154,31 @@ func (s *grpcConnectionManager) Start() error {
 	serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(serverInterceptors...))
 
 	// Create gRPC server for inbound connectionList and associate it with the protocols
-	s.grpcServer = grpc.NewServer(serverOpts...)
-	for _, prot := range s.protocols {
-		func(protocol Protocol) {
-			prot.Register(s, func(stream grpc.ServerStream) error {
-				return s.handleInboundStream(protocol, stream)
-			}, s.connections, s)
-		}(prot)
+	return grpc.NewServer(serverOpts...), nil
+}
+
+func (s *grpcConnectionManager) Start() error {
+	if s.config.listenAddress == "" {
+		log.Logger().Info("Not starting gRPC server, connections will only be outbound.")
+		return nil
+	}
+	log.Logger().Debugf("Starting gRPC server on %s", s.config.listenAddress)
+
+	var err error
+	s.listener, err = s.config.listener(s.config.listenAddress)
+	if err != nil {
+		return err
+	}
+
+	// Create gRPC server for inbound connectionList and associate it with the protocols
+	s.grpcServer, err = newGrpcServer(s.ctx, s.config)
+	if err != nil {
+		return err
+	}
+	for _, protocol := range s.protocols {
+		protocol.Register(s, func(stream grpc.ServerStream) error {
+			return s.handleInboundStream(protocol, stream)
+		}, s.connections, s)
 	}
 
 	// Start serving from the gRPC server
@@ -205,30 +202,14 @@ func (s *grpcConnectionManager) Stop() {
 		connection.stopConnecting()
 		connection.disconnect()
 	})
-
-	if s.ctxCancel != nil {
-		s.ctxCancel()
+	s.ctxCancel()            // stops crlValidator, connections should already be terminated
+	if s.grpcServer != nil { // is nil when not accepting inbound connections
+		s.grpcServer.GracefulStop() // also closes listener
 	}
 
-	s.grpcServerMutex.Lock()
-	defer s.grpcServerMutex.Unlock()
-
-	// Stop gRPC server
-	if s.grpcServer != nil {
-		s.grpcServer.GracefulStop()
-		s.grpcServer = nil
-		s.listener = nil // TCP listener is stopped by calling grpcServer.Stop()
-	}
-
-	if s.stopCRLValidator != nil {
-		s.stopCRLValidator()
-	}
-
-	if s.sentMessagesCounter != nil {
-		prometheus.Unregister(s.peersCounter)
-		prometheus.Unregister(s.sentMessagesCounter)
-		prometheus.Unregister(s.recvMessagesCounter)
-	}
+	prometheus.Unregister(s.peersCounter)
+	prometheus.Unregister(s.sentMessagesCounter)
+	prometheus.Unregister(s.recvMessagesCounter)
 }
 
 func (s *grpcConnectionManager) Connect(peerAddress string, options ...transport.ConnectionOption) {
