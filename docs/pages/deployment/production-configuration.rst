@@ -98,8 +98,9 @@ Monitoring Harmful Activity
 ***************************
 
 Deployment should monitor incoming traffic for potentially harmful activity,
-e.g. excessive amounts of requests or excessive amounts of requests that generate that yield errors.
-by malicious actors that try to cause denial of service or trying to gain access to the system's data.
+e.g. excessive amounts of valid requests, or requests that generate lots of errors.
+This could be caused by a malicious actor (trying to cause denial of service or trying to gain access to the system's data),
+but it could also be caused by a bug in a client application (e.g. XIS/EHR) or a bug in the Nuts Node.
 
 This is no different than monitoring access to any other valued system,
 so it can be solved using the existing tools to prevent (distributed) denial of service attacks and intrusion detection.
