@@ -51,13 +51,3 @@ type Stream interface {
 	SendMsg(m interface{}) error
 	RecvMsg(m interface{}) error
 }
-
-// Conn is a wrapper around grpc.ClientConnInterface
-type Conn interface {
-	grpc.ClientConnInterface
-}
-
-// ClientStream is a wrapper around grpc.ClientStream
-type ClientStream interface {
-	grpc.ClientStream
-}
