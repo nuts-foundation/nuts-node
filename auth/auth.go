@@ -103,11 +103,11 @@ func (auth *Auth) OAuthClient() oauth.Client {
 
 // Configure the Auth struct by creating a validator and create an Irma server
 func (auth *Auth) Configure(config core.ServerConfig) error {
-	if auth.config.IrmaSchemeManager == "" {
+	if auth.config.Irma.SchemeManager == "" {
 		return errors.New("IRMA SchemeManager must be set")
 	}
 
-	if config.Strictmode && auth.config.IrmaSchemeManager != "pbdf" {
+	if config.Strictmode && auth.config.Irma.SchemeManager != "pbdf" {
 		return errors.New("in strictmode the only valid irma-scheme-manager is 'pbdf'")
 	}
 
@@ -119,8 +119,8 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 	auth.contractNotary = contract.NewNotary(contract.Config{
 		PublicURL:             auth.config.PublicURL,
 		IrmaConfigPath:        path.Join(config.Datadir, "irma"),
-		IrmaSchemeManager:     auth.config.IrmaSchemeManager,
-		AutoUpdateIrmaSchemas: auth.config.IrmaAutoUpdateSchemas,
+		IrmaSchemeManager:     auth.config.Irma.SchemeManager,
+		AutoUpdateIrmaSchemas: auth.config.Irma.AutoUpdateSchemas,
 		ContractValidators:    auth.config.ContractValidators,
 		ContractValidity:      contractValidity,
 		StrictMode:            config.Strictmode,
