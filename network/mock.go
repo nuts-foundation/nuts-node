@@ -37,6 +37,20 @@ func (m *MockTransactions) EXPECT() *MockTransactionsMockRecorder {
 	return m.recorder
 }
 
+// CleanupSubscriberEvents mocks base method.
+func (m *MockTransactions) CleanupSubscriberEvents(subcriberName, errorPrefix string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CleanupSubscriberEvents", subcriberName, errorPrefix)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CleanupSubscriberEvents indicates an expected call of CleanupSubscriberEvents.
+func (mr *MockTransactionsMockRecorder) CleanupSubscriberEvents(subcriberName, errorPrefix interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CleanupSubscriberEvents", reflect.TypeOf((*MockTransactions)(nil).CleanupSubscriberEvents), subcriberName, errorPrefix)
+}
+
 // CreateTransaction mocks base method.
 func (m *MockTransactions) CreateTransaction(spec Template) (dag.Transaction, error) {
 	m.ctrl.T.Helper()

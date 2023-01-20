@@ -27,27 +27,27 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	cryptoStorage "github.com/nuts-foundation/nuts-node/crypto/storage"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/stretchr/testify/require"
 	"math"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/events"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-
-	"github.com/golang/mock/gomock"
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	cryptoStorage "github.com/nuts-foundation/nuts-node/crypto/storage"
+	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	vdrTypes "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var nodeDID, _ = did.ParseDID("did:nuts:test")
@@ -863,6 +863,39 @@ func TestNetwork_Subscribers(t *testing.T) {
 	subscribers := cxt.network.Subscribers()
 
 	assert.Len(t, subscribers, 1)
+}
+
+func TestNetwork_CleanupSubscriberEvents(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	cxt := createNetwork(t, ctrl)
+	kvStore, _ := storage.NewTestStorageEngine(t.TempDir()).GetProvider("test").GetKVStore("test", storage.PersistentStorageClass)
+	notifier := dag.NewNotifier("test", func(event dag.Event) (bool, error) {
+		return true, nil
+	}, dag.WithPersistency(kvStore))
+	cxt.state.EXPECT().Notifiers().Return([]dag.Notifier{notifier})
+	err := kvStore.Write(context.Background(), func(tx stoabs.WriteTx) error {
+		_ = notifier.Save(tx, dag.Event{
+			Type:    "test",
+			Hash:    hash.RandomHash(),
+			Retries: 99,
+			Error:   "no prefix match",
+		})
+		return notifier.Save(tx, dag.Event{
+			Type:    "test",
+			Hash:    hash.RandomHash(),
+			Retries: 99,
+			Error:   "prefix match",
+		})
+	})
+	require.NoError(t, err)
+
+	err = cxt.network.CleanupSubscriberEvents("test", "prefix")
+	require.NoError(t, err)
+	failedEvents, err := notifier.GetFailedEvents()
+	require.NoError(t, err)
+
+	require.Len(t, failedEvents, 1)
+	assert.Equal(t, "no prefix match", failedEvents[0].Error)
 }
 
 func TestNetwork_collectDiagnostics(t *testing.T) {

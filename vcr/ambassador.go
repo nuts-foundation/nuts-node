@@ -98,7 +98,10 @@ func (n ambassador) Start() error {
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to REPROCESS event stream: %v", err)
 	}
-	return nil
+
+	// removing failed events required for #1743
+	// remove after v6 release
+	return n.networkClient.CleanupSubscriberEvents("vcr_vcs", "canonicalization failed: unable to normalize the json-ld document: loading remote context failed: Dereferencing a URL did not result in a valid JSON-LD context")
 }
 
 func (n ambassador) handleNetworkVCs(event dag.Event) (bool, error) {
