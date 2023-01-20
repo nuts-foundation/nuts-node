@@ -21,7 +21,7 @@ Example logs message in JSON format:
      "txRef": "052a8ef99f1f641ea47cc15ca5a5c7b68028ebbf886b07898937d4303e3ea9cb"
    }
 
-The following fields always available:
+The following fields are always available:
 
 - ``module``: the module that logged the message, e.g. ``VDR`` or `Auth``
 - ``level``: the level of the log message, e.g. ``info`` or ``error``
