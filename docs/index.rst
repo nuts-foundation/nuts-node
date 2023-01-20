@@ -32,6 +32,7 @@ Nuts documentation
     pages/deployment/resource-requirements.rst
     pages/deployment/configuration.rst
     pages/deployment/custom-credentials.rst
+    pages/deployment/logging.rst
     pages/deployment/monitoring.rst
     pages/deployment/administering-your-node.rst
     pages/deployment/cli-reference.rst
