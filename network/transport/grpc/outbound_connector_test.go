@@ -21,6 +21,7 @@ package grpc
 import (
 	"context"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -49,7 +50,7 @@ func Test_connector_tryConnect(t *testing.T) {
 
 	// Setup server
 	serverConfig := NewConfig(fmt.Sprintf("localhost:%d", test.FreeTCPPort()), "server")
-	cm := NewGRPCConnectionManager(serverConfig, createKVStore(t), &TestNodeDIDResolver{}, nil, &TestProtocol{})
+	cm := NewGRPCConnectionManager(serverConfig, createKVStore(t), &transport.FixedNodeDIDResolver{}, nil, &TestProtocol{})
 	require.NoError(t, cm.Start())
 	defer cm.Stop()
 

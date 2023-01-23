@@ -31,7 +31,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -78,7 +77,6 @@ type Network struct {
 	nodeDIDResolver     transport.NodeDIDResolver
 	didDocumentFinder   types.DocFinder
 	eventPublisher      events.Event
-	connectionStore     stoabs.KVStore
 	storeProvider       storage.Provider
 }
 
@@ -237,13 +235,13 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		} else {
 			authenticator = grpc.NewTLSAuthenticator(didservice.NewServiceResolver(n.didDocumentResolver))
 		}
-		n.connectionStore, err = n.storeProvider.GetKVStore("connections", storage.VolatileStorageClass)
+		connectionStore, err := n.storeProvider.GetKVStore("connections", storage.VolatileStorageClass)
 		if err != nil {
 			return fmt.Errorf("failed to open connections store: %w", err)
 		}
 		n.connectionManager = grpc.NewGRPCConnectionManager(
 			grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...),
-			n.connectionStore,
+			connectionStore,
 			n.nodeDIDResolver,
 			authenticator,
 			n.protocols...,

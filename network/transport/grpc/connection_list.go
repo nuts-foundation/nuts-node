@@ -27,7 +27,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport"
 )
 
-// ErrNoConnection can be used when no connectin is available but one is required.
+// ErrNoConnection can be used when no connection is available but one is required.
 var ErrNoConnection = errors.New("no connection available")
 
 // ConnectionList provides an API for protocols to query the ConnectionManager's connections.
