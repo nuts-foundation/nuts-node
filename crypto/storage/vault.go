@@ -151,11 +151,11 @@ func (v vaultKVStorage) getValue(path, key string) ([]byte, error) {
 		return nil, fmt.Errorf("unable to read key from vault: %w", err)
 	}
 	if result == nil || result.Data == nil {
-		return nil, errKeyNotFound
+		return nil, ErrNotFound
 	}
 	rawValue, ok := result.Data[key]
 	if !ok {
-		return nil, errKeyNotFound
+		return nil, ErrNotFound
 	}
 	value, ok := rawValue.(string)
 	if !ok {

@@ -24,6 +24,7 @@ import (
 	"crypto/rand"
 	"errors"
 	vault "github.com/hashicorp/vault/api"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -109,7 +110,7 @@ func TestVaultKVStorage(t *testing.T) {
 		vaultStorage := vaultKVStorage{config: DefaultVaultConfig(), client: mockVaultClient{store: map[string]map[string]interface{}{}}}
 		_, err := vaultStorage.GetPrivateKey(kid)
 		assert.Error(t, err, "expected error on unknown kid")
-		assert.EqualError(t, err, "key not found")
+		assert.EqualError(t, err, "entry not found")
 
 		exists := vaultStorage.PrivateKeyExists(kid)
 		assert.False(t, exists)
@@ -122,7 +123,7 @@ func TestVaultKVStorage(t *testing.T) {
 		vaultStorage := vaultKVStorage{config: DefaultVaultConfig(), client: mockVaultClient{store: store}}
 		_, err := vaultStorage.GetPrivateKey(kid)
 		assert.Error(t, err, "expected error on unknown kid")
-		assert.EqualError(t, err, "key not found")
+		assert.EqualError(t, err, "entry not found")
 
 		exists := vaultStorage.PrivateKeyExists(kid)
 		assert.False(t, exists)
@@ -142,6 +143,24 @@ func TestVaultKVStorage(t *testing.T) {
 			assert.Error(t, err, "expected type conversion error on byte array")
 			assert.EqualError(t, err, "unable to convert key result to string")
 		})
+	})
+}
+
+func TestVaultKVStorage_CheckHealth(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		vaultStorage := vaultKVStorage{config: DefaultVaultConfig(), client: mockVaultClient{store: map[string]map[string]interface{}{"auth/token/lookup-self": {"key": []byte("foo")}}}}
+		result := vaultStorage.CheckHealth()
+
+		assert.Equal(t, core.HealthStatusUp, result[VaultConfigKey].Status)
+		assert.Empty(t, result[VaultConfigKey].Details)
+	})
+
+	t.Run("error - lookup token endpoint returns empty response", func(t *testing.T) {
+		vaultStorage := vaultKVStorage{config: DefaultVaultConfig(), client: mockVaultClient{store: map[string]map[string]interface{}{}}}
+		result := vaultStorage.CheckHealth()
+
+		assert.Equal(t, core.HealthStatusDown, result[VaultConfigKey].Status)
+		assert.Equal(t, "could not read token information on auth/token/lookup-self", result[VaultConfigKey].Details)
 	})
 }
 

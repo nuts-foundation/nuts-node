@@ -27,6 +27,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	testIo "github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -101,13 +102,15 @@ func Test_fs2VaultCommand(t *testing.T) {
 
 	outBuf := new(bytes.Buffer)
 	cryptoCmd := ServerCmd()
-	cryptoCmd.Commands()[0].Flags().AddFlagSet(core.FlagSet())
-	cryptoCmd.Commands()[0].Flags().AddFlagSet(FlagSet())
+	for _, cmd := range cryptoCmd.Commands() {
+		cmd.Flags().AddFlagSet(core.FlagSet())
+		cmd.Flags().AddFlagSet(FlagSet())
+	}
 	cryptoCmd.SetOut(outBuf)
 	cryptoCmd.SetArgs([]string{"fs2vault", testDirectory})
 
 	err := cryptoCmd.Execute()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Assert 2 keys were imported into Vault on the expected paths
 	assert.Len(t, importRequests, 2)

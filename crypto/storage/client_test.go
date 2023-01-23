@@ -5,6 +5,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/httpclient"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"github.com/stretchr/testify/assert"
@@ -110,6 +111,73 @@ func serverWithKey(t *testing.T, key *ecdsa.PrivateKey) *httptest.Server {
 	}))
 }
 
+func TestAPIClient_CheckHealth(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			switch request.Method {
+			case http.MethodGet:
+				switch request.URL.Path {
+				case "/health":
+					writer.WriteHeader(http.StatusOK)
+				}
+			}
+		}))
+		defer server.Close()
+
+		client, err := NewAPIClient(server.URL)
+		require.NoError(t, err)
+		result := client.CheckHealth()
+		assert.Equal(t, result[StorageAPIConfigKey].Status, core.HealthStatusUp)
+		assert.Empty(t, result[StorageAPIConfigKey].Details)
+	})
+
+	t.Run("health UNKNOWN when response code is unexpected", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			switch request.Method {
+			case http.MethodGet:
+				switch request.URL.Path {
+				case "/health":
+					writer.WriteHeader(http.StatusInternalServerError)
+				}
+			}
+		}))
+		defer server.Close()
+
+		client, err := NewAPIClient(server.URL)
+		require.NoError(t, err)
+		result := client.CheckHealth()
+		assert.Equal(t, result[StorageAPIConfigKey].Status, core.HealthStatusUnknown)
+		assert.Equal(t, result[StorageAPIConfigKey].Details, "unexpected status code from storage server: 500")
+	})
+
+	t.Run("health down when response code is unavailable", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			switch request.Method {
+			case http.MethodGet:
+				switch request.URL.Path {
+				case "/health":
+					writer.WriteHeader(http.StatusServiceUnavailable)
+				}
+			}
+		}))
+		defer server.Close()
+
+		client, err := NewAPIClient(server.URL)
+		require.NoError(t, err)
+		result := client.CheckHealth()
+		assert.Equal(t, result[StorageAPIConfigKey].Status, core.HealthStatusDown)
+		assert.Equal(t, result[StorageAPIConfigKey].Details, "storage server reports to be unavailable: 503")
+	})
+
+	t.Run("health DOWN when server does not responds", func(t *testing.T) {
+		client, err := NewAPIClient("http://localhost:1234")
+		require.NoError(t, err)
+		result := client.CheckHealth()
+		assert.Equal(t, result[StorageAPIConfigKey].Status, core.HealthStatusDown)
+		assert.Equal(t, result[StorageAPIConfigKey].Details, "unable to connect to storage server: Get \"http://localhost:1234/health\": dial tcp [::1]:1234: connect: connection refused")
+	})
+}
+
 func TestNewAPIClient(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		var key, _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -120,25 +188,16 @@ func TestNewAPIClient(t *testing.T) {
 
 	t.Run("invalid url", func(t *testing.T) {
 		client, err := NewAPIClient("invalid-url")
-		assert.EqualError(t, err, "unable to connect to storage server: Get \"/invalid-url/health\": unsupported protocol scheme \"\"")
+		assert.EqualError(t, err, "parse \"invalid-url\": invalid URI for request")
 		assert.Nil(t, client)
 	})
 
-	t.Run("error - service unavailable", func(t *testing.T) {
-		s := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-			switch request.Method {
-			case http.MethodGet:
-				switch request.URL.Path {
-				case "/health":
-					writer.WriteHeader(http.StatusServiceUnavailable)
-					break
-				}
-			}
-		}))
-		client, err := NewAPIClient(s.URL)
-		assert.EqualError(t, err, "unable to connect to storage server: unexpected status code: 503")
-		assert.Nil(t, client)
+	t.Run("ok - valid url, server not reachable", func(t *testing.T) {
+		client, err := NewAPIClient("http://localhost:12345")
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
 	})
+
 }
 
 func TestAPIClient_GetPrivateKey(t *testing.T) {
@@ -189,7 +248,7 @@ func TestAPIClient_GetPrivateKey(t *testing.T) {
 		client, _ := NewAPIClient(s.URL)
 
 		resolvedKey, err := client.GetPrivateKey("unknown-key")
-		require.EqualError(t, err, errKeyNotFound.Error())
+		require.EqualError(t, err, ErrNotFound.Error())
 		require.Nil(t, resolvedKey)
 	})
 
@@ -339,9 +398,6 @@ func TestAPIClient_ListPrivateKeys(t *testing.T) {
 			switch request.Method {
 			case http.MethodGet:
 				switch request.URL.Path {
-				case "/health":
-					writer.WriteHeader(http.StatusOK)
-					break
 				case "/secrets":
 					writer.Header().Set("Content-Type", "application/json")
 					writer.WriteHeader(http.StatusInternalServerError)
@@ -360,11 +416,26 @@ func TestAPIClient_ListPrivateKeys(t *testing.T) {
 			switch request.Method {
 			case http.MethodGet:
 				switch request.URL.Path {
-				case "/health":
-					writer.WriteHeader(http.StatusOK)
-					break
 				case "/secrets":
 					writer.Header().Set("Content-Type", "application/json")
+					writer.WriteHeader(http.StatusOK)
+					_, _ = writer.Write([]byte(`invalid`))
+					break
+				}
+			}
+		}))
+		client, err := NewAPIClient(s.URL)
+		require.NoError(t, err)
+		keys := client.ListPrivateKeys()
+		require.Equal(t, []string(nil), keys)
+	})
+	t.Run("error - it returns nil if the server does not respond with json", func(t *testing.T) {
+		s := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			switch request.Method {
+			case http.MethodGet:
+				switch request.URL.Path {
+				case "/secrets":
+					writer.Header().Set("Content-Type", "text/plain")
 					writer.WriteHeader(http.StatusOK)
 					_, _ = writer.Write([]byte(`invalid`))
 					break

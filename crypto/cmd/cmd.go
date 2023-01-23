@@ -48,19 +48,19 @@ func ServerCmd() *cobra.Command {
 		Short: "crypto commands",
 	}
 	cmd.AddCommand(fs2VaultCommand())
-	cmd.AddCommand(fs2StorageAPICommand())
+	cmd.AddCommand(fs2ExternalStore())
 	return cmd
 }
 
-func fs2StorageAPICommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "fs2StorageAPI [directory]",
-		Short: "Imports private keys from filesystem based storage (located at the given directory) into the server running at the storage API.",
+func fs2ExternalStore() *cobra.Command {
+	return &cobra.Command{
+		Use:   "fs2external [directory]",
+		Short: "Imports private keys from filesystem based storage (located at the given directory) into the storage server.",
 		Long: "Imports private keys from filesystem based storage into the secret store server. The given directory must contain the private key files." +
 			"The Nuts node must be configured to use storage-api as crypto storage. Can only be run on the local Nuts node, from the directory where nuts.yaml resides.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.Println("Importing keys on FileSystem storage into the storage API service...")
+			cmd.Println("Exporting keys from FileSystem storage to the external storage service...")
 
 			instance, err := LoadCryptoModule(cmd)
 			if err != nil {
@@ -93,11 +93,10 @@ func fs2StorageAPICommand() *cobra.Command {
 			return nil
 		},
 	}
-	return cmd
 }
 
 func fs2VaultCommand() *cobra.Command {
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "fs2vault [directory]",
 		Short: "Imports private keys from filesystem based storage (located at the given directory) into Vault.",
 		Long: "Imports private keys from filesystem based storage into Vault. The given directory must contain the private key files." +
@@ -137,7 +136,6 @@ func fs2VaultCommand() *cobra.Command {
 			return nil
 		},
 	}
-	return cmd
 }
 
 // LoadCryptoModule creates a Crypto module instance and configures it using the given server root command.

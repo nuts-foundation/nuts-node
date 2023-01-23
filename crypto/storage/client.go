@@ -8,6 +8,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/storage/httpclient"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"net/http"
+	"net/url"
 )
 
 const StorageAPIConfigKey = "external-store"
@@ -28,6 +29,7 @@ func (c APIClient) CheckHealth() map[string]core.Health {
 	response, err := c.httpClient.HealthCheckWithResponse(context.Background())
 	if err != nil {
 		results[StorageAPIConfigKey] = core.Health{Status: core.HealthStatusDown, Details: fmt.Errorf("unable to connect to storage server: %w", err).Error()}
+		return results
 	}
 
 	switch response.StatusCode() {
@@ -49,9 +51,11 @@ type APIClientConfig struct {
 }
 
 // NewAPIClient create a new API Client to communicate with a remote storage server.
-func NewAPIClient(url string) (Storage, error) {
-	client, _ := httpclient.NewClientWithResponses(url)
-
+func NewAPIClient(u string) (Storage, error) {
+	if _, err := url.ParseRequestURI(u); err != nil {
+		return nil, err
+	}
+	client, _ := httpclient.NewClientWithResponses(u)
 	return &APIClient{httpClient: client}, nil
 }
 
@@ -109,9 +113,12 @@ func (c APIClient) SavePrivateKey(kid string, key crypto.PrivateKey) error {
 	case http.StatusOK:
 		return nil
 	case http.StatusBadRequest:
-		return backendError{error: *response.JSON400}
+		if response.JSON400 != nil {
+			return backendError{error: *response.JSON400}
+		}
+		return fmt.Errorf("unable to save private-key: server responded with bad-request: %s", string(response.Body))
 	case http.StatusConflict:
-		return backendError{error: *response.JSON409}
+		return errKeyAlreadyExists
 	default:
 		return fmt.Errorf("unexpected status code from storage server: %d", response.StatusCode())
 	}
@@ -124,6 +131,9 @@ func (c APIClient) ListPrivateKeys() []string {
 	}
 	switch response.StatusCode() {
 	case http.StatusOK:
+		if response.JSON200 == nil {
+			return nil
+		}
 		return *response.JSON200
 	default:
 		return nil

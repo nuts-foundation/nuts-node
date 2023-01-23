@@ -73,7 +73,7 @@ func loadFromEnv(configMap *koanf.Koanf) error {
 }
 
 // loadFromFlagSet loads the config values set in the command line options into the configMap.
-// Als sets default value for all flags in the provided pflag.FlagSet if the values do not yet exist in the configMap.
+// Also sets default value for all flags in the provided pflag.FlagSet if the values do not yet exist in the configMap.
 func loadFromFlagSet(configMap *koanf.Koanf, flags *pflag.FlagSet) error {
 	// error out if flag name ends with .token or .password (which indicates a secret) and is set on the command line
 	var err error
