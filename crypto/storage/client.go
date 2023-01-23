@@ -9,9 +9,11 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 const StorageAPIConfigKey = "external-store"
+const httpClientTimeout = 100 * time.Millisecond
 
 // APIClient implements the Storage interface. It uses a simple HTTP protocol to connect to an external storage server.
 // This server can either be a secret store itself, or proxy the request to a key store such as Hashicorp Vault or Azure Key Vault.
@@ -55,7 +57,7 @@ func NewAPIClient(u string) (Storage, error) {
 	if _, err := url.ParseRequestURI(u); err != nil {
 		return nil, err
 	}
-	client, _ := httpclient.NewClientWithResponses(u)
+	client, _ := httpclient.NewClientWithResponses(u, httpclient.WithHTTPClient(&http.Client{Timeout: httpClientTimeout}))
 	return &APIClient{httpClient: client}, nil
 }
 
@@ -70,25 +72,28 @@ func (r backendError) Error() string {
 func (c APIClient) GetPrivateKey(kid string) (crypto.Signer, error) {
 	response, err := c.httpClient.LookupSecretWithResponse(context.Background(), kid)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get private-key: %w", err)
+		return nil, fmt.Errorf("unable to get private key: %w", err)
 	}
 	switch response.StatusCode() {
 	case http.StatusOK:
-		if contentType := response.HTTPResponse.Header.Get("Content-Type"); contentType != "application/json" {
-			return nil, fmt.Errorf("unable to get private-key: unexpected content-type: %s", contentType)
+		if response.JSON200 == nil {
+			return nil, fmt.Errorf("unable to get private key: no body or wrong content-type")
 		}
 
 		privateKey, err := util.PemToPrivateKey([]byte(response.JSON200.Secret))
 		if err != nil {
-			return nil, fmt.Errorf("unable to parse private key as pem: %w", err)
+			return nil, fmt.Errorf("unable to parse private key as PEM: %w", err)
 		}
 		return privateKey, nil
 	case http.StatusNotFound:
 		return nil, ErrNotFound
 	case http.StatusBadRequest:
-		return nil, backendError{error: *response.JSON400}
+		if response.JSON400 != nil {
+			return nil, backendError{error: *response.JSON400}
+		}
+		return nil, fmt.Errorf("unable to get private key: server responded with bad-request: %s", string(response.Body))
 	default:
-		return nil, fmt.Errorf("unable to get private-key: unexpected status code from storage server: %d", response.StatusCode())
+		return nil, fmt.Errorf("unable to get private key: unexpected status code from storage server: %d", response.StatusCode())
 	}
 }
 
@@ -103,11 +108,11 @@ func (c APIClient) PrivateKeyExists(kid string) bool {
 func (c APIClient) SavePrivateKey(kid string, key crypto.PrivateKey) error {
 	pem, err := util.PrivateKeyToPem(key)
 	if err != nil {
-		return fmt.Errorf("unable to convert private key to pem format: %w", err)
+		return fmt.Errorf("unable to convert private key to PEM format: %w", err)
 	}
 	response, err := c.httpClient.StoreSecretWithResponse(context.Background(), kid, httpclient.StoreSecretJSONRequestBody{Secret: pem})
 	if err != nil {
-		return fmt.Errorf("unable to save private-key: %w", err)
+		return fmt.Errorf("unable to save private key: %w", err)
 	}
 	switch response.StatusCode() {
 	case http.StatusOK:
@@ -116,7 +121,7 @@ func (c APIClient) SavePrivateKey(kid string, key crypto.PrivateKey) error {
 		if response.JSON400 != nil {
 			return backendError{error: *response.JSON400}
 		}
-		return fmt.Errorf("unable to save private-key: server responded with bad-request: %s", string(response.Body))
+		return fmt.Errorf("unable to save private key: server responded with bad-request: %s", string(response.Body))
 	case http.StatusConflict:
 		return errKeyAlreadyExists
 	default:
