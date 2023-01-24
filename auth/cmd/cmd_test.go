@@ -19,6 +19,9 @@
 package cmd
 
 import (
+	"github.com/nuts-foundation/nuts-node/auth"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/stretchr/testify/require"
 	"sort"
 	"testing"
 
@@ -46,4 +49,23 @@ func TestFlagSet(t *testing.T) {
 		ConfIrmaSchemeManager,
 		ConfPublicURL,
 	}, keys)
+}
+
+func TestIrmaConfigInjection(t *testing.T) {
+	serverCfg := core.NewServerConfig()
+	serverCfg.Verbosity = "debug"
+	serverCfg.LoggerFormat = "text"
+	t.Setenv("NUTS_AUTH_IRMA_SCHEMEMANAGER", "irma-demo")
+	t.Setenv("NUTS_AUTH_IRMA_AUTOUPDATESCHEMES", "true")
+	err := serverCfg.Load(FlagSet())
+	require.NoError(t, err)
+	system := core.System{Config: serverCfg}
+	engine := auth.Auth{}
+
+	err = system.Config.InjectIntoEngine(&engine)
+	require.NoError(t, err)
+
+	cfg := engine.Config().(*auth.Config)
+	assert.Equal(t, "irma-demo", cfg.Irma.SchemeManager)
+	assert.True(t, cfg.Irma.AutoUpdateSchemas)
 }

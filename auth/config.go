@@ -20,21 +20,27 @@ package auth
 
 // Config holds all the configuration params
 type Config struct {
-	IrmaSchemeManager     string   `koanf:"irma.schememanager"`
-	IrmaAutoUpdateSchemas bool     `koanf:"irma.autoupdateschemas"`
-	HTTPTimeout           int      `koanf:"http.timeout"`
-	PublicURL             string   `koanf:"publicurl"`
-	ClockSkew             int      `koanf:"clockskew"`
-	ContractValidators    []string `koanf:"contractvalidators"`
+	Irma               IrmaConfig `koanf:"irma"`
+	HTTPTimeout        int        `koanf:"http.timeout"`
+	PublicURL          string     `koanf:"publicurl"`
+	ClockSkew          int        `koanf:"clockskew"`
+	ContractValidators []string   `koanf:"contractvalidators"`
+}
+
+type IrmaConfig struct {
+	SchemeManager     string `koanf:"schememanager"`
+	AutoUpdateSchemas bool   `koanf:"autoupdateschemas"`
 }
 
 // DefaultConfig returns an instance of Config with the default values.
 func DefaultConfig() Config {
 	return Config{
-		IrmaSchemeManager:     "pbdf",
-		IrmaAutoUpdateSchemas: true,
-		HTTPTimeout:           30,
-		ClockSkew:             5000,
-		ContractValidators:    []string{"irma", "uzi", "dummy"},
+		Irma: IrmaConfig{
+			SchemeManager:     "pbdf",
+			AutoUpdateSchemas: true,
+		},
+		HTTPTimeout:        30,
+		ClockSkew:          5000,
+		ContractValidators: []string{"irma", "uzi", "dummy"},
 	}
 }
