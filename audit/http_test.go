@@ -34,7 +34,7 @@ func TestMiddleware(t *testing.T) {
 		ctx := server.NewContext(&req, nil)
 		ctx.Set(core.UserContextKey, "user")
 
-		Middleware(ctx, "mod", "op")
+		SetOnEchoContext(ctx, "mod", "op")
 
 		actual := InfoFromContext(ctx.Request().Context())
 		assert.Equal(t, "mod.op", actual.Operation)
@@ -43,7 +43,7 @@ func TestMiddleware(t *testing.T) {
 	t.Run("without auth", func(t *testing.T) {
 		ctx := server.NewContext(&req, nil)
 
-		Middleware(ctx, "mod", "op")
+		SetOnEchoContext(ctx, "mod", "op")
 
 		actual := InfoFromContext(ctx.Request().Context())
 		assert.Equal(t, "mod.op", actual.Operation)
@@ -52,21 +52,12 @@ func TestMiddleware(t *testing.T) {
 }
 
 func TestStrictMiddleware(t *testing.T) {
-	type args struct {
-		next        func(ctx echo.Context, args interface{}) (interface{}, error)
-		moduleName  string
-		operationID string
-	}
-	tests := []struct {
-		name string
-		args args
-		want func(ctx echo.Context, args interface{}) (interface{}, error)
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, StrictMiddleware(tt.args.next, tt.args.moduleName, tt.args.operationID), "StrictMiddleware(%v, %v, %v)", tt.args.next, tt.args.moduleName, tt.args.operationID)
-		})
-	}
+	ctx := echo.New().NewContext(&http.Request{}, nil)
+	ctx.Set(core.UserContextKey, "user")
+
+	StrictMiddleware(func(ctx echo.Context, _ interface{}) (interface{}, error) {
+		return nil, nil
+	}, "mod", "op")(ctx, nil)
+
+	AssertAuditInfo(t, ctx, "user@", "mod", "op")
 }

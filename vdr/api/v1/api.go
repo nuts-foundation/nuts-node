@@ -63,7 +63,7 @@ func (a *Wrapper) Preprocess(operationID string, context echo.Context) {
 	context.Set(core.StatusCodeResolverContextKey, a)
 	context.Set(core.OperationIDContextKey, operationID)
 	context.Set(core.ModuleNameContextKey, vdr.ModuleName)
-	audit.Middleware(context, vdr.ModuleName, operationID)
+	audit.SetOnEchoContext(context, vdr.ModuleName, operationID)
 }
 
 // DeleteVerificationMethod accepts a DID and a KeyIdentifier of a verificationMethod and calls the DocManipulator

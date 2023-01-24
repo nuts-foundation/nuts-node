@@ -76,7 +76,7 @@ func (w *Wrapper) Preprocess(operationID string, context echo.Context) {
 	context.Set(core.StatusCodeResolverContextKey, w)
 	context.Set(core.OperationIDContextKey, operationID)
 	context.Set(core.ModuleNameContextKey, vcr.ModuleName)
-	audit.Middleware(context, vcr.ModuleName, operationID)
+	audit.SetOnEchoContext(context, vcr.ModuleName, operationID)
 }
 
 // IssueVC handles the API request for credential issuing.

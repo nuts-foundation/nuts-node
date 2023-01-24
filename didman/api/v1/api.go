@@ -82,7 +82,7 @@ func (w *Wrapper) Preprocess(operationID string, context echo.Context) {
 	context.Set(core.StatusCodeResolverContextKey, w)
 	context.Set(core.OperationIDContextKey, operationID)
 	context.Set(core.ModuleNameContextKey, didman.ModuleName)
-	audit.Middleware(context, didman.ModuleName, operationID)
+	audit.SetOnEchoContext(context, didman.ModuleName, operationID)
 }
 
 // Routes registers the routes from the open api spec to the echo router.
