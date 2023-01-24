@@ -67,7 +67,7 @@ func TestAuth_Configure(t *testing.T) {
 
 	t.Run("error - no publicUrl", func(t *testing.T) {
 		authCfg := TestConfig()
-		authCfg.IrmaSchemeManager = "pbdf"
+		authCfg.Irma.SchemeManager = "pbdf"
 		i := testInstance(t, authCfg)
 		cfg := core.NewServerConfig()
 		cfg.Strictmode = true
@@ -76,7 +76,7 @@ func TestAuth_Configure(t *testing.T) {
 
 	t.Run("error - IRMA config failure", func(t *testing.T) {
 		authCfg := TestConfig()
-		authCfg.IrmaSchemeManager = "non-existing"
+		authCfg.Irma.SchemeManager = "non-existing"
 		i := testInstance(t, authCfg)
 		err := i.Configure(tlsServerConfig)
 		if !assert.NoError(t, err) {
@@ -86,7 +86,7 @@ func TestAuth_Configure(t *testing.T) {
 
 	t.Run("error - IRMA scheme manager not set", func(t *testing.T) {
 		authCfg := TestConfig()
-		authCfg.IrmaSchemeManager = ""
+		authCfg.Irma.SchemeManager = ""
 		i := testInstance(t, authCfg)
 		err := i.Configure(tlsServerConfig)
 		assert.EqualError(t, err, "IRMA SchemeManager must be set")
@@ -94,7 +94,7 @@ func TestAuth_Configure(t *testing.T) {
 
 	t.Run("error - only 'pbdf' IRMA scheme manager allow in strict mode", func(t *testing.T) {
 		authCfg := TestConfig()
-		authCfg.IrmaSchemeManager = "demo"
+		authCfg.Irma.SchemeManager = "demo"
 		i := testInstance(t, authCfg)
 		serverConfig := core.NewServerConfig()
 		serverConfig.Strictmode = true
