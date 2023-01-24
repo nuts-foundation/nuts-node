@@ -6,6 +6,18 @@ Release notes
 What has been changed, and how to update between versions.
 
 *****************
+Coconut update (v5.0.6)
+*****************
+
+Release date: 2023-01-24
+
+This patch release fixes the following:
+
+- Irma configuration not applied from config
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.5...v5.0.6
+
+*****************
 Coconut update (v5.0.5)
 *****************
 
