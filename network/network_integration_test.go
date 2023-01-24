@@ -936,7 +936,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 	if err := instance.Start(); err != nil {
 		t.Fatal(err)
 	}
-	_ = instance.Subscribe(t.Name(), func(_ context.Context, event dag.Event) (bool, error) {
+	_ = instance.Subscribe(t.Name(), func(event dag.Event) (bool, error) {
 		mutex.Lock()
 		defer mutex.Unlock()
 		log.Logger().Infof("Transaction %s arrived at %s", string(event.Payload), name)

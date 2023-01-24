@@ -858,7 +858,7 @@ func TestNetwork_Reprocess(t *testing.T) {
 func TestNetwork_Subscribers(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	cxt := createNetwork(t, ctrl)
-	notifier := dag.NewNotifier("test", func(_ context.Context, event dag.Event) (bool, error) {
+	notifier := dag.NewNotifier("test", func(event dag.Event) (bool, error) {
 		return true, nil
 	})
 	cxt.state.EXPECT().Notifiers().Return([]dag.Notifier{notifier})

@@ -198,7 +198,7 @@ func TestAmbassador_handleNetworkEvent(t *testing.T) {
 		}
 		tx.payloadType = ""
 		am := ambassador{}
-		value, err := am.handleNetworkEvent(audit.TestContext(), dag.Event{Transaction: tx})
+		value, err := am.handleNetworkEvent(dag.Event{Transaction: tx})
 		assert.False(t, value)
 		assert.True(t, errors.As(err, new(dag.EventFatal)))
 		assert.EqualError(t, err, "could not process new DID Document: wrong payload type for this subscriber. Can handle: application/did+json, got: ")

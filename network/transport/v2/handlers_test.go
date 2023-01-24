@@ -22,7 +22,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/audit"
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
@@ -180,7 +179,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			p, mocks := newTestProtocol(t, nodeDID)
 			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
 			mocks.DocResolver.EXPECT().Resolve(*nodeDID, nil).Return(&didDocument, nil, nil)
-			mocks.Decrypter.EXPECT().Decrypt(gomock.Any(), keyDID.String(), gomock.Any()).Return(nil, errors.New("will return nil for PAL decryption")).Times(2)
+			mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), gomock.Any()).Return(nil, errors.New("will return nil for PAL decryption")).Times(2)
 			conns := &grpc.StubConnectionList{
 				Conn: &grpc.StubConnection{PeerID: peer.ID},
 			}
@@ -208,7 +207,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			p, mocks := newTestProtocol(t, nodeDID)
 			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
 			mocks.DocResolver.EXPECT().Resolve(*nodeDID, nil).Return(&didDocument, nil, nil)
-			mocks.Decrypter.EXPECT().Decrypt(gomock.Any(), keyDID.String(), gomock.Any()).Return([]byte(nodeDID.String()), nil)
+			mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), gomock.Any()).Return([]byte(nodeDID.String()), nil)
 			conns := &grpc.StubConnectionList{
 				Conn: &grpc.StubConnection{PeerID: peer.ID},
 			}
@@ -223,8 +222,8 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			p, mocks := newTestProtocol(t, nodeDID)
 			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
 			mocks.DocResolver.EXPECT().Resolve(*nodeDID, nil).Return(&didDocument, nil, nil)
-			mocks.Decrypter.EXPECT().Decrypt(audit.ContextWithAuditInfo(), keyDID.String(), gomock.Any()).Return([]byte(peerDID.String()), nil)
-			mocks.State.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).Return([]byte{}, nil)
+			mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), gomock.Any()).Return([]byte(peerDID.String()), nil)
+			mocks.State.EXPECT().ReadPayload(context.Background(), tx.PayloadHash()).Return([]byte{}, nil)
 			conns := &grpc.StubConnectionList{
 				Conn: &grpc.StubConnection{PeerID: peer.ID},
 			}

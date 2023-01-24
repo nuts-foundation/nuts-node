@@ -60,7 +60,11 @@ type KeyStore interface {
 type Decrypter interface {
 	// Decrypt decrypts the `cipherText` with key `kid`
 	// The context is used to pass audit information.
-	Decrypt(ctx context.Context, kid string, ciphertext []byte) ([]byte, error)
+	// Note: decryption isn't audit logged, because:
+	// - it involved very deep context passing,
+	// - it's called by the system itself, not triggered by a user.
+	// - to be removed in near future when we switch to multi-chains, which eliminates private TXs and thus encryption altogether.
+	Decrypt(kid string, ciphertext []byte) ([]byte, error)
 }
 
 // JWTSigner is the interface used to sign authorization tokens.

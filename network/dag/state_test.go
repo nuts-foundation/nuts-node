@@ -162,7 +162,7 @@ func TestState_WritePayload(t *testing.T) {
 	t.Run("notifies receiver for payload", func(t *testing.T) {
 		txState := createState(t)
 		var received atomic.Bool
-		_, _ = txState.Notifier(t.Name(), func(_ context.Context, event Event) (bool, error) {
+		_, _ = txState.Notifier(t.Name(), func(event Event) (bool, error) {
 			received.Toggle()
 			return true, nil
 		}, WithSelectionFilter(func(event Event) bool {
@@ -206,7 +206,7 @@ func TestState_Add(t *testing.T) {
 		ctx := context.Background()
 		var received atomic.Bool
 		s := createState(t)
-		s.Notifier(t.Name(), func(_ context.Context, event Event) (bool, error) {
+		s.Notifier(t.Name(), func(event Event) (bool, error) {
 			received.Toggle()
 			return true, nil
 		}, WithSelectionFilter(func(event Event) bool {
@@ -224,7 +224,7 @@ func TestState_Add(t *testing.T) {
 	t.Run("does not notify receiver for missing payload", func(t *testing.T) {
 		ctx := context.Background()
 		s := createState(t)
-		s.Notifier(t.Name(), func(_ context.Context, event Event) (bool, error) {
+		s.Notifier(t.Name(), func(event Event) (bool, error) {
 			t.Fail()
 			return true, nil
 		}, WithSelectionFilter(func(event Event) bool {
@@ -241,7 +241,7 @@ func TestState_Add(t *testing.T) {
 		ctx := context.Background()
 		var received atomic.Bool
 		s := createState(t)
-		s.Notifier(t.Name(), func(_ context.Context, event Event) (bool, error) {
+		s.Notifier(t.Name(), func(event Event) (bool, error) {
 			received.Toggle()
 			return true, nil
 		}, WithSelectionFilter(func(event Event) bool {
@@ -279,7 +279,7 @@ func TestState_Add(t *testing.T) {
 		assertCountMetric(t, s, 1)
 
 		// check for Notifier not being called
-		s.Notifier(t.Name(), func(_ context.Context, event Event) (bool, error) {
+		s.Notifier(t.Name(), func(event Event) (bool, error) {
 			t.Fail()
 			return true, nil
 		}, WithSelectionFilter(func(event Event) bool {

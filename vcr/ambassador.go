@@ -104,14 +104,14 @@ func (n ambassador) Start() error {
 	return n.networkClient.CleanupSubscriberEvents("vcr_vcs", "canonicalization failed: unable to normalize the json-ld document: loading remote context failed: Dereferencing a URL did not result in a valid JSON-LD context")
 }
 
-func (n ambassador) handleNetworkVCs(_ context.Context, event dag.Event) (bool, error) {
+func (n ambassador) handleNetworkVCs(event dag.Event) (bool, error) {
 	if err := n.vcCallback(event.Transaction, event.Payload); err != nil {
 		return n.handleError(err)
 	}
 	return true, nil
 }
 
-func (n ambassador) handleNetworkRevocations(_ context.Context, event dag.Event) (bool, error) {
+func (n ambassador) handleNetworkRevocations(event dag.Event) (bool, error) {
 	if err := n.jsonLDRevocationCallback(event.Transaction, event.Payload); err != nil {
 		return n.handleError(err)
 	}

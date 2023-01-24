@@ -30,8 +30,6 @@ const (
 	CryptoSignJWTEvent = "SignJWT"
 	// CryptoSignJWSEvent occurs when signing a JWS.
 	CryptoSignJWSEvent = "SignJWS"
-	// CryptoDecryptEvent occurs when decrypting data.
-	CryptoDecryptEvent = "Decrypt"
 )
 
 // Info provides contextual information for auditable events.

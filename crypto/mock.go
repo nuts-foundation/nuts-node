@@ -140,18 +140,18 @@ func (m *MockKeyStore) EXPECT() *MockKeyStoreMockRecorder {
 }
 
 // Decrypt mocks base method.
-func (m *MockKeyStore) Decrypt(ctx context.Context, kid string, ciphertext []byte) ([]byte, error) {
+func (m *MockKeyStore) Decrypt(kid string, ciphertext []byte) ([]byte, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Decrypt", ctx, kid, ciphertext)
+	ret := m.ctrl.Call(m, "Decrypt", kid, ciphertext)
 	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Decrypt indicates an expected call of Decrypt.
-func (mr *MockKeyStoreMockRecorder) Decrypt(ctx, kid, ciphertext interface{}) *gomock.Call {
+func (mr *MockKeyStoreMockRecorder) Decrypt(kid, ciphertext interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Decrypt", reflect.TypeOf((*MockKeyStore)(nil).Decrypt), ctx, kid, ciphertext)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Decrypt", reflect.TypeOf((*MockKeyStore)(nil).Decrypt), kid, ciphertext)
 }
 
 // Exists mocks base method.
@@ -266,18 +266,18 @@ func (m *MockDecrypter) EXPECT() *MockDecrypterMockRecorder {
 }
 
 // Decrypt mocks base method.
-func (m *MockDecrypter) Decrypt(ctx context.Context, kid string, ciphertext []byte) ([]byte, error) {
+func (m *MockDecrypter) Decrypt(kid string, ciphertext []byte) ([]byte, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Decrypt", ctx, kid, ciphertext)
+	ret := m.ctrl.Call(m, "Decrypt", kid, ciphertext)
 	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Decrypt indicates an expected call of Decrypt.
-func (mr *MockDecrypterMockRecorder) Decrypt(ctx, kid, ciphertext interface{}) *gomock.Call {
+func (mr *MockDecrypterMockRecorder) Decrypt(kid, ciphertext interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Decrypt", reflect.TypeOf((*MockDecrypter)(nil).Decrypt), ctx, kid, ciphertext)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Decrypt", reflect.TypeOf((*MockDecrypter)(nil).Decrypt), kid, ciphertext)
 }
 
 // MockJWTSigner is a mock of JWTSigner interface.

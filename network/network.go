@@ -261,8 +261,8 @@ func (n *Network) Configure(config core.ServerConfig) error {
 }
 
 // emitEvents is called when a payload is added.
-func (n *Network) emitEvents(ctx context.Context, event dag.Event) (bool, error) {
-	_, js, err := n.eventPublisher.Pool().Acquire(ctx)
+func (n *Network) emitEvents(event dag.Event) (bool, error) {
+	_, js, err := n.eventPublisher.Pool().Acquire(context.Background())
 	if err != nil {
 		return false, fmt.Errorf(errEventFailedMsg, err)
 	}

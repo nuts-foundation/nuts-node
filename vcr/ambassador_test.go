@@ -193,13 +193,12 @@ func TestAmbassador_vcCallback(t *testing.T) {
 func TestAmbassador_handleNetworkVCs(t *testing.T) {
 	tx, _ := dag.NewTransaction(hash.EmptyHash(), types.VcDocumentType, nil, nil, 0)
 	stx := tx.(dag.Transaction)
-	ctx := audit.TestContext()
 
 	t.Run("non-recoverable errors", func(t *testing.T) {
 		t.Run("invalid payload is dag.EventFatal", func(t *testing.T) {
 			a := NewAmbassador(nil, nil, nil, nil).(*ambassador)
 
-			value, err := a.handleNetworkVCs(ctx, dag.Event{
+			value, err := a.handleNetworkVCs(dag.Event{
 				Transaction: stx,
 				Payload:     []byte("{"),
 			})
@@ -225,7 +224,7 @@ func TestAmbassador_handleNetworkVCs(t *testing.T) {
 			a := NewAmbassador(nil, wMock, nil, nil).(*ambassador)
 			wMock.EXPECT().StoreCredential(gomock.Any(), gomock.Any()).Return(err)
 
-			value, err := a.handleNetworkVCs(ctx, dag.Event{
+			value, err := a.handleNetworkVCs(dag.Event{
 				Transaction: stx,
 				Payload:     []byte(jsonld.TestCredential),
 			})
@@ -242,7 +241,7 @@ func TestAmbassador_handleNetworkVCs(t *testing.T) {
 			a := NewAmbassador(nil, wMock, nil, nil).(*ambassador)
 			wMock.EXPECT().StoreCredential(gomock.Any(), gomock.Any()).Return(context.Canceled)
 
-			value, err := a.handleNetworkVCs(ctx, dag.Event{
+			value, err := a.handleNetworkVCs(dag.Event{
 				Transaction: stx,
 				Payload:     []byte(jsonld.TestCredential),
 			})
@@ -257,7 +256,7 @@ func TestAmbassador_handleNetworkVCs(t *testing.T) {
 			a := NewAmbassador(nil, wMock, nil, nil).(*ambassador)
 			wMock.EXPECT().StoreCredential(gomock.Any(), gomock.Any()).Return(context.DeadlineExceeded)
 
-			value, err := a.handleNetworkVCs(ctx, dag.Event{
+			value, err := a.handleNetworkVCs(dag.Event{
 				Transaction: stx,
 				Payload:     []byte(jsonld.TestCredential),
 			})
@@ -283,7 +282,7 @@ func TestAmbassador_handleNetworkVCs(t *testing.T) {
 			a := NewAmbassador(nil, wMock, nil, nil).(*ambassador)
 			wMock.EXPECT().StoreCredential(gomock.Any(), gomock.Any()).Return(err)
 
-			value, err := a.handleNetworkVCs(ctx, dag.Event{
+			value, err := a.handleNetworkVCs(dag.Event{
 				Transaction: stx,
 				Payload:     []byte(jsonld.TestCredential),
 			})
@@ -298,7 +297,6 @@ func Test_ambassador_handleNetworkRevocations(t *testing.T) {
 	payload, _ := os.ReadFile("test/ld-revocation.json")
 	tx, _ := dag.NewTransaction(hash.EmptyHash(), types.RevocationLDDocumentType, nil, nil, 0)
 	stx := tx.(dag.Transaction)
-	ctx := audit.TestContext()
 
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -310,7 +308,7 @@ func Test_ambassador_handleNetworkRevocations(t *testing.T) {
 		mockVerifier.EXPECT().RegisterRevocation(revocation)
 		a := NewAmbassador(nil, nil, mockVerifier, nil).(*ambassador)
 
-		value, err := a.handleNetworkRevocations(ctx, dag.Event{
+		value, err := a.handleNetworkRevocations(dag.Event{
 			Transaction: stx,
 			Payload:     payload,
 		})
@@ -322,7 +320,7 @@ func Test_ambassador_handleNetworkRevocations(t *testing.T) {
 		a := NewAmbassador(nil, nil, nil, nil).(*ambassador)
 
 		//err := a.jsonLDRevocationCallback(stx, []byte("b00m"))
-		value, err := a.handleNetworkRevocations(ctx, dag.Event{
+		value, err := a.handleNetworkRevocations(dag.Event{
 			Transaction: stx,
 			Payload:     []byte("b00m"),
 		})
@@ -338,7 +336,7 @@ func Test_ambassador_handleNetworkRevocations(t *testing.T) {
 		mockVerifier.EXPECT().RegisterRevocation(gomock.Any()).Return(errors.New("foo"))
 		a := NewAmbassador(nil, nil, mockVerifier, nil).(*ambassador)
 
-		value, err := a.handleNetworkRevocations(ctx, dag.Event{
+		value, err := a.handleNetworkRevocations(dag.Event{
 			Transaction: stx,
 			Payload:     payload,
 		})
@@ -354,7 +352,7 @@ func Test_ambassador_handleNetworkRevocations(t *testing.T) {
 		mockVerifier.EXPECT().RegisterRevocation(gomock.Any()).Return(context.Canceled)
 		a := NewAmbassador(nil, nil, mockVerifier, nil).(*ambassador)
 
-		value, err := a.handleNetworkRevocations(ctx, dag.Event{
+		value, err := a.handleNetworkRevocations(dag.Event{
 			Transaction: stx,
 			Payload:     payload,
 		})

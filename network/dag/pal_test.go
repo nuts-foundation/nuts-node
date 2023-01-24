@@ -23,7 +23,6 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
-	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/stretchr/testify/require"
 	"testing"
 
@@ -55,7 +54,7 @@ func TestEncryptPal(t *testing.T) {
 		keyStore := crypto.NewMemoryStorage()
 		cryptoInstance := crypto.NewTestCryptoInstance(keyStore)
 		_ = keyStore.SavePrivateKey("kid-B", pkB)
-		actual, err := pal.Decrypt(audit.TestContext(), []string{"kid-B"}, cryptoInstance)
+		actual, err := pal.Decrypt([]string{"kid-B"}, cryptoInstance)
 		require.NoError(t, err)
 		assert.Equal(t, expected, actual)
 	})
@@ -86,19 +85,18 @@ func TestEncryptPal(t *testing.T) {
 
 func TestDecryptPal(t *testing.T) {
 	pk, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	ctx := audit.TestContext()
 	t.Run("ok - not decryptable, no matching private keys", func(t *testing.T) {
 		keyStore := crypto.NewMemoryStorage()
 		cryptoInstance := crypto.NewTestCryptoInstance(keyStore)
 		keyStore.SavePrivateKey("kid-1", pk)
 
-		actual, err := EncryptedPAL{{1, 2}, {3}}.Decrypt(ctx, []string{"kid-1"}, cryptoInstance)
+		actual, err := EncryptedPAL{{1, 2}, {3}}.Decrypt([]string{"kid-1"}, cryptoInstance)
 
 		assert.Nil(t, actual)
 		assert.NoError(t, err)
 	})
 	t.Run("error - private key is missing", func(t *testing.T) {
-		actual, err := EncryptedPAL{{1, 2}, {3}}.Decrypt(ctx, []string{"kid-1"}, crypto.NewMemoryCryptoInstance())
+		actual, err := EncryptedPAL{{1, 2}, {3}}.Decrypt([]string{"kid-1"}, crypto.NewMemoryCryptoInstance())
 		assert.Nil(t, actual)
 		assert.EqualError(t, err, "private key of DID keyAgreement not found (kid=kid-1)")
 	})
@@ -109,7 +107,7 @@ func TestDecryptPal(t *testing.T) {
 
 		cipherText, _ := crypto.EciesEncrypt(pk.Public().(*ecdsa.PublicKey), []byte{1, 2, 3})
 
-		actual, err := EncryptedPAL{cipherText}.Decrypt(ctx, []string{"kid-1"}, cryptoInstance)
+		actual, err := EncryptedPAL{cipherText}.Decrypt([]string{"kid-1"}, cryptoInstance)
 		assert.Nil(t, actual)
 		assert.EqualError(t, err, "invalid participant (did=\x01\x02\x03): invalid DID: input length is less than 7")
 	})

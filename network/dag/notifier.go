@@ -23,7 +23,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/audit"
 	"time"
 
 	"github.com/avast/retry-go/v4"
@@ -91,7 +90,7 @@ type Notifier interface {
 // ReceiverFn is the function type that needs to be registered for a notifier
 // Returns true if event is received and done, false otherwise
 // The Notifier's retry mechanism is aborted when this function's error is wrapped by EventFatal
-type ReceiverFn func(ctx context.Context, event Event) (bool, error)
+type ReceiverFn func(event Event) (bool, error)
 
 // NotificationFilter can be added to a notifier to filter out any unwanted events
 // Returns true if the filter applies and the Event is to be received
@@ -194,6 +193,7 @@ func withCounters(notifiedCounter prometheus.Counter, finishedCounter prometheus
 // Various settings can be changed via a NotifierOption
 // A default retry delay of 10 seconds is used.
 func NewNotifier(name string, receiverFn ReceiverFn, options ...NotifierOption) Notifier {
+
 	ctx, cancel := context.WithCancel(context.Background())
 	subscriber := &notifier{
 		name:       name,
@@ -206,9 +206,6 @@ func NewNotifier(name string, receiverFn ReceiverFn, options ...NotifierOption) 
 	for _, option := range options {
 		option(subscriber)
 	}
-
-	// enrich context with audit info
-	subscriber.ctx = audit.Context(subscriber.ctx, "app-scheduler", "Network.Scheduler", "Notify")
 
 	return subscriber
 }
@@ -399,7 +396,7 @@ func (p *notifier) notifyNow(event Event) error {
 		}
 	}
 
-	finished, err := p.receiver(p.ctx, *dbEvent)
+	finished, err := p.receiver(*dbEvent)
 	if err != nil {
 		if errors.As(err, new(EventFatal)) {
 			// mark as failed event
