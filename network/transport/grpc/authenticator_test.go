@@ -51,6 +51,10 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 
 	nodeDID := *nodeDID
 	query := ssi.MustParseURI(nodeDID.String() + "/serviceEndpoint?type=NutsComm")
+	expectedPeer := transport.Peer{
+		NodeDID:       nodeDID,
+		Authenticated: true,
+	}
 
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -61,7 +65,7 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 		authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transport.Peer{})
 
 		require.NoError(t, err)
-		assert.Equal(t, authenticatedPeer.NodeDID, nodeDID)
+		assert.Equal(t, expectedPeer, authenticatedPeer)
 	})
 	t.Run("ok - case insensitive comparison", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -72,7 +76,7 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 		authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transport.Peer{})
 
 		require.NoError(t, err)
-		assert.Equal(t, authenticatedPeer.NodeDID, nodeDID)
+		assert.Equal(t, expectedPeer, authenticatedPeer)
 	})
 	t.Run("ok - wildcard comparison", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -90,7 +94,7 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 		authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transport.Peer{})
 
 		require.NoError(t, err)
-		assert.Equal(t, authenticatedPeer.NodeDID, nodeDID)
+		assert.Equal(t, expectedPeer, authenticatedPeer)
 	})
 	t.Run("without acceptUnauthenticated", func(t *testing.T) {
 		transportPeer := transport.Peer{}
@@ -126,6 +130,7 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 		transportPeer := transport.Peer{AcceptUnauthenticated: true}
 		expectedPeer := transport.Peer{
 			AcceptUnauthenticated: true,
+			Authenticated:         false,
 			NodeDID:               nodeDID,
 		}
 		t.Run("ok", func(t *testing.T) {
@@ -177,5 +182,7 @@ func TestDummyAuthenticator_Authenticate(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.Equal(t, *nodeDID, peer.NodeDID)
+		assert.True(t, peer.Authenticated)
+		assert.True(t, peer.AcceptUnauthenticated)
 	})
 }

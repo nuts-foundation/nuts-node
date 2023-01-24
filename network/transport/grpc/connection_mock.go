@@ -50,6 +50,20 @@ func (mr *MockConnectionMockRecorder) CloseError() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloseError", reflect.TypeOf((*MockConnection)(nil).CloseError))
 }
 
+// IsAuthenticated mocks base method.
+func (m *MockConnection) IsAuthenticated() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsAuthenticated")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// IsAuthenticated indicates an expected call of IsAuthenticated.
+func (mr *MockConnectionMockRecorder) IsAuthenticated() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsAuthenticated", reflect.TypeOf((*MockConnection)(nil).IsAuthenticated))
+}
+
 // IsConnected mocks base method.
 func (m *MockConnection) IsConnected() bool {
 	m.ctrl.T.Helper()

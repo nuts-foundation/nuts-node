@@ -272,7 +272,7 @@ func (p *protocol) handlePrivateTxRetry(event dag.Event) (bool, error) {
 	// Broadcast query to all TX participants we've got a connection to
 	sent := false
 	for _, curr := range pal {
-		conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByNodeDID(curr))
+		conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByNodeDID(curr), grpc.ByAuthenticated())
 		if conn != nil {
 			err = conn.Send(p, &Envelope{Message: &Envelope_TransactionPayloadQuery{
 				TransactionPayloadQuery: &TransactionPayloadQuery{
@@ -293,7 +293,7 @@ func (p *protocol) handlePrivateTxRetry(event dag.Event) (bool, error) {
 	}
 
 	if !sent {
-		return false, fmt.Errorf("no connection to any of the participants (tx=%s, PAL=%v)", event.Hash.String(), pal)
+		return false, fmt.Errorf("no authenticated connection to any of the participants (tx=%s, PAL=%v)", event.Hash.String(), pal)
 	}
 
 	return false, nil

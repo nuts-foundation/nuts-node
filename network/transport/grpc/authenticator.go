@@ -55,6 +55,7 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 				WithError(err).
 				Warn("Connection manually authenticated with authentication error")
 			peer.NodeDID = nodeDID
+			peer.Authenticated = false
 			return peer, nil
 		}
 		return peer, err
@@ -81,18 +82,19 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 
 	// Check whether one of the DNS names matches one of the NutsComm endpoints
 	err = peerCertificate.VerifyHostname(nutsCommURL.Hostname())
-	if err == nil {
+	if err != nil {
 		log.Logger().
 			WithField(core.LogFieldDID, nodeDID).
-			Debug("Connection successfully authenticated")
-		peer.NodeDID = nodeDID
-		return peer, nil
+			Debugf("DNS names in peer certificate: %s", strings.Join(peerCertificate.DNSNames, ", "))
+		return withOverride(peer, fmt.Errorf("none of the DNS names in the peer's TLS certificate match the NutsComm endpoint (nodeDID=%s)", nodeDID))
 	}
 
 	log.Logger().
 		WithField(core.LogFieldDID, nodeDID).
-		Debugf("DNS names in peer certificate: %s", strings.Join(peerCertificate.DNSNames, ", "))
-	return withOverride(peer, fmt.Errorf("none of the DNS names in the peer's TLS certificate match the NutsComm endpoint (nodeDID=%s)", nodeDID))
+		Debug("Connection successfully authenticated")
+	peer.NodeDID = nodeDID
+	peer.Authenticated = true
+	return peer, nil
 }
 
 // NewDummyAuthenticator creates an Authenticator that does not verify node identities
@@ -102,7 +104,9 @@ func NewDummyAuthenticator(_ didservice.ServiceResolver) Authenticator {
 
 type dummyAuthenticator struct{}
 
-func (d dummyAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, peer transport.Peer) (transport.Peer, error) {
+func (d dummyAuthenticator) Authenticate(nodeDID did.DID, _ grpcPeer.Peer, peer transport.Peer) (transport.Peer, error) {
 	peer.NodeDID = nodeDID
+	peer.Authenticated = true
+	peer.AcceptUnauthenticated = true
 	return peer, nil
 }

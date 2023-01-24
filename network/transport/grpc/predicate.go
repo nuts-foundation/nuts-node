@@ -71,3 +71,14 @@ func (predicate nodeDIDPredicate) Match(conn Connection) bool {
 func ByNodeDID(nodeDID did.DID) Predicate {
 	return nodeDIDPredicate{nodeDID: nodeDID}
 }
+
+type authenticatedPredicated struct {
+}
+
+func (predicate authenticatedPredicated) Match(conn Connection) bool {
+	return conn.IsAuthenticated()
+}
+
+func ByAuthenticated() Predicate {
+	return authenticatedPredicated{}
+}

@@ -368,14 +368,14 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 		}, nil, nil)
 		mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), []byte{1}).Return([]byte(peerDID.String()), nil)
 		connectionList := grpc.NewMockConnectionList(mocks.Controller)
-		connectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByNodeDID(*peerDID)).Return(nil)
+		connectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByNodeDID(*peerDID), grpc.ByAuthenticated()).Return(nil)
 		proto.connectionList = connectionList
 
 		finished, err := proto.handlePrivateTxRetry(event)
 
 		assert.False(t, finished)
 		assert.False(t, errors.As(err, new(dag.EventFatal)))
-		assert.EqualError(t, err, fmt.Sprintf("no connection to any of the participants (tx=%s, PAL=[did:nuts:peer])", txOk.Ref().String()))
+		assert.EqualError(t, err, fmt.Sprintf("no authenticated connection to any of the participants (tx=%s, PAL=[did:nuts:peer])", txOk.Ref().String()))
 	})
 
 	t.Run("valid transaction fails when sending the payload query errors", func(t *testing.T) {
@@ -395,14 +395,14 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 			},
 		}}, false).Return(errors.New("random error"))
 		connectionList := grpc.NewMockConnectionList(mocks.Controller)
-		connectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByNodeDID(*peerDID)).Return(conn)
+		connectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByNodeDID(*peerDID), grpc.ByAuthenticated()).Return(conn)
 		proto.connectionList = connectionList
 
 		finished, err := proto.handlePrivateTxRetry(event)
 
 		assert.False(t, finished)
 		assert.False(t, errors.As(err, new(dag.EventFatal)))
-		assert.EqualError(t, err, fmt.Sprintf("no connection to any of the participants (tx=%s, PAL=[did:nuts:peer])", txOk.Ref().String()))
+		assert.EqualError(t, err, fmt.Sprintf("no authenticated connection to any of the participants (tx=%s, PAL=[did:nuts:peer])", txOk.Ref().String()))
 	})
 
 	t.Run("valid transaction is handled successfully", func(t *testing.T) {
@@ -421,7 +421,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 			},
 		}}, false).Return(nil)
 		connectionList := grpc.NewMockConnectionList(mocks.Controller)
-		connectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByNodeDID(*peerDID)).Return(conn)
+		connectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByNodeDID(*peerDID), grpc.ByAuthenticated()).Return(conn)
 		proto.connectionList = connectionList
 
 		finished, err := proto.handlePrivateTxRetry(event)
@@ -464,9 +464,9 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 			},
 		}}, false).Return(nil)
 		connectionList := grpc.NewMockConnectionList(mocks.Controller)
-		connectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByNodeDID(*nodeDID)).Return(nil)
-		connectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByNodeDID(*peerDID)).Return(conn1)
-		connectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByNodeDID(*otherPeerDID)).Return(conn2)
+		connectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByNodeDID(*nodeDID), grpc.ByAuthenticated()).Return(nil)
+		connectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByNodeDID(*peerDID), grpc.ByAuthenticated()).Return(conn1)
+		connectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByNodeDID(*otherPeerDID), grpc.ByAuthenticated()).Return(conn2)
 		proto.connectionList = connectionList
 
 		finished, err := proto.handlePrivateTxRetry(event)

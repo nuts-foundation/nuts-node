@@ -91,6 +91,9 @@ type Connection interface {
 	// IsProtocolConnected returns whether the given protocol is active on the connection.
 	IsProtocolConnected(protocol Protocol) bool
 
+	// IsAuthenticated returns whether teh given connection is authenticated.
+	IsAuthenticated() bool
+
 	// CloseError returns the status when the connection closed with an error or nil otherwise
 	CloseError() *status.Status
 }
@@ -102,7 +105,7 @@ func createConnection(parentCtx context.Context, dialer dialer, peer transport.P
 		outboxes:  make(map[string]chan interface{}),
 		parentCtx: parentCtx,
 	}
-	result.peer.Store(peer)
+	result.setPeer(peer)
 	return result
 }
 
@@ -152,7 +155,7 @@ func (mc *conn) disconnect() {
 	peer := mc.Peer()
 	peer.ID = ""
 	peer.NodeDID = did.DID{}
-	mc.peer.Store(peer)
+	mc.setPeer(peer)
 }
 
 func (mc *conn) waitUntilDisconnected() {
@@ -173,7 +176,7 @@ func (mc *conn) verifyOrSetPeerID(id transport.PeerID) bool {
 	currentPeer := mc.Peer()
 	if len(currentPeer.ID) == 0 {
 		currentPeer.ID = id
-		mc.peer.Store(currentPeer)
+		mc.setPeer(currentPeer)
 		return true
 	}
 	return currentPeer.ID == id
@@ -362,6 +365,10 @@ func (mc *conn) IsProtocolConnected(protocol Protocol) bool {
 	defer mc.mux.RUnlock()
 
 	return mc.ctx != nil && mc.streams[protocol.MethodName()] != nil
+}
+
+func (mc *conn) IsAuthenticated() bool {
+	return mc.Peer().Authenticated
 }
 
 func (mc *conn) CloseError() *status.Status {
