@@ -24,27 +24,21 @@ type Info struct {
 	Operation string
 }
 
-// NewInfo formats audit info
-func NewInfo(actor string, operationModuleName string, operation string) Info {
-	return Info{
-		Actor:     actor,
-		Operation: operationModuleName + "." + operation,
-	}
-}
-
-var auditInfoContextKey = struct{}{}
+type auditContextKey struct{}
 
 // Context returns a child context of the given parent context, enriched with the auditable actor and performed operation.
-func Context(parent context.Context, provider func() Info) context.Context {
-	return context.WithValue(parent, auditInfoContextKey, provider)
+func Context(parent context.Context, actor, module, operationName string) context.Context {
+	return context.WithValue(parent, auditContextKey{}, Info{
+		Actor:     actor,
+		Operation: module + "." + operationName,
+	})
 }
 
 // InfoFromContext extracts the audit info from the given context.
 func InfoFromContext(ctx context.Context) *Info {
-	actor, ok := ctx.Value(auditInfoContextKey).(func() Info)
+	actor, ok := ctx.Value(auditContextKey{}).(Info)
 	if ok {
-		result := actor()
-		return &result
+		return &actor
 	}
 	return nil
 }

@@ -18,6 +18,7 @@ package v1
 import (
 	"context"
 	"errors"
+	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"net/http"
 	"testing"
@@ -35,15 +36,16 @@ import (
 )
 
 func TestWrapper_Preprocess(t *testing.T) {
-	ctrl := gomock.NewController(t)
-
 	w := &Wrapper{}
-	ctx := mock.NewMockContext(ctrl)
-	ctx.EXPECT().Set(core.StatusCodeResolverContextKey, w)
-	ctx.EXPECT().Set(core.OperationIDContextKey, "foo")
-	ctx.EXPECT().Set(core.ModuleNameContextKey, "VDR")
+	echoCtx := echo.New().NewContext(&http.Request{}, nil)
+	echoCtx.Set(core.UserContextKey, "user")
 
-	w.Preprocess("foo", ctx)
+	w.Preprocess("foo", echoCtx)
+
+	audit.AssertAuditInfo(t, echoCtx, "user@", "VDR", "foo")
+	assert.Equal(t, "foo", echoCtx.Get(core.OperationIDContextKey))
+	assert.Equal(t, "VDR", echoCtx.Get(core.ModuleNameContextKey))
+	assert.Same(t, w, echoCtx.Get(core.StatusCodeResolverContextKey))
 }
 
 func TestWrapper_CreateDID(t *testing.T) {

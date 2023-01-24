@@ -21,6 +21,7 @@ package v2
 import (
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"net/http"
 
 	"github.com/nuts-foundation/nuts-node/jsonld"
@@ -74,7 +75,8 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 func (w *Wrapper) Preprocess(operationID string, context echo.Context) {
 	context.Set(core.StatusCodeResolverContextKey, w)
 	context.Set(core.OperationIDContextKey, operationID)
-	context.Set(core.ModuleNameContextKey, "VCR")
+	context.Set(core.ModuleNameContextKey, vcr.ModuleName)
+	audit.Middleware(context, vcr.ModuleName, operationID)
 }
 
 // IssueVC handles the API request for credential issuing.

@@ -19,7 +19,8 @@
 
 package vcr
 
-const moduleName = "VCR"
+// ModuleName is the name of this module.
+const ModuleName = "VCR"
 
 // Config holds the config for the vcr engine
 type Config struct {

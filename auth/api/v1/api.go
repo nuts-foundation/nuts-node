@@ -23,6 +23,7 @@ import (
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"net/http"
 	"net/url"
@@ -72,6 +73,7 @@ func (w *Wrapper) Preprocess(operationID string, context echo.Context) {
 	context.Set(core.StatusCodeResolverContextKey, w)
 	context.Set(core.OperationIDContextKey, operationID)
 	context.Set(core.ModuleNameContextKey, auth.ModuleName)
+	audit.Middleware(context, auth.ModuleName, operationID)
 }
 
 // Routes registers the Echo routes for the API.

@@ -156,9 +156,7 @@ func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, envelope *
 		}
 		epal := dag.EncryptedPAL(tx.PAL())
 
-		ctx = audit.Context(p.ctx, func() audit.Info {
-			return audit.NewInfo("app-network", "Network.ProtocolV2", "HandleTransactionPayloadQuery")
-		})
+		ctx = audit.Context(p.ctx, "app-network", "Network.ProtocolV2", "HandleTransactionPayloadQuery")
 		pal, err := p.decryptPAL(ctx, epal)
 		if err != nil {
 			log.Logger().

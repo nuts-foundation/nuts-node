@@ -100,7 +100,7 @@ func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 		}
 	}
 
-	h.applyGlobalPreMiddleware(h.server, serverConfig)
+	h.applyGlobalMiddleware(h.server, serverConfig)
 
 	// Apply path-dependent config for configured HTTP paths
 	var paths []string
@@ -121,8 +121,6 @@ func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 	if err != nil {
 		return err
 	}
-
-	h.applyGlobalPostMiddleware(h.server, serverConfig)
 
 	return nil
 }
@@ -241,7 +239,7 @@ func matchesPath(requestURI string, path string) bool {
 	return requestURI == path || strings.HasPrefix(requestURI, path)
 }
 
-func (h Engine) applyGlobalPreMiddleware(echoServer core.EchoRouter, serverConfig core.ServerConfig) {
+func (h Engine) applyGlobalMiddleware(echoServer core.EchoRouter, serverConfig core.ServerConfig) {
 	// Use middleware to decode URL encoded path parameters like did%3Anuts%3A123 -> did:nuts:123
 	echoServer.Use(decodeURIPath)
 
@@ -261,12 +259,6 @@ func (h Engine) applyGlobalPreMiddleware(echoServer core.EchoRouter, serverConfi
 			}}, 24*time.Hour, 3000, 30),
 		)
 	}
-
-	echoServer.Use(auditMiddleware)
-}
-
-func (h Engine) applyGlobalPostMiddleware(echoServer core.EchoRouter, serverConfig core.ServerConfig) {
-	echoServer.Use(auditMiddleware)
 }
 
 func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludePaths []string, serverConfig core.ServerConfig, cfg InterfaceConfig) error {

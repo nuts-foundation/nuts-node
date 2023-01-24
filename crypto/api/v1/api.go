@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"github.com/lestrrat-go/jwx/jws"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -53,6 +54,9 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 				ctx.Set(core.StatusCodeResolverContextKey, w)
 				return f(ctx, request)
 			}
+		},
+		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
+			return audit.StrictMiddleware(f, crypto.ModuleName, operationID)
 		},
 	}))
 }

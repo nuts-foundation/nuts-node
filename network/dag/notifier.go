@@ -208,9 +208,7 @@ func NewNotifier(name string, receiverFn ReceiverFn, options ...NotifierOption) 
 	}
 
 	// enrich context with audit info
-	subscriber.ctx = audit.Context(subscriber.ctx, func() audit.Info {
-		return audit.NewInfo("app-scheduler", "Network.Scheduler", "Notify")
-	})
+	subscriber.ctx = audit.Context(subscriber.ctx, "app-scheduler", "Network.Scheduler", "Notify")
 
 	return subscriber
 }

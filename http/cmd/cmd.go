@@ -25,6 +25,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	cryptoCmd "github.com/nuts-foundation/nuts-node/crypto/cmd"
 	"github.com/nuts-foundation/nuts-node/http"
+	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"strconv"
@@ -61,12 +62,7 @@ func createTokenCommand() *cobra.Command {
 		Short: "Generates an access token for administrative operations.",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := audit.Context(cmd.Context(), func() audit.Info {
-				return audit.Info{
-					Actor:     "app-cli",
-					Operation: "http.gen-token",
-				}
-			})
+			ctx := audit.Context(cmd.Context(), "app-cli", network.ModuleName, cmd.Name())
 
 			daysValid, err := strconv.Atoi(args[1])
 			if err != nil {

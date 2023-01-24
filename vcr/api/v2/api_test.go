@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -891,15 +892,16 @@ func TestWrapper_Untrusted(t *testing.T) {
 }
 
 func TestWrapper_Preprocess(t *testing.T) {
-	ctrl := gomock.NewController(t)
-
 	w := &Wrapper{}
-	ctx := mock.NewMockContext(ctrl)
-	ctx.EXPECT().Set(core.StatusCodeResolverContextKey, w)
-	ctx.EXPECT().Set(core.OperationIDContextKey, "foo")
-	ctx.EXPECT().Set(core.ModuleNameContextKey, "VCR")
+	echoCtx := echo.New().NewContext(&http.Request{}, nil)
+	echoCtx.Set(core.UserContextKey, "user")
 
-	w.Preprocess("foo", ctx)
+	w.Preprocess("foo", echoCtx)
+
+	audit.AssertAuditInfo(t, echoCtx, "user@", "VCR", "foo")
+	assert.Equal(t, "foo", echoCtx.Get(core.OperationIDContextKey))
+	assert.Equal(t, "VCR", echoCtx.Get(core.ModuleNameContextKey))
+	assert.Same(t, w, echoCtx.Get(core.StatusCodeResolverContextKey))
 }
 
 type mockContext struct {

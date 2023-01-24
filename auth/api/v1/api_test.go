@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
 	"github.com/nuts-foundation/nuts-node/vcr"
@@ -120,15 +121,16 @@ func createContext(t *testing.T) *TestContext {
 }
 
 func TestWrapper_Preprocess(t *testing.T) {
-	ctrl := gomock.NewController(t)
-
 	w := &Wrapper{}
-	ctx := mock.NewMockContext(ctrl)
-	ctx.EXPECT().Set(core.StatusCodeResolverContextKey, w)
-	ctx.EXPECT().Set(core.OperationIDContextKey, "foo")
-	ctx.EXPECT().Set(core.ModuleNameContextKey, "Auth")
+	echoCtx := echo.New().NewContext(&http.Request{}, nil)
+	echoCtx.Set(core.UserContextKey, "user")
 
-	w.Preprocess("foo", ctx)
+	w.Preprocess("foo", echoCtx)
+
+	audit.AssertAuditInfo(t, echoCtx, "user@", "Auth", "foo")
+	assert.Equal(t, "foo", echoCtx.Get(core.OperationIDContextKey))
+	assert.Equal(t, "Auth", echoCtx.Get(core.ModuleNameContextKey))
+	assert.Same(t, w, echoCtx.Get(core.StatusCodeResolverContextKey))
 }
 
 func TestWrapper_GetSignSessionStatus(t *testing.T) {

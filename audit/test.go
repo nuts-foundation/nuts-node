@@ -3,20 +3,18 @@ package audit
 import (
 	"context"
 	"github.com/golang/mock/gomock"
+	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
 const TestActor = "test-actor"
 
 func TestContext() context.Context {
-	return Context(context.Background(), func() Info {
-		return Info{
-			Actor:     TestActor,
-			Operation: "TestOperation",
-		}
-	})
+	return Context(context.Background(), TestActor, "TestModule", "TestOperation")
 }
 
 type contextWithAuditInfoMatcher struct {
@@ -27,7 +25,7 @@ func (e contextWithAuditInfoMatcher) Matches(x interface{}) bool {
 	if !ok {
 		return false
 	}
-	_, ok = ctx.Value(auditInfoContextKey).(func() Info)
+	_, ok = ctx.Value(auditContextKey{}).(Info)
 	return ok
 }
 
@@ -37,6 +35,14 @@ func (e contextWithAuditInfoMatcher) String() string {
 
 func ContextWithAuditInfo() gomock.Matcher {
 	return contextWithAuditInfoMatcher{}
+}
+
+func AssertAuditInfo(t *testing.T, ctx echo.Context, actor, module, operation string) {
+	t.Helper()
+	info := InfoFromContext(ctx.Request().Context())
+	require.NotNil(t, info)
+	assert.Equal(t, actor, info.Actor)
+	assert.Equal(t, module+"."+operation, info.Operation)
 }
 
 type CapturedLog struct {

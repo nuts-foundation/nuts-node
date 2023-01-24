@@ -23,6 +23,7 @@ import (
 	"context"
 	"errors"
 	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"time"
 
@@ -47,6 +48,9 @@ func (a *Wrapper) Routes(router core.EchoRouter) {
 				ctx.Set(core.ModuleNameContextKey, network.ModuleName)
 				return f(ctx, request)
 			}
+		},
+		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
+			return audit.StrictMiddleware(f, network.ModuleName, operationID)
 		},
 	}))
 }
