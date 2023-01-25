@@ -21,7 +21,7 @@ package v1
 
 import (
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/audit"
+	httpModule "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"net/http"
 	"time"
@@ -60,10 +60,7 @@ func (a *Wrapper) ResolveStatusCode(err error) int {
 
 // Preprocess is called just before the API operation itself is invoked.
 func (a *Wrapper) Preprocess(operationID string, context echo.Context) {
-	context.Set(core.StatusCodeResolverContextKey, a)
-	context.Set(core.OperationIDContextKey, operationID)
-	context.Set(core.ModuleNameContextKey, vdr.ModuleName)
-	audit.SetOnEchoContext(context, vdr.ModuleName, operationID)
+	httpModule.Preprocess(context, a, vdr.ModuleName, operationID)
 }
 
 // DeleteVerificationMethod accepts a DID and a KeyIdentifier of a verificationMethod and calls the DocManipulator

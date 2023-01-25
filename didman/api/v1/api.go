@@ -22,7 +22,7 @@ package v1
 import (
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/audit"
+	httpModule "github.com/nuts-foundation/nuts-node/http"
 	"net/http"
 	"net/url"
 	"strings"
@@ -79,10 +79,7 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 
 // Preprocess is called just before the API operation itself is invoked.
 func (w *Wrapper) Preprocess(operationID string, context echo.Context) {
-	context.Set(core.StatusCodeResolverContextKey, w)
-	context.Set(core.OperationIDContextKey, operationID)
-	context.Set(core.ModuleNameContextKey, didman.ModuleName)
-	audit.SetOnEchoContext(context, didman.ModuleName, operationID)
+	httpModule.Preprocess(context, w, didman.ModuleName, operationID)
 }
 
 // Routes registers the routes from the open api spec to the echo router.

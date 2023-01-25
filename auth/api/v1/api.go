@@ -23,7 +23,7 @@ import (
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/audit"
+	httpModule "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"net/http"
 	"net/url"
@@ -70,10 +70,7 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 
 // Preprocess is called just before the API operation itself is invoked.
 func (w *Wrapper) Preprocess(operationID string, context echo.Context) {
-	context.Set(core.StatusCodeResolverContextKey, w)
-	context.Set(core.OperationIDContextKey, operationID)
-	context.Set(core.ModuleNameContextKey, auth.ModuleName)
-	audit.SetOnEchoContext(context, auth.ModuleName, operationID)
+	httpModule.Preprocess(context, w, auth.ModuleName, operationID)
 }
 
 // Routes registers the Echo routes for the API.

@@ -20,7 +20,7 @@ package audit
 
 import (
 	"context"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -60,7 +60,7 @@ func InfoFromContext(ctx context.Context) *Info {
 }
 
 // Log logs the given message as an audit event. The context must contain audit information.
-func Log(ctx context.Context, logger *log.Entry, eventName string) *log.Entry {
+func Log(ctx context.Context, logger *logrus.Entry, eventName string) *logrus.Entry {
 	info := InfoFromContext(ctx)
 	if info == nil {
 		panic("audit: no audit info in context")

@@ -21,7 +21,7 @@ package v2
 import (
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/audit"
+	httpModule "github.com/nuts-foundation/nuts-node/http"
 	"net/http"
 
 	"github.com/nuts-foundation/nuts-node/jsonld"
@@ -73,10 +73,7 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 
 // Preprocess is called just before the API operation itself is invoked.
 func (w *Wrapper) Preprocess(operationID string, context echo.Context) {
-	context.Set(core.StatusCodeResolverContextKey, w)
-	context.Set(core.OperationIDContextKey, operationID)
-	context.Set(core.ModuleNameContextKey, vcr.ModuleName)
-	audit.SetOnEchoContext(context, vcr.ModuleName, operationID)
+	httpModule.Preprocess(context, w, vcr.ModuleName, operationID)
 }
 
 // IssueVC handles the API request for credential issuing.
