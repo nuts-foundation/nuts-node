@@ -296,7 +296,7 @@ func TestAPIClient_StorePrivateKey(t *testing.T) {
 		client, _ := NewAPIClient(s.URL)
 
 		err := client.SavePrivateKey("existing-key", key)
-		require.EqualError(t, err, errKeyAlreadyExists.Error())
+		require.EqualError(t, err, ErrKeyAlreadyExists.Error())
 	})
 
 	t.Run("error - bad request", func(t *testing.T) {
@@ -324,7 +324,7 @@ func TestAPIClient_StorePrivateKey(t *testing.T) {
 		client, _ := NewAPIClient(s.URL)
 
 		err := client.SavePrivateKey("server-error", key)
-		require.EqualError(t, err, "unexpected status code from storage server: 500")
+		require.EqualError(t, err, "unable to save private key: unexpected status code from storage server: 500")
 	})
 }
 

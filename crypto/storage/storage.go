@@ -31,7 +31,9 @@ import (
 
 // ErrNotFound indicates that the specified crypto storage entry couldn't be found.
 var ErrNotFound = errors.New("entry not found")
-var errKeyAlreadyExists = errors.New("key already exists")
+
+// ErrKeyAlreadyExists indicates that a private key for this keyID already exists.
+var ErrKeyAlreadyExists = errors.New("key already exists")
 
 // Storage interface containing functions for storing and retrieving keys.
 type Storage interface {

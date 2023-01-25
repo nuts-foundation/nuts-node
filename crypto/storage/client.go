@@ -5,6 +5,7 @@ import (
 	"crypto"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/httpclient"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"net/http"
@@ -37,10 +38,8 @@ func (c APIClient) CheckHealth() map[string]core.Health {
 	switch response.StatusCode() {
 	case http.StatusOK:
 		results[StorageAPIConfigKey] = core.Health{Status: core.HealthStatusUp}
-		break
 	case http.StatusServiceUnavailable:
 		results[StorageAPIConfigKey] = core.Health{Status: core.HealthStatusDown, Details: fmt.Sprintf("storage server reports to be unavailable: %d", response.StatusCode())}
-		break
 	default:
 		results[StorageAPIConfigKey] = core.Health{Status: core.HealthStatusUnknown, Details: fmt.Sprintf("unexpected status code from storage server: %d", response.StatusCode())}
 	}
@@ -91,7 +90,9 @@ func (c APIClient) GetPrivateKey(kid string) (crypto.Signer, error) {
 		if response.JSON400 != nil {
 			return nil, backendError{error: *response.JSON400}
 		}
-		return nil, fmt.Errorf("unable to get private key: server responded with bad-request: %s", string(response.Body))
+		// not able to parse the error response, log it and fall through to default
+		log.Logger().Errorf("unable to get private key: server responded with bad-request and malformed error response.")
+		fallthrough
 	default:
 		return nil, fmt.Errorf("unable to get private key: unexpected status code from storage server: %d", response.StatusCode())
 	}
@@ -117,15 +118,17 @@ func (c APIClient) SavePrivateKey(kid string, key crypto.PrivateKey) error {
 	switch response.StatusCode() {
 	case http.StatusOK:
 		return nil
+	case http.StatusConflict:
+		return ErrKeyAlreadyExists
 	case http.StatusBadRequest:
 		if response.JSON400 != nil {
 			return backendError{error: *response.JSON400}
 		}
-		return fmt.Errorf("unable to save private key: server responded with bad-request: %s", string(response.Body))
-	case http.StatusConflict:
-		return errKeyAlreadyExists
+		// not able to parse the error response, log it and fall through to default
+		log.Logger().Errorf("unable to save private key: server responded with bad-request and malformed error response.")
+		fallthrough
 	default:
-		return fmt.Errorf("unexpected status code from storage server: %d", response.StatusCode())
+		return fmt.Errorf("unable to save private key: unexpected status code from storage server: %d", response.StatusCode())
 	}
 }
 
