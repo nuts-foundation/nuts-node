@@ -47,3 +47,8 @@ func TestByNotConnected(t *testing.T) {
 	assert.True(t, ByNotConnected().Match(&StubConnection{}))
 	assert.False(t, ByNotConnected().Match(&StubConnection{Open: true}))
 }
+
+func TestByAuthenticated(t *testing.T) {
+	assert.True(t, ByAuthenticated().Match(&StubConnection{Authenticated: true}))
+	assert.False(t, ByAuthenticated().Match(&StubConnection{}))
+}

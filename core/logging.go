@@ -70,8 +70,10 @@ const (
 	LogFieldPeerID = "peerID"
 	// LogFieldPeerAddr is the log field key for peer addresses from the network module.
 	LogFieldPeerAddr = "peerAddr"
-	// LogFieldPeerNodeDID is the log field key for a peer's authenticated node DID from the network module.
+	// LogFieldPeerNodeDID is the log field key for a peer's node DID from the network module.
 	LogFieldPeerNodeDID = "peerDID"
+	// LogFieldPeerAuthenticated is the log field key for that indicates if the peer's node DID is authenticated.
+	LogFieldPeerAuthenticated = "peerAuthenticated"
 	// LogFieldTransactionRef is the log field key for a transaction reference from the network module.
 	LogFieldTransactionRef = "txRef"
 	// LogFieldTransactionType is the log field key for the payload type, of a transaction from the network module.

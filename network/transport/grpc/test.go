@@ -60,10 +60,11 @@ func (s StubConnectionList) AllMatching(_ ...Predicate) []Connection {
 
 // StubConnection is a stub implementation of the Connection interface
 type StubConnection struct {
-	Open     bool
-	NodeDID  did.DID
-	SentMsgs []interface{}
-	PeerID   transport.PeerID
+	Open          bool
+	NodeDID       did.DID
+	SentMsgs      []interface{}
+	PeerID        transport.PeerID
+	Authenticated bool
 }
 
 // Send sends a message to the connection
@@ -76,8 +77,9 @@ func (s *StubConnection) Send(_ Protocol, envelope interface{}, _ bool) error {
 // Peer returns the peer information of the connection
 func (s *StubConnection) Peer() transport.Peer {
 	return transport.Peer{
-		ID:      s.PeerID,
-		NodeDID: s.NodeDID,
+		ID:            s.PeerID,
+		NodeDID:       s.NodeDID,
+		Authenticated: s.Authenticated,
 	}
 }
 
@@ -89,6 +91,11 @@ func (s *StubConnection) IsConnected() bool {
 // IsProtocolConnected returns true if the connection is connected for the given protocol
 func (s *StubConnection) IsProtocolConnected(_ Protocol) bool {
 	return s.Open
+}
+
+// IsAuthenticated returns whether teh given connection is authenticated.
+func (s *StubConnection) IsAuthenticated() bool {
+	return s.Authenticated
 }
 
 func (s *StubConnection) CloseError() *status.Status {
@@ -115,7 +122,7 @@ func (s *StubConnection) stopConnecting() {
 	panic("implement me")
 }
 
-func (s *StubConnection) registerStream(_ Protocol, _ Stream) bool {
+func (s *StubConnection) registerStream(protocol Protocol, stream Stream) bool {
 	panic("implement me")
 }
 

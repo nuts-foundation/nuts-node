@@ -20,6 +20,7 @@ package transport
 
 import (
 	"errors"
+	"github.com/nuts-foundation/nuts-node/core"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -67,16 +68,18 @@ func Test_ParseAddress(t *testing.T) {
 }
 
 func TestPeer_ToFields(t *testing.T) {
-	peer := Peer{
-		ID:      "abc",
-		Address: "def",
-		NodeDID: did.MustParseDID("did:abc:123"),
-	}
+	peerLogFields := Peer{
+		ID:            "abc",
+		Address:       "def",
+		NodeDID:       did.MustParseDID("did:abc:123"),
+		Authenticated: true,
+	}.ToFields()
 
-	assert.Len(t, peer.ToFields(), 3)
-	assert.Equal(t, "abc", peer.ToFields()["peerID"])
-	assert.Equal(t, "def", peer.ToFields()["peerAddr"])
-	assert.Equal(t, "did:abc:123", peer.ToFields()["peerDID"])
+	assert.Len(t, peerLogFields, 4)
+	assert.Equal(t, "abc", peerLogFields[core.LogFieldPeerID])
+	assert.Equal(t, "def", peerLogFields[core.LogFieldPeerAddr])
+	assert.Equal(t, "did:abc:123", peerLogFields[core.LogFieldPeerNodeDID])
+	assert.True(t, peerLogFields[core.LogFieldPeerAuthenticated].(bool))
 }
 
 func TestNutsCommURL_UnmarshalJSON(t *testing.T) {

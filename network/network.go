@@ -231,7 +231,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 			if config.Strictmode {
 				return errors.New("disabling node DID in strict mode is not allowed")
 			}
-			authenticator = grpc.NewDummyAuthenticator(didservice.NewServiceResolver(n.didDocumentResolver))
+			authenticator = grpc.NewDummyAuthenticator(nil)
 		} else {
 			authenticator = grpc.NewTLSAuthenticator(didservice.NewServiceResolver(n.didDocumentResolver))
 		}

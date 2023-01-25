@@ -42,13 +42,16 @@ func (p PeerID) String() string {
 
 // Peer holds the properties of a remote node we're connected to
 type Peer struct {
-	// ID holds the unique identificator of the peer
+	// ID holds the unique identifier of the peer
 	ID PeerID
 	// Address holds the remote address of the node we're actually connected to
 	Address string
 	// NodeDID holds the DID that the peer uses to identify its node on the network.
-	// It is only set when properly authenticated.
+	// If Authenticated is true the NodeDID is verified.
+	// TODO: the statement above is incorrect when network.disablenodeauthentication == true
 	NodeDID did.DID
+	// Authenticated is true when NodeDID is set and authentication is successful.
+	Authenticated bool
 	// AcceptUnauthenticated indicates if a connection may be made with this Peer even if the NodeDID could not be authenticated.
 	AcceptUnauthenticated bool
 }
@@ -56,9 +59,10 @@ type Peer struct {
 // ToFields returns the peer as a map of fields, to be used when logging the peer details.
 func (p Peer) ToFields() logrus.Fields {
 	return map[string]interface{}{
-		core.LogFieldPeerID:      p.ID.String(),
-		core.LogFieldPeerAddr:    p.Address,
-		core.LogFieldPeerNodeDID: p.NodeDID.String(),
+		core.LogFieldPeerID:            p.ID.String(),
+		core.LogFieldPeerAddr:          p.Address,
+		core.LogFieldPeerNodeDID:       p.NodeDID.String(),
+		core.LogFieldPeerAuthenticated: p.Authenticated,
 	}
 }
 

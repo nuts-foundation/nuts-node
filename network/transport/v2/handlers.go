@@ -145,7 +145,7 @@ func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, envelope *
 	}
 	if len(tx.PAL()) > 0 {
 		// Private TX, verify connection
-		if peer.NodeDID.Empty() {
+		if !peer.Authenticated {
 			// Connection isn't authenticated
 			log.Logger().
 				WithFields(peer.ToFields()).

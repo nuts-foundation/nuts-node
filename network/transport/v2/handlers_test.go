@@ -37,17 +37,20 @@ import (
 )
 
 var (
-	peer = transport.Peer{
-		ID:      "abc",
-		Address: "abc:5555",
+	peerDID, _      = did.ParseDID("did:nuts:peer")
+	otherPeerDID, _ = did.ParseDID("did:nuts:other-peer")
+	nodeDID, _      = did.ParseDID("did:nuts:node")
+	peer            = transport.Peer{
+		ID:            "abc",
+		Address:       "abc:5555",
+		NodeDID:       *peerDID,
+		Authenticated: false,
 	}
-	peerDID, _        = did.ParseDID("did:nuts:peer")
-	otherPeerDID, _   = did.ParseDID("did:nuts:other-peer")
-	nodeDID, _        = did.ParseDID("did:nuts:node")
 	authenticatedPeer = transport.Peer{
-		ID:      "abc",
-		Address: "abc:5555",
-		NodeDID: *peerDID,
+		ID:            "abc",
+		Address:       "abc:5555",
+		NodeDID:       *peerDID,
+		Authenticated: true,
 	}
 )
 
