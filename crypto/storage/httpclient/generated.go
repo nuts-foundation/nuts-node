@@ -50,7 +50,7 @@ type ErrorResponse struct {
 //
 // The key should be considered opaque and no assumptions should be made about its value or format.
 // Since the key is the last part of the URL path no slashes should be used.
-type Key = string
+type Key = safeKey
 
 // KeyList List of keys currently stored in the store.
 type KeyList = []Key

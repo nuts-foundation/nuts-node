@@ -162,12 +162,13 @@ components:
         $ref: "#/components/schemas/Key"
     Key:
       type: string
+      x-go-type: safeKey
       description: | 
         The key under which secrets can be stored or retrieved.
         
         The key should be considered opaque and no assumptions should be made about its value or format.
-        Since the key is the last part of the URL path no slashes should be used.
-      example: privatekeys-did:nuts:123
+        Since the key is the last part of the URL path, slashes and hash symbols must be escaped.
+      example: privatekeys-did%3Anuts%3A123%23key-1
     Secret:
       type: string
       description: The secret value stored under the provided key.
