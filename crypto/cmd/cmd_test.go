@@ -92,13 +92,8 @@ func Test_fs2VaultCommand(t *testing.T) {
 	t.Setenv("NUTS_CRYPTO_STORAGE", "vaultkv")
 	t.Setenv("NUTS_CRYPTO_VAULT_ADDRESS", s.URL)
 
-	// Set up crypto filesystem with some keys
-	pk1, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	pk2, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	testDirectory := testIo.TestDirectory(t)
-	fs, _ := storage.NewFileSystemBackend(testDirectory)
-	_ = fs.SavePrivateKey("pk1", pk1)
-	_ = fs.SavePrivateKey("pk2", pk2)
+	setupFSStoreData(t, testDirectory)
 
 	outBuf := new(bytes.Buffer)
 	cryptoCmd := ServerCmd()
@@ -112,13 +107,89 @@ func Test_fs2VaultCommand(t *testing.T) {
 	err := cryptoCmd.Execute()
 	require.NoError(t, err)
 
-	// Assert 2 keys were imported into Vault on the expected paths
-	assert.Len(t, importRequests, 2)
+	// Assert all keys were imported into Vault on the expected paths
+	assert.Len(t, importRequests, 3)
 	assert.NotNil(t, importRequests["/v1/kv/nuts-private-keys/pk1"])
 	assert.NotNil(t, importRequests["/v1/kv/nuts-private-keys/pk2"])
+	assert.NotNil(t, importRequests["/v1/kv/nuts-private-keys/pk3"])
 
 	// Assert imported keys are logged
 	output := outBuf.String()
 	assert.Contains(t, output, "pk1")
 	assert.Contains(t, output, "pk2")
+	assert.Contains(t, output, "pk3")
+}
+
+func Test_fs2ExternalStore(t *testing.T) {
+	// tests imports 1 new key, skips a known one, and the server returns an error for the third one
+	t.Run("ok", func(t *testing.T) {
+		// Set up webserver that stubs Vault
+		importRequests := make(map[string]string, 0)
+
+		s := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			data, err := io.ReadAll(request.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			importRequests[request.RequestURI] = string(data)
+			switch request.RequestURI {
+			case "/secrets/pk1":
+				writer.WriteHeader(http.StatusOK)
+			case "/secrets/pk2":
+				writer.WriteHeader(http.StatusConflict)
+			case "/secrets/pk3":
+				writer.WriteHeader(http.StatusBadRequest)
+			}
+
+		}))
+		defer s.Close()
+
+		// Configure target
+		t.Setenv("NUTS_CRYPTO_STORAGE", "external")
+		t.Setenv("NUTS_CRYPTO_CONNECTION_URL", s.URL)
+
+		testDirectory := testIo.TestDirectory(t)
+		setupFSStoreData(t, testDirectory)
+
+		outBuf := new(bytes.Buffer)
+		cryptoCmd := ServerCmd()
+		for _, cmd := range cryptoCmd.Commands() {
+			cmd.Flags().AddFlagSet(core.FlagSet())
+			cmd.Flags().AddFlagSet(FlagSet())
+		}
+		cryptoCmd.SetOut(outBuf)
+		cryptoCmd.SetArgs([]string{"fs2external", testDirectory})
+
+		err := cryptoCmd.Execute()
+		require.EqualError(t, err, "unable to store private key in Vault (kid=pk3): unable to save private key: unexpected status code from storage server: 400")
+
+		// Assert 2 keys were imported into Vault on the expected paths
+		assert.Len(t, importRequests, 3)
+		assert.Contains(t, importRequests, "/secrets/pk1")
+		assert.Contains(t, importRequests, "/secrets/pk2")
+		assert.Contains(t, importRequests, "/secrets/pk3")
+
+		// Assert imported keys are logged
+		output := outBuf.String()
+		assert.Contains(t, output, "pk1")
+		// key 2 is skipped because it already exists
+		assert.NotContains(t, output, "pk2")
+		// key 3 caused an error
+		assert.Contains(t, output, "Failed to import all fs keys into external store: unable to store private key in Vault (kid=pk3)")
+	})
+}
+
+// setupFSStoreData creates a directory with 2 keys in it
+// Can be used to test the fs2* commands
+func setupFSStoreData(t *testing.T, testDirectory string) {
+	t.Helper()
+
+	// Set up crypto filesystem with some keys
+	pk1, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	pk2, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	pk3, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	fs, _ := storage.NewFileSystemBackend(testDirectory)
+	_ = fs.SavePrivateKey("pk1", pk1)
+	_ = fs.SavePrivateKey("pk2", pk2)
+	_ = fs.SavePrivateKey("pk3", pk3)
 }

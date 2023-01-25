@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-const StorageAPIConfigKey = "external-store"
+const StorageAPIConfigKey = "external"
 const httpClientTimeout = 100 * time.Millisecond
 
 // APIClient implements the Storage interface. It uses a simple HTTP protocol to connect to an external storage server.

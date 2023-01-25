@@ -19,6 +19,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
 	cryptoEngine "github.com/nuts-foundation/nuts-node/crypto"
@@ -56,7 +57,7 @@ func fs2ExternalStore() *cobra.Command {
 	return &cobra.Command{
 		Use:   "fs2external [directory]",
 		Short: "Imports private keys from filesystem based storage (located at the given directory) into the storage server.",
-		Long: "Imports private keys from filesystem based storage into the secret store server. The given directory must contain the private key files." +
+		Long: "Imports private keys from filesystem based storage into the secret store server. The given directory must contain the private key files. " +
 			"The Nuts node must be configured to use storage-api as crypto storage. Can only be run on the local Nuts node, from the directory where nuts.yaml resides.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -73,23 +74,15 @@ func fs2ExternalStore() *cobra.Command {
 			}
 
 			directory := args[0]
-			sourceStorage, err := storage.NewFileSystemBackend(directory)
+			keys, err := fsToOtherStorage(directory, targetStorage)
+			cmd.Println(fmt.Sprintf("Imported %d keys:", len(keys)))
+			for _, key := range keys {
+				cmd.Println("  ", key)
+			}
 			if err != nil {
-				return fmt.Errorf("unable to initialize filesystem storage: %w", err)
+				cmd.Println("Failed to import all fs keys into external store:", err)
+				return err
 			}
-
-			for _, kid := range sourceStorage.ListPrivateKeys() {
-				privateKey, err := sourceStorage.GetPrivateKey(kid)
-				if err != nil {
-					return fmt.Errorf("unable to retrieve private key (kid=%s): %w", kid, err)
-				}
-				err = targetStorage.SavePrivateKey(kid, privateKey)
-				if err != nil {
-					return fmt.Errorf("unable to store private key in Vault (kid=%s): %w", kid, err)
-				}
-				cmd.Println("  Imported:", kid)
-			}
-			cmd.Println("Done!")
 			return nil
 		},
 	}
@@ -104,35 +97,29 @@ func fs2VaultCommand() *cobra.Command {
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Println("Importing keys on FileSystem storage into Vault...")
-
 			instance, err := LoadCryptoModule(cmd)
 			if err != nil {
 				return err
 			}
 			config := instance.Config().(*cryptoEngine.Config)
-			targetStorage, err := storage.NewVaultKVStorage(config.Vault)
+
+			target, err := storage.NewVaultKVStorage(config.Vault)
 			if err != nil {
 				return err
 			}
 
 			directory := args[0]
-			sourceStorage, err := storage.NewFileSystemBackend(directory)
-			if err != nil {
-				return fmt.Errorf("unable to initialize filesystem storage: %w", err)
+			keys, err := fsToOtherStorage(directory, target)
+			cmd.Println(fmt.Sprintf("Imported %d keys:", len(keys)))
+			for _, key := range keys {
+				cmd.Println("  ", key)
 			}
 
-			for _, kid := range sourceStorage.ListPrivateKeys() {
-				privateKey, err := sourceStorage.GetPrivateKey(kid)
-				if err != nil {
-					return fmt.Errorf("unable to retrieve private key (kid=%s): %w", kid, err)
-				}
-				err = targetStorage.SavePrivateKey(kid, privateKey)
-				if err != nil {
-					return fmt.Errorf("unable to store private key in Vault (kid=%s): %w", kid, err)
-				}
-				cmd.Println("  Imported:", kid)
+			if err != nil {
+				cmd.Println("Failed to import all fs keys into external Vault: ", err)
+				return err
 			}
-			cmd.Println("Done!")
+
 			return nil
 		},
 	}
@@ -155,4 +142,39 @@ func LoadCryptoModule(cmd *cobra.Command) (*cryptoEngine.Crypto, error) {
 		return nil, err
 	}
 	return instance, nil
+}
+
+// fsToOtherStorage imports keys from the given directory into the given storage.
+// It accepts a source directory and a target storage. It returns a list of keys that were imported and a possible error.
+func fsToOtherStorage(sourceDir string, target storage.Storage) ([]string, error) {
+	source, err := storage.NewFileSystemBackend(sourceDir)
+	if err != nil {
+		return nil, fmt.Errorf("unable to initialize filesystem storage: %w", err)
+	}
+
+	return exportToOtherStorage(source, target)
+}
+
+// exportToOtherStorage exports all private keys from the source storage to the target storage.
+// It accepts a source, target and returns all exported keys.
+// If an error occurs, the returned keys are the keys that were exported before the error occurred.
+func exportToOtherStorage(source, target storage.Storage) ([]string, error) {
+	var keys []string
+	for _, kid := range source.ListPrivateKeys() {
+		privateKey, err := source.GetPrivateKey(kid)
+		if err != nil {
+			return keys, fmt.Errorf("unable to retrieve private key (kid=%s): %w", kid, err)
+		}
+		err = target.SavePrivateKey(kid, privateKey)
+		if err != nil {
+			// ignore duplicate keys, allows for reruns
+			if errors.Is(err, storage.ErrKeyAlreadyExists) {
+				continue
+			}
+			return keys, fmt.Errorf("unable to store private key in Vault (kid=%s): %w", kid, err)
+		}
+		// only add if no error occurred
+		keys = append(keys, kid)
+	}
+	return keys, nil
 }

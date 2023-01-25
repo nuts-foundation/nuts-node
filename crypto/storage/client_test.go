@@ -369,12 +369,10 @@ func TestAPIClient_ListPrivateKeys(t *testing.T) {
 				switch request.URL.Path {
 				case "/health":
 					writer.WriteHeader(http.StatusOK)
-					break
 				case "/secrets":
 					writer.Header().Set("Content-Type", "application/json")
 					writer.WriteHeader(http.StatusOK)
 					_, _ = writer.Write([]byte(`[]`))
-					break
 				}
 			}
 		}))
