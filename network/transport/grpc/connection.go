@@ -155,6 +155,7 @@ func (mc *conn) disconnect() {
 	peer := mc.Peer()
 	peer.ID = ""
 	peer.NodeDID = did.DID{}
+	peer.Authenticated = false
 	mc.setPeer(peer)
 }
 
