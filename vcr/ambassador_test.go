@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/piprate/json-gold/ld"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -122,7 +123,7 @@ func TestAmbassador_handleReprocessEvent(t *testing.T) {
 	// Publish a VC
 	payload, _ := json.Marshal(vc)
 	unsignedTransaction, _ := dag.NewTransaction(hash.SHA256Sum(payload), types.VcDocumentType, nil, nil, uint32(0))
-	signedTransaction, err := dag.NewTransactionSigner(ctx.crypto, key, true).Sign(unsignedTransaction, time.Now())
+	signedTransaction, err := dag.NewTransactionSigner(ctx.crypto, key, true).Sign(audit.TestContext(), unsignedTransaction, time.Now())
 	require.NoError(t, err)
 	twp := events.TransactionWithPayload{
 		Transaction: signedTransaction,

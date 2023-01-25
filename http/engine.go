@@ -115,8 +115,14 @@ func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 		}
 		paths = append(paths, httpPath)
 	}
+
 	// Apply path-dependent config for root path, but exclude configured HTTP paths to avoid enabling middleware twice.
-	return h.applyBindMiddleware(h.server.getInterface(RootPath), RootPath, paths, serverConfig, h.config.InterfaceConfig)
+	err = h.applyBindMiddleware(h.server.getInterface(RootPath), RootPath, paths, serverConfig, h.config.InterfaceConfig)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (h *Engine) createEchoServer(cfg InterfaceConfig, tlsConfig *tls.Config) (*echoAdapter, error) {

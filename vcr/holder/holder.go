@@ -19,6 +19,7 @@
 package holder
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -52,7 +53,7 @@ func New(keyResolver vdr.KeyResolver, keyStore crypto.KeyStore, verifier verifie
 	}
 }
 
-func (h vcHolder) BuildVP(credentials []vc.VerifiableCredential, proofOptions proof.ProofOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error) {
+func (h vcHolder) BuildVP(ctx context.Context, credentials []vc.VerifiableCredential, proofOptions proof.ProofOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error) {
 	var err error
 	if signerDID == nil {
 		signerDID, err = h.resolveSubjectDID(credentials)
@@ -99,7 +100,7 @@ func (h vcHolder) BuildVP(credentials []vc.VerifiableCredential, proofOptions pr
 	// TODO: choose between different proof types (JWT or LD-Proof)
 	signingResult, err := proof.
 		NewLDProof(proofOptions).
-		Sign(document, signature.JSONWebSignature2020{ContextLoader: h.jsonldManager.DocumentLoader(), Signer: h.keyStore}, key)
+		Sign(ctx, document, signature.JSONWebSignature2020{ContextLoader: h.jsonldManager.DocumentLoader(), Signer: h.keyStore}, key)
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign VP with LD proof: %w", err)
 	}

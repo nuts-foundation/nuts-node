@@ -18,7 +18,9 @@
 package didservice
 
 import (
+	"context"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -37,6 +39,7 @@ type manipulatorTestContext struct {
 	mockResolver   *types.MockDocResolver
 	mockKeyCreator *mockKeyCreator
 	manipulator    *Manipulator
+	audit          context.Context
 }
 
 func newManipulatorTestContext(t *testing.T) manipulatorTestContext {
@@ -51,6 +54,7 @@ func newManipulatorTestContext(t *testing.T) manipulatorTestContext {
 		mockResolver:   resolver,
 		mockKeyCreator: keyCreator,
 		manipulator:    &Manipulator{Updater: updater, KeyCreator: keyCreator, Resolver: resolver},
+		audit:          audit.TestContext(),
 	}
 }
 
@@ -71,9 +75,9 @@ func TestManipulator_RemoveVerificationMethod(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newManipulatorTestContext(t)
 		ctx.mockResolver.EXPECT().Resolve(*id123, &types.ResolveMetadata{AllowDeactivated: true}).Return(doc, &types.DocumentMetadata{}, nil)
-		ctx.mockUpdater.EXPECT().Update(*id123, did.Document{ID: *id123})
+		ctx.mockUpdater.EXPECT().Update(ctx.audit, *id123, did.Document{ID: *id123})
 
-		err := ctx.manipulator.RemoveVerificationMethod(*id123, *id123Method)
+		err := ctx.manipulator.RemoveVerificationMethod(ctx.audit, *id123, *id123Method)
 		require.NoError(t, err)
 		assert.Empty(t, doc.CapabilityInvocation)
 		assert.Empty(t, doc.CapabilityDelegation)
@@ -87,7 +91,7 @@ func TestManipulator_RemoveVerificationMethod(t *testing.T) {
 		ctx := newManipulatorTestContext(t)
 		ctx.mockResolver.EXPECT().Resolve(*id123, &types.ResolveMetadata{AllowDeactivated: true}).Return(&did.Document{ID: *id123}, &types.DocumentMetadata{}, nil)
 
-		err := ctx.manipulator.RemoveVerificationMethod(*id123, *id123Method)
+		err := ctx.manipulator.RemoveVerificationMethod(ctx.audit, *id123, *id123Method)
 
 		assert.NoError(t, err)
 	})
@@ -96,7 +100,7 @@ func TestManipulator_RemoveVerificationMethod(t *testing.T) {
 		ctx := newManipulatorTestContext(t)
 		ctx.mockResolver.EXPECT().Resolve(*id123, &types.ResolveMetadata{AllowDeactivated: true}).Return(&did.Document{ID: *id123}, &types.DocumentMetadata{Deactivated: true}, nil)
 
-		err := ctx.manipulator.RemoveVerificationMethod(*id123, *id123Method)
+		err := ctx.manipulator.RemoveVerificationMethod(ctx.audit, *id123, *id123Method)
 		assert.EqualError(t, err, "the DID document has been deactivated")
 		assert.True(t, errors.Is(err, types.ErrDeactivated))
 	})
@@ -110,7 +114,7 @@ func TestManipulator_CreateNewAuthenticationMethodForDID(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		// Prepare a document with an authenticationMethod:
 		document := &did.Document{ID: *id123}
-		method, err := CreateNewVerificationMethodForDID(document.ID, kc)
+		method, err := CreateNewVerificationMethodForDID(audit.TestContext(), document.ID, kc)
 		require.NoError(t, err)
 		document.AddCapabilityInvocation(method)
 
@@ -132,11 +136,11 @@ func TestManipulator_AddKey(t *testing.T) {
 		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 		ctx.mockResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{}, nil)
 		var updatedDocument did.Document
-		ctx.mockUpdater.EXPECT().Update(*id, gomock.Any()).Do(func(_ did.DID, doc did.Document) {
+		ctx.mockUpdater.EXPECT().Update(ctx.audit, *id, gomock.Any()).Do(func(_ context.Context, _ did.DID, doc did.Document) {
 			updatedDocument = doc
 		})
 
-		key, err := ctx.manipulator.AddVerificationMethod(*id, types.AuthenticationUsage)
+		key, err := ctx.manipulator.AddVerificationMethod(ctx.audit, *id, types.AuthenticationUsage)
 		require.NoError(t, err)
 		assert.NotNil(t, key)
 		assert.Equal(t, key.Controller, *id,
@@ -153,9 +157,9 @@ func TestManipulator_AddKey(t *testing.T) {
 		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
 		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 		ctx.mockResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{}, nil)
-		ctx.mockUpdater.EXPECT().Update(*id, gomock.Any()).Return(types.ErrNotFound)
+		ctx.mockUpdater.EXPECT().Update(ctx.audit, *id, gomock.Any()).Return(types.ErrNotFound)
 
-		key, err := ctx.manipulator.AddVerificationMethod(*id, 0)
+		key, err := ctx.manipulator.AddVerificationMethod(ctx.audit, *id, 0)
 		assert.ErrorIs(t, err, types.ErrNotFound)
 		assert.Nil(t, key)
 	})
@@ -166,7 +170,7 @@ func TestManipulator_AddKey(t *testing.T) {
 		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
 		ctx.mockResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{Deactivated: true}, nil)
 
-		key, err := ctx.manipulator.AddVerificationMethod(*id, 0)
+		key, err := ctx.manipulator.AddVerificationMethod(nil, *id, 0)
 
 		assert.ErrorIs(t, err, types.ErrDeactivated)
 		assert.Nil(t, key)
@@ -185,8 +189,8 @@ func TestManipulator_Deactivate(t *testing.T) {
 	ctx.mockResolver.EXPECT().Resolve(*id, &types.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &types.DocumentMetadata{}, nil)
 	expectedDocument := CreateDocument()
 	expectedDocument.ID = *id
-	ctx.mockUpdater.EXPECT().Update(*id, expectedDocument)
+	ctx.mockUpdater.EXPECT().Update(ctx.audit, *id, expectedDocument)
 
-	err := ctx.manipulator.Deactivate(*id)
+	err := ctx.manipulator.Deactivate(ctx.audit, *id)
 	require.NoError(t, err)
 }

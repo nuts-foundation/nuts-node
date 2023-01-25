@@ -19,7 +19,6 @@
 package v2
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	ssi "github.com/nuts-foundation/go-did"
@@ -28,7 +27,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -111,14 +109,12 @@ func TestWrapper_SearchVCs(t *testing.T) {
 
 	t.Run("ok - exact match returns results", func(t *testing.T) {
 		ctx := newMockContext(t)
-		req := httptest.NewRequest(http.MethodPost, "/", nil)
-		ctx.echo.EXPECT().Request().Return(req)
 		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
 			_ = json.Unmarshal([]byte(organizationQuery), f)
 		})
 		// Not an organization VC, but doesn't matter
 		actualVC := *credential.ValidNutsAuthorizationCredential()
-		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{actualVC}, nil)
+		ctx.vcr.EXPECT().Search(ctx.requestCtx, searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{actualVC}, nil)
 		ctx.mockVerifier.EXPECT().GetRevocation(*actualVC.ID).Return(nil, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any())
 
@@ -150,14 +146,12 @@ func TestWrapper_SearchVCs(t *testing.T) {
 		}
 
 		ctx := newMockContext(t)
-		req := httptest.NewRequest(http.MethodPost, "/", nil)
-		ctx.echo.EXPECT().Request().Return(req)
 		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
 			_ = json.Unmarshal([]byte(prefixQuery), f)
 		})
 		// Not an organization VC, but doesn't matter
 		actualVC := *credential.ValidNutsAuthorizationCredential()
-		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{actualVC}, nil)
+		ctx.vcr.EXPECT().Search(ctx.requestCtx, searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{actualVC}, nil)
 		ctx.mockVerifier.EXPECT().GetRevocation(*actualVC.ID).Return(nil, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any())
 
@@ -187,14 +181,12 @@ func TestWrapper_SearchVCs(t *testing.T) {
 		}
 
 		ctx := newMockContext(t)
-		req := httptest.NewRequest(http.MethodPost, "/", nil)
-		ctx.echo.EXPECT().Request().Return(req)
 		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
 			_ = json.Unmarshal([]byte(wildcardOnlyQuery), f)
 		})
 		// Not an organization VC, but doesn't matter
 		actualVC := *credential.ValidNutsAuthorizationCredential()
-		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{actualVC}, nil)
+		ctx.vcr.EXPECT().Search(ctx.requestCtx, searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{actualVC}, nil)
 		ctx.mockVerifier.EXPECT().GetRevocation(*actualVC.ID).Return(nil, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any())
 
@@ -205,12 +197,10 @@ func TestWrapper_SearchVCs(t *testing.T) {
 
 	t.Run("ok - no results", func(t *testing.T) {
 		ctx := newMockContext(t)
-		req := httptest.NewRequest(http.MethodPost, "/", nil)
-		ctx.echo.EXPECT().Request().Return(req)
 		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
 			_ = json.Unmarshal([]byte(organizationQuery), f)
 		})
-		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{}, nil)
+		ctx.vcr.EXPECT().Search(ctx.requestCtx, searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{}, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, SearchVCResults{[]SearchVCResult{}})
 
 		err := ctx.client.SearchVCs(ctx.echo)
@@ -220,12 +210,10 @@ func TestWrapper_SearchVCs(t *testing.T) {
 
 	t.Run("ok - custom credential with @list terms", func(t *testing.T) {
 		ctx := newMockContext(t)
-		req := httptest.NewRequest(http.MethodPost, "/", nil)
-		ctx.echo.EXPECT().Request().Return(req)
 		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
 			_ = json.Unmarshal([]byte(customQuery), f)
 		})
-		ctx.vcr.EXPECT().Search(context.Background(), gomock.Any(), false, gomock.Any()).Return([]vc.VerifiableCredential{}, nil).Do(func(f1 interface{}, f2 interface{}, f3 interface{}, f4 interface{}) {
+		ctx.vcr.EXPECT().Search(ctx.requestCtx, gomock.Any(), false, gomock.Any()).Return([]vc.VerifiableCredential{}, nil).Do(func(f1 interface{}, f2 interface{}, f3 interface{}, f4 interface{}) {
 			terms := f2.([]vcr.SearchTerm)
 			if assert.Len(t, terms, 9) {
 				count := 0
@@ -247,13 +235,11 @@ func TestWrapper_SearchVCs(t *testing.T) {
 	})
 
 	t.Run("ok - untrusted flag", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/", nil)
 		ctx := newMockContext(t)
-		ctx.echo.EXPECT().Request().Return(req)
 		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
 			_ = json.Unmarshal([]byte(untrustedOrganizationQuery), f)
 		})
-		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, true, gomock.Any()).Return([]vc.VerifiableCredential{}, nil)
+		ctx.vcr.EXPECT().Search(ctx.requestCtx, searchTerms, true, gomock.Any()).Return([]vc.VerifiableCredential{}, nil)
 		ctx.echo.EXPECT().JSON(http.StatusOK, SearchVCResults{[]SearchVCResult{}})
 
 		err := ctx.client.SearchVCs(ctx.echo)
@@ -263,12 +249,10 @@ func TestWrapper_SearchVCs(t *testing.T) {
 
 	t.Run("error - search returns error", func(t *testing.T) {
 		ctx := newMockContext(t)
-		req := httptest.NewRequest(http.MethodPost, "/", nil)
-		ctx.echo.EXPECT().Request().Return(req)
 		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
 			_ = json.Unmarshal([]byte(organizationQuery), f)
 		})
-		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return(nil, errors.New("custom"))
+		ctx.vcr.EXPECT().Search(ctx.requestCtx, searchTerms, false, gomock.Any()).Return(nil, errors.New("custom"))
 
 		err := ctx.client.SearchVCs(ctx.echo)
 
@@ -313,14 +297,12 @@ func TestWrapper_SearchVCs(t *testing.T) {
 
 	t.Run("error - error retrieving revocation", func(t *testing.T) {
 		ctx := newMockContext(t)
-		req := httptest.NewRequest(http.MethodPost, "/", nil)
-		ctx.echo.EXPECT().Request().Return(req)
 		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
 			_ = json.Unmarshal([]byte(organizationQuery), f)
 		})
 		// Not an organization VC, but doesn't matter
 		actualVC := *credential.ValidNutsAuthorizationCredential()
-		ctx.vcr.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{actualVC}, nil)
+		ctx.vcr.EXPECT().Search(ctx.requestCtx, searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{actualVC}, nil)
 		ctx.mockVerifier.EXPECT().GetRevocation(*actualVC.ID).Return(nil, errors.New("failure"))
 
 		err := ctx.client.SearchVCs(ctx.echo)

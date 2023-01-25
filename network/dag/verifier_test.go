@@ -25,6 +25,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"testing"
 	"time"
 
@@ -75,7 +76,7 @@ func Test_PrevTransactionVerifier(t *testing.T) {
 		// malformed TX with LC = 2
 		unsignedTransaction, _ := NewTransaction(hash.EmptyHash(), "application/did+json", []hash.SHA256Hash{root.Ref()}, nil, 2)
 		signer := nutsCrypto.NewTestKey("1")
-		signedTransaction, _ := NewTransactionSigner(nutsCrypto.NewMemoryCryptoInstance(), signer, true).Sign(unsignedTransaction, time.Now())
+		signedTransaction, _ := NewTransactionSigner(nutsCrypto.NewMemoryCryptoInstance(), signer, true).Sign(audit.TestContext(), unsignedTransaction, time.Now())
 
 		_ = testState.db.Read(ctx, func(dbTx stoabs.ReadTx) error {
 			err := NewPrevTransactionsVerifier()(dbTx, signedTransaction)

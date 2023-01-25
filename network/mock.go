@@ -52,18 +52,18 @@ func (mr *MockTransactionsMockRecorder) CleanupSubscriberEvents(subcriberName, e
 }
 
 // CreateTransaction mocks base method.
-func (m *MockTransactions) CreateTransaction(spec Template) (dag.Transaction, error) {
+func (m *MockTransactions) CreateTransaction(ctx context.Context, spec Template) (dag.Transaction, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateTransaction", spec)
+	ret := m.ctrl.Call(m, "CreateTransaction", ctx, spec)
 	ret0, _ := ret[0].(dag.Transaction)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CreateTransaction indicates an expected call of CreateTransaction.
-func (mr *MockTransactionsMockRecorder) CreateTransaction(spec interface{}) *gomock.Call {
+func (mr *MockTransactionsMockRecorder) CreateTransaction(ctx, spec interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTransaction", reflect.TypeOf((*MockTransactions)(nil).CreateTransaction), spec)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTransaction", reflect.TypeOf((*MockTransactions)(nil).CreateTransaction), ctx, spec)
 }
 
 // GetTransaction mocks base method.

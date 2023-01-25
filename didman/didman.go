@@ -114,7 +114,7 @@ func (d *didman) Name() string {
 	return ModuleName
 }
 
-func (d *didman) AddEndpoint(id did.DID, serviceType string, u url.URL) (*did.Service, error) {
+func (d *didman) AddEndpoint(ctx context.Context, id did.DID, serviceType string, u url.URL) (*did.Service, error) {
 	unlockFn := d.callSerializer.Lock(id.String())
 	defer unlockFn()
 
@@ -123,7 +123,7 @@ func (d *didman) AddEndpoint(id did.DID, serviceType string, u url.URL) (*did.Se
 		WithField(core.LogFieldServiceType, serviceType).
 		WithField(core.LogFieldServiceEndpoint, u.String()).
 		Debug("Adding endpoint")
-	service, err := d.addService(id, serviceType, u.String(), nil)
+	service, err := d.addService(ctx, id, serviceType, u.String(), nil)
 	if err == nil {
 		log.Logger().
 			WithField(core.LogFieldDID, id.String()).
@@ -134,7 +134,7 @@ func (d *didman) AddEndpoint(id did.DID, serviceType string, u url.URL) (*did.Se
 	return service, err
 }
 
-func (d *didman) DeleteEndpointsByType(id did.DID, serviceType string) error {
+func (d *didman) DeleteEndpointsByType(ctx context.Context, id did.DID, serviceType string) error {
 	unlockFn := d.callSerializer.Lock(id.String())
 	defer unlockFn()
 
@@ -147,7 +147,7 @@ func (d *didman) DeleteEndpointsByType(id did.DID, serviceType string) error {
 	for _, s := range doc.Service {
 		if s.Type == serviceType {
 			found = true
-			if err = d.deleteService(s.ID); err != nil {
+			if err = d.deleteService(ctx, s.ID); err != nil {
 				return err
 			}
 		}
@@ -167,7 +167,7 @@ func (d *didman) GetCompoundServices(id did.DID) ([]did.Service, error) {
 	return filterCompoundServices(doc), nil
 }
 
-func (d *didman) AddCompoundService(id did.DID, serviceType string, endpoints map[string]ssi.URI) (*did.Service, error) {
+func (d *didman) AddCompoundService(ctx context.Context, id did.DID, serviceType string, endpoints map[string]ssi.URI) (*did.Service, error) {
 	unlockFn := d.callSerializer.Lock(id.String())
 	defer unlockFn()
 
@@ -183,7 +183,7 @@ func (d *didman) AddCompoundService(id did.DID, serviceType string, endpoints ma
 		serviceEndpoint[k] = v.String()
 	}
 
-	service, err := d.addService(id, serviceType, serviceEndpoint, nil)
+	service, err := d.addService(ctx, id, serviceType, serviceEndpoint, nil)
 	if err == nil {
 		log.Logger().
 			WithField(core.LogFieldDID, id.String()).
@@ -239,7 +239,7 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 	return endpoint, nil
 }
 
-func (d *didman) DeleteService(serviceID ssi.URI) error {
+func (d *didman) DeleteService(ctx context.Context, serviceID ssi.URI) error {
 	id, err := did.ParseDIDURL(serviceID.String())
 	if err != nil {
 		return err
@@ -249,11 +249,11 @@ func (d *didman) DeleteService(serviceID ssi.URI) error {
 	unlockFn := d.callSerializer.Lock(id.String())
 	defer unlockFn()
 
-	return d.deleteService(serviceID)
+	return d.deleteService(ctx, serviceID)
 }
 
 // deleteService deletes the service without using the callSerializer locks
-func (d *didman) deleteService(serviceID ssi.URI) error {
+func (d *didman) deleteService(ctx context.Context, serviceID ssi.URI) error {
 	log.Logger().
 		WithField(core.LogFieldServiceID, serviceID.String()).
 		Debug("Deleting service")
@@ -291,7 +291,7 @@ func (d *didman) deleteService(serviceID ssi.URI) error {
 	}
 	doc.Service = doc.Service[:j]
 
-	err = d.vdr.Update(*id, *doc)
+	err = d.vdr.Update(ctx, *id, *doc)
 	if err == nil {
 		log.Logger().
 			WithField(core.LogFieldServiceID, serviceID.String()).
@@ -300,7 +300,7 @@ func (d *didman) deleteService(serviceID ssi.URI) error {
 	return err
 }
 
-func (d *didman) UpdateContactInformation(id did.DID, information ContactInformation) (*ContactInformation, error) {
+func (d *didman) UpdateContactInformation(ctx context.Context, id did.DID, information ContactInformation) (*ContactInformation, error) {
 	unlockFn := d.callSerializer.Lock(id.String())
 	defer unlockFn()
 
@@ -316,7 +316,7 @@ func (d *didman) UpdateContactInformation(id did.DID, information ContactInforma
 		"website": information.Website,
 	}
 
-	_, err := d.addService(id, ContactInformationServiceType, serviceEndpoint, func(doc *did.Document) {
+	_, err := d.addService(ctx, id, ContactInformationServiceType, serviceEndpoint, func(doc *did.Document) {
 		// check for existing contact information and remove it
 		i := 0
 		for _, s := range doc.Service {
@@ -486,7 +486,7 @@ func filterServices(doc *did.Document, serviceType string) []did.Service {
 	return contactServices
 }
 
-func (d *didman) addService(id did.DID, serviceType string, serviceEndpoint interface{}, preprocessor func(*did.Document)) (*did.Service, error) {
+func (d *didman) addService(ctx context.Context, id did.DID, serviceType string, serviceEndpoint interface{}, preprocessor func(*did.Document)) (*did.Service, error) {
 	doc, _, err := d.docResolver.Resolve(id, nil)
 	if err != nil {
 		return nil, err
@@ -512,7 +512,7 @@ func (d *didman) addService(id did.DID, serviceType string, serviceEndpoint inte
 
 	// Add on DID Document and update
 	doc.Service = append(doc.Service, *service)
-	if err = d.vdr.Update(id, *doc); err != nil {
+	if err = d.vdr.Update(ctx, id, *doc); err != nil {
 		return nil, err
 	}
 	return service, nil

@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/stretchr/testify/require"
 	"path"
@@ -49,6 +50,7 @@ func Test_issuer_buildVC(t *testing.T) {
 	credentialType := ssi.MustParseURI("TestCredential")
 	issuerID := ssi.MustParseURI("did:nuts:123")
 	issuerDID, _ := did.ParseDID(issuerID.String())
+	ctx := audit.TestContext()
 
 	t.Run("it builds and signs a VC", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -72,7 +74,7 @@ func Test_issuer_buildVC(t *testing.T) {
 				"id": "did:nuts:456",
 			}},
 		}
-		result, err := sut.buildVC(credentialOptions)
+		result, err := sut.buildVC(ctx, credentialOptions)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		assert.Contains(t, result.Type, credentialType, "expected vc to be of right type")
@@ -100,7 +102,7 @@ func Test_issuer_buildVC(t *testing.T) {
 			IssuanceDate: time.Now(),
 		}
 
-		result, err := sut.buildVC(credentialOptions)
+		result, err := sut.buildVC(ctx, credentialOptions)
 
 		require.NoError(t, err)
 		require.NotNil(t, result)
@@ -115,7 +117,7 @@ func Test_issuer_buildVC(t *testing.T) {
 			credentialOptions := vc.VerifiableCredential{
 				Type: []ssi.URI{},
 			}
-			result, err := sut.buildVC(credentialOptions)
+			result, err := sut.buildVC(ctx, credentialOptions)
 
 			assert.ErrorIs(t, err, core.InvalidInputError("can only issue credential with 1 type"))
 			assert.Nil(t, result)
@@ -127,7 +129,7 @@ func Test_issuer_buildVC(t *testing.T) {
 			credentialOptions := vc.VerifiableCredential{
 				Type: []ssi.URI{credentialType},
 			}
-			result, err := sut.buildVC(credentialOptions)
+			result, err := sut.buildVC(ctx, credentialOptions)
 
 			assert.ErrorIs(t, err, did.ErrInvalidDID)
 			assert.Nil(t, result)
@@ -146,7 +148,7 @@ func Test_issuer_buildVC(t *testing.T) {
 				Type:   []ssi.URI{credentialType},
 				Issuer: issuerID,
 			}
-			_, err := sut.buildVC(credentialOptions)
+			_, err := sut.buildVC(ctx, credentialOptions)
 			assert.EqualError(t, err, "failed to sign credential: could not resolve an assertionKey for issuer: b00m!")
 		})
 
@@ -161,10 +163,9 @@ func Test_issuer_buildVC(t *testing.T) {
 				Type:   []ssi.URI{credentialType},
 				Issuer: issuerID,
 			}
-			_, err := sut.buildVC(credentialOptions)
+			_, err := sut.buildVC(ctx, credentialOptions)
 			assert.ErrorIs(t, err, core.InvalidInputError("failed to sign credential: could not resolve an assertionKey for issuer: unable to find the DID document"))
 		})
-
 	})
 }
 
@@ -179,7 +180,7 @@ func Test_issuer_Issue(t *testing.T) {
 			"id": "did:nuts:456",
 		}},
 	}
-
+	ctx := audit.TestContext()
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	kid := "did:nuts:123#abc"
 
@@ -197,7 +198,7 @@ func Test_issuer_Issue(t *testing.T) {
 			keyStore: crypto.NewMemoryCryptoInstance(),
 		}
 
-		result, err := sut.Issue(credentialOptions, false, true)
+		result, err := sut.Issue(ctx, credentialOptions, false, true)
 		require.NoError(t, err)
 		assert.Contains(t, result.Type, credentialType, "expected vc to be of right type")
 		proofs, _ := result.Proofs()
@@ -224,7 +225,7 @@ func Test_issuer_Issue(t *testing.T) {
 				keyStore: crypto.NewMemoryCryptoInstance(),
 			}
 
-			result, err := sut.Issue(credentialOptions, false, true)
+			result, err := sut.Issue(ctx, credentialOptions, false, true)
 			assert.EqualError(t, err, "unable to store the issued credential: b00m!")
 			assert.Nil(t, result)
 		})
@@ -236,7 +237,7 @@ func Test_issuer_Issue(t *testing.T) {
 			keyResolverMock := NewMockkeyResolver(ctrl)
 			keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any()).Return(crypto.NewTestKey(kid), nil)
 			mockPublisher := NewMockPublisher(ctrl)
-			mockPublisher.EXPECT().PublishCredential(gomock.Any(), true).Return(errors.New("b00m!"))
+			mockPublisher.EXPECT().PublishCredential(gomock.Any(), gomock.Any(), true).Return(errors.New("b00m!"))
 			mockStore := NewMockStore(ctrl)
 			mockStore.EXPECT().StoreCredential(gomock.Any()).Return(nil)
 			sut := issuer{keyResolver: keyResolverMock, store: mockStore, publisher: mockPublisher,
@@ -244,7 +245,7 @@ func Test_issuer_Issue(t *testing.T) {
 				keyStore: crypto.NewMemoryCryptoInstance(),
 			}
 
-			result, err := sut.Issue(credentialOptions, true, true)
+			result, err := sut.Issue(ctx, credentialOptions, true, true)
 			assert.EqualError(t, err, "unable to publish the issued credential: b00m!")
 			assert.Nil(t, result)
 		})
@@ -257,7 +258,7 @@ func Test_issuer_Issue(t *testing.T) {
 				Issuer: issuerID,
 			}
 
-			result, err := sut.Issue(credentialOptions, true, true)
+			result, err := sut.Issue(ctx, credentialOptions, true, true)
 			assert.EqualError(t, err, "can only issue credential with 1 type")
 			assert.Nil(t, result)
 
@@ -276,10 +277,9 @@ func Test_issuer_Issue(t *testing.T) {
 				map[string]interface{}{"foo": "bar"},
 			}
 
-			result, err := sut.Issue(invalidCred, true, true)
+			result, err := sut.Issue(ctx, invalidCred, true, true)
 			assert.EqualError(t, err, "validation failed: invalid property: Dropping property that did not expand into an absolute IRI or keyword.")
 			assert.Nil(t, result)
-
 		})
 	})
 }
@@ -291,6 +291,7 @@ func TestNewIssuer(t *testing.T) {
 
 func Test_issuer_buildRevocation(t *testing.T) {
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
+	ctx := audit.TestContext()
 
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -307,7 +308,7 @@ func Test_issuer_buildRevocation(t *testing.T) {
 			Issuer: issuerDID.URI(),
 			ID:     &credentialID,
 		}
-		revocation, err := sut.buildRevocation(credentialToRevoke)
+		revocation, err := sut.buildRevocation(ctx, credentialToRevoke)
 		assert.NoError(t, err)
 		t.Logf("revocation %+v", revocation)
 	})
@@ -349,7 +350,7 @@ _:c14n0 <https://www.w3.org/2018/credentials#issuer> <did:nuts:123> .
 			keyResolverMock.EXPECT().ResolveAssertionKey(issuerDID).Return(nil, errors.New("b00m!"))
 			sut := issuer{keyResolver: keyResolverMock}
 
-			_, err := sut.buildRevocation(testVC)
+			_, err := sut.buildRevocation(ctx, testVC)
 			assert.EqualError(t, err, fmt.Sprintf("failed to revoke credential (%s): could not resolve an assertionKey for issuer: b00m!", testVC.ID))
 		})
 
@@ -360,12 +361,10 @@ _:c14n0 <https://www.w3.org/2018/credentials#issuer> <did:nuts:123> .
 			keyResolverMock.EXPECT().ResolveAssertionKey(issuerDID).Return(nil, vdr.ErrNotFound)
 			sut := issuer{keyResolver: keyResolverMock}
 
-			_, err := sut.buildRevocation(testVC)
+			_, err := sut.buildRevocation(ctx, testVC)
 			assert.ErrorIs(t, err, core.InvalidInputError("failed to revoke credential: could not resolve an assertionKey for issuer: unable to find the DID document"))
 		})
-
 	})
-
 }
 func Test_issuer_Revoke(t *testing.T) {
 	credentialID := "did:nuts:123#abc"
@@ -376,6 +375,7 @@ func Test_issuer_Revoke(t *testing.T) {
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	kid := ssi.MustParseURI(issuerID + "#123")
 	key := crypto.NewTestKey(kid.String())
+	ctx := audit.TestContext()
 
 	t.Run("for a known credential", func(t *testing.T) {
 		credentialToRevoke := func() *vc.VerifiableCredential {
@@ -403,7 +403,7 @@ func Test_issuer_Revoke(t *testing.T) {
 
 			publisher := NewMockPublisher(ctrl)
 			store := storeWithActualCredential(ctrl)
-			publisher.EXPECT().PublishRevocation(gomock.Any()).Return(nil)
+			publisher.EXPECT().PublishRevocation(gomock.Any(), gomock.Any()).Return(nil)
 			store.EXPECT().StoreRevocation(gomock.Any()).Return(nil)
 
 			sut := issuer{
@@ -414,7 +414,7 @@ func Test_issuer_Revoke(t *testing.T) {
 				keyStore:      crypto.NewMemoryCryptoInstance(),
 			}
 
-			revocation, err := sut.Revoke(credentialURI)
+			revocation, err := sut.Revoke(ctx, credentialURI)
 			assert.NoError(t, err)
 			assert.NotNil(t, revocation)
 			assert.Equal(t, issuerURI, revocation.Issuer)
@@ -442,7 +442,7 @@ func Test_issuer_Revoke(t *testing.T) {
 			sut := issuer{
 				store: store,
 			}
-			revocation, err := sut.Revoke(credentialURI)
+			revocation, err := sut.Revoke(ctx, credentialURI)
 			assert.EqualError(t, err, "failed to extract issuer: invalid DID: input length is less than 7")
 			assert.Nil(t, revocation)
 		})
@@ -451,7 +451,7 @@ func Test_issuer_Revoke(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
 			publisher := NewMockPublisher(ctrl)
-			publisher.EXPECT().PublishRevocation(gomock.Any()).Return(errors.New("foo"))
+			publisher.EXPECT().PublishRevocation(gomock.Any(), gomock.Any()).Return(errors.New("foo"))
 
 			sut := issuer{
 				store:         storeWithActualCredential(ctrl),
@@ -461,7 +461,7 @@ func Test_issuer_Revoke(t *testing.T) {
 				keyStore:      crypto.NewMemoryCryptoInstance(),
 			}
 
-			revocation, err := sut.Revoke(credentialURI)
+			revocation, err := sut.Revoke(ctx, credentialURI)
 			assert.EqualError(t, err, "failed to publish revocation: foo")
 			assert.Nil(t, revocation)
 		})
@@ -472,7 +472,7 @@ func Test_issuer_Revoke(t *testing.T) {
 			store := storeWithActualCredential(ctrl)
 			publisher := NewMockPublisher(ctrl)
 
-			publisher.EXPECT().PublishRevocation(gomock.Any()).Return(nil)
+			publisher.EXPECT().PublishRevocation(gomock.Any(), gomock.Any()).Return(nil)
 			store.EXPECT().StoreRevocation(gomock.Any()).Return(nil)
 			// 2nd revocation
 			store.EXPECT().GetCredential(credentialURI).Return(credentialToRevoke(), nil)
@@ -486,9 +486,9 @@ func Test_issuer_Revoke(t *testing.T) {
 				keyStore:      crypto.NewMemoryCryptoInstance(),
 			}
 
-			_, err := sut.Revoke(credentialURI)
+			_, err := sut.Revoke(ctx, credentialURI)
 			require.NoError(t, err)
-			revocation, err := sut.Revoke(credentialURI)
+			revocation, err := sut.Revoke(ctx, credentialURI)
 
 			assert.ErrorIs(t, err, vcr.ErrRevoked)
 			assert.Nil(t, revocation)
@@ -509,7 +509,7 @@ func Test_issuer_Revoke(t *testing.T) {
 				store: storeWithoutCredential(ctrl),
 			}
 
-			revocation, err := sut.Revoke(credentialURI)
+			revocation, err := sut.Revoke(ctx, credentialURI)
 			assert.EqualError(t, err, "could not revoke (id=did:nuts:123#abc): credential not found")
 			assert.Nil(t, revocation)
 		})

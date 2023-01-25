@@ -188,17 +188,17 @@ func (s *service) Configure(clockSkewInMilliseconds int, secureMode bool) error 
 }
 
 // CreateAccessToken extracts the claims out of the request, checks the validity and builds the access token
-func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (*services.AccessTokenResult, *ErrorResponse) {
+func (s *service) CreateAccessToken(ctx context.Context, request services.CreateAccessTokenRequest) (*services.AccessTokenResult, *ErrorResponse) {
 	var oauthError *ErrorResponse
 	var result *services.AccessTokenResult
 
-	ctx, err := s.validateAccessTokenRequest(request.RawJwtBearerToken)
+	validationCtx, err := s.validateAccessTokenRequest(request.RawJwtBearerToken)
 	if err != nil {
 		oauthError = &ErrorResponse{Code: "invalid_request", Description: err}
 	} else {
 		var accessToken string
 		var rawToken services.NutsAccessToken
-		accessToken, rawToken, err = s.buildAccessToken(*ctx.requester, *ctx.authorizer, ctx.purposeOfUse, ctx.contractVerificationResult, ctx.credentialIDs)
+		accessToken, rawToken, err = s.buildAccessToken(ctx, *validationCtx.requester, *validationCtx.authorizer, validationCtx.purposeOfUse, validationCtx.contractVerificationResult, validationCtx.credentialIDs)
 		if err == nil {
 			result = &services.AccessTokenResult{
 				AccessToken: accessToken,
@@ -215,9 +215,9 @@ func (s *service) CreateAccessToken(request services.CreateAccessTokenRequest) (
 
 	if err != nil {
 		var requesterDID, authorizerDID string
-		if ctx.jwtBearerToken != nil {
-			requesterDID = ctx.jwtBearerToken.Issuer()
-			authorizerDID = ctx.jwtBearerToken.Subject()
+		if validationCtx.jwtBearerToken != nil {
+			requesterDID = validationCtx.jwtBearerToken.Issuer()
+			authorizerDID = validationCtx.jwtBearerToken.Subject()
 		}
 		log.Logger().
 			WithField(core.LogFieldRequesterDID, requesterDID).
@@ -491,7 +491,7 @@ func (s *service) GetOAuthEndpointURL(service string, authorizer did.DID) (url.U
 }
 
 // CreateJwtGrant creates a JWT Grant from the given CreateJwtGrantRequest
-func (s *service) CreateJwtGrant(request services.CreateJwtGrantRequest) (*services.JwtBearerTokenResult, error) {
+func (s *service) CreateJwtGrant(ctx context.Context, request services.CreateJwtGrantRequest) (*services.JwtBearerTokenResult, error) {
 	requester, err := did.ParseDID(request.Requester)
 	if err != nil {
 		return nil, err
@@ -522,7 +522,7 @@ func (s *service) CreateJwtGrant(request services.CreateJwtGrantRequest) (*servi
 	if err != nil {
 		return nil, err
 	}
-	signingString, err := s.privateKeyStore.SignJWT(keyVals, signingKeyID)
+	signingString, err := s.privateKeyStore.SignJWT(ctx, keyVals, signingKeyID)
 	if err != nil {
 		return nil, err
 	}
@@ -598,7 +598,7 @@ func (s *service) IntrospectAccessToken(accessToken string) (*services.NutsAcces
 // The token gets signed with the authorizers private key and returned as a string.
 // it also returns the claims in the form of a services.NutsAccessToken
 // It performs no additional validation, it just uses the values in the given validationContext
-func (s *service) buildAccessToken(requester did.DID, authorizer did.DID, purposeOfUse string, userIdentity contract.VPVerificationResult, credentialIDs []string) (string, services.NutsAccessToken, error) {
+func (s *service) buildAccessToken(ctx context.Context, requester did.DID, authorizer did.DID, purposeOfUse string, userIdentity contract.VPVerificationResult, credentialIDs []string) (string, services.NutsAccessToken, error) {
 	accessToken := services.NutsAccessToken{}
 	issueTime := time.Now()
 
@@ -636,7 +636,7 @@ func (s *service) buildAccessToken(requester did.DID, authorizer did.DID, purpos
 	if err != nil {
 		return "", accessToken, err
 	}
-	token, err := s.privateKeyStore.SignJWT(keyVals, signingKeyID)
+	token, err := s.privateKeyStore.SignJWT(ctx, keyVals, signingKeyID)
 	if err != nil {
 		return token, accessToken, fmt.Errorf("could not build accessToken: %w", err)
 	}

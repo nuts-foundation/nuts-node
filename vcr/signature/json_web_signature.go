@@ -19,6 +19,7 @@
 package signature
 
 import (
+	"context"
 	"fmt"
 	"github.com/lestrrat-go/jwx/jws"
 	ssi "github.com/nuts-foundation/go-did"
@@ -36,10 +37,10 @@ type JSONWebSignature2020 struct {
 }
 
 // Sign signs the document as a JWS.
-func (s JSONWebSignature2020) Sign(doc []byte, key crypto.Key) ([]byte, error) {
+func (s JSONWebSignature2020) Sign(ctx context.Context, doc []byte, key crypto.Key) ([]byte, error) {
 	headers := detachedJWSHeaders()
 	headers[jws.KeyIDKey] = key.KID()
-	sig, err := s.Signer.SignJWS(doc, headers, key, true)
+	sig, err := s.Signer.SignJWS(ctx, doc, headers, key, true)
 	return []byte(sig), err
 }
 

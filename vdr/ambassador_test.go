@@ -19,6 +19,7 @@
 package vdr
 
 import (
+	"context"
 	crypto2 "crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -26,6 +27,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/network"
 	"testing"
 	"time"
@@ -52,7 +54,7 @@ type mockKeyCreator struct {
 }
 
 // New creates a new valid key with the correct KID
-func (m *mockKeyCreator) New(fn crypto.KIDNamingFunc) (crypto.Key, error) {
+func (m *mockKeyCreator) New(_ context.Context, fn crypto.KIDNamingFunc) (crypto.Key, error) {
 	if m.key == nil {
 		privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		kid, _ := fn(privateKey.Public())
@@ -425,7 +427,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		currentDoc, signingKey, _ := newDidDoc()
 		newDoc := did.Document{Context: []ssi.URI{did.DIDContextV1URI()}, ID: currentDoc.ID}
-		newCapInv, _ := didservice.CreateNewVerificationMethodForDID(currentDoc.ID, &mockKeyCreator{})
+		newCapInv, _ := didservice.CreateNewVerificationMethodForDID(audit.TestContext(), currentDoc.ID, &mockKeyCreator{})
 		newDoc.AddCapabilityInvocation(newCapInv)
 
 		didDocPayload, _ := json.Marshal(newDoc)
@@ -757,7 +759,7 @@ func Test_uniqueTransactions(t *testing.T) {
 func newDidDocWithOptions(opts types.DIDCreationOptions) (did.Document, jwk.Key, error) {
 	kc := &mockKeyCreator{}
 	docCreator := didservice.Creator{KeyStore: kc}
-	didDocument, key, err := docCreator.Create(opts)
+	didDocument, key, err := docCreator.Create(audit.TestContext(), opts)
 	signingKey, _ := jwk.New(key.Public())
 	thumbStr, _ := crypto.Thumbprint(signingKey)
 	didStr := fmt.Sprintf("did:nuts:%s", thumbStr)

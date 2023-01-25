@@ -23,6 +23,7 @@ import (
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
+	httpModule "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"net/http"
 	"net/url"
@@ -69,9 +70,7 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 
 // Preprocess is called just before the API operation itself is invoked.
 func (w *Wrapper) Preprocess(operationID string, context echo.Context) {
-	context.Set(core.StatusCodeResolverContextKey, w)
-	context.Set(core.OperationIDContextKey, operationID)
-	context.Set(core.ModuleNameContextKey, auth.ModuleName)
+	httpModule.Preprocess(context, w, auth.ModuleName, operationID)
 }
 
 // Routes registers the Echo routes for the API.
@@ -274,7 +273,7 @@ func (w Wrapper) CreateJwtGrant(ctx echo.Context) error {
 		Credentials: requestBody.Credentials,
 	}
 
-	response, err := w.Auth.OAuthClient().CreateJwtGrant(request)
+	response, err := w.Auth.OAuthClient().CreateJwtGrant(ctx.Request().Context(), request)
 	if err != nil {
 		return core.InvalidInputError(err.Error())
 	}
@@ -297,7 +296,7 @@ func (w Wrapper) RequestAccessToken(ctx echo.Context) error {
 		Credentials: requestBody.Credentials,
 	}
 
-	jwtGrantResponse, err := w.Auth.OAuthClient().CreateJwtGrant(request)
+	jwtGrantResponse, err := w.Auth.OAuthClient().CreateJwtGrant(ctx.Request().Context(), request)
 	if err != nil {
 		return core.InvalidInputError(err.Error())
 	}
@@ -352,7 +351,7 @@ func (w Wrapper) CreateAccessToken(ctx echo.Context) (err error) {
 	}
 
 	catRequest := services.CreateAccessTokenRequest{RawJwtBearerToken: request.Assertion}
-	acResponse, oauthError := w.Auth.OAuthClient().CreateAccessToken(catRequest)
+	acResponse, oauthError := w.Auth.OAuthClient().CreateAccessToken(ctx.Request().Context(), catRequest)
 	if oauthError != nil {
 		errorResponse := AccessTokenRequestFailedResponse{Error: AccessTokenRequestFailedResponseError(oauthError.Code), ErrorDescription: oauthError.Error()}
 		return ctx.JSON(http.StatusBadRequest, errorResponse)

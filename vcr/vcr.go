@@ -107,7 +107,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	c.config.datadir = config.Datadir
 
 	issuerStorePath := path.Join(c.config.datadir, "vcr", "issued-credentials.db")
-	issuerBackupStore, err := c.storageClient.GetProvider(moduleName).GetKVStore("backup-issued-credentials", storage.PersistentStorageClass)
+	issuerBackupStore, err := c.storageClient.GetProvider(ModuleName).GetKVStore("backup-issued-credentials", storage.PersistentStorageClass)
 	if err != nil {
 		return err
 	}
@@ -263,7 +263,7 @@ func (c *vcr) initJSONLDIndices() error {
 }
 
 func (c *vcr) Name() string {
-	return moduleName
+	return ModuleName
 }
 
 func (c *vcr) Config() interface{} {

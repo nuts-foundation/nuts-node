@@ -65,7 +65,7 @@ func TestEvent_UnmarshalJSON(t *testing.T) {
 	assert.Equal(t, transaction.Data(), event.Transaction.Data())
 }
 
-func TestNewSubscriber(t *testing.T) {
+func TestNewNotifier(t *testing.T) {
 	t.Run("sets default delay", func(t *testing.T) {
 		s := NewNotifier(t.Name(), dummyFunc)
 

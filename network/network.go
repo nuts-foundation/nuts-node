@@ -482,7 +482,7 @@ func (n *Network) ListTransactionsInRange(startInclusive uint32, endExclusive ui
 }
 
 // CreateTransaction creates a new transaction from the given template.
-func (n *Network) CreateTransaction(template Template) (dag.Transaction, error) {
+func (n *Network) CreateTransaction(ctx context.Context, template Template) (dag.Transaction, error) {
 	payloadHash := hash.SHA256Sum(template.Payload)
 	log.Logger().
 		WithField(core.LogFieldTransactionType, template.Type).
@@ -493,7 +493,6 @@ func (n *Network) CreateTransaction(template Template) (dag.Transaction, error) 
 		Debug("Creating transaction")
 
 	// Assert that all additional prevs are present and its Payload is there
-	ctx := context.Background()
 	for _, prev := range template.AdditionalPrevs {
 		isPresent, err := n.isPayloadPresent(ctx, prev)
 		if err != nil {
@@ -558,7 +557,7 @@ func (n *Network) CreateTransaction(template Template) (dag.Transaction, error) 
 	if !template.Timestamp.IsZero() {
 		timestamp = template.Timestamp
 	}
-	transaction, err = signer.Sign(unsignedTransaction, timestamp)
+	transaction, err = signer.Sign(ctx, unsignedTransaction, timestamp)
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign newly created transaction: %w", err)
 	}

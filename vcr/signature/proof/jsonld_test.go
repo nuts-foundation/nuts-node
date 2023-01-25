@@ -21,6 +21,7 @@ package proof
 import (
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -186,7 +187,7 @@ func TestLDProof_Sign(t *testing.T) {
 
 		ldProof := NewLDProof(pOptions)
 
-		result, err := ldProof.Sign(document, signature.JSONWebSignature2020{ContextLoader: contextLoader, Signer: crypto.NewMemoryCryptoInstance()}, testKey)
+		result, err := ldProof.Sign(audit.TestContext(), document, signature.JSONWebSignature2020{ContextLoader: contextLoader, Signer: crypto.NewMemoryCryptoInstance()}, testKey)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		signedDocument := result.(SignedDocument)
@@ -212,7 +213,7 @@ func TestLDProof_Sign(t *testing.T) {
 		// handle first call for the document
 		mockSuite.EXPECT().CanonicalizeDocument(document).Return(nil, errors.New("foo"))
 		mockSuite.EXPECT().GetType().Return(ssi.JsonWebSignature2020)
-		result, err := ldProof.Sign(document, mockSuite, testKey)
+		result, err := ldProof.Sign(nil, document, mockSuite, testKey)
 		assert.EqualError(t, err, "foo")
 		assert.Nil(t, result)
 	})
@@ -228,7 +229,7 @@ func TestLDProof_Sign(t *testing.T) {
 		mockSuite.EXPECT().CanonicalizeDocument(document).Return(nil, nil)
 		mockSuite.EXPECT().CanonicalizeDocument(gomock.Any()).Return(nil, errors.New("foo"))
 		mockSuite.EXPECT().GetType().Return(ssi.JsonWebSignature2020)
-		result, err := ldProof.Sign(document, mockSuite, testKey)
+		result, err := ldProof.Sign(nil, document, mockSuite, testKey)
 		assert.EqualError(t, err, "unable to canonicalize proof: foo")
 		assert.Nil(t, result)
 	})
@@ -239,8 +240,8 @@ func TestLDProof_Sign(t *testing.T) {
 		testKey := crypto.NewMockKey(ctrl)
 		testKey.EXPECT().KID().AnyTimes().Return(kid)
 
-		result, err := ldProof.Sign(document, signature.JSONWebSignature2020{ContextLoader: contextLoader, Signer: crypto.NewMemoryCryptoInstance()}, testKey)
-		
+		result, err := ldProof.Sign(nil, document, signature.JSONWebSignature2020{ContextLoader: contextLoader, Signer: crypto.NewMemoryCryptoInstance()}, testKey)
+
 		assert.EqualError(t, err, "error while signing: private key not found")
 		assert.Nil(t, result)
 	})

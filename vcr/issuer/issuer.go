@@ -19,6 +19,7 @@
 package issuer
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -65,8 +66,8 @@ type issuer struct {
 // Issue creates a new credential, signs, stores it.
 // If publish is true, it publishes the credential to the network using the configured Publisher
 // Use the public flag to pass the visibility settings to the Publisher.
-func (i issuer) Issue(credentialOptions vc.VerifiableCredential, publish, public bool) (*vc.VerifiableCredential, error) {
-	createdVC, err := i.buildVC(credentialOptions)
+func (i issuer) Issue(ctx context.Context, credentialOptions vc.VerifiableCredential, publish, public bool) (*vc.VerifiableCredential, error) {
+	createdVC, err := i.buildVC(ctx, credentialOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -100,14 +101,14 @@ func (i issuer) Issue(credentialOptions vc.VerifiableCredential, publish, public
 	}
 
 	if publish {
-		if err := i.publisher.PublishCredential(*createdVC, public); err != nil {
+		if err := i.publisher.PublishCredential(ctx, *createdVC, public); err != nil {
 			return nil, fmt.Errorf("unable to publish the issued credential: %w", err)
 		}
 	}
 	return createdVC, nil
 }
 
-func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
+func (i issuer) buildVC(ctx context.Context, credentialOptions vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
 	if len(credentialOptions.Type) != 1 {
 		return nil, core.InvalidInputError("can only issue credential with 1 type")
 	}
@@ -158,7 +159,7 @@ func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.Verifiab
 	proofOptions := proof.ProofOptions{Created: created}
 
 	webSig := signature.JSONWebSignature2020{ContextLoader: i.jsonldManager.DocumentLoader(), Signer: i.keyStore}
-	signingResult, err := proof.NewLDProof(proofOptions).Sign(credentialAsMap, webSig, key)
+	signingResult, err := proof.NewLDProof(proofOptions).Sign(ctx, credentialAsMap, webSig, key)
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +171,7 @@ func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.Verifiab
 	return signedCredential, nil
 }
 
-func (i issuer) Revoke(credentialID ssi.URI) (*credential.Revocation, error) {
+func (i issuer) Revoke(ctx context.Context, credentialID ssi.URI) (*credential.Revocation, error) {
 	// first find it using a query on id.
 	credentialToRevoke, err := i.store.GetCredential(credentialID)
 	if err != nil {
@@ -185,12 +186,12 @@ func (i issuer) Revoke(credentialID ssi.URI) (*credential.Revocation, error) {
 		return nil, vcr.ErrRevoked
 	}
 
-	revocation, err := i.buildRevocation(*credentialToRevoke)
+	revocation, err := i.buildRevocation(ctx, *credentialToRevoke)
 	if err != nil {
 		return nil, err
 	}
 
-	err = i.publisher.PublishRevocation(*revocation)
+	err = i.publisher.PublishRevocation(ctx, *revocation)
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish revocation: %w", err)
 	}
@@ -206,7 +207,7 @@ func (i issuer) Revoke(credentialID ssi.URI) (*credential.Revocation, error) {
 	return revocation, nil
 }
 
-func (i issuer) buildRevocation(credentialToRevoke vc.VerifiableCredential) (*credential.Revocation, error) {
+func (i issuer) buildRevocation(ctx context.Context, credentialToRevoke vc.VerifiableCredential) (*credential.Revocation, error) {
 	// find issuer
 	issuerDID, err := did.ParseDID(credentialToRevoke.Issuer.String())
 	if err != nil {
@@ -231,7 +232,7 @@ func (i issuer) buildRevocation(credentialToRevoke vc.VerifiableCredential) (*cr
 
 	ldProof := proof.NewLDProof(proof.ProofOptions{Created: time.Now()})
 	webSig := signature.JSONWebSignature2020{ContextLoader: i.jsonldManager.DocumentLoader(), Signer: i.keyStore}
-	signingResult, err := ldProof.Sign(revocationAsMap, webSig, assertionKey)
+	signingResult, err := ldProof.Sign(ctx, revocationAsMap, webSig, assertionKey)
 	if err != nil {
 		return nil, err
 	}

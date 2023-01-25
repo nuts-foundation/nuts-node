@@ -19,6 +19,7 @@
 package dag
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -34,7 +35,7 @@ const errSigningTransactionFmt = "error while signing transaction: %w"
 // TransactionSigner defines functions to sign transactions.
 type TransactionSigner interface {
 	// Sign signs the unsigned transaction, including the signingTime parameter as header.
-	Sign(input UnsignedTransaction, signingTime time.Time) (Transaction, error)
+	Sign(ctx context.Context, input UnsignedTransaction, signingTime time.Time) (Transaction, error)
 }
 
 // NewTransactionSigner creates a TransactionSigner that signs the transaction using the given key.
@@ -54,7 +55,7 @@ type transactionSigner struct {
 	signer crypto.JWTSigner
 }
 
-func (d transactionSigner) Sign(input UnsignedTransaction, signingTime time.Time) (Transaction, error) {
+func (d transactionSigner) Sign(ctx context.Context, input UnsignedTransaction, signingTime time.Time) (Transaction, error) {
 	// Preliminary sanity checks
 	if signingTime.IsZero() {
 		return nil, errors.New("signing time is zero")
@@ -97,7 +98,7 @@ func (d transactionSigner) Sign(input UnsignedTransaction, signingTime time.Time
 		headerMap[jws.KeyIDKey] = d.key.KID()
 	}
 
-	data, err := d.signer.SignJWS([]byte(input.PayloadHash().String()), headerMap, d.key, false)
+	data, err := d.signer.SignJWS(ctx, []byte(input.PayloadHash().String()), headerMap, d.key, false)
 	if err != nil {
 		return nil, fmt.Errorf(errSigningTransactionFmt, err)
 	}

@@ -5,6 +5,7 @@
 package issuer
 
 import (
+	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -40,31 +41,31 @@ func (m *MockPublisher) EXPECT() *MockPublisherMockRecorder {
 }
 
 // PublishCredential mocks base method.
-func (m *MockPublisher) PublishCredential(verifiableCredential vc.VerifiableCredential, public bool) error {
+func (m *MockPublisher) PublishCredential(ctx context.Context, verifiableCredential vc.VerifiableCredential, public bool) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PublishCredential", verifiableCredential, public)
+	ret := m.ctrl.Call(m, "PublishCredential", ctx, verifiableCredential, public)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // PublishCredential indicates an expected call of PublishCredential.
-func (mr *MockPublisherMockRecorder) PublishCredential(verifiableCredential, public interface{}) *gomock.Call {
+func (mr *MockPublisherMockRecorder) PublishCredential(ctx, verifiableCredential, public interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PublishCredential", reflect.TypeOf((*MockPublisher)(nil).PublishCredential), verifiableCredential, public)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PublishCredential", reflect.TypeOf((*MockPublisher)(nil).PublishCredential), ctx, verifiableCredential, public)
 }
 
 // PublishRevocation mocks base method.
-func (m *MockPublisher) PublishRevocation(revocation credential.Revocation) error {
+func (m *MockPublisher) PublishRevocation(ctx context.Context, revocation credential.Revocation) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PublishRevocation", revocation)
+	ret := m.ctrl.Call(m, "PublishRevocation", ctx, revocation)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // PublishRevocation indicates an expected call of PublishRevocation.
-func (mr *MockPublisherMockRecorder) PublishRevocation(revocation interface{}) *gomock.Call {
+func (mr *MockPublisherMockRecorder) PublishRevocation(ctx, revocation interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PublishRevocation", reflect.TypeOf((*MockPublisher)(nil).PublishRevocation), revocation)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PublishRevocation", reflect.TypeOf((*MockPublisher)(nil).PublishRevocation), ctx, revocation)
 }
 
 // MockkeyResolver is a mock of keyResolver interface.
@@ -129,33 +130,33 @@ func (m *MockIssuer) EXPECT() *MockIssuerMockRecorder {
 }
 
 // Issue mocks base method.
-func (m *MockIssuer) Issue(unsignedCredential vc.VerifiableCredential, publish, public bool) (*vc.VerifiableCredential, error) {
+func (m *MockIssuer) Issue(ctx context.Context, unsignedCredential vc.VerifiableCredential, publish, public bool) (*vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Issue", unsignedCredential, publish, public)
+	ret := m.ctrl.Call(m, "Issue", ctx, unsignedCredential, publish, public)
 	ret0, _ := ret[0].(*vc.VerifiableCredential)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Issue indicates an expected call of Issue.
-func (mr *MockIssuerMockRecorder) Issue(unsignedCredential, publish, public interface{}) *gomock.Call {
+func (mr *MockIssuerMockRecorder) Issue(ctx, unsignedCredential, publish, public interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Issue", reflect.TypeOf((*MockIssuer)(nil).Issue), unsignedCredential, publish, public)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Issue", reflect.TypeOf((*MockIssuer)(nil).Issue), ctx, unsignedCredential, publish, public)
 }
 
 // Revoke mocks base method.
-func (m *MockIssuer) Revoke(credentialID ssi.URI) (*credential.Revocation, error) {
+func (m *MockIssuer) Revoke(ctx context.Context, credentialID ssi.URI) (*credential.Revocation, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Revoke", credentialID)
+	ret := m.ctrl.Call(m, "Revoke", ctx, credentialID)
 	ret0, _ := ret[0].(*credential.Revocation)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Revoke indicates an expected call of Revoke.
-func (mr *MockIssuerMockRecorder) Revoke(credentialID interface{}) *gomock.Call {
+func (mr *MockIssuerMockRecorder) Revoke(ctx, credentialID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Revoke", reflect.TypeOf((*MockIssuer)(nil).Revoke), credentialID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Revoke", reflect.TypeOf((*MockIssuer)(nil).Revoke), ctx, credentialID)
 }
 
 // SearchCredential mocks base method.

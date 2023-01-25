@@ -19,6 +19,7 @@
 package types
 
 import (
+	"context"
 	"crypto"
 	"time"
 
@@ -58,7 +59,7 @@ type DocCreator interface {
 	// The ID in the provided DID document will be ignored and a new one will be generated.
 	// If something goes wrong an error is returned.
 	// Implementors should generate private key and store it in a secure backend
-	Create(options DIDCreationOptions) (*did.Document, crypto2.Key, error)
+	Create(ctx context.Context, options DIDCreationOptions) (*did.Document, crypto2.Key, error)
 }
 
 // DocWriter is the interface that groups al the DID Document write methods
@@ -74,7 +75,7 @@ type DocUpdater interface {
 	// Update replaces the DID document identified by DID with the nextVersion
 	// If the DID Document is not found, ErrNotFound is returned
 	// If the DID Document is not managed by this node, ErrDIDNotManagedByThisNode is returned
-	Update(id did.DID, next did.Document) error
+	Update(ctx context.Context, id did.DID, next did.Document) error
 }
 
 // KeyResolver is the interface for resolving keys.
@@ -120,7 +121,7 @@ type DocManipulator interface {
 	// If the DID Document is not found ErrNotFound is returned
 	// If the DID Document is not managed by this node, ErrDIDNotManagedByThisNode is returned
 	// If the DID Document is already deactivated ErrDeactivated is returned
-	Deactivate(id did.DID) error
+	Deactivate(ctx context.Context, id did.DID) error
 
 	// RemoveVerificationMethod removes a VerificationMethod from a DID document.
 	// It accepts the id DID as identifier for the DID document.
@@ -129,12 +130,12 @@ type DocManipulator interface {
 	// It returns an ErrNotFound when there is no VerificationMethod with the provided kid in the document.
 	// It returns an ErrDeactivated when the DID document has the deactivated state.
 	// It returns an ErrDIDNotManagedByThisNode if the DID document is not managed by this node.
-	RemoveVerificationMethod(id, keyID did.DID) error
+	RemoveVerificationMethod(ctx context.Context, id, keyID did.DID) error
 
 	// AddVerificationMethod generates a new key and adds it, wrapped as a VerificationMethod, to a DID document.
 	// It accepts a DID as identifier for the DID document.
 	// It returns an ErrNotFound when the DID document could not be found.
 	// It returns an ErrDeactivated when the DID document has the deactivated state.
 	// It returns an ErrDIDNotManagedByThisNode if the DID document is not managed by this node.
-	AddVerificationMethod(id did.DID, keyUsage DIDKeyFlags) (*did.VerificationMethod, error)
+	AddVerificationMethod(ctx context.Context, id did.DID, keyUsage DIDKeyFlags) (*did.VerificationMethod, error)
 }

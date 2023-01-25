@@ -19,9 +19,12 @@
 package v2
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"testing"
@@ -70,7 +73,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 			issueRequest.Visibility = &public
 			return nil
 		})
-		testContext.mockIssuer.EXPECT().Issue(gomock.Eq(expectedRequestedVC), true, true)
+		testContext.mockIssuer.EXPECT().Issue(gomock.Any(), gomock.Eq(expectedRequestedVC), true, true)
 		testContext.echo.EXPECT().JSON(http.StatusOK, nil)
 
 		err := testContext.client.IssueVC(testContext.echo)
@@ -128,7 +131,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 					issueRequest.PublishToNetwork = &publishValue
 					return nil
 				})
-				testContext.mockIssuer.EXPECT().Issue(gomock.Any(), true, false)
+				testContext.mockIssuer.EXPECT().Issue(gomock.Any(), gomock.Any(), true, false)
 				testContext.echo.EXPECT().JSON(http.StatusOK, nil)
 				err := testContext.client.IssueVC(testContext.echo)
 				assert.NoError(t, err)
@@ -147,7 +150,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 					issueRequest.PublishToNetwork = &publishValue
 					return nil
 				})
-				testContext.mockIssuer.EXPECT().Issue(gomock.Any(), true, true)
+				testContext.mockIssuer.EXPECT().Issue(gomock.Any(), gomock.Any(), true, true)
 				testContext.echo.EXPECT().JSON(http.StatusOK, nil)
 				err := testContext.client.IssueVC(testContext.echo)
 				assert.NoError(t, err)
@@ -211,7 +214,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 				issueRequest.CredentialSubject = expectedRequestedVC.CredentialSubject
 				return nil
 			})
-			testContext.mockIssuer.EXPECT().Issue(gomock.Any(), false, false)
+			testContext.mockIssuer.EXPECT().Issue(gomock.Any(), gomock.Any(), false, false)
 			testContext.echo.EXPECT().JSON(http.StatusOK, nil)
 			err := testContext.client.IssueVC(testContext.echo)
 			assert.NoError(t, err)
@@ -270,7 +273,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 					validIssueRequest(f)
 					return nil
 				})
-				testContext.mockIssuer.EXPECT().Issue(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, test.err)
+				testContext.mockIssuer.EXPECT().Issue(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, test.err)
 
 				err := testContext.client.IssueVC(testContext.echo)
 
@@ -456,7 +459,7 @@ func TestWrapper_RevokeVC(t *testing.T) {
 			testContext := newMockContext(t)
 
 			expectedRevocation := &Revocation{Subject: credentialURI}
-			testContext.mockIssuer.EXPECT().Revoke(credentialURI).Return(expectedRevocation, nil)
+			testContext.mockIssuer.EXPECT().Revoke(gomock.Any(), credentialURI).Return(expectedRevocation, nil)
 			testContext.echo.EXPECT().JSON(http.StatusOK, expectedRevocation)
 
 			err := testContext.client.RevokeVC(testContext.echo, credentialID)
@@ -466,7 +469,7 @@ func TestWrapper_RevokeVC(t *testing.T) {
 		t.Run("vcr returns an error", func(t *testing.T) {
 			testContext := newMockContext(t)
 
-			testContext.mockIssuer.EXPECT().Revoke(credentialURI).Return(nil, errors.New("credential not found"))
+			testContext.mockIssuer.EXPECT().Revoke(gomock.Any(), credentialURI).Return(nil, errors.New("credential not found"))
 			err := testContext.client.RevokeVC(testContext.echo, credentialID)
 			assert.EqualError(t, err, "credential not found")
 		})
@@ -524,7 +527,7 @@ func TestWrapper_CreateVP(t *testing.T) {
 			*verifyRequest = request
 			return nil
 		})
-		testContext.mockHolder.EXPECT().BuildVP([]VerifiableCredential{verifiableCredential}, proof.ProofOptions{Created: created}, nil, true).Return(result, nil)
+		testContext.mockHolder.EXPECT().BuildVP(gomock.Any(), []VerifiableCredential{verifiableCredential}, proof.ProofOptions{Created: created}, nil, true).Return(result, nil)
 		testContext.echo.EXPECT().JSON(http.StatusOK, result)
 
 		err := testContext.client.CreateVP(testContext.echo)
@@ -540,7 +543,7 @@ func TestWrapper_CreateVP(t *testing.T) {
 			*verifyRequest = request
 			return nil
 		})
-		testContext.mockHolder.EXPECT().BuildVP([]VerifiableCredential{verifiableCredential}, proof.ProofOptions{Created: created}, &subjectDID, true).Return(result, nil)
+		testContext.mockHolder.EXPECT().BuildVP(gomock.Any(), []VerifiableCredential{verifiableCredential}, proof.ProofOptions{Created: created}, &subjectDID, true).Return(result, nil)
 		testContext.echo.EXPECT().JSON(http.StatusOK, result)
 
 		err := testContext.client.CreateVP(testContext.echo)
@@ -561,7 +564,7 @@ func TestWrapper_CreateVP(t *testing.T) {
 			Created: created,
 			Expires: &expired,
 		}
-		testContext.mockHolder.EXPECT().BuildVP([]VerifiableCredential{verifiableCredential}, opts, nil, true).Return(result, nil)
+		testContext.mockHolder.EXPECT().BuildVP(gomock.Any(), []VerifiableCredential{verifiableCredential}, opts, nil, true).Return(result, nil)
 		testContext.echo.EXPECT().JSON(http.StatusOK, result)
 
 		err := testContext.client.CreateVP(testContext.echo)
@@ -889,15 +892,16 @@ func TestWrapper_Untrusted(t *testing.T) {
 }
 
 func TestWrapper_Preprocess(t *testing.T) {
-	ctrl := gomock.NewController(t)
-
 	w := &Wrapper{}
-	ctx := mock.NewMockContext(ctrl)
-	ctx.EXPECT().Set(core.StatusCodeResolverContextKey, w)
-	ctx.EXPECT().Set(core.OperationIDContextKey, "foo")
-	ctx.EXPECT().Set(core.ModuleNameContextKey, "VCR")
+	echoCtx := echo.New().NewContext(&http.Request{}, nil)
+	echoCtx.Set(core.UserContextKey, "user")
 
-	w.Preprocess("foo", ctx)
+	w.Preprocess("foo", echoCtx)
+
+	audit.AssertAuditInfo(t, echoCtx, "user@", "VCR", "foo")
+	assert.Equal(t, "foo", echoCtx.Get(core.OperationIDContextKey))
+	assert.Equal(t, "VCR", echoCtx.Get(core.ModuleNameContextKey))
+	assert.Same(t, w, echoCtx.Get(core.StatusCodeResolverContextKey))
 }
 
 type mockContext struct {
@@ -908,6 +912,7 @@ type mockContext struct {
 	mockVerifier *verifier.MockVerifier
 	vcr          *vcr.MockVCR
 	client       *Wrapper
+	requestCtx   context.Context
 }
 
 func newMockContext(t *testing.T) mockContext {
@@ -922,13 +927,19 @@ func newMockContext(t *testing.T) mockContext {
 	mockVcr.EXPECT().Verifier().Return(mockVerifier).AnyTimes()
 	client := &Wrapper{VCR: mockVcr, ContextManager: jsonld.NewTestJSONLDManager(t)}
 
+	requestCtx := audit.TestContext()
+	echoMock := mock.NewMockContext(ctrl)
+	request, _ := http.NewRequestWithContext(requestCtx, http.MethodGet, "/", nil)
+	echoMock.EXPECT().Request().Return(request).AnyTimes()
+
 	return mockContext{
 		ctrl:         ctrl,
-		echo:         mock.NewMockContext(ctrl),
+		echo:         echoMock,
 		mockIssuer:   mockIssuer,
 		mockHolder:   mockHolder,
 		mockVerifier: mockVerifier,
 		vcr:          mockVcr,
 		client:       client,
+		requestCtx:   requestCtx,
 	}
 }

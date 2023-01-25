@@ -22,6 +22,7 @@ package v1
 import (
 	"errors"
 	"fmt"
+	httpModule "github.com/nuts-foundation/nuts-node/http"
 	"net/http"
 	"net/url"
 	"strings"
@@ -78,9 +79,7 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 
 // Preprocess is called just before the API operation itself is invoked.
 func (w *Wrapper) Preprocess(operationID string, context echo.Context) {
-	context.Set(core.StatusCodeResolverContextKey, w)
-	context.Set(core.OperationIDContextKey, operationID)
-	context.Set(core.ModuleNameContextKey, didman.ModuleName)
+	httpModule.Preprocess(context, w, didman.ModuleName, operationID)
 }
 
 // Routes registers the routes from the open api spec to the echo router.
@@ -110,7 +109,7 @@ func (w *Wrapper) AddEndpoint(ctx echo.Context, didStr string) error {
 		return core.InvalidInputError("invalid value for endpoint: %w", err)
 	}
 
-	endpoint, err := w.Didman.AddEndpoint(*id, request.Type, *u)
+	endpoint, err := w.Didman.AddEndpoint(ctx.Request().Context(), *id, request.Type, *u)
 	if err != nil {
 		return err
 	}
@@ -130,7 +129,7 @@ func (w *Wrapper) DeleteEndpointsByType(ctx echo.Context, didStr string, endpoin
 		return core.InvalidInputError("invalid endpointType")
 	}
 
-	err = w.Didman.DeleteEndpointsByType(*id, endpointType)
+	err = w.Didman.DeleteEndpointsByType(ctx.Request().Context(), *id, endpointType)
 	if err != nil {
 		return err
 	}
@@ -190,7 +189,7 @@ func (w *Wrapper) AddCompoundService(ctx echo.Context, didStr string) error {
 	}
 
 	// Call Didman
-	service, err := w.Didman.AddCompoundService(*id, request.Type, references)
+	service, err := w.Didman.AddCompoundService(ctx.Request().Context(), *id, request.Type, references)
 	if err != nil {
 		return err
 	}
@@ -247,7 +246,7 @@ func (w *Wrapper) DeleteService(ctx echo.Context, uriStr string) error {
 		return core.InvalidInputError("failed to parse URI: %w", err)
 	}
 
-	if err = w.Didman.DeleteService(*id); err != nil {
+	if err = w.Didman.DeleteService(ctx.Request().Context(), *id); err != nil {
 		return err
 	}
 
@@ -266,7 +265,7 @@ func (w *Wrapper) UpdateContactInformation(ctx echo.Context, didStr string) erro
 	if err = ctx.Bind(&contactInfo); err != nil {
 		return core.InvalidInputError("failed to parse ContactInformation: %w", err)
 	}
-	newContactInfo, err := w.Didman.UpdateContactInformation(*id, contactInfo)
+	newContactInfo, err := w.Didman.UpdateContactInformation(ctx.Request().Context(), *id, contactInfo)
 	if err != nil {
 		return err
 	}

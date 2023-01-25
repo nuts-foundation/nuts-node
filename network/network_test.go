@@ -32,6 +32,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuts-foundation/nuts-node/audit"
+	cryptoStorage "github.com/nuts-foundation/nuts-node/crypto/storage"
+	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/stretchr/testify/require"
+
 	"github.com/golang/mock/gomock"
 	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/go-did/did"
@@ -39,15 +44,12 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	cryptoStorage "github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	vdrTypes "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 var nodeDID, _ = did.ParseDID("did:nuts:test")
@@ -388,6 +390,7 @@ func TestNetwork_PeerDiagnostics(t *testing.T) {
 
 func TestNetwork_CreateTransaction(t *testing.T) {
 	key := crypto.NewTestKey("signing-key")
+	ctx := audit.TestContext()
 	t.Run("ok - attach key", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		payload := []byte("Hello, World!")
@@ -398,7 +401,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.state.EXPECT().Head(gomock.Any())
 		cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
 
-		_, err = cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key).WithAttachKey())
+		_, err = cxt.network.CreateTransaction(ctx, TransactionTemplate(payloadType, payload, key).WithAttachKey())
 		assert.NoError(t, err)
 	})
 	t.Run("ok - detached key", func(t *testing.T) {
@@ -409,7 +412,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		require.NoError(t, err)
 		cxt.state.EXPECT().Head(gomock.Any())
 		cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
-		tx, err := cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key))
+		tx, err := cxt.network.CreateTransaction(ctx, TransactionTemplate(payloadType, payload, key))
 		assert.NoError(t, err)
 		assert.Len(t, tx.Previous(), 0)
 	})
@@ -433,7 +436,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		err := cxt.start()
 		require.NoError(t, err)
 
-		tx, err := cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key).WithAdditionalPrevs([]hash.SHA256Hash{additionalPrev.Ref()}))
+		tx, err := cxt.network.CreateTransaction(ctx, TransactionTemplate(payloadType, payload, key).WithAdditionalPrevs([]hash.SHA256Hash{additionalPrev.Ref()}))
 
 		require.NoError(t, err)
 		assert.Len(t, tx.Previous(), 2)
@@ -452,7 +455,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.state.EXPECT().GetTransaction(gomock.Any(), prev.Ref()).Return(prev, nil)
 		cxt.state.EXPECT().IsPayloadPresent(gomock.Any(), prev.PayloadHash()).Return(false, nil)
 
-		tx, err := cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key).WithAdditionalPrevs([]hash.SHA256Hash{prev.Ref()}))
+		tx, err := cxt.network.CreateTransaction(ctx, TransactionTemplate(payloadType, payload, key).WithAdditionalPrevs([]hash.SHA256Hash{prev.Ref()}))
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "additional prev is unknown or missing payload")
@@ -479,7 +482,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 			cxt.keyResolver.EXPECT().ResolveKeyAgreementKey(*sender).Return(senderKey.Public(), nil)
 			cxt.keyResolver.EXPECT().ResolveKeyAgreementKey(*receiver).Return(receiverKey.Public(), nil)
 
-			_, err = cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key).WithPrivate([]did.DID{*sender, *receiver}))
+			_, err = cxt.network.CreateTransaction(ctx, TransactionTemplate(payloadType, payload, key).WithPrivate([]did.DID{*sender, *receiver}))
 			assert.NoError(t, err)
 		})
 		t.Run("node DID not configured", func(t *testing.T) {
@@ -489,7 +492,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 			err := cxt.start()
 			require.NoError(t, err)
 
-			_, err = cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key).WithPrivate([]did.DID{*sender, *receiver}))
+			_, err = cxt.network.CreateTransaction(ctx, TransactionTemplate(payloadType, payload, key).WithPrivate([]did.DID{*sender, *receiver}))
 			assert.EqualError(t, err, "node DID must be configured to create private transactions")
 		})
 	})
@@ -506,7 +509,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.state.EXPECT().IsPayloadPresent(gomock.Any(), additionalPrev.PayloadHash()).Return(true, nil)
 		cxt.state.EXPECT().Head(gomock.Any()).Return(rootTX.Ref(), nil)
 
-		_, err := cxt.network.CreateTransaction(TransactionTemplate(payloadType, payload, key).WithAdditionalPrevs([]hash.SHA256Hash{additionalPrev.Ref()}))
+		_, err := cxt.network.CreateTransaction(ctx, TransactionTemplate(payloadType, payload, key).WithAdditionalPrevs([]hash.SHA256Hash{additionalPrev.Ref()}))
 
 		assert.EqualError(t, err, "unable to calculate clock value for new transaction: custom")
 	})

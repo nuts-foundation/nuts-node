@@ -19,6 +19,7 @@
 package signature
 
 import (
+	"context"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/crypto"
 )
@@ -34,7 +35,7 @@ var JSONWebSignature2020Context = ssi.MustParseURI("https://w3c-ccg.github.io/ld
 
 // Suite is an interface which defines the methods a signature suite implementation should implement.
 type Suite interface {
-	Sign(doc []byte, key crypto.Key) ([]byte, error)
+	Sign(ctx context.Context, doc []byte, key crypto.Key) ([]byte, error)
 	CanonicalizeDocument(doc interface{}) ([]byte, error)
 	CalculateDigest(doc []byte) []byte
 	GetType() ssi.ProofType
