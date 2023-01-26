@@ -49,7 +49,7 @@ func serverWithKey(t *testing.T, key *ecdsa.PrivateKey) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		switch request.Method {
 		case http.MethodGet:
-			switch request.URL.Path {
+			switch request.URL.EscapedPath() {
 			case "/health":
 				writer.WriteHeader(http.StatusOK)
 				break
@@ -102,28 +102,31 @@ func serverWithKey(t *testing.T, key *ecdsa.PrivateKey) *httptest.Server {
 			}
 			break
 		case http.MethodPost:
-			if request.URL.Path == "/secrets/test" {
+			switch request.URL.EscapedPath() {
+			case "/secrets/test":
+				fallthrough
+			case "/secrets/key%2Fwith%2Fslashes":
 				body, _ := io.ReadAll(request.Body)
 				storeRequest := StoreSecretRequest{}
 				_ = json.Unmarshal(body, &storeRequest)
 				assert.Equal(t, StoreSecretRequest{Secret: pem}, storeRequest)
 				writer.WriteHeader(http.StatusOK)
-			} else if request.URL.Path == "/secrets/bad-request" {
+			case "/secrets/bad-request":
 				writer.Header().Set("Content-Type", "application/json")
 				responseAsJSON, _ := json.Marshal(errResponse)
 				writer.WriteHeader(http.StatusBadRequest)
 				_, _ = writer.Write(responseAsJSON)
-			} else if request.URL.Path == "/secrets/bad-request-with-wrong-format" {
+			case "/secrets/bad-request-with-wrong-format":
 				writer.Header().Set("Content-Type", "application/json")
 				responseAsJSON, _ := json.Marshal("not-a-valid-error-response")
 				writer.WriteHeader(http.StatusBadRequest)
 				_, _ = writer.Write(responseAsJSON)
-			} else if request.URL.Path == "/secrets/existing-key" {
+			case "/secrets/existing-key":
 				writer.WriteHeader(http.StatusConflict)
-			} else if request.URL.Path == "/secrets/server-error" {
+			case "/secrets/server-error":
 				writer.Header().Set("Content-Type", "application/json")
 				writer.WriteHeader(http.StatusInternalServerError)
-			} else {
+			default:
 				writer.WriteHeader(http.StatusNotFound)
 			}
 		}
@@ -307,6 +310,13 @@ func TestAPIClient_StorePrivateKey(t *testing.T) {
 		client, _ := NewAPIClient(s.URL, time.Second)
 
 		err := client.SavePrivateKey("test", key)
+		require.NoError(t, err)
+	})
+
+	t.Run("ok - key with a slash in it (should be encoded)", func(t *testing.T) {
+		client, _ := NewAPIClient(s.URL, time.Second)
+
+		err := client.SavePrivateKey("key/with/slashes", key)
 		require.NoError(t, err)
 	})
 

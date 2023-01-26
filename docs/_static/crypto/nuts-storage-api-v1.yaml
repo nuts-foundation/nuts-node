@@ -162,7 +162,6 @@ components:
         $ref: "#/components/schemas/Key"
     Key:
       type: string
-      x-go-type: safeKey
       description: | 
         The key under which secrets can be stored or retrieved.
         
@@ -175,6 +174,7 @@ components:
       example: "secret-value"
     StoreSecretRequest:
       description: Request body to store a secret value.
+      type: object
       required:
         - secret
       properties:
