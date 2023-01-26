@@ -16,7 +16,7 @@
  *
  */
 
-package storage
+package spi
 
 import (
 	"github.com/golang/mock/gomock"

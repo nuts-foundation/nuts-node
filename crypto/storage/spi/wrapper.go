@@ -16,11 +16,12 @@
  *
  */
 
-package storage
+package spi
 
 import (
 	"crypto"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/core"
 	"regexp"
 )
 
@@ -29,6 +30,14 @@ import (
 type wrapper struct {
 	kidPattern     *regexp.Regexp
 	wrappedBackend Storage
+}
+
+func (w wrapper) Name() string {
+	return w.wrappedBackend.Name()
+}
+
+func (w wrapper) CheckHealth() map[string]core.Health {
+	return w.wrappedBackend.CheckHealth()
 }
 
 // NewValidatedKIDBackendWrapper creates a new wrapper for storage backends.

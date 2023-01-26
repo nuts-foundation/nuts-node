@@ -45,6 +45,7 @@ gen-mocks:
 	mockgen -destination=vdr/didstore/mock.go -package=didstore -source=vdr/didstore/interface.go
 	mockgen -destination=vdr/didservice/resolvers_mock.go -package=didservice -source=vdr/didservice/resolvers.go
 	mockgen -destination=vdr/types/mock.go -package=types -source=vdr/types/interface.go -self_package github.com/nuts-foundation/nuts-node/vdr/types --imports did=github.com/nuts-foundation/go-did/did
+	mockgen -destination=crypto/storage/spi/mock.go -package spi -source=crypto/storage/spi/interface.go
 
 gen-api:
 	oapi-codegen --config codegen/configs/common_ssi_types.yaml docs/_static/common/ssi_types.yaml | gofmt > api/ssi_types.go
@@ -54,6 +55,7 @@ gen-api:
 	oapi-codegen --config codegen/configs/vcr_v2.yaml docs/_static/vcr/v2.yaml | gofmt > vcr/api/v2/generated.go
 	oapi-codegen --config codegen/configs/auth_v1.yaml docs/_static/auth/v1.yaml | gofmt > auth/api/v1/generated.go
 	oapi-codegen --config codegen/configs/didman_v1.yaml docs/_static/didman/v1.yaml | gofmt > didman/api/v1/generated.go
+	oapi-codegen --config codegen/configs/crypto_store_client.yaml docs/_static/crypto/nuts-storage-api-v1.yaml | gofmt > crypto/storage/external/generated.go
 
 gen-protobuf:
 	protoc --go_out=paths=source_relative:network -I network network/transport/v2/protocol.proto

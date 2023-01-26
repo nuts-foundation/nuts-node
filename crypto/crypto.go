@@ -29,9 +29,13 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
-	"github.com/nuts-foundation/nuts-node/crypto/storage"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/external"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/fs"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/vault"
 	"path"
 	"regexp"
+	"time"
 )
 
 const (
@@ -43,22 +47,30 @@ var kidPattern = regexp.MustCompile(`^[\da-zA-Z_\- :#.]+$`)
 
 // Config holds the values for the crypto engine
 type Config struct {
-	Storage string              `koanf:"storage"`
-	Vault   storage.VaultConfig `koanf:"vault"`
+	Storage  string          `koanf:"storage"`
+	Vault    vault.Config    `koanf:"vault"`
+	External external.Config `koanf:"external"`
 }
 
 // DefaultCryptoConfig returns a Config with a fs backend storage
 func DefaultCryptoConfig() Config {
 	return Config{
-		Storage: "fs",
-		Vault:   storage.DefaultVaultConfig(),
+		Storage: fs.StorageType,
+		Vault:   vault.DefaultConfig(),
+		External: external.Config{
+			Timeout: 100 * time.Millisecond,
+		},
 	}
 }
 
 // Crypto holds references to storage and needed config
 type Crypto struct {
-	storage storage.Storage
+	storage spi.Storage
 	config  Config
+}
+
+func (client *Crypto) CheckHealth() map[string]core.Health {
+	return client.storage.CheckHealth()
 }
 
 // NewCryptoInstance creates a new instance of the crypto engine.
@@ -81,23 +93,34 @@ func (client *Crypto) setupFSBackend(config core.ServerConfig) error {
 		"Discouraged for production use unless backups and encryption is properly set up. Consider using the Hashicorp Vault backend.")
 	fsPath := path.Join(config.Datadir, "crypto")
 	var err error
-	fsBackend, err := storage.NewFileSystemBackend(fsPath)
+	fsBackend, err := fs.NewFileSystemBackend(fsPath)
 	if err != nil {
 		return err
 	}
-	client.storage = storage.NewValidatedKIDBackendWrapper(fsBackend, kidPattern)
+	client.storage = spi.NewValidatedKIDBackendWrapper(fsBackend, kidPattern)
+	return nil
+}
+
+func (client *Crypto) setupStorageAPIBackend() error {
+	log.Logger().Debug("Setting up StorageAPI backend for storage of private key material.")
+	apiBackend, err := external.NewAPIClient(client.config.External.URL, client.config.External.Timeout)
+	if err != nil {
+		return err
+	}
+	client.storage = spi.NewValidatedKIDBackendWrapper(apiBackend, kidPattern)
 	return nil
 }
 
 func (client *Crypto) setupVaultBackend(_ core.ServerConfig) error {
-	log.Logger().Debug("Setting up Vault backend for storage of private key material.")
+	log.Logger().Debug("Setting up Vault backend for storage of private key material. " +
+		"This feature is experimental and may change in the future.")
 	var err error
-	vaultBackend, err := storage.NewVaultKVStorage(client.config.Vault)
+	vaultBackend, err := vault.NewVaultKVStorage(client.config.Vault)
 	if err != nil {
 		return err
 	}
 
-	client.storage = storage.NewValidatedKIDBackendWrapper(vaultBackend, kidPattern)
+	client.storage = spi.NewValidatedKIDBackendWrapper(vaultBackend, kidPattern)
 	return nil
 }
 
@@ -109,10 +132,12 @@ func (client *Crypto) List() []string {
 // Configure loads the given configurations in the engine. Any wrong combination will return an error
 func (client *Crypto) Configure(config core.ServerConfig) error {
 	switch client.config.Storage {
-	case "fs":
+	case fs.StorageType:
 		return client.setupFSBackend(config)
-	case "vaultkv":
+	case vault.StorageType:
 		return client.setupVaultBackend(config)
+	case external.StorageType:
+		return client.setupStorageAPIBackend()
 	case "":
 		if config.Strictmode {
 			return errors.New("backend must be explicitly set in strict mode")
@@ -120,7 +145,7 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 		// default to file system and run this setup again
 		return client.setupFSBackend(config)
 	default:
-		return errors.New("invalid config for crypto.storage. Available options are: vaultkv, fs")
+		return fmt.Errorf("invalid config for crypto.storage. Available options are: vaultkv, fs, %s(experimental)", external.StorageType)
 	}
 }
 
@@ -173,7 +198,7 @@ func (client *Crypto) Exists(kid string) bool {
 func (client *Crypto) Resolve(kid string) (Key, error) {
 	keypair, err := client.storage.GetPrivateKey(kid)
 	if err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
+		if errors.Is(err, spi.ErrNotFound) {
 			return nil, ErrPrivateKeyNotFound
 		}
 		return nil, err

@@ -22,6 +22,8 @@ import (
 	"crypto"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/fs"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
@@ -33,7 +35,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/test/io"
 
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -90,7 +91,7 @@ func TestCrypto_New(t *testing.T) {
 
 	t.Run("error - save public key returns an error", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		storageMock := storage.NewMockStorage(ctrl)
+		storageMock := spi.NewMockStorage(ctrl)
 		storageMock.EXPECT().PrivateKeyExists("123").Return(false)
 		storageMock.EXPECT().SavePrivateKey(gomock.Any(), gomock.Any()).Return(errors.New("foo"))
 
@@ -103,7 +104,7 @@ func TestCrypto_New(t *testing.T) {
 
 	t.Run("error - ID already in use", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		storageMock := storage.NewMockStorage(ctrl)
+		storageMock := spi.NewMockStorage(ctrl)
 		storageMock.EXPECT().PrivateKeyExists("123").Return(true)
 
 		client := &Crypto{storage: storageMock}
@@ -152,12 +153,12 @@ func TestCrypto_setupBackend(t *testing.T) {
 			err := client.setupFSBackend(cfg)
 			require.NoError(t, err)
 			storageType := reflect.TypeOf(client.storage).String()
-			assert.Equal(t, "storage.wrapper", storageType)
+			assert.Equal(t, "spi.wrapper", storageType)
 		})
 
 		t.Run("ok - vault backend is wrapped", func(t *testing.T) {
 			s := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-				writer.Write([]byte("{\"data\": {\"keys\":[]}}"))
+				_, _ = writer.Write([]byte("{\"data\": {\"keys\":[]}}"))
 			}))
 
 			defer s.Close()
@@ -166,7 +167,7 @@ func TestCrypto_setupBackend(t *testing.T) {
 			err := client.setupVaultBackend(cfg)
 			require.NoError(t, err)
 			storageType := reflect.TypeOf(client.storage).String()
-			assert.Equal(t, "storage.wrapper", storageType)
+			assert.Equal(t, "spi.wrapper", storageType)
 		})
 	})
 }
@@ -191,7 +192,7 @@ func TestCrypto_Configure(t *testing.T) {
 		client := createCrypto(t)
 		client.config.Storage = "unknown"
 		err := client.Configure(cfg)
-		assert.EqualError(t, err, "invalid config for crypto.storage. Available options are: vaultkv, fs", "expected error")
+		assert.EqualError(t, err, "invalid config for crypto.storage. Available options are: vaultkv, fs, external(experimental)", "expected error")
 	})
 }
 
@@ -208,9 +209,9 @@ func TestNewCryptoInstance(t *testing.T) {
 
 func createCrypto(t *testing.T) *Crypto {
 	dir := io.TestDirectory(t)
-	backend, _ := storage.NewFileSystemBackend(dir)
+	backend, _ := fs.NewFileSystemBackend(dir)
 	c := Crypto{
-		storage: storage.NewValidatedKIDBackendWrapper(backend, kidPattern),
+		storage: spi.NewValidatedKIDBackendWrapper(backend, kidPattern),
 	}
 	return &c
 }

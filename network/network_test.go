@@ -32,8 +32,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/audit"
-	cryptoStorage "github.com/nuts-foundation/nuts-node/crypto/storage"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/stretchr/testify/require"
 
@@ -41,6 +40,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -59,7 +59,7 @@ type networkTestContext struct {
 	connectionManager *transport.MockConnectionManager
 	state             *dag.MockState
 	keyStore          crypto.KeyStore
-	keyStorage        cryptoStorage.Storage
+	keyStorage        spi.Storage
 	keyResolver       *vdrTypes.MockKeyResolver
 	protocol          *transport.MockProtocol
 	docResolver       *vdrTypes.MockDocResolver
