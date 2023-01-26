@@ -237,7 +237,7 @@ func TestAPIClient_GetPrivateKey(t *testing.T) {
 		require.NoError(t, err)
 
 		result, err := client.GetPrivateKey("invalid-response")
-		require.EqualError(t, err, "unable to get private key: invalid character 'i' looking for beginning of value")
+		require.EqualError(t, err, "unable to read private key: invalid character 'i' looking for beginning of value")
 		assert.Nil(t, result)
 	})
 
@@ -251,14 +251,14 @@ func TestAPIClient_GetPrivateKey(t *testing.T) {
 	t.Run("error - content type is not json", func(t *testing.T) {
 		client, _ := NewAPIClient(s.URL, time.Second)
 		result, err := client.GetPrivateKey("not-json")
-		require.EqualError(t, err, "unable to get private key: no body or wrong content-type")
+		require.EqualError(t, err, "invalid private key response from server")
 		assert.Nil(t, result)
 	})
 
 	t.Run("error - error response in wrong format", func(t *testing.T) {
 		client, _ := NewAPIClient(s.URL, time.Second)
 		result, err := client.GetPrivateKey("bad-request-with-wrong-format")
-		require.EqualError(t, err, "unable to get private key: json: cannot unmarshal string into Go value of type external.ErrorResponse")
+		require.EqualError(t, err, "unable to read private key: server returned HTTP 400 (expected: 200)")
 		assert.Nil(t, result)
 	})
 
@@ -274,14 +274,14 @@ func TestAPIClient_GetPrivateKey(t *testing.T) {
 		client, _ := NewAPIClient(s.URL, time.Second)
 
 		resolvedKey, err := client.GetPrivateKey("bad-request")
-		require.EqualError(t, err, backendError{errResponse}.Error())
+		require.EqualError(t, err, "unable to read private key: server returned HTTP 400 (expected: 200)")
 		require.Nil(t, resolvedKey)
 	})
 	t.Run("error - server error", func(t *testing.T) {
 		client, _ := NewAPIClient(s.URL, time.Second)
 
 		resolvedKey, err := client.GetPrivateKey("server-error")
-		require.EqualError(t, err, "unable to get private key: unexpected status code from storage server: 500")
+		require.EqualError(t, err, "unable to read private key: server returned HTTP 500 (expected: 200)")
 		require.Nil(t, resolvedKey)
 	})
 
@@ -321,7 +321,7 @@ func TestAPIClient_StorePrivateKey(t *testing.T) {
 		client, _ := NewAPIClient(s.URL, time.Second)
 
 		err := client.SavePrivateKey("bad-request", key)
-		require.EqualError(t, err, backendError{errResponse}.Error())
+		require.EqualError(t, err, "unable to save private key: server returned HTTP 400 (expected: 200)")
 	})
 
 	t.Run("error - value is not in PEM format", func(t *testing.T) {
@@ -335,14 +335,14 @@ func TestAPIClient_StorePrivateKey(t *testing.T) {
 		client, _ := NewAPIClient(s.URL, time.Second)
 
 		err := client.SavePrivateKey("bad-request-with-wrong-format", key)
-		require.EqualError(t, err, "unable to save private key: json: cannot unmarshal string into Go value of type external.ErrorResponse")
+		require.EqualError(t, err, "unable to save private key: server returned HTTP 400 (expected: 200)")
 
 	})
 	t.Run("error - server error", func(t *testing.T) {
 		client, _ := NewAPIClient(s.URL, time.Second)
 
 		err := client.SavePrivateKey("server-error", key)
-		require.EqualError(t, err, "unable to save private key: unexpected status code from storage server: 500")
+		require.EqualError(t, err, "unable to save private key: server returned HTTP 500 (expected: 200)")
 	})
 }
 

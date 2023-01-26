@@ -21,9 +21,9 @@ package external
 import (
 	"context"
 	"crypto"
+	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"net/http"
@@ -82,42 +82,29 @@ func NewAPIClient(u string, timeOut time.Duration) (spi.Storage, error) {
 	return &APIClient{httpClient: client}, nil
 }
 
-type backendError struct {
-	error ErrorResponse
-}
-
-func (r backendError) Error() string {
-	return fmt.Sprintf("remote error: the backend %s returned an error with status %d, title=%s details=%s", r.error.Backend, r.error.Status, r.error.Title, r.error.Detail)
-}
-
 func (c APIClient) GetPrivateKey(kid string) (crypto.Signer, error) {
-	response, err := c.httpClient.LookupSecretWithResponse(context.Background(), Key(kid))
+	httpResponse, err := c.httpClient.LookupSecret(context.Background(), Key(kid))
 	if err != nil {
 		return nil, fmt.Errorf("unable to get private key: %w", err)
 	}
-	switch response.StatusCode() {
-	case http.StatusOK:
-		if response.JSON200 == nil {
-			return nil, fmt.Errorf("unable to get private key: no body or wrong content-type")
+	if err = core.TestResponseCode(http.StatusOK, httpResponse); err != nil {
+		if httpResponse.StatusCode == http.StatusNotFound {
+			return nil, spi.ErrNotFound
 		}
-
-		privateKey, err := util.PemToPrivateKey([]byte(response.JSON200.Secret))
-		if err != nil {
-			return nil, fmt.Errorf("unable to parse private key as PEM: %w", err)
-		}
-		return privateKey, nil
-	case http.StatusNotFound:
-		return nil, spi.ErrNotFound
-	case http.StatusBadRequest:
-		if response.JSON400 != nil {
-			return nil, backendError{error: *response.JSON400}
-		}
-		// not able to parse the error response, log it and fall through to default
-		log.Logger().Errorf("unable to get private key: server responded with bad-request and malformed error response.")
-		fallthrough
-	default:
-		return nil, fmt.Errorf("unable to get private key: unexpected status code from storage server: %d", response.StatusCode())
+		return nil, fmt.Errorf("unable to read private key: %w", err)
 	}
+	response, err := ParseLookupSecretResponse(httpResponse)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read private key: %w", err)
+	}
+	if response.JSON200 == nil {
+		return nil, errors.New("invalid private key response from server")
+	}
+	privateKey, err := util.PemToPrivateKey([]byte(response.JSON200.Secret))
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse private key as PEM: %w", err)
+	}
+	return privateKey, nil
 }
 
 func (c APIClient) PrivateKeyExists(kid string) bool {
@@ -133,25 +120,18 @@ func (c APIClient) SavePrivateKey(kid string, key crypto.PrivateKey) error {
 	if err != nil {
 		return fmt.Errorf("unable to convert private key to PEM format: %w", err)
 	}
-	response, err := c.httpClient.StoreSecretWithResponse(context.Background(), Key(kid), StoreSecretJSONRequestBody{Secret: pem})
+	httpResponse, err := c.httpClient.StoreSecret(context.Background(), Key(kid), StoreSecretJSONRequestBody{Secret: pem})
 	if err != nil {
 		return fmt.Errorf("unable to save private key: %w", err)
 	}
-	switch response.StatusCode() {
-	case http.StatusOK:
-		return nil
-	case http.StatusConflict:
-		return spi.ErrKeyAlreadyExists
-	case http.StatusBadRequest:
-		if response.JSON400 != nil {
-			return backendError{error: *response.JSON400}
+	if err = core.TestResponseCode(http.StatusOK, httpResponse); err != nil {
+		if httpResponse.StatusCode == http.StatusConflict {
+			return spi.ErrKeyAlreadyExists
 		}
-		// not able to parse the error response, log it and fall through to default
-		log.Logger().Errorf("unable to save private key: server responded with bad-request and malformed error response.")
-		fallthrough
-	default:
-		return fmt.Errorf("unable to save private key: unexpected status code from storage server: %d", response.StatusCode())
+		return fmt.Errorf("unable to save private key: %w", err)
 	}
+	_, _ = ParseStoreSecretResponse(httpResponse)
+	return nil
 }
 
 func (c APIClient) ListPrivateKeys() []string {

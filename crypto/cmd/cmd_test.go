@@ -146,7 +146,7 @@ func Test_fs2ExternalStore(t *testing.T) {
 
 		// Configure target
 		t.Setenv("NUTS_CRYPTO_STORAGE", "external")
-		t.Setenv("NUTS_CRYPTO_CONNECTION_URL", s.URL)
+		t.Setenv("NUTS_CRYPTO_EXTERNAL_URL", s.URL)
 
 		testDirectory := testIo.TestDirectory(t)
 		setupFSStoreData(t, testDirectory)
@@ -161,7 +161,7 @@ func Test_fs2ExternalStore(t *testing.T) {
 		cryptoCmd.SetArgs([]string{"fs2external", testDirectory})
 
 		err := cryptoCmd.Execute()
-		require.EqualError(t, err, "unable to store private key in Vault (kid=pk3): unable to save private key: unexpected status code from storage server: 400")
+		require.EqualError(t, err, "unable to store private key in Vault (kid=pk3): unable to save private key: server returned HTTP 400 (expected: 200)")
 
 		// Assert 2 keys were imported into Vault on the expected paths
 		assert.Len(t, importRequests, 3)
