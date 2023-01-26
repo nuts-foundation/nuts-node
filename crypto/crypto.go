@@ -33,6 +33,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/storage/vault"
 	"path"
 	"regexp"
+	"time"
 )
 
 const (
@@ -44,16 +45,19 @@ var kidPattern = regexp.MustCompile(`^[\da-zA-Z_\- :#.]+$`)
 
 // Config holds the values for the crypto engine
 type Config struct {
-	Storage       string                   `koanf:"storage"`
-	Vault         vault.VaultConfig        `koanf:"vault"`
-	StorageClient external.APIClientConfig `koanf:"connection"`
+	Storage  string                   `koanf:"storage"`
+	Vault    vault.VaultConfig        `koanf:"vault"`
+	External external.APIClientConfig `koanf:"connection"`
 }
 
 // DefaultCryptoConfig returns a Config with a fs backend storage
 func DefaultCryptoConfig() Config {
 	return Config{
-		Storage: "fs",
+		Storage: fs.StorageType,
 		Vault:   vault.DefaultVaultConfig(),
+		External: external.APIClientConfig{
+			Timeout: 100 * time.Millisecond,
+		},
 	}
 }
 
@@ -104,7 +108,7 @@ func (client *Crypto) setupFSBackend(config core.ServerConfig) error {
 
 func (client *Crypto) setupStorageAPIBackend() error {
 	log.Logger().Debug("Setting up StorageAPI backend for storage of private key material.")
-	apiBackend, err := external.NewAPIClient(client.config.StorageClient.URL)
+	apiBackend, err := external.NewAPIClient(client.config.External.URL, client.config.External.Timeout)
 	if err != nil {
 		return err
 	}
@@ -133,11 +137,11 @@ func (client *Crypto) List() []string {
 // Configure loads the given configurations in the engine. Any wrong combination will return an error
 func (client *Crypto) Configure(config core.ServerConfig) error {
 	switch client.config.Storage {
-	case "fs":
+	case fs.StorageType:
 		return client.setupFSBackend(config)
-	case "vaultkv":
+	case vault.StorageType:
 		return client.setupVaultBackend(config)
-	case external.StorageAPIConfigKey:
+	case external.StorageType:
 		return client.setupStorageAPIBackend()
 	case "":
 		if config.Strictmode {
@@ -146,7 +150,7 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 		// default to file system and run this setup again
 		return client.setupFSBackend(config)
 	default:
-		return fmt.Errorf("invalid config for crypto.storage. Available options are: vaultkv, fs, %s(experimental)", external.StorageAPIConfigKey)
+		return fmt.Errorf("invalid config for crypto.storage. Available options are: vaultkv, fs, %s(experimental)", external.StorageType)
 	}
 }
 

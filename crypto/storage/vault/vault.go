@@ -34,7 +34,8 @@ const privateKeyPathName = "nuts-private-keys"
 const defaultPathPrefix = "kv"
 const keyName = "key"
 
-const VaultConfigKey = "vault"
+// StorageType is the name of this storage type, used in health check reports and configuration.
+const StorageType = "vaultkv"
 
 // VaultConfig contains the config options to configure the vaultKVStorage backend
 type VaultConfig struct {
@@ -69,7 +70,7 @@ type vaultKVStorage struct {
 }
 
 func (v vaultKVStorage) Name() string {
-	return VaultConfigKey
+	return StorageType
 }
 
 func (v vaultKVStorage) CheckHealth() map[string]core.Health {

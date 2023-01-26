@@ -33,9 +33,11 @@ import (
 
 type entryType string
 
+// StorageType is the name of this storage type, used in health check reports and configuration.
+const StorageType = "fs"
+
 const (
 	privateKeyEntry entryType = "private.pem"
-	FSConfigKey               = "fs"
 )
 
 type fileOpenError struct {
@@ -59,7 +61,7 @@ type fileSystemBackend struct {
 }
 
 func (fsc fileSystemBackend) Name() string {
-	return FSConfigKey
+	return StorageType
 }
 
 func (fsc fileSystemBackend) CheckHealth() map[string]core.Health {

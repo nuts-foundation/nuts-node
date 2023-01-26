@@ -151,16 +151,16 @@ func TestVaultKVStorage_CheckHealth(t *testing.T) {
 		vaultStorage := vaultKVStorage{config: DefaultVaultConfig(), client: mockVaultClient{store: map[string]map[string]interface{}{"auth/token/lookup-self": {"key": []byte("foo")}}}}
 		result := vaultStorage.CheckHealth()
 
-		assert.Equal(t, core.HealthStatusUp, result[VaultConfigKey].Status)
-		assert.Empty(t, result[VaultConfigKey].Details)
+		assert.Equal(t, core.HealthStatusUp, result[StorageType].Status)
+		assert.Empty(t, result[StorageType].Details)
 	})
 
 	t.Run("error - lookup token endpoint returns empty response", func(t *testing.T) {
 		vaultStorage := vaultKVStorage{config: DefaultVaultConfig(), client: mockVaultClient{store: map[string]map[string]interface{}{}}}
 		result := vaultStorage.CheckHealth()
 
-		assert.Equal(t, core.HealthStatusDown, result[VaultConfigKey].Status)
-		assert.Equal(t, "could not read token information on auth/token/lookup-self", result[VaultConfigKey].Details)
+		assert.Equal(t, core.HealthStatusDown, result[StorageType].Status)
+		assert.Equal(t, "could not read token information on auth/token/lookup-self", result[StorageType].Details)
 	})
 }
 

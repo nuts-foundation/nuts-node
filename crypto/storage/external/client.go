@@ -1,3 +1,21 @@
+/*
+ * Copyright (C) 2023 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
 package external
 
 import (
@@ -13,8 +31,8 @@ import (
 	"time"
 )
 
-const StorageAPIConfigKey = "external"
-const httpClientTimeout = 100 * time.Millisecond
+// StorageType is the name of this storage type, used in health check reports and configuration.
+const StorageType = "external"
 
 // APIClient implements the Storage interface. It uses a simple HTTP protocol to connect to an external storage server.
 // This server can either be a secret store itself, or proxy the request to a key store such as Hashicorp Vault or Azure Key Vault.
@@ -31,32 +49,36 @@ func (c APIClient) CheckHealth() map[string]core.Health {
 	results := make(map[string]core.Health)
 	response, err := c.httpClient.HealthCheckWithResponse(context.Background())
 	if err != nil {
-		results[StorageAPIConfigKey] = core.Health{Status: core.HealthStatusDown, Details: fmt.Errorf("unable to connect to storage server: %w", err).Error()}
+		results[StorageType] = core.Health{Status: core.HealthStatusDown, Details: fmt.Errorf("unable to connect to storage server: %w", err).Error()}
 		return results
 	}
 
 	switch response.StatusCode() {
 	case http.StatusOK:
-		results[StorageAPIConfigKey] = core.Health{Status: core.HealthStatusUp}
+		results[StorageType] = core.Health{Status: core.HealthStatusUp}
 	case http.StatusServiceUnavailable:
-		results[StorageAPIConfigKey] = core.Health{Status: core.HealthStatusDown, Details: fmt.Sprintf("storage server reports to be unavailable: %d", response.StatusCode())}
+		results[StorageType] = core.Health{Status: core.HealthStatusDown, Details: fmt.Sprintf("storage server reports to be unavailable: %d", response.StatusCode())}
 	default:
-		results[StorageAPIConfigKey] = core.Health{Status: core.HealthStatusUnknown, Details: fmt.Sprintf("unexpected status code from storage server: %d", response.StatusCode())}
+		results[StorageType] = core.Health{Status: core.HealthStatusUnknown, Details: fmt.Sprintf("unexpected status code from storage server: %d", response.StatusCode())}
 	}
 
 	return results
 }
 
+// APIClientConfig is the configuration for the APIClient.
 type APIClientConfig struct {
+	// URL is the URL of the remote storage server.
 	URL string `koanf:"url"`
+	// Timeout is the timeout for the HTTP client.
+	Timeout time.Duration `koanf:"timeout"`
 }
 
 // NewAPIClient create a new API Client to communicate with a remote storage server.
-func NewAPIClient(u string) (spi.Storage, error) {
+func NewAPIClient(u string, timeOut time.Duration) (spi.Storage, error) {
 	if _, err := url.ParseRequestURI(u); err != nil {
 		return nil, err
 	}
-	client, _ := NewClientWithResponses(u, WithHTTPClient(&http.Client{Timeout: httpClientTimeout}))
+	client, _ := NewClientWithResponses(u, WithHTTPClient(&http.Client{Timeout: timeOut}))
 	return &APIClient{httpClient: client}, nil
 }
 

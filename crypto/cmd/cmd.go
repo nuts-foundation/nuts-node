@@ -36,11 +36,15 @@ func FlagSet() *pflag.FlagSet {
 	flags := pflag.NewFlagSet("crypto", pflag.ContinueOnError)
 
 	defs := cryptoEngine.DefaultCryptoConfig()
-	flags.String("crypto.storage", defs.Storage, "Storage to use, 'fs' for file system, 'vaultkv' for Vault KV store.")
+	flags.String("crypto.storage", defs.Storage, fmt.Sprintf("Storage to use, '%s' for an external backend (recommended), "+
+		"'%s' for file system (for development purposes), "+
+		"'%s' for Vault KV store (will be replaced by external backend in future).", external.StorageType, fs.StorageType, vault.StorageType))
 	flags.String("crypto.vault.token", defs.Vault.Token, "The Vault token. If set it overwrites the VAULT_TOKEN env var.")
 	flags.String("crypto.vault.address", defs.Vault.Address, "The Vault address. If set it overwrites the VAULT_ADDR env var.")
-	flags.Duration("crypto.vault.timeout", defs.Vault.Timeout, "Timeout of client calls to Vault, in Golang time.Duration string format (e.g. 5s).")
+	flags.Duration("crypto.vault.timeout", defs.Vault.Timeout, "Timeout of client calls to Vault, in Golang time.Duration string format (e.g. 1s).")
 	flags.String("crypto.vault.pathprefix", defs.Vault.PathPrefix, "The Vault path prefix.")
+	flags.String("crypto.external.url", defs.External.URL, "URL of the external storage service.")
+	flags.Duration("crypto.external.timeout", defs.External.Timeout, "Time-out when invoking the external storage backend, in Golang time.Duration string format (e.g. 1s).")
 
 	return flags
 }
@@ -71,7 +75,7 @@ func fs2ExternalStore() *cobra.Command {
 				return err
 			}
 			config := instance.Config().(*cryptoEngine.Config)
-			targetStorage, err := external.NewAPIClient(config.StorageClient.URL)
+			targetStorage, err := external.NewAPIClient(config.External.URL, config.External.Timeout)
 			if err != nil {
 				return err
 			}
