@@ -49,8 +49,8 @@ type Config struct {
 	Timeout time.Duration
 }
 
-// DefaultVaultConfig returns a Config with the PathPrefix containing the default value.
-func DefaultVaultConfig() Config {
+// DefaultConfig returns a Config with the PathPrefix containing the default value.
+func DefaultConfig() Config {
 	return Config{
 		PathPrefix: defaultPathPrefix,
 		Timeout:    5 * time.Second,
