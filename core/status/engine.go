@@ -21,6 +21,8 @@ package status
 
 import (
 	"bytes"
+	"fmt"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"net/http"
 	"strings"
@@ -117,6 +119,13 @@ func (s *status) checkHealth(ctx echo.Context) error {
 	result := s.doCheckHealth()
 	responseCode := 200
 	if result.Status != core.HealthStatusUp {
+		var failures []string
+		for component, componentHealth := range result.Details.(map[string]core.Health) {
+			if componentHealth.Status != core.HealthStatusUp {
+				failures = append(failures, fmt.Sprintf(" - %s: %v", component, componentHealth.Details))
+			}
+		}
+		logrus.Warnf("Health check status is not UP, failing components:\n%s", strings.Join(failures, "\n"))
 		responseCode = 503
 	}
 
