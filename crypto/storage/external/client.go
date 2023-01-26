@@ -65,8 +65,8 @@ func (c APIClient) CheckHealth() map[string]core.Health {
 	return results
 }
 
-// APIClientConfig is the configuration for the APIClient.
-type APIClientConfig struct {
+// Config is the configuration for the APIClient.
+type Config struct {
 	// URL is the URL of the remote storage server.
 	URL string `koanf:"url"`
 	// Timeout is the timeout for the HTTP client.

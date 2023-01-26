@@ -45,9 +45,9 @@ var kidPattern = regexp.MustCompile(`^[\da-zA-Z_\- :#.]+$`)
 
 // Config holds the values for the crypto engine
 type Config struct {
-	Storage  string                   `koanf:"storage"`
-	Vault    vault.VaultConfig        `koanf:"vault"`
-	External external.APIClientConfig `koanf:"external"`
+	Storage  string            `koanf:"storage"`
+	Vault    vault.VaultConfig `koanf:"vault"`
+	External external.Config   `koanf:"external"`
 }
 
 // DefaultCryptoConfig returns a Config with a fs backend storage
@@ -55,7 +55,7 @@ func DefaultCryptoConfig() Config {
 	return Config{
 		Storage: fs.StorageType,
 		Vault:   vault.DefaultVaultConfig(),
-		External: external.APIClientConfig{
+		External: external.Config{
 			Timeout: 100 * time.Millisecond,
 		},
 	}
