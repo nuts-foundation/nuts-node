@@ -37,8 +37,8 @@ const keyName = "key"
 // StorageType is the name of this storage type, used in health check reports and configuration.
 const StorageType = "vaultkv"
 
-// VaultConfig contains the config options to configure the vaultKVStorage backend
-type VaultConfig struct {
+// Config contains the config options to configure the vaultKVStorage backend
+type Config struct {
 	// Token to authenticate to the Vault cluster.
 	Token string `koanf:"token"`
 	// Address of the Vault cluster
@@ -49,9 +49,9 @@ type VaultConfig struct {
 	Timeout time.Duration
 }
 
-// DefaultVaultConfig returns a VaultConfig with the PathPrefix containing the default value.
-func DefaultVaultConfig() VaultConfig {
-	return VaultConfig{
+// DefaultVaultConfig returns a Config with the PathPrefix containing the default value.
+func DefaultVaultConfig() Config {
+	return Config{
 		PathPrefix: defaultPathPrefix,
 		Timeout:    5 * time.Second,
 	}
@@ -65,7 +65,7 @@ type logicaler interface {
 }
 
 type vaultKVStorage struct {
-	config VaultConfig
+	config Config
 	client logicaler
 }
 
@@ -87,7 +87,7 @@ func (v vaultKVStorage) CheckHealth() map[string]core.Health {
 // It currently only supports token authentication which should be provided by the token param.
 // If config.Address is empty, the VAULT_ADDR environment should be set.
 // If config.Token is empty, the VAULT_TOKEN environment should be is set.
-func NewVaultKVStorage(config VaultConfig) (spi.Storage, error) {
+func NewVaultKVStorage(config Config) (spi.Storage, error) {
 	client, err := configureVaultClient(config)
 	if err != nil {
 		return nil, err
@@ -100,7 +100,7 @@ func NewVaultKVStorage(config VaultConfig) (spi.Storage, error) {
 	return vaultStorage, nil
 }
 
-func configureVaultClient(cfg VaultConfig) (*vault.Client, error) {
+func configureVaultClient(cfg Config) (*vault.Client, error) {
 	vaultConfig := vault.DefaultConfig()
 	vaultConfig.Timeout = cfg.Timeout
 	client, err := vault.NewClient(vaultConfig)

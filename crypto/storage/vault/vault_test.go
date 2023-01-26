@@ -169,7 +169,7 @@ func TestVaultKVStorage_ListPrivateKeys(t *testing.T) {
 		writer.Write([]byte("{\"request_id\":\"d728876e-ea1e-8a58-f297-dcd4cd0a41bb\",\"lease_id\":\"\",\"renewable\":false,\"lease_duration\":0,\"data\":{\"keys\":[\"did:nuts:8AB7Jf8KYgNHC52sfyTTK2f2yGnDoSHkgzDgeqvrUBLo#45KSfeG71ZMh9NjGzSWFfcMsmu5587J93prf8Io1wf4\",\"did:nuts:8AB7Jf8KYgNHC52sfyTTK2f2yGnDoSHkgzDgeqvrUBLo#6Cc91cQQze7txdcEor_zkM4YSwX0kH1wsiMyeV9nedA\",\"did:nuts:8AB7Jf8KYgNHC52sfyTTK2f2yGnDoSHkgzDgeqvrUBLo#MaNou-G07aPD7oheretmI2C_VElG1XaHiqh89SlfkWQ\",\"did:nuts:8AB7Jf8KYgNHC52sfyTTK2f2yGnDoSHkgzDgeqvrUBLo#alt3OIpy21VxDlWao0jRumIyXi3qHBPG-ir5q8zdv8w\",\"did:nuts:8AB7Jf8KYgNHC52sfyTTK2f2yGnDoSHkgzDgeqvrUBLo#wumme98rwUOQVle-sT_MP3pRg_oqblvlanv3zYR2scc\",\"did:nuts:8AB7Jf8KYgNHC52sfyTTK2f2yGnDoSHkgzDgeqvrUBLo#yBLHNjVq_WM3qzsRQ_zi2yOcedjY9FfVfByp3HgEbR8\",\"did:nuts:8AB7Jf8KYgNHC52sfyTTK2f2yGnDoSHkgzDgeqvrUBLo#yREqK5id7I6SP1Iq7teThin2o53w17tb9sgEXZBIcDo\"]},\"wrap_info\":null,\"warnings\":null,\"auth\":null}"))
 	}))
 	defer s.Close()
-	storage, _ := NewVaultKVStorage(VaultConfig{Address: s.URL})
+	storage, _ := NewVaultKVStorage(Config{Address: s.URL})
 	keys := storage.ListPrivateKeys()
 	assert.Len(t, keys, 7)
 	// Assert first and last entry, rest should be OK then
@@ -187,7 +187,7 @@ func Test_PrivateKeyPath(t *testing.T) {
 
 func TestVaultKVStorage_configure(t *testing.T) {
 	t.Run("ok - configure a new vault store", func(t *testing.T) {
-		_, err := configureVaultClient(VaultConfig{
+		_, err := configureVaultClient(Config{
 			Token:   "tokenString",
 			Address: "http://localhost:123",
 		})
@@ -195,7 +195,7 @@ func TestVaultKVStorage_configure(t *testing.T) {
 	})
 
 	t.Run("error - invalid address", func(t *testing.T) {
-		_, err := configureVaultClient(VaultConfig{
+		_, err := configureVaultClient(Config{
 			Token:   "tokenString",
 			Address: "%zzzzz",
 		})
@@ -205,7 +205,7 @@ func TestVaultKVStorage_configure(t *testing.T) {
 	t.Run("VAULT_TOKEN not overriden by empty config", func(t *testing.T) {
 		t.Setenv("VAULT_TOKEN", "123")
 
-		client, err := configureVaultClient(VaultConfig{
+		client, err := configureVaultClient(Config{
 			Address: "http://localhost:123",
 		})
 
@@ -220,7 +220,7 @@ func TestNewVaultKVStorage(t *testing.T) {
 			writer.Write([]byte("{\"data\": {\"keys\":[]}}"))
 		}))
 		defer s.Close()
-		storage, err := NewVaultKVStorage(VaultConfig{Address: s.URL})
+		storage, err := NewVaultKVStorage(Config{Address: s.URL})
 		assert.NoError(t, err)
 		assert.NotNil(t, storage)
 	})
@@ -230,14 +230,14 @@ func TestNewVaultKVStorage(t *testing.T) {
 			writer.WriteHeader(http.StatusUnauthorized)
 		}))
 		defer s.Close()
-		storage, err := NewVaultKVStorage(VaultConfig{Address: s.URL})
+		storage, err := NewVaultKVStorage(Config{Address: s.URL})
 		assert.Error(t, err)
 		assert.True(t, strings.HasPrefix(err.Error(), "unable to connect to Vault: unable to retrieve token status: Error making API request"))
 		assert.Nil(t, storage)
 	})
 
 	t.Run("error - wrong URL", func(t *testing.T) {
-		storage, err := NewVaultKVStorage(VaultConfig{Address: "http://non-existing"})
+		storage, err := NewVaultKVStorage(Config{Address: "http://non-existing"})
 		require.Error(t, err)
 		assert.Regexp(t, `no such host|Temporary failure in name resolution`, err.Error())
 		assert.Nil(t, storage)
