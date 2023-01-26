@@ -68,14 +68,7 @@ type Crypto struct {
 }
 
 func (client *Crypto) CheckHealth() map[string]core.Health {
-	response := make(map[string]core.Health)
-	if client.storage == nil {
-		response[ModuleName] = core.Health{Status: core.HealthStatusDown, Details: "no storage"}
-	}
-	if checkableStorage, ok := client.storage.(core.HealthCheckable); ok {
-		return checkableStorage.CheckHealth()
-	}
-	return response
+	return client.storage.CheckHealth()
 }
 
 // NewCryptoInstance creates a new instance of the crypto engine.
