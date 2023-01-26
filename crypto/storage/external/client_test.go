@@ -1,4 +1,4 @@
-package storage
+package external
 
 import (
 	"crypto/ecdsa"
@@ -6,7 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/httpclient"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-var errResponse = httpclient.ErrorResponse{
+var errResponse = ErrorResponse{
 	Backend: "vault",
 	Detail:  "permission denied",
 	Status:  403,
@@ -42,7 +42,7 @@ func serverWithKey(t *testing.T, key *ecdsa.PrivateKey) *httptest.Server {
 				break
 			case "/secrets/test":
 				writer.Header().Set("Content-Type", "application/json")
-				response := httpclient.SecretResponse{Secret: pem}
+				response := SecretResponse{Secret: pem}
 				responseAsJSON, _ := json.Marshal(response)
 				writer.WriteHeader(http.StatusOK)
 				_, _ = writer.Write(responseAsJSON)
@@ -60,7 +60,7 @@ func serverWithKey(t *testing.T, key *ecdsa.PrivateKey) *httptest.Server {
 				break
 			case "/secrets/not-pem":
 				writer.Header().Set("Content-Type", "application/json")
-				response := httpclient.SecretResponse{Secret: "not-pem"}
+				response := SecretResponse{Secret: "not-pem"}
 				responseAsJSON, _ := json.Marshal(response)
 				writer.WriteHeader(http.StatusOK)
 				_, _ = writer.Write(responseAsJSON)
@@ -86,9 +86,9 @@ func serverWithKey(t *testing.T, key *ecdsa.PrivateKey) *httptest.Server {
 		case http.MethodPost:
 			if request.URL.Path == "/secrets/test" {
 				body, _ := io.ReadAll(request.Body)
-				storeRequest := httpclient.StoreSecretRequest{}
+				storeRequest := StoreSecretRequest{}
 				_ = json.Unmarshal(body, &storeRequest)
-				assert.Equal(t, httpclient.StoreSecretRequest{Secret: pem}, storeRequest)
+				assert.Equal(t, StoreSecretRequest{Secret: pem}, storeRequest)
 				writer.WriteHeader(http.StatusOK)
 			} else if request.URL.Path == "/secrets/bad-request" {
 				writer.Header().Set("Content-Type", "application/json")
@@ -240,7 +240,7 @@ func TestAPIClient_GetPrivateKey(t *testing.T) {
 	t.Run("error - error response in wrong format", func(t *testing.T) {
 		client, _ := NewAPIClient(s.URL)
 		result, err := client.GetPrivateKey("bad-request-with-wrong-format")
-		require.EqualError(t, err, "unable to get private key: json: cannot unmarshal string into Go value of type httpclient.ErrorResponse")
+		require.EqualError(t, err, "unable to get private key: json: cannot unmarshal string into Go value of type external.ErrorResponse")
 		assert.Nil(t, result)
 	})
 
@@ -248,7 +248,7 @@ func TestAPIClient_GetPrivateKey(t *testing.T) {
 		client, _ := NewAPIClient(s.URL)
 
 		resolvedKey, err := client.GetPrivateKey("unknown-key")
-		require.EqualError(t, err, ErrNotFound.Error())
+		require.EqualError(t, err, spi.ErrNotFound.Error())
 		require.Nil(t, resolvedKey)
 	})
 
@@ -296,7 +296,7 @@ func TestAPIClient_StorePrivateKey(t *testing.T) {
 		client, _ := NewAPIClient(s.URL)
 
 		err := client.SavePrivateKey("existing-key", key)
-		require.EqualError(t, err, ErrKeyAlreadyExists.Error())
+		require.EqualError(t, err, spi.ErrKeyAlreadyExists.Error())
 	})
 
 	t.Run("error - bad request", func(t *testing.T) {
@@ -317,7 +317,7 @@ func TestAPIClient_StorePrivateKey(t *testing.T) {
 		client, _ := NewAPIClient(s.URL)
 
 		err := client.SavePrivateKey("bad-request-with-wrong-format", key)
-		require.EqualError(t, err, "unable to save private key: json: cannot unmarshal string into Go value of type httpclient.ErrorResponse")
+		require.EqualError(t, err, "unable to save private key: json: cannot unmarshal string into Go value of type external.ErrorResponse")
 
 	})
 	t.Run("error - server error", func(t *testing.T) {

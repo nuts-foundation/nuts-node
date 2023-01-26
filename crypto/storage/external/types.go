@@ -1,4 +1,4 @@
-package httpclient
+package external
 
 import "net/url"
 

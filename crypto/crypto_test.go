@@ -21,6 +21,8 @@ package crypto
 import (
 	"crypto"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/fs"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
@@ -32,7 +34,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/test/io"
 
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -85,7 +86,7 @@ func TestCrypto_New(t *testing.T) {
 
 	t.Run("error - save public key returns an error", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		storageMock := storage.NewMockStorage(ctrl)
+		storageMock := spi.NewMockStorage(ctrl)
 		storageMock.EXPECT().PrivateKeyExists("123").Return(false)
 		storageMock.EXPECT().SavePrivateKey(gomock.Any(), gomock.Any()).Return(errors.New("foo"))
 
@@ -98,7 +99,7 @@ func TestCrypto_New(t *testing.T) {
 
 	t.Run("error - ID already in use", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		storageMock := storage.NewMockStorage(ctrl)
+		storageMock := spi.NewMockStorage(ctrl)
 		storageMock.EXPECT().PrivateKeyExists("123").Return(true)
 
 		client := &Crypto{storage: storageMock}
@@ -147,7 +148,7 @@ func TestCrypto_setupBackend(t *testing.T) {
 			err := client.setupFSBackend(cfg)
 			require.NoError(t, err)
 			storageType := reflect.TypeOf(client.storage).String()
-			assert.Equal(t, "storage.wrapper", storageType)
+			assert.Equal(t, "spi.wrapper", storageType)
 		})
 
 		t.Run("ok - vault backend is wrapped", func(t *testing.T) {
@@ -161,7 +162,7 @@ func TestCrypto_setupBackend(t *testing.T) {
 			err := client.setupVaultBackend(cfg)
 			require.NoError(t, err)
 			storageType := reflect.TypeOf(client.storage).String()
-			assert.Equal(t, "storage.wrapper", storageType)
+			assert.Equal(t, "spi.wrapper", storageType)
 		})
 	})
 }
@@ -203,9 +204,9 @@ func TestNewCryptoInstance(t *testing.T) {
 
 func createCrypto(t *testing.T) *Crypto {
 	dir := io.TestDirectory(t)
-	backend, _ := storage.NewFileSystemBackend(dir)
+	backend, _ := fs.NewFileSystemBackend(dir)
 	c := Crypto{
-		storage: storage.NewValidatedKIDBackendWrapper(backend, kidPattern),
+		storage: spi.NewValidatedKIDBackendWrapper(backend, kidPattern),
 	}
 	return &c
 }

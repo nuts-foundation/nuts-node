@@ -24,7 +24,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/storage"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/fs"
 	testIo "github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -188,7 +188,7 @@ func setupFSStoreData(t *testing.T, testDirectory string) {
 	pk1, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	pk2, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	pk3, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	fs, _ := storage.NewFileSystemBackend(testDirectory)
+	fs, _ := fs.NewFileSystemBackend(testDirectory)
 	_ = fs.SavePrivateKey("pk1", pk1)
 	_ = fs.SavePrivateKey("pk2", pk2)
 	_ = fs.SavePrivateKey("pk3", pk3)

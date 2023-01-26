@@ -22,6 +22,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/stretchr/testify/require"
 	"os"
 	"path"
@@ -33,7 +34,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/storage"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
@@ -56,7 +56,7 @@ func Test_verifier_Validate(t *testing.T) {
 	const testKID = "did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey#sNGDQ3NlOe6Icv0E7_ufviOLG6Y25bSEyS5EbXBgp8Y"
 
 	// load pub key
-	pke := storage.PublicKeyEntry{}
+	pke := spi.PublicKeyEntry{}
 	pkeJSON, _ := os.ReadFile("../test/public.json")
 	json.Unmarshal(pkeJSON, &pke)
 	var pk = new(ecdsa.PublicKey)

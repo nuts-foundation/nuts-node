@@ -1,4 +1,4 @@
-package storage
+package external
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/httpclient"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"net/http"
 	"net/url"
@@ -20,7 +20,7 @@ const httpClientTimeout = 100 * time.Millisecond
 // This server can either be a secret store itself, or proxy the request to a key store such as Hashicorp Vault or Azure Key Vault.
 // It allows us to keep the codebase clean and allow other parties to write their own adaptor.
 type APIClient struct {
-	httpClient *httpclient.ClientWithResponses
+	httpClient *ClientWithResponses
 }
 
 func (c APIClient) Name() string {
@@ -52,16 +52,16 @@ type APIClientConfig struct {
 }
 
 // NewAPIClient create a new API Client to communicate with a remote storage server.
-func NewAPIClient(u string) (Storage, error) {
+func NewAPIClient(u string) (spi.Storage, error) {
 	if _, err := url.ParseRequestURI(u); err != nil {
 		return nil, err
 	}
-	client, _ := httpclient.NewClientWithResponses(u, httpclient.WithHTTPClient(&http.Client{Timeout: httpClientTimeout}))
+	client, _ := NewClientWithResponses(u, WithHTTPClient(&http.Client{Timeout: httpClientTimeout}))
 	return &APIClient{httpClient: client}, nil
 }
 
 type backendError struct {
-	error httpclient.ErrorResponse
+	error ErrorResponse
 }
 
 func (r backendError) Error() string {
@@ -69,7 +69,7 @@ func (r backendError) Error() string {
 }
 
 func (c APIClient) GetPrivateKey(kid string) (crypto.Signer, error) {
-	response, err := c.httpClient.LookupSecretWithResponse(context.Background(), httpclient.Key(kid))
+	response, err := c.httpClient.LookupSecretWithResponse(context.Background(), Key(kid))
 	if err != nil {
 		return nil, fmt.Errorf("unable to get private key: %w", err)
 	}
@@ -85,7 +85,7 @@ func (c APIClient) GetPrivateKey(kid string) (crypto.Signer, error) {
 		}
 		return privateKey, nil
 	case http.StatusNotFound:
-		return nil, ErrNotFound
+		return nil, spi.ErrNotFound
 	case http.StatusBadRequest:
 		if response.JSON400 != nil {
 			return nil, backendError{error: *response.JSON400}
@@ -99,7 +99,7 @@ func (c APIClient) GetPrivateKey(kid string) (crypto.Signer, error) {
 }
 
 func (c APIClient) PrivateKeyExists(kid string) bool {
-	response, err := c.httpClient.LookupSecretWithResponse(context.Background(), httpclient.Key(kid))
+	response, err := c.httpClient.LookupSecretWithResponse(context.Background(), Key(kid))
 	if err != nil {
 		return false
 	}
@@ -111,7 +111,7 @@ func (c APIClient) SavePrivateKey(kid string, key crypto.PrivateKey) error {
 	if err != nil {
 		return fmt.Errorf("unable to convert private key to PEM format: %w", err)
 	}
-	response, err := c.httpClient.StoreSecretWithResponse(context.Background(), httpclient.Key(kid), httpclient.StoreSecretJSONRequestBody{Secret: pem})
+	response, err := c.httpClient.StoreSecretWithResponse(context.Background(), Key(kid), StoreSecretJSONRequestBody{Secret: pem})
 	if err != nil {
 		return fmt.Errorf("unable to save private key: %w", err)
 	}
@@ -119,7 +119,7 @@ func (c APIClient) SavePrivateKey(kid string, key crypto.PrivateKey) error {
 	case http.StatusOK:
 		return nil
 	case http.StatusConflict:
-		return ErrKeyAlreadyExists
+		return spi.ErrKeyAlreadyExists
 	case http.StatusBadRequest:
 		if response.JSON400 != nil {
 			return backendError{error: *response.JSON400}

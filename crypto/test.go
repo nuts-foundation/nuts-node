@@ -21,7 +21,7 @@ package crypto
 import (
 	"crypto"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/storage"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -31,7 +31,7 @@ func NewMemoryCryptoInstance() *Crypto {
 }
 
 // NewTestCryptoInstance returns a new Crypto instance to be used for tests, allowing to use of preconfigured storage.
-func NewTestCryptoInstance(storage storage.Storage) *Crypto {
+func NewTestCryptoInstance(storage spi.Storage) *Crypto {
 	newInstance := NewCryptoInstance()
 	newInstance.storage = storage
 	return newInstance
@@ -50,7 +50,7 @@ func ErrorNamingFunc(err error) KIDNamingFunc {
 	}
 }
 
-func NewMemoryStorage() storage.Storage {
+func NewMemoryStorage() spi.Storage {
 	return memoryStorage{}
 }
 

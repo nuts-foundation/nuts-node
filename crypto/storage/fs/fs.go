@@ -16,13 +16,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package storage
+package fs
 
 import (
 	"crypto"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"io/fs"
 	"os"
@@ -69,7 +70,7 @@ func (fsc fileSystemBackend) CheckHealth() map[string]core.Health {
 
 // NewFileSystemBackend creates a new filesystem backend, all directories will be created for the given path
 // Using a filesystem backend in production is not recommended!
-func NewFileSystemBackend(fspath string) (Storage, error) {
+func NewFileSystemBackend(fspath string) (spi.Storage, error) {
 	if fspath == "" {
 		return nil, errors.New("filesystem path is empty")
 	}
@@ -144,7 +145,7 @@ func (fsc fileSystemBackend) readEntry(kid string, entryType entryType) ([]byte,
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, &fileOpenError{kid: kid, filePath: filePath, err: ErrNotFound}
+			return nil, &fileOpenError{kid: kid, filePath: filePath, err: spi.ErrNotFound}
 		}
 		return nil, &fileOpenError{kid: kid, filePath: filePath, err: err}
 	}

@@ -23,7 +23,10 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
 	cryptoEngine "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/storage"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/external"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/fs"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/vault"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -68,7 +71,7 @@ func fs2ExternalStore() *cobra.Command {
 				return err
 			}
 			config := instance.Config().(*cryptoEngine.Config)
-			targetStorage, err := storage.NewAPIClient(config.StorageClient.URL)
+			targetStorage, err := external.NewAPIClient(config.StorageClient.URL)
 			if err != nil {
 				return err
 			}
@@ -103,7 +106,7 @@ func fs2VaultCommand() *cobra.Command {
 			}
 			config := instance.Config().(*cryptoEngine.Config)
 
-			target, err := storage.NewVaultKVStorage(config.Vault)
+			target, err := vault.NewVaultKVStorage(config.Vault)
 			if err != nil {
 				return err
 			}
@@ -146,8 +149,8 @@ func LoadCryptoModule(cmd *cobra.Command) (*cryptoEngine.Crypto, error) {
 
 // fsToOtherStorage imports keys from the given directory into the given storage.
 // It accepts a source directory and a target storage. It returns a list of keys that were imported and a possible error.
-func fsToOtherStorage(sourceDir string, target storage.Storage) ([]string, error) {
-	source, err := storage.NewFileSystemBackend(sourceDir)
+func fsToOtherStorage(sourceDir string, target spi.Storage) ([]string, error) {
+	source, err := fs.NewFileSystemBackend(sourceDir)
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize filesystem storage: %w", err)
 	}
@@ -158,7 +161,7 @@ func fsToOtherStorage(sourceDir string, target storage.Storage) ([]string, error
 // exportToOtherStorage exports all private keys from the source storage to the target storage.
 // It accepts a source, target and returns all exported keys.
 // If an error occurs, the returned keys are the keys that were exported before the error occurred.
-func exportToOtherStorage(source, target storage.Storage) ([]string, error) {
+func exportToOtherStorage(source, target spi.Storage) ([]string, error) {
 	var keys []string
 	for _, kid := range source.ListPrivateKeys() {
 		privateKey, err := source.GetPrivateKey(kid)
@@ -168,7 +171,7 @@ func exportToOtherStorage(source, target storage.Storage) ([]string, error) {
 		err = target.SavePrivateKey(kid, privateKey)
 		if err != nil {
 			// ignore duplicate keys, allows for reruns
-			if errors.Is(err, storage.ErrKeyAlreadyExists) {
+			if errors.Is(err, spi.ErrKeyAlreadyExists) {
 				continue
 			}
 			return keys, fmt.Errorf("unable to store private key in Vault (kid=%s): %w", kid, err)

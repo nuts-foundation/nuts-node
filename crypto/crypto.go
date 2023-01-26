@@ -27,7 +27,10 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
-	"github.com/nuts-foundation/nuts-node/crypto/storage"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/external"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/fs"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/vault"
 	"path"
 	"regexp"
 )
@@ -41,22 +44,22 @@ var kidPattern = regexp.MustCompile(`^[\da-zA-Z_\- :#.]+$`)
 
 // Config holds the values for the crypto engine
 type Config struct {
-	Storage       string                  `koanf:"storage"`
-	Vault         storage.VaultConfig     `koanf:"vault"`
-	StorageClient storage.APIClientConfig `koanf:"connection"`
+	Storage       string                   `koanf:"storage"`
+	Vault         vault.VaultConfig        `koanf:"vault"`
+	StorageClient external.APIClientConfig `koanf:"connection"`
 }
 
 // DefaultCryptoConfig returns a Config with a fs backend storage
 func DefaultCryptoConfig() Config {
 	return Config{
 		Storage: "fs",
-		Vault:   storage.DefaultVaultConfig(),
+		Vault:   vault.DefaultVaultConfig(),
 	}
 }
 
 // Crypto holds references to storage and needed config
 type Crypto struct {
-	storage storage.Storage
+	storage spi.Storage
 	config  Config
 }
 
@@ -91,21 +94,21 @@ func (client *Crypto) setupFSBackend(config core.ServerConfig) error {
 		"Discouraged for production use unless backups and encryption is properly set up. Consider using the Hashicorp Vault backend.")
 	fsPath := path.Join(config.Datadir, "crypto")
 	var err error
-	fsBackend, err := storage.NewFileSystemBackend(fsPath)
+	fsBackend, err := fs.NewFileSystemBackend(fsPath)
 	if err != nil {
 		return err
 	}
-	client.storage = storage.NewValidatedKIDBackendWrapper(fsBackend, kidPattern)
+	client.storage = spi.NewValidatedKIDBackendWrapper(fsBackend, kidPattern)
 	return nil
 }
 
 func (client *Crypto) setupStorageAPIBackend() error {
 	log.Logger().Debug("Setting up StorageAPI backend for storage of private key material.")
-	apiBackend, err := storage.NewAPIClient(client.config.StorageClient.URL)
+	apiBackend, err := external.NewAPIClient(client.config.StorageClient.URL)
 	if err != nil {
 		return err
 	}
-	client.storage = storage.NewValidatedKIDBackendWrapper(apiBackend, kidPattern)
+	client.storage = spi.NewValidatedKIDBackendWrapper(apiBackend, kidPattern)
 	return nil
 }
 
@@ -113,12 +116,12 @@ func (client *Crypto) setupVaultBackend(_ core.ServerConfig) error {
 	log.Logger().Debug("Setting up Vault backend for storage of private key material. " +
 		"This feature is experimental and may change in the future.")
 	var err error
-	vaultBackend, err := storage.NewVaultKVStorage(client.config.Vault)
+	vaultBackend, err := vault.NewVaultKVStorage(client.config.Vault)
 	if err != nil {
 		return err
 	}
 
-	client.storage = storage.NewValidatedKIDBackendWrapper(vaultBackend, kidPattern)
+	client.storage = spi.NewValidatedKIDBackendWrapper(vaultBackend, kidPattern)
 	return nil
 }
 
@@ -134,7 +137,7 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 		return client.setupFSBackend(config)
 	case "vaultkv":
 		return client.setupVaultBackend(config)
-	case storage.StorageAPIConfigKey:
+	case external.StorageAPIConfigKey:
 		return client.setupStorageAPIBackend()
 	case "":
 		if config.Strictmode {
@@ -143,7 +146,7 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 		// default to file system and run this setup again
 		return client.setupFSBackend(config)
 	default:
-		return fmt.Errorf("invalid config for crypto.storage. Available options are: vaultkv, fs, %s(experimental)", storage.StorageAPIConfigKey)
+		return fmt.Errorf("invalid config for crypto.storage. Available options are: vaultkv, fs, %s(experimental)", external.StorageAPIConfigKey)
 	}
 }
 
@@ -195,7 +198,7 @@ func (client *Crypto) Exists(kid string) bool {
 func (client *Crypto) Resolve(kid string) (Key, error) {
 	keypair, err := client.storage.GetPrivateKey(kid)
 	if err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
+		if errors.Is(err, spi.ErrNotFound) {
 			return nil, ErrPrivateKeyNotFound
 		}
 		return nil, err

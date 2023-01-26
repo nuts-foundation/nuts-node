@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package storage
+package vault
 
 import (
 	"crypto"
@@ -24,6 +24,7 @@ import (
 	vault "github.com/hashicorp/vault/api"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"path/filepath"
 	"time"
@@ -85,7 +86,7 @@ func (v vaultKVStorage) CheckHealth() map[string]core.Health {
 // It currently only supports token authentication which should be provided by the token param.
 // If config.Address is empty, the VAULT_ADDR environment should be set.
 // If config.Token is empty, the VAULT_TOKEN environment should be is set.
-func NewVaultKVStorage(config VaultConfig) (Storage, error) {
+func NewVaultKVStorage(config VaultConfig) (spi.Storage, error) {
 	client, err := configureVaultClient(config)
 	if err != nil {
 		return nil, err
@@ -151,11 +152,11 @@ func (v vaultKVStorage) getValue(path, key string) ([]byte, error) {
 		return nil, fmt.Errorf("unable to read key from vault: %w", err)
 	}
 	if result == nil || result.Data == nil {
-		return nil, ErrNotFound
+		return nil, spi.ErrNotFound
 	}
 	rawValue, ok := result.Data[key]
 	if !ok {
-		return nil, ErrNotFound
+		return nil, spi.ErrNotFound
 	}
 	value, ok := rawValue.(string)
 	if !ok {

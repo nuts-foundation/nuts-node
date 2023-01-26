@@ -23,6 +23,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/sha1"
 	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
@@ -31,8 +32,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/nuts-foundation/nuts-node/crypto/storage"
 )
 
 func TestVcr_StoreCredential(t *testing.T) {
@@ -42,7 +41,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 	json.Unmarshal(vcJSON, &target)
 
 	// load pub key
-	pke := storage.PublicKeyEntry{}
+	pke := spi.PublicKeyEntry{}
 	pkeJSON, _ := os.ReadFile("test/public.json")
 	json.Unmarshal(pkeJSON, &pke)
 	var pk = new(ecdsa.PublicKey)

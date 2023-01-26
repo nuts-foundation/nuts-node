@@ -27,7 +27,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	cryptoStorage "github.com/nuts-foundation/nuts-node/crypto/storage"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/stretchr/testify/require"
 	"math"
@@ -57,7 +57,7 @@ type networkTestContext struct {
 	connectionManager *transport.MockConnectionManager
 	state             *dag.MockState
 	keyStore          crypto.KeyStore
-	keyStorage        cryptoStorage.Storage
+	keyStorage        spi.Storage
 	keyResolver       *vdrTypes.MockKeyResolver
 	protocol          *transport.MockProtocol
 	docResolver       *vdrTypes.MockDocResolver

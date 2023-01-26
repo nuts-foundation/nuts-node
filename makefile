@@ -47,7 +47,7 @@ gen-mocks:
 	mockgen -destination=events/events_mock.go -package events -source=events/interface.go Event
 	mockgen -destination=events/mock.go -package events -source=events/conn.go Conn ConnectionPool
 	mockgen -destination=jsonld/mock.go -package jsonld -source=jsonld/interface.go
-	mockgen -destination=storage/mock.go -package storage -source=storage/interface.go
+	mockgen -destination=crypto/storage/spi/mock.go -package spi -source=crypto/storage/spi/interface.go
 
 gen-api:
 	oapi-codegen --config codegen/configs/common_ssi_types.yaml docs/_static/common/ssi_types.yaml | gofmt > api/ssi_types.go
@@ -57,7 +57,7 @@ gen-api:
 	oapi-codegen --config codegen/configs/vcr_v2.yaml docs/_static/vcr/v2.yaml | gofmt > vcr/api/v2/generated.go
 	oapi-codegen --config codegen/configs/auth_v1.yaml docs/_static/auth/v1.yaml | gofmt > auth/api/v1/generated.go
 	oapi-codegen --config codegen/configs/didman_v1.yaml docs/_static/didman/v1.yaml | gofmt > didman/api/v1/generated.go
-	oapi-codegen --config codegen/configs/crypto_store_client.yaml docs/_static/crypto/nuts-storage-api-v1.yaml | gofmt > crypto/storage/httpclient/generated.go
+	oapi-codegen --config codegen/configs/crypto_store_client.yaml docs/_static/crypto/nuts-storage-api-v1.yaml | gofmt > crypto/storage/external/generated.go
 
 gen-protobuf:
 	protoc --go_out=paths=source_relative:network -I network network/transport/v2/protocol.proto

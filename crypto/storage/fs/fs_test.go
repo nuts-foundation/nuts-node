@@ -16,7 +16,7 @@
  *
  */
 
-package storage
+package fs
 
 import (
 	"fmt"
