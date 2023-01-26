@@ -47,7 +47,7 @@ var kidPattern = regexp.MustCompile(`^[\da-zA-Z_\- :#.]+$`)
 type Config struct {
 	Storage  string                   `koanf:"storage"`
 	Vault    vault.VaultConfig        `koanf:"vault"`
-	External external.APIClientConfig `koanf:"connection"`
+	External external.APIClientConfig `koanf:"external"`
 }
 
 // DefaultCryptoConfig returns a Config with a fs backend storage
