@@ -12,6 +12,7 @@ import (
 	core "github.com/nuts-foundation/nuts-node/core"
 	transport "github.com/nuts-foundation/nuts-node/network/transport"
 	grpc "google.golang.org/grpc"
+	metadata "google.golang.org/grpc/metadata"
 )
 
 // MockProtocol is a mock of Protocol interface.
@@ -279,4 +280,174 @@ func (m_2 *MockStream) SendMsg(m interface{}) error {
 func (mr *MockStreamMockRecorder) SendMsg(m interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendMsg", reflect.TypeOf((*MockStream)(nil).SendMsg), m)
+}
+
+// MockConn is a mock of Conn interface.
+type MockConn struct {
+	ctrl     *gomock.Controller
+	recorder *MockConnMockRecorder
+}
+
+// MockConnMockRecorder is the mock recorder for MockConn.
+type MockConnMockRecorder struct {
+	mock *MockConn
+}
+
+// NewMockConn creates a new mock instance.
+func NewMockConn(ctrl *gomock.Controller) *MockConn {
+	mock := &MockConn{ctrl: ctrl}
+	mock.recorder = &MockConnMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockConn) EXPECT() *MockConnMockRecorder {
+	return m.recorder
+}
+
+// Invoke mocks base method.
+func (m *MockConn) Invoke(ctx context.Context, method string, args, reply interface{}, opts ...grpc.CallOption) error {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, method, args, reply}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Invoke", varargs...)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Invoke indicates an expected call of Invoke.
+func (mr *MockConnMockRecorder) Invoke(ctx, method, args, reply interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, method, args, reply}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Invoke", reflect.TypeOf((*MockConn)(nil).Invoke), varargs...)
+}
+
+// NewStream mocks base method.
+func (m *MockConn) NewStream(ctx context.Context, desc *grpc.StreamDesc, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, desc, method}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "NewStream", varargs...)
+	ret0, _ := ret[0].(grpc.ClientStream)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NewStream indicates an expected call of NewStream.
+func (mr *MockConnMockRecorder) NewStream(ctx, desc, method interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, desc, method}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewStream", reflect.TypeOf((*MockConn)(nil).NewStream), varargs...)
+}
+
+// MockClientStream is a mock of ClientStream interface.
+type MockClientStream struct {
+	ctrl     *gomock.Controller
+	recorder *MockClientStreamMockRecorder
+}
+
+// MockClientStreamMockRecorder is the mock recorder for MockClientStream.
+type MockClientStreamMockRecorder struct {
+	mock *MockClientStream
+}
+
+// NewMockClientStream creates a new mock instance.
+func NewMockClientStream(ctrl *gomock.Controller) *MockClientStream {
+	mock := &MockClientStream{ctrl: ctrl}
+	mock.recorder = &MockClientStreamMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockClientStream) EXPECT() *MockClientStreamMockRecorder {
+	return m.recorder
+}
+
+// CloseSend mocks base method.
+func (m *MockClientStream) CloseSend() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CloseSend")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CloseSend indicates an expected call of CloseSend.
+func (mr *MockClientStreamMockRecorder) CloseSend() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloseSend", reflect.TypeOf((*MockClientStream)(nil).CloseSend))
+}
+
+// Context mocks base method.
+func (m *MockClientStream) Context() context.Context {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Context")
+	ret0, _ := ret[0].(context.Context)
+	return ret0
+}
+
+// Context indicates an expected call of Context.
+func (mr *MockClientStreamMockRecorder) Context() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Context", reflect.TypeOf((*MockClientStream)(nil).Context))
+}
+
+// Header mocks base method.
+func (m *MockClientStream) Header() (metadata.MD, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Header")
+	ret0, _ := ret[0].(metadata.MD)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Header indicates an expected call of Header.
+func (mr *MockClientStreamMockRecorder) Header() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Header", reflect.TypeOf((*MockClientStream)(nil).Header))
+}
+
+// RecvMsg mocks base method.
+func (m_2 *MockClientStream) RecvMsg(m interface{}) error {
+	m_2.ctrl.T.Helper()
+	ret := m_2.ctrl.Call(m_2, "RecvMsg", m)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RecvMsg indicates an expected call of RecvMsg.
+func (mr *MockClientStreamMockRecorder) RecvMsg(m interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RecvMsg", reflect.TypeOf((*MockClientStream)(nil).RecvMsg), m)
+}
+
+// SendMsg mocks base method.
+func (m_2 *MockClientStream) SendMsg(m interface{}) error {
+	m_2.ctrl.T.Helper()
+	ret := m_2.ctrl.Call(m_2, "SendMsg", m)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendMsg indicates an expected call of SendMsg.
+func (mr *MockClientStreamMockRecorder) SendMsg(m interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendMsg", reflect.TypeOf((*MockClientStream)(nil).SendMsg), m)
+}
+
+// Trailer mocks base method.
+func (m *MockClientStream) Trailer() metadata.MD {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Trailer")
+	ret0, _ := ret[0].(metadata.MD)
+	return ret0
+}
+
+// Trailer indicates an expected call of Trailer.
+func (mr *MockClientStreamMockRecorder) Trailer() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Trailer", reflect.TypeOf((*MockClientStream)(nil).Trailer))
 }
