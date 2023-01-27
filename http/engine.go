@@ -23,10 +23,9 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/golang-jwt/jwt"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/lestrrat-go/jwx/jwa"
+	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/nuts-node/core"
 	cryptoEngine "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/http/log"
@@ -319,24 +318,16 @@ func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludeP
 	// Auth
 	if cfg.Auth.Type == BearerTokenAuth {
 		log.Logger().Infof("Enabling token authentication for HTTP interface: %s%s", address, path)
-		echoServer.Use(middleware.JWTWithConfig(middleware.JWTConfig{
-			KeyFunc: func(_ *jwt.Token) (interface{}, error) {
-				signingKey, err := h.signingKeyResolver.Resolve(AdminTokenSigningKID)
-				if err == nil {
-					return signingKey.Public(), nil
+		echoServer.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+			return func(context echo.Context) error {
+				// Extract the bearer token from the request
+				token, err := jwt.ParseRequest(context.Request())
+				if err != nil {
+					return fmt.Errorf("token not found: %+v", err)
 				}
-				return nil, err
-			},
-			Skipper: skipper,
-			SuccessHandler: func(c echo.Context) {
-				// Replace user in context, which now contains the validated JWT token, with the name of the user.
-				// This is easier for logging.
-				token := c.Get(core.UserContextKey).(*jwt.Token)
-				c.Set(core.UserContextKey, token.Claims.(jwt.MapClaims)["sub"])
-			},
-			ContextKey:    core.UserContextKey,
-			SigningMethod: jwa.ES256.String(),
-		}))
+				return fmt.Errorf("token: %+v", token)
+			}
+		})
 	}
 
 	return nil
