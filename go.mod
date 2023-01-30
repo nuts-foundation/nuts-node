@@ -42,7 +42,7 @@ require (
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/Regis24GmbH/go-phonetics.v2 v2.0.2
 	gopkg.in/yaml.v3 v3.0.1
-	schneider.vip/problem v1.8.0
+	schneider.vip/problem v1.8.1
 )
 
 require (
