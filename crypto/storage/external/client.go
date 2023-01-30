@@ -83,28 +83,29 @@ func NewAPIClient(u string, timeOut time.Duration) (spi.Storage, error) {
 }
 
 func (c APIClient) GetPrivateKey(kid string) (crypto.Signer, error) {
-	httpResponse, err := c.httpClient.LookupSecret(context.Background(), url.PathEscape(kid))
+	response, err := c.httpClient.LookupSecretWithResponse(context.Background(), url.PathEscape(kid))
 	if err != nil {
 		return nil, fmt.Errorf("unable to get private key: %w", err)
 	}
-	if err = core.TestResponseCode(http.StatusOK, httpResponse); err != nil {
-		if httpResponse.StatusCode == http.StatusNotFound {
-			return nil, spi.ErrNotFound
+
+	switch response.StatusCode() {
+	case http.StatusOK:
+		if response.JSON200 == nil {
+			return nil, errors.New("invalid private key response from server")
 		}
-		return nil, fmt.Errorf("unable to read private key: %w", err)
+		privateKey, err := util.PemToPrivateKey([]byte(response.JSON200.Secret))
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse private key as PEM: %w", err)
+		}
+		return privateKey, nil
+	case http.StatusNotFound:
+		return nil, spi.ErrNotFound
+	default:
+		if response.JSON500 != nil {
+			return nil, fmt.Errorf("unable to get private key: %s", response.JSON500.Title)
+		}
+		return nil, fmt.Errorf("unable to get private key: server returned HTTP %d", response.StatusCode())
 	}
-	response, err := ParseLookupSecretResponse(httpResponse)
-	if err != nil {
-		return nil, fmt.Errorf("unable to read private key: %w", err)
-	}
-	if response.JSON200 == nil {
-		return nil, errors.New("invalid private key response from server")
-	}
-	privateKey, err := util.PemToPrivateKey([]byte(response.JSON200.Secret))
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse private key as PEM: %w", err)
-	}
-	return privateKey, nil
 }
 
 func (c APIClient) PrivateKeyExists(kid string) bool {
@@ -120,18 +121,22 @@ func (c APIClient) SavePrivateKey(kid string, key crypto.PrivateKey) error {
 	if err != nil {
 		return fmt.Errorf("unable to convert private key to PEM format: %w", err)
 	}
-	httpResponse, err := c.httpClient.StoreSecret(context.Background(), url.PathEscape(kid), StoreSecretJSONRequestBody{Secret: pem})
+
+	response, err := c.httpClient.StoreSecretWithResponse(context.Background(), url.PathEscape(kid), StoreSecretJSONRequestBody{Secret: pem})
 	if err != nil {
 		return fmt.Errorf("unable to save private key: %w", err)
 	}
-	if err = core.TestResponseCode(http.StatusOK, httpResponse); err != nil {
-		if httpResponse.StatusCode == http.StatusConflict {
-			return spi.ErrKeyAlreadyExists
+	switch response.StatusCode() {
+	case http.StatusOK:
+		return nil
+	case http.StatusConflict:
+		return spi.ErrKeyAlreadyExists
+	default:
+		if response.JSON500 != nil {
+			return fmt.Errorf("unable to save private key: %s", response.JSON500.Title)
 		}
-		return fmt.Errorf("unable to save private key: %w", err)
+		return fmt.Errorf("unable to save private key: server returned HTTP %d", response.StatusCode())
 	}
-	_, _ = ParseStoreSecretResponse(httpResponse)
-	return nil
 }
 
 func (c APIClient) ListPrivateKeys() []string {

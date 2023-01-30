@@ -53,6 +53,7 @@ type ErrorResponse struct {
 type Key = string
 
 // KeyList List of keys currently stored in the store.
+// Note: If the client escaped these keys, they should be unescaped before using them.
 type KeyList = []Key
 
 // Secret The secret value stored under the provided key.
@@ -79,7 +80,7 @@ type ServiceStatus struct {
 // * **warn**: healthy, with some concerns.
 type ServiceStatusStatus string
 
-// StoreSecretRequest Request body to store a secret value.
+// StoreSecretRequest Request body to store a secret value. The secret value must not be empty.
 type StoreSecretRequest struct {
 	// Secret The secret value stored under the provided key.
 	Secret Secret `json:"secret"`
@@ -508,7 +509,7 @@ type ListKeysResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *KeyList
-	JSON400      *ErrorResponse
+	JSON500      *ErrorResponse
 }
 
 // Status returns HTTPResponse.Status
@@ -530,8 +531,8 @@ func (r ListKeysResponse) StatusCode() int {
 type DeleteSecretResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON400      *ErrorResponse
 	JSON404      *ErrorResponse
+	JSON500      *ErrorResponse
 }
 
 // Status returns HTTPResponse.Status
@@ -554,8 +555,8 @@ type LookupSecretResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *SecretResponse
-	JSON400      *ErrorResponse
 	JSON404      *ErrorResponse
+	JSON500      *ErrorResponse
 }
 
 // Status returns HTTPResponse.Status
@@ -578,8 +579,8 @@ type StoreSecretResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *SecretResponse
-	JSON400      *ErrorResponse
 	JSON409      *ErrorResponse
+	JSON500      *ErrorResponse
 }
 
 // Status returns HTTPResponse.Status
@@ -705,12 +706,12 @@ func ParseListKeysResponse(rsp *http.Response) (*ListKeysResponse, error) {
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest ErrorResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		response.JSON400 = &dest
+		response.JSON500 = &dest
 
 	}
 
@@ -731,19 +732,19 @@ func ParseDeleteSecretResponse(rsp *http.Response) (*DeleteSecretResponse, error
 	}
 
 	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest ErrorResponse
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON400 = &dest
-
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest ErrorResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
 
 	}
 
@@ -771,19 +772,19 @@ func ParseLookupSecretResponse(rsp *http.Response) (*LookupSecretResponse, error
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest ErrorResponse
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON400 = &dest
-
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest ErrorResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
 
 	}
 
@@ -811,19 +812,19 @@ func ParseStoreSecretResponse(rsp *http.Response) (*StoreSecretResponse, error) 
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest ErrorResponse
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON400 = &dest
-
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
 		var dest ErrorResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
 
 	}
 

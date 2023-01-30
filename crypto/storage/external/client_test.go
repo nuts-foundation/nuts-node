@@ -69,12 +69,6 @@ func serverWithKey(t *testing.T, key *ecdsa.PrivateKey) *httptest.Server {
 				writer.WriteHeader(http.StatusOK)
 				_, _ = writer.Write(responseAsJSON)
 				break
-			case "/secrets/bad-request":
-				writer.Header().Set("Content-Type", "application/json")
-				responseAsJSON, _ := json.Marshal(errResponse)
-				writer.WriteHeader(http.StatusBadRequest)
-				_, _ = writer.Write(responseAsJSON)
-				break
 			case "/secrets/invalid-response":
 				writer.Header().Set("Content-Type", "application/json")
 				writer.WriteHeader(http.StatusOK)
@@ -91,15 +85,23 @@ func serverWithKey(t *testing.T, key *ecdsa.PrivateKey) *httptest.Server {
 				writer.Header().Set("Content-Type", "xml")
 				writer.WriteHeader(http.StatusOK)
 				break
-			case "/secrets/bad-request-with-wrong-format":
+			case "/secrets/servererror-with-invalid-response":
+				// tests the case where the server returns an error but the response is not a valid json error response
 				writer.Header().Set("Content-Type", "application/json")
 				responseAsJSON, _ := json.Marshal("not-a-valid-error-response")
-				writer.WriteHeader(http.StatusBadRequest)
+				writer.WriteHeader(http.StatusInternalServerError)
 				_, _ = writer.Write(responseAsJSON)
 				break
 			case "/secrets/server-error":
 				writer.Header().Set("Content-Type", "application/json")
+				responseAsJSON, _ := json.Marshal(ErrorResponse{Title: "server error"})
 				writer.WriteHeader(http.StatusInternalServerError)
+				_, _ = writer.Write(responseAsJSON)
+				break
+			case "/secrets/server-error-plain-text":
+				writer.Header().Set("Content-Type", "text/plain")
+				writer.WriteHeader(http.StatusInternalServerError)
+				_, _ = writer.Write([]byte("server error"))
 				break
 			default:
 				writer.WriteHeader(http.StatusNotFound)
@@ -115,21 +117,24 @@ func serverWithKey(t *testing.T, key *ecdsa.PrivateKey) *httptest.Server {
 				_ = json.Unmarshal(body, &storeRequest)
 				assert.Equal(t, StoreSecretRequest{Secret: pem}, storeRequest)
 				writer.WriteHeader(http.StatusOK)
-			case "/secrets/bad-request":
-				writer.Header().Set("Content-Type", "application/json")
-				responseAsJSON, _ := json.Marshal(errResponse)
-				writer.WriteHeader(http.StatusBadRequest)
-				_, _ = writer.Write(responseAsJSON)
-			case "/secrets/bad-request-with-wrong-format":
+			case "/secrets/servererror-with-invalid-response":
 				writer.Header().Set("Content-Type", "application/json")
 				responseAsJSON, _ := json.Marshal("not-a-valid-error-response")
-				writer.WriteHeader(http.StatusBadRequest)
+				writer.WriteHeader(http.StatusInternalServerError)
 				_, _ = writer.Write(responseAsJSON)
 			case "/secrets/existing-key":
 				writer.WriteHeader(http.StatusConflict)
 			case "/secrets/server-error":
 				writer.Header().Set("Content-Type", "application/json")
+				errResponse := ErrorResponse{Title: "Server Error", Detail: "Internal Server Error", Status: 500}
+				errAsJson, _ := json.Marshal(errResponse)
 				writer.WriteHeader(http.StatusInternalServerError)
+				writer.Write(errAsJson)
+			case "/secrets/server-error-plain-text":
+				writer.Header().Set("Content-Type", "text/plain")
+				writer.WriteHeader(http.StatusInternalServerError)
+				_, _ = writer.Write([]byte("server error"))
+				break
 			default:
 				writer.WriteHeader(http.StatusInternalServerError)
 			}
@@ -252,7 +257,7 @@ func TestAPIClient_GetPrivateKey(t *testing.T) {
 		require.NoError(t, err)
 
 		result, err := client.GetPrivateKey("invalid-response")
-		require.EqualError(t, err, "unable to read private key: invalid character 'i' looking for beginning of value")
+		require.EqualError(t, err, "unable to get private key: invalid character 'i' looking for beginning of value")
 		assert.Nil(t, result)
 	})
 
@@ -272,8 +277,8 @@ func TestAPIClient_GetPrivateKey(t *testing.T) {
 
 	t.Run("error - error response in wrong format", func(t *testing.T) {
 		client, _ := NewAPIClient(s.URL, time.Second)
-		result, err := client.GetPrivateKey("bad-request-with-wrong-format")
-		require.EqualError(t, err, "unable to read private key: server returned HTTP 400 (expected: 200)")
+		result, err := client.GetPrivateKey("servererror-with-invalid-response")
+		require.EqualError(t, err, "unable to get private key: json: cannot unmarshal string into Go value of type external.ErrorResponse")
 		assert.Nil(t, result)
 	})
 
@@ -285,18 +290,19 @@ func TestAPIClient_GetPrivateKey(t *testing.T) {
 		require.Nil(t, resolvedKey)
 	})
 
-	t.Run("error - bad request", func(t *testing.T) {
-		client, _ := NewAPIClient(s.URL, time.Second)
-
-		resolvedKey, err := client.GetPrivateKey("bad-request")
-		require.EqualError(t, err, "unable to read private key: server returned HTTP 400 (expected: 200)")
-		require.Nil(t, resolvedKey)
-	})
 	t.Run("error - server error", func(t *testing.T) {
 		client, _ := NewAPIClient(s.URL, time.Second)
 
 		resolvedKey, err := client.GetPrivateKey("server-error")
-		require.EqualError(t, err, "unable to read private key: server returned HTTP 500 (expected: 200)")
+		require.EqualError(t, err, "unable to get private key: server error")
+		require.Nil(t, resolvedKey)
+	})
+
+	t.Run("error - plain text response", func(t *testing.T) {
+		client, _ := NewAPIClient(s.URL, time.Second)
+
+		resolvedKey, err := client.GetPrivateKey("server-error-plain-text")
+		require.EqualError(t, err, "unable to get private key: server returned HTTP 500")
 		require.Nil(t, resolvedKey)
 	})
 
@@ -314,7 +320,7 @@ func TestAPIClient_GetPrivateKey(t *testing.T) {
 
 }
 
-func TestAPIClient_StorePrivateKey(t *testing.T) {
+func TestAPIClient_SavePrivateKey(t *testing.T) {
 	var key, _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	s := serverWithKey(t, key)
 
@@ -339,13 +345,6 @@ func TestAPIClient_StorePrivateKey(t *testing.T) {
 		require.EqualError(t, err, spi.ErrKeyAlreadyExists.Error())
 	})
 
-	t.Run("error - bad request", func(t *testing.T) {
-		client, _ := NewAPIClient(s.URL, time.Second)
-
-		err := client.SavePrivateKey("bad-request", key)
-		require.EqualError(t, err, "unable to save private key: server returned HTTP 400 (expected: 200)")
-	})
-
 	t.Run("error - value is not in PEM format", func(t *testing.T) {
 		client, _ := NewAPIClient(s.URL, time.Second)
 
@@ -353,18 +352,36 @@ func TestAPIClient_StorePrivateKey(t *testing.T) {
 		require.EqualError(t, err, "unable to convert private key to PEM format: x509: unknown key type while marshaling PKCS#8: []uint8")
 	})
 
-	t.Run("error - error response in wrong format", func(t *testing.T) {
+	t.Run("error - server error, response in wrong format", func(t *testing.T) {
 		client, _ := NewAPIClient(s.URL, time.Second)
 
-		err := client.SavePrivateKey("bad-request-with-wrong-format", key)
-		require.EqualError(t, err, "unable to save private key: server returned HTTP 400 (expected: 200)")
+		err := client.SavePrivateKey("servererror-with-invalid-response", key)
+		require.EqualError(t, err, "unable to save private key: json: cannot unmarshal string into Go value of type external.ErrorResponse")
 
 	})
 	t.Run("error - server error", func(t *testing.T) {
 		client, _ := NewAPIClient(s.URL, time.Second)
 
 		err := client.SavePrivateKey("server-error", key)
-		require.EqualError(t, err, "unable to save private key: server returned HTTP 500 (expected: 200)")
+		require.EqualError(t, err, "unable to save private key: Server Error")
+	})
+
+	t.Run("error - server error in plain text", func(t *testing.T) {
+		client, _ := NewAPIClient(s.URL, time.Second)
+
+		err := client.SavePrivateKey("server-error-plain-text", key)
+		require.EqualError(t, err, "unable to save private key: server returned HTTP 500")
+	})
+
+	t.Run("error - timeout", func(t *testing.T) {
+		s := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			time.Sleep(2 * time.Second)
+			writer.WriteHeader(http.StatusOK)
+		}))
+		client, err := NewAPIClient(s.URL, time.Second)
+		require.NoError(t, err)
+		err = client.SavePrivateKey("test", key)
+		assert.ErrorContains(t, err, "context deadline exceeded")
 	})
 }
 
@@ -396,7 +413,7 @@ func TestAPIClient_PrivateKeyExists(t *testing.T) {
 	t.Run("error - it returns false if the server returns an error", func(t *testing.T) {
 		client, _ := NewAPIClient(s.URL, time.Second)
 
-		exists := client.PrivateKeyExists("bad-request")
+		exists := client.PrivateKeyExists("server-error")
 		require.False(t, exists)
 	})
 
@@ -460,6 +477,7 @@ func TestAPIClient_ListPrivateKeys(t *testing.T) {
 				case "/secrets":
 					writer.Header().Set("Content-Type", "application/json")
 					writer.WriteHeader(http.StatusInternalServerError)
+					writer.Write([]byte(`{"error": "internal server error"}`))
 					break
 				}
 			}

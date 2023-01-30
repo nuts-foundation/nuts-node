@@ -50,7 +50,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/KeyList"
-        400:
+        500:
           description: The request failed. Check the error response for more details.
           content:
             application/json:
@@ -67,20 +67,20 @@ paths:
       summary: Lookup the secret for the provided key
       operationId: LookupSecret
       responses:
-        "200":
+        200:
           description: |
             The response on a successful lookup.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SecretResponse'
-        "404":
+        404:
           description: The lookup failed, the secret for the provided key could not be found.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        "400":
+        500:
           description: The lookup failed. Check the error response for more details.
           content:
             application/json:
@@ -96,21 +96,21 @@ paths:
             schema:
               $ref: '#/components/schemas/StoreSecretRequest'
       responses:
-        "200":
+        200:
           description: |
             The secret was successfully stored
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SecretResponse'
-        "400":
-          description: The request was invalid. Check the error response for more details.
+        409:
+          description: The store operation failed. A secret for this key already exists.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        "409":
-          description: The store operation failed. A secret for this key already exists.
+        500:
+          description: The request failed. Check the error response for more details.
           content:
             application/json:
               schema:
@@ -121,14 +121,14 @@ paths:
       responses:
         204:
           description: The deletion succeeded, the secret for the provided key has been deleted from the store.
-        "404":
+        404:
           description: The deletion failed, the secret for the provided key could not be found.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        "400":
-          description: The request was invalid. Check the error response for more details.
+        500:
+          description: The deletion failed. Check the error response for more details.
           content:
             application/json:
               schema:
@@ -157,6 +157,7 @@ components:
     KeyList:
       description: |
         List of keys currently stored in the store.
+        Note: If the client escaped these keys, they should be unescaped before using them.
       type: array
       items:
         $ref: "#/components/schemas/Key"
@@ -173,7 +174,7 @@ components:
       description: The secret value stored under the provided key.
       example: "secret-value"
     StoreSecretRequest:
-      description: Request body to store a secret value.
+      description: Request body to store a secret value. The secret value must not be empty.
       type: object
       required:
         - secret
