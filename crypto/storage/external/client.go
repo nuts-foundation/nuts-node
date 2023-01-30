@@ -83,7 +83,7 @@ func NewAPIClient(u string, timeOut time.Duration) (spi.Storage, error) {
 }
 
 func (c APIClient) GetPrivateKey(kid string) (crypto.Signer, error) {
-	httpResponse, err := c.httpClient.LookupSecret(context.Background(), Key(kid))
+	httpResponse, err := c.httpClient.LookupSecret(context.Background(), url.PathEscape(kid))
 	if err != nil {
 		return nil, fmt.Errorf("unable to get private key: %w", err)
 	}
@@ -108,7 +108,7 @@ func (c APIClient) GetPrivateKey(kid string) (crypto.Signer, error) {
 }
 
 func (c APIClient) PrivateKeyExists(kid string) bool {
-	response, err := c.httpClient.LookupSecretWithResponse(context.Background(), Key(kid))
+	response, err := c.httpClient.LookupSecretWithResponse(context.Background(), url.PathEscape(kid))
 	if err != nil {
 		return false
 	}
@@ -120,7 +120,7 @@ func (c APIClient) SavePrivateKey(kid string, key crypto.PrivateKey) error {
 	if err != nil {
 		return fmt.Errorf("unable to convert private key to PEM format: %w", err)
 	}
-	httpResponse, err := c.httpClient.StoreSecret(context.Background(), Key(kid), StoreSecretJSONRequestBody{Secret: pem})
+	httpResponse, err := c.httpClient.StoreSecret(context.Background(), url.PathEscape(kid), StoreSecretJSONRequestBody{Secret: pem})
 	if err != nil {
 		return fmt.Errorf("unable to save private key: %w", err)
 	}
@@ -147,7 +147,11 @@ func (c APIClient) ListPrivateKeys() []string {
 		keys := *response.JSON200
 		result := make([]string, len(keys))
 		for i, k := range keys {
-			result[i] = string(k)
+			res, err := url.PathUnescape(k)
+			if err != nil {
+				continue
+			}
+			result[i] = res
 		}
 		return result
 	default:

@@ -23,6 +23,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/json"
+	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
@@ -31,6 +32,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 )
@@ -49,7 +51,7 @@ func serverWithKey(t *testing.T, key *ecdsa.PrivateKey) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		switch request.Method {
 		case http.MethodGet:
-			switch request.URL.EscapedPath() {
+			switch request.URL.Path {
 			case "/health":
 				writer.WriteHeader(http.StatusOK)
 				break
@@ -58,6 +60,8 @@ func serverWithKey(t *testing.T, key *ecdsa.PrivateKey) *httptest.Server {
 				writer.WriteHeader(http.StatusOK)
 				_, _ = writer.Write([]byte(`["test"]`))
 				break
+			case "/secrets/key%2Fwith%2Fslashes":
+				fallthrough
 			case "/secrets/test":
 				writer.Header().Set("Content-Type", "application/json")
 				response := SecretResponse{Secret: pem}
@@ -102,7 +106,7 @@ func serverWithKey(t *testing.T, key *ecdsa.PrivateKey) *httptest.Server {
 			}
 			break
 		case http.MethodPost:
-			switch request.URL.EscapedPath() {
+			switch request.URL.Path {
 			case "/secrets/test":
 				fallthrough
 			case "/secrets/key%2Fwith%2Fslashes":
@@ -127,7 +131,7 @@ func serverWithKey(t *testing.T, key *ecdsa.PrivateKey) *httptest.Server {
 				writer.Header().Set("Content-Type", "application/json")
 				writer.WriteHeader(http.StatusInternalServerError)
 			default:
-				writer.WriteHeader(http.StatusNotFound)
+				writer.WriteHeader(http.StatusInternalServerError)
 			}
 		}
 	}))
@@ -231,6 +235,14 @@ func TestAPIClient_GetPrivateKey(t *testing.T) {
 		require.NoError(t, err)
 
 		resolvedKey, err := client.GetPrivateKey("test")
+		require.NoError(t, err)
+		assert.Equal(t, key, resolvedKey)
+	})
+
+	t.Run("ok - key with a slash in it (should be encoded)", func(t *testing.T) {
+		client, _ := NewAPIClient(s.URL, time.Second)
+
+		resolvedKey, err := client.GetPrivateKey("key/with/slashes")
 		require.NoError(t, err)
 		assert.Equal(t, key, resolvedKey)
 	})
@@ -367,6 +379,13 @@ func TestAPIClient_PrivateKeyExists(t *testing.T) {
 		require.True(t, exists)
 	})
 
+	t.Run("ok - key with a slash in it (should be encoded)", func(t *testing.T) {
+		client, _ := NewAPIClient(s.URL, time.Second)
+
+		exists := client.PrivateKeyExists("key/with/slashes")
+		require.True(t, exists)
+	})
+
 	t.Run("ok - it should return false if the key does not exist", func(t *testing.T) {
 		client, _ := NewAPIClient(s.URL, time.Second)
 
@@ -390,7 +409,7 @@ func TestAPIClient_PrivateKeyExists(t *testing.T) {
 }
 
 func TestAPIClient_ListPrivateKeys(t *testing.T) {
-	t.Run("ok - it returns an empty list of keys", func(t *testing.T) {
+	t.Run("ok - it returns an empty list of keys when no keys are returned by the server", func(t *testing.T) {
 		s := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			switch request.Method {
 			case http.MethodGet:
@@ -410,7 +429,8 @@ func TestAPIClient_ListPrivateKeys(t *testing.T) {
 		require.Equal(t, []string{}, keys)
 	})
 
-	t.Run("ok - it returns a not empty list of keys", func(t *testing.T) {
+	t.Run("ok - it returns a list of unescaped keys", func(t *testing.T) {
+		complexKeyName := "private-key/did:example:123#key2"
 		s := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			switch request.Method {
 			case http.MethodGet:
@@ -421,7 +441,7 @@ func TestAPIClient_ListPrivateKeys(t *testing.T) {
 				case "/secrets":
 					writer.Header().Set("Content-Type", "application/json")
 					writer.WriteHeader(http.StatusOK)
-					_, _ = writer.Write([]byte(`["key1", "key2"]`))
+					_, _ = writer.Write([]byte(fmt.Sprintf(`["%s", "%s"]`, "key1", url.PathEscape(complexKeyName))))
 					break
 				}
 			}
@@ -429,7 +449,7 @@ func TestAPIClient_ListPrivateKeys(t *testing.T) {
 		client, err := NewAPIClient(s.URL, time.Second)
 		require.NoError(t, err)
 		keys := client.ListPrivateKeys()
-		require.Equal(t, []string{"key1", "key2"}, keys)
+		require.Equal(t, []string{"key1", complexKeyName}, keys)
 	})
 
 	t.Run("error - it returns an empty list of keys if the server returns an error", func(t *testing.T) {
@@ -468,7 +488,7 @@ func TestAPIClient_ListPrivateKeys(t *testing.T) {
 		keys := client.ListPrivateKeys()
 		require.Equal(t, []string(nil), keys)
 	})
-	t.Run("error - it returns nil if the server does not respond with json", func(t *testing.T) {
+	t.Run("error - it returns an empty list of keys if the server does not respond with json", func(t *testing.T) {
 		s := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			switch request.Method {
 			case http.MethodGet:
