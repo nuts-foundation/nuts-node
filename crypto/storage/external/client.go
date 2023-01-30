@@ -132,6 +132,9 @@ func (c APIClient) SavePrivateKey(kid string, key crypto.PrivateKey) error {
 	case http.StatusConflict:
 		return spi.ErrKeyAlreadyExists
 	default:
+		if response.JSON400 != nil {
+			return fmt.Errorf("unable to save private key: bad request: %s", response.JSON400.Title)
+		}
 		if response.JSON500 != nil {
 			return fmt.Errorf("unable to save private key: %s", response.JSON500.Title)
 		}

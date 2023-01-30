@@ -579,6 +579,7 @@ type StoreSecretResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *SecretResponse
+	JSON400      *ErrorResponse
 	JSON409      *ErrorResponse
 	JSON500      *ErrorResponse
 }
@@ -811,6 +812,13 @@ func ParseStoreSecretResponse(rsp *http.Response) (*StoreSecretResponse, error) 
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
 		var dest ErrorResponse

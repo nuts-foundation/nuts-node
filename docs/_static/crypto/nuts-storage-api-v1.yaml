@@ -103,6 +103,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SecretResponse'
+        400:
+          description: The store operation failed. The request was not in the correct format.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         409:
           description: The store operation failed. A secret for this key already exists.
           content:

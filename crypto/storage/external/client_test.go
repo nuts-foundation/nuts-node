@@ -130,6 +130,12 @@ func serverWithKey(t *testing.T, key *ecdsa.PrivateKey) *httptest.Server {
 				errAsJson, _ := json.Marshal(errResponse)
 				writer.WriteHeader(http.StatusInternalServerError)
 				writer.Write(errAsJson)
+			case "/secrets/bad-request":
+				writer.Header().Set("Content-Type", "application/json")
+				errResponse := ErrorResponse{Title: "Missing secret", Detail: "Secret field is missing from post body", Status: 400}
+				errAsJson, _ := json.Marshal(errResponse)
+				writer.WriteHeader(http.StatusBadRequest)
+				writer.Write(errAsJson)
 			case "/secrets/server-error-plain-text":
 				writer.Header().Set("Content-Type", "text/plain")
 				writer.WriteHeader(http.StatusInternalServerError)
@@ -371,6 +377,13 @@ func TestAPIClient_SavePrivateKey(t *testing.T) {
 
 		err := client.SavePrivateKey("server-error-plain-text", key)
 		require.EqualError(t, err, "unable to save private key: server returned HTTP 500")
+	})
+
+	t.Run("error - bad request", func(t *testing.T) {
+		client, _ := NewAPIClient(s.URL, time.Second)
+
+		err := client.SavePrivateKey("bad-request", key)
+		require.EqualError(t, err, "unable to save private key: bad request: Missing secret")
 	})
 
 	t.Run("error - timeout", func(t *testing.T) {
