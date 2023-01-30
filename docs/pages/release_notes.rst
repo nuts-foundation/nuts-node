@@ -5,9 +5,9 @@ Release notes
 
 What has been changed, and how to update between versions.
 
-*****************
+***********************
 Coconut update (v5.1.0)
-*****************
+***********************
 
 Release date: **DRAFT**
 
@@ -18,9 +18,9 @@ Release date: **DRAFT**
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.0...v5.1.0
 
-*****************
+***********************
 Coconut update (v5.0.6)
-*****************
+***********************
 
 Release date: 2023-01-24
 
@@ -30,9 +30,9 @@ This patch release fixes the following:
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.5...v5.0.6
 
-*****************
+***********************
 Coconut update (v5.0.5)
-*****************
+***********************
 
 Release date: 2022-12-22
 
@@ -42,9 +42,9 @@ This patch release fixes the following:
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.4...v5.0.5
 
-*****************
+***********************
 Coconut update (v5.0.4)
-*****************
+***********************
 
 Release date: 2022-12-22
 
@@ -55,9 +55,9 @@ This patch release fixes the following:
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.3...v5.0.4
 
-*****************
+***********************
 Coconut update (v5.0.3)
-*****************
+***********************
 
 Release date: 2022-12-08
 
@@ -68,9 +68,9 @@ This patch release fixes the following:
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.2...v5.0.3
 
-*****************
+***********************
 Coconut update (v5.0.2)
-*****************
+***********************
 
 Release date: 2022-11-30
 
@@ -80,9 +80,9 @@ This patch release fixes the following:
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.1...v5.0.2
 
-*****************
+***********************
 Coconut update (v5.0.1)
-*****************
+***********************
 
 Release date: 2022-11-18
 
@@ -112,16 +112,16 @@ Release date: 2022-11-08
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.0.0...v5.0.0
 
-========
+================
 Breaking changes
-========
+================
 
 **NutsAuthorizationCredential LegalBase**
 When issuing Verifiable Credentials, now all fields must be defined in its context(s). This impacts the issuance of NutsAuthorizationCredentials:
-Nuts RFC014 (Authorization Credential) required ``legalBase`` to be present in all ``NutsAuthorizationCredential``s,
+Nuts RFC014 (Authorization Credential) required ``legalBase`` to be present in all ``NutsAuthorizationCredential``\s,
 but this property was missing in the Nuts v1 JSON-LD context.
 Since it can't simply be added afterwards, it (``legalBase``) is removed altogether.
-This means, starting this version, the ``legalBase`` property can't used in new v1 ``NutsAuthorizationCredential``s.
+This means, starting this version, the ``legalBase`` property can't used in new v1 ``NutsAuthorizationCredential``\s.
 
 **Redis Sentinel**
 Redis Sentinel was configured through a Redis connection URL by passing Sentinel-specific query parameters,
@@ -138,9 +138,9 @@ Before v5, searching for VCs would use partial (prefix) matching for strings by 
 Starting v5 it will use exact matching on strings by default. To match on a prefix (string starting with a specific value), add an asterisk (``*``) at the end of the string.
 To match for a non-nil string, use just an asterisk (``*``) meaning anything will match (but it must be present).
 
-*****************
+***********************
 Coconut update (v4.3.1)
-*****************
+***********************
 
 Release date: 2022-11-30
 
@@ -150,9 +150,9 @@ This patch release fixes the following:
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.3.0...v4.3.1
 
-*****************
+************************
 Chestnut update (v4.3.0)
-*****************
+************************
 
 Release date: 2022-10-27
 
@@ -166,9 +166,9 @@ See https://github.com/nuts-foundation/nuts-node/issues/1580 for more informatio
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.2.4...v4.3.0
 
-*****************
+************************
 Chestnut update (v4.2.4)
-*****************
+************************
 
 Release date: 2022-09-29
 
@@ -177,9 +177,9 @@ This allows an IRMA app in non-developers-mode to connect to the Nuts node.
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.2.3...v4.2.4
 
-*****************
+************************
 Chestnut update (v4.2.3)
-*****************
+************************
 
 Release date: 2022-09-21
 
@@ -189,9 +189,9 @@ Bugfix VAULT_TOKEN gets overwritten with empty default
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.2.2...v4.2.3
 
-*****************
+************************
 Chestnut update (v4.2.2)
-*****************
+************************
 
 Release date: 2022-08-31
 
@@ -199,9 +199,9 @@ Bugfix for Redis: not being able to load state data from database.
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.2.0...v4.2.2
 
-*****************
+************************
 Chestnut update (v4.2.0)
-*****************
+************************
 
 Release date: 2022-08-29
 
@@ -209,9 +209,9 @@ Backports upstream features for connecting to Redis over TLS.
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.1.1...v4.2.0
 
-*****************
+************************
 Chestnut update (v4.1.1)
-*****************
+************************
 
 Release date: 2022-08-18
 
@@ -220,9 +220,9 @@ This is required for supporting TLS offloading on HAProxy.
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.1.0...v4.1.1
 
-*****************
+************************
 Chestnut update (v4.1.0)
-*****************
+************************
 
 Release date: 2022-08-04
 
