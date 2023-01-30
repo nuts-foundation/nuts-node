@@ -161,7 +161,7 @@ func Test_fs2ExternalStore(t *testing.T) {
 		cryptoCmd.SetArgs([]string{"fs2external", testDirectory})
 
 		err := cryptoCmd.Execute()
-		require.EqualError(t, err, "unable to store private key in Vault (kid=pk3): unable to save private key: server returned HTTP 400 (expected: 200)")
+		require.EqualError(t, err, "unable to store private key in Vault (kid=pk3): unable to save private key: server returned HTTP 400")
 
 		// Assert 2 keys were imported into Vault on the expected paths
 		assert.Len(t, importRequests, 3)
