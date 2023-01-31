@@ -26,6 +26,10 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"path"
+	"regexp"
+	"time"
+
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
@@ -33,9 +37,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/storage/fs"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/vault"
-	"path"
-	"regexp"
-	"time"
 )
 
 const (
@@ -103,7 +104,7 @@ func (client *Crypto) setupFSBackend(config core.ServerConfig) error {
 
 func (client *Crypto) setupStorageAPIBackend() error {
 	log.Logger().Debug("Setting up StorageAPI backend for storage of private key material.")
-	apiBackend, err := external.NewAPIClient(client.config.External.URL, client.config.External.Timeout)
+	apiBackend, err := external.NewAPIClient(client.config.External)
 	if err != nil {
 		return err
 	}

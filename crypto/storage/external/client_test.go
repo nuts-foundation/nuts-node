@@ -24,17 +24,19 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
-	"github.com/nuts-foundation/nuts-node/crypto/util"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
+	"github.com/nuts-foundation/nuts-node/crypto/util"
 )
 
 var errResponse = ErrorResponse{
@@ -161,30 +163,12 @@ func TestAPIClient_CheckHealth(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client, err := NewAPIClient(server.URL, time.Second)
+		client, err := NewAPIClient(Config{URL: server.URL, Timeout: time.Second})
+		NewAPIClient(Config{URL: server.URL, Timeout: time.Second})
 		require.NoError(t, err)
 		result := client.CheckHealth()
 		assert.Equal(t, result[StorageType].Status, core.HealthStatusUp)
 		assert.Empty(t, result[StorageType].Details)
-	})
-
-	t.Run("UNKNOWN when response code is unexpected", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-			switch request.Method {
-			case http.MethodGet:
-				switch request.URL.Path {
-				case "/health":
-					writer.WriteHeader(http.StatusInternalServerError)
-				}
-			}
-		}))
-		defer server.Close()
-
-		client, err := NewAPIClient(server.URL, time.Second)
-		require.NoError(t, err)
-		result := client.CheckHealth()
-		assert.Equal(t, result[StorageType].Status, core.HealthStatusUnknown)
-		assert.Equal(t, result[StorageType].Details, "unexpected status code from storage server: 500")
 	})
 
 	t.Run("DOWN when response code is unavailable", func(t *testing.T) {
@@ -199,18 +183,18 @@ func TestAPIClient_CheckHealth(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client, err := NewAPIClient(server.URL, time.Second)
+		client, err := NewAPIClient(Config{URL: server.URL, Timeout: time.Second})
 		require.NoError(t, err)
 		result := client.CheckHealth()
-		assert.Equal(t, result[StorageType].Status, core.HealthStatusDown)
-		assert.Equal(t, result[StorageType].Details, "storage server reports to be unavailable: 503")
+		assert.Equal(t, core.HealthStatusDown, result[StorageType].Status)
+		assert.Equal(t, "unexpected status code from storage server: 503", result[StorageType].Details)
 	})
 
 	t.Run("DOWN when server does not responds", func(t *testing.T) {
-		client, err := NewAPIClient("http://localhost:1234", time.Second)
+		client, err := NewAPIClient(Config{"http://localhost:1234", time.Second})
 		require.NoError(t, err)
 		result := client.CheckHealth()
-		assert.Equal(t, result[StorageType].Status, core.HealthStatusDown)
+		assert.Equal(t, core.HealthStatusDown, result[StorageType].Status)
 		assert.Contains(t, result[StorageType].Details, "connection refused")
 	})
 }
@@ -218,19 +202,19 @@ func TestAPIClient_CheckHealth(t *testing.T) {
 func TestNewAPIClient(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		var key, _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		client, err := NewAPIClient(serverWithKey(t, key).URL, time.Second)
+		client, err := NewAPIClient(Config{URL: serverWithKey(t, key).URL, Timeout: time.Second})
 		require.NoError(t, err)
 		assert.NotNil(t, client)
 	})
 
 	t.Run("invalid url", func(t *testing.T) {
-		client, err := NewAPIClient("invalid-url", time.Second)
+		client, err := NewAPIClient(Config{"invalid-url", time.Second})
 		assert.EqualError(t, err, "parse \"invalid-url\": invalid URI for request")
 		assert.Nil(t, client)
 	})
 
 	t.Run("ok - valid url, server not reachable", func(t *testing.T) {
-		client, err := NewAPIClient("http://localhost:12345", time.Second)
+		client, err := NewAPIClient(Config{"http://localhost:12345", time.Second})
 		assert.NoError(t, err)
 		assert.NotNil(t, client)
 	})
@@ -242,7 +226,7 @@ func TestAPIClient_GetPrivateKey(t *testing.T) {
 	s := serverWithKey(t, key)
 	t.Run("ok - it should return a private key", func(t *testing.T) {
 
-		client, err := NewAPIClient(s.URL, time.Second)
+		client, err := NewAPIClient(Config{s.URL, time.Second})
 		require.NoError(t, err)
 
 		resolvedKey, err := client.GetPrivateKey("test")
@@ -251,7 +235,7 @@ func TestAPIClient_GetPrivateKey(t *testing.T) {
 	})
 
 	t.Run("ok - key with a slash in it (should be encoded)", func(t *testing.T) {
-		client, _ := NewAPIClient(s.URL, time.Second)
+		client, _ := NewAPIClient(Config{s.URL, time.Second})
 
 		resolvedKey, err := client.GetPrivateKey("key/with/slashes")
 		require.NoError(t, err)
@@ -259,7 +243,7 @@ func TestAPIClient_GetPrivateKey(t *testing.T) {
 	})
 
 	t.Run("error - invalid response body", func(t *testing.T) {
-		client, err := NewAPIClient(s.URL, time.Second)
+		client, err := NewAPIClient(Config{s.URL, time.Second})
 		require.NoError(t, err)
 
 		result, err := client.GetPrivateKey("invalid-response")
@@ -268,28 +252,28 @@ func TestAPIClient_GetPrivateKey(t *testing.T) {
 	})
 
 	t.Run("error - value is not in pem format", func(t *testing.T) {
-		client, _ := NewAPIClient(s.URL, time.Second)
+		client, _ := NewAPIClient(Config{s.URL, time.Second})
 		result, err := client.GetPrivateKey("not-pem")
 		require.EqualError(t, err, "unable to parse private key as PEM: failed to decode PEM block containing private key")
 		assert.Nil(t, result)
 	})
 
 	t.Run("error - content type is not json", func(t *testing.T) {
-		client, _ := NewAPIClient(s.URL, time.Second)
+		client, _ := NewAPIClient(Config{s.URL, time.Second})
 		result, err := client.GetPrivateKey("not-json")
 		require.EqualError(t, err, "invalid private key response from server")
 		assert.Nil(t, result)
 	})
 
 	t.Run("error - error response in wrong format", func(t *testing.T) {
-		client, _ := NewAPIClient(s.URL, time.Second)
+		client, _ := NewAPIClient(Config{s.URL, time.Second})
 		result, err := client.GetPrivateKey("servererror-with-invalid-response")
 		require.EqualError(t, err, "unable to get private key: json: cannot unmarshal string into Go value of type external.ErrorResponse")
 		assert.Nil(t, result)
 	})
 
 	t.Run("error - key not found", func(t *testing.T) {
-		client, _ := NewAPIClient(s.URL, time.Second)
+		client, _ := NewAPIClient(Config{s.URL, time.Second})
 
 		resolvedKey, err := client.GetPrivateKey("unknown-key")
 		require.EqualError(t, err, spi.ErrNotFound.Error())
@@ -297,7 +281,7 @@ func TestAPIClient_GetPrivateKey(t *testing.T) {
 	})
 
 	t.Run("error - server error", func(t *testing.T) {
-		client, _ := NewAPIClient(s.URL, time.Second)
+		client, _ := NewAPIClient(Config{s.URL, time.Second})
 
 		resolvedKey, err := client.GetPrivateKey("server-error")
 		require.EqualError(t, err, "unable to get private key: server error")
@@ -305,7 +289,7 @@ func TestAPIClient_GetPrivateKey(t *testing.T) {
 	})
 
 	t.Run("error - plain text response", func(t *testing.T) {
-		client, _ := NewAPIClient(s.URL, time.Second)
+		client, _ := NewAPIClient(Config{s.URL, time.Second})
 
 		resolvedKey, err := client.GetPrivateKey("server-error-plain-text")
 		require.EqualError(t, err, "unable to get private key: server returned HTTP 500")
@@ -317,7 +301,7 @@ func TestAPIClient_GetPrivateKey(t *testing.T) {
 			time.Sleep(2 * time.Second)
 			writer.WriteHeader(http.StatusOK)
 		}))
-		client, err := NewAPIClient(s.URL, time.Second)
+		client, err := NewAPIClient(Config{s.URL, time.Second})
 		require.NoError(t, err)
 		key, err := client.GetPrivateKey("test")
 		assert.ErrorContains(t, err, "context deadline exceeded")
@@ -331,56 +315,56 @@ func TestAPIClient_SavePrivateKey(t *testing.T) {
 	s := serverWithKey(t, key)
 
 	t.Run("ok - it should store a private key", func(t *testing.T) {
-		client, _ := NewAPIClient(s.URL, time.Second)
+		client, _ := NewAPIClient(Config{s.URL, time.Second})
 
 		err := client.SavePrivateKey("test", key)
 		require.NoError(t, err)
 	})
 
 	t.Run("ok - key with a slash in it (should be encoded)", func(t *testing.T) {
-		client, _ := NewAPIClient(s.URL, time.Second)
+		client, _ := NewAPIClient(Config{s.URL, time.Second})
 
 		err := client.SavePrivateKey("key/with/slashes", key)
 		require.NoError(t, err)
 	})
 
 	t.Run("error - key already exists", func(t *testing.T) {
-		client, _ := NewAPIClient(s.URL, time.Second)
+		client, _ := NewAPIClient(Config{s.URL, time.Second})
 
 		err := client.SavePrivateKey("existing-key", key)
 		require.EqualError(t, err, spi.ErrKeyAlreadyExists.Error())
 	})
 
 	t.Run("error - value is not in PEM format", func(t *testing.T) {
-		client, _ := NewAPIClient(s.URL, time.Second)
+		client, _ := NewAPIClient(Config{s.URL, time.Second})
 
 		err := client.SavePrivateKey("not-pem", []byte("not-pem"))
 		require.EqualError(t, err, "unable to convert private key to PEM format: x509: unknown key type while marshaling PKCS#8: []uint8")
 	})
 
 	t.Run("error - server error, response in wrong format", func(t *testing.T) {
-		client, _ := NewAPIClient(s.URL, time.Second)
+		client, _ := NewAPIClient(Config{s.URL, time.Second})
 
 		err := client.SavePrivateKey("servererror-with-invalid-response", key)
 		require.EqualError(t, err, "unable to save private key: json: cannot unmarshal string into Go value of type external.ErrorResponse")
 
 	})
 	t.Run("error - server error", func(t *testing.T) {
-		client, _ := NewAPIClient(s.URL, time.Second)
+		client, _ := NewAPIClient(Config{s.URL, time.Second})
 
 		err := client.SavePrivateKey("server-error", key)
 		require.EqualError(t, err, "unable to save private key: Server Error")
 	})
 
 	t.Run("error - server error in plain text", func(t *testing.T) {
-		client, _ := NewAPIClient(s.URL, time.Second)
+		client, _ := NewAPIClient(Config{s.URL, time.Second})
 
 		err := client.SavePrivateKey("server-error-plain-text", key)
 		require.EqualError(t, err, "unable to save private key: server returned HTTP 500")
 	})
 
 	t.Run("error - bad request", func(t *testing.T) {
-		client, _ := NewAPIClient(s.URL, time.Second)
+		client, _ := NewAPIClient(Config{s.URL, time.Second})
 
 		err := client.SavePrivateKey("bad-request", key)
 		require.EqualError(t, err, "unable to save private key: bad request: Missing secret")
@@ -391,7 +375,7 @@ func TestAPIClient_SavePrivateKey(t *testing.T) {
 			time.Sleep(2 * time.Second)
 			writer.WriteHeader(http.StatusOK)
 		}))
-		client, err := NewAPIClient(s.URL, time.Second)
+		client, err := NewAPIClient(Config{s.URL, time.Second})
 		require.NoError(t, err)
 		err = client.SavePrivateKey("test", key)
 		assert.ErrorContains(t, err, "context deadline exceeded")
@@ -403,35 +387,35 @@ func TestAPIClient_PrivateKeyExists(t *testing.T) {
 	s := serverWithKey(t, key)
 
 	t.Run("ok - it should return true if the key exists", func(t *testing.T) {
-		client, _ := NewAPIClient(s.URL, time.Second)
+		client, _ := NewAPIClient(Config{s.URL, time.Second})
 
 		exists := client.PrivateKeyExists("test")
 		require.True(t, exists)
 	})
 
 	t.Run("ok - key with a slash in it (should be encoded)", func(t *testing.T) {
-		client, _ := NewAPIClient(s.URL, time.Second)
+		client, _ := NewAPIClient(Config{s.URL, time.Second})
 
 		exists := client.PrivateKeyExists("key/with/slashes")
 		require.True(t, exists)
 	})
 
 	t.Run("ok - it should return false if the key does not exist", func(t *testing.T) {
-		client, _ := NewAPIClient(s.URL, time.Second)
+		client, _ := NewAPIClient(Config{s.URL, time.Second})
 
 		exists := client.PrivateKeyExists("unknown-key")
 		require.False(t, exists)
 	})
 
 	t.Run("error - it returns false if the server returns an error", func(t *testing.T) {
-		client, _ := NewAPIClient(s.URL, time.Second)
+		client, _ := NewAPIClient(Config{s.URL, time.Second})
 
 		exists := client.PrivateKeyExists("server-error")
 		require.False(t, exists)
 	})
 
 	t.Run("error - it returns false if the response has an invalid format", func(t *testing.T) {
-		client, _ := NewAPIClient(s.URL, time.Second)
+		client, _ := NewAPIClient(Config{s.URL, time.Second})
 
 		exists := client.PrivateKeyExists("invalid-response")
 		require.False(t, exists)
@@ -453,7 +437,7 @@ func TestAPIClient_ListPrivateKeys(t *testing.T) {
 				}
 			}
 		}))
-		client, err := NewAPIClient(s.URL, time.Second)
+		client, err := NewAPIClient(Config{s.URL, time.Second})
 		require.NoError(t, err)
 		keys := client.ListPrivateKeys()
 		require.Equal(t, []string{}, keys)
@@ -476,7 +460,7 @@ func TestAPIClient_ListPrivateKeys(t *testing.T) {
 				}
 			}
 		}))
-		client, err := NewAPIClient(s.URL, time.Second)
+		client, err := NewAPIClient(Config{s.URL, time.Second})
 		require.NoError(t, err)
 		keys := client.ListPrivateKeys()
 		require.Equal(t, []string{"key1", complexKeyName}, keys)
@@ -495,7 +479,7 @@ func TestAPIClient_ListPrivateKeys(t *testing.T) {
 				}
 			}
 		}))
-		client, err := NewAPIClient(s.URL, time.Second)
+		client, err := NewAPIClient(Config{s.URL, time.Second})
 		require.NoError(t, err)
 		keys := client.ListPrivateKeys()
 		require.Equal(t, []string(nil), keys)
@@ -514,7 +498,7 @@ func TestAPIClient_ListPrivateKeys(t *testing.T) {
 				}
 			}
 		}))
-		client, err := NewAPIClient(s.URL, time.Second)
+		client, err := NewAPIClient(Config{s.URL, time.Second})
 		require.NoError(t, err)
 		keys := client.ListPrivateKeys()
 		require.Equal(t, []string(nil), keys)
@@ -532,7 +516,7 @@ func TestAPIClient_ListPrivateKeys(t *testing.T) {
 				}
 			}
 		}))
-		client, err := NewAPIClient(s.URL, time.Second)
+		client, err := NewAPIClient(Config{s.URL, time.Second})
 		require.NoError(t, err)
 		keys := client.ListPrivateKeys()
 		require.Equal(t, []string(nil), keys)

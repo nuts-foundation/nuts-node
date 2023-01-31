@@ -23,12 +23,13 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
-	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
+	"github.com/nuts-foundation/nuts-node/crypto/util"
 )
 
 // StorageType is the name of this storage type, used in health check reports and configuration.
@@ -56,10 +57,9 @@ func (c APIClient) CheckHealth() map[string]core.Health {
 	switch response.StatusCode() {
 	case http.StatusOK:
 		results[StorageType] = core.Health{Status: core.HealthStatusUp}
-	case http.StatusServiceUnavailable:
-		results[StorageType] = core.Health{Status: core.HealthStatusDown, Details: fmt.Sprintf("storage server reports to be unavailable: %d", response.StatusCode())}
+	// Don't try to be smart with other status codes, everything other than 200 is considered down.
 	default:
-		results[StorageType] = core.Health{Status: core.HealthStatusUnknown, Details: fmt.Sprintf("unexpected status code from storage server: %d", response.StatusCode())}
+		results[StorageType] = core.Health{Status: core.HealthStatusDown, Details: fmt.Sprintf("unexpected status code from storage server: %d", response.StatusCode())}
 	}
 
 	return results
@@ -74,11 +74,11 @@ type Config struct {
 }
 
 // NewAPIClient create a new API Client to communicate with a remote storage server.
-func NewAPIClient(u string, timeOut time.Duration) (spi.Storage, error) {
-	if _, err := url.ParseRequestURI(u); err != nil {
+func NewAPIClient(config Config) (spi.Storage, error) {
+	if _, err := url.ParseRequestURI(config.URL); err != nil {
 		return nil, err
 	}
-	client, _ := NewClientWithResponses(u, WithHTTPClient(&http.Client{Timeout: timeOut}))
+	client, _ := NewClientWithResponses(config.URL, WithHTTPClient(&http.Client{Timeout: config.Timeout}))
 	return &APIClient{httpClient: client}, nil
 }
 
