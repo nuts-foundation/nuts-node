@@ -5,9 +5,9 @@ Release notes
 
 What has been changed, and how to update between versions.
 
-*****************
+***********************
 Coconut update (v5.0.7)
-*****************
+***********************
 
 Release date: 2023-02-01
 
@@ -17,9 +17,9 @@ This patch release fixes the following:
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.6...v5.0.7
 
-*****************
+***********************
 Coconut update (v5.0.6)
-*****************
+***********************
 
 Release date: 2023-01-24
 
@@ -29,9 +29,9 @@ This patch release fixes the following:
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.5...v5.0.6
 
-*****************
+***********************
 Coconut update (v5.0.5)
-*****************
+***********************
 
 Release date: 2022-12-22
 
@@ -41,9 +41,9 @@ This patch release fixes the following:
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.4...v5.0.5
 
-*****************
+***********************
 Coconut update (v5.0.4)
-*****************
+***********************
 
 Release date: 2022-12-22
 
@@ -54,9 +54,9 @@ This patch release fixes the following:
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.3...v5.0.4
 
-*****************
+***********************
 Coconut update (v5.0.3)
-*****************
+***********************
 
 Release date: 2022-12-08
 
@@ -67,9 +67,9 @@ This patch release fixes the following:
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.2...v5.0.3
 
-*****************
+***********************
 Coconut update (v5.0.2)
-*****************
+***********************
 
 Release date: 2022-11-28
 
@@ -79,9 +79,9 @@ This patch release fixes the following:
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.1...v5.0.2
 
-*****************
+***********************
 Coconut update (v5.0.1)
-*****************
+***********************
 
 Release date: 2022-11-18
 
@@ -111,9 +111,9 @@ Release date: 2022-11-08
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v4.0.0...v5.0.0
 
-========
+================
 Breaking changes
-========
+================
 
 **NutsAuthorizationCredential LegalBase**
 When issuing Verifiable Credentials, now all fields must be defined in its context(s). This impacts the issuance of NutsAuthorizationCredentials:
