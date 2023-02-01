@@ -160,6 +160,10 @@ components:
             - pass
             - fail
             - warn
+        details:
+          type: string
+          description: |
+            Additional details about the service status.
     KeyList:
       description: |
         List of keys currently stored in the store.

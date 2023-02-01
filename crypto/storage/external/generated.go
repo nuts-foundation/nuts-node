@@ -67,6 +67,9 @@ type SecretResponse struct {
 
 // ServiceStatus Response for the health check endpoint.
 type ServiceStatus struct {
+	// Details Additional details about the service status.
+	Details *string `json:"details,omitempty"`
+
 	// Status Indicates whether the service status is acceptable. Possible values are:
 	// * **pass**: healthy.
 	// * **fail**: unhealthy.
