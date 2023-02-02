@@ -2,17 +2,28 @@ openapi: "3.0.0"
 info:
   title: Nuts Crypto Storage Abstraction API
   description: |
-    API specification for a generic secret store HTTP server. 
+    API specification for a generic secret store HTTP server.
     It can be use to implement a secure store or a proxy to a storage solution such as 
     Hashicorp Vault or Azure key store. Usually the Nuts node will be the client.
   version: 1.0.0
   license:
     name: GPLv3
 servers:
-  - url: http://localhost:7863
+  - url: http://localhost:8210
+
+tags:
+  - name: health
+    description: Health endpoint, can be used by Docker or a loadbalancer
+    externalDocs:
+      description: Read about Docker healthchecks
+      url: https://docs.docker.com/engine/reference/builder/#healthcheck
+  - name: secrets
+    description: Interact with secrets
 paths:
   /health:
     get:
+      tags:
+        - health
       operationId: healthCheck
       summary: Health check
       description: |
@@ -36,6 +47,8 @@ paths:
                 $ref: "#/components/schemas/ServiceStatus"
   /secrets:
     get:
+      tags:
+        - secrets
       operationId: listKeys
       summary: List all keys in the store
       description: |
@@ -64,6 +77,8 @@ paths:
         schema:
           $ref: "#/components/schemas/Key"
     get:
+      tags:
+        - secrets
       summary: Lookup the secret for the provided key
       operationId: LookupSecret
       responses:
@@ -87,6 +102,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
     post:
+      tags:
+        - secrets
       summary: Store a new secret under the provided key
       operationId: StoreSecret
       requestBody:
@@ -122,6 +139,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
     delete:
+      tags:
+        - secrets
       operationId: DeleteSecret
       summary: Delete the secret for the provided key.
       responses:
@@ -173,7 +192,7 @@ components:
         $ref: "#/components/schemas/Key"
     Key:
       type: string
-      description: | 
+      description: |
         The key under which secrets can be stored or retrieved.
         
         The key should be considered opaque and no assumptions should be made about its value or format.
