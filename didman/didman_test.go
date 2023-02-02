@@ -203,7 +203,7 @@ func TestDidman_AddCompoundService(t *testing.T) {
 	t.Run("ok - nested reference", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.docResolver.EXPECT().Resolve(testDIDB, nil).MinTimes(1).Return(&docB, meta, nil)
-		ctx.vdr.EXPECT().Update(ctx.audit, testDIDB,gomock.Any())
+		ctx.vdr.EXPECT().Update(ctx.audit, testDIDB, gomock.Any())
 
 		_, err := ctx.instance.AddCompoundService(ctx.audit, testDIDB, "helloworld", map[string]ssi.URI{"foobar": universeNestedServiceQuery})
 
@@ -238,7 +238,7 @@ func TestDidman_DeleteService(t *testing.T) {
 		ctx.docResolver.EXPECT().Resolve(*id, nil).Return(doc(), meta, nil)
 		ctx.store.EXPECT().Iterate(gomock.Any()).Return(nil)
 		ctx.vdr.EXPECT().Update(ctx.audit, *id, gomock.Any()).DoAndReturn(
-			func(_ context.Context, _ interface{},doc interface{}) error {
+			func(_ context.Context, _ interface{}, doc interface{}) error {
 				newDoc = doc.(did.Document)
 				return nil
 			})

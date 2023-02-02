@@ -19,7 +19,7 @@ gen-mocks:
 	mockgen -destination=core/echo_mock.go -package=core -source=core/echo.go -imports echo=github.com/labstack/echo/v4
 	mockgen -destination=crl/mock.go -package=crl -source=crl/validator.go Validator
 	mockgen -destination=crypto/mock.go -package=crypto -source=crypto/interface.go
-	mockgen -destination=crypto/storage/mock.go -package=storage -source=crypto/storage/storage.go
+	mockgen -destination=crypto/storage/spi/mock.go -package spi -source=crypto/storage/spi/interface.go
 	mockgen -destination=didman/mock.go -package=didman -source=didman/types.go
 	mockgen -destination=events/events_mock.go -package=events -source=events/interface.go Event
 	mockgen -destination=events/mock.go -package=events -source=events/conn.go Conn ConnectionPool
@@ -54,6 +54,7 @@ gen-api:
 	oapi-codegen --config codegen/configs/vcr_v2.yaml docs/_static/vcr/v2.yaml | gofmt > vcr/api/v2/generated.go
 	oapi-codegen --config codegen/configs/auth_v1.yaml docs/_static/auth/v1.yaml | gofmt > auth/api/v1/generated.go
 	oapi-codegen --config codegen/configs/didman_v1.yaml docs/_static/didman/v1.yaml | gofmt > didman/api/v1/generated.go
+	oapi-codegen --config codegen/configs/crypto_store_client.yaml docs/_static/crypto/nuts-storage-api-v1.yaml | gofmt > crypto/storage/external/generated.go
 
 gen-protobuf:
 	protoc --go_out=paths=source_relative:network -I network network/transport/v2/protocol.proto

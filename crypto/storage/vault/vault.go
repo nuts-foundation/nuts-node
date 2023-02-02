@@ -16,14 +16,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package storage
+package vault
 
 import (
 	"crypto"
-	"errors"
 	"fmt"
 	vault "github.com/hashicorp/vault/api"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"path/filepath"
 	"time"
@@ -33,10 +34,11 @@ const privateKeyPathName = "nuts-private-keys"
 const defaultPathPrefix = "kv"
 const keyName = "key"
 
-var errKeyNotFound = errors.New("key not found")
+// StorageType is the name of this storage type, used in health check reports and configuration.
+const StorageType = "vaultkv"
 
-// VaultConfig contains the config options to configure the vaultKVStorage backend
-type VaultConfig struct {
+// Config contains the config options to configure the vaultKVStorage backend
+type Config struct {
 	// Token to authenticate to the Vault cluster.
 	Token string `koanf:"token"`
 	// Address of the Vault cluster
@@ -47,9 +49,9 @@ type VaultConfig struct {
 	Timeout time.Duration
 }
 
-// DefaultVaultConfig returns a VaultConfig with the PathPrefix containing the default value.
-func DefaultVaultConfig() VaultConfig {
-	return VaultConfig{
+// DefaultConfig returns a Config with the PathPrefix containing the default value.
+func DefaultConfig() Config {
+	return Config{
 		PathPrefix: defaultPathPrefix,
 		Timeout:    5 * time.Second,
 	}
@@ -63,15 +65,29 @@ type logicaler interface {
 }
 
 type vaultKVStorage struct {
-	config VaultConfig
+	config Config
 	client logicaler
+}
+
+func (v vaultKVStorage) Name() string {
+	return StorageType
+}
+
+func (v vaultKVStorage) CheckHealth() map[string]core.Health {
+	health := make(map[string]core.Health)
+	if err := v.checkConnection(); err != nil {
+		health[v.Name()] = core.Health{Status: core.HealthStatusDown, Details: err.Error()}
+	} else {
+		health[v.Name()] = core.Health{Status: core.HealthStatusUp}
+	}
+	return health
 }
 
 // NewVaultKVStorage creates a new Vault backend using the kv version 1 secret engine: https://www.vaultproject.io/docs/secrets/kv
 // It currently only supports token authentication which should be provided by the token param.
 // If config.Address is empty, the VAULT_ADDR environment should be set.
 // If config.Token is empty, the VAULT_TOKEN environment should be is set.
-func NewVaultKVStorage(config VaultConfig) (Storage, error) {
+func NewVaultKVStorage(config Config) (spi.Storage, error) {
 	client, err := configureVaultClient(config)
 	if err != nil {
 		return nil, err
@@ -84,7 +100,7 @@ func NewVaultKVStorage(config VaultConfig) (Storage, error) {
 	return vaultStorage, nil
 }
 
-func configureVaultClient(cfg VaultConfig) (*vault.Client, error) {
+func configureVaultClient(cfg Config) (*vault.Client, error) {
 	vaultConfig := vault.DefaultConfig()
 	vaultConfig.Timeout = cfg.Timeout
 	client, err := vault.NewClient(vaultConfig)
@@ -137,11 +153,11 @@ func (v vaultKVStorage) getValue(path, key string) ([]byte, error) {
 		return nil, fmt.Errorf("unable to read key from vault: %w", err)
 	}
 	if result == nil || result.Data == nil {
-		return nil, errKeyNotFound
+		return nil, spi.ErrNotFound
 	}
 	rawValue, ok := result.Data[key]
 	if !ok {
-		return nil, errKeyNotFound
+		return nil, spi.ErrNotFound
 	}
 	value, ok := rawValue.(string)
 	if !ok {

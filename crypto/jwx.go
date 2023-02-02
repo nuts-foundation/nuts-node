@@ -32,7 +32,7 @@ import (
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
-	"github.com/nuts-foundation/nuts-node/crypto/storage"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/shengdoushi/base58"
 )
 
@@ -264,7 +264,7 @@ func (client *Crypto) getPrivateKey(key interface{}) (crypto.Signer, string, err
 
 	privateKey, err := client.storage.GetPrivateKey(kid)
 	if err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
+		if errors.Is(err, spi.ErrNotFound) {
 			return nil, "", ErrPrivateKeyNotFound
 		}
 		return nil, "", err

@@ -7,7 +7,7 @@ Health checks
 *************
 
 An endpoint is provided to perform health checks on the Nuts node.
-It reports in a format compatible with :ref:`Spring Boot's Health Actuator <https://docs.spring.io/spring-boot/docs/2.0.x/actuator-api/html/#health>`.
+It reports in a format compatible with `Spring Boot's Health Actuator <https://docs.spring.io/spring-boot/docs/2.0.x/actuator-api/html/#health>`__.
 The endpoint is available over HTTP:
 
 .. code-block:: text

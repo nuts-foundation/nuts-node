@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package storage
+package spi
 
 import (
 	"context"
@@ -32,15 +32,19 @@ import (
 // ErrNotFound indicates that the specified crypto storage entry couldn't be found.
 var ErrNotFound = errors.New("entry not found")
 
+// ErrKeyAlreadyExists indicates that a private key for this keyID already exists.
+var ErrKeyAlreadyExists = errors.New("key already exists")
+
 // Storage interface containing functions for storing and retrieving keys.
 type Storage interface {
+	core.HealthCheckable
 	// GetPrivateKey from the storage backend and return its handler as an implementation of crypto.Signer.
 	GetPrivateKey(kid string) (crypto.Signer, error)
 	// PrivateKeyExists checks if the private key indicated with the kid is stored in the storage backend.
 	PrivateKeyExists(kid string) bool
 	// SavePrivateKey stores the key under the kid in the storage backend.
 	SavePrivateKey(kid string, key crypto.PrivateKey) error
-	// ListPrivateKeys returns the KIDs of the private keys that are present.
+	// ListPrivateKeys returns the KIDs of the private keys that are present. Returns a []string(nil) if there was a problem.
 	ListPrivateKeys() []string
 }
 
