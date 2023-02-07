@@ -2,13 +2,15 @@ package tokenV2
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
   	"github.com/nuts-foundation/nuts-node/http/log"
 
         "github.com/labstack/echo/v4"
+        "github.com/lestrrat-go/jwx/jwa"
         "github.com/lestrrat-go/jwx/jwk"
-        //"github.com/lestrrat-go/jwx/jws"
+        "github.com/lestrrat-go/jwx/jws"
         "github.com/lestrrat-go/jwx/jwt"
 )
 
@@ -98,7 +100,62 @@ func (m middlewareImpl) Handler(next echo.HandlerFunc) echo.HandlerFunc {
 			return next(context)
 		} 
 
+		// No authorized keys were able to verify the JWT, so this is an unauthorized request
 		return unauthorizedError("credential not signed by an authorized key")
+	}
+}
+
+// credentialIsSecure returns true,nil if a credential meets the minimum security
+// standards. This can cover things like sufficiently secure signing algorithms,
+// key size, etc.
+func credentialIsSecure(credential string) error {
+	// Parse the credential as a JWS (JSON Web Signature) containing a message. This works
+	// because a JWT (JSON Web Token) is built on a JWS where the claims are a signed message.
+	message, err := jws.ParseString(credential)
+	if err != nil {
+		return fmt.Errorf("cannot parse credential: jwk.ParseString: %w", err)
+	}
+
+	// Inspect the signatures in the message
+	secureSignatureCount := 0
+	for _, signature := range message.Signatures() {
+		// Reject credentials signed with insecure algorithms
+		algorithm := signature.ProtectedHeaders().Algorithm()
+		if !acceptableSignatureAlgorithm(algorithm) {
+			return fmt.Errorf("signing algorithm %v is not permitted", algorithm)
+		}
+
+		// Keep track of how many secure signatures are found
+		secureSignatureCount++
+	}
+
+	// Accept messages containing secure signatures
+	if secureSignatureCount > 0 {
+		return nil
+	}
+
+	// By default this method rejects messages
+	return fmt.Errorf("no signatures found")
+}
+
+// acceptableSignatureAlgorithm returns true if a signature algorithm
+// is considered acceptable in terms of security.
+func acceptableSignatureAlgorithm(algorithm jwa.SignatureAlgorithm) bool {
+	switch algorithm {
+	// The following algorithms are secure enough for credential signing
+	case jwa.ES256, jwa.ES384, jwa.ES512, jwa.EdDSA, jwa.RS512:
+		return true
+
+	// Explicitly reject messages signed by the "none" algorithm. This
+	// would technically be covered by the default case below but it makes
+	// the intent clear in case somebody tries to turn this from a whitelist
+	// approach into a blacklist approach in the future.
+	case jwa.NoSignature:
+		return false
+
+	// Only explicitly allowed signing algorithms are acceptable
+	default:
+		return false
 	}
 }
 
@@ -128,3 +185,4 @@ func unauthorizedError(message string) *echo.HTTPError {
 		Internal: fmt.Errorf(message),
 	}
 }
+
