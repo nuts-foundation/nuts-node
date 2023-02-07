@@ -627,6 +627,8 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		tx := newTX()
 		tx.signingKeyID = currentDoc.CapabilityInvocation[0].ID.String()
 		tx.payloadHash = payloadHash
+		prev := hash.RandomHash()
+		tx.prevs = []hash.SHA256Hash{prev}
 
 		// This is the metadata of the current version of the document which will be returned by the resolver
 		currentMetadata := &types.DocumentMetadata{
@@ -646,8 +648,50 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		var pKey crypto2.PublicKey
 		signingKey.Raw(&pKey)
 
-		ctx.didStore.EXPECT().Resolve(currentDoc.ID, &types.ResolveMetadata{AllowDeactivated: true}).Return(&currentDoc, currentMetadata, nil)
-		ctx.resolver.EXPECT().ResolveControllers(currentDoc, &types.ResolveMetadata{ResolveTime: &tx.signingTime}).Return([]did.Document{currentDoc}, nil)
+		ctx.didStore.EXPECT().Resolve(currentDoc.ID, &types.ResolveMetadata{AllowDeactivated: true, SourceTransaction: &prev}).Return(&currentDoc, currentMetadata, nil)
+		ctx.resolver.EXPECT().ResolveControllers(currentDoc, &types.ResolveMetadata{SourceTransaction: &prev}).Return([]did.Document{currentDoc}, nil)
+		ctx.keyStore.EXPECT().ResolvePublicKey(currentDoc.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
+		ctx.didStore.EXPECT().Add(newDoc, toStoreTX(tx))
+
+		err := ctx.ambassador.handleUpdateDIDDocument(tx, newDoc)
+		assert.NoError(t, err)
+	})
+
+	t.Run("update ok - using 2nd prev for document resolution", func(t *testing.T) {
+		ctx := newMockContext(t)
+
+		currentDoc, signingKey, _ := newDidDoc()
+		newDoc := did.Document{Context: []ssi.URI{did.DIDContextV1URI()}, ID: currentDoc.ID}
+		newCapInv, _ := didservice.CreateNewVerificationMethodForDID(audit.TestContext(), currentDoc.ID, &mockKeyCreator{})
+		newDoc.AddCapabilityInvocation(newCapInv)
+
+		didDocPayload, _ := json.Marshal(newDoc)
+		payloadHash := hash.SHA256Sum(didDocPayload)
+
+		tx := newTX()
+		tx.signingKeyID = currentDoc.CapabilityInvocation[0].ID.String()
+		tx.payloadHash = payloadHash
+		prev := hash.RandomHash()
+		tx.prevs = []hash.SHA256Hash{hash.RandomHash(), prev}
+
+		// This is the metadata of the current version of the document which will be returned by the resolver
+		currentMetadata := &types.DocumentMetadata{
+			Created: createdAt,
+			Updated: nil,
+			Hash:    hash.SHA256Sum([]byte("currentPayloadHash")),
+		}
+
+		var pKey crypto2.PublicKey
+		_ = signingKey.Raw(&pKey)
+
+		gomock.InOrder(
+			ctx.didStore.EXPECT().Resolve(currentDoc.ID, gomock.Any()).Return(nil, nil, types.ErrNotFound),
+			ctx.didStore.EXPECT().Resolve(currentDoc.ID, &types.ResolveMetadata{AllowDeactivated: true, SourceTransaction: &prev}).Return(&currentDoc, currentMetadata, nil),
+		)
+		gomock.InOrder(
+			ctx.resolver.EXPECT().ResolveControllers(currentDoc, gomock.Any()).Return(nil, types.ErrNotFound),
+			ctx.resolver.EXPECT().ResolveControllers(currentDoc, &types.ResolveMetadata{SourceTransaction: &prev}).Return([]did.Document{currentDoc}, nil),
+		)
 		ctx.keyStore.EXPECT().ResolvePublicKey(currentDoc.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
 		ctx.didStore.EXPECT().Update(currentDoc.ID, currentMetadata.Hash, newDoc, &expectedNextMetadata)
 
