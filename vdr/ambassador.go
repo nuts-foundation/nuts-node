@@ -232,13 +232,29 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 		WithField(core.LogFieldTransactionRef, transaction.Ref()).
 		WithField(core.LogFieldDID, proposedDIDDocument.ID).
 		Debug("Handling DID document update")
-	// Resolve latest version of DID Document
-	currentDIDDocument, _, err := n.didStore.Resolve(proposedDIDDocument.ID, &types.ResolveMetadata{AllowDeactivated: true})
-	if err != nil {
-		return fmt.Errorf("unable to update DID document: %w", err)
+
+	// Resolve version of DID Document referred to by transaction
+	var currentDIDDocument *did.Document
+	var err error
+	for _, ref := range transaction.Previous() {
+		currentDIDDocument, _, err = n.didStore.Resolve(proposedDIDDocument.ID, &types.ResolveMetadata{AllowDeactivated: true, SourceTransaction: &ref})
+		if err != nil && !errors.Is(err, types.ErrNotFound) {
+			return fmt.Errorf("unable to update DID document: %w", err)
+		}
+		if currentDIDDocument != nil {
+			break
+		}
+	}
+	// fallback
+	if currentDIDDocument == nil {
+		currentDIDDocument, _, err = n.didStore.Resolve(proposedDIDDocument.ID, &types.ResolveMetadata{AllowDeactivated: true})
+		if err != nil {
+			return fmt.Errorf("unable to update DID document: %w", err)
+		}
+		log.Logger().Errorf("Failed to resolve DID Document by ref. Using latest version. (DID=%s)", proposedDIDDocument.ID)
 	}
 
-	// Resolve controllers of current version (could be the same document)
+	// Resolve controllers of previous version (could be the same document)
 	didControllers, err := n.resolveControllers(*currentDIDDocument, transaction)
 	if err != nil {
 		return fmt.Errorf("unable to resolve DID document's controllers: %w", err)
