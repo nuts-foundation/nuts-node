@@ -81,14 +81,18 @@ const (
 type AuthType string
 
 const (
-	// BearerTokenAuth specifies that a bearer token is required.
+	// BearerTokenAuth specifies that a legacy bearer token (v1) authentication is in use
 	BearerTokenAuth AuthType = "token"
+
+	// BearerTokenAuthV2 specifies the latest version of bearer token authention
+	BearerTokenAuthV2 = "token_v2"
 )
 
 // AuthConfig contains the configuration for authentication for an HTTP interface.
 type AuthConfig struct {
 	// Type specifies the type of authentication required for the interface.
 	Type AuthType `koanf:"type"`
+	AuthorizedKeysPath string `koanf:"authorizedkeyspath"`
 }
 
 // CORSConfig contains configuration for Cross Origin Resource Sharing.
