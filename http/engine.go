@@ -30,8 +30,10 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	cryptoEngine "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/http/log"
+	"github.com/nuts-foundation/nuts-node/http/tokenV2"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 )
@@ -317,7 +319,8 @@ func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludeP
 	}
 
 	// Auth
-	if cfg.Auth.Type == BearerTokenAuth {
+	switch cfg.Auth.Type {
+	case BearerTokenAuth:
 		log.Logger().Infof("Enabling token authentication for HTTP interface: %s%s", address, path)
 		echoServer.Use(middleware.JWTWithConfig(middleware.JWTConfig{
 			KeyFunc: func(_ *jwt.Token) (interface{}, error) {
@@ -337,6 +340,21 @@ func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludeP
 			ContextKey:    core.UserContextKey,
 			SigningMethod: jwa.ES256.String(),
 		}))
+	
+	case BearerTokenAuthV2:
+		log.Logger().Infof("Enabling token authentication (v2) for HTTP interface: %s%s", address, path)
+
+		authorizedKeys, err := os.ReadFile(cfg.Auth.AuthorizedKeysPath)
+		if err != nil {
+			return fmt.Errorf("unable to read authorized_keys: %v", err)
+		}
+
+		authenticator, err := tokenV2.New(authorizedKeys)
+		if err == nil {
+			return fmt.Errorf("unable to create token v2 middleware: %v", err)
+		}
+
+		echoServer.Use(authenticator.Handler)
 	}
 
 	return nil
