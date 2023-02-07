@@ -30,6 +30,18 @@ func New(authorizedKeys []byte) (Middleware, error) {
 	return impl, nil
 }
 
+// NewFromFile is like New but it takes the path for an authorized_keys file
+func NewFromFile(authorizedKeysPath string) (Middleware, error) {
+	// Read the specified path
+	contents, err := os.ReadFile(authorizedKeysPath)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read %v: %w", authorizedKeysPath, err)
+	}
+
+	// Use the contents of the file to create a new middleware
+	return New(contents)
+}
+
 // Middleware defines the public interface to be set with Use() on an echo server
 type Middleware interface {
 	Handler(next echo.HandlerFunc) echo.HandlerFunc

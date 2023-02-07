@@ -33,7 +33,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/http/tokenV2"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 )
@@ -344,12 +343,7 @@ func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludeP
 	case BearerTokenAuthV2:
 		log.Logger().Infof("Enabling token authentication (v2) for HTTP interface: %s%s", address, path)
 
-		authorizedKeys, err := os.ReadFile(cfg.Auth.AuthorizedKeysPath)
-		if err != nil {
-			return fmt.Errorf("unable to read authorized_keys: %v", err)
-		}
-
-		authenticator, err := tokenV2.New(authorizedKeys)
+		authenticator, err := tokenV2.NewFromFile(cfg.Auth.AuthorizedKeysPath)
 		if err == nil {
 			return fmt.Errorf("unable to create token v2 middleware: %v", err)
 		}
