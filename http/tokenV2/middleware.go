@@ -71,20 +71,25 @@ func (m middlewareImpl) Handler(next echo.HandlerFunc) echo.HandlerFunc {
 		// Attempt verifying the JWT using every available authorized key
 		for _, authorizedKey := range m.authorizedKeys {
 			log.Logger().Infof("checking key %v", authorizedKey.JWK.KeyID())
+
+			// Put this authorized key into a JWK keyset which can be easily used for verification
 			keySet := jwk.NewSet()
 			keySet.Add(authorizedKey.JWK)
 			
-			// Parse the token without verifying the signature
+			// Parse the token, requesting verification using the keyset constructed above
 			token, err := jwt.ParseRequest(context.Request(), jwt.WithKeySet(keySet), jwt.InferAlgorithmFromKey(true))
 			if err != nil {
 				log.Logger().Errorf("failed to parse JWT: %w", err)
 				continue
 			}       
 			
-			// Ensure the token is valid
+			// Attempt to verify the signature of the JWT using this authorized key, which may
+			// not be the key used to sign the token even if it is valid
 			validateError := jwt.Validate(token)
 			log.Logger().Infof("validateError: %w", validateError)
 			if validateError != nil {
+				// Since the signature could not be validated using this authorized key
+				// try the next authorized key
 				continue
 			}
 
