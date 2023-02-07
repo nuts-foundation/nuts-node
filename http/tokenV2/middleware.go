@@ -20,7 +20,7 @@ func New(authorizedKeys []byte) (Middleware, error) {
 	// Parse the authorized keys, returning an error if it fails
 	parsed, err := parseAuthorizedKeys(authorizedKeys)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse authorizedKeys: %v", err)
+		return nil, fmt.Errorf("failed to parse authorizedKeys: %w", err)
 	}
 
 	// Return the private struct implementing the public interface
@@ -63,7 +63,12 @@ func (m middlewareImpl) Handler(next echo.HandlerFunc) echo.HandlerFunc {
 			return unauthorizedError("missing/malformed credential")
 		}
 
-		// Check each authorized key for a valid signature
+		// Ensure the credential meetsrsecurity standards
+		if err := credentialIsSecure(credential); err != nil {
+			return unauthorizedError(fmt.Sprintf("insecure credential: %w", err))
+		}
+
+		// Attempt verifying the JWT using every available authorized key
 		for _, authorizedKey := range m.authorizedKeys {
 			log.Logger().Infof("checking key %v", authorizedKey.JWK.KeyID())
 			keySet := jwk.NewSet()
@@ -72,13 +77,13 @@ func (m middlewareImpl) Handler(next echo.HandlerFunc) echo.HandlerFunc {
 			// Parse the token without verifying the signature
 			token, err := jwt.ParseRequest(context.Request(), jwt.WithKeySet(keySet), jwt.InferAlgorithmFromKey(true))
 			if err != nil {
-				log.Logger().Errorf("failed to parse JWT: %v", err)
+				log.Logger().Errorf("failed to parse JWT: %w", err)
 				continue
 			}       
 			
 			// Ensure the token is valid
 			validateError := jwt.Validate(token)
-			log.Logger().Infof("validateError: %v", validateError)
+			log.Logger().Infof("validateError: %w", validateError)
 			if validateError != nil {
 				continue
 			}
