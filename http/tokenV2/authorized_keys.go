@@ -44,7 +44,7 @@ func jwkFromSSHKey(key ssh.PublicKey) (jwk.Key, error) {
         
         // On successful conversion also set the key ID
 	if err := converted.Set(jwk.KeyIDKey, ssh.FingerprintSHA256(key)); err != nil {
-		return nil, fmt.Errorf("failed to set key id: %v", err)
+		return nil, fmt.Errorf("failed to set key id: %w", err)
 	}
         
         return converted, nil
@@ -71,7 +71,7 @@ func parseAuthorizedKeys(contents []byte) ([]authorizedKey, error) {
                 // Parse this single authorized key entry
                 publicKey, comment, options, rest, err := ssh.ParseAuthorizedKey([]byte(line))
                 if err != nil {
-                        return nil, fmt.Errorf("unparseable line (%v): %v", line, err)
+                        return nil, fmt.Errorf("unparseable line (%v): %w", line, err)
                 }       
                 
                 // Ensure rest is empty, meaning the entire line was parsed
