@@ -366,11 +366,7 @@ func (s *grpcConnectionManager) openOutboundStream(connection Connection, protoc
 	peer := connection.Peer()
 	peerFromCtx, _ := grpcPeer.FromContext(clientStream.Context())
 
-	authenticatedPeer, err := s.authenticate(nodeDID, peer, peerFromCtx)
-	if err != nil {
-		return nil, fatalError{error: err}
-	}
-
+	authenticatedPeer := s.authenticate(nodeDID, peer, peerFromCtx)
 	connection.setPeer(authenticatedPeer)
 
 	wrappedStream := s.wrapStream(clientStream, protocol)
@@ -385,7 +381,7 @@ func (s *grpcConnectionManager) openOutboundStream(connection Connection, protoc
 	return clientStream, nil
 }
 
-func (s *grpcConnectionManager) authenticate(nodeDID did.DID, peer transport.Peer, peerFromCtx *grpcPeer.Peer) (transport.Peer, error) {
+func (s *grpcConnectionManager) authenticate(nodeDID did.DID, peer transport.Peer, peerFromCtx *grpcPeer.Peer) transport.Peer {
 	if !nodeDID.Empty() {
 		var err error
 		peer, err = s.authenticator.Authenticate(nodeDID, *peerFromCtx, peer)
@@ -399,7 +395,7 @@ func (s *grpcConnectionManager) authenticate(nodeDID did.DID, peer transport.Pee
 			//return transport.Peer{}, ErrNodeDIDAuthFailed // TODO: removing this requires a spec change
 		}
 	}
-	return peer, nil
+	return peer
 }
 
 func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundStream grpc.ServerStream) error {
@@ -439,10 +435,7 @@ func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundSt
 		WithFields(peer.ToFields()).
 		WithField(core.LogFieldProtocolVersion, protocol.Version()).
 		Debug("New inbound stream from peer")
-	peer, err = s.authenticate(nodeDID, peer, peerFromCtx)
-	if err != nil {
-		return err
-	}
+	peer = s.authenticate(nodeDID, peer, peerFromCtx)
 
 	// TODO: Need to authenticate PeerID, to make sure a second stream with a known PeerID is from the same node (maybe even connection).
 	//       Use address from peer context?

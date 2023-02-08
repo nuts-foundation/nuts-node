@@ -489,26 +489,19 @@ func TestNetwork_Start(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, cxt.network.startTime.Load())
 	})
-	//t.Run("ok - connects to bootstrap nodes", func(t *testing.T) {
-	//	ctrl := gomock.NewController(t)
-	//	cxt := createNetwork(t, ctrl, func(config *Config) {
-	//		config.BootstrapNodes = []string{"bootstrap-node-1", "", "bootstrap-node-2"}
-	//	})
-	//	cxt.docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return([]did.Document{}, nil)
-	//	cxt.connectionManager.EXPECT().Connect("bootstrap-node-1", gomock.Any()).Do(func(arg1 interface{}, arg2 interface{}) {
-	//		// assert that transport.WithUnauthenticated() is passed as option
-	//		f, ok := arg2.(transport.ConnectionOption)
-	//		require.True(t, ok)
-	//		peer := transport.Peer{}
-	//		f(&peer)
-	//		assert.True(t, peer.AcceptUnauthenticated)
-	//	})
-	//	cxt.connectionManager.EXPECT().Connect("bootstrap-node-2", gomock.Any())
-	//
-	//	err := cxt.start()
-	//
-	//	require.NoError(t, err)
-	//})
+	t.Run("ok - connects to bootstrap nodes", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		cxt := createNetwork(t, ctrl, func(config *Config) {
+			config.BootstrapNodes = []string{"bootstrap-node-1", "", "bootstrap-node-2"}
+		})
+		cxt.docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return([]did.Document{}, nil)
+		cxt.connectionManager.EXPECT().Connect("bootstrap-node-1")
+		cxt.connectionManager.EXPECT().Connect("bootstrap-node-2")
+
+		err := cxt.start()
+
+		require.NoError(t, err)
+	})
 	t.Run("error - state start failed", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		cxt := createNetwork(t, ctrl)
