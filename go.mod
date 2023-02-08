@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/alicebob/miniredis/v2 v2.30.0
-	github.com/avast/retry-go/v4 v4.3.2
+	github.com/avast/retry-go/v4 v4.3.3
 	github.com/cbroglie/mustache v1.4.0
 	github.com/deepmap/oapi-codegen v1.12.4
 	github.com/go-redis/redis/v9 v9.0.0-rc.2
