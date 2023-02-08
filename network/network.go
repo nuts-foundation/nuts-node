@@ -100,6 +100,31 @@ func (n *Network) CheckHealth() map[string]core.Health {
 			}
 		}
 	}
+	// self-authentication
+	nodeDID, err := n.nodeDIDResolver.Resolve()
+	if err != nil {
+		// can only happen when not in strictmode and autoNodeDIDResolver fails
+		results["auth"] = core.Health{
+			Status:  core.HealthStatusUnknown,
+			Details: err.Error(),
+		}
+	} else {
+		if nodeDID.Empty() {
+			results["auth"] = core.Health{
+				Status:  core.HealthStatusUp,
+				Details: "no node DID",
+			}
+		} else if err = n.validateNodeDID(nodeDID); err != nil {
+			results["auth"] = core.Health{
+				Status:  core.HealthStatusDown,
+				Details: err.Error(),
+			}
+		} else {
+			results["auth"] = core.Health{
+				Status: core.HealthStatusUp,
+			}
+		}
+	}
 	return results
 }
 
@@ -297,11 +322,8 @@ func (n *Network) Start() error {
 		return err
 	}
 	if !nodeDID.Empty() {
-		err := n.validateNodeDID(nodeDID)
+		err = n.validateNodeDID(nodeDID)
 		if err != nil {
-			if n.strictMode {
-				return fmt.Errorf("invalid NodeDID configuration: %w", err)
-			}
 			log.Logger().
 				WithError(err).
 				WithField(core.LogFieldDID, nodeDID.String()).
@@ -397,7 +419,7 @@ func (n *Network) validateNodeDID(nodeDID did.DID) error {
 	}
 
 	// Check certificate and confirm it contains the NutsComm address
-	if n.certificate.Leaf == nil { // n.config.DisableNodeAuthentication is for incoming connections.
+	if n.certificate.Leaf == nil {
 		return errors.New("missing TLS certificate")
 	}
 	if err = n.certificate.Leaf.VerifyHostname(nutsCommURL.Hostname()); err != nil {
