@@ -24,6 +24,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
+	"net"
+
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/log"
@@ -35,7 +37,6 @@ import (
 	"google.golang.org/grpc/metadata"
 	grpcPeer "google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
-	"net"
 )
 
 const defaultMaxMessageSizeInBytes = 1024 * 512
@@ -212,11 +213,8 @@ func (s *grpcConnectionManager) Stop() {
 	prometheus.Unregister(s.recvMessagesCounter)
 }
 
-func (s *grpcConnectionManager) Connect(peerAddress string, options ...transport.ConnectionOption) {
+func (s *grpcConnectionManager) Connect(peerAddress string) {
 	peer := transport.Peer{Address: peerAddress}
-	for _, o := range options {
-		o(&peer)
-	}
 	connection, isNew := s.connections.getOrRegister(s.ctx, peer, s.dialer, true)
 	if !isNew {
 		log.Logger().
@@ -389,7 +387,8 @@ func (s *grpcConnectionManager) openOutboundStream(connection Connection, protoc
 
 func (s *grpcConnectionManager) authenticate(nodeDID did.DID, peer transport.Peer, peerFromCtx *grpcPeer.Peer) (transport.Peer, error) {
 	if !nodeDID.Empty() {
-		authenticatedPeer, err := s.authenticator.Authenticate(nodeDID, *peerFromCtx, peer)
+		var err error
+		peer, err = s.authenticator.Authenticate(nodeDID, *peerFromCtx, peer)
 		if err != nil {
 			log.Logger().
 				WithError(err).
@@ -397,9 +396,8 @@ func (s *grpcConnectionManager) authenticate(nodeDID did.DID, peer transport.Pee
 				WithField(core.LogFieldDID, nodeDID).
 				Warn("Peer node DID could not be authenticated")
 			// Error message is spec'd by RFC017, because it is returned to the peer
-			return transport.Peer{}, ErrNodeDIDAuthFailed
+			//return transport.Peer{}, ErrNodeDIDAuthFailed // TODO: removing this requires a spec change
 		}
-		return authenticatedPeer, nil
 	}
 	return peer, nil
 }

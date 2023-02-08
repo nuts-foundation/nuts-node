@@ -221,20 +221,10 @@ func (n *Network) Configure(config core.ServerConfig) error {
 				return errors.New("disabling TLS in strict mode is not allowed")
 			}
 			log.Logger().Warn("TLS is disabled, which is only meant for demo/workshop purposes!")
-			n.config.DisableNodeAuthentication = true
 		}
 
 		// Instantiate
-		var authenticator grpc.Authenticator
-		if n.config.DisableNodeAuthentication {
-			// Not allowed in strict mode for security reasons: only intended for demo/workshop purposes.
-			if config.Strictmode {
-				return errors.New("disabling node DID in strict mode is not allowed")
-			}
-			authenticator = grpc.NewDummyAuthenticator(nil)
-		} else {
-			authenticator = grpc.NewTLSAuthenticator(didservice.NewServiceResolver(n.didDocumentResolver))
-		}
+		authenticator := grpc.NewTLSAuthenticator(didservice.NewServiceResolver(n.didDocumentResolver))
 		connectionStore, err := n.storeProvider.GetKVStore("connections", storage.VolatileStorageClass)
 		if err != nil {
 			return fmt.Errorf("failed to open connections store: %w", err)
@@ -338,7 +328,7 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 		if len(strings.TrimSpace(bootstrapNode)) == 0 {
 			continue
 		}
-		n.connectionManager.Connect(bootstrapNode, transport.WithUnauthenticated())
+		n.connectionManager.Connect(bootstrapNode)
 	}
 
 	if !n.config.EnableDiscovery {

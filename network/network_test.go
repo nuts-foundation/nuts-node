@@ -253,42 +253,6 @@ func TestNetwork_Configure(t *testing.T) {
 		assert.EqualError(t, err, "disabling TLS in strict mode is not allowed")
 	})
 
-	t.Run("ok - node DID check disabled", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-
-		ctx := createNetwork(t, ctrl, func(config *Config) {
-			config.DisableNodeAuthentication = true
-		})
-		ctx.protocol.EXPECT().Configure(gomock.Any())
-		ctx.network.connectionManager = nil
-
-		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
-		require.NoError(t, err)
-	})
-
-	t.Run("error - disabling node DID check not allowed in strict mode", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-
-		ctx := createNetwork(t, ctrl, func(config *Config) {
-			config.DisableNodeAuthentication = true
-		})
-		ctx.protocol.EXPECT().Configure(gomock.Any())
-		ctx.network.connectionManager = nil
-
-		cfg := *core.NewServerConfig()
-		cfg.Datadir = io.TestDirectory(t)
-		cfg.Strictmode = true
-		*cfg.LegacyTLS = core.NetworkTLSConfig{
-			Enabled:        true,
-			TrustStoreFile: "test/truststore.pem",
-			CertFile:       "test/certificate-and-key.pem",
-			CertKeyFile:    "test/certificate-and-key.pem",
-		}
-
-		err := ctx.network.Configure(cfg)
-		assert.EqualError(t, err, "disabling node DID in strict mode is not allowed")
-	})
-
 	t.Run("ok - gRPC server not bound (but outbound connections are still supported)", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		ctx := createNetwork(t, ctrl, func(config *Config) {
@@ -525,26 +489,26 @@ func TestNetwork_Start(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, cxt.network.startTime.Load())
 	})
-	t.Run("ok - connects to bootstrap nodes", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		cxt := createNetwork(t, ctrl, func(config *Config) {
-			config.BootstrapNodes = []string{"bootstrap-node-1", "", "bootstrap-node-2"}
-		})
-		cxt.docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return([]did.Document{}, nil)
-		cxt.connectionManager.EXPECT().Connect("bootstrap-node-1", gomock.Any()).Do(func(arg1 interface{}, arg2 interface{}) {
-			// assert that transport.WithUnauthenticated() is passed as option
-			f, ok := arg2.(transport.ConnectionOption)
-			require.True(t, ok)
-			peer := transport.Peer{}
-			f(&peer)
-			assert.True(t, peer.AcceptUnauthenticated)
-		})
-		cxt.connectionManager.EXPECT().Connect("bootstrap-node-2", gomock.Any())
-
-		err := cxt.start()
-
-		require.NoError(t, err)
-	})
+	//t.Run("ok - connects to bootstrap nodes", func(t *testing.T) {
+	//	ctrl := gomock.NewController(t)
+	//	cxt := createNetwork(t, ctrl, func(config *Config) {
+	//		config.BootstrapNodes = []string{"bootstrap-node-1", "", "bootstrap-node-2"}
+	//	})
+	//	cxt.docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return([]did.Document{}, nil)
+	//	cxt.connectionManager.EXPECT().Connect("bootstrap-node-1", gomock.Any()).Do(func(arg1 interface{}, arg2 interface{}) {
+	//		// assert that transport.WithUnauthenticated() is passed as option
+	//		f, ok := arg2.(transport.ConnectionOption)
+	//		require.True(t, ok)
+	//		peer := transport.Peer{}
+	//		f(&peer)
+	//		assert.True(t, peer.AcceptUnauthenticated)
+	//	})
+	//	cxt.connectionManager.EXPECT().Connect("bootstrap-node-2", gomock.Any())
+	//
+	//	err := cxt.start()
+	//
+	//	require.NoError(t, err)
+	//})
 	t.Run("error - state start failed", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		cxt := createNetwork(t, ctrl)

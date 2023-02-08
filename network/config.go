@@ -37,10 +37,6 @@ type Config struct {
 	Protocols []int `koanf:"protocols"`
 	// EnableDiscovery tells the node to automatically connect to other nodes
 	EnableDiscovery bool `koanf:"enablediscovery"`
-	// DisableNodeAuthentication allows for bypassing node DID authentication on connections.
-	// The SAN from a client certificate is used for this, in development/test certificates might not be availabe.
-	// Can't be set to true in strictmode.
-	DisableNodeAuthentication bool `koanf:"disablenodeauthentication"`
 
 	// NodeDID defines the DID of the organization that operates this node, typically a vendor for EPD software.
 	// It is used to identify it on the network.

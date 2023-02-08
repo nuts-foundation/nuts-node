@@ -96,9 +96,9 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, expectedPeer, authenticatedPeer)
 	})
-	t.Run("without acceptUnauthenticated", func(t *testing.T) {
-		transportPeer := transport.Peer{}
-		t.Run("not authenticated, DNS names do not match", func(t *testing.T) {
+	t.Run("authentication fails", func(t *testing.T) {
+		transportPeer := transport.Peer{ID: "peer"}
+		t.Run("DNS names do not match", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			serviceResolver := didservice.NewMockServiceResolver(ctrl)
 			serviceResolver.EXPECT().Resolve(query, gomock.Any()).Return(did.Service{ServiceEndpoint: "grpc://nootjes.nl:5555"}, nil)
@@ -107,12 +107,12 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 			authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transportPeer)
 
 			assert.EqualError(t, err, "none of the DNS names in the peer's TLS certificate match the NutsComm endpoint (nodeDID=did:nuts:test)")
-			assert.Empty(t, authenticatedPeer)
+			assert.Equal(t, transportPeer, authenticatedPeer)
 		})
 		t.Run("no TLS info", func(t *testing.T) {
 			authenticatedPeer, err := NewTLSAuthenticator(nil).Authenticate(nodeDID, peer.Peer{}, transportPeer)
 			assert.EqualError(t, err, "missing TLS info (nodeDID=did:nuts:test)")
-			assert.Empty(t, authenticatedPeer)
+			assert.Equal(t, transportPeer, authenticatedPeer)
 		})
 		t.Run("DID document not found", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
@@ -123,53 +123,7 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 			authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transportPeer)
 
 			assert.EqualError(t, err, "can't resolve NutsComm service (nodeDID=did:nuts:test): unable to find the DID document")
-			assert.Empty(t, authenticatedPeer)
-		})
-	})
-	t.Run("with acceptUnauthenticated", func(t *testing.T) {
-		transportPeer := transport.Peer{AcceptUnauthenticated: true}
-		expectedPeer := transport.Peer{
-			AcceptUnauthenticated: true,
-			Authenticated:         false,
-			NodeDID:               nodeDID,
-		}
-		t.Run("ok", func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			serviceResolver := didservice.NewMockServiceResolver(ctrl)
-			serviceResolver.EXPECT().Resolve(query, gomock.Any()).Return(did.Service{}, types.ErrNotFound)
-			authenticator := NewTLSAuthenticator(serviceResolver)
-
-			authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transportPeer)
-
-			assert.NoError(t, err)
-			assert.Equal(t, expectedPeer, authenticatedPeer)
-		})
-		t.Run("not authenticated, DNS names do not match", func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			serviceResolver := didservice.NewMockServiceResolver(ctrl)
-			serviceResolver.EXPECT().Resolve(query, gomock.Any()).Return(did.Service{ServiceEndpoint: "grpc://nootjes.nl:5555"}, nil)
-			authenticator := NewTLSAuthenticator(serviceResolver)
-
-			authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transportPeer)
-
-			assert.NoError(t, err)
-			assert.Equal(t, expectedPeer, authenticatedPeer)
-		})
-		t.Run("no TLS info", func(t *testing.T) {
-			authenticatedPeer, err := NewTLSAuthenticator(nil).Authenticate(nodeDID, peer.Peer{}, transportPeer)
-			assert.NoError(t, err)
-			assert.Equal(t, expectedPeer, authenticatedPeer)
-		})
-		t.Run("DID document not found", func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			serviceResolver := didservice.NewMockServiceResolver(ctrl)
-			serviceResolver.EXPECT().Resolve(query, gomock.Any()).Return(did.Service{}, types.ErrNotFound)
-			authenticator := NewTLSAuthenticator(serviceResolver)
-
-			authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transportPeer)
-
-			assert.NoError(t, err)
-			assert.Equal(t, expectedPeer, authenticatedPeer)
+			assert.Equal(t, transportPeer, authenticatedPeer)
 		})
 	})
 }
@@ -183,6 +137,5 @@ func TestDummyAuthenticator_Authenticate(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, *nodeDID, peer.NodeDID)
 		assert.True(t, peer.Authenticated)
-		assert.True(t, peer.AcceptUnauthenticated)
 	})
 }
