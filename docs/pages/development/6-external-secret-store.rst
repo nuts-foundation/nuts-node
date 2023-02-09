@@ -15,7 +15,7 @@ The Nuts-node represents entities in the network. These entities have cryptograp
 Implementing a proxy or building a custom secret store
 ******************************************************
 
-A proxy or secret store should implement the Nuts Secret store API specification. This OpenAPI specification is available on `GitHub <https://raw.githubusercontent.com/Nuts-foundation/Nuts-node/master/docs/_static/crypto/Nuts-storage-api-v1.yaml>`__.
+A proxy or secret store should implement the Nuts Secret store API specification. This OpenAPI specification is available on `GitHub <https://raw.githubusercontent.com/nuts-foundation/nuts-node/master/docs/_static/crypto/nuts-storage-api-v1.yaml>`__.
 
 Consider developing your implementation under an open source license and publish it on a collaborative version control website such as `GitHub <https://github.com>`__ or `Gitlab <https://gitlab.com>`__ so that other parties can use it.
 
