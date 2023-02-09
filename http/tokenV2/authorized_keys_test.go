@@ -69,7 +69,6 @@ func TestECDSA256(t *testing.T) {
 	assert.Equal(t, authorized_keys, keys[0].String())
 }
 
-
 // TestECDSA384 ensures an ECDSA 384-bit key can be loaded
 func TestECDSA384(t *testing.T) {
 	authorized_keys := "ecdsa-sha2-nistp384 AAAAE2VjZHNhLXNoYTItbmlzdHAzODQAAAAIbmlzdHAzODQAAABhBDML4c0mMAyK7PoBYjoZY8ZmmwJLLVkxOsuBEcwcxBNnHgBB1sEsCqHLmwbiAZH6iuMZmILVDgGZW9GqyqMUfyuGRo/iKw2q6jwapI1gbjirGWA43Qmm0n1p8MJUwYzi1Q== ecdsa-384@test.local"
@@ -96,7 +95,7 @@ func TestMultiKey(t *testing.T) {
 	keyD := "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKvpooC3obku1Q9ika1exRJE4pvHVMuWyLhr/ybJHFlB keyD@test.local"
 	keyE := "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIZk91rDH05SwNBHKA7qh4ct9IyOpG4BYP5YkEQfwA7f keyE@test.local"
 	authorized_keys := strings.Join([]string{keyA, keyB, keyC, keyD, keyE}, "\n")
-	
+
 	keys, err := parseAuthorizedKeys([]byte(authorized_keys))
 	require.NoError(t, err)
 	require.Len(t, keys, 5)
