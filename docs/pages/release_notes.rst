@@ -19,6 +19,30 @@ Release date: **DRAFT**
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.0...v5.1.0
 
 ***********************
+Coconut update (v5.0.8)
+***********************
+
+Release date: 2023-02-09
+
+This patch release fixes the following:
+
+- A DID Document update could fail if a deactivation had occurred but was not referenced resulting in failed events
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.7...v5.0.8
+
+***********************
+Coconut update (v5.0.7)
+***********************
+
+Release date: 2023-02-01
+
+This patch release fixes the following:
+
+- Allow multiple incoming connections from the same IP
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.6...v5.0.7
+
+***********************
 Coconut update (v5.0.6)
 ***********************
 
