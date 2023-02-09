@@ -314,7 +314,7 @@ func unauthorizedError(context echo.Context, reason error) *echo.HTTPError {
 	context.Set(core.UserContextKey, "")
 
 	// Log an entry in the audit log about this failure
-	auditContext := audit.Context(context.Request().Context(), context.RealIP(), "tokenV2", "middleware")
+	auditContext := audit.Context(context.Request().Context(), defaultActor(context), "tokenV2", "middleware")
 	audit.Log(auditContext, log.Logger(), audit.AccessDeniedEvent)
 
 	// Return the appropriate echo error to ensure complete logging
@@ -323,4 +323,14 @@ func unauthorizedError(context echo.Context, reason error) *echo.HTTPError {
 		Message:  "Unauthorized",
 		Internal: reason,
 	}
+}
+
+func defaultActor(context echo.Context) string {
+	// If available use the real IP of the caller as the default actor name
+	realIP := context.RealIP()
+	if realIP != "" {
+		return realIP
+	}
+
+	return "unknown"
 }
