@@ -1,12 +1,17 @@
 package tokenV2
 
 import (
+	"crypto/rsa"
 	b64 "encoding/base64"
+	"errors"
 	"fmt"
 	"strings"
 
 	"golang.org/x/crypto/ssh"
 
+        "github.com/nuts-foundation/nuts-node/http/log"
+
+	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
 )
 
@@ -20,7 +25,11 @@ type authorizedKey struct {
 
 // String returns a string representation of an authorized key 
 func (a authorizedKey) String() string {
-        return fmt.Sprintf("%v %v %v %v", a.Key.Type(), b64.RawStdEncoding.EncodeToString(a.Key.Marshal()), a.Comment, a.Options)         
+        encodedOptions := strings.Join(a.Options, ",")
+        if encodedOptions != "" {
+                encodedOptions += " "
+        }
+        return fmt.Sprintf("%v%v %v %v", encodedOptions, a.Key.Type(), b64.StdEncoding.EncodeToString(a.Key.Marshal()), a.Comment)         
 }  
 
 // jwkFromSSHKey converts a standard SSH library key to a JWX jwk.Key type
@@ -33,7 +42,7 @@ func jwkFromSSHKey(key ssh.PublicKey) (jwk.Key, error) {
 		// Convert the ssh.PublicKey type to a go standard library crypto type (of unknown/interface{} type).
 		standardKey = cryptoPublicKey.CryptoPublicKey()
 	} else {
-		return nil, fmt.Errorf("key %v does not implement the ssh.CryptoPublicKey interface and cannot be converted")
+		return nil, fmt.Errorf("key (%T) does not implement the ssh.CryptoPublicKey interface and cannot be converted", key)
 	}
 
 	// Use the standard key type to create the jwk key type
@@ -72,7 +81,13 @@ func parseAuthorizedKeys(contents []byte) ([]authorizedKey, error) {
                 publicKey, comment, options, rest, err := ssh.ParseAuthorizedKey([]byte(line))
                 if err != nil {
                         return nil, fmt.Errorf("unparseable line (%v): %w", line, err)
-                }       
+                }
+
+                // Ignore DSA keys, which cannot even be converted to JWX/JWK keys and need to be ignored here
+                if publicKey.Type() == ssh.KeyAlgoDSA {
+                        log.Logger().Warnf("ignoring insecure key: %v", line)
+                        continue
+                }
                 
                 // Ensure rest is empty, meaning the entire line was parsed
                 if rest != nil {
@@ -82,7 +97,13 @@ func parseAuthorizedKeys(contents []byte) ([]authorizedKey, error) {
                 jwkPublicKey, err := jwkFromSSHKey(publicKey)
                 if err != nil {
                         return nil, err
-                }       
+                }
+
+                // Ignore insecure keys
+                if err := insecureKey(jwkPublicKey); err != nil {
+                        log.Logger().Warnf("ignoring insecure key: %v", line)
+                        continue
+                }
                 
                 authorizedKeys = append(authorizedKeys, authorizedKey{
                         Key: publicKey,
@@ -95,3 +116,28 @@ func parseAuthorizedKeys(contents []byte) ([]authorizedKey, error) {
         return authorizedKeys, nil
 }
 
+// insecureKey returns a non-nil error if a key is considered inherently insecure
+func insecureKey(key jwk.Key) error {
+        // Implement a blacklist of key types using the following switch statement
+        switch key.KeyType() {
+        // RSA keys are only secure if they are at least 2048-bits in length, though 4096-bit keys should be preferred
+        case jwa.RSA:
+                // Convert the JWK key to a raw RSA public key type which allows for inspection of the bit length
+                var rsaKey rsa.PublicKey
+                if err := key.Raw(&rsaKey); err != nil {
+                        return fmt.Errorf("unable to convert jwk key: %w", err)
+                }
+
+                // Accept RSA keys of at least 2048 bits in length
+                if rsaKey.N.BitLen() >= 2048 {
+                        return nil
+                }
+
+                // Reject all other RSA keys as they are too small and therefore weak
+                return errors.New("RSA keys must be at least 2048-bit")
+        
+        // Accept all other keys by default
+        default:
+                return nil
+        }
+}
