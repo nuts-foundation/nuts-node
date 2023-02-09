@@ -6,6 +6,18 @@ Release notes
 What has been changed, and how to update between versions.
 
 ***********************
+Coconut update (v5.0.8)
+***********************
+
+Release date: 2023-02-09
+
+This patch release fixes the following:
+
+- A DID Document update could fail if a deactivation had occurred but was not referenced resulting in failed events
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.7...v5.0.8
+
+***********************
 Coconut update (v5.0.7)
 ***********************
 
