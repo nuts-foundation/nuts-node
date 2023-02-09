@@ -105,3 +105,11 @@ func TestMultiKey(t *testing.T) {
 	assert.Equal(t, keyD, keys[3].String())
 	assert.Equal(t, keyE, keys[4].String())
 }
+
+// TestEmptyComment tests loading an authorized_keys entry with an empty comment fails
+func TestEmptyComment(t *testing.T) {
+	authorized_keys := "ecdsa-sha2-nistp521 AAAAE2VjZHNhLXNoYTItbmlzdHA1MjEAAAAIbmlzdHA1MjEAAACFBAHEzIEBuuH1tRTmkm0YLrhf6YcADsnU0ps89DTzdl9i+irxB2zxCQ/C9ZSQRSG4qR3O7JzmspQX4BNAgpSPN1ABFgA9nM2F+ekB5j380l1QQWtqNyTDV+IGXEW9YJW+UpvBG+jjwGfVmcRU1Sr5BQnQ1VQjkNDPEGo23/I8rFyuVOqn+A=="
+	keys, err := parseAuthorizedKeys([]byte(authorized_keys))
+	require.NoError(t, err)
+	assert.Empty(t, keys)
+}
