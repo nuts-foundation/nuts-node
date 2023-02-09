@@ -35,7 +35,7 @@ func New(audience string, authorizedKeys []byte) (Middleware, error) {
 
 	// Return the private struct implementing the public interface
 	impl := &middlewareImpl{
-		audience: audience,
+		audience:       audience,
 		authorizedKeys: parsed,
 	}
 	return impl, nil
@@ -90,7 +90,7 @@ func (m middlewareImpl) Handler(next echo.HandlerFunc) echo.HandlerFunc {
 			// Put this authorized key into a JWK keyset which can be easily used for verification
 			keySet := jwk.NewSet()
 			keySet.Add(authorizedKey.JWK)
-			
+
 			// Parse the token, requesting verification using the keyset constructed above.
 			// If the JWT was not signed by this key then this will fail.
 			//
@@ -102,7 +102,7 @@ func (m middlewareImpl) Handler(next echo.HandlerFunc) echo.HandlerFunc {
 				log.Logger().Errorf("failed to parse JWT: %v", err)
 				continue
 			}
-			
+
 			// The JWT was indeed signed by this authorized key, but that is not enough to authorize the request.
 			// Attempt to validate the parameters of the JWT, which ensures the audience, issued at, expiration, etc.
 			// are valid.
@@ -232,7 +232,7 @@ func acceptableSignatureAlgorithm(algorithm jwa.SignatureAlgorithm) bool {
 	// The following algorithm supports signing JWT's with Edwards curve keys
 	case jwa.ES512:
 		return true
-	
+
 	// The RS512/PS512 algorithms are supported for RSA keys, but less secure
 	// alternatives (RS256, RS384, PS256, PS384) are not supported.
 	//
@@ -240,10 +240,10 @@ func acceptableSignatureAlgorithm(algorithm jwa.SignatureAlgorithm) bool {
 	// https://www.rfc-editor.org/rfc/rfc8017#page-31
 	// """
 	// Two signature schemes with appendix are specified in this document:
-    // RSASSA-PSS and RSASSA-PKCS1-v1_5.  Although no attacks are known
-    // against RSASSA-PKCS1-v1_5, in the interest of increased robustness,
-    // RSASSA-PSS is REQUIRED in new applications.  RSASSA-PKCS1-v1_5 is
-    // included only for compatibility with existing applications.
+	// RSASSA-PSS and RSASSA-PKCS1-v1_5.  Although no attacks are known
+	// against RSASSA-PKCS1-v1_5, in the interest of increased robustness,
+	// RSASSA-PSS is REQUIRED in new applications.  RSASSA-PKCS1-v1_5 is
+	// included only for compatibility with existing applications.
 	// """
 	//
 	// In short, the RFC snippet above claims that the RS* algorithms should be
@@ -314,9 +314,9 @@ func unauthorizedError(context echo.Context, reason error) *echo.HTTPError {
 	audit.Log(auditContext, log.Logger(), audit.AccessDeniedEvent)
 
 	// Return the appropriate echo error to ensure complete logging
-	return &echo.HTTPError {
-		Code: http.StatusUnauthorized,
-		Message: "Unauthorized",
+	return &echo.HTTPError{
+		Code:     http.StatusUnauthorized,
+		Message:  "Unauthorized",
 		Internal: reason,
 	}
 }
