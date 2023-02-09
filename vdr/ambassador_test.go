@@ -651,7 +651,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		ctx.didStore.EXPECT().Resolve(currentDoc.ID, &types.ResolveMetadata{AllowDeactivated: true, SourceTransaction: &prev}).Return(&currentDoc, currentMetadata, nil)
 		ctx.resolver.EXPECT().ResolveControllers(currentDoc, &types.ResolveMetadata{SourceTransaction: &prev}).Return([]did.Document{currentDoc}, nil)
 		ctx.keyStore.EXPECT().ResolvePublicKey(currentDoc.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
-		ctx.didStore.EXPECT().Add(newDoc, toStoreTX(tx))
+		ctx.didStore.EXPECT().Update(currentDoc.ID, currentMetadata.Hash, newDoc, &expectedNextMetadata)
 
 		err := ctx.ambassador.handleUpdateDIDDocument(tx, newDoc)
 		assert.NoError(t, err)
@@ -662,7 +662,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		currentDoc, signingKey, _ := newDidDoc()
 		newDoc := did.Document{Context: []ssi.URI{did.DIDContextV1URI()}, ID: currentDoc.ID}
-		newCapInv, _ := didservice.CreateNewVerificationMethodForDID(audit.TestContext(), currentDoc.ID, &mockKeyCreator{})
+		newCapInv, _ := doc.CreateNewVerificationMethodForDID(currentDoc.ID, &mockKeyCreator{})
 		newDoc.AddCapabilityInvocation(newCapInv)
 
 		didDocPayload, _ := json.Marshal(newDoc)
@@ -679,6 +679,14 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 			Created: createdAt,
 			Updated: nil,
 			Hash:    hash.SHA256Sum([]byte("currentPayloadHash")),
+		}
+		// This is the metadata that will be written during the update
+		expectedNextMetadata := types.DocumentMetadata{
+			Created:            createdAt,
+			Updated:            &signingTime,
+			Hash:               payloadHash,
+			PreviousHash:       &currentMetadata.Hash,
+			SourceTransactions: []hash.SHA256Hash{tx.Ref()},
 		}
 
 		var pKey crypto2.PublicKey
