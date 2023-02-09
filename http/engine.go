@@ -23,6 +23,12 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/url"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/golang-jwt/jwt"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -31,10 +37,6 @@ import (
 	cryptoEngine "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/http/log"
 	"github.com/nuts-foundation/nuts-node/http/tokenV2"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
 )
 
 // AdminTokenSigningKID returns the KID of the signing key used to sign the admin token.
@@ -319,6 +321,11 @@ func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludeP
 
 	// Auth
 	switch cfg.Auth.Type {
+	// Allow API endpoints without authentication
+	case "":
+		return nil
+	
+	// The legacy authentication middleware
 	case BearerTokenAuth:
 		log.Logger().Infof("Enabling token authentication for HTTP interface: %s%s", address, path)
 		echoServer.Use(middleware.JWTWithConfig(middleware.JWTConfig{
@@ -340,15 +347,33 @@ func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludeP
 			SigningMethod: jwa.ES256.String(),
 		}))
 	
+	// The V2 bearer token authentication middleware
 	case BearerTokenAuthV2:
 		log.Logger().Infof("Enabling token authentication (v2) for HTTP interface: %s%s", address, path)
 
-		authenticator, err := tokenV2.NewFromFile(cfg.Auth.AuthorizedKeysPath)
+		// Use the configured audience or the hostname by default
+		audience := cfg.Auth.Audience
+		if audience == "" {
+			// Get the hostname of the machine
+			var err error
+			audience, err = os.Hostname()
+			if err != nil {
+				return fmt.Errorf("unable to discover hostname: %w", err)
+			}
+		}
+
+		// Construct the middleware using the specified audience and authorized keys file
+		authenticator, err := tokenV2.NewFromFile(audience, cfg.Auth.AuthorizedKeysPath)
 		if err == nil {
 			return fmt.Errorf("unable to create token v2 middleware: %v", err)
 		}
 
+		// Apply the authorization middleware to the echo server
 		echoServer.Use(authenticator.Handler)
+
+	// Any other configuration value causes an error condition
+	default:
+		log.Logger().Errorf("unsupported authentication engine: %v", cfg.Auth.Type)
 	}
 
 	return nil
