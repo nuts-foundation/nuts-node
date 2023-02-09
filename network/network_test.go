@@ -502,16 +502,17 @@ func TestNetwork_Start(t *testing.T) {
 
 		require.NoError(t, err)
 	})
-	t.Run("ok - start when self-authentication fails", func(t *testing.T) {
+	t.Run("error - cannot verify node DID's key material", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		cxt := createNetwork(t, ctrl)
 		cxt.network.strictMode = true
 		cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
+		cxt.state.EXPECT().Start()
 
-		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(nil, nil, did.DeactivatedErr) // self-authentication fails
-		err := cxt.start()
+		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(nil, nil, did.DeactivatedErr) //
+		err := cxt.network.Start()
 
-		assert.NoError(t, err)
+		assert.EqualError(t, err, "DID document can't be resolved (did=did:nuts:test): supplied DID is deactivated")
 	})
 	t.Run("error - state start failed", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -1046,7 +1047,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 
 			result := n.CheckHealth()
 
-			assert.Equal(t, core.HealthStatusUp, result["tls"].Status)
+			assert.Equal(t, core.HealthStatusUp, result[healthTLS].Status)
 		})
 		t.Run("expired", func(t *testing.T) {
 			trustStore, err := core.LoadTrustStore("test/truststore.pem")
@@ -1063,8 +1064,8 @@ func TestNetwork_checkHealth(t *testing.T) {
 
 			result := n.CheckHealth()
 
-			assert.Equal(t, core.HealthStatusDown, result["tls"].Status)
-			assert.Equal(t, "x509: certificate signed by unknown authority", result["tls"].Details)
+			assert.Equal(t, core.HealthStatusDown, result[healthTLS].Status)
+			assert.Equal(t, "x509: certificate signed by unknown authority", result[healthTLS].Details)
 		})
 	})
 
@@ -1093,7 +1094,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 
 			health := cxt.network.CheckHealth()
 
-			assert.Equal(t, core.HealthStatusUp, health["auth"].Status)
+			assert.Equal(t, core.HealthStatusUp, health[healthAuthConfig].Status)
 			assert.Nil(t, health["auth"].Details)
 		})
 		t.Run("up - no node DID", func(t *testing.T) {
@@ -1102,8 +1103,8 @@ func TestNetwork_checkHealth(t *testing.T) {
 
 			health := cxt.network.CheckHealth()
 
-			assert.Equal(t, core.HealthStatusUp, health["auth"].Status)
-			assert.Equal(t, "no node DID", health["auth"].Details)
+			assert.Equal(t, core.HealthStatusUp, health[healthAuthConfig].Status)
+			assert.Equal(t, "no node DID", health[healthAuthConfig].Details)
 
 		})
 		t.Run("down - authentication failed", func(t *testing.T) {
@@ -1114,8 +1115,8 @@ func TestNetwork_checkHealth(t *testing.T) {
 
 			health := cxt.network.CheckHealth()
 
-			assert.Equal(t, core.HealthStatusDown, health["auth"].Status)
-			assert.Equal(t, "DID document can't be resolved (did=did:nuts:test): supplied DID is deactivated", health["auth"].Details)
+			assert.Equal(t, core.HealthStatusDown, health[healthAuthConfig].Status)
+			assert.Equal(t, "DID document can't be resolved (did=did:nuts:test): supplied DID is deactivated", health[healthAuthConfig].Details)
 		})
 	})
 

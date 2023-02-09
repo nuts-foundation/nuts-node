@@ -55,6 +55,9 @@ const (
 	// softwareID contains the name of the vendor/implementation that's published in the node's diagnostic information.
 	softwareID        = "https://github.com/nuts-foundation/nuts-node"
 	errEventFailedMsg = "failed to emit event for published transaction: %w"
+	// health check keys
+	healthTLS        = "tls"
+	healthAuthConfig = "auth_config"
 )
 
 // defaultBBoltOptions are given to bbolt, allows for package local adjustments during test
@@ -90,37 +93,37 @@ func (n *Network) CheckHealth() map[string]core.Health {
 			Intermediates: core.NewCertPool(n.trustStore.IntermediateCAs),
 		})
 		if err != nil {
-			results["tls"] = core.Health{
+			results[healthTLS] = core.Health{
 				Status:  core.HealthStatusDown,
 				Details: err.Error(),
 			}
 		} else {
-			results["tls"] = core.Health{
+			results[healthTLS] = core.Health{
 				Status: core.HealthStatusUp,
 			}
 		}
 	}
-	// self-authentication
+	// auth_config checks that the node is correctly configured to be authenticated by others
 	nodeDID, err := n.nodeDIDResolver.Resolve()
 	if err != nil {
 		// can only happen when not in strictmode and autoNodeDIDResolver fails
-		results["auth"] = core.Health{
+		results[healthAuthConfig] = core.Health{
 			Status:  core.HealthStatusUnknown,
 			Details: err.Error(),
 		}
 	} else {
 		if nodeDID.Empty() {
-			results["auth"] = core.Health{
+			results[healthAuthConfig] = core.Health{
 				Status:  core.HealthStatusUp,
 				Details: "no node DID",
 			}
 		} else if err = n.validateNodeDID(nodeDID); err != nil {
-			results["auth"] = core.Health{
+			results[healthAuthConfig] = core.Health{
 				Status:  core.HealthStatusDown,
 				Details: err.Error(),
 			}
 		} else {
-			results["auth"] = core.Health{
+			results[healthAuthConfig] = core.Health{
 				Status: core.HealthStatusUp,
 			}
 		}
@@ -316,18 +319,15 @@ func (n *Network) Start() error {
 		return err
 	}
 
-	// Sanity check for configured node DID: can we resolve it?
+	// Sanity check for configured node DID: can we resolve it and do we have the keys?
 	nodeDID, err := n.nodeDIDResolver.Resolve()
 	if err != nil {
 		return err
 	}
 	if !nodeDID.Empty() {
-		err = n.validateNodeDID(nodeDID)
-		if err != nil {
-			log.Logger().
-				WithError(err).
-				WithField(core.LogFieldDID, nodeDID.String()).
-				Error("Node DID is invalid, exchanging private TXs will not work")
+		err = n.validateNodeDIDKeys(nodeDID)
+		if err != nil && n.strictMode {
+			return err
 		}
 	}
 
@@ -389,7 +389,7 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 	return nil
 }
 
-func (n *Network) validateNodeDID(nodeDID did.DID) error {
+func (n *Network) validateNodeDIDKeys(nodeDID did.DID) error {
 	// Check if DID document can be resolved
 	document, _, err := n.didDocumentResolver.Resolve(nodeDID, nil)
 	if err != nil {
@@ -404,6 +404,13 @@ func (n *Network) validateNodeDID(nodeDID did.DID) error {
 		if !n.keyStore.Exists(keyAgreement.ID.String()) {
 			return fmt.Errorf("keyAgreement private key is not present in key store, recover your key material or register a new keyAgreement key (did=%s,kid=%s)", nodeDID, keyAgreement.ID)
 		}
+	}
+	return nil
+}
+
+func (n *Network) validateNodeDID(nodeDID did.DID) error {
+	if err := n.validateNodeDIDKeys(nodeDID); err != nil {
+		return err
 	}
 
 	// Check if the DID document has a resolvable and valid NutsComm endpoint
