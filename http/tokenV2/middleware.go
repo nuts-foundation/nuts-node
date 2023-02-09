@@ -33,6 +33,10 @@ func New(audience string, authorizedKeys []byte) (Middleware, error) {
 		return nil, fmt.Errorf("failed to parse authorizedKeys: %w", err)
 	}
 
+	if len(parsed) == 0 {
+		log.Logger().Warn("no keys were parsed from authorized_keys")
+	}
+
 	// Return the private struct implementing the public interface
 	impl := &middlewareImpl{
 		audience:       audience,
