@@ -82,6 +82,15 @@ func parseAuthorizedKeys(contents []byte) ([]authorizedKey, error) {
 		if err != nil {
 			return nil, fmt.Errorf("unparseable line (%v): %w", line, err)
 		}
+                
+                // Trim whitespace from the comment/username
+                comment = strings.TrimSpace(comment)
+                
+                // Ignore keys without a comment/username
+                if comment == "" {
+                        log.Logger().Warnf("ignoring authorized_keys entry without comment/username: %v", line)
+                        continue
+                }
 
 		// Ignore DSA keys, which cannot even be converted to JWX/JWK keys and need to be ignored here
 		if publicKey.Type() == ssh.KeyAlgoDSA {
@@ -101,7 +110,7 @@ func parseAuthorizedKeys(contents []byte) ([]authorizedKey, error) {
 
 		// Ignore insecure keys
 		if err := insecureKey(jwkPublicKey); err != nil {
-			log.Logger().Warnf("ignoring insecure key: %v", line)
+			log.Logger().Warnf("ignoring insecure authorized_keys entry: %v", line)
 			continue
 		}
 
