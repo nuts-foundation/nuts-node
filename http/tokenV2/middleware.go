@@ -33,6 +33,8 @@ func New(audience string, authorizedKeys []byte) (Middleware, error) {
 		return nil, fmt.Errorf("failed to parse authorizedKeys: %w", err)
 	}
 
+	// Log a warning to administrators when their authorized_keys files don't seem to
+	// contain any valid keys.
 	if len(parsed) == 0 {
 		log.Logger().Warn("no keys were parsed from authorized_keys")
 	}
@@ -89,7 +91,7 @@ func (m middlewareImpl) Handler(next echo.HandlerFunc) echo.HandlerFunc {
 
 		// Attempt verifying the JWT using every available authorized key
 		for _, authorizedKey := range m.authorizedKeys {
-			log.Logger().Infof("checking key %v", authorizedKey.JWK.KeyID())
+			log.Logger().Tracef("checking key %v", authorizedKey.JWK.KeyID())
 
 			// Put this authorized key into a JWK keyset which can be easily used for verification
 			keySet := jwk.NewSet()
@@ -125,8 +127,7 @@ func (m middlewareImpl) Handler(next echo.HandlerFunc) echo.HandlerFunc {
 			log.Logger().Infof("authorized user %v", authorizedKey.Comment)
 
 			// Log an entry in the audit log about this user access
-			auditContext := audit.Context(context.Request().Context(), authorizedKey.Comment, "tokenV2", "middleware")
-			audit.Log(auditContext, log.Logger(), audit.AccessGrantedEvent)
+			auditLog(context, authorizedKey.Comment, audit.AccessGrantedEvent)
 
 			// Set the username from authorized_keys as the username in the context
 			context.Set(core.UserContextKey, authorizedKey.Comment)
@@ -229,12 +230,8 @@ func bestPracticesCheck(token jwt.Token) error {
 // https://dev.to/scottbrady91/jwts-which-signing-algorithm-should-i-use-3m79
 func acceptableSignatureAlgorithm(algorithm jwa.SignatureAlgorithm) bool {
 	switch algorithm {
-	// The following algorithms are supported for elliptic curve algorithms
-	case jwa.ES256, jwa.ES384:
-		return true
-
-	// The following algorithm supports signing JWT's with Edwards curve keys
-	case jwa.ES512:
+	// The following algorithms are supported for elliptic curve keys
+	case jwa.ES256, jwa.ES384, jwa.ES512:
 		return true
 
 	// The RS512/PS512 algorithms are supported for RSA keys, but less secure
@@ -308,23 +305,23 @@ func authenticationCredential(context echo.Context) string {
 // unauthorizedError returns an echo unauthorized error
 func unauthorizedError(context echo.Context, reason error) *echo.HTTPError {
 	// Explicitly set the response to 401 Unauthorized rather than relying on any default behaviour
-	context.String(http.StatusUnauthorized, "Unauthorized")
+	context.String(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
 
 	// Set an empty username for this context
 	context.Set(core.UserContextKey, "")
 
 	// Log an entry in the audit log about this failure
-	auditContext := audit.Context(context.Request().Context(), defaultActor(context), "tokenV2", "middleware")
-	audit.Log(auditContext, log.Logger(), audit.AccessDeniedEvent)
+	auditLog(context, defaultActor(context), audit.AccessDeniedEvent)
 
 	// Return the appropriate echo error to ensure complete logging
 	return &echo.HTTPError{
 		Code:     http.StatusUnauthorized,
-		Message:  "Unauthorized",
+		Message:  http.StatusText(http.StatusUnauthorized),
 		Internal: reason,
 	}
 }
 
+// defaultActor returns some suitable default representation for the remote actor
 func defaultActor(context echo.Context) string {
 	// If available use the real IP of the caller as the default actor name
 	realIP := context.RealIP()
@@ -333,4 +330,10 @@ func defaultActor(context echo.Context) string {
 	}
 
 	return "unknown"
+}
+
+// auditLog logs a security event about an actor given a certain echo context
+func auditLog(context echo.Context, actor string, event string) {
+	auditContext := audit.Context(context.Request().Context(), actor, "tokenV2", "middleware")
+	audit.Log(auditContext, log.Logger(), event)
 }

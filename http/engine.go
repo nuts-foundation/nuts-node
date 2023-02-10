@@ -360,11 +360,12 @@ func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludeP
 			if err != nil {
 				return fmt.Errorf("unable to discover hostname: %w", err)
 			}
+			log.Logger().Infof("enforcing default audience %v", audience)
 		}
 
 		// Construct the middleware using the specified audience and authorized keys file
 		authenticator, err := tokenV2.NewFromFile(audience, cfg.Auth.AuthorizedKeysPath)
-		if err == nil {
+		if err != nil {
 			return fmt.Errorf("unable to create token v2 middleware: %v", err)
 		}
 
