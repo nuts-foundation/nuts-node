@@ -42,6 +42,7 @@ import (
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/http/log"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/writer"
@@ -356,6 +357,77 @@ func TestEngine_Configure(t *testing.T) {
 		})
 
 		t.Run("auth-tokenV2", func(t *testing.T) {
+			// Ensure the server can be started and protected without applying a specific audience in the configuration
+			t.Run("default audience", func(t *testing.T) {
+				// Use the system hostname as the audience (but do not configure it specifically)
+				audience, err := os.Hostname()
+				require.NoError(t, err)
+
+				// Create a key and associated JWT that will be valid
+				_, serializer, authorizedKeys := generateEd25519TestKey(t)
+				token := validJWT(t, audience)
+				serializedToken, err := serializer.Serialize(token)
+				require.NoError(t, err)
+
+				// Create a temporary authorized_keys file which will be deleted upon returning from this function
+				authorizedKeysFile, err := os.CreateTemp("", "tmp.authorized_keys-")
+				require.NoError(t, err)
+				defer os.Remove(authorizedKeysFile.Name())
+				authorizedKeysFile.Write(authorizedKeys)
+				authorizedKeysFile.Close()
+				
+				// Setup a new HTTP engine
+				engine := New(noop, nil)
+
+				// Configure the default interface without authentication
+				engine.config.InterfaceConfig = InterfaceConfig{
+					Address: fmt.Sprintf(":%d", test.FreeTCPPort()),
+					Auth: AuthConfig{
+						Type: BearerTokenAuthV2,
+						AuthorizedKeysPath: authorizedKeysFile.Name(),
+					},
+				}
+
+				// Apply the configuration built above
+				err = engine.Configure(*core.NewServerConfig())
+				require.NoError(t, err)
+
+				// Setup a request handler for capturing the authenticated username from the echo context
+				var capturedUser string
+				captureUser := func(c echo.Context) error {
+					userContext := c.Get(core.UserContextKey)
+					if userContext == nil {
+						capturedUser = ""
+						return nil
+					}
+					capturedUser = userContext.(string)
+					return nil
+				}
+
+				// Apply the previously defined request handler at various endpoints on the HTTP engine
+				engine.Router().GET("/", captureUser)
+
+				// Start the HTTP engine, ensuring it will be shutdown later
+				_ = engine.Start()
+				defer engine.Shutdown()
+
+				// Check that the HTTP server has started listening for requests
+				assertServerStarted(t, engine.config.InterfaceConfig.Address)
+
+				// Make a test request
+				t.Run("success - auth on default bind root", func(t *testing.T) {
+					capturedUser = ""
+					request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.InterfaceConfig.Address+"/", nil)
+					log.Logger().Infof("requesting %v", request.URL.String())
+					request.Header.Set("Authorization", "Bearer "+string(serializedToken))
+					response, err := http.DefaultClient.Do(request)
+
+					assert.NoError(t, err)
+					assert.Equal(t, http.StatusOK, response.StatusCode)
+					assert.Equal(t, "random@test.local", capturedUser)
+				})
+			})
+			
 			t.Run("specific audience", func(t *testing.T) {
 				// Create a key and associated JWT that will be valid
 				_, serializer, authorizedKeys := generateEd25519TestKey(t)
@@ -376,10 +448,15 @@ func TestEngine_Configure(t *testing.T) {
 				authorizedKeysFile.Write(authorizedKeys)
 				authorizedKeysFile.Close()
 				
+				// Setup a new HTTP engine
 				engine := New(noop, nil)
+
+				// Configure the default interface without authentication
 				engine.config.InterfaceConfig = InterfaceConfig{
 					Address: fmt.Sprintf(":%d", test.FreeTCPPort()),
 				}
+
+				// Configure an alt bind with authentication
 				engine.config.AltBinds["default-with-auth"] = InterfaceConfig{
 					Auth: AuthConfig{
 						Type: BearerTokenAuthV2,
@@ -387,6 +464,8 @@ func TestEngine_Configure(t *testing.T) {
 						AuthorizedKeysPath: authorizedKeysFile.Name(),
 					},
 				}
+
+				// Configure another alt bind with authentication
 				engine.config.AltBinds["alt-with-auth"] = InterfaceConfig{
 					Address: fmt.Sprintf(":%d", test.FreeTCPPort()),
 					Auth: AuthConfig{
@@ -395,7 +474,12 @@ func TestEngine_Configure(t *testing.T) {
 						AuthorizedKeysPath: authorizedKeysFile.Name(),
 					},
 				}
-				_ = engine.Configure(*core.NewServerConfig())
+
+				// Apply the configuration built above
+				err = engine.Configure(*core.NewServerConfig())
+				require.NoError(t, err)
+
+				// Setup a request handler for capturing the authenticated username from the echo context
 				var capturedUser string
 				captureUser := func(c echo.Context) error {
 					userContext := c.Get(core.UserContextKey)
@@ -406,17 +490,24 @@ func TestEngine_Configure(t *testing.T) {
 					capturedUser = userContext.(string)
 					return nil
 				}
+
+				// Apply the previously defined request handler at various endpoints on the HTTP engine
 				engine.Router().GET("/", captureUser)
 				engine.Router().GET("/default-with-auth", captureUser)
 				engine.Router().GET("/alt-with-auth", captureUser)
+
+				// Start the HTTP engine, ensuring it will be shutdown later
 				_ = engine.Start()
 				defer engine.Shutdown()
 
+				// Check that the HTTP server has started listening for requests
 				assertServerStarted(t, engine.config.InterfaceConfig.Address)
 
+				// Start running some tests against the server
 				t.Run("success - no auth on default bind root path", func(t *testing.T) {
 					capturedUser = ""
 					request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.InterfaceConfig.Address, nil)
+					log.Logger().Infof("requesting %v", request.URL.String())
 					response, err := http.DefaultClient.Do(request)
 
 					assert.NoError(t, err)
@@ -426,6 +517,7 @@ func TestEngine_Configure(t *testing.T) {
 				t.Run("success - auth on default bind subpath path", func(t *testing.T) {
 					capturedUser = ""
 					request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
+					log.Logger().Infof("requesting %v", request.URL.String())
 					request.Header.Set("Authorization", "Bearer "+string(serializedToken))
 					response, err := http.DefaultClient.Do(request)
 
@@ -436,6 +528,7 @@ func TestEngine_Configure(t *testing.T) {
 				t.Run("success - auth on alt bind", func(t *testing.T) {
 					capturedUser = ""
 					request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.AltBinds["alt-with-auth"].Address+"/alt-with-auth", nil)
+					log.Logger().Infof("requesting %v", request.URL.String())
 					request.Header.Set("Authorization", "Bearer "+string(serializedToken))
 					response, err := http.DefaultClient.Do(request)
 
@@ -446,6 +539,7 @@ func TestEngine_Configure(t *testing.T) {
 				t.Run("no token", func(t *testing.T) {
 					capturedUser = ""
 					request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
+					log.Logger().Infof("requesting %v", request.URL.String())
 					response, err := http.DefaultClient.Do(request)
 
 					assert.NoError(t, err)
@@ -455,6 +549,7 @@ func TestEngine_Configure(t *testing.T) {
 				t.Run("invalid token", func(t *testing.T) {
 					capturedUser = ""
 					request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
+					log.Logger().Infof("requesting %v", request.URL.String())
 					response, err := http.DefaultClient.Do(request)
 					request.Header.Set("Authorization", "Bearer invalid")
 
@@ -465,6 +560,7 @@ func TestEngine_Configure(t *testing.T) {
 				t.Run("invalid token (incorrect signing key)", func(t *testing.T) {
 					capturedUser = ""
 					request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
+					log.Logger().Infof("requesting %v", request.URL.String())
 					response, err := http.DefaultClient.Do(request)
 					request.Header.Set("Authorization", "Bearer "+string(serializedAttackerToken))
 
