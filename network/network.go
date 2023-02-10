@@ -111,21 +111,25 @@ func (n *Network) CheckHealth() map[string]core.Health {
 			Status:  core.HealthStatusUnknown,
 			Details: err.Error(),
 		}
+		return results
+	}
+
+	if nodeDID.Empty() {
+		results[healthAuthConfig] = core.Health{
+			Status:  core.HealthStatusUp,
+			Details: "no node DID",
+		}
+		return results
+	}
+
+	if err = n.validateNodeDID(nodeDID); err != nil {
+		results[healthAuthConfig] = core.Health{
+			Status:  core.HealthStatusDown,
+			Details: err.Error(),
+		}
 	} else {
-		if nodeDID.Empty() {
-			results[healthAuthConfig] = core.Health{
-				Status:  core.HealthStatusUp,
-				Details: "no node DID",
-			}
-		} else if err = n.validateNodeDID(nodeDID); err != nil {
-			results[healthAuthConfig] = core.Health{
-				Status:  core.HealthStatusDown,
-				Details: err.Error(),
-			}
-		} else {
-			results[healthAuthConfig] = core.Health{
-				Status: core.HealthStatusUp,
-			}
+		results[healthAuthConfig] = core.Health{
+			Status: core.HealthStatusUp,
 		}
 	}
 	return results
@@ -238,21 +242,23 @@ func (n *Network) Configure(config core.ServerConfig) error {
 			}),
 		}
 		// Configure TLS
+		var authenticator grpc.Authenticator
 		if config.LegacyTLS.Enabled {
 			grpcOpts = append(grpcOpts, grpc.WithTLS(n.certificate, n.trustStore, config.TLS.GetCRLMaxValidityDays()))
 			if config.TLS.Offload == core.OffloadIncomingTLS {
 				grpcOpts = append(grpcOpts, grpc.WithTLSOffloading(config.TLS.ClientCertHeaderName))
 			}
+			authenticator = grpc.NewTLSAuthenticator(didservice.NewServiceResolver(n.didDocumentResolver))
 		} else {
 			// Not allowed in strict mode for security reasons: only intended for demo/workshop purposes.
 			if config.Strictmode {
 				return errors.New("disabling TLS in strict mode is not allowed")
 			}
 			log.Logger().Warn("TLS is disabled, which is only meant for demo/workshop purposes!")
+			authenticator = grpc.NewDummyAuthenticator(nil)
 		}
 
 		// Instantiate
-		authenticator := grpc.NewTLSAuthenticator(didservice.NewServiceResolver(n.didDocumentResolver))
 		connectionStore, err := n.storeProvider.GetKVStore("connections", storage.VolatileStorageClass)
 		if err != nil {
 			return fmt.Errorf("failed to open connections store: %w", err)

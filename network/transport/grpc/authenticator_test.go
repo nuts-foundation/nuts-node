@@ -127,3 +127,15 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 		})
 	})
 }
+
+func TestDummyAuthenticator_Authenticate(t *testing.T) {
+	t.Run("always ok", func(t *testing.T) {
+		authenticator := NewDummyAuthenticator(nil)
+
+		peer, err := authenticator.Authenticate(*nodeDID, peer.Peer{}, transport.Peer{})
+
+		assert.NoError(t, err)
+		assert.Equal(t, *nodeDID, peer.NodeDID)
+		assert.True(t, peer.Authenticated)
+	})
+}
