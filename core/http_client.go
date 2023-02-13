@@ -101,7 +101,10 @@ func CreateHTTPClient(cfg ClientConfig, builder AuthorizationTokenBuilder) (HTTP
 
 	fn := result.fn
 	result = &httpRequestDoerAdapter{fn: func(req *http.Request) (*http.Response, error) {
-		token := builder.Create()
+		token, err := builder.Create()
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate authorization token: %w", err)
+		}
 		if len(token) > 0 {
 			req.Header.Set("Authorization", "Bearer "+token)
 		}
@@ -122,20 +125,20 @@ func MustCreateHTTPClient(cfg ClientConfig, builder AuthorizationTokenBuilder) H
 
 // AuthorizationTokenBuilder holds methods for creating a bearer token for an HTTP request
 type AuthorizationTokenBuilder interface {
-	Create() string
+	Create() (string, error)
 }
 
 type legacyTokenBuilder struct {
 	token string
 }
 
-func (ltb legacyTokenBuilder) Create() string {
-	return ltb.token
+func (ltb legacyTokenBuilder) Create() (string, error) {
+	return ltb.token, nil
 }
 
 type noAuth struct {
 }
 
-func (atb noAuth) Create() string {
-	return ""
+func (atb noAuth) Create() (string, error) {
+	return "", nil
 }

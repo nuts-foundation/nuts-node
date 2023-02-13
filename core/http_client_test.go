@@ -20,6 +20,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	io2 "io"
@@ -75,6 +76,15 @@ func TestHTTPClient(t *testing.T) {
 		assert.Equal(t, stdHttp.StatusOK, response.StatusCode)
 		assert.Equal(t, "Bearer test", authToken)
 	})
+	t.Run("with errored token builder", func(t *testing.T) {
+		client, err := CreateHTTPClient(ClientConfig{}, errTokenBuilder{})
+		require.NoError(t, err)
+
+		req, _ := stdHttp.NewRequest(stdHttp.MethodGet, server.URL, nil)
+		_, err = client.Do(req)
+
+		assert.EqualError(t, err, "failed to generate authorization token: error")
+	})
 }
 
 func TestUserAgentRequestEditor(t *testing.T) {
@@ -113,4 +123,10 @@ func (r readCloser) Read(p []byte) (n int, err error) {
 
 func (r readCloser) Close() error {
 	return nil
+}
+
+type errTokenBuilder struct{}
+
+func (etb errTokenBuilder) Create() (string, error) {
+	return "", errors.New("error")
 }
