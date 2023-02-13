@@ -19,8 +19,13 @@
 package audit
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"github.com/sirupsen/logrus"
+	"strings"
+	"sync"
 )
 
 const (
@@ -31,6 +36,22 @@ const (
 	// CryptoSignJWSEvent occurs when signing a JWS.
 	CryptoSignJWSEvent = "SignJWS"
 )
+
+const auditLogLevel = "audit"
+
+var auditLoggerInstance *logrus.Logger
+var initAuditLoggerOnce = &sync.Once{}
+
+func auditLogger() *logrus.Logger {
+	initAuditLoggerOnce.Do(func() {
+		// Create new logger with custom Formatter, which makes sures the log level is always "audit".
+		// Also override the level for this level, to make sure it is not influenced by a lower log verbosity.
+		auditLoggerInstance = logrus.New()
+		auditLoggerInstance.SetFormatter(&auditFormatter{underlyingFormatter: logrus.StandardLogger().Formatter})
+		auditLoggerInstance.SetLevel(logrus.InfoLevel)
+	})
+	return auditLoggerInstance
+}
 
 // Info provides contextual information for auditable events.
 type Info struct {
@@ -59,6 +80,45 @@ func InfoFromContext(ctx context.Context) *Info {
 	return nil
 }
 
+type auditFormatter struct {
+	underlyingFormatter logrus.Formatter
+}
+
+func (a auditFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	// Make log level predictable for easier replacement later
+	// (then level color for colored output is known beforehand, which is 36 for info)
+	// See sirupsen/logrus@v1.9.0/text_formatter.go:19
+	entry.Level = logrus.InfoLevel
+
+	formattedEntry, err := a.underlyingFormatter.Format(entry)
+	if err != nil {
+		return nil, err
+	}
+	// Replace log level in formatted log message
+	switch a.underlyingFormatter.(type) {
+	case *logrus.JSONFormatter:
+		var logAsJSON map[string]interface{}
+		err := json.Unmarshal(formattedEntry, &logAsJSON)
+		if err != nil {
+			return nil, fmt.Errorf("audit: failed to unmarshal log entry: %w", err)
+		}
+		logAsJSON["level"] = auditLogLevel
+		return json.Marshal(logAsJSON)
+	case *logrus.TextFormatter:
+		coloredPrefix := []byte("\x1b[36mINFO")
+		if bytes.HasPrefix(formattedEntry, coloredPrefix) {
+			// Colored output
+			coloredResult := append(formattedEntry[0:len(coloredPrefix)-4], []byte(strings.ToUpper(auditLogLevel))...)
+			coloredResult = append(coloredResult, formattedEntry[len(coloredPrefix)+4:]...)
+			return coloredResult, nil
+		}
+		// Non-colored output
+		return bytes.Replace(formattedEntry, []byte("level="+entry.Level.String()), []byte("level="+auditLogLevel), 1), nil
+	default:
+		return nil, fmt.Errorf("audit: unsupported log formatter: %T", a.underlyingFormatter)
+	}
+}
+
 // Log logs the given message as an audit event. The context must contain audit information.
 func Log(ctx context.Context, logger *logrus.Entry, eventName string) *logrus.Entry {
 	info := InfoFromContext(ctx)
@@ -75,7 +135,7 @@ func Log(ctx context.Context, logger *logrus.Entry, eventName string) *logrus.En
 		panic("audit: eventName is empty")
 	}
 
-	return logger.WithField("log", "audit").
+	return auditLogger().WithFields(logger.Data).
 		WithField("actor", info.Actor).
 		WithField("operation", info.Operation).
 		WithField("event", eventName)

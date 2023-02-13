@@ -158,6 +158,7 @@ func (client *Crypto) New(ctx context.Context, namingFunc KIDNamingFunc) (Key, e
 	if err != nil {
 		return nil, err
 	}
+
 	audit.Log(ctx, log.Logger(), audit.CryptoNewKeyEvent).Infof("Generating new key pair: %s", kid)
 	if client.storage.PrivateKeyExists(kid) {
 		return nil, errors.New("key with the given ID already exists")

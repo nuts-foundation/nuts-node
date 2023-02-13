@@ -29,7 +29,3 @@ var _logger = logrus.StandardLogger().WithField(core.LogFieldModule, "Crypto")
 func Logger() *logrus.Entry {
 	return _logger
 }
-
-func Audit(subject string) *logrus.Entry {
-	return Logger().WithField(core.LogFieldAuditSubject, subject)
-}

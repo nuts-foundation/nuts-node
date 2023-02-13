@@ -33,7 +33,6 @@ func TestLog(t *testing.T) {
 
 		assert.Equal(t, "test", actual.Data["event"])
 		assert.Equal(t, TestActor, actual.Data["actor"])
-		assert.Equal(t, "audit", actual.Data["log"])
 	})
 	t.Run("it panics when no actor is set", func(t *testing.T) {
 		assert.Panics(t, func() {

@@ -26,6 +26,7 @@ import (
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"strings"
 	"testing"
 )
 
@@ -68,22 +69,26 @@ type CapturedLog struct {
 }
 
 func (c *CapturedLog) AssertContains(t *testing.T, module string, event string, actor string, message string) {
+	t.Helper()
 	for _, entry := range c.hook.AllEntries() {
-		if entry.Data["log"] == "audit" &&
-			entry.Data["module"] == module &&
+		if entry.Data["module"] == module &&
 			entry.Data["event"] == event &&
 			entry.Data["actor"] == actor &&
 			entry.Message == message {
+			formatted, err := entry.Logger.Formatter.Format(entry)
+			require.NoError(t, err)
+			// Assert that the log entry is logged on "audit" level (since that's achieved rather hacky)
+			if !strings.Contains(string(formatted), "level=audit") && !strings.Contains(string(formatted), "AUDIT") {
+				t.Error("Audit log entry is not logged on 'audit' level")
+			}
 			return
 		}
 	}
 	// If failed, collect log entries for error message
 	var entries []string
 	for _, entry := range c.hook.AllEntries() {
-		if entry.Data["log"] == "audit" {
-			msg, _ := (&logrus.TextFormatter{}).Format(entry)
-			entries = append(entries, string(msg))
-		}
+		msg, _ := (&logrus.TextFormatter{}).Format(entry)
+		entries = append(entries, string(msg))
 	}
 	t.Errorf("Audit log doesn't contain expected entry with"+
 		"  expected: module=%s, event=%s, description=%s, actor=%s\n"+
@@ -91,14 +96,13 @@ func (c *CapturedLog) AssertContains(t *testing.T, module string, event string, 
 }
 
 func CaptureLogs(t *testing.T) *CapturedLog {
-	logger := logrus.StandardLogger()
 	// Reset the hooks to their original state when the test ends
-	oldHooks := logger.Hooks
+	oldHooks := auditLogger().Hooks
 	t.Cleanup(func() {
-		logger.ReplaceHooks(oldHooks)
+		auditLogger().ReplaceHooks(oldHooks)
 	})
 
 	hook := &test.Hook{}
-	logger.AddHook(hook)
+	auditLogger().AddHook(hook)
 	return &CapturedLog{hook: hook}
 }
