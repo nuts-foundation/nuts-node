@@ -45,6 +45,7 @@ func Test_ListMerging(t *testing.T) {
 			system.RegisterEngine(testEngine)
 			// Load the system
 			require.NoError(t, system.Load(cmd.Flags()))
+			system.Config.Datadir = t.TempDir()
 			// Configure system and the engines
 			assert.Nil(t, system.Configure())
 
@@ -56,6 +57,7 @@ func Test_ListMerging(t *testing.T) {
 			os.Args = []string{"command", "--configfile", "test/config/testengine.yaml"}
 			testEngine := &TestEngine{}
 			system := NewSystem()
+			system.Config.Datadir = t.TempDir()
 
 			// create a dummy command with the serverFlagSet and the testEngine flagSet:
 			cmd := &cobra.Command{}
@@ -71,6 +73,7 @@ func Test_ListMerging(t *testing.T) {
 			system.RegisterEngine(testEngine)
 			// Load the system
 			require.NoError(t, system.Load(cmd.Flags()))
+			system.Config.Datadir = t.TempDir()
 			// Configure system and the engines
 			assert.Nil(t, system.Configure())
 

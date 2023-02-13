@@ -20,7 +20,6 @@ package core
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	io2 "io"
@@ -39,13 +38,9 @@ func TestHTTPClient(t *testing.T) {
 	defer server.Close()
 
 	t.Run("no auth token", func(t *testing.T) {
-		testDirectory := io.TestDirectory(t)
-		userHomeDirFn = func() (string, error) {
-			return testDirectory, nil
-		}
 
 		authToken = ""
-		client, err := CreateHTTPClient(ClientConfig{})
+		client, err := CreateHTTPClient(ClientConfig{}, nil)
 		require.NoError(t, err)
 
 		req, _ := stdHttp.NewRequest(stdHttp.MethodGet, server.URL, nil)
@@ -56,15 +51,21 @@ func TestHTTPClient(t *testing.T) {
 		assert.Empty(t, authToken)
 	})
 	t.Run("with auth token", func(t *testing.T) {
-		testDirectory := io.TestDirectory(t)
-		userHomeDirFn = func() (string, error) {
-			return testDirectory, nil
-		}
-
 		authToken = ""
 		client, err := CreateHTTPClient(ClientConfig{
 			Token: "test",
-		})
+		}, nil)
+		require.NoError(t, err)
+
+		req, _ := stdHttp.NewRequest(stdHttp.MethodGet, server.URL, nil)
+		response, err := client.Do(req)
+
+		assert.NoError(t, err)
+		assert.Equal(t, stdHttp.StatusOK, response.StatusCode)
+		assert.Equal(t, "Bearer test", authToken)
+	})
+	t.Run("with custom token builder", func(t *testing.T) {
+		client, err := CreateHTTPClient(ClientConfig{}, legacyTokenBuilder{token: "test"})
 		require.NoError(t, err)
 
 		req, _ := stdHttp.NewRequest(stdHttp.MethodGet, server.URL, nil)
