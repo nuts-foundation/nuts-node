@@ -18,7 +18,7 @@ import (
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/lestrrat-go/jwx/jwt"
 
-        "github.com/google/uuid"
+	"github.com/google/uuid"
 )
 
 type SkipperFunc func(context echo.Context) bool
@@ -47,7 +47,7 @@ func New(skipper SkipperFunc, audience string, authorizedKeys []byte) (Middlewar
 	impl := &middlewareImpl{
 		audience:       audience,
 		authorizedKeys: parsed,
-		skipper: skipper,
+		skipper:        skipper,
 	}
 	return impl, nil
 }
@@ -76,7 +76,7 @@ type middlewareImpl struct {
 
 	// authorizedKeys defines a number of SSH formatted public keys trusted to sign JWT credentials
 	authorizedKeys []authorizedKey
-	
+
 	// skipper provides optional external logic for skipping authorization enforcement on certain requests
 	skipper SkipperFunc
 }
@@ -210,7 +210,7 @@ func tokenJTI(token jwt.Token) string {
 			return jtiStr
 		}
 	}
-	
+
 	// Simply return an empty string if either the jti field wasn't present or it wasn't a string
 	return ""
 }
