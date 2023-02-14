@@ -376,7 +376,7 @@ func TestEngine_Configure(t *testing.T) {
 				defer os.Remove(authorizedKeysFile.Name())
 				authorizedKeysFile.Write(authorizedKeys)
 				authorizedKeysFile.Close()
-				
+
 				// Setup a new HTTP engine
 				engine := New(noop, nil)
 
@@ -384,7 +384,7 @@ func TestEngine_Configure(t *testing.T) {
 				engine.config.InterfaceConfig = InterfaceConfig{
 					Address: fmt.Sprintf(":%d", test.FreeTCPPort()),
 					Auth: AuthConfig{
-						Type: BearerTokenAuthV2,
+						Type:               BearerTokenAuthV2,
 						AuthorizedKeysPath: authorizedKeysFile.Name(),
 					},
 				}
@@ -428,7 +428,7 @@ func TestEngine_Configure(t *testing.T) {
 					assert.Equal(t, "random@test.local", capturedUser)
 				})
 			})
-			
+
 			t.Run("specific audience", func(t *testing.T) {
 				// Create a key and associated JWT that will be valid
 				_, serializer, authorizedKeys := generateEd25519TestKey(t)
@@ -448,7 +448,7 @@ func TestEngine_Configure(t *testing.T) {
 				defer os.Remove(authorizedKeysFile.Name())
 				authorizedKeysFile.Write(authorizedKeys)
 				authorizedKeysFile.Close()
-				
+
 				// Setup a new HTTP engine
 				engine := New(noop, nil)
 
@@ -460,8 +460,8 @@ func TestEngine_Configure(t *testing.T) {
 				// Configure an alt bind with authentication
 				engine.config.AltBinds["default-with-auth"] = InterfaceConfig{
 					Auth: AuthConfig{
-						Type: BearerTokenAuthV2,
-						Audience: "foo",
+						Type:               BearerTokenAuthV2,
+						Audience:           "foo",
 						AuthorizedKeysPath: authorizedKeysFile.Name(),
 					},
 				}
@@ -470,8 +470,8 @@ func TestEngine_Configure(t *testing.T) {
 				engine.config.AltBinds["alt-with-auth"] = InterfaceConfig{
 					Address: fmt.Sprintf(":%d", test.FreeTCPPort()),
 					Auth: AuthConfig{
-						Type: BearerTokenAuthV2,
-						Audience: "foo",
+						Type:               BearerTokenAuthV2,
+						Audience:           "foo",
 						AuthorizedKeysPath: authorizedKeysFile.Name(),
 					},
 				}
