@@ -36,6 +36,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
@@ -779,6 +780,7 @@ func validJWT(t *testing.T, host string) jwt.Token {
 		IssuedAt(issuedAt).
 		NotBefore(notBefore).
 		Expiration(expires).
+		JwtID(uuid.NewString()).
 		Build()
 	require.NoError(t, err)
 	return token
