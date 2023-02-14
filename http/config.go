@@ -92,7 +92,9 @@ const (
 type AuthConfig struct {
 	// Type specifies the type of authentication required for the interface.
 	Type               AuthType `koanf:"type"`
+	// AuthorizedKeysPath specifies the path to an authorized_keys file which specified the allowed signers for JWT tokens
 	AuthorizedKeysPath string   `koanf:"authorizedkeyspath"`
+	// Audience specifies the expected aud value for JWT tokens. If left empty the system hostname is used.
 	Audience           string   `koanf:"audience"`
 }
 
