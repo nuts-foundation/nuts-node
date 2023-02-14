@@ -34,7 +34,7 @@ func New(skipper SkipperFunc, audience string, authorizedKeys []byte) (Middlewar
 	// Parse the authorized keys, returning an error if it fails
 	parsed, err := parseAuthorizedKeys(authorizedKeys)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse authorizedKeys: %w", err)
+		return nil, fmt.Errorf("failed to parse API authorized keys: %w", err)
 	}
 
 	// Log a warning to administrators when their authorized_keys files don't seem to
