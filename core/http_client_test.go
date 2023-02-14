@@ -66,7 +66,7 @@ func TestHTTPClient(t *testing.T) {
 		assert.Equal(t, "Bearer test", authToken)
 	})
 	t.Run("with custom token builder", func(t *testing.T) {
-		client, err := CreateHTTPClient(ClientConfig{}, legacyTokenBuilder{token: "test"})
+		client, err := CreateHTTPClient(ClientConfig{}, newLegacyTokenGenerator("test"))
 		require.NoError(t, err)
 
 		req, _ := stdHttp.NewRequest(stdHttp.MethodGet, server.URL, nil)
@@ -77,7 +77,7 @@ func TestHTTPClient(t *testing.T) {
 		assert.Equal(t, "Bearer test", authToken)
 	})
 	t.Run("with errored token builder", func(t *testing.T) {
-		client, err := CreateHTTPClient(ClientConfig{}, errTokenBuilder{})
+		client, err := CreateHTTPClient(ClientConfig{}, newErrorTokenBuilder())
 		require.NoError(t, err)
 
 		req, _ := stdHttp.NewRequest(stdHttp.MethodGet, server.URL, nil)
@@ -125,8 +125,8 @@ func (r readCloser) Close() error {
 	return nil
 }
 
-type errTokenBuilder struct{}
-
-func (etb errTokenBuilder) Create() (string, error) {
-	return "", errors.New("error")
+func newErrorTokenBuilder() AuthorizationTokenGenerator {
+	return func() (string, error) {
+		return "", errors.New("error")
+	}
 }

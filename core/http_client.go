@@ -74,7 +74,7 @@ func (w httpRequestDoerAdapter) Do(req *http.Request) (*http.Response, error) {
 // This does not use the generated client options for e.g. authentication,
 // because each generated OpenAPI client reimplements the client options using structs,
 // which makes them incompatible with each other, making it impossible to use write generic client code for common traits like authorization.
-func CreateHTTPClient(cfg ClientConfig, builder AuthorizationTokenBuilder) (HTTPRequestDoer, error) {
+func CreateHTTPClient(cfg ClientConfig, generator AuthorizationTokenGenerator) (HTTPRequestDoer, error) {
 	var result *httpRequestDoerAdapter
 	client := &http.Client{}
 	client.Timeout = cfg.Timeout
@@ -82,7 +82,7 @@ func CreateHTTPClient(cfg ClientConfig, builder AuthorizationTokenBuilder) (HTTP
 		fn: client.Do,
 	}
 
-	if builder == nil {
+	if generator == nil {
 		// Add auth interceptor if configured
 		authToken, err := cfg.GetAuthToken()
 		if err != nil {
@@ -90,17 +90,17 @@ func CreateHTTPClient(cfg ClientConfig, builder AuthorizationTokenBuilder) (HTTP
 		}
 
 		if len(authToken) > 0 {
-			builder = legacyTokenBuilder{token: authToken}
+			generator = newLegacyTokenGenerator(authToken)
 		}
 	}
 
-	if builder == nil {
-		builder = noAuth{}
+	if generator == nil {
+		generator = newEmptyTokenGenerator()
 	}
 
 	fn := result.fn
 	result = &httpRequestDoerAdapter{fn: func(req *http.Request) (*http.Response, error) {
-		token, err := builder.Create()
+		token, err := generator()
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate authorization token: %w", err)
 		}
@@ -114,30 +114,25 @@ func CreateHTTPClient(cfg ClientConfig, builder AuthorizationTokenBuilder) (HTTP
 }
 
 // MustCreateHTTPClient is like CreateHTTPClient but panics if it returns an error.
-func MustCreateHTTPClient(cfg ClientConfig, builder AuthorizationTokenBuilder) HTTPRequestDoer {
-	client, err := CreateHTTPClient(cfg, builder)
+func MustCreateHTTPClient(cfg ClientConfig, generator AuthorizationTokenGenerator) HTTPRequestDoer {
+	client, err := CreateHTTPClient(cfg, generator)
 	if err != nil {
 		panic(err)
 	}
 	return client
 }
 
-// AuthorizationTokenBuilder holds methods for creating a bearer token for an HTTP request
-type AuthorizationTokenBuilder interface {
-	Create() (string, error)
+// AuthorizationTokenGenerator is a function type definition for creating authorization tokens
+type AuthorizationTokenGenerator func() (string, error)
+
+func newLegacyTokenGenerator(token string) AuthorizationTokenGenerator {
+	return func() (string, error) {
+		return token, nil
+	}
 }
 
-type legacyTokenBuilder struct {
-	token string
-}
-
-func (ltb legacyTokenBuilder) Create() (string, error) {
-	return ltb.token, nil
-}
-
-type noAuth struct {
-}
-
-func (atb noAuth) Create() (string, error) {
-	return "", nil
+func newEmptyTokenGenerator() AuthorizationTokenGenerator {
+	return func() (string, error) {
+		return "", nil
+	}
 }
