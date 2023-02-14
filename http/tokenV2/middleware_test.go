@@ -1378,6 +1378,96 @@ func TestMissingAud(t *testing.T) {
 	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
+// TestMissingIss ensures a JWT with a missing issuer is rejected with 401 Unauthorized
+func TestMissingIss(t *testing.T) {
+	// Generate a new test key and jwt serializer
+	_, serializer, authorizedKey := generateEd25519TestKey(t)
+
+	// Create a new JWT without a jti
+	token := validJWT(t)
+	err := token.Remove(jwt.IssuerKey)
+	require.NoError(t, err)
+
+	// Sign and serialize the JWT
+	serialized, err := serializer.Serialize(token)
+	require.NoError(t, err)
+	t.Logf("jwt=%v", string(serialized))
+
+	// Create the middleware
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
+	require.NoError(t, err)
+
+	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
+	handler := middleware.Handler(statusOKHandler)
+
+	// Create a test GET request
+	request, err := http.NewRequest("GET", "/", nil)
+	require.NoError(t, err)
+
+	// Set the authorization header in the test request
+	header := fmt.Sprintf("Bearer %v", string(serialized))
+	request.Header.Set("Authorization", header)
+
+	// Setup a test context which wraps the test request and records the response
+	recorder := httptest.NewRecorder()
+	testCtx := echo.New().NewContext(request, recorder)
+
+	// Call the handler, ensuring the appropriate error is returned
+	err = handler(testCtx)
+	require.Error(t, err)
+	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: missing field: iss")
+
+	// Check for a 401 Unauthorized response
+	require.NotNil(t, testCtx.Response())
+	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
+	assert.Equal(t, unauthorized, recorder.Body.String())
+}
+
+// TestMissingSub ensures a JWT with a missing subject is rejected with 401 Unauthorized
+func TestMissingSub(t *testing.T) {
+	// Generate a new test key and jwt serializer
+	_, serializer, authorizedKey := generateEd25519TestKey(t)
+
+	// Create a new JWT without a jti
+	token := validJWT(t)
+	err := token.Remove(jwt.SubjectKey)
+	require.NoError(t, err)
+
+	// Sign and serialize the JWT
+	serialized, err := serializer.Serialize(token)
+	require.NoError(t, err)
+	t.Logf("jwt=%v", string(serialized))
+
+	// Create the middleware
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
+	require.NoError(t, err)
+
+	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
+	handler := middleware.Handler(statusOKHandler)
+
+	// Create a test GET request
+	request, err := http.NewRequest("GET", "/", nil)
+	require.NoError(t, err)
+
+	// Set the authorization header in the test request
+	header := fmt.Sprintf("Bearer %v", string(serialized))
+	request.Header.Set("Authorization", header)
+
+	// Setup a test context which wraps the test request and records the response
+	recorder := httptest.NewRecorder()
+	testCtx := echo.New().NewContext(request, recorder)
+
+	// Call the handler, ensuring the appropriate error is returned
+	err = handler(testCtx)
+	require.Error(t, err)
+	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: missing field: sub")
+
+	// Check for a 401 Unauthorized response
+	require.NotNil(t, testCtx.Response())
+	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
+	assert.Equal(t, unauthorized, recorder.Body.String())
+}
+
 // TestMissingJTI ensures a JWT with a missing JwtID is rejected with 401 Unauthorized
 func TestMissingJTI(t *testing.T) {
 	// Generate a new test key and jwt serializer

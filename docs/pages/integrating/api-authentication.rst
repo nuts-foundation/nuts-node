@@ -25,6 +25,8 @@ Custom JWT Generation
 =====================
 
 Custom JWT's can be generated and must meet the following requirements:
+* The iss field must be present
+* The sub field must be present
 * The iat field must be present
 * The nbf field must be present
 * The exp field must be present
