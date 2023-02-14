@@ -111,11 +111,11 @@ func (m middlewareImpl) Handler(next echo.HandlerFunc) echo.HandlerFunc {
 
 		// Attempt verifying the JWT using every available authorized key
 		for _, authorizedKey := range m.authorizedKeys {
-			log.Logger().Tracef("Checking key %v", authorizedKey.JWK.KeyID())
+			log.Logger().Tracef("Checking key %v", authorizedKey.jwk.KeyID())
 
 			// Put this authorized key into a JWK keyset which can be easily used for verification
 			keySet := jwk.NewSet()
-			keySet.Add(authorizedKey.JWK)
+			keySet.Add(authorizedKey.jwk)
 
 			// Parse the token, requesting verification using the keyset constructed above.
 			// If the JWT was not signed by this key then this will fail.
@@ -144,13 +144,13 @@ func (m middlewareImpl) Handler(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 
 			// The user is authorized, log a message accordingly
-			log.Logger().Tracef("Authorized user %v", authorizedKey.Comment)
+			log.Logger().Tracef("Authorized user %v", authorizedKey.comment)
 
 			// Log an entry in the audit log about this user access
-			auditLog(context, authorizedKey.Comment, audit.AccessGrantedEvent)
+			auditLog(context, authorizedKey.comment, audit.AccessGrantedEvent)
 
 			// Set the username from authorized_keys as the username in the context
-			context.Set(core.UserContextKey, authorizedKey.Comment)
+			context.Set(core.UserContextKey, authorizedKey.comment)
 
 			// Call the next handler/middleware, probably serving some content/processing the API request
 			return next(context)

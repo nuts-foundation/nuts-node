@@ -21,19 +21,19 @@ const minimumRSAKeySize = 2048
 
 // authorizedKey is an SSH authorized key
 type authorizedKey struct {
-	Key     ssh.PublicKey
-	Comment string
-	Options []string
-	JWK     jwk.Key
+	key     ssh.PublicKey
+	comment string
+	options []string
+	jwk     jwk.Key
 }
 
 // String returns a string representation of an authorized key
 func (a authorizedKey) String() string {
-	encodedOptions := strings.Join(a.Options, ",")
+	encodedOptions := strings.Join(a.options, ",")
 	if encodedOptions != "" {
 		encodedOptions += " "
 	}
-	return fmt.Sprintf("%v%v %v %v", encodedOptions, a.Key.Type(), b64.StdEncoding.EncodeToString(a.Key.Marshal()), a.Comment)
+	return fmt.Sprintf("%v%v %v %v", encodedOptions, a.key.Type(), b64.StdEncoding.EncodeToString(a.key.Marshal()), a.comment)
 }
 
 // cryptoPublicKey converts a standard SSH library key to a stdlib crypto/* key
@@ -124,10 +124,10 @@ func parseAuthorizedKeys(contents []byte) ([]authorizedKey, error) {
 		}
 
 		authorizedKeys = append(authorizedKeys, authorizedKey{
-			Key:     publicKey,
-			Comment: comment,
-			Options: options,
-			JWK:     jwkPublicKey,
+			key:     publicKey,
+			comment: comment,
+			options: options,
+			jwk:     jwkPublicKey,
 		})
 	}
 
