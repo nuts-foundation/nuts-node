@@ -324,7 +324,7 @@ func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludeP
 	// Allow API endpoints without authentication
 	case "":
 		return nil
-	
+
 	// The legacy authentication middleware
 	case BearerTokenAuth:
 		log.Logger().Infof("Enabling token authentication for HTTP interface: %s%s", address, path)
@@ -346,7 +346,7 @@ func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludeP
 			ContextKey:    core.UserContextKey,
 			SigningMethod: jwa.ES256.String(),
 		}))
-	
+
 	// The V2 bearer token authentication middleware
 	case BearerTokenAuthV2:
 		log.Logger().Infof("Enabling token authentication (v2) for HTTP interface: %s%s", address, path)

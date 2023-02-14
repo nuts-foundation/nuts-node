@@ -91,9 +91,9 @@ const (
 // AuthConfig contains the configuration for authentication for an HTTP interface.
 type AuthConfig struct {
 	// Type specifies the type of authentication required for the interface.
-	Type AuthType `koanf:"type"`
-	AuthorizedKeysPath string `koanf:"authorizedkeyspath"`
-	Audience string `koanf:"audience"`
+	Type               AuthType `koanf:"type"`
+	AuthorizedKeysPath string   `koanf:"authorizedkeyspath"`
+	Audience           string   `koanf:"audience"`
 }
 
 // CORSConfig contains configuration for Cross Origin Resource Sharing.
