@@ -478,7 +478,7 @@ func TestWrongAudienceJWT(t *testing.T) {
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: aud not satisfied")
 
 	// Check for a 401 Unauthorized response
-	assert.NotNil(t, testCtx.Response())
+	require.NotNil(t, testCtx.Response())
 	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
 	assert.Equal(t, unauthorized, recorder.Body.String())
 }
@@ -525,7 +525,7 @@ func TestWrongKeyID(t *testing.T) {
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "credential not signed by an authorized key")
 
 	// Check for a 401 Unauthorized response
-	assert.NotNil(t, testCtx.Response())
+	require.NotNil(t, testCtx.Response())
 	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
 	assert.Equal(t, unauthorized, recorder.Body.String())
 }
@@ -571,7 +571,7 @@ func TestExpiredJWT(t *testing.T) {
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: exp not satisfied")
 
 	// Check for a 401 Unauthorized response
-	assert.NotNil(t, testCtx.Response())
+	require.NotNil(t, testCtx.Response())
 	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
 	assert.Equal(t, unauthorized, recorder.Body.String())
 }
@@ -619,7 +619,7 @@ func TestFutureIATJWT(t *testing.T) {
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: iat not satisfied")
 
 	// Check for a 401 Unauthorized response
-	assert.NotNil(t, testCtx.Response())
+	require.NotNil(t, testCtx.Response())
 	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
 	assert.Equal(t, unauthorized, recorder.Body.String())
 }
@@ -667,7 +667,7 @@ func TestFutureNBFJWT(t *testing.T) {
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: nbf not satisfied")
 
 	// Check for a 401 Unauthorized response
-	assert.NotNil(t, testCtx.Response())
+	require.NotNil(t, testCtx.Response())
 	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
 	assert.Equal(t, unauthorized, recorder.Body.String())
 }
@@ -713,7 +713,7 @@ func TestUnauthorizedKey(t *testing.T) {
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "credential not signed by an authorized key")
 
 	// Check for a 401 Unauthorized response
-	assert.NotNil(t, testCtx.Response())
+	require.NotNil(t, testCtx.Response())
 	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
 	assert.Equal(t, unauthorized, recorder.Body.String())
 }
@@ -756,7 +756,7 @@ func TestNoAuthorizedKeys(t *testing.T) {
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "credential not signed by an authorized key")
 
 	// Check for a 401 Unauthorized response
-	assert.NotNil(t, testCtx.Response())
+	require.NotNil(t, testCtx.Response())
 	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
 	assert.Equal(t, unauthorized, recorder.Body.String())
 }
@@ -795,7 +795,7 @@ func TestMissingAuthorizationHeader(t *testing.T) {
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "missing/malformed credential")
 
 	// Check for a 401 Unauthorized response
-	assert.NotNil(t, testCtx.Response())
+	require.NotNil(t, testCtx.Response())
 	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
 	assert.Equal(t, unauthorized, recorder.Body.String())
 }
@@ -838,7 +838,7 @@ func TestMalformedAuthorizationHeader(t *testing.T) {
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "missing/malformed credential")
 
 	// Check for a 401 Unauthorized response
-	assert.NotNil(t, testCtx.Response())
+	require.NotNil(t, testCtx.Response())
 	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
 	assert.Equal(t, unauthorized, recorder.Body.String())
 }
@@ -881,7 +881,7 @@ func TestNonBearerToken(t *testing.T) {
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "missing/malformed credential")
 
 	// Check for a 401 Unauthorized response
-	assert.NotNil(t, testCtx.Response())
+	require.NotNil(t, testCtx.Response())
 	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
 	assert.Equal(t, unauthorized, recorder.Body.String())
 }
@@ -1373,7 +1373,7 @@ func TestMissingAud(t *testing.T) {
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: claim \"aud\" not found")
 
 	// Check for a 401 Unauthorized response
-	assert.NotNil(t, testCtx.Response())
+	require.NotNil(t, testCtx.Response())
 	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
 	assert.Equal(t, unauthorized, recorder.Body.String())
 }
@@ -1418,7 +1418,7 @@ func TestMissingJTI(t *testing.T) {
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: missing field: jti")
 
 	// Check for a 401 Unauthorized response
-	assert.NotNil(t, testCtx.Response())
+	require.NotNil(t, testCtx.Response())
 	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
 	assert.Equal(t, unauthorized, recorder.Body.String())
 }
@@ -1463,7 +1463,7 @@ func TestNonUUIDJTI(t *testing.T) {
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: token jti is not a valid uuid")
 
 	// Check for a 401 Unauthorized response
-	assert.NotNil(t, testCtx.Response())
+	require.NotNil(t, testCtx.Response())
 	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
 	assert.Equal(t, unauthorized, recorder.Body.String())
 }
@@ -1508,7 +1508,7 @@ func TestMissingIAT(t *testing.T) {
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: missing field: iat")
 
 	// Check for a 401 Unauthorized response
-	assert.NotNil(t, testCtx.Response())
+	require.NotNil(t, testCtx.Response())
 	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
 	assert.Equal(t, unauthorized, recorder.Body.String())
 }
@@ -1553,7 +1553,7 @@ func TestMissingEXP(t *testing.T) {
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: missing field: exp")
 
 	// Check for a 401 Unauthorized response
-	assert.NotNil(t, testCtx.Response())
+	require.NotNil(t, testCtx.Response())
 	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
 	assert.Equal(t, unauthorized, recorder.Body.String())
 }
@@ -1598,7 +1598,7 @@ func TestMissingNBF(t *testing.T) {
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: missing field: nbf")
 
 	// Check for a 401 Unauthorized response
-	assert.NotNil(t, testCtx.Response())
+	require.NotNil(t, testCtx.Response())
 	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
 	assert.Equal(t, unauthorized, recorder.Body.String())
 }
@@ -1649,7 +1649,7 @@ func TestExpiresLongAfterNotBeforeJWT(t *testing.T) {
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: token expires too long after nbf")
 
 	// Check for a 401 Unauthorized response
-	assert.NotNil(t, testCtx.Response())
+	require.NotNil(t, testCtx.Response())
 	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
 	assert.Equal(t, unauthorized, recorder.Body.String())
 }
@@ -1700,7 +1700,7 @@ func TestExpiresLongAfterIssuedAtJWT(t *testing.T) {
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: token expires too long after iat")
 
 	// Check for a 401 Unauthorized response
-	assert.NotNil(t, testCtx.Response())
+	require.NotNil(t, testCtx.Response())
 	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
 	assert.Equal(t, unauthorized, recorder.Body.String())
 }
@@ -1751,7 +1751,7 @@ func TestNotBeforePriorToIssuedAt(t *testing.T) {
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: token nbf occurs before iat")
 
 	// Check for a 401 Unauthorized response
-	assert.NotNil(t, testCtx.Response())
+	require.NotNil(t, testCtx.Response())
 	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
 	assert.Equal(t, unauthorized, recorder.Body.String())
 }
@@ -1787,7 +1787,7 @@ func TestRepeatedACharAuthorizationHeader(t *testing.T) {
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: credential is too long")
 
 	// Check for a 401 Unauthorized response
-	assert.NotNil(t, testCtx.Response())
+	require.NotNil(t, testCtx.Response())
 	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
 	assert.Equal(t, unauthorized, recorder.Body.String())
 }
@@ -1824,7 +1824,7 @@ func TestNOPSledAuthorizationHeader(t *testing.T) {
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "missing/malformed credential")
 
 	// Check for a 401 Unauthorized response
-	assert.NotNil(t, testCtx.Response())
+	require.NotNil(t, testCtx.Response())
 	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
 	assert.Equal(t, unauthorized, recorder.Body.String())
 }
@@ -1865,7 +1865,7 @@ func TestLongB64TripletAuthorizationHeader(t *testing.T) {
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: credential is too long")
 
 	// Check for a 401 Unauthorized response
-	assert.NotNil(t, testCtx.Response())
+	require.NotNil(t, testCtx.Response())
 	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
 	assert.Equal(t, unauthorized, recorder.Body.String())
 }
@@ -1906,7 +1906,7 @@ func TestB64JSONNOPSledAuthorizationHeader(t *testing.T) {
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: credential is too long")
 
 	// Check for a 401 Unauthorized response
-	assert.NotNil(t, testCtx.Response())
+	require.NotNil(t, testCtx.Response())
 	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
 	assert.Equal(t, unauthorized, recorder.Body.String())
 }
@@ -1944,7 +1944,7 @@ func TestB64NOPSledAuthorizationHeader(t *testing.T) {
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: credential is too long")
 
 	// Check for a 401 Unauthorized response
-	assert.NotNil(t, testCtx.Response())
+	require.NotNil(t, testCtx.Response())
 	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
 	assert.Equal(t, unauthorized, recorder.Body.String())
 }
