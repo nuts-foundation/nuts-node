@@ -36,7 +36,7 @@ require (
 	github.com/twmb/murmur3 v1.1.6
 	go.etcd.io/bbolt v1.3.7
 	go.uber.org/atomic v1.10.0
-	go.uber.org/goleak v1.2.0
+	go.uber.org/goleak v1.2.1
 	golang.org/x/time v0.3.0
 	google.golang.org/grpc v1.53.0
 	google.golang.org/protobuf v1.28.1
