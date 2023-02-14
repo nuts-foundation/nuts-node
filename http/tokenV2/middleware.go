@@ -17,6 +17,8 @@ import (
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/lestrrat-go/jwx/jwt"
+
+        "github.com/google/uuid"
 )
 
 type SkipperFunc func(context echo.Context) bool
@@ -194,24 +196,37 @@ func credentialIsSecure(credential string) error {
 	return fmt.Errorf("no signatures found")
 }
 
+// mandatoryJWTFields returns the mandatory fields of the JWT, and is effectively a constant
+func mandatoryJWTFields() []string {
+	return []string{jwt.JwtIDKey, jwt.IssuedAtKey, jwt.ExpirationKey, jwt.NotBeforeKey}
+}
+
+// tokenJTI returns the JWT's JTI as a string
+func tokenJTI(token jwt.Token) string {
+	if jtiIface, ok := token.Get(jwt.JwtIDKey); ok {
+		if jtiStr, ok := jtiIface.(string); ok {
+			return jtiStr
+		}
+	}
+	return ""
+}
+
 // bestPracticesCheck ensures tokens are crafted in a sensible way, ensuring that even a valid signer must
 // conform to certain security controls such as not creating long lived credentials etc.
 //
 // WARNING: This check does not verify signatures or even the essential claims such as NotBefore, Expiration, etc.
 func bestPracticesCheck(token jwt.Token) error {
-	// Ensure the IssuedAt (iat) field is present
-	if _, ok := token.Get(jwt.IssuedAtKey); !ok {
-		return fmt.Errorf("missing field: iat")
+	// Ensure the mandatory fields are present
+	for _, field := range mandatoryJWTFields() {
+		if _, ok := token.Get(field); !ok {
+			return fmt.Errorf("missing field: %v", field)
+		}
 	}
 
-	// Ensure the Expiration (exp) field is present
-	if _, ok := token.Get(jwt.ExpirationKey); !ok {
-		return fmt.Errorf("missing field: exp")
-	}
-
-	// Ensure the NotBefore (nbf) field is present
-	if _, ok := token.Get(jwt.NotBeforeKey); !ok {
-		return fmt.Errorf("missing field: nbf")
+	// Ensure JTI is a UUID
+	jti := tokenJTI(token)
+	if _, err := uuid.Parse(jti); err != nil {
+		return fmt.Errorf("token jti is not a valid uuid: %w", err)
 	}
 
 	// Ensure the expiration is no more than 24.5 hours after NotBefore
