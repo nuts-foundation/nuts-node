@@ -198,7 +198,7 @@ func credentialIsSecure(credential string) error {
 
 // mandatoryJWTFields returns the mandatory fields of the JWT, and is effectively a constant
 func mandatoryJWTFields() []string {
-	return []string{jwt.JwtIDKey, jwt.IssuedAtKey, jwt.ExpirationKey, jwt.NotBeforeKey}
+	return []string{jwt.JwtIDKey, jwt.IssuedAtKey, jwt.ExpirationKey, jwt.NotBeforeKey, jwt.AudienceKey}
 }
 
 // tokenJTI returns the JWT's JTI as a string
