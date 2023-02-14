@@ -203,11 +203,15 @@ func mandatoryJWTFields() []string {
 
 // tokenJTI returns the JWT's JTI as a string
 func tokenJTI(token jwt.Token) string {
+	// Retrieve the JwtID from the token, but it comes out as an interface{}
 	if jtiIface, ok := token.Get(jwt.JwtIDKey); ok {
+		// Convert the interface{} to a string so the typed value can be returned
 		if jtiStr, ok := jtiIface.(string); ok {
 			return jtiStr
 		}
 	}
+	
+	// Simply return an empty string if either the jti field wasn't present or it wasn't a string
 	return ""
 }
 
