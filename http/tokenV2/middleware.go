@@ -19,6 +19,8 @@ import (
 	"github.com/lestrrat-go/jwx/jwt"
 )
 
+type SkipperFunc func(context echo.Context) bool
+
 // MaximumCredentialLength defines the maximum number of characters in a credential
 const MaximumCredentialLength = 4096
 
@@ -26,7 +28,7 @@ const MaximumCredentialLength = 4096
 // authorized_keys file. Requests containing a JWT Bearer token signed by one of
 // the specified keys will be authorized, and those not will receive an HTTP 401
 // error.
-func New(audience string, authorizedKeys []byte) (Middleware, error) {
+func New(skipper SkipperFunc, audience string, authorizedKeys []byte) (Middleware, error) {
 	// Parse the authorized keys, returning an error if it fails
 	parsed, err := parseAuthorizedKeys(authorizedKeys)
 	if err != nil {
@@ -43,12 +45,13 @@ func New(audience string, authorizedKeys []byte) (Middleware, error) {
 	impl := &middlewareImpl{
 		audience:       audience,
 		authorizedKeys: parsed,
+		skipper: skipper,
 	}
 	return impl, nil
 }
 
 // NewFromFile is like New but it takes the path for an authorized_keys file
-func NewFromFile(audience string, authorizedKeysPath string) (Middleware, error) {
+func NewFromFile(skipper SkipperFunc, audience string, authorizedKeysPath string) (Middleware, error) {
 	// Read the specified path
 	contents, err := os.ReadFile(authorizedKeysPath)
 	if err != nil {
@@ -56,7 +59,7 @@ func NewFromFile(audience string, authorizedKeysPath string) (Middleware, error)
 	}
 
 	// Use the contents of the file to create a new middleware
-	return New(audience, contents)
+	return New(skipper, audience, contents)
 }
 
 // Middleware defines the public interface to be set with Use() on an echo server
@@ -71,11 +74,20 @@ type middlewareImpl struct {
 
 	// authorizedKeys defines a number of SSH formatted public keys trusted to sign JWT credentials
 	authorizedKeys []authorizedKey
+	
+	// skipper provides optional external logic for skipping authorization enforcement on certain requests
+	skipper SkipperFunc
 }
 
 // Handler returns an echo HandlerFunc for processing incoming requests
 func (m middlewareImpl) Handler(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(context echo.Context) error {
+		// Allow skipping enforcement on certain requests using external logic
+		if m.skipper != nil && m.skipper(context) {
+			log.Logger().Tracef("skipping authorization enforcement for request context: %v", context)
+			return next(context)
+		}
+
 		// Extract the authentication credential for this request
 		credential := authenticationCredential(context)
 
