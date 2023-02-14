@@ -32,11 +32,11 @@ import (
 // HTTPClient holds the server address and other basic settings for the http client
 type HTTPClient struct {
 	core.ClientConfig
-	tokenBuilder core.AuthorizationTokenBuilder
+	TokenGenerator core.AuthorizationTokenGenerator
 }
 
 func (hb HTTPClient) client() ClientInterface {
-	response, err := NewClientWithResponses(hb.GetAddress(), WithHTTPClient(core.MustCreateHTTPClient(hb.ClientConfig, hb.tokenBuilder)))
+	response, err := NewClientWithResponses(hb.GetAddress(), WithHTTPClient(core.MustCreateHTTPClient(hb.ClientConfig, hb.TokenGenerator)))
 	if err != nil {
 		panic(err)
 	}
