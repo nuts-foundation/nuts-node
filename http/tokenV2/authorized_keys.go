@@ -167,3 +167,4 @@ func keyIsSecure(key ssh.PublicKey) (bool, error) {
 		return false, fmt.Errorf("unsupported key type: %T", cryptoPublicKey)
 	}
 }
+

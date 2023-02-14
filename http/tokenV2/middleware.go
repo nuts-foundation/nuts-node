@@ -1,6 +1,7 @@
 package tokenV2
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -41,6 +42,11 @@ func New(skipper SkipperFunc, audience string, authorizedKeys []byte) (Middlewar
 	// contain any valid keys.
 	if len(parsed) == 0 {
 		log.Logger().Warn("No keys were parsed from authorized_keys")
+	}
+
+	// Audit log the authorized keys
+	for _, authorizedKey := range parsed {
+		auditLogWithoutContext(authorizedKey.String(), audit.AccessKeyRegisteredEvent)
 	}
 
 	// Return the private struct implementing the public interface
@@ -366,5 +372,11 @@ func defaultActor(context echo.Context) string {
 // auditLog logs a security event about an actor given a certain echo context
 func auditLog(context echo.Context, actor string, event string) {
 	auditContext := audit.Context(context.Request().Context(), actor, "tokenV2", "middleware")
+	audit.Log(auditContext, log.Logger(), event)
+}
+
+// auditLogWithoutContext logs a security event about an actor without a given context
+func auditLogWithoutContext(actor string, event string) {
+	auditContext := audit.Context(context.Background(), actor, "tokenV2", "middleware")
 	audit.Log(auditContext, log.Logger(), event)
 }
