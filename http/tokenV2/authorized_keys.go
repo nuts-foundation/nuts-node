@@ -103,15 +103,15 @@ func parseAuthorizedKeys(contents []byte) ([]authorizedKey, error) {
 			log.Logger().Warnf("ignoring insecure authorized_keys entry: %v, err=%v", line, err)
 			continue
 		}
-                
-                // Trim whitespace from the comment/username
-                comment = strings.TrimSpace(comment)
-                
-                // Ignore keys without a comment/username
-                if comment == "" {
-                        log.Logger().Warnf("ignoring authorized_keys entry without comment/username: %v", line)
-                        continue
-                }
+
+		// Trim whitespace from the comment/username
+		comment = strings.TrimSpace(comment)
+
+		// Ignore keys without a comment/username
+		if comment == "" {
+			log.Logger().Warnf("ignoring authorized_keys entry without comment/username: %v", line)
+			continue
+		}
 
 		// Ensure rest is empty, meaning the entire line was parsed
 		if rest != nil {
@@ -150,7 +150,7 @@ func keyIsSecure(key ssh.PublicKey) (bool, error) {
 		if bitLen := rawKey.N.BitLen(); bitLen >= minimumRSAKeySize {
 			return true, nil
 		}
-	
+
 		// Reject RSA keys less than 2048 bits in length as they are considered weak
 		return false, errors.New("key is too weak (rsa keys must be at least 2048-bit)")
 
