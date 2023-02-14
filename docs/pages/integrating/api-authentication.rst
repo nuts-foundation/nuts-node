@@ -31,8 +31,8 @@ Custom JWT's can be generated and must meet the following requirements:
 * The iat value must occur before the nbf value
 * The exp value must occur no more than 24 hours after the iat value
 * The jti field must be present and contain a UUID string
-* The aud signature field must be present
-* The aud signature field must contain the configured ``auth.audience`` parameter (hostname by default) on the nuts node
+* The aud field must be present
+* The aud field must contain the configured ``auth.audience`` parameter (hostname by default) on the nuts node
 * The JWT must be signed by a known ECDSA, Ed25519, or RSA (>=2048-bit) key as configured in ``auth.authorizedkeyspath``
 * Signatures based on RSA keys may use the RS512 or PS512 algorithms only
 * The kid field must contain the SSH SHA256 fingerprint (e.g. ``SHA256:G5hwd24Zl7dyTsAGVxqyZk6z+oJ5UxWcIRL3fWGj7wk``) of the corresponding public key
