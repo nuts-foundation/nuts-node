@@ -387,7 +387,7 @@ func TestWrongAudienceJWT(t *testing.T) {
 
 	// Call the handler, ensuring the appropriate error is returned
 	err = handler(testCtx)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: aud not satisfied")
 
 	// Check for a 401 Unauthorized response
