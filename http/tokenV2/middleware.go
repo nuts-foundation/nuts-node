@@ -40,7 +40,7 @@ func New(skipper SkipperFunc, audience string, authorizedKeys []byte) (Middlewar
 	// Log a warning to administrators when their authorized_keys files don't seem to
 	// contain any valid keys.
 	if len(parsed) == 0 {
-		log.Logger().Warn("no keys were parsed from authorized_keys")
+		log.Logger().Warn("No keys were parsed from authorized_keys")
 	}
 
 	// Return the private struct implementing the public interface
@@ -86,7 +86,7 @@ func (m middlewareImpl) Handler(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(context echo.Context) error {
 		// Allow skipping enforcement on certain requests using external logic
 		if m.skipper != nil && m.skipper(context) {
-			log.Logger().Tracef("skipping authorization enforcement for request context: %v", context)
+			log.Logger().Tracef("Skipping authorization enforcement for request context: %v", context)
 			return next(context)
 		}
 
@@ -105,7 +105,7 @@ func (m middlewareImpl) Handler(next echo.HandlerFunc) echo.HandlerFunc {
 
 		// Attempt verifying the JWT using every available authorized key
 		for _, authorizedKey := range m.authorizedKeys {
-			log.Logger().Tracef("checking key %v", authorizedKey.JWK.KeyID())
+			log.Logger().Tracef("Checking key %v", authorizedKey.JWK.KeyID())
 
 			// Put this authorized key into a JWK keyset which can be easily used for verification
 			keySet := jwk.NewSet()
@@ -119,7 +119,7 @@ func (m middlewareImpl) Handler(next echo.HandlerFunc) echo.HandlerFunc {
 			// to authenticate the request.
 			token, err := jwt.ParseString(credential, jwt.WithKeySet(keySet), jwt.InferAlgorithmFromKey(true))
 			if err != nil {
-				log.Logger().Errorf("failed to parse JWT: %v", err)
+				log.Logger().Errorf("Failed to parse JWT: %v", err)
 				continue
 			}
 
@@ -138,7 +138,7 @@ func (m middlewareImpl) Handler(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 
 			// The user is authorized, log a message accordingly
-			log.Logger().Infof("authorized user %v", authorizedKey.Comment)
+			log.Logger().Infof("Authorized user %v", authorizedKey.Comment)
 
 			// Log an entry in the audit log about this user access
 			auditLog(context, authorizedKey.Comment, audit.AccessGrantedEvent)

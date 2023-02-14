@@ -100,7 +100,7 @@ func parseAuthorizedKeys(contents []byte) ([]authorizedKey, error) {
 
 		// Ignore insecure keys
 		if secure, err := keyIsSecure(publicKey); !secure || err != nil {
-			log.Logger().Warnf("ignoring insecure authorized_keys entry: %v, err=%v", line, err)
+			log.Logger().Warnf("Ignoring insecure authorized_keys entry: %v, err=%v", line, err)
 			continue
 		}
 
@@ -109,7 +109,7 @@ func parseAuthorizedKeys(contents []byte) ([]authorizedKey, error) {
 
 		// Ignore keys without a comment/username
 		if comment == "" {
-			log.Logger().Warnf("ignoring authorized_keys entry without comment/username: %v", line)
+			log.Logger().Warnf("Ignoring authorized_keys entry without comment/username: %v", line)
 			continue
 		}
 
