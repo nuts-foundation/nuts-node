@@ -184,6 +184,93 @@ func TestValidJWTEd25519(t *testing.T) {
 	assert.Equal(t, ok, recorder.Body.String())
 }
 
+// TestValidJWTSingleAudience ensures a valid JWT containing a single audience as a string value results in a 200 OK
+func TestValidJWTSingleAudience(t *testing.T) {
+	// Generate a new test key and jwt serializer
+	_, serializer, authorizedKey := generateEd25519TestKey(t)
+
+	// Create a new JWT
+	token := validJWT(t)
+	token.Set(jwt.AudienceKey, validHostname)
+
+	// Sign and serialize the JWT
+	serialized, err := serializer.Serialize(token)
+	require.NoError(t, err)
+	t.Logf("jwt=%v", string(serialized))
+
+	// Create the middleware
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
+	require.NoError(t, err)
+
+	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
+	handler := middleware.Handler(statusOKHandler)
+
+	// Create a test GET request
+	request, err := http.NewRequest("GET", "/", nil)
+	require.NoError(t, err)
+
+	// Set the authorization header in the test request
+	header := fmt.Sprintf("Bearer %v", string(serialized))
+	request.Header.Set("Authorization", header)
+
+	// Setup a test context which wraps the test request and records the response
+	recorder := httptest.NewRecorder()
+	testCtx := echo.New().NewContext(request, recorder)
+
+	// Call the handler, ensuring no error is returned
+	err = handler(testCtx)
+	assert.NoError(t, err)
+
+	// Ensure the 200 OK response is present
+	require.NotNil(t, testCtx.Response())
+	assert.Equal(t, http.StatusOK, recorder.Result().StatusCode)
+	assert.Equal(t, ok, recorder.Body.String())
+}
+
+// TestInvalidSingleAudience ensures a valid JWT containing a single audience as a string value results in a 401 Unauthorized
+func TestInvalidSingleAudience(t *testing.T) {
+	// Generate a new test key and jwt serializer
+	_, serializer, authorizedKey := generateEd25519TestKey(t)
+
+	// Create a new JWT
+	token := validJWT(t)
+	token.Set(jwt.AudienceKey, invalidHostname)
+
+	// Sign and serialize the JWT
+	serialized, err := serializer.Serialize(token)
+	require.NoError(t, err)
+	t.Logf("jwt=%v", string(serialized))
+
+	// Create the middleware
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
+	require.NoError(t, err)
+
+	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
+	handler := middleware.Handler(statusOKHandler)
+
+	// Create a test GET request
+	request, err := http.NewRequest("GET", "/", nil)
+	require.NoError(t, err)
+
+	// Set the authorization header in the test request
+	header := fmt.Sprintf("Bearer %v", string(serialized))
+	request.Header.Set("Authorization", header)
+
+	// Setup a test context which wraps the test request and records the response
+	recorder := httptest.NewRecorder()
+	testCtx := echo.New().NewContext(request, recorder)
+
+	// Call the handler, ensuring the appropriate error is returned
+	err = handler(testCtx)
+	require.Error(t, err)
+	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: aud not satisfied")
+
+	// Ensure the 200 OK response is present
+	require.NotNil(t, testCtx.Response())
+	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
+	assert.Equal(t, unauthorized, recorder.Body.String())
+}
+
 // TestValidJWTCaseInsensitiveBearer ensures a valid JWT placed in a strangely cased authorization header authorizes a request
 func TestValidJWTCaseInsensitiveBearer(t *testing.T) {
 	// Generate a new test key and jwt serializer
@@ -1246,7 +1333,52 @@ func TestNoneAlgUnsignedJWT(t *testing.T) {
 	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
-// TestMissingJTI ensures a JWT with a missing IssuedAt is rejected with 401 Unauthorized
+// TestMissingAud ensures a JWT with a missing audience is rejected with 401 Unauthorized
+func TestMissingAud(t *testing.T) {
+	// Generate a new test key and jwt serializer
+	_, serializer, authorizedKey := generateEd25519TestKey(t)
+
+	// Create a new JWT without a jti
+	token := validJWT(t)
+	err := token.Remove(jwt.AudienceKey)
+	require.NoError(t, err)
+
+	// Sign and serialize the JWT
+	serialized, err := serializer.Serialize(token)
+	require.NoError(t, err)
+	t.Logf("jwt=%v", string(serialized))
+
+	// Create the middleware
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
+	require.NoError(t, err)
+
+	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
+	handler := middleware.Handler(statusOKHandler)
+
+	// Create a test GET request
+	request, err := http.NewRequest("GET", "/", nil)
+	require.NoError(t, err)
+
+	// Set the authorization header in the test request
+	header := fmt.Sprintf("Bearer %v", string(serialized))
+	request.Header.Set("Authorization", header)
+
+	// Setup a test context which wraps the test request and records the response
+	recorder := httptest.NewRecorder()
+	testCtx := echo.New().NewContext(request, recorder)
+
+	// Call the handler, ensuring the appropriate error is returned
+	err = handler(testCtx)
+	require.Error(t, err)
+	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: claim \"aud\" not found")
+
+	// Check for a 401 Unauthorized response
+	assert.NotNil(t, testCtx.Response())
+	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
+	assert.Equal(t, unauthorized, recorder.Body.String())
+}
+
+// TestMissingJTI ensures a JWT with a missing JwtID is rejected with 401 Unauthorized
 func TestMissingJTI(t *testing.T) {
 	// Generate a new test key and jwt serializer
 	_, serializer, authorizedKey := generateEd25519TestKey(t)
