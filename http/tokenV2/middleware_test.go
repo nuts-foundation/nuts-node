@@ -153,7 +153,7 @@ func TestValidJWTEd25519(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -195,7 +195,7 @@ func TestValidJWTCaseInsensitiveBearer(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -237,7 +237,7 @@ func TestValidJWTECDSAES256(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -279,7 +279,7 @@ func TestValidJWTECDSAES384(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -321,7 +321,7 @@ func TestValidJWTECDSAES512(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -364,7 +364,7 @@ func TestWrongAudienceJWT(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -411,7 +411,7 @@ func TestWrongKeyID(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -457,7 +457,7 @@ func TestExpiredJWT(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -505,7 +505,7 @@ func TestFutureIATJWT(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -553,7 +553,7 @@ func TestFutureNBFJWT(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -599,7 +599,7 @@ func TestUnauthorizedKey(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware, trusting a key other than the one used to sign the JWT
-	middleware, err := New(validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -642,7 +642,7 @@ func TestNoAuthorizedKeys(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware, trusting a key other than the one used to sign the JWT
-	middleware, err := New(validHostname, []byte(""))
+	middleware, err := New(nil, validHostname, []byte(""))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -685,7 +685,7 @@ func TestMissingAuthorizationHeader(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware, trusting a key other than the one used to sign the JWT
-	middleware, err := New(validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -724,7 +724,7 @@ func TestMalformedAuthorizationHeader(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware, trusting a key other than the one used to sign the JWT
-	middleware, err := New(validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -767,7 +767,7 @@ func TestNonBearerToken(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware, trusting a key other than the one used to sign the JWT
-	middleware, err := New(validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -811,7 +811,7 @@ func TestInsecureRS256JWT(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -855,7 +855,7 @@ func TestInsecureRS384JWT(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -898,7 +898,7 @@ func TestInsecure1024BitRS512JWT(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -948,7 +948,7 @@ func TestSecureRS512JWT(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -992,7 +992,7 @@ func TestPS256JWT(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -1037,7 +1037,7 @@ func TestPS384JWT(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -1080,7 +1080,7 @@ func TestSecurePS512JWT(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -1111,7 +1111,7 @@ func TestSecurePS512JWT(t *testing.T) {
 // TestHS256JWT ensures an HS256 signed JWT is rejected with a 401 Unauthorized response
 func TestHS256JWT(t *testing.T) {
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(""))
+	middleware, err := New(nil, validHostname, []byte(""))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -1144,7 +1144,7 @@ func TestHS256JWT(t *testing.T) {
 // TestHS384JWT ensures an HS384 signed JWT is rejected with a 401 Unauthorized response
 func TestHS384JWT(t *testing.T) {
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(""))
+	middleware, err := New(nil, validHostname, []byte(""))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -1177,7 +1177,7 @@ func TestHS384JWT(t *testing.T) {
 // TestHS512JWT ensures an HS384 signed JWT is rejected with a 401 Unauthorized response
 func TestHS512JWT(t *testing.T) {
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(""))
+	middleware, err := New(nil, validHostname, []byte(""))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -1214,7 +1214,7 @@ func TestNoneAlgUnsignedJWT(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(""))
+	middleware, err := New(nil, validHostname, []byte(""))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -1259,7 +1259,7 @@ func TestMissingIAT(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -1304,7 +1304,7 @@ func TestMissingEXP(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -1349,7 +1349,7 @@ func TestMissingNBF(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -1400,7 +1400,7 @@ func TestExpiresLongAfterNotBeforeJWT(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -1451,7 +1451,7 @@ func TestExpiresLongAfterIssuedAtJWT(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -1502,7 +1502,7 @@ func TestNotBeforePriorToIssuedAt(t *testing.T) {
 	t.Logf("jwt=%v", string(serialized))
 
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(authorizedKey))
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -1534,7 +1534,7 @@ func TestNotBeforePriorToIssuedAt(t *testing.T) {
 // TestRepeatedACharAuthorizationHeader ensures a request with a very long Authorization header (lots of A characters) results in a 401 Unauthorized response
 func TestRepeatedACharAuthorizationHeader(t *testing.T) {
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(""))
+	middleware, err := New(nil, validHostname, []byte(""))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -1570,7 +1570,7 @@ func TestRepeatedACharAuthorizationHeader(t *testing.T) {
 // TestNOPSledAuthorizationHeader ensures a request with a very long Authorization header (repeated 0x90 bytes) results in a 401 Unauthorized response
 func TestNOPSledAuthorizationHeader(t *testing.T) {
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(""))
+	middleware, err := New(nil, validHostname, []byte(""))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -1607,7 +1607,7 @@ func TestNOPSledAuthorizationHeader(t *testing.T) {
 // TestLongB64TripletAuthorizationHeader ensures a request with a very long Authorization header (a long base64 triplet) results in a 401 Unauthorized response
 func TestLongB64TripletAuthorizationHeader(t *testing.T) {
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(""))
+	middleware, err := New(nil, validHostname, []byte(""))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -1648,7 +1648,7 @@ func TestLongB64TripletAuthorizationHeader(t *testing.T) {
 // TestB64JSONNOPSledAuthorizationHeader ensures a request with a Base64+JSON encoded NOP sled Authorization header results in a 401 Unauthorized response
 func TestB64JSONNOPSledAuthorizationHeader(t *testing.T) {
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(""))
+	middleware, err := New(nil, validHostname, []byte(""))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
@@ -1689,7 +1689,7 @@ func TestB64JSONNOPSledAuthorizationHeader(t *testing.T) {
 // TestB64NOPSledAuthorizationHeader ensures a request with a Base64 encoded NOP sled Authorization header results in a 401 Unauthorized response
 func TestB64NOPSledAuthorizationHeader(t *testing.T) {
 	// Create the middleware
-	middleware, err := New(validHostname, []byte(""))
+	middleware, err := New(nil, validHostname, []byte(""))
 	require.NoError(t, err)
 
 	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
