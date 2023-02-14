@@ -1,6 +1,8 @@
 package tokenV2
 
 import (
+	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rsa"
 	b64 "encoding/base64"
 	"errors"
@@ -11,9 +13,11 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/http/log"
 
-	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
 )
+
+// minimumRSAKeySize defines the minimum length in bits of RSA keys
+const minimumRSAKeySize = 2048
 
 // authorizedKey is an SSH authorized key
 type authorizedKey struct {
@@ -32,8 +36,8 @@ func (a authorizedKey) String() string {
 	return fmt.Sprintf("%v%v %v %v", encodedOptions, a.Key.Type(), b64.StdEncoding.EncodeToString(a.Key.Marshal()), a.Comment)
 }
 
-// jwkFromSSHKey converts a standard SSH library key to a JWX jwk.Key type
-func jwkFromSSHKey(key ssh.PublicKey) (jwk.Key, error) {
+// cryptoPublicKey converts a standard SSH library key to a stdlib crypto/* key
+func cryptoPublicKey(key ssh.PublicKey) (interface{}, error) {
 	// Ensure the provided key implements the optional ssh.CryptoPublicKey interface, which
 	// is able to return standard go crypto primitives. These primitives are needed to convert
 	// the key into a JWX jwk key.
@@ -45,8 +49,19 @@ func jwkFromSSHKey(key ssh.PublicKey) (jwk.Key, error) {
 		return nil, fmt.Errorf("key (%T) does not implement the ssh.CryptoPublicKey interface and cannot be converted", key)
 	}
 
-	// Use the standard key type to create the jwk key type
-	converted, err := jwk.New(standardKey)
+	return standardKey, nil
+}
+
+// jwkFromSSHKey converts a standard SSH library key to a JWX jwk.Key type
+func jwkFromSSHKey(key ssh.PublicKey) (jwk.Key, error) {
+	// Convert the SSH key to a stdlib crypto/* key
+	cryptoPublicKey, err := cryptoPublicKey(key)
+	if err != nil {
+		return nil, err
+	}
+
+	// Use the crypto/* key type to create the jwk key type
+	converted, err := jwk.New(cryptoPublicKey)
 	if err != nil {
 		return nil, err
 	}
@@ -82,6 +97,12 @@ func parseAuthorizedKeys(contents []byte) ([]authorizedKey, error) {
 		if err != nil {
 			return nil, fmt.Errorf("unparseable line (%v): %w", line, err)
 		}
+
+		// Ignore insecure keys
+		if secure, err := keyIsSecure(publicKey); !secure || err != nil {
+			log.Logger().Warnf("ignoring insecure authorized_keys entry: %v, err=%v", line, err)
+			continue
+		}
                 
                 // Trim whitespace from the comment/username
                 comment = strings.TrimSpace(comment)
@@ -92,12 +113,6 @@ func parseAuthorizedKeys(contents []byte) ([]authorizedKey, error) {
                         continue
                 }
 
-		// Ignore DSA keys, which cannot even be converted to JWX/JWK keys and need to be ignored here
-		if publicKey.Type() == ssh.KeyAlgoDSA {
-			log.Logger().Warnf("ignoring insecure key: %v", line)
-			continue
-		}
-
 		// Ensure rest is empty, meaning the entire line was parsed
 		if rest != nil {
 			return nil, fmt.Errorf("line not completely parseable: %v: rest=%v", line, string(rest))
@@ -106,12 +121,6 @@ func parseAuthorizedKeys(contents []byte) ([]authorizedKey, error) {
 		jwkPublicKey, err := jwkFromSSHKey(publicKey)
 		if err != nil {
 			return nil, err
-		}
-
-		// Ignore insecure keys
-		if err := insecureKey(jwkPublicKey); err != nil {
-			log.Logger().Warnf("ignoring insecure authorized_keys entry: %v", line)
-			continue
 		}
 
 		authorizedKeys = append(authorizedKeys, authorizedKey{
@@ -125,28 +134,36 @@ func parseAuthorizedKeys(contents []byte) ([]authorizedKey, error) {
 	return authorizedKeys, nil
 }
 
-// insecureKey returns a non-nil error if a key is considered inherently insecure
-func insecureKey(key jwk.Key) error {
-	// Implement a blacklist of key types using the following switch statement
-	switch key.KeyType() {
-	// RSA keys are only secure if they are at least 2048-bits in length, though 4096-bit keys should be preferred
-	case jwa.RSA:
-		// Convert the JWK key to a raw RSA public key type which allows for inspection of the bit length
-		var rsaKey rsa.PublicKey
-		if err := key.Raw(&rsaKey); err != nil {
-			return fmt.Errorf("unable to convert jwk key: %w", err)
+// keyIsSecure returns true, nil if a key is considered secure
+func keyIsSecure(key ssh.PublicKey) (bool, error) {
+	// Convert the SSH key to a stdlib crypto/* key
+	cryptoPublicKey, err := cryptoPublicKey(key)
+	if err != nil {
+		return false, err
+	}
+
+	// Implement a whitelist of accepted key types
+	switch rawKey := cryptoPublicKey.(type) {
+	// Accept RSA keys >= 2048-bit in length
+	case *rsa.PublicKey:
+		// Accept RSA keys large enough
+		if bitLen := rawKey.N.BitLen(); bitLen >= minimumRSAKeySize {
+			return true, nil
 		}
+	
+		// Reject RSA keys less than 2048 bits in length as they are considered weak
+		return false, errors.New("key is too weak (rsa keys must be at least 2048-bit)")
 
-		// Accept RSA keys of at least 2048 bits in length
-		if rsaKey.N.BitLen() >= 2048 {
-			return nil
-		}
+	// Accept ECDSA keys
+	case *ecdsa.PublicKey:
+		return true, nil
 
-		// Reject all other RSA keys as they are too small and therefore weak
-		return errors.New("RSA keys must be at least 2048-bit")
+	// Accept Edwards curve keys
+	case ed25519.PublicKey:
+		return true, nil
 
-	// Accept all other keys by default
+	// Reject all other keys by default
 	default:
-		return nil
+		return false, fmt.Errorf("unsupported key type: %T", cryptoPublicKey)
 	}
 }
