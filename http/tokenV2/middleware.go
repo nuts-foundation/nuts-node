@@ -232,18 +232,18 @@ func bestPracticesCheck(token jwt.Token) error {
 	// Ensure the expiration is no more than 24.5 hours after NotBefore
 	maxExpirationAfterNotBefore := token.NotBefore().Add(time.Minute * time.Duration(1470))
 	if token.Expiration().After(maxExpirationAfterNotBefore) {
-		return fmt.Errorf("token expires too long after nbf")
+		return errors.New("token expires too long after nbf")
 	}
 
 	// Ensure the expiration is no more than 24.5 hours after IssuedAt
 	maxExpirationAfterIssuedAt := token.IssuedAt().Add(time.Minute * time.Duration(1470))
 	if token.Expiration().After(maxExpirationAfterIssuedAt) {
-		return fmt.Errorf("token expires too long after iat")
+		return errors.New("token expires too long after iat")
 	}
 
 	// Ensure the IssuedAt is <= the NotBefore date
 	if token.IssuedAt().After(token.NotBefore()) {
-		return fmt.Errorf("token nbf occurs before iat")
+		return errors.New("token nbf occurs before iat")
 	}
 
 	// No best practices issues were found, so return nil
