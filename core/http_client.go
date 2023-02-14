@@ -91,7 +91,6 @@ func CreateHTTPClient(cfg ClientConfig, builder AuthorizationTokenBuilder) (HTTP
 
 		if len(authToken) > 0 {
 			builder = legacyTokenBuilder{token: authToken}
-
 		}
 	}
 
