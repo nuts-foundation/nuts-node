@@ -39,9 +39,11 @@ const (
 
 const auditLogLevel = "audit"
 
+// auditLoggerInstance is the logger for auditing. Do not use directly, call auditLogger() instead.
 var auditLoggerInstance *logrus.Logger
 var initAuditLoggerOnce = &sync.Once{}
 
+// auditLogger returns the initialized logger instance intended for audit logging.
 func auditLogger() *logrus.Logger {
 	initAuditLoggerOnce.Do(func() {
 		// Create new logger with custom Formatter, which makes sures the log level is always "audit".
