@@ -138,7 +138,7 @@ func (m middlewareImpl) Handler(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 
 			// The user is authorized, log a message accordingly
-			log.Logger().Infof("Authorized user %v", authorizedKey.Comment)
+			log.Logger().Tracef("Authorized user %v", authorizedKey.Comment)
 
 			// Log an entry in the audit log about this user access
 			auditLog(context, authorizedKey.Comment, audit.AccessGrantedEvent)
