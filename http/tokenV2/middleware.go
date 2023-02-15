@@ -148,8 +148,11 @@ func (m middlewareImpl) Handler(next echo.HandlerFunc) echo.HandlerFunc {
 			// The user is authorized, log a message accordingly
 
 			// Log an entry in the audit log about this user access
+			jwtID, _ := token.Get(jwt.JwtIDKey)
+			subject, _ := token.Get(jwt.SubjectKey)
+			issuer, _ := token.Get(jwt.IssuerKey)
 			auditLog := auditLogger(context, authorizedKey.comment, audit.AccessGrantedEvent)
-			auditLog.Infof("Authorized user %v with credential %v", authorizedKey.comment, credential)
+			auditLog.Infof("Access granted to user '%v' with JWT %s issued to %s by %s", authorizedKey.comment, jwtID, subject, issuer)
 
 			// Set the username from authorized_keys as the username in the context
 			context.Set(core.UserContextKey, authorizedKey.comment)
