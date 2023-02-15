@@ -6,7 +6,7 @@ API Authentication
 JWT Token Authentication
 ************************
 
-The Nuts Node's HTTP APIs can be configured to require third-party signed JWT tokens before allowing calls.
+The Nuts Node's HTTP APIs can be configured to require signed JWT tokens before allowing calls.
 Refer to :ref:`Configuring for Production <production-configuration>` to find out how to configure it.
 
 When enabled you need to pass a bearer token as ``Authorization`` header:
