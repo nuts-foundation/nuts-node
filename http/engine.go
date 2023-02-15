@@ -374,7 +374,6 @@ func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludeP
 
 	// Any other configuration value causes an error condition
 	default:
-		log.Logger().Errorf("Unsupported authentication engine: %v", cfg.Auth.Type)
 		return fmt.Errorf("Unsupported authentication engine: %v", cfg.Auth.Type)
 	}
 
