@@ -127,7 +127,7 @@ func (m middlewareImpl) Handler(next echo.HandlerFunc) echo.HandlerFunc {
 			// to authenticate the request.
 			token, err := jwt.ParseString(credential, jwt.WithKeySet(keySet), jwt.InferAlgorithmFromKey(true))
 			if err != nil {
-				log.Logger().Errorf("Failed to parse JWT: %v", err)
+				log.Logger().WithError(err).Error("Failed to parse JWT")
 				continue
 			}
 
