@@ -22,7 +22,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/storage"
@@ -489,8 +488,9 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 
 		md, _ := client.constructMetadata()
 		clientStream, err := client.openOutboundStream(c, &TestProtocol{}, grpcConn, md)
-		assert.ErrorIs(t, err, ErrNodeDIDAuthFailed)
-		assert.Nil(t, clientStream)
+		assert.False(t, c.Peer().Authenticated)
+		assert.NoError(t, err)
+		assert.NotNil(t, clientStream)
 	})
 	t.Run("remote authentication fails", func(t *testing.T) {
 		serverCfg, serverListener := newBufconnConfig("server")
@@ -755,14 +755,15 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 		clientDID, _ := did.ParseDID("did:nuts:client")
 		expectedPeer.NodeDID = *clientDID
 		serverStream := newServerStream(expectedPeer.ID, expectedPeer.NodeDID.String())
-		ctrl := gomock.NewController(t)
-		authenticator := NewMockAuthenticator(ctrl)
-		authenticator.EXPECT().Authenticate(gomock.Any(), gomock.Any(), gomock.Any()).Return(expectedPeer, errors.New("failed"))
-		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}, nil, &stubNodeDIDReader{}, authenticator).(*grpcConnectionManager)
+		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}, nil, &stubNodeDIDReader{}, NewTLSAuthenticator(nil)).(*grpcConnectionManager)
+		defer cm.Stop() // closes stream
 
-		err := cm.handleInboundStream(protocol, serverStream)
-		assert.Equal(t, err, ErrNodeDIDAuthFailed)
-		assert.Empty(t, cm.connections.list)
+		go cm.handleInboundStream(protocol, serverStream)
+
+		test.WaitFor(t, func() (bool, error) {
+			return len(cm.connections.All()) == 1, nil
+		}, time.Second, "time-out while waiting for connection")
+		assert.False(t, cm.connections.All()[0].Peer().Authenticated)
 	})
 	t.Run("already connected client", func(t *testing.T) {
 		cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}, nil, &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
