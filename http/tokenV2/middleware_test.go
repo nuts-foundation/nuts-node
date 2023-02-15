@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuts-foundation/nuts-node/audit"
+
 	"golang.org/x/crypto/ssh"
 
 	"github.com/labstack/echo/v4"
@@ -30,6 +32,7 @@ import (
 
 const validHostname = "test.local"
 const invalidHostname = "bad.local"
+const validUser = "test@test.local"
 
 const unauthorized = "Unauthorized"
 const ok = "OK"
@@ -43,7 +46,7 @@ func generateEd25519TestKey(t *testing.T) (jwk.Key, *jwt.Serializer, []byte) {
 	// Convert the public key to an ssh key, generating an authorized key representation
 	sshPub, err := ssh.NewPublicKey(pub)
 	require.NoError(t, err)
-	sshAuthKey := fmt.Sprintf("%v %v random@test.local", sshPub.Type(), b64.StdEncoding.EncodeToString(sshPub.Marshal()))
+	sshAuthKey := fmt.Sprintf("%v %v %v", sshPub.Type(), b64.StdEncoding.EncodeToString(sshPub.Marshal()), validUser)
 
 	// Convert the base key type to a jwk type
 	jwkKey, err := jwk.New(priv)
@@ -140,6 +143,121 @@ func validJWT(t *testing.T) jwt.Token {
 func statusOKHandler(context echo.Context) error {
 	context.String(http.StatusOK, ok)
 	return nil
+}
+
+// TestAuditLogAccessKeyRegistered ensures that key authorization events are audit logged
+func TestAuditLogAccessKeyRegistered(t *testing.T) {
+	// Generate a new test key and jwt serializer
+	_, _, authorizedKeys := generateEd25519TestKey(t)
+
+	// Setup audit log capturing
+	capturedAuditLog := audit.CaptureLogs(t)
+
+	// Create the middleware
+	_, err := New(nil, validHostname, []byte(authorizedKeys))
+	require.NoError(t, err)
+
+	// Ensure the audit logging is working
+	capturedAuditLog.AssertContains(t, "http", audit.AccessKeyRegisteredEvent, validHostname, fmt.Sprintf("Registered key: %s", authorizedKeys))
+}
+
+// TestAuditLogAccessDenied ensures that access denied events are audit logged
+func TestAuditLogAccessDenied(t *testing.T) {
+	// Generate a new test key and jwt serializer
+	_, serializer, _ := generateEd25519TestKey(t)
+
+	// Create a new JWT
+	token := validJWT(t)
+
+	// Sign and serialize the JWT
+	serialized, err := serializer.Serialize(token)
+	require.NoError(t, err)
+	t.Logf("jwt=%v", string(serialized))
+
+	// Create the middleware
+	middleware, err := New(nil, validHostname, []byte(""))
+	require.NoError(t, err)
+
+	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
+	handler := middleware.Handler(statusOKHandler)
+
+	// Create a test GET request
+	request, err := http.NewRequest("GET", "/", nil)
+	require.NoError(t, err)
+
+	// Set the authorization header in the test request
+	header := fmt.Sprintf("Bearer %v", string(serialized))
+	request.Header.Set("Authorization", header)
+
+	// Setup a test context which wraps the test request and records the response
+	recorder := httptest.NewRecorder()
+	testCtx := echo.New().NewContext(request, recorder)
+
+	// Setup audit log capturing
+	capturedAuditLog := audit.CaptureLogs(t)
+
+	// Call the handler, ensuring no error is returned
+	err = handler(testCtx)
+	assert.Error(t, err)
+
+	// Ensure the 401 Unauthorized response is present
+	require.NotNil(t, testCtx.Response())
+	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
+	assert.Equal(t, unauthorized, recorder.Body.String())
+	
+	// Ensure the audit logging is working
+	capturedAuditLog.AssertContains(t, "http", audit.AccessDeniedEvent, "unknown", "Access denied: credential not signed by an authorized key")
+}
+
+// TestAuditLogAccessGranted ensures that access granted events are audit logged
+func TestAuditLogAccessGranted(t *testing.T) {
+	// Generate a new test key and jwt serializer
+	_, serializer, authorizedKey := generateEd25519TestKey(t)
+
+	// Create a new JWT
+	token := validJWT(t)
+
+	// Sign and serialize the JWT
+	serialized, err := serializer.Serialize(token)
+	require.NoError(t, err)
+	t.Logf("jwt=%v", string(serialized))
+
+	// Create the middleware
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
+	require.NoError(t, err)
+
+	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
+	handler := middleware.Handler(statusOKHandler)
+
+	// Create a test GET request
+	request, err := http.NewRequest("GET", "/", nil)
+	require.NoError(t, err)
+
+	// Set the authorization header in the test request
+	header := fmt.Sprintf("Bearer %v", string(serialized))
+	request.Header.Set("Authorization", header)
+
+	// Setup a test context which wraps the test request and records the response
+	recorder := httptest.NewRecorder()
+	testCtx := echo.New().NewContext(request, recorder)
+
+	// Setup audit log capturing
+	capturedAuditLog := audit.CaptureLogs(t)
+
+	// Call the handler, ensuring no error is returned
+	err = handler(testCtx)
+	assert.NoError(t, err)
+
+	// Ensure the 200 OK response is present
+	require.NotNil(t, testCtx.Response())
+	assert.Equal(t, http.StatusOK, recorder.Result().StatusCode)
+	assert.Equal(t, ok, recorder.Body.String())
+	
+	// Ensure the audit logging is working
+	jwtID, _ := token.Get(jwt.JwtIDKey)
+	subject, _ := token.Get(jwt.SubjectKey)
+	issuer, _ := token.Get(jwt.IssuerKey)
+	capturedAuditLog.AssertContains(t, "http", audit.AccessGrantedEvent, validUser, fmt.Sprintf("Access granted to user '%v' with JWT %s issued to %s by %s", validUser, jwtID, subject, issuer))
 }
 
 // TestValidJWTEd25519 ensures a valid JWT signed by an Ed25519 key authorizes a request
