@@ -221,7 +221,7 @@ func TestAuditLogAccessDenied(t *testing.T) {
 	require.NotNil(t, testCtx.Response())
 	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
 	assert.Equal(t, unauthorized, recorder.Body.String())
-	
+
 	// Ensure the audit logging is working
 	capturedAuditLog.AssertContains(t, "http", audit.AccessDeniedEvent, "unknown", "Access denied: credential not signed by an authorized key")
 }
@@ -269,7 +269,7 @@ func TestAuditLogAccessGranted(t *testing.T) {
 	require.NotNil(t, testCtx.Response())
 	assert.Equal(t, http.StatusOK, recorder.Result().StatusCode)
 	assert.Equal(t, ok, recorder.Body.String())
-	
+
 	// Ensure the audit logging is working
 	jwtID, _ := token.Get(jwt.JwtIDKey)
 	subject, _ := token.Get(jwt.SubjectKey)

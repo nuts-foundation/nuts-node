@@ -401,4 +401,3 @@ func auditLogger(requestContext echo.Context, actor string, event string) *logru
 	}
 	return audit.Log(auditContext, log.Logger(), event)
 }
-
