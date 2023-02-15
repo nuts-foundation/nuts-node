@@ -19,6 +19,8 @@ import (
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/lestrrat-go/jwx/jwt"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/google/uuid"
 )
 
@@ -46,7 +48,7 @@ func New(skipper SkipperFunc, audience string, authorizedKeys []byte) (Middlewar
 
 	// Audit log the authorized keys
 	for _, authorizedKey := range parsed {
-		auditLogWithoutContext(authorizedKey.String(), audit.AccessKeyRegisteredEvent)
+		auditLogger(nil, audience, audit.AccessKeyRegisteredEvent).Infof("Registered key: %v", authorizedKey)
 	}
 
 	// Return the private struct implementing the public interface
@@ -144,10 +146,10 @@ func (m middlewareImpl) Handler(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 
 			// The user is authorized, log a message accordingly
-			log.Logger().Tracef("Authorized user %v", authorizedKey.comment)
 
 			// Log an entry in the audit log about this user access
-			auditLog(context, authorizedKey.comment, audit.AccessGrantedEvent)
+			auditLog := auditLogger(context, authorizedKey.comment, audit.AccessGrantedEvent)
+			auditLog.Infof("Authorized user %v with credential %v", authorizedKey.comment, credential)
 
 			// Set the username from authorized_keys as the username in the context
 			context.Set(core.UserContextKey, authorizedKey.comment)
@@ -348,7 +350,7 @@ func unauthorizedError(context echo.Context, reason error) *echo.HTTPError {
 	context.Set(core.UserContextKey, "")
 
 	// Log an entry in the audit log about this failure
-	auditLog(context, defaultActor(context), audit.AccessDeniedEvent)
+	auditLogger(context, defaultActor(context), audit.AccessDeniedEvent).Infof("Access denied: %v", reason)
 
 	// Return the appropriate echo error to ensure complete logging
 	return &echo.HTTPError{
@@ -369,14 +371,14 @@ func defaultActor(context echo.Context) string {
 	return "unknown"
 }
 
-// auditLog logs a security event about an actor given a certain echo context
-func auditLog(context echo.Context, actor string, event string) {
-	auditContext := audit.Context(context.Request().Context(), actor, "tokenV2", "middleware")
-	audit.Log(auditContext, log.Logger(), event)
+// auditLogger returns a logger for a givent actor and echo context
+func auditLogger(requestContext echo.Context, actor string, event string) *logrus.Entry {
+	var auditContext context.Context
+	if requestContext != nil {
+		auditContext = audit.Context(requestContext.Request().Context(), actor, "tokenV2", "middleware")
+	} else {
+		auditContext = audit.Context(context.Background(), actor, "tokenV2", "middleware")
+	}
+	return audit.Log(auditContext, log.Logger(), event)
 }
 
-// auditLogWithoutContext logs a security event about an actor without a given context
-func auditLogWithoutContext(actor string, event string) {
-	auditContext := audit.Context(context.Background(), actor, "tokenV2", "middleware")
-	audit.Log(auditContext, log.Logger(), event)
-}
