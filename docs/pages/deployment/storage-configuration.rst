@@ -104,7 +104,7 @@ A Vault token must be provided by either configuring it using the config ``crypt
 The token must have a vault policy which has READ and WRITES rights on the path. In addition it needs to READ the token information "auth/token/lookup-self" which should be part of the default policy.
 
 Migrating to Hashicorp Vault
-----------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Migrating your private keys from the filesystem to Vault is relatively easy: just upload the keys to Vault under ``kv/nuts-private-keys``.
 
