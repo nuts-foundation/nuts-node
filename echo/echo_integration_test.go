@@ -44,6 +44,7 @@ func TestStatusCodes(t *testing.T) {
 	const configFile = `verbosity: debug
 strictmode: false
 network:
+  disablenodeauthentication: true
   enablediscovery: false
   enabletls: false
 auth:

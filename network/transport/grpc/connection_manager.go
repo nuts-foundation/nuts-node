@@ -24,8 +24,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
-	"net"
-
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/log"
@@ -37,6 +35,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	grpcPeer "google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
+	"net"
 )
 
 const defaultMaxMessageSizeInBytes = 1024 * 512
@@ -213,8 +212,11 @@ func (s *grpcConnectionManager) Stop() {
 	prometheus.Unregister(s.recvMessagesCounter)
 }
 
-func (s *grpcConnectionManager) Connect(peerAddress string) {
+func (s *grpcConnectionManager) Connect(peerAddress string, options ...transport.ConnectionOption) {
 	peer := transport.Peer{Address: peerAddress}
+	for _, o := range options {
+		o(&peer)
+	}
 	connection, isNew := s.connections.getOrRegister(s.ctx, peer, s.dialer, true)
 	if !isNew {
 		log.Logger().
@@ -366,7 +368,11 @@ func (s *grpcConnectionManager) openOutboundStream(connection Connection, protoc
 	peer := connection.Peer()
 	peerFromCtx, _ := grpcPeer.FromContext(clientStream.Context())
 
-	authenticatedPeer := s.authenticate(nodeDID, peer, peerFromCtx)
+	authenticatedPeer, err := s.authenticate(nodeDID, peer, peerFromCtx)
+	if err != nil {
+		return nil, fatalError{error: err}
+	}
+
 	connection.setPeer(authenticatedPeer)
 
 	wrappedStream := s.wrapStream(clientStream, protocol)
@@ -381,10 +387,9 @@ func (s *grpcConnectionManager) openOutboundStream(connection Connection, protoc
 	return clientStream, nil
 }
 
-func (s *grpcConnectionManager) authenticate(nodeDID did.DID, peer transport.Peer, peerFromCtx *grpcPeer.Peer) transport.Peer {
+func (s *grpcConnectionManager) authenticate(nodeDID did.DID, peer transport.Peer, peerFromCtx *grpcPeer.Peer) (transport.Peer, error) {
 	if !nodeDID.Empty() {
-		var err error
-		peer, err = s.authenticator.Authenticate(nodeDID, *peerFromCtx, peer)
+		authenticatedPeer, err := s.authenticator.Authenticate(nodeDID, *peerFromCtx, peer)
 		if err != nil {
 			log.Logger().
 				WithError(err).
@@ -392,10 +397,11 @@ func (s *grpcConnectionManager) authenticate(nodeDID did.DID, peer transport.Pee
 				WithField(core.LogFieldDID, nodeDID).
 				Warn("Peer node DID could not be authenticated")
 			// Error message is spec'd by RFC017, because it is returned to the peer
-			//return transport.Peer{}, ErrNodeDIDAuthFailed // TODO: removing this requires a spec change
+			return transport.Peer{}, ErrNodeDIDAuthFailed
 		}
+		return authenticatedPeer, nil
 	}
-	return peer
+	return peer, nil
 }
 
 func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundStream grpc.ServerStream) error {
@@ -435,7 +441,10 @@ func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundSt
 		WithFields(peer.ToFields()).
 		WithField(core.LogFieldProtocolVersion, protocol.Version()).
 		Debug("New inbound stream from peer")
-	peer = s.authenticate(nodeDID, peer, peerFromCtx)
+	peer, err = s.authenticate(nodeDID, peer, peerFromCtx)
+	if err != nil {
+		return err
+	}
 
 	// TODO: Need to authenticate PeerID, to make sure a second stream with a known PeerID is from the same node (maybe even connection).
 	//       Use address from peer context?

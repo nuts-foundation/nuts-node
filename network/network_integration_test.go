@@ -655,44 +655,6 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			return xor1.Equals(xor2), nil
 		}, 10*time.Second, "%s: time-out while waiting for transactions", node2.network.Name())
 	})
-
-	t.Run("TLS disabled", func(t *testing.T) {
-		testDirectory := io.TestDirectory(t)
-		resetIntegrationTest(t)
-		key := nutsCrypto.NewTestKey("key")
-
-		// Start 2 nodes: node1 and node2, node1 sends a private TX to node 2
-		node1 := startNode(t, "noTLS1", testDirectory, func(serverConfig *core.ServerConfig, cfg *Config) {
-			cfg.NodeDID = "did:nuts:node1"
-			serverConfig.LegacyTLS.Enabled = false
-			serverConfig.Strictmode = false
-		})
-		node2 := startNode(t, "noTLS2", testDirectory, func(serverConfig *core.ServerConfig, cfg *Config) {
-			cfg.NodeDID = "did:nuts:node2"
-			serverConfig.LegacyTLS.Enabled = false
-			serverConfig.Strictmode = false
-		})
-		// Now connect node1 to node2 and wait for them to set up
-		node1.network.connectionManager.Connect(nameToAddress(t, "noTLS2"))
-
-		test.WaitFor(t, func() (bool, error) {
-			return len(node1.network.connectionManager.Peers()) == 1 && len(node2.network.connectionManager.Peers()) == 1, nil
-		}, defaultTimeout, "time-out while waiting for node1 to connect to node2")
-
-		node1DID, _ := node1.network.nodeDIDResolver.Resolve()
-		node2DID, _ := node2.network.nodeDIDResolver.Resolve()
-		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
-			WithAttachKey().
-			WithPrivate([]did.DID{node1DID, node2DID})
-		tx, err := node1.network.CreateTransaction(audit.TestContext(), tpl)
-		require.NoError(t, err)
-		waitForTransaction(t, tx, "noTLS2")
-
-		// assert not only TX is transfered, but state is updates as well
-		xor1, _ := node1.network.state.XOR(dag.MaxLamportClock)
-		xor2, _ := node2.network.state.XOR(dag.MaxLamportClock)
-		assert.Equal(t, xor1.String(), xor2.String())
-	})
 }
 
 func TestNetworkIntegration_OutboundConnection11Reconnects(t *testing.T) {

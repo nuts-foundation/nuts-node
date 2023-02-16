@@ -55,9 +55,6 @@ const (
 	// softwareID contains the name of the vendor/implementation that's published in the node's diagnostic information.
 	softwareID        = "https://github.com/nuts-foundation/nuts-node"
 	errEventFailedMsg = "failed to emit event for published transaction: %w"
-	// health check keys
-	healthTLS        = "tls"
-	healthAuthConfig = "auth_config"
 )
 
 // defaultBBoltOptions are given to bbolt, allows for package local adjustments during test
@@ -93,43 +90,14 @@ func (n *Network) CheckHealth() map[string]core.Health {
 			Intermediates: core.NewCertPool(n.trustStore.IntermediateCAs),
 		})
 		if err != nil {
-			results[healthTLS] = core.Health{
+			results["tls"] = core.Health{
 				Status:  core.HealthStatusDown,
 				Details: err.Error(),
 			}
 		} else {
-			results[healthTLS] = core.Health{
+			results["tls"] = core.Health{
 				Status: core.HealthStatusUp,
 			}
-		}
-	}
-	// auth_config checks that the node is correctly configured to be authenticated by others
-	nodeDID, err := n.nodeDIDResolver.Resolve()
-	if err != nil {
-		// can only happen when not in strictmode and autoNodeDIDResolver fails
-		results[healthAuthConfig] = core.Health{
-			Status:  core.HealthStatusUnknown,
-			Details: err.Error(),
-		}
-		return results
-	}
-
-	if nodeDID.Empty() {
-		results[healthAuthConfig] = core.Health{
-			Status:  core.HealthStatusUp,
-			Details: "no node DID",
-		}
-		return results
-	}
-
-	if err = n.validateNodeDID(nodeDID); err != nil {
-		results[healthAuthConfig] = core.Health{
-			Status:  core.HealthStatusDown,
-			Details: err.Error(),
-		}
-	} else {
-		results[healthAuthConfig] = core.Health{
-			Status: core.HealthStatusUp,
 		}
 	}
 	return results
@@ -242,23 +210,31 @@ func (n *Network) Configure(config core.ServerConfig) error {
 			}),
 		}
 		// Configure TLS
-		var authenticator grpc.Authenticator
 		if config.LegacyTLS.Enabled {
 			grpcOpts = append(grpcOpts, grpc.WithTLS(n.certificate, n.trustStore, config.TLS.GetCRLMaxValidityDays()))
 			if config.TLS.Offload == core.OffloadIncomingTLS {
 				grpcOpts = append(grpcOpts, grpc.WithTLSOffloading(config.TLS.ClientCertHeaderName))
 			}
-			authenticator = grpc.NewTLSAuthenticator(didservice.NewServiceResolver(n.didDocumentResolver))
 		} else {
 			// Not allowed in strict mode for security reasons: only intended for demo/workshop purposes.
 			if config.Strictmode {
 				return errors.New("disabling TLS in strict mode is not allowed")
 			}
 			log.Logger().Warn("TLS is disabled, which is only meant for demo/workshop purposes!")
-			authenticator = grpc.NewDummyAuthenticator(nil)
+			n.config.DisableNodeAuthentication = true
 		}
 
 		// Instantiate
+		var authenticator grpc.Authenticator
+		if n.config.DisableNodeAuthentication {
+			// Not allowed in strict mode for security reasons: only intended for demo/workshop purposes.
+			if config.Strictmode {
+				return errors.New("disabling node DID in strict mode is not allowed")
+			}
+			authenticator = grpc.NewDummyAuthenticator(nil)
+		} else {
+			authenticator = grpc.NewTLSAuthenticator(didservice.NewServiceResolver(n.didDocumentResolver))
+		}
 		connectionStore, err := n.storeProvider.GetKVStore("connections", storage.VolatileStorageClass)
 		if err != nil {
 			return fmt.Errorf("failed to open connections store: %w", err)
@@ -325,15 +301,21 @@ func (n *Network) Start() error {
 		return err
 	}
 
-	// Sanity check for configured node DID: can we resolve it and do we have the keys?
+	// Sanity check for configured node DID: can we resolve it?
 	nodeDID, err := n.nodeDIDResolver.Resolve()
 	if err != nil {
 		return err
 	}
 	if !nodeDID.Empty() {
-		err = n.validateNodeDIDKeys(nodeDID)
-		if err != nil && n.strictMode {
-			return err
+		err := n.validateNodeDID(nodeDID)
+		if err != nil {
+			if n.strictMode {
+				return fmt.Errorf("invalid NodeDID configuration: %w", err)
+			}
+			log.Logger().
+				WithError(err).
+				WithField(core.LogFieldDID, nodeDID.String()).
+				Error("Node DID is invalid, exchanging private TXs will not work")
 		}
 	}
 
@@ -356,7 +338,7 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 		if len(strings.TrimSpace(bootstrapNode)) == 0 {
 			continue
 		}
-		n.connectionManager.Connect(bootstrapNode)
+		n.connectionManager.Connect(bootstrapNode, transport.WithUnauthenticated())
 	}
 
 	if !n.config.EnableDiscovery {
@@ -395,7 +377,7 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 	return nil
 }
 
-func (n *Network) validateNodeDIDKeys(nodeDID did.DID) error {
+func (n *Network) validateNodeDID(nodeDID did.DID) error {
 	// Check if DID document can be resolved
 	document, _, err := n.didDocumentResolver.Resolve(nodeDID, nil)
 	if err != nil {
@@ -411,13 +393,6 @@ func (n *Network) validateNodeDIDKeys(nodeDID did.DID) error {
 			return fmt.Errorf("keyAgreement private key is not present in key store, recover your key material or register a new keyAgreement key (did=%s,kid=%s)", nodeDID, keyAgreement.ID)
 		}
 	}
-	return nil
-}
-
-func (n *Network) validateNodeDID(nodeDID did.DID) error {
-	if err := n.validateNodeDIDKeys(nodeDID); err != nil {
-		return err
-	}
 
 	// Check if the DID document has a resolvable and valid NutsComm endpoint
 	serviceResolver := didservice.NewServiceResolver(n.didDocumentResolver)
@@ -432,7 +407,7 @@ func (n *Network) validateNodeDID(nodeDID did.DID) error {
 	}
 
 	// Check certificate and confirm it contains the NutsComm address
-	if n.certificate.Leaf == nil {
+	if n.certificate.Leaf == nil { // n.config.DisableNodeAuthentication is for incoming connections.
 		return errors.New("missing TLS certificate")
 	}
 	if err = n.certificate.Leaf.VerifyHostname(nutsCommURL.Hostname()); err != nil {

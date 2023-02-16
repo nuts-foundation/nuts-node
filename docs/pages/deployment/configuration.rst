@@ -73,8 +73,9 @@ Save storage of any private key material requires some serious consideration.
 For this reason the ``crypto.storage`` backend must explicitly be set.
 
 Private transactions can only be exchanged over authenticated nodes.
-Therefore strict mode requires ``network.enabletls=true``, and the certificate chain ``tls.{certfile,certkeyfile,truststore}`` must be provided.
-To verify that authentication is correctly configured on your node, check the ``network.auth`` status on the ``/health`` endpoint.
+Therefore strict mode requires that ``network.enabletls=true``,  ``network.disablenodeauthentication=false``, and the certificate chain``tls.{certfile,certkeyfile,truststore}`` must be provided.
+Since node authentication is bi-directional, the node will try to authenticate itself during startup when a ``network.nodedid`` is provided.
+As a consequence, a valid ``NutsComm`` service must be registered to this ``did`` and the address must match that of the provided TLS certificate or the node will not start.
 See :ref:`getting started <configure-node>` on how to set this up correctly.
 
 The incorporated `IRMA server <https://irma.app/docs/irma-server/#production-mode>`_ is automatically changed to production mode.

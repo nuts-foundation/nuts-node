@@ -21,13 +21,6 @@ Example response when all checks succeeded (formatted for readability):
     {
       "status": "UP",
       "details": {
-        "crypto.filesystem": {
-          "status": "UP"
-        },
-        "network.auth_config": {
-          "status": "UP",
-          "details": "no node DID"
-        },
         "network.tls": {
           "status": "UP"
         }

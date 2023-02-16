@@ -48,9 +48,12 @@ type Peer struct {
 	Address string
 	// NodeDID holds the DID that the peer uses to identify its node on the network.
 	// If Authenticated is true the NodeDID is verified.
+	// TODO: the statement above is incorrect when network.disablenodeauthentication == true
 	NodeDID did.DID
 	// Authenticated is true when NodeDID is set and authentication is successful.
 	Authenticated bool
+	// AcceptUnauthenticated indicates if a connection may be made with this Peer even if the NodeDID could not be authenticated.
+	AcceptUnauthenticated bool
 }
 
 // ToFields returns the peer as a map of fields, to be used when logging the peer details.
