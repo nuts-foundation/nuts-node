@@ -319,6 +319,52 @@ func TestValidJWTEd25519(t *testing.T) {
 	assert.Equal(t, ok, recorder.Body.String())
 }
 
+// TestValidJWTEd25519JWKFingerprint ensures a valid JWT signed by an Ed25519 key identified by its JWK fingerprint rather than SSH fingerprint authorizes a request
+func TestValidJWTEd25519JWKFingerprint(t *testing.T) {
+	// Generate a new test key and jwt serializer
+	key, serializer, authorizedKey := generateEd25519TestKey(t)
+
+	// Modify the key to use the JWK type fingerprint instead of SSH fingerprint
+	require.NoError(t, key.Remove(jwk.KeyIDKey))
+	require.NoError(t, jwk.AssignKeyID(key))
+
+	// Create a new JWT
+	token := validJWT(t)
+
+	// Sign and serialize the JWT
+	serialized, err := serializer.Serialize(token)
+	require.NoError(t, err)
+	t.Logf("jwt=%v", string(serialized))
+
+	// Create the middleware
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
+	require.NoError(t, err)
+
+	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
+	handler := middleware.Handler(statusOKHandler)
+
+	// Create a test GET request
+	request, err := http.NewRequest("GET", "/", nil)
+	require.NoError(t, err)
+
+	// Set the authorization header in the test request
+	header := fmt.Sprintf("Bearer %v", string(serialized))
+	request.Header.Set("Authorization", header)
+
+	// Setup a test context which wraps the test request and records the response
+	recorder := httptest.NewRecorder()
+	testCtx := echo.New().NewContext(request, recorder)
+
+	// Call the handler, ensuring no error is returned
+	err = handler(testCtx)
+	assert.NoError(t, err)
+
+	// Ensure the 200 OK response is present
+	require.NotNil(t, testCtx.Response())
+	assert.Equal(t, http.StatusOK, recorder.Result().StatusCode)
+	assert.Equal(t, ok, recorder.Body.String())
+}
+
 // TestValidJWTSingleAudience ensures a valid JWT containing a single audience as a string value results in a 200 OK
 func TestValidJWTSingleAudience(t *testing.T) {
 	// Generate a new test key and jwt serializer

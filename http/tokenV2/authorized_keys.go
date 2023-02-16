@@ -18,6 +18,7 @@
 package tokenV2
 
 import (
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/rsa"
@@ -38,10 +39,11 @@ const minimumRSAKeySize = 2048
 
 // authorizedKey is an SSH authorized key
 type authorizedKey struct {
+	keyID   string
 	key     ssh.PublicKey
 	comment string
 	options []string
-	jwk     jwk.Key
+	jwkSet  jwk.Set
 }
 
 // String returns a string representation of an authorized key
@@ -135,16 +137,22 @@ func parseAuthorizedKeys(contents []byte) ([]authorizedKey, error) {
 			return nil, fmt.Errorf("line not completely parseable: %v: rest=%v", line, string(rest))
 		}
 
-		jwkPublicKey, err := jwkFromSSHKey(publicKey)
+		// Build a JWK key set to represent this authorized public key
+		jwkSet, err := buildKeySet(publicKey)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to build key set: %w", err)
 		}
 
+		// Get the fingerprint of the key
+		fingerprint := ssh.FingerprintSHA256(publicKey)
+
+		// Build the struct
 		authorizedKeys = append(authorizedKeys, authorizedKey{
+			keyID:   fingerprint,
 			key:     publicKey,
 			comment: comment,
 			options: options,
-			jwk:     jwkPublicKey,
+			jwkSet:  jwkSet,
 		})
 	}
 
@@ -183,4 +191,38 @@ func keyIsSecure(key ssh.PublicKey) (bool, error) {
 	default:
 		return false, fmt.Errorf("unsupported key type: %T", cryptoPublicKey)
 	}
+}
+
+func buildKeySet(key ssh.PublicKey) (jwk.Set, error) {
+	// Start with an empty key set
+	keySet := jwk.NewSet()
+
+	// Add the key with a primary (SSH) fingerprint kid
+	keyPrimary, err := jwkFromSSHKey(key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert SSH key to jwk: %w", err)
+	}
+	keySet.Add(keyPrimary)
+
+	// Create an alternate representaiton of the jwk, which will have a different kid
+	keyAlt, err := jwkFromSSHKey(key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert SSH key to jwk: %w", err)
+	}
+
+	// Remove any existing key ID
+	if err := keyAlt.Remove(jwk.KeyIDKey); err != nil {
+		return nil, fmt.Errorf("failed to remove kid: %w", err)
+	}
+
+	// Rebuild the key ID using the JWK SHA256 fingerprint
+	if err := jwk.AssignKeyID(keyAlt, jwk.WithThumbprintHash(crypto.SHA256)); err != nil {
+		return nil, fmt.Errorf("failed to fingerprint key: %w", err)
+	}
+
+	// Add the alternate jwk to the key set
+	keySet.Add(keyAlt)
+
+	// Return the key set which contains the key twice: once with SSH fingerprint and once with JWK fingerprint
+	return keySet, nil
 }
