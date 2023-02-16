@@ -153,15 +153,7 @@ func (c APIClient) ListPrivateKeys() []string {
 			return nil
 		}
 		keys := *response.JSON200
-		result := make([]string, len(keys))
-		for i, k := range keys {
-			res, err := url.PathUnescape(k)
-			if err != nil {
-				continue
-			}
-			result[i] = res
-		}
-		return result
+		return keys
 	default:
 		return nil
 	}
