@@ -64,7 +64,7 @@ func Test_newAuditFormatter(t *testing.T) {
 		f, err := newAuditFormatter(&textAuditFormatter{})
 
 		assert.Nil(t, f)
-		assert.Error(t, err)
+		assert.EqualError(t, err, "audit: unsupported log formatter: *audit.textAuditFormatter")
 	})
 }
 

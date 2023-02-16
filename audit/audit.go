@@ -48,6 +48,11 @@ func auditLogger() *logrus.Logger {
 	initAuditLoggerOnce.Do(func() {
 		// Create new logger with custom Formatter, which makes sures the log level is always "audit".
 		// Also override the level for this logger, to make sure it is not influenced by a lower log verbosity.
+		// It contains somewhat hacky string replacement, since logrus doesn't support custom log levels
+		// and will probably never do so (since it's in maintenance mode).
+		// Should be solved by migrating to a different logging library, which does support custom log levels.
+		// Alternative solution would be to extend the audit feature to always write to another audit sink (e.g. different log file or database).
+		// Then the audit logs in the application log don't matter that much anymore, and they can be logged on e.g., INFO.
 		auditFormatter, err := newAuditFormatter(logrus.StandardLogger().Formatter)
 		if err != nil {
 			panic(fmt.Sprintf("audit: failed to create audit logger: %v", err))
@@ -86,6 +91,7 @@ func InfoFromContext(ctx context.Context) *Info {
 	return nil
 }
 
+// newAuditFormatter wraps the given logrus.Formatter in a new Formatter that makes sure the log level is always "audit".
 func newAuditFormatter(formatter logrus.Formatter) (logrus.Formatter, error) {
 	switch f := formatter.(type) {
 	case *logrus.JSONFormatter:
