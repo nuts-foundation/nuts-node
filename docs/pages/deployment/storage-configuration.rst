@@ -91,11 +91,11 @@ This is the default backend but not recommended for production. It stores keys u
 Make sure to include the directory in your backups and keep these in a safe place.
 If you want to use filesystem in strict mode, you have to set it explicitly, otherwise the node fails during startup.
 
-Hasicorp Vault
+HashiCorp Vault
 ==============
 
-This storage backend is the recommended way of storing secrets. It uses the `Vault KV version 1 store <https://www.vaultproject.io/docs/secrets/kv/kv-v1>`_.
-The prefix defaults to ``kv`` and can be configured using the ``crypto.vault.pathprefix`` option.
+This storage backend is the current recommended way of storing secrets. It uses the `Vault KV version 1 store <https://www.vaultproject.io/docs/secrets/kv/kv-v1>`_.
+The path prefix defaults to ``kv`` and can be configured using the ``crypto.vault.pathprefix`` option.
 There needs to be a KV Secrets Engine (v1) enabled under this prefix path.
 
 All private keys are stored under the path ``<prefix>/nuts-private-keys/*``.
@@ -104,7 +104,7 @@ A Vault token must be provided by either configuring it using the config ``crypt
 The token must have a vault policy which has READ and WRITES rights on the path. In addition it needs to READ the token information "auth/token/lookup-self" which should be part of the default policy.
 
 Migrating to Hashicorp Vault
-============================
+----------------------------
 
 Migrating your private keys from the filesystem to Vault is relatively easy: just upload the keys to Vault under ``kv/nuts-private-keys``.
 
@@ -115,6 +115,50 @@ Alternatively you can use the ``fs2vault`` crypto command, which takes the direc
     docker exec nuts-node nuts crypto fs2vault /opt/nuts/data/crypto
 
 In any case, make sure the key-value secret engine exists before trying to migrate (default engine name is ``kv``).
+
+External Store API
+==================
+
+.. note::
+
+    The external store API is still experimental and may change in the future.
+
+
+The Nuts node can be configured to use an external store for private keys. This allows you to use your own key management system. The external store must implement the Nuts Secret store API specification. This OpenAPI specification is available from the `Secret Store API repository <https://github.com/nuts-foundation/secret-store-api>`__ on GitHub.
+
+Configuration
+^^^^^^^^^^^^^
+
+In order to use an external store, you need to set the ``crypto.storage`` option to ``external``. You also need to configure the ``crypto.external.address`` option to the address of the external store. The following example shows the typical configuration for a Nuts Vault proxy.
+
+.. code-block:: yaml
+
+    crypto:
+      storage: external
+      external:
+        address: https://localhost:8210
+
+Migrating to external storage
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If you want to migrate your private keys from the filesystem to an external store, you can use the Nuts command line interface with the ``fs2external`` crypto command. It takes the directory containing the private keys as argument (the example assumes the container is called *nuts-node* and *NUTS_DATADIR=/opt/nuts/data*):
+
+.. code-block:: shell
+
+    docker exec nuts-node nuts crypto fs2external /opt/nuts/data/crypto
+
+If you use the `vaultkv` store and want to start using the vault proxy, read the documentation of the Nuts Vault proxy.
+
+
+Available external storage implementations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The following list contains all the known implementations of the Nuts external store API:
+
+- `Nuts Vault proxy <https://github.com/nuts-foundation/hashicorp-vault-proxy>`__. This is a proxy that integrates with Hashicorp Vault. It uses the Vault KV store to store the keys. The proxy is developed by the Nuts foundation and is available under an open source license.
+
+If you want to build your own store, take a look at the documentation at :ref:`external-secret-store`.
+
 
 Trusted issuers
 ***************
