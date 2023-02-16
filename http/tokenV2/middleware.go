@@ -32,7 +32,6 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/lestrrat-go/jwx/jwt"
 
@@ -130,11 +129,7 @@ func (m middlewareImpl) Handler(next echo.HandlerFunc) echo.HandlerFunc {
 
 		// Attempt verifying the JWT using every available authorized key
 		for _, authorizedKey := range m.authorizedKeys {
-			log.Logger().Tracef("Checking key %v", authorizedKey.jwk.KeyID())
-
-			// Put this authorized key into a JWK keyset which can be easily used for verification
-			keySet := jwk.NewSet()
-			keySet.Add(authorizedKey.jwk)
+			log.Logger().Tracef("Checking key %v", authorizedKey.keyID)
 
 			// Parse the token, requesting verification using the keyset constructed above.
 			// If the JWT was not signed by this key then this will fail.
@@ -142,7 +137,7 @@ func (m middlewareImpl) Handler(next echo.HandlerFunc) echo.HandlerFunc {
 			// WARNING: A nil error return from this function is not enough to authenticate a request
 			// as the token may be expired etc. A further check with .Validate() is required in order
 			// to authenticate the request.
-			token, err := jwt.ParseString(credential, jwt.WithKeySet(keySet), jwt.InferAlgorithmFromKey(true))
+			token, err := jwt.ParseString(credential, jwt.WithKeySet(authorizedKey.jwkSet), jwt.InferAlgorithmFromKey(true))
 			if err != nil {
 				log.Logger().WithError(err).Error("Failed to parse JWT")
 				continue
@@ -183,7 +178,7 @@ func (m middlewareImpl) Handler(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
-// credentialIsSecure returns true,nil if a credential meets the minimum security
+// credentialIsSecure returns nil if a credential meets the minimum security
 // standards. This can cover things like sufficiently secure signing algorithms,
 // key size, etc.
 //
@@ -199,7 +194,7 @@ func credentialIsSecure(credential string) error {
 	// because a JWT (JSON Web Token) is built on a JWS where the claims are a signed message.
 	message, err := jws.ParseString(credential)
 	if err != nil {
-		return fmt.Errorf("cannot parse credential: jwk.ParseString: %w", err)
+		return fmt.Errorf("cannot parse credential: jws.ParseString: %w", err)
 	}
 
 	// Inspect the signatures in the message
