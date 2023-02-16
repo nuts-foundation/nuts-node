@@ -19,8 +19,13 @@
 package audit
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"github.com/sirupsen/logrus"
+	"strings"
+	"sync"
 )
 
 const (
@@ -31,6 +36,33 @@ const (
 	// CryptoSignJWSEvent occurs when signing a JWS.
 	CryptoSignJWSEvent = "SignJWS"
 )
+
+const auditLogLevel = "audit"
+
+// auditLoggerInstance is the logger for auditing. Do not use directly, call auditLogger() instead.
+var auditLoggerInstance *logrus.Logger
+var initAuditLoggerOnce = &sync.Once{}
+
+// auditLogger returns the initialized logger instance intended for audit logging.
+func auditLogger() *logrus.Logger {
+	initAuditLoggerOnce.Do(func() {
+		// Create new logger with custom Formatter, which makes sures the log level is always "audit".
+		// Also override the level for this logger, to make sure it is not influenced by a lower log verbosity.
+		// It contains somewhat hacky string replacement, since logrus doesn't support custom log levels
+		// and will probably never do so (since it's in maintenance mode).
+		// Should be solved by migrating to a different logging library, which does support custom log levels.
+		// Alternative solution would be to extend the audit feature to always write to another audit sink (e.g. different log file or database).
+		// Then the audit logs in the application log don't matter that much anymore, and they can be logged on e.g., INFO.
+		auditFormatter, err := newAuditFormatter(logrus.StandardLogger().Formatter)
+		if err != nil {
+			panic(fmt.Sprintf("audit: failed to create audit logger: %v", err))
+		}
+		auditLoggerInstance = logrus.New()
+		auditLoggerInstance.SetFormatter(auditFormatter)
+		auditLoggerInstance.SetLevel(logrus.InfoLevel)
+	})
+	return auditLoggerInstance
+}
 
 // Info provides contextual information for auditable events.
 type Info struct {
@@ -59,6 +91,61 @@ func InfoFromContext(ctx context.Context) *Info {
 	return nil
 }
 
+// newAuditFormatter wraps the given logrus.Formatter in a new Formatter that makes sure the log level is always "audit".
+func newAuditFormatter(formatter logrus.Formatter) (logrus.Formatter, error) {
+	switch f := formatter.(type) {
+	case *logrus.JSONFormatter:
+		return jsonAuditFormatter{formatter: f}, nil
+	case *logrus.TextFormatter:
+		return textAuditFormatter{formatter: f}, nil
+	default:
+		return nil, fmt.Errorf("audit: unsupported log formatter: %T", f)
+	}
+}
+
+type jsonAuditFormatter struct {
+	formatter *logrus.JSONFormatter
+}
+
+type textAuditFormatter struct {
+	formatter *logrus.TextFormatter
+}
+
+func (a textAuditFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	// Make log level predictable for easier replacement later
+	// (then level color for colored output is known beforehand, which is 36 for info)
+	// See sirupsen/logrus@v1.9.0/text_formatter.go:19
+	entry.Level = logrus.InfoLevel
+
+	formattedEntry, err := a.formatter.Format(entry)
+	if err != nil {
+		return nil, err
+	}
+	coloredPrefix := []byte("\x1b[36mINFO")
+	if bytes.HasPrefix(formattedEntry, coloredPrefix) {
+		// Colored output
+		coloredResult := append(formattedEntry[0:len(coloredPrefix)-4], []byte(strings.ToUpper(auditLogLevel))...)
+		coloredResult = append(coloredResult, formattedEntry[len(coloredPrefix)+4:]...)
+		return coloredResult, nil
+	}
+	// Non-colored output
+	return bytes.Replace(formattedEntry, []byte("level="+entry.Level.String()), []byte("level="+auditLogLevel), 1), nil
+}
+
+func (a jsonAuditFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	formattedEntry, err := a.formatter.Format(entry)
+	if err != nil {
+		return nil, err
+	}
+	var logAsJSON map[string]interface{}
+	err = json.Unmarshal(formattedEntry, &logAsJSON)
+	if err != nil {
+		return nil, fmt.Errorf("audit: failed to unmarshal log entry: %w", err)
+	}
+	logAsJSON["level"] = auditLogLevel
+	return json.Marshal(logAsJSON)
+}
+
 // Log logs the given message as an audit event. The context must contain audit information.
 func Log(ctx context.Context, logger *logrus.Entry, eventName string) *logrus.Entry {
 	info := InfoFromContext(ctx)
@@ -75,7 +162,7 @@ func Log(ctx context.Context, logger *logrus.Entry, eventName string) *logrus.En
 		panic("audit: eventName is empty")
 	}
 
-	return logger.WithField("log", "audit").
+	return auditLogger().WithFields(logger.Data).
 		WithField("actor", info.Actor).
 		WithField("operation", info.Operation).
 		WithField("event", eventName)

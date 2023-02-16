@@ -22,6 +22,9 @@ import (
 	"context"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"strings"
+	"sync"
 	"testing"
 )
 
@@ -33,7 +36,6 @@ func TestLog(t *testing.T) {
 
 		assert.Equal(t, "test", actual.Data["event"])
 		assert.Equal(t, TestActor, actual.Data["actor"])
-		assert.Equal(t, "audit", actual.Data["log"])
 	})
 	t.Run("it panics when no actor is set", func(t *testing.T) {
 		assert.Panics(t, func() {
@@ -45,4 +47,65 @@ func TestLog(t *testing.T) {
 			Log(TestContext(), logrus.NewEntry(logrus.StandardLogger()), "")
 		})
 	})
+}
+
+func Test_auditLogger(t *testing.T) {
+	t.Run("invalid formatter", func(t *testing.T) {
+		initAuditLoggerOnce = &sync.Once{}
+		logrus.StandardLogger().SetFormatter(&textAuditFormatter{})
+		assert.Panics(t, func() {
+			auditLogger()
+		})
+	})
+}
+
+func Test_newAuditFormatter(t *testing.T) {
+	t.Run("unsupported", func(t *testing.T) {
+		f, err := newAuditFormatter(&textAuditFormatter{})
+
+		assert.Nil(t, f)
+		assert.EqualError(t, err, "audit: unsupported log formatter: *audit.textAuditFormatter")
+	})
+}
+
+func Test_textAuditFormatter(t *testing.T) {
+	t.Run("colored", func(t *testing.T) {
+		textFormatter := &logrus.TextFormatter{}
+		textFormatter.ForceColors = true
+		f, err := newAuditFormatter(textFormatter)
+		require.NoError(t, err)
+
+		actual, err := f.Format(logEntry())
+
+		require.NoError(t, err)
+		assert.Contains(t, string(actual), "Hello, World!")
+		assert.NotContains(t, string(actual), "INFO")
+		assert.True(t, strings.HasPrefix(string(actual), "\x1b[36mAUDIT["))
+	})
+	t.Run("non-colored", func(t *testing.T) {
+		f, err := newAuditFormatter(&logrus.TextFormatter{})
+		require.NoError(t, err)
+
+		actual, err := f.Format(logEntry())
+
+		require.NoError(t, err)
+		assert.Equal(t, `time="0001-01-01T00:00:00Z" level=audit msg="Hello, World!" foo=bar`+"\n", string(actual))
+	})
+}
+
+func Test_jsonAuditFormatter(t *testing.T) {
+	f, err := newAuditFormatter(&logrus.JSONFormatter{})
+	require.NoError(t, err)
+
+	actual, err := f.Format(logEntry())
+
+	require.NoError(t, err)
+	assert.Equal(t, string(actual), `{"foo":"bar","level":"audit","msg":"Hello, World!","time":"0001-01-01T00:00:00Z"}`)
+}
+
+func logEntry() *logrus.Entry {
+	e := logrus.StandardLogger().WithField("foo", "bar")
+	e.Level = logrus.InfoLevel
+	e.Message = "Hello, World!"
+	return e
 }

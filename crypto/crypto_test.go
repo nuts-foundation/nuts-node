@@ -24,6 +24,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/fs"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
@@ -59,6 +60,8 @@ func TestCrypto_Exists(t *testing.T) {
 
 func TestCrypto_New(t *testing.T) {
 	client := createCrypto(t)
+
+	logrus.StandardLogger().SetFormatter(&logrus.JSONFormatter{})
 
 	t.Run("ok", func(t *testing.T) {
 		kid := "kid"
