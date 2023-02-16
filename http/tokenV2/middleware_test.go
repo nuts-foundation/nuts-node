@@ -711,6 +711,55 @@ func TestWrongKeyID(t *testing.T) {
 	assert.Equal(t, unauthorized, recorder.Body.String())
 }
 
+// TestCorrectKeyIDWithIncorrectSignature ensures a JWT signed by an unknown key but claiming to be signed by a known key results in 401 Unauthorized
+func TestCorrectKeyIDWithIncorrectSignature(t *testing.T) {
+	// Generate a new test key and jwt serializer
+	trustedKey, _, authorizedKey := generateEd25519TestKey(t)
+
+	// Generate a new test key and jwt serializer
+	untrustedKey, untrustedSerializer, _ := generateEd25519TestKey(t)
+
+	// Create a new valid JWT
+	token := validJWT(t)
+
+	// Sign and serialize the JWT with the untrusted key, setting the key id to a trusted key
+	trustedKeyID, found := trustedKey.Get(jwk.KeyIDKey)
+	require.True(t, found)
+	require.NoError(t, untrustedKey.Set(jwk.KeyIDKey, trustedKeyID))
+	serialized, err := untrustedSerializer.Serialize(token)
+	require.NoError(t, err)
+	t.Logf("jwt=%v", string(serialized))
+
+	// Create the middleware
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
+	require.NoError(t, err)
+
+	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
+	handler := middleware.Handler(statusOKHandler)
+
+	// Create a test GET request
+	request, err := http.NewRequest("GET", "/", nil)
+	require.NoError(t, err)
+
+	// Set the authorization header in the test request
+	header := fmt.Sprintf("Bearer %v", string(serialized))
+	request.Header.Set("Authorization", header)
+
+	// Setup a test context which wraps the test request and records the response
+	recorder := httptest.NewRecorder()
+	testCtx := echo.New().NewContext(request, recorder)
+
+	// Call the handler, ensuring the appropriate error is returned
+	err = handler(testCtx)
+	assert.Error(t, err)
+	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "credential not signed by an authorized key")
+
+	// Check for a 401 Unauthorized response
+	require.NotNil(t, testCtx.Response())
+	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
+	assert.Equal(t, unauthorized, recorder.Body.String())
+}
+
 // TestExpiredJWT ensures an expired JWT from an authorized key causes 401 Unauthorized
 func TestExpiredJWT(t *testing.T) {
 	// Generate a new test key and jwt serializer
