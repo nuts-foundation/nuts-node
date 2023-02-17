@@ -108,67 +108,72 @@ type middlewareImpl struct {
 // Handler returns an echo HandlerFunc for processing incoming requests
 func (m middlewareImpl) Handler(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(context echo.Context) error {
-		// Allow skipping enforcement on certain requests using external logic
-		if m.skipper != nil && m.skipper(context) {
-			log.Logger().Tracef("Skipping authorization enforcement for request context: %v", context)
-			return next(context)
+		return m.checkConnectionAuthorization(context, next)
+	}
+}
+
+// checkConnectionAuthorization returns an error if a connection is not authorized and calls next(context) if it is
+func (m middlewareImpl) checkConnectionAuthorization(context echo.Context, next echo.HandlerFunc) error {
+	// Allow skipping enforcement on certain requests using external logic
+	if m.skipper != nil && m.skipper(context) {
+		log.Logger().Tracef("Skipping authorization enforcement for request context: %v", context)
+		return next(context)
+	}
+
+	// Extract the authentication credential for this request
+	credential := authenticationCredential(context)
+
+	// Empty credentials will receive a 401 response
+	if credential == "" {
+		return unauthorizedError(context, errors.New("missing/malformed credential"))
+	}
+
+	// Ensure the credential meets security standards
+	if err := credentialIsSecure(credential); err != nil {
+		return unauthorizedError(context, fmt.Errorf("insecure credential: %w", err))
+	}
+
+	// Attempt verifying the JWT using every available authorized key
+	for _, authorizedKey := range m.authorizedKeys {
+		log.Logger().Tracef("Checking key %v", authorizedKey.keyID)
+
+		// Parse the token, requesting verification using the keyset constructed above.
+		// If the JWT was not signed by this key then this will fail.
+		//
+		// WARNING: A nil error return from this function is not enough to authenticate a request
+		// as the token may be expired etc. A further check with .Validate() is required in order
+		// to authenticate the request.
+		token, err := jwt.ParseString(credential, jwt.WithKeySet(authorizedKey.jwkSet), jwt.InferAlgorithmFromKey(true))
+		if err != nil {
+			log.Logger().WithError(err).Error("Failed to parse JWT")
+			continue
 		}
 
-		// Extract the authentication credential for this request
-		credential := authenticationCredential(context)
-
-		// Empty credentials will receive a 401 response
-		if credential == "" {
-			return unauthorizedError(context, errors.New("missing/malformed credential"))
+		// The JWT was indeed signed by this authorized key, but that is not enough to authorize the request.
+		// Attempt to validate the parameters of the JWT, which ensures the audience, issued at, expiration, etc.
+		// are valid.
+		if err := jwt.Validate(token, jwt.WithAudience(m.audience)); err != nil {
+			// Since the parameters of this properly signed JWT could not be validated, reject the request
+			return unauthorizedError(context, fmt.Errorf("jwt.Validate: %w", err))
 		}
 
-		// Ensure the credential meets security standards
-		if err := credentialIsSecure(credential); err != nil {
+		// The token was properly signed and the essential fields are valid, but now we need to ensure that
+		// best practices are being followed in terms of what fields are present and how they are being used.
+		if err := bestPracticesCheck(token); err != nil {
 			return unauthorizedError(context, fmt.Errorf("insecure credential: %w", err))
 		}
 
-		// Attempt verifying the JWT using every available authorized key
-		for _, authorizedKey := range m.authorizedKeys {
-			log.Logger().Tracef("Checking key %v", authorizedKey.keyID)
-
-			// Parse the token, requesting verification using the keyset constructed above.
-			// If the JWT was not signed by this key then this will fail.
-			//
-			// WARNING: A nil error return from this function is not enough to authenticate a request
-			// as the token may be expired etc. A further check with .Validate() is required in order
-			// to authenticate the request.
-			token, err := jwt.ParseString(credential, jwt.WithKeySet(authorizedKey.jwkSet), jwt.InferAlgorithmFromKey(true))
-			if err != nil {
-				log.Logger().WithError(err).Error("Failed to parse JWT")
-				continue
-			}
-
-			// The JWT was indeed signed by this authorized key, but that is not enough to authorize the request.
-			// Attempt to validate the parameters of the JWT, which ensures the audience, issued at, expiration, etc.
-			// are valid.
-			if err := jwt.Validate(token, jwt.WithAudience(m.audience)); err != nil {
-				// Since the parameters of this properly signed JWT could not be validated, reject the request
-				return unauthorizedError(context, fmt.Errorf("jwt.Validate: %w", err))
-			}
-
-			// The token was properly signed and the essential fields are valid, but now we need to ensure that
-			// best practices are being followed in terms of what fields are present and how they are being used.
-			if err := bestPracticesCheck(token); err != nil {
-				return unauthorizedError(context, fmt.Errorf("insecure credential: %w", err))
-			}
-
-			// Ensure the subject, the person holding the JWT, matches the registered username for this key
-			if authorizedKey.comment != token.Subject() {
-				return unauthorizedError(context, fmt.Errorf("expected subject (%s) does not match sub", authorizedKey.comment))
-			}
-
-			// Grant access for this request
-			return accessGranted(authorizedKey, context, token, next)
+		// Ensure the subject, the person holding the JWT, matches the registered username for this key
+		if authorizedKey.comment != token.Subject() {
+			return unauthorizedError(context, fmt.Errorf("expected subject (%s) does not match sub", authorizedKey.comment))
 		}
 
-		// No authorized keys were able to verify the JWT, so this is an unauthorized request
-		return unauthorizedError(context, errors.New("credential not signed by an authorized key"))
+		// Grant access for this request
+		return accessGranted(authorizedKey, context, token, next)
 	}
+
+	// No authorized keys were able to verify the JWT, so this is an unauthorized request
+	return unauthorizedError(context, errors.New("credential not signed by an authorized key"))
 }
 
 // accessGranted allows a connection to be handled
