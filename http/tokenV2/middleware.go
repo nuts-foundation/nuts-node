@@ -157,17 +157,17 @@ func (m middlewareImpl) Handler(next echo.HandlerFunc) echo.HandlerFunc {
 				return unauthorizedError(context, fmt.Errorf("insecure credential: %w", err))
 			}
 
-			// The user is authorized, log a message accordingly
+			// Ensure the subject, the person holding the JWT, matches the registered username for this key
+			if authorizedKey.comment != token.Subject() {
+				return unauthorizedError(context, fmt.Errorf("expected subject (%s) does not match sub", authorizedKey.comment))
+			}
 
-			// Log an entry in the audit log about this user access
-			jwtID, _ := token.Get(jwt.JwtIDKey)
-			subject, _ := token.Get(jwt.SubjectKey)
-			issuer, _ := token.Get(jwt.IssuerKey)
-			auditLog := auditLogger(context, authorizedKey.comment, audit.AccessGrantedEvent)
-			auditLog.Infof("Access granted to user '%v' with JWT %s issued to %s by %s", authorizedKey.comment, jwtID, subject, issuer)
+			// Create an audit log entry about this access granted event
+			auditLog := auditLogger(context, token.Subject(), audit.AccessGrantedEvent)
+			auditLog.Infof("Access granted to user '%v' with JWT %s issued to %s by %s", authorizedKey.comment, token.JwtID(), token.Subject(), token.Issuer())
 
 			// Set the username from authorized_keys as the username in the context
-			context.Set(core.UserContextKey, authorizedKey.comment)
+			context.Set(core.UserContextKey, token.Subject())
 
 			// Call the next handler/middleware, probably serving some content/processing the API request
 			return next(context)
