@@ -35,6 +35,13 @@ const (
 	CryptoSignJWTEvent = "SignJWT"
 	// CryptoSignJWSEvent occurs when signing a JWS.
 	CryptoSignJWSEvent = "SignJWS"
+
+	// AccessDeniedEvent occurs when access to a protected API endpoint was granted
+	AccessGrantedEvent = "AccessGranted"
+	// AccessDeniedEvent occurs when access to a protected API endpoint was denied
+	AccessDeniedEvent = "AccessDenied"
+	// AccessKeyRegisteredEvent occurs when an authorized key is registered for future authorization events
+	AccessKeyRegisteredEvent = "AccessKeyRegistered"
 )
 
 const auditLogLevel = "audit"
