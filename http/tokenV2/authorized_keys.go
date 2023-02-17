@@ -119,7 +119,7 @@ func parseAuthorizedKeys(contents []byte) ([]authorizedKey, error) {
 
 		// Ignore insecure keys
 		if secure, err := keyIsSecure(publicKey); !secure || err != nil {
-			log.Logger().Warnf("Ignoring insecure authorized_keys entry: %v, err=%v", line, err)
+			log.Logger().WithError(err).Warnf("Ignoring insecure authorized_keys entry: %v, err=%v", line)
 			continue
 		}
 
