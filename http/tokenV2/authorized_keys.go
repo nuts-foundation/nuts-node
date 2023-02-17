@@ -23,7 +23,6 @@ import (
 	"crypto/ed25519"
 	"crypto/rsa"
 	b64 "encoding/base64"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -119,7 +118,7 @@ func parseAuthorizedKeys(contents []byte) ([]authorizedKey, error) {
 
 		// Ignore insecure keys
 		if secure, err := keyIsSecure(publicKey); !secure || err != nil {
-			log.Logger().WithError(err).Warnf("Ignoring insecure authorized_keys entry: %v, err=%v", line)
+			log.Logger().WithError(err).Warnf("Ignoring insecure authorized_keys entry: %v", line)
 			continue
 		}
 
