@@ -50,6 +50,7 @@ import (
 const validHostname = "test.local"
 const invalidHostname = "bad.local"
 const validUser = "test@test.local"
+const invalidUser = "nottest@test.local"
 
 const unauthorized = "Unauthorized"
 const ok = "OK"
@@ -91,7 +92,7 @@ func generateECDSATestKey(t *testing.T, curve elliptic.Curve, signingAlgorithm j
 	// Convert the public key to an ssh key, generating an authorized key representation
 	sshPub, err := ssh.NewPublicKey(&priv.PublicKey)
 	require.NoError(t, err)
-	sshAuthKey := fmt.Sprintf("%v %v random@test.local", sshPub.Type(), b64.StdEncoding.EncodeToString(sshPub.Marshal()))
+	sshAuthKey := fmt.Sprintf("%v %v %v", sshPub.Type(), b64.StdEncoding.EncodeToString(sshPub.Marshal()), validUser)
 
 	// Convert the base key type to a jwk type
 	jwkKey, err := jwk.New(priv)
@@ -119,7 +120,7 @@ func generateRSATestKey(t *testing.T, bits int, signingAlgorithm jwa.SignatureAl
 	// Convert the public key to an ssh key, generating an authorized key representation
 	sshPub, err := ssh.NewPublicKey(&priv.PublicKey)
 	require.NoError(t, err)
-	sshAuthKey := fmt.Sprintf("%v %v random@test.local", sshPub.Type(), b64.StdEncoding.EncodeToString(sshPub.Marshal()))
+	sshAuthKey := fmt.Sprintf("%v %v %s", sshPub.Type(), b64.StdEncoding.EncodeToString(sshPub.Marshal()), validUser)
 
 	// Convert the base key type to a jwk type
 	jwkKey, err := jwk.New(priv)
@@ -445,6 +446,51 @@ func TestInvalidSingleAudience(t *testing.T) {
 	err = handler(testCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: aud not satisfied")
+
+	// Ensure the 200 OK response is present
+	require.NotNil(t, testCtx.Response())
+	assert.Equal(t, http.StatusUnauthorized, recorder.Result().StatusCode)
+	assert.Equal(t, unauthorized, recorder.Body.String())
+}
+
+// TestInvalidUser ensures a valid JWT containing the wrong subject results in a 401 Unauthorized
+func TestInvalidUser(t *testing.T) {
+	// Generate a new test key and jwt serializer
+	_, serializer, authorizedKey := generateEd25519TestKey(t)
+
+	// Create a new JWT with the wrong subject
+	token := validJWT(t)
+	token.Set(jwt.SubjectKey, invalidUser)
+
+	// Sign and serialize the JWT
+	serialized, err := serializer.Serialize(token)
+	require.NoError(t, err)
+	t.Logf("jwt=%v", string(serialized))
+
+	// Create the middleware
+	middleware, err := New(nil, validHostname, []byte(authorizedKey))
+	require.NoError(t, err)
+
+	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
+	handler := middleware.Handler(statusOKHandler)
+
+	// Create a test GET request
+	request, err := http.NewRequest("GET", "/", nil)
+	require.NoError(t, err)
+
+	// Set the authorization header in the test request
+	header := fmt.Sprintf("Bearer %v", string(serialized))
+	request.Header.Set("Authorization", header)
+
+	// Setup a test context which wraps the test request and records the response
+	recorder := httptest.NewRecorder()
+	testCtx := echo.New().NewContext(request, recorder)
+
+	// Call the handler, ensuring the appropriate error is returned
+	err = handler(testCtx)
+	require.Error(t, err)
+	expectedErrorMessage := fmt.Sprintf("expected subject (%s) does not match sub", validUser)
+	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), expectedErrorMessage)
 
 	// Ensure the 200 OK response is present
 	require.NotNil(t, testCtx.Response())
