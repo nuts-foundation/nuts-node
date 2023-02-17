@@ -163,7 +163,13 @@ func (m middlewareImpl) checkConnectionAuthorization(context echo.Context, next 
 			return unauthorizedError(context, fmt.Errorf("insecure credential: %w", err))
 		}
 
-		// Ensure the subject, the person holding the JWT, matches the registered username for this key
+		// Ensure the issuer, the person issuing the JWT, matches the registered username for this key
+		if authorizedKey.comment != token.Issuer() {
+			return unauthorizedError(context, fmt.Errorf("expected issuer (%s) does not match iss", authorizedKey.comment))
+		}
+
+		// Ensure the subject, the person holding the JWT, matches the registered username for this key.
+		// Since we also check the issuer this means we are enforcing self-signed JWTs.
 		if authorizedKey.comment != token.Subject() {
 			return unauthorizedError(context, fmt.Errorf("expected subject (%s) does not match sub", authorizedKey.comment))
 		}
