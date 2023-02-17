@@ -171,7 +171,7 @@ func (m middlewareImpl) Handler(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
-// accessGranted allows a connection to be handled 
+// accessGranted allows a connection to be handled
 func accessGranted(authKey authorizedKey, context echo.Context, token jwt.Token, next echo.HandlerFunc) error {
 	// Create an audit log entry about this access granted event
 	auditLog := auditLogger(context, token.Subject(), audit.AccessGrantedEvent)
