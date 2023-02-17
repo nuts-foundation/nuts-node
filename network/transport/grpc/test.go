@@ -21,7 +21,6 @@ package grpc
 import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/transport"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
 )
 
@@ -114,14 +113,6 @@ func (s *StubConnection) waitUntilDisconnected() {
 	panic("implement me")
 }
 
-func (s *StubConnection) startConnecting(_ connectorConfig, _ Backoff, _ func(_ *grpc.ClientConn) bool) {
-	panic("implement me")
-}
-
-func (s *StubConnection) stopConnecting() {
-	panic("implement me")
-}
-
 func (s *StubConnection) registerStream(protocol Protocol, stream Stream) bool {
 	panic("implement me")
 }
@@ -134,6 +125,6 @@ func (s *StubConnection) setPeer(_ transport.Peer) {
 	panic("implement me")
 }
 
-func (s *StubConnection) outboundConnector() *outboundConnector {
+func (s *StubConnection) getContact() *contact {
 	panic("implement me")
 }

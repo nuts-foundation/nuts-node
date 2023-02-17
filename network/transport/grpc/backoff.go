@@ -23,6 +23,8 @@ import (
 	"context"
 	"encoding/gob"
 	"errors"
+	"fmt"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"math/rand"
@@ -37,12 +39,14 @@ var nowFunc = time.Now
 // When the call succeeds Reset() and the Backoff is stored for re-use, Reset() should be called to make sure to reset
 // the internal counters.
 type Backoff interface {
-	// Reset resets the internal counters of the Backoff to the given value. Should be called after a successful call (set to 0).
-	Reset(value time.Duration)
+	// Set the internal counters of the Backoff to the given value.
+	Set(value time.Duration)
 	// Backoff returns the waiting time before the call should be retried, and should be called after a failed call.
 	Backoff() time.Duration
 	// Value returns the last backoff value returned by Backoff().
 	Value() time.Duration
+	// Expired returns true if the backoff period has passed.
+	Expired() bool
 }
 
 // RandomBackoff returns a random time.Duration which lies between the given (inclusive) min/max bounds.
@@ -56,14 +60,20 @@ type boundedRandomBackoff struct {
 	value      time.Duration
 	max        time.Duration
 	min        time.Duration
+	deadline   time.Time
+}
+
+func (b *boundedRandomBackoff) Expired() bool {
+	return b.deadline.Sub(nowFunc()) <= 0
 }
 
 func (b *boundedRandomBackoff) Value() time.Duration {
 	return b.value
 }
 
-func (b *boundedRandomBackoff) Reset(value time.Duration) {
+func (b *boundedRandomBackoff) Set(value time.Duration) {
 	b.value = value
+	b.deadline = nowFunc().Add(b.value)
 }
 
 func (b *boundedRandomBackoff) Backoff() time.Duration {
@@ -76,6 +86,7 @@ func (b *boundedRandomBackoff) Backoff() time.Duration {
 			b.value = b.max
 		}
 	}
+	b.deadline = nowFunc().Add(b.value)
 	return b.value
 }
 
@@ -91,7 +102,7 @@ func BoundedBackoff(min time.Duration, max time.Duration) Backoff {
 // persistingBackoff wraps a Backoff and remembers the last value returned by Backoff()
 type persistingBackoff struct {
 	underlying       Backoff
-	peerAddress      string
+	peerDID          string
 	store            stoabs.KVStore
 	persistedBackoff time.Time
 }
@@ -107,7 +118,6 @@ func (p *persistingBackoff) Value() time.Duration {
 	if !p.persistedBackoff.IsZero() {
 		// Remaining time until the previously persisted backoff is the initial backoff
 		result := p.persistedBackoff.Sub(nowFunc()) // negative is no problem: time.Sleep() returns immediately in that case
-		p.persistedBackoff = time.Time{}
 		return result
 	}
 	return p.underlying.Value()
@@ -115,22 +125,29 @@ func (p *persistingBackoff) Value() time.Duration {
 
 // NewPersistedBackoff wraps another backoff and stores the last value returned by Backoff() in BBolt.
 // It reads the last backoff value from the DB and returns it as the first value of the Backoff.
-func NewPersistedBackoff(connectionStore stoabs.KVStore, peerAddress string, underlying Backoff) Backoff {
+func NewPersistedBackoff(connectionStore stoabs.KVStore, peerDID did.DID, underlying Backoff) Backoff {
 	b := &persistingBackoff{
-		peerAddress: peerAddress,
-		store:       connectionStore,
-		underlying:  underlying,
+		peerDID:    fmt.Sprintf("did:%s:%s", peerDID.Method, peerDID.ID), // remove all that is not part of the DID.
+		store:      connectionStore,
+		underlying: underlying,
 	}
 	persisted := b.read()
 	if !persisted.Moment.IsZero() {
 		b.persistedBackoff = persisted.Moment
-		b.underlying.Reset(persisted.Value)
+		b.underlying.Set(persisted.Value)
 	}
 	return b
 }
 
-func (p *persistingBackoff) Reset(value time.Duration) {
-	p.underlying.Reset(value)
+func (p *persistingBackoff) Expired() bool {
+	if !p.persistedBackoff.IsZero() {
+		return p.persistedBackoff.Sub(nowFunc()) < 0
+	}
+	return p.underlying.Expired()
+}
+
+func (p *persistingBackoff) Set(value time.Duration) {
+	p.underlying.Set(value)
 	p.persistedBackoff = time.Time{}
 	p.write(value)
 }
@@ -142,7 +159,7 @@ func (p *persistingBackoff) Backoff() time.Duration {
 	return b
 }
 
-func (p persistingBackoff) write(backoff time.Duration) {
+func (p *persistingBackoff) write(backoff time.Duration) {
 	err := p.store.WriteShelf(context.Background(), "backoff", func(writer stoabs.Writer) error {
 		var buf bytes.Buffer
 		err := gob.NewEncoder(&buf).Encode(persistedBackoff{
@@ -152,7 +169,7 @@ func (p persistingBackoff) write(backoff time.Duration) {
 		if err != nil {
 			return err
 		}
-		return writer.Put(stoabs.BytesKey(p.peerAddress), buf.Bytes())
+		return writer.Put(stoabs.BytesKey(p.peerDID), buf.Bytes())
 	})
 	if err != nil {
 		log.Logger().
@@ -161,10 +178,10 @@ func (p persistingBackoff) write(backoff time.Duration) {
 	}
 }
 
-func (p persistingBackoff) read() persistedBackoff {
+func (p *persistingBackoff) read() persistedBackoff {
 	var result persistedBackoff
 	err := p.store.ReadShelf(context.Background(), "backoff", func(reader stoabs.Reader) error {
-		data, err := reader.Get(stoabs.BytesKey(p.peerAddress))
+		data, err := reader.Get(stoabs.BytesKey(p.peerDID))
 		if errors.Is(err, stoabs.ErrKeyNotFound) {
 			return nil
 		}

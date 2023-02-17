@@ -21,6 +21,7 @@ package grpc
 import (
 	"context"
 	"errors"
+	"github.com/nuts-foundation/go-did/did"
 	"sync"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -47,13 +48,16 @@ type connectionList struct {
 }
 
 func (c *connectionList) Get(query ...Predicate) Connection {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+	return c.get(query...)
+}
+
+func (c *connectionList) get(query ...Predicate) Connection {
 	// Make sure we're not returning the first random connection by accident
 	if len(query) == 0 {
 		return nil
 	}
-
-	c.mux.Lock()
-	defer c.mux.Unlock()
 
 outer:
 	for _, curr := range c.list {
@@ -83,25 +87,35 @@ func (c *connectionList) forEach(consumer func(connection Connection)) {
 // It returns false if the peer matched an existing connection.
 // It returns true if a new connection was created.
 // The given context is used as parent context for new connections: if it's cancelled, callers blocked by waitUntilDisconnected will be unblocked.
-func (c *connectionList) getOrRegister(ctx context.Context, peer transport.Peer, dialer dialer, outbound bool) (Connection, bool) {
+func (c *connectionList) getOrRegister(ctx context.Context, peer transport.Peer, outbound bool) (Connection, bool) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
 	// Check whether we're already connected to this peer
-	for _, curr := range c.list {
-		// This works for both outbound and inbound
-		currPeer := curr.Peer()
-		if len(peer.ID) > 0 && currPeer.ID == peer.ID {
-			return curr, false
+	var existing Connection
+	if peer.NodeDID.Empty() { // anonymous connections
+		// These are defined as lacking a DID. -> The connection is always created after the expected / stream advertised DID is known.
+		// For outbound connections the address is known. Do not use PeerID since this is not verified.
+		// For inbound connections duplicates are detected based on PeerID. The number of connections per IP should be limited elsewhere.
+		if outbound { // bootstrap node
+			existing = c.get(ByAddress(peer.Address), ByNodeDID(did.DID{}))
+		} else {
+			existing = c.get(ByPeerID(peer.ID), ByNodeDID(did.DID{}))
 		}
-		if outbound {
-			if len(peer.Address) > 0 && peer.Address == currPeer.Address {
-				return curr, false
-			}
+	} else { // authenticated
+		if outbound { // only need 1 connection to a DID
+			existing = c.get(ByNodeDID(peer.NodeDID), ByAuthenticated())
+		} else {
+			// allow 1 connection per PeerID/DID combo for clustering purposes
+			// TODO: add a configurable limit to the number of connections per DID
+			existing = c.get(ByPeerID(peer.ID), ByNodeDID(peer.NodeDID), ByAuthenticated())
 		}
 	}
+	if existing != nil {
+		return existing, false
+	}
 
-	result := createConnection(ctx, dialer, peer)
+	result := createConnection(ctx, peer)
 	c.list = append(c.list, result)
 	return result, true
 }
@@ -149,24 +163,17 @@ func (c *connectionList) remove(target Connection) {
 }
 
 func (c *connectionList) Diagnostics() []core.DiagnosticResult {
-	var connectors ConnectorsStats
 	c.mux.Lock()
 	defer c.mux.Unlock()
 	var peers []transport.Peer
-	// Only add peer to "outbound_connectors" list if not connected
+	// Only add peer to "outbound_connectors" contacts if not connected
 	for _, curr := range c.list {
 		if curr.IsConnected() {
 			peers = append(peers, curr.Peer())
-		} else {
-			connector := curr.outboundConnector()
-			if connector != nil {
-				connectors = append(connectors, connector.stats())
-			}
 		}
 	}
 	return []core.DiagnosticResult{
 		numberOfPeersStatistic{numberOfPeers: len(peers)},
 		peersStatistic{peers: peers},
-		connectors,
 	}
 }

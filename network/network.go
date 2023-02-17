@@ -356,7 +356,7 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 		if len(strings.TrimSpace(bootstrapNode)) == 0 {
 			continue
 		}
-		n.connectionManager.Connect(bootstrapNode)
+		n.connectionManager.Connect(bootstrapNode, did.DID{})
 	}
 
 	if !n.config.EnableDiscovery {
@@ -388,7 +388,7 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 					WithField(core.LogFieldDID, node.ID.String()).
 					WithField(core.LogFieldNodeAddress, nutsCommUrl.Host).
 					Info("Discovered Nuts node")
-				n.connectionManager.Connect(nutsCommUrl.Host)
+				n.connectionManager.Connect(nutsCommUrl.Host, node.ID)
 			}
 		}
 	}

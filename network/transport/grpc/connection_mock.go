@@ -9,7 +9,6 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	transport "github.com/nuts-foundation/nuts-node/network/transport"
-	grpc "google.golang.org/grpc"
 	status "google.golang.org/grpc/status"
 )
 
@@ -132,20 +131,6 @@ func (mr *MockConnectionMockRecorder) disconnect() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "disconnect", reflect.TypeOf((*MockConnection)(nil).disconnect))
 }
 
-// outboundConnector mocks base method.
-func (m *MockConnection) outboundConnector() *outboundConnector {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "outboundConnector")
-	ret0, _ := ret[0].(*outboundConnector)
-	return ret0
-}
-
-// outboundConnector indicates an expected call of outboundConnector.
-func (mr *MockConnectionMockRecorder) outboundConnector() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "outboundConnector", reflect.TypeOf((*MockConnection)(nil).outboundConnector))
-}
-
 // registerStream mocks base method.
 func (m *MockConnection) registerStream(protocol Protocol, stream Stream) bool {
 	m.ctrl.T.Helper()
@@ -170,30 +155,6 @@ func (m *MockConnection) setPeer(peer transport.Peer) {
 func (mr *MockConnectionMockRecorder) setPeer(peer interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "setPeer", reflect.TypeOf((*MockConnection)(nil).setPeer), peer)
-}
-
-// startConnecting mocks base method.
-func (m *MockConnection) startConnecting(config connectorConfig, backoff Backoff, callback func(*grpc.ClientConn) bool) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "startConnecting", config, backoff, callback)
-}
-
-// startConnecting indicates an expected call of startConnecting.
-func (mr *MockConnectionMockRecorder) startConnecting(config, backoff, callback interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "startConnecting", reflect.TypeOf((*MockConnection)(nil).startConnecting), config, backoff, callback)
-}
-
-// stopConnecting mocks base method.
-func (m *MockConnection) stopConnecting() {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "stopConnecting")
-}
-
-// stopConnecting indicates an expected call of stopConnecting.
-func (mr *MockConnectionMockRecorder) stopConnecting() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "stopConnecting", reflect.TypeOf((*MockConnection)(nil).stopConnecting))
 }
 
 // verifyOrSetPeerID mocks base method.

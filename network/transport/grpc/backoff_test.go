@@ -44,7 +44,7 @@ func TestBoundedRandomBackoff_Reset(t *testing.T) {
 	b := newTestBackoff().(*boundedRandomBackoff)
 	b.Backoff()
 	assert.True(t, b.Backoff() > b.min)
-	b.Reset(0)
+	b.Set(0)
 	assert.Equal(t, b.min, b.Backoff())
 }
 
@@ -97,7 +97,7 @@ func TestPersistedBackoff_Backoff(t *testing.T) {
 		b := NewPersistedBackoff(db, "test", newTestBackoff())
 
 		// Set backoff to
-		b.Reset(maxBackoff)
+		b.Set(maxBackoff)
 
 		// Re-open back-off, simulate half of the max back-off time has passed
 		// So the initial back-off should be half of the max back-off, but the subsequent back-off should be the max back-off again
@@ -126,7 +126,7 @@ func TestPersistedBackoff_Reset(t *testing.T) {
 		_ = b.Backoff()
 	}
 	assert.True(t, b.Value() > 0)
-	b.Reset(0)
+	b.Set(0)
 
 	// Re-open back-off, check if 0 due to reset
 	_ = db.Close(context.Background())

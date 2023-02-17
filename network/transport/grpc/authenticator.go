@@ -81,6 +81,7 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 		WithField(core.LogFieldDID, nodeDID).
 		Debug("Connection successfully authenticated")
 	peer.NodeDID = nodeDID
+	peer.Address = nutsCommURL.Host // set's address for the connections. The contacts address is not updated.
 	peer.Authenticated = true
 	return peer, nil
 }

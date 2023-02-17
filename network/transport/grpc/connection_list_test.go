@@ -52,8 +52,8 @@ func TestConnectionList_Get(t *testing.T) {
 func TestConnectionList_All(t *testing.T) {
 	cn := connectionList{}
 
-	cn.getOrRegister(context.Background(), transport.Peer{ID: "a"}, nil, false)
-	cn.getOrRegister(context.Background(), transport.Peer{ID: "b"}, nil, false)
+	cn.getOrRegister(context.Background(), transport.Peer{ID: "a"}, false)
+	cn.getOrRegister(context.Background(), transport.Peer{ID: "b"}, false)
 
 	assert.Len(t, cn.All(), 2)
 }
@@ -61,9 +61,9 @@ func TestConnectionList_All(t *testing.T) {
 func TestConnectionList_getOrRegister(t *testing.T) {
 	t.Run("second call with same peer ID should return same connection", func(t *testing.T) {
 		cn := connectionList{}
-		connA, created1 := cn.getOrRegister(context.Background(), transport.Peer{ID: "a"}, nil, false)
+		connA, created1 := cn.getOrRegister(context.Background(), transport.Peer{ID: "a"}, false)
 		assert.True(t, created1)
-		connASecondCall, created2 := cn.getOrRegister(context.Background(), transport.Peer{ID: "a"}, nil, false)
+		connASecondCall, created2 := cn.getOrRegister(context.Background(), transport.Peer{ID: "a"}, false)
 		assert.False(t, created2)
 		assert.Equal(t, connA, connASecondCall)
 	})
@@ -77,18 +77,18 @@ func TestConnectionList_getOrRegister(t *testing.T) {
 		t.Run("for incoming connections", func(t *testing.T) {
 			t.Run("with different address returns new connection", func(t *testing.T) {
 				cn := connectionList{}
-				connA, created1 := cn.getOrRegister(context.Background(), peerA, nil, false)
+				connA, created1 := cn.getOrRegister(context.Background(), peerA, false)
 				assert.True(t, created1)
-				connB, created2 := cn.getOrRegister(context.Background(), peerB, nil, false)
+				connB, created2 := cn.getOrRegister(context.Background(), peerB, false)
 				assert.True(t, created2)
 				assert.NotEqual(t, connA, connB)
 			})
 
 			t.Run("with same address returns new connection", func(t *testing.T) {
 				cn := connectionList{}
-				connA, created1 := cn.getOrRegister(context.Background(), peerC, nil, false)
+				connA, created1 := cn.getOrRegister(context.Background(), peerC, false)
 				assert.True(t, created1)
-				connB, created2 := cn.getOrRegister(context.Background(), peerD, nil, false)
+				connB, created2 := cn.getOrRegister(context.Background(), peerD, false)
 				assert.True(t, created2)
 				assert.NotEqual(t, connA, connB)
 			})
@@ -97,18 +97,18 @@ func TestConnectionList_getOrRegister(t *testing.T) {
 		t.Run("for outgoing connections", func(t *testing.T) {
 			t.Run("with different address returns new connection", func(t *testing.T) {
 				cn := connectionList{}
-				connA, created1 := cn.getOrRegister(context.Background(), peerA, nil, true)
+				connA, created1 := cn.getOrRegister(context.Background(), peerA, true)
 				assert.True(t, created1)
-				connB, created2 := cn.getOrRegister(context.Background(), peerB, nil, true)
+				connB, created2 := cn.getOrRegister(context.Background(), peerB, true)
 				assert.True(t, created2)
 				assert.NotEqual(t, connA, connB)
 			})
 
 			t.Run("with same address returns same connection", func(t *testing.T) {
 				cn := connectionList{}
-				connA, created1 := cn.getOrRegister(context.Background(), peerC, nil, true)
+				connA, created1 := cn.getOrRegister(context.Background(), peerC, true)
 				assert.True(t, created1)
-				connB, created2 := cn.getOrRegister(context.Background(), peerD, nil, true)
+				connB, created2 := cn.getOrRegister(context.Background(), peerD, true)
 				assert.False(t, created2)
 				assert.Equal(t, connA, connB)
 			})
@@ -118,9 +118,9 @@ func TestConnectionList_getOrRegister(t *testing.T) {
 
 func TestConnectionList_remove(t *testing.T) {
 	cn := connectionList{}
-	connA, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "a"}, nil, false)
-	connB, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "b"}, nil, false)
-	connC, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "c"}, nil, false)
+	connA, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "a"}, false)
+	connB, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "b"}, false)
+	connC, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "c"}, false)
 
 	assert.Len(t, cn.list, 3)
 	cn.remove(connB)
@@ -146,8 +146,8 @@ func TestConnectionList_Diagnostics(t *testing.T) {
 	t.Run("connections", func(t *testing.T) {
 		cn := connectionList{}
 		// 2 connections: 1 disconnected, 1 connected, 1 trying to connect outbound
-		cn.getOrRegister(context.Background(), transport.Peer{ID: "a"}, nil, false)
-		connectionB, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "b"}, nil, false)
+		cn.getOrRegister(context.Background(), transport.Peer{ID: "a"}, false)
+		connectionB, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "b"}, false)
 		connectionB.(*conn).ctx = context.Background() // simulate connection being active
 		connectionC, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "c", Address: "localhost:5555"}, grpc.DialContext, false)
 		connectionC.startConnecting(connectorConfig{address: "C"}, newTestBackoff(), func(grpcConn *grpc.ClientConn) bool {
