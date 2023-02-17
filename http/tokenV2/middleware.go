@@ -206,6 +206,26 @@ func credentialIsSecure(credential string) error {
 			return fmt.Errorf("signing algorithm %v is not permitted", algorithm)
 		}
 
+		// Reject credentials trying to provide the public key directly in the header
+		if signature.ProtectedHeaders().JWK() != nil {
+			return errors.New("embedding JWK in signature is forbidden")
+		}
+
+		// Reject credentials trying to provide the public key URL in the header
+		if signature.ProtectedHeaders().JWKSetURL() != "" {
+			return errors.New("embedding JWKSetURL in signature is forbidden")
+		}
+
+		// Reject credentials trying to provide an x509 certificate chain in the header
+		if signature.ProtectedHeaders().X509CertChain() != nil {
+			return errors.New("embedding X509CertChain in signature is forbidden")
+		}
+
+		// Reject credentials trying to provide an x509 chain URL in the header
+		if signature.ProtectedHeaders().X509URL() != "" {
+			return errors.New("embedding X509URL in signature is forbidden")
+		}
+
 		// Keep track of how many secure signatures are found
 		secureSignatureCount++
 	}
