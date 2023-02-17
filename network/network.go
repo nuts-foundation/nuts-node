@@ -386,7 +386,7 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 				}
 				log.Logger().
 					WithField(core.LogFieldDID, node.ID.String()).
-					WithField(core.LogFieldNodeAddress, nutsCommUrl).
+					WithField(core.LogFieldNodeAddress, nutsCommUrl.Host).
 					Info("Discovered Nuts node")
 				n.connectionManager.Connect(nutsCommUrl.Host)
 			}
