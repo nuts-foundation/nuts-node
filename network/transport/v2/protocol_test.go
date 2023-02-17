@@ -24,7 +24,9 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -96,7 +98,9 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 	proto.cMan = newConversationManager(time.Second)
 	proto.connectionList = connectionList
 	proto.sender = sender
-	proto.listHandler = newTransactionListHandler(context.Background(), proto.handleTransactionList)
+	proto.listHandler = newTransactionListHandler(context.Background(), func(peer transport.Peer, envelope *Envelope) error {
+		return proto.handleTransactionList(context.Background(), peer, envelope)
+	})
 
 	return proto, protocolMocks{
 		Controller:       ctrl,
@@ -224,6 +228,35 @@ func TestProtocol_Start(t *testing.T) {
 		err := proto.Start()
 		assert.NoError(t, err)
 
+		proto.Stop()
+	})
+}
+
+func TestProtocol_Stop(t *testing.T) {
+	t.Run("waits until goroutines have finished", func(t *testing.T) {
+		defer goleak.VerifyNone(t)
+
+		// Use waitgroup to make sure the goroutine that blocks has started
+		wg := &sync.WaitGroup{}
+		wg.Add(1)
+		once := &sync.Once{} // to avoid Done() being called multiple times in slow environments
+
+		proto, _ := newTestProtocol(t, nodeDID)
+		// Assert it waits for diagnostics manager
+		proto.config.DiagnosticsInterval = 1
+		proto.diagnosticsMan = newPeerDiagnosticsManager(func() transport.Diagnostics {
+			return transport.Diagnostics{}
+		}, func(diagnostics transport.Diagnostics) {
+			once.Do(wg.Done)
+			time.Sleep(time.Second) // Be slow, to have Stop() wait
+		})
+		// Assert conversation Manager
+		proto.cMan.validity = time.Millisecond
+
+		err := proto.Start()
+		require.NoError(t, err)
+
+		wg.Wait()
 		proto.Stop()
 	})
 }

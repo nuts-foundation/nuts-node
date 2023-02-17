@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -98,6 +99,7 @@ type protocol struct {
 	config                 Config
 	state                  dag.State
 	ctx                    context.Context
+	routines               *sync.WaitGroup
 	docResolver            vdr.DocResolver
 	privatePayloadReceiver dag.Notifier
 	decrypter              crypto.Decrypter
@@ -187,13 +189,28 @@ func (p *protocol) Configure(_ transport.PeerID) error {
 func (p *protocol) Start() (err error) {
 	p.cMan = newConversationManager(maxValidity)
 	p.cMan.start(p.ctx)
+	p.routines = new(sync.WaitGroup)
 
 	if p.config.DiagnosticsInterval > 0 {
-		p.diagnosticsMan.start(p.ctx, time.Duration(p.config.DiagnosticsInterval)*time.Millisecond)
+		p.routines.Add(1)
+		go func(w *sync.WaitGroup) {
+			defer w.Done()
+			p.diagnosticsMan.start(p.ctx, time.Duration(p.config.DiagnosticsInterval)*time.Millisecond)
+		}(p.routines)
 	}
 
-	p.listHandler = newTransactionListHandler(p.ctx, p.handleTransactionList)
-	p.listHandler.start()
+	ctx := p.ctx // use copy of pointer to avoid data race
+	// Wrap listHandler function to supply the context to handleTransactionList.
+	// It would be prettier to pass a context around in all protocol message handlers (since most use context.Background() for database access now),
+	// but that is too big a change for now.
+	p.listHandler = newTransactionListHandler(p.ctx, func(peer transport.Peer, envelope *Envelope) error {
+		return p.handleTransactionList(ctx, peer, envelope)
+	})
+	p.routines.Add(1)
+	go func(w *sync.WaitGroup) {
+		defer w.Done()
+		p.listHandler.start()
+	}(p.routines)
 
 	return
 }
@@ -303,6 +320,7 @@ func (p *protocol) Stop() {
 	if p.cancel != nil {
 		p.cancel()
 	}
+	p.routines.Wait()
 }
 
 func (p protocol) Diagnostics() []core.DiagnosticResult {
