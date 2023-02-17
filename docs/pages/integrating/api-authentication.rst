@@ -32,7 +32,7 @@ JWT Generation in Code
 JWT's can be generated in code and must meet the following requirements:
 * The ``iss`` field must be present
 * The ``sub`` field must be present
-* The ``sub`` field must match the username specified in the comment of an ``authorized_keys`` entry
+* The ``iss`` and ``sub`` field must match the username specified in the comment of an ``authorized_keys`` entry
 * The ``iat`` field must be present
 * The ``nbf`` field must be present
 * The ``iat`` value must occur at or before the ``nbf`` value
