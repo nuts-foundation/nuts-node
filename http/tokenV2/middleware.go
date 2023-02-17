@@ -162,20 +162,26 @@ func (m middlewareImpl) Handler(next echo.HandlerFunc) echo.HandlerFunc {
 				return unauthorizedError(context, fmt.Errorf("expected subject (%s) does not match sub", authorizedKey.comment))
 			}
 
-			// Create an audit log entry about this access granted event
-			auditLog := auditLogger(context, token.Subject(), audit.AccessGrantedEvent)
-			auditLog.Infof("Access granted to user '%v' with JWT %s issued to %s by %s", authorizedKey.comment, token.JwtID(), token.Subject(), token.Issuer())
-
-			// Set the username from authorized_keys as the username in the context
-			context.Set(core.UserContextKey, token.Subject())
-
-			// Call the next handler/middleware, probably serving some content/processing the API request
-			return next(context)
+			// Grant access for this request
+			return accessGranted(authorizedKey, context, token, next)
 		}
 
 		// No authorized keys were able to verify the JWT, so this is an unauthorized request
 		return unauthorizedError(context, errors.New("credential not signed by an authorized key"))
 	}
+}
+
+// accessGranted allows a connection to be handled 
+func accessGranted(authKey authorizedKey, context echo.Context, token jwt.Token, next echo.HandlerFunc) error {
+	// Create an audit log entry about this access granted event
+	auditLog := auditLogger(context, token.Subject(), audit.AccessGrantedEvent)
+	auditLog.Infof("Access granted to user '%v' with JWT %s issued to %s by %s", authKey.comment, token.JwtID(), token.Subject(), token.Issuer())
+
+	// Set the username from authorized_keys as the username in the context
+	context.Set(core.UserContextKey, token.Subject())
+
+	// Call the next handler/middleware, probably serving some content/processing the API request
+	return next(context)
 }
 
 // credentialIsSecure returns nil if a credential meets the minimum security
