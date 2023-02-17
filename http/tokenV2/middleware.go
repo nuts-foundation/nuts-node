@@ -168,12 +168,6 @@ func (m middlewareImpl) checkConnectionAuthorization(context echo.Context, next 
 			return unauthorizedError(context, fmt.Errorf("expected issuer (%s) does not match iss", authorizedKey.comment))
 		}
 
-		// Ensure the subject, the person holding the JWT, matches the registered username for this key.
-		// Since we also check the issuer this means we are enforcing self-signed JWTs.
-		if authorizedKey.comment != token.Subject() {
-			return unauthorizedError(context, fmt.Errorf("expected subject (%s) does not match sub", authorizedKey.comment))
-		}
-
 		// Grant access for this request
 		return accessGranted(authorizedKey, context, token, next)
 	}
@@ -189,7 +183,7 @@ func accessGranted(authKey authorizedKey, context echo.Context, token jwt.Token,
 	auditLog.Infof("Access granted to user '%v' with JWT %s issued to %s by %s", authKey.comment, token.JwtID(), token.Subject(), token.Issuer())
 
 	// Set the username from authorized_keys as the username in the context
-	context.Set(core.UserContextKey, token.Subject())
+	context.Set(core.UserContextKey, token.Issuer())
 
 	// Call the next handler/middleware, probably serving some content/processing the API request
 	return next(context)
@@ -308,6 +302,11 @@ func bestPracticesCheck(token jwt.Token) error {
 	// Ensure the IssuedAt is <= the NotBefore date
 	if token.IssuedAt().After(token.NotBefore()) {
 		return errors.New("token nbf occurs before iat")
+	}
+
+	// Ensure the subject field is non-empty
+	if token.Subject() == "" {
+		return errors.New("sub must not be empty")
 	}
 
 	// No best practices issues were found, so return nil
