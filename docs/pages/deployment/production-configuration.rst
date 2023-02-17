@@ -103,7 +103,7 @@ authorized_keys files
 The keys permitted to issue and sign JWT bearer tokens are specified in the authorized_keys format.
 
 
-authorized_keys files are made up of multiple lines like this, each line specifying one more key/user that is authorized. For more information on the authorized_keys format see the ``AUTHORIZED_KEYS FILE FORMAT`` section of the `man page <http://man.he.net/man5/authorized_keys>_`.
+authorized_keys files are made up of multiple lines, each line specifying one more key/user that is authorized. For more information on the authorized_keys format see the ``AUTHORIZED_KEYS FILE FORMAT`` section of the `man page <http://man.he.net/man5/authorized_keys>_`.
 
 Adding PEM files to authorized_keys
 -----------------------------------
