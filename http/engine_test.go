@@ -774,8 +774,8 @@ func validJWT(t *testing.T, host string) jwt.Token {
 	notBefore := issuedAt
 	expires := notBefore.Add(time.Second * time.Duration(300))
 	token, err := jwt.NewBuilder().
-		Issuer("test@test.local").
-		Subject("test@test.local").
+		Issuer("random@test.local").
+		Subject("random@test.local").
 		Audience([]string{host}).
 		IssuedAt(issuedAt).
 		NotBefore(notBefore).
