@@ -49,11 +49,11 @@ type ErrorResponse struct {
 // Key The key under which secrets can be stored or retrieved.
 //
 // The key should be considered opaque and no assumptions should be made about its value or format.
-// Since the key is the last part of the URL path, slashes and hash symbols must be escaped.
+// Note: When the key is used in the URL path, symbols such as slashes and hash symbols must be escaped.
 type Key = string
 
 // KeyList List of keys currently stored in the store.
-// Note: If the client escaped these keys, they should be unescaped before using them.
+// Note: Keys will be in unescaped form. No assumptions should be made about the order of the keys.
 type KeyList = []Key
 
 // Secret The secret value stored under the provided key.

@@ -15,21 +15,17 @@ The Nuts-node represents entities in the network. These entities have cryptograp
 Implementing a proxy or building a custom secret store
 ******************************************************
 
-A proxy or secret store should implement the Nuts Secret store API specification. This OpenAPI specification is available on `GitHub <https://raw.githubusercontent.com/nuts-foundation/nuts-node/master/docs/_static/crypto/nuts-storage-api-v1.yaml>`__.
+A proxy or secret store should implement the Nuts Secret store API specification. This OpenAPI specification is available from the `Secret Store API repository <https://github.com/nuts-foundation/secret-store-api>`__.
+
+This repository also provides integration tests which can be run against an implementation.
 
 Consider developing your implementation under an open source license and publish it on a collaborative version control website such as `GitHub <https://github.com>`__ or `Gitlab <https://gitlab.com>`__ so that other parties can use it.
 
-Configuration
-*************
+Reference implementation
+************************
 
-If you want the Nuts node to use the external secret store API, you should configure the following properties:
+The Nuts community provides a supported reference implementation for the HashiCorp Vault secret store. This implementation is available on `GitHub <https://github.com/nuts-foundation/hashicorp-vault-proxy>`__.
 
-.. code-block:: yaml
-
-    crypto:
-      storage: external
-      external:
-        address: https://localhost:8210
 
 Limitations
 ***********
@@ -37,10 +33,3 @@ Limitations
 The API has a few limitations:
 
 - It does not yet support authentication. This means that the proxy should be secured in such a way that only the Nuts node can access the API.
-
-Available external storage implementations
-******************************************
-
-The following list contains all the known implementations of the Nuts external store API:
-
-- `Nuts Vault proxy <https://github.com/nuts-foundation/hashicorp-vault-proxy>`__. This is a proxy that integrates with Hashicorp Vault. It uses the Vault KV store to store the keys. The proxy is developed by the Nuts foundation and is available under an open source license.

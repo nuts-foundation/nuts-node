@@ -27,7 +27,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 	"time"
 
@@ -455,7 +454,7 @@ func TestAPIClient_ListPrivateKeys(t *testing.T) {
 				case "/secrets":
 					writer.Header().Set("Content-Type", "application/json")
 					writer.WriteHeader(http.StatusOK)
-					_, _ = writer.Write([]byte(fmt.Sprintf(`["%s", "%s"]`, "key1", url.PathEscape(complexKeyName))))
+					_, _ = writer.Write([]byte(fmt.Sprintf(`["%s", "%s"]`, "key1", complexKeyName)))
 					break
 				}
 			}
