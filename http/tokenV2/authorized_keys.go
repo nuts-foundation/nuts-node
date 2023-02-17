@@ -177,7 +177,7 @@ func keyIsSecure(key ssh.PublicKey) (bool, error) {
 		}
 
 		// Reject RSA keys less than 2048 bits in length as they are considered weak
-		return false, errors.New("key is too weak (rsa keys must be at least 2048-bit)")
+		return false, fmt.Errorf("key is too weak (rsa keys must be at least %d-bit)", minimumRSAKeySize)
 
 	// Accept ECDSA keys
 	case *ecdsa.PublicKey:
