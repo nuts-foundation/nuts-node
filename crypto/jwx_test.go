@@ -133,6 +133,20 @@ func TestParseJWT(t *testing.T) {
 
 		assert.NotNil(t, parsedToken)
 	})
+
+	t.Run("invalid signature", func(t *testing.T) {
+		authenticKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		attackerKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		token := jwt.New()
+		validToken, _ := jwt.Sign(token, jwa.ES256, authenticKey)
+
+		parsedToken, err := ParseJWT(string(validToken), func(_ string) (crypto.PublicKey, error) {
+			return attackerKey.Public(), nil
+		})
+
+		assert.Nil(t, parsedToken)
+		assert.EqualError(t, err, "failed to verify jws signature: failed to verify message: failed to verify signature using ecdsa")
+	})
 }
 
 func TestCrypto_SignJWT(t *testing.T) {
