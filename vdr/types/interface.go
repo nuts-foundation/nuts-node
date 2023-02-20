@@ -156,4 +156,3 @@ const (
 	CapabilityInvocation RelationType = 4
 	CapabilityDelegation RelationType = 5
 )
-
