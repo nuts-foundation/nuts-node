@@ -99,7 +99,7 @@ func (a *addressBook) Update(peer transport.Peer) error {
 		} else {
 			// update DID's address and reset backoff
 			current.peer.Address = peer.Address
-			current.backoff.Set(0)
+			current.backoff.Reset(0)
 		}
 		return nil
 	}

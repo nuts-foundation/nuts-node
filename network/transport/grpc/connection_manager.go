@@ -336,13 +336,13 @@ func (s *grpcConnectionManager) dial(contact *contact) {
 		// TODO: check if this works as intended for multiple streams/protocols on the same connection
 		contact.backoff.Backoff()
 		if errors.Is(err, ErrUnexpectedNodeDID) {
-			contact.backoff.Set(time.Hour * 24 * 365 * 100) // backoff expires after 100 years. Backoff must be reset when peer's (DID) address is updated.
+			contact.backoff.Reset(time.Hour * 24 * 365 * 100) // backoff expires after 100 years. Backoff must be reset when peer's (DID) address is updated.
 		}
 		log.Logger().WithError(err).WithFields(connection.Peer().ToFields()).
 			Debug("Error while setting up outbound gRPC streams, disconnecting")
 	} else {
 		// Connection was OK, but now disconnected. Add a random wait to prevent simultaneous reconnecting.
-		contact.backoff.Set(RandomBackoff(time.Second, 5*time.Second))
+		contact.backoff.Reset(RandomBackoff(time.Second, 5*time.Second))
 	}
 }
 
@@ -562,7 +562,7 @@ func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundSt
 	}
 	peer := transport.Peer{
 		ID:      peerID,
-		Address: peerFromCtx.Addr.String(),
+		Address: peerFromCtx.Addr.String(), // this is including port number, so a unique value for inbound
 	}
 	log.Logger().
 		WithFields(peer.ToFields()).

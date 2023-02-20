@@ -124,7 +124,3 @@ func (s *StubConnection) verifyOrSetPeerID(_ transport.PeerID) bool {
 func (s *StubConnection) setPeer(_ transport.Peer) {
 	panic("implement me")
 }
-
-func (s *StubConnection) getContact() *contact {
-	panic("implement me")
-}

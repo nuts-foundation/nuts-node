@@ -170,7 +170,7 @@ package grpc
 //	return t.resetCount, t.backoffCount
 //}
 //
-//func (t *trackingBackoff) Set(_ time.Duration) {
+//func (t *trackingBackoff) Reset(_ time.Duration) {
 //	t.mux.Lock()
 //	defer t.mux.Unlock()
 //	t.resetCount++

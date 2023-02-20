@@ -70,8 +70,6 @@ const (
 	LogFieldPeerID = "peerID"
 	// LogFieldPeerAddr is the log field key for peer addresses from the network module.
 	LogFieldPeerAddr = "peerAddr"
-	// LogFieldPeerIP is the log field key for peer IP addresses extracted from the stream.
-	LogFieldPeerIP = "peerIP"
 	// LogFieldPeerNodeDID is the log field key for a peer's node DID from the network module.
 	LogFieldPeerNodeDID = "peerDID"
 	// LogFieldPeerAuthenticated is the log field key for that indicates if the peer's node DID is authenticated.

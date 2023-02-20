@@ -592,7 +592,7 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 		// Assert that the peer is passed correctly to the observer
 		assert.Equal(t, transport.Peer{ID: "server"}, capturedPeer.Load())
 
-		// Assert backoff.Set() is called
+		// Assert backoff.Reset() is called
 		resets, _ := backoff.counts()
 		assert.Equal(t, 1, resets)
 	})

@@ -39,8 +39,8 @@ var nowFunc = time.Now
 // When the call succeeds Reset() and the Backoff is stored for re-use, Reset() should be called to make sure to reset
 // the internal counters.
 type Backoff interface {
-	// Set the internal counters of the Backoff to the given value.
-	Set(value time.Duration)
+	// Reset the internal counters of the Backoff to the given value.
+	Reset(value time.Duration)
 	// Backoff returns the waiting time before the call should be retried, and should be called after a failed call.
 	Backoff() time.Duration
 	// Value returns the last backoff value returned by Backoff().
@@ -71,7 +71,7 @@ func (b *boundedRandomBackoff) Value() time.Duration {
 	return b.value
 }
 
-func (b *boundedRandomBackoff) Set(value time.Duration) {
+func (b *boundedRandomBackoff) Reset(value time.Duration) {
 	b.value = value
 	b.deadline = nowFunc().Add(b.value)
 }
@@ -134,7 +134,7 @@ func NewPersistedBackoff(connectionStore stoabs.KVStore, peerDID did.DID, underl
 	persisted := b.read()
 	if !persisted.Moment.IsZero() {
 		b.persistedBackoff = persisted.Moment
-		b.underlying.Set(persisted.Value)
+		b.underlying.Reset(persisted.Value)
 	}
 	return b
 }
@@ -146,8 +146,8 @@ func (p *persistingBackoff) Expired() bool {
 	return p.underlying.Expired()
 }
 
-func (p *persistingBackoff) Set(value time.Duration) {
-	p.underlying.Set(value)
+func (p *persistingBackoff) Reset(value time.Duration) {
+	p.underlying.Reset(value)
 	p.persistedBackoff = time.Time{}
 	p.write(value)
 }
