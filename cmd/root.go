@@ -197,7 +197,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 
 	// Register HTTP routes
 	system.RegisterRoutes(&core.LandingPage{})
-	system.RegisterRoutes(&cryptoAPI.Wrapper{C: cryptoInstance})
+	system.RegisterRoutes(&cryptoAPI.Wrapper{C: cryptoInstance, K: keyResolver})
 	system.RegisterRoutes(&networkAPI.Wrapper{Service: networkInstance})
 	system.RegisterRoutes(&vdrAPI.Wrapper{VDR: vdrInstance, DocResolver: docResolver, DocManipulator: &didservice.Manipulator{
 		KeyCreator: cryptoInstance,

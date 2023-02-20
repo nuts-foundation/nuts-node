@@ -35,6 +35,10 @@ const (
 	CryptoSignJWTEvent = "SignJWT"
 	// CryptoSignJWSEvent occurs when signing a JWS.
 	CryptoSignJWSEvent = "SignJWS"
+	// CryptoEncryptJWEEvent occurs when encryping a JWE
+	CryptoEncryptJWEEvent = "EncryptJWE"
+	// CryptoDecryptJWEEvent occurs when decryping a JWE
+	CryptoDecryptJWEEvent = "DecryptJWE"
 )
 
 const auditLogLevel = "audit"
