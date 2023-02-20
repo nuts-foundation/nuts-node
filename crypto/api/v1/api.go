@@ -196,9 +196,9 @@ func (w *Wrapper) DecryptJwe(ctx context.Context, request DecryptJweRequestObjec
 	if err := decryptRequest.validate(); err != nil {
 		return nil, core.InvalidInputError("invalid sign request: %w", err)
 	}
-	jwe, headers, decrypter, err := w.C.DecryptJWE(ctx, decryptRequest.Message)
+	jwe, headers, err := w.C.DecryptJWE(ctx, decryptRequest.Message)
 	if err != nil {
 		return nil, err
 	}
-	return DecryptJwe200JSONResponse{Body: jwe, Headers: headers, Decrypter: decrypter.String()}, err
+	return DecryptJwe200JSONResponse{Body: jwe, Headers: headers}, err
 }

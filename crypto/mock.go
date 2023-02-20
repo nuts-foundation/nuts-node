@@ -10,7 +10,6 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	did "github.com/nuts-foundation/go-did/did"
 )
 
 // MockKeyCreator is a mock of KeyCreator interface.
@@ -156,14 +155,13 @@ func (mr *MockKeyStoreMockRecorder) Decrypt(kid, ciphertext interface{}) *gomock
 }
 
 // DecryptJWE mocks base method.
-func (m *MockKeyStore) DecryptJWE(ctx context.Context, message string) ([]byte, map[string]interface{}, *did.DID, error) {
+func (m *MockKeyStore) DecryptJWE(ctx context.Context, message string) ([]byte, map[string]interface{}, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DecryptJWE", ctx, message)
 	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(map[string]interface{})
-	ret2, _ := ret[2].(*did.DID)
-	ret3, _ := ret[3].(error)
-	return ret0, ret1, ret2, ret3
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // DecryptJWE indicates an expected call of DecryptJWE.
@@ -337,14 +335,13 @@ func (m *MockJWTSigner) EXPECT() *MockJWTSignerMockRecorder {
 }
 
 // DecryptJWE mocks base method.
-func (m *MockJWTSigner) DecryptJWE(ctx context.Context, message string) ([]byte, map[string]interface{}, *did.DID, error) {
+func (m *MockJWTSigner) DecryptJWE(ctx context.Context, message string) ([]byte, map[string]interface{}, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DecryptJWE", ctx, message)
 	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(map[string]interface{})
-	ret2, _ := ret[2].(*did.DID)
-	ret3, _ := ret[3].(error)
-	return ret0, ret1, ret2, ret3
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // DecryptJWE indicates an expected call of DecryptJWE.

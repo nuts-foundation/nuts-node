@@ -492,9 +492,6 @@ type DecryptJweResponse struct {
 		// Body The decrypted body as Base64 encoded string.
 		Body []byte `json:"body"`
 
-		// Decrypter The DID of the decrypting key.
-		Decrypter string `json:"decrypter"`
-
 		// Headers The message headers.
 		Headers map[string]interface{} `json:"headers"`
 	}
@@ -705,9 +702,6 @@ func ParseDecryptJweResponse(rsp *http.Response) (*DecryptJweResponse, error) {
 		var dest struct {
 			// Body The decrypted body as Base64 encoded string.
 			Body []byte `json:"body"`
-
-			// Decrypter The DID of the decrypting key.
-			Decrypter string `json:"decrypter"`
 
 			// Headers The message headers.
 			Headers map[string]interface{} `json:"headers"`
@@ -954,9 +948,6 @@ type DecryptJweResponseObject interface {
 type DecryptJwe200JSONResponse struct {
 	// Body The decrypted body as Base64 encoded string.
 	Body []byte `json:"body"`
-
-	// Decrypter The DID of the decrypting key.
-	Decrypter string `json:"decrypter"`
 
 	// Headers The message headers.
 	Headers map[string]interface{} `json:"headers"`

@@ -33,12 +33,10 @@ import (
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/lestrrat-go/jwx/jwt"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/shengdoushi/base58"
-	"strings"
 )
 
 // ErrUnsupportedSigningKey is returned when an unsupported private key is used to sign. Currently only ecdsa and rsa keys are supported
@@ -100,46 +98,43 @@ func (client *Crypto) EncryptJWE(ctx context.Context, payload []byte, headers ma
 }
 
 // DecryptJWE decrypts a signed message using the associated private key from the kid header.
-func (client *Crypto) DecryptJWE(ctx context.Context, message string) (body []byte, headers map[string]interface{}, decrypter *did.DID, err error) {
+func (client *Crypto) DecryptJWE(ctx context.Context, message string) (body []byte, headers map[string]interface{}, err error) {
 	msg, err := jwe.Parse([]byte(message))
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	protectedHeaders := msg.ProtectedHeaders()
 	kid := protectedHeaders.KeyID()
 	if len(kid) == 0 {
-		return nil, nil, nil, errors.New("kid header not found")
+		return nil, nil, errors.New("kid header not found")
 	}
 	privateKey, kid, err := client.getPrivateKey(kid)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	audit.Log(ctx, log.Logger(), audit.CryptoDecryptJWEEvent).Infof("Decrypting a JWE with kid: %s", kid)
 
 	body, err = jwe.Decrypt([]byte(message), protectedHeaders.Algorithm(), privateKey)
-
-	fragments := strings.Split(kid, "#")
-	decrypter, err = did.ParseDIDURL(fragments[0])
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 	headers = make(map[string]interface{})
 	if uh := msg.UnprotectedHeaders(); uh != nil {
 		err = mergeHeaders(ctx, uh, headers)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 	}
 	if ph := msg.ProtectedHeaders(); ph != nil {
 		err = mergeHeaders(ctx, ph, headers)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 	}
 
-	return body, headers, decrypter, err
+	return body, headers, err
 }
 
 // Merges the headers into a map
