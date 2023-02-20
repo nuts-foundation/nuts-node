@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	"hash/crc32"
 	"math/rand"
 	"net/url"
@@ -43,7 +44,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test"
@@ -301,10 +301,21 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 	})
 
 	t.Run("Peer Diagnostics", func(t *testing.T) {
-		bootstrap, node1 := testNodes(t, func(_ *core.ServerConfig, cfg *Config) {
+		testDirectory := io.TestDirectory(t)
+		resetIntegrationTest(t)
+		bootstrap := startNode(t, "integration_bootstrap", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
+			cfg.Protocols = []int{2}
 			cfg.ProtocolV2.DiagnosticsInterval = 50
+			cfg.NodeDID = "did:nuts:node2" // certificate only contains node1, node2, and node3
+
 		})
-		node1.network.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"), did.DID{})
+		node1 := startNode(t, "integration_node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
+			cfg.Protocols = []int{2}
+			cfg.ProtocolV2.DiagnosticsInterval = 50
+			cfg.NodeDID = "did:nuts:node1"
+
+		})
+		node1.network.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"), did.MustParseDID("did:nuts:node2"))
 
 		// Wait until nodes are connected
 		if !test.WaitFor(t, func() (bool, error) {
@@ -336,33 +347,66 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 }
 
 func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
-	testDirectory := io.TestDirectory(t)
-	resetIntegrationTest(t)
+	t.Run("authenticated connections", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		resetIntegrationTest(t)
 
-	// Start 2 nodes: node1 and node2, where each connects to the other
-	node1 := startNode(t, "node1", testDirectory)
-	node2 := startNode(t, "node2", testDirectory)
+		// Start 2 nodes: node1 and node2, where each connects to the other
+		node1 := startNode(t, "node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
+			cfg.NodeDID = "did:nuts:node1"
+		})
+		node2 := startNode(t, "node2", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
+			cfg.NodeDID = "did:nuts:node2"
+		})
 
-	// Now connect node1 to node2 and wait for them to set up
-	node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.DID{})
-	if !test.WaitFor(t, func() (bool, error) {
-		return len(node1.network.connectionManager.Peers()) == 1 && len(node2.network.connectionManager.Peers()) == 1, nil
-	}, defaultTimeout, "time-out while waiting for node 1 and 2 to be connected") {
-		return
-	}
+		// Now connect node1 to node2 and wait for them to set up
+		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"))
+		if !test.WaitFor(t, func() (bool, error) {
+			return len(node1.network.connectionManager.Peers()) == 1 && len(node2.network.connectionManager.Peers()) == 1, nil
+		}, defaultTimeout, "time-out while waiting for node 1 and 2 to be connected") {
+			return
+		}
 
-	// Now instruct node2 to connect to node1
-	node2.network.connectionManager.Connect(nameToAddress(t, "node1"), did.DID{})
-	time.Sleep(time.Second)
-	assert.Len(t, node1.network.connectionManager.Peers(), 1)
-	assert.Len(t, node2.network.connectionManager.Peers(), 1)
+		// Now instruct node2 to connect to node1
+		node2.network.connectionManager.Connect(nameToAddress(t, "node1"), did.MustParseDID("did:nuts:node1"))
+		time.Sleep(time.Second)
+		assert.Len(t, node1.network.connectionManager.Peers(), 1)
+		assert.Len(t, node2.network.connectionManager.Peers(), 1)
 
-	// Assert that the connectors of node1 and node2 are deduplicated: outbound connection is "merged" with existing inbound connection
-	// There should be no outbound connectors in the stats, since they're not returned for active connections
-	node1Diagnostics := node1.network.connectionManager.Diagnostics()
-	assert.Empty(t, node1Diagnostics[3].(grpc.ConnectorsStats))
-	node2Diagnostics := node2.network.connectionManager.Diagnostics()
-	assert.Empty(t, node2Diagnostics[3].(grpc.ConnectorsStats))
+		// TODO: re-evaluate. this no longer makes sense since the addressBook has a list of all contacts it knows and we can have multiple connections to the same node.
+		//// Assert that the connectors of node1 and node2 are deduplicated: outbound connection is "merged" with existing inbound connection
+		//// There should be no outbound connectors in the stats, since they're not returned for active connections
+		//node1Diagnostics := node1.network.connectionManager.Diagnostics()
+		//assert.Empty(t, node1Diagnostics[3].(grpc.ConnectorsStats))
+		//node2Diagnostics := node2.network.connectionManager.Diagnostics()
+		//assert.Empty(t, node2Diagnostics[3].(grpc.ConnectorsStats))
+	})
+	t.Run("bootstrap connections", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		resetIntegrationTest(t)
+
+		// Start 2 nodes: node1 and node2, where each connects to the other
+		node1 := startNode(t, "node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
+			cfg.NodeDID = "did:nuts:node1"
+		})
+		node2 := startNode(t, "node2", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
+			cfg.NodeDID = "did:nuts:node2"
+		})
+
+		// Now connect node1 add node2 as bootstrap connection and wait for them to set up
+		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.DID{})
+		if !test.WaitFor(t, func() (bool, error) {
+			return len(node1.network.connectionManager.Peers()) == 1 && len(node2.network.connectionManager.Peers()) == 1, nil
+		}, defaultTimeout, "time-out while waiting for node 1 and 2 to be connected") {
+			return
+		}
+
+		// Now instruct node2 to connect to node1. non-bootstrap, so should be accepted
+		node2.network.connectionManager.Connect(nameToAddress(t, "node1"), did.MustParseDID("did:nuts:node1"))
+		time.Sleep(time.Second)
+		assert.Len(t, node1.network.connectionManager.Peers(), 2)
+		assert.Len(t, node2.network.connectionManager.Peers(), 2)
+	})
 }
 
 func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
@@ -384,65 +428,64 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 			return len(node1.network.connectionManager.Peers()) == 1 && len(node2.network.connectionManager.Peers()) == 1, nil
 		}, defaultTimeout, "time-out while waiting for node1 to connect to node2")
 	})
-	// TODO: connectionManager.Diagnostics needs to get the gather dialer stats from the addressBook before this is re-enabled
-	//t.Run("node DID auth sent client (authenticated by server) fails", func(t *testing.T) {
-	//	testDirectory := io.TestDirectory(t)
-	//	resetIntegrationTest(t)
-	//
-	//	// Start 2 nodes: node1 and node2, where node1 specifies a node DID that node2 can't authenticate
-	//	node1 := startNode(t, "node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
-	//		cfg.NodeDID = "did:nuts:node1"
-	//	})
-	//	node2 := startNode(t, "node2", testDirectory)
-	//
-	//	// Set node DID to an unauthenticatable DID, such that authentication must fail
-	//	malloryDID, _ := did.ParseDID("did:nuts:mallory")
-	//	node1.network.nodeDIDResolver.(*transport.FixedNodeDIDResolver).NodeDID = *malloryDID
-	//
-	//	// Now connect node1 to node2 and wait for them to set up
-	//	node1.network.connectionManager.Connect(nameToAddress(t, "node2"))
-	//	if !test.WaitFor(t, func() (bool, error) {
-	//		diagnostics := node1.network.connectionManager.Diagnostics()
-	//		connectorsStats := diagnostics[3].(grpc.ConnectorsStats)
-	//		// Assert we tried to connect at least once
-	//		return connectorsStats[0].Attempts >= 1, nil
-	//	}, defaultTimeout, "time-out while waiting for node 1 to try to connect") {
-	//		return
-	//	}
-	//
-	//	// Assert there are no peers, because authentication failed
-	//	assert.Empty(t, node1.network.connectionManager.Peers())
-	//	assert.Empty(t, node2.network.connectionManager.Peers())
-	//})
-	//t.Run("node DID auth sent by server (authenticated by client) fails", func(t *testing.T) {
-	//	testDirectory := io.TestDirectory(t)
-	//	resetIntegrationTest(t)
-	//
-	//	// Start 2 nodes: node1 and node2, where node2 specifies a node DID that node1 can't authenticate
-	//	node1 := startNode(t, "node1", testDirectory)
-	//	node2 := startNode(t, "node2", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
-	//		cfg.NodeDID = "did:nuts:node2"
-	//	})
-	//
-	//	// Set node DID to an unauthenticatable DID, such that authentication must fail
-	//	malloryDID, _ := did.ParseDID("did:nuts:mallory")
-	//	node2.network.nodeDIDResolver.(*transport.FixedNodeDIDResolver).NodeDID = *malloryDID
-	//
-	//	// Now connect node1 to node2 and wait for them to set up
-	//	node1.network.connectionManager.Connect(nameToAddress(t, "node2"))
-	//	if !test.WaitFor(t, func() (bool, error) {
-	//		diagnostics := node1.network.connectionManager.Diagnostics()
-	//		connectorsStats := diagnostics[3].(grpc.ConnectorsStats)
-	//		// Assert we tried to connect at least once
-	//		return connectorsStats[0].Attempts >= 1, nil
-	//	}, defaultTimeout, "time-out while waiting for node 1 to try to connect") {
-	//		return
-	//	}
-	//
-	//	// Assert there are no peers, because authentication failed
-	//	assert.Empty(t, node1.network.connectionManager.Peers())
-	//	assert.Empty(t, node2.network.connectionManager.Peers())
-	//})
+	t.Run("node DID auth sent client (authenticated by server) fails", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		resetIntegrationTest(t)
+
+		// Start 2 nodes: node1 and node2, where node1 specifies a node DID that node2 can't authenticate
+		node1 := startNode(t, "node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
+			cfg.NodeDID = "did:nuts:node1"
+		})
+		node2 := startNode(t, "node2", testDirectory)
+
+		// Set node DID to an unauthenticatable DID, such that authentication must fail
+		malloryDID, _ := did.ParseDID("did:nuts:mallory")
+		node1.network.nodeDIDResolver.(*transport.FixedNodeDIDResolver).NodeDID = *malloryDID
+
+		// Now connect node1 to node2 and wait for them to set up
+		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.DID{})
+		if !test.WaitFor(t, func() (bool, error) {
+			diagnostics := node1.network.connectionManager.Diagnostics()
+			connectorsStats := diagnostics[3].(grpc.ConnectorsStats)
+			// Assert we tried to connect at least once
+			return connectorsStats[0].Attempts >= 1, nil
+		}, defaultTimeout, "time-out while waiting for node 1 to try to connect") {
+			return
+		}
+
+		// Assert there are no peers, because authentication failed
+		assert.Empty(t, node1.network.connectionManager.Peers())
+		assert.Empty(t, node2.network.connectionManager.Peers())
+	})
+	t.Run("node DID auth sent by server (authenticated by client) fails", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		resetIntegrationTest(t)
+
+		// Start 2 nodes: node1 and node2, where node2 specifies a node DID that node1 can't authenticate
+		node1 := startNode(t, "node1", testDirectory)
+		node2 := startNode(t, "node2", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
+			cfg.NodeDID = "did:nuts:node2"
+		})
+
+		// Set node DID to an unauthenticatable DID, such that authentication must fail
+		malloryDID, _ := did.ParseDID("did:nuts:mallory")
+		node2.network.nodeDIDResolver.(*transport.FixedNodeDIDResolver).NodeDID = *malloryDID
+
+		// Now connect node1 to node2 and wait for them to set up
+		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"))
+		if !test.WaitFor(t, func() (bool, error) {
+			diagnostics := node1.network.connectionManager.Diagnostics()
+			connectorsStats := diagnostics[3].(grpc.ConnectorsStats)
+			// Assert we tried to connect at least once
+			return connectorsStats[0].Attempts >= 1, nil
+		}, defaultTimeout, "time-out while waiting for node 1 to try to connect") {
+			return
+		}
+
+		// Assert there are no peers, because authentication failed
+		assert.Empty(t, node1.network.connectionManager.Peers())
+		assert.Empty(t, node2.network.connectionManager.Peers())
+	})
 }
 
 func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
@@ -606,7 +649,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		node1DID, _ := node1.network.nodeDIDResolver.Resolve()
 		node2DID, _ := node2.network.nodeDIDResolver.Resolve()
 		node3DID, _ := node3.network.nodeDIDResolver.Resolve()
-		// limit order for PAL header
+		// Random order for PAL header
 		pal := []did.DID{node1DID, node2DID, node3DID}
 		rand.Shuffle(len(pal), func(i, j int) {
 			pal[i], pal[j] = pal[j], pal[i]
