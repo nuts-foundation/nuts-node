@@ -110,9 +110,11 @@ func (c *outboundConnector) start() {
 					// So we add a bit of randomness before reconnecting, making the chance they reconnect at the same time a lot smaller.
 					sleepWithCancel(cancelCtx, RandomBackoff(time.Second, 5*time.Second))
 				}
+			} else if cancelCtx.Err() == context.Canceled {
+				return
 			}
 			if err != nil {
-				// either tryConnect or connectedCallback returned an error
+				// either tryConnect or connectedCallback returned an error (other than context.Canceled)
 				waitPeriod := c.backoff.Backoff()
 				log.Logger().
 					WithField(core.LogFieldPeerAddr, c.address).
@@ -130,9 +132,13 @@ func (c *outboundConnector) stop() {
 		c.cancelFunc()
 	}
 	// Wait for connect loop to stop
-	println("waiting...", c.address)
+	log.Logger().
+		WithField(core.LogFieldPeerAddr, c.address).
+		Trace("Waiting for outbound connector to stop")
 	c.connectLoopActive.Wait()
-	println("done!")
+	log.Logger().
+		WithField(core.LogFieldPeerAddr, c.address).
+		Trace("Outbound connector stopped")
 }
 
 func (c *outboundConnector) tryConnect(ctx context.Context) (*grpcLib.ClientConn, error) {

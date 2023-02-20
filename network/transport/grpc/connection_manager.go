@@ -83,14 +83,13 @@ func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nod
 		}
 	}
 	cm := &grpcConnectionManager{
-		protocols:         grpcProtocols,
-		nodeDIDResolver:   nodeDIDResolver,
-		authenticator:     authenticator,
-		config:            config,
-		connections:       &connectionList{},
-		activeConnections: &sync.WaitGroup{},
-		dialer:            config.dialer,
-		connectionStore:   connectionStore,
+		protocols:       grpcProtocols,
+		nodeDIDResolver: nodeDIDResolver,
+		authenticator:   authenticator,
+		config:          config,
+		connections:     &connectionList{},
+		dialer:          config.dialer,
+		connectionStore: connectionStore,
 	}
 	cm.registerPrometheusMetrics()
 	cm.ctx, cm.ctxCancel = context.WithCancel(context.Background())
@@ -102,7 +101,6 @@ type grpcConnectionManager struct {
 	protocols           []Protocol
 	config              Config
 	connections         *connectionList
-	activeConnections   *sync.WaitGroup
 	grpcServer          *grpc.Server
 	ctx                 context.Context
 	ctxCancel           func()
@@ -183,8 +181,6 @@ func (s *grpcConnectionManager) Start() error {
 	}
 	for _, protocol := range s.protocols {
 		protocol.Register(s, func(stream grpc.ServerStream) error {
-			s.activeConnections.Add(1)
-			defer s.activeConnections.Done()
 			return s.handleInboundStream(protocol, stream)
 		}, s.connections, s)
 	}
@@ -206,19 +202,16 @@ func (s *grpcConnectionManager) Start() error {
 
 func (s *grpcConnectionManager) Stop() {
 	log.Logger().Debug("Stopping gRPC connection manager")
+	// Signal crlValidator and active connections to stop
+	s.ctxCancel()
+	// Stop outbound connectors
 	s.connections.forEach(func(connection Connection) {
 		connection.stopConnecting()
 		connection.disconnect()
 	})
-	s.ctxCancel()            // stops crlValidator, connections should already be terminated
+	// Everything should be stopped now
 	if s.grpcServer != nil { // is nil when not accepting inbound connections
 		s.grpcServer.GracefulStop() // also closes listener
-	}
-
-	if waitWithTimeout(s.activeConnections, grpcGoroutineShutdownTimeout) {
-		// In some edge cases, gRPC connections might refuse to stop or stop extremely slow.
-		// This is a workaround to prevent these routines from blocking shutdown.
-		log.Logger().Errorf("Time-out after %s while waiting for active gRPC routines to shutdown, they will be ignored.", grpcGoroutineShutdownTimeout)
 	}
 
 	prometheus.Unregister(s.peersCounter)
@@ -508,8 +501,6 @@ func (s *grpcConnectionManager) startTracking(address string, connection Connect
 	}
 
 	connection.startConnecting(cfg, backoff, func(grpcConn *grpc.ClientConn) bool {
-		s.activeConnections.Add(1)
-		defer s.activeConnections.Done()
 		err := s.openOutboundStreams(connection, grpcConn, backoff)
 		if err != nil {
 			log.Logger().
