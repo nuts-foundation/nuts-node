@@ -23,6 +23,7 @@ import (
 	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"path"
+	"sync"
 	"testing"
 	"time"
 
@@ -201,3 +202,36 @@ func TestRandomBackoff(t *testing.T) {
 }
 
 func newTestBackoff() Backoff { return BoundedBackoff(time.Second, time.Hour) }
+
+type trackingBackoff struct {
+	resetCount   int
+	backoffCount int
+	mux          *sync.Mutex
+}
+
+func (t *trackingBackoff) Expired() bool {
+	return true
+}
+
+func (t *trackingBackoff) Value() time.Duration {
+	return 0
+}
+
+func (t *trackingBackoff) counts() (int, int) {
+	t.mux.Lock()
+	defer t.mux.Unlock()
+	return t.resetCount, t.backoffCount
+}
+
+func (t *trackingBackoff) Reset(_ time.Duration) {
+	t.mux.Lock()
+	defer t.mux.Unlock()
+	t.resetCount++
+}
+
+func (t *trackingBackoff) Backoff() time.Duration {
+	t.mux.Lock()
+	defer t.mux.Unlock()
+	t.backoffCount++
+	return 10 * time.Millisecond // prevent spinwait
+}

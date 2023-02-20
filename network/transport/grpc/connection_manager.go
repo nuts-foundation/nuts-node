@@ -273,7 +273,10 @@ func (s *grpcConnectionManager) dialerLoop() {
 					break
 				default:
 					// use the dialing lock acquired above to dial the getContact
-					go s.dial(c)
+					go func(cp *contact) {
+						s.dial(c)
+						defer cp.dialing.Store(false) // reset call lock at the end of dialing
+					}(c)
 				}
 			}
 		}
@@ -281,8 +284,6 @@ func (s *grpcConnectionManager) dialerLoop() {
 }
 
 func (s *grpcConnectionManager) dial(contact *contact) {
-	defer contact.dialing.Store(false) // reset call lock at the end of dialing
-
 	connection, isNew := s.connections.getOrRegister(s.ctx, contact.peer, true)
 	if !isNew {
 		// can only occur when receiving an inbound connection at the same time.

@@ -156,39 +156,6 @@ import (
 //		assert.GreaterOrEqual(t, backoffCounts, 1)
 //	})
 //}
-//
-//type trackingBackoff struct {
-//	resetCount   int
-//	backoffCount int
-//	mux          *sync.Mutex
-//}
-//
-//func (t *trackingBackoff) Expired() bool {
-//	return true
-//}
-//
-//func (t *trackingBackoff) Value() time.Duration {
-//	return 0
-//}
-//
-//func (t *trackingBackoff) counts() (int, int) {
-//	t.mux.Lock()
-//	defer t.mux.Unlock()
-//	return t.resetCount, t.backoffCount
-//}
-//
-//func (t *trackingBackoff) Reset(_ time.Duration) {
-//	t.mux.Lock()
-//	defer t.mux.Unlock()
-//	t.resetCount++
-//}
-//
-//func (t *trackingBackoff) Backoff() time.Duration {
-//	t.mux.Lock()
-//	defer t.mux.Unlock()
-//	t.backoffCount++
-//	return 10 * time.Millisecond // prevent spinwait
-//}
 
 func TestAddressBook_limit(t *testing.T) {
 	store := storage.CreateTestBBoltStore(t, t.TempDir()+"/test.db")
