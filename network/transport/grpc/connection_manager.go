@@ -36,7 +36,6 @@ import (
 	grpcPeer "google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 	"net"
-	"sync"
 	"time"
 )
 
@@ -546,18 +545,4 @@ func (s *grpcConnectionManager) registerPrometheusMetrics() {
 		Help:      "Number of gRPC messages received per protocol and message type.",
 	}, []string{"protocol", "message_type"})
 	_ = prometheus.Register(s.recvMessagesCounter)
-}
-
-func waitWithTimeout(wg *sync.WaitGroup, timeOut time.Duration) bool {
-	completed := make(chan bool)
-	go func() {
-		defer close(completed)
-		wg.Wait()
-	}()
-	select {
-	case <-completed:
-		return false
-	case <-time.After(timeOut):
-		return true
-	}
 }
