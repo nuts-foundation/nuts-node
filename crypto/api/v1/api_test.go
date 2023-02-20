@@ -193,7 +193,7 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 		ctx.keyStore.EXPECT().EncryptJWE(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), did.String()).Return("", errors.New("b00m!"))
 		ctx.keyResolver.EXPECT().ResolveKeyAgreementKey(gomock.Any())
 
-		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(gomock.Any()).Return(*did, nil)
+		ctx.keyResolver.EXPECT().ResolveRelationKeyID(gomock.Any(), types.KeyAgreement).Return(*did, nil)
 
 		jwe, err := ctx.client.EncryptJwe(audit.TestContext(), EncryptJweRequestObject{Body: &request})
 
@@ -201,7 +201,7 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 		assert.Empty(t, jwe)
 	})
 
-	t.Run("All OK returns 200, with payload", func(t *testing.T) {
+	t.Run("All OK returns 200, with DID, with payload", func(t *testing.T) {
 		ctx := newMockContext(t)
 		did, _ := ssi.ParseURI("did:nuts:12345")
 		request := EncryptJweRequest{
@@ -211,7 +211,23 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 		}
 		ctx.keyStore.EXPECT().EncryptJWE(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), did.String()).Return("jwe", nil)
 		ctx.keyResolver.EXPECT().ResolveKeyAgreementKey(gomock.Any())
-		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(gomock.Any()).Return(*did, nil)
+		ctx.keyResolver.EXPECT().ResolveRelationKeyID(gomock.Any(), types.KeyAgreement).Return(*did, nil)
+
+		resp, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
+
+		assert.Nil(t, err)
+		assert.Equal(t, "jwe", string(resp.(EncryptJwe200TextResponse)))
+	})
+	t.Run("All OK returns 200, with keyID, with payload", func(t *testing.T) {
+		ctx := newMockContext(t)
+		did, _ := ssi.ParseURI("did:nuts:12345")
+		request := EncryptJweRequest{
+			To:      "did:nuts:12345#mykey-1",
+			Headers: headers,
+			Payload: payload,
+		}
+		ctx.keyStore.EXPECT().EncryptJWE(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), "did:nuts:12345#mykey-1").Return("jwe", nil)
+		ctx.keyResolver.EXPECT().ResolveRelationKey(gomock.Any(), gomock.Any(), types.KeyAgreement).Return(*did, nil)
 
 		resp, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
 

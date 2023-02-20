@@ -164,18 +164,20 @@ func (w *Wrapper) EncryptJwe(ctx context.Context, request EncryptJweRequestObjec
 	var key crypt.PublicKey
 	var keyID ssi.URI
 	if id.DID.IsURL() {
+		// Assume it is a keyId
 		now := time.Now()
-		key, err = w.K.ResolveSigningKey(id.String(), &now)
+		key, err = w.K.ResolveRelationKey(id.String(), &now, types.KeyAgreement)
 		if err != nil {
 			return nil, err
 		}
 		keyID = id.URI()
 	} else {
+		// Assume it is a DID
 		key, err = w.K.ResolveKeyAgreementKey(*id)
 		if err != nil {
 			return nil, err
 		}
-		keyID, err = w.K.ResolveAssertionKeyID(*id)
+		keyID, err = w.K.ResolveRelationKeyID(*id, types.KeyAgreement)
 		if err != nil {
 			return nil, err
 		}
@@ -194,9 +196,9 @@ func (w *Wrapper) DecryptJwe(ctx context.Context, request DecryptJweRequestObjec
 	if err := decryptRequest.validate(); err != nil {
 		return nil, core.InvalidInputError("invalid sign request: %w", err)
 	}
-	jwe, headers, err := w.C.DecryptJWE(ctx, decryptRequest.Message)
+	jwe, headers, decrypter, err := w.C.DecryptJWE(ctx, decryptRequest.Message)
 	if err != nil {
 		return nil, err
 	}
-	return DecryptJwe200JSONResponse{Body: jwe, Headers: headers}, err
+	return DecryptJwe200JSONResponse{Body: jwe, Headers: headers, Decrypter: decrypter.String()}, err
 }
