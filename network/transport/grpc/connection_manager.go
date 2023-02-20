@@ -469,7 +469,6 @@ func (s *grpcConnectionManager) openOutboundStream(connection Connection, protoc
 	}
 	peerFromCtx, _ := grpcPeer.FromContext(clientStream.Context())
 	expectedPeer := connection.Peer()
-	connection.setPeer(expectedPeer)
 
 	// Authenticate expected DID
 	if !expectedPeer.NodeDID.Empty() { // do not authenticate bootstrap connections
@@ -555,7 +554,10 @@ func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundSt
 		WithFields(peer.ToFields()).
 		WithField(core.LogFieldProtocolVersion, protocol.Version()).
 		Debug("New inbound stream from peer")
-	peer, _ = s.authenticate(nodeDID, peer, peerFromCtx)
+	peer, err = s.authenticate(nodeDID, peer, peerFromCtx)
+	if err != nil {
+		return err
+	}
 
 	// TODO: Need to authenticate PeerID, to make sure a second stream with a known PeerID is from the same node (maybe even connection).
 	//       Use address from peer context?
