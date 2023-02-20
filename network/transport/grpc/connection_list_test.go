@@ -22,7 +22,6 @@ import (
 	"context"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc"
 	"testing"
 )
 
@@ -135,34 +134,28 @@ func TestConnectionList_Diagnostics(t *testing.T) {
 
 		diagnostics := cn.Diagnostics()
 
-		assert.Len(t, diagnostics, 3)
+		assert.Len(t, diagnostics, 2)
 		idx := 0
 		assert.Equal(t, 0, diagnostics[idx].(numberOfPeersStatistic).numberOfPeers)
 		idx++
 		assert.Empty(t, diagnostics[idx].(peersStatistic).peers)
-		idx++
-		assert.Empty(t, diagnostics[idx].(ConnectorsStats))
 	})
 	t.Run("connections", func(t *testing.T) {
+		stream := newServerStream("foo", "")
+		defer stream.cancelFunc()
 		cn := connectionList{}
 		// 2 connections: 1 disconnected, 1 connected, 1 trying to connect outbound
-		cn.getOrRegister(context.Background(), transport.Peer{ID: "a"}, false)
-		connectionB, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "b"}, false)
-		connectionB.(*conn).ctx = context.Background() // simulate connection being active
-		connectionC, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "c", Address: "localhost:5555"}, grpc.DialContext, false)
-		connectionC.startConnecting(connectorConfig{address: "C"}, newTestBackoff(), func(grpcConn *grpc.ClientConn) bool {
-			return false
-		})
-		defer connectionC.stopConnecting()
+		connectionB, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "b"}, false) // simulate inactive connection
+		_ = connectionB
+		connectionC, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "c", Address: "localhost:5555"}, false)
+		assert.True(t, connectionC.registerStream(&TestProtocol{}, stream)) // simulate active connection
 
 		diagnostics := cn.Diagnostics()
 
-		assert.Len(t, diagnostics, 3)
+		assert.Len(t, diagnostics, 2)
 		idx := 0
 		assert.Equal(t, 1, diagnostics[idx].(numberOfPeersStatistic).numberOfPeers)
 		idx++
 		assert.Len(t, diagnostics[idx].(peersStatistic).peers, 1)
-		idx++
-		assert.Len(t, diagnostics[idx].(ConnectorsStats), 1)
 	})
 }
