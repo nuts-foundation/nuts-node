@@ -606,7 +606,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		node1DID, _ := node1.network.nodeDIDResolver.Resolve()
 		node2DID, _ := node2.network.nodeDIDResolver.Resolve()
 		node3DID, _ := node3.network.nodeDIDResolver.Resolve()
-		// Random order for PAL header
+		// limit order for PAL header
 		pal := []did.DID{node1DID, node2DID, node3DID}
 		rand.Shuffle(len(pal), func(i, j int) {
 			pal[i], pal[j] = pal[j], pal[i]

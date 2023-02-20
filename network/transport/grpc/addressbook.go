@@ -126,6 +126,29 @@ func (a *addressBook) All() []*contact {
 	return result
 }
 
+// limit returns a number of contacts that match all predicates
+func (a *addressBook) limit(number int, predicates ...predicate) []*contact {
+	a.mux.RLock()
+	defer a.mux.RUnlock()
+
+	result := make([]*contact, 0)
+
+outer:
+	for _, c := range a.contacts {
+		if len(result) == number {
+			break
+		}
+		for _, p := range predicates {
+			if !p(c) {
+				continue outer
+			}
+		}
+		result = append(result, c)
+	}
+
+	return result
+}
+
 func (a *addressBook) remove(target *contact) {
 	var j int
 	for _, curr := range a.contacts {
@@ -172,5 +195,26 @@ func (c *contact) stats() transport.ContactStats {
 		DID:         c.peer.NodeDID.String(),
 		Attempts:    c.attempts.Load(),
 		LastAttempt: lastAttempt,
+	}
+}
+
+// predicate returns true if its implementation matches a contact.
+type predicate func(c *contact) bool
+
+func isNotActivePredicate(s *grpcConnectionManager) predicate {
+	return func(c *contact) bool {
+		return !s.hasActiveConnection(c.peer)
+	}
+}
+
+func backoffExpiredPredicate() predicate {
+	return func(c *contact) bool {
+		return c.backoff.Expired()
+	}
+}
+
+func notDialingPredicate() predicate {
+	return func(c *contact) bool {
+		return c.dialing.CompareAndSwap(false, true)
 	}
 }

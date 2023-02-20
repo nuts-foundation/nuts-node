@@ -17,6 +17,13 @@
 // */
 package grpc
 
+import (
+	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/stretchr/testify/assert"
+	"testing"
+)
+
 //
 //import (
 //	"context"
@@ -182,3 +189,34 @@ package grpc
 //	t.backoffCount++
 //	return 10 * time.Millisecond // prevent spinwait
 //}
+
+func TestAddressBook_limit(t *testing.T) {
+	store := storage.CreateTestBBoltStore(t, t.TempDir()+"/test.db")
+	ab := newAddressBook(store, newTestBackoff)
+	peer := transport.Peer{ID: transport.PeerID("test")}
+	ab.Update(peer)
+
+	t.Run("no match", func(t *testing.T) {
+		cs := ab.limit(1, func(c *contact) bool {
+			return false
+		})
+
+		assert.Len(t, cs, 0)
+	})
+
+	t.Run("match", func(t *testing.T) {
+		cs := ab.limit(1, func(c *contact) bool {
+			return true
+		})
+
+		assert.Len(t, cs, 1)
+	})
+
+	t.Run("limit reached", func(t *testing.T) {
+		cs := ab.limit(0, func(c *contact) bool {
+			return true
+		})
+
+		assert.Len(t, cs, 0)
+	})
+}

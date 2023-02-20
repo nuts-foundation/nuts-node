@@ -42,7 +42,7 @@ import (
 )
 
 const defaultMaxMessageSizeInBytes = 1024 * 512
-
+const maxConcurrentDialers = 10
 const peerIDHeader = "peerID"
 const nodeDIDHeader = "nodeDID"
 
@@ -259,14 +259,14 @@ func (s *grpcConnectionManager) Stop() {
 func (s *grpcConnectionManager) dialerLoop() {
 	log.Logger().Info("start dialing")
 	var c *contact
-	ticker := time.NewTicker(3 * time.Second)
+	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-s.ctx.Done():
 			return
-		case <-ticker.C: // TODO: what if the look takes longer than the ticker?
-			for _, c = range s.addressBook.All() {
+		case <-ticker.C:
+			for _, c = range s.addressBook.limit(maxConcurrentDialers, isNotActivePredicate(s), backoffExpiredPredicate(), notDialingPredicate()) {
 				select {
 				case <-s.ctx.Done():
 					// interrupt inner loop
@@ -276,21 +276,11 @@ func (s *grpcConnectionManager) dialerLoop() {
 				}
 
 				// try to call
-				switch {
-				case s.hasActiveConnection(c.peer):
-					continue
-				case !c.backoff.Expired():
-					continue
-				case !c.dialing.CompareAndSwap(false, true):
-					// this can occur when hasActiveConnection returns false due to the connection waiting for authentication
-					continue
-				default:
-					// use the dialing lock acquired above to dial the getContact
-					go func(cp *contact) {
-						defer cp.dialing.Store(false) // reset call lock at the end of dialing
-						s.dial(cp)
-					}(c)
-				}
+				// use the dialing lock acquired above to dial the getContact
+				go func(cp *contact) {
+					defer cp.dialing.Store(false) // reset call lock at the end of dialing
+					s.dial(cp)
+				}(c)
 			}
 		}
 	}
