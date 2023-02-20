@@ -101,7 +101,7 @@ func Test_connector_stats(t *testing.T) {
 			return true
 		}, newTestBackoff())
 
-		connector.tryConnect()
+		connector.tryConnect(context.Background())
 		stats := connector.stats()
 
 		now := time.Now().Add(time.Second * -1)

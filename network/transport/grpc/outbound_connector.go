@@ -29,6 +29,7 @@ import (
 	grpcLib "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -52,7 +53,7 @@ func createOutboundConnector(config connectorConfig, dialer dialer, shouldConnec
 		tlsConfig:         config.tls,
 		shouldConnect:     shouldConnect,
 		connectedCallback: connectedCallback,
-		stopped:           &atomic.Value{},
+		connectLoopActive: &sync.WaitGroup{},
 		lastAttempt:       &atomic.Value{},
 		attempts:          &attempts,
 		connectionTimeout: config.connectionTimeout,
@@ -75,28 +76,29 @@ type outboundConnector struct {
 	shouldConnect    func() bool
 	connectedBackoff func(cancelCtx context.Context)
 	// cancelFunc is used to signal the async connector loop (and specifically waits/sleeps) to abort.
-	cancelFunc  func()
-	stopped     *atomic.Value
-	attempts    *uint32
-	lastAttempt *atomic.Value
+	cancelFunc        func()
+	connectLoopActive *sync.WaitGroup
+	attempts          *uint32
+	lastAttempt       *atomic.Value
 }
 
 func (c *outboundConnector) start() {
 	var cancelCtx context.Context
 	cancelCtx, c.cancelFunc = context.WithCancel(context.Background())
-	c.stopped.Store(false)
+	c.connectLoopActive.Add(1)
 	go func() {
+		defer c.connectLoopActive.Done()
 		// Take into account initial backoff
 		sleepWithCancel(cancelCtx, c.backoff.Value())
 		for {
-			if c.stopped.Load().(bool) {
+			if cancelCtx.Err() == context.Canceled {
 				return
 			}
 			if !c.shouldConnect() {
 				c.connectedBackoff(cancelCtx)
 				continue
 			}
-			stream, err := c.tryConnect()
+			stream, err := c.tryConnect(cancelCtx)
 			if err == nil {
 				// Invoke callback, blocks until the peer disconnects
 				if !c.connectedCallback(stream) {
@@ -123,20 +125,24 @@ func (c *outboundConnector) start() {
 }
 
 func (c *outboundConnector) stop() {
-	c.stopped.Store(true)
+	// Signal connect loop to stop
 	if c.cancelFunc != nil {
 		c.cancelFunc()
 	}
+	// Wait for connect loop to stop
+	println("waiting...", c.address)
+	c.connectLoopActive.Wait()
+	println("done!")
 }
 
-func (c *outboundConnector) tryConnect() (*grpcLib.ClientConn, error) {
+func (c *outboundConnector) tryConnect(ctx context.Context) (*grpcLib.ClientConn, error) {
 	log.Logger().
 		WithField(core.LogFieldPeerAddr, c.address).
 		Info("Connecting to peer")
 	atomic.AddUint32(c.attempts, 1)
 	c.lastAttempt.Store(time.Now())
 
-	dialContext, cancel := context.WithTimeout(context.Background(), c.connectionTimeout)
+	dialContext, cancel := context.WithTimeout(ctx, c.connectionTimeout)
 	defer cancel()
 
 	dialOptions := []grpcLib.DialOption{

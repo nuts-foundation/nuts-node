@@ -24,8 +24,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
-	"net"
-
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/log"
@@ -37,9 +35,14 @@ import (
 	"google.golang.org/grpc/metadata"
 	grpcPeer "google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
+	"net"
+	"sync"
+	"time"
 )
 
 const defaultMaxMessageSizeInBytes = 1024 * 512
+
+var grpcGoroutineShutdownTimeout = 10 * time.Second
 
 const peerIDHeader = "peerID"
 const nodeDIDHeader = "nodeDID"
@@ -80,13 +83,14 @@ func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nod
 		}
 	}
 	cm := &grpcConnectionManager{
-		protocols:       grpcProtocols,
-		nodeDIDResolver: nodeDIDResolver,
-		authenticator:   authenticator,
-		config:          config,
-		connections:     &connectionList{},
-		dialer:          config.dialer,
-		connectionStore: connectionStore,
+		protocols:         grpcProtocols,
+		nodeDIDResolver:   nodeDIDResolver,
+		authenticator:     authenticator,
+		config:            config,
+		connections:       &connectionList{},
+		activeConnections: &sync.WaitGroup{},
+		dialer:            config.dialer,
+		connectionStore:   connectionStore,
 	}
 	cm.registerPrometheusMetrics()
 	cm.ctx, cm.ctxCancel = context.WithCancel(context.Background())
@@ -98,6 +102,7 @@ type grpcConnectionManager struct {
 	protocols           []Protocol
 	config              Config
 	connections         *connectionList
+	activeConnections   *sync.WaitGroup
 	grpcServer          *grpc.Server
 	ctx                 context.Context
 	ctxCancel           func()
@@ -178,6 +183,8 @@ func (s *grpcConnectionManager) Start() error {
 	}
 	for _, protocol := range s.protocols {
 		protocol.Register(s, func(stream grpc.ServerStream) error {
+			s.activeConnections.Add(1)
+			defer s.activeConnections.Done()
 			return s.handleInboundStream(protocol, stream)
 		}, s.connections, s)
 	}
@@ -206,6 +213,12 @@ func (s *grpcConnectionManager) Stop() {
 	s.ctxCancel()            // stops crlValidator, connections should already be terminated
 	if s.grpcServer != nil { // is nil when not accepting inbound connections
 		s.grpcServer.GracefulStop() // also closes listener
+	}
+
+	if waitWithTimeout(s.activeConnections, grpcGoroutineShutdownTimeout) {
+		// In some edge cases, gRPC connections might refuse to stop or stop extremely slow.
+		// This is a workaround to prevent these routines from blocking shutdown.
+		log.Logger().Errorf("Time-out after %s while waiting for active gRPC routines to shutdown, they will be ignored.", grpcGoroutineShutdownTimeout)
 	}
 
 	prometheus.Unregister(s.peersCounter)
@@ -495,6 +508,8 @@ func (s *grpcConnectionManager) startTracking(address string, connection Connect
 	}
 
 	connection.startConnecting(cfg, backoff, func(grpcConn *grpc.ClientConn) bool {
+		s.activeConnections.Add(1)
+		defer s.activeConnections.Done()
 		err := s.openOutboundStreams(connection, grpcConn, backoff)
 		if err != nil {
 			log.Logger().
@@ -540,4 +555,18 @@ func (s *grpcConnectionManager) registerPrometheusMetrics() {
 		Help:      "Number of gRPC messages received per protocol and message type.",
 	}, []string{"protocol", "message_type"})
 	_ = prometheus.Register(s.recvMessagesCounter)
+}
+
+func waitWithTimeout(wg *sync.WaitGroup, timeOut time.Duration) bool {
+	completed := make(chan bool)
+	go func() {
+		defer close(completed)
+		wg.Wait()
+	}()
+	select {
+	case <-completed:
+		return false
+	case <-time.After(timeOut):
+		return true
+	}
 }
