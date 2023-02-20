@@ -116,6 +116,7 @@ paths:
                 required:
                   - body
                   - headers
+                  - decrypter
                 properties:
                   body:
                     type: string
@@ -124,6 +125,9 @@ paths:
                   headers:
                     type: object
                     description: "The message headers."
+                  decrypter:
+                    type: string
+                    description: "The DID of the decrypting key."
         default:
           $ref: '../common/error_response.yaml'
 components:

@@ -154,7 +154,13 @@ func (s staticKeyResolver) ResolveSigningKeyID(_ did.DID, _ *time.Time) (string,
 func (s staticKeyResolver) ResolveSigningKey(_ string, _ *time.Time) (crypto.PublicKey, error) {
 	panic("implement me")
 }
+func (s staticKeyResolver) ResolveRelationKey(_ string, _ *time.Time, _ types.RelationType) (crypto.PublicKey, error) {
+	panic("implement me")
+}
 
 func (s staticKeyResolver) ResolveAssertionKeyID(_ did.DID) (ssi.URI, error) {
+	panic("implement me")
+}
+func (s staticKeyResolver) ResolveRelationKeyID(_ did.DID, _ types.RelationType) (ssi.URI, error) {
 	panic("implement me")
 }

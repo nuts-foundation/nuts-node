@@ -331,6 +331,36 @@ func (mr *MockKeyResolverMockRecorder) ResolvePublicKey(kid, sourceTransactionsR
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolvePublicKey", reflect.TypeOf((*MockKeyResolver)(nil).ResolvePublicKey), kid, sourceTransactionsRefs)
 }
 
+// ResolveRelationKey mocks base method.
+func (m *MockKeyResolver) ResolveRelationKey(keyID string, validAt *time.Time, relationType RelationType) (crypto.PublicKey, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResolveRelationKey", keyID, validAt, relationType)
+	ret0, _ := ret[0].(crypto.PublicKey)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResolveRelationKey indicates an expected call of ResolveRelationKey.
+func (mr *MockKeyResolverMockRecorder) ResolveRelationKey(keyID, validAt, relationType interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveRelationKey", reflect.TypeOf((*MockKeyResolver)(nil).ResolveRelationKey), keyID, validAt, relationType)
+}
+
+// ResolveRelationKeyID mocks base method.
+func (m *MockKeyResolver) ResolveRelationKeyID(id did.DID, relationType RelationType) (go_did.URI, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResolveRelationKeyID", id, relationType)
+	ret0, _ := ret[0].(go_did.URI)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ResolveRelationKeyID indicates an expected call of ResolveRelationKeyID.
+func (mr *MockKeyResolverMockRecorder) ResolveRelationKeyID(id, relationType interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveRelationKeyID", reflect.TypeOf((*MockKeyResolver)(nil).ResolveRelationKeyID), id, relationType)
+}
+
 // ResolveSigningKey mocks base method.
 func (m *MockKeyResolver) ResolveSigningKey(keyID string, validAt *time.Time) (crypto.PublicKey, error) {
 	m.ctrl.T.Helper()
