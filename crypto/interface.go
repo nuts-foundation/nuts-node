@@ -22,7 +22,6 @@ import (
 	"context"
 	"crypto"
 	"errors"
-	"github.com/nuts-foundation/go-did/did"
 )
 
 // ErrPrivateKeyNotFound is returned when the private key doesn't exist
@@ -89,7 +88,7 @@ type JWTSigner interface {
 
 	// DecryptJWE decrypts a message as bytes into a decrypted body and headers.
 	// The corresponding private key must be located in the KeyID (kid) header.
-	DecryptJWE(ctx context.Context, message string) (body []byte, headers map[string]interface{}, decrypter *did.DID, err error)
+	DecryptJWE(ctx context.Context, message string) (body []byte, headers map[string]interface{}, err error)
 }
 
 // Key is a helper interface that describes a private key in the crypto module, specifying its KID and public part.

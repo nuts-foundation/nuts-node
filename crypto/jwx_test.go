@@ -245,7 +245,7 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 		privateKey, _, err := client.getPrivateKey(key)
 		require.NoError(t, err)
 
-		token, err := jwe.Decrypt([]byte(tokenString), jwa.ECDH_ES, privateKey)
+		token, err := jwe.Decrypt([]byte(tokenString), jwa.ECDH_ES_A256KW, privateKey)
 		require.NoError(t, err)
 
 		var body = make(map[string]interface{})
@@ -285,7 +285,7 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 		privateKey, _, err := client.getPrivateKey(key)
 		require.NoError(t, err)
 
-		token, err := jwe.Decrypt([]byte(tokenString), jwa.ECDH_ES, privateKey)
+		token, err := jwe.Decrypt([]byte(tokenString), jwa.ECDH_ES_A256KW, privateKey)
 		require.NoError(t, err)
 
 		var body = make(map[string]interface{})
@@ -324,7 +324,7 @@ func TestCrypto_DecryptJWE(t *testing.T) {
 
 		require.NoError(t, err)
 
-		token, hdrs, _, err := client.DecryptJWE(audit.TestContext(), tokenString)
+		token, hdrs, err := client.DecryptJWE(audit.TestContext(), tokenString)
 		require.NoError(t, err)
 
 		var body = make(map[string]interface{})
@@ -342,7 +342,7 @@ func TestCrypto_DecryptJWE(t *testing.T) {
 
 		require.NoError(t, err)
 
-		_, _, _, err = client.DecryptJWE(audit.TestContext(), tokenString)
+		_, _, err = client.DecryptJWE(audit.TestContext(), tokenString)
 		require.Error(t, err)
 	})
 	t.Run("writes audit log", func(t *testing.T) {
@@ -350,7 +350,7 @@ func TestCrypto_DecryptJWE(t *testing.T) {
 
 		tokenString, err := EncryptJWE([]byte{1, 2, 3}, map[string]interface{}{"typ": "JWT", "kid": kid}, key.Public())
 		require.NoError(t, err)
-		_, _, _, err = client.DecryptJWE(audit.TestContext(), tokenString)
+		_, _, err = client.DecryptJWE(audit.TestContext(), tokenString)
 
 		require.NoError(t, err)
 
