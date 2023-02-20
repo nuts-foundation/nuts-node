@@ -20,14 +20,18 @@ package v1
 
 import (
 	"context"
+	crypt "crypto"
 	"errors"
-	"github.com/lestrrat-go/jwx/jws"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"net/http"
-
 	"github.com/labstack/echo/v4"
+	"github.com/lestrrat-go/jwx/jws"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"net/http"
+	"time"
 )
 
 var _ StrictServerInterface = (*Wrapper)(nil)
@@ -36,6 +40,7 @@ var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
 // Wrapper implements the generated interface from oapi-codegen
 type Wrapper struct {
 	C crypto.KeyStore
+	K types.KeyResolver
 }
 
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
@@ -87,6 +92,31 @@ func (signRequest SignJwsRequest) validate() error {
 	return nil
 }
 
+func (signRequest EncryptJweRequest) validate() error {
+	url, err := did.ParseDIDURL(signRequest.To)
+	if err != nil {
+		return err
+	}
+	if url.Empty() {
+		return errors.New("missing to")
+	}
+	if signRequest.Headers == nil {
+		return errors.New("missing headers")
+	}
+	if signRequest.Payload == nil {
+		return errors.New("missing payload")
+	}
+
+	return nil
+}
+func (signRequest DecryptJweRequest) validate() error {
+	if len(signRequest.Message) == 0 {
+		return errors.New("missing message")
+	}
+
+	return nil
+}
+
 // SignJwt handles api calls for signing a Jwt
 func (w *Wrapper) SignJwt(ctx context.Context, signRequest SignJwtRequestObject) (SignJwtResponseObject, error) {
 	if err := signRequest.Body.validate(); err != nil {
@@ -118,4 +148,55 @@ func (w *Wrapper) SignJws(ctx context.Context, request SignJwsRequestObject) (Si
 	}
 
 	return SignJws200TextResponse(sig), nil
+}
+
+// EncryptJwe handles api calls for encrypting JWE messages
+func (w *Wrapper) EncryptJwe(ctx context.Context, request EncryptJweRequestObject) (EncryptJweResponseObject, error) {
+	encryptRequest := request.Body
+	if err := encryptRequest.validate(); err != nil {
+		return nil, core.InvalidInputError("invalid sign request: %w", err)
+	}
+	to := encryptRequest.To
+	id, err := did.ParseDIDURL(to)
+	if err != nil {
+		return nil, err
+	}
+	var key crypt.PublicKey
+	var keyID ssi.URI
+	if id.DID.IsURL() {
+		now := time.Now()
+		key, err = w.K.ResolveSigningKey(id.String(), &now)
+		if err != nil {
+			return nil, err
+		}
+		keyID = id.URI()
+	} else {
+		key, err = w.K.ResolveKeyAgreementKey(*id)
+		if err != nil {
+			return nil, err
+		}
+		keyID, err = w.K.ResolveAssertionKeyID(*id)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	jwe, err := w.C.EncryptJWE(ctx, encryptRequest.Payload, encryptRequest.Headers, key, keyID.String())
+	if err != nil {
+		return nil, err
+	}
+	return EncryptJwe200TextResponse(jwe), err
+}
+
+// DecryptJwe handles api calls for decrypting JWE messages
+func (w *Wrapper) DecryptJwe(ctx context.Context, request DecryptJweRequestObject) (DecryptJweResponseObject, error) {
+	decryptRequest := request.Body
+	if err := decryptRequest.validate(); err != nil {
+		return nil, core.InvalidInputError("invalid sign request: %w", err)
+	}
+	jwe, headers, err := w.C.DecryptJWE(ctx, decryptRequest.Message)
+	if err != nil {
+		return nil, err
+	}
+	return DecryptJwe200JSONResponse{Body: jwe, Headers: headers}, err
 }

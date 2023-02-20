@@ -42,6 +42,11 @@ const (
 	AccessDeniedEvent = "AccessDenied"
 	// AccessKeyRegisteredEvent occurs when an authorized key is registered for future authorization events
 	AccessKeyRegisteredEvent = "AccessKeyRegistered"
+
+	// CryptoEncryptJWEEvent occurs when encryping a JWE
+	CryptoEncryptJWEEvent = "EncryptJWE"
+	// CryptoDecryptJWEEvent occurs when decryping a JWE
+	CryptoDecryptJWEEvent = "DecryptJWE"
 )
 
 const auditLogLevel = "audit"

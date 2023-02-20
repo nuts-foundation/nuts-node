@@ -21,7 +21,10 @@ package v1
 import (
 	"encoding/json"
 	"errors"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -152,20 +155,89 @@ func TestWrapper_SignJws(t *testing.T) {
 	})
 }
 
+func TestWrapper_EncryptJwe(t *testing.T) {
+	payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
+	headers := map[string]interface{}{"typ": "JWE"}
+
+	t.Run("Corrupt to returns 400", func(t *testing.T) {
+		ctx := newMockContext(t)
+		request := EncryptJweRequest{
+			Payload: payload,
+			To:      "bananas",
+		}
+
+		jwe, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
+
+		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), 400)
+		assert.Empty(t, jwe)
+	})
+	t.Run("Missing to returns 400", func(t *testing.T) {
+		ctx := newMockContext(t)
+		request := EncryptJweRequest{
+			Payload: payload,
+		}
+
+		jwe, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
+		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), 400)
+		assert.Empty(t, jwe)
+	})
+
+	t.Run("error - EncryptJwe fails", func(t *testing.T) {
+		ctx := newMockContext(t)
+		request := EncryptJweRequest{
+			To:      "did:nuts:12345",
+			Payload: payload,
+			Headers: headers,
+		}
+		did, _ := ssi.ParseURI("did:nuts:12345")
+		ctx.keyStore.EXPECT().EncryptJWE(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), did.String()).Return("", errors.New("b00m!"))
+		ctx.keyResolver.EXPECT().ResolveKeyAgreementKey(gomock.Any())
+
+		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(gomock.Any()).Return(*did, nil)
+
+		jwe, err := ctx.client.EncryptJwe(audit.TestContext(), EncryptJweRequestObject{Body: &request})
+
+		assert.EqualError(t, err, "b00m!")
+		assert.Empty(t, jwe)
+	})
+
+	t.Run("All OK returns 200, with payload", func(t *testing.T) {
+		ctx := newMockContext(t)
+		did, _ := ssi.ParseURI("did:nuts:12345")
+		request := EncryptJweRequest{
+			To:      "did:nuts:12345",
+			Headers: headers,
+			Payload: payload,
+		}
+		ctx.keyStore.EXPECT().EncryptJWE(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), did.String()).Return("jwe", nil)
+		ctx.keyResolver.EXPECT().ResolveKeyAgreementKey(gomock.Any())
+		ctx.keyResolver.EXPECT().ResolveAssertionKeyID(gomock.Any()).Return(*did, nil)
+
+		resp, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
+
+		assert.Nil(t, err)
+		assert.Equal(t, "jwe", string(resp.(EncryptJwe200TextResponse)))
+	})
+
+}
+
 type mockContext struct {
-	ctrl     *gomock.Controller
-	keyStore *crypto.MockKeyStore
-	client   *Wrapper
+	ctrl        *gomock.Controller
+	keyStore    *crypto.MockKeyStore
+	keyResolver *types.MockKeyResolver
+	client      *Wrapper
 }
 
 func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	keyStore := crypto.NewMockKeyStore(ctrl)
-	client := &Wrapper{C: keyStore}
+	keyResolver := types.NewMockKeyResolver(ctrl)
+	client := &Wrapper{C: keyStore, K: keyResolver}
 
 	return mockContext{
-		ctrl:     ctrl,
-		keyStore: keyStore,
-		client:   client,
+		ctrl:        ctrl,
+		keyStore:    keyStore,
+		keyResolver: keyResolver,
+		client:      client,
 	}
 }

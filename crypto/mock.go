@@ -154,6 +154,37 @@ func (mr *MockKeyStoreMockRecorder) Decrypt(kid, ciphertext interface{}) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Decrypt", reflect.TypeOf((*MockKeyStore)(nil).Decrypt), kid, ciphertext)
 }
 
+// DecryptJWE mocks base method.
+func (m *MockKeyStore) DecryptJWE(ctx context.Context, message string) ([]byte, map[string]interface{}, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DecryptJWE", ctx, message)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(map[string]interface{})
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// DecryptJWE indicates an expected call of DecryptJWE.
+func (mr *MockKeyStoreMockRecorder) DecryptJWE(ctx, message interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DecryptJWE", reflect.TypeOf((*MockKeyStore)(nil).DecryptJWE), ctx, message)
+}
+
+// EncryptJWE mocks base method.
+func (m *MockKeyStore) EncryptJWE(ctx context.Context, payload []byte, headers map[string]interface{}, publicKey interface{}, kid string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EncryptJWE", ctx, payload, headers, publicKey, kid)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// EncryptJWE indicates an expected call of EncryptJWE.
+func (mr *MockKeyStoreMockRecorder) EncryptJWE(ctx, payload, headers, publicKey, kid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EncryptJWE", reflect.TypeOf((*MockKeyStore)(nil).EncryptJWE), ctx, payload, headers, publicKey, kid)
+}
+
 // Exists mocks base method.
 func (m *MockKeyStore) Exists(kid string) bool {
 	m.ctrl.T.Helper()
@@ -301,6 +332,37 @@ func NewMockJWTSigner(ctrl *gomock.Controller) *MockJWTSigner {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockJWTSigner) EXPECT() *MockJWTSignerMockRecorder {
 	return m.recorder
+}
+
+// DecryptJWE mocks base method.
+func (m *MockJWTSigner) DecryptJWE(ctx context.Context, message string) ([]byte, map[string]interface{}, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DecryptJWE", ctx, message)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(map[string]interface{})
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// DecryptJWE indicates an expected call of DecryptJWE.
+func (mr *MockJWTSignerMockRecorder) DecryptJWE(ctx, message interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DecryptJWE", reflect.TypeOf((*MockJWTSigner)(nil).DecryptJWE), ctx, message)
+}
+
+// EncryptJWE mocks base method.
+func (m *MockJWTSigner) EncryptJWE(ctx context.Context, payload []byte, headers map[string]interface{}, publicKey interface{}, kid string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EncryptJWE", ctx, payload, headers, publicKey, kid)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// EncryptJWE indicates an expected call of EncryptJWE.
+func (mr *MockJWTSignerMockRecorder) EncryptJWE(ctx, payload, headers, publicKey, kid interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EncryptJWE", reflect.TypeOf((*MockJWTSigner)(nil).EncryptJWE), ctx, payload, headers, publicKey, kid)
 }
 
 // SignJWS mocks base method.
