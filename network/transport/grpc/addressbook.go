@@ -19,6 +19,7 @@
 package grpc
 
 import (
+	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"sync"
 	"sync/atomic"
@@ -108,8 +109,9 @@ func (a *addressBook) Update(peer transport.Peer) error {
 	// add new address
 	backoff := a.backoffCreator()
 	if !peer.NodeDID.Empty() {
-		// only persist non-bootstrap
-		backoff = NewPersistedBackoff(a.backoffStore, peer.NodeDID, backoff)
+		// only persist non-bootstrap.
+		// store the backoff under the DID since an address could be used by multiple DIDs.
+		backoff = NewPersistedBackoff(a.backoffStore, fmt.Sprintf("did:%s:%s", peer.NodeDID.Method, peer.NodeDID.ID), backoff)
 	}
 	a.contacts = append(a.contacts, newContact(peer, backoff))
 	return nil

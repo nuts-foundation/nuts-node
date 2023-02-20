@@ -38,6 +38,7 @@ func TestBoundedRandomBackoff_Backoff(t *testing.T) {
 	for current < b.max {
 		current = b.Backoff()
 	}
+	assert.Equal(t, b.max, current)
 }
 
 func TestBoundedRandomBackoff_Reset(t *testing.T) {
@@ -46,6 +47,23 @@ func TestBoundedRandomBackoff_Reset(t *testing.T) {
 	assert.True(t, b.Backoff() > b.min)
 	b.Reset(0)
 	assert.Equal(t, b.min, b.Backoff())
+}
+
+func TestBoundedRandomBackoff_Expired(t *testing.T) {
+	before := time.Now()
+	now := before.Add(time.Millisecond)
+	after := now.Add(time.Millisecond)
+	nowFunc = func() time.Time { return now }
+	b := newTestBackoff().(*boundedRandomBackoff)
+	b.Reset(0)
+
+	// has expired
+	nowFunc = func() time.Time { return after }
+	assert.True(t, b.Expired())
+
+	// has not expired
+	nowFunc = func() time.Time { return before }
+	assert.False(t, b.Expired())
 }
 
 func TestBoundedRandomBackoff_DefaultValues(t *testing.T) {
@@ -135,6 +153,42 @@ func TestPersistedBackoff_Reset(t *testing.T) {
 	b = NewPersistedBackoff(db, "test", newTestBackoff())
 	backoffAfterPersist := b.Value()
 	assert.Equal(t, time.Duration(0), backoffAfterPersist)
+}
+
+func TestPersistedBackoff_Expired(t *testing.T) {
+	testDirectory := io.TestDirectory(t)
+	now := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	nowFunc = func() time.Time { return now }
+
+	// Create back-off
+	db, _ := bbolt.CreateBBoltStore(path.Join(testDirectory, "backoff.db"))
+	defer db.Close(context.Background())
+	b := NewPersistedBackoff(db, "test", newTestBackoff())
+	assert.True(t, b.Expired()) // no backoff -> always expired
+
+	// Do some back-off
+	var prev time.Duration
+	for i := 0; i < 5; i++ {
+		b := b.Backoff()
+		assert.True(t, b > prev)
+		prev = b
+	}
+
+	// Re-open back-off, check if started from the same point
+	_ = db.Close(context.Background())
+	db, _ = bbolt.CreateBBoltStore(path.Join(testDirectory, "backoff.db"))
+	defer db.Close(context.Background())
+	b = NewPersistedBackoff(db, "test", newTestBackoff())
+
+	// now == expiration deadline
+	deadline := now.Add(prev)
+	nowFunc = func() time.Time { return deadline }
+	assert.False(t, b.Expired())
+
+	// expired
+	expired := deadline.Add(time.Millisecond)
+	nowFunc = func() time.Time { return expired }
+	assert.True(t, b.Expired())
 }
 
 func TestRandomBackoff(t *testing.T) {

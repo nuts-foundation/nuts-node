@@ -23,8 +23,6 @@ import (
 	"context"
 	"encoding/gob"
 	"errors"
-	"fmt"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"math/rand"
@@ -102,7 +100,7 @@ func BoundedBackoff(min time.Duration, max time.Duration) Backoff {
 // persistingBackoff wraps a Backoff and remembers the last value returned by Backoff()
 type persistingBackoff struct {
 	underlying       Backoff
-	peerDID          string
+	id               string
 	store            stoabs.KVStore
 	persistedBackoff time.Time
 }
@@ -125,9 +123,10 @@ func (p *persistingBackoff) Value() time.Duration {
 
 // NewPersistedBackoff wraps another backoff and stores the last value returned by Backoff() in BBolt.
 // It reads the last backoff value from the DB and returns it as the first value of the Backoff.
-func NewPersistedBackoff(connectionStore stoabs.KVStore, peerDID did.DID, underlying Backoff) Backoff {
+// id is the key the backoff will be stored under in the DB.
+func NewPersistedBackoff(connectionStore stoabs.KVStore, id string, underlying Backoff) Backoff {
 	b := &persistingBackoff{
-		peerDID:    fmt.Sprintf("did:%s:%s", peerDID.Method, peerDID.ID), // remove all that is not part of the DID.
+		id:         id,
 		store:      connectionStore,
 		underlying: underlying,
 	}
@@ -169,7 +168,7 @@ func (p *persistingBackoff) write(backoff time.Duration) {
 		if err != nil {
 			return err
 		}
-		return writer.Put(stoabs.BytesKey(p.peerDID), buf.Bytes())
+		return writer.Put(stoabs.BytesKey(p.id), buf.Bytes())
 	})
 	if err != nil {
 		log.Logger().
@@ -181,7 +180,7 @@ func (p *persistingBackoff) write(backoff time.Duration) {
 func (p *persistingBackoff) read() persistedBackoff {
 	var result persistedBackoff
 	err := p.store.ReadShelf(context.Background(), "backoff", func(reader stoabs.Reader) error {
-		data, err := reader.Get(stoabs.BytesKey(p.peerDID))
+		data, err := reader.Get(stoabs.BytesKey(p.id))
 		if errors.Is(err, stoabs.ErrKeyNotFound) {
 			return nil
 		}
