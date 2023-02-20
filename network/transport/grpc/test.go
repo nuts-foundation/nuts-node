@@ -64,6 +64,7 @@ type StubConnection struct {
 	SentMsgs      []interface{}
 	PeerID        transport.PeerID
 	Authenticated bool
+	Address       string
 }
 
 // Send sends a message to the connection
@@ -79,6 +80,7 @@ func (s *StubConnection) Peer() transport.Peer {
 		ID:            s.PeerID,
 		NodeDID:       s.NodeDID,
 		Authenticated: s.Authenticated,
+		Address:       s.Address,
 	}
 }
 
