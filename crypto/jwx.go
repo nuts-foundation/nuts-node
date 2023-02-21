@@ -44,6 +44,10 @@ var ErrUnsupportedSigningKey = errors.New("signing key algorithm not supported")
 
 var supportedAlgorithms = []jwa.SignatureAlgorithm{jwa.PS256, jwa.PS384, jwa.PS512, jwa.ES256, jwa.ES384, jwa.ES512}
 
+const defaultRsaEncryptionAlgorithm = jwa.RSA_OAEP_256
+const defaultEcEncryptionAlgorithm = jwa.ECDH_ES_A256KW
+const defaultContentEncryptionAlgorithm = jwa.A256GCM
+
 func isAlgorithmSupported(alg jwa.SignatureAlgorithm) bool {
 	for _, curr := range supportedAlgorithms {
 		if curr == alg {
@@ -343,7 +347,7 @@ func EncryptJWE(payload []byte, protectedHeaders map[string]interface{}, publicK
 	}
 
 	// Figure out the KeyEncryptionAlgorithm, give prevalence to the headers
-	enc := jwa.A256GCM
+	enc := defaultContentEncryptionAlgorithm
 	if len(headers.ContentEncryption().String()) > 0 {
 		enc = headers.ContentEncryption()
 	}
@@ -460,11 +464,11 @@ func EncryptionAlgorithm(key crypto.PublicKey) (jwa.KeyEncryptionAlgorithm, erro
 
 	switch ptr.(type) {
 	case *crypto.PublicKey:
-		return jwa.ECDH_ES_A256KW, nil
+		return defaultEcEncryptionAlgorithm, nil
 	case *rsa.PublicKey:
-		return jwa.RSA_OAEP_256, nil
+		return defaultRsaEncryptionAlgorithm, nil
 	case *ecdsa.PublicKey:
-		return jwa.ECDH_ES_A256KW, nil
+		return defaultEcEncryptionAlgorithm, nil
 	default:
 		return "", fmt.Errorf(`could not determine signature algorithm for key type '%T'`, key)
 	}

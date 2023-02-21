@@ -244,7 +244,7 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 		privateKey, _, err := client.getPrivateKey(key)
 		require.NoError(t, err)
 
-		token, err := jwe.Decrypt([]byte(tokenString), jwa.ECDH_ES_A256KW, privateKey)
+		token, err := jwe.Decrypt([]byte(tokenString), defaultEcEncryptionAlgorithm, privateKey)
 		require.NoError(t, err)
 
 		var body = make(map[string]interface{})
@@ -284,7 +284,7 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 		privateKey, _, err := client.getPrivateKey(key)
 		require.NoError(t, err)
 
-		token, err := jwe.Decrypt([]byte(tokenString), jwa.ECDH_ES_A256KW, privateKey)
+		token, err := jwe.Decrypt([]byte(tokenString), defaultEcEncryptionAlgorithm, privateKey)
 		require.NoError(t, err)
 
 		var body = make(map[string]interface{})
