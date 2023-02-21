@@ -17,17 +17,17 @@ When authentication fails the API will return ``HTTP 401 Unauthorized``. The log
 an explanation about the failure.
 
 Handle With Care
-================
+----------------
 
 The JWTs and private keys used in this authentication scheme are secrets and should never be shared with anyone. No one should ever ask you to send them your JWTs or private keys.
 
 nuts-jwt-generator
-==================
+------------------
 
 Tokens can be generated using the ``nuts-jwt-generator`` command, available on the nuts-foundation `GitHub page <https://github.com/nuts-foundation/jwt-generator>`_.
 
 JWT Generation in Code
-======================
+----------------------
 
 JWT's can be generated in code and must meet the following requirements:
 * The ``iss`` field must be present
@@ -46,6 +46,14 @@ JWT's can be generated in code and must meet the following requirements:
 * The ``kid`` field must contain either the `JWK SHA-256 Thumbprint <https://www.rfc-editor.org/rfc/rfc7638>`_ (e.g. ``NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs``) or the `SSH SHA-256 fingerprint <https://www.ietf.org/rfc/rfc4253.txt>`_ (e.g. ``SHA256:G5hwd24Zl7dyTsAGVxqyZk6z+oJ5UxWcIRL3fWGj7wk``) of the signing key
 * The JWT must not be encrypted
 
+Forbidden JWT Fields
+--------------------
+The following entries are forbidden in JWTs:
+* The ``jwk`` field, which embeds the public key, is forbidden
+* The ``jku`` field, which embeds a URL for fetching the public key, is forbidden
+* The ``x5c`` field, which embeds an X.509 certificate chain, is forbidden
+* The ``x5u`` field, which embeds a URL for fetching the public key in X.509 form, is forbidden
+
 Libraries
 ---------
 
@@ -61,6 +69,38 @@ Generally speaking for your application to access the protected API endpoints th
 5. Include the encoded JWT as a bearer token in the ``Authorization`` header of API requests.
 6. Stop using the JWT before it expires, rotating it for a freshly generated JWT.
 7. Be careful to keep your JWTs out of log messages etc., and treat them as secret at all times.
+
+Generating SSH Fingerprint
+--------------------------
+To generate the SSH fingerprint of a key using ssh-keygen:
+ .. code-block:: shell
+
+    ssh-keygen -lf /path/to/keyfile
+
+To generate the SSH fingerprint of a key using nuts-jwt-generator:
+ .. code-block:: shell
+
+    nuts-jwt-generator -i /path/to/keyfile -export-ssh-fingerprint
+
+Generating JWK Thumbprint
+--------------------------
+To generate the JWK fingerprint of a key using nuts-jwt-generator:
+ .. code-block:: shell
+
+    nuts-jwt-generator -i /path/to/keyfile -export-jwk-thumbprint
+
+Generating authorized_keys Representation
+-----------------------------------------
+
+To generate a key's authorized_keys form using ssh-keygen:
+ .. code-block:: shell
+    ssh-keygen -y -f /path/to/keyfile
+
+The above ssh-keygen command unfortunately fails for Ed25519 PEM keys at the time of this writing due to a `bug <https://bugzilla.mindrot.org/show_bug.cgi?id=3195>`_ and poor recent support for Ed25519 in libcrypto packages. The nuts-jwt-generator method below is recommended until this bug is fixed.
+
+To generate a key's authorized_keys form using nuts-jwt-generator:
+ .. code-block:: shell
+    nuts-jwt-generator -i /path/to/keyfile --export-authorized-key
 
 Legacy Token Authentication
 ***************************

@@ -98,12 +98,54 @@ The Nuts foundation provides a utility for generating JWT tokens `on our GitHub 
 Alternatively, developers and integrators may choose to implement their own JWT generation process which must conform
 to the requirements described in :ref:`Custom JWT Generation <api-authentication>`.
 
+Generating Keys With OpenSSL
+----------------------------
+To generate an Ed25519 key with OpenSSL:
+ .. code-block:: shell
+
+    openssl genpkey -algorithm ed25519 -out /path/to/keyfile.pem
+
+To generate an ECDSA key with OpenSSL:
+ .. code-block:: shell
+
+    openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-521 -pkeyopt ec_param_enc:named_curve -out /path/to/keyfile.pem
+
+To generate an RSA key with OpenSSL:
+ .. code-block:: shell
+
+    openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096 -out /tmp/rsa-private.pem
+
+Generating Keys With SSH
+------------------------
+To generate an Ed25519 key with using ssh-keygen:
+ .. code-block:: shell
+
+    ssh-keygen -t ed25519 -f /path/to/keyfile
+
+To generate an ECDSA key using ssh-keygen:
+ .. code-block:: shell
+
+    ssh-keygen -t ecdsa -b 521 -f /path/to/keyfile
+
+To generate an RSA key using ssh-keygen:
+ .. code-block:: shell
+
+    ssh-keygen -t rsa -b 4096 -f /path/to/keyfile
+
 authorized_keys files
 ---------------------
 The keys permitted to issue and sign JWT bearer tokens are specified in the authorized_keys format.
 
 
 authorized_keys files are made up of multiple lines, each line specifying one more key/user that is authorized. For more information on the authorized_keys format see the ``AUTHORIZED_KEYS FILE FORMAT`` section of the `man page <http://man.he.net/man5/authorized_keys>_`.
+
+The following is an example authorized_keys file. Each line specifies the key type, the public key, and the username:
+ .. code-block::
+
+    ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBAPwLGkaO5dWEx29sW4xnmv/s8+Nzj3mnkY6SX9Qnb91oyPayZV8Ts3TXSMKlkyYHVcIz/nAxRgxgKBTMwZc2wE= alice@company.com
+    ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAwaOa7iN1gnKEfiZAA7lhu3SIvfdzYE3VbswsVUQP7F bob@company.com
+    ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH1VNKtThJiI6c5zjLn/6EjRq1PtfM4qw4HM71zivIVn dan@company.com
+    ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBC54Az33UVYdRSTb/2N9LiZtL7TRiEox5+rJcnMYz+t30l4UG5Y8ZN6L2dJCCFWyQeeJ/oTOY915L9/miklDyhk= heidi@company.com
 
 Adding PEM files to authorized_keys
 -----------------------------------
