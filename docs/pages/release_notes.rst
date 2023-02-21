@@ -19,6 +19,19 @@ Release date: **DRAFT**
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.0...v5.1.0
 
 ***********************
+Coconut update (v5.0.9)
+***********************
+
+Release date: 2023-02-21
+
+This patch release fixes the following:
+
+- Validations performed when revoking a VC are now more lenient: don't check whether it can actually find the VC in the issuer's database.
+  Enables issuers to revoke VCs even if they've lost track of them (e.g. incorrect database backup/restore).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.8...v5.0.9
+
+***********************
 Coconut update (v5.0.8)
 ***********************
 

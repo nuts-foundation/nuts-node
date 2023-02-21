@@ -467,7 +467,7 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.NotNil(t, tokenCtx.credentialIDs)
-		assert.Equal(t, "did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW#1", tokenCtx.credentialIDs[0])
+		assert.Equal(t, "did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW#38E90E8C-F7E5-4333-B63A-F9DD155A0272", tokenCtx.credentialIDs[0])
 	})
 
 	t.Run("ok - no authorization credentials", func(t *testing.T) {
@@ -518,7 +518,7 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 
 		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 
-		assert.EqualError(t, err, "credentialSubject.ID did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY of authorization credential with ID: did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW#1 does not match jwt.iss: unknown")
+		assert.EqualError(t, err, "credentialSubject.ID did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY of authorization credential with ID: did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW#38E90E8C-F7E5-4333-B63A-F9DD155A0272 does not match jwt.iss: unknown")
 	})
 
 	t.Run("error - jwt.sub <> issuer mismatch", func(t *testing.T) {
@@ -529,7 +529,7 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 
 		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 
-		assert.EqualError(t, err, "issuer did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW of authorization credential with ID: did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW#1 does not match jwt.sub: unknown")
+		assert.EqualError(t, err, "issuer did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW of authorization credential with ID: did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW#38E90E8C-F7E5-4333-B63A-F9DD155A0272 does not match jwt.sub: unknown")
 	})
 
 	t.Run("error - invalid credential", func(t *testing.T) {

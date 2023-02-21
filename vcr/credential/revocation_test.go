@@ -43,7 +43,7 @@ func TestBuildRevocation(t *testing.T) {
 		nowFunc = time.Now
 	}()
 
-	r := BuildRevocation(target)
+	r := BuildRevocation(target.Issuer, *target.ID)
 
 	assert.Equal(t, *target.ID, r.Subject)
 	assert.Equal(t, target.Issuer, r.Issuer)

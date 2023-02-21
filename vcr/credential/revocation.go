@@ -52,13 +52,13 @@ var nowFunc = time.Now
 var RevocationType = ssi.MustParseURI("CredentialRevocation")
 
 // BuildRevocation generates a revocation based on the credential
-func BuildRevocation(credential vc.VerifiableCredential) Revocation {
+func BuildRevocation(issuer ssi.URI, subject ssi.URI) Revocation {
 	nutsCredentialContext := ssi.MustParseURI("https://nuts.nl/credentials/v1")
 	return Revocation{
 		Context: []ssi.URI{nutsCredentialContext},
 		Type:    []ssi.URI{RevocationType},
-		Issuer:  credential.Issuer,
-		Subject: *credential.ID,
+		Issuer:  issuer,
+		Subject: subject,
 		Date:    nowFunc(),
 	}
 }
