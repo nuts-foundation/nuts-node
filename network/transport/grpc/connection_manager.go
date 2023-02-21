@@ -276,21 +276,16 @@ outerLoop:
 			break outerLoop
 		case <-ticker.C:
 			for _, c := range s.addressBook.limit(maxConcurrentDialers, isNotActivePredicate(s), backoffExpiredPredicate(), notDialingPredicate()) {
-				select {
-				case <-s.ctx.Done():
-					break outerLoop
-				default:
-					// the notDialingPredicate above guarantees that dialing is currently false. We can take the dialing lock
-					c.dialing.Store(true)
-					dialingWG.Add(1)
-					go func(cp *contact) {
-						defer func() {
-							cp.dialing.Store(false) // reset call lock at the end of dialing
-							dialingWG.Done()
-						}()
-						s.dial(cp)
-					}(c)
-				}
+				// the notDialingPredicate above guarantees that dialing is currently false. We can take the dialing lock
+				c.dialing.Store(true)
+				dialingWG.Add(1)
+				go func(cp *contact) {
+					defer func() {
+						cp.dialing.Store(false) // reset call lock at the end of dialing
+						dialingWG.Done()
+					}()
+					s.dial(cp)
+				}(c)
 			}
 		}
 	}
@@ -319,9 +314,10 @@ func (s *grpcConnectionManager) dial(contact *contact) {
 	defer cancel()
 	grpcClient, err := s.dialer(dialContext, contact.peer.Address, s.dialOptions...)
 	if err != nil { // failed to connect
-		if !errors.Is(err, context.Canceled) {
+		errStatus, isStatusError := status.FromError(err)
+		if isStatusError && errStatus.Code() == codes.Canceled {
 			log.Logger().WithError(err).WithFields(contact.peer.ToFields()).Debug("failed to open a grpc ClientConn")
-			contact.backoff.Backoff()
+			contact.backoff.Backoff() // backoff store
 		}
 		return
 	}
