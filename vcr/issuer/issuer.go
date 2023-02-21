@@ -168,12 +168,10 @@ func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.Verifiab
 }
 
 func (i issuer) Revoke(credentialID ssi.URI) (*credential.Revocation, error) {
-	// first find it using a query on id.
-	credentialToRevoke, err := i.store.GetCredential(credentialID)
-	if err != nil {
-		return nil, fmt.Errorf("could not revoke (id=%s): %w", credentialID, err)
-	}
-
+	// Previously we first tried to resolve the credential, but that's not necessary:
+	// if the credential doesn't actually exist the revocation doesn't apply to anything, no harm done.
+	// Although it is a bit ugly, it helps issuers to revoke credentials that they don't have anymore,
+	// for whatever reason (e.g. incorrect database backup/restore).
 	isRevoked, err := i.isRevoked(credentialID)
 	if err != nil {
 		return nil, fmt.Errorf("error while checking revocation status: %w", err)
@@ -182,7 +180,7 @@ func (i issuer) Revoke(credentialID ssi.URI) (*credential.Revocation, error) {
 		return nil, vcr.ErrRevoked
 	}
 
-	revocation, err := i.buildRevocation(*credentialToRevoke)
+	revocation, err := i.buildRevocation(credentialID)
 	if err != nil {
 		return nil, err
 	}
@@ -198,14 +196,24 @@ func (i issuer) Revoke(credentialID ssi.URI) (*credential.Revocation, error) {
 	}
 
 	log.Logger().
-		WithField(core.LogFieldCredentialID, credentialToRevoke.ID).
+		WithField(core.LogFieldCredentialID, credentialID).
 		Info("Verifiable Credential revoked")
 	return revocation, nil
 }
 
-func (i issuer) buildRevocation(credentialToRevoke vc.VerifiableCredential) (*credential.Revocation, error) {
-	// find issuer
-	issuerDID, err := did.ParseDID(credentialToRevoke.Issuer.String())
+func (i issuer) buildRevocation(credentialID ssi.URI) (*credential.Revocation, error) {
+	// Sanity check: since we don't check existence of the VC, at least somewhat guard against mistyped credential IDs
+	// (although nobody should be typing those in).
+	_, err := uuid.Parse(credentialID.Fragment)
+	if err != nil {
+		return nil, core.InvalidInputError("invalid credential ID")
+	}
+
+	// find issuer from credential ID
+	issuer := credentialID
+	issuer.Path = ""
+	issuer.Fragment = ""
+	issuerDID, err := did.ParseDID(issuer.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract issuer: %w", err)
 	}
@@ -215,12 +223,12 @@ func (i issuer) buildRevocation(credentialToRevoke vc.VerifiableCredential) (*cr
 		const errString = "failed to revoke credential (%s): could not resolve an assertionKey for issuer: %w"
 		// Differentiate between a DID document not found and some other error:
 		if errors.Is(err, vdr.ErrNotFound) {
-			return nil, core.InvalidInputError(errString, credentialToRevoke.ID, err)
+			return nil, core.InvalidInputError(errString, credentialID, err)
 		}
-		return nil, fmt.Errorf(errString, credentialToRevoke.ID, err)
+		return nil, fmt.Errorf(errString, credentialID, err)
 	}
 	// set defaults
-	revocation := credential.BuildRevocation(credentialToRevoke)
+	revocation := credential.BuildRevocation(issuerDID.URI(), credentialID)
 
 	revocationAsMap := map[string]interface{}{}
 	b, _ := json.Marshal(revocation)
