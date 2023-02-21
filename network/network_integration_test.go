@@ -396,13 +396,18 @@ func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.DID{})
 		if !test.WaitFor(t, func() (bool, error) {
 			return len(node1.network.connectionManager.Peers()) == 1 && len(node2.network.connectionManager.Peers()) == 1, nil
-		}, defaultTimeout, "time-out while waiting for node 1 and 2 to be connected") {
+		}, defaultTimeout, "time-out while waiting for node 1 to connect to node 2") {
 			return
 		}
 
 		// Now instruct node2 to connect to node1. non-bootstrap, so should be accepted
 		node2.network.connectionManager.Connect(nameToAddress(t, "node1"), did.MustParseDID("did:nuts:node1"))
-		time.Sleep(time.Second)
+		if !test.WaitFor(t, func() (bool, error) {
+			return len(node1.network.connectionManager.Peers()) == 2 && len(node2.network.connectionManager.Peers()) == 2, nil
+		}, defaultTimeout, "time-out while waiting for node 2 to connect to node 1") {
+			return
+		}
+
 		assert.Len(t, node1.network.connectionManager.Peers(), 2)
 		assert.Len(t, node2.network.connectionManager.Peers(), 2)
 	})
