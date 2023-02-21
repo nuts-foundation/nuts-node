@@ -19,6 +19,7 @@
 package grpc
 
 import (
+	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"sync"
@@ -85,10 +86,13 @@ func (a *addressBook) Update(peer transport.Peer) error {
 	a.mux.Lock()
 	defer a.mux.Unlock()
 
-	// TODO: add validation peer. -> ? valid address & did, no peerID?
+	// TODO: should this check include url validation?
+	if peer.NodeDID.Empty() && peer.Address == "" {
+		return errors.New("invalid peer")
+	}
 
-	current, exists := a.get(peer)
 	// update existing address
+	current, exists := a.get(peer)
 	if exists {
 		if peer.Address == current.peer.Address {
 			// nothing to update
@@ -118,6 +122,8 @@ func (a *addressBook) All() []*contact {
 	a.mux.RLock()
 	defer a.mux.RUnlock()
 
+	// copy contact to a new slice to prevent race conditions on a.contacts.
+	// this does not prevent race conditions on the contacts
 	result := make([]*contact, len(a.contacts))
 	copy(result, a.contacts)
 	return result
