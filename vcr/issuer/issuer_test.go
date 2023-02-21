@@ -372,7 +372,7 @@ _:c14n0 <https://www.w3.org/2018/credentials#issuer> <did:nuts:123> .
 
 }
 func Test_issuer_Revoke(t *testing.T) {
-	credentialID := "did:nuts:123#abc"
+	credentialID := "did:nuts:123#38E90E8C-F7E5-4333-B63A-F9DD155A0272"
 	credentialURI := ssi.MustParseURI(credentialID)
 	issuerID := "did:nuts:123"
 	issuerURI := ssi.MustParseURI(issuerID)
@@ -442,18 +442,32 @@ func Test_issuer_Revoke(t *testing.T) {
 			assert.Nil(t, revocation)
 		})
 
-		t.Run("error - invalid DID", func(t *testing.T) {
+		t.Run("error - invalid credential ID (fragment is not a UUID)", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			// GetRevocation fails
 			store := NewMockStore(ctrl)
 			store.EXPECT().GetRevocation(gomock.Any()).Return(nil, ErrNotFound)
 
 			sut := issuer{
 				store: store,
 			}
-			revocation, err := sut.Revoke(ssi.MustParseURI("a"))
+			revocation, err := sut.Revoke(ssi.MustParseURI("did:nuts:123#invalid"))
+			assert.EqualError(t, err, "invalid credential ID")
+			assert.Nil(t, revocation)
+		})
+
+		t.Run("error - invalid DID", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			store := NewMockStore(ctrl)
+			store.EXPECT().GetRevocation(gomock.Any()).Return(nil, ErrNotFound)
+
+			sut := issuer{
+				store: store,
+			}
+			revocation, err := sut.Revoke(ssi.MustParseURI("a#38E90E8C-F7E5-4333-B63A-F9DD155A0272"))
 			assert.EqualError(t, err, "failed to extract issuer: invalid DID: input length is less than 7")
 			assert.Nil(t, revocation)
 		})

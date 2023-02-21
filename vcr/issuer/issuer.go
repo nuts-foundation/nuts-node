@@ -202,6 +202,13 @@ func (i issuer) Revoke(credentialID ssi.URI) (*credential.Revocation, error) {
 }
 
 func (i issuer) buildRevocation(credentialID ssi.URI) (*credential.Revocation, error) {
+	// Sanity check: since we don't check existence of the VC, at least somewhat guard against mistyped credential IDs
+	// (although nobody should be typing those in).
+	_, err := uuid.Parse(credentialID.Fragment)
+	if err != nil {
+		return nil, core.InvalidInputError("invalid credential ID")
+	}
+
 	// find issuer from credential ID
 	issuer := credentialID
 	issuer.Path = ""
