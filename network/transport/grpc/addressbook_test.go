@@ -159,7 +159,7 @@ import (
 
 func TestAddressBook_limit(t *testing.T) {
 	store := storage.CreateTestBBoltStore(t, t.TempDir()+"/test.db")
-	ab := newAddressBook(store, newTestBackoff)
+	ab := newAddressBook(store, newTestBackoff, nil)
 	peer := transport.Peer{ID: transport.PeerID("test")}
 	ab.Update(peer)
 

@@ -373,13 +373,12 @@ func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 		assert.Len(t, node1.network.connectionManager.Peers(), 1)
 		assert.Len(t, node2.network.connectionManager.Peers(), 1)
 
-		// TODO: re-evaluate. this no longer makes sense since the addressBook has a list of all contacts it knows and we can have multiple connections to the same node.
-		//// Assert that the connectors of node1 and node2 are deduplicated: outbound connection is "merged" with existing inbound connection
-		//// There should be no outbound connectors in the stats, since they're not returned for active connections
-		//node1Diagnostics := node1.network.connectionManager.Diagnostics()
-		//assert.Empty(t, node1Diagnostics[3].(grpc.ConnectorsStats))
-		//node2Diagnostics := node2.network.connectionManager.Diagnostics()
-		//assert.Empty(t, node2Diagnostics[3].(grpc.ConnectorsStats))
+		// Assert that the connectors of node1 and node2 are deduplicated: outbound connection is "merged" with existing inbound connection
+		// There should be no outbound connectors in the stats, since they're not returned for active connections
+		node1Diagnostics := node1.network.connectionManager.Diagnostics()
+		assert.Empty(t, node1Diagnostics[3].(grpc.ContactsStats))
+		node2Diagnostics := node2.network.connectionManager.Diagnostics()
+		assert.Empty(t, node2Diagnostics[3].(grpc.ContactsStats))
 	})
 	t.Run("bootstrap connections", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
@@ -443,10 +442,10 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 		node1.network.nodeDIDResolver.(*transport.FixedNodeDIDResolver).NodeDID = *malloryDID
 
 		// Now connect node1 to node2 and wait for them to set up
-		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.DID{})
+		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"))
 		if !test.WaitFor(t, func() (bool, error) {
 			diagnostics := node1.network.connectionManager.Diagnostics()
-			connectorsStats := diagnostics[3].(grpc.ConnectorsStats)
+			connectorsStats := diagnostics[3].(grpc.ContactsStats)
 			// Assert we tried to connect at least once
 			return connectorsStats[0].Attempts >= 1, nil
 		}, defaultTimeout, "time-out while waiting for node 1 to try to connect") {
@@ -475,7 +474,7 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"))
 		if !test.WaitFor(t, func() (bool, error) {
 			diagnostics := node1.network.connectionManager.Diagnostics()
-			connectorsStats := diagnostics[3].(grpc.ConnectorsStats)
+			connectorsStats := diagnostics[3].(grpc.ContactsStats)
 			// Assert we tried to connect at least once
 			return connectorsStats[0].Attempts >= 1, nil
 		}, defaultTimeout, "time-out while waiting for node 1 to try to connect") {

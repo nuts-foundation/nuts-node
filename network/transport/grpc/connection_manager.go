@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -106,10 +107,10 @@ func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nod
 		nodeDIDResolver:   nodeDIDResolver,
 		authenticator:     authenticator,
 		config:            config,
-		addressBook:       newAddressBook(connectionStore, config.backoffCreator),
 		connectionTimeout: config.connectionTimeout,
 		connections:       &connectionList{},
 		dialer:            config.dialer,
+		dialerWG:          new(sync.WaitGroup),
 		dialOptions: []grpc.DialOption{
 			grpc.WithBlock(),                 // Dial should block until connection succeeded (or time-out expired)
 			grpc.WithReturnConnectionError(), // This option causes underlying errors to be returned when connections fail, rather than just "context deadline exceeded"
@@ -121,6 +122,7 @@ func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nod
 			tlsDialOption,
 		},
 	}
+	cm.addressBook = newAddressBook(connectionStore, config.backoffCreator, isNotActivePredicate(cm))
 	cm.registerPrometheusMetrics()
 	cm.ctx, cm.ctxCancel = context.WithCancel(context.Background())
 
@@ -145,6 +147,7 @@ type grpcConnectionManager struct {
 	addressBook *addressBook
 
 	dialer
+	dialerWG          *sync.WaitGroup
 	dialOptions       []grpc.DialOption
 	connectionTimeout time.Duration
 	connections       *connectionList
@@ -199,7 +202,11 @@ func newGrpcServer(ctx context.Context, config Config) (*grpc.Server, error) {
 
 func (s *grpcConnectionManager) Start() error {
 	// Start outbound
-	go s.dialerLoop()
+	s.dialerWG.Add(1)
+	go func() {
+		defer s.dialerWG.Done()
+		s.dialerLoop()
+	}()
 
 	// Start inbound
 	if s.config.listenAddress == "" {
@@ -243,6 +250,7 @@ func (s *grpcConnectionManager) Start() error {
 func (s *grpcConnectionManager) Stop() {
 	log.Logger().Debug("Stopping gRPC connection manager")
 	s.ctxCancel() // stops dialerLoop and crlValidator
+	s.dialerWG.Wait()
 	s.connections.forEach(func(connection Connection) {
 		connection.disconnect()
 	})
@@ -258,29 +266,35 @@ func (s *grpcConnectionManager) Stop() {
 
 func (s *grpcConnectionManager) dialerLoop() {
 	log.Logger().Info("start dialing")
-	var c *contact
 	ticker := time.NewTicker(time.Second)
+	dialingWG := new(sync.WaitGroup)
 	defer ticker.Stop()
+outerLoop:
 	for {
 		select {
 		case <-s.ctx.Done():
-			return
+			break outerLoop
 		case <-ticker.C:
-			for _, c = range s.addressBook.limit(maxConcurrentDialers, isNotActivePredicate(s), backoffExpiredPredicate(), notDialingPredicate()) {
+			for _, c := range s.addressBook.limit(maxConcurrentDialers, isNotActivePredicate(s), backoffExpiredPredicate(), notDialingPredicate()) {
 				select {
 				case <-s.ctx.Done():
-					// interrupt inner loop
-					break
+					break outerLoop
 				default:
-					// use the dialing lock acquired above to dial the getContact
+					// the notDialingPredicate above guarantees that dialing is currently false. We can take the dialing lock
+					c.dialing.Store(true)
+					dialingWG.Add(1)
 					go func(cp *contact) {
-						s.dial(c)
-						defer cp.dialing.Store(false) // reset call lock at the end of dialing
+						defer func() {
+							cp.dialing.Store(false) // reset call lock at the end of dialing
+							dialingWG.Done()
+						}()
+						s.dial(cp)
 					}(c)
 				}
 			}
 		}
 	}
+	dialingWG.Wait()
 }
 
 func (s *grpcConnectionManager) dial(contact *contact) {
@@ -305,8 +319,10 @@ func (s *grpcConnectionManager) dial(contact *contact) {
 	defer cancel()
 	grpcClient, err := s.dialer(dialContext, contact.peer.Address, s.dialOptions...)
 	if err != nil { // failed to connect
-		log.Logger().WithError(err).WithFields(contact.peer.ToFields()).Debug("failed to open a grpc ClientConn")
-		contact.backoff.Backoff()
+		if !errors.Is(err, context.Canceled) {
+			log.Logger().WithError(err).WithFields(contact.peer.ToFields()).Debug("failed to open a grpc ClientConn")
+			contact.backoff.Backoff()
+		}
 		return
 	}
 	defer func() {

@@ -41,23 +41,21 @@ type AddressBook interface {
 	All() []*contact
 }
 
-func newAddressBook(connectionStore stoabs.KVStore, backoffCreator func() Backoff) *addressBook {
+func newAddressBook(connectionStore stoabs.KVStore, backoffCreator func() Backoff, hasNoConnection predicate) *addressBook {
 	return &addressBook{
-		contacts:       make([]*contact, 0),
-		backoffStore:   connectionStore,
-		backoffCreator: backoffCreator,
+		contacts:        make([]*contact, 0),
+		backoffStore:    connectionStore,
+		backoffCreator:  backoffCreator,
+		hasNoConnection: hasNoConnection,
 	}
 }
 
 type addressBook struct {
-	mux            sync.RWMutex // TODO: check race conditions
-	contacts       []*contact
-	backoffStore   stoabs.KVStore
-	backoffCreator func() Backoff
-}
-
-func (a *addressBook) len() int {
-	return len(a.contacts)
+	mux             sync.RWMutex // TODO: check race conditions
+	contacts        []*contact
+	backoffStore    stoabs.KVStore
+	backoffCreator  func() Backoff
+	hasNoConnection predicate
 }
 
 func (a *addressBook) Get(peer transport.Peer) (*contact, bool) {
@@ -105,7 +103,6 @@ func (a *addressBook) Update(peer transport.Peer) error {
 		return nil
 	}
 
-	// TODO: Should this register contact per protocol??
 	// add new address
 	backoff := a.backoffCreator()
 	if !peer.NodeDID.Empty() {
@@ -160,13 +157,16 @@ func (a *addressBook) remove(target *contact) {
 	a.contacts = a.contacts[:j]
 }
 
+// Diagnostics returns the statistics of contacts that have no active connection.
 func (a *addressBook) Diagnostics() []core.DiagnosticResult {
-	var connectors ConnectorsStats
+	var contacts ContactsStats
 	for _, curr := range a.All() {
-		connectors = append(connectors, curr.stats())
+		if a.hasNoConnection(curr) {
+			contacts = append(contacts, curr.stats())
+		}
 	}
 	return []core.DiagnosticResult{
-		connectors,
+		contacts,
 	}
 }
 
@@ -215,6 +215,6 @@ func backoffExpiredPredicate() predicate {
 
 func notDialingPredicate() predicate {
 	return func(c *contact) bool {
-		return c.dialing.CompareAndSwap(false, true)
+		return c.dialing.Load() == false
 	}
 }

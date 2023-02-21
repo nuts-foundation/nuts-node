@@ -972,7 +972,7 @@ func Test_connectToKnownNodes(t *testing.T) {
 		}
 		docFinder.EXPECT().Find(gomock.Any()).Return([]did.Document{peerDocument, localDocument}, nil)
 		// Only expect Connect() call for peer
-		connectionManager.EXPECT().Connect(peerAddress, peerDID)
+		connectionManager.EXPECT().Connect(peerAddress, *peerDID)
 
 		_ = network.connectToKnownNodes(*nodeDID)
 	})
