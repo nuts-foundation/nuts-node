@@ -168,6 +168,10 @@ func (i issuer) buildVC(credentialOptions vc.VerifiableCredential) (*vc.Verifiab
 }
 
 func (i issuer) Revoke(credentialID ssi.URI) (*credential.Revocation, error) {
+	// Previously we first tried to resolve the credential, but that's not necessary:
+	// if the credential doesn't actually exist the revocation doesn't apply to anything, no harm done.
+	// Although it is a bit ugly, it helps issuers to revoke credentials that they don't have anymore,
+	// for whatever reason (e.g. incorrect database backup/restore).
 	isRevoked, err := i.isRevoked(credentialID)
 	if err != nil {
 		return nil, fmt.Errorf("error while checking revocation status: %w", err)
