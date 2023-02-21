@@ -231,14 +231,13 @@ func TestCrypto_SignJWS(t *testing.T) {
 func TestCrypto_EncryptJWE(t *testing.T) {
 	client := createCrypto(t)
 
-	kid := "did:nuts:1234"
-	key, _ := client.New(audit.TestContext(), StringNamingFunc(kid))
+	key, _ := client.New(audit.TestContext(), StringNamingFunc("did:nuts:1234#key-1"))
 	public := key.Public()
 
-	headers := map[string]interface{}{"typ": "JWT"}
+	headers := map[string]interface{}{"typ": "JWT", "kid": key.KID()}
 	t.Run("creates valid JWE", func(t *testing.T) {
 		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
-		tokenString, err := client.EncryptJWE(audit.TestContext(), payload, headers, public, kid)
+		tokenString, err := client.EncryptJWE(audit.TestContext(), payload, headers, public)
 
 		require.NoError(t, err)
 
@@ -258,7 +257,7 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 	t.Run("creates valid JWE, alt alg", func(t *testing.T) {
 		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
 		headers := map[string]interface{}{"typ": "JWT", "alg": "ECDH-ES"}
-		tokenString, err := client.EncryptJWE(audit.TestContext(), payload, headers, public, kid)
+		tokenString, err := client.EncryptJWE(audit.TestContext(), payload, headers, public)
 
 		require.NoError(t, err)
 
@@ -278,7 +277,7 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 	t.Run("creates valid JWE, alt enc", func(t *testing.T) {
 		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
 		headers := map[string]interface{}{"typ": "JWT", "enc": "A256CBC-HS512"}
-		tokenString, err := client.EncryptJWE(audit.TestContext(), payload, headers, public, kid)
+		tokenString, err := client.EncryptJWE(audit.TestContext(), payload, headers, public)
 
 		require.NoError(t, err)
 
@@ -298,16 +297,16 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 	t.Run("creates broken JWE, enc header", func(t *testing.T) {
 		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
 		headers := map[string]interface{}{"typ": "JWT", "enc": "ECDH-ES"}
-		_, err := client.EncryptJWE(audit.TestContext(), payload, headers, public, kid)
+		_, err := client.EncryptJWE(audit.TestContext(), payload, headers, public)
 		require.Error(t, err)
 	})
 	t.Run("writes audit log", func(t *testing.T) {
 		auditLogs := audit.CaptureLogs(t)
 
-		_, err := client.EncryptJWE(audit.TestContext(), []byte{1, 2, 3}, headers, public, kid)
+		_, err := client.EncryptJWE(audit.TestContext(), []byte{1, 2, 3}, headers, public)
 
 		require.NoError(t, err)
-		auditLogs.AssertContains(t, ModuleName, "EncryptJWE", audit.TestActor, fmt.Sprintf("Encrypting a JWE with key: %s", kid))
+		auditLogs.AssertContains(t, ModuleName, "EncryptJWE", audit.TestActor, fmt.Sprintf("Encrypting a JWE with key: %s", key.KID()))
 	})
 }
 

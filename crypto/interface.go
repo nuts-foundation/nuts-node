@@ -84,7 +84,7 @@ type JWTSigner interface {
 	// EncryptJWE encrypts a payload as bytes into a JWE message with the given key and kid.
 	// The publicKey must be a public key
 	// The kid must be the KeyID and will be placed in the header, if not set.
-	EncryptJWE(ctx context.Context, payload []byte, headers map[string]interface{}, publicKey interface{}, kid string) (string, error)
+	EncryptJWE(ctx context.Context, payload []byte, headers map[string]interface{}, publicKey interface{}) (string, error)
 
 	// DecryptJWE decrypts a message as bytes into a decrypted body and headers.
 	// The corresponding private key must be located in the KeyID (kid) header.
