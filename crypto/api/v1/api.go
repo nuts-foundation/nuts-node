@@ -154,7 +154,7 @@ func (w *Wrapper) SignJws(ctx context.Context, request SignJwsRequestObject) (Si
 func (w *Wrapper) EncryptJwe(ctx context.Context, request EncryptJweRequestObject) (EncryptJweResponseObject, error) {
 	encryptRequest := request.Body
 	if err := encryptRequest.validate(); err != nil {
-		return nil, core.InvalidInputError("invalid sign request: %w", err)
+		return nil, core.InvalidInputError("invalid encrypt request: %w", err)
 	}
 	to := encryptRequest.To
 	id, err := did.ParseDIDURL(to)
@@ -201,7 +201,7 @@ func (w *Wrapper) EncryptJwe(ctx context.Context, request EncryptJweRequestObjec
 func (w *Wrapper) DecryptJwe(ctx context.Context, request DecryptJweRequestObject) (DecryptJweResponseObject, error) {
 	decryptRequest := request.Body
 	if err := decryptRequest.validate(); err != nil {
-		return nil, core.InvalidInputError("invalid sign request: %w", err)
+		return nil, core.InvalidInputError("invalid decrypt request: %w", err)
 	}
 	jwe, headers, err := w.C.DecryptJWE(ctx, decryptRequest.Message)
 	if err != nil {
