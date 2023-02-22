@@ -30,7 +30,7 @@ import (
 )
 
 func ValidNutsAuthorizationCredential() *vc.VerifiableCredential {
-	id := stringToURI(vdr.TestDIDA.String() + "#1")
+	id := stringToURI(vdr.TestDIDA.String() + "#38E90E8C-F7E5-4333-B63A-F9DD155A0272")
 	return &vc.VerifiableCredential{
 		Context:      []ssi.URI{vc.VCContextV1URI(), NutsV1ContextURI},
 		ID:           &id,

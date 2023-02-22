@@ -194,7 +194,6 @@ paths:
 
         error returns:
         * 400 - Credential can't be revoked. Most likely due to a missing private key.
-        * 404 - Credential is not found
         * 409 - Credential has already been revoked
         * 500 - An error occurred while processing the request
       operationId: "revokeVC"
