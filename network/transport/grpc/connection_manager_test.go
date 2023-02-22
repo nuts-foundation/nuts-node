@@ -55,117 +55,6 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 )
 
-//func Test_connector_tryConnect(t *testing.T) {
-//	// Set up gRPC stream interceptor to capture headers sent by client
-//	actualUserAgent := atomic.Value{}
-//	defaultInterceptors = append(defaultInterceptors, func(_ interface{}, stream grpc.ServerStream, _ *grpc.StreamServerInfo, h grpc.StreamHandler) error {
-//		m, _ := metadata.FromIncomingContext(stream.Context())
-//		actualUserAgent.Store(m.Get("User-Agent")[0])
-//		return nil
-//	})
-//
-//	// Setup server
-//	serverConfig := NewConfig(fmt.Sprintf("localhost:%d", test.FreeTCPPort()), "server")
-//	cm := NewGRPCConnectionManager(serverConfig, createKVStore(t), &transport.FixedNodeDIDResolver{}, nil, &TestProtocol{})
-//	require.NoError(t, cm.Start())
-//	defer cm.Stop()
-//
-//	// Setup contact to test
-//	bo := &trackingBackoff{}
-//	cfg := testConnectorConfig
-//	cfg.peer = transport.Peer{Address: serverConfig.listenAddress}
-//	contact := newContact(cfg, bo)
-//
-//	// Connect and call protocol function to set up streams, required to assert headers.
-//	// Then wait for stream to be set up
-//	grpcConn, err := contact.tryConnect()
-//	require.NoError(t, err)
-//	require.NotNil(t, grpcConn)
-//	_, _ = (&TestProtocol{}).CreateClientStream(context.Background(), grpcConn)
-//	test.WaitFor(t, func() (bool, error) {
-//		return actualUserAgent.Load() != nil, nil
-//	}, time.Second, "time-out while waiting for connection to be set up")
-//
-//	assert.Equal(t, uint32(1), contact.stats().Attempts)
-//	assert.Contains(t, actualUserAgent.Load().(string), "nuts-node-refimpl/unknown")
-//}
-
-//func Test_connector_stats(t *testing.T) {
-//	t.Run("no connect attempts", func(t *testing.T) {
-//		contact := newContact(testConnectorConfig, newTestBackoff())
-//
-//		stats := contact.stats()
-//
-//		assert.Equal(t, uint32(0), stats.Attempts)
-//		assert.Equal(t, "unit-test-target", stats.Address)
-//		assert.Equal(t, time.Time{}, stats.LastAttempt)
-//	})
-//	t.Run("with connect attempts", func(t *testing.T) {
-//		contact := newContact(testConnectorConfig, newTestBackoff())
-//
-//		contact.tryConnect()
-//		stats := contact.stats()
-//
-//		now := time.Now().Add(time.Second * -1)
-//		assert.Equal(t, uint32(1), stats.Attempts)
-//		assert.Equal(t, "unit-test-target", stats.Address)
-//		assert.True(t, stats.LastAttempt.After(now))
-//	})
-//}
-
-//func Test_connector_start(t *testing.T) {
-//	t.Run("ok", func(t *testing.T) {
-//		connected := make(chan struct{}, 1)
-//		bo := &trackingBackoff{mux: &sync.Mutex{}}
-//		contact := newContact(testConnectorConfig, bo)
-//		contact.connectedBackoff = func(_ context.Context) {
-//			// nothing
-//		}
-//
-//		contact.start()
-//		defer contact.stop()
-//
-//		<-connected // wait for connected
-//
-//		resetCount, backoffCount := bo.counts()
-//		assert.Equal(t, 0, resetCount)
-//		assert.Equal(t, 0, backoffCount)
-//	})
-//	t.Run("not connecting when already connected", func(t *testing.T) {
-//		calls := make(chan struct{}, 10)
-//		bo := &trackingBackoff{mux: &sync.Mutex{}}
-//		contact := newContact(testConnectorConfig, bo)
-//		contact.connectedBackoff = func(_ context.Context) {
-//			// nothing
-//		}
-//
-//		contact.start()
-//
-//		// Wait for 3 calls, should be enough to assert the connection isn't made
-//		for i := 0; i < 3; i++ {
-//			<-calls
-//		}
-//	})
-//	t.Run("backoff when callback fails", func(t *testing.T) {
-//		bo := &trackingBackoff{mux: &sync.Mutex{}}
-//		contact := newContact(testConnectorConfig, bo)
-//		contact.connectedBackoff = func(_ context.Context) {
-//			// nothing
-//		}
-//
-//		contact.start()
-//		defer contact.stop()
-//
-//		test.WaitFor(t, func() (bool, error) {
-//			_, backoffCount := bo.counts()
-//			return backoffCount >= 1, nil
-//		}, time.Second, "time-out while waiting for backoff to be invoked")
-//		resetCounts, backoffCounts := bo.counts()
-//		assert.Equal(t, 0, resetCounts)
-//		assert.GreaterOrEqual(t, backoffCounts, 1)
-//	})
-//}
-
 // newBufconnConfig creates a new Config like NewConfig, but configures an in-memory bufconn listener instead of a TCP listener.
 func newBufconnConfig(peerID transport.PeerID, options ...ConfigOption) (Config, *bufconn.Listener) {
 	bufnet := bufconn.Listen(1024 * 1024)
@@ -307,6 +196,36 @@ func Test_grpcConnectionManager_dialerLoop(t *testing.T) {
 }
 
 func Test_grpcConnectionManager_dial(t *testing.T) {
+	t.Run("ok - user agent", func(t *testing.T) {
+		// Set up gRPC stream interceptor to capture headers sent by client
+		actualUserAgent := atomic.Value{}
+		defaultInterceptors = append(defaultInterceptors, func(_ interface{}, stream grpc.ServerStream, _ *grpc.StreamServerInfo, h grpc.StreamHandler) error {
+			m, _ := metadata.FromIncomingContext(stream.Context())
+			actualUserAgent.Store(m.Get("User-Agent")[0])
+			return nil
+		})
+		defer func() { defaultInterceptors = defaultInterceptors[:0] }()
+
+		// Setup server
+		serverConfig := NewConfig(fmt.Sprintf("localhost:%d", test.FreeTCPPort()), "server")
+		cm := NewGRPCConnectionManager(serverConfig, createKVStore(t), &transport.FixedNodeDIDResolver{}, nil, &TestProtocol{}).(*grpcConnectionManager)
+		require.NoError(t, cm.Start())
+		defer cm.Stop()
+
+		// Setup contact to test
+		bo := &trackingBackoff{mux: &sync.Mutex{}}
+		contact := newContact(transport.Peer{Address: serverConfig.listenAddress}, bo)
+
+		// Connect and call protocol function to set up streams, required to assert headers.
+		// Then wait for stream to be set up
+		cm.dial(contact)
+		test.WaitFor(t, func() (bool, error) {
+			return actualUserAgent.Load() != nil, nil
+		}, time.Second, "time-out while waiting for connection to be set up")
+
+		assert.Equal(t, uint32(1), contact.stats().Attempts)
+		assert.Contains(t, actualUserAgent.Load().(string), "nuts-node-refimpl/unknown")
+	})
 	t.Run("simultaneous call", func(t *testing.T) {
 		backoff := &trackingBackoff{mux: &sync.Mutex{}}
 		peer := transport.Peer{Address: "nuts.nl"}
@@ -364,26 +283,22 @@ func Test_grpcConnectionManager_dial(t *testing.T) {
 		})
 	})
 	t.Run("openOutboundStreams", func(t *testing.T) {
-		create := func(t *testing.T, opts ...ConfigOption) (*grpcConnectionManager, *MockAuthenticator, *bufconn.Listener) {
+		t.Run("ok", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			authenticator := NewMockAuthenticator(ctrl)
-			cfg, listener := newBufconnConfig(transport.PeerID(t.Name()), opts...)
-			cm := NewGRPCConnectionManager(cfg, createKVStore(t), &stubNodeDIDReader{}, authenticator, &TestProtocol{}).(*grpcConnectionManager)
-			if err := cm.Start(); err != nil {
+			authenticator.EXPECT().Authenticate(*nodeDID, gomock.Any(), gomock.Any()).Return(transport.Peer{}, nil).Times(2)
+
+			// server
+			serverCfg, listener := newBufconnConfig(transport.PeerID(t.Name()))
+			server := NewGRPCConnectionManager(serverCfg, createKVStore(t), &stubNodeDIDReader{}, authenticator, &TestProtocol{}).(*grpcConnectionManager)
+			if err := server.Start(); err != nil {
 				t.Fatal(err)
 			}
-			t.Cleanup(func() {
-				cm.Stop()
-			})
-			return cm, authenticator, listener
-		}
-		t.Run("ok", func(t *testing.T) {
-			//defer goleak.VerifyNone(t) // TODO: still leaks from openOutboundStreams
+			defer server.Stop()
 
-			_, authenticator1, listener := create(t)
-			authenticator1.EXPECT().Authenticate(*nodeDID, gomock.Any(), gomock.Any()).Return(transport.Peer{}, nil)
-			client, authenticator2, _ := create(t, withBufconnDialer(listener))
-			authenticator2.EXPECT().Authenticate(*nodeDID, gomock.Any(), gomock.Any()).Return(transport.Peer{}, nil)
+			// client
+			cfg, listener := newBufconnConfig(transport.PeerID(t.Name()), withBufconnDialer(listener))
+			client := NewGRPCConnectionManager(cfg, createKVStore(t), &stubNodeDIDReader{}, authenticator, &TestProtocol{}).(*grpcConnectionManager)
 
 			// contact
 			cont := newContact(transport.Peer{Address: "bufnet", NodeDID: *nodeDID}, newTestBackoff())
