@@ -846,6 +846,24 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 		assert.Equal(t, tokenCtx.jwtBearerToken.Expiration().Unix(), claims.Expiration)
 	})
 
+	t.Run("invalid signature", func(t *testing.T) {
+		ctx := createContext(t)
+
+		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
+		ctx.keyStore.EXPECT().Exists(requesterSigningKeyID.String()).Return(true)
+
+		// First build an access token
+		tokenCtx := validAccessToken()
+		signingKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		signTokenWithKey(tokenCtx, signingKey)
+
+		// Then validate it
+		claims, err := ctx.oauthService.IntrospectAccessToken(tokenCtx.rawJwtBearerToken)
+
+		require.EqualError(t, err, "failed to verify jws signature: failed to verify message: failed to verify signature using ecdsa")
+		require.Nil(t, claims)
+	})
+
 	t.Run("private key not present", func(t *testing.T) {
 		ctx := createContext(t)
 
@@ -990,12 +1008,16 @@ func validAccessToken() *validationContext {
 }
 
 func signToken(context *validationContext) {
+	signTokenWithKey(context, requesterSigningKey)
+}
+
+func signTokenWithKey(context *validationContext, key *ecdsa.PrivateKey) {
 	hdrs := jws.NewHeaders()
 	err := hdrs.Set(jws.KeyIDKey, requesterSigningKeyID.String())
 	if err != nil {
 		panic(err)
 	}
-	signedToken, err := jwt.Sign(context.jwtBearerToken, jwa.ES256, requesterSigningKey, jwt.WithHeaders(hdrs))
+	signedToken, err := jwt.Sign(context.jwtBearerToken, jwa.ES256, key, jwt.WithHeaders(hdrs))
 	if err != nil {
 		panic(err)
 	}
