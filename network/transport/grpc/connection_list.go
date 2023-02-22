@@ -21,7 +21,6 @@ package grpc
 import (
 	"context"
 	"errors"
-	"github.com/nuts-foundation/go-did/did"
 	"sync"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -93,23 +92,17 @@ func (c *connectionList) getOrRegister(ctx context.Context, peer transport.Peer,
 
 	// Check whether we're already connected to this peer
 	var existing Connection
-	if peer.NodeDID.Empty() { // anonymous connections
-		// These are defined as lacking a DID. -> The connection is always created after the expected / stream advertised DID is known.
-		// For outbound connections the address is known. Do not use PeerID since this is not verified.
-		// For inbound connections duplicates are detected based on PeerID. The number of connections per IP should be limited elsewhere.
-		if outbound { // bootstrap node
-			existing = c.get(ByAddress(peer.Address), ByNodeDID(did.DID{}))
-		} else {
-			existing = c.get(ByPeerID(peer.ID), ByNodeDID(did.DID{}))
+	if outbound {
+		if peer.NodeDID.Empty() { // allow 1 connection to a bootstrap node
+			existing = c.get(ByAddress(peer.Address), ByNodeDID(peer.NodeDID))
+		} else { // outbound only needs 1 connection to a DID
+			existing = c.get(ByNodeDID(peer.NodeDID))
 		}
-	} else { // authenticated
-		if outbound { // only need 1 connection to a DID
-			existing = c.get(ByNodeDID(peer.NodeDID), ByAuthenticated())
-		} else {
-			// allow 1 connection per PeerID/DID combo for clustering purposes
-			// TODO: add a configurable limit to the number of connections per DID
-			existing = c.get(ByPeerID(peer.ID), ByNodeDID(peer.NodeDID), ByAuthenticated())
-		}
+	} else {
+		// allow 1 connection per PeerID/DID combo for clustering purposes.
+		// for anonymous connections (NodeDID.Empty()==true) there is only 1 per peerID
+		// TODO: add a configurable limit to the number of connections per DID
+		existing = c.get(ByPeerID(peer.ID), ByNodeDID(peer.NodeDID))
 	}
 	if existing != nil {
 		return existing, false

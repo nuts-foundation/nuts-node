@@ -314,18 +314,18 @@ func (s *grpcConnectionManager) dial(contact *contact) {
 	defer cancel()
 	grpcClient, err := s.dialer(dialContext, contact.peer.Address, s.dialOptions...)
 	if err != nil { // failed to connect
+		log.Logger().WithError(err).WithFields(contact.peer.ToFields()).Debug("failed to open a grpc ClientConn")
 		errStatus, isStatusError := status.FromError(err)
 		if isStatusError && errStatus.Code() == codes.Canceled {
-			log.Logger().WithError(err).WithFields(contact.peer.ToFields()).Debug("failed to open a grpc ClientConn")
-			contact.backoff.Backoff() // backoff store
+			// Do not backoff when context is cancelled
+			// Backoff might try to persist after stores are closed
+			// https://github.com/nuts-foundation/nuts-node/issues/1864
+			return
 		}
+		contact.backoff.Backoff() // backoff store
 		return
 	}
-	defer func() {
-		if err := grpcClient.Close(); err != nil {
-			log.Logger().WithError(err).WithFields(contact.peer.ToFields()).Debug("failed to close the grpc ClientConn")
-		}
-	}()
+	defer grpcClient.Close()
 	log.Logger().WithFields(contact.peer.ToFields()).Debug("connected to peer (outbound)")
 
 	// Connect protocol streams
