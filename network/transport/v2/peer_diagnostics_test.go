@@ -39,10 +39,10 @@ func Test_PeerDiagnosticsManager(t *testing.T) {
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		manager.start(ctx, 5*time.Millisecond)
+		go manager.start(ctx, 5*time.Millisecond)
 
 		// Wait for the calls
-		wg.Done()
+		wg.Wait()
 	})
 }
 

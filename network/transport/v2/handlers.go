@@ -52,7 +52,7 @@ func (p *protocol) Handle(peer transport.Peer, raw interface{}) error {
 		Trace("Handling message from peer")
 
 	err := p.handle(peer, envelope)
-	if err != nil {
+	if err != nil && err != context.Canceled {
 		log.Logger().
 			WithError(err).
 			WithFields(peer.ToFields()).
@@ -70,11 +70,11 @@ func (p *protocol) Handle(peer transport.Peer, raw interface{}) error {
 	return nil
 }
 
-type handleFunc func(peer transport.Peer, envelope *Envelope) error
+type handleFunc func(ctx context.Context, peer transport.Peer, envelope *Envelope) error
 
-func handleASync(peer transport.Peer, envelope *Envelope, f handleFunc) error {
+func handleASync(ctx context.Context, peer transport.Peer, envelope *Envelope, f handleFunc) error {
 	go func() {
-		if err := f(peer, envelope); err != nil {
+		if err := f(ctx, peer, envelope); err != nil {
 			log.Logger().
 				WithError(err).
 				WithFields(peer.ToFields()).
@@ -88,7 +88,7 @@ func handleASync(peer transport.Peer, envelope *Envelope, f handleFunc) error {
 func (p *protocol) handle(peer transport.Peer, envelope *Envelope) error {
 	switch envelope.Message.(type) {
 	case *Envelope_Gossip:
-		return handleASync(peer, envelope, p.handleGossip)
+		return handleASync(p.ctx, peer, envelope, p.handleGossip)
 	case *Envelope_TransactionList:
 		// in order handling of transactionLists
 		pe := peerEnvelope{
@@ -107,26 +107,25 @@ func (p *protocol) handle(peer transport.Peer, envelope *Envelope) error {
 
 		return nil
 	case *Envelope_TransactionListQuery:
-		return handleASync(peer, envelope, p.handleTransactionListQuery)
+		return handleASync(p.ctx, peer, envelope, p.handleTransactionListQuery)
 	case *Envelope_TransactionPayloadQuery:
-		return handleASync(peer, envelope, p.handleTransactionPayloadQuery)
+		return handleASync(p.ctx, peer, envelope, p.handleTransactionPayloadQuery)
 	case *Envelope_TransactionPayload:
-		return handleASync(peer, envelope, p.handleTransactionPayload)
+		return handleASync(p.ctx, peer, envelope, p.handleTransactionPayload)
 	case *Envelope_TransactionRangeQuery:
-		return handleASync(peer, envelope, p.handleTransactionRangeQuery)
+		return handleASync(p.ctx, peer, envelope, p.handleTransactionRangeQuery)
 	case *Envelope_State:
-		return handleASync(peer, envelope, p.handleState)
+		return handleASync(p.ctx, peer, envelope, p.handleState)
 	case *Envelope_TransactionSet:
-		return handleASync(peer, envelope, p.handleTransactionSet)
+		return handleASync(p.ctx, peer, envelope, p.handleTransactionSet)
 	case *Envelope_DiagnosticsBroadcast:
-		return handleASync(peer, envelope, p.handleDiagnostics)
+		return handleASync(p.ctx, peer, envelope, p.handleDiagnostics)
 	}
 	return errMessageNotSupported
 }
 
-func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, envelope *Envelope) error {
+func (p *protocol) handleTransactionPayloadQuery(ctx context.Context, peer transport.Peer, envelope *Envelope) error {
 	msg := envelope.GetTransactionPayloadQuery()
-	ctx := context.Background()
 
 	log.Logger().
 		WithFields(peer.ToFields()).
@@ -191,9 +190,8 @@ func (p *protocol) handleTransactionPayloadQuery(peer transport.Peer, envelope *
 	return p.send(peer, &Envelope_TransactionPayload{TransactionPayload: &TransactionPayload{TransactionRef: msg.TransactionRef, Data: data}})
 }
 
-func (p *protocol) handleTransactionPayload(peer transport.Peer, envelope *Envelope) error {
+func (p *protocol) handleTransactionPayload(ctx context.Context, peer transport.Peer, envelope *Envelope) error {
 	msg := envelope.GetTransactionPayload()
-	ctx := context.Background()
 	ref := hash.FromSlice(msg.TransactionRef)
 
 	log.Logger().
@@ -229,7 +227,7 @@ func (p *protocol) handleTransactionPayload(peer transport.Peer, envelope *Envel
 	return p.privatePayloadReceiver.Finished(ref)
 }
 
-func (p *protocol) handleTransactionRangeQuery(peer transport.Peer, envelope *Envelope) error {
+func (p *protocol) handleTransactionRangeQuery(ctx context.Context, peer transport.Peer, envelope *Envelope) error {
 	msg := envelope.GetTransactionRangeQuery()
 
 	log.Logger().
@@ -241,7 +239,6 @@ func (p *protocol) handleTransactionRangeQuery(peer transport.Peer, envelope *En
 		return errors.New("invalid range query")
 	}
 
-	ctx := context.Background()
 	txs, err := p.state.FindBetweenLC(ctx, msg.Start, msg.End)
 	if err != nil {
 		return err
@@ -255,9 +252,8 @@ func (p *protocol) handleTransactionRangeQuery(peer transport.Peer, envelope *En
 	return p.sender.sendTransactionList(peer.ID, conversationID(msg.ConversationID), transactionList)
 }
 
-func (p *protocol) handleGossip(peer transport.Peer, envelope *Envelope) error {
+func (p *protocol) handleGossip(ctx context.Context, peer transport.Peer, envelope *Envelope) error {
 	msg := envelope.GetGossip()
-	ctx := context.Background()
 
 	log.Logger().
 		WithFields(peer.ToFields()).
@@ -318,7 +314,7 @@ func (p *protocol) handleGossip(peer transport.Peer, envelope *Envelope) error {
 	return p.sender.sendState(peer.ID, xor, clock)
 }
 
-func (p *protocol) handleTransactionListQuery(peer transport.Peer, envelope *Envelope) error {
+func (p *protocol) handleTransactionListQuery(ctx context.Context, peer transport.Peer, envelope *Envelope) error {
 	msg := envelope.GetTransactionListQuery()
 	requestedRefs := make([]hash.SHA256Hash, len(msg.Refs))
 	unsorted := make([]dag.Transaction, 0)
@@ -341,10 +337,11 @@ func (p *protocol) handleTransactionListQuery(peer transport.Peer, envelope *Env
 		return nil
 	}
 
-	ctx := context.Background()
-
 	// first retrieve all transactions, this is needed to sort them on LC value
 	for _, ref := range requestedRefs {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		transaction, err := p.state.GetTransaction(ctx, ref)
 		if err != nil {
 			if errors.Is(err, dag.ErrTransactionNotFound) {
@@ -376,6 +373,9 @@ func (p *protocol) handleTransactionListQuery(peer transport.Peer, envelope *Env
 func (p *protocol) collectTransactionList(ctx context.Context, txs []dag.Transaction) ([]*Transaction, error) {
 	var result []*Transaction
 	for _, transaction := range txs {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		networkTX := Transaction{
 			Data: transaction.Data(),
 		}
@@ -397,7 +397,7 @@ func (p *protocol) collectTransactionList(ctx context.Context, txs []dag.Transac
 	return result, nil
 }
 
-func (p *protocol) handleState(peer transport.Peer, envelope *Envelope) error {
+func (p *protocol) handleState(_ context.Context, peer transport.Peer, envelope *Envelope) error {
 	msg := envelope.GetState()
 	cid := conversationID(msg.ConversationID)
 
@@ -418,7 +418,7 @@ func (p *protocol) handleState(peer transport.Peer, envelope *Envelope) error {
 	return p.sender.sendTransactionSet(peer.ID, cid, msg.LC, lc, iblt)
 }
 
-func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope) error {
+func (p *protocol) handleTransactionSet(_ context.Context, peer transport.Peer, envelope *Envelope) error {
 	subEnvelope := envelope.Message.(*Envelope_TransactionSet)
 	msg := envelope.GetTransactionSet()
 	cid := conversationID(msg.ConversationID)
@@ -508,7 +508,7 @@ func (p *protocol) handleTransactionSet(peer transport.Peer, envelope *Envelope)
 	return nil
 }
 
-func (p *protocol) handleDiagnostics(peer transport.Peer, envelope *Envelope) error {
+func (p *protocol) handleDiagnostics(_ context.Context, peer transport.Peer, envelope *Envelope) error {
 	msg := envelope.GetDiagnosticsBroadcast()
 	p.diagnosticsMan.handleReceived(peer.ID, msg)
 	return nil
