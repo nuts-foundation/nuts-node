@@ -163,9 +163,9 @@ components:
       required:
         - headers
         - payload
-        - to
+        - receiver
       properties:
-        to:
+        receiver:
           type: string
           description: "The DID reference of the message receiver OR the KID of the message receiver."
           example: "did:nuts:6hFuBFYQS7C24SiDzLsY4krTeuZcho7zsLmEbrKB6JrS or did:nuts:6hFuBFYQS7C24SiDzLsY4krTeuZcho7zsLmEbrKB6JrS#VJqDlyOuznZQAxcTTPa0fe30Qk__6aBzyU9qhrNhPX8"

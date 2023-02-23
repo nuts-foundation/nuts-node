@@ -34,8 +34,8 @@ type EncryptJweRequest struct {
 	// Payload The payload to be signed as bytes. The bytes must be encoded with Base64 encoding.
 	Payload []byte `json:"payload"`
 
-	// To The DID reference of the message receiver OR the KID of the message receiver.
-	To string `json:"to"`
+	// Receiver The DID reference of the message receiver OR the KID of the message receiver.
+	Receiver string `json:"receiver"`
 }
 
 // SignJwsRequest defines model for SignJwsRequest.

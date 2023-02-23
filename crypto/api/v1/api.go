@@ -93,12 +93,12 @@ func (signRequest SignJwsRequest) validate() error {
 }
 
 func (signRequest EncryptJweRequest) validate() error {
-	url, err := did.ParseDIDURL(signRequest.To)
+	url, err := did.ParseDIDURL(signRequest.Receiver)
 	if err != nil {
 		return err
 	}
 	if url.Empty() {
-		return errors.New("missing to")
+		return errors.New("missing receiver")
 	}
 	if signRequest.Headers == nil {
 		return errors.New("missing headers")
@@ -156,8 +156,8 @@ func (w *Wrapper) EncryptJwe(ctx context.Context, request EncryptJweRequestObjec
 	if err := encryptRequest.validate(); err != nil {
 		return nil, core.InvalidInputError("invalid encrypt request: %w", err)
 	}
-	to := encryptRequest.To
-	id, err := did.ParseDIDURL(to)
+	receiver := encryptRequest.Receiver
+	id, err := did.ParseDIDURL(receiver)
 	if err != nil {
 		return nil, err
 	}

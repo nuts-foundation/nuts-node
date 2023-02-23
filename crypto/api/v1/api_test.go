@@ -160,8 +160,8 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 	t.Run("Corrupt to returns 400", func(t *testing.T) {
 		ctx := newMockContext(t)
 		request := EncryptJweRequest{
-			Payload: payload,
-			To:      "bananas",
+			Payload:  payload,
+			Receiver: "bananas",
 		}
 
 		jwe, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
@@ -184,9 +184,9 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 		headers := map[string]interface{}{"typ": "JWE", "kid": "did:nuts:12345#banana"}
 		did, _ := ssi.ParseURI("did:nuts:12345")
 		request := EncryptJweRequest{
-			To:      "did:nuts:12345",
-			Payload: payload,
-			Headers: headers,
+			Receiver: "did:nuts:12345",
+			Payload:  payload,
+			Headers:  headers,
 		}
 		ctx.keyResolver.EXPECT().ResolveKeyAgreementKey(gomock.Any())
 		ctx.keyResolver.EXPECT().ResolveRelationKeyID(gomock.Any(), types.KeyAgreement).Return(*did, nil)
@@ -200,9 +200,9 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 		ctx := newMockContext(t)
 		headers := map[string]interface{}{"typ": "JWE"}
 		request := EncryptJweRequest{
-			To:      "did:nuts:12345",
-			Payload: payload,
-			Headers: headers,
+			Receiver: "did:nuts:12345",
+			Payload:  payload,
+			Headers:  headers,
 		}
 		did, _ := ssi.ParseURI("did:nuts:12345")
 		ctx.keyStore.EXPECT().EncryptJWE(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("", errors.New("b00m!"))
@@ -221,9 +221,9 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 		headers := map[string]interface{}{"typ": "JWE"}
 		did, _ := ssi.ParseURI("did:nuts:12345")
 		request := EncryptJweRequest{
-			To:      "did:nuts:12345",
-			Headers: headers,
-			Payload: payload,
+			Receiver: "did:nuts:12345",
+			Headers:  headers,
+			Payload:  payload,
 		}
 		ctx.keyStore.EXPECT().EncryptJWE(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("jwe", nil)
 		ctx.keyResolver.EXPECT().ResolveKeyAgreementKey(gomock.Any())
@@ -234,15 +234,15 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, "jwe", string(resp.(EncryptJwe200TextResponse)))
 	})
-	t.Run("All OK returns 200, with To:kid header[kid]:nil", func(t *testing.T) {
+	t.Run("All OK returns 200, with Receiver:kid header[kid]:nil", func(t *testing.T) {
 		ctx := newMockContext(t)
 		headers := map[string]interface{}{"typ": "JWE"}
 		kid := "did:nuts:12345#mykey-1"
 		did, _ := ssi.ParseURI(kid)
 		request := EncryptJweRequest{
-			To:      kid,
-			Headers: headers,
-			Payload: payload,
+			Receiver: kid,
+			Headers:  headers,
+			Payload:  payload,
 		}
 		ctx.keyStore.EXPECT().EncryptJWE(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("jwe", nil)
 		ctx.keyResolver.EXPECT().ResolveRelationKey(gomock.Any(), gomock.Any(), types.KeyAgreement).Return(*did, nil)
@@ -252,15 +252,15 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, "jwe", string(resp.(EncryptJwe200TextResponse)))
 	})
-	t.Run("All OK returns 200, with To:kid header[kid]:kid", func(t *testing.T) {
+	t.Run("All OK returns 200, with Receiver:kid header[kid]:kid", func(t *testing.T) {
 		ctx := newMockContext(t)
 		kid := "did:nuts:12345#mykey-1"
 		did, _ := ssi.ParseURI(kid)
 		headers := map[string]interface{}{"typ": "JWE", "kid": kid}
 		request := EncryptJweRequest{
-			To:      kid,
-			Headers: headers,
-			Payload: payload,
+			Receiver: kid,
+			Headers:  headers,
+			Payload:  payload,
 		}
 		ctx.keyStore.EXPECT().EncryptJWE(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("jwe", nil)
 		ctx.keyResolver.EXPECT().ResolveRelationKey(gomock.Any(), gomock.Any(), types.KeyAgreement).Return(*did, nil)
@@ -270,14 +270,14 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, "jwe", string(resp.(EncryptJwe200TextResponse)))
 	})
-	t.Run("All OK returns 200, with To:DID header[kid]:kid", func(t *testing.T) {
+	t.Run("All OK returns 200, with Receiver:DID header[kid]:kid", func(t *testing.T) {
 		ctx := newMockContext(t)
 		kid := "did:nuts:12345#mykey-1"
 		headers := map[string]interface{}{"typ": "JWE", "kid": kid}
 		request := EncryptJweRequest{
-			To:      "did:nuts:12345",
-			Headers: headers,
-			Payload: payload,
+			Receiver: "did:nuts:12345",
+			Headers:  headers,
+			Payload:  payload,
 		}
 		did, _ := ssi.ParseURI(kid)
 		ctx.keyStore.EXPECT().EncryptJWE(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("jwe", nil)
@@ -289,14 +289,14 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, "jwe", string(resp.(EncryptJwe200TextResponse)))
 	})
-	t.Run("All OK returns 200, with To:DID header[kid]:nil", func(t *testing.T) {
+	t.Run("All OK returns 200, with Receiver:DID header[kid]:nil", func(t *testing.T) {
 		ctx := newMockContext(t)
 		kid := "did:nuts:12345#mykey-1"
 		headers := map[string]interface{}{"typ": "JWE"}
 		request := EncryptJweRequest{
-			To:      "did:nuts:12345",
-			Headers: headers,
-			Payload: payload,
+			Receiver: "did:nuts:12345",
+			Headers:  headers,
+			Payload:  payload,
 		}
 		did, _ := ssi.ParseURI(kid)
 		ctx.keyStore.EXPECT().EncryptJWE(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("jwe", nil)
