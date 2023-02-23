@@ -292,7 +292,6 @@ func signJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey
 }
 
 func EncryptJWE(payload []byte, protectedHeaders map[string]interface{}, publicKey interface{}) (message string, err error) {
-
 	json, err := json.Marshal(protectedHeaders)
 	if err != nil {
 		return "", err
