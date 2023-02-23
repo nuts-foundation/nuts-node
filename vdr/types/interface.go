@@ -150,9 +150,9 @@ type DocManipulator interface {
 type RelationType uint
 
 const (
-	Authentication       RelationType = 1
-	AssertionMethod      RelationType = 2
-	KeyAgreement         RelationType = 3
-	CapabilityInvocation RelationType = 4
-	CapabilityDelegation RelationType = 5
+	Authentication       RelationType = iota
+	AssertionMethod      RelationType = iota
+	KeyAgreement         RelationType = iota
+	CapabilityInvocation RelationType = iota
+	CapabilityDelegation RelationType = iota
 )
