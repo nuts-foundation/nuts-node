@@ -186,7 +186,7 @@ func (w *Wrapper) EncryptJwe(ctx context.Context, request EncryptJweRequestObjec
 	headers := encryptRequest.Headers
 	resolvedKid := keyID.String()
 	if headerKid, ok := headers[jws.KeyIDKey]; ok && resolvedKid != headerKid {
-		return nil, core.Error(400, "the provided header value for kid: %s does not match the resolved keyID: %s", headerKid, resolvedKid)
+		return nil, core.InvalidInputError("the provided header value for kid: %s does not match the resolved keyID: %s", headerKid, resolvedKid)
 	} else if !ok {
 		headers[jws.KeyIDKey] = resolvedKid
 	}
