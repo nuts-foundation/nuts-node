@@ -27,7 +27,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/knadh/koanf/maps"
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwe"
 	"github.com/lestrrat-go/jwx/jwk"
@@ -120,32 +119,11 @@ func (client *Crypto) DecryptJWE(ctx context.Context, message string) (body []by
 	if err != nil {
 		return nil, nil, err
 	}
-	headers = make(map[string]interface{})
-	if uh := msg.UnprotectedHeaders(); uh != nil {
-		err = mergeHeaders(ctx, uh, headers)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-	if ph := msg.ProtectedHeaders(); ph != nil {
-		err = mergeHeaders(ctx, ph, headers)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-
-	return body, headers, err
-}
-
-// Merges the headers into a map
-func mergeHeaders(ctx context.Context, headers jwe.Headers, target map[string]interface{}) (err error) {
-	asMap, err := headers.AsMap(ctx)
+	headers, err = msg.ProtectedHeaders().AsMap(ctx)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
-
-	maps.Merge(asMap, target)
-	return nil
+	return body, headers, err
 }
 
 func jwkKey(signer crypto.Signer) (key jwk.Key, err error) {
