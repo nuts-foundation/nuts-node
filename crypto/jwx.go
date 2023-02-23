@@ -93,7 +93,7 @@ func (client *Crypto) SignJWS(ctx context.Context, payload []byte, headers map[s
 
 // EncryptJWE encrypts a signed payload using the provided public key and key identifier.
 func (client *Crypto) EncryptJWE(ctx context.Context, payload []byte, headers map[string]interface{}, publicKey interface{}) (string, error) {
-	audit.Log(ctx, log.Logger(), audit.CryptoEncryptJWEEvent).Infof("Encrypting a JWE")
+	audit.Log(ctx, log.Logger(), audit.CryptoEncryptJWEEvent).Info("Encrypting a JWE")
 	return EncryptJWE(payload, headers, publicKey)
 }
 
