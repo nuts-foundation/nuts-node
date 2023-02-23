@@ -195,7 +195,7 @@ func resolveRelationship(doc *did.Document, relationType types.RelationType) (re
 	case types.CapabilityDelegation:
 		return doc.CapabilityDelegation, nil
 	default:
-		return nil, errors.New(fmt.Sprintf("unable to locate RelationType %v", relationType))
+		return nil, fmt.Errorf("unable to locate RelationType %v", relationType)
 	}
 }
 
