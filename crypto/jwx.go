@@ -306,7 +306,7 @@ func EncryptJWE(payload []byte, protectedHeaders map[string]interface{}, publicK
 	if len(headers.Algorithm().String()) > 0 {
 		alg = headers.Algorithm()
 	} else {
-		alg, err = EncryptionAlgorithm(publicKey)
+		alg, err = encryptionAlgorithm(publicKey)
 		if err != nil {
 			return "", err
 		}
@@ -411,7 +411,7 @@ func SignatureAlgorithm(key crypto.PublicKey) (jwa.SignatureAlgorithm, error) {
 	}
 }
 
-func EncryptionAlgorithm(key crypto.PublicKey) (jwa.KeyEncryptionAlgorithm, error) {
+func encryptionAlgorithm(key crypto.PublicKey) (jwa.KeyEncryptionAlgorithm, error) {
 	if key == nil {
 		return "", errors.New("no key provided")
 	}
