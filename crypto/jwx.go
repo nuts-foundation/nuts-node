@@ -292,6 +292,9 @@ func signJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey
 }
 
 func EncryptJWE(payload []byte, protectedHeaders map[string]interface{}, publicKey interface{}) (message string, err error) {
+	if publicKey == nil {
+		return "", errors.New("no publicKey provided")
+	}
 	json, err := json.Marshal(protectedHeaders)
 	if err != nil {
 		return "", err
@@ -412,10 +415,6 @@ func SignatureAlgorithm(key crypto.PublicKey) (jwa.SignatureAlgorithm, error) {
 }
 
 func encryptionAlgorithm(key crypto.PublicKey) (jwa.KeyEncryptionAlgorithm, error) {
-	if key == nil {
-		return "", errors.New("no key provided")
-	}
-
 	var ptr interface{}
 	switch v := key.(type) {
 	case crypto.PublicKey:
