@@ -84,7 +84,7 @@ type Network struct {
 }
 
 // CheckHealth performs health checks for the network engine.
-func (n *Network) CheckHealth() map[string]core.Health {
+func (n *Network) CheckHealth(ctx context.Context) map[string]core.Health {
 	results := make(map[string]core.Health)
 	if n.certificate.Leaf != nil {
 		// TLS enabled, verify the configured certificate

@@ -19,6 +19,7 @@
 package spi
 
 import (
+	"context"
 	"crypto"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -36,8 +37,8 @@ func (w wrapper) Name() string {
 	return w.wrappedBackend.Name()
 }
 
-func (w wrapper) CheckHealth() map[string]core.Health {
-	return w.wrappedBackend.CheckHealth()
+func (w wrapper) CheckHealth(ctx context.Context) map[string]core.Health {
+	return w.wrappedBackend.CheckHealth(ctx)
 }
 
 // NewValidatedKIDBackendWrapper creates a new wrapper for storage backends.

@@ -5,6 +5,7 @@
 package core
 
 import (
+	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -393,17 +394,17 @@ func (m *MockHealthCheckable) EXPECT() *MockHealthCheckableMockRecorder {
 }
 
 // CheckHealth mocks base method.
-func (m *MockHealthCheckable) CheckHealth() map[string]Health {
+func (m *MockHealthCheckable) CheckHealth(ctx context.Context) map[string]Health {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CheckHealth")
+	ret := m.ctrl.Call(m, "CheckHealth", ctx)
 	ret0, _ := ret[0].(map[string]Health)
 	return ret0
 }
 
 // CheckHealth indicates an expected call of CheckHealth.
-func (mr *MockHealthCheckableMockRecorder) CheckHealth() *gomock.Call {
+func (mr *MockHealthCheckableMockRecorder) CheckHealth(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckHealth", reflect.TypeOf((*MockHealthCheckable)(nil).CheckHealth))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckHealth", reflect.TypeOf((*MockHealthCheckable)(nil).CheckHealth), ctx)
 }
 
 // Name mocks base method.

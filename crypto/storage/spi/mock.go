@@ -5,6 +5,7 @@
 package spi
 
 import (
+	context "context"
 	crypto "crypto"
 	reflect "reflect"
 
@@ -36,17 +37,17 @@ func (m *MockStorage) EXPECT() *MockStorageMockRecorder {
 }
 
 // CheckHealth mocks base method.
-func (m *MockStorage) CheckHealth() map[string]core.Health {
+func (m *MockStorage) CheckHealth(ctx context.Context) map[string]core.Health {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CheckHealth")
+	ret := m.ctrl.Call(m, "CheckHealth", ctx)
 	ret0, _ := ret[0].(map[string]core.Health)
 	return ret0
 }
 
 // CheckHealth indicates an expected call of CheckHealth.
-func (mr *MockStorageMockRecorder) CheckHealth() *gomock.Call {
+func (mr *MockStorageMockRecorder) CheckHealth(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckHealth", reflect.TypeOf((*MockStorage)(nil).CheckHealth))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckHealth", reflect.TypeOf((*MockStorage)(nil).CheckHealth), ctx)
 }
 
 // GetPrivateKey mocks base method.

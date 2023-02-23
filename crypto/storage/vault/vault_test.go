@@ -19,6 +19,7 @@
 package vault
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -50,6 +51,10 @@ func (m mockVaultClient) Read(path string) (*vault.Secret, error) {
 	return &vault.Secret{
 		Data: data,
 	}, nil
+}
+
+func (m mockVaultClient) ReadWithDataWithContext(_ context.Context, path string, _ map[string][]string) (*vault.Secret, error) {
+	return m.Read(path)
 }
 
 func (m mockVaultClient) ReadWithData(path string, _ map[string][]string) (*vault.Secret, error) {
@@ -149,7 +154,7 @@ func TestVaultKVStorage(t *testing.T) {
 func TestVaultKVStorage_CheckHealth(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		vaultStorage := vaultKVStorage{config: DefaultConfig(), client: mockVaultClient{store: map[string]map[string]interface{}{"auth/token/lookup-self": {"key": []byte("foo")}}}}
-		result := vaultStorage.CheckHealth()
+		result := vaultStorage.CheckHealth(context.Background())
 
 		assert.Equal(t, core.HealthStatusUp, result[StorageType].Status)
 		assert.Empty(t, result[StorageType].Details)
@@ -157,7 +162,7 @@ func TestVaultKVStorage_CheckHealth(t *testing.T) {
 
 	t.Run("error - lookup token endpoint returns empty response", func(t *testing.T) {
 		vaultStorage := vaultKVStorage{config: DefaultConfig(), client: mockVaultClient{store: map[string]map[string]interface{}{}}}
-		result := vaultStorage.CheckHealth()
+		result := vaultStorage.CheckHealth(context.Background())
 
 		assert.Equal(t, core.HealthStatusDown, result[StorageType].Status)
 		assert.Equal(t, "could not read token information on auth/token/lookup-self", result[StorageType].Details)
@@ -247,20 +252,20 @@ func TestNewVaultKVStorage(t *testing.T) {
 func TestVaultKVStorage_checkConnection(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		vaultStorage := vaultKVStorage{config: DefaultConfig(), client: mockVaultClient{store: map[string]map[string]interface{}{"auth/token/lookup-self": {"key": []byte("foo")}}}}
-		err := vaultStorage.checkConnection()
+		err := vaultStorage.checkConnection(context.Background())
 		assert.NoError(t, err)
 	})
 
 	t.Run("error - lookup token endpoint empty", func(t *testing.T) {
 		vaultStorage := vaultKVStorage{config: DefaultConfig(), client: mockVaultClient{store: map[string]map[string]interface{}{}}}
-		err := vaultStorage.checkConnection()
+		err := vaultStorage.checkConnection(context.Background())
 		assert.EqualError(t, err, "could not read token information on auth/token/lookup-self")
 	})
 
 	t.Run("error - vault error while reading", func(t *testing.T) {
 		var vaultError = errors.New("vault error")
 		vaultStorage := vaultKVStorage{client: mockVaultClient{err: vaultError}}
-		err := vaultStorage.checkConnection()
+		err := vaultStorage.checkConnection(context.Background())
 		assert.EqualError(t, err, "unable to connect to Vault: unable to retrieve token status: vault error")
 	})
 }

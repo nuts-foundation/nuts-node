@@ -1037,6 +1037,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 	require.NoError(t, err)
 	certificate.Leaf, err = x509.ParseCertificate(certificate.Certificate[0])
 	require.NoError(t, err)
+	ctx := context.Background()
 	t.Run("TLS", func(t *testing.T) {
 		t.Run("up", func(t *testing.T) {
 			n := Network{
@@ -1045,7 +1046,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 				nodeDIDResolver: &transport.FixedNodeDIDResolver{},
 			}
 
-			result := n.CheckHealth()
+			result := n.CheckHealth(ctx)
 
 			assert.Equal(t, core.HealthStatusUp, result[healthTLS].Status)
 		})
@@ -1062,7 +1063,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 				nodeDIDResolver: &transport.FixedNodeDIDResolver{},
 			}
 
-			result := n.CheckHealth()
+			result := n.CheckHealth(ctx)
 
 			assert.Equal(t, core.HealthStatusDown, result[healthTLS].Status)
 			assert.Equal(t, "x509: certificate signed by unknown authority", result[healthTLS].Details)
@@ -1092,7 +1093,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 
-			health := cxt.network.CheckHealth()
+			health := cxt.network.CheckHealth(ctx)
 
 			assert.Equal(t, core.HealthStatusUp, health[healthAuthConfig].Status)
 			assert.Nil(t, health["auth"].Details)
@@ -1101,7 +1102,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			cxt := createNetwork(t, ctrl)
 
-			health := cxt.network.CheckHealth()
+			health := cxt.network.CheckHealth(ctx)
 
 			assert.Equal(t, core.HealthStatusUp, health[healthAuthConfig].Status)
 			assert.Equal(t, "no node DID", health[healthAuthConfig].Details)
@@ -1113,7 +1114,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(nil, nil, did.DeactivatedErr)
 
-			health := cxt.network.CheckHealth()
+			health := cxt.network.CheckHealth(ctx)
 
 			assert.Equal(t, core.HealthStatusDown, health[healthAuthConfig].Status)
 			assert.Equal(t, "DID document can't be resolved (did=did:nuts:test): supplied DID is deactivated", health[healthAuthConfig].Details)

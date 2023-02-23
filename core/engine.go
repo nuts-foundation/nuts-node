@@ -241,7 +241,7 @@ type HealthCheckable interface {
 	Named
 	// CheckHealth performs health checks and returns the result. The function should not perform expensive or slow operations
 	// and should return as fast as possible.
-	CheckHealth() map[string]Health
+	CheckHealth(ctx context.Context) map[string]Health
 }
 
 // HealthStatus defines the result status of a health check.

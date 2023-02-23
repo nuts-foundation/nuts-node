@@ -19,6 +19,7 @@
 package external
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -150,6 +151,7 @@ func serverWithKey(t *testing.T, key *ecdsa.PrivateKey) *httptest.Server {
 }
 
 func TestAPIClient_CheckHealth(t *testing.T) {
+	ctx := context.Background()
 	t.Run("ok", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			switch request.Method {
@@ -165,7 +167,7 @@ func TestAPIClient_CheckHealth(t *testing.T) {
 		client, err := NewAPIClient(Config{URL: server.URL, Timeout: time.Second})
 		NewAPIClient(Config{URL: server.URL, Timeout: time.Second})
 		require.NoError(t, err)
-		result := client.CheckHealth()
+		result := client.CheckHealth(ctx)
 		assert.Equal(t, result[StorageType].Status, core.HealthStatusUp)
 		assert.Empty(t, result[StorageType].Details)
 	})
@@ -184,7 +186,7 @@ func TestAPIClient_CheckHealth(t *testing.T) {
 
 		client, err := NewAPIClient(Config{URL: server.URL, Timeout: time.Second})
 		require.NoError(t, err)
-		result := client.CheckHealth()
+		result := client.CheckHealth(ctx)
 		assert.Equal(t, core.HealthStatusDown, result[StorageType].Status)
 		assert.Equal(t, "unexpected status code from storage server: 503", result[StorageType].Details)
 	})
@@ -192,7 +194,7 @@ func TestAPIClient_CheckHealth(t *testing.T) {
 	t.Run("DOWN when server does not responds", func(t *testing.T) {
 		client, err := NewAPIClient(Config{"http://localhost:1234", time.Second})
 		require.NoError(t, err)
-		result := client.CheckHealth()
+		result := client.CheckHealth(ctx)
 		assert.Equal(t, core.HealthStatusDown, result[StorageType].Status)
 		assert.Contains(t, result[StorageType].Details, "connection refused")
 	})

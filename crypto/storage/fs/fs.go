@@ -19,6 +19,7 @@
 package fs
 
 import (
+	"context"
 	"crypto"
 	"errors"
 	"fmt"
@@ -65,7 +66,7 @@ func (fsc fileSystemBackend) Name() string {
 	return StorageType
 }
 
-func (fsc fileSystemBackend) CheckHealth() map[string]core.Health {
+func (fsc fileSystemBackend) CheckHealth(_ context.Context) map[string]core.Health {
 	return map[string]core.Health{
 		"filesystem": {Status: core.HealthStatusUp},
 	}

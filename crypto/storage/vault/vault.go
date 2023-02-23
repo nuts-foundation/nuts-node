@@ -19,6 +19,7 @@
 package vault
 
 import (
+	"context"
 	"crypto"
 	"fmt"
 	vault "github.com/hashicorp/vault/api"
@@ -60,6 +61,7 @@ func DefaultConfig() Config {
 // logicaler is an interface which has been implemented by the mockVaultClient and real vault.Logical to allow testing vault without the server.
 type logicaler interface {
 	Read(path string) (*vault.Secret, error)
+	ReadWithDataWithContext(ctx context.Context, path string, data map[string][]string) (*vault.Secret, error)
 	Write(path string, data map[string]interface{}) (*vault.Secret, error)
 	ReadWithData(path string, data map[string][]string) (*vault.Secret, error)
 }
@@ -73,9 +75,9 @@ func (v vaultKVStorage) Name() string {
 	return StorageType
 }
 
-func (v vaultKVStorage) CheckHealth() map[string]core.Health {
+func (v vaultKVStorage) CheckHealth(ctx context.Context) map[string]core.Health {
 	health := make(map[string]core.Health)
-	if err := v.checkConnection(); err != nil {
+	if err := v.checkConnection(ctx); err != nil {
 		health[v.Name()] = core.Health{Status: core.HealthStatusDown, Details: err.Error()}
 	} else {
 		health[v.Name()] = core.Health{Status: core.HealthStatusUp}
@@ -94,7 +96,7 @@ func NewVaultKVStorage(config Config) (spi.Storage, error) {
 	}
 
 	vaultStorage := vaultKVStorage{client: client.Logical(), config: config}
-	if err = vaultStorage.checkConnection(); err != nil {
+	if err = vaultStorage.checkConnection(context.Background()); err != nil {
 		return nil, err
 	}
 	return vaultStorage, nil
@@ -120,10 +122,10 @@ func configureVaultClient(cfg Config) (*vault.Client, error) {
 	return client, nil
 }
 
-func (v vaultKVStorage) checkConnection() error {
+func (v vaultKVStorage) checkConnection(ctx context.Context) error {
 	// Perform a token introspection to test the connection. This should be allowed by the default vault token policy.
 	log.Logger().Debug("Verifying Vault connection...")
-	secret, err := v.client.Read("auth/token/lookup-self")
+	secret, err := v.client.ReadWithDataWithContext(ctx, "auth/token/lookup-self", nil)
 	if err != nil {
 		return fmt.Errorf("unable to connect to Vault: unable to retrieve token status: %w", err)
 	}

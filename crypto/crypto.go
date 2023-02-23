@@ -70,8 +70,8 @@ type Crypto struct {
 	config  Config
 }
 
-func (client *Crypto) CheckHealth() map[string]core.Health {
-	return client.storage.CheckHealth()
+func (client *Crypto) CheckHealth(ctx context.Context) map[string]core.Health {
+	return client.storage.CheckHealth(ctx)
 }
 
 // NewCryptoInstance creates a new instance of the crypto engine.

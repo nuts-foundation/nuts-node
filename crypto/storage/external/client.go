@@ -46,9 +46,9 @@ func (c APIClient) Name() string {
 	return "Crypto"
 }
 
-func (c APIClient) CheckHealth() map[string]core.Health {
+func (c APIClient) CheckHealth(ctx context.Context) map[string]core.Health {
 	results := make(map[string]core.Health)
-	response, err := c.httpClient.HealthCheckWithResponse(context.Background())
+	response, err := c.httpClient.HealthCheckWithResponse(ctx)
 	if err != nil {
 		results[StorageType] = core.Health{Status: core.HealthStatusDown, Details: fmt.Errorf("unable to connect to storage server: %w", err).Error()}
 		return results

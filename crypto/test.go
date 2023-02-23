@@ -19,6 +19,7 @@
 package crypto
 
 import (
+	"context"
 	"crypto"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
@@ -60,7 +61,7 @@ func (m memoryStorage) Name() string {
 	return "memory"
 }
 
-func (m memoryStorage) CheckHealth() map[string]core.Health {
+func (m memoryStorage) CheckHealth(_ context.Context) map[string]core.Health {
 	return map[string]core.Health{"memory": {Status: core.HealthStatusUp}}
 }
 

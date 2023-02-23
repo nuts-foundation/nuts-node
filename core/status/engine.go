@@ -21,6 +21,7 @@ package status
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
@@ -37,6 +38,8 @@ const moduleName = "Status"
 const diagnosticsEndpoint = "/status/diagnostics"
 const statusEndpoint = "/status"
 const checkHealthEndpoint = "/health"
+
+const healthCheckTimeout = 3 * time.Second
 
 type status struct {
 	system    *core.System
@@ -116,7 +119,7 @@ func (s *status) collectDiagnostics() map[string][]core.DiagnosticResult {
 }
 
 func (s *status) checkHealth(ctx echo.Context) error {
-	result := s.doCheckHealth()
+	result := s.doCheckHealth(ctx.Request().Context())
 	responseCode := 200
 	if result.Status != core.HealthStatusUp {
 		var failures []string
@@ -132,16 +135,40 @@ func (s *status) checkHealth(ctx echo.Context) error {
 	return ctx.JSON(responseCode, result)
 }
 
-func (s *status) doCheckHealth() core.Health {
+func (s *status) doCheckHealth(ctx context.Context) core.Health {
 	results := make(map[string]core.Health, 0)
+	type checkerResult struct {
+		name    string
+		results map[string]core.Health
+	}
+	// Perform health checks concurrently to speed up the process; some modules query external resources
+	resultChan := make(chan checkerResult)
+	checkCount := 0
 	s.system.VisitEngines(func(engine core.Engine) {
 		checker, ok := engine.(core.HealthCheckable)
-		if ok {
-			for name, result := range checker.CheckHealth() {
-				results[strings.ToLower(checker.Name()+"."+name)] = result
-			}
+		if !ok {
+			// does not support health checking
+			return
 		}
+		checkCount++
+		go func(checker core.HealthCheckable) {
+			subCtx, cancel := context.WithTimeout(ctx, healthCheckTimeout)
+			defer cancel()
+			result := checker.CheckHealth(subCtx)
+			resultChan <- checkerResult{
+				name:    checker.Name(),
+				results: result,
+			}
+		}(checker)
 	})
+	// Wait for all health checks to finish
+	for i := 0; i < checkCount; i++ {
+		curr := <-resultChan
+		for name, result := range curr.results {
+			results[strings.ToLower(curr.name+"."+name)] = result
+		}
+	}
+	close(resultChan)
 
 	// Overall status is derived from the performed checks. The most severe status is returned (UP < UNKNOWN < DOWN).
 	overallStatus := core.HealthStatusUp
