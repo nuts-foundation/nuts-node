@@ -89,14 +89,31 @@ func TestSystem_Configure(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
-		r := NewMockConfigurable(ctrl)
-		r.EXPECT().Configure(gomock.Any())
+		configurableEngine := NewMockConfigurable(ctrl)
+		configurableEngine.EXPECT().Configure(gomock.Any())
+		configurableRouter := &stubRouter{}
 
 		system := NewSystem()
 		system.RegisterEngine(TestEngine{})
-		system.RegisterEngine(r)
-		assert.NoError(t, system.Load(FlagSet()))
-		assert.Nil(t, system.Configure())
+		system.RegisterEngine(configurableEngine)
+		system.RegisterRoutes(configurableRouter)
+
+		require.NoError(t, system.Load(FlagSet()))
+
+		err := system.Configure()
+
+		assert.Nil(t, err)
+		assert.True(t, configurableRouter.configured)
+	})
+	t.Run("error - configuring router", func(t *testing.T) {
+		configurableRouter := &stubRouter{configError: errors.New("failed")}
+		system := NewSystem()
+		system.RegisterRoutes(configurableRouter)
+		require.NoError(t, system.Load(FlagSet()))
+
+		err := system.Configure()
+
+		assert.EqualError(t, err, "failed to configure *core.stubRouter: failed")
 	})
 	t.Run("unable to create datadir", func(t *testing.T) {
 		system := NewSystem()
@@ -208,4 +225,18 @@ func TestSystem_Load(t *testing.T) {
 		require.Len(t, target.F, 1)
 		assert.Equal(t, "once", target.F[0])
 	})
+}
+
+type stubRouter struct {
+	configured  bool
+	configError error
+}
+
+func (s *stubRouter) Configure(_ ServerConfig) error {
+	s.configured = true
+	return s.configError
+}
+
+func (s stubRouter) Routes(_ EchoRouter) {
+
 }

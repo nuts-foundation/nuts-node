@@ -129,8 +129,8 @@ func (system *System) Configure() error {
 	if err = os.MkdirAll(system.Config.Datadir, os.ModePerm); err != nil {
 		return fmt.Errorf("unable to create datadir (dir=%s): %w", system.Config.Datadir, err)
 	}
-	return system.VisitEnginesE(func(engine Engine) error {
-		// only if Engine is dynamically configurable
+	// Configure engines
+	err = system.VisitEnginesE(func(engine Engine) error {
 		if m, ok := engine.(Configurable); ok {
 			coreLogger.Debugf("Configuring %s", engineName(engine))
 			err = m.Configure(*system.Config)
@@ -138,6 +138,20 @@ func (system *System) Configure() error {
 		}
 		return err
 	})
+	if err != nil {
+		return nil
+	}
+	// Configure API routers
+	for _, router := range system.Routers {
+		if m, ok := router.(Configurable); ok {
+			coreLogger.Debugf("Configuring %s", engineName(router))
+			if err := m.Configure(*system.Config); err != nil {
+				return fmt.Errorf("failed to configure %s: %w", engineName(router), err)
+			}
+			coreLogger.Debugf("Configured %s", engineName(router))
+		}
+	}
+	return nil
 }
 
 // Migrate migrates data structures in an engine if needed.

@@ -78,7 +78,9 @@ func (m *mockAuthClient) HTTPTimeout() time.Duration {
 }
 
 func (m *mockAuthClient) TLSConfig() *tls.Config {
-	return nil
+	return &tls.Config{
+		InsecureSkipVerify: true,
+	}
 }
 
 func (m *mockAuthClient) OAuthClient() oauth.Client {
@@ -537,6 +539,82 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 		assert.EqualError(t, err, "remote server/nuts node returned error creating access token: server returned HTTP 502 (expected: 200)")
 		require.Implements(t, new(core.HTTPStatusCodeError), err)
 		assert.Equal(t, http.StatusServiceUnavailable, err.(core.HTTPStatusCodeError).StatusCode())
+	})
+
+	t.Run("endpoint security validation (only HTTPS in strict mode)", func(t *testing.T) {
+		ctx := createContext(t)
+		ctx.echoMock.EXPECT().
+			Bind(gomock.Any()).
+			AnyTimes().
+			DoAndReturn(func(input interface{}) error {
+				*input.(*RequestAccessTokenRequest) = fakeRequest
+				return nil
+			})
+		ctx.echoMock.EXPECT().
+			JSON(http.StatusOK, gomock.Any()).
+			AnyTimes().
+			Return(nil)
+		httpServer := httptest.NewServer(&http2.Handler{
+			StatusCode: http.StatusOK,
+		})
+		httpsServer := httptest.NewTLSServer(&http2.Handler{
+			StatusCode: http.StatusOK,
+		})
+		t.Cleanup(httpServer.Close)
+		t.Cleanup(httpsServer.Close)
+
+		t.Run("HTTPS in strict mode", func(t *testing.T) {
+			ctx.oauthClientMock.EXPECT().
+				CreateJwtGrant(ctx.audit, services.CreateJwtGrantRequest{
+					Requester:  vdr.TestDIDA.String(),
+					Authorizer: vdr.TestDIDB.String(),
+					IdentityVP: &testID,
+					Service:    "test-service",
+				}).
+				Return(&services.JwtBearerTokenResult{
+					BearerToken:                 "jwt-bearer-token",
+					AuthorizationServerEndpoint: httpsServer.URL,
+				}, nil)
+
+			err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
+
+			assert.NoError(t, err)
+		})
+		t.Run("HTTP allowed in non-strict mode", func(t *testing.T) {
+			ctx.oauthClientMock.EXPECT().
+				CreateJwtGrant(ctx.audit, services.CreateJwtGrantRequest{
+					Requester:  vdr.TestDIDA.String(),
+					Authorizer: vdr.TestDIDB.String(),
+					IdentityVP: &testID,
+					Service:    "test-service",
+				}).
+				Return(&services.JwtBearerTokenResult{
+					BearerToken:                 "jwt-bearer-token",
+					AuthorizationServerEndpoint: httpServer.URL,
+				}, nil)
+
+			err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
+
+			assert.NoError(t, err)
+		})
+		t.Run("HTTP not allowed in strict mode", func(t *testing.T) {
+			ctx.oauthClientMock.EXPECT().
+				CreateJwtGrant(ctx.audit, services.CreateJwtGrantRequest{
+					Requester:  vdr.TestDIDA.String(),
+					Authorizer: vdr.TestDIDB.String(),
+					IdentityVP: &testID,
+					Service:    "test-service",
+				}).
+				Return(&services.JwtBearerTokenResult{
+					BearerToken:                 "jwt-bearer-token",
+					AuthorizationServerEndpoint: httpServer.URL,
+				}, nil)
+			ctx.wrapper.strictMode = true
+
+			err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
+
+			assert.EqualError(t, err, fmt.Sprintf("authorization server endpoint must be HTTPS when in strict mode: %s", httpServer.URL))
+		})
 	})
 
 	t.Run("happy_path", func(t *testing.T) {

@@ -42,6 +42,7 @@ import (
 )
 
 var _ ServerInterface = (*Wrapper)(nil)
+var _ core.Configurable = (*Wrapper)(nil)
 var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
 
 const (
@@ -58,6 +59,13 @@ const (
 type Wrapper struct {
 	Auth               auth.AuthenticationServices
 	CredentialResolver vcr.Resolver
+	strictMode         bool
+}
+
+// Configure is called by the system to configure the API wrapper.
+func (w *Wrapper) Configure(config core.ServerConfig) error {
+	w.strictMode = config.Strictmode
+	return nil
 }
 
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
@@ -296,9 +304,12 @@ func (w Wrapper) RequestAccessToken(ctx echo.Context) error {
 		Credentials: requestBody.Credentials,
 	}
 
-	jwtGrantResponse, err := w.Auth.OAuthClient().CreateJwtGrant(ctx.Request().Context(), request)
+	jwtGrant, err := w.Auth.OAuthClient().CreateJwtGrant(ctx.Request().Context(), request)
 	if err != nil {
 		return core.InvalidInputError(err.Error())
+	}
+	if w.strictMode && !strings.HasPrefix(strings.ToLower(jwtGrant.AuthorizationServerEndpoint), "https://") {
+		return core.InvalidInputError("authorization server endpoint must be HTTPS when in strict mode: %s", jwtGrant.AuthorizationServerEndpoint)
 	}
 
 	httpClient := &http.Client{}
@@ -314,12 +325,11 @@ func (w Wrapper) RequestAccessToken(ctx echo.Context) error {
 	if err != nil {
 		return fmt.Errorf("unable to create HTTP client: %w", err)
 	}
-
-	authServerEndpoint, err := url.Parse(jwtGrantResponse.AuthorizationServerEndpoint)
+	authServerEndpoint, err := url.Parse(jwtGrant.AuthorizationServerEndpoint)
 	if err != nil {
 		return err
 	}
-	accessTokenResponse, err := authClient.CreateAccessToken(*authServerEndpoint, jwtGrantResponse.BearerToken)
+	accessTokenResponse, err := authClient.CreateAccessToken(*authServerEndpoint, jwtGrant.BearerToken)
 	if err != nil {
 		return core.Error(http.StatusServiceUnavailable, "remote server/nuts node returned error creating access token: %w", err)
 	}
