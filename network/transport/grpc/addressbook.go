@@ -19,27 +19,28 @@
 package grpc
 
 import (
-	"errors"
-	"fmt"
-	"github.com/nuts-foundation/nuts-node/core"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 )
 
 // AddressBook provides an API for protocols to query the ConnectionManager's known addresses.
 type AddressBook interface {
-	// Update the address for the peer's existing getContact, or create one if it does not exist.
-	// If the address is empty, the contact is removed.
+	// update the address for the peer's existing contact, or create an entry if it does not exist.
+	// it returns the contact, and true if the AddressBook was updated (contact was created or updated).
 	// bootstrap nodes contain an address with an empty DID.
-	Update(peer transport.Peer) error
-	// Get the getContact if it exists, or returns false if it does not.
-	Get(peer transport.Peer) (*contact, bool)
-	// All returns a copy of the contacts of connectors.
-	All() []*contact
+	update(peer transport.Peer) (*contact, bool)
+	// get the contact if it exists. Returns nil and false if it does not.
+	get(peer transport.Peer) (*contact, bool)
+	// all returns a copy of the slice of contacts.
+	all() []*contact
+	// remove contact for the given DID. if peerDID.Empty() this removes all bootstrap contacts.
+	remove(peerDID did.DID)
 }
 
 func newAddressBook(connectionStore stoabs.KVStore, backoffCreator func() Backoff, hasNoConnection predicate) *addressBook {
@@ -59,13 +60,14 @@ type addressBook struct {
 	hasNoConnection predicate
 }
 
-func (a *addressBook) Get(peer transport.Peer) (*contact, bool) {
+func (a *addressBook) get(peer transport.Peer) (*contact, bool) {
 	a.mux.RLock()
 	defer a.mux.RUnlock()
-	return a.get(peer)
+	return a.getWithoutLock(peer)
 }
 
-func (a *addressBook) get(peer transport.Peer) (*contact, bool) {
+// getWithoutLock is get for internal calls
+func (a *addressBook) getWithoutLock(peer transport.Peer) (*contact, bool) {
 	if !peer.NodeDID.Empty() { // find on DID
 		for _, o := range a.contacts {
 			if peer.NodeDID.Equals(o.peer.NodeDID) {
@@ -82,43 +84,37 @@ func (a *addressBook) get(peer transport.Peer) (*contact, bool) {
 	return nil, false
 }
 
-func (a *addressBook) Update(peer transport.Peer) error {
+func (a *addressBook) update(peer transport.Peer) (*contact, bool) {
 	a.mux.Lock()
 	defer a.mux.Unlock()
 
-	// TODO: should this check include url validation?
-	if peer.NodeDID.Empty() && peer.Address == "" {
-		return errors.New("invalid peer")
-	}
-
 	// update existing address
-	current, exists := a.get(peer)
+	current, exists := a.getWithoutLock(peer)
 	if exists {
 		if peer.Address == current.peer.Address {
-			// nothing to update
-		} else if peer.Address == "" {
-			// delete NutsComm -> delete dialer
-			a.remove(current)
-		} else {
-			// update DID's address and reset backoff
-			current.peer.Address = peer.Address
-			current.backoff.Reset(0)
+			// no change
+			return current, false
 		}
-		return nil
+		current.peer.Address = peer.Address
+		return current, true
 	}
 
 	// add new address
 	backoff := a.backoffCreator()
+	// only persist non-bootstrap contacts
+	// bootstrap addresses are configured by the node owner and should always be called at startup
 	if !peer.NodeDID.Empty() {
-		// only persist non-bootstrap.
 		// store the backoff under the DID since an address could be used by multiple DIDs.
-		backoff = NewPersistedBackoff(a.backoffStore, fmt.Sprintf("did:%s:%s", peer.NodeDID.Method, peer.NodeDID.ID), backoff)
+		backoff = NewPersistedBackoff(a.backoffStore, peer.NodeDID.String(), backoff)
 	}
-	a.contacts = append(a.contacts, newContact(peer, backoff))
-	return nil
+	// wrap it in a lock since it's used from multiple go routines
+	backoff = NewSyncedBackoff(backoff)
+	newC := newContact(peer, NewSyncedBackoff(backoff))
+	a.contacts = append(a.contacts, newC)
+	return newC, true
 }
 
-func (a *addressBook) All() []*contact {
+func (a *addressBook) all() []*contact {
 	a.mux.RLock()
 	defer a.mux.RUnlock()
 
@@ -152,10 +148,12 @@ outer:
 	return result
 }
 
-func (a *addressBook) remove(target *contact) {
+func (a *addressBook) remove(peerDID did.DID) {
+	a.mux.Lock()
+	defer a.mux.Unlock()
 	var j int
 	for _, curr := range a.contacts {
-		if curr != target {
+		if !curr.peer.NodeDID.Equals(peerDID) {
 			a.contacts[j] = curr
 			j++
 		}
@@ -165,8 +163,11 @@ func (a *addressBook) remove(target *contact) {
 
 // Diagnostics returns the statistics of contacts that have no active connection.
 func (a *addressBook) Diagnostics() []core.DiagnosticResult {
+	a.mux.RLock()
+	defer a.mux.RUnlock()
+
 	var contacts ContactsStats
-	for _, curr := range a.All() {
+	for _, curr := range a.contacts {
 		if a.hasNoConnection(curr) {
 			contacts = append(contacts, curr.stats())
 		}
@@ -180,27 +181,29 @@ func (a *addressBook) Diagnostics() []core.DiagnosticResult {
 // When the connection succeeds it calls the given callback. The caller is responsible to reset the backoff after optional application-level checks succeed (e.g. authentication).
 func newContact(peer transport.Peer, backoff Backoff) *contact {
 	return &contact{
-		peer:        peer,
-		backoff:     backoff,
-		lastAttempt: &atomic.Value{},
+		peer:    peer,
+		backoff: backoff,
 	}
 }
 
 type contact struct {
 	peer        transport.Peer
-	dialing     atomic.Bool
+	calling     atomic.Bool
 	backoff     Backoff
 	attempts    atomic.Uint32
-	lastAttempt *atomic.Value
+	lastAttempt atomic.Pointer[time.Time]
 }
 
 func (c *contact) stats() transport.ContactStats {
-	lastAttempt, _ := c.lastAttempt.Load().(time.Time)
+	lastAttempt := c.lastAttempt.Load()
+	if lastAttempt == nil { // is nil when no value has been stored yet
+		lastAttempt = &time.Time{}
+	}
 	return transport.ContactStats{
 		Address:     c.peer.Address,
 		DID:         c.peer.NodeDID.String(),
 		Attempts:    c.attempts.Load(),
-		LastAttempt: lastAttempt,
+		LastAttempt: *lastAttempt,
 	}
 }
 
@@ -221,6 +224,6 @@ func backoffExpiredPredicate() predicate {
 
 func notDialingPredicate() predicate {
 	return func(c *contact) bool {
-		return c.dialing.Load() == false
+		return !c.calling.Load()
 	}
 }

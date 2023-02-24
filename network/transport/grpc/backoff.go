@@ -26,6 +26,7 @@ import (
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -195,4 +196,37 @@ func (p *persistingBackoff) read() persistedBackoff {
 			Error("Failed to read persisted backoff")
 	}
 	return result
+}
+
+func NewSyncedBackoff(bo Backoff) Backoff {
+	return &syncedBackoff{underlying: bo}
+}
+
+type syncedBackoff struct {
+	mux        sync.RWMutex
+	underlying Backoff
+}
+
+func (s *syncedBackoff) Reset(value time.Duration) {
+	s.mux.Lock()
+	defer s.mux.Unlock()
+	s.underlying.Reset(value)
+}
+
+func (s *syncedBackoff) Backoff() time.Duration {
+	s.mux.Lock()
+	defer s.mux.Unlock()
+	return s.underlying.Backoff()
+}
+
+func (s *syncedBackoff) Value() time.Duration {
+	s.mux.RLock()
+	defer s.mux.RUnlock()
+	return s.underlying.Value()
+}
+
+func (s *syncedBackoff) Expired() bool {
+	s.mux.RLock()
+	defer s.mux.RUnlock()
+	return s.underlying.Expired()
 }

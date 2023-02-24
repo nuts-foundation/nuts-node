@@ -80,9 +80,23 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		p := &TestProtocol{}
 		cm := NewGRPCConnectionManager(NewConfig("", "test"), createKVStore(t), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
+		bo := &trackingBackoff{mux: &sync.Mutex{}}
+		cm.addressBook.backoffCreator = func() Backoff { return bo }
 
-		cm.Connect(fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort()), did.DID{})
+		// new contact sets backoff
+		cm.Connect("address", did.MustParseDID("did:nuts:peer"))
 		assert.Len(t, cm.addressBook.contacts, 1)
+		assert.Equal(t, 1, bo.resetCount)
+
+		// update contact sets backoff
+		cm.Connect("updated address", did.MustParseDID("did:nuts:peer"))
+		assert.Len(t, cm.addressBook.contacts, 1)
+		assert.Equal(t, 2, bo.resetCount)
+
+		// contact didn't change, so backoff doesn't eiter
+		cm.Connect("updated address", did.MustParseDID("did:nuts:peer"))
+		assert.Len(t, cm.addressBook.contacts, 1)
+		assert.Equal(t, 2, bo.resetCount)
 	})
 
 	t.Run("ok - with TLS", func(t *testing.T) {
@@ -114,22 +128,15 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 		assert.Len(t, cm.addressBook.contacts, 1)
 	})
 
-	t.Run("already connected to the peer (inbound)", func(t *testing.T) {
-		serverCfg, serverListener := newBufconnConfig("server")
-		server := NewGRPCConnectionManager(serverCfg, createKVStore(t), &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
-		if err := server.Start(); err != nil {
-			t.Fatal(err)
-		}
-		defer server.Stop()
+	t.Run("no address removes contacts", func(t *testing.T) {
+		p := &TestProtocol{}
+		cm := NewGRPCConnectionManager(NewConfig("", "test"), createKVStore(t), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
+		cm.Connect("address", did.MustParseDID("did:nuts:abc"))
+		assert.Len(t, cm.addressBook.contacts, 1)
 
-		clientCfg, _ := newBufconnConfig("client", withBufconnDialer(serverListener))
-		client := NewGRPCConnectionManager(clientCfg, createKVStore(t), &stubNodeDIDReader{}, nil, &TestProtocol{}).(*grpcConnectionManager)
-		if err := client.Start(); err != nil {
-			t.Fatal(err)
-		}
-		defer client.Stop()
-		client.Connect("server", did.DID{})
-		// TODO: what is missing here? doesn't seem to be doing anything
+		cm.Connect("", did.MustParseDID("did:nuts:abc"))
+
+		assert.Len(t, cm.addressBook.contacts, 0)
 	})
 }
 
@@ -159,12 +166,12 @@ func Test_grpcConnectionManager_hasActiveConnection(t *testing.T) {
 }
 
 func Test_grpcConnectionManager_dialerLoop(t *testing.T) {
-	// make sure dialerLoop only returns after all of its goroutines are closed
+	// make sure connectLoop only returns after all of its goroutines are closed
 	defer goleak.VerifyNone(t)
 
 	targetAddress := "bootstrap"
 	var capturedAddress string
-	timeout := 2 * time.Second // dialerLoop ticker takes 1 sec
+	timeout := 2 * time.Second // connectLoop ticker takes 1 sec
 
 	cm := NewGRPCConnectionManager(Config{connectionTimeout: 5 * timeout}, createKVStore(t), &stubNodeDIDReader{}, dummyAuthenticator{}, &TestProtocol{}).(*grpcConnectionManager)
 	cm.dialer = func(ctx context.Context, target string, _ ...grpc.DialOption) (conn *grpc.ClientConn, err error) {
@@ -178,20 +185,20 @@ func Test_grpcConnectionManager_dialerLoop(t *testing.T) {
 	cm.addressBook.contacts = append(cm.addressBook.contacts, cont)
 	done := make(chan struct{}, 0)
 	go func() {
-		cm.dialerLoop()
+		cm.connectLoop()
 		done <- struct{}{}
 	}()
 
-	// check that dialing flag is set to true
+	// check that calling flag is set to true
 	test.WaitFor(t, func() (bool, error) {
-		return cont.dialing.Load(), nil
-	}, timeout, "timeout while waiting for contact.dialing flag ot be set")
+		return cont.calling.Load(), nil
+	}, timeout, "timeout while waiting for contact.calling flag ot be set")
 
 	// cancel context, this should stop the dialer and close all connections
 	cm.ctxCancel()
 	<-done
 
-	assert.False(t, cont.dialing.Load())            // dialing flg should be reset to 0
+	assert.False(t, cont.calling.Load())            // calling flg should be reset to 0
 	assert.Equal(t, targetAddress, capturedAddress) // calling the correct address
 }
 
@@ -218,7 +225,7 @@ func Test_grpcConnectionManager_dial(t *testing.T) {
 
 		// Connect and call protocol function to set up streams, required to assert headers.
 		// Then wait for stream to be set up
-		cm.dial(contact)
+		cm.connect(contact)
 		test.WaitFor(t, func() (bool, error) {
 			return actualUserAgent.Load() != nil, nil
 		}, time.Second, "time-out while waiting for connection to be set up")
@@ -233,7 +240,7 @@ func Test_grpcConnectionManager_dial(t *testing.T) {
 		cm := NewGRPCConnectionManager(Config{}, createKVStore(t), &stubNodeDIDReader{}, dummyAuthenticator{}, &TestProtocol{}).(*grpcConnectionManager)
 		cm.connections.list = append(cm.connections.list, createConnection(cm.ctx, peer)) // add existing connection
 
-		cm.dial(cont)
+		cm.connect(cont)
 
 		// contact not updated
 		assert.Equal(t, uint32(0), cont.attempts.Load())
@@ -242,7 +249,7 @@ func Test_grpcConnectionManager_dial(t *testing.T) {
 		assert.Equal(t, 0, backoff.backoffCount)
 		assert.Equal(t, 0, backoff.resetCount)
 	})
-	t.Run("dialing errors", func(t *testing.T) {
+	t.Run("calling errors", func(t *testing.T) {
 		t.Run("dialer context canceled", func(t *testing.T) {
 			backoff := &trackingBackoff{mux: &sync.Mutex{}}
 			cont := newContact(transport.Peer{Address: "nuts.nl"}, backoff)
@@ -252,11 +259,11 @@ func Test_grpcConnectionManager_dial(t *testing.T) {
 			}
 			now := time.Now()
 
-			cm.dial(cont)
+			cm.connect(cont)
 
 			// contact updated
 			assert.Equal(t, uint32(1), cont.attempts.Load())
-			assert.Less(t, now, cont.lastAttempt.Load())
+			assert.Less(t, now, cont.stats().LastAttempt)
 
 			// backoff not called
 			assert.Equal(t, 0, backoff.backoffCount)
@@ -271,11 +278,11 @@ func Test_grpcConnectionManager_dial(t *testing.T) {
 			}
 			now := time.Now()
 
-			cm.dial(cont)
+			cm.connect(cont)
 
 			// contact updated
 			assert.Equal(t, uint32(1), cont.attempts.Load())
-			assert.Less(t, now, cont.lastAttempt.Load())
+			assert.Less(t, now, cont.stats().LastAttempt)
 
 			// backoff is called
 			assert.Equal(t, 1, backoff.backoffCount)
@@ -308,7 +315,7 @@ func Test_grpcConnectionManager_dial(t *testing.T) {
 			// call peer
 			done := make(chan struct{}, 0)
 			go func() {
-				client.dial(cont)
+				client.connect(cont)
 				done <- struct{}{}
 			}()
 
@@ -321,7 +328,7 @@ func Test_grpcConnectionManager_dial(t *testing.T) {
 
 			// contact updated
 			assert.Equal(t, uint32(1), cont.attempts.Load())
-			assert.Less(t, now, cont.lastAttempt.Load())
+			assert.Less(t, now, cont.stats().LastAttempt)
 
 			// backoff is reset. this means a random value between 1 and 5 sec.
 			assert.Less(t, cont.backoff.Value(), 5*time.Second)
@@ -349,7 +356,7 @@ func Test_grpcConnectionManager_dial(t *testing.T) {
 			// call peer
 			ctx, cancel := context.WithTimeout(client.ctx, 2*time.Second)
 			go func() {
-				client.dial(cont)
+				client.connect(cont)
 				cancel()
 			}()
 			<-ctx.Done()
@@ -379,7 +386,7 @@ func Test_grpcConnectionManager_dial(t *testing.T) {
 			// call peer
 			ctx, cancel := context.WithTimeout(client.ctx, 2*time.Second)
 			go func() {
-				client.dial(cont)
+				client.connect(cont)
 				cancel()
 			}()
 			<-ctx.Done()
@@ -927,48 +934,6 @@ func Test_grpcConnectionManager_openOutboundStream(t *testing.T) {
 		assert.ErrorIs(t, err, ErrNodeDIDAuthFailed)
 		assert.Nil(t, clientStream)
 	})
-
-	// TODO: This modeled attempting an outbound call while there already was an inbound connection. This required the connections to be merged.
-	// Outbound connections no longer match on peerID but on DID (and or address), so this situation can no longer occur??
-	//
-	//t.Run("already connected", func(t *testing.T) {
-	//	ctrl := gomock.NewController(t)
-	//
-	//	existingConn := NewMockConnection(ctrl)
-	//	// due to connectionList.Get(ByPeerID(newConn.peerID)):
-	//	existingConn.EXPECT().Peer().MinTimes(1).Return(transport.Peer{ID: "remote"})
-	//	// due to ConnectionManager.Stop():
-	//	existingConn.EXPECT().disconnect()
-	//
-	//	cm := NewGRPCConnectionManager(NewConfig("localhost", "local"), createKVStore(t), &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
-	//	cm.connections.list = append(cm.connections.list, existingConn)
-	//
-	//	defer cm.Stop()
-	//
-	//	meta, _ := cm.constructMetadata(false)
-	//	meta.Set(peerIDHeader, "remote")
-	//
-	//	grpcStream := NewMockClientStream(ctrl)
-	//	grpcStream.EXPECT().Header().Return(meta, nil)
-	//
-	//	grpcConn := NewMockConn(ctrl)
-	//	grpcConn.EXPECT().NewStream(gomock.Any(), gomock.Any(), "/grpc.Test/DoStuff", gomock.Any()).Return(grpcStream, nil)
-	//
-	//	newConn := NewMockConnection(ctrl)
-	//	// New outbound connection's connector should be stopped, peer address copied to existing connection's connector
-	//	newConn.EXPECT().stopConnecting()
-	//	newConn.EXPECT().Peer().Return(transport.Peer{ID: "remote", Address: "remote-address"})
-	//	existingConn.EXPECT().startConnecting(connectorConfig{
-	//		address:           "remote-address",
-	//		tls:               nil,
-	//		connectionTimeout: NewConfig("", "").connectionTimeout,
-	//	}, gomock.Any(), gomock.Any())
-	//
-	//	stream, err := cm.openOutboundStream(newConn, protocol, grpcConn, metadata.MD{})
-	//
-	//	assert.ErrorIs(t, err, ErrAlreadyConnected)
-	//	assert.Nil(t, stream)
-	//})
 }
 
 func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {

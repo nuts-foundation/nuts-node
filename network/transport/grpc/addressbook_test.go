@@ -27,7 +27,7 @@ import (
 	"testing"
 )
 
-func TestAddressBook_Get(t *testing.T) {
+func TestAddressBook_get(t *testing.T) {
 	address := "same-address"
 	peerDID := did.MustParseDID("did:nuts:123")
 
@@ -43,75 +43,105 @@ func TestAddressBook_Get(t *testing.T) {
 	ab.contacts = append(ab.contacts, namedContact)
 
 	t.Run("anonymous contact", func(t *testing.T) {
-		cont, exists := ab.Get(anonymous)
+		cont, exists := ab.get(anonymous)
 		require.True(t, exists)
 		assert.Equal(t, cont, anonymousContact)
 	})
 
 	t.Run("named contact", func(t *testing.T) {
-		cont, exists := ab.Get(named)
+		cont, exists := ab.get(named)
 		require.True(t, exists)
 		assert.Equal(t, cont, namedContact)
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		cont, exists := ab.Get(transport.Peer{Address: "who's this?"})
+		cont, exists := ab.get(transport.Peer{Address: "who's this?"})
 		assert.False(t, exists)
 		assert.Nil(t, cont)
 	})
 }
 
-func TestAddressBook_Update(t *testing.T) {
-	store := storage.CreateTestBBoltStore(t, t.TempDir()+"/test.db")
-	ab := newAddressBook(store, newTestBackoff, nil)
-	assert.Len(t, ab.contacts, 0) // must be empty at start
+func TestAddressBook_update(t *testing.T) {
+	address := "address"
+	otherAddress := "that-address"
 
-	address1 := "this-address"
-	address2 := "that-address"
-	did1 := did.MustParseDID("did:nuts:123")
-	did2 := did.MustParseDID("did:nuts:abc")
-	peer1 := transport.Peer{Address: address1, NodeDID: did1}
-	peer2 := transport.Peer{Address: address1, NodeDID: did2}
-	peer1Update := transport.Peer{Address: address2, NodeDID: did1}
-	peer1Remove := transport.Peer{NodeDID: did1}
+	t.Run("bootstrap", func(t *testing.T) {
+		store := storage.CreateTestBBoltStore(t, t.TempDir()+"/test.db")
+		ab := newAddressBook(store, newTestBackoff, nil)
 
-	// add peers
-	assert.NoError(t, ab.Update(peer1))
-	assert.Len(t, ab.contacts, 1)
-	assert.NoError(t, ab.Update(peer2))
-	require.Len(t, ab.contacts, 2)
-	assert.Equal(t, peer1, ab.contacts[0].peer)
-	assert.Equal(t, peer2, ab.contacts[1].peer)
+		// add 1
+		conta, update := ab.update(transport.Peer{Address: address})
+		assert.True(t, update)
+		assert.Len(t, ab.contacts, 1)
 
-	// update contains no change
-	assert.NoError(t, ab.Update(peer1))
-	require.Len(t, ab.contacts, 2)
-	assert.Equal(t, peer1, ab.contacts[0].peer)
+		// add 2
+		contb, update := ab.update(transport.Peer{Address: otherAddress})
+		assert.True(t, update)
+		assert.NotSame(t, conta, contb)
+		assert.Len(t, ab.contacts, 2)
 
-	// update address
-	assert.NoError(t, ab.Update(peer1Update))
-	require.Len(t, ab.contacts, 2)
-	assert.Equal(t, peer1Update, ab.contacts[0].peer)
+		// duplicate of 1
+		contc, update := ab.update(transport.Peer{Address: address})
+		assert.False(t, update)
+		assert.Same(t, conta, contc)
+		assert.Len(t, ab.contacts, 2)
+	})
+	t.Run("named", func(t *testing.T) {
+		store := storage.CreateTestBBoltStore(t, t.TempDir()+"/test.db")
+		ab := newAddressBook(store, newTestBackoff, nil)
+		did1 := did.MustParseDID("did:nuts:123")
+		did2 := did.MustParseDID("did:nuts:abc")
 
-	// remove contact
-	assert.NoError(t, ab.Update(peer1Remove))
-	require.Len(t, ab.contacts, 1)
-	assert.Equal(t, peer2, ab.contacts[0].peer)
+		// add 1
+		conta, update := ab.update(transport.Peer{Address: address, NodeDID: did1})
+		assert.True(t, update)
+		assert.Len(t, ab.contacts, 1)
 
-	// invalid peer
-	assert.EqualError(t, ab.Update(transport.Peer{}), "invalid peer")
+		// add 2
+		contb, update := ab.update(transport.Peer{Address: address, NodeDID: did2})
+		assert.True(t, update)
+		assert.NotSame(t, conta, contb)
+		assert.Len(t, ab.contacts, 2)
+
+		// duplicate of 2
+		contc, update := ab.update(transport.Peer{Address: address, NodeDID: did2})
+		assert.False(t, update)
+		assert.Same(t, contb, contc)
+		assert.Len(t, ab.contacts, 2)
+
+		// update 1
+		contd, update := ab.update(transport.Peer{Address: otherAddress, NodeDID: did1})
+		assert.True(t, update)
+		assert.Same(t, conta, contd)
+		assert.Len(t, ab.contacts, 2)
+	})
 }
 
-func TestAddressBook_All(t *testing.T) {
+func TestAddressBook_all(t *testing.T) {
 	c1 := newContact(transport.Peer{}, nil)
 	c2 := newContact(transport.Peer{}, nil)
 	c3 := newContact(transport.Peer{}, nil)
 	ab := &addressBook{contacts: []*contact{c1, c2, c3}}
 
-	all := ab.All()
+	all := ab.all()
 
 	assert.Len(t, all, 3)
 	assert.NotSame(t, all, ab.contacts) // new slice
+}
+
+func TestAddressBook_remove(t *testing.T) {
+	store := storage.CreateTestBBoltStore(t, t.TempDir()+"/test.db")
+	ab := newAddressBook(store, newTestBackoff, nil)
+	ab.update(transport.Peer{Address: "address"})
+	ab.update(transport.Peer{Address: "other-address"})
+	ab.update(transport.Peer{Address: "address", NodeDID: did.MustParseDID("did:nuts:abc")})
+	ab.update(transport.Peer{Address: "address", NodeDID: did.MustParseDID("did:nuts:123")})
+	assert.Len(t, ab.contacts, 4)
+
+	ab.remove(did.DID{}) // removes all bootstrap
+	assert.Len(t, ab.contacts, 2)
+	ab.remove(did.MustParseDID("did:nuts:abc")) // removes only this did
+	assert.Len(t, ab.contacts, 1)
 }
 
 func TestAddressBook_Diagnostics(t *testing.T) {
@@ -137,7 +167,7 @@ func TestAddressBook_limit(t *testing.T) {
 	store := storage.CreateTestBBoltStore(t, t.TempDir()+"/test.db")
 	ab := newAddressBook(store, newTestBackoff, nil)
 	peer := transport.Peer{Address: "test"}
-	ab.Update(peer)
+	ab.update(peer)
 
 	t.Run("no match", func(t *testing.T) {
 		cs := ab.limit(1, func(c *contact) bool {

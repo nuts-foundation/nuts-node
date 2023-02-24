@@ -43,7 +43,7 @@ import (
 )
 
 const defaultMaxMessageSizeInBytes = 1024 * 512
-const maxConcurrentDialers = 10
+const maxConcurrentCallsPerTick = 10
 const peerIDHeader = "peerID"
 const nodeDIDHeader = "nodeDID"
 
@@ -53,7 +53,7 @@ var ErrNodeDIDAuthFailed = status.Error(codes.Unauthenticated, "nodeDID authenti
 
 // ErrUnexpectedNodeDID is the error used in outbound calling to signal that the peer sent a different NodeDID than expected.
 // The DID has moved on, do not call it again until notified of its new address.
-var ErrUnexpectedNodeDID = errors.New("this is not the node you are looking for")
+var ErrUnexpectedNodeDID = errors.New("call answered by other node DID than expected")
 
 // ErrAlreadyConnected indicates the node is already connected to the peer.
 var ErrAlreadyConnected = errors.New("already connected")
@@ -110,7 +110,6 @@ func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nod
 		connectionTimeout: config.connectionTimeout,
 		connections:       &connectionList{},
 		dialer:            config.dialer,
-		dialerWG:          new(sync.WaitGroup),
 		dialOptions: []grpc.DialOption{
 			grpc.WithBlock(),                 // Dial should block until connection succeeded (or time-out expired)
 			grpc.WithReturnConnectionError(), // This option causes underlying errors to be returned when connections fail, rather than just "context deadline exceeded"
@@ -147,7 +146,7 @@ type grpcConnectionManager struct {
 	addressBook *addressBook
 
 	dialer
-	dialerWG          *sync.WaitGroup
+	connectLoopWG     sync.WaitGroup
 	dialOptions       []grpc.DialOption
 	connectionTimeout time.Duration
 	connections       *connectionList
@@ -202,10 +201,10 @@ func newGrpcServer(ctx context.Context, config Config) (*grpc.Server, error) {
 
 func (s *grpcConnectionManager) Start() error {
 	// Start outbound
-	s.dialerWG.Add(1)
+	s.connectLoopWG.Add(1)
 	go func() {
-		defer s.dialerWG.Done()
-		s.dialerLoop()
+		defer s.connectLoopWG.Done()
+		s.connectLoop()
 	}()
 
 	// Start inbound
@@ -249,8 +248,9 @@ func (s *grpcConnectionManager) Start() error {
 
 func (s *grpcConnectionManager) Stop() {
 	log.Logger().Debug("Stopping gRPC connection manager")
-	s.ctxCancel() // stops dialerLoop and crlValidator
-	s.dialerWG.Wait()
+	s.ctxCancel() // stops connectLoop and crlValidator
+	log.Logger().Trace("Waiting for connectLoop to close")
+	s.connectLoopWG.Wait()
 	s.connections.forEach(func(connection Connection) {
 		connection.disconnect()
 	})
@@ -264,10 +264,10 @@ func (s *grpcConnectionManager) Stop() {
 	prometheus.Unregister(s.recvMessagesCounter)
 }
 
-func (s *grpcConnectionManager) dialerLoop() {
-	log.Logger().Info("start dialing")
+func (s *grpcConnectionManager) connectLoop() {
+	log.Logger().Debug("Start connecting")
 	ticker := time.NewTicker(time.Second)
-	dialingWG := new(sync.WaitGroup)
+	connectWG := new(sync.WaitGroup)
 	defer ticker.Stop()
 outerLoop:
 	for {
@@ -275,29 +275,32 @@ outerLoop:
 		case <-s.ctx.Done():
 			break outerLoop
 		case <-ticker.C:
-			for _, c := range s.addressBook.limit(maxConcurrentDialers, isNotActivePredicate(s), backoffExpiredPredicate(), notDialingPredicate()) {
-				// the notDialingPredicate above guarantees that dialing is currently false. We can take the dialing lock
-				c.dialing.Store(true)
-				dialingWG.Add(1)
+			// Try to connect to a subset of contacts that meet the criteria (not connected and an expired backoff)
+			// The limited subset prevents calling all contacts at the exact same time, it is not a limit on the number of allowed outbound calls at a time.
+			// This is mostly an issue during startup, and for new nodes this prevents the node from performing a DoS attack on its backoff store.
+			for _, c := range s.addressBook.limit(maxConcurrentCallsPerTick, isNotActivePredicate(s), backoffExpiredPredicate(), notDialingPredicate()) {
+				// the notDialingPredicate above guarantees that calling is currently false. We can take the calling lock
+				c.calling.Store(true)
+				connectWG.Add(1)
 				go func(cp *contact) {
 					defer func() {
-						cp.dialing.Store(false) // reset call lock at the end of dialing
-						dialingWG.Done()
+						cp.calling.Store(false) // reset call lock at the end of calling
+						connectWG.Done()
 					}()
-					s.dial(cp)
+					s.connect(cp) // blocking while connected
 				}(c)
 			}
 		}
 	}
-	dialingWG.Wait()
+	connectWG.Wait()
 }
 
-func (s *grpcConnectionManager) dial(contact *contact) {
+func (s *grpcConnectionManager) connect(contact *contact) {
 	connection, isNew := s.connections.getOrRegister(s.ctx, contact.peer, true)
 	if !isNew {
 		// can only occur when receiving an inbound connection at the same time.
 		log.Logger().WithFields(contact.peer.ToFields()).
-			Debug("stop dialing, already has a connection")
+			Debug("stop calling, already has a connection")
 		return
 	}
 	defer func() {
@@ -309,7 +312,8 @@ func (s *grpcConnectionManager) dial(contact *contact) {
 	// Open a grpc.ClientConn
 	log.Logger().WithFields(contact.peer.ToFields()).Debug("connecting to peer")
 	contact.attempts.Add(1)
-	contact.lastAttempt.Store(time.Now())
+	now := time.Now()
+	contact.lastAttempt.Store(&now)
 	dialContext, cancel := context.WithTimeout(s.ctx, s.connectionTimeout)
 	defer cancel()
 	grpcClient, err := s.dialer(dialContext, contact.peer.Address, s.dialOptions...)
@@ -329,7 +333,7 @@ func (s *grpcConnectionManager) dial(contact *contact) {
 	log.Logger().WithFields(contact.peer.ToFields()).Debug("connected to peer (outbound)")
 
 	// Connect protocol streams
-	err = s.openOutboundStreams(connection, grpcClient) // blocking call, dial needs to be async
+	err = s.openOutboundStreams(connection, grpcClient) // blocking call, connect needs to be async
 	if err != nil {
 		// connection failed, increase backoff
 		// TODO: check if this works as intended for multiple streams/protocols on the same connection
@@ -354,12 +358,17 @@ func (s *grpcConnectionManager) hasActiveConnection(peer transport.Peer) bool {
 }
 
 func (s *grpcConnectionManager) Connect(peerAddress string, peerDID did.DID) {
+	// peer has deactivated its DID or removed it's NutsComm address. Delete peer from address book, if it exists.
+	if peerAddress == "" {
+		s.addressBook.remove(peerDID)
+		return
+	}
+
+	// add/update contact
 	peer := transport.Peer{Address: peerAddress, NodeDID: peerDID}
-	if err := s.addressBook.Update(peer); err != nil {
-		log.Logger().WithError(err).
-			WithField(core.LogFieldPeerNodeDID, peer.NodeDID.String()).
-			WithField(core.LogFieldPeerAddr, peer.Address).
-			Info("failed to update address book with new peer details")
+	if cont, updated := s.addressBook.update(peer); updated {
+		// reset existing backoff after an update to try to connect to the peer's new address
+		cont.backoff.Reset(0)
 	}
 }
 
