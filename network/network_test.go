@@ -1033,7 +1033,7 @@ func Test_connectToKnownNodes(t *testing.T) {
 			config.EnableDiscovery = true
 			config.BootstrapNodes = []string{"bootstrap"}
 		})
-		ctx.docFinder.EXPECT().Find(gomock.Any()).Return([]did.Document{}, nil)
+		// ctx.docFinder.EXPECT().Find().Return(nothing, nil) // called from createNetwork
 
 		// expect Connect() call with delay == 0 for bootstrap node
 		ctx.connectionManager.EXPECT().Connect("bootstrap", did.DID{}, time.Duration(0))
