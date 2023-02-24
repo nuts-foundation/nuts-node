@@ -21,7 +21,6 @@ package grpc
 import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/transport"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
 )
 
@@ -65,6 +64,7 @@ type StubConnection struct {
 	SentMsgs      []interface{}
 	PeerID        transport.PeerID
 	Authenticated bool
+	Address       string
 }
 
 // Send sends a message to the connection
@@ -80,6 +80,7 @@ func (s *StubConnection) Peer() transport.Peer {
 		ID:            s.PeerID,
 		NodeDID:       s.NodeDID,
 		Authenticated: s.Authenticated,
+		Address:       s.Address,
 	}
 }
 
@@ -114,14 +115,6 @@ func (s *StubConnection) waitUntilDisconnected() {
 	panic("implement me")
 }
 
-func (s *StubConnection) startConnecting(_ connectorConfig, _ Backoff, _ func(_ *grpc.ClientConn) bool) {
-	panic("implement me")
-}
-
-func (s *StubConnection) stopConnecting() {
-	panic("implement me")
-}
-
 func (s *StubConnection) registerStream(protocol Protocol, stream Stream) bool {
 	panic("implement me")
 }
@@ -131,9 +124,5 @@ func (s *StubConnection) verifyOrSetPeerID(_ transport.PeerID) bool {
 }
 
 func (s *StubConnection) setPeer(_ transport.Peer) {
-	panic("implement me")
-}
-
-func (s *StubConnection) outboundConnector() *outboundConnector {
 	panic("implement me")
 }

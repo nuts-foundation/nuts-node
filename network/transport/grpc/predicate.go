@@ -82,3 +82,14 @@ func (predicate authenticatedPredicated) Match(conn Connection) bool {
 func ByAuthenticated() Predicate {
 	return authenticatedPredicated{}
 }
+
+type addressPredicate struct {
+	address string
+}
+
+func (predicate addressPredicate) Match(conn Connection) bool {
+	return predicate.address == conn.Peer().Address
+}
+func ByAddress(address string) Predicate {
+	return &addressPredicate{address: address}
+}

@@ -495,8 +495,8 @@ func TestNetwork_Start(t *testing.T) {
 			config.BootstrapNodes = []string{"bootstrap-node-1", "", "bootstrap-node-2"}
 		})
 		cxt.docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return([]did.Document{}, nil)
-		cxt.connectionManager.EXPECT().Connect("bootstrap-node-1")
-		cxt.connectionManager.EXPECT().Connect("bootstrap-node-2")
+		cxt.connectionManager.EXPECT().Connect("bootstrap-node-1", did.DID{})
+		cxt.connectionManager.EXPECT().Connect("bootstrap-node-2", did.DID{})
 
 		err := cxt.start()
 
@@ -972,7 +972,7 @@ func Test_connectToKnownNodes(t *testing.T) {
 		}
 		docFinder.EXPECT().Find(gomock.Any()).Return([]did.Document{peerDocument, localDocument}, nil)
 		// Only expect Connect() call for peer
-		connectionManager.EXPECT().Connect(peerAddress)
+		connectionManager.EXPECT().Connect(peerAddress, *peerDID)
 
 		_ = network.connectToKnownNodes(*nodeDID)
 	})

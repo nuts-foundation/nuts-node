@@ -51,10 +51,6 @@ type Connection interface {
 	disconnect()
 	// waitUntilDisconnected blocks until the connection is closed. If it already is closed or was never open, it returns immediately.
 	waitUntilDisconnected()
-	// startConnecting instructs the Connection to start connecting to the remote peer (attempting an outbound connection).
-	startConnecting(config connectorConfig, backoff Backoff, callback func(grpcConn *grpc.ClientConn) bool)
-	// stopConnecting instructs the Connection to stop connecting to the remote peer.
-	stopConnecting()
 
 	// registerClientStream adds the given grpc.ClientStream to this Connection under the given method,
 	// which holds the fully qualified name of the gRPC stream call. It can be formatted using grpc.GetStreamMethod
@@ -79,9 +75,6 @@ type Connection interface {
 	// It returns false if the given transport.PeerID doesn't match the previously set transport.PeerID.
 	verifyOrSetPeerID(id transport.PeerID) bool
 
-	// stats returns statistics for this connection
-	outboundConnector() *outboundConnector
-
 	// Peer returns the associated peer information of this connection. If the connection is not active, it will return an empty peer.
 	Peer() transport.Peer
 
@@ -98,13 +91,12 @@ type Connection interface {
 	CloseError() *status.Status
 }
 
-func createConnection(parentCtx context.Context, dialer dialer, peer transport.Peer) Connection {
+func createConnection(parentCtx context.Context, peer transport.Peer) Connection {
 	result := &conn{
-		dialer:    dialer,
-		streams:   make(map[string]Stream),
-		outboxes:  make(map[string]chan interface{}),
-		parentCtx: parentCtx,
+		streams:  make(map[string]Stream),
+		outboxes: make(map[string]chan interface{}),
 	}
+	result.ctx, result.cancelCtx = context.WithCancel(parentCtx)
 	result.setPeer(peer)
 	return result
 }
@@ -115,13 +107,9 @@ type conn struct {
 	cancelCtx        func()
 	status           atomic.Pointer[status.Status]
 	mux              sync.RWMutex
-	connector        *outboundConnector
 	streams          map[string]Stream
 	outboxes         map[string]chan interface{}
 	activeGoroutines int32
-
-	dialer    dialer
-	parentCtx context.Context
 }
 
 func (mc *conn) Peer() transport.Peer {
@@ -134,13 +122,7 @@ func (mc *conn) disconnect() {
 	mc.mux.Lock()
 	defer mc.mux.Unlock()
 
-	if mc.ctx == nil {
-		// Not connected
-		return
-	}
-
 	mc.cancelCtx()
-	mc.ctx = nil
 
 	// Close streams
 	mc.streams = make(map[string]Stream)
@@ -151,7 +133,7 @@ func (mc *conn) disconnect() {
 	}
 	mc.outboxes = make(map[string]chan interface{})
 
-	// Reset peer ID, since when it reconnects it might have changed (due to a reboot). Also reset node DID because it has to be re-authenticated.
+	// Set peer ID, since when it reconnects it might have changed (due to a reboot). Also reset node DID because it has to be re-authenticated.
 	peer := mc.Peer()
 	peer.ID = ""
 	peer.NodeDID = did.DID{}
@@ -161,14 +143,14 @@ func (mc *conn) disconnect() {
 
 func (mc *conn) waitUntilDisconnected() {
 	mc.mux.RLock()
-	var done <-chan struct{}
-	if mc.ctx != nil {
-		done = mc.ctx.Done()
+	if len(mc.streams) == 0 {
+		// do not wait if there is no connection
+		mc.mux.RUnlock()
+		return
 	}
+	done := mc.ctx.Done()
 	mc.mux.RUnlock()
-	if done != nil {
-		<-done
-	}
+	<-done
 }
 
 func (mc *conn) verifyOrSetPeerID(id transport.PeerID) bool {
@@ -215,10 +197,6 @@ func (mc *conn) registerStream(protocol Protocol, stream Stream) bool {
 	methodName := protocol.MethodName()
 	if mc.streams[methodName] != nil {
 		return false
-	}
-
-	if mc.ctx == nil {
-		mc.ctx, mc.cancelCtx = context.WithCancel(mc.parentCtx)
 	}
 
 	mc.streams[methodName] = stream
@@ -326,46 +304,19 @@ func (mc *conn) startSending(protocol Protocol, stream Stream) {
 	}(&mc.activeGoroutines)
 }
 
-func (mc *conn) startConnecting(config connectorConfig, backoff Backoff, connectedCallback func(grpcConn *grpc.ClientConn) bool) {
-	mc.mux.Lock()
-	defer mc.mux.Unlock()
-
-	if mc.connector != nil {
-		// Already connecting
-		return
-	}
-
-	mc.connector = createOutboundConnector(config, mc.dialer, func() bool {
-		return !mc.IsConnected()
-	}, connectedCallback, backoff)
-	mc.connector.start()
-}
-
-func (mc *conn) stopConnecting() {
-	mc.mux.Lock()
-	defer mc.mux.Unlock()
-
-	if mc.connector == nil {
-		// Not connecting
-		return
-	}
-
-	mc.connector.stop()
-	mc.connector = nil
-}
-
 func (mc *conn) IsConnected() bool {
 	mc.mux.RLock()
 	defer mc.mux.RUnlock()
 
-	return mc.ctx != nil
+	return len(mc.streams) > 0
 }
 
 func (mc *conn) IsProtocolConnected(protocol Protocol) bool {
 	mc.mux.RLock()
 	defer mc.mux.RUnlock()
 
-	return mc.ctx != nil && mc.streams[protocol.MethodName()] != nil
+	_, ok := mc.streams[protocol.MethodName()]
+	return ok
 }
 
 func (mc *conn) IsAuthenticated() bool {
@@ -374,11 +325,4 @@ func (mc *conn) IsAuthenticated() bool {
 
 func (mc *conn) CloseError() *status.Status {
 	return mc.status.Load()
-}
-
-func (mc *conn) outboundConnector() *outboundConnector {
-	mc.mux.RLock()
-	defer mc.mux.RUnlock()
-
-	return mc.connector
 }

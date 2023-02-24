@@ -92,21 +92,21 @@ func (o ownPeerIDStatistic) String() string {
 	return o.peerID.String()
 }
 
-// ConnectorsStats holds statistics on outbound connectors.
-type ConnectorsStats []transport.ConnectorStats
+// ContactsStats holds statistics on outbound connectors.
+type ContactsStats []transport.ContactStats
 
-func (a ConnectorsStats) Name() string {
+func (a ContactsStats) Name() string {
 	return "outbound_connectors"
 }
 
-func (a ConnectorsStats) Result() interface{} {
+func (a ContactsStats) Result() interface{} {
 	return a
 }
 
-func (a ConnectorsStats) String() string {
+func (a ContactsStats) String() string {
 	var items []string
 	for _, curr := range a {
-		items = append(items, fmt.Sprintf("%s (connect_attempts=%d)", curr.Address, curr.Attempts))
+		items = append(items, fmt.Sprintf("%s (DID=%s, connect_attempts=%d)", curr.Address, curr.DID, curr.Attempts))
 	}
 	return strings.Join(items, " ")
 }

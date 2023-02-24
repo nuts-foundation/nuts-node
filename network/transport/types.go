@@ -86,10 +86,12 @@ type Diagnostics struct {
 	SoftwareID string `json:"softwareID"`
 }
 
-// ConnectorStats holds statistics of an outbound connector.
-type ConnectorStats struct {
+// ContactStats holds statistics of an outbound connector.
+type ContactStats struct {
 	// Address holds the target address the connector is connecting to.
 	Address string
+	// DID holds the target DID for the given Address. Is empty for bootstrap nodes
+	DID string
 	// Attempts holds the number of times the node tried to connect to the peer.
 	Attempts uint32
 	// LastAttempt holds the time of the last connection attempt.
