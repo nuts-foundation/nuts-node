@@ -46,17 +46,15 @@ func newPeerDiagnosticsManager(provider func() transport.Diagnostics, sender fun
 
 func (m *peerDiagnosticsManager) start(ctx context.Context, broadcastInterval time.Duration) {
 	ticker := time.NewTicker(broadcastInterval)
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				ticker.Stop()
-				return
-			case <-ticker.C:
-				m.sender(m.provider())
-			}
+	for {
+		select {
+		case <-ctx.Done():
+			ticker.Stop()
+			return
+		case <-ticker.C:
+			m.sender(m.provider())
 		}
-	}()
+	}
 }
 
 func (m *peerDiagnosticsManager) handleReceived(peerID transport.PeerID, received *Diagnostics) {

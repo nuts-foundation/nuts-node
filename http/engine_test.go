@@ -21,27 +21,35 @@ package http
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/tls"
+	b64 "encoding/base64"
 	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/golang/mock/gomock"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/jwa"
+	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/http/log"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/writer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"io"
-	"net"
-	"net/http"
-	"net/http/httptest"
-	"testing"
-	"time"
+	"golang.org/x/crypto/ssh"
 )
 
 func TestEngine_Configure(t *testing.T) {
@@ -348,6 +356,221 @@ func TestEngine_Configure(t *testing.T) {
 				})
 			})
 		})
+
+		t.Run("auth-tokenV2", func(t *testing.T) {
+			// Ensure the server can be started and protected without applying a specific audience in the configuration
+			t.Run("default audience", func(t *testing.T) {
+				// Use the system hostname as the audience (but do not configure it specifically)
+				audience, err := os.Hostname()
+				require.NoError(t, err)
+
+				// Create a key and associated JWT that will be valid
+				_, serializer, authorizedKeys := generateEd25519TestKey(t)
+				token := validJWT(t, audience)
+				serializedToken, err := serializer.Serialize(token)
+				require.NoError(t, err)
+
+				// Create a temporary authorized_keys file which will be deleted upon returning from this function
+				authorizedKeysFile, err := os.CreateTemp("", "tmp.authorized_keys-")
+				require.NoError(t, err)
+				defer os.Remove(authorizedKeysFile.Name())
+				authorizedKeysFile.Write(authorizedKeys)
+				authorizedKeysFile.Close()
+
+				// Setup a new HTTP engine
+				engine := New(noop, nil)
+
+				// Configure the default interface without authentication
+				engine.config.InterfaceConfig = InterfaceConfig{
+					Address: fmt.Sprintf(":%d", test.FreeTCPPort()),
+					Auth: AuthConfig{
+						Type:               BearerTokenAuthV2,
+						AuthorizedKeysPath: authorizedKeysFile.Name(),
+					},
+				}
+
+				// Apply the configuration built above
+				err = engine.Configure(*core.NewServerConfig())
+				require.NoError(t, err)
+
+				// Setup a request handler for capturing the authenticated username from the echo context
+				var capturedUser string
+				captureUser := func(c echo.Context) error {
+					userContext := c.Get(core.UserContextKey)
+					if userContext == nil {
+						capturedUser = ""
+						return nil
+					}
+					capturedUser = userContext.(string)
+					return nil
+				}
+
+				// Apply the previously defined request handler at various endpoints on the HTTP engine
+				engine.Router().GET("/", captureUser)
+
+				// Start the HTTP engine, ensuring it will be shutdown later
+				_ = engine.Start()
+				defer engine.Shutdown()
+
+				// Check that the HTTP server has started listening for requests
+				assertServerStarted(t, engine.config.InterfaceConfig.Address)
+
+				// Make a test request
+				t.Run("success - auth on default bind root", func(t *testing.T) {
+					capturedUser = ""
+					request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.InterfaceConfig.Address+"/", nil)
+					log.Logger().Infof("requesting %v", request.URL.String())
+					request.Header.Set("Authorization", "Bearer "+string(serializedToken))
+					response, err := http.DefaultClient.Do(request)
+
+					assert.NoError(t, err)
+					assert.Equal(t, http.StatusOK, response.StatusCode)
+					assert.Equal(t, "random@test.local", capturedUser)
+				})
+			})
+
+			t.Run("specific audience", func(t *testing.T) {
+				// Create a key and associated JWT that will be valid
+				_, serializer, authorizedKeys := generateEd25519TestKey(t)
+				token := validJWT(t, "foo")
+				serializedToken, err := serializer.Serialize(token)
+				require.NoError(t, err)
+
+				// Create another key and associated JWT that will be invalid
+				_, attackerSerializer, _ := generateEd25519TestKey(t)
+				attackerToken := validJWT(t, "foo")
+				serializedAttackerToken, err := attackerSerializer.Serialize(attackerToken)
+				require.NoError(t, err)
+
+				// Create a temporary authorized_keys file which will be deleted upon returning from this function
+				authorizedKeysFile, err := os.CreateTemp("", "tmp.authorized_keys-")
+				require.NoError(t, err)
+				defer os.Remove(authorizedKeysFile.Name())
+				authorizedKeysFile.Write(authorizedKeys)
+				authorizedKeysFile.Close()
+
+				// Setup a new HTTP engine
+				engine := New(noop, nil)
+
+				// Configure the default interface without authentication
+				engine.config.InterfaceConfig = InterfaceConfig{
+					Address: fmt.Sprintf(":%d", test.FreeTCPPort()),
+				}
+
+				// Configure an alt bind with authentication
+				engine.config.AltBinds["default-with-auth"] = InterfaceConfig{
+					Auth: AuthConfig{
+						Type:               BearerTokenAuthV2,
+						Audience:           "foo",
+						AuthorizedKeysPath: authorizedKeysFile.Name(),
+					},
+				}
+
+				// Configure another alt bind with authentication
+				engine.config.AltBinds["alt-with-auth"] = InterfaceConfig{
+					Address: fmt.Sprintf(":%d", test.FreeTCPPort()),
+					Auth: AuthConfig{
+						Type:               BearerTokenAuthV2,
+						Audience:           "foo",
+						AuthorizedKeysPath: authorizedKeysFile.Name(),
+					},
+				}
+
+				// Apply the configuration built above
+				err = engine.Configure(*core.NewServerConfig())
+				require.NoError(t, err)
+
+				// Setup a request handler for capturing the authenticated username from the echo context
+				var capturedUser string
+				captureUser := func(c echo.Context) error {
+					userContext := c.Get(core.UserContextKey)
+					if userContext == nil {
+						capturedUser = ""
+						return nil
+					}
+					capturedUser = userContext.(string)
+					return nil
+				}
+
+				// Apply the previously defined request handler at various endpoints on the HTTP engine
+				engine.Router().GET("/", captureUser)
+				engine.Router().GET("/default-with-auth", captureUser)
+				engine.Router().GET("/alt-with-auth", captureUser)
+
+				// Start the HTTP engine, ensuring it will be shutdown later
+				_ = engine.Start()
+				defer engine.Shutdown()
+
+				// Check that the HTTP server has started listening for requests
+				assertServerStarted(t, engine.config.InterfaceConfig.Address)
+
+				// Start running some tests against the server
+				t.Run("success - no auth on default bind root path", func(t *testing.T) {
+					capturedUser = ""
+					request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.InterfaceConfig.Address, nil)
+					log.Logger().Infof("requesting %v", request.URL.String())
+					response, err := http.DefaultClient.Do(request)
+
+					assert.NoError(t, err)
+					assert.Equal(t, http.StatusOK, response.StatusCode)
+					assert.Empty(t, capturedUser)
+				})
+				t.Run("success - auth on default bind subpath path", func(t *testing.T) {
+					capturedUser = ""
+					request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
+					log.Logger().Infof("requesting %v", request.URL.String())
+					request.Header.Set("Authorization", "Bearer "+string(serializedToken))
+					response, err := http.DefaultClient.Do(request)
+
+					assert.NoError(t, err)
+					assert.Equal(t, http.StatusOK, response.StatusCode)
+					assert.Equal(t, "random@test.local", capturedUser)
+				})
+				t.Run("success - auth on alt bind", func(t *testing.T) {
+					capturedUser = ""
+					request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.AltBinds["alt-with-auth"].Address+"/alt-with-auth", nil)
+					log.Logger().Infof("requesting %v", request.URL.String())
+					request.Header.Set("Authorization", "Bearer "+string(serializedToken))
+					response, err := http.DefaultClient.Do(request)
+
+					assert.NoError(t, err)
+					assert.Equal(t, http.StatusOK, response.StatusCode)
+					assert.Equal(t, "random@test.local", capturedUser)
+				})
+				t.Run("no token", func(t *testing.T) {
+					capturedUser = ""
+					request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
+					log.Logger().Infof("requesting %v", request.URL.String())
+					response, err := http.DefaultClient.Do(request)
+
+					assert.NoError(t, err)
+					assert.Equal(t, http.StatusUnauthorized, response.StatusCode)
+					assert.Empty(t, capturedUser)
+				})
+				t.Run("invalid token", func(t *testing.T) {
+					capturedUser = ""
+					request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
+					log.Logger().Infof("requesting %v", request.URL.String())
+					response, err := http.DefaultClient.Do(request)
+					request.Header.Set("Authorization", "Bearer invalid")
+
+					assert.NoError(t, err)
+					assert.Equal(t, http.StatusUnauthorized, response.StatusCode)
+					assert.Empty(t, capturedUser)
+				})
+				t.Run("invalid token (incorrect signing key)", func(t *testing.T) {
+					capturedUser = ""
+					request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
+					log.Logger().Infof("requesting %v", request.URL.String())
+					response, err := http.DefaultClient.Do(request)
+					request.Header.Set("Authorization", "Bearer "+string(serializedAttackerToken))
+
+					assert.NoError(t, err)
+					assert.Equal(t, http.StatusUnauthorized, response.StatusCode)
+					assert.Empty(t, capturedUser)
+				})
+			})
+		})
 	})
 }
 
@@ -515,4 +738,50 @@ func assertNotHTTPHeader(t *testing.T, address string, headerName string) {
 		t.Fatal(err)
 	}
 	assert.Empty(t, response.Header.Get(headerName))
+}
+
+// generateEd25519TestKey generates a new private key for use in testing also returning a jwt serializer and the ssh authorized_keys representation
+func generateEd25519TestKey(t *testing.T) (jwk.Key, *jwt.Serializer, []byte) {
+	// Generate a new ed25519 key
+	pub, priv, err := ed25519.GenerateKey(nil)
+	require.NoError(t, err)
+
+	// Convert the public key to an ssh key, generating an authorized key representation
+	sshPub, err := ssh.NewPublicKey(pub)
+	require.NoError(t, err)
+	sshAuthKey := fmt.Sprintf("%v %v random@test.local", sshPub.Type(), b64.StdEncoding.EncodeToString(sshPub.Marshal()))
+
+	// Convert the base key type to a jwk type
+	jwkKey, err := jwk.New(priv)
+	require.NoError(t, err)
+
+	// Set the key ID for the jwk to be the public key fingerprint
+	err = jwkKey.Set(jwk.KeyIDKey, ssh.FingerprintSHA256(sshPub))
+	require.NoError(t, err)
+
+	// Create a serializer configured to use the generated key
+	serializer := jwt.NewSerializer().Sign(jwa.EdDSA, jwkKey)
+
+	t.Logf("authorized_key = %v", sshAuthKey)
+
+	// Return the jwk and authorized_key representation
+	return jwkKey, serializer, []byte(sshAuthKey)
+}
+
+// validJWT returns a valid JWT
+func validJWT(t *testing.T, host string) jwt.Token {
+	issuedAt := time.Now()
+	notBefore := issuedAt
+	expires := notBefore.Add(time.Second * time.Duration(300))
+	token, err := jwt.NewBuilder().
+		Issuer("random@test.local").
+		Subject("random@test.local").
+		Audience([]string{host}).
+		IssuedAt(issuedAt).
+		NotBefore(notBefore).
+		Expiration(expires).
+		JwtID(uuid.NewString()).
+		Build()
+	require.NoError(t, err)
+	return token
 }

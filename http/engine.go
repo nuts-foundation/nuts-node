@@ -23,6 +23,12 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/url"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/golang-jwt/jwt"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -30,10 +36,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	cryptoEngine "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/http/log"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
+	"github.com/nuts-foundation/nuts-node/http/tokenV2"
 )
 
 // AdminTokenSigningKID returns the KID of the signing key used to sign the admin token.
@@ -317,7 +320,13 @@ func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludeP
 	}
 
 	// Auth
-	if cfg.Auth.Type == BearerTokenAuth {
+	switch cfg.Auth.Type {
+	// Allow API endpoints without authentication
+	case "":
+		return nil
+
+	// The legacy authentication middleware
+	case BearerTokenAuth:
 		log.Logger().Infof("Enabling token authentication for HTTP interface: %s%s", address, path)
 		echoServer.Use(middleware.JWTWithConfig(middleware.JWTConfig{
 			KeyFunc: func(_ *jwt.Token) (interface{}, error) {
@@ -337,6 +346,35 @@ func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludeP
 			ContextKey:    core.UserContextKey,
 			SigningMethod: jwa.ES256.String(),
 		}))
+
+	// The V2 bearer token authentication middleware
+	case BearerTokenAuthV2:
+		log.Logger().Infof("Enabling token authentication (v2) for HTTP interface: %s%s", address, path)
+
+		// Use the configured audience or the hostname by default
+		audience := cfg.Auth.Audience
+		if audience == "" {
+			// Get the hostname of the machine
+			var err error
+			audience, err = os.Hostname()
+			if err != nil {
+				return fmt.Errorf("unable to discover hostname: %w", err)
+			}
+			log.Logger().Infof("enforcing default audience %v", audience)
+		}
+
+		// Construct the middleware using the specified audience and authorized keys file
+		authenticator, err := tokenV2.NewFromFile(skipper, audience, cfg.Auth.AuthorizedKeysPath)
+		if err != nil {
+			return fmt.Errorf("unable to create token v2 middleware: %v", err)
+		}
+
+		// Apply the authorization middleware to the echo server
+		echoServer.Use(authenticator.Handler)
+
+	// Any other configuration value causes an error condition
+	default:
+		return fmt.Errorf("Unsupported authentication engine: %v", cfg.Auth.Type)
 	}
 
 	return nil

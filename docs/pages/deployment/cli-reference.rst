@@ -34,7 +34,9 @@ The following options apply to the server commands below:
       --events.nats.storagedir string                 Directory where file-backed streams are stored in the NATS server
       --events.nats.timeout int                       Timeout for NATS server operations (default 30)
       --http.default.address string                   Address and port the server will be listening to (default ":1323")
-      --http.default.auth.type string                 Whether to enable authentication for the default interface, specify 'token' for bearer token authentication.
+      --http.default.auth.audience string             Expected audience for JWT tokens (default: hostname)
+      --http.default.auth.authorizedkeyspath string   Path to an authorized_keys file for trusted JWT signers
+      --http.default.auth.type string                 Whether to enable authentication for the default interface, specify 'token_v2' for bearer token mode or 'token' for legacy bearer token mode.
       --http.default.cors.origin strings              When set, enables CORS from the specified origins on the default HTTP interface.
       --http.default.log string                       What to log about HTTP requests. Options are 'nothing', 'metadata' (log request method, URI, IP and response code), and 'metadata-and-body' (log the request and response body, in addition to the metadata). (default "metadata")
       --http.default.tls string                       Whether to enable TLS for the default interface, options are 'disabled', 'server', 'server-client'. Leaving it empty is synonymous to 'disabled',
@@ -147,12 +149,14 @@ Imports private keys from filesystem based storage into the secret store server.
       --events.nats.timeout int                       Timeout for NATS server operations (default 30)
   -h, --help                                          help for fs2external
       --http.default.address string                   Address and port the server will be listening to (default ":1323")
-      --http.default.auth.type string                 Whether to enable authentication for the default interface, specify 'token' for bearer token authentication.
+      --http.default.auth.audience string             Expected audience for JWT tokens (default: hostname)
+      --http.default.auth.authorizedkeyspath string   Path to an authorized_keys file for trusted JWT signers
+      --http.default.auth.type string                 Whether to enable authentication for the default interface, specify 'token_v2' for bearer token mode or 'token' for legacy bearer token mode.
       --http.default.cors.origin strings              When set, enables CORS from the specified origins on the default HTTP interface.
       --http.default.log string                       What to log about HTTP requests. Options are 'nothing', 'metadata' (log request method, URI, IP and response code), and 'metadata-and-body' (log the request and response body, in addition to the metadata). (default "metadata")
       --http.default.tls string                       Whether to enable TLS for the default interface, options are 'disabled', 'server', 'server-client'. Leaving it empty is synonymous to 'disabled',
       --internalratelimiter                           When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode. (default true)
-      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://schema.org=assets/contexts/schema-org-v13.ldjson,https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson])
+      --jsonld.contexts.localmapping stringToString   This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist. (default [https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson])
       --jsonld.contexts.remoteallowlist strings       In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here. (default [https://schema.org,https://www.w3.org/2018/credentials/v1,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json])
       --loggerformat string                           Log format (text, json) (default "text")
       --network.bootstrapnodes strings                List of bootstrap nodes ('<host>:<port>') which the node initially connect to.

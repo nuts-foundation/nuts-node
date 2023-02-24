@@ -14,7 +14,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/vault/api v1.9.0
 	github.com/knadh/koanf v1.5.0
-	github.com/labstack/echo/v4 v4.10.1
+	github.com/labstack/echo/v4 v4.10.2
 	github.com/lestrrat-go/jwx v1.2.25
 	github.com/magiconair/properties v1.8.7
 	github.com/mdp/qrterminal/v3 v3.0.0
@@ -37,6 +37,7 @@ require (
 	go.etcd.io/bbolt v1.3.7
 	go.uber.org/atomic v1.10.0
 	go.uber.org/goleak v1.2.1
+	golang.org/x/crypto v0.6.0
 	golang.org/x/time v0.3.0
 	google.golang.org/grpc v1.53.0
 	google.golang.org/protobuf v1.28.1
@@ -138,7 +139,6 @@ require (
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64 // indirect
-	golang.org/x/crypto v0.6.0 // indirect
 	golang.org/x/net v0.7.0 // indirect
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f // indirect
 	golang.org/x/sys v0.5.0 // indirect

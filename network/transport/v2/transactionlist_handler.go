@@ -58,25 +58,23 @@ func newTransactionListHandler(ctx context.Context, fn handleFunc) *transactionL
 }
 
 func (tlh *transactionListHandler) start() {
-	go func() {
-		for {
-			select {
-			case <-tlh.ctx.Done():
-				return
-			case pe := <-tlh.ch:
-				if err := tlh.fn(pe.peer, pe.envelope); err != nil {
-					log.Logger().
-						WithError(err).
-						WithFields(pe.peer.ToFields()).
-						WithField(core.LogFieldMessageType, fmt.Sprintf("%T", pe.envelope.Message)).
-						Error("Error handling message")
-				}
+	for {
+		select {
+		case <-tlh.ctx.Done():
+			return
+		case pe := <-tlh.ch:
+			if err := tlh.fn(tlh.ctx, pe.peer, pe.envelope); err != nil {
+				log.Logger().
+					WithError(err).
+					WithFields(pe.peer.ToFields()).
+					WithField(core.LogFieldMessageType, fmt.Sprintf("%T", pe.envelope.Message)).
+					Error("Error handling message")
 			}
 		}
-	}()
+	}
 }
 
-func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope) error {
+func (p *protocol) handleTransactionList(ctx context.Context, peer transport.Peer, envelope *Envelope) error {
 	subEnvelope := envelope.Message.(*Envelope_TransactionList)
 	msg := envelope.GetTransactionList()
 	cid := conversationID(msg.ConversationID)
@@ -97,8 +95,11 @@ func (p *protocol) handleTransactionList(peer transport.Peer, envelope *Envelope
 		return err
 	}
 
-	ctx := context.Background()
 	for i, tx := range txs {
+		if ctx.Err() != nil {
+			// For loop might be long-running, support cancellation
+			break
+		}
 		// TODO does this always trigger fetching missing payloads? (through observer on DAG) Prolly not for v2
 		if len(tx.PAL()) == 0 && len(msg.Transactions[i].Payload) == 0 {
 			return fmt.Errorf("peer did not provide payload for transaction (tx=%s)", tx.Ref())
