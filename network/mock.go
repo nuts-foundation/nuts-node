@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	did "github.com/nuts-foundation/go-did/did"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	dag "github.com/nuts-foundation/nuts-node/network/dag"
 	transport "github.com/nuts-foundation/nuts-node/network/transport"
@@ -138,6 +139,18 @@ func (m *MockTransactions) Reprocess(ctx context.Context, contentType string) (*
 func (mr *MockTransactionsMockRecorder) Reprocess(ctx, contentType interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reprocess", reflect.TypeOf((*MockTransactions)(nil).Reprocess), ctx, contentType)
+}
+
+// ServiceDiscovery mocks base method.
+func (m *MockTransactions) ServiceDiscovery(updatedDID did.DID) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "ServiceDiscovery", updatedDID)
+}
+
+// ServiceDiscovery indicates an expected call of ServiceDiscovery.
+func (mr *MockTransactionsMockRecorder) ServiceDiscovery(updatedDID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ServiceDiscovery", reflect.TypeOf((*MockTransactions)(nil).ServiceDiscovery), updatedDID)
 }
 
 // Subscribe mocks base method.

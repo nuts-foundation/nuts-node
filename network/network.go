@@ -58,6 +58,8 @@ const (
 	// health check keys
 	healthTLS        = "tls"
 	healthAuthConfig = "auth_config"
+	// newNodeConnectionDelay specifies how long the node should delay connecting to new NutsComm addresses.
+	newNodeConnectionDelay = 5 * time.Minute
 )
 
 // defaultBBoltOptions are given to bbolt, allows for package local adjustments during test
@@ -81,6 +83,7 @@ type Network struct {
 	didDocumentFinder   types.DocFinder
 	eventPublisher      events.Event
 	storeProvider       storage.Provider
+	assumeNewNode       bool // node has assumed it has not performed initial sync with the network
 }
 
 // CheckHealth performs health checks for the network engine.
@@ -284,6 +287,28 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	return nil
 }
 
+func (n *Network) ServiceDiscovery(updatedDID did.DID) {
+	if !n.config.EnableDiscovery {
+		return
+	}
+	document, _, err := n.didDocumentResolver.Resolve(updatedDID, nil)
+	if err != nil {
+		// VDR store is down. Any missed updates are resolved on node restart.
+		// This can happen when the VDR is receiving lots of DID updates, such as during the initial sync of the network.
+		log.Logger().WithError(err).
+			WithField(core.LogFieldDID, updatedDID.String()).
+			Error("service discovery could not read DID document after an update")
+		return
+	}
+	nodeDID, err := n.nodeDIDResolver.Resolve()
+	if err != nil {
+		// This can only occur when the autoNodeDIDResolver is used (non-strict mode)
+		log.Logger().WithError(err).Error("could not resolve own node DID for service discovery")
+		return
+	}
+	n.connectToDID(nodeDID, *document)
+}
+
 // emitEvents is called when a payload is added.
 func (n *Network) emitEvents(event dag.Event) (bool, error) {
 	_, js, err := n.eventPublisher.Pool().Acquire(context.Background())
@@ -356,7 +381,7 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 		if len(strings.TrimSpace(bootstrapNode)) == 0 {
 			continue
 		}
-		n.connectionManager.Connect(bootstrapNode, did.DID{})
+		n.connectionManager.Connect(bootstrapNode, did.DID{}, 0)
 	}
 
 	if !n.config.EnableDiscovery {
@@ -369,30 +394,48 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 		return err
 	}
 	for _, node := range otherNodes {
-		if !nodeDID.Empty() && node.ID.Equals(nodeDID) {
-			// Found local node, do not discover.
-			continue
-		}
-	inner:
-		for _, service := range node.Service {
-			if service.Type == transport.NutsCommServiceType {
-				var nutsCommUrl transport.NutsCommURL
-				if err = service.UnmarshalServiceEndpoint(&nutsCommUrl); err != nil {
-					log.Logger().
-						WithError(err).
-						WithField(core.LogFieldDID, node.ID.String()).
-						Warn("Failed to extract NutsComm address from service")
-					continue inner
-				}
+		n.connectToDID(nodeDID, node)
+	}
+
+	// Assume this is a new node when no NutsComm endpoints are found.
+	n.assumeNewNode = len(otherNodes) == 0
+	if n.assumeNewNode {
+		log.Logger().Infof("assuming this is a new node, discovered NutsComm addresses are processed with a %s delay", newNodeConnectionDelay)
+	}
+
+	return nil
+}
+
+func (n *Network) connectToDID(nodeDID did.DID, node did.Document) {
+	if !nodeDID.Empty() && node.ID.Equals(nodeDID) {
+		// Found local node, do not discover.
+		return
+	}
+inner:
+	for _, service := range node.Service {
+		if service.Type == transport.NutsCommServiceType {
+			var nutsCommUrl transport.NutsCommURL
+			if err := service.UnmarshalServiceEndpoint(&nutsCommUrl); err != nil {
 				log.Logger().
+					WithError(err).
 					WithField(core.LogFieldDID, node.ID.String()).
-					WithField(core.LogFieldNodeAddress, nutsCommUrl.Host).
-					Info("Discovered Nuts node")
-				n.connectionManager.Connect(nutsCommUrl.Host, node.ID)
+					Debug("Failed to extract NutsComm address from service")
+				continue inner
+			}
+			log.Logger().
+				WithField(core.LogFieldDID, node.ID.String()).
+				WithField(core.LogFieldNodeAddress, nutsCommUrl.Host).
+				Debug("Discovered Nuts node")
+			if n.assumeNewNode {
+				// Connect to NutsComm addresses with a delay.
+				// Without this the node will try to sync the remainder of the DAG with more and more peers at the same time.
+				// It also allows outdated contact info to be updated before it is used. (NutsComm change / DID deactivate)
+				n.connectionManager.Connect(nutsCommUrl.Host, node.ID, newNodeConnectionDelay)
+			} else {
+				n.connectionManager.Connect(nutsCommUrl.Host, node.ID, 0)
 			}
 		}
 	}
-	return nil
 }
 
 func (n *Network) validateNodeDIDKeys(nodeDID did.DID) error {

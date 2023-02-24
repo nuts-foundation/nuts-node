@@ -6,6 +6,7 @@ package transport
 
 import (
 	reflect "reflect"
+	time "time"
 
 	gomock "github.com/golang/mock/gomock"
 	did "github.com/nuts-foundation/go-did/did"
@@ -36,15 +37,15 @@ func (m *MockConnectionManager) EXPECT() *MockConnectionManagerMockRecorder {
 }
 
 // Connect mocks base method.
-func (m *MockConnectionManager) Connect(peerAddress string, peerDID did.DID) {
+func (m *MockConnectionManager) Connect(peerAddress string, peerDID did.DID, delay time.Duration) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Connect", peerAddress, peerDID)
+	m.ctrl.Call(m, "Connect", peerAddress, peerDID, delay)
 }
 
 // Connect indicates an expected call of Connect.
-func (mr *MockConnectionManagerMockRecorder) Connect(peerAddress, peerDID interface{}) *gomock.Call {
+func (mr *MockConnectionManagerMockRecorder) Connect(peerAddress, peerDID, delay interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connect", reflect.TypeOf((*MockConnectionManager)(nil).Connect), peerAddress, peerDID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connect", reflect.TypeOf((*MockConnectionManager)(nil).Connect), peerAddress, peerDID, delay)
 }
 
 // Diagnostics mocks base method.
