@@ -41,7 +41,7 @@ require (
 	golang.org/x/time v0.3.0
 	google.golang.org/grpc v1.53.0
 	google.golang.org/protobuf v1.28.1
-	gopkg.in/Regis24GmbH/go-phonetics.v2 v2.0.2
+	gopkg.in/Regis24GmbH/go-phonetics.v2 v2.0.3
 	gopkg.in/yaml.v3 v3.0.1
 	schneider.vip/problem v1.8.1
 )
@@ -145,7 +145,7 @@ require (
 	golang.org/x/term v0.5.0 // indirect
 	golang.org/x/text v0.7.0 // indirect
 	google.golang.org/genproto v0.0.0-20230110181048-76db0878b65f // indirect
-	gopkg.in/Regis24GmbH/go-diacritics.v2 v2.0.2 // indirect
+	gopkg.in/Regis24GmbH/go-diacritics.v2 v2.0.3 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1 // indirect
 	rsc.io/qr v0.2.0 // indirect
 )
