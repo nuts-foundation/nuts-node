@@ -435,7 +435,7 @@ func encryptionAlgorithm(key crypto.PublicKey) (jwa.KeyEncryptionAlgorithm, erro
 	case *ecdsa.PublicKey:
 		return defaultEcEncryptionAlgorithm, nil
 	default:
-		return "", fmt.Errorf(`could not determine signature algorithm for key type '%T'`, key)
+		return "", fmt.Errorf("could not determine signature algorithm for key type '%T'", key)
 	}
 }
 
