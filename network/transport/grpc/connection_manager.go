@@ -339,7 +339,8 @@ func (s *grpcConnectionManager) connect(contact *contact) {
 		// TODO: check if this works as intended for multiple streams/protocols on the same connection
 		contact.backoff.Backoff()
 		if errors.Is(err, ErrUnexpectedNodeDID) {
-			contact.backoff.Reset(time.Hour * 24 * 365 * 100) // backoff expires after 100 years. Backoff must be reset when peer's (DID) address is updated.
+			// backoff expires after a day. DID is probably abandoned/replaced, but try again later in case the node was misconfigured.
+			contact.backoff.Reset(time.Hour * 24)
 		}
 		log.Logger().WithError(err).WithFields(connection.Peer().ToFields()).
 			Debug("Error while setting up outbound gRPC streams, disconnecting")
@@ -421,8 +422,9 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 			log.Logger().
 				WithError(err).
 				WithField(core.LogFieldPeerAddr, grpcConn.Target()).
+				WithField(core.LogFieldPeerNodeDID, connection.Peer().NodeDID).
 				WithField(core.LogFieldProtocolVersion, protocol.Version()).
-				Warn("Failed to open gRPC stream")
+				Info("Failed to open gRPC stream")
 			if errors.As(err, new(fatalError)) {
 				// Error indicates connection should be closed.
 				return err
