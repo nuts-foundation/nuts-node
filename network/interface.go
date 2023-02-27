@@ -57,8 +57,8 @@ type Transactions interface {
 	// WithPersistency returns a SubscriberOption for persistency. It allows the DAG KVStore to be used as persistent store for notifications.
 	// The notifications will then have ACID properties
 	WithPersistency() SubscriberOption
-	// ServiceDiscovery should be called by the VDR to let the network know it has processed and verified a document (update) for the DID.
-	ServiceDiscovery(updatedDID did.DID)
+	// DiscoverServices should be called by the VDR to let the network know it has processed and verified a document (update) for the DID.
+	DiscoverServices(updatedDID did.DID)
 }
 
 // EventType defines a type for specifying the kind of events that can be published/subscribed on the Network.

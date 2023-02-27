@@ -58,7 +58,9 @@ const (
 	// health check keys
 	healthTLS        = "tls"
 	healthAuthConfig = "auth_config"
-	// newNodeConnectionDelay specifies how long the node should delay connecting to new NutsComm addresses.
+	// newNodeConnectionDelay specifies how long a new node should delay connecting to newly discovered NutsComm addresses.
+	// If the node connects to every new DID immediately it will try to sync the remainder of the DAG with more and more peers at the same time.
+	// This generates a lot of network traffic with duplicate information and just slows down the actual synchronization.
 	newNodeConnectionDelay = 5 * time.Minute
 )
 
@@ -287,7 +289,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	return nil
 }
 
-func (n *Network) ServiceDiscovery(updatedDID did.DID) {
+func (n *Network) DiscoverServices(updatedDID did.DID) {
 	if !n.config.EnableDiscovery {
 		return
 	}
@@ -393,14 +395,12 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 	if err != nil {
 		return err
 	}
-	for _, node := range otherNodes {
-		n.connectToDID(nodeDID, node)
-	}
-
-	// Assume this is a new node when no NutsComm endpoints are found.
 	n.assumeNewNode = len(otherNodes) == 0
 	if n.assumeNewNode {
 		log.Logger().Infof("assuming this is a new node, discovered NutsComm addresses are processed with a %s delay", newNodeConnectionDelay)
+	}
+	for _, node := range otherNodes {
+		n.connectToDID(nodeDID, node)
 	}
 
 	return nil
@@ -428,8 +428,6 @@ inner:
 				Debug("Discovered Nuts node")
 			if n.assumeNewNode {
 				// Connect to NutsComm addresses with a delay.
-				// Without this the node will try to sync the remainder of the DAG with more and more peers at the same time.
-				// It also allows outdated contact info to be updated before it is used. (NutsComm change / DID deactivate)
 				n.connectionManager.Connect(nutsCommUrl.Host, node.ID, newNodeConnectionDelay)
 			} else {
 				n.connectionManager.Connect(nutsCommUrl.Host, node.ID, 0)

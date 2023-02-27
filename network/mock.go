@@ -67,6 +67,18 @@ func (mr *MockTransactionsMockRecorder) CreateTransaction(ctx, spec interface{})
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTransaction", reflect.TypeOf((*MockTransactions)(nil).CreateTransaction), ctx, spec)
 }
 
+// DiscoverServices mocks base method.
+func (m *MockTransactions) DiscoverServices(updatedDID did.DID) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "DiscoverServices", updatedDID)
+}
+
+// DiscoverServices indicates an expected call of DiscoverServices.
+func (mr *MockTransactionsMockRecorder) DiscoverServices(updatedDID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DiscoverServices", reflect.TypeOf((*MockTransactions)(nil).DiscoverServices), updatedDID)
+}
+
 // GetTransaction mocks base method.
 func (m *MockTransactions) GetTransaction(transactionRef hash.SHA256Hash) (dag.Transaction, error) {
 	m.ctrl.T.Helper()
@@ -139,18 +151,6 @@ func (m *MockTransactions) Reprocess(ctx context.Context, contentType string) (*
 func (mr *MockTransactionsMockRecorder) Reprocess(ctx, contentType interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reprocess", reflect.TypeOf((*MockTransactions)(nil).Reprocess), ctx, contentType)
-}
-
-// ServiceDiscovery mocks base method.
-func (m *MockTransactions) ServiceDiscovery(updatedDID did.DID) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "ServiceDiscovery", updatedDID)
-}
-
-// ServiceDiscovery indicates an expected call of ServiceDiscovery.
-func (mr *MockTransactionsMockRecorder) ServiceDiscovery(updatedDID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ServiceDiscovery", reflect.TypeOf((*MockTransactions)(nil).ServiceDiscovery), updatedDID)
 }
 
 // Subscribe mocks base method.

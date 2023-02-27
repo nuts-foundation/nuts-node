@@ -906,7 +906,7 @@ func TestNetwork_ServiceDiscovery(t *testing.T) {
 	t.Run("ok - no service discovery", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		ctx := createNetwork(t, ctrl)
-		ctx.network.ServiceDiscovery(*peerDID)
+		ctx.network.DiscoverServices(*peerDID)
 	})
 	t.Run("ok - new node", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -917,7 +917,7 @@ func TestNetwork_ServiceDiscovery(t *testing.T) {
 		ctx.connectionManager.EXPECT().Connect(peerAddress, *peerDID, newNodeConnectionDelay)
 		ctx.network.assumeNewNode = true
 
-		ctx.network.ServiceDiscovery(*peerDID)
+		ctx.network.DiscoverServices(*peerDID)
 	})
 	t.Run("ok - existing node", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -927,7 +927,7 @@ func TestNetwork_ServiceDiscovery(t *testing.T) {
 		ctx.docResolver.EXPECT().Resolve(*peerDID, nil).Return(&peerDocument, nil, nil)
 		ctx.connectionManager.EXPECT().Connect(peerAddress, *peerDID, time.Duration(0))
 
-		ctx.network.ServiceDiscovery(*peerDID)
+		ctx.network.DiscoverServices(*peerDID)
 	})
 	t.Run("nok - DID document resolve failed", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -936,7 +936,7 @@ func TestNetwork_ServiceDiscovery(t *testing.T) {
 		})
 		ctx.docResolver.EXPECT().Resolve(*peerDID, nil).Return(nil, nil, errors.New("failed"))
 
-		ctx.network.ServiceDiscovery(*peerDID)
+		ctx.network.DiscoverServices(*peerDID)
 
 		// asserts network.connectionManager.Connect is not called
 	})

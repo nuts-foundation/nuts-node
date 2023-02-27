@@ -187,7 +187,7 @@ func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
 
 	// Notify network of DID update. At this point the updated document exists in the VDR and can be used for authentication.
 	// Only inform network of a did update since nextDIDDocument could be received out of order, so may not be the latest version.
-	n.networkClient.ServiceDiscovery(nextDIDDocument.ID)
+	n.networkClient.DiscoverServices(nextDIDDocument.ID)
 	return nil
 }
 
