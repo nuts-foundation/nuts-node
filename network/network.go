@@ -78,15 +78,15 @@ type Network struct {
 	state               dag.State
 	keyStore            crypto.KeyStore
 	keyResolver         types.KeyResolver
-	startTime           atomic.Value
+	startTime           atomic.Pointer[time.Time]
 	peerID              transport.PeerID
 	didDocumentResolver types.DocResolver
 	nodeDIDResolver     transport.NodeDIDResolver
 	didDocumentFinder   types.DocFinder
 	eventPublisher      events.Event
 	storeProvider       storage.Provider
-        // assumeNewNode indicates the node hasn't initially sync'd with the network.
-	assumeNewNode       bool
+	// assumeNewNode indicates the node hasn't initially sync'd with the network.
+	assumeNewNode bool
 }
 
 // CheckHealth performs health checks for the network engine.
@@ -347,7 +347,8 @@ func (n *Network) Config() interface{} {
 
 // Start initiates the Network subsystem
 func (n *Network) Start() error {
-	n.startTime.Store(time.Now())
+	startTime := time.Now()
+	n.startTime.Store(&startTime)
 
 	if err := n.state.Start(); err != nil {
 		return err
@@ -427,7 +428,7 @@ inner:
 				WithField(core.LogFieldDID, node.ID.String()).
 				WithField(core.LogFieldNodeAddress, nutsCommUrl.Host).
 				Debug("Discovered Nuts node")
-			if n.assumeNewNode {
+			if n.assumeNewNode && time.Since(*n.startTime.Load()) < newNodeConnectionDelay {
 				// Connect to NutsComm addresses with a delay.
 				n.connectionManager.Connect(nutsCommUrl.Host, node.ID, newNodeConnectionDelay)
 			} else {
@@ -804,7 +805,7 @@ func (n *Network) collectDiagnosticsForPeers() transport.Diagnostics {
 	}
 
 	result := transport.Diagnostics{
-		Uptime:               time.Since(n.startTime.Load().(time.Time)),
+		Uptime:               time.Since(*n.startTime.Load()),
 		NumberOfTransactions: uint32(transactionCount),
 		SoftwareVersion:      fmt.Sprintf("%s (%s)", core.GitBranch, core.GitCommit),
 		SoftwareID:           softwareID,

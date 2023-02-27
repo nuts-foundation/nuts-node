@@ -1215,7 +1215,8 @@ func createNetwork(t *testing.T, ctrl *gomock.Controller, cfgFn ...func(config *
 	if len(networkConfig.NodeDID) > 0 {
 		network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: did.MustParseDID(networkConfig.NodeDID)}
 	}
-	network.startTime.Store(time.Now())
+	startTime := time.Now()
+	network.startTime.Store(&startTime)
 	return &networkTestContext{
 		network:           network,
 		connectionManager: connectionManager,
