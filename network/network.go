@@ -85,7 +85,8 @@ type Network struct {
 	didDocumentFinder   types.DocFinder
 	eventPublisher      events.Event
 	storeProvider       storage.Provider
-	assumeNewNode       bool // node has assumed it has not performed initial sync with the network
+        // assumeNewNode indicates the node hasn't initially sync'd with the network.
+	assumeNewNode       bool
 }
 
 // CheckHealth performs health checks for the network engine.
@@ -299,13 +300,13 @@ func (n *Network) DiscoverServices(updatedDID did.DID) {
 		// This can happen when the VDR is receiving lots of DID updates, such as during the initial sync of the network.
 		log.Logger().WithError(err).
 			WithField(core.LogFieldDID, updatedDID.String()).
-			Error("service discovery could not read DID document after an update")
+			Error("Service discovery could not read DID document after an update")
 		return
 	}
 	nodeDID, err := n.nodeDIDResolver.Resolve()
 	if err != nil {
 		// This can only occur when the autoNodeDIDResolver is used (non-strict mode)
-		log.Logger().WithError(err).Error("could not resolve own node DID for service discovery")
+		log.Logger().WithError(err).Error("Could not resolve own node DID for service discovery")
 		return
 	}
 	n.connectToDID(nodeDID, *document)
@@ -397,7 +398,7 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 	}
 	n.assumeNewNode = len(otherNodes) == 0
 	if n.assumeNewNode {
-		log.Logger().Infof("assuming this is a new node, discovered NutsComm addresses are processed with a %s delay", newNodeConnectionDelay)
+		log.Logger().Infof("Assuming this is a new node, discovered NutsComm addresses are processed with a %s delay", newNodeConnectionDelay)
 	}
 	for _, node := range otherNodes {
 		n.connectToDID(nodeDID, node)
