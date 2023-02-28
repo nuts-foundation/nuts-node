@@ -19,6 +19,7 @@
 package transport
 
 import (
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 )
 
@@ -41,7 +42,7 @@ type ConnectionManager interface {
 	core.Diagnosable
 
 	// Connect attempts to make an outbound connection to the given peer if it's not already connected.
-	Connect(peerAddress string)
+	Connect(peerAddress string, peerDID did.DID)
 
 	// Peers returns a slice containing the peers that are currently connected.
 	Peers() []Peer

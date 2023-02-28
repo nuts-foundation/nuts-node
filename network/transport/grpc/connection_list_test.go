@@ -20,9 +20,9 @@ package grpc
 
 import (
 	"context"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc"
 	"testing"
 )
 
@@ -52,75 +52,106 @@ func TestConnectionList_Get(t *testing.T) {
 func TestConnectionList_All(t *testing.T) {
 	cn := connectionList{}
 
-	cn.getOrRegister(context.Background(), transport.Peer{ID: "a"}, nil, false)
-	cn.getOrRegister(context.Background(), transport.Peer{ID: "b"}, nil, false)
+	cn.getOrRegister(context.Background(), transport.Peer{ID: "a"}, false)
+	cn.getOrRegister(context.Background(), transport.Peer{ID: "b"}, false)
 
 	assert.Len(t, cn.All(), 2)
 }
 
-func TestConnectionList_getOrRegister(t *testing.T) {
-	t.Run("second call with same peer ID should return same connection", func(t *testing.T) {
-		cn := connectionList{}
-		connA, created1 := cn.getOrRegister(context.Background(), transport.Peer{ID: "a"}, nil, false)
-		assert.True(t, created1)
-		connASecondCall, created2 := cn.getOrRegister(context.Background(), transport.Peer{ID: "a"}, nil, false)
-		assert.False(t, created2)
-		assert.Equal(t, connA, connASecondCall)
+func TestConnectionList_getOrRegister1(t *testing.T) {
+	t.Run("anonymous", func(t *testing.T) {
+		anon1ID1 := transport.Peer{ID: "peer1", Address: "address1"}
+		anon1ID2 := transport.Peer{ID: "peer2", Address: "address1"}
+		anon2ID2 := transport.Peer{ID: "peer2", Address: "address2"}
+		t.Run("inbound", func(t *testing.T) {
+			cn := connectionList{}
+			// accepted x2
+			_, created := cn.getOrRegister(context.Background(), anon1ID1, false)
+			assert.True(t, created)
+			conn2, created := cn.getOrRegister(context.Background(), anon1ID2, false)
+			assert.True(t, created)
+			assert.Len(t, cn.list, 2)
+
+			// already exist, duplicate on peerID and empty DID
+			conn3, created := cn.getOrRegister(context.Background(), anon2ID2, false)
+			assert.False(t, created)
+			assert.Len(t, cn.list, 2)
+			assert.Equal(t, conn2, conn3)
+		})
+		t.Run("outbound", func(t *testing.T) {
+			cn := connectionList{}
+			// accepted x2
+			conn1, created := cn.getOrRegister(context.Background(), anon1ID1, true)
+			assert.True(t, created)
+			_, created = cn.getOrRegister(context.Background(), anon2ID2, true)
+			assert.True(t, created)
+			assert.Len(t, cn.list, 2)
+
+			// already exist, duplicate on address and empty DID
+			conn3, created := cn.getOrRegister(context.Background(), anon1ID2, true)
+			assert.False(t, created)
+			assert.Len(t, cn.list, 2)
+			assert.Equal(t, conn1, conn3)
+		})
 	})
+	t.Run("with DID", func(t *testing.T) {
+		peer1ID1 := transport.Peer{ID: "peer1", Address: "address1", NodeDID: did.MustParseDID("did:nuts:peer1")}
+		peer1ID2 := transport.Peer{ID: "peer2", Address: "address1", NodeDID: did.MustParseDID("did:nuts:peer1")}
+		peer2ID2 := transport.Peer{ID: "peer2", Address: "address2", NodeDID: did.MustParseDID("did:nuts:peer2")}
 
-	t.Run("second call with different Peer ID", func(t *testing.T) {
-		peerA := transport.Peer{ID: "a", Address: "grpc://example.com"}
-		peerB := transport.Peer{ID: "b"}
-		peerC := transport.Peer{ID: "c", Address: "127.0.0.1"}
-		peerD := transport.Peer{ID: "d", Address: "127.0.0.1"}
+		t.Run("inbound", func(t *testing.T) {
+			cn := connectionList{}
+			// accepted x2
+			conn1, created := cn.getOrRegister(context.Background(), peer1ID1, false)
+			assert.True(t, created)
+			// second peerID for same DID
+			_, created = cn.getOrRegister(context.Background(), peer1ID2, false)
+			assert.True(t, created)
+			assert.Len(t, cn.list, 2)
 
-		t.Run("for incoming connections", func(t *testing.T) {
-			t.Run("with different address returns new connection", func(t *testing.T) {
-				cn := connectionList{}
-				connA, created1 := cn.getOrRegister(context.Background(), peerA, nil, false)
-				assert.True(t, created1)
-				connB, created2 := cn.getOrRegister(context.Background(), peerB, nil, false)
-				assert.True(t, created2)
-				assert.NotEqual(t, connA, connB)
-			})
+			// already exist, duplicate on peerID and empty DID
+			conn3, created := cn.getOrRegister(context.Background(), peer1ID1, false)
+			assert.False(t, created)
+			assert.Len(t, cn.list, 2)
+			assert.Equal(t, conn1, conn3)
 
-			t.Run("with same address returns new connection", func(t *testing.T) {
-				cn := connectionList{}
-				connA, created1 := cn.getOrRegister(context.Background(), peerC, nil, false)
-				assert.True(t, created1)
-				connB, created2 := cn.getOrRegister(context.Background(), peerD, nil, false)
-				assert.True(t, created2)
-				assert.NotEqual(t, connA, connB)
-			})
 		})
+		t.Run("outbound", func(t *testing.T) {
+			cn := connectionList{}
+			// accepted x2
+			conn1, created := cn.getOrRegister(context.Background(), peer1ID1, true)
+			assert.True(t, created)
+			_, created = cn.getOrRegister(context.Background(), peer2ID2, true)
+			assert.True(t, created)
+			assert.Len(t, cn.list, 2)
 
-		t.Run("for outgoing connections", func(t *testing.T) {
-			t.Run("with different address returns new connection", func(t *testing.T) {
-				cn := connectionList{}
-				connA, created1 := cn.getOrRegister(context.Background(), peerA, nil, true)
-				assert.True(t, created1)
-				connB, created2 := cn.getOrRegister(context.Background(), peerB, nil, true)
-				assert.True(t, created2)
-				assert.NotEqual(t, connA, connB)
-			})
-
-			t.Run("with same address returns same connection", func(t *testing.T) {
-				cn := connectionList{}
-				connA, created1 := cn.getOrRegister(context.Background(), peerC, nil, true)
-				assert.True(t, created1)
-				connB, created2 := cn.getOrRegister(context.Background(), peerD, nil, true)
-				assert.False(t, created2)
-				assert.Equal(t, connA, connB)
-			})
+			// already exist, duplicate on address and empty DID
+			conn3, created := cn.getOrRegister(context.Background(), peer1ID2, true)
+			assert.False(t, created)
+			assert.Len(t, cn.list, 2)
+			assert.Equal(t, conn1, conn3)
 		})
+	})
+	t.Run("allow anon + authenticated at same time", func(t *testing.T) {
+		cn := connectionList{}
+		for i := 0; i < 2; i++ {
+			// first three are accepted on the first iteration
+			cn.getOrRegister(context.Background(), transport.Peer{ID: "peer", Address: "some-ip"}, false)                                             // anonymous inbound
+			cn.getOrRegister(context.Background(), transport.Peer{ID: "peer", Address: "some-ip", NodeDID: did.MustParseDID("did:nuts:peer")}, false) // did inbound
+			cn.getOrRegister(context.Background(), transport.Peer{ID: "peer", Address: "address"}, true)                                              // bootstrap outbound
+			// duplicate based on DID
+			_, created := cn.getOrRegister(context.Background(), transport.Peer{ID: "peer", Address: "address", NodeDID: did.MustParseDID("did:nuts:peer")}, true) // did outbound
+			assert.False(t, created)
+		}
+		assert.Len(t, cn.list, 3)
 	})
 }
 
 func TestConnectionList_remove(t *testing.T) {
 	cn := connectionList{}
-	connA, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "a"}, nil, false)
-	connB, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "b"}, nil, false)
-	connC, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "c"}, nil, false)
+	connA, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "a"}, false)
+	connB, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "b"}, false)
+	connC, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "c"}, false)
 
 	assert.Len(t, cn.list, 3)
 	cn.remove(connB)
@@ -135,34 +166,28 @@ func TestConnectionList_Diagnostics(t *testing.T) {
 
 		diagnostics := cn.Diagnostics()
 
-		assert.Len(t, diagnostics, 3)
+		assert.Len(t, diagnostics, 2)
 		idx := 0
 		assert.Equal(t, 0, diagnostics[idx].(numberOfPeersStatistic).numberOfPeers)
 		idx++
 		assert.Empty(t, diagnostics[idx].(peersStatistic).peers)
-		idx++
-		assert.Empty(t, diagnostics[idx].(ConnectorsStats))
 	})
 	t.Run("connections", func(t *testing.T) {
+		stream := newServerStream("foo", "")
+		defer stream.cancelFunc()
 		cn := connectionList{}
 		// 2 connections: 1 disconnected, 1 connected, 1 trying to connect outbound
-		cn.getOrRegister(context.Background(), transport.Peer{ID: "a"}, nil, false)
-		connectionB, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "b"}, nil, false)
-		connectionB.(*conn).ctx = context.Background() // simulate connection being active
-		connectionC, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "c", Address: "localhost:5555"}, grpc.DialContext, false)
-		connectionC.startConnecting(connectorConfig{address: "C"}, newTestBackoff(), func(grpcConn *grpc.ClientConn) bool {
-			return false
-		})
-		defer connectionC.stopConnecting()
+		connectionB, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "b"}, false) // simulate inactive connection
+		_ = connectionB
+		connectionC, _ := cn.getOrRegister(context.Background(), transport.Peer{ID: "c", Address: "localhost:5555"}, false)
+		assert.True(t, connectionC.registerStream(&TestProtocol{}, stream)) // simulate active connection
 
 		diagnostics := cn.Diagnostics()
 
-		assert.Len(t, diagnostics, 3)
+		assert.Len(t, diagnostics, 2)
 		idx := 0
 		assert.Equal(t, 1, diagnostics[idx].(numberOfPeersStatistic).numberOfPeers)
 		idx++
 		assert.Len(t, diagnostics[idx].(peersStatistic).peers, 1)
-		idx++
-		assert.Len(t, diagnostics[idx].(ConnectorsStats), 1)
 	})
 }

@@ -35,12 +35,13 @@ import (
 func Test_conn_disconnect(t *testing.T) {
 	t.Run("not connected", func(t *testing.T) {
 		conn := conn{}
+		conn.ctx, conn.cancelCtx = context.WithCancel(context.Background())
 		conn.disconnect()
 		assert.False(t, conn.IsConnected())
 	})
 	t.Run("connected", func(t *testing.T) {
-		conn := conn{}
-		conn.ctx, conn.cancelCtx = context.WithCancel(context.Background())
+		conn := createConnection(context.Background(), transport.Peer{}).(*conn)
+		conn.streams["stream name"] = &MockStream{}
 		assert.True(t, conn.IsConnected())
 		conn.disconnect()
 		assert.False(t, conn.IsConnected())
@@ -57,12 +58,11 @@ func Test_conn_disconnect(t *testing.T) {
 func Test_conn_IsProtocolConnected(t *testing.T) {
 	p := &TestProtocol{}
 	t.Run("not connected", func(t *testing.T) {
-		conn := createConnection(context.Background(), nil, transport.Peer{})
+		conn := createConnection(context.Background(), transport.Peer{})
 		assert.False(t, conn.IsProtocolConnected(p))
 	})
 	t.Run("connected", func(t *testing.T) {
-		conn := createConnection(context.Background(), nil, transport.Peer{}).(*conn)
-		conn.ctx = context.Background()
+		conn := createConnection(context.Background(), transport.Peer{}).(*conn)
 		conn.streams[p.MethodName()] = &MockStream{}
 		assert.True(t, conn.IsProtocolConnected(p))
 	})
@@ -70,7 +70,7 @@ func Test_conn_IsProtocolConnected(t *testing.T) {
 
 func Test_conn_waitUntilDisconnected(t *testing.T) {
 	t.Run("never open, should return immediately", func(t *testing.T) {
-		conn := conn{}
+		conn := createConnection(context.Background(), transport.Peer{})
 		conn.waitUntilDisconnected()
 	})
 	t.Run("disconnected while waiting, should return almost immediately", func(t *testing.T) {
@@ -95,7 +95,7 @@ func Test_conn_waitUntilDisconnected(t *testing.T) {
 
 func Test_conn_registerStream(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		connection := createConnection(context.Background(), nil, transport.Peer{}).(*conn)
+		connection := createConnection(context.Background(), transport.Peer{}).(*conn)
 		stream := newServerStream("foo", "")
 		defer stream.cancelFunc()
 
@@ -105,7 +105,7 @@ func Test_conn_registerStream(t *testing.T) {
 		assert.True(t, connection.IsConnected())
 	})
 	t.Run("already connected (same protocol)", func(t *testing.T) {
-		connection := createConnection(context.Background(), nil, transport.Peer{}).(*conn)
+		connection := createConnection(context.Background(), transport.Peer{}).(*conn)
 		stream := newServerStream("foo", "")
 		defer stream.cancelFunc()
 
@@ -122,7 +122,7 @@ func Test_conn_startSending(t *testing.T) {
 		// startSending reads from the outbox channel, which is closed when disconnect() is called. Closing the channel
 		// causes startSending to read a nil message from the channel, which causes a panic.
 		// If the message to be sent is nil, it indicates the connection is closing and the loop should exit.
-		connection := createConnection(context.Background(), nil, transport.Peer{}).(*conn)
+		connection := createConnection(context.Background(), transport.Peer{}).(*conn)
 		stream := newServerStream("foo", "")
 
 		defer stream.cancelFunc()
@@ -146,7 +146,7 @@ func Test_conn_startSending(t *testing.T) {
 
 func TestConn_Send(t *testing.T) {
 	t.Run("buffer overflow softlimit", func(t *testing.T) {
-		connection := createConnection(context.Background(), nil, transport.Peer{}).(*conn)
+		connection := createConnection(context.Background(), transport.Peer{}).(*conn)
 		stream := newServerStream("foo", "")
 		protocol := &TestProtocol{}
 		_ = connection.registerStream(protocol, stream)
@@ -172,7 +172,7 @@ func TestConn_Send(t *testing.T) {
 	})
 
 	t.Run("buffer overflow hardLimit", func(t *testing.T) {
-		connection := createConnection(context.Background(), nil, transport.Peer{}).(*conn)
+		connection := createConnection(context.Background(), transport.Peer{}).(*conn)
 		stream := newServerStream("foo", "")
 		protocol := &TestProtocol{}
 		_ = connection.registerStream(protocol, stream)

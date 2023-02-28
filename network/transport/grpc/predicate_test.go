@@ -52,3 +52,8 @@ func TestByAuthenticated(t *testing.T) {
 	assert.True(t, ByAuthenticated().Match(&StubConnection{Authenticated: true}))
 	assert.False(t, ByAuthenticated().Match(&StubConnection{}))
 }
+
+func TestByAddress(t *testing.T) {
+	assert.True(t, ByAddress("address").Match(&StubConnection{Address: "address"}))
+	assert.False(t, ByAddress("address").Match(&StubConnection{}))
+}

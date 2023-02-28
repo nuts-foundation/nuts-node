@@ -23,6 +23,7 @@ import (
 	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"path"
+	"sync"
 	"testing"
 	"time"
 
@@ -38,6 +39,7 @@ func TestBoundedRandomBackoff_Backoff(t *testing.T) {
 	for current < b.max {
 		current = b.Backoff()
 	}
+	assert.Equal(t, b.max, current)
 }
 
 func TestBoundedRandomBackoff_Reset(t *testing.T) {
@@ -46,6 +48,23 @@ func TestBoundedRandomBackoff_Reset(t *testing.T) {
 	assert.True(t, b.Backoff() > b.min)
 	b.Reset(0)
 	assert.Equal(t, b.min, b.Backoff())
+}
+
+func TestBoundedRandomBackoff_Expired(t *testing.T) {
+	before := time.Now()
+	now := before.Add(time.Millisecond)
+	after := now.Add(time.Millisecond)
+	nowFunc = func() time.Time { return now }
+	b := newTestBackoff().(*boundedRandomBackoff)
+	b.Reset(0)
+
+	// has expired
+	nowFunc = func() time.Time { return after }
+	assert.True(t, b.Expired())
+
+	// has not expired
+	nowFunc = func() time.Time { return before }
+	assert.False(t, b.Expired())
 }
 
 func TestBoundedRandomBackoff_DefaultValues(t *testing.T) {
@@ -96,7 +115,7 @@ func TestPersistedBackoff_Backoff(t *testing.T) {
 		defer db.Close(context.Background())
 		b := NewPersistedBackoff(db, "test", newTestBackoff())
 
-		// Set backoff to
+		// Reset backoff to
 		b.Reset(maxBackoff)
 
 		// Re-open back-off, simulate half of the max back-off time has passed
@@ -137,6 +156,42 @@ func TestPersistedBackoff_Reset(t *testing.T) {
 	assert.Equal(t, time.Duration(0), backoffAfterPersist)
 }
 
+func TestPersistedBackoff_Expired(t *testing.T) {
+	testDirectory := io.TestDirectory(t)
+	now := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	nowFunc = func() time.Time { return now }
+
+	// Create back-off
+	db, _ := bbolt.CreateBBoltStore(path.Join(testDirectory, "backoff.db"))
+	defer db.Close(context.Background())
+	b := NewPersistedBackoff(db, "test", newTestBackoff())
+	assert.True(t, b.Expired()) // no backoff -> always expired
+
+	// Do some back-off
+	var prev time.Duration
+	for i := 0; i < 5; i++ {
+		b := b.Backoff()
+		assert.True(t, b > prev)
+		prev = b
+	}
+
+	// Re-open back-off, check if started from the same point
+	_ = db.Close(context.Background())
+	db, _ = bbolt.CreateBBoltStore(path.Join(testDirectory, "backoff.db"))
+	defer db.Close(context.Background())
+	b = NewPersistedBackoff(db, "test", newTestBackoff())
+
+	// now == expiration deadline
+	deadline := now.Add(prev)
+	nowFunc = func() time.Time { return deadline }
+	assert.False(t, b.Expired())
+
+	// expired
+	expired := deadline.Add(time.Millisecond)
+	nowFunc = func() time.Time { return expired }
+	assert.True(t, b.Expired())
+}
+
 func TestRandomBackoff(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		const min = time.Second
@@ -147,3 +202,37 @@ func TestRandomBackoff(t *testing.T) {
 }
 
 func newTestBackoff() Backoff { return BoundedBackoff(time.Second, time.Hour) }
+
+type trackingBackoff struct {
+	expired      bool
+	resetCount   int
+	backoffCount int
+	mux          *sync.Mutex
+}
+
+func (t *trackingBackoff) Expired() bool {
+	return t.expired
+}
+
+func (t *trackingBackoff) Value() time.Duration {
+	return 0
+}
+
+func (t *trackingBackoff) counts() (int, int) {
+	t.mux.Lock()
+	defer t.mux.Unlock()
+	return t.resetCount, t.backoffCount
+}
+
+func (t *trackingBackoff) Reset(_ time.Duration) {
+	t.mux.Lock()
+	defer t.mux.Unlock()
+	t.resetCount++
+}
+
+func (t *trackingBackoff) Backoff() time.Duration {
+	t.mux.Lock()
+	defer t.mux.Unlock()
+	t.backoffCount++
+	return 10 * time.Millisecond // prevent spinwait
+}
