@@ -20,6 +20,7 @@ package contract
 
 import (
 	"errors"
+	"github.com/stretchr/testify/require"
 	"reflect"
 	"strings"
 	"testing"
@@ -221,5 +222,13 @@ func TestParseContractString(t *testing.T) {
 		assert.Nil(t, signedContract)
 		assert.NotNil(t, err)
 		assert.True(t, errors.Is(err, ErrInvalidContractText))
+	})
+	t.Run("ok", func(t *testing.T) {
+		rawText := "NL:BehandelaarLogin:v1 Ondergetekende geeft toestemming aan Demo EHR om namens Toon & Zoonen en ondergetekende het Nuts netwerk te bevragen. Deze toestemming is geldig van dinsdag, 1 oktober 2019 13:30:42 tot dinsdag, 1 oktober 2019 14:30:42."
+		signedContract, err := ParseContractString(rawText, StandardContractTemplates)
+
+		require.NoError(t, err)
+		require.NotNil(t, signedContract)
+		assert.Equal(t, "", signedContract.Params[""])
 	})
 }

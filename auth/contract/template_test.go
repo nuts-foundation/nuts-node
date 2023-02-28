@@ -21,28 +21,88 @@ package contract
 import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
 	"github.com/goodsign/monday"
 )
 
+func TestContract_StandardTemplates(t *testing.T) {
+	t.Run("v1", func(t *testing.T) {
+		attrs := map[string]string{
+			LegalEntityAttr: "Zorg & Zo",
+			ActingPartyAttr: "Alpha & Beta",
+		}
+		t.Run("NL", func(t *testing.T) {
+			tpl := StandardContractTemplates.Get("BehandelaarLogin", "NL", "v1")
+			require.NotNil(t, tpl)
+
+			actual, err := tpl.Render(attrs, time.Date(2020, 1, 1, 1, 1, 1, 0, time.UTC), time.Hour)
+
+			require.NoError(t, err)
+			assert.Equal(t, "NL:BehandelaarLogin:v1 Ondergetekende geeft toestemming aan Alpha & Beta om namens Zorg & Zo en ondergetekende het Nuts netwerk te bevragen. Deze toestemming is geldig van woensdag, 1 januari 2020 02:01:01 tot woensdag, 1 januari 2020 03:01:01.", actual.RawContractText)
+		})
+	})
+	t.Run("v3", func(t *testing.T) {
+		attrs := map[string]string{
+			LegalEntityAttr:     "Zorg & Zo",
+			LegalEntityCityAttr: "A & B",
+		}
+		t.Run("NL", func(t *testing.T) {
+			tpl := StandardContractTemplates.Get("BehandelaarLogin", "NL", "v3")
+			require.NotNil(t, tpl)
+
+			actual, err := tpl.Render(attrs, time.Date(2020, 1, 1, 1, 1, 1, 0, time.UTC), time.Hour)
+
+			require.NoError(t, err)
+			assert.Equal(t, "NL:BehandelaarLogin:v3 Hierbij verklaar ik te handelen in naam van Zorg & Zo te A & B. Deze verklaring is geldig van woensdag, 1 januari 2020 02:01:01 tot woensdag, 1 januari 2020 03:01:01.", actual.RawContractText)
+		})
+		t.Run("EN", func(t *testing.T) {
+			tpl := StandardContractTemplates.Get("PractitionerLogin", "EN", "v3")
+			require.NotNil(t, tpl)
+
+			actual, err := tpl.Render(attrs, time.Date(2020, 1, 1, 1, 1, 1, 0, time.UTC), time.Hour)
+
+			require.NoError(t, err)
+			assert.Equal(t, "EN:PractitionerLogin:v3 I hereby declare to act on behalf of Zorg & Zo located in A & B. This declaration is valid from Wednesday, 1 January 2020 02:01:01 until Wednesday, 1 January 2020 03:01:01.", actual.RawContractText)
+		})
+	})
+}
+
 func TestContract_RenderTemplate(t *testing.T) {
-	template := &Template{Type: "Simple", Template: "ga je akkoord met {{wat}} van {{valid_from}} tot {{valid_to}}?", Locale: "nl_NL"}
-	now := time.Now()
-	result, err := template.Render(map[string]string{"wat": "alles"}, now, 60*time.Minute)
-	if !assert.NoError(t, err) {
-		return
-	}
-	amsterdamLocation, _ := time.LoadLocation(AmsterdamTimeZone)
+	t.Run("ok", func(t *testing.T) {
+		template := &Template{Type: "Simple", Template: "ga je akkoord met {{wat}} van {{valid_from}} tot {{valid_to}}?", Locale: "nl_NL"}
+		now := time.Now()
+		result, err := template.Render(map[string]string{"wat": "alles"}, now, 60*time.Minute)
+		if !assert.NoError(t, err) {
+			return
+		}
+		amsterdamLocation, _ := time.LoadLocation(AmsterdamTimeZone)
 
-	from := monday.Format(now.In(amsterdamLocation).Add(0), timeLayout, monday.LocaleNlNL)
-	to := monday.Format(now.In(amsterdamLocation).Add(60*time.Minute), timeLayout, monday.LocaleNlNL)
+		from := monday.Format(now.In(amsterdamLocation).Add(0), timeLayout, monday.LocaleNlNL)
+		to := monday.Format(now.In(amsterdamLocation).Add(60*time.Minute), timeLayout, monday.LocaleNlNL)
 
-	expected := fmt.Sprintf("ga je akkoord met alles van %s tot %s?", from, to)
-	if result.RawContractText != expected {
-		t.Errorf("Error while rendering the Template: got '%v', expected '%v'", result, expected)
-	}
+		expected := fmt.Sprintf("ga je akkoord met alles van %s tot %s?", from, to)
+		if result.RawContractText != expected {
+			t.Errorf("Error while rendering the Template: got '%v', expected '%v'", result, expected)
+		}
+	})
+	t.Run("with ampersand (triple escape)", func(t *testing.T) {
+		template := &Template{Type: "Simple", Template: "ampersand & in text and message {{{wat}}} van {{valid_from}} tot {{valid_to}}?", Locale: "nl_NL"}
+		now := time.Now()
+		result, err := template.Render(map[string]string{"wat": "&"}, now, 60*time.Minute)
+		if !assert.NoError(t, err) {
+			return
+		}
+		amsterdamLocation, _ := time.LoadLocation(AmsterdamTimeZone)
+
+		from := monday.Format(now.In(amsterdamLocation).Add(0), timeLayout, monday.LocaleNlNL)
+		to := monday.Format(now.In(amsterdamLocation).Add(60*time.Minute), timeLayout, monday.LocaleNlNL)
+
+		expected := fmt.Sprintf("ampersand & in text and message & van %s tot %s?", from, to)
+		assert.Equal(t, expected, result.RawContractText)
+	})
 }
 
 func TestParseTime(t *testing.T) {
