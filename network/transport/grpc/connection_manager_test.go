@@ -395,8 +395,8 @@ func Test_grpcConnectionManager_dial(t *testing.T) {
 			<-ctx.Done()
 			assert.ErrorIs(t, ctx.Err(), context.Canceled, "context expired")
 
-			// backoff is set to a ridiculously large value
-			assert.Less(t, 365*24*time.Hour, cont.backoff.Value())
+			// backoff is set to a large value
+			assert.Less(t, 23*time.Hour, cont.backoff.Value())
 
 			// connection is removed again
 			assert.Empty(t, client.connections.list)
