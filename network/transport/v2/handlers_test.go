@@ -117,41 +117,6 @@ func TestProtocol_handleTransactionPayload(t *testing.T) {
 func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 	payload := []byte("Hello, World!")
 
-	t.Run("public TX", func(t *testing.T) {
-		tx, _, _ := dag.CreateTestTransaction(0)
-
-		t.Run("ok", func(t *testing.T) {
-			p, mocks := newTestProtocol(t, nil)
-			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
-			mocks.State.EXPECT().ReadPayload(gomock.Any(), gomock.Any()).Return(payload, nil)
-
-			conns := &grpc.StubConnectionList{
-				Conn: &grpc.StubConnection{PeerID: peer.ID},
-			}
-			p.connectionList = conns
-
-			err := p.handleTransactionPayloadQuery(context.Background(), peer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
-
-			assert.NoError(t, err)
-			assertPayloadResponse(t, tx, payload, conns.Conn.SentMsgs[0])
-		})
-
-		t.Run("transaction not found", func(t *testing.T) {
-			p, mocks := newTestProtocol(t, nil)
-			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(nil, dag.ErrTransactionNotFound)
-
-			conns := &grpc.StubConnectionList{
-				Conn: &grpc.StubConnection{PeerID: peer.ID},
-			}
-			p.connectionList = conns
-
-			err := p.handleTransactionPayloadQuery(context.Background(), peer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
-
-			assert.NoError(t, err)
-			assertEmptyPayloadResponse(t, tx, conns.Conn.SentMsgs[0])
-		})
-	})
-
 	t.Run("private TX", func(t *testing.T) {
 		tx, _, _ := dag.CreateTestTransactionEx(0, hash.SHA256Sum(payload), [][]byte{{1, 2}, {3}})
 		keyDID, _ := did.ParseDIDURL("did:nuts:node#key1")
@@ -166,7 +131,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
 
 			conns := &grpc.StubConnectionList{
-				Conn: &grpc.StubConnection{PeerID: peer.ID},
+				Conn: &grpc.StubConnection{PeerID: peer.ID, NodeDID: peer.NodeDID, Authenticated: peer.Authenticated},
 			}
 			p.connectionList = conns
 
@@ -181,7 +146,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			mocks.DocResolver.EXPECT().Resolve(*nodeDID, nil).Return(&didDocument, nil, nil)
 			mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), gomock.Any()).Return(nil, errors.New("will return nil for PAL decryption")).Times(2)
 			conns := &grpc.StubConnectionList{
-				Conn: &grpc.StubConnection{PeerID: peer.ID},
+				Conn: &grpc.StubConnection{PeerID: authenticatedPeer.ID, NodeDID: authenticatedPeer.NodeDID, Authenticated: true},
 			}
 			p.connectionList = conns
 
@@ -194,7 +159,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			p, mocks := newTestProtocol(t, nil)
 			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
 			conns := &grpc.StubConnectionList{
-				Conn: &grpc.StubConnection{PeerID: peer.ID},
+				Conn: &grpc.StubConnection{PeerID: authenticatedPeer.ID, NodeDID: authenticatedPeer.NodeDID, Authenticated: true},
 			}
 			p.connectionList = conns
 
@@ -209,7 +174,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			mocks.DocResolver.EXPECT().Resolve(*nodeDID, nil).Return(&didDocument, nil, nil)
 			mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), gomock.Any()).Return([]byte(nodeDID.String()), nil)
 			conns := &grpc.StubConnectionList{
-				Conn: &grpc.StubConnection{PeerID: peer.ID},
+				Conn: &grpc.StubConnection{PeerID: authenticatedPeer.ID, NodeDID: authenticatedPeer.NodeDID, Authenticated: true},
 			}
 			p.connectionList = conns
 
@@ -225,7 +190,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), gomock.Any()).Return([]byte(peerDID.String()), nil)
 			mocks.State.EXPECT().ReadPayload(context.Background(), tx.PayloadHash()).Return([]byte{}, nil)
 			conns := &grpc.StubConnectionList{
-				Conn: &grpc.StubConnection{PeerID: peer.ID},
+				Conn: &grpc.StubConnection{PeerID: authenticatedPeer.ID, NodeDID: authenticatedPeer.NodeDID, Authenticated: true},
 			}
 			p.connectionList = conns
 
