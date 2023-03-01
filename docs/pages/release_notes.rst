@@ -6,6 +6,19 @@ Release notes
 What has been changed, and how to update between versions.
 
 ***********************
+Coconut update (v5.0.10)
+***********************
+
+Release date: 2023-03-01
+
+This patch release fixes the following:
+
+- Drawing up an IRMA contract with an ampersand in the organization name causes the ampersand to be URL encoded,
+  causing validation of the signed contract to fail.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.9...v5.0.10
+
+***********************
 Coconut update (v5.0.9)
 ***********************
 

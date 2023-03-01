@@ -25,6 +25,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/goodsign/monday"
 	"github.com/stretchr/testify/assert"
 )
@@ -214,6 +216,19 @@ func TestContract_Verify(t *testing.T) {
 }
 
 func TestParseContractString(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		// note that the contract text contains an ampersand (&) to test if it is properly url encoded
+		rawText := "NL:BehandelaarLogin:v1 Ondergetekende geeft toestemming aan Demo EHR om namens Toon & Zoonen en ondergetekende het Nuts netwerk te bevragen. Deze toestemming is geldig van dinsdag, 1 oktober 2019 13:30:42 tot dinsdag, 1 oktober 2019 14:30:42."
+		signedContract, err := ParseContractString(rawText, StandardContractTemplates)
+
+		require.NoError(t, err)
+		require.NotNil(t, signedContract)
+		assert.Equal(t, "Toon & Zoonen", signedContract.Params["legal_entity"])
+		assert.Equal(t, "dinsdag, 1 oktober 2019 13:30:42", signedContract.Params["valid_from"])
+		assert.Equal(t, "dinsdag, 1 oktober 2019 14:30:42", signedContract.Params["valid_to"])
+		assert.Equal(t, "Demo EHR", signedContract.Params["acting_party"])
+	})
+
 	t.Run("Missing legalEntity returns error", func(t *testing.T) {
 		rawText := "NL:BehandelaarLogin:v1 Ondergetekende geeft toestemming aan Demo EHR om namens  en ondergetekende het Nuts netwerk te bevragen. Deze toestemming is geldig van dinsdag, 1 oktober 2019 13:30:42 tot dinsdag, 1 oktober 2019 14:30:42."
 		signedContract, err := ParseContractString(rawText, StandardContractTemplates)
