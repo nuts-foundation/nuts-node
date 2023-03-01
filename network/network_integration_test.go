@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
+	"github.com/sirupsen/logrus"
 	"hash/crc32"
 	"math/rand"
 	"net/url"
@@ -50,10 +51,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/didstore"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	grpc2 "google.golang.org/grpc"
+	grpcLib "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 )
@@ -741,6 +741,71 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		xor2, _ := node2.network.state.XOR(dag.MaxLamportClock)
 		assert.Equal(t, xor1.String(), xor2.String())
 	})
+
+	t.Run("spoofing peerID does not change the recipient of a response message", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		resetIntegrationTest(t)
+		key := nutsCrypto.NewTestKey("key")
+
+		// Start 2 nodes: node1 and node2, node1 sends a private TX to node 2
+		node1 := startNode(t, "node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
+			cfg.NodeDID = "did:nuts:node1"
+		})
+		node2 := startNode(t, "node2", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
+			cfg.NodeDID = "did:nuts:node2"
+		})
+		eve := startNode(t, "node3", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
+			cfg.NodeDID = "did:nuts:node3"
+		})
+		grpc.SetPeerID(t, eve.network.connectionManager, node2.network.peerID) // eve uses node2's peerID
+
+		// Let eve connect first, so she is the first in the node1's connection list
+		eve.network.connectionManager.Connect(nameToAddress(t, "node1"), did.MustParseDID("did:nuts:node1"))
+		// eve also must connect to node2 so the gossip propagates from node1 via eve to node2 (gossipManager ignores duplicate peerIDs). Could be any other peer than node1 though.
+		eve.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"))
+		test.WaitFor(t, func() (bool, error) {
+			return len(eve.network.connectionManager.Peers()) == 2, nil
+		}, defaultTimeout, "time-out while waiting for nodes to connect")
+
+		// Connect node1 and node2
+		node2.network.connectionManager.Connect(nameToAddress(t, "node1"), did.MustParseDID("did:nuts:node1"))
+		test.WaitFor(t, func() (bool, error) {
+			return len(node2.network.connectionManager.Peers()) == 2, nil // make sure node2 learns about the private Tx
+		}, defaultTimeout, "time-out while waiting for nodes to connect")
+
+		node1DID, _ := node1.network.nodeDIDResolver.Resolve()
+		node2DID, _ := node2.network.nodeDIDResolver.Resolve()
+		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
+			WithAttachKey().
+			WithPrivate([]did.DID{node1DID, node2DID})
+		tx, err := node1.network.CreateTransaction(audit.TestContext(), tpl)
+		require.NoError(t, err)
+		arrivedAtNode2 := test.WaitForNoFail(t, func() (bool, error) {
+			mutex.Lock()
+			defer mutex.Unlock()
+			for _, receivedDoc := range receivedTransactions["node2"] {
+				if tx.Ref().Equals(receivedDoc.Ref()) {
+					return true, nil
+				}
+			}
+			return false, nil
+		}, time.Second)
+		arrivedAtEve := test.WaitForNoFail(t, func() (bool, error) {
+			mutex.Lock()
+			defer mutex.Unlock()
+			for _, receivedDoc := range receivedTransactions["node3"] {
+				if tx.Ref().Equals(receivedDoc.Ref()) {
+					return true, nil
+				}
+			}
+			return false, nil
+		}, time.Second)
+
+		// check eve does not have the payload
+		// because eve connected to node1 using node2's peerID before node2 did, eve will be the recipient of node2's TransactionPayloadQuery for the private TX.
+		assert.False(t, arrivedAtEve)  // is true
+		assert.True(t, arrivedAtNode2) // is false
+	})
 }
 
 func TestNetworkIntegration_OutboundConnection11Reconnects(t *testing.T) {
@@ -845,7 +910,7 @@ func TestNetworkIntegration_TLSOffloading(t *testing.T) {
 			})
 
 			// Create client (node2) that connects to server node
-			grpcConn, err := grpc2.Dial(nameToAddress(t, "node1"), grpc2.WithTransportCredentials(insecure.NewCredentials()))
+			grpcConn, err := grpcLib.Dial(nameToAddress(t, "node1"), grpcLib.WithTransportCredentials(insecure.NewCredentials()))
 			require.NoError(t, err)
 			defer grpcConn.Close()
 			ctx := context.Background()
@@ -879,7 +944,7 @@ func TestNetworkIntegration_TLSOffloading(t *testing.T) {
 			})
 
 			// Create client (node2) that connects to server node
-			grpcConn, err := grpc2.Dial(nameToAddress(t, "node1"), grpc2.WithTransportCredentials(insecure.NewCredentials()))
+			grpcConn, err := grpcLib.Dial(nameToAddress(t, "node1"), grpcLib.WithTransportCredentials(insecure.NewCredentials()))
 			require.NoError(t, err)
 			ctx := context.Background()
 			outgoingMD := metadata.MD{}

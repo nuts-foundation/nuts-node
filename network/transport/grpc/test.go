@@ -22,6 +22,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"google.golang.org/grpc/status"
+	"testing"
 )
 
 // StubConnectionList is a stub implementation of the transport.ConnectionList interface
@@ -125,4 +126,12 @@ func (s *StubConnection) verifyOrSetPeerID(_ transport.PeerID) bool {
 
 func (s *StubConnection) setPeer(_ transport.Peer) {
 	panic("implement me")
+}
+
+func SetPeerID(t *testing.T, manager transport.ConnectionManager, id transport.PeerID) {
+	cm, ok := manager.(*grpcConnectionManager)
+	if !ok {
+		t.Fatalf("expected manager to be of type *grpcConnectionManager, but is %T", manager)
+	}
+	cm.config.peerID = id
 }
