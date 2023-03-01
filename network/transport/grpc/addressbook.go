@@ -53,7 +53,7 @@ func newAddressBook(connectionStore stoabs.KVStore, backoffCreator func() Backof
 }
 
 type addressBook struct {
-	mux             sync.RWMutex // TODO: check race conditions
+	mux             sync.RWMutex
 	contacts        []*contact
 	backoffStore    stoabs.KVStore
 	backoffCreator  func() Backoff

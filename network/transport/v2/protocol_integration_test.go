@@ -75,7 +75,7 @@ func TestProtocolV2_Pagination(t *testing.T) {
 		transactions[i+1] = tx
 	}
 
-	node2.connectionManager.Connect(nameToAddress("v2_pagination_node1"), did.DID{})
+	node2.connectionManager.Connect(nameToAddress("v2_pagination_node1"), did.DID{}, 0)
 	// Wait until nodes are connected
 	if !test.WaitFor(t, func() (bool, error) {
 		return len(node1.connectionManager.Peers()) == 1 && len(node2.connectionManager.Peers()) == 1, nil
