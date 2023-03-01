@@ -135,9 +135,9 @@ func (p *protocol) handleTransactionPayloadQuery(ctx context.Context, peer trans
 		Trace("Handling TransactionPayloadQuery")
 
 	// get peer's connection, authentication status is checked later on
-	connection := p.connectionList.Get(grpc.ByPeerID(peer.ID), grpc.ByNodeDID(peer.NodeDID))
+	connection := p.connectionList.Get(grpc.ByConnected(), grpc.ByNodeDID(peer.NodeDID), grpc.ByPeerID(peer.ID))
 	if connection == nil {
-		return fmt.Errorf("unable to send msg, connection not found (peer=%s)", peer)
+		return fmt.Errorf("unable handle payload request, connection not found (peer=%s)", peer)
 	}
 
 	emptyResponse := &Envelope_TransactionPayload{TransactionPayload: &TransactionPayload{TransactionRef: msg.TransactionRef}}
@@ -151,7 +151,7 @@ func (p *protocol) handleTransactionPayloadQuery(ctx context.Context, peer trans
 	}
 	if len(tx.PAL()) > 0 {
 		// Private TX, verify connection
-		if !peer.Authenticated || !connection.Peer().Authenticated {
+		if !peer.Authenticated || !connection.Peer().Authenticated { // peer == connection.Peer()
 			// Connection isn't authenticated
 			log.Logger().
 				WithFields(peer.ToFields()).

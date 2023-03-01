@@ -770,7 +770,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		// Connect node1 and node2
 		node2.network.connectionManager.Connect(nameToAddress(t, "node1"), did.MustParseDID("did:nuts:node1"))
 		test.WaitFor(t, func() (bool, error) {
-			return len(node2.network.connectionManager.Peers()) == 2, nil // make sure node2 learns about the private Tx
+			return len(node2.network.connectionManager.Peers()) == 2, nil // make sure node2 has enough peers to learn about the private Tx
 		}, defaultTimeout, "time-out while waiting for nodes to connect")
 
 		node1DID, _ := node1.network.nodeDIDResolver.Resolve()
@@ -801,8 +801,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			return false, nil
 		}, time.Second)
 
-		// check eve does not have the payload
-		// because eve connected to node1 using node2's peerID before node2 did, eve will be the recipient of node2's TransactionPayloadQuery for the private TX.
+		// make sure eve does not have the payload
 		assert.False(t, arrivedAtEve)  // is true
 		assert.True(t, arrivedAtNode2) // is false
 	})
