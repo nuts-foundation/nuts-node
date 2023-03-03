@@ -108,6 +108,11 @@ To generate a key's authorized_keys form using nuts-jwt-generator:
 Audit Log Entries
 -----------------
 
+When a user key is authorized (at server start) you will see an audit log entry such as the following:
+
+``AUDIT[0000] Registered key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOcJQ6jKFvO1fGqhRAHGK3XeJrUei+HcfuTr4phgW+M+ nuts-demo-ehr  actor=127.0.0.1 event=AccessKeyRegistered module=http operation=tokenV2.middleware``
+
+
 When a request is unauthorized you will see an audit log entry such as the following:
 
 ``AUDIT[4481] Access denied: missing/malformed credential   actor="::1" event=AccessDenied module=http operation=tokenV2.middleware``
