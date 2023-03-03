@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	did "github.com/nuts-foundation/go-did/did"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	dag "github.com/nuts-foundation/nuts-node/network/dag"
 	transport "github.com/nuts-foundation/nuts-node/network/transport"
@@ -64,6 +65,18 @@ func (m *MockTransactions) CreateTransaction(ctx context.Context, spec Template)
 func (mr *MockTransactionsMockRecorder) CreateTransaction(ctx, spec interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTransaction", reflect.TypeOf((*MockTransactions)(nil).CreateTransaction), ctx, spec)
+}
+
+// DiscoverServices mocks base method.
+func (m *MockTransactions) DiscoverServices(updatedDID did.DID) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "DiscoverServices", updatedDID)
+}
+
+// DiscoverServices indicates an expected call of DiscoverServices.
+func (mr *MockTransactionsMockRecorder) DiscoverServices(updatedDID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DiscoverServices", reflect.TypeOf((*MockTransactions)(nil).DiscoverServices), updatedDID)
 }
 
 // GetTransaction mocks base method.

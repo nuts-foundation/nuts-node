@@ -58,6 +58,10 @@ const (
 	// health check keys
 	healthTLS        = "tls"
 	healthAuthConfig = "auth_config"
+	// newNodeConnectionDelay specifies how long a new node should delay connecting to newly discovered NutsComm addresses.
+	// If the node connects to every new DID immediately it will try to sync the remainder of the DAG with more and more peers at the same time.
+	// This generates a lot of network traffic with duplicate information and just slows down the actual synchronization.
+	newNodeConnectionDelay = 5 * time.Minute
 )
 
 // defaultBBoltOptions are given to bbolt, allows for package local adjustments during test
@@ -74,13 +78,15 @@ type Network struct {
 	state               dag.State
 	keyStore            crypto.KeyStore
 	keyResolver         types.KeyResolver
-	startTime           atomic.Value
+	startTime           atomic.Pointer[time.Time]
 	peerID              transport.PeerID
 	didDocumentResolver types.DocResolver
 	nodeDIDResolver     transport.NodeDIDResolver
 	didDocumentFinder   types.DocFinder
 	eventPublisher      events.Event
 	storeProvider       storage.Provider
+	// assumeNewNode indicates the node hasn't initially sync'd with the network.
+	assumeNewNode bool
 }
 
 // CheckHealth performs health checks for the network engine.
@@ -284,6 +290,28 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	return nil
 }
 
+func (n *Network) DiscoverServices(updatedDID did.DID) {
+	if !n.config.EnableDiscovery {
+		return
+	}
+	document, _, err := n.didDocumentResolver.Resolve(updatedDID, nil)
+	if err != nil {
+		// VDR store is down. Any missed updates are resolved on node restart.
+		// This can happen when the VDR is receiving lots of DID updates, such as during the initial sync of the network.
+		log.Logger().WithError(err).
+			WithField(core.LogFieldDID, updatedDID.String()).
+			Error("Service discovery could not read DID document after an update")
+		return
+	}
+	nodeDID, err := n.nodeDIDResolver.Resolve()
+	if err != nil {
+		// This can only occur when the autoNodeDIDResolver is used (non-strict mode)
+		log.Logger().WithError(err).Error("Could not resolve own node DID for service discovery")
+		return
+	}
+	n.connectToDID(nodeDID, *document)
+}
+
 // emitEvents is called when a payload is added.
 func (n *Network) emitEvents(event dag.Event) (bool, error) {
 	_, js, err := n.eventPublisher.Pool().Acquire(context.Background())
@@ -319,7 +347,8 @@ func (n *Network) Config() interface{} {
 
 // Start initiates the Network subsystem
 func (n *Network) Start() error {
-	n.startTime.Store(time.Now())
+	startTime := time.Now()
+	n.startTime.Store(&startTime)
 
 	if err := n.state.Start(); err != nil {
 		return err
@@ -356,7 +385,7 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 		if len(strings.TrimSpace(bootstrapNode)) == 0 {
 			continue
 		}
-		n.connectionManager.Connect(bootstrapNode, did.DID{})
+		n.connectionManager.Connect(bootstrapNode, did.DID{}, 0)
 	}
 
 	if !n.config.EnableDiscovery {
@@ -368,31 +397,45 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 	if err != nil {
 		return err
 	}
+	n.assumeNewNode = len(otherNodes) == 0
+	if n.assumeNewNode {
+		log.Logger().Infof("Assuming this is a new node, discovered NutsComm addresses are processed with a %s delay", newNodeConnectionDelay)
+	}
 	for _, node := range otherNodes {
-		if !nodeDID.Empty() && node.ID.Equals(nodeDID) {
-			// Found local node, do not discover.
-			continue
-		}
-	inner:
-		for _, service := range node.Service {
-			if service.Type == transport.NutsCommServiceType {
-				var nutsCommUrl transport.NutsCommURL
-				if err = service.UnmarshalServiceEndpoint(&nutsCommUrl); err != nil {
-					log.Logger().
-						WithError(err).
-						WithField(core.LogFieldDID, node.ID.String()).
-						Warn("Failed to extract NutsComm address from service")
-					continue inner
-				}
+		n.connectToDID(nodeDID, node)
+	}
+
+	return nil
+}
+
+func (n *Network) connectToDID(nodeDID did.DID, node did.Document) {
+	if !nodeDID.Empty() && node.ID.Equals(nodeDID) {
+		// Found local node, do not discover.
+		return
+	}
+inner:
+	for _, service := range node.Service {
+		if service.Type == transport.NutsCommServiceType {
+			var nutsCommUrl transport.NutsCommURL
+			if err := service.UnmarshalServiceEndpoint(&nutsCommUrl); err != nil {
 				log.Logger().
+					WithError(err).
 					WithField(core.LogFieldDID, node.ID.String()).
-					WithField(core.LogFieldNodeAddress, nutsCommUrl.Host).
-					Info("Discovered Nuts node")
-				n.connectionManager.Connect(nutsCommUrl.Host, node.ID)
+					Debug("Failed to extract NutsComm address from service")
+				continue inner
+			}
+			log.Logger().
+				WithField(core.LogFieldDID, node.ID.String()).
+				WithField(core.LogFieldNodeAddress, nutsCommUrl.Host).
+				Debug("Discovered Nuts node")
+			if n.assumeNewNode && time.Since(*n.startTime.Load()) < newNodeConnectionDelay {
+				// Connect to NutsComm addresses with a delay.
+				n.connectionManager.Connect(nutsCommUrl.Host, node.ID, newNodeConnectionDelay)
+			} else {
+				n.connectionManager.Connect(nutsCommUrl.Host, node.ID, 0)
 			}
 		}
 	}
-	return nil
 }
 
 func (n *Network) validateNodeDIDKeys(nodeDID did.DID) error {
@@ -762,7 +805,7 @@ func (n *Network) collectDiagnosticsForPeers() transport.Diagnostics {
 	}
 
 	result := transport.Diagnostics{
-		Uptime:               time.Since(n.startTime.Load().(time.Time)),
+		Uptime:               time.Since(*n.startTime.Load()),
 		NumberOfTransactions: uint32(transactionCount),
 		SoftwareVersion:      fmt.Sprintf("%s (%s)", core.GitBranch, core.GitCommit),
 		SoftwareID:           softwareID,

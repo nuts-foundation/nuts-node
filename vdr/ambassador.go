@@ -174,10 +174,21 @@ func (n *ambassador) callback(tx dag.Transaction, payload []byte) error {
 		return fmt.Errorf("callback could not process new DID Document, DID Document integrity check failed: %w", err)
 	}
 
+	// update documents
+	var err error
 	if n.isUpdate(tx) {
-		return n.handleUpdateDIDDocument(tx, nextDIDDocument)
+		err = n.handleUpdateDIDDocument(tx, nextDIDDocument)
+	} else {
+		err = n.handleCreateDIDDocument(tx, nextDIDDocument)
 	}
-	return n.handleCreateDIDDocument(tx, nextDIDDocument)
+	if err != nil {
+		return err
+	}
+
+	// Notify network of DID update. At this point the updated document exists in the VDR and can be used for authentication.
+	// Only inform network of a did update since nextDIDDocument could be received out of order, so may not be the latest version.
+	n.networkClient.DiscoverServices(nextDIDDocument.ID)
+	return nil
 }
 
 func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, proposedDIDDocument did.Document) error {
