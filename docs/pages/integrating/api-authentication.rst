@@ -50,6 +50,7 @@ JWT's can be generated in code and must meet the following requirements:
 Forbidden JWT Fields
 --------------------
 The following entries are forbidden in JWTs:
+
 * The ``jwk`` field, which embeds the public key, is forbidden
 * The ``jku`` field, which embeds a URL for fetching the public key, is forbidden
 * The ``x5c`` field, which embeds an X.509 certificate chain, is forbidden
