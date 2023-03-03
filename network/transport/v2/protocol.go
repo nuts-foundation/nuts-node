@@ -342,14 +342,6 @@ func (p protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 	return p.diagnosticsMan.get()
 }
 
-func (p *protocol) send(peer transport.Peer, message isEnvelope_Message) error {
-	connection := p.connectionList.Get(grpc.ByPeerID(peer.ID))
-	if connection == nil {
-		return fmt.Errorf("unable to send msg, connection not found (peer=%s)", peer)
-	}
-	return connection.Send(p, &Envelope{Message: message}, false)
-}
-
 // decryptPAL returns nil, nil if the PAL couldn't be decoded
 func (p *protocol) decryptPAL(encrypted [][]byte) (dag.PAL, error) {
 	nodeDID, err := p.nodeDIDResolver.Resolve()

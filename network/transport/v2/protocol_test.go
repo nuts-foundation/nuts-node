@@ -165,37 +165,6 @@ func TestProtocol_UnwrapMessage(t *testing.T) {
 	}))
 }
 
-func TestProtocol_send(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		connection := grpc.NewMockConnection(ctrl)
-		connectionList := grpc.NewMockConnectionList(ctrl)
-		connectionList.EXPECT().Get(grpc.ByPeerID("123")).Return(connection)
-
-		p := &protocol{}
-		p.connectionList = connectionList
-		msg := &Envelope_TransactionPayloadQuery{}
-		connection.EXPECT().Send(p, &Envelope{Message: msg}, false)
-
-		err := p.send(transport.Peer{ID: "123"}, msg)
-
-		assert.NoError(t, err)
-	})
-
-	t.Run("connection not found", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		connectionList := grpc.NewMockConnectionList(ctrl)
-		connectionList.EXPECT().Get(grpc.ByPeerID("123")).Return(nil)
-
-		p := &protocol{}
-		p.connectionList = connectionList
-
-		err := p.send(transport.Peer{ID: "123"}, &Envelope_TransactionPayloadQuery{})
-
-		assert.EqualError(t, err, "unable to send msg, connection not found (peer=123@)")
-	})
-}
-
 func TestProtocol_lifecycle(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
