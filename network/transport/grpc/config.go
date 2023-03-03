@@ -32,7 +32,36 @@ import (
 // tcpListenerCreator starts a TCP listener for the inbound gRPC server on the given address.
 // It's used by default when running the Nuts node, but unit tests can use an alternative listener creator (e.g. bufconn for in-memory channels).
 func tcpListenerCreator(addr string) (net.Listener, error) {
-	return net.Listen("tcp", addr)
+	//return net.Listen("tcp", addr)
+	listener, err := net.Listen("tcp", addr)
+	return &inboundConns{listener, make([]net.Conn, 0)}, err
+}
+
+type inboundConns struct {
+	listener net.Listener
+	list     []net.Conn
+}
+
+func (i *inboundConns) Accept() (net.Conn, error) {
+	c, err := i.listener.Accept()
+	if err == nil {
+		i.list = append(i.list, c)
+	}
+	return c, err
+}
+func (i *inboundConns) Close() error {
+	if err := i.listener.Close(); err != nil {
+		return err
+	}
+	for _, c := range i.list {
+		// close connection, ignore any errors
+		_ = c.Close()
+	}
+	return nil
+}
+
+func (i *inboundConns) Addr() net.Addr {
+	return i.listener.Addr()
 }
 
 // ConfigOption is used to build Config.

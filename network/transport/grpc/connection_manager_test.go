@@ -594,6 +594,7 @@ func Test_grpcConnectionManager_Stop(t *testing.T) {
 			return len(cm.Peers()) == 1, nil
 		}, 5*time.Second, "time-out while waiting for connection")
 
+		println("call stop")
 		cm.Stop()
 		assert.Empty(t, cm.Peers())
 	})

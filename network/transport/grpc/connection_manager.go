@@ -248,11 +248,22 @@ func (s *grpcConnectionManager) Start() error {
 
 func (s *grpcConnectionManager) Stop() {
 	log.Logger().Debug("Stopping gRPC connection manager")
+	println("cancel context")
 	s.ctxCancel() // stops connectLoop and crlValidator
+	println("context canceled")
+	if s.listener != nil {
+		println("close listener")
+		err := s.listener.Close()
+		println("listener closed")
+		if err != nil {
+			log.Logger().WithError(err).Error("failed to close listener")
+		}
+	}
 	s.connections.forEach(func(connection Connection) {
 		connection.disconnect()
 	})
 	log.Logger().Trace("Waiting for connectLoop to close")
+	println("wait for connectLoop to close")
 	s.connectLoopWG.Wait()
 
 	if s.grpcServer != nil { // is nil when not accepting inbound connections
