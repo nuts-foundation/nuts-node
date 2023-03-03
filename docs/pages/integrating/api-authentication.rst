@@ -104,6 +104,18 @@ The above ssh-keygen command unfortunately fails for Ed25519 PEM keys at the tim
 To generate a key's authorized_keys form using nuts-jwt-generator:
  .. code-block:: shell
     nuts-jwt-generator -i /path/to/keyfile --export-authorized-key
+    
+Audit Log Entries
+-----------------
+
+When a request is unauthorized you will see an audit log entry such as the following:
+
+``AUDIT[4481] Access denied: missing/malformed credential   actor="::1" event=AccessDenied module=http operation=tokenV2.middleware``
+
+    
+When a request is authorized you will see an audit log entry such as the following:
+
+``AUDIT[4481] Access granted to user 'nuts-registry-admin-demo' with JWT 80e55d60-7b56-4891-b635-bc55505c6a56 issued to demo@nuts.nl by nuts-registry-admin-demo  actor=demo@nuts.nl event=AccessGranted module=http operation=tokenV2.middleware``
 
 Legacy Token Authentication
 ***************************
