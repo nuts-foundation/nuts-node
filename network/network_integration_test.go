@@ -760,15 +760,15 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		grpc.SetPeerID(t, eve.network.connectionManager, node2.network.peerID) // eve uses node2's peerID
 
 		// Let eve connect first, so she is the first in the node1's connection list
-		eve.network.connectionManager.Connect(nameToAddress(t, "node1"), did.MustParseDID("did:nuts:node1"))
+		eve.network.connectionManager.Connect(nameToAddress(t, "node1"), did.MustParseDID("did:nuts:node1"), 0)
 		// eve also must connect to node2 so the gossip propagates from node1 via eve to node2 (gossipManager ignores duplicate peerIDs). Could be any other peer than node1 though.
-		eve.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"))
+		eve.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"), 0)
 		test.WaitFor(t, func() (bool, error) {
 			return len(eve.network.connectionManager.Peers()) == 2, nil
 		}, defaultTimeout, "time-out while waiting for nodes to connect")
 
 		// Connect node1 and node2
-		node2.network.connectionManager.Connect(nameToAddress(t, "node1"), did.MustParseDID("did:nuts:node1"))
+		node2.network.connectionManager.Connect(nameToAddress(t, "node1"), did.MustParseDID("did:nuts:node1"), 0)
 		test.WaitFor(t, func() (bool, error) {
 			return len(node2.network.connectionManager.Peers()) == 2, nil // make sure node2 has enough peers to learn about the private Tx
 		}, defaultTimeout, "time-out while waiting for nodes to connect")
