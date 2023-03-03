@@ -90,13 +90,13 @@ func (client *Crypto) SignJWS(ctx context.Context, payload []byte, headers map[s
 	return signJWS(payload, headers, privateKey, detached)
 }
 
-// EncryptJWE encrypts a signed payload using the provided public key and key identifier.
+// EncryptJWE encrypts a payload using the provided public key and key identifier.
 func (client *Crypto) EncryptJWE(ctx context.Context, payload []byte, headers map[string]interface{}, publicKey interface{}) (string, error) {
 	audit.Log(ctx, log.Logger(), audit.CryptoEncryptJWEEvent).Info("Encrypting a JWE")
 	return EncryptJWE(payload, headers, publicKey)
 }
 
-// DecryptJWE decrypts a signed message using the associated private key from the kid header.
+// DecryptJWE decrypts a message using the associated private key from the kid header.
 func (client *Crypto) DecryptJWE(ctx context.Context, message string) (body []byte, headers map[string]interface{}, err error) {
 	msg, err := jwe.Parse([]byte(message))
 	if err != nil {
