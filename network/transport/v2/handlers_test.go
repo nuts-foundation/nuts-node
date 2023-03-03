@@ -125,9 +125,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
 			mocks.State.EXPECT().ReadPayload(gomock.Any(), gomock.Any()).Return(payload, nil)
 
-			conns := &grpc.StubConnectionList{
-				Conn: &grpc.StubConnection{PeerID: peer.ID},
-			}
+			conns := grpc.NewStubConnectionList(peer)
 			p.connectionList = conns
 
 			err := p.handleTransactionPayloadQuery(context.Background(), peer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
@@ -140,9 +138,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			p, mocks := newTestProtocol(t, nil)
 			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(nil, dag.ErrTransactionNotFound)
 
-			conns := &grpc.StubConnectionList{
-				Conn: &grpc.StubConnection{PeerID: peer.ID},
-			}
+			conns := grpc.NewStubConnectionList(peer)
 			p.connectionList = conns
 
 			err := p.handleTransactionPayloadQuery(context.Background(), peer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
@@ -165,9 +161,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			p, mocks := newTestProtocol(t, nil)
 			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
 
-			conns := &grpc.StubConnectionList{
-				Conn: &grpc.StubConnection{PeerID: peer.ID},
-			}
+			conns := grpc.NewStubConnectionList(peer)
 			p.connectionList = conns
 
 			err := p.handleTransactionPayloadQuery(context.Background(), peer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
@@ -180,9 +174,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
 			mocks.DocResolver.EXPECT().Resolve(*nodeDID, nil).Return(&didDocument, nil, nil)
 			mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), gomock.Any()).Return(nil, errors.New("will return nil for PAL decryption")).Times(2)
-			conns := &grpc.StubConnectionList{
-				Conn: &grpc.StubConnection{PeerID: peer.ID},
-			}
+			conns := grpc.NewStubConnectionList(authenticatedPeer)
 			p.connectionList = conns
 
 			err := p.handleTransactionPayloadQuery(context.Background(), authenticatedPeer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
@@ -193,9 +185,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 		t.Run("decoding of the PAL header failed (nodeDID not set)", func(t *testing.T) {
 			p, mocks := newTestProtocol(t, nil)
 			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
-			conns := &grpc.StubConnectionList{
-				Conn: &grpc.StubConnection{PeerID: peer.ID},
-			}
+			conns := grpc.NewStubConnectionList(authenticatedPeer)
 			p.connectionList = conns
 
 			err := p.handleTransactionPayloadQuery(context.Background(), authenticatedPeer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
@@ -208,9 +198,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
 			mocks.DocResolver.EXPECT().Resolve(*nodeDID, nil).Return(&didDocument, nil, nil)
 			mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), gomock.Any()).Return([]byte(nodeDID.String()), nil)
-			conns := &grpc.StubConnectionList{
-				Conn: &grpc.StubConnection{PeerID: peer.ID},
-			}
+			conns := grpc.NewStubConnectionList(authenticatedPeer)
 			p.connectionList = conns
 
 			err := p.handleTransactionPayloadQuery(context.Background(), authenticatedPeer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
@@ -224,9 +212,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			mocks.DocResolver.EXPECT().Resolve(*nodeDID, nil).Return(&didDocument, nil, nil)
 			mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), gomock.Any()).Return([]byte(peerDID.String()), nil)
 			mocks.State.EXPECT().ReadPayload(context.Background(), tx.PayloadHash()).Return([]byte{}, nil)
-			conns := &grpc.StubConnectionList{
-				Conn: &grpc.StubConnection{PeerID: peer.ID},
-			}
+			conns := grpc.NewStubConnectionList(authenticatedPeer)
 			p.connectionList = conns
 
 			err := p.handleTransactionPayloadQuery(context.Background(), authenticatedPeer, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})

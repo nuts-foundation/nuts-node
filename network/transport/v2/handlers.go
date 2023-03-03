@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	"sort"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -133,24 +134,30 @@ func (p *protocol) handleTransactionPayloadQuery(ctx context.Context, peer trans
 		WithField(core.LogFieldTransactionRef, hash.FromSlice(msg.TransactionRef)).
 		Trace("Handling TransactionPayloadQuery")
 
+	// get peer's connection, authentication status is checked later on
+	connection := p.connectionList.Get(grpc.ByConnected(), grpc.ByNodeDID(peer.NodeDID), grpc.ByPeerID(peer.ID))
+	if connection == nil {
+		return fmt.Errorf("unable handle payload request, connection not found (peer=%s)", peer)
+	}
+
 	emptyResponse := &Envelope_TransactionPayload{TransactionPayload: &TransactionPayload{TransactionRef: msg.TransactionRef}}
 	tx, err := p.state.GetTransaction(ctx, hash.FromSlice(msg.TransactionRef))
 	if err != nil {
 		if errors.Is(err, dag.ErrTransactionNotFound) {
 			// Transaction not found
-			return p.send(peer, emptyResponse)
+			return connection.Send(p, &Envelope{Message: emptyResponse}, false)
 		}
 		return err
 	}
 	if len(tx.PAL()) > 0 {
 		// Private TX, verify connection
-		if !peer.Authenticated {
+		if !peer.Authenticated || !connection.Peer().Authenticated { // peer == connection.Peer()
 			// Connection isn't authenticated
 			log.Logger().
 				WithFields(peer.ToFields()).
 				WithField(core.LogFieldTransactionRef, tx.Ref()).
 				Warn("Peer requested private transaction over unauthenticated connection")
-			return p.send(peer, emptyResponse)
+			return connection.Send(p, &Envelope{Message: emptyResponse}, false)
 		}
 		epal := dag.EncryptedPAL(tx.PAL())
 
@@ -161,7 +168,7 @@ func (p *protocol) handleTransactionPayloadQuery(ctx context.Context, peer trans
 				WithFields(peer.ToFields()).
 				WithField(core.LogFieldTransactionRef, tx.Ref()).
 				Error("Peer requested private transaction but decryption failed")
-			return p.send(peer, emptyResponse)
+			return connection.Send(p, &Envelope{Message: emptyResponse}, false)
 		}
 
 		// We weren't able to decrypt the PAL, so it wasn't meant for us
@@ -170,7 +177,7 @@ func (p *protocol) handleTransactionPayloadQuery(ctx context.Context, peer trans
 				WithFields(peer.ToFields()).
 				WithField(core.LogFieldTransactionRef, tx.Ref()).
 				Warn("Peer requested private transaction we can't decode")
-			return p.send(peer, emptyResponse)
+			return connection.Send(p, &Envelope{Message: emptyResponse}, false)
 		}
 
 		if !pal.Contains(peer.NodeDID) {
@@ -178,7 +185,7 @@ func (p *protocol) handleTransactionPayloadQuery(ctx context.Context, peer trans
 				WithFields(peer.ToFields()).
 				WithField(core.LogFieldTransactionRef, tx.Ref()).
 				Warn("Peer requested private transaction illegally")
-			return p.send(peer, emptyResponse)
+			return connection.Send(p, &Envelope{Message: emptyResponse}, false)
 		}
 		// successful assertions fall through
 	}
@@ -187,7 +194,8 @@ func (p *protocol) handleTransactionPayloadQuery(ctx context.Context, peer trans
 	if err != nil {
 		return err
 	}
-	return p.send(peer, &Envelope_TransactionPayload{TransactionPayload: &TransactionPayload{TransactionRef: msg.TransactionRef, Data: data}})
+	message := &Envelope_TransactionPayload{TransactionPayload: &TransactionPayload{TransactionRef: msg.TransactionRef, Data: data}}
+	return connection.Send(p, &Envelope{Message: message}, false)
 }
 
 func (p *protocol) handleTransactionPayload(ctx context.Context, peer transport.Peer, envelope *Envelope) error {
