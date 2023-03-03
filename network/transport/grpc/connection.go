@@ -22,7 +22,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"io"
 	"sync"
@@ -102,14 +101,14 @@ func createConnection(parentCtx context.Context, peer transport.Peer) Connection
 }
 
 type conn struct {
-	peer             atomic.Value
-	ctx              context.Context
-	cancelCtx        func()
-	status           atomic.Pointer[status.Status]
-	mux              sync.RWMutex
-	streams          map[string]Stream
-	outboxes         map[string]chan interface{}
-	activeGoroutines int32
+	peer       atomic.Value
+	ctx        context.Context
+	cancelCtx  func()
+	status     atomic.Pointer[status.Status]
+	mux        sync.RWMutex
+	streams    map[string]Stream
+	outboxes   map[string]chan interface{}
+	routinesWG sync.WaitGroup
 }
 
 func (mc *conn) Peer() transport.Peer {
@@ -133,24 +132,14 @@ func (mc *conn) disconnect() {
 	}
 	mc.outboxes = make(map[string]chan interface{})
 
-	// Set peer ID, since when it reconnects it might have changed (due to a reboot). Also reset node DID because it has to be re-authenticated.
-	peer := mc.Peer()
-	peer.ID = ""
-	peer.NodeDID = did.DID{}
-	peer.Authenticated = false
-	mc.setPeer(peer)
+	// Empty the peer to be safe, but the connection should be deleted be the caller after this anyway
+	mc.setPeer(transport.Peer{})
+
+	mc.waitUntilDisconnected()
 }
 
 func (mc *conn) waitUntilDisconnected() {
-	mc.mux.RLock()
-	if len(mc.streams) == 0 {
-		// do not wait if there is no connection
-		mc.mux.RUnlock()
-		return
-	}
-	done := mc.ctx.Done()
-	mc.mux.RUnlock()
-	<-done
+	mc.routinesWG.Wait()
 }
 
 func (mc *conn) verifyOrSetPeerID(id transport.PeerID) bool {
@@ -205,20 +194,14 @@ func (mc *conn) registerStream(protocol Protocol, stream Stream) bool {
 	mc.startReceiving(protocol, stream)
 	mc.startSending(protocol, stream)
 
-	// A connection can have multiple active streams, but if one of them is closed, all of them should be closed, also closing the underlying connection.
-	go func(cancel func()) {
-		<-stream.Context().Done()
-		cancel()
-	}(mc.cancelCtx)
-
 	return true
 }
 
 func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 	peer := mc.Peer() // copy Peer, because it will be nil when logging after disconnecting.
-	atomic.AddInt32(&mc.activeGoroutines, 1)
-	go func(activeGoroutines *int32, cancel func()) {
-		defer atomic.AddInt32(activeGoroutines, -1)
+	mc.routinesWG.Add(1)
+	go func(routinesWG *sync.WaitGroup, cancel func()) {
+		defer routinesWG.Done()
 		for {
 			message := protocol.CreateEnvelope()
 			err := stream.RecvMsg(message)
@@ -251,16 +234,16 @@ func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 					Warn("Error handling message")
 			}
 		}
-	}(&mc.activeGoroutines, mc.cancelCtx)
+	}(&mc.routinesWG, mc.cancelCtx)
 }
 
 func (mc *conn) startSending(protocol Protocol, stream Stream) {
 	outbox := mc.outboxes[protocol.MethodName()]
 	done := mc.ctx.Done()
 
-	atomic.AddInt32(&mc.activeGoroutines, 1)
-	go func(activeGoroutines *int32) {
-		defer atomic.AddInt32(activeGoroutines, -1)
+	mc.routinesWG.Add(1)
+	go func(routinesWG *sync.WaitGroup) {
+		defer routinesWG.Done()
 	loop:
 		for {
 			select {
@@ -301,7 +284,7 @@ func (mc *conn) startSending(protocol Protocol, stream Stream) {
 					Warn("Error while closing client for gRPC stream")
 			}
 		}
-	}(&mc.activeGoroutines)
+	}(&mc.routinesWG)
 }
 
 func (mc *conn) IsConnected() bool {

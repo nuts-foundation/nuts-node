@@ -249,11 +249,11 @@ func (s *grpcConnectionManager) Start() error {
 func (s *grpcConnectionManager) Stop() {
 	log.Logger().Debug("Stopping gRPC connection manager")
 	s.ctxCancel() // stops connectLoop and crlValidator
-	log.Logger().Trace("Waiting for connectLoop to close")
-	s.connectLoopWG.Wait()
 	s.connections.forEach(func(connection Connection) {
 		connection.disconnect()
 	})
+	log.Logger().Trace("Waiting for connectLoop to close")
+	s.connectLoopWG.Wait()
 
 	if s.grpcServer != nil { // is nil when not accepting inbound connections
 		s.grpcServer.GracefulStop() // also closes listener
@@ -303,11 +303,7 @@ func (s *grpcConnectionManager) connect(contact *contact) {
 			Debug("stop calling, already has a connection")
 		return
 	}
-	defer func() {
-		// connection does not exist outside the dialer
-		connection.disconnect()
-		s.connections.remove(connection)
-	}()
+	defer s.connections.remove(connection)
 
 	// Open a grpc.ClientConn
 	log.Logger().WithFields(contact.peer.ToFields()).Debug("connecting to peer")
@@ -417,7 +413,7 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 	protocolNum := 0
 	// Call gRPC-enabled protocols, block until they close
 	for _, protocol := range s.protocols {
-		clientStream, err := s.openOutboundStream(connection, protocol, grpcConn, md)
+		_, err := s.openOutboundStream(connection, protocol, grpcConn, md)
 		if err != nil {
 			log.Logger().
 				WithError(err).
@@ -438,13 +434,7 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 			WithFields(peer.ToFields()).
 			Debug("Opened gRPC stream")
 		s.notifyObservers(peer, protocol, transport.StateConnected)
-
-		go func() {
-			// Waits for the clientStream to be done (other side closed the stream), then we disconnect the connection on our side
-			<-clientStream.Context().Done()
-			s.notifyObservers(peer, protocol, transport.StateDisconnected)
-			connection.disconnect()
-		}()
+		defer s.notifyObservers(peer, protocol, transport.StateDisconnected)
 
 		protocolNum++
 	}
@@ -599,6 +589,7 @@ func (s *grpcConnectionManager) handleInboundStream(protocol Protocol, inboundSt
 	connection.waitUntilDisconnected()
 	s.notifyObservers(peer, protocol, transport.StateDisconnected)
 
+	// The stream that created the connection is responsible for removing it
 	s.connections.remove(connection)
 	return nil
 }

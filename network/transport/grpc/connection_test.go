@@ -20,11 +20,10 @@ package grpc
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 	"google.golang.org/grpc/codes"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -119,6 +118,7 @@ func Test_conn_registerStream(t *testing.T) {
 
 func Test_conn_startSending(t *testing.T) {
 	t.Run("disconnect causes panic in startSending", func(t *testing.T) {
+		defer goleak.VerifyNone(t)
 		// startSending reads from the outbox channel, which is closed when disconnect() is called. Closing the channel
 		// causes startSending to read a nil message from the channel, which causes a panic.
 		// If the message to be sent is nil, it indicates the connection is closing and the loop should exit.
@@ -130,14 +130,8 @@ func Test_conn_startSending(t *testing.T) {
 		p := &TestProtocol{}
 		_ = connection.registerStream(p, stream)
 
-		assert.Equal(t, int32(2), connection.activeGoroutines) // startSending and startReceiving
-
 		stream.cancelFunc()
 		connection.disconnect()
-
-		test.WaitFor(t, func() (bool, error) {
-			return atomic.LoadInt32(&connection.activeGoroutines) == 0, nil
-		}, 5*time.Second, "waiting for all goroutines to exit")
 
 		// err status is set on connection. Due to EOF it's an unknown error
 		assert.Equal(t, codes.Unknown, connection.status.Load().Code())
