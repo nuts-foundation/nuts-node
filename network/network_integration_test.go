@@ -802,8 +802,8 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		}, time.Second)
 
 		// make sure eve does not have the payload
-		assert.False(t, arrivedAtEve)  // is true
-		assert.True(t, arrivedAtNode2) // is false
+		assert.False(t, arrivedAtEve)
+		assert.True(t, arrivedAtNode2)
 	})
 }
 
