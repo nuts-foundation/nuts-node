@@ -64,6 +64,7 @@ Libraries for generating JSON Web Tokens are `available for all major programmin
 Calling Application Requirements
 --------------------------------
 Generally speaking for your application to access the protected API endpoints the following process must be followed:
+
 1. Generate a private Ed25519, ECDSA, or RSA (>=2048-bit) key. Use Ed25519 if unsure which type to use.
 2. Generate an ``authorized_keys`` entry for your public key and configure the nuts-node with it. See :ref:`Configuring for Production <production-configuration>`.
 3. Create a JWT, meeting the above specifications
