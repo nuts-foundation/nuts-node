@@ -22,16 +22,19 @@ import (
 	"context"
 	crypt "crypto"
 	"errors"
+	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/jws"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"net/http"
-	"time"
 )
 
 var _ StrictServerInterface = (*Wrapper)(nil)
@@ -93,20 +96,25 @@ func (signRequest SignJwsRequest) validate() error {
 }
 
 func (signRequest EncryptJweRequest) validate() error {
-	url, err := did.ParseDIDURL(signRequest.Receiver)
-	if err != nil {
-		return err
-	}
-	if url.Empty() {
+	if len(signRequest.Receiver) == 0 {
 		return errors.New("missing receiver")
 	}
-	if signRequest.Headers == nil {
+	if len(signRequest.Headers) == 0 {
 		return errors.New("missing headers")
 	}
-	if signRequest.Payload == nil {
+	if len(signRequest.Payload) == 0 {
 		return errors.New("missing payload")
 	}
 
+	if _, ok := signRequest.Headers[jws.KeyIDKey]; ok {
+		return errors.New("kid header is not allowed, use the receiver field instead")
+	}
+
+	// receiver can be either a DID or kid, so parse it as a DIDURL
+	_, err := did.ParseDIDURL(signRequest.Receiver)
+	if err != nil {
+		return fmt.Errorf("invalid receiver: %w", err)
+	}
 	return nil
 }
 func (signRequest DecryptJweRequest) validate() error {
@@ -168,28 +176,36 @@ func (w *Wrapper) EncryptJwe(ctx context.Context, request EncryptJweRequestObjec
 		now := time.Now()
 		key, err = w.K.ResolveRelationKey(id.String(), &now, types.KeyAgreement)
 		if err != nil {
-			return nil, err
+			if errors.Is(err, types.ErrNotFound) || errors.Is(err, types.ErrKeyNotFound) {
+				return nil, core.NotFoundError("%s: %s", err, id)
+			}
+			return nil, core.InvalidInputError("invalid receiver: %w", err)
 		}
 		keyID = id.URI()
 	} else {
 		// Assume it is a DID
 		key, err = w.K.ResolveKeyAgreementKey(*id)
 		if err != nil {
+			if errors.Is(err, types.ErrNotFound) {
+				return nil, core.NotFoundError("%s: %s", err, id)
+			}
 			return nil, err
 		}
 		keyID, err = w.K.ResolveRelationKeyID(*id, types.KeyAgreement)
 		if err != nil {
-			return nil, err
+			if errors.Is(err, types.ErrNotFound) {
+				return nil, core.NotFoundError("%s: %s", err, id)
+			}
+
+			return nil, core.InvalidInputError("invalid receiver: %w", err)
 		}
 	}
 
 	headers := encryptRequest.Headers
 	resolvedKid := keyID.String()
-	if headerKid, ok := headers[jws.KeyIDKey]; ok && resolvedKid != headerKid {
-		return nil, core.InvalidInputError("the provided header value for kid: %s does not match the resolved keyID: %s", headerKid, resolvedKid)
-	} else if !ok {
-		headers[jws.KeyIDKey] = resolvedKid
-	}
+	// set / override kid in headers with actual used kid
+	headers[jws.KeyIDKey] = resolvedKid
+
 	jwe, err := w.C.EncryptJWE(ctx, encryptRequest.Payload, headers, key)
 	if err != nil {
 		return nil, err

@@ -156,9 +156,8 @@ components:
         detached:
           type: boolean
           default: false
-          description: "In detached mode the payload is signed but NOT included in the returned JWS object. 
-          Instead, the space between the first and second dot is empty, like this: \"<header>..<signature>\".
-          Defaults to false."
+          description: |
+            In detached mode the payload is signed but NOT included in the returned JWS object. Instead, the space between the first and second dot is empty, like this: "<header>..<signature>" Defaults to false.
     EncryptJweRequest:
       required:
         - headers
@@ -167,15 +166,20 @@ components:
       properties:
         receiver:
           type: string
-          description: "The DID reference of the message receiver OR the KID of the message receiver."
-          example: "did:nuts:6hFuBFYQS7C24SiDzLsY4krTeuZcho7zsLmEbrKB6JrS or did:nuts:6hFuBFYQS7C24SiDzLsY4krTeuZcho7zsLmEbrKB6JrS#VJqDlyOuznZQAxcTTPa0fe30Qk__6aBzyU9qhrNhPX8"
+          description: |
+            The DID reference of the message receiver OR the KID of the message receiver.
+          example: "did:nuts:6hFuBFYQS7C24SiDzLsY4krTeuZcho7zsLmEbrKB6JrS"
         headers:
           type: object
-          description: "The map of protected headers"
+          description: |
+            The map of protected headers.
+            Note: The value of the kid header will be ignored and overwritten by the used receiver KID.
         payload:
           type: string
           format: byte
-          description: "The payload to be signed as bytes. The bytes must be encoded with Base64 encoding."
+          description: |
+            The payload to be signed as bytes. The bytes must be encoded with Base64 encoding.
+          example: "SGVsbG9OdXRzIQ=="
     DecryptJweRequest:
       required:
         - message

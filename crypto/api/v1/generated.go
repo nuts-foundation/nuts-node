@@ -28,7 +28,8 @@ type DecryptJweRequest struct {
 
 // EncryptJweRequest defines model for EncryptJweRequest.
 type EncryptJweRequest struct {
-	// Headers The map of protected headers
+	// Headers The map of protected headers.
+	// Note: The value of the kid header will be ignored and overwritten by the used receiver KID.
 	Headers map[string]interface{} `json:"headers"`
 
 	// Payload The payload to be signed as bytes. The bytes must be encoded with Base64 encoding.
@@ -40,7 +41,7 @@ type EncryptJweRequest struct {
 
 // SignJwsRequest defines model for SignJwsRequest.
 type SignJwsRequest struct {
-	// Detached In detached mode the payload is signed but NOT included in the returned JWS object. Instead, the space between the first and second dot is empty, like this: "<header>..<signature>". Defaults to false.
+	// Detached In detached mode the payload is signed but NOT included in the returned JWS object. Instead, the space between the first and second dot is empty, like this: "<header>..<signature>" Defaults to false.
 	Detached *bool `json:"detached,omitempty"`
 
 	// Headers The map of protected headers
