@@ -11,6 +11,7 @@ import (
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	tree "github.com/nuts-foundation/nuts-node/network/dag/tree"
 	transport "github.com/nuts-foundation/nuts-node/network/transport"
+	grpc "github.com/nuts-foundation/nuts-node/network/transport/grpc"
 )
 
 // MockmessageSender is a mock of messageSender interface.
@@ -49,85 +50,85 @@ func (mr *MockmessageSenderMockRecorder) broadcastDiagnostics(diagnostics interf
 }
 
 // sendGossipMsg mocks base method.
-func (m *MockmessageSender) sendGossipMsg(id transport.PeerID, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) error {
+func (m *MockmessageSender) sendGossipMsg(connection grpc.Connection, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "sendGossipMsg", id, refs, xor, clock)
+	ret := m.ctrl.Call(m, "sendGossipMsg", connection, refs, xor, clock)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // sendGossipMsg indicates an expected call of sendGossipMsg.
-func (mr *MockmessageSenderMockRecorder) sendGossipMsg(id, refs, xor, clock interface{}) *gomock.Call {
+func (mr *MockmessageSenderMockRecorder) sendGossipMsg(connection, refs, xor, clock interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "sendGossipMsg", reflect.TypeOf((*MockmessageSender)(nil).sendGossipMsg), id, refs, xor, clock)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "sendGossipMsg", reflect.TypeOf((*MockmessageSender)(nil).sendGossipMsg), connection, refs, xor, clock)
 }
 
 // sendState mocks base method.
-func (m *MockmessageSender) sendState(id transport.PeerID, xor hash.SHA256Hash, clock uint32) error {
+func (m *MockmessageSender) sendState(connection grpc.Connection, xor hash.SHA256Hash, clock uint32) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "sendState", id, xor, clock)
+	ret := m.ctrl.Call(m, "sendState", connection, xor, clock)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // sendState indicates an expected call of sendState.
-func (mr *MockmessageSenderMockRecorder) sendState(id, xor, clock interface{}) *gomock.Call {
+func (mr *MockmessageSenderMockRecorder) sendState(connection, xor, clock interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "sendState", reflect.TypeOf((*MockmessageSender)(nil).sendState), id, xor, clock)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "sendState", reflect.TypeOf((*MockmessageSender)(nil).sendState), connection, xor, clock)
 }
 
 // sendTransactionList mocks base method.
-func (m *MockmessageSender) sendTransactionList(peerID transport.PeerID, conversationID conversationID, transactions []*Transaction) error {
+func (m *MockmessageSender) sendTransactionList(connection grpc.Connection, conversationID conversationID, transactions []*Transaction) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "sendTransactionList", peerID, conversationID, transactions)
+	ret := m.ctrl.Call(m, "sendTransactionList", connection, conversationID, transactions)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // sendTransactionList indicates an expected call of sendTransactionList.
-func (mr *MockmessageSenderMockRecorder) sendTransactionList(peerID, conversationID, transactions interface{}) *gomock.Call {
+func (mr *MockmessageSenderMockRecorder) sendTransactionList(connection, conversationID, transactions interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "sendTransactionList", reflect.TypeOf((*MockmessageSender)(nil).sendTransactionList), peerID, conversationID, transactions)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "sendTransactionList", reflect.TypeOf((*MockmessageSender)(nil).sendTransactionList), connection, conversationID, transactions)
 }
 
 // sendTransactionListQuery mocks base method.
-func (m *MockmessageSender) sendTransactionListQuery(id transport.PeerID, refs []hash.SHA256Hash) error {
+func (m *MockmessageSender) sendTransactionListQuery(connection grpc.Connection, refs []hash.SHA256Hash) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "sendTransactionListQuery", id, refs)
+	ret := m.ctrl.Call(m, "sendTransactionListQuery", connection, refs)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // sendTransactionListQuery indicates an expected call of sendTransactionListQuery.
-func (mr *MockmessageSenderMockRecorder) sendTransactionListQuery(id, refs interface{}) *gomock.Call {
+func (mr *MockmessageSenderMockRecorder) sendTransactionListQuery(connection, refs interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "sendTransactionListQuery", reflect.TypeOf((*MockmessageSender)(nil).sendTransactionListQuery), id, refs)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "sendTransactionListQuery", reflect.TypeOf((*MockmessageSender)(nil).sendTransactionListQuery), connection, refs)
 }
 
 // sendTransactionRangeQuery mocks base method.
-func (m *MockmessageSender) sendTransactionRangeQuery(id transport.PeerID, lcStart, lcEnd uint32) error {
+func (m *MockmessageSender) sendTransactionRangeQuery(connection grpc.Connection, lcStart, lcEnd uint32) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "sendTransactionRangeQuery", id, lcStart, lcEnd)
+	ret := m.ctrl.Call(m, "sendTransactionRangeQuery", connection, lcStart, lcEnd)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // sendTransactionRangeQuery indicates an expected call of sendTransactionRangeQuery.
-func (mr *MockmessageSenderMockRecorder) sendTransactionRangeQuery(id, lcStart, lcEnd interface{}) *gomock.Call {
+func (mr *MockmessageSenderMockRecorder) sendTransactionRangeQuery(connection, lcStart, lcEnd interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "sendTransactionRangeQuery", reflect.TypeOf((*MockmessageSender)(nil).sendTransactionRangeQuery), id, lcStart, lcEnd)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "sendTransactionRangeQuery", reflect.TypeOf((*MockmessageSender)(nil).sendTransactionRangeQuery), connection, lcStart, lcEnd)
 }
 
 // sendTransactionSet mocks base method.
-func (m *MockmessageSender) sendTransactionSet(id transport.PeerID, conversationID conversationID, LCReq, LC uint32, iblt tree.Iblt) error {
+func (m *MockmessageSender) sendTransactionSet(connection grpc.Connection, conversationID conversationID, LCReq, LC uint32, iblt tree.Iblt) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "sendTransactionSet", id, conversationID, LCReq, LC, iblt)
+	ret := m.ctrl.Call(m, "sendTransactionSet", connection, conversationID, LCReq, LC, iblt)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // sendTransactionSet indicates an expected call of sendTransactionSet.
-func (mr *MockmessageSenderMockRecorder) sendTransactionSet(id, conversationID, LCReq, LC, iblt interface{}) *gomock.Call {
+func (mr *MockmessageSenderMockRecorder) sendTransactionSet(connection, conversationID, LCReq, LC, iblt interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "sendTransactionSet", reflect.TypeOf((*MockmessageSender)(nil).sendTransactionSet), id, conversationID, LCReq, LC, iblt)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "sendTransactionSet", reflect.TypeOf((*MockmessageSender)(nil).sendTransactionSet), connection, conversationID, LCReq, LC, iblt)
 }

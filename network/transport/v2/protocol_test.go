@@ -148,19 +148,19 @@ func TestProtocol_PeerDiagnostics(t *testing.T) {
 		transport.PeerID("1234"): {SoftwareID: "4321", Peers: []transport.PeerID{}},
 	}
 	mgr.received = expected
-	assert.Equal(t, expected, protocol{diagnosticsMan: mgr}.PeerDiagnostics())
+	assert.Equal(t, expected, (&protocol{diagnosticsMan: mgr}).PeerDiagnostics())
 }
 
 func TestProtocol_MethodName(t *testing.T) {
-	assert.Equal(t, "/v2.Protocol/Stream", protocol{}.MethodName())
+	assert.Equal(t, "/v2.Protocol/Stream", (&protocol{}).MethodName())
 }
 
 func TestProtocol_CreateEnvelope(t *testing.T) {
-	assert.Equal(t, &Envelope{}, protocol{}.CreateEnvelope())
+	assert.Equal(t, &Envelope{}, (&protocol{}).CreateEnvelope())
 }
 
 func TestProtocol_UnwrapMessage(t *testing.T) {
-	assert.Equal(t, &Envelope_TransactionPayloadQuery{}, protocol{}.UnwrapMessage(&Envelope{
+	assert.Equal(t, &Envelope_TransactionPayloadQuery{}, (&protocol{}).UnwrapMessage(&Envelope{
 		Message: &Envelope_TransactionPayloadQuery{},
 	}))
 }
@@ -168,7 +168,7 @@ func TestProtocol_UnwrapMessage(t *testing.T) {
 func TestProtocol_lifecycle(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	connectionList := grpc.NewMockConnectionList(ctrl)
+	connectionList := grpc.NewStubConnectionList(transport.Peer{ID: "123"})
 	connectionManager := transport.NewMockConnectionManager(ctrl)
 
 	s := grpcLib.NewServer()
@@ -182,7 +182,7 @@ func TestProtocol_lifecycle(t *testing.T) {
 		return nil
 	}, connectionList, connectionManager)
 
-	err = p.Handle(transport.Peer{ID: "123"}, &Envelope{})
+	err = p.Handle(connectionList.Conn, &Envelope{})
 	assert.Equal(t, errMessageNotSupported, err)
 
 	p.Stop()

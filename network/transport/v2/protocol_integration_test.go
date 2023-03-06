@@ -88,7 +88,8 @@ func TestProtocolV2_Pagination(t *testing.T) {
 	for i, tx := range transactions {
 		hashes[i] = tx.Ref()
 	}
-	err = node2.protocol.sendTransactionListQuery("v2_pagination_node1", hashes)
+	conn := node2.protocol.connectionList.Get(grpc.ByPeerID("v2_pagination_node1"))
+	err = node2.protocol.sendTransactionListQuery(conn, hashes)
 	assert.NoError(t, err)
 
 	test.WaitFor(t, func() (bool, error) {

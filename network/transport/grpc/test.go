@@ -33,12 +33,7 @@ type StubConnectionList struct {
 // NewStubConnectionList returns a StubConnectionList with a connection to the provided transport.Peer
 func NewStubConnectionList(peer transport.Peer) *StubConnectionList {
 	return &StubConnectionList{
-		Conn: &StubConnection{
-			Open:          true,
-			PeerID:        peer.ID,
-			NodeDID:       peer.NodeDID,
-			Authenticated: peer.Authenticated,
-			Address:       peer.Address},
+		Conn: NewStubConnection(peer),
 	}
 }
 
@@ -70,6 +65,8 @@ func (s StubConnectionList) AllMatching(_ ...Predicate) []Connection {
 	return s.All()
 }
 
+var _ Connection = (*StubConnection)(nil)
+
 // StubConnection is a stub implementation of the Connection interface
 type StubConnection struct {
 	Open          bool
@@ -78,6 +75,19 @@ type StubConnection struct {
 	PeerID        transport.PeerID
 	Authenticated bool
 	Address       string
+}
+
+func NewStubConnection(peer transport.Peer) *StubConnection {
+	return &StubConnection{
+		Open:          true,
+		PeerID:        peer.ID,
+		NodeDID:       peer.NodeDID,
+		Authenticated: peer.Authenticated,
+		Address:       peer.Address}
+}
+
+func (s *StubConnection) ID() transport.PeerID {
+	return s.PeerID
 }
 
 // Send sends a message to the connection
@@ -112,7 +122,7 @@ func (s *StubConnection) IsAuthenticated() bool {
 	return s.Authenticated
 }
 
-func (s *StubConnection) CloseError() *status.Status {
+func (s *StubConnection) closeError() *status.Status {
 	panic("implement me")
 }
 

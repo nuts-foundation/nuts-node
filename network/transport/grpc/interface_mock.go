@@ -110,17 +110,17 @@ func (mr *MockProtocolMockRecorder) GetMessageType(envelope interface{}) *gomock
 }
 
 // Handle mocks base method.
-func (m *MockProtocol) Handle(peer transport.Peer, envelope interface{}) error {
+func (m *MockProtocol) Handle(connection Connection, envelope interface{}) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Handle", peer, envelope)
+	ret := m.ctrl.Call(m, "Handle", connection, envelope)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Handle indicates an expected call of Handle.
-func (mr *MockProtocolMockRecorder) Handle(peer, envelope interface{}) *gomock.Call {
+func (mr *MockProtocolMockRecorder) Handle(connection, envelope interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Handle", reflect.TypeOf((*MockProtocol)(nil).Handle), peer, envelope)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Handle", reflect.TypeOf((*MockProtocol)(nil).Handle), connection, envelope)
 }
 
 // MethodName mocks base method.
