@@ -114,7 +114,7 @@ type protocol struct {
 	dagStore               stoabs.KVStore
 }
 
-func (p protocol) CreateClientStream(outgoingContext context.Context, grpcConn grpcLib.ClientConnInterface) (grpcLib.ClientStream, error) {
+func (p *protocol) CreateClientStream(outgoingContext context.Context, grpcConn grpcLib.ClientConnInterface) (grpcLib.ClientStream, error) {
 	return NewProtocolClient(grpcConn).Stream(outgoingContext)
 }
 
@@ -125,23 +125,23 @@ func (p *protocol) Register(registrar grpcLib.ServiceRegistrar, acceptor func(st
 	p.connectionManager.RegisterObserver(p.connectionStateCallback)
 }
 
-func (p protocol) Version() int {
+func (p *protocol) Version() int {
 	return 2
 }
 
-func (p protocol) MethodName() string {
+func (p *protocol) MethodName() string {
 	return grpc.GetStreamMethod(Protocol_ServiceDesc.ServiceName, Protocol_ServiceDesc.Streams[0])
 }
 
-func (p protocol) CreateEnvelope() interface{} {
+func (p *protocol) CreateEnvelope() interface{} {
 	return &Envelope{}
 }
 
-func (p protocol) UnwrapMessage(envelope interface{}) interface{} {
+func (p *protocol) UnwrapMessage(envelope interface{}) interface{} {
 	return envelope.(*Envelope).Message
 }
 
-func (p protocol) GetMessageType(envelope interface{}) string {
+func (p *protocol) GetMessageType(envelope interface{}) string {
 	if _, ok := envelope.(*Envelope); ok {
 		result := fmt.Sprintf("%T", p.UnwrapMessage(envelope))
 		return strings.TrimPrefix(result, "*v2.Envelope_")
@@ -237,7 +237,16 @@ func (p *protocol) gossipTransaction(event dag.Event) (bool, error) {
 }
 
 func (p *protocol) sendGossip(id transport.PeerID, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) bool {
-	if err := p.sendGossipMsg(id, refs, xor, clock); err != nil {
+	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByPeerID(id))
+	var err error
+
+	if conn == nil {
+		err = grpc.ErrNoConnection
+	} else {
+		err = p.sendGossipMsg(conn, refs, xor, clock)
+	}
+
+	if err != nil {
 		log.Logger().
 			WithError(err).
 			WithField(core.LogFieldPeerID, id.String()).
@@ -320,7 +329,7 @@ func (p *protocol) Stop() {
 	p.routines.Wait()
 }
 
-func (p protocol) Diagnostics() []core.DiagnosticResult {
+func (p *protocol) Diagnostics() []core.DiagnosticResult {
 	if p.privatePayloadReceiver == nil {
 		return []core.DiagnosticResult{}
 	}
@@ -338,7 +347,7 @@ func (p protocol) Diagnostics() []core.DiagnosticResult {
 	}}
 }
 
-func (p protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
+func (p *protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 	return p.diagnosticsMan.get()
 }
 

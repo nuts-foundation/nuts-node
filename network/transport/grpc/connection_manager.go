@@ -458,7 +458,7 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 	// Function must block until streams are closed or disconnect() is called.
 	connection.waitUntilDisconnected()
 
-	if st := connection.CloseError(); st != nil && st.Code() == codes.Unauthenticated {
+	if st := connection.closeError(); st != nil && st.Code() == codes.Unauthenticated {
 		// return error so entire connection will be tried anew. Otherwise, backoff isn't honored
 		return st.Err()
 	}

@@ -35,20 +35,6 @@ func (m *MockConnection) EXPECT() *MockConnectionMockRecorder {
 	return m.recorder
 }
 
-// CloseError mocks base method.
-func (m *MockConnection) CloseError() *status.Status {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CloseError")
-	ret0, _ := ret[0].(*status.Status)
-	return ret0
-}
-
-// CloseError indicates an expected call of CloseError.
-func (mr *MockConnectionMockRecorder) CloseError() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloseError", reflect.TypeOf((*MockConnection)(nil).CloseError))
-}
-
 // IsAuthenticated mocks base method.
 func (m *MockConnection) IsAuthenticated() bool {
 	m.ctrl.T.Helper()
@@ -117,6 +103,20 @@ func (m *MockConnection) Send(protocol Protocol, envelope interface{}, ignoreSof
 func (mr *MockConnectionMockRecorder) Send(protocol, envelope, ignoreSoftLimit interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockConnection)(nil).Send), protocol, envelope, ignoreSoftLimit)
+}
+
+// closeError mocks base method.
+func (m *MockConnection) closeError() *status.Status {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "closeError")
+	ret0, _ := ret[0].(*status.Status)
+	return ret0
+}
+
+// closeError indicates an expected call of closeError.
+func (mr *MockConnectionMockRecorder) closeError() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "closeError", reflect.TypeOf((*MockConnection)(nil).closeError))
 }
 
 // disconnect mocks base method.
