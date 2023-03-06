@@ -50,6 +50,8 @@ type Wrapper struct {
 func (w *Wrapper) ResolveStatusCode(err error) int {
 	return core.ResolveStatusCode(err, map[error]int{
 		crypto.ErrPrivateKeyNotFound: http.StatusBadRequest,
+		types.ErrNotFound:            http.StatusNotFound,
+		types.ErrKeyNotFound:         http.StatusNotFound,
 	})
 }
 
@@ -177,7 +179,7 @@ func (w *Wrapper) EncryptJwe(ctx context.Context, request EncryptJweRequestObjec
 		key, err = w.K.ResolveRelationKey(id.String(), &now, types.KeyAgreement)
 		if err != nil {
 			if errors.Is(err, types.ErrNotFound) || errors.Is(err, types.ErrKeyNotFound) {
-				return nil, core.NotFoundError("%s: %s", err, id)
+				return nil, err
 			}
 			return nil, core.InvalidInputError("invalid receiver: %w", err)
 		}
@@ -194,7 +196,7 @@ func (w *Wrapper) EncryptJwe(ctx context.Context, request EncryptJweRequestObjec
 		keyID, err = w.K.ResolveRelationKeyID(*id, types.KeyAgreement)
 		if err != nil {
 			if errors.Is(err, types.ErrNotFound) {
-				return nil, core.NotFoundError("%s: %s", err, id)
+				return nil, err
 			}
 
 			return nil, core.InvalidInputError("invalid receiver: %w", err)
