@@ -11,12 +11,20 @@ Coconut update (v5.1.0)
 
 Release date: **DRAFT**
 
-- Default value of strictmode changed to true
+- Default value of strictmode changed to true.
 - Internal storage of VDR has changed. A migration will run at startup. If the node is stopped during this process, DID Documents will have to be reprocessed manually (restore functionality)
 - Added audit logging for cryptographic operations (creating a new key pair, signing, decrypting).
   Refer to the documentation for more information.
+- Added new API authentication method, in which the administrator configures authorized public keys and the API client is responsible for signing JWT using the private key. This new API authentication is preferred over the current method, which will be removed in the next major release.
+- Added support for encrypting documents according to JWE (for DIDComm support).
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.0...v5.1.0
+
+================
+Breaking changes
+================
+
+There are no breaking changes, but if you're running in non-strict mode (but didn't actively disable it), you'll have to disable strict mode by setting ``strictmode`` to ``false``.
 
 ***********************
 Coconut update (v5.0.10)
