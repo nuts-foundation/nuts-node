@@ -148,26 +148,38 @@ func Test_fs_KeyExistsFor(t *testing.T) {
 }
 
 func Test_fs_ListPrivateKeys(t *testing.T) {
-	storage, _ := NewFileSystemBackend(io.TestDirectory(t))
-	backend := storage.(*fileSystemBackend)
+	t.Run("ok", func(t *testing.T) {
+		storage, _ := NewFileSystemBackend(io.TestDirectory(t))
+		backend := storage.(*fileSystemBackend)
 
-	// Generate a few keys
-	pk := test.GenerateECKey()
-	for i := 0; i < 5; i++ {
-		kid := fmt.Sprintf("key-%d", i)
-		_ = backend.SavePrivateKey(kid, pk)
-	}
+		// Generate a few keys
+		pk := test.GenerateECKey()
+		for i := 0; i < 5; i++ {
+			kid := fmt.Sprintf("key-%d", i)
+			_ = backend.SavePrivateKey(kid, pk)
+		}
 
-	// Store some other cruft that shouldn't return as private key
-	_ = os.WriteFile(path.Join(backend.fspath, string(privateKeyEntry)), []byte{1, 2, 3}, os.ModePerm)
-	_ = os.WriteFile(path.Join(backend.fspath, "_"+string(privateKeyEntry)), []byte{1, 2, 3}, os.ModePerm)
-	_ = os.WriteFile(path.Join(backend.fspath, "foo.txt"), []byte{1, 2, 3}, os.ModePerm)
-	_ = os.WriteFile(path.Join(backend.fspath, "daslkdjaslkdj_public.json"), []byte{1, 2, 3}, os.ModePerm)
-	_ = os.WriteFile(path.Join(backend.fspath, "daslkdjaslkdj_private.bin"), []byte{1, 2, 3}, os.ModePerm)
-	_ = os.Mkdir(path.Join(backend.fspath, "subdir"), os.ModePerm)
-	_ = os.WriteFile(path.Join(backend.fspath, "subdir", "daslkdjaslkdj_public.json"), []byte{1, 2, 3}, os.ModePerm)
+		// Store some other cruft that shouldn't return as private key
+		_ = os.WriteFile(path.Join(backend.fspath, string(privateKeyEntry)), []byte{1, 2, 3}, os.ModePerm)
+		_ = os.WriteFile(path.Join(backend.fspath, "_"+string(privateKeyEntry)), []byte{1, 2, 3}, os.ModePerm)
+		_ = os.WriteFile(path.Join(backend.fspath, "foo.txt"), []byte{1, 2, 3}, os.ModePerm)
+		_ = os.WriteFile(path.Join(backend.fspath, "daslkdjaslkdj_public.json"), []byte{1, 2, 3}, os.ModePerm)
+		_ = os.WriteFile(path.Join(backend.fspath, "daslkdjaslkdj_private.bin"), []byte{1, 2, 3}, os.ModePerm)
+		_ = os.Mkdir(path.Join(backend.fspath, "subdir"), os.ModePerm)
+		_ = os.WriteFile(path.Join(backend.fspath, "subdir", "daslkdjaslkdj_public.json"), []byte{1, 2, 3}, os.ModePerm)
 
-	keys := backend.ListPrivateKeys()
-	sort.Strings(keys)
-	assert.Equal(t, []string{"key-0", "key-1", "key-2", "key-3", "key-4"}, keys)
+		keys := backend.ListPrivateKeys()
+		sort.Strings(keys)
+		assert.Equal(t, []string{"key-0", "key-1", "key-2", "key-3", "key-4"}, keys)
+	})
+	t.Run("WalkFunc error", func(t *testing.T) {
+		// https://github.com/nuts-foundation/nuts-node/issues/1943
+		// ListPrivateKeys uses path.WalkFunc, which gets called with a non-nil error in case Lstat fails.
+		// This happens when the root directory does not exist (or any other underlying FS error).
+		storage := &fileSystemBackend{fspath: path.Join(io.TestDirectory(t), "does-not-exist")}
+
+		keys := storage.ListPrivateKeys()
+
+		assert.Empty(t, keys)
+	})
 }
