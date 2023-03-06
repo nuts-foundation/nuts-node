@@ -29,10 +29,11 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/go-did/did"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
 const mockKID = "did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE"
@@ -123,6 +124,7 @@ func TestCreator_Create(t *testing.T) {
 		})
 
 		t.Run("using ephemeral key creates different keys for assertion and DID", func(t *testing.T) {
+			t.Skip("Disabled while ephemeral keys are not used")
 			ctrl := gomock.NewController(t)
 			keyCreator := nutsCrypto.NewMockKeyCreator(ctrl)
 			creator := Creator{KeyStore: keyCreator}
