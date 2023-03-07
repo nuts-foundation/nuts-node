@@ -21,10 +21,14 @@ package oauth
 import (
 	"context"
 	"crypto"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/auth/api/v1/client"
+	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwt"
@@ -70,17 +74,43 @@ func (e ErrorResponse) Error() string {
 }
 
 type service struct {
-	docResolver     types.DocResolver
-	vcFinder        vcr.Finder
-	vcVerifier      verifier.Verifier
-	keyResolver     types.KeyResolver
-	privateKeyStore nutsCrypto.KeyStore
-	contractNotary  services.ContractNotary
-	serviceResolver didman.CompoundServiceResolver
-	jsonldManager   jsonld.JSONLD
-	secureMode      bool
+	docResolver       types.DocResolver
+	vcFinder          vcr.Finder
+	vcVerifier        verifier.Verifier
+	keyResolver       types.KeyResolver
+	privateKeyStore   nutsCrypto.KeyStore
+	contractNotary    services.ContractNotary
+	serviceResolver   didman.CompoundServiceResolver
+	jsonldManager     jsonld.JSONLD
+	secureMode        bool
+	clockSkew         time.Duration
+	httpClientTimeout time.Duration
+	httpClientTLS     *tls.Config
+}
 
-	clockSkew time.Duration
+func (s *service) RequestAccessToken(ctx context.Context, jwtGrantToken string, authorizationServerEndpoint string) (*services.AccessTokenResult, error) {
+	if s.secureMode && !strings.HasPrefix(strings.ToLower(authorizationServerEndpoint), "https://") {
+		return nil, fmt.Errorf("authorization server endpoint must be HTTPS when in strict mode: %s", authorizationServerEndpoint)
+	}
+	httpClient := &http.Client{}
+	if s.httpClientTLS != nil {
+		httpClient.Transport = &http.Transport{
+			TLSClientConfig: s.httpClientTLS,
+		}
+	}
+	authClient, err := client.NewHTTPClient("", s.httpClientTimeout, client.WithHTTPClient(httpClient), client.WithRequestEditorFn(core.UserAgentRequestEditor))
+	if err != nil {
+		return nil, fmt.Errorf("unable to create HTTP client: %w", err)
+	}
+	authServerEndpoint, err := url.Parse(authorizationServerEndpoint)
+	if err != nil {
+		return nil, err
+	}
+	accessTokenResponse, err := authClient.CreateAccessToken(ctx, *authServerEndpoint, jwtGrantToken)
+	if err != nil {
+		return nil, fmt.Errorf("remote server/nuts node returned error creating access token: %w", err)
+	}
+	return accessTokenResponse, nil
 }
 
 type validationContext struct {
@@ -164,16 +194,22 @@ func (c validationContext) verifiableCredentials() ([]vc2.VerifiableCredential, 
 }
 
 // NewOAuthService accepts a vendorID, and several Nuts engines and returns an implementation of services.Client
-func NewOAuthService(store didstore.Store, vcFinder vcr.Finder, vcVerifier verifier.Verifier, serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore, contractNotary services.ContractNotary, jsonldManager jsonld.JSONLD) Client {
+func NewOAuthService(
+	store didstore.Store, vcFinder vcr.Finder, vcVerifier verifier.Verifier,
+	serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore,
+	contractNotary services.ContractNotary, jsonldManager jsonld.JSONLD,
+	httpClientTimeout time.Duration, httpClientTLS *tls.Config) Client {
 	return &service{
-		docResolver:     didservice.Resolver{Store: store},
-		keyResolver:     didservice.KeyResolver{Store: store},
-		serviceResolver: serviceResolver,
-		contractNotary:  contractNotary,
-		jsonldManager:   jsonldManager,
-		vcFinder:        vcFinder,
-		vcVerifier:      vcVerifier,
-		privateKeyStore: privateKeyStore,
+		docResolver:       didservice.Resolver{Store: store},
+		keyResolver:       didservice.KeyResolver{Store: store},
+		serviceResolver:   serviceResolver,
+		contractNotary:    contractNotary,
+		jsonldManager:     jsonldManager,
+		vcFinder:          vcFinder,
+		vcVerifier:        vcVerifier,
+		privateKeyStore:   privateKeyStore,
+		httpClientTimeout: httpClientTimeout,
+		httpClientTLS:     httpClientTLS,
 	}
 }
 

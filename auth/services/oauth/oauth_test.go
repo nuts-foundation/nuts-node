@@ -24,10 +24,14 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
+	http2 "github.com/nuts-foundation/nuts-node/test/http"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
@@ -102,6 +106,59 @@ func getAuthorizerDIDDocument() *did.Document {
 		},
 	})
 	return &doc
+}
+
+func TestAuth_RequestAccessToken(t *testing.T) {
+	const bearerToken = "jwt-bearer-token"
+	t.Run("returns error when HTTP create access token fails", func(t *testing.T) {
+		ctx := createContext(t)
+		server := httptest.NewServer(&http2.Handler{
+			StatusCode: http.StatusBadGateway,
+		})
+		t.Cleanup(server.Close)
+
+		response, err := ctx.oauthService.RequestAccessToken(context.Background(), bearerToken, server.URL)
+
+		assert.Nil(t, response)
+		assert.EqualError(t, err, "remote server/nuts node returned error creating access token: server returned HTTP 502 (expected: 200)")
+	})
+
+	t.Run("endpoint security validation (only HTTPS in strict mode)", func(t *testing.T) {
+		ctx := createContext(t)
+		httpServer := httptest.NewServer(&http2.Handler{
+			StatusCode: http.StatusOK,
+		})
+		httpsServer := httptest.NewTLSServer(&http2.Handler{
+			StatusCode: http.StatusOK,
+		})
+		t.Cleanup(httpServer.Close)
+		t.Cleanup(httpsServer.Close)
+
+		t.Run("HTTPS in strict mode", func(t *testing.T) {
+			ctx.oauthService.secureMode = true
+
+			response, err := ctx.oauthService.RequestAccessToken(context.Background(), bearerToken, httpsServer.URL)
+
+			assert.NoError(t, err)
+			assert.NotNil(t, response)
+		})
+		t.Run("HTTP allowed in non-strict mode", func(t *testing.T) {
+			ctx.oauthService.secureMode = false
+
+			response, err := ctx.oauthService.RequestAccessToken(context.Background(), bearerToken, httpServer.URL)
+
+			assert.NoError(t, err)
+			assert.NotNil(t, response)
+		})
+		t.Run("HTTP not allowed in strict mode", func(t *testing.T) {
+			ctx.oauthService.secureMode = true
+
+			response, err := ctx.oauthService.RequestAccessToken(context.Background(), bearerToken, httpServer.URL)
+
+			assert.EqualError(t, err, fmt.Sprintf("authorization server endpoint must be HTTPS when in strict mode: %s", httpServer.URL))
+			assert.Nil(t, response)
+		})
+	})
 }
 
 func TestAuth_CreateAccessToken(t *testing.T) {
@@ -1066,6 +1123,9 @@ var createContext = func(t *testing.T) *testContext {
 			serviceResolver: serviceResolver,
 			vcVerifier:      verifier,
 			jsonldManager:   jsonld.NewTestJSONLDManager(t),
+			httpClientTLS: &tls.Config{
+				InsecureSkipVerify: true,
+			},
 		},
 		audit: audit.TestContext(),
 	}

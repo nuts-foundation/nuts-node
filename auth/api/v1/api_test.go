@@ -20,7 +20,6 @@ package v1
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,7 +29,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/stretchr/testify/require"
 	"net/http"
-	"net/http/httptest"
 	"reflect"
 	"testing"
 	"time"
@@ -38,8 +36,6 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-
-	http2 "github.com/nuts-foundation/nuts-node/test/http"
 
 	"github.com/golang/mock/gomock"
 	"github.com/sirupsen/logrus"
@@ -71,16 +67,6 @@ type mockAuthClient struct {
 	ctrl               *gomock.Controller
 	mockContractNotary *services.MockContractNotary
 	mockOAuthClient    *oauth.MockClient
-}
-
-func (m *mockAuthClient) HTTPTimeout() time.Duration {
-	return 10 * time.Second
-}
-
-func (m *mockAuthClient) TLSConfig() *tls.Config {
-	return &tls.Config{
-		InsecureSkipVerify: true,
-	}
 }
 
 func (m *mockAuthClient) OAuthClient() oauth.Client {
@@ -506,7 +492,9 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 		assert.EqualError(t, err, "random error")
 	})
 
-	t.Run("returns error when http create access token fails", func(t *testing.T) {
+	const bearerToken = "jwt-bearer-token"
+	const authEndpointURL = "https://auth-server"
+	t.Run("returns error when access token request fails", func(t *testing.T) {
 		ctx := createContext(t)
 
 		ctx.echoMock.EXPECT().
@@ -515,12 +503,6 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 				*input.(*RequestAccessTokenRequest) = fakeRequest
 				return nil
 			})
-
-		server := httptest.NewServer(&http2.Handler{
-			StatusCode: http.StatusBadGateway,
-		})
-
-		t.Cleanup(server.Close)
 
 		ctx.oauthClientMock.EXPECT().
 			CreateJwtGrant(ctx.audit, services.CreateJwtGrantRequest{
@@ -530,91 +512,16 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 				Service:    "test-service",
 			}).
 			Return(&services.JwtBearerTokenResult{
-				BearerToken:                 "jwt-bearer-token",
-				AuthorizationServerEndpoint: server.URL,
+				BearerToken:                 bearerToken,
+				AuthorizationServerEndpoint: authEndpointURL,
 			}, nil)
+		ctx.oauthClientMock.EXPECT().RequestAccessToken(gomock.Any(), bearerToken, authEndpointURL).Return(nil, errors.New("random error"))
 
 		err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
 
-		assert.EqualError(t, err, "remote server/nuts node returned error creating access token: server returned HTTP 502 (expected: 200)")
+		assert.EqualError(t, err, "random error")
 		require.Implements(t, new(core.HTTPStatusCodeError), err)
 		assert.Equal(t, http.StatusServiceUnavailable, err.(core.HTTPStatusCodeError).StatusCode())
-	})
-
-	t.Run("endpoint security validation (only HTTPS in strict mode)", func(t *testing.T) {
-		ctx := createContext(t)
-		ctx.echoMock.EXPECT().
-			Bind(gomock.Any()).
-			AnyTimes().
-			DoAndReturn(func(input interface{}) error {
-				*input.(*RequestAccessTokenRequest) = fakeRequest
-				return nil
-			})
-		ctx.echoMock.EXPECT().
-			JSON(http.StatusOK, gomock.Any()).
-			AnyTimes().
-			Return(nil)
-		httpServer := httptest.NewServer(&http2.Handler{
-			StatusCode: http.StatusOK,
-		})
-		httpsServer := httptest.NewTLSServer(&http2.Handler{
-			StatusCode: http.StatusOK,
-		})
-		t.Cleanup(httpServer.Close)
-		t.Cleanup(httpsServer.Close)
-
-		t.Run("HTTPS in strict mode", func(t *testing.T) {
-			ctx.oauthClientMock.EXPECT().
-				CreateJwtGrant(ctx.audit, services.CreateJwtGrantRequest{
-					Requester:  vdr.TestDIDA.String(),
-					Authorizer: vdr.TestDIDB.String(),
-					IdentityVP: &testID,
-					Service:    "test-service",
-				}).
-				Return(&services.JwtBearerTokenResult{
-					BearerToken:                 "jwt-bearer-token",
-					AuthorizationServerEndpoint: httpsServer.URL,
-				}, nil)
-
-			err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
-
-			assert.NoError(t, err)
-		})
-		t.Run("HTTP allowed in non-strict mode", func(t *testing.T) {
-			ctx.oauthClientMock.EXPECT().
-				CreateJwtGrant(ctx.audit, services.CreateJwtGrantRequest{
-					Requester:  vdr.TestDIDA.String(),
-					Authorizer: vdr.TestDIDB.String(),
-					IdentityVP: &testID,
-					Service:    "test-service",
-				}).
-				Return(&services.JwtBearerTokenResult{
-					BearerToken:                 "jwt-bearer-token",
-					AuthorizationServerEndpoint: httpServer.URL,
-				}, nil)
-
-			err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
-
-			assert.NoError(t, err)
-		})
-		t.Run("HTTP not allowed in strict mode", func(t *testing.T) {
-			ctx.oauthClientMock.EXPECT().
-				CreateJwtGrant(ctx.audit, services.CreateJwtGrantRequest{
-					Requester:  vdr.TestDIDA.String(),
-					Authorizer: vdr.TestDIDB.String(),
-					IdentityVP: &testID,
-					Service:    "test-service",
-				}).
-				Return(&services.JwtBearerTokenResult{
-					BearerToken:                 "jwt-bearer-token",
-					AuthorizationServerEndpoint: httpServer.URL,
-				}, nil)
-			ctx.wrapper.strictMode = true
-
-			err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
-
-			assert.EqualError(t, err, fmt.Sprintf("authorization server endpoint must be HTTPS when in strict mode: %s", httpServer.URL))
-		})
 	})
 
 	t.Run("happy_path", func(t *testing.T) {
@@ -652,18 +559,6 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 				return nil
 			})
 
-		serverHandler := &http2.Handler{
-			StatusCode: http.StatusOK,
-			ResponseData: &AccessTokenResponse{
-				TokenType:   "token-type",
-				ExpiresIn:   10,
-				AccessToken: "actual-token",
-			},
-		}
-		server := httptest.NewServer(serverHandler)
-
-		t.Cleanup(server.Close)
-
 		ctx.oauthClientMock.EXPECT().
 			CreateJwtGrant(ctx.audit, services.CreateJwtGrantRequest{
 				Requester:   vdr.TestDIDA.String(),
@@ -673,8 +568,15 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 				Credentials: credentials,
 			}).
 			Return(&services.JwtBearerTokenResult{
-				BearerToken:                 "jwt-bearer-token",
-				AuthorizationServerEndpoint: server.URL,
+				BearerToken:                 bearerToken,
+				AuthorizationServerEndpoint: authEndpointURL,
+			}, nil)
+		ctx.oauthClientMock.EXPECT().
+			RequestAccessToken(gomock.Any(), bearerToken, authEndpointURL).
+			Return(&AccessTokenResponse{
+				TokenType:   "token-type",
+				ExpiresIn:   10,
+				AccessToken: "actual-token",
 			}, nil)
 
 		ctx.echoMock.EXPECT().
@@ -688,7 +590,6 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 		err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
 
 		assert.NoError(t, err)
-		assert.Equal(t, "nuts-node-refimpl/unknown", serverHandler.RequestHeaders.Get("User-Agent"))
 	})
 }
 

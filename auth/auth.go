@@ -53,7 +53,6 @@ type Auth struct {
 	keyStore        crypto.KeyStore
 	registry        didstore.Store
 	vcr             vcr.VCR
-	tlsConfig       *tls.Config
 	crlValidator    crl.Validator
 	shutdownFunc    func()
 }
@@ -66,16 +65,6 @@ func (auth *Auth) Name() string {
 // Config returns the actual config of the module.
 func (auth *Auth) Config() interface{} {
 	return &auth.config
-}
-
-// HTTPTimeout returns the HTTP timeout to use for the Auth API HTTP client
-func (auth *Auth) HTTPTimeout() time.Duration {
-	return time.Duration(auth.config.HTTPTimeout) * time.Second
-}
-
-// TLSConfig returns the TLS configuration when TLS is enabled and nil if it's disabled
-func (auth *Auth) TLSConfig() *tls.Config {
-	return auth.tlsConfig
 }
 
 // ContractNotary returns an implementation of the ContractNotary interface.
@@ -131,6 +120,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		return errors.New("in strictmode TLS must be enabled")
 	}
 
+	var tlsConfig *tls.Config
 	if tlsEnabled {
 		clientCertificate, err := config.TLS.LoadCertificate()
 		if err != nil {
@@ -142,30 +132,34 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 			return err
 		}
 
-		tlsConfig := &tls.Config{
-			Certificates: []tls.Certificate{clientCertificate},
-			RootCAs:      trustStore.CertPool,
-			MinVersion:   core.MinTLSVersion,
-		}
+		tlsConfig = createTLSConfig(clientCertificate, trustStore)
 
 		validator := crl.NewValidator(trustStore.Certificates())
 		validator.Configure(tlsConfig, config.TLS.GetCRLMaxValidityDays())
 
 		auth.crlValidator = validator
-		auth.tlsConfig = tlsConfig
 	}
 
 	if err := auth.contractNotary.Configure(); err != nil {
 		return err
 	}
 
-	auth.oauthClient = oauth.NewOAuthService(auth.registry, auth.vcr, auth.vcr.Verifier(), auth.serviceResolver, auth.keyStore, auth.contractNotary, auth.jsonldManager)
+	auth.oauthClient = oauth.NewOAuthService(auth.registry, auth.vcr, auth.vcr.Verifier(), auth.serviceResolver,
+		auth.keyStore, auth.contractNotary, auth.jsonldManager, time.Duration(auth.config.HTTPTimeout)*time.Second, tlsConfig)
 
 	if err := auth.oauthClient.Configure(auth.config.ClockSkew, config.Strictmode); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func createTLSConfig(clientCertificate tls.Certificate, trustStore *core.TrustStore) *tls.Config {
+	return &tls.Config{
+		Certificates: []tls.Certificate{clientCertificate},
+		RootCAs:      trustStore.CertPool,
+		MinVersion:   core.MinTLSVersion,
+	}
 }
 
 // Start starts the CRL validator synchronization loop

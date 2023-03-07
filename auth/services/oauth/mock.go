@@ -110,3 +110,18 @@ func (mr *MockClientMockRecorder) IntrospectAccessToken(token interface{}) *gomo
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IntrospectAccessToken", reflect.TypeOf((*MockClient)(nil).IntrospectAccessToken), token)
 }
+
+// RequestAccessToken mocks base method.
+func (m *MockClient) RequestAccessToken(ctx context.Context, jwtGrantToken, authServerEndpoint string) (*services.AccessTokenResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RequestAccessToken", ctx, jwtGrantToken, authServerEndpoint)
+	ret0, _ := ret[0].(*services.AccessTokenResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RequestAccessToken indicates an expected call of RequestAccessToken.
+func (mr *MockClientMockRecorder) RequestAccessToken(ctx, jwtGrantToken, authServerEndpoint interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestAccessToken", reflect.TypeOf((*MockClient)(nil).RequestAccessToken), ctx, jwtGrantToken, authServerEndpoint)
+}

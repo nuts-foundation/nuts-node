@@ -29,6 +29,8 @@ import (
 type Client interface {
 	// Configure sets up the client. Enable secureMode to have it behave more safe (e.g., sanitize internal errors).
 	Configure(clockSkewInMilliseconds int, secureMode bool) error
+	// RequestAccessToken is called by the local EHR node to request an access token from a remote Nuts node.
+	RequestAccessToken(ctx context.Context, jwtGrantToken string, authServerEndpoint string) (*services.AccessTokenResult, error)
 	// CreateAccessToken is called by remote Nuts nodes to create an access token,
 	// which can be used to access the local organization's XIS resources.
 	// It returns an oauth.ErrorResponse rather than a regular Go error, because the errors that may be returned are tightly specified.

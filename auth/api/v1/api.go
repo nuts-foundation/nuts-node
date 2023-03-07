@@ -23,10 +23,10 @@ import (
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/auth/api/v1/client"
 	httpModule "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"net/http"
-	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -308,33 +308,12 @@ func (w Wrapper) RequestAccessToken(ctx echo.Context) error {
 	if err != nil {
 		return core.InvalidInputError(err.Error())
 	}
-	if w.strictMode && !strings.HasPrefix(strings.ToLower(jwtGrant.AuthorizationServerEndpoint), "https://") {
-		return core.InvalidInputError("authorization server endpoint must be HTTPS when in strict mode: %s", jwtGrant.AuthorizationServerEndpoint)
-	}
 
-	httpClient := &http.Client{}
-	tlsConfig := w.Auth.TLSConfig()
-
-	if tlsConfig != nil {
-		httpClient.Transport = &http.Transport{
-			TLSClientConfig: tlsConfig,
-		}
-	}
-
-	authClient, err := NewHTTPClient("", w.Auth.HTTPTimeout(), WithHTTPClient(httpClient), WithRequestEditorFn(core.UserAgentRequestEditor))
+	accessTokenResult, err := w.Auth.OAuthClient().RequestAccessToken(ctx.Request().Context(), jwtGrant.BearerToken, jwtGrant.AuthorizationServerEndpoint)
 	if err != nil {
-		return fmt.Errorf("unable to create HTTP client: %w", err)
+		return core.Error(http.StatusServiceUnavailable, err.Error())
 	}
-	authServerEndpoint, err := url.Parse(jwtGrant.AuthorizationServerEndpoint)
-	if err != nil {
-		return err
-	}
-	accessTokenResponse, err := authClient.CreateAccessToken(*authServerEndpoint, jwtGrant.BearerToken)
-	if err != nil {
-		return core.Error(http.StatusServiceUnavailable, "remote server/nuts node returned error creating access token: %w", err)
-	}
-
-	return ctx.JSON(http.StatusOK, accessTokenResponse)
+	return ctx.JSON(http.StatusOK, accessTokenResult)
 }
 
 // CreateAccessToken handles the http request (from a remote vendor's Nuts node) for creating an access token for accessing
@@ -347,8 +326,8 @@ func (w Wrapper) CreateAccessToken(ctx echo.Context) (err error) {
 	request.Assertion = ctx.FormValue("assertion")
 	request.GrantType = ctx.FormValue("grant_type")
 
-	if request.GrantType != auth.JwtBearerGrantType {
-		errDesc := fmt.Sprintf("grant_type must be: '%s'", auth.JwtBearerGrantType)
+	if request.GrantType != client.JwtBearerGrantType {
+		errDesc := fmt.Sprintf("grant_type must be: '%s'", client.JwtBearerGrantType)
 		errorResponse := AccessTokenRequestFailedResponse{Error: errOauthUnsupportedGrant, ErrorDescription: errDesc}
 		return ctx.JSON(http.StatusBadRequest, errorResponse)
 	}
