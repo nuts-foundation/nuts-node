@@ -52,42 +52,50 @@ import (
 )
 
 type TestContext struct {
-	ctrl                   *gomock.Controller
-	echoMock               *mock.MockContext
-	authMock               pkg2.AuthenticationServices
-	notaryMock             *services.MockContractNotary
-	contractClientMock     *services.MockContractNotary
-	oauthClientMock        *oauth.MockClient
-	wrapper                Wrapper
-	mockCredentialResolver *vcr.MockResolver
-	audit                  context.Context
+	ctrl                  *gomock.Controller
+	echoMock              *mock.MockContext
+	authMock              pkg2.AuthenticationServices
+	notaryMock            *services.MockContractNotary
+	contractClientMock    *services.MockContractNotary
+	authzServerMock       *oauth.MockAuthorizationServer
+	relyingPartyMock      *oauth.MockRelyingParty
+	wrapper               Wrapper
+	cedentialResolverMock *vcr.MockResolver
+	audit                 context.Context
 }
 
 type mockAuthClient struct {
-	ctrl               *gomock.Controller
-	mockContractNotary *services.MockContractNotary
-	mockOAuthClient    *oauth.MockClient
+	ctrl           *gomock.Controller
+	contractNotary *services.MockContractNotary
+	authzServer    *oauth.MockAuthorizationServer
+	relyingParty   *oauth.MockRelyingParty
 }
 
-func (m *mockAuthClient) OAuthClient() oauth.Client {
-	return m.mockOAuthClient
+func (m *mockAuthClient) AuthzServer() oauth.AuthorizationServer {
+	return m.authzServer
+}
+
+func (m *mockAuthClient) RelyingParty() oauth.RelyingParty {
+	return m.relyingParty
 }
 
 func (m *mockAuthClient) ContractNotary() services.ContractNotary {
-	return m.mockContractNotary
+	return m.contractNotary
 }
 
 func createContext(t *testing.T) *TestContext {
 	t.Helper()
 	ctrl := gomock.NewController(t)
-	mockContractNotary := services.NewMockContractNotary(ctrl)
-	mockOAuthClient := oauth.NewMockClient(ctrl)
+	contractNotary := services.NewMockContractNotary(ctrl)
+	authzServer := oauth.NewMockAuthorizationServer(ctrl)
+	relyingParty := oauth.NewMockRelyingParty(ctrl)
 	mockCredentialResolver := vcr.NewMockResolver(ctrl)
 
 	authMock := &mockAuthClient{
-		ctrl:               ctrl,
-		mockContractNotary: mockContractNotary,
-		mockOAuthClient:    mockOAuthClient,
+		ctrl:           ctrl,
+		contractNotary: contractNotary,
+		authzServer:    authzServer,
+		relyingParty:   relyingParty,
 	}
 
 	requestCtx := audit.TestContext()
@@ -96,15 +104,16 @@ func createContext(t *testing.T) *TestContext {
 	echoMock.EXPECT().Request().Return(request).AnyTimes()
 
 	return &TestContext{
-		ctrl:                   ctrl,
-		echoMock:               echoMock,
-		authMock:               authMock,
-		notaryMock:             mockContractNotary,
-		contractClientMock:     mockContractNotary,
-		oauthClientMock:        mockOAuthClient,
-		mockCredentialResolver: mockCredentialResolver,
-		wrapper:                Wrapper{Auth: authMock, CredentialResolver: mockCredentialResolver},
-		audit:                  requestCtx,
+		ctrl:                  ctrl,
+		echoMock:              echoMock,
+		authMock:              authMock,
+		notaryMock:            contractNotary,
+		contractClientMock:    contractNotary,
+		authzServerMock:       authzServer,
+		relyingPartyMock:      relyingParty,
+		cedentialResolverMock: mockCredentialResolver,
+		wrapper:               Wrapper{Auth: authMock, CredentialResolver: mockCredentialResolver},
+		audit:                 requestCtx,
 	}
 }
 
@@ -435,7 +444,7 @@ func TestWrapper_CreateJwtGrant(t *testing.T) {
 			Service:    "service",
 		}
 
-		ctx.oauthClientMock.EXPECT().CreateJwtGrant(gomock.Any(), expectedRequest).Return(&services.JwtBearerTokenResult{
+		ctx.relyingPartyMock.EXPECT().CreateJwtGrant(gomock.Any(), expectedRequest).Return(&services.JwtBearerTokenResult{
 			BearerToken:                 response.BearerToken,
 			AuthorizationServerEndpoint: response.AuthorizationServerEndpoint,
 		}, nil)
@@ -478,7 +487,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 				return nil
 			})
 
-		ctx.oauthClientMock.EXPECT().
+		ctx.relyingPartyMock.EXPECT().
 			CreateJwtGrant(gomock.Any(), services.CreateJwtGrantRequest{
 				Requester:  vdr.TestDIDA.String(),
 				Authorizer: vdr.TestDIDB.String(),
@@ -504,7 +513,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 				return nil
 			})
 
-		ctx.oauthClientMock.EXPECT().
+		ctx.relyingPartyMock.EXPECT().
 			CreateJwtGrant(ctx.audit, services.CreateJwtGrantRequest{
 				Requester:  vdr.TestDIDA.String(),
 				Authorizer: vdr.TestDIDB.String(),
@@ -515,7 +524,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 				BearerToken:                 bearerToken,
 				AuthorizationServerEndpoint: authEndpointURL,
 			}, nil)
-		ctx.oauthClientMock.EXPECT().RequestAccessToken(gomock.Any(), bearerToken, authEndpointURL).Return(nil, errors.New("random error"))
+		ctx.relyingPartyMock.EXPECT().RequestAccessToken(gomock.Any(), bearerToken, authEndpointURL).Return(nil, errors.New("random error"))
 
 		err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
 
@@ -559,7 +568,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 				return nil
 			})
 
-		ctx.oauthClientMock.EXPECT().
+		ctx.relyingPartyMock.EXPECT().
 			CreateJwtGrant(ctx.audit, services.CreateJwtGrantRequest{
 				Requester:   vdr.TestDIDA.String(),
 				Authorizer:  vdr.TestDIDB.String(),
@@ -571,7 +580,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 				BearerToken:                 bearerToken,
 				AuthorizationServerEndpoint: authEndpointURL,
 			}, nil)
-		ctx.oauthClientMock.EXPECT().
+		ctx.relyingPartyMock.EXPECT().
 			RequestAccessToken(gomock.Any(), bearerToken, authEndpointURL).
 			Return(&AccessTokenResponse{
 				TokenType:   "token-type",
@@ -649,7 +658,7 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 		errorResponse := AccessTokenRequestFailedResponse{ErrorDescription: errorDescription, Error: errOauthInvalidRequest}
 		expectError(ctx, errorResponse)
 
-		ctx.oauthClientMock.EXPECT().CreateAccessToken(ctx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: validJwt}).Return(nil, &oauth.ErrorResponse{
+		ctx.authzServerMock.EXPECT().CreateAccessToken(ctx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: validJwt}).Return(nil, &oauth.ErrorResponse{
 			Description: errors.New(errorDescription),
 			Code:        errOauthInvalidRequest,
 		})
@@ -665,7 +674,7 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 		bindPostBody(ctx, params)
 
 		pkgResponse := &services.AccessTokenResult{AccessToken: "foo", ExpiresIn: 800000}
-		ctx.oauthClientMock.EXPECT().CreateAccessToken(gomock.Any(), services.CreateAccessTokenRequest{RawJwtBearerToken: validJwt}).Return(pkgResponse, nil)
+		ctx.authzServerMock.EXPECT().CreateAccessToken(gomock.Any(), services.CreateAccessTokenRequest{RawJwtBearerToken: validJwt}).Return(pkgResponse, nil)
 
 		apiResponse := AccessTokenResponse{
 			AccessToken: pkgResponse.AccessToken,
@@ -710,7 +719,7 @@ func TestWrapper_VerifyAccessToken(t *testing.T) {
 		}
 
 		ctx.echoMock.EXPECT().NoContent(http.StatusForbidden)
-		ctx.oauthClientMock.EXPECT().IntrospectAccessToken("token").Return(nil, errors.New("unauthorized"))
+		ctx.authzServerMock.EXPECT().IntrospectAccessToken("token").Return(nil, errors.New("unauthorized"))
 
 		_ = ctx.wrapper.VerifyAccessToken(ctx.echoMock, params)
 	})
@@ -722,7 +731,7 @@ func TestWrapper_VerifyAccessToken(t *testing.T) {
 		}
 
 		ctx.echoMock.EXPECT().NoContent(http.StatusOK)
-		ctx.oauthClientMock.EXPECT().IntrospectAccessToken("token").Return(&services.NutsAccessToken{}, nil)
+		ctx.authzServerMock.EXPECT().IntrospectAccessToken("token").Return(&services.NutsAccessToken{}, nil)
 
 		_ = ctx.wrapper.VerifyAccessToken(ctx.echoMock, params)
 	})
@@ -763,7 +772,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		iat := 1581411767
 		iss := vdr.TestDIDB.String()
 		service := "service"
-		ctx.oauthClientMock.EXPECT().IntrospectAccessToken(request.Token).Return(
+		ctx.authzServerMock.EXPECT().IntrospectAccessToken(request.Token).Return(
 			&services.NutsAccessToken{
 				Audience:    aud,
 				Expiration:  int64(exp),
@@ -773,8 +782,8 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 				Service:     service,
 				Credentials: []string{"credentialID-1", "credentialID-2"},
 			}, nil)
-		ctx.mockCredentialResolver.EXPECT().Resolve(ssi.MustParseURI("credentialID-1"), nil).Return(nil, errors.New("not found"))
-		ctx.mockCredentialResolver.EXPECT().Resolve(ssi.MustParseURI("credentialID-2"), nil).Return(&vc.VerifiableCredential{}, nil)
+		ctx.cedentialResolverMock.EXPECT().Resolve(ssi.MustParseURI("credentialID-1"), nil).Return(nil, errors.New("not found"))
+		ctx.cedentialResolverMock.EXPECT().Resolve(ssi.MustParseURI("credentialID-2"), nil).Return(&vc.VerifiableCredential{}, nil)
 
 		credentials := []string{"credentialID-1", "credentialID-2"}
 

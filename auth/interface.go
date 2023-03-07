@@ -25,8 +25,10 @@ import (
 
 // AuthenticationServices is the interface which should be implemented for clients or mocks
 type AuthenticationServices interface {
-	// OAuthClient returns an instance of OAuthClient
-	OAuthClient() oauth.Client
+	// AuthzServer returns the oauth.AuthorizationServer
+	AuthzServer() oauth.AuthorizationServer
+	// RelyingParty returns the oauth.RelyingParty
+	RelyingParty() oauth.RelyingParty
 	// ContractNotary returns an instance of ContractNotary
 	ContractNotary() services.ContractNotary
 }

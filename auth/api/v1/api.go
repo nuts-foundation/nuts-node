@@ -281,7 +281,7 @@ func (w Wrapper) CreateJwtGrant(ctx echo.Context) error {
 		Credentials: requestBody.Credentials,
 	}
 
-	response, err := w.Auth.OAuthClient().CreateJwtGrant(ctx.Request().Context(), request)
+	response, err := w.Auth.RelyingParty().CreateJwtGrant(ctx.Request().Context(), request)
 	if err != nil {
 		return core.InvalidInputError(err.Error())
 	}
@@ -304,12 +304,12 @@ func (w Wrapper) RequestAccessToken(ctx echo.Context) error {
 		Credentials: requestBody.Credentials,
 	}
 
-	jwtGrant, err := w.Auth.OAuthClient().CreateJwtGrant(ctx.Request().Context(), request)
+	jwtGrant, err := w.Auth.RelyingParty().CreateJwtGrant(ctx.Request().Context(), request)
 	if err != nil {
 		return core.InvalidInputError(err.Error())
 	}
 
-	accessTokenResult, err := w.Auth.OAuthClient().RequestAccessToken(ctx.Request().Context(), jwtGrant.BearerToken, jwtGrant.AuthorizationServerEndpoint)
+	accessTokenResult, err := w.Auth.RelyingParty().RequestAccessToken(ctx.Request().Context(), jwtGrant.BearerToken, jwtGrant.AuthorizationServerEndpoint)
 	if err != nil {
 		return core.Error(http.StatusServiceUnavailable, err.Error())
 	}
@@ -340,7 +340,7 @@ func (w Wrapper) CreateAccessToken(ctx echo.Context) (err error) {
 	}
 
 	catRequest := services.CreateAccessTokenRequest{RawJwtBearerToken: request.Assertion}
-	acResponse, oauthError := w.Auth.OAuthClient().CreateAccessToken(ctx.Request().Context(), catRequest)
+	acResponse, oauthError := w.Auth.AuthzServer().CreateAccessToken(ctx.Request().Context(), catRequest)
 	if oauthError != nil {
 		errorResponse := AccessTokenRequestFailedResponse{Error: AccessTokenRequestFailedResponseError(oauthError.Code), ErrorDescription: oauthError.Error()}
 		return ctx.JSON(http.StatusBadRequest, errorResponse)
@@ -369,7 +369,7 @@ func (w Wrapper) VerifyAccessToken(ctx echo.Context, params VerifyAccessTokenPar
 
 	token := params.Authorization[len(bearerTokenHeaderPrefix):]
 
-	_, err := w.Auth.OAuthClient().IntrospectAccessToken(token)
+	_, err := w.Auth.AuthzServer().IntrospectAccessToken(token)
 	if err != nil {
 		log.Logger().WithError(err).Warn("Error while inspecting access token")
 		return ctx.NoContent(http.StatusForbidden)
@@ -391,7 +391,7 @@ func (w Wrapper) IntrospectAccessToken(ctx echo.Context) error {
 		return ctx.JSON(http.StatusOK, introspectionResponse)
 	}
 
-	claims, err := w.Auth.OAuthClient().IntrospectAccessToken(token)
+	claims, err := w.Auth.AuthzServer().IntrospectAccessToken(token)
 	if err != nil {
 		log.Logger().WithError(err).Warn("Error while inspecting access token")
 		return ctx.JSON(http.StatusOK, introspectionResponse)

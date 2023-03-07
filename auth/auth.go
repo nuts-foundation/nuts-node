@@ -43,11 +43,14 @@ var ErrMissingPublicURL = errors.New("auth.publicurl must be set in strictmode")
 
 const contractValidity = 60 * time.Minute
 
+var _ AuthenticationServices = (*Auth)(nil)
+
 // Auth is the main struct of the Auth service
 type Auth struct {
 	config          Config
 	jsonldManager   jsonld.JSONLD
-	oauthClient     oauth.Client
+	authzServer     oauth.AuthorizationServer
+	relyingParty    oauth.RelyingParty
 	contractNotary  services.ContractNotary
 	serviceResolver didman.CompoundServiceResolver
 	keyStore        crypto.KeyStore
@@ -85,9 +88,14 @@ func NewAuthInstance(config Config, registry didstore.Store, vcr vcr.VCR, keySto
 	}
 }
 
-// OAuthClient returns an instance of OAuthClient
-func (auth *Auth) OAuthClient() oauth.Client {
-	return auth.oauthClient
+// AuthzServer returns the oauth.AuthorizationServer
+func (auth *Auth) AuthzServer() oauth.AuthorizationServer {
+	return auth.authzServer
+}
+
+// RelyingParty returns the oauth.RelyingParty
+func (auth *Auth) RelyingParty() oauth.RelyingParty {
+	return auth.relyingParty
 }
 
 // Configure the Auth struct by creating a validator and create an Irma server
@@ -144,10 +152,12 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		return err
 	}
 
-	auth.oauthClient = oauth.NewOAuthService(auth.registry, auth.vcr, auth.vcr.Verifier(), auth.serviceResolver,
-		auth.keyStore, auth.contractNotary, auth.jsonldManager, time.Duration(auth.config.HTTPTimeout)*time.Second, tlsConfig)
+	auth.authzServer = oauth.NewAuthorizationServer(auth.registry, auth.vcr, auth.vcr.Verifier(), auth.serviceResolver,
+		auth.keyStore, auth.contractNotary, auth.jsonldManager)
+	auth.relyingParty = oauth.NewRelyingParty(auth.registry, auth.serviceResolver,
+		auth.keyStore, time.Duration(auth.config.HTTPTimeout)*time.Second, tlsConfig)
 
-	if err := auth.oauthClient.Configure(auth.config.ClockSkew, config.Strictmode); err != nil {
+	if err := auth.authzServer.Configure(auth.config.ClockSkew, config.Strictmode); err != nil {
 		return err
 	}
 
