@@ -20,9 +20,7 @@ package oauth
 
 import (
 	"context"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/services"
-	"net/url"
 )
 
 // Client is the client interface for the OAuth service
@@ -34,6 +32,5 @@ type Client interface {
 	// It returns an oauth.ErrorResponse rather than a regular Go error, because the errors that may be returned are tightly specified.
 	CreateAccessToken(ctx context.Context, request services.CreateAccessTokenRequest) (*services.AccessTokenResult, *ErrorResponse)
 	CreateJwtGrant(ctx context.Context, request services.CreateJwtGrantRequest) (*services.JwtBearerTokenResult, error)
-	GetOAuthEndpointURL(service string, authorizer did.DID) (url.URL, error)
 	IntrospectAccessToken(token string) (*services.NutsAccessToken, error)
 }

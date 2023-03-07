@@ -6,11 +6,9 @@ package oauth
 
 import (
 	context "context"
-	url "net/url"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	did "github.com/nuts-foundation/go-did/did"
 	services "github.com/nuts-foundation/nuts-node/auth/services"
 )
 
@@ -79,21 +77,6 @@ func (m *MockClient) CreateJwtGrant(ctx context.Context, request services.Create
 func (mr *MockClientMockRecorder) CreateJwtGrant(ctx, request interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateJwtGrant", reflect.TypeOf((*MockClient)(nil).CreateJwtGrant), ctx, request)
-}
-
-// GetOAuthEndpointURL mocks base method.
-func (m *MockClient) GetOAuthEndpointURL(service string, authorizer did.DID) (url.URL, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetOAuthEndpointURL", service, authorizer)
-	ret0, _ := ret[0].(url.URL)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetOAuthEndpointURL indicates an expected call of GetOAuthEndpointURL.
-func (mr *MockClientMockRecorder) GetOAuthEndpointURL(service, authorizer interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOAuthEndpointURL", reflect.TypeOf((*MockClient)(nil).GetOAuthEndpointURL), service, authorizer)
 }
 
 // IntrospectAccessToken mocks base method.

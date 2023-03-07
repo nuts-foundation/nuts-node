@@ -28,7 +28,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
-	"net/url"
 	"testing"
 	"time"
 
@@ -903,46 +902,6 @@ func TestAuth_Configure(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, time.Minute, ctx.oauthService.clockSkew)
 		assert.True(t, ctx.oauthService.secureMode)
-	})
-}
-
-func TestAuth_GetOAuthEndpointURL(t *testing.T) {
-	t.Run("returns_error_when_resolve_compound_service_fails", func(t *testing.T) {
-		ctx := createContext(t)
-
-		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(vdr.TestDIDA, expectedService, services.OAuthEndpointType, true).Return("", types.ErrServiceNotFound)
-
-		parsedURL, err := ctx.oauthService.GetOAuthEndpointURL(expectedService, vdr.TestDIDA)
-
-		assert.ErrorIs(t, err, types.ErrServiceNotFound)
-		assert.Empty(t, parsedURL)
-	})
-
-	t.Run("returns_parsed_endpoint_url", func(t *testing.T) {
-		ctx := createContext(t)
-		keyID, _ := did.ParseDIDURL("did:nuts:123#key-1")
-		currentDIDDocument := &did.Document{
-			Service: []did.Service{
-				{
-					Type: "test-service",
-					ServiceEndpoint: map[string]string{
-						"oauth": fmt.Sprintf("%s?type=oauth", vdr.TestDIDA),
-					},
-				},
-				{
-					Type:            "oauth",
-					ServiceEndpoint: "http://localhost",
-				},
-			},
-		}
-		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
-		expectedURL, _ := url.Parse("http://localhost")
-		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(vdr.TestDIDA, expectedService, services.OAuthEndpointType, true).Return(expectedURL.String(), nil)
-
-		parsedURL, err := ctx.oauthService.GetOAuthEndpointURL(expectedService, vdr.TestDIDA)
-
-		assert.NoError(t, err)
-		assert.Equal(t, *expectedURL, parsedURL)
 	})
 }
 

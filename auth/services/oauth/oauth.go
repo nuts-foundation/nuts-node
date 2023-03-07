@@ -24,7 +24,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwt"
@@ -473,21 +472,6 @@ func (s *service) validateAuthorizationCredentials(context *validationContext) e
 	}
 
 	return nil
-}
-
-// GetOAuthEndpointURL returns the oauth2 endpoint URL of the authorizer for a service
-func (s *service) GetOAuthEndpointURL(service string, authorizer did.DID) (url.URL, error) {
-	endpointURL, err := s.serviceResolver.GetCompoundServiceEndpoint(authorizer, service, services.OAuthEndpointType, true)
-	if err != nil {
-		return url.URL{}, fmt.Errorf("failed to resolve OAuth endpoint URL: %w", err)
-	}
-
-	parsedURL, err := url.Parse(endpointURL)
-	if err != nil {
-		return url.URL{}, fmt.Errorf("failed to parse OAuth endpoint URL: %w", err)
-	}
-
-	return *parsedURL, nil
 }
 
 // CreateJwtGrant creates a JWT Grant from the given CreateJwtGrantRequest
