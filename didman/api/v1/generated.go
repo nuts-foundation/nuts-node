@@ -21,17 +21,6 @@ const (
 	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
 )
 
-// CompoundService A creation request for a compound service with endpoints and/or references to endpoints.
-type CompoundService struct {
-	Id string `json:"id"`
-
-	// ServiceEndpoint A map containing service references and/or endpoints.
-	ServiceEndpoint map[string]interface{} `json:"serviceEndpoint"`
-
-	// Type type of the endpoint. May be freely chosen.
-	Type string `json:"type"`
-}
-
 // CompoundServiceProperties A creation request for a compound service that contains endpoints. The endpoints can be either absolute endpoints or references.
 type CompoundServiceProperties struct {
 	// ServiceEndpoint A map containing service references and/or endpoints.
@@ -1822,8 +1811,6 @@ func (w *ServerInterfaceWrapper) DeleteService(ctx echo.Context) error {
 	return err
 }
 
-// PATCH: This template file was taken from pkg/codegen/templates/echo/echo-register.tmpl
-
 // This is a simple interface which specifies echo.Route addition functions which
 // are present on both echo.Echo and echo.Group, since we want to allow using
 // either of them for path registration
@@ -1839,14 +1826,6 @@ type EchoRouter interface {
 	TRACE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 }
 
-type Preprocessor interface {
-	Preprocess(operationID string, context echo.Context)
-}
-
-type ErrorStatusCodeResolver interface {
-	ResolveStatusCode(err error) int
-}
-
 // RegisterHandlers adds each server route to the EchoRouter.
 func RegisterHandlers(router EchoRouter, si ServerInterface) {
 	RegisterHandlersWithBaseURL(router, si, "")
@@ -1860,43 +1839,666 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	// PATCH: This alteration wraps the call to the implementation in a function that sets the "OperationId" context parameter,
-	// so it can be used in error reporting middleware.
-	router.GET(baseURL+"/internal/didman/v1/did/:did/compoundservice", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("GetCompoundServices", context)
-		return wrapper.GetCompoundServices(context)
-	})
-	router.POST(baseURL+"/internal/didman/v1/did/:did/compoundservice", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("AddCompoundService", context)
-		return wrapper.AddCompoundService(context)
-	})
-	router.GET(baseURL+"/internal/didman/v1/did/:did/compoundservice/:compoundServiceType/endpoint/:endpointType", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("GetCompoundServiceEndpoint", context)
-		return wrapper.GetCompoundServiceEndpoint(context)
-	})
-	router.GET(baseURL+"/internal/didman/v1/did/:did/contactinfo", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("GetContactInformation", context)
-		return wrapper.GetContactInformation(context)
-	})
-	router.PUT(baseURL+"/internal/didman/v1/did/:did/contactinfo", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("UpdateContactInformation", context)
-		return wrapper.UpdateContactInformation(context)
-	})
-	router.POST(baseURL+"/internal/didman/v1/did/:did/endpoint", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("AddEndpoint", context)
-		return wrapper.AddEndpoint(context)
-	})
-	router.DELETE(baseURL+"/internal/didman/v1/did/:did/endpoint/:type", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("DeleteEndpointsByType", context)
-		return wrapper.DeleteEndpointsByType(context)
-	})
-	router.GET(baseURL+"/internal/didman/v1/search/organizations", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("SearchOrganizations", context)
-		return wrapper.SearchOrganizations(context)
-	})
-	router.DELETE(baseURL+"/internal/didman/v1/service/:id", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("DeleteService", context)
-		return wrapper.DeleteService(context)
-	})
+	router.GET(baseURL+"/internal/didman/v1/did/:did/compoundservice", wrapper.GetCompoundServices)
+	router.POST(baseURL+"/internal/didman/v1/did/:did/compoundservice", wrapper.AddCompoundService)
+	router.GET(baseURL+"/internal/didman/v1/did/:did/compoundservice/:compoundServiceType/endpoint/:endpointType", wrapper.GetCompoundServiceEndpoint)
+	router.GET(baseURL+"/internal/didman/v1/did/:did/contactinfo", wrapper.GetContactInformation)
+	router.PUT(baseURL+"/internal/didman/v1/did/:did/contactinfo", wrapper.UpdateContactInformation)
+	router.POST(baseURL+"/internal/didman/v1/did/:did/endpoint", wrapper.AddEndpoint)
+	router.DELETE(baseURL+"/internal/didman/v1/did/:did/endpoint/:type", wrapper.DeleteEndpointsByType)
+	router.GET(baseURL+"/internal/didman/v1/search/organizations", wrapper.SearchOrganizations)
+	router.DELETE(baseURL+"/internal/didman/v1/service/:id", wrapper.DeleteService)
 
+}
+
+type GetCompoundServicesRequestObject struct {
+	Did string `json:"did"`
+}
+
+type GetCompoundServicesResponseObject interface {
+	VisitGetCompoundServicesResponse(w http.ResponseWriter) error
+}
+
+type GetCompoundServices200JSONResponse []CompoundService
+
+func (response GetCompoundServices200JSONResponse) VisitGetCompoundServicesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetCompoundServicesdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response GetCompoundServicesdefaultJSONResponse) VisitGetCompoundServicesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type AddCompoundServiceRequestObject struct {
+	Did  string `json:"did"`
+	Body *AddCompoundServiceJSONRequestBody
+}
+
+type AddCompoundServiceResponseObject interface {
+	VisitAddCompoundServiceResponse(w http.ResponseWriter) error
+}
+
+type AddCompoundService200JSONResponse CompoundService
+
+func (response AddCompoundService200JSONResponse) VisitAddCompoundServiceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AddCompoundServicedefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response AddCompoundServicedefaultJSONResponse) VisitAddCompoundServiceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type GetCompoundServiceEndpointRequestObject struct {
+	Did                 string `json:"did"`
+	CompoundServiceType string `json:"compoundServiceType"`
+	EndpointType        string `json:"endpointType"`
+	Params              GetCompoundServiceEndpointParams
+}
+
+type GetCompoundServiceEndpointResponseObject interface {
+	VisitGetCompoundServiceEndpointResponse(w http.ResponseWriter) error
+}
+
+type GetCompoundServiceEndpoint200JSONResponse EndpointResponse
+
+func (response GetCompoundServiceEndpoint200JSONResponse) VisitGetCompoundServiceEndpointResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetCompoundServiceEndpoint200TextResponse string
+
+func (response GetCompoundServiceEndpoint200TextResponse) VisitGetCompoundServiceEndpointResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(200)
+
+	_, err := w.Write([]byte(response))
+	return err
+}
+
+type GetCompoundServiceEndpointdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response GetCompoundServiceEndpointdefaultJSONResponse) VisitGetCompoundServiceEndpointResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type GetContactInformationRequestObject struct {
+	Did string `json:"did"`
+}
+
+type GetContactInformationResponseObject interface {
+	VisitGetContactInformationResponse(w http.ResponseWriter) error
+}
+
+type GetContactInformation200JSONResponse ContactInformation
+
+func (response GetContactInformation200JSONResponse) VisitGetContactInformationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetContactInformationdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response GetContactInformationdefaultJSONResponse) VisitGetContactInformationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type UpdateContactInformationRequestObject struct {
+	Did  string `json:"did"`
+	Body *UpdateContactInformationJSONRequestBody
+}
+
+type UpdateContactInformationResponseObject interface {
+	VisitUpdateContactInformationResponse(w http.ResponseWriter) error
+}
+
+type UpdateContactInformation200JSONResponse ContactInformation
+
+func (response UpdateContactInformation200JSONResponse) VisitUpdateContactInformationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateContactInformationdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response UpdateContactInformationdefaultJSONResponse) VisitUpdateContactInformationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type AddEndpointRequestObject struct {
+	Did  string `json:"did"`
+	Body *AddEndpointJSONRequestBody
+}
+
+type AddEndpointResponseObject interface {
+	VisitAddEndpointResponse(w http.ResponseWriter) error
+}
+
+type AddEndpoint200JSONResponse Endpoint
+
+func (response AddEndpoint200JSONResponse) VisitAddEndpointResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AddEndpointdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response AddEndpointdefaultJSONResponse) VisitAddEndpointResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type DeleteEndpointsByTypeRequestObject struct {
+	Did  string `json:"did"`
+	Type string `json:"type"`
+}
+
+type DeleteEndpointsByTypeResponseObject interface {
+	VisitDeleteEndpointsByTypeResponse(w http.ResponseWriter) error
+}
+
+type DeleteEndpointsByType204Response struct {
+}
+
+func (response DeleteEndpointsByType204Response) VisitDeleteEndpointsByTypeResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteEndpointsByTypedefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response DeleteEndpointsByTypedefaultJSONResponse) VisitDeleteEndpointsByTypeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type SearchOrganizationsRequestObject struct {
+	Params SearchOrganizationsParams
+}
+
+type SearchOrganizationsResponseObject interface {
+	VisitSearchOrganizationsResponse(w http.ResponseWriter) error
+}
+
+type SearchOrganizations200JSONResponse []OrganizationSearchResult
+
+func (response SearchOrganizations200JSONResponse) VisitSearchOrganizationsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SearchOrganizationsdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response SearchOrganizationsdefaultJSONResponse) VisitSearchOrganizationsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type DeleteServiceRequestObject struct {
+	Id string `json:"id"`
+}
+
+type DeleteServiceResponseObject interface {
+	VisitDeleteServiceResponse(w http.ResponseWriter) error
+}
+
+type DeleteService204Response struct {
+}
+
+func (response DeleteService204Response) VisitDeleteServiceResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteServicedefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response DeleteServicedefaultJSONResponse) VisitDeleteServiceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+// StrictServerInterface represents all server handlers.
+type StrictServerInterface interface {
+	// Get a list of compound services for a DID document.
+	//
+	// error responses:
+	// * 400 - incorrect input
+	// * 404 - unknown DID
+	// (GET /internal/didman/v1/did/{did}/compoundservice)
+	GetCompoundServices(ctx context.Context, request GetCompoundServicesRequestObject) (GetCompoundServicesResponseObject, error)
+	// Add a compound service to a DID Document.
+	// (POST /internal/didman/v1/did/{did}/compoundservice)
+	AddCompoundService(ctx context.Context, request AddCompoundServiceRequestObject) (AddCompoundServiceResponseObject, error)
+	// Retrieves the endpoint with the specified endpointType from the specified compound service.
+	// (GET /internal/didman/v1/did/{did}/compoundservice/{compoundServiceType}/endpoint/{endpointType})
+	GetCompoundServiceEndpoint(ctx context.Context, request GetCompoundServiceEndpointRequestObject) (GetCompoundServiceEndpointResponseObject, error)
+
+	// (GET /internal/didman/v1/did/{did}/contactinfo)
+	GetContactInformation(ctx context.Context, request GetContactInformationRequestObject) (GetContactInformationResponseObject, error)
+	// Add a predetermined DID Service with real life contact information
+	// (PUT /internal/didman/v1/did/{did}/contactinfo)
+	UpdateContactInformation(ctx context.Context, request UpdateContactInformationRequestObject) (UpdateContactInformationResponseObject, error)
+	// Add a service endpoint or a reference to a service.
+	// (POST /internal/didman/v1/did/{did}/endpoint)
+	AddEndpoint(ctx context.Context, request AddEndpointRequestObject) (AddEndpointResponseObject, error)
+
+	// (DELETE /internal/didman/v1/did/{did}/endpoint/{type})
+	DeleteEndpointsByType(ctx context.Context, request DeleteEndpointsByTypeRequestObject) (DeleteEndpointsByTypeResponseObject, error)
+
+	// (GET /internal/didman/v1/search/organizations)
+	SearchOrganizations(ctx context.Context, request SearchOrganizationsRequestObject) (SearchOrganizationsResponseObject, error)
+	// Remove a service from a DID Document.
+	// (DELETE /internal/didman/v1/service/{id})
+	DeleteService(ctx context.Context, request DeleteServiceRequestObject) (DeleteServiceResponseObject, error)
+}
+
+type StrictHandlerFunc func(ctx echo.Context, args interface{}) (interface{}, error)
+
+type StrictMiddlewareFunc func(f StrictHandlerFunc, operationID string) StrictHandlerFunc
+
+func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareFunc) ServerInterface {
+	return &strictHandler{ssi: ssi, middlewares: middlewares}
+}
+
+type strictHandler struct {
+	ssi         StrictServerInterface
+	middlewares []StrictMiddlewareFunc
+}
+
+// GetCompoundServices operation middleware
+func (sh *strictHandler) GetCompoundServices(ctx echo.Context, did string) error {
+	var request GetCompoundServicesRequestObject
+
+	request.Did = did
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetCompoundServices(ctx.Request().Context(), request.(GetCompoundServicesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetCompoundServices")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetCompoundServicesResponseObject); ok {
+		return validResponse.VisitGetCompoundServicesResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AddCompoundService operation middleware
+func (sh *strictHandler) AddCompoundService(ctx echo.Context, did string) error {
+	var request AddCompoundServiceRequestObject
+
+	request.Did = did
+
+	var body AddCompoundServiceJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AddCompoundService(ctx.Request().Context(), request.(AddCompoundServiceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AddCompoundService")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AddCompoundServiceResponseObject); ok {
+		return validResponse.VisitAddCompoundServiceResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetCompoundServiceEndpoint operation middleware
+func (sh *strictHandler) GetCompoundServiceEndpoint(ctx echo.Context, did string, compoundServiceType string, endpointType string, params GetCompoundServiceEndpointParams) error {
+	var request GetCompoundServiceEndpointRequestObject
+
+	request.Did = did
+	request.CompoundServiceType = compoundServiceType
+	request.EndpointType = endpointType
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetCompoundServiceEndpoint(ctx.Request().Context(), request.(GetCompoundServiceEndpointRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetCompoundServiceEndpoint")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetCompoundServiceEndpointResponseObject); ok {
+		return validResponse.VisitGetCompoundServiceEndpointResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetContactInformation operation middleware
+func (sh *strictHandler) GetContactInformation(ctx echo.Context, did string) error {
+	var request GetContactInformationRequestObject
+
+	request.Did = did
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetContactInformation(ctx.Request().Context(), request.(GetContactInformationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetContactInformation")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetContactInformationResponseObject); ok {
+		return validResponse.VisitGetContactInformationResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// UpdateContactInformation operation middleware
+func (sh *strictHandler) UpdateContactInformation(ctx echo.Context, did string) error {
+	var request UpdateContactInformationRequestObject
+
+	request.Did = did
+
+	var body UpdateContactInformationJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateContactInformation(ctx.Request().Context(), request.(UpdateContactInformationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateContactInformation")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(UpdateContactInformationResponseObject); ok {
+		return validResponse.VisitUpdateContactInformationResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AddEndpoint operation middleware
+func (sh *strictHandler) AddEndpoint(ctx echo.Context, did string) error {
+	var request AddEndpointRequestObject
+
+	request.Did = did
+
+	var body AddEndpointJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AddEndpoint(ctx.Request().Context(), request.(AddEndpointRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AddEndpoint")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AddEndpointResponseObject); ok {
+		return validResponse.VisitAddEndpointResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// DeleteEndpointsByType operation middleware
+func (sh *strictHandler) DeleteEndpointsByType(ctx echo.Context, did string, pType string) error {
+	var request DeleteEndpointsByTypeRequestObject
+
+	request.Did = did
+	request.PType = pType
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteEndpointsByType(ctx.Request().Context(), request.(DeleteEndpointsByTypeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteEndpointsByType")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(DeleteEndpointsByTypeResponseObject); ok {
+		return validResponse.VisitDeleteEndpointsByTypeResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// SearchOrganizations operation middleware
+func (sh *strictHandler) SearchOrganizations(ctx echo.Context, params SearchOrganizationsParams) error {
+	var request SearchOrganizationsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.SearchOrganizations(ctx.Request().Context(), request.(SearchOrganizationsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SearchOrganizations")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(SearchOrganizationsResponseObject); ok {
+		return validResponse.VisitSearchOrganizationsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// DeleteService operation middleware
+func (sh *strictHandler) DeleteService(ctx echo.Context, id string) error {
+	var request DeleteServiceRequestObject
+
+	request.Id = id
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteService(ctx.Request().Context(), request.(DeleteServiceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteService")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(DeleteServiceResponseObject); ok {
+		return validResponse.VisitDeleteServiceResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
 }
