@@ -21,6 +21,11 @@ package core
 
 import "fmt"
 
+// MappedDiagnosable is implemented by types that want to
+type MappedDiagnosable interface {
+	MappedDiagnostics() map[string]func() Diagnosable
+}
+
 // DiagnosticResult are the result of different checks giving information on how well the system is doing
 type DiagnosticResult interface {
 	// Name returns a simple and understandable name of the check

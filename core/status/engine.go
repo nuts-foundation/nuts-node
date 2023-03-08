@@ -26,6 +26,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"net/http"
+	"path"
 	"strings"
 	"time"
 
@@ -63,6 +64,13 @@ func (s *status) Routes(router core.EchoRouter) {
 	router.Add(http.MethodGet, statusEndpoint, echo.StaticFileHandler("overview.html", overviewPageResource))
 	router.Add(http.MethodGet, diagnosticsEndpoint, s.diagnosticsOverview)
 	router.Add(http.MethodGet, checkHealthEndpoint, s.checkHealth)
+	// Register mapped diagnostics
+	s.system.VisitEngines(func(engine core.Engine) {
+		m := engine.(core.MappedDiagnosable)
+		for mappedPath, provider := range m.MappedDiagnostics() {
+			router.Add(http.MethodGet, path.Join(diagnosticsEndpoint, mappedPath))
+		}
+	})
 }
 
 func (s *status) diagnosticsOverview(ctx echo.Context) error {

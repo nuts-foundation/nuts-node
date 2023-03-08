@@ -21,6 +21,7 @@ package network
 import (
 	"context"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/transport"
@@ -59,6 +60,8 @@ type Transactions interface {
 	WithPersistency() SubscriberOption
 	// DiscoverServices should be called by the VDR to let the network know it has processed and verified a document (update) for the DID.
 	DiscoverServices(updatedDID did.DID)
+
+	DiagnosticsProviders() map[string]core.DiagnosticsProvider
 }
 
 // EventType defines a type for specifying the kind of events that can be published/subscribed on the Network.

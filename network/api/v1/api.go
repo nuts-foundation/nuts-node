@@ -53,6 +53,7 @@ func (a *Wrapper) Routes(router core.EchoRouter) {
 			return audit.StrictMiddleware(f, network.ModuleName, operationID)
 		},
 	}))
+	router.GET("/network/status/")
 }
 
 // ListTransactions lists all transactions
