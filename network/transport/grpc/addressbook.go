@@ -43,12 +43,11 @@ type AddressBook interface {
 	remove(peerDID did.DID)
 }
 
-func newAddressBook(connectionStore stoabs.KVStore, backoffCreator func() Backoff, hasNoConnection predicate) *addressBook {
+func newAddressBook(connectionStore stoabs.KVStore, backoffCreator func() Backoff) *addressBook {
 	return &addressBook{
-		contacts:        make([]*contact, 0),
-		backoffStore:    connectionStore,
-		backoffCreator:  backoffCreator,
-		hasNoConnection: hasNoConnection,
+		contacts:       make([]*contact, 0),
+		backoffStore:   connectionStore,
+		backoffCreator: backoffCreator,
 	}
 }
 
@@ -168,9 +167,7 @@ func (a *addressBook) Diagnostics() []core.DiagnosticResult {
 
 	var contacts ContactsStats
 	for _, curr := range a.contacts {
-		if a.hasNoConnection(curr) {
-			contacts = append(contacts, curr.stats())
-		}
+		contacts = append(contacts, curr.stats())
 	}
 	return []core.DiagnosticResult{
 		contacts,

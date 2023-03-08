@@ -20,6 +20,8 @@ package v1
 import (
 	"context"
 	"errors"
+	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/nuts-node/core"
 	httpTest "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/stretchr/testify/require"
 	"strings"
@@ -323,4 +325,25 @@ func TestWrapper_ListEvents(t *testing.T) {
 		assert.Nil(t, resp)
 		assert.Error(t, err)
 	})
+}
+
+func TestWrapper_Routes(t *testing.T) {
+	server := echo.New()
+	ctrl := gomock.NewController(t)
+	svc := network.NewMockTransactions(ctrl)
+	svc.EXPECT().MappedDiagnostics().Return(map[string]func() []core.DiagnosticResult{"foo": func() []core.DiagnosticResult {
+		return nil
+	}})
+	w := &Wrapper{Service: svc}
+
+	w.Routes(server)
+
+	// Assert routes contains the mapped diagnostic
+	var found bool
+	for _, route := range server.Routes() {
+		if route.Method == "GET" && route.Path == "/status/diagnostics/network/foo" {
+			found = true
+		}
+	}
+	assert.True(t, found)
 }

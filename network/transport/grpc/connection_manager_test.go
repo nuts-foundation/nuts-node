@@ -1058,6 +1058,11 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 	})
 }
 
+func Test_grpcConnectionManager_MappedDiagnostics(t *testing.T) {
+	cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}, nil, &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
+	assert.NotNil(t, cm.MappedDiagnostics()["addressbook"]())
+}
+
 func newServerStream(clientPeerID transport.PeerID, nodeDID string) *stubServerStream {
 	md := metadata.New(map[string]string{peerIDHeader: clientPeerID.String()})
 	if nodeDID != "" {

@@ -10,6 +10,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	did "github.com/nuts-foundation/go-did/did"
+	core "github.com/nuts-foundation/nuts-node/core"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	dag "github.com/nuts-foundation/nuts-node/network/dag"
 	transport "github.com/nuts-foundation/nuts-node/network/transport"
@@ -122,6 +123,20 @@ func (m *MockTransactions) ListTransactionsInRange(startInclusive, endExclusive 
 func (mr *MockTransactionsMockRecorder) ListTransactionsInRange(startInclusive, endExclusive interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTransactionsInRange", reflect.TypeOf((*MockTransactions)(nil).ListTransactionsInRange), startInclusive, endExclusive)
+}
+
+// MappedDiagnostics mocks base method.
+func (m *MockTransactions) MappedDiagnostics() map[string]func() []core.DiagnosticResult {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MappedDiagnostics")
+	ret0, _ := ret[0].(map[string]func() []core.DiagnosticResult)
+	return ret0
+}
+
+// MappedDiagnostics indicates an expected call of MappedDiagnostics.
+func (mr *MockTransactionsMockRecorder) MappedDiagnostics() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MappedDiagnostics", reflect.TypeOf((*MockTransactions)(nil).MappedDiagnostics))
 }
 
 // PeerDiagnostics mocks base method.

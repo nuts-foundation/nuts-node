@@ -258,6 +258,43 @@ func (mr *MockDiagnosableMockRecorder) Diagnostics() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Diagnostics", reflect.TypeOf((*MockDiagnosable)(nil).Diagnostics))
 }
 
+// MockMappedDiagnosable is a mock of MappedDiagnosable interface.
+type MockMappedDiagnosable struct {
+	ctrl     *gomock.Controller
+	recorder *MockMappedDiagnosableMockRecorder
+}
+
+// MockMappedDiagnosableMockRecorder is the mock recorder for MockMappedDiagnosable.
+type MockMappedDiagnosableMockRecorder struct {
+	mock *MockMappedDiagnosable
+}
+
+// NewMockMappedDiagnosable creates a new mock instance.
+func NewMockMappedDiagnosable(ctrl *gomock.Controller) *MockMappedDiagnosable {
+	mock := &MockMappedDiagnosable{ctrl: ctrl}
+	mock.recorder = &MockMappedDiagnosableMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockMappedDiagnosable) EXPECT() *MockMappedDiagnosableMockRecorder {
+	return m.recorder
+}
+
+// MappedDiagnostics mocks base method.
+func (m *MockMappedDiagnosable) MappedDiagnostics() map[string]func() []DiagnosticResult {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MappedDiagnostics")
+	ret0, _ := ret[0].(map[string]func() []DiagnosticResult)
+	return ret0
+}
+
+// MappedDiagnostics indicates an expected call of MappedDiagnostics.
+func (mr *MockMappedDiagnosableMockRecorder) MappedDiagnostics() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MappedDiagnostics", reflect.TypeOf((*MockMappedDiagnosable)(nil).MappedDiagnostics))
+}
+
 // MockEngine is a mock of Engine interface.
 type MockEngine struct {
 	ctrl     *gomock.Controller

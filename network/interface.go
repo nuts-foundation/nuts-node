@@ -21,6 +21,7 @@ package network
 import (
 	"context"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/transport"
@@ -31,6 +32,7 @@ const MaxReprocessBufferSize = 1000000
 
 // Transactions is the interface that defines the API for creating, reading and subscribing to Nuts Network transactions.
 type Transactions interface {
+	core.MappedDiagnosable
 	// Subscribe registers a receiver for the specified transaction type.
 	// A filter can be passed as option with the WithSelectionFilter function.
 	// The events for the receiver can be made persistent by passing the network.WithPersistency() option.

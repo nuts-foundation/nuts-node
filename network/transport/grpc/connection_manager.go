@@ -64,6 +64,8 @@ var MaxMessageSizeInBytes = defaultMaxMessageSizeInBytes
 // defaultInterceptors aids testing
 var defaultInterceptors []grpc.StreamServerInterceptor
 
+var _ transport.ConnectionManager = (*grpcConnectionManager)(nil)
+
 type fatalError struct {
 	error
 }
@@ -122,7 +124,7 @@ func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nod
 			tlsDialOption,
 		},
 	}
-	cm.addressBook = newAddressBook(connectionStore, config.backoffCreator, isNotActivePredicate(cm))
+	cm.addressBook = newAddressBook(connectionStore, config.backoffCreator)
 	cm.registerPrometheusMetrics()
 	cm.ctx, cm.ctxCancel = context.WithCancel(context.Background())
 
@@ -402,6 +404,12 @@ func (s *grpcConnectionManager) Peers() []transport.Peer {
 
 func (s *grpcConnectionManager) Diagnostics() []core.DiagnosticResult {
 	return append(append([]core.DiagnosticResult{ownPeerIDStatistic{s.config.peerID}}, s.connections.Diagnostics()...), s.addressBook.Diagnostics()...)
+}
+
+func (s *grpcConnectionManager) MappedDiagnostics() map[string]func() []core.DiagnosticResult {
+	return map[string]func() []core.DiagnosticResult{
+		"addressbook": s.addressBook.Diagnostics,
+	}
 }
 
 // RegisterService implements grpc.ServiceRegistrar to register the gRPC services protocols expose.

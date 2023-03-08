@@ -62,6 +62,20 @@ func (mr *MockConnectionManagerMockRecorder) Diagnostics() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Diagnostics", reflect.TypeOf((*MockConnectionManager)(nil).Diagnostics))
 }
 
+// MappedDiagnostics mocks base method.
+func (m *MockConnectionManager) MappedDiagnostics() map[string]func() []core.DiagnosticResult {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MappedDiagnostics")
+	ret0, _ := ret[0].(map[string]func() []core.DiagnosticResult)
+	return ret0
+}
+
+// MappedDiagnostics indicates an expected call of MappedDiagnostics.
+func (mr *MockConnectionManagerMockRecorder) MappedDiagnostics() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MappedDiagnostics", reflect.TypeOf((*MockConnectionManager)(nil).MappedDiagnostics))
+}
+
 // Peers mocks base method.
 func (m *MockConnectionManager) Peers() []Peer {
 	m.ctrl.T.Helper()

@@ -89,6 +89,11 @@ type Network struct {
 	assumeNewNode bool
 }
 
+// MappedDiagnostics implements core.MappedDiagnosable
+func (n *Network) MappedDiagnostics() map[string]func() []core.DiagnosticResult {
+	return n.connectionManager.MappedDiagnostics()
+}
+
 // CheckHealth performs health checks for the network engine.
 func (n *Network) CheckHealth() map[string]core.Health {
 	results := make(map[string]core.Health)

@@ -41,6 +41,7 @@ const (
 // ConnectionManager manages the connections to peers, making outbound connections if required. It also determines the network layout.
 type ConnectionManager interface {
 	core.Diagnosable
+	core.MappedDiagnosable
 
 	// Connect attempts to make an outbound connection to the given peer, after the delay has expired.
 	// If the delay is 0 it will immediately start connecting. It will take the existing backoff into account when it is nil.
