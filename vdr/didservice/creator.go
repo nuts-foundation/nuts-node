@@ -136,6 +136,8 @@ func (n Creator) Create(ctx context.Context, options vdr.DIDCreationOptions) (*d
 
 	// First, generate a new keyPair with the correct kid
 	// Currently, always keep the key in the keystore. This allows us to change the transaction format and regenerate transactions at a later moment.
+	// Relevant issue:
+	// https://github.com/nuts-foundation/nuts-node/issues/1947
 	key, err = n.KeyStore.New(ctx, didKIDNamingFunc)
 	// } else {
 	// 	key, err = nutsCrypto.NewEphemeralKey(didKIDNamingFunc)

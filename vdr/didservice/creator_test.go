@@ -124,6 +124,7 @@ func TestCreator_Create(t *testing.T) {
 		})
 
 		t.Run("using ephemeral key creates different keys for assertion and DID", func(t *testing.T) {
+			// https://github.com/nuts-foundation/nuts-node/pull/1954
 			t.Skip("Disabled while ephemeral keys are not used")
 			ctrl := gomock.NewController(t)
 			keyCreator := nutsCrypto.NewMockKeyCreator(ctrl)
