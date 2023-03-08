@@ -300,7 +300,7 @@ func (n *Network) DiscoverServices(updatedDID did.DID) {
 		// This can happen when the VDR is receiving lots of DID updates, such as during the initial sync of the network.
 		log.Logger().WithError(err).
 			WithField(core.LogFieldDID, updatedDID.String()).
-			Error("Service discovery could not read DID document after an update")
+			Debug("Service discovery could not read DID document after an update")
 		return
 	}
 	nodeDID, err := n.nodeDIDResolver.Resolve()
