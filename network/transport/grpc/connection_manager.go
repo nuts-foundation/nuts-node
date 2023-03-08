@@ -100,6 +100,7 @@ func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nod
 			MinVersion: core.MinTLSVersion,
 		}
 		tlsDialOption = grpc.WithTransportCredentials(credentials.NewTLS(clientConfig)) // TLS authentication
+		config.crlValidator.Configure(clientConfig, config.maxCRLValidityDays)
 	}
 
 	cm := &grpcConnectionManager{
@@ -153,7 +154,7 @@ type grpcConnectionManager struct {
 }
 
 // newGrpcServer configures a new grpc.Server. context.Context is used to cancel the crlValidator
-func newGrpcServer(ctx context.Context, config Config) (*grpc.Server, error) {
+func newGrpcServer(config Config) (*grpc.Server, error) {
 	serverOpts := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(MaxMessageSizeInBytes),
 		grpc.MaxSendMsgSize(MaxMessageSizeInBytes),
@@ -176,8 +177,6 @@ func newGrpcServer(ctx context.Context, config Config) (*grpc.Server, error) {
 			serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsConfig)))
 
 			// Configure support for checking revoked certificates
-			// TODO: CRL is started as part of inbound listening. Should this also start if inbound is disabled?
-			config.crlValidator.SyncLoop(ctx)
 			config.crlValidator.Configure(tlsConfig, config.maxCRLValidityDays)
 		} else {
 			// TLS offloading for incoming traffic
@@ -200,6 +199,11 @@ func newGrpcServer(ctx context.Context, config Config) (*grpc.Server, error) {
 }
 
 func (s *grpcConnectionManager) Start() error {
+	// Start CRL updater
+	if s.config.tlsEnabled() {
+		s.config.crlValidator.SyncLoop(s.ctx)
+	}
+
 	// Start outbound
 	s.connectLoopWG.Add(1)
 	go func() {
@@ -221,7 +225,7 @@ func (s *grpcConnectionManager) Start() error {
 	}
 
 	// Create gRPC server for inbound connectionList and associate it with the protocols
-	s.grpcServer, err = newGrpcServer(s.ctx, s.config)
+	s.grpcServer, err = newGrpcServer(s.config)
 	if err != nil {
 		return err
 	}

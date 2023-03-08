@@ -104,11 +104,10 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 
 	t.Run("ok - with TLS", func(t *testing.T) {
 		p := &TestProtocol{}
-		config := NewConfig("", "test")
 		ts, _ := core.LoadTrustStore("../../test/truststore.pem")
 		clientCert, _ := tls.LoadX509KeyPair("../../test/certificate-and-key.pem", "../../test/certificate-and-key.pem")
-		config.trustStore = ts.CertPool
-		config.clientCert = &clientCert
+		config := NewConfig("", "test", WithTLS(clientCert, ts, 1))
+
 		cm := NewGRPCConnectionManager(config, createKVStore(t), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
 
 		cm.Connect(fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort()), did.DID{}, 0)
@@ -566,7 +565,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 		validator.EXPECT().SyncLoop(gomock.Any())
 		validator.EXPECT().Configure(gomock.Any(), 10).DoAndReturn(func(config *tls.Config, maxValidityDays int) {
 			tlsConfig = config
-		})
+		}).Times(2) // on inbound and outbound TLS config
 
 		cm := NewGRPCConnectionManager(Config{
 			listenAddress:      fmt.Sprintf(":%d", test.FreeTCPPort()),
