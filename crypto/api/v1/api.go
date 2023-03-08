@@ -174,7 +174,7 @@ func (w *Wrapper) EncryptJwe(ctx context.Context, request EncryptJweRequestObjec
 	key, keyID, err := w.resolvePublicKey(id)
 	if err != nil {
 		if errors.Is(err, types.ErrNotFound) || errors.Is(err, types.ErrKeyNotFound) {
-			return nil, err
+			return nil, core.InvalidInputError("unable to locate receiver %s: %w", receiver, err)
 		}
 		return nil, core.InvalidInputError("invalid receiver: %w", err)
 	}
