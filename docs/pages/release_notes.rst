@@ -6,6 +6,16 @@ Release notes
 What has been changed, and how to update between versions.
 
 ***********************
+Coconut update (v5.2.0)
+***********************
+
+Release date: **DRAFT**
+
+- Added support for encrypting documents according to JWE (for DIDComm support).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.1.0...v5.2.0
+
+***********************
 Coconut update (v5.1.0)
 ***********************
 
