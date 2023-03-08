@@ -101,7 +101,7 @@ func (signRequest EncryptJweRequest) validate() error {
 	if len(signRequest.Receiver) == 0 {
 		return errors.New("missing receiver")
 	}
-	if len(signRequest.Headers) == 0 {
+	if signRequest.Headers == nil {
 		return errors.New("missing headers")
 	}
 	if len(signRequest.Payload) == 0 {
@@ -191,7 +191,7 @@ func (w *Wrapper) EncryptJwe(ctx context.Context, request EncryptJweRequestObjec
 			if errors.Is(err, types.ErrNotFound) {
 				return nil, core.NotFoundError("%s: %s", err, id)
 			}
-			return nil, err
+			return nil, core.InvalidInputError("invalid receiver: %w", err)
 		}
 		keyID, err = w.K.ResolveRelationKeyID(*id, types.KeyAgreement)
 		if err != nil {
