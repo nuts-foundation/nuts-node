@@ -22,6 +22,7 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -131,7 +132,10 @@ func (fsc fileSystemBackend) SavePrivateKey(kid string, key crypto.PrivateKey) e
 
 func (fsc fileSystemBackend) ListPrivateKeys() []string {
 	var result []string
-	_ = filepath.Walk(fsc.fspath, func(path string, info fs.FileInfo, err error) error {
+	err := filepath.Walk(fsc.fspath, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 		if !info.IsDir() && strings.HasSuffix(info.Name(), string(privateKeyEntry)) {
 			upper := len(info.Name()) - len(privateKeyEntry) - 1
 			if upper > 0 {
@@ -140,6 +144,11 @@ func (fsc fileSystemBackend) ListPrivateKeys() []string {
 		}
 		return nil
 	})
+	if err != nil {
+		log.Logger().
+			WithError(err).
+			Errorf("Error while listing private keys in %s", fsc.fspath)
+	}
 	return result
 }
 

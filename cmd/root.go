@@ -213,12 +213,12 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 
 	// Register engines
 	system.RegisterEngine(jsonld)
+	system.RegisterEngine(cryptoInstance)
 	system.RegisterEngine(eventManager)
 	system.RegisterEngine(storageInstance)
 	system.RegisterEngine(didStore)
 	system.RegisterEngine(statusEngine)
 	system.RegisterEngine(metricsEngine)
-	system.RegisterEngine(cryptoInstance)
 	// the order of the next 3 modules is fixed due to configure and start dependencies
 	system.RegisterEngine(credentialInstance)
 	system.RegisterEngine(vdrInstance)

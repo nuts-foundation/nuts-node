@@ -75,7 +75,7 @@ jobs:
             ./run-tests.sh
 
       - name: package cleanup
-        uses: bots-house/ghcr-delete-image-action@v1.0.1
+        uses: bots-house/ghcr-delete-image-action@v1.1.0
         if: ${{ github.actor != 'dependabot' }}
         with:
           owner: nuts-foundation
@@ -85,7 +85,7 @@ jobs:
           tag: ${{ env.SHA }}
 
       - name: package cleanup dependabot
-        uses: bots-house/ghcr-delete-image-action@v1.0.1
+        uses: bots-house/ghcr-delete-image-action@v1.1.0
         if: ${{ github.actor == 'dependabot' }}
         with:
           owner: nuts-foundation
