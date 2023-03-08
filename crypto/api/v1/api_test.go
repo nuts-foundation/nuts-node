@@ -282,6 +282,49 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), 400)
 		assert.Empty(t, jwe)
 	})
+	t.Run("ResolveKeyAgreementKey not found, returns ErrNotFound", func(t *testing.T) {
+		ctx := newMockContext(t)
+		headers := map[string]interface{}{"typ": "JWE"}
+		request := EncryptJweRequest{
+			Receiver: "did:nuts:12345",
+			Payload:  payload,
+			Headers:  headers,
+		}
+		ctx.keyResolver.EXPECT().ResolveKeyAgreementKey(gomock.Any()).Return(nil, types.ErrNotFound)
+
+		jwe, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
+		assert.True(t, errors.Is(err, types.ErrNotFound))
+		assert.Empty(t, jwe)
+	})
+	t.Run("ResolveRelationKeyID not found, returns ErrNotFound", func(t *testing.T) {
+		ctx := newMockContext(t)
+		headers := map[string]interface{}{"typ": "JWE"}
+		request := EncryptJweRequest{
+			Receiver: "did:nuts:12345",
+			Payload:  payload,
+			Headers:  headers,
+		}
+		ctx.keyResolver.EXPECT().ResolveKeyAgreementKey(gomock.Any())
+		ctx.keyResolver.EXPECT().ResolveRelationKeyID(gomock.Any(), types.KeyAgreement).Return(ssi.URI{}, types.ErrNotFound)
+
+		jwe, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
+		assert.True(t, errors.Is(err, types.ErrNotFound))
+		assert.Empty(t, jwe)
+	})
+	t.Run("ResolveRelationKey not found, returns ErrNotFound", func(t *testing.T) {
+		ctx := newMockContext(t)
+		headers := map[string]interface{}{"typ": "JWE"}
+		request := EncryptJweRequest{
+			Receiver: "did:nuts:12345#key-1",
+			Payload:  payload,
+			Headers:  headers,
+		}
+		ctx.keyResolver.EXPECT().ResolveRelationKey(gomock.Any(), gomock.Any(), types.KeyAgreement).Return(ssi.URI{}, types.ErrNotFound)
+
+		jwe, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
+		assert.True(t, errors.Is(err, types.ErrNotFound))
+		assert.Empty(t, jwe)
+	})
 	t.Run("KID header returns 400, with Receiver:kid header[kid]:kid", func(t *testing.T) {
 		ctx := newMockContext(t)
 		kid := "did:nuts:12345#mykey-1"

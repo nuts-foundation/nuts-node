@@ -171,36 +171,12 @@ func (w *Wrapper) EncryptJwe(ctx context.Context, request EncryptJweRequestObjec
 	if err != nil {
 		return nil, err
 	}
-	var key crypt.PublicKey
-	var keyID ssi.URI
-	if id.DID.IsURL() {
-		// Assume it is a keyId
-		now := time.Now()
-		key, err = w.K.ResolveRelationKey(id.String(), &now, types.KeyAgreement)
-		if err != nil {
-			if errors.Is(err, types.ErrNotFound) || errors.Is(err, types.ErrKeyNotFound) {
-				return nil, err
-			}
-			return nil, core.InvalidInputError("invalid receiver: %w", err)
+	key, keyID, err := w.resolvePublicKey(id)
+	if err != nil {
+		if errors.Is(err, types.ErrNotFound) || errors.Is(err, types.ErrKeyNotFound) {
+			return nil, err
 		}
-		keyID = id.URI()
-	} else {
-		// Assume it is a DID
-		key, err = w.K.ResolveKeyAgreementKey(*id)
-		if err != nil {
-			if errors.Is(err, types.ErrNotFound) {
-				return nil, core.NotFoundError("%s: %s", err, id)
-			}
-			return nil, core.InvalidInputError("invalid receiver: %w", err)
-		}
-		keyID, err = w.K.ResolveRelationKeyID(*id, types.KeyAgreement)
-		if err != nil {
-			if errors.Is(err, types.ErrNotFound) {
-				return nil, err
-			}
-
-			return nil, core.InvalidInputError("invalid receiver: %w", err)
-		}
+		return nil, core.InvalidInputError("invalid receiver: %w", err)
 	}
 
 	headers := encryptRequest.Headers
@@ -213,6 +189,29 @@ func (w *Wrapper) EncryptJwe(ctx context.Context, request EncryptJweRequestObjec
 		return nil, err
 	}
 	return EncryptJwe200TextResponse(jwe), err
+}
+
+func (w *Wrapper) resolvePublicKey(id *did.DID) (key crypt.PublicKey, keyID ssi.URI, err error) {
+	if id.DID.IsURL() {
+		// Assume it is a keyId
+		now := time.Now()
+		key, err = w.K.ResolveRelationKey(id.String(), &now, types.KeyAgreement)
+		if err != nil {
+			return nil, ssi.URI{}, err
+		}
+		keyID = id.URI()
+	} else {
+		// Assume it is a DID
+		key, err = w.K.ResolveKeyAgreementKey(*id)
+		if err != nil {
+			return nil, ssi.URI{}, err
+		}
+		keyID, err = w.K.ResolveRelationKeyID(*id, types.KeyAgreement)
+		if err != nil {
+			return nil, ssi.URI{}, err
+		}
+	}
+	return key, keyID, nil
 }
 
 // DecryptJwe handles api calls for decrypting JWE messages
