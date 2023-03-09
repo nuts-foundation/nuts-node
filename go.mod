@@ -3,7 +3,7 @@ module github.com/nuts-foundation/nuts-node
 go 1.19
 
 require (
-	github.com/alicebob/miniredis/v2 v2.30.0
+	github.com/alicebob/miniredis/v2 v2.30.1
 	github.com/avast/retry-go/v4 v4.3.3
 	github.com/cbroglie/mustache v1.4.0
 	github.com/deepmap/oapi-codegen v1.12.4
@@ -138,7 +138,7 @@ require (
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
-	github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64 // indirect
+	github.com/yuin/gopher-lua v1.1.0 // indirect
 	golang.org/x/net v0.8.0 // indirect
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f // indirect
 	golang.org/x/sys v0.6.0 // indirect
