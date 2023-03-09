@@ -279,10 +279,7 @@ func (w *Wrapper) VerifyVP(ctx context.Context, request VerifyVPRequestObject) (
 
 // TrustIssuer handles API request to start trusting an issuer of a Verifiable Credential.
 func (w *Wrapper) TrustIssuer(ctx context.Context, request TrustIssuerRequestObject) (TrustIssuerResponseObject, error) {
-	err := changeTrust(*request.Body, func(cType ssi.URI, issuer ssi.URI) error {
-		return w.VCR.Trust(cType, issuer)
-	})
-	if err != nil {
+	if err := changeTrust(*request.Body, w.VCR.Trust); err != nil {
 		return nil, err
 	}
 	return TrustIssuer204Response{}, nil
@@ -290,10 +287,7 @@ func (w *Wrapper) TrustIssuer(ctx context.Context, request TrustIssuerRequestObj
 
 // UntrustIssuer handles API request to stop trusting an issuer of a Verifiable Credential.
 func (w *Wrapper) UntrustIssuer(ctx context.Context, request UntrustIssuerRequestObject) (UntrustIssuerResponseObject, error) {
-	err := changeTrust(*request.Body, func(cType ssi.URI, issuer ssi.URI) error {
-		return w.VCR.Untrust(cType, issuer)
-	})
-	if err != nil {
+	if err := changeTrust(*request.Body, w.VCR.Untrust); err != nil {
 		return nil, err
 	}
 	return UntrustIssuer204Response{}, nil
@@ -301,41 +295,19 @@ func (w *Wrapper) UntrustIssuer(ctx context.Context, request UntrustIssuerReques
 
 // ListTrusted handles API request list all trusted issuers.
 func (w *Wrapper) ListTrusted(ctx context.Context, request ListTrustedRequestObject) (ListTrustedResponseObject, error) {
-	uri, err := parseCredentialType(request.CredentialType)
+	result, err := listTrust(request.CredentialType, w.VCR.Trusted)
 	if err != nil {
 		return nil, err
 	}
-
-	trusted, err := w.VCR.Trusted(*uri)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]string, len(trusted))
-	for i, t := range trusted {
-		result[i] = t.String()
-	}
-
 	return ListTrusted200JSONResponse(result), nil
 }
 
 // ListUntrusted handles API request list all untrusted issuers, which have issued Verifiable Credentials.
 func (w *Wrapper) ListUntrusted(ctx context.Context, request ListUntrustedRequestObject) (ListUntrustedResponseObject, error) {
-	uri, err := parseCredentialType(request.CredentialType)
+	result, err := listTrust(request.CredentialType, w.VCR.Untrusted)
 	if err != nil {
 		return nil, err
 	}
-
-	untrusted, err := w.VCR.Untrusted(*uri)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]string, len(untrusted))
-	for i, t := range untrusted {
-		result[i] = t.String()
-	}
-
 	return ListUntrusted200JSONResponse(result), nil
 }
 
@@ -371,6 +343,27 @@ func changeTrust(icc CredentialIssuer, f trustChangeFunc) error {
 	}
 
 	return nil
+}
+
+type listTrustFunc func(credentialType ssi.URI) ([]ssi.URI, error)
+
+func listTrust(credentialType string, f listTrustFunc) ([]string, error) {
+	uri, err := parseCredentialType(credentialType)
+	if err != nil {
+		return nil, err
+	}
+
+	list, err := f(*uri)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]string, len(list))
+	for i, t := range list {
+		result[i] = t.String()
+	}
+
+	return result, nil
 }
 
 func parseCredentialType(credentialType string) (*ssi.URI, error) {
