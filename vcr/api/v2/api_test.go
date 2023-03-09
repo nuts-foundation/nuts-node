@@ -754,12 +754,11 @@ func TestWrapper_TrustUntrust(t *testing.T) {
 
 func TestWrapper_Trusted(t *testing.T) {
 	credentialType := ssi.MustParseURI("did:nuts:abc")
-	did1 := did.MustParseDID("did:nuts:abc")
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.vcr.EXPECT().Trusted(credentialType).Return([]ssi.URI{credentialType}, nil)
-		expectedResponse := ListTrusted200JSONResponse([]DID{did1})
+		expectedResponse := ListTrusted200JSONResponse([]string{credentialType.String()})
 
 		response, err := ctx.client.ListTrusted(ctx.requestCtx, ListTrustedRequestObject{CredentialType: credentialType.String()})
 
@@ -780,12 +779,11 @@ func TestWrapper_Trusted(t *testing.T) {
 
 func TestWrapper_Untrusted(t *testing.T) {
 	credentialType := ssi.MustParseURI("did:nuts:abc")
-	did1 := did.MustParseDID("did:nuts:abc")
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.vcr.EXPECT().Untrusted(credentialType).Return([]ssi.URI{credentialType}, nil)
-		expectedResponse := ListUntrusted200JSONResponse([]DID{did1})
+		expectedResponse := ListUntrusted200JSONResponse([]string{credentialType.String()})
 
 		response, err := ctx.client.ListUntrusted(ctx.requestCtx, ListUntrustedRequestObject{CredentialType: credentialType.String()})
 

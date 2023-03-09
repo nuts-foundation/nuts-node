@@ -1447,7 +1447,7 @@ func (r VerifyVPResponse) StatusCode() int {
 type ListTrustedResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *[]DID
+	JSON200      *[]string
 	JSONDefault  *struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -1479,7 +1479,7 @@ func (r ListTrustedResponse) StatusCode() int {
 type ListUntrustedResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *[]DID
+	JSON200      *[]string
 	JSONDefault  *struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -2093,7 +2093,7 @@ func ParseListTrustedResponse(rsp *http.Response) (*ListTrustedResponse, error) 
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest []DID
+		var dest []string
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2135,7 +2135,7 @@ func ParseListUntrustedResponse(rsp *http.Response) (*ListUntrustedResponse, err
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest []DID
+		var dest []string
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2819,7 +2819,7 @@ type ListTrustedResponseObject interface {
 	VisitListTrustedResponse(w http.ResponseWriter) error
 }
 
-type ListTrusted200JSONResponse []DID
+type ListTrusted200JSONResponse []string
 
 func (response ListTrusted200JSONResponse) VisitListTrustedResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -2857,7 +2857,7 @@ type ListUntrustedResponseObject interface {
 	VisitListUntrustedResponse(w http.ResponseWriter) error
 }
 
-type ListUntrusted200JSONResponse []DID
+type ListUntrusted200JSONResponse []string
 
 func (response ListUntrusted200JSONResponse) VisitListUntrustedResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")

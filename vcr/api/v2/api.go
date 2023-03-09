@@ -22,7 +22,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/nuts-foundation/nuts-node/jsonld"
@@ -312,13 +311,9 @@ func (w *Wrapper) ListTrusted(ctx context.Context, request ListTrustedRequestObj
 		return nil, err
 	}
 
-	result := make([]DID, len(trusted))
-	var id *DID
+	result := make([]string, len(trusted))
 	for i, t := range trusted {
-		if id, err = did.ParseDID(t.String()); err != nil {
-			return nil, fmt.Errorf("did parse failed: %w", err)
-		}
-		result[i] = *id
+		result[i] = t.String()
 	}
 
 	return ListTrusted200JSONResponse(result), nil
@@ -336,13 +331,9 @@ func (w *Wrapper) ListUntrusted(ctx context.Context, request ListUntrustedReques
 		return nil, err
 	}
 
-	result := make([]DID, len(untrusted))
-	var id *DID
+	result := make([]string, len(untrusted))
 	for i, t := range untrusted {
-		if id, err = did.ParseDID(t.String()); err != nil {
-			return nil, fmt.Errorf("did parse failed: %w", err)
-		}
-		result[i] = *id
+		result[i] = t.String()
 	}
 
 	return ListUntrusted200JSONResponse(result), nil
