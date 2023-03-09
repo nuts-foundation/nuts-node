@@ -50,32 +50,17 @@ func (w *Wrapper) ResolveVC(ctx context.Context, request ResolveVCRequestObject)
 // SearchVCs checks the context used in the JSON-LD query, based on the contents it maps to a non-JSON-LD query
 // After V1, this needs to be remapped to a DB search that supports native JSON-LD
 func (w *Wrapper) SearchVCs(ctx context.Context, request SearchVCsRequestObject) (SearchVCsResponseObject, error) {
-	// use different struct for unmarshalling, we don't want default values for required params
-	type searchVCRequest struct {
-		Query         map[string]interface{} `json:"query"`
-		SearchOptions *SearchOptions         `json:"searchOptions,omitempty"`
-	} // TODO: not sure if this is still needed??
-
-	bs, err := json.Marshal(request.Body)
-	if err != nil {
-		return nil, err
-	}
-	var parsedRequest searchVCRequest
-	if err = json.Unmarshal(bs, &parsedRequest); err != nil {
-		return nil, err
-	}
-
 	untrusted := false
-	if parsedRequest.SearchOptions != nil && parsedRequest.SearchOptions.AllowUntrustedIssuer != nil {
-		untrusted = *parsedRequest.SearchOptions.AllowUntrustedIssuer
+	if request.Body.SearchOptions != nil && request.Body.SearchOptions.AllowUntrustedIssuer != nil {
+		untrusted = *request.Body.SearchOptions.AllowUntrustedIssuer
 	}
 
-	if credentials, ok := parsedRequest.Query["credentialSubject"].([]interface{}); ok && len(credentials) > 1 {
+	if credentials, ok := request.Body.Query["credentialSubject"].([]interface{}); ok && len(credentials) > 1 {
 		return nil, core.InvalidInputError("can't match on multiple VC subjects")
 	}
 
 	reader := jsonld.Reader{DocumentLoader: w.ContextManager.DocumentLoader()}
-	document, err := reader.Read(parsedRequest.Query)
+	document, err := reader.Read(request.Body.Query)
 	if err != nil {
 		return nil, core.InvalidInputError("failed to convert query to JSON-LD expanded form: %w", err)
 	}

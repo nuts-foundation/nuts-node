@@ -8,8 +8,6 @@ output-options:
   skip-prune: true
   exclude-schemas:
   - CredentialSubject
-  - DID
   - Revocation
-  - SearchVCRequest
   - VerifiableCredential
   - VerifiablePresentation
