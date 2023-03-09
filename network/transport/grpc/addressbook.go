@@ -52,11 +52,10 @@ func newAddressBook(connectionStore stoabs.KVStore, backoffCreator func() Backof
 }
 
 type addressBook struct {
-	mux             sync.RWMutex
-	contacts        []*contact
-	backoffStore    stoabs.KVStore
-	backoffCreator  func() Backoff
-	hasNoConnection predicate
+	mux            sync.RWMutex
+	contacts       []*contact
+	backoffStore   stoabs.KVStore
+	backoffCreator func() Backoff
 }
 
 func (a *addressBook) get(peer transport.Peer) (*contact, bool) {

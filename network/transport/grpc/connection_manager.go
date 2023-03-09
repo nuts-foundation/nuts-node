@@ -403,7 +403,7 @@ func (s *grpcConnectionManager) Peers() []transport.Peer {
 }
 
 func (s *grpcConnectionManager) Diagnostics() []core.DiagnosticResult {
-	return append(append([]core.DiagnosticResult{ownPeerIDStatistic{s.config.peerID}}, s.connections.Diagnostics()...), s.addressBook.Diagnostics()...)
+	return append(append([]core.DiagnosticResult{ownPeerIDStatistic{s.config.peerID}}, s.connections.Diagnostics()...))
 }
 
 func (s *grpcConnectionManager) MappedDiagnostics() map[string]func() []core.DiagnosticResult {

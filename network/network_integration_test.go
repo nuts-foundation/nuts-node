@@ -25,7 +25,6 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
-	"github.com/sirupsen/logrus"
 	"hash/crc32"
 	"math/rand"
 	"net/url"
@@ -370,15 +369,10 @@ func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 		// Now instruct node2 to connect to node1
 		node2.network.connectionManager.Connect(nameToAddress(t, "node1"), did.MustParseDID("did:nuts:node1"), nil)
 		time.Sleep(time.Second)
+		// Assert that the connectors of node1 and node2 are deduplicated: since node1 already connected to node2,
+		// node2 should not connect to node1 (deduplicated on nodeDID)
 		assert.Len(t, node1.network.connectionManager.Peers(), 1)
 		assert.Len(t, node2.network.connectionManager.Peers(), 1)
-
-		// Assert that the connectors of node1 and node2 are deduplicated: outbound connection is "merged" with existing inbound connection
-		// There should be no outbound connectors in the stats, since they're not returned for active connections
-		node1Diagnostics := node1.network.connectionManager.Diagnostics()
-		assert.Empty(t, node1Diagnostics[3].(grpc.ContactsStats))
-		node2Diagnostics := node2.network.connectionManager.Diagnostics()
-		assert.Empty(t, node2Diagnostics[3].(grpc.ContactsStats))
 	})
 	t.Run("bootstrap connections", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
@@ -449,8 +443,8 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 		// Now connect node1 to node2 and wait for them to set up
 		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"), nil)
 		if !test.WaitFor(t, func() (bool, error) {
-			diagnostics := node1.network.connectionManager.Diagnostics()
-			connectorsStats := diagnostics[3].(grpc.ContactsStats)
+			diagnostics := node1.network.connectionManager.MappedDiagnostics()["addressbook"]
+			connectorsStats := diagnostics()[0].(grpc.ContactsStats)
 			// Assert we tried to connect at least once
 			return connectorsStats[0].Attempts >= 1, nil
 		}, defaultTimeout, "time-out while waiting for node 1 to try to connect") {
@@ -478,8 +472,8 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 		// Now connect node1 to node2 and wait for them to set up
 		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"), nil)
 		if !test.WaitFor(t, func() (bool, error) {
-			diagnostics := node1.network.connectionManager.Diagnostics()
-			connectorsStats := diagnostics[3].(grpc.ContactsStats)
+			diagnostics := node1.network.connectionManager.MappedDiagnostics()["addressbook"]
+			connectorsStats := diagnostics()[0].(grpc.ContactsStats)
 			// Assert we tried to connect at least once
 			return connectorsStats[0].Attempts >= 1, nil
 		}, defaultTimeout, "time-out while waiting for node 1 to try to connect") {
@@ -1034,8 +1028,8 @@ func waitForTransaction(t *testing.T, tx dag.Transaction, receivers ...string) b
 
 func startNode(t *testing.T, name string, testDirectory string, opts ...func(serverConfig *core.ServerConfig, moduleConfig *Config)) node {
 	log.Logger().Infof("Starting node: %s", name)
-	logrus.SetLevel(logrus.DebugLevel)
 	serverConfig := core.NewServerConfig()
+	serverConfig.Verbosity = "debug"
 	_ = serverConfig.Load(core.FlagSet())
 	serverConfig.Datadir = path.Join(testDirectory, name)
 	serverConfig.LegacyTLS.Enabled = true
