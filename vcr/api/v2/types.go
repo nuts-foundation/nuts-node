@@ -59,7 +59,7 @@ type SearchVCQuery struct {
 	// ExpirationDate is a rfc3339 formatted datetime.
 	ExpirationDate *time.Time `json:"expirationDate,omitempty"`
 	// CredentialSubject holds the actual data for the credential. It must be extracted using the UnmarshalCredentialSubject method and a custom type.
-	CredentialSubject []interface{} `json:"credentialSubject,omitempty"`
+	CredentialSubject interface{} `json:"credentialSubject,omitempty"`
 }
 
 // SearchVCRequest is the request body for searching VCs

@@ -23,30 +23,26 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"testing"
-
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vcr/verifier"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
-
 	"time"
 
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/mock"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
+	"github.com/nuts-foundation/nuts-node/vcr/verifier"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestWrapper_IssueVC(t *testing.T) {
@@ -64,20 +60,20 @@ func TestWrapper_IssueVC(t *testing.T) {
 	t.Run("ok with an actual credential", func(t *testing.T) {
 		testContext := newMockContext(t)
 
-		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			public := Public
-			issueRequest := f.(*IssueVCRequest)
-			issueRequest.Type = expectedRequestedVC.Type[0].String()
-			issueRequest.Issuer = expectedRequestedVC.Issuer.String()
-			issueRequest.CredentialSubject = expectedRequestedVC.CredentialSubject
-			issueRequest.Visibility = &public
-			return nil
-		})
-		testContext.mockIssuer.EXPECT().Issue(gomock.Any(), gomock.Eq(expectedRequestedVC), true, true)
-		testContext.echo.EXPECT().JSON(http.StatusOK, nil)
+		public := Public
+		request := IssueVCRequest{
+			Type:              expectedRequestedVC.Type[0].String(),
+			Issuer:            expectedRequestedVC.Issuer.String(),
+			CredentialSubject: expectedRequestedVC.CredentialSubject,
+			Visibility:        &public,
+		}
+		// assert that credential.NutsV1ContextURI is added if the request does not contain @context
+		testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, gomock.Eq(expectedRequestedVC), true, true).Return(&expectedRequestedVC, nil)
 
-		err := testContext.client.IssueVC(testContext.echo)
+		response, err := testContext.client.IssueVC(testContext.requestCtx, IssueVCRequestObject{Body: &request})
+
 		assert.NoError(t, err)
+		assert.Equal(t, IssueVC200JSONResponse(expectedRequestedVC), response)
 	})
 
 	t.Run("checking request params", func(t *testing.T) {
@@ -85,33 +81,35 @@ func TestWrapper_IssueVC(t *testing.T) {
 		t.Run("err - missing credential type", func(t *testing.T) {
 			testContext := newMockContext(t)
 
-			testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-				public := Public
-				issueRequest := f.(*IssueVCRequest)
-				//issueRequest.Type = expectedRequestedVC.Type[0].String()
-				issueRequest.Issuer = expectedRequestedVC.Issuer.String()
-				issueRequest.CredentialSubject = expectedRequestedVC.CredentialSubject
-				issueRequest.Visibility = &public
-				return nil
-			})
-			err := testContext.client.IssueVC(testContext.echo)
+			public := Public
+			request := IssueVCRequest{
+				//Type:              expectedRequestedVC.Type[0].String(),
+				Issuer:            expectedRequestedVC.Issuer.String(),
+				CredentialSubject: expectedRequestedVC.CredentialSubject,
+				Visibility:        &public,
+			}
+
+			response, err := testContext.client.IssueVC(testContext.requestCtx, IssueVCRequestObject{Body: &request})
+
 			assert.EqualError(t, err, "missing credential type")
+			assert.Empty(t, response)
 		})
 
 		t.Run("err - missing credentialSubject", func(t *testing.T) {
 			testContext := newMockContext(t)
 
-			testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-				public := Public
-				issueRequest := f.(*IssueVCRequest)
-				issueRequest.Type = expectedRequestedVC.Type[0].String()
-				issueRequest.Issuer = expectedRequestedVC.Issuer.String()
-				//issueRequest.CredentialSubject = expectedRequestedVC.CredentialSubject
-				issueRequest.Visibility = &public
-				return nil
-			})
-			err := testContext.client.IssueVC(testContext.echo)
+			public := Public
+			request := IssueVCRequest{
+				Type:   expectedRequestedVC.Type[0].String(),
+				Issuer: expectedRequestedVC.Issuer.String(),
+				//CredentialSubject: expectedRequestedVC.CredentialSubject,
+				Visibility: &public,
+			}
+
+			response, err := testContext.client.IssueVC(testContext.requestCtx, IssueVCRequestObject{Body: &request})
+
 			assert.EqualError(t, err, "missing credentialSubject")
+			assert.Empty(t, response)
 		})
 	})
 
@@ -121,122 +119,122 @@ func TestWrapper_IssueVC(t *testing.T) {
 			t.Run("ok - visibility private", func(t *testing.T) {
 				testContext := newMockContext(t)
 
-				testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-					issueRequest := f.(*IssueVCRequest)
-					publishValue := true
-					visibilityValue := Private
-					issueRequest.Type = expectedRequestedVC.Type[0].String()
-					issueRequest.CredentialSubject = expectedRequestedVC.CredentialSubject
-					issueRequest.Visibility = &visibilityValue
-					issueRequest.PublishToNetwork = &publishValue
-					return nil
-				})
-				testContext.mockIssuer.EXPECT().Issue(gomock.Any(), gomock.Any(), true, false)
-				testContext.echo.EXPECT().JSON(http.StatusOK, nil)
-				err := testContext.client.IssueVC(testContext.echo)
+				publishValue := true
+				visibilityValue := Private
+				request := IssueVCRequest{
+					Type:              expectedRequestedVC.Type[0].String(),
+					CredentialSubject: expectedRequestedVC.CredentialSubject,
+					Visibility:        &visibilityValue,
+					PublishToNetwork:  &publishValue,
+				}
+				expectedVC := vc.VerifiableCredential{}
+				expectedResponse := IssueVC200JSONResponse(expectedVC)
+				testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, gomock.Any(), true, false).Return(&expectedVC, nil)
+
+				response, err := testContext.client.IssueVC(testContext.requestCtx, IssueVCRequestObject{Body: &request})
+
 				assert.NoError(t, err)
+				assert.Equal(t, expectedResponse, response)
 			})
 
 			t.Run("ok - visibility public", func(t *testing.T) {
 				testContext := newMockContext(t)
 
-				testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-					issueRequest := f.(*IssueVCRequest)
-					publishValue := true
-					visibilityValue := Public
-					issueRequest.Type = expectedRequestedVC.Type[0].String()
-					issueRequest.CredentialSubject = expectedRequestedVC.CredentialSubject
-					issueRequest.Visibility = &visibilityValue
-					issueRequest.PublishToNetwork = &publishValue
-					return nil
-				})
-				testContext.mockIssuer.EXPECT().Issue(gomock.Any(), gomock.Any(), true, true)
-				testContext.echo.EXPECT().JSON(http.StatusOK, nil)
-				err := testContext.client.IssueVC(testContext.echo)
+				publishValue := true
+				visibilityValue := Public
+				request := IssueVCRequest{
+					Type:              expectedRequestedVC.Type[0].String(),
+					CredentialSubject: expectedRequestedVC.CredentialSubject,
+					Visibility:        &visibilityValue,
+					PublishToNetwork:  &publishValue,
+				}
+				expectedVC := vc.VerifiableCredential{}
+				expectedResponse := IssueVC200JSONResponse(expectedVC)
+				testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, gomock.Any(), true, true).Return(&expectedVC, nil)
+
+				response, err := testContext.client.IssueVC(testContext.requestCtx, IssueVCRequestObject{Body: &request})
+
 				assert.NoError(t, err)
+				assert.Equal(t, expectedResponse, response)
 			})
 
 			t.Run("err - visibility not set", func(t *testing.T) {
 				testContext := newMockContext(t)
 
-				testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-					issueRequest := f.(*IssueVCRequest)
-					publishValue := true
-					issueRequest.PublishToNetwork = &publishValue
-					visibilityValue := IssueVCRequestVisibility("")
-					issueRequest.Visibility = &visibilityValue
-					return nil
-				})
-				err := testContext.client.IssueVC(testContext.echo)
+				publishValue := true
+				visibilityValue := IssueVCRequestVisibility("")
+				request := IssueVCRequest{
+					Visibility:       &visibilityValue,
+					PublishToNetwork: &publishValue,
+				}
+
+				response, err := testContext.client.IssueVC(testContext.requestCtx, IssueVCRequestObject{Body: &request})
+
+				assert.Empty(t, response)
 				assert.EqualError(t, err, "visibility must be set when publishing credential")
 			})
 
 			t.Run("err - visibility contains invalid value", func(t *testing.T) {
 				testContext := newMockContext(t)
 
-				testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-					issueRequest := f.(*IssueVCRequest)
-					publishValue := true
-					issueRequest.PublishToNetwork = &publishValue
-					visibilityValue := IssueVCRequestVisibility("only when it rains")
-					issueRequest.Visibility = &visibilityValue
-					return nil
-				})
-				err := testContext.client.IssueVC(testContext.echo)
+				publishValue := true
+				visibilityValue := IssueVCRequestVisibility("only when it rains")
+				request := IssueVCRequest{
+					Visibility:       &visibilityValue,
+					PublishToNetwork: &publishValue,
+				}
+
+				response, err := testContext.client.IssueVC(testContext.requestCtx, IssueVCRequestObject{Body: &request})
+
+				assert.Empty(t, response)
 				assert.EqualError(t, err, "invalid value for visibility")
 			})
 
 		})
 
-		t.Run("err - publish false and visibility public", func(t *testing.T) {
+		t.Run("err - publish false and visibility is set", func(t *testing.T) {
 			testContext := newMockContext(t)
 
-			testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-				issueRequest := f.(*IssueVCRequest)
-				publishValue := false
-				issueRequest.PublishToNetwork = &publishValue
-				visibilityValue := Private
-				issueRequest.Visibility = &visibilityValue
-				return nil
-			})
-			err := testContext.client.IssueVC(testContext.echo)
+			publishValue := false
+			visibilityValue := Private
+			request := IssueVCRequest{
+				Visibility:       &visibilityValue,
+				PublishToNetwork: &publishValue,
+			}
+
+			response, err := testContext.client.IssueVC(testContext.requestCtx, IssueVCRequestObject{Body: &request})
+
+			assert.Empty(t, response)
 			assert.EqualError(t, err, "visibility setting is only allowed when publishing to the network")
 		})
 
 		t.Run("publish is false", func(t *testing.T) {
 			testContext := newMockContext(t)
 
-			testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-				issueRequest := f.(*IssueVCRequest)
-				publishValue := false
-				issueRequest.PublishToNetwork = &publishValue
-				issueRequest.Type = expectedRequestedVC.Type[0].String()
-				issueRequest.CredentialSubject = expectedRequestedVC.CredentialSubject
-				return nil
-			})
-			testContext.mockIssuer.EXPECT().Issue(gomock.Any(), gomock.Any(), false, false)
-			testContext.echo.EXPECT().JSON(http.StatusOK, nil)
-			err := testContext.client.IssueVC(testContext.echo)
+			publishValue := false
+			request := IssueVCRequest{
+				Type:              expectedRequestedVC.Type[0].String(),
+				CredentialSubject: expectedRequestedVC.CredentialSubject,
+				PublishToNetwork:  &publishValue,
+			}
+			expectedVC := vc.VerifiableCredential{}
+			expectedResponse := IssueVC200JSONResponse(expectedVC)
+			testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, gomock.Any(), false, false).Return(&expectedVC, nil)
+
+			response, err := testContext.client.IssueVC(testContext.requestCtx, IssueVCRequestObject{Body: &request})
+
 			assert.NoError(t, err)
+			assert.Equal(t, expectedResponse, response)
 		})
 	})
 
 	t.Run("test errors", func(t *testing.T) {
-		validIssueRequest := func(f interface{}) {
-			public := Public
-			issueRequest := f.(*IssueVCRequest)
-			issueRequest.Type = expectedRequestedVC.Type[0].String()
-			issueRequest.CredentialSubject = expectedRequestedVC.CredentialSubject
-			issueRequest.Visibility = &public
+		public := Public
+		validIssueRequest := IssueVCRequest{
+			Type:              expectedRequestedVC.Type[0].String(),
+			CredentialSubject: expectedRequestedVC.CredentialSubject,
+			Visibility:        &public,
 		}
-
-		t.Run("error - bind fails", func(t *testing.T) {
-			testContext := newMockContext(t)
-
-			testContext.echo.EXPECT().Bind(gomock.Any()).Return(errors.New("b00m!"))
-			err := testContext.client.IssueVC(testContext.echo)
-			assert.EqualError(t, err, "b00m!")
-		})
 
 		tests := []struct {
 			name       string
@@ -269,13 +267,9 @@ func TestWrapper_IssueVC(t *testing.T) {
 			t.Run(test.name, func(t *testing.T) {
 				testContext := newMockContext(t)
 
-				testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-					validIssueRequest(f)
-					return nil
-				})
-				testContext.mockIssuer.EXPECT().Issue(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, test.err)
+				testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, test.err)
 
-				err := testContext.client.IssueVC(testContext.echo)
+				_, err := testContext.client.IssueVC(testContext.requestCtx, IssueVCRequestObject{Body: &validIssueRequest})
 
 				assert.Equal(t, test.statusCode, testContext.client.ResolveStatusCode(err))
 			})
@@ -302,30 +296,33 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 	t.Run("ok - with subject, no results", func(t *testing.T) {
 		testContext := newMockContext(t)
 		testContext.mockIssuer.EXPECT().SearchCredential(testCredential, *issuerDID, &subjectID)
-
-		testContext.echo.EXPECT().JSON(http.StatusOK, SearchVCResults{VerifiableCredentials: []SearchVCResult{}})
-
+		expectedResponse := SearchIssuedVCs200JSONResponse(SearchVCResults{VerifiableCredentials: []SearchVCResult{}})
 		params := SearchIssuedVCsParams{
 			CredentialType: "TestCredential",
 			Issuer:         issuerID.String(),
 			Subject:        &subjectIDString,
 		}
-		err := testContext.client.SearchIssuedVCs(testContext.echo, params)
+
+		response, err := testContext.client.SearchIssuedVCs(testContext.requestCtx, SearchIssuedVCsRequestObject{Params: params})
+
 		assert.NoError(t, err)
+		assert.Equal(t, expectedResponse, response)
 	})
 
 	t.Run("ok - without subject, 1 result", func(t *testing.T) {
 		testContext := newMockContext(t)
 		testContext.mockIssuer.EXPECT().SearchCredential(testCredential, *issuerDID, nil).Return([]VerifiableCredential{foundVC}, nil)
 		testContext.mockVerifier.EXPECT().GetRevocation(vcID).Return(nil, verifier.ErrNotFound)
-		testContext.echo.EXPECT().JSON(http.StatusOK, SearchVCResults{VerifiableCredentials: []SearchVCResult{{VerifiableCredential: foundVC}}})
-
+		expectedResponse := SearchIssuedVCs200JSONResponse(SearchVCResults{VerifiableCredentials: []SearchVCResult{{VerifiableCredential: foundVC}}})
 		params := SearchIssuedVCsParams{
 			CredentialType: "TestCredential",
 			Issuer:         issuerID.String(),
 		}
-		err := testContext.client.SearchIssuedVCs(testContext.echo, params)
+
+		response, err := testContext.client.SearchIssuedVCs(testContext.requestCtx, SearchIssuedVCsRequestObject{Params: params})
+
 		assert.NoError(t, err)
+		assert.Equal(t, expectedResponse, response)
 	})
 
 	t.Run("ok - without subject, 1 result, revoked", func(t *testing.T) {
@@ -333,28 +330,32 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 		testContext := newMockContext(t)
 		testContext.mockIssuer.EXPECT().SearchCredential(testCredential, *issuerDID, nil).Return([]VerifiableCredential{foundVC}, nil)
 		testContext.mockVerifier.EXPECT().GetRevocation(vcID).Return(revocation, nil)
-		testContext.echo.EXPECT().JSON(http.StatusOK, SearchVCResults{VerifiableCredentials: []SearchVCResult{{VerifiableCredential: foundVC, Revocation: revocation}}})
-
+		expectedResponse := SearchIssuedVCs200JSONResponse(SearchVCResults{VerifiableCredentials: []SearchVCResult{{VerifiableCredential: foundVC, Revocation: revocation}}})
 		params := SearchIssuedVCsParams{
 			CredentialType: "TestCredential",
 			Issuer:         issuerID.String(),
 		}
-		err := testContext.client.SearchIssuedVCs(testContext.echo, params)
+
+		response, err := testContext.client.SearchIssuedVCs(testContext.requestCtx, SearchIssuedVCsRequestObject{Params: params})
+
 		assert.NoError(t, err)
+		assert.Equal(t, expectedResponse, response)
 	})
 
 	t.Run("error - invalid input", func(t *testing.T) {
 
 		t.Run("invalid issuer", func(t *testing.T) {
 			testContext := newMockContext(t)
-
 			params := SearchIssuedVCsParams{
 				CredentialType: "TestCredential",
 				Issuer:         "abc",
 				Subject:        &subjectIDString,
 			}
-			err := testContext.client.SearchIssuedVCs(testContext.echo, params)
+
+			response, err := testContext.client.SearchIssuedVCs(testContext.requestCtx, SearchIssuedVCsRequestObject{Params: params})
+
 			assert.EqualError(t, err, "invalid issuer did: invalid DID: input length is less than 7")
+			assert.Empty(t, response)
 		})
 
 		t.Run("invalid subject", func(t *testing.T) {
@@ -365,8 +366,10 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 				Issuer:         issuerID.String(),
 				Subject:        &invalidSubjectStr,
 			}
-			err := testContext.client.SearchIssuedVCs(testContext.echo, params)
+			response, err := testContext.client.SearchIssuedVCs(testContext.requestCtx, SearchIssuedVCsRequestObject{Params: params})
+
 			assert.EqualError(t, err, "invalid subject id: parse \"%%\": invalid URL escape \"%%\"")
+			assert.Empty(t, response)
 		})
 
 		t.Run("invalid credentialType", func(t *testing.T) {
@@ -376,21 +379,26 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 				Issuer:         issuerID.String(),
 				Subject:        &subjectIDString,
 			}
-			err := testContext.client.SearchIssuedVCs(testContext.echo, params)
+
+			response, err := testContext.client.SearchIssuedVCs(testContext.requestCtx, SearchIssuedVCsRequestObject{Params: params})
+
 			assert.EqualError(t, err, "invalid credentialType: parse \"%%\": invalid URL escape \"%%\"")
+			assert.Empty(t, response)
 		})
 	})
 
 	t.Run("error - CredentialResolver returns error", func(t *testing.T) {
 		testContext := newMockContext(t)
 		testContext.mockIssuer.EXPECT().SearchCredential(testCredential, *issuerDID, nil).Return(nil, errors.New("b00m!"))
-
 		params := SearchIssuedVCsParams{
 			CredentialType: "TestCredential",
 			Issuer:         issuerID.String(),
 		}
-		err := testContext.client.SearchIssuedVCs(testContext.echo, params)
+
+		response, err := testContext.client.SearchIssuedVCs(testContext.requestCtx, SearchIssuedVCsRequestObject{Params: params})
+
 		assert.EqualError(t, err, "b00m!")
+		assert.Empty(t, response)
 	})
 }
 
@@ -416,36 +424,24 @@ func TestWrapper_VerifyVC(t *testing.T) {
 
 	t.Run("valid vc", func(t *testing.T) {
 		testContext := newMockContext(t)
-
-		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			verifyRequest := f.(*VCVerificationRequest)
-			*verifyRequest = expectedVerifyRequest
-			return nil
-		})
-
-		testContext.echo.EXPECT().JSON(http.StatusOK, VCVerificationResult{Validity: true})
+		expectedResponse := VerifyVC200JSONResponse(VCVerificationResult{Validity: true})
 
 		testContext.mockVerifier.EXPECT().Verify(expectedVC, allowUntrusted, true, nil)
 
-		err := testContext.client.VerifyVC(testContext.echo)
+		response, err := testContext.client.VerifyVC(testContext.requestCtx, VerifyVCRequestObject{Body: &expectedVerifyRequest})
 		assert.NoError(t, err)
+		assert.Equal(t, expectedResponse, response)
 	})
 	t.Run("invalid vc", func(t *testing.T) {
 		testContext := newMockContext(t)
-
-		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			verifyRequest := f.(*VCVerificationRequest)
-			*verifyRequest = expectedVerifyRequest
-			return nil
-		})
-
 		message := "invalid vc"
-		testContext.echo.EXPECT().JSON(http.StatusOK, VCVerificationResult{Validity: false, Message: &message})
+		expectedResponse := VerifyVC200JSONResponse(VCVerificationResult{Validity: false, Message: &message})
 
-		testContext.mockVerifier.EXPECT().Verify(expectedVC, true, true, nil).Return(errors.New("invalid vc"))
+		testContext.mockVerifier.EXPECT().Verify(expectedVC, true, true, nil).Return(errors.New(message))
 
-		err := testContext.client.VerifyVC(testContext.echo)
+		response, err := testContext.client.VerifyVC(testContext.requestCtx, VerifyVCRequestObject{Body: &expectedVerifyRequest})
 		assert.NoError(t, err)
+		assert.Equal(t, expectedResponse, response)
 	})
 }
 
@@ -456,20 +452,23 @@ func TestWrapper_RevokeVC(t *testing.T) {
 	t.Run("test integration with vcr", func(t *testing.T) {
 		t.Run("successful revocation", func(t *testing.T) {
 			testContext := newMockContext(t)
-
 			expectedRevocation := &Revocation{Subject: credentialURI}
 			testContext.mockIssuer.EXPECT().Revoke(gomock.Any(), credentialURI).Return(expectedRevocation, nil)
-			testContext.echo.EXPECT().JSON(http.StatusOK, expectedRevocation)
+			expectedResponse := RevokeVC200JSONResponse(*expectedRevocation)
 
-			err := testContext.client.RevokeVC(testContext.echo, credentialID)
+			response, err := testContext.client.RevokeVC(testContext.requestCtx, RevokeVCRequestObject{Id: credentialID})
+
 			assert.NoError(t, err)
+			assert.Equal(t, expectedResponse, response)
 		})
 
 		t.Run("vcr returns an error", func(t *testing.T) {
 			testContext := newMockContext(t)
-
 			testContext.mockIssuer.EXPECT().Revoke(gomock.Any(), credentialURI).Return(nil, errors.New("credential not found"))
-			err := testContext.client.RevokeVC(testContext.echo, credentialID)
+
+			response, err := testContext.client.RevokeVC(testContext.requestCtx, RevokeVCRequestObject{Id: credentialID})
+
+			assert.Empty(t, response)
 			assert.EqualError(t, err, "credential not found")
 		})
 	})
@@ -478,7 +477,9 @@ func TestWrapper_RevokeVC(t *testing.T) {
 		t.Run("invalid credential id format", func(t *testing.T) {
 			testContext := newMockContext(t)
 
-			err := testContext.client.RevokeVC(testContext.echo, "%%")
+			response, err := testContext.client.RevokeVC(testContext.requestCtx, RevokeVCRequestObject{Id: "%%"})
+
+			assert.Empty(t, response)
 			assert.EqualError(t, err, "invalid credential id: parse \"%%\": invalid URL escape \"%%\"")
 		})
 
@@ -505,6 +506,7 @@ func TestWrapper_CreateVP(t *testing.T) {
 		CredentialSubject: []interface{}{map[string]interface{}{"id": subjectDID.String()}},
 	}
 	result := &vc.VerifiablePresentation{}
+	expectedresponse := CreateVP200JSONResponse(*result)
 
 	createRequest := func() CreateVPRequest {
 		return CreateVPRequest{VerifiableCredentials: []VerifiableCredential{verifiableCredential}}
@@ -521,32 +523,22 @@ func TestWrapper_CreateVP(t *testing.T) {
 	t.Run("ok - without signer DID", func(t *testing.T) {
 		testContext := newMockContext(t)
 		request := createRequest()
-		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			verifyRequest := f.(*CreateVPRequest)
-			*verifyRequest = request
-			return nil
-		})
-		testContext.mockHolder.EXPECT().BuildVP(gomock.Any(), []VerifiableCredential{verifiableCredential}, proof.ProofOptions{Created: created}, nil, true).Return(result, nil)
-		testContext.echo.EXPECT().JSON(http.StatusOK, result)
+		testContext.mockHolder.EXPECT().BuildVP(testContext.requestCtx, []VerifiableCredential{verifiableCredential}, proof.ProofOptions{Created: created}, nil, true).Return(result, nil)
 
-		err := testContext.client.CreateVP(testContext.echo)
+		response, err := testContext.client.CreateVP(testContext.requestCtx, CreateVPRequestObject{Body: &request})
 
+		assert.Equal(t, expectedresponse, response)
 		assert.NoError(t, err)
 	})
 	t.Run("ok - with signer DID", func(t *testing.T) {
 		testContext := newMockContext(t)
 		request := createRequest()
 		request.SignerDID = &subjectDIDString
-		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			verifyRequest := f.(*CreateVPRequest)
-			*verifyRequest = request
-			return nil
-		})
-		testContext.mockHolder.EXPECT().BuildVP(gomock.Any(), []VerifiableCredential{verifiableCredential}, proof.ProofOptions{Created: created}, &subjectDID, true).Return(result, nil)
-		testContext.echo.EXPECT().JSON(http.StatusOK, result)
+		testContext.mockHolder.EXPECT().BuildVP(testContext.requestCtx, []VerifiableCredential{verifiableCredential}, proof.ProofOptions{Created: created}, &subjectDID, true).Return(result, nil)
 
-		err := testContext.client.CreateVP(testContext.echo)
+		response, err := testContext.client.CreateVP(testContext.requestCtx, CreateVPRequestObject{Body: &request})
 
+		assert.Equal(t, expectedresponse, response)
 		assert.NoError(t, err)
 	})
 	t.Run("ok - with expires", func(t *testing.T) {
@@ -554,20 +546,15 @@ func TestWrapper_CreateVP(t *testing.T) {
 		request := createRequest()
 		expired, expiredStr := parsedTimeStr(created.Add(time.Hour))
 		request.Expires = &expiredStr
-		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			verifyRequest := f.(*CreateVPRequest)
-			*verifyRequest = request
-			return nil
-		})
 		opts := proof.ProofOptions{
 			Created: created,
 			Expires: &expired,
 		}
-		testContext.mockHolder.EXPECT().BuildVP(gomock.Any(), []VerifiableCredential{verifiableCredential}, opts, nil, true).Return(result, nil)
-		testContext.echo.EXPECT().JSON(http.StatusOK, result)
+		testContext.mockHolder.EXPECT().BuildVP(testContext.requestCtx, []VerifiableCredential{verifiableCredential}, opts, nil, true).Return(result, nil)
 
-		err := testContext.client.CreateVP(testContext.echo)
+		response, err := testContext.client.CreateVP(testContext.requestCtx, CreateVPRequestObject{Body: &request})
 
+		assert.Equal(t, expectedresponse, response)
 		assert.NoError(t, err)
 	})
 	t.Run("error - with expires, but in the past", func(t *testing.T) {
@@ -576,14 +563,10 @@ func TestWrapper_CreateVP(t *testing.T) {
 		request := createRequest()
 		expiredStr := expired.Format(time.RFC3339)
 		request.Expires = &expiredStr
-		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			verifyRequest := f.(*CreateVPRequest)
-			*verifyRequest = request
-			return nil
-		})
 
-		err := testContext.client.CreateVP(testContext.echo)
+		response, err := testContext.client.CreateVP(testContext.requestCtx, CreateVPRequestObject{Body: &request})
 
+		assert.Empty(t, response)
 		assert.EqualError(t, err, "expires can not lay in the past")
 	})
 	t.Run("error - invalid expires format", func(t *testing.T) {
@@ -591,27 +574,19 @@ func TestWrapper_CreateVP(t *testing.T) {
 		request := createRequest()
 		expiredStr := "a"
 		request.Expires = &expiredStr
-		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			verifyRequest := f.(*CreateVPRequest)
-			*verifyRequest = request
-			return nil
-		})
 
-		err := testContext.client.CreateVP(testContext.echo)
+		response, err := testContext.client.CreateVP(testContext.requestCtx, CreateVPRequestObject{Body: &request})
 
+		assert.Empty(t, response)
 		assert.Contains(t, err.Error(), "invalid value for expires")
 	})
 	t.Run("error - no VCs", func(t *testing.T) {
 		testContext := newMockContext(t)
 		request := CreateVPRequest{}
-		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			verifyRequest := f.(*CreateVPRequest)
-			*verifyRequest = request
-			return nil
-		})
 
-		err := testContext.client.CreateVP(testContext.echo)
+		response, err := testContext.client.CreateVP(testContext.requestCtx, CreateVPRequestObject{Body: &request})
 
+		assert.Empty(t, response)
 		assert.EqualError(t, err, "verifiableCredentials needs at least 1 item")
 	})
 }
@@ -633,53 +608,41 @@ func TestWrapper_VerifyVP(t *testing.T) {
 			VerifiablePresentation: vp,
 			ValidAt:                &validAtStr,
 		}
-		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			verifyRequest := f.(*VPVerificationRequest)
-			*verifyRequest = request
-			return nil
-		})
 		testContext.mockVerifier.EXPECT().VerifyVP(vp, true, &validAt).Return(vp.VerifiableCredential, nil)
-		testContext.echo.EXPECT().JSON(http.StatusOK, VPVerificationResult{
+		expectedResponse := VerifyVP200JSONResponse(VPVerificationResult{
 			Credentials: &expectedVCs,
 			Validity:    true,
 		})
 
-		err := testContext.client.VerifyVP(testContext.echo)
+		response, err := testContext.client.VerifyVP(testContext.requestCtx, VerifyVPRequestObject{Body: &request})
 
 		assert.NoError(t, err)
+		assert.Equal(t, expectedResponse, response)
 	})
 	t.Run("ok - verifyCredentials set", func(t *testing.T) {
 		testContext := newMockContext(t)
 		verifyCredentials := false
 		request := VPVerificationRequest{VerifiablePresentation: vp, VerifyCredentials: &verifyCredentials}
-		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			verifyRequest := f.(*VPVerificationRequest)
-			*verifyRequest = request
-			return nil
-		})
 		testContext.mockVerifier.EXPECT().VerifyVP(vp, false, nil).Return(vp.VerifiableCredential, nil)
-		testContext.echo.EXPECT().JSON(http.StatusOK, VPVerificationResult{
+		expectedResponse := VerifyVP200JSONResponse(VPVerificationResult{
 			Credentials: &expectedVCs,
 			Validity:    true,
 		})
 
-		err := testContext.client.VerifyVP(testContext.echo)
+		response, err := testContext.client.VerifyVP(testContext.requestCtx, VerifyVPRequestObject{Body: &request})
 
 		assert.NoError(t, err)
+		assert.Equal(t, expectedResponse, response)
 	})
 	t.Run("error - verification failed (other error)", func(t *testing.T) {
 		testContext := newMockContext(t)
 		request := VPVerificationRequest{VerifiablePresentation: vp}
-		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			verifyRequest := f.(*VPVerificationRequest)
-			*verifyRequest = request
-			return nil
-		})
 		testContext.mockVerifier.EXPECT().VerifyVP(vp, true, nil).Return(nil, errors.New("failed"))
 
-		err := testContext.client.VerifyVP(testContext.echo)
+		response, err := testContext.client.VerifyVP(testContext.requestCtx, VerifyVPRequestObject{Body: &request})
 
 		assert.Error(t, err)
+		assert.Empty(t, response)
 	})
 	t.Run("error - invalid validAt format", func(t *testing.T) {
 		testContext := newMockContext(t)
@@ -688,33 +651,25 @@ func TestWrapper_VerifyVP(t *testing.T) {
 			VerifiablePresentation: vp,
 			ValidAt:                &validAtStr,
 		}
-		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			verifyRequest := f.(*VPVerificationRequest)
-			*verifyRequest = request
-			return nil
-		})
 
-		err := testContext.client.VerifyVP(testContext.echo)
+		response, err := testContext.client.VerifyVP(testContext.requestCtx, VerifyVPRequestObject{Body: &request})
 
+		assert.Empty(t, response)
 		assert.Contains(t, err.Error(), "invalid value for validAt")
 	})
 	t.Run("error - verification failed (verification error)", func(t *testing.T) {
 		testContext := newMockContext(t)
 		request := VPVerificationRequest{VerifiablePresentation: vp}
-		testContext.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			verifyRequest := f.(*VPVerificationRequest)
-			*verifyRequest = request
-			return nil
-		})
 		testContext.mockVerifier.EXPECT().VerifyVP(vp, true, nil).Return(nil, verifier.VerificationError{})
 		errMsg := "verification error: "
-		testContext.echo.EXPECT().JSON(http.StatusOK, gomock.Eq(VPVerificationResult{
+		expectedRepsonse := VerifyVP200JSONResponse(VPVerificationResult{
 			Message:  &errMsg,
 			Validity: false,
-		}))
+		})
 
-		err := testContext.client.VerifyVP(testContext.echo)
+		response, err := testContext.client.VerifyVP(testContext.requestCtx, VerifyVPRequestObject{Body: &request})
 
+		assert.Equal(t, expectedRepsonse, response)
 		assert.NoError(t, err)
 	})
 }
@@ -727,185 +682,141 @@ func TestWrapper_TrustUntrust(t *testing.T) {
 
 	t.Run("ok - add", func(t *testing.T) {
 		ctx := newMockContext(t)
-
-		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			capturedCombination := f.(*CredentialIssuer)
-			capturedCombination.CredentialType = cType.String()
-			capturedCombination.Issuer = issuer.String()
-			return nil
-		})
+		request := CredentialIssuer{
+			CredentialType: cType.String(),
+			Issuer:         issuer.String(),
+		}
 		ctx.vcr.EXPECT().Trust(cType, issuer).Return(nil)
-		ctx.echo.EXPECT().NoContent(http.StatusNoContent)
 
-		err := ctx.client.TrustIssuer(ctx.echo)
+		response, err := ctx.client.TrustIssuer(ctx.requestCtx, TrustIssuerRequestObject{Body: &request})
+
 		assert.NoError(t, err)
+		assert.Equal(t, TrustIssuer204Response{}, response)
 	})
 
 	t.Run("ok - remove", func(t *testing.T) {
 		ctx := newMockContext(t)
-
-		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			capturedCombination := f.(*CredentialIssuer)
-			capturedCombination.CredentialType = cType.String()
-			capturedCombination.Issuer = issuer.String()
-			return nil
-		})
+		request := CredentialIssuer{
+			CredentialType: cType.String(),
+			Issuer:         issuer.String(),
+		}
 		ctx.vcr.EXPECT().Untrust(cType, issuer).Return(nil)
-		ctx.echo.EXPECT().NoContent(http.StatusNoContent)
 
-		err := ctx.client.UntrustIssuer(ctx.echo)
-		assert.NoError(t, err)
+		response, err := ctx.client.UntrustIssuer(ctx.requestCtx, UntrustIssuerRequestObject{Body: &request})
+
+		require.NoError(t, err)
+		assert.Equal(t, UntrustIssuer204Response{}, response)
 	})
 
 	t.Run("error - invalid issuer", func(t *testing.T) {
 		ctx := newMockContext(t)
+		request := CredentialIssuer{
+			CredentialType: cType.String(),
+			Issuer:         string([]byte{0}),
+		}
 
-		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			capturedCombination := f.(*CredentialIssuer)
-			capturedCombination.CredentialType = cType.String()
-			capturedCombination.Issuer = string([]byte{0})
-			return nil
-		})
-
-		err := ctx.client.TrustIssuer(ctx.echo)
+		response, err := ctx.client.TrustIssuer(ctx.requestCtx, TrustIssuerRequestObject{Body: &request})
 
 		assert.EqualError(t, err, "failed to parse issuer: parse \"\\x00\": net/url: invalid control character in URL")
 		assert.ErrorIs(t, err, core.InvalidInputError(""))
+		assert.Empty(t, response)
 	})
 
 	t.Run("error - invalid credential", func(t *testing.T) {
 		ctx := newMockContext(t)
+		request := CredentialIssuer{
+			Issuer:         cType.String(),
+			CredentialType: string([]byte{0}),
+		}
 
-		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			capturedCombination := f.(*CredentialIssuer)
-			capturedCombination.CredentialType = string([]byte{0})
-			capturedCombination.Issuer = cType.String()
-			return nil
-		})
-
-		err := ctx.client.TrustIssuer(ctx.echo)
+		response, err := ctx.client.TrustIssuer(ctx.requestCtx, TrustIssuerRequestObject{Body: &request})
 
 		assert.EqualError(t, err, "malformed credential type: parse \"\\x00\": net/url: invalid control character in URL")
 		assert.ErrorIs(t, err, core.InvalidInputError(""))
-	})
-
-	t.Run("error - invalid body", func(t *testing.T) {
-		ctx := newMockContext(t)
-
-		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			return errors.New("b00m!")
-		})
-
-		err := ctx.client.TrustIssuer(ctx.echo)
-
-		assert.EqualError(t, err, "b00m!")
+		assert.Empty(t, response)
 	})
 
 	t.Run("error - failed to add", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.echo.EXPECT().Bind(gomock.Any()).DoAndReturn(func(f interface{}) error {
-			capturedCombination := f.(*CredentialIssuer)
-			capturedCombination.CredentialType = cType.String()
-			capturedCombination.Issuer = issuer.String()
-			return nil
-		})
+		request := CredentialIssuer{
+			CredentialType: cType.String(),
+			Issuer:         issuer.String(),
+		}
 		ctx.vcr.EXPECT().Trust(cType, issuer).Return(errors.New("b00m!"))
 
-		err := ctx.client.TrustIssuer(ctx.echo)
+		response, err := ctx.client.TrustIssuer(ctx.requestCtx, TrustIssuerRequestObject{Body: &request})
 
 		assert.Error(t, err)
+		assert.Empty(t, response)
 	})
 }
 
 func TestWrapper_Trusted(t *testing.T) {
-	credentialType, _ := ssi.ParseURI("type")
+	credentialType := ssi.MustParseURI("did:nuts:abc")
+	did1 := did.MustParseDID("did:nuts:abc")
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
+		ctx.vcr.EXPECT().Trusted(credentialType).Return([]ssi.URI{credentialType}, nil)
+		expectedResponse := ListTrusted200JSONResponse([]DID{did1})
 
-		var capturedList []string
-		ctx.vcr.EXPECT().Trusted(*credentialType).Return([]ssi.URI{*credentialType}, nil)
-		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f1 interface{}, f2 interface{}) error {
-			capturedList = f2.([]string)
-			return nil
-		})
-
-		err := ctx.client.ListTrusted(ctx.echo, credentialType.String())
+		response, err := ctx.client.ListTrusted(ctx.requestCtx, ListTrustedRequestObject{CredentialType: credentialType.String()})
 
 		require.NoError(t, err)
-
-		assert.Len(t, capturedList, 1)
-		assert.Equal(t, credentialType.String(), capturedList[0])
+		assert.Equal(t, expectedResponse, response)
 	})
 
 	t.Run("error", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		err := ctx.client.ListTrusted(ctx.echo, string([]byte{0}))
+		response, err := ctx.client.ListTrusted(ctx.requestCtx, ListTrustedRequestObject{CredentialType: string([]byte{0})})
 
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, core.InvalidInputError(""))
+		assert.Empty(t, response)
 	})
 }
 
 func TestWrapper_Untrusted(t *testing.T) {
-	credentialType, _ := ssi.ParseURI("type")
+	credentialType := ssi.MustParseURI("did:nuts:abc")
+	did1 := did.MustParseDID("did:nuts:abc")
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
+		ctx.vcr.EXPECT().Untrusted(credentialType).Return([]ssi.URI{credentialType}, nil)
+		expectedResponse := ListUntrusted200JSONResponse([]DID{did1})
 
-		var capturedList []string
-		ctx.vcr.EXPECT().Untrusted(*credentialType).Return([]ssi.URI{*credentialType}, nil)
-		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any()).DoAndReturn(func(f1 interface{}, f2 interface{}) error {
-			capturedList = f2.([]string)
-			return nil
-		})
-
-		err := ctx.client.ListUntrusted(ctx.echo, credentialType.String())
+		response, err := ctx.client.ListUntrusted(ctx.requestCtx, ListUntrustedRequestObject{CredentialType: credentialType.String()})
 
 		require.NoError(t, err)
-
-		assert.Len(t, capturedList, 1)
-		assert.Equal(t, credentialType.String(), capturedList[0])
+		assert.Equal(t, expectedResponse, response)
 	})
 
 	t.Run("error - malformed input", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		err := ctx.client.ListUntrusted(ctx.echo, string([]byte{0}))
+		response, err := ctx.client.ListUntrusted(ctx.requestCtx, ListUntrustedRequestObject{CredentialType: string([]byte{0})})
 
 		assert.EqualError(t, err, "malformed credential type: parse \"\\x00\": net/url: invalid control character in URL")
 		assert.ErrorIs(t, err, core.InvalidInputError(""))
+		assert.Empty(t, response)
 	})
 
 	t.Run("error - other", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.vcr.EXPECT().Untrusted(*credentialType).Return(nil, errors.New("b00m!"))
+		ctx.vcr.EXPECT().Untrusted(credentialType).Return(nil, errors.New("b00m!"))
 
-		err := ctx.client.ListUntrusted(ctx.echo, credentialType.String())
+		response, err := ctx.client.ListUntrusted(ctx.requestCtx, ListUntrustedRequestObject{CredentialType: credentialType.String()})
 
 		assert.EqualError(t, err, "b00m!")
+		assert.Empty(t, response)
 	})
-}
-
-func TestWrapper_Preprocess(t *testing.T) {
-	w := &Wrapper{}
-	echoCtx := echo.New().NewContext(&http.Request{}, nil)
-	echoCtx.Set(core.UserContextKey, "user")
-
-	w.Preprocess("foo", echoCtx)
-
-	audit.AssertAuditInfo(t, echoCtx, "user@", "VCR", "foo")
-	assert.Equal(t, "foo", echoCtx.Get(core.OperationIDContextKey))
-	assert.Equal(t, "VCR", echoCtx.Get(core.ModuleNameContextKey))
-	assert.Same(t, w, echoCtx.Get(core.StatusCodeResolverContextKey))
 }
 
 type mockContext struct {
 	ctrl         *gomock.Controller
-	echo         *mock.MockContext
 	mockIssuer   *issuer.MockIssuer
 	mockHolder   *holder.MockHolder
 	mockVerifier *verifier.MockVerifier
@@ -927,13 +838,9 @@ func newMockContext(t *testing.T) mockContext {
 	client := &Wrapper{VCR: mockVcr, ContextManager: jsonld.NewTestJSONLDManager(t)}
 
 	requestCtx := audit.TestContext()
-	echoMock := mock.NewMockContext(ctrl)
-	request, _ := http.NewRequestWithContext(requestCtx, http.MethodGet, "/", nil)
-	echoMock.EXPECT().Request().Return(request).AnyTimes()
 
 	return mockContext{
 		ctrl:         ctrl,
-		echo:         echoMock,
 		mockIssuer:   mockIssuer,
 		mockHolder:   mockHolder,
 		mockVerifier: mockVerifier,

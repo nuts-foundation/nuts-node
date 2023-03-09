@@ -19,14 +19,13 @@
 package v2
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/sirupsen/logrus"
-	"net/http"
 	"sort"
 	"strings"
 
-	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/jsonld"
@@ -34,48 +33,51 @@ import (
 )
 
 // ResolveVC handles the API request for resolving a VC
-func (w *Wrapper) ResolveVC(ctx echo.Context, id string) error {
-	vcID, err := ssi.ParseURI(id)
+func (w *Wrapper) ResolveVC(ctx context.Context, request ResolveVCRequestObject) (ResolveVCResponseObject, error) {
+	vcID, err := ssi.ParseURI(request.Id)
 	if err != nil {
-		return core.InvalidInputError("invalid credential id: %w", err)
+		return nil, core.InvalidInputError("invalid credential id: %w", err)
 	}
 	result, err := w.VCR.Resolve(*vcID, nil)
 	if result != nil {
 		// When err != nil credential is untrusted or revoked, credential is still returned.
 		// This API call must return the VC regardless its status: https://github.com/nuts-foundation/nuts-node/issues/1221
-		return ctx.JSON(http.StatusOK, *result)
+		return ResolveVC200JSONResponse(*result), nil
 	}
-	return err
+	return nil, err
 }
 
 // SearchVCs checks the context used in the JSON-LD query, based on the contents it maps to a non-JSON-LD query
 // After V1, this needs to be remapped to a DB search that supports native JSON-LD
-func (w *Wrapper) SearchVCs(ctx echo.Context) error {
+func (w *Wrapper) SearchVCs(ctx context.Context, request SearchVCsRequestObject) (SearchVCsResponseObject, error) {
 	// use different struct for unmarshalling, we don't want default values for required params
 	type searchVCRequest struct {
 		Query         map[string]interface{} `json:"query"`
 		SearchOptions *SearchOptions         `json:"searchOptions,omitempty"`
-	}
+	} // TODO: not sure if this is still needed??
 
-	var request searchVCRequest
-	err := ctx.Bind(&request)
+	bs, err := json.Marshal(request.Body)
 	if err != nil {
-		return core.InvalidInputError("failed to parse request body: %w", err)
+		return nil, err
+	}
+	var parsedRequest searchVCRequest
+	if err = json.Unmarshal(bs, &parsedRequest); err != nil {
+		return nil, err
 	}
 
 	untrusted := false
-	if request.SearchOptions != nil && request.SearchOptions.AllowUntrustedIssuer != nil {
-		untrusted = *request.SearchOptions.AllowUntrustedIssuer
+	if parsedRequest.SearchOptions != nil && parsedRequest.SearchOptions.AllowUntrustedIssuer != nil {
+		untrusted = *parsedRequest.SearchOptions.AllowUntrustedIssuer
 	}
 
-	if credentials, ok := request.Query["credentialSubject"].([]interface{}); ok && len(credentials) > 1 {
-		return core.InvalidInputError("can't match on multiple VC subjects")
+	if credentials, ok := parsedRequest.Query["credentialSubject"].([]interface{}); ok && len(credentials) > 1 {
+		return nil, core.InvalidInputError("can't match on multiple VC subjects")
 	}
 
 	reader := jsonld.Reader{DocumentLoader: w.ContextManager.DocumentLoader()}
-	document, err := reader.Read(request.Query)
+	document, err := reader.Read(parsedRequest.Query)
 	if err != nil {
-		return core.InvalidInputError("failed to convert query to JSON-LD expanded form: %w", err)
+		return nil, core.InvalidInputError("failed to convert query to JSON-LD expanded form: %w", err)
 	}
 
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
@@ -93,15 +95,15 @@ func (w *Wrapper) SearchVCs(ctx echo.Context) error {
 		return strings.Compare(left, right) < 0
 	})
 
-	results, err := w.VCR.Search(ctx.Request().Context(), searchTerms, untrusted, nil)
+	results, err := w.VCR.Search(ctx, searchTerms, untrusted, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	searchResults, err := w.vcsWithRevocationsToSearchResults(results)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return ctx.JSON(http.StatusOK, SearchVCResults{searchResults})
+	return SearchVCs200JSONResponse(SearchVCResults{searchResults}), nil
 }
 
 func flatten(document interface{}, currentPath []string) []vcr.SearchTerm {
