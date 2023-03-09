@@ -40,7 +40,7 @@ require (
 	golang.org/x/crypto v0.7.0
 	golang.org/x/time v0.3.0
 	google.golang.org/grpc v1.53.0
-	google.golang.org/protobuf v1.28.1
+	google.golang.org/protobuf v1.29.0
 	gopkg.in/Regis24GmbH/go-phonetics.v2 v2.0.3
 	gopkg.in/yaml.v3 v3.0.1
 	schneider.vip/problem v1.8.1
