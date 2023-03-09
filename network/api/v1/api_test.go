@@ -24,6 +24,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	httpTest "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/stretchr/testify/require"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -328,22 +331,36 @@ func TestWrapper_ListEvents(t *testing.T) {
 }
 
 func TestWrapper_Routes(t *testing.T) {
-	server := echo.New()
-	ctrl := gomock.NewController(t)
-	svc := network.NewMockTransactions(ctrl)
-	svc.EXPECT().MappedDiagnostics().Return(map[string]func() []core.DiagnosticResult{"foo": func() []core.DiagnosticResult {
-		return nil
-	}})
-	w := &Wrapper{Service: svc}
+	t.Run("mapped diagnostics", func(t *testing.T) {
+		server := echo.New()
+		ctrl := gomock.NewController(t)
+		svc := network.NewMockTransactions(ctrl)
+		svc.EXPECT().MappedDiagnostics().Return(map[string]func() []core.DiagnosticResult{"foo": func() []core.DiagnosticResult {
+			return []core.DiagnosticResult{
+				core.GenericDiagnosticResult{
+					Title:   "bar",
+					Outcome: "OK",
+				},
+			}
+		}})
+		w := &Wrapper{Service: svc}
 
-	w.Routes(server)
+		w.Routes(server)
 
-	// Assert routes contains the mapped diagnostic
-	var found bool
-	for _, route := range server.Routes() {
-		if route.Method == "GET" && route.Path == "/status/diagnostics/network/foo" {
-			found = true
+		// Assert routes contains the mapped diagnostic
+		var found bool
+		for _, route := range server.Routes() {
+			if route.Method == "GET" && route.Path == "/status/diagnostics/network/foo" {
+				found = true
+			}
 		}
-	}
-	assert.True(t, found)
+		assert.True(t, found)
+
+		// Invoke the mapped diagnostic
+		req := httptest.NewRequest(http.MethodGet, "/status/diagnostics/network/foo", nil)
+		rec := httptest.NewRecorder()
+		server.ServeHTTP(rec, req)
+		data, _ := io.ReadAll(rec.Result().Body)
+		assert.Equal(t, "title: bar\noutcome: OK\n", string(data))
+	})
 }
