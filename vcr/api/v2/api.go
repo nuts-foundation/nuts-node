@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"net/http"
 
 	"github.com/nuts-foundation/nuts-node/jsonld"
@@ -64,6 +65,9 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 				ctx.Set(core.StatusCodeResolverContextKey, w)
 				return f(ctx, request)
 			}
+		},
+		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
+			return audit.StrictMiddleware(f, vcr.ModuleName, operationID)
 		},
 	}))
 }
