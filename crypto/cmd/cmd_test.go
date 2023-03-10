@@ -146,7 +146,7 @@ func Test_fs2ExternalStore(t *testing.T) {
 
 		// Configure target
 		t.Setenv("NUTS_CRYPTO_STORAGE", "external")
-		t.Setenv("NUTS_CRYPTO_EXTERNAL_URL", s.URL)
+		t.Setenv("NUTS_CRYPTO_EXTERNAL_ADDRESS", s.URL)
 
 		testDirectory := testIo.TestDirectory(t)
 		setupFSStoreData(t, testDirectory)
