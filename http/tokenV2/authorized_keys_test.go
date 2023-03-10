@@ -125,7 +125,7 @@ func TestMultiKey(t *testing.T) {
 
 // TestCommentedOutKeys ensures multiple keys from one authorized_keys file can be loaded when commented out lines are present
 func TestCommentedOutKeys(t *testing.T) {
-	keyA := "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKbSCOoPbjJyLjXK+HomCl6SWaagF+YLgP9ctaulAm+Q keyA@test.local"
+	keyA := "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKbSCOoPbjJyLjXK+HomCl6SWaagF+YLgP9ctaulAm+Q keyA@test.local # not to be parsed"
 	keyB := "#ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFFypewABfePuH+hFQpPWlmm5kqjJhMAw9o4s9t2rWAN keyB@test.local"
 	keyC := "# ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIL83Nr6q4Fd5upaQ8bqFqKGKwZVbmHT1glrvB/8RhwU5 keyC@test.local"
 	keyD := " #ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKvpooC3obku1Q9ika1exRJE4pvHVMuWyLhr/ybJHFlB keyD@test.local"
@@ -133,10 +133,12 @@ func TestCommentedOutKeys(t *testing.T) {
 	keyF := "ecdsa-sha2-nistp521 AAAAE2VjZHNhLXNoYTItbmlzdHA1MjEAAAAIbmlzdHA1MjEAAACFBAHEzIEBuuH1tRTmkm0YLrhf6YcADsnU0ps89DTzdl9i+irxB2zxCQ/C9ZSQRSG4qR3O7JzmspQX4BNAgpSPN1ABFgA9nM2F+ekB5j380l1QQWtqNyTDV+IGXEW9YJW+UpvBG+jjwGfVmcRU1Sr5BQnQ1VQjkNDPEGo23/I8rFyuVOqn+A== keyF@test.local"
 	authorized_keys := strings.Join([]string{keyA, keyB, keyC, keyD, keyE, keyF}, "\n")
 
+	expectedKeyA := "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKbSCOoPbjJyLjXK+HomCl6SWaagF+YLgP9ctaulAm+Q keyA@test.local"
+
 	keys, err := parseAuthorizedKeys([]byte(authorized_keys))
 	require.NoError(t, err)
 	require.Len(t, keys, 2)
-	assert.Equal(t, keyA, keys[0].String())
+	assert.Equal(t, expectedKeyA, keys[0].String())
 	assert.Equal(t, keyF, keys[1].String())
 }
 
