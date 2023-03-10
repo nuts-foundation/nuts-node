@@ -116,7 +116,7 @@ To generate an RSA key with OpenSSL:
 
  .. code-block:: shell
 
-    openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096 -out/path/to/rsa-private.pem
+    openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096 -out /path/to/rsa-private.pem
 
 Generating Keys With SSH
 ------------------------
