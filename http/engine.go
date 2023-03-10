@@ -360,7 +360,7 @@ func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludeP
 			if err != nil {
 				return fmt.Errorf("unable to discover hostname: %w", err)
 			}
-			log.Logger().Infof("enforcing default audience %v", audience)
+			log.Logger().Infof("Enforcing default audience: %v", audience)
 		}
 
 		// Construct the middleware using the specified audience and authorized keys file
