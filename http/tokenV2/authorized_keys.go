@@ -110,6 +110,11 @@ func parseAuthorizedKeys(contents []byte) ([]authorizedKey, error) {
 			continue
 		}
 
+		// Skip commented out lines
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+
 		// Parse this single authorized key entry
 		publicKey, comment, options, rest, err := ssh.ParseAuthorizedKey([]byte(line))
 		if err != nil {
