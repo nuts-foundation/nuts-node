@@ -162,8 +162,8 @@ func TestAPIClient_CheckHealth(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client, err := NewAPIClient(Config{URL: server.URL, Timeout: time.Second})
-		NewAPIClient(Config{URL: server.URL, Timeout: time.Second})
+		client, err := NewAPIClient(Config{Address: server.URL, Timeout: time.Second})
+		NewAPIClient(Config{Address: server.URL, Timeout: time.Second})
 		require.NoError(t, err)
 		result := client.CheckHealth()
 		assert.Equal(t, result[StorageType].Status, core.HealthStatusUp)
@@ -182,7 +182,7 @@ func TestAPIClient_CheckHealth(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client, err := NewAPIClient(Config{URL: server.URL, Timeout: time.Second})
+		client, err := NewAPIClient(Config{Address: server.URL, Timeout: time.Second})
 		require.NoError(t, err)
 		result := client.CheckHealth()
 		assert.Equal(t, core.HealthStatusDown, result[StorageType].Status)
@@ -201,7 +201,7 @@ func TestAPIClient_CheckHealth(t *testing.T) {
 func TestNewAPIClient(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		var key, _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		client, err := NewAPIClient(Config{URL: serverWithKey(t, key).URL, Timeout: time.Second})
+		client, err := NewAPIClient(Config{Address: serverWithKey(t, key).URL, Timeout: time.Second})
 		require.NoError(t, err)
 		assert.NotNil(t, client)
 	})

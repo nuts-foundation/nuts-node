@@ -43,7 +43,7 @@ func FlagSet() *pflag.FlagSet {
 	flags.String("crypto.vault.address", defs.Vault.Address, "The Vault address. If set it overwrites the VAULT_ADDR env var.")
 	flags.Duration("crypto.vault.timeout", defs.Vault.Timeout, "Timeout of client calls to Vault, in Golang time.Duration string format (e.g. 1s).")
 	flags.String("crypto.vault.pathprefix", defs.Vault.PathPrefix, "The Vault path prefix.")
-	flags.String("crypto.external.url", defs.External.URL, "URL of the external storage service.")
+	flags.String("crypto.external.address", defs.External.Address, "Address of the external storage service.")
 	flags.Duration("crypto.external.timeout", defs.External.Timeout, "Time-out when invoking the external storage backend, in Golang time.Duration string format (e.g. 1s).")
 
 	return flags

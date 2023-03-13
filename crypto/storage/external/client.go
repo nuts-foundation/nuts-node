@@ -67,18 +67,18 @@ func (c APIClient) CheckHealth() map[string]core.Health {
 
 // Config is the configuration for the APIClient.
 type Config struct {
-	// URL is the URL of the remote storage server.
-	URL string `koanf:"url"`
+	// Address contains the URL of the remote storage server.
+	Address string `koanf:"address"`
 	// Timeout is the timeout for the HTTP client.
 	Timeout time.Duration `koanf:"timeout"`
 }
 
 // NewAPIClient create a new API Client to communicate with a remote storage server.
 func NewAPIClient(config Config) (spi.Storage, error) {
-	if _, err := url.ParseRequestURI(config.URL); err != nil {
+	if _, err := url.ParseRequestURI(config.Address); err != nil {
 		return nil, err
 	}
-	client, _ := NewClientWithResponses(config.URL, WithHTTPClient(&http.Client{Timeout: config.Timeout}))
+	client, _ := NewClientWithResponses(config.Address, WithHTTPClient(&http.Client{Timeout: config.Timeout}))
 	return &APIClient{httpClient: client}, nil
 }
 
