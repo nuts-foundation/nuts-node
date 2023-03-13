@@ -21,15 +21,16 @@ package v1
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"regexp"
+	"strings"
+	"time"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/api/v1/client"
 	httpModule "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"net/http"
-	"regexp"
-	"strings"
-	"time"
 
 	"github.com/labstack/echo/v4"
 
@@ -42,7 +43,6 @@ import (
 )
 
 var _ ServerInterface = (*Wrapper)(nil)
-var _ core.Configurable = (*Wrapper)(nil)
 var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
 
 const (
@@ -59,13 +59,6 @@ const (
 type Wrapper struct {
 	Auth               auth.AuthenticationServices
 	CredentialResolver vcr.Resolver
-	strictMode         bool
-}
-
-// Configure is called by the system to configure the API wrapper.
-func (w *Wrapper) Configure(config core.ServerConfig) error {
-	w.strictMode = config.Strictmode
-	return nil
 }
 
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
@@ -123,7 +116,7 @@ func (w Wrapper) VerifySignature(ctx echo.Context) error {
 		}
 		response.IssuerAttributes = &issuerAttributes
 
-		vpType := string(validationResult.VPType())
+		vpType := validationResult.VPType()
 		response.VpType = &vpType
 	} else {
 		response.Validity = false
