@@ -903,6 +903,7 @@ func TestNetwork_ServiceDiscovery(t *testing.T) {
 			},
 		},
 	}
+	delayFn := func(delay time.Duration) *time.Duration { return &delay }
 	t.Run("ok - no service discovery", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		ctx := createNetwork(t, ctrl)
@@ -914,7 +915,7 @@ func TestNetwork_ServiceDiscovery(t *testing.T) {
 			config.EnableDiscovery = true
 		})
 		ctx.docResolver.EXPECT().Resolve(*peerDID, nil).Return(&peerDocument, nil, nil)
-		ctx.connectionManager.EXPECT().Connect(peerAddress, *peerDID, newNodeConnectionDelay)
+		ctx.connectionManager.EXPECT().Connect(peerAddress, *peerDID, delayFn(newNodeConnectionDelay))
 		ctx.network.assumeNewNode = true
 
 		ctx.network.DiscoverServices(*peerDID)
@@ -925,7 +926,7 @@ func TestNetwork_ServiceDiscovery(t *testing.T) {
 			config.EnableDiscovery = true
 		})
 		ctx.docResolver.EXPECT().Resolve(*peerDID, nil).Return(&peerDocument, nil, nil)
-		ctx.connectionManager.EXPECT().Connect(peerAddress, *peerDID, time.Duration(0))
+		ctx.connectionManager.EXPECT().Connect(peerAddress, *peerDID, delayFn(time.Duration(0)))
 
 		ctx.network.DiscoverServices(*peerDID)
 	})
@@ -1023,7 +1024,7 @@ func Test_connectToKnownNodes(t *testing.T) {
 		}
 		docFinder.EXPECT().Find(gomock.Any()).Return([]did.Document{peerDocument, localDocument}, nil)
 		// Only expect Connect() call for peer
-		connectionManager.EXPECT().Connect(peerAddress, *peerDID, time.Duration(0))
+		connectionManager.EXPECT().Connect(peerAddress, *peerDID, nil)
 
 		_ = network.connectToKnownNodes(*nodeDID)
 	})
@@ -1036,7 +1037,7 @@ func Test_connectToKnownNodes(t *testing.T) {
 		// ctx.docFinder.EXPECT().Find().Return(nothing, nil) // called from createNetwork
 
 		// expect Connect() call with delay == 0 for bootstrap node
-		ctx.connectionManager.EXPECT().Connect("bootstrap", did.DID{}, time.Duration(0))
+		ctx.connectionManager.EXPECT().Connect("bootstrap", did.DID{}, nil)
 
 		_ = ctx.network.connectToKnownNodes(*nodeDID)
 	})

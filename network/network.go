@@ -309,7 +309,7 @@ func (n *Network) DiscoverServices(updatedDID did.DID) {
 		log.Logger().WithError(err).Error("Could not resolve own node DID for service discovery")
 		return
 	}
-	n.connectToDID(nodeDID, *document)
+	n.connectToDID(nodeDID, *document, true)
 }
 
 // emitEvents is called when a payload is added.
@@ -385,7 +385,7 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 		if len(strings.TrimSpace(bootstrapNode)) == 0 {
 			continue
 		}
-		n.connectionManager.Connect(bootstrapNode, did.DID{}, 0)
+		n.connectionManager.Connect(bootstrapNode, did.DID{}, nil)
 	}
 
 	if !n.config.EnableDiscovery {
@@ -402,13 +402,13 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 		log.Logger().Infof("Assuming this is a new node, discovered NutsComm addresses are processed with a %s delay", newNodeConnectionDelay)
 	}
 	for _, node := range otherNodes {
-		n.connectToDID(nodeDID, node)
+		n.connectToDID(nodeDID, node, false)
 	}
 
 	return nil
 }
 
-func (n *Network) connectToDID(nodeDID did.DID, node did.Document) {
+func (n *Network) connectToDID(nodeDID did.DID, node did.Document, resetDelay bool) {
 	if !nodeDID.Empty() && node.ID.Equals(nodeDID) {
 		// Found local node, do not discover.
 		return
@@ -428,12 +428,19 @@ inner:
 				WithField(core.LogFieldDID, node.ID.String()).
 				WithField(core.LogFieldNodeAddress, nutsCommUrl.Host).
 				Debug("Discovered Nuts node")
-			if n.assumeNewNode && time.Since(*n.startTime.Load()) < newNodeConnectionDelay {
-				// Connect to NutsComm addresses with a delay.
-				n.connectionManager.Connect(nutsCommUrl.Host, node.ID, newNodeConnectionDelay)
-			} else {
-				n.connectionManager.Connect(nutsCommUrl.Host, node.ID, 0)
-			}
+			var delay *time.Duration
+			if resetDelay {
+				if n.assumeNewNode && time.Since(*n.startTime.Load()) < newNodeConnectionDelay {
+					// Connect to NutsComm addresses with a delay.
+					tmp := newNodeConnectionDelay
+					delay = &tmp
+				} else {
+					// Connect without any delay
+					tmp := time.Duration(0)
+					delay = &tmp
+				}
+			} // else: leave any existing delay unchanged
+			n.connectionManager.Connect(nutsCommUrl.Host, node.ID, delay)
 		}
 	}
 }
