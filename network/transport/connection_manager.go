@@ -43,6 +43,7 @@ type ConnectionManager interface {
 	core.Diagnosable
 
 	// Connect attempts to make an outbound connection to the given peer, after the delay has expired.
+	// If the delay is 0 it will immediately start connecting. It will take the existing backoff into account when it is nil.
 	Connect(peerAddress string, peerDID did.DID, delay *time.Duration)
 
 	// Peers returns a slice containing the peers that are currently connected.
