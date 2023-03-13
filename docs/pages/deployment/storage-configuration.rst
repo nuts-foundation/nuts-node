@@ -123,8 +123,14 @@ External Store API
 
     The external store API is still experimental and may change in the future.
 
+.. warning::
 
-The Nuts node can be configured to use an external store for private keys. This allows you to use your own key management system. The external store must implement the Nuts Secret store API specification. This OpenAPI specification is available from the `Secret Store API repository <https://github.com/nuts-foundation/secret-store-api>`__ on GitHub.
+    Anyone with access to the external store can read/write your private keys, so make sure it's properly secured and only the Nuts node can access it.
+
+
+The Nuts node can be configured to use an external store for private keys. This allows you to use your own key management system.
+The external store must implement the Nuts Secret store API specification.
+This OpenAPI specification is available from the `Secret Store API repository <https://github.com/nuts-foundation/secret-store-api>`__ on GitHub.
 
 Configuration
 ^^^^^^^^^^^^^

@@ -13,7 +13,7 @@ Release date: **DRAFT**
 
 - Default value of strictmode changed to true.
 - Introduced new HTTP-based crypto backend, which allows integration of other key storage backends.
-  It uses a separate service ("sidecar") which implements a standardized API.
+  It uses a separate service (like a sidecar in Kubernetes) which implements a standardized API.
   The feature is still experimental, but will become the recommended backend for storing private keys in the next major release.
   See `Storage Configuration <https://nuts-node.readthedocs.io/en/latest/pages/deployment/storage-configuration.html#external-store-api>`_ for more information.
 - Internal storage of VDR has changed. A migration will run at startup. If the node is stopped during this process, DID Documents will have to be reprocessed manually (restore functionality)
