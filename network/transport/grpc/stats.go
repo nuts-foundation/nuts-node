@@ -96,7 +96,7 @@ func (o ownPeerIDStatistic) String() string {
 type ContactsStats []transport.ContactStats
 
 func (a ContactsStats) Name() string {
-	return "outbound_connectors"
+	return "contacts"
 }
 
 func (a ContactsStats) Result() interface{} {

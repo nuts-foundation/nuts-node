@@ -64,8 +64,6 @@ var MaxMessageSizeInBytes = defaultMaxMessageSizeInBytes
 // defaultInterceptors aids testing
 var defaultInterceptors []grpc.StreamServerInterceptor
 
-var _ transport.ConnectionManager = (*grpcConnectionManager)(nil)
-
 type fatalError struct {
 	error
 }
