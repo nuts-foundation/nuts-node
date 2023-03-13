@@ -106,12 +106,12 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 
 			authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transportPeer)
 
-			assert.EqualError(t, err, "none of the DNS names in the peer's TLS certificate match the NutsComm endpoint (nodeDID=did:nuts:test)")
+			assert.EqualError(t, err, "none of the DNS names in the peer's TLS certificate match the NutsComm endpoint")
 			assert.Equal(t, transportPeer, authenticatedPeer)
 		})
 		t.Run("no TLS info", func(t *testing.T) {
 			authenticatedPeer, err := NewTLSAuthenticator(nil).Authenticate(nodeDID, peer.Peer{}, transportPeer)
-			assert.EqualError(t, err, "missing TLS info (nodeDID=did:nuts:test)")
+			assert.EqualError(t, err, "missing TLS info")
 			assert.Equal(t, transportPeer, authenticatedPeer)
 		})
 		t.Run("DID document not found", func(t *testing.T) {
@@ -122,7 +122,7 @@ func Test_tlsAuthenticator_Authenticate(t *testing.T) {
 
 			authenticatedPeer, err := authenticator.Authenticate(nodeDID, grpcPeer, transportPeer)
 
-			assert.EqualError(t, err, "can't resolve NutsComm service (nodeDID=did:nuts:test): unable to find the DID document")
+			assert.EqualError(t, err, "can't resolve NutsComm service: unable to find the DID document")
 			assert.Equal(t, transportPeer, authenticatedPeer)
 		})
 	})
