@@ -362,7 +362,7 @@ func (s *grpcConnectionManager) hasActiveConnection(peer transport.Peer) bool {
 	return s.connections.Get(ByNodeDID(peer.NodeDID), ByAuthenticated()) != nil
 }
 
-func (s *grpcConnectionManager) Connect(peerAddress string, peerDID did.DID, delay time.Duration) {
+func (s *grpcConnectionManager) Connect(peerAddress string, peerDID did.DID, delay *time.Duration) {
 	// peer has deactivated its DID or removed it's NutsComm address. Delete peer from address book, if it exists.
 	if peerAddress == "" {
 		s.addressBook.remove(peerDID)
@@ -371,9 +371,9 @@ func (s *grpcConnectionManager) Connect(peerAddress string, peerDID did.DID, del
 
 	// add/update contact
 	peer := transport.Peer{Address: peerAddress, NodeDID: peerDID}
-	if cont, updated := s.addressBook.update(peer); updated {
+	if cont, updated := s.addressBook.update(peer); updated && delay != nil {
 		// reset existing backoff after an update to try to connect to the peer's new address
-		cont.backoff.Reset(delay)
+		cont.backoff.Reset(*delay)
 	}
 }
 

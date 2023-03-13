@@ -37,7 +37,7 @@ func (m *MockConnectionManager) EXPECT() *MockConnectionManagerMockRecorder {
 }
 
 // Connect mocks base method.
-func (m *MockConnectionManager) Connect(peerAddress string, peerDID did.DID, delay time.Duration) {
+func (m *MockConnectionManager) Connect(peerAddress string, peerDID did.DID, delay *time.Duration) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Connect", peerAddress, peerDID, delay)
 }

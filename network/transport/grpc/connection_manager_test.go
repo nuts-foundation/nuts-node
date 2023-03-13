@@ -82,21 +82,22 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 		cm := NewGRPCConnectionManager(NewConfig("", "test"), createKVStore(t), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
 		bo := &trackingBackoff{mux: &sync.Mutex{}}
 		cm.addressBook.backoffCreator = func() Backoff { return bo }
+		delayFn := func(delay time.Duration) *time.Duration { return &delay }
 
 		// new contact sets backoff
-		cm.Connect("address", did.MustParseDID("did:nuts:peer"), time.Second)
+		cm.Connect("address", did.MustParseDID("did:nuts:peer"), delayFn(time.Second))
 		assert.Len(t, cm.addressBook.contacts, 1)
 		assert.Equal(t, 1, bo.resetCount)
 		assert.Equal(t, time.Second, bo.lastResetValue)
 
 		// update contact sets backoff
-		cm.Connect("updated address", did.MustParseDID("did:nuts:peer"), time.Hour)
+		cm.Connect("updated address", did.MustParseDID("did:nuts:peer"), delayFn(time.Hour))
 		assert.Len(t, cm.addressBook.contacts, 1)
 		assert.Equal(t, 2, bo.resetCount)
 		assert.Equal(t, time.Hour, bo.lastResetValue)
 
 		// contact didn't change, so backoff doesn't eiter
-		cm.Connect("updated address", did.MustParseDID("did:nuts:peer"), 0)
+		cm.Connect("updated address", did.MustParseDID("did:nuts:peer"), delayFn(0))
 		assert.Len(t, cm.addressBook.contacts, 1)
 		assert.Equal(t, 2, bo.resetCount)
 		assert.Equal(t, time.Hour, bo.lastResetValue)
@@ -110,7 +111,7 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 
 		cm := NewGRPCConnectionManager(config, createKVStore(t), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
 
-		cm.Connect(fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort()), did.DID{}, 0)
+		cm.Connect(fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort()), did.DID{}, nil)
 
 		// TODO: tlsConfig is now part of the cm.dialOptions. How should this be tested??
 		//assert.Len(t, cm.connections.list, 1)
@@ -125,18 +126,18 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 		cm := NewGRPCConnectionManager(NewConfig("", "test"), createKVStore(t), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
 
 		peerAddress := fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort())
-		cm.Connect(peerAddress, did.DID{}, 0)
-		cm.Connect(peerAddress, did.DID{}, 0)
+		cm.Connect(peerAddress, did.DID{}, nil)
+		cm.Connect(peerAddress, did.DID{}, nil)
 		assert.Len(t, cm.addressBook.contacts, 1)
 	})
 
 	t.Run("no address removes contacts", func(t *testing.T) {
 		p := &TestProtocol{}
 		cm := NewGRPCConnectionManager(NewConfig("", "test"), createKVStore(t), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
-		cm.Connect("address", did.MustParseDID("did:nuts:abc"), 0)
+		cm.Connect("address", did.MustParseDID("did:nuts:abc"), nil)
 		assert.Len(t, cm.addressBook.contacts, 1)
 
-		cm.Connect("", did.MustParseDID("did:nuts:abc"), 0)
+		cm.Connect("", did.MustParseDID("did:nuts:abc"), nil)
 
 		assert.Len(t, cm.addressBook.contacts, 0)
 	})
@@ -429,7 +430,7 @@ func Test_grpcConnectionManager_Peers(t *testing.T) {
 		authenticator1.EXPECT().Authenticate(*nodeDID, gomock.Any(), gomock.Any()).Return(transport.Peer{}, nil)
 		cm2, authenticator2, _, _ := create(t, withBufconnDialer(listener))
 		authenticator2.EXPECT().Authenticate(*nodeDID, gomock.Any(), gomock.Any()).Return(transport.Peer{}, nil)
-		cm2.Connect("bufnet", *nodeDID, 0)
+		cm2.Connect("bufnet", *nodeDID, nil)
 		test.WaitFor(t, func() (bool, error) {
 			return len(cm2.Peers()) > 0, nil
 		}, time.Second*2, "waiting for peer 1 to connect")
@@ -446,7 +447,7 @@ func Test_grpcConnectionManager_Peers(t *testing.T) {
 			capturedState.Store(state)
 		})
 
-		cm2.Connect("bufnet", *nodeDID, 0)
+		cm2.Connect("bufnet", *nodeDID, nil)
 
 		test.WaitFor(t, func() (bool, error) {
 			return capturedPeer.Load() != nil, nil
@@ -472,7 +473,7 @@ func Test_grpcConnectionManager_Peers(t *testing.T) {
 			capturedState.Store(state)
 		})
 
-		cm2.Connect("bufnet", *nodeDID, 0)
+		cm2.Connect("bufnet", *nodeDID, nil)
 
 		test.WaitFor(t, func() (bool, error) {
 			return capturedPeer.Load() != nil, nil
@@ -488,7 +489,7 @@ func Test_grpcConnectionManager_Peers(t *testing.T) {
 	})
 	t.Run("0 peers (1 connection which failed)", func(t *testing.T) {
 		cm, _, _, _ := create(t)
-		cm.Connect("non-existing", did.DID{}, 0)
+		cm.Connect("non-existing", did.DID{}, nil)
 		assert.Empty(t, cm.Peers())
 	})
 }
