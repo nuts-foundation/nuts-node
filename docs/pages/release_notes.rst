@@ -5,9 +5,9 @@ Release notes
 
 What has been changed, and how to update between versions.
 
-***********************
-Coconut update (v5.1.0)
-***********************
+*************************
+Hazelnut release (v5.1.0)
+*************************
 
 Release date: **DRAFT**
 
