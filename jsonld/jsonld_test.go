@@ -19,9 +19,10 @@
 package jsonld
 
 import (
+	"testing"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestNewJSONLDInstance(t *testing.T) {

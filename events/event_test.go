@@ -21,8 +21,9 @@ package events
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/assert"

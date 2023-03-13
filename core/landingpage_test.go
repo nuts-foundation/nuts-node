@@ -19,8 +19,9 @@
 package core
 
 import (
-	"github.com/golang/mock/gomock"
 	"testing"
+
+	"github.com/golang/mock/gomock"
 )
 
 func TestLandingPage_Routes(t *testing.T) {

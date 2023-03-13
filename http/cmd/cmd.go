@@ -21,6 +21,9 @@ package cmd
 import (
 	"crypto"
 	"fmt"
+	"strconv"
+	"time"
+
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/nuts-node/audit"
 	cryptoCmd "github.com/nuts-foundation/nuts-node/crypto/cmd"
@@ -28,8 +31,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"strconv"
-	"time"
 )
 
 // FlagSet defines the set of flags that sets the engine configuration

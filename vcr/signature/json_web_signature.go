@@ -21,6 +21,7 @@ package signature
 import (
 	"context"
 	"fmt"
+
 	"github.com/lestrrat-go/jwx/jws"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/crypto"

@@ -20,12 +20,13 @@
 package v2
 
 import (
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/stretchr/testify/require"
 
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/stretchr/testify/assert"

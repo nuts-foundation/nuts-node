@@ -19,9 +19,10 @@ package didservice
 
 import (
 	"errors"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 
 	"github.com/stretchr/testify/require"
 

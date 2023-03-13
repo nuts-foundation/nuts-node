@@ -23,11 +23,12 @@ import (
 	"context"
 	"encoding/gob"
 	"errors"
-	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/network/log"
 	"math/rand"
 	"sync"
 	"time"
+
+	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/nuts-node/network/log"
 )
 
 var nowFunc = time.Now

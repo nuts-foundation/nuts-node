@@ -22,9 +22,10 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"encoding/base64"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"

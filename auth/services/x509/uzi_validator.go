@@ -22,10 +22,11 @@ import (
 	"crypto/x509"
 	"encoding/asn1"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/auth/assets"
-	"github.com/nuts-foundation/nuts-node/crl"
 	"io/fs"
 	"strings"
+
+	"github.com/nuts-foundation/nuts-node/auth/assets"
+	"github.com/nuts-foundation/nuts-node/crl"
 
 	"github.com/lestrrat-go/jwx/jwa"
 

@@ -20,10 +20,11 @@ package proof
 
 import (
 	"encoding/json"
+	"testing"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestSignedDocument_UnmarshalProofValue(t *testing.T) {

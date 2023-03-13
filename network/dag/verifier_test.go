@@ -25,9 +25,10 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/audit"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/audit"
 
 	"github.com/golang/mock/gomock"
 	"github.com/lestrrat-go/jwx/jwk"

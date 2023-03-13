@@ -21,9 +21,10 @@ package v1
 import (
 	"context"
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/network/transport"
 	"io"
 	"net/http"
+
+	"github.com/nuts-foundation/nuts-node/network/transport"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"

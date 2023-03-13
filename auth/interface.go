@@ -20,8 +20,9 @@ package auth
 
 import (
 	"crypto/tls"
-	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
 
 	"github.com/nuts-foundation/nuts-node/auth/services"
 )

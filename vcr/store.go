@@ -23,9 +23,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core"
 	"reflect"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/core"
 
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 

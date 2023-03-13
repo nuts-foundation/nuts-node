@@ -21,10 +21,11 @@ package grpc
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"testing"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestConfig_tlsEnabled(t *testing.T) {

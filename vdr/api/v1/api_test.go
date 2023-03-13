@@ -18,11 +18,12 @@ package v1
 import (
 	"context"
 	"errors"
-	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/nuts-node/audit"
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/nuts-node/audit"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"

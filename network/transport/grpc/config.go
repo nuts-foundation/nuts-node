@@ -21,12 +21,13 @@ package grpc
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"net"
+	"time"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crl"
 	networkTypes "github.com/nuts-foundation/nuts-node/network/transport"
 	"google.golang.org/grpc"
-	"net"
-	"time"
 )
 
 // tcpListenerCreator starts a TCP listener for the inbound gRPC server on the given address.

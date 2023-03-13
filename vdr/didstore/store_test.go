@@ -23,6 +23,9 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/alicebob/miniredis/v2"
 	"github.com/go-redis/redis/v9"
 	ssi "github.com/nuts-foundation/go-did"
@@ -33,8 +36,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 func TestStore_Add(t *testing.T) {

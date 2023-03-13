@@ -20,12 +20,13 @@ package dag
 
 import (
 	"context"
-	"github.com/nuts-foundation/go-stoabs"
-	"github.com/stretchr/testify/require"
 	"sort"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/go-stoabs"
+	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"
 

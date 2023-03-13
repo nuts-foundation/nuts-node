@@ -20,6 +20,7 @@ package core
 
 import (
 	"embed"
+
 	"github.com/labstack/echo/v4"
 )
 

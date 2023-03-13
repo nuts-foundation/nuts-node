@@ -21,13 +21,14 @@ package storage
 import (
 	"context"
 	"crypto/tls"
+	"testing"
+
 	"github.com/alicebob/miniredis/v2"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/redis7"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func Test_redisDatabase_createStore(t *testing.T) {

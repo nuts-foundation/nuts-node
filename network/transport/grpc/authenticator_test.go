@@ -21,10 +21,11 @@ package grpc
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
+
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/stretchr/testify/require"
 
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"

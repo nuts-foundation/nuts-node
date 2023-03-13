@@ -20,15 +20,16 @@ package grpc
 
 import (
 	"context"
+	"net"
+	"net/netip"
+	"strings"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
-	"net"
-	"net/netip"
-	"strings"
-	"testing"
 )
 
 func Test_ipInterceptor(t *testing.T) {

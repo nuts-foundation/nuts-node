@@ -21,9 +21,10 @@ package v1
 import (
 	"context"
 	"errors"
+	"net/http"
+
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/nuts-foundation/nuts-node/audit"
-	"net/http"
 
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"

@@ -21,8 +21,9 @@ package jsonld
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/piprate/json-gold/ld"
 	"github.com/stretchr/testify/assert"

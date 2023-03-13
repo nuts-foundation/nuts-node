@@ -28,10 +28,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/stretchr/testify/require"
 
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/shengdoushi/base58"

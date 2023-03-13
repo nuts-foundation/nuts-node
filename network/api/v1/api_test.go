@@ -20,11 +20,12 @@ package v1
 import (
 	"context"
 	"errors"
-	httpTest "github.com/nuts-foundation/nuts-node/test/http"
-	"github.com/stretchr/testify/require"
 	"strings"
 	"testing"
 	"time"
+
+	httpTest "github.com/nuts-foundation/nuts-node/test/http"
+	"github.com/stretchr/testify/require"
 
 	"github.com/nuts-foundation/nuts-node/network/transport"
 

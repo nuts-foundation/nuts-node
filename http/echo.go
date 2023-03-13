@@ -22,12 +22,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/sirupsen/logrus"
 	"net/http"
 	"strings"
 	"sync"
+
+	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/sirupsen/logrus"
 )
 
 // RootPath is the path used for routes that don't map to a configured bind.

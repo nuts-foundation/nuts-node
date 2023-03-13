@@ -21,11 +21,12 @@ package main
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/cmd"
-	"github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/nuts-foundation/nuts-node/cmd"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {

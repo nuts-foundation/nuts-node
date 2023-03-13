@@ -20,14 +20,15 @@ package cmd
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	v1 "github.com/nuts-foundation/nuts-node/didman/api/v1"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/stretchr/testify/assert"
-	"net/http"
-	"net/http/httptest"
-	"testing"
 )
 
 func TestCmd_AddService(t *testing.T) {

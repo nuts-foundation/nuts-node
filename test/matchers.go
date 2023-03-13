@@ -20,8 +20,9 @@ package test
 
 import (
 	"fmt"
-	"github.com/golang/mock/gomock"
 	"strings"
+
+	"github.com/golang/mock/gomock"
 )
 
 func Contains(needle string) gomock.Matcher {

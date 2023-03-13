@@ -23,8 +23,9 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core"
 	"strings"
+
+	"github.com/nuts-foundation/nuts-node/core"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"

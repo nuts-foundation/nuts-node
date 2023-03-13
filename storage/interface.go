@@ -19,9 +19,10 @@
 package storage
 
 import (
+	"time"
+
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
-	"time"
 )
 
 const lockAcquireTimeout = time.Second

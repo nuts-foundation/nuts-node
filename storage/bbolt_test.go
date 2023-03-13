@@ -21,6 +21,11 @@ package storage
 import (
 	"context"
 	"errors"
+	"os"
+	"path"
+	"testing"
+	"time"
+
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/test"
@@ -28,10 +33,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"os"
-	"path"
-	"testing"
-	"time"
 )
 
 const moduleName = "test"

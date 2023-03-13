@@ -23,9 +23,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"strings"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/piprate/json-gold/ld"
-	"strings"
 
 	"github.com/nuts-foundation/go-did/vc"
 )

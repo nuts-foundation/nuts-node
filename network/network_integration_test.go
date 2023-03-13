@@ -23,9 +23,6 @@ import (
 	"crypto"
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
-	"github.com/sirupsen/logrus"
 	"hash/crc32"
 	"math/rand"
 	"net/url"
@@ -34,6 +31,10 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
+	"github.com/sirupsen/logrus"
 
 	"github.com/nats-io/nats.go"
 	ssi "github.com/nuts-foundation/go-did"

@@ -21,8 +21,9 @@ package events
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/stretchr/testify/assert"

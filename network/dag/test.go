@@ -23,11 +23,12 @@ import (
 	"crypto"
 	"encoding/binary"
 	"fmt"
-	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/audit"
 	"path"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/go-stoabs"
+	"github.com/nuts-foundation/nuts-node/audit"
 
 	"github.com/nuts-foundation/nuts-node/test/io"
 

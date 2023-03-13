@@ -20,6 +20,7 @@ package signature
 
 import (
 	"context"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/crypto"
 )

@@ -24,7 +24,6 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"go.uber.org/goleak"
 	"hash/crc32"
 	"io"
 	"net"
@@ -33,6 +32,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"go.uber.org/goleak"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"

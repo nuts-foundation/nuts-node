@@ -20,12 +20,13 @@ package grpc
 
 import (
 	"errors"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	"github.com/magiconair/properties/assert"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/prometheus/client_golang/prometheus"
 	io_prometheus_client "github.com/prometheus/client_model/go"
-	"testing"
 )
 
 func Test_NumberOfPeersStatistic(t *testing.T) {

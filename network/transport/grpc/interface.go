@@ -20,6 +20,7 @@ package grpc
 
 import (
 	"context"
+
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"google.golang.org/grpc"
 )

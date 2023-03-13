@@ -22,6 +22,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+	"syscall"
+	"testing"
+	"time"
+
 	"github.com/knadh/koanf"
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/structs"
@@ -36,13 +44,6 @@ import (
 	v1 "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"io"
-	"net/http"
-	"os"
-	"path/filepath"
-	"syscall"
-	"testing"
-	"time"
 )
 
 // Test_ServerLifecycle tests the lifecycle of the Nuts node:

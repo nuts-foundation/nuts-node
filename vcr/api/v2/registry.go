@@ -20,11 +20,12 @@ package v2
 
 import (
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/vcr/log"
-	"github.com/sirupsen/logrus"
 	"net/http"
 	"sort"
 	"strings"
+
+	"github.com/nuts-foundation/nuts-node/vcr/log"
+	"github.com/sirupsen/logrus"
 
 	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"

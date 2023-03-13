@@ -19,12 +19,13 @@
 package irma
 
 import (
+	"net/http"
+	"strings"
+
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/auth/services/irma"
 	"github.com/nuts-foundation/nuts-node/core"
-	"net/http"
-	"strings"
 )
 
 // Wrapper bridges Echo routes to the server backend.

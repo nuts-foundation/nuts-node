@@ -22,8 +22,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/audit"
 	"testing"
+
+	"github.com/nuts-foundation/nuts-node/audit"
 
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"

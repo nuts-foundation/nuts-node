@@ -22,10 +22,11 @@ package events
 import (
 	"bytes"
 	"context"
-	"github.com/stretchr/testify/require"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/nuts-node/core"

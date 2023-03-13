@@ -22,11 +22,12 @@ package status
 import (
 	"bytes"
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
 
 	"github.com/nuts-foundation/nuts-node/core"
 

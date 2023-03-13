@@ -19,9 +19,10 @@
 package services
 
 import (
-	"github.com/nuts-foundation/go-did/vc"
 	"net/http"
 	"time"
+
+	"github.com/nuts-foundation/go-did/vc"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/contract"

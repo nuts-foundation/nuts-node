@@ -23,8 +23,9 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"

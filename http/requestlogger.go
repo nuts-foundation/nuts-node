@@ -19,12 +19,13 @@
 package http
 
 import (
+	"mime"
+	"net/http"
+
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/sirupsen/logrus"
-	"mime"
-	"net/http"
 )
 
 // requestLoggerMiddleware returns middleware that logs metadata of HTTP requests.

@@ -21,8 +21,9 @@ package v2
 import (
 	"encoding/json"
 	"errors"
-	httpModule "github.com/nuts-foundation/nuts-node/http"
 	"net/http"
+
+	httpModule "github.com/nuts-foundation/nuts-node/http"
 
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"

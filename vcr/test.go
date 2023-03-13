@@ -20,6 +20,9 @@
 package vcr
 
 import (
+	"path"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -31,8 +34,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"path"
-	"testing"
 )
 
 // NewTestVCRInstance returns a new vcr instance to be used for integration tests. Any data is stored in the

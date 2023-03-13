@@ -19,9 +19,10 @@
 package transport
 
 import (
+	"time"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
-	"time"
 )
 
 // StreamStateObserverFunc is a function that can be registered on the connection manager.

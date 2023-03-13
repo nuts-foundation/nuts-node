@@ -21,6 +21,7 @@ package dag
 import (
 	"errors"
 	"fmt"
+
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/log"

@@ -21,10 +21,11 @@ package storage
 import (
 	"context"
 	"errors"
+	"testing"
+
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/core"
-	"testing"
 )
 
 func NewTestStorageEngine(testDirectory string) Engine {

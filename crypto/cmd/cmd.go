@@ -21,6 +21,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	cryptoEngine "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/external"

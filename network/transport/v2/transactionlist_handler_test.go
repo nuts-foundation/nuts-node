@@ -23,10 +23,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"

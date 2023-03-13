@@ -21,11 +21,12 @@ package dag
 import (
 	"context"
 	"errors"
+	"math"
+
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
-	"math"
 )
 
 var errRootAlreadyExists = errors.New("root transaction already exists")

@@ -19,8 +19,9 @@
 package network
 
 import (
-	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
 	"time"
+
+	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
 )
 
 // Config holds the config for Transactions

@@ -19,10 +19,11 @@
 package grpc
 
 import (
+	"testing"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"google.golang.org/grpc/status"
-	"testing"
 )
 
 // StubConnectionList is a stub implementation of the transport.ConnectionList interface

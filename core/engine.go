@@ -22,9 +22,10 @@ package core
 import (
 	"context"
 	"fmt"
+	"os"
+
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
-	"os"
 )
 
 // Routable enables connecting a REST API to the echo server. The API wrappers should implement this interface

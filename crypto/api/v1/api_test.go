@@ -21,8 +21,9 @@ package v1
 import (
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/audit"
 	"testing"
+
+	"github.com/nuts-foundation/nuts-node/audit"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"

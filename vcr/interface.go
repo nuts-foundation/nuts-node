@@ -23,7 +23,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/nuts-foundation/go-did"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 
 	"github.com/nuts-foundation/go-did/vc"

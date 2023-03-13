@@ -20,11 +20,12 @@ package v2
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/stretchr/testify/assert"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_PeerDiagnosticsManager(t *testing.T) {

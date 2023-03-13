@@ -19,8 +19,9 @@
 package hash
 
 import (
-	"github.com/golang/mock/gomock"
 	"math/rand"
+
+	"github.com/golang/mock/gomock"
 )
 
 func EqHash(hash SHA256Hash) gomock.Matcher {

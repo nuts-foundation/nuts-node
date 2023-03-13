@@ -22,12 +22,13 @@ package v1
 import (
 	"context"
 	"errors"
-	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/vdr"
 	"net/http"
 	"net/url"
 	"testing"
+
+	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/vdr"
 
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"

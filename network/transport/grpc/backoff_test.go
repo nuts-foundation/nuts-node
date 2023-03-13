@@ -20,12 +20,13 @@ package grpc
 
 import (
 	"context"
-	"github.com/nuts-foundation/go-stoabs/bbolt"
-	"github.com/nuts-foundation/nuts-node/test/io"
 	"path"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/go-stoabs/bbolt"
+	"github.com/nuts-foundation/nuts-node/test/io"
 
 	"github.com/stretchr/testify/assert"
 )

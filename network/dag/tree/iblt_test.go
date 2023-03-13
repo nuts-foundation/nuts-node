@@ -20,10 +20,11 @@ package tree
 
 import (
 	"crypto/rand"
+	"testing"
+
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 const numTestBuckets = 1024

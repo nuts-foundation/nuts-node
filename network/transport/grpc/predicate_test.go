@@ -19,8 +19,9 @@
 package grpc
 
 import (
-	"github.com/nuts-foundation/go-did/did"
 	"testing"
+
+	"github.com/nuts-foundation/go-did/did"
 
 	"github.com/stretchr/testify/assert"
 )

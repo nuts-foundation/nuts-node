@@ -20,14 +20,15 @@
 package core
 
 import (
-	"github.com/knadh/koanf"
-	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/spf13/cobra"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"path"
 	"testing"
 	"time"
+
+	"github.com/knadh/koanf"
+	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_GetAddress(t *testing.T) {

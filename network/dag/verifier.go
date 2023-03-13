@@ -22,6 +22,7 @@ import (
 	crypto2 "crypto"
 	"errors"
 	"fmt"
+
 	"github.com/nuts-foundation/go-stoabs"
 
 	"github.com/lestrrat-go/jwx/jwa"

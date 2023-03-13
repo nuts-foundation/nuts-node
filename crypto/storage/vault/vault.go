@@ -21,13 +21,14 @@ package vault
 import (
 	"crypto"
 	"fmt"
+	"path/filepath"
+	"time"
+
 	vault "github.com/hashicorp/vault/api"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
-	"path/filepath"
-	"time"
 )
 
 const privateKeyPathName = "nuts-private-keys"

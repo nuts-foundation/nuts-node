@@ -21,8 +21,9 @@ package spi
 import (
 	"crypto"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core"
 	"regexp"
+
+	"github.com/nuts-foundation/nuts-node/core"
 )
 
 // wrapper wraps a Storage backend and checks the validity of the kid on each of the relevant functions before

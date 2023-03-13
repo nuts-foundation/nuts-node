@@ -20,9 +20,10 @@ package v1
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPeerDiagnostics_MarshalJSON(t *testing.T) {

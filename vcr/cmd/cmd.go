@@ -21,8 +21,9 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"strings"
+
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	api "github.com/nuts-foundation/nuts-node/vcr/api/v2"

@@ -22,10 +22,11 @@ package v1
 import (
 	"errors"
 	"fmt"
-	httpModule "github.com/nuts-foundation/nuts-node/http"
 	"net/http"
 	"net/url"
 	"strings"
+
+	httpModule "github.com/nuts-foundation/nuts-node/http"
 
 	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"

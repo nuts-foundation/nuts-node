@@ -22,12 +22,13 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
-	"github.com/stretchr/testify/require"
 	"os"
 	"path"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
+	"github.com/stretchr/testify/require"
 
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"

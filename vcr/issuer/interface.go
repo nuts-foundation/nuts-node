@@ -20,8 +20,9 @@ package issuer
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/core"
 	"io"
+
+	"github.com/nuts-foundation/nuts-node/core"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"

@@ -22,11 +22,12 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/nuts-foundation/nuts-node/crypto/log"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"

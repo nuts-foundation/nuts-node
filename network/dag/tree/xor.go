@@ -21,6 +21,7 @@ package tree
 import (
 	"errors"
 	"fmt"
+
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 

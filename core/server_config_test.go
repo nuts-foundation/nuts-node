@@ -20,12 +20,13 @@
 package core
 
 import (
+	"os"
+	"testing"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"os"
-	"testing"
 )
 
 var reset = func() {

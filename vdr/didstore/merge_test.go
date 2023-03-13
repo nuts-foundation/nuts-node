@@ -18,11 +18,12 @@
 package didstore
 
 import (
+	"testing"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestMerge(t *testing.T) {

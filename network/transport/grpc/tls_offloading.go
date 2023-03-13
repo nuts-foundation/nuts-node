@@ -25,6 +25,9 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/url"
+	"strings"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"google.golang.org/grpc"
@@ -33,8 +36,6 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
-	"net/url"
-	"strings"
 )
 
 func newAuthenticationInterceptor(clientCertHeaderName string) grpc.StreamServerInterceptor {

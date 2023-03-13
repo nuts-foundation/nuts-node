@@ -22,12 +22,13 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/core"
-	v2 "github.com/nuts-foundation/nuts-node/vcr/api/v2"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/nuts-foundation/nuts-node/core"
+	v2 "github.com/nuts-foundation/nuts-node/vcr/api/v2"
+	"github.com/stretchr/testify/require"
 
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/spf13/cobra"

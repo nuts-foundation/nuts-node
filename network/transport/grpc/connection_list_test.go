@@ -20,10 +20,11 @@ package grpc
 
 import (
 	"context"
+	"testing"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 type stubPredicate struct {

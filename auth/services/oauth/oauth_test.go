@@ -27,10 +27,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/audit"
 	"net/url"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/audit"
 
 	"github.com/golang/mock/gomock"
 	"github.com/lestrrat-go/jwx/jwa"

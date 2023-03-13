@@ -21,6 +21,8 @@ package signature
 import (
 	"context"
 	"encoding/hex"
+	"testing"
+
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
 	ssi "github.com/nuts-foundation/go-did"
@@ -29,7 +31,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestJsonWebSignature2020_CanonicalizeDocument(t *testing.T) {

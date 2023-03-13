@@ -22,10 +22,11 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"time"
+
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/network/log"
-	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"

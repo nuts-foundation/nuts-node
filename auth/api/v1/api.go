@@ -21,15 +21,16 @@ package v1
 import (
 	"encoding/json"
 	"fmt"
-	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/vc"
-	httpModule "github.com/nuts-foundation/nuts-node/http"
-	"github.com/nuts-foundation/nuts-node/vcr"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
 	"time"
+
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
+	httpModule "github.com/nuts-foundation/nuts-node/http"
+	"github.com/nuts-foundation/nuts-node/vcr"
 
 	"github.com/labstack/echo/v4"
 

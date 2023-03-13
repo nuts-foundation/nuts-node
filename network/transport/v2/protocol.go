@@ -22,10 +22,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-stoabs"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/nuts-foundation/go-stoabs"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"

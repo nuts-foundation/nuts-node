@@ -23,14 +23,15 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"path"
+	"strings"
+
 	"github.com/go-redis/redis/v9"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/redis7"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
 	"github.com/sirupsen/logrus"
-	"path"
-	"strings"
 )
 
 var redisTLSModifier = func(conf *tls.Config) {

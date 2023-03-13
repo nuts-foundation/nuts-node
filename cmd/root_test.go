@@ -23,10 +23,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/spf13/cobra"
 	"os"
 	"path"
 	"testing"
+
+	"github.com/spf13/cobra"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"

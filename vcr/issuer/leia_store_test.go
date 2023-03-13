@@ -24,13 +24,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/stretchr/testify/require"
-	"path"
-	"testing"
 
 	"github.com/stretchr/testify/assert"
 

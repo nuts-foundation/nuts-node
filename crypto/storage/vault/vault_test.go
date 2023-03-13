@@ -23,14 +23,15 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
-	vault "github.com/hashicorp/vault/api"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	vault "github.com/hashicorp/vault/api"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type mockVaultClient struct {

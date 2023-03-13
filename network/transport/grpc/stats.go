@@ -21,10 +21,11 @@ package grpc
 import (
 	"context"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/prometheus/client_golang/prometheus"
 	"sort"
 	"strings"
+
+	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // numberOfPeersStatistic contains node's number of peers it's connected to.

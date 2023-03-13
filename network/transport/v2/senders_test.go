@@ -21,10 +21,11 @@ package v2
 
 import (
 	"errors"
-	"github.com/stretchr/testify/require"
 	"math"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"

@@ -21,12 +21,13 @@ package cmd
 import (
 	"bytes"
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 
 	v1 "github.com/nuts-foundation/nuts-node/network/api/v1"
 

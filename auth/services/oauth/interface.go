@@ -20,9 +20,10 @@ package oauth
 
 import (
 	"context"
+	"net/url"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/services"
-	"net/url"
 )
 
 // Client is the client interface for the OAuth service

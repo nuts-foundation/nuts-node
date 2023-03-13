@@ -20,6 +20,7 @@ package crypto
 
 import (
 	"crypto"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	log "github.com/sirupsen/logrus"

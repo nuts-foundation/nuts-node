@@ -20,8 +20,9 @@ package v1
 
 import (
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/network/transport"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/network/transport"
 )
 
 // PeerDiagnostics defines the type for diagnostics of a peer

@@ -20,8 +20,9 @@
 package core
 
 import (
-	"github.com/prometheus/client_golang/prometheus"
 	"net/http"
+
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/labstack/echo/v4"
 	"github.com/prometheus/client_golang/prometheus/collectors"

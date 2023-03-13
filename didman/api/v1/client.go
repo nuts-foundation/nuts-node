@@ -20,9 +20,10 @@ package v1
 
 import (
 	"context"
+	"net/http"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/core"
-	"net/http"
 )
 
 // HTTPClient holds the server address and other basic settings for the http client

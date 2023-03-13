@@ -19,11 +19,12 @@
 package v1
 
 import (
-	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/core"
 
 	ssi "github.com/nuts-foundation/go-did"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"

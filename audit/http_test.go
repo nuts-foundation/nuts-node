@@ -19,11 +19,12 @@
 package audit
 
 import (
+	"net/http"
+	"testing"
+
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/stretchr/testify/assert"
-	"net/http"
-	"testing"
 )
 
 func TestMiddleware(t *testing.T) {

@@ -18,9 +18,10 @@
 package didservice
 
 import (
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"strings"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vdr/types"

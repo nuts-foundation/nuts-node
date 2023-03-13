@@ -21,10 +21,11 @@ package v1
 
 import (
 	"fmt"
-	httpModule "github.com/nuts-foundation/nuts-node/http"
-	"github.com/nuts-foundation/nuts-node/vdr"
 	"net/http"
 	"time"
+
+	httpModule "github.com/nuts-foundation/nuts-node/http"
+	"github.com/nuts-foundation/nuts-node/vdr"
 
 	"github.com/nuts-foundation/go-did/did"
 	vdrDoc "github.com/nuts-foundation/nuts-node/vdr/didservice"

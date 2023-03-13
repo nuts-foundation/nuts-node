@@ -20,9 +20,10 @@ package tree
 
 import (
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"math"
 	"testing"
+
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
 func BenchmarkTree(b *testing.B) {

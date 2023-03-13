@@ -25,14 +25,15 @@ import (
 	"crypto/x509/pkix"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crl/log"
-	"github.com/sirupsen/logrus"
 	"io"
 	"math"
 	"math/big"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/crl/log"
+	"github.com/sirupsen/logrus"
 
 	"github.com/twmb/murmur3"
 )

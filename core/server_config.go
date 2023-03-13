@@ -24,13 +24,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"reflect"
+	"strings"
+
 	"github.com/knadh/koanf"
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/posflag"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
-	"reflect"
-	"strings"
 )
 
 const defaultConfigFile = "nuts.yaml"

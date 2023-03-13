@@ -21,11 +21,12 @@ package proof
 import (
 	"encoding/json"
 	"errors"
+	"testing"
+	"time"
+
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"

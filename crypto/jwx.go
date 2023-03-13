@@ -26,6 +26,7 @@ import (
 	"crypto/rsa"
 	"errors"
 	"fmt"
+
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"

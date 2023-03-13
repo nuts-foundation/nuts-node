@@ -19,12 +19,13 @@
 package transport
 
 import (
+	"sync"
+	"time"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"sync"
-	"time"
 )
 
 // NodeDIDResolver defines an interface for types that resolve the local node's DID, which is used to identify the node on the network.

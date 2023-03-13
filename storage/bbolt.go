@@ -22,15 +22,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path"
+	"sync"
+	"time"
+
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
 	bboltLib "go.etcd.io/bbolt"
-	"os"
-	"path"
-	"sync"
-	"time"
 )
 
 const fileMode = 0640

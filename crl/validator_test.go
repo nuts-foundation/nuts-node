@@ -27,12 +27,13 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
-	"github.com/stretchr/testify/require"
 	"math/big"
 	"net/http"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/nuts-foundation/nuts-node/core"
 

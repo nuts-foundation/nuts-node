@@ -21,6 +21,7 @@ package vdr
 import (
 	"errors"
 	"fmt"
+
 	"github.com/nuts-foundation/nuts-node/network/transport"
 
 	"github.com/lestrrat-go/jwx/jwk"

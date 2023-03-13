@@ -20,13 +20,14 @@ package core
 
 import (
 	"errors"
-	"github.com/labstack/echo/v4"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"schneider.vip/problem"
 	"testing"
+
+	"github.com/labstack/echo/v4"
+	"github.com/stretchr/testify/assert"
+	"schneider.vip/problem"
 )
 
 func TestHttpErrorHandler(t *testing.T) {

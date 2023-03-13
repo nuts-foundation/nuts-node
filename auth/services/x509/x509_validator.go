@@ -26,8 +26,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crl"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/crl"
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"

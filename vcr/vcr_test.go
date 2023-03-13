@@ -21,12 +21,13 @@ package vcr
 
 import (
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/stretchr/testify/require"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/stretchr/testify/require"
 
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/jsonld"

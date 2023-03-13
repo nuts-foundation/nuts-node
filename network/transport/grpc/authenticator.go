@@ -20,6 +20,9 @@ package grpc
 
 import (
 	"fmt"
+	"net/url"
+	"strings"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/log"
@@ -27,8 +30,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"google.golang.org/grpc/credentials"
 	grpcPeer "google.golang.org/grpc/peer"
-	"net/url"
-	"strings"
 )
 
 // Authenticator verifies node identities.

@@ -20,9 +20,10 @@ package v2
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/network/transport"
 	"sync"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/network/transport"
 )
 
 // peerDiagnosticsManager is responsible for managing peer diagnostics:

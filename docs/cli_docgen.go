@@ -19,8 +19,9 @@
 package main
 
 import (
-	"github.com/spf13/cobra"
 	"io"
+
+	"github.com/spf13/cobra"
 )
 
 func GenerateCommandDocs(cmd *cobra.Command, writer io.Writer, filter func(command *cobra.Command) bool, printOptions bool) error {

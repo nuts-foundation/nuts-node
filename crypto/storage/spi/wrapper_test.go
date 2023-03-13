@@ -19,10 +19,11 @@
 package spi
 
 import (
-	"github.com/golang/mock/gomock"
-	"github.com/stretchr/testify/assert"
 	"regexp"
 	"testing"
+
+	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
 )
 
 var kidPattern = regexp.MustCompile(`^[\da-zA-Z_\- :#.]+$`)

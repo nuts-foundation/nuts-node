@@ -21,12 +21,13 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/spf13/cobra"
 	"io"
 	"os"
 	"reflect"
 	"sort"
 	"strings"
+
+	"github.com/spf13/cobra"
 
 	"github.com/nuts-foundation/nuts-node/cmd"
 	"github.com/nuts-foundation/nuts-node/core"

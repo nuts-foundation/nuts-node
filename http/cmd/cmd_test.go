@@ -20,14 +20,15 @@ package cmd
 
 import (
 	"bytes"
-	"github.com/lestrrat-go/jwx/jwt"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/stretchr/testify/require"
 	"regexp"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"
 )

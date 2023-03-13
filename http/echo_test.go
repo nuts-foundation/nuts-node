@@ -20,12 +20,13 @@ package http
 
 import (
 	"errors"
+	"net/http"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"net/http"
-	"testing"
 )
 
 func Test_MultiEcho_Bind(t *testing.T) {

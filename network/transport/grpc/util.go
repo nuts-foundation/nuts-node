@@ -21,12 +21,13 @@ package grpc
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-	"strings"
-	"time"
 )
 
 func readMetadata(md metadata.MD) (transport.PeerID, did.DID, error) {

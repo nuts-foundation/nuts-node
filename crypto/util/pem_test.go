@@ -22,9 +22,10 @@ import (
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"encoding/pem"
-	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/nuts-foundation/nuts-node/crypto/test"
 

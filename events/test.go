@@ -20,8 +20,9 @@
 package events
 
 import (
-	"github.com/nuts-foundation/nuts-node/test"
 	"testing"
+
+	"github.com/nuts-foundation/nuts-node/test"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/test/io"

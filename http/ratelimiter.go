@@ -19,10 +19,11 @@
 package http
 
 import (
+	"time"
+
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"golang.org/x/time/rate"
-	"time"
 )
 
 // internalRateLimiterStore uses a simple TokenBucket for limiting the amount of internal requests.

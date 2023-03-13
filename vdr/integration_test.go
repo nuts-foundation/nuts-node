@@ -22,11 +22,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/audit"
 	"net/url"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/audit"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"

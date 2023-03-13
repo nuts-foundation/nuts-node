@@ -24,14 +24,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	logTest "github.com/sirupsen/logrus/hooks/test"
-	"github.com/stretchr/testify/require"
 	"net"
 	"net/http"
 	"os"
 	"path"
 	"testing"
 	"time"
+
+	logTest "github.com/sirupsen/logrus/hooks/test"
+	"github.com/stretchr/testify/require"
 
 	"github.com/nuts-foundation/nuts-node/cmd"
 	"github.com/nuts-foundation/nuts-node/test"

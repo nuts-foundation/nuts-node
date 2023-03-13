@@ -23,6 +23,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"path"
+	"sync/atomic"
+	"testing"
+	"time"
+
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
@@ -33,10 +38,6 @@ import (
 	io_prometheus_client "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"path"
-	"sync/atomic"
-	"testing"
-	"time"
 )
 
 func TestEvent_UnmarshalJSON(t *testing.T) {

@@ -25,9 +25,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/jsonld"
 	"strings"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/jsonld"
 
 	"github.com/lestrrat-go/jwx/jws"
 	ssi "github.com/nuts-foundation/go-did"

@@ -20,9 +20,10 @@ package crypto
 
 import (
 	"crypto/ecdsa"
+	"testing"
+
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestCrypto_Decrypt(t *testing.T) {

@@ -22,14 +22,15 @@ package core
 import (
 	"errors"
 	"fmt"
+	"os"
+	"strings"
+
 	"github.com/knadh/koanf"
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/providers/posflag"
 	"github.com/spf13/pflag"
-	"os"
-	"strings"
 )
 
 func loadConfigIntoStruct(target interface{}, configMap *koanf.Koanf) error {

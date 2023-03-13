@@ -22,13 +22,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-stoabs"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/go-stoabs"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
