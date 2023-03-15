@@ -50,6 +50,9 @@ type GetCompoundServiceEndpointParams struct {
 	// Resolve Whether to resolve references. When true and the given endpoint is a reference it returns the endpoint of the referenced service.
 	// If false it returns the reference itself. Defaults to true.
 	Resolve *bool `form:"resolve,omitempty" json:"resolve,omitempty"`
+
+	// Accept The requested return type, defaults to application/json.
+	Accept *string `json:"accept,omitempty"`
 }
 
 // SearchOrganizationsParams defines parameters for SearchOrganizations.
@@ -465,6 +468,17 @@ func NewGetCompoundServiceEndpointRequest(server string, did string, compoundSer
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params.Accept != nil {
+		var headerParam0 string
+
+		headerParam0, err = runtime.StyleParamWithLocation("simple", false, "accept", runtime.ParamLocationHeader, *params.Accept)
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("accept", headerParam0)
 	}
 
 	return req, nil
@@ -1679,6 +1693,23 @@ func (w *ServerInterfaceWrapper) GetCompoundServiceEndpoint(ctx echo.Context) er
 	err = runtime.BindQueryParameter("form", true, false, "resolve", ctx.QueryParams(), &params.Resolve)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter resolve: %s", err))
+	}
+
+	headers := ctx.Request().Header
+	// ------------- Optional header parameter "accept" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("accept")]; found {
+		var Accept string
+		n := len(valueList)
+		if n != 1 {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for accept, got %d", n))
+		}
+
+		err = runtime.BindStyledParameterWithLocation("simple", false, "accept", runtime.ParamLocationHeader, valueList[0], &Accept)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter accept: %s", err))
+		}
+
+		params.Accept = &Accept
 	}
 
 	// Invoke the callback with all the unmarshalled arguments

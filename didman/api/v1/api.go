@@ -212,7 +212,12 @@ func (w *Wrapper) GetCompoundServiceEndpoint(_ context.Context, request GetCompo
 	if err != nil {
 		return nil, err
 	}
-	return &GetCompoundServiceEndpoint200JSONResponse{Endpoint: endpoint}, nil
+
+	if request.Params.Accept == nil || *request.Params.Accept != "text/plain" {
+		return GetCompoundServiceEndpoint200JSONResponse{Endpoint: endpoint}, nil
+	} else {
+		return GetCompoundServiceEndpoint200TextResponse(endpoint), nil
+	}
 }
 
 func interfaceToURI(input interface{}) (*ssi.URI, error) {

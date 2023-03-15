@@ -38,19 +38,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//func TestWrapper_Preprocess(t *testing.T) {
-//	w := &Wrapper{}
-//	echoCtx := echo.New().NewContext(&http.Request{}, nil)
-//	echoCtx.Set(core.UserContextKey, "user")
-//
-//	w.Preprocess("foo", echoCtx)
-//
-//	audit.AssertAuditInfo(t, echoCtx, "user@", "Didman", "foo")
-//	assert.Equal(t, "foo", echoCtx.Get(core.OperationIDContextKey))
-//	assert.Equal(t, "Didman", echoCtx.Get(core.ModuleNameContextKey))
-//	assert.Same(t, w, echoCtx.Get(core.StatusCodeResolverContextKey))
-//}
-
 func TestWrapper_AddEndpoint(t *testing.T) {
 	targetDID := did.MustParseDID("did:nuts:1")
 	serviceID := ssi.MustParseURI(targetDID.String() + "#service")
@@ -404,12 +391,14 @@ func TestWrapper_GetCompoundServiceEndpoint(t *testing.T) {
 	t.Run("ok as text/plain", func(t *testing.T) {
 		test := newMockContext(t)
 
+		requestCopy := request
+		requestCopy.Params.Accept = new(string)
+		*requestCopy.Params.Accept = "text/plain"
 		test.didman.EXPECT().GetCompoundServiceEndpoint(targetDID, request.CompoundServiceType, request.EndpointType, true).Return(expected, nil)
-		response, err := test.wrapper.GetCompoundServiceEndpoint(ctx, request)
+		response, err := test.wrapper.GetCompoundServiceEndpoint(ctx, requestCopy)
 
 		assert.NoError(t, err)
-		expectedResponseType := GetCompoundServiceEndpoint200TextResponse("")
-		assert.IsType(t, &expectedResponseType, response)
+		assert.Equal(t, GetCompoundServiceEndpoint200TextResponse("result"), response)
 	})
 	t.Run("ok - no resolve", func(t *testing.T) {
 		test := newMockContext(t)
