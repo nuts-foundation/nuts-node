@@ -9,7 +9,7 @@ What has been changed, and how to update between versions.
 Hazelnut release (v5.1.0)
 *************************
 
-Release date: **DRAFT**
+Release date: 2023-03-15
 
 - Default value of strictmode changed to true.
 - Introduced new HTTP-based crypto backend, which allows integration of other key storage backends.
