@@ -3,7 +3,7 @@
 Releasing Nuts Node
 ###################
 
-Nuts Node and auxiliary tools/applications follow a semantic versioning scheme (``<major>.<minor>.<patch>``):
+Nuts Node and auxiliary tools/applications follow a semantic versioning scheme (``<major>.<minor>.<patch>(-rc.<rc>)``):
 
     Given a version number MAJOR.MINOR.PATCH, increment the:
     1. MAJOR version when you make incompatible API changes,
@@ -13,6 +13,12 @@ Nuts Node and auxiliary tools/applications follow a semantic versioning scheme (
 (Taken from `semver.org <https://semver.org/>`_)
 
     Note: "API" is a broad term, it covers every interface interacted with by applications or other nodes (including Nuts network protocols).
+
+When a new minor or major version is released, always create a release candidate first: ``<major>.<minor>.0-rc.1``, eg: ``v5.1.0-rc.1``.
+This version will symbolize a feature freeze and will be used for the first tests.
+All problems will be fixed and the release candidate version is increased on every bugfix release, eg: ``v5.1.0-rc.2``.
+When no more problems are found the major/minor version is released without a ``-rc.<rc>`` postfix.
+This approach prevents the docker ``latest`` tags to be updated to a new version automatically.
 
 Aside from the Nuts Node itself, the projects below need to be released.
 They follow the major version from the Nuts Node, but minor and patch versions may differ.
