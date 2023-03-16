@@ -204,7 +204,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	} else if !config.Strictmode {
 		// If node DID is not set we can wire the automatic node DID resolver, which makes testing/workshops/development easier.
 		// Might cause unexpected behavior though, so it can't be used in strict mode.
-		log.Logger().Info("Node DID not set, will be auto-discovered.")
+		log.Logger().Warn("Node DID not set, will be auto-discovered.")
 		n.nodeDIDResolver = transport.NewAutoNodeDIDResolver(n.keyStore, n.didDocumentFinder)
 	} else {
 		log.Logger().Warn("Node DID not set, sending/receiving private transactions is disabled.")
