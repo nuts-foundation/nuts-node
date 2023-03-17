@@ -32,7 +32,7 @@ paths:
         "200":
           description: "New DID has been created successfully. Returns the DID document."
           content:
-            application/json+did-document:
+            application/json:
               schema:
                 $ref: '#/components/schemas/DIDDocument'
         default:
@@ -115,7 +115,7 @@ paths:
         "200":
           description: DID document has been updated.
           content:
-            application/json+did-document:
+            application/json:
               schema:
                 $ref: '#/components/schemas/DIDDocument'
         default:
@@ -194,7 +194,7 @@ paths:
         "200":
           description: "New verification method has been created and added successfully. Returns the DID document."
           content:
-            application/json+did-document:
+            application/json:
               schema:
                 $ref: '#/components/schemas/VerificationMethod'
         default:
