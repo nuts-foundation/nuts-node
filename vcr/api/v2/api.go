@@ -48,8 +48,8 @@ var clockFn = func() time.Time {
 // Wrapper implements the generated interface from oapi-codegen
 // It parses and checks the params. Handles errors and returns the appropriate response.
 type Wrapper struct {
-	ContextManager     jsonld.JSONLD
-	VCR                vcr.VCR
+	ContextManager jsonld.JSONLD
+	VCR            vcr.VCR
 }
 
 // Routes registers the handler to the echo router
