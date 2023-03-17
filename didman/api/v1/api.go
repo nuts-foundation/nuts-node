@@ -102,17 +102,16 @@ func (w *Wrapper) AddEndpoint(ctx context.Context, request AddEndpointRequestObj
 		return nil, err
 	}
 
-	props := request.Body
-	if len(strings.TrimSpace(props.Type)) == 0 {
+	if len(strings.TrimSpace(request.Body.Type)) == 0 {
 		return nil, core.InvalidInputError("invalid value for type")
 	}
 
-	u, err := url.Parse(props.Endpoint)
+	u, err := url.Parse(request.Body.Endpoint)
 	if err != nil {
 		return nil, core.InvalidInputError("invalid value for endpoint: %w", err)
 	}
 
-	endpoint, err := w.Didman.AddEndpoint(ctx, *id, props.Type, *u)
+	endpoint, err := w.Didman.AddEndpoint(ctx, *id, request.Body.Type, *u)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +141,7 @@ func (w *Wrapper) DeleteEndpointsByType(ctx context.Context, request DeleteEndpo
 // GetCompoundServices handles calls to get a list of compound services for a provided DID string.
 // Its checks params, calls Didman and sets http return values.
 func (w *Wrapper) GetCompoundServices(_ context.Context, request GetCompoundServicesRequestObject) (GetCompoundServicesResponseObject, error) {
-	id, err := did.ParseDIDURL(request.Did)
+	id, err := did.ParseDID(request.Did)
 	if err != nil {
 		return nil, err
 	}
@@ -213,10 +212,16 @@ func (w *Wrapper) GetCompoundServiceEndpoint(_ context.Context, request GetCompo
 		return nil, err
 	}
 
-	if request.Params.Accept == nil || *request.Params.Accept != "text/plain" {
-		return GetCompoundServiceEndpoint200JSONResponse{Endpoint: endpoint}, nil
-	} else {
+	// By default application/json, text/plain if explicitly requested
+	var accept string
+	if request.Params.Accept != nil {
+		accept = *request.Params.Accept
+	}
+	switch accept {
+	case "text/plain":
 		return GetCompoundServiceEndpoint200TextResponse(endpoint), nil
+	default:
+		return GetCompoundServiceEndpoint200JSONResponse{Endpoint: endpoint}, nil
 	}
 }
 

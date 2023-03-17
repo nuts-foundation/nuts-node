@@ -185,26 +185,29 @@ func TestWrapper_DeleteEndpointsByType(t *testing.T) {
 		test := newMockContext(t)
 		test.didman.EXPECT().DeleteEndpointsByType(audit.ContextWithAuditInfo(), *parsedID, endpointType)
 
-		_, err := test.wrapper.DeleteEndpointsByType(ctx, request)
+		response, err := test.wrapper.DeleteEndpointsByType(ctx, request)
 
-		require.Nil(t, err)
+		assert.Nil(t, err)
+		assert.IsType(t, DeleteEndpointsByType204Response{}, response)
 	})
 
 	t.Run("error - invalid did", func(t *testing.T) {
 		test := newMockContext(t)
-		_, err := test.wrapper.DeleteEndpointsByType(ctx, DeleteEndpointsByTypeRequestObject{
+		response, err := test.wrapper.DeleteEndpointsByType(ctx, DeleteEndpointsByTypeRequestObject{
 			Did: "not a did",
 		})
 		assert.ErrorIs(t, err, did.ErrInvalidDID)
+		assert.Nil(t, response)
 	})
 
 	t.Run("error - invalid type", func(t *testing.T) {
 		test := newMockContext(t)
-		_, err := test.wrapper.DeleteEndpointsByType(ctx, DeleteEndpointsByTypeRequestObject{
+		response, err := test.wrapper.DeleteEndpointsByType(ctx, DeleteEndpointsByTypeRequestObject{
 			Did:  parsedID.String(),
 			Type: "",
 		})
 		assert.ErrorIs(t, err, core.InvalidInputError(""))
+		assert.Nil(t, response)
 	})
 
 	t.Run("error - didman.DeleteEndpointsByType returns error", func(t *testing.T) {
