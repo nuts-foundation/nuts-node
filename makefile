@@ -5,8 +5,8 @@ run-generators: gen-mocks gen-api gen-protobuf
 install-tools:
 	go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen@v1.12.4
 	go install github.com/golang/mock/mockgen@v1.6.0
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.29.0
-	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.30.0
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
 
 gen-readme:
 	./generate_readme.sh
