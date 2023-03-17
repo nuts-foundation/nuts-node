@@ -25,6 +25,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"net/http"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -191,7 +192,7 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 
 		jwe, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
 
-		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), 400)
+		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), http.StatusBadRequest)
 		assert.Empty(t, jwe)
 	})
 	t.Run("Missing receiver returns 400", func(t *testing.T) {
@@ -202,7 +203,8 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 		}
 
 		jwe, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
-		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), 400)
+		assert.EqualError(t, err, "invalid encrypt request: missing receiver")
+		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), http.StatusBadRequest)
 		assert.Empty(t, jwe)
 	})
 	t.Run("Empty receiver returns 400", func(t *testing.T) {
@@ -214,7 +216,8 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 		}
 
 		jwe, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
-		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), 400)
+		assert.EqualError(t, err, "invalid encrypt request: missing receiver")
+		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), http.StatusBadRequest)
 		assert.Empty(t, jwe)
 	})
 	t.Run("Missing payload returns 400", func(t *testing.T) {
@@ -225,7 +228,8 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 		}
 
 		jwe, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
-		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), 400)
+		assert.EqualError(t, err, "invalid encrypt request: missing payload")
+		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), http.StatusBadRequest)
 		assert.Empty(t, jwe)
 	})
 	t.Run("Missing headers returns 400", func(t *testing.T) {
@@ -236,7 +240,8 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 		}
 
 		jwe, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
-		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), 400)
+		assert.EqualError(t, err, "invalid encrypt request: missing headers")
+		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), http.StatusBadRequest)
 		assert.Empty(t, jwe)
 	})
 	t.Run("ResolveKeyAgreementKey fails, returns 400", func(t *testing.T) {
@@ -250,7 +255,8 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveKeyAgreementKey(gomock.Any()).Return(nil, errors.New("FAIL"))
 
 		jwe, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
-		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), 400)
+		assert.EqualError(t, err, "invalid receiver: FAIL")
+		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), http.StatusBadRequest)
 		assert.Empty(t, jwe)
 	})
 	t.Run("ResolveRelationKeyID fails, returns 400", func(t *testing.T) {
@@ -265,7 +271,8 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveRelationKeyID(gomock.Any(), types.KeyAgreement).Return(ssi.URI{}, errors.New("FAIL"))
 
 		jwe, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
-		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), 400)
+		assert.EqualError(t, err, "invalid receiver: FAIL")
+		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), http.StatusBadRequest)
 		assert.Empty(t, jwe)
 	})
 	t.Run("ResolveRelationKey fails, returns 400", func(t *testing.T) {
@@ -279,7 +286,8 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveRelationKey(gomock.Any(), gomock.Any(), types.KeyAgreement).Return(ssi.URI{}, errors.New("FAIL"))
 
 		jwe, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
-		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), 400)
+		assert.EqualError(t, err, "invalid receiver: FAIL")
+		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), http.StatusBadRequest)
 		assert.Empty(t, jwe)
 	})
 	t.Run("ResolveKeyAgreementKey not found, returns 400", func(t *testing.T) {
@@ -293,7 +301,8 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveKeyAgreementKey(gomock.Any()).Return(nil, types.ErrNotFound)
 
 		jwe, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
-		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), 400)
+		assert.EqualError(t, err, "unable to locate receiver did:nuts:12345: unable to find the DID document")
+		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), http.StatusBadRequest)
 		assert.Empty(t, jwe)
 	})
 	t.Run("ResolveRelationKeyID not found, returns 400", func(t *testing.T) {
@@ -308,7 +317,8 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveRelationKeyID(gomock.Any(), types.KeyAgreement).Return(ssi.URI{}, types.ErrNotFound)
 
 		jwe, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
-		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), 400)
+		assert.EqualError(t, err, "unable to locate receiver did:nuts:12345: unable to find the DID document")
+		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), http.StatusBadRequest)
 		assert.Empty(t, jwe)
 	})
 	t.Run("ResolveRelationKey not found, returns 400", func(t *testing.T) {
@@ -322,7 +332,8 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveRelationKey(gomock.Any(), gomock.Any(), types.KeyAgreement).Return(ssi.URI{}, types.ErrNotFound)
 
 		jwe, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
-		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), 400)
+		assert.EqualError(t, err, "unable to locate receiver did:nuts:12345#key-1: unable to find the DID document")
+		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), http.StatusBadRequest)
 		assert.Empty(t, jwe)
 	})
 	t.Run("KID header returns 400, with Receiver:kid header[kid]:kid", func(t *testing.T) {
@@ -335,8 +346,8 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 			Payload:  payload,
 		}
 		resp, err := ctx.client.EncryptJwe(nil, EncryptJweRequestObject{Body: &request})
-
-		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), 400)
+		assert.EqualError(t, err, "invalid encrypt request: kid header is not allowed, use the receiver field instead")
+		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), http.StatusBadRequest)
 		assert.Empty(t, resp)
 	})
 	t.Run("error - EncryptJwe fails", func(t *testing.T) {
@@ -355,7 +366,7 @@ func TestWrapper_EncryptJwe(t *testing.T) {
 
 		jwe, err := ctx.client.EncryptJwe(audit.TestContext(), EncryptJweRequestObject{Body: &request})
 
-		assert.EqualError(t, err, "b00m!")
+		assert.EqualError(t, err, "failed to encrypt JWE: b00m!")
 		assert.Empty(t, jwe)
 	})
 
@@ -439,23 +450,21 @@ func TestWrapper_DecryptJwe(t *testing.T) {
 		request := DecryptJweRequest{}
 
 		_, err := ctx.client.DecryptJwe(nil, DecryptJweRequestObject{Body: &request})
-		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), 400)
+		assert.Equal(t, err.(core.HTTPStatusCodeError).StatusCode(), http.StatusBadRequest)
 	})
 	t.Run("DecryptJWE fails, ", func(t *testing.T) {
 		ctx := newMockContext(t)
-		//kid := "did:nuts:12345#mykey-1"
 		message := "encrypted"
 		request := DecryptJweRequest{
 			Message: message,
 		}
 		ctx.keyStore.EXPECT().DecryptJWE(gomock.Any(), "encrypted").Return(nil, nil, errors.New("b00m!"))
 		resp, err := ctx.client.DecryptJwe(nil, DecryptJweRequestObject{Body: &request})
-		assert.EqualError(t, err, "b00m!")
+		assert.EqualError(t, err, "failed to decrypt JWE: b00m!")
 		assert.Empty(t, resp)
 	})
 	t.Run("All OK returns 200, with Receiver:DID header[kid]:nil", func(t *testing.T) {
 		ctx := newMockContext(t)
-		//kid := "did:nuts:12345#mykey-1"
 		message := "encrypted"
 		request := DecryptJweRequest{
 			Message: message,

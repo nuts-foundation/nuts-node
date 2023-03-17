@@ -186,7 +186,7 @@ func (w *Wrapper) EncryptJwe(ctx context.Context, request EncryptJweRequestObjec
 
 	jwe, err := w.C.EncryptJWE(ctx, encryptRequest.Payload, headers, key)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to encrypt JWE: %w", err)
 	}
 	return EncryptJwe200TextResponse(jwe), err
 }
@@ -222,7 +222,7 @@ func (w *Wrapper) DecryptJwe(ctx context.Context, request DecryptJweRequestObjec
 	}
 	jwe, headers, err := w.C.DecryptJWE(ctx, decryptRequest.Message)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decrypt JWE: %w", err)
 	}
 	return DecryptJwe200JSONResponse{Body: jwe, Headers: headers}, err
 }
