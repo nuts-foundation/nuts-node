@@ -149,7 +149,7 @@ func TestHTTPClient_AddCompoundService(t *testing.T) {
 	}
 	t.Run("ok", func(t *testing.T) {
 		res := &CompoundService{
-			Id:              "abc#123",
+			ID:              ssi.MustParseURI("abc#123"),
 			ServiceEndpoint: map[string]interface{}{"foo": "bar"},
 			Type:            "type",
 		}
@@ -204,7 +204,7 @@ func TestHTTPClient_DeleteService(t *testing.T) {
 func TestHTTPClient_GetCompoundServices(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		cServices := []CompoundService{{
-			Id:              "did:nuts:123#abc",
+			ID:              ssi.MustParseURI("did:nuts:123#abc"),
 			ServiceEndpoint: map[string]interface{}{"auth": "did:nuts:123/serviceEndpoint?type=token-server"},
 			Type:            "eOverdracht",
 		}}
