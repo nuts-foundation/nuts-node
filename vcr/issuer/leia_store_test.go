@@ -120,6 +120,15 @@ func Test_leiaStore_StoreAndSearchCredential(t *testing.T) {
 				assert.Equal(t, vcToStore, foundVC)
 			})
 
+			t.Run("without context", func(t *testing.T) {
+				res, err := sut.SearchCredential(ssi.URI{}, vcToStore.Type[0], *issuerDID, nil)
+				assert.NoError(t, err)
+				require.Len(t, res, 1)
+
+				foundVC := res[0]
+				assert.Equal(t, vcToStore, foundVC)
+			})
+
 			t.Run("no results", func(t *testing.T) {
 
 				t.Run("unknown issuer", func(t *testing.T) {

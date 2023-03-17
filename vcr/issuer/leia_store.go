@@ -98,8 +98,11 @@ func (s leiaIssuerStore) StoreCredential(vc vc.VerifiableCredential) error {
 
 func (s leiaIssuerStore) SearchCredential(jsonLDContext ssi.URI, credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
 	query := leia.New(leia.Eq(leia.NewJSONPath("issuer"), leia.MustParseScalar(issuer.String()))).
-		And(leia.Eq(leia.NewJSONPath("type"), leia.MustParseScalar(credentialType.String()))).
-		And(leia.Eq(leia.NewJSONPath("@context"), leia.MustParseScalar(jsonLDContext.String())))
+		And(leia.Eq(leia.NewJSONPath("type"), leia.MustParseScalar(credentialType.String())))
+
+	if len(jsonLDContext.String()) != 0 {
+		query = query.And(leia.Eq(leia.NewJSONPath("@context"), leia.MustParseScalar(jsonLDContext.String())))
+	}
 
 	if subject != nil {
 

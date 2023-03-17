@@ -38,7 +38,6 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 )
 
@@ -49,7 +48,6 @@ var clockFn = func() time.Time {
 // Wrapper implements the generated interface from oapi-codegen
 // It parses and checks the params. Handles errors and returns the appropriate response.
 type Wrapper struct {
-	CredentialResolver issuer.CredentialSearcher
 	ContextManager     jsonld.JSONLD
 	VCR                vcr.VCR
 }

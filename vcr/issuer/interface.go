@@ -83,5 +83,6 @@ type Store interface {
 // It is a separate interface from Store so when an object only needs resolving, it only needs the resolver.
 type CredentialSearcher interface {
 	// SearchCredential searches for issued credentials
+	// If the passed context is empty, it'll not be part of the search query on the DB.
 	SearchCredential(context ssi.URI, credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error)
 }
