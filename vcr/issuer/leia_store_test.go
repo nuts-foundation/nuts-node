@@ -252,7 +252,7 @@ func Test_leiaIssuerStore_GetRevocation(t *testing.T) {
 	})
 }
 
-func TestLeiaIssuerStore_handleRestore(t *testing.T) {
+func Test_leiaIssuerStore_handleRestore(t *testing.T) {
 	ctx := context.Background()
 	t.Run("credentials", func(t *testing.T) {
 		document := []byte(jsonld.TestCredential)
@@ -383,6 +383,43 @@ func TestLeiaIssuerStore_handleRestore(t *testing.T) {
 			})
 		})
 	})
+}
+
+func TestNewLeiaIssuerStore(t *testing.T) {
+	t.Run("bug test for https://github.com/nuts-foundation/nuts-node/issues/1909", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		mockStore := stoabs.NewMockKVStore(ctrl)
+		backupStorePath := path.Join(t.TempDir(), "backup-issued-credentials.db")
+		emptyBackupStore, err := bbolt.CreateBBoltStore(backupStorePath)
+		dbPath := path.Join(t.TempDir(), "issuer.db")
+
+		// first create a store with 1 credential
+		store, err := NewLeiaIssuerStore(dbPath, emptyBackupStore)
+		require.NoError(t, err)
+		vc := vc.VerifiableCredential{}
+		_ = json.Unmarshal([]byte(jsonld.TestCredential), &vc)
+		require.NoError(t, store.StoreCredential(vc))
+		require.NoError(t, store.Close())
+
+		// now create a new store with a mock backup and show that ReadShelf only called once.
+		// no additional calls
+		reader := stoabs.NewMockReader(ctrl)
+		reader.EXPECT().Iterate(gomock.Any(), gomock.Any()).DoAndReturn(func(argCB interface{}, argT interface{}) error {
+			f := argCB.(stoabs.CallerFn)
+			f(stoabs.BytesKey{}, []byte{})
+			return nil
+		})
+		mockStore.EXPECT().ReadShelf(gomock.Any(), "credentials", gomock.Any()).DoAndReturn(func(argC interface{}, argS interface{}, argF interface{}) error {
+			f := argF.(func(reader stoabs.Reader) error)
+			return f(reader)
+		})
+		mockStore.EXPECT().ReadShelf(gomock.Any(), "revocations", gomock.Any()).DoAndReturn(func(argC interface{}, argS interface{}, argF interface{}) error {
+			return nil
+		})
+		_, err = NewLeiaIssuerStore(dbPath, mockStore)
+		require.NoError(t, err)
+	})
+
 }
 
 func Test_leiaIssuerStore_Diagnostics(t *testing.T) {

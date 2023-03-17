@@ -62,20 +62,20 @@ func NewLeiaIssuerStore(dbPath string, backupStore stoabs.KVStore) (Store, error
 		backupStore:        backupStore,
 	}
 
+	// initialize indices, this is required for handleRestore. Without the index metadata it can't iterate and detect data entries.
+	if err = newLeiaStore.createIssuedIndices(issuedCollection); err != nil {
+		return nil, err
+	}
+	if err = newLeiaStore.createRevokedIndices(revokedCollection); err != nil {
+		return nil, err
+	}
+
 	// handle backup/restore for issued credentials
 	if err = newLeiaStore.handleRestore(issuedCollection, issuedBackupShelf, "id"); err != nil {
 		return nil, err
 	}
 	// handle backup/restore for revocations
 	if err = newLeiaStore.handleRestore(revokedCollection, revocationBackupShelf, credential.RevocationSubjectPath); err != nil {
-		return nil, err
-	}
-
-	// initialize indices
-	if err = newLeiaStore.createIssuedIndices(issuedCollection); err != nil {
-		return nil, err
-	}
-	if err = newLeiaStore.createRevokedIndices(revokedCollection); err != nil {
 		return nil, err
 	}
 	return newLeiaStore, nil
