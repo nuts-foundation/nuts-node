@@ -193,7 +193,7 @@ func (s *authzServer) CreateAccessToken(ctx context.Context, request services.Cr
 	var oauthError *ErrorResponse
 	var result *services.AccessTokenResult
 
-	validationCtx, err := s.validateAccessTokenRequest(request.RawJwtBearerToken)
+	validationCtx, err := s.validateAccessTokenRequest(ctx, request.RawJwtBearerToken)
 	if err != nil {
 		oauthError = &ErrorResponse{Code: "invalid_request", Description: err}
 	} else {
@@ -233,68 +233,68 @@ func (s *authzServer) CreateAccessToken(ctx context.Context, request services.Cr
 	return nil, oauthError
 }
 
-func (s *authzServer) validateAccessTokenRequest(bearerToken string) (*validationContext, error) {
-	ctx := &validationContext{rawJwtBearerToken: bearerToken}
+func (s *authzServer) validateAccessTokenRequest(ctx context.Context, bearerToken string) (*validationContext, error) {
+	validationCtx := &validationContext{rawJwtBearerToken: bearerToken}
 
 	// extract the JwtBearerToken, validates according to RFC003 §5.2.1.1
 	// also check if used algorithms are according to spec (ES*** and PS***)
 	// and checks basic validity. Set jwtBearerTokenClaims in validationContext
-	if err := s.parseAndValidateJwtBearerToken(ctx); err != nil {
-		return ctx, fmt.Errorf("jwt bearer token validation failed: %w", err)
+	if err := s.parseAndValidateJwtBearerToken(validationCtx); err != nil {
+		return validationCtx, fmt.Errorf("jwt bearer token validation failed: %w", err)
 	}
 
 	// check the maximum validity, according to RFC003 §5.2.1.4
-	if ctx.jwtBearerToken.Expiration().Sub(ctx.jwtBearerToken.IssuedAt()).Seconds() > BearerTokenMaxValidity {
-		return ctx, errors.New("JWT validity too long")
+	if validationCtx.jwtBearerToken.Expiration().Sub(validationCtx.jwtBearerToken.IssuedAt()).Seconds() > BearerTokenMaxValidity {
+		return validationCtx, errors.New("JWT validity too long")
 	}
 
 	// check the requester against the registry, according to RFC003 §5.2.1.3
 	// checks signing certificate and sets vendor, requesterName in validationContext
-	if err := s.validateIssuer(ctx); err != nil {
-		return ctx, err
+	if err := s.validateIssuer(validationCtx); err != nil {
+		return validationCtx, err
 	}
 
 	// check if the authorizer is registered by this vendor, according to RFC003 §5.2.1.8
-	if err := s.validateSubject(ctx); err != nil {
-		return ctx, err
+	if err := s.validateSubject(ctx, validationCtx); err != nil {
+		return validationCtx, err
 	}
 
 	// Validate the AuthTokenContainer, according to RFC003 §5.2.1.5
-	usi, err := ctx.userIdentity()
+	usi, err := validationCtx.userIdentity()
 	if err != nil {
-		return ctx, err
+		return validationCtx, err
 	}
 	if usi != nil {
-		if ctx.contractVerificationResult, err = s.contractNotary.VerifyVP(*usi, nil); err != nil {
-			return ctx, fmt.Errorf("identity verification failed: %w", err)
+		if validationCtx.contractVerificationResult, err = s.contractNotary.VerifyVP(*usi, nil); err != nil {
+			return validationCtx, fmt.Errorf("identity verification failed: %w", err)
 		}
 
-		if ctx.contractVerificationResult.Validity() != contract.Valid {
-			return ctx, fmt.Errorf("identity validation failed: %s", ctx.contractVerificationResult.Reason())
+		if validationCtx.contractVerificationResult.Validity() != contract.Valid {
+			return validationCtx, fmt.Errorf("identity validation failed: %s", validationCtx.contractVerificationResult.Reason())
 		}
 
 		// checks if the name from the login contract matches with the registered name of the issuer.
-		if err := s.validateRequester(ctx); err != nil {
-			return ctx, err
+		if err := s.validateRequester(validationCtx); err != nil {
+			return validationCtx, err
 		}
 	}
 
 	// validate the endpoint in aud, according to RFC003 §5.2.1.9
-	if err := s.validatePurposeOfUse(ctx); err != nil {
-		return ctx, err
+	if err := s.validatePurposeOfUse(validationCtx); err != nil {
+		return validationCtx, err
 	}
 
 	// validate the endpoint in aud, according to RFC003 §5.2.1.6
-	if err := s.validateAudience(ctx); err != nil {
-		return ctx, err
+	if err := s.validateAudience(validationCtx); err != nil {
+		return validationCtx, err
 	}
 
 	// validate the legal base, according to RFC003 §5.2.1.7
-	if err = s.validateAuthorizationCredentials(ctx); err != nil {
-		return ctx, err
+	if err = s.validateAuthorizationCredentials(validationCtx); err != nil {
+		return validationCtx, err
 	}
 
-	return ctx, nil
+	return validationCtx, nil
 }
 
 // checks if the name from the login contract matches with the registered name of the issuer.
@@ -397,23 +397,23 @@ func (s *authzServer) validateIssuer(vContext *validationContext) error {
 }
 
 // check if the authorizer is registered by this vendor, according to RFC003 §5.2.1.8
-func (s *authzServer) validateSubject(context *validationContext) error {
-	if context.jwtBearerToken.Subject() == "" {
+func (s *authzServer) validateSubject(ctx context.Context, validationCtx *validationContext) error {
+	if validationCtx.jwtBearerToken.Subject() == "" {
 		return fmt.Errorf(errInvalidSubjectFmt, errors.New("missing"))
 	}
 
-	subject, err := did.ParseDID(context.jwtBearerToken.Subject())
+	subject, err := did.ParseDID(validationCtx.jwtBearerToken.Subject())
 	if err != nil {
 		return fmt.Errorf(errInvalidSubjectFmt, err)
 	}
-	context.authorizer = subject
+	validationCtx.authorizer = subject
 
-	iat := context.jwtBearerToken.IssuedAt()
+	iat := validationCtx.jwtBearerToken.IssuedAt()
 	signingKeyID, err := s.keyResolver.ResolveSigningKeyID(*subject, &iat)
 	if err != nil {
 		return err
 	}
-	if !s.privateKeyStore.Exists(signingKeyID) {
+	if !s.privateKeyStore.Exists(ctx, signingKeyID) {
 		return fmt.Errorf("subject.vendor: %s is not managed by this node", subject)
 	}
 
@@ -494,9 +494,9 @@ func (s *authzServer) parseAndValidateJwtBearerToken(context *validationContext)
 }
 
 // IntrospectAccessToken fills the fields in NutsAccessToken from the given Jwt Access Token
-func (s *authzServer) IntrospectAccessToken(accessToken string) (*services.NutsAccessToken, error) {
+func (s *authzServer) IntrospectAccessToken(ctx context.Context, accessToken string) (*services.NutsAccessToken, error) {
 	token, err := nutsCrypto.ParseJWT(accessToken, func(kid string) (crypto.PublicKey, error) {
-		if !s.privateKeyStore.Exists(kid) {
+		if !s.privateKeyStore.Exists(ctx, kid) {
 			return nil, fmt.Errorf("JWT signing key not present on this node (kid=%s)", kid)
 		}
 		return s.keyResolver.ResolveSigningKey(kid, nil)

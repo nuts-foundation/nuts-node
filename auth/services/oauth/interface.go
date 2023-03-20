@@ -39,5 +39,5 @@ type AuthorizationServer interface {
 	// which can be used to access the local organization's XIS resources.
 	// It returns an oauth.ErrorResponse rather than a regular Go error, because the errors that may be returned are tightly specified.
 	CreateAccessToken(ctx context.Context, request services.CreateAccessTokenRequest) (*services.AccessTokenResult, *ErrorResponse)
-	IntrospectAccessToken(token string) (*services.NutsAccessToken, error)
+	IntrospectAccessToken(ctx context.Context, token string) (*services.NutsAccessToken, error)
 }
