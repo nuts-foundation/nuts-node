@@ -388,7 +388,7 @@ func Test_leiaIssuerStore_handleRestore(t *testing.T) {
 func TestNewLeiaIssuerStore(t *testing.T) {
 	t.Run("bug test for https://github.com/nuts-foundation/nuts-node/issues/1909", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		mockStore := stoabs.NewMockKVStore(ctrl)
+		backupMockStore := stoabs.NewMockKVStore(ctrl)
 		backupStorePath := path.Join(t.TempDir(), "backup-issued-credentials.db")
 		emptyBackupStore, err := bbolt.CreateBBoltStore(backupStorePath)
 		dbPath := path.Join(t.TempDir(), "issuer.db")
@@ -401,22 +401,22 @@ func TestNewLeiaIssuerStore(t *testing.T) {
 		require.NoError(t, store.StoreCredential(vc))
 		require.NoError(t, store.Close())
 
-		// now create a new store with a mock backup and show that ReadShelf only called once.
-		// no additional calls
+		// now create a new store with a mock backup and show that ReadShelf is only called once.
+		// additional calls to the backup store would indicate the main store is empty and the backup is used to restore the main storage.
 		reader := stoabs.NewMockReader(ctrl)
-		reader.EXPECT().Iterate(gomock.Any(), gomock.Any()).DoAndReturn(func(argCB interface{}, argT interface{}) error {
-			f := argCB.(stoabs.CallerFn)
+		reader.EXPECT().Iterate(gomock.Any(), gomock.Any()).DoAndReturn(func(callback interface{}, keyType interface{}) error {
+			f := callback.(stoabs.CallerFn)
 			f(stoabs.BytesKey{}, []byte{})
 			return nil
 		})
-		mockStore.EXPECT().ReadShelf(gomock.Any(), "credentials", gomock.Any()).DoAndReturn(func(argC interface{}, argS interface{}, argF interface{}) error {
-			f := argF.(func(reader stoabs.Reader) error)
+		backupMockStore.EXPECT().ReadShelf(gomock.Any(), "credentials", gomock.Any()).DoAndReturn(func(context interface{}, shelfName interface{}, callback interface{}) error {
+			f := callback.(func(reader stoabs.Reader) error)
 			return f(reader)
 		})
-		mockStore.EXPECT().ReadShelf(gomock.Any(), "revocations", gomock.Any()).DoAndReturn(func(argC interface{}, argS interface{}, argF interface{}) error {
+		backupMockStore.EXPECT().ReadShelf(gomock.Any(), "revocations", gomock.Any()).DoAndReturn(func(context interface{}, shelfName interface{}, fn interface{}) error {
 			return nil
 		})
-		_, err = NewLeiaIssuerStore(dbPath, mockStore)
+		_, err = NewLeiaIssuerStore(dbPath, backupMockStore)
 		require.NoError(t, err)
 	})
 
