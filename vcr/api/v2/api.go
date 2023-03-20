@@ -173,7 +173,7 @@ func (w *Wrapper) SearchIssuedVCs(ctx echo.Context, params SearchIssuedVCsParams
 		return core.InvalidInputError("invalid credentialType: %w", err)
 	}
 
-	foundVCs, err := w.VCR.Issuer().SearchCredential(ssi.URI{}, *credentialType, *issuerDID, subjectID)
+	foundVCs, err := w.VCR.Issuer().SearchCredential(*credentialType, *issuerDID, subjectID)
 	if err != nil {
 		return err
 	}
