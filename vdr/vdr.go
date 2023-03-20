@@ -124,13 +124,56 @@ func (r *VDR) ConflictedDocuments() ([]did.Document, []types.DocumentMetadata, e
 // Diagnostics returns the diagnostics for this engine
 func (r *VDR) Diagnostics() []core.DiagnosticResult {
 	// return # conflicted docs
-	count, _ := r.store.ConflictedCount()
+	totalCount := 0
+	ownedCount := 0
+
+	// uses dedicated storage shelf for conflicted docs, does not loop over all documents
+	err := r.store.Conflicted(func(doc did.Document, metadata types.DocumentMetadata) error {
+		totalCount++
+		controllers, err := r.didDocResolver.ResolveControllers(doc, &types.ResolveMetadata{Hash: &metadata.Hash})
+		if err != nil {
+			return err
+		}
+		for _, controller := range controllers {
+			for _, vr := range controller.CapabilityInvocation {
+				if r.keyStore.Exists(vr.ID.String()) {
+					ownedCount++
+					return nil
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		log.Logger().Errorf("Failed to resolve conflicted documents diagnostics: %v", err)
+	}
+
 	docCount, _ := r.store.DocumentCount()
 
+	// release notes
+	// documentation on how to fix
+
+	// to go from int+error to interface{}
+	countOrError := func(count int, err error) interface{} {
+		if err != nil {
+			return "error"
+		}
+		return count
+	}
+
 	return []core.DiagnosticResult{
-		&core.GenericDiagnosticResult{
-			Title:   "conflicted_did_documents_count",
-			Outcome: count,
+		core.DiagnosticResultMap{
+			Title: "conflicted_did_documents",
+			Items: []core.DiagnosticResult{
+				&core.GenericDiagnosticResult{
+					Title:   "total_count",
+					Outcome: countOrError(totalCount, err),
+				},
+				&core.GenericDiagnosticResult{
+					Title:   "owned_count",
+					Outcome: countOrError(ownedCount, err),
+				},
+			},
 		},
 		&core.GenericDiagnosticResult{
 			Title:   "did_documents_count",

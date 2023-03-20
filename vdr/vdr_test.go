@@ -256,7 +256,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			results := vdr.Diagnostics()
 
 			require.Len(t, results, 2)
-			assert.Equal(t, "0", results[0].String())
+			assert.Equal(t, "map[owned_count:0 total_count:0]", results[0].String())
 			assert.Equal(t, "0", results[1].String())
 		})
 
@@ -269,7 +269,26 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			results := vdr.Diagnostics()
 
 			require.Len(t, results, 2)
-			assert.Equal(t, "1", results[0].String())
+			assert.Equal(t, "map[owned_count:0 total_count:1]", results[0].String())
+			assert.Equal(t, "1", results[1].String())
+		})
+
+		t.Run("ok - 1 owned conflict", func(t *testing.T) {
+			s := didstore.NewTestStore(t)
+			client := crypto.NewMemoryCryptoInstance()
+			keyID := TestDIDA
+			keyID.Fragment = "1"
+			_, _ = client.New(audit.TestContext(), crypto.StringNamingFunc(keyID.String()))
+			vdr := NewVDR(Config{}, client, nil, s, nil)
+			didDocument := did.Document{ID: TestDIDA}
+
+			didDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: keyID})
+			_ = s.Add(didDocument, didstore.TestTransaction(didDocument))
+			_ = s.Add(didDocument, didstore.TestTransaction(didDocument))
+			results := vdr.Diagnostics()
+
+			require.Len(t, results, 2)
+			assert.Equal(t, "map[owned_count:1 total_count:1]", results[0].String())
 			assert.Equal(t, "1", results[1].String())
 		})
 	})
