@@ -70,9 +70,9 @@ func (s *relyingParty) Configure(secureMode bool) {
 }
 
 // RequestAccessToken is called by the local EHR node to request an access token from a remote Nuts node.
-func (s *relyingParty) RequestAccessToken(ctx context.Context, jwtGrantToken string, authorizationServerEndpoint string) (*services.AccessTokenResult, error) {
-	if s.secureMode && !strings.HasPrefix(strings.ToLower(authorizationServerEndpoint), "https://") {
-		return nil, fmt.Errorf("authorization server endpoint must be HTTPS when in strict mode: %s", authorizationServerEndpoint)
+func (s *relyingParty) RequestAccessToken(ctx context.Context, jwtGrantToken string, authorizationServerEndpoint url.URL) (*services.AccessTokenResult, error) {
+	if s.secureMode && strings.ToLower(authorizationServerEndpoint.Scheme) != "https" {
+		return nil, fmt.Errorf("authorization server endpoint must be HTTPS when in strict mode: %s", authorizationServerEndpoint.String())
 	}
 	httpClient := &http.Client{}
 	if s.httpClientTLS != nil {
@@ -84,11 +84,7 @@ func (s *relyingParty) RequestAccessToken(ctx context.Context, jwtGrantToken str
 	if err != nil {
 		return nil, fmt.Errorf("unable to create HTTP client: %w", err)
 	}
-	authServerEndpoint, err := url.Parse(authorizationServerEndpoint)
-	if err != nil {
-		return nil, err
-	}
-	accessTokenResponse, err := authClient.CreateAccessToken(ctx, *authServerEndpoint, jwtGrantToken)
+	accessTokenResponse, err := authClient.CreateAccessToken(ctx, authorizationServerEndpoint, jwtGrantToken)
 	if err != nil {
 		return nil, fmt.Errorf("remote server/nuts node returned error creating access token: %w", err)
 	}

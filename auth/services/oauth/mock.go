@@ -6,6 +6,7 @@ package oauth
 
 import (
 	context "context"
+	url "net/url"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -51,7 +52,7 @@ func (mr *MockRelyingPartyMockRecorder) CreateJwtGrant(ctx, request interface{})
 }
 
 // RequestAccessToken mocks base method.
-func (m *MockRelyingParty) RequestAccessToken(ctx context.Context, jwtGrantToken, authServerEndpoint string) (*services.AccessTokenResult, error) {
+func (m *MockRelyingParty) RequestAccessToken(ctx context.Context, jwtGrantToken string, authServerEndpoint url.URL) (*services.AccessTokenResult, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RequestAccessToken", ctx, jwtGrantToken, authServerEndpoint)
 	ret0, _ := ret[0].(*services.AccessTokenResult)

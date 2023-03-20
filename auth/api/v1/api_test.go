@@ -29,6 +29,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/stretchr/testify/require"
 	"net/http"
+	"net/url"
 	"reflect"
 	"testing"
 	"time"
@@ -502,7 +503,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 	})
 
 	const bearerToken = "jwt-bearer-token"
-	const authEndpointURL = "https://auth-server"
+	var authEndpointURL, _ = url.Parse("https://auth-server")
 	t.Run("returns error when access token request fails", func(t *testing.T) {
 		ctx := createContext(t)
 
@@ -522,9 +523,9 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 			}).
 			Return(&services.JwtBearerTokenResult{
 				BearerToken:                 bearerToken,
-				AuthorizationServerEndpoint: authEndpointURL,
+				AuthorizationServerEndpoint: authEndpointURL.String(),
 			}, nil)
-		ctx.relyingPartyMock.EXPECT().RequestAccessToken(gomock.Any(), bearerToken, authEndpointURL).Return(nil, errors.New("random error"))
+		ctx.relyingPartyMock.EXPECT().RequestAccessToken(gomock.Any(), bearerToken, *authEndpointURL).Return(nil, errors.New("random error"))
 
 		err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
 
@@ -578,10 +579,10 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 			}).
 			Return(&services.JwtBearerTokenResult{
 				BearerToken:                 bearerToken,
-				AuthorizationServerEndpoint: authEndpointURL,
+				AuthorizationServerEndpoint: authEndpointURL.String(),
 			}, nil)
 		ctx.relyingPartyMock.EXPECT().
-			RequestAccessToken(gomock.Any(), bearerToken, authEndpointURL).
+			RequestAccessToken(gomock.Any(), bearerToken, *authEndpointURL).
 			Return(&AccessTokenResponse{
 				TokenType:   "token-type",
 				ExpiresIn:   10,

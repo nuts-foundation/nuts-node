@@ -21,12 +21,13 @@ package oauth
 import (
 	"context"
 	"github.com/nuts-foundation/nuts-node/auth/services"
+	"net/url"
 )
 
 // RelyingParty implements the OAuth2 relying party role.
 type RelyingParty interface {
 	// RequestAccessToken is called by the local EHR node to request an access token from a remote Nuts node.
-	RequestAccessToken(ctx context.Context, jwtGrantToken string, authServerEndpoint string) (*services.AccessTokenResult, error)
+	RequestAccessToken(ctx context.Context, jwtGrantToken string, authServerEndpoint url.URL) (*services.AccessTokenResult, error)
 	CreateJwtGrant(ctx context.Context, request services.CreateJwtGrantRequest) (*services.JwtBearerTokenResult, error)
 }
 

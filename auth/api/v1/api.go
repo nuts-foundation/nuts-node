@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -302,7 +303,12 @@ func (w Wrapper) RequestAccessToken(ctx echo.Context) error {
 		return core.InvalidInputError(err.Error())
 	}
 
-	accessTokenResult, err := w.Auth.RelyingParty().RequestAccessToken(ctx.Request().Context(), jwtGrant.BearerToken, jwtGrant.AuthorizationServerEndpoint)
+	authServerEndpoint, err := url.Parse(jwtGrant.AuthorizationServerEndpoint)
+	if err != nil {
+		return core.InvalidInputError("invalid authorization server endpoint: %s", jwtGrant.AuthorizationServerEndpoint)
+	}
+
+	accessTokenResult, err := w.Auth.RelyingParty().RequestAccessToken(ctx.Request().Context(), jwtGrant.BearerToken, *authServerEndpoint)
 	if err != nil {
 		return core.Error(http.StatusServiceUnavailable, err.Error())
 	}
