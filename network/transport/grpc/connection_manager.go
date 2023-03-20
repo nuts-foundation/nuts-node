@@ -623,7 +623,7 @@ func (s *grpcConnectionManager) constructMetadata(bootstrap bool) (metadata.MD, 
 
 	md.Set(peerIDHeader, string(s.config.peerID))
 
-	nodeDID, err := s.nodeDIDResolver.Resolve()
+	nodeDID, err := s.nodeDIDResolver.Resolve(s.ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error reading local node DID: %w", err)
 	}

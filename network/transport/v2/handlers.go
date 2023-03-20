@@ -155,7 +155,7 @@ func (p *protocol) handleTransactionPayloadQuery(ctx context.Context, connection
 		}
 		epal := dag.EncryptedPAL(tx.PAL())
 
-		pal, err := p.decryptPAL(epal)
+		pal, err := p.decryptPAL(ctx, epal)
 		if err != nil {
 			log.Logger().
 				WithError(err).

@@ -19,6 +19,7 @@
 package dag
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -34,6 +35,7 @@ import (
 )
 
 func TestEncryptPal(t *testing.T) {
+	ctx := context.Background()
 	pA, _ := did.ParseDID("did:nuts:A")
 	pB, _ := did.ParseDID("did:nuts:B")
 	pkA, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -53,8 +55,8 @@ func TestEncryptPal(t *testing.T) {
 		// Decrypt
 		keyStore := crypto.NewMemoryStorage()
 		cryptoInstance := crypto.NewTestCryptoInstance(keyStore)
-		_ = keyStore.SavePrivateKey("kid-B", pkB)
-		actual, err := pal.Decrypt([]string{"kid-B"}, cryptoInstance)
+		_ = keyStore.SavePrivateKey(ctx, "kid-B", pkB)
+		actual, err := pal.Decrypt(ctx, []string{"kid-B"}, cryptoInstance)
 		require.NoError(t, err)
 		assert.Equal(t, expected, actual)
 	})
@@ -84,30 +86,31 @@ func TestEncryptPal(t *testing.T) {
 }
 
 func TestDecryptPal(t *testing.T) {
+	ctx := context.Background()
 	pk, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	t.Run("ok - not decryptable, no matching private keys", func(t *testing.T) {
 		keyStore := crypto.NewMemoryStorage()
 		cryptoInstance := crypto.NewTestCryptoInstance(keyStore)
-		keyStore.SavePrivateKey("kid-1", pk)
+		keyStore.SavePrivateKey(ctx, "kid-1", pk)
 
-		actual, err := EncryptedPAL{{1, 2}, {3}}.Decrypt([]string{"kid-1"}, cryptoInstance)
+		actual, err := EncryptedPAL{{1, 2}, {3}}.Decrypt(ctx, []string{"kid-1"}, cryptoInstance)
 
 		assert.Nil(t, actual)
 		assert.NoError(t, err)
 	})
 	t.Run("error - private key is missing", func(t *testing.T) {
-		actual, err := EncryptedPAL{{1, 2}, {3}}.Decrypt([]string{"kid-1"}, crypto.NewMemoryCryptoInstance())
+		actual, err := EncryptedPAL{{1, 2}, {3}}.Decrypt(ctx, []string{"kid-1"}, crypto.NewMemoryCryptoInstance())
 		assert.Nil(t, actual)
 		assert.EqualError(t, err, "private key of DID keyAgreement not found (kid=kid-1)")
 	})
 	t.Run("error - invalid DID in decrypted PAL", func(t *testing.T) {
 		keyStore := crypto.NewMemoryStorage()
 		cryptoInstance := crypto.NewTestCryptoInstance(keyStore)
-		keyStore.SavePrivateKey("kid-1", pk)
+		keyStore.SavePrivateKey(ctx, "kid-1", pk)
 
 		cipherText, _ := crypto.EciesEncrypt(pk.Public().(*ecdsa.PublicKey), []byte{1, 2, 3})
 
-		actual, err := EncryptedPAL{cipherText}.Decrypt([]string{"kid-1"}, cryptoInstance)
+		actual, err := EncryptedPAL{cipherText}.Decrypt(ctx, []string{"kid-1"}, cryptoInstance)
 		assert.Nil(t, actual)
 		assert.EqualError(t, err, "invalid participant (did=\x01\x02\x03): invalid DID: input length is less than 7")
 	})

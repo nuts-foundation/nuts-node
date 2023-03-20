@@ -237,7 +237,7 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 		return err
 	}
 
-	controller, key, err := r.resolveControllerWithKey(*currentDIDDocument)
+	controller, key, err := r.resolveControllerWithKey(ctx, *currentDIDDocument)
 	if err != nil {
 		return err
 	}
@@ -267,7 +267,7 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 	return err
 }
 
-func (r *VDR) resolveControllerWithKey(doc did.Document) (did.Document, crypto.Key, error) {
+func (r *VDR) resolveControllerWithKey(ctx context.Context, doc did.Document) (did.Document, crypto.Key, error) {
 	controllers, err := r.didDocResolver.ResolveControllers(doc, nil)
 	if err != nil {
 		return did.Document{}, nil, fmt.Errorf("error while finding controllers for document: %w", err)
@@ -279,7 +279,7 @@ func (r *VDR) resolveControllerWithKey(doc did.Document) (did.Document, crypto.K
 	var key crypto.Key
 	for _, c := range controllers {
 		for _, cik := range c.CapabilityInvocation {
-			key, err = r.keyStore.Resolve(cik.ID.String())
+			key, err = r.keyStore.Resolve(ctx, cik.ID.String())
 			if err == nil {
 				return c, key, nil
 			}

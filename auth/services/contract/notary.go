@@ -104,7 +104,7 @@ func NewNotary(config Config, vcr vcr.VCR, keyResolver types.KeyResolver, keySto
 // DrawUpContract accepts a template and fills in the Party, validFrom time and its duration.
 // If validFrom is zero, the current time is used.
 // If the duration is 0 than the default duration is used.
-func (n *notary) DrawUpContract(template contract.Template, orgID did.DID, validFrom time.Time, validDuration time.Duration, organizationCredential *vc.VerifiableCredential) (*contract.Contract, error) {
+func (n *notary) DrawUpContract(ctx context.Context, template contract.Template, orgID did.DID, validFrom time.Time, validDuration time.Duration, organizationCredential *vc.VerifiableCredential) (*contract.Contract, error) {
 	// Test if the org in managed by this node:
 	signingKeyID, err := n.keyResolver.ResolveSigningKeyID(orgID, &validFrom)
 	if errors.Is(err, types.ErrNotFound) {
@@ -113,7 +113,7 @@ func (n *notary) DrawUpContract(template contract.Template, orgID did.DID, valid
 		return nil, fmt.Errorf("could not draw up contract: %w", err)
 	}
 
-	if !n.privateKeyStore.Exists(signingKeyID) {
+	if !n.privateKeyStore.Exists(ctx, signingKeyID) {
 		return nil, fmt.Errorf("could not draw up contract: organization is not managed by this node: %w", ErrMissingOrganizationKey)
 	}
 
