@@ -126,8 +126,8 @@ func (client *Crypto) setupVaultBackend(_ core.ServerConfig) error {
 }
 
 // List returns the KIDs of the private keys that are present in the key store.
-func (client *Crypto) List() []string {
-	return client.storage.ListPrivateKeys()
+func (client *Crypto) List(ctx context.Context) []string {
+	return client.storage.ListPrivateKeys(ctx)
 }
 
 // Configure loads the given configurations in the engine. Any wrong combination will return an error
@@ -160,10 +160,10 @@ func (client *Crypto) New(ctx context.Context, namingFunc KIDNamingFunc) (Key, e
 	}
 
 	audit.Log(ctx, log.Logger(), audit.CryptoNewKeyEvent).Infof("Generating new key pair: %s", kid)
-	if client.storage.PrivateKeyExists(kid) {
+	if client.storage.PrivateKeyExists(ctx, kid) {
 		return nil, errors.New("key with the given ID already exists")
 	}
-	if err = client.storage.SavePrivateKey(kid, keyPair); err != nil {
+	if err = client.storage.SavePrivateKey(ctx, kid, keyPair); err != nil {
 		return nil, fmt.Errorf("could not create new keypair: could not save private key: %w", err)
 	}
 	return basicKey{
@@ -193,12 +193,12 @@ func generateECKeyPair() (*ecdsa.PrivateKey, error) {
 }
 
 // Exists checks storage for an entry for the given legal entity and returns true if it exists
-func (client *Crypto) Exists(kid string) bool {
-	return client.storage.PrivateKeyExists(kid)
+func (client *Crypto) Exists(ctx context.Context, kid string) bool {
+	return client.storage.PrivateKeyExists(ctx, kid)
 }
 
-func (client *Crypto) Resolve(kid string) (Key, error) {
-	keypair, err := client.storage.GetPrivateKey(kid)
+func (client *Crypto) Resolve(ctx context.Context, kid string) (Key, error) {
+	keypair, err := client.storage.GetPrivateKey(ctx, kid)
 	if err != nil {
 		if errors.Is(err, spi.ErrNotFound) {
 			return nil, ErrPrivateKeyNotFound

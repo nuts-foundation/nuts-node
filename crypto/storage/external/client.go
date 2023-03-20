@@ -82,8 +82,8 @@ func NewAPIClient(config Config) (spi.Storage, error) {
 	return &APIClient{httpClient: client}, nil
 }
 
-func (c APIClient) GetPrivateKey(kid string) (crypto.Signer, error) {
-	response, err := c.httpClient.LookupSecretWithResponse(context.Background(), url.PathEscape(kid))
+func (c APIClient) GetPrivateKey(ctx context.Context, kid string) (crypto.Signer, error) {
+	response, err := c.httpClient.LookupSecretWithResponse(ctx, url.PathEscape(kid))
 	if err != nil {
 		return nil, fmt.Errorf("unable to get private key: %w", err)
 	}
@@ -108,21 +108,21 @@ func (c APIClient) GetPrivateKey(kid string) (crypto.Signer, error) {
 	}
 }
 
-func (c APIClient) PrivateKeyExists(kid string) bool {
-	response, err := c.httpClient.LookupSecretWithResponse(context.Background(), url.PathEscape(kid))
+func (c APIClient) PrivateKeyExists(ctx context.Context, kid string) bool {
+	response, err := c.httpClient.LookupSecretWithResponse(ctx, url.PathEscape(kid))
 	if err != nil {
 		return false
 	}
 	return response.StatusCode() == http.StatusOK
 }
 
-func (c APIClient) SavePrivateKey(kid string, key crypto.PrivateKey) error {
+func (c APIClient) SavePrivateKey(ctx context.Context, kid string, key crypto.PrivateKey) error {
 	pem, err := util.PrivateKeyToPem(key)
 	if err != nil {
 		return fmt.Errorf("unable to convert private key to PEM format: %w", err)
 	}
 
-	response, err := c.httpClient.StoreSecretWithResponse(context.Background(), url.PathEscape(kid), StoreSecretJSONRequestBody{Secret: pem})
+	response, err := c.httpClient.StoreSecretWithResponse(ctx, url.PathEscape(kid), StoreSecretJSONRequestBody{Secret: pem})
 	if err != nil {
 		return fmt.Errorf("unable to save private key: %w", err)
 	}
@@ -142,8 +142,8 @@ func (c APIClient) SavePrivateKey(kid string, key crypto.PrivateKey) error {
 	}
 }
 
-func (c APIClient) ListPrivateKeys() []string {
-	response, err := c.httpClient.ListKeysWithResponse(context.Background())
+func (c APIClient) ListPrivateKeys(ctx context.Context) []string {
+	response, err := c.httpClient.ListKeysWithResponse(ctx)
 	if err != nil {
 		return nil
 	}

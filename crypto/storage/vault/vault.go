@@ -19,6 +19,7 @@
 package vault
 
 import (
+	"context"
 	"crypto"
 	"fmt"
 	vault "github.com/hashicorp/vault/api"
@@ -59,9 +60,9 @@ func DefaultConfig() Config {
 
 // logicaler is an interface which has been implemented by the mockVaultClient and real vault.Logical to allow testing vault without the server.
 type logicaler interface {
-	Read(path string) (*vault.Secret, error)
-	Write(path string, data map[string]interface{}) (*vault.Secret, error)
-	ReadWithData(path string, data map[string][]string) (*vault.Secret, error)
+	ReadWithContext(ctx context.Context, path string) (*vault.Secret, error)
+	WriteWithContext(ctx context.Context, path string, data map[string]interface{}) (*vault.Secret, error)
+	ReadWithDataWithContext(ctx context.Context, path string, data map[string][]string) (*vault.Secret, error)
 }
 
 type vaultKVStorage struct {
@@ -123,7 +124,7 @@ func configureVaultClient(cfg Config) (*vault.Client, error) {
 func (v vaultKVStorage) checkConnection() error {
 	// Perform a token introspection to test the connection. This should be allowed by the default vault token policy.
 	log.Logger().Debug("Verifying Vault connection...")
-	secret, err := v.client.Read("auth/token/lookup-self")
+	secret, err := v.client.ReadWithContext(context.Background(), "auth/token/lookup-self")
 	if err != nil {
 		return fmt.Errorf("unable to connect to Vault: unable to retrieve token status: %w", err)
 	}
@@ -134,9 +135,9 @@ func (v vaultKVStorage) checkConnection() error {
 	return nil
 }
 
-func (v vaultKVStorage) GetPrivateKey(kid string) (crypto.Signer, error) {
+func (v vaultKVStorage) GetPrivateKey(ctx context.Context, kid string) (crypto.Signer, error) {
 	path := privateKeyPath(v.config.PathPrefix, kid)
-	value, err := v.getValue(path, keyName)
+	value, err := v.getValue(ctx, path, keyName)
 	if err != nil {
 		return nil, err
 	}
@@ -147,8 +148,8 @@ func (v vaultKVStorage) GetPrivateKey(kid string) (crypto.Signer, error) {
 	return privateKey, nil
 }
 
-func (v vaultKVStorage) getValue(path, key string) ([]byte, error) {
-	result, err := v.client.Read(path)
+func (v vaultKVStorage) getValue(ctx context.Context, path, key string) ([]byte, error) {
+	result, err := v.client.ReadWithContext(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read key from vault: %w", err)
 	}
@@ -165,23 +166,23 @@ func (v vaultKVStorage) getValue(path, key string) ([]byte, error) {
 	}
 	return []byte(value), nil
 }
-func (v vaultKVStorage) storeValue(path, key string, value string) error {
-	_, err := v.client.Write(path, map[string]interface{}{key: value})
+func (v vaultKVStorage) storeValue(ctx context.Context, path, key string, value string) error {
+	_, err := v.client.WriteWithContext(ctx, path, map[string]interface{}{key: value})
 	if err != nil {
 		return fmt.Errorf("unable to write private key to vault: %w", err)
 	}
 	return nil
 }
 
-func (v vaultKVStorage) PrivateKeyExists(kid string) bool {
+func (v vaultKVStorage) PrivateKeyExists(ctx context.Context, kid string) bool {
 	path := privateKeyPath(v.config.PathPrefix, kid)
-	_, err := v.getValue(path, keyName)
+	_, err := v.getValue(ctx, path, keyName)
 	return err == nil
 }
 
-func (v vaultKVStorage) ListPrivateKeys() []string {
+func (v vaultKVStorage) ListPrivateKeys(ctx context.Context) []string {
 	path := privateKeyListPath(v.config.PathPrefix)
-	response, err := v.client.ReadWithData(path, map[string][]string{"list": {"true"}})
+	response, err := v.client.ReadWithDataWithContext(ctx, path, map[string][]string{"list": {"true"}})
 	if err != nil {
 		log.Logger().
 			WithError(err).
@@ -215,12 +216,12 @@ func privateKeyListPath(prefix string) string {
 	return filepath.Clean(path)
 }
 
-func (v vaultKVStorage) SavePrivateKey(kid string, key crypto.PrivateKey) error {
+func (v vaultKVStorage) SavePrivateKey(ctx context.Context, kid string, key crypto.PrivateKey) error {
 	path := privateKeyPath(v.config.PathPrefix, kid)
 	pem, err := util.PrivateKeyToPem(key)
 	if err != nil {
 		return fmt.Errorf("unable to convert private key to pem format: %w", err)
 	}
 
-	return v.storeValue(path, keyName, pem)
+	return v.storeValue(ctx, path, keyName, pem)
 }

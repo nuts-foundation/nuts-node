@@ -330,7 +330,7 @@ func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludeP
 		log.Logger().Infof("Enabling token authentication for HTTP interface: %s%s", address, path)
 		echoServer.Use(middleware.JWTWithConfig(middleware.JWTConfig{
 			KeyFunc: func(_ *jwt.Token) (interface{}, error) {
-				signingKey, err := h.signingKeyResolver.Resolve(AdminTokenSigningKID)
+				signingKey, err := h.signingKeyResolver.Resolve(context.Background(), AdminTokenSigningKID)
 				if err == nil {
 					return signingKey.Public(), nil
 				}
