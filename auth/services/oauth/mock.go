@@ -10,64 +10,34 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	did "github.com/nuts-foundation/go-did/did"
 	services "github.com/nuts-foundation/nuts-node/auth/services"
 )
 
-// MockClient is a mock of Client interface.
-type MockClient struct {
+// MockRelyingParty is a mock of RelyingParty interface.
+type MockRelyingParty struct {
 	ctrl     *gomock.Controller
-	recorder *MockClientMockRecorder
+	recorder *MockRelyingPartyMockRecorder
 }
 
-// MockClientMockRecorder is the mock recorder for MockClient.
-type MockClientMockRecorder struct {
-	mock *MockClient
+// MockRelyingPartyMockRecorder is the mock recorder for MockRelyingParty.
+type MockRelyingPartyMockRecorder struct {
+	mock *MockRelyingParty
 }
 
-// NewMockClient creates a new mock instance.
-func NewMockClient(ctrl *gomock.Controller) *MockClient {
-	mock := &MockClient{ctrl: ctrl}
-	mock.recorder = &MockClientMockRecorder{mock}
+// NewMockRelyingParty creates a new mock instance.
+func NewMockRelyingParty(ctrl *gomock.Controller) *MockRelyingParty {
+	mock := &MockRelyingParty{ctrl: ctrl}
+	mock.recorder = &MockRelyingPartyMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockClient) EXPECT() *MockClientMockRecorder {
+func (m *MockRelyingParty) EXPECT() *MockRelyingPartyMockRecorder {
 	return m.recorder
 }
 
-// Configure mocks base method.
-func (m *MockClient) Configure(clockSkewInMilliseconds int, secureMode bool) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Configure", clockSkewInMilliseconds, secureMode)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Configure indicates an expected call of Configure.
-func (mr *MockClientMockRecorder) Configure(clockSkewInMilliseconds, secureMode interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockClient)(nil).Configure), clockSkewInMilliseconds, secureMode)
-}
-
-// CreateAccessToken mocks base method.
-func (m *MockClient) CreateAccessToken(ctx context.Context, request services.CreateAccessTokenRequest) (*services.AccessTokenResult, *ErrorResponse) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateAccessToken", ctx, request)
-	ret0, _ := ret[0].(*services.AccessTokenResult)
-	ret1, _ := ret[1].(*ErrorResponse)
-	return ret0, ret1
-}
-
-// CreateAccessToken indicates an expected call of CreateAccessToken.
-func (mr *MockClientMockRecorder) CreateAccessToken(ctx, request interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAccessToken", reflect.TypeOf((*MockClient)(nil).CreateAccessToken), ctx, request)
-}
-
 // CreateJwtGrant mocks base method.
-func (m *MockClient) CreateJwtGrant(ctx context.Context, request services.CreateJwtGrantRequest) (*services.JwtBearerTokenResult, error) {
+func (m *MockRelyingParty) CreateJwtGrant(ctx context.Context, request services.CreateJwtGrantRequest) (*services.JwtBearerTokenResult, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateJwtGrant", ctx, request)
 	ret0, _ := ret[0].(*services.JwtBearerTokenResult)
@@ -76,28 +46,80 @@ func (m *MockClient) CreateJwtGrant(ctx context.Context, request services.Create
 }
 
 // CreateJwtGrant indicates an expected call of CreateJwtGrant.
-func (mr *MockClientMockRecorder) CreateJwtGrant(ctx, request interface{}) *gomock.Call {
+func (mr *MockRelyingPartyMockRecorder) CreateJwtGrant(ctx, request interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateJwtGrant", reflect.TypeOf((*MockClient)(nil).CreateJwtGrant), ctx, request)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateJwtGrant", reflect.TypeOf((*MockRelyingParty)(nil).CreateJwtGrant), ctx, request)
 }
 
-// GetOAuthEndpointURL mocks base method.
-func (m *MockClient) GetOAuthEndpointURL(service string, authorizer did.DID) (url.URL, error) {
+// RequestAccessToken mocks base method.
+func (m *MockRelyingParty) RequestAccessToken(ctx context.Context, jwtGrantToken string, authServerEndpoint url.URL) (*services.AccessTokenResult, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetOAuthEndpointURL", service, authorizer)
-	ret0, _ := ret[0].(url.URL)
+	ret := m.ctrl.Call(m, "RequestAccessToken", ctx, jwtGrantToken, authServerEndpoint)
+	ret0, _ := ret[0].(*services.AccessTokenResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetOAuthEndpointURL indicates an expected call of GetOAuthEndpointURL.
-func (mr *MockClientMockRecorder) GetOAuthEndpointURL(service, authorizer interface{}) *gomock.Call {
+// RequestAccessToken indicates an expected call of RequestAccessToken.
+func (mr *MockRelyingPartyMockRecorder) RequestAccessToken(ctx, jwtGrantToken, authServerEndpoint interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOAuthEndpointURL", reflect.TypeOf((*MockClient)(nil).GetOAuthEndpointURL), service, authorizer)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestAccessToken", reflect.TypeOf((*MockRelyingParty)(nil).RequestAccessToken), ctx, jwtGrantToken, authServerEndpoint)
+}
+
+// MockAuthorizationServer is a mock of AuthorizationServer interface.
+type MockAuthorizationServer struct {
+	ctrl     *gomock.Controller
+	recorder *MockAuthorizationServerMockRecorder
+}
+
+// MockAuthorizationServerMockRecorder is the mock recorder for MockAuthorizationServer.
+type MockAuthorizationServerMockRecorder struct {
+	mock *MockAuthorizationServer
+}
+
+// NewMockAuthorizationServer creates a new mock instance.
+func NewMockAuthorizationServer(ctrl *gomock.Controller) *MockAuthorizationServer {
+	mock := &MockAuthorizationServer{ctrl: ctrl}
+	mock.recorder = &MockAuthorizationServerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockAuthorizationServer) EXPECT() *MockAuthorizationServerMockRecorder {
+	return m.recorder
+}
+
+// Configure mocks base method.
+func (m *MockAuthorizationServer) Configure(clockSkewInMilliseconds int, secureMode bool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Configure", clockSkewInMilliseconds, secureMode)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Configure indicates an expected call of Configure.
+func (mr *MockAuthorizationServerMockRecorder) Configure(clockSkewInMilliseconds, secureMode interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockAuthorizationServer)(nil).Configure), clockSkewInMilliseconds, secureMode)
+}
+
+// CreateAccessToken mocks base method.
+func (m *MockAuthorizationServer) CreateAccessToken(ctx context.Context, request services.CreateAccessTokenRequest) (*services.AccessTokenResult, *ErrorResponse) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateAccessToken", ctx, request)
+	ret0, _ := ret[0].(*services.AccessTokenResult)
+	ret1, _ := ret[1].(*ErrorResponse)
+	return ret0, ret1
+}
+
+// CreateAccessToken indicates an expected call of CreateAccessToken.
+func (mr *MockAuthorizationServerMockRecorder) CreateAccessToken(ctx, request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateAccessToken", reflect.TypeOf((*MockAuthorizationServer)(nil).CreateAccessToken), ctx, request)
 }
 
 // IntrospectAccessToken mocks base method.
-func (m *MockClient) IntrospectAccessToken(token string) (*services.NutsAccessToken, error) {
+func (m *MockAuthorizationServer) IntrospectAccessToken(token string) (*services.NutsAccessToken, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IntrospectAccessToken", token)
 	ret0, _ := ret[0].(*services.NutsAccessToken)
@@ -106,7 +128,7 @@ func (m *MockClient) IntrospectAccessToken(token string) (*services.NutsAccessTo
 }
 
 // IntrospectAccessToken indicates an expected call of IntrospectAccessToken.
-func (mr *MockClientMockRecorder) IntrospectAccessToken(token interface{}) *gomock.Call {
+func (mr *MockAuthorizationServerMockRecorder) IntrospectAccessToken(token interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IntrospectAccessToken", reflect.TypeOf((*MockClient)(nil).IntrospectAccessToken), token)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IntrospectAccessToken", reflect.TypeOf((*MockAuthorizationServer)(nil).IntrospectAccessToken), token)
 }

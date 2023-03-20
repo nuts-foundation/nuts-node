@@ -19,6 +19,7 @@
 package auth
 
 import (
+	"crypto/tls"
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -36,26 +37,6 @@ func TestAuth_Configure(t *testing.T) {
 		t.Setenv("NUTS_NETWORK_ENABLETLS", "false")
 		i := NewTestAuthInstance(t)
 		_ = i.Configure(tlsServerConfig)
-	})
-
-	t.Run("ok - TLS files loaded", func(t *testing.T) {
-		authCfg := TestConfig()
-
-		i := testInstance(t, authCfg)
-		err := i.Configure(tlsServerConfig)
-		require.NoError(t, err)
-
-		assert.NotNil(t, i.tlsConfig)
-	})
-
-	t.Run("ok - TLS is properly configured", func(t *testing.T) {
-		authCfg := TestConfig()
-
-		i := testInstance(t, authCfg)
-		err := i.Configure(tlsServerConfig)
-		assert.NoError(t, err)
-
-		assert.Equal(t, core.MinTLSVersion, i.TLSConfig().MinVersion)
 	})
 
 	t.Run("error - no publicUrl", func(t *testing.T) {
@@ -111,6 +92,14 @@ func TestAuth_Configure(t *testing.T) {
 		i := testInstance(t, authCfg)
 		err := i.Configure(invalidTLSServerConfig)
 		assert.EqualError(t, err, "unable to read trust store (file=non-existing): open non-existing: no such file or directory")
+	})
+}
+
+func Test_createTLSConfig(t *testing.T) {
+	t.Run("uses min. TLS version", func(t *testing.T) {
+		config := createTLSConfig(tls.Certificate{}, &core.TrustStore{})
+
+		assert.Equal(t, core.MinTLSVersion, config.MinVersion)
 	})
 }
 

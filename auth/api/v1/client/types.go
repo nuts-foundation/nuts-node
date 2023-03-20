@@ -16,19 +16,21 @@
  *
  */
 
-package auth
+package client
 
 import (
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/services"
-	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
 )
 
-// AuthenticationServices is the interface which should be implemented for clients or mocks
-type AuthenticationServices interface {
-	// AuthzServer returns the oauth.AuthorizationServer
-	AuthzServer() oauth.AuthorizationServer
-	// RelyingParty returns the oauth.RelyingParty
-	RelyingParty() oauth.RelyingParty
-	// ContractNotary returns an instance of ContractNotary
-	ContractNotary() services.ContractNotary
-}
+// JwtBearerGrantType defines the grant-type to use in the access token request
+const JwtBearerGrantType = "urn:ietf:params:oauth:grant-type:jwt-bearer"
+
+// VerifiableCredential is an alias to use from within the API
+type VerifiableCredential = vc.VerifiableCredential
+
+// VerifiablePresentation is an alias to use from within the API
+type VerifiablePresentation = vc.VerifiablePresentation
+
+// AccessTokenResponse is an alias to use from within the API
+type AccessTokenResponse = services.AccessTokenResult
