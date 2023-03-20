@@ -114,6 +114,9 @@ This section describes how these traits and layers are covered by tests.
       - Unit tests
     * - Backing resources: Hashicorp Vault Proxy for key storage
       - e2e test for testing integration with Nuts node
+    * - Backing resources: Hashicorp Vault
+      - - Unit tests
+        - Integration test (stubbed Vault backend)
     * - Backing resources: BBolt
       - Unit tests
       - e2e test for happy paths
@@ -135,6 +138,7 @@ The following parts (functionality, systems, resources, traits, etc) are not cov
 * Data access flow with IRMA authenticated user identity
 * Integration with Demo EHR
 * Integration with Registry Admin Demo
+* Integration with Hashicorp Vault (not through Secret Store API)
 * JWT Generator application
 * Data Viewer application
 * Performance
@@ -148,6 +152,9 @@ The following parts (functionality, systems, resources, traits, etc) are not cov
 .. note::
 
     We need to discuss whether these parts need to be covered by structured testing.
+
+    Individual contributors occasionally perform manual tests, generally when creating releases, but these are not structured.
+    This is a risk we probably want to address.
 
 Principles
 **********
