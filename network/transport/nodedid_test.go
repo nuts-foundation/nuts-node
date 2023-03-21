@@ -19,6 +19,7 @@
 package transport
 
 import (
+	"context"
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -30,6 +31,7 @@ import (
 )
 
 func Test_AutoNodeDIDResolver(t *testing.T) {
+	ctx := context.Background()
 	// Local vendor
 	didLocal, _ := did.ParseDID("did:nuts:local")
 	key0ID := *didLocal
@@ -64,17 +66,17 @@ func Test_AutoNodeDIDResolver(t *testing.T) {
 		keyResolver := crypto.NewMockKeyResolver(ctrl)
 		docFinder := types.NewMockDocFinder(ctrl)
 
-		keyResolver.EXPECT().List().Return([]string{key0ID.String(), key1ID.String()})
+		keyResolver.EXPECT().List(ctx).Return([]string{key0ID.String(), key1ID.String()})
 		docFinder.EXPECT().Find(didservice.IsActive(), gomock.Any(), didservice.ByServiceType(NutsCommServiceType)).Return(didDocuments, nil)
 		resolver := NewAutoNodeDIDResolver(keyResolver, docFinder)
 
-		actual, err := resolver.Resolve()
+		actual, err := resolver.Resolve(ctx)
 
 		require.NoError(t, err)
 		assert.Equal(t, *didLocal, actual)
 
 		// Call again, mocks should not be triggered again
-		actual, err = resolver.Resolve()
+		actual, err = resolver.Resolve(ctx)
 		assert.NoError(t, err)
 		assert.Equal(t, *didLocal, actual)
 	})
@@ -83,11 +85,11 @@ func Test_AutoNodeDIDResolver(t *testing.T) {
 		keyResolver := crypto.NewMockKeyResolver(ctrl)
 		docFinder := types.NewMockDocFinder(ctrl)
 
-		keyResolver.EXPECT().List().Return([]string{})
+		keyResolver.EXPECT().List(ctx).Return([]string{})
 		docFinder.EXPECT().Find(didservice.IsActive(), gomock.Any(), didservice.ByServiceType(NutsCommServiceType)).Return(didDocuments, nil)
 		resolver := NewAutoNodeDIDResolver(keyResolver, docFinder)
 
-		actual, err := resolver.Resolve()
+		actual, err := resolver.Resolve(ctx)
 
 		assert.NoError(t, err)
 		assert.Empty(t, actual)
@@ -97,11 +99,11 @@ func Test_AutoNodeDIDResolver(t *testing.T) {
 		keyResolver := crypto.NewMockKeyResolver(ctrl)
 		docFinder := types.NewMockDocFinder(ctrl)
 
-		keyResolver.EXPECT().List().Return([]string{"non-matching-KID"})
+		keyResolver.EXPECT().List(ctx).Return([]string{"non-matching-KID"})
 		docFinder.EXPECT().Find(didservice.IsActive(), gomock.Any(), didservice.ByServiceType(NutsCommServiceType)).Return(didDocuments, nil)
 		resolver := NewAutoNodeDIDResolver(keyResolver, docFinder)
 
-		actual, err := resolver.Resolve()
+		actual, err := resolver.Resolve(context.Background())
 		assert.NoError(t, err)
 		assert.Empty(t, actual)
 	})

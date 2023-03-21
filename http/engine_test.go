@@ -20,6 +20,7 @@ package http
 
 import (
 	"bytes"
+	"context"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
@@ -257,7 +258,7 @@ func TestEngine_Configure(t *testing.T) {
 
 				ctrl := gomock.NewController(t)
 				keyResolver := crypto.NewMockKeyResolver(ctrl)
-				keyResolver.EXPECT().Resolve(AdminTokenSigningKID).Return(crypto.TestKey{
+				keyResolver.EXPECT().Resolve(context.Background(), AdminTokenSigningKID).Return(crypto.TestKey{
 					PrivateKey: signingKey,
 					Kid:        AdminTokenSigningKID,
 				}, nil).AnyTimes()

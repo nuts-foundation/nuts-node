@@ -485,6 +485,7 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 }
 
 func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
+	ctx := audit.TestContext()
 	t.Run("happy flow", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		resetIntegrationTest(t)
@@ -504,12 +505,12 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			return len(node1.network.connectionManager.Peers()) == 1 && len(node2.network.connectionManager.Peers()) == 1, nil
 		}, defaultTimeout, "time-out while waiting for node1 to connect to node2")
 
-		node1DID, _ := node1.network.nodeDIDResolver.Resolve()
-		node2DID, _ := node2.network.nodeDIDResolver.Resolve()
+		node1DID, _ := node1.network.nodeDIDResolver.Resolve(ctx)
+		node2DID, _ := node2.network.nodeDIDResolver.Resolve(ctx)
 		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
 			WithAttachKey().
 			WithPrivate([]did.DID{node1DID, node2DID})
-		tx, err := node1.network.CreateTransaction(audit.TestContext(), tpl)
+		tx, err := node1.network.CreateTransaction(ctx, tpl)
 		require.NoError(t, err)
 		waitForTransaction(t, tx, "node2")
 
@@ -553,12 +554,12 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			require.NoError(t, err)
 		})
 
-		node1DID, _ := node1.network.nodeDIDResolver.Resolve()
-		node2DID, _ := node2.network.nodeDIDResolver.Resolve()
+		node1DID, _ := node1.network.nodeDIDResolver.Resolve(ctx)
+		node2DID, _ := node2.network.nodeDIDResolver.Resolve(ctx)
 		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
 			WithAttachKey().
 			WithPrivate([]did.DID{node1DID, node2DID})
-		_, err = node1.network.CreateTransaction(audit.TestContext(), tpl)
+		_, err = node1.network.CreateTransaction(ctx, tpl)
 		require.NoError(t, err)
 
 		test.WaitFor(t, func() (bool, error) {
@@ -591,12 +592,12 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			return len(node1.network.connectionManager.Peers()) == 2, nil
 		}, defaultTimeout, "time-out while waiting for nodes to connect")
 
-		node1DID, _ := node1.network.nodeDIDResolver.Resolve()
-		node2DID, _ := node2.network.nodeDIDResolver.Resolve()
+		node1DID, _ := node1.network.nodeDIDResolver.Resolve(ctx)
+		node2DID, _ := node2.network.nodeDIDResolver.Resolve(ctx)
 		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
 			WithAttachKey().
 			WithPrivate([]did.DID{node1DID, node2DID})
-		tx, err := node1.network.CreateTransaction(audit.TestContext(), tpl)
+		tx, err := node1.network.CreateTransaction(ctx, tpl)
 		require.NoError(t, err)
 		arrived := test.WaitForNoFail(t, func() (bool, error) {
 			mutex.Lock()
@@ -642,9 +643,9 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			return len(node3.network.connectionManager.Peers()) == 1, nil
 		}, defaultTimeout, "time-out while waiting for nodes to connect")
 
-		node1DID, _ := node1.network.nodeDIDResolver.Resolve()
-		node2DID, _ := node2.network.nodeDIDResolver.Resolve()
-		node3DID, _ := node3.network.nodeDIDResolver.Resolve()
+		node1DID, _ := node1.network.nodeDIDResolver.Resolve(ctx)
+		node2DID, _ := node2.network.nodeDIDResolver.Resolve(ctx)
+		node3DID, _ := node3.network.nodeDIDResolver.Resolve(ctx)
 		// Random order for PAL header
 		pal := []did.DID{node1DID, node2DID, node3DID}
 		rand.Shuffle(len(pal), func(i, j int) {
@@ -653,7 +654,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
 			WithAttachKey().
 			WithPrivate(pal)
-		tx, err := node1.network.CreateTransaction(audit.TestContext(), tpl)
+		tx, err := node1.network.CreateTransaction(ctx, tpl)
 		require.NoError(t, err)
 		waitForTransaction(t, tx, "node1", "node2", "node3")
 	})
@@ -672,13 +673,13 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		})
 
 		// create some transactions
-		node1DID, _ := node1.network.nodeDIDResolver.Resolve()
-		node2DID, _ := node2.network.nodeDIDResolver.Resolve()
+		node1DID, _ := node1.network.nodeDIDResolver.Resolve(ctx)
+		node2DID, _ := node2.network.nodeDIDResolver.Resolve(ctx)
 		for i := 0; i < 10; i++ {
 			tpl := TransactionTemplate(payloadType, []byte(fmt.Sprintf("private TX%d", i)), key).
 				WithAttachKey().
 				WithPrivate([]did.DID{node1DID, node2DID})
-			_, err := node1.network.CreateTransaction(audit.TestContext(), tpl)
+			_, err := node1.network.CreateTransaction(ctx, tpl)
 			require.NoError(t, err)
 		}
 
@@ -719,12 +720,12 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			return len(node1.network.connectionManager.Peers()) == 1 && len(node2.network.connectionManager.Peers()) == 1, nil
 		}, defaultTimeout, "time-out while waiting for node1 to connect to node2")
 
-		node1DID, _ := node1.network.nodeDIDResolver.Resolve()
-		node2DID, _ := node2.network.nodeDIDResolver.Resolve()
+		node1DID, _ := node1.network.nodeDIDResolver.Resolve(ctx)
+		node2DID, _ := node2.network.nodeDIDResolver.Resolve(ctx)
 		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
 			WithAttachKey().
 			WithPrivate([]did.DID{node1DID, node2DID})
-		tx, err := node1.network.CreateTransaction(audit.TestContext(), tpl)
+		tx, err := node1.network.CreateTransaction(ctx, tpl)
 		require.NoError(t, err)
 		waitForTransaction(t, tx, "noTLS2")
 
@@ -765,12 +766,12 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			return len(node2.network.connectionManager.Peers()) == 2, nil // make sure node2 has enough peers to learn about the private Tx
 		}, defaultTimeout, "time-out while waiting for nodes to connect")
 
-		node1DID, _ := node1.network.nodeDIDResolver.Resolve()
-		node2DID, _ := node2.network.nodeDIDResolver.Resolve()
+		node1DID, _ := node1.network.nodeDIDResolver.Resolve(ctx)
+		node2DID, _ := node2.network.nodeDIDResolver.Resolve(ctx)
 		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
 			WithAttachKey().
 			WithPrivate([]did.DID{node1DID, node2DID})
-		tx, err := node1.network.CreateTransaction(audit.TestContext(), tpl)
+		tx, err := node1.network.CreateTransaction(ctx, tpl)
 		require.NoError(t, err)
 		arrivedAtNode2 := test.WaitForNoFail(t, func() (bool, error) {
 			mutex.Lock()

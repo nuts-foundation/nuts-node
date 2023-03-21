@@ -92,18 +92,18 @@ func (m *MockkeyResolver) EXPECT() *MockkeyResolverMockRecorder {
 }
 
 // ResolveAssertionKey mocks base method.
-func (m *MockkeyResolver) ResolveAssertionKey(issuerDID did.DID) (crypto.Key, error) {
+func (m *MockkeyResolver) ResolveAssertionKey(ctx context.Context, issuerDID did.DID) (crypto.Key, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResolveAssertionKey", issuerDID)
+	ret := m.ctrl.Call(m, "ResolveAssertionKey", ctx, issuerDID)
 	ret0, _ := ret[0].(crypto.Key)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ResolveAssertionKey indicates an expected call of ResolveAssertionKey.
-func (mr *MockkeyResolverMockRecorder) ResolveAssertionKey(issuerDID interface{}) *gomock.Call {
+func (mr *MockkeyResolverMockRecorder) ResolveAssertionKey(ctx, issuerDID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveAssertionKey", reflect.TypeOf((*MockkeyResolver)(nil).ResolveAssertionKey), issuerDID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveAssertionKey", reflect.TypeOf((*MockkeyResolver)(nil).ResolveAssertionKey), ctx, issuerDID)
 }
 
 // MockIssuer is a mock of Issuer interface.

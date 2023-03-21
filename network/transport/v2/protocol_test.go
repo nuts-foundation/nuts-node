@@ -274,6 +274,7 @@ func TestProtocol_gossipTransaction(t *testing.T) {
 
 //nolint:funlen
 func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
+	ctx := context.Background()
 	keyDID, _ := did.ParseDIDURL("did:nuts:123#key1")
 	testDID, _ := did.ParseDID("did:nuts:123")
 	txOk := dag.CreateSignedTestTransaction(1, time.Now(), [][]byte{{1}, {2}}, "text/plain", true)
@@ -289,7 +290,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 
 		mocks.State.EXPECT().IsPayloadPresent(gomock.Any(), txOk.PayloadHash()).Return(false, stoabs.DatabaseError(errors.New("random error")))
 
-		finished, err := proto.handlePrivateTxRetry(event)
+		finished, err := proto.handlePrivateTxRetry(ctx, event)
 
 		assert.False(t, finished)
 		assert.False(t, errors.As(err, new(dag.EventFatal)))
@@ -301,7 +302,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 
 		mocks.State.EXPECT().IsPayloadPresent(gomock.Any(), txOk.PayloadHash()).Return(true, nil)
 
-		finished, err := proto.handlePrivateTxRetry(event)
+		finished, err := proto.handlePrivateTxRetry(ctx, event)
 
 		assert.True(t, finished)
 		assert.NoError(t, err)
@@ -311,7 +312,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
 		mocks.State.EXPECT().IsPayloadPresent(context.Background(), txOk.PayloadHash()).Return(true, nil)
 
-		finished, err := proto.handlePrivateTxRetry(event)
+		finished, err := proto.handlePrivateTxRetry(ctx, event)
 
 		assert.True(t, finished)
 		assert.NoError(t, err)
@@ -321,7 +322,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
 		mocks.State.EXPECT().IsPayloadPresent(context.Background(), txOk.PayloadHash()).Return(false, nil)
 
-		finished, err := proto.handlePrivateTxRetry(event)
+		finished, err := proto.handlePrivateTxRetry(ctx, event)
 
 		assert.False(t, finished)
 		assert.True(t, errors.As(err, new(dag.EventFatal)))
@@ -333,7 +334,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 		mocks.State.EXPECT().IsPayloadPresent(context.Background(), txOk.PayloadHash()).Return(false, nil)
 		mocks.DocResolver.EXPECT().Resolve(*testDID, nil).Return(nil, nil, stoabs.DatabaseError(errors.New("random error")))
 
-		finished, err := proto.handlePrivateTxRetry(event)
+		finished, err := proto.handlePrivateTxRetry(ctx, event)
 
 		assert.False(t, finished)
 		assert.False(t, errors.As(err, new(dag.EventFatal)))
@@ -349,9 +350,9 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 				{VerificationMethod: &did.VerificationMethod{ID: *keyDID}},
 			},
 		}, nil, nil)
-		mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), []byte{1}).Return(nil, crypto.ErrPrivateKeyNotFound)
+		mocks.Decrypter.EXPECT().Decrypt(ctx, keyDID.String(), []byte{1}).Return(nil, crypto.ErrPrivateKeyNotFound)
 
-		finished, err := proto.handlePrivateTxRetry(event)
+		finished, err := proto.handlePrivateTxRetry(ctx, event)
 
 		assert.False(t, finished)
 		assert.True(t, errors.As(err, new(dag.EventFatal)))
@@ -366,12 +367,12 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 				{VerificationMethod: &did.VerificationMethod{ID: *keyDID}},
 			},
 		}, nil, nil)
-		mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), []byte{1}).Return([]byte(peerDID.String()), nil)
+		mocks.Decrypter.EXPECT().Decrypt(ctx, keyDID.String(), []byte{1}).Return([]byte(peerDID.String()), nil)
 		connectionList := grpc.NewMockConnectionList(mocks.Controller)
 		connectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByNodeDID(*peerDID), grpc.ByAuthenticated()).Return(nil)
 		proto.connectionList = connectionList
 
-		finished, err := proto.handlePrivateTxRetry(event)
+		finished, err := proto.handlePrivateTxRetry(ctx, event)
 
 		assert.False(t, finished)
 		assert.False(t, errors.As(err, new(dag.EventFatal)))
@@ -386,7 +387,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 				{VerificationMethod: &did.VerificationMethod{ID: *keyDID}},
 			},
 		}, nil, nil)
-		mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), []byte{1}).Return([]byte(peerDID.String()), nil)
+		mocks.Decrypter.EXPECT().Decrypt(ctx, keyDID.String(), []byte{1}).Return([]byte(peerDID.String()), nil)
 		conn := grpc.NewMockConnection(mocks.Controller)
 		conn.EXPECT().Peer()
 		conn.EXPECT().Send(proto, &Envelope{Message: &Envelope_TransactionPayloadQuery{
@@ -398,7 +399,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 		connectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByNodeDID(*peerDID), grpc.ByAuthenticated()).Return(conn)
 		proto.connectionList = connectionList
 
-		finished, err := proto.handlePrivateTxRetry(event)
+		finished, err := proto.handlePrivateTxRetry(ctx, event)
 
 		assert.False(t, finished)
 		assert.False(t, errors.As(err, new(dag.EventFatal)))
@@ -413,7 +414,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 				{VerificationMethod: &did.VerificationMethod{ID: *keyDID}},
 			},
 		}, nil, nil)
-		mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), []byte{1}).Return([]byte(peerDID.String()), nil)
+		mocks.Decrypter.EXPECT().Decrypt(ctx, keyDID.String(), []byte{1}).Return([]byte(peerDID.String()), nil)
 		conn := grpc.NewMockConnection(mocks.Controller)
 		conn.EXPECT().Send(proto, &Envelope{Message: &Envelope_TransactionPayloadQuery{
 			TransactionPayloadQuery: &TransactionPayloadQuery{
@@ -424,7 +425,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 		connectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByNodeDID(*peerDID), grpc.ByAuthenticated()).Return(conn)
 		proto.connectionList = connectionList
 
-		finished, err := proto.handlePrivateTxRetry(event)
+		finished, err := proto.handlePrivateTxRetry(ctx, event)
 
 		// Finished is called when Payload is received nto when the request is sent
 		assert.False(t, finished)
@@ -448,7 +449,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 			},
 		}, nil, nil)
 		encodedPAL := strings.Join([]string{nodeDID.String(), peerDID.String(), otherPeerDID.String()}, "\n")
-		mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), []byte{1}).Return([]byte(encodedPAL), nil)
+		mocks.Decrypter.EXPECT().Decrypt(ctx, keyDID.String(), []byte{1}).Return([]byte(encodedPAL), nil)
 		// Connection to peer
 		conn1 := grpc.NewMockConnection(mocks.Controller)
 		conn1.EXPECT().Send(proto, &Envelope{Message: &Envelope_TransactionPayloadQuery{
@@ -469,7 +470,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 		connectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByNodeDID(*otherPeerDID), grpc.ByAuthenticated()).Return(conn2)
 		proto.connectionList = connectionList
 
-		finished, err := proto.handlePrivateTxRetry(event)
+		finished, err := proto.handlePrivateTxRetry(ctx, event)
 
 		// only on receiving payload
 		assert.False(t, finished)
@@ -478,6 +479,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 }
 
 func TestProtocol_decryptPAL(t *testing.T) {
+	ctx := context.Background()
 	keyDID, _ := did.ParseDIDURL("did:nuts:123#key1")
 	testDID, _ := did.ParseDID("did:nuts:123")
 	testDID2, _ := did.ParseDID("did:nuts:456")
@@ -486,7 +488,7 @@ func TestProtocol_decryptPAL(t *testing.T) {
 	t.Run("errors when node DID is not set", func(t *testing.T) {
 		proto, _ := newTestProtocol(t, nil)
 
-		pal, err := proto.decryptPAL(dummyPAL)
+		pal, err := proto.decryptPAL(ctx, dummyPAL)
 		assert.EqualError(t, err, "node DID is not set")
 		assert.Nil(t, pal)
 	})
@@ -496,7 +498,7 @@ func TestProtocol_decryptPAL(t *testing.T) {
 
 		mocks.DocResolver.EXPECT().Resolve(*testDID, nil).Return(nil, nil, errors.New("random error"))
 
-		_, err := proto.decryptPAL(dummyPAL)
+		_, err := proto.decryptPAL(ctx, dummyPAL)
 		assert.EqualError(t, err, "random error")
 	})
 
@@ -508,7 +510,7 @@ func TestProtocol_decryptPAL(t *testing.T) {
 			},
 		}, nil, nil)
 
-		pal, err := proto.decryptPAL([][]byte{})
+		pal, err := proto.decryptPAL(ctx, [][]byte{})
 
 		require.NoError(t, err)
 
@@ -524,9 +526,9 @@ func TestProtocol_decryptPAL(t *testing.T) {
 				{VerificationMethod: &did.VerificationMethod{ID: *keyDID}},
 			},
 		}, nil, nil)
-		mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), []byte{1}).Return(nil, crypto.ErrPrivateKeyNotFound)
+		mocks.Decrypter.EXPECT().Decrypt(ctx, keyDID.String(), []byte{1}).Return(nil, crypto.ErrPrivateKeyNotFound)
 
-		_, err := proto.decryptPAL(tx.PAL())
+		_, err := proto.decryptPAL(ctx, tx.PAL())
 		assert.EqualError(t, err, fmt.Sprintf("private key of DID keyAgreement not found (kid=%s)", keyDID.String()))
 	})
 
@@ -539,9 +541,9 @@ func TestProtocol_decryptPAL(t *testing.T) {
 				{VerificationMethod: &did.VerificationMethod{ID: *keyDID}},
 			},
 		}, nil, nil)
-		mocks.Decrypter.EXPECT().Decrypt(keyDID.String(), []byte{1}).Return(append(append([]byte(testDID.String()), '\n'), []byte(testDID2.String())...), nil)
+		mocks.Decrypter.EXPECT().Decrypt(ctx, keyDID.String(), []byte{1}).Return(append(append([]byte(testDID.String()), '\n'), []byte(testDID2.String())...), nil)
 
-		pal, err := proto.decryptPAL(tx.PAL())
+		pal, err := proto.decryptPAL(ctx, tx.PAL())
 
 		require.NoError(t, err)
 

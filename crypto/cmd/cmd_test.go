@@ -20,6 +20,7 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -183,13 +184,14 @@ func Test_fs2ExternalStore(t *testing.T) {
 // Can be used to test the fs2* commands
 func setupFSStoreData(t *testing.T, testDirectory string) {
 	t.Helper()
+	ctx := context.Background()
 
 	// Set up crypto filesystem with some keys
 	pk1, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	pk2, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	pk3, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	fs, _ := fs.NewFileSystemBackend(testDirectory)
-	_ = fs.SavePrivateKey("pk1", pk1)
-	_ = fs.SavePrivateKey("pk2", pk2)
-	_ = fs.SavePrivateKey("pk3", pk3)
+	_ = fs.SavePrivateKey(ctx, "pk1", pk1)
+	_ = fs.SavePrivateKey(ctx, "pk2", pk2)
+	_ = fs.SavePrivateKey(ctx, "pk3", pk3)
 }

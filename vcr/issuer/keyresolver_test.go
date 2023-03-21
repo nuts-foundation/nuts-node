@@ -19,6 +19,7 @@
 package issuer
 
 import (
+	"context"
 	"errors"
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
@@ -31,6 +32,7 @@ import (
 )
 
 func Test_vdrKeyResolver_ResolveAssertionKey(t *testing.T) {
+	ctx := context.Background()
 	issuerDID, _ := did.ParseDID("did:nuts:123")
 	methodID := *issuerDID
 	methodID.Fragment = "abc"
@@ -44,14 +46,14 @@ func Test_vdrKeyResolver_ResolveAssertionKey(t *testing.T) {
 		mockDockResolver := types.NewMockDocResolver(ctrl)
 		mockDockResolver.EXPECT().Resolve(*issuerDID, nil).Return(docWithAssertionKey, &types.DocumentMetadata{}, nil)
 		mockKeyResolver := crypto.NewMockKeyResolver(ctrl)
-		mockKeyResolver.EXPECT().Resolve(methodID.String()).Return(crypto.NewTestKey(methodID.String()), nil)
+		mockKeyResolver.EXPECT().Resolve(ctx, methodID.String()).Return(crypto.NewTestKey(methodID.String()), nil)
 
 		sut := vdrKeyResolver{
 			docResolver: mockDockResolver,
 			keyResolver: mockKeyResolver,
 		}
 
-		key, err := sut.ResolveAssertionKey(*issuerDID)
+		key, err := sut.ResolveAssertionKey(ctx, *issuerDID)
 
 		assert.NotNil(t, key)
 		assert.Implements(t, (*crypto.Key)(nil), key)
@@ -69,7 +71,7 @@ func Test_vdrKeyResolver_ResolveAssertionKey(t *testing.T) {
 			keyResolver: mockKeyResolver,
 		}
 
-		key, err := sut.ResolveAssertionKey(*issuerDID)
+		key, err := sut.ResolveAssertionKey(ctx, *issuerDID)
 
 		assert.Nil(t, key)
 		assert.EqualError(t, err, "not found")
@@ -80,14 +82,14 @@ func Test_vdrKeyResolver_ResolveAssertionKey(t *testing.T) {
 		mockDockResolver := types.NewMockDocResolver(ctrl)
 		mockDockResolver.EXPECT().Resolve(*issuerDID, nil).Return(docWithAssertionKey, &types.DocumentMetadata{}, nil)
 		mockKeyResolver := crypto.NewMockKeyResolver(ctrl)
-		mockKeyResolver.EXPECT().Resolve(methodID.String()).Return(nil, errors.New("not found"))
+		mockKeyResolver.EXPECT().Resolve(ctx, methodID.String()).Return(nil, errors.New("not found"))
 
 		sut := vdrKeyResolver{
 			docResolver: mockDockResolver,
 			keyResolver: mockKeyResolver,
 		}
 
-		key, err := sut.ResolveAssertionKey(*issuerDID)
+		key, err := sut.ResolveAssertionKey(ctx, *issuerDID)
 		assert.Nil(t, key)
 		assert.EqualError(t, err, "failed to resolve assertionKey: could not resolve key from keyStore: not found")
 	})
@@ -103,7 +105,7 @@ func Test_vdrKeyResolver_ResolveAssertionKey(t *testing.T) {
 			keyResolver: mockKeyResolver,
 		}
 
-		key, err := sut.ResolveAssertionKey(*issuerDID)
+		key, err := sut.ResolveAssertionKey(ctx, *issuerDID)
 		assert.Nil(t, key)
 		assert.EqualError(t, err, "invalid issuer: key not found in DID document")
 	})

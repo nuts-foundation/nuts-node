@@ -57,7 +57,7 @@ func Test_issuer_buildVC(t *testing.T) {
 		kid := "did:nuts:123#abc"
 
 		keyResolverMock := NewMockkeyResolver(ctrl)
-		keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any()).Return(crypto.NewTestKey(kid), nil)
+		keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(kid), nil)
 		jsonldManager := jsonld.NewTestJSONLDManager(t)
 		sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: crypto.NewMemoryCryptoInstance()}
 		schemaOrgContext := ssi.MustParseURI("https://schema.org")
@@ -91,7 +91,7 @@ func Test_issuer_buildVC(t *testing.T) {
 		kid := "did:nuts:123#abc"
 
 		keyResolverMock := NewMockkeyResolver(ctrl)
-		keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any()).Return(crypto.NewTestKey(kid), nil)
+		keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(kid), nil)
 		jsonldManager := jsonld.NewTestJSONLDManager(t)
 		sut := issuer{keyResolver: keyResolverMock, jsonldManager: jsonldManager, keyStore: crypto.NewMemoryCryptoInstance()}
 
@@ -141,7 +141,7 @@ func Test_issuer_buildVC(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
 			keyResolverMock := NewMockkeyResolver(ctrl)
-			keyResolverMock.EXPECT().ResolveAssertionKey(*issuerDID).Return(nil, errors.New("b00m!"))
+			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, *issuerDID).Return(nil, errors.New("b00m!"))
 			sut := issuer{keyResolver: keyResolverMock}
 
 			credentialOptions := vc.VerifiableCredential{
@@ -156,7 +156,7 @@ func Test_issuer_buildVC(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
 			keyResolverMock := NewMockkeyResolver(ctrl)
-			keyResolverMock.EXPECT().ResolveAssertionKey(*issuerDID).Return(nil, vdr.ErrNotFound)
+			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, *issuerDID).Return(nil, vdr.ErrNotFound)
 			sut := issuer{keyResolver: keyResolverMock}
 
 			credentialOptions := vc.VerifiableCredential{
@@ -189,7 +189,7 @@ func Test_issuer_Issue(t *testing.T) {
 
 		trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config"))
 		keyResolverMock := NewMockkeyResolver(ctrl)
-		keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any()).Return(crypto.NewTestKey(kid), nil)
+		keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(kid), nil)
 		mockStore := NewMockStore(ctrl)
 		mockStore.EXPECT().StoreCredential(gomock.Any())
 		sut := issuer{
@@ -216,7 +216,7 @@ func Test_issuer_Issue(t *testing.T) {
 
 			trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config"))
 			keyResolverMock := NewMockkeyResolver(ctrl)
-			keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any()).Return(crypto.NewTestKey(kid), nil)
+			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(kid), nil)
 			mockStore := NewMockStore(ctrl)
 			mockStore.EXPECT().StoreCredential(gomock.Any()).Return(errors.New("b00m!"))
 			sut := issuer{
@@ -235,7 +235,7 @@ func Test_issuer_Issue(t *testing.T) {
 
 			trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config"))
 			keyResolverMock := NewMockkeyResolver(ctrl)
-			keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any()).Return(crypto.NewTestKey(kid), nil)
+			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(kid), nil)
 			mockPublisher := NewMockPublisher(ctrl)
 			mockPublisher.EXPECT().PublishCredential(gomock.Any(), gomock.Any(), true).Return(errors.New("b00m!"))
 			mockStore := NewMockStore(ctrl)
@@ -268,7 +268,7 @@ func Test_issuer_Issue(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
 			keyResolverMock := NewMockkeyResolver(ctrl)
-			keyResolverMock.EXPECT().ResolveAssertionKey(gomock.Any()).Return(crypto.NewTestKey(kid), nil)
+			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(kid), nil)
 			mockStore := NewMockStore(ctrl)
 			sut := issuer{keyResolver: keyResolverMock, store: mockStore, jsonldManager: jsonldManager, keyStore: crypto.NewMemoryCryptoInstance()}
 
@@ -299,7 +299,7 @@ func Test_issuer_buildRevocation(t *testing.T) {
 
 		issuerDID, _ := did.ParseDID("did:nuts:123")
 		keyResolverMock := NewMockkeyResolver(ctrl)
-		keyResolverMock.EXPECT().ResolveAssertionKey(*issuerDID).Return(crypto.NewTestKey(kid), nil)
+		keyResolverMock.EXPECT().ResolveAssertionKey(ctx, *issuerDID).Return(crypto.NewTestKey(kid), nil)
 
 		credentialID := ssi.MustParseURI("did:nuts:123#" + uuid.NewString())
 
@@ -347,7 +347,7 @@ _:c14n0 <https://www.w3.org/2018/credentials#issuer> <did:nuts:123> .
 			ctrl := gomock.NewController(t)
 
 			keyResolverMock := NewMockkeyResolver(ctrl)
-			keyResolverMock.EXPECT().ResolveAssertionKey(issuerDID).Return(nil, errors.New("b00m!"))
+			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, issuerDID).Return(nil, errors.New("b00m!"))
 			sut := issuer{keyResolver: keyResolverMock}
 
 			_, err := sut.buildRevocation(ctx, *testVC.ID)
@@ -358,7 +358,7 @@ _:c14n0 <https://www.w3.org/2018/credentials#issuer> <did:nuts:123> .
 			ctrl := gomock.NewController(t)
 
 			keyResolverMock := NewMockkeyResolver(ctrl)
-			keyResolverMock.EXPECT().ResolveAssertionKey(issuerDID).Return(nil, vdr.ErrNotFound)
+			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, issuerDID).Return(nil, vdr.ErrNotFound)
 			sut := issuer{keyResolver: keyResolverMock}
 
 			_, err := sut.buildRevocation(ctx, *testVC.ID)
@@ -386,7 +386,7 @@ func Test_issuer_Revoke(t *testing.T) {
 
 		keyResolverWithKey := func(c *gomock.Controller) keyResolver {
 			resolver := NewMockkeyResolver(c)
-			resolver.EXPECT().ResolveAssertionKey(issuerDID).Return(key, nil)
+			resolver.EXPECT().ResolveAssertionKey(ctx, issuerDID).Return(key, nil)
 			return resolver
 		}
 
