@@ -97,12 +97,14 @@ Generating authorized_keys Representation
 
 To generate a key's authorized_keys form using ssh-keygen:
  .. code-block:: shell
+ 
     ssh-keygen -y -f /path/to/keyfile
 
 The above ssh-keygen command unfortunately fails for Ed25519 PEM keys at the time of this writing due to a `bug <https://bugzilla.mindrot.org/show_bug.cgi?id=3195>`_ and poor recent support for Ed25519 in libcrypto packages. The nuts-jwt-generator method below is recommended until this bug is fixed.
 
 To generate a key's authorized_keys form using nuts-jwt-generator:
  .. code-block:: shell
+ 
     nuts-jwt-generator -i /path/to/keyfile --export-authorized-key
     
 Audit Log Entries
