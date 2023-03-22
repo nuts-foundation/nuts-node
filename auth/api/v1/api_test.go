@@ -336,7 +336,7 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 
 			err := ctx.wrapper.DrawUpContract(ctx.echoMock)
 
-			assert.EqualError(t, err, "could not parse validFrom: parsing time \"02 Jan 2010\" as \"2006-01-02T15:04:05Z07:00\": cannot parse \"an 2010\" as \"2006\"")
+			assert.EqualError(t, err, "could not parse validFrom: parsing time \"02 Jan 2010\" as \"2006-01-02T15:04:05Z07:00\": cannot parse \"02 Jan 2010\" as \"2006\"")
 			assert.ErrorIs(t, err, core.InvalidInputError(""))
 		})
 
