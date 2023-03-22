@@ -26,7 +26,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
-	"github.com/stretchr/testify/require"
 	"math/big"
 	"net/http"
 	"os"
@@ -34,8 +33,8 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
-
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (

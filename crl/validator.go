@@ -66,8 +66,10 @@ type validator struct {
 	httpClient       *http.Client
 	certificatesLock sync.RWMutex
 	listsLock        sync.RWMutex
-	certificates     map[string]*x509.Certificate
-	lists            map[string]*x509.RevocationList
+	// certificates maps subjects to their certificate. Used to check signature on CRL
+	certificates map[string]*x509.Certificate
+	// lists maps CRLDistributionPoints to CRLs
+	lists map[string]*x509.RevocationList
 }
 
 // NewValidator returns a new instance of the CRL database
@@ -78,16 +80,22 @@ func NewValidator(certificates []*x509.Certificate) Validator {
 // NewValidatorWithHTTPClient returns a new instance with a pre-configured HTTP client
 func NewValidatorWithHTTPClient(certificates []*x509.Certificate, httpClient *http.Client) Validator {
 	certMap := map[string]*x509.Certificate{}
+	listMap := map[string]*x509.RevocationList{}
 
 	for _, certificate := range certificates {
 		certMap[certificate.Subject.String()] = certificate
+		if anyCertificateActive(certificate) { // also logs warning if not active
+			for _, endpoint := range certificate.CRLDistributionPoints {
+				listMap[endpoint] = new(x509.RevocationList)
+			}
+		}
 	}
 
 	return &validator{
 		httpClient:   httpClient,
 		bitSet:       NewBitSet(defaultBitSetSize),
 		certificates: certMap,
-		lists:        map[string]*x509.RevocationList{},
+		lists:        listMap,
 	}
 }
 
@@ -197,7 +205,7 @@ func (v *validator) IsSynced(maxOffsetDays int) error {
 
 	// Check if all CRLs have been downloaded, but if ignore CRL endpoints that are only used by expired certificates.
 	for endpoint, dependingCAs := range endpoints {
-		if !anyCertificateActive(dependingCAs) {
+		if !anyCertificateActive(dependingCAs...) {
 			continue
 		}
 		// downloaded?
@@ -219,7 +227,7 @@ func (v *validator) IsSynced(maxOffsetDays int) error {
 }
 
 // anyCertificateActive returns true if any of the certificates is not expired. If the list is empty, it returns false.
-func anyCertificateActive(certs []*x509.Certificate) bool {
+func anyCertificateActive(certs ...*x509.Certificate) bool {
 	result := false
 	for _, cert := range certs {
 		if nowFunc().After(cert.NotAfter) {
@@ -318,7 +326,7 @@ func (v *validator) Sync() error {
 	}()
 
 	for endpoint, dependingCAs := range endpoints {
-		if !anyCertificateActive(dependingCAs) {
+		if !anyCertificateActive(dependingCAs...) {
 			// No active certificates depending on this CRL endpoint
 			wc.Done()
 			continue
