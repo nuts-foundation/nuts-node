@@ -267,6 +267,6 @@ func (i issuer) isRevoked(credentialID ssi.URI) (bool, error) {
 	}
 }
 
-func (i issuer) SearchCredential(context ssi.URI, credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
-	return i.store.SearchCredential(context, credentialType, issuer, subject)
+func (i issuer) SearchCredential(credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
+	return i.store.SearchCredential(credentialType, issuer, subject)
 }

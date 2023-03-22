@@ -103,7 +103,7 @@ func Test_leiaStore_StoreAndSearchCredential(t *testing.T) {
 			subjectID := ssi.MustParseURI("did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW")
 
 			t.Run("for all issued credentials for a issuer", func(t *testing.T) {
-				res, err := sut.SearchCredential(vcToStore.Context[1], vcToStore.Type[0], *issuerDID, nil)
+				res, err := sut.SearchCredential(vcToStore.Type[0], *issuerDID, nil)
 				assert.NoError(t, err)
 				require.Len(t, res, 1)
 
@@ -112,7 +112,16 @@ func Test_leiaStore_StoreAndSearchCredential(t *testing.T) {
 			})
 
 			t.Run("for all issued credentials for a issuer and subject", func(t *testing.T) {
-				res, err := sut.SearchCredential(vcToStore.Context[0], vcToStore.Type[0], *issuerDID, &subjectID)
+				res, err := sut.SearchCredential(vcToStore.Type[0], *issuerDID, &subjectID)
+				assert.NoError(t, err)
+				require.Len(t, res, 1)
+
+				foundVC := res[0]
+				assert.Equal(t, vcToStore, foundVC)
+			})
+
+			t.Run("without context", func(t *testing.T) {
+				res, err := sut.SearchCredential(vcToStore.Type[0], *issuerDID, nil)
 				assert.NoError(t, err)
 				require.Len(t, res, 1)
 
@@ -124,21 +133,21 @@ func Test_leiaStore_StoreAndSearchCredential(t *testing.T) {
 
 				t.Run("unknown issuer", func(t *testing.T) {
 					unknownIssuerDID, _ := did.ParseDID("did:nuts:123")
-					res, err := sut.SearchCredential(vcToStore.Context[0], vcToStore.Type[0], *unknownIssuerDID, nil)
+					res, err := sut.SearchCredential(vcToStore.Type[0], *unknownIssuerDID, nil)
 					assert.NoError(t, err)
 					require.Len(t, res, 0)
 				})
 
 				t.Run("unknown credentialType", func(t *testing.T) {
 					unknownType := ssi.MustParseURI("unknownType")
-					res, err := sut.SearchCredential(vcToStore.Context[0], unknownType, *issuerDID, nil)
+					res, err := sut.SearchCredential(unknownType, *issuerDID, nil)
 					assert.NoError(t, err)
 					require.Len(t, res, 0)
 				})
 
 				t.Run("unknown subject", func(t *testing.T) {
 					unknownSubject := ssi.MustParseURI("did:nuts:unknown")
-					res, err := sut.SearchCredential(vcToStore.Context[0], vcToStore.Type[0], *issuerDID, &unknownSubject)
+					res, err := sut.SearchCredential(vcToStore.Type[0], *issuerDID, &unknownSubject)
 					assert.NoError(t, err)
 					require.Len(t, res, 0)
 				})

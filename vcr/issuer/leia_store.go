@@ -96,13 +96,11 @@ func (s leiaIssuerStore) StoreCredential(vc vc.VerifiableCredential) error {
 	return s.issuedCredentials.Add([]leia.Document{vcAsBytes})
 }
 
-func (s leiaIssuerStore) SearchCredential(jsonLDContext ssi.URI, credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
+func (s leiaIssuerStore) SearchCredential(credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
 	query := leia.New(leia.Eq(leia.NewJSONPath("issuer"), leia.MustParseScalar(issuer.String()))).
-		And(leia.Eq(leia.NewJSONPath("type"), leia.MustParseScalar(credentialType.String()))).
-		And(leia.Eq(leia.NewJSONPath("@context"), leia.MustParseScalar(jsonLDContext.String())))
+		And(leia.Eq(leia.NewJSONPath("type"), leia.MustParseScalar(credentialType.String())))
 
 	if subject != nil {
-
 		if subjectString := subject.String(); subjectString != "" {
 			query = query.And(leia.Eq(leia.NewJSONPath(credential.CredentialSubjectPath), leia.MustParseScalar(subjectString)))
 		}
