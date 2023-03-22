@@ -116,6 +116,14 @@ Explanation of ambiguous/complex entries in the diagnostics:
 * ``vdr.conflicted_did_documents.total_count`` holds the total number of DID documents that are conflicted (have parallel updates). This may indicate a stolen private key
 * ``vdr.conflicted_did_documents.owned_count`` holds the number of conflicted DID documents you control as a node owner
 
+Conflicted DID documents
+************************
+
+Conflicted DID documents are the result of parallel updates of a DID document.
+It can be caused by a race condition during DID API calls, having a cluster of nodes when this is not supported or if a private key has been stolen.
+To rule out this last cause, every node must make sure their conflicted document count equals ``0``.
+There's an API to get the actual conflicted DID documents. A DID document can be *fixed* by simply updating it.
+
 Metrics
 *******
 

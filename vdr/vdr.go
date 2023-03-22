@@ -132,7 +132,8 @@ func (r *VDR) Diagnostics() []core.DiagnosticResult {
 		totalCount++
 		controllers, err := r.didDocResolver.ResolveControllers(doc, &types.ResolveMetadata{Hash: &metadata.Hash})
 		if err != nil {
-			return err
+			log.Logger().Errorf("failed to resolve controller for %s: %v", doc.ID, err)
+			return nil
 		}
 		for _, controller := range controllers {
 			for _, vr := range controller.CapabilityInvocation {
@@ -149,9 +150,6 @@ func (r *VDR) Diagnostics() []core.DiagnosticResult {
 	}
 
 	docCount, _ := r.store.DocumentCount()
-
-	// release notes
-	// documentation on how to fix
 
 	// to go from int+error to interface{}
 	countOrError := func(count int, err error) interface{} {
