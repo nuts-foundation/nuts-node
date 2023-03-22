@@ -11,6 +11,7 @@ Release date: ?
 
 - Some VDR OpenAPI operations specified ``application/json+did-document`` as Content-Type, while they actually returned ``application/json``.
   This inconsistency is fixed by changing the OpenAPI specification to ``application/json``.
+- Diagnostics now show the conflicted document count for DID Documents the node controls. See monitoring documentation for more detail.
 
 
 *************************
