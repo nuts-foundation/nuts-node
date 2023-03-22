@@ -219,14 +219,6 @@ type Diagnosable interface {
 	Diagnostics() []DiagnosticResult
 }
 
-// MappedDiagnosable allows the implementer to return a map of diagnostics providers,
-// which can be used by the caller to retrieve specific diagnostics, rather than everything (like Diagnosable provides).
-// The map keys should be URL paths, to aid mapping to HTTP APIs.
-type MappedDiagnosable interface {
-	// MappedDiagnostics returns a map of diagnostic providers.
-	MappedDiagnostics() map[string]func() []DiagnosticResult
-}
-
 // Engine is the base interface for a modular design
 type Engine interface {
 }

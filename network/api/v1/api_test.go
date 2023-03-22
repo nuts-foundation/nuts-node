@@ -20,13 +20,9 @@ package v1
 import (
 	"context"
 	"errors"
-	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/go-did/did"
 	httpTest "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/stretchr/testify/require"
-	"io"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -249,6 +245,44 @@ func TestWrapper_GetPeerDiagnostics(t *testing.T) {
 	})
 }
 
+func TestWrapper_GetAddressBook(t *testing.T) {
+	t.Run("200", func(t *testing.T) {
+		mockCtrl := gomock.NewController(t)
+		var networkClient = network.NewMockTransactions(mockCtrl)
+		wrapper := &Wrapper{Service: networkClient}
+		networkClient.EXPECT().AddressBook().Return([]transport.Contact{
+			{
+				Address:     "foo",
+				DID:         did.MustParseDID("did:nuts:A"),
+				Attempts:    1,
+				LastAttempt: new(time.Time),
+			},
+			{
+				Address:  "bar",
+				DID:      did.DID{},
+				Attempts: 0,
+			},
+		})
+
+		resp, err := wrapper.GetAddressBook(nil, GetAddressBookRequestObject{})
+
+		assert.NoError(t, err)
+		actual := resp.(GetAddressBook200JSONResponse)
+		require.Len(t, actual, 2)
+		// Assert first entry
+		assert.Equal(t, "foo", actual[0].Address)
+		assert.Equal(t, "did:nuts:A", *actual[0].Did)
+		assert.Equal(t, 1, actual[0].Attempts)
+		assert.NotNil(t, actual[0].LastAttempt)
+		// Assert second entry
+		assert.Equal(t, "bar", actual[1].Address)
+		assert.Nil(t, actual[1].Did)
+		assert.Equal(t, 0, actual[1].Attempts)
+		assert.Nil(t, actual[1].LastAttempt)
+
+	})
+}
+
 func TestApiWrapper_Reprocess(t *testing.T) {
 	t.Run("error - missing type", func(t *testing.T) {
 		mockCtrl := gomock.NewController(t)
@@ -327,40 +361,5 @@ func TestWrapper_ListEvents(t *testing.T) {
 
 		assert.Nil(t, resp)
 		assert.Error(t, err)
-	})
-}
-
-func TestWrapper_Routes(t *testing.T) {
-	t.Run("mapped diagnostics", func(t *testing.T) {
-		server := echo.New()
-		ctrl := gomock.NewController(t)
-		svc := network.NewMockTransactions(ctrl)
-		svc.EXPECT().MappedDiagnostics().Return(map[string]func() []core.DiagnosticResult{"foo": func() []core.DiagnosticResult {
-			return []core.DiagnosticResult{
-				core.GenericDiagnosticResult{
-					Title:   "bar",
-					Outcome: "OK",
-				},
-			}
-		}})
-		w := &Wrapper{Service: svc}
-
-		w.Routes(server)
-
-		// Assert routes contains the mapped diagnostic
-		var found bool
-		for _, route := range server.Routes() {
-			if route.Method == "GET" && route.Path == "/status/diagnostics/network/foo" {
-				found = true
-			}
-		}
-		assert.True(t, found)
-
-		// Invoke the mapped diagnostic
-		req := httptest.NewRequest(http.MethodGet, "/status/diagnostics/network/foo", nil)
-		rec := httptest.NewRecorder()
-		server.ServeHTTP(rec, req)
-		data, _ := io.ReadAll(rec.Result().Body)
-		assert.Equal(t, "title: bar\noutcome: OK\n", string(data))
 	})
 }

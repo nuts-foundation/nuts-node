@@ -21,7 +21,6 @@ package network
 import (
 	"context"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/transport"
@@ -32,7 +31,6 @@ const MaxReprocessBufferSize = 1000000
 
 // Transactions is the interface that defines the API for creating, reading and subscribing to Nuts Network transactions.
 type Transactions interface {
-	core.MappedDiagnosable
 	// Subscribe registers a receiver for the specified transaction type.
 	// A filter can be passed as option with the WithSelectionFilter function.
 	// The events for the receiver can be made persistent by passing the network.WithPersistency() option.
@@ -61,6 +59,8 @@ type Transactions interface {
 	WithPersistency() SubscriberOption
 	// DiscoverServices should be called by the VDR to let the network know it has processed and verified a document (update) for the DID.
 	DiscoverServices(updatedDID did.DID)
+	// AddressBook returns the list of contacts in the address book.
+	AddressBook() []transport.Contact
 }
 
 // EventType defines a type for specifying the kind of events that can be published/subscribed on the Network.

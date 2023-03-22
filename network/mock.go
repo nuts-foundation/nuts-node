@@ -10,7 +10,6 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	did "github.com/nuts-foundation/go-did/did"
-	core "github.com/nuts-foundation/nuts-node/core"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	dag "github.com/nuts-foundation/nuts-node/network/dag"
 	transport "github.com/nuts-foundation/nuts-node/network/transport"
@@ -37,6 +36,20 @@ func NewMockTransactions(ctrl *gomock.Controller) *MockTransactions {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTransactions) EXPECT() *MockTransactionsMockRecorder {
 	return m.recorder
+}
+
+// AddressBook mocks base method.
+func (m *MockTransactions) AddressBook() []transport.Contact {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddressBook")
+	ret0, _ := ret[0].([]transport.Contact)
+	return ret0
+}
+
+// AddressBook indicates an expected call of AddressBook.
+func (mr *MockTransactionsMockRecorder) AddressBook() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddressBook", reflect.TypeOf((*MockTransactions)(nil).AddressBook))
 }
 
 // CleanupSubscriberEvents mocks base method.
@@ -123,20 +136,6 @@ func (m *MockTransactions) ListTransactionsInRange(startInclusive, endExclusive 
 func (mr *MockTransactionsMockRecorder) ListTransactionsInRange(startInclusive, endExclusive interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTransactionsInRange", reflect.TypeOf((*MockTransactions)(nil).ListTransactionsInRange), startInclusive, endExclusive)
-}
-
-// MappedDiagnostics mocks base method.
-func (m *MockTransactions) MappedDiagnostics() map[string]func() []core.DiagnosticResult {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "MappedDiagnostics")
-	ret0, _ := ret[0].(map[string]func() []core.DiagnosticResult)
-	return ret0
-}
-
-// MappedDiagnostics indicates an expected call of MappedDiagnostics.
-func (mr *MockTransactionsMockRecorder) MappedDiagnostics() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MappedDiagnostics", reflect.TypeOf((*MockTransactions)(nil).MappedDiagnostics))
 }
 
 // PeerDiagnostics mocks base method.

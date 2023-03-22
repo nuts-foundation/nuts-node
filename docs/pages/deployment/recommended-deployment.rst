@@ -74,7 +74,7 @@ Interfaces/Endpoints
 
   *Security*: Not strictly required, but advised to restrict access.
 
-* **HTTP /status/diagnostics**: (and subpaths) for inspecting diagnostic information of the server.
+* **HTTP /status/diagnostics**: for inspecting diagnostic information of the server.
 
   *Users*: monitoring tooling, system administrators.
 

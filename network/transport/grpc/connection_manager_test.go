@@ -266,7 +266,7 @@ func Test_grpcConnectionManager_dial(t *testing.T) {
 
 			// contact updated
 			assert.Equal(t, uint32(1), cont.attempts.Load())
-			assert.Less(t, now, cont.stats().LastAttempt)
+			assert.Less(t, now, *cont.stats().LastAttempt)
 
 			// backoff not called
 			assert.Equal(t, 0, backoff.backoffCount)
@@ -285,7 +285,7 @@ func Test_grpcConnectionManager_dial(t *testing.T) {
 
 			// contact updated
 			assert.Equal(t, uint32(1), cont.attempts.Load())
-			assert.Less(t, now, cont.stats().LastAttempt)
+			assert.Less(t, now, *cont.stats().LastAttempt)
 
 			// backoff is called
 			assert.Equal(t, 1, backoff.backoffCount)
@@ -331,7 +331,7 @@ func Test_grpcConnectionManager_dial(t *testing.T) {
 
 			// contact updated
 			assert.Equal(t, uint32(1), cont.attempts.Load())
-			assert.Less(t, now, cont.stats().LastAttempt)
+			assert.Less(t, now, *cont.stats().LastAttempt)
 
 			// backoff is reset. this means a random value between 1 and 5 sec.
 			assert.Less(t, cont.backoff.Value(), 5*time.Second)
@@ -1056,11 +1056,6 @@ func Test_grpcConnectionManager_handleInboundStream(t *testing.T) {
 			return len(cm.connections.list) == 0, nil
 		}, time.Second*2, "time-out while waiting for closed inbound connection to be removed")
 	})
-}
-
-func Test_grpcConnectionManager_MappedDiagnostics(t *testing.T) {
-	cm := NewGRPCConnectionManager(Config{peerID: "server-peer-id"}, nil, &stubNodeDIDReader{}, nil).(*grpcConnectionManager)
-	assert.NotNil(t, cm.MappedDiagnostics()["addressbook"]())
 }
 
 func newServerStream(clientPeerID transport.PeerID, nodeDID string) *stubServerStream {

@@ -400,14 +400,12 @@ func (s *grpcConnectionManager) Peers() []transport.Peer {
 	return peers
 }
 
-func (s *grpcConnectionManager) Diagnostics() []core.DiagnosticResult {
-	return append(append([]core.DiagnosticResult{ownPeerIDStatistic{s.config.peerID}}, s.connections.Diagnostics()...))
+func (s *grpcConnectionManager) Contacts() []transport.Contact {
+	return s.addressBook.all()
 }
 
-func (s *grpcConnectionManager) MappedDiagnostics() map[string]func() []core.DiagnosticResult {
-	return map[string]func() []core.DiagnosticResult{
-		"addressbook": s.addressBook.Diagnostics,
-	}
+func (s *grpcConnectionManager) Diagnostics() []core.DiagnosticResult {
+	return append(append([]core.DiagnosticResult{ownPeerIDStatistic{s.config.peerID}}, s.connections.Diagnostics()...))
 }
 
 // RegisterService implements grpc.ServiceRegistrar to register the gRPC services protocols expose.

@@ -25,8 +25,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/network/log"
-	"gopkg.in/yaml.v3"
-	"net/http"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -55,25 +53,6 @@ func (a *Wrapper) Routes(router core.EchoRouter) {
 			return audit.StrictMiddleware(f, network.ModuleName, operationID)
 		},
 	}))
-
-	const diagnosticsBasePath = "/status/diagnostics/network"
-	for mapping, provider := range a.Service.MappedDiagnostics() {
-		fullPath := diagnosticsBasePath + "/" + mapping
-		router.GET(fullPath, func(c echo.Context) error {
-			results := provider()
-			var output interface{}
-			if len(results) == 1 {
-				// If only 1 entry, flatten
-				output = results[0]
-			} else {
-				output = results
-			}
-			buf := new(bytes.Buffer)
-			_ = yaml.NewEncoder(buf).Encode(output)
-			return c.String(http.StatusOK, buf.String())
-		})
-		log.Logger().Infof("Diagnostics endpoint: %s", fullPath)
-	}
 }
 
 // ListTransactions lists all transactions
@@ -144,6 +123,23 @@ func (a *Wrapper) GetPeerDiagnostics(_ context.Context, _ GetPeerDiagnosticsRequ
 		result[k.String()] = PeerDiagnostics(v)
 	}
 	return result, nil
+}
+
+func (a *Wrapper) GetAddressBook(_ context.Context, _ GetAddressBookRequestObject) (GetAddressBookResponseObject, error) {
+	var results []Contact
+	for _, contact := range a.Service.AddressBook() {
+		result := Contact{
+			Address:     contact.Address,
+			Attempts:    int(contact.Attempts),
+			LastAttempt: contact.LastAttempt,
+		}
+		if !contact.DID.Empty() {
+			result.Did = new(string)
+			*result.Did = contact.DID.String()
+		}
+		results = append(results, result)
+	}
+	return GetAddressBook200JSONResponse(results), nil
 }
 
 // RenderGraph visualizes the DAG as Graphviz/dot graph

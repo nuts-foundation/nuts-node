@@ -41,7 +41,6 @@ const (
 // ConnectionManager manages the connections to peers, making outbound connections if required. It also determines the network layout.
 type ConnectionManager interface {
 	core.Diagnosable
-	core.MappedDiagnosable
 
 	// Connect attempts to make an outbound connection to the given peer, after the delay has expired.
 	// If the delay is 0 it will immediately start connecting. It will take the existing backoff into account when it is nil.
@@ -49,6 +48,9 @@ type ConnectionManager interface {
 
 	// Peers returns a slice containing the peers that are currently connected.
 	Peers() []Peer
+
+	// Contacts returns a slice containing the contacts that are currently known (to which we try to connect).
+	Contacts() []Contact
 
 	// RegisterObserver allows to register a callback function for stream state changes
 	RegisterObserver(callback StreamStateObserverFunc)

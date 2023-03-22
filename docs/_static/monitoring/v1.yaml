@@ -83,22 +83,6 @@ paths:
             text/plain:
               schema:
                 type: string
-  /status/diagnostics/network/addressbook:
-    get:
-      summary: "Get diagnostics on the network address book"
-      description: >
-        Returns the addresses of discovered nodes and when they'll be connected to.
-        Always returns its data formatted as YAML.
-      operationId: getNetworkAddressBookDiagnostics
-      tags:
-        - status
-      responses:
-        200:
-          description: Diagnostics returned.
-          content:
-            text/plain:
-              schema:
-                type: string
 components:
   schemas:
     CheckHealthResponse:

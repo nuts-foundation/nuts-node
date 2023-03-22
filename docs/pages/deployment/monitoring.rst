@@ -124,18 +124,6 @@ It can be caused by a race condition during DID API calls, having a cluster of n
 To rule out this last cause, every node must make sure their conflicted document count equals ``0``.
 There's an API to get the actual conflicted DID documents. A DID document can be *fixed* by simply updating it.
 
-Sub-diagnostics
-===============
-
-Aside from the general diagnostics endpoint there are other diagnostics endpoint,
-which are so detailed they are not included in the default diagnostics:
-
-
-.. code-block:: http
-
-    # Get list of discovered Nuts node addresses
-    GET /status/diagnostics/network/addressbook
-
 Metrics
 *******
 

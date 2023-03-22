@@ -12,6 +12,8 @@ Release date: ?
 - Some VDR OpenAPI operations specified ``application/json+did-document`` as Content-Type, while they actually returned ``application/json``.
   This inconsistency is fixed by changing the OpenAPI specification to ``application/json``.
 - Diagnostics now show the conflicted document count for DID Documents the node controls. See monitoring documentation for more detail.
+- ``network.connections.outbound_connectors`` on ``/status/diagnostics`` has been moved to ``/internal/v1/network/addressbook``.
+  Previously it showed only failing connections, now it shows all addresses it will try to connect to (regardless it's already connected to them or not).
 
 
 *************************
@@ -29,8 +31,6 @@ Release date: 2023-03-15
 - Added audit logging for cryptographic operations (creating a new key pair, signing, decrypting).
   Refer to the documentation for more information.
 - Added new API authentication method, in which the administrator configures authorized public keys and the API client is responsible for signing JWT using the private key. This new API authentication is preferred over the current method, which will be removed in the next major release.
-- ``network.connections.outbound_connectors`` on ``/status/diagnostics`` has been moved to ``/status/diagnostics/network/addressbook``.
-  Previously it showed only failing connections, now it shows all addresses it will try to connect to (regardless it's already connected to them or not).
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.0...v5.1.0
 

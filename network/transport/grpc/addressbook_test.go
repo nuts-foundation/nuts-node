@@ -144,23 +144,6 @@ func TestAddressBook_remove(t *testing.T) {
 	assert.Len(t, ab.contacts, 1)
 }
 
-func TestAddressBook_Diagnostics(t *testing.T) {
-	c1 := newContact(transport.Peer{Address: "contact1"}, nil)
-	c2 := newContact(transport.Peer{Address: "contact2"}, nil)
-	c3 := newContact(transport.Peer{Address: "contact3"}, nil)
-	ab := &addressBook{
-		contacts: []*contact{c1, c2, c3},
-	}
-
-	diagnostics, ok := ab.Diagnostics()[0].Result().(ContactsStats)
-
-	require.True(t, ok)
-	require.Len(t, diagnostics, 3)
-	assert.Equal(t, "contact1", diagnostics[0].Address)
-	assert.Equal(t, "contact2", diagnostics[1].Address)
-	assert.Equal(t, "contact3", diagnostics[2].Address)
-}
-
 func TestAddressBook_limit(t *testing.T) {
 	store := storage.CreateTestBBoltStore(t, t.TempDir()+"/test.db")
 	ab := newAddressBook(store, newTestBackoff)

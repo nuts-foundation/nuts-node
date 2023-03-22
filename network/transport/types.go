@@ -86,16 +86,16 @@ type Diagnostics struct {
 	SoftwareID string `json:"softwareID"`
 }
 
-// ContactStats holds statistics of an outbound connector.
-type ContactStats struct {
+// Contact holds statistics of an outbound connector.
+type Contact struct {
 	// Address holds the target address the connector is connecting to.
-	Address string `json:"address"`
+	Address string
 	// DID holds the target DID for the given Address. Is empty for bootstrap nodes
-	DID string `json:"did"`
+	DID did.DID
 	// Attempts holds the number of times the node tried to connect to the peer.
-	Attempts uint32 `json:"attempts"`
+	Attempts uint32
 	// LastAttempt holds the time of the last connection attempt.
-	LastAttempt time.Time `json:"last_attempt"`
+	LastAttempt *time.Time
 }
 
 // NutsCommServiceType holds the DID document service type that specifies the Nuts network service address of the Nuts node.

@@ -25,7 +25,6 @@ import (
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 )
 
@@ -38,7 +37,7 @@ type AddressBook interface {
 	// get the contact if it exists. Returns nil and false if it does not.
 	get(peer transport.Peer) (*contact, bool)
 	// all returns a copy of the slice of contacts.
-	all() []*contact
+	all() []transport.Contact
 	// remove contact for the given DID. if peerDID.Empty() this removes all bootstrap contacts.
 	remove(peerDID did.DID)
 }
@@ -112,14 +111,16 @@ func (a *addressBook) update(peer transport.Peer) (*contact, bool) {
 	return newC, true
 }
 
-func (a *addressBook) all() []*contact {
+func (a *addressBook) all() []transport.Contact {
 	a.mux.RLock()
 	defer a.mux.RUnlock()
 
 	// copy contact to a new slice to prevent race conditions on a.contacts.
 	// this does not prevent race conditions on the contacts
-	result := make([]*contact, len(a.contacts))
-	copy(result, a.contacts)
+	result := make([]transport.Contact, 0, len(a.contacts))
+	for _, c := range a.contacts {
+		result = append(result, c.stats())
+	}
 	return result
 }
 
@@ -159,20 +160,6 @@ func (a *addressBook) remove(peerDID did.DID) {
 	a.contacts = a.contacts[:j]
 }
 
-// Diagnostics returns the statistics of contacts that have no active connection.
-func (a *addressBook) Diagnostics() []core.DiagnosticResult {
-	a.mux.RLock()
-	defer a.mux.RUnlock()
-
-	var contacts ContactsStats
-	for _, curr := range a.contacts {
-		contacts = append(contacts, curr.stats())
-	}
-	return []core.DiagnosticResult{
-		contacts,
-	}
-}
-
 // newContact connects to a remote server in a loop, taking into account a given backoff.
 // When the connection succeeds it calls the given callback. The caller is responsible to reset the backoff after optional application-level checks succeed (e.g. authentication).
 func newContact(peer transport.Peer, backoff Backoff) *contact {
@@ -190,16 +177,13 @@ type contact struct {
 	lastAttempt atomic.Pointer[time.Time]
 }
 
-func (c *contact) stats() transport.ContactStats {
+func (c *contact) stats() transport.Contact {
 	lastAttempt := c.lastAttempt.Load()
-	if lastAttempt == nil { // is nil when no value has been stored yet
-		lastAttempt = &time.Time{}
-	}
-	return transport.ContactStats{
+	return transport.Contact{
 		Address:     c.peer.Address,
-		DID:         c.peer.NodeDID.String(),
+		DID:         c.peer.NodeDID,
 		Attempts:    c.attempts.Load(),
-		LastAttempt: *lastAttempt,
+		LastAttempt: lastAttempt,
 	}
 }
 

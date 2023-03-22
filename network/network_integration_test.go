@@ -443,10 +443,9 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 		// Now connect node1 to node2 and wait for them to set up
 		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"), nil)
 		if !test.WaitFor(t, func() (bool, error) {
-			diagnostics := node1.network.connectionManager.MappedDiagnostics()["addressbook"]
-			connectorsStats := diagnostics()[0].(grpc.ContactsStats)
 			// Assert we tried to connect at least once
-			return connectorsStats[0].Attempts >= 1, nil
+			contacts := node1.network.connectionManager.Contacts()
+			return contacts[0].Attempts >= 1, nil
 		}, defaultTimeout, "time-out while waiting for node 1 to try to connect") {
 			return
 		}
@@ -472,10 +471,9 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 		// Now connect node1 to node2 and wait for them to set up
 		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"), nil)
 		if !test.WaitFor(t, func() (bool, error) {
-			diagnostics := node1.network.connectionManager.MappedDiagnostics()["addressbook"]
-			connectorsStats := diagnostics()[0].(grpc.ContactsStats)
 			// Assert we tried to connect at least once
-			return connectorsStats[0].Attempts >= 1, nil
+			contacts := node1.network.connectionManager.Contacts()
+			return contacts[0].Attempts >= 1, nil
 		}, defaultTimeout, "time-out while waiting for node 1 to try to connect") {
 			return
 		}
