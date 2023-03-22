@@ -113,7 +113,7 @@ Explanation of ambiguous/complex entries in the diagnostics:
 * ``vcr.issuer.issued_credentials_count`` holds the total number of credentials issued by the local node
 * ``vcr.issuer.revoked_credentials_count`` holds the total number of revoked credentials issued by the local node
 * ``vcr.verifier.revocations_count`` holds the total number of revoked credentials (public and private VCs)
-* ``vdr.conflicted_did_documents.total_count`` holds the total number of DID documents that have parallel updates. This may indicate a stolen private key
+* ``vdr.conflicted_did_documents.total_count`` holds the total number of DID documents that are conflicted (have parallel updates). This may indicate a stolen private key
 * ``vdr.conflicted_did_documents.owned_count`` holds the number of conflicted DID documents you control as a node owner
 
 Metrics
