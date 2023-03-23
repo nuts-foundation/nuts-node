@@ -87,6 +87,10 @@ Upon accepting the credential offer, the wallet fetches the Credential Issuer Me
 GET https://issuer.example/.well-known/openid-credential-issuer
 ```
 
+Notes:
+- How to deal with issuers (care organizations) not having a (sub)domain of their own hosted by their vendor?
+  Could we add a subpath before the .well-known path, or is this not allowed per RFC? (Can issuer even have a path after host+port?)
+
 ### 4 Response
 
 The issuer responds with the metadata (`application/json`):
