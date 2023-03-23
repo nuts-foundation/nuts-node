@@ -25,6 +25,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
+	"time"
 )
 
 func TestAddressBook_get(t *testing.T) {
@@ -118,15 +119,27 @@ func TestAddressBook_update(t *testing.T) {
 }
 
 func TestAddressBook_all(t *testing.T) {
-	c1 := newContact(transport.Peer{}, nil)
-	c2 := newContact(transport.Peer{}, nil)
-	c3 := newContact(transport.Peer{}, nil)
-	ab := &addressBook{contacts: []*contact{c1, c2, c3}}
+	didA := did.MustParseDID("did:nuts:A")
+	c1 := newContact(transport.Peer{Address: "A", NodeDID: didA}, nil)
+	c2 := newContact(transport.Peer{Address: "B"}, nil)
+	lastAttempt := time.Now()
+	c2.lastAttempt.Store(&lastAttempt)
+	c2.attempts.Add(1)
+	ab := &addressBook{contacts: []*contact{c1, c2}}
 
 	all := ab.all()
 
-	assert.Len(t, all, 3)
-	assert.NotSame(t, all, ab.contacts) // new slice
+	assert.Len(t, all, 2)
+	assert.Contains(t, all, transport.Contact{
+		Address: "A",
+		DID:     didA,
+	})
+	assert.Contains(t, all, transport.Contact{
+		Address:     "B",
+		DID:         did.DID{},
+		Attempts:    1,
+		LastAttempt: &lastAttempt,
+	})
 }
 
 func TestAddressBook_remove(t *testing.T) {

@@ -115,8 +115,6 @@ func (a *addressBook) all() []transport.Contact {
 	a.mux.RLock()
 	defer a.mux.RUnlock()
 
-	// copy contact to a new slice to prevent race conditions on a.contacts.
-	// this does not prevent race conditions on the contacts
 	result := make([]transport.Contact, 0, len(a.contacts))
 	for _, c := range a.contacts {
 		result = append(result, c.stats())
