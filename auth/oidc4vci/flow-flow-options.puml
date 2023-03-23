@@ -1,6 +1,8 @@
 @startuml
 'https://plantuml.com/sequence-diagram
 
+title Credential Offer Flow with 2 grant types
+
 autonumber
 
 box Issuer
@@ -16,6 +18,7 @@ box Holder
 end box
 
 group Credential Offer
+    Issuer -> Issuer: Store issuer entry
     Issuer -> OfferEP: CredentialOffer(credentials, issuer_state)
     OfferEP --> Issuer: Ok
     Wallet -> Issuer: Get Metadata
@@ -29,6 +32,7 @@ Group  Get access_token
     alt authorization_code flow
         Wallet -> IssuerAS: POST issuer/auth?details&redirect=wallet&issuer_state
         IssuerAS -> Wallet: 302 wallet/cb?code
+        Wallet -> Wallet: Get wallet/cb?code
         Wallet -> TokenEP: GET issuer/token?code
         TokenEP --> Wallet: access_token
     else Pre-authorized-code flow
