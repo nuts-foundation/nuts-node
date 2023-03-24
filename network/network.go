@@ -110,6 +110,7 @@ func (n *Network) CheckHealth() map[string]core.Health {
 		}
 	}
 	// auth_config checks that the node is correctly configured to be authenticated by others
+	// Context should be passed by CheckHealth() calls (part of https://github.com/nuts-foundation/nuts-node/issues/1858)
 	nodeDID, err := n.nodeDIDResolver.Resolve(context.TODO())
 	if err != nil {
 		// can only happen when not in strictmode and autoNodeDIDResolver fails
