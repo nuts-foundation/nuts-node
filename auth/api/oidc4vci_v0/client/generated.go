@@ -95,8 +95,8 @@ type ClientInterface interface {
 	// GetOIDCIssuerMeta request
 	GetOIDCIssuerMeta(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ReceiveCredentialOffer request
-	ReceiveCredentialOffer(ctx context.Context, did string, params *ReceiveCredentialOfferParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// CredentialOffer request
+	CredentialOffer(ctx context.Context, did string, params *CredentialOfferParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetCredential request with any body
 	GetCredentialWithBody(ctx context.Context, did string, params *GetCredentialParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -133,8 +133,8 @@ func (c *Client) GetOIDCIssuerMeta(ctx context.Context, did string, reqEditors .
 	return c.Client.Do(req)
 }
 
-func (c *Client) ReceiveCredentialOffer(ctx context.Context, did string, params *ReceiveCredentialOfferParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewReceiveCredentialOfferRequest(c.Server, did, params)
+func (c *Client) CredentialOffer(ctx context.Context, did string, params *CredentialOfferParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCredentialOfferRequest(c.Server, did, params)
 	if err != nil {
 		return nil, err
 	}
@@ -261,8 +261,8 @@ func NewGetOIDCIssuerMetaRequest(server string, did string) (*http.Request, erro
 	return req, nil
 }
 
-// NewReceiveCredentialOfferRequest generates requests for ReceiveCredentialOffer
-func NewReceiveCredentialOfferRequest(server string, did string, params *ReceiveCredentialOfferParams) (*http.Request, error) {
+// NewCredentialOfferRequest generates requests for CredentialOffer
+func NewCredentialOfferRequest(server string, did string, params *CredentialOfferParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -465,8 +465,8 @@ type ClientWithResponsesInterface interface {
 	// GetOIDCIssuerMeta request
 	GetOIDCIssuerMetaWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*GetOIDCIssuerMetaResponse, error)
 
-	// ReceiveCredentialOffer request
-	ReceiveCredentialOfferWithResponse(ctx context.Context, did string, params *ReceiveCredentialOfferParams, reqEditors ...RequestEditorFn) (*ReceiveCredentialOfferResponse, error)
+	// CredentialOffer request
+	CredentialOfferWithResponse(ctx context.Context, did string, params *CredentialOfferParams, reqEditors ...RequestEditorFn) (*CredentialOfferResponse, error)
 
 	// GetCredential request with any body
 	GetCredentialWithBodyWithResponse(ctx context.Context, did string, params *GetCredentialParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*GetCredentialResponse, error)
@@ -523,13 +523,13 @@ func (r GetOIDCIssuerMetaResponse) StatusCode() int {
 	return 0
 }
 
-type ReceiveCredentialOfferResponse struct {
+type CredentialOfferResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 }
 
 // Status returns HTTPResponse.Status
-func (r ReceiveCredentialOfferResponse) Status() string {
+func (r CredentialOfferResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -537,7 +537,7 @@ func (r ReceiveCredentialOfferResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r ReceiveCredentialOfferResponse) StatusCode() int {
+func (r CredentialOfferResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -606,13 +606,13 @@ func (c *ClientWithResponses) GetOIDCIssuerMetaWithResponse(ctx context.Context,
 	return ParseGetOIDCIssuerMetaResponse(rsp)
 }
 
-// ReceiveCredentialOfferWithResponse request returning *ReceiveCredentialOfferResponse
-func (c *ClientWithResponses) ReceiveCredentialOfferWithResponse(ctx context.Context, did string, params *ReceiveCredentialOfferParams, reqEditors ...RequestEditorFn) (*ReceiveCredentialOfferResponse, error) {
-	rsp, err := c.ReceiveCredentialOffer(ctx, did, params, reqEditors...)
+// CredentialOfferWithResponse request returning *CredentialOfferResponse
+func (c *ClientWithResponses) CredentialOfferWithResponse(ctx context.Context, did string, params *CredentialOfferParams, reqEditors ...RequestEditorFn) (*CredentialOfferResponse, error) {
+	rsp, err := c.CredentialOffer(ctx, did, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseReceiveCredentialOfferResponse(rsp)
+	return ParseCredentialOfferResponse(rsp)
 }
 
 // GetCredentialWithBodyWithResponse request with arbitrary body returning *GetCredentialResponse
@@ -701,15 +701,15 @@ func ParseGetOIDCIssuerMetaResponse(rsp *http.Response) (*GetOIDCIssuerMetaRespo
 	return response, nil
 }
 
-// ParseReceiveCredentialOfferResponse parses an HTTP response from a ReceiveCredentialOfferWithResponse call
-func ParseReceiveCredentialOfferResponse(rsp *http.Response) (*ReceiveCredentialOfferResponse, error) {
+// ParseCredentialOfferResponse parses an HTTP response from a CredentialOfferWithResponse call
+func ParseCredentialOfferResponse(rsp *http.Response) (*CredentialOfferResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &ReceiveCredentialOfferResponse{
+	response := &CredentialOfferResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

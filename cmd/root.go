@@ -23,6 +23,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/auth/api/oidc4vci_v0"
 	"io"
 	"os"
 	"runtime/pprof"
@@ -205,6 +206,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 		Resolver:   docResolver,
 	}})
 	system.RegisterRoutes(&credAPIv2.Wrapper{VCR: credentialInstance, ContextManager: jsonld})
+	system.RegisterRoutes(&oidc4vci_v0.Wrapper{})
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))
 	system.RegisterRoutes(&authAPI.Wrapper{Auth: authInstance, CredentialResolver: credentialInstance})

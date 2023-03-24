@@ -117,7 +117,7 @@ paths:
       tags:
         - Holder
       summary: Credential offer (OIDC4VCI) endpoint
-      operationId: receiveCredentialOffer
+      operationId: credentialOffer
       parameters:
         - name: did
           in: path
@@ -143,6 +143,20 @@ paths:
             text/plain:
               schema:
                 type: string
+        400:
+          description: Bad Request
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "missing query parameter 'credential_offer'"
+        500:
+          description: Internal Server Error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "internal server error"
 components:
   schemas:
     OIDCProviderMetadata:

@@ -104,7 +104,8 @@ func (i issuer) Issue(ctx context.Context, credentialOptions vc.VerifiableCreden
 	}
 
 	if publish {
-		if err := i.publisher.PublishCredential(ctx, *createdVC, public); err != nil {
+		publisher := oidc4vciPublisher{}
+		if err := publisher.PublishCredential(ctx, *createdVC, public); err != nil {
 			return nil, fmt.Errorf("unable to publish the issued credential: %w", err)
 		}
 	}
