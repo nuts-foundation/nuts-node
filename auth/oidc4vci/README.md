@@ -8,6 +8,12 @@ Candidate libraries:
 
 OpenID Certification: https://openid.net/certification/
 
+## Building
+
+```shell
+oapi-codegen oas3.yaml | go fmt > oidc4vci.go
+```
+
 ## Scope
 Build a prototype for Offering a NutsAuthorizationCredential by an issuer to a holder, using the OIDC4VCI specification.
 

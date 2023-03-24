@@ -10,7 +10,7 @@ paths:
       tags:
         - Well-known
       summary: get OIDC provider meta data
-      operationId: oidcProviderMeta
+      operationId: getOIDCProviderMeta
       parameters:
         - name: did
           in: path
@@ -31,7 +31,7 @@ paths:
       tags:
         - Well-known
       summary: get OIDC credential issuer meta data
-      operationId: oidcIssuerMeta
+      operationId: getOIDCIssuerMeta
       parameters:
         - name: did
           in: path
@@ -51,7 +51,7 @@ paths:
       tags:
         - OIDC
       summary: Token endpoint
-      operationId: obtainToken
+      operationId: requestAccessToken
       parameters:
         - name: did
           in: path
@@ -87,7 +87,7 @@ paths:
       tags:
         - Issuer
       summary: Credential endpoint
-      operationId: credential
+      operationId: getCredential
       parameters:
         - name: did
           in: path
@@ -117,7 +117,7 @@ paths:
       tags:
         - Holder
       summary: Credential offer (OIDC4VCI) endpoint
-      operationId: credentialOffer
+      operationId: receiveCredentialOffer
       parameters:
         - name: did
           in: path
