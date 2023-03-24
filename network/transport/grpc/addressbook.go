@@ -37,7 +37,7 @@ type AddressBook interface {
 	// get the contact if it exists. Returns nil and false if it does not.
 	get(peer transport.Peer) (*contact, bool)
 	// all returns a copy of the slice of contacts.
-	all() []transport.Contact
+	stats() []transport.Contact
 	// remove contact for the given DID. if peerDID.Empty() this removes all bootstrap contacts.
 	remove(peerDID did.DID)
 }
@@ -111,7 +111,7 @@ func (a *addressBook) update(peer transport.Peer) (*contact, bool) {
 	return newC, true
 }
 
-func (a *addressBook) all() []transport.Contact {
+func (a *addressBook) stats() []transport.Contact {
 	a.mux.RLock()
 	defer a.mux.RUnlock()
 

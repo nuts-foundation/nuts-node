@@ -401,7 +401,7 @@ func (s *grpcConnectionManager) Peers() []transport.Peer {
 }
 
 func (s *grpcConnectionManager) Contacts() []transport.Contact {
-	return s.addressBook.all()
+	return s.addressBook.stats()
 }
 
 func (s *grpcConnectionManager) Diagnostics() []core.DiagnosticResult {

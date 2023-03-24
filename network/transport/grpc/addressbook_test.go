@@ -118,7 +118,7 @@ func TestAddressBook_update(t *testing.T) {
 	})
 }
 
-func TestAddressBook_all(t *testing.T) {
+func TestAddressBook_stats(t *testing.T) {
 	didA := did.MustParseDID("did:nuts:A")
 	c1 := newContact(transport.Peer{Address: "A", NodeDID: didA}, nil)
 	c2 := newContact(transport.Peer{Address: "B"}, nil)
@@ -127,7 +127,7 @@ func TestAddressBook_all(t *testing.T) {
 	c2.attempts.Add(1)
 	ab := &addressBook{contacts: []*contact{c1, c2}}
 
-	all := ab.all()
+	all := ab.stats()
 
 	assert.Len(t, all, 2)
 	assert.Contains(t, all, transport.Contact{
