@@ -48,6 +48,7 @@ func NewTestVCRInstance(t *testing.T) *vcr {
 		jsonld.NewTestJSONLDManager(t),
 		events.NewTestManager(t),
 		storage.NewTestStorageEngine(testDirectory),
+		nil,
 	).(*vcr)
 
 	if err := newInstance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
@@ -85,7 +86,7 @@ func newMockContext(t *testing.T) mockContext {
 	eventManager := events.NewTestManager(t)
 	storageClient := storage.NewTestStorageEngine(testDir)
 	cryptoInstance := crypto.NewMemoryCryptoInstance()
-	vcr := NewVCRInstance(cryptoInstance, docResolver, keyResolver, tx, jsonldManager, eventManager, storageClient).(*vcr)
+	vcr := NewVCRInstance(cryptoInstance, docResolver, keyResolver, tx, jsonldManager, eventManager, storageClient, nil).(*vcr)
 	vcr.serviceResolver = serviceResolver
 	vcr.trustConfig = trust.NewConfig(path.Join(testDir, "trust.yaml"))
 	if err := vcr.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDir})); err != nil {

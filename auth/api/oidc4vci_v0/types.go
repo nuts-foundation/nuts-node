@@ -1,4 +1,4 @@
-package client
+package oidc4vci_v0
 
 import (
 	"github.com/nuts-foundation/nuts-node/auth/api/oidc4vci_v0/types"

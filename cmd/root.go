@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/auth/api/oidc4vci_v0"
+	"github.com/nuts-foundation/nuts-node/auth/oidc4vci"
 	"io"
 	"os"
 	"runtime/pprof"
@@ -188,9 +189,10 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	docResolver := didservice.Resolver{Store: didStore}
 	docFinder := didservice.Finder{Store: didStore}
 	eventManager := events.NewManager()
+	oidc4vciIssuer := oidc4vci.NewIssuer()
 	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), keyResolver, cryptoInstance, docResolver, docFinder, eventManager, storageInstance.GetProvider(network.ModuleName))
 	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance, didStore, eventManager)
-	credentialInstance := vcr.NewVCRInstance(cryptoInstance, docResolver, keyResolver, networkInstance, jsonld, eventManager, storageInstance)
+	credentialInstance := vcr.NewVCRInstance(cryptoInstance, docResolver, keyResolver, networkInstance, jsonld, eventManager, storageInstance, oidc4vciIssuer)
 	didmanInstance := didman.NewDidmanInstance(docResolver, didStore, vdrInstance, credentialInstance, jsonld)
 	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), didStore, credentialInstance, cryptoInstance, didmanInstance, jsonld)
 	statusEngine := status.NewStatusEngine(system)
@@ -209,7 +211,10 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))
 	system.RegisterRoutes(&authAPI.Wrapper{Auth: authInstance, CredentialResolver: credentialInstance})
-	system.RegisterRoutes(&oidc4vci_v0.Wrapper{})
+	system.RegisterRoutes(&oidc4vci_v0.Wrapper{
+		Issuer:          oidc4vciIssuer,
+		CredentialStore: credentialInstance,
+	})
 	system.RegisterRoutes(&authIrmaAPI.Wrapper{Auth: authInstance})
 	system.RegisterRoutes(&didmanAPI.Wrapper{Didman: didmanInstance})
 
