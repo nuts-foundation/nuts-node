@@ -19,8 +19,8 @@ end box
 group Credential Offer
     Issuer -> OfferEP: CredentialOffer(credentials, issuer_state)
     OfferEP --> Issuer: Ok
-    Wallet -> Issuer: Get Metadata
-    Issuer --> Wallet: Metadata
+    Wallet -> Issuer: Get Issuer Metadata
+    Issuer --> Wallet: Issuer and openid-configuration Metadata
 end
 
 group  Get access_token (pre-authorized_code)
