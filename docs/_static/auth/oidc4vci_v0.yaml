@@ -322,3 +322,44 @@ components:
           },
           "c_nonce": "fGFF7UkhLa"
         }
+    CredentialOffer:
+      type: object
+      required:
+        - credential_issuer
+        - credentials
+        - grants
+      properties:
+        credential_issuer:
+          type: string
+          example: "https://issuer.example"
+        credentials:
+          type: array
+          items:
+            type: object
+        grants:
+          type: object
+      example:
+        {
+          "credential_issuer": "https://issuer.example",
+          "credentials": [
+            {
+              "format": "ldp_vc",
+              "credential_definition": {
+                "@context": [
+                  "https://www.w3.org/2018/credentials/v1",
+                  "https://nuts.nl/credentials/v1"
+                ],
+                "types": [
+                  "VerifiableCredential",
+                  "NutsAuthorizationCredential"
+                ]
+              }
+            }
+          ],
+          "grants": {
+            "urn:ietf:params:oauth:grant-type:pre-authorized_code": {
+              "pre-authorized_code": "<secret_code>"
+            }
+          }
+        }
+
