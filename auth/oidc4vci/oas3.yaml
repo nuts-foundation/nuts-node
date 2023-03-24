@@ -1,0 +1,270 @@
+openapi: 3.0.1
+info:
+  title: OIDC4VCI Issuer API
+  version: 0.1.0"
+servers:
+  - url: "http://localhost:1323"
+paths:
+  "/did/{did}/.well-known/openid-configuration":
+    get:
+      tags:
+        - Well-known
+      summary: get OIDC provider meta data
+      operationId: oidcProviderMeta
+      parameters:
+        - name: did
+          in: path
+          required: true
+          schema:
+            type: string
+            example: did:nuts:123
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/OIDCProviderMetadata"
+              example:
+  "/did/{did}/.well-known/openid-credential-issuer":
+    get:
+      tags:
+        - Well-known
+      summary: get OIDC credential issuer meta data
+      operationId: oidcIssuerMeta
+      parameters:
+        - name: did
+          in: path
+          required: true
+          schema:
+            type: string
+            example: did:nuts:123
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/OIDCProviderMetadata"
+  "/did/{did}/oidc/token":
+    post:
+      tags:
+        - Issuer
+      summary: token endpoint
+      operationId: token
+      parameters:
+        - name: did
+          in: path
+          required: true
+          schema:
+            type: string
+            example: did:nuts:123
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                grant_type:
+                  type: string
+                  example: urn:ietf:params:oauth:grant-type:pre-authorized_code
+                pre-authorized_code:
+                  type: string
+                  example: secret
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/OIDCTokenResponse"
+              example:
+  "/did/{did}/issuer/credential":
+    post:
+      tags:
+        - Issuer
+      summary: Credential endpoint
+      operationId: credential
+      parameters:
+        - name: did
+          in: path
+          required: true
+          schema:
+            type: string
+            example: did:nuts:123
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CredentialRequest"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/CredentialResponse"
+
+  "/did/{did}/holder/credential_offer/credential_offer":
+    get:
+      tags:
+        - wallet
+      summary: Credential offer (OIDC4VCI) endpoint
+      operationId: credentialOffer
+      parameters:
+        - name: did
+          in: path
+          required: true
+          schema:
+            type: string
+            example: did:nuts:123
+        - name: credential_offer
+          description: Contains the url encoded credential_offer object.
+          in: query
+          required: true
+          schema:
+            type: string
+            example: |
+              %7B%22credential_issuer%22:%22https://credential-issuer.example.com
+              %22,%22credentials%22:%5B%7B%22format%22:%22jwt_vc_json%22,%22types%22:%5B%22Verifiabl
+              eCredential%22,%22UniversityDegreeCredential%22%5D%7D%5D,%22issuer_state%22:%22eyJhbGciOiJS
+              U0Et...FYUaBy%22%7D
+      responses:
+        '202':
+          description: Accepted
+          content:
+            text/plain:
+              schema:
+                type: string
+                example:
+              example:
+components:
+  schemas:
+    OIDCProviderMetadata:
+      description: |
+        The OIDC Provider Metadata combines meta data from the OIDC provider and the OIDC4VCI issuer.
+        This way a client can discover all the information it needs in one request.
+      type: object
+      properties:
+        credential_issuer:
+          type: string
+          description: The Credential Issuer's identifier
+          example: https://credential-issuer.example.com
+        issuer:
+          type: string
+          description: |
+            The authorization server's issuer identifier, which is
+            a URL that uses the "https" scheme and has no query or fragment
+            components.
+          example: https://issuer.example.com
+        token_endpoint:
+          type: string
+          description: |
+            URL of the authorization server's token endpoint [RFC6749].
+          example: https://issuer.example.com/token
+        credentials_supported:
+          type: array
+          description: |
+            A JSON array containing a list of JSON objects, each of them representing metadata about a separate credential type that the Credential Issuer can issue.
+          items:
+            type: object
+    OIDCTokenResponse:
+      type: object
+      description: |
+        Token Responses are made as defined in [RFC6749] with additional fields as described in OIDC4VCI.
+      required:
+        - access_token
+        - token_type
+      properties:
+        access_token:
+          type: string
+          description: |
+            The access token issued by the authorization server.
+          example: "eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp..sHQ"
+        token_type:
+          type: string
+          description: |
+            The type of the token issued as described in [RFC6749].
+          example: "bearer"
+        expires_in:
+          type: integer
+          description: |
+            The lifetime in seconds of the access token.
+          example: 3600
+        c_nonce:
+          type: string
+          description: |
+            JSON string containing a nonce to be used to create a proof of possession of key material when requesting a Credential. When received, the Wallet MUST use this nonce value for its subsequent credential requests until the Credential Issuer provides a fresh nonce.
+          example: "n-0S6_WzA2Mj"
+    CredentialRequest:
+      required:
+        - format
+      type: object
+      properties:
+        format:
+          type: string
+          example: "ldp_vc"
+        credential_definition:
+          type: object
+          description: |
+            JSON object containing (and isolating) the detailed description of the credential type. This object MUST be processed using full JSON-LD processing
+        proof:
+          type: object
+          required:
+            - proof_type
+            - jwt
+          properties:
+            proof_type:
+              type: string
+              example: "jwt"
+            jwt:
+              type: string
+              description: |
+                String with a JWS [RFC7515] as proof of possession.
+                
+                The fields of the JWT may look like this:
+                
+                {
+                  "alg": "ES256",
+                  "kid":"did:nuts:ebfeb1f712ebc6f1c276e12ec21/keys/1"
+                }.
+                {
+                  "iss": "s6BhdRkqt3",
+                  "aud": "https://credential-issuer.example.com",
+                  "iat": 1659145924,
+                  "nonce": "tZignsnFbp"
+                }
+      example:
+        {
+          "format": "ldp_vc",
+          "credential_definition": {
+            "@context": [
+              "https://www.w3.org/2018/credentials/v1",
+              "https://nuts.nl/credentials/v1"
+            ],
+            "types": [
+              "VerifiableCredential",
+              "NutsAuthorizationCredential"
+            ],
+          },
+          "proof": {
+            "proof_type": "jwt",
+            "jwt": "eyJraWQiOiJkaWQ6ZXhhbXBsZ...KPxgihac0aW9EkL1nOzM"
+          }
+        }
+
+    CredentialResponse:
+      type: object
+      properties:
+        format:
+          type: string
+          example: "ldp_vc"
+        credential:
+          type: object
+        c_nonce:
+          type: string
+          example: "fGFF7UkhLa"
