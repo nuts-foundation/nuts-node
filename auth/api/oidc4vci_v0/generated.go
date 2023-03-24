@@ -13,6 +13,13 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// CredentialOffer defines model for CredentialOffer.
+type CredentialOffer struct {
+	CredentialIssuer string                   `json:"credential_issuer"`
+	Credentials      []map[string]interface{} `json:"credentials"`
+	Grants           map[string]interface{}   `json:"grants"`
+}
+
 // CredentialRequest defines model for CredentialRequest.
 type CredentialRequest struct {
 	// CredentialDefinition JSON object containing (and isolating) the detailed description of the credential type. This object MUST be processed using full JSON-LD processing
