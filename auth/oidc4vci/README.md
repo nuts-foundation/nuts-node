@@ -3,6 +3,10 @@
 ## Resources:
 [Notes on the wiki](https://wiki.nuts.nl/books/credential-issuance-and-presentation/page/notes-on-exploring-credential-issuance)
 
+Candidate libraries:
+- https://github.com/coreos/go-oidc (doesn't support provider role, looks unmaintained)
+
+OpenID Certification: https://openid.net/certification/
 
 ## Scope
 Build a prototype for Offering a NutsAuthorizationCredential by an issuer to a holder, using the OIDC4VCI specification.
