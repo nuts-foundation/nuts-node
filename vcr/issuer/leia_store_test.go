@@ -404,11 +404,7 @@ func TestNewLeiaIssuerStore(t *testing.T) {
 		// now create a new store with a mock backup and show that ReadShelf is only called once.
 		// additional calls to the backup store would indicate the main store is empty and the backup is used to restore the main storage.
 		reader := stoabs.NewMockReader(ctrl)
-		reader.EXPECT().Iterate(gomock.Any(), gomock.Any()).DoAndReturn(func(callback interface{}, keyType interface{}) error {
-			f := callback.(stoabs.CallerFn)
-			f(stoabs.BytesKey{}, []byte{})
-			return nil
-		})
+		reader.EXPECT().Empty().Return(false, nil)
 		backupMockStore.EXPECT().ReadShelf(gomock.Any(), "credentials", gomock.Any()).DoAndReturn(func(context interface{}, shelfName interface{}, callback interface{}) error {
 			f := callback.(func(reader stoabs.Reader) error)
 			return f(reader)

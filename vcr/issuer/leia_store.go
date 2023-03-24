@@ -259,10 +259,9 @@ func (s leiaIssuerStore) backupStorePresent(backupShelf string) bool {
 	backupPresent := false
 
 	_ = s.backupStore.ReadShelf(context.Background(), backupShelf, func(reader stoabs.Reader) error {
-		return reader.Iterate(func(key stoabs.Key, value []byte) error {
-			backupPresent = true
-			return nil
-		}, stoabs.BytesKey{})
+		isEmpty, err := reader.Empty()
+		backupPresent = !isEmpty
+		return err
 	})
 
 	return backupPresent
