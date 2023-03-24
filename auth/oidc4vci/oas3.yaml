@@ -25,7 +25,6 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/OIDCProviderMetadata"
-              example:
   "/did/{did}/.well-known/openid-credential-issuer":
     get:
       tags:
@@ -78,7 +77,6 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/OIDCTokenResponse"
-              example:
   "/did/{did}/issuer/credential":
     post:
       tags:
@@ -134,14 +132,12 @@ paths:
               eCredential%22,%22UniversityDegreeCredential%22%5D%7D%5D,%22issuer_state%22:%22eyJhbGciOiJS
               U0Et...FYUaBy%22%7D
       responses:
-        '202':
+        202:
           description: Accepted
           content:
             text/plain:
               schema:
                 type: string
-                example:
-              example:
 components:
   schemas:
     OIDCProviderMetadata:
@@ -200,6 +196,14 @@ components:
           description: |
             JSON string containing a nonce to be used to create a proof of possession of key material when requesting a Credential. When received, the Wallet MUST use this nonce value for its subsequent credential requests until the Credential Issuer provides a fresh nonce.
           example: "n-0S6_WzA2Mj"
+      example:
+        {
+          "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp..sHQ",
+          "token_type": "bearer",
+          "expires_in": 300,
+          "c_nonce": "tZignsnFbp",
+          "c_nonce_expires_in": 300
+        }
     CredentialRequest:
       required:
         - format
@@ -268,3 +272,33 @@ components:
         c_nonce:
           type: string
           example: "fGFF7UkhLa"
+      example:
+        {
+          "format": "ldp_vc",
+          "credential": {
+            "@context": [
+              "https://www.w3.org/2018/credentials/v1",
+              "https://nuts.nl/credentials/v1"
+            ],
+            "id": "did:nuts:<care organization did>#123",
+            "type": [
+              "VerifiableCredential",
+              "NutsAuthorizationCredential"
+            ],
+            "issuer": "did:nuts:<care organization did>",
+            "issuanceDate": "2010-01-01T00:00:00Z",
+            "credentialSubject": {
+              "id": "did:nuts:<receiver care organization did>",
+              "patient": "bsn:999992",
+              "purposeOfUse": "careviewer"
+            },
+            "proof": {
+              "type": "Ed25519Signature2020",
+              "created": "2022-02-25T14:58:43Z",
+              "verificationMethod": "did:nuts:<care organization did>#key-1",
+              "proofPurpose": "assertionMethod",
+              "proofValue": "zeEdUoM7m9cY8ZyTpey83yBKeBcmcvbyrEQzJ19rD2UXArU2U1jPGoEtrRvGYppdiK37GU4NBeoPakxpWhAvsVSt"
+            }
+          },
+          "c_nonce": "fGFF7UkhLa"
+        }
