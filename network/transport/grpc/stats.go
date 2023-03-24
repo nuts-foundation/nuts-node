@@ -92,25 +92,6 @@ func (o ownPeerIDStatistic) String() string {
 	return o.peerID.String()
 }
 
-// ContactsStats holds statistics on outbound connectors.
-type ContactsStats []transport.ContactStats
-
-func (a ContactsStats) Name() string {
-	return "outbound_connectors"
-}
-
-func (a ContactsStats) Result() interface{} {
-	return a
-}
-
-func (a ContactsStats) String() string {
-	var items []string
-	for _, curr := range a {
-		items = append(items, fmt.Sprintf("%s (DID=%s, connect_attempts=%d)", curr.Address, curr.DID, curr.Attempts))
-	}
-	return strings.Join(items, " ")
-}
-
 type prometheusStreamWrapper struct {
 	stream              Stream
 	protocol            Protocol

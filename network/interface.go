@@ -59,6 +59,8 @@ type Transactions interface {
 	WithPersistency() SubscriberOption
 	// DiscoverServices should be called by the VDR to let the network know it has processed and verified a document (update) for the DID.
 	DiscoverServices(updatedDID did.DID)
+	// AddressBook returns the list of contacts in the address book.
+	AddressBook() []transport.Contact
 }
 
 // EventType defines a type for specifying the kind of events that can be published/subscribed on the Network.

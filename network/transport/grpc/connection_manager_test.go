@@ -266,7 +266,7 @@ func Test_grpcConnectionManager_dial(t *testing.T) {
 
 			// contact updated
 			assert.Equal(t, uint32(1), cont.attempts.Load())
-			assert.Less(t, now, cont.stats().LastAttempt)
+			assert.Less(t, now, *cont.stats().LastAttempt)
 
 			// backoff not called
 			assert.Equal(t, 0, backoff.backoffCount)
@@ -285,7 +285,7 @@ func Test_grpcConnectionManager_dial(t *testing.T) {
 
 			// contact updated
 			assert.Equal(t, uint32(1), cont.attempts.Load())
-			assert.Less(t, now, cont.stats().LastAttempt)
+			assert.Less(t, now, *cont.stats().LastAttempt)
 
 			// backoff is called
 			assert.Equal(t, 1, backoff.backoffCount)
@@ -331,7 +331,7 @@ func Test_grpcConnectionManager_dial(t *testing.T) {
 
 			// contact updated
 			assert.Equal(t, uint32(1), cont.attempts.Load())
-			assert.Less(t, now, cont.stats().LastAttempt)
+			assert.Less(t, now, *cont.stats().LastAttempt)
 
 			// backoff is reset. this means a random value between 1 and 5 sec.
 			assert.Less(t, cont.backoff.Value(), 5*time.Second)

@@ -48,6 +48,20 @@ func (mr *MockConnectionManagerMockRecorder) Connect(peerAddress, peerDID, delay
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connect", reflect.TypeOf((*MockConnectionManager)(nil).Connect), peerAddress, peerDID, delay)
 }
 
+// Contacts mocks base method.
+func (m *MockConnectionManager) Contacts() []Contact {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Contacts")
+	ret0, _ := ret[0].([]Contact)
+	return ret0
+}
+
+// Contacts indicates an expected call of Contacts.
+func (mr *MockConnectionManagerMockRecorder) Contacts() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Contacts", reflect.TypeOf((*MockConnectionManager)(nil).Contacts))
+}
+
 // Diagnostics mocks base method.
 func (m *MockConnectionManager) Diagnostics() []core.DiagnosticResult {
 	m.ctrl.T.Helper()

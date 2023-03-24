@@ -38,6 +38,20 @@ func (m *MockTransactions) EXPECT() *MockTransactionsMockRecorder {
 	return m.recorder
 }
 
+// AddressBook mocks base method.
+func (m *MockTransactions) AddressBook() []transport.Contact {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddressBook")
+	ret0, _ := ret[0].([]transport.Contact)
+	return ret0
+}
+
+// AddressBook indicates an expected call of AddressBook.
+func (mr *MockTransactionsMockRecorder) AddressBook() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddressBook", reflect.TypeOf((*MockTransactions)(nil).AddressBook))
+}
+
 // CleanupSubscriberEvents mocks base method.
 func (m *MockTransactions) CleanupSubscriberEvents(subcriberName, errorPrefix string) error {
 	m.ctrl.T.Helper()

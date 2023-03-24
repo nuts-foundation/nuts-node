@@ -122,7 +122,7 @@ func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nod
 			tlsDialOption,
 		},
 	}
-	cm.addressBook = newAddressBook(connectionStore, config.backoffCreator, isNotActivePredicate(cm))
+	cm.addressBook = newAddressBook(connectionStore, config.backoffCreator)
 	cm.registerPrometheusMetrics()
 	cm.ctx, cm.ctxCancel = context.WithCancel(context.Background())
 
@@ -400,8 +400,12 @@ func (s *grpcConnectionManager) Peers() []transport.Peer {
 	return peers
 }
 
+func (s *grpcConnectionManager) Contacts() []transport.Contact {
+	return s.addressBook.stats()
+}
+
 func (s *grpcConnectionManager) Diagnostics() []core.DiagnosticResult {
-	return append(append([]core.DiagnosticResult{ownPeerIDStatistic{s.config.peerID}}, s.connections.Diagnostics()...), s.addressBook.Diagnostics()...)
+	return append(append([]core.DiagnosticResult{ownPeerIDStatistic{s.config.peerID}}, s.connections.Diagnostics()...))
 }
 
 // RegisterService implements grpc.ServiceRegistrar to register the gRPC services protocols expose.

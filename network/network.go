@@ -269,6 +269,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		if err != nil {
 			return fmt.Errorf("failed to open connections store: %w", err)
 		}
+
 		n.connectionManager = grpc.NewGRPCConnectionManager(
 			grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...),
 			connectionStore,
@@ -725,6 +726,10 @@ func (n *Network) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 		}
 	}
 	return result
+}
+
+func (n *Network) AddressBook() []transport.Contact {
+	return n.connectionManager.Contacts()
 }
 
 // ReprocessReport describes the reprocess exection.

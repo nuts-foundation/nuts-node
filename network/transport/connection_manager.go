@@ -49,6 +49,9 @@ type ConnectionManager interface {
 	// Peers returns a slice containing the peers that are currently connected.
 	Peers() []Peer
 
+	// Contacts returns a slice containing the contacts that are currently known (to which we try to connect).
+	Contacts() []Contact
+
 	// RegisterObserver allows to register a callback function for stream state changes
 	RegisterObserver(callback StreamStateObserverFunc)
 

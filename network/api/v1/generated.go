@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/deepmap/oapi-codegen/pkg/runtime"
 	"github.com/labstack/echo/v4"
@@ -19,6 +20,21 @@ import (
 const (
 	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
 )
+
+// Contact Describes the contact information of a node.
+type Contact struct {
+	// Address Address of the node.
+	Address string `json:"address"`
+
+	// Attempts Number of times the node has been contacted, but the connection didn't succeed.
+	Attempts int `json:"attempts"`
+
+	// Did DID of the node.
+	Did *string `json:"did,omitempty"`
+
+	// LastAttempt Timestamp of the last attempt to contact the address.
+	LastAttempt *time.Time `json:"lastAttempt,omitempty"`
+}
 
 // Event Non-completed event. An event represents a transaction that is of interest to a specific part of the Nuts node.
 type Event struct {
@@ -146,6 +162,9 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// GetAddressBook request
+	GetAddressBook(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// RenderGraph request
 	RenderGraph(ctx context.Context, params *RenderGraphParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -166,6 +185,18 @@ type ClientInterface interface {
 
 	// GetTransactionPayload request
 	GetTransactionPayload(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+func (c *Client) GetAddressBook(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAddressBookRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 func (c *Client) RenderGraph(ctx context.Context, params *RenderGraphParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -250,6 +281,33 @@ func (c *Client) GetTransactionPayload(ctx context.Context, ref string, reqEdito
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+// NewGetAddressBookRequest generates requests for GetAddressBook
+func NewGetAddressBookRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/network/v1/addressbook")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
 
 // NewRenderGraphRequest generates requests for RenderGraph
@@ -590,6 +648,9 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// GetAddressBook request
+	GetAddressBookWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetAddressBookResponse, error)
+
 	// RenderGraph request
 	RenderGraphWithResponse(ctx context.Context, params *RenderGraphParams, reqEditors ...RequestEditorFn) (*RenderGraphResponse, error)
 
@@ -610,6 +671,28 @@ type ClientWithResponsesInterface interface {
 
 	// GetTransactionPayload request
 	GetTransactionPayloadWithResponse(ctx context.Context, ref string, reqEditors ...RequestEditorFn) (*GetTransactionPayloadResponse, error)
+}
+
+type GetAddressBookResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *[]Contact
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAddressBookResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAddressBookResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type RenderGraphResponse struct {
@@ -822,6 +905,15 @@ func (r GetTransactionPayloadResponse) StatusCode() int {
 	return 0
 }
 
+// GetAddressBookWithResponse request returning *GetAddressBookResponse
+func (c *ClientWithResponses) GetAddressBookWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetAddressBookResponse, error) {
+	rsp, err := c.GetAddressBook(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAddressBookResponse(rsp)
+}
+
 // RenderGraphWithResponse request returning *RenderGraphResponse
 func (c *ClientWithResponses) RenderGraphWithResponse(ctx context.Context, params *RenderGraphParams, reqEditors ...RequestEditorFn) (*RenderGraphResponse, error) {
 	rsp, err := c.RenderGraph(ctx, params, reqEditors...)
@@ -883,6 +975,32 @@ func (c *ClientWithResponses) GetTransactionPayloadWithResponse(ctx context.Cont
 		return nil, err
 	}
 	return ParseGetTransactionPayloadResponse(rsp)
+}
+
+// ParseGetAddressBookResponse parses an HTTP response from a GetAddressBookWithResponse call
+func ParseGetAddressBookResponse(rsp *http.Response) (*GetAddressBookResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAddressBookResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []Contact
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
 }
 
 // ParseRenderGraphResponse parses an HTTP response from a RenderGraphWithResponse call
@@ -1134,6 +1252,9 @@ func ParseGetTransactionPayloadResponse(rsp *http.Response) (*GetTransactionPayl
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Get the address book, listing which nodes will be connected to.
+	// (GET /internal/network/v1/addressbook)
+	GetAddressBook(ctx echo.Context) error
 	// Visualizes the DAG as a graph
 	// (GET /internal/network/v1/diagnostics/graph)
 	RenderGraph(ctx echo.Context, params RenderGraphParams) error
@@ -1160,6 +1281,17 @@ type ServerInterface interface {
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
+}
+
+// GetAddressBook converts echo context to params.
+func (w *ServerInterfaceWrapper) GetAddressBook(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.GetAddressBook(ctx)
+	return err
 }
 
 // RenderGraph converts echo context to params.
@@ -1322,6 +1454,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
+	router.GET(baseURL+"/internal/network/v1/addressbook", wrapper.GetAddressBook)
 	router.GET(baseURL+"/internal/network/v1/diagnostics/graph", wrapper.RenderGraph)
 	router.GET(baseURL+"/internal/network/v1/diagnostics/peers", wrapper.GetPeerDiagnostics)
 	router.GET(baseURL+"/internal/network/v1/events", wrapper.ListEvents)
@@ -1330,6 +1463,22 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.GET(baseURL+"/internal/network/v1/transaction/:ref", wrapper.GetTransaction)
 	router.GET(baseURL+"/internal/network/v1/transaction/:ref/payload", wrapper.GetTransactionPayload)
 
+}
+
+type GetAddressBookRequestObject struct {
+}
+
+type GetAddressBookResponseObject interface {
+	VisitGetAddressBookResponse(w http.ResponseWriter) error
+}
+
+type GetAddressBook200JSONResponse []Contact
+
+func (response GetAddressBook200JSONResponse) VisitGetAddressBookResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
 }
 
 type RenderGraphRequestObject struct {
@@ -1606,6 +1755,9 @@ func (response GetTransactionPayloaddefaultJSONResponse) VisitGetTransactionPayl
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// Get the address book, listing which nodes will be connected to.
+	// (GET /internal/network/v1/addressbook)
+	GetAddressBook(ctx context.Context, request GetAddressBookRequestObject) (GetAddressBookResponseObject, error)
 	// Visualizes the DAG as a graph
 	// (GET /internal/network/v1/diagnostics/graph)
 	RenderGraph(ctx context.Context, request RenderGraphRequestObject) (RenderGraphResponseObject, error)
@@ -1640,6 +1792,29 @@ func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareF
 type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
+}
+
+// GetAddressBook operation middleware
+func (sh *strictHandler) GetAddressBook(ctx echo.Context) error {
+	var request GetAddressBookRequestObject
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAddressBook(ctx.Request().Context(), request.(GetAddressBookRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAddressBook")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetAddressBookResponseObject); ok {
+		return validResponse.VisitGetAddressBookResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
 }
 
 // RenderGraph operation middleware
