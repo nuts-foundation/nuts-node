@@ -54,6 +54,8 @@ gen-api:
 	oapi-codegen --config codegen/configs/vcr_v2.yaml docs/_static/vcr/v2.yaml | gofmt > vcr/api/v2/generated.go
 	oapi-codegen --config codegen/configs/auth_v1.yaml docs/_static/auth/v1.yaml | gofmt > auth/api/v1/generated.go
 	oapi-codegen --config codegen/configs/auth_client_v1.yaml docs/_static/auth/v1.yaml | gofmt > auth/api/v1/client/generated.go
+	oapi-codegen --config codegen/configs/auth_oidc4vci_v0.yaml docs/_static/auth/oidc4vci_v0.yaml | gofmt > auth/api/oidc4vci_v0/generated.go
+	oapi-codegen --config codegen/configs/auth_oidc4vci_v0_client.yaml docs/_static/auth/oidc4vci_v0.yaml | gofmt > auth/api/oidc4vci_v0/client/generated.go
 	oapi-codegen --config codegen/configs/didman_v1.yaml docs/_static/didman/v1.yaml | gofmt > didman/api/v1/generated.go
 	oapi-codegen --config codegen/configs/crypto_store_client.yaml https://raw.githubusercontent.com/nuts-foundation/secret-store-api/main/nuts-storage-api-v1.yaml | gofmt > crypto/storage/external/generated.go
 
