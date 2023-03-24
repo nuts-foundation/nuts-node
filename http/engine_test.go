@@ -242,6 +242,40 @@ func TestEngine_Configure(t *testing.T) {
 			})
 		})
 		t.Run("auth", func(t *testing.T) {
+			t.Run("bearer token - signing key not found", func(t *testing.T) {
+				ctrl := gomock.NewController(t)
+				keyResolver := crypto.NewMockKeyResolver(ctrl)
+				keyResolver.EXPECT().Resolve(context.Background(), AdminTokenSigningKID).Return(nil, crypto.ErrPrivateKeyNotFound)
+
+				engine := New(noop, keyResolver)
+				engine.config.InterfaceConfig = InterfaceConfig{
+					Address: fmt.Sprintf(":%d", test.FreeTCPPort()),
+					Auth: AuthConfig{
+						Type: BearerTokenAuth,
+					},
+				}
+				_ = engine.Configure(*core.NewServerConfig())
+				engine.Router().GET("/", func(c echo.Context) error {
+					return c.String(200, "OK")
+				})
+				_ = engine.Start()
+				defer engine.Shutdown()
+				assertServerStarted(t, engine.config.InterfaceConfig.Address)
+
+				signingKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+				claims := jwt.New()
+				_ = claims.Set(jwt.SubjectKey, "admin")
+				_ = claims.Set(jwt.ExpirationKey, time.Now().Add(time.Hour))
+				tokenBytes, _ := jwt.Sign(claims, jwa.ES256, signingKey)
+				token := string(tokenBytes)
+
+				request, _ := http.NewRequest(http.MethodGet, "http://localhost"+engine.config.InterfaceConfig.Address, nil)
+				request.Header.Set("Authorization", "Bearer "+token)
+				response, err := http.DefaultClient.Do(request)
+
+				assert.NoError(t, err)
+				assert.Equal(t, http.StatusUnauthorized, response.StatusCode)
+			})
 			t.Run("bearer token", func(t *testing.T) {
 				// Create new, valid token
 				signingKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)

@@ -328,13 +328,15 @@ func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludeP
 	// The legacy authentication middleware
 	case BearerTokenAuth:
 		log.Logger().Infof("Enabling token authentication for HTTP interface: %s%s", address, path)
+		signingKey, signingKeyLookupErr := h.signingKeyResolver.Resolve(context.Background(), AdminTokenSigningKID)
+		if errors.Is(signingKeyLookupErr, cryptoEngine.ErrPrivateKeyNotFound) {
+			log.Logger().Errorf("No '%s' key found, legacy token authentication will always fail.", AdminTokenSigningKID)
+		} else if signingKeyLookupErr != nil {
+			return fmt.Errorf("failed to resolve signing key for legacy token authentication: %w", signingKeyLookupErr)
+		}
 		echoServer.Use(middleware.JWTWithConfig(middleware.JWTConfig{
 			KeyFunc: func(_ *jwt.Token) (interface{}, error) {
-				signingKey, err := h.signingKeyResolver.Resolve(context.Background(), AdminTokenSigningKID)
-				if err == nil {
-					return signingKey.Public(), nil
-				}
-				return nil, err
+				return signingKey, signingKeyLookupErr
 			},
 			Skipper: skipper,
 			SuccessHandler: func(c echo.Context) {
