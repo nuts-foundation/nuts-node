@@ -1,0 +1,7 @@
+package: types
+generate:
+  echo-server: false
+  models: true
+  strict-server: false
+output-options:
+  skip-prune: true

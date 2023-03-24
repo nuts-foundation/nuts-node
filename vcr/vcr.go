@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/auth/oidc4vci"
 	"io/fs"
 	"path"
 	"strings"
@@ -52,7 +53,7 @@ import (
 )
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
-func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions, jsonldManager jsonld.JSONLD, eventManager events.Event, storageClient storage.Engine) VCR {
+func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions, jsonldManager jsonld.JSONLD, eventManager events.Event, storageClient storage.Engine, oidc4vciIssuer *oidc4vci.Issuer) VCR {
 	r := &vcr{
 		config:          DefaultConfig(),
 		docResolver:     docResolver,
@@ -63,6 +64,7 @@ func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyRe
 		jsonldManager:   jsonldManager,
 		eventManager:    eventManager,
 		storageClient:   storageClient,
+		oidc4vciIssuer:  oidc4vciIssuer,
 	}
 
 	return r
@@ -86,6 +88,7 @@ type vcr struct {
 	jsonldManager   jsonld.JSONLD
 	eventManager    events.Event
 	storageClient   storage.Engine
+	oidc4vciIssuer  *oidc4vci.Issuer
 }
 
 func (c vcr) Issuer() issuer.Issuer {
@@ -126,8 +129,9 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	tcPath := path.Join(config.Datadir, "vcr", "trusted_issuers.yaml")
 	c.trustConfig = trust.NewConfig(tcPath)
 
-	publisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
-	c.issuer = issuer.NewIssuer(c.issuerStore, publisher, c.docResolver, c.keyStore, c.jsonldManager, c.trustConfig)
+	networkPublisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
+	oidc4vciPublisher := issuer.OIDC4VCIPublisher{Issuer: c.oidc4vciIssuer}
+	c.issuer = issuer.NewIssuer(c.issuerStore, networkPublisher, oidc4vciPublisher, c.docResolver, c.keyStore, c.jsonldManager, c.trustConfig)
 	c.verifier = verifier.NewVerifier(c.verifierStore, c.docResolver, c.keyResolver, c.jsonldManager, c.trustConfig)
 
 	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)

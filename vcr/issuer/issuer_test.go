@@ -240,7 +240,7 @@ func Test_issuer_Issue(t *testing.T) {
 			mockPublisher.EXPECT().PublishCredential(gomock.Any(), gomock.Any(), true).Return(errors.New("b00m!"))
 			mockStore := NewMockStore(ctrl)
 			mockStore.EXPECT().StoreCredential(gomock.Any()).Return(nil)
-			sut := issuer{keyResolver: keyResolverMock, store: mockStore, publisher: mockPublisher,
+			sut := issuer{keyResolver: keyResolverMock, store: mockStore, networkPublisher: mockPublisher,
 				jsonldManager: jsonldManager, trustConfig: trustConfig,
 				keyStore: crypto.NewMemoryCryptoInstance(),
 			}
@@ -399,11 +399,11 @@ func Test_issuer_Revoke(t *testing.T) {
 			store.EXPECT().StoreRevocation(gomock.Any()).Return(nil)
 
 			sut := issuer{
-				store:         store,
-				keyResolver:   keyResolverWithKey(ctrl),
-				jsonldManager: jsonldManager,
-				publisher:     publisher,
-				keyStore:      crypto.NewMemoryCryptoInstance(),
+				store:            store,
+				keyResolver:      keyResolverWithKey(ctrl),
+				jsonldManager:    jsonldManager,
+				networkPublisher: publisher,
+				keyStore:         crypto.NewMemoryCryptoInstance(),
 			}
 
 			revocation, err := sut.Revoke(ctx, credentialURI)
@@ -474,11 +474,11 @@ func Test_issuer_Revoke(t *testing.T) {
 			publisher.EXPECT().PublishRevocation(gomock.Any(), gomock.Any()).Return(errors.New("foo"))
 
 			sut := issuer{
-				store:         storeWithActualCredential(ctrl),
-				keyResolver:   keyResolverWithKey(ctrl),
-				jsonldManager: jsonldManager,
-				publisher:     publisher,
-				keyStore:      crypto.NewMemoryCryptoInstance(),
+				store:            storeWithActualCredential(ctrl),
+				keyResolver:      keyResolverWithKey(ctrl),
+				jsonldManager:    jsonldManager,
+				networkPublisher: publisher,
+				keyStore:         crypto.NewMemoryCryptoInstance(),
 			}
 
 			revocation, err := sut.Revoke(ctx, credentialURI)
@@ -498,11 +498,11 @@ func Test_issuer_Revoke(t *testing.T) {
 			store.EXPECT().GetRevocation(credentialURI).Return(&credential.Revocation{}, nil)
 
 			sut := issuer{
-				store:         store,
-				keyResolver:   keyResolverWithKey(ctrl),
-				jsonldManager: jsonldManager,
-				publisher:     publisher,
-				keyStore:      crypto.NewMemoryCryptoInstance(),
+				store:            store,
+				keyResolver:      keyResolverWithKey(ctrl),
+				jsonldManager:    jsonldManager,
+				networkPublisher: publisher,
+				keyStore:         crypto.NewMemoryCryptoInstance(),
 			}
 
 			_, err := sut.Revoke(ctx, credentialURI)

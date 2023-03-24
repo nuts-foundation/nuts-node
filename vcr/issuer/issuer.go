@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"time"
 
 	"github.com/google/uuid"
@@ -45,25 +46,29 @@ import (
 var TimeFunc = time.Now
 
 // NewIssuer creates a new issuer which implements the Issuer interface.
-func NewIssuer(store Store, publisher Publisher, docResolver vdr.DocResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config) Issuer {
+func NewIssuer(store Store, networkPublisher Publisher, oidc4vciPublisher Publisher, docResolver vdr.DocResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config) Issuer {
 	resolver := vdrKeyResolver{docResolver: docResolver, keyResolver: keyStore}
 	return &issuer{
-		store:         store,
-		publisher:     publisher,
-		keyResolver:   resolver,
-		keyStore:      keyStore,
-		jsonldManager: jsonldManager,
-		trustConfig:   trustConfig,
+		store:             store,
+		networkPublisher:  networkPublisher,
+		oidc4vciPublisher: oidc4vciPublisher,
+		keyResolver:       resolver,
+		keyStore:          keyStore,
+		serviceResolver:   didservice.NewServiceResolver(docResolver),
+		jsonldManager:     jsonldManager,
+		trustConfig:       trustConfig,
 	}
 }
 
 type issuer struct {
-	store         Store
-	publisher     Publisher
-	keyResolver   keyResolver
-	keyStore      crypto.KeyStore
-	trustConfig   *trust.Config
-	jsonldManager jsonld.JSONLD
+	store             Store
+	networkPublisher  Publisher
+	oidc4vciPublisher Publisher
+	serviceResolver   didservice.ServiceResolver
+	keyResolver       keyResolver
+	keyStore          crypto.KeyStore
+	trustConfig       *trust.Config
+	jsonldManager     jsonld.JSONLD
 }
 
 // Issue creates a new credential, signs, stores it.
@@ -104,8 +109,33 @@ func (i issuer) Issue(ctx context.Context, credentialOptions vc.VerifiableCreden
 	}
 
 	if publish {
-		publisher := oidc4vciPublisher{}
-		if err := publisher.PublishCredential(ctx, *createdVC, public); err != nil {
+		// TODO (non-prototype): can we do this for all credentials?
+		if !public {
+			// Resolve credential subject DID document to see if they support OIDC4VCI
+			type credentialSubject struct {
+				ID string `json:"id"`
+			}
+			var subjects []credentialSubject
+			err := createdVC.UnmarshalCredentialSubject(&subjects)
+			if err != nil {
+				return nil, fmt.Errorf("unable to unmarshal credential subject: %w", err)
+			}
+			subject := subjects[0]
+			// TODO (non-prototype): the service endpoint type must be specified (this is "our" way of client metadata discovery?)
+			serviceQuery := ssi.MustParseURI(subject.ID + "/serviceEndpoint?type=oidc4vci-wallet-metadata")
+			_, err = i.serviceResolver.Resolve(serviceQuery, 2)
+			if err != nil {
+				log.Logger().Infof("Could not resolve OIDC4VCI wallet metadata URL for DID (%s), will publish over Nuts network: %v", subject.ID, err)
+			} else {
+				err := i.oidc4vciPublisher.PublishCredential(ctx, *createdVC, false)
+				if err != nil {
+					return nil, fmt.Errorf("unable to publish the issued credential over OIDC4VCI: %w", err)
+				}
+				log.Logger().Infof("Published credential %s over OIDC4VCI", createdVC.ID.String())
+				return createdVC, nil
+			}
+		}
+		if err := i.networkPublisher.PublishCredential(ctx, *createdVC, public); err != nil {
 			return nil, fmt.Errorf("unable to publish the issued credential: %w", err)
 		}
 	}
@@ -193,7 +223,7 @@ func (i issuer) Revoke(ctx context.Context, credentialID ssi.URI) (*credential.R
 		return nil, err
 	}
 
-	err = i.publisher.PublishRevocation(ctx, *revocation)
+	err = i.networkPublisher.PublishRevocation(ctx, *revocation)
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish revocation: %w", err)
 	}
