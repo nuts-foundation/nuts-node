@@ -1,6 +1,7 @@
 package: oidc4vci_v0
 generate:
   echo-server: true
-#  client: true
   models: true
   strict-server: true
+output-options:
+  skip-prune: true
