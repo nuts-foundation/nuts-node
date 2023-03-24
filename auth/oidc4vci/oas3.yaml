@@ -5,7 +5,7 @@ info:
 servers:
   - url: "http://localhost:1323"
 paths:
-  "/did/{did}/.well-known/openid-configuration":
+  "/identity/{did}/.well-known/openid-configuration":
     get:
       tags:
         - Well-known
@@ -25,7 +25,8 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/OIDCProviderMetadata"
-  "/did/{did}/.well-known/openid-credential-issuer":
+
+  "/identity/{did}/.well-known/openid-credential-issuer":
     get:
       tags:
         - Well-known
@@ -45,12 +46,12 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/OIDCProviderMetadata"
-  "/did/{did}/oidc/token":
+  "/identity/{did}/oidc/token":
     post:
       tags:
-        - Issuer
-      summary: token endpoint
-      operationId: token
+        - OIDC
+      summary: Token endpoint
+      operationId: obtainToken
       parameters:
         - name: did
           in: path
@@ -63,6 +64,9 @@ paths:
           application/x-www-form-urlencoded:
             schema:
               type: object
+              required:
+                - grant_type
+                - pre-authorized_code
               properties:
                 grant_type:
                   type: string
@@ -71,13 +75,14 @@ paths:
                   type: string
                   example: secret
       responses:
-        '200':
+        200:
           description: OK
           content:
             application/json:
               schema:
                 "$ref": "#/components/schemas/OIDCTokenResponse"
-  "/did/{did}/issuer/credential":
+
+  "/identity/{did}/issuer/oidc4vci/credential":
     post:
       tags:
         - Issuer
@@ -107,10 +112,10 @@ paths:
               schema:
                 "$ref": "#/components/schemas/CredentialResponse"
 
-  "/did/{did}/holder/credential_offer/credential_offer":
+  "/identity/{did}/holder/oidc4vci/credential_offer":
     get:
       tags:
-        - wallet
+        - Holder
       summary: Credential offer (OIDC4VCI) endpoint
       operationId: credentialOffer
       parameters:
@@ -162,12 +167,28 @@ components:
           description: |
             URL of the authorization server's token endpoint [RFC6749].
           example: https://issuer.example.com/token
+        credential_endpoint:
+          type: string
+          example: "https://issuer.example/credential"
         credentials_supported:
           type: array
           description: |
             A JSON array containing a list of JSON objects, each of them representing metadata about a separate credential type that the Credential Issuer can issue.
           items:
             type: object
+            example:
+              {
+                "format": "ldp_vc",
+                "@context": [
+                  "https://www.w3.org/2018/credentials/v1",
+                  "https://nuts.nl/credentials/v1"
+                ],
+                "types": [
+                  "VerifiableCredential",
+                  "NutsAuthorizationCredential"
+                ],
+                "cryptographic_binding_methods_supported": "did:nuts"
+              }
     OIDCTokenResponse:
       type: object
       description: |
@@ -201,8 +222,7 @@ components:
           "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp..sHQ",
           "token_type": "bearer",
           "expires_in": 300,
-          "c_nonce": "tZignsnFbp",
-          "c_nonce_expires_in": 300
+          "c_nonce": "tZignsnFbp"
         }
     CredentialRequest:
       required:
