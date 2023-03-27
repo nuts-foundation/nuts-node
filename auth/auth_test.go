@@ -19,7 +19,6 @@
 package auth
 
 import (
-	"crypto/tls"
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -92,14 +91,6 @@ func TestAuth_Configure(t *testing.T) {
 		i := testInstance(t, authCfg)
 		err := i.Configure(invalidTLSServerConfig)
 		assert.EqualError(t, err, "unable to read trust store (file=non-existing): open non-existing: no such file or directory")
-	})
-}
-
-func Test_createTLSConfig(t *testing.T) {
-	t.Run("uses min. TLS version", func(t *testing.T) {
-		config := createTLSConfig(tls.Certificate{}, &core.TrustStore{})
-
-		assert.Equal(t, core.MinTLSVersion, config.MinVersion)
 	})
 }
 

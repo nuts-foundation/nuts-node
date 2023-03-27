@@ -560,12 +560,12 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 	t.Run("configures CRL check when TLS is enabled", func(t *testing.T) {
 		p := &TestProtocol{}
 
-		var tlsConfig *tls.Config
-
 		validator := crl.NewMockValidator(gomock.NewController(t))
 		validator.EXPECT().SyncLoop(gomock.Any())
-		validator.EXPECT().Configure(gomock.Any(), 10).DoAndReturn(func(config *tls.Config, maxValidityDays int) {
-			tlsConfig = config
+		validator.EXPECT().VerifyPeerCertificateFunction(10).DoAndReturn(func(maxValidityDays int) func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+			return func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+				return nil
+			}
 		}).Times(2) // on inbound and outbound TLS config
 
 		cm := NewGRPCConnectionManager(Config{
@@ -580,8 +580,6 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 
 		assert.NoError(t, cm.Start())
 		cm.Stop()
-
-		assert.Equal(t, core.MinTLSVersion, tlsConfig.MinVersion)
 	})
 }
 

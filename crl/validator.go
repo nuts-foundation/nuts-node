@@ -20,7 +20,6 @@ package crl
 
 import (
 	"context"
-	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"fmt"
@@ -55,8 +54,8 @@ type Validator interface {
 	SyncLoop(ctx context.Context)
 	// IsSynced returns whether all the CRLs are downloaded and are not outdated (based on the offset)
 	IsSynced(maxOffsetDays int) bool
-	// Configure adds a callback to the TLS config to check if the peer certificate was revoked
-	Configure(config *tls.Config, maxValidityDays int)
+	// VerifyPeerCertificateFunction returns a tls.Config.VerifyPeerCertificate function based on given config
+	VerifyPeerCertificateFunction(maxValidityDays int) func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error
 	// IsRevoked checks whether the certificate was revoked. It does not check if the CRL IsSynced
 	IsRevoked(issuer string, serialNumber *big.Int) bool
 }
@@ -245,9 +244,8 @@ func (v *validator) appendCertificates(certificates []*x509.Certificate) {
 	}
 }
 
-// Configure adds a callback to the TLS config to check if the peer certificate was revoked
-func (v *validator) Configure(config *tls.Config, maxValidityDays int) {
-	config.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+func (v *validator) VerifyPeerCertificateFunction(maxValidityDays int) func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+	return func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 		// Import unknown certificates
 		var verifiedCerts []*x509.Certificate
 

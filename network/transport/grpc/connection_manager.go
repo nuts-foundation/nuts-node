@@ -20,7 +20,6 @@ package grpc
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"net"
@@ -92,15 +91,7 @@ func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nod
 	// client tls
 	tlsDialOption := grpc.WithTransportCredentials(insecure.NewCredentials()) // No TLS, requires 'insecure' flag
 	if config.tlsEnabled() {
-		clientConfig := &tls.Config{
-			Certificates: []tls.Certificate{
-				*config.clientCert,
-			},
-			RootCAs:    config.trustStore,
-			MinVersion: core.MinTLSVersion,
-		}
-		tlsDialOption = grpc.WithTransportCredentials(credentials.NewTLS(clientConfig)) // TLS authentication
-		config.crlValidator.Configure(clientConfig, config.maxCRLValidityDays)
+		tlsDialOption = grpc.WithTransportCredentials(credentials.NewTLS(newClientTLSConfig(config))) // TLS authentication
 	}
 
 	cm := &grpcConnectionManager{
@@ -168,16 +159,7 @@ func newGrpcServer(config Config) (*grpc.Server, error) {
 		// Some form of TLS is enabled
 		if config.serverCert != nil {
 			// TLS is terminated at the Nuts node (no offloading)
-			tlsConfig := &tls.Config{
-				Certificates: []tls.Certificate{*config.serverCert},
-				ClientAuth:   tls.RequireAndVerifyClientCert,
-				ClientCAs:    config.trustStore,
-				MinVersion:   core.MinTLSVersion,
-			}
-			serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsConfig)))
-
-			// Configure support for checking revoked certificates
-			config.crlValidator.Configure(tlsConfig, config.maxCRLValidityDays)
+			serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(newServerTLSConfig(config))))
 		} else {
 			// TLS offloading for incoming traffic
 			if config.clientCertHeaderName == "" {
