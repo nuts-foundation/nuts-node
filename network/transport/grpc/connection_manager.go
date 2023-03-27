@@ -20,6 +20,7 @@ package grpc
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net"
@@ -90,8 +91,12 @@ func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nod
 
 	// client tls
 	tlsDialOption := grpc.WithTransportCredentials(insecure.NewCredentials()) // No TLS, requires 'insecure' flag
+	var tlsServer *tls.Config
 	if config.tlsEnabled() {
 		tlsDialOption = grpc.WithTransportCredentials(credentials.NewTLS(newClientTLSConfig(config))) // TLS authentication
+		if config.serverCert != nil {
+			tlsServer = newServerTLSConfig(config)
+		}
 	}
 
 	cm := &grpcConnectionManager{
@@ -112,6 +117,7 @@ func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nod
 			grpc.WithUserAgent(core.UserAgent()),
 			tlsDialOption,
 		},
+		tlsServer: tlsServer,
 	}
 	cm.addressBook = newAddressBook(connectionStore, config.backoffCreator)
 	cm.registerPrometheusMetrics()
@@ -125,6 +131,7 @@ type grpcConnectionManager struct {
 	protocols           []Protocol
 	config              Config
 	grpcServer          *grpc.Server
+	tlsServer           *tls.Config
 	ctx                 context.Context
 	ctxCancel           func()
 	listener            net.Listener
@@ -145,7 +152,7 @@ type grpcConnectionManager struct {
 }
 
 // newGrpcServer configures a new grpc.Server. context.Context is used to cancel the crlValidator
-func newGrpcServer(config Config) (*grpc.Server, error) {
+func newGrpcServer(config Config, tlsServer *tls.Config) (*grpc.Server, error) {
 	serverOpts := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(MaxMessageSizeInBytes),
 		grpc.MaxSendMsgSize(MaxMessageSizeInBytes),
@@ -159,7 +166,7 @@ func newGrpcServer(config Config) (*grpc.Server, error) {
 		// Some form of TLS is enabled
 		if config.serverCert != nil {
 			// TLS is terminated at the Nuts node (no offloading)
-			serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(newServerTLSConfig(config))))
+			serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsServer)))
 		} else {
 			// TLS offloading for incoming traffic
 			if config.clientCertHeaderName == "" {
@@ -183,7 +190,7 @@ func newGrpcServer(config Config) (*grpc.Server, error) {
 func (s *grpcConnectionManager) Start() error {
 	// Start CRL updater
 	if s.config.tlsEnabled() {
-		s.config.crlValidator.SyncLoop(s.ctx)
+		s.config.crlValidator.Start(s.ctx)
 	}
 
 	// Start outbound
@@ -207,7 +214,7 @@ func (s *grpcConnectionManager) Start() error {
 	}
 
 	// Create gRPC server for inbound connectionList and associate it with the protocols
-	s.grpcServer, err = newGrpcServer(s.config)
+	s.grpcServer, err = newGrpcServer(s.config, s.tlsServer)
 	if err != nil {
 		return err
 	}

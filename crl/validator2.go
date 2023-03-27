@@ -42,7 +42,7 @@ type validator struct {
 	truststore map[string]*x509.Certificate
 	// crlChan protects crls from race conditions.
 	// All operations on crls should be in the func sent to the channel.
-	crlChan chan func(result chan interface{})
+	crlChan chan func()
 	// crls maps CRL endpoints to their x509.RevocationList
 	crls map[string]*revocationList
 }
@@ -86,7 +86,7 @@ func newValidatorWithHTTPClient(certificates []*x509.Certificate, client *http.C
 	}
 	return &validator{
 		httpClient: client,
-		crlChan:    make(chan func(result chan interface{})), // unbuffered
+		crlChan:    make(chan func()), // unbuffered
 		truststore: certMap,
 		crls:       listMap,
 	}
@@ -117,13 +117,16 @@ func (v *validator) syncLoop(ctx context.Context) {
 
 func (v *validator) validatorLoop(ctx context.Context) {
 	var f func()
+	var ok bool
 	for {
 		select {
 		case <-ctx.Done():
 			v.started = false
 			return
-		case f = <-v.crlChan:
-			f()
+		case f, ok = <-v.crlChan:
+			if ok {
+				f()
+			}
 		}
 	}
 }
@@ -194,7 +197,7 @@ func (v *validator) SetValidatePeerCertificateFunc(config *tls.Config) error {
 // Certificated in chain are assumed ordered from leaf to root certificate.
 func (v *validator) validateChain(chain []*x509.Certificate) error {
 	result := make(chan error)
-	v.crlChan <- func(result chan interface{}) {
+	v.crlChan <- func() {
 		defer close(result)
 		var cert *x509.Certificate
 		for i := range chain {
@@ -226,7 +229,7 @@ func (v *validator) validateChain(chain []*x509.Certificate) error {
 // The returned revocationList must not be updated, use setCRL for this.
 func (v *validator) getCRLs() map[string]*revocationList {
 	result := make(chan map[string]*revocationList)
-	v.crlChan <- func(result chan interface{}) {
+	v.crlChan <- func() {
 		defer close(result)
 		cp := make(map[string]*revocationList, len(v.crls))
 		for ep, crl := range v.crls {
@@ -240,7 +243,7 @@ func (v *validator) getCRLs() map[string]*revocationList {
 // setCRL updates crls in a save way
 func (v *validator) setCRL(endpoint string, crl *revocationList) {
 	result := make(chan struct{})
-	v.crlChan <- func(result chan interface{}) {
+	v.crlChan <- func() {
 		defer close(result)
 		v.crls[endpoint] = crl
 		result <- struct{}{}

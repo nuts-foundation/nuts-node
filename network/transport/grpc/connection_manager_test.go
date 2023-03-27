@@ -561,8 +561,8 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 		p := &TestProtocol{}
 
 		validator := crl.NewMockValidator(gomock.NewController(t))
-		validator.EXPECT().SyncLoop(gomock.Any())
-		validator.EXPECT().VerifyPeerCertificateFunction(10).DoAndReturn(func(maxValidityDays int) func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+		validator.EXPECT().Start(gomock.Any())
+		validator.EXPECT().SetValidatePeerCertificateFunc(gomock.Any()).DoAndReturn(func(_ interface{}) func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 			return func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 				return nil
 			}

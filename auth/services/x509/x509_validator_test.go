@@ -288,11 +288,9 @@ func TestJwtX509Validator_Verify(t *testing.T) {
 	t.Run("ok - valid jwt", func(t *testing.T) {
 		db := crl.NewMockValidator(gomock.NewController(t))
 
-		db.EXPECT().Sync().Return(nil)
-		db.EXPECT().IsSynced(0).Return(nil)
-		db.EXPECT().IsRevoked(rootCert.Issuer.String(), rootCert.SerialNumber).Return(false)
-		db.EXPECT().IsRevoked(intermediateCert.Issuer.String(), intermediateCert.SerialNumber).Return(false)
-		db.EXPECT().IsRevoked(leafCert.Issuer.String(), leafCert.SerialNumber).Return(false)
+		db.EXPECT().IsRevoked(rootCert).Return(false, nil)
+		db.EXPECT().IsRevoked(intermediateCert).Return(false, nil)
+		db.EXPECT().IsRevoked(leafCert).Return(false, nil)
 
 		validator := NewJwtX509Validator([]*x509.Certificate{rootCert}, []*x509.Certificate{intermediateCert}, []jwa.SignatureAlgorithm{jwa.RS256}, db)
 
@@ -347,11 +345,11 @@ func NewMockValidator(t *testing.T, rootCert, intermediateCert, leafCert *x509.C
 	db := crl.NewMockValidator(gomock.NewController(t))
 
 	if !intermediateRevoked {
-		db.EXPECT().IsRevoked(rootCert.Issuer.String(), rootCert.SerialNumber).Return(false)
+		db.EXPECT().IsRevoked(rootCert).Return(false, nil)
 	}
 
-	db.EXPECT().IsRevoked(intermediateCert.Issuer.String(), intermediateCert.SerialNumber).Return(intermediateRevoked)
-	db.EXPECT().IsRevoked(leafCert.Issuer.String(), leafCert.SerialNumber).Return(false)
+	db.EXPECT().IsRevoked(intermediateCert).Return(intermediateRevoked, nil)
+	db.EXPECT().IsRevoked(leafCert).Return(false, nil)
 
 	return db
 }

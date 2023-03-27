@@ -146,8 +146,12 @@ func newClientTLSConfig(config Config) *tls.Config {
 
 func newTLSConfig(config Config) *tls.Config {
 	tlsConfig := &tls.Config{
-		MinVersion:            core.MinTLSVersion,
-		VerifyPeerCertificate: config.crlValidator.VerifyPeerCertificateFunction(config.maxCRLValidityDays),
+		MinVersion: core.MinTLSVersion,
+	}
+
+	if err := config.crlValidator.SetValidatePeerCertificateFunc(tlsConfig); err != nil {
+		// cannot fail
+		panic(err)
 	}
 
 	return tlsConfig

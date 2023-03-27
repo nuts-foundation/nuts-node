@@ -193,13 +193,13 @@ func (validator JwtX509Validator) Verify(x509Token *JwtX509Token) error {
 		return err
 	}
 
-	if err := validator.crlValidator.Sync(); err != nil {
-		return err
-	}
-
-	if err := validator.crlValidator.IsSynced(0); err != nil {
-		return fmt.Errorf("unable to verify revoked certificates because the CRL database is outdated: %w", err)
-	}
+	//if err := validator.crlValidator.Sync(); err != nil {
+	//	return err
+	//}
+	//
+	//if !validator.crlValidator.IsSynced(0) {
+	//	return errors.New("unable to verify revoked certificates because the CRL database is outdated")
+	//}
 
 	for _, verifiedChain := range verifiedChains {
 		err := validator.checkCertRevocation(verifiedChain)
@@ -270,8 +270,12 @@ func (validator JwtX509Validator) verifyCertChain(chain []*x509.Certificate, che
 func (validator JwtX509Validator) checkCertRevocation(verifiedChain []*x509.Certificate) error {
 	for _, certificate := range verifiedChain {
 
-		if validator.crlValidator.IsRevoked(certificate.Issuer.String(), certificate.SerialNumber) {
+		ok, err := validator.crlValidator.IsRevoked(certificate)
+		if ok {
 			return fmt.Errorf("cert with serial '%s' and subject '%s' is revoked", certificate.SerialNumber.String(), certificate.Subject.String())
+		}
+		if err != nil {
+			return errors.New("unable to verify revoked certificates because the CRL database is outdated")
 		}
 	}
 
