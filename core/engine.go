@@ -117,7 +117,7 @@ func (system *System) Shutdown() error {
 		name := engineName(curr)
 		coreLogger.Infof("Stopping %s...", name)
 		if err := curr.Shutdown(); err != nil {
-			err = fmt.Errorf("unable to shutdown %s: %w", name, err)
+			return fmt.Errorf("unable to shutdown %s: %w", name, err)
 		}
 		coreLogger.Infof("Stopped %s", name)
 	}
