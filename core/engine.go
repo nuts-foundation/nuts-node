@@ -92,12 +92,13 @@ func (system *System) Start() error {
 	var err error
 	return system.VisitEnginesE(func(engine Engine) error {
 		if m, ok := engine.(Runnable); ok {
-			coreLogger.Infof("Starting %s...", engineName(engine))
+			name := engineName(engine)
+			coreLogger.Infof("Starting %s...", name)
 			err = m.Start()
 			if err != nil {
-				return fmt.Errorf("failed to start %s: %w", engineName(engine), err)
+				return fmt.Errorf("unable to start %s: %w", name, err)
 			}
-			coreLogger.Infof("Started %s", engineName(engine))
+			coreLogger.Infof("Started %s", name)
 		}
 		return err
 	})
@@ -113,11 +114,12 @@ func (system *System) Shutdown() error {
 	})
 	for i := len(engines) - 1; i >= 0; i-- {
 		curr := engines[i]
-		coreLogger.Infof("Stopping %s...", engineName(curr))
+		name := engineName(curr)
+		coreLogger.Infof("Stopping %s...", name)
 		if err := curr.Shutdown(); err != nil {
-			return err
+			err = fmt.Errorf("unable to shutdown %s: %w", name, err)
 		}
-		coreLogger.Infof("Stopped %s", engineName(curr))
+		coreLogger.Infof("Stopped %s", name)
 	}
 	return nil
 }
@@ -131,10 +133,14 @@ func (system *System) Configure() error {
 	}
 	return system.VisitEnginesE(func(engine Engine) error {
 		// only if Engine is dynamically configurable
+		name := engineName(engine)
 		if m, ok := engine.(Configurable); ok {
-			coreLogger.Debugf("Configuring %s", engineName(engine))
+			coreLogger.Debugf("Configuring %s", name)
 			err = m.Configure(*system.Config)
-			coreLogger.Debugf("Configured %s", engineName(engine))
+			coreLogger.Debugf("Configured %s", name)
+		}
+		if err != nil {
+			err = fmt.Errorf("unable to configure %s: %w", name, err)
 		}
 		return err
 	})
@@ -146,9 +152,13 @@ func (system *System) Migrate() error {
 	return system.VisitEnginesE(func(engine Engine) error {
 		// only if Engine is migratable
 		if m, ok := engine.(Migratable); ok {
-			coreLogger.Debugf("Migrating %s", engineName(engine))
+			name := engineName(engine)
+			coreLogger.Debugf("Migrating %s", name)
 			err = m.Migrate()
-			coreLogger.Debugf("Migrated %s", engineName(engine))
+			if err != nil {
+				return fmt.Errorf("unable to migrate %s: %w", name, err)
+			}
+			coreLogger.Debugf("Migrated %s", name)
 		}
 		return err
 	})
