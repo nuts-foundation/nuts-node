@@ -110,7 +110,8 @@ func (n *Network) CheckHealth() map[string]core.Health {
 		}
 	}
 	// auth_config checks that the node is correctly configured to be authenticated by others
-	nodeDID, err := n.nodeDIDResolver.Resolve()
+	// Context should be passed by CheckHealth() calls (part of https://github.com/nuts-foundation/nuts-node/issues/1858)
+	nodeDID, err := n.nodeDIDResolver.Resolve(context.TODO())
 	if err != nil {
 		// can only happen when not in strictmode and autoNodeDIDResolver fails
 		results[healthAuthConfig] = core.Health{
@@ -128,7 +129,7 @@ func (n *Network) CheckHealth() map[string]core.Health {
 		return results
 	}
 
-	if err = n.validateNodeDID(nodeDID); err != nil {
+	if err = n.validateNodeDID(context.TODO(), nodeDID); err != nil {
 		results[healthAuthConfig] = core.Health{
 			Status:  core.HealthStatusDown,
 			Details: err.Error(),
@@ -304,7 +305,7 @@ func (n *Network) DiscoverServices(updatedDID did.DID) {
 			Debug("Service discovery could not read DID document after an update")
 		return
 	}
-	nodeDID, err := n.nodeDIDResolver.Resolve()
+	nodeDID, err := n.nodeDIDResolver.Resolve(context.TODO())
 	if err != nil {
 		// This can only occur when the autoNodeDIDResolver is used (non-strict mode)
 		log.Logger().WithError(err).Error("Could not resolve own node DID for service discovery")
@@ -356,12 +357,12 @@ func (n *Network) Start() error {
 	}
 
 	// Sanity check for configured node DID: can we resolve it and do we have the keys?
-	nodeDID, err := n.nodeDIDResolver.Resolve()
+	nodeDID, err := n.nodeDIDResolver.Resolve(context.TODO())
 	if err != nil {
 		return err
 	}
 	if !nodeDID.Empty() {
-		err = n.validateNodeDIDKeys(nodeDID)
+		err = n.validateNodeDIDKeys(context.TODO(), nodeDID)
 		if err != nil && n.strictMode {
 			return err
 		}
@@ -446,7 +447,7 @@ inner:
 	}
 }
 
-func (n *Network) validateNodeDIDKeys(nodeDID did.DID) error {
+func (n *Network) validateNodeDIDKeys(ctx context.Context, nodeDID did.DID) error {
 	// Check if DID document can be resolved
 	document, _, err := n.didDocumentResolver.Resolve(nodeDID, nil)
 	if err != nil {
@@ -458,15 +459,15 @@ func (n *Network) validateNodeDIDKeys(nodeDID did.DID) error {
 		return fmt.Errorf("DID document does not contain a keyAgreement key, register a keyAgreement key (did=%s)", nodeDID)
 	}
 	for _, keyAgreement := range document.KeyAgreement {
-		if !n.keyStore.Exists(keyAgreement.ID.String()) {
+		if !n.keyStore.Exists(ctx, keyAgreement.ID.String()) {
 			return fmt.Errorf("keyAgreement private key is not present in key store, recover your key material or register a new keyAgreement key (did=%s,kid=%s)", nodeDID, keyAgreement.ID)
 		}
 	}
 	return nil
 }
 
-func (n *Network) validateNodeDID(nodeDID did.DID) error {
-	if err := n.validateNodeDIDKeys(nodeDID); err != nil {
+func (n *Network) validateNodeDID(ctx context.Context, nodeDID did.DID) error {
+	if err := n.validateNodeDIDKeys(ctx, nodeDID); err != nil {
 		return err
 	}
 
@@ -581,7 +582,7 @@ func (n *Network) CreateTransaction(ctx context.Context, template Template) (dag
 
 	// Assert node DID is configured when participants are specified
 	if len(template.Participants) > 0 {
-		nodeDID, err := n.nodeDIDResolver.Resolve()
+		nodeDID, err := n.nodeDIDResolver.Resolve(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -699,7 +700,7 @@ func (n *Network) Diagnostics() []core.DiagnosticResult {
 		results = append(results, core.DiagnosticResultMap{Title: "state", Items: graph.Diagnostics()})
 	}
 	// NodeDID
-	nodeDID, err := n.nodeDIDResolver.Resolve()
+	nodeDID, err := n.nodeDIDResolver.Resolve(context.TODO())
 	if err != nil {
 		log.Logger().
 			WithError(err).

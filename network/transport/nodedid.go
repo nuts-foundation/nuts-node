@@ -19,6 +19,7 @@
 package transport
 
 import (
+	"context"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
@@ -30,7 +31,7 @@ import (
 // NodeDIDResolver defines an interface for types that resolve the local node's DID, which is used to identify the node on the network.
 type NodeDIDResolver interface {
 	// Resolve tries to resolve the node DID. If it's absent, an empty DID is returned. In any other non-successful case an error is returned.
-	Resolve() (did.DID, error)
+	Resolve(ctx context.Context) (did.DID, error)
 }
 
 // FixedNodeDIDResolver is a NodeDIDResolver that returns a preset DID.
@@ -39,7 +40,7 @@ type FixedNodeDIDResolver struct {
 }
 
 // Resolve returns the fixed-set node DID.
-func (f FixedNodeDIDResolver) Resolve() (did.DID, error) {
+func (f FixedNodeDIDResolver) Resolve(_ context.Context) (did.DID, error) {
 	return f.NodeDID, nil
 }
 
@@ -60,7 +61,7 @@ type autoNodeDIDResolver struct {
 }
 
 // Resolve returns the auto-resolved node DID, or an empty DID if none could be found.
-func (a *autoNodeDIDResolver) Resolve() (did.DID, error) {
+func (a *autoNodeDIDResolver) Resolve(ctx context.Context) (did.DID, error) {
 	a.mux.Lock()
 	defer a.mux.Unlock()
 	if !a.resolvedDID.Empty() {
@@ -73,7 +74,7 @@ func (a *autoNodeDIDResolver) Resolve() (did.DID, error) {
 		return did.DID{}, err
 	}
 
-	privateKeyIDs := a.keyResolver.List()
+	privateKeyIDs := a.keyResolver.List(ctx)
 
 	// Intersect DID documents with an absolute NutsComm endpoint (which vendors must have) with the private keys present in the local keystore.
 outer:

@@ -264,10 +264,10 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 		ctx := createContext(t)
 
 		params := DrawUpContractRequest{
-			Language:    ContractLanguage("EN"),
-			Type:        ContractType("PractitionerLogin"),
-			Version:     ContractVersion("v3"),
-			LegalEntity: LegalEntity(vdr.TestDIDA.String()),
+			Language:    "EN",
+			Type:        "PractitionerLogin",
+			Version:     "v3",
+			LegalEntity: vdr.TestDIDA.String(),
 		}
 		bindPostBody(ctx, params)
 
@@ -277,13 +277,13 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 			Template:        template,
 			Params:          nil,
 		}
-		ctx.notaryMock.EXPECT().DrawUpContract(*template, gomock.Any(), gomock.Any(), gomock.Any(), nil).Return(drawnUpContract, nil)
+		ctx.notaryMock.EXPECT().DrawUpContract(ctx.audit, *template, gomock.Any(), gomock.Any(), gomock.Any(), nil).Return(drawnUpContract, nil)
 
 		expectedResponse := ContractResponse{
-			Language: ContractLanguage("EN"),
+			Language: "EN",
 			Message:  "drawn up contract text",
-			Type:     ContractType("PractitionerLogin"),
-			Version:  ContractVersion("v3"),
+			Type:     "PractitionerLogin",
+			Version:  "v3",
 		}
 		ctx.echoMock.EXPECT().JSON(http.StatusOK, expectedResponse)
 		err := ctx.wrapper.DrawUpContract(ctx.echoMock)
@@ -310,7 +310,7 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 			Template:        template,
 			Params:          nil,
 		}
-		ctx.notaryMock.EXPECT().DrawUpContract(*template, gomock.Any(), gomock.Any(), gomock.Any(), &vc).Return(drawnUpContract, nil)
+		ctx.notaryMock.EXPECT().DrawUpContract(ctx.audit, *template, gomock.Any(), gomock.Any(), gomock.Any(), &vc).Return(drawnUpContract, nil)
 
 		expectedResponse := ContractResponse{
 			Language: "EN",
@@ -361,9 +361,9 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 			ctx := createContext(t)
 
 			params := DrawUpContractRequest{
-				Language: ContractLanguage("EN"),
-				Type:     ContractType("UnknownContractName"),
-				Version:  ContractVersion("v3"),
+				Language: "EN",
+				Type:     "UnknownContractName",
+				Version:  "v3",
 			}
 			bindPostBody(ctx, params)
 
@@ -377,10 +377,10 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 			ctx := createContext(t)
 
 			params := DrawUpContractRequest{
-				Language:    ContractLanguage("EN"),
-				Type:        ContractType("PractitionerLogin"),
-				Version:     ContractVersion("v3"),
-				LegalEntity: LegalEntity("ZorgId:15"),
+				Language:    "EN",
+				Type:        "PractitionerLogin",
+				Version:     "v3",
+				LegalEntity: "ZorgId:15",
 			}
 			bindPostBody(ctx, params)
 
@@ -396,14 +396,14 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 		ctx := createContext(t)
 
 		params := DrawUpContractRequest{
-			Language:    ContractLanguage("EN"),
-			Type:        ContractType("PractitionerLogin"),
-			Version:     ContractVersion("v3"),
-			LegalEntity: LegalEntity(vdr.TestDIDA.String()),
+			Language:    "EN",
+			Type:        "PractitionerLogin",
+			Version:     "v3",
+			LegalEntity: vdr.TestDIDA.String(),
 		}
 		bindPostBody(ctx, params)
 
-		ctx.notaryMock.EXPECT().DrawUpContract(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), nil).Return(nil, errors.New("unknown error while drawing up the contract"))
+		ctx.notaryMock.EXPECT().DrawUpContract(ctx.audit, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), nil).Return(nil, errors.New("unknown error while drawing up the contract"))
 
 		err := ctx.wrapper.DrawUpContract(ctx.echoMock)
 
@@ -721,7 +721,7 @@ func TestWrapper_VerifyAccessToken(t *testing.T) {
 		}
 
 		ctx.echoMock.EXPECT().NoContent(http.StatusForbidden)
-		ctx.authzServerMock.EXPECT().IntrospectAccessToken("token").Return(nil, errors.New("unauthorized"))
+		ctx.authzServerMock.EXPECT().IntrospectAccessToken(ctx.audit, "token").Return(nil, errors.New("unauthorized"))
 
 		_ = ctx.wrapper.VerifyAccessToken(ctx.echoMock, params)
 	})
@@ -733,7 +733,7 @@ func TestWrapper_VerifyAccessToken(t *testing.T) {
 		}
 
 		ctx.echoMock.EXPECT().NoContent(http.StatusOK)
-		ctx.authzServerMock.EXPECT().IntrospectAccessToken("token").Return(&services.NutsAccessToken{}, nil)
+		ctx.authzServerMock.EXPECT().IntrospectAccessToken(ctx.audit, "token").Return(&services.NutsAccessToken{}, nil)
 
 		_ = ctx.wrapper.VerifyAccessToken(ctx.echoMock, params)
 	})
@@ -774,7 +774,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		iat := 1581411767
 		iss := vdr.TestDIDB.String()
 		service := "service"
-		ctx.authzServerMock.EXPECT().IntrospectAccessToken(request.Token).Return(
+		ctx.authzServerMock.EXPECT().IntrospectAccessToken(ctx.audit, request.Token).Return(
 			&services.NutsAccessToken{
 				Audience:    aud,
 				Expiration:  int64(exp),

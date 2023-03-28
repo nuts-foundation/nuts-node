@@ -19,6 +19,7 @@
 package spi
 
 import (
+	"context"
 	"crypto"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -56,27 +57,27 @@ func (w wrapper) validateKID(kid string) error {
 	return nil
 }
 
-func (w wrapper) GetPrivateKey(kid string) (crypto.Signer, error) {
+func (w wrapper) GetPrivateKey(ctx context.Context, kid string) (crypto.Signer, error) {
 	if err := w.validateKID(kid); err != nil {
 		return nil, err
 	}
-	return w.wrappedBackend.GetPrivateKey(kid)
+	return w.wrappedBackend.GetPrivateKey(ctx, kid)
 }
 
-func (w wrapper) PrivateKeyExists(kid string) bool {
+func (w wrapper) PrivateKeyExists(ctx context.Context, kid string) bool {
 	if err := w.validateKID(kid); err != nil {
 		return false
 	}
-	return w.wrappedBackend.PrivateKeyExists(kid)
+	return w.wrappedBackend.PrivateKeyExists(ctx, kid)
 }
 
-func (w wrapper) SavePrivateKey(kid string, key crypto.PrivateKey) error {
+func (w wrapper) SavePrivateKey(ctx context.Context, kid string, key crypto.PrivateKey) error {
 	if err := w.validateKID(kid); err != nil {
 		return err
 	}
-	return w.wrappedBackend.SavePrivateKey(kid, key)
+	return w.wrappedBackend.SavePrivateKey(ctx, kid, key)
 }
 
-func (w wrapper) ListPrivateKeys() []string {
-	return w.wrappedBackend.ListPrivateKeys()
+func (w wrapper) ListPrivateKeys(ctx context.Context) []string {
+	return w.wrappedBackend.ListPrivateKeys(ctx)
 }

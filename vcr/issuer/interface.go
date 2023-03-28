@@ -41,7 +41,7 @@ type Publisher interface {
 }
 
 type keyResolver interface {
-	ResolveAssertionKey(issuerDID did.DID) (crypto.Key, error)
+	ResolveAssertionKey(ctx context.Context, issuerDID did.DID) (crypto.Key, error)
 }
 
 // Issuer is a role in the network for a party who issues credentials about a subject to a holder.

@@ -74,46 +74,46 @@ func (m *MockKeyResolver) EXPECT() *MockKeyResolverMockRecorder {
 }
 
 // Exists mocks base method.
-func (m *MockKeyResolver) Exists(kid string) bool {
+func (m *MockKeyResolver) Exists(ctx context.Context, kid string) bool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Exists", kid)
+	ret := m.ctrl.Call(m, "Exists", ctx, kid)
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
 // Exists indicates an expected call of Exists.
-func (mr *MockKeyResolverMockRecorder) Exists(kid interface{}) *gomock.Call {
+func (mr *MockKeyResolverMockRecorder) Exists(ctx, kid interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockKeyResolver)(nil).Exists), kid)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockKeyResolver)(nil).Exists), ctx, kid)
 }
 
 // List mocks base method.
-func (m *MockKeyResolver) List() []string {
+func (m *MockKeyResolver) List(ctx context.Context) []string {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "List")
+	ret := m.ctrl.Call(m, "List", ctx)
 	ret0, _ := ret[0].([]string)
 	return ret0
 }
 
 // List indicates an expected call of List.
-func (mr *MockKeyResolverMockRecorder) List() *gomock.Call {
+func (mr *MockKeyResolverMockRecorder) List(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockKeyResolver)(nil).List))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockKeyResolver)(nil).List), ctx)
 }
 
 // Resolve mocks base method.
-func (m *MockKeyResolver) Resolve(kid string) (Key, error) {
+func (m *MockKeyResolver) Resolve(ctx context.Context, kid string) (Key, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Resolve", kid)
+	ret := m.ctrl.Call(m, "Resolve", ctx, kid)
 	ret0, _ := ret[0].(Key)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Resolve indicates an expected call of Resolve.
-func (mr *MockKeyResolverMockRecorder) Resolve(kid interface{}) *gomock.Call {
+func (mr *MockKeyResolverMockRecorder) Resolve(ctx, kid interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockKeyResolver)(nil).Resolve), kid)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockKeyResolver)(nil).Resolve), ctx, kid)
 }
 
 // MockKeyStore is a mock of KeyStore interface.
@@ -140,46 +140,46 @@ func (m *MockKeyStore) EXPECT() *MockKeyStoreMockRecorder {
 }
 
 // Decrypt mocks base method.
-func (m *MockKeyStore) Decrypt(kid string, ciphertext []byte) ([]byte, error) {
+func (m *MockKeyStore) Decrypt(ctx context.Context, kid string, ciphertext []byte) ([]byte, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Decrypt", kid, ciphertext)
+	ret := m.ctrl.Call(m, "Decrypt", ctx, kid, ciphertext)
 	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Decrypt indicates an expected call of Decrypt.
-func (mr *MockKeyStoreMockRecorder) Decrypt(kid, ciphertext interface{}) *gomock.Call {
+func (mr *MockKeyStoreMockRecorder) Decrypt(ctx, kid, ciphertext interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Decrypt", reflect.TypeOf((*MockKeyStore)(nil).Decrypt), kid, ciphertext)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Decrypt", reflect.TypeOf((*MockKeyStore)(nil).Decrypt), ctx, kid, ciphertext)
 }
 
 // Exists mocks base method.
-func (m *MockKeyStore) Exists(kid string) bool {
+func (m *MockKeyStore) Exists(ctx context.Context, kid string) bool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Exists", kid)
+	ret := m.ctrl.Call(m, "Exists", ctx, kid)
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
 // Exists indicates an expected call of Exists.
-func (mr *MockKeyStoreMockRecorder) Exists(kid interface{}) *gomock.Call {
+func (mr *MockKeyStoreMockRecorder) Exists(ctx, kid interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockKeyStore)(nil).Exists), kid)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockKeyStore)(nil).Exists), ctx, kid)
 }
 
 // List mocks base method.
-func (m *MockKeyStore) List() []string {
+func (m *MockKeyStore) List(ctx context.Context) []string {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "List")
+	ret := m.ctrl.Call(m, "List", ctx)
 	ret0, _ := ret[0].([]string)
 	return ret0
 }
 
 // List indicates an expected call of List.
-func (mr *MockKeyStoreMockRecorder) List() *gomock.Call {
+func (mr *MockKeyStoreMockRecorder) List(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockKeyStore)(nil).List))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockKeyStore)(nil).List), ctx)
 }
 
 // New mocks base method.
@@ -198,18 +198,18 @@ func (mr *MockKeyStoreMockRecorder) New(ctx, namingFunc interface{}) *gomock.Cal
 }
 
 // Resolve mocks base method.
-func (m *MockKeyStore) Resolve(kid string) (Key, error) {
+func (m *MockKeyStore) Resolve(ctx context.Context, kid string) (Key, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Resolve", kid)
+	ret := m.ctrl.Call(m, "Resolve", ctx, kid)
 	ret0, _ := ret[0].(Key)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Resolve indicates an expected call of Resolve.
-func (mr *MockKeyStoreMockRecorder) Resolve(kid interface{}) *gomock.Call {
+func (mr *MockKeyStoreMockRecorder) Resolve(ctx, kid interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockKeyStore)(nil).Resolve), kid)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockKeyStore)(nil).Resolve), ctx, kid)
 }
 
 // SignJWS mocks base method.
@@ -266,18 +266,18 @@ func (m *MockDecrypter) EXPECT() *MockDecrypterMockRecorder {
 }
 
 // Decrypt mocks base method.
-func (m *MockDecrypter) Decrypt(kid string, ciphertext []byte) ([]byte, error) {
+func (m *MockDecrypter) Decrypt(ctx context.Context, kid string, ciphertext []byte) ([]byte, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Decrypt", kid, ciphertext)
+	ret := m.ctrl.Call(m, "Decrypt", ctx, kid, ciphertext)
 	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Decrypt indicates an expected call of Decrypt.
-func (mr *MockDecrypterMockRecorder) Decrypt(kid, ciphertext interface{}) *gomock.Call {
+func (mr *MockDecrypterMockRecorder) Decrypt(ctx, kid, ciphertext interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Decrypt", reflect.TypeOf((*MockDecrypter)(nil).Decrypt), kid, ciphertext)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Decrypt", reflect.TypeOf((*MockDecrypter)(nil).Decrypt), ctx, kid, ciphertext)
 }
 
 // MockJWTSigner is a mock of JWTSigner interface.

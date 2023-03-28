@@ -20,6 +20,7 @@ package dag
 
 import (
 	"bytes"
+	"context"
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
@@ -92,7 +93,7 @@ type EncryptedPAL [][]byte
 // An error is returned in the following cases:
 // - If one of the attempted keyAgreement keys is not found or of an unsupported type, an error is returned.
 // - If one of the decrypted participants isn't a valid DID.
-func (epal EncryptedPAL) Decrypt(keyAgreementKIDs []string, decryptor crypto.Decrypter) (PAL, error) {
+func (epal EncryptedPAL) Decrypt(ctx context.Context, keyAgreementKIDs []string, decryptor crypto.Decrypter) (PAL, error) {
 	var decrypted []byte
 	var err error
 outer:
@@ -101,7 +102,7 @@ outer:
 			log.Logger().
 				WithField(core.LogFieldKeyID, kak).
 				Trace("Trying key to decrypt PAL header...")
-			decrypted, err = decryptor.Decrypt(kak, encrypted)
+			decrypted, err = decryptor.Decrypt(ctx, kak, encrypted)
 			if errors.Is(err, crypto.ErrPrivateKeyNotFound) {
 				return nil, fmt.Errorf("private key of DID keyAgreement not found (kid=%s)", kak)
 			}

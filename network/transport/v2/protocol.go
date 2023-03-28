@@ -150,7 +150,7 @@ func (p *protocol) GetMessageType(envelope interface{}) string {
 }
 
 func (p *protocol) Configure(_ transport.PeerID) error {
-	nodeDID, err := p.nodeDIDResolver.Resolve()
+	nodeDID, err := p.nodeDIDResolver.Resolve(p.ctx)
 	if err != nil {
 		log.Logger().WithError(err).Error("Failed to resolve node DID")
 	}
@@ -158,7 +158,9 @@ func (p *protocol) Configure(_ transport.PeerID) error {
 	if nodeDID.Empty() {
 		log.Logger().Warn("Not starting the payload scheduler as node DID is not set")
 	} else {
-		p.privatePayloadReceiver, err = p.state.Notifier("private", p.handlePrivateTxRetry,
+		p.privatePayloadReceiver, err = p.state.Notifier("private", func(event dag.Event) (bool, error) {
+			return p.handlePrivateTxRetry(p.ctx, event)
+		},
 			dag.WithPersistency(p.dagStore),
 			dag.WithRetryDelay(p.config.PayloadRetryDelay),
 			dag.WithSelectionFilter(func(event dag.Event) bool {
@@ -258,9 +260,9 @@ func (p *protocol) sendGossip(id transport.PeerID, refs []hash.SHA256Hash, xor h
 	return true
 }
 
-func (p *protocol) handlePrivateTxRetry(event dag.Event) (bool, error) {
+func (p *protocol) handlePrivateTxRetry(ctx context.Context, event dag.Event) (bool, error) {
 	// Sanity check: if we have the payload, mark this job as finished
-	isPresent, err := p.state.IsPayloadPresent(context.Background(), event.Transaction.PayloadHash())
+	isPresent, err := p.state.IsPayloadPresent(ctx, event.Transaction.PayloadHash())
 	if err != nil {
 		if !errors.As(err, new(stoabs.ErrDatabase)) {
 			err = dag.EventFatal{err}
@@ -278,7 +280,7 @@ func (p *protocol) handlePrivateTxRetry(event dag.Event) (bool, error) {
 
 	epal := dag.EncryptedPAL(event.Transaction.PAL())
 
-	pal, err := p.decryptPAL(epal)
+	pal, err := p.decryptPAL(ctx, epal)
 	if err != nil {
 		if !errors.As(err, new(stoabs.ErrDatabase)) {
 			err = dag.EventFatal{err}
@@ -352,8 +354,8 @@ func (p *protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics 
 }
 
 // decryptPAL returns nil, nil if the PAL couldn't be decoded
-func (p *protocol) decryptPAL(encrypted [][]byte) (dag.PAL, error) {
-	nodeDID, err := p.nodeDIDResolver.Resolve()
+func (p *protocol) decryptPAL(ctx context.Context, encrypted [][]byte) (dag.PAL, error) {
+	nodeDID, err := p.nodeDIDResolver.Resolve(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -375,7 +377,7 @@ func (p *protocol) decryptPAL(encrypted [][]byte) (dag.PAL, error) {
 
 	epal := dag.EncryptedPAL(encrypted)
 
-	return epal.Decrypt(keyAgreementIDs, p.decrypter)
+	return epal.Decrypt(ctx, keyAgreementIDs, p.decrypter)
 }
 
 type protocolServer struct {

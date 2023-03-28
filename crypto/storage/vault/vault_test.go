@@ -19,6 +19,7 @@
 package vault
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -39,7 +40,7 @@ type mockVaultClient struct {
 	store map[string]map[string]interface{}
 }
 
-func (m mockVaultClient) Read(path string) (*vault.Secret, error) {
+func (m mockVaultClient) ReadWithContext(_ context.Context, path string) (*vault.Secret, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -52,7 +53,7 @@ func (m mockVaultClient) Read(path string) (*vault.Secret, error) {
 	}, nil
 }
 
-func (m mockVaultClient) ReadWithData(path string, _ map[string][]string) (*vault.Secret, error) {
+func (m mockVaultClient) ReadWithDataWithContext(_ context.Context, path string, _ map[string][]string) (*vault.Secret, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -61,7 +62,7 @@ func (m mockVaultClient) ReadWithData(path string, _ map[string][]string) (*vaul
 	}, nil
 }
 
-func (m mockVaultClient) Write(path string, data map[string]interface{}) (*vault.Secret, error) {
+func (m mockVaultClient) WriteWithContext(_ context.Context, path string, data map[string]interface{}) (*vault.Secret, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -75,44 +76,45 @@ func TestVaultKVStorage(t *testing.T) {
 	var privateKey, _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	const kid = "did:nuts:123#abc"
 	var vaultError = errors.New("vault error")
+	ctx := context.Background()
 
 	t.Run("ok - store and retrieve private key", func(t *testing.T) {
 		vaultStorage := vaultKVStorage{config: DefaultConfig(), client: mockVaultClient{store: map[string]map[string]interface{}{}}}
-		assert.False(t, vaultStorage.PrivateKeyExists(kid), "key should not be in vault")
-		assert.NoError(t, vaultStorage.SavePrivateKey(kid, privateKey), "saving should work")
-		assert.True(t, vaultStorage.PrivateKeyExists(kid), "key should be in vault")
-		result, err := vaultStorage.GetPrivateKey(kid)
+		assert.False(t, vaultStorage.PrivateKeyExists(ctx, kid), "key should not be in vault")
+		assert.NoError(t, vaultStorage.SavePrivateKey(ctx, kid, privateKey), "saving should work")
+		assert.True(t, vaultStorage.PrivateKeyExists(ctx, kid), "key should be in vault")
+		result, err := vaultStorage.GetPrivateKey(ctx, kid)
 		assert.NoError(t, err, "getting key should work")
 		assert.Equal(t, privateKey, result, "expected retrieved key to equal original")
 	})
 
 	t.Run("error - while writing", func(t *testing.T) {
 		vaultStorage := vaultKVStorage{client: mockVaultClient{err: vaultError}}
-		err := vaultStorage.SavePrivateKey(kid, privateKey)
+		err := vaultStorage.SavePrivateKey(ctx, kid, privateKey)
 		assert.Error(t, err, "saving should fail")
 		assert.ErrorIs(t, err, vaultError)
 	})
 
 	t.Run("error - while reading", func(t *testing.T) {
 		vaultStorage := vaultKVStorage{client: mockVaultClient{err: vaultError}}
-		_, err := vaultStorage.GetPrivateKey(kid)
+		_, err := vaultStorage.GetPrivateKey(ctx, kid)
 		assert.Error(t, err, "saving should fail")
 		assert.ErrorIs(t, err, vaultError)
 	})
 
 	t.Run("ok - keyExists return false in case of vault error", func(t *testing.T) {
 		vaultStorage := vaultKVStorage{client: mockVaultClient{err: vaultError}}
-		result := vaultStorage.PrivateKeyExists(kid)
+		result := vaultStorage.PrivateKeyExists(ctx, kid)
 		assert.False(t, result, "expected PrivateKeyExists to return false")
 	})
 
 	t.Run("error - key not found (empty response)", func(t *testing.T) {
 		vaultStorage := vaultKVStorage{config: DefaultConfig(), client: mockVaultClient{store: map[string]map[string]interface{}{}}}
-		_, err := vaultStorage.GetPrivateKey(kid)
+		_, err := vaultStorage.GetPrivateKey(ctx, kid)
 		assert.Error(t, err, "expected error on unknown kid")
 		assert.EqualError(t, err, "entry not found")
 
-		exists := vaultStorage.PrivateKeyExists(kid)
+		exists := vaultStorage.PrivateKeyExists(ctx, kid)
 		assert.False(t, exists)
 	})
 
@@ -121,11 +123,11 @@ func TestVaultKVStorage(t *testing.T) {
 			"kv/nuts-private-keys/" + kid: {},
 		}
 		vaultStorage := vaultKVStorage{config: DefaultConfig(), client: mockVaultClient{store: store}}
-		_, err := vaultStorage.GetPrivateKey(kid)
+		_, err := vaultStorage.GetPrivateKey(ctx, kid)
 		assert.Error(t, err, "expected error on unknown kid")
 		assert.EqualError(t, err, "entry not found")
 
-		exists := vaultStorage.PrivateKeyExists(kid)
+		exists := vaultStorage.PrivateKeyExists(ctx, kid)
 		assert.False(t, exists)
 	})
 
@@ -133,13 +135,13 @@ func TestVaultKVStorage(t *testing.T) {
 		vaultStorage := vaultKVStorage{config: DefaultConfig(), client: mockVaultClient{store: map[string]map[string]interface{}{"kv/nuts-private-keys/did:nuts:123#abc": {"key": []byte("foo")}}}}
 
 		t.Run("SavePrivateKey", func(t *testing.T) {
-			err := vaultStorage.SavePrivateKey(kid, "123")
+			err := vaultStorage.SavePrivateKey(ctx, kid, "123")
 			assert.Error(t, err, "expected pem encoding issues on invalid key")
 			assert.EqualError(t, err, "unable to convert private key to pem format: x509: unknown key type while marshaling PKCS#8: string")
 		})
 
 		t.Run("GetPrivateKey", func(t *testing.T) {
-			_, err := vaultStorage.GetPrivateKey(kid)
+			_, err := vaultStorage.GetPrivateKey(ctx, kid)
 			assert.Error(t, err, "expected type conversion error on byte array")
 			assert.EqualError(t, err, "unable to convert key result to string")
 		})
@@ -170,7 +172,7 @@ func TestVaultKVStorage_ListPrivateKeys(t *testing.T) {
 	}))
 	defer s.Close()
 	storage, _ := NewVaultKVStorage(Config{Address: s.URL})
-	keys := storage.ListPrivateKeys()
+	keys := storage.ListPrivateKeys(context.Background())
 	assert.Len(t, keys, 7)
 	// Assert first and last entry, rest should be OK then
 	assert.Equal(t, "did:nuts:8AB7Jf8KYgNHC52sfyTTK2f2yGnDoSHkgzDgeqvrUBLo#45KSfeG71ZMh9NjGzSWFfcMsmu5587J93prf8Io1wf4", keys[0])

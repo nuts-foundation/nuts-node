@@ -119,16 +119,16 @@ func (mr *MockAuthorizationServerMockRecorder) CreateAccessToken(ctx, request in
 }
 
 // IntrospectAccessToken mocks base method.
-func (m *MockAuthorizationServer) IntrospectAccessToken(token string) (*services.NutsAccessToken, error) {
+func (m *MockAuthorizationServer) IntrospectAccessToken(ctx context.Context, token string) (*services.NutsAccessToken, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IntrospectAccessToken", token)
+	ret := m.ctrl.Call(m, "IntrospectAccessToken", ctx, token)
 	ret0, _ := ret[0].(*services.NutsAccessToken)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // IntrospectAccessToken indicates an expected call of IntrospectAccessToken.
-func (mr *MockAuthorizationServerMockRecorder) IntrospectAccessToken(token interface{}) *gomock.Call {
+func (mr *MockAuthorizationServerMockRecorder) IntrospectAccessToken(ctx, token interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IntrospectAccessToken", reflect.TypeOf((*MockAuthorizationServer)(nil).IntrospectAccessToken), token)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IntrospectAccessToken", reflect.TypeOf((*MockAuthorizationServer)(nil).IntrospectAccessToken), ctx, token)
 }

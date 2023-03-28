@@ -5,6 +5,7 @@
 package spi
 
 import (
+	context "context"
 	crypto "crypto"
 	reflect "reflect"
 
@@ -50,32 +51,32 @@ func (mr *MockStorageMockRecorder) CheckHealth() *gomock.Call {
 }
 
 // GetPrivateKey mocks base method.
-func (m *MockStorage) GetPrivateKey(kid string) (crypto.Signer, error) {
+func (m *MockStorage) GetPrivateKey(ctx context.Context, kid string) (crypto.Signer, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetPrivateKey", kid)
+	ret := m.ctrl.Call(m, "GetPrivateKey", ctx, kid)
 	ret0, _ := ret[0].(crypto.Signer)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetPrivateKey indicates an expected call of GetPrivateKey.
-func (mr *MockStorageMockRecorder) GetPrivateKey(kid interface{}) *gomock.Call {
+func (mr *MockStorageMockRecorder) GetPrivateKey(ctx, kid interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPrivateKey", reflect.TypeOf((*MockStorage)(nil).GetPrivateKey), kid)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPrivateKey", reflect.TypeOf((*MockStorage)(nil).GetPrivateKey), ctx, kid)
 }
 
 // ListPrivateKeys mocks base method.
-func (m *MockStorage) ListPrivateKeys() []string {
+func (m *MockStorage) ListPrivateKeys(ctx context.Context) []string {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListPrivateKeys")
+	ret := m.ctrl.Call(m, "ListPrivateKeys", ctx)
 	ret0, _ := ret[0].([]string)
 	return ret0
 }
 
 // ListPrivateKeys indicates an expected call of ListPrivateKeys.
-func (mr *MockStorageMockRecorder) ListPrivateKeys() *gomock.Call {
+func (mr *MockStorageMockRecorder) ListPrivateKeys(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListPrivateKeys", reflect.TypeOf((*MockStorage)(nil).ListPrivateKeys))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListPrivateKeys", reflect.TypeOf((*MockStorage)(nil).ListPrivateKeys), ctx)
 }
 
 // Name mocks base method.
@@ -93,29 +94,29 @@ func (mr *MockStorageMockRecorder) Name() *gomock.Call {
 }
 
 // PrivateKeyExists mocks base method.
-func (m *MockStorage) PrivateKeyExists(kid string) bool {
+func (m *MockStorage) PrivateKeyExists(ctx context.Context, kid string) bool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PrivateKeyExists", kid)
+	ret := m.ctrl.Call(m, "PrivateKeyExists", ctx, kid)
 	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
 // PrivateKeyExists indicates an expected call of PrivateKeyExists.
-func (mr *MockStorageMockRecorder) PrivateKeyExists(kid interface{}) *gomock.Call {
+func (mr *MockStorageMockRecorder) PrivateKeyExists(ctx, kid interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PrivateKeyExists", reflect.TypeOf((*MockStorage)(nil).PrivateKeyExists), kid)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PrivateKeyExists", reflect.TypeOf((*MockStorage)(nil).PrivateKeyExists), ctx, kid)
 }
 
 // SavePrivateKey mocks base method.
-func (m *MockStorage) SavePrivateKey(kid string, key crypto.PrivateKey) error {
+func (m *MockStorage) SavePrivateKey(ctx context.Context, kid string, key crypto.PrivateKey) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SavePrivateKey", kid, key)
+	ret := m.ctrl.Call(m, "SavePrivateKey", ctx, kid, key)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // SavePrivateKey indicates an expected call of SavePrivateKey.
-func (mr *MockStorageMockRecorder) SavePrivateKey(kid, key interface{}) *gomock.Call {
+func (mr *MockStorageMockRecorder) SavePrivateKey(ctx, kid, key interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SavePrivateKey", reflect.TypeOf((*MockStorage)(nil).SavePrivateKey), kid, key)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SavePrivateKey", reflect.TypeOf((*MockStorage)(nil).SavePrivateKey), ctx, kid, key)
 }

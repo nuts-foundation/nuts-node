@@ -114,7 +114,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 
 		testKey := crypto.NewTestKey(issuerID.String() + "#abc")
 
-		mockKeyResolver.EXPECT().ResolveAssertionKey(*issuerDID).Return(testKey, nil)
+		mockKeyResolver.EXPECT().ResolveAssertionKey(ctx, *issuerDID).Return(testKey, nil)
 		mockDocResolver.EXPECT().Resolve(*issuerDID, nil).Return(&did.Document{}, &vdrTypes.DocumentMetadata{}, nil)
 		expectedTemplate := network.Template{
 			Key:             testKey,
@@ -154,7 +154,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 
 		testKey := crypto.NewTestKey(issuerID.String() + "#abc")
 
-		mockKeyResolver.EXPECT().ResolveAssertionKey(*issuerDID).Return(testKey, nil)
+		mockKeyResolver.EXPECT().ResolveAssertionKey(ctx, *issuerDID).Return(testKey, nil)
 		mockDocResolver.EXPECT().Resolve(*issuerDID, nil).Return(&did.Document{}, &vdrTypes.DocumentMetadata{}, nil)
 		expectedIssuerServiceURI := ssi.MustParseURI("did:nuts:123/serviceEndpoint?type=NutsComm")
 		expectedSubjectServiceURI := ssi.MustParseURI("did:nuts:456/serviceEndpoint?type=NutsComm")
@@ -244,7 +244,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 				CredentialSubject: []interface{}{credential.BaseCredentialSubject{ID: subjectID.String()}},
 			}
 
-			mockKeyResolver.EXPECT().ResolveAssertionKey(*issuerDID).Return(nil, errors.New("b00m!"))
+			mockKeyResolver.EXPECT().ResolveAssertionKey(ctx, *issuerDID).Return(nil, errors.New("b00m!"))
 
 			err := sut.PublishCredential(ctx, credentialToPublish, true)
 			assert.EqualError(t, err, "could not resolve an assertion key for issuer: b00m!")
@@ -267,7 +267,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 
 			testKey := crypto.NewTestKey(issuerID.String() + "#abc")
 
-			mockKeyResolver.EXPECT().ResolveAssertionKey(*issuerDID).Return(testKey, nil)
+			mockKeyResolver.EXPECT().ResolveAssertionKey(ctx, *issuerDID).Return(testKey, nil)
 			mockDocResolver.EXPECT().Resolve(*issuerDID, nil).Return(&did.Document{}, &vdrTypes.DocumentMetadata{}, nil)
 			expectedTemplate := network.Template{
 				Key:             testKey,
@@ -306,7 +306,7 @@ func Test_networkPublisher_PublishRevocation(t *testing.T) {
 		mockDocResolver := vdrTypes.NewMockDocResolver(ctrl)
 		mockNetwork := network.NewMockTransactions(ctrl)
 
-		mockKeyResolver.EXPECT().ResolveAssertionKey(*issuerDID).Return(testKey, nil)
+		mockKeyResolver.EXPECT().ResolveAssertionKey(ctx, *issuerDID).Return(testKey, nil)
 		mockDocResolver.EXPECT().Resolve(*issuerDID, nil).Return(&did.Document{}, &vdrTypes.DocumentMetadata{}, nil)
 
 		revocationToPublish := credential.Revocation{
@@ -348,7 +348,7 @@ func Test_networkPublisher_PublishRevocation(t *testing.T) {
 			mockDocResolver := vdrTypes.NewMockDocResolver(ctrl)
 			mockNetwork := network.NewMockTransactions(ctrl)
 
-			mockKeyResolver.EXPECT().ResolveAssertionKey(*issuerDID).Return(nil, errors.New("not found"))
+			mockKeyResolver.EXPECT().ResolveAssertionKey(ctx, *issuerDID).Return(nil, errors.New("not found"))
 			// mockDocResolver.EXPECT().Resolve(*issuerDID, nil).Return(&did.Document{}, &vdrTypes.DocumentMetadata{}, nil)
 
 			revocationToPublish := credential.Revocation{
@@ -369,7 +369,7 @@ func Test_networkPublisher_PublishRevocation(t *testing.T) {
 			mockDocResolver := vdrTypes.NewMockDocResolver(ctrl)
 			mockNetwork := network.NewMockTransactions(ctrl)
 
-			mockKeyResolver.EXPECT().ResolveAssertionKey(*issuerDID).Return(testKey, nil)
+			mockKeyResolver.EXPECT().ResolveAssertionKey(ctx, *issuerDID).Return(testKey, nil)
 			mockDocResolver.EXPECT().Resolve(*issuerDID, nil).Return(nil, nil, errors.New("not found"))
 
 			revocationToPublish := credential.Revocation{
@@ -389,7 +389,7 @@ func Test_networkPublisher_PublishRevocation(t *testing.T) {
 			mockDocResolver := vdrTypes.NewMockDocResolver(ctrl)
 			mockNetwork := network.NewMockTransactions(ctrl)
 
-			mockKeyResolver.EXPECT().ResolveAssertionKey(*issuerDID).Return(testKey, nil)
+			mockKeyResolver.EXPECT().ResolveAssertionKey(ctx, *issuerDID).Return(testKey, nil)
 			mockDocResolver.EXPECT().Resolve(*issuerDID, nil).Return(&did.Document{}, &vdrTypes.DocumentMetadata{}, nil)
 			mockNetwork.EXPECT().CreateTransaction(ctx, gomock.Any()).Return(nil, errors.New("foo"))
 

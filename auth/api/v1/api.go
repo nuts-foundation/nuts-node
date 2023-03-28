@@ -246,7 +246,7 @@ func (w Wrapper) DrawUpContract(ctx echo.Context) error {
 		return core.InvalidInputError("invalid value '%s' for param legalEntity: %w", params.LegalEntity, err)
 	}
 
-	drawnUpContract, err := w.Auth.ContractNotary().DrawUpContract(*template, *orgID, vf, validDuration, params.OrganizationCredential)
+	drawnUpContract, err := w.Auth.ContractNotary().DrawUpContract(ctx.Request().Context(), *template, *orgID, vf, validDuration, params.OrganizationCredential)
 	if err != nil {
 		return err
 	}
@@ -368,7 +368,7 @@ func (w Wrapper) VerifyAccessToken(ctx echo.Context, params VerifyAccessTokenPar
 
 	token := params.Authorization[len(bearerTokenHeaderPrefix):]
 
-	_, err := w.Auth.AuthzServer().IntrospectAccessToken(token)
+	_, err := w.Auth.AuthzServer().IntrospectAccessToken(ctx.Request().Context(), token)
 	if err != nil {
 		log.Logger().WithError(err).Warn("Error while inspecting access token")
 		return ctx.NoContent(http.StatusForbidden)
@@ -390,7 +390,7 @@ func (w Wrapper) IntrospectAccessToken(ctx echo.Context) error {
 		return ctx.JSON(http.StatusOK, introspectionResponse)
 	}
 
-	claims, err := w.Auth.AuthzServer().IntrospectAccessToken(token)
+	claims, err := w.Auth.AuthzServer().IntrospectAccessToken(ctx.Request().Context(), token)
 	if err != nil {
 		log.Logger().WithError(err).Warn("Error while inspecting access token")
 		return ctx.JSON(http.StatusOK, introspectionResponse)

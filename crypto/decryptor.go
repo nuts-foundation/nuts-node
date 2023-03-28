@@ -19,13 +19,14 @@
 package crypto
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"errors"
 )
 
 // Decrypt decrypts the `cipherText` with key `kid`
-func (client *Crypto) Decrypt(kid string, cipherText []byte) ([]byte, error) {
-	key, err := client.storage.GetPrivateKey(kid)
+func (client *Crypto) Decrypt(ctx context.Context, kid string, cipherText []byte) ([]byte, error) {
+	key, err := client.storage.GetPrivateKey(ctx, kid)
 	if err != nil {
 		return nil, err
 	}

@@ -118,7 +118,7 @@ func (i issuer) buildVC(ctx context.Context, credentialOptions vc.VerifiableCred
 		return nil, fmt.Errorf("failed to parse issuer: %w", err)
 	}
 
-	key, err := i.keyResolver.ResolveAssertionKey(*issuerDID)
+	key, err := i.keyResolver.ResolveAssertionKey(ctx, *issuerDID)
 	if err != nil {
 		const errString = "failed to sign credential: could not resolve an assertionKey for issuer: %w"
 		// Differentiate between a DID document not found and some other error:
@@ -222,7 +222,7 @@ func (i issuer) buildRevocation(ctx context.Context, credentialID ssi.URI) (*cre
 		return nil, fmt.Errorf("failed to extract issuer: %w", err)
 	}
 
-	assertionKey, err := i.keyResolver.ResolveAssertionKey(*issuerDID)
+	assertionKey, err := i.keyResolver.ResolveAssertionKey(ctx, *issuerDID)
 	if err != nil {
 		const errString = "failed to revoke credential (%s): could not resolve an assertionKey for issuer: %w"
 		// Differentiate between a DID document not found and some other error:

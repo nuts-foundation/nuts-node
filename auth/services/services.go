@@ -19,6 +19,7 @@
 package services
 
 import (
+	"context"
 	"github.com/nuts-foundation/go-did/vc"
 	"net/http"
 	"time"
@@ -49,7 +50,7 @@ type ContractNotary interface {
 	contract.VPVerifier
 
 	// DrawUpContract draws up a contract from a template and returns a Contract which than can be signed by the user.
-	DrawUpContract(template contract.Template, orgID did.DID, validFrom time.Time, validDuration time.Duration, organizationCredential *vc.VerifiableCredential) (*contract.Contract, error)
+	DrawUpContract(ctx context.Context, template contract.Template, orgID did.DID, validFrom time.Time, validDuration time.Duration, organizationCredential *vc.VerifiableCredential) (*contract.Contract, error)
 
 	// CreateSigningSession creates a signing session for the requested contract and means
 	CreateSigningSession(sessionRequest CreateSessionRequest) (contract.SessionPointer, error)

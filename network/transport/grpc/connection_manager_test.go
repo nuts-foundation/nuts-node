@@ -1129,7 +1129,7 @@ func (s stubServerTransportStream) SetTrailer(md metadata.MD) error {
 type stubNodeDIDReader struct {
 }
 
-func (s stubNodeDIDReader) Resolve() (did.DID, error) {
+func (s stubNodeDIDReader) Resolve(_ context.Context) (did.DID, error) {
 	return *nodeDID, nil
 }
 

@@ -19,6 +19,7 @@
 package crypto
 
 import (
+	"context"
 	"crypto"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/audit"
@@ -40,34 +41,35 @@ import (
 )
 
 func TestCrypto_Exists(t *testing.T) {
+	ctx := context.Background()
 	client := createCrypto(t)
 
 	kid := "kid"
 	client.New(audit.TestContext(), StringNamingFunc(kid))
 
 	t.Run("returns true for existing key", func(t *testing.T) {
-		assert.True(t, client.Exists(kid))
+		assert.True(t, client.Exists(ctx, kid))
 	})
 
 	t.Run("returns false for non-existing key", func(t *testing.T) {
-		assert.False(t, client.Exists("unknown"))
+		assert.False(t, client.Exists(ctx, "unknown"))
 	})
 
 	t.Run("returns false for invalid kid", func(t *testing.T) {
-		assert.False(t, client.Exists("../"))
+		assert.False(t, client.Exists(ctx, "../"))
 	})
 }
 
 func TestCrypto_New(t *testing.T) {
 	client := createCrypto(t)
-
 	logrus.StandardLogger().SetFormatter(&logrus.JSONFormatter{})
+	ctx := audit.TestContext()
 
 	t.Run("ok", func(t *testing.T) {
 		kid := "kid"
 		auditLogs := audit.CaptureLogs(t)
 
-		key, err := client.New(audit.TestContext(), StringNamingFunc(kid))
+		key, err := client.New(ctx, StringNamingFunc(kid))
 
 		assert.NoError(t, err)
 		assert.NotNil(t, key.Public())
@@ -78,7 +80,7 @@ func TestCrypto_New(t *testing.T) {
 	t.Run("error - invalid KID", func(t *testing.T) {
 		kid := "../certificate"
 
-		key, err := client.New(audit.TestContext(), StringNamingFunc(kid))
+		key, err := client.New(ctx, StringNamingFunc(kid))
 
 		assert.ErrorContains(t, err, "invalid key ID")
 		assert.Nil(t, key)
@@ -88,18 +90,18 @@ func TestCrypto_New(t *testing.T) {
 		errorNamingFunc := func(key crypto.PublicKey) (string, error) {
 			return "", errors.New("b00m!")
 		}
-		_, err := client.New(audit.TestContext(), errorNamingFunc)
+		_, err := client.New(ctx, errorNamingFunc)
 		assert.Error(t, err)
 	})
 
 	t.Run("error - save public key returns an error", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		storageMock := spi.NewMockStorage(ctrl)
-		storageMock.EXPECT().PrivateKeyExists("123").Return(false)
-		storageMock.EXPECT().SavePrivateKey(gomock.Any(), gomock.Any()).Return(errors.New("foo"))
+		storageMock.EXPECT().PrivateKeyExists(ctx, "123").Return(false)
+		storageMock.EXPECT().SavePrivateKey(ctx, gomock.Any(), gomock.Any()).Return(errors.New("foo"))
 
 		client := &Crypto{storage: storageMock}
-		key, err := client.New(audit.TestContext(), StringNamingFunc("123"))
+		key, err := client.New(ctx, StringNamingFunc("123"))
 		assert.Nil(t, key)
 		assert.Error(t, err)
 		assert.Equal(t, "could not create new keypair: could not save private key: foo", err.Error())
@@ -108,22 +110,23 @@ func TestCrypto_New(t *testing.T) {
 	t.Run("error - ID already in use", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		storageMock := spi.NewMockStorage(ctrl)
-		storageMock.EXPECT().PrivateKeyExists("123").Return(true)
+		storageMock.EXPECT().PrivateKeyExists(ctx, "123").Return(true)
 
 		client := &Crypto{storage: storageMock}
-		key, err := client.New(audit.TestContext(), StringNamingFunc("123"))
+		key, err := client.New(ctx, StringNamingFunc("123"))
 		assert.Nil(t, key)
 		assert.EqualError(t, err, "key with the given ID already exists", err)
 	})
 }
 
 func TestCrypto_Resolve(t *testing.T) {
+	ctx := context.Background()
 	client := createCrypto(t)
 	kid := "kid"
 	key, _ := client.New(audit.TestContext(), StringNamingFunc(kid))
 
 	t.Run("ok", func(t *testing.T) {
-		resolvedKey, err := client.Resolve("kid")
+		resolvedKey, err := client.Resolve(ctx, "kid")
 
 		require.NoError(t, err)
 
@@ -131,14 +134,14 @@ func TestCrypto_Resolve(t *testing.T) {
 	})
 
 	t.Run("error - invalid kid", func(t *testing.T) {
-		resolvedKey, err := client.Resolve("../certificate")
+		resolvedKey, err := client.Resolve(ctx, "../certificate")
 
 		assert.ErrorContains(t, err, "invalid key ID")
 		assert.Nil(t, resolvedKey)
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
-		_, err := client.Resolve("no kidding")
+		_, err := client.Resolve(ctx, "no kidding")
 
 		assert.Equal(t, ErrPrivateKeyNotFound, err)
 	})
