@@ -137,7 +137,8 @@ func (r *VDR) Diagnostics() []core.DiagnosticResult {
 		}
 		for _, controller := range controllers {
 			for _, vr := range controller.CapabilityInvocation {
-				if r.keyStore.Exists(vr.ID.String()) {
+				// TODO: Fix context.TODO() when we have a context in the Diagnostics() method
+				if r.keyStore.Exists(context.TODO(), vr.ID.String()) {
 					ownedCount++
 					return nil
 				}
