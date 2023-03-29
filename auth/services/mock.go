@@ -5,6 +5,7 @@
 package services
 
 import (
+	context "context"
 	http "net/http"
 	reflect "reflect"
 	time "time"
@@ -172,18 +173,18 @@ func (mr *MockContractNotaryMockRecorder) CreateSigningSession(sessionRequest in
 }
 
 // DrawUpContract mocks base method.
-func (m *MockContractNotary) DrawUpContract(template contract.Template, orgID did.DID, validFrom time.Time, validDuration time.Duration, organizationCredential *vc.VerifiableCredential) (*contract.Contract, error) {
+func (m *MockContractNotary) DrawUpContract(ctx context.Context, template contract.Template, orgID did.DID, validFrom time.Time, validDuration time.Duration, organizationCredential *vc.VerifiableCredential) (*contract.Contract, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DrawUpContract", template, orgID, validFrom, validDuration, organizationCredential)
+	ret := m.ctrl.Call(m, "DrawUpContract", ctx, template, orgID, validFrom, validDuration, organizationCredential)
 	ret0, _ := ret[0].(*contract.Contract)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // DrawUpContract indicates an expected call of DrawUpContract.
-func (mr *MockContractNotaryMockRecorder) DrawUpContract(template, orgID, validFrom, validDuration, organizationCredential interface{}) *gomock.Call {
+func (mr *MockContractNotaryMockRecorder) DrawUpContract(ctx, template, orgID, validFrom, validDuration, organizationCredential interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DrawUpContract", reflect.TypeOf((*MockContractNotary)(nil).DrawUpContract), template, orgID, validFrom, validDuration, organizationCredential)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DrawUpContract", reflect.TypeOf((*MockContractNotary)(nil).DrawUpContract), ctx, template, orgID, validFrom, validDuration, organizationCredential)
 }
 
 // HandlerFunc mocks base method.

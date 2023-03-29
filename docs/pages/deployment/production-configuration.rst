@@ -50,8 +50,8 @@ Use the ``address`` property of a HTTP binding to expose it on a different port:
           address: internal.lan:1111
           auth:
             type: token_v2
-            authorizedkeyspath: /opt/nuts-node/authorized_keys
-            audience: nuts-node.company.com
+            authorizedkeyspath: /opt/nuts/authorized_keys
+            audience: nuts-node.example.com
         # The following binds all endpoints starting with ``/public`` to ``:443`` and enables TLS for it
         public:
           address: :443
@@ -101,33 +101,39 @@ to the requirements described in :ref:`Custom JWT Generation <api-authentication
 Generating Keys With OpenSSL
 ----------------------------
 To generate an Ed25519 key with OpenSSL:
+
  .. code-block:: shell
 
     openssl genpkey -algorithm ed25519 -out /path/to/keyfile.pem
 
 To generate an ECDSA key with OpenSSL:
+
  .. code-block:: shell
 
     openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-521 -pkeyopt ec_param_enc:named_curve -out /path/to/keyfile.pem
 
 To generate an RSA key with OpenSSL:
+
  .. code-block:: shell
 
-    openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096 -out /tmp/rsa-private.pem
+    openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096 -out /path/to/rsa-private.pem
 
 Generating Keys With SSH
 ------------------------
 To generate an Ed25519 key with using ssh-keygen:
+
  .. code-block:: shell
 
     ssh-keygen -t ed25519 -f /path/to/keyfile
 
 To generate an ECDSA key using ssh-keygen:
+
  .. code-block:: shell
 
     ssh-keygen -t ecdsa -b 521 -f /path/to/keyfile
 
 To generate an RSA key using ssh-keygen:
+
  .. code-block:: shell
 
     ssh-keygen -t rsa -b 4096 -f /path/to/keyfile
@@ -137,9 +143,10 @@ authorized_keys files
 The keys permitted to issue and sign JWT bearer tokens are specified in the authorized_keys format.
 
 
-authorized_keys files are made up of multiple lines, each line specifying one more key/user that is authorized. For more information on the authorized_keys format see the ``AUTHORIZED_KEYS FILE FORMAT`` section of the `man page <http://man.he.net/man5/authorized_keys>_`.
+authorized_keys files are made up of multiple lines, each line specifying one more key/user that is authorized. For more information on the authorized_keys format see the ``AUTHORIZED_KEYS FILE FORMAT`` section of the `man page <http://man.he.net/man5/authorized_keys>`_.
 
 The following is an example authorized_keys file. Each line specifies the key type, the public key, and the username:
+
  .. code-block::
 
     ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBAPwLGkaO5dWEx29sW4xnmv/s8+Nzj3mnkY6SX9Qnb91oyPayZV8Ts3TXSMKlkyYHVcIz/nAxRgxgKBTMwZc2wE= alice@company.com
@@ -151,16 +158,28 @@ Adding PEM files to authorized_keys
 -----------------------------------
 
 To generate the authorized_keys format from an RSA or ECDSA PEM file use the following command:
-``ssh-keygen -y -f /path/to/private.pem``
+
+.. code-block:: shell
+
+    ssh-keygen -y -f /path/to/private.pem
 
 For ECDSA keys you will see something like the following:
-``ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBAPwLGkaO5dWEx29sW4xnmv/s8+Nzj3mnkY6SX9Qnb91oyPayZV8Ts3TXSMKlkyYHVcIz/nAxRgxgKBTMwZc2wE=``
+
+.. code-block:: text
+
+    ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBAPwLGkaO5dWEx29sW4xnmv/s8+Nzj3mnkY6SX9Qnb91oyPayZV8Ts3TXSMKlkyYHVcIz/nAxRgxgKBTMwZc2wE=
 
 For RSA keys you will see something like the following:
-``ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCySRpyEQwIQmf6vd+uJk54aiS7VDhbtTIMNfTRLbY1eZ+FeFsf1mbDMqsMYjwp0oBlcCL2sUrBBcsJLnHLOiT3rpziknv0kHHSTuv2sbIuHKGsVtNBtWcMMp6q56VRqfPkwa4okSde1o8hCaBUG5S3a3LA8fPWOWzpbvboY/rWeWmCNhAeaL3Koo01W5G1kC6K1mBe2ZPye6F/Q9geGTCx4GBDwDP0jp5qkpu8kf3PxlP452VZGH+pXvCffXzb/MFGBvP4N29eUANWpZed8PnJqcTlxLTTHZSkZlUn/T3U9us/Uf38nHhtZsnz3YKM+tJnBHcono8QItgKMz+tK+p5I7IBD+oyYdQ2qFJBCCUJWFnxaJfxRUG//ar1OjorVtoqHTh8mM/Q0yXEcHAfYzjHOgeyUUk34oxy4ormvmLOOx2KxEYFGJL+asbN0SaV+OS6LTZ6sySNjumYYCDJ/Mi7PROF2q2C+YmybdN85+J2t15aMxLqebJWRJHrMrZ87cfDgSrW6bm7gJqmKPNiuROubYyBYusZCznaouZRyCZ9Fa1T4o2fYrESpUCqvQaypcN5K7d94vDjvvRhid1YGGgzmlqCRDi/+70GC+tMcmA/Zn/uSlegyK2XfF1YFhCQDKM1WtMEii2wkT8jqB46AbfsTSuIvySPL5F9uZFp7wzkxw==``
+
+.. code-block:: text
+
+    ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCySRpyEQwIQmf6vd+uJk54aiS7VDhbtTIMNfTRLbY1eZ+FeFsf1mbDMqsMYjwp0oBlcCL2sUrBBcsJLnHLOiT3rpziknv0kHHSTuv2sbIuHKGsVtNBtWcMMp6q56VRqfPkwa4okSde1o8hCaBUG5S3a3LA8fPWOWzpbvboY/rWeWmCNhAeaL3Koo01W5G1kC6K1mBe2ZPye6F/Q9geGTCx4GBDwDP0jp5qkpu8kf3PxlP452VZGH+pXvCffXzb/MFGBvP4N29eUANWpZed8PnJqcTlxLTTHZSkZlUn/T3U9us/Uf38nHhtZsnz3YKM+tJnBHcono8QItgKMz+tK+p5I7IBD+oyYdQ2qFJBCCUJWFnxaJfxRUG//ar1OjorVtoqHTh8mM/Q0yXEcHAfYzjHOgeyUUk34oxy4ormvmLOOx2KxEYFGJL+asbN0SaV+OS6LTZ6sySNjumYYCDJ/Mi7PROF2q2C+YmybdN85+J2t15aMxLqebJWRJHrMrZ87cfDgSrW6bm7gJqmKPNiuROubYyBYusZCznaouZRyCZ9Fa1T4o2fYrESpUCqvQaypcN5K7d94vDjvvRhid1YGGgzmlqCRDi/+70GC+tMcmA/Zn/uSlegyK2XfF1YFhCQDKM1WtMEii2wkT8jqB46AbfsTSuIvySPL5F9uZFp7wzkxw==
 
 To authorize these keys create a new text file or open an existing authorized_keys file and on a new line place the exported format above followed by a space and then the username or application name which is trusted to use the key (usually specified by email address):
-``ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBAPwLGkaO5dWEx29sW4xnmv/s8+Nzj3mnkY6SX9Qnb91oyPayZV8Ts3TXSMKlkyYHVcIz/nAxRgxgKBTMwZc2wE= developer@company.com``
+
+.. code-block:: text
+
+    ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBAPwLGkaO5dWEx29sW4xnmv/s8+Nzj3mnkY6SX9Qnb91oyPayZV8Ts3TXSMKlkyYHVcIz/nAxRgxgKBTMwZc2wE= developer@company.com
 
 The above ssh-keygen command unfortunately fails for Ed25519 PEM keys at the time of this writing due to a `bug <https://bugzilla.mindrot.org/show_bug.cgi?id=3195>`_ and poor recent support for Ed25519 in libcrypto packages. The nuts-jwt-generator method below is recommended until this bug is fixed.
 
@@ -173,12 +192,15 @@ The following command generates the authorized_keys representation from a JWK or
 ``nuts-jwt-generator -i /path/to/private.pem -export-authorized-key``
 
 This will generate output like the following:
-``ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAwaOa7iN1gnKEfiZAA7lhu3SIvfdzYE3VbswsVUQP7F``
+
+.. code-block:: text
+
+    ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAwaOa7iN1gnKEfiZAA7lhu3SIvfdzYE3VbswsVUQP7F
 
 Legacy Authentication
 ^^^^^^^^^^^^^^^^^^^^^
 
-This authenticaion method has been superceded and users should consider updating their deployments.
+This authentication method has been superceded and users should consider updating their deployments.
 
 You might want to secure some HTTP endpoints (notably ``/internal``) with authentication.
 The Nuts node supports JWT Bearer Token authentication which can be enabled on any HTTP endpoint.

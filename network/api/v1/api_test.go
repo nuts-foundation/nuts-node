@@ -20,6 +20,7 @@ package v1
 import (
 	"context"
 	"errors"
+	"github.com/nuts-foundation/go-did/did"
 	httpTest "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/stretchr/testify/require"
 	"strings"
@@ -241,6 +242,44 @@ func TestWrapper_GetPeerDiagnostics(t *testing.T) {
 		actual := map[transport.PeerID]PeerDiagnostics{}
 		httpTest.UnmarshalResponseBody(t, resp.VisitGetPeerDiagnosticsResponse, &actual)
 		assert.Equal(t, PeerDiagnostics(expected["foo"]), actual["foo"])
+	})
+}
+
+func TestWrapper_GetAddressBook(t *testing.T) {
+	t.Run("200", func(t *testing.T) {
+		mockCtrl := gomock.NewController(t)
+		var networkClient = network.NewMockTransactions(mockCtrl)
+		wrapper := &Wrapper{Service: networkClient}
+		networkClient.EXPECT().AddressBook().Return([]transport.Contact{
+			{
+				Address:     "foo",
+				DID:         did.MustParseDID("did:nuts:A"),
+				Attempts:    1,
+				LastAttempt: new(time.Time),
+			},
+			{
+				Address:  "bar",
+				DID:      did.DID{},
+				Attempts: 0,
+			},
+		})
+
+		resp, err := wrapper.GetAddressBook(nil, GetAddressBookRequestObject{})
+
+		assert.NoError(t, err)
+		actual := resp.(GetAddressBook200JSONResponse)
+		require.Len(t, actual, 2)
+		// Assert first entry
+		assert.Equal(t, "foo", actual[0].Address)
+		assert.Equal(t, "did:nuts:A", *actual[0].Did)
+		assert.Equal(t, 1, actual[0].Attempts)
+		assert.NotNil(t, actual[0].LastAttempt)
+		// Assert second entry
+		assert.Equal(t, "bar", actual[1].Address)
+		assert.Nil(t, actual[1].Did)
+		assert.Equal(t, 0, actual[1].Attempts)
+		assert.Nil(t, actual[1].LastAttempt)
+
 	})
 }
 

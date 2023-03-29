@@ -75,7 +75,7 @@ type Connection interface {
 	// It returns false if the given transport.PeerID doesn't match the previously set transport.PeerID.
 	verifyOrSetPeerID(id transport.PeerID) bool
 
-	// Peer returns the associated peer information of this connection. If the connection is not active, it will return an empty peer.
+	// Peer returns the associated peer information of this connection.
 	Peer() transport.Peer
 
 	// IsConnected returns whether the connection is active or not.
@@ -87,8 +87,8 @@ type Connection interface {
 	// IsAuthenticated returns whether teh given connection is authenticated.
 	IsAuthenticated() bool
 
-	// CloseError returns the status when the connection closed with an error or nil otherwise
-	CloseError() *status.Status
+	// closeError returns the status when the connection closed with an error or nil otherwise
+	closeError() *status.Status
 }
 
 func createConnection(parentCtx context.Context, peer transport.Peer) Connection {
@@ -116,6 +116,10 @@ func (mc *conn) Peer() transport.Peer {
 	// Populated through createConnection and verifyOrSetPeerID
 	peer, _ := mc.peer.Load().(transport.Peer)
 	return peer
+}
+
+func (mc *conn) ID() transport.PeerID {
+	return mc.Peer().ID
 }
 
 func (mc *conn) disconnect() {
@@ -241,7 +245,7 @@ func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 				break
 			}
 
-			err = protocol.Handle(peer, message)
+			err = protocol.Handle(mc, message)
 			if err != nil {
 				log.Logger().
 					WithError(err).
@@ -323,6 +327,6 @@ func (mc *conn) IsAuthenticated() bool {
 	return mc.Peer().Authenticated
 }
 
-func (mc *conn) CloseError() *status.Status {
+func (mc *conn) closeError() *status.Status {
 	return mc.status.Load()
 }

@@ -24,10 +24,12 @@ import (
 	"fmt"
 
 	ssi "github.com/nuts-foundation/go-did"
+
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/go-did/did"
+
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 )
 
@@ -133,11 +135,13 @@ func (n Creator) Create(ctx context.Context, options vdr.DIDCreationOptions) (*d
 	}
 
 	// First, generate a new keyPair with the correct kid
-	if options.SelfControl {
-		key, err = n.KeyStore.New(ctx, didKIDNamingFunc)
-	} else {
-		key, err = nutsCrypto.NewEphemeralKey(didKIDNamingFunc)
-	}
+	// Currently, always keep the key in the keystore. This allows us to change the transaction format and regenerate transactions at a later moment.
+	// Relevant issue:
+	// https://github.com/nuts-foundation/nuts-node/issues/1947
+	key, err = n.KeyStore.New(ctx, didKIDNamingFunc)
+	// } else {
+	// 	key, err = nutsCrypto.NewEphemeralKey(didKIDNamingFunc)
+	// }
 	if err != nil {
 		return nil, nil, err
 	}

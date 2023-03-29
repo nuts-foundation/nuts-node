@@ -125,6 +125,23 @@ func (a *Wrapper) GetPeerDiagnostics(_ context.Context, _ GetPeerDiagnosticsRequ
 	return result, nil
 }
 
+func (a *Wrapper) GetAddressBook(_ context.Context, _ GetAddressBookRequestObject) (GetAddressBookResponseObject, error) {
+	var results []Contact
+	for _, contact := range a.Service.AddressBook() {
+		result := Contact{
+			Address:     contact.Address,
+			Attempts:    int(contact.Attempts),
+			LastAttempt: contact.LastAttempt,
+		}
+		if !contact.DID.Empty() {
+			result.Did = new(string)
+			*result.Did = contact.DID.String()
+		}
+		results = append(results, result)
+	}
+	return GetAddressBook200JSONResponse(results), nil
+}
+
 // RenderGraph visualizes the DAG as Graphviz/dot graph
 func (a Wrapper) RenderGraph(_ context.Context, request RenderGraphRequestObject) (RenderGraphResponseObject, error) {
 	start := toInt(request.Params.Start, 0)

@@ -75,7 +75,7 @@ func TestProtocolV2_Pagination(t *testing.T) {
 		transactions[i+1] = tx
 	}
 
-	node2.connectionManager.Connect(nameToAddress("v2_pagination_node1"), did.DID{})
+	node2.connectionManager.Connect(nameToAddress("v2_pagination_node1"), did.DID{}, nil)
 	// Wait until nodes are connected
 	if !test.WaitFor(t, func() (bool, error) {
 		return len(node1.connectionManager.Peers()) == 1 && len(node2.connectionManager.Peers()) == 1, nil
@@ -88,7 +88,8 @@ func TestProtocolV2_Pagination(t *testing.T) {
 	for i, tx := range transactions {
 		hashes[i] = tx.Ref()
 	}
-	err = node2.protocol.sendTransactionListQuery("v2_pagination_node1", hashes)
+	conn := node2.protocol.connectionList.Get(grpc.ByPeerID("v2_pagination_node1"))
+	err = node2.protocol.sendTransactionListQuery(conn, hashes)
 	assert.NoError(t, err)
 
 	test.WaitFor(t, func() (bool, error) {

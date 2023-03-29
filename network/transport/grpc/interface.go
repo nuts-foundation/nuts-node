@@ -38,7 +38,7 @@ type Protocol interface {
 	// CreateEnvelope is called to create a new, empty envelope, required for receiving messages.
 	CreateEnvelope() interface{}
 	// Handle is called with to let the protocol handle a received message.
-	Handle(peer transport.Peer, envelope interface{}) error
+	Handle(connection Connection, envelope interface{}) error
 	// UnwrapMessage is used to extract the inner message from the envelope.
 	UnwrapMessage(envelope interface{}) interface{}
 	// GetMessageType returns a string key identifying the message type.

@@ -38,7 +38,6 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 )
 
@@ -49,9 +48,8 @@ var clockFn = func() time.Time {
 // Wrapper implements the generated interface from oapi-codegen
 // It parses and checks the params. Handles errors and returns the appropriate response.
 type Wrapper struct {
-	CredentialResolver issuer.CredentialSearcher
-	ContextManager     jsonld.JSONLD
-	VCR                vcr.VCR
+	ContextManager jsonld.JSONLD
+	VCR            vcr.VCR
 }
 
 // Routes registers the handler to the echo router
@@ -175,7 +173,7 @@ func (w *Wrapper) SearchIssuedVCs(ctx echo.Context, params SearchIssuedVCsParams
 		return core.InvalidInputError("invalid credentialType: %w", err)
 	}
 
-	foundVCs, err := w.VCR.Issuer().SearchCredential(ssi.URI{}, *credentialType, *issuerDID, subjectID)
+	foundVCs, err := w.VCR.Issuer().SearchCredential(*credentialType, *issuerDID, subjectID)
 	if err != nil {
 		return err
 	}

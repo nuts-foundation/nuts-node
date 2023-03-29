@@ -32,21 +32,16 @@ const transactionListMessageOverhead = 512
 const transactionListTXOverhead = 9
 
 type messageSender interface {
-	sendGossipMsg(id transport.PeerID, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) error
-	sendTransactionListQuery(id transport.PeerID, refs []hash.SHA256Hash) error
-	sendTransactionList(peerID transport.PeerID, conversationID conversationID, transactions []*Transaction) error
-	sendTransactionRangeQuery(id transport.PeerID, lcStart uint32, lcEnd uint32) error
-	sendState(id transport.PeerID, xor hash.SHA256Hash, clock uint32) error
-	sendTransactionSet(id transport.PeerID, conversationID conversationID, LCReq uint32, LC uint32, iblt tree.Iblt) error
+	sendGossipMsg(connection grpc.Connection, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) error
+	sendTransactionListQuery(connection grpc.Connection, refs []hash.SHA256Hash) error
+	sendTransactionList(connection grpc.Connection, conversationID conversationID, transactions []*Transaction) error
+	sendTransactionRangeQuery(connection grpc.Connection, lcStart uint32, lcEnd uint32) error
+	sendState(connection grpc.Connection, xor hash.SHA256Hash, clock uint32) error
+	sendTransactionSet(connection grpc.Connection, conversationID conversationID, LCReq uint32, LC uint32, iblt tree.Iblt) error
 	broadcastDiagnostics(diagnostics transport.Diagnostics)
 }
 
-func (p *protocol) sendGossipMsg(id transport.PeerID, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) error {
-	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByPeerID(id))
-	if conn == nil {
-		return grpc.ErrNoConnection
-	}
-
+func (p *protocol) sendGossipMsg(connection grpc.Connection, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) error {
 	// there shouldn't be more than a 100 in there, this will fit in a message
 	refsAsBytes := make([][]byte, len(refs))
 	for i, ref := range refs {
@@ -55,7 +50,7 @@ func (p *protocol) sendGossipMsg(id transport.PeerID, refs []hash.SHA256Hash, xo
 
 	log.Logger().Tracef("Sending gossip: LC=%d, xor=%s, xor refs=%s, refs=%v", clock, xor, hash.EmptyHash().Xor(refs...), refs)
 
-	return conn.Send(p, &Envelope{Message: &Envelope_Gossip{
+	return connection.Send(p, &Envelope{Message: &Envelope_Gossip{
 		Gossip: &Gossip{
 			XOR:          xor.Slice(),
 			LC:           clock,
@@ -64,12 +59,7 @@ func (p *protocol) sendGossipMsg(id transport.PeerID, refs []hash.SHA256Hash, xo
 	}}, false)
 }
 
-func (p *protocol) sendTransactionListQuery(id transport.PeerID, refs []hash.SHA256Hash) error {
-	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByPeerID(id))
-	if conn == nil {
-		return grpc.ErrNoConnection
-	}
-
+func (p *protocol) sendTransactionListQuery(connection grpc.Connection, refs []hash.SHA256Hash) error {
 	// there shouldn't be more than ~650 in there, this will fit in a single message
 	// 650 is based on the maximum number of TXs that can be determined by a single IBLT decode operation.
 	// Any mismatches beyond that point will be handled by TransactionRangeQueries
@@ -84,33 +74,28 @@ func (p *protocol) sendTransactionListQuery(id transport.PeerID, refs []hash.SHA
 		},
 	}
 
-	conversation := p.cMan.startConversation(msg, id)
+	conversation := p.cMan.startConversation(msg, connection.Peer().ID)
 	if conversation == nil {
 		log.Logger().
-			WithField(core.LogFieldPeerID, id).
+			WithFields(connection.Peer().ToFields()).
 			Debug("Did not request a TransactionList while another conversation is in progress")
 		return nil
 	}
 
 	log.Logger().
-		WithField(core.LogFieldPeerID, id).
+		WithFields(connection.Peer().ToFields()).
 		WithField(core.LogFieldConversationID, conversation.conversationID.String()).
 		Debugf("Requesting transactionList from peer (%d transactions)", len(refs))
 
-	return conn.Send(p, &Envelope{Message: msg}, false)
+	return connection.Send(p, &Envelope{Message: msg}, false)
 }
 
 // sendTransactionList sorts transactions on LC value and filters private transaction payloads.
 // It sends the resulting list to the peer
-func (p *protocol) sendTransactionList(peerID transport.PeerID, conversationID conversationID, transactions []*Transaction) error {
-	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByPeerID(peerID))
-	if conn == nil {
-		return grpc.ErrNoConnection
-	}
-
+func (p *protocol) sendTransactionList(connection grpc.Connection, conversationID conversationID, transactions []*Transaction) error {
 	chunks := chunkTransactionList(transactions)
 	for chunkNumber, chunk := range chunks {
-		if err := conn.Send(p, &Envelope{Message: &Envelope_TransactionList{
+		if err := connection.Send(p, &Envelope{Message: &Envelope_TransactionList{
 			TransactionList: &TransactionList{
 				ConversationID: conversationID.slice(),
 				Transactions:   chunk,
@@ -125,11 +110,7 @@ func (p *protocol) sendTransactionList(peerID transport.PeerID, conversationID c
 	return nil
 }
 
-func (p *protocol) sendTransactionRangeQuery(id transport.PeerID, lcStart uint32, lcEnd uint32) error {
-	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByPeerID(id))
-	if conn == nil {
-		return grpc.ErrNoConnection
-	}
+func (p *protocol) sendTransactionRangeQuery(connection grpc.Connection, lcStart uint32, lcEnd uint32) error {
 	msg := &Envelope_TransactionRangeQuery{
 		TransactionRangeQuery: &TransactionRangeQuery{
 			Start: lcStart,
@@ -137,20 +118,20 @@ func (p *protocol) sendTransactionRangeQuery(id transport.PeerID, lcStart uint32
 		},
 	}
 
-	conversation := p.cMan.startConversation(msg, id)
+	conversation := p.cMan.startConversation(msg, connection.Peer().ID)
 	if conversation == nil {
 		log.Logger().
-			WithField(core.LogFieldPeerID, id).
+			WithFields(connection.Peer().ToFields()).
 			Debugf("Did not request a TransactionRange while another conversation is in progress (start=%d, end=%d)", lcStart, lcEnd)
 		return nil
 	}
 
 	log.Logger().
-		WithField(core.LogFieldPeerID, id).
+		WithFields(connection.Peer().ToFields()).
 		WithField(core.LogFieldConversationID, conversation.conversationID.String()).
 		Debugf("Requesting transaction range (start=%d, end=%d)", lcStart, lcEnd)
 
-	return conn.Send(p, &Envelope{Message: msg}, false)
+	return connection.Send(p, &Envelope{Message: msg}, false)
 }
 
 // chunkTransactionList splits a large set of transactions into smaller sets. Each set adheres to the maximum message size.
@@ -186,46 +167,36 @@ func chunkTransactionList(transactions []*Transaction) [][]*Transaction {
 	return chunked
 }
 
-func (p *protocol) sendState(id transport.PeerID, xor hash.SHA256Hash, clock uint32) error {
-	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByPeerID(id))
-	if conn == nil {
-		return grpc.ErrNoConnection
-	}
-
+func (p *protocol) sendState(connection grpc.Connection, xor hash.SHA256Hash, clock uint32) error {
 	msg := &Envelope_State{
 		State: &State{
 			XOR: xor.Slice(),
 			LC:  clock,
 		},
 	}
-	conversation := p.cMan.startConversation(msg, id)
+	conversation := p.cMan.startConversation(msg, connection.Peer().ID)
 	if conversation == nil {
 		log.Logger().
-			WithField(core.LogFieldPeerID, id).
+			WithFields(connection.Peer().ToFields()).
 			Debug("Did not request State while another conversation is in progress")
 		return nil
 	}
 
 	log.Logger().
-		WithField(core.LogFieldPeerID, id).
+		WithFields(connection.Peer().ToFields()).
 		WithField(core.LogFieldConversationID, conversation.conversationID.String()).
 		Debug("Requesting state from peer")
 
-	return conn.Send(p, &Envelope{Message: msg}, false)
+	return connection.Send(p, &Envelope{Message: msg}, false)
 }
 
-func (p *protocol) sendTransactionSet(id transport.PeerID, conversationID conversationID, LCReq uint32, LC uint32, iblt tree.Iblt) error {
-	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByPeerID(id))
-	if conn == nil {
-		return grpc.ErrNoConnection
-	}
-
+func (p *protocol) sendTransactionSet(connection grpc.Connection, conversationID conversationID, LCReq uint32, LC uint32, iblt tree.Iblt) error {
 	ibltBytes, err := iblt.MarshalBinary()
 	if err != nil {
 		return err
 	}
 
-	return conn.Send(p, &Envelope{Message: &Envelope_TransactionSet{TransactionSet: &TransactionSet{
+	return connection.Send(p, &Envelope{Message: &Envelope_TransactionSet{TransactionSet: &TransactionSet{
 		ConversationID: conversationID.slice(),
 		LCReq:          LCReq,
 		LC:             LC,

@@ -82,7 +82,7 @@ func (p networkPublisher) PublishCredential(ctx context.Context, verifiableCrede
 		}
 	}
 
-	key, err := p.keyResolver.ResolveAssertionKey(*issuerDID)
+	key, err := p.keyResolver.ResolveAssertionKey(ctx, *issuerDID)
 	if err != nil {
 		return fmt.Errorf("could not resolve an assertion key for issuer: %w", err)
 	}
@@ -162,7 +162,7 @@ func (p networkPublisher) PublishRevocation(ctx context.Context, revocation cred
 	if err != nil {
 		return fmt.Errorf("invalid revocation issuer: %w", err)
 	}
-	key, err := p.keyResolver.ResolveAssertionKey(*issuerDID)
+	key, err := p.keyResolver.ResolveAssertionKey(ctx, *issuerDID)
 	if err != nil {
 		return fmt.Errorf("could not resolve an assertion key for issuer: %w", err)
 	}

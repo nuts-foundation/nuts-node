@@ -101,6 +101,13 @@ func parseAuthorizedKeys(contents []byte) ([]authorizedKey, error) {
 	// Loop over each line in the authorized_keys file
 	var authorizedKeys []authorizedKey
 	for _, line := range lines {
+		// Split the line into the parseable portion and the commented out (after #) portion
+		lineParts := strings.SplitN(line, "#", 2)
+		if len(lineParts) == 0 {
+			continue
+		}
+		line := lineParts[0]
+
 		// Trim leading and trailing whitespace
 		line = strings.TrimLeft(line, " \t")
 		line = strings.TrimRight(line, " \t")

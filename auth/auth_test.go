@@ -38,26 +38,6 @@ func TestAuth_Configure(t *testing.T) {
 		_ = i.Configure(tlsServerConfig)
 	})
 
-	t.Run("ok - TLS files loaded", func(t *testing.T) {
-		authCfg := TestConfig()
-
-		i := testInstance(t, authCfg)
-		err := i.Configure(tlsServerConfig)
-		require.NoError(t, err)
-
-		assert.NotNil(t, i.tlsConfig)
-	})
-
-	t.Run("ok - TLS is properly configured", func(t *testing.T) {
-		authCfg := TestConfig()
-
-		i := testInstance(t, authCfg)
-		err := i.Configure(tlsServerConfig)
-		assert.NoError(t, err)
-
-		assert.Equal(t, core.MinTLSVersion, i.TLSConfig().MinVersion)
-	})
-
 	t.Run("error - no publicUrl", func(t *testing.T) {
 		authCfg := TestConfig()
 		authCfg.Irma.SchemeManager = "pbdf"

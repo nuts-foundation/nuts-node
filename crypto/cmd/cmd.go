@@ -19,6 +19,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -43,7 +44,7 @@ func FlagSet() *pflag.FlagSet {
 	flags.String("crypto.vault.address", defs.Vault.Address, "The Vault address. If set it overwrites the VAULT_ADDR env var.")
 	flags.Duration("crypto.vault.timeout", defs.Vault.Timeout, "Timeout of client calls to Vault, in Golang time.Duration string format (e.g. 1s).")
 	flags.String("crypto.vault.pathprefix", defs.Vault.PathPrefix, "The Vault path prefix.")
-	flags.String("crypto.external.url", defs.External.URL, "URL of the external storage service.")
+	flags.String("crypto.external.address", defs.External.Address, "Address of the external storage service.")
 	flags.Duration("crypto.external.timeout", defs.External.Timeout, "Time-out when invoking the external storage backend, in Golang time.Duration string format (e.g. 1s).")
 
 	return flags
@@ -81,7 +82,7 @@ func fs2ExternalStore() *cobra.Command {
 			}
 
 			directory := args[0]
-			keys, err := fsToOtherStorage(directory, targetStorage)
+			keys, err := fsToOtherStorage(cmd.Context(), directory, targetStorage)
 			cmd.Println(fmt.Sprintf("Imported %d keys:", len(keys)))
 			for _, key := range keys {
 				cmd.Println("  ", key)
@@ -116,7 +117,7 @@ func fs2VaultCommand() *cobra.Command {
 			}
 
 			directory := args[0]
-			keys, err := fsToOtherStorage(directory, target)
+			keys, err := fsToOtherStorage(cmd.Context(), directory, target)
 			cmd.Println(fmt.Sprintf("Imported %d keys:", len(keys)))
 			for _, key := range keys {
 				cmd.Println("  ", key)
@@ -153,26 +154,26 @@ func LoadCryptoModule(cmd *cobra.Command) (*cryptoEngine.Crypto, error) {
 
 // fsToOtherStorage imports keys from the given directory into the given storage.
 // It accepts a source directory and a target storage. It returns a list of keys that were imported and a possible error.
-func fsToOtherStorage(sourceDir string, target spi.Storage) ([]string, error) {
+func fsToOtherStorage(ctx context.Context, sourceDir string, target spi.Storage) ([]string, error) {
 	source, err := fs.NewFileSystemBackend(sourceDir)
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize filesystem storage: %w", err)
 	}
 
-	return exportToOtherStorage(source, target)
+	return exportToOtherStorage(ctx, source, target)
 }
 
 // exportToOtherStorage exports all private keys from the source storage to the target storage.
 // It accepts a source, target and returns all exported keys.
 // If an error occurs, the returned keys are the keys that were exported before the error occurred.
-func exportToOtherStorage(source, target spi.Storage) ([]string, error) {
+func exportToOtherStorage(ctx context.Context, source, target spi.Storage) ([]string, error) {
 	var keys []string
-	for _, kid := range source.ListPrivateKeys() {
-		privateKey, err := source.GetPrivateKey(kid)
+	for _, kid := range source.ListPrivateKeys(ctx) {
+		privateKey, err := source.GetPrivateKey(ctx, kid)
 		if err != nil {
 			return keys, fmt.Errorf("unable to retrieve private key (kid=%s): %w", kid, err)
 		}
-		err = target.SavePrivateKey(kid, privateKey)
+		err = target.SavePrivateKey(ctx, kid, privateKey)
 		if err != nil {
 			// ignore duplicate keys, allows for reruns
 			if errors.Is(err, spi.ErrKeyAlreadyExists) {

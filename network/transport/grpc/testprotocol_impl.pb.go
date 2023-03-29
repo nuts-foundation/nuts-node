@@ -61,7 +61,7 @@ func (s *TestProtocol) CreateEnvelope() interface{} {
 }
 
 // Handle is not implemented.
-func (s *TestProtocol) Handle(peer transport.Peer, envelope interface{}) error {
+func (s *TestProtocol) Handle(connection Connection, envelope interface{}) error {
 	panic("implement me")
 }
 

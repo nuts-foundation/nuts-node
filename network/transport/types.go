@@ -43,14 +43,14 @@ func (p PeerID) String() string {
 // Peer holds the properties of a remote node we're connected to
 type Peer struct {
 	// ID holds the unique identifier of the peer
-	ID PeerID
+	ID PeerID `json:"id"`
 	// Address holds the remote address of the node we're actually connected to
-	Address string
+	Address string `json:"address"`
 	// NodeDID holds the DID that the peer uses to identify its node on the network.
 	// If Authenticated is true the NodeDID is verified.
-	NodeDID did.DID
+	NodeDID did.DID `json:"nodedid"`
 	// Authenticated is true when NodeDID is set and authentication is successful.
-	Authenticated bool
+	Authenticated bool `json:"authenticated"`
 }
 
 // ToFields returns the peer as a map of fields, to be used when logging the peer details.
@@ -86,16 +86,16 @@ type Diagnostics struct {
 	SoftwareID string `json:"softwareID"`
 }
 
-// ContactStats holds statistics of an outbound connector.
-type ContactStats struct {
+// Contact holds statistics of an outbound connector.
+type Contact struct {
 	// Address holds the target address the connector is connecting to.
 	Address string
 	// DID holds the target DID for the given Address. Is empty for bootstrap nodes
-	DID string
+	DID did.DID
 	// Attempts holds the number of times the node tried to connect to the peer.
 	Attempts uint32
 	// LastAttempt holds the time of the last connection attempt.
-	LastAttempt time.Time
+	LastAttempt *time.Time
 }
 
 // NutsCommServiceType holds the DID document service type that specifies the Nuts network service address of the Nuts node.

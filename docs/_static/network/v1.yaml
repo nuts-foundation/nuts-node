@@ -211,6 +211,21 @@ paths:
                   $ref: '#/components/schemas/EventSubscriber'
         default:
           $ref: '../common/error_response.yaml'
+  /internal/network/v1/addressbook:
+    get:
+      summary: "Get the address book, listing which nodes will be connected to."
+      operationId: "getAddressBook"
+      tags:
+        - diagnostics
+      responses:
+        "200":
+          description: "Successfully listed the address book"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Contact'
 components:
   schemas:
     Event:
@@ -277,6 +292,26 @@ components:
         softwareVersion:
           description: Indication of the software version of the node. It's recommended to use a (Git) commit ID that uniquely resolves to a code revision, alternatively a semantic version could be used (e.g. 1.2.5).
           type: string
+    Contact:
+      type: object
+      description: Describes the contact information of a node.
+      required:
+        - address
+        - attempts
+      properties:
+        address:
+          description: Address of the node.
+          type: string
+        did:
+          description: DID of the node.
+          type: string
+        attempts:
+          description: Number of connection attempts since the node has (re-)started. It is reset to 0 when the connection succeeds.
+          type: integer
+        lastAttempt:
+          description: Timestamp of the last attempt to contact the address.
+          type: string
+          format: date-time
   securitySchemes:
     jwtBearerAuth:
       type: http

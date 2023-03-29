@@ -82,33 +82,36 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 		cm := NewGRPCConnectionManager(NewConfig("", "test"), createKVStore(t), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
 		bo := &trackingBackoff{mux: &sync.Mutex{}}
 		cm.addressBook.backoffCreator = func() Backoff { return bo }
+		delayFn := func(delay time.Duration) *time.Duration { return &delay }
 
 		// new contact sets backoff
-		cm.Connect("address", did.MustParseDID("did:nuts:peer"))
+		cm.Connect("address", did.MustParseDID("did:nuts:peer"), delayFn(time.Second))
 		assert.Len(t, cm.addressBook.contacts, 1)
 		assert.Equal(t, 1, bo.resetCount)
+		assert.Equal(t, time.Second, bo.lastResetValue)
 
 		// update contact sets backoff
-		cm.Connect("updated address", did.MustParseDID("did:nuts:peer"))
+		cm.Connect("updated address", did.MustParseDID("did:nuts:peer"), delayFn(time.Hour))
 		assert.Len(t, cm.addressBook.contacts, 1)
 		assert.Equal(t, 2, bo.resetCount)
+		assert.Equal(t, time.Hour, bo.lastResetValue)
 
 		// contact didn't change, so backoff doesn't eiter
-		cm.Connect("updated address", did.MustParseDID("did:nuts:peer"))
+		cm.Connect("updated address", did.MustParseDID("did:nuts:peer"), delayFn(0))
 		assert.Len(t, cm.addressBook.contacts, 1)
 		assert.Equal(t, 2, bo.resetCount)
+		assert.Equal(t, time.Hour, bo.lastResetValue)
 	})
 
 	t.Run("ok - with TLS", func(t *testing.T) {
 		p := &TestProtocol{}
-		config := NewConfig("", "test")
 		ts, _ := core.LoadTrustStore("../../test/truststore.pem")
 		clientCert, _ := tls.LoadX509KeyPair("../../test/certificate-and-key.pem", "../../test/certificate-and-key.pem")
-		config.trustStore = ts.CertPool
-		config.clientCert = &clientCert
+		config := NewConfig("", "test", WithTLS(clientCert, ts, 1))
+
 		cm := NewGRPCConnectionManager(config, createKVStore(t), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
 
-		cm.Connect(fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort()), did.DID{})
+		cm.Connect(fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort()), did.DID{}, nil)
 
 		// TODO: tlsConfig is now part of the cm.dialOptions. How should this be tested??
 		//assert.Len(t, cm.connections.list, 1)
@@ -123,18 +126,18 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 		cm := NewGRPCConnectionManager(NewConfig("", "test"), createKVStore(t), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
 
 		peerAddress := fmt.Sprintf("127.0.0.1:%d", test.FreeTCPPort())
-		cm.Connect(peerAddress, did.DID{})
-		cm.Connect(peerAddress, did.DID{})
+		cm.Connect(peerAddress, did.DID{}, nil)
+		cm.Connect(peerAddress, did.DID{}, nil)
 		assert.Len(t, cm.addressBook.contacts, 1)
 	})
 
 	t.Run("no address removes contacts", func(t *testing.T) {
 		p := &TestProtocol{}
 		cm := NewGRPCConnectionManager(NewConfig("", "test"), createKVStore(t), &stubNodeDIDReader{}, nil, p).(*grpcConnectionManager)
-		cm.Connect("address", did.MustParseDID("did:nuts:abc"))
+		cm.Connect("address", did.MustParseDID("did:nuts:abc"), nil)
 		assert.Len(t, cm.addressBook.contacts, 1)
 
-		cm.Connect("", did.MustParseDID("did:nuts:abc"))
+		cm.Connect("", did.MustParseDID("did:nuts:abc"), nil)
 
 		assert.Len(t, cm.addressBook.contacts, 0)
 	})
@@ -263,7 +266,7 @@ func Test_grpcConnectionManager_dial(t *testing.T) {
 
 			// contact updated
 			assert.Equal(t, uint32(1), cont.attempts.Load())
-			assert.Less(t, now, cont.stats().LastAttempt)
+			assert.Less(t, now, *cont.stats().LastAttempt)
 
 			// backoff not called
 			assert.Equal(t, 0, backoff.backoffCount)
@@ -282,7 +285,7 @@ func Test_grpcConnectionManager_dial(t *testing.T) {
 
 			// contact updated
 			assert.Equal(t, uint32(1), cont.attempts.Load())
-			assert.Less(t, now, cont.stats().LastAttempt)
+			assert.Less(t, now, *cont.stats().LastAttempt)
 
 			// backoff is called
 			assert.Equal(t, 1, backoff.backoffCount)
@@ -328,7 +331,7 @@ func Test_grpcConnectionManager_dial(t *testing.T) {
 
 			// contact updated
 			assert.Equal(t, uint32(1), cont.attempts.Load())
-			assert.Less(t, now, cont.stats().LastAttempt)
+			assert.Less(t, now, *cont.stats().LastAttempt)
 
 			// backoff is reset. this means a random value between 1 and 5 sec.
 			assert.Less(t, cont.backoff.Value(), 5*time.Second)
@@ -427,7 +430,7 @@ func Test_grpcConnectionManager_Peers(t *testing.T) {
 		authenticator1.EXPECT().Authenticate(*nodeDID, gomock.Any(), gomock.Any()).Return(transport.Peer{}, nil)
 		cm2, authenticator2, _, _ := create(t, withBufconnDialer(listener))
 		authenticator2.EXPECT().Authenticate(*nodeDID, gomock.Any(), gomock.Any()).Return(transport.Peer{}, nil)
-		cm2.Connect("bufnet", *nodeDID)
+		cm2.Connect("bufnet", *nodeDID, nil)
 		test.WaitFor(t, func() (bool, error) {
 			return len(cm2.Peers()) > 0, nil
 		}, time.Second*2, "waiting for peer 1 to connect")
@@ -444,7 +447,7 @@ func Test_grpcConnectionManager_Peers(t *testing.T) {
 			capturedState.Store(state)
 		})
 
-		cm2.Connect("bufnet", *nodeDID)
+		cm2.Connect("bufnet", *nodeDID, nil)
 
 		test.WaitFor(t, func() (bool, error) {
 			return capturedPeer.Load() != nil, nil
@@ -470,7 +473,7 @@ func Test_grpcConnectionManager_Peers(t *testing.T) {
 			capturedState.Store(state)
 		})
 
-		cm2.Connect("bufnet", *nodeDID)
+		cm2.Connect("bufnet", *nodeDID, nil)
 
 		test.WaitFor(t, func() (bool, error) {
 			return capturedPeer.Load() != nil, nil
@@ -486,7 +489,7 @@ func Test_grpcConnectionManager_Peers(t *testing.T) {
 	})
 	t.Run("0 peers (1 connection which failed)", func(t *testing.T) {
 		cm, _, _, _ := create(t)
-		cm.Connect("non-existing", did.DID{})
+		cm.Connect("non-existing", did.DID{}, nil)
 		assert.Empty(t, cm.Peers())
 	})
 }
@@ -557,13 +560,13 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 	t.Run("configures CRL check when TLS is enabled", func(t *testing.T) {
 		p := &TestProtocol{}
 
-		var tlsConfig *tls.Config
-
 		validator := crl.NewMockValidator(gomock.NewController(t))
 		validator.EXPECT().SyncLoop(gomock.Any())
-		validator.EXPECT().Configure(gomock.Any(), 10).DoAndReturn(func(config *tls.Config, maxValidityDays int) {
-			tlsConfig = config
-		})
+		validator.EXPECT().VerifyPeerCertificateFunction(10).DoAndReturn(func(maxValidityDays int) func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+			return func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+				return nil
+			}
+		}).Times(2) // on inbound and outbound TLS config
 
 		cm := NewGRPCConnectionManager(Config{
 			listenAddress:      fmt.Sprintf(":%d", test.FreeTCPPort()),
@@ -577,8 +580,6 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 
 		assert.NoError(t, cm.Start())
 		cm.Stop()
-
-		assert.Equal(t, core.MinTLSVersion, tlsConfig.MinVersion)
 	})
 }
 
@@ -1128,7 +1129,7 @@ func (s stubServerTransportStream) SetTrailer(md metadata.MD) error {
 type stubNodeDIDReader struct {
 }
 
-func (s stubNodeDIDReader) Resolve() (did.DID, error) {
+func (s stubNodeDIDReader) Resolve(_ context.Context) (did.DID, error) {
 	return *nodeDID, nil
 }
 

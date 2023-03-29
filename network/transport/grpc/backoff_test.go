@@ -204,10 +204,11 @@ func TestRandomBackoff(t *testing.T) {
 func newTestBackoff() Backoff { return BoundedBackoff(time.Second, time.Hour) }
 
 type trackingBackoff struct {
-	expired      bool
-	resetCount   int
-	backoffCount int
-	mux          *sync.Mutex
+	expired        bool
+	resetCount     int
+	lastResetValue time.Duration
+	backoffCount   int
+	mux            *sync.Mutex
 }
 
 func (t *trackingBackoff) Expired() bool {
@@ -224,10 +225,11 @@ func (t *trackingBackoff) counts() (int, int) {
 	return t.resetCount, t.backoffCount
 }
 
-func (t *trackingBackoff) Reset(_ time.Duration) {
+func (t *trackingBackoff) Reset(value time.Duration) {
 	t.mux.Lock()
 	defer t.mux.Unlock()
 	t.resetCount++
+	t.lastResetValue = value
 }
 
 func (t *trackingBackoff) Backoff() time.Duration {

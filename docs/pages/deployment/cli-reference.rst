@@ -21,8 +21,8 @@ The following options apply to the server commands below:
       --auth.publicurl string                         public URL which can be reached by a users IRMA client, this should include the scheme and domain: https://example.com. Additional paths should only be added if some sort of url-rewriting is done in a reverse-proxy.
       --configfile string                             Nuts config file (default "nuts.yaml")
       --cpuprofile string                             When set, a CPU profile is written to the given path. Ignored when strictmode is set.
+      --crypto.external.address string                Address of the external storage service.
       --crypto.external.timeout duration              Time-out when invoking the external storage backend, in Golang time.Duration string format (e.g. 1s). (default 100ms)
-      --crypto.external.url string                    URL of the external storage service.
       --crypto.storage string                         Storage to use, 'external' for an external backend (experimental), 'fs' for file system (for development purposes), 'vaultkv' for Vault KV store (recommended, will be replaced by external backend in future). (default "fs")
       --crypto.vault.address string                   The Vault address. If set it overwrites the VAULT_ADDR env var.
       --crypto.vault.pathprefix string                The Vault path prefix. (default "kv")
@@ -135,8 +135,8 @@ Imports private keys from filesystem based storage into the secret store server.
       --auth.publicurl string                         public URL which can be reached by a users IRMA client, this should include the scheme and domain: https://example.com. Additional paths should only be added if some sort of url-rewriting is done in a reverse-proxy.
       --configfile string                             Nuts config file (default "nuts.yaml")
       --cpuprofile string                             When set, a CPU profile is written to the given path. Ignored when strictmode is set.
+      --crypto.external.address string                Address of the external storage service.
       --crypto.external.timeout duration              Time-out when invoking the external storage backend, in Golang time.Duration string format (e.g. 1s). (default 100ms)
-      --crypto.external.url string                    URL of the external storage service.
       --crypto.storage string                         Storage to use, 'external' for an external backend (experimental), 'fs' for file system (for development purposes), 'vaultkv' for Vault KV store (recommended, will be replaced by external backend in future). (default "fs")
       --crypto.vault.address string                   The Vault address. If set it overwrites the VAULT_ADDR env var.
       --crypto.vault.pathprefix string                The Vault path prefix. (default "kv")

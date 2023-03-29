@@ -78,7 +78,7 @@ func TestHolder_BuildVP(t *testing.T) {
 	ctx := audit.TestContext()
 
 	keyStorage := crypto.NewMemoryStorage()
-	_ = keyStorage.SavePrivateKey(key.KID(), key.PrivateKey)
+	_ = keyStorage.SavePrivateKey(ctx, key.KID(), key.PrivateKey)
 	keyStore := crypto.NewTestCryptoInstance(keyStorage)
 
 	t.Run("ok - one VC", func(t *testing.T) {

@@ -3,10 +3,12 @@
 Release notes
 #############
 
-What has been changed, and how to update between versions.
+*************************
+(To be released)
+*************************
 
 ***********************
-Coconut update (v5.2.0)
+Hazelnut update (v5.2.0)
 ***********************
 
 Release date: **DRAFT**
@@ -15,18 +17,42 @@ Release date: **DRAFT**
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.1.0...v5.2.0
 
-***********************
-Coconut update (v5.1.0)
-***********************
+*************************
+Hazelnut release (v5.1.0)
+*************************
 
-Release date: **DRAFT**
+Release date: 2023-03-15
 
-- Default value of strictmode changed to true
+- Default value of strictmode changed to true.
+- Introduced new HTTP-based crypto backend, which allows integration of other key storage backends.
+  It uses a separate service (like a sidecar in Kubernetes) which implements a standardized API.
+  The feature is still experimental, but will become the recommended backend for storing private keys in the next major release.
+  See `Storage Configuration <https://nuts-node.readthedocs.io/en/latest/pages/deployment/storage-configuration.html#external-store-api>`_ for more information.
 - Internal storage of VDR has changed. A migration will run at startup. If the node is stopped during this process, DID Documents will have to be reprocessed manually (restore functionality)
 - Added audit logging for cryptographic operations (creating a new key pair, signing, decrypting).
   Refer to the documentation for more information.
+- Added new API authentication method, in which the administrator configures authorized public keys and the API client is responsible for signing JWT using the private key. This new API authentication is preferred over the current method, which will be removed in the next major release.
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.0...v5.1.0
+
+================
+Breaking changes
+================
+
+There are no breaking changes, but if you're running in non-strict mode (but didn't actively disable it), you'll have to disable strict mode by setting ``strictmode`` to ``false``.
+
+***********************
+Coconut update (v5.0.10)
+***********************
+
+Release date: 2023-03-01
+
+This patch release fixes the following:
+
+- Drawing up an IRMA contract with an ampersand in the organization name causes the ampersand to be URL encoded,
+  causing validation of the signed contract to fail.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.9...v5.0.10
 
 ***********************
 Coconut update (v5.0.9)

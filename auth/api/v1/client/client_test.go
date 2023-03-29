@@ -16,9 +16,10 @@
  *
  */
 
-package v1
+package client
 
 import (
+	"context"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -33,13 +34,14 @@ import (
 )
 
 func TestHTTPClient_CreateAccessToken(t *testing.T) {
+	ctx := context.Background()
 	t.Run("ok", func(t *testing.T) {
 		server := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK})
 		serverURL, _ := url.Parse(server.URL)
 
 		client, _ := NewHTTPClient("", time.Second)
 
-		response, err := client.CreateAccessToken(*serverURL, "bearer_token")
+		response, err := client.CreateAccessToken(ctx, *serverURL, "bearer_token")
 
 		assert.NotNil(t, response)
 		assert.NoError(t, err)
@@ -51,7 +53,7 @@ func TestHTTPClient_CreateAccessToken(t *testing.T) {
 
 		client, _ := NewHTTPClient("", time.Second)
 
-		response, err := client.CreateAccessToken(*serverURL, "bearer_token")
+		response, err := client.CreateAccessToken(ctx, *serverURL, "bearer_token")
 
 		assert.Nil(t, response)
 		assert.EqualError(t, err, "server returned HTTP 500 (expected: 200)")
@@ -62,7 +64,7 @@ func TestHTTPClient_CreateAccessToken(t *testing.T) {
 	t.Run("error - invalid endpoint", func(t *testing.T) {
 		client, _ := NewHTTPClient("", time.Second)
 
-		response, err := client.CreateAccessToken(url.URL{}, "bearer_token")
+		response, err := client.CreateAccessToken(ctx, url.URL{}, "bearer_token")
 
 		assert.Nil(t, response)
 		assert.Error(t, err)

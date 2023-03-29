@@ -6,6 +6,7 @@ package transport
 
 import (
 	reflect "reflect"
+	time "time"
 
 	gomock "github.com/golang/mock/gomock"
 	did "github.com/nuts-foundation/go-did/did"
@@ -36,15 +37,29 @@ func (m *MockConnectionManager) EXPECT() *MockConnectionManagerMockRecorder {
 }
 
 // Connect mocks base method.
-func (m *MockConnectionManager) Connect(peerAddress string, peerDID did.DID) {
+func (m *MockConnectionManager) Connect(peerAddress string, peerDID did.DID, delay *time.Duration) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Connect", peerAddress, peerDID)
+	m.ctrl.Call(m, "Connect", peerAddress, peerDID, delay)
 }
 
 // Connect indicates an expected call of Connect.
-func (mr *MockConnectionManagerMockRecorder) Connect(peerAddress, peerDID interface{}) *gomock.Call {
+func (mr *MockConnectionManagerMockRecorder) Connect(peerAddress, peerDID, delay interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connect", reflect.TypeOf((*MockConnectionManager)(nil).Connect), peerAddress, peerDID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connect", reflect.TypeOf((*MockConnectionManager)(nil).Connect), peerAddress, peerDID, delay)
+}
+
+// Contacts mocks base method.
+func (m *MockConnectionManager) Contacts() []Contact {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Contacts")
+	ret0, _ := ret[0].([]Contact)
+	return ret0
+}
+
+// Contacts indicates an expected call of Contacts.
+func (mr *MockConnectionManagerMockRecorder) Contacts() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Contacts", reflect.TypeOf((*MockConnectionManager)(nil).Contacts))
 }
 
 // Diagnostics mocks base method.

@@ -19,6 +19,7 @@
 package crypto
 
 import (
+	"context"
 	"crypto"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
@@ -64,7 +65,7 @@ func (m memoryStorage) CheckHealth() map[string]core.Health {
 	return map[string]core.Health{"memory": {Status: core.HealthStatusUp}}
 }
 
-func (m memoryStorage) ListPrivateKeys() []string {
+func (m memoryStorage) ListPrivateKeys(_ context.Context) []string {
 	var result []string
 	for key := range m {
 		result = append(result, key)
@@ -72,7 +73,7 @@ func (m memoryStorage) ListPrivateKeys() []string {
 	return result
 }
 
-func (m memoryStorage) GetPrivateKey(kid string) (crypto.Signer, error) {
+func (m memoryStorage) GetPrivateKey(_ context.Context, kid string) (crypto.Signer, error) {
 	pk, ok := m[kid]
 	if !ok {
 		return nil, ErrPrivateKeyNotFound
@@ -80,12 +81,12 @@ func (m memoryStorage) GetPrivateKey(kid string) (crypto.Signer, error) {
 	return pk.(crypto.Signer), nil
 }
 
-func (m memoryStorage) PrivateKeyExists(kid string) bool {
+func (m memoryStorage) PrivateKeyExists(_ context.Context, kid string) bool {
 	_, ok := m[kid]
 	return ok
 }
 
-func (m memoryStorage) SavePrivateKey(kid string, key crypto.PrivateKey) error {
+func (m memoryStorage) SavePrivateKey(_ context.Context, kid string, key crypto.PrivateKey) error {
 	m[kid] = key
 	return nil
 }

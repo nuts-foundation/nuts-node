@@ -48,7 +48,7 @@ type vdrTestCtx struct {
 	mockNetwork    *network.MockTransactions
 	mockKeyStore   *crypto.MockKeyStore
 	mockAmbassador *MockAmbassador
-	audit          context.Context
+	ctx            context.Context
 }
 
 func newVDRTestCtx(t *testing.T) vdrTestCtx {
@@ -73,7 +73,7 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 		mockStore:      mockStore,
 		mockNetwork:    mockNetwork,
 		mockKeyStore:   mockKeyStore,
-		audit:          audit.TestContext(),
+		ctx:            audit.TestContext(),
 	}
 }
 
@@ -83,7 +83,7 @@ func TestVDR_Update(t *testing.T) {
 	currentHash := hash.SHA256Sum([]byte("currentHash"))
 
 	t.Run("ok", func(t *testing.T) {
-		ctx := newVDRTestCtx(t)
+		test := newVDRTestCtx(t)
 
 		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
 		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
@@ -96,18 +96,18 @@ func TestVDR_Update(t *testing.T) {
 		resolvedMetadata := types.DocumentMetadata{
 			SourceTransactions: []hash.SHA256Hash{currentHash},
 		}
-		ctx.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
-		ctx.mockStore.EXPECT().Resolve(*id, nil).Return(&currentDIDDocument, &resolvedMetadata, nil)
-		ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(crypto.NewTestKey(keyID.String()), nil)
-		ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any())
+		test.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
+		test.mockStore.EXPECT().Resolve(*id, nil).Return(&currentDIDDocument, &resolvedMetadata, nil)
+		test.mockKeyStore.EXPECT().Resolve(test.ctx, keyID.String()).Return(crypto.NewTestKey(keyID.String()), nil)
+		test.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any())
 
-		err := ctx.vdr.Update(ctx.audit, *id, nextDIDDocument)
+		err := test.vdr.Update(test.ctx, *id, nextDIDDocument)
 
 		assert.NoError(t, err)
 	})
 
 	t.Run("error - validation failed", func(t *testing.T) {
-		ctx := newVDRTestCtx(t)
+		test := newVDRTestCtx(t)
 		currentDIDDocument := didservice.CreateDocument()
 		currentDIDDocument.ID = *id
 		currentDIDDocument.Controller = []did.DID{currentDIDDocument.ID}
@@ -117,13 +117,13 @@ func TestVDR_Update(t *testing.T) {
 			AllowDeactivated: true,
 		}
 		resolvedMetadata := types.DocumentMetadata{}
-		ctx.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
-		err := ctx.vdr.Update(ctx.audit, *id, nextDIDDocument)
+		test.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
+		err := test.vdr.Update(test.ctx, *id, nextDIDDocument)
 		assert.EqualError(t, err, "DID Document validation failed: invalid context")
 	})
 
 	t.Run("error - no controller for document", func(t *testing.T) {
-		ctx := newVDRTestCtx(t)
+		test := newVDRTestCtx(t)
 		document := didservice.CreateDocument()
 		document.ID = *id
 
@@ -131,31 +131,31 @@ func TestVDR_Update(t *testing.T) {
 			AllowDeactivated: true,
 		}
 		resolvedMetadata := types.DocumentMetadata{}
-		ctx.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&document, &resolvedMetadata, nil)
-		err := ctx.vdr.Update(ctx.audit, *id, document)
+		test.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&document, &resolvedMetadata, nil)
+		err := test.vdr.Update(test.ctx, *id, document)
 		assert.EqualError(t, err, "the DID document has been deactivated")
 	})
 	t.Run("error - could not resolve current document", func(t *testing.T) {
-		ctx := newVDRTestCtx(t)
+		test := newVDRTestCtx(t)
 		nextDIDDocument := did.Document{}
 		expectedResolverMetadata := &types.ResolveMetadata{
 			AllowDeactivated: true,
 		}
-		ctx.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(nil, nil, types.ErrNotFound)
-		err := ctx.vdr.Update(ctx.audit, *id, nextDIDDocument)
+		test.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(nil, nil, types.ErrNotFound)
+		err := test.vdr.Update(test.ctx, *id, nextDIDDocument)
 		assert.EqualError(t, err, "unable to find the DID document")
 	})
 
 	t.Run("error - document not managed by this node", func(t *testing.T) {
-		ctx := newVDRTestCtx(t)
+		test := newVDRTestCtx(t)
 		nextDIDDocument := didservice.CreateDocument()
 		nextDIDDocument.ID = *id
 		currentDIDDocument := nextDIDDocument
 		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
-		ctx.mockStore.EXPECT().Resolve(*id, gomock.Any()).Times(1).Return(&currentDIDDocument, &types.DocumentMetadata{}, nil)
-		ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(nil, crypto.ErrPrivateKeyNotFound)
+		test.mockStore.EXPECT().Resolve(*id, gomock.Any()).Times(1).Return(&currentDIDDocument, &types.DocumentMetadata{}, nil)
+		test.mockKeyStore.EXPECT().Resolve(test.ctx, keyID.String()).Return(nil, crypto.ErrPrivateKeyNotFound)
 
-		err := ctx.vdr.Update(ctx.audit, *id, nextDIDDocument)
+		err := test.vdr.Update(test.ctx, *id, nextDIDDocument)
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, "DID document not managed by this node")
@@ -165,7 +165,7 @@ func TestVDR_Update(t *testing.T) {
 }
 func TestVDR_Create(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		ctx := newVDRTestCtx(t)
+		test := newVDRTestCtx(t)
 		key := crypto.NewTestKey("did:nuts:123#key-1")
 		id, _ := did.ParseDID("did:nuts:123")
 		keyID, _ := did.ParseDIDURL(key.KID())
@@ -178,10 +178,10 @@ func TestVDR_Create(t *testing.T) {
 		nextDIDDocument.AddKeyAgreement(vm)
 		expectedPayload, _ := json.Marshal(nextDIDDocument)
 
-		ctx.mockKeyStore.EXPECT().New(ctx.audit, gomock.Any()).Return(key, nil)
-		ctx.mockNetwork.EXPECT().CreateTransaction(ctx.audit, network.TransactionTemplate(expectedPayloadType, expectedPayload, key).WithAttachKey())
+		test.mockKeyStore.EXPECT().New(test.ctx, gomock.Any()).Return(key, nil)
+		test.mockNetwork.EXPECT().CreateTransaction(test.ctx, network.TransactionTemplate(expectedPayloadType, expectedPayload, key).WithAttachKey())
 
-		didDoc, key, err := ctx.vdr.Create(ctx.audit, didservice.DefaultCreationOptions())
+		didDoc, key, err := test.vdr.Create(test.ctx, didservice.DefaultCreationOptions())
 
 		assert.NoError(t, err)
 		assert.NotNil(t, didDoc)
@@ -189,21 +189,21 @@ func TestVDR_Create(t *testing.T) {
 	})
 
 	t.Run("error - doc creation", func(t *testing.T) {
-		ctx := newVDRTestCtx(t)
-		ctx.mockKeyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
+		test := newVDRTestCtx(t)
+		test.mockKeyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
 
-		_, _, err := ctx.vdr.Create(ctx.audit, didservice.DefaultCreationOptions())
+		_, _, err := test.vdr.Create(test.ctx, didservice.DefaultCreationOptions())
 
 		assert.EqualError(t, err, "could not create DID document: b00m!")
 	})
 
 	t.Run("error - transaction failed", func(t *testing.T) {
-		ctx := newVDRTestCtx(t)
+		test := newVDRTestCtx(t)
 		key := crypto.NewTestKey("did:nuts:123#key-1")
-		ctx.mockKeyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(key, nil)
-		ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
+		test.mockKeyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(key, nil)
+		test.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
 
-		_, _, err := ctx.vdr.Create(ctx.audit, didservice.DefaultCreationOptions())
+		_, _, err := test.vdr.Create(test.ctx, didservice.DefaultCreationOptions())
 
 		assert.EqualError(t, err, "could not store DID document in network: b00m!")
 	})
@@ -256,7 +256,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			results := vdr.Diagnostics()
 
 			require.Len(t, results, 2)
-			assert.Equal(t, "0", results[0].String())
+			assert.Equal(t, "map[owned_count:0 total_count:0]", results[0].String())
 			assert.Equal(t, "0", results[1].String())
 		})
 
@@ -269,7 +269,26 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			results := vdr.Diagnostics()
 
 			require.Len(t, results, 2)
-			assert.Equal(t, "1", results[0].String())
+			assert.Equal(t, "map[owned_count:0 total_count:1]", results[0].String())
+			assert.Equal(t, "1", results[1].String())
+		})
+
+		t.Run("ok - 1 owned conflict", func(t *testing.T) {
+			s := didstore.NewTestStore(t)
+			client := crypto.NewMemoryCryptoInstance()
+			keyID := TestDIDA
+			keyID.Fragment = "1"
+			_, _ = client.New(audit.TestContext(), crypto.StringNamingFunc(keyID.String()))
+			vdr := NewVDR(Config{}, client, nil, s, nil)
+			didDocument := did.Document{ID: TestDIDA}
+
+			didDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: keyID})
+			_ = s.Add(didDocument, didstore.TestTransaction(didDocument))
+			_ = s.Add(didDocument, didstore.TestTransaction(didDocument))
+			results := vdr.Diagnostics()
+
+			require.Len(t, results, 2)
+			assert.Equal(t, "map[owned_count:1 total_count:1]", results[0].String())
 			assert.Equal(t, "1", results[1].String())
 		})
 	})
@@ -305,12 +324,12 @@ func TestVDR_resolveControllerKey(t *testing.T) {
 	keyID, _ := did.ParseDIDURL("did:nuts:123#key-1")
 
 	t.Run("ok - single doc", func(t *testing.T) {
-		ctx := newVDRTestCtx(t)
+		test := newVDRTestCtx(t)
 		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{}}
 		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
-		ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(crypto.NewTestKey(keyID.String()), nil)
+		test.mockKeyStore.EXPECT().Resolve(test.ctx, keyID.String()).Return(crypto.NewTestKey(keyID.String()), nil)
 
-		controller, key, err := ctx.vdr.resolveControllerWithKey(currentDIDDocument)
+		controller, key, err := test.vdr.resolveControllerWithKey(test.ctx, currentDIDDocument)
 
 		require.NoError(t, err)
 		assert.Equal(t, keyID.String(), key.KID())
@@ -318,17 +337,17 @@ func TestVDR_resolveControllerKey(t *testing.T) {
 	})
 
 	t.Run("ok - key from 2nd controller", func(t *testing.T) {
-		ctx := newVDRTestCtx(t)
+		test := newVDRTestCtx(t)
 		controller := did.Document{ID: *controllerId, Controller: []did.DID{}}
 		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*controllerId, *controllerId}}
 		controller.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
-		ctx.mockStore.EXPECT().Resolve(*controllerId, gomock.Any()).Return(&controller, nil, nil).Times(2)
+		test.mockStore.EXPECT().Resolve(*controllerId, gomock.Any()).Return(&controller, nil, nil).Times(2)
 		gomock.InOrder(
-			ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(nil, crypto.ErrPrivateKeyNotFound),
-			ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(crypto.NewTestKey(keyID.String()), nil),
+			test.mockKeyStore.EXPECT().Resolve(test.ctx, keyID.String()).Return(nil, crypto.ErrPrivateKeyNotFound),
+			test.mockKeyStore.EXPECT().Resolve(test.ctx, keyID.String()).Return(crypto.NewTestKey(keyID.String()), nil),
 		)
 
-		_, key, err := ctx.vdr.resolveControllerWithKey(currentDIDDocument)
+		_, key, err := test.vdr.resolveControllerWithKey(test.ctx, currentDIDDocument)
 
 		require.NoError(t, err)
 		assert.Equal(t, keyID.String(), key.KID())
@@ -336,25 +355,25 @@ func TestVDR_resolveControllerKey(t *testing.T) {
 	})
 
 	t.Run("error - resolving key", func(t *testing.T) {
-		ctx := newVDRTestCtx(t)
+		test := newVDRTestCtx(t)
 		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{}}
 		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
-		ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(nil, errors.New("b00m!"))
+		test.mockKeyStore.EXPECT().Resolve(test.ctx, keyID.String()).Return(nil, errors.New("b00m!"))
 
-		_, _, err := ctx.vdr.resolveControllerWithKey(currentDIDDocument)
+		_, _, err := test.vdr.resolveControllerWithKey(test.ctx, currentDIDDocument)
 
 		assert.EqualError(t, err, "could not find capabilityInvocation key for updating the DID document: b00m!")
 	})
 
 	t.Run("error - no keys from any controller", func(t *testing.T) {
-		ctx := newVDRTestCtx(t)
+		test := newVDRTestCtx(t)
 		controller := did.Document{ID: *controllerId, Controller: []did.DID{}}
 		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*controllerId, *controllerId}}
 		controller.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
-		ctx.mockStore.EXPECT().Resolve(*controllerId, gomock.Any()).Return(&controller, nil, nil).Times(2)
-		ctx.mockKeyStore.EXPECT().Resolve(keyID.String()).Return(nil, crypto.ErrPrivateKeyNotFound).Times(2)
+		test.mockStore.EXPECT().Resolve(*controllerId, gomock.Any()).Return(&controller, nil, nil).Times(2)
+		test.mockKeyStore.EXPECT().Resolve(test.ctx, keyID.String()).Return(nil, crypto.ErrPrivateKeyNotFound).Times(2)
 
-		_, _, err := ctx.vdr.resolveControllerWithKey(currentDIDDocument)
+		_, _, err := test.vdr.resolveControllerWithKey(test.ctx, currentDIDDocument)
 
 		assert.Equal(t, types.ErrDIDNotManagedByThisNode, err)
 	})

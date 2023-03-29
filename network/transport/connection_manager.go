@@ -21,6 +21,7 @@ package transport
 import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
+	"time"
 )
 
 // StreamStateObserverFunc is a function that can be registered on the connection manager.
@@ -41,11 +42,15 @@ const (
 type ConnectionManager interface {
 	core.Diagnosable
 
-	// Connect attempts to make an outbound connection to the given peer if it's not already connected.
-	Connect(peerAddress string, peerDID did.DID)
+	// Connect attempts to make an outbound connection to the given peer, after the delay has expired.
+	// If the delay is 0 it will immediately start connecting. It will take the existing backoff into account when it is nil.
+	Connect(peerAddress string, peerDID did.DID, delay *time.Duration)
 
 	// Peers returns a slice containing the peers that are currently connected.
 	Peers() []Peer
+
+	// Contacts returns a slice containing the contacts that are currently known (to which we try to connect).
+	Contacts() []Contact
 
 	// RegisterObserver allows to register a callback function for stream state changes
 	RegisterObserver(callback StreamStateObserverFunc)
