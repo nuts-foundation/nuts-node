@@ -14,7 +14,6 @@ var _ StrictServerInterface = (*Wrapper)(nil)
 type Wrapper struct {
 	Issuer          *oidc4vci.Issuer
 	CredentialStore vcr.Writer
-	issuerClient    oidc4vci.IssuerClient
 }
 
 func (w Wrapper) Routes(router core.EchoRouter) {

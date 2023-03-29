@@ -95,10 +95,10 @@ func loadMetadata(credentialIssuerIdentifier string, httpClient http.Client) (*t
 	// TODO (non-prototype): Support HTTPS (which truststore?)
 	// TODO (non-prototype): what about caching?
 	httpResponse, err := httpClient.Get(credentialIssuerIdentifier + "/.well-known/openid-configuration")
-	defer httpResponse.Body.Close()
 	if err != nil {
 		return nil, fmt.Errorf("http request error: %w", err)
 	}
+	defer httpResponse.Body.Close()
 	responseBody, err := io.ReadAll(httpResponse.Body)
 	if err != nil {
 		return nil, fmt.Errorf("read error: %w", err)

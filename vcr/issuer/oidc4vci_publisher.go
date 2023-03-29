@@ -10,8 +10,7 @@ import (
 var _ Publisher = (*OIDC4VCIPublisher)(nil)
 
 type OIDC4VCIPublisher struct {
-	//Issuer func(ctx context.Context, credential vc.VerifiableCredential) error
-	Issuer *oidc4vci.Issuer
+	IssuerRegistry *oidc4vci.IssuerRegistry
 }
 
 func (o OIDC4VCIPublisher) PublishCredential(ctx context.Context, verifiableCredential vc.VerifiableCredential, _ bool) error {
@@ -20,7 +19,7 @@ func (o OIDC4VCIPublisher) PublishCredential(ctx context.Context, verifiableCred
 	//                       We need to assess the actual risks of this.
 	//                       Also, it's not known beforehand whether the wallet will ever actually retrieve the verifiable credential.
 	//                       Cleaner (and securer) would be to create the Verifiable Credential only when the wallet actually requests it.
-	return o.Issuer.Offer(ctx, verifiableCredential)
+	return o.IssuerRegistry.Get(verifiableCredential.Issuer.String()).Offer(ctx, verifiableCredential, "http://localhost:1323")
 }
 func (o OIDC4VCIPublisher) PublishRevocation(ctx context.Context, revocation credential.Revocation) error {
 	//TODO implement me

@@ -53,42 +53,42 @@ import (
 )
 
 // NewVCRInstance creates a new vcr instance with default config and empty concept registry
-func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions, jsonldManager jsonld.JSONLD, eventManager events.Event, storageClient storage.Engine, oidc4vciIssuer *oidc4vci.Issuer) VCR {
+func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyResolver vdr.KeyResolver, network network.Transactions, jsonldManager jsonld.JSONLD, eventManager events.Event, storageClient storage.Engine, oidc4vciIssuerRegistry *oidc4vci.IssuerRegistry) VCR {
 	r := &vcr{
-		config:          DefaultConfig(),
-		docResolver:     docResolver,
-		keyStore:        keyStore,
-		keyResolver:     keyResolver,
-		serviceResolver: didservice.NewServiceResolver(docResolver),
-		network:         network,
-		jsonldManager:   jsonldManager,
-		eventManager:    eventManager,
-		storageClient:   storageClient,
-		oidc4vciIssuer:  oidc4vciIssuer,
+		config:                 DefaultConfig(),
+		docResolver:            docResolver,
+		keyStore:               keyStore,
+		keyResolver:            keyResolver,
+		serviceResolver:        didservice.NewServiceResolver(docResolver),
+		network:                network,
+		jsonldManager:          jsonldManager,
+		eventManager:           eventManager,
+		storageClient:          storageClient,
+		oidc4vciIssuerRegistry: oidc4vciIssuerRegistry,
 	}
 
 	return r
 }
 
 type vcr struct {
-	config          Config
-	store           leia.Store
-	keyStore        crypto.KeyStore
-	docResolver     vdr.DocResolver
-	keyResolver     vdr.KeyResolver
-	serviceResolver didservice.ServiceResolver
-	ambassador      Ambassador
-	network         network.Transactions
-	trustConfig     *trust.Config
-	issuer          issuer.Issuer
-	verifier        verifier.Verifier
-	holder          holder.Holder
-	issuerStore     issuer.Store
-	verifierStore   verifier.Store
-	jsonldManager   jsonld.JSONLD
-	eventManager    events.Event
-	storageClient   storage.Engine
-	oidc4vciIssuer  *oidc4vci.Issuer
+	config                 Config
+	store                  leia.Store
+	keyStore               crypto.KeyStore
+	docResolver            vdr.DocResolver
+	keyResolver            vdr.KeyResolver
+	serviceResolver        didservice.ServiceResolver
+	ambassador             Ambassador
+	network                network.Transactions
+	trustConfig            *trust.Config
+	issuer                 issuer.Issuer
+	verifier               verifier.Verifier
+	holder                 holder.Holder
+	issuerStore            issuer.Store
+	verifierStore          verifier.Store
+	jsonldManager          jsonld.JSONLD
+	eventManager           events.Event
+	storageClient          storage.Engine
+	oidc4vciIssuerRegistry *oidc4vci.IssuerRegistry
 }
 
 func (c vcr) Issuer() issuer.Issuer {
@@ -130,7 +130,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	c.trustConfig = trust.NewConfig(tcPath)
 
 	networkPublisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
-	oidc4vciPublisher := issuer.OIDC4VCIPublisher{Issuer: c.oidc4vciIssuer}
+	oidc4vciPublisher := issuer.OIDC4VCIPublisher{IssuerRegistry: c.oidc4vciIssuerRegistry}
 	c.issuer = issuer.NewIssuer(c.issuerStore, networkPublisher, oidc4vciPublisher, c.docResolver, c.keyStore, c.jsonldManager, c.trustConfig)
 	c.verifier = verifier.NewVerifier(c.verifierStore, c.docResolver, c.keyResolver, c.jsonldManager, c.trustConfig)
 

@@ -11,12 +11,15 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/api/oidc4vci_v0/client"
 	"github.com/nuts-foundation/nuts-node/auth/api/oidc4vci_v0/types"
 	"github.com/nuts-foundation/nuts-node/auth/log"
+	"io"
 	"net/url"
 	"sync"
 )
 
-func NewIssuer() *Issuer {
+// NewIssuer creates a new Issuer instance. The identifier is the Credential Issuer Identifier, e.g. https://example.com/issuer/
+func NewIssuer(identifier string) *Issuer {
 	return &Issuer{
+		identifier:   identifier,
 		state:        make(map[string]vc.VerifiableCredential),
 		accessTokens: make(map[string]string),
 		mux:          &sync.Mutex{},
@@ -24,6 +27,7 @@ func NewIssuer() *Issuer {
 }
 
 type Issuer struct {
+	identifier string
 	// state maps a pre-authorized code to a Verifiable Credential
 	state map[string]vc.VerifiableCredential
 	// accessToken maps an access token to a pre-authorized code
@@ -43,7 +47,7 @@ func (i *Issuer) RequestAccessToken(preAuthorizedCode string) (string, error) {
 	return accessToken, nil
 }
 
-func (i *Issuer) Offer(ctx context.Context, credential vc.VerifiableCredential) error {
+func (i *Issuer) Offer(ctx context.Context, credential vc.VerifiableCredential, walletURL string) error {
 	i.mux.Lock()
 	preAuthorizedCode := generateCode()
 	i.state[preAuthorizedCode] = credential
@@ -56,7 +60,7 @@ func (i *Issuer) Offer(ctx context.Context, credential vc.VerifiableCredential) 
 	log.Logger().Infof("Publishing credential for subject %s using OIDC4VCI", subject)
 
 	// TODO: Lookup Credential Wallet Client Metadata. For now, we use the local node
-	c, err := client.NewClient("http://localhost:1323")
+	c, err := client.NewClient(walletURL)
 	if err != nil {
 		return err
 	}
@@ -65,7 +69,7 @@ func (i *Issuer) Offer(ctx context.Context, credential vc.VerifiableCredential) 
 	// this is sent to the wallet in the Credential Offer, so the wallet can resolve the Credential Issuer Metadata
 	// (by adding /.well-known/.... to the URL). For now, short circuit this because we have 1 node in the prototype.
 	offer := types.CredentialOffer{
-		CredentialIssuer: "http://localhost:1323/identity/" + credential.Issuer.String(),
+		CredentialIssuer: i.identifier,
 		Credentials: []map[string]interface{}{{
 			"format": "ldp_vc",
 			"credential_definition": map[string]interface{}{
@@ -88,11 +92,18 @@ func (i *Issuer) Offer(ctx context.Context, credential vc.VerifiableCredential) 
 	res, err := c.CredentialOffer(ctx, subject, &client.CredentialOfferParams{
 		CredentialOffer: url.QueryEscape(string(offerJson)),
 	})
-
 	if err != nil {
 		return err
 	}
+	defer res.Body.Close()
 	if res.StatusCode > 299 {
+		responseBody, _ := io.ReadAll(res.Body)
+		responseBodyStr := string(responseBody)
+		// If longer than 100 characters, truncate
+		if len(responseBodyStr) > 100 {
+			responseBodyStr = responseBodyStr[:100] + "..."
+		}
+		log.Logger().Infof("Credential Offer response: %s", responseBodyStr)
 		return fmt.Errorf("non 2xx status code: %s", res.Status)
 	}
 	return nil
