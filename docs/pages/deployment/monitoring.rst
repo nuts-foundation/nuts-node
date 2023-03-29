@@ -94,6 +94,11 @@ Returns the status of the various services in ``yaml`` format:
             revoked_credentials_count: 0
         verifier:
             revocations_count: 18
+    vdr:
+        did_documents_count: 5
+        conflicted_did_documents:
+            total_count: 2
+            owned_count: 0
     status:
         git_commit: d36837bae48b780bfb76134e85b506472fc207a6
         os_arch: linux/amd64
@@ -108,6 +113,16 @@ Explanation of ambiguous/complex entries in the diagnostics:
 * ``vcr.issuer.issued_credentials_count`` holds the total number of credentials issued by the local node
 * ``vcr.issuer.revoked_credentials_count`` holds the total number of revoked credentials issued by the local node
 * ``vcr.verifier.revocations_count`` holds the total number of revoked credentials (public and private VCs)
+* ``vdr.conflicted_did_documents.total_count`` holds the total number of DID documents that are conflicted (have parallel updates). This may indicate a stolen private key
+* ``vdr.conflicted_did_documents.owned_count`` holds the number of conflicted DID documents you control as a node owner
+
+Conflicted DID documents
+************************
+
+Conflicted DID documents are the result of parallel updates of a DID document.
+It can be caused by a race condition during DID API calls, having a cluster of nodes when this is not supported or if a private key has been stolen.
+To rule out this last cause, every node must make sure their conflicted document count equals ``0``.
+There's an API to get the actual conflicted DID documents. A DID document can be *fixed* by simply updating it.
 
 Metrics
 *******

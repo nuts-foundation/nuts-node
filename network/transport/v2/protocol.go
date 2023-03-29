@@ -114,7 +114,7 @@ type protocol struct {
 	dagStore               stoabs.KVStore
 }
 
-func (p protocol) CreateClientStream(outgoingContext context.Context, grpcConn grpcLib.ClientConnInterface) (grpcLib.ClientStream, error) {
+func (p *protocol) CreateClientStream(outgoingContext context.Context, grpcConn grpcLib.ClientConnInterface) (grpcLib.ClientStream, error) {
 	return NewProtocolClient(grpcConn).Stream(outgoingContext)
 }
 
@@ -125,23 +125,23 @@ func (p *protocol) Register(registrar grpcLib.ServiceRegistrar, acceptor func(st
 	p.connectionManager.RegisterObserver(p.connectionStateCallback)
 }
 
-func (p protocol) Version() int {
+func (p *protocol) Version() int {
 	return 2
 }
 
-func (p protocol) MethodName() string {
+func (p *protocol) MethodName() string {
 	return grpc.GetStreamMethod(Protocol_ServiceDesc.ServiceName, Protocol_ServiceDesc.Streams[0])
 }
 
-func (p protocol) CreateEnvelope() interface{} {
+func (p *protocol) CreateEnvelope() interface{} {
 	return &Envelope{}
 }
 
-func (p protocol) UnwrapMessage(envelope interface{}) interface{} {
+func (p *protocol) UnwrapMessage(envelope interface{}) interface{} {
 	return envelope.(*Envelope).Message
 }
 
-func (p protocol) GetMessageType(envelope interface{}) string {
+func (p *protocol) GetMessageType(envelope interface{}) string {
 	if _, ok := envelope.(*Envelope); ok {
 		result := fmt.Sprintf("%T", p.UnwrapMessage(envelope))
 		return strings.TrimPrefix(result, "*v2.Envelope_")
@@ -150,7 +150,7 @@ func (p protocol) GetMessageType(envelope interface{}) string {
 }
 
 func (p *protocol) Configure(_ transport.PeerID) error {
-	nodeDID, err := p.nodeDIDResolver.Resolve()
+	nodeDID, err := p.nodeDIDResolver.Resolve(p.ctx)
 	if err != nil {
 		log.Logger().WithError(err).Error("Failed to resolve node DID")
 	}
@@ -158,7 +158,9 @@ func (p *protocol) Configure(_ transport.PeerID) error {
 	if nodeDID.Empty() {
 		log.Logger().Warn("Not starting the payload scheduler as node DID is not set")
 	} else {
-		p.privatePayloadReceiver, err = p.state.Notifier("private", p.handlePrivateTxRetry,
+		p.privatePayloadReceiver, err = p.state.Notifier("private", func(event dag.Event) (bool, error) {
+			return p.handlePrivateTxRetry(p.ctx, event)
+		},
 			dag.WithPersistency(p.dagStore),
 			dag.WithRetryDelay(p.config.PayloadRetryDelay),
 			dag.WithSelectionFilter(func(event dag.Event) bool {
@@ -237,7 +239,16 @@ func (p *protocol) gossipTransaction(event dag.Event) (bool, error) {
 }
 
 func (p *protocol) sendGossip(id transport.PeerID, refs []hash.SHA256Hash, xor hash.SHA256Hash, clock uint32) bool {
-	if err := p.sendGossipMsg(id, refs, xor, clock); err != nil {
+	conn := p.connectionList.Get(grpc.ByConnected(), grpc.ByPeerID(id))
+	var err error
+
+	if conn == nil {
+		err = grpc.ErrNoConnection
+	} else {
+		err = p.sendGossipMsg(conn, refs, xor, clock)
+	}
+
+	if err != nil {
 		log.Logger().
 			WithError(err).
 			WithField(core.LogFieldPeerID, id.String()).
@@ -249,9 +260,9 @@ func (p *protocol) sendGossip(id transport.PeerID, refs []hash.SHA256Hash, xor h
 	return true
 }
 
-func (p *protocol) handlePrivateTxRetry(event dag.Event) (bool, error) {
+func (p *protocol) handlePrivateTxRetry(ctx context.Context, event dag.Event) (bool, error) {
 	// Sanity check: if we have the payload, mark this job as finished
-	isPresent, err := p.state.IsPayloadPresent(context.Background(), event.Transaction.PayloadHash())
+	isPresent, err := p.state.IsPayloadPresent(ctx, event.Transaction.PayloadHash())
 	if err != nil {
 		if !errors.As(err, new(stoabs.ErrDatabase)) {
 			err = dag.EventFatal{err}
@@ -269,7 +280,7 @@ func (p *protocol) handlePrivateTxRetry(event dag.Event) (bool, error) {
 
 	epal := dag.EncryptedPAL(event.Transaction.PAL())
 
-	pal, err := p.decryptPAL(epal)
+	pal, err := p.decryptPAL(ctx, epal)
 	if err != nil {
 		if !errors.As(err, new(stoabs.ErrDatabase)) {
 			err = dag.EventFatal{err}
@@ -320,7 +331,7 @@ func (p *protocol) Stop() {
 	p.routines.Wait()
 }
 
-func (p protocol) Diagnostics() []core.DiagnosticResult {
+func (p *protocol) Diagnostics() []core.DiagnosticResult {
 	if p.privatePayloadReceiver == nil {
 		return []core.DiagnosticResult{}
 	}
@@ -338,21 +349,13 @@ func (p protocol) Diagnostics() []core.DiagnosticResult {
 	}}
 }
 
-func (p protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
+func (p *protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 	return p.diagnosticsMan.get()
 }
 
-func (p *protocol) send(peer transport.Peer, message isEnvelope_Message) error {
-	connection := p.connectionList.Get(grpc.ByPeerID(peer.ID))
-	if connection == nil {
-		return fmt.Errorf("unable to send msg, connection not found (peer=%s)", peer)
-	}
-	return connection.Send(p, &Envelope{Message: message}, false)
-}
-
 // decryptPAL returns nil, nil if the PAL couldn't be decoded
-func (p *protocol) decryptPAL(encrypted [][]byte) (dag.PAL, error) {
-	nodeDID, err := p.nodeDIDResolver.Resolve()
+func (p *protocol) decryptPAL(ctx context.Context, encrypted [][]byte) (dag.PAL, error) {
+	nodeDID, err := p.nodeDIDResolver.Resolve(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -374,7 +377,7 @@ func (p *protocol) decryptPAL(encrypted [][]byte) (dag.PAL, error) {
 
 	epal := dag.EncryptedPAL(encrypted)
 
-	return epal.Decrypt(keyAgreementIDs, p.decrypter)
+	return epal.Decrypt(ctx, keyAgreementIDs, p.decrypter)
 }
 
 type protocolServer struct {

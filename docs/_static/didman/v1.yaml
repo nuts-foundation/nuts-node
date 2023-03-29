@@ -216,6 +216,12 @@ paths:
         example: geolocation-rest-api
         schema:
           type: string
+      - name: accept
+        in: header
+        description: The requested return type, defaults to application/json.
+        example: text/plain
+        schema:
+          type: string
     get:
       operationId: getCompoundServiceEndpoint
       summary: Retrieves the endpoint with the specified endpointType from the specified compound service.

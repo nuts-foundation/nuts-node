@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	did "github.com/nuts-foundation/go-did/did"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	dag "github.com/nuts-foundation/nuts-node/network/dag"
 	transport "github.com/nuts-foundation/nuts-node/network/transport"
@@ -35,6 +36,20 @@ func NewMockTransactions(ctrl *gomock.Controller) *MockTransactions {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockTransactions) EXPECT() *MockTransactionsMockRecorder {
 	return m.recorder
+}
+
+// AddressBook mocks base method.
+func (m *MockTransactions) AddressBook() []transport.Contact {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddressBook")
+	ret0, _ := ret[0].([]transport.Contact)
+	return ret0
+}
+
+// AddressBook indicates an expected call of AddressBook.
+func (mr *MockTransactionsMockRecorder) AddressBook() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddressBook", reflect.TypeOf((*MockTransactions)(nil).AddressBook))
 }
 
 // CleanupSubscriberEvents mocks base method.
@@ -64,6 +79,18 @@ func (m *MockTransactions) CreateTransaction(ctx context.Context, spec Template)
 func (mr *MockTransactionsMockRecorder) CreateTransaction(ctx, spec interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTransaction", reflect.TypeOf((*MockTransactions)(nil).CreateTransaction), ctx, spec)
+}
+
+// DiscoverServices mocks base method.
+func (m *MockTransactions) DiscoverServices(updatedDID did.DID) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "DiscoverServices", updatedDID)
+}
+
+// DiscoverServices indicates an expected call of DiscoverServices.
+func (mr *MockTransactionsMockRecorder) DiscoverServices(updatedDID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DiscoverServices", reflect.TypeOf((*MockTransactions)(nil).DiscoverServices), updatedDID)
 }
 
 // GetTransaction mocks base method.

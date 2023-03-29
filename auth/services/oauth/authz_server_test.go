@@ -28,7 +28,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
-	"net/url"
 	"testing"
 	"time"
 
@@ -49,7 +48,6 @@ import (
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 	verifier2 "github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
@@ -129,7 +127,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx.contractNotary.EXPECT().VerifyVP(gomock.Any(), nil).Return(nil, errors.New("identity validation failed"))
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(authorizerDID, gomock.Any()).MinTimes(1).Return(authorizerSigningKeyID.String(), nil)
-		ctx.keyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(true)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID.String()).Return(true)
 		tokenCtx := validContext()
 		signToken(tokenCtx)
 
@@ -158,7 +156,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx := createContext(t)
 
 		ctx.nameResolver.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil)
-		ctx.keyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(true)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID.String()).Return(true)
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(authorizerDID, gomock.Any()).MinTimes(1).Return(authorizerSigningKeyID.String(), nil)
 		ctx.contractNotary.EXPECT().VerifyVP(gomock.Any(), nil).Return(services.TestVPVerificationResult{Val: contract.Invalid, FailureReason: "because of reasons"}, nil)
@@ -179,7 +177,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 			ctx.nameResolver.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil).AnyTimes()
 			ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(getAuthorizerDIDDocument(), nil, nil).AnyTimes()
 			ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil).AnyTimes()
-			ctx.keyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(true).AnyTimes()
+			ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID.String()).Return(true).AnyTimes()
 			ctx.verifier.EXPECT().Verify(gomock.Any(), true, true, gomock.Any()).Return(nil).AnyTimes()
 			ctx.contractNotary.EXPECT().VerifyVP(gomock.Any(), nil).Return(services.TestVPVerificationResult{
 				Val:         contract.Valid,
@@ -225,7 +223,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		testCtx.nameResolver.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil)
 		testCtx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(getAuthorizerDIDDocument(), nil, nil).AnyTimes()
 		testCtx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
-		testCtx.keyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(true)
+		testCtx.keyStore.EXPECT().Exists(testCtx.audit, authorizerSigningKeyID.String()).Return(true)
 		testCtx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), authorizerSigningKeyID.String()).Return("expectedAccessToken", nil)
 		testCtx.verifier.EXPECT().Verify(gomock.Any(), true, true, gomock.Any()).Return(nil)
 
@@ -247,7 +245,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx.nameResolver.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil)
 		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(getAuthorizerDIDDocument(), nil, nil).AnyTimes()
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
-		ctx.keyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(true)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID.String()).Return(true)
 		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), authorizerSigningKeyID.String()).Return("expectedAT", nil)
 		ctx.contractNotary.EXPECT().VerifyVP(gomock.Any(), nil).Return(services.TestVPVerificationResult{
 			Val:         contract.Valid,
@@ -360,9 +358,9 @@ func TestService_validateSubject(t *testing.T) {
 		tokenCtx.jwtBearerToken.Set(jwt.SubjectKey, authorizerDID.String())
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(authorizerDID, gomock.Any()).MinTimes(1).Return(authorizerSigningKeyID.String(), nil)
-		ctx.keyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(true)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID.String()).Return(true)
 
-		err := ctx.oauthService.validateSubject(tokenCtx)
+		err := ctx.oauthService.validateSubject(ctx.audit, tokenCtx)
 		assert.NoError(t, err)
 	})
 	t.Run("missing subject", func(t *testing.T) {
@@ -371,7 +369,7 @@ func TestService_validateSubject(t *testing.T) {
 		tokenCtx := validContext()
 		tokenCtx.jwtBearerToken.Remove("sub")
 
-		err := ctx.oauthService.validateSubject(tokenCtx)
+		err := ctx.oauthService.validateSubject(ctx.audit, tokenCtx)
 		assert.EqualError(t, err, "invalid jwt.subject: missing")
 	})
 	t.Run("invalid subject", func(t *testing.T) {
@@ -380,7 +378,7 @@ func TestService_validateSubject(t *testing.T) {
 		tokenCtx := validContext()
 		tokenCtx.jwtBearerToken.Set(jwt.SubjectKey, "not a urn")
 
-		err := ctx.oauthService.validateSubject(tokenCtx)
+		err := ctx.oauthService.validateSubject(ctx.audit, tokenCtx)
 		assert.ErrorIs(t, err, did.ErrInvalidDID)
 	})
 	t.Run("subject not managed by this node", func(t *testing.T) {
@@ -390,9 +388,9 @@ func TestService_validateSubject(t *testing.T) {
 		tokenCtx.jwtBearerToken.Set(jwt.SubjectKey, authorizerDID.String())
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(authorizerDID, gomock.Any()).MinTimes(1).Return(authorizerSigningKeyID.String(), nil)
-		ctx.keyStore.EXPECT().Exists(authorizerSigningKeyID.String()).Return(false)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID.String()).Return(false)
 
-		err := ctx.oauthService.validateSubject(tokenCtx)
+		err := ctx.oauthService.validateSubject(ctx.audit, tokenCtx)
 
 		assert.ErrorContains(t, err, "is not managed by this node")
 	})
@@ -653,190 +651,19 @@ func TestService_buildAccessToken(t *testing.T) {
 	})
 }
 
-func TestService_CreateJwtBearerToken(t *testing.T) {
-	usi := vc.VerifiablePresentation{}
-
-	request := services.CreateJwtGrantRequest{
-		Authorizer: authorizerDID.String(),
-		Requester:  requesterDID.String(),
-		IdentityVP: &usi,
-		Service:    expectedService,
-	}
-
-	id := vdr.TestDIDA.URI()
-	id.Fragment = "1"
-	validCredential := vc.VerifiableCredential{
-		Context:      []ssi.URI{vc.VCContextV1URI(), credential.NutsV1ContextURI},
-		ID:           &id,
-		Type:         []ssi.URI{*credential.NutsAuthorizationCredentialTypeURI, vc.VerifiableCredentialTypeV1URI()},
-		Issuer:       vdr.TestDIDA.URI(),
-		IssuanceDate: time.Now(),
-		CredentialSubject: []interface{}{credential.NutsAuthorizationCredentialSubject{
-			ID:           vdr.TestDIDB.String(),
-			PurposeOfUse: "eTransfer",
-			Resources: []credential.Resource{
-				{
-					Path:        "/composition/1",
-					Operations:  []string{"read"},
-					UserContext: true,
-				},
-			},
-		}},
-		Proof: []interface{}{vc.Proof{}},
-	}
-
-	t.Run("create a JwtBearerToken", func(t *testing.T) {
-		ctx := createContext(t)
-
-		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(authorizerDIDDocument, nil, nil).AnyTimes()
-		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
-		ctx.keyResolver.EXPECT().ResolveSigningKeyID(requesterDID, gomock.Any()).MinTimes(1).Return(requesterSigningKeyID.String(), nil)
-		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), requesterSigningKeyID.String()).Return("token", nil)
-
-		token, err := ctx.oauthService.CreateJwtGrant(ctx.audit, request)
-
-		require.Nil(t, err)
-		require.NotEmpty(t, token.BearerToken)
-
-		assert.Equal(t, "token", token.BearerToken)
-		assert.Equal(t, expectedAudience, token.AuthorizationServerEndpoint)
-	})
-
-	t.Run("create a JwtBearerToken with valid credentials", func(t *testing.T) {
-		ctx := createContext(t)
-
-		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(authorizerDIDDocument, nil, nil).AnyTimes()
-		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
-		ctx.keyResolver.EXPECT().ResolveSigningKeyID(requesterDID, gomock.Any()).MinTimes(1).Return(requesterSigningKeyID.String(), nil)
-		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), requesterSigningKeyID.String()).Return("token", nil)
-
-		validRequest := request
-		validRequest.Credentials = []vc.VerifiableCredential{validCredential}
-
-		token, err := ctx.oauthService.CreateJwtGrant(ctx.audit, validRequest)
-
-		require.NoError(t, err)
-		assert.Equal(t, "token", token.BearerToken)
-	})
-
-	t.Run("create a JwtBearerToken with invalid credentials fails", func(t *testing.T) {
-		ctx := createContext(t)
-
-		invalidCredential := validCredential
-		invalidCredential.Type = []ssi.URI{}
-
-		invalidRequest := request
-		invalidRequest.Credentials = []vc.VerifiableCredential{invalidCredential}
-
-		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(authorizerDIDDocument, nil, nil).AnyTimes()
-
-		token, err := ctx.oauthService.CreateJwtGrant(ctx.audit, invalidRequest)
-
-		assert.Error(t, err)
-		assert.Empty(t, token)
-	})
-
-	t.Run("authorizer without endpoint", func(t *testing.T) {
-		ctx := createContext(t)
-		document := getAuthorizerDIDDocument()
-		document.Service = []did.Service{}
-
-		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return("", types.ErrServiceNotFound)
-
-		token, err := ctx.oauthService.CreateJwtGrant(ctx.audit, request)
-
-		assert.Empty(t, token)
-		assert.ErrorIs(t, err, types.ErrServiceNotFound)
-	})
-
-	t.Run("request without authorizer", func(t *testing.T) {
-		ctx := createContext(t)
-
-		request := services.CreateJwtGrantRequest{
-			Requester:  requesterDID.String(),
-			IdentityVP: &usi,
-		}
-
-		token, err := ctx.oauthService.CreateJwtGrant(ctx.audit, request)
-
-		assert.Empty(t, token)
-		assert.NotNil(t, err)
-	})
-
-	t.Run("signing error", func(t *testing.T) {
-		ctx := createContext(t)
-
-		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(authorizerDIDDocument, nil, nil).AnyTimes()
-		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
-		ctx.keyResolver.EXPECT().ResolveSigningKeyID(requesterDID, gomock.Any()).MinTimes(1).Return(requesterSigningKeyID.String(), nil)
-		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), requesterSigningKeyID.String()).Return("", errors.New("boom!"))
-
-		token, err := ctx.oauthService.CreateJwtGrant(ctx.audit, request)
-
-		assert.Error(t, err)
-		assert.Empty(t, token)
-	})
-}
-
-func Test_claimsFromRequest(t *testing.T) {
-	usi := vc.VerifiablePresentation{}
-
-	t.Run("ok", func(t *testing.T) {
-		request := services.CreateJwtGrantRequest{
-			Authorizer: authorizerDID.String(),
-			Requester:  requesterDID.String(),
-			IdentityVP: &usi,
-			Service:    "service",
-		}
-		audience := "aud"
-		timeFunc = func() time.Time {
-			return time.Unix(10, 0)
-		}
-		defer func() {
-			timeFunc = time.Now
-		}()
-
-		claims := claimsFromRequest(request, audience)
-
-		assert.Equal(t, audience, claims[jwt.AudienceKey])
-		assert.Equal(t, int64(15), claims[jwt.ExpirationKey])
-		assert.Equal(t, int64(10), claims[jwt.IssuedAtKey])
-		assert.Equal(t, request.Requester, claims[jwt.IssuerKey])
-		assert.Equal(t, 0, claims[jwt.NotBeforeKey])
-		assert.Equal(t, request.Authorizer, claims[jwt.SubjectKey])
-		assert.Equal(t, *request.IdentityVP, claims["usi"])
-		assert.Equal(t, request.Service, claims[purposeOfUseClaim])
-	})
-
-	t.Run("ok - minimal", func(t *testing.T) {
-		request := services.CreateJwtGrantRequest{
-			Authorizer: authorizerDID.String(),
-			Requester:  requesterDID.String(),
-			Service:    "service",
-		}
-		audience := "aud"
-		claims := claimsFromRequest(request, audience)
-
-		assert.Equal(t, audience, claims[jwt.AudienceKey])
-		assert.Equal(t, request.Requester, claims[jwt.IssuerKey])
-		assert.Equal(t, request.Authorizer, claims[jwt.SubjectKey])
-		assert.Equal(t, request.Service, claims[purposeOfUseClaim])
-	})
-}
-
 func TestService_IntrospectAccessToken(t *testing.T) {
 	t.Run("validate access token", func(t *testing.T) {
 		ctx := createContext(t)
 
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
-		ctx.keyStore.EXPECT().Exists(requesterSigningKeyID.String()).Return(true)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, requesterSigningKeyID.String()).Return(true)
 
 		// First build an access token
 		tokenCtx := validAccessToken()
 		signToken(tokenCtx)
 
 		// Then validate it
-		claims, err := ctx.oauthService.IntrospectAccessToken(tokenCtx.rawJwtBearerToken)
+		claims, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
 		require.NoError(t, err)
 		require.NotNil(t, claims)
 
@@ -850,7 +677,7 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 		ctx := createContext(t)
 
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(requesterSigningKey.Public(), nil)
-		ctx.keyStore.EXPECT().Exists(requesterSigningKeyID.String()).Return(true)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, requesterSigningKeyID.String()).Return(true)
 
 		// First build an access token
 		tokenCtx := validAccessToken()
@@ -858,7 +685,7 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 		signTokenWithKey(tokenCtx, signingKey)
 
 		// Then validate it
-		claims, err := ctx.oauthService.IntrospectAccessToken(tokenCtx.rawJwtBearerToken)
+		claims, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
 
 		require.EqualError(t, err, "failed to verify jws signature: failed to verify message: failed to verify signature using ecdsa")
 		require.Nil(t, claims)
@@ -867,21 +694,21 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 	t.Run("private key not present", func(t *testing.T) {
 		ctx := createContext(t)
 
-		ctx.keyStore.EXPECT().Exists(requesterSigningKeyID.String()).Return(false)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, requesterSigningKeyID.String()).Return(false)
 
 		// First build an access token
 		tokenCtx := validContext()
 		signToken(tokenCtx)
 
 		// Then validate it
-		_, err := ctx.oauthService.IntrospectAccessToken(tokenCtx.rawJwtBearerToken)
+		_, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
 		assert.Error(t, err)
 	})
 
 	t.Run("key not present on DID", func(t *testing.T) {
 		ctx := createContext(t)
 
-		ctx.keyStore.EXPECT().Exists(requesterSigningKeyID.String()).Return(true)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, requesterSigningKeyID.String()).Return(true)
 		ctx.keyResolver.EXPECT().ResolveSigningKey(requesterSigningKeyID.String(), gomock.Any()).MinTimes(1).Return(nil, types.ErrNotFound)
 
 		// First build an access token
@@ -889,7 +716,7 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 		signToken(tokenCtx)
 
 		// Then validate it
-		_, err := ctx.oauthService.IntrospectAccessToken(tokenCtx.rawJwtBearerToken)
+		_, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
 		assert.Error(t, err)
 	})
 }
@@ -903,46 +730,6 @@ func TestAuth_Configure(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, time.Minute, ctx.oauthService.clockSkew)
 		assert.True(t, ctx.oauthService.secureMode)
-	})
-}
-
-func TestAuth_GetOAuthEndpointURL(t *testing.T) {
-	t.Run("returns_error_when_resolve_compound_service_fails", func(t *testing.T) {
-		ctx := createContext(t)
-
-		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(vdr.TestDIDA, expectedService, services.OAuthEndpointType, true).Return("", types.ErrServiceNotFound)
-
-		parsedURL, err := ctx.oauthService.GetOAuthEndpointURL(expectedService, vdr.TestDIDA)
-
-		assert.ErrorIs(t, err, types.ErrServiceNotFound)
-		assert.Empty(t, parsedURL)
-	})
-
-	t.Run("returns_parsed_endpoint_url", func(t *testing.T) {
-		ctx := createContext(t)
-		keyID, _ := did.ParseDIDURL("did:nuts:123#key-1")
-		currentDIDDocument := &did.Document{
-			Service: []did.Service{
-				{
-					Type: "test-service",
-					ServiceEndpoint: map[string]string{
-						"oauth": fmt.Sprintf("%s?type=oauth", vdr.TestDIDA),
-					},
-				},
-				{
-					Type:            "oauth",
-					ServiceEndpoint: "http://localhost",
-				},
-			},
-		}
-		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
-		expectedURL, _ := url.Parse("http://localhost")
-		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(vdr.TestDIDA, expectedService, services.OAuthEndpointType, true).Return(expectedURL.String(), nil)
-
-		parsedURL, err := ctx.oauthService.GetOAuthEndpointURL(expectedService, vdr.TestDIDA)
-
-		assert.NoError(t, err)
-		assert.Equal(t, *expectedURL, parsedURL)
 	})
 }
 
@@ -1032,7 +819,7 @@ type testContext struct {
 	didResolver     *didstore.MockStore
 	keyResolver     *types.MockKeyResolver
 	serviceResolver *didman.MockCompoundServiceResolver
-	oauthService    *service
+	oauthService    *authzServer
 	verifier        *verifier2.MockVerifier
 	audit           context.Context
 }
@@ -1057,8 +844,7 @@ var createContext = func(t *testing.T) *testContext {
 		serviceResolver: serviceResolver,
 		verifier:        verifier,
 		didResolver:     didResolver,
-		oauthService: &service{
-			docResolver:     didservice.Resolver{Store: didResolver},
+		oauthService: &authzServer{
 			keyResolver:     keyResolver,
 			contractNotary:  contractNotaryMock,
 			privateKeyStore: privateKeyStore,

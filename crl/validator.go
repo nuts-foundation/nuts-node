@@ -20,13 +20,9 @@ package crl
 
 import (
 	"context"
-	"crypto/tls"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crl/log"
-	"github.com/sirupsen/logrus"
 	"io"
 	"math"
 	"math/big"
@@ -34,6 +30,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nuts-foundation/nuts-node/crl/log"
 	"github.com/twmb/murmur3"
 )
 
@@ -51,10 +48,15 @@ func hash(issuer string, serialNumber *big.Int) int64 {
 
 // Validator synchronizes CRLs and validates revoked certificates
 type Validator interface {
+	// Sync downloads, updates, and verifies CRLs
 	Sync() error
+	// SyncLoop periodically calls Sync
 	SyncLoop(ctx context.Context)
+	// IsSynced returns whether all the CRLs are downloaded and are not outdated (based on the offset)
 	IsSynced(maxOffsetDays int) bool
-	Configure(config *tls.Config, maxValidityDays int)
+	// VerifyPeerCertificateFunction returns a tls.Config.VerifyPeerCertificate function based on given config
+	VerifyPeerCertificateFunction(maxValidityDays int) func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error
+	// IsRevoked checks whether the certificate was revoked. It does not check if the CRL IsSynced
 	IsRevoked(issuer string, serialNumber *big.Int) bool
 }
 
@@ -64,7 +66,7 @@ type validator struct {
 	certificatesLock sync.RWMutex
 	listsLock        sync.RWMutex
 	certificates     map[string]*x509.Certificate
-	lists            map[string]*pkix.CertificateList
+	lists            map[string]*x509.RevocationList
 }
 
 // NewValidator returns a new instance of the CRL database
@@ -84,7 +86,7 @@ func NewValidatorWithHTTPClient(certificates []*x509.Certificate, httpClient *ht
 		httpClient:   httpClient,
 		bitSet:       NewBitSet(defaultBitSetSize),
 		certificates: certMap,
-		lists:        map[string]*pkix.CertificateList{},
+		lists:        map[string]*x509.RevocationList{},
 	}
 }
 
@@ -105,9 +107,9 @@ func (v *validator) IsRevoked(issuer string, serialNumber *big.Int) bool {
 	defer v.listsLock.RUnlock()
 
 	for _, list := range v.lists {
-		listIssuerName := list.TBSCertList.Issuer.String()
+		listIssuerName := list.Issuer.String()
 
-		for _, cert := range list.TBSCertList.RevokedCertificates {
+		for _, cert := range list.RevokedCertificates {
 			if listIssuerName == issuer &&
 				cert.SerialNumber.Cmp(serialNumber) == 0 {
 				return true
@@ -123,25 +125,25 @@ func (v *validator) updateCRL(endpoint string) error {
 	crl, ok := v.lists[endpoint]
 	v.listsLock.RUnlock()
 
-	if !ok || crl.HasExpired(nowFunc()) {
+	if !ok || crlHasExpired(crl, nowFunc()) {
 		return v.downloadCRL(endpoint)
 	}
 
 	return nil
 }
 
-func (v *validator) verifyCRL(crl *pkix.CertificateList) error {
+func (v *validator) verifyCRL(crl *x509.RevocationList) error {
 	v.certificatesLock.RLock()
 	defer v.certificatesLock.RUnlock()
 
-	issuerName := crl.TBSCertList.Issuer.String()
+	issuerName := crl.Issuer.String()
 
 	certificate, ok := v.certificates[issuerName]
 	if !ok {
 		return errors.New("CRL signature could not be validated against known certificates")
 	}
 
-	return certificate.CheckCRLSignature(crl)
+	return crl.CheckSignatureFrom(certificate)
 }
 
 func (v *validator) downloadCRL(endpoint string) error {
@@ -157,27 +159,32 @@ func (v *validator) downloadCRL(endpoint string) error {
 		return fmt.Errorf("unable to download CRL (url=%s): %w", endpoint, err)
 	}
 
-	crl, err := x509.ParseCRL(data)
+	crl, err := x509.ParseRevocationList(data)
 	if err != nil {
 		return fmt.Errorf("unable to parse downloaded CRL (url=%s): %w", endpoint, err)
 	}
 
 	if err := v.verifyCRL(crl); err != nil {
-		return fmt.Errorf("CRL verification failed (issuer=%s): %w", crl.TBSCertList.Issuer.String(), err)
+		return fmt.Errorf("CRL verification failed (issuer=%s): %w", crl.Issuer.String(), err)
 	}
 
 	v.listsLock.Lock()
 	defer v.listsLock.Unlock()
 
-	issuerName := crl.TBSCertList.Issuer.String()
+	issuerName := crl.Issuer.String()
 
-	for _, cert := range crl.TBSCertList.RevokedCertificates {
+	for _, cert := range crl.RevokedCertificates {
 		v.setRevoked(issuerName, cert.SerialNumber)
 	}
 
 	v.lists[endpoint] = crl
 
 	return nil
+}
+
+// crlHasExpired is a replacement for pkix.CertificateList.HasExpired
+func crlHasExpired(crl *x509.RevocationList, deadline time.Time) bool {
+	return !deadline.Before(crl.NextUpdate)
 }
 
 // IsSynced returns whether all the CRLs are downloaded and are not outdated (based on the offset)
@@ -202,7 +209,7 @@ func (v *validator) IsSynced(maxOffsetDays int) bool {
 	now := nowFunc().Add(time.Duration(-maxOffsetDays) * (time.Hour * 24))
 
 	for _, list := range v.lists {
-		if list.HasExpired(now) {
+		if crlHasExpired(list, now) {
 			return false
 		}
 	}
@@ -237,9 +244,8 @@ func (v *validator) appendCertificates(certificates []*x509.Certificate) {
 	}
 }
 
-// Configure adds a callback to the TLS config to check if the peer certificate was revoked
-func (v *validator) Configure(config *tls.Config, maxValidityDays int) {
-	config.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+func (v *validator) VerifyPeerCertificateFunction(maxValidityDays int) func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+	return func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 		// Import unknown certificates
 		var verifiedCerts []*x509.Certificate
 
@@ -342,6 +348,7 @@ func (v *validator) Sync() error {
 func (v *validator) SyncLoop(ctx context.Context) {
 	go func() {
 		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
 
 	processLoop:
 		for {
@@ -350,7 +357,7 @@ func (v *validator) SyncLoop(ctx context.Context) {
 				break processLoop
 			case <-ticker.C:
 				if err := v.Sync(); err != nil {
-					logrus.Errorf("CRL synchronization failed: %s", err.Error())
+					log.Logger().Errorf("CRL synchronization failed: %s", err.Error())
 				}
 			}
 		}

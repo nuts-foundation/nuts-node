@@ -23,7 +23,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
@@ -249,20 +248,19 @@ func TestValidator_IsRevoked(t *testing.T) {
 	})
 }
 
-func TestValidator_Configured(t *testing.T) {
+func TestValidator_VerifyPeerCertificateFunction(t *testing.T) {
 	crlValidator := NewValidator([]*x509.Certificate{}).(*validator)
 	crlValidator.bitSet = NewBitSet(1)
 
-	config := &tls.Config{}
-	crlValidator.Configure(config, 0)
+	f := crlValidator.VerifyPeerCertificateFunction(0)
 
-	assert.NotNil(t, config.VerifyPeerCertificate)
+	assert.NotNil(t, f)
 	data, err := os.ReadFile(pkiOverheidRootCA)
 	assert.NoError(t, err)
 
 	block, _ := pem.Decode(data)
 
-	err = config.VerifyPeerCertificate([][]byte{
+	err = f([][]byte{
 		block.Bytes,
 	}, nil)
 	assert.NoError(t, err)

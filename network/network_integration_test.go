@@ -50,10 +50,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/didstore"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	grpc2 "google.golang.org/grpc"
+	grpcLib "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 )
@@ -76,9 +75,9 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	// each other that way.
 	bootstrap := startNode(t, "integration_bootstrap", testDirectory)
 	node1 := startNode(t, "integration_node1", testDirectory)
-	node1.network.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"), did.DID{})
+	node1.network.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"), did.DID{}, nil)
 	node2 := startNode(t, "integration_node2", testDirectory)
-	node2.network.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"), did.DID{})
+	node2.network.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"), did.DID{}, nil)
 
 	// Wait until nodes are connected
 	if !test.WaitFor(t, func() (bool, error) {
@@ -156,7 +155,7 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 		expectedDocLogSize := 0
 
 		bootstrap, node1 := testNodes(t)
-		node1.network.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"), did.DID{})
+		node1.network.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"), did.DID{}, nil)
 
 		// Wait until nodes are connected
 		if !test.WaitFor(t, func() (bool, error) {
@@ -212,7 +211,7 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 		expectedDocLogSize++
 
 		// Wait until nodes are connected
-		node1.network.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"), did.DID{})
+		node1.network.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"), did.DID{}, nil)
 		if !test.WaitFor(t, func() (bool, error) {
 			return len(bootstrap.network.connectionManager.Peers()) == 1, nil
 		}, defaultTimeout, "time-out while waiting for nodes to be connected") {
@@ -239,7 +238,7 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 		}
 
 		// now connect and wait until nodes are connected
-		node1.network.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"), did.DID{})
+		node1.network.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"), did.DID{}, nil)
 		if !test.WaitFor(t, func() (bool, error) {
 			return len(bootstrap.network.connectionManager.Peers()) == 1, nil
 		}, defaultTimeout, "time-out while waiting for node 1 and 2 to be connected") {
@@ -269,7 +268,7 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 			cfg.Protocols = []int{2}
 			cfg.ProtocolV2.GossipInterval = 500
 		})
-		node1.network.connectionManager.Connect(nameToAddress(t, "integration_node2"), did.DID{})
+		node1.network.connectionManager.Connect(nameToAddress(t, "integration_node2"), did.DID{}, nil)
 
 		// Wait until nodes are connected
 		if !test.WaitFor(t, func() (bool, error) {
@@ -289,8 +288,8 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 		waitForTransactions("node 2", node2.network.state, expectedDocLogSize)
 
 		// connect node 3 to 1 and 2. It'll receive parallel updates from both nodes
-		node3.network.connectionManager.Connect(nameToAddress(t, "integration_node1"), did.DID{})
-		node3.network.connectionManager.Connect(nameToAddress(t, "integration_node2"), did.DID{})
+		node3.network.connectionManager.Connect(nameToAddress(t, "integration_node1"), did.DID{}, nil)
+		node3.network.connectionManager.Connect(nameToAddress(t, "integration_node2"), did.DID{}, nil)
 		waitForTransactions("node 3", node3.network.state, expectedDocLogSize)
 
 		xor1, _ := node1.network.state.XOR(dag.MaxLamportClock)
@@ -315,7 +314,7 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 			cfg.NodeDID = "did:nuts:node1"
 
 		})
-		node1.network.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"), did.MustParseDID("did:nuts:node2"))
+		node1.network.connectionManager.Connect(nameToAddress(t, "integration_bootstrap"), did.MustParseDID("did:nuts:node2"), nil)
 
 		// Wait until nodes are connected
 		if !test.WaitFor(t, func() (bool, error) {
@@ -360,7 +359,7 @@ func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 		})
 
 		// Now connect node1 to node2 and wait for them to set up
-		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"))
+		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"), nil)
 		if !test.WaitFor(t, func() (bool, error) {
 			return len(node1.network.connectionManager.Peers()) == 1 && len(node2.network.connectionManager.Peers()) == 1, nil
 		}, defaultTimeout, "time-out while waiting for node 1 and 2 to be connected") {
@@ -368,17 +367,12 @@ func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 		}
 
 		// Now instruct node2 to connect to node1
-		node2.network.connectionManager.Connect(nameToAddress(t, "node1"), did.MustParseDID("did:nuts:node1"))
+		node2.network.connectionManager.Connect(nameToAddress(t, "node1"), did.MustParseDID("did:nuts:node1"), nil)
 		time.Sleep(time.Second)
+		// Assert that the connectors of node1 and node2 are deduplicated: since node1 already connected to node2,
+		// node2 should not connect to node1 (deduplicated on nodeDID)
 		assert.Len(t, node1.network.connectionManager.Peers(), 1)
 		assert.Len(t, node2.network.connectionManager.Peers(), 1)
-
-		// Assert that the connectors of node1 and node2 are deduplicated: outbound connection is "merged" with existing inbound connection
-		// There should be no outbound connectors in the stats, since they're not returned for active connections
-		node1Diagnostics := node1.network.connectionManager.Diagnostics()
-		assert.Empty(t, node1Diagnostics[3].(grpc.ContactsStats))
-		node2Diagnostics := node2.network.connectionManager.Diagnostics()
-		assert.Empty(t, node2Diagnostics[3].(grpc.ContactsStats))
 	})
 	t.Run("bootstrap connections", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
@@ -393,7 +387,7 @@ func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 		})
 
 		// Now connect node1 add node2 as bootstrap connection and wait for them to set up
-		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.DID{})
+		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.DID{}, nil)
 		if !test.WaitFor(t, func() (bool, error) {
 			return len(node1.network.connectionManager.Peers()) == 1 && len(node2.network.connectionManager.Peers()) == 1, nil
 		}, defaultTimeout, "time-out while waiting for node 1 to connect to node 2") {
@@ -401,7 +395,7 @@ func TestNetworkIntegration_NodesConnectToEachOther(t *testing.T) {
 		}
 
 		// Now instruct node2 to connect to node1. non-bootstrap, so should be accepted
-		node2.network.connectionManager.Connect(nameToAddress(t, "node1"), did.MustParseDID("did:nuts:node1"))
+		node2.network.connectionManager.Connect(nameToAddress(t, "node1"), did.MustParseDID("did:nuts:node1"), nil)
 		if !test.WaitFor(t, func() (bool, error) {
 			return len(node1.network.connectionManager.Peers()) == 2 && len(node2.network.connectionManager.Peers()) == 2, nil
 		}, defaultTimeout, "time-out while waiting for node 2 to connect to node 1") {
@@ -426,7 +420,7 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 			cfg.NodeDID = "did:nuts:node2"
 		})
 		// Now connect node1 to node2 and wait for them to set up
-		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"))
+		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"), nil)
 
 		test.WaitFor(t, func() (bool, error) {
 			return len(node1.network.connectionManager.Peers()) == 1 && len(node2.network.connectionManager.Peers()) == 1, nil
@@ -447,12 +441,11 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 		node1.network.nodeDIDResolver.(*transport.FixedNodeDIDResolver).NodeDID = *malloryDID
 
 		// Now connect node1 to node2 and wait for them to set up
-		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"))
+		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"), nil)
 		if !test.WaitFor(t, func() (bool, error) {
-			diagnostics := node1.network.connectionManager.Diagnostics()
-			connectorsStats := diagnostics[3].(grpc.ContactsStats)
 			// Assert we tried to connect at least once
-			return connectorsStats[0].Attempts >= 1, nil
+			contacts := node1.network.connectionManager.Contacts()
+			return contacts[0].Attempts >= 1, nil
 		}, defaultTimeout, "time-out while waiting for node 1 to try to connect") {
 			return
 		}
@@ -476,12 +469,11 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 		node2.network.nodeDIDResolver.(*transport.FixedNodeDIDResolver).NodeDID = *malloryDID
 
 		// Now connect node1 to node2 and wait for them to set up
-		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"))
+		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"), nil)
 		if !test.WaitFor(t, func() (bool, error) {
-			diagnostics := node1.network.connectionManager.Diagnostics()
-			connectorsStats := diagnostics[3].(grpc.ContactsStats)
 			// Assert we tried to connect at least once
-			return connectorsStats[0].Attempts >= 1, nil
+			contacts := node1.network.connectionManager.Contacts()
+			return contacts[0].Attempts >= 1, nil
 		}, defaultTimeout, "time-out while waiting for node 1 to try to connect") {
 			return
 		}
@@ -493,6 +485,7 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 }
 
 func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
+	ctx := audit.TestContext()
 	t.Run("happy flow", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		resetIntegrationTest(t)
@@ -506,18 +499,18 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			cfg.NodeDID = "did:nuts:node2"
 		})
 		// Now connect node1 to node2 and wait for them to set up
-		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"))
+		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"), nil)
 
 		test.WaitFor(t, func() (bool, error) {
 			return len(node1.network.connectionManager.Peers()) == 1 && len(node2.network.connectionManager.Peers()) == 1, nil
 		}, defaultTimeout, "time-out while waiting for node1 to connect to node2")
 
-		node1DID, _ := node1.network.nodeDIDResolver.Resolve()
-		node2DID, _ := node2.network.nodeDIDResolver.Resolve()
+		node1DID, _ := node1.network.nodeDIDResolver.Resolve(ctx)
+		node2DID, _ := node2.network.nodeDIDResolver.Resolve(ctx)
 		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
 			WithAttachKey().
 			WithPrivate([]did.DID{node1DID, node2DID})
-		tx, err := node1.network.CreateTransaction(audit.TestContext(), tpl)
+		tx, err := node1.network.CreateTransaction(ctx, tpl)
 		require.NoError(t, err)
 		waitForTransaction(t, tx, "node2")
 
@@ -540,7 +533,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			cfg.NodeDID = "did:nuts:node2"
 		})
 		// Now connect node1 to node2 and wait for them to set up
-		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"))
+		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"), nil)
 
 		test.WaitFor(t, func() (bool, error) {
 			return len(node1.network.connectionManager.Peers()) == 1 && len(node2.network.connectionManager.Peers()) == 1, nil
@@ -561,12 +554,12 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			require.NoError(t, err)
 		})
 
-		node1DID, _ := node1.network.nodeDIDResolver.Resolve()
-		node2DID, _ := node2.network.nodeDIDResolver.Resolve()
+		node1DID, _ := node1.network.nodeDIDResolver.Resolve(ctx)
+		node2DID, _ := node2.network.nodeDIDResolver.Resolve(ctx)
 		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
 			WithAttachKey().
 			WithPrivate([]did.DID{node1DID, node2DID})
-		_, err = node1.network.CreateTransaction(audit.TestContext(), tpl)
+		_, err = node1.network.CreateTransaction(ctx, tpl)
 		require.NoError(t, err)
 
 		test.WaitFor(t, func() (bool, error) {
@@ -592,19 +585,19 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			cfg.NodeDID = "did:nuts:node3"
 		})
 		// Now connect node1 to node2 and wait for them to set up
-		node2.network.connectionManager.Connect(nameToAddress(t, "node1"), did.MustParseDID("did:nuts:node1"))
-		node3.network.connectionManager.Connect(nameToAddress(t, "node1"), did.MustParseDID("did:nuts:node1"))
+		node2.network.connectionManager.Connect(nameToAddress(t, "node1"), did.MustParseDID("did:nuts:node1"), nil)
+		node3.network.connectionManager.Connect(nameToAddress(t, "node1"), did.MustParseDID("did:nuts:node1"), nil)
 
 		test.WaitFor(t, func() (bool, error) {
 			return len(node1.network.connectionManager.Peers()) == 2, nil
 		}, defaultTimeout, "time-out while waiting for nodes to connect")
 
-		node1DID, _ := node1.network.nodeDIDResolver.Resolve()
-		node2DID, _ := node2.network.nodeDIDResolver.Resolve()
+		node1DID, _ := node1.network.nodeDIDResolver.Resolve(ctx)
+		node2DID, _ := node2.network.nodeDIDResolver.Resolve(ctx)
 		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
 			WithAttachKey().
 			WithPrivate([]did.DID{node1DID, node2DID})
-		tx, err := node1.network.CreateTransaction(audit.TestContext(), tpl)
+		tx, err := node1.network.CreateTransaction(ctx, tpl)
 		require.NoError(t, err)
 		arrived := test.WaitForNoFail(t, func() (bool, error) {
 			mutex.Lock()
@@ -637,8 +630,8 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			cfg.NodeDID = "did:nuts:node3"
 		})
 		// Make a full mesh
-		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"))
-		node2.network.connectionManager.Connect(nameToAddress(t, "node3"), did.MustParseDID("did:nuts:node3"))
+		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"), nil)
+		node2.network.connectionManager.Connect(nameToAddress(t, "node3"), did.MustParseDID("did:nuts:node3"), nil)
 
 		test.WaitFor(t, func() (bool, error) {
 			return len(node1.network.connectionManager.Peers()) == 1, nil
@@ -650,9 +643,9 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			return len(node3.network.connectionManager.Peers()) == 1, nil
 		}, defaultTimeout, "time-out while waiting for nodes to connect")
 
-		node1DID, _ := node1.network.nodeDIDResolver.Resolve()
-		node2DID, _ := node2.network.nodeDIDResolver.Resolve()
-		node3DID, _ := node3.network.nodeDIDResolver.Resolve()
+		node1DID, _ := node1.network.nodeDIDResolver.Resolve(ctx)
+		node2DID, _ := node2.network.nodeDIDResolver.Resolve(ctx)
+		node3DID, _ := node3.network.nodeDIDResolver.Resolve(ctx)
 		// Random order for PAL header
 		pal := []did.DID{node1DID, node2DID, node3DID}
 		rand.Shuffle(len(pal), func(i, j int) {
@@ -661,7 +654,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
 			WithAttachKey().
 			WithPrivate(pal)
-		tx, err := node1.network.CreateTransaction(audit.TestContext(), tpl)
+		tx, err := node1.network.CreateTransaction(ctx, tpl)
 		require.NoError(t, err)
 		waitForTransaction(t, tx, "node1", "node2", "node3")
 	})
@@ -680,18 +673,18 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		})
 
 		// create some transactions
-		node1DID, _ := node1.network.nodeDIDResolver.Resolve()
-		node2DID, _ := node2.network.nodeDIDResolver.Resolve()
+		node1DID, _ := node1.network.nodeDIDResolver.Resolve(ctx)
+		node2DID, _ := node2.network.nodeDIDResolver.Resolve(ctx)
 		for i := 0; i < 10; i++ {
 			tpl := TransactionTemplate(payloadType, []byte(fmt.Sprintf("private TX%d", i)), key).
 				WithAttachKey().
 				WithPrivate([]did.DID{node1DID, node2DID})
-			_, err := node1.network.CreateTransaction(audit.TestContext(), tpl)
+			_, err := node1.network.CreateTransaction(ctx, tpl)
 			require.NoError(t, err)
 		}
 
 		// Now connect node1 to node2 and wait for them to set up
-		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"))
+		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"), nil)
 
 		test.WaitFor(t, func() (bool, error) {
 			return len(node1.network.connectionManager.Peers()) == 1 && len(node2.network.connectionManager.Peers()) == 1, nil
@@ -721,18 +714,18 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			serverConfig.Strictmode = false
 		})
 		// Now connect node1 to node2 and wait for them to set up
-		node1.network.connectionManager.Connect(nameToAddress(t, "noTLS2"), did.MustParseDID("did:nuts:node2"))
+		node1.network.connectionManager.Connect(nameToAddress(t, "noTLS2"), did.MustParseDID("did:nuts:node2"), nil)
 
 		test.WaitFor(t, func() (bool, error) {
 			return len(node1.network.connectionManager.Peers()) == 1 && len(node2.network.connectionManager.Peers()) == 1, nil
 		}, defaultTimeout, "time-out while waiting for node1 to connect to node2")
 
-		node1DID, _ := node1.network.nodeDIDResolver.Resolve()
-		node2DID, _ := node2.network.nodeDIDResolver.Resolve()
+		node1DID, _ := node1.network.nodeDIDResolver.Resolve(ctx)
+		node2DID, _ := node2.network.nodeDIDResolver.Resolve(ctx)
 		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
 			WithAttachKey().
 			WithPrivate([]did.DID{node1DID, node2DID})
-		tx, err := node1.network.CreateTransaction(audit.TestContext(), tpl)
+		tx, err := node1.network.CreateTransaction(ctx, tpl)
 		require.NoError(t, err)
 		waitForTransaction(t, tx, "noTLS2")
 
@@ -740,6 +733,70 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		xor1, _ := node1.network.state.XOR(dag.MaxLamportClock)
 		xor2, _ := node2.network.state.XOR(dag.MaxLamportClock)
 		assert.Equal(t, xor1.String(), xor2.String())
+	})
+
+	t.Run("spoofing peerID does not change the recipient of a response message", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		resetIntegrationTest(t)
+		key := nutsCrypto.NewTestKey("key")
+
+		// Start 2 nodes: node1 and node2, node1 sends a private TX to node 2
+		node1 := startNode(t, "node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
+			cfg.NodeDID = "did:nuts:node1"
+		})
+		node2 := startNode(t, "node2", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
+			cfg.NodeDID = "did:nuts:node2"
+		})
+		eve := startNode(t, "node3", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
+			cfg.NodeDID = "did:nuts:node3"
+		})
+		grpc.SetPeerID(t, eve.network.connectionManager, node2.network.peerID) // eve uses node2's peerID
+
+		// Let eve connect first, so she is the first in the node1's connection list
+		eve.network.connectionManager.Connect(nameToAddress(t, "node1"), did.MustParseDID("did:nuts:node1"), nil)
+		// eve also must connect to node2 so the gossip propagates from node1 via eve to node2 (gossipManager ignores duplicate peerIDs). Could be any other peer than node1 though.
+		eve.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"), nil)
+		test.WaitFor(t, func() (bool, error) {
+			return len(eve.network.connectionManager.Peers()) == 2, nil
+		}, defaultTimeout, "time-out while waiting for nodes to connect")
+
+		// Connect node1 and node2
+		node2.network.connectionManager.Connect(nameToAddress(t, "node1"), did.MustParseDID("did:nuts:node1"), nil)
+		test.WaitFor(t, func() (bool, error) {
+			return len(node2.network.connectionManager.Peers()) == 2, nil // make sure node2 has enough peers to learn about the private Tx
+		}, defaultTimeout, "time-out while waiting for nodes to connect")
+
+		node1DID, _ := node1.network.nodeDIDResolver.Resolve(ctx)
+		node2DID, _ := node2.network.nodeDIDResolver.Resolve(ctx)
+		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
+			WithAttachKey().
+			WithPrivate([]did.DID{node1DID, node2DID})
+		tx, err := node1.network.CreateTransaction(ctx, tpl)
+		require.NoError(t, err)
+		arrivedAtNode2 := test.WaitForNoFail(t, func() (bool, error) {
+			mutex.Lock()
+			defer mutex.Unlock()
+			for _, receivedDoc := range receivedTransactions["node2"] {
+				if tx.Ref().Equals(receivedDoc.Ref()) {
+					return true, nil
+				}
+			}
+			return false, nil
+		}, time.Second)
+		arrivedAtEve := test.WaitForNoFail(t, func() (bool, error) {
+			mutex.Lock()
+			defer mutex.Unlock()
+			for _, receivedDoc := range receivedTransactions["node3"] {
+				if tx.Ref().Equals(receivedDoc.Ref()) {
+					return true, nil
+				}
+			}
+			return false, nil
+		}, time.Second)
+
+		// make sure eve does not have the payload
+		assert.False(t, arrivedAtEve)
+		assert.True(t, arrivedAtNode2)
 	})
 }
 
@@ -757,7 +814,7 @@ func TestNetworkIntegration_OutboundConnection11Reconnects(t *testing.T) {
 	node2 := startNode(t, "node2", testDirectory)
 
 	// Now connect node1 to node2 and wait for them to set up
-	node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.DID{})
+	node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.DID{}, nil)
 	if !test.WaitFor(t, func() (bool, error) {
 		return len(node1.network.connectionManager.Peers()) == 1 && len(node2.network.connectionManager.Peers()) == 1, nil
 	}, defaultTimeout, "time-out while waiting for node 1 and 2 to be connected") {
@@ -793,7 +850,7 @@ func TestNetworkIntegration_AddedTransactionsAsEvents(t *testing.T) {
 	node2 := startNode(t, "node2", testDirectory)
 
 	// Now connect node1 to node2 and wait for them to set up
-	node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.DID{})
+	node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.DID{}, nil)
 	if !test.WaitFor(t, func() (bool, error) {
 		return len(node1.network.connectionManager.Peers()) == 1 && len(node2.network.connectionManager.Peers()) == 1, nil
 	}, defaultTimeout, "time-out while waiting for node 1 and 2 to be connected") {
@@ -845,7 +902,7 @@ func TestNetworkIntegration_TLSOffloading(t *testing.T) {
 			})
 
 			// Create client (node2) that connects to server node
-			grpcConn, err := grpc2.Dial(nameToAddress(t, "node1"), grpc2.WithTransportCredentials(insecure.NewCredentials()))
+			grpcConn, err := grpcLib.Dial(nameToAddress(t, "node1"), grpcLib.WithTransportCredentials(insecure.NewCredentials()))
 			require.NoError(t, err)
 			defer grpcConn.Close()
 			ctx := context.Background()
@@ -879,7 +936,7 @@ func TestNetworkIntegration_TLSOffloading(t *testing.T) {
 			})
 
 			// Create client (node2) that connects to server node
-			grpcConn, err := grpc2.Dial(nameToAddress(t, "node1"), grpc2.WithTransportCredentials(insecure.NewCredentials()))
+			grpcConn, err := grpcLib.Dial(nameToAddress(t, "node1"), grpcLib.WithTransportCredentials(insecure.NewCredentials()))
 			require.NoError(t, err)
 			ctx := context.Background()
 			outgoingMD := metadata.MD{}
@@ -970,8 +1027,8 @@ func waitForTransaction(t *testing.T, tx dag.Transaction, receivers ...string) b
 
 func startNode(t *testing.T, name string, testDirectory string, opts ...func(serverConfig *core.ServerConfig, moduleConfig *Config)) node {
 	log.Logger().Infof("Starting node: %s", name)
-	logrus.SetLevel(logrus.DebugLevel)
 	serverConfig := core.NewServerConfig()
+	serverConfig.Verbosity = "debug"
 	_ = serverConfig.Load(core.FlagSet())
 	serverConfig.Datadir = path.Join(testDirectory, name)
 	serverConfig.LegacyTLS.Enabled = true

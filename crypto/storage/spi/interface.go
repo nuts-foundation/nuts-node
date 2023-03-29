@@ -39,13 +39,13 @@ var ErrKeyAlreadyExists = errors.New("key already exists")
 type Storage interface {
 	core.HealthCheckable
 	// GetPrivateKey from the storage backend and return its handler as an implementation of crypto.Signer.
-	GetPrivateKey(kid string) (crypto.Signer, error)
+	GetPrivateKey(ctx context.Context, kid string) (crypto.Signer, error)
 	// PrivateKeyExists checks if the private key indicated with the kid is stored in the storage backend.
-	PrivateKeyExists(kid string) bool
+	PrivateKeyExists(ctx context.Context, kid string) bool
 	// SavePrivateKey stores the key under the kid in the storage backend.
-	SavePrivateKey(kid string, key crypto.PrivateKey) error
+	SavePrivateKey(ctx context.Context, kid string, key crypto.PrivateKey) error
 	// ListPrivateKeys returns the KIDs of the private keys that are present. Returns a []string(nil) if there was a problem.
-	ListPrivateKeys() []string
+	ListPrivateKeys(ctx context.Context) []string
 }
 
 // PublicKeyEntry is a public key entry also containing the period it's valid for.

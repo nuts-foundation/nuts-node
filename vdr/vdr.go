@@ -124,13 +124,55 @@ func (r *VDR) ConflictedDocuments() ([]did.Document, []types.DocumentMetadata, e
 // Diagnostics returns the diagnostics for this engine
 func (r *VDR) Diagnostics() []core.DiagnosticResult {
 	// return # conflicted docs
-	count, _ := r.store.ConflictedCount()
+	totalCount := 0
+	ownedCount := 0
+
+	// uses dedicated storage shelf for conflicted docs, does not loop over all documents
+	err := r.store.Conflicted(func(doc did.Document, metadata types.DocumentMetadata) error {
+		totalCount++
+		controllers, err := r.didDocResolver.ResolveControllers(doc, &types.ResolveMetadata{Hash: &metadata.Hash})
+		if err != nil {
+			log.Logger().Errorf("failed to resolve controller for %s: %v", doc.ID, err)
+			return nil
+		}
+		for _, controller := range controllers {
+			for _, vr := range controller.CapabilityInvocation {
+				// TODO: Fix context.TODO() when we have a context in the Diagnostics() method
+				if r.keyStore.Exists(context.TODO(), vr.ID.String()) {
+					ownedCount++
+					return nil
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		log.Logger().Errorf("Failed to resolve conflicted documents diagnostics: %v", err)
+	}
+
 	docCount, _ := r.store.DocumentCount()
 
+	// to go from int+error to interface{}
+	countOrError := func(count int, err error) interface{} {
+		if err != nil {
+			return "error"
+		}
+		return count
+	}
+
 	return []core.DiagnosticResult{
-		&core.GenericDiagnosticResult{
-			Title:   "conflicted_did_documents_count",
-			Outcome: count,
+		core.DiagnosticResultMap{
+			Title: "conflicted_did_documents",
+			Items: []core.DiagnosticResult{
+				&core.GenericDiagnosticResult{
+					Title:   "total_count",
+					Outcome: countOrError(totalCount, err),
+				},
+				&core.GenericDiagnosticResult{
+					Title:   "owned_count",
+					Outcome: countOrError(ownedCount, err),
+				},
+			},
 		},
 		&core.GenericDiagnosticResult{
 			Title:   "did_documents_count",
@@ -196,7 +238,7 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 		return err
 	}
 
-	controller, key, err := r.resolveControllerWithKey(*currentDIDDocument)
+	controller, key, err := r.resolveControllerWithKey(ctx, *currentDIDDocument)
 	if err != nil {
 		return err
 	}
@@ -226,7 +268,7 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 	return err
 }
 
-func (r *VDR) resolveControllerWithKey(doc did.Document) (did.Document, crypto.Key, error) {
+func (r *VDR) resolveControllerWithKey(ctx context.Context, doc did.Document) (did.Document, crypto.Key, error) {
 	controllers, err := r.didDocResolver.ResolveControllers(doc, nil)
 	if err != nil {
 		return did.Document{}, nil, fmt.Errorf("error while finding controllers for document: %w", err)
@@ -238,7 +280,7 @@ func (r *VDR) resolveControllerWithKey(doc did.Document) (did.Document, crypto.K
 	var key crypto.Key
 	for _, c := range controllers {
 		for _, cik := range c.CapabilityInvocation {
-			key, err = r.keyStore.Resolve(cik.ID.String())
+			key, err = r.keyStore.Resolve(ctx, cik.ID.String())
 			if err == nil {
 				return c, key, nil
 			}

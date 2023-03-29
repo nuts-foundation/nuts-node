@@ -19,6 +19,7 @@
 package grpc
 
 import (
+	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -52,7 +53,7 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 	// Resolve peer TLS certificate DNS names
 	tlsInfo, isTLS := grpcPeer.AuthInfo.(credentials.TLSInfo)
 	if !isTLS || len(tlsInfo.State.PeerCertificates) == 0 {
-		return peer, fmt.Errorf("missing TLS info (nodeDID=%s)", nodeDID)
+		return peer, errors.New("missing TLS info")
 	}
 	peerCertificate := tlsInfo.State.PeerCertificates[0]
 
@@ -65,7 +66,7 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 		nutsCommURL, err = url.Parse(nutsCommURLStr)
 	}
 	if err != nil {
-		return peer, fmt.Errorf("can't resolve %s service (nodeDID=%s): %w", transport.NutsCommServiceType, nodeDID, err)
+		return peer, fmt.Errorf("can't resolve %s service: %w", transport.NutsCommServiceType, err)
 	}
 
 	// Check whether one of the DNS names matches one of the NutsComm endpoints
@@ -74,7 +75,7 @@ func (t tlsAuthenticator) Authenticate(nodeDID did.DID, grpcPeer grpcPeer.Peer, 
 		log.Logger().
 			WithField(core.LogFieldDID, nodeDID).
 			Debugf("DNS names in peer certificate: %s", strings.Join(peerCertificate.DNSNames, ", "))
-		return peer, fmt.Errorf("none of the DNS names in the peer's TLS certificate match the NutsComm endpoint (nodeDID=%s)", nodeDID)
+		return peer, errors.New("none of the DNS names in the peer's TLS certificate match the NutsComm endpoint")
 	}
 
 	log.Logger().

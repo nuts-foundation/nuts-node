@@ -124,3 +124,31 @@ type Config struct {
 func (cfg Config) tlsEnabled() bool {
 	return cfg.trustStore != nil
 }
+
+func newServerTLSConfig(config Config) *tls.Config {
+	tlsConfig := newTLSConfig(config)
+	tlsConfig.ClientCAs = config.trustStore
+	tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+	tlsConfig.Certificates = []tls.Certificate{
+		*config.serverCert,
+	}
+	return tlsConfig
+}
+
+func newClientTLSConfig(config Config) *tls.Config {
+	tlsConfig := newTLSConfig(config)
+	tlsConfig.RootCAs = config.trustStore
+	tlsConfig.Certificates = []tls.Certificate{
+		*config.clientCert,
+	}
+	return tlsConfig
+}
+
+func newTLSConfig(config Config) *tls.Config {
+	tlsConfig := &tls.Config{
+		MinVersion:            core.MinTLSVersion,
+		VerifyPeerCertificate: config.crlValidator.VerifyPeerCertificateFunction(config.maxCRLValidityDays),
+	}
+
+	return tlsConfig
+}

@@ -290,7 +290,6 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 	vcID := issuerID
 	vcID.Fragment = "1"
 	subjectIDString := subjectID.String()
-	contextURI := ssi.MustParseURI("")
 	testCredential := ssi.MustParseURI("TestCredential")
 
 	foundVC := vc.VerifiableCredential{
@@ -302,7 +301,7 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 
 	t.Run("ok - with subject, no results", func(t *testing.T) {
 		testContext := newMockContext(t)
-		testContext.mockIssuer.EXPECT().SearchCredential(contextURI, testCredential, *issuerDID, &subjectID)
+		testContext.mockIssuer.EXPECT().SearchCredential(testCredential, *issuerDID, &subjectID)
 
 		testContext.echo.EXPECT().JSON(http.StatusOK, SearchVCResults{VerifiableCredentials: []SearchVCResult{}})
 
@@ -317,7 +316,7 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 
 	t.Run("ok - without subject, 1 result", func(t *testing.T) {
 		testContext := newMockContext(t)
-		testContext.mockIssuer.EXPECT().SearchCredential(contextURI, testCredential, *issuerDID, nil).Return([]VerifiableCredential{foundVC}, nil)
+		testContext.mockIssuer.EXPECT().SearchCredential(testCredential, *issuerDID, nil).Return([]VerifiableCredential{foundVC}, nil)
 		testContext.mockVerifier.EXPECT().GetRevocation(vcID).Return(nil, verifier.ErrNotFound)
 		testContext.echo.EXPECT().JSON(http.StatusOK, SearchVCResults{VerifiableCredentials: []SearchVCResult{{VerifiableCredential: foundVC}}})
 
@@ -332,7 +331,7 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 	t.Run("ok - without subject, 1 result, revoked", func(t *testing.T) {
 		revocation := &Revocation{Reason: "because of reasons"}
 		testContext := newMockContext(t)
-		testContext.mockIssuer.EXPECT().SearchCredential(contextURI, testCredential, *issuerDID, nil).Return([]VerifiableCredential{foundVC}, nil)
+		testContext.mockIssuer.EXPECT().SearchCredential(testCredential, *issuerDID, nil).Return([]VerifiableCredential{foundVC}, nil)
 		testContext.mockVerifier.EXPECT().GetRevocation(vcID).Return(revocation, nil)
 		testContext.echo.EXPECT().JSON(http.StatusOK, SearchVCResults{VerifiableCredentials: []SearchVCResult{{VerifiableCredential: foundVC, Revocation: revocation}}})
 
@@ -384,7 +383,7 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 
 	t.Run("error - CredentialResolver returns error", func(t *testing.T) {
 		testContext := newMockContext(t)
-		testContext.mockIssuer.EXPECT().SearchCredential(contextURI, testCredential, *issuerDID, nil).Return(nil, errors.New("b00m!"))
+		testContext.mockIssuer.EXPECT().SearchCredential(testCredential, *issuerDID, nil).Return(nil, errors.New("b00m!"))
 
 		params := SearchIssuedVCsParams{
 			CredentialType: "TestCredential",

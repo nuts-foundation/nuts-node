@@ -86,3 +86,5 @@ requesting an access token from another node on ``/n2n/auth/v1/accesstoken`` doe
 ``http.default.cors.origin`` does not allow a wildcard (``*``),
 json-ld context can only be downloaded from trusted domains configured in ``jsonld.contexts.remoteallowlist``,
 and the ``internalratelimiter`` is always on.
+
+Interacting with remote Nuts nodes requires HTTPS: it will refuse to connect to plain HTTP endpoints when in strict mode.

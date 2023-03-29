@@ -6,7 +6,7 @@ package crl
 
 import (
 	context "context"
-	tls "crypto/tls"
+	x509 "crypto/x509"
 	big "math/big"
 	reflect "reflect"
 
@@ -34,18 +34,6 @@ func NewMockValidator(ctrl *gomock.Controller) *MockValidator {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockValidator) EXPECT() *MockValidatorMockRecorder {
 	return m.recorder
-}
-
-// Configure mocks base method.
-func (m *MockValidator) Configure(config *tls.Config, maxValidityDays int) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Configure", config, maxValidityDays)
-}
-
-// Configure indicates an expected call of Configure.
-func (mr *MockValidatorMockRecorder) Configure(config, maxValidityDays interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Configure", reflect.TypeOf((*MockValidator)(nil).Configure), config, maxValidityDays)
 }
 
 // IsRevoked mocks base method.
@@ -100,4 +88,18 @@ func (m *MockValidator) SyncLoop(ctx context.Context) {
 func (mr *MockValidatorMockRecorder) SyncLoop(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncLoop", reflect.TypeOf((*MockValidator)(nil).SyncLoop), ctx)
+}
+
+// VerifyPeerCertificateFunction mocks base method.
+func (m *MockValidator) VerifyPeerCertificateFunction(maxValidityDays int) func([][]byte, [][]*x509.Certificate) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "VerifyPeerCertificateFunction", maxValidityDays)
+	ret0, _ := ret[0].(func([][]byte, [][]*x509.Certificate) error)
+	return ret0
+}
+
+// VerifyPeerCertificateFunction indicates an expected call of VerifyPeerCertificateFunction.
+func (mr *MockValidatorMockRecorder) VerifyPeerCertificateFunction(maxValidityDays interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifyPeerCertificateFunction", reflect.TypeOf((*MockValidator)(nil).VerifyPeerCertificateFunction), maxValidityDays)
 }

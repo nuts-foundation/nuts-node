@@ -58,7 +58,7 @@ func isAlgorithmSupported(alg jwa.SignatureAlgorithm) bool {
 
 // SignJWT creates a JWT from the given claims and signs it with the given key.
 func (client *Crypto) SignJWT(ctx context.Context, claims map[string]interface{}, key interface{}) (string, error) {
-	privateKey, kid, err := client.getPrivateKey(key)
+	privateKey, kid, err := client.getPrivateKey(ctx, key)
 	if err != nil {
 		return "", err
 	}
@@ -80,7 +80,7 @@ func (client *Crypto) SignJWT(ctx context.Context, claims map[string]interface{}
 
 // SignJWS creates a signed JWS using the indicated key and map of headers and payload as bytes.
 func (client *Crypto) SignJWS(ctx context.Context, payload []byte, headers map[string]interface{}, key interface{}, detached bool) (string, error) {
-	privateKey, kid, err := client.getPrivateKey(key)
+	privateKey, kid, err := client.getPrivateKey(ctx, key)
 	if err != nil {
 		return "", err
 	}
@@ -325,7 +325,7 @@ func EncryptJWE(payload []byte, protectedHeaders map[string]interface{}, publicK
 	return string(encoded), err
 }
 
-func (client *Crypto) getPrivateKey(key interface{}) (crypto.Signer, string, error) {
+func (client *Crypto) getPrivateKey(ctx context.Context, key interface{}) (crypto.Signer, string, error) {
 	var kid string
 	switch k := key.(type) {
 	case exportableKey:
@@ -338,7 +338,7 @@ func (client *Crypto) getPrivateKey(key interface{}) (crypto.Signer, string, err
 		return nil, "", errors.New("provided key must be either string or Key")
 	}
 
-	privateKey, err := client.storage.GetPrivateKey(kid)
+	privateKey, err := client.storage.GetPrivateKey(ctx, kid)
 	if err != nil {
 		if errors.Is(err, spi.ErrNotFound) {
 			return nil, "", ErrPrivateKeyNotFound

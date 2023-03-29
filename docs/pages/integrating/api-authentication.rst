@@ -30,6 +30,7 @@ JWT Generation in Code
 ----------------------
 
 JWT's can be generated in code and must meet the following requirements:
+
 * The ``iss`` field must be present
 * The ``iss`` field must match the username specified in the comment of an ``authorized_keys`` entry
 * The ``sub`` field must be present and non-empty (set it to the issuer if you are unsure which value to use)
@@ -49,6 +50,7 @@ JWT's can be generated in code and must meet the following requirements:
 Forbidden JWT Fields
 --------------------
 The following entries are forbidden in JWTs:
+
 * The ``jwk`` field, which embeds the public key, is forbidden
 * The ``jku`` field, which embeds a URL for fetching the public key, is forbidden
 * The ``x5c`` field, which embeds an X.509 certificate chain, is forbidden
@@ -62,6 +64,7 @@ Libraries for generating JSON Web Tokens are `available for all major programmin
 Calling Application Requirements
 --------------------------------
 Generally speaking for your application to access the protected API endpoints the following process must be followed:
+
 1. Generate a private Ed25519, ECDSA, or RSA (>=2048-bit) key. Use Ed25519 if unsure which type to use.
 2. Generate an ``authorized_keys`` entry for your public key and configure the nuts-node with it. See :ref:`Configuring for Production <production-configuration>`.
 3. Create a JWT, meeting the above specifications
@@ -94,13 +97,32 @@ Generating authorized_keys Representation
 
 To generate a key's authorized_keys form using ssh-keygen:
  .. code-block:: shell
+ 
     ssh-keygen -y -f /path/to/keyfile
 
 The above ssh-keygen command unfortunately fails for Ed25519 PEM keys at the time of this writing due to a `bug <https://bugzilla.mindrot.org/show_bug.cgi?id=3195>`_ and poor recent support for Ed25519 in libcrypto packages. The nuts-jwt-generator method below is recommended until this bug is fixed.
 
 To generate a key's authorized_keys form using nuts-jwt-generator:
  .. code-block:: shell
+ 
     nuts-jwt-generator -i /path/to/keyfile --export-authorized-key
+    
+Audit Log Entries
+-----------------
+
+When a user key is authorized (at server start) you will see an audit log entry such as the following:
+
+``AUDIT[0000] Registered key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOcJQ6jKFvO1fGqhRAHGK3XeJrUei+HcfuTr4phgW+M+ nuts-demo-ehr  actor=127.0.0.1 event=AccessKeyRegistered module=http operation=tokenV2.middleware``
+
+
+When a request is unauthorized you will see an audit log entry such as the following:
+
+``AUDIT[4481] Access denied: missing/malformed credential   actor="::1" event=AccessDenied module=http operation=tokenV2.middleware``
+
+    
+When a request is authorized you will see an audit log entry such as the following:
+
+``AUDIT[4481] Access granted to user 'nuts-registry-admin-demo' with JWT 80e55d60-7b56-4891-b635-bc55505c6a56 issued to demo@nuts.nl by nuts-registry-admin-demo  actor=demo@nuts.nl event=AccessGranted module=http operation=tokenV2.middleware``
 
 Legacy Token Authentication
 ***************************

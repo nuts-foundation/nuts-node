@@ -16,7 +16,7 @@
  *
  */
 
-package v1
+package client
 
 import (
 	"context"
@@ -25,7 +25,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/core"
 )
@@ -60,12 +59,10 @@ func NewHTTPClient(serverAddress string, timeout time.Duration, opts ...ClientOp
 }
 
 // CreateAccessToken creates an access token and overrides the url by the 'endpointURL' input argument
-func (h HTTPClient) CreateAccessToken(endpointURL url.URL, bearerToken string) (*AccessTokenResponse, error) {
-	ctx := context.Background()
-
+func (h HTTPClient) CreateAccessToken(ctx context.Context, endpointURL url.URL, bearerToken string) (*AccessTokenResponse, error) {
 	values := url.Values{}
 	values.Set("assertion", bearerToken)
-	values.Set("grant_type", auth.JwtBearerGrantType)
+	values.Set("grant_type", JwtBearerGrantType)
 
 	response, err := h.client.CreateAccessTokenWithBody(
 		ctx,

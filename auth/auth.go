@@ -43,17 +43,19 @@ var ErrMissingPublicURL = errors.New("auth.publicurl must be set in strictmode")
 
 const contractValidity = 60 * time.Minute
 
+var _ AuthenticationServices = (*Auth)(nil)
+
 // Auth is the main struct of the Auth service
 type Auth struct {
 	config          Config
 	jsonldManager   jsonld.JSONLD
-	oauthClient     oauth.Client
+	authzServer     oauth.AuthorizationServer
+	relyingParty    oauth.RelyingParty
 	contractNotary  services.ContractNotary
 	serviceResolver didman.CompoundServiceResolver
 	keyStore        crypto.KeyStore
 	registry        didstore.Store
 	vcr             vcr.VCR
-	tlsConfig       *tls.Config
 	crlValidator    crl.Validator
 	shutdownFunc    func()
 }
@@ -66,16 +68,6 @@ func (auth *Auth) Name() string {
 // Config returns the actual config of the module.
 func (auth *Auth) Config() interface{} {
 	return &auth.config
-}
-
-// HTTPTimeout returns the HTTP timeout to use for the Auth API HTTP client
-func (auth *Auth) HTTPTimeout() time.Duration {
-	return time.Duration(auth.config.HTTPTimeout) * time.Second
-}
-
-// TLSConfig returns the TLS configuration when TLS is enabled and nil if it's disabled
-func (auth *Auth) TLSConfig() *tls.Config {
-	return auth.tlsConfig
 }
 
 // ContractNotary returns an implementation of the ContractNotary interface.
@@ -96,9 +88,14 @@ func NewAuthInstance(config Config, registry didstore.Store, vcr vcr.VCR, keySto
 	}
 }
 
-// OAuthClient returns an instance of OAuthClient
-func (auth *Auth) OAuthClient() oauth.Client {
-	return auth.oauthClient
+// AuthzServer returns the oauth.AuthorizationServer
+func (auth *Auth) AuthzServer() oauth.AuthorizationServer {
+	return auth.authzServer
+}
+
+// RelyingParty returns the oauth.RelyingParty
+func (auth *Auth) RelyingParty() oauth.RelyingParty {
+	return auth.relyingParty
 }
 
 // Configure the Auth struct by creating a validator and create an Irma server
@@ -131,6 +128,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		return errors.New("in strictmode TLS must be enabled")
 	}
 
+	var tlsConfig *tls.Config
 	if tlsEnabled {
 		clientCertificate, err := config.TLS.LoadCertificate()
 		if err != nil {
@@ -142,26 +140,27 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 			return err
 		}
 
-		tlsConfig := &tls.Config{
-			Certificates: []tls.Certificate{clientCertificate},
-			RootCAs:      trustStore.CertPool,
-			MinVersion:   core.MinTLSVersion,
+		validator := crl.NewValidator(trustStore.Certificates())
+		tlsConfig = &tls.Config{
+			Certificates:          []tls.Certificate{clientCertificate},
+			RootCAs:               trustStore.CertPool,
+			MinVersion:            core.MinTLSVersion,
+			VerifyPeerCertificate: validator.VerifyPeerCertificateFunction(config.TLS.GetCRLMaxValidityDays()),
 		}
 
-		validator := crl.NewValidator(trustStore.Certificates())
-		validator.Configure(tlsConfig, config.TLS.GetCRLMaxValidityDays())
-
 		auth.crlValidator = validator
-		auth.tlsConfig = tlsConfig
 	}
 
 	if err := auth.contractNotary.Configure(); err != nil {
 		return err
 	}
 
-	auth.oauthClient = oauth.NewOAuthService(auth.registry, auth.vcr, auth.vcr.Verifier(), auth.serviceResolver, auth.keyStore, auth.contractNotary, auth.jsonldManager)
+	auth.authzServer = oauth.NewAuthorizationServer(auth.registry, auth.vcr, auth.vcr.Verifier(), auth.serviceResolver,
+		auth.keyStore, auth.contractNotary, auth.jsonldManager)
+	auth.relyingParty = oauth.NewRelyingParty(auth.registry, auth.serviceResolver,
+		auth.keyStore, time.Duration(auth.config.HTTPTimeout)*time.Second, tlsConfig)
 
-	if err := auth.oauthClient.Configure(auth.config.ClockSkew, config.Strictmode); err != nil {
+	if err := auth.authzServer.Configure(auth.config.ClockSkew, config.Strictmode); err != nil {
 		return err
 	}
 

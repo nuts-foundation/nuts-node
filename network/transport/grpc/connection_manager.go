@@ -20,7 +20,6 @@ package grpc
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"net"
@@ -92,14 +91,7 @@ func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nod
 	// client tls
 	tlsDialOption := grpc.WithTransportCredentials(insecure.NewCredentials()) // No TLS, requires 'insecure' flag
 	if config.tlsEnabled() {
-		clientConfig := &tls.Config{
-			Certificates: []tls.Certificate{
-				*config.clientCert,
-			},
-			RootCAs:    config.trustStore,
-			MinVersion: core.MinTLSVersion,
-		}
-		tlsDialOption = grpc.WithTransportCredentials(credentials.NewTLS(clientConfig)) // TLS authentication
+		tlsDialOption = grpc.WithTransportCredentials(credentials.NewTLS(newClientTLSConfig(config))) // TLS authentication
 	}
 
 	cm := &grpcConnectionManager{
@@ -121,7 +113,7 @@ func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nod
 			tlsDialOption,
 		},
 	}
-	cm.addressBook = newAddressBook(connectionStore, config.backoffCreator, isNotActivePredicate(cm))
+	cm.addressBook = newAddressBook(connectionStore, config.backoffCreator)
 	cm.registerPrometheusMetrics()
 	cm.ctx, cm.ctxCancel = context.WithCancel(context.Background())
 
@@ -153,7 +145,7 @@ type grpcConnectionManager struct {
 }
 
 // newGrpcServer configures a new grpc.Server. context.Context is used to cancel the crlValidator
-func newGrpcServer(ctx context.Context, config Config) (*grpc.Server, error) {
+func newGrpcServer(config Config) (*grpc.Server, error) {
 	serverOpts := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(MaxMessageSizeInBytes),
 		grpc.MaxSendMsgSize(MaxMessageSizeInBytes),
@@ -167,18 +159,7 @@ func newGrpcServer(ctx context.Context, config Config) (*grpc.Server, error) {
 		// Some form of TLS is enabled
 		if config.serverCert != nil {
 			// TLS is terminated at the Nuts node (no offloading)
-			tlsConfig := &tls.Config{
-				Certificates: []tls.Certificate{*config.serverCert},
-				ClientAuth:   tls.RequireAndVerifyClientCert,
-				ClientCAs:    config.trustStore,
-				MinVersion:   core.MinTLSVersion,
-			}
-			serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsConfig)))
-
-			// Configure support for checking revoked certificates
-			// TODO: CRL is started as part of inbound listening. Should this also start if inbound is disabled?
-			config.crlValidator.SyncLoop(ctx)
-			config.crlValidator.Configure(tlsConfig, config.maxCRLValidityDays)
+			serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(newServerTLSConfig(config))))
 		} else {
 			// TLS offloading for incoming traffic
 			if config.clientCertHeaderName == "" {
@@ -200,6 +181,11 @@ func newGrpcServer(ctx context.Context, config Config) (*grpc.Server, error) {
 }
 
 func (s *grpcConnectionManager) Start() error {
+	// Start CRL updater
+	if s.config.tlsEnabled() {
+		s.config.crlValidator.SyncLoop(s.ctx)
+	}
+
 	// Start outbound
 	s.connectLoopWG.Add(1)
 	go func() {
@@ -221,7 +207,7 @@ func (s *grpcConnectionManager) Start() error {
 	}
 
 	// Create gRPC server for inbound connectionList and associate it with the protocols
-	s.grpcServer, err = newGrpcServer(s.ctx, s.config)
+	s.grpcServer, err = newGrpcServer(s.config)
 	if err != nil {
 		return err
 	}
@@ -358,7 +344,7 @@ func (s *grpcConnectionManager) hasActiveConnection(peer transport.Peer) bool {
 	return s.connections.Get(ByNodeDID(peer.NodeDID), ByAuthenticated()) != nil
 }
 
-func (s *grpcConnectionManager) Connect(peerAddress string, peerDID did.DID) {
+func (s *grpcConnectionManager) Connect(peerAddress string, peerDID did.DID, delay *time.Duration) {
 	// peer has deactivated its DID or removed it's NutsComm address. Delete peer from address book, if it exists.
 	if peerAddress == "" {
 		s.addressBook.remove(peerDID)
@@ -367,9 +353,9 @@ func (s *grpcConnectionManager) Connect(peerAddress string, peerDID did.DID) {
 
 	// add/update contact
 	peer := transport.Peer{Address: peerAddress, NodeDID: peerDID}
-	if cont, updated := s.addressBook.update(peer); updated {
+	if cont, updated := s.addressBook.update(peer); updated && delay != nil {
 		// reset existing backoff after an update to try to connect to the peer's new address
-		cont.backoff.Reset(0)
+		cont.backoff.Reset(*delay)
 	}
 }
 
@@ -396,8 +382,12 @@ func (s *grpcConnectionManager) Peers() []transport.Peer {
 	return peers
 }
 
+func (s *grpcConnectionManager) Contacts() []transport.Contact {
+	return s.addressBook.stats()
+}
+
 func (s *grpcConnectionManager) Diagnostics() []core.DiagnosticResult {
-	return append(append([]core.DiagnosticResult{ownPeerIDStatistic{s.config.peerID}}, s.connections.Diagnostics()...), s.addressBook.Diagnostics()...)
+	return append(append([]core.DiagnosticResult{ownPeerIDStatistic{s.config.peerID}}, s.connections.Diagnostics()...))
 }
 
 // RegisterService implements grpc.ServiceRegistrar to register the gRPC services protocols expose.
@@ -458,7 +448,7 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 	// Function must block until streams are closed or disconnect() is called.
 	connection.waitUntilDisconnected()
 
-	if st := connection.CloseError(); st != nil && st.Code() == codes.Unauthenticated {
+	if st := connection.closeError(); st != nil && st.Code() == codes.Unauthenticated {
 		// return error so entire connection will be tried anew. Otherwise, backoff isn't honored
 		return st.Err()
 	}
@@ -615,7 +605,7 @@ func (s *grpcConnectionManager) constructMetadata(bootstrap bool) (metadata.MD, 
 
 	md.Set(peerIDHeader, string(s.config.peerID))
 
-	nodeDID, err := s.nodeDIDResolver.Resolve()
+	nodeDID, err := s.nodeDIDResolver.Resolve(s.ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error reading local node DID: %w", err)
 	}

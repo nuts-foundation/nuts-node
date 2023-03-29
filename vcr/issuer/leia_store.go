@@ -62,20 +62,20 @@ func NewLeiaIssuerStore(dbPath string, backupStore stoabs.KVStore) (Store, error
 		backupStore:        backupStore,
 	}
 
+	// initialize indices, this is required for handleRestore. Without the index metadata it can't iterate and detect data entries.
+	if err = newLeiaStore.createIssuedIndices(issuedCollection); err != nil {
+		return nil, err
+	}
+	if err = newLeiaStore.createRevokedIndices(revokedCollection); err != nil {
+		return nil, err
+	}
+
 	// handle backup/restore for issued credentials
 	if err = newLeiaStore.handleRestore(issuedCollection, issuedBackupShelf, "id"); err != nil {
 		return nil, err
 	}
 	// handle backup/restore for revocations
 	if err = newLeiaStore.handleRestore(revokedCollection, revocationBackupShelf, credential.RevocationSubjectPath); err != nil {
-		return nil, err
-	}
-
-	// initialize indices
-	if err = newLeiaStore.createIssuedIndices(issuedCollection); err != nil {
-		return nil, err
-	}
-	if err = newLeiaStore.createRevokedIndices(revokedCollection); err != nil {
 		return nil, err
 	}
 	return newLeiaStore, nil
@@ -96,13 +96,11 @@ func (s leiaIssuerStore) StoreCredential(vc vc.VerifiableCredential) error {
 	return s.issuedCredentials.Add([]leia.Document{vcAsBytes})
 }
 
-func (s leiaIssuerStore) SearchCredential(jsonLDContext ssi.URI, credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
+func (s leiaIssuerStore) SearchCredential(credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
 	query := leia.New(leia.Eq(leia.NewJSONPath("issuer"), leia.MustParseScalar(issuer.String()))).
-		And(leia.Eq(leia.NewJSONPath("type"), leia.MustParseScalar(credentialType.String()))).
-		And(leia.Eq(leia.NewJSONPath("@context"), leia.MustParseScalar(jsonLDContext.String())))
+		And(leia.Eq(leia.NewJSONPath("type"), leia.MustParseScalar(credentialType.String())))
 
 	if subject != nil {
-
 		if subjectString := subject.String(); subjectString != "" {
 			query = query.And(leia.Eq(leia.NewJSONPath(credential.CredentialSubjectPath), leia.MustParseScalar(subjectString)))
 		}
@@ -261,10 +259,9 @@ func (s leiaIssuerStore) backupStorePresent(backupShelf string) bool {
 	backupPresent := false
 
 	_ = s.backupStore.ReadShelf(context.Background(), backupShelf, func(reader stoabs.Reader) error {
-		return reader.Iterate(func(key stoabs.Key, value []byte) error {
-			backupPresent = true
-			return nil
-		}, stoabs.BytesKey{})
+		isEmpty, err := reader.Empty()
+		backupPresent = !isEmpty
+		return err
 	})
 
 	return backupPresent

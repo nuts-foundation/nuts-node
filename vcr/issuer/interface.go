@@ -41,7 +41,7 @@ type Publisher interface {
 }
 
 type keyResolver interface {
-	ResolveAssertionKey(issuerDID did.DID) (crypto.Key, error)
+	ResolveAssertionKey(ctx context.Context, issuerDID did.DID) (crypto.Key, error)
 }
 
 // Issuer is a role in the network for a party who issues credentials about a subject to a holder.
@@ -83,5 +83,6 @@ type Store interface {
 // It is a separate interface from Store so when an object only needs resolving, it only needs the resolver.
 type CredentialSearcher interface {
 	// SearchCredential searches for issued credentials
-	SearchCredential(context ssi.URI, credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error)
+	// If the passed context is empty, it'll not be part of the search query on the DB.
+	SearchCredential(credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error)
 }

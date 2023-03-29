@@ -665,6 +665,7 @@ type ClientWithResponsesInterface interface {
 type CreateDIDResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON200      *DIDDocument
 	JSONDefault  *struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -791,6 +792,7 @@ func (r GetDIDResponse) StatusCode() int {
 type UpdateDIDResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON200      *DIDDocument
 	JSONDefault  *struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -822,6 +824,7 @@ func (r UpdateDIDResponse) StatusCode() int {
 type AddNewVerificationMethodResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON200      *VerificationMethod
 	JSONDefault  *struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -982,6 +985,13 @@ func ParseCreateDIDResponse(rsp *http.Response) (*CreateDIDResponse, error) {
 	}
 
 	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DIDDocument
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest struct {
 			// Detail A human-readable explanation specific to this occurrence of the problem.
@@ -1136,6 +1146,13 @@ func ParseUpdateDIDResponse(rsp *http.Response) (*UpdateDIDResponse, error) {
 	}
 
 	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DIDDocument
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest struct {
 			// Detail A human-readable explanation specific to this occurrence of the problem.
@@ -1171,6 +1188,13 @@ func ParseAddNewVerificationMethodResponse(rsp *http.Response) (*AddNewVerificat
 	}
 
 	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest VerificationMethod
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest struct {
 			// Detail A human-readable explanation specific to this occurrence of the problem.
@@ -1393,8 +1417,6 @@ func (w *ServerInterfaceWrapper) DeleteVerificationMethod(ctx echo.Context) erro
 	return err
 }
 
-// PATCH: This template file was taken from pkg/codegen/templates/echo/echo-register.tmpl
-
 // This is a simple interface which specifies echo.Route addition functions which
 // are present on both echo.Echo and echo.Group, since we want to allow using
 // either of them for path registration
@@ -1410,14 +1432,6 @@ type EchoRouter interface {
 	TRACE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 }
 
-type Preprocessor interface {
-	Preprocess(operationID string, context echo.Context)
-}
-
-type ErrorStatusCodeResolver interface {
-	ResolveStatusCode(err error) int
-}
-
 // RegisterHandlers adds each server route to the EchoRouter.
 func RegisterHandlers(router EchoRouter, si ServerInterface) {
 	RegisterHandlersWithBaseURL(router, si, "")
@@ -1431,35 +1445,508 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	// PATCH: This alteration wraps the call to the implementation in a function that sets the "OperationId" context parameter,
-	// so it can be used in error reporting middleware.
-	router.POST(baseURL+"/internal/vdr/v1/did", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("CreateDID", context)
-		return wrapper.CreateDID(context)
-	})
-	router.GET(baseURL+"/internal/vdr/v1/did/conflicted", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("ConflictedDIDs", context)
-		return wrapper.ConflictedDIDs(context)
-	})
-	router.DELETE(baseURL+"/internal/vdr/v1/did/:did", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("DeactivateDID", context)
-		return wrapper.DeactivateDID(context)
-	})
-	router.GET(baseURL+"/internal/vdr/v1/did/:did", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("GetDID", context)
-		return wrapper.GetDID(context)
-	})
-	router.PUT(baseURL+"/internal/vdr/v1/did/:did", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("UpdateDID", context)
-		return wrapper.UpdateDID(context)
-	})
-	router.POST(baseURL+"/internal/vdr/v1/did/:did/verificationmethod", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("AddNewVerificationMethod", context)
-		return wrapper.AddNewVerificationMethod(context)
-	})
-	router.DELETE(baseURL+"/internal/vdr/v1/did/:did/verificationmethod/:kid", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("DeleteVerificationMethod", context)
-		return wrapper.DeleteVerificationMethod(context)
-	})
+	router.POST(baseURL+"/internal/vdr/v1/did", wrapper.CreateDID)
+	router.GET(baseURL+"/internal/vdr/v1/did/conflicted", wrapper.ConflictedDIDs)
+	router.DELETE(baseURL+"/internal/vdr/v1/did/:did", wrapper.DeactivateDID)
+	router.GET(baseURL+"/internal/vdr/v1/did/:did", wrapper.GetDID)
+	router.PUT(baseURL+"/internal/vdr/v1/did/:did", wrapper.UpdateDID)
+	router.POST(baseURL+"/internal/vdr/v1/did/:did/verificationmethod", wrapper.AddNewVerificationMethod)
+	router.DELETE(baseURL+"/internal/vdr/v1/did/:did/verificationmethod/:kid", wrapper.DeleteVerificationMethod)
 
+}
+
+type CreateDIDRequestObject struct {
+	Body *CreateDIDJSONRequestBody
+}
+
+type CreateDIDResponseObject interface {
+	VisitCreateDIDResponse(w http.ResponseWriter) error
+}
+
+type CreateDID200JSONResponse DIDDocument
+
+func (response CreateDID200JSONResponse) VisitCreateDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateDIDdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response CreateDIDdefaultJSONResponse) VisitCreateDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type ConflictedDIDsRequestObject struct {
+}
+
+type ConflictedDIDsResponseObject interface {
+	VisitConflictedDIDsResponse(w http.ResponseWriter) error
+}
+
+type ConflictedDIDs200JSONResponse []DIDResolutionResult
+
+func (response ConflictedDIDs200JSONResponse) VisitConflictedDIDsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ConflictedDIDsdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response ConflictedDIDsdefaultJSONResponse) VisitConflictedDIDsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type DeactivateDIDRequestObject struct {
+	Did string `json:"did"`
+}
+
+type DeactivateDIDResponseObject interface {
+	VisitDeactivateDIDResponse(w http.ResponseWriter) error
+}
+
+type DeactivateDID200Response struct {
+}
+
+func (response DeactivateDID200Response) VisitDeactivateDIDResponse(w http.ResponseWriter) error {
+	w.WriteHeader(200)
+	return nil
+}
+
+type DeactivateDIDdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response DeactivateDIDdefaultJSONResponse) VisitDeactivateDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type GetDIDRequestObject struct {
+	Did    string `json:"did"`
+	Params GetDIDParams
+}
+
+type GetDIDResponseObject interface {
+	VisitGetDIDResponse(w http.ResponseWriter) error
+}
+
+type GetDID200JSONResponse DIDResolutionResult
+
+func (response GetDID200JSONResponse) VisitGetDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetDIDdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response GetDIDdefaultJSONResponse) VisitGetDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type UpdateDIDRequestObject struct {
+	Did  string `json:"did"`
+	Body *UpdateDIDJSONRequestBody
+}
+
+type UpdateDIDResponseObject interface {
+	VisitUpdateDIDResponse(w http.ResponseWriter) error
+}
+
+type UpdateDID200JSONResponse DIDDocument
+
+func (response UpdateDID200JSONResponse) VisitUpdateDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateDIDdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response UpdateDIDdefaultJSONResponse) VisitUpdateDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type AddNewVerificationMethodRequestObject struct {
+	Did  string `json:"did"`
+	Body *AddNewVerificationMethodJSONRequestBody
+}
+
+type AddNewVerificationMethodResponseObject interface {
+	VisitAddNewVerificationMethodResponse(w http.ResponseWriter) error
+}
+
+type AddNewVerificationMethod200JSONResponse VerificationMethod
+
+func (response AddNewVerificationMethod200JSONResponse) VisitAddNewVerificationMethodResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AddNewVerificationMethoddefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response AddNewVerificationMethoddefaultJSONResponse) VisitAddNewVerificationMethodResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type DeleteVerificationMethodRequestObject struct {
+	Did string `json:"did"`
+	Kid string `json:"kid"`
+}
+
+type DeleteVerificationMethodResponseObject interface {
+	VisitDeleteVerificationMethodResponse(w http.ResponseWriter) error
+}
+
+type DeleteVerificationMethod204Response struct {
+}
+
+func (response DeleteVerificationMethod204Response) VisitDeleteVerificationMethodResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteVerificationMethoddefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response DeleteVerificationMethoddefaultJSONResponse) VisitDeleteVerificationMethodResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+// StrictServerInterface represents all server handlers.
+type StrictServerInterface interface {
+	// Creates a new Nuts DID
+	// (POST /internal/vdr/v1/did)
+	CreateDID(ctx context.Context, request CreateDIDRequestObject) (CreateDIDResponseObject, error)
+	// Retrieve the list of conflicted DID documents
+	// (GET /internal/vdr/v1/did/conflicted)
+	ConflictedDIDs(ctx context.Context, request ConflictedDIDsRequestObject) (ConflictedDIDsResponseObject, error)
+	// Deactivates a Nuts DID document according to the specification.
+	// (DELETE /internal/vdr/v1/did/{did})
+	DeactivateDID(ctx context.Context, request DeactivateDIDRequestObject) (DeactivateDIDResponseObject, error)
+	// Resolves a Nuts DID document
+	// (GET /internal/vdr/v1/did/{did})
+	GetDID(ctx context.Context, request GetDIDRequestObject) (GetDIDResponseObject, error)
+	// Updates a Nuts DID document.
+	// (PUT /internal/vdr/v1/did/{did})
+	UpdateDID(ctx context.Context, request UpdateDIDRequestObject) (UpdateDIDResponseObject, error)
+	// Creates and adds a new verificationMethod to the DID document.
+	// (POST /internal/vdr/v1/did/{did}/verificationmethod)
+	AddNewVerificationMethod(ctx context.Context, request AddNewVerificationMethodRequestObject) (AddNewVerificationMethodResponseObject, error)
+	// Delete a specific verification method
+	// (DELETE /internal/vdr/v1/did/{did}/verificationmethod/{kid})
+	DeleteVerificationMethod(ctx context.Context, request DeleteVerificationMethodRequestObject) (DeleteVerificationMethodResponseObject, error)
+}
+
+type StrictHandlerFunc func(ctx echo.Context, args interface{}) (interface{}, error)
+
+type StrictMiddlewareFunc func(f StrictHandlerFunc, operationID string) StrictHandlerFunc
+
+func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareFunc) ServerInterface {
+	return &strictHandler{ssi: ssi, middlewares: middlewares}
+}
+
+type strictHandler struct {
+	ssi         StrictServerInterface
+	middlewares []StrictMiddlewareFunc
+}
+
+// CreateDID operation middleware
+func (sh *strictHandler) CreateDID(ctx echo.Context) error {
+	var request CreateDIDRequestObject
+
+	var body CreateDIDJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateDID(ctx.Request().Context(), request.(CreateDIDRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateDID")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(CreateDIDResponseObject); ok {
+		return validResponse.VisitCreateDIDResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ConflictedDIDs operation middleware
+func (sh *strictHandler) ConflictedDIDs(ctx echo.Context) error {
+	var request ConflictedDIDsRequestObject
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ConflictedDIDs(ctx.Request().Context(), request.(ConflictedDIDsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ConflictedDIDs")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ConflictedDIDsResponseObject); ok {
+		return validResponse.VisitConflictedDIDsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// DeactivateDID operation middleware
+func (sh *strictHandler) DeactivateDID(ctx echo.Context, did string) error {
+	var request DeactivateDIDRequestObject
+
+	request.Did = did
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeactivateDID(ctx.Request().Context(), request.(DeactivateDIDRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeactivateDID")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(DeactivateDIDResponseObject); ok {
+		return validResponse.VisitDeactivateDIDResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetDID operation middleware
+func (sh *strictHandler) GetDID(ctx echo.Context, did string, params GetDIDParams) error {
+	var request GetDIDRequestObject
+
+	request.Did = did
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetDID(ctx.Request().Context(), request.(GetDIDRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetDID")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetDIDResponseObject); ok {
+		return validResponse.VisitGetDIDResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// UpdateDID operation middleware
+func (sh *strictHandler) UpdateDID(ctx echo.Context, did string) error {
+	var request UpdateDIDRequestObject
+
+	request.Did = did
+
+	var body UpdateDIDJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateDID(ctx.Request().Context(), request.(UpdateDIDRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateDID")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(UpdateDIDResponseObject); ok {
+		return validResponse.VisitUpdateDIDResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// AddNewVerificationMethod operation middleware
+func (sh *strictHandler) AddNewVerificationMethod(ctx echo.Context, did string) error {
+	var request AddNewVerificationMethodRequestObject
+
+	request.Did = did
+
+	var body AddNewVerificationMethodJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AddNewVerificationMethod(ctx.Request().Context(), request.(AddNewVerificationMethodRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AddNewVerificationMethod")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(AddNewVerificationMethodResponseObject); ok {
+		return validResponse.VisitAddNewVerificationMethodResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// DeleteVerificationMethod operation middleware
+func (sh *strictHandler) DeleteVerificationMethod(ctx echo.Context, did string, kid string) error {
+	var request DeleteVerificationMethodRequestObject
+
+	request.Did = did
+	request.Kid = kid
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteVerificationMethod(ctx.Request().Context(), request.(DeleteVerificationMethodRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteVerificationMethod")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(DeleteVerificationMethodResponseObject); ok {
+		return validResponse.VisitDeleteVerificationMethodResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
 }

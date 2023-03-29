@@ -21,15 +21,17 @@ package v1
 import (
 	"encoding/json"
 	"fmt"
-	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/vc"
-	httpModule "github.com/nuts-foundation/nuts-node/http"
-	"github.com/nuts-foundation/nuts-node/vcr"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
 	"time"
+
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/auth/api/v1/client"
+	httpModule "github.com/nuts-foundation/nuts-node/http"
+	"github.com/nuts-foundation/nuts-node/vcr"
 
 	"github.com/labstack/echo/v4"
 
@@ -115,7 +117,7 @@ func (w Wrapper) VerifySignature(ctx echo.Context) error {
 		}
 		response.IssuerAttributes = &issuerAttributes
 
-		vpType := string(validationResult.VPType())
+		vpType := validationResult.VPType()
 		response.VpType = &vpType
 	} else {
 		response.Validity = false
@@ -244,7 +246,7 @@ func (w Wrapper) DrawUpContract(ctx echo.Context) error {
 		return core.InvalidInputError("invalid value '%s' for param legalEntity: %w", params.LegalEntity, err)
 	}
 
-	drawnUpContract, err := w.Auth.ContractNotary().DrawUpContract(*template, *orgID, vf, validDuration, params.OrganizationCredential)
+	drawnUpContract, err := w.Auth.ContractNotary().DrawUpContract(ctx.Request().Context(), *template, *orgID, vf, validDuration, params.OrganizationCredential)
 	if err != nil {
 		return err
 	}
@@ -273,7 +275,7 @@ func (w Wrapper) CreateJwtGrant(ctx echo.Context) error {
 		Credentials: requestBody.Credentials,
 	}
 
-	response, err := w.Auth.OAuthClient().CreateJwtGrant(ctx.Request().Context(), request)
+	response, err := w.Auth.RelyingParty().CreateJwtGrant(ctx.Request().Context(), request)
 	if err != nil {
 		return core.InvalidInputError(err.Error())
 	}
@@ -296,35 +298,21 @@ func (w Wrapper) RequestAccessToken(ctx echo.Context) error {
 		Credentials: requestBody.Credentials,
 	}
 
-	jwtGrantResponse, err := w.Auth.OAuthClient().CreateJwtGrant(ctx.Request().Context(), request)
+	jwtGrant, err := w.Auth.RelyingParty().CreateJwtGrant(ctx.Request().Context(), request)
 	if err != nil {
 		return core.InvalidInputError(err.Error())
 	}
 
-	httpClient := &http.Client{}
-	tlsConfig := w.Auth.TLSConfig()
-
-	if tlsConfig != nil {
-		httpClient.Transport = &http.Transport{
-			TLSClientConfig: tlsConfig,
-		}
-	}
-
-	authClient, err := NewHTTPClient("", w.Auth.HTTPTimeout(), WithHTTPClient(httpClient), WithRequestEditorFn(core.UserAgentRequestEditor))
+	authServerEndpoint, err := url.Parse(jwtGrant.AuthorizationServerEndpoint)
 	if err != nil {
-		return fmt.Errorf("unable to create HTTP client: %w", err)
+		return core.InvalidInputError("invalid authorization server endpoint: %s", jwtGrant.AuthorizationServerEndpoint)
 	}
 
-	authServerEndpoint, err := url.Parse(jwtGrantResponse.AuthorizationServerEndpoint)
+	accessTokenResult, err := w.Auth.RelyingParty().RequestAccessToken(ctx.Request().Context(), jwtGrant.BearerToken, *authServerEndpoint)
 	if err != nil {
-		return err
+		return core.Error(http.StatusServiceUnavailable, err.Error())
 	}
-	accessTokenResponse, err := authClient.CreateAccessToken(*authServerEndpoint, jwtGrantResponse.BearerToken)
-	if err != nil {
-		return core.Error(http.StatusServiceUnavailable, "remote server/nuts node returned error creating access token: %w", err)
-	}
-
-	return ctx.JSON(http.StatusOK, accessTokenResponse)
+	return ctx.JSON(http.StatusOK, accessTokenResult)
 }
 
 // CreateAccessToken handles the http request (from a remote vendor's Nuts node) for creating an access token for accessing
@@ -337,8 +325,8 @@ func (w Wrapper) CreateAccessToken(ctx echo.Context) (err error) {
 	request.Assertion = ctx.FormValue("assertion")
 	request.GrantType = ctx.FormValue("grant_type")
 
-	if request.GrantType != auth.JwtBearerGrantType {
-		errDesc := fmt.Sprintf("grant_type must be: '%s'", auth.JwtBearerGrantType)
+	if request.GrantType != client.JwtBearerGrantType {
+		errDesc := fmt.Sprintf("grant_type must be: '%s'", client.JwtBearerGrantType)
 		errorResponse := AccessTokenRequestFailedResponse{Error: errOauthUnsupportedGrant, ErrorDescription: errDesc}
 		return ctx.JSON(http.StatusBadRequest, errorResponse)
 	}
@@ -351,7 +339,7 @@ func (w Wrapper) CreateAccessToken(ctx echo.Context) (err error) {
 	}
 
 	catRequest := services.CreateAccessTokenRequest{RawJwtBearerToken: request.Assertion}
-	acResponse, oauthError := w.Auth.OAuthClient().CreateAccessToken(ctx.Request().Context(), catRequest)
+	acResponse, oauthError := w.Auth.AuthzServer().CreateAccessToken(ctx.Request().Context(), catRequest)
 	if oauthError != nil {
 		errorResponse := AccessTokenRequestFailedResponse{Error: AccessTokenRequestFailedResponseError(oauthError.Code), ErrorDescription: oauthError.Error()}
 		return ctx.JSON(http.StatusBadRequest, errorResponse)
@@ -380,7 +368,7 @@ func (w Wrapper) VerifyAccessToken(ctx echo.Context, params VerifyAccessTokenPar
 
 	token := params.Authorization[len(bearerTokenHeaderPrefix):]
 
-	_, err := w.Auth.OAuthClient().IntrospectAccessToken(token)
+	_, err := w.Auth.AuthzServer().IntrospectAccessToken(ctx.Request().Context(), token)
 	if err != nil {
 		log.Logger().WithError(err).Warn("Error while inspecting access token")
 		return ctx.NoContent(http.StatusForbidden)
@@ -402,7 +390,7 @@ func (w Wrapper) IntrospectAccessToken(ctx echo.Context) error {
 		return ctx.JSON(http.StatusOK, introspectionResponse)
 	}
 
-	claims, err := w.Auth.OAuthClient().IntrospectAccessToken(token)
+	claims, err := w.Auth.AuthzServer().IntrospectAccessToken(ctx.Request().Context(), token)
 	if err != nil {
 		log.Logger().WithError(err).Warn("Error while inspecting access token")
 		return ctx.JSON(http.StatusOK, introspectionResponse)

@@ -33,6 +33,9 @@ type ContactInformation = didman.ContactInformation
 // OrganizationSearchResult is a type definition for the already defined didman.OrganizationSearchResult
 type OrganizationSearchResult = didman.OrganizationSearchResult
 
+// CompoundService is a type definition for the already defined did.CompoundService
+type CompoundService did.Service
+
 // Endpoint is an alias for the already defined did.Service
 // It's an alias (instead of a type definition) because we don't want to use the custom marshaler of did.Service,
 // to make the response symmetric to the request body (given endpoint is a string, we want to return a string, rather than an array containing a string).

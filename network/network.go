@@ -58,6 +58,10 @@ const (
 	// health check keys
 	healthTLS        = "tls"
 	healthAuthConfig = "auth_config"
+	// newNodeConnectionDelay specifies how long a new node should delay connecting to newly discovered NutsComm addresses.
+	// If the node connects to every new DID immediately it will try to sync the remainder of the DAG with more and more peers at the same time.
+	// This generates a lot of network traffic with duplicate information and just slows down the actual synchronization.
+	newNodeConnectionDelay = 5 * time.Minute
 )
 
 // defaultBBoltOptions are given to bbolt, allows for package local adjustments during test
@@ -74,13 +78,15 @@ type Network struct {
 	state               dag.State
 	keyStore            crypto.KeyStore
 	keyResolver         types.KeyResolver
-	startTime           atomic.Value
+	startTime           atomic.Pointer[time.Time]
 	peerID              transport.PeerID
 	didDocumentResolver types.DocResolver
 	nodeDIDResolver     transport.NodeDIDResolver
 	didDocumentFinder   types.DocFinder
 	eventPublisher      events.Event
 	storeProvider       storage.Provider
+	// assumeNewNode indicates the node hasn't initially sync'd with the network.
+	assumeNewNode bool
 }
 
 // CheckHealth performs health checks for the network engine.
@@ -104,7 +110,8 @@ func (n *Network) CheckHealth() map[string]core.Health {
 		}
 	}
 	// auth_config checks that the node is correctly configured to be authenticated by others
-	nodeDID, err := n.nodeDIDResolver.Resolve()
+	// Context should be passed by CheckHealth() calls (part of https://github.com/nuts-foundation/nuts-node/issues/1858)
+	nodeDID, err := n.nodeDIDResolver.Resolve(context.TODO())
 	if err != nil {
 		// can only happen when not in strictmode and autoNodeDIDResolver fails
 		results[healthAuthConfig] = core.Health{
@@ -122,7 +129,7 @@ func (n *Network) CheckHealth() map[string]core.Health {
 		return results
 	}
 
-	if err = n.validateNodeDID(nodeDID); err != nil {
+	if err = n.validateNodeDID(context.TODO(), nodeDID); err != nil {
 		results[healthAuthConfig] = core.Health{
 			Status:  core.HealthStatusDown,
 			Details: err.Error(),
@@ -198,7 +205,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	} else if !config.Strictmode {
 		// If node DID is not set we can wire the automatic node DID resolver, which makes testing/workshops/development easier.
 		// Might cause unexpected behavior though, so it can't be used in strict mode.
-		log.Logger().Info("Node DID not set, will be auto-discovered.")
+		log.Logger().Warn("Node DID not set, will be auto-discovered.")
 		n.nodeDIDResolver = transport.NewAutoNodeDIDResolver(n.keyStore, n.didDocumentFinder)
 	} else {
 		log.Logger().Warn("Node DID not set, sending/receiving private transactions is disabled.")
@@ -263,6 +270,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		if err != nil {
 			return fmt.Errorf("failed to open connections store: %w", err)
 		}
+
 		n.connectionManager = grpc.NewGRPCConnectionManager(
 			grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...),
 			connectionStore,
@@ -282,6 +290,28 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	}
 
 	return nil
+}
+
+func (n *Network) DiscoverServices(updatedDID did.DID) {
+	if !n.config.EnableDiscovery {
+		return
+	}
+	document, _, err := n.didDocumentResolver.Resolve(updatedDID, nil)
+	if err != nil {
+		// VDR store is down. Any missed updates are resolved on node restart.
+		// This can happen when the VDR is receiving lots of DID updates, such as during the initial sync of the network.
+		log.Logger().WithError(err).
+			WithField(core.LogFieldDID, updatedDID.String()).
+			Debug("Service discovery could not read DID document after an update")
+		return
+	}
+	nodeDID, err := n.nodeDIDResolver.Resolve(context.TODO())
+	if err != nil {
+		// This can only occur when the autoNodeDIDResolver is used (non-strict mode)
+		log.Logger().WithError(err).Error("Could not resolve own node DID for service discovery")
+		return
+	}
+	n.connectToDID(nodeDID, *document, true)
 }
 
 // emitEvents is called when a payload is added.
@@ -319,19 +349,20 @@ func (n *Network) Config() interface{} {
 
 // Start initiates the Network subsystem
 func (n *Network) Start() error {
-	n.startTime.Store(time.Now())
+	startTime := time.Now()
+	n.startTime.Store(&startTime)
 
 	if err := n.state.Start(); err != nil {
 		return err
 	}
 
 	// Sanity check for configured node DID: can we resolve it and do we have the keys?
-	nodeDID, err := n.nodeDIDResolver.Resolve()
+	nodeDID, err := n.nodeDIDResolver.Resolve(context.TODO())
 	if err != nil {
 		return err
 	}
 	if !nodeDID.Empty() {
-		err = n.validateNodeDIDKeys(nodeDID)
+		err = n.validateNodeDIDKeys(context.TODO(), nodeDID)
 		if err != nil && n.strictMode {
 			return err
 		}
@@ -356,7 +387,7 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 		if len(strings.TrimSpace(bootstrapNode)) == 0 {
 			continue
 		}
-		n.connectionManager.Connect(bootstrapNode, did.DID{})
+		n.connectionManager.Connect(bootstrapNode, did.DID{}, nil)
 	}
 
 	if !n.config.EnableDiscovery {
@@ -368,34 +399,55 @@ func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
 	if err != nil {
 		return err
 	}
-	for _, node := range otherNodes {
-		if !nodeDID.Empty() && node.ID.Equals(nodeDID) {
-			// Found local node, do not discover.
-			continue
-		}
-	inner:
-		for _, service := range node.Service {
-			if service.Type == transport.NutsCommServiceType {
-				var nutsCommUrl transport.NutsCommURL
-				if err = service.UnmarshalServiceEndpoint(&nutsCommUrl); err != nil {
-					log.Logger().
-						WithError(err).
-						WithField(core.LogFieldDID, node.ID.String()).
-						Warn("Failed to extract NutsComm address from service")
-					continue inner
-				}
-				log.Logger().
-					WithField(core.LogFieldDID, node.ID.String()).
-					WithField(core.LogFieldNodeAddress, nutsCommUrl.Host).
-					Info("Discovered Nuts node")
-				n.connectionManager.Connect(nutsCommUrl.Host, node.ID)
-			}
-		}
+	n.assumeNewNode = len(otherNodes) == 0
+	if n.assumeNewNode {
+		log.Logger().Infof("Assuming this is a new node, discovered NutsComm addresses are processed with a %s delay", newNodeConnectionDelay)
 	}
+	for _, node := range otherNodes {
+		n.connectToDID(nodeDID, node, false)
+	}
+
 	return nil
 }
 
-func (n *Network) validateNodeDIDKeys(nodeDID did.DID) error {
+func (n *Network) connectToDID(nodeDID did.DID, node did.Document, resetDelay bool) {
+	if !nodeDID.Empty() && node.ID.Equals(nodeDID) {
+		// Found local node, do not discover.
+		return
+	}
+inner:
+	for _, service := range node.Service {
+		if service.Type == transport.NutsCommServiceType {
+			var nutsCommUrl transport.NutsCommURL
+			if err := service.UnmarshalServiceEndpoint(&nutsCommUrl); err != nil {
+				log.Logger().
+					WithError(err).
+					WithField(core.LogFieldDID, node.ID.String()).
+					Debug("Failed to extract NutsComm address from service")
+				continue inner
+			}
+			log.Logger().
+				WithField(core.LogFieldDID, node.ID.String()).
+				WithField(core.LogFieldNodeAddress, nutsCommUrl.Host).
+				Debug("Discovered Nuts node")
+			var delay *time.Duration
+			if resetDelay {
+				if n.assumeNewNode && time.Since(*n.startTime.Load()) < newNodeConnectionDelay {
+					// Connect to NutsComm addresses with a delay.
+					tmp := newNodeConnectionDelay
+					delay = &tmp
+				} else {
+					// Connect without any delay
+					tmp := time.Duration(0)
+					delay = &tmp
+				}
+			} // else: leave any existing delay unchanged
+			n.connectionManager.Connect(nutsCommUrl.Host, node.ID, delay)
+		}
+	}
+}
+
+func (n *Network) validateNodeDIDKeys(ctx context.Context, nodeDID did.DID) error {
 	// Check if DID document can be resolved
 	document, _, err := n.didDocumentResolver.Resolve(nodeDID, nil)
 	if err != nil {
@@ -407,15 +459,15 @@ func (n *Network) validateNodeDIDKeys(nodeDID did.DID) error {
 		return fmt.Errorf("DID document does not contain a keyAgreement key, register a keyAgreement key (did=%s)", nodeDID)
 	}
 	for _, keyAgreement := range document.KeyAgreement {
-		if !n.keyStore.Exists(keyAgreement.ID.String()) {
+		if !n.keyStore.Exists(ctx, keyAgreement.ID.String()) {
 			return fmt.Errorf("keyAgreement private key is not present in key store, recover your key material or register a new keyAgreement key (did=%s,kid=%s)", nodeDID, keyAgreement.ID)
 		}
 	}
 	return nil
 }
 
-func (n *Network) validateNodeDID(nodeDID did.DID) error {
-	if err := n.validateNodeDIDKeys(nodeDID); err != nil {
+func (n *Network) validateNodeDID(ctx context.Context, nodeDID did.DID) error {
+	if err := n.validateNodeDIDKeys(ctx, nodeDID); err != nil {
 		return err
 	}
 
@@ -530,7 +582,7 @@ func (n *Network) CreateTransaction(ctx context.Context, template Template) (dag
 
 	// Assert node DID is configured when participants are specified
 	if len(template.Participants) > 0 {
-		nodeDID, err := n.nodeDIDResolver.Resolve()
+		nodeDID, err := n.nodeDIDResolver.Resolve(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -648,7 +700,7 @@ func (n *Network) Diagnostics() []core.DiagnosticResult {
 		results = append(results, core.DiagnosticResultMap{Title: "state", Items: graph.Diagnostics()})
 	}
 	// NodeDID
-	nodeDID, err := n.nodeDIDResolver.Resolve()
+	nodeDID, err := n.nodeDIDResolver.Resolve(context.TODO())
 	if err != nil {
 		log.Logger().
 			WithError(err).
@@ -675,6 +727,10 @@ func (n *Network) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 		}
 	}
 	return result
+}
+
+func (n *Network) AddressBook() []transport.Contact {
+	return n.connectionManager.Contacts()
 }
 
 // ReprocessReport describes the reprocess exection.
@@ -762,7 +818,7 @@ func (n *Network) collectDiagnosticsForPeers() transport.Diagnostics {
 	}
 
 	result := transport.Diagnostics{
-		Uptime:               time.Since(n.startTime.Load().(time.Time)),
+		Uptime:               time.Since(*n.startTime.Load()),
 		NumberOfTransactions: uint32(transactionCount),
 		SoftwareVersion:      fmt.Sprintf("%s (%s)", core.GitBranch, core.GitCommit),
 		SoftwareID:           softwareID,

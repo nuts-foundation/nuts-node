@@ -41,11 +41,11 @@ type KeyCreator interface {
 type KeyResolver interface {
 	// Exists returns if the specified private key exists.
 	// If an error occurs, false is also returned
-	Exists(kid string) bool
+	Exists(ctx context.Context, kid string) bool
 	// Resolve returns a Key for the given KID. ErrPrivateKeyNotFound is returned for an unknown KID.
-	Resolve(kid string) (Key, error)
+	Resolve(ctx context.Context, kid string) (Key, error)
 	// List returns the KIDs of the private keys that are present in the KeyStore.
-	List() []string
+	List(ctx context.Context) []string
 }
 
 // KeyStore defines the functions for working with private keys.
@@ -64,7 +64,7 @@ type Decrypter interface {
 	// - it involved very deep context passing,
 	// - it's called by the system itself, not triggered by a user.
 	// - to be removed in near future when we switch to multi-chains, which eliminates private TXs and thus encryption altogether.
-	Decrypt(kid string, ciphertext []byte) ([]byte, error)
+	Decrypt(ctx context.Context, kid string, ciphertext []byte) ([]byte, error)
 }
 
 // JWTSigner is the interface used to sign authorization tokens.

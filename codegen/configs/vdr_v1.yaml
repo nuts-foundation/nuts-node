@@ -3,35 +3,9 @@ generate:
   echo-server: true
   client: true
   models: true
+  strict-server: true
 output-options:
   skip-prune: true
-  user-templates:
-    echo/echo-register.tmpl: "// PATCH: This template file was taken from pkg/codegen/templates/echo/echo-register.tmpl\n\n//
-      This is a simple interface which specifies echo.Route addition functions which\n//
-      are present on both echo.Echo and echo.Group, since we want to allow using\n//
-      either of them for path registration\ntype EchoRouter interface {\n\tCONNECT(path
-      string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route\n    DELETE(path
-      string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route\n    GET(path
-      string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route\n    HEAD(path
-      string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route\n    OPTIONS(path
-      string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route\n    PATCH(path
-      string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route\n    POST(path
-      string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route\n    PUT(path
-      string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route\n    TRACE(path
-      string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route\n}\n\ntype
-      Preprocessor interface {\n    Preprocess(operationID string, context echo.Context)\n}\n\ntype
-      ErrorStatusCodeResolver interface {\n\tResolveStatusCode(err error) int\n}\n\n//
-      RegisterHandlers adds each server route to the EchoRouter.\nfunc RegisterHandlers(router
-      EchoRouter, si ServerInterface) {\n    RegisterHandlersWithBaseURL(router, si,
-      \"\")\n}\n\n// Registers handlers, and prepends BaseURL to the paths, so that
-      the paths\n// can be served under a prefix.\nfunc RegisterHandlersWithBaseURL(router
-      EchoRouter, si ServerInterface, baseURL string) {\n{{if .}}\n    wrapper :=
-      ServerInterfaceWrapper{\n        Handler: si,\n    }\n{{end}}\n// PATCH: This
-      alteration wraps the call to the implementation in a function that sets the
-      \"OperationId\" context parameter,\n// so it can be used in error reporting
-      middleware.\n{{range .}}router.{{.Method}}(baseURL + \"{{.Path | swaggerUriToEchoUri}}\",
-      func(context echo.Context) error {\n        si.(Preprocessor).Preprocess(\"{{.OperationId}}\",
-      context)\n        return wrapper.{{.OperationId}}(context)\n    })\n{{end}}\n}\n"
   exclude-schemas:
   - DIDDocument
   - DIDDocumentMetadata
