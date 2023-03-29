@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/auth/api/oidc4vci_v0/types"
 	"strings"
 )
 
@@ -43,7 +44,7 @@ func (w Wrapper) GetCredential(ctx context.Context, request GetCredentialRequest
 }
 
 func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
-	if request.Body.GrantType != "urn:ietf:params:oauth:grant-type:pre-authorized_code" {
+	if request.Body.GrantType != types.PreAuthorizedCodeGrant {
 		return nil, errors.New("unsupported grant type")
 	}
 	accessToken, err := w.Issuer.RequestAccessToken(request.Body.PreAuthorizedCode)

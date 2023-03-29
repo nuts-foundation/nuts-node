@@ -74,7 +74,7 @@ func (i *Issuer) Offer(ctx context.Context, credential vc.VerifiableCredential) 
 			},
 		}},
 		Grants: map[string]interface{}{
-			"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]interface{}{
+			types.PreAuthorizedCodeGrant: map[string]interface{}{
 				"pre-authorized_code": preAuthorizedCode,
 			},
 		},
