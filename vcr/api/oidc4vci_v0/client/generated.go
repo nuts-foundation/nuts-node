@@ -89,11 +89,14 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
-	// GetOIDCProviderMeta request
-	GetOIDCProviderMeta(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// GetOAuth2ClientMetadata request
+	GetOAuth2ClientMetadata(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// GetOIDCIssuerMeta request
-	GetOIDCIssuerMeta(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// GetOIDCProviderMetadata request
+	GetOIDCProviderMetadata(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetOIDC4VCIIssuerMetadata request
+	GetOIDC4VCIIssuerMetadata(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CredentialOffer request
 	CredentialOffer(ctx context.Context, did string, params *CredentialOfferParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -109,8 +112,8 @@ type ClientInterface interface {
 	RequestAccessTokenWithFormdataBody(ctx context.Context, did string, body RequestAccessTokenFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
-func (c *Client) GetOIDCProviderMeta(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetOIDCProviderMetaRequest(c.Server, did)
+func (c *Client) GetOAuth2ClientMetadata(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetOAuth2ClientMetadataRequest(c.Server, did)
 	if err != nil {
 		return nil, err
 	}
@@ -121,8 +124,20 @@ func (c *Client) GetOIDCProviderMeta(ctx context.Context, did string, reqEditors
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetOIDCIssuerMeta(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetOIDCIssuerMetaRequest(c.Server, did)
+func (c *Client) GetOIDCProviderMetadata(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetOIDCProviderMetadataRequest(c.Server, did)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetOIDC4VCIIssuerMetadata(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetOIDC4VCIIssuerMetadataRequest(c.Server, did)
 	if err != nil {
 		return nil, err
 	}
@@ -193,8 +208,42 @@ func (c *Client) RequestAccessTokenWithFormdataBody(ctx context.Context, did str
 	return c.Client.Do(req)
 }
 
-// NewGetOIDCProviderMetaRequest generates requests for GetOIDCProviderMeta
-func NewGetOIDCProviderMetaRequest(server string, did string) (*http.Request, error) {
+// NewGetOAuth2ClientMetadataRequest generates requests for GetOAuth2ClientMetadata
+func NewGetOAuth2ClientMetadataRequest(server string, did string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "did", runtime.ParamLocationPath, did)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/identity/%s/.well-known/oauth2-client-metadata", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetOIDCProviderMetadataRequest generates requests for GetOIDCProviderMetadata
+func NewGetOIDCProviderMetadataRequest(server string, did string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -227,8 +276,8 @@ func NewGetOIDCProviderMetaRequest(server string, did string) (*http.Request, er
 	return req, nil
 }
 
-// NewGetOIDCIssuerMetaRequest generates requests for GetOIDCIssuerMeta
-func NewGetOIDCIssuerMetaRequest(server string, did string) (*http.Request, error) {
+// NewGetOIDC4VCIIssuerMetadataRequest generates requests for GetOIDC4VCIIssuerMetadata
+func NewGetOIDC4VCIIssuerMetadataRequest(server string, did string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -459,11 +508,14 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// GetOIDCProviderMeta request
-	GetOIDCProviderMetaWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*GetOIDCProviderMetaResponse, error)
+	// GetOAuth2ClientMetadata request
+	GetOAuth2ClientMetadataWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*GetOAuth2ClientMetadataResponse, error)
 
-	// GetOIDCIssuerMeta request
-	GetOIDCIssuerMetaWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*GetOIDCIssuerMetaResponse, error)
+	// GetOIDCProviderMetadata request
+	GetOIDCProviderMetadataWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*GetOIDCProviderMetadataResponse, error)
+
+	// GetOIDC4VCIIssuerMetadata request
+	GetOIDC4VCIIssuerMetadataWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*GetOIDC4VCIIssuerMetadataResponse, error)
 
 	// CredentialOffer request
 	CredentialOfferWithResponse(ctx context.Context, did string, params *CredentialOfferParams, reqEditors ...RequestEditorFn) (*CredentialOfferResponse, error)
@@ -479,14 +531,14 @@ type ClientWithResponsesInterface interface {
 	RequestAccessTokenWithFormdataBodyWithResponse(ctx context.Context, did string, body RequestAccessTokenFormdataRequestBody, reqEditors ...RequestEditorFn) (*RequestAccessTokenResponse, error)
 }
 
-type GetOIDCProviderMetaResponse struct {
+type GetOAuth2ClientMetadataResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *OIDCProviderMetadata
+	JSON200      *OAuth2ClientMetadata
 }
 
 // Status returns HTTPResponse.Status
-func (r GetOIDCProviderMetaResponse) Status() string {
+func (r GetOAuth2ClientMetadataResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -494,21 +546,21 @@ func (r GetOIDCProviderMetaResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r GetOIDCProviderMetaResponse) StatusCode() int {
+func (r GetOAuth2ClientMetadataResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
 }
 
-type GetOIDCIssuerMetaResponse struct {
+type GetOIDCProviderMetadataResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *OIDCProviderMetadata
 }
 
 // Status returns HTTPResponse.Status
-func (r GetOIDCIssuerMetaResponse) Status() string {
+func (r GetOIDCProviderMetadataResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -516,7 +568,29 @@ func (r GetOIDCIssuerMetaResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r GetOIDCIssuerMetaResponse) StatusCode() int {
+func (r GetOIDCProviderMetadataResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetOIDC4VCIIssuerMetadataResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *CredentialIssuerMetadata
+}
+
+// Status returns HTTPResponse.Status
+func (r GetOIDC4VCIIssuerMetadataResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetOIDC4VCIIssuerMetadataResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -588,22 +662,31 @@ func (r RequestAccessTokenResponse) StatusCode() int {
 	return 0
 }
 
-// GetOIDCProviderMetaWithResponse request returning *GetOIDCProviderMetaResponse
-func (c *ClientWithResponses) GetOIDCProviderMetaWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*GetOIDCProviderMetaResponse, error) {
-	rsp, err := c.GetOIDCProviderMeta(ctx, did, reqEditors...)
+// GetOAuth2ClientMetadataWithResponse request returning *GetOAuth2ClientMetadataResponse
+func (c *ClientWithResponses) GetOAuth2ClientMetadataWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*GetOAuth2ClientMetadataResponse, error) {
+	rsp, err := c.GetOAuth2ClientMetadata(ctx, did, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseGetOIDCProviderMetaResponse(rsp)
+	return ParseGetOAuth2ClientMetadataResponse(rsp)
 }
 
-// GetOIDCIssuerMetaWithResponse request returning *GetOIDCIssuerMetaResponse
-func (c *ClientWithResponses) GetOIDCIssuerMetaWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*GetOIDCIssuerMetaResponse, error) {
-	rsp, err := c.GetOIDCIssuerMeta(ctx, did, reqEditors...)
+// GetOIDCProviderMetadataWithResponse request returning *GetOIDCProviderMetadataResponse
+func (c *ClientWithResponses) GetOIDCProviderMetadataWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*GetOIDCProviderMetadataResponse, error) {
+	rsp, err := c.GetOIDCProviderMetadata(ctx, did, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseGetOIDCIssuerMetaResponse(rsp)
+	return ParseGetOIDCProviderMetadataResponse(rsp)
+}
+
+// GetOIDC4VCIIssuerMetadataWithResponse request returning *GetOIDC4VCIIssuerMetadataResponse
+func (c *ClientWithResponses) GetOIDC4VCIIssuerMetadataWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*GetOIDC4VCIIssuerMetadataResponse, error) {
+	rsp, err := c.GetOIDC4VCIIssuerMetadata(ctx, did, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetOIDC4VCIIssuerMetadataResponse(rsp)
 }
 
 // CredentialOfferWithResponse request returning *CredentialOfferResponse
@@ -649,15 +732,41 @@ func (c *ClientWithResponses) RequestAccessTokenWithFormdataBodyWithResponse(ctx
 	return ParseRequestAccessTokenResponse(rsp)
 }
 
-// ParseGetOIDCProviderMetaResponse parses an HTTP response from a GetOIDCProviderMetaWithResponse call
-func ParseGetOIDCProviderMetaResponse(rsp *http.Response) (*GetOIDCProviderMetaResponse, error) {
+// ParseGetOAuth2ClientMetadataResponse parses an HTTP response from a GetOAuth2ClientMetadataWithResponse call
+func ParseGetOAuth2ClientMetadataResponse(rsp *http.Response) (*GetOAuth2ClientMetadataResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &GetOIDCProviderMetaResponse{
+	response := &GetOAuth2ClientMetadataResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest OAuth2ClientMetadata
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetOIDCProviderMetadataResponse parses an HTTP response from a GetOIDCProviderMetadataWithResponse call
+func ParseGetOIDCProviderMetadataResponse(rsp *http.Response) (*GetOIDCProviderMetadataResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetOIDCProviderMetadataResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -675,22 +784,22 @@ func ParseGetOIDCProviderMetaResponse(rsp *http.Response) (*GetOIDCProviderMetaR
 	return response, nil
 }
 
-// ParseGetOIDCIssuerMetaResponse parses an HTTP response from a GetOIDCIssuerMetaWithResponse call
-func ParseGetOIDCIssuerMetaResponse(rsp *http.Response) (*GetOIDCIssuerMetaResponse, error) {
+// ParseGetOIDC4VCIIssuerMetadataResponse parses an HTTP response from a GetOIDC4VCIIssuerMetadataWithResponse call
+func ParseGetOIDC4VCIIssuerMetadataResponse(rsp *http.Response) (*GetOIDC4VCIIssuerMetadataResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &GetOIDCIssuerMetaResponse{
+	response := &GetOIDC4VCIIssuerMetadataResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest OIDCProviderMetadata
+		var dest CredentialIssuerMetadata
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

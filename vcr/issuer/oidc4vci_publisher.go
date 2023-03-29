@@ -3,8 +3,8 @@ package issuer
 import (
 	"context"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/oidc4vci"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 )
 
 var _ Publisher = (*OIDC4VCIPublisher)(nil)

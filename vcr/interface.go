@@ -21,6 +21,8 @@ package vcr
 
 import (
 	"context"
+	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"time"
 
 	"github.com/nuts-foundation/go-did"
@@ -40,11 +42,7 @@ type Finder interface {
 }
 
 // Writer is the interface that groups al the VC write methods
-type Writer interface {
-	// StoreCredential writes a VC to storage. Before writing, it calls Verify!
-	// It can handle duplicates.
-	StoreCredential(vc vc.VerifiableCredential, validAt *time.Time) error
-}
+type Writer = types.Writer
 
 // TrustManager bundles all trust related methods in one interface
 type TrustManager interface {
@@ -72,6 +70,7 @@ type VCR interface {
 	Issuer() issuer.Issuer
 	Holder() holder.Holder
 	Verifier() verifier.Verifier
+	IssuerRegistry() *oidc4vci.IssuerRegistry
 
 	Finder
 	Resolver

@@ -1,4 +1,4 @@
-package auth
+package test
 
 import (
 	"context"
@@ -9,10 +9,10 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/api/oidc4vci_v0"
-	"github.com/nuts-foundation/nuts-node/auth/oidc4vci"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0"
+	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -27,17 +27,19 @@ import (
 //   - Issue a VC using the OIDC4VCI Credential Issuer, check that it is received by the wallet
 //   - Check that the VC is stored in the wallet
 func TestOIDC4VCIHappyFlow(t *testing.T) {
+	httpPort := test.FreeTCPPort()
+	identityURL := fmt.Sprintf("http://localhost:%d", httpPort)
+
 	// Create issuer and wallet
 	ctrl := gomock.NewController(t)
 	credentialStore := vcr.NewMockWriter(ctrl)
-	issuer := oidc4vci.NewIssuer()
+	issuerRegistry := oidc4vci.NewIssuerRegistry(identityURL)
 	api := &oidc4vci_v0.Wrapper{
-		Issuer:          issuer,
+		IssuerRegistry:  issuerRegistry,
 		CredentialStore: credentialStore,
 	}
 
 	// Start HTTP server
-	httpPort := test.FreeTCPPort()
 	httpServer := echo.New()
 	httpServer.Use(middleware.Logger())
 	defer httpServer.Close()
@@ -49,13 +51,13 @@ func TestOIDC4VCIHappyFlow(t *testing.T) {
 			startErrorChannel <- err
 		}
 	}()
-	walletURL := fmt.Sprintf("http://localhost:%d", httpPort)
+
 	test.WaitFor(t, func() (bool, error) {
 		// Check if Start() error-ed
 		if len(startErrorChannel) > 0 {
 			return false, <-startErrorChannel
 		}
-		_, err := http.Get(walletURL)
+		_, err := http.Get(identityURL)
 		return err == nil, nil
 	}, 5*time.Second, "time-out waiting for HTTP server to start")
 
@@ -83,7 +85,7 @@ func TestOIDC4VCIHappyFlow(t *testing.T) {
 	credentialStore.EXPECT().StoreCredential(credential, nil).Return(nil)
 
 	// Now issue the VC
-	err := issuer.Offer(context.Background(), credential, walletURL)
+	err := issuerRegistry.Get(issuerDID.String()).Offer(context.Background(), credential, identityURL)
 	require.NoError(t, err)
 
 	time.Sleep(3 * time.Second)

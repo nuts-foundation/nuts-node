@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-errors/errors"
-	"github.com/nuts-foundation/nuts-node/auth/api/oidc4vci_v0/types"
+	"github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0/types"
 	"io"
 	"net/http"
 	"net/url"
@@ -30,7 +30,7 @@ func (c httpOAuth2Client) RequestAccessToken(grantType string, params map[string
 		values.Add(key, value)
 	}
 
-	httpResponse, err := c.httpClient.PostForm(*c.metadata.TokenEndpoint, values)
+	httpResponse, err := c.httpClient.PostForm(c.metadata.TokenEndpoint, values)
 	defer httpResponse.Body.Close()
 	if err != nil {
 		return nil, fmt.Errorf("http request error: %w", err)

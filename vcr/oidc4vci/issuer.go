@@ -8,17 +8,26 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/api/oidc4vci_v0/client"
-	"github.com/nuts-foundation/nuts-node/auth/api/oidc4vci_v0/types"
-	"github.com/nuts-foundation/nuts-node/auth/log"
+	"github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0/client"
+	"github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0/types"
+	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"io"
 	"net/url"
 	"sync"
 )
 
+type Issuer interface {
+	ProviderMetadata() types.OIDCProviderMetadata
+	RequestAccessToken(preAuthorizedCode string) (string, error)
+
+	Metadata() types.CredentialIssuerMetadata
+	Offer(ctx context.Context, credential vc.VerifiableCredential, walletURL string) error
+	GetCredential(accessToken string) (vc.VerifiableCredential, error)
+}
+
 // NewIssuer creates a new Issuer instance. The identifier is the Credential Issuer Identifier, e.g. https://example.com/issuer/
-func NewIssuer(identifier string) *Issuer {
-	return &Issuer{
+func NewIssuer(identifier string) Issuer {
+	return &memoryIssuer{
 		identifier:   identifier,
 		state:        make(map[string]vc.VerifiableCredential),
 		accessTokens: make(map[string]string),
@@ -26,7 +35,7 @@ func NewIssuer(identifier string) *Issuer {
 	}
 }
 
-type Issuer struct {
+type memoryIssuer struct {
 	identifier string
 	// state maps a pre-authorized code to a Verifiable Credential
 	state map[string]vc.VerifiableCredential
@@ -35,7 +44,22 @@ type Issuer struct {
 	mux          *sync.Mutex
 }
 
-func (i *Issuer) RequestAccessToken(preAuthorizedCode string) (string, error) {
+func (i *memoryIssuer) Metadata() types.CredentialIssuerMetadata {
+	return types.CredentialIssuerMetadata{
+		CredentialIssuer:     i.identifier,
+		CredentialEndpoint:   i.identifier + "/issuer/oidc4vci/credential",
+		CredentialsSupported: []map[string]interface{}{{"NutsAuthorizationCredential": map[string]interface{}{}}},
+	}
+}
+
+func (i *memoryIssuer) ProviderMetadata() types.OIDCProviderMetadata {
+	return types.OIDCProviderMetadata{
+		Issuer:        i.identifier,
+		TokenEndpoint: i.identifier + "/oidc/token",
+	}
+}
+
+func (i *memoryIssuer) RequestAccessToken(preAuthorizedCode string) (string, error) {
 	i.mux.Lock()
 	defer i.mux.Unlock()
 	_, ok := i.state[preAuthorizedCode]
@@ -47,7 +71,7 @@ func (i *Issuer) RequestAccessToken(preAuthorizedCode string) (string, error) {
 	return accessToken, nil
 }
 
-func (i *Issuer) Offer(ctx context.Context, credential vc.VerifiableCredential, walletURL string) error {
+func (i *memoryIssuer) Offer(ctx context.Context, credential vc.VerifiableCredential, walletURL string) error {
 	i.mux.Lock()
 	preAuthorizedCode := generateCode()
 	i.state[preAuthorizedCode] = credential
@@ -109,7 +133,7 @@ func (i *Issuer) Offer(ctx context.Context, credential vc.VerifiableCredential, 
 	return nil
 }
 
-func (i *Issuer) GetCredential(accessToken string) (vc.VerifiableCredential, error) {
+func (i *memoryIssuer) GetCredential(accessToken string) (vc.VerifiableCredential, error) {
 	i.mux.Lock()
 	defer i.mux.Unlock()
 	preAuthorizedCode, ok := i.accessTokens[accessToken]

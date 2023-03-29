@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/api/oidc4vci_v0/types"
+	"github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0/types"
 	"io"
 	"net/http"
 )
@@ -26,15 +26,20 @@ func NewIssuerClient(credentialIssuerIdentifier string) (IssuerClient, error) {
 	}
 	httpClient := http.Client{}
 
-	metadata, err := loadMetadata(credentialIssuerIdentifier, httpClient)
+	// Load OIDC4VCI metadata and OIDC metadata
+	metadata, err := loadCredentialIssuerMetadata(credentialIssuerIdentifier, httpClient)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load Credential Issuer Metadata (identifier=%s): %w", credentialIssuerIdentifier, err)
+	}
+	providerMetadata, err := loadOIDCProviderMetadata(credentialIssuerIdentifier, httpClient)
+	if err != nil {
+		return nil, fmt.Errorf("unable to load OIDC Provider Metadata (identifier=%s): %w", credentialIssuerIdentifier, err)
 	}
 
 	return &httpIssuerClient{
 		httpOAuth2Client: httpOAuth2Client{
 			httpClient: httpClient,
-			metadata:   *metadata,
+			metadata:   *providerMetadata,
 		},
 		identifier: credentialIssuerIdentifier,
 		httpClient: httpClient,
@@ -47,14 +52,15 @@ var _ IssuerClient = (*httpIssuerClient)(nil)
 type httpIssuerClient struct {
 	httpOAuth2Client
 
-	identifier string
-	httpClient http.Client
-	metadata   types.OIDCProviderMetadata
+	identifier       string
+	httpClient       http.Client
+	metadata         types.CredentialIssuerMetadata
+	providerMetadata types.OIDCProviderMetadata
 }
 
 func (h httpIssuerClient) GetCredential(request types.CredentialRequest, accessToken string) (*vc.VerifiableCredential, error) {
 	requestBody, _ := json.Marshal(request)
-	httpRequest, _ := http.NewRequest("POST", *h.metadata.CredentialEndpoint, bytes.NewReader(requestBody))
+	httpRequest, _ := http.NewRequest("POST", h.metadata.CredentialEndpoint, bytes.NewReader(requestBody))
 	httpRequest.Header.Add("Authorization", "Bearer "+accessToken)
 	httpRequest.Header.Add("Content-Type", "application/json")
 	httpResponse, err := h.httpClient.Do(httpRequest)
@@ -88,7 +94,31 @@ func (h httpIssuerClient) GetCredential(request types.CredentialRequest, accessT
 	return &credential, nil
 }
 
-func loadMetadata(credentialIssuerIdentifier string, httpClient http.Client) (*types.OIDCProviderMetadata, error) {
+func loadCredentialIssuerMetadata(credentialIssuerIdentifier string, httpClient http.Client) (*types.CredentialIssuerMetadata, error) {
+	// TODO (non-prototype): Support HTTPS (which truststore?)
+	// TODO (non-prototype): what about caching?
+	httpResponse, err := httpClient.Get(credentialIssuerIdentifier + "/.well-known/openid-configuration")
+	if err != nil {
+		return nil, fmt.Errorf("http request error: %w", err)
+	}
+	defer httpResponse.Body.Close()
+	responseBody, err := io.ReadAll(httpResponse.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read error: %w", err)
+	}
+
+	result := types.CredentialIssuerMetadata{}
+	if err := json.Unmarshal(responseBody, &result); err != nil {
+		return nil, fmt.Errorf("unmarshal error: %w", err)
+	}
+	if len(result.CredentialEndpoint) == 0 {
+		return nil, errors.New("invalid meta data: does not contain credential endpoint")
+	}
+	// TODO: Verify CredentialIssuer is the expected one
+	return &result, nil
+}
+
+func loadOIDCProviderMetadata(credentialIssuerIdentifier string, httpClient http.Client) (*types.OIDCProviderMetadata, error) {
 	//
 	// Resolve OpenID Connect Provider Metadata, to find out where to request the token
 	//
@@ -103,18 +133,13 @@ func loadMetadata(credentialIssuerIdentifier string, httpClient http.Client) (*t
 	if err != nil {
 		return nil, fmt.Errorf("read error: %w", err)
 	}
-	// TODO: This should be CredentialIssuerMetadata
 	result := types.OIDCProviderMetadata{}
 	if err := json.Unmarshal(responseBody, &result); err != nil {
 		return nil, fmt.Errorf("unmarshal error: %w", err)
 	}
-
-	if result.TokenEndpoint == nil || *result.TokenEndpoint == "" {
+	if len(result.TokenEndpoint) == 0 {
 		return nil, errors.New("invalid meta data: does not contain token endpoint")
 	}
-	if result.CredentialEndpoint == nil || *result.CredentialEndpoint == "" {
-		return nil, errors.New("invalid meta data: does not contain credential endpoint")
-	}
-	// TODO: Verify CredentialIssuer is the expected one
+	// TODO: Verify issuer is the expected one
 	return &result, nil
 }

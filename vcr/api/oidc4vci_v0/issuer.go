@@ -4,16 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/auth/api/oidc4vci_v0/types"
+	"github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0/types"
 	"strings"
 )
 
-func (w Wrapper) GetOIDCIssuerMeta(ctx context.Context, request GetOIDCIssuerMetaRequestObject) (GetOIDCIssuerMetaResponseObject, error) {
-	metadata := w.getOIDCIssuerMetadata(request.Did)
-	return GetOIDCIssuerMeta200JSONResponse(metadata), nil
+func (w Wrapper) GetOIDC4VCIIssuerMetadata(_ context.Context, request GetOIDC4VCIIssuerMetadataRequestObject) (GetOIDC4VCIIssuerMetadataResponseObject, error) {
+	return GetOIDC4VCIIssuerMetadata200JSONResponse(w.IssuerRegistry.Get(request.Did).Metadata()), nil
 }
 
-func (w Wrapper) GetCredential(ctx context.Context, request GetCredentialRequestObject) (GetCredentialResponseObject, error) {
+func (w Wrapper) GetOIDCProviderMetadata(ctx context.Context, request GetOIDCProviderMetadataRequestObject) (GetOIDCProviderMetadataResponseObject, error) {
+	return GetOIDCProviderMetadata200JSONResponse(w.IssuerRegistry.Get(request.Did).ProviderMetadata()), nil
+}
+
+func (w Wrapper) GetCredential(_ context.Context, request GetCredentialRequestObject) (GetCredentialResponseObject, error) {
 	// TODO (non-prototype): Scope retrieving credential to issuer DID
 	// TODO (non-prototype): Verify requested format
 	// TODO (non-prototype): Verify Proof-of-Possession of private key material
@@ -25,7 +28,7 @@ func (w Wrapper) GetCredential(ctx context.Context, request GetCredentialRequest
 		return nil, errors.New("invalid authorization header")
 	}
 	accessToken := authHeader[7:]
-	credential, err := w.Issuer.GetCredential(accessToken)
+	credential, err := w.IssuerRegistry.Get(request.Did).GetCredential(accessToken)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +50,7 @@ func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 	if request.Body.GrantType != types.PreAuthorizedCodeGrant {
 		return nil, errors.New("unsupported grant type")
 	}
-	accessToken, err := w.Issuer.RequestAccessToken(request.Body.PreAuthorizedCode)
+	accessToken, err := w.IssuerRegistry.Get(request.Did).RequestAccessToken(request.Body.PreAuthorizedCode)
 	if err != nil {
 		return nil, err
 	}
@@ -59,20 +62,4 @@ func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 		ExpiresIn:   &expiresIn,
 		TokenType:   "bearer",
 	}), nil
-}
-
-func (w Wrapper) getOIDCIssuerMetadata(issuerDID string) OIDCProviderMetadata {
-	credentialEndp := "http://localhost:1323/identity/" + issuerDID + "/issuer/oidc4vci/credential"
-	credentialIssuer := "http://localhost:1323/identity/" + issuerDID
-	credentialsSupported := []map[string]interface{}{{"NutsAuthorizationCredential": map[string]interface{}{}}}
-	issuer := "http://localhost:1323/identity/" + issuerDID
-	tokenEndp := "http://localhost:1323/identity/" + issuerDID + "/oidc/token"
-	metadata := OIDCProviderMetadata{
-		CredentialEndpoint:   &credentialEndp,
-		CredentialIssuer:     &credentialIssuer,
-		CredentialsSupported: &credentialsSupported,
-		Issuer:               &issuer,
-		TokenEndpoint:        &tokenEndp,
-	}
-	return metadata
 }

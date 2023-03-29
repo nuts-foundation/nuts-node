@@ -1,6 +1,6 @@
 package oidc4vci
 
-import "github.com/nuts-foundation/nuts-node/auth/api/oidc4vci_v0/types"
+import "github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0/types"
 
 // WalletClient defines the API client used by the credential issuer to communicate with the receiving wallet.
 type WalletClient interface {

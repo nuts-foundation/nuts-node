@@ -23,8 +23,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/auth/api/oidc4vci_v0"
-	"github.com/nuts-foundation/nuts-node/auth/oidc4vci"
+	"github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0"
 	"io"
 	"os"
 	"runtime/pprof"
@@ -189,10 +188,9 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	docResolver := didservice.Resolver{Store: didStore}
 	docFinder := didservice.Finder{Store: didStore}
 	eventManager := events.NewManager()
-	oidc4vciIssuerRegistry := oidc4vci.NewIssuerRegistry()
 	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), keyResolver, cryptoInstance, docResolver, docFinder, eventManager, storageInstance.GetProvider(network.ModuleName))
 	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance, didStore, eventManager)
-	credentialInstance := vcr.NewVCRInstance(cryptoInstance, docResolver, keyResolver, networkInstance, jsonld, eventManager, storageInstance, oidc4vciIssuerRegistry)
+	credentialInstance := vcr.NewVCRInstance(cryptoInstance, docResolver, keyResolver, networkInstance, jsonld, eventManager, storageInstance)
 	didmanInstance := didman.NewDidmanInstance(docResolver, didStore, vdrInstance, credentialInstance, jsonld)
 	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), didStore, credentialInstance, cryptoInstance, didmanInstance, jsonld)
 	statusEngine := status.NewStatusEngine(system)
@@ -209,7 +207,8 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	}})
 	system.RegisterRoutes(&credAPIv2.Wrapper{VCR: credentialInstance, ContextManager: jsonld})
 	system.RegisterRoutes(&oidc4vci_v0.Wrapper{
-		Issuer:          oidc4vciIssuer,
+		IssuerRegistry:  credentialInstance.IssuerRegistry(),
+		HolderRegistry:  credentialInstance.Holder(),
 		CredentialStore: credentialInstance,
 	})
 	system.RegisterRoutes(statusEngine.(core.Routable))

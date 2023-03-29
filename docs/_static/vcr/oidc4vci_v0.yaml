@@ -5,12 +5,32 @@ info:
 servers:
   - url: "http://localhost:1323"
 paths:
+  "/identity/{did}/.well-known/oauth2-client-metadata":
+    get:
+      tags:
+        - Well-known
+      summary: Get the OAuth2 Client Metadata
+      operationId: getOAuth2ClientMetadata
+      parameters:
+        - name: did
+          in: path
+          required: true
+          schema:
+              type: string
+              example: did:nuts:123
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/OAuth2ClientMetadata"
   "/identity/{did}/.well-known/openid-configuration":
     get:
       tags:
         - Well-known
-      summary: get OIDC provider meta data
-      operationId: getOIDCProviderMeta
+      summary: Get the OIDC Provider metadata
+      operationId: getOIDCProviderMetadata
       parameters:
         - name: did
           in: path
@@ -30,8 +50,8 @@ paths:
     get:
       tags:
         - Well-known
-      summary: get OIDC credential issuer meta data
-      operationId: getOIDCIssuerMeta
+      summary: Get the OIDC4VCI Credential Issuer Metadata
+      operationId: getOIDC4VCIIssuerMetadata
       parameters:
         - name: did
           in: path
@@ -45,7 +65,7 @@ paths:
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/OIDCProviderMetadata"
+                "$ref": "#/components/schemas/CredentialIssuerMetadata"
   "/identity/{did}/oidc/token":
     post:
       tags:
@@ -159,28 +179,17 @@ paths:
                 example: "internal server error"
 components:
   schemas:
-    OIDCProviderMetadata:
-      description: |
-        The OIDC Provider Metadata combines meta data from the OIDC provider and the OIDC4VCI issuer.
-        This way a client can discover all the information it needs in one request.
+    CredentialIssuerMetadata:
       type: object
+      required:
+        - credential_issuer
+        - credential_endpoint
+        - credentials_supported
       properties:
         credential_issuer:
           type: string
           description: The Credential Issuer's identifier
           example: https://credential-issuer.example.com
-        issuer:
-          type: string
-          description: |
-            The authorization server's issuer identifier, which is
-            a URL that uses the "https" scheme and has no query or fragment
-            components.
-          example: https://issuer.example.com
-        token_endpoint:
-          type: string
-          description: |
-            URL of the authorization server's token endpoint [RFC6749].
-          example: https://issuer.example.com/token
         credential_endpoint:
           type: string
           example: "https://issuer.example/credential"
@@ -203,6 +212,38 @@ components:
                 ],
                 "cryptographic_binding_methods_supported": "did:nuts"
               }
+
+    OAuth2ClientMetadata:
+      description: OAuth2 Client Metadata, extended with OIDC4VCI parameters
+      type: object
+      required:
+        - credential_offer_endpoint
+      properties:
+        credential_offer_endpoint:
+          type: string
+          description: URL of the verifiable credential wallet's offer endpoint
+          example: https://wallet.example.com/credential_offer
+
+    OIDCProviderMetadata:
+      description: OpenID Connect Provider Metadata (OAuth2 Authorization Server Metadata)
+      type: object
+      required:
+        - issuer
+        - token_endpoint
+      properties:
+        issuer:
+          type: string
+          description: |
+            The authorization server's issuer identifier, which is
+            a URL that uses the "https" scheme and has no query or fragment
+            components.
+          example: https://issuer.example.com
+        token_endpoint:
+          type: string
+          description: |
+            URL of the authorization server's token endpoint [RFC6749].
+          example: https://issuer.example.com/token
+
     OIDCTokenResponse:
       type: object
       description: |
