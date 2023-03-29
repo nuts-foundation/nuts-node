@@ -169,7 +169,7 @@ func (r KeyResolver) ResolveRelationKey(keyID string, validAt *time.Time, relati
 		return "", err
 	}
 	var result *did.VerificationRelationship
-	relationships, _ := resolveRelationship(doc, relationType)
+	relationships, _ := resolveRelationships(doc, relationType)
 
 	for _, rel := range relationships {
 		if rel.ID.String() == keyID {
@@ -182,7 +182,7 @@ func (r KeyResolver) ResolveRelationKey(keyID string, validAt *time.Time, relati
 	return result.PublicKey()
 }
 
-func resolveRelationship(doc *did.Document, relationType types.RelationType) (relationships did.VerificationRelationships, err error) {
+func resolveRelationships(doc *did.Document, relationType types.RelationType) (relationships did.VerificationRelationships, err error) {
 	switch relationType {
 	case types.Authentication:
 		return doc.Authentication, nil
@@ -206,7 +206,7 @@ func (r KeyResolver) ResolveAssertionKeyID(id did.DID) (ssi.URI, error) {
 		return ssi.URI{}, err
 	}
 
-	return ExtractAssertionKeyID(*doc)
+	return ExtractFirstRelationKeyIDByType(*doc, types.AssertionMethod)
 }
 
 func (r KeyResolver) ResolveRelationKeyID(id did.DID, relationType types.RelationType) (ssi.URI, error) {
@@ -215,7 +215,7 @@ func (r KeyResolver) ResolveRelationKeyID(id did.DID, relationType types.Relatio
 		return ssi.URI{}, err
 	}
 
-	return ExtractRelationKeyID(*doc, relationType)
+	return ExtractFirstRelationKeyIDByType(*doc, relationType)
 }
 
 // ResolveKeyAgreementKey resolves the public key of the first valid KeyAgreement of an indicated DID document in the current state.
@@ -231,14 +231,10 @@ func (r KeyResolver) ResolveKeyAgreementKey(id did.DID) (crypto.PublicKey, error
 	return doc.KeyAgreement[0].PublicKey()
 }
 
-// ExtractAssertionKeyID returns a assertionMethod ID from the given DID document.
-// it returns types.ErrKeyNotFound is no assertionMethod key is present.
-func ExtractAssertionKeyID(doc did.Document) (ssi.URI, error) {
-	return ExtractRelationKeyID(doc, types.AssertionMethod)
-}
-
-func ExtractRelationKeyID(doc did.Document, relationType types.RelationType) (ssi.URI, error) {
-	keys, err := resolveRelationship(&doc, relationType)
+// ExtractFirstRelationKeyIDByType returns the first relation key ID from the given DID document matching the relationType.
+// Returns a types.ErrKeyNotFound if no relation key of the given relationType is present.
+func ExtractFirstRelationKeyIDByType(doc did.Document, relationType types.RelationType) (ssi.URI, error) {
+	keys, err := resolveRelationships(&doc, relationType)
 	if err != nil {
 		return ssi.URI{}, err
 	}

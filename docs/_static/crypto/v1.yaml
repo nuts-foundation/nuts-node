@@ -64,9 +64,10 @@ paths:
           $ref: '../common/error_response.yaml'
   /internal/crypto/v1/encrypt_jwe:
     post:
-      summary: "encrypt a payload and headers with the public key of the given DID into a JWE object"
+      summary: "Encrypt a payload and headers with the public key of the given DID into a JWE object"
       description: |
         Encrypt a payload and headers with the public key of the given DID into a JWE object
+        Note: this feature is experimental and can be changed in a future minor release.
 
         error returns:
         * 400 - incorrect input
@@ -91,9 +92,11 @@ paths:
           $ref: '../common/error_response.yaml'
   /internal/crypto/v1/decrypt_jwe:
     post:
-      summary: "decrypt a payload with the private key related to the KeyID in the header"
+      summary: "Decrypt a payload with the private key related to the KeyID in the header"
       description: |
         Decrypt a payload with the private key related to the KeyID in the header
+        
+        Note: this feature is experimental and can be changed in a future minor release.
 
         error returns:
         * 400 - incorrect input

@@ -147,6 +147,8 @@ type DocManipulator interface {
 	AddVerificationMethod(ctx context.Context, id did.DID, keyUsage DIDKeyFlags) (*did.VerificationMethod, error)
 }
 
+// RelationType is the type that contains the different possible relationships between a DID Document and a VerificationMethod
+// They are defined in the DID spec: https://www.w3.org/TR/did-core/#verification-relationships
 type RelationType uint
 
 const (

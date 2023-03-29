@@ -41,7 +41,7 @@ func (r vdrKeyResolver) ResolveAssertionKey(issuerDID did.DID) (crypto.Key, erro
 	}
 
 	// resolve an assertionMethod key for issuer
-	kid, err := didservice.ExtractAssertionKeyID(*document)
+	kid, err := didservice.ExtractFirstRelationKeyIDByType(*document, vdr.AssertionMethod)
 	if err != nil {
 		return nil, fmt.Errorf("invalid issuer: %w", err)
 	}
