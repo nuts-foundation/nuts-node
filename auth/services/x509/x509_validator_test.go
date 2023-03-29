@@ -289,7 +289,7 @@ func TestJwtX509Validator_Verify(t *testing.T) {
 		db := crl.NewMockValidator(gomock.NewController(t))
 
 		db.EXPECT().Sync().Return(nil)
-		db.EXPECT().IsSynced(0).Return(true)
+		db.EXPECT().IsSynced(0).Return(nil)
 		db.EXPECT().IsRevoked(rootCert.Issuer.String(), rootCert.SerialNumber).Return(false)
 		db.EXPECT().IsRevoked(intermediateCert.Issuer.String(), intermediateCert.SerialNumber).Return(false)
 		db.EXPECT().IsRevoked(leafCert.Issuer.String(), leafCert.SerialNumber).Return(false)

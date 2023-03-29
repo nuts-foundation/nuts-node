@@ -51,10 +51,10 @@ func (mr *MockValidatorMockRecorder) IsRevoked(issuer, serialNumber interface{})
 }
 
 // IsSynced mocks base method.
-func (m *MockValidator) IsSynced(maxOffsetDays int) bool {
+func (m *MockValidator) IsSynced(maxOffsetDays int) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IsSynced", maxOffsetDays)
-	ret0, _ := ret[0].(bool)
+	ret0, _ := ret[0].(error)
 	return ret0
 }
 

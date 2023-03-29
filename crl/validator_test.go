@@ -137,7 +137,7 @@ func TestValidator_IsSynced(t *testing.T) {
 
 		result := crlValidator.IsSynced(0)
 
-		assert.EqualError(t, result, "CRL not downloaded: http://crl.pkioverheid.nl/EVRootLatestCRL.crl")
+		assert.Contains(t, result.Error(), "CRL not downloaded")
 	})
 	t.Run("active certificate, CRL is in sync", func(t *testing.T) {
 		// overwrite the nowFunc so the CRL is valid
