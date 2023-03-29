@@ -265,18 +265,18 @@ func (r KeyResolver) ResolvePublicKey(kid string, sourceTransactionsRefs []hash.
 }
 
 func (r KeyResolver) resolvePublicKey(kid string, metadata types.ResolveMetadata) (crypto.PublicKey, error) {
-	did, err := did.ParseDIDURL(kid)
+	id, err := did.ParseDIDURL(kid)
 	if err != nil {
 		return nil, fmt.Errorf("invalid key ID (id=%s): %w", kid, err)
 	}
-	didCopy := *did
+	didCopy := *id
 	didCopy.Fragment = ""
 	doc, _, err := r.Store.Resolve(didCopy, &metadata)
 	if err != nil {
 		return nil, err
 	}
 
-	vm := doc.VerificationMethod.FindByID(*did)
+	vm := doc.VerificationMethod.FindByID(*id)
 	if vm == nil {
 		return nil, types.ErrKeyNotFound
 	}
