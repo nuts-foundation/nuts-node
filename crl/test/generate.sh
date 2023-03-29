@@ -135,7 +135,8 @@ openssl ca -gencrl \
 ## Copy data and cleanup
 cd ..
 
-cat data/int-ca.crt data/root-ca.crt ../../network/test/pkioverheid-server-bundle.pem > truststore.pem
+cat data/int-ca.crt data/root-ca.crt ../../network/test/pkioverheid-server-bundle.pem > truststore_withPKIOverheid.pem
+cat data/int-ca.crt data/root-ca.crt > truststore.pem
 cat data/certs/04.pem data/private/leafA1.key > A-valid.pem
 cat data/certs/05.pem data/private/leafA2.key > A-revoked.pem
 cat data/certs/06.pem data/private/leafA3.key > A-expired.pem
