@@ -26,7 +26,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"net/http"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -109,18 +109,19 @@ func TestWrapper_SearchVCs(t *testing.T) {
 
 	t.Run("ok - exact match returns results", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
-			_ = json.Unmarshal([]byte(organizationQuery), f)
-		})
+		request := SearchVCsJSONRequestBody{}
+		err := json.Unmarshal([]byte(organizationQuery), &request)
+		require.NoError(t, err)
 		// Not an organization VC, but doesn't matter
 		actualVC := *credential.ValidNutsAuthorizationCredential()
 		ctx.vcr.EXPECT().Search(ctx.requestCtx, searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{actualVC}, nil)
 		ctx.mockVerifier.EXPECT().GetRevocation(*actualVC.ID).Return(nil, nil)
-		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any())
+		expectedResponse := SearchVCs200JSONResponse(SearchVCResults{[]SearchVCResult{{VerifiableCredential: actualVC}}})
 
-		err := ctx.client.SearchVCs(ctx.echo)
+		response, err := ctx.client.SearchVCs(ctx.requestCtx, SearchVCsRequestObject{Body: &request})
 
 		assert.NoError(t, err)
+		assert.Equal(t, expectedResponse, response)
 	})
 	t.Run("ok - prefix match returns results", func(t *testing.T) {
 		const prefixQuery = `
@@ -146,18 +147,19 @@ func TestWrapper_SearchVCs(t *testing.T) {
 		}
 
 		ctx := newMockContext(t)
-		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
-			_ = json.Unmarshal([]byte(prefixQuery), f)
-		})
+		request := SearchVCsJSONRequestBody{}
+		err := json.Unmarshal([]byte(prefixQuery), &request)
+		require.NoError(t, err)
 		// Not an organization VC, but doesn't matter
 		actualVC := *credential.ValidNutsAuthorizationCredential()
 		ctx.vcr.EXPECT().Search(ctx.requestCtx, searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{actualVC}, nil)
 		ctx.mockVerifier.EXPECT().GetRevocation(*actualVC.ID).Return(nil, nil)
-		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any())
+		expectedResponse := SearchVCs200JSONResponse(SearchVCResults{[]SearchVCResult{{VerifiableCredential: actualVC}}})
 
-		err := ctx.client.SearchVCs(ctx.echo)
+		response, err := ctx.client.SearchVCs(ctx.requestCtx, SearchVCsRequestObject{Body: &request})
 
 		assert.NoError(t, err)
+		assert.Equal(t, expectedResponse, response)
 	})
 	t.Run("ok - wildcard indicating not nil", func(t *testing.T) {
 		const wildcardOnlyQuery = `
@@ -181,38 +183,40 @@ func TestWrapper_SearchVCs(t *testing.T) {
 		}
 
 		ctx := newMockContext(t)
-		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
-			_ = json.Unmarshal([]byte(wildcardOnlyQuery), f)
-		})
+		request := SearchVCsJSONRequestBody{}
+		err := json.Unmarshal([]byte(wildcardOnlyQuery), &request)
+		require.NoError(t, err)
 		// Not an organization VC, but doesn't matter
 		actualVC := *credential.ValidNutsAuthorizationCredential()
 		ctx.vcr.EXPECT().Search(ctx.requestCtx, searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{actualVC}, nil)
 		ctx.mockVerifier.EXPECT().GetRevocation(*actualVC.ID).Return(nil, nil)
-		ctx.echo.EXPECT().JSON(http.StatusOK, gomock.Any())
+		expectedResponse := SearchVCs200JSONResponse(SearchVCResults{[]SearchVCResult{{VerifiableCredential: actualVC}}})
 
-		err := ctx.client.SearchVCs(ctx.echo)
+		response, err := ctx.client.SearchVCs(ctx.requestCtx, SearchVCsRequestObject{Body: &request})
 
 		assert.NoError(t, err)
+		assert.Equal(t, expectedResponse, response)
 	})
 
 	t.Run("ok - no results", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
-			_ = json.Unmarshal([]byte(organizationQuery), f)
-		})
+		request := SearchVCsJSONRequestBody{}
+		err := json.Unmarshal([]byte(organizationQuery), &request)
+		require.NoError(t, err)
 		ctx.vcr.EXPECT().Search(ctx.requestCtx, searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{}, nil)
-		ctx.echo.EXPECT().JSON(http.StatusOK, SearchVCResults{[]SearchVCResult{}})
+		expectedResponse := SearchVCs200JSONResponse(SearchVCResults{[]SearchVCResult{}})
 
-		err := ctx.client.SearchVCs(ctx.echo)
+		response, err := ctx.client.SearchVCs(ctx.requestCtx, SearchVCsRequestObject{Body: &request})
 
 		assert.NoError(t, err)
+		assert.Equal(t, expectedResponse, response)
 	})
 
 	t.Run("ok - custom credential with @list terms", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
-			_ = json.Unmarshal([]byte(customQuery), f)
-		})
+		request := SearchVCsJSONRequestBody{}
+		err := json.Unmarshal([]byte(customQuery), &request)
+		require.NoError(t, err)
 		ctx.vcr.EXPECT().Search(ctx.requestCtx, gomock.Any(), false, gomock.Any()).Return([]vc.VerifiableCredential{}, nil).Do(func(f1 interface{}, f2 interface{}, f3 interface{}, f4 interface{}) {
 			terms := f2.([]vcr.SearchTerm)
 			if assert.Len(t, terms, 9) {
@@ -227,46 +231,50 @@ func TestWrapper_SearchVCs(t *testing.T) {
 				assert.Equal(t, 2, count)
 			}
 		})
-		ctx.echo.EXPECT().JSON(http.StatusOK, SearchVCResults{[]SearchVCResult{}})
+		expectedResponse := SearchVCs200JSONResponse(SearchVCResults{[]SearchVCResult{}})
 
-		err := ctx.client.SearchVCs(ctx.echo)
+		response, err := ctx.client.SearchVCs(ctx.requestCtx, SearchVCsRequestObject{Body: &request})
 
 		assert.NoError(t, err)
+		assert.Equal(t, expectedResponse, response)
 	})
 
 	t.Run("ok - untrusted flag", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
-			_ = json.Unmarshal([]byte(untrustedOrganizationQuery), f)
-		})
+		request := SearchVCsJSONRequestBody{}
+		err := json.Unmarshal([]byte(untrustedOrganizationQuery), &request)
+		require.NoError(t, err)
 		ctx.vcr.EXPECT().Search(ctx.requestCtx, searchTerms, true, gomock.Any()).Return([]vc.VerifiableCredential{}, nil)
-		ctx.echo.EXPECT().JSON(http.StatusOK, SearchVCResults{[]SearchVCResult{}})
+		expectedResponse := SearchVCs200JSONResponse(SearchVCResults{[]SearchVCResult{}})
 
-		err := ctx.client.SearchVCs(ctx.echo)
+		response, err := ctx.client.SearchVCs(ctx.requestCtx, SearchVCsRequestObject{Body: &request})
 
 		assert.NoError(t, err)
+		assert.Equal(t, expectedResponse, response)
 	})
 
 	t.Run("error - search returns error", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
-			_ = json.Unmarshal([]byte(organizationQuery), f)
-		})
+		request := SearchVCsJSONRequestBody{}
+		err := json.Unmarshal([]byte(organizationQuery), &request)
+		require.NoError(t, err)
 		ctx.vcr.EXPECT().Search(ctx.requestCtx, searchTerms, false, gomock.Any()).Return(nil, errors.New("custom"))
 
-		err := ctx.client.SearchVCs(ctx.echo)
+		response, err := ctx.client.SearchVCs(ctx.requestCtx, SearchVCsRequestObject{Body: &request})
 
+		assert.Empty(t, response)
 		assert.EqualError(t, err, "custom")
 	})
 
 	t.Run("error - multiple subjects", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
-			_ = json.Unmarshal([]byte(multiSubjectQuery), f)
-		})
+		request := SearchVCsJSONRequestBody{}
+		err := json.Unmarshal([]byte(multiSubjectQuery), &request)
+		require.NoError(t, err)
 
-		err := ctx.client.SearchVCs(ctx.echo)
+		response, err := ctx.client.SearchVCs(ctx.requestCtx, SearchVCsRequestObject{Body: &request})
 
+		assert.Empty(t, response)
 		assert.EqualError(t, err, "can't match on multiple VC subjects")
 	})
 
@@ -286,27 +294,29 @@ func TestWrapper_SearchVCs(t *testing.T) {
 }`
 
 		ctx := newMockContext(t)
-		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
-			_ = json.Unmarshal([]byte(query), f)
-		})
+		request := SearchVCsJSONRequestBody{}
+		err := json.Unmarshal([]byte(query), &request)
+		require.NoError(t, err)
 
-		err := ctx.client.SearchVCs(ctx.echo)
+		response, err := ctx.client.SearchVCs(ctx.requestCtx, SearchVCsRequestObject{Body: &request})
 
+		assert.Empty(t, response)
 		assert.EqualError(t, err, "failed to convert query to JSON-LD expanded form: invalid property: Dropping property that did not expand into an absolute IRI or keyword.")
 	})
 
 	t.Run("error - error retrieving revocation", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.echo.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
-			_ = json.Unmarshal([]byte(organizationQuery), f)
-		})
+		request := SearchVCsJSONRequestBody{}
+		err := json.Unmarshal([]byte(organizationQuery), &request)
+		require.NoError(t, err)
 		// Not an organization VC, but doesn't matter
 		actualVC := *credential.ValidNutsAuthorizationCredential()
 		ctx.vcr.EXPECT().Search(ctx.requestCtx, searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{actualVC}, nil)
 		ctx.mockVerifier.EXPECT().GetRevocation(*actualVC.ID).Return(nil, errors.New("failure"))
 
-		err := ctx.client.SearchVCs(ctx.echo)
+		response, err := ctx.client.SearchVCs(ctx.requestCtx, SearchVCsRequestObject{Body: &request})
 
+		assert.Empty(t, response)
 		assert.EqualError(t, err, "failure")
 	})
 }
@@ -321,22 +331,22 @@ func TestWrapper_ResolveVC(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.vcr.EXPECT().Resolve(id, nil).Return(&credential, nil)
-		ctx.echo.EXPECT().JSON(http.StatusOK, credential)
 
-		err := ctx.client.ResolveVC(ctx.echo, id.String())
+		response, err := ctx.client.ResolveVC(ctx.requestCtx, ResolveVCRequestObject{Id: id.String()})
 
 		assert.NoError(t, err)
+		assert.Equal(t, ResolveVC200JSONResponse(credential), response)
 	})
 
 	t.Run("ok (verify error, but still returned)", func(t *testing.T) {
 		ctx := newMockContext(t)
 
 		ctx.vcr.EXPECT().Resolve(id, nil).Return(&credential, errors.New("failed"))
-		ctx.echo.EXPECT().JSON(http.StatusOK, credential)
 
-		err := ctx.client.ResolveVC(ctx.echo, id.String())
+		response, err := ctx.client.ResolveVC(ctx.requestCtx, ResolveVCRequestObject{Id: id.String()})
 
 		assert.NoError(t, err)
+		assert.Equal(t, ResolveVC200JSONResponse(credential), response)
 	})
 
 	t.Run("error", func(t *testing.T) {
@@ -344,15 +354,18 @@ func TestWrapper_ResolveVC(t *testing.T) {
 
 		ctx.vcr.EXPECT().Resolve(id, nil).Return(nil, errors.New("failed"))
 
-		err := ctx.client.ResolveVC(ctx.echo, id.String())
+		response, err := ctx.client.ResolveVC(ctx.requestCtx, ResolveVCRequestObject{Id: id.String()})
 
 		assert.Error(t, err)
+		assert.Empty(t, response)
 	})
 
 	t.Run("error - invalid input ID", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		err := ctx.client.ResolveVC(ctx.echo, string([]byte{0x7f}))
+		response, err := ctx.client.ResolveVC(ctx.requestCtx, ResolveVCRequestObject{Id: string([]byte{0x7f})})
+
 		assert.Error(t, err)
+		assert.Empty(t, response)
 	})
 }

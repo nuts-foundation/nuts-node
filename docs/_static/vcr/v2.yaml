@@ -350,7 +350,9 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/DID'
+                  type: string
+                  description: DID according to Nuts specification
+                  example: "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY"
         default:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/verifier/{credentialType}/untrusted:
@@ -381,7 +383,9 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/DID'
+                  type: string
+                  description: DID according to Nuts specification
+                  example: "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY"
         default:
           $ref: '../common/error_response.yaml'
 
@@ -423,8 +427,6 @@ components:
       $ref: '../common/ssi_types.yaml#/components/schemas/VerifiablePresentation'
     Revocation:
       $ref: '../common/ssi_types.yaml#/components/schemas/Revocation'
-    DID:
-      $ref: '../common/ssi_types.yaml#/components/schemas/DID'
 
     IssueVCRequest:
       type: object

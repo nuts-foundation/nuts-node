@@ -19,9 +19,10 @@
 package v2
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
-	httpModule "github.com/nuts-foundation/nuts-node/http"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"net/http"
 
 	"github.com/nuts-foundation/nuts-node/jsonld"
@@ -45,6 +46,8 @@ var clockFn = func() time.Time {
 	return time.Now()
 }
 
+var _ StrictServerInterface = (*Wrapper)(nil)
+
 // Wrapper implements the generated interface from oapi-codegen
 // It parses and checks the params. Handles errors and returns the appropriate response.
 type Wrapper struct {
@@ -54,7 +57,19 @@ type Wrapper struct {
 
 // Routes registers the handler to the echo router
 func (w *Wrapper) Routes(router core.EchoRouter) {
-	RegisterHandlers(router, w)
+	RegisterHandlers(router, NewStrictHandler(w, []StrictMiddlewareFunc{
+		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
+			return func(ctx echo.Context, request interface{}) (response interface{}, err error) {
+				ctx.Set(core.OperationIDContextKey, operationID)
+				ctx.Set(core.ModuleNameContextKey, vcr.ModuleName)
+				ctx.Set(core.StatusCodeResolverContextKey, w)
+				return f(ctx, request)
+			}
+		},
+		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
+			return audit.StrictMiddleware(f, vcr.ModuleName, operationID)
+		},
+	}))
 }
 
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
@@ -69,133 +84,118 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 	})
 }
 
-// Preprocess is called just before the API operation itself is invoked.
-func (w *Wrapper) Preprocess(operationID string, context echo.Context) {
-	httpModule.Preprocess(context, w, vcr.ModuleName, operationID)
-}
-
 // IssueVC handles the API request for credential issuing.
-func (w Wrapper) IssueVC(ctx echo.Context) error {
-	issueRequest := IssueVCRequest{}
-	if err := ctx.Bind(&issueRequest); err != nil {
-		return err
-	}
-
+func (w Wrapper) IssueVC(ctx context.Context, request IssueVCRequestObject) (IssueVCResponseObject, error) {
 	var (
 		publish bool
 		public  bool
 	)
 
 	// publish is true by default
-	if issueRequest.PublishToNetwork != nil {
-		publish = *issueRequest.PublishToNetwork
+	if request.Body.PublishToNetwork != nil {
+		publish = *request.Body.PublishToNetwork
 	} else {
 		publish = true
 	}
 
 	// Check param constraints:
-	if issueRequest.Visibility == nil || *issueRequest.Visibility == "" {
+	if request.Body.Visibility == nil || *request.Body.Visibility == "" {
 		if publish {
-			return core.InvalidInputError("visibility must be set when publishing credential")
+			return nil, core.InvalidInputError("visibility must be set when publishing credential")
 		}
 	} else {
 		// visibility is set
 		// Visibility can only be used when publishing
 		if !publish {
-			return core.InvalidInputError("visibility setting is only allowed when publishing to the network")
+			return nil, core.InvalidInputError("visibility setting is only allowed when publishing to the network")
 		}
 		// Check if the values are in range
-		if *issueRequest.Visibility != Public && *issueRequest.Visibility != Private {
-			return core.InvalidInputError("invalid value for visibility")
+		if *request.Body.Visibility != Public && *request.Body.Visibility != Private {
+			return nil, core.InvalidInputError("invalid value for visibility")
 		}
 		// Set the actual value
-		public = *issueRequest.Visibility == Public
+		public = *request.Body.Visibility == Public
 	}
 
 	// Set default context, if not set
-	if issueRequest.Context == nil {
-		context := credential.NutsV1Context
-		issueRequest.Context = &context
+	if request.Body.Context == nil {
+		vcContext := credential.NutsV1Context
+		request.Body.Context = &vcContext
 	}
 
-	if issueRequest.Type == "" {
-		return core.InvalidInputError("missing credential type")
+	if request.Body.Type == "" {
+		return nil, core.InvalidInputError("missing credential type")
 	}
 
-	if issueRequest.CredentialSubject == nil {
-		return core.InvalidInputError("missing credentialSubject")
+	if request.Body.CredentialSubject == nil {
+		return nil, core.InvalidInputError("missing credentialSubject")
 	}
 
 	requestedVC := vc.VerifiableCredential{}
-	rawRequest, _ := json.Marshal(issueRequest)
+	rawRequest, _ := json.Marshal(*request.Body)
 	if err := json.Unmarshal(rawRequest, &requestedVC); err != nil {
-		return err
+		return nil, err
 	}
 
-	vcCreated, err := w.VCR.Issuer().Issue(ctx.Request().Context(), requestedVC, publish, public)
+	vcCreated, err := w.VCR.Issuer().Issue(ctx, requestedVC, publish, public)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return ctx.JSON(http.StatusOK, vcCreated)
+	return IssueVC200JSONResponse(*vcCreated), nil
 }
 
 // RevokeVC handles the API request for revoking a credential.
-func (w Wrapper) RevokeVC(ctx echo.Context, id string) error {
-	credentialID, err := ssi.ParseURI(id)
+func (w Wrapper) RevokeVC(ctx context.Context, request RevokeVCRequestObject) (RevokeVCResponseObject, error) {
+	credentialID, err := ssi.ParseURI(request.Id)
 	if err != nil {
-		return core.InvalidInputError("invalid credential id: %w", err)
+		return nil, core.InvalidInputError("invalid credential id: %w", err)
 	}
 
-	revocation, err := w.VCR.Issuer().Revoke(ctx.Request().Context(), *credentialID)
+	revocation, err := w.VCR.Issuer().Revoke(ctx, *credentialID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return ctx.JSON(http.StatusOK, revocation)
+	return RevokeVC200JSONResponse(*revocation), nil
 }
 
 // SearchIssuedVCs handles the API request for searching for issued VCs
-func (w *Wrapper) SearchIssuedVCs(ctx echo.Context, params SearchIssuedVCsParams) error {
-	issuerDID, err := did.ParseDID(params.Issuer)
+func (w *Wrapper) SearchIssuedVCs(ctx context.Context, request SearchIssuedVCsRequestObject) (SearchIssuedVCsResponseObject, error) {
+	issuerDID, err := did.ParseDID(request.Params.Issuer)
 	if err != nil {
-		return core.InvalidInputError("invalid issuer did: %w", err)
+		return nil, core.InvalidInputError("invalid issuer did: %w", err)
 	}
 	var subjectID *ssi.URI
-	if params.Subject != nil {
-		subjectID, err = ssi.ParseURI(*params.Subject)
+	if request.Params.Subject != nil {
+		subjectID, err = ssi.ParseURI(*request.Params.Subject)
 		if err != nil {
-			return core.InvalidInputError("invalid subject id: %w", err)
+			return nil, core.InvalidInputError("invalid subject id: %w", err)
 		}
 	}
 
-	credentialType, err := ssi.ParseURI(params.CredentialType)
+	credentialType, err := ssi.ParseURI(request.Params.CredentialType)
 	if err != nil {
-		return core.InvalidInputError("invalid credentialType: %w", err)
+		return nil, core.InvalidInputError("invalid credentialType: %w", err)
 	}
 
 	foundVCs, err := w.VCR.Issuer().SearchCredential(*credentialType, *issuerDID, subjectID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	result, err := w.vcsWithRevocationsToSearchResults(foundVCs)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return ctx.JSON(http.StatusOK, SearchVCResults{result})
+	return SearchIssuedVCs200JSONResponse(SearchVCResults{result}), nil
 }
 
 // VerifyVC handles API request to verify a  Verifiable Credential.
-func (w *Wrapper) VerifyVC(ctx echo.Context) error {
-	verifyRequest := VCVerificationRequest{}
-
-	if err := ctx.Bind(&verifyRequest); err != nil {
-		return err
-	}
-	requestedVC := verifyRequest.VerifiableCredential
+func (w *Wrapper) VerifyVC(ctx context.Context, request VerifyVCRequestObject) (VerifyVCResponseObject, error) {
+	requestedVC := request.Body.VerifiableCredential
 
 	allowUntrustedIssuer := false
 
-	if options := verifyRequest.VerificationOptions; options != nil {
+	if options := request.Body.VerificationOptions; options != nil {
 		if allowUntrusted := options.AllowUntrustedIssuer; allowUntrusted != nil {
 			allowUntrustedIssuer = *allowUntrusted
 		}
@@ -203,144 +203,116 @@ func (w *Wrapper) VerifyVC(ctx echo.Context) error {
 
 	if err := w.VCR.Verifier().Verify(requestedVC, allowUntrustedIssuer, true, nil); err != nil {
 		errMsg := err.Error()
-		return ctx.JSON(http.StatusOK, VCVerificationResult{Validity: false, Message: &errMsg})
+
+		return VerifyVC200JSONResponse(VCVerificationResult{Validity: false, Message: &errMsg}), nil
 	}
 
-	return ctx.JSON(http.StatusOK, VCVerificationResult{Validity: true})
+	return VerifyVC200JSONResponse(VCVerificationResult{Validity: true}), nil
 }
 
 // CreateVP handles API request to create a Verifiable Presentation for one or more Verifiable Credentials.
-func (w *Wrapper) CreateVP(ctx echo.Context) error {
-	request := &CreateVPRequest{}
-	if err := ctx.Bind(request); err != nil {
-		return err
-	}
-
-	if len(request.VerifiableCredentials) == 0 {
-		return core.InvalidInputError("verifiableCredentials needs at least 1 item")
+func (w *Wrapper) CreateVP(ctx context.Context, request CreateVPRequestObject) (CreateVPResponseObject, error) {
+	if len(request.Body.VerifiableCredentials) == 0 {
+		return nil, core.InvalidInputError("verifiableCredentials needs at least 1 item")
 	}
 
 	var signerDID *did.DID
 	var err error
-	if request.SignerDID != nil && len(*request.SignerDID) > 0 {
-		signerDID, err = did.ParseDID(*request.SignerDID)
+	if request.Body.SignerDID != nil && len(*request.Body.SignerDID) > 0 {
+		signerDID, err = did.ParseDID(*request.Body.SignerDID)
 		if err != nil {
-			return core.InvalidInputError("invalid signer DID: %w", err)
+			return nil, core.InvalidInputError("invalid signer DID: %w", err)
 		}
 	}
 
 	created := clockFn()
 	var expires *time.Time
-	if request.Expires != nil {
-		parsedTime, err := time.Parse(time.RFC3339, *request.Expires)
+	if request.Body.Expires != nil {
+		parsedTime, err := time.Parse(time.RFC3339, *request.Body.Expires)
 		if err != nil {
-			return core.InvalidInputError("invalid value for expires: %w", err)
+			return nil, core.InvalidInputError("invalid value for expires: %w", err)
 		}
 		if parsedTime.Before(created) {
-			return core.InvalidInputError("expires can not lay in the past")
+			return nil, core.InvalidInputError("expires can not lay in the past")
 		}
 		expires = &parsedTime
 	}
 
 	proofOptions := proof.ProofOptions{
 		Created:   created,
-		Domain:    request.Domain,
-		Challenge: request.Challenge,
+		Domain:    request.Body.Domain,
+		Challenge: request.Body.Challenge,
 		Expires:   expires,
 	}
 
-	vp, err := w.VCR.Holder().BuildVP(ctx.Request().Context(), request.VerifiableCredentials, proofOptions, signerDID, true)
+	vp, err := w.VCR.Holder().BuildVP(ctx, request.Body.VerifiableCredentials, proofOptions, signerDID, true)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return ctx.JSON(http.StatusOK, vp)
+	return CreateVP200JSONResponse(*vp), nil
 }
 
 // VerifyVP handles API request to verify a Verifiable Presentation.
-func (w *Wrapper) VerifyVP(ctx echo.Context) error {
-	request := &VPVerificationRequest{}
-	if err := ctx.Bind(request); err != nil {
-		return err
-	}
-
+func (w *Wrapper) VerifyVP(ctx context.Context, request VerifyVPRequestObject) (VerifyVPResponseObject, error) {
 	verifyCredentials := true
-	if request.VerifyCredentials != nil {
-		verifyCredentials = *request.VerifyCredentials
+	if request.Body.VerifyCredentials != nil {
+		verifyCredentials = *request.Body.VerifyCredentials
 	}
 
 	var validAt *time.Time
-	if request.ValidAt != nil {
-		parsedTime, err := time.Parse(time.RFC3339, *request.ValidAt)
+	if request.Body.ValidAt != nil {
+		parsedTime, err := time.Parse(time.RFC3339, *request.Body.ValidAt)
 		if err != nil {
-			return core.InvalidInputError("invalid value for validAt: %w", err)
+			return nil, core.InvalidInputError("invalid value for validAt: %w", err)
 		}
 		validAt = &parsedTime
 	}
 
-	verifiedCredentials, err := w.VCR.Verifier().VerifyVP(request.VerifiablePresentation, verifyCredentials, validAt)
+	verifiedCredentials, err := w.VCR.Verifier().VerifyVP(request.Body.VerifiablePresentation, verifyCredentials, validAt)
 	if err != nil {
 		if errors.Is(err, verifier.VerificationError{}) {
 			msg := err.Error()
-			return ctx.JSON(http.StatusOK, VPVerificationResult{Validity: false, Message: &msg})
+			return VerifyVP200JSONResponse(VPVerificationResult{Validity: false, Message: &msg}), nil
 		}
-		return err
+		return nil, err
 	}
 
 	result := VPVerificationResult{Validity: true, Credentials: &verifiedCredentials}
-	return ctx.JSON(http.StatusOK, result)
+	return VerifyVP200JSONResponse(result), nil
 }
 
 // TrustIssuer handles API request to start trusting an issuer of a Verifiable Credential.
-func (w *Wrapper) TrustIssuer(ctx echo.Context) error {
-	return changeTrust(ctx, func(cType ssi.URI, issuer ssi.URI) error {
-		return w.VCR.Trust(cType, issuer)
-	})
+func (w *Wrapper) TrustIssuer(ctx context.Context, request TrustIssuerRequestObject) (TrustIssuerResponseObject, error) {
+	if err := changeTrust(*request.Body, w.VCR.Trust); err != nil {
+		return nil, err
+	}
+	return TrustIssuer204Response{}, nil
 }
 
 // UntrustIssuer handles API request to stop trusting an issuer of a Verifiable Credential.
-func (w *Wrapper) UntrustIssuer(ctx echo.Context) error {
-	return changeTrust(ctx, func(cType ssi.URI, issuer ssi.URI) error {
-		return w.VCR.Untrust(cType, issuer)
-	})
+func (w *Wrapper) UntrustIssuer(ctx context.Context, request UntrustIssuerRequestObject) (UntrustIssuerResponseObject, error) {
+	if err := changeTrust(*request.Body, w.VCR.Untrust); err != nil {
+		return nil, err
+	}
+	return UntrustIssuer204Response{}, nil
 }
 
 // ListTrusted handles API request list all trusted issuers.
-func (w *Wrapper) ListTrusted(ctx echo.Context, credentialType string) error {
-	uri, err := parseCredentialType(credentialType)
+func (w *Wrapper) ListTrusted(ctx context.Context, request ListTrustedRequestObject) (ListTrustedResponseObject, error) {
+	result, err := listTrust(request.CredentialType, w.VCR.Trusted)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	trusted, err := w.VCR.Trusted(*uri)
-	if err != nil {
-		return err
-	}
-	result := make([]string, len(trusted))
-	for i, t := range trusted {
-		result[i] = t.String()
-	}
-
-	return ctx.JSON(http.StatusOK, result)
+	return ListTrusted200JSONResponse(result), nil
 }
 
 // ListUntrusted handles API request list all untrusted issuers, which have issued Verifiable Credentials.
-func (w *Wrapper) ListUntrusted(ctx echo.Context, credentialType string) error {
-	uri, err := parseCredentialType(credentialType)
+func (w *Wrapper) ListUntrusted(ctx context.Context, request ListUntrustedRequestObject) (ListUntrustedResponseObject, error) {
+	result, err := listTrust(request.CredentialType, w.VCR.Untrusted)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	untrusted, err := w.VCR.Untrusted(*uri)
-	if err != nil {
-		return err
-	}
-
-	result := make([]string, len(untrusted))
-	for i, t := range untrusted {
-		result[i] = t.String()
-	}
-
-	return ctx.JSON(http.StatusOK, result)
+	return ListUntrusted200JSONResponse(result), nil
 }
 
 func (w *Wrapper) vcsWithRevocationsToSearchResults(foundVCs []vc.VerifiableCredential) ([]SearchVCResult, error) {
@@ -358,12 +330,7 @@ func (w *Wrapper) vcsWithRevocationsToSearchResults(foundVCs []vc.VerifiableCred
 
 type trustChangeFunc func(ssi.URI, ssi.URI) error
 
-func changeTrust(ctx echo.Context, f trustChangeFunc) error {
-	var icc = new(CredentialIssuer)
-
-	if err := ctx.Bind(icc); err != nil {
-		return err
-	}
+func changeTrust(icc CredentialIssuer, f trustChangeFunc) error {
 
 	d, err := ssi.ParseURI(icc.Issuer)
 	if err != nil {
@@ -379,7 +346,28 @@ func changeTrust(ctx echo.Context, f trustChangeFunc) error {
 		return err
 	}
 
-	return ctx.NoContent(http.StatusNoContent)
+	return nil
+}
+
+type listTrustFunc func(credentialType ssi.URI) ([]ssi.URI, error)
+
+func listTrust(credentialType string, f listTrustFunc) ([]string, error) {
+	uri, err := parseCredentialType(credentialType)
+	if err != nil {
+		return nil, err
+	}
+
+	list, err := f(*uri)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]string, len(list))
+	for i, t := range list {
+		result[i] = t.String()
+	}
+
+	return result, nil
 }
 
 func parseCredentialType(credentialType string) (*ssi.URI, error) {

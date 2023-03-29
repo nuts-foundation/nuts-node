@@ -100,6 +100,13 @@ type SearchOptions struct {
 	AllowUntrustedIssuer *bool `json:"allowUntrustedIssuer,omitempty"`
 }
 
+// SearchVCRequest request body for searching VCs
+type SearchVCRequest struct {
+	// Query A partial VerifiableCredential in JSON-LD format. Each field will be used to match credentials against. All fields MUST be present.
+	Query         map[string]interface{} `json:"query"`
+	SearchOptions *SearchOptions         `json:"searchOptions,omitempty"`
+}
+
 // SearchVCResult result of a Search operation.
 type SearchVCResult struct {
 	// Revocation Credential revocation record
@@ -1447,7 +1454,7 @@ func (r VerifyVPResponse) StatusCode() int {
 type ListTrustedResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *[]DID
+	JSON200      *[]string
 	JSONDefault  *struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -1479,7 +1486,7 @@ func (r ListTrustedResponse) StatusCode() int {
 type ListUntrustedResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *[]DID
+	JSON200      *[]string
 	JSONDefault  *struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -2093,7 +2100,7 @@ func ParseListTrustedResponse(rsp *http.Response) (*ListTrustedResponse, error) 
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest []DID
+		var dest []string
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2135,7 +2142,7 @@ func ParseListUntrustedResponse(rsp *http.Response) (*ListUntrustedResponse, err
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest []DID
+		var dest []string
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2390,8 +2397,6 @@ func (w *ServerInterfaceWrapper) ListUntrusted(ctx echo.Context) error {
 	return err
 }
 
-// PATCH: This template file was taken from pkg/codegen/templates/echo/echo-register.tmpl
-
 // This is a simple interface which specifies echo.Route addition functions which
 // are present on both echo.Echo and echo.Group, since we want to allow using
 // either of them for path registration
@@ -2407,14 +2412,6 @@ type EchoRouter interface {
 	TRACE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 }
 
-type Preprocessor interface {
-	Preprocess(operationID string, context echo.Context)
-}
-
-type ErrorStatusCodeResolver interface {
-	ResolveStatusCode(err error) int
-}
-
 // RegisterHandlers adds each server route to the EchoRouter.
 func RegisterHandlers(router EchoRouter, si ServerInterface) {
 	RegisterHandlersWithBaseURL(router, si, "")
@@ -2428,55 +2425,852 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	// PATCH: This alteration wraps the call to the implementation in a function that sets the "OperationId" context parameter,
-	// so it can be used in error reporting middleware.
-	router.POST(baseURL+"/internal/vcr/v2/holder/vp", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("CreateVP", context)
-		return wrapper.CreateVP(context)
-	})
-	router.POST(baseURL+"/internal/vcr/v2/issuer/vc", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("IssueVC", context)
-		return wrapper.IssueVC(context)
-	})
-	router.GET(baseURL+"/internal/vcr/v2/issuer/vc/search", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("SearchIssuedVCs", context)
-		return wrapper.SearchIssuedVCs(context)
-	})
-	router.DELETE(baseURL+"/internal/vcr/v2/issuer/vc/:id", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("RevokeVC", context)
-		return wrapper.RevokeVC(context)
-	})
-	router.POST(baseURL+"/internal/vcr/v2/search", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("SearchVCs", context)
-		return wrapper.SearchVCs(context)
-	})
-	router.GET(baseURL+"/internal/vcr/v2/vc/:id", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("ResolveVC", context)
-		return wrapper.ResolveVC(context)
-	})
-	router.DELETE(baseURL+"/internal/vcr/v2/verifier/trust", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("UntrustIssuer", context)
-		return wrapper.UntrustIssuer(context)
-	})
-	router.POST(baseURL+"/internal/vcr/v2/verifier/trust", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("TrustIssuer", context)
-		return wrapper.TrustIssuer(context)
-	})
-	router.POST(baseURL+"/internal/vcr/v2/verifier/vc", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("VerifyVC", context)
-		return wrapper.VerifyVC(context)
-	})
-	router.POST(baseURL+"/internal/vcr/v2/verifier/vp", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("VerifyVP", context)
-		return wrapper.VerifyVP(context)
-	})
-	router.GET(baseURL+"/internal/vcr/v2/verifier/:credentialType/trusted", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("ListTrusted", context)
-		return wrapper.ListTrusted(context)
-	})
-	router.GET(baseURL+"/internal/vcr/v2/verifier/:credentialType/untrusted", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("ListUntrusted", context)
-		return wrapper.ListUntrusted(context)
-	})
+	router.POST(baseURL+"/internal/vcr/v2/holder/vp", wrapper.CreateVP)
+	router.POST(baseURL+"/internal/vcr/v2/issuer/vc", wrapper.IssueVC)
+	router.GET(baseURL+"/internal/vcr/v2/issuer/vc/search", wrapper.SearchIssuedVCs)
+	router.DELETE(baseURL+"/internal/vcr/v2/issuer/vc/:id", wrapper.RevokeVC)
+	router.POST(baseURL+"/internal/vcr/v2/search", wrapper.SearchVCs)
+	router.GET(baseURL+"/internal/vcr/v2/vc/:id", wrapper.ResolveVC)
+	router.DELETE(baseURL+"/internal/vcr/v2/verifier/trust", wrapper.UntrustIssuer)
+	router.POST(baseURL+"/internal/vcr/v2/verifier/trust", wrapper.TrustIssuer)
+	router.POST(baseURL+"/internal/vcr/v2/verifier/vc", wrapper.VerifyVC)
+	router.POST(baseURL+"/internal/vcr/v2/verifier/vp", wrapper.VerifyVP)
+	router.GET(baseURL+"/internal/vcr/v2/verifier/:credentialType/trusted", wrapper.ListTrusted)
+	router.GET(baseURL+"/internal/vcr/v2/verifier/:credentialType/untrusted", wrapper.ListUntrusted)
 
+}
+
+type CreateVPRequestObject struct {
+	Body *CreateVPJSONRequestBody
+}
+
+type CreateVPResponseObject interface {
+	VisitCreateVPResponse(w http.ResponseWriter) error
+}
+
+type CreateVP200JSONResponse VerifiablePresentation
+
+func (response CreateVP200JSONResponse) VisitCreateVPResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateVPdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response CreateVPdefaultJSONResponse) VisitCreateVPResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type IssueVCRequestObject struct {
+	Body *IssueVCJSONRequestBody
+}
+
+type IssueVCResponseObject interface {
+	VisitIssueVCResponse(w http.ResponseWriter) error
+}
+
+type IssueVC200JSONResponse VerifiableCredential
+
+func (response IssueVC200JSONResponse) VisitIssueVCResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type IssueVCdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response IssueVCdefaultJSONResponse) VisitIssueVCResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type SearchIssuedVCsRequestObject struct {
+	Params SearchIssuedVCsParams
+}
+
+type SearchIssuedVCsResponseObject interface {
+	VisitSearchIssuedVCsResponse(w http.ResponseWriter) error
+}
+
+type SearchIssuedVCs200JSONResponse SearchVCResults
+
+func (response SearchIssuedVCs200JSONResponse) VisitSearchIssuedVCsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SearchIssuedVCsdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response SearchIssuedVCsdefaultJSONResponse) VisitSearchIssuedVCsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type RevokeVCRequestObject struct {
+	Id string `json:"id"`
+}
+
+type RevokeVCResponseObject interface {
+	VisitRevokeVCResponse(w http.ResponseWriter) error
+}
+
+type RevokeVC200JSONResponse Revocation
+
+func (response RevokeVC200JSONResponse) VisitRevokeVCResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RevokeVCdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response RevokeVCdefaultJSONResponse) VisitRevokeVCResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type SearchVCsRequestObject struct {
+	Body *SearchVCsJSONRequestBody
+}
+
+type SearchVCsResponseObject interface {
+	VisitSearchVCsResponse(w http.ResponseWriter) error
+}
+
+type SearchVCs200JSONResponse SearchVCResults
+
+func (response SearchVCs200JSONResponse) VisitSearchVCsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SearchVCsdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response SearchVCsdefaultJSONResponse) VisitSearchVCsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type ResolveVCRequestObject struct {
+	Id string `json:"id"`
+}
+
+type ResolveVCResponseObject interface {
+	VisitResolveVCResponse(w http.ResponseWriter) error
+}
+
+type ResolveVC200JSONResponse VerifiableCredential
+
+func (response ResolveVC200JSONResponse) VisitResolveVCResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ResolveVCdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response ResolveVCdefaultJSONResponse) VisitResolveVCResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type UntrustIssuerRequestObject struct {
+	Body *UntrustIssuerJSONRequestBody
+}
+
+type UntrustIssuerResponseObject interface {
+	VisitUntrustIssuerResponse(w http.ResponseWriter) error
+}
+
+type UntrustIssuer204Response struct {
+}
+
+func (response UntrustIssuer204Response) VisitUntrustIssuerResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type UntrustIssuerdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response UntrustIssuerdefaultJSONResponse) VisitUntrustIssuerResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type TrustIssuerRequestObject struct {
+	Body *TrustIssuerJSONRequestBody
+}
+
+type TrustIssuerResponseObject interface {
+	VisitTrustIssuerResponse(w http.ResponseWriter) error
+}
+
+type TrustIssuer204Response struct {
+}
+
+func (response TrustIssuer204Response) VisitTrustIssuerResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type TrustIssuerdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response TrustIssuerdefaultJSONResponse) VisitTrustIssuerResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type VerifyVCRequestObject struct {
+	Body *VerifyVCJSONRequestBody
+}
+
+type VerifyVCResponseObject interface {
+	VisitVerifyVCResponse(w http.ResponseWriter) error
+}
+
+type VerifyVC200JSONResponse VCVerificationResult
+
+func (response VerifyVC200JSONResponse) VisitVerifyVCResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type VerifyVCdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response VerifyVCdefaultJSONResponse) VisitVerifyVCResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type VerifyVPRequestObject struct {
+	Body *VerifyVPJSONRequestBody
+}
+
+type VerifyVPResponseObject interface {
+	VisitVerifyVPResponse(w http.ResponseWriter) error
+}
+
+type VerifyVP200JSONResponse VPVerificationResult
+
+func (response VerifyVP200JSONResponse) VisitVerifyVPResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type VerifyVPdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response VerifyVPdefaultJSONResponse) VisitVerifyVPResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type ListTrustedRequestObject struct {
+	CredentialType string `json:"credentialType"`
+}
+
+type ListTrustedResponseObject interface {
+	VisitListTrustedResponse(w http.ResponseWriter) error
+}
+
+type ListTrusted200JSONResponse []string
+
+func (response ListTrusted200JSONResponse) VisitListTrustedResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListTrusteddefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response ListTrusteddefaultJSONResponse) VisitListTrustedResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type ListUntrustedRequestObject struct {
+	CredentialType string `json:"credentialType"`
+}
+
+type ListUntrustedResponseObject interface {
+	VisitListUntrustedResponse(w http.ResponseWriter) error
+}
+
+type ListUntrusted200JSONResponse []string
+
+func (response ListUntrusted200JSONResponse) VisitListUntrustedResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListUntrusteddefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response ListUntrusteddefaultJSONResponse) VisitListUntrustedResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+// StrictServerInterface represents all server handlers.
+type StrictServerInterface interface {
+	// Create a new Verifiable Presentation for a set of Verifiable Credentials.
+	// (POST /internal/vcr/v2/holder/vp)
+	CreateVP(ctx context.Context, request CreateVPRequestObject) (CreateVPResponseObject, error)
+	// Issues a new Verifiable Credential
+	// (POST /internal/vcr/v2/issuer/vc)
+	IssueVC(ctx context.Context, request IssueVCRequestObject) (IssueVCResponseObject, error)
+	// Searches for verifiable credentials issued by this node which matches the search params
+	// (GET /internal/vcr/v2/issuer/vc/search)
+	SearchIssuedVCs(ctx context.Context, request SearchIssuedVCsRequestObject) (SearchIssuedVCsResponseObject, error)
+	// Revoke an issued credential
+	// (DELETE /internal/vcr/v2/issuer/vc/{id})
+	RevokeVC(ctx context.Context, request RevokeVCRequestObject) (RevokeVCResponseObject, error)
+	// Searches for verifiable credentials that could be used for different use-cases.
+	// (POST /internal/vcr/v2/search)
+	SearchVCs(ctx context.Context, request SearchVCsRequestObject) (SearchVCsResponseObject, error)
+	// Resolves a verifiable credential
+	// (GET /internal/vcr/v2/vc/{id})
+	ResolveVC(ctx context.Context, request ResolveVCRequestObject) (ResolveVCResponseObject, error)
+	// Remove trust in an issuer/credentialType combination
+	// (DELETE /internal/vcr/v2/verifier/trust)
+	UntrustIssuer(ctx context.Context, request UntrustIssuerRequestObject) (UntrustIssuerResponseObject, error)
+	// Mark all the VCs of given type and issuer as 'trusted'.
+	// (POST /internal/vcr/v2/verifier/trust)
+	TrustIssuer(ctx context.Context, request TrustIssuerRequestObject) (TrustIssuerResponseObject, error)
+	// Verifies a Verifiable Credential
+	// (POST /internal/vcr/v2/verifier/vc)
+	VerifyVC(ctx context.Context, request VerifyVCRequestObject) (VerifyVCResponseObject, error)
+	// Verifies a Verifiable Presentation
+	// (POST /internal/vcr/v2/verifier/vp)
+	VerifyVP(ctx context.Context, request VerifyVPRequestObject) (VerifyVPResponseObject, error)
+	// List all trusted issuers for a given credential type
+	// (GET /internal/vcr/v2/verifier/{credentialType}/trusted)
+	ListTrusted(ctx context.Context, request ListTrustedRequestObject) (ListTrustedResponseObject, error)
+	// List all untrusted issuers for a given credential type
+	// (GET /internal/vcr/v2/verifier/{credentialType}/untrusted)
+	ListUntrusted(ctx context.Context, request ListUntrustedRequestObject) (ListUntrustedResponseObject, error)
+}
+
+type StrictHandlerFunc func(ctx echo.Context, args interface{}) (interface{}, error)
+
+type StrictMiddlewareFunc func(f StrictHandlerFunc, operationID string) StrictHandlerFunc
+
+func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareFunc) ServerInterface {
+	return &strictHandler{ssi: ssi, middlewares: middlewares}
+}
+
+type strictHandler struct {
+	ssi         StrictServerInterface
+	middlewares []StrictMiddlewareFunc
+}
+
+// CreateVP operation middleware
+func (sh *strictHandler) CreateVP(ctx echo.Context) error {
+	var request CreateVPRequestObject
+
+	var body CreateVPJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateVP(ctx.Request().Context(), request.(CreateVPRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateVP")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(CreateVPResponseObject); ok {
+		return validResponse.VisitCreateVPResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// IssueVC operation middleware
+func (sh *strictHandler) IssueVC(ctx echo.Context) error {
+	var request IssueVCRequestObject
+
+	var body IssueVCJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.IssueVC(ctx.Request().Context(), request.(IssueVCRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "IssueVC")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(IssueVCResponseObject); ok {
+		return validResponse.VisitIssueVCResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// SearchIssuedVCs operation middleware
+func (sh *strictHandler) SearchIssuedVCs(ctx echo.Context, params SearchIssuedVCsParams) error {
+	var request SearchIssuedVCsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.SearchIssuedVCs(ctx.Request().Context(), request.(SearchIssuedVCsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SearchIssuedVCs")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(SearchIssuedVCsResponseObject); ok {
+		return validResponse.VisitSearchIssuedVCsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// RevokeVC operation middleware
+func (sh *strictHandler) RevokeVC(ctx echo.Context, id string) error {
+	var request RevokeVCRequestObject
+
+	request.Id = id
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.RevokeVC(ctx.Request().Context(), request.(RevokeVCRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RevokeVC")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(RevokeVCResponseObject); ok {
+		return validResponse.VisitRevokeVCResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// SearchVCs operation middleware
+func (sh *strictHandler) SearchVCs(ctx echo.Context) error {
+	var request SearchVCsRequestObject
+
+	var body SearchVCsJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.SearchVCs(ctx.Request().Context(), request.(SearchVCsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SearchVCs")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(SearchVCsResponseObject); ok {
+		return validResponse.VisitSearchVCsResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ResolveVC operation middleware
+func (sh *strictHandler) ResolveVC(ctx echo.Context, id string) error {
+	var request ResolveVCRequestObject
+
+	request.Id = id
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ResolveVC(ctx.Request().Context(), request.(ResolveVCRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ResolveVC")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ResolveVCResponseObject); ok {
+		return validResponse.VisitResolveVCResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// UntrustIssuer operation middleware
+func (sh *strictHandler) UntrustIssuer(ctx echo.Context) error {
+	var request UntrustIssuerRequestObject
+
+	var body UntrustIssuerJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.UntrustIssuer(ctx.Request().Context(), request.(UntrustIssuerRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UntrustIssuer")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(UntrustIssuerResponseObject); ok {
+		return validResponse.VisitUntrustIssuerResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// TrustIssuer operation middleware
+func (sh *strictHandler) TrustIssuer(ctx echo.Context) error {
+	var request TrustIssuerRequestObject
+
+	var body TrustIssuerJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.TrustIssuer(ctx.Request().Context(), request.(TrustIssuerRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "TrustIssuer")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(TrustIssuerResponseObject); ok {
+		return validResponse.VisitTrustIssuerResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// VerifyVC operation middleware
+func (sh *strictHandler) VerifyVC(ctx echo.Context) error {
+	var request VerifyVCRequestObject
+
+	var body VerifyVCJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.VerifyVC(ctx.Request().Context(), request.(VerifyVCRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "VerifyVC")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(VerifyVCResponseObject); ok {
+		return validResponse.VisitVerifyVCResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// VerifyVP operation middleware
+func (sh *strictHandler) VerifyVP(ctx echo.Context) error {
+	var request VerifyVPRequestObject
+
+	var body VerifyVPJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.VerifyVP(ctx.Request().Context(), request.(VerifyVPRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "VerifyVP")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(VerifyVPResponseObject); ok {
+		return validResponse.VisitVerifyVPResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ListTrusted operation middleware
+func (sh *strictHandler) ListTrusted(ctx echo.Context, credentialType string) error {
+	var request ListTrustedRequestObject
+
+	request.CredentialType = credentialType
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListTrusted(ctx.Request().Context(), request.(ListTrustedRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListTrusted")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ListTrustedResponseObject); ok {
+		return validResponse.VisitListTrustedResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ListUntrusted operation middleware
+func (sh *strictHandler) ListUntrusted(ctx echo.Context, credentialType string) error {
+	var request ListUntrustedRequestObject
+
+	request.CredentialType = credentialType
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListUntrusted(ctx.Request().Context(), request.(ListUntrustedRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListUntrusted")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ListUntrustedResponseObject); ok {
+		return validResponse.VisitListUntrustedResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
 }
