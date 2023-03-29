@@ -19,6 +19,7 @@
 package crypto
 
 import (
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
@@ -255,7 +256,7 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 
 		require.NoError(t, err)
 
-		privateKey, _, err := client.getPrivateKey(key)
+		privateKey, _, err := client.getPrivateKey(context.Background(), key)
 		require.NoError(t, err)
 
 		token, err := jwe.Decrypt([]byte(tokenString), defaultEcEncryptionAlgorithm, privateKey)
@@ -275,7 +276,7 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 
 		require.NoError(t, err)
 
-		privateKey, _, err := client.getPrivateKey(key)
+		privateKey, _, err := client.getPrivateKey(context.Background(), key)
 		require.NoError(t, err)
 
 		token, err := jwe.Decrypt([]byte(tokenString), jwa.ECDH_ES, privateKey)
@@ -295,7 +296,7 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 
 		require.NoError(t, err)
 
-		privateKey, _, err := client.getPrivateKey(key)
+		privateKey, _, err := client.getPrivateKey(context.Background(), key)
 		require.NoError(t, err)
 
 		token, err := jwe.Decrypt([]byte(tokenString), defaultEcEncryptionAlgorithm, privateKey)

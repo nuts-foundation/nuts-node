@@ -108,7 +108,7 @@ func (client *Crypto) DecryptJWE(ctx context.Context, message string) (body []by
 	if len(kid) == 0 {
 		return nil, nil, errors.New("kid header not found")
 	}
-	privateKey, kid, err := client.getPrivateKey(kid)
+	privateKey, kid, err := client.getPrivateKey(ctx, kid)
 	if err != nil {
 		return nil, nil, err
 	}
