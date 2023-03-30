@@ -77,7 +77,7 @@ func fs2ExternalStore() *cobra.Command {
 			config := instance.Config().(*cryptoEngine.Config)
 			targetStorage, err := external.NewAPIClient(config.External)
 			if err != nil {
-				return err
+				return fmt.Errorf("unable to set up external crypto API client: %w", err)
 			}
 
 			directory := args[0]
