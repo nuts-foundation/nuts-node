@@ -840,10 +840,10 @@ func ParseSignJwtResponse(rsp *http.Response) (*SignJwtResponse, error) {
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// decrypt a payload with the private key related to the KeyID in the header
+	// Decrypt a payload with the private key related to the KeyID in the header
 	// (POST /internal/crypto/v1/decrypt_jwe)
 	DecryptJwe(ctx echo.Context) error
-	// encrypt a payload and headers with the public key of the given DID into a JWE object
+	// Encrypt a payload and headers with the public key of the given DID into a JWE object
 	// (POST /internal/crypto/v1/encrypt_jwe)
 	EncryptJwe(ctx echo.Context) error
 	// sign a payload and headers with the private key of the given kid into a JWS object
@@ -1101,10 +1101,10 @@ func (response SignJwtdefaultJSONResponse) VisitSignJwtResponse(w http.ResponseW
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// decrypt a payload with the private key related to the KeyID in the header
+	// Decrypt a payload with the private key related to the KeyID in the header
 	// (POST /internal/crypto/v1/decrypt_jwe)
 	DecryptJwe(ctx context.Context, request DecryptJweRequestObject) (DecryptJweResponseObject, error)
-	// encrypt a payload and headers with the public key of the given DID into a JWE object
+	// Encrypt a payload and headers with the public key of the given DID into a JWE object
 	// (POST /internal/crypto/v1/encrypt_jwe)
 	EncryptJwe(ctx context.Context, request EncryptJweRequestObject) (EncryptJweResponseObject, error)
 	// sign a payload and headers with the private key of the given kid into a JWS object

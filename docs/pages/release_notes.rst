@@ -3,17 +3,18 @@
 Release notes
 #############
 
-*************************
-(To be released)
-*************************
-
-***********************
+************************
 Hazelnut update (v5.2.0)
-***********************
+************************
 
 Release date: **DRAFT**
 
-- Added support for encrypting documents according to JWE (for DIDComm support).
+- Some VDR OpenAPI operations specified ``application/json+did-document`` as Content-Type, while they actually returned ``application/json``.
+  This inconsistency is fixed by changing the OpenAPI specification to ``application/json``.
+- Diagnostics now show the conflicted document count for DID Documents the node controls. See monitoring documentation for more detail.
+- ``network.connections.outbound_connectors`` on ``/status/diagnostics`` has been moved to ``/internal/v1/network/addressbook``.
+  Previously it showed only failing connections, now it shows all addresses it will try to connect to (regardless it's already connected to them or not).
+- Added support for encrypting documents using the JWE standard (for DIDComm support).
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.1.0...v5.2.0
 

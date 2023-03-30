@@ -67,7 +67,8 @@ paths:
       summary: "Encrypt a payload and headers with the public key of the given DID into a JWE object"
       description: |
         Encrypt a payload and headers with the public key of the given DID into a JWE object
-        Note: this feature is experimental and can be changed in a future minor release.
+        
+        Note: this feature is experimental and might be changed in a future minor release without prior notice.
 
         error returns:
         * 400 - incorrect input
@@ -96,7 +97,7 @@ paths:
       description: |
         Decrypt a payload with the private key related to the KeyID in the header
         
-        Note: this feature is experimental and can be changed in a future minor release.
+        Note: this feature is experimental and might be changed in a future minor release without prior notice.
 
         error returns:
         * 400 - incorrect input
