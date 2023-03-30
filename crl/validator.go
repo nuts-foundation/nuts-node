@@ -53,7 +53,9 @@ func hash(issuer string, serialNumber *big.Int) int64 {
 type Validator interface {
 	Sync() error
 	SyncLoop(ctx context.Context)
-	IsSynced(maxOffsetDays int) bool
+	// IsSynced returns whether all the CRLs are downloaded and are not outdated (based on the offset).
+	// If an error is returned they are not in sync.
+	IsSynced(maxOffsetDays int) error
 	Configure(config *tls.Config, maxValidityDays int)
 	IsRevoked(issuer string, serialNumber *big.Int) bool
 }
@@ -181,7 +183,7 @@ func (v *validator) downloadCRL(endpoint string) error {
 }
 
 // IsSynced returns whether all the CRLs are downloaded and are not outdated (based on the offset)
-func (v *validator) IsSynced(maxOffsetDays int) bool {
+func (v *validator) IsSynced(maxOffsetDays int) error {
 	endpoints := v.parseCRLEndpoints()
 
 	v.listsLock.RLock()
@@ -194,20 +196,20 @@ func (v *validator) IsSynced(maxOffsetDays int) bool {
 		}
 		// downloaded?
 		if _, ok := v.lists[endpoint]; !ok {
-			return false
+			return fmt.Errorf("CRL not downloaded: %s", endpoint)
 		}
 	}
 
 	// Verify that none of the CRLs are outdated
 	now := nowFunc().Add(time.Duration(-maxOffsetDays) * (time.Hour * 24))
 
-	for _, list := range v.lists {
+	for endpoint, list := range v.lists {
 		if list.HasExpired(now) {
-			return false
+			return fmt.Errorf("CRL is expired (NextUpdate=%s): %s", list.TBSCertList.NextUpdate.String(), endpoint)
 		}
 	}
 
-	return true
+	return nil
 }
 
 // anyCertificateActive returns true if any of the certificates is not expired. If the list is empty, it returns false.
@@ -272,8 +274,8 @@ func (v *validator) Configure(config *tls.Config, maxValidityDays int) {
 		}
 
 		// If the CRL validator is outdated kill the connection
-		if !v.IsSynced(maxValidityDays) {
-			return errors.New("CRL database is outdated, certificate revocation can't be checked")
+		if err := v.IsSynced(maxValidityDays); err != nil {
+			return fmt.Errorf("CRL database is outdated, certificate revocation can't be checked: %w", err)
 		}
 
 		return nil
