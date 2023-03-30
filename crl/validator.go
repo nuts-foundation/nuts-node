@@ -52,8 +52,9 @@ type Validator interface {
 	Sync() error
 	// SyncLoop periodically calls Sync
 	SyncLoop(ctx context.Context)
-	// IsSynced returns whether all the CRLs are downloaded and are not outdated (based on the offset)
-	IsSynced(maxOffsetDays int) bool
+	// IsSynced returns whether all the CRLs are downloaded and are not outdated (based on the offset).
+	// If an error is returned they are not in sync.
+	IsSynced(maxOffsetDays int) error
 	// VerifyPeerCertificateFunction returns a tls.Config.VerifyPeerCertificate function based on given config
 	VerifyPeerCertificateFunction(maxValidityDays int) func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error
 	// IsRevoked checks whether the certificate was revoked. It does not check if the CRL IsSynced
@@ -188,7 +189,7 @@ func crlHasExpired(crl *x509.RevocationList, deadline time.Time) bool {
 }
 
 // IsSynced returns whether all the CRLs are downloaded and are not outdated (based on the offset)
-func (v *validator) IsSynced(maxOffsetDays int) bool {
+func (v *validator) IsSynced(maxOffsetDays int) error {
 	endpoints := v.parseCRLEndpoints()
 
 	v.listsLock.RLock()
@@ -201,20 +202,20 @@ func (v *validator) IsSynced(maxOffsetDays int) bool {
 		}
 		// downloaded?
 		if _, ok := v.lists[endpoint]; !ok {
-			return false
+			return fmt.Errorf("CRL not downloaded: %s", endpoint)
 		}
 	}
 
 	// Verify that none of the CRLs are outdated
 	now := nowFunc().Add(time.Duration(-maxOffsetDays) * (time.Hour * 24))
 
-	for _, list := range v.lists {
+	for endpoint, list := range v.lists {
 		if crlHasExpired(list, now) {
-			return false
+			return fmt.Errorf("CRL is expired (NextUpdate=%s): %s", list.NextUpdate.String(), endpoint)
 		}
 	}
 
-	return true
+	return nil
 }
 
 // anyCertificateActive returns true if any of the certificates is not expired. If the list is empty, it returns false.
@@ -278,8 +279,8 @@ func (v *validator) VerifyPeerCertificateFunction(maxValidityDays int) func(rawC
 		}
 
 		// If the CRL validator is outdated kill the connection
-		if !v.IsSynced(maxValidityDays) {
-			return errors.New("CRL database is outdated, certificate revocation can't be checked")
+		if err := v.IsSynced(maxValidityDays); err != nil {
+			return fmt.Errorf("CRL database is outdated, certificate revocation can't be checked: %w", err)
 		}
 
 		return nil

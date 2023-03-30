@@ -24,7 +24,6 @@ import (
 	"encoding/asn1"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crl"
 	"time"
@@ -198,8 +197,8 @@ func (validator JwtX509Validator) Verify(x509Token *JwtX509Token) error {
 		return err
 	}
 
-	if !validator.crlValidator.IsSynced(0) {
-		return errors.New("unable to verify revoked certificates because the CRL database is outdated")
+	if err := validator.crlValidator.IsSynced(0); err != nil {
+		return fmt.Errorf("unable to verify revoked certificates because the CRL database is outdated: %w", err)
 	}
 
 	for _, verifiedChain := range verifiedChains {
