@@ -287,9 +287,7 @@ func TestJwtX509Validator_Verify(t *testing.T) {
 	t.Run("ok - valid jwt", func(t *testing.T) {
 		db := crl.NewMockValidator(gomock.NewController(t))
 
-		db.EXPECT().Validate(rootCert).Return(nil)
-		db.EXPECT().Validate(intermediateCert).Return(nil)
-		db.EXPECT().Validate(leafCert).Return(nil)
+		db.EXPECT().Validate([]*x509.Certificate{leafCert, intermediateCert, rootCert}).Return(nil)
 
 		validator := NewJwtX509Validator([]*x509.Certificate{rootCert}, []*x509.Certificate{intermediateCert}, []jwa.SignatureAlgorithm{jwa.RS256}, db)
 
@@ -344,13 +342,10 @@ func NewMockValidator(t *testing.T, rootCert, intermediateCert, leafCert *x509.C
 	db := crl.NewMockValidator(gomock.NewController(t))
 
 	if intermediateRevoked {
-		db.EXPECT().Validate(intermediateCert).Return(crl.ErrCertRevoked)
+		db.EXPECT().Validate([]*x509.Certificate{leafCert, intermediateCert, rootCert}).Return(crl.ErrCertRevoked)
 	} else {
-		db.EXPECT().Validate(intermediateCert).Return(nil)
-		db.EXPECT().Validate(rootCert).Return(nil)
+		db.EXPECT().Validate([]*x509.Certificate{leafCert, intermediateCert, rootCert}).Return(nil)
 	}
-
-	db.EXPECT().Validate(leafCert).Return(nil)
 
 	return db
 }

@@ -63,15 +63,15 @@ func (mr *MockValidatorMockRecorder) Start(ctx interface{}) *gomock.Call {
 }
 
 // Validate mocks base method.
-func (m *MockValidator) Validate(certificate *x509.Certificate) error {
+func (m *MockValidator) Validate(chian []*x509.Certificate) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Validate", certificate)
+	ret := m.ctrl.Call(m, "Validate", chian)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Validate indicates an expected call of Validate.
-func (mr *MockValidatorMockRecorder) Validate(certificate interface{}) *gomock.Call {
+func (mr *MockValidatorMockRecorder) Validate(chian interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Validate", reflect.TypeOf((*MockValidator)(nil).Validate), certificate)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Validate", reflect.TypeOf((*MockValidator)(nil).Validate), chian)
 }

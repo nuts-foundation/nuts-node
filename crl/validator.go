@@ -22,7 +22,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"errors"
 	"fmt"
 	"io"
@@ -44,22 +43,23 @@ var (
 	ErrCRLMissing  = errors.New("crl is missing")
 	ErrCRLExpired  = errors.New("crl has expired")
 	ErrCertRevoked = errors.New("certificate is revoked")
-	ErrCertExpired = errors.New("certificate has expired")
+	ErrCertInvalid = errors.New("certificate is not valid")
 )
 
 type Validator interface {
 	// Start downloading CRLs. Cancelling the context will stop the Validator.
 	Start(ctx context.Context)
 
-	// Validate returns an error if the certificate has been revoked, or if the request cannot be processed.
-	// ErrCertRevoked and ErrCertExpired indicates the certificate is revoked or expired.
-	// ErrCRLMissing and ErrCRLExpired signal that certificate cannot be validated reliably.
+	// Validate returns an error if any of the certificates in the chain has been revoked, or if the request cannot be processed.
+	// ErrCertRevoked and ErrCertInvalid indicates that at least one of the certificates is revoked or otherwise invalid.
+	// ErrCRLMissing and ErrCRLExpired signal that at least one of the certificates cannot be validated reliably.
 	// If the certificate was revoked on an expired CRL, it wil return ErrCertRevoked. Ignoring ErrCRLMissing and ErrCRLExpired changes the behavior from hard-fail to soft-fail.
+	// The certificate chain is expected to be sorted leaf to root.
 	// Calling Validate before Start results in an error.
-	Validate(certificate *x509.Certificate) error
+	Validate(chian []*x509.Certificate) error
 
-	// SetValidatePeerCertificateFunc sets config.ValidatePeerCertificate and MUST be called before Start.
-	// Returns an error when config.Certificates contain certificates cannot be parsed,
+	// SetValidatePeerCertificateFunc sets config.ValidatePeerCertificate to use Validate and MUST be called before Start.
+	// Returns an error when config.Certificates contain certificates that cannot be parsed,
 	// or are signed by CAs that are not in the Validator's truststore.
 	SetValidatePeerCertificateFunc(config *tls.Config) error
 }
@@ -83,7 +83,7 @@ type revocationList struct {
 	// list is the actual revocationList
 	list *x509.RevocationList
 	// revoked contains all revoked certificated index by their serial number (pkix.RevokedCertificate.SerialNumber.String())
-	revoked map[string]*pkix.RevokedCertificate
+	revoked map[string]bool
 	// issuers of the CRL found at this endpoint. Multiple issuers could indicate MITM attack, or re-use of an endpoint.
 	issuers []*x509.Certificate
 	// lastUpdated is the timestamp that list was last updated. (When this instance was of revocationList was created)
@@ -93,7 +93,7 @@ type revocationList struct {
 func newRevocationList(cert *x509.Certificate) *revocationList {
 	return &revocationList{
 		list:    new(x509.RevocationList),
-		revoked: map[string]*pkix.RevokedCertificate{},
+		revoked: make(map[string]bool, 0),
 		issuers: []*x509.Certificate{cert},
 	}
 }
@@ -163,11 +163,11 @@ func (v *validator) validatorLoop(ctx context.Context) {
 	}
 }
 
-func (v *validator) Validate(certificate *x509.Certificate) error {
+func (v *validator) Validate(chain []*x509.Certificate) error {
 	if !v.started {
 		return errors.New("CRL validator is not started")
 	}
-	return v.validateCert(certificate)
+	return v.validateChain(chain)
 }
 
 func (v *validator) SetValidatePeerCertificateFunc(config *tls.Config) error {
@@ -200,6 +200,7 @@ func (v *validator) SetValidatePeerCertificateFunc(config *tls.Config) error {
 			if len(cert.CRLDistributionPoints) > 0 {
 				for _, endpoint := range cert.CRLDistributionPoints {
 					if v.crls[endpoint] == nil {
+						// pre-start, can't use setCRL
 						v.crls[endpoint] = newRevocationList(issuer)
 					}
 				}
@@ -218,13 +219,13 @@ func (v *validator) SetValidatePeerCertificateFunc(config *tls.Config) error {
 			return err
 		}
 
-		return v.validateChain(certificates)
+		return v.Validate(certificates)
 	}
 	return nil
 }
 
 // validateChain validates that none of the certificates in the chain is revoked.
-// Certificated in chain are assumed ordered from leaf to root certificate.
+// Certificated in chain are assumed ordered from leaf to root certificate. (always true for calls to VerifyPeerCertificate)
 func (v *validator) validateChain(chain []*x509.Certificate) error {
 	var cert *x509.Certificate
 	var err error
@@ -239,12 +240,12 @@ func (v *validator) validateChain(chain []*x509.Certificate) error {
 }
 
 func (v *validator) validateCert(cert *x509.Certificate) error {
-	if nowFunc().After(cert.NotAfter) {
-		return ErrCertExpired
+	if nowFunc().Before(cert.NotBefore) || nowFunc().After(cert.NotAfter) {
+		return ErrCertInvalid
 	}
 	for _, endpoint := range cert.CRLDistributionPoints {
 		crl, ok := v.getCRL(endpoint)
-		if ok && crl.revoked[cert.SerialNumber.String()] != nil {
+		if ok && crl.revoked[cert.SerialNumber.String()] {
 			// revocation takes precedence over an internal error.
 			return ErrCertRevoked
 		}
@@ -277,7 +278,7 @@ func (v *validator) getCRLs() map[string]*revocationList {
 	return <-result
 }
 
-// setCRL updates crls in a save way
+// getCRL returns the requested crls in a save way, or returns false if it does not exist
 func (v *validator) getCRL(endpoint string) (*revocationList, bool) {
 	type resultStruct struct {
 		rl     *revocationList
@@ -321,12 +322,12 @@ func (v *validator) sync() {
 			continue
 		}
 
-		go func(ep string, rl *revocationList, wg *sync.WaitGroup) {
-			err := v.updateCRL(ep, rl)
+		go func(ep string, crl *revocationList, wg *sync.WaitGroup) {
+			err := v.updateCRL(ep, crl)
 			if err != nil {
 				// Connections containing a certificate pointing to this CRL will be accepted until its current.list.NextUpdate.
-				if rl != nil && time.Since(rl.lastUpdated) > 24*time.Hour {
-					// Escalate to error logging if the CRL has not been updated in a day.
+				if crl != nil || time.Since(crl.lastUpdated) > 4*time.Hour {
+					// Escalate to error logging if the CRL is missing or fails to update in several hours.
 					log.Logger().WithError(err).WithField("CRLDistributionPoint", ep).Error("Update CRL")
 				} else {
 					log.Logger().WithError(err).WithField("CRLDistributionPoint", ep).Debug("Update CRL")
@@ -355,9 +356,9 @@ func (v *validator) updateCRL(endpoint string, current *revocationList) error {
 	// update when it is a new clr
 	if current == nil || current.list.Number == nil || current.list.Number.Cmp(crl.Number) < 0 {
 		// parse revocations
-		revoked := make(map[string]*pkix.RevokedCertificate, len(crl.RevokedCertificates))
+		revoked := make(map[string]bool, len(crl.RevokedCertificates))
 		for _, rev := range crl.RevokedCertificates {
-			revoked[rev.SerialNumber.String()] = &rev
+			revoked[rev.SerialNumber.String()] = true
 		}
 		// update issuers of CRL
 		issuers := []*x509.Certificate{}

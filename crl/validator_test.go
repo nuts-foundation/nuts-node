@@ -29,6 +29,7 @@ import (
 	"math/big"
 	"net/http"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -63,15 +64,16 @@ func TestValidator_Start(t *testing.T) {
 	require.NoError(t, err)
 	val := newValidatorWithHTTPClient(store.Certificates(), newClient())
 
-	// crls are empty
-	for _, rl := range val.crls {
-		assert.True(t, rl.lastUpdated.IsZero())
+	// crls are empty. safe access since validator is not started
+	for _, crl := range val.crls {
+		assert.True(t, crl.lastUpdated.IsZero())
 	}
 
 	validatorLoopStarted := make(chan struct{})
 	go func(out chan struct{}) {
 		val.crlChan <- func() {
 			defer close(out)
+			// only returns after validatorLoop is started by Start
 			out <- struct{}{}
 		}
 	}(validatorLoopStarted)
@@ -83,18 +85,20 @@ func TestValidator_Start(t *testing.T) {
 	<-validatorLoopStarted
 	assert.True(t, val.started)
 
-	// sleep to allow sync to complete
-	time.Sleep(50 * time.Millisecond)
-
-	// context cancel stops everything
-	cancel()
+	// wait for sync to complete
 	test.WaitFor(t, func() (bool, error) {
-		return val.started == false, nil
+		crl, ok := val.getCRL(rootCRLurl)
+		return ok && !crl.lastUpdated.IsZero(), nil
 	}, time.Second, "timeout waiting for crl validator to stop")
 	// defer goleak.VerifyNone(t) at the top checks that routines are closed
 
-	// crls have been updated
-	assert.False(t, val.crls[rootCRLurl].lastUpdated.IsZero())                                                 // rootCRLurl is updated
+	// context cancel stops everything
+	cancel()
+
+	// sleep to allow sync to complete
+	time.Sleep(time.Second)
+
+	// crls have been updated. safe access since validator is stopped
 	assert.True(t, val.crls["http://crl.pkioverheid.nl/DomeinServerCA2020LatestCRL.crl"].lastUpdated.IsZero()) // pkiOverheid CA has expired, so is not updated
 }
 
@@ -104,11 +108,11 @@ func TestValidator_Validate(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("ok", func(t *testing.T) {
-		err := val.Validate(store.IntermediateCAs[0])
+		err := val.Validate([]*x509.Certificate{store.IntermediateCAs[0]})
 		assert.NoError(t, err)
 	})
 	t.Run("revoked cert", func(t *testing.T) {
-		err := val.Validate(store.IntermediateCAs[1])
+		err := val.Validate(store.IntermediateCAs)
 		assert.ErrorIs(t, err, ErrCertRevoked)
 	})
 	t.Run("validator not started", func(t *testing.T) {
@@ -185,7 +189,7 @@ func Test_ValidatorGetCRLs(t *testing.T) {
 	assert.Nil(t, result["does not exist"])
 }
 
-func Test_ValidatorGetCRL(t *testing.T) {
+func Test_ValidatorGetSetCRL(t *testing.T) {
 	val := newValidatorStarted(t)
 
 	t.Run("exists", func(t *testing.T) {
@@ -194,27 +198,25 @@ func Test_ValidatorGetCRL(t *testing.T) {
 		assert.True(t, ok)
 		assert.NotNil(t, result)
 	})
-	t.Run("exists", func(t *testing.T) {
+	t.Run("does not exists", func(t *testing.T) {
 		result, ok := val.getCRL("nope")
 
 		assert.False(t, ok)
 		assert.Nil(t, result)
 	})
-}
+	t.Run("set+get ok", func(t *testing.T) {
+		expectedCRL := newRevocationList(&x509.Certificate{})
+		val.setCRL("test", expectedCRL)
 
-func Test_ValidatorSetCRL(t *testing.T) {
-	val := newValidatorStarted(t)
+		crl, ok := val.getCRL("test")
 
-	expectedCRL := newRevocationList(&x509.Certificate{})
-	val.setCRL("test", expectedCRL)
-
-	require.NotNil(t, val.crls["test"])
-	assert.Same(t, expectedCRL, val.crls["test"])
+		assert.True(t, ok)
+		assert.Same(t, expectedCRL, crl)
+	})
 }
 
 func Test_ValidatorValidateChain(t *testing.T) {
 	val := newValidatorStarted(t)
-	val.sync() // blocks until all crls are loaded
 
 	store, err := core.LoadTrustStore(truststore)
 	require.NoError(t, err)
@@ -241,7 +243,6 @@ func Test_ValidatorValidateCert(t *testing.T) {
 
 	store, err := core.LoadTrustStore(truststore)
 	require.NoError(t, err)
-	val.sync() // blocks until all crls are loaded
 
 	everythingExpired := time.Date(2030, 12, 1, 0, 0, 0, 0, time.UTC)
 
@@ -265,7 +266,7 @@ func Test_ValidatorValidateCert(t *testing.T) {
 
 		err := val.validateCert(cert)
 
-		assert.ErrorIs(t, err, ErrCertExpired)
+		assert.ErrorIs(t, err, ErrCertInvalid)
 	})
 	t.Run("missing crl", func(t *testing.T) {
 		val := newValidatorStarted(t)
@@ -276,11 +277,11 @@ func Test_ValidatorValidateCert(t *testing.T) {
 		assert.ErrorIs(t, err, ErrCRLMissing)
 	})
 	t.Run("expired crl", func(t *testing.T) {
-		nowFunc = func() time.Time { return everythingExpired }
 		cert := store.IntermediateCAs[0]
 		crl, ok := val.getCRL(cert.CRLDistributionPoints[0])
 		require.True(t, ok)
-		crl.list.NextUpdate = nowFunc()
+		crl.list.NextUpdate = time.Time{}
+		val.setCRL(cert.CRLDistributionPoints[0], crl)
 
 		err := val.validateCert(store.IntermediateCAs[0])
 
@@ -413,10 +414,13 @@ func newClient() *http.Client {
 }
 
 type fakeTransport struct {
+	mux          sync.Mutex
 	responseData map[string][]byte
 }
 
 func (transport *fakeTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	transport.mux.Lock()
+	defer transport.mux.Unlock()
 	// check for known data first
 	data, ok := transport.responseData[req.URL.Path]
 	if ok {

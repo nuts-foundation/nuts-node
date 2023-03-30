@@ -1,4 +1,7 @@
-#!/bin/zsh
+#!/bin/bash
+
+# fail if any of the commands returns an error
+set -e
 
 ## Init
 rm -r data
