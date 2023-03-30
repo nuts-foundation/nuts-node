@@ -33,8 +33,7 @@ func TestOIDC4VCIHappyFlow(t *testing.T) {
 
 	httpPort := test.FreeTCPPort()
 	httpServerURL := fmt.Sprintf("http://localhost:%d", httpPort)
-	//issuerID := httpServerURL + "/identity/" + issuerDID.String()
-	//receiverID := httpServerURL + "/identity/" + receiverDID.String()
+	holderMetadataURL := httpServerURL + "/identity/" + receiverDID.String() + "/openid-credential-wallet-metadata"
 
 	// Create issuer and wallet
 	ctrl := gomock.NewController(t)
@@ -94,7 +93,7 @@ func TestOIDC4VCIHappyFlow(t *testing.T) {
 	})
 
 	// Now issue the VC
-	err := issuerRegistry.Get(issuerDID.String()).Offer(context.Background(), credential, httpServerURL)
+	err := issuerRegistry.Get(issuerDID.String()).Offer(context.Background(), credential, holderMetadataURL)
 	require.NoError(t, err)
 
 	test.WaitFor(t, func() (bool, error) {

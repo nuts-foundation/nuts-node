@@ -1,6 +1,0 @@
-package: client
-generate:
-  echo-server: false
-  client: true
-  models: false
-  strict-server: false

@@ -123,10 +123,17 @@ func (i issuer) Issue(ctx context.Context, credentialOptions vc.VerifiableCreden
 			subject := subjects[0]
 			// TODO (non-prototype): the service endpoint type must be specified (this is "our" way of client metadata discovery?)
 			serviceQuery := ssi.MustParseURI(subject.ID + "/serviceEndpoint?type=oidc4vci-wallet-metadata")
-			_, err = i.serviceResolver.Resolve(serviceQuery, 2)
+			walletService, err := i.serviceResolver.Resolve(serviceQuery, 2)
 			if err != nil {
 				log.Logger().Infof("Could not resolve OIDC4VCI wallet metadata URL for DID (%s), will publish over Nuts network: %v", subject.ID, err)
 			} else {
+				var walletMetadataURL string
+				// TODO: Dangerous?
+				err = walletService.UnmarshalServiceEndpoint(&walletMetadataURL)
+				if err != nil {
+					return nil, fmt.Errorf("unable to unmarshal wallet metadata URL: %w", err)
+				}
+				ctx = context.WithValue(ctx, "wallet-metadata-url", walletMetadataURL)
 				err := i.oidc4vciPublisher.PublishCredential(ctx, *createdVC, false)
 				if err != nil {
 					return nil, fmt.Errorf("unable to publish the issued credential over OIDC4VCI: %w", err)

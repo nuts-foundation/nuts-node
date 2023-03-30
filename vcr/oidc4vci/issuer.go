@@ -4,15 +4,11 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0/client"
 	"github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0/types"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
-	"io"
-	"net/url"
 	"sync"
 )
 
@@ -71,7 +67,7 @@ func (i *memoryIssuer) RequestAccessToken(preAuthorizedCode string) (string, err
 	return accessToken, nil
 }
 
-func (i *memoryIssuer) Offer(ctx context.Context, credential vc.VerifiableCredential, walletURL string) error {
+func (i *memoryIssuer) Offer(ctx context.Context, credential vc.VerifiableCredential, clientMetadataURL string) error {
 	i.mux.Lock()
 	preAuthorizedCode := generateCode()
 	i.state[preAuthorizedCode] = credential
@@ -84,7 +80,8 @@ func (i *memoryIssuer) Offer(ctx context.Context, credential vc.VerifiableCreden
 	log.Logger().Infof("Publishing credential for subject %s using OIDC4VCI", subject)
 
 	// TODO: Lookup Credential Wallet Client Metadata. For now, we use the local node
-	c, err := client.NewClient(walletURL)
+
+	client, err := NewHolderClient(clientMetadataURL)
 	if err != nil {
 		return err
 	}
@@ -108,27 +105,10 @@ func (i *memoryIssuer) Offer(ctx context.Context, credential vc.VerifiableCreden
 		},
 	}
 
-	offerJson, err := json.Marshal(offer)
+	err = client.OfferCredential(ctx, offer)
 	if err != nil {
-		return err
-	}
-
-	res, err := c.CredentialOffer(ctx, subject, &client.CredentialOfferParams{
-		CredentialOffer: url.QueryEscape(string(offerJson)),
-	})
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-	if res.StatusCode > 299 {
-		responseBody, _ := io.ReadAll(res.Body)
-		responseBodyStr := string(responseBody)
-		// If longer than 100 characters, truncate
-		if len(responseBodyStr) > 100 {
-			responseBodyStr = responseBodyStr[:100] + "..."
-		}
-		log.Logger().Infof("Credential Offer response: %s", responseBodyStr)
-		return fmt.Errorf("non 2xx status code: %s", res.Status)
+		// TODO: Add client identifier/URL to error message?
+		return fmt.Errorf("unable to offer credential: %w", err)
 	}
 	return nil
 }

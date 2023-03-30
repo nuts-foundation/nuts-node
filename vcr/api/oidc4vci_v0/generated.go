@@ -15,9 +15,6 @@ import (
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Get the OAuth2 Client Metadata
-	// (GET /identity/{did}/.well-known/oauth2-client-metadata)
-	GetOAuth2ClientMetadata(ctx echo.Context, did string) error
 	// Get the OIDC Provider metadata
 	// (GET /identity/{did}/.well-known/openid-configuration)
 	GetOIDCProviderMetadata(ctx echo.Context, did string) error
@@ -33,27 +30,14 @@ type ServerInterface interface {
 	// Token endpoint
 	// (POST /identity/{did}/oidc/token)
 	RequestAccessToken(ctx echo.Context, did string) error
+	// Get the OAuth2 Client Metadata
+	// (GET /identity/{did}/openid-credential-wallet-metadata)
+	GetOAuth2ClientMetadata(ctx echo.Context, did string) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
-}
-
-// GetOAuth2ClientMetadata converts echo context to params.
-func (w *ServerInterfaceWrapper) GetOAuth2ClientMetadata(ctx echo.Context) error {
-	var err error
-	// ------------- Path parameter "did" -------------
-	var did string
-
-	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
-	}
-
-	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.GetOAuth2ClientMetadata(ctx, did)
-	return err
 }
 
 // GetOIDCProviderMetadata converts echo context to params.
@@ -165,6 +149,22 @@ func (w *ServerInterfaceWrapper) RequestAccessToken(ctx echo.Context) error {
 	return err
 }
 
+// GetOAuth2ClientMetadata converts echo context to params.
+func (w *ServerInterfaceWrapper) GetOAuth2ClientMetadata(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.GetOAuth2ClientMetadata(ctx, did)
+	return err
+}
+
 // This is a simple interface which specifies echo.Route addition functions which
 // are present on both echo.Echo and echo.Group, since we want to allow using
 // either of them for path registration
@@ -193,30 +193,13 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.GET(baseURL+"/identity/:did/.well-known/oauth2-client-metadata", wrapper.GetOAuth2ClientMetadata)
 	router.GET(baseURL+"/identity/:did/.well-known/openid-configuration", wrapper.GetOIDCProviderMetadata)
 	router.GET(baseURL+"/identity/:did/.well-known/openid-credential-issuer", wrapper.GetOIDC4VCIIssuerMetadata)
 	router.GET(baseURL+"/identity/:did/holder/oidc4vci/credential_offer", wrapper.CredentialOffer)
 	router.POST(baseURL+"/identity/:did/issuer/oidc4vci/credential", wrapper.GetCredential)
 	router.POST(baseURL+"/identity/:did/oidc/token", wrapper.RequestAccessToken)
+	router.GET(baseURL+"/identity/:did/openid-credential-wallet-metadata", wrapper.GetOAuth2ClientMetadata)
 
-}
-
-type GetOAuth2ClientMetadataRequestObject struct {
-	Did string `json:"did"`
-}
-
-type GetOAuth2ClientMetadataResponseObject interface {
-	VisitGetOAuth2ClientMetadataResponse(w http.ResponseWriter) error
-}
-
-type GetOAuth2ClientMetadata200JSONResponse OAuth2ClientMetadata
-
-func (response GetOAuth2ClientMetadata200JSONResponse) VisitGetOAuth2ClientMetadataResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-
-	return json.NewEncoder(w).Encode(response)
 }
 
 type GetOIDCProviderMetadataRequestObject struct {
@@ -329,11 +312,25 @@ func (response RequestAccessToken200JSONResponse) VisitRequestAccessTokenRespons
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetOAuth2ClientMetadataRequestObject struct {
+	Did string `json:"did"`
+}
+
+type GetOAuth2ClientMetadataResponseObject interface {
+	VisitGetOAuth2ClientMetadataResponse(w http.ResponseWriter) error
+}
+
+type GetOAuth2ClientMetadata200JSONResponse OAuth2ClientMetadata
+
+func (response GetOAuth2ClientMetadata200JSONResponse) VisitGetOAuth2ClientMetadataResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// Get the OAuth2 Client Metadata
-	// (GET /identity/{did}/.well-known/oauth2-client-metadata)
-	GetOAuth2ClientMetadata(ctx context.Context, request GetOAuth2ClientMetadataRequestObject) (GetOAuth2ClientMetadataResponseObject, error)
 	// Get the OIDC Provider metadata
 	// (GET /identity/{did}/.well-known/openid-configuration)
 	GetOIDCProviderMetadata(ctx context.Context, request GetOIDCProviderMetadataRequestObject) (GetOIDCProviderMetadataResponseObject, error)
@@ -349,6 +346,9 @@ type StrictServerInterface interface {
 	// Token endpoint
 	// (POST /identity/{did}/oidc/token)
 	RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error)
+	// Get the OAuth2 Client Metadata
+	// (GET /identity/{did}/openid-credential-wallet-metadata)
+	GetOAuth2ClientMetadata(ctx context.Context, request GetOAuth2ClientMetadataRequestObject) (GetOAuth2ClientMetadataResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx echo.Context, args interface{}) (interface{}, error)
@@ -362,31 +362,6 @@ func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareF
 type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
-}
-
-// GetOAuth2ClientMetadata operation middleware
-func (sh *strictHandler) GetOAuth2ClientMetadata(ctx echo.Context, did string) error {
-	var request GetOAuth2ClientMetadataRequestObject
-
-	request.Did = did
-
-	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.GetOAuth2ClientMetadata(ctx.Request().Context(), request.(GetOAuth2ClientMetadataRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetOAuth2ClientMetadata")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		return err
-	} else if validResponse, ok := response.(GetOAuth2ClientMetadataResponseObject); ok {
-		return validResponse.VisitGetOAuth2ClientMetadataResponse(ctx.Response())
-	} else if response != nil {
-		return fmt.Errorf("Unexpected response type: %T", response)
-	}
-	return nil
 }
 
 // GetOIDCProviderMetadata operation middleware
@@ -526,6 +501,31 @@ func (sh *strictHandler) RequestAccessToken(ctx echo.Context, did string) error 
 		return err
 	} else if validResponse, ok := response.(RequestAccessTokenResponseObject); ok {
 		return validResponse.VisitRequestAccessTokenResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetOAuth2ClientMetadata operation middleware
+func (sh *strictHandler) GetOAuth2ClientMetadata(ctx echo.Context, did string) error {
+	var request GetOAuth2ClientMetadataRequestObject
+
+	request.Did = did
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetOAuth2ClientMetadata(ctx.Request().Context(), request.(GetOAuth2ClientMetadataRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetOAuth2ClientMetadata")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetOAuth2ClientMetadataResponseObject); ok {
+		return validResponse.VisitGetOAuth2ClientMetadataResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("Unexpected response type: %T", response)
 	}

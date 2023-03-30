@@ -5,7 +5,8 @@ info:
 servers:
   - url: "http://localhost:1323"
 paths:
-  "/identity/{did}/.well-known/openid-credential-holder":
+  # TODO: Should this be a well-known endpoint?
+  "/identity/{did}/openid-credential-wallet-metadata":
     get:
       tags:
         - Well-known

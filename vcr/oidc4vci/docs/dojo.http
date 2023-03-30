@@ -27,7 +27,7 @@ Content-Type: application/json
 
 {
   "type": "oidc4vci-wallet-metadata",
-  "endpoint": "TODO (non-prototype)"
+  "endpoint": "http://localhost:1323/identity/{{receiver_did}}/openid-credential-wallet-metadata"
 }
 
 ### Issue VC (hopefully over OIDC4VCI, check logs)
