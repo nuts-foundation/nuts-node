@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -27,16 +28,22 @@ import (
 //   - Issue a VC using the OIDC4VCI Credential Issuer, check that it is received by the wallet
 //   - Check that the VC is stored in the wallet
 func TestOIDC4VCIHappyFlow(t *testing.T) {
+	issuerDID := did.MustParseDID("did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW")
+	receiverDID := did.MustParseDID("did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY")
+
 	httpPort := test.FreeTCPPort()
-	identityURL := fmt.Sprintf("http://localhost:%d", httpPort)
+	httpServerURL := fmt.Sprintf("http://localhost:%d", httpPort)
+	//issuerID := httpServerURL + "/identity/" + issuerDID.String()
+	//receiverID := httpServerURL + "/identity/" + receiverDID.String()
 
 	// Create issuer and wallet
 	ctrl := gomock.NewController(t)
 	credentialStore := vcr.NewMockWriter(ctrl)
-	issuerRegistry := oidc4vci.NewIssuerRegistry(identityURL)
+	issuerRegistry := oidc4vci.NewIssuerRegistry(httpServerURL + "/identity/")
+	holderRegistry := oidc4vci.NewHolderRegistry(httpServerURL+"/identity/", credentialStore)
 	api := &oidc4vci_v0.Wrapper{
-		IssuerRegistry:  issuerRegistry,
-		CredentialStore: credentialStore,
+		IssuerRegistry: issuerRegistry,
+		HolderRegistry: holderRegistry,
 	}
 
 	// Start HTTP server
@@ -57,13 +64,11 @@ func TestOIDC4VCIHappyFlow(t *testing.T) {
 		if len(startErrorChannel) > 0 {
 			return false, <-startErrorChannel
 		}
-		_, err := http.Get(identityURL)
+		_, err := http.Get(httpServerURL)
 		return err == nil, nil
 	}, 5*time.Second, "time-out waiting for HTTP server to start")
 
-	issuerDID := did.MustParseDID("did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW")
 	credentialID, _ := ssi.ParseURI(issuerDID.String() + "#1")
-	receiverDID := did.MustParseDID("did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY")
 
 	credential := vc.VerifiableCredential{
 		Context: []ssi.URI{
@@ -76,17 +81,23 @@ func TestOIDC4VCIHappyFlow(t *testing.T) {
 			ssi.MustParseURI("NutsAuthorizationCredential"),
 		},
 		Issuer:       issuerDID.URI(),
-		IssuanceDate: time.Now(),
+		IssuanceDate: time.Now().Truncate(time.Second),
 		CredentialSubject: []interface{}{map[string]interface{}{
 			"ID": receiverDID.String(),
 		}},
 	}
 
-	credentialStore.EXPECT().StoreCredential(credential, nil).Return(nil)
+	vcStored := atomic.Pointer[bool]{}
+	credentialStore.EXPECT().StoreCredential(credential, nil).DoAndReturn(func(_ vc.VerifiableCredential, _ *time.Time) error {
+		vcStored.Store(new(bool))
+		return nil
+	})
 
 	// Now issue the VC
-	err := issuerRegistry.Get(issuerDID.String()).Offer(context.Background(), credential, identityURL)
+	err := issuerRegistry.Get(issuerDID.String()).Offer(context.Background(), credential, httpServerURL)
 	require.NoError(t, err)
 
-	time.Sleep(3 * time.Second)
+	test.WaitFor(t, func() (bool, error) {
+		return vcStored.Load() != nil, nil
+	}, 5*time.Second, "time-out waiting for VC to be stored")
 }

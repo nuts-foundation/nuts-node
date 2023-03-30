@@ -97,7 +97,7 @@ func (h httpIssuerClient) GetCredential(request types.CredentialRequest, accessT
 func loadCredentialIssuerMetadata(credentialIssuerIdentifier string, httpClient http.Client) (*types.CredentialIssuerMetadata, error) {
 	// TODO (non-prototype): Support HTTPS (which truststore?)
 	// TODO (non-prototype): what about caching?
-	httpResponse, err := httpClient.Get(credentialIssuerIdentifier + "/.well-known/openid-configuration")
+	httpResponse, err := httpClient.Get(credentialIssuerIdentifier + "/.well-known/openid-credential-issuer")
 	if err != nil {
 		return nil, fmt.Errorf("http request error: %w", err)
 	}

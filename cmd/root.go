@@ -207,9 +207,8 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	}})
 	system.RegisterRoutes(&credAPIv2.Wrapper{VCR: credentialInstance, ContextManager: jsonld})
 	system.RegisterRoutes(&oidc4vci_v0.Wrapper{
-		IssuerRegistry:  credentialInstance.IssuerRegistry(),
-		HolderRegistry:  credentialInstance.Holder(),
-		CredentialStore: credentialInstance,
+		IssuerRegistry: credentialInstance.OIDC4VCIssuers(),
+		HolderRegistry: credentialInstance.OIDC4VCHolders(),
 	})
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))

@@ -5,7 +5,7 @@ info:
 servers:
   - url: "http://localhost:1323"
 paths:
-  "/identity/{did}/.well-known/oauth2-client-metadata":
+  "/identity/{did}/.well-known/openid-credential-holder":
     get:
       tags:
         - Well-known

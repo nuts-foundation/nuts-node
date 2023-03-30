@@ -70,7 +70,8 @@ type VCR interface {
 	Issuer() issuer.Issuer
 	Holder() holder.Holder
 	Verifier() verifier.Verifier
-	IssuerRegistry() *oidc4vci.IssuerRegistry
+	OIDC4VCIssuers() *oidc4vci.IssuerRegistry
+	OIDC4VCHolders() *oidc4vci.HolderRegistry
 
 	Finder
 	Resolver

@@ -11,23 +11,26 @@ import (
 
 // HolderRegistry is a registry of Holder instances, used to keep track of holders in a multi-tenant environment.
 type HolderRegistry struct {
-	holderBaseURL string
+	holderBaseURL   string
+	credentialStore vcrTypes.Writer
 }
 
-func NewHolderFactory(holderBaseURL string, credentialStore vcrTypes.Writer) *HolderRegistry {
+func NewHolderRegistry(holderBaseURL string, credentialStore vcrTypes.Writer) *HolderRegistry {
 	// Add trailing slash if missing
 	if holderBaseURL[len(holderBaseURL)-1] != '/' {
 		holderBaseURL += "/"
 	}
 	return &HolderRegistry{
-		holderBaseURL: holderBaseURL,
+		holderBaseURL:   holderBaseURL,
+		credentialStore: credentialStore,
 	}
 }
 
 func (h HolderRegistry) Get(did string) Holder {
 	return &holder{
-		did:        did,
-		identifier: h.holderBaseURL + did,
+		did:             did,
+		identifier:      h.holderBaseURL + did,
+		credentialStore: h.credentialStore,
 	}
 }
 
@@ -39,8 +42,9 @@ type Holder interface {
 var _ Holder = (*holder)(nil)
 
 type holder struct {
-	did        string
-	identifier string
+	did             string
+	identifier      string
+	credentialStore vcrTypes.Writer
 }
 
 func (h holder) Metadata() types.OAuth2ClientMetadata {
@@ -92,16 +96,17 @@ func (h holder) AcceptCredentialOffer(ctx context.Context, offer types.Credentia
 
 	// TODO (non-prototype): we now do this in a goroutine to avoid blocking the issuer's process
 	go func() {
+		// TODO (non-prototype): needs retrying
 		credential, err := h.retrieveCredential(issuerClient, offer, accessTokenResponse.AccessToken)
 		if err != nil {
 			log.Logger().WithError(err).Errorf("Unable to retrieve credential")
 			return
 		}
-		// TODO (non-prototype): needs trying
 		log.Logger().Infof("Received VC over OIDC4VCI, storing in VCR: %s", credential.ID.String())
-		err = w.CredentialStore.StoreCredential(*credential, nil)
+		err = h.credentialStore.StoreCredential(*credential, nil)
 		if err != nil {
 			println("Unable to store VC:", err.Error())
 		}
 	}()
+	return nil
 }

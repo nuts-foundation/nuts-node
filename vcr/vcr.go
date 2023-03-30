@@ -70,28 +70,33 @@ func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyRe
 }
 
 type vcr struct {
-	config                 Config
-	store                  leia.Store
-	keyStore               crypto.KeyStore
-	docResolver            vdr.DocResolver
-	keyResolver            vdr.KeyResolver
-	serviceResolver        didservice.ServiceResolver
-	ambassador             Ambassador
-	network                network.Transactions
-	trustConfig            *trust.Config
-	issuer                 issuer.Issuer
-	verifier               verifier.Verifier
-	holder                 holder.Holder
-	issuerStore            issuer.Store
-	verifierStore          verifier.Store
-	jsonldManager          jsonld.JSONLD
-	eventManager           events.Event
-	storageClient          storage.Engine
-	oidc4vciIssuerRegistry *oidc4vci.IssuerRegistry
+	config          Config
+	store           leia.Store
+	keyStore        crypto.KeyStore
+	docResolver     vdr.DocResolver
+	keyResolver     vdr.KeyResolver
+	serviceResolver didservice.ServiceResolver
+	ambassador      Ambassador
+	network         network.Transactions
+	trustConfig     *trust.Config
+	issuer          issuer.Issuer
+	verifier        verifier.Verifier
+	holder          holder.Holder
+	issuerStore     issuer.Store
+	verifierStore   verifier.Store
+	jsonldManager   jsonld.JSONLD
+	eventManager    events.Event
+	storageClient   storage.Engine
+	oidc4vciIssuers *oidc4vci.IssuerRegistry
+	oidc4vciHolders *oidc4vci.HolderRegistry
 }
 
-func (c *vcr) IssuerRegistry() *oidc4vci.IssuerRegistry {
-	return c.oidc4vciIssuerRegistry
+func (c *vcr) OIDC4VCIssuers() *oidc4vci.IssuerRegistry {
+	return c.oidc4vciIssuers
+}
+
+func (c *vcr) OIDC4VCHolders() *oidc4vci.HolderRegistry {
+	return c.oidc4vciHolders
 }
 
 func (c vcr) Issuer() issuer.Issuer {
