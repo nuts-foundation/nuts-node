@@ -138,7 +138,7 @@ func TestValidator_IsSynced(t *testing.T) {
 
 		result := crlValidator.IsSynced(0)
 
-		assert.False(t, result)
+		assert.Contains(t, result.Error(), "CRL not downloaded")
 	})
 	t.Run("active certificate, CRL is in sync", func(t *testing.T) {
 		// overwrite the nowFunc so the CRL is valid
@@ -150,7 +150,7 @@ func TestValidator_IsSynced(t *testing.T) {
 
 		result := crlValidator.IsSynced(0)
 
-		assert.True(t, result)
+		assert.NoError(t, result)
 	})
 	t.Run("issuer certificate has expired (in sync)", func(t *testing.T) {
 		// overwrite the nowFunc so the CRL is valid
@@ -162,7 +162,7 @@ func TestValidator_IsSynced(t *testing.T) {
 
 		result := crlValidator.IsSynced(0)
 
-		assert.True(t, result)
+		assert.NoError(t, result)
 	})
 }
 
@@ -195,7 +195,7 @@ func TestValidator_IsRevoked(t *testing.T) {
 		isRevoked := crlValidator.IsRevoked(revokedIssuerName, sn)
 		assert.True(t, isRevoked)
 
-		assert.True(t, crlValidator.IsSynced(0))
+		assert.NoError(t, crlValidator.IsSynced(0))
 	})
 
 	t.Run("should return false if the crl is expired", func(t *testing.T) {
@@ -203,16 +203,25 @@ func TestValidator_IsRevoked(t *testing.T) {
 		nowFunc = func() time.Time {
 			return time.Date(2022, 12, 1, 0, 0, 0, 0, time.UTC)
 		}
+		defer func() {
+			nowFunc = oldNowFunc
+		}()
 
 		store, err := core.LoadTrustStore(pkiOverheidRootCA)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		crlValidator := NewValidatorWithHTTPClient(store.Certificates(), httpClient)
 		crlValidator.Sync()
 
-		assert.False(t, crlValidator.IsSynced(0))
+		err = crlValidator.IsSynced(0)
 
-		nowFunc = oldNowFunc
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "CRL is expired (NextUpdate=2022-11-15 10:03:22 +0000 UTC):")
+		// Order of certificates is random due to map usage
+		if err.Error() != "CRL is expired (NextUpdate=2022-11-15 10:03:22 +0000 UTC): http://crl.pkioverheid.nl/DomeinServerCA2020LatestCRL.crl" &&
+			err.Error() != "CRL is expired (NextUpdate=2022-11-15 10:03:22 +0000 UTC): http://crl.pkioverheid.nl/EVRootLatestCRL.crl" {
+			t.Fail()
+		}
 	})
 
 	t.Run("should return false if the certificate was not revoked even though the bit was set", func(t *testing.T) {
@@ -230,7 +239,7 @@ func TestValidator_IsRevoked(t *testing.T) {
 		isRevoked := crlValidator.IsRevoked(revokedIssuerName, big.NewInt(100))
 		assert.False(t, isRevoked)
 
-		assert.True(t, crlValidator.IsSynced(0))
+		assert.NoError(t, crlValidator.IsSynced(0))
 	})
 
 	t.Run("should return false when the bit was not set and shouldn't check the actual certificate", func(t *testing.T) {
