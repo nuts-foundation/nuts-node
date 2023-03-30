@@ -202,16 +202,25 @@ func TestValidator_IsRevoked(t *testing.T) {
 		nowFunc = func() time.Time {
 			return time.Date(2022, 12, 1, 0, 0, 0, 0, time.UTC)
 		}
+		defer func() {
+			nowFunc = oldNowFunc
+		}()
 
 		store, err := core.LoadTrustStore(pkiOverheidRootCA)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		crlValidator := NewValidatorWithHTTPClient(store.Certificates(), httpClient)
 		crlValidator.Sync()
 
-		assert.EqualError(t, crlValidator.IsSynced(0), "CRL is expired (NextUpdate=2022-11-15 10:03:22 +0000 UTC): http://crl.pkioverheid.nl/DomeinServerCA2020LatestCRL.crl")
+		err = crlValidator.IsSynced(0)
 
-		nowFunc = oldNowFunc
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "CRL is expired (NextUpdate=2022-11-15 10:03:22 +0000 UTC):")
+		// Order of certificates is random due to map usage
+		if err.Error() != "CRL is expired (NextUpdate=2022-11-15 10:03:22 +0000 UTC): http://crl.pkioverheid.nl/DomeinServerCA2020LatestCRL.crl" &&
+			err.Error() != "CRL is expired (NextUpdate=2022-11-15 10:03:22 +0000 UTC): http://crl.pkioverheid.nl/EVRootLatestCRL.crl" {
+			t.Fail()
+		}
 	})
 
 	t.Run("should return false if the certificate was not revoked even though the bit was set", func(t *testing.T) {
