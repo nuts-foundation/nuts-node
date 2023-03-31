@@ -9,11 +9,13 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"strconv"
@@ -39,7 +41,11 @@ func TestOIDC4VCIHappyFlow(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	credentialStore := vcr.NewMockWriter(ctrl)
 	issuerRegistry := oidc4vci.NewIssuerRegistry(httpServerURL + "/identity/")
-	holderRegistry := oidc4vci.NewHolderRegistry(httpServerURL+"/identity/", credentialStore)
+	signer := crypto.NewMockJWTSigner(ctrl)
+	signer.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any()).Return("the-signed-jwt", nil)
+	resolver := types.NewMockKeyResolver(ctrl)
+	resolver.EXPECT().ResolveSigningKeyID(gomock.Any(), nil).Return("key-id", nil)
+	holderRegistry := oidc4vci.NewHolderRegistry(httpServerURL+"/identity/", credentialStore, signer, resolver)
 	api := &oidc4vci_v0.Wrapper{
 		IssuerRegistry: issuerRegistry,
 		HolderRegistry: holderRegistry,

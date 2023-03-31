@@ -11,6 +11,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"io"
 	"net/http"
+	"net/url"
 )
 
 // IssuerClient defines the API client used by the wallet to communicate with the credential issuer.
@@ -18,6 +19,7 @@ type IssuerClient interface {
 	OAuth2Client
 
 	GetCredential(ctx context.Context, request types.CredentialRequest, accessToken string) (*vc.VerifiableCredential, error)
+	CredentialIssuerURL() *url.URL
 }
 
 // NewIssuerClient resolves the Credential Issuer Metadata from the well-known endpoint
@@ -86,6 +88,11 @@ func (h httpIssuerClient) GetCredential(ctx context.Context, request types.Crede
 		return nil, fmt.Errorf("unable to unmarshal received credential: %w", err)
 	}
 	return &credential, nil
+}
+
+func (h httpIssuerClient) CredentialIssuerURL() *url.URL {
+	res, _ := url.Parse(h.metadata.CredentialEndpoint)
+	return res
 }
 
 func loadCredentialIssuerMetadata(ctx context.Context, credentialIssuerIdentifier string, httpClient *http.Client) (*types.CredentialIssuerMetadata, error) {

@@ -259,7 +259,7 @@ func (mr *MockKeyStoreMockRecorder) SignJWS(ctx, payload, headers, key, detached
 }
 
 // SignJWT mocks base method.
-func (m *MockKeyStore) SignJWT(ctx context.Context, claims map[string]interface{}, key interface{}) (string, error) {
+func (m *MockKeyStore) SignJWT(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}, key interface{}) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SignJWT", ctx, claims, key)
 	ret0, _ := ret[0].(string)
@@ -381,7 +381,7 @@ func (mr *MockJWTSignerMockRecorder) SignJWS(ctx, payload, headers, key, detache
 }
 
 // SignJWT mocks base method.
-func (m *MockJWTSigner) SignJWT(ctx context.Context, claims map[string]interface{}, key interface{}) (string, error) {
+func (m *MockJWTSigner) SignJWT(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}, key interface{}) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SignJWT", ctx, claims, key)
 	ret0, _ := ret[0].(string)

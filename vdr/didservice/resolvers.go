@@ -135,7 +135,7 @@ type KeyResolver struct {
 	Store didstore.Store
 }
 
-// ResolveSigningKeyID resolves the ID of the first valid AssertionMethod for a indicated DID document at a given time.
+// ResolveSigningKeyID resolves the ID of the first valid AssertionMethod for an indicated DID document at a given time.
 func (r KeyResolver) ResolveSigningKeyID(holder did.DID, validAt *time.Time) (string, error) {
 	doc, _, err := r.Store.Resolve(holder, &types.ResolveMetadata{
 		ResolveTime: validAt,

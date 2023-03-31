@@ -2,16 +2,19 @@ package oidc4vci
 
 import "sync"
 
-func NewIssuerRegistry(issuerBaseURL string) *IssuerRegistry {
+func NewIssuerRegistry() *IssuerRegistry {
+	return &IssuerRegistry{
+		issuers: make(map[string]Issuer),
+		mux:     &sync.Mutex{},
+	}
+}
+
+func (f *IssuerRegistry) Config(issuerBaseURL string) {
 	// Add trailing slash if missing
 	if issuerBaseURL[len(issuerBaseURL)-1] != '/' {
 		issuerBaseURL += "/"
 	}
-	return &IssuerRegistry{
-		issuerBaseURL: issuerBaseURL,
-		issuers:       make(map[string]Issuer),
-		mux:           &sync.Mutex{},
-	}
+	f.issuerBaseURL = issuerBaseURL
 }
 
 // IssuerRegistry is a registry of Issuer instances, used to keep track of issuers in a multi-tenant environment.
@@ -28,7 +31,7 @@ func (r *IssuerRegistry) Get(identifier string) Issuer {
 	defer r.mux.Unlock()
 	issuer, ok := r.issuers[identifier]
 	if !ok {
-		fullyQualifiedIdentifier := r.issuerBaseURL + identifier
+		fullyQualifiedIdentifier := r.issuerBaseURL + "identity/" + identifier
 		issuer = NewIssuer(fullyQualifiedIdentifier)
 		r.issuers[identifier] = issuer
 	}

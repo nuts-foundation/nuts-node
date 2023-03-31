@@ -23,14 +23,14 @@ group Credential Offer
     Issuer --> Wallet: Issuer and openid-configuration Metadata
 end
 
-group  Get access_token (pre-authorized_code)
-    Wallet -> TokenEP: POST issuer/token?pre-authorized_code
-    TokenEP --> Wallet: access_token
+group  Obtain access_token (pre-authorized_code)
+    Wallet -> TokenEP: Token Request (Pre-Authorized Code)
+    TokenEP --> Wallet: Token Response (access_token, c_nonce)
 end
 
 group Get Credential
-    Wallet -> CredentialEP: GET credential
-    CredentialEP --> Wallet: credential
+    Wallet -> CredentialEP: Credential Request (access_token, proof)
+    CredentialEP --> Wallet: Credential Response (credential)
 end
 
 

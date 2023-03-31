@@ -91,7 +91,7 @@ func createTokenCommand() *cobra.Command {
 			token, err := instance.SignJWT(ctx, map[string]interface{}{
 				jwt.SubjectKey:    user,
 				jwt.ExpirationKey: time.Now().AddDate(0, 0, daysValid),
-			}, http.AdminTokenSigningKID)
+			}, nil, http.AdminTokenSigningKID)
 			if err != nil {
 				return err
 			}

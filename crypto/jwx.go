@@ -57,14 +57,14 @@ func isAlgorithmSupported(alg jwa.SignatureAlgorithm) bool {
 }
 
 // SignJWT creates a JWT from the given claims and signs it with the given key.
-func (client *Crypto) SignJWT(ctx context.Context, claims map[string]interface{}, key interface{}) (string, error) {
+func (client *Crypto) SignJWT(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}, key interface{}) (string, error) {
 	privateKey, kid, err := client.getPrivateKey(ctx, key)
 	if err != nil {
 		return "", err
 	}
 
-	audit.Log(ctx, log.Logger(), audit.CryptoSignJWTEvent).
-		Infof("Signing a JWT with key: %s (issuer: %s, subject: %s)", kid, claims["iss"], claims["sub"])
+	// todo: enable
+	//audit.Log(ctx, log.Logger(), audit.CryptoSignJWTEvent).Infof("Signing a JWT with key: %s (issuer: %s, subject: %s)", kid, claims["iss"], claims["sub"])
 
 	keyAsJWK, err := jwkKey(privateKey)
 	if err != nil {

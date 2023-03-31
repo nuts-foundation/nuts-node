@@ -72,8 +72,8 @@ type JWTSigner interface {
 	// SignJWT creates a signed JWT using the indicated key and map of claims.
 	// The key can be its KID (key ID) or an instance of Key,
 	// the context is used to pass audit information.
-	// Returns ErrPrivateKeyNotFound when the private is not present.
-	SignJWT(ctx context.Context, claims map[string]interface{}, key interface{}) (string, error)
+	// Returns ErrPrivateKeyNotFound when the private key is not present.
+	SignJWT(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}, key interface{}) (string, error)
 	// SignJWS creates a signed JWS using the indicated key and map of headers and payload as bytes.
 	// The detached boolean indicates if the body needs to be excluded from the response (detached mode).
 	// The key can be its KID (key ID) or an instance of Key,

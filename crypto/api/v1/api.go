@@ -132,7 +132,7 @@ func (w *Wrapper) SignJwt(ctx context.Context, signRequest SignJwtRequestObject)
 	if err := signRequest.Body.validate(); err != nil {
 		return nil, core.InvalidInputError("invalid sign request: %w", err)
 	}
-	sig, err := w.C.SignJWT(ctx, signRequest.Body.Claims, signRequest.Body.Kid)
+	sig, err := w.C.SignJWT(ctx, signRequest.Body.Claims, nil, signRequest.Body.Kid)
 	if err != nil {
 		return nil, err
 	}

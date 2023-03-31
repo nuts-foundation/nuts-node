@@ -66,6 +66,9 @@ func NewVCRInstance(keyStore crypto.KeyStore, docResolver vdr.DocResolver, keyRe
 		storageClient:   storageClient,
 	}
 
+	r.oidc4vciIssuers = oidc4vci.NewIssuerRegistry()
+	r.oidc4vciHolders = oidc4vci.NewHolderRegistry(r, r.keyStore, r.keyResolver)
+
 	return r
 }
 
@@ -138,9 +141,12 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	c.trustConfig = trust.NewConfig(tcPath)
 
 	networkPublisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
-	oidc4vciPublisher := issuer.OIDC4VCIPublisher{IssuerRegistry: oidc4vci.NewIssuerRegistry(config.Auth.PublicURL)}
+	oidc4vciPublisher := issuer.OIDC4VCIPublisher{IssuerRegistry: c.oidc4vciIssuers}
 	c.issuer = issuer.NewIssuer(c.issuerStore, networkPublisher, oidc4vciPublisher, c.docResolver, c.keyStore, c.jsonldManager, c.trustConfig)
 	c.verifier = verifier.NewVerifier(c.verifierStore, c.docResolver, c.keyResolver, c.jsonldManager, c.trustConfig)
+
+	c.oidc4vciIssuers.Config(config.Auth.PublicURL)
+	c.oidc4vciHolders.Config(config.Auth.PublicURL)
 
 	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)
 

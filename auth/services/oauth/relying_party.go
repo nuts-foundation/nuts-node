@@ -123,7 +123,7 @@ func (s *relyingParty) CreateJwtGrant(ctx context.Context, request services.Crea
 	if err != nil {
 		return nil, err
 	}
-	signingString, err := s.privateKeyStore.SignJWT(ctx, keyVals, signingKeyID)
+	signingString, err := s.privateKeyStore.SignJWT(ctx, keyVals, nil, signingKeyID)
 	if err != nil {
 		return nil, err
 	}
