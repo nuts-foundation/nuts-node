@@ -1,0 +1,35 @@
+@startuml
+'https://plantuml.com/object-diagram
+
+title OIDC4VCI Implementation Class Diagram
+
+
+package Issuer {
+    object "Issuer" as IssuerService
+    object IssuerRegistry
+    object "API" as IssuerAPI
+    object HolderClient
+    object Publisher
+}
+
+package Holder {
+    object "Holder" as HolderService
+    object HolderRegistry
+    object "API" as HolderAPI
+    object IssuerClient
+}
+
+Publisher->IssuerRegistry : lookup\nservice
+Publisher->IssuerService : issue VC
+IssuerRegistry-down->IssuerService : resolves
+IssuerService->HolderClient : uses
+IssuerAPI->IssuerRegistry : lookup\nservice
+IssuerAPI->IssuerService : invoke
+HolderClient -down-> HolderAPI : offer credential
+
+HolderAPI -down-> HolderRegistry : lookup\nservice
+HolderAPI -left-> HolderService : invoke
+HolderRegistry -> HolderService : resolves
+HolderService -> IssuerClient : uses
+IssuerClient -> IssuerAPI : grant flow\nrequest credential
+@enduml
