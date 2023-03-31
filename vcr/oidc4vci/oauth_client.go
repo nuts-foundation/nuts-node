@@ -20,7 +20,7 @@ var _ OAuth2Client = &httpOAuth2Client{}
 
 type httpOAuth2Client struct {
 	metadata   types.OIDCProviderMetadata
-	httpClient http.Client
+	httpClient *http.Client
 }
 
 func (c httpOAuth2Client) RequestAccessToken(grantType string, params map[string]string) (*types.OIDCTokenResponse, error) {

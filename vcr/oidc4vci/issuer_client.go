@@ -20,11 +20,10 @@ type IssuerClient interface {
 
 // NewIssuerClient resolves the Credential Issuer Metadata from the well-known endpoint
 // and returns a client that can be used to communicate with the issuer.
-func NewIssuerClient(credentialIssuerIdentifier string) (IssuerClient, error) {
+func NewIssuerClient(httpClient *http.Client, credentialIssuerIdentifier string) (IssuerClient, error) {
 	if credentialIssuerIdentifier == "" {
 		return nil, errors.New("empty Credential Issuer Identifier")
 	}
-	httpClient := http.Client{}
 
 	// Load OIDC4VCI metadata and OIDC metadata
 	metadata, err := loadCredentialIssuerMetadata(credentialIssuerIdentifier, httpClient)
@@ -53,7 +52,7 @@ type httpIssuerClient struct {
 	httpOAuth2Client
 
 	identifier       string
-	httpClient       http.Client
+	httpClient       *http.Client
 	metadata         types.CredentialIssuerMetadata
 	providerMetadata types.OIDCProviderMetadata
 }
@@ -94,7 +93,7 @@ func (h httpIssuerClient) GetCredential(request types.CredentialRequest, accessT
 	return &credential, nil
 }
 
-func loadCredentialIssuerMetadata(credentialIssuerIdentifier string, httpClient http.Client) (*types.CredentialIssuerMetadata, error) {
+func loadCredentialIssuerMetadata(credentialIssuerIdentifier string, httpClient *http.Client) (*types.CredentialIssuerMetadata, error) {
 	// TODO (non-prototype): Support HTTPS (which truststore?)
 	// TODO (non-prototype): what about caching?
 	httpResponse, err := httpClient.Get(credentialIssuerIdentifier + "/.well-known/openid-credential-issuer")
@@ -118,7 +117,7 @@ func loadCredentialIssuerMetadata(credentialIssuerIdentifier string, httpClient 
 	return &result, nil
 }
 
-func loadOIDCProviderMetadata(credentialIssuerIdentifier string, httpClient http.Client) (*types.OIDCProviderMetadata, error) {
+func loadOIDCProviderMetadata(credentialIssuerIdentifier string, httpClient *http.Client) (*types.OIDCProviderMetadata, error) {
 	//
 	// Resolve OpenID Connect Provider Metadata, to find out where to request the token
 	//

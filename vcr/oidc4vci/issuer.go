@@ -9,6 +9,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0/types"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
+	"net/http"
 	"sync"
 )
 
@@ -81,7 +82,8 @@ func (i *memoryIssuer) Offer(ctx context.Context, credential vc.VerifiableCreden
 
 	// TODO: Lookup Credential Wallet Client Metadata. For now, we use the local node
 
-	client, err := NewWalletClient(clientMetadataURL)
+	// TODO: Support TLS
+	client, err := NewWalletClient(&http.Client{}, clientMetadataURL)
 	if err != nil {
 		return err
 	}

@@ -7,6 +7,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0/types"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
+	"net/http"
 )
 
 type Wallet interface {
@@ -51,7 +52,7 @@ func (h wallet) retrieveCredential(issuerClient IssuerClient, offer types.Creden
 }
 
 func (h wallet) OfferCredential(ctx context.Context, offer types.CredentialOffer) error {
-	issuerClient, err := NewIssuerClient(offer.CredentialIssuer)
+	issuerClient, err := NewIssuerClient(&http.Client{}, offer.CredentialIssuer)
 	if err != nil {
 		return fmt.Errorf("unable to create issuer client: %w", err)
 	}

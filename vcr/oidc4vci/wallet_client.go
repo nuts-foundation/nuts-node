@@ -15,11 +15,10 @@ import (
 var _ Wallet = (*httpWalletClient)(nil)
 
 // NewWalletClient resolves the OAuth2 credential client metadata from the given URL.
-func NewWalletClient(credentialClientMetadataURL string) (Wallet, error) {
+func NewWalletClient(httpClient *http.Client, credentialClientMetadataURL string) (Wallet, error) {
 	if credentialClientMetadataURL == "" {
 		return nil, errors.New("empty credential client metadata URL")
 	}
-	httpClient := http.Client{}
 
 	metadata, err := loadOAuth2CredentialsClientMetadata(credentialClientMetadataURL, httpClient)
 	if err != nil {
@@ -27,7 +26,7 @@ func NewWalletClient(credentialClientMetadataURL string) (Wallet, error) {
 	}
 
 	return &httpWalletClient{
-		httpClient: &httpClient,
+		httpClient: httpClient,
 		metadata:   *metadata,
 	}, nil
 }
@@ -68,7 +67,7 @@ func (c *httpWalletClient) OfferCredential(ctx context.Context, offer types.Cred
 	return nil
 }
 
-func loadOAuth2CredentialsClientMetadata(metadataURL string, httpClient http.Client) (*types.OAuth2ClientMetadata, error) {
+func loadOAuth2CredentialsClientMetadata(metadataURL string, httpClient *http.Client) (*types.OAuth2ClientMetadata, error) {
 	// TODO (non-prototype): Support HTTPS (which truststore?)
 	// TODO (non-prototype): what about caching?
 	httpResponse, err := httpClient.Get(metadataURL)
