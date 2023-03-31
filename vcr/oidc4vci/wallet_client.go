@@ -15,12 +15,12 @@ import (
 var _ Wallet = (*httpWalletClient)(nil)
 
 // NewWalletClient resolves the OAuth2 credential client metadata from the given URL.
-func NewWalletClient(httpClient *http.Client, credentialClientMetadataURL string) (Wallet, error) {
+func NewWalletClient(ctx context.Context, httpClient *http.Client, credentialClientMetadataURL string) (Wallet, error) {
 	if credentialClientMetadataURL == "" {
 		return nil, errors.New("empty credential client metadata URL")
 	}
 
-	metadata, err := loadOAuth2CredentialsClientMetadata(credentialClientMetadataURL, httpClient)
+	metadata, err := loadOAuth2CredentialsClientMetadata(ctx, credentialClientMetadataURL, httpClient)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load OAuth2 credential client metadata (url=%s): %w", credentialClientMetadataURL, err)
 	}
@@ -49,7 +49,8 @@ func (c *httpWalletClient) OfferCredential(ctx context.Context, offer types.Cred
 	}
 	requestURL := c.metadata.CredentialOfferEndpoint + "?credential_offer=" + url.QueryEscape(string(offerJson))
 
-	httpResponse, err := c.httpClient.Get(requestURL)
+	httpRequest, _ := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
+	httpResponse, err := c.httpClient.Do(httpRequest)
 	if err != nil {
 		return fmt.Errorf("http request error: %w", err)
 	}
@@ -67,10 +68,11 @@ func (c *httpWalletClient) OfferCredential(ctx context.Context, offer types.Cred
 	return nil
 }
 
-func loadOAuth2CredentialsClientMetadata(metadataURL string, httpClient *http.Client) (*types.OAuth2ClientMetadata, error) {
+func loadOAuth2CredentialsClientMetadata(ctx context.Context, metadataURL string, httpClient *http.Client) (*types.OAuth2ClientMetadata, error) {
 	// TODO (non-prototype): Support HTTPS (which truststore?)
 	// TODO (non-prototype): what about caching?
-	httpResponse, err := httpClient.Get(metadataURL)
+	httpRequest, _ := http.NewRequestWithContext(ctx, http.MethodGet, metadataURL, nil)
+	httpResponse, err := httpClient.Do(httpRequest)
 	if err != nil {
 		return nil, fmt.Errorf("http request error: %w", err)
 	}

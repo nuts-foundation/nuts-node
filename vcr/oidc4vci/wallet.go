@@ -8,6 +8,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 	"net/http"
+	"time"
 )
 
 type Wallet interface {
@@ -30,7 +31,7 @@ func (h wallet) Metadata() types.OAuth2ClientMetadata {
 	}
 }
 
-func (h wallet) retrieveCredential(issuerClient IssuerClient, offer types.CredentialOffer, accessToken string) (*vc.VerifiableCredential, error) {
+func (h wallet) retrieveCredential(ctx context.Context, issuerClient IssuerClient, offer types.CredentialOffer, accessToken string) (*vc.VerifiableCredential, error) {
 	// TODO (non-prototype): now we re-use the resolved OIDC Provider Metadata,
 	//                       but we should use resolve OIDC4VCI Credential Issuer Metadata and use its credential_endpoint instead
 	credentialRequest := types.CredentialRequest{
@@ -48,11 +49,11 @@ func (h wallet) retrieveCredential(issuerClient IssuerClient, offer types.Creden
 			ProofType: "jwt",
 		},
 	}
-	return issuerClient.GetCredential(credentialRequest, accessToken)
+	return issuerClient.GetCredential(ctx, credentialRequest, accessToken)
 }
 
 func (h wallet) OfferCredential(ctx context.Context, offer types.CredentialOffer) error {
-	issuerClient, err := NewIssuerClient(&http.Client{}, offer.CredentialIssuer)
+	issuerClient, err := NewIssuerClient(ctx, &http.Client{}, offer.CredentialIssuer)
 	if err != nil {
 		return fmt.Errorf("unable to create issuer client: %w", err)
 	}
@@ -73,7 +74,10 @@ func (h wallet) OfferCredential(ctx context.Context, offer types.CredentialOffer
 	// TODO (non-prototype): we now do this in a goroutine to avoid blocking the issuer's process
 	go func() {
 		// TODO (non-prototype): needs retrying
-		credential, err := h.retrieveCredential(issuerClient, offer, accessTokenResponse.AccessToken)
+		retrieveCtx := context.Background()
+		retrieveCtx, cancel := context.WithTimeout(retrieveCtx, 10*time.Second) // TODO: How to deal with time-outs?
+		defer cancel()
+		credential, err := h.retrieveCredential(retrieveCtx, issuerClient, offer, accessTokenResponse.AccessToken)
 		if err != nil {
 			log.Logger().WithError(err).Errorf("Unable to retrieve credential")
 			return

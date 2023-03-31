@@ -2,6 +2,7 @@ package oidc4vci
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,22 +16,22 @@ import (
 type IssuerClient interface {
 	OAuth2Client
 
-	GetCredential(request types.CredentialRequest, accessToken string) (*vc.VerifiableCredential, error)
+	GetCredential(ctx context.Context, request types.CredentialRequest, accessToken string) (*vc.VerifiableCredential, error)
 }
 
 // NewIssuerClient resolves the Credential Issuer Metadata from the well-known endpoint
 // and returns a client that can be used to communicate with the issuer.
-func NewIssuerClient(httpClient *http.Client, credentialIssuerIdentifier string) (IssuerClient, error) {
+func NewIssuerClient(ctx context.Context, httpClient *http.Client, credentialIssuerIdentifier string) (IssuerClient, error) {
 	if credentialIssuerIdentifier == "" {
 		return nil, errors.New("empty Credential Issuer Identifier")
 	}
 
 	// Load OIDC4VCI metadata and OIDC metadata
-	metadata, err := loadCredentialIssuerMetadata(credentialIssuerIdentifier, httpClient)
+	metadata, err := loadCredentialIssuerMetadata(ctx, credentialIssuerIdentifier, httpClient)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load Credential Issuer Metadata (identifier=%s): %w", credentialIssuerIdentifier, err)
 	}
-	providerMetadata, err := loadOIDCProviderMetadata(credentialIssuerIdentifier, httpClient)
+	providerMetadata, err := loadOIDCProviderMetadata(ctx, credentialIssuerIdentifier, httpClient)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load OIDC Provider Metadata (identifier=%s): %w", credentialIssuerIdentifier, err)
 	}
@@ -57,9 +58,9 @@ type httpIssuerClient struct {
 	providerMetadata types.OIDCProviderMetadata
 }
 
-func (h httpIssuerClient) GetCredential(request types.CredentialRequest, accessToken string) (*vc.VerifiableCredential, error) {
+func (h httpIssuerClient) GetCredential(ctx context.Context, request types.CredentialRequest, accessToken string) (*vc.VerifiableCredential, error) {
 	requestBody, _ := json.Marshal(request)
-	httpRequest, _ := http.NewRequest("POST", h.metadata.CredentialEndpoint, bytes.NewReader(requestBody))
+	httpRequest, _ := http.NewRequestWithContext(ctx, "POST", h.metadata.CredentialEndpoint, bytes.NewReader(requestBody))
 	httpRequest.Header.Add("Authorization", "Bearer "+accessToken)
 	httpRequest.Header.Add("Content-Type", "application/json")
 	httpResponse, err := h.httpClient.Do(httpRequest)
@@ -93,10 +94,11 @@ func (h httpIssuerClient) GetCredential(request types.CredentialRequest, accessT
 	return &credential, nil
 }
 
-func loadCredentialIssuerMetadata(credentialIssuerIdentifier string, httpClient *http.Client) (*types.CredentialIssuerMetadata, error) {
+func loadCredentialIssuerMetadata(ctx context.Context, credentialIssuerIdentifier string, httpClient *http.Client) (*types.CredentialIssuerMetadata, error) {
 	// TODO (non-prototype): Support HTTPS (which truststore?)
 	// TODO (non-prototype): what about caching?
-	httpResponse, err := httpClient.Get(credentialIssuerIdentifier + "/.well-known/openid-credential-issuer")
+	httpRequest, _ := http.NewRequestWithContext(ctx, "GET", credentialIssuerIdentifier+"/.well-known/openid-credential-issuer", nil)
+	httpResponse, err := httpClient.Do(httpRequest)
 	if err != nil {
 		return nil, fmt.Errorf("http request error: %w", err)
 	}
@@ -117,13 +119,14 @@ func loadCredentialIssuerMetadata(credentialIssuerIdentifier string, httpClient 
 	return &result, nil
 }
 
-func loadOIDCProviderMetadata(credentialIssuerIdentifier string, httpClient *http.Client) (*types.OIDCProviderMetadata, error) {
+func loadOIDCProviderMetadata(ctx context.Context, credentialIssuerIdentifier string, httpClient *http.Client) (*types.OIDCProviderMetadata, error) {
 	//
 	// Resolve OpenID Connect Provider Metadata, to find out where to request the token
 	//
 	// TODO (non-prototype): Support HTTPS (which truststore?)
 	// TODO (non-prototype): what about caching?
-	httpResponse, err := httpClient.Get(credentialIssuerIdentifier + "/.well-known/openid-configuration")
+	httpRequest, _ := http.NewRequestWithContext(ctx, "GET", credentialIssuerIdentifier+"/.well-known/openid-configuration", nil)
+	httpResponse, err := httpClient.Do(httpRequest)
 	if err != nil {
 		return nil, fmt.Errorf("http request error: %w", err)
 	}
