@@ -82,7 +82,7 @@ type validator struct {
 type revocationList struct {
 	// list is the actual revocationList
 	list *x509.RevocationList
-	// revoked contains all revoked certificated index by their serial number (pkix.RevokedCertificate.SerialNumber.String())
+	// revoked contains all revoked certificates index by their serial number (pkix.RevokedCertificate.SerialNumber.String())
 	revoked map[string]bool
 	// issuers of the CRL found at this endpoint. Multiple issuers could indicate MITM attack, or re-use of an endpoint.
 	issuers []*x509.Certificate
@@ -391,7 +391,7 @@ func (v *validator) updateCRL(endpoint string, current *revocationList) error {
 func (v *validator) downloadCRL(endpoint string) (*x509.RevocationList, error) {
 	response, err := v.httpClient.Get(endpoint)
 	if err != nil {
-		return nil, fmt.Errorf("download CRL: %w", err)
+		return nil, fmt.Errorf("downloading CRL: %w", err)
 	}
 	defer func() {
 		if err = response.Body.Close(); err != nil {
@@ -401,7 +401,7 @@ func (v *validator) downloadCRL(endpoint string) (*x509.RevocationList, error) {
 
 	data, err := io.ReadAll(response.Body)
 	if err != nil {
-		return nil, fmt.Errorf("download CRL: %w", err)
+		return nil, fmt.Errorf("downloading CRL: %w", err)
 	}
 
 	crl, err := x509.ParseRevocationList(data)

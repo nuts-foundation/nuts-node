@@ -6,7 +6,7 @@ All sub/intermediate CAs use the same config and therefore same certificate admi
 Revocations are currently only generated correctly because of the order of revocation and CRL generation.
 
 # Errors?!?!
-MacOS by default uses `LibreSSL` which doesn't work with this script.
+MacOS by default uses `LibreSSL` which does not apply the `openssl.conf` correctly.
 Check the version using `openssl version`. This is tested with `OpenSSL 1.1.1t  7 Feb 2023` distributed by `Homebrew`
 
 # Certificate chain
@@ -69,4 +69,7 @@ CertB Valid
 - `Intermediate A CA`
 - `Intermediate B CA`
 - `Root CA`
+
+It also creates `truststore_withPKIOverheid.pem` that appends the following files
+- `truststore.pem`
 - `/network/test/pkioverheid-server-bundle.pem`

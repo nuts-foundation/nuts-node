@@ -316,7 +316,7 @@ func Test_ValidatorVerifyCRL(t *testing.T) {
 	v := newValidatorStarted(t)
 
 	t.Run("ok", func(t *testing.T) {
-		data, err := os.ReadFile("./test/RootCaLatest.crl")
+		data, err := os.ReadFile("./test/RootCALatest.crl")
 		require.NoError(t, err)
 		rl, err := x509.ParseRevocationList(data)
 		require.NoError(t, err)

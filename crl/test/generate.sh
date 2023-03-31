@@ -2,16 +2,17 @@
 
 # fail if any of the commands returns an error
 set -e
+set -x
 
 
 parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
-cd "$parent_path"
+pushd "$parent_path"
 
 ## Init
-rm -r gen-crl-data || true
+rm -rf gen-crl-data
 mkdir gen-crl-data
 cp openssl.conf gen-crl-data/root-ca.conf
-cd gen-crl-data
+pushd gen-crl-data
 mkdir certs db private
 touch db/index db/indexSub
 echo 01  > db/serial # init serial to 01 for deterministic serial assignment
@@ -140,8 +141,7 @@ openssl ca -gencrl \
 
 
 ## Copy data and cleanup
-cd ..
-
+popd
 cat gen-crl-data/int-ca.crt gen-crl-data/root-ca.crt ../../network/test/pkioverheid-server-bundle.pem > truststore_withPKIOverheid.pem
 cat gen-crl-data/int-ca.crt gen-crl-data/root-ca.crt > truststore.pem
 cat gen-crl-data/certs/04.pem gen-crl-data/private/leafA1.key > A-valid.pem
