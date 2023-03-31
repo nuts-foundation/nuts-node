@@ -81,7 +81,7 @@ func (i *memoryIssuer) Offer(ctx context.Context, credential vc.VerifiableCreden
 
 	// TODO: Lookup Credential Wallet Client Metadata. For now, we use the local node
 
-	client, err := NewHolderClient(clientMetadataURL)
+	client, err := NewWalletClient(clientMetadataURL)
 	if err != nil {
 		return err
 	}

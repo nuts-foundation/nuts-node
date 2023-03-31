@@ -12,10 +12,10 @@ import (
 	"net/url"
 )
 
-var _ Wallet = (*httpHolderClient)(nil)
+var _ Wallet = (*httpWalletClient)(nil)
 
-// NewHolderClient resolves the OAuth2 credential client metadata from the given URL.
-func NewHolderClient(credentialClientMetadataURL string) (Wallet, error) {
+// NewWalletClient resolves the OAuth2 credential client metadata from the given URL.
+func NewWalletClient(credentialClientMetadataURL string) (Wallet, error) {
 	if credentialClientMetadataURL == "" {
 		return nil, errors.New("empty credential client metadata URL")
 	}
@@ -26,24 +26,24 @@ func NewHolderClient(credentialClientMetadataURL string) (Wallet, error) {
 		return nil, fmt.Errorf("unable to load OAuth2 credential client metadata (url=%s): %w", credentialClientMetadataURL, err)
 	}
 
-	return &httpHolderClient{
+	return &httpWalletClient{
 		httpClient: &httpClient,
 		metadata:   *metadata,
 	}, nil
 }
 
-var _ Wallet = (*httpHolderClient)(nil)
+var _ Wallet = (*httpWalletClient)(nil)
 
-type httpHolderClient struct {
+type httpWalletClient struct {
 	metadata   types.OAuth2ClientMetadata
 	httpClient *http.Client
 }
 
-func (c *httpHolderClient) Metadata() types.OAuth2ClientMetadata {
+func (c *httpWalletClient) Metadata() types.OAuth2ClientMetadata {
 	return c.metadata
 }
 
-func (c *httpHolderClient) OfferCredential(ctx context.Context, offer types.CredentialOffer) error {
+func (c *httpWalletClient) OfferCredential(ctx context.Context, offer types.CredentialOffer) error {
 	offerJson, err := json.Marshal(offer)
 	if err != nil {
 		return err
