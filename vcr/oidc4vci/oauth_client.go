@@ -1,13 +1,11 @@
 package oidc4vci
 
 import (
-	"encoding/json"
-	"fmt"
-	"github.com/go-errors/errors"
+	"context"
 	"github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0/types"
-	"io"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 // OAuth2Client defines a generic OAuth2 client.
@@ -29,20 +27,12 @@ func (c httpOAuth2Client) RequestAccessToken(grantType string, params map[string
 	for key, value := range params {
 		values.Add(key, value)
 	}
-
-	httpResponse, err := c.httpClient.PostForm(c.metadata.TokenEndpoint, values)
-	defer httpResponse.Body.Close()
+	httpRequest, _ := http.NewRequestWithContext(context.Background(), "POST", c.metadata.TokenEndpoint, strings.NewReader(values.Encode()))
+	httpRequest.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	var accessTokenResponse types.OIDCTokenResponse
+	err := httpDo(c.httpClient, httpRequest, &accessTokenResponse)
 	if err != nil {
-		return nil, fmt.Errorf("http request error: %w", err)
-	}
-	if httpResponse.StatusCode != http.StatusOK {
-		return nil, errors.New("unexpected HTTP response code")
-	}
-	responseBody, _ := io.ReadAll(httpResponse.Body)
-	accessTokenResponse := types.OIDCTokenResponse{}
-	err = json.Unmarshal(responseBody, &accessTokenResponse)
-	if err != nil {
-		return nil, fmt.Errorf("unmarshal error: %w", err)
+		return nil, err
 	}
 	return &accessTokenResponse, nil
 }
