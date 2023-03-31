@@ -3,11 +3,15 @@
 # fail if any of the commands returns an error
 set -e
 
+
+parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
+cd "$parent_path"
+
 ## Init
-rm -r data
-mkdir data
-cp openssl.conf data/root-ca.conf
-cd data
+rm -r gen-crl-data || true
+mkdir gen-crl-data
+cp openssl.conf gen-crl-data/root-ca.conf
+cd gen-crl-data
 mkdir certs db private
 touch db/index db/indexSub
 echo 01  > db/serial # init serial to 01 for deterministic serial assignment
@@ -138,23 +142,23 @@ openssl ca -gencrl \
 ## Copy data and cleanup
 cd ..
 
-cat data/int-ca.crt data/root-ca.crt ../../network/test/pkioverheid-server-bundle.pem > truststore_withPKIOverheid.pem
-cat data/int-ca.crt data/root-ca.crt > truststore.pem
-cat data/certs/04.pem data/private/leafA1.key > A-valid.pem
-cat data/certs/05.pem data/private/leafA2.key > A-revoked.pem
-cat data/certs/06.pem data/private/leafA3.key > A-expired.pem
-cat data/certs/07.pem data/private/leafB1.key > B-valid_revoked-CA.pem
+cat gen-crl-data/int-ca.crt gen-crl-data/root-ca.crt ../../network/test/pkioverheid-server-bundle.pem > truststore_withPKIOverheid.pem
+cat gen-crl-data/int-ca.crt gen-crl-data/root-ca.crt > truststore.pem
+cat gen-crl-data/certs/04.pem gen-crl-data/private/leafA1.key > A-valid.pem
+cat gen-crl-data/certs/05.pem gen-crl-data/private/leafA2.key > A-revoked.pem
+cat gen-crl-data/certs/06.pem gen-crl-data/private/leafA3.key > A-expired.pem
+cat gen-crl-data/certs/07.pem gen-crl-data/private/leafB1.key > B-valid_revoked-CA.pem
 
 openssl crl \
-    -inform pem -in data/root-ca.crl \
+    -inform pem -in gen-crl-data/root-ca.crl \
     -outform der -out RootCALatest.crl
 
 openssl crl \
-    -inform pem -in data/intA.crl \
+    -inform pem -in gen-crl-data/intA.crl \
     -outform der -out IntermediateCAALatest.crl
 
 openssl crl \
-    -inform pem -in data/intB.crl \
+    -inform pem -in gen-crl-data/intB.crl \
     -outform der -out IntermediateCABLatest.crl
 
-rm -r data
+rm -r gen-crl-data
