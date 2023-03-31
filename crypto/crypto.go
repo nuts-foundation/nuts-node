@@ -106,7 +106,7 @@ func (client *Crypto) setupStorageAPIBackend() error {
 	log.Logger().Debug("Setting up StorageAPI backend for storage of private key material.")
 	apiBackend, err := external.NewAPIClient(client.config.External)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to set up external crypto API client: %w", err)
 	}
 	client.storage = spi.NewValidatedKIDBackendWrapper(apiBackend, kidPattern)
 	return nil

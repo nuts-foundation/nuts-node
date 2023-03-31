@@ -36,15 +36,28 @@ func TestNewSystem(t *testing.T) {
 }
 
 func TestSystem_Start(t *testing.T) {
-	ctrl := gomock.NewController(t)
+	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
 
-	r := NewMockRunnable(ctrl)
-	r.EXPECT().Start()
+		r := NewMockRunnable(ctrl)
+		r.EXPECT().Start()
 
-	system := NewSystem()
-	system.RegisterEngine(TestEngine{})
-	system.RegisterEngine(r)
-	assert.NoError(t, system.Start())
+		system := NewSystem()
+		system.RegisterEngine(TestEngine{})
+		system.RegisterEngine(r)
+		assert.NoError(t, system.Start())
+	})
+	t.Run("returns error", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		r := NewMockRunnable(ctrl)
+		r.EXPECT().Start().Return(errors.New("failure"))
+
+		system := NewSystem()
+		system.RegisterEngine(r)
+
+		assert.EqualError(t, system.Start(), "unable to start *core.MockRunnable: failure")
+	})
 }
 
 func TestSystem_Shutdown(t *testing.T) {
@@ -57,7 +70,7 @@ func TestSystem_Shutdown(t *testing.T) {
 		system := NewSystem()
 		system.RegisterEngine(r)
 
-		assert.EqualError(t, system.Shutdown(), "failure")
+		assert.EqualError(t, system.Shutdown(), "unable to shutdown *core.MockRunnable: failure")
 	})
 	t.Run("start and shutdown are called in opposite order", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -97,6 +110,18 @@ func TestSystem_Configure(t *testing.T) {
 		system.RegisterEngine(r)
 		assert.NoError(t, system.Load(FlagSet()))
 		assert.Nil(t, system.Configure())
+	})
+	t.Run("returns error", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		r := NewMockConfigurable(ctrl)
+		r.EXPECT().Configure(gomock.Any()).Return(errors.New("failure"))
+
+		system := NewSystem()
+		system.RegisterEngine(r)
+		assert.NoError(t, system.Load(FlagSet()))
+
+		assert.EqualError(t, system.Configure(), "unable to configure *core.MockConfigurable: failure")
 	})
 	t.Run("unable to create datadir", func(t *testing.T) {
 		system := NewSystem()
