@@ -85,12 +85,6 @@ type OIDCTokenResponse struct {
 	TokenType string `json:"token_type"`
 }
 
-// CredentialOfferParams defines parameters for CredentialOffer.
-type CredentialOfferParams struct {
-	// CredentialOffer Contains the url encoded credential_offer object.
-	CredentialOffer string `form:"credential_offer" json:"credential_offer"`
-}
-
 // GetCredentialParams defines parameters for GetCredential.
 type GetCredentialParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
@@ -100,6 +94,12 @@ type GetCredentialParams struct {
 type RequestAccessTokenFormdataBody struct {
 	GrantType         string `json:"grant_type"`
 	PreAuthorizedCode string `json:"pre-authorized_code"`
+}
+
+// CredentialOfferParams defines parameters for CredentialOffer.
+type CredentialOfferParams struct {
+	// CredentialOffer Contains the url encoded credential_offer object.
+	CredentialOffer string `form:"credential_offer" json:"credential_offer"`
 }
 
 // GetCredentialJSONRequestBody defines body for GetCredential for application/json ContentType.

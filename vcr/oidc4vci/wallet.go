@@ -9,52 +9,27 @@ import (
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 )
 
-// HolderRegistry is a registry of Holder instances, used to keep track of holders in a multi-tenant environment.
-type HolderRegistry struct {
-	holderBaseURL   string
-	credentialStore vcrTypes.Writer
-}
-
-func NewHolderRegistry(holderBaseURL string, credentialStore vcrTypes.Writer) *HolderRegistry {
-	// Add trailing slash if missing
-	if holderBaseURL[len(holderBaseURL)-1] != '/' {
-		holderBaseURL += "/"
-	}
-	return &HolderRegistry{
-		holderBaseURL:   holderBaseURL,
-		credentialStore: credentialStore,
-	}
-}
-
-func (h HolderRegistry) Get(did string) Holder {
-	return &holder{
-		did:             did,
-		identifier:      h.holderBaseURL + did,
-		credentialStore: h.credentialStore,
-	}
-}
-
-type Holder interface {
+type Wallet interface {
 	Metadata() types.OAuth2ClientMetadata
-	AcceptCredentialOffer(ctx context.Context, offer types.CredentialOffer) error
+	OfferCredential(ctx context.Context, offer types.CredentialOffer) error
 }
 
-var _ Holder = (*holder)(nil)
+var _ Wallet = (*wallet)(nil)
 
-type holder struct {
+type wallet struct {
 	did             string
 	identifier      string
 	credentialStore vcrTypes.Writer
 }
 
-func (h holder) Metadata() types.OAuth2ClientMetadata {
+func (h wallet) Metadata() types.OAuth2ClientMetadata {
 	return types.OAuth2ClientMetadata{
 		// TODO: Shouldn't be "identifier" or something in there?
-		CredentialOfferEndpoint: h.identifier + "/holder/oidc4vci/credential_offer",
+		CredentialOfferEndpoint: h.identifier + "/wallet/oidc4vci/credential_offer",
 	}
 }
 
-func (h holder) retrieveCredential(issuerClient IssuerClient, offer types.CredentialOffer, accessToken string) (*vc.VerifiableCredential, error) {
+func (h wallet) retrieveCredential(issuerClient IssuerClient, offer types.CredentialOffer, accessToken string) (*vc.VerifiableCredential, error) {
 	// TODO (non-prototype): now we re-use the resolved OIDC Provider Metadata,
 	//                       but we should use resolve OIDC4VCI Credential Issuer Metadata and use its credential_endpoint instead
 	credentialRequest := types.CredentialRequest{
@@ -75,7 +50,7 @@ func (h holder) retrieveCredential(issuerClient IssuerClient, offer types.Creden
 	return issuerClient.GetCredential(credentialRequest, accessToken)
 }
 
-func (h holder) AcceptCredentialOffer(ctx context.Context, offer types.CredentialOffer) error {
+func (h wallet) OfferCredential(ctx context.Context, offer types.CredentialOffer) error {
 	issuerClient, err := NewIssuerClient(offer.CredentialIssuer)
 	if err != nil {
 		return fmt.Errorf("unable to create issuer client: %w", err)

@@ -9,7 +9,7 @@ import (
 )
 
 func (w Wrapper) GetOAuth2ClientMetadata(_ context.Context, request GetOAuth2ClientMetadataRequestObject) (GetOAuth2ClientMetadataResponseObject, error) {
-	return GetOAuth2ClientMetadata200JSONResponse(w.HolderRegistry.Get(request.Did).Metadata()), nil
+	return GetOAuth2ClientMetadata200JSONResponse(w.HolderRegistry.GetWallet(request.Did).Metadata()), nil
 }
 
 func (w Wrapper) CredentialOffer(ctx context.Context, request CredentialOfferRequestObject) (CredentialOfferResponseObject, error) {
@@ -22,7 +22,7 @@ func (w Wrapper) CredentialOffer(ctx context.Context, request CredentialOfferReq
 		return nil, core.InvalidInputError("unable to unmarshal credential offer query param")
 	}
 
-	err = w.HolderRegistry.Get(request.Did).AcceptCredentialOffer(ctx, offer)
+	err = w.HolderRegistry.GetWallet(request.Did).OfferCredential(ctx, offer)
 	if err != nil {
 		return nil, err
 	}

@@ -133,7 +133,7 @@ paths:
               schema:
                 "$ref": "#/components/schemas/CredentialResponse"
 
-  "/identity/{did}/holder/oidc4vci/credential_offer":
+  "/identity/{did}/wallet/oidc4vci/credential_offer":
     get:
       tags:
         - Holder

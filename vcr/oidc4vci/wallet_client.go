@@ -12,13 +12,10 @@ import (
 	"net/url"
 )
 
-// HolderClient defines the API client used by the issuer to communicate with the credential holder (wallet).
-type HolderClient interface {
-	OfferCredential(ctx context.Context, offer types.CredentialOffer) error
-}
+var _ Wallet = (*httpHolderClient)(nil)
 
 // NewHolderClient resolves the OAuth2 credential client metadata from the given URL.
-func NewHolderClient(credentialClientMetadataURL string) (HolderClient, error) {
+func NewHolderClient(credentialClientMetadataURL string) (Wallet, error) {
 	if credentialClientMetadataURL == "" {
 		return nil, errors.New("empty credential client metadata URL")
 	}
@@ -35,11 +32,15 @@ func NewHolderClient(credentialClientMetadataURL string) (HolderClient, error) {
 	}, nil
 }
 
-var _ HolderClient = (*httpHolderClient)(nil)
+var _ Wallet = (*httpHolderClient)(nil)
 
 type httpHolderClient struct {
 	metadata   types.OAuth2ClientMetadata
 	httpClient *http.Client
+}
+
+func (c *httpHolderClient) Metadata() types.OAuth2ClientMetadata {
+	return c.metadata
 }
 
 func (c *httpHolderClient) OfferCredential(ctx context.Context, offer types.CredentialOffer) error {
