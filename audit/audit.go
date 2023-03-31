@@ -35,7 +35,10 @@ const (
 	CryptoSignJWTEvent = "SignJWT"
 	// CryptoSignJWSEvent occurs when signing a JWS.
 	CryptoSignJWSEvent = "SignJWS"
-
+	// CryptoEncryptJWEEvent occurs when encryping a JWE
+	CryptoEncryptJWEEvent = "EncryptJWE"
+	// CryptoDecryptJWEEvent occurs when decryping a JWE
+	CryptoDecryptJWEEvent = "DecryptJWE"
 	// AccessDeniedEvent occurs when access to a protected API endpoint was granted
 	AccessGrantedEvent = "AccessGranted"
 	// AccessDeniedEvent occurs when access to a protected API endpoint was denied

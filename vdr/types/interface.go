@@ -99,6 +99,13 @@ type KeyResolver interface {
 	// It returns ErrKeyNotFound when the key could not be found in the DID Document.
 	// It returns ErrNotFound when the DID Document can't be found.
 	ResolvePublicKey(kid string, sourceTransactionsRefs []hash.SHA256Hash) (crypto.PublicKey, error)
+	// ResolveRelationKey looks up a specific key of the given RelationType and returns it as crypto.PublicKey.
+	// If the key can't be found or isn't meant for signing an error is returned.
+	ResolveRelationKey(keyID string, validAt *time.Time, relationType RelationType) (crypto.PublicKey, error)
+	// ResolveRelationKeyID look for a valid key of the given RelationType for the give DID.
+	// If multiple keys are valid, the first one is returned.
+	// An ErrKeyNotFound is returned when no key is found.
+	ResolveRelationKeyID(id did.DID, relationType RelationType) (ssi.URI, error)
 }
 
 // DocIterator is the function type for iterating over the all current DID Documents in the store
@@ -139,3 +146,15 @@ type DocManipulator interface {
 	// It returns an ErrDIDNotManagedByThisNode if the DID document is not managed by this node.
 	AddVerificationMethod(ctx context.Context, id did.DID, keyUsage DIDKeyFlags) (*did.VerificationMethod, error)
 }
+
+// RelationType is the type that contains the different possible relationships between a DID Document and a VerificationMethod
+// They are defined in the DID spec: https://www.w3.org/TR/did-core/#verification-relationships
+type RelationType uint
+
+const (
+	Authentication       RelationType = iota
+	AssertionMethod      RelationType = iota
+	KeyAgreement         RelationType = iota
+	CapabilityInvocation RelationType = iota
+	CapabilityDelegation RelationType = iota
+)

@@ -152,6 +152,10 @@ func (r KeyResolver) ResolveSigningKeyID(holder did.DID, validAt *time.Time) (st
 // ResolveSigningKey resolves the PublicKey of the first valid AssertionMethod for an indicated
 // DID document at a validAt time.
 func (r KeyResolver) ResolveSigningKey(keyID string, validAt *time.Time) (crypto.PublicKey, error) {
+	return r.ResolveRelationKey(keyID, validAt, types.AssertionMethod)
+}
+
+func (r KeyResolver) ResolveRelationKey(keyID string, validAt *time.Time, relationType types.RelationType) (crypto.PublicKey, error) {
 	kid, err := did.ParseDIDURL(keyID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid key ID (id=%s): %w", keyID, err)
@@ -165,7 +169,9 @@ func (r KeyResolver) ResolveSigningKey(keyID string, validAt *time.Time) (crypto
 		return "", err
 	}
 	var result *did.VerificationRelationship
-	for _, rel := range doc.AssertionMethod {
+	relationships, _ := resolveRelationships(doc, relationType)
+
+	for _, rel := range relationships {
 		if rel.ID.String() == keyID {
 			result = &rel
 		}
@@ -176,6 +182,23 @@ func (r KeyResolver) ResolveSigningKey(keyID string, validAt *time.Time) (crypto
 	return result.PublicKey()
 }
 
+func resolveRelationships(doc *did.Document, relationType types.RelationType) (relationships did.VerificationRelationships, err error) {
+	switch relationType {
+	case types.Authentication:
+		return doc.Authentication, nil
+	case types.AssertionMethod:
+		return doc.AssertionMethod, nil
+	case types.KeyAgreement:
+		return doc.KeyAgreement, nil
+	case types.CapabilityInvocation:
+		return doc.CapabilityInvocation, nil
+	case types.CapabilityDelegation:
+		return doc.CapabilityDelegation, nil
+	default:
+		return nil, fmt.Errorf("unable to locate RelationType %v", relationType)
+	}
+}
+
 // ResolveAssertionKeyID resolves the id of the first valid AssertionMethod of an indicated DID document in the current state.
 func (r KeyResolver) ResolveAssertionKeyID(id did.DID) (ssi.URI, error) {
 	doc, _, err := r.Store.Resolve(id, nil)
@@ -183,7 +206,16 @@ func (r KeyResolver) ResolveAssertionKeyID(id did.DID) (ssi.URI, error) {
 		return ssi.URI{}, err
 	}
 
-	return ExtractAssertionKeyID(*doc)
+	return ExtractFirstRelationKeyIDByType(*doc, types.AssertionMethod)
+}
+
+func (r KeyResolver) ResolveRelationKeyID(id did.DID, relationType types.RelationType) (ssi.URI, error) {
+	doc, _, err := r.Store.Resolve(id, nil)
+	if err != nil {
+		return ssi.URI{}, err
+	}
+
+	return ExtractFirstRelationKeyIDByType(*doc, relationType)
 }
 
 // ResolveKeyAgreementKey resolves the public key of the first valid KeyAgreement of an indicated DID document in the current state.
@@ -199,10 +231,13 @@ func (r KeyResolver) ResolveKeyAgreementKey(id did.DID) (crypto.PublicKey, error
 	return doc.KeyAgreement[0].PublicKey()
 }
 
-// ExtractAssertionKeyID returns a assertionMethod ID from the given DID document.
-// it returns types.ErrKeyNotFound is no assertionMethod key is present.
-func ExtractAssertionKeyID(doc did.Document) (ssi.URI, error) {
-	keys := doc.AssertionMethod
+// ExtractFirstRelationKeyIDByType returns the first relation key ID from the given DID document matching the relationType.
+// Returns a types.ErrKeyNotFound if no relation key of the given relationType is present.
+func ExtractFirstRelationKeyIDByType(doc did.Document, relationType types.RelationType) (ssi.URI, error) {
+	keys, err := resolveRelationships(&doc, relationType)
+	if err != nil {
+		return ssi.URI{}, err
+	}
 	for _, key := range keys {
 		kid := key.ID.String()
 		u, _ := ssi.ParseURI(kid)
@@ -230,18 +265,18 @@ func (r KeyResolver) ResolvePublicKey(kid string, sourceTransactionsRefs []hash.
 }
 
 func (r KeyResolver) resolvePublicKey(kid string, metadata types.ResolveMetadata) (crypto.PublicKey, error) {
-	did, err := did.ParseDIDURL(kid)
+	id, err := did.ParseDIDURL(kid)
 	if err != nil {
 		return nil, fmt.Errorf("invalid key ID (id=%s): %w", kid, err)
 	}
-	didCopy := *did
+	didCopy := *id
 	didCopy.Fragment = ""
 	doc, _, err := r.Store.Resolve(didCopy, &metadata)
 	if err != nil {
 		return nil, err
 	}
 
-	vm := doc.VerificationMethod.FindByID(*did)
+	vm := doc.VerificationMethod.FindByID(*id)
 	if vm == nil {
 		return nil, types.ErrKeyNotFound
 	}

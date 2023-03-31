@@ -80,6 +80,15 @@ type JWTSigner interface {
 	// context is used to pass audit information.
 	// Returns ErrPrivateKeyNotFound when the private key is not present.
 	SignJWS(ctx context.Context, payload []byte, headers map[string]interface{}, key interface{}, detached bool) (string, error)
+
+	// EncryptJWE encrypts a payload as bytes into a JWE message with the given key and kid.
+	// The publicKey must be a public key
+	// The kid must be the KeyID and will be placed in the header, if not set.
+	EncryptJWE(ctx context.Context, payload []byte, headers map[string]interface{}, publicKey interface{}) (string, error)
+
+	// DecryptJWE decrypts a message as bytes into a decrypted body and headers.
+	// The corresponding private key must be located in the KeyID (kid) header.
+	DecryptJWE(ctx context.Context, message string) (body []byte, headers map[string]interface{}, err error)
 }
 
 // Key is a helper interface that describes a private key in the crypto module, specifying its KID and public part.

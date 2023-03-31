@@ -19,6 +19,7 @@
 package crypto
 
 import (
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
@@ -28,6 +29,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/lestrrat-go/jwx/jwe"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -238,6 +240,135 @@ func TestCrypto_SignJWS(t *testing.T) {
 		_, err := client.SignJWS(audit.TestContext(), payload, map[string]interface{}{"typ": "JWT"}, basicKey{kid: "../certificate"}, false)
 
 		assert.ErrorContains(t, err, "invalid key ID")
+	})
+}
+
+func TestCrypto_EncryptJWE(t *testing.T) {
+	client := createCrypto(t)
+
+	key, _ := client.New(audit.TestContext(), StringNamingFunc("did:nuts:1234#key-1"))
+	public := key.Public()
+
+	headers := map[string]interface{}{"typ": "JWT", "kid": key.KID()}
+	t.Run("creates valid JWE", func(t *testing.T) {
+		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
+		tokenString, err := client.EncryptJWE(audit.TestContext(), payload, headers, public)
+
+		require.NoError(t, err)
+
+		privateKey, _, err := client.getPrivateKey(context.Background(), key)
+		require.NoError(t, err)
+
+		token, err := jwe.Decrypt([]byte(tokenString), defaultEcEncryptionAlgorithm, privateKey)
+		require.NoError(t, err)
+
+		var body = make(map[string]interface{})
+		err = json.Unmarshal(token, &body)
+
+		require.NoError(t, err)
+
+		assert.Equal(t, "nuts", body["iss"])
+	})
+	t.Run("creates valid JWE, alt alg", func(t *testing.T) {
+		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
+		headers := map[string]interface{}{"typ": "JWT", "alg": "ECDH-ES"}
+		tokenString, err := client.EncryptJWE(audit.TestContext(), payload, headers, public)
+
+		require.NoError(t, err)
+
+		privateKey, _, err := client.getPrivateKey(context.Background(), key)
+		require.NoError(t, err)
+
+		token, err := jwe.Decrypt([]byte(tokenString), jwa.ECDH_ES, privateKey)
+		require.NoError(t, err)
+
+		var body = make(map[string]interface{})
+		err = json.Unmarshal(token, &body)
+
+		require.NoError(t, err)
+
+		assert.Equal(t, "nuts", body["iss"])
+	})
+	t.Run("creates valid JWE, alt enc", func(t *testing.T) {
+		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
+		headers := map[string]interface{}{"typ": "JWT", "enc": "A256CBC-HS512"}
+		tokenString, err := client.EncryptJWE(audit.TestContext(), payload, headers, public)
+
+		require.NoError(t, err)
+
+		privateKey, _, err := client.getPrivateKey(context.Background(), key)
+		require.NoError(t, err)
+
+		token, err := jwe.Decrypt([]byte(tokenString), defaultEcEncryptionAlgorithm, privateKey)
+		require.NoError(t, err)
+
+		var body = make(map[string]interface{})
+		err = json.Unmarshal(token, &body)
+
+		require.NoError(t, err)
+
+		assert.Equal(t, "nuts", body["iss"])
+	})
+	t.Run("creates broken JWE, enc header", func(t *testing.T) {
+		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
+		headers := map[string]interface{}{"typ": "JWT", "enc": "ECDH-ES"}
+		_, err := client.EncryptJWE(audit.TestContext(), payload, headers, public)
+		require.Error(t, err)
+	})
+	t.Run("writes audit log", func(t *testing.T) {
+		auditLogs := audit.CaptureLogs(t)
+
+		_, err := client.EncryptJWE(audit.TestContext(), []byte{1, 2, 3}, headers, public)
+
+		require.NoError(t, err)
+		auditLogs.AssertContains(t, ModuleName, "EncryptJWE", audit.TestActor, fmt.Sprintf("Encrypting a JWE"))
+	})
+}
+
+func TestCrypto_DecryptJWE(t *testing.T) {
+	client := createCrypto(t)
+
+	kid := "did:nuts:1234#key-1"
+	key, _ := client.New(audit.TestContext(), StringNamingFunc(kid))
+
+	t.Run("decrypts valid JWE", func(t *testing.T) {
+		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
+
+		tokenString, err := EncryptJWE(payload, map[string]interface{}{"typ": "JWT", "kid": kid}, key.Public())
+
+		require.NoError(t, err)
+
+		token, hdrs, err := client.DecryptJWE(audit.TestContext(), tokenString)
+		require.NoError(t, err)
+
+		var body = make(map[string]interface{})
+		err = json.Unmarshal(token, &body)
+
+		require.NoError(t, err)
+
+		assert.Equal(t, "nuts", body["iss"])
+		assert.Equal(t, "JWT", hdrs["typ"])
+	})
+	t.Run("decrypts invalid JWE, broken kid", func(t *testing.T) {
+		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
+
+		tokenString, err := EncryptJWE(payload, map[string]interface{}{"typ": "JWT", "kid": "banana"}, key.Public())
+
+		require.NoError(t, err)
+
+		_, _, err = client.DecryptJWE(audit.TestContext(), tokenString)
+		require.Error(t, err)
+	})
+	t.Run("writes audit log", func(t *testing.T) {
+		auditLogs := audit.CaptureLogs(t)
+
+		tokenString, err := EncryptJWE([]byte{1, 2, 3}, map[string]interface{}{"typ": "JWT", "kid": kid}, key.Public())
+		require.NoError(t, err)
+		_, _, err = client.DecryptJWE(audit.TestContext(), tokenString)
+
+		require.NoError(t, err)
+
+		auditLogs.AssertContains(t, ModuleName, "DecryptJWE", audit.TestActor, fmt.Sprintf("Decrypting a JWE with kid: %s", kid))
 	})
 }
 

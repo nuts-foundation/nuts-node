@@ -20,9 +20,28 @@ const (
 	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
 )
 
+// DecryptJweRequest defines model for DecryptJweRequest.
+type DecryptJweRequest struct {
+	// Message The message to be decrypted as string in format aa==.bb==.cc==.dd==.ee==
+	Message string `json:"message"`
+}
+
+// EncryptJweRequest defines model for EncryptJweRequest.
+type EncryptJweRequest struct {
+	// Headers The map of protected headers.
+	// Note: The value of the kid header will be ignored and overwritten by the used receiver KID.
+	Headers map[string]interface{} `json:"headers"`
+
+	// Payload The payload to be signed as bytes. The bytes must be encoded with Base64 encoding.
+	Payload []byte `json:"payload"`
+
+	// Receiver The DID reference of the message receiver OR the KID of the message receiver.
+	Receiver string `json:"receiver"`
+}
+
 // SignJwsRequest defines model for SignJwsRequest.
 type SignJwsRequest struct {
-	// Detached In detached mode the payload is signed but NOT included in the returned JWS object. Instead, the space between the first and second dot is empty, like this: "<header>..<signature>". Defaults to false.
+	// Detached In detached mode the payload is signed but NOT included in the returned JWS object. Instead, the space between the first and second dot is empty, like this: "<header>..<signature>" Defaults to false.
 	Detached *bool `json:"detached,omitempty"`
 
 	// Headers The map of protected headers
@@ -31,7 +50,7 @@ type SignJwsRequest struct {
 	// Kid Reference to the key ID used for signing the JWS.
 	Kid string `json:"kid"`
 
-	// Payload The payload to be signed as bytes. The bytes must be encoded with base64 encoding.
+	// Payload The payload to be signed as bytes. The bytes must be encoded with Base64 encoding.
 	Payload []byte `json:"payload"`
 }
 
@@ -40,6 +59,12 @@ type SignJwtRequest struct {
 	Claims map[string]interface{} `json:"claims"`
 	Kid    string                 `json:"kid"`
 }
+
+// DecryptJweJSONRequestBody defines body for DecryptJwe for application/json ContentType.
+type DecryptJweJSONRequestBody = DecryptJweRequest
+
+// EncryptJweJSONRequestBody defines body for EncryptJwe for application/json ContentType.
+type EncryptJweJSONRequestBody = EncryptJweRequest
 
 // SignJwsJSONRequestBody defines body for SignJws for application/json ContentType.
 type SignJwsJSONRequestBody = SignJwsRequest
@@ -120,6 +145,16 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// DecryptJwe request with any body
+	DecryptJweWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	DecryptJwe(ctx context.Context, body DecryptJweJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// EncryptJwe request with any body
+	EncryptJweWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	EncryptJwe(ctx context.Context, body EncryptJweJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// SignJws request with any body
 	SignJwsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -129,6 +164,54 @@ type ClientInterface interface {
 	SignJwtWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	SignJwt(ctx context.Context, body SignJwtJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+func (c *Client) DecryptJweWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDecryptJweRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) DecryptJwe(ctx context.Context, body DecryptJweJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDecryptJweRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) EncryptJweWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewEncryptJweRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) EncryptJwe(ctx context.Context, body EncryptJweJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewEncryptJweRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 func (c *Client) SignJwsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -177,6 +260,86 @@ func (c *Client) SignJwt(ctx context.Context, body SignJwtJSONRequestBody, reqEd
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+// NewDecryptJweRequest calls the generic DecryptJwe builder with application/json body
+func NewDecryptJweRequest(server string, body DecryptJweJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDecryptJweRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewDecryptJweRequestWithBody generates requests for DecryptJwe with any type of body
+func NewDecryptJweRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/crypto/v1/decrypt_jwe")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewEncryptJweRequest calls the generic EncryptJwe builder with application/json body
+func NewEncryptJweRequest(server string, body EncryptJweJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewEncryptJweRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewEncryptJweRequestWithBody generates requests for EncryptJwe with any type of body
+func NewEncryptJweRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/crypto/v1/encrypt_jwe")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
 }
 
 // NewSignJwsRequest calls the generic SignJws builder with application/json body
@@ -302,6 +465,16 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// DecryptJwe request with any body
+	DecryptJweWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DecryptJweResponse, error)
+
+	DecryptJweWithResponse(ctx context.Context, body DecryptJweJSONRequestBody, reqEditors ...RequestEditorFn) (*DecryptJweResponse, error)
+
+	// EncryptJwe request with any body
+	EncryptJweWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*EncryptJweResponse, error)
+
+	EncryptJweWithResponse(ctx context.Context, body EncryptJweJSONRequestBody, reqEditors ...RequestEditorFn) (*EncryptJweResponse, error)
+
 	// SignJws request with any body
 	SignJwsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SignJwsResponse, error)
 
@@ -311,6 +484,75 @@ type ClientWithResponsesInterface interface {
 	SignJwtWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SignJwtResponse, error)
 
 	SignJwtWithResponse(ctx context.Context, body SignJwtJSONRequestBody, reqEditors ...RequestEditorFn) (*SignJwtResponse, error)
+}
+
+type DecryptJweResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *struct {
+		// Body The decrypted body as Base64 encoded string.
+		Body []byte `json:"body"`
+
+		// Headers The message headers.
+		Headers map[string]interface{} `json:"headers"`
+	}
+	JSONDefault *struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r DecryptJweResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DecryptJweResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type EncryptJweResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSONDefault  *struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r EncryptJweResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r EncryptJweResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type SignJwsResponse struct {
@@ -375,6 +617,40 @@ func (r SignJwtResponse) StatusCode() int {
 	return 0
 }
 
+// DecryptJweWithBodyWithResponse request with arbitrary body returning *DecryptJweResponse
+func (c *ClientWithResponses) DecryptJweWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DecryptJweResponse, error) {
+	rsp, err := c.DecryptJweWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDecryptJweResponse(rsp)
+}
+
+func (c *ClientWithResponses) DecryptJweWithResponse(ctx context.Context, body DecryptJweJSONRequestBody, reqEditors ...RequestEditorFn) (*DecryptJweResponse, error) {
+	rsp, err := c.DecryptJwe(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDecryptJweResponse(rsp)
+}
+
+// EncryptJweWithBodyWithResponse request with arbitrary body returning *EncryptJweResponse
+func (c *ClientWithResponses) EncryptJweWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*EncryptJweResponse, error) {
+	rsp, err := c.EncryptJweWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseEncryptJweResponse(rsp)
+}
+
+func (c *ClientWithResponses) EncryptJweWithResponse(ctx context.Context, body EncryptJweJSONRequestBody, reqEditors ...RequestEditorFn) (*EncryptJweResponse, error) {
+	rsp, err := c.EncryptJwe(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseEncryptJweResponse(rsp)
+}
+
 // SignJwsWithBodyWithResponse request with arbitrary body returning *SignJwsResponse
 func (c *ClientWithResponses) SignJwsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SignJwsResponse, error) {
 	rsp, err := c.SignJwsWithBody(ctx, contentType, body, reqEditors...)
@@ -407,6 +683,89 @@ func (c *ClientWithResponses) SignJwtWithResponse(ctx context.Context, body Sign
 		return nil, err
 	}
 	return ParseSignJwtResponse(rsp)
+}
+
+// ParseDecryptJweResponse parses an HTTP response from a DecryptJweWithResponse call
+func ParseDecryptJweResponse(rsp *http.Response) (*DecryptJweResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DecryptJweResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			// Body The decrypted body as Base64 encoded string.
+			Body []byte `json:"body"`
+
+			// Headers The message headers.
+			Headers map[string]interface{} `json:"headers"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest struct {
+			// Detail A human-readable explanation specific to this occurrence of the problem.
+			Detail string `json:"detail"`
+
+			// Status HTTP statuscode
+			Status float32 `json:"status"`
+
+			// Title A short, human-readable summary of the problem type.
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseEncryptJweResponse parses an HTTP response from a EncryptJweWithResponse call
+func ParseEncryptJweResponse(rsp *http.Response) (*EncryptJweResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &EncryptJweResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest struct {
+			// Detail A human-readable explanation specific to this occurrence of the problem.
+			Detail string `json:"detail"`
+
+			// Status HTTP statuscode
+			Status float32 `json:"status"`
+
+			// Title A short, human-readable summary of the problem type.
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
 }
 
 // ParseSignJwsResponse parses an HTTP response from a SignJwsWithResponse call
@@ -481,6 +840,12 @@ func ParseSignJwtResponse(rsp *http.Response) (*SignJwtResponse, error) {
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Decrypt a payload with the private key related to the KeyID in the header
+	// (POST /internal/crypto/v1/decrypt_jwe)
+	DecryptJwe(ctx echo.Context) error
+	// Encrypt a payload and headers with the public key of the given DID into a JWE object
+	// (POST /internal/crypto/v1/encrypt_jwe)
+	EncryptJwe(ctx echo.Context) error
 	// sign a payload and headers with the private key of the given kid into a JWS object
 	// (POST /internal/crypto/v1/sign_jws)
 	SignJws(ctx echo.Context) error
@@ -492,6 +857,28 @@ type ServerInterface interface {
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
+}
+
+// DecryptJwe converts echo context to params.
+func (w *ServerInterfaceWrapper) DecryptJwe(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.DecryptJwe(ctx)
+	return err
+}
+
+// EncryptJwe converts echo context to params.
+func (w *ServerInterfaceWrapper) EncryptJwe(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.EncryptJwe(ctx)
+	return err
 }
 
 // SignJws converts echo context to params.
@@ -544,9 +931,94 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
+	router.POST(baseURL+"/internal/crypto/v1/decrypt_jwe", wrapper.DecryptJwe)
+	router.POST(baseURL+"/internal/crypto/v1/encrypt_jwe", wrapper.EncryptJwe)
 	router.POST(baseURL+"/internal/crypto/v1/sign_jws", wrapper.SignJws)
 	router.POST(baseURL+"/internal/crypto/v1/sign_jwt", wrapper.SignJwt)
 
+}
+
+type DecryptJweRequestObject struct {
+	Body *DecryptJweJSONRequestBody
+}
+
+type DecryptJweResponseObject interface {
+	VisitDecryptJweResponse(w http.ResponseWriter) error
+}
+
+type DecryptJwe200JSONResponse struct {
+	// Body The decrypted body as Base64 encoded string.
+	Body []byte `json:"body"`
+
+	// Headers The message headers.
+	Headers map[string]interface{} `json:"headers"`
+}
+
+func (response DecryptJwe200JSONResponse) VisitDecryptJweResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DecryptJwedefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response DecryptJwedefaultJSONResponse) VisitDecryptJweResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type EncryptJweRequestObject struct {
+	Body *EncryptJweJSONRequestBody
+}
+
+type EncryptJweResponseObject interface {
+	VisitEncryptJweResponse(w http.ResponseWriter) error
+}
+
+type EncryptJwe200TextResponse string
+
+func (response EncryptJwe200TextResponse) VisitEncryptJweResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(200)
+
+	_, err := w.Write([]byte(response))
+	return err
+}
+
+type EncryptJwedefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response EncryptJwedefaultJSONResponse) VisitEncryptJweResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
 type SignJwsRequestObject struct {
@@ -629,6 +1101,12 @@ func (response SignJwtdefaultJSONResponse) VisitSignJwtResponse(w http.ResponseW
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// Decrypt a payload with the private key related to the KeyID in the header
+	// (POST /internal/crypto/v1/decrypt_jwe)
+	DecryptJwe(ctx context.Context, request DecryptJweRequestObject) (DecryptJweResponseObject, error)
+	// Encrypt a payload and headers with the public key of the given DID into a JWE object
+	// (POST /internal/crypto/v1/encrypt_jwe)
+	EncryptJwe(ctx context.Context, request EncryptJweRequestObject) (EncryptJweResponseObject, error)
 	// sign a payload and headers with the private key of the given kid into a JWS object
 	// (POST /internal/crypto/v1/sign_jws)
 	SignJws(ctx context.Context, request SignJwsRequestObject) (SignJwsResponseObject, error)
@@ -648,6 +1126,64 @@ func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareF
 type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
+}
+
+// DecryptJwe operation middleware
+func (sh *strictHandler) DecryptJwe(ctx echo.Context) error {
+	var request DecryptJweRequestObject
+
+	var body DecryptJweJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DecryptJwe(ctx.Request().Context(), request.(DecryptJweRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DecryptJwe")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(DecryptJweResponseObject); ok {
+		return validResponse.VisitDecryptJweResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// EncryptJwe operation middleware
+func (sh *strictHandler) EncryptJwe(ctx echo.Context) error {
+	var request EncryptJweRequestObject
+
+	var body EncryptJweJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.EncryptJwe(ctx.Request().Context(), request.(EncryptJweRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "EncryptJwe")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(EncryptJweResponseObject); ok {
+		return validResponse.VisitEncryptJweResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
 }
 
 // SignJws operation middleware

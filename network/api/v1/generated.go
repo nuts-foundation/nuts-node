@@ -26,7 +26,7 @@ type Contact struct {
 	// Address Address of the node.
 	Address string `json:"address"`
 
-	// Attempts Number of times the node has been contacted, but the connection didn't succeed.
+	// Attempts Number of connection attempts since the node has (re-)started. It is reset to 0 when the connection succeeds.
 	Attempts int `json:"attempts"`
 
 	// Did DID of the node.

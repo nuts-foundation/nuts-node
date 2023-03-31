@@ -62,7 +62,74 @@ paths:
                 example: "aa==.bb==.cc=="
         default:
           $ref: '../common/error_response.yaml'
+  /internal/crypto/v1/encrypt_jwe:
+    post:
+      summary: "Encrypt a payload and headers with the public key of the given DID into a JWE object"
+      description: |
+        Encrypt a payload and headers with the public key of the given DID into a JWE object
+        
+        Note: this feature is experimental and might be changed in a future minor release without prior notice.
 
+        error returns:
+        * 400 - incorrect input
+      operationId: encryptJwe
+      tags:
+        - crypto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EncryptJweRequest'
+      responses:
+        '200':
+          description: "OK response, body holds JWE"
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "aa==.bb==.cc==.dd==.ee=="
+        default:
+          $ref: '../common/error_response.yaml'
+  /internal/crypto/v1/decrypt_jwe:
+    post:
+      summary: "Decrypt a payload with the private key related to the KeyID in the header"
+      description: |
+        Decrypt a payload with the private key related to the KeyID in the header
+        
+        Note: this feature is experimental and might be changed in a future minor release without prior notice.
+
+        error returns:
+        * 400 - incorrect input
+      operationId: decryptJwe
+      tags:
+        - crypto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecryptJweRequest'
+      responses:
+        '200':
+          description: "OK response, body holds decrypted body encoded as Base64 string and the headers as json map"
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - body
+                  - headers
+                properties:
+                  body:
+                    type: string
+                    format: byte
+                    description: "The decrypted body as Base64 encoded string."
+                  headers:
+                    type: object
+                    description: "The message headers."
+        default:
+          $ref: '../common/error_response.yaml'
 components:
   schemas:
     SignJwtRequest:
@@ -89,13 +156,41 @@ components:
         payload:
           type: string
           format: byte
-          description: "The payload to be signed as bytes. The bytes must be encoded with base64 encoding."
+          description: "The payload to be signed as bytes. The bytes must be encoded with Base64 encoding."
         detached:
           type: boolean
           default: false
-          description: "In detached mode the payload is signed but NOT included in the returned JWS object. 
-          Instead, the space between the first and second dot is empty, like this: \"<header>..<signature>\".
-          Defaults to false."
+          description: |
+            In detached mode the payload is signed but NOT included in the returned JWS object. Instead, the space between the first and second dot is empty, like this: "<header>..<signature>" Defaults to false.
+    EncryptJweRequest:
+      required:
+        - headers
+        - payload
+        - receiver
+      properties:
+        receiver:
+          type: string
+          description: |
+            The DID reference of the message receiver OR the KID of the message receiver.
+          example: "did:nuts:6hFuBFYQS7C24SiDzLsY4krTeuZcho7zsLmEbrKB6JrS"
+        headers:
+          type: object
+          description: |
+            The map of protected headers.
+            Note: The value of the kid header will be ignored and overwritten by the used receiver KID.
+        payload:
+          type: string
+          format: byte
+          description: |
+            The payload to be signed as bytes. The bytes must be encoded with Base64 encoding.
+          example: "SGVsbG9OdXRzIQ=="
+    DecryptJweRequest:
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: "The message to be decrypted as string in format aa==.bb==.cc==.dd==.ee=="
   securitySchemes:
     jwtBearerAuth:
       type: http

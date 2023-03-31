@@ -24,9 +24,11 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/rsa"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/jwa"
+	"github.com/lestrrat-go/jwx/jwe"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/lestrrat-go/jwx/jwt"
@@ -40,6 +42,10 @@ import (
 var ErrUnsupportedSigningKey = errors.New("signing key algorithm not supported")
 
 var supportedAlgorithms = []jwa.SignatureAlgorithm{jwa.PS256, jwa.PS384, jwa.PS512, jwa.ES256, jwa.ES384, jwa.ES512}
+
+const defaultRsaEncryptionAlgorithm = jwa.RSA_OAEP_256
+const defaultEcEncryptionAlgorithm = jwa.ECDH_ES_A256KW
+const defaultContentEncryptionAlgorithm = jwa.A256GCM
 
 func isAlgorithmSupported(alg jwa.SignatureAlgorithm) bool {
 	for _, curr := range supportedAlgorithms {
@@ -82,6 +88,42 @@ func (client *Crypto) SignJWS(ctx context.Context, payload []byte, headers map[s
 	audit.Log(ctx, log.Logger(), audit.CryptoSignJWSEvent).Infof("Signing a JWS with key: %s", kid)
 
 	return signJWS(payload, headers, privateKey, detached)
+}
+
+// EncryptJWE encrypts a payload using the provided public key and key identifier.
+func (client *Crypto) EncryptJWE(ctx context.Context, payload []byte, headers map[string]interface{}, publicKey interface{}) (string, error) {
+	audit.Log(ctx, log.Logger(), audit.CryptoEncryptJWEEvent).Info("Encrypting a JWE")
+	return EncryptJWE(payload, headers, publicKey)
+}
+
+// DecryptJWE decrypts a message using the associated private key from the kid header.
+func (client *Crypto) DecryptJWE(ctx context.Context, message string) (body []byte, headers map[string]interface{}, err error) {
+	msg, err := jwe.Parse([]byte(message))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	protectedHeaders := msg.ProtectedHeaders()
+	kid := protectedHeaders.KeyID()
+	if len(kid) == 0 {
+		return nil, nil, errors.New("kid header not found")
+	}
+	privateKey, kid, err := client.getPrivateKey(ctx, kid)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	audit.Log(ctx, log.Logger(), audit.CryptoDecryptJWEEvent).Infof("Decrypting a JWE with kid: %s", kid)
+
+	body, err = jwe.Decrypt([]byte(message), protectedHeaders.Algorithm(), privateKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	headers, err = msg.ProtectedHeaders().AsMap(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return body, headers, err
 }
 
 func jwkKey(signer crypto.Signer) (key jwk.Key, err error) {
@@ -249,6 +291,40 @@ func signJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey
 	return string(data), nil
 }
 
+func EncryptJWE(payload []byte, protectedHeaders map[string]interface{}, publicKey interface{}) (message string, err error) {
+	if publicKey == nil {
+		return "", errors.New("no publicKey provided")
+	}
+	json, err := json.Marshal(protectedHeaders)
+	if err != nil {
+		return "", err
+	}
+	headers := jwe.NewHeaders()
+	err = headers.UnmarshalJSON(json)
+	if err != nil {
+		return "", err
+	}
+	// Figure out the KeyEncryptionAlgorithm, give prevalence to the headers
+	var alg jwa.KeyEncryptionAlgorithm
+	if len(headers.Algorithm().String()) > 0 {
+		alg = headers.Algorithm()
+	} else {
+		alg, err = encryptionAlgorithm(publicKey)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	// Figure out the KeyEncryptionAlgorithm, give prevalence to the headers
+	enc := defaultContentEncryptionAlgorithm
+	if len(headers.ContentEncryption().String()) > 0 {
+		enc = headers.ContentEncryption()
+	}
+
+	encoded, err := jwe.Encrypt(payload, alg, publicKey, enc, headers.Compression(), jwe.WithProtectedHeaders(headers))
+	return string(encoded), err
+}
+
 func (client *Crypto) getPrivateKey(ctx context.Context, key interface{}) (crypto.Signer, string, error) {
 	var kid string
 	switch k := key.(type) {
@@ -335,6 +411,31 @@ func SignatureAlgorithm(key crypto.PublicKey) (jwa.SignatureAlgorithm, error) {
 		return jwa.EdDSA, nil
 	default:
 		return "", fmt.Errorf(`could not determine signature algorithm for key type '%T'`, key)
+	}
+}
+
+func encryptionAlgorithm(key crypto.PublicKey) (jwa.KeyEncryptionAlgorithm, error) {
+	var ptr interface{}
+	switch v := key.(type) {
+	case crypto.PublicKey:
+		ptr = &v
+	case rsa.PublicKey:
+		ptr = &v
+	case ecdsa.PublicKey:
+		ptr = &v
+	default:
+		ptr = v
+	}
+
+	switch ptr.(type) {
+	case *crypto.PublicKey:
+		return defaultEcEncryptionAlgorithm, nil
+	case *rsa.PublicKey:
+		return defaultRsaEncryptionAlgorithm, nil
+	case *ecdsa.PublicKey:
+		return defaultEcEncryptionAlgorithm, nil
+	default:
+		return "", fmt.Errorf("could not determine signature algorithm for key type '%T'", key)
 	}
 }
 

@@ -35,6 +35,13 @@ type testServerInterface struct {
 	err error
 }
 
+func (t *testServerInterface) EncryptJwe(ctx echo.Context) error {
+	return t.err
+}
+func (t *testServerInterface) DecryptJwe(ctx echo.Context) error {
+	return t.err
+}
+
 func (t *testServerInterface) GenerateKeyPair(_ echo.Context) error {
 	return t.err
 }
@@ -86,6 +93,8 @@ func TestRegisterHandlers(t *testing.T) {
 
 		echo.EXPECT().POST("/internal/crypto/v1/sign_jwt", gomock.Any())
 		echo.EXPECT().POST("/internal/crypto/v1/sign_jws", gomock.Any())
+		echo.EXPECT().POST("/internal/crypto/v1/encrypt_jwe", gomock.Any())
+		echo.EXPECT().POST("/internal/crypto/v1/decrypt_jwe", gomock.Any())
 
 		RegisterHandlers(echo, &testServerInterface{})
 	})
