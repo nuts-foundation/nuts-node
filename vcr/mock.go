@@ -14,6 +14,7 @@ import (
 	vc "github.com/nuts-foundation/go-did/vc"
 	holder "github.com/nuts-foundation/nuts-node/vcr/holder"
 	issuer "github.com/nuts-foundation/nuts-node/vcr/issuer"
+	oidc4vci "github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	verifier "github.com/nuts-foundation/nuts-node/vcr/verifier"
 )
 
@@ -53,43 +54,6 @@ func (m *MockFinder) Search(ctx context.Context, searchTerms []SearchTerm, allow
 func (mr *MockFinderMockRecorder) Search(ctx, searchTerms, allowUntrusted, resolveTime interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockFinder)(nil).Search), ctx, searchTerms, allowUntrusted, resolveTime)
-}
-
-// MockWriter is a mock of Writer interface.
-type MockWriter struct {
-	ctrl     *gomock.Controller
-	recorder *MockWriterMockRecorder
-}
-
-// MockWriterMockRecorder is the mock recorder for MockWriter.
-type MockWriterMockRecorder struct {
-	mock *MockWriter
-}
-
-// NewMockWriter creates a new mock instance.
-func NewMockWriter(ctrl *gomock.Controller) *MockWriter {
-	mock := &MockWriter{ctrl: ctrl}
-	mock.recorder = &MockWriterMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockWriter) EXPECT() *MockWriterMockRecorder {
-	return m.recorder
-}
-
-// StoreCredential mocks base method.
-func (m *MockWriter) StoreCredential(vc vc.VerifiableCredential, validAt *time.Time) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StoreCredential", vc, validAt)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// StoreCredential indicates an expected call of StoreCredential.
-func (mr *MockWriterMockRecorder) StoreCredential(vc, validAt interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreCredential", reflect.TypeOf((*MockWriter)(nil).StoreCredential), vc, validAt)
 }
 
 // MockTrustManager is a mock of TrustManager interface.
@@ -260,6 +224,34 @@ func (m *MockVCR) Issuer() issuer.Issuer {
 func (mr *MockVCRMockRecorder) Issuer() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Issuer", reflect.TypeOf((*MockVCR)(nil).Issuer))
+}
+
+// OIDC4VCHolders mocks base method.
+func (m *MockVCR) OIDC4VCHolders() *oidc4vci.HolderRegistry {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "OIDC4VCHolders")
+	ret0, _ := ret[0].(*oidc4vci.HolderRegistry)
+	return ret0
+}
+
+// OIDC4VCHolders indicates an expected call of OIDC4VCHolders.
+func (mr *MockVCRMockRecorder) OIDC4VCHolders() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OIDC4VCHolders", reflect.TypeOf((*MockVCR)(nil).OIDC4VCHolders))
+}
+
+// OIDC4VCIssuers mocks base method.
+func (m *MockVCR) OIDC4VCIssuers() *oidc4vci.IssuerRegistry {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "OIDC4VCIssuers")
+	ret0, _ := ret[0].(*oidc4vci.IssuerRegistry)
+	return ret0
+}
+
+// OIDC4VCIssuers indicates an expected call of OIDC4VCIssuers.
+func (mr *MockVCRMockRecorder) OIDC4VCIssuers() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OIDC4VCIssuers", reflect.TypeOf((*MockVCR)(nil).OIDC4VCIssuers))
 }
 
 // Resolve mocks base method.

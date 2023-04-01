@@ -14,6 +14,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/require"
@@ -39,16 +40,18 @@ func TestOIDC4VCIHappyFlow(t *testing.T) {
 
 	// Create issuer and wallet
 	ctrl := gomock.NewController(t)
-	credentialStore := vcr.NewMockWriter(ctrl)
+	credentialStore := vcrTypes.NewMockWriter(ctrl)
+	mockVCR := vcr.NewMockVCR(ctrl)
 	issuerRegistry := oidc4vci.NewIssuerRegistry(httpServerURL + "/identity/")
+	mockVCR.EXPECT().OIDC4VCIssuers().AnyTimes().Return(issuerRegistry)
 	signer := crypto.NewMockJWTSigner(ctrl)
-	signer.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any()).Return("the-signed-jwt", nil)
+	signer.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("the-signed-jwt", nil)
 	resolver := types.NewMockKeyResolver(ctrl)
 	resolver.EXPECT().ResolveSigningKeyID(gomock.Any(), nil).Return("key-id", nil)
-	holderRegistry := oidc4vci.NewHolderRegistry(httpServerURL+"/identity/", credentialStore, signer, resolver)
+	holderRegistry := oidc4vci.NewHolderRegistry(httpServerURL, credentialStore, signer, resolver)
+	mockVCR.EXPECT().OIDC4VCHolders().AnyTimes().Return(holderRegistry)
 	api := &oidc4vci_v0.Wrapper{
-		IssuerRegistry: issuerRegistry,
-		HolderRegistry: holderRegistry,
+		VCR: mockVCR,
 	}
 
 	// Start HTTP server

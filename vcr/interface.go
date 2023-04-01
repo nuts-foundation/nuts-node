@@ -76,5 +76,5 @@ type VCR interface {
 	Finder
 	Resolver
 	TrustManager
-	Writer
+	types.Writer
 }

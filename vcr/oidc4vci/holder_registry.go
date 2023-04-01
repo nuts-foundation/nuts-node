@@ -15,23 +15,17 @@ type HolderRegistry struct {
 	resolver        vdr.KeyResolver
 }
 
-func NewHolderRegistry(credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver vdr.KeyResolver) *HolderRegistry {
-	return &HolderRegistry{
-		credentialStore: credentialStore,
-		signer:          signer,
-		resolver:        resolver,
-	}
-}
-
-func (h *HolderRegistry) Config(holderBaseURL string) {
-	if holderBaseURL == "" {
-		panic("holderBaseURL is required")
-	}
+func NewHolderRegistry(holderBaseURL string, credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver vdr.KeyResolver) *HolderRegistry {
 	// Add trailing slash if missing
 	if holderBaseURL[len(holderBaseURL)-1] != '/' {
 		holderBaseURL += "/"
 	}
-	h.holderBaseURL = holderBaseURL
+	return &HolderRegistry{
+		credentialStore: credentialStore,
+		signer:          signer,
+		resolver:        resolver,
+		holderBaseURL:   holderBaseURL,
+	}
 }
 
 func (h HolderRegistry) GetWallet(did did.DID) Wallet {

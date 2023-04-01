@@ -2,19 +2,16 @@ package oidc4vci
 
 import "sync"
 
-func NewIssuerRegistry() *IssuerRegistry {
-	return &IssuerRegistry{
-		issuers: make(map[string]Issuer),
-		mux:     &sync.Mutex{},
-	}
-}
-
-func (f *IssuerRegistry) Config(issuerBaseURL string) {
+func NewIssuerRegistry(issuerBaseURL string) *IssuerRegistry {
 	// Add trailing slash if missing
 	if issuerBaseURL[len(issuerBaseURL)-1] != '/' {
 		issuerBaseURL += "/"
 	}
-	f.issuerBaseURL = issuerBaseURL
+	return &IssuerRegistry{
+		issuers:       make(map[string]Issuer),
+		mux:           &sync.Mutex{},
+		issuerBaseURL: issuerBaseURL,
+	}
 }
 
 // IssuerRegistry is a registry of Issuer instances, used to keep track of issuers in a multi-tenant environment.

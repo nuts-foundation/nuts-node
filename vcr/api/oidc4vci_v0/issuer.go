@@ -9,11 +9,11 @@ import (
 )
 
 func (w Wrapper) GetOIDC4VCIIssuerMetadata(_ context.Context, request GetOIDC4VCIIssuerMetadataRequestObject) (GetOIDC4VCIIssuerMetadataResponseObject, error) {
-	return GetOIDC4VCIIssuerMetadata200JSONResponse(w.IssuerRegistry.Get(request.Did).Metadata()), nil
+	return GetOIDC4VCIIssuerMetadata200JSONResponse(w.VCR.OIDC4VCIssuers().Get(request.Did).Metadata()), nil
 }
 
 func (w Wrapper) GetOIDCProviderMetadata(ctx context.Context, request GetOIDCProviderMetadataRequestObject) (GetOIDCProviderMetadataResponseObject, error) {
-	return GetOIDCProviderMetadata200JSONResponse(w.IssuerRegistry.Get(request.Did).ProviderMetadata()), nil
+	return GetOIDCProviderMetadata200JSONResponse(w.VCR.OIDC4VCIssuers().Get(request.Did).ProviderMetadata()), nil
 }
 
 func (w Wrapper) GetCredential(_ context.Context, request GetCredentialRequestObject) (GetCredentialResponseObject, error) {
@@ -28,7 +28,7 @@ func (w Wrapper) GetCredential(_ context.Context, request GetCredentialRequestOb
 		return nil, errors.New("invalid authorization header")
 	}
 	accessToken := authHeader[7:]
-	credential, err := w.IssuerRegistry.Get(request.Did).GetCredential(accessToken)
+	credential, err := w.VCR.OIDC4VCIssuers().Get(request.Did).GetCredential(accessToken)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +50,7 @@ func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 	if request.Body.GrantType != types.PreAuthorizedCodeGrant {
 		return nil, errors.New("unsupported grant type")
 	}
-	accessToken, err := w.IssuerRegistry.Get(request.Did).RequestAccessToken(request.Body.PreAuthorizedCode)
+	accessToken, err := w.VCR.OIDC4VCIssuers().Get(request.Did).RequestAccessToken(request.Body.PreAuthorizedCode)
 	if err != nil {
 		return nil, err
 	}

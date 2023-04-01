@@ -14,7 +14,7 @@ func (w Wrapper) GetOAuth2ClientMetadata(_ context.Context, request GetOAuth2Cli
 	if err != nil {
 		return nil, core.InvalidInputError("invalid did")
 	}
-	return GetOAuth2ClientMetadata200JSONResponse(w.HolderRegistry.GetWallet(*id).Metadata()), nil
+	return GetOAuth2ClientMetadata200JSONResponse(w.VCR.OIDC4VCHolders().GetWallet(*id).Metadata()), nil
 }
 
 func (w Wrapper) CredentialOffer(ctx context.Context, request CredentialOfferRequestObject) (CredentialOfferResponseObject, error) {
@@ -31,7 +31,7 @@ func (w Wrapper) CredentialOffer(ctx context.Context, request CredentialOfferReq
 		return nil, core.InvalidInputError("unable to unmarshal credential offer query param")
 	}
 
-	err = w.HolderRegistry.GetWallet(*id).OfferCredential(ctx, offer)
+	err = w.VCR.OIDC4VCHolders().GetWallet(*id).OfferCredential(ctx, offer)
 	if err != nil {
 		return nil, err
 	}
