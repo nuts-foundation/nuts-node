@@ -63,8 +63,7 @@ func (client *Crypto) SignJWT(ctx context.Context, claims map[string]interface{}
 		return "", err
 	}
 
-	// todo: enable
-	//audit.Log(ctx, log.Logger(), audit.CryptoSignJWTEvent).Infof("Signing a JWT with key: %s (issuer: %s, subject: %s)", kid, claims["iss"], claims["sub"])
+	audit.Log(ctx, log.Logger(), audit.CryptoSignJWTEvent).Infof("Signing a JWT with key: %s (issuer: %s, subject: %s)", kid, claims["iss"], claims["sub"])
 
 	keyAsJWK, err := jwkKey(privateKey)
 	if err != nil {
