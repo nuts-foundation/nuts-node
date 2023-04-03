@@ -285,7 +285,7 @@ func Test_issuer_Issue(t *testing.T) {
 }
 
 func TestNewIssuer(t *testing.T) {
-	createdIssuer := NewIssuer(nil, nil, nil, nil, nil, nil)
+	createdIssuer := NewIssuer(nil, nil, nil, nil, nil, nil, nil)
 	assert.IsType(t, &issuer{}, createdIssuer)
 }
 
