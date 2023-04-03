@@ -31,25 +31,26 @@ import (
 //   - Issue a VC using the OIDC4VCI Credential Issuer, check that it is received by the wallet
 //   - Check that the VC is stored in the wallet
 func TestOIDC4VCIHappyFlow(t *testing.T) {
-	issuerDID := did.MustParseDID("did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW")
-	receiverDID := did.MustParseDID("did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY")
-
 	httpPort := test.FreeTCPPort()
 	httpServerURL := fmt.Sprintf("http://localhost:%d", httpPort)
-	holderMetadataURL := httpServerURL + "/identity/" + receiverDID.String() + "/openid-credential-wallet-metadata"
+	issuerDID := did.MustParseDID("did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW")
+	issuerIdentifier := httpServerURL + "/identity/" + issuerDID.String()
+	receiverDID := did.MustParseDID("did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY")
+	receiverIdentifier := httpServerURL + "/identity/" + receiverDID.String()
+	receiverMetadataURL := receiverIdentifier + "/openid-credential-wallet-metadata"
 
 	// Create issuer and wallet
 	ctrl := gomock.NewController(t)
 	credentialStore := vcrTypes.NewMockWriter(ctrl)
 	mockVCR := vcr.NewMockVCR(ctrl)
-	issuerRegistry := oidc4vci.NewIssuerRegistry(httpServerURL)
-	mockVCR.EXPECT().OIDC4VCIssuers().AnyTimes().Return(issuerRegistry)
+
+	issuer := oidc4vci.NewIssuer(issuerIdentifier)
+	mockVCR.EXPECT().GetOIDCIssuer(issuerDID).AnyTimes().Return(issuer)
 	signer := crypto.NewMockJWTSigner(ctrl)
 	signer.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("the-signed-jwt", nil)
 	resolver := types.NewMockKeyResolver(ctrl)
 	resolver.EXPECT().ResolveSigningKeyID(gomock.Any(), nil).Return("key-id", nil)
-	holderRegistry := oidc4vci.NewHolderRegistry(httpServerURL, credentialStore, signer, resolver)
-	mockVCR.EXPECT().OIDC4VCHolders().AnyTimes().Return(holderRegistry)
+	mockVCR.EXPECT().GetOIDCWallet(receiverDID).AnyTimes().Return(oidc4vci.NewWallet(receiverDID, receiverIdentifier, credentialStore, signer, resolver))
 	api := &oidc4vci_v0.Wrapper{
 		VCR: mockVCR,
 	}
@@ -102,7 +103,7 @@ func TestOIDC4VCIHappyFlow(t *testing.T) {
 	})
 
 	// Now issue the VC
-	err := issuerRegistry.Get(issuerDID.String()).Offer(context.Background(), credential, holderMetadataURL)
+	err := issuer.Offer(context.Background(), credential, receiverMetadataURL)
 	require.NoError(t, err)
 
 	test.WaitFor(t, func() (bool, error) {

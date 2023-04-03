@@ -7,16 +7,14 @@ autonumber
 
 box Issuer
     participant Publisher as "OIDC4VCI\nPublisher"
-    participant IssuerRegistry as "Issuer\nRegistry"
-    participant IssuerService as "Issuer\n(Service)"
+    participant Issuer
     participant HolderClient as "Holder\nClient"
     participant IssuerAPI as "API"
 end box
 
 box Holder
     participant HolderAPI as "API"
-    participant HolderRegistry as "Holder\nRegistry"
-    participant HolderService as "Holder\nService"
+    participant Wallet
     participant IssuerClient as "Issuer\nClient"
 end box
 
@@ -24,47 +22,41 @@ group Credential Offer
     ' Issuer
     activate Publisher
     Publisher->Publisher : Lookup holder\nmdURL
-    Publisher->IssuerRegistry ++ : Lookup issuer (DID)
-    IssuerRegistry-->Publisher -- : Issuer
-    Publisher->IssuerService ++ : Offer(credential, mdURL)
-    IssuerService->IssuerService ++ : Create session\n(credential)
-    IssuerService-->IssuerService -- : preAuthCode
-    IssuerService->IssuerService ++ : Create offer\n(credential, preAuthCode)
-    IssuerService-->IssuerService -- : offer
-    IssuerService->HolderClient **: Create\n(mdURL)
+    Publisher->Issuer ++ : Offer(credential, mdURL)
+    Issuer->Issuer ++ : Create session\n(credential)
+    Issuer-->Issuer -- : preAuthCode
+    Issuer->Issuer ++ : Create offer\n(credential, preAuthCode)
+    Issuer-->Issuer -- : offer
+    Issuer->HolderClient **: Create\n(mdURL)
     HolderClient->HolderClient ++ : Load md
     HolderClient->HolderAPI ++: HTTP GET mdURL
 
     ' Holder
-    HolderAPI -> HolderRegistry ++ : Lookup holder\n(DID)
-    HolderRegistry --> HolderAPI -- : Holder
-    HolderAPI->HolderService ++ : Get metadata\n(DID)
-    HolderService-->HolderAPI -- : clientMD
+    HolderAPI->Wallet ++ : Get metadata\n(DID)
+    Wallet-->HolderAPI -- : clientMD
     HolderAPI-->HolderClient --: clientMD
 
     ' Issuer
-    HolderClient-->IssuerService --
-    IssuerService->HolderClient ++ : OfferCredential\n(offer)
+    HolderClient-->Issuer --
+    Issuer->HolderClient ++ : OfferCredential\n(offer)
     HolderClient->HolderAPI ++ : HTTP POST\nto clientMD\nOfferEndpoint\n(offer)
 
     ' Holder
-    HolderAPI -> HolderRegistry ++ : Lookup holder\n(DID)
-    HolderRegistry --> HolderAPI -- : Holder
-    HolderAPI -> HolderService ++ : AcceptCredentialOffer\n(offer)
-    HolderService -> IssuerClient ** : Create\n(issuer)
+    HolderAPI -> Wallet ++ : AcceptCredentialOffer\n(offer)
+    Wallet -> IssuerClient ** : Create\n(issuer)
     IssuerClient -> IssuerClient ++ : Load md\n(issuer/well-known)
     IssuerClient -> IssuerAPI ++ : HTTP GET\nmetadataURL
     IssuerAPI --> IssuerClient -- : issuerMD
-    IssuerClient --> HolderService --
+    IssuerClient --> Wallet --
     note left
         Access token flow starts here
     end note
     HolderAPI --> HolderClient -- : 202 Accepted
 
     ' Issuer
-    HolderClient-->IssuerService --
-    IssuerService-->Publisher
+    HolderClient-->Issuer --
+    Issuer-->Publisher
     deactivate Publisher
-    deactivate IssuerService
+    deactivate Issuer
 end
 @enduml

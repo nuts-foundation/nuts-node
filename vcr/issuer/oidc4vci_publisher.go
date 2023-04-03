@@ -3,6 +3,7 @@ package issuer
 import (
 	"context"
 	"errors"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
@@ -11,7 +12,7 @@ import (
 var _ Publisher = (*OIDC4VCIPublisher)(nil)
 
 type OIDC4VCIPublisher struct {
-	IssuerRegistry *oidc4vci.IssuerRegistry
+	GetIssuerFunc func(did.DID) oidc4vci.Issuer
 }
 
 func (o OIDC4VCIPublisher) PublishCredential(ctx context.Context, verifiableCredential vc.VerifiableCredential, _ bool) error {
@@ -25,7 +26,12 @@ func (o OIDC4VCIPublisher) PublishCredential(ctx context.Context, verifiableCred
 	if !ok {
 		return errors.New("wallet-metadata-url not set in context")
 	}
-	return o.IssuerRegistry.Get(verifiableCredential.Issuer.String()).Offer(ctx, verifiableCredential, walletMetadataURL)
+	issuerDID, err := did.ParseDID(verifiableCredential.Issuer.String())
+	if err != nil {
+		// Should never happen
+		return err
+	}
+	return o.GetIssuerFunc(*issuerDID).Offer(ctx, verifiableCredential, walletMetadataURL)
 }
 func (o OIDC4VCIPublisher) PublishRevocation(ctx context.Context, revocation credential.Revocation) error {
 	//TODO implement me

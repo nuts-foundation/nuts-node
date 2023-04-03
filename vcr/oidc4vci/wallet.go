@@ -21,6 +21,16 @@ type Wallet interface {
 
 var _ Wallet = (*wallet)(nil)
 
+func NewWallet(did did.DID, identifier string, credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver vdr.KeyResolver) Wallet {
+	return &wallet{
+		did:             did,
+		identifier:      identifier,
+		credentialStore: credentialStore,
+		signer:          signer,
+		resolver:        resolver,
+	}
+}
+
 type wallet struct {
 	did             did.DID
 	identifier      string

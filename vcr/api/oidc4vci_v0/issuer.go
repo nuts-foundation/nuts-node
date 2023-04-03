@@ -4,20 +4,33 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0/types"
 	"strings"
 )
 
 func (w Wrapper) GetOIDC4VCIIssuerMetadata(_ context.Context, request GetOIDC4VCIIssuerMetadataRequestObject) (GetOIDC4VCIIssuerMetadataResponseObject, error) {
-	return GetOIDC4VCIIssuerMetadata200JSONResponse(w.VCR.OIDC4VCIssuers().Get(request.Did).Metadata()), nil
+	issuerDID, err := did.ParseDID(request.Did)
+	if err != nil {
+		return nil, core.NotFoundError("invalid DID")
+	}
+	return GetOIDC4VCIIssuerMetadata200JSONResponse(w.VCR.GetOIDCIssuer(*issuerDID).Metadata()), nil
 }
 
 func (w Wrapper) GetOIDCProviderMetadata(ctx context.Context, request GetOIDCProviderMetadataRequestObject) (GetOIDCProviderMetadataResponseObject, error) {
-	return GetOIDCProviderMetadata200JSONResponse(w.VCR.OIDC4VCIssuers().Get(request.Did).ProviderMetadata()), nil
+	issuerDID, err := did.ParseDID(request.Did)
+	if err != nil {
+		return nil, core.NotFoundError("invalid DID")
+	}
+	return GetOIDCProviderMetadata200JSONResponse(w.VCR.GetOIDCIssuer(*issuerDID).ProviderMetadata()), nil
 }
 
 func (w Wrapper) GetCredential(ctx context.Context, request GetCredentialRequestObject) (GetCredentialResponseObject, error) {
-	// TODO (non-prototype): Scope retrieving credential to issuer DID
+	issuerDID, err := did.ParseDID(request.Did)
+	if err != nil {
+		return nil, core.NotFoundError("invalid DID")
+	}
 	// TODO (non-prototype): Verify requested format
 	// TODO (non-prototype): Verify Proof-of-Possession of private key material
 	if request.Params.Authorization == nil {
@@ -28,7 +41,7 @@ func (w Wrapper) GetCredential(ctx context.Context, request GetCredentialRequest
 		return nil, errors.New("invalid authorization header")
 	}
 	accessToken := authHeader[7:]
-	credential, err := w.VCR.OIDC4VCIssuers().Get(request.Did).GetCredential(ctx, accessToken)
+	credential, err := w.VCR.GetOIDCIssuer(*issuerDID).GetCredential(ctx, accessToken)
 	if err != nil {
 		return nil, err
 	}
@@ -47,10 +60,14 @@ func (w Wrapper) GetCredential(ctx context.Context, request GetCredentialRequest
 }
 
 func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
+	issuerDID, err := did.ParseDID(request.Did)
+	if err != nil {
+		return nil, core.NotFoundError("invalid DID")
+	}
 	if request.Body.GrantType != types.PreAuthorizedCodeGrant {
 		return nil, errors.New("unsupported grant type")
 	}
-	accessToken, err := w.VCR.OIDC4VCIssuers().Get(request.Did).RequestAccessToken(request.Body.PreAuthorizedCode)
+	accessToken, err := w.VCR.GetOIDCIssuer(*issuerDID).RequestAccessToken(request.Body.PreAuthorizedCode)
 	if err != nil {
 		return nil, err
 	}

@@ -11,6 +11,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	go_did "github.com/nuts-foundation/go-did"
+	did "github.com/nuts-foundation/go-did/did"
 	vc "github.com/nuts-foundation/go-did/vc"
 	holder "github.com/nuts-foundation/nuts-node/vcr/holder"
 	issuer "github.com/nuts-foundation/nuts-node/vcr/issuer"
@@ -198,6 +199,34 @@ func (m *MockVCR) EXPECT() *MockVCRMockRecorder {
 	return m.recorder
 }
 
+// GetOIDCIssuer mocks base method.
+func (m *MockVCR) GetOIDCIssuer(id did.DID) oidc4vci.Issuer {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetOIDCIssuer", id)
+	ret0, _ := ret[0].(oidc4vci.Issuer)
+	return ret0
+}
+
+// GetOIDCIssuer indicates an expected call of GetOIDCIssuer.
+func (mr *MockVCRMockRecorder) GetOIDCIssuer(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOIDCIssuer", reflect.TypeOf((*MockVCR)(nil).GetOIDCIssuer), id)
+}
+
+// GetOIDCWallet mocks base method.
+func (m *MockVCR) GetOIDCWallet(id did.DID) oidc4vci.Wallet {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetOIDCWallet", id)
+	ret0, _ := ret[0].(oidc4vci.Wallet)
+	return ret0
+}
+
+// GetOIDCWallet indicates an expected call of GetOIDCWallet.
+func (mr *MockVCRMockRecorder) GetOIDCWallet(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOIDCWallet", reflect.TypeOf((*MockVCR)(nil).GetOIDCWallet), id)
+}
+
 // Holder mocks base method.
 func (m *MockVCR) Holder() holder.Holder {
 	m.ctrl.T.Helper()
@@ -224,34 +253,6 @@ func (m *MockVCR) Issuer() issuer.Issuer {
 func (mr *MockVCRMockRecorder) Issuer() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Issuer", reflect.TypeOf((*MockVCR)(nil).Issuer))
-}
-
-// OIDC4VCHolders mocks base method.
-func (m *MockVCR) OIDC4VCHolders() *oidc4vci.HolderRegistry {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "OIDC4VCHolders")
-	ret0, _ := ret[0].(*oidc4vci.HolderRegistry)
-	return ret0
-}
-
-// OIDC4VCHolders indicates an expected call of OIDC4VCHolders.
-func (mr *MockVCRMockRecorder) OIDC4VCHolders() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OIDC4VCHolders", reflect.TypeOf((*MockVCR)(nil).OIDC4VCHolders))
-}
-
-// OIDC4VCIssuers mocks base method.
-func (m *MockVCR) OIDC4VCIssuers() *oidc4vci.IssuerRegistry {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "OIDC4VCIssuers")
-	ret0, _ := ret[0].(*oidc4vci.IssuerRegistry)
-	return ret0
-}
-
-// OIDC4VCIssuers indicates an expected call of OIDC4VCIssuers.
-func (mr *MockVCRMockRecorder) OIDC4VCIssuers() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OIDC4VCIssuers", reflect.TypeOf((*MockVCR)(nil).OIDC4VCIssuers))
 }
 
 // Resolve mocks base method.

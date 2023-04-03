@@ -166,6 +166,10 @@ type AuthEndpointConfig struct {
 	PublicURL string `koanf:"publicurl"`
 }
 
+func (c AuthEndpointConfig) PublicURLWithTrailingSlash() string {
+	return strings.TrimSuffix(c.PublicURL, "/") + "/"
+}
+
 // TLSOffloadingMode defines configurable modes for TLS offloading.
 type TLSOffloadingMode string
 

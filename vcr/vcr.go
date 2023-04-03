@@ -26,8 +26,10 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"io/fs"
+	"net/url"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -86,16 +88,19 @@ type vcr struct {
 	jsonldManager   jsonld.JSONLD
 	eventManager    events.Event
 	storageClient   storage.Engine
-	oidc4vciIssuers *oidc4vci.IssuerRegistry
-	oidc4vciHolders *oidc4vci.HolderRegistry
+	oidcIssuers     *sync.Map
+	publicBaseURL   string
 }
 
-func (c *vcr) OIDC4VCIssuers() *oidc4vci.IssuerRegistry {
-	return c.oidc4vciIssuers
+func (c *vcr) GetOIDCIssuer(id did.DID) oidc4vci.Issuer {
+	identifier := c.publicBaseURL + "identity/" + url.PathEscape(id.String())
+	result, _ := c.oidcIssuers.LoadOrStore(id.String(), oidc4vci.NewIssuer(identifier))
+	return result.(oidc4vci.Issuer)
 }
 
-func (c *vcr) OIDC4VCHolders() *oidc4vci.HolderRegistry {
-	return c.oidc4vciHolders
+func (c *vcr) GetOIDCWallet(id did.DID) oidc4vci.Wallet {
+	identifier := c.publicBaseURL + "identity/" + url.PathEscape(id.String())
+	return oidc4vci.NewWallet(id, identifier, c, c.keyStore, c.keyResolver)
 }
 
 func (c vcr) Issuer() issuer.Issuer {
@@ -137,12 +142,9 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	c.trustConfig = trust.NewConfig(tcPath)
 
 	networkPublisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
-	oidc4vciPublisher := issuer.OIDC4VCIPublisher{IssuerRegistry: c.oidc4vciIssuers}
+	oidc4vciPublisher := issuer.OIDC4VCIPublisher{GetIssuerFunc: c.GetOIDCIssuer}
 	c.issuer = issuer.NewIssuer(c.issuerStore, networkPublisher, oidc4vciPublisher, c.docResolver, c.keyStore, c.jsonldManager, c.trustConfig)
 	c.verifier = verifier.NewVerifier(c.verifierStore, c.docResolver, c.keyResolver, c.jsonldManager, c.trustConfig)
-
-	c.oidc4vciIssuers = oidc4vci.NewIssuerRegistry(config.Auth.PublicURL)
-	c.oidc4vciHolders = oidc4vci.NewHolderRegistry(config.Auth.PublicURL, c, c.keyStore, c.keyResolver)
 
 	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)
 

@@ -8,7 +8,6 @@ package "VCR Issuer" {
     object "OIDC4VCI Publisher" as Publisher
     package "OIDC4VCI Issuer" {
         object Issuer
-        object "Issuer Registry\n(multi-tenancy)" as IssuerRegistry
         object "API" as IssuerAPI
         object WalletClient
     }
@@ -16,23 +15,17 @@ package "VCR Issuer" {
 
 package Holder {
     object Wallet
-    object "Holder Registry" as HolderRegistry
     object "API" as HolderAPI
     object IssuerClient
 }
 
 VCRIssuer -down-> Publisher : Publish(VC)
-Publisher->IssuerRegistry : lookup issuer
 Publisher->Issuer : offer\nVC using
-IssuerRegistry-down->Issuer : provides
 Issuer->WalletClient : uses
-IssuerAPI->IssuerRegistry : lookup issuer
 IssuerAPI->Issuer : invokes
 WalletClient -down-> HolderAPI : offer credential
 
-HolderAPI -down-> HolderRegistry : lookup\nwallet
 HolderAPI -left-> Wallet : invokes
-HolderRegistry -> Wallet : provides
 Wallet -> IssuerClient : uses
 IssuerClient -> IssuerAPI : grant flow\nrequest credential
 @enduml
