@@ -1,4 +1,4 @@
-package oidc4vci
+package holder
 
 import (
 	"context"
@@ -8,20 +8,21 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0/types"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
+	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 	"net/http"
 	"time"
 )
 
-type Wallet interface {
+type OIDCWallet interface {
 	Metadata() types.OAuth2ClientMetadata
 	OfferCredential(ctx context.Context, offer types.CredentialOffer) error
 }
 
-var _ Wallet = (*wallet)(nil)
+var _ OIDCWallet = (*wallet)(nil)
 
-func NewWallet(did did.DID, identifier string, credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver vdr.KeyResolver) Wallet {
+func NewOIDCWallet(did did.DID, identifier string, credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver vdr.KeyResolver) OIDCWallet {
 	return &wallet{
 		did:             did,
 		identifier:      identifier,
@@ -46,7 +47,7 @@ func (h wallet) Metadata() types.OAuth2ClientMetadata {
 	}
 }
 
-func (h wallet) retrieveCredential(ctx context.Context, issuerClient IssuerClient, offer types.CredentialOffer, tokenResponse *types.OIDCTokenResponse) (*vc.VerifiableCredential, error) {
+func (h wallet) retrieveCredential(ctx context.Context, issuerClient oidc4vci.IssuerClient, offer types.CredentialOffer, tokenResponse *types.OIDCTokenResponse) (*vc.VerifiableCredential, error) {
 	// TODO (non-prototype): now we re-use the resolved OIDC Provider Metadata,
 	//                       but we should use resolve OIDC4VCI Credential Issuer Metadata and use its credential_endpoint instead
 
@@ -87,7 +88,7 @@ func (h wallet) retrieveCredential(ctx context.Context, issuerClient IssuerClien
 }
 
 func (h wallet) OfferCredential(ctx context.Context, offer types.CredentialOffer) error {
-	issuerClient, err := NewIssuerClient(ctx, &http.Client{}, offer.CredentialIssuer)
+	issuerClient, err := oidc4vci.NewIssuerClient(ctx, &http.Client{}, offer.CredentialIssuer)
 	if err != nil {
 		return fmt.Errorf("unable to create issuer client: %w", err)
 	}

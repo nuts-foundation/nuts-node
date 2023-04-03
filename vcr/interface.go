@@ -22,7 +22,6 @@ package vcr
 import (
 	"context"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"time"
 
@@ -71,8 +70,8 @@ type VCR interface {
 	Issuer() issuer.Issuer
 	Holder() holder.Holder
 	Verifier() verifier.Verifier
-	GetOIDCIssuer(id did.DID) oidc4vci.Issuer
-	GetOIDCWallet(id did.DID) oidc4vci.Wallet
+	GetOIDCIssuer(id did.DID) issuer.OIDCIssuer
+	GetOIDCWallet(id did.DID) holder.OIDCWallet
 
 	Finder
 	Resolver

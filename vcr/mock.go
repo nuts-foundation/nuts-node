@@ -15,7 +15,6 @@ import (
 	vc "github.com/nuts-foundation/go-did/vc"
 	holder "github.com/nuts-foundation/nuts-node/vcr/holder"
 	issuer "github.com/nuts-foundation/nuts-node/vcr/issuer"
-	oidc4vci "github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	verifier "github.com/nuts-foundation/nuts-node/vcr/verifier"
 )
 
@@ -200,10 +199,10 @@ func (m *MockVCR) EXPECT() *MockVCRMockRecorder {
 }
 
 // GetOIDCIssuer mocks base method.
-func (m *MockVCR) GetOIDCIssuer(id did.DID) oidc4vci.Issuer {
+func (m *MockVCR) GetOIDCIssuer(id did.DID) issuer.OIDCIssuer {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetOIDCIssuer", id)
-	ret0, _ := ret[0].(oidc4vci.Issuer)
+	ret0, _ := ret[0].(issuer.OIDCIssuer)
 	return ret0
 }
 
@@ -214,10 +213,10 @@ func (mr *MockVCRMockRecorder) GetOIDCIssuer(id interface{}) *gomock.Call {
 }
 
 // GetOIDCWallet mocks base method.
-func (m *MockVCR) GetOIDCWallet(id did.DID) oidc4vci.Wallet {
+func (m *MockVCR) GetOIDCWallet(id did.DID) holder.OIDCWallet {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetOIDCWallet", id)
-	ret0, _ := ret[0].(oidc4vci.Wallet)
+	ret0, _ := ret[0].(holder.OIDCWallet)
 	return ret0
 }
 

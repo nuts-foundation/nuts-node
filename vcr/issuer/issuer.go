@@ -46,29 +46,29 @@ import (
 var TimeFunc = time.Now
 
 // NewIssuer creates a new issuer which implements the Issuer interface.
-func NewIssuer(store Store, networkPublisher Publisher, oidc4vciPublisher Publisher, docResolver vdr.DocResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config) Issuer {
+func NewIssuer(store Store, networkPublisher Publisher, oidcIssuerFunc func(did.DID) OIDCIssuer, docResolver vdr.DocResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config) Issuer {
 	resolver := vdrKeyResolver{docResolver: docResolver, keyResolver: keyStore}
 	return &issuer{
-		store:             store,
-		networkPublisher:  networkPublisher,
-		oidc4vciPublisher: oidc4vciPublisher,
-		keyResolver:       resolver,
-		keyStore:          keyStore,
-		serviceResolver:   didservice.NewServiceResolver(docResolver),
-		jsonldManager:     jsonldManager,
-		trustConfig:       trustConfig,
+		store:            store,
+		networkPublisher: networkPublisher,
+		oidcIssuerFunc:   oidcIssuerFunc,
+		keyResolver:      resolver,
+		keyStore:         keyStore,
+		serviceResolver:  didservice.NewServiceResolver(docResolver),
+		jsonldManager:    jsonldManager,
+		trustConfig:      trustConfig,
 	}
 }
 
 type issuer struct {
-	store             Store
-	networkPublisher  Publisher
-	oidc4vciPublisher Publisher
-	serviceResolver   didservice.ServiceResolver
-	keyResolver       keyResolver
-	keyStore          crypto.KeyStore
-	trustConfig       *trust.Config
-	jsonldManager     jsonld.JSONLD
+	store            Store
+	networkPublisher Publisher
+	oidcIssuerFunc   func(id did.DID) OIDCIssuer
+	serviceResolver  didservice.ServiceResolver
+	keyResolver      keyResolver
+	keyStore         crypto.KeyStore
+	trustConfig      *trust.Config
+	jsonldManager    jsonld.JSONLD
 }
 
 // Issue creates a new credential, signs, stores it.
@@ -133,8 +133,8 @@ func (i issuer) Issue(ctx context.Context, credentialOptions vc.VerifiableCreden
 				if err != nil {
 					return nil, fmt.Errorf("unable to unmarshal wallet metadata URL: %w", err)
 				}
-				ctx = context.WithValue(ctx, "wallet-metadata-url", walletMetadataURL)
-				err := i.oidc4vciPublisher.PublishCredential(ctx, *createdVC, false)
+				issuerDID, _ := did.ParseDID(credentialOptions.Issuer.String()) // can't fail
+				err := i.oidcIssuerFunc(*issuerDID).Offer(ctx, *createdVC, walletMetadataURL)
 				if err != nil {
 					return nil, fmt.Errorf("unable to publish the issued credential over OIDC4VCI: %w", err)
 				}

@@ -10,6 +10,11 @@ import (
 	"net/url"
 )
 
+type Wallet interface {
+	Metadata() types.OAuth2ClientMetadata
+	OfferCredential(ctx context.Context, offer types.CredentialOffer) error
+}
+
 var _ Wallet = (*httpWalletClient)(nil)
 
 // NewWalletClient resolves the OAuth2 credential client metadata from the given URL.

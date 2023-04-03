@@ -1,4 +1,4 @@
-package oidc4vci
+package issuer
 
 import (
 	"context"
@@ -11,11 +11,12 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0/types"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
+	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"net/http"
 	"sync"
 )
 
-type Issuer interface {
+type OIDCIssuer interface {
 	ProviderMetadata() types.OIDCProviderMetadata
 	RequestAccessToken(preAuthorizedCode string) (string, error)
 
@@ -24,8 +25,8 @@ type Issuer interface {
 	GetCredential(ctx context.Context, accessToken string) (vc.VerifiableCredential, error)
 }
 
-// NewIssuer creates a new Issuer instance. The identifier is the Credential Issuer Identifier, e.g. https://example.com/issuer/
-func NewIssuer(identifier string) Issuer {
+// NewOIDCIssuer creates a new Issuer instance. The identifier is the Credential Issuer Identifier, e.g. https://example.com/issuer/
+func NewOIDCIssuer(identifier string) OIDCIssuer {
 	return &memoryIssuer{
 		identifier:   identifier,
 		state:        make(map[string]vc.VerifiableCredential),
@@ -85,7 +86,7 @@ func (i *memoryIssuer) Offer(ctx context.Context, credential vc.VerifiableCreden
 	// TODO: Lookup Credential Wallet Client Metadata. For now, we use the local node
 
 	// TODO: Support TLS
-	client, err := NewWalletClient(ctx, &http.Client{}, clientMetadataURL)
+	client, err := oidc4vci.NewWalletClient(ctx, &http.Client{}, clientMetadataURL)
 	if err != nil {
 		return err
 	}
