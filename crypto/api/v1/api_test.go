@@ -69,7 +69,7 @@ func TestWrapper_SignJwt(t *testing.T) {
 			Kid:    "kid",
 			Claims: map[string]interface{}{"iss": "nuts"},
 		}
-		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), "kid").Return("", errors.New("b00m!"))
+		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, "kid").Return("", errors.New("b00m!"))
 
 		token, err := ctx.client.SignJwt(nil, SignJwtRequestObject{Body: &request})
 
@@ -83,7 +83,7 @@ func TestWrapper_SignJwt(t *testing.T) {
 			Kid:    "kid",
 			Claims: map[string]interface{}{"iss": "nuts"},
 		}
-		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), "kid").Return("token", nil)
+		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, "kid").Return("token", nil)
 
 		token, err := ctx.client.SignJwt(nil, SignJwtRequestObject{Body: &request})
 

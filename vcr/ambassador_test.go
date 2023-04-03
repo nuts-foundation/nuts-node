@@ -100,7 +100,7 @@ func TestAmbassador_Start(t *testing.T) {
 
 func TestAmbassador_handleReprocessEvent(t *testing.T) {
 	ctx := newMockContext(t)
-	mockWriter := NewMockWriter(ctx.ctrl)
+	mockWriter := types.NewMockWriter(ctx.ctrl)
 	ctx.vcr.ambassador.(*ambassador).writer = mockWriter
 
 	// load VC
@@ -150,7 +150,7 @@ func TestAmbassador_vcCallback(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		wMock := NewMockWriter(ctrl)
+		wMock := types.NewMockWriter(ctrl)
 
 		target := vc.VerifiableCredential{}
 		a := NewAmbassador(nil, wMock, nil, nil).(*ambassador)
@@ -168,7 +168,7 @@ func TestAmbassador_vcCallback(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		wMock := NewMockWriter(ctrl)
+		wMock := types.NewMockWriter(ctrl)
 
 		a := NewAmbassador(nil, wMock, nil, nil).(*ambassador)
 		wMock.EXPECT().StoreCredential(gomock.Any(), &validAt).Return(errors.New("b00m!"))
@@ -180,7 +180,7 @@ func TestAmbassador_vcCallback(t *testing.T) {
 
 	t.Run("error - invalid payload", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		wMock := NewMockWriter(ctrl)
+		wMock := types.NewMockWriter(ctrl)
 
 		a := NewAmbassador(nil, wMock, nil, nil).(*ambassador)
 
@@ -219,7 +219,7 @@ func TestAmbassador_handleNetworkVCs(t *testing.T) {
 			require.Error(t, err)
 
 			ctrl := gomock.NewController(t)
-			wMock := NewMockWriter(ctrl)
+			wMock := types.NewMockWriter(ctrl)
 
 			a := NewAmbassador(nil, wMock, nil, nil).(*ambassador)
 			wMock.EXPECT().StoreCredential(gomock.Any(), gomock.Any()).Return(err)
@@ -236,7 +236,7 @@ func TestAmbassador_handleNetworkVCs(t *testing.T) {
 	t.Run("recoverable errors", func(t *testing.T) {
 		t.Run("context.Canceled", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			wMock := NewMockWriter(ctrl)
+			wMock := types.NewMockWriter(ctrl)
 
 			a := NewAmbassador(nil, wMock, nil, nil).(*ambassador)
 			wMock.EXPECT().StoreCredential(gomock.Any(), gomock.Any()).Return(context.Canceled)
@@ -251,7 +251,7 @@ func TestAmbassador_handleNetworkVCs(t *testing.T) {
 		})
 		t.Run("context.DeadlineExceeded", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			wMock := NewMockWriter(ctrl)
+			wMock := types.NewMockWriter(ctrl)
 
 			a := NewAmbassador(nil, wMock, nil, nil).(*ambassador)
 			wMock.EXPECT().StoreCredential(gomock.Any(), gomock.Any()).Return(context.DeadlineExceeded)
@@ -277,7 +277,7 @@ func TestAmbassador_handleNetworkVCs(t *testing.T) {
 			require.Error(t, err)
 
 			ctrl := gomock.NewController(t)
-			wMock := NewMockWriter(ctrl)
+			wMock := types.NewMockWriter(ctrl)
 
 			a := NewAmbassador(nil, wMock, nil, nil).(*ambassador)
 			wMock.EXPECT().StoreCredential(gomock.Any(), gomock.Any()).Return(err)

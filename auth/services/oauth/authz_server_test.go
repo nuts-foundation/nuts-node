@@ -190,7 +190,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		t.Run("return internal errors when secureMode=false", func(t *testing.T) {
 			ctx := setup(createContext(t))
 			ctx.oauthService.secureMode = false
-			ctx.keyStore.EXPECT().SignJWT(ctx.audit, gomock.Any(), gomock.Any()).Return("", errors.New("signing error"))
+			ctx.keyStore.EXPECT().SignJWT(ctx.audit, gomock.Any(), nil, gomock.Any()).Return("", errors.New("signing error"))
 			tokenCtx := validContext()
 			signToken(tokenCtx)
 
@@ -203,7 +203,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		t.Run("mask internal errors when secureMode=true", func(t *testing.T) {
 			ctx := setup(createContext(t))
 			ctx.oauthService.secureMode = true
-			ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any()).Return("", errors.New("signing error"))
+			ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, gomock.Any()).Return("", errors.New("signing error"))
 			tokenCtx := validContext()
 			signToken(tokenCtx)
 
@@ -224,7 +224,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		testCtx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(getAuthorizerDIDDocument(), nil, nil).AnyTimes()
 		testCtx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
 		testCtx.keyStore.EXPECT().Exists(testCtx.audit, authorizerSigningKeyID.String()).Return(true)
-		testCtx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), authorizerSigningKeyID.String()).Return("expectedAccessToken", nil)
+		testCtx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, authorizerSigningKeyID.String()).Return("expectedAccessToken", nil)
 		testCtx.verifier.EXPECT().Verify(gomock.Any(), true, true, gomock.Any()).Return(nil)
 
 		ctx := validContext()
@@ -246,7 +246,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(getAuthorizerDIDDocument(), nil, nil).AnyTimes()
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
 		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID.String()).Return(true)
-		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), authorizerSigningKeyID.String()).Return("expectedAT", nil)
+		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, authorizerSigningKeyID.String()).Return("expectedAT", nil)
 		ctx.contractNotary.EXPECT().VerifyVP(gomock.Any(), nil).Return(services.TestVPVerificationResult{
 			Val:         contract.Valid,
 			DAttributes: map[string]string{"name": "Henk de Vries"},
@@ -635,8 +635,8 @@ func TestService_buildAccessToken(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(authorizerDID, gomock.Any()).MinTimes(1).Return(authorizerSigningKeyID.String(), nil)
 
 		var recordedClaims map[string]interface{}
-		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any()).
-			DoAndReturn(func(_ context.Context, claims map[string]interface{}, kid string) (token string, err error) {
+		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, gomock.Any()).
+			DoAndReturn(func(_ context.Context, claims map[string]interface{}, headers map[string]interface{}, kid string) (token string, err error) {
 				recordedClaims = claims
 
 				return "expectedAT", nil
