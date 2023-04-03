@@ -42,7 +42,7 @@ func TestOIDC4VCIHappyFlow(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	credentialStore := vcrTypes.NewMockWriter(ctrl)
 	mockVCR := vcr.NewMockVCR(ctrl)
-	issuerRegistry := oidc4vci.NewIssuerRegistry(httpServerURL + "/identity/")
+	issuerRegistry := oidc4vci.NewIssuerRegistry(httpServerURL)
 	mockVCR.EXPECT().OIDC4VCIssuers().AnyTimes().Return(issuerRegistry)
 	signer := crypto.NewMockJWTSigner(ctrl)
 	signer.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("the-signed-jwt", nil)

@@ -16,7 +16,7 @@ func (w Wrapper) GetOIDCProviderMetadata(ctx context.Context, request GetOIDCPro
 	return GetOIDCProviderMetadata200JSONResponse(w.VCR.OIDC4VCIssuers().Get(request.Did).ProviderMetadata()), nil
 }
 
-func (w Wrapper) GetCredential(_ context.Context, request GetCredentialRequestObject) (GetCredentialResponseObject, error) {
+func (w Wrapper) GetCredential(ctx context.Context, request GetCredentialRequestObject) (GetCredentialResponseObject, error) {
 	// TODO (non-prototype): Scope retrieving credential to issuer DID
 	// TODO (non-prototype): Verify requested format
 	// TODO (non-prototype): Verify Proof-of-Possession of private key material
@@ -28,7 +28,7 @@ func (w Wrapper) GetCredential(_ context.Context, request GetCredentialRequestOb
 		return nil, errors.New("invalid authorization header")
 	}
 	accessToken := authHeader[7:]
-	credential, err := w.VCR.OIDC4VCIssuers().Get(request.Did).GetCredential(accessToken)
+	credential, err := w.VCR.OIDC4VCIssuers().Get(request.Did).GetCredential(ctx, accessToken)
 	if err != nil {
 		return nil, err
 	}

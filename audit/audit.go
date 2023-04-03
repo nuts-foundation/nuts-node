@@ -45,6 +45,9 @@ const (
 	AccessDeniedEvent = "AccessDenied"
 	// AccessKeyRegisteredEvent occurs when an authorized key is registered for future authorization events
 	AccessKeyRegisteredEvent = "AccessKeyRegistered"
+
+	// VerifiableCredentialRetrievedEvent occurs when a VC is retrieved by the wallet.
+	VerifiableCredentialRetrievedEvent = "VerifiableCredentialRetrievedEvent"
 )
 
 const auditLogLevel = "audit"

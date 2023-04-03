@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0/types"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"net/http"
@@ -19,7 +21,7 @@ type Issuer interface {
 
 	Metadata() types.CredentialIssuerMetadata
 	Offer(ctx context.Context, credential vc.VerifiableCredential, walletURL string) error
-	GetCredential(accessToken string) (vc.VerifiableCredential, error)
+	GetCredential(ctx context.Context, accessToken string) (vc.VerifiableCredential, error)
 }
 
 // NewIssuer creates a new Issuer instance. The identifier is the Credential Issuer Identifier, e.g. https://example.com/issuer/
@@ -115,7 +117,7 @@ func (i *memoryIssuer) Offer(ctx context.Context, credential vc.VerifiableCreden
 	return nil
 }
 
-func (i *memoryIssuer) GetCredential(accessToken string) (vc.VerifiableCredential, error) {
+func (i *memoryIssuer) GetCredential(ctx context.Context, accessToken string) (vc.VerifiableCredential, error) {
 	i.mux.Lock()
 	defer i.mux.Unlock()
 	preAuthorizedCode, ok := i.accessTokens[accessToken]
@@ -123,6 +125,15 @@ func (i *memoryIssuer) GetCredential(accessToken string) (vc.VerifiableCredentia
 		return vc.VerifiableCredential{}, errors.New("invalid access token")
 	}
 	credential, _ := i.state[preAuthorizedCode]
+	subjectDID, _ := getSubjectDID(credential)
+	// Important: since we (for now) create the VC even before the wallet requests it, we don't know if every VC is actually retrieved by the wallet.
+	//            This is a temporary shortcut, since changing that requires a lot of refactoring.
+	//            To make actually retrieved VC traceable, we log it to the audit log.
+	audit.Log(ctx, log.Logger(), audit.VerifiableCredentialRetrievedEvent).
+		WithField(core.LogFieldCredentialID, credential.ID).
+		WithField(core.LogFieldCredentialIssuer, credential.Issuer.String()).
+		WithField(core.LogFieldCredentialSubject, subjectDID).
+		Infof("VC retrieved by wallet over OIDC4VCI")
 	// TODO (non-prototype): this is probably not correct, I think I read in the RFC that the VC should be retrievable multiple times
 	delete(i.accessTokens, accessToken)
 	delete(i.state, preAuthorizedCode)
