@@ -48,7 +48,7 @@ func (h wallet) retrieveCredential(ctx context.Context, issuerClient IssuerClien
 		"kid": keyID,     // JOSE Header containing the key ID. If the Credential shall be bound to a DID, the kid refers to a DID URL which identifies a particular key in the DID Document that the Credential shall be bound to.
 	}
 	claims := map[string]interface{}{
-		"aud":   issuerClient.CredentialIssuerURL().String(),
+		"aud":   issuerClient.Metadata().CredentialIssuer,
 		"iat":   time.Now().Unix(),
 		"nonce": *tokenResponse.CNonce,
 	}
