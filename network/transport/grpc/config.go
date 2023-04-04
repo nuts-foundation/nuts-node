@@ -61,7 +61,7 @@ func WithTLS(clientCertificate tls.Certificate, trustStore *core.TrustStore, max
 	return func(config *Config) {
 		config.clientCert = &clientCertificate
 		config.trustStore = trustStore.CertPool
-		config.crlValidator = crl.NewValidator(trustStore.Certificates())
+		config.crlValidator = crl.New(trustStore.Certificates())
 		config.maxCRLValidityDays = maxCRLValidityDays
 		// Load TLS server certificate, only if enableTLS=true and gRPC server should be started.
 		if config.listenAddress != "" {

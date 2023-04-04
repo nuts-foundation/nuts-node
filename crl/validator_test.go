@@ -26,6 +26,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
+	"go.uber.org/goleak"
 	"math/big"
 	"net/http"
 	"os"
@@ -34,10 +35,8 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 )
 
 const (
@@ -45,15 +44,13 @@ const (
 	truststorePKIo = "test/truststore_withPKIOverheid.pem"
 	pkiOverheidCRL = "../network/test/pkioverheid.crl"
 	rootCRLurl     = "http://certs.nuts.nl/RootCALatest.crl"
-	//revokedSerialNumber = "10000026"
-	//revokedIssuerName   = "CN=Staat der Nederlanden EV Root CA,O=Staat der Nederlanden,C=NL"
 )
 
 // crlPathMap maps the URI path to location on of CRL on disk
 var crlPathMap = map[string]string{
 	"/RootCALatest.crl":          "./test/RootCALatest.crl",
 	"/IntermediateCAALatest.crl": "./test/IntermediateCAALatest.crl",
-	"/IntermediateCABLatest.crl": "./test/IntermediateCABLatest.crl",
+	"/IntermediateCABLatest.crl": "does not exist",
 }
 
 func TestValidator_Start(t *testing.T) {
@@ -64,42 +61,24 @@ func TestValidator_Start(t *testing.T) {
 	require.NoError(t, err)
 	val := newValidatorWithHTTPClient(store.Certificates(), newClient())
 
-	// crls are empty. safe access since validator is not started
-	for _, crl := range val.crls {
+	// crls are empty
+	val.crls.Range(func(key, value any) bool {
+		crl := value.(*revocationList)
 		assert.True(t, crl.lastUpdated.IsZero())
-	}
-
-	validatorLoopStarted := make(chan struct{})
-	go func(out chan struct{}) {
-		val.crlChan <- func() {
-			defer close(out)
-			// only returns after validatorLoop is started by Start
-			out <- struct{}{}
-		}
-	}(validatorLoopStarted)
+		return true
+	})
 
 	// Start triggers start
-	time.Sleep(50 * time.Millisecond)
-	assert.False(t, val.started)
 	val.Start(ctx)
-	<-validatorLoopStarted
-	assert.True(t, val.started)
+	val.sync() // blocks until sync is complete.
 
-	// wait for sync to complete
-	test.WaitFor(t, func() (bool, error) {
-		crl, ok := val.getCRL(rootCRLurl)
-		return ok && !crl.lastUpdated.IsZero(), nil
-	}, time.Second, "timeout waiting for crl validator to stop")
-	// defer goleak.VerifyNone(t) at the top checks that routines are closed
-
-	// context cancel stops everything
-	cancel()
-
-	// sleep to allow sync to complete
-	time.Sleep(time.Second)
-
-	// crls have been updated. safe access since validator is stopped
-	assert.True(t, val.crls["http://crl.pkioverheid.nl/DomeinServerCA2020LatestCRL.crl"].lastUpdated.IsZero()) // pkiOverheid CA has expired, so is not updated
+	// crls have been updated
+	crl, ok := val.getCRL(rootCRLurl)
+	require.True(t, ok)
+	assert.False(t, crl.lastUpdated.IsZero())
+	crl, ok = val.getCRL("http://crl.pkioverheid.nl/DomeinServerCA2020LatestCRL.crl")
+	require.True(t, ok)
+	assert.True(t, crl.lastUpdated.IsZero()) // pkiOverheid CA has expired, so is not updated
 }
 
 func TestValidator_Validate(t *testing.T) {
@@ -114,9 +93,6 @@ func TestValidator_Validate(t *testing.T) {
 	t.Run("revoked cert", func(t *testing.T) {
 		err := val.Validate(store.IntermediateCAs)
 		assert.ErrorIs(t, err, ErrCertRevoked)
-	})
-	t.Run("validator not started", func(t *testing.T) {
-		assert.EqualError(t, (&validator{}).Validate(nil), "CRL validator is not started")
 	})
 }
 
@@ -140,7 +116,9 @@ func TestValidator_SetValidatePeerCertificateFunc(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.NotNil(t, cfg.VerifyPeerCertificate)
-		assert.NotNil(t, v.crls["http://certs.nuts.nl/IntermediateCAALatest.crl"]) // intermediate CRL endpoint has been detected
+		crl, exists := v.getCRL("http://certs.nuts.nl/IntermediateCAALatest.crl")
+		assert.True(t, exists)
+		assert.NotNil(t, crl)
 
 		t.Run("validates", func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
@@ -162,14 +140,6 @@ func TestValidator_SetValidatePeerCertificateFunc(t *testing.T) {
 		})
 	})
 
-	t.Run("error - must be called before Start", func(t *testing.T) {
-		v := newValidatorStarted(t)
-
-		err := v.SetValidatePeerCertificateFunc(newCfg("./test/A-valid.pem"))
-
-		assert.EqualError(t, err, "SetVerifyPeerCertificateFunc must be called before Start")
-	})
-
 	t.Run("error - contains cert that is not in truststore", func(t *testing.T) {
 		v := newValidator(t)
 
@@ -179,17 +149,26 @@ func TestValidator_SetValidatePeerCertificateFunc(t *testing.T) {
 	})
 }
 
-func Test_ValidatorGetCRLs(t *testing.T) {
-	val := newValidatorStarted(t)
+func Test_New(t *testing.T) {
+	store, err := core.LoadTrustStore(truststore)
+	require.NoError(t, err)
+	storeLen := len(store.Certificates())
 
-	result := val.getCRLs()
+	t.Run("no duplicates", func(t *testing.T) {
+		doubleStore := append(store.Certificates(), store.Certificates()...)
+		assert.Equal(t, storeLen*2, len(doubleStore))
 
-	assert.Len(t, result, 1)
-	assert.NotNil(t, result[rootCRLurl])
-	assert.Nil(t, result["does not exist"])
+		val := New(doubleStore).(*validator)
+
+		assert.Len(t, val.truststore, storeLen)
+	})
+	t.Run("invalid truststore", func(t *testing.T) {
+		noRootStore := store.Certificates()[:2]
+		assert.Panics(t, func() { New(noRootStore) })
+	})
 }
 
-func Test_ValidatorGetSetCRL(t *testing.T) {
+func Test_ValidatorGetCRL(t *testing.T) {
 	val := newValidatorStarted(t)
 
 	t.Run("exists", func(t *testing.T) {
@@ -204,15 +183,6 @@ func Test_ValidatorGetSetCRL(t *testing.T) {
 		assert.False(t, ok)
 		assert.Nil(t, result)
 	})
-	t.Run("set+get ok", func(t *testing.T) {
-		expectedCRL := newRevocationList(&x509.Certificate{})
-		val.setCRL("test", expectedCRL)
-
-		crl, ok := val.getCRL("test")
-
-		assert.True(t, ok)
-		assert.Same(t, expectedCRL, crl)
-	})
 }
 
 func Test_ValidatorValidateChain(t *testing.T) {
@@ -223,11 +193,11 @@ func Test_ValidatorValidateChain(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		certs := []*x509.Certificate{store.Certificates()[0], store.Certificates()[2]} // slice without the revoked cert
-		err = val.validateChain(certs)
+		err = val.Validate(certs)
 		assert.NoError(t, err)
 	})
 	t.Run("error - contains revoked cert", func(t *testing.T) {
-		err = val.validateChain(store.Certificates())
+		err = val.Validate(store.Certificates())
 		assert.ErrorIs(t, err, ErrCertRevoked)
 		assert.ErrorContains(t, err, "subject=CN=Intermediate B CA, S/N=3, issuer=CN=Root CA,O=Nuts Foundation,C=NL")
 	})
@@ -235,12 +205,6 @@ func Test_ValidatorValidateChain(t *testing.T) {
 
 func Test_ValidatorValidateCert(t *testing.T) {
 	val := newValidatorStarted(t)
-
-	certA := loadCert(t, "./test/A-valid.pem")
-	val.updateCRL(certA.CRLDistributionPoints[0], nil)
-	certB := loadCert(t, "./test/B-valid_revoked-CA.pem")
-	val.updateCRL(certB.CRLDistributionPoints[0], nil)
-
 	store, err := core.LoadTrustStore(truststore)
 	require.NoError(t, err)
 
@@ -268,9 +232,19 @@ func Test_ValidatorValidateCert(t *testing.T) {
 
 		assert.ErrorIs(t, err, ErrCertInvalid)
 	})
+	t.Run("unknown issuer", func(t *testing.T) {
+		val := &validator{
+			truststore: map[string]*x509.Certificate{},
+		}
+		cert := loadCert(t, "./test/A-valid.pem")
+
+		err := val.validateCert(cert)
+
+		assert.ErrorIs(t, err, ErrCertUntrusted)
+	})
 	t.Run("missing crl", func(t *testing.T) {
 		val := newValidatorStarted(t)
-		cert := loadCert(t, "./test/A-valid.pem")
+		cert := loadCert(t, "./test/B-valid_revoked-CA.pem")
 
 		err := val.validateCert(cert)
 
@@ -281,11 +255,43 @@ func Test_ValidatorValidateCert(t *testing.T) {
 		crl, ok := val.getCRL(cert.CRLDistributionPoints[0])
 		require.True(t, ok)
 		crl.list.NextUpdate = time.Time{}
-		val.setCRL(cert.CRLDistributionPoints[0], crl)
+		val.crls.Store(cert.CRLDistributionPoints[0], crl)
 
 		err := val.validateCert(store.IntermediateCAs[0])
 
 		assert.ErrorIs(t, err, ErrCRLExpired)
+	})
+}
+
+func Test_ValidatorAddEndpoint(t *testing.T) {
+	store, err := core.LoadTrustStore(truststore)
+	require.NoError(t, err)
+	intermediate, root := store.Certificates()[0], store.Certificates()[2]
+	endpoint := intermediate.CRLDistributionPoints[0]
+
+	t.Run("ok - only add once", func(t *testing.T) {
+		val := &validator{}
+		// only add once
+		for i := 0; i < 3; i++ {
+			err = val.addEndpoint(endpoint, root)
+			require.NoError(t, err)
+			counter := 0
+			val.crls.Range(func(key, value any) bool {
+				counter++
+				return true
+			})
+			// stays one
+			assert.Equal(t, 1, counter)
+		}
+	})
+	t.Run("multiple issuers", func(t *testing.T) {
+		val := &validator{}
+		// first issuer for endpoint is valid
+		err = val.addEndpoint(endpoint, root)
+		require.NoError(t, err)
+		// second issuer for endpoint returns error
+		err = val.addEndpoint(endpoint, intermediate)
+		assert.Error(t, err)
 	})
 }
 
@@ -314,6 +320,8 @@ func Test_ValidatorDownloadCRL(t *testing.T) {
 
 func Test_ValidatorVerifyCRL(t *testing.T) {
 	v := newValidatorStarted(t)
+	trustStore, _ := core.LoadTrustStore(truststore)
+	issuer := trustStore.Certificates()[2] // rootCA
 
 	t.Run("ok", func(t *testing.T) {
 		data, err := os.ReadFile("./test/RootCALatest.crl")
@@ -321,7 +329,7 @@ func Test_ValidatorVerifyCRL(t *testing.T) {
 		rl, err := x509.ParseRevocationList(data)
 		require.NoError(t, err)
 
-		err = v.verifyCRL(rl)
+		err = v.verifyCRL(rl, issuer)
 
 		assert.NoError(t, err)
 	})
@@ -332,61 +340,68 @@ func Test_ValidatorVerifyCRL(t *testing.T) {
 		rl, err := x509.ParseRevocationList(data)
 		require.NoError(t, err)
 
-		err = v.verifyCRL(rl)
+		err = v.verifyCRL(rl, issuer)
 
-		assert.EqualError(t, err, "signature could not be validated against known certificates")
+		assert.EqualError(t, err, "crl signed by unexpected issuer: expected=CN=Root CA,O=Nuts Foundation,C=NL, got=CN=Staat der Nederlanden EV Root CA,O=Staat der Nederlanden,C=NL")
 	})
 
 	t.Run("invalid signature", func(t *testing.T) {
 		// Create a CRL with an invalid signature (valid issuer cert, but signed with random private key)
-		trustStore, _ := core.LoadTrustStore(truststore)
 		privateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
-		issuer := trustStore.Certificates()[0]
 		crlWithInvalidSig, err := x509.CreateRevocationList(rand.Reader, &x509.RevocationList{Number: big.NewInt(1024)}, issuer, privateKey)
 		require.NoError(t, err)
 		rl, err := x509.ParseRevocationList(crlWithInvalidSig)
 		require.NoError(t, err)
 
-		err = v.verifyCRL(rl)
+		err = v.verifyCRL(rl, issuer)
 
 		assert.EqualError(t, err, "crl signature could not be verified: crypto/rsa: verification error")
 	})
 }
 
 func Test_ValidatorUpdateCRL(t *testing.T) {
-	v := newValidator(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go v.validatorLoop(ctx)
 	crlEndpoint := rootCRLurl
+	t.Run("ok - update flows", func(t *testing.T) {
+		v := newValidator(t)
 
-	// get the empty rl
-	rl, ok := v.getCRL(crlEndpoint)
-	require.True(t, ok)
-	assert.True(t, rl.lastUpdated.IsZero())
+		// get the empty rl
+		rl, ok := v.getCRL(crlEndpoint)
+		require.True(t, ok)
+		assert.True(t, rl.lastUpdated.IsZero())
 
-	// update rl is successful
-	err := v.updateCRL(crlEndpoint, rl)
-	require.NoError(t, err)
-	rl2, ok := v.getCRL(crlEndpoint)
-	require.True(t, ok)
-	assert.NotSame(t, rl, rl2)
+		// update rl is successful
+		err := v.updateCRL(crlEndpoint, rl)
+		require.NoError(t, err)
+		rl2, ok := v.getCRL(crlEndpoint)
+		require.True(t, ok)
+		assert.NotSame(t, rl, rl2)
 
-	// do not update if the crl.SerialNumber has not changed
-	err = v.updateCRL(crlEndpoint, rl2)
-	require.NoError(t, err)
-	rl3, ok := v.getCRL(crlEndpoint)
-	require.True(t, ok)
-	assert.Same(t, rl3, rl2)
+		// do not update if the crl.SerialNumber has not changed
+		err = v.updateCRL(crlEndpoint, rl2)
+		require.NoError(t, err)
+		rl3, ok := v.getCRL(crlEndpoint)
+		require.True(t, ok)
+		assert.Same(t, rl3, rl2)
 
-	// update if the crl.SerialNumber has increased
-	lowerCRLNumber := big.NewInt(0)
-	rl2.list.Number = lowerCRLNumber
-	err = v.updateCRL(crlEndpoint, rl2)
-	require.NoError(t, err)
-	rl4, ok := v.getCRL(crlEndpoint)
-	require.True(t, ok)
-	assert.NotSame(t, rl4, rl2)
+		// update if the crl.SerialNumber has increased
+		lowerCRLNumber := big.NewInt(0)
+		rl2.list.Number = lowerCRLNumber
+		err = v.updateCRL(crlEndpoint, rl2)
+		require.NoError(t, err)
+		rl4, ok := v.getCRL(crlEndpoint)
+		require.True(t, ok)
+		assert.NotSame(t, rl4, rl2)
+	})
+	t.Run("invalid CRL issuer", func(t *testing.T) {
+		store, err := core.LoadTrustStore(truststore)
+		require.NoError(t, err)
+		v := newValidator(t)
+		rl := newRevocationList(store.Certificates()[0])
+
+		err = v.updateCRL(rootCRLurl, rl)
+
+		assert.ErrorContains(t, err, "crl signed by unexpected issuer")
+	})
 }
 
 func newValidator(t *testing.T) *validator {
@@ -437,7 +452,8 @@ func (transport *fakeTransport) RoundTrip(req *http.Request) (*http.Response, er
 	}
 	data, err := os.ReadFile(file)
 	if err != nil {
-		panic(err)
+		//
+		return nil, errors.New(file)
 	}
 	transport.responseData[file] = data
 	return &http.Response{Body: readCloser{data: bytes.NewReader(transport.responseData[file])}}, nil

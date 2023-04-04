@@ -174,7 +174,7 @@ func NewUziValidator(env UziEnv, contractTemplates *contract.TemplateStore, crlV
 	}
 
 	if crlValidator == nil {
-		crlValidator = crl.NewValidator(append(roots[:], intermediates...))
+		crlValidator = crl.New(append(roots[:], intermediates...))
 	}
 
 	validator = &UziValidator{
