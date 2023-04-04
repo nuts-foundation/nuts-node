@@ -122,11 +122,9 @@ func newValidatorWithHTTPClient(certificates []*x509.Certificate, client *http.C
 			err := fmt.Errorf("certificate's issuer is not in the trust store: subject=%s, issuer=%s", certificate.Subject.String(), certificate.Issuer.String())
 			panic(err)
 		}
-		for _, endpoint := range certificate.CRLDistributionPoints {
-			err := val.addEndpoint(endpoint, issuer)
-			if err != nil {
-				panic(err)
-			}
+		err := val.addEndpoints(issuer, certificate.CRLDistributionPoints)
+		if err != nil {
+			panic(err)
 		}
 	}
 	return val
@@ -190,12 +188,8 @@ func (v *validator) SetValidatePeerCertificateFunc(config *tls.Config) error {
 			}
 			// add any previously unknown CRL distribution points.
 			// (Leaf cert is likely to contain CRLDistributionPoints not found in the truststore.)
-			if len(cert.CRLDistributionPoints) > 0 {
-				for _, endpoint := range cert.CRLDistributionPoints {
-					if err = v.addEndpoint(endpoint, issuer); err != nil {
-						return err
-					}
-				}
+			if err = v.addEndpoints(issuer, cert.CRLDistributionPoints); err != nil {
+				return err
 			}
 		}
 	}
@@ -225,6 +219,7 @@ func (v *validator) validateCert(cert *x509.Certificate) error {
 	}
 	for _, endpoint := range cert.CRLDistributionPoints {
 		crl, ok := v.getCRL(endpoint)
+
 		// add distribution endpoint if unknown
 		if !ok {
 			var issuer *x509.Certificate
@@ -232,7 +227,7 @@ func (v *validator) validateCert(cert *x509.Certificate) error {
 			if !ok {
 				return ErrCertUntrusted
 			}
-			err := v.addEndpoint(endpoint, issuer)
+			err := v.addEndpoints(issuer, []string{endpoint})
 			if err != nil {
 				log.Logger().WithError(err).
 					WithField("Subject", cert.Subject.String()).
@@ -241,16 +236,14 @@ func (v *validator) validateCert(cert *x509.Certificate) error {
 				return ErrCRLMissing
 			}
 			// update loop params
-			crl, ok = v.getCRL(endpoint)
-			if !ok {
-				// this can never happen
-				return ErrCRLMissing
-			}
+			crl, _ = v.getCRL(endpoint) // must be present now
 		}
+
 		// initial download if missing
 		if crl.lastUpdated.IsZero() {
 			// Pause validate to download CRL. Client requests run in their own go routine, so we can afford to wait.
-			if err := v.updateCRL(endpoint, crl); err != nil {
+			err := v.updateCRL(endpoint, crl)
+			if err != nil {
 				log.Logger().WithError(err).
 					WithField("Subject", cert.Subject.String()).
 					WithField("S/N", cert.SerialNumber.String()).
@@ -258,17 +251,15 @@ func (v *validator) validateCert(cert *x509.Certificate) error {
 				return ErrCRLMissing
 			}
 			// update loop params
-			crl, ok = v.getCRL(endpoint)
-			if !ok {
-				// this can never happen
-				return ErrCRLMissing
-			}
+			crl, _ = v.getCRL(endpoint) // must be present
 		}
+
 		// check certificate revocation
 		if crl.revoked[cert.SerialNumber.String()] {
 			// revocation takes precedence over expired CRL.
 			return ErrCertRevoked
 		}
+
 		// check CRL status
 		if !nowFunc().Before(crl.list.NextUpdate) {
 			// CA expiration is checked earlier in the chain
@@ -279,19 +270,21 @@ func (v *validator) validateCert(cert *x509.Certificate) error {
 }
 
 // addEndpoint adds the CRL endpoint if it does not exist. Returns an error if the CRL issuer does not match the expected issuer.
-func (v *validator) addEndpoint(endpoint string, certIssuer *x509.Certificate) error {
-	if crl, ok := v.getCRL(endpoint); ok {
-		if strings.Compare(crl.issuer.Subject.String(), certIssuer.Subject.String()) != 0 {
-			// We assume that an endpoint can only issue CRLs from a single CA because:
-			// If an endpoint hosts multiple CRLs, how would the server know what CRL to present?
-			// Endpoint reuse by CAs is not an issue. CAs host the CRL for some time after the CA has expired, immediate reuse result in the previous point.
-			return fmt.Errorf("multiple issuers known for CRL distribution endpoint=%s, issuers=%s,%s", endpoint, crl.issuer.Subject.String(), certIssuer.Subject.String())
+func (v *validator) addEndpoints(certIssuer *x509.Certificate, endpoints []string) error {
+	for _, endpoint := range endpoints {
+		if crl, ok := v.getCRL(endpoint); ok {
+			if strings.Compare(crl.issuer.Subject.String(), certIssuer.Subject.String()) != 0 {
+				// We assume that an endpoint can only issue CRLs from a single CA because:
+				// If an endpoint hosts multiple CRLs, how would the server know what CRL to present?
+				// Endpoint reuse by CAs is not an issue. CAs host the CRL for some time after the CA has expired, immediate reuse result in the previous point.
+				return fmt.Errorf("multiple issuers known for CRL distribution endpoint=%s, issuers=%s,%s", endpoints, crl.issuer.Subject.String(), certIssuer.Subject.String())
+			}
+			// already exists
+			continue
 		}
-		// already exists
-		return nil
+		// TODO: Optimize by starting Go routine per endpoint to update the CRL. A Go routine per CRL prevents all CRLs being updated simultaneously.
+		v.crls.Store(endpoint, newRevocationList(certIssuer))
 	}
-	v.crls.Store(endpoint, newRevocationList(certIssuer))
-	// TODO: Optimize by starting Go routine per endpoint to update the CRL. A Go routine per CRL prevents all CRLs being updated simultaneously.
 	return nil
 }
 

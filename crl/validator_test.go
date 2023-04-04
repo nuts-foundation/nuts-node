@@ -267,13 +267,13 @@ func Test_ValidatorAddEndpoint(t *testing.T) {
 	store, err := core.LoadTrustStore(truststore)
 	require.NoError(t, err)
 	intermediate, root := store.Certificates()[0], store.Certificates()[2]
-	endpoint := intermediate.CRLDistributionPoints[0]
+	endpoint := []string{intermediate.CRLDistributionPoints[0]}
 
 	t.Run("ok - only add once", func(t *testing.T) {
 		val := &validator{}
 		// only add once
 		for i := 0; i < 3; i++ {
-			err = val.addEndpoint(endpoint, root)
+			err = val.addEndpoints(root, endpoint)
 			require.NoError(t, err)
 			counter := 0
 			val.crls.Range(func(key, value any) bool {
@@ -287,10 +287,10 @@ func Test_ValidatorAddEndpoint(t *testing.T) {
 	t.Run("multiple issuers", func(t *testing.T) {
 		val := &validator{}
 		// first issuer for endpoint is valid
-		err = val.addEndpoint(endpoint, root)
+		err = val.addEndpoints(root, endpoint)
 		require.NoError(t, err)
 		// second issuer for endpoint returns error
-		err = val.addEndpoint(endpoint, intermediate)
+		err = val.addEndpoints(intermediate, endpoint)
 		assert.Error(t, err)
 	})
 }
