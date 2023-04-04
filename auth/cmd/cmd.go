@@ -41,6 +41,9 @@ const ConfIrmaSchemeManager = "auth.irma.schememanager"
 // ConfHTTPTimeout defines a timeout (in seconds) which is used by the Auth API HTTP client
 const ConfHTTPTimeout = "auth.http.timeout"
 
+// ConfAccessTokenDuration defines how long (in seconds) an access token is valid
+const ConfAccessTokenDuration = "auth.accesstokenduration"
+
 // FlagSet returns the configuration flags supported by this module.
 func FlagSet() *pflag.FlagSet {
 	flags := pflag.NewFlagSet("auth", pflag.ContinueOnError)
@@ -50,7 +53,8 @@ func FlagSet() *pflag.FlagSet {
 	flags.String(ConfPublicURL, defs.PublicURL, "public URL which can be reached by a users IRMA client, this should include the scheme and domain: https://example.com. Additional paths should only be added if some sort of url-rewriting is done in a reverse-proxy.")
 	flags.Bool(ConfAutoUpdateIrmaSchemas, defs.Irma.AutoUpdateSchemas, "set if you want automatically update the IRMA schemas every 60 minutes.")
 	flags.Int(ConfHTTPTimeout, defs.HTTPTimeout, "HTTP timeout (in seconds) used by the Auth API HTTP client")
-	flags.Int(ConfClockSkew, defs.ClockSkew, "Allowed JWT Clock skew in milliseconds")
+	flags.Int(ConfClockSkew, defs.ClockSkew, "allowed JWT Clock skew in milliseconds")
+	flags.Int(ConfAccessTokenDuration, defs.AccessTokenDuration, "defines how long (in seconds) an access token is valid. Uses default in strict mode.")
 	flags.StringSlice(ConfContractValidators, defs.ContractValidators, "sets the different contract validators to use")
 
 	return flags

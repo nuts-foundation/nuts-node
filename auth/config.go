@@ -20,11 +20,12 @@ package auth
 
 // Config holds all the configuration params
 type Config struct {
-	Irma               IrmaConfig `koanf:"irma"`
-	HTTPTimeout        int        `koanf:"http.timeout"`
-	PublicURL          string     `koanf:"publicurl"`
-	ClockSkew          int        `koanf:"clockskew"`
-	ContractValidators []string   `koanf:"contractvalidators"`
+	Irma                IrmaConfig `koanf:"irma"`
+	HTTPTimeout         int        `koanf:"http.timeout"`
+	PublicURL           string     `koanf:"publicurl"`
+	ClockSkew           int        `koanf:"clockskew"`
+	ContractValidators  []string   `koanf:"contractvalidators"`
+	AccessTokenDuration int        `koanf:"accesstokenduration"`
 }
 
 type IrmaConfig struct {
@@ -39,8 +40,9 @@ func DefaultConfig() Config {
 			SchemeManager:     "pbdf",
 			AutoUpdateSchemas: true,
 		},
-		HTTPTimeout:        30,
-		ClockSkew:          5000,
-		ContractValidators: []string{"irma", "uzi", "dummy"},
+		HTTPTimeout:         30,
+		ClockSkew:           5000,
+		ContractValidators:  []string{"irma", "uzi", "dummy"},
+		AccessTokenDuration: 60, // seconds, as specced in RFC003
 	}
 }

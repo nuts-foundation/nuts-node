@@ -13,7 +13,8 @@ The following options apply to the server commands below:
 
 ::
 
-      --auth.clockskew int                            Allowed JWT Clock skew in milliseconds (default 5000)
+      --auth.accesstokenduration int                  defines how long (in seconds) an access token is valid. Uses default in strict mode. (default 60)
+      --auth.clockskew int                            allowed JWT Clock skew in milliseconds (default 5000)
       --auth.contractvalidators strings               sets the different contract validators to use (default [irma,uzi,dummy])
       --auth.http.timeout int                         HTTP timeout (in seconds) used by the Auth API HTTP client (default 30)
       --auth.irma.autoupdateschemas                   set if you want automatically update the IRMA schemas every 60 minutes. (default true)
@@ -127,7 +128,8 @@ Imports private keys from filesystem based storage into the secret store server.
 
   nuts crypto fs2external [directory] [flags]
 
-      --auth.clockskew int                            Allowed JWT Clock skew in milliseconds (default 5000)
+      --auth.accesstokenduration int                  defines how long (in seconds) an access token is valid. Uses default in strict mode. (default 60)
+      --auth.clockskew int                            allowed JWT Clock skew in milliseconds (default 5000)
       --auth.contractvalidators strings               sets the different contract validators to use (default [irma,uzi,dummy])
       --auth.http.timeout int                         HTTP timeout (in seconds) used by the Auth API HTTP client (default 30)
       --auth.irma.autoupdateschemas                   set if you want automatically update the IRMA schemas every 60 minutes. (default true)
