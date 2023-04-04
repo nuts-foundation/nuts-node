@@ -53,6 +53,9 @@ const vcClaim = "vcs"
 const purposeOfUseClaim = "purposeOfUseClaim"
 const userIdentityClaim = "usi"
 
+// RFC003, §5.3 Access token: Tokens MUST NOT be valid for more than 60 seconds.
+const secureAccessTokenLifeSpan = time.Minute
+
 var _ AuthorizationServer = (*authzServer)(nil)
 
 // ErrorResponse models an error returned from an OAuth flow according to RFC6749 (https://tools.ietf.org/html/rfc6749#page-45)
@@ -71,15 +74,16 @@ func (e ErrorResponse) Error() string {
 }
 
 type authzServer struct {
-	vcFinder        vcr.Finder
-	vcVerifier      verifier.Verifier
-	keyResolver     types.KeyResolver
-	privateKeyStore nutsCrypto.KeyStore
-	contractNotary  services.ContractNotary
-	serviceResolver didman.CompoundServiceResolver
-	jsonldManager   jsonld.JSONLD
-	secureMode      bool
-	clockSkew       time.Duration
+	vcFinder            vcr.Finder
+	vcVerifier          verifier.Verifier
+	keyResolver         types.KeyResolver
+	privateKeyStore     nutsCrypto.KeyStore
+	contractNotary      services.ContractNotary
+	serviceResolver     didman.CompoundServiceResolver
+	jsonldManager       jsonld.JSONLD
+	secureMode          bool
+	clockSkew           time.Duration
+	accessTokenLifeSpan time.Duration
 }
 
 type validationContext struct {
@@ -166,15 +170,16 @@ func (c validationContext) verifiableCredentials() ([]vc2.VerifiableCredential, 
 func NewAuthorizationServer(
 	store didstore.Store, vcFinder vcr.Finder, vcVerifier verifier.Verifier,
 	serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore,
-	contractNotary services.ContractNotary, jsonldManager jsonld.JSONLD) AuthorizationServer {
+	contractNotary services.ContractNotary, jsonldManager jsonld.JSONLD, accessTokenLifeSpan time.Duration) AuthorizationServer {
 	return &authzServer{
-		keyResolver:     didservice.KeyResolver{Store: store},
-		serviceResolver: serviceResolver,
-		contractNotary:  contractNotary,
-		jsonldManager:   jsonldManager,
-		vcFinder:        vcFinder,
-		vcVerifier:      vcVerifier,
-		privateKeyStore: privateKeyStore,
+		keyResolver:         didservice.KeyResolver{Store: store},
+		serviceResolver:     serviceResolver,
+		contractNotary:      contractNotary,
+		jsonldManager:       jsonldManager,
+		vcFinder:            vcFinder,
+		vcVerifier:          vcVerifier,
+		privateKeyStore:     privateKeyStore,
+		accessTokenLifeSpan: accessTokenLifeSpan,
 	}
 }
 
@@ -185,6 +190,10 @@ const BearerTokenMaxValidity = 5
 func (s *authzServer) Configure(clockSkewInMilliseconds int, secureMode bool) error {
 	s.clockSkew = time.Duration(clockSkewInMilliseconds) * time.Millisecond
 	s.secureMode = secureMode
+	if secureMode && s.accessTokenLifeSpan != secureAccessTokenLifeSpan {
+		log.Logger().Warnf("Access Token life span changed to %s in strictmode", secureAccessTokenLifeSpan)
+		s.accessTokenLifeSpan = secureAccessTokenLifeSpan
+	}
 	return nil
 }
 
@@ -529,7 +538,7 @@ func (s *authzServer) buildAccessToken(ctx context.Context, requester did.DID, a
 	issueTime := time.Now()
 
 	accessToken.Service = purposeOfUse
-	accessToken.Expiration = time.Now().Add(time.Minute * 15).UTC().Unix() // Expires in 15 minutes
+	accessToken.Expiration = time.Now().Add(s.accessTokenLifeSpan).UTC().Unix()
 	accessToken.IssuedAt = issueTime.UTC().Unix()
 	accessToken.Issuer = authorizer.String()
 	accessToken.Subject = requester.String()
