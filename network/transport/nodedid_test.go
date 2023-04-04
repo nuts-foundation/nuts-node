@@ -68,17 +68,11 @@ func Test_AutoNodeDIDResolver(t *testing.T) {
 
 		keyResolver.EXPECT().List(ctx).Return([]string{key0ID.String(), key1ID.String()})
 		docFinder.EXPECT().Find(didservice.IsActive(), gomock.Any(), didservice.ByServiceType(NutsCommServiceType)).Return(didDocuments, nil)
-		resolver := NewAutoNodeDIDResolver(keyResolver, docFinder)
 
-		actual, err := resolver.Resolve(ctx)
+		actual, err := AutoResolveNodeDID(ctx, keyResolver, docFinder)
 
 		require.NoError(t, err)
-		assert.Equal(t, *didLocal, actual)
-
-		// Call again, mocks should not be triggered again
-		actual, err = resolver.Resolve(ctx)
-		assert.NoError(t, err)
-		assert.Equal(t, *didLocal, actual)
+		assert.Equal(t, didLocal, actual)
 	})
 	t.Run("no private keys in keystore", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -87,9 +81,8 @@ func Test_AutoNodeDIDResolver(t *testing.T) {
 
 		keyResolver.EXPECT().List(ctx).Return([]string{})
 		docFinder.EXPECT().Find(didservice.IsActive(), gomock.Any(), didservice.ByServiceType(NutsCommServiceType)).Return(didDocuments, nil)
-		resolver := NewAutoNodeDIDResolver(keyResolver, docFinder)
 
-		actual, err := resolver.Resolve(ctx)
+		actual, err := AutoResolveNodeDID(ctx, keyResolver, docFinder)
 
 		assert.NoError(t, err)
 		assert.Empty(t, actual)
@@ -101,9 +94,9 @@ func Test_AutoNodeDIDResolver(t *testing.T) {
 
 		keyResolver.EXPECT().List(ctx).Return([]string{"non-matching-KID"})
 		docFinder.EXPECT().Find(didservice.IsActive(), gomock.Any(), didservice.ByServiceType(NutsCommServiceType)).Return(didDocuments, nil)
-		resolver := NewAutoNodeDIDResolver(keyResolver, docFinder)
 
-		actual, err := resolver.Resolve(context.Background())
+		actual, err := AutoResolveNodeDID(ctx, keyResolver, docFinder)
+
 		assert.NoError(t, err)
 		assert.Empty(t, actual)
 	})

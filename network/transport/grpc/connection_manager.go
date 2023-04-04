@@ -78,7 +78,7 @@ func (s fatalError) Unwrap() error {
 type dialer func(ctx context.Context, target string, opts ...grpc.DialOption) (conn *grpc.ClientConn, err error)
 
 // NewGRPCConnectionManager creates a new ConnectionManager that accepts/creates connections which communicate using the given protocols.
-func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nodeDIDResolver transport.NodeDIDResolver, authenticator Authenticator, protocols ...transport.Protocol) transport.ConnectionManager {
+func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nodeDID *did.DID, authenticator Authenticator, protocols ...transport.Protocol) transport.ConnectionManager {
 	var grpcProtocols []Protocol
 	for _, curr := range protocols {
 		// For now, only gRPC protocols are supported
@@ -96,7 +96,7 @@ func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nod
 
 	cm := &grpcConnectionManager{
 		protocols:         grpcProtocols,
-		nodeDIDResolver:   nodeDIDResolver,
+		nodeDID:           nodeDID,
 		authenticator:     authenticator,
 		config:            config,
 		connectionTimeout: config.connectionTimeout,
@@ -129,7 +129,7 @@ type grpcConnectionManager struct {
 	ctxCancel           func()
 	listener            net.Listener
 	authenticator       Authenticator
-	nodeDIDResolver     transport.NodeDIDResolver
+	nodeDID             *did.DID
 	observers           []transport.StreamStateObserverFunc
 	peersCounter        prometheus.Gauge
 	recvMessagesCounter *prometheus.CounterVec
@@ -605,12 +605,8 @@ func (s *grpcConnectionManager) constructMetadata(bootstrap bool) (metadata.MD, 
 
 	md.Set(peerIDHeader, string(s.config.peerID))
 
-	nodeDID, err := s.nodeDIDResolver.Resolve(s.ctx)
-	if err != nil {
-		return nil, fmt.Errorf("error reading local node DID: %w", err)
-	}
-	if !nodeDID.Empty() {
-		md.Set(nodeDIDHeader, nodeDID.String())
+	if !s.nodeDID.Empty() {
+		md.Set(nodeDIDHeader, s.nodeDID.String())
 	}
 	return md, nil
 }
