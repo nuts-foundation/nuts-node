@@ -191,7 +191,7 @@ func (s *authzServer) Configure(clockSkewInMilliseconds int, secureMode bool) er
 	s.clockSkew = time.Duration(clockSkewInMilliseconds) * time.Millisecond
 	s.secureMode = secureMode
 	if secureMode && s.accessTokenLifeSpan != secureAccessTokenLifeSpan {
-		log.Logger().Warnf("Access Token Duration changed to %s is strictmode", secureAccessTokenLifeSpan)
+		log.Logger().Warnf("Access Token life span changed to %s in strictmode", secureAccessTokenLifeSpan)
 		s.accessTokenLifeSpan = secureAccessTokenLifeSpan
 	}
 	return nil
