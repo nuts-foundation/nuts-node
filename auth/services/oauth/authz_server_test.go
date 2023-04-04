@@ -629,7 +629,7 @@ func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 func TestService_buildAccessToken(t *testing.T) {
 	t.Run("build an access token", func(t *testing.T) {
 		ctx := createContext(t)
-		ctx.oauthService.accessTokenDuration = secureAccessTokenDuration * 10 // ignored by secureMode == true
+		ctx.oauthService.accessTokenLifeSpan = secureAccessTokenLifeSpan * 10 // ignored by secureMode == true
 		ctx.oauthService.Configure(5000, true)
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(authorizerDID, gomock.Any()).MinTimes(1).Return(authorizerSigningKeyID.String(), nil)
@@ -646,7 +646,7 @@ func TestService_buildAccessToken(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.Equal(t, "expectedAT", token)
-		assert.Equal(t, secureAccessTokenDuration, time.Duration(accessToken.Expiration-accessToken.IssuedAt)*time.Second)
+		assert.Equal(t, secureAccessTokenLifeSpan, time.Duration(accessToken.Expiration-accessToken.IssuedAt)*time.Second)
 		assert.Equal(t, authorizerDID.String(), recordedClaims["iss"])
 		recordedCredentials, ok := recordedClaims["vcs"].([]interface{})
 		require.True(t, ok)

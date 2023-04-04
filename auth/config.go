@@ -25,7 +25,7 @@ type Config struct {
 	PublicURL           string     `koanf:"publicurl"`
 	ClockSkew           int        `koanf:"clockskew"`
 	ContractValidators  []string   `koanf:"contractvalidators"`
-	AccessTokenDuration int        `koanf:"accesstokenduration"`
+	AccessTokenLifeSpan int        `koanf:"accesstokenlifespan"`
 }
 
 type IrmaConfig struct {
@@ -43,6 +43,6 @@ func DefaultConfig() Config {
 		HTTPTimeout:         30,
 		ClockSkew:           5000,
 		ContractValidators:  []string{"irma", "uzi", "dummy"},
-		AccessTokenDuration: 60, // seconds, as specced in RFC003
+		AccessTokenLifeSpan: 60, // seconds, as specced in RFC003
 	}
 }

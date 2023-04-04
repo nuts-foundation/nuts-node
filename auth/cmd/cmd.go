@@ -41,8 +41,8 @@ const ConfIrmaSchemeManager = "auth.irma.schememanager"
 // ConfHTTPTimeout defines a timeout (in seconds) which is used by the Auth API HTTP client
 const ConfHTTPTimeout = "auth.http.timeout"
 
-// ConfAccessTokenDuration defines how long (in seconds) an access token is valid
-const ConfAccessTokenDuration = "auth.accesstokenduration"
+// ConfAccessTokenLifeSpan defines how long (in seconds) an access token is valid
+const ConfAccessTokenLifeSpan = "auth.accesstokenlifespan"
 
 // FlagSet returns the configuration flags supported by this module.
 func FlagSet() *pflag.FlagSet {
@@ -54,7 +54,7 @@ func FlagSet() *pflag.FlagSet {
 	flags.Bool(ConfAutoUpdateIrmaSchemas, defs.Irma.AutoUpdateSchemas, "set if you want automatically update the IRMA schemas every 60 minutes.")
 	flags.Int(ConfHTTPTimeout, defs.HTTPTimeout, "HTTP timeout (in seconds) used by the Auth API HTTP client")
 	flags.Int(ConfClockSkew, defs.ClockSkew, "allowed JWT Clock skew in milliseconds")
-	flags.Int(ConfAccessTokenDuration, defs.AccessTokenDuration, "defines how long (in seconds) an access token is valid. Uses default in strict mode.")
+	flags.Int(ConfAccessTokenLifeSpan, defs.AccessTokenLifeSpan, "defines how long (in seconds) an access token is valid. Uses default in strict mode.")
 	flags.StringSlice(ConfContractValidators, defs.ContractValidators, "sets the different contract validators to use")
 
 	return flags

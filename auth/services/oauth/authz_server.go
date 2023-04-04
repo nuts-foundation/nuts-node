@@ -54,7 +54,7 @@ const purposeOfUseClaim = "purposeOfUseClaim"
 const userIdentityClaim = "usi"
 
 // RFC003, §5.3 Access token: Tokens MUST NOT be valid for more than 60 seconds.
-const secureAccessTokenDuration = time.Minute
+const secureAccessTokenLifeSpan = time.Minute
 
 var _ AuthorizationServer = (*authzServer)(nil)
 
@@ -83,7 +83,7 @@ type authzServer struct {
 	jsonldManager       jsonld.JSONLD
 	secureMode          bool
 	clockSkew           time.Duration
-	accessTokenDuration time.Duration
+	accessTokenLifeSpan time.Duration
 }
 
 type validationContext struct {
@@ -170,7 +170,7 @@ func (c validationContext) verifiableCredentials() ([]vc2.VerifiableCredential, 
 func NewAuthorizationServer(
 	store didstore.Store, vcFinder vcr.Finder, vcVerifier verifier.Verifier,
 	serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore,
-	contractNotary services.ContractNotary, jsonldManager jsonld.JSONLD, accessTokenDuration time.Duration) AuthorizationServer {
+	contractNotary services.ContractNotary, jsonldManager jsonld.JSONLD, accessTokenLifeSpan time.Duration) AuthorizationServer {
 	return &authzServer{
 		keyResolver:         didservice.KeyResolver{Store: store},
 		serviceResolver:     serviceResolver,
@@ -179,7 +179,7 @@ func NewAuthorizationServer(
 		vcFinder:            vcFinder,
 		vcVerifier:          vcVerifier,
 		privateKeyStore:     privateKeyStore,
-		accessTokenDuration: accessTokenDuration,
+		accessTokenLifeSpan: accessTokenLifeSpan,
 	}
 }
 
@@ -190,9 +190,9 @@ const BearerTokenMaxValidity = 5
 func (s *authzServer) Configure(clockSkewInMilliseconds int, secureMode bool) error {
 	s.clockSkew = time.Duration(clockSkewInMilliseconds) * time.Millisecond
 	s.secureMode = secureMode
-	if secureMode && s.accessTokenDuration != secureAccessTokenDuration {
-		log.Logger().Warnf("Access Token Duration changed to %s is strictmode", secureAccessTokenDuration)
-		s.accessTokenDuration = secureAccessTokenDuration
+	if secureMode && s.accessTokenLifeSpan != secureAccessTokenLifeSpan {
+		log.Logger().Warnf("Access Token Duration changed to %s is strictmode", secureAccessTokenLifeSpan)
+		s.accessTokenLifeSpan = secureAccessTokenLifeSpan
 	}
 	return nil
 }
@@ -538,7 +538,7 @@ func (s *authzServer) buildAccessToken(ctx context.Context, requester did.DID, a
 	issueTime := time.Now()
 
 	accessToken.Service = purposeOfUse
-	accessToken.Expiration = time.Now().Add(s.accessTokenDuration).UTC().Unix()
+	accessToken.Expiration = time.Now().Add(s.accessTokenLifeSpan).UTC().Unix()
 	accessToken.IssuedAt = issueTime.UTC().Unix()
 	accessToken.Issuer = authorizer.String()
 	accessToken.Subject = requester.String()

@@ -155,9 +155,9 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		return err
 	}
 
-	accessTokenDuration := time.Duration(auth.config.AccessTokenDuration) * time.Second
+	accessTokenLifeSpan := time.Duration(auth.config.AccessTokenLifeSpan) * time.Second
 	auth.authzServer = oauth.NewAuthorizationServer(auth.registry, auth.vcr, auth.vcr.Verifier(), auth.serviceResolver,
-		auth.keyStore, auth.contractNotary, auth.jsonldManager, accessTokenDuration)
+		auth.keyStore, auth.contractNotary, auth.jsonldManager, accessTokenLifeSpan)
 	auth.relyingParty = oauth.NewRelyingParty(auth.registry, auth.serviceResolver,
 		auth.keyStore, time.Duration(auth.config.HTTPTimeout)*time.Second, tlsConfig)
 
