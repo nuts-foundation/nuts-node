@@ -81,7 +81,7 @@ type Network struct {
 	startTime           atomic.Pointer[time.Time]
 	peerID              transport.PeerID
 	didDocumentResolver types.DocResolver
-	nodeDIDResolver     transport.NodeDIDResolver
+	nodeDID             *did.DID
 	didDocumentFinder   types.DocFinder
 	eventPublisher      events.Event
 	storeProvider       storage.Provider
@@ -109,19 +109,9 @@ func (n *Network) CheckHealth() map[string]core.Health {
 			}
 		}
 	}
-	// auth_config checks that the node is correctly configured to be authenticated by others
-	// Context should be passed by CheckHealth() calls (part of https://github.com/nuts-foundation/nuts-node/issues/1858)
-	nodeDID, err := n.nodeDIDResolver.Resolve(context.TODO())
-	if err != nil {
-		// can only happen when not in strictmode and autoNodeDIDResolver fails
-		results[healthAuthConfig] = core.Health{
-			Status:  core.HealthStatusUnknown,
-			Details: err.Error(),
-		}
-		return results
-	}
 
-	if nodeDID.Empty() {
+	// auth_config checks that the node is correctly configured to be authenticated by others
+	if n.nodeDID.Empty() {
 		results[healthAuthConfig] = core.Health{
 			Status:  core.HealthStatusUp,
 			Details: "no node DID",
@@ -129,7 +119,7 @@ func (n *Network) CheckHealth() map[string]core.Health {
 		return results
 	}
 
-	if err = n.validateNodeDID(context.TODO(), nodeDID); err != nil {
+	if err := n.validateNodeDID(context.TODO(), *n.nodeDID); err != nil {
 		results[healthAuthConfig] = core.Health{
 			Status:  core.HealthStatusDown,
 			Details: err.Error(),
@@ -162,9 +152,9 @@ func NewNetworkInstance(
 		keyStore:            keyStore,
 		didDocumentResolver: didDocumentResolver,
 		didDocumentFinder:   didDocumentFinder,
-		nodeDIDResolver:     &transport.FixedNodeDIDResolver{},
 		eventPublisher:      eventPublisher,
 		storeProvider:       storeProvider,
+		nodeDID:             &did.DID{},
 	}
 }
 
@@ -197,17 +187,20 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	// Resolve node DID
 	if n.config.NodeDID != "" {
 		// Node DID is set, configure it statically
-		configuredNodeDID, err := did.ParseDID(n.config.NodeDID)
+		n.nodeDID, err = did.ParseDID(n.config.NodeDID)
 		if err != nil {
 			return fmt.Errorf("configured NodeDID is invalid: %w", err)
 		}
-		n.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *configuredNodeDID}
 	} else if !config.Strictmode {
 		// If node DID is not set we can wire the automatic node DID resolver, which makes testing/workshops/development easier.
 		// Might cause unexpected behavior though, so it can't be used in strict mode.
 		log.Logger().Warn("Node DID not set, will be auto-discovered.")
-		n.nodeDIDResolver = transport.NewAutoNodeDIDResolver(n.keyStore, n.didDocumentFinder)
-	} else {
+		n.nodeDID, err = transport.AutoResolveNodeDID(context.TODO(), n.keyStore, n.didDocumentFinder)
+		if err != nil {
+			log.Logger().WithError(err).Error("Node DID auto-discovery failed")
+		}
+	}
+	if n.nodeDID.Empty() {
 		log.Logger().Warn("Node DID not set, sending/receiving private transactions is disabled.")
 	}
 
@@ -220,7 +213,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	var candidateProtocols []transport.Protocol
 	if n.protocols == nil {
 		candidateProtocols = []transport.Protocol{
-			v2.New(v2Cfg, n.nodeDIDResolver, n.state, n.didDocumentResolver, n.keyStore, n.collectDiagnosticsForPeers, dagStore),
+			v2.New(v2Cfg, n.nodeDID, n.state, n.didDocumentResolver, n.keyStore, n.collectDiagnosticsForPeers, dagStore),
 		}
 	} else {
 		// Only set protocols if not already set: improves testability
@@ -274,7 +267,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		n.connectionManager = grpc.NewGRPCConnectionManager(
 			grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...),
 			connectionStore,
-			n.nodeDIDResolver,
+			n.nodeDID,
 			authenticator,
 			n.protocols...,
 		)
@@ -305,13 +298,7 @@ func (n *Network) DiscoverServices(updatedDID did.DID) {
 			Debug("Service discovery could not read DID document after an update")
 		return
 	}
-	nodeDID, err := n.nodeDIDResolver.Resolve(context.TODO())
-	if err != nil {
-		// This can only occur when the autoNodeDIDResolver is used (non-strict mode)
-		log.Logger().WithError(err).Error("Could not resolve own node DID for service discovery")
-		return
-	}
-	n.connectToDID(nodeDID, *document, true)
+	n.connectToDID(*n.nodeDID, *document, true)
 }
 
 // emitEvents is called when a payload is added.
@@ -357,24 +344,21 @@ func (n *Network) Start() error {
 	}
 
 	// Sanity check for configured node DID: can we resolve it and do we have the keys?
-	nodeDID, err := n.nodeDIDResolver.Resolve(context.TODO())
-	if err != nil {
-		return err
-	}
-	if !nodeDID.Empty() {
-		err = n.validateNodeDIDKeys(context.TODO(), nodeDID)
+	nodeDID := *n.nodeDID
+	if !n.nodeDID.Empty() {
+		err := n.validateNodeDIDKeys(context.TODO(), nodeDID)
 		if err != nil && n.strictMode {
 			return err
 		}
 	}
 
 	for _, prot := range n.protocols {
-		if err = prot.Start(); err != nil {
+		if err := prot.Start(); err != nil {
 			return err
 		}
 	}
 	// Start connection management and protocols
-	err = n.connectionManager.Start()
+	err := n.connectionManager.Start()
 	if err != nil {
 		return err
 	}
@@ -582,11 +566,7 @@ func (n *Network) CreateTransaction(ctx context.Context, template Template) (dag
 
 	// Assert node DID is configured when participants are specified
 	if len(template.Participants) > 0 {
-		nodeDID, err := n.nodeDIDResolver.Resolve(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if nodeDID.Empty() {
+		if n.nodeDID.Empty() {
 			return nil, errors.New("node DID must be configured to create private transactions")
 		}
 	}
@@ -700,15 +680,9 @@ func (n *Network) Diagnostics() []core.DiagnosticResult {
 		results = append(results, core.DiagnosticResultMap{Title: "state", Items: graph.Diagnostics()})
 	}
 	// NodeDID
-	nodeDID, err := n.nodeDIDResolver.Resolve(context.TODO())
-	if err != nil {
-		log.Logger().
-			WithError(err).
-			Error("Unable to resolve node DID for diagnostics")
-	}
 	results = append(results, core.GenericDiagnosticResult{
 		Title:   "node_did",
-		Outcome: nodeDID,
+		Outcome: *n.nodeDID,
 	})
 	return results
 }

@@ -162,7 +162,6 @@ func TestNetwork_Diagnostics(t *testing.T) {
 
 //nolint:funlen
 func TestNetwork_Configure(t *testing.T) {
-	ctx := context.Background()
 	t.Run("ok - configured node DID", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
@@ -174,10 +173,7 @@ func TestNetwork_Configure(t *testing.T) {
 		err := test.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
 
 		require.NoError(t, err)
-		actual, err := test.network.nodeDIDResolver.Resolve(ctx)
-		assert.IsType(t, &transport.FixedNodeDIDResolver{}, test.network.nodeDIDResolver)
-		assert.NoError(t, err)
-		assert.Equal(t, "did:nuts:test", actual.String())
+		assert.Equal(t, "did:nuts:test", test.network.nodeDID.String())
 	})
 	t.Run("ok - auto-resolve node DID", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -187,7 +183,6 @@ func TestNetwork_Configure(t *testing.T) {
 
 		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
 		require.NoError(t, err)
-		assert.IsType(t, transport.NewAutoNodeDIDResolver(nil, nil), ctx.network.nodeDIDResolver)
 	})
 	t.Run("ok - no DID set in strict mode, should return empty node DID", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -197,10 +192,7 @@ func TestNetwork_Configure(t *testing.T) {
 
 		err := test.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t), Strictmode: true}))
 		require.NoError(t, err)
-		actual, err := test.network.nodeDIDResolver.Resolve(ctx)
-		assert.IsType(t, &transport.FixedNodeDIDResolver{}, test.network.nodeDIDResolver)
-		assert.NoError(t, err)
-		assert.Empty(t, actual)
+		assert.Empty(t, test.network.nodeDID)
 	})
 
 	t.Run("error - configured node DID invalid", func(t *testing.T) {
@@ -439,7 +431,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 			err := cxt.start()
 			require.NoError(t, err)
 
-			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
+			cxt.network.nodeDID = nodeDID
 
 			cxt.state.EXPECT().Head(gomock.Any())
 			cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
@@ -507,7 +499,7 @@ func TestNetwork_Start(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		cxt := createNetwork(t, ctrl)
 		cxt.network.strictMode = true
-		cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
+		cxt.network.nodeDID = nodeDID
 		cxt.state.EXPECT().Start()
 
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(nil, nil, did.DeactivatedErr) //
@@ -577,7 +569,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
 		_ = cxt.keyStorage.SavePrivateKey(ctx, keyID.String(), certificate.PrivateKey)
 		cxt.network.certificate = certificate
-		cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
+		cxt.network.nodeDID = nodeDID
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 		err := cxt.network.validateNodeDID(ctx, *nodeDID)
 		assert.NoError(t, err)
@@ -585,7 +577,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 	t.Run("error - configured node DID does not resolve to a DID document", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		cxt := createNetwork(t, ctrl)
-		cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
+		cxt.network.nodeDID = nodeDID
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(nil, nil, did.DeactivatedErr)
 
 		err = cxt.network.validateNodeDID(ctx, *nodeDID)
@@ -596,7 +588,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		cxt := createNetwork(t, ctrl)
 		cxt.network.strictMode = true
-		cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
+		cxt.network.nodeDID = nodeDID
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(&did.Document{}, &vdrTypes.DocumentMetadata{}, nil)
 
 		err := cxt.network.validateNodeDID(ctx, *nodeDID)
@@ -607,7 +599,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		cxt := createNetwork(t, ctrl)
 		cxt.network.strictMode = true
-		cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
+		cxt.network.nodeDID = nodeDID
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 
 		err := cxt.network.validateNodeDID(ctx, *nodeDID)
@@ -619,7 +611,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
 		_ = cxt.keyStorage.SavePrivateKey(ctx, keyID.String(), key)
 		cxt.network.strictMode = true
-		cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
+		cxt.network.nodeDID = nodeDID
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(documentWithoutNutsCommService, &vdrTypes.DocumentMetadata{}, nil)
 
 		err := cxt.network.validateNodeDID(ctx, *nodeDID)
@@ -636,7 +628,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		_ = cxt.keyStorage.SavePrivateKey(ctx, keyID.String(), key)
 		cxt.network.strictMode = true
 		cxt.network.certificate = certificate
-		cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
+		cxt.network.nodeDID = nodeDID
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 
 		err := cxt.network.validateNodeDID(ctx, *nodeDID)
@@ -653,7 +645,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		_ = cxt.keyStorage.SavePrivateKey(ctx, keyID.String(), key)
 		cxt.network.strictMode = true
 		cxt.network.certificate = certificate
-		cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
+		cxt.network.nodeDID = nodeDID
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 
 		err := cxt.network.validateNodeDID(ctx, *nodeDID)
@@ -665,7 +657,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
 		_ = cxt.keyStorage.SavePrivateKey(ctx, keyID.String(), key)
 		cxt.network.strictMode = true
-		cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
+		cxt.network.nodeDID = nodeDID
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 
 		err := cxt.network.validateNodeDID(ctx, *nodeDID)
@@ -682,7 +674,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		_ = cxt.keyStorage.SavePrivateKey(ctx, keyID.String(), key)
 		cxt.network.strictMode = true
 		cxt.network.certificate = certificate
-		cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
+		cxt.network.nodeDID = nodeDID
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 
 		err := cxt.network.validateNodeDID(ctx, *nodeDID)
@@ -1106,9 +1098,9 @@ func TestNetwork_checkHealth(t *testing.T) {
 	t.Run("TLS", func(t *testing.T) {
 		t.Run("up", func(t *testing.T) {
 			n := Network{
-				trustStore:      trustStore,
-				certificate:     certificate,
-				nodeDIDResolver: &transport.FixedNodeDIDResolver{},
+				trustStore:  trustStore,
+				certificate: certificate,
+				nodeDID:     &did.DID{},
 			}
 
 			result := n.CheckHealth()
@@ -1123,9 +1115,9 @@ func TestNetwork_checkHealth(t *testing.T) {
 			certificate.Leaf, err = x509.ParseCertificate(certificate.Certificate[0])
 			require.NoError(t, err)
 			n := Network{
-				trustStore:      trustStore,
-				certificate:     certificate,
-				nodeDIDResolver: &transport.FixedNodeDIDResolver{},
+				trustStore:  trustStore,
+				certificate: certificate,
+				nodeDID:     &did.DID{},
 			}
 
 			result := n.CheckHealth()
@@ -1155,7 +1147,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 			_ = cxt.keyStorage.SavePrivateKey(context.Background(), keyID.String(), certificate.PrivateKey)
 			cxt.network.trustStore = trustStore
 			cxt.network.certificate = certificate
-			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
+			cxt.network.nodeDID = nodeDID
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 
 			health := cxt.network.CheckHealth()
@@ -1176,7 +1168,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 		t.Run("down - authentication failed", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			cxt := createNetwork(t, ctrl)
-			cxt.network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: *nodeDID}
+			cxt.network.nodeDID = nodeDID
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(nil, nil, did.DeactivatedErr)
 
 			health := cxt.network.CheckHealth()
@@ -1216,7 +1208,8 @@ func createNetwork(t *testing.T, ctrl *gomock.Controller, cfgFn ...func(config *
 	network.protocols = []transport.Protocol{prot}
 	network.didDocumentResolver = docResolver
 	if len(networkConfig.NodeDID) > 0 {
-		network.nodeDIDResolver = &transport.FixedNodeDIDResolver{NodeDID: did.MustParseDID(networkConfig.NodeDID)}
+		nodeDID := did.MustParseDID(networkConfig.NodeDID)
+		network.nodeDID = &nodeDID
 	}
 	startTime := time.Now()
 	network.startTime.Store(&startTime)

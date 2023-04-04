@@ -73,6 +73,9 @@ func getMessageTypes() []isEnvelope_Message {
 }
 
 func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) {
+	if nodeDID == nil {
+		nodeDID = &did.DID{}
+	}
 	ctrl := gomock.NewController(t)
 	dirname := io.TestDirectory(t)
 
@@ -83,16 +86,11 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 	payloadScheduler := dag.NewMockNotifier(ctrl)
 	connectionList := grpc.NewMockConnectionList(ctrl)
 	sender := NewMockmessageSender(ctrl)
-	nodeDIDResolver := transport.FixedNodeDIDResolver{}
 	storage := stoabs.NewMockKVStore(ctrl)
-
-	if nodeDID != nil {
-		nodeDIDResolver.NodeDID = *nodeDID
-	}
 
 	cfg := DefaultConfig()
 	cfg.Datadir = dirname
-	proto := New(cfg, nodeDIDResolver, state, docResolver, decrypter, nil, storage).(*protocol)
+	proto := New(cfg, nodeDID, state, docResolver, decrypter, nil, storage).(*protocol)
 	proto.privatePayloadReceiver = payloadScheduler
 	proto.gManager = gMan
 	proto.cMan = newConversationManager(time.Second)

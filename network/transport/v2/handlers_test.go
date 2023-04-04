@@ -185,7 +185,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			assertEmptyPayloadResponse(t, tx, conns.Conn.SentMsgs[0])
 		})
 		t.Run("decoding of the PAL header failed (nodeDID not set)", func(t *testing.T) {
-			p, mocks := newTestProtocol(t, nil)
+			p, mocks := newTestProtocol(t, &did.DID{})
 			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
 			conns := grpc.NewStubConnectionList(authenticatedPeer)
 			p.connectionList = conns

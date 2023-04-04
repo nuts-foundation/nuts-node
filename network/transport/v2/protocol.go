@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
 	"strings"
 	"sync"
@@ -71,7 +72,7 @@ func DefaultConfig() Config {
 // New creates an instance of the v2 protocol.
 func New(
 	config Config,
-	nodeDIDResolver transport.NodeDIDResolver,
+	nodeDID *did.DID,
 	state dag.State,
 	docResolver vdr.DocResolver,
 	decrypter crypto.Decrypter,
@@ -80,14 +81,14 @@ func New(
 ) transport.Protocol {
 	ctx, cancel := context.WithCancel(context.Background())
 	p := &protocol{
-		cancel:          cancel,
-		config:          config,
-		ctx:             ctx,
-		state:           state,
-		nodeDIDResolver: nodeDIDResolver,
-		decrypter:       decrypter,
-		docResolver:     docResolver,
-		dagStore:        dagStore,
+		cancel:      cancel,
+		config:      config,
+		ctx:         ctx,
+		state:       state,
+		nodeDID:     nodeDID,
+		decrypter:   decrypter,
+		docResolver: docResolver,
+		dagStore:    dagStore,
 	}
 	p.sender = p
 	p.diagnosticsMan = newPeerDiagnosticsManager(diagnosticsProvider, p.sender.broadcastDiagnostics)
@@ -104,7 +105,7 @@ type protocol struct {
 	privatePayloadReceiver dag.Notifier
 	decrypter              crypto.Decrypter
 	connectionList         grpc.ConnectionList
-	nodeDIDResolver        transport.NodeDIDResolver
+	nodeDID                *did.DID
 	connectionManager      transport.ConnectionManager
 	cMan                   *conversationManager
 	gManager               gossip.Manager
@@ -150,12 +151,8 @@ func (p *protocol) GetMessageType(envelope interface{}) string {
 }
 
 func (p *protocol) Configure(_ transport.PeerID) error {
-	nodeDID, err := p.nodeDIDResolver.Resolve(p.ctx)
-	if err != nil {
-		log.Logger().WithError(err).Error("Failed to resolve node DID")
-	}
-
-	if nodeDID.Empty() {
+	var err error
+	if p.nodeDID.Empty() {
 		log.Logger().Warn("Not starting the payload scheduler as node DID is not set")
 	} else {
 		p.privatePayloadReceiver, err = p.state.Notifier("private", func(event dag.Event) (bool, error) {
@@ -355,16 +352,12 @@ func (p *protocol) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics 
 
 // decryptPAL returns nil, nil if the PAL couldn't be decoded
 func (p *protocol) decryptPAL(ctx context.Context, encrypted [][]byte) (dag.PAL, error) {
-	nodeDID, err := p.nodeDIDResolver.Resolve(ctx)
-	if err != nil {
-		return nil, err
-	}
 
-	if nodeDID.Empty() {
+	if p.nodeDID.Empty() {
 		return nil, errors.New("node DID is not set")
 	}
 
-	doc, _, err := p.docResolver.Resolve(nodeDID, nil)
+	doc, _, err := p.docResolver.Resolve(*p.nodeDID, nil)
 	if err != nil {
 		return nil, err
 	}
