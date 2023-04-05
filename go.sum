@@ -123,7 +123,7 @@ github.com/deepmap/oapi-codegen v1.12.4 h1:pPmn6qI9MuOtCz82WY2Xaw46EQjgvxednXXrP
 github.com/deepmap/oapi-codegen v1.12.4/go.mod h1:3lgHGMu6myQ2vqbbTXH2H1o4eXFTGnFiDaOaKKl5yas=
 github.com/denisenkom/go-mssqldb v0.0.0-20191124224453-732737034ffd h1:83Wprp6ROGeiHFAP8WJdI2RoxALQYgdllERc3N5N2DM=
 github.com/denisenkom/go-mssqldb v0.0.0-20191124224453-732737034ffd/go.mod h1:xbL0rPBG9cCiLr28tMa8zpbdarY27NDyej4t/EjAShU=
-github.com/dgraph-io/badger/v4 v4.0.1 h1:zwLYFc4sfxKdaRTvS6wlHsSuYWNUiWnYLU+TS+/nCDI=
+github.com/dgraph-io/badger/v4 v4.1.0 h1:E38jc0f+RATYrycSUf9LMv/t47XAy+3CApyYSq4APOQ=
 github.com/dgraph-io/ristretto v0.1.1 h1:6CWw5tJNgpegArSHpNHJKldNeq03FQCwYvfMVWajOK8=
 github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f h1:lO4WD4F/rVNCu3HqELle0jiPLLBs70cWOduZpkS1E78=
 github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f/go.mod h1:cuUVRXasLTGF7a8hSLbxyZXjz+1KgoB3wDUb6vlszIc=
@@ -476,8 +476,8 @@ github.com/nuts-foundation/go-did v0.4.0 h1:HyzyDOup3Mwt8t8PESQeipW3y8KHDf/XNlBb
 github.com/nuts-foundation/go-did v0.4.0/go.mod h1:FfY394+fFTGXQeYTzIFAHlzGZfPYpL0XygmtHb5Xjdg=
 github.com/nuts-foundation/go-leia/v3 v3.3.0 h1:d0AIihk8nF6QCMpA9I01ZS+pp+GCgoJhblTNkyIZz40=
 github.com/nuts-foundation/go-leia/v3 v3.3.0/go.mod h1:Md202F2wpwkXGtOUzyqs0p1Y96+wOY8lpmDT9nuaxE0=
-github.com/nuts-foundation/go-stoabs v1.8.0 h1:rTprAAz71kZ0mIUYe6akoCm14uu58vjMU7h7Jxpo6DQ=
-github.com/nuts-foundation/go-stoabs v1.8.0/go.mod h1:fehQmI10gXkXJzCSnwokI/NK6i6+4JMJWVjzgTZ1DrE=
+github.com/nuts-foundation/go-stoabs v1.8.1 h1:I6sS6eGBAltzpmN0IA78M4DqrPolzHUWp+1q7hAM0Uo=
+github.com/nuts-foundation/go-stoabs v1.8.1/go.mod h1:LJ1+o9NehLuT2giEzeQdbqsIAqzrQVWYGo8oBwZKTZw=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=
 github.com/nxadm/tail v1.4.8/go.mod h1:+ncqLTQzXmGhMZNUePPaPqPvBxHAIsmXswZKocGu+AU=
