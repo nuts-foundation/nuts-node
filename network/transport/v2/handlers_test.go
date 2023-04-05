@@ -488,7 +488,7 @@ func TestProtocol_handleTransactionRangeQuery(t *testing.T) {
 	tx2, _, _ := dag.CreateTestTransaction(1, tx1)
 	lcStart := uint32(1)
 	lcEnd := uint32(5)
-	peerID := transport.PeerID("peerID")
+	peer := transport.Peer{ID: "peer"}
 	ctx := context.Background()
 
 	t.Run("ok", func(t *testing.T) {
@@ -503,7 +503,7 @@ func TestProtocol_handleTransactionRangeQuery(t *testing.T) {
 			Start: lcStart,
 			End:   lcEnd,
 		}}
-		p.cMan.startConversation(msg, peerID)
+		p.cMan.startConversation(msg, peer)
 		err := p.handleTransactionRangeQuery(ctx, connection, &Envelope{Message: msg})
 
 		assert.NoError(t, err)
@@ -517,7 +517,7 @@ func TestProtocol_handleTransactionRangeQuery(t *testing.T) {
 			Start: lcStart,
 			End:   lcEnd,
 		}}
-		p.cMan.startConversation(msg, peerID)
+		p.cMan.startConversation(msg, peer)
 
 		ctx, cancelFunc := context.WithCancel(ctx)
 		cancelFunc()
@@ -532,7 +532,7 @@ func TestProtocol_handleTransactionRangeQuery(t *testing.T) {
 			Start: 1,
 			End:   1,
 		}}
-		p.cMan.startConversation(msg, peerID)
+		p.cMan.startConversation(msg, peer)
 		err := p.handleTransactionRangeQuery(ctx, connection, &Envelope{Message: msg})
 
 		assert.EqualError(t, err, "invalid range query")
@@ -544,7 +544,7 @@ func TestProtocol_handleTransactionRangeQuery(t *testing.T) {
 			Start: lcStart,
 			End:   lcEnd,
 		}}
-		p.cMan.startConversation(msg, peerID)
+		p.cMan.startConversation(msg, peer)
 		err := p.handleTransactionRangeQuery(ctx, connection, &Envelope{Message: msg})
 
 		assert.Error(t, err)
@@ -568,7 +568,7 @@ func TestProtocol_handleState(t *testing.T) {
 		msg := &Envelope_State{State: &State{LC: peerClock, XOR: peerXor.Slice()}}
 		iblt := *tree.NewIblt(10)
 		p, mocks := newTestProtocol(t, nil)
-		conversation := p.cMan.startConversation(msg, "peerID")
+		conversation := p.cMan.startConversation(msg, testPeer)
 		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(localXor, localClock)
 		mocks.State.EXPECT().IBLT(peerClock).Return(iblt, uint32(0))
 		mocks.Sender.EXPECT().sendTransactionSet(connection, conversation.conversationID, peerClock, localClock, iblt)
@@ -582,7 +582,7 @@ func TestProtocol_handleState(t *testing.T) {
 func TestProtocol_handleTransactionSet(t *testing.T) {
 	requestLC := uint32(3)
 	request := &Envelope_State{State: &State{LC: requestLC, XOR: hash.FromSlice([]byte("requestXOR")).Slice()}}
-	peerID := transport.PeerID("peerID")
+	peer := transport.Peer{ID: "peerID"}
 
 	emptyIblt := tree.NewIblt(10)
 	emptyIbltBytes, _ := emptyIblt.MarshalBinary()
@@ -598,7 +598,7 @@ func TestProtocol_handleTransactionSet(t *testing.T) {
 		peerLC := requestLC - 1
 		localLC := requestLC
 		p, mocks := newTestProtocol(t, nil)
-		conversation := p.cMan.startConversation(request, peerID)
+		conversation := p.cMan.startConversation(request, peer)
 		mocks.State.EXPECT().IBLT(peerLC).Return(*oneHashIblt.Clone().(*tree.Iblt), dag.PageSize-1)
 		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(hash.FromSlice([]byte("ignored")), localLC)
 
@@ -613,7 +613,7 @@ func TestProtocol_handleTransactionSet(t *testing.T) {
 	t.Run("ok - decode success, request new Tx", func(t *testing.T) {
 		peerLC := requestLC - 1
 		p, mocks := newTestProtocol(t, nil)
-		conversation := p.cMan.startConversation(request, peerID)
+		conversation := p.cMan.startConversation(request, peer)
 		mocks.State.EXPECT().IBLT(peerLC).Return(*emptyIblt.Clone().(*tree.Iblt), dag.PageSize-1)
 		mocks.Sender.EXPECT().sendTransactionListQuery(connection, []hash.SHA256Hash{hash1.Ref()}).Return(nil)
 
@@ -629,7 +629,7 @@ func TestProtocol_handleTransactionSet(t *testing.T) {
 		localLC := requestLC + dag.PageSize
 		peerLC := requestLC + dag.PageSize*3
 		p, mocks := newTestProtocol(t, nil)
-		conversation := p.cMan.startConversation(request, peerID)
+		conversation := p.cMan.startConversation(request, peer)
 		mocks.State.EXPECT().IBLT(requestLC).Return(*oneHashIblt.Clone().(*tree.Iblt), dag.PageSize-1)
 		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(hash.FromSlice([]byte("ignored")), localLC)
 		mocks.Sender.EXPECT().sendTransactionRangeQuery(connection, dag.PageSize, 2*dag.PageSize).Return(nil)
@@ -645,7 +645,7 @@ func TestProtocol_handleTransactionSet(t *testing.T) {
 	t.Run("ok - decode success, no new Tx -> request DAG sync", func(t *testing.T) {
 		peerLC := requestLC + dag.PageSize
 		p, mocks := newTestProtocol(t, nil)
-		conversation := p.cMan.startConversation(request, peerID)
+		conversation := p.cMan.startConversation(request, peer)
 		mocks.State.EXPECT().IBLT(requestLC).Return(*oneHashIblt.Clone().(*tree.Iblt), dag.PageSize-1)
 		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(hash.FromSlice([]byte("ignored")), requestLC)
 		mocks.Sender.EXPECT().sendTransactionRangeQuery(connection, dag.PageSize, uint32(dag.MaxLamportClock)).Return(nil)
@@ -666,7 +666,7 @@ func TestProtocol_handleTransactionSet(t *testing.T) {
 		conflictingIblt.Insert(hash1.Ref())
 		conflictingIblt.Insert(hash1.Ref())
 		p, mocks := newTestProtocol(t, nil)
-		conversation := p.cMan.startConversation(request, peerID)
+		conversation := p.cMan.startConversation(request, peer)
 		mocks.State.EXPECT().IBLT(page1RequestLC).Return(*conflictingIblt, dag.PageSize-1)
 		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(localXor, uint32(0))
 		mocks.Sender.EXPECT().sendState(connection, localXor, dag.PageSize-1).Return(nil)
@@ -684,7 +684,7 @@ func TestProtocol_handleTransactionSet(t *testing.T) {
 		conflictingIblt.Insert(hash1.Ref())
 		conflictingIblt.Insert(hash1.Ref())
 		p, mocks := newTestProtocol(t, nil)
-		conversation := p.cMan.startConversation(request, peerID)
+		conversation := p.cMan.startConversation(request, peer)
 		mocks.State.EXPECT().IBLT(requestLC).Return(*conflictingIblt, dag.PageSize-1)
 		mocks.Sender.EXPECT().sendTransactionRangeQuery(connection, uint32(0), dag.PageSize).Return(nil)
 
@@ -711,7 +711,7 @@ func TestProtocol_handleTransactionSet(t *testing.T) {
 
 	t.Run("error - iblt subtract fails", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
-		conversation := p.cMan.startConversation(request, peerID)
+		conversation := p.cMan.startConversation(request, peer)
 		mocks.State.EXPECT().IBLT(requestLC).Return(*tree.NewIblt(20), dag.PageSize-1)
 
 		emptyIbltBytes, _ := emptyIblt.MarshalBinary()

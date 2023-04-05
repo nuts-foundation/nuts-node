@@ -75,11 +75,11 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 			},
 		}}
 	}
-	peerID := transport.PeerID("peerID")
+	peer := transport.Peer{ID: "peerID"}
 
 	t.Run("ok", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
-		conversation := p.cMan.startConversation(request, peerID)
+		conversation := p.cMan.startConversation(request, peer)
 		envelope := envelopeWithConversation(conversation)
 		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(nil)
 
@@ -90,7 +90,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 
 	t.Run("supports cancellations", func(t *testing.T) {
 		p, _ := newTestProtocol(t, nil)
-		conversation := p.cMan.startConversation(request, peerID)
+		conversation := p.cMan.startConversation(request, peer)
 		envelope := envelopeWithConversation(conversation)
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
@@ -102,7 +102,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 
 	t.Run("ok - duplicate", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
-		conversation := p.cMan.startConversation(request, peerID)
+		conversation := p.cMan.startConversation(request, peer)
 		envelope := envelopeWithConversation(conversation)
 		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(nil)
 
@@ -113,7 +113,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 
 	t.Run("ok - missing prevs", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
-		conversation := p.cMan.startConversation(request, peerID)
+		conversation := p.cMan.startConversation(request, peer)
 		envelope := envelopeWithConversation(conversation)
 		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(dag.ErrPreviousTransactionMissing)
 		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(hash.FromSlice([]byte("stateXor")), uint32(7))
@@ -127,7 +127,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 
 	t.Run("ok - conversation marked as done", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
-		conversation := p.cMan.startConversation(request, peerID)
+		conversation := p.cMan.startConversation(request, peer)
 		envelope := envelopeWithConversation(conversation)
 		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(nil)
 
@@ -141,7 +141,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		tx2, _, _ := dag.CreateTestTransaction(0)
 		request2 := &Envelope_TransactionListQuery{TransactionListQuery: &TransactionListQuery{Refs: [][]byte{h1.Slice(), tx2.Ref().Slice()}}}
 		p, mocks := newTestProtocol(t, nil)
-		conversation := p.cMan.startConversation(request2, peerID)
+		conversation := p.cMan.startConversation(request2, peer)
 		cStartTime := conversation.expiry.Add(-1 * time.Millisecond)
 		conversation.expiry = cStartTime
 		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(nil)
@@ -163,7 +163,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 
 	t.Run("error - State.Add failed", func(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
-		conversation := p.cMan.startConversation(request, peerID)
+		conversation := p.cMan.startConversation(request, peer)
 		envelope := envelopeWithConversation(conversation)
 		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(errors.New("custom"))
 
@@ -174,7 +174,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 
 	t.Run("error - missing payload for TX without PAL", func(t *testing.T) {
 		p, _ := newTestProtocol(t, nil)
-		conversation := p.cMan.startConversation(request, peerID)
+		conversation := p.cMan.startConversation(request, peer)
 
 		err := p.handleTransactionList(context.Background(), connection, &Envelope{Message: &Envelope_TransactionList{
 			TransactionList: &TransactionList{
@@ -188,7 +188,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 
 	t.Run("error - invalid transaction", func(t *testing.T) {
 		p, _ := newTestProtocol(t, nil)
-		conversation := p.cMan.startConversation(request, peerID)
+		conversation := p.cMan.startConversation(request, peer)
 
 		err := p.handleTransactionList(context.Background(), connection, &Envelope{Message: &Envelope_TransactionList{
 			TransactionList: &TransactionList{
