@@ -155,7 +155,7 @@ func (cMan *conversationManager) startConversation(msg checkable, peer transport
 		if cMan.hasActiveConversation(peer) {
 			return nil
 		}
-		cMan.lastPeerConversationID[peer.String()] = cid
+		cMan.lastPeerConversationID[peer.Key()] = cid
 	}
 
 	cMan.conversations[cid.String()] = newConversation

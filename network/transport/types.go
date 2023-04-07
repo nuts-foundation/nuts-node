@@ -67,9 +67,6 @@ func (p Peer) ToFields() logrus.Fields {
 // Usable as map index, not usable for presentation.
 func (p Peer) Key() string {
 	// address is included since 2 connections may exist for a peer (inbound/outbound)
-	if p.NodeDID.Empty() {
-		return fmt.Sprintf("%s@%s", p.ID, p.Address)
-	}
 	return fmt.Sprintf("%s(%s)@%s", p.ID, p.NodeDID.String(), p.Address)
 }
 
