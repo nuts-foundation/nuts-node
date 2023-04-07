@@ -57,12 +57,11 @@ func NewConfig(grpcAddress string, peerID networkTypes.PeerID, options ...Config
 }
 
 // WithTLS enables TLS for gRPC ConnectionManager.
-func WithTLS(clientCertificate tls.Certificate, trustStore *core.TrustStore, maxCRLValidityDays int) ConfigOption {
+func WithTLS(clientCertificate tls.Certificate, trustStore *core.TrustStore) ConfigOption {
 	return func(config *Config) {
 		config.clientCert = &clientCertificate
 		config.trustStore = trustStore.CertPool
 		config.crlValidator = crl.New(trustStore.Certificates())
-		config.maxCRLValidityDays = maxCRLValidityDays
 		// Load TLS server certificate, only if enableTLS=true and gRPC server should be started.
 		if config.listenAddress != "" {
 			config.serverCert = config.clientCert
@@ -107,8 +106,6 @@ type Config struct {
 	trustStore *x509.CertPool
 	// crlValidator contains the database for revoked certificates
 	crlValidator crl.Validator
-	// maxCRLValidityDays contains the number of days that a CRL can be outdated
-	maxCRLValidityDays int
 	// clientCertHeaderName specifies the name of the HTTP header that contains the client certificate, if TLS is offloaded.
 	clientCertHeaderName string
 	// connectionTimeout specifies the time before an outbound connection attempt times out.

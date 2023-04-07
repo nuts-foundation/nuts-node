@@ -107,7 +107,7 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 		p := &TestProtocol{}
 		ts, _ := core.LoadTrustStore("../../test/truststore.pem")
 		clientCert, _ := tls.LoadX509KeyPair("../../test/certificate-and-key.pem", "../../test/certificate-and-key.pem")
-		config := NewConfig("", "test", WithTLS(clientCert, ts, 1))
+		config := NewConfig("", "test", WithTLS(clientCert, ts))
 
 		cm := NewGRPCConnectionManager(config, createKVStore(t), nodeDID, nil, p).(*grpcConnectionManager)
 
@@ -509,7 +509,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 			fmt.Sprintf("127.0.0.1:%d",
 				test.FreeTCPPort()),
 			"foo",
-			WithTLS(serverCert, trustStore, 10),
+			WithTLS(serverCert, trustStore),
 		)
 		cm := NewGRPCConnectionManager(cfg, nil, nodeDID, nil).(*grpcConnectionManager)
 		err := cm.Start()
@@ -524,7 +524,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 			fmt.Sprintf("127.0.0.1:%d",
 				test.FreeTCPPort()),
 			"foo",
-			WithTLS(serverCert, trustStore, 10),
+			WithTLS(serverCert, trustStore),
 			WithTLSOffloading("client-cert"),
 		)
 		cm := NewGRPCConnectionManager(cfg, nil, nodeDID, nil).(*grpcConnectionManager)
@@ -539,7 +539,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 			fmt.Sprintf("127.0.0.1:%d",
 				test.FreeTCPPort()),
 			"foo",
-			WithTLS(serverCert, trustStore, 10),
+			WithTLS(serverCert, trustStore),
 			WithTLSOffloading(""),
 		)
 		cm := NewGRPCConnectionManager(cfg, nil, nodeDID, nil).(*grpcConnectionManager)
@@ -569,13 +569,12 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 		}).Times(2) // on inbound and outbound TLS config
 
 		cm := NewGRPCConnectionManager(Config{
-			listenAddress:      fmt.Sprintf(":%d", test.FreeTCPPort()),
-			trustStore:         x509.NewCertPool(),
-			serverCert:         &serverCert,
-			clientCert:         &serverCert,
-			crlValidator:       validator,
-			maxCRLValidityDays: 10,
-			listener:           tcpListenerCreator,
+			listenAddress: fmt.Sprintf(":%d", test.FreeTCPPort()),
+			trustStore:    x509.NewCertPool(),
+			serverCert:    &serverCert,
+			clientCert:    &serverCert,
+			crlValidator:  validator,
+			listener:      tcpListenerCreator,
 		}, nil, nodeDID, nil, p)
 
 		assert.NoError(t, cm.Start())

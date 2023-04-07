@@ -294,17 +294,3 @@ func TestTLSConfig_LoadTrustStore(t *testing.T) {
 		assert.EqualError(t, err, "unable to read trust store (file=test/non-existent.pem): open test/non-existent.pem: no such file or directory")
 	})
 }
-
-func TestTLSConfig_GetCRLMaxValidityDays(t *testing.T) {
-	t.Run("tls", func(t *testing.T) {
-		cfg := *NewServerConfig()
-		cfg.TLS.CRL.MaxValidityDays = 1
-		assert.Equal(t, cfg.TLS.GetCRLMaxValidityDays(), 1)
-	})
-	t.Run("legacy", func(t *testing.T) {
-		cfg := *NewServerConfig()
-		cfg.TLS.CRL.MaxValidityDays = 1
-		cfg.LegacyTLS.MaxCRLValidityDays = 5
-		assert.Equal(t, cfg.TLS.GetCRLMaxValidityDays(), 5)
-	})
-}

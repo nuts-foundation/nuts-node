@@ -46,10 +46,9 @@ func TestNewConfig(t *testing.T) {
 		ts := &core.TrustStore{
 			CertPool: x509.NewCertPool(),
 		}
-		cfg := NewConfig(":1234", "foo", WithTLS(cert, ts, 10))
+		cfg := NewConfig(":1234", "foo", WithTLS(cert, ts))
 		assert.Equal(t, &cert, cfg.clientCert)
 		assert.Equal(t, &cert, cfg.serverCert)
 		assert.Same(t, ts.CertPool, cfg.trustStore)
-		assert.Equal(t, 10, cfg.maxCRLValidityDays)
 	})
 }
