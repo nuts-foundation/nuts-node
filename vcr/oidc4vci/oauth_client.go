@@ -2,6 +2,7 @@ package oidc4vci
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -31,7 +32,7 @@ func (c httpOAuth2Client) RequestAccessToken(grantType string, params map[string
 	var accessTokenResponse TokenResponse
 	err := httpDo(c.httpClient, httpRequest, &accessTokenResponse)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("request access token error: %w", err)
 	}
 	return &accessTokenResponse, nil
 }

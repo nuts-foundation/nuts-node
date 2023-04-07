@@ -17,14 +17,14 @@ type Wallet interface {
 var _ Wallet = (*httpWalletClient)(nil)
 
 // NewWalletClient resolves the OAuth2 credential client metadata from the given URL.
-func NewWalletClient(ctx context.Context, httpClient *http.Client, credentialClientMetadataURL string) (Wallet, error) {
-	if credentialClientMetadataURL == "" {
-		return nil, errors.New("empty credential client metadata URL")
+func NewWalletClient(ctx context.Context, httpClient *http.Client, walletMetadataURL string) (Wallet, error) {
+	if walletMetadataURL == "" {
+		return nil, errors.New("empty wallet metadata URL")
 	}
 
-	metadata, err := loadOAuth2CredentialsClientMetadata(ctx, credentialClientMetadataURL, httpClient)
+	metadata, err := loadOAuth2CredentialsClientMetadata(ctx, walletMetadataURL, httpClient)
 	if err != nil {
-		return nil, fmt.Errorf("unable to load OAuth2 credential client metadata (url=%s): %w", credentialClientMetadataURL, err)
+		return nil, fmt.Errorf("unable to load OAuth2 credential client metadata (url=%s): %w", walletMetadataURL, err)
 	}
 
 	return &httpWalletClient{
@@ -50,7 +50,11 @@ func (c *httpWalletClient) OfferCredential(ctx context.Context, offer Credential
 		return err
 	}
 	requestURL := c.metadata.CredentialOfferEndpoint + "?credential_offer=" + url.QueryEscape(string(offerJson))
-	return httpGet(ctx, c.httpClient, requestURL, nil)
+	err = httpGet(ctx, c.httpClient, requestURL, nil)
+	if err != nil {
+		return fmt.Errorf("offer credential error: %w", err)
+	}
+	return err
 }
 
 func loadOAuth2CredentialsClientMetadata(ctx context.Context, metadataURL string, httpClient *http.Client) (*OAuth2ClientMetadata, error) {

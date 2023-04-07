@@ -50,9 +50,9 @@ type CredentialOffer struct {
 	// CredentialIssuer defines the identifier of the credential issuer.
 	CredentialIssuer string `json:"credential_issuer"`
 	// Credentials defines the credentials offered by the issuer to the wallet.
-	Credentials []map[string]interface{}
+	Credentials []map[string]interface{} `json:"credentials"`
 	// Grants defines the grants offered by the issuer to the wallet.
-	Grants []map[string]interface{}
+	Grants []map[string]interface{} `json:"grants"`
 }
 
 // CredentialRequest defines the credential request sent by the wallet to the issuer.

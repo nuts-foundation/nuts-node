@@ -138,7 +138,7 @@ func httpDo(httpClient *http.Client, httpRequest *http.Request, result interface
 	defer httpResponse.Body.Close()
 	responseBody, err := io.ReadAll(httpResponse.Body)
 	if err != nil {
-		return fmt.Errorf("read error: %w", err)
+		return fmt.Errorf("read error (%s): %w", httpRequest.URL, err)
 	}
 	if httpResponse.StatusCode < 200 || httpResponse.StatusCode > 299 {
 		responseBodyStr := string(responseBody)
