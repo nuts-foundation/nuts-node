@@ -216,6 +216,18 @@ func (mr *MockContractNotaryMockRecorder) SigningSessionStatus(sessionID interfa
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SigningSessionStatus", reflect.TypeOf((*MockContractNotary)(nil).SigningSessionStatus), sessionID)
 }
 
+// Start mocks base method.
+func (m *MockContractNotary) Start(ctx context.Context) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Start", ctx)
+}
+
+// Start indicates an expected call of Start.
+func (mr *MockContractNotaryMockRecorder) Start(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockContractNotary)(nil).Start), ctx)
+}
+
 // VerifyVP mocks base method.
 func (m *MockContractNotary) VerifyVP(vp vc.VerifiablePresentation, checkTime *time.Time) (contract.VPVerificationResult, error) {
 	m.ctrl.T.Helper()
