@@ -12,7 +12,7 @@ import (
 func (w Wrapper) GetOAuth2ClientMetadata(_ context.Context, request GetOAuth2ClientMetadataRequestObject) (GetOAuth2ClientMetadataResponseObject, error) {
 	id, err := did.ParseDID(request.Did)
 	if err != nil {
-		return nil, core.InvalidInputError("invalid did")
+		return nil, core.NotFoundError("invalid DID")
 	}
 	return GetOAuth2ClientMetadata200JSONResponse(w.VCR.GetOIDCWallet(*id).Metadata()), nil
 }
@@ -20,7 +20,7 @@ func (w Wrapper) GetOAuth2ClientMetadata(_ context.Context, request GetOAuth2Cli
 func (w Wrapper) CredentialOffer(ctx context.Context, request CredentialOfferRequestObject) (CredentialOfferResponseObject, error) {
 	id, err := did.ParseDID(request.Did)
 	if err != nil {
-		return nil, core.InvalidInputError("invalid did")
+		return nil, core.NotFoundError("invalid DID")
 	}
 	offerParam, err := url.QueryUnescape(request.Params.CredentialOffer)
 	if err != nil {
