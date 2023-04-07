@@ -41,7 +41,6 @@ import (
 
 const (
 	truststore     = "test/truststore.pem"
-	truststorePKIo = "test/truststore_withPKIOverheid.pem"
 	pkiOverheidCRL = "test/pkioverheid.crl"
 	rootCRLurl     = "http://certs.nuts.nl/RootCALatest.crl"
 )
