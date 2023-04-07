@@ -39,12 +39,15 @@ var nowFunc = time.Now
 // We try to update every hour, no guarantee that it succeeds.
 const syncInterval = time.Hour
 
+// After how long a CRL download attempt is stopped.
+// Must be short-ish since the update can happen during a validation request.
+const syncTimeout = 10 * time.Second
+
 // errors
 var (
 	ErrCRLMissing    = errors.New("crl is missing")
 	ErrCRLExpired    = errors.New("crl has expired")
 	ErrCertRevoked   = errors.New("certificate is revoked")
-	ErrCertInvalid   = errors.New("certificate is not valid")
 	ErrCertUntrusted = errors.New("certificate's issuer is not trusted'")
 )
 
@@ -53,8 +56,7 @@ type Validator interface {
 	Start(ctx context.Context)
 
 	// Validate returns an error if any of the certificates in the chain has been revoked, or if the request cannot be processed.
-	// ErrCertRevoked, ErrCertUntrusted and ErrCertInvalid indicates that at least one of the certificates is revoked,
-	// signed by a CA that is not in the truststore, or is otherwise invalid.
+	// ErrCertRevoked and ErrCertUntrusted indicate that at least one of the certificates is revoked, or signed by a CA that is not in the truststore.
 	// ErrCRLMissing and ErrCRLExpired signal that at least one of the certificates cannot be validated reliably.
 	// If the certificate was revoked on an expired CRL, it wil return ErrCertRevoked. Ignoring ErrCRLMissing and ErrCRLExpired changes the behavior from hard-fail to soft-fail.
 	// The certificate chain is expected to be sorted leaf to root.
@@ -98,7 +100,7 @@ func newRevocationList(cert *x509.Certificate) *revocationList {
 
 // New returns a new CRL validator.
 func New(truststore []*x509.Certificate) Validator {
-	return newValidatorWithHTTPClient(truststore, http.DefaultClient)
+	return newValidatorWithHTTPClient(truststore, &http.Client{Timeout: syncTimeout})
 }
 
 // NewValidatorWithHTTPClient returns a new instance with a pre-configured HTTP client
@@ -109,21 +111,19 @@ func newValidatorWithHTTPClient(certificates []*x509.Certificate, client *http.C
 	}
 	// add truststore
 	for _, certificate := range certificates {
-		if _, ok := val.truststore[certificate.Subject.String()]; ok {
-			// skip duplicates
-			continue
-		}
 		val.truststore[certificate.Subject.String()] = certificate
 	}
 	// add CRL distribution points
 	for _, certificate := range val.truststore {
 		issuer, ok := val.truststore[certificate.Issuer.String()]
 		if !ok {
+			// should never happen, truststore is already validated.
 			err := fmt.Errorf("certificate's issuer is not in the trust store: subject=%s, issuer=%s", certificate.Subject.String(), certificate.Issuer.String())
 			panic(err)
 		}
 		err := val.addEndpoints(issuer, certificate.CRLDistributionPoints)
 		if err != nil {
+			// should never happen for certificates issued by real CAs
 			panic(err)
 		}
 	}
@@ -131,7 +131,6 @@ func newValidatorWithHTTPClient(certificates []*x509.Certificate, client *http.C
 }
 
 func (v *validator) Start(ctx context.Context) {
-	// start sync loop. this only downloads the data
 	go v.syncLoop(ctx)
 }
 
@@ -184,7 +183,7 @@ func (v *validator) SetValidatePeerCertificateFunc(config *tls.Config) error {
 				return fmt.Errorf("tls.Config contains certificate from issuer that is not in the truststore: %s", cert.Subject.String())
 			}
 			if err = cert.CheckSignatureFrom(issuer); err != nil {
-				return fmt.Errorf("tls.Config contains cetificate with invalid signature: subject=%s", cert.Subject.String())
+				return fmt.Errorf("tls.Config contains certificate with invalid signature: subject=%s", cert.Subject.String())
 			}
 			// add any previously unknown CRL distribution points.
 			// (Leaf cert is likely to contain CRLDistributionPoints not found in the truststore.)
@@ -195,13 +194,10 @@ func (v *validator) SetValidatePeerCertificateFunc(config *tls.Config) error {
 	}
 
 	config.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-		// TODO: should we check rawCerts, or verified chains?
 		// rawCerts contains raw certificate data presented by the peer during the tls handshake.
 		// It is used together with the tls.Config to generate verifiedChains, but may contain additional certs that are not in a verified chain.
-		// So the question is, do we reject a client if it sends ANY invalid certificate, even if it is not part of a verifiedChain?
-		// (A peer could participate in multiple networks and send multiple client certs of which some are not part of our truststore.
-		// This would result in an error, however, I think just sending all client certs violates tls handshake specifications and,
-		// it is currently technically not possible to configure multiple client certs in the nuts node anyway.)
+		// We reject a client if it sends ANY invalid certificate, even if it is not part of a verifiedChain.
+		// This prevents attackers from sending a bunch of certificates hoping one makes it into a verified chain.
 
 		certificates, err := parseCertificatesSlice(rawCerts)
 		if err != nil {
@@ -214,9 +210,6 @@ func (v *validator) SetValidatePeerCertificateFunc(config *tls.Config) error {
 }
 
 func (v *validator) validateCert(cert *x509.Certificate) error {
-	if nowFunc().Before(cert.NotBefore) || nowFunc().After(cert.NotAfter) {
-		return ErrCertInvalid
-	}
 	for _, endpoint := range cert.CRLDistributionPoints {
 		crl, ok := v.getCRL(endpoint)
 
@@ -247,7 +240,8 @@ func (v *validator) validateCert(cert *x509.Certificate) error {
 				log.Logger().WithError(err).
 					WithField("Subject", cert.Subject.String()).
 					WithField("S/N", cert.SerialNumber.String()).
-					Warn("cert validation failed because CRL cannot be updated")
+					WithField("endpoint", endpoint).
+					Warn("certificate validation failed because CRL cannot be updated")
 				return ErrCRLMissing
 			}
 			// update loop params
@@ -310,23 +304,25 @@ func (v *validator) sync() {
 				WithField("endpoint", fmt.Sprintf("%v", endpoint2)).
 				WithField("CRL", fmt.Sprintf("%v", current2)).
 				Error("crl validator is invalid")
-			// TODO: should this just panic?
 			return true
 		}
 		if nowFunc().Before(current.issuer.NotBefore) || nowFunc().After(current.issuer.NotAfter) {
-			log.Logger().Warnf("Trust store contains invalid certificate: %s (s/n: %s)", current.issuer.Subject.String(), current.issuer.SerialNumber.String())
+			log.Logger().
+				WithField("subject", current.issuer.Subject.String()).
+				WithField("S/N", current.issuer.SerialNumber.String()).
+				Warn("Trust store contains expired certificate")
 			return true
 		}
 		wg.Add(1)
-		go func(ep string, crl *revocationList, wg *sync.WaitGroup) {
-			err := v.updateCRL(ep, crl)
+		go func(endpoint string, crl *revocationList, wg *sync.WaitGroup) {
+			err := v.updateCRL(endpoint, crl)
 			if err != nil {
 				// Connections containing a certificate pointing to this CRL will be accepted until its current.list.NextUpdate.
 				if crl != nil || time.Since(crl.lastUpdated) > 4*time.Hour {
 					// Escalate to error logging if the CRL is missing or fails to update in several hours.
-					log.Logger().WithError(err).WithField("CRLDistributionPoint", ep).Error("Update CRL")
+					log.Logger().WithError(err).WithField("CRLDistributionPoint", endpoint).Error("Update CRL")
 				} else {
-					log.Logger().WithError(err).WithField("CRLDistributionPoint", ep).Debug("Update CRL")
+					log.Logger().WithError(err).WithField("CRLDistributionPoint", endpoint).Debug("Update CRL")
 				}
 			}
 			wg.Done()
@@ -382,7 +378,7 @@ func (v *validator) downloadCRL(endpoint string) (*x509.RevocationList, error) {
 
 	data, err := io.ReadAll(response.Body)
 	if err != nil {
-		return nil, fmt.Errorf("downloading CRL: %w", err)
+		return nil, fmt.Errorf("reading CRL response: %w", err)
 	}
 
 	crl, err := x509.ParseRevocationList(data)

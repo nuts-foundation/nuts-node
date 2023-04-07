@@ -208,8 +208,6 @@ func Test_ValidatorValidateCert(t *testing.T) {
 	store, err := core.LoadTrustStore(truststore)
 	require.NoError(t, err)
 
-	everythingExpired := time.Date(2030, 12, 1, 0, 0, 0, 0, time.UTC)
-
 	t.Run("ok", func(t *testing.T) {
 		cert := loadCert(t, "./test/A-valid.pem")
 
@@ -223,14 +221,6 @@ func Test_ValidatorValidateCert(t *testing.T) {
 		err := val.validateCert(cert)
 
 		assert.ErrorIs(t, err, ErrCertRevoked)
-	})
-	t.Run("expired cert", func(t *testing.T) {
-		cert := loadCert(t, "./test/A-expired.pem")
-		nowFunc = func() time.Time { return everythingExpired }
-
-		err := val.validateCert(cert)
-
-		assert.ErrorIs(t, err, ErrCertInvalid)
 	})
 	t.Run("unknown issuer", func(t *testing.T) {
 		val := &validator{
