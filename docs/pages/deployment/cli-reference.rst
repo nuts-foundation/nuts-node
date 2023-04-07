@@ -70,7 +70,6 @@ The following options apply to the server commands below:
       --tls.certfile string                           PEM file containing the certificate for the server (also used as client certificate).
       --tls.certheader string                         Name of the HTTP header that will contain the client certificate when TLS is offloaded.
       --tls.certkeyfile string                        PEM file containing the private key of the server certificate.
-      --tls.crl.maxvaliditydays int                   The number of days a CRL can be outdated, after that it will hard-fail.
       --tls.offload string                            Whether to enable TLS offloading for incoming connections. Enable by setting it to 'incoming'. If enabled 'tls.certheader' must be configured as well.
       --tls.truststorefile string                     PEM file containing the trusted CA certificates for authenticating remote servers. (default "truststore.pem")
       --verbosity string                              Log level (trace, debug, info, warn, error) (default "info")
@@ -186,7 +185,6 @@ Imports private keys from filesystem based storage into the secret store server.
       --tls.certfile string                           PEM file containing the certificate for the server (also used as client certificate).
       --tls.certheader string                         Name of the HTTP header that will contain the client certificate when TLS is offloaded.
       --tls.certkeyfile string                        PEM file containing the private key of the server certificate.
-      --tls.crl.maxvaliditydays int                   The number of days a CRL can be outdated, after that it will hard-fail.
       --tls.offload string                            Whether to enable TLS offloading for incoming connections. Enable by setting it to 'incoming'. If enabled 'tls.certheader' must be configured as well.
       --tls.truststorefile string                     PEM file containing the trusted CA certificates for authenticating remote servers. (default "truststore.pem")
       --verbosity string                              Log level (trace, debug, info, warn, error) (default "info")

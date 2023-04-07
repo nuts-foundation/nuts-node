@@ -140,12 +140,14 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 			return err
 		}
 
-		validator := crl.NewValidator(trustStore.Certificates())
+		validator := crl.New(trustStore.Certificates())
 		tlsConfig = &tls.Config{
-			Certificates:          []tls.Certificate{clientCertificate},
-			RootCAs:               trustStore.CertPool,
-			MinVersion:            core.MinTLSVersion,
-			VerifyPeerCertificate: validator.VerifyPeerCertificateFunction(config.TLS.GetCRLMaxValidityDays()),
+			Certificates: []tls.Certificate{clientCertificate},
+			RootCAs:      trustStore.CertPool,
+			MinVersion:   core.MinTLSVersion,
+		}
+		if err = validator.SetValidatePeerCertificateFunc(tlsConfig); err != nil {
+			return err
 		}
 
 		auth.crlValidator = validator
@@ -175,7 +177,7 @@ func (auth *Auth) Start() error {
 	auth.shutdownFunc = cancel
 
 	if auth.crlValidator != nil {
-		auth.crlValidator.SyncLoop(ctx)
+		auth.crlValidator.Start(ctx)
 	}
 
 	return nil

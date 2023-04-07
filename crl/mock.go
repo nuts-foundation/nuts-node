@@ -6,8 +6,8 @@ package crl
 
 import (
 	context "context"
+	tls "crypto/tls"
 	x509 "crypto/x509"
-	big "math/big"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -36,70 +36,42 @@ func (m *MockValidator) EXPECT() *MockValidatorMockRecorder {
 	return m.recorder
 }
 
-// IsRevoked mocks base method.
-func (m *MockValidator) IsRevoked(issuer string, serialNumber *big.Int) bool {
+// SetValidatePeerCertificateFunc mocks base method.
+func (m *MockValidator) SetValidatePeerCertificateFunc(config *tls.Config) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsRevoked", issuer, serialNumber)
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// IsRevoked indicates an expected call of IsRevoked.
-func (mr *MockValidatorMockRecorder) IsRevoked(issuer, serialNumber interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsRevoked", reflect.TypeOf((*MockValidator)(nil).IsRevoked), issuer, serialNumber)
-}
-
-// IsSynced mocks base method.
-func (m *MockValidator) IsSynced(maxOffsetDays int) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsSynced", maxOffsetDays)
+	ret := m.ctrl.Call(m, "SetValidatePeerCertificateFunc", config)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// IsSynced indicates an expected call of IsSynced.
-func (mr *MockValidatorMockRecorder) IsSynced(maxOffsetDays interface{}) *gomock.Call {
+// SetValidatePeerCertificateFunc indicates an expected call of SetValidatePeerCertificateFunc.
+func (mr *MockValidatorMockRecorder) SetValidatePeerCertificateFunc(config interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSynced", reflect.TypeOf((*MockValidator)(nil).IsSynced), maxOffsetDays)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetValidatePeerCertificateFunc", reflect.TypeOf((*MockValidator)(nil).SetValidatePeerCertificateFunc), config)
 }
 
-// Sync mocks base method.
-func (m *MockValidator) Sync() error {
+// Start mocks base method.
+func (m *MockValidator) Start(ctx context.Context) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Sync")
+	m.ctrl.Call(m, "Start", ctx)
+}
+
+// Start indicates an expected call of Start.
+func (mr *MockValidatorMockRecorder) Start(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockValidator)(nil).Start), ctx)
+}
+
+// Validate mocks base method.
+func (m *MockValidator) Validate(chian []*x509.Certificate) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Validate", chian)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// Sync indicates an expected call of Sync.
-func (mr *MockValidatorMockRecorder) Sync() *gomock.Call {
+// Validate indicates an expected call of Validate.
+func (mr *MockValidatorMockRecorder) Validate(chian interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sync", reflect.TypeOf((*MockValidator)(nil).Sync))
-}
-
-// SyncLoop mocks base method.
-func (m *MockValidator) SyncLoop(ctx context.Context) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SyncLoop", ctx)
-}
-
-// SyncLoop indicates an expected call of SyncLoop.
-func (mr *MockValidatorMockRecorder) SyncLoop(ctx interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncLoop", reflect.TypeOf((*MockValidator)(nil).SyncLoop), ctx)
-}
-
-// VerifyPeerCertificateFunction mocks base method.
-func (m *MockValidator) VerifyPeerCertificateFunction(maxValidityDays int) func([][]byte, [][]*x509.Certificate) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "VerifyPeerCertificateFunction", maxValidityDays)
-	ret0, _ := ret[0].(func([][]byte, [][]*x509.Certificate) error)
-	return ret0
-}
-
-// VerifyPeerCertificateFunction indicates an expected call of VerifyPeerCertificateFunction.
-func (mr *MockValidatorMockRecorder) VerifyPeerCertificateFunction(maxValidityDays interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifyPeerCertificateFunction", reflect.TypeOf((*MockValidator)(nil).VerifyPeerCertificateFunction), maxValidityDays)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Validate", reflect.TypeOf((*MockValidator)(nil).Validate), chian)
 }

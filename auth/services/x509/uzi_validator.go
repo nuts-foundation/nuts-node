@@ -19,6 +19,7 @@
 package x509
 
 import (
+	"context"
 	"crypto/x509"
 	"encoding/asn1"
 	"fmt"
@@ -173,13 +174,15 @@ func NewUziValidator(env UziEnv, contractTemplates *contract.TemplateStore, crlV
 	}
 
 	if crlValidator == nil {
-		crlValidator = crl.NewValidator(append(roots[:], intermediates...))
+		crlValidator = crl.New(append(roots[:], intermediates...))
 	}
 
 	validator = &UziValidator{
 		validator:         NewJwtX509Validator(roots, intermediates, validUziSigningAlgs(), crlValidator),
 		contractTemplates: contractTemplates,
 	}
+	// TODO: context is never cancelled
+	crlValidator.Start(context.TODO())
 
 	return
 }

@@ -170,7 +170,7 @@ func (validator JwtX509Validator) parseBase64EncodedCertList(certsFromHeader []s
 // It verifies if the certificate used to sign the token has a valid chain
 // It checks the signature of the jst against the provided leaf certificate in the x509 header
 // It performs additional JWT checks on optional fields like exp, nbf, iat etc.
-// Note: it does not verifies the extended key usage! This should be performed by hand.
+// Note: it does not verify the extended key usage! This should be performed by hand.
 func (validator JwtX509Validator) Verify(x509Token *JwtX509Token) error {
 	var sigAlgAllowed bool
 	for _, allowedAlg := range validator.allowedSigningAlgs {
@@ -191,14 +191,6 @@ func (validator JwtX509Validator) Verify(x509Token *JwtX509Token) error {
 	leafCert, verifiedChains, err := validator.verifyCertChain(x509Token.chain, checkTime)
 	if err != nil {
 		return err
-	}
-
-	if err := validator.crlValidator.Sync(); err != nil {
-		return err
-	}
-
-	if err := validator.crlValidator.IsSynced(0); err != nil {
-		return fmt.Errorf("unable to verify revoked certificates because the CRL database is outdated: %w", err)
 	}
 
 	for _, verifiedChain := range verifiedChains {
@@ -268,12 +260,5 @@ func (validator JwtX509Validator) verifyCertChain(chain []*x509.Certificate, che
 // checkCertRevocation checks a given certificate chain for revoked certificates.
 // The order of the certificates should be that each certificate is issued by the next one. The root comes last.
 func (validator JwtX509Validator) checkCertRevocation(verifiedChain []*x509.Certificate) error {
-	for _, certificate := range verifiedChain {
-
-		if validator.crlValidator.IsRevoked(certificate.Issuer.String(), certificate.SerialNumber) {
-			return fmt.Errorf("cert with serial '%s' and subject '%s' is revoked", certificate.SerialNumber.String(), certificate.Subject.String())
-		}
-	}
-
-	return nil
+	return validator.crlValidator.Validate(verifiedChain)
 }

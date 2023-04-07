@@ -73,28 +73,12 @@ type TLSConfig struct {
 	CertKeyFile          string `koanf:"certkeyfile"`
 	TrustStoreFile       string `koanf:"truststorefile"`
 	legacyTLS            *NetworkTLSConfig
-	CRL                  CRLConfig `koanf:"crl"`
-}
-
-// CRLConfig holds configuration properties for checking Certificate Revocation Lists.
-type CRLConfig struct {
-	// MaxValidityDays defines the number of days a CRL can be outdated, after that it will hard-fail
-	MaxValidityDays int `koanf:"maxvaliditydays"`
 }
 
 // Enabled returns whether TLS should be enabled, according to the global config.
 func (t TLSConfig) Enabled() bool {
 	return len(t.CertFile) > 0 || len(t.CertKeyFile) > 0 ||
 		len(t.legacyTLS.CertFile) > 0 || len(t.legacyTLS.CertKeyFile) > 0
-}
-
-// GetCRLMaxValidityDays returns the maximum validity days for the CRL.
-func (t TLSConfig) GetCRLMaxValidityDays() int {
-	if t.legacyTLS.MaxCRLValidityDays > 0 {
-		logrus.Warn("Deprecated: use `tls.crl.maxvaliditydays` instead of `network.maxcrlvaliditydays`")
-		return t.legacyTLS.MaxCRLValidityDays
-	}
-	return t.CRL.MaxValidityDays
 }
 
 // LoadCertificate loads the TLS certificate from the configured location.
@@ -170,8 +154,6 @@ type NetworkTLSConfig struct {
 	CertFile       string `koanf:"certfile"`
 	CertKeyFile    string `koanf:"certkeyfile"`
 	TrustStoreFile string `koanf:"truststorefile"`
-	// MaxCRLValidityDays defines the number of days a CRL can be outdated, after that it will hard-fail
-	MaxCRLValidityDays int `koanf:"maxcrlvaliditydays"`
 }
 
 // TLSOffloadingMode defines configurable modes for TLS offloading.
@@ -284,9 +266,10 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("tls.truststorefile", "truststore.pem", "PEM file containing the trusted CA certificates for authenticating remote servers.")
 	flagSet.String("tls.offload", string(NoOffloading), fmt.Sprintf("Whether to enable TLS offloading for incoming connections. "+
 		"Enable by setting it to '%s'. If enabled 'tls.certheader' must be configured as well.", OffloadIncomingTLS))
-	flagSet.Int("tls.crl.maxvaliditydays", 0, "The number of days a CRL can be outdated, after that it will hard-fail.")
 	flagSet.String("tls.certheader", "", "Name of the HTTP header that will contain the client certificate when TLS is offloaded.")
 
+	// Maxvaliditydays has been deprecated in v5.x
+	flagSet.Int("tls.crl.maxvaliditydays", 0, "The number of days a CRL can be outdated, after that it will hard-fail.")
 	// Legacy TLS settings, to be removed in v6:
 	flagSet.Bool("network.enabletls", true, "Whether to enable TLS for gRPC connections, which can be disabled for demo/development purposes. It is NOT meant for TLS offloading (see 'tls.offload'). Disabling TLS is not allowed in strict-mode.")
 	flagSet.String("network.certfile", "", "Deprecated: use 'tls.certfile'. PEM file containing the server certificate for the gRPC server. "+
@@ -296,6 +279,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("network.truststorefile", "", "Deprecated: use 'tls.truststorefile'. PEM file containing the trusted CA certificates for authenticating remote gRPC servers.")
 	flagSet.Int("network.maxcrlvaliditydays", 0, "Deprecated: use 'tls.crl.maxvaliditydays'. The number of days a CRL can be outdated, after that it will hard-fail.")
 
+	flagSet.MarkDeprecated("tls.crl.maxvaliditydays", "CRLs can no longer be accepted after the time in NextUpdate has past")
 	flagSet.MarkDeprecated("network.certfile", "use 'tls.certfile' instead")
 	flagSet.MarkDeprecated("network.certkeyfile", "use 'tls.certkeyfile' instead")
 	flagSet.MarkDeprecated("network.truststorefile", "use 'tls.truststorefile' instead")

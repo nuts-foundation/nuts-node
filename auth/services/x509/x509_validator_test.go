@@ -25,7 +25,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/base64"
-	"fmt"
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/crl"
 	"github.com/stretchr/testify/require"
@@ -288,11 +287,7 @@ func TestJwtX509Validator_Verify(t *testing.T) {
 	t.Run("ok - valid jwt", func(t *testing.T) {
 		db := crl.NewMockValidator(gomock.NewController(t))
 
-		db.EXPECT().Sync().Return(nil)
-		db.EXPECT().IsSynced(0).Return(nil)
-		db.EXPECT().IsRevoked(rootCert.Issuer.String(), rootCert.SerialNumber).Return(false)
-		db.EXPECT().IsRevoked(intermediateCert.Issuer.String(), intermediateCert.SerialNumber).Return(false)
-		db.EXPECT().IsRevoked(leafCert.Issuer.String(), leafCert.SerialNumber).Return(false)
+		db.EXPECT().Validate([]*x509.Certificate{leafCert, intermediateCert, rootCert}).Return(nil)
 
 		validator := NewJwtX509Validator([]*x509.Certificate{rootCert}, []*x509.Certificate{intermediateCert}, []jwa.SignatureAlgorithm{jwa.RS256}, db)
 
@@ -346,12 +341,11 @@ func TestJwtX509Validator_Verify(t *testing.T) {
 func NewMockValidator(t *testing.T, rootCert, intermediateCert, leafCert *x509.Certificate, intermediateRevoked bool) crl.Validator {
 	db := crl.NewMockValidator(gomock.NewController(t))
 
-	if !intermediateRevoked {
-		db.EXPECT().IsRevoked(rootCert.Issuer.String(), rootCert.SerialNumber).Return(false)
+	if intermediateRevoked {
+		db.EXPECT().Validate([]*x509.Certificate{leafCert, intermediateCert, rootCert}).Return(crl.ErrCertRevoked)
+	} else {
+		db.EXPECT().Validate([]*x509.Certificate{leafCert, intermediateCert, rootCert}).Return(nil)
 	}
-
-	db.EXPECT().IsRevoked(intermediateCert.Issuer.String(), intermediateCert.SerialNumber).Return(intermediateRevoked)
-	db.EXPECT().IsRevoked(leafCert.Issuer.String(), leafCert.SerialNumber).Return(false)
 
 	return db
 }
@@ -417,7 +411,7 @@ func TestJwtX509Validator_checkCertRevocation(t *testing.T) {
 			)
 
 			err = validator.checkCertRevocation([]*x509.Certificate{leafCert, intermediateCert, rootCert})
-			assert.ErrorContains(t, err, fmt.Sprintf("cert with serial '%s' and subject '%s' is revoked", intermediateCert.SerialNumber.String(), intermediateCert.Subject.String()))
+			assert.ErrorIs(t, err, crl.ErrCertRevoked)
 		})
 	})
 }

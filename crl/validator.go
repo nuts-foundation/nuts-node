@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Nuts community
+ * Copyright (C) 2023 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,347 +20,384 @@ package crl
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"fmt"
 	"io"
-	"math"
-	"math/big"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/crl/log"
-	"github.com/twmb/murmur3"
 )
-
-// Should be set to a number where the possibility for hash collisions is low
-const defaultBitSetSize = 500
 
 var nowFunc = time.Now
 
-func hash(issuer string, serialNumber *big.Int) int64 {
-	data := append([]byte(issuer), serialNumber.Bytes()...)
-	sum := int64(murmur3.Sum64(data))
+// RFC008 §3.3: "... A node MUST at least update all CRLs every hour."
+// We try to update every hour, no guarantee that it succeeds.
+const syncInterval = time.Hour
 
-	return int64(math.Abs(float64(sum)))
-}
+// After how long a CRL download attempt is stopped.
+// Must be short-ish since the update can happen during a validation request.
+const syncTimeout = 10 * time.Second
 
-// Validator synchronizes CRLs and validates revoked certificates
+// errors
+var (
+	ErrCRLMissing    = errors.New("crl is missing")
+	ErrCRLExpired    = errors.New("crl has expired")
+	ErrCertRevoked   = errors.New("certificate is revoked")
+	ErrCertUntrusted = errors.New("certificate's issuer is not trusted'")
+)
+
 type Validator interface {
-	// Sync downloads, updates, and verifies CRLs
-	Sync() error
-	// SyncLoop periodically calls Sync
-	SyncLoop(ctx context.Context)
-	// IsSynced returns whether all the CRLs are downloaded and are not outdated (based on the offset).
-	// If an error is returned they are not in sync.
-	IsSynced(maxOffsetDays int) error
-	// VerifyPeerCertificateFunction returns a tls.Config.VerifyPeerCertificate function based on given config
-	VerifyPeerCertificateFunction(maxValidityDays int) func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error
-	// IsRevoked checks whether the certificate was revoked. It does not check if the CRL IsSynced
-	IsRevoked(issuer string, serialNumber *big.Int) bool
+	// Start downloading CRLs. Cancelling the context will stop the Validator.
+	Start(ctx context.Context)
+
+	// Validate returns an error if any of the certificates in the chain has been revoked, or if the request cannot be processed.
+	// ErrCertRevoked and ErrCertUntrusted indicate that at least one of the certificates is revoked, or signed by a CA that is not in the truststore.
+	// ErrCRLMissing and ErrCRLExpired signal that at least one of the certificates cannot be validated reliably.
+	// If the certificate was revoked on an expired CRL, it wil return ErrCertRevoked. Ignoring ErrCRLMissing and ErrCRLExpired changes the behavior from hard-fail to soft-fail.
+	// The certificate chain is expected to be sorted leaf to root.
+	// Calling Validate before Start results in an error.
+	Validate(chain []*x509.Certificate) error
+
+	// SetValidatePeerCertificateFunc sets config.ValidatePeerCertificate to use Validate.
+	// Returns an error when config.Certificates contain certificates that cannot be parsed,
+	// or are signed by CAs that are not in the Validator's truststore.
+	SetValidatePeerCertificateFunc(config *tls.Config) error
 }
 
 type validator struct {
-	bitSet           *BitSet
-	httpClient       *http.Client
-	certificatesLock sync.RWMutex
-	listsLock        sync.RWMutex
-	certificates     map[string]*x509.Certificate
-	lists            map[string]*x509.RevocationList
+	// httpClient downloads the CRLs
+	httpClient *http.Client
+	// truststore maps Certificate.Subject.String() to their certificate.
+	// Used for CRL signature checking. Immutable once Start() has been called.
+	truststore map[string]*x509.Certificate
+	// crls maps CRL endpoints to their x509.RevocationList
+	crls sync.Map
 }
 
-// NewValidator returns a new instance of the CRL database
-func NewValidator(certificates []*x509.Certificate) Validator {
-	return NewValidatorWithHTTPClient(certificates, http.DefaultClient)
+type revocationList struct {
+	// list is the actual revocationList
+	list *x509.RevocationList
+	// revoked contains all revoked certificates index by their serial number (pkix.RevokedCertificate.SerialNumber.String())
+	revoked map[string]bool
+	// issuer of the CRL found at this endpoint. Multiple issuers could indicate MITM attack, or re-use of an endpoint.
+	issuer *x509.Certificate
+	// lastUpdated is the timestamp that list was last updated. (When this instance was of revocationList was created)
+	lastUpdated time.Time
+}
+
+func newRevocationList(cert *x509.Certificate) *revocationList {
+	return &revocationList{
+		list:    new(x509.RevocationList),
+		revoked: make(map[string]bool, 0),
+		issuer:  cert,
+	}
+}
+
+// New returns a new CRL validator.
+func New(truststore []*x509.Certificate) Validator {
+	return newValidatorWithHTTPClient(truststore, &http.Client{Timeout: syncTimeout})
 }
 
 // NewValidatorWithHTTPClient returns a new instance with a pre-configured HTTP client
-func NewValidatorWithHTTPClient(certificates []*x509.Certificate, httpClient *http.Client) Validator {
-	certMap := map[string]*x509.Certificate{}
-
+func newValidatorWithHTTPClient(certificates []*x509.Certificate, client *http.Client) *validator {
+	val := &validator{
+		httpClient: client,
+		truststore: map[string]*x509.Certificate{},
+	}
+	// add truststore
 	for _, certificate := range certificates {
-		certMap[certificate.Subject.String()] = certificate
+		val.truststore[certificate.Subject.String()] = certificate
 	}
-
-	return &validator{
-		httpClient:   httpClient,
-		bitSet:       NewBitSet(defaultBitSetSize),
-		certificates: certMap,
-		lists:        map[string]*x509.RevocationList{},
-	}
-}
-
-func (v *validator) setRevoked(issuer string, serialNumber *big.Int) {
-	bitNum := hash(issuer, serialNumber) % int64(v.bitSet.Len())
-
-	v.bitSet.Set(bitNum)
-}
-
-// IsRevoked checks whether the certificate was revoked or not
-func (v *validator) IsRevoked(issuer string, serialNumber *big.Int) bool {
-	bitNum := hash(issuer, serialNumber) % int64(v.bitSet.Len())
-	if !v.bitSet.IsSet(bitNum) {
-		return false
-	}
-
-	v.listsLock.RLock()
-	defer v.listsLock.RUnlock()
-
-	for _, list := range v.lists {
-		listIssuerName := list.Issuer.String()
-
-		for _, cert := range list.RevokedCertificates {
-			if listIssuerName == issuer &&
-				cert.SerialNumber.Cmp(serialNumber) == 0 {
-				return true
-			}
+	// add CRL distribution points
+	for _, certificate := range val.truststore {
+		issuer, ok := val.truststore[certificate.Issuer.String()]
+		if !ok {
+			// should never happen, truststore is already validated.
+			err := fmt.Errorf("certificate's issuer is not in the trust store: subject=%s, issuer=%s", certificate.Subject.String(), certificate.Issuer.String())
+			panic(err)
+		}
+		err := val.addEndpoints(issuer, certificate.CRLDistributionPoints)
+		if err != nil {
+			// should never happen for certificates issued by real CAs
+			panic(err)
 		}
 	}
-
-	return false
+	return val
 }
 
-func (v *validator) updateCRL(endpoint string) error {
-	v.listsLock.RLock()
-	crl, ok := v.lists[endpoint]
-	v.listsLock.RUnlock()
+func (v *validator) Start(ctx context.Context) {
+	go v.syncLoop(ctx)
+}
 
-	if !ok || crlHasExpired(crl, nowFunc()) {
-		return v.downloadCRL(endpoint)
+func (v *validator) syncLoop(ctx context.Context) {
+	ticker := time.NewTicker(syncInterval)
+	defer ticker.Stop()
+	v.sync() // first tick is after the interval
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			v.sync()
+		}
 	}
+}
 
+func (v *validator) Validate(chain []*x509.Certificate) error {
+	var cert *x509.Certificate
+	var err error
+	for i := range chain {
+		cert = chain[len(chain)-1-i]
+		// check in reverse order to prevent CRL expiration errors due to revoked CAs no longer issuing CRLs
+		if err = v.validateCert(cert); err != nil {
+			return fmt.Errorf("%w: subject=%s, S/N=%s, issuer=%s", err, cert.Subject.String(), cert.SerialNumber.String(), cert.Issuer.String())
+		}
+	}
 	return nil
 }
 
-func (v *validator) verifyCRL(crl *x509.RevocationList) error {
-	v.certificatesLock.RLock()
-	defer v.certificatesLock.RUnlock()
-
-	issuerName := crl.Issuer.String()
-
-	certificate, ok := v.certificates[issuerName]
-	if !ok {
-		return errors.New("CRL signature could not be validated against known certificates")
-	}
-
-	return crl.CheckSignatureFrom(certificate)
-}
-
-func (v *validator) downloadCRL(endpoint string) error {
-	response, err := v.httpClient.Get(endpoint)
-	if err != nil {
-		return err
-	}
-
-	defer response.Body.Close()
-
-	data, err := io.ReadAll(response.Body)
-	if err != nil {
-		return fmt.Errorf("unable to download CRL (url=%s): %w", endpoint, err)
-	}
-
-	crl, err := x509.ParseRevocationList(data)
-	if err != nil {
-		return fmt.Errorf("unable to parse downloaded CRL (url=%s): %w", endpoint, err)
-	}
-
-	if err := v.verifyCRL(crl); err != nil {
-		return fmt.Errorf("CRL verification failed (issuer=%s): %w", crl.Issuer.String(), err)
-	}
-
-	v.listsLock.Lock()
-	defer v.listsLock.Unlock()
-
-	issuerName := crl.Issuer.String()
-
-	for _, cert := range crl.RevokedCertificates {
-		v.setRevoked(issuerName, cert.SerialNumber)
-	}
-
-	v.lists[endpoint] = crl
-
-	return nil
-}
-
-// crlHasExpired is a replacement for pkix.CertificateList.HasExpired
-func crlHasExpired(crl *x509.RevocationList, deadline time.Time) bool {
-	return !deadline.Before(crl.NextUpdate)
-}
-
-// IsSynced returns whether all the CRLs are downloaded and are not outdated (based on the offset)
-func (v *validator) IsSynced(maxOffsetDays int) error {
-	endpoints := v.parseCRLEndpoints()
-
-	v.listsLock.RLock()
-	defer v.listsLock.RUnlock()
-
-	// Check if all CRLs have been downloaded, but if ignore CRL endpoints that are only used by expired certificates.
-	for endpoint, dependingCAs := range endpoints {
-		if !anyCertificateActive(dependingCAs) {
-			continue
-		}
-		// downloaded?
-		if _, ok := v.lists[endpoint]; !ok {
-			return fmt.Errorf("CRL not downloaded: %s", endpoint)
-		}
-	}
-
-	// Verify that none of the CRLs are outdated
-	now := nowFunc().Add(time.Duration(-maxOffsetDays) * (time.Hour * 24))
-
-	for endpoint, list := range v.lists {
-		if crlHasExpired(list, now) {
-			return fmt.Errorf("CRL is expired (NextUpdate=%s): %s", list.NextUpdate.String(), endpoint)
-		}
-	}
-
-	return nil
-}
-
-// anyCertificateActive returns true if any of the certificates is not expired. If the list is empty, it returns false.
-func anyCertificateActive(certs []*x509.Certificate) bool {
-	result := false
-	for _, cert := range certs {
-		if nowFunc().After(cert.NotAfter) {
-			log.Logger().Warnf("Trust store contains expired certificate: %s (s/n: %s)", cert.Subject.String(), cert.SerialNumber.String())
-		} else {
-			// Certificate is active
-			result = true
-		}
-	}
-	return result
-}
-
-func (v *validator) appendCertificates(certificates []*x509.Certificate) {
-	v.certificatesLock.Lock()
-	defer v.certificatesLock.Unlock()
-
-	for _, certificate := range certificates {
-		subject := certificate.Subject.String()
-
-		if _, ok := v.certificates[subject]; !ok {
-			v.certificates[subject] = certificate
-		}
-	}
-}
-
-func (v *validator) VerifyPeerCertificateFunction(maxValidityDays int) func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-	return func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-		// Import unknown certificates
-		var verifiedCerts []*x509.Certificate
-
-		for _, chain := range verifiedChains {
-			for _, verifiedCert := range chain {
-				if verifiedCert.IsCA {
-					verifiedCerts = append(verifiedCerts, verifiedCert)
-				}
-			}
-		}
-
-		v.appendCertificates(verifiedCerts)
-
-		// Parse certificates and check if they are revoked
+func (v *validator) SetValidatePeerCertificateFunc(config *tls.Config) error {
+	parseCertificatesSlice := func(rawCerts [][]byte) ([]*x509.Certificate, error) {
 		var raw []byte
-
 		for _, rawCert := range rawCerts {
 			raw = append(raw, rawCert...)
 		}
+		return x509.ParseCertificates(raw)
+	}
 
-		certificates, err := x509.ParseCertificates(raw)
+	// check that all cert issuers are in the truststore, and add missing crl distribution points.
+	for _, chain := range config.Certificates {
+		certificates, err := parseCertificatesSlice(chain.Certificate)
+		if err != nil {
+			return err
+		}
+		for _, cert := range certificates {
+			issuer := v.truststore[cert.Issuer.String()]
+			if issuer == nil {
+				// This indicates a mismatch between crlValidator truststore and tls.Config. This is a programming error.
+				return fmt.Errorf("tls.Config contains certificate from issuer that is not in the truststore: %s", cert.Subject.String())
+			}
+			if err = cert.CheckSignatureFrom(issuer); err != nil {
+				return fmt.Errorf("tls.Config contains certificate with invalid signature: subject=%s", cert.Subject.String())
+			}
+			// add any previously unknown CRL distribution points.
+			// (Leaf cert is likely to contain CRLDistributionPoints not found in the truststore.)
+			if err = v.addEndpoints(issuer, cert.CRLDistributionPoints); err != nil {
+				return err
+			}
+		}
+	}
+
+	config.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+		// rawCerts contains raw certificate data presented by the peer during the tls handshake.
+		// It is used together with the tls.Config to generate verifiedChains, but may contain additional certs that are not in a verified chain.
+		// We reject a client if it sends ANY invalid certificate, even if it is not part of a verifiedChain.
+		// This prevents attackers from sending a bunch of certificates hoping one makes it into a verified chain.
+
+		certificates, err := parseCertificatesSlice(rawCerts)
 		if err != nil {
 			return err
 		}
 
-		for _, certificate := range certificates {
-			if v.IsRevoked(certificate.Issuer.String(), certificate.SerialNumber) {
-				return fmt.Errorf("certificate with issuer '%s' is revoked: %s", certificate.Issuer.String(), certificate.Subject.String())
+		return v.Validate(certificates)
+	}
+	return nil
+}
+
+func (v *validator) validateCert(cert *x509.Certificate) error {
+	for _, endpoint := range cert.CRLDistributionPoints {
+		crl, ok := v.getCRL(endpoint)
+
+		// add distribution endpoint if unknown
+		if !ok {
+			var issuer *x509.Certificate
+			issuer, ok = v.truststore[cert.Issuer.String()]
+			if !ok {
+				return ErrCertUntrusted
 			}
+			err := v.addEndpoints(issuer, []string{endpoint})
+			if err != nil {
+				log.Logger().WithError(err).
+					WithField("Subject", cert.Subject.String()).
+					WithField("S/N", cert.SerialNumber.String()).
+					Warn("cert validation failed because CRL cannot be added")
+				return ErrCRLMissing
+			}
+			// update loop params
+			crl, _ = v.getCRL(endpoint) // must be present now
 		}
 
-		// If the CRL validator is outdated kill the connection
-		if err := v.IsSynced(maxValidityDays); err != nil {
-			return fmt.Errorf("CRL database is outdated, certificate revocation can't be checked: %w", err)
+		// initial download if missing
+		if crl.lastUpdated.IsZero() {
+			// Pause validate to download CRL. Client requests run in their own go routine, so we can afford to wait.
+			err := v.updateCRL(endpoint, crl)
+			if err != nil {
+				log.Logger().WithError(err).
+					WithField("Subject", cert.Subject.String()).
+					WithField("S/N", cert.SerialNumber.String()).
+					WithField("endpoint", endpoint).
+					Warn("certificate validation failed because CRL cannot be updated")
+				return ErrCRLMissing
+			}
+			// update loop params
+			crl, _ = v.getCRL(endpoint) // must be present
 		}
 
-		return nil
+		// check certificate revocation
+		if crl.revoked[cert.SerialNumber.String()] {
+			// revocation takes precedence over expired CRL.
+			return ErrCertRevoked
+		}
+
+		// check CRL status
+		if !nowFunc().Before(crl.list.NextUpdate) {
+			// CA expiration is checked earlier in the chain
+			return ErrCRLExpired
+		}
 	}
+	return nil
 }
 
-// parseCRLEndpoints parses the CRLDistributionPoints from registered CA certificates and returns them.
-// Since multiple CA certificates might use the same CRL (although improbable), it is returned as list.
-func (v *validator) parseCRLEndpoints() map[string][]*x509.Certificate {
-	v.certificatesLock.RLock()
-	defer v.certificatesLock.RUnlock()
-
-	var result = make(map[string][]*x509.Certificate)
-	for _, certificate := range v.certificates {
-		for _, endpoint := range certificate.CRLDistributionPoints {
-			result[endpoint] = append(result[endpoint], certificate)
-		}
-	}
-
-	return result
-}
-
-// Sync downloads, updates and verifies CRLs
-func (v *validator) Sync() error {
-	endpoints := v.parseCRLEndpoints()
-
-	wc := sync.WaitGroup{}
-	wc.Add(len(endpoints))
-
-	errorsChan := make(chan error)
-
-	go func() {
-		wc.Wait()
-		close(errorsChan)
-	}()
-
-	for endpoint, dependingCAs := range endpoints {
-		if !anyCertificateActive(dependingCAs) {
-			// No active certificates depending on this CRL endpoint
-			wc.Done()
+// addEndpoint adds the CRL endpoint if it does not exist. Returns an error if the CRL issuer does not match the expected issuer.
+func (v *validator) addEndpoints(certIssuer *x509.Certificate, endpoints []string) error {
+	for _, endpoint := range endpoints {
+		if crl, ok := v.getCRL(endpoint); ok {
+			if strings.Compare(crl.issuer.Subject.String(), certIssuer.Subject.String()) != 0 {
+				// We assume that an endpoint can only issue CRLs from a single CA because:
+				// If an endpoint hosts multiple CRLs, how would the server know what CRL to present?
+				// Endpoint reuse by CAs is not an issue. CAs host the CRL for some time after the CA has expired, immediate reuse result in the previous point.
+				return fmt.Errorf("multiple issuers known for CRL distribution endpoint=%s, issuers=%s,%s", endpoints, crl.issuer.Subject.String(), certIssuer.Subject.String())
+			}
+			// already exists
 			continue
 		}
-
-		go func(endpoint string) {
-			defer wc.Done()
-
-			if err := v.updateCRL(endpoint); err != nil {
-				errorsChan <- err
-			}
-		}(endpoint)
+		// TODO: Optimize by starting Go routine per endpoint to update the CRL. A Go routine per CRL prevents all CRLs being updated simultaneously.
+		v.crls.Store(endpoint, newRevocationList(certIssuer))
 	}
-
-	var syncErrors []error
-
-	for err := range errorsChan {
-		syncErrors = append(syncErrors, err)
-	}
-
-	if len(syncErrors) == 0 {
-		return nil
-	}
-
-	return &SyncError{errors: syncErrors}
+	return nil
 }
 
-func (v *validator) SyncLoop(ctx context.Context) {
-	go func() {
-		ticker := time.NewTicker(time.Minute)
-		defer ticker.Stop()
+// getCRL returns the requested crls in a save way, or returns false if it does not exist
+func (v *validator) getCRL(endpoint string) (*revocationList, bool) {
+	value, ok := v.crls.Load(endpoint)
+	if !ok {
+		return nil, false
+	}
+	return value.(*revocationList), true
+}
 
-	processLoop:
-		for {
-			select {
-			case <-ctx.Done():
-				break processLoop
-			case <-ticker.C:
-				if err := v.Sync(); err != nil {
-					log.Logger().Errorf("CRL synchronization failed: %s", err.Error())
+// sync tries to update all crls
+func (v *validator) sync() {
+	wg := &sync.WaitGroup{}
+	// Update in parallel if at least one of the issuers is still valid
+	v.crls.Range(func(endpoint2, current2 any) bool {
+		endpoint, isString := endpoint2.(string)
+		current, isCRL := current2.(*revocationList)
+		if !isString || !isCRL {
+			// should never happen
+			log.Logger().
+				WithField("endpoint", fmt.Sprintf("%v", endpoint2)).
+				WithField("CRL", fmt.Sprintf("%v", current2)).
+				Error("crl validator is invalid")
+			return true
+		}
+		if nowFunc().Before(current.issuer.NotBefore) || nowFunc().After(current.issuer.NotAfter) {
+			log.Logger().
+				WithField("subject", current.issuer.Subject.String()).
+				WithField("S/N", current.issuer.SerialNumber.String()).
+				Warn("Trust store contains expired certificate")
+			return true
+		}
+		wg.Add(1)
+		go func(endpoint string, crl *revocationList, wg *sync.WaitGroup) {
+			err := v.updateCRL(endpoint, crl)
+			if err != nil {
+				// Connections containing a certificate pointing to this CRL will be accepted until its current.list.NextUpdate.
+				if crl != nil || time.Since(crl.lastUpdated) > 4*time.Hour {
+					// Escalate to error logging if the CRL is missing or fails to update in several hours.
+					log.Logger().WithError(err).WithField("CRLDistributionPoint", endpoint).Error("Update CRL")
+				} else {
+					log.Logger().WithError(err).WithField("CRLDistributionPoint", endpoint).Debug("Update CRL")
 				}
 			}
+			wg.Done()
+		}(endpoint, current, wg)
+
+		return true
+	})
+	wg.Wait()
+}
+
+// updateCRL downloads the CRL from endpoint, and updates the revocationList in crls if it is newer than the current CRL
+func (v *validator) updateCRL(endpoint string, current *revocationList) error {
+	// download CRL
+	crl, err := v.downloadCRL(endpoint)
+	if err != nil {
+		return err
+	}
+
+	// verify signature
+	if err = v.verifyCRL(crl, current.issuer); err != nil {
+		return err
+	}
+
+	// update when it is a new clr
+	if current.list.Number == nil || current.list.Number.Cmp(crl.Number) < 0 {
+		// parse revocations
+		revoked := make(map[string]bool, len(crl.RevokedCertificates))
+		for _, rev := range crl.RevokedCertificates {
+			revoked[rev.SerialNumber.String()] = true
+		}
+		// set the new CRL
+		v.crls.Store(endpoint, &revocationList{
+			list:        crl,
+			issuer:      current.issuer,
+			revoked:     revoked,
+			lastUpdated: nowFunc(),
+		})
+	}
+	return nil
+}
+
+// downloadCRL downloads and parses the CRL
+func (v *validator) downloadCRL(endpoint string) (*x509.RevocationList, error) {
+	response, err := v.httpClient.Get(endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("downloading CRL: %w", err)
+	}
+	defer func() {
+		if err = response.Body.Close(); err != nil {
+			log.Logger().Warn(err)
 		}
 	}()
+
+	data, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, fmt.Errorf("reading CRL response: %w", err)
+	}
+
+	crl, err := x509.ParseRevocationList(data)
+	if err != nil {
+		return nil, fmt.Errorf("parse downloaded CRL: %w", err)
+	}
+
+	return crl, nil
+}
+
+// verifyCRL checks the signature on the CRL with the issuer. Returns an error if the issuers is not in the truststore.
+func (v *validator) verifyCRL(crl *x509.RevocationList, expectedIssuer *x509.Certificate) error {
+	// update issuers of CRL
+	if strings.Compare(expectedIssuer.Subject.String(), crl.Issuer.String()) != 0 {
+		return fmt.Errorf("crl signed by unexpected issuer: expected=%s, got=%s", expectedIssuer.Subject.String(), crl.Issuer.String())
+	}
+	err := crl.CheckSignatureFrom(expectedIssuer)
+	if err != nil {
+		return fmt.Errorf("crl signature could not be verified: %w", err)
+	}
+	return nil
 }
