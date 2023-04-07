@@ -19,8 +19,12 @@
 package core
 
 import (
+	"crypto/x509"
 	"errors"
 	"github.com/spf13/pflag"
+	"github.com/stretchr/testify/require"
+	"os"
+	"testing"
 )
 
 const testEngineName = "testengine"
@@ -91,4 +95,26 @@ func testFlagSet() *pflag.FlagSet {
 	flags.String(testEngineName+".key", defs.Key, "another flag")
 
 	return flags
+}
+
+// TrustStoreWithInvalidDate returns a Truststore containing 2 chains.
+// The first chain is valid at present (form 2023 for 10 yr), the second expired in dec 2022.
+// Since there is no moment in time when both were valid, this TrustStore will always fail validation if attempted to create with LoadTrustStore
+func TrustStoreWithInvalidDate(t *testing.T) *TrustStore {
+	validData, err := os.ReadFile("../crl/test/truststore.pem")
+	validCerts, err := ParseCertificates(validData)
+	require.NoError(t, err)
+
+	expiredData, err := os.ReadFile("../crl/test/pkioverheid-server-bundle.pem")
+	expiredCerts, err := ParseCertificates(expiredData)
+	require.NoError(t, err)
+
+	certificates := append(validCerts, expiredCerts...)
+	return &TrustStore{
+		CertPool:        NewCertPool(certificates),
+		RootCAs:         []*x509.Certificate{validCerts[2], expiredCerts[2]},
+		IntermediateCAs: []*x509.Certificate{validCerts[0], validCerts[1], expiredCerts[0], expiredCerts[1]},
+		certificates:    certificates,
+	}
+
 }
