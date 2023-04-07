@@ -102,11 +102,11 @@ func (c *vcr) GetOIDCWallet(id did.DID) holder.OIDCWallet {
 	return holder.NewOIDCWallet(id, identifier, c, c.keyStore, c.keyResolver)
 }
 
-func (c vcr) Issuer() issuer.Issuer {
+func (c *vcr) Issuer() issuer.Issuer {
 	return c.issuer
 }
 
-func (c vcr) Holder() holder.Holder {
+func (c *vcr) Holder() holder.Holder {
 	return c.holder
 }
 
@@ -282,6 +282,10 @@ func (c *vcr) Name() string {
 
 func (c *vcr) Config() interface{} {
 	return &c.config
+}
+
+func (c *vcr) OIDC4VCIEnabled() bool {
+	return c.config.OIDC4VCI.Enabled
 }
 
 func (c *vcr) Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {

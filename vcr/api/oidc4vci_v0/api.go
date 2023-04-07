@@ -5,6 +5,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	"net/http"
 )
 
 var _ StrictServerInterface = (*Wrapper)(nil)
@@ -20,6 +21,14 @@ func (w Wrapper) Routes(router core.EchoRouter) {
 				ctx.Set(core.OperationIDContextKey, operationID)
 				ctx.Set(core.ModuleNameContextKey, vcr.ModuleName)
 				return f(ctx, request)
+			}
+		},
+		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
+			return func(ctx echo.Context, args interface{}) (interface{}, error) {
+				if !w.VCR.OIDC4VCIEnabled() {
+					return nil, core.Error(http.StatusLocked, "OIDC4VCI support is disabled")
+				}
+				return f(ctx, args)
 			}
 		},
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {

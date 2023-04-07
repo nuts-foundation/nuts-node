@@ -24,8 +24,16 @@ const ModuleName = "VCR"
 
 // Config holds the config for the vcr engine
 type Config struct {
+	// OIDC4VCI holds the config for the OIDC4VCI credential issuer and wallet
+	OIDC4VCI OIDC4VCIConfig `koanf:"oidc4vci"`
 	// datadir holds the location the VCR files are stored
 	datadir string
+}
+
+// OIDC4VCIConfig holds the config for the OIDC4VCI credential issuer and wallet
+type OIDC4VCIConfig struct {
+	// Enabled indicates if issuing and receiving credentials over OIDC4VCI is enabled
+	Enabled bool `koanf:"enabled"`
 }
 
 // DefaultConfig returns a fresh Config filled with default values

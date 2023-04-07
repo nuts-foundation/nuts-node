@@ -21,7 +21,9 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/spf13/pflag"
 	"strings"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -29,6 +31,14 @@ import (
 
 	"github.com/spf13/cobra"
 )
+
+// FlagSet contains flags relevant for the module
+func FlagSet() *pflag.FlagSet {
+	defs := vcr.DefaultConfig()
+	flagSet := pflag.NewFlagSet("vcr", pflag.ContinueOnError)
+	flagSet.Bool("vcr.oidc4vci.enabled", defs.OIDC4VCI.Enabled, "Enable issuing and receiving credentials over OIDC4VCI (experimental).")
+	return flagSet
+}
 
 // Cmd contains sub-commands for the remote client
 func Cmd() *cobra.Command {

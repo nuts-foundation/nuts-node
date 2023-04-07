@@ -72,6 +72,7 @@ type VCR interface {
 	Verifier() verifier.Verifier
 	GetOIDCIssuer(id did.DID) issuer.OIDCIssuer
 	GetOIDCWallet(id did.DID) holder.OIDCWallet
+	OIDC4VCIEnabled() bool
 
 	Finder
 	Resolver

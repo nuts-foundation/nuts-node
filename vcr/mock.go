@@ -254,6 +254,20 @@ func (mr *MockVCRMockRecorder) Issuer() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Issuer", reflect.TypeOf((*MockVCR)(nil).Issuer))
 }
 
+// OIDC4VCIEnabled mocks base method.
+func (m *MockVCR) OIDC4VCIEnabled() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "OIDC4VCIEnabled")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// OIDC4VCIEnabled indicates an expected call of OIDC4VCIEnabled.
+func (mr *MockVCRMockRecorder) OIDC4VCIEnabled() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OIDC4VCIEnabled", reflect.TypeOf((*MockVCR)(nil).OIDC4VCIEnabled))
+}
+
 // Resolve mocks base method.
 func (m *MockVCR) Resolve(ID go_did.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()

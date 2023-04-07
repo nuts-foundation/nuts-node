@@ -321,6 +321,7 @@ func serverConfigFlags() *pflag.FlagSet {
 	set.AddFlagSet(storageCmd.FlagSet())
 	set.AddFlagSet(networkCmd.FlagSet())
 	set.AddFlagSet(vdrCmd.FlagSet())
+	set.AddFlagSet(vcrCmd.FlagSet())
 	set.AddFlagSet(jsonld.FlagSet())
 	set.AddFlagSet(authCmd.FlagSet())
 	set.AddFlagSet(eventsCmd.FlagSet())

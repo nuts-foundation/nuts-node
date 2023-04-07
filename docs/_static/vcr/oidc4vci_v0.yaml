@@ -2,6 +2,7 @@ openapi: 3.0.1
 info:
   title: OIDC4VCI Issuer API
   version: 0.1.0"
+  description: This API is EXPERIMENTAL and subject to change.
 servers:
   - url: "http://localhost:1323"
 paths:
