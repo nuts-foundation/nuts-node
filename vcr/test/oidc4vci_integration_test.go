@@ -38,7 +38,7 @@ func TestOIDC4VCIHappyFlow(t *testing.T) {
 	issuerIdentifier := httpServerURL + "/identity/" + issuerDID.String()
 	receiverDID := did.MustParseDID("did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY")
 	receiverIdentifier := httpServerURL + "/identity/" + receiverDID.String()
-	receiverMetadataURL := receiverIdentifier + "/openid-credential-wallet-metadata"
+	receiverMetadataURL := receiverIdentifier + "/.well-known/openid-credential-wallet"
 
 	// Create issuer and wallet
 	ctrl := gomock.NewController(t)

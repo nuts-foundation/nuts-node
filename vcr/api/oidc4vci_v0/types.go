@@ -1,15 +1,13 @@
 package oidc4vci_v0
 
 import (
-	"github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0/types"
+	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 )
 
-type GetCredentialJSONRequestBody = types.GetCredentialJSONRequestBody
-type GetCredentialParams = types.GetCredentialParams
-type CredentialOfferParams = types.CredentialOfferParams
-type RequestAccessTokenFormdataRequestBody = types.RequestAccessTokenFormdataRequestBody
-type OIDCProviderMetadata = types.OIDCProviderMetadata
-type CredentialIssuerMetadata = types.CredentialIssuerMetadata
-type OIDCTokenResponse = types.OIDCTokenResponse
-type CredentialResponse = types.CredentialResponse
-type OAuth2ClientMetadata = types.OAuth2ClientMetadata
+type ProviderMetadata = oidc4vci.ProviderMetadata
+type CredentialIssuerMetadata = oidc4vci.CredentialIssuerMetadata
+type TokenResponse = oidc4vci.TokenResponse
+type CredentialRequest = oidc4vci.CredentialRequest
+type CredentialResponse = oidc4vci.CredentialResponse
+type OAuth2ClientMetadata = oidc4vci.OAuth2ClientMetadata
+type CredentialOffer = oidc4vci.CredentialOffer

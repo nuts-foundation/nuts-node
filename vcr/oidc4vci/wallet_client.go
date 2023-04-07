@@ -5,14 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0/types"
 	"net/http"
 	"net/url"
 )
 
 type Wallet interface {
-	Metadata() types.OAuth2ClientMetadata
-	OfferCredential(ctx context.Context, offer types.CredentialOffer) error
+	Metadata() OAuth2ClientMetadata
+	OfferCredential(ctx context.Context, offer CredentialOffer) error
 }
 
 var _ Wallet = (*httpWalletClient)(nil)
@@ -37,15 +36,15 @@ func NewWalletClient(ctx context.Context, httpClient *http.Client, credentialCli
 var _ Wallet = (*httpWalletClient)(nil)
 
 type httpWalletClient struct {
-	metadata   types.OAuth2ClientMetadata
+	metadata   OAuth2ClientMetadata
 	httpClient *http.Client
 }
 
-func (c *httpWalletClient) Metadata() types.OAuth2ClientMetadata {
+func (c *httpWalletClient) Metadata() OAuth2ClientMetadata {
 	return c.metadata
 }
 
-func (c *httpWalletClient) OfferCredential(ctx context.Context, offer types.CredentialOffer) error {
+func (c *httpWalletClient) OfferCredential(ctx context.Context, offer CredentialOffer) error {
 	offerJson, err := json.Marshal(offer)
 	if err != nil {
 		return err
@@ -54,10 +53,10 @@ func (c *httpWalletClient) OfferCredential(ctx context.Context, offer types.Cred
 	return httpGet(ctx, c.httpClient, requestURL, nil)
 }
 
-func loadOAuth2CredentialsClientMetadata(ctx context.Context, metadataURL string, httpClient *http.Client) (*types.OAuth2ClientMetadata, error) {
+func loadOAuth2CredentialsClientMetadata(ctx context.Context, metadataURL string, httpClient *http.Client) (*OAuth2ClientMetadata, error) {
 	// TODO (non-prototype): Support HTTPS (which truststore?)
 	// TODO (non-prototype): what about caching?
-	result := types.OAuth2ClientMetadata{}
+	result := OAuth2ClientMetadata{}
 	err := httpGet(ctx, httpClient, metadataURL, &result)
 	if err != nil {
 		return nil, err

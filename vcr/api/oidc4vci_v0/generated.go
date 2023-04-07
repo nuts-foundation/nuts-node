@@ -13,26 +13,49 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// GetCredentialParams defines parameters for GetCredential.
+type GetCredentialParams struct {
+	Authorization *string `json:"Authorization,omitempty"`
+}
+
+// RequestAccessTokenFormdataBody defines parameters for RequestAccessToken.
+type RequestAccessTokenFormdataBody struct {
+	GrantType         string `json:"grant_type"`
+	PreAuthorizedCode string `json:"pre-authorized_code"`
+}
+
+// OfferCredentialParams defines parameters for OfferCredential.
+type OfferCredentialParams struct {
+	// CredentialOffer Contains the url encoded credential_offer object
+	CredentialOffer string `form:"credential_offer" json:"credential_offer"`
+}
+
+// GetCredentialJSONRequestBody defines body for GetCredential for application/json ContentType.
+type GetCredentialJSONRequestBody = CredentialRequest
+
+// RequestAccessTokenFormdataRequestBody defines body for RequestAccessToken for application/x-www-form-urlencoded ContentType.
+type RequestAccessTokenFormdataRequestBody RequestAccessTokenFormdataBody
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Get the OIDC Provider metadata
-	// (GET /identity/{did}/.well-known/openid-configuration)
+	// Get the OpenID Connect Provider metadata
+	// (GET /identity/{did}/.well-known/oauth-authorization-server)
 	GetOIDCProviderMetadata(ctx echo.Context, did string) error
 	// Get the OIDC4VCI Credential Issuer Metadata
 	// (GET /identity/{did}/.well-known/openid-credential-issuer)
 	GetOIDC4VCIIssuerMetadata(ctx echo.Context, did string) error
-	// Credential endpoint
+	// Get the OAuth2 Client Metadata
+	// (GET /identity/{did}/.well-known/openid-credential-wallet)
+	GetOAuth2ClientMetadata(ctx echo.Context, did string) error
+	// Used by the wallet to request credentials
 	// (POST /identity/{did}/issuer/oidc4vci/credential)
 	GetCredential(ctx echo.Context, did string, params GetCredentialParams) error
-	// Token endpoint
+	// Used by the wallet to request an access token
 	// (POST /identity/{did}/oidc/token)
 	RequestAccessToken(ctx echo.Context, did string) error
-	// Get the OAuth2 Client Metadata
-	// (GET /identity/{did}/openid-credential-wallet-metadata)
-	GetOAuth2ClientMetadata(ctx echo.Context, did string) error
-	// Credential offer (OIDC4VCI) endpoint
+	// Used by the issuer to offer credentials to the wallet
 	// (GET /identity/{did}/wallet/oidc4vci/credential_offer)
-	CredentialOffer(ctx echo.Context, did string, params CredentialOfferParams) error
+	OfferCredential(ctx echo.Context, did string, params OfferCredentialParams) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -69,6 +92,22 @@ func (w *ServerInterfaceWrapper) GetOIDC4VCIIssuerMetadata(ctx echo.Context) err
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.GetOIDC4VCIIssuerMetadata(ctx, did)
+	return err
+}
+
+// GetOAuth2ClientMetadata converts echo context to params.
+func (w *ServerInterfaceWrapper) GetOAuth2ClientMetadata(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.GetOAuth2ClientMetadata(ctx, did)
 	return err
 }
 
@@ -124,24 +163,8 @@ func (w *ServerInterfaceWrapper) RequestAccessToken(ctx echo.Context) error {
 	return err
 }
 
-// GetOAuth2ClientMetadata converts echo context to params.
-func (w *ServerInterfaceWrapper) GetOAuth2ClientMetadata(ctx echo.Context) error {
-	var err error
-	// ------------- Path parameter "did" -------------
-	var did string
-
-	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
-	}
-
-	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.GetOAuth2ClientMetadata(ctx, did)
-	return err
-}
-
-// CredentialOffer converts echo context to params.
-func (w *ServerInterfaceWrapper) CredentialOffer(ctx echo.Context) error {
+// OfferCredential converts echo context to params.
+func (w *ServerInterfaceWrapper) OfferCredential(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "did" -------------
 	var did string
@@ -152,7 +175,7 @@ func (w *ServerInterfaceWrapper) CredentialOffer(ctx echo.Context) error {
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params CredentialOfferParams
+	var params OfferCredentialParams
 	// ------------- Required query parameter "credential_offer" -------------
 
 	err = runtime.BindQueryParameter("form", true, true, "credential_offer", ctx.QueryParams(), &params.CredentialOffer)
@@ -161,7 +184,7 @@ func (w *ServerInterfaceWrapper) CredentialOffer(ctx echo.Context) error {
 	}
 
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.CredentialOffer(ctx, did, params)
+	err = w.Handler.OfferCredential(ctx, did, params)
 	return err
 }
 
@@ -193,12 +216,12 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.GET(baseURL+"/identity/:did/.well-known/openid-configuration", wrapper.GetOIDCProviderMetadata)
+	router.GET(baseURL+"/identity/:did/.well-known/oauth-authorization-server", wrapper.GetOIDCProviderMetadata)
 	router.GET(baseURL+"/identity/:did/.well-known/openid-credential-issuer", wrapper.GetOIDC4VCIIssuerMetadata)
+	router.GET(baseURL+"/identity/:did/.well-known/openid-credential-wallet", wrapper.GetOAuth2ClientMetadata)
 	router.POST(baseURL+"/identity/:did/issuer/oidc4vci/credential", wrapper.GetCredential)
 	router.POST(baseURL+"/identity/:did/oidc/token", wrapper.RequestAccessToken)
-	router.GET(baseURL+"/identity/:did/openid-credential-wallet-metadata", wrapper.GetOAuth2ClientMetadata)
-	router.GET(baseURL+"/identity/:did/wallet/oidc4vci/credential_offer", wrapper.CredentialOffer)
+	router.GET(baseURL+"/identity/:did/wallet/oidc4vci/credential_offer", wrapper.OfferCredential)
 
 }
 
@@ -210,7 +233,7 @@ type GetOIDCProviderMetadataResponseObject interface {
 	VisitGetOIDCProviderMetadataResponse(w http.ResponseWriter) error
 }
 
-type GetOIDCProviderMetadata200JSONResponse OIDCProviderMetadata
+type GetOIDCProviderMetadata200JSONResponse ProviderMetadata
 
 func (response GetOIDCProviderMetadata200JSONResponse) VisitGetOIDCProviderMetadataResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -230,6 +253,23 @@ type GetOIDC4VCIIssuerMetadataResponseObject interface {
 type GetOIDC4VCIIssuerMetadata200JSONResponse CredentialIssuerMetadata
 
 func (response GetOIDC4VCIIssuerMetadata200JSONResponse) VisitGetOIDC4VCIIssuerMetadataResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetOAuth2ClientMetadataRequestObject struct {
+	Did string `json:"did"`
+}
+
+type GetOAuth2ClientMetadataResponseObject interface {
+	VisitGetOAuth2ClientMetadataResponse(w http.ResponseWriter) error
+}
+
+type GetOAuth2ClientMetadata200JSONResponse OAuth2ClientMetadata
+
+func (response GetOAuth2ClientMetadata200JSONResponse) VisitGetOAuth2ClientMetadataResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
@@ -264,7 +304,7 @@ type RequestAccessTokenResponseObject interface {
 	VisitRequestAccessTokenResponse(w http.ResponseWriter) error
 }
 
-type RequestAccessToken200JSONResponse OIDCTokenResponse
+type RequestAccessToken200JSONResponse TokenResponse
 
 func (response RequestAccessToken200JSONResponse) VisitRequestAccessTokenResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -273,35 +313,18 @@ func (response RequestAccessToken200JSONResponse) VisitRequestAccessTokenRespons
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetOAuth2ClientMetadataRequestObject struct {
-	Did string `json:"did"`
-}
-
-type GetOAuth2ClientMetadataResponseObject interface {
-	VisitGetOAuth2ClientMetadataResponse(w http.ResponseWriter) error
-}
-
-type GetOAuth2ClientMetadata200JSONResponse OAuth2ClientMetadata
-
-func (response GetOAuth2ClientMetadata200JSONResponse) VisitGetOAuth2ClientMetadataResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type CredentialOfferRequestObject struct {
+type OfferCredentialRequestObject struct {
 	Did    string `json:"did"`
-	Params CredentialOfferParams
+	Params OfferCredentialParams
 }
 
-type CredentialOfferResponseObject interface {
-	VisitCredentialOfferResponse(w http.ResponseWriter) error
+type OfferCredentialResponseObject interface {
+	VisitOfferCredentialResponse(w http.ResponseWriter) error
 }
 
-type CredentialOffer202TextResponse string
+type OfferCredential202TextResponse string
 
-func (response CredentialOffer202TextResponse) VisitCredentialOfferResponse(w http.ResponseWriter) error {
+func (response OfferCredential202TextResponse) VisitOfferCredentialResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(202)
 
@@ -309,9 +332,9 @@ func (response CredentialOffer202TextResponse) VisitCredentialOfferResponse(w ht
 	return err
 }
 
-type CredentialOffer400TextResponse string
+type OfferCredential400TextResponse string
 
-func (response CredentialOffer400TextResponse) VisitCredentialOfferResponse(w http.ResponseWriter) error {
+func (response OfferCredential400TextResponse) VisitOfferCredentialResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(400)
 
@@ -319,9 +342,9 @@ func (response CredentialOffer400TextResponse) VisitCredentialOfferResponse(w ht
 	return err
 }
 
-type CredentialOffer500TextResponse string
+type OfferCredential500TextResponse string
 
-func (response CredentialOffer500TextResponse) VisitCredentialOfferResponse(w http.ResponseWriter) error {
+func (response OfferCredential500TextResponse) VisitOfferCredentialResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(500)
 
@@ -331,24 +354,24 @@ func (response CredentialOffer500TextResponse) VisitCredentialOfferResponse(w ht
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// Get the OIDC Provider metadata
-	// (GET /identity/{did}/.well-known/openid-configuration)
+	// Get the OpenID Connect Provider metadata
+	// (GET /identity/{did}/.well-known/oauth-authorization-server)
 	GetOIDCProviderMetadata(ctx context.Context, request GetOIDCProviderMetadataRequestObject) (GetOIDCProviderMetadataResponseObject, error)
 	// Get the OIDC4VCI Credential Issuer Metadata
 	// (GET /identity/{did}/.well-known/openid-credential-issuer)
 	GetOIDC4VCIIssuerMetadata(ctx context.Context, request GetOIDC4VCIIssuerMetadataRequestObject) (GetOIDC4VCIIssuerMetadataResponseObject, error)
-	// Credential endpoint
+	// Get the OAuth2 Client Metadata
+	// (GET /identity/{did}/.well-known/openid-credential-wallet)
+	GetOAuth2ClientMetadata(ctx context.Context, request GetOAuth2ClientMetadataRequestObject) (GetOAuth2ClientMetadataResponseObject, error)
+	// Used by the wallet to request credentials
 	// (POST /identity/{did}/issuer/oidc4vci/credential)
 	GetCredential(ctx context.Context, request GetCredentialRequestObject) (GetCredentialResponseObject, error)
-	// Token endpoint
+	// Used by the wallet to request an access token
 	// (POST /identity/{did}/oidc/token)
 	RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error)
-	// Get the OAuth2 Client Metadata
-	// (GET /identity/{did}/openid-credential-wallet-metadata)
-	GetOAuth2ClientMetadata(ctx context.Context, request GetOAuth2ClientMetadataRequestObject) (GetOAuth2ClientMetadataResponseObject, error)
-	// Credential offer (OIDC4VCI) endpoint
+	// Used by the issuer to offer credentials to the wallet
 	// (GET /identity/{did}/wallet/oidc4vci/credential_offer)
-	CredentialOffer(ctx context.Context, request CredentialOfferRequestObject) (CredentialOfferResponseObject, error)
+	OfferCredential(ctx context.Context, request OfferCredentialRequestObject) (OfferCredentialResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx echo.Context, args interface{}) (interface{}, error)
@@ -408,6 +431,31 @@ func (sh *strictHandler) GetOIDC4VCIIssuerMetadata(ctx echo.Context, did string)
 		return err
 	} else if validResponse, ok := response.(GetOIDC4VCIIssuerMetadataResponseObject); ok {
 		return validResponse.VisitGetOIDC4VCIIssuerMetadataResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetOAuth2ClientMetadata operation middleware
+func (sh *strictHandler) GetOAuth2ClientMetadata(ctx echo.Context, did string) error {
+	var request GetOAuth2ClientMetadataRequestObject
+
+	request.Did = did
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetOAuth2ClientMetadata(ctx.Request().Context(), request.(GetOAuth2ClientMetadataRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetOAuth2ClientMetadata")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetOAuth2ClientMetadataResponseObject); ok {
+		return validResponse.VisitGetOAuth2ClientMetadataResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("Unexpected response type: %T", response)
 	}
@@ -481,51 +529,26 @@ func (sh *strictHandler) RequestAccessToken(ctx echo.Context, did string) error 
 	return nil
 }
 
-// GetOAuth2ClientMetadata operation middleware
-func (sh *strictHandler) GetOAuth2ClientMetadata(ctx echo.Context, did string) error {
-	var request GetOAuth2ClientMetadataRequestObject
-
-	request.Did = did
-
-	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.GetOAuth2ClientMetadata(ctx.Request().Context(), request.(GetOAuth2ClientMetadataRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetOAuth2ClientMetadata")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		return err
-	} else if validResponse, ok := response.(GetOAuth2ClientMetadataResponseObject); ok {
-		return validResponse.VisitGetOAuth2ClientMetadataResponse(ctx.Response())
-	} else if response != nil {
-		return fmt.Errorf("Unexpected response type: %T", response)
-	}
-	return nil
-}
-
-// CredentialOffer operation middleware
-func (sh *strictHandler) CredentialOffer(ctx echo.Context, did string, params CredentialOfferParams) error {
-	var request CredentialOfferRequestObject
+// OfferCredential operation middleware
+func (sh *strictHandler) OfferCredential(ctx echo.Context, did string, params OfferCredentialParams) error {
+	var request OfferCredentialRequestObject
 
 	request.Did = did
 	request.Params = params
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.CredentialOffer(ctx.Request().Context(), request.(CredentialOfferRequestObject))
+		return sh.ssi.OfferCredential(ctx.Request().Context(), request.(OfferCredentialRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "CredentialOffer")
+		handler = middleware(handler, "OfferCredential")
 	}
 
 	response, err := handler(ctx, request)
 
 	if err != nil {
 		return err
-	} else if validResponse, ok := response.(CredentialOfferResponseObject); ok {
-		return validResponse.VisitCredentialOfferResponse(ctx.Response())
+	} else if validResponse, ok := response.(OfferCredentialResponseObject); ok {
+		return validResponse.VisitOfferCredentialResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("Unexpected response type: %T", response)
 	}

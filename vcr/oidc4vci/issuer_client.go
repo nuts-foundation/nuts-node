@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0/types"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"io"
 	"net/http"
@@ -17,8 +16,8 @@ import (
 type IssuerClient interface {
 	OAuth2Client
 
-	Metadata() types.CredentialIssuerMetadata
-	GetCredential(ctx context.Context, request types.CredentialRequest, accessToken string) (*vc.VerifiableCredential, error)
+	Metadata() CredentialIssuerMetadata
+	GetCredential(ctx context.Context, request CredentialRequest, accessToken string) (*vc.VerifiableCredential, error)
 }
 
 // NewIssuerClient resolves the Credential Issuer Metadata from the well-known endpoint
@@ -41,7 +40,7 @@ func NewIssuerClient(ctx context.Context, httpClient *http.Client, credentialIss
 }
 
 // NewIssuerClientFromMD creates a new IssuerClient from preloaded metadata.
-func NewIssuerClientFromMD(httpClient *http.Client, oidcProvider types.OIDCProviderMetadata, credentialIssuer types.CredentialIssuerMetadata) (IssuerClient, error) {
+func NewIssuerClientFromMD(httpClient *http.Client, oidcProvider ProviderMetadata, credentialIssuer CredentialIssuerMetadata) (IssuerClient, error) {
 	return &httpIssuerClient{
 		httpOAuth2Client: httpOAuth2Client{
 			httpClient: httpClient,
@@ -60,14 +59,14 @@ type httpIssuerClient struct {
 
 	identifier       string
 	httpClient       *http.Client
-	metadata         types.CredentialIssuerMetadata
-	providerMetadata types.OIDCProviderMetadata
+	metadata         CredentialIssuerMetadata
+	providerMetadata ProviderMetadata
 }
 
-func (h httpIssuerClient) GetCredential(ctx context.Context, request types.CredentialRequest, accessToken string) (*vc.VerifiableCredential, error) {
+func (h httpIssuerClient) GetCredential(ctx context.Context, request CredentialRequest, accessToken string) (*vc.VerifiableCredential, error) {
 	requestBody, _ := json.Marshal(request)
 
-	var credentialResponse types.CredentialResponse
+	var credentialResponse CredentialResponse
 	httpRequest, _ := http.NewRequestWithContext(ctx, "POST", h.metadata.CredentialEndpoint, bytes.NewReader(requestBody))
 	httpRequest.Header.Add("Authorization", "Bearer "+accessToken)
 	httpRequest.Header.Add("Content-Type", "application/json")
@@ -89,15 +88,15 @@ func (h httpIssuerClient) GetCredential(ctx context.Context, request types.Crede
 	return &credential, nil
 }
 
-func (h httpIssuerClient) Metadata() types.CredentialIssuerMetadata {
+func (h httpIssuerClient) Metadata() CredentialIssuerMetadata {
 	return h.metadata
 }
 
-func loadCredentialIssuerMetadata(ctx context.Context, credentialIssuerIdentifier string, httpClient *http.Client) (*types.CredentialIssuerMetadata, error) {
+func loadCredentialIssuerMetadata(ctx context.Context, identifier string, httpClient *http.Client) (*CredentialIssuerMetadata, error) {
 	// TODO (non-prototype): Support HTTPS (which truststore?)
 	// TODO (non-prototype): what about caching?
-	result := types.CredentialIssuerMetadata{}
-	err := httpGet(ctx, httpClient, credentialIssuerIdentifier+"/.well-known/openid-credential-issuer", &result)
+	result := CredentialIssuerMetadata{}
+	err := httpGet(ctx, httpClient, identifier+CredentialIssuerMetadataWellKnownPath, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -108,14 +107,14 @@ func loadCredentialIssuerMetadata(ctx context.Context, credentialIssuerIdentifie
 	return &result, nil
 }
 
-func loadOIDCProviderMetadata(ctx context.Context, credentialIssuerIdentifier string, httpClient *http.Client) (*types.OIDCProviderMetadata, error) {
+func loadOIDCProviderMetadata(ctx context.Context, identifier string, httpClient *http.Client) (*ProviderMetadata, error) {
 	//
 	// Resolve OpenID Connect Provider Metadata, to find out where to request the token
 	//
 	// TODO (non-prototype): Support HTTPS (which truststore?)
 	// TODO (non-prototype): what about caching?
-	result := types.OIDCProviderMetadata{}
-	err := httpGet(ctx, httpClient, credentialIssuerIdentifier+"/.well-known/openid-configuration", &result)
+	result := ProviderMetadata{}
+	err := httpGet(ctx, httpClient, identifier+ProviderMetadataWellKnownPath, &result)
 	if err != nil {
 		return nil, err
 	}

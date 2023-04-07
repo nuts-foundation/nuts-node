@@ -5,12 +5,13 @@ info:
 servers:
   - url: "http://localhost:1323"
 paths:
-  # TODO: Should this be a well-known endpoint?
-  "/identity/{did}/openid-credential-wallet-metadata":
+  # TODO: This is not a registered well-known URI, should we; 1. register it, 2. accept it's not registered and use it anyway?, 3. use another URI?
+  "/identity/{did}/.well-known/openid-credential-wallet":
     get:
       tags:
-        - Well-known
+        - OIDC4VCI
       summary: Get the OAuth2 Client Metadata
+      description: Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-client-metadata
       operationId: getOAuth2ClientMetadata
       parameters:
         - name: did
@@ -26,11 +27,14 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/OAuth2ClientMetadata"
-  "/identity/{did}/.well-known/openid-configuration":
+  "/identity/{did}/.well-known/oauth-authorization-server":
     get:
       tags:
         - Well-known
-      summary: Get the OIDC Provider metadata
+      summary: Get the OpenID Connect Provider metadata
+      description: >
+        Specified by https://www.rfc-editor.org/info/rfc8414
+        The well-known path is the default specified by https://www.rfc-editor.org/rfc/rfc8414.html#section-3
       operationId: getOIDCProviderMetadata
       parameters:
         - name: did
@@ -45,13 +49,14 @@ paths:
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/OIDCProviderMetadata"
-
+                "$ref": "#/components/schemas/ProviderMetadata"
   "/identity/{did}/.well-known/openid-credential-issuer":
     get:
       tags:
-        - Well-known
+        - OIDC4VCI
       summary: Get the OIDC4VCI Credential Issuer Metadata
+      description: >
+        Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-issuer-metadata
       operationId: getOIDC4VCIIssuerMetadata
       parameters:
         - name: did
@@ -70,8 +75,9 @@ paths:
   "/identity/{did}/oidc/token":
     post:
       tags:
-        - OIDC
-      summary: Token endpoint
+        - OIDC4VCI
+      summary: Used by the wallet to request an access token
+      description: Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-token-endpoint
       operationId: requestAccessToken
       parameters:
         - name: did
@@ -87,7 +93,7 @@ paths:
               type: object
               required:
                 - grant_type
-                - pre-authorized_code
+                - pre-authorized_code # TODO: Must be optional, since multiple flows will be supported in future
               properties:
                 grant_type:
                   type: string
@@ -101,13 +107,13 @@ paths:
           content:
             application/json:
               schema:
-                "$ref": "#/components/schemas/OIDCTokenResponse"
-
+                "$ref": "#/components/schemas/TokenResponse"
   "/identity/{did}/issuer/oidc4vci/credential":
     post:
       tags:
         - Issuer
-      summary: Credential endpoint
+      summary: Used by the wallet to request credentials
+      description: Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-endpoint
       operationId: getCredential
       parameters:
         - name: did
@@ -132,13 +138,13 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/CredentialResponse"
-
   "/identity/{did}/wallet/oidc4vci/credential_offer":
     get:
       tags:
-        - Holder
-      summary: Credential offer (OIDC4VCI) endpoint
-      operationId: credentialOffer
+        - OIDC4VCI
+      summary: Used by the issuer to offer credentials to the wallet
+      description: Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-offer
+      operationId: offerCredential
       parameters:
         - name: did
           in: path
@@ -147,16 +153,11 @@ paths:
             type: string
             example: did:nuts:123
         - name: credential_offer
-          description: Contains the url encoded credential_offer object.
+          description: Contains the url encoded credential_offer object
           in: query
           required: true
           schema:
             type: string
-            example: |
-              %7B%22credential_issuer%22:%22https://credential-issuer.example.com
-              %22,%22credentials%22:%5B%7B%22format%22:%22jwt_vc_json%22,%22types%22:%5B%22Verifiabl
-              eCredential%22,%22UniversityDegreeCredential%22%5D%7D%5D,%22issuer_state%22:%22eyJhbGciOiJS
-              U0Et...FYUaBy%22%7D
       responses:
         202:
           description: Accepted
@@ -225,7 +226,7 @@ components:
           description: URL of the verifiable credential wallet's offer endpoint
           example: https://wallet.example.com/credential_offer
 
-    OIDCProviderMetadata:
+    ProviderMetadata:
       description: OpenID Connect Provider Metadata (OAuth2 Authorization Server Metadata)
       type: object
       required:
@@ -245,7 +246,7 @@ components:
             URL of the authorization server's token endpoint [RFC6749].
           example: https://issuer.example.com/token
 
-    OIDCTokenResponse:
+    TokenResponse:
       type: object
       description: |
         Token Responses are made as defined in [RFC6749] with additional fields as described in OIDC4VCI.
@@ -281,9 +282,9 @@ components:
           "c_nonce": "tZignsnFbp"
         }
     CredentialRequest:
+      type: object
       required:
         - format
-      type: object
       properties:
         format:
           type: string
@@ -339,6 +340,8 @@ components:
 
     CredentialResponse:
       type: object
+      required:
+        - format
       properties:
         format:
           type: string
@@ -383,7 +386,7 @@ components:
       required:
         - credential_issuer
         - credentials
-        - grants
+        - grants # TODO: This should be optional according to https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-offer-parameters
       properties:
         credential_issuer:
           type: string

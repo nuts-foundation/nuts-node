@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0/types"
+	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 )
 
 func (w Wrapper) GetOAuth2ClientMetadata(_ context.Context, request GetOAuth2ClientMetadataRequestObject) (GetOAuth2ClientMetadataResponseObject, error) {
@@ -16,14 +16,14 @@ func (w Wrapper) GetOAuth2ClientMetadata(_ context.Context, request GetOAuth2Cli
 	return GetOAuth2ClientMetadata200JSONResponse(w.VCR.GetOIDCWallet(*id).Metadata()), nil
 }
 
-func (w Wrapper) CredentialOffer(ctx context.Context, request CredentialOfferRequestObject) (CredentialOfferResponseObject, error) {
+func (w Wrapper) OfferCredential(ctx context.Context, request OfferCredentialRequestObject) (OfferCredentialResponseObject, error) {
 	id, err := did.ParseDID(request.Did)
 	if err != nil {
 		return nil, core.NotFoundError("invalid DID")
 	}
-	offer := types.CredentialOffer{}
+	offer := oidc4vci.CredentialOffer{}
 	if json.Unmarshal([]byte(request.Params.CredentialOffer), &offer) != nil {
-		return nil, core.InvalidInputError("unable to unmarshal credential offer query param")
+		return nil, core.InvalidInputError("unable to unmarshal credential_offer")
 	}
 
 	err = w.VCR.GetOIDCWallet(*id).OfferCredential(ctx, offer)
@@ -31,5 +31,5 @@ func (w Wrapper) CredentialOffer(ctx context.Context, request CredentialOfferReq
 		return nil, err
 	}
 
-	return CredentialOffer202TextResponse("OK"), nil
+	return OfferCredential202TextResponse("OK"), nil
 }

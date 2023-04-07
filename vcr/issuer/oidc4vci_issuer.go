@@ -9,7 +9,6 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0/types"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"net/http"
@@ -17,10 +16,10 @@ import (
 )
 
 type OIDCIssuer interface {
-	ProviderMetadata() types.OIDCProviderMetadata
+	ProviderMetadata() oidc4vci.ProviderMetadata
 	RequestAccessToken(preAuthorizedCode string) (string, error)
 
-	Metadata() types.CredentialIssuerMetadata
+	Metadata() oidc4vci.CredentialIssuerMetadata
 	Offer(ctx context.Context, credential vc.VerifiableCredential, walletURL string) error
 	GetCredential(ctx context.Context, accessToken string) (vc.VerifiableCredential, error)
 }
@@ -44,16 +43,16 @@ type memoryIssuer struct {
 	mux          *sync.Mutex
 }
 
-func (i *memoryIssuer) Metadata() types.CredentialIssuerMetadata {
-	return types.CredentialIssuerMetadata{
+func (i *memoryIssuer) Metadata() oidc4vci.CredentialIssuerMetadata {
+	return oidc4vci.CredentialIssuerMetadata{
 		CredentialIssuer:     i.identifier,
 		CredentialEndpoint:   i.identifier + "/issuer/oidc4vci/credential",
 		CredentialsSupported: []map[string]interface{}{{"NutsAuthorizationCredential": map[string]interface{}{}}},
 	}
 }
 
-func (i *memoryIssuer) ProviderMetadata() types.OIDCProviderMetadata {
-	return types.OIDCProviderMetadata{
+func (i *memoryIssuer) ProviderMetadata() oidc4vci.ProviderMetadata {
+	return oidc4vci.ProviderMetadata{
 		Issuer:        i.identifier,
 		TokenEndpoint: i.identifier + "/oidc/token",
 	}
@@ -91,10 +90,7 @@ func (i *memoryIssuer) Offer(ctx context.Context, credential vc.VerifiableCreden
 		return err
 	}
 
-	// Lookup Credential Issuer Identifier in VC issuer's DID Document,
-	// this is sent to the wallet in the Credential Offer, so the wallet can resolve the Credential Issuer Metadata
-	// (by adding /.well-known/.... to the URL). For now, short circuit this because we have 1 node in the prototype.
-	offer := types.CredentialOffer{
+	offer := oidc4vci.CredentialOffer{
 		CredentialIssuer: i.identifier,
 		Credentials: []map[string]interface{}{{
 			"format": "ldp_vc",
@@ -103,9 +99,11 @@ func (i *memoryIssuer) Offer(ctx context.Context, credential vc.VerifiableCreden
 				"types":    credential.Type,
 			},
 		}},
-		Grants: map[string]interface{}{
-			types.PreAuthorizedCodeGrant: map[string]interface{}{
-				"pre-authorized_code": preAuthorizedCode,
+		Grants: []map[string]interface{}{
+			{
+				oidc4vci.PreAuthorizedCodeGrant: map[string]interface{}{
+					"pre-authorized_code": preAuthorizedCode,
+				},
 			},
 		},
 	}
@@ -121,6 +119,9 @@ func (i *memoryIssuer) Offer(ctx context.Context, credential vc.VerifiableCreden
 func (i *memoryIssuer) GetCredential(ctx context.Context, accessToken string) (vc.VerifiableCredential, error) {
 	i.mux.Lock()
 	defer i.mux.Unlock()
+	// TODO (non-prototype): Verify requested format
+	// TODO (non-prototype): Verify Proof-of-Possession of private key material
+	// TODO (non-prototype): there could be checks here that must be performed, then an OAuth2 error with status "pending" should be returned
 	preAuthorizedCode, ok := i.accessTokens[accessToken]
 	if !ok {
 		return vc.VerifiableCredential{}, errors.New("invalid access token")

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0/types"
+	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"strings"
 )
 
@@ -31,8 +31,6 @@ func (w Wrapper) GetCredential(ctx context.Context, request GetCredentialRequest
 	if err != nil {
 		return nil, core.NotFoundError("invalid DID")
 	}
-	// TODO (non-prototype): Verify requested format
-	// TODO (non-prototype): Verify Proof-of-Possession of private key material
 	if request.Params.Authorization == nil {
 		return nil, errors.New("missing authorization header")
 	}
@@ -45,8 +43,6 @@ func (w Wrapper) GetCredential(ctx context.Context, request GetCredentialRequest
 	if err != nil {
 		return nil, err
 	}
-	// TODO (non-prototype): there could be checks here that must be performed, then an OAuth2 error with status "pending" should be returned
-	format := "ldp_vc"
 	credentialJSON, _ := credential.MarshalJSON()
 	credentialMap := make(map[string]interface{})
 	err = json.Unmarshal(credentialJSON, &credentialMap)
@@ -55,7 +51,7 @@ func (w Wrapper) GetCredential(ctx context.Context, request GetCredentialRequest
 	}
 	return GetCredential200JSONResponse(CredentialResponse{
 		Credential: &credentialMap,
-		Format:     &format,
+		Format:     "ldp_vc",
 	}), nil
 }
 
@@ -64,7 +60,7 @@ func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 	if err != nil {
 		return nil, core.NotFoundError("invalid DID")
 	}
-	if request.Body.GrantType != types.PreAuthorizedCodeGrant {
+	if request.Body.GrantType != oidc4vci.PreAuthorizedCodeGrant {
 		return nil, errors.New("unsupported grant type")
 	}
 	accessToken, err := w.VCR.GetOIDCIssuer(*issuerDID).RequestAccessToken(request.Body.PreAuthorizedCode)
@@ -73,7 +69,7 @@ func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 	}
 	expiresIn := 300
 	cNonce := "nonsens"
-	return RequestAccessToken200JSONResponse(OIDCTokenResponse{
+	return RequestAccessToken200JSONResponse(TokenResponse{
 		AccessToken: accessToken,
 		CNonce:      &cNonce,
 		ExpiresIn:   &expiresIn,

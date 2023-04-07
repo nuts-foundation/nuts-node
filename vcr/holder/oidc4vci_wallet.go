@@ -6,7 +6,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0/types"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
@@ -16,8 +15,8 @@ import (
 )
 
 type OIDCWallet interface {
-	Metadata() types.OAuth2ClientMetadata
-	OfferCredential(ctx context.Context, offer types.CredentialOffer) error
+	Metadata() oidc4vci.OAuth2ClientMetadata
+	OfferCredential(ctx context.Context, offer oidc4vci.CredentialOffer) error
 }
 
 var _ OIDCWallet = (*wallet)(nil)
@@ -40,14 +39,14 @@ type wallet struct {
 	resolver        vdr.KeyResolver
 }
 
-func (h wallet) Metadata() types.OAuth2ClientMetadata {
-	return types.OAuth2ClientMetadata{
+func (h wallet) Metadata() oidc4vci.OAuth2ClientMetadata {
+	return oidc4vci.OAuth2ClientMetadata{
 		// TODO: Shouldn't be "identifier" or something in there?
 		CredentialOfferEndpoint: h.identifier + "/wallet/oidc4vci/credential_offer",
 	}
 }
 
-func (h wallet) retrieveCredential(ctx context.Context, issuerClient oidc4vci.IssuerClient, offer types.CredentialOffer, tokenResponse *types.OIDCTokenResponse) (*vc.VerifiableCredential, error) {
+func (h wallet) retrieveCredential(ctx context.Context, issuerClient oidc4vci.IssuerClient, offer oidc4vci.CredentialOffer, tokenResponse *oidc4vci.TokenResponse) (*vc.VerifiableCredential, error) {
 	// TODO (non-prototype): now we re-use the resolved OIDC Provider Metadata,
 	//                       but we should use resolve OIDC4VCI Credential Issuer Metadata and use its credential_endpoint instead
 
@@ -69,7 +68,7 @@ func (h wallet) retrieveCredential(ctx context.Context, issuerClient oidc4vci.Is
 		return nil, fmt.Errorf("unable to sign request proof: %w", err)
 	}
 
-	credentialRequest := types.CredentialRequest{
+	credentialRequest := oidc4vci.CredentialRequest{
 		// TODO (non-prototype): check there's credentials in the offer
 		// TODO (non-prototype): support only 1 credential in the offer, or choose one (based on what?)
 		CredentialDefinition: &offer.Credentials[0],
@@ -87,7 +86,7 @@ func (h wallet) retrieveCredential(ctx context.Context, issuerClient oidc4vci.Is
 	return issuerClient.GetCredential(ctx, credentialRequest, tokenResponse.AccessToken)
 }
 
-func (h wallet) OfferCredential(ctx context.Context, offer types.CredentialOffer) error {
+func (h wallet) OfferCredential(ctx context.Context, offer oidc4vci.CredentialOffer) error {
 	issuerClient, err := oidc4vci.NewIssuerClient(ctx, &http.Client{}, offer.CredentialIssuer)
 	if err != nil {
 		return fmt.Errorf("unable to create issuer client: %w", err)
@@ -97,8 +96,9 @@ func (h wallet) OfferCredential(ctx context.Context, offer types.CredentialOffer
 	//
 	// Request the access token
 	//
-	accessTokenResponse, err := issuerClient.RequestAccessToken(types.PreAuthorizedCodeGrant, map[string]string{
-		"pre-authorized_code": offer.Grants[types.PreAuthorizedCodeGrant].(map[string]interface{})["pre-authorized_code"].(string),
+	accessTokenResponse, err := issuerClient.RequestAccessToken(oidc4vci.PreAuthorizedCodeGrant, map[string]string{
+		// TODO: If no grants, derive grant from credential issuer metadata
+		"pre-authorized_code": offer.Grants[0][oidc4vci.PreAuthorizedCodeGrant].(map[string]interface{})["pre-authorized_code"].(string),
 	})
 	if err != nil {
 		return fmt.Errorf("unable to request access token: %w", err)
