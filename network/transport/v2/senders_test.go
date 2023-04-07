@@ -381,7 +381,7 @@ func performMultipleConversationsTest(t *testing.T, peer transport.Peer, sender 
 		mockConnection.EXPECT().Peer().Return(peer).AnyTimes()
 		// existing conversation for this peer
 		proto.cMan.conversations[conv.conversationID.String()] = conv
-		proto.cMan.lastPeerConversationID[peer.String()] = conv.conversationID
+		proto.cMan.lastPeerConversationID[peer.Key()] = conv.conversationID
 
 		err := sender(mockConnection, proto, mocks)
 
@@ -389,6 +389,6 @@ func performMultipleConversationsTest(t *testing.T, peer transport.Peer, sender 
 		// assert only conversation is the existing one
 		assert.Len(t, proto.cMan.conversations, 1)
 		assert.Equal(t, conv, proto.cMan.conversations[conv.conversationID.String()])
-		assert.Equal(t, conv.conversationID, proto.cMan.lastPeerConversationID[peer.String()])
+		assert.Equal(t, conv.conversationID, proto.cMan.lastPeerConversationID[peer.Key()])
 	})
 }

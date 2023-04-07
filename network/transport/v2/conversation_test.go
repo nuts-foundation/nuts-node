@@ -95,7 +95,7 @@ func TestConversationManager_startConversation(t *testing.T) {
 		assert.NotNil(t, conv)
 		assert.Len(t, cMan.conversations, 1)
 		assert.Len(t, cMan.lastPeerConversationID, 1)
-		assert.Equal(t, conv.conversationID, cMan.lastPeerConversationID[testPeer.String()])
+		assert.Equal(t, conv.conversationID, cMan.lastPeerConversationID[testPeer.Key()])
 	})
 	t.Run("previous conversation still active", func(t *testing.T) {
 		cMan := newConversationManager(time.Millisecond)
@@ -106,7 +106,7 @@ func TestConversationManager_startConversation(t *testing.T) {
 		assert.Nil(t, conv)
 		assert.Len(t, cMan.conversations, 1)
 		assert.Len(t, cMan.lastPeerConversationID, 1)
-		assert.Equal(t, previousConv.conversationID, cMan.lastPeerConversationID[testPeer.String()])
+		assert.Equal(t, previousConv.conversationID, cMan.lastPeerConversationID[testPeer.Key()])
 	})
 	t.Run("State is not blocking", func(t *testing.T) {
 		msg := &Envelope_State{State: &State{}}
@@ -129,7 +129,7 @@ func TestConversationManager_startConversation(t *testing.T) {
 		assert.NotNil(t, conv)
 		assert.Len(t, cMan.conversations, 1)
 		assert.Len(t, cMan.lastPeerConversationID, 1)
-		assert.Equal(t, conv.conversationID, cMan.lastPeerConversationID[testPeer.String()])
+		assert.Equal(t, conv.conversationID, cMan.lastPeerConversationID[testPeer.Key()])
 	})
 	t.Run("previous conversation expired", func(t *testing.T) {
 		cMan := newConversationManager(time.Millisecond)
@@ -141,7 +141,7 @@ func TestConversationManager_startConversation(t *testing.T) {
 		assert.NotNil(t, conv)
 		assert.Len(t, cMan.conversations, 2) // expired but not yet evicted
 		assert.Len(t, cMan.lastPeerConversationID, 1)
-		assert.Equal(t, conv.conversationID, cMan.lastPeerConversationID[testPeer.String()])
+		assert.Equal(t, conv.conversationID, cMan.lastPeerConversationID[testPeer.Key()])
 		assert.NotEqual(t, conv.conversationID, previousConv.conversationID)
 	})
 	t.Run("one conversation per peer allowed", func(t *testing.T) {

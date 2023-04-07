@@ -164,7 +164,7 @@ func (cMan *conversationManager) startConversation(msg checkable, peer transport
 }
 
 func (cMan *conversationManager) hasActiveConversation(peer transport.Peer) bool {
-	if lastPeerConv, ok := cMan.lastPeerConversationID[peer.String()]; ok {
+	if lastPeerConv, ok := cMan.lastPeerConversationID[peer.Key()]; ok {
 		if conversation, ok := cMan.conversations[lastPeerConv.String()]; ok {
 			if conversation.expiry.After(time.Now()) {
 				return true
