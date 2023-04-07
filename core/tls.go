@@ -122,11 +122,17 @@ func validate(store *TrustStore) error {
 	opts := x509.VerifyOptions{
 		Intermediates: NewCertPool(store.IntermediateCAs),
 		Roots:         NewCertPool(store.RootCAs),
+<<<<<<< HEAD
 	}
 	for _, cert := range store.Certificates() {
 		// We do not want to validate the time on the certificate, so we set VerifyOptions.CurrentTime to something where
 		// the certificate is guaranteed to be valid.
 		opts.CurrentTime = cert.NotBefore
+=======
+		CurrentTime:   nowFunc(), // leaving this empty defaults to the current time. Cannot not check time.
+	}
+	for _, cert := range store.Certificates() {
+>>>>>>> e1a829e2 (validate truststore on load)
 		if _, err := cert.Verify(opts); err != nil {
 			return err
 		}
