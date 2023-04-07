@@ -121,7 +121,7 @@ func TestProtocol_sendTransactionList(t *testing.T) {
 }
 
 func TestProtocol_sendTransactionRangeQuery(t *testing.T) {
-	peerID := transport.PeerID("1")
+	peer := transport.Peer{ID: "1"}
 
 	t.Run("ok", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
@@ -140,7 +140,7 @@ func TestProtocol_sendTransactionRangeQuery(t *testing.T) {
 		assert.NotNil(t, actualEnvelope.GetTransactionRangeQuery().GetConversationID())
 	})
 
-	performMultipleConversationsTest(t, peerID, func(c grpc.Connection, p *protocol, mocks protocolMocks) error {
+	performMultipleConversationsTest(t, peer, func(c grpc.Connection, p *protocol, mocks protocolMocks) error {
 		return p.sendTransactionRangeQuery(c, 1, 5)
 	})
 	performSendErrorTest(t, gomock.Any(), func(c grpc.Connection, p *protocol, _ protocolMocks) error {
@@ -149,7 +149,7 @@ func TestProtocol_sendTransactionRangeQuery(t *testing.T) {
 }
 
 func TestProtocol_sendTransactionListQuery(t *testing.T) {
-	peerID := transport.PeerID("1")
+	peer := transport.Peer{ID: "1"}
 
 	t.Run("ok", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
@@ -168,7 +168,7 @@ func TestProtocol_sendTransactionListQuery(t *testing.T) {
 		assert.NotNil(t, actualEnvelope.GetTransactionListQuery().GetConversationID())
 	})
 
-	performMultipleConversationsTest(t, peerID, func(c grpc.Connection, p *protocol, mocks protocolMocks) error {
+	performMultipleConversationsTest(t, peer, func(c grpc.Connection, p *protocol, mocks protocolMocks) error {
 		return p.sendTransactionListQuery(c, []hash.SHA256Hash{hash.FromSlice([]byte("list query"))})
 	})
 	performSendErrorTest(t, gomock.Any(), func(c grpc.Connection, p *protocol, _ protocolMocks) error {
@@ -355,7 +355,7 @@ func performSendErrorTest(t *testing.T, envelope gomock.Matcher, sender func(grp
 
 // performMultipleConversationsTest asserts that a node can have only 1 active conversation with a peer.
 // This is only relevant for senders that start new conversations (request messages).
-func performMultipleConversationsTest(t *testing.T, peerID transport.PeerID, sender func(grpc.Connection, *protocol, protocolMocks) error) {
+func performMultipleConversationsTest(t *testing.T, peer transport.Peer, sender func(grpc.Connection, *protocol, protocolMocks) error) {
 	conv := &conversation{
 		conversationID: newConversationID(),
 		expiry:         time.Now().Add(time.Minute),
@@ -378,10 +378,10 @@ func performMultipleConversationsTest(t *testing.T, peerID transport.PeerID, sen
 	t.Run("ok - peer already in a conversation", func(t *testing.T) {
 		proto, mocks := newTestProtocol(t, nil)
 		mockConnection := grpc.NewMockConnection(mocks.Controller)
-		mockConnection.EXPECT().Peer().Return(transport.Peer{ID: peerID}).AnyTimes()
+		mockConnection.EXPECT().Peer().Return(peer).AnyTimes()
 		// existing conversation for this peer
 		proto.cMan.conversations[conv.conversationID.String()] = conv
-		proto.cMan.lastPeerConversationID[peerID] = conv.conversationID
+		proto.cMan.lastPeerConversationID[peer.Key()] = conv.conversationID
 
 		err := sender(mockConnection, proto, mocks)
 
@@ -389,6 +389,6 @@ func performMultipleConversationsTest(t *testing.T, peerID transport.PeerID, sen
 		// assert only conversation is the existing one
 		assert.Len(t, proto.cMan.conversations, 1)
 		assert.Equal(t, conv, proto.cMan.conversations[conv.conversationID.String()])
-		assert.Equal(t, conv.conversationID, proto.cMan.lastPeerConversationID[peerID])
+		assert.Equal(t, conv.conversationID, proto.cMan.lastPeerConversationID[peer.Key()])
 	})
 }

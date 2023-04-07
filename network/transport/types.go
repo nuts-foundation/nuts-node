@@ -63,6 +63,13 @@ func (p Peer) ToFields() logrus.Fields {
 	}
 }
 
+// Key returns a unique key for this Peer including PeerID and NodeDID.
+// Usable as map index, not usable for presentation.
+func (p Peer) Key() string {
+	// address is included since 2 connections may exist for a peer (inbound/outbound)
+	return fmt.Sprintf("%s(%s)@%s", p.ID, p.NodeDID.String(), p.Address)
+}
+
 // String returns the peer as string.
 func (p Peer) String() string {
 	if p.NodeDID.Empty() {

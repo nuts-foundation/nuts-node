@@ -82,14 +82,14 @@ type conversationManager struct {
 	mutex                  sync.RWMutex
 	conversations          map[string]*conversation
 	validity               time.Duration
-	lastPeerConversationID map[transport.PeerID]conversationID
+	lastPeerConversationID map[string]conversationID
 }
 
 func newConversationManager(validity time.Duration) *conversationManager {
 	return &conversationManager{
 		conversations:          map[string]*conversation{},
 		validity:               validity,
-		lastPeerConversationID: map[transport.PeerID]conversationID{},
+		lastPeerConversationID: map[string]conversationID{},
 	}
 }
 
@@ -138,7 +138,7 @@ func (cMan *conversationManager) resetTimeout(cid conversationID) {
 }
 
 // startConversation sets a conversationID on the envelope and stores the conversation
-func (cMan *conversationManager) startConversation(msg checkable, id transport.PeerID) *conversation {
+func (cMan *conversationManager) startConversation(msg checkable, peer transport.Peer) *conversation {
 	cid := newConversationID()
 
 	msg.setConversationID(cid)
@@ -152,10 +152,10 @@ func (cMan *conversationManager) startConversation(msg checkable, id transport.P
 	defer cMan.mutex.Unlock()
 
 	if _, ok := msg.(blockable); ok {
-		if cMan.hasActiveConversation(id) {
+		if cMan.hasActiveConversation(peer) {
 			return nil
 		}
-		cMan.lastPeerConversationID[id] = cid
+		cMan.lastPeerConversationID[peer.Key()] = cid
 	}
 
 	cMan.conversations[cid.String()] = newConversation
@@ -163,8 +163,8 @@ func (cMan *conversationManager) startConversation(msg checkable, id transport.P
 	return newConversation
 }
 
-func (cMan *conversationManager) hasActiveConversation(id transport.PeerID) bool {
-	if lastPeerConv, ok := cMan.lastPeerConversationID[id]; ok {
+func (cMan *conversationManager) hasActiveConversation(peer transport.Peer) bool {
+	if lastPeerConv, ok := cMan.lastPeerConversationID[peer.Key()]; ok {
 		if conversation, ok := cMan.conversations[lastPeerConv.String()]; ok {
 			if conversation.expiry.After(time.Now()) {
 				return true

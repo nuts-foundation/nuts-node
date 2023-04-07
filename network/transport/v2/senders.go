@@ -74,7 +74,7 @@ func (p *protocol) sendTransactionListQuery(connection grpc.Connection, refs []h
 		},
 	}
 
-	conversation := p.cMan.startConversation(msg, connection.Peer().ID)
+	conversation := p.cMan.startConversation(msg, connection.Peer())
 	if conversation == nil {
 		log.Logger().
 			WithFields(connection.Peer().ToFields()).
@@ -118,7 +118,7 @@ func (p *protocol) sendTransactionRangeQuery(connection grpc.Connection, lcStart
 		},
 	}
 
-	conversation := p.cMan.startConversation(msg, connection.Peer().ID)
+	conversation := p.cMan.startConversation(msg, connection.Peer())
 	if conversation == nil {
 		log.Logger().
 			WithFields(connection.Peer().ToFields()).
@@ -174,7 +174,7 @@ func (p *protocol) sendState(connection grpc.Connection, xor hash.SHA256Hash, cl
 			LC:  clock,
 		},
 	}
-	conversation := p.cMan.startConversation(msg, connection.Peer().ID)
+	conversation := p.cMan.startConversation(msg, connection.Peer())
 	if conversation == nil {
 		log.Logger().
 			WithFields(connection.Peer().ToFields()).
