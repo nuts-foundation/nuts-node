@@ -20,28 +20,47 @@ package core
 
 import (
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"os"
 	"testing"
+	"time"
 )
 
 func TestLoadTrustStore(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		store, err := LoadTrustStore("../network/test/truststore.pem")
+		nowFunc = func() time.Time { return time.Date(2022, 12, 1, 0, 0, 0, 0, time.UTC) }
+		defer func() { nowFunc = time.Now }()
+		store, err := LoadTrustStore("../crl/test/pkioverheid-server-bundle.pem")
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, store)
-		assert.Len(t, store.Certificates(), 4)
+		assert.Len(t, store.Certificates(), 3)
 
 		// Assert root certs
-		assert.Len(t, store.RootCAs, 2)
-		assert.Equal(t, "CN=Root CA", store.RootCAs[0].Subject.String())
-		assert.Equal(t, "CN=Staat der Nederlanden EV Root CA,O=Staat der Nederlanden,C=NL", store.RootCAs[1].Subject.String())
+		require.Len(t, store.RootCAs, 1)
+		assert.Equal(t, "CN=Staat der Nederlanden EV Root CA,O=Staat der Nederlanden,C=NL", store.RootCAs[0].Subject.String())
 		// Assert intermediate certs
-		assert.Len(t, store.IntermediateCAs, 2)
+		require.Len(t, store.IntermediateCAs, 2)
 		assert.Equal(t, "CN=Staat der Nederlanden Domein Server CA 2020,O=Staat der Nederlanden,C=NL", store.IntermediateCAs[1].Subject.String())
+	})
+	t.Run("invalid time", func(t *testing.T) {
+		store, err := LoadTrustStore("../crl/test/pkioverheid-server-bundle.pem")
+
+		assert.ErrorContains(t, err, "x509: certificate has expired or is not yet valid:")
+		assert.Nil(t, store)
 	})
 	t.Run("invalid PEM file", func(t *testing.T) {
 		store, err := LoadTrustStore("tls_test.go")
 		assert.Error(t, err)
 		assert.Nil(t, store)
+	})
+	t.Run("incomplete chain", func(t *testing.T) {
+		leafCert, err := os.ReadFile("../network/test/certificate-and-key.pem")
+		cert, err := ParseCertificates(leafCert)
+		require.NoError(t, err)
+
+		err = validate(&TrustStore{certificates: cert})
+
+		assert.EqualError(t, err, "x509: certificate signed by unknown authority")
 	})
 }

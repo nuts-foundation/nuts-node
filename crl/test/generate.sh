@@ -142,7 +142,7 @@ openssl ca -gencrl \
 
 ## Copy data and cleanup
 popd
-cat gen-crl-data/int-ca.crt gen-crl-data/root-ca.crt ../../network/test/pkioverheid-server-bundle.pem > truststore_withPKIOverheid.pem
+cat gen-crl-data/int-ca.crt gen-crl-data/root-ca.crt pkioverheid-server-bundle.pem > truststore_withPKIOverheid.pem
 cat gen-crl-data/int-ca.crt gen-crl-data/root-ca.crt > truststore.pem
 cat gen-crl-data/certs/04.pem gen-crl-data/private/leafA1.key > A-valid.pem
 cat gen-crl-data/certs/05.pem gen-crl-data/private/leafA2.key > A-revoked.pem

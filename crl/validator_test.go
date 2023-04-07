@@ -42,7 +42,7 @@ import (
 const (
 	truststore     = "test/truststore.pem"
 	truststorePKIo = "test/truststore_withPKIOverheid.pem"
-	pkiOverheidCRL = "../network/test/pkioverheid.crl"
+	pkiOverheidCRL = "test/pkioverheid.crl"
 	rootCRLurl     = "http://certs.nuts.nl/RootCALatest.crl"
 )
 
@@ -55,10 +55,9 @@ var crlPathMap = map[string]string{
 
 func TestValidator_Start(t *testing.T) {
 	defer goleak.VerifyNone(t)
-	store, err := core.LoadTrustStore(truststorePKIo)
+	store := core.TrustStoreWithInvalidDate(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	require.NoError(t, err)
 	val, err := newValidatorWithHTTPClient(store.Certificates(), newClient())
 	require.NoError(t, err)
 
