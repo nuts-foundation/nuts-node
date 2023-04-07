@@ -72,7 +72,7 @@ func (h httpIssuerClient) GetCredential(ctx context.Context, request CredentialR
 	httpRequest.Header.Add("Content-Type", "application/json")
 	err := httpDo(h.httpClient, httpRequest, &credentialResponse)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get credential request failed: %w", err)
 	}
 	// TODO (non-prototype): check format
 	// TODO (non-prototype): process VC as JSON-LD?
@@ -133,7 +133,7 @@ func httpGet(ctx context.Context, httpClient *http.Client, targetURL string, res
 func httpDo(httpClient *http.Client, httpRequest *http.Request, result interface{}) error {
 	httpResponse, err := httpClient.Do(httpRequest)
 	if err != nil {
-		return fmt.Errorf("http request error: %w", err)
+		return fmt.Errorf("http request error (%s): %w", httpRequest.URL, err)
 	}
 	defer httpResponse.Body.Close()
 	responseBody, err := io.ReadAll(httpResponse.Body)
@@ -147,7 +147,7 @@ func httpDo(httpClient *http.Client, httpRequest *http.Request, result interface
 			responseBodyStr = responseBodyStr[:100] + "..."
 		}
 		log.Logger().Debugf("HTTP response body: %s", responseBodyStr)
-		return fmt.Errorf("unexpected http response code: %d", httpResponse.StatusCode)
+		return fmt.Errorf("unexpected http response code (%s): %d", httpRequest.URL, httpResponse.StatusCode)
 	}
 	if result != nil {
 		if err := json.Unmarshal(responseBody, result); err != nil {
