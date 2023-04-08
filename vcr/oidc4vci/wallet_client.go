@@ -58,8 +58,10 @@ func (c *httpWalletClient) OfferCredential(ctx context.Context, offer Credential
 }
 
 func loadOAuth2CredentialsClientMetadata(ctx context.Context, metadataURL string, httpClient *http.Client) (*OAuth2ClientMetadata, error) {
-	// TODO (non-prototype): Support HTTPS (which truststore?)
-	// TODO (non-prototype): what about caching?
+	// TODO: Support HTTPS (which truststore?)
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2032
+	// TODO: what about caching?
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2034
 	result := OAuth2ClientMetadata{}
 	err := httpGet(ctx, httpClient, metadataURL, &result)
 	if err != nil {
@@ -69,5 +71,6 @@ func loadOAuth2CredentialsClientMetadata(ctx context.Context, metadataURL string
 		return nil, errors.New("invalid meta data: does not contain credential offer endpoint")
 	}
 	// TODO: Verify client identifier is the expected one?
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2033
 	return &result, nil
 }

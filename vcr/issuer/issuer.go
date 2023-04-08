@@ -153,7 +153,6 @@ func (i issuer) issuerUsingOIDC4VCI(ctx context.Context, credential *vc.Verifiab
 		return fmt.Errorf("unable to resolve OIDC4VCI wallet metadata URL for DID %s: %w", subject.ID, err)
 	}
 	var walletMetadataURL string
-	// TODO: Dangerous?
 	err = walletService.UnmarshalServiceEndpoint(&walletMetadataURL)
 	if err != nil {
 		return fmt.Errorf("unable to unmarshal OIDC4VCI wallet metadata URL of DID %s: %w", subject.ID, err)

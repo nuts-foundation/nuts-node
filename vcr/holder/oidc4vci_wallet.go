@@ -71,9 +71,7 @@ func (h wallet) retrieveCredential(ctx context.Context, issuerClient oidc4vci.Is
 		// TODO (non-prototype): check there's credentials in the offer
 		// TODO (non-prototype): support only 1 credential in the offer, or choose one (based on what?)
 		CredentialDefinition: &offer.Credentials[0],
-		// TODO (non-prototype): make this a constant?
-		Format: "ldp_vc",
-		// TODO (non-prototype): build actual proof
+		Format:               oidc4vci.VerifiableCredentialJSONLDFormat,
 		Proof: &struct {
 			Jwt       string `json:"jwt"`
 			ProofType string `json:"proof_type"`

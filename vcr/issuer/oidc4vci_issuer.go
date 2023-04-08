@@ -82,9 +82,8 @@ func (i *memoryIssuer) Offer(ctx context.Context, credential vc.VerifiableCreden
 	}
 	log.Logger().Infof("Publishing credential for subject %s using OIDC4VCI", subject)
 
-	// TODO: Lookup Credential Wallet Client Metadata. For now, we use the local node
-
 	// TODO: Support TLS
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2032
 	client, err := oidc4vci.NewWalletClient(ctx, &http.Client{}, clientMetadataURL)
 	if err != nil {
 		return err
@@ -136,7 +135,8 @@ func (i *memoryIssuer) GetCredential(ctx context.Context, accessToken string) (v
 		WithField(core.LogFieldCredentialIssuer, credential.Issuer.String()).
 		WithField(core.LogFieldCredentialSubject, subjectDID).
 		Infof("VC retrieved by wallet over OIDC4VCI")
-	// TODO (non-prototype): this is probably not correct, I think I read in the RFC that the VC should be retrievable multiple times
+	// TODO: this is probably not correct, I think I read in the RFC that the VC should be retrievable multiple times
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2031
 	delete(i.accessTokens, accessToken)
 	delete(i.state, preAuthorizedCode)
 	return credential, nil
@@ -158,6 +158,8 @@ func getSubjectDID(verifiableCredential vc.VerifiableCredential) (string, error)
 }
 
 func generateCode() string {
+	// TODO: Replace with something securer?
+	//		 See https://github.com/nuts-foundation/nuts-node/issues/2030
 	buf := make([]byte, 64)
 	_, err := rand.Read(buf)
 	if err != nil {

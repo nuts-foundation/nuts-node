@@ -93,8 +93,10 @@ func (h httpIssuerClient) Metadata() CredentialIssuerMetadata {
 }
 
 func loadCredentialIssuerMetadata(ctx context.Context, identifier string, httpClient *http.Client) (*CredentialIssuerMetadata, error) {
-	// TODO (non-prototype): Support HTTPS (which truststore?)
-	// TODO (non-prototype): what about caching?
+	// TODO: Support HTTPS (which truststore?)
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2032
+	// TODO: what about caching?
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2034
 	result := CredentialIssuerMetadata{}
 	err := httpGet(ctx, httpClient, identifier+CredentialIssuerMetadataWellKnownPath, &result)
 	if err != nil {
@@ -104,15 +106,15 @@ func loadCredentialIssuerMetadata(ctx context.Context, identifier string, httpCl
 		return nil, errors.New("invalid meta data: does not contain credential endpoint")
 	}
 	// TODO: Verify CredentialIssuer is the expected one
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2033
 	return &result, nil
 }
 
 func loadOIDCProviderMetadata(ctx context.Context, identifier string, httpClient *http.Client) (*ProviderMetadata, error) {
-	//
-	// Resolve OpenID Connect Provider Metadata, to find out where to request the token
-	//
-	// TODO (non-prototype): Support HTTPS (which truststore?)
-	// TODO (non-prototype): what about caching?
+	// TODO: Support HTTPS (which truststore?)
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2032
+	// TODO: what about caching?
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2034
 	result := ProviderMetadata{}
 	err := httpGet(ctx, httpClient, identifier+ProviderMetadataWellKnownPath, &result)
 	if err != nil {
@@ -122,6 +124,7 @@ func loadOIDCProviderMetadata(ctx context.Context, identifier string, httpClient
 		return nil, errors.New("invalid meta data: does not contain token endpoint")
 	}
 	// TODO: Verify issuer is the expected one
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2033
 	return &result, nil
 }
 
