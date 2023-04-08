@@ -46,6 +46,7 @@ import (
 var TimeFunc = time.Now
 
 // NewIssuer creates a new issuer which implements the Issuer interface.
+// If oidcIssuerFunc is nil, it won't try to issue over OIDC4VCI.
 func NewIssuer(store Store, networkPublisher Publisher, oidcIssuerFunc func(did.DID) OIDCIssuer, docResolver vdr.DocResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config) Issuer {
 	resolver := vdrKeyResolver{docResolver: docResolver, keyResolver: keyStore}
 	return &issuer{
@@ -109,8 +110,9 @@ func (i issuer) Issue(ctx context.Context, credentialOptions vc.VerifiableCreden
 	}
 
 	if publish {
-		// TODO (non-prototype): can we do this for all credentials?
-		if !public {
+		// Issue over OIDC4VCI if it's enabled and if the credential is not public
+		// (public credentials are always published on the network).
+		if i.oidcIssuerFunc != nil && !public {
 			// Resolve credential subject DID document to see if they support OIDC4VCI
 			type credentialSubject struct {
 				ID string `json:"id"`

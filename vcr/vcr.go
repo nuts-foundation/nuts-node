@@ -141,7 +141,11 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	c.trustConfig = trust.NewConfig(tcPath)
 
 	networkPublisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
-	c.issuer = issuer.NewIssuer(c.issuerStore, networkPublisher, c.GetOIDCIssuer, c.docResolver, c.keyStore, c.jsonldManager, c.trustConfig)
+	var oidcIssuerFunc = c.GetOIDCIssuer
+	if !c.config.OIDC4VCI.Enabled {
+		oidcIssuerFunc = nil
+	}
+	c.issuer = issuer.NewIssuer(c.issuerStore, networkPublisher, oidcIssuerFunc, c.docResolver, c.keyStore, c.jsonldManager, c.trustConfig)
 	c.verifier = verifier.NewVerifier(c.verifierStore, c.docResolver, c.keyResolver, c.jsonldManager, c.trustConfig)
 
 	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)
