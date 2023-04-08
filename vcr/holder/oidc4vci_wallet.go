@@ -41,7 +41,6 @@ type wallet struct {
 
 func (h wallet) Metadata() oidc4vci.OAuth2ClientMetadata {
 	return oidc4vci.OAuth2ClientMetadata{
-		// TODO: Shouldn't be "identifier" or something in there?
 		CredentialOfferEndpoint: h.identifier + "/wallet/oidc4vci/credential_offer",
 	}
 }
@@ -93,9 +92,6 @@ func (h wallet) OfferCredential(ctx context.Context, offer oidc4vci.CredentialOf
 	}
 
 	// TODO (non-prototype): store offer and perform these requests async
-	//
-	// Request the access token
-	//
 	accessTokenResponse, err := issuerClient.RequestAccessToken(oidc4vci.PreAuthorizedCodeGrant, map[string]string{
 		// TODO: If no grants, derive grant from credential issuer metadata
 		"pre-authorized_code": offer.Grants[0][oidc4vci.PreAuthorizedCodeGrant].(map[string]interface{})["pre-authorized_code"].(string),
@@ -112,9 +108,10 @@ func (h wallet) OfferCredential(ctx context.Context, offer oidc4vci.CredentialOf
 		return fmt.Errorf("c_nonce is missing")
 	}
 
-	fmt.Printf("CredentialOffer: %s, %v\n", h.identifier, offer)
+	log.Logger().Debugf("CredentialOffer: %s, %v\n", h.identifier, offer)
 
-	// TODO (non-prototype): we now do this in a goroutine to avoid blocking the issuer's process
+	// TODO (non-prototype): we now do this in a goroutine to avoid blocking the issuer's process, needs more orchestration?
+	// E.g., backing data store/message queue?
 	go func() {
 		// TODO (non-prototype): needs retrying
 		retrieveCtx := context.Background()
@@ -128,7 +125,7 @@ func (h wallet) OfferCredential(ctx context.Context, offer oidc4vci.CredentialOf
 		log.Logger().Infof("Received VC over OIDC4VCI, storing in VCR: %s", credential.ID.String())
 		err = h.credentialStore.StoreCredential(*credential, nil)
 		if err != nil {
-			println("Unable to store VC:", err.Error())
+			log.Logger().WithError(err).Error("Unable to store VC")
 		}
 	}()
 	return nil

@@ -51,7 +51,7 @@ func (w Wrapper) GetCredential(ctx context.Context, request GetCredentialRequest
 	}
 	return GetCredential200JSONResponse(CredentialResponse{
 		Credential: &credentialMap,
-		Format:     "ldp_vc",
+		Format:     "VerifiableCredentialJSONLDFormat",
 	}), nil
 }
 

@@ -93,7 +93,7 @@ func (i *memoryIssuer) Offer(ctx context.Context, credential vc.VerifiableCreden
 	offer := oidc4vci.CredentialOffer{
 		CredentialIssuer: i.identifier,
 		Credentials: []map[string]interface{}{{
-			"format": "ldp_vc",
+			"format": "VerifiableCredentialJSONLDFormat",
 			"credential_definition": map[string]interface{}{
 				"@context": credential.Context,
 				"types":    credential.Type,

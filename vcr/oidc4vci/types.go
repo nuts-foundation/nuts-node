@@ -14,6 +14,9 @@ const ProviderMetadataWellKnownPath = "/.well-known/oauth-authorization-server"
 // Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-issuer-metadata-
 const CredentialIssuerMetadataWellKnownPath = "/.well-known/openid-credential-issuer"
 
+// VerifiableCredentialJSONLDFormat defines the JSON-LD format identifier for Verifiable Credentials.
+const VerifiableCredentialJSONLDFormat = "ldp_vc"
+
 // CredentialIssuerMetadata defines the OIDC4VCI Credential Issuer Metadata.
 // Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-issuer-metadata
 type CredentialIssuerMetadata struct {

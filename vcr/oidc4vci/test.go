@@ -16,7 +16,7 @@ func setupClientTest(t *testing.T) *oidcClientTestContext {
 	providerMetadata := new(ProviderMetadata)
 	walletMetadata := new(OAuth2ClientMetadata)
 	credentialResponse := CredentialResponse{
-		Format: "ldp_vc",
+		Format: "VerifiableCredentialJSONLDFormat",
 		Credential: &map[string]interface{}{
 			"@context":          []string{"https://www.w3.org/2018/credentials/v1"},
 			"type":              []string{"VerifiableCredential"},
