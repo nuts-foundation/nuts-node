@@ -110,38 +110,21 @@ func (i issuer) Issue(ctx context.Context, credentialOptions vc.VerifiableCreden
 	}
 
 	if publish {
-		// Issue over OIDC4VCI if it's enabled and if the credential is not public
+		// Try to issue over OIDC4VCI if it's enabled and if the credential is not public
 		// (public credentials are always published on the network).
 		if i.oidcIssuerFunc != nil && !public {
-			// Resolve credential subject DID document to see if they support OIDC4VCI
-			type credentialSubject struct {
-				ID string `json:"id"`
-			}
-			var subjects []credentialSubject
-			err := createdVC.UnmarshalCredentialSubject(&subjects)
-			if err != nil {
-				return nil, fmt.Errorf("unable to unmarshal credential subject: %w", err)
-			}
-			subject := subjects[0]
-			// TODO (non-prototype): the service endpoint type must be specified (this is "our" way of client metadata discovery?)
-			serviceQuery := ssi.MustParseURI(subject.ID + "/serviceEndpoint?type=oidc4vci-wallet-metadata")
-			walletService, err := i.serviceResolver.Resolve(serviceQuery, 2)
-			if err != nil {
-				log.Logger().Infof("Could not resolve OIDC4VCI wallet metadata URL for DID (%s), will publish over Nuts network: %v", subject.ID, err)
-			} else {
-				var walletMetadataURL string
-				// TODO: Dangerous?
-				err = walletService.UnmarshalServiceEndpoint(&walletMetadataURL)
-				if err != nil {
-					return nil, fmt.Errorf("unable to unmarshal wallet metadata URL: %w", err)
-				}
-				issuerDID, _ := did.ParseDID(credentialOptions.Issuer.String()) // can't fail
-				err := i.oidcIssuerFunc(*issuerDID).Offer(ctx, *createdVC, walletMetadataURL)
-				if err != nil {
-					return nil, fmt.Errorf("unable to publish the issued credential over OIDC4VCI: %w", err)
-				}
-				log.Logger().Infof("Published credential %s over OIDC4VCI", createdVC.ID.String())
+			err := i.issuerUsingOIDC4VCI(ctx, createdVC)
+			if err == nil {
+				log.Logger().
+					WithField(core.LogFieldCredentialID, createdVC.ID.String()).
+					Info("Published credential over OIDC4VCI")
 				return createdVC, nil
+			} else if !errors.Is(err, vdr.ErrServiceNotFound) {
+				// An error occurred, but it's not because the DID doesn't support OIDC4VCI. Fallback to publishing over Nuts network.
+				log.Logger().
+					WithField(core.LogFieldCredentialID, createdVC.ID.String()).
+					WithError(err).
+					Warnf("Could publish credential over OIDC4VCI, fallback to publish over Nuts network")
 			}
 		}
 		if err := i.networkPublisher.PublishCredential(ctx, *createdVC, public); err != nil {
@@ -149,6 +132,38 @@ func (i issuer) Issue(ctx context.Context, credentialOptions vc.VerifiableCreden
 		}
 	}
 	return createdVC, nil
+}
+
+func (i issuer) issuerUsingOIDC4VCI(ctx context.Context, credential *vc.VerifiableCredential) error {
+	// Resolve credential subject DID document to see if they support OIDC4VCI
+	type credentialSubject struct {
+		ID string `json:"id"`
+	}
+	var subjects []credentialSubject
+	err := credential.UnmarshalCredentialSubject(&subjects)
+	if err != nil {
+		return fmt.Errorf("unable to unmarshal credential subject: %w", err)
+	}
+	// TODO: should we support multiple subjects?
+	subject := subjects[0]
+	// TODO (non-prototype): the service endpoint type must be specified (this is "our" way of client metadata discovery?)
+	serviceQuery := ssi.MustParseURI(subject.ID + "/serviceEndpoint?type=oidc4vci-wallet-metadata")
+	walletService, err := i.serviceResolver.Resolve(serviceQuery, 5)
+	if err != nil {
+		return fmt.Errorf("unable to resolve OIDC4VCI wallet metadata URL for DID %s: %w", subject.ID, err)
+	}
+	var walletMetadataURL string
+	// TODO: Dangerous?
+	err = walletService.UnmarshalServiceEndpoint(&walletMetadataURL)
+	if err != nil {
+		return fmt.Errorf("unable to unmarshal OIDC4VCI wallet metadata URL of DID %s: %w", subject.ID, err)
+	}
+	issuerDID, _ := did.ParseDID(credential.Issuer.String()) // can't fail
+	err = i.oidcIssuerFunc(*issuerDID).Offer(ctx, *credential, walletMetadataURL)
+	if err != nil {
+		return fmt.Errorf("unable to publish the issued credential over OIDC4VCI to DID %s: %w", subject.ID, err)
+	}
+	return nil
 }
 
 func (i issuer) buildVC(ctx context.Context, credentialOptions vc.VerifiableCredential) (*vc.VerifiableCredential, error) {

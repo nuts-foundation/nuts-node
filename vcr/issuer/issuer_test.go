@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/stretchr/testify/require"
 	"path"
 	"testing"
@@ -171,25 +172,27 @@ func Test_issuer_buildVC(t *testing.T) {
 
 func Test_issuer_Issue(t *testing.T) {
 	credentialType := ssi.MustParseURI("HumanCredential")
-	issuerID := ssi.MustParseURI("did:nuts:123")
+	issuerDID := did.MustParseDID("did:nuts:123")
+	issuerKeyID := issuerDID.String() + "#abc"
+	holderDID := did.MustParseDID("did:nuts:456")
+
 	credentialOptions := vc.VerifiableCredential{
 		Context: []ssi.URI{credential.NutsV1ContextURI},
 		Type:    []ssi.URI{credentialType},
-		Issuer:  issuerID,
+		Issuer:  issuerDID.URI(),
 		CredentialSubject: []interface{}{map[string]interface{}{
-			"id": "did:nuts:456",
+			"id": holderDID.String(),
 		}},
 	}
 	ctx := audit.TestContext()
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
-	kid := "did:nuts:123#abc"
 
 	t.Run("ok - unpublished", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config"))
 		keyResolverMock := NewMockkeyResolver(ctrl)
-		keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(kid), nil)
+		keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
 		mockStore := NewMockStore(ctrl)
 		mockStore.EXPECT().StoreCredential(gomock.Any())
 		sut := issuer{
@@ -202,12 +205,106 @@ func Test_issuer_Issue(t *testing.T) {
 		require.NoError(t, err)
 		assert.Contains(t, result.Type, credentialType, "expected vc to be of right type")
 		proofs, _ := result.Proofs()
-		assert.Equal(t, kid, proofs[0].VerificationMethod.String(), "expected to be signed with the kid")
-		assert.Equal(t, issuerID.String(), result.Issuer.String(), "expected correct issuer")
+		assert.Equal(t, issuerKeyID, proofs[0].VerificationMethod.String(), "expected to be signed with the kid")
+		assert.Equal(t, issuerDID.String(), result.Issuer.String(), "expected correct issuer")
 		assert.Contains(t, result.Context, credential.NutsV1ContextURI)
 		assert.Contains(t, result.Context, vc.VCContextV1URI())
 		// Assert issuing a credential makes it trusted
 		assert.True(t, trustConfig.IsTrusted(credentialType, result.Issuer))
+	})
+
+	t.Run("OIDC4VCI", func(t *testing.T) {
+		const walletMetadataURL = "http://example.com/wallet"
+		walletServiceQuery := ssi.MustParseURI(holderDID.String() + "/serviceEndpoint?type=oidc4vci-wallet-metadata")
+		walletService := did.Service{
+			ServiceEndpoint: walletMetadataURL,
+		}
+		t.Run("ok - publish over OIDC4VCI fails - fallback to network", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			publisher := NewMockPublisher(ctrl)
+			publisher.EXPECT().PublishCredential(gomock.Any(), gomock.Any(), gomock.Any())
+			oidcIssuer := NewMockOIDCIssuer(ctrl)
+			oidcIssuer.EXPECT().Offer(gomock.Any(), gomock.Any(), walletMetadataURL).Return(errors.New("failed"))
+			keyResolver := NewMockkeyResolver(ctrl)
+			keyResolver.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
+			serviceResolver := didservice.NewMockServiceResolver(ctrl)
+			serviceResolver.EXPECT().Resolve(walletServiceQuery, gomock.Any()).Return(walletService, nil)
+			store := NewMockStore(ctrl)
+			store.EXPECT().StoreCredential(gomock.Any())
+			sut := issuer{
+				keyResolver:     keyResolver,
+				store:           store,
+				jsonldManager:   jsonldManager,
+				trustConfig:     trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config")),
+				keyStore:        crypto.NewMemoryCryptoInstance(),
+				serviceResolver: serviceResolver,
+				oidcIssuerFunc: func(id did.DID) OIDCIssuer {
+					return oidcIssuer
+				},
+				networkPublisher: publisher,
+			}
+
+			result, err := sut.Issue(ctx, credentialOptions, true, false)
+
+			require.NoError(t, err)
+			assert.NotNil(t, result)
+		})
+		t.Run("ok - OIDC4VCI not enabled for holder DID - fallback to network", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			publisher := NewMockPublisher(ctrl)
+			publisher.EXPECT().PublishCredential(gomock.Any(), gomock.Any(), gomock.Any())
+			oidcIssuer := NewMockOIDCIssuer(ctrl)
+			keyResolver := NewMockkeyResolver(ctrl)
+			keyResolver.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
+			serviceResolver := didservice.NewMockServiceResolver(ctrl)
+			serviceResolver.EXPECT().Resolve(walletServiceQuery, gomock.Any()).Return(did.Service{}, fmt.Errorf("error: %w", vdr.ErrServiceNotFound))
+			store := NewMockStore(ctrl)
+			store.EXPECT().StoreCredential(gomock.Any())
+			sut := issuer{
+				keyResolver:     keyResolver,
+				store:           store,
+				jsonldManager:   jsonldManager,
+				trustConfig:     trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config")),
+				keyStore:        crypto.NewMemoryCryptoInstance(),
+				serviceResolver: serviceResolver,
+				oidcIssuerFunc: func(id did.DID) OIDCIssuer {
+					return oidcIssuer
+				},
+				networkPublisher: publisher,
+			}
+
+			result, err := sut.Issue(ctx, credentialOptions, true, false)
+
+			require.NoError(t, err)
+			assert.NotNil(t, result)
+		})
+		t.Run("ok - publish over OIDC4VCI", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			oidcIssuer := NewMockOIDCIssuer(ctrl)
+			oidcIssuer.EXPECT().Offer(gomock.Any(), gomock.Any(), walletMetadataURL)
+			keyResolver := NewMockkeyResolver(ctrl)
+			keyResolver.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
+			serviceResolver := didservice.NewMockServiceResolver(ctrl)
+			serviceResolver.EXPECT().Resolve(walletServiceQuery, gomock.Any()).Return(walletService, nil)
+			store := NewMockStore(ctrl)
+			store.EXPECT().StoreCredential(gomock.Any())
+			sut := issuer{
+				keyResolver:     keyResolver,
+				store:           store,
+				jsonldManager:   jsonldManager,
+				trustConfig:     trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config")),
+				keyStore:        crypto.NewMemoryCryptoInstance(),
+				serviceResolver: serviceResolver,
+				oidcIssuerFunc: func(id did.DID) OIDCIssuer {
+					return oidcIssuer
+				},
+			}
+
+			result, err := sut.Issue(ctx, credentialOptions, true, false)
+
+			require.NoError(t, err)
+			assert.NotNil(t, result)
+		})
 	})
 
 	t.Run("error - from used services", func(t *testing.T) {
@@ -216,7 +313,7 @@ func Test_issuer_Issue(t *testing.T) {
 
 			trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config"))
 			keyResolverMock := NewMockkeyResolver(ctrl)
-			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(kid), nil)
+			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
 			mockStore := NewMockStore(ctrl)
 			mockStore.EXPECT().StoreCredential(gomock.Any()).Return(errors.New("b00m!"))
 			sut := issuer{
@@ -235,7 +332,7 @@ func Test_issuer_Issue(t *testing.T) {
 
 			trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config"))
 			keyResolverMock := NewMockkeyResolver(ctrl)
-			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(kid), nil)
+			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
 			mockPublisher := NewMockPublisher(ctrl)
 			mockPublisher.EXPECT().PublishCredential(gomock.Any(), gomock.Any(), true).Return(errors.New("b00m!"))
 			mockStore := NewMockStore(ctrl)
@@ -255,7 +352,7 @@ func Test_issuer_Issue(t *testing.T) {
 
 			credentialOptions := vc.VerifiableCredential{
 				Type:   []ssi.URI{},
-				Issuer: issuerID,
+				Issuer: issuerDID.URI(),
 			}
 
 			result, err := sut.Issue(ctx, credentialOptions, true, true)
@@ -268,7 +365,7 @@ func Test_issuer_Issue(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
 			keyResolverMock := NewMockkeyResolver(ctrl)
-			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(kid), nil)
+			keyResolverMock.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
 			mockStore := NewMockStore(ctrl)
 			sut := issuer{keyResolver: keyResolverMock, store: mockStore, jsonldManager: jsonldManager, keyStore: crypto.NewMemoryCryptoInstance()}
 
