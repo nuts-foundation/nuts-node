@@ -60,7 +60,7 @@ func TestOIDC4VCIHappyFlow(t *testing.T) {
 	receiverIdentifier := httpServerURL + "/identity/" + receiverDID.String()
 	receiverMetadataURL := receiverIdentifier + "/.well-known/openid-credential-wallet"
 
-	mockVCR.EXPECT().OIDC4VCIEnabled().Return(true)
+	mockVCR.EXPECT().OIDC4VCIEnabled().AnyTimes().Return(true)
 	credentialStore := vcrTypes.NewMockWriter(ctrl)
 	oidcIssuer := issuer.NewOIDCIssuer(issuerIdentifier)
 	mockVCR.EXPECT().GetOIDCIssuer(issuerDID).AnyTimes().Return(oidcIssuer)
@@ -91,7 +91,7 @@ func TestOIDC4VCIDisabled(t *testing.T) {
 	api := &oidc4vci_v0.Wrapper{
 		VCR: mockVCR,
 	}
-	mockVCR.EXPECT().OIDC4VCIEnabled().Return(false)
+	mockVCR.EXPECT().OIDC4VCIEnabled().AnyTimes().Return(false)
 	httpServerURL := httptest.StartEchoServer(t, api.Routes)
 
 	issuerIdentifier := httpServerURL + "/identity/" + issuerDID.String()
