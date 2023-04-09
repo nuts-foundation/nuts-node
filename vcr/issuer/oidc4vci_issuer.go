@@ -17,7 +17,7 @@ import (
 
 type OIDCIssuer interface {
 	ProviderMetadata() oidc4vci.ProviderMetadata
-	RequestAccessToken(preAuthorizedCode string) (string, error)
+	RequestAccessToken(ctx context.Context, preAuthorizedCode string) (string, error)
 
 	Metadata() oidc4vci.CredentialIssuerMetadata
 	Offer(ctx context.Context, credential vc.VerifiableCredential, walletURL string) error
@@ -58,11 +58,13 @@ func (i *memoryIssuer) ProviderMetadata() oidc4vci.ProviderMetadata {
 	}
 }
 
-func (i *memoryIssuer) RequestAccessToken(preAuthorizedCode string) (string, error) {
+func (i *memoryIssuer) RequestAccessToken(ctx context.Context, preAuthorizedCode string) (string, error) {
 	i.mux.Lock()
 	defer i.mux.Unlock()
 	_, ok := i.state[preAuthorizedCode]
 	if !ok {
+		audit.Log(ctx, log.Logger(), audit.InvalidOAuthTokenEvent).
+			Info("Client tried requesting access token (for OIDC4VCI) with unknown OAuth2 pre-authorized code")
 		return "", errors.New("unknown pre-authorized code")
 	}
 	accessToken := generateCode()
@@ -123,6 +125,8 @@ func (i *memoryIssuer) GetCredential(ctx context.Context, accessToken string) (v
 	// TODO (non-prototype): there could be checks here that must be performed, then an OAuth2 error with status "pending" should be returned
 	preAuthorizedCode, ok := i.accessTokens[accessToken]
 	if !ok {
+		audit.Log(ctx, log.Logger(), audit.InvalidOAuthTokenEvent).
+			Info("Client tried retrieving credential over OIDC4VCI with unknown OAuth2 access token")
 		return vc.VerifiableCredential{}, errors.New("invalid access token")
 	}
 	credential, _ := i.state[preAuthorizedCode]

@@ -94,16 +94,16 @@ func (mr *MockOIDCIssuerMockRecorder) ProviderMetadata() *gomock.Call {
 }
 
 // RequestAccessToken mocks base method.
-func (m *MockOIDCIssuer) RequestAccessToken(preAuthorizedCode string) (string, error) {
+func (m *MockOIDCIssuer) RequestAccessToken(ctx context.Context, preAuthorizedCode string) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RequestAccessToken", preAuthorizedCode)
+	ret := m.ctrl.Call(m, "RequestAccessToken", ctx, preAuthorizedCode)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // RequestAccessToken indicates an expected call of RequestAccessToken.
-func (mr *MockOIDCIssuerMockRecorder) RequestAccessToken(preAuthorizedCode interface{}) *gomock.Call {
+func (mr *MockOIDCIssuerMockRecorder) RequestAccessToken(ctx, preAuthorizedCode interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestAccessToken", reflect.TypeOf((*MockOIDCIssuer)(nil).RequestAccessToken), preAuthorizedCode)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestAccessToken", reflect.TypeOf((*MockOIDCIssuer)(nil).RequestAccessToken), ctx, preAuthorizedCode)
 }

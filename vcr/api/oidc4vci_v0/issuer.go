@@ -63,7 +63,7 @@ func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 	if request.Body.GrantType != oidc4vci.PreAuthorizedCodeGrant {
 		return nil, errors.New("unsupported grant type")
 	}
-	accessToken, err := w.VCR.GetOIDCIssuer(*issuerDID).RequestAccessToken(request.Body.PreAuthorizedCode)
+	accessToken, err := w.VCR.GetOIDCIssuer(*issuerDID).RequestAccessToken(ctx, request.Body.PreAuthorizedCode)
 	if err != nil {
 		return nil, err
 	}
