@@ -18,7 +18,7 @@ func (w Wrapper) GetOIDC4VCIIssuerMetadata(_ context.Context, request GetOIDC4VC
 	return GetOIDC4VCIIssuerMetadata200JSONResponse(w.VCR.GetOIDCIssuer(*issuerDID).Metadata()), nil
 }
 
-func (w Wrapper) GetOIDCProviderMetadata(ctx context.Context, request GetOIDCProviderMetadataRequestObject) (GetOIDCProviderMetadataResponseObject, error) {
+func (w Wrapper) GetOIDCProviderMetadata(_ context.Context, request GetOIDCProviderMetadataRequestObject) (GetOIDCProviderMetadataResponseObject, error) {
 	issuerDID, err := did.ParseDID(request.Did)
 	if err != nil {
 		return nil, core.NotFoundError("invalid DID")

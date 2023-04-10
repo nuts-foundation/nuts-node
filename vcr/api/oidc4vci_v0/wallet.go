@@ -25,6 +25,9 @@ func (w Wrapper) OfferCredential(ctx context.Context, request OfferCredentialReq
 	if json.Unmarshal([]byte(request.Params.CredentialOffer), &offer) != nil {
 		return nil, core.InvalidInputError("unable to unmarshal credential_offer")
 	}
+	if len(request.Params.CredentialOffer) != 1 {
+		return nil, core.InvalidInputError("expected exactly 1 credential in credential offer")
+	}
 
 	err = w.VCR.GetOIDCWallet(*id).OfferCredential(ctx, offer)
 	if err != nil {

@@ -120,9 +120,10 @@ func (i *memoryIssuer) Offer(ctx context.Context, credential vc.VerifiableCreden
 func (i *memoryIssuer) GetCredential(ctx context.Context, accessToken string) (vc.VerifiableCredential, error) {
 	i.mux.Lock()
 	defer i.mux.Unlock()
-	// TODO (non-prototype): Verify requested format
-	// TODO (non-prototype): Verify Proof-of-Possession of private key material
-	// TODO (non-prototype): there could be checks here that must be performed, then an OAuth2 error with status "pending" should be returned
+	// TODO: Verify requested format and credential definition
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2037
+	// TODO: Verify Proof-of-Possession of private key material
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2036
 	preAuthorizedCode, ok := i.accessTokens[accessToken]
 	if !ok {
 		audit.Log(ctx, log.Logger(), audit.InvalidOAuthTokenEvent).

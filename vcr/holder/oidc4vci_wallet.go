@@ -2,6 +2,7 @@ package holder
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -45,45 +46,11 @@ func (h wallet) Metadata() oidc4vci.OAuth2ClientMetadata {
 	}
 }
 
-func (h wallet) retrieveCredential(ctx context.Context, issuerClient oidc4vci.IssuerClient, offer oidc4vci.CredentialOffer, tokenResponse *oidc4vci.TokenResponse) (*vc.VerifiableCredential, error) {
-	// TODO (non-prototype): now we re-use the resolved OIDC Provider Metadata,
-	//                       but we should use resolve OIDC4VCI Credential Issuer Metadata and use its credential_endpoint instead
-
-	keyID, err := h.resolver.ResolveSigningKeyID(h.did, nil)
-	// Fixme: typ gets overwritten, audience somehow becomes an array.
-	const proofType = "openid4vci-proof+jwt"
-	headers := map[string]interface{}{
-		"typ": proofType, // MUST be openid4vci-proof+jwt, which explicitly types the proof JWT as recommended in Section 3.11 of [RFC8725].
-		"kid": keyID,     // JOSE Header containing the key ID. If the Credential shall be bound to a DID, the kid refers to a DID URL which identifies a particular key in the DID Document that the Credential shall be bound to.
-	}
-	claims := map[string]interface{}{
-		"aud":   issuerClient.Metadata().CredentialIssuer,
-		"iat":   time.Now().Unix(),
-		"nonce": *tokenResponse.CNonce,
-	}
-
-	proof, err := h.signer.SignJWT(ctx, claims, headers, keyID)
-	if err != nil {
-		return nil, fmt.Errorf("unable to sign request proof: %w", err)
-	}
-
-	credentialRequest := oidc4vci.CredentialRequest{
-		// TODO (non-prototype): check there's credentials in the offer
-		// TODO (non-prototype): support only 1 credential in the offer, or choose one (based on what?)
-		CredentialDefinition: &offer.Credentials[0],
-		Format:               oidc4vci.VerifiableCredentialJSONLDFormat,
-		Proof: &struct {
-			Jwt       string `json:"jwt"`
-			ProofType string `json:"proof_type"`
-		}{
-			Jwt:       proof,
-			ProofType: "jwt",
-		},
-	}
-	return issuerClient.GetCredential(ctx, credentialRequest, tokenResponse.AccessToken)
-}
-
 func (h wallet) OfferCredential(ctx context.Context, offer oidc4vci.CredentialOffer) error {
+	if len(offer.Credentials) != 1 {
+		return errors.New("expected only 1 credential in credential offer")
+	}
+
 	issuerClient, err := oidc4vci.NewIssuerClient(ctx, &http.Client{}, offer.CredentialIssuer)
 	if err != nil {
 		return fmt.Errorf("unable to create issuer client: %w", err)
@@ -127,4 +94,38 @@ func (h wallet) OfferCredential(ctx context.Context, offer oidc4vci.CredentialOf
 		}
 	}()
 	return nil
+}
+
+func (h wallet) retrieveCredential(ctx context.Context, issuerClient oidc4vci.IssuerClient, offer oidc4vci.CredentialOffer, tokenResponse *oidc4vci.TokenResponse) (*vc.VerifiableCredential, error) {
+	keyID, err := h.resolver.ResolveSigningKeyID(h.did, nil)
+	// TODO: typ gets overwritten, audience somehow becomes an array.
+	//		 See https://github.com/nuts-foundation/nuts-node/issues/2035
+	const proofType = "openid4vci-proof+jwt"
+	headers := map[string]interface{}{
+		"typ": proofType, // MUST be openid4vci-proof+jwt, which explicitly types the proof JWT as recommended in Section 3.11 of [RFC8725].
+		"kid": keyID,     // JOSE Header containing the key ID. If the Credential shall be bound to a DID, the kid refers to a DID URL which identifies a particular key in the DID Document that the Credential shall be bound to.
+	}
+	claims := map[string]interface{}{
+		"aud":   issuerClient.Metadata().CredentialIssuer,
+		"iat":   time.Now().Unix(),
+		"nonce": *tokenResponse.CNonce,
+	}
+
+	proof, err := h.signer.SignJWT(ctx, claims, headers, keyID)
+	if err != nil {
+		return nil, fmt.Errorf("unable to sign request proof: %w", err)
+	}
+
+	credentialRequest := oidc4vci.CredentialRequest{
+		CredentialDefinition: &offer.Credentials[0],
+		Format:               oidc4vci.VerifiableCredentialJSONLDFormat,
+		Proof: &struct {
+			Jwt       string `json:"jwt"`
+			ProofType string `json:"proof_type"`
+		}{
+			Jwt:       proof,
+			ProofType: "jwt",
+		},
+	}
+	return issuerClient.GetCredential(ctx, credentialRequest, tokenResponse.AccessToken)
 }
