@@ -74,8 +74,8 @@ func (h httpIssuerClient) GetCredential(ctx context.Context, request CredentialR
 	if err != nil {
 		return nil, fmt.Errorf("get credential request failed: %w", err)
 	}
-	// TODO (non-prototype): check format
-	// TODO (non-prototype): process VC as JSON-LD?
+	// TODO: check format
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2037
 	if credentialResponse.Credential == nil {
 		return nil, errors.New("credential response does not contain a credential")
 	}

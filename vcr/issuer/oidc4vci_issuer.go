@@ -111,8 +111,7 @@ func (i *memoryIssuer) Offer(ctx context.Context, credential vc.VerifiableCreden
 
 	err = client.OfferCredential(ctx, offer)
 	if err != nil {
-		// TODO: Add client identifier/URL to error message?
-		return fmt.Errorf("unable to offer credential: %w", err)
+		return fmt.Errorf("unable to offer credential (url=%s): %w", client.Metadata().CredentialOfferEndpoint, err)
 	}
 	return nil
 }

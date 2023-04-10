@@ -56,7 +56,8 @@ func (h wallet) OfferCredential(ctx context.Context, offer oidc4vci.CredentialOf
 		return fmt.Errorf("unable to create issuer client: %w", err)
 	}
 
-	// TODO (non-prototype): store offer and perform these requests async
+	// TODO: store offer and perform these requests async
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2040
 	accessTokenResponse, err := issuerClient.RequestAccessToken(oidc4vci.PreAuthorizedCodeGrant, map[string]string{
 		// TODO: The code below is unsafe, validate offered grants and then extract the pre-authorized code
 		//       See https://github.com/nuts-foundation/nuts-node/issues/2038
@@ -76,12 +77,13 @@ func (h wallet) OfferCredential(ctx context.Context, offer oidc4vci.CredentialOf
 
 	log.Logger().Debugf("CredentialOffer: %s, %v\n", h.identifier, offer)
 
-	// TODO (non-prototype): we now do this in a goroutine to avoid blocking the issuer's process, needs more orchestration?
-	// E.g., backing data store/message queue?
+	// TODO: we now do this in a goroutine to avoid blocking the issuer's process, needs more orchestration?
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2040
 	go func() {
-		// TODO (non-prototype): needs retrying
 		retrieveCtx := context.Background()
-		retrieveCtx, cancel := context.WithTimeout(retrieveCtx, 10*time.Second) // TODO: How to deal with time-outs?
+		// TODO: How to deal with time-outs?
+		//       See https://github.com/nuts-foundation/nuts-node/issues/2040
+		retrieveCtx, cancel := context.WithTimeout(retrieveCtx, 10*time.Second)
 		defer cancel()
 		credential, err := h.retrieveCredential(retrieveCtx, issuerClient, offer, accessTokenResponse)
 		if err != nil {

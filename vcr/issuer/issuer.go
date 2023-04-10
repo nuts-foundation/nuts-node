@@ -144,9 +144,14 @@ func (i issuer) issuerUsingOIDC4VCI(ctx context.Context, credential *vc.Verifiab
 	if err != nil {
 		return fmt.Errorf("unable to unmarshal credential subject: %w", err)
 	}
+	if len(subjects) != 1 {
+		return fmt.Errorf("expected exactly 1 credential subject, got %d", len(subjects))
+	}
 	// TODO: should we support multiple subjects?
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2042
 	subject := subjects[0]
-	// TODO (non-prototype): the service endpoint type must be specified (this is "our" way of client metadata discovery?)
+	// TODO: the service endpoint type must be specified (this is "our" way of client metadata discovery?)
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2042
 	serviceQuery := ssi.MustParseURI(subject.ID + "/serviceEndpoint?type=oidc4vci-wallet-metadata")
 	walletService, err := i.serviceResolver.Resolve(serviceQuery, 5)
 	if err != nil {
