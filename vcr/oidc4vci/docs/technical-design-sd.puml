@@ -5,29 +5,29 @@ title Credential Offer (pre-authorized_code flow)
 
 autonumber
 
-box Issuer
-    participant Publisher as "OIDC4VCI\nPublisher"
+box Credential Issuer
     participant Issuer
+    participant OIDC4VCIIssuer as "OIDC4VCI\nIssuer"
     participant HolderClient as "Holder\nClient"
-    participant IssuerAPI as "API"
+    participant IssuerAPI as "OIDC4VCI\nAPI"
 end box
 
 box Holder
-    participant HolderAPI as "API"
+    participant HolderAPI as "OIDC4VCI\nAPI"
     participant Wallet
     participant IssuerClient as "Issuer\nClient"
 end box
 
 group Credential Offer
     ' Issuer
-    activate Publisher
-    Publisher->Publisher : Lookup holder\nmdURL
-    Publisher->Issuer ++ : Offer(credential, mdURL)
-    Issuer->Issuer ++ : Create session\n(credential)
-    Issuer-->Issuer -- : preAuthCode
-    Issuer->Issuer ++ : Create offer\n(credential, preAuthCode)
-    Issuer-->Issuer -- : offer
-    Issuer->HolderClient **: Create\n(mdURL)
+    activate Issuer
+    Issuer->Issuer : Lookup holder\nmdURL
+    Issuer->OIDC4VCIIssuer ++ : Offer(credential, mdURL)
+    OIDC4VCIIssuer->OIDC4VCIIssuer ++ : Create session\n(credential)
+    OIDC4VCIIssuer-->OIDC4VCIIssuer -- : preAuthCode
+    OIDC4VCIIssuer->OIDC4VCIIssuer ++ : Create offer\n(credential, preAuthCode)
+    OIDC4VCIIssuer-->OIDC4VCIIssuer -- : offer
+    OIDC4VCIIssuer->HolderClient **: Create\n(mdURL)
     HolderClient->HolderClient ++ : Load md
     HolderClient->HolderAPI ++: HTTP GET mdURL
 
@@ -37,8 +37,8 @@ group Credential Offer
     HolderAPI-->HolderClient --: clientMD
 
     ' Issuer
-    HolderClient-->Issuer --
-    Issuer->HolderClient ++ : OfferCredential\n(offer)
+    HolderClient-->OIDC4VCIIssuer --
+    OIDC4VCIIssuer->HolderClient ++ : OfferCredential\n(offer)
     HolderClient->HolderAPI ++ : HTTP POST\nto clientMD\nOfferEndpoint\n(offer)
 
     ' Holder
@@ -54,9 +54,9 @@ group Credential Offer
     HolderAPI --> HolderClient -- : 202 Accepted
 
     ' Issuer
-    HolderClient-->Issuer --
-    Issuer-->Publisher
-    deactivate Publisher
+    HolderClient-->OIDC4VCIIssuer --
+    OIDC4VCIIssuer-->Issuer
     deactivate Issuer
+    deactivate OIDC4VCIIssuer
 end
 @enduml

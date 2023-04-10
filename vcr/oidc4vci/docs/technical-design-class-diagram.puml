@@ -5,7 +5,7 @@ title OIDC4VCI Implementation Relationship Diagram
 
 package "VCR Issuer" {
     object "VCR Issuer" as VCRIssuer
-    object "OIDC4VCI Publisher" as Publisher
+    object "OIDC4VCI Issuer" as Publisher
     package "OIDC4VCI Issuer" {
         object Issuer
         object "API" as IssuerAPI
@@ -19,7 +19,7 @@ package Holder {
     object IssuerClient
 }
 
-VCRIssuer -down-> Publisher : Publish(VC)
+VCRIssuer -down-> Publisher : Offer(VC)
 Publisher->Issuer : offer\nVC using
 Issuer->WalletClient : uses
 IssuerAPI->Issuer : invokes
