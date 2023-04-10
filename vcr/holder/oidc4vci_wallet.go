@@ -58,7 +58,8 @@ func (h wallet) OfferCredential(ctx context.Context, offer oidc4vci.CredentialOf
 
 	// TODO (non-prototype): store offer and perform these requests async
 	accessTokenResponse, err := issuerClient.RequestAccessToken(oidc4vci.PreAuthorizedCodeGrant, map[string]string{
-		// TODO: If no grants, derive grant from credential issuer metadata
+		// TODO: The code below is unsafe, validate offered grants and then extract the pre-authorized code
+		//       See https://github.com/nuts-foundation/nuts-node/issues/2038
 		"pre-authorized_code": offer.Grants[0][oidc4vci.PreAuthorizedCodeGrant].(map[string]interface{})["pre-authorized_code"].(string),
 	})
 	if err != nil {
