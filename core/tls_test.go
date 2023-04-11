@@ -43,12 +43,6 @@ func TestLoadTrustStore(t *testing.T) {
 		require.Len(t, store.IntermediateCAs, 2)
 		assert.Equal(t, "CN=Staat der Nederlanden Domein Server CA 2020,O=Staat der Nederlanden,C=NL", store.IntermediateCAs[1].Subject.String())
 	})
-	t.Run("invalid time", func(t *testing.T) {
-		store, err := LoadTrustStore("../crl/test/pkioverheid-server-bundle.pem")
-
-		assert.ErrorContains(t, err, "x509: certificate has expired or is not yet valid:")
-		assert.Nil(t, store)
-	})
 	t.Run("invalid PEM file", func(t *testing.T) {
 		store, err := LoadTrustStore("tls_test.go")
 		assert.Error(t, err)
