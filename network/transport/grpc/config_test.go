@@ -24,6 +24,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -34,7 +35,8 @@ func TestConfig_tlsEnabled(t *testing.T) {
 
 func TestNewConfig(t *testing.T) {
 	t.Run("without TLS", func(t *testing.T) {
-		cfg := NewConfig(":1234", "foo")
+		cfg, err := NewConfig(":1234", "foo")
+		require.NoError(t, err)
 		assert.Equal(t, transport.PeerID("foo"), cfg.peerID)
 		assert.Equal(t, ":1234", cfg.listenAddress)
 		assert.Nil(t, cfg.serverCert)
@@ -46,7 +48,8 @@ func TestNewConfig(t *testing.T) {
 		ts := &core.TrustStore{
 			CertPool: x509.NewCertPool(),
 		}
-		cfg := NewConfig(":1234", "foo", WithTLS(cert, ts))
+		cfg, err := NewConfig(":1234", "foo", WithTLS(cert, ts))
+		require.NoError(t, err)
 		assert.Equal(t, &cert, cfg.clientCert)
 		assert.Equal(t, &cert, cfg.serverCert)
 		assert.Same(t, ts.CertPool, cfg.trustStore)

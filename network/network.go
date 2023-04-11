@@ -265,13 +265,20 @@ func (n *Network) Configure(config core.ServerConfig) error {
 			return fmt.Errorf("failed to open connections store: %w", err)
 		}
 
-		n.connectionManager = grpc.NewGRPCConnectionManager(
-			grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...),
+		connectionManCfg, err := grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...)
+		if err != nil {
+			return err
+		}
+		n.connectionManager, err = grpc.NewGRPCConnectionManager(
+			connectionManCfg,
 			connectionStore,
 			n.nodeDID,
 			authenticator,
 			n.protocols...,
 		)
+		if err != nil {
+			return err
+		}
 	}
 
 	// register callback from DAG to other engines, with payload only.
