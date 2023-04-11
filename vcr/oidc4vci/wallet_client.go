@@ -27,6 +27,7 @@ import (
 	"net/url"
 )
 
+// TODO: Rename to Wallet(API)Client?
 type Wallet interface {
 	Metadata() OAuth2ClientMetadata
 	OfferCredential(ctx context.Context, offer CredentialOffer) error

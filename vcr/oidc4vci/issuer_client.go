@@ -35,6 +35,7 @@ type IssuerClient interface {
 	OAuth2Client
 
 	Metadata() CredentialIssuerMetadata
+	// TODO: rename to RequestCredential?
 	GetCredential(ctx context.Context, request CredentialRequest, accessToken string) (*vc.VerifiableCredential, error)
 }
 
@@ -46,6 +47,7 @@ func NewIssuerClient(ctx context.Context, httpClient *http.Client, credentialIss
 	}
 
 	// Load OIDC4VCI metadata and OIDC metadata
+	// TODO: Use the OIDC4VCI credential issuers metadata to load the OIDC metadata?
 	metadata, err := loadCredentialIssuerMetadata(ctx, credentialIssuerIdentifier, httpClient)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load Credential Issuer Metadata (identifier=%s): %w", credentialIssuerIdentifier, err)

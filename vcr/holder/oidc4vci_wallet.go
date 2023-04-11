@@ -39,6 +39,7 @@ type OIDCWallet interface {
 }
 
 var _ OIDCWallet = (*wallet)(nil)
+var issuerClientCreator = oidc4vci.NewIssuerClient
 
 func NewOIDCWallet(did did.DID, identifier string, credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver vdr.KeyResolver) OIDCWallet {
 	return &wallet{
@@ -69,7 +70,7 @@ func (h wallet) OfferCredential(ctx context.Context, offer oidc4vci.CredentialOf
 		return errors.New("expected only 1 credential in credential offer")
 	}
 
-	issuerClient, err := oidc4vci.NewIssuerClient(ctx, &http.Client{}, offer.CredentialIssuer)
+	issuerClient, err := issuerClientCreator(ctx, &http.Client{}, offer.CredentialIssuer)
 	if err != nil {
 		return fmt.Errorf("unable to create issuer client: %w", err)
 	}

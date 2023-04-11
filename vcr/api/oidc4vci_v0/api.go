@@ -24,7 +24,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
-	"net/http"
 )
 
 type ProviderMetadata = oidc4vci.ProviderMetadata
@@ -53,7 +52,7 @@ func (w Wrapper) Routes(router core.EchoRouter) {
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
 			return func(ctx echo.Context, args interface{}) (interface{}, error) {
 				if !w.VCR.OIDC4VCIEnabled() {
-					return nil, core.Error(http.StatusLocked, "OIDC4VCI support is disabled")
+					return nil, core.NotFoundError("") // check response
 				}
 				return f(ctx, args)
 			}
