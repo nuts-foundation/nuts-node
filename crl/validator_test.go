@@ -53,13 +53,16 @@ var crlPathMap = map[string]string{
 	"/IntermediateCABLatest.crl": "does not exist",
 }
 
+// testConfig provides a validator module configuration for tests
+var testConfig = Config{MaxUpdateFailHours: 4}
+
 func TestValidator_Start(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	store, err := core.LoadTrustStore(truststorePKIo)
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	val, err := newValidatorWithHTTPClient(store.Certificates(), newClient())
+	val, err := newValidatorWithHTTPClient(testConfig, store.Certificates(), newClient())
 	require.NoError(t, err)
 
 	// crls are empty
