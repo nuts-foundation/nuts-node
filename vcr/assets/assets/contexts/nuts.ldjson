@@ -80,7 +80,6 @@
         "@version": 1.1,
         "@protected": true,
         "@propagate": true,
-
         "id": "@id",
         "type": "@type",
         "identifier": "schema:identifier",
@@ -88,7 +87,6 @@
         "member": {
           "@id": "schema:member",
           "@context": {
-            "type": "schema:Person",
             "initials": "schema:initials",
             "familyName": "schema:familyName"
           }
