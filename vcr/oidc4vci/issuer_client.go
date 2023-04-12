@@ -28,20 +28,21 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"io"
 	"net/http"
+	"net/url"
+	"strings"
 )
 
-// IssuerClient defines the API client used by the wallet to communicate with the credential issuer.
-type IssuerClient interface {
+// IssuerAPIClient defines the API client used by the wallet to communicate with the credential issuer.
+type IssuerAPIClient interface {
 	OAuth2Client
 
 	Metadata() CredentialIssuerMetadata
-	// TODO: rename to RequestCredential?
-	GetCredential(ctx context.Context, request CredentialRequest, accessToken string) (*vc.VerifiableCredential, error)
+	RequestCredential(ctx context.Context, request CredentialRequest, accessToken string) (*vc.VerifiableCredential, error)
 }
 
-// NewIssuerClient resolves the Credential Issuer Metadata from the well-known endpoint
+// NewIssuerAPIClient resolves the Credential Issuer Metadata from the well-known endpoint
 // and returns a client that can be used to communicate with the issuer.
-func NewIssuerClient(ctx context.Context, httpClient *http.Client, credentialIssuerIdentifier string) (IssuerClient, error) {
+func NewIssuerAPIClient(ctx context.Context, httpClient *http.Client, credentialIssuerIdentifier string) (IssuerAPIClient, error) {
 	if credentialIssuerIdentifier == "" {
 		return nil, errors.New("empty Credential Issuer Identifier")
 	}
@@ -59,9 +60,9 @@ func NewIssuerClient(ctx context.Context, httpClient *http.Client, credentialIss
 	return NewIssuerClientFromMD(httpClient, *providerMetadata, *metadata)
 }
 
-// NewIssuerClientFromMD creates a new IssuerClient from preloaded metadata.
-func NewIssuerClientFromMD(httpClient *http.Client, oidcProvider ProviderMetadata, credentialIssuer CredentialIssuerMetadata) (IssuerClient, error) {
-	return &httpIssuerClient{
+// NewIssuerClientFromMD creates a new IssuerAPIClient from preloaded metadata.
+func NewIssuerClientFromMD(httpClient *http.Client, oidcProvider ProviderMetadata, credentialIssuer CredentialIssuerMetadata) (IssuerAPIClient, error) {
+	return &defaultIssuerAPIClient{
 		httpOAuth2Client: httpOAuth2Client{
 			httpClient: httpClient,
 			metadata:   oidcProvider,
@@ -72,9 +73,9 @@ func NewIssuerClientFromMD(httpClient *http.Client, oidcProvider ProviderMetadat
 	}, nil
 }
 
-var _ IssuerClient = (*httpIssuerClient)(nil)
+var _ IssuerAPIClient = (*defaultIssuerAPIClient)(nil)
 
-type httpIssuerClient struct {
+type defaultIssuerAPIClient struct {
 	httpOAuth2Client
 
 	identifier       string
@@ -83,7 +84,7 @@ type httpIssuerClient struct {
 	providerMetadata ProviderMetadata
 }
 
-func (h httpIssuerClient) GetCredential(ctx context.Context, request CredentialRequest, accessToken string) (*vc.VerifiableCredential, error) {
+func (h defaultIssuerAPIClient) RequestCredential(ctx context.Context, request CredentialRequest, accessToken string) (*vc.VerifiableCredential, error) {
 	requestBody, _ := json.Marshal(request)
 
 	var credentialResponse CredentialResponse
@@ -108,7 +109,7 @@ func (h httpIssuerClient) GetCredential(ctx context.Context, request CredentialR
 	return &credential, nil
 }
 
-func (h httpIssuerClient) Metadata() CredentialIssuerMetadata {
+func (h defaultIssuerAPIClient) Metadata() CredentialIssuerMetadata {
 	return h.metadata
 }
 
@@ -178,4 +179,33 @@ func httpDo(httpClient *http.Client, httpRequest *http.Request, result interface
 		}
 	}
 	return nil
+}
+
+// OAuth2Client defines a generic OAuth2 client.
+type OAuth2Client interface {
+	// RequestAccessToken requests an access token from the Authorization Server.
+	RequestAccessToken(grantType string, params map[string]string) (*TokenResponse, error)
+}
+
+var _ OAuth2Client = &httpOAuth2Client{}
+
+type httpOAuth2Client struct {
+	metadata   ProviderMetadata
+	httpClient *http.Client
+}
+
+func (c httpOAuth2Client) RequestAccessToken(grantType string, params map[string]string) (*TokenResponse, error) {
+	values := url.Values{}
+	values.Add("grant_type", grantType)
+	for key, value := range params {
+		values.Add(key, value)
+	}
+	httpRequest, _ := http.NewRequestWithContext(context.Background(), "POST", c.metadata.TokenEndpoint, strings.NewReader(values.Encode()))
+	httpRequest.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	var accessTokenResponse TokenResponse
+	err := httpDo(c.httpClient, httpRequest, &accessTokenResponse)
+	if err != nil {
+		return nil, fmt.Errorf("request access token error: %w", err)
+	}
+	return &accessTokenResponse, nil
 }

@@ -27,16 +27,15 @@ import (
 	"net/url"
 )
 
-// TODO: Rename to Wallet(API)Client?
-type Wallet interface {
+type WalletAPIClient interface {
 	Metadata() OAuth2ClientMetadata
-	OfferCredential(ctx context.Context, offer CredentialOffer) error
+	HandleCredentialOffer(ctx context.Context, offer CredentialOffer) error
 }
 
-var _ Wallet = (*httpWalletClient)(nil)
+var _ WalletAPIClient = (*defaultWalletAPIClient)(nil)
 
-// NewWalletClient resolves the OAuth2 credential client metadata from the given URL.
-func NewWalletClient(ctx context.Context, httpClient *http.Client, walletMetadataURL string) (Wallet, error) {
+// NewWalletAPIClient resolves the OAuth2 credential client metadata from the given URL.
+func NewWalletAPIClient(ctx context.Context, httpClient *http.Client, walletMetadataURL string) (WalletAPIClient, error) {
 	if walletMetadataURL == "" {
 		return nil, errors.New("empty wallet metadata URL")
 	}
@@ -46,24 +45,24 @@ func NewWalletClient(ctx context.Context, httpClient *http.Client, walletMetadat
 		return nil, fmt.Errorf("unable to load OAuth2 credential client metadata (url=%s): %w", walletMetadataURL, err)
 	}
 
-	return &httpWalletClient{
+	return &defaultWalletAPIClient{
 		httpClient: httpClient,
 		metadata:   *metadata,
 	}, nil
 }
 
-var _ Wallet = (*httpWalletClient)(nil)
+var _ WalletAPIClient = (*defaultWalletAPIClient)(nil)
 
-type httpWalletClient struct {
+type defaultWalletAPIClient struct {
 	metadata   OAuth2ClientMetadata
 	httpClient *http.Client
 }
 
-func (c *httpWalletClient) Metadata() OAuth2ClientMetadata {
+func (c *defaultWalletAPIClient) Metadata() OAuth2ClientMetadata {
 	return c.metadata
 }
 
-func (c *httpWalletClient) OfferCredential(ctx context.Context, offer CredentialOffer) error {
+func (c *defaultWalletAPIClient) HandleCredentialOffer(ctx context.Context, offer CredentialOffer) error {
 	offerJson, err := json.Marshal(offer)
 	if err != nil {
 		return err

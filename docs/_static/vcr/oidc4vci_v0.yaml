@@ -115,7 +115,7 @@ paths:
         - Issuer
       summary: Used by the wallet to request credentials
       description: Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-endpoint
-      operationId: getCredential
+      operationId: requestCredential
       parameters:
         - name: did
           in: path
@@ -145,7 +145,7 @@ paths:
         - OIDC4VCI
       summary: Used by the issuer to offer credentials to the wallet
       description: Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-offer
-      operationId: offerCredential
+      operationId: handleCredentialOffer
       parameters:
         - name: did
           in: path

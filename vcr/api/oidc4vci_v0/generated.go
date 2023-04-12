@@ -13,8 +13,8 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// GetCredentialParams defines parameters for GetCredential.
-type GetCredentialParams struct {
+// RequestCredentialParams defines parameters for RequestCredential.
+type RequestCredentialParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
 }
 
@@ -24,14 +24,14 @@ type RequestAccessTokenFormdataBody struct {
 	PreAuthorizedCode string `json:"pre-authorized_code"`
 }
 
-// OfferCredentialParams defines parameters for OfferCredential.
-type OfferCredentialParams struct {
+// HandleCredentialOfferParams defines parameters for HandleCredentialOffer.
+type HandleCredentialOfferParams struct {
 	// CredentialOffer Contains the url encoded credential_offer object
 	CredentialOffer string `form:"credential_offer" json:"credential_offer"`
 }
 
-// GetCredentialJSONRequestBody defines body for GetCredential for application/json ContentType.
-type GetCredentialJSONRequestBody = CredentialRequest
+// RequestCredentialJSONRequestBody defines body for RequestCredential for application/json ContentType.
+type RequestCredentialJSONRequestBody = CredentialRequest
 
 // RequestAccessTokenFormdataRequestBody defines body for RequestAccessToken for application/x-www-form-urlencoded ContentType.
 type RequestAccessTokenFormdataRequestBody RequestAccessTokenFormdataBody
@@ -49,13 +49,13 @@ type ServerInterface interface {
 	GetOAuth2ClientMetadata(ctx echo.Context, did string) error
 	// Used by the wallet to request credentials
 	// (POST /identity/{did}/issuer/oidc4vci/credential)
-	GetCredential(ctx echo.Context, did string, params GetCredentialParams) error
+	RequestCredential(ctx echo.Context, did string, params RequestCredentialParams) error
 	// Used by the wallet to request an access token
 	// (POST /identity/{did}/oidc/token)
 	RequestAccessToken(ctx echo.Context, did string) error
 	// Used by the issuer to offer credentials to the wallet
 	// (GET /identity/{did}/wallet/oidc4vci/credential_offer)
-	OfferCredential(ctx echo.Context, did string, params OfferCredentialParams) error
+	HandleCredentialOffer(ctx echo.Context, did string, params HandleCredentialOfferParams) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -111,8 +111,8 @@ func (w *ServerInterfaceWrapper) GetOAuth2ClientMetadata(ctx echo.Context) error
 	return err
 }
 
-// GetCredential converts echo context to params.
-func (w *ServerInterfaceWrapper) GetCredential(ctx echo.Context) error {
+// RequestCredential converts echo context to params.
+func (w *ServerInterfaceWrapper) RequestCredential(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "did" -------------
 	var did string
@@ -123,7 +123,7 @@ func (w *ServerInterfaceWrapper) GetCredential(ctx echo.Context) error {
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params GetCredentialParams
+	var params RequestCredentialParams
 
 	headers := ctx.Request().Header
 	// ------------- Optional header parameter "Authorization" -------------
@@ -143,7 +143,7 @@ func (w *ServerInterfaceWrapper) GetCredential(ctx echo.Context) error {
 	}
 
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.GetCredential(ctx, did, params)
+	err = w.Handler.RequestCredential(ctx, did, params)
 	return err
 }
 
@@ -163,8 +163,8 @@ func (w *ServerInterfaceWrapper) RequestAccessToken(ctx echo.Context) error {
 	return err
 }
 
-// OfferCredential converts echo context to params.
-func (w *ServerInterfaceWrapper) OfferCredential(ctx echo.Context) error {
+// HandleCredentialOffer converts echo context to params.
+func (w *ServerInterfaceWrapper) HandleCredentialOffer(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "did" -------------
 	var did string
@@ -175,7 +175,7 @@ func (w *ServerInterfaceWrapper) OfferCredential(ctx echo.Context) error {
 	}
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params OfferCredentialParams
+	var params HandleCredentialOfferParams
 	// ------------- Required query parameter "credential_offer" -------------
 
 	err = runtime.BindQueryParameter("form", true, true, "credential_offer", ctx.QueryParams(), &params.CredentialOffer)
@@ -184,7 +184,7 @@ func (w *ServerInterfaceWrapper) OfferCredential(ctx echo.Context) error {
 	}
 
 	// Invoke the callback with all the unmarshalled arguments
-	err = w.Handler.OfferCredential(ctx, did, params)
+	err = w.Handler.HandleCredentialOffer(ctx, did, params)
 	return err
 }
 
@@ -219,9 +219,9 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.GET(baseURL+"/identity/:did/.well-known/oauth-authorization-server", wrapper.GetOIDCProviderMetadata)
 	router.GET(baseURL+"/identity/:did/.well-known/openid-credential-issuer", wrapper.GetOIDC4VCIIssuerMetadata)
 	router.GET(baseURL+"/identity/:did/.well-known/openid-credential-wallet", wrapper.GetOAuth2ClientMetadata)
-	router.POST(baseURL+"/identity/:did/issuer/oidc4vci/credential", wrapper.GetCredential)
+	router.POST(baseURL+"/identity/:did/issuer/oidc4vci/credential", wrapper.RequestCredential)
 	router.POST(baseURL+"/identity/:did/oidc/token", wrapper.RequestAccessToken)
-	router.GET(baseURL+"/identity/:did/wallet/oidc4vci/credential_offer", wrapper.OfferCredential)
+	router.GET(baseURL+"/identity/:did/wallet/oidc4vci/credential_offer", wrapper.HandleCredentialOffer)
 
 }
 
@@ -276,19 +276,19 @@ func (response GetOAuth2ClientMetadata200JSONResponse) VisitGetOAuth2ClientMetad
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetCredentialRequestObject struct {
+type RequestCredentialRequestObject struct {
 	Did    string `json:"did"`
-	Params GetCredentialParams
-	Body   *GetCredentialJSONRequestBody
+	Params RequestCredentialParams
+	Body   *RequestCredentialJSONRequestBody
 }
 
-type GetCredentialResponseObject interface {
-	VisitGetCredentialResponse(w http.ResponseWriter) error
+type RequestCredentialResponseObject interface {
+	VisitRequestCredentialResponse(w http.ResponseWriter) error
 }
 
-type GetCredential200JSONResponse CredentialResponse
+type RequestCredential200JSONResponse CredentialResponse
 
-func (response GetCredential200JSONResponse) VisitGetCredentialResponse(w http.ResponseWriter) error {
+func (response RequestCredential200JSONResponse) VisitRequestCredentialResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
@@ -313,18 +313,18 @@ func (response RequestAccessToken200JSONResponse) VisitRequestAccessTokenRespons
 	return json.NewEncoder(w).Encode(response)
 }
 
-type OfferCredentialRequestObject struct {
+type HandleCredentialOfferRequestObject struct {
 	Did    string `json:"did"`
-	Params OfferCredentialParams
+	Params HandleCredentialOfferParams
 }
 
-type OfferCredentialResponseObject interface {
-	VisitOfferCredentialResponse(w http.ResponseWriter) error
+type HandleCredentialOfferResponseObject interface {
+	VisitHandleCredentialOfferResponse(w http.ResponseWriter) error
 }
 
-type OfferCredential202TextResponse string
+type HandleCredentialOffer202TextResponse string
 
-func (response OfferCredential202TextResponse) VisitOfferCredentialResponse(w http.ResponseWriter) error {
+func (response HandleCredentialOffer202TextResponse) VisitHandleCredentialOfferResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(202)
 
@@ -332,9 +332,9 @@ func (response OfferCredential202TextResponse) VisitOfferCredentialResponse(w ht
 	return err
 }
 
-type OfferCredential400TextResponse string
+type HandleCredentialOffer400TextResponse string
 
-func (response OfferCredential400TextResponse) VisitOfferCredentialResponse(w http.ResponseWriter) error {
+func (response HandleCredentialOffer400TextResponse) VisitHandleCredentialOfferResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(400)
 
@@ -342,9 +342,9 @@ func (response OfferCredential400TextResponse) VisitOfferCredentialResponse(w ht
 	return err
 }
 
-type OfferCredential500TextResponse string
+type HandleCredentialOffer500TextResponse string
 
-func (response OfferCredential500TextResponse) VisitOfferCredentialResponse(w http.ResponseWriter) error {
+func (response HandleCredentialOffer500TextResponse) VisitHandleCredentialOfferResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(500)
 
@@ -365,13 +365,13 @@ type StrictServerInterface interface {
 	GetOAuth2ClientMetadata(ctx context.Context, request GetOAuth2ClientMetadataRequestObject) (GetOAuth2ClientMetadataResponseObject, error)
 	// Used by the wallet to request credentials
 	// (POST /identity/{did}/issuer/oidc4vci/credential)
-	GetCredential(ctx context.Context, request GetCredentialRequestObject) (GetCredentialResponseObject, error)
+	RequestCredential(ctx context.Context, request RequestCredentialRequestObject) (RequestCredentialResponseObject, error)
 	// Used by the wallet to request an access token
 	// (POST /identity/{did}/oidc/token)
 	RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error)
 	// Used by the issuer to offer credentials to the wallet
 	// (GET /identity/{did}/wallet/oidc4vci/credential_offer)
-	OfferCredential(ctx context.Context, request OfferCredentialRequestObject) (OfferCredentialResponseObject, error)
+	HandleCredentialOffer(ctx context.Context, request HandleCredentialOfferRequestObject) (HandleCredentialOfferResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx echo.Context, args interface{}) (interface{}, error)
@@ -462,32 +462,32 @@ func (sh *strictHandler) GetOAuth2ClientMetadata(ctx echo.Context, did string) e
 	return nil
 }
 
-// GetCredential operation middleware
-func (sh *strictHandler) GetCredential(ctx echo.Context, did string, params GetCredentialParams) error {
-	var request GetCredentialRequestObject
+// RequestCredential operation middleware
+func (sh *strictHandler) RequestCredential(ctx echo.Context, did string, params RequestCredentialParams) error {
+	var request RequestCredentialRequestObject
 
 	request.Did = did
 	request.Params = params
 
-	var body GetCredentialJSONRequestBody
+	var body RequestCredentialJSONRequestBody
 	if err := ctx.Bind(&body); err != nil {
 		return err
 	}
 	request.Body = &body
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.GetCredential(ctx.Request().Context(), request.(GetCredentialRequestObject))
+		return sh.ssi.RequestCredential(ctx.Request().Context(), request.(RequestCredentialRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetCredential")
+		handler = middleware(handler, "RequestCredential")
 	}
 
 	response, err := handler(ctx, request)
 
 	if err != nil {
 		return err
-	} else if validResponse, ok := response.(GetCredentialResponseObject); ok {
-		return validResponse.VisitGetCredentialResponse(ctx.Response())
+	} else if validResponse, ok := response.(RequestCredentialResponseObject); ok {
+		return validResponse.VisitRequestCredentialResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("Unexpected response type: %T", response)
 	}
@@ -529,26 +529,26 @@ func (sh *strictHandler) RequestAccessToken(ctx echo.Context, did string) error 
 	return nil
 }
 
-// OfferCredential operation middleware
-func (sh *strictHandler) OfferCredential(ctx echo.Context, did string, params OfferCredentialParams) error {
-	var request OfferCredentialRequestObject
+// HandleCredentialOffer operation middleware
+func (sh *strictHandler) HandleCredentialOffer(ctx echo.Context, did string, params HandleCredentialOfferParams) error {
+	var request HandleCredentialOfferRequestObject
 
 	request.Did = did
 	request.Params = params
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.OfferCredential(ctx.Request().Context(), request.(OfferCredentialRequestObject))
+		return sh.ssi.HandleCredentialOffer(ctx.Request().Context(), request.(HandleCredentialOfferRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "OfferCredential")
+		handler = middleware(handler, "HandleCredentialOffer")
 	}
 
 	response, err := handler(ctx, request)
 
 	if err != nil {
 		return err
-	} else if validResponse, ok := response.(OfferCredentialResponseObject); ok {
-		return validResponse.VisitOfferCredentialResponse(ctx.Response())
+	} else if validResponse, ok := response.(HandleCredentialOfferResponseObject); ok {
+		return validResponse.VisitHandleCredentialOfferResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("Unexpected response type: %T", response)
 	}

@@ -34,7 +34,7 @@ func (w Wrapper) GetOAuth2ClientMetadata(_ context.Context, request GetOAuth2Cli
 	return GetOAuth2ClientMetadata200JSONResponse(w.VCR.GetOIDCWallet(*id).Metadata()), nil
 }
 
-func (w Wrapper) OfferCredential(ctx context.Context, request OfferCredentialRequestObject) (OfferCredentialResponseObject, error) {
+func (w Wrapper) HandleCredentialOffer(ctx context.Context, request HandleCredentialOfferRequestObject) (HandleCredentialOfferResponseObject, error) {
 	id, err := did.ParseDID(request.Did)
 	if err != nil {
 		return nil, core.NotFoundError("invalid DID")
@@ -47,10 +47,10 @@ func (w Wrapper) OfferCredential(ctx context.Context, request OfferCredentialReq
 		return nil, core.InvalidInputError("expected exactly 1 credential in credential offer")
 	}
 
-	err = w.VCR.GetOIDCWallet(*id).OfferCredential(ctx, offer)
+	err = w.VCR.GetOIDCWallet(*id).HandleCredentialOffer(ctx, offer)
 	if err != nil {
 		return nil, err
 	}
 
-	return OfferCredential202TextResponse("OK"), nil
+	return HandleCredentialOffer202TextResponse("OK"), nil
 }

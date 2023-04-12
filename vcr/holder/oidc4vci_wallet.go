@@ -35,11 +35,11 @@ import (
 
 type OIDCWallet interface {
 	Metadata() oidc4vci.OAuth2ClientMetadata
-	OfferCredential(ctx context.Context, offer oidc4vci.CredentialOffer) error
+	HandleCredentialOffer(ctx context.Context, offer oidc4vci.CredentialOffer) error
 }
 
 var _ OIDCWallet = (*wallet)(nil)
-var issuerClientCreator = oidc4vci.NewIssuerClient
+var issuerClientCreator = oidc4vci.NewIssuerAPIClient
 
 func NewOIDCWallet(did did.DID, identifier string, credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver vdr.KeyResolver) OIDCWallet {
 	return &wallet{
@@ -65,7 +65,7 @@ func (h wallet) Metadata() oidc4vci.OAuth2ClientMetadata {
 	}
 }
 
-func (h wallet) OfferCredential(ctx context.Context, offer oidc4vci.CredentialOffer) error {
+func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.CredentialOffer) error {
 	if len(offer.Credentials) != 1 {
 		return errors.New("expected only 1 credential in credential offer")
 	}
@@ -118,7 +118,7 @@ func (h wallet) OfferCredential(ctx context.Context, offer oidc4vci.CredentialOf
 	return nil
 }
 
-func (h wallet) retrieveCredential(ctx context.Context, issuerClient oidc4vci.IssuerClient, offer oidc4vci.CredentialOffer, tokenResponse *oidc4vci.TokenResponse) (*vc.VerifiableCredential, error) {
+func (h wallet) retrieveCredential(ctx context.Context, issuerClient oidc4vci.IssuerAPIClient, offer oidc4vci.CredentialOffer, tokenResponse *oidc4vci.TokenResponse) (*vc.VerifiableCredential, error) {
 	keyID, err := h.resolver.ResolveSigningKeyID(h.did, nil)
 	// TODO: typ gets overwritten, audience somehow becomes an array.
 	//		 See https://github.com/nuts-foundation/nuts-node/issues/2035
@@ -149,5 +149,5 @@ func (h wallet) retrieveCredential(ctx context.Context, issuerClient oidc4vci.Is
 			ProofType: "jwt",
 		},
 	}
-	return issuerClient.GetCredential(ctx, credentialRequest, tokenResponse.AccessToken)
+	return issuerClient.RequestCredential(ctx, credentialRequest, tokenResponse.AccessToken)
 }

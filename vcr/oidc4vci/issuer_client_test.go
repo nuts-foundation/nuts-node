@@ -20,6 +20,7 @@ package oidc4vci
 
 import (
 	"context"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"testing"
@@ -29,7 +30,7 @@ func TestNewIssuerClient(t *testing.T) {
 	ctx := context.Background()
 	httpClient := &http.Client{}
 	t.Run("empty identifier", func(t *testing.T) {
-		client, err := NewIssuerClient(ctx, httpClient, "")
+		client, err := NewIssuerAPIClient(ctx, httpClient, "")
 
 		require.EqualError(t, err, "empty Credential Issuer Identifier")
 		require.Nil(t, client)
@@ -40,7 +41,7 @@ func TestNewIssuerClient(t *testing.T) {
 			writer.WriteHeader(http.StatusNotFound)
 		}
 
-		client, err := NewIssuerClient(ctx, httpClient, setup.providerMetadata.Issuer)
+		client, err := NewIssuerAPIClient(ctx, httpClient, setup.providerMetadata.Issuer)
 
 		require.ErrorContains(t, err, "unable to load Credential Issuer Metadata")
 		require.Nil(t, client)
@@ -51,7 +52,7 @@ func TestNewIssuerClient(t *testing.T) {
 			writer.WriteHeader(http.StatusNotFound)
 		}
 
-		client, err := NewIssuerClient(ctx, httpClient, setup.providerMetadata.Issuer)
+		client, err := NewIssuerAPIClient(ctx, httpClient, setup.providerMetadata.Issuer)
 
 		require.ErrorContains(t, err, "unable to load OIDC Provider Metadata")
 		require.Nil(t, client)
@@ -69,10 +70,10 @@ func Test_httpIssuerClient_GetCredential(t *testing.T) {
 	}
 	t.Run("ok", func(t *testing.T) {
 		setup := setupClientTest(t)
-		client, err := NewIssuerClient(ctx, httpClient, setup.issuerMetadata.CredentialIssuer)
+		client, err := NewIssuerAPIClient(ctx, httpClient, setup.issuerMetadata.CredentialIssuer)
 		require.NoError(t, err)
 
-		credential, err := client.GetCredential(ctx, credentialRequest, "token")
+		credential, err := client.RequestCredential(ctx, credentialRequest, "token")
 
 		require.NoError(t, err)
 		require.NotNil(t, credential)
@@ -80,10 +81,10 @@ func Test_httpIssuerClient_GetCredential(t *testing.T) {
 	t.Run("error - no credentials in response", func(t *testing.T) {
 		setup := setupClientTest(t)
 		setup.credentialHandler = setup.httpPostHandler(CredentialResponse{})
-		client, err := NewIssuerClient(ctx, httpClient, setup.issuerMetadata.CredentialIssuer)
+		client, err := NewIssuerAPIClient(ctx, httpClient, setup.issuerMetadata.CredentialIssuer)
 		require.NoError(t, err)
 
-		credential, err := client.GetCredential(ctx, credentialRequest, "token")
+		credential, err := client.RequestCredential(ctx, credentialRequest, "token")
 
 		require.EqualError(t, err, "credential response does not contain a credential")
 		require.Nil(t, credential)
@@ -93,12 +94,43 @@ func Test_httpIssuerClient_GetCredential(t *testing.T) {
 		setup.credentialHandler = setup.httpPostHandler(CredentialResponse{Credential: &map[string]interface{}{
 			"issuer": []string{"1", "2"}, // Invalid issuer
 		}})
-		client, err := NewIssuerClient(ctx, httpClient, setup.issuerMetadata.CredentialIssuer)
+		client, err := NewIssuerAPIClient(ctx, httpClient, setup.issuerMetadata.CredentialIssuer)
 		require.NoError(t, err)
 
-		credential, err := client.GetCredential(ctx, credentialRequest, "token")
+		credential, err := client.RequestCredential(ctx, credentialRequest, "token")
 
 		require.ErrorContains(t, err, "unable to unmarshal received credential: json: cannot unmarshal")
 		require.Nil(t, credential)
+	})
+}
+
+func Test_httpOAuth2Client_RequestAccessToken(t *testing.T) {
+	httpClient := &http.Client{}
+	params := map[string]string{"some-param": "some-value"}
+	t.Run("ok", func(t *testing.T) {
+		setup := setupClientTest(t)
+		result, err := (&httpOAuth2Client{
+			metadata:   *setup.providerMetadata,
+			httpClient: httpClient,
+		}).RequestAccessToken("some-grant-type", params)
+
+		assert.NoError(t, err)
+		require.NotNil(t, result)
+		assert.NotEmpty(t, result.AccessToken)
+		require.Len(t, setup.requests, 1)
+		require.Equal(t, "application/x-www-form-urlencoded", setup.requests[0].Header.Get("Content-Type"))
+	})
+	t.Run("error", func(t *testing.T) {
+		setup := setupClientTest(t)
+		setup.tokenHandler = func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		result, err := (&httpOAuth2Client{
+			metadata:   *setup.providerMetadata,
+			httpClient: httpClient,
+		}).RequestAccessToken("some-grant-type", params)
+
+		require.ErrorContains(t, err, "request access token error")
+		assert.Nil(t, result)
 	})
 }

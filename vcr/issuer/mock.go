@@ -228,7 +228,7 @@ func (mr *MockStoreMockRecorder) Diagnostics() *gomock.Call {
 // GetCredential mocks base method.
 func (m *MockStore) GetCredential(id ssi.URI) (*vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetCredential", id)
+	ret := m.ctrl.Call(m, "RequestCredential", id)
 	ret0, _ := ret[0].(*vc.VerifiableCredential)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
@@ -237,7 +237,7 @@ func (m *MockStore) GetCredential(id ssi.URI) (*vc.VerifiableCredential, error) 
 // GetCredential indicates an expected call of GetCredential.
 func (mr *MockStoreMockRecorder) GetCredential(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCredential", reflect.TypeOf((*MockStore)(nil).GetCredential), id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestCredential", reflect.TypeOf((*MockStore)(nil).GetCredential), id)
 }
 
 // GetRevocation mocks base method.

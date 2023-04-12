@@ -101,7 +101,7 @@ type TokenResponse struct {
 	// AccessToken defines the access token issued by the authorization server.
 	AccessToken string `json:"access_token"`
 
-	// CNonce defines the JSON string containing a nonce to be used to create a proof of possession of key material when requesting a Credential. When received, the Wallet MUST use this nonce value for its subsequent credential requests until the Credential Issuer provides a fresh nonce.
+	// CNonce defines the JSON string containing a nonce to be used to create a proof of possession of key material when requesting a Credential. When received, the WalletAPIClient MUST use this nonce value for its subsequent credential requests until the Credential Issuer provides a fresh nonce.
 	CNonce *string `json:"c_nonce,omitempty"`
 
 	// ExpiresIn defines the lifetime in seconds of the access token.

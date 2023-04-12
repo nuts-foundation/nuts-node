@@ -44,7 +44,7 @@ func (w Wrapper) GetOIDCProviderMetadata(_ context.Context, request GetOIDCProvi
 	return GetOIDCProviderMetadata200JSONResponse(w.VCR.GetOIDCIssuer(*issuerDID).ProviderMetadata()), nil
 }
 
-func (w Wrapper) GetCredential(ctx context.Context, request GetCredentialRequestObject) (GetCredentialResponseObject, error) {
+func (w Wrapper) RequestCredential(ctx context.Context, request RequestCredentialRequestObject) (RequestCredentialResponseObject, error) {
 	issuerDID, err := did.ParseDID(request.Did)
 	if err != nil {
 		return nil, core.NotFoundError("invalid DID")
@@ -67,7 +67,7 @@ func (w Wrapper) GetCredential(ctx context.Context, request GetCredentialRequest
 	if err != nil {
 		return nil, err
 	}
-	return GetCredential200JSONResponse(CredentialResponse{
+	return RequestCredential200JSONResponse(CredentialResponse{
 		Credential: &credentialMap,
 		Format:     "VerifiableCredentialJSONLDFormat",
 	}), nil

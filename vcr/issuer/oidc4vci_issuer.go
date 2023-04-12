@@ -104,7 +104,7 @@ func (i *memoryIssuer) Offer(ctx context.Context, credential vc.VerifiableCreden
 
 	// TODO: Support TLS
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2032
-	client, err := oidc4vci.NewWalletClient(ctx, &http.Client{}, clientMetadataURL)
+	client, err := oidc4vci.NewWalletAPIClient(ctx, &http.Client{}, clientMetadataURL)
 	if err != nil {
 		return err
 	}
@@ -127,7 +127,7 @@ func (i *memoryIssuer) Offer(ctx context.Context, credential vc.VerifiableCreden
 		},
 	}
 
-	err = client.OfferCredential(ctx, offer)
+	err = client.HandleCredentialOffer(ctx, offer)
 	if err != nil {
 		return fmt.Errorf("unable to offer credential (url=%s): %w", client.Metadata().CredentialOfferEndpoint, err)
 	}

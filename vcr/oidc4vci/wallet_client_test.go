@@ -33,13 +33,13 @@ func TestNewWalletClient(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		setup := setupClientTest(t)
 
-		client, err := NewWalletClient(ctx, httpClient, setup.walletMetadataURL)
+		client, err := NewWalletAPIClient(ctx, httpClient, setup.walletMetadataURL)
 
 		require.NoError(t, err)
 		require.NotNil(t, client)
 	})
 	t.Run("empty metadata URL", func(t *testing.T) {
-		client, err := NewWalletClient(ctx, httpClient, "")
+		client, err := NewWalletAPIClient(ctx, httpClient, "")
 
 		require.EqualError(t, err, "empty wallet metadata URL")
 		require.Nil(t, client)
@@ -50,7 +50,7 @@ func TestNewWalletClient(t *testing.T) {
 			writer.WriteHeader(http.StatusNotFound)
 		}
 
-		client, err := NewWalletClient(ctx, httpClient, setup.walletMetadataURL)
+		client, err := NewWalletAPIClient(ctx, httpClient, setup.walletMetadataURL)
 
 		require.ErrorContains(t, err, "unable to load OAuth2 credential client metadata")
 		require.Nil(t, client)
@@ -62,10 +62,10 @@ func Test_httpWalletClient_OfferCredential(t *testing.T) {
 	httpClient := &http.Client{}
 	t.Run("ok", func(t *testing.T) {
 		setup := setupClientTest(t)
-		client, err := NewWalletClient(ctx, httpClient, setup.walletMetadataURL)
+		client, err := NewWalletAPIClient(ctx, httpClient, setup.walletMetadataURL)
 		require.NoError(t, err)
 
-		err = client.OfferCredential(ctx, CredentialOffer{
+		err = client.HandleCredentialOffer(ctx, CredentialOffer{
 			CredentialIssuer: setup.issuerMetadata.CredentialIssuer,
 			Credentials:      []map[string]interface{}{{"issuer": "issuer"}},
 			Grants: []map[string]interface{}{
@@ -94,10 +94,10 @@ func Test_httpWalletClient_OfferCredential(t *testing.T) {
 		setup.credentialOfferHandler = func(writer http.ResponseWriter, request *http.Request) {
 			writer.WriteHeader(http.StatusInternalServerError)
 		}
-		client, err := NewWalletClient(ctx, httpClient, setup.walletMetadataURL)
+		client, err := NewWalletAPIClient(ctx, httpClient, setup.walletMetadataURL)
 		require.NoError(t, err)
 
-		err = client.OfferCredential(ctx, CredentialOffer{
+		err = client.HandleCredentialOffer(ctx, CredentialOffer{
 			CredentialIssuer: setup.issuerMetadata.CredentialIssuer,
 			Credentials:      []map[string]interface{}{{"issuer": "issuer"}},
 			Grants: []map[string]interface{}{
