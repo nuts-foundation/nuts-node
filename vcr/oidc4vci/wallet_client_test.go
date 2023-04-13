@@ -65,7 +65,7 @@ func Test_httpWalletClient_OfferCredential(t *testing.T) {
 		client, err := NewWalletAPIClient(ctx, httpClient, setup.walletMetadataURL)
 		require.NoError(t, err)
 
-		err = client.HandleCredentialOffer(ctx, CredentialOffer{
+		err = client.OfferCredential(ctx, CredentialOffer{
 			CredentialIssuer: setup.issuerMetadata.CredentialIssuer,
 			Credentials:      []map[string]interface{}{{"issuer": "issuer"}},
 			Grants: []map[string]interface{}{
@@ -97,7 +97,7 @@ func Test_httpWalletClient_OfferCredential(t *testing.T) {
 		client, err := NewWalletAPIClient(ctx, httpClient, setup.walletMetadataURL)
 		require.NoError(t, err)
 
-		err = client.HandleCredentialOffer(ctx, CredentialOffer{
+		err = client.OfferCredential(ctx, CredentialOffer{
 			CredentialIssuer: setup.issuerMetadata.CredentialIssuer,
 			Credentials:      []map[string]interface{}{{"issuer": "issuer"}},
 			Grants: []map[string]interface{}{

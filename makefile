@@ -42,6 +42,7 @@ gen-mocks:
 	mockgen -destination=vcr/holder/mock.go -package=holder -source=vcr/holder/interface.go
 	mockgen -destination=vcr/issuer/mock.go -package=issuer -source=vcr/issuer/interface.go
 	mockgen -destination=vcr/oidc4vci/issuer_client_mock.go -package=oidc4vci -source=vcr/oidc4vci/issuer_client.go
+	mockgen -destination=vcr/oidc4vci/wallet_client_mock.go -package=oidc4vci -source=vcr/oidc4vci/wallet_client.go
 	mockgen -destination=vcr/issuer/oidc4vci_issuer_mock.go -package=issuer -source=vcr/issuer/oidc4vci_issuer.go
 	mockgen -destination=vcr/holder/oidc4vci_wallet_mock.go -package=holder -source=vcr/holder/oidc4vci_wallet.go
 	mockgen -destination=vcr/signature/mock.go -package=signature -source=vcr/signature/signature.go

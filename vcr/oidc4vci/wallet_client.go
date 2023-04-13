@@ -29,7 +29,7 @@ import (
 
 type WalletAPIClient interface {
 	Metadata() OAuth2ClientMetadata
-	HandleCredentialOffer(ctx context.Context, offer CredentialOffer) error
+	OfferCredential(ctx context.Context, offer CredentialOffer) error
 }
 
 var _ WalletAPIClient = (*defaultWalletAPIClient)(nil)
@@ -62,7 +62,7 @@ func (c *defaultWalletAPIClient) Metadata() OAuth2ClientMetadata {
 	return c.metadata
 }
 
-func (c *defaultWalletAPIClient) HandleCredentialOffer(ctx context.Context, offer CredentialOffer) error {
+func (c *defaultWalletAPIClient) OfferCredential(ctx context.Context, offer CredentialOffer) error {
 	offerJson, err := json.Marshal(offer)
 	if err != nil {
 		return err

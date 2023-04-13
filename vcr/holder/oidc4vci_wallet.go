@@ -117,7 +117,9 @@ func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.Creden
 		if credential.ID != nil {
 			credentialID = credential.ID.String()
 		}
-		log.Logger().Infof("Received VC over OIDC4VCI, storing in VCR: %s", credentialID)
+		log.Logger().
+			WithField("credentialID", credentialID).
+			Infof("Received VC over OIDC4VCI")
 		err = h.credentialStore.StoreCredential(*credential, nil)
 		if err != nil {
 			log.Logger().WithError(err).Error("Unable to store VC")

@@ -32,12 +32,13 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 )
 
 // ErrUnknownIssuer is returned when the given issuer is unknown.
 var ErrUnknownIssuer = errors.New("unknown OIDC4VCI issuer")
-
+var walletClientCreator = oidc4vci.NewWalletAPIClient
 var _ OIDCIssuer = (*memoryIssuer)(nil)
 
 // OIDCIssuer defines the interface for an OIDC4VCI credential issuer. It is multi-tenant, accompanying the system
@@ -45,8 +46,8 @@ var _ OIDCIssuer = (*memoryIssuer)(nil)
 type OIDCIssuer interface {
 	// ProviderMetadata returns the OpenID Connect provider metadata for the given issuer.
 	ProviderMetadata(issuer did.DID) (oidc4vci.ProviderMetadata, error)
-	// RequestAccessToken requests an OAuth2 access token for the given issuer and pre-authorized code.
-	RequestAccessToken(ctx context.Context, issuer did.DID, preAuthorizedCode string) (string, error)
+	// HandleAccessTokenRequest handles an OAuth2 access token request for the given issuer and pre-authorized code.
+	HandleAccessTokenRequest(ctx context.Context, issuer did.DID, preAuthorizedCode string) (string, error)
 	// Metadata returns the OIDC4VCI credential issuer metadata for the given issuer.
 	Metadata(issuer did.DID) (oidc4vci.CredentialIssuerMetadata, error)
 	// OfferCredential sends a credential offer to the specified wallet. It derives the issuer from the credential.
@@ -57,6 +58,8 @@ type OIDCIssuer interface {
 
 // NewOIDCIssuer creates a new Issuer instance. The identifier is the Credential Issuer Identifier, e.g. https://example.com/issuer/
 func NewOIDCIssuer(baseURL string) OIDCIssuer {
+	// Make sure baseURL has a trailing slash
+	baseURL = strings.TrimSuffix(baseURL, "/") + "/"
 	return &memoryIssuer{
 		baseURL:      baseURL,
 		state:        make(map[string]vc.VerifiableCredential),
@@ -78,8 +81,10 @@ func (i *memoryIssuer) Metadata(issuer did.DID) (oidc4vci.CredentialIssuerMetada
 	// TODO: Check if issuer is served by this instance
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2054
 	return oidc4vci.CredentialIssuerMetadata{
-		CredentialIssuer:     i.getIdentifier(issuer.String()),
-		CredentialEndpoint:   i.getIdentifier(issuer.String()) + "/issuer/oidc4vci/credential",
+		CredentialIssuer:   i.getIdentifier(issuer.String()),
+		CredentialEndpoint: i.getIdentifier(issuer.String()) + "/issuer/oidc4vci/credential",
+		// TODO: This must be configured
+		//       See https://github.com/nuts-foundation/nuts-node/issues/2058
 		CredentialsSupported: []map[string]interface{}{{"NutsAuthorizationCredential": map[string]interface{}{}}},
 	}, nil
 }
@@ -93,7 +98,7 @@ func (i *memoryIssuer) ProviderMetadata(issuer did.DID) (oidc4vci.ProviderMetada
 	}, nil
 }
 
-func (i *memoryIssuer) RequestAccessToken(ctx context.Context, issuer did.DID, preAuthorizedCode string) (string, error) {
+func (i *memoryIssuer) HandleAccessTokenRequest(ctx context.Context, issuer did.DID, preAuthorizedCode string) (string, error) {
 	// TODO: Check if issuer is served by this instance
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2054
 	i.mux.Lock()
@@ -112,45 +117,27 @@ func (i *memoryIssuer) RequestAccessToken(ctx context.Context, issuer did.DID, p
 func (i *memoryIssuer) OfferCredential(ctx context.Context, credential vc.VerifiableCredential, clientMetadataURL string) error {
 	// TODO: Check if issuer is served by this instance
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2054
-	i.mux.Lock()
 	preAuthorizedCode := generateCode()
-	i.state[preAuthorizedCode] = credential
-	i.mux.Unlock()
-
 	subject, err := getSubjectDID(credential)
 	if err != nil {
 		return err
 	}
-	log.Logger().Infof("Publishing credential for subject %s using OIDC4VCI", subject)
+	log.Logger().
+		WithField(core.LogFieldCredentialSubject, subject).
+		Infof("Offering credential using OIDC4VCI (client-metadata-url=%s)", clientMetadataURL)
 
 	// TODO: Support TLS
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2032
-	client, err := oidc4vci.NewWalletAPIClient(ctx, &http.Client{}, clientMetadataURL)
+	client, err := walletClientCreator(ctx, &http.Client{}, clientMetadataURL)
 	if err != nil {
 		return err
 	}
 
-	offer := oidc4vci.CredentialOffer{
-		CredentialIssuer: i.getIdentifier(credential.Issuer.String()),
-		Credentials: []map[string]interface{}{{
-			"format": oidc4vci.VerifiableCredentialJSONLDFormat,
-			"credential_definition": map[string]interface{}{
-				"@context": credential.Context,
-				"types":    credential.Type,
-			},
-		}},
-		Grants: []map[string]interface{}{
-			{
-				oidc4vci.PreAuthorizedCodeGrant: map[string]interface{}{
-					"pre-authorized_code": preAuthorizedCode,
-				},
-			},
-		},
-	}
+	offer := i.createOffer(credential, preAuthorizedCode)
 
-	err = client.HandleCredentialOffer(ctx, offer)
+	err = client.OfferCredential(ctx, offer)
 	if err != nil {
-		return fmt.Errorf("unable to offer credential (url=%s): %w", client.Metadata().CredentialOfferEndpoint, err)
+		return fmt.Errorf("unable to offer credential (client-metadata-url=%s): %w", client.Metadata().CredentialOfferEndpoint, err)
 	}
 	return nil
 }
@@ -185,6 +172,31 @@ func (i *memoryIssuer) HandleCredentialRequest(ctx context.Context, issuer did.D
 	delete(i.accessTokens, accessToken)
 	delete(i.state, preAuthorizedCode)
 	return &credential, nil
+}
+
+func (i *memoryIssuer) createOffer(credential vc.VerifiableCredential, preAuthorizedCode string) oidc4vci.CredentialOffer {
+	offer := oidc4vci.CredentialOffer{
+		CredentialIssuer: i.getIdentifier(credential.Issuer.String()),
+		Credentials: []map[string]interface{}{{
+			"format": oidc4vci.VerifiableCredentialJSONLDFormat,
+			"credential_definition": map[string]interface{}{
+				"@context": credential.Context,
+				"types":    credential.Type,
+			},
+		}},
+		Grants: []map[string]interface{}{
+			{
+				oidc4vci.PreAuthorizedCodeGrant: map[string]interface{}{
+					"pre-authorized_code": preAuthorizedCode,
+				},
+			},
+		},
+	}
+
+	i.mux.Lock()
+	i.state[preAuthorizedCode] = credential
+	i.mux.Unlock()
+	return offer
 }
 
 func getSubjectDID(verifiableCredential vc.VerifiableCredential) (string, error) {
