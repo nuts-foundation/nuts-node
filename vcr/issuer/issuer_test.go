@@ -224,7 +224,7 @@ func Test_issuer_Issue(t *testing.T) {
 			publisher := NewMockPublisher(ctrl)
 			publisher.EXPECT().PublishCredential(gomock.Any(), gomock.Any(), gomock.Any())
 			oidcIssuer := NewMockOIDCIssuer(ctrl)
-			oidcIssuer.EXPECT().Offer(gomock.Any(), gomock.Any(), walletMetadataURL).Return(errors.New("failed"))
+			oidcIssuer.EXPECT().OfferCredential(gomock.Any(), gomock.Any(), walletMetadataURL).Return(errors.New("failed"))
 			keyResolver := NewMockkeyResolver(ctrl)
 			keyResolver.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
 			serviceResolver := didservice.NewMockServiceResolver(ctrl)
@@ -277,7 +277,7 @@ func Test_issuer_Issue(t *testing.T) {
 		t.Run("ok - publish over OIDC4VCI", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			oidcIssuer := NewMockOIDCIssuer(ctrl)
-			oidcIssuer.EXPECT().Offer(gomock.Any(), gomock.Any(), walletMetadataURL)
+			oidcIssuer.EXPECT().OfferCredential(gomock.Any(), gomock.Any(), walletMetadataURL)
 			keyResolver := NewMockkeyResolver(ctrl)
 			keyResolver.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
 			serviceResolver := didservice.NewMockServiceResolver(ctrl)
