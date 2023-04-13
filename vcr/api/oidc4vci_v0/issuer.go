@@ -28,6 +28,7 @@ import (
 	"strings"
 )
 
+// GetOIDC4VCIIssuerMetadata returns the OIDC4VCI credential issuer metadata for the given DID.
 func (w Wrapper) GetOIDC4VCIIssuerMetadata(_ context.Context, request GetOIDC4VCIIssuerMetadataRequestObject) (GetOIDC4VCIIssuerMetadataResponseObject, error) {
 	issuerDID, err := did.ParseDID(request.Did)
 	if err != nil {
@@ -36,6 +37,7 @@ func (w Wrapper) GetOIDC4VCIIssuerMetadata(_ context.Context, request GetOIDC4VC
 	return GetOIDC4VCIIssuerMetadata200JSONResponse(w.VCR.GetOIDCIssuer(*issuerDID).Metadata()), nil
 }
 
+// GetOIDCProviderMetadata returns the OpenID Connect provider metadata for the given DID.
 func (w Wrapper) GetOIDCProviderMetadata(_ context.Context, request GetOIDCProviderMetadataRequestObject) (GetOIDCProviderMetadataResponseObject, error) {
 	issuerDID, err := did.ParseDID(request.Did)
 	if err != nil {
@@ -44,6 +46,7 @@ func (w Wrapper) GetOIDCProviderMetadata(_ context.Context, request GetOIDCProvi
 	return GetOIDCProviderMetadata200JSONResponse(w.VCR.GetOIDCIssuer(*issuerDID).ProviderMetadata()), nil
 }
 
+// RequestCredential requests a credential from the given DID.
 func (w Wrapper) RequestCredential(ctx context.Context, request RequestCredentialRequestObject) (RequestCredentialResponseObject, error) {
 	issuerDID, err := did.ParseDID(request.Did)
 	if err != nil {
@@ -73,6 +76,7 @@ func (w Wrapper) RequestCredential(ctx context.Context, request RequestCredentia
 	}), nil
 }
 
+// RequestAccessToken requests an OAuth2 access token from the given DID.
 func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
 	issuerDID, err := did.ParseDID(request.Did)
 	if err != nil {
@@ -85,6 +89,8 @@ func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 	if err != nil {
 		return nil, err
 	}
+	// TODO: Revisit expires and nonce values
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2051
 	expiresIn := 300
 	cNonce := "nonsens"
 	return RequestAccessToken200JSONResponse(TokenResponse{

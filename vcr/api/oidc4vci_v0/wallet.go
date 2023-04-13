@@ -26,6 +26,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 )
 
+// GetOAuth2ClientMetadata returns the OAuth2 client metadata for the given DID.
 func (w Wrapper) GetOAuth2ClientMetadata(_ context.Context, request GetOAuth2ClientMetadataRequestObject) (GetOAuth2ClientMetadataResponseObject, error) {
 	id, err := did.ParseDID(request.Did)
 	if err != nil {
@@ -34,6 +35,7 @@ func (w Wrapper) GetOAuth2ClientMetadata(_ context.Context, request GetOAuth2Cli
 	return GetOAuth2ClientMetadata200JSONResponse(w.VCR.GetOIDCWallet(*id).Metadata()), nil
 }
 
+// HandleCredentialOffer handles a credential offer for the given DID.
 func (w Wrapper) HandleCredentialOffer(ctx context.Context, request HandleCredentialOfferRequestObject) (HandleCredentialOfferResponseObject, error) {
 	id, err := did.ParseDID(request.Did)
 	if err != nil {

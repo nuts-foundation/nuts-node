@@ -26,20 +26,35 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 )
 
+// ProviderMetadata is the metadata of the OpenID Connect provider
 type ProviderMetadata = oidc4vci.ProviderMetadata
+
+// CredentialIssuerMetadata is the metadata of the OIDC4VCI credential issuer
 type CredentialIssuerMetadata = oidc4vci.CredentialIssuerMetadata
+
+// TokenResponse is the response of the OpenID Connect token endpoint
 type TokenResponse = oidc4vci.TokenResponse
+
+// CredentialRequest is the request to the OIDC4VCI credential request endpoint
 type CredentialRequest = oidc4vci.CredentialRequest
+
+// CredentialResponse is the response of the OIDC4VCI credential request endpoint
 type CredentialResponse = oidc4vci.CredentialResponse
+
+// OAuth2ClientMetadata is the metadata of the OAuth2 client
 type OAuth2ClientMetadata = oidc4vci.OAuth2ClientMetadata
+
+// CredentialOffer is the credential offer sent to the OIDC4VCI wallet
 type CredentialOffer = oidc4vci.CredentialOffer
 
 var _ StrictServerInterface = (*Wrapper)(nil)
 
+// Wrapper wraps the OIDC4VCI API
 type Wrapper struct {
 	VCR vcr.VCR
 }
 
+// Routes registers the API routes
 func (w Wrapper) Routes(router core.EchoRouter) {
 	RegisterHandlers(router, NewStrictHandler(w, []StrictMiddlewareFunc{
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
