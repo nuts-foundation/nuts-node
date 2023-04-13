@@ -162,7 +162,7 @@ func (i issuer) issuerUsingOIDC4VCI(ctx context.Context, credential *vc.Verifiab
 	if err != nil {
 		return fmt.Errorf("unable to unmarshal OIDC4VCI wallet metadata URL of DID %s: %w", subject.ID, err)
 	}
-	err = i.oidcIssuer.Offer(ctx, *credential, walletMetadataURL)
+	err = i.oidcIssuer.OfferCredential(ctx, *credential, walletMetadataURL)
 	if err != nil {
 		return fmt.Errorf("unable to publish the issued credential over OIDC4VCI to DID %s: %w", subject.ID, err)
 	}

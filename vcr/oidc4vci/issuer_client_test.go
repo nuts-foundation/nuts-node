@@ -66,7 +66,7 @@ func Test_httpIssuerClient_GetCredential(t *testing.T) {
 		CredentialDefinition: &map[string]interface{}{
 			"issuer": "issuer",
 		},
-		Format: "VerifiableCredentialJSONLDFormat",
+		Format: VerifiableCredentialJSONLDFormat,
 	}
 	t.Run("ok", func(t *testing.T) {
 		setup := setupClientTest(t)

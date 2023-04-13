@@ -95,7 +95,7 @@ func TestOIDC4VCIHappyFlow(t *testing.T) {
 	})
 
 	// Now issue the VC
-	err := oidcIssuer.Offer(context.Background(), credential, receiverMetadataURL)
+	err := oidcIssuer.OfferCredential(context.Background(), credential, receiverMetadataURL)
 	require.NoError(t, err)
 
 	test.WaitFor(t, func() (bool, error) {
@@ -117,7 +117,7 @@ func TestOIDC4VCIDisabled(t *testing.T) {
 	receiverMetadataURL := receiverIdentifier + "/.well-known/openid-credential-wallet"
 
 	oidcIssuer := issuer.NewOIDCIssuer(issuerIdentifier)
-	err := oidcIssuer.Offer(context.Background(), credential, receiverMetadataURL)
+	err := oidcIssuer.OfferCredential(context.Background(), credential, receiverMetadataURL)
 
 	require.Error(t, err)
 }

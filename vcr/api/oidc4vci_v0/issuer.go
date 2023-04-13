@@ -68,7 +68,7 @@ func (w Wrapper) RequestCredential(ctx context.Context, request RequestCredentia
 		return nil, errors.New("invalid authorization header")
 	}
 	accessToken := authHeader[7:]
-	credential, err := w.VCR.GetOIDCIssuer().RequestCredential(ctx, *issuerDID, accessToken)
+	credential, err := w.VCR.GetOIDCIssuer().HandleCredentialRequest(ctx, *issuerDID, accessToken)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (w Wrapper) RequestCredential(ctx context.Context, request RequestCredentia
 	}
 	return RequestCredential200JSONResponse(CredentialResponse{
 		Credential: &credentialMap,
-		Format:     "VerifiableCredentialJSONLDFormat",
+		Format:     oidc4vci.VerifiableCredentialJSONLDFormat,
 	}), nil
 }
 
@@ -91,7 +91,7 @@ func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 		return nil, core.NotFoundError("invalid DID")
 	}
 	if request.Body.GrantType != oidc4vci.PreAuthorizedCodeGrant {
-		return nil, errors.New("unsupported grant type")
+		return nil, core.InvalidInputError("unsupported grant type")
 	}
 	accessToken, err := w.VCR.GetOIDCIssuer().RequestAccessToken(ctx, *issuerDID, request.Body.PreAuthorizedCode)
 	if err != nil {

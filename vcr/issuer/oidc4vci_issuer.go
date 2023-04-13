@@ -49,10 +49,10 @@ type OIDCIssuer interface {
 	RequestAccessToken(ctx context.Context, issuer did.DID, preAuthorizedCode string) (string, error)
 	// Metadata returns the OIDC4VCI credential issuer metadata for the given issuer.
 	Metadata(issuer did.DID) (oidc4vci.CredentialIssuerMetadata, error)
-	// Offer sends a credential offer to the specified wallet. It derives the issuer from the credential.
-	Offer(ctx context.Context, credential vc.VerifiableCredential, walletURL string) error
-	// RequestCredential requests a credential from the given issuer.
-	RequestCredential(ctx context.Context, issuer did.DID, accessToken string) (vc.VerifiableCredential, error)
+	// OfferCredential sends a credential offer to the specified wallet. It derives the issuer from the credential.
+	OfferCredential(ctx context.Context, credential vc.VerifiableCredential, walletURL string) error
+	// HandleCredentialRequest requests a credential from the given issuer.
+	HandleCredentialRequest(ctx context.Context, issuer did.DID, accessToken string) (*vc.VerifiableCredential, error)
 }
 
 // NewOIDCIssuer creates a new Issuer instance. The identifier is the Credential Issuer Identifier, e.g. https://example.com/issuer/
@@ -109,7 +109,7 @@ func (i *memoryIssuer) RequestAccessToken(ctx context.Context, issuer did.DID, p
 	return accessToken, nil
 }
 
-func (i *memoryIssuer) Offer(ctx context.Context, credential vc.VerifiableCredential, clientMetadataURL string) error {
+func (i *memoryIssuer) OfferCredential(ctx context.Context, credential vc.VerifiableCredential, clientMetadataURL string) error {
 	// TODO: Check if issuer is served by this instance
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2054
 	i.mux.Lock()
@@ -133,7 +133,7 @@ func (i *memoryIssuer) Offer(ctx context.Context, credential vc.VerifiableCreden
 	offer := oidc4vci.CredentialOffer{
 		CredentialIssuer: i.getIdentifier(credential.Issuer.String()),
 		Credentials: []map[string]interface{}{{
-			"format": "VerifiableCredentialJSONLDFormat",
+			"format": oidc4vci.VerifiableCredentialJSONLDFormat,
 			"credential_definition": map[string]interface{}{
 				"@context": credential.Context,
 				"types":    credential.Type,
@@ -155,7 +155,7 @@ func (i *memoryIssuer) Offer(ctx context.Context, credential vc.VerifiableCreden
 	return nil
 }
 
-func (i *memoryIssuer) RequestCredential(ctx context.Context, issuer did.DID, accessToken string) (vc.VerifiableCredential, error) {
+func (i *memoryIssuer) HandleCredentialRequest(ctx context.Context, issuer did.DID, accessToken string) (*vc.VerifiableCredential, error) {
 	// TODO: Check if issuer is served by this instance
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2054
 	i.mux.Lock()
@@ -168,7 +168,7 @@ func (i *memoryIssuer) RequestCredential(ctx context.Context, issuer did.DID, ac
 	if !ok {
 		audit.Log(ctx, log.Logger(), audit.InvalidOAuthTokenEvent).
 			Info("Client tried retrieving credential over OIDC4VCI with unknown OAuth2 access token")
-		return vc.VerifiableCredential{}, errors.New("invalid access token")
+		return nil, errors.New("invalid access token")
 	}
 	credential, _ := i.state[preAuthorizedCode]
 	subjectDID, _ := getSubjectDID(credential)
@@ -184,7 +184,7 @@ func (i *memoryIssuer) RequestCredential(ctx context.Context, issuer did.DID, ac
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2031
 	delete(i.accessTokens, accessToken)
 	delete(i.state, preAuthorizedCode)
-	return credential, nil
+	return &credential, nil
 }
 
 func getSubjectDID(verifiableCredential vc.VerifiableCredential) (string, error) {

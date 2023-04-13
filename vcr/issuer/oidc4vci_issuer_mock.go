@@ -37,6 +37,21 @@ func (m *MockOIDCIssuer) EXPECT() *MockOIDCIssuerMockRecorder {
 	return m.recorder
 }
 
+// HandleCredentialRequest mocks base method.
+func (m *MockOIDCIssuer) HandleCredentialRequest(ctx context.Context, issuer did.DID, accessToken string) (*vc.VerifiableCredential, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HandleCredentialRequest", ctx, issuer, accessToken)
+	ret0, _ := ret[0].(*vc.VerifiableCredential)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// HandleCredentialRequest indicates an expected call of HandleCredentialRequest.
+func (mr *MockOIDCIssuerMockRecorder) HandleCredentialRequest(ctx, issuer, accessToken interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleCredentialRequest", reflect.TypeOf((*MockOIDCIssuer)(nil).HandleCredentialRequest), ctx, issuer, accessToken)
+}
+
 // Metadata mocks base method.
 func (m *MockOIDCIssuer) Metadata(issuer did.DID) (oidc4vci.CredentialIssuerMetadata, error) {
 	m.ctrl.T.Helper()
@@ -52,18 +67,18 @@ func (mr *MockOIDCIssuerMockRecorder) Metadata(issuer interface{}) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Metadata", reflect.TypeOf((*MockOIDCIssuer)(nil).Metadata), issuer)
 }
 
-// Offer mocks base method.
-func (m *MockOIDCIssuer) Offer(ctx context.Context, credential vc.VerifiableCredential, walletURL string) error {
+// OfferCredential mocks base method.
+func (m *MockOIDCIssuer) OfferCredential(ctx context.Context, credential vc.VerifiableCredential, walletURL string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Offer", ctx, credential, walletURL)
+	ret := m.ctrl.Call(m, "OfferCredential", ctx, credential, walletURL)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// Offer indicates an expected call of Offer.
-func (mr *MockOIDCIssuerMockRecorder) Offer(ctx, credential, walletURL interface{}) *gomock.Call {
+// OfferCredential indicates an expected call of OfferCredential.
+func (mr *MockOIDCIssuerMockRecorder) OfferCredential(ctx, credential, walletURL interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Offer", reflect.TypeOf((*MockOIDCIssuer)(nil).Offer), ctx, credential, walletURL)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OfferCredential", reflect.TypeOf((*MockOIDCIssuer)(nil).OfferCredential), ctx, credential, walletURL)
 }
 
 // ProviderMetadata mocks base method.
@@ -94,19 +109,4 @@ func (m *MockOIDCIssuer) RequestAccessToken(ctx context.Context, issuer did.DID,
 func (mr *MockOIDCIssuerMockRecorder) RequestAccessToken(ctx, issuer, preAuthorizedCode interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestAccessToken", reflect.TypeOf((*MockOIDCIssuer)(nil).RequestAccessToken), ctx, issuer, preAuthorizedCode)
-}
-
-// RequestCredential mocks base method.
-func (m *MockOIDCIssuer) RequestCredential(ctx context.Context, issuer did.DID, accessToken string) (vc.VerifiableCredential, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RequestCredential", ctx, issuer, accessToken)
-	ret0, _ := ret[0].(vc.VerifiableCredential)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// RequestCredential indicates an expected call of RequestCredential.
-func (mr *MockOIDCIssuerMockRecorder) RequestCredential(ctx, issuer, accessToken interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestCredential", reflect.TypeOf((*MockOIDCIssuer)(nil).RequestCredential), ctx, issuer, accessToken)
 }
