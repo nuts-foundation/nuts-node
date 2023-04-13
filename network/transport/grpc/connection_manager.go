@@ -79,7 +79,7 @@ func (s fatalError) Unwrap() error {
 type dialer func(ctx context.Context, target string, opts ...grpc.DialOption) (conn *grpc.ClientConn, err error)
 
 // NewGRPCConnectionManager creates a new ConnectionManager that accepts/creates connections which communicate using the given protocols.
-func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nodeDID *did.DID, authenticator Authenticator, protocols ...transport.Protocol) transport.ConnectionManager {
+func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nodeDID did.DID, authenticator Authenticator, protocols ...transport.Protocol) transport.ConnectionManager {
 	var grpcProtocols []Protocol
 	for _, curr := range protocols {
 		// For now, only gRPC protocols are supported
@@ -136,7 +136,7 @@ type grpcConnectionManager struct {
 	ctxCancel           func()
 	listener            net.Listener
 	authenticator       Authenticator
-	nodeDID             *did.DID
+	nodeDID             did.DID
 	observers           []transport.StreamStateObserverFunc
 	peersCounter        prometheus.Gauge
 	recvMessagesCounter *prometheus.CounterVec

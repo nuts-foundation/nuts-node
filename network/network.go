@@ -81,7 +81,7 @@ type Network struct {
 	startTime           atomic.Pointer[time.Time]
 	peerID              transport.PeerID
 	didDocumentResolver types.DocResolver
-	nodeDID             *did.DID
+	nodeDID             did.DID
 	didDocumentFinder   types.DocFinder
 	eventPublisher      events.Event
 	storeProvider       storage.Provider
@@ -119,7 +119,7 @@ func (n *Network) CheckHealth() map[string]core.Health {
 		return results
 	}
 
-	if err := n.validateNodeDID(context.TODO(), *n.nodeDID); err != nil {
+	if err := n.validateNodeDID(context.TODO(), n.nodeDID); err != nil {
 		results[healthAuthConfig] = core.Health{
 			Status:  core.HealthStatusDown,
 			Details: err.Error(),
@@ -154,7 +154,6 @@ func NewNetworkInstance(
 		didDocumentFinder:   didDocumentFinder,
 		eventPublisher:      eventPublisher,
 		storeProvider:       storeProvider,
-		nodeDID:             &did.DID{},
 	}
 }
 
@@ -187,10 +186,11 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	// Resolve node DID
 	if n.config.NodeDID != "" {
 		// Node DID is set, configure it statically
-		n.nodeDID, err = did.ParseDID(n.config.NodeDID)
+		nodeDID, err := did.ParseDID(n.config.NodeDID)
 		if err != nil {
 			return fmt.Errorf("configured NodeDID is invalid: %w", err)
 		}
+		n.nodeDID = *nodeDID
 	} else if !config.Strictmode {
 		// If node DID is not set we can wire the automatic node DID resolver, which makes testing/workshops/development easier.
 		// Might cause unexpected behavior though, so it can't be used in strict mode.
@@ -199,6 +199,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		if err != nil {
 			log.Logger().WithError(err).Error("Node DID auto-discovery failed")
 		}
+
 	}
 	if n.nodeDID.Empty() {
 		log.Logger().Warn("Node DID not set, sending/receiving private transactions is disabled.")
@@ -298,7 +299,7 @@ func (n *Network) DiscoverServices(updatedDID did.DID) {
 			Debug("Service discovery could not read DID document after an update")
 		return
 	}
-	n.connectToDID(*n.nodeDID, *document, true)
+	n.connectToDID(n.nodeDID, *document, true)
 }
 
 // emitEvents is called when a payload is added.
@@ -344,9 +345,8 @@ func (n *Network) Start() error {
 	}
 
 	// Sanity check for configured node DID: can we resolve it and do we have the keys?
-	nodeDID := *n.nodeDID
 	if !n.nodeDID.Empty() {
-		err := n.validateNodeDIDKeys(context.TODO(), nodeDID)
+		err := n.validateNodeDIDKeys(context.TODO(), n.nodeDID)
 		if err != nil && n.strictMode {
 			return err
 		}
@@ -362,7 +362,7 @@ func (n *Network) Start() error {
 	if err != nil {
 		return err
 	}
-	return n.connectToKnownNodes(nodeDID)
+	return n.connectToKnownNodes(n.nodeDID)
 }
 
 func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
@@ -682,7 +682,7 @@ func (n *Network) Diagnostics() []core.DiagnosticResult {
 	// NodeDID
 	results = append(results, core.GenericDiagnosticResult{
 		Title:   "node_did",
-		Outcome: *n.nodeDID,
+		Outcome: n.nodeDID,
 	})
 	return results
 }
