@@ -30,7 +30,7 @@ import (
 func (w Wrapper) GetOAuth2ClientMetadata(_ context.Context, request GetOAuth2ClientMetadataRequestObject) (GetOAuth2ClientMetadataResponseObject, error) {
 	id, err := did.ParseDID(request.Did)
 	if err != nil {
-		return nil, core.NotFoundError("invalid DID")
+		return nil, core.InvalidInputError("invalid DID")
 	}
 	return GetOAuth2ClientMetadata200JSONResponse(w.VCR.GetOIDCWallet(*id).Metadata()), nil
 }
@@ -39,7 +39,7 @@ func (w Wrapper) GetOAuth2ClientMetadata(_ context.Context, request GetOAuth2Cli
 func (w Wrapper) HandleCredentialOffer(ctx context.Context, request HandleCredentialOfferRequestObject) (HandleCredentialOfferResponseObject, error) {
 	id, err := did.ParseDID(request.Did)
 	if err != nil {
-		return nil, core.NotFoundError("invalid DID")
+		return nil, core.InvalidInputError("invalid DID")
 	}
 	offer := oidc4vci.CredentialOffer{}
 	if err := json.Unmarshal([]byte(request.Params.CredentialOffer), &offer); err != nil {

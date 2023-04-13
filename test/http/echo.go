@@ -34,6 +34,7 @@ func StartEchoServer(t *testing.T, registerRoutesFunc func(router core.EchoRoute
 	httpPort := test.FreeTCPPort()
 	httpServer := echo.New()
 	httpServer.Use(middleware.Logger())
+	httpServer.HTTPErrorHandler = core.CreateHTTPErrorHandler()
 	t.Cleanup(func() {
 		httpServer.Close()
 	})

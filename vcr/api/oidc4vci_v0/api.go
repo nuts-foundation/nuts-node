@@ -23,6 +23,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 )
 
@@ -60,20 +61,21 @@ func (w Wrapper) Routes(router core.EchoRouter) {
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
 			return func(ctx echo.Context, request interface{}) (response interface{}, err error) {
 				ctx.Set(core.OperationIDContextKey, operationID)
-				ctx.Set(core.ModuleNameContextKey, vcr.ModuleName)
+				ctx.Set(core.ModuleNameContextKey, vcr.ModuleName+"/OIDC4VCI")
 				return f(ctx, request)
 			}
 		},
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
 			return func(ctx echo.Context, args interface{}) (interface{}, error) {
 				if !w.VCR.OIDC4VCIEnabled() {
+					log.Logger().Info("Someone tried to access disabled OIDC4VCI API endpoint.")
 					return nil, core.NotFoundError("") // check response
 				}
 				return f(ctx, args)
 			}
 		},
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
-			return audit.StrictMiddleware(f, vcr.ModuleName, operationID)
+			return audit.StrictMiddleware(f, vcr.ModuleName+"/OIDC4VCI", operationID)
 		},
 	}))
 }
