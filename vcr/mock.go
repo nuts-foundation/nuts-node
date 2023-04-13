@@ -199,17 +199,17 @@ func (m *MockVCR) EXPECT() *MockVCRMockRecorder {
 }
 
 // GetOIDCIssuer mocks base method.
-func (m *MockVCR) GetOIDCIssuer(id did.DID) issuer.OIDCIssuer {
+func (m *MockVCR) GetOIDCIssuer() issuer.OIDCIssuer {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetOIDCIssuer", id)
+	ret := m.ctrl.Call(m, "GetOIDCIssuer")
 	ret0, _ := ret[0].(issuer.OIDCIssuer)
 	return ret0
 }
 
 // GetOIDCIssuer indicates an expected call of GetOIDCIssuer.
-func (mr *MockVCRMockRecorder) GetOIDCIssuer(id interface{}) *gomock.Call {
+func (mr *MockVCRMockRecorder) GetOIDCIssuer() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOIDCIssuer", reflect.TypeOf((*MockVCR)(nil).GetOIDCIssuer), id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOIDCIssuer", reflect.TypeOf((*MockVCR)(nil).GetOIDCIssuer))
 }
 
 // GetOIDCWallet mocks base method.

@@ -47,12 +47,12 @@ var TimeFunc = time.Now
 
 // NewIssuer creates a new issuer which implements the Issuer interface.
 // If oidcIssuerFunc is nil, it won't try to issue over OIDC4VCI.
-func NewIssuer(store Store, networkPublisher Publisher, oidcIssuerFunc func(did.DID) OIDCIssuer, docResolver vdr.DocResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config) Issuer {
+func NewIssuer(store Store, networkPublisher Publisher, oidcIssuer OIDCIssuer, docResolver vdr.DocResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config) Issuer {
 	resolver := vdrKeyResolver{docResolver: docResolver, keyResolver: keyStore}
 	return &issuer{
 		store:            store,
 		networkPublisher: networkPublisher,
-		oidcIssuerFunc:   oidcIssuerFunc,
+		oidcIssuer:       oidcIssuer,
 		keyResolver:      resolver,
 		keyStore:         keyStore,
 		serviceResolver:  didservice.NewServiceResolver(docResolver),
@@ -64,7 +64,7 @@ func NewIssuer(store Store, networkPublisher Publisher, oidcIssuerFunc func(did.
 type issuer struct {
 	store            Store
 	networkPublisher Publisher
-	oidcIssuerFunc   func(id did.DID) OIDCIssuer
+	oidcIssuer       OIDCIssuer
 	serviceResolver  didservice.ServiceResolver
 	keyResolver      keyResolver
 	keyStore         crypto.KeyStore
@@ -112,7 +112,7 @@ func (i issuer) Issue(ctx context.Context, credentialOptions vc.VerifiableCreden
 	if publish {
 		// Try to issue over OIDC4VCI if it's enabled and if the credential is not public
 		// (public credentials are always published on the network).
-		if i.oidcIssuerFunc != nil && !public {
+		if i.oidcIssuer != nil && !public {
 			err := i.issuerUsingOIDC4VCI(ctx, createdVC)
 			if err == nil {
 				log.Logger().
@@ -162,8 +162,7 @@ func (i issuer) issuerUsingOIDC4VCI(ctx context.Context, credential *vc.Verifiab
 	if err != nil {
 		return fmt.Errorf("unable to unmarshal OIDC4VCI wallet metadata URL of DID %s: %w", subject.ID, err)
 	}
-	issuerDID, _ := did.ParseDID(credential.Issuer.String()) // can't fail
-	err = i.oidcIssuerFunc(*issuerDID).Offer(ctx, *credential, walletMetadataURL)
+	err = i.oidcIssuer.Offer(ctx, *credential, walletMetadataURL)
 	if err != nil {
 		return fmt.Errorf("unable to publish the issued credential over OIDC4VCI to DID %s: %w", subject.ID, err)
 	}

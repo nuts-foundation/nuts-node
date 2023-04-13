@@ -81,7 +81,7 @@ func TestOIDC4VCIHappyFlow(t *testing.T) {
 	mockVCR.EXPECT().OIDC4VCIEnabled().AnyTimes().Return(true)
 	credentialStore := vcrTypes.NewMockWriter(ctrl)
 	oidcIssuer := issuer.NewOIDCIssuer(issuerIdentifier)
-	mockVCR.EXPECT().GetOIDCIssuer(issuerDID).AnyTimes().Return(oidcIssuer)
+	mockVCR.EXPECT().GetOIDCIssuer().AnyTimes().Return(oidcIssuer)
 	signer := crypto.NewMockJWTSigner(ctrl)
 	signer.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("the-signed-jwt", nil)
 	resolver := types.NewMockKeyResolver(ctrl)

@@ -70,7 +70,7 @@ type VCR interface {
 	Issuer() issuer.Issuer
 	Holder() holder.Holder
 	Verifier() verifier.Verifier
-	GetOIDCIssuer(id did.DID) issuer.OIDCIssuer
+	GetOIDCIssuer() issuer.OIDCIssuer
 	GetOIDCWallet(id did.DID) holder.OIDCWallet
 	OIDC4VCIEnabled() bool
 

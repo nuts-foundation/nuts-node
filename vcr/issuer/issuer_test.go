@@ -232,15 +232,13 @@ func Test_issuer_Issue(t *testing.T) {
 			store := NewMockStore(ctrl)
 			store.EXPECT().StoreCredential(gomock.Any())
 			sut := issuer{
-				keyResolver:     keyResolver,
-				store:           store,
-				jsonldManager:   jsonldManager,
-				trustConfig:     trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config")),
-				keyStore:        crypto.NewMemoryCryptoInstance(),
-				serviceResolver: serviceResolver,
-				oidcIssuerFunc: func(id did.DID) OIDCIssuer {
-					return oidcIssuer
-				},
+				keyResolver:      keyResolver,
+				store:            store,
+				jsonldManager:    jsonldManager,
+				trustConfig:      trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config")),
+				keyStore:         crypto.NewMemoryCryptoInstance(),
+				serviceResolver:  serviceResolver,
+				oidcIssuer:       oidcIssuer,
 				networkPublisher: publisher,
 			}
 
@@ -261,15 +259,13 @@ func Test_issuer_Issue(t *testing.T) {
 			store := NewMockStore(ctrl)
 			store.EXPECT().StoreCredential(gomock.Any())
 			sut := issuer{
-				keyResolver:     keyResolver,
-				store:           store,
-				jsonldManager:   jsonldManager,
-				trustConfig:     trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config")),
-				keyStore:        crypto.NewMemoryCryptoInstance(),
-				serviceResolver: serviceResolver,
-				oidcIssuerFunc: func(id did.DID) OIDCIssuer {
-					return oidcIssuer
-				},
+				keyResolver:      keyResolver,
+				store:            store,
+				jsonldManager:    jsonldManager,
+				trustConfig:      trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config")),
+				keyStore:         crypto.NewMemoryCryptoInstance(),
+				serviceResolver:  serviceResolver,
+				oidcIssuer:       oidcIssuer,
 				networkPublisher: publisher,
 			}
 
@@ -295,9 +291,7 @@ func Test_issuer_Issue(t *testing.T) {
 				trustConfig:     trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config")),
 				keyStore:        crypto.NewMemoryCryptoInstance(),
 				serviceResolver: serviceResolver,
-				oidcIssuerFunc: func(id did.DID) OIDCIssuer {
-					return oidcIssuer
-				},
+				oidcIssuer:      oidcIssuer,
 			}
 
 			result, err := sut.Issue(ctx, credentialOptions, true, false)

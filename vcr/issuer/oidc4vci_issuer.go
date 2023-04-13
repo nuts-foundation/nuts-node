@@ -24,28 +24,41 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"net/http"
+	"net/url"
 	"sync"
 )
 
-type OIDCIssuer interface {
-	ProviderMetadata() oidc4vci.ProviderMetadata
-	RequestAccessToken(ctx context.Context, preAuthorizedCode string) (string, error)
+// ErrUnknownIssuer is returned when the given issuer is unknown.
+var ErrUnknownIssuer = errors.New("unknown OIDC4VCI issuer")
 
-	Metadata() oidc4vci.CredentialIssuerMetadata
+var _ OIDCIssuer = (*memoryIssuer)(nil)
+
+// OIDCIssuer defines the interface for an OIDC4VCI credential issuer. It is multi-tenant, accompanying the system
+// managing an arbitrary number of actual issuers.
+type OIDCIssuer interface {
+	// ProviderMetadata returns the OpenID Connect provider metadata for the given issuer.
+	ProviderMetadata(issuer did.DID) (oidc4vci.ProviderMetadata, error)
+	// RequestAccessToken requests an OAuth2 access token for the given issuer and pre-authorized code.
+	RequestAccessToken(ctx context.Context, issuer did.DID, preAuthorizedCode string) (string, error)
+	// Metadata returns the OIDC4VCI credential issuer metadata for the given issuer.
+	Metadata(issuer did.DID) (oidc4vci.CredentialIssuerMetadata, error)
+	// Offer sends a credential offer to the specified wallet. It derives the issuer from the credential.
 	Offer(ctx context.Context, credential vc.VerifiableCredential, walletURL string) error
-	GetCredential(ctx context.Context, accessToken string) (vc.VerifiableCredential, error)
+	// RequestCredential requests a credential from the given issuer.
+	RequestCredential(ctx context.Context, issuer did.DID, accessToken string) (vc.VerifiableCredential, error)
 }
 
 // NewOIDCIssuer creates a new Issuer instance. The identifier is the Credential Issuer Identifier, e.g. https://example.com/issuer/
-func NewOIDCIssuer(identifier string) OIDCIssuer {
+func NewOIDCIssuer(baseURL string) OIDCIssuer {
 	return &memoryIssuer{
-		identifier:   identifier,
+		baseURL:      baseURL,
 		state:        make(map[string]vc.VerifiableCredential),
 		accessTokens: make(map[string]string),
 		mux:          &sync.Mutex{},
@@ -53,7 +66,7 @@ func NewOIDCIssuer(identifier string) OIDCIssuer {
 }
 
 type memoryIssuer struct {
-	identifier string
+	baseURL string
 	// state maps a pre-authorized code to a Verifiable Credential
 	state map[string]vc.VerifiableCredential
 	// accessToken maps an access token to a pre-authorized code
@@ -61,22 +74,28 @@ type memoryIssuer struct {
 	mux          *sync.Mutex
 }
 
-func (i *memoryIssuer) Metadata() oidc4vci.CredentialIssuerMetadata {
+func (i *memoryIssuer) Metadata(issuer did.DID) (oidc4vci.CredentialIssuerMetadata, error) {
+	// TODO: Check if issuer is served by this instance
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2054
 	return oidc4vci.CredentialIssuerMetadata{
-		CredentialIssuer:     i.identifier,
-		CredentialEndpoint:   i.identifier + "/issuer/oidc4vci/credential",
+		CredentialIssuer:     i.getIdentifier(issuer.String()),
+		CredentialEndpoint:   i.getIdentifier(issuer.String()) + "/issuer/oidc4vci/credential",
 		CredentialsSupported: []map[string]interface{}{{"NutsAuthorizationCredential": map[string]interface{}{}}},
-	}
+	}, nil
 }
 
-func (i *memoryIssuer) ProviderMetadata() oidc4vci.ProviderMetadata {
+func (i *memoryIssuer) ProviderMetadata(issuer did.DID) (oidc4vci.ProviderMetadata, error) {
+	// TODO: Check if issuer is served by this instance
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2054
 	return oidc4vci.ProviderMetadata{
-		Issuer:        i.identifier,
-		TokenEndpoint: i.identifier + "/oidc/token",
-	}
+		Issuer:        i.getIdentifier(issuer.String()),
+		TokenEndpoint: i.getIdentifier(issuer.String()) + "/oidc/token",
+	}, nil
 }
 
-func (i *memoryIssuer) RequestAccessToken(ctx context.Context, preAuthorizedCode string) (string, error) {
+func (i *memoryIssuer) RequestAccessToken(ctx context.Context, issuer did.DID, preAuthorizedCode string) (string, error) {
+	// TODO: Check if issuer is served by this instance
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2054
 	i.mux.Lock()
 	defer i.mux.Unlock()
 	_, ok := i.state[preAuthorizedCode]
@@ -91,6 +110,8 @@ func (i *memoryIssuer) RequestAccessToken(ctx context.Context, preAuthorizedCode
 }
 
 func (i *memoryIssuer) Offer(ctx context.Context, credential vc.VerifiableCredential, clientMetadataURL string) error {
+	// TODO: Check if issuer is served by this instance
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2054
 	i.mux.Lock()
 	preAuthorizedCode := generateCode()
 	i.state[preAuthorizedCode] = credential
@@ -110,7 +131,7 @@ func (i *memoryIssuer) Offer(ctx context.Context, credential vc.VerifiableCreden
 	}
 
 	offer := oidc4vci.CredentialOffer{
-		CredentialIssuer: i.identifier,
+		CredentialIssuer: i.getIdentifier(credential.Issuer.String()),
 		Credentials: []map[string]interface{}{{
 			"format": "VerifiableCredentialJSONLDFormat",
 			"credential_definition": map[string]interface{}{
@@ -134,7 +155,9 @@ func (i *memoryIssuer) Offer(ctx context.Context, credential vc.VerifiableCreden
 	return nil
 }
 
-func (i *memoryIssuer) GetCredential(ctx context.Context, accessToken string) (vc.VerifiableCredential, error) {
+func (i *memoryIssuer) RequestCredential(ctx context.Context, issuer did.DID, accessToken string) (vc.VerifiableCredential, error) {
+	// TODO: Check if issuer is served by this instance
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2054
 	i.mux.Lock()
 	defer i.mux.Unlock()
 	// TODO: Verify requested format and credential definition
@@ -188,4 +211,8 @@ func generateCode() string {
 		panic(err)
 	}
 	return base64.URLEncoding.EncodeToString(buf)
+}
+
+func (i *memoryIssuer) getIdentifier(issuerDID string) string {
+	return i.baseURL + url.PathEscape(issuerDID)
 }

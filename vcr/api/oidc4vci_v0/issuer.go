@@ -34,7 +34,11 @@ func (w Wrapper) GetOIDC4VCIIssuerMetadata(_ context.Context, request GetOIDC4VC
 	if err != nil {
 		return nil, core.NotFoundError("invalid DID")
 	}
-	return GetOIDC4VCIIssuerMetadata200JSONResponse(w.VCR.GetOIDCIssuer(*issuerDID).Metadata()), nil
+	metadata, err := w.VCR.GetOIDCIssuer().Metadata(*issuerDID)
+	if err != nil {
+		return nil, err
+	}
+	return GetOIDC4VCIIssuerMetadata200JSONResponse(metadata), nil
 }
 
 // GetOIDCProviderMetadata returns the OpenID Connect provider metadata for the given DID.
@@ -43,7 +47,11 @@ func (w Wrapper) GetOIDCProviderMetadata(_ context.Context, request GetOIDCProvi
 	if err != nil {
 		return nil, core.NotFoundError("invalid DID")
 	}
-	return GetOIDCProviderMetadata200JSONResponse(w.VCR.GetOIDCIssuer(*issuerDID).ProviderMetadata()), nil
+	metadata, err := w.VCR.GetOIDCIssuer().ProviderMetadata(*issuerDID)
+	if err != nil {
+		return nil, err
+	}
+	return GetOIDCProviderMetadata200JSONResponse(metadata), nil
 }
 
 // RequestCredential requests a credential from the given DID.
@@ -60,7 +68,7 @@ func (w Wrapper) RequestCredential(ctx context.Context, request RequestCredentia
 		return nil, errors.New("invalid authorization header")
 	}
 	accessToken := authHeader[7:]
-	credential, err := w.VCR.GetOIDCIssuer(*issuerDID).GetCredential(ctx, accessToken)
+	credential, err := w.VCR.GetOIDCIssuer().RequestCredential(ctx, *issuerDID, accessToken)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +93,7 @@ func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 	if request.Body.GrantType != oidc4vci.PreAuthorizedCodeGrant {
 		return nil, errors.New("unsupported grant type")
 	}
-	accessToken, err := w.VCR.GetOIDCIssuer(*issuerDID).RequestAccessToken(ctx, request.Body.PreAuthorizedCode)
+	accessToken, err := w.VCR.GetOIDCIssuer().RequestAccessToken(ctx, *issuerDID, request.Body.PreAuthorizedCode)
 	if err != nil {
 		return nil, err
 	}

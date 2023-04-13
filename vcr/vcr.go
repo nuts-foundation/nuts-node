@@ -28,7 +28,6 @@ import (
 	"net/url"
 	"path"
 	"strings"
-	"sync"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -87,14 +86,12 @@ type vcr struct {
 	jsonldManager   jsonld.JSONLD
 	eventManager    events.Event
 	storageClient   storage.Engine
-	oidcIssuers     *sync.Map
+	oidcIssuer      issuer.OIDCIssuer
 	publicBaseURL   string
 }
 
-func (c *vcr) GetOIDCIssuer(id did.DID) issuer.OIDCIssuer {
-	identifier := c.publicBaseURL + "identity/" + url.PathEscape(id.String())
-	result, _ := c.oidcIssuers.LoadOrStore(id.String(), issuer.NewOIDCIssuer(identifier))
-	return result.(issuer.OIDCIssuer)
+func (c *vcr) GetOIDCIssuer() issuer.OIDCIssuer {
+	return c.oidcIssuer
 }
 
 func (c *vcr) GetOIDCWallet(id did.DID) holder.OIDCWallet {
@@ -141,11 +138,10 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	c.trustConfig = trust.NewConfig(tcPath)
 
 	networkPublisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
-	var oidcIssuerFunc = c.GetOIDCIssuer
-	if !c.config.OIDC4VCI.Enabled {
-		oidcIssuerFunc = nil
+	if c.config.OIDC4VCI.Enabled {
+		c.oidcIssuer = issuer.NewOIDCIssuer(c.publicBaseURL + "identity/")
 	}
-	c.issuer = issuer.NewIssuer(c.issuerStore, networkPublisher, oidcIssuerFunc, c.docResolver, c.keyStore, c.jsonldManager, c.trustConfig)
+	c.issuer = issuer.NewIssuer(c.issuerStore, networkPublisher, c.oidcIssuer, c.docResolver, c.keyStore, c.jsonldManager, c.trustConfig)
 	c.verifier = verifier.NewVerifier(c.verifierStore, c.docResolver, c.keyResolver, c.jsonldManager, c.trustConfig)
 
 	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)
