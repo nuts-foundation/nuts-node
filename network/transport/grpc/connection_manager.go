@@ -20,7 +20,6 @@ package grpc
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"net"
@@ -64,6 +63,8 @@ var MaxMessageSizeInBytes = defaultMaxMessageSizeInBytes
 // defaultInterceptors aids testing
 var defaultInterceptors []grpc.StreamServerInterceptor
 
+var _ transport.ConnectionManager = (*grpcConnectionManager)(nil)
+
 type fatalError struct {
 	error
 }
@@ -79,7 +80,7 @@ func (s fatalError) Unwrap() error {
 type dialer func(ctx context.Context, target string, opts ...grpc.DialOption) (conn *grpc.ClientConn, err error)
 
 // NewGRPCConnectionManager creates a new ConnectionManager that accepts/creates connections which communicate using the given protocols.
-func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nodeDID did.DID, authenticator Authenticator, protocols ...transport.Protocol) transport.ConnectionManager {
+func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nodeDID did.DID, authenticator Authenticator, protocols ...transport.Protocol) (*grpcConnectionManager, error) {
 	var grpcProtocols []Protocol
 	for _, curr := range protocols {
 		// For now, only gRPC protocols are supported
@@ -91,12 +92,12 @@ func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nod
 
 	// client tls
 	tlsDialOption := grpc.WithTransportCredentials(insecure.NewCredentials()) // No TLS, requires 'insecure' flag
-	var tlsServer *tls.Config
 	if config.tlsEnabled() {
-		tlsDialOption = grpc.WithTransportCredentials(credentials.NewTLS(newClientTLSConfig(config))) // TLS authentication
-		if config.serverCert != nil {
-			tlsServer = newServerTLSConfig(config)
+		clientTlsConfig, err := newClientTLSConfig(config)
+		if err != nil {
+			return nil, err
 		}
+		tlsDialOption = grpc.WithTransportCredentials(credentials.NewTLS(clientTlsConfig)) // TLS authentication
 	}
 
 	cm := &grpcConnectionManager{
@@ -117,13 +118,12 @@ func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nod
 			grpc.WithUserAgent(core.UserAgent()),
 			tlsDialOption,
 		},
-		tlsServer: tlsServer,
 	}
 	cm.addressBook = newAddressBook(connectionStore, config.backoffCreator)
 	cm.registerPrometheusMetrics()
 	cm.ctx, cm.ctxCancel = context.WithCancel(context.Background())
 
-	return cm
+	return cm, nil
 }
 
 // grpcConnectionManager is a ConnectionManager that does not discover peers on its own, but just connects to the peers for which Connect() is called.
@@ -131,7 +131,6 @@ type grpcConnectionManager struct {
 	protocols           []Protocol
 	config              Config
 	grpcServer          *grpc.Server
-	tlsServer           *tls.Config
 	ctx                 context.Context
 	ctxCancel           func()
 	listener            net.Listener
@@ -152,7 +151,7 @@ type grpcConnectionManager struct {
 }
 
 // newGrpcServer configures a new grpc.Server. context.Context is used to cancel the crlValidator
-func newGrpcServer(config Config, tlsServer *tls.Config) (*grpc.Server, error) {
+func newGrpcServer(config Config) (*grpc.Server, error) {
 	serverOpts := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(MaxMessageSizeInBytes),
 		grpc.MaxSendMsgSize(MaxMessageSizeInBytes),
@@ -166,13 +165,13 @@ func newGrpcServer(config Config, tlsServer *tls.Config) (*grpc.Server, error) {
 		// Some form of TLS is enabled
 		if config.serverCert != nil {
 			// TLS is terminated at the Nuts node (no offloading)
+			tlsServer, err := newServerTLSConfig(config)
+			if err != nil {
+				return nil, err
+			}
 			serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsServer)))
 		} else {
-			// TLS offloading for incoming traffic
-			if config.clientCertHeaderName == "" {
-				// Invalid config
-				return nil, errors.New("tls.certheader must be configured to enable TLS offloading ")
-			}
+			// TLS offloading for incoming traffic. config.clientCertHeaderName is validated during config creation.
 			serverInterceptors = append(serverInterceptors, newAuthenticationInterceptor(config.clientCertHeaderName))
 		}
 	} else {
@@ -214,7 +213,7 @@ func (s *grpcConnectionManager) Start() error {
 	}
 
 	// Create gRPC server for inbound connectionList and associate it with the protocols
-	s.grpcServer, err = newGrpcServer(s.config, s.tlsServer)
+	s.grpcServer, err = newGrpcServer(s.config)
 	if err != nil {
 		return err
 	}

@@ -99,12 +99,12 @@ func newRevocationList(cert *x509.Certificate) *revocationList {
 }
 
 // New returns a new CRL validator.
-func New(truststore []*x509.Certificate) Validator {
+func New(truststore []*x509.Certificate) (Validator, error) {
 	return newValidatorWithHTTPClient(truststore, &http.Client{Timeout: syncTimeout})
 }
 
 // NewValidatorWithHTTPClient returns a new instance with a pre-configured HTTP client
-func newValidatorWithHTTPClient(certificates []*x509.Certificate, client *http.Client) *validator {
+func newValidatorWithHTTPClient(certificates []*x509.Certificate, client *http.Client) (*validator, error) {
 	val := &validator{
 		httpClient: client,
 		truststore: map[string]*x509.Certificate{},
@@ -118,16 +118,15 @@ func newValidatorWithHTTPClient(certificates []*x509.Certificate, client *http.C
 		issuer, ok := val.truststore[certificate.Issuer.String()]
 		if !ok {
 			// should never happen, truststore is already validated.
-			err := fmt.Errorf("certificate's issuer is not in the trust store: subject=%s, issuer=%s", certificate.Subject.String(), certificate.Issuer.String())
-			panic(err)
+			return nil, fmt.Errorf("certificate's issuer is not in the trust store: subject=%s, issuer=%s", certificate.Subject.String(), certificate.Issuer.String())
 		}
 		err := val.addEndpoints(issuer, certificate.CRLDistributionPoints)
 		if err != nil {
 			// should never happen for certificates issued by real CAs
-			panic(err)
+			return nil, err
 		}
 	}
-	return val
+	return val, nil
 }
 
 func (v *validator) Start(ctx context.Context) {

@@ -140,7 +140,10 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 			return err
 		}
 
-		validator := crl.New(trustStore.Certificates())
+		validator, err := crl.New(trustStore.Certificates())
+		if err != nil {
+			return err
+		}
 		tlsConfig = &tls.Config{
 			Certificates: []tls.Certificate{clientCertificate},
 			RootCAs:      trustStore.CertPool,

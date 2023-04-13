@@ -164,7 +164,10 @@ func startNode(t *testing.T, name string, configurers ...func(config *Config)) *
 
 	authenticator := grpc.NewTLSAuthenticator(didservice.NewServiceResolver(&didservice.Resolver{Store: didstore.NewTestStore(t)}))
 	connectionsStore, _ := storageClient.GetProvider("network").GetKVStore("connections", storage.VolatileStorageClass)
-	ctx.connectionManager = grpc.NewGRPCConnectionManager(grpc.NewConfig(listenAddress, peerID), connectionsStore, did.DID{}, authenticator, ctx.protocol)
+	grpcCfg, err := grpc.NewConfig(listenAddress, peerID)
+	require.NoError(t, err)
+	ctx.connectionManager, err = grpc.NewGRPCConnectionManager(grpcCfg, connectionsStore, did.DID{}, authenticator, ctx.protocol)
+	require.NoError(t, err)
 
 	ctx.protocol.Configure(peerID)
 	if err := ctx.connectionManager.Start(); err != nil {

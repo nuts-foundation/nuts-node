@@ -246,6 +246,26 @@ func TestNetwork_Configure(t *testing.T) {
 		assert.EqualError(t, err, "disabling TLS in strict mode is not allowed")
 	})
 
+	t.Run("error - TLS offloaded without setting ClientCertHeaderName", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		ctx := createNetwork(t, ctrl)
+		ctx.protocol.EXPECT().Configure(gomock.Any())
+		ctx.network.connectionManager = nil
+
+		cfg := *core.NewServerConfig()
+		cfg.Datadir = io.TestDirectory(t)
+		*cfg.LegacyTLS = core.NetworkTLSConfig{
+			Enabled:        true,
+			TrustStoreFile: "test/truststore.pem",
+			CertFile:       "test/certificate-and-key.pem",
+			CertKeyFile:    "test/certificate-and-key.pem",
+		}
+		cfg.TLS.Offload = core.OffloadIncomingTLS
+		err := ctx.network.Configure(cfg)
+
+		assert.EqualError(t, err, "tls.certheader must be configured to enable TLS offloading ")
+	})
+
 	t.Run("ok - gRPC server not bound (but outbound connections are still supported)", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		ctx := createNetwork(t, ctrl, func(config *Config) {

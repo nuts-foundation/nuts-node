@@ -59,7 +59,8 @@ func TestValidator_Start(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	require.NoError(t, err)
-	val := newValidatorWithHTTPClient(store.Certificates(), newClient())
+	val, err := newValidatorWithHTTPClient(store.Certificates(), newClient())
+	require.NoError(t, err)
 
 	// crls are empty
 	val.crls.Range(func(key, value any) bool {
@@ -152,19 +153,17 @@ func TestValidator_SetValidatePeerCertificateFunc(t *testing.T) {
 func Test_New(t *testing.T) {
 	store, err := core.LoadTrustStore(truststore)
 	require.NoError(t, err)
-	storeLen := len(store.Certificates())
 
-	t.Run("no duplicates", func(t *testing.T) {
-		doubleStore := append(store.Certificates(), store.Certificates()...)
-		assert.Equal(t, storeLen*2, len(doubleStore))
-
-		val := New(doubleStore).(*validator)
-
-		assert.Len(t, val.truststore, storeLen)
+	t.Run("ok", func(t *testing.T) {
+		val, err := New(store.Certificates())
+		require.NoError(t, err)
+		assert.NotNil(t, val)
 	})
+
 	t.Run("invalid truststore", func(t *testing.T) {
 		noRootStore := store.Certificates()[:2]
-		assert.Panics(t, func() { New(noRootStore) })
+		_, err = New(noRootStore)
+		assert.ErrorContains(t, err, "certificate's issuer is not in the trust store")
 	})
 }
 
@@ -398,7 +397,8 @@ func newValidator(t *testing.T) *validator {
 	store, err := core.LoadTrustStore(truststore)
 	require.NoError(t, err)
 	require.Len(t, store.Certificates(), 3)
-	val := newValidatorWithHTTPClient(store.Certificates(), newClient())
+	val, err := newValidatorWithHTTPClient(store.Certificates(), newClient())
+	require.NoError(t, err)
 	return val
 }
 
@@ -462,7 +462,7 @@ func (s readCloser) Close() error {
 }
 
 func loadCert(t *testing.T, file string) *x509.Certificate {
-	data, err := os.ReadFile(file)
+	data, _ := os.ReadFile(file)
 	certs, err := core.ParseCertificates(data)
 	require.NoError(t, err)
 	require.Len(t, certs, 1)
