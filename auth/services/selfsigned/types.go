@@ -21,6 +21,7 @@ package selfsigned
 import (
 	"encoding/json"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/auth/contract"
 )
 
 // ContractFormat is the contract format type
@@ -32,16 +33,26 @@ const VerifiablePresentationType = "NutsSelfSignedPresentation"
 // SessionCreated represents the session state after creation
 const SessionCreated = "created"
 
-// SessionInProgress represents the session state after the first SessionStatus call
+// SessionInProgress represents the session state after rendering the html
 const SessionInProgress = "in-progress"
 
-// SessionCompleted represents the session state after the second SessionStatus call
+// SessionCompleted represents the session state after the user has accepted the contract
 const SessionCompleted = "completed"
 
-// SelfSigned is a contract signer and verifier that always succeeds
-// The SelfSigned signer is not supposed to be used in a clustered context unless consecutive calls arrive at the same instance
-type SelfSigned struct {
-	Sessions map[string]session
+type SessionStore interface {
+	contract.Signer
+	contract.VPVerifier
+}
+
+// SessionStore is a contract signer and verifier that always succeeds
+// The SessionStore signer is not supposed to be used in a clustered context unless consecutive calls arrive at the same instance
+type sessionStore struct {
+	sessions map[string]session
+}
+
+// NewSessionStore returns an initialized SessionStore
+func NewSessionStore() SessionStore {
+	return sessionStore{sessions: map[string]session{}}
 }
 
 // session contains the contract text and session signing status
@@ -57,7 +68,6 @@ type Employee struct {
 	RoleName   string `json:"roleName"`
 	Initials   string `json:"initials"`
 	FamilyName string `json:"familyName"`
-	Email      string `json:"email"`
 }
 
 type sessionPointer struct {

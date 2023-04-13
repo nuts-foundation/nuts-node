@@ -26,8 +26,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/services"
 )
 
-func (v SelfSigned) SigningSessionStatus(sessionID string) (contract.SigningSessionResult, error) {
-	s, ok := v.Sessions[sessionID]
+func (v sessionStore) SigningSessionStatus(sessionID string) (contract.SigningSessionResult, error) {
+	s, ok := v.sessions[sessionID]
 	if !ok {
 		return nil, services.ErrSessionNotFound
 	}
@@ -38,7 +38,7 @@ func (v SelfSigned) SigningSessionStatus(sessionID string) (contract.SigningSess
 	}, nil
 }
 
-func (v SelfSigned) StartSigningSession(rawContractText string, params map[string]interface{}) (contract.SessionPointer, error) {
+func (v sessionStore) StartSigningSession(rawContractText string, params map[string]interface{}) (contract.SessionPointer, error) {
 	sessionBytes := make([]byte, 16)
 	rand.Reader.Read(sessionBytes)
 
@@ -47,6 +47,7 @@ func (v SelfSigned) StartSigningSession(rawContractText string, params map[strin
 		contract: rawContractText,
 		status:   SessionCreated,
 	}
+	// load params directly into session
 	marshalled, err := json.Marshal(params)
 	if err != nil {
 		return nil, err
@@ -54,7 +55,7 @@ func (v SelfSigned) StartSigningSession(rawContractText string, params map[strin
 	if err = json.Unmarshal(marshalled, &s); err != nil {
 		return nil, err
 	}
-	v.Sessions[sessionID] = s
+	v.sessions[sessionID] = s
 
 	return sessionPointer{
 		sessionID: sessionID,

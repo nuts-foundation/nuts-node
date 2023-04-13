@@ -24,9 +24,8 @@ import (
 	"time"
 )
 
-func (v SelfSigned) VerifyVP(_ vc.VerifiablePresentation, _ *time.Time) (contract.VPVerificationResult, error) {
-	// todo return invalid
-	return nil, nil
+func (v sessionStore) VerifyVP(_ vc.VerifiablePresentation, _ *time.Time) (contract.VPVerificationResult, error) {
+	return selfsignedVerificationResult{}, nil
 }
 
 type selfsignedVerificationResult struct {
