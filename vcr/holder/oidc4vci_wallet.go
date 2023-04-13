@@ -38,6 +38,7 @@ type OIDCWallet interface {
 	HandleCredentialOffer(ctx context.Context, offer oidc4vci.CredentialOffer) error
 }
 
+var nowFunc = time.Now
 var _ OIDCWallet = (*wallet)(nil)
 var issuerClientCreator = oidc4vci.NewIssuerAPIClient
 
@@ -112,7 +113,11 @@ func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.Creden
 		}
 		// TODO: Wallet should make sure the VC is of the expected type
 		//       See https://github.com/nuts-foundation/nuts-node/issues/2050
-		log.Logger().Infof("Received VC over OIDC4VCI, storing in VCR: %s", credential.ID.String())
+		var credentialID string
+		if credential.ID != nil {
+			credentialID = credential.ID.String()
+		}
+		log.Logger().Infof("Received VC over OIDC4VCI, storing in VCR: %s", credentialID)
 		err = h.credentialStore.StoreCredential(*credential, nil)
 		if err != nil {
 			log.Logger().WithError(err).Error("Unable to store VC")
@@ -132,7 +137,7 @@ func (h wallet) retrieveCredential(ctx context.Context, issuerClient oidc4vci.Is
 	}
 	claims := map[string]interface{}{
 		"aud":   issuerClient.Metadata().CredentialIssuer,
-		"iat":   time.Now().Unix(),
+		"iat":   nowFunc().Unix(),
 		"nonce": *tokenResponse.CNonce,
 	}
 

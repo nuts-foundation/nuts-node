@@ -1,0 +1,109 @@
+package holder
+
+import (
+	"context"
+	"github.com/golang/mock/gomock"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/test"
+	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
+	vdrTypes "github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"net/http"
+	"sync/atomic"
+	"testing"
+	"time"
+)
+
+var holderDID = did.MustParseDID("did:nuts:holder")
+var issuerDID = did.MustParseDID("did:nuts:issuer")
+
+func TestNewOIDCWallet(t *testing.T) {
+	w := NewOIDCWallet(holderDID, "https://holder.example.com", nil, nil, nil)
+	assert.NotNil(t, w)
+}
+
+func Test_wallet_Metadata(t *testing.T) {
+	w := NewOIDCWallet(holderDID, "https://holder.example.com", nil, nil, nil)
+
+	metadata := w.Metadata()
+
+	assert.Equal(t, oidc4vci.OAuth2ClientMetadata{
+		CredentialOfferEndpoint: "https://holder.example.com/wallet/oidc4vci/credential_offer",
+	}, metadata)
+}
+
+func Test_wallet_HandleCredentialOffer(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	nonce := "nonsens"
+	issuerAPIClient := oidc4vci.NewMockIssuerAPIClient(ctrl)
+	issuerAPIClient.EXPECT().Metadata().Return(oidc4vci.CredentialIssuerMetadata{
+		CredentialIssuer:   issuerDID.String(),
+		CredentialEndpoint: "credential-endpoint",
+	})
+	issuerAPIClient.EXPECT().RequestAccessToken("urn:ietf:params:oauth:grant-type:pre-authorized_code", map[string]string{
+		"pre-authorized_code": "code",
+	}).Return(&oidc4vci.TokenResponse{
+		AccessToken: "access-token",
+		CNonce:      &nonce,
+		ExpiresIn:   new(int),
+		TokenType:   "bearer",
+	}, nil)
+	issuerAPIClient.EXPECT().RequestCredential(gomock.Any(), gomock.Any(), "access-token").
+		Return(&vc.VerifiableCredential{Issuer: issuerDID.URI()}, nil)
+
+	credentialStore := types.NewMockWriter(ctrl)
+	jwtSigner := crypto.NewMockJWTSigner(ctrl)
+	jwtSigner.EXPECT().SignJWT(gomock.Any(), map[string]interface{}{
+		"aud":   issuerDID.String(),
+		"iat":   int64(1735689600),
+		"nonce": nonce,
+	}, gomock.Any(), "key-id").Return("signed-jwt", nil)
+	keyResolver := vdrTypes.NewMockKeyResolver(ctrl)
+	keyResolver.EXPECT().ResolveSigningKeyID(holderDID, nil).Return("key-id", nil)
+
+	nowFunc = func() time.Time {
+		return time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	}
+	issuerClientCreator = func(_ context.Context, httpClient *http.Client, credentialIssuerIdentifier string) (oidc4vci.IssuerAPIClient, error) {
+		return issuerAPIClient, nil
+	}
+
+	w := NewOIDCWallet(holderDID, "https://holder.example.com", credentialStore, jwtSigner, keyResolver)
+	credentialOffer := oidc4vci.CredentialOffer{
+		CredentialIssuer: issuerDID.String(),
+		Credentials: []map[string]interface{}{
+			{
+				"format": oidc4vci.VerifiableCredentialJSONLDFormat,
+				"credential_definition": map[string]interface{}{
+					"@context": []string{"a", "b"},
+					"types":    []string{"VerifiableCredential", "HumanCredential"},
+				},
+			},
+		},
+		Grants: []map[string]interface{}{
+			{
+				"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]interface{}{
+					"pre-authorized_code": "code",
+				},
+			},
+		},
+	}
+
+	vcStored := atomic.Pointer[bool]{}
+	credentialStore.EXPECT().StoreCredential(gomock.Any(), nil).DoAndReturn(func(_ vc.VerifiableCredential, _ *time.Time) error {
+		vcStored.Store(new(bool))
+		return nil
+	})
+
+	err := w.HandleCredentialOffer(audit.TestContext(), credentialOffer)
+
+	require.NoError(t, err)
+	test.WaitFor(t, func() (bool, error) {
+		return vcStored.Load() != nil, nil
+	}, 2*time.Second, "time-out waiting for VC to be stored")
+}
