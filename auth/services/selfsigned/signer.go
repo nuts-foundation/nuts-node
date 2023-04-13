@@ -58,6 +58,6 @@ func (v SelfSigned) StartSigningSession(rawContractText string, params map[strin
 
 	return sessionPointer{
 		sessionID: sessionID,
-		html:      "<html></html>", // placeholder, convert to template
+		url:       "https://example.com", // placeholder, convert to template
 	}, nil
 }

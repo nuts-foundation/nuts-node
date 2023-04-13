@@ -62,7 +62,7 @@ type Employee struct {
 
 type sessionPointer struct {
 	sessionID string `json:"sessionID"`
-	html      string
+	url       string `json:"url"`
 }
 
 func (s sessionPointer) SessionID() string {
@@ -70,14 +70,14 @@ func (s sessionPointer) SessionID() string {
 }
 
 func (s sessionPointer) Payload() []byte {
-	return []byte(s.html)
+	return []byte(s.url)
 }
 
 func (s sessionPointer) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		SessionID string `json:"sessionID"`
 		Page      string `json:"page"`
-	}{SessionID: s.sessionID, Page: s.html})
+	}{SessionID: s.sessionID, Page: s.url})
 }
 
 type signingSessionResult struct {
