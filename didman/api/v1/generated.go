@@ -2463,7 +2463,7 @@ func (sh *strictHandler) DeleteEndpointsByType(ctx echo.Context, did string, pTy
 	var request DeleteEndpointsByTypeRequestObject
 
 	request.Did = did
-	request.PType = pType
+	request.Type = pType
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
 		return sh.ssi.DeleteEndpointsByType(ctx.Request().Context(), request.(DeleteEndpointsByTypeRequestObject))
