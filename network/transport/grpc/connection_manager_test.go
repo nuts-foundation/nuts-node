@@ -82,6 +82,21 @@ func withBufconnDialer(listener *bufconn.Listener) ConfigOption {
 	}
 }
 
+func Test_NewGRPCConnectionManager(t *testing.T) {
+	t.Run("error - invalid truststore", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		crlValidator := crl.NewMockValidator(ctrl)
+		cfg := Config{trustStore: &x509.CertPool{}}
+		cfg.crlValidator = crlValidator
+		crlValidator.EXPECT().SetValidatePeerCertificateFunc(gomock.Any()).Return(errors.New("custom error"))
+
+		cm, err := NewGRPCConnectionManager(cfg, createKVStore(t), *nodeDID, nil, nil)
+
+		assert.Nil(t, cm)
+		assert.EqualError(t, err, "custom error")
+	})
+}
+
 func Test_grpcConnectionManager_Connect(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		p := &TestProtocol{}
@@ -597,8 +612,6 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 	})
 
 	t.Run("configures CRL check when TLS is enabled", func(t *testing.T) {
-		p := &TestProtocol{}
-
 		validator := crl.NewMockValidator(gomock.NewController(t))
 		validator.EXPECT().Start(gomock.Any())
 		validator.EXPECT().SetValidatePeerCertificateFunc(gomock.Any()).DoAndReturn(func(_ interface{}) func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
@@ -607,17 +620,30 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 			}
 		}).Times(2) // on inbound and outbound TLS config
 
-		cm, _ := NewGRPCConnectionManager(Config{
-			listenAddress: fmt.Sprintf(":%d", test.FreeTCPPort()),
-			trustStore:    x509.NewCertPool(),
-			serverCert:    &serverCert,
-			clientCert:    &serverCert,
-			crlValidator:  validator,
-			listener:      tcpListenerCreator,
-		}, nil, *nodeDID, nil, p)
+		cfg, err := NewConfig(fmt.Sprintf(":%d", test.FreeTCPPort()), "peerID", WithTLS(serverCert, &core.TrustStore{CertPool: x509.NewCertPool()}))
+		require.NoError(t, err)
+		cfg.crlValidator = validator
+		cm, _ := NewGRPCConnectionManager(cfg, nil, *nodeDID, nil, &TestProtocol{})
+		defer cm.Stop()
 
 		assert.NoError(t, cm.Start())
-		cm.Stop()
+	})
+
+	t.Run("error - invalid server TLS config", func(t *testing.T) {
+		cfg, err := NewConfig(fmt.Sprintf(":%d", test.FreeTCPPort()), "peerID", WithTLS(serverCert, &core.TrustStore{CertPool: x509.NewCertPool()}))
+		cm, err := NewGRPCConnectionManager(cfg, nil, *nodeDID, nil, &TestProtocol{})
+		require.NoError(t, err)
+
+		ctrl := gomock.NewController(t)
+		crlValidator := crl.NewMockValidator(ctrl)
+		cm.config.crlValidator = crlValidator
+		crlValidator.EXPECT().Start(gomock.Any())
+		crlValidator.EXPECT().SetValidatePeerCertificateFunc(gomock.Any()).Return(errors.New("custom error"))
+
+		defer cm.Stop()
+		err = cm.Start()
+
+		assert.EqualError(t, err, "custom error")
 	})
 }
 

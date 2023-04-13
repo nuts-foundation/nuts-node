@@ -171,7 +171,7 @@ func newGrpcServer(config Config) (*grpc.Server, error) {
 			}
 			serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsServer)))
 		} else {
-			// TLS offloading for incoming traffic
+			// TLS offloading for incoming traffic. config.clientCertHeaderName is validated during config creation.
 			serverInterceptors = append(serverInterceptors, newAuthenticationInterceptor(config.clientCertHeaderName))
 		}
 	} else {

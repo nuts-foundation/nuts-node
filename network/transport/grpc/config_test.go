@@ -34,6 +34,8 @@ func TestConfig_tlsEnabled(t *testing.T) {
 }
 
 func TestNewConfig(t *testing.T) {
+	tlsCert, _ := tls.LoadX509KeyPair("../../test/certificate-and-key.pem", "../../test/certificate-and-key.pem")
+	x509Cert, _ := x509.ParseCertificates(tlsCert.Certificate[0])
 	t.Run("without TLS", func(t *testing.T) {
 		cfg, err := NewConfig(":1234", "foo")
 		require.NoError(t, err)
@@ -44,14 +46,23 @@ func TestNewConfig(t *testing.T) {
 		assert.Nil(t, cfg.trustStore)
 	})
 	t.Run("with TLS", func(t *testing.T) {
-		cert, _ := tls.LoadX509KeyPair("../../test/certificate-and-key.pem", "../../test/certificate-and-key.pem")
 		ts := &core.TrustStore{
 			CertPool: x509.NewCertPool(),
 		}
-		cfg, err := NewConfig(":1234", "foo", WithTLS(cert, ts))
+		cfg, err := NewConfig(":1234", "foo", WithTLS(tlsCert, ts))
 		require.NoError(t, err)
-		assert.Equal(t, &cert, cfg.clientCert)
-		assert.Equal(t, &cert, cfg.serverCert)
+		assert.Equal(t, &tlsCert, cfg.clientCert)
+		assert.Equal(t, &tlsCert, cfg.serverCert)
+		assert.Same(t, ts.CertPool, cfg.trustStore)
+	})
+	t.Run("error - invalid TLS config", func(t *testing.T) {
+		ts := &core.TrustStore{
+			CertPool: core.NewCertPool(x509Cert),
+		}
+		cfg, err := NewConfig(":1234", "foo", WithTLS(tlsCert, ts))
+		require.NoError(t, err)
+		assert.Equal(t, &tlsCert, cfg.clientCert)
+		assert.Equal(t, &tlsCert, cfg.serverCert)
 		assert.Same(t, ts.CertPool, cfg.trustStore)
 	})
 }
