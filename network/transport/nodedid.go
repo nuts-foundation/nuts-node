@@ -27,11 +27,11 @@ import (
 	"time"
 )
 
-// Resolve returns the auto-resolved node DID, or an empty DID if none could be found.
-func AutoResolveNodeDID(ctx context.Context, keyResolver crypto.KeyResolver, docFinder types.DocFinder) (*did.DID, error) {
+// AutoResolveNodeDID returns the auto-resolved node DID, or an empty DID if none could be found.
+func AutoResolveNodeDID(ctx context.Context, keyResolver crypto.KeyResolver, docFinder types.DocFinder) (did.DID, error) {
 	documents, err := docFinder.Find(didservice.IsActive(), didservice.ValidAt(time.Now()), didservice.ByServiceType(NutsCommServiceType))
 	if err != nil {
-		return &did.DID{}, err
+		return did.DID{}, err
 	}
 
 	privateKeyIDs := keyResolver.List(ctx)
@@ -41,12 +41,12 @@ func AutoResolveNodeDID(ctx context.Context, keyResolver crypto.KeyResolver, doc
 		for _, capabilityInvocation := range document.CapabilityInvocation {
 			// While multiple DID documents may match, always take the first. That way it will always take the same DID document after a restart.
 			if contains(privateKeyIDs, capabilityInvocation.ID.String()) {
-				return &document.ID, nil
+				return document.ID, nil
 			}
 		}
 	}
 
-	return &did.DID{}, nil
+	return did.DID{}, nil
 }
 
 func contains(haystack []string, needle string) bool {

@@ -90,7 +90,7 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 
 	cfg := DefaultConfig()
 	cfg.Datadir = dirname
-	proto := New(cfg, nodeDID, state, docResolver, decrypter, nil, storage).(*protocol)
+	proto := New(cfg, *nodeDID, state, docResolver, decrypter, nil, storage).(*protocol)
 	proto.privatePayloadReceiver = payloadScheduler
 	proto.gManager = gMan
 	proto.cMan = newConversationManager(time.Second)

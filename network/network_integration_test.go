@@ -438,7 +438,7 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 
 		// Set node DID to an unauthenticatable DID, such that authentication must fail
 		malloryDID, _ := did.ParseDID("did:nuts:mallory")
-		node1.network.nodeDID = malloryDID
+		node1.network.nodeDID = *malloryDID
 
 		// Now connect node1 to node2 and wait for them to set up
 		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"), nil)
@@ -466,7 +466,7 @@ func TestNetworkIntegration_NodeDIDAuthentication(t *testing.T) {
 
 		// Set node DID to an unauthenticatable DID, such that authentication must fail
 		malloryDID, _ := did.ParseDID("did:nuts:mallory")
-		node2.network.nodeDID = malloryDID
+		node2.network.nodeDID = *malloryDID
 
 		// Now connect node1 to node2 and wait for them to set up
 		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"), nil)
@@ -505,8 +505,8 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			return len(node1.network.connectionManager.Peers()) == 1 && len(node2.network.connectionManager.Peers()) == 1, nil
 		}, defaultTimeout, "time-out while waiting for node1 to connect to node2")
 
-		node1DID := *node1.network.nodeDID
-		node2DID := *node2.network.nodeDID
+		node1DID := node1.network.nodeDID
+		node2DID := node2.network.nodeDID
 		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
 			WithAttachKey().
 			WithPrivate([]did.DID{node1DID, node2DID})
@@ -554,8 +554,8 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			require.NoError(t, err)
 		})
 
-		node1DID := *node1.network.nodeDID
-		node2DID := *node2.network.nodeDID
+		node1DID := node1.network.nodeDID
+		node2DID := node2.network.nodeDID
 		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
 			WithAttachKey().
 			WithPrivate([]did.DID{node1DID, node2DID})
@@ -592,8 +592,8 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			return len(node1.network.connectionManager.Peers()) == 2, nil
 		}, defaultTimeout, "time-out while waiting for nodes to connect")
 
-		node1DID := *node1.network.nodeDID
-		node2DID := *node2.network.nodeDID
+		node1DID := node1.network.nodeDID
+		node2DID := node2.network.nodeDID
 		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
 			WithAttachKey().
 			WithPrivate([]did.DID{node1DID, node2DID})
@@ -643,9 +643,9 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			return len(node3.network.connectionManager.Peers()) == 1, nil
 		}, defaultTimeout, "time-out while waiting for nodes to connect")
 
-		node1DID := *node1.network.nodeDID
-		node2DID := *node2.network.nodeDID
-		node3DID := *node3.network.nodeDID
+		node1DID := node1.network.nodeDID
+		node2DID := node2.network.nodeDID
+		node3DID := node3.network.nodeDID
 		// Random order for PAL header
 		pal := []did.DID{node1DID, node2DID, node3DID}
 		rand.Shuffle(len(pal), func(i, j int) {
@@ -673,8 +673,8 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		})
 
 		// create some transactions
-		node1DID := *node1.network.nodeDID
-		node2DID := *node2.network.nodeDID
+		node1DID := node1.network.nodeDID
+		node2DID := node2.network.nodeDID
 		for i := 0; i < 10; i++ {
 			tpl := TransactionTemplate(payloadType, []byte(fmt.Sprintf("private TX%d", i)), key).
 				WithAttachKey().
@@ -720,8 +720,8 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			return len(node1.network.connectionManager.Peers()) == 1 && len(node2.network.connectionManager.Peers()) == 1, nil
 		}, defaultTimeout, "time-out while waiting for node1 to connect to node2")
 
-		node1DID := *node1.network.nodeDID
-		node2DID := *node2.network.nodeDID
+		node1DID := node1.network.nodeDID
+		node2DID := node2.network.nodeDID
 		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
 			WithAttachKey().
 			WithPrivate([]did.DID{node1DID, node2DID})
@@ -766,8 +766,8 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			return len(node2.network.connectionManager.Peers()) == 2, nil // make sure node2 has enough peers to learn about the private Tx
 		}, defaultTimeout, "time-out while waiting for nodes to connect")
 
-		node1DID := *node1.network.nodeDID
-		node2DID := *node2.network.nodeDID
+		node1DID := node1.network.nodeDID
+		node2DID := node2.network.nodeDID
 		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
 			WithAttachKey().
 			WithPrivate([]did.DID{node1DID, node2DID})
@@ -1070,7 +1070,6 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 		keyResolver:         didservice.KeyResolver{Store: didStore},
 		eventPublisher:      eventPublisher,
 		storeProvider:       &storeProvider,
-		nodeDID:             &did.DID{},
 	}
 
 	if err := instance.Configure(*serverConfig); err != nil {

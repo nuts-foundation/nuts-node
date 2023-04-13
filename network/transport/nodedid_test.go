@@ -72,7 +72,7 @@ func Test_AutoNodeDIDResolver(t *testing.T) {
 		actual, err := AutoResolveNodeDID(ctx, keyResolver, docFinder)
 
 		require.NoError(t, err)
-		assert.Equal(t, didLocal, actual)
+		assert.Equal(t, *didLocal, actual)
 	})
 	t.Run("no private keys in keystore", func(t *testing.T) {
 		ctrl := gomock.NewController(t)

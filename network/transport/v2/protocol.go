@@ -72,7 +72,7 @@ func DefaultConfig() Config {
 // New creates an instance of the v2 protocol.
 func New(
 	config Config,
-	nodeDID *did.DID,
+	nodeDID did.DID,
 	state dag.State,
 	docResolver vdr.DocResolver,
 	decrypter crypto.Decrypter,
@@ -105,7 +105,7 @@ type protocol struct {
 	privatePayloadReceiver dag.Notifier
 	decrypter              crypto.Decrypter
 	connectionList         grpc.ConnectionList
-	nodeDID                *did.DID
+	nodeDID                did.DID
 	connectionManager      transport.ConnectionManager
 	cMan                   *conversationManager
 	gManager               gossip.Manager
@@ -357,7 +357,7 @@ func (p *protocol) decryptPAL(ctx context.Context, encrypted [][]byte) (dag.PAL,
 		return nil, errors.New("node DID is not set")
 	}
 
-	doc, _, err := p.docResolver.Resolve(*p.nodeDID, nil)
+	doc, _, err := p.docResolver.Resolve(p.nodeDID, nil)
 	if err != nil {
 		return nil, err
 	}

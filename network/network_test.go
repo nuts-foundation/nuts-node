@@ -431,7 +431,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 			err := cxt.start()
 			require.NoError(t, err)
 
-			cxt.network.nodeDID = nodeDID
+			cxt.network.nodeDID = *nodeDID
 
 			cxt.state.EXPECT().Head(gomock.Any())
 			cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
@@ -499,7 +499,7 @@ func TestNetwork_Start(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		cxt := createNetwork(t, ctrl)
 		cxt.network.strictMode = true
-		cxt.network.nodeDID = nodeDID
+		cxt.network.nodeDID = *nodeDID
 		cxt.state.EXPECT().Start()
 
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(nil, nil, did.DeactivatedErr) //
@@ -569,7 +569,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
 		_ = cxt.keyStorage.SavePrivateKey(ctx, keyID.String(), certificate.PrivateKey)
 		cxt.network.certificate = certificate
-		cxt.network.nodeDID = nodeDID
+		cxt.network.nodeDID = *nodeDID
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 		err := cxt.network.validateNodeDID(ctx, *nodeDID)
 		assert.NoError(t, err)
@@ -577,7 +577,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 	t.Run("error - configured node DID does not resolve to a DID document", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		cxt := createNetwork(t, ctrl)
-		cxt.network.nodeDID = nodeDID
+		cxt.network.nodeDID = *nodeDID
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(nil, nil, did.DeactivatedErr)
 
 		err = cxt.network.validateNodeDID(ctx, *nodeDID)
@@ -588,7 +588,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		cxt := createNetwork(t, ctrl)
 		cxt.network.strictMode = true
-		cxt.network.nodeDID = nodeDID
+		cxt.network.nodeDID = *nodeDID
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(&did.Document{}, &vdrTypes.DocumentMetadata{}, nil)
 
 		err := cxt.network.validateNodeDID(ctx, *nodeDID)
@@ -599,7 +599,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		cxt := createNetwork(t, ctrl)
 		cxt.network.strictMode = true
-		cxt.network.nodeDID = nodeDID
+		cxt.network.nodeDID = *nodeDID
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 
 		err := cxt.network.validateNodeDID(ctx, *nodeDID)
@@ -611,7 +611,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
 		_ = cxt.keyStorage.SavePrivateKey(ctx, keyID.String(), key)
 		cxt.network.strictMode = true
-		cxt.network.nodeDID = nodeDID
+		cxt.network.nodeDID = *nodeDID
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(documentWithoutNutsCommService, &vdrTypes.DocumentMetadata{}, nil)
 
 		err := cxt.network.validateNodeDID(ctx, *nodeDID)
@@ -628,7 +628,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		_ = cxt.keyStorage.SavePrivateKey(ctx, keyID.String(), key)
 		cxt.network.strictMode = true
 		cxt.network.certificate = certificate
-		cxt.network.nodeDID = nodeDID
+		cxt.network.nodeDID = *nodeDID
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 
 		err := cxt.network.validateNodeDID(ctx, *nodeDID)
@@ -645,7 +645,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		_ = cxt.keyStorage.SavePrivateKey(ctx, keyID.String(), key)
 		cxt.network.strictMode = true
 		cxt.network.certificate = certificate
-		cxt.network.nodeDID = nodeDID
+		cxt.network.nodeDID = *nodeDID
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 
 		err := cxt.network.validateNodeDID(ctx, *nodeDID)
@@ -657,7 +657,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
 		_ = cxt.keyStorage.SavePrivateKey(ctx, keyID.String(), key)
 		cxt.network.strictMode = true
-		cxt.network.nodeDID = nodeDID
+		cxt.network.nodeDID = *nodeDID
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 
 		err := cxt.network.validateNodeDID(ctx, *nodeDID)
@@ -674,7 +674,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		_ = cxt.keyStorage.SavePrivateKey(ctx, keyID.String(), key)
 		cxt.network.strictMode = true
 		cxt.network.certificate = certificate
-		cxt.network.nodeDID = nodeDID
+		cxt.network.nodeDID = *nodeDID
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 
 		err := cxt.network.validateNodeDID(ctx, *nodeDID)
@@ -1100,7 +1100,6 @@ func TestNetwork_checkHealth(t *testing.T) {
 			n := Network{
 				trustStore:  trustStore,
 				certificate: certificate,
-				nodeDID:     &did.DID{},
 			}
 
 			result := n.CheckHealth()
@@ -1117,7 +1116,6 @@ func TestNetwork_checkHealth(t *testing.T) {
 			n := Network{
 				trustStore:  trustStore,
 				certificate: certificate,
-				nodeDID:     &did.DID{},
 			}
 
 			result := n.CheckHealth()
@@ -1147,7 +1145,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 			_ = cxt.keyStorage.SavePrivateKey(context.Background(), keyID.String(), certificate.PrivateKey)
 			cxt.network.trustStore = trustStore
 			cxt.network.certificate = certificate
-			cxt.network.nodeDID = nodeDID
+			cxt.network.nodeDID = *nodeDID
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 
 			health := cxt.network.CheckHealth()
@@ -1168,7 +1166,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 		t.Run("down - authentication failed", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			cxt := createNetwork(t, ctrl)
-			cxt.network.nodeDID = nodeDID
+			cxt.network.nodeDID = *nodeDID
 			cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(nil, nil, did.DeactivatedErr)
 
 			health := cxt.network.CheckHealth()
@@ -1208,8 +1206,7 @@ func createNetwork(t *testing.T, ctrl *gomock.Controller, cfgFn ...func(config *
 	network.protocols = []transport.Protocol{prot}
 	network.didDocumentResolver = docResolver
 	if len(networkConfig.NodeDID) > 0 {
-		nodeDID := did.MustParseDID(networkConfig.NodeDID)
-		network.nodeDID = &nodeDID
+		network.nodeDID = did.MustParseDID(networkConfig.NodeDID)
 	}
 	startTime := time.Now()
 	network.startTime.Store(&startTime)
