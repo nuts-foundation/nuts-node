@@ -24,7 +24,7 @@ import (
 	"testing"
 )
 
-func TestSelfSigned_StartSigningSession(t *testing.T) {
+func TestSessionStore_StartSigningSession(t *testing.T) {
 	t.Run("add params to session", func(t *testing.T) {
 		params := map[string]interface{}{
 			"employer": "did:nuts:a",

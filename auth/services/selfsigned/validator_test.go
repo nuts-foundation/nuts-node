@@ -26,7 +26,7 @@ import (
 	"testing"
 )
 
-func TestSelfSigned_VerifyVP(t *testing.T) {
+func TestSessionStore_VerifyVP(t *testing.T) {
 	t.Run("always returns invalid VerificationResult", func(t *testing.T) {
 		ss := NewSessionStore()
 
