@@ -78,19 +78,9 @@
       "@id": "nuts:NutsEmployeeCredential",
       "@context": {
         "@version": 1.1,
-        "@protected": true,
         "@propagate": true,
-        "id": "@id",
-        "type": "@type",
-        "identifier": "schema:identifier",
-        "roleName": "schema:roleName",
-        "member": {
-          "@id": "schema:member",
-          "@context": {
-            "initials": "schema:initials",
-            "familyName": "schema:familyName"
-          }
-        }
+        "@protected": true,
+        "@vocab": "schema"
       }
     },
     "NutsSelfSignedPresentation": "nuts:NutsSelfSignedPresentation"
