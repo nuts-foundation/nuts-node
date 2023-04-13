@@ -89,7 +89,7 @@ func TestOIDC4VCIHappyFlow(t *testing.T) {
 	mockVCR.EXPECT().GetOIDCWallet(receiverDID).AnyTimes().Return(holder.NewOIDCWallet(receiverDID, receiverIdentifier, credentialStore, signer, resolver))
 
 	vcStored := atomic.Pointer[bool]{}
-	credentialStore.EXPECT().StoreCredential(credential, nil).DoAndReturn(func(_ vc.VerifiableCredential, _ *time.Time) error {
+	credentialStore.EXPECT().StoreCredential(gomock.Any(), nil).DoAndReturn(func(_ vc.VerifiableCredential, _ *time.Time) error {
 		vcStored.Store(new(bool))
 		return nil
 	})
@@ -119,5 +119,6 @@ func TestOIDC4VCIDisabled(t *testing.T) {
 	oidcIssuer := issuer.NewOIDCIssuer(issuerIdentifier)
 	err := oidcIssuer.OfferCredential(context.Background(), credential, receiverMetadataURL)
 
-	require.Error(t, err)
+	require.ErrorContains(t, err, "unable to load OAuth2 credential client metadata")
+	require.ErrorContains(t, err, "404")
 }
