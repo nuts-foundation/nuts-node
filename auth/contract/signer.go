@@ -25,7 +25,8 @@ type Signer interface {
 	// SigningSessionStatus returns the current status of the signing session or services.ErrSessionNotFound if not found
 	SigningSessionStatus(sessionID string) (SigningSessionResult, error)
 	// StartSigningSession starts a session for the implementing signer
-	StartSigningSession(rawContractText string) (SessionPointer, error)
+	// params are signer specific
+	StartSigningSession(rawContractText string, params map[string]interface{}) (SessionPointer, error)
 }
 
 // SessionPointer contains session information for the means how to sign the payload

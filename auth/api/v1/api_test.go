@@ -863,7 +863,7 @@ func TestWrapper_CreateSignSession(t *testing.T) {
 
 		ctx.contractClientMock.EXPECT().CreateSigningSession(gomock.Any()).DoAndReturn(
 			func(sessionRequest services.CreateSessionRequest) (contract.SessionPointer, error) {
-				return dummyMeans.StartSigningSession(sessionRequest.Message)
+				return dummyMeans.StartSigningSession(sessionRequest.Message, nil)
 			})
 
 		postParams := SignSessionRequest{

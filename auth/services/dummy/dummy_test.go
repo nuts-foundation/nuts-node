@@ -34,7 +34,7 @@ func TestDummy_StartSigningSession(t *testing.T) {
 			InStrictMode: true,
 		}
 
-		_, err := d.StartSigningSession("")
+		_, err := d.StartSigningSession("", nil)
 
 		assert.Error(t, err)
 		assert.Equal(t, errNotEnabled, err)
@@ -47,7 +47,7 @@ func TestDummy_StartSigningSession(t *testing.T) {
 			Status:       make(map[string]string, 0),
 		}
 
-		s, err := d.StartSigningSession("")
+		s, err := d.StartSigningSession("", nil)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, s)
@@ -62,7 +62,7 @@ func TestDummy_StartSigningSession(t *testing.T) {
 			Status:       make(map[string]string, 0),
 		}
 
-		s, err := d.StartSigningSession("contract")
+		s, err := d.StartSigningSession("contract", nil)
 
 		assert.NoError(t, err)
 		assert.Len(t, d.Sessions, 1)
@@ -104,7 +104,7 @@ func TestDummy_SigningSessionStatus(t *testing.T) {
 			Status:       make(map[string]string, 0),
 		}
 
-		s, err := d.StartSigningSession("contract")
+		s, err := d.StartSigningSession("contract", nil)
 		assert.NoError(t, err)
 
 		// created
@@ -133,7 +133,7 @@ func TestDummy_SigningSessionStatus(t *testing.T) {
 			Status:       make(map[string]string, 0),
 		}
 
-		s, err := d.StartSigningSession("contract")
+		s, err := d.StartSigningSession("contract", nil)
 		assert.NoError(t, err)
 
 		// created

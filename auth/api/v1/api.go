@@ -134,6 +134,7 @@ func (w Wrapper) CreateSignSession(ctx echo.Context) error {
 	createSessionRequest := services.CreateSessionRequest{
 		SigningMeans: string(requestParams.Means),
 		Message:      requestParams.Payload,
+		Params:       requestParams.Params,
 	}
 	sessionPtr, err := w.Auth.ContractNotary().CreateSigningSession(createSessionRequest)
 	if err != nil {

@@ -77,7 +77,7 @@ func TestService_StartSigningSession(t *testing.T) {
 
 		rawContractText := "not a contract"
 
-		_, err := ctx.service.StartSigningSession(rawContractText)
+		_, err := ctx.service.StartSigningSession(rawContractText, nil)
 
 		assert.Error(t, err)
 	})
@@ -88,7 +88,7 @@ func TestService_StartSigningSession(t *testing.T) {
 		irmaMock := ctx.service.IrmaSessionHandler.(*mockIrmaClient)
 		irmaMock.err = errors.New("some error")
 
-		_, err := ctx.service.StartSigningSession(correctContractText)
+		_, err := ctx.service.StartSigningSession(correctContractText, nil)
 
 		assert.Error(t, err)
 		assert.Equal(t, "error while creating session: some error", err.Error())
@@ -104,7 +104,7 @@ func TestService_StartSigningSession(t *testing.T) {
 		}
 		irmaMock.sessionToken = "token"
 
-		session, err := ctx.service.StartSigningSession(correctContractText)
+		session, err := ctx.service.StartSigningSession(correctContractText, nil)
 
 		assert.NoError(t, err)
 		assert.Equal(t, "token", session.SessionID())

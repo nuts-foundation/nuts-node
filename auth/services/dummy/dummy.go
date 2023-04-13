@@ -253,7 +253,7 @@ func (d Dummy) SigningSessionStatus(sessionID string) (contract.SigningSessionRe
 // StartSigningSession starts a Dummy session. It takes any string and stores it under a random sessionID.
 // This method is not available in strictMode
 // returns the sessionPointer with the sessionID
-func (d Dummy) StartSigningSession(rawContractText string) (contract.SessionPointer, error) {
+func (d Dummy) StartSigningSession(rawContractText string, _ map[string]interface{}) (contract.SessionPointer, error) {
 	if d.InStrictMode {
 		return nil, errNotEnabled
 	}
