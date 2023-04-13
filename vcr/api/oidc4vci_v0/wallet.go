@@ -40,11 +40,11 @@ func (w Wrapper) HandleCredentialOffer(ctx context.Context, request HandleCreden
 		return nil, core.NotFoundError("invalid DID")
 	}
 	offer := oidc4vci.CredentialOffer{}
-	if json.Unmarshal([]byte(request.Params.CredentialOffer), &offer) != nil {
-		return nil, core.InvalidInputError("unable to unmarshal credential_offer")
+	if err := json.Unmarshal([]byte(request.Params.CredentialOffer), &offer); err != nil {
+		return nil, core.InvalidInputError("unable to unmarshal credential_offer: %w", err)
 	}
-	if len(request.Params.CredentialOffer) != 1 {
-		return nil, core.InvalidInputError("expected exactly 1 credential in credential offer")
+	if len(offer.Credentials) == 0 {
+		return nil, core.InvalidInputError("there must be at least 1 credential in credential offer")
 	}
 
 	err = w.VCR.GetOIDCWallet(*id).HandleCredentialOffer(ctx, offer)

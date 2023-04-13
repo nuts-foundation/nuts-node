@@ -66,8 +66,11 @@ func (h wallet) Metadata() oidc4vci.OAuth2ClientMetadata {
 }
 
 func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.CredentialOffer) error {
-	if len(offer.Credentials) != 1 {
-		return errors.New("expected only 1 credential in credential offer")
+	// TODO: This check is too simplistic, there can be multiple credential offers,
+	//       but the wallet should only request the one it's interested in.
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2049
+	if len(offer.Credentials) == 0 {
+		return errors.New("there must be at least 1 credential in credential offer")
 	}
 
 	issuerClient, err := issuerClientCreator(ctx, &http.Client{}, offer.CredentialIssuer)
@@ -94,8 +97,6 @@ func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.Creden
 		return fmt.Errorf("c_nonce is missing")
 	}
 
-	log.Logger().Debugf("CredentialOffer: %s, %v\n", h.identifier, offer)
-
 	// TODO: we now do this in a goroutine to avoid blocking the issuer's process, needs more orchestration?
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2040
 	go func() {
@@ -109,6 +110,8 @@ func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.Creden
 			log.Logger().WithError(err).Errorf("Unable to retrieve credential")
 			return
 		}
+		// TODO: Wallet should make sure the VC is of the expected type
+		//       See https://github.com/nuts-foundation/nuts-node/issues/2050
 		log.Logger().Infof("Received VC over OIDC4VCI, storing in VCR: %s", credential.ID.String())
 		err = h.credentialStore.StoreCredential(*credential, nil)
 		if err != nil {
