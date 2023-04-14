@@ -17,17 +17,23 @@ import (
 	"github.com/lestrrat-go/jwx/jws"
 )
 
-const publicKey = `-----BEGIN PUBLIC KEY-----
+// Do not use this public key for anything other than unit tests in blacklist_test.go
+const publicKeyDoNotUse = `-----BEGIN PUBLIC KEY-----
 MCowBQYDK2VwAyEAXV5Q9uFPslJcUethKWklYHbIh/2rtOrocZ/Jr7rWpYk=
 -----END PUBLIC KEY-----`
-const privateKey = `-----BEGIN PRIVATE KEY-----
+
+// Do not use this private key for anything other than unit tests in blacklist_test.go
+const privateKeyDoNotUse = `-----BEGIN PRIVATE KEY-----
 MC4CAQAwBQYDK2VwBCIEIMIU940JfXJsaitDRYvNoAyqL7C/qEDjMX9UjzMZblUR
 -----END PRIVATE KEY-----`
+
+// Do not use this private key for anything other than unit tests in blacklist_test.go
 const incorrectPublicKey = `-----BEGIN PUBLIC KEY-----
 MCowBQYDK2VwAyEAsJK7Ij4k+sv8y2hD36tPp2KqxNCQMs34T3JgTEKugoI=
 -----END PUBLIC KEY-----`
 
-const allowedCertificate = `-----BEGIN CERTIFICATE-----
+// Do not use this certificate for anything other than unit tests in blacklist_test.go
+const allowedTestCertificate = `-----BEGIN CERTIFICATE-----
 MIIEFzCCAv+gAwIBAgIUfNx4xdDQ4xliuwFvQD4UdzzbHuYwDQYJKoZIhvcNAQEL
 BQAwgZoxCzAJBgNVBAYTAk5MMRYwFAYDVQQIDA1Ob29yZC1Ib2xsYW5kMRIwEAYD
 VQQHDAlBbXN0ZXJkYW0xITAfBgNVBAoMGEludGVybmV0IFdpZGdpdHMgUHR5IEx0
@@ -52,7 +58,8 @@ MgDuy4gmTq4sf0gckrQphbE5rDLvbG/MZiUUI8ioSrbXGofsOWpR5P/MlcPO8DUo
 jDuiDqsepi+J0Y50roqnYMLR839gRKOqZeFwrtVY+JkV2RSBNwAw7nrT+g==
 -----END CERTIFICATE-----`
 
-const blacklistedCertificate = `-----BEGIN CERTIFICATE-----
+// Do not use this certificate for anything other than unit tests in blacklist_test.go
+const blacklistedTestCertificate = `-----BEGIN CERTIFICATE-----
 MIIEFzCCAv+gAwIBAgIUPbKsg6pF+FK6d+l4EAxxR3cIixAwDQYJKoZIhvcNAQEL
 BQAwgZoxCzAJBgNVBAYTAk5MMRYwFAYDVQQIDA1Ob29yZC1Ib2xsYW5kMRIwEAYD
 VQQHDAlBbXN0ZXJkYW0xITAfBgNVBAoMGEludGVybmV0IFdpZGdpdHMgUHR5IEx0
@@ -77,7 +84,10 @@ ZWp2Pn+Rl1zfuYeXfdtMnFHmGPeiXKZB+u5cZbVxbxZ7nOPEVISKEBxXL8+SE311
 btg+JeGSqs/aDd7h/Y/62V/IhFqDHuDQ344zPvbQl+dTz/9FQ7USQMz9Fw==
 -----END CERTIFICATE-----`
 
+// Do not use this value outside of blacklist_test.go
 const blacklistedCertIssuer = `CN=www.example.com,O=Internet Widgits Pty Ltd,L=Amsterdam,ST=Noord-Holland,C=NL,1.2.840.113549.1.9.1=#0c136578616d706c65406578616d706c652e636f6d`
+
+// Do not use this value outside of blacklist_test.go
 const blacklistedCertSerialNumber = `352232997782095055661451877220413401771436182288`
 
 func blacklistTestServer(blacklist string) *httptest.Server {
@@ -110,7 +120,7 @@ func trustedBlacklist(t *testing.T) string {
 	require.NoError(t, err)
 
 	// Parse the private key for signing the blacklist
-	key, err := jwk.ParseKey([]byte(privateKey), jwk.WithPEM(true))
+	key, err := jwk.ParseKey([]byte(privateKeyDoNotUse), jwk.WithPEM(true))
 	require.NoError(t, err)
 
 	// Sign the blacklist as a JWS Message
@@ -131,7 +141,7 @@ func TestDownloadBlacklist(t *testing.T) {
 	defer testServer.Close()
 
 	// Use the server in a new blacklist
-	blacklist, err := newBlacklist(testServer.URL, publicKey)
+	blacklist, err := newBlacklist(testServer.URL, publicKeyDoNotUse)
 	require.NoError(t, err)
 	require.NotNil(t, blacklist)
 
@@ -150,7 +160,7 @@ func TestUpdateValidBlacklist(t *testing.T) {
 	defer testServer.Close()
 
 	// Use the server in a new blacklist
-	blacklist, err := newBlacklist(testServer.URL, publicKey)
+	blacklist, err := newBlacklist(testServer.URL, publicKeyDoNotUse)
 	require.NoError(t, err)
 	require.NotNil(t, blacklist)
 
@@ -215,7 +225,7 @@ func TestValidCertificateAccepted(t *testing.T) {
 	defer testServer.Close()
 
 	// Use the server in a new blacklist
-	blacklist, err := newBlacklist(testServer.URL, publicKey)
+	blacklist, err := newBlacklist(testServer.URL, publicKeyDoNotUse)
 	require.NoError(t, err)
 	require.NotNil(t, blacklist)
 
@@ -224,7 +234,7 @@ func TestValidCertificateAccepted(t *testing.T) {
 	require.NoError(t, err)
 
 	// Parse the certificate
-	block, _ := pem.Decode([]byte(allowedCertificate))
+	block, _ := pem.Decode([]byte(allowedTestCertificate))
 	cert, err := x509.ParseCertificate(block.Bytes)
 	require.NoError(t, err)
 
@@ -245,7 +255,7 @@ func TestBlacklistedCertificateBlocked(t *testing.T) {
 	defer testServer.Close()
 
 	// Use the server in a new blacklist
-	blacklist, err := newBlacklist(testServer.URL, publicKey)
+	blacklist, err := newBlacklist(testServer.URL, publicKeyDoNotUse)
 	require.NoError(t, err)
 	require.NotNil(t, blacklist)
 
@@ -254,7 +264,7 @@ func TestBlacklistedCertificateBlocked(t *testing.T) {
 	require.NoError(t, err)
 
 	// Parse the certificate
-	block, _ := pem.Decode([]byte(blacklistedCertificate))
+	block, _ := pem.Decode([]byte(blacklistedTestCertificate))
 	cert, err := x509.ParseCertificate(block.Bytes)
 	require.NoError(t, err)
 
@@ -264,4 +274,16 @@ func TestBlacklistedCertificateBlocked(t *testing.T) {
 	// Ensure the validation returned an error, meaning the certificate is blacklisted
 	assert.Error(t, err)
 	assert.Equal(t, err, ErrCertBlacklisted)
+}
+
+// TestRSACertificateJWKThumbprint ensures ceritficate thumbprints are correctly computed
+func TestRSACertificateJWKThumbprint(t *testing.T) {
+	// Parse the certificate
+	block, _ := pem.Decode([]byte(blacklistedTestCertificate))
+	cert, err := x509.ParseCertificate(block.Bytes)
+	require.NoError(t, err)
+	
+	// Check the JWK fingerprint of the cert
+	keyID := certKeyJWKFingerprint(cert)
+	assert.Equal(t, "PVOjk-5d4Lb-FGxurW-fNMUv3rYZZBWF3gGaP5s1UVQ", keyID)
 }

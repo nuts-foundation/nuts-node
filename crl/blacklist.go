@@ -40,13 +40,16 @@ type blacklist struct {
 	lastUpdated time.Time
 }
 
-// blacklistEntry is a tuple of certificate issuer and serial number
+// blacklistEntry contains parameters for an X.509 certificate that must not be accepted for TLS connections
 type blacklistEntry struct {
-	// Issure is a string representation (x509.Certificate.Issuer.String()) of the certificate to blacklist
+	// Issuer is a string representation (x509.Certificate.Issuer.String()) of the certificate
 	Issuer string
 
-	// SerialNumber is a string representation (x509.Certificate.SerialNumber.String()) of the certificate to blacklist
+	// SerialNumber is a string representation (x509.Certificate.SerialNumber.String()) of the certificate
 	SerialNumber string
+
+	// JWKThumbprint is an identifier of the public key per https://www.rfc-editor.org/rfc/rfc7638
+	JWKThumbprint string
 }
 
 // newBlacklist creates a new blacklist with the specified url and trusted Ed25519 key in PEM format
@@ -164,4 +167,23 @@ func (b *blacklist) download() ([]byte, error) {
 
 	// Return the raw bytes from the response body
 	return bytes, nil
+}
+
+// certKeyJWKFingerprint returns the JWK key fingerprint for the public key of an X509 certificate
+func certKeyJWKFingerprint(cert *x509.Certificate) string {
+	// Convert the key (any) to JWK. If that succeeds then return its fingerprint
+	if key, _ := jwk.New(cert.PublicKey); key != nil {
+		// Compute the fingerprint of the key
+		jwk.AssignKeyID(key)
+
+		// Retrieve the fingerprint, which annoyingly is an "any" return type
+		fingerprint, _ := key.Get(jwk.KeyIDKey)
+
+		// Use fmt to "convert" the fingerprint to a string
+		return fmt.Sprintf("%s", fingerprint)
+	}
+
+	// If something above failed, default to an empty string. This would happen if the JWK library could not
+	// understand the public key type, which would be a bizarre certificate.
+	return ""
 }
