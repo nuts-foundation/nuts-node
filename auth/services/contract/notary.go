@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/crl"
 	"net/http"
 	"reflect"
 	"strings"
@@ -86,6 +87,7 @@ type notary struct {
 	verifiers         map[string]contract.VPVerifier
 	signers           map[string]contract.Signer
 	vcr               vcr.Finder
+	uziCrlValidator   crl.Validator
 }
 
 var timeNow = time.Now
@@ -194,7 +196,15 @@ func (n *notary) Configure() (err error) {
 	}
 
 	if _, ok := cvMap[uzi.ContractFormat]; ok {
-		uziValidator, err := x509.NewUziValidator(x509.UziAcceptation, &contract.StandardContractTemplates, nil)
+		truststore, err := x509.LoadUziTruststore(x509.UziAcceptation)
+		if err != nil {
+			return err
+		}
+		n.uziCrlValidator, err = crl.New(truststore.Certificates())
+		if err != nil {
+			return err
+		}
+		uziValidator, err := x509.NewUziValidator(truststore, &contract.StandardContractTemplates, n.uziCrlValidator)
 		uziVerifier := uzi.Verifier{UziValidator: uziValidator}
 
 		if err != nil {
@@ -205,6 +215,12 @@ func (n *notary) Configure() (err error) {
 	}
 
 	return
+}
+
+func (n *notary) Start(ctx context.Context) {
+	if n.uziCrlValidator != nil {
+		n.uziCrlValidator.Start(ctx)
+	}
 }
 
 func (n *notary) VerifyVP(vp vc.VerifiablePresentation, checkTime *time.Time) (contract.VPVerificationResult, error) {

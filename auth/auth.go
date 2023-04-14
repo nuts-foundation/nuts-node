@@ -182,6 +182,7 @@ func (auth *Auth) Start() error {
 	if auth.crlValidator != nil {
 		auth.crlValidator.Start(ctx)
 	}
+	auth.contractNotary.Start(ctx)
 
 	return nil
 }

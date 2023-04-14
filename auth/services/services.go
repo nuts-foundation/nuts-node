@@ -62,4 +62,7 @@ type ContractNotary interface {
 
 	// HandlerFunc returns the Irma server handler func
 	HandlerFunc() http.HandlerFunc
+
+	// Start any validator that needs to periodically update its database. Cancel the context to stop these processes.
+	Start(ctx context.Context)
 }

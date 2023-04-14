@@ -22,6 +22,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
+	"github.com/nuts-foundation/nuts-node/crl"
 	"github.com/stretchr/testify/require"
 	"testing"
 
@@ -35,12 +36,22 @@ var uziSignedJwt = `eyJ4NWMiOlsiTUlJSGN6Q0NCVnVnQXdJQkFnSVVIUFU4cVZYS3FEZXByWUhD
 
 func TestNewUziValidator(t *testing.T) {
 	t.Run("production certificates", func(t *testing.T) {
-		_, err := NewUziValidator(UziProduction, &contract.StandardContractTemplates, nil)
+		truststore, err := LoadUziTruststore(UziProduction)
+		require.NoError(t, err)
+		crlValidator, err := crl.New(truststore.Certificates())
+		require.NoError(t, err)
+
+		_, err = NewUziValidator(truststore, &contract.StandardContractTemplates, crlValidator)
 		require.NoError(t, err)
 	})
 
 	t.Run("acceptation certificates", func(t *testing.T) {
-		_, err := NewUziValidator(UziAcceptation, &contract.StandardContractTemplates, nil)
+		truststore, err := LoadUziTruststore(UziAcceptation)
+		require.NoError(t, err)
+		crlValidator, err := crl.New(truststore.Certificates())
+		require.NoError(t, err)
+
+		_, err = NewUziValidator(truststore, &contract.StandardContractTemplates, crlValidator)
 		require.NoError(t, err)
 	})
 }
@@ -90,7 +101,11 @@ func TestUziValidator(t *testing.T) {
 	t.Skip("Still uses v1 contract, migrate to v3")
 
 	t.Run("ok - acceptation environment", func(t *testing.T) {
-		uziValidator, err := NewUziValidator(UziAcceptation, &contract.StandardContractTemplates, nil)
+		truststore, err := LoadUziTruststore(UziAcceptation)
+		require.NoError(t, err)
+		crlValidator, err := crl.New(truststore.Certificates())
+		require.NoError(t, err)
+		uziValidator, err := NewUziValidator(truststore, &contract.StandardContractTemplates, crlValidator)
 		require.NoError(t, err)
 
 		signedToken, err := uziValidator.Parse(uziSignedJwt)

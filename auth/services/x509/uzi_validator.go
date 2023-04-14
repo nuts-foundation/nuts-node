@@ -19,11 +19,10 @@
 package x509
 
 import (
-	"context"
-	"crypto/x509"
 	"encoding/asn1"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/auth/assets"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crl"
 	"io/fs"
 	"strings"
@@ -100,26 +99,41 @@ func (t UziSignedToken) Contract() contract.Contract {
 	return *t.contract
 }
 
+// LoadUziTruststore loads the embedded truststore for the corresponding UziEnv
+func LoadUziTruststore(env UziEnv) (*core.TrustStore, error) {
+	switch env {
+	case UziProduction:
+		return certsFromAssets([]string{
+			"certs/uzi-prod/RootCA-G3.cer",
+			"certs/uzi-prod/20190418_UZI-register_Medewerker_op_naam_CA_G3.cer",
+			"certs/uzi-prod/20190418_UZI-register_Zorgverlener_CA_G3.cer",
+			"certs/uzi-prod/DomOrganisatiePersoonCA-G3.cer",
+			"certs/uzi-prod/UZI-register_Medewerker_op_naam_CA_G3.cer",
+			"certs/uzi-prod/UZI-register_Zorgverlener_CA_G3.cer",
+		})
+	case UziAcceptation:
+		return certsFromAssets([]string{
+			"certs/uzi-acc/test_zorg_csp_root_ca_g3.cer",
+			"certs/uzi-acc/test_uzi-register_medewerker_op_naam_ca_g3.cer",
+			"certs/uzi-acc/test_zorg_csp_level_2_persoon_ca_g3.cer",
+		})
+	default:
+		return nil, fmt.Errorf("unknown uzi environment: %s", env)
+	}
+}
+
 // certsFromAssets allows for easy loading of the used UziCertificates.
 // These certs are embedded into the binary for easy distribution.
-func certsFromAssets(paths []string) (certs []*x509.Certificate, err error) {
+func certsFromAssets(paths []string) (*core.TrustStore, error) {
+	var rawCerts []byte
 	for _, path := range paths {
-		var (
-			rawCert []byte
-			cert    *x509.Certificate
-		)
-		rawCert, err = fs.ReadFile(assets.FS, path)
+		rawCert, err := fs.ReadFile(assets.FS, path)
 		if err != nil {
-			return
+			return nil, err
 		}
-
-		cert, err = x509.ParseCertificate(rawCert)
-		if err != nil {
-			return
-		}
-		certs = append(certs, cert)
+		rawCert = append(rawCerts, rawCert...)
 	}
-	return
+	return core.ParseTrustStore(rawCerts)
 }
 
 func validUziSigningAlgs() []jwa.SignatureAlgorithm {
@@ -127,66 +141,14 @@ func validUziSigningAlgs() []jwa.SignatureAlgorithm {
 }
 
 // NewUziValidator creates a new UziValidator.
-// It accepts a UziEnv and preloads corresponding certificate tree.
+// It accepts a *core.TrustStore containing the truststore for the correct UziEnv.
+// The truststore must match that in the truststore in the provided crl.Validator.
 // It accepts a contract template store which is used to check if the signed contract exists and is valid.
-// It accepts an optional CRL database. If non is given, it will create one based on the root and intermediate certificates.
-func NewUziValidator(env UziEnv, contractTemplates *contract.TemplateStore, crlValidator crl.Validator) (validator *UziValidator, err error) {
-	var (
-		roots         []*x509.Certificate
-		intermediates []*x509.Certificate
-	)
-
-	if env == UziProduction {
-		roots, err = certsFromAssets([]string{
-			"certs/uzi-prod/RootCA-G3.cer",
-		})
-		if err != nil {
-			return
-		}
-
-		intermediates, err = certsFromAssets([]string{
-			"certs/uzi-prod/20190418_UZI-register_Medewerker_op_naam_CA_G3.cer",
-			"certs/uzi-prod/20190418_UZI-register_Zorgverlener_CA_G3.cer",
-			"certs/uzi-prod/DomOrganisatiePersoonCA-G3.cer",
-			"certs/uzi-prod/UZI-register_Medewerker_op_naam_CA_G3.cer",
-			"certs/uzi-prod/UZI-register_Zorgverlener_CA_G3.cer",
-		})
-		if err != nil {
-			return
-		}
-	} else if env == UziAcceptation {
-		roots, err = certsFromAssets([]string{
-			"certs/uzi-acc/test_zorg_csp_root_ca_g3.cer",
-		})
-		if err != nil {
-			return
-		}
-
-		intermediates, err = certsFromAssets([]string{
-			"certs/uzi-acc/test_uzi-register_medewerker_op_naam_ca_g3.cer",
-			"certs/uzi-acc/test_zorg_csp_level_2_persoon_ca_g3.cer",
-		})
-		if err != nil {
-			return
-		}
-	} else {
-		return nil, fmt.Errorf("unknown uzi environment: %s", env)
-	}
-
-	if crlValidator == nil {
-		crlValidator, err = crl.New(append(roots[:], intermediates...))
-		if err != nil {
-			return nil, err
-		}
-	}
-
+func NewUziValidator(truststore *core.TrustStore, contractTemplates *contract.TemplateStore, crlValidator crl.Validator) (validator *UziValidator, err error) {
 	validator = &UziValidator{
-		validator:         NewJwtX509Validator(roots, intermediates, validUziSigningAlgs(), crlValidator),
+		validator:         NewJwtX509Validator(truststore.RootCAs, truststore.IntermediateCAs, validUziSigningAlgs(), crlValidator),
 		contractTemplates: contractTemplates,
 	}
-	// TODO: context is never cancelled
-	crlValidator.Start(context.TODO())
-
 	return
 }
 
