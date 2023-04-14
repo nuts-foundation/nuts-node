@@ -19,22 +19,60 @@
 package selfsigned
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
+	vc2 "github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
+	"time"
 )
+
+const credentialType = "NutsEmployeeCredential"
 
 func (v sessionStore) SigningSessionStatus(sessionID string) (contract.SigningSessionResult, error) {
 	s, ok := v.sessions[sessionID]
 	if !ok {
 		return nil, services.ErrSessionNotFound
 	}
+	var vp *vc2.VerifiablePresentation
+
+	if s.status == SessionCompleted {
+		issuer := did.MustParseDID(s.Employer) // todo panic << validate in API?
+		expirationData := time.Now().Add(24 * time.Hour)
+		credentialOptions := vc2.VerifiableCredential{
+			Context:           []ssi.URI{credential.NutsV1ContextURI},
+			Type:              []ssi.URI{vc2.VerifiableCredentialTypeV1URI(), ssi.MustParseURI(credentialType)},
+			Issuer:            issuer.URI(),
+			IssuanceDate:      time.Now(),
+			ExpirationDate:    &expirationData,
+			CredentialSubject: s.credentialSubject(),
+		}
+		verifiableCredential, err := v.vcr.Issuer().Issue(context.TODO(), credentialOptions, false, false)
+		if err != nil {
+			return nil, err
+		}
+		proofOptions := proof.ProofOptions{
+			Created:      time.Now(),
+			Challenge:    &s.contract,
+			ProofPurpose: "",
+		}
+		vp, err = v.vcr.Holder().BuildVP(context.TODO(), []vc2.VerifiableCredential{*verifiableCredential}, proofOptions, &issuer, true)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return signingSessionResult{
-		id:      sessionID,
-		status:  s.status,
-		request: s.contract,
+		id:                     sessionID,
+		status:                 s.status,
+		request:                s.contract,
+		verifiablePresentation: vp,
 	}, nil
 }
 

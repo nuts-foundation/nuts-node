@@ -26,7 +26,7 @@ import (
 	"reflect"
 	"strings"
 	"time"
-	
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -85,8 +85,8 @@ type notary struct {
 	irmaServer        *irmaserver.Server
 	verifiers         map[string]contract.VPVerifier
 	signers           map[string]contract.Signer
-	vcr               vcr.Finder
 	uziCrlValidator   crl.Validator
+	vcr               vcr.VCR
 }
 
 var timeNow = time.Now
@@ -214,7 +214,7 @@ func (n *notary) Configure() (err error) {
 	}
 
 	if _, ok := cvMap[selfsigned.ContractFormat]; ok {
-		ss := selfsigned.NewSessionStore()
+		ss := selfsigned.NewSessionStore(n.vcr)
 
 		n.verifiers[selfsigned.VerifiablePresentationType] = ss
 		n.signers[selfsigned.ContractFormat] = ss

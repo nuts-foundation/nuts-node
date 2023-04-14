@@ -28,7 +28,7 @@ import (
 
 func TestSessionStore_VerifyVP(t *testing.T) {
 	t.Run("always returns invalid VerificationResult", func(t *testing.T) {
-		ss := NewSessionStore()
+		ss := NewSessionStore(nil)
 
 		result, err := ss.VerifyVP(vc.VerifiablePresentation{}, nil)
 

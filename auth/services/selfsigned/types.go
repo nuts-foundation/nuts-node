@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
+	"github.com/nuts-foundation/nuts-node/vcr"
 )
 
 // ContractFormat is the contract format type
@@ -48,11 +49,15 @@ type SessionStore interface {
 // The SessionStore signer is not supposed to be used in a clustered context unless consecutive calls arrive at the same instance
 type sessionStore struct {
 	sessions map[string]session
+	vcr      vcr.VCR
 }
 
 // NewSessionStore returns an initialized SessionStore
-func NewSessionStore() SessionStore {
-	return sessionStore{sessions: map[string]session{}}
+func NewSessionStore(vcr vcr.VCR) SessionStore {
+	return sessionStore{
+		sessions: map[string]session{},
+		vcr:      vcr,
+	}
 }
 
 // session contains the contract text and session signing status
@@ -91,9 +96,10 @@ func (s sessionPointer) MarshalJSON() ([]byte, error) {
 }
 
 type signingSessionResult struct {
-	id      string
-	status  string
-	request string
+	id                     string
+	status                 string
+	request                string
+	verifiablePresentation *vc.VerifiablePresentation
 }
 
 func (s signingSessionResult) Status() string {
@@ -101,6 +107,27 @@ func (s signingSessionResult) Status() string {
 }
 
 func (s signingSessionResult) VerifiablePresentation() (*vc.VerifiablePresentation, error) {
-	// todo: this will always mean the API returns an empty VP
-	return nil, nil
+	return s.verifiablePresentation, nil
+}
+
+func (s session) credentialSubject() []interface{} {
+	person := map[string]string{
+		"type":       "Person",
+		"initials":   s.Employee.Initials,
+		"familyName": s.Employee.FamilyName,
+	}
+	role := map[string]interface{}{
+		"member":     person,
+		"roleName":   s.Employee.RoleName,
+		"type":       "EmployeeRole",
+		"identifier": s.Employee.Identifier,
+	}
+	credentialSubject := map[string]interface{}{
+		"@type":  "Organization",
+		"id":     s.Employer,
+		"member": role,
+	}
+	return []interface{}{
+		credentialSubject,
+	}
 }
