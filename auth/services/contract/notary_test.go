@@ -267,7 +267,7 @@ func TestService_CreateContractSession(t *testing.T) {
 			Message:      "message to sign",
 			SigningMeans: irmaService.ContractFormat,
 		}
-		ctx.signerMock.EXPECT().StartSigningSession(gomock.Any()).Return(irmaService.SessionPtr{ID: "abc-sessionid-abc", QrCodeInfo: irma.Qr{URL: qrURL, Type: irma.ActionSigning}}, nil)
+		ctx.signerMock.EXPECT().StartSigningSession(gomock.Any(), gomock.Any()).Return(irmaService.SessionPtr{ID: "abc-sessionid-abc", QrCodeInfo: irma.Qr{URL: qrURL, Type: irma.ActionSigning}}, nil)
 
 		result, err := ctx.notary.CreateSigningSession(request)
 
@@ -365,7 +365,7 @@ type testContext struct {
 	ctrl *gomock.Controller
 
 	signerMock  *contract.MockSigner
-	vcr         *vcr.MockFinder
+	vcr         *vcr.MockVCR
 	keyResolver *types.MockKeyResolver
 	keyStore    *crypto.MockKeyStore
 	notary      notary
@@ -381,7 +381,7 @@ func buildContext(t *testing.T) *testContext {
 
 	ctx := &testContext{
 		ctrl:        ctrl,
-		vcr:         vcr.NewMockFinder(ctrl),
+		vcr:         vcr.NewMockVCR(ctrl),
 		keyResolver: types.NewMockKeyResolver(ctrl),
 		keyStore:    crypto.NewMockKeyStore(ctrl),
 		signerMock:  signerMock,
