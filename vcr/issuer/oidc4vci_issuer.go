@@ -95,6 +95,9 @@ func (i *memoryIssuer) ProviderMetadata(issuer did.DID) (oidc4vci.ProviderMetada
 	return oidc4vci.ProviderMetadata{
 		Issuer:        i.getIdentifier(issuer.String()),
 		TokenEndpoint: i.getIdentifier(issuer.String()) + "/oidc/token",
+		// Anonymous access (no client_id) is OK as long as PKIoverheid Private is used,
+		// if that requirement is dropped we need to authenticate wallets using client_id.
+		PreAuthorizedGrantAnonymousAccessSupported: true,
 	}, nil
 }
 

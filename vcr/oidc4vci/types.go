@@ -63,6 +63,11 @@ type ProviderMetadata struct {
 
 	// TokenEndpoint defines the URL of the authorization server's token endpoint [RFC6749].
 	TokenEndpoint string `json:"token_endpoint"`
+
+	// PreAuthorizedGrantAnonymousAccessSupported indicates whether anonymous access (requests without client_id)
+	// for pre-authorized code grant flows.
+	// See https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-oauth-20-authorization-serv
+	PreAuthorizedGrantAnonymousAccessSupported bool `json:"pre-authorized_grant_anonymous_access_supported"`
 }
 
 // CredentialOffer defines credentials offered by the issuer to the wallet.
