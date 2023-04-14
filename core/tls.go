@@ -24,7 +24,10 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
+	"time"
 )
+
+var nowFunc = time.Now
 
 // MinTLSVersion defines the minimal TLS version used by all components that use TLS
 const MinTLSVersion uint16 = tls.VersionTLS12
@@ -82,7 +85,12 @@ func LoadTrustStore(trustStoreFile string) (*TrustStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to read trust store (file=%s): %w", trustStoreFile, err)
 	}
+	return ParseTrustStore(data)
+}
 
+// ParseTrustStore creates a x509 certificate pool from the raw data
+func ParseTrustStore(data []byte) (*TrustStore, error) {
+	var err error
 	trustStore := new(TrustStore)
 
 	trustStore.certificates, err = ParseCertificates(data)
@@ -102,5 +110,26 @@ func LoadTrustStore(trustStoreFile string) (*TrustStore, error) {
 		}
 	}
 
+	if err = validate(trustStore); err != nil {
+		return nil, err
+	}
+
 	return trustStore, nil
+}
+
+// validate returns an error if one of the certificates is invalid or does not form a chain to some root
+func validate(store *TrustStore) error {
+	opts := x509.VerifyOptions{
+		Intermediates: NewCertPool(store.IntermediateCAs),
+		Roots:         NewCertPool(store.RootCAs),
+	}
+	for _, cert := range store.Certificates() {
+		// We do not want to validate the time on the certificate, so we set VerifyOptions.CurrentTime to something where
+		// the certificate is guaranteed to be valid.
+		opts.CurrentTime = cert.NotBefore
+		if _, err := cert.Verify(opts); err != nil {
+			return err
+		}
+	}
+	return nil
 }

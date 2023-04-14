@@ -10,7 +10,7 @@ openssl x509 -req -in localhost.csr -CA ca.pem -CAkey ca.key -CAcreateserial \
 
 # Copy and clean up
 cat localhost.{pem,key} > certificate-and-key.pem
-cat ca.pem pkioverheid-server-bundle.pem > truststore.pem
+mv ca.pem truststore.pem
 
 rm localhost.{key,pem,csr}
 rm ca.{key,pem,srl}
