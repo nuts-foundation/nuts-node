@@ -74,13 +74,12 @@ func TestOIDC4VCIHappyFlow(t *testing.T) {
 	httpServerURL := httptest.StartEchoServer(t, api.Routes)
 
 	// Create issuer and wallet
-	issuerIdentifier := httpServerURL + "/identity/" + issuerDID.String()
 	receiverIdentifier := httpServerURL + "/identity/" + receiverDID.String()
 	receiverMetadataURL := receiverIdentifier + "/.well-known/openid-credential-wallet"
 
 	mockVCR.EXPECT().OIDC4VCIEnabled().AnyTimes().Return(true)
 	credentialStore := vcrTypes.NewMockWriter(ctrl)
-	oidcIssuer := issuer.NewOIDCIssuer(issuerIdentifier)
+	oidcIssuer := issuer.NewOIDCIssuer(httpServerURL + "/identity")
 	mockVCR.EXPECT().GetOIDCIssuer().AnyTimes().Return(oidcIssuer)
 	signer := crypto.NewMockJWTSigner(ctrl)
 	signer.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("the-signed-jwt", nil)
