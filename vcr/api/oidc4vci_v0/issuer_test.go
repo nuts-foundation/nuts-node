@@ -69,7 +69,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		oidcIssuer := issuer.NewMockOIDCIssuer(ctrl)
-		oidcIssuer.EXPECT().RequestAccessToken(gomock.Any(), issuerDID, "code").Return("access-token", nil)
+		oidcIssuer.EXPECT().HandleAccessTokenRequest(gomock.Any(), issuerDID, "code").Return("access-token", nil)
 		service := vcr.NewMockVCR(ctrl)
 		service.EXPECT().GetOIDCIssuer().Return(oidcIssuer)
 		api := Wrapper{VCR: service}

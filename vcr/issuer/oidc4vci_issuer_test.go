@@ -61,6 +61,7 @@ func Test_memoryIssuer_ProviderMetadata(t *testing.T) {
 	assert.Equal(t, oidc4vci.ProviderMetadata{
 		Issuer:        "https://example.com/did:nuts:issuer",
 		TokenEndpoint: "https://example.com/did:nuts:issuer/oidc/token",
+		PreAuthorizedGrantAnonymousAccessSupported: true,
 	}, metadata)
 }
 
