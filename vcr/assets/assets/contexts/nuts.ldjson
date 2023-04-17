@@ -34,8 +34,6 @@
 
         "id": "@id",
         "type": "@type",
-        "cred": "https://www.w3.org/2018/credentials#",
-        "nuts": "https://nuts.nl/credentials/v1#",
 
         "organization": {
           "@id":"schema:organization",
@@ -58,7 +56,6 @@
 
         "id": "@id",
         "type": "@type",
-        "cred": "https://www.w3.org/2018/credentials#",
         "nuts": "https://nuts.nl/credentials/v1#",
 
         "subject": {"@id": "nuts:subject", "@type": "@id"},
@@ -70,11 +67,22 @@
 
             "path": "nuts:path",
             "operations": {"@id": "nuts:operations", "@container": "@set"},
-            "userContext": "nuts:userContext"
+            "userContext": "nuts:userContext",
+            "assuranceLevel": "nuts:assuranceLevel"
           }
         },
         "localParameters": {"@id": "nuts:localParameters", "@type": "@json"}
       }
-    }
+    },
+    "NutsEmployeeCredential": {
+      "@id": "nuts:NutsEmployeeCredential",
+      "@context": {
+        "@version": 1.1,
+        "@propagate": true,
+        "@protected": true,
+        "@vocab": "schema"
+      }
+    },
+    "NutsSelfSignedPresentation": "nuts:NutsSelfSignedPresentation"
   }
 }
