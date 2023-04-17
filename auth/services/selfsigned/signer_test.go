@@ -62,7 +62,7 @@ func TestSessionStore_StartSigningSession(t *testing.T) {
 		}
 		ss := NewSessionStore(nil).(sessionStore)
 
-		sp, err := ss.StartSigningSession("contract", params)
+		sp, err := ss.StartSigningSession(testContract, params)
 		require.NoError(t, err)
 		session := ss.sessions[sp.SessionID()]
 		require.NotNil(t, session)
