@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	issuer2 "github.com/nuts-foundation/nuts-node/vcr/issuer"
+	verifier2 "github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"os"
@@ -214,10 +215,11 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 }
 
 type mockContext struct {
-	ctrl   *gomock.Controller
-	vcr    *vcr.MockVCR
-	holder *holder.MockHolder
-	issuer *issuer2.MockIssuer
+	ctrl     *gomock.Controller
+	vcr      *vcr.MockVCR
+	holder   *holder.MockHolder
+	issuer   *issuer2.MockIssuer
+	verifier *verifier2.MockVerifier
 }
 
 func newMockContext(t *testing.T) mockContext {
@@ -225,13 +227,16 @@ func newMockContext(t *testing.T) mockContext {
 	vcr := vcr.NewMockVCR(ctrl)
 	holder := holder.NewMockHolder(ctrl)
 	issuer := issuer2.NewMockIssuer(ctrl)
-	vcr.EXPECT().Issuer().Return(issuer).AnyTimes()
+	verifier := verifier2.NewMockVerifier(ctrl)
 	vcr.EXPECT().Holder().Return(holder).AnyTimes()
+	vcr.EXPECT().Issuer().Return(issuer).AnyTimes()
+	vcr.EXPECT().Verifier().Return(verifier).AnyTimes()
 
 	return mockContext{
-		ctrl:   ctrl,
-		vcr:    vcr,
-		issuer: issuer,
-		holder: holder,
+		ctrl:     ctrl,
+		vcr:      vcr,
+		issuer:   issuer,
+		holder:   holder,
+		verifier: verifier,
 	}
 }
