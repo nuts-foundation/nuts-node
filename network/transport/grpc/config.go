@@ -23,11 +23,14 @@ import (
 	"crypto/x509"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crl"
+	"github.com/nuts-foundation/nuts-node/pki/crl"
 	networkTypes "github.com/nuts-foundation/nuts-node/network/transport"
 	"google.golang.org/grpc"
 	"net"
 	"time"
+
+        crlconfig "github.com/nuts-foundation/nuts-node/pki/crl/config"
+        pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
 )
 
 // tcpListenerCreator starts a TCP listener for the inbound gRPC server on the given address.
@@ -64,7 +67,13 @@ func WithTLS(clientCertificate tls.Certificate, trustStore *core.TrustStore) Con
 	return func(config *Config) error {
 		config.clientCert = &clientCertificate
 		config.trustStore = trustStore.CertPool
-		crlValidator, err := crl.New(trustStore.Certificates())
+		
+		pkiCfg := pkiconfig.Config{
+			CRL: crlconfig.Config{
+				MaxUpdateFailHours: 4,
+			},
+		}
+		crlValidator, err := crl.New(pkiCfg, trustStore.Certificates())
 		if err != nil {
 			return err
 		}

@@ -26,11 +26,12 @@ import (
 	"encoding/asn1"
 	"encoding/base64"
 	"github.com/golang/mock/gomock"
-	"github.com/nuts-foundation/nuts-node/crl"
 	"github.com/stretchr/testify/require"
 	"math/big"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/pki/crl"
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"

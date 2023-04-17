@@ -30,7 +30,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/crl/log"
+	"github.com/nuts-foundation/nuts-node/pki/blacklist"
+	pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
+	"github.com/nuts-foundation/nuts-node/pki/crl/log"
 )
 
 var nowFunc = time.Now
@@ -81,7 +83,7 @@ type validator struct {
 	crls sync.Map
 
 	// blacklist implements blocking of certificates with tuples of issuer/serial number
-	blacklist *blacklist
+	blacklist blacklist.Blacklist
 
 	// maxUpdateFailHours is the maximum number of hours that a CRL or blacklist can fail to update without causing errors
 	maxUpdateFailHours int
@@ -110,28 +112,24 @@ func newRevocationList(cert *x509.Certificate) *revocationList {
 }
 
 // New returns a new CRL validator.
-func New(config Config, truststore []*x509.Certificate) (Validator, error) {
+func New(config pkiconfig.Config, truststore []*x509.Certificate) (Validator, error) {
 	return newValidatorWithHTTPClient(config, truststore, &http.Client{Timeout: syncTimeout})
 }
 
 // NewValidatorWithHTTPClient returns a new instance with a pre-configured HTTP client
-func newValidatorWithHTTPClient(config Config, certificates []*x509.Certificate, client *http.Client) (*validator, error) {
-	// Create the new blacklist if a URL was specified
-	var blacklist *blacklist
-	var err error
-	if config.BlacklistURL != "" {
-		blacklist, err = newBlacklist(config.BlacklistURL, config.BlacklistTrustedSigner)
-		if err != nil {
-			return nil, fmt.Errorf("failed to init blacklist: %w", err)
-		}
+func newValidatorWithHTTPClient(config pkiconfig.Config, certificates []*x509.Certificate, client *http.Client) (*validator, error) {
+	// Create the new blacklist with the config
+	blacklist, err := blacklist.New(config.Blacklist)
+	if err != nil {
+		return nil, fmt.Errorf("failed to init blacklist: %w", err)
 	}
 
-	// Create the validator, including the optional blacklist
+	// Create the validator
 	val := &validator{
 		httpClient:         client,
 		truststore:         map[string]*x509.Certificate{},
 		blacklist:          blacklist,
-		maxUpdateFailHours: config.MaxUpdateFailHours,
+		maxUpdateFailHours: config.CRL.MaxUpdateFailHours,
 	}
 
 	// add truststore
@@ -238,7 +236,7 @@ func (v *validator) validateCert(cert *x509.Certificate) error {
 	// Check if a blacklist is in use
 	if v.blacklist != nil {
 		// Validate the cert against the blacklist
-		if err := v.blacklist.validateCert(cert); err != nil {
+		if err := v.blacklist.ValidateCert(cert); err != nil {
 			// Return any blacklist error, blocking the certificate
 			return err
 		}
@@ -342,19 +340,19 @@ func (v *validator) sync() {
 			defer wg.Done()
 
 			// Update the blacklist
-			if err := v.blacklist.update(); err != nil {
+			if err := v.blacklist.Update(); err != nil {
 				// If the blacklist is more than X hours out of date then there is a serious issue
-				if time.Since(v.blacklist.lastUpdated) > time.Duration(v.maxUpdateFailHours)*time.Hour {
+				if time.Since(v.blacklist.LastUpdated()) > time.Duration(v.maxUpdateFailHours)*time.Hour {
 					// Log a message about the failed blacklist update
 					log.Logger().
 						WithError(err).
-						WithField("URL", v.blacklist.url).
+						WithField("URL", v.blacklist.URL()).
 						Error("Failed to update blacklist")
 				} else {
 					// Log a message about the failed blacklist update
 					log.Logger().
 						WithError(err).
-						WithField("URL", v.blacklist.url).
+						WithField("URL", v.blacklist.URL()).
 						Warn("Failed to update blacklist")
 				}
 			}

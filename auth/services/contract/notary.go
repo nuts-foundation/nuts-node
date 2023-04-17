@@ -37,9 +37,11 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned"
 	"github.com/nuts-foundation/nuts-node/auth/services/uzi"
 	"github.com/nuts-foundation/nuts-node/auth/services/x509"
-	"github.com/nuts-foundation/nuts-node/crl"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
+	pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
+	"github.com/nuts-foundation/nuts-node/pki/crl"
+	crlconfig "github.com/nuts-foundation/nuts-node/pki/crl/config"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	irmago "github.com/privacybydesign/irmago"
@@ -199,7 +201,14 @@ func (n *notary) Configure() (err error) {
 		if err != nil {
 			return err
 		}
-		n.uziCrlValidator, err = crl.New(truststore.Certificates())
+
+		pkiCfg := pkiconfig.Config{
+			CRL: crlconfig.Config{
+				MaxUpdateFailHours: 4,
+			},
+		}
+
+		n.uziCrlValidator, err = crl.New(pkiCfg, truststore.Certificates())
 		if err != nil {
 			return err
 		}

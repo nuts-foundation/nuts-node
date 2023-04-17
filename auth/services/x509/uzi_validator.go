@@ -21,16 +21,16 @@ package x509
 import (
 	"encoding/asn1"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/auth/assets"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crl"
 	"io/fs"
 	"strings"
 
 	"github.com/lestrrat-go/jwx/jwa"
 
+	"github.com/nuts-foundation/nuts-node/auth/assets"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/pki/crl"
 )
 
 // UziSignedToken implements a SignedToken interface for contracts signed by the UZI means in the JwtX509Token form.

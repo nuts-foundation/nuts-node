@@ -29,10 +29,12 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/services/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crl"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/jsonld"
+	crlconfig "github.com/nuts-foundation/nuts-node/pki/crl/config"
+	pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
+	"github.com/nuts-foundation/nuts-node/pki/crl"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/didstore"
@@ -140,7 +142,13 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 			return err
 		}
 
-		validator, err := crl.New(trustStore.Certificates())
+		pkiCfg := pkiconfig.Config{
+			CRL: crlconfig.Config{
+				MaxUpdateFailHours: 4,
+			},
+		}
+
+		validator, err := crl.New(pkiCfg, trustStore.Certificates())
 		if err != nil {
 			return err
 		}

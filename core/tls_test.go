@@ -30,7 +30,7 @@ func TestLoadTrustStore(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		nowFunc = func() time.Time { return time.Date(2022, 12, 1, 0, 0, 0, 0, time.UTC) }
 		defer func() { nowFunc = time.Now }()
-		store, err := LoadTrustStore("../crl/test/pkioverheid-server-bundle.pem")
+		store, err := LoadTrustStore("../pki/test/pkioverheid-server-bundle.pem")
 
 		require.NoError(t, err)
 		assert.NotNil(t, store)

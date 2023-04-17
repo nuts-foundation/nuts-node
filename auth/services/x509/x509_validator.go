@@ -25,8 +25,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crl"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/pki/crl"
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"

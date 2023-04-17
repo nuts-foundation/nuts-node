@@ -1,4 +1,22 @@
-package crl
+/*
+ * Nuts node
+ * Copyright (C) 2023 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+package blacklist
 
 import (
 	"crypto/x509"
@@ -10,7 +28,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/crl/log"
+	config "github.com/nuts-foundation/nuts-node/pki/blacklist/config"
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
@@ -25,8 +43,15 @@ var (
 	ErrCertBlacklisted = errors.New("certificate is blacklisted")
 )
 
-// blacklist implements arbitrary certificate rejection using issuer and serial number tuples
-type blacklist struct {
+type Blacklist interface {
+	LastUpdated() time.Time
+	Update() error
+	URL() string
+	ValidateCert(cert *x509.Certificate) error
+}
+
+// blacklistImpl implements arbitrary certificate rejection using issuer and serial number tuples
+type blacklistImpl struct {
 	// url specifies the URL where the blacklist is downloaded
 	url string
 
@@ -52,24 +77,38 @@ type blacklistEntry struct {
 	JWKThumbprint string
 }
 
-// newBlacklist creates a new blacklist with the specified url and trusted Ed25519 key in PEM format
-func newBlacklist(URL string, trustedKeyPEM string) (*blacklist, error) {
+// New creates a blacklist with the specified configuration
+func New(config config.Config) (Blacklist, error) {
+	// "Disable" (operate in a NOP mode) the blacklist when the URL is empty
+	if config.URL == "" {
+		// Return the new blacklist and a nil error
+		return &blacklistImpl{
+			trustedKey: nil,
+			url:        "",
+		}, nil
+	}
+
 	// Parse the trusted key
-	key, err := jwk.ParseKey([]byte(trustedKeyPEM), jwk.WithPEM(true))
+	key, err := jwk.ParseKey([]byte(config.TrustedSigner), jwk.WithPEM(true))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse key: %w", err)
 	}
 
 	// Return the new blacklist and a nil error
-	return &blacklist{
-		url:        URL,
+	return &blacklistImpl{
 		trustedKey: key,
+		url:        config.URL,
 	}, nil
 }
 
-// validateCert checks for the issuer and serialNumber in the blacklist, returning nil when the cert is permitted
+// ValidateCert checks for the issuer and serialNumber in the blacklist, returning nil when the cert is permitted
 // or an error when the cert is blacklisted or the blacklist cannot be retrieved
-func (b *blacklist) validateCert(cert *x509.Certificate) error {
+func (b *blacklistImpl) ValidateCert(cert *x509.Certificate) error {
+	// Blacklists with an empty URL are a NOP
+	if b.URL() == "" {
+		return nil
+	}
+
 	// Extract the necessary information from the certificate
 	issuer := cert.Issuer.String()
 	serialNumber := cert.SerialNumber.String()
@@ -77,9 +116,9 @@ func (b *blacklist) validateCert(cert *x509.Certificate) error {
 	// If the blacklist has not yet been downloaded, do so now
 	if b.lastUpdated.IsZero() {
 		// Trigger an update of the blacklist
-		if err := b.update(); err != nil {
+		if err := b.Update(); err != nil {
 			// If the blacklist download failed then log a message about it
-			log.Logger().WithError(err).
+			logger().WithError(err).
 				WithField("Issuer", issuer).
 				WithField("S/N", serialNumber).
 				Error("cert validation failed because the blacklist cannot be downloaded")
@@ -111,12 +150,25 @@ func (b *blacklist) validateCert(cert *x509.Certificate) error {
 	return nil
 }
 
+func (b *blacklistImpl) LastUpdated() time.Time {
+	return b.lastUpdated
+}
+
+func (b *blacklistImpl) URL() string {
+	return b.url
+}
+
 // update downloads the blacklist, and updates the in-memory representation
-func (b *blacklist) update() error {
+func (b *blacklistImpl) Update() error {
+	// Updating a blacklist with a URL is a NOP
+	if b.URL() == "" {
+		return nil
+	}
+
 	// Download the blacklist
 	bytes, err := b.download()
 	if err != nil {
-		log.Logger().WithError(err).
+		logger().WithError(err).
 			WithField("URl", b.url).
 			Warn("certiciate blacklist cannot be downloaded")
 		return err
@@ -145,7 +197,7 @@ func (b *blacklist) update() error {
 }
 
 // download retrieves and parses the blacklist
-func (b *blacklist) download() ([]byte, error) {
+func (b *blacklistImpl) download() ([]byte, error) {
 	// Make an HTTP GET request for the blacklist URL
 	response, err := http.Get(b.url)
 	if err != nil {
@@ -155,7 +207,7 @@ func (b *blacklist) download() ([]byte, error) {
 	// Ensure the response body is cleaned up
 	defer func() {
 		if err = response.Body.Close(); err != nil {
-			log.Logger().Warn(err)
+			logger().Warn(err)
 		}
 	}()
 

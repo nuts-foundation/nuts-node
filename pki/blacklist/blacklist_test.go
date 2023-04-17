@@ -1,4 +1,22 @@
-package crl
+/*
+ * Nuts node
+ * Copyright (C) 2023 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+package blacklist
 
 import (
 	"crypto/x509"
@@ -8,6 +26,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+        "github.com/nuts-foundation/nuts-node/pki/blacklist/config"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -84,6 +104,14 @@ ZWp2Pn+Rl1zfuYeXfdtMnFHmGPeiXKZB+u5cZbVxbxZ7nOPEVISKEBxXL8+SE311
 btg+JeGSqs/aDd7h/Y/62V/IhFqDHuDQ344zPvbQl+dTz/9FQ7USQMz9Fw==
 -----END CERTIFICATE-----`
 
+func newBlacklist(url, trustedSigner string) (Blacklist, error) {
+	cfg := config.Config{
+		TrustedSigner: trustedSigner,
+		URL: url,
+	}
+	return New(cfg)
+}
+
 // Do not use this value outside of blacklist_test.go
 const blacklistedCertIssuer = `CN=www.example.com,O=Internet Widgits Pty Ltd,L=Amsterdam,ST=Noord-Holland,C=NL,1.2.840.113549.1.9.1=#0c136578616d706c65406578616d706c652e636f6d`
 
@@ -141,12 +169,12 @@ func TestDownloadBlacklist(t *testing.T) {
 	defer testServer.Close()
 
 	// Use the server in a new blacklist
-	blacklist, err := newBlacklist(testServer.URL, publicKeyDoNotUse)
+	blacklist, err := New(config.Config{URL: testServer.URL, TrustedSigner: publicKeyDoNotUse})
 	require.NoError(t, err)
 	require.NotNil(t, blacklist)
 
 	// Download the blacklist data and ensure it is correct
-	bytes, err := blacklist.download()
+	bytes, err := blacklist.(*blacklistImpl).download()
 	assert.Equal(t, string(bytes), blacklistJSON)
 }
 
@@ -165,14 +193,14 @@ func TestUpdateValidBlacklist(t *testing.T) {
 	require.NotNil(t, blacklist)
 
 	// Ensure the new blacklist update time is zero
-	assert.True(t, blacklist.lastUpdated.IsZero())
+	assert.True(t, blacklist.LastUpdated().IsZero())
 
 	// Update the blacklist data and ensure there are no errors
-	err = blacklist.update()
+	err = blacklist.Update()
 	require.NoError(t, err)
 
 	// Ensure the entries are present as expected in the blacklist structure
-	entriesPtr := blacklist.entries.Load()
+	entriesPtr := blacklist.(*blacklistImpl).entries.Load()
 	require.NotNil(t, entriesPtr)
 
 	// Dereference the entries slice
@@ -190,7 +218,7 @@ func TestUpdateValidBlacklist(t *testing.T) {
 	assert.Equal(t, entries[2].SerialNumber, blacklistedCertSerialNumber)
 
 	// Ensure the lastUpdated time was updated
-	assert.False(t, blacklist.lastUpdated.IsZero())
+	assert.False(t, blacklist.LastUpdated().IsZero())
 }
 
 // TestUpdateInvalidBlacklistFails ensures an untrusted blacklist cannot be updated
@@ -208,11 +236,11 @@ func TestUpdateInvalidBlacklistFails(t *testing.T) {
 	require.NotNil(t, blacklist)
 
 	// Update the blacklist data and ensure there is an error
-	err = blacklist.update()
+	err = blacklist.Update()
 	require.Error(t, err)
 
 	// Ensure no blacklist data was ingested
-	require.Nil(t, blacklist.entries.Load())
+	require.Nil(t, blacklist.(*blacklistImpl).entries.Load())
 }
 
 // TestValidCertificateAccepted ensures a non-blacklisted certificate is accepted
@@ -230,7 +258,7 @@ func TestValidCertificateAccepted(t *testing.T) {
 	require.NotNil(t, blacklist)
 
 	// Update the blacklist data and ensure there are no errors
-	err = blacklist.update()
+	err = blacklist.Update()
 	require.NoError(t, err)
 
 	// Parse the certificate
@@ -239,7 +267,7 @@ func TestValidCertificateAccepted(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check whether the certificate is blacklisted
-	err = blacklist.validateCert(cert)
+	err = blacklist.ValidateCert(cert)
 
 	// Ensure the returned error was nil, meaning the certificate is not blacklisted
 	assert.NoError(t, err)
@@ -260,7 +288,7 @@ func TestBlacklistedCertificateBlocked(t *testing.T) {
 	require.NotNil(t, blacklist)
 
 	// Update the blacklist data and ensure there are no errors
-	err = blacklist.update()
+	err = blacklist.Update()
 	require.NoError(t, err)
 
 	// Parse the certificate
@@ -269,7 +297,7 @@ func TestBlacklistedCertificateBlocked(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check whether the certificate is blacklisted
-	err = blacklist.validateCert(cert)
+	err = blacklist.ValidateCert(cert)
 
 	// Ensure the validation returned an error, meaning the certificate is blacklisted
 	assert.Error(t, err)
@@ -282,7 +310,7 @@ func TestRSACertificateJWKThumbprint(t *testing.T) {
 	block, _ := pem.Decode([]byte(blacklistedTestCertificate))
 	cert, err := x509.ParseCertificate(block.Bytes)
 	require.NoError(t, err)
-	
+
 	// Check the JWK fingerprint of the cert
 	keyID := certKeyJWKFingerprint(cert)
 	assert.Equal(t, "PVOjk-5d4Lb-FGxurW-fNMUv3rYZZBWF3gGaP5s1UVQ", keyID)
