@@ -21,10 +21,12 @@ package selfsigned
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/golang/mock/gomock"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	issuer2 "github.com/nuts-foundation/nuts-node/vcr/issuer"
@@ -73,6 +75,17 @@ func TestSessionStore_StartSigningSession(t *testing.T) {
 		assert.Equal(t, initials, session.Employee.Initials)
 		assert.Equal(t, identifier, session.Employee.Identifier)
 		assert.Equal(t, roleName, session.Employee.RoleName)
+	})
+
+	t.Run("error on invalid JSON", func(t *testing.T) {
+		params := map[string]interface{}{
+			"broken": func() {},
+		}
+		ss := NewSessionStore(nil)
+
+		_, err := ss.StartSigningSession(testContract, params)
+
+		require.Error(t, err)
 	})
 }
 
@@ -156,6 +169,45 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 		ss.sessions[sp.SessionID()] = session
 		_, err = ss.SigningSessionStatus(sp.SessionID())
 		require.NoError(t, err)
+	})
+
+	t.Run("error for unknown session", func(t *testing.T) {
+		ss := NewSessionStore(nil)
+
+		_, err := ss.SigningSessionStatus("unknown")
+
+		assert.Equal(t, services.ErrSessionNotFound, err)
+	})
+
+	t.Run("error on VC issuance", func(t *testing.T) {
+		mockContext := newMockContext(t)
+		ss := NewSessionStore(mockContext.vcr).(sessionStore)
+		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).Return(nil, errors.New("error"))
+
+		sp, err := ss.StartSigningSession(testContract, params)
+		require.NoError(t, err)
+		session := ss.sessions[sp.SessionID()]
+		session.status = SessionCompleted
+		ss.sessions[sp.SessionID()] = session
+		_, err = ss.SigningSessionStatus(sp.SessionID())
+
+		assert.EqualError(t, err, "issue VC failed: error")
+	})
+
+	t.Run("error on building VP", func(t *testing.T) {
+		mockContext := newMockContext(t)
+		ss := NewSessionStore(mockContext.vcr).(sessionStore)
+		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).Return(&testVC, nil)
+		mockContext.holder.EXPECT().BuildVP(context.TODO(), gomock.Len(1), gomock.Any(), &employer, true).Return(nil, errors.New("error"))
+
+		sp, err := ss.StartSigningSession(testContract, params)
+		require.NoError(t, err)
+		session := ss.sessions[sp.SessionID()]
+		session.status = SessionCompleted
+		ss.sessions[sp.SessionID()] = session
+		_, err = ss.SigningSessionStatus(sp.SessionID())
+
+		assert.EqualError(t, err, "build VP failed: error")
 	})
 }
 

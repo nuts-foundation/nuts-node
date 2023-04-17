@@ -23,6 +23,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	vc2 "github.com/nuts-foundation/go-did/vc"
@@ -55,7 +56,7 @@ func (v sessionStore) SigningSessionStatus(sessionID string) (contract.SigningSe
 		}
 		verifiableCredential, err := v.vcr.Issuer().Issue(context.TODO(), credentialOptions, false, false)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("issue VC failed: %w", err)
 		}
 		proofOptions := proof.ProofOptions{
 			Created:      time.Now(),
@@ -64,7 +65,7 @@ func (v sessionStore) SigningSessionStatus(sessionID string) (contract.SigningSe
 		}
 		vp, err = v.vcr.Holder().BuildVP(context.TODO(), []vc2.VerifiableCredential{*verifiableCredential}, proofOptions, &issuer, true)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("build VP failed: %w", err)
 		}
 	}
 
@@ -87,12 +88,12 @@ func (v sessionStore) StartSigningSession(rawContractText string, params map[str
 	}
 	// load params directly into session
 	marshalled, err := json.Marshal(params)
+	// only functions or other weird constructions can cause an error here. No need for custom error handling.
 	if err != nil {
 		return nil, err
 	}
-	if err = json.Unmarshal(marshalled, &s); err != nil {
-		return nil, err
-	}
+	// impossible to get an error here since both the pointer and the data is under our control.
+	_ = json.Unmarshal(marshalled, &s)
 	v.sessions[sessionID] = s
 
 	return sessionPointer{
