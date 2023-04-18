@@ -158,7 +158,7 @@ func (n *notary) Configure() (err error) {
 		cvMap[cv] = true
 	}
 
-	if n.config.hasContractValidator("irma") {
+	if n.config.hasContractValidator(irma.ContractFormat) {
 		var (
 			irmaConfig *irmago.Configuration
 			irmaServer *irmaserver.Server
@@ -195,7 +195,7 @@ func (n *notary) Configure() (err error) {
 		}
 	}
 
-	if _, ok := cvMap[dummy.ContractFormat]; ok && !n.config.StrictMode {
+	if n.config.hasContractValidator(dummy.ContractFormat) && !n.config.StrictMode {
 		d := dummy.Dummy{
 			Sessions: map[string]string{},
 			Status:   map[string]string{},
@@ -205,7 +205,7 @@ func (n *notary) Configure() (err error) {
 		n.signers[dummy.ContractFormat] = d
 	}
 
-	if _, ok := cvMap[uzi.ContractFormat]; ok {
+	if n.config.hasContractValidator(uzi.ContractFormat) {
 		truststore, err := x509.LoadUziTruststore(x509.UziAcceptation)
 		if err != nil {
 			return err
@@ -224,7 +224,7 @@ func (n *notary) Configure() (err error) {
 		n.verifiers[uzi.VerifiablePresentationType] = uziVerifier
 	}
 
-	if _, ok := cvMap[selfsigned.ContractFormat]; ok {
+	if n.config.hasContractValidator(selfsigned.ContractFormat) {
 		es := selfsigned.NewSigner(n.vcr)
 		ev := selfsigned.NewValidator(n.vcr, contract.StandardContractTemplates)
 
