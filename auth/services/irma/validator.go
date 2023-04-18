@@ -21,6 +21,7 @@ package irma
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwt"
@@ -173,6 +174,7 @@ func (v Service) VerifyVP(vp vc.VerifiablePresentation, checkTime *time.Time) (c
 type SessionHandler interface {
 	GetSessionResult(token string) (*irmaserver.SessionResult, error)
 	StartSession(request interface{}, handler irmaserver.SessionHandler) (*irma.Qr, irma.RequestorToken, *irma.FrontendSessionRequest, error)
+	HandlerFunc() http.HandlerFunc
 }
 
 // Compile time check if the DefaultIrmaSessionHandler implements the SessionHandler interface
@@ -192,4 +194,8 @@ func (d *DefaultIrmaSessionHandler) GetSessionResult(token string) (*irmaserver.
 // StartSession forwards to Irma Server instance
 func (d *DefaultIrmaSessionHandler) StartSession(request interface{}, handler irmaserver.SessionHandler) (*irma.Qr, irma.RequestorToken, *irma.FrontendSessionRequest, error) {
 	return d.I.StartSession(request, handler)
+}
+
+func (d *DefaultIrmaSessionHandler) HandlerFunc() http.HandlerFunc {
+	return d.I.HandlerFunc()
 }

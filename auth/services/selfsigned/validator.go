@@ -25,11 +25,12 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
+	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"time"
 )
 
-func (v service) VerifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (contract.VPVerificationResult, error) {
+func (v validator) VerifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (contract.VPVerificationResult, error) {
 	result := selfsignedVerificationResult{
 		Status: contract.Invalid,
 	}
@@ -87,7 +88,7 @@ func (v service) VerifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (con
 	}, nil
 }
 
-func (v service) verifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (credentialSubject employeeIdentityCredentialSubject, proof vc.JSONWebSignature2020Proof, resultErr error) {
+func (v validator) verifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (credentialSubject employeeIdentityCredentialSubject, proof vc.JSONWebSignature2020Proof, resultErr error) {
 	vcs, err := v.vcr.Verifier().VerifyVP(vp, true, validAt)
 	if err != nil {
 		if errors.As(err, &verifier.VerificationError{}) {
@@ -155,6 +156,18 @@ func validateRequiredAttributes(credentialSubject employeeIdentityCredentialSubj
 		return errors.New("credentialSubject.member.member.type must be \"Person\"")
 	}
 	return nil
+}
+
+type validator struct {
+	vcr            vcr.VCR
+	validContracts contract.TemplateStore
+}
+
+func NewValidator(vcrInstance vcr.VCR, contractStore contract.TemplateStore) contract.VPVerifier {
+	return validator{
+		vcr:            vcrInstance,
+		validContracts: contractStore,
+	}
 }
 
 type selfsignedVerificationResult struct {

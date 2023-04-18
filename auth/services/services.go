@@ -21,7 +21,7 @@ package services
 import (
 	"context"
 	"github.com/nuts-foundation/go-did/vc"
-	"net/http"
+	"github.com/nuts-foundation/nuts-node/core"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -61,9 +61,7 @@ type ContractNotary interface {
 
 	Configure() error
 
-	// HandlerFunc returns the Irma server handler func
-	HandlerFunc() http.HandlerFunc
-
 	// Start any validator that needs to periodically update its database. Cancel the context to stop these processes.
 	Start(ctx context.Context)
+	core.Routable
 }

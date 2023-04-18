@@ -29,30 +29,54 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
+	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/controllers"
+	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/types"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
+	"net/http"
 	"time"
 )
 
 const credentialType = "NutsEmployeeCredential"
 
-func (v service) SigningSessionStatus(ctx context.Context, sessionID string) (contract.SigningSessionResult, error) {
-	s, ok := v.sessions[sessionID]
+// SessionStore is a contract signer and verifier that always succeeds
+// The SessionStore signer is not supposed to be used in a clustered context unless consecutive calls arrive at the same instance
+type signer struct {
+	store types.SessionStore
+	vcr   vcr.VCR
+}
+
+func NewEmployeeIDSigner(vcr vcr.VCR) contract.Signer {
+	return &signer{
+		// NewSessionStore returns an initialized SessionStore
+		store: NewSessionStore(),
+		vcr:   vcr,
+	}
+}
+
+func (v signer) SigningSessionStatus(ctx context.Context, sessionID string) (contract.SigningSessionResult, error) {
+	s, ok := v.store.Load(sessionID)
 	if !ok {
 		return nil, services.ErrSessionNotFound
 	}
 	var vp *vc.VerifiablePresentation
+	issuerID, err := did.ParseDID(s.Employer)
+	if err != nil {
+		return nil, fmt.Errorf("invalid issuer DID: %w", err)
+	}
 
-	if s.status == SessionCompleted {
+	if s.Status == SessionCompleted {
 		expirationData := time.Now().Add(24 * time.Hour)
 		credentialOptions := vc.VerifiableCredential{
 			Context:           []ssi.URI{credential.NutsV1ContextURI},
 			Type:              []ssi.URI{vc.VerifiableCredentialTypeV1URI(), ssi.MustParseURI(credentialType)},
-			Issuer:            s.issuerDID.URI(),
+			Issuer:            issuerID.URI(),
 			IssuanceDate:      time.Now(),
 			ExpirationDate:    &expirationData,
-			CredentialSubject: s.credentialSubject(),
+			CredentialSubject: s.CredentialSubject(),
 		}
 		verifiableCredential, err := v.vcr.Issuer().Issue(ctx, credentialOptions, false, false)
 		if err != nil {
@@ -63,11 +87,11 @@ func (v service) SigningSessionStatus(ctx context.Context, sessionID string) (co
 			AdditionalTypes:    []ssi.URI{ssi.MustParseURI(VerifiablePresentationType)},
 			ProofOptions: proof.ProofOptions{
 				Created:      time.Now(),
-				Challenge:    &s.contract,
+				Challenge:    &s.Contract,
 				ProofPurpose: proof.AuthenticationProofPurpose,
 			},
 		}
-		vp, err = v.vcr.Holder().BuildVP(ctx, []vc.VerifiableCredential{*verifiableCredential}, presentationOptions, &s.issuerDID, true)
+		vp, err = v.vcr.Holder().BuildVP(ctx, []vc.VerifiableCredential{*verifiableCredential}, presentationOptions, issuerID, true)
 		if err != nil {
 			return nil, fmt.Errorf("build VP failed: %w", err)
 		}
@@ -75,20 +99,24 @@ func (v service) SigningSessionStatus(ctx context.Context, sessionID string) (co
 
 	return signingSessionResult{
 		id:                     sessionID,
-		status:                 s.status,
-		request:                s.contract,
+		status:                 s.Status,
+		request:                s.Contract,
 		verifiablePresentation: vp,
 	}, nil
 }
 
-func (v service) StartSigningSession(rawContractText string, params map[string]interface{}) (contract.SessionPointer, error) {
+func (v signer) StartSigningSession(rawContractText string, params map[string]interface{}) (contract.SessionPointer, error) {
 	sessionBytes := make([]byte, 16)
-	rand.Reader.Read(sessionBytes)
+	_, _ = rand.Reader.Read(sessionBytes)
+
+	secret := make([]byte, 16)
+	_, _ = rand.Reader.Read(sessionBytes)
 
 	sessionID := hex.EncodeToString(sessionBytes)
-	s := session{
-		contract: rawContractText,
-		status:   SessionCreated,
+	s := types.Session{
+		Contract: rawContractText,
+		Status:   SessionCreated,
+		Secret:   hex.EncodeToString(secret),
 	}
 	// load params directly into session
 	marshalled, err := json.Marshal(params)
@@ -97,18 +125,45 @@ func (v service) StartSigningSession(rawContractText string, params map[string]i
 		return nil, err
 	}
 	// impossible to get an error here since both the pointer and the data is under our control.
-	_ = json.Unmarshal(marshalled, &s.params)
+	_ = json.Unmarshal(marshalled, &s)
 
 	// Parse the DID here so we can return an error
-	did, err := did.ParseDID(s.params.Employer)
+	employeeDID, err := did.ParseDID(params["employer"].(string))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse employer param as DID: %w", err)
 	}
-	s.issuerDID = *did
-	v.sessions[sessionID] = s
+	s.Employer = employeeDID.String()
+	v.store.Store(sessionID, s)
 
 	return sessionPointer{
 		sessionID: sessionID,
 		url:       "https://example.com", // placeholder, convert to template
 	}, nil
+}
+
+//func (v signer) MountHandlerFunc(router core.EchoRouter) error {
+//	h := controllers.Handler{}
+//	router.Add("GET", "/auth/v1/means/employee_id/:sessionID", echo.WrapHandler(http.HandlerFunc(v.HandleFormRequest)))
+//	return nil
+//}
+
+func (v signer) Routes(router core.EchoRouter) {
+	h := controllers.NewHandler(v.store)
+
+	// Add test data
+	v.store.Store("1", types.Session{
+		Contract: "contract",
+		Status:   SessionCreated,
+		Employee: types.Employee{
+			Identifier: "123",
+			RoleName:   "Verpleegkundige",
+			Initials:   "J.",
+			FamilyName: "de Vries",
+		},
+	})
+
+	h.Routes(router)
+}
+
+func (v signer) HandleFormRequest(w http.ResponseWriter, r *http.Request) {
 }

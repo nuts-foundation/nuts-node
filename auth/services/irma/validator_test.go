@@ -21,6 +21,7 @@ package irma
 import (
 	"encoding/base64"
 	"github.com/stretchr/testify/require"
+	"net/http"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/vc"
@@ -53,6 +54,11 @@ func (m *mockIrmaClient) StartSession(request interface{}, handler irmaservercor
 	}
 
 	return m.irmaQr, irma.RequestorToken(m.sessionToken), nil, nil
+}
+
+func (m *mockIrmaClient) HandlerFunc() http.HandlerFunc {
+	//TODO implement me
+	panic("implement me")
 }
 
 func TestService_VerifyVP(t *testing.T) {

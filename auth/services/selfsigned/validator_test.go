@@ -50,7 +50,7 @@ func TestSessionStore_VerifyVP(t *testing.T) {
 
 	t.Run("ok using mocks", func(t *testing.T) {
 		mockContext := newMockContext(t)
-		ss := NewService(mockContext.vcr, contract.StandardContractTemplates).(*service)
+		ss := NewValidator(mockContext.vcr, contract.StandardContractTemplates)
 		mockContext.verifier.EXPECT().VerifyVP(vp, true, &vpValidTime).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		result, err := ss.VerifyVP(vp, &vpValidTime)
@@ -62,7 +62,7 @@ func TestSessionStore_VerifyVP(t *testing.T) {
 
 	t.Run("technical error on verify", func(t *testing.T) {
 		mockContext := newMockContext(t)
-		ss := NewService(mockContext.vcr, contract.StandardContractTemplates).(*service)
+		ss := NewValidator(mockContext.vcr, contract.StandardContractTemplates)
 		mockContext.verifier.EXPECT().VerifyVP(vp, true, nil).Return(nil, errors.New("error"))
 
 		_, err := ss.VerifyVP(vp, nil)
@@ -72,7 +72,7 @@ func TestSessionStore_VerifyVP(t *testing.T) {
 
 	t.Run("verification error on verify", func(t *testing.T) {
 		mockContext := newMockContext(t)
-		ss := NewService(mockContext.vcr, contract.StandardContractTemplates).(*service)
+		ss := NewValidator(mockContext.vcr, contract.StandardContractTemplates)
 		mockContext.verifier.EXPECT().VerifyVP(vp, true, nil).Return(nil, verifier.VerificationError{})
 
 		result, err := ss.VerifyVP(vp, nil)
@@ -84,7 +84,7 @@ func TestSessionStore_VerifyVP(t *testing.T) {
 
 	t.Run("ok using in-memory DBs", func(t *testing.T) {
 		vcrContext := vcr2.NewTestVCRContext(t)
-		ss := NewService(vcrContext.VCR, contract.StandardContractTemplates).(*service)
+		ss := NewValidator(vcrContext.VCR, contract.StandardContractTemplates)
 		didDocument := did.Document{}
 		ddBytes, _ := os.ReadFile("./test/diddocument.json")
 		_ = json.Unmarshal(ddBytes, &didDocument)
@@ -108,7 +108,7 @@ func TestSessionStore_VerifyVP(t *testing.T) {
 		vp := vc.VerifiablePresentation{}
 		vpData, _ := os.ReadFile("./test/vp_invalid_contract.json")
 		_ = json.Unmarshal(vpData, &vp)
-		ss := NewService(mockContext.vcr, contract.StandardContractTemplates).(*service)
+		ss := NewValidator(mockContext.vcr, contract.StandardContractTemplates)
 		mockContext.verifier.EXPECT().VerifyVP(vp, true, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		result, err := ss.VerifyVP(vp, nil)
@@ -121,7 +121,7 @@ func TestSessionStore_VerifyVP(t *testing.T) {
 	t.Run("error - contract not valid for given time", func(t *testing.T) {
 		mockContext := newMockContext(t)
 		now := time.Now()
-		ss := NewService(mockContext.vcr, contract.StandardContractTemplates).(*service)
+		ss := NewValidator(mockContext.vcr, contract.StandardContractTemplates)
 		mockContext.verifier.EXPECT().VerifyVP(vp, true, &now).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		result, err := ss.VerifyVP(vp, &now)
@@ -133,7 +133,7 @@ func TestSessionStore_VerifyVP(t *testing.T) {
 
 	t.Run("error - missing credential", func(t *testing.T) {
 		mockContext := newMockContext(t)
-		ss := NewService(mockContext.vcr, contract.StandardContractTemplates).(*service)
+		ss := NewValidator(mockContext.vcr, contract.StandardContractTemplates)
 		mockContext.verifier.EXPECT().VerifyVP(vp, true, nil).Return([]vc.VerifiableCredential{}, nil)
 
 		result, err := ss.VerifyVP(vp, nil)
@@ -148,7 +148,7 @@ func TestSessionStore_VerifyVP(t *testing.T) {
 		vp := vc.VerifiablePresentation{}
 		vpData, _ := os.ReadFile("./test/vp_missing_proof.json")
 		_ = json.Unmarshal(vpData, &vp)
-		ss := NewService(mockContext.vcr, contract.StandardContractTemplates).(*service)
+		ss := NewValidator(mockContext.vcr, contract.StandardContractTemplates)
 		mockContext.verifier.EXPECT().VerifyVP(vp, true, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		result, err := ss.VerifyVP(vp, nil)
@@ -163,7 +163,7 @@ func TestSessionStore_VerifyVP(t *testing.T) {
 		vp := vc.VerifiablePresentation{}
 		vpData, _ := os.ReadFile("./test/vp_incorrect_proof_type.json")
 		_ = json.Unmarshal(vpData, &vp)
-		ss := NewService(mockContext.vcr, contract.StandardContractTemplates).(*service)
+		ss := NewValidator(mockContext.vcr, contract.StandardContractTemplates)
 		mockContext.verifier.EXPECT().VerifyVP(vp, true, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		result, err := ss.VerifyVP(vp, nil)
@@ -178,7 +178,7 @@ func TestSessionStore_VerifyVP(t *testing.T) {
 		vp := vc.VerifiablePresentation{}
 		vpData, _ := os.ReadFile("./test/vp_incorrect_signer.json")
 		_ = json.Unmarshal(vpData, &vp)
-		ss := NewService(mockContext.vcr, contract.StandardContractTemplates).(*service)
+		ss := NewValidator(mockContext.vcr, contract.StandardContractTemplates)
 		mockContext.verifier.EXPECT().VerifyVP(vp, true, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		result, err := ss.VerifyVP(vp, nil)
@@ -195,7 +195,7 @@ func TestSessionStore_VerifyVP(t *testing.T) {
 		vpData, _ := os.ReadFile("./test/vp_incorrect_subject.json")
 		_ = json.Unmarshal(vpData, &vp)
 		credential.Issuer = did.MustParseDID("did:nuts:a").URI()
-		ss := NewService(mockContext.vcr, contract.StandardContractTemplates).(*service)
+		ss := NewValidator(mockContext.vcr, contract.StandardContractTemplates)
 		mockContext.verifier.EXPECT().VerifyVP(vp, true, nil).Return([]vc.VerifiableCredential{credential}, nil)
 
 		result, err := ss.VerifyVP(vp, nil)
