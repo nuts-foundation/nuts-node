@@ -30,7 +30,7 @@ import (
 func (w Wrapper) GetOAuth2ClientMetadata(_ context.Context, request GetOAuth2ClientMetadataRequestObject) (GetOAuth2ClientMetadataResponseObject, error) {
 	id, err := did.ParseDID(request.Did)
 	if err != nil {
-		return nil, core.InvalidInputError("invalid DID")
+		return nil, core.NotFoundError("invalid DID")
 	}
 	return GetOAuth2ClientMetadata200JSONResponse(w.VCR.GetOIDCWallet(*id).Metadata()), nil
 }
@@ -39,7 +39,7 @@ func (w Wrapper) GetOAuth2ClientMetadata(_ context.Context, request GetOAuth2Cli
 func (w Wrapper) HandleCredentialOffer(ctx context.Context, request HandleCredentialOfferRequestObject) (HandleCredentialOfferResponseObject, error) {
 	id, err := did.ParseDID(request.Did)
 	if err != nil {
-		return nil, core.InvalidInputError("invalid DID")
+		return nil, core.NotFoundError("invalid DID")
 	}
 	offer := oidc4vci.CredentialOffer{}
 	if err := json.Unmarshal([]byte(request.Params.CredentialOffer), &offer); err != nil {
@@ -49,6 +49,8 @@ func (w Wrapper) HandleCredentialOffer(ctx context.Context, request HandleCreden
 		return nil, core.InvalidInputError("there must be at least 1 credential in credential offer")
 	}
 
+	// TODO: If the wallet DID is unknown, it should still return 404 (like with an invalid DID).
+	//       See https://github.com/nuts-foundation/nuts-node/issues/2056
 	err = w.VCR.GetOIDCWallet(*id).HandleCredentialOffer(ctx, offer)
 	if err != nil {
 		return nil, err

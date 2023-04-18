@@ -74,7 +74,7 @@ func (client *Crypto) SignJWT(ctx context.Context, claims map[string]interface{}
 		return "", err
 	}
 
-	return signJWT(keyAsJWK, claims, nil)
+	return signJWT(keyAsJWK, claims, headers)
 }
 
 // SignJWS creates a signed JWS using the indicated key and map of headers and payload as bytes.
@@ -154,7 +154,10 @@ func signJWT(key jwk.Key, claims map[string]interface{}, headers map[string]inte
 			return "", err
 		}
 	}
-	hdr := convertHeaders(headers)
+	hdr, err := convertHeaders(headers)
+	if err != nil {
+		return "", fmt.Errorf("invalid JWT headers: %w", err)
+	}
 
 	sig, err = jwt.Sign(t, jwa.SignatureAlgorithm(key.Algorithm()), key, jwt.WithHeaders(hdr))
 	token = string(sig)
@@ -347,13 +350,15 @@ func (client *Crypto) getPrivateKey(ctx context.Context, key interface{}) (crypt
 	return privateKey, kid, nil
 }
 
-func convertHeaders(headers map[string]interface{}) (hdr jws.Headers) {
-	hdr = jws.NewHeaders()
+func convertHeaders(headers map[string]interface{}) (jws.Headers, error) {
+	hdr := jws.NewHeaders()
 
 	for k, v := range headers {
-		hdr.Set(k, v)
+		if err := hdr.Set(k, v); err != nil {
+			return nil, err
+		}
 	}
-	return
+	return hdr, nil
 }
 
 func ecAlg(key *ecdsa.PrivateKey) (alg jwa.SignatureAlgorithm, err error) {

@@ -69,7 +69,7 @@ func (w Wrapper) Routes(router core.EchoRouter) {
 			return func(ctx echo.Context, args interface{}) (interface{}, error) {
 				if !w.VCR.OIDC4VCIEnabled() {
 					log.Logger().Info("Someone tried to access disabled OIDC4VCI API endpoint.")
-					return nil, core.NotFoundError("") // check response
+					return nil, core.NotFoundError("openid4vci is disabled")
 				}
 				return f(ctx, args)
 			}

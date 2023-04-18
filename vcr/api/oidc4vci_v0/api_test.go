@@ -20,29 +20,35 @@ package oidc4vci_v0
 
 import (
 	"github.com/golang/mock/gomock"
+	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"
-	httptest "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
 func TestWrapper_Routes(t *testing.T) {
 	t.Run("API enabled", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-
 		service := vcr.NewMockVCR(ctrl)
 		service.EXPECT().OIDC4VCIEnabled().Return(true)
+
 		api := Wrapper{VCR: service}
-		baseURL := httptest.StartEchoServer(t, func(router core.EchoRouter) {
-			api.Routes(router)
-		})
+		echoServer := echo.New()
+		api.Routes(echoServer)
 
-		httpResponse, err := http.Get(baseURL + "/identity/invalid-did/.well-known/openid-credential-wallet")
+		req := httptest.NewRequest(http.MethodGet, "/identity/:did/.well-known/openid-credential-wallet", nil)
+		rec := httptest.NewRecorder()
+		c := echoServer.NewContext(req, rec)
+		c.SetPath(req.URL.Path)
+		c.SetParamNames("did")
+		c.SetParamValues("invalid-did")
 
-		require.NoError(t, err)
+		echoServer.
+			require.NoError(t, err)
 		// Assertion may look weird, but if we get this status code it means we entered the API function.
 		assert.Equal(t, http.StatusBadRequest, httpResponse.StatusCode)
 	})

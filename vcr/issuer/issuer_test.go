@@ -278,6 +278,8 @@ func Test_issuer_Issue(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			oidcIssuer := NewMockOIDCIssuer(ctrl)
 			oidcIssuer.EXPECT().OfferCredential(gomock.Any(), gomock.Any(), walletMetadataURL)
+			vcrStore := vcr.NewMockWriter(ctrl)
+			vcrStore.EXPECT().StoreCredential(gomock.Any(), gomock.Any())
 			keyResolver := NewMockkeyResolver(ctrl)
 			keyResolver.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
 			serviceResolver := didservice.NewMockServiceResolver(ctrl)
@@ -292,6 +294,7 @@ func Test_issuer_Issue(t *testing.T) {
 				keyStore:        crypto.NewMemoryCryptoInstance(),
 				serviceResolver: serviceResolver,
 				oidcIssuer:      oidcIssuer,
+				vcrStore:        vcrStore,
 			}
 
 			result, err := sut.Issue(ctx, credentialOptions, true, false)
@@ -376,7 +379,7 @@ func Test_issuer_Issue(t *testing.T) {
 }
 
 func TestNewIssuer(t *testing.T) {
-	createdIssuer := NewIssuer(nil, nil, nil, nil, nil, nil, nil)
+	createdIssuer := NewIssuer(nil, nil, nil, nil, nil, nil, nil, nil)
 	assert.IsType(t, &issuer{}, createdIssuer)
 }
 

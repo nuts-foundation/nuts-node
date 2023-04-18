@@ -38,7 +38,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
-	vcr "github.com/nuts-foundation/nuts-node/vcr/types"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
@@ -46,8 +46,12 @@ import (
 var TimeFunc = time.Now
 
 // NewIssuer creates a new issuer which implements the Issuer interface.
-// If oidcIssuerFunc is nil, it won't try to issue over OIDC4VCI.
-func NewIssuer(store Store, networkPublisher Publisher, oidcIssuer OIDCIssuer, docResolver vdr.DocResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config) Issuer {
+// If oidcIssuer is nil, it won't try to issue over OIDC4VCI.
+// It needs types.Writer since issued credentials need to be in the general VCR store,
+// since that normally happens through receiving the just-issued credential over the network,
+// but that doesn't happen when issuing over OIDC4VCI. Thus, it needs to explicitly save it to the VCR store when issuing over OIDC4VCI.
+// See https://github.com/nuts-foundation/nuts-node/issues/2063
+func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher, oidcIssuer OIDCIssuer, docResolver vdr.DocResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config) Issuer {
 	resolver := vdrKeyResolver{docResolver: docResolver, keyResolver: keyStore}
 	return &issuer{
 		store:            store,
@@ -58,6 +62,7 @@ func NewIssuer(store Store, networkPublisher Publisher, oidcIssuer OIDCIssuer, d
 		serviceResolver:  didservice.NewServiceResolver(docResolver),
 		jsonldManager:    jsonldManager,
 		trustConfig:      trustConfig,
+		vcrStore:         vcrStore,
 	}
 }
 
@@ -70,6 +75,7 @@ type issuer struct {
 	keyStore         crypto.KeyStore
 	trustConfig      *trust.Config
 	jsonldManager    jsonld.JSONLD
+	vcrStore         types.Writer
 }
 
 // Issue creates a new credential, signs, stores it.
@@ -113,7 +119,7 @@ func (i issuer) Issue(ctx context.Context, credentialOptions vc.VerifiableCreden
 		// Try to issue over OIDC4VCI if it's enabled and if the credential is not public
 		// (public credentials are always published on the network).
 		if i.oidcIssuer != nil && !public {
-			err := i.issuerUsingOIDC4VCI(ctx, createdVC)
+			err := i.issueUsingOIDC4VCI(ctx, *createdVC)
 			if err == nil {
 				log.Logger().
 					WithField(core.LogFieldCredentialID, createdVC.ID.String()).
@@ -134,7 +140,7 @@ func (i issuer) Issue(ctx context.Context, credentialOptions vc.VerifiableCreden
 	return createdVC, nil
 }
 
-func (i issuer) issuerUsingOIDC4VCI(ctx context.Context, credential *vc.VerifiableCredential) error {
+func (i issuer) issueUsingOIDC4VCI(ctx context.Context, credential vc.VerifiableCredential) error {
 	// Resolve credential subject DID document to see if they support OIDC4VCI
 	type credentialSubject struct {
 		ID string `json:"id"`
@@ -162,11 +168,11 @@ func (i issuer) issuerUsingOIDC4VCI(ctx context.Context, credential *vc.Verifiab
 	if err != nil {
 		return fmt.Errorf("unable to unmarshal OIDC4VCI wallet metadata URL of DID %s: %w", subject.ID, err)
 	}
-	err = i.oidcIssuer.OfferCredential(ctx, *credential, walletMetadataURL)
+	err = i.oidcIssuer.OfferCredential(ctx, credential, walletMetadataURL)
 	if err != nil {
 		return fmt.Errorf("unable to publish the issued credential over OIDC4VCI to DID %s: %w", subject.ID, err)
 	}
-	return nil
+	return i.vcrStore.StoreCredential(credential, nil)
 }
 
 func (i issuer) buildVC(ctx context.Context, credentialOptions vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
@@ -242,7 +248,7 @@ func (i issuer) Revoke(ctx context.Context, credentialID ssi.URI) (*credential.R
 		return nil, fmt.Errorf("error while checking revocation status: %w", err)
 	}
 	if isRevoked {
-		return nil, vcr.ErrRevoked
+		return nil, types.ErrRevoked
 	}
 
 	revocation, err := i.buildRevocation(ctx, credentialID)
@@ -319,9 +325,9 @@ func (i issuer) isRevoked(credentialID ssi.URI) (bool, error) {
 	switch err {
 	case nil: // revocation found
 		return true, nil
-	case vcr.ErrMultipleFound:
+	case types.ErrMultipleFound:
 		return true, nil
-	case vcr.ErrNotFound:
+	case types.ErrNotFound:
 		return false, nil
 	default:
 		return true, err

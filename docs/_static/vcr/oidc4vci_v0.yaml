@@ -1,16 +1,19 @@
-openapi: 3.0.1
+openapi: 3.0.0
 info:
   title: OIDC4VCI Issuer API
-  version: 0.1.0"
-  description: This API is EXPERIMENTAL and subject to change.
+  version: 0.0.0
+  description: >
+    This API is EXPERIMENTAL and implements a draft version of OpenID 4 Verifiable Credential Issuance.
+    It is subject to change and should not be used in production.
 servers:
   - url: "http://localhost:1323"
 paths:
   # TODO: This is not a registered well-known URI, should we; 1. register it, 2. accept it's not registered and use it anyway?, 3. use another URI?
+  # See https://github.com/nuts-foundation/nuts-specification/issues/258
   "/identity/{did}/.well-known/openid-credential-wallet":
     get:
       tags:
-        - OIDC4VCI
+        - Wallet
       summary: Get the OAuth2 Client Metadata
       description: Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-client-metadata
       operationId: getOAuth2ClientMetadata
@@ -31,7 +34,7 @@ paths:
   "/identity/{did}/.well-known/oauth-authorization-server":
     get:
       tags:
-        - Well-known
+        - Issuer
       summary: Get the OpenID Connect Provider metadata
       description: >
         Specified by https://www.rfc-editor.org/info/rfc8414
@@ -54,7 +57,7 @@ paths:
   "/identity/{did}/.well-known/openid-credential-issuer":
     get:
       tags:
-        - OIDC4VCI
+        - Issuer
       summary: Get the OIDC4VCI Credential Issuer Metadata
       description: >
         Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-issuer-metadata
@@ -76,7 +79,7 @@ paths:
   "/identity/{did}/oidc/token":
     post:
       tags:
-        - OIDC4VCI
+        - Issuer
       summary: Used by the wallet to request an access token
       description: Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-token-endpoint
       operationId: requestAccessToken
@@ -142,7 +145,7 @@ paths:
   "/identity/{did}/wallet/oidc4vci/credential_offer":
     get:
       tags:
-        - OIDC4VCI
+        - Wallet
       summary: Used by the issuer to offer credentials to the wallet
       description: Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-offer
       operationId: handleCredentialOffer

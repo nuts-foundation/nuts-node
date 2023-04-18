@@ -22,19 +22,26 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
-	"net/http"
-	"time"
 )
 
+// OIDCWallet is the interface for the credential wallet supporting OpenID4VCI.
 type OIDCWallet interface {
+	// Metadata returns the OAuth2 client metadata for the wallet.
 	Metadata() oidc4vci.OAuth2ClientMetadata
+	// HandleCredentialOffer handles a credential offer from an issuer.
+	// It will try to retrieve the offered credential and store it.
 	HandleCredentialOffer(ctx context.Context, offer oidc4vci.CredentialOffer) error
 }
 
@@ -42,13 +49,15 @@ var nowFunc = time.Now
 var _ OIDCWallet = (*wallet)(nil)
 var issuerClientCreator = oidc4vci.NewIssuerAPIClient
 
-func NewOIDCWallet(did did.DID, identifier string, credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver vdr.KeyResolver) OIDCWallet {
+// NewOIDCWallet creates an OIDCWallet that tries to retrieve offered credentials, to store it in the given credential store.
+func NewOIDCWallet(did did.DID, identifier string, credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver vdr.KeyResolver, clientTimeout time.Duration) OIDCWallet {
 	return &wallet{
 		did:             did,
 		identifier:      identifier,
 		credentialStore: credentialStore,
 		signer:          signer,
 		resolver:        resolver,
+		clientTimeout:   clientTimeout,
 	}
 }
 
@@ -58,11 +67,12 @@ type wallet struct {
 	credentialStore vcrTypes.Writer
 	signer          crypto.JWTSigner
 	resolver        vdr.KeyResolver
+	clientTimeout   time.Duration
 }
 
 func (h wallet) Metadata() oidc4vci.OAuth2ClientMetadata {
 	return oidc4vci.OAuth2ClientMetadata{
-		CredentialOfferEndpoint: h.identifier + "/wallet/oidc4vci/credential_offer",
+		CredentialOfferEndpoint: core.JoinURLPaths(h.identifier, "/wallet/oidc4vci/credential_offer"),
 	}
 }
 
@@ -101,10 +111,10 @@ func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.Creden
 	// TODO: we now do this in a goroutine to avoid blocking the issuer's process, needs more orchestration?
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2040
 	go func() {
-		retrieveCtx := context.Background()
+		retrieveCtx := audit.Context(context.Background(), "app-oidc4vci", "VCR/OIDC4VCI", "RetrieveCredential")
 		// TODO: How to deal with time-outs?
 		//       See https://github.com/nuts-foundation/nuts-node/issues/2040
-		retrieveCtx, cancel := context.WithTimeout(retrieveCtx, 10*time.Second)
+		retrieveCtx, cancel := context.WithTimeout(retrieveCtx, h.clientTimeout)
 		defer cancel()
 		credential, err := h.retrieveCredential(retrieveCtx, issuerClient, offer, accessTokenResponse)
 		if err != nil {
@@ -151,10 +161,7 @@ func (h wallet) retrieveCredential(ctx context.Context, issuerClient oidc4vci.Is
 	credentialRequest := oidc4vci.CredentialRequest{
 		CredentialDefinition: &offer.Credentials[0],
 		Format:               oidc4vci.VerifiableCredentialJSONLDFormat,
-		Proof: &struct {
-			Jwt       string `json:"jwt"`
-			ProofType string `json:"proof_type"`
-		}{
+		Proof: &oidc4vci.CredentialRequestProof{
 			Jwt:       proof,
 			ProofType: "jwt",
 		},

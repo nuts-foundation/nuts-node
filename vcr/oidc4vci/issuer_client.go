@@ -36,7 +36,9 @@ import (
 type IssuerAPIClient interface {
 	OAuth2Client
 
+	// Metadata returns the Credential Issuer Metadata.
 	Metadata() CredentialIssuerMetadata
+	// RequestCredential requests a credential from the issuer.
 	RequestCredential(ctx context.Context, request CredentialRequest, accessToken string) (*vc.VerifiableCredential, error)
 }
 

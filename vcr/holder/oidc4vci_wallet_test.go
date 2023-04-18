@@ -41,12 +41,12 @@ var holderDID = did.MustParseDID("did:nuts:holder")
 var issuerDID = did.MustParseDID("did:nuts:issuer")
 
 func TestNewOIDCWallet(t *testing.T) {
-	w := NewOIDCWallet(holderDID, "https://holder.example.com", nil, nil, nil)
+	w := NewOIDCWallet(holderDID, "https://holder.example.com", nil, nil, nil, time.Second*5)
 	assert.NotNil(t, w)
 }
 
 func Test_wallet_Metadata(t *testing.T) {
-	w := NewOIDCWallet(holderDID, "https://holder.example.com", nil, nil, nil)
+	w := NewOIDCWallet(holderDID, "https://holder.example.com", nil, nil, nil, time.Second*5)
 
 	metadata := w.Metadata()
 
@@ -56,72 +56,96 @@ func Test_wallet_Metadata(t *testing.T) {
 }
 
 func Test_wallet_HandleCredentialOffer(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	nonce := "nonsens"
-	issuerAPIClient := oidc4vci.NewMockIssuerAPIClient(ctrl)
-	issuerAPIClient.EXPECT().Metadata().Return(oidc4vci.CredentialIssuerMetadata{
-		CredentialIssuer:   issuerDID.String(),
-		CredentialEndpoint: "credential-endpoint",
-	})
-	issuerAPIClient.EXPECT().RequestAccessToken("urn:ietf:params:oauth:grant-type:pre-authorized_code", map[string]string{
-		"pre-authorized_code": "code",
-	}).Return(&oidc4vci.TokenResponse{
-		AccessToken: "access-token",
-		CNonce:      &nonce,
-		ExpiresIn:   new(int),
-		TokenType:   "bearer",
-	}, nil)
-	issuerAPIClient.EXPECT().RequestCredential(gomock.Any(), gomock.Any(), "access-token").
-		Return(&vc.VerifiableCredential{Issuer: issuerDID.URI()}, nil)
+	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		nonce := "nonsens"
+		issuerAPIClient := oidc4vci.NewMockIssuerAPIClient(ctrl)
+		issuerAPIClient.EXPECT().Metadata().Return(oidc4vci.CredentialIssuerMetadata{
+			CredentialIssuer:   issuerDID.String(),
+			CredentialEndpoint: "credential-endpoint",
+		})
+		issuerAPIClient.EXPECT().RequestAccessToken("urn:ietf:params:oauth:grant-type:pre-authorized_code", map[string]string{
+			"pre-authorized_code": "code",
+		}).Return(&oidc4vci.TokenResponse{
+			AccessToken: "access-token",
+			CNonce:      &nonce,
+			ExpiresIn:   new(int),
+			TokenType:   "bearer",
+		}, nil)
+		issuerAPIClient.EXPECT().RequestCredential(gomock.Any(), gomock.Any(), "access-token").
+			Return(&vc.VerifiableCredential{Issuer: issuerDID.URI()}, nil)
 
-	credentialStore := types.NewMockWriter(ctrl)
-	jwtSigner := crypto.NewMockJWTSigner(ctrl)
-	jwtSigner.EXPECT().SignJWT(gomock.Any(), map[string]interface{}{
-		"aud":   issuerDID.String(),
-		"iat":   int64(1735689600),
-		"nonce": nonce,
-	}, gomock.Any(), "key-id").Return("signed-jwt", nil)
-	keyResolver := vdrTypes.NewMockKeyResolver(ctrl)
-	keyResolver.EXPECT().ResolveSigningKeyID(holderDID, nil).Return("key-id", nil)
+		credentialStore := types.NewMockWriter(ctrl)
+		jwtSigner := crypto.NewMockJWTSigner(ctrl)
+		jwtSigner.EXPECT().SignJWT(gomock.Any(), map[string]interface{}{
+			"aud":   issuerDID.String(),
+			"iat":   int64(1735689600),
+			"nonce": nonce,
+		}, gomock.Any(), "key-id").Return("signed-jwt", nil)
+		keyResolver := vdrTypes.NewMockKeyResolver(ctrl)
+		keyResolver.EXPECT().ResolveSigningKeyID(holderDID, nil).Return("key-id", nil)
 
-	nowFunc = func() time.Time {
-		return time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
-	}
-	issuerClientCreator = func(_ context.Context, httpClient *http.Client, credentialIssuerIdentifier string) (oidc4vci.IssuerAPIClient, error) {
-		return issuerAPIClient, nil
-	}
+		nowFunc = func() time.Time {
+			return time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+		}
+		issuerClientCreator = func(_ context.Context, httpClient *http.Client, credentialIssuerIdentifier string) (oidc4vci.IssuerAPIClient, error) {
+			return issuerAPIClient, nil
+		}
 
-	w := NewOIDCWallet(holderDID, "https://holder.example.com", credentialStore, jwtSigner, keyResolver)
-	credentialOffer := oidc4vci.CredentialOffer{
-		CredentialIssuer: issuerDID.String(),
-		Credentials: []map[string]interface{}{
-			{
-				"format": oidc4vci.VerifiableCredentialJSONLDFormat,
-				"credential_definition": map[string]interface{}{
-					"@context": []string{"a", "b"},
-					"types":    []string{"VerifiableCredential", "HumanCredential"},
+		w := NewOIDCWallet(holderDID, "https://holder.example.com", credentialStore, jwtSigner, keyResolver, time.Second*5)
+		credentialOffer := oidc4vci.CredentialOffer{
+			CredentialIssuer: issuerDID.String(),
+			Credentials: []map[string]interface{}{
+				{
+					"format": oidc4vci.VerifiableCredentialJSONLDFormat,
+					"credential_definition": map[string]interface{}{
+						"@context": []string{"a", "b"},
+						"types":    []string{"VerifiableCredential", "HumanCredential"},
+					},
 				},
 			},
-		},
-		Grants: []map[string]interface{}{
-			{
-				"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]interface{}{
-					"pre-authorized_code": "code",
+			Grants: []map[string]interface{}{
+				{
+					"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]interface{}{
+						"pre-authorized_code": "code",
+					},
 				},
 			},
-		},
-	}
+		}
 
-	vcStored := atomic.Pointer[bool]{}
-	credentialStore.EXPECT().StoreCredential(gomock.Any(), nil).DoAndReturn(func(_ vc.VerifiableCredential, _ *time.Time) error {
-		vcStored.Store(new(bool))
-		return nil
+		vcStored := atomic.Pointer[bool]{}
+		credentialStore.EXPECT().StoreCredential(gomock.Any(), nil).DoAndReturn(func(_ vc.VerifiableCredential, _ *time.Time) error {
+			vcStored.Store(new(bool))
+			return nil
+		})
+
+		err := w.HandleCredentialOffer(audit.TestContext(), credentialOffer)
+
+		require.NoError(t, err)
+		test.WaitFor(t, func() (bool, error) {
+			return vcStored.Load() != nil, nil
+		}, 2*time.Second, "time-out waiting for VC to be stored")
 	})
+	t.Run("error - no credentials in offer", func(t *testing.T) {
+		w := NewOIDCWallet(holderDID, "https://holder.example.com", nil, nil, nil, time.Second*5)
 
-	err := w.HandleCredentialOffer(audit.TestContext(), credentialOffer)
+		err := w.HandleCredentialOffer(audit.TestContext(), oidc4vci.CredentialOffer{})
 
-	require.NoError(t, err)
-	test.WaitFor(t, func() (bool, error) {
-		return vcStored.Load() != nil, nil
-	}, 2*time.Second, "time-out waiting for VC to be stored")
+		assert.EqualError(t, err, "there must be at least 1 credential in credential offer")
+	})
+	t.Run("error - can't issuer client (metadata can't be loaded)", func(t *testing.T) {
+		w := NewOIDCWallet(holderDID, "https://holder.example.com", nil, nil, nil, time.Second*5)
+
+		err := w.HandleCredentialOffer(audit.TestContext(), oidc4vci.CredentialOffer{
+			CredentialIssuer: "http://localhost:87632",
+			Credentials: []map[string]interface{}{
+				{
+					"format": oidc4vci.VerifiableCredentialJSONLDFormat,
+				},
+			},
+		})
+
+		assert.EqualError(t, err, "unable to create issuer client: unable to load Credential Issuer Metadata (identifier=http://localhost:87632): "+
+			"http request error (http://localhost:87632/.well-known/openid-credential-issuer): Get \"http://localhost:87632/.well-known/openid-credential-issuer\": dial tcp: address 87632: invalid port")
+	})
 }

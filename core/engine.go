@@ -22,9 +22,11 @@ package core
 import (
 	"context"
 	"fmt"
+	"os"
+	"reflect"
+
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
-	"os"
 )
 
 // Routable enables connecting a REST API to the echo server. The API wrappers should implement this interface
@@ -183,6 +185,19 @@ func (system *System) VisitEnginesE(visitor func(engine Engine) error) error {
 		}
 	}
 
+	return nil
+}
+
+// FindEngine looks up given target engine, which should be a pointer to the type to match (e.g. new(somemodule.InterfaceType)).
+// It returns the matched engine or nil if not found.
+func (system *System) FindEngine(target any) Engine {
+	targetType := reflect.TypeOf(target).Elem()
+	for _, curr := range system.engines {
+		currType := reflect.TypeOf(curr)
+		if currType.AssignableTo(targetType) {
+			return curr
+		}
+	}
 	return nil
 }
 

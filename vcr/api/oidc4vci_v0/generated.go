@@ -13,7 +13,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// RequestCredentialParams defines parameters for HandleCredentialRequest.
+// RequestCredentialParams defines parameters for RequestCredential.
 type RequestCredentialParams struct {
 	Authorization *string `json:"Authorization,omitempty"`
 }
@@ -30,7 +30,7 @@ type HandleCredentialOfferParams struct {
 	CredentialOffer string `form:"credential_offer" json:"credential_offer"`
 }
 
-// RequestCredentialJSONRequestBody defines body for HandleCredentialRequest for application/json ContentType.
+// RequestCredentialJSONRequestBody defines body for RequestCredential for application/json ContentType.
 type RequestCredentialJSONRequestBody = CredentialRequest
 
 // RequestAccessTokenFormdataRequestBody defines body for RequestAccessToken for application/x-www-form-urlencoded ContentType.
@@ -479,7 +479,7 @@ func (sh *strictHandler) RequestCredential(ctx echo.Context, did string, params 
 		return sh.ssi.RequestCredential(ctx.Request().Context(), request.(RequestCredentialRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "HandleCredentialRequest")
+		handler = middleware(handler, "RequestCredential")
 	}
 
 	response, err := handler(ctx, request)

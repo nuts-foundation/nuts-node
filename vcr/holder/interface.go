@@ -39,7 +39,7 @@ var VerifiablePresentationLDType = ssi.MustParseURI("VerifiablePresentation")
 // Example holders include students, employees, and customers.
 type Holder interface {
 	// BuildVP builds and signs a Verifiable Presentation using the given Verifiable Credentials.
-	// The assertion key used for signing it is taken from signer DID's DID document.
+	// The assertion key used for signing it is taken from signerDID's DID document.
 	// If signerDID is not provided, it will be derived from the credentials credentialSubject.id fields. But only if all provided credentials have the same (singular) credentialSubject.id field.
 	BuildVP(ctx context.Context, credentials []vc.VerifiableCredential, options PresentationOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error)
 }

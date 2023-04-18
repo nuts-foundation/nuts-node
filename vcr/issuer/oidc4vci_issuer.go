@@ -32,7 +32,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"net/http"
 	"net/url"
-	"strings"
 	"sync"
 )
 
@@ -58,8 +57,6 @@ type OIDCIssuer interface {
 
 // NewOIDCIssuer creates a new Issuer instance. The identifier is the Credential Issuer Identifier, e.g. https://example.com/issuer/
 func NewOIDCIssuer(baseURL string) OIDCIssuer {
-	// Make sure baseURL has a trailing slash
-	baseURL = strings.TrimSuffix(baseURL, "/") + "/"
 	return &memoryIssuer{
 		baseURL:      baseURL,
 		state:        make(map[string]vc.VerifiableCredential),
@@ -94,9 +91,10 @@ func (i *memoryIssuer) ProviderMetadata(issuer did.DID) (oidc4vci.ProviderMetada
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2054
 	return oidc4vci.ProviderMetadata{
 		Issuer:        i.getIdentifier(issuer.String()),
-		TokenEndpoint: i.getIdentifier(issuer.String()) + "/oidc/token",
-		// Anonymous access (no client_id) is OK as long as PKIoverheid Private is used,
+		TokenEndpoint: core.JoinURLPaths(i.getIdentifier(issuer.String()), "oidc/token"),
+		// TODO: Anonymous access (no client_id) is OK as long as PKIoverheid Private is used,
 		// if that requirement is dropped we need to authenticate wallets using client_id.
+		// See https://github.com/nuts-foundation/nuts-node/issues/2032
 		PreAuthorizedGrantAnonymousAccessSupported: true,
 	}, nil
 }
@@ -169,7 +167,7 @@ func (i *memoryIssuer) HandleCredentialRequest(ctx context.Context, issuer did.D
 		WithField(core.LogFieldCredentialID, credential.ID).
 		WithField(core.LogFieldCredentialIssuer, credential.Issuer.String()).
 		WithField(core.LogFieldCredentialSubject, subjectDID).
-		Infof("VC retrieved by wallet over OIDC4VCI")
+		Info("VC retrieved by wallet over OIDC4VCI")
 	// TODO: this is probably not correct, I think I read in the RFC that the VC should be retrievable multiple times
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2031
 	delete(i.accessTokens, accessToken)
@@ -229,5 +227,5 @@ func generateCode() string {
 }
 
 func (i *memoryIssuer) getIdentifier(issuerDID string) string {
-	return i.baseURL + url.PathEscape(issuerDID)
+	return core.JoinURLPaths(i.baseURL, url.PathEscape(issuerDID))
 }

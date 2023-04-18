@@ -39,7 +39,7 @@ const (
 	CryptoEncryptJWEEvent = "EncryptJWE"
 	// CryptoDecryptJWEEvent occurs when decryping a JWE
 	CryptoDecryptJWEEvent = "DecryptJWE"
-	// AccessGrantedEvent occurs when access to a protected API endpoint was granted
+	// AccessDeniedEvent occurs when access to a protected API endpoint was granted
 	AccessGrantedEvent = "AccessGranted"
 	// AccessDeniedEvent occurs when access to a protected API endpoint was denied
 	AccessDeniedEvent = "AccessDenied"
@@ -47,7 +47,7 @@ const (
 	AccessKeyRegisteredEvent = "AccessKeyRegistered"
 	// InvalidOAuthTokenEvent occurs when a client presents an invalid (unknown/expired) OAuth2 token.
 	InvalidOAuthTokenEvent = "InvalidOAuthToken"
-	// VerifiableCredentialRetrievedEvent occurs when a VC is retrieved by the wallet.
+	// VerifiableCredentialRetrievedEvent occurs when a VC is retrieved by the remote wallet.
 	VerifiableCredentialRetrievedEvent = "VerifiableCredentialRetrievedEvent"
 )
 

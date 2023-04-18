@@ -19,6 +19,8 @@
 
 package vcr
 
+import "time"
+
 // ModuleName is the name of this module.
 const ModuleName = "VCR"
 
@@ -27,7 +29,8 @@ type Config struct {
 	// OIDC4VCI holds the config for the OIDC4VCI credential issuer and wallet
 	OIDC4VCI OIDC4VCIConfig `koanf:"oidc4vci"`
 	// datadir holds the location the VCR files are stored
-	datadir string
+	datadir       string
+	clientTimeout time.Duration
 }
 
 // OIDC4VCIConfig holds the config for the OIDC4VCI credential issuer and wallet

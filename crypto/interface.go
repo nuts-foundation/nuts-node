@@ -69,9 +69,9 @@ type Decrypter interface {
 
 // JWTSigner is the interface used to sign authorization tokens.
 type JWTSigner interface {
-	// SignJWT creates a signed JWT using the indicated key and map of claims.
-	// The key can be its KID (key ID) or an instance of Key,
-	// the context is used to pass audit information.
+	// SignJWT creates a signed JWT using the indicated key and map of claims and additional headers.
+	// The key can be its KID (key ID) or an instance of Key, the context is used to pass audit information.
+	// The headers can be used to add/override headers in the JWT.
 	// Returns ErrPrivateKeyNotFound when the private key is not present.
 	SignJWT(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}, key interface{}) (string, error)
 	// SignJWS creates a signed JWS using the indicated key and map of headers and payload as bytes.

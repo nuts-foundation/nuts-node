@@ -86,10 +86,14 @@ type CredentialOffer struct {
 type CredentialRequest struct {
 	Format               string                  `json:"format"`
 	CredentialDefinition *map[string]interface{} `json:"credential_definition,omitempty"`
-	Proof                *struct {
-		Jwt       string `json:"jwt"`
-		ProofType string `json:"proof_type"`
-	} `json:"proof,omitempty"`
+	Proof                *CredentialRequestProof `json:"proof,omitempty"`
+}
+
+// CredentialRequestProof defines the proof of possession of key material when requesting a Credential.
+// Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-proof-types
+type CredentialRequestProof struct {
+	Jwt       string `json:"jwt"`
+	ProofType string `json:"proof_type"`
 }
 
 // CredentialResponse defines the response for credential requests.

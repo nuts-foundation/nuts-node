@@ -95,8 +95,8 @@ func (c *vcr) GetOIDCIssuer() issuer.OIDCIssuer {
 }
 
 func (c *vcr) GetOIDCWallet(id did.DID) holder.OIDCWallet {
-	identifier := c.publicBaseURL + "identity/" + url.PathEscape(id.String())
-	return holder.NewOIDCWallet(id, identifier, c, c.keyStore, c.keyResolver)
+	identifier := core.JoinURLPaths(c.publicBaseURL, "identity", url.PathEscape(id.String()))
+	return holder.NewOIDCWallet(id, identifier, c, c.keyStore, c.keyResolver, c.config.clientTimeout)
 }
 
 func (c *vcr) Issuer() issuer.Issuer {
@@ -116,6 +116,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 
 	// store config parameters for use in Start()
 	c.config.datadir = config.Datadir
+	c.config.clientTimeout = config.HTTPClient.Timeout
 
 	issuerStorePath := path.Join(c.config.datadir, "vcr", "issued-credentials.db")
 	issuerBackupStore, err := c.storageClient.GetProvider(ModuleName).GetKVStore("backup-issued-credentials", storage.PersistentStorageClass)
@@ -139,9 +140,13 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 
 	networkPublisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
 	if c.config.OIDC4VCI.Enabled {
-		c.oidcIssuer = issuer.NewOIDCIssuer(c.publicBaseURL + "identity/")
+		if config.Auth.PublicURL == "" {
+			return errors.New("auth.publicurl is required to enable OIDC4VCI")
+		}
+		c.publicBaseURL = config.Auth.PublicURL
+		c.oidcIssuer = issuer.NewOIDCIssuer(core.JoinURLPaths(c.publicBaseURL, "identity"))
 	}
-	c.issuer = issuer.NewIssuer(c.issuerStore, networkPublisher, c.oidcIssuer, c.docResolver, c.keyStore, c.jsonldManager, c.trustConfig)
+	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, c.oidcIssuer, c.docResolver, c.keyStore, c.jsonldManager, c.trustConfig)
 	c.verifier = verifier.NewVerifier(c.verifierStore, c.docResolver, c.keyResolver, c.jsonldManager, c.trustConfig)
 
 	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)

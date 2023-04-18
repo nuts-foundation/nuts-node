@@ -21,45 +21,22 @@ package echo
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"testing"
+
+	"github.com/nuts-foundation/nuts-node/test/node"
 	logTest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/require"
-	"net"
-	"net/http"
-	"os"
-	"path"
-	"testing"
-	"time"
 
-	"github.com/nuts-foundation/nuts-node/cmd"
-	"github.com/nuts-foundation/nuts-node/test"
-	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/stretchr/testify/assert"
 )
 
 // TestStatusCodes tests if the returned errors from the API implementations are correctly translated to status codes
 func TestStatusCodes(t *testing.T) {
-	const configFile = `verbosity: debug
-strictmode: false
-network:
-  enablediscovery: false
-  enabletls: false
-auth:
-  contractvalidators:
-    - dummy
-  irma:
-    autoupdateschemas: false
-events:
-  nats:
-    port: 4222
-`
-
 	hook := logTest.NewGlobal()
-	httpPort := startServer(t, configFile)
-
-	baseUrl := fmt.Sprintf("http://localhost%s", httpPort)
+	baseUrl, _ := node.StartServer(t)
 
 	type operation struct {
 		module    string
@@ -111,56 +88,4 @@ events:
 			assert.Equal(t, testCase.operation, hook.LastEntry().Data["operation"].(string))
 		}
 	})
-}
-
-func startServer(t *testing.T, configFileContents string) string {
-	testDir := io.TestDirectory(t)
-	system := cmd.CreateSystem(func() {})
-	ctx, cancel := context.WithCancel(context.Background())
-
-	// command line arguments
-	configFile := path.Join(testDir, "nuts.yaml")
-	_ = os.WriteFile(configFile, []byte(configFileContents), os.ModePerm)
-	grpcPort := fmt.Sprintf(":%d", test.FreeTCPPort())
-	natsPort := fmt.Sprintf("%d", test.FreeTCPPort())
-	httpPort := fmt.Sprintf(":%d", test.FreeTCPPort())
-
-	t.Setenv("NUTS_DATADIR", testDir)
-	t.Setenv("NUTS_CONFIGFILE", configFile)
-	t.Setenv("NUTS_HTTP_DEFAULT_ADDRESS", httpPort)
-	t.Setenv("NUTS_NETWORK_GRPCADDR", grpcPort)
-	t.Setenv("NUTS_EVENTS_NATS_PORT", natsPort)
-	os.Args = []string{"nuts", "server"}
-
-	go func() {
-		err := cmd.Execute(ctx, system)
-		if err != nil {
-			panic(err)
-		}
-	}()
-
-	if !test.WaitFor(t, func() (bool, error) {
-		resp, err := http.Get(fmt.Sprintf("http://localhost%s/status", httpPort))
-		return err == nil && resp.StatusCode == http.StatusOK, nil
-	}, time.Second*5, "Timeout while waiting for node to become available") {
-		t.Fatal("time-out")
-	}
-
-	t.Cleanup(func() {
-		cancel()
-
-		// wait for port to become free again
-		test.WaitFor(t, func() (bool, error) {
-			if a, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("localhost%s", httpPort)); err == nil {
-				if l, err := net.ListenTCP("tcp", a); err == nil {
-					l.Close()
-					return true, nil
-				}
-			}
-
-			return false, nil
-		}, 5*time.Second, "Timeout while waiting for node to shutdown")
-	})
-
-	return httpPort
 }

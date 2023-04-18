@@ -27,8 +27,11 @@ import (
 	"net/url"
 )
 
+// WalletAPIClient defines a client interface for communicating with a remote wallet over OpenID4VCI.
 type WalletAPIClient interface {
+	// Metadata returns the OAuth2 client metadata of the remote wallet.
 	Metadata() OAuth2ClientMetadata
+	// OfferCredential sends a credential offer to the remote wallet.
 	OfferCredential(ctx context.Context, offer CredentialOffer) error
 }
 
