@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Confirm your identity</title>
+</head>
+<body>
+<div>Do you agree with the following statement?</div>
+<div>{{.Contract}}</div>
+<div>Can you confirm that the following information is correct?</div>
+<div>
+    <div>Employer Identifier:</div>
+    <div>{{.Employee.Identifier}}</div>
+    <div>Name:</div>
+    <div>{{.Employee.Initials}} {{.Employee.FamilyName}}</div>
+    <div>Role description:</div>
+    <div>{{.Employee.RoleName }}</div>
+</div>
+<form method="POST">
+    <input type="hidden" name="secret" value="{{.Secret}}"/>
+    <button type="submit" name="accept" value="true">Yes, That is me, and I agree.</button>
+    <button type="submit" name="accept" value="false">No</button>
+</form>
+</body>
+</html>

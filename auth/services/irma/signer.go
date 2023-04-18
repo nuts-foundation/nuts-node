@@ -23,7 +23,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/sirupsen/logrus"
+	"net/http"
 	"os"
 	"strings"
 
@@ -115,6 +118,16 @@ func (v Service) StartSigningSession(rawContractText string, params map[string]i
 	log.Logger().Tracef("SessionPointer: %s", string(jsonResult))
 
 	return challenge, nil
+}
+
+func (v Service) Routes(router core.EchoRouter) {
+	rewriteFunc := http.StripPrefix(IrmaMountPath, v.IrmaSessionHandler.HandlerFunc())
+	irmaEchoHandler := echo.WrapHandler(rewriteFunc)
+	methods := []string{http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodConnect, http.MethodOptions, http.MethodTrace}
+
+	for _, method := range methods {
+		router.Add(method, IrmaMountPath+"/*", irmaEchoHandler)
+	}
 }
 
 // SigningSessionStatus returns the current status of a certain session.

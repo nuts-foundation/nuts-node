@@ -22,6 +22,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
+	"github.com/nuts-foundation/nuts-node/core"
 	"net/http"
 	"reflect"
 	"strings"
@@ -220,10 +222,11 @@ func (n *notary) Configure() (err error) {
 	}
 
 	if _, ok := cvMap[selfsigned.ContractFormat]; ok {
-		ss := selfsigned.NewService(n.vcr, contract.StandardContractTemplates)
+		es := selfsigned.NewEmployeeIDSigner(n.vcr)
+		ev := selfsigned.NewValidator(n.vcr, contract.StandardContractTemplates)
 
-		n.verifiers[selfsigned.VerifiablePresentationType] = ss
-		n.signers[selfsigned.ContractFormat] = ss
+		n.verifiers[selfsigned.VerifiablePresentationType] = ev
+		n.signers[selfsigned.ContractFormat] = es
 	}
 
 	return
@@ -291,6 +294,14 @@ func (n *notary) configureIrma(config Config) (irmaServer *irmaserver.Server, ir
 // HandlerFunc returns the Irma server handler func
 func (n *notary) HandlerFunc() http.HandlerFunc {
 	return n.irmaServer.HandlerFunc()
+}
+
+func (n *notary) Routes(router core.EchoRouter) {
+	for _, signer := range n.signers {
+		if r, ok := signer.(core.Routable); ok {
+			r.Routes(router)
+		}
+	}
 }
 
 // CreateSigningSession creates a session based on a contract. This allows the user to permit the application to

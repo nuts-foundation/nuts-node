@@ -28,7 +28,7 @@ import (
 	"runtime/pprof"
 
 	"github.com/nuts-foundation/nuts-node/auth"
-	authIrmaAPI "github.com/nuts-foundation/nuts-node/auth/api/irma"
+	authMeans "github.com/nuts-foundation/nuts-node/auth/api/means"
 	authAPI "github.com/nuts-foundation/nuts-node/auth/api/v1"
 	authCmd "github.com/nuts-foundation/nuts-node/auth/cmd"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -208,7 +208,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))
 	system.RegisterRoutes(&authAPI.Wrapper{Auth: authInstance, CredentialResolver: credentialInstance})
-	system.RegisterRoutes(&authIrmaAPI.Wrapper{Auth: authInstance})
+	system.RegisterRoutes(&authMeans.Wrapper{Auth: authInstance})
 	system.RegisterRoutes(&didmanAPI.Wrapper{Didman: didmanInstance})
 
 	// Register engines
