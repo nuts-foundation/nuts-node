@@ -105,7 +105,8 @@ func (v signer) SigningSessionStatus(ctx context.Context, sessionID string) (con
 	}, nil
 }
 
-func (v signer) StartSigningSession(rawContractText string, params map[string]interface{}) (contract.SessionPointer, error) {
+func (v signer) StartSigningSession(contract contract.Contract, params map[string]interface{}) (contract.SessionPointer, error) {
+
 	sessionBytes := make([]byte, 16)
 	_, _ = rand.Reader.Read(sessionBytes)
 
@@ -114,7 +115,7 @@ func (v signer) StartSigningSession(rawContractText string, params map[string]in
 
 	sessionID := hex.EncodeToString(sessionBytes)
 	s := types.Session{
-		Contract: rawContractText,
+		Contract: contract.RawContractText,
 		Status:   SessionCreated,
 		Secret:   hex.EncodeToString(secret),
 	}

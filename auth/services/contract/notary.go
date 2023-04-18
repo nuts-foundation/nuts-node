@@ -316,7 +316,13 @@ func (n *notary) CreateSigningSession(sessionRequest services.CreateSessionReque
 		return nil, ErrUnknownSigningMeans
 	}
 
-	return signer.StartSigningSession(sessionRequest.Message, sessionRequest.Params)
+	// Get the contract by trying to parse the rawContractText
+	c, err := contract.ParseContractString(sessionRequest.Message, contract.StandardContractTemplates)
+	if err != nil {
+		return nil, err
+	}
+
+	return signer.StartSigningSession(*c, sessionRequest.Params)
 }
 
 func (n *notary) findVC(orgID did.DID) (string, string, error) {
