@@ -37,6 +37,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -45,16 +46,18 @@ const credentialType = "NutsEmployeeCredential"
 // SessionStore is a contract signer and verifier that always succeeds
 // The SessionStore signer is not supposed to be used in a clustered context unless consecutive calls arrive at the same instance
 type signer struct {
-	store types.SessionStore
-	vcr   vcr.VCR
+	store     types.SessionStore
+	vcr       vcr.VCR
+	publicURL string
 }
 
 // NewSigner returns an initialized employee identity contract signer
-func NewSigner(vcr vcr.VCR) contract.Signer {
+func NewSigner(vcr vcr.VCR, publicURL string) contract.Signer {
 	return &signer{
 		// NewSessionStore returns an initialized SessionStore
-		store: NewSessionStore(),
-		vcr:   vcr,
+		store:     NewSessionStore(),
+		vcr:       vcr,
+		publicURL: publicURL,
 	}
 }
 
@@ -107,7 +110,6 @@ func (v *signer) SigningSessionStatus(ctx context.Context, sessionID string) (co
 }
 
 func (v *signer) StartSigningSession(contract contract.Contract, params map[string]interface{}) (contract.SessionPointer, error) {
-
 	sessionBytes := make([]byte, 16)
 	_, _ = rand.Reader.Read(sessionBytes)
 
@@ -137,9 +139,14 @@ func (v *signer) StartSigningSession(contract contract.Contract, params map[stri
 	s.Employer = employeeDID.String()
 	v.store.Store(sessionID, s)
 
+	urlStr := fmt.Sprintf("%s/%s/%s", v.publicURL, "public/auth/v1/means/employeeid", sessionID)
+	pageURL, err := url.ParseRequestURI(urlStr)
+	if err != nil {
+		return nil, err
+	}
 	return sessionPointer{
 		sessionID: sessionID,
-		url:       "https://example.com", // placeholder, convert to template
+		url:       pageURL.String(),
 	}, nil
 }
 

@@ -225,7 +225,7 @@ func (n *notary) Configure() (err error) {
 	}
 
 	if n.config.hasContractValidator(selfsigned.ContractFormat) {
-		es := selfsigned.NewSigner(n.vcr)
+		es := selfsigned.NewSigner(n.vcr, n.config.PublicURL)
 		ev := selfsigned.NewValidator(n.vcr, contract.StandardContractTemplates)
 
 		n.verifiers[selfsigned.VerifiablePresentationType] = ev
