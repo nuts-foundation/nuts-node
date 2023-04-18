@@ -231,7 +231,7 @@ func (n *notary) Configure() (err error) {
 	}
 
 	if _, ok := cvMap[selfsigned.ContractFormat]; ok {
-		es := selfsigned.NewEmployeeIDSigner(n.vcr)
+		es := selfsigned.NewSigner(n.vcr)
 		ev := selfsigned.NewValidator(n.vcr, contract.StandardContractTemplates)
 
 		n.verifiers[selfsigned.VerifiablePresentationType] = ev

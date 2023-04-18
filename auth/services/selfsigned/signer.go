@@ -49,7 +49,8 @@ type signer struct {
 	vcr   vcr.VCR
 }
 
-func NewEmployeeIDSigner(vcr vcr.VCR) contract.Signer {
+// NewSigner returns an initialized employee identity contract signer
+func NewSigner(vcr vcr.VCR) contract.Signer {
 	return &signer{
 		// NewSessionStore returns an initialized SessionStore
 		store: NewSessionStore(),
@@ -57,7 +58,7 @@ func NewEmployeeIDSigner(vcr vcr.VCR) contract.Signer {
 	}
 }
 
-func (v signer) SigningSessionStatus(ctx context.Context, sessionID string) (contract.SigningSessionResult, error) {
+func (v *signer) SigningSessionStatus(ctx context.Context, sessionID string) (contract.SigningSessionResult, error) {
 	s, ok := v.store.Load(sessionID)
 	if !ok {
 		return nil, services.ErrSessionNotFound
@@ -105,7 +106,7 @@ func (v signer) SigningSessionStatus(ctx context.Context, sessionID string) (con
 	}, nil
 }
 
-func (v signer) StartSigningSession(contract contract.Contract, params map[string]interface{}) (contract.SessionPointer, error) {
+func (v *signer) StartSigningSession(contract contract.Contract, params map[string]interface{}) (contract.SessionPointer, error) {
 
 	sessionBytes := make([]byte, 16)
 	_, _ = rand.Reader.Read(sessionBytes)
@@ -142,18 +143,12 @@ func (v signer) StartSigningSession(contract contract.Contract, params map[strin
 	}, nil
 }
 
-//func (v signer) MountHandlerFunc(router core.EchoRouter) error {
-//	h := controllers.Handler{}
-//	router.Add("GET", "/auth/v1/means/employee_id/:sessionID", echo.WrapHandler(http.HandlerFunc(v.HandleFormRequest)))
-//	return nil
-//}
-
-func (v signer) Routes(router core.EchoRouter) {
+func (v *signer) Routes(router core.EchoRouter) {
 	h := controllers.NewHandler(v.store)
 
 	// Add test data
 	v.store.Store("1", types.Session{
-		Contract: "contract",
+		Contract: "BehandelaarLogin:v3 Hierbij verklaar ik te handelen in naam van MijEenZorg te Hengelo. Deze verklaring is geldig van dinsdag, 18 april 2023 17:32:00 tot dinsdag, 18 april 2023 19:32:00.",
 		Status:   SessionCreated,
 		Employee: types.Employee{
 			Identifier: "123",
@@ -166,5 +161,5 @@ func (v signer) Routes(router core.EchoRouter) {
 	h.Routes(router)
 }
 
-func (v signer) HandleFormRequest(w http.ResponseWriter, r *http.Request) {
+func (v *signer) HandleFormRequest(w http.ResponseWriter, r *http.Request) {
 }
