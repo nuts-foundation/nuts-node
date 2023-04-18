@@ -48,7 +48,6 @@ type Signer struct {
 	IrmaSessionHandler SigningSessionHandler
 	IrmaServiceConfig  Config
 	Signer             nutsCrypto.JWTSigner
-	ContractTemplates  contract.TemplateStore
 	StrictMode         bool
 }
 
@@ -81,18 +80,13 @@ func (s SessionPtr) MarshalJSON() ([]byte, error) {
 const NutsIrmaSignedContract = "NutsIrmaSignedContract"
 
 // StartSigningSession accepts a rawContractText and creates an IRMA signing session.
-func (v Signer) StartSigningSession(rawContractText string, params map[string]interface{}) (contract.SessionPointer, error) {
+func (v Signer) StartSigningSession(contract contract.Contract, params map[string]interface{}) (contract.SessionPointer, error) {
 	// Put the template in an IRMA envelope
-	signatureRequest := irmago.NewSignatureRequest(rawContractText)
+	signatureRequest := irmago.NewSignatureRequest(contract.RawContractText)
 	schemeManager := v.IrmaServiceConfig.IrmaSchemeManager
 
-	c, err := contract.ParseContractString(rawContractText, v.ContractTemplates)
-	if err != nil {
-		return nil, err
-	}
-
 	var attributes irmago.AttributeCon
-	for _, att := range c.Template.SignerAttributes {
+	for _, att := range contract.Template.SignerAttributes {
 		// Checks if attribute name start with a dot, if so, add the configured scheme manager.
 		if strings.Index(att, ".") == 0 {
 			att = fmt.Sprintf("%s%s", schemeManager, att)

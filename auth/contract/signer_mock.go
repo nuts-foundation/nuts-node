@@ -51,9 +51,9 @@ func (mr *MockSignerMockRecorder) SigningSessionStatus(ctx, sessionID interface{
 }
 
 // StartSigningSession mocks base method.
-func (m *MockSigner) StartSigningSession(rawContractText string, params map[string]interface{}) (SessionPointer, error) {
+func (m *MockSigner) StartSigningSession(contract Contract, params map[string]interface{}) (SessionPointer, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StartSigningSession", rawContractText, params)
+	ret := m.ctrl.Call(m, "StartSigningSession", contract, params)
 	ret0, _ := ret[0].(SessionPointer)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1

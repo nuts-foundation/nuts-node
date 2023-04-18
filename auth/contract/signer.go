@@ -29,7 +29,7 @@ type Signer interface {
 	SigningSessionStatus(ctx context.Context, sessionID string) (SigningSessionResult, error)
 	// StartSigningSession starts a session for the implementing signer
 	// params are signer specific
-	StartSigningSession(rawContractText string, params map[string]interface{}) (SessionPointer, error)
+	StartSigningSession(contract Contract, params map[string]interface{}) (SessionPointer, error)
 }
 
 // SessionPointer contains session information for the means how to sign the payload
