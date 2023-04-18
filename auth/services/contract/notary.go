@@ -182,7 +182,6 @@ func (n *notary) Configure() (err error) {
 			IrmaSessionHandler: &irma.DefaultIrmaSessionHandler{I: irmaServer},
 			Signer:             n.privateKeyStore,
 			IrmaServiceConfig:  irmaServiceConfig,
-			ContractTemplates:  contract.StandardContractTemplates,
 		}
 
 		irmaVerifier := irma.Verifier{
@@ -337,7 +336,7 @@ func (n *notary) findVC(orgID did.DID) (string, string, error) {
 		return "", "", fmt.Errorf("could not find a credential: %w", err)
 	}
 	if len(result) == 0 {
-		return "", "", errors.New("could not find a trusted credential with an organization name and city")
+		return "", "", services.NewInvalidContractRequestError(errors.New("could not find a NutsOrganizationCredential for this legalEntity issued by a trusted issuer"))
 	}
 
 	// Having multiple VCs with non-matching credentialSubjects for this DID is not supported.
@@ -346,7 +345,7 @@ func (n *notary) findVC(orgID did.DID) (string, string, error) {
 		var credentialSubject interface{}
 		for _, current := range result {
 			if credentialSubject != nil && !reflect.DeepEqual(credentialSubject, current.CredentialSubject) {
-				return "", "", errors.New("found multiple non-matching VCs, which is not supported")
+				return "", "", services.NewInvalidContractRequestError(errors.New("found multiple non-matching VCs, which is not supported"))
 			}
 			credentialSubject = current.CredentialSubject
 		}
