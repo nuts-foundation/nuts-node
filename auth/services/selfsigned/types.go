@@ -42,7 +42,7 @@ func (s sessionPointer) Payload() []byte {
 func (s sessionPointer) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		SessionID string `json:"sessionID"`
-		Page      string `json:"page"`
+		Page      string `json:"url"`
 	}{SessionID: s.sessionID, Page: s.url})
 }
 
