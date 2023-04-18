@@ -109,13 +109,13 @@ func (n *notary) DrawUpContract(ctx context.Context, template contract.Template,
 	// Test if the org in managed by this node:
 	signingKeyID, err := n.keyResolver.ResolveSigningKeyID(orgID, &validFrom)
 	if errors.Is(err, types.ErrNotFound) {
-		return nil, fmt.Errorf("could not draw up contract: no valid organization credential at provided validFrom date")
+		return nil, services.NewInvalidContractRequestError("no valid organization credential at provided validFrom date")
 	} else if err != nil {
 		return nil, fmt.Errorf("could not draw up contract: %w", err)
 	}
 
 	if !n.privateKeyStore.Exists(ctx, signingKeyID) {
-		return nil, fmt.Errorf("could not draw up contract: organization is not managed by this node: %w", ErrMissingOrganizationKey)
+		return nil, services.NewInvalidContractRequestError(fmt.Errorf("organization is not managed by this node: %w", ErrMissingOrganizationKey))
 	}
 
 	var orgName, orgCity string

@@ -21,6 +21,7 @@ package services
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 )
 
 const (
@@ -50,6 +51,24 @@ func (t *NutsIdentityToken) FromMap(m map[string]interface{}) error {
 
 // ErrSessionNotFound is returned when there is no contract signing session found for a certain SessionID
 var ErrSessionNotFound = errors.New("session not found")
+
+// InvalidContractRequestError is returned when the contract request is invalid
+type InvalidContractRequestError struct {
+	message interface{}
+}
+
+func NewInvalidContractRequestError(msg interface{}) InvalidContractRequestError {
+	return InvalidContractRequestError{msg}
+}
+
+func (e InvalidContractRequestError) Error() string {
+	return fmt.Sprintf("could not draw up contract: %v", e.message)
+}
+
+func (e InvalidContractRequestError) Is(target error) bool {
+	_, ok := target.(InvalidContractRequestError)
+	return ok
+}
 
 // SessionID contains a number to uniquely identify a contract signing session
 type SessionID string
