@@ -91,5 +91,9 @@ func (m TemplateStore) FindFromRawContractText(rawContractText string) (*Templat
 	contractType := Type(matchResult[2])
 	version := Version(matchResult[3])
 
-	return m.Get(contractType, language, version), nil
+	t := m.Get(contractType, language, version)
+	if t == nil {
+		return nil, fmt.Errorf("could not find contract template for language '%s', type '%s' and version '%s'", language, contractType, version)
+	}
+	return t, nil
 }
