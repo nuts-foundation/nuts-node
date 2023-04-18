@@ -63,7 +63,7 @@ func TestSessionStore_StartSigningSession(t *testing.T) {
 				familyName,
 			},
 		}
-		ss := NewEmployeeIDSigner(nil).(*signer)
+		ss := NewSigner(nil).(*signer)
 
 		sp, err := ss.StartSigningSession(testContract, params)
 		require.NoError(t, err)
@@ -82,7 +82,7 @@ func TestSessionStore_StartSigningSession(t *testing.T) {
 		params := map[string]interface{}{
 			"broken": func() {},
 		}
-		ss := NewEmployeeIDSigner(nil)
+		ss := NewSigner(nil)
 
 		_, err := ss.StartSigningSession(testContract, params)
 
@@ -115,7 +115,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 
 	t.Run("status completed returns VP on SigningSessionResult", func(t *testing.T) {
 		mockContext := newMockContext(t)
-		ss := NewEmployeeIDSigner(mockContext.vcr).(*signer)
+		ss := NewSigner(mockContext.vcr).(*signer)
 		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).Return(&testVC, nil)
 		mockContext.holder.EXPECT().BuildVP(context.TODO(), gomock.Len(1), gomock.Any(), &employer, true).Return(&testVP, nil)
 
@@ -133,7 +133,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 
 	t.Run("correct VC options are passed to issuer", func(t *testing.T) {
 		mockContext := newMockContext(t)
-		ss := NewEmployeeIDSigner(mockContext.vcr).(*signer)
+		ss := NewSigner(mockContext.vcr).(*signer)
 		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).DoAndReturn(
 			func(arg0 interface{}, unsignedCredential interface{}, public interface{}, publish interface{}) (*vc.VerifiableCredential, error) {
 				isPublic, ok := public.(bool)
@@ -174,7 +174,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 	})
 
 	t.Run("error for unknown session", func(t *testing.T) {
-		ss := NewEmployeeIDSigner(nil)
+		ss := NewSigner(nil)
 
 		_, err := ss.SigningSessionStatus(ctx, "unknown")
 
@@ -183,7 +183,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 
 	t.Run("error on VC issuance", func(t *testing.T) {
 		mockContext := newMockContext(t)
-		ss := NewEmployeeIDSigner(mockContext.vcr).(*signer)
+		ss := NewSigner(mockContext.vcr).(*signer)
 		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).Return(nil, errors.New("error"))
 
 		sp, err := ss.StartSigningSession(testContract, params)
@@ -198,7 +198,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 
 	t.Run("error on building VP", func(t *testing.T) {
 		mockContext := newMockContext(t)
-		ss := NewEmployeeIDSigner(mockContext.vcr).(*signer)
+		ss := NewSigner(mockContext.vcr).(*signer)
 		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).Return(&testVC, nil)
 		mockContext.holder.EXPECT().BuildVP(context.TODO(), gomock.Len(1), gomock.Any(), &employer, true).Return(nil, errors.New("error"))
 
