@@ -28,7 +28,7 @@ import (
 )
 
 func TestGetIrmaServer(t *testing.T) {
-	validatorConfig := ValidatorConfig{
+	validatorConfig := Config{
 		IrmaConfigPath:        "../../../development/irma",
 		IrmaSchemeManager:     "empty",
 		AutoUpdateIrmaSchemas: false,

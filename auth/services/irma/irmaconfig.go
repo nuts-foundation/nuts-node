@@ -34,9 +34,24 @@ import (
 // IrmaMountPath contains location the irma webserver will mount
 const IrmaMountPath = "/public/auth/irmaclient"
 
+// Config holds the configuration for the irma server.
+type Config struct {
+	// PublicURL is used for discovery for the IRMA app.
+	PublicURL string
+	// Where to find the IrmaConfig files including the schemas
+	IrmaConfigPath string
+	// Which scheme manager to use
+	IrmaSchemeManager string
+	// Auto update the schemas every x minutes or not?
+	AutoUpdateIrmaSchemas bool
+	// Use the IRMA server in production mode. Without this the IRMA app needs to be in "developer mode"
+	// https://irma.app/docs/irma-app/#developer-mode
+	Production bool
+}
+
 // GetIrmaConfig creates and returns an IRMA config.
 // The config sets the given irma path or a temporary folder. Then it downloads the schemas.
-func GetIrmaConfig(validatorConfig ValidatorConfig) (irmaConfig *irma.Configuration, err error) {
+func GetIrmaConfig(validatorConfig Config) (irmaConfig *irma.Configuration, err error) {
 	if err = os.MkdirAll(validatorConfig.IrmaConfigPath, 0700); err != nil {
 		err = fmt.Errorf("could not create IRMA config directory: %w", err)
 		return
@@ -70,7 +85,7 @@ func GetIrmaConfig(validatorConfig ValidatorConfig) (irmaConfig *irma.Configurat
 
 // GetIrmaServer creates and starts the irma server instance.
 // The server can be used by a IRMA client like the app to handle IRMA sessions
-func GetIrmaServer(validatorConfig ValidatorConfig, irmaConfig *irma.Configuration) (*irmaserver.Server, error) {
+func GetIrmaServer(validatorConfig Config, irmaConfig *irma.Configuration) (*irmaserver.Server, error) {
 	// Customize logger to have it clearly log "IRMA" in module field.
 	// We need a decorator because IRMA config takes a logrus.Logger instead of logrus.Entry
 	logger := *logrus.StandardLogger()
