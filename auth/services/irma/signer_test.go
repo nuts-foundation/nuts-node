@@ -161,25 +161,24 @@ type mockContext struct {
 	ctrl       *gomock.Controller
 	signer     *crypto.MockJWTSigner
 	vcResolver *vcr.MockResolver
-	service    *Service
+	service    *Signer
 }
 
 func serviceWithMocks(t *testing.T) *mockContext {
-	serviceConfig := ValidatorConfig{
-		IrmaConfigPath:        "../../../development/irma",
-		AutoUpdateIrmaSchemas: false,
-		IrmaSchemeManager:     "empty",
-	}
+	//serviceConfig := ServerConfig{
+	//	IrmaConfigPath:        "../../../development/irma",
+	//	AutoUpdateIrmaSchemas: false,
+	//	IrmaSchemeManager:     "empty",
+	//}
 
 	ctrl := gomock.NewController(t)
 
 	vcr := vcr.NewMockResolver(ctrl)
 	mockSigner := crypto.NewMockJWTSigner(ctrl)
 
-	irmaConfig, _ := GetIrmaConfig(serviceConfig)
-	service := &Service{
+	//irmaConfig, _ := GetIrmaConfig(serviceConfig)
+	service := &Signer{
 		IrmaSessionHandler: &mockIrmaClient{},
-		IrmaConfig:         irmaConfig,
 		Signer:             mockSigner,
 		ContractTemplates:  contract.StandardContractTemplates,
 	}

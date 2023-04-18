@@ -63,7 +63,7 @@ func (m *mockIrmaClient) HandlerFunc() http.HandlerFunc {
 
 func TestService_VerifyVP(t *testing.T) {
 	t.Run("ok - valid VP", func(t *testing.T) {
-		validator, _ := defaultValidator(t)
+		validator, _ := defaultVerifier(t)
 
 		irmaSignature := test.ValidIrmaContract
 		encodedIrmaSignature := base64.StdEncoding.EncodeToString([]byte(irmaSignature))
@@ -83,12 +83,12 @@ func TestService_VerifyVP(t *testing.T) {
 	})
 
 	t.Run("nok - invalid rawVP", func(t *testing.T) {
-		validator := Service{}
+		verifier := Verifier{}
 		vp := vc.VerifiablePresentation{
 			Proof: []interface{}{},
 		}
 
-		validationResult, err := validator.VerifyVP(vp, nil)
+		validationResult, err := verifier.VerifyVP(vp, nil)
 
 		assert.Nil(t, validationResult)
 		assert.EqualError(t, err, "could not verify VP: invalid number of proofs, got 0, want 1")
@@ -138,10 +138,10 @@ func TestIrmaVPVerificationResult(t *testing.T) {
 	})
 }
 
-func defaultValidator(t *testing.T) (Service, crypto.KeyStore) {
+func defaultVerifier(t *testing.T) (contract.VPVerifier, crypto.KeyStore) {
 	t.Helper()
 	address := "localhost:1323"
-	serviceConfig := ValidatorConfig{
+	serviceConfig := Config{
 		IrmaSchemeManager:     "empty",
 		AutoUpdateIrmaSchemas: true,
 		IrmaConfigPath:        "../../../development/irma",
@@ -152,8 +152,8 @@ func defaultValidator(t *testing.T) (Service, crypto.KeyStore) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return Service{
-		IrmaConfig:        irmaConfig,
-		ContractTemplates: contract.StandardContractTemplates,
+	return Verifier{
+		IrmaConfig: irmaConfig,
+		Templates:  contract.StandardContractTemplates,
 	}, crypto.NewMemoryCryptoInstance()
 }

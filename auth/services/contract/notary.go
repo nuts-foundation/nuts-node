@@ -24,7 +24,6 @@ import (
 	"fmt"
 
 	"github.com/nuts-foundation/nuts-node/core"
-	"net/http"
 	"reflect"
 	"strings"
 	"time"
@@ -79,16 +78,14 @@ func (c Config) hasContractValidator(cv string) bool {
 }
 
 type notary struct {
-	config            Config
-	jsonldManager     jsonld.JSONLD
-	keyResolver       types.KeyResolver
-	privateKeyStore   crypto.KeyStore
-	irmaServiceConfig irma.ValidatorConfig
-	irmaServer        *irmaserver.Server
-	verifiers         map[string]contract.VPVerifier
-	signers           map[string]contract.Signer
-	uziCrlValidator   crl.Validator
-	vcr               vcr.VCR
+	config          Config
+	jsonldManager   jsonld.JSONLD
+	keyResolver     types.KeyResolver
+	privateKeyStore crypto.KeyStore
+	verifiers       map[string]contract.VPVerifier
+	signers         map[string]contract.Signer
+	uziCrlValidator crl.Validator
+	vcr             vcr.VCR
 }
 
 var timeNow = time.Now
@@ -167,22 +164,35 @@ func (n *notary) Configure() (err error) {
 			irmaServer *irmaserver.Server
 		)
 
-		if irmaServer, irmaConfig, err = n.configureIrma(n.config); err != nil {
+		irmaServiceConfig := irma.Config{
+			PublicURL:             n.config.PublicURL,
+			IrmaConfigPath:        n.config.IrmaConfigPath,
+			IrmaSchemeManager:     n.config.IrmaSchemeManager,
+			AutoUpdateIrmaSchemas: n.config.AutoUpdateIrmaSchemas,
+			// Deduce IRMA production mode from the nuts strict-mode
+			Production: n.config.StrictMode,
+		}
+
+		if irmaServer, irmaConfig, err = n.configureIrma(irmaServiceConfig); err != nil {
 			return
 		}
 
-		irmaService := irma.Service{
+		irmaSigner := irma.Signer{
 			IrmaSessionHandler: &irma.DefaultIrmaSessionHandler{I: irmaServer},
-			IrmaConfig:         irmaConfig,
 			Signer:             n.privateKeyStore,
-			IrmaServiceConfig:  n.irmaServiceConfig,
+			IrmaServiceConfig:  irmaServiceConfig,
 			ContractTemplates:  contract.StandardContractTemplates,
+		}
+
+		irmaVerifier := irma.Verifier{
+			IrmaConfig: irmaConfig,
+			Templates:  contract.StandardContractTemplates,
 		}
 
 		// todo config to VP types
 		if _, ok := cvMap[irma.ContractFormat]; ok {
-			n.verifiers[irma.VerifiablePresentationType] = irmaService
-			n.signers[irma.ContractFormat] = irmaService
+			n.verifiers[irma.VerifiablePresentationType] = irmaVerifier
+			n.signers[irma.ContractFormat] = irmaSigner
 		}
 	}
 
@@ -265,29 +275,17 @@ func (n *notary) SigningSessionStatus(ctx context.Context, sessionID string) (co
 	return nil, services.ErrSessionNotFound
 }
 
-func (n *notary) configureIrma(config Config) (irmaServer *irmaserver.Server, irmaConfig *irmago.Configuration, err error) {
-	n.irmaServiceConfig = irma.ValidatorConfig{
-		PublicURL:             config.PublicURL,
-		IrmaConfigPath:        config.IrmaConfigPath,
-		IrmaSchemeManager:     config.IrmaSchemeManager,
-		AutoUpdateIrmaSchemas: config.AutoUpdateIrmaSchemas,
-		// Deduce IRMA production mode from the nuts strict-mode
-		Production: config.StrictMode,
+func (n *notary) configureIrma(config irma.Config) (*irmaserver.Server, *irmago.Configuration, error) {
+	irmaConfig, err := irma.GetIrmaConfig(config)
+	if err != nil {
+		return nil, nil, err
 	}
-	if irmaConfig, err = irma.GetIrmaConfig(n.irmaServiceConfig); err != nil {
-		return
+	irmaServer, err := irma.GetIrmaServer(config, irmaConfig)
+	if err != nil {
+		return nil, nil, err
 	}
-	if irmaServer, err = irma.GetIrmaServer(n.irmaServiceConfig, irmaConfig); err != nil {
-		return
-	}
-	n.irmaServer = irmaServer
 
-	return
-}
-
-// HandlerFunc returns the Irma server handler func
-func (n *notary) HandlerFunc() http.HandlerFunc {
-	return n.irmaServer.HandlerFunc()
+	return irmaServer, irmaConfig, nil
 }
 
 func (n *notary) Routes(router core.EchoRouter) {
