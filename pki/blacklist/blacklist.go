@@ -75,6 +75,8 @@ type blacklistEntry struct {
 
 	// JWKThumbprint is an identifier of the public key per https://www.rfc-editor.org/rfc/rfc7638
 	JWKThumbprint string
+
+	Reason string
 }
 
 // New creates a blacklist with the specified configuration
@@ -109,9 +111,10 @@ func (b *blacklistImpl) ValidateCert(cert *x509.Certificate) error {
 		return nil
 	}
 
-	// Extract the necessary information from the certificate
+	// Extract the necessary information from the certificate in order to process the blacklist entry
 	issuer := cert.Issuer.String()
 	serialNumber := cert.SerialNumber.String()
+	thumbprint := certKeyJWKThumbprint(cert)	
 
 	// If the blacklist has not yet been downloaded, do so now
 	if b.lastUpdated.IsZero() {
@@ -140,7 +143,7 @@ func (b *blacklistImpl) ValidateCert(cert *x509.Certificate) error {
 	// Check each entry in the blacklist for matches
 	for _, entry := range *entriesPtr {
 		// Check for this issuer and serial number combination
-		if entry.Issuer == issuer && entry.SerialNumber == serialNumber {
+		if entry.Issuer == issuer && entry.SerialNumber == serialNumber && entry.JWKThumbprint == thumbprint {
 			// Return an error indicating the certificate has been blacklisted
 			return ErrCertBlacklisted
 		}
@@ -221,8 +224,8 @@ func (b *blacklistImpl) download() ([]byte, error) {
 	return bytes, nil
 }
 
-// certKeyJWKFingerprint returns the JWK key fingerprint for the public key of an X509 certificate
-func certKeyJWKFingerprint(cert *x509.Certificate) string {
+// certKeyJWKThumbprint returns the JWK key fingerprint for the public key of an X509 certificate
+func certKeyJWKThumbprint(cert *x509.Certificate) string {
 	// Convert the key (any) to JWK. If that succeeds then return its fingerprint
 	if key, _ := jwk.New(cert.PublicKey); key != nil {
 		// Compute the fingerprint of the key

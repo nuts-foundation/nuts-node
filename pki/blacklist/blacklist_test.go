@@ -132,14 +132,38 @@ func trustedBlacklist(t *testing.T) string {
 		blacklistEntry{
 			Issuer:       `FOO`,
 			SerialNumber: `123`,
+			JWKThumbprint: `bim`,
+			Reason: `bap`,
 		},
 		blacklistEntry{
 			Issuer:       `BAR`,
 			SerialNumber: `456`,
+			JWKThumbprint: `bam`,
+			Reason: `bar`,
+		},
+		blacklistEntry{
+			Issuer:       ``,
+			SerialNumber: blacklistedCertSerialNumber,
+			JWKThumbprint: `PVOjk-5d4Lb-FGxurW-fNMUv3rYZZBWF3gGaP5s1UVQ`,
+			Reason: `baz1`,
+		},
+		blacklistEntry{
+			Issuer:       blacklistedCertIssuer,
+			SerialNumber: ``,
+			JWKThumbprint: ``,
+			Reason: `baz2`,
 		},
 		blacklistEntry{
 			Issuer:       blacklistedCertIssuer,
 			SerialNumber: blacklistedCertSerialNumber,
+			JWKThumbprint: `PVOjk-5d4Lb-FGxurW-fNMUv3rYZZBWF3gGaP5s1UVQ`,
+			Reason: `baz3`,
+		},
+		blacklistEntry{
+			Issuer:       blacklistedCertIssuer + `arst`,
+			SerialNumber: blacklistedCertSerialNumber,
+			JWKThumbprint: `PVOjk-5d4Lb-FGxurW-fNMUv3rYZZBWF3gGaP5s1UVQ`,
+			Reason: `baz3`,
 		},
 	}
 
@@ -207,7 +231,7 @@ func TestUpdateValidBlacklist(t *testing.T) {
 	entries := *entriesPtr
 
 	// Ensure the length is as expected
-	require.Len(t, entries, 3)
+	require.Len(t, entries, 6)
 
 	// Ensure the issuers and serial numbers are as expected
 	assert.Equal(t, entries[0].Issuer, `FOO`)
@@ -304,6 +328,37 @@ func TestBlacklistedCertificateBlocked(t *testing.T) {
 	assert.Equal(t, err, ErrCertBlacklisted)
 }
 
+// TestEmptyFieldsDoNotBlock ensures empty fields in a blacklist entry cannot block certificates
+func TestEmptyFieldsDoNotBlock(t *testing.T) {
+	// Get the trusted blacklist
+	blacklistJSON := trustedBlacklist(t)
+
+	// Setup a blacklist server
+	testServer := blacklistTestServer(blacklistJSON)
+	defer testServer.Close()
+
+	// Use the server in a new blacklist
+	blacklist, err := newBlacklist(testServer.URL, publicKeyDoNotUse)
+	require.NoError(t, err)
+	require.NotNil(t, blacklist)
+
+	// Update the blacklist data and ensure there are no errors
+	err = blacklist.Update()
+	require.NoError(t, err)
+
+	// Parse the certificate
+	block, _ := pem.Decode([]byte(blacklistedTestCertificate))
+	cert, err := x509.ParseCertificate(block.Bytes)
+	require.NoError(t, err)
+
+	// Check whether the certificate is blacklisted
+	err = blacklist.ValidateCert(cert)
+
+	// Ensure the validation returned an error, meaning the certificate is blacklisted
+	assert.Error(t, err)
+	assert.Equal(t, err, ErrCertBlacklisted)
+}
+
 // TestRSACertificateJWKThumbprint ensures ceritficate thumbprints are correctly computed
 func TestRSACertificateJWKThumbprint(t *testing.T) {
 	// Parse the certificate
@@ -312,6 +367,6 @@ func TestRSACertificateJWKThumbprint(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check the JWK fingerprint of the cert
-	keyID := certKeyJWKFingerprint(cert)
+	keyID := certKeyJWKThumbprint(cert)
 	assert.Equal(t, "PVOjk-5d4Lb-FGxurW-fNMUv3rYZZBWF3gGaP5s1UVQ", keyID)
 }
