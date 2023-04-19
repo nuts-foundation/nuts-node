@@ -110,6 +110,9 @@ func (v *signer) SigningSessionStatus(ctx context.Context, sessionID string) (co
 }
 
 func (v *signer) StartSigningSession(contract contract.Contract, params map[string]interface{}) (contract.SessionPointer, error) {
+	if err := checkSessionParams(params); err != nil {
+		return nil, services.NewInvalidContractRequestError(fmt.Errorf("invalid session params: %w", err))
+	}
 	sessionBytes := make([]byte, 16)
 	_, _ = rand.Reader.Read(sessionBytes)
 
@@ -148,6 +151,51 @@ func (v *signer) StartSigningSession(contract contract.Contract, params map[stri
 		sessionID: sessionID,
 		url:       pageURL.String(),
 	}, nil
+}
+
+// Check for the following structure:
+//
+//	{
+//	  "employer":"did:123",
+//	  "employee": {
+//	    "identifier": "481",
+//	    "roleName": "Verpleegkundige niveau 2",
+//	    "initials": "J",
+//	    "familyName": "van Dijk",
+//	    "email": "j.vandijk@example.com"
+//	  }
+//	}
+func checkSessionParams(params map[string]interface{}) error {
+	_, ok := params["employer"]
+	if !ok {
+		return fmt.Errorf("missing employer")
+	}
+	employee, ok := params["employee"]
+	if !ok {
+		return fmt.Errorf("missing employee")
+	}
+	employeeMap, ok := employee.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("employee should be an object")
+	}
+	_, ok = employeeMap["identifier"]
+	if !ok {
+		return fmt.Errorf("missing employee identifier")
+	}
+	_, ok = employeeMap["roleName"]
+	if !ok {
+		return fmt.Errorf("missing employee roleName")
+	}
+	_, ok = employeeMap["initials"]
+	if !ok {
+		return fmt.Errorf("missing employee initials")
+	}
+	_, ok = employeeMap["familyName"]
+	if !ok {
+		return fmt.Errorf("missing employee familyName")
+	}
+	return nil
+
 }
 
 func (v *signer) Routes(router core.EchoRouter) {
