@@ -26,6 +26,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
@@ -63,7 +64,7 @@ func TestSessionStore_StartSigningSession(t *testing.T) {
 				familyName,
 			},
 		}
-		ss := NewService(nil).(*service)
+		ss := NewService(nil, contract.StandardContractTemplates).(*service)
 
 		sp, err := ss.StartSigningSession(testContract, params)
 		require.NoError(t, err)
@@ -83,7 +84,7 @@ func TestSessionStore_StartSigningSession(t *testing.T) {
 		params := map[string]interface{}{
 			"broken": func() {},
 		}
-		ss := NewService(nil)
+		ss := NewService(nil, contract.StandardContractTemplates).(*service)
 
 		_, err := ss.StartSigningSession(testContract, params)
 
@@ -116,7 +117,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 
 	t.Run("status completed returns VP on SigningSessionResult", func(t *testing.T) {
 		mockContext := newMockContext(t)
-		ss := NewService(mockContext.vcr).(*service)
+		ss := NewService(mockContext.vcr, contract.StandardContractTemplates).(*service)
 		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).Return(&testVC, nil)
 		mockContext.holder.EXPECT().BuildVP(context.TODO(), gomock.Len(1), gomock.Any(), &employer, true).Return(&testVP, nil)
 
@@ -134,7 +135,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 
 	t.Run("correct VC options are passed to issuer", func(t *testing.T) {
 		mockContext := newMockContext(t)
-		ss := NewService(mockContext.vcr).(*service)
+		ss := NewService(mockContext.vcr, contract.StandardContractTemplates).(*service)
 		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).DoAndReturn(
 			func(arg0 interface{}, unsignedCredential interface{}, public interface{}, publish interface{}) (*vc.VerifiableCredential, error) {
 				isPublic, ok := public.(bool)
@@ -175,7 +176,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 	})
 
 	t.Run("error for unknown session", func(t *testing.T) {
-		ss := NewService(nil)
+		ss := NewService(nil, contract.StandardContractTemplates)
 
 		_, err := ss.SigningSessionStatus(ctx, "unknown")
 
@@ -184,7 +185,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 
 	t.Run("error on VC issuance", func(t *testing.T) {
 		mockContext := newMockContext(t)
-		ss := NewService(mockContext.vcr).(*service)
+		ss := NewService(mockContext.vcr, contract.StandardContractTemplates).(*service)
 		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).Return(nil, errors.New("error"))
 
 		sp, err := ss.StartSigningSession(testContract, params)
@@ -199,7 +200,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 
 	t.Run("error on building VP", func(t *testing.T) {
 		mockContext := newMockContext(t)
-		ss := NewService(mockContext.vcr).(*service)
+		ss := NewService(mockContext.vcr, contract.StandardContractTemplates).(*service)
 		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).Return(&testVC, nil)
 		mockContext.holder.EXPECT().BuildVP(context.TODO(), gomock.Len(1), gomock.Any(), &employer, true).Return(nil, errors.New("error"))
 

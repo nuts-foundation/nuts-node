@@ -60,12 +60,6 @@ type VerificationError struct {
 	args []interface{}
 }
 
-// Is checks whether the given error is a VerificationError as well.
-func (e VerificationError) Is(other error) bool {
-	_, is := other.(VerificationError)
-	return is
-}
-
 func newVerificationError(msg string, args ...interface{}) error {
 	return VerificationError{msg: msg, args: args}
 }

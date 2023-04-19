@@ -24,110 +24,134 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
+	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"time"
 )
 
-func (v sessionStore) VerifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (contract.VPVerificationResult, error) {
-	// first verify the proof
-	vcs, err := v.vcr.Verifier().VerifyVP(vp, true, validAt)
+func (v service) VerifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (contract.VPVerificationResult, error) {
+	result := selfsignedVerificationResult{
+		Status: contract.Invalid,
+	}
+
+	// 1. verify the proof and check for security requirements
+	credentialSubject, proof, err := v.verifyVP(vp, validAt)
 	if err != nil {
-		if errors.As(err, &verifier.VerificationError{}) {
-			return selfsignedVerificationResult{
-				Status:        contract.Invalid,
-				InvalidReason: err.Error(),
-			}, nil
+		if errors.As(err, &verificationError{}) {
+			result.InvalidReason = err.Error()
+			return result, nil
 		}
 		return nil, err
 	}
 
+	// 2. Contract validation
+	c, err := contract.ParseContractString(proof.Challenge, v.validContracts)
+	if err != nil {
+		result.InvalidReason = err.Error()
+		return result, nil
+	}
+	t := time.Now()
+	if validAt != nil {
+		t = *validAt
+	}
+	err = c.VerifyForGivenTime(t)
+	if err != nil {
+		result.InvalidReason = err.Error()
+		return result, nil
+	}
+
+	// 3. check for mandatory attributes in credentialSubject
+	if err = validateRequiredAttributes(credentialSubject); err != nil {
+		result.InvalidReason = err.Error()
+		return result, nil
+	}
+
+	// TODO add role?
+	disclosedAttributes := map[string]string{
+		services.InitialsTokenClaim:   credentialSubject.Member.Member.Initials,
+		services.FamilyNameTokenClaim: credentialSubject.Member.Member.FamilyName,
+		services.UsernameClaim:        credentialSubject.Member.Identifier,
+		services.EidasIALClaim:        "low",
+	}
+
+	return selfsignedVerificationResult{
+		Status: contract.Valid,
+		// extract organization attributes and add them to the result
+		contractAttributes:  c.Params,
+		disclosedAttributes: disclosedAttributes,
+	}, nil
+}
+
+func (v service) verifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (credentialSubject employeeIdentityCredentialSubject, proof vc.JSONWebSignature2020Proof, resultErr error) {
+	vcs, err := v.vcr.Verifier().VerifyVP(vp, true, validAt)
+	if err != nil {
+		if errors.As(err, &verifier.VerificationError{}) {
+			resultErr = newVerificationError(err.Error())
+			return
+		}
+		resultErr = err
+		return
+	}
+
 	if len(vcs) != 1 {
-		return selfsignedVerificationResult{
-			Status:        contract.Invalid,
-			InvalidReason: "exactly 1 EmployeeIdentityCredential is required",
-		}, nil
+		resultErr = newVerificationError("exactly 1 EmployeeIdentityCredential is required")
+		return
 	}
 	if len(vp.Proof) != 1 {
-		return selfsignedVerificationResult{
-			Status:        contract.Invalid,
-			InvalidReason: "exactly 1 Proof is required",
-		}, nil
+		resultErr = newVerificationError("exactly 1 Proof is required")
+		return
 	}
-	var proof vc.JSONWebSignature2020Proof
 	bytes, _ := json.Marshal(vp.Proof[0])
 	_ = json.Unmarshal(bytes, &proof)
 	if proof.Proof.Type != ssi.JsonWebSignature2020 {
-		return selfsignedVerificationResult{
-			Status:        contract.Invalid,
-			InvalidReason: "proof must be of type JsonWebSignature2020",
-		}, nil
+		resultErr = newVerificationError("proof must be of type JsonWebSignature2020")
+		return
 	}
 	vc := vcs[0]
 	signingMethod := proof.VerificationMethod
 	signingMethod.Fragment = ""
 	if vc.Issuer.String() != signingMethod.String() {
-		return selfsignedVerificationResult{
-			Status:        contract.Invalid,
-			InvalidReason: "signer must be credential issuer",
-		}, nil
+		resultErr = newVerificationError("signer must be credential issuer")
+		return
 	}
-	var credentialSubject employeeIdentityCredentialSubject
 	bytes, _ = json.Marshal(vc.CredentialSubject[0])
 	_ = json.Unmarshal(bytes, &credentialSubject)
 	if vc.Issuer.String() != credentialSubject.ID {
-		return selfsignedVerificationResult{
-			Status:        contract.Invalid,
-			InvalidReason: "signer must be credentialSubject",
-		}, nil
+		resultErr = newVerificationError("signer must be credentialSubject")
+		return
 	}
-	// TODO: get the contract and check for existence of NutsOrganizationCredential, check dates
 
+	return credentialSubject, proof, nil
+}
+
+func validateRequiredAttributes(credentialSubject employeeIdentityCredentialSubject) error {
 	// check for mandatory attrs
 	if credentialSubject.Type != "Organization" {
-		return selfsignedVerificationResult{
-			Status:        contract.Invalid,
-			InvalidReason: "credentialSubject.@Type must be \"Organization\"",
-		}, nil
+		return errors.New("credentialSubject.@Type must be \"Organization\"")
 	}
 	if len(credentialSubject.Member.Identifier) == 0 {
-		return selfsignedVerificationResult{
-			Status:        contract.Invalid,
-			InvalidReason: "credentialSubject.member.identifier is required",
-		}, nil
+		return errors.New("credentialSubject.member.identifier is required")
 	}
 	if len(credentialSubject.Member.Member.Initials) == 0 {
-		return selfsignedVerificationResult{
-			Status:        contract.Invalid,
-			InvalidReason: "credentialSubject.member.member.initials is required",
-		}, nil
+		return errors.New("credentialSubject.member.member.initials is required")
 	}
 	if len(credentialSubject.Member.Member.FamilyName) == 0 {
-		return selfsignedVerificationResult{
-			Status:        contract.Invalid,
-			InvalidReason: "credentialSubject.member.member.initials is required",
-		}, nil
+		return errors.New("credentialSubject.member.member.initials is required")
 	}
 	if credentialSubject.Member.Type != "EmployeeRole" {
-		return selfsignedVerificationResult{
-			Status:        contract.Invalid,
-			InvalidReason: "credentialSubject.member.type must be \"EmployeeRole\"",
-		}, nil
+		return errors.New("credentialSubject.member.type must be \"EmployeeRole\"")
 	}
 	if credentialSubject.Member.Member.Type != "Person" {
-		return selfsignedVerificationResult{
-			Status:        contract.Invalid,
-			InvalidReason: "credentialSubject.member.member.type must be \"Person\"",
-		}, nil
+		return errors.New("credentialSubject.member.member.type must be \"Person\"")
 	}
-
-	return selfsignedVerificationResult{
-		Status: contract.Valid,
-	}, nil
+	return nil
 }
 
 type selfsignedVerificationResult struct {
-	Status        contract.State
-	InvalidReason string
+	Status              contract.State
+	InvalidReason       string
+	contractAttributes  map[string]string
+	disclosedAttributes map[string]string
 }
 
 func (s selfsignedVerificationResult) Validity() contract.State {
@@ -143,17 +167,17 @@ func (s selfsignedVerificationResult) VPType() string {
 }
 
 func (s selfsignedVerificationResult) DisclosedAttribute(key string) string {
-	return ""
+	return s.disclosedAttributes[key]
 }
 
 func (s selfsignedVerificationResult) ContractAttribute(key string) string {
-	return ""
+	return s.ContractAttribute(key)
 }
 
 func (s selfsignedVerificationResult) DisclosedAttributes() map[string]string {
-	return map[string]string{}
+	return s.disclosedAttributes
 }
 
 func (s selfsignedVerificationResult) ContractAttributes() map[string]string {
-	return map[string]string{}
+	return s.contractAttributes
 }

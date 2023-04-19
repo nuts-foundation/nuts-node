@@ -35,7 +35,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var vpValidTime, _ = time.Parse(time.RFC3339, "2023-04-14T14:00:00.000000+02:00")
+var vpValidTime, _ = time.Parse(time.RFC3339, "2023-04-19T13:00:00.000000+02:00")
 var docTXTime, _ = time.Parse(time.RFC3339, "2023-04-14T12:00:00.000000+02:00")
 
 func TestSessionStore_VerifyVP(t *testing.T) {
@@ -47,18 +47,9 @@ func TestSessionStore_VerifyVP(t *testing.T) {
 	vcData, _ := os.ReadFile("./test/vc.json")
 	_ = json.Unmarshal(vcData, &testCredential)
 
-	t.Run("always returns invalid VerificationResult", func(t *testing.T) {
-		ss := NewService(nil)
-
-		result, err := ss.VerifyVP(vc.VerifiablePresentation{}, nil)
-
-		require.NoError(t, err)
-		assert.Equal(t, contract.Invalid, result.Validity())
-	})
-
 	t.Run("ok using mocks", func(t *testing.T) {
 		mockContext := newMockContext(t)
-		ss := NewSessionStore(mockContext.vcr).(sessionStore)
+		ss := NewService(mockContext.vcr, contract.StandardContractTemplates).(*service)
 		mockContext.verifier.EXPECT().VerifyVP(vp, true, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		result, err := ss.VerifyVP(vp, nil)
@@ -70,7 +61,7 @@ func TestSessionStore_VerifyVP(t *testing.T) {
 
 	t.Run("error on verify", func(t *testing.T) {
 		mockContext := newMockContext(t)
-		ss := NewSessionStore(mockContext.vcr).(sessionStore)
+		ss := NewService(mockContext.vcr, contract.StandardContractTemplates).(*service)
 		mockContext.verifier.EXPECT().VerifyVP(vp, true, nil).Return(nil, errors.New("error"))
 
 		_, err := ss.VerifyVP(vp, nil)
@@ -80,7 +71,7 @@ func TestSessionStore_VerifyVP(t *testing.T) {
 
 	t.Run("ok using in-memory DBs", func(t *testing.T) {
 		vcrContext := vcr2.NewTestVCRContext(t)
-		ss := NewSessionStore(vcrContext.VCR)
+		ss := NewService(vcrContext.VCR, contract.StandardContractTemplates).(*service)
 		didDocument := did.Document{}
 		ddBytes, _ := os.ReadFile("./test/diddocument.json")
 		_ = json.Unmarshal(ddBytes, &didDocument)
