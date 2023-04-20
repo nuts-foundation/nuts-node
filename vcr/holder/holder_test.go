@@ -81,6 +81,8 @@ func TestHolder_BuildVP(t *testing.T) {
 	_ = keyStorage.SavePrivateKey(ctx, key.KID(), key.PrivateKey)
 	keyStore := crypto.NewTestCryptoInstance(keyStorage)
 
+	options := PresentationOptions{ProofOptions: proof.ProofOptions{}}
+
 	t.Run("ok - one VC", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
@@ -90,7 +92,6 @@ func TestHolder_BuildVP(t *testing.T) {
 
 		holder := New(keyResolver, keyStore, nil, jsonldManager)
 
-		options := proof.ProofOptions{}
 		resultingPresentation, err := holder.BuildVP(ctx, []vc.VerifiableCredential{testCredential}, options, &testDID, false)
 
 		assert.NoError(t, err)
@@ -105,17 +106,17 @@ func TestHolder_BuildVP(t *testing.T) {
 
 		holder := New(keyResolver, keyStore, nil, jsonldManager)
 
-		options := proof.ProofOptions{}
 		resultingPresentation, err := holder.BuildVP(ctx, []vc.VerifiableCredential{testCredential, testCredential}, options, &testDID, false)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, resultingPresentation)
 	})
 	t.Run("validation", func(t *testing.T) {
+		created := time.Now()
+		options := PresentationOptions{ProofOptions: proof.ProofOptions{Created: created}}
+
 		t.Run("ok", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-
-			created := time.Now()
 
 			keyResolver := types.NewMockKeyResolver(ctrl)
 			mockVerifier := verifier.NewMockVerifier(ctrl)
@@ -125,7 +126,6 @@ func TestHolder_BuildVP(t *testing.T) {
 
 			holder := New(keyResolver, keyStore, mockVerifier, jsonldManager)
 
-			options := proof.ProofOptions{Created: created}
 			resultingPresentation, err := holder.BuildVP(ctx, []vc.VerifiableCredential{testCredential}, options, &testDID, true)
 
 			assert.NoError(t, err)
@@ -133,8 +133,6 @@ func TestHolder_BuildVP(t *testing.T) {
 		})
 		t.Run("error", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-
-			created := time.Now()
 
 			keyResolver := types.NewMockKeyResolver(ctrl)
 			mockVerifier := verifier.NewMockVerifier(ctrl)
@@ -144,7 +142,6 @@ func TestHolder_BuildVP(t *testing.T) {
 
 			holder := New(keyResolver, keyStore, mockVerifier, jsonldManager)
 
-			options := proof.ProofOptions{Created: created}
 			resultingPresentation, err := holder.BuildVP(ctx, []vc.VerifiableCredential{testCredential}, options, &testDID, true)
 
 			assert.EqualError(t, err, "invalid credential (id=did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H#d2aa8189-db59-4dad-a3e5-60ca54f8fcc0): failed")
@@ -152,6 +149,8 @@ func TestHolder_BuildVP(t *testing.T) {
 		})
 	})
 	t.Run("deriving signer from VCs", func(t *testing.T) {
+		options := PresentationOptions{ProofOptions: proof.ProofOptions{}}
+
 		t.Run("ok", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
@@ -161,7 +160,6 @@ func TestHolder_BuildVP(t *testing.T) {
 
 			holder := New(keyResolver, keyStore, nil, jsonldManager)
 
-			options := proof.ProofOptions{}
 			resultingPresentation, err := holder.BuildVP(ctx, []vc.VerifiableCredential{testCredential, testCredential}, options, nil, false)
 
 			assert.NoError(t, err)
@@ -177,7 +175,6 @@ func TestHolder_BuildVP(t *testing.T) {
 
 			holder := New(keyResolver, keyStore, nil, jsonldManager)
 
-			options := proof.ProofOptions{}
 			resultingPresentation, err := holder.BuildVP(ctx, []vc.VerifiableCredential{testCredential, secondCredential}, options, nil, false)
 
 			assert.EqualError(t, err, "unable to resolve signer DID from VCs for creating VP: not all VCs have the same credentialSubject.id")
@@ -193,7 +190,6 @@ func TestHolder_BuildVP(t *testing.T) {
 
 			holder := New(keyResolver, keyStore, nil, jsonldManager)
 
-			options := proof.ProofOptions{}
 			resultingPresentation, err := holder.BuildVP(ctx, []vc.VerifiableCredential{testCredential, secondCredential}, options, nil, false)
 
 			assert.EqualError(t, err, "unable to resolve signer DID from VCs for creating VP: not all VCs contain credentialSubject.id")

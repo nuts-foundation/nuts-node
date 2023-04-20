@@ -523,7 +523,13 @@ func TestWrapper_CreateVP(t *testing.T) {
 	t.Run("ok - without signer DID", func(t *testing.T) {
 		testContext := newMockContext(t)
 		request := createRequest()
-		testContext.mockHolder.EXPECT().BuildVP(testContext.requestCtx, []VerifiableCredential{verifiableCredential}, proof.ProofOptions{Created: created}, nil, true).Return(result, nil)
+		testContext.mockHolder.EXPECT().BuildVP(
+			testContext.requestCtx,
+			[]VerifiableCredential{verifiableCredential},
+			holder.PresentationOptions{ProofOptions: proof.ProofOptions{Created: created}},
+			nil,
+			true,
+		).Return(result, nil)
 
 		response, err := testContext.client.CreateVP(testContext.requestCtx, CreateVPRequestObject{Body: &request})
 
@@ -534,23 +540,46 @@ func TestWrapper_CreateVP(t *testing.T) {
 		testContext := newMockContext(t)
 		request := createRequest()
 		request.SignerDID = &subjectDIDString
-		testContext.mockHolder.EXPECT().BuildVP(testContext.requestCtx, []VerifiableCredential{verifiableCredential}, proof.ProofOptions{Created: created}, &subjectDID, true).Return(result, nil)
+		testContext.mockHolder.EXPECT().BuildVP(
+			testContext.requestCtx,
+			[]VerifiableCredential{verifiableCredential},
+			holder.PresentationOptions{ProofOptions: proof.ProofOptions{Created: created}},
+			&subjectDID,
+			true,
+		).Return(result, nil)
 
 		response, err := testContext.client.CreateVP(testContext.requestCtx, CreateVPRequestObject{Body: &request})
 
 		assert.Equal(t, expectedresponse, response)
 		assert.NoError(t, err)
 	})
-	t.Run("ok - with expires", func(t *testing.T) {
+	t.Run("ok - with options", func(t *testing.T) {
 		testContext := newMockContext(t)
 		request := createRequest()
 		expired, expiredStr := parsedTimeStr(created.Add(time.Hour))
+		proofPurpose := "authentication"
+		ldContext := credential.NutsV1ContextURI
+		vpType := ssi.MustParseURI("SpecialPresentation")
 		request.Expires = &expiredStr
-		opts := proof.ProofOptions{
-			Created: created,
-			Expires: &expired,
+		request.ProofPurpose = &proofPurpose
+		request.Context = &[]string{ldContext.String()}
+		request.Type = &[]string{vpType.String()}
+		opts := holder.PresentationOptions{
+			AdditionalContexts: []ssi.URI{ldContext},
+			AdditionalTypes:    []ssi.URI{vpType},
+			ProofOptions: proof.ProofOptions{
+				Created:      created,
+				Expires:      &expired,
+				ProofPurpose: proofPurpose,
+			},
 		}
-		testContext.mockHolder.EXPECT().BuildVP(testContext.requestCtx, []VerifiableCredential{verifiableCredential}, opts, nil, true).Return(result, nil)
+		testContext.mockHolder.EXPECT().BuildVP(
+			testContext.requestCtx,
+			[]VerifiableCredential{verifiableCredential},
+			opts,
+			nil,
+			true,
+		).Return(result, nil)
 
 		response, err := testContext.client.CreateVP(testContext.requestCtx, CreateVPRequestObject{Body: &request})
 
@@ -588,6 +617,26 @@ func TestWrapper_CreateVP(t *testing.T) {
 
 		assert.Empty(t, response)
 		assert.EqualError(t, err, "verifiableCredentials needs at least 1 item")
+	})
+	t.Run("error - invalid context", func(t *testing.T) {
+		testContext := newMockContext(t)
+		request := createRequest()
+		request.Context = &[]string{":"}
+
+		_, err := testContext.client.CreateVP(testContext.requestCtx, CreateVPRequestObject{Body: &request})
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "invalid value for context: parse \":\": missing protocol scheme")
+	})
+	t.Run("error - invalid type", func(t *testing.T) {
+		testContext := newMockContext(t)
+		request := createRequest()
+		request.Type = &[]string{":"}
+
+		_, err := testContext.client.CreateVP(testContext.requestCtx, CreateVPRequestObject{Body: &request})
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "invalid value for type: parse \":\": missing protocol scheme")
 	})
 }
 
