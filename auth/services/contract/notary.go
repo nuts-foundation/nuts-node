@@ -214,7 +214,7 @@ func (n *notary) Configure() (err error) {
 	}
 
 	if _, ok := cvMap[selfsigned.ContractFormat]; ok {
-		ss := selfsigned.NewSessionStore(n.vcr, contract.StandardContractTemplates)
+		ss := selfsigned.NewService(n.vcr, contract.StandardContractTemplates)
 
 		n.verifiers[selfsigned.VerifiablePresentationType] = ss
 		n.signers[selfsigned.ContractFormat] = ss

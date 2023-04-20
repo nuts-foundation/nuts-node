@@ -35,7 +35,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var vpValidTime, _ = time.Parse(time.RFC3339, "2023-04-19T13:00:00.000000+02:00")
+var vpValidTime, _ = time.Parse(time.RFC3339, "2023-04-20T13:00:00.000000+02:00")
 var docTXTime, _ = time.Parse(time.RFC3339, "2023-04-14T12:00:00.000000+02:00")
 
 func TestSessionStore_VerifyVP(t *testing.T) {

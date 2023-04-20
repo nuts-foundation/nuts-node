@@ -148,7 +148,7 @@ func (s session) credentialSubject() []interface{} {
 
 type employeeIdentityCredentialSubject struct {
 	credential.BaseCredentialSubject                                  // ID
-	Type                             string                           `json:"@type"`
+	Type                             string                           `json:"type"`
 	Member                           employeeIdentityCredentialMember `json:"member"`
 }
 

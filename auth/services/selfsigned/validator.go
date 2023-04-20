@@ -127,7 +127,7 @@ func (v service) verifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (cre
 func validateRequiredAttributes(credentialSubject employeeIdentityCredentialSubject) error {
 	// check for mandatory attrs
 	if credentialSubject.Type != "Organization" {
-		return errors.New("credentialSubject.@Type must be \"Organization\"")
+		return errors.New("credentialSubject.type must be \"Organization\"")
 	}
 	if len(credentialSubject.Member.Identifier) == 0 {
 		return errors.New("credentialSubject.member.identifier is required")
