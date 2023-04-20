@@ -1,0 +1,17 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Done</title>
+    <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">
+</head>
+<body>
+<main>
+    {{ if eq .Status "completed" }}
+    <p>The identification step is completed.</p>
+    {{ else if eq .Status "cancelled"}}
+    <p>The identification step is cancelled.</p>
+    {{ end }}
+    <p>You may now close this browser tab.</p>
+</main>
+</body>
+</html>

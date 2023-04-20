@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <title>Bevestig uw identiteit</title>
+    <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        .contract {
+            padding: 1rem 1.4rem;
+            background: var(--accent-bg);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+        }
+
+        table {
+            padding: 1rem 1.4rem;
+            margin: 0px;
+            background: var(--accent-bg);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        td {
+            border: none
+        }
+
+        tr {
+            border: none
+        }
+
+        tr {
+            /* Set every other cell slightly darker. Improves readability. */
+            background: var(--accent-bg);
+        !important;
+        }
+    </style>
+
+</head>
+<body>
+<main>
+    <p>Lees a.u.b. de volgende verklaring:</p>
+    <div class="contract">{{.Contract}}</div>
+    <p>En controlleer of de onderstaande gegevens kloppen:</p>
+    <table>
+        <tr>
+            <td>Medewerkernummer</td>
+            <td>{{.Employee.Identifier}}</td>
+        </tr>
+        <tr>
+            <td>Naam</td>
+            <td>{{.Employee.Initials}} {{.Employee.FamilyName}}</td>
+        </tr>
+        <tr>
+            <td>Functieomschrijving</td>
+            <td>{{.Employee.RoleName }}</td>
+        </tr>
+    </table>
+    <p>Als u akkoord gaat worden deze gegevens gebruikt bij het opvragen van patient-gegevens bij andere
+        zorginstellingen.</p>
+
+    <form method="POST">
+        <input type="hidden" name="secret" value="{{.Secret}}"/>
+        <button type="submit" name="accept" value="true">Ja, de gegevens kloppen en ik ben akkoord</button>
+        <button type="submit" name="accept" value="false">Nee</button>
+    </form>
+</main>
+</body>
+</html>

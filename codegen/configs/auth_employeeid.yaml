@@ -1,6 +1,5 @@
-package: controllers
+package: web
 generate:
   echo-server: true
-  strict-server: true
   client: false
   models: true
