@@ -272,7 +272,7 @@ For this reason the ``crypto.storage`` backend must explicitly be set.
 
 Private transactions can only be exchanged over authenticated nodes.
 Therefore strict mode requires ``network.enabletls=true``, and the certificate chain ``tls.{certfile,certkeyfile,truststore}`` must be provided.
-To verify that authentication is correctly configured on your node, check the ``network.auth`` status on the ``/health`` endpoint.
+To verify that authentication is correctly configured on your node, check the ``network.auth_config`` status on the ``/health`` endpoint.
 See :ref:`getting started <configure-node>` on how to set this up correctly.
 
 The incorporated `IRMA server <https://irma.app/docs/irma-server/#production-mode>`_ is automatically changed to production mode.
