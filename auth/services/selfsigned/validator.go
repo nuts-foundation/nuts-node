@@ -136,7 +136,7 @@ func validateRequiredAttributes(credentialSubject employeeIdentityCredentialSubj
 		return errors.New("credentialSubject.member.member.initials is required")
 	}
 	if len(credentialSubject.Member.Member.FamilyName) == 0 {
-		return errors.New("credentialSubject.member.member.initials is required")
+		return errors.New("credentialSubject.member.member.familyName is required")
 	}
 	if credentialSubject.Member.Type != "EmployeeRole" {
 		return errors.New("credentialSubject.member.type must be \"EmployeeRole\"")
