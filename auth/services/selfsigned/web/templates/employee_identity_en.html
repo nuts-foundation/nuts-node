@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Confirm your identity</title>
+    <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        .contract {
+            padding: 1rem 1.4rem;
+            background: var(--accent-bg);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+        }
+
+        table {
+            padding: 1rem 1.4rem;
+            margin: 0px;
+            background: var(--accent-bg);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        td {
+            border: none
+        }
+
+        tr {
+            border: none
+        }
+
+        tr {
+            /* Set every other cell slightly darker. Improves readability. */
+            background: var(--accent-bg);
+        !important;
+        }
+    </style>
+
+</head>
+<body>
+<main>
+    <p>Please, read the following statement:</p>
+    <div class="contract">{{.Contract}}</div>
+    <p>And check if the following information describes your identity:</p>
+    <table>
+        <tr>
+            <td>Employee identifier</td>
+            <td>{{.Employee.Identifier}}</td>
+        </tr>
+        <tr>
+            <td>Name</td>
+            <td>{{.Employee.Initials}} {{.Employee.FamilyName}}</td>
+        </tr>
+        <tr>
+            <td>Title</td>
+            <td>{{.Employee.RoleName }}</td>
+        </tr>
+    </table>
+    <p>If you agree, this data is used to fetch patient information from other care organisations.</p>
+
+    <form method="POST">
+        <input type="hidden" name="secret" value="{{.Secret}}"/>
+        <button type="submit" name="accept" value="true">Yes, the information is correct and I agree.</button>
+        <button type="submit" name="accept" value="false">No</button>
+    </form>
+</main>
+</body>
+</html>

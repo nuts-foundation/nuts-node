@@ -44,3 +44,14 @@ type Employee struct {
 	Initials   string `json:"initials"`
 	FamilyName string `json:"familyName"`
 }
+
+// SessionCreated represents the session state after creation
+const SessionCreated = "created"
+
+// SessionInProgress represents the session state after rendering the html
+const SessionInProgress = "in-progress"
+
+// SessionCompleted represents the session state after the user has accepted the contract
+const SessionCompleted = "completed"
+
+const SessionCancelled = "cancelled"

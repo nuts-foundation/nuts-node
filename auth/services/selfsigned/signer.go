@@ -29,8 +29,8 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
-	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/controllers"
 	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/types"
+	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/web"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
@@ -72,7 +72,7 @@ func (v *signer) SigningSessionStatus(ctx context.Context, sessionID string) (co
 		return nil, fmt.Errorf("invalid issuer DID: %w", err)
 	}
 
-	if s.Status == SessionCompleted {
+	if s.Status == types.SessionCompleted {
 		expirationData := time.Now().Add(24 * time.Hour)
 		credentialOptions := vc.VerifiableCredential{
 			Context:           []ssi.URI{credential.NutsV1ContextURI},
@@ -109,10 +109,13 @@ func (v *signer) SigningSessionStatus(ctx context.Context, sessionID string) (co
 	}, nil
 }
 
-func (v *signer) StartSigningSession(contract contract.Contract, params map[string]interface{}) (contract.SessionPointer, error) {
+func (v *signer) StartSigningSession(userContract contract.Contract, params map[string]interface{}) (contract.SessionPointer, error) {
 	if err := checkSessionParams(params); err != nil {
 		return nil, services.NewInvalidContractRequestError(fmt.Errorf("invalid session params: %w", err))
 	}
+
+	// TODO: check if the contract name and city matches the employeeDID
+
 	sessionBytes := make([]byte, 16)
 	_, _ = rand.Reader.Read(sessionBytes)
 
@@ -121,8 +124,8 @@ func (v *signer) StartSigningSession(contract contract.Contract, params map[stri
 
 	sessionID := hex.EncodeToString(sessionBytes)
 	s := types.Session{
-		Contract: contract.RawContractText,
-		Status:   SessionCreated,
+		Contract: userContract.RawContractText,
+		Status:   types.SessionCreated,
 		Secret:   hex.EncodeToString(secret),
 	}
 	// load params directly into session
@@ -199,12 +202,23 @@ func checkSessionParams(params map[string]interface{}) error {
 }
 
 func (v *signer) Routes(router core.EchoRouter) {
-	h := controllers.NewHandler(v.store)
+	h := web.NewHandler(v.store)
 
 	// Add test data
 	v.store.Store("1", types.Session{
-		Contract: "BehandelaarLogin:v3 Hierbij verklaar ik te handelen in naam van MijEenZorg te Hengelo. Deze verklaring is geldig van dinsdag, 18 april 2023 17:32:00 tot dinsdag, 18 april 2023 19:32:00.",
-		Status:   SessionCreated,
+		Contract: "NL:BehandelaarLogin:v3 Hierbij verklaar ik te handelen in naam van MijEenZorg te Hengelo. Deze verklaring is geldig van dinsdag, 18 april 2023 17:32:00 tot dinsdag, 18 april 2023 19:32:00.",
+		Status:   types.SessionCreated,
+		Employee: types.Employee{
+			Identifier: "123",
+			RoleName:   "Verpleegkundige",
+			Initials:   "J.",
+			FamilyName: "de Vries",
+		},
+	})
+	// Add test data
+	v.store.Store("2", types.Session{
+		Contract: "EN:PractitionerLogin:v3 I hereby declare to act on behalf of MijnEenZorg located in Hengelo. This declaration is valid from tuesday 18 april 2023 17:32:00 until tuesday 19 april 2023 17:32:00.",
+		Status:   types.SessionCreated,
 		Employee: types.Employee{
 			Identifier: "123",
 			RoleName:   "Verpleegkundige",

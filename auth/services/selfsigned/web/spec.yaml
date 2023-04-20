@@ -8,6 +8,27 @@ info:
 servers:
   - url: http://localhost:1323
 paths:
+  /public/auth/v1/means/employeeid/{sessionID}/done:
+    parameters:
+      - name: sessionID
+        description: The session ID
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags:
+        - EmployeeIdentity
+      operationId: renderEmployeeIDDonePage
+      summary: Render the employee ID done page
+      responses:
+        '200':
+          description: Returns the rendered employee ID done page.
+          content:
+            text/html:
+              schema:
+                type: string
+
   /public/auth/v1/means/employeeid/{sessionID}:
     parameters:
       - name: sessionID
@@ -65,7 +86,7 @@ paths:
             schema:
               $ref: "#/components/schemas/EmployeeIDForm"
       responses:
-        '200':
+        '302':
           description: The form was successfully parsed and the challenge signed.
           content:
             text/html:
