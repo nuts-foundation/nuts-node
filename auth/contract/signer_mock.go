@@ -5,6 +5,7 @@
 package contract
 
 import (
+	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -35,18 +36,18 @@ func (m *MockSigner) EXPECT() *MockSignerMockRecorder {
 }
 
 // SigningSessionStatus mocks base method.
-func (m *MockSigner) SigningSessionStatus(sessionID string) (SigningSessionResult, error) {
+func (m *MockSigner) SigningSessionStatus(ctx context.Context, sessionID string) (SigningSessionResult, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SigningSessionStatus", sessionID)
+	ret := m.ctrl.Call(m, "SigningSessionStatus", ctx, sessionID)
 	ret0, _ := ret[0].(SigningSessionResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // SigningSessionStatus indicates an expected call of SigningSessionStatus.
-func (mr *MockSignerMockRecorder) SigningSessionStatus(sessionID interface{}) *gomock.Call {
+func (mr *MockSignerMockRecorder) SigningSessionStatus(ctx, sessionID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SigningSessionStatus", reflect.TypeOf((*MockSigner)(nil).SigningSessionStatus), sessionID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SigningSessionStatus", reflect.TypeOf((*MockSigner)(nil).SigningSessionStatus), ctx, sessionID)
 }
 
 // StartSigningSession mocks base method.

@@ -19,6 +19,7 @@
 package dummy
 
 import (
+	"context"
 	"testing"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -73,12 +74,14 @@ func TestDummy_StartSigningSession(t *testing.T) {
 }
 
 func TestDummy_SigningSessionStatus(t *testing.T) {
+	noCtx := context.Background()
+
 	t.Run("returns error when in strictMode", func(t *testing.T) {
 		d := Dummy{
 			InStrictMode: true,
 		}
 
-		_, err := d.SigningSessionStatus("")
+		_, err := d.SigningSessionStatus(noCtx, "")
 
 		assert.Error(t, err)
 		assert.Equal(t, errNotEnabled, err)
@@ -91,7 +94,7 @@ func TestDummy_SigningSessionStatus(t *testing.T) {
 			Status:       make(map[string]string, 0),
 		}
 
-		_, err := d.SigningSessionStatus("")
+		_, err := d.SigningSessionStatus(noCtx, "")
 
 		assert.Error(t, err)
 		assert.Equal(t, services.ErrSessionNotFound, err)
@@ -108,17 +111,17 @@ func TestDummy_SigningSessionStatus(t *testing.T) {
 		assert.NoError(t, err)
 
 		// created
-		s1, err := d.SigningSessionStatus(s.SessionID())
+		s1, err := d.SigningSessionStatus(noCtx, s.SessionID())
 		assert.NoError(t, err)
 		assert.Equal(t, SessionCreated, s1.Status())
 
 		// in progress
-		s1, err = d.SigningSessionStatus(s.SessionID())
+		s1, err = d.SigningSessionStatus(noCtx, s.SessionID())
 		assert.NoError(t, err)
 		assert.Equal(t, SessionInProgress, s1.Status())
 
 		// created
-		s1, err = d.SigningSessionStatus(s.SessionID())
+		s1, err = d.SigningSessionStatus(noCtx, s.SessionID())
 		assert.NoError(t, err)
 		assert.Equal(t, SessionCompleted, s1.Status())
 		assert.Len(t, d.Sessions, 0)
@@ -137,7 +140,7 @@ func TestDummy_SigningSessionStatus(t *testing.T) {
 		assert.NoError(t, err)
 
 		// created
-		s1, err := d.SigningSessionStatus(s.SessionID())
+		s1, err := d.SigningSessionStatus(noCtx, s.SessionID())
 		assert.NoError(t, err)
 		s2 := s1.(signingSessionResult)
 		assert.Equal(t, "contract", s2.Request)

@@ -145,7 +145,7 @@ func TestWrapper_GetSignSessionStatus(t *testing.T) {
 
 		signingSessionResult.EXPECT().Status().Return(signingSessionStatus)
 
-		ctx.contractClientMock.EXPECT().SigningSessionStatus(signingSessionID).Return(signingSessionResult, nil)
+		ctx.contractClientMock.EXPECT().SigningSessionStatus(gomock.Any(), signingSessionID).Return(signingSessionResult, nil)
 
 		response := SignSessionStatusResponse{
 			Status:                 signingSessionStatus,
@@ -168,7 +168,7 @@ func TestWrapper_GetSignSessionStatus(t *testing.T) {
 		}
 		signingSessionResult.EXPECT().VerifiablePresentation().Return(&vp, nil)
 		signingSessionResult.EXPECT().Status().Return(signingSessionStatus)
-		ctx.contractClientMock.EXPECT().SigningSessionStatus(signingSessionID).Return(signingSessionResult, nil)
+		ctx.contractClientMock.EXPECT().SigningSessionStatus(gomock.Any(), signingSessionID).Return(signingSessionResult, nil)
 		response := SignSessionStatusResponse{
 			Status: signingSessionStatus,
 			VerifiablePresentation: &vc.VerifiablePresentation{
@@ -186,7 +186,7 @@ func TestWrapper_GetSignSessionStatus(t *testing.T) {
 		ctx := createContext(t)
 
 		signingSessionID := "123"
-		ctx.contractClientMock.EXPECT().SigningSessionStatus(signingSessionID).Return(nil, services.ErrSessionNotFound)
+		ctx.contractClientMock.EXPECT().SigningSessionStatus(gomock.Any(), signingSessionID).Return(nil, services.ErrSessionNotFound)
 
 		err := ctx.wrapper.GetSignSessionStatus(ctx.echoMock, signingSessionID)
 
@@ -202,7 +202,7 @@ func TestWrapper_GetSignSessionStatus(t *testing.T) {
 
 		signingSessionResult.EXPECT().VerifiablePresentation().Return(nil, errors.New("missing key"))
 
-		ctx.contractClientMock.EXPECT().SigningSessionStatus(signingSessionID).Return(signingSessionResult, nil)
+		ctx.contractClientMock.EXPECT().SigningSessionStatus(gomock.Any(), signingSessionID).Return(signingSessionResult, nil)
 
 		err := ctx.wrapper.GetSignSessionStatus(ctx.echoMock, signingSessionID)
 

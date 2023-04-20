@@ -18,12 +18,15 @@
 
 package contract
 
-import "github.com/nuts-foundation/go-did/vc"
+import (
+	"context"
+	"github.com/nuts-foundation/go-did/vc"
+)
 
 // Signer is responsible for signing contract signing requests. Signing is done by making use of asynchronous SigningSessions.
 type Signer interface {
 	// SigningSessionStatus returns the current status of the signing session or services.ErrSessionNotFound if not found
-	SigningSessionStatus(sessionID string) (SigningSessionResult, error)
+	SigningSessionStatus(ctx context.Context, sessionID string) (SigningSessionResult, error)
 	// StartSigningSession starts a session for the implementing signer
 	// params are signer specific
 	StartSigningSession(rawContractText string, params map[string]interface{}) (SessionPointer, error)

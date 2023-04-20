@@ -24,7 +24,7 @@ import (
 	"time"
 )
 
-func (v sessionStore) VerifyVP(_ vc.VerifiablePresentation, _ *time.Time) (contract.VPVerificationResult, error) {
+func (v service) VerifyVP(_ vc.VerifiablePresentation, _ *time.Time) (contract.VPVerificationResult, error) {
 	return selfsignedVerificationResult{}, nil
 }
 

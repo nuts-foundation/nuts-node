@@ -336,17 +336,19 @@ func TestContract_VerifyVP(t *testing.T) {
 }
 
 func TestContract_SigningSessionStatus(t *testing.T) {
+	ctx := context.Background()
+
 	t.Run("ok - valid session", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
 		sessionID := "123"
 
 		mockSigner := contract.NewMockSigner(ctrl)
-		mockSigner.EXPECT().SigningSessionStatus(sessionID).Return(&contract.MockSigningSessionResult{}, nil)
+		mockSigner.EXPECT().SigningSessionStatus(ctx, sessionID).Return(&contract.MockSigningSessionResult{}, nil)
 
 		validator := notary{signers: map[string]contract.Signer{"bar": mockSigner}}
 
-		signingSessionResult, err := validator.SigningSessionStatus(sessionID)
+		signingSessionResult, err := validator.SigningSessionStatus(ctx, sessionID)
 		require.NoError(t, err)
 		require.NotNil(t, signingSessionResult)
 	})
@@ -354,7 +356,7 @@ func TestContract_SigningSessionStatus(t *testing.T) {
 	t.Run("nok - session not found", func(t *testing.T) {
 		validator := notary{}
 		sessionID := "123"
-		signingSesionResult, err := validator.SigningSessionStatus(sessionID)
+		signingSesionResult, err := validator.SigningSessionStatus(ctx, sessionID)
 
 		assert.Nil(t, signingSesionResult)
 		assert.EqualError(t, err, "session not found")

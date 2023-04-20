@@ -62,7 +62,7 @@ func TestSessionStore_StartSigningSession(t *testing.T) {
 				familyName,
 			},
 		}
-		ss := NewSessionStore(nil).(sessionStore)
+		ss := NewService(nil).(*service)
 
 		sp, err := ss.StartSigningSession(testContract, params)
 		require.NoError(t, err)
@@ -70,18 +70,19 @@ func TestSessionStore_StartSigningSession(t *testing.T) {
 		require.NotNil(t, session)
 		assert.Equal(t, testContract, session.contract)
 		assert.Equal(t, SessionCreated, session.status)
-		assert.Equal(t, employer.String(), session.Employer)
-		assert.Equal(t, familyName, session.Employee.FamilyName)
-		assert.Equal(t, initials, session.Employee.Initials)
-		assert.Equal(t, identifier, session.Employee.Identifier)
-		assert.Equal(t, roleName, session.Employee.RoleName)
+		assert.Equal(t, employer.String(), session.issuerDID.String())
+		assert.Equal(t, employer.String(), session.params.Employer)
+		assert.Equal(t, familyName, session.params.Employee.FamilyName)
+		assert.Equal(t, initials, session.params.Employee.Initials)
+		assert.Equal(t, identifier, session.params.Employee.Identifier)
+		assert.Equal(t, roleName, session.params.Employee.RoleName)
 	})
 
 	t.Run("error on invalid JSON", func(t *testing.T) {
 		params := map[string]interface{}{
 			"broken": func() {},
 		}
-		ss := NewSessionStore(nil)
+		ss := NewService(nil)
 
 		_, err := ss.StartSigningSession(testContract, params)
 
@@ -90,6 +91,7 @@ func TestSessionStore_StartSigningSession(t *testing.T) {
 }
 
 func TestSessionStore_SigningSessionStatus(t *testing.T) {
+	ctx := context.Background()
 	params := map[string]interface{}{
 		"employer": employer.String(),
 		"employee": struct {
@@ -113,7 +115,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 
 	t.Run("status completed returns VP on SigningSessionResult", func(t *testing.T) {
 		mockContext := newMockContext(t)
-		ss := NewSessionStore(mockContext.vcr).(sessionStore)
+		ss := NewService(mockContext.vcr).(*service)
 		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).Return(&testVC, nil)
 		mockContext.holder.EXPECT().BuildVP(context.TODO(), gomock.Len(1), gomock.Any(), &employer, true).Return(&testVP, nil)
 
@@ -122,7 +124,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 		session := ss.sessions[sp.SessionID()]
 		session.status = SessionCompleted
 		ss.sessions[sp.SessionID()] = session
-		result, err := ss.SigningSessionStatus(sp.SessionID())
+		result, err := ss.SigningSessionStatus(ctx, sp.SessionID())
 		require.NoError(t, err)
 		vp, err := result.VerifiablePresentation()
 		require.NoError(t, err)
@@ -131,7 +133,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 
 	t.Run("correct VC options are passed to issuer", func(t *testing.T) {
 		mockContext := newMockContext(t)
-		ss := NewSessionStore(mockContext.vcr).(sessionStore)
+		ss := NewService(mockContext.vcr).(*service)
 		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).DoAndReturn(
 			func(arg0 interface{}, unsignedCredential interface{}, public interface{}, publish interface{}) (*vc.VerifiableCredential, error) {
 				isPublic, ok := public.(bool)
@@ -167,21 +169,21 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 		session := ss.sessions[sp.SessionID()]
 		session.status = SessionCompleted
 		ss.sessions[sp.SessionID()] = session
-		_, err = ss.SigningSessionStatus(sp.SessionID())
+		_, err = ss.SigningSessionStatus(ctx, sp.SessionID())
 		require.NoError(t, err)
 	})
 
 	t.Run("error for unknown session", func(t *testing.T) {
-		ss := NewSessionStore(nil)
+		ss := NewService(nil)
 
-		_, err := ss.SigningSessionStatus("unknown")
+		_, err := ss.SigningSessionStatus(ctx, "unknown")
 
 		assert.Equal(t, services.ErrSessionNotFound, err)
 	})
 
 	t.Run("error on VC issuance", func(t *testing.T) {
 		mockContext := newMockContext(t)
-		ss := NewSessionStore(mockContext.vcr).(sessionStore)
+		ss := NewService(mockContext.vcr).(*service)
 		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).Return(nil, errors.New("error"))
 
 		sp, err := ss.StartSigningSession(testContract, params)
@@ -189,14 +191,14 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 		session := ss.sessions[sp.SessionID()]
 		session.status = SessionCompleted
 		ss.sessions[sp.SessionID()] = session
-		_, err = ss.SigningSessionStatus(sp.SessionID())
+		_, err = ss.SigningSessionStatus(ctx, sp.SessionID())
 
 		assert.EqualError(t, err, "issue VC failed: error")
 	})
 
 	t.Run("error on building VP", func(t *testing.T) {
 		mockContext := newMockContext(t)
-		ss := NewSessionStore(mockContext.vcr).(sessionStore)
+		ss := NewService(mockContext.vcr).(*service)
 		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).Return(&testVC, nil)
 		mockContext.holder.EXPECT().BuildVP(context.TODO(), gomock.Len(1), gomock.Any(), &employer, true).Return(nil, errors.New("error"))
 
@@ -205,7 +207,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 		session := ss.sessions[sp.SessionID()]
 		session.status = SessionCompleted
 		ss.sessions[sp.SessionID()] = session
-		_, err = ss.SigningSessionStatus(sp.SessionID())
+		_, err = ss.SigningSessionStatus(ctx, sp.SessionID())
 
 		assert.EqualError(t, err, "build VP failed: error")
 	})

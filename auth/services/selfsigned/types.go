@@ -20,6 +20,7 @@ package selfsigned
 
 import (
 	"encoding/json"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/vcr"
@@ -40,21 +41,21 @@ const SessionInProgress = "in-progress"
 // SessionCompleted represents the session state after the user has accepted the contract
 const SessionCompleted = "completed"
 
-type SessionStore interface {
+type Service interface {
 	contract.Signer
 	contract.VPVerifier
 }
 
-// SessionStore is a contract signer and verifier that always succeeds
-// The SessionStore signer is not supposed to be used in a clustered context unless consecutive calls arrive at the same instance
-type sessionStore struct {
+// Service is a contract signer and verifier that always succeeds
+// The Service signer is not supposed to be used in a clustered context unless consecutive calls arrive at the same instance
+type service struct {
 	sessions map[string]session
 	vcr      vcr.VCR
 }
 
-// NewSessionStore returns an initialized SessionStore
-func NewSessionStore(vcr vcr.VCR) SessionStore {
-	return sessionStore{
+// NewService returns an initialized Service
+func NewService(vcr vcr.VCR) Service {
+	return &service{
 		sessions: map[string]session{},
 		vcr:      vcr,
 	}
@@ -62,9 +63,18 @@ func NewSessionStore(vcr vcr.VCR) SessionStore {
 
 // session contains the contract text and session signing status
 type session struct {
+	// contract contains the original contract text
 	contract string
-	status   string
-	Employer string
+	// session contains the status of the session (created/completed)
+	status string
+	// params contains the params given to start the session
+	params sessionParam
+	// issuerDID contains the issuer DID, this is parsed from params['employer']
+	issuerDID did.DID
+}
+
+type sessionParam struct {
+	Employer string   `json:"employer"`
 	Employee Employee `json:"employee"`
 }
 
@@ -76,8 +86,8 @@ type Employee struct {
 }
 
 type sessionPointer struct {
-	sessionID string `json:"sessionID"`
-	url       string `json:"url"`
+	sessionID string
+	url       string
 }
 
 func (s sessionPointer) SessionID() string {
@@ -113,18 +123,18 @@ func (s signingSessionResult) VerifiablePresentation() (*vc.VerifiablePresentati
 func (s session) credentialSubject() []interface{} {
 	person := map[string]string{
 		"type":       "Person",
-		"initials":   s.Employee.Initials,
-		"familyName": s.Employee.FamilyName,
+		"initials":   s.params.Employee.Initials,
+		"familyName": s.params.Employee.FamilyName,
 	}
 	role := map[string]interface{}{
 		"member":     person,
-		"roleName":   s.Employee.RoleName,
+		"roleName":   s.params.Employee.RoleName,
 		"type":       "EmployeeRole",
-		"identifier": s.Employee.Identifier,
+		"identifier": s.params.Employee.Identifier,
 	}
 	credentialSubject := map[string]interface{}{
 		"@type":  "Organization",
-		"id":     s.Employer,
+		"id":     s.params.Employer,
 		"member": role,
 	}
 	return []interface{}{

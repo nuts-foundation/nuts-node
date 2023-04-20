@@ -26,7 +26,7 @@ import (
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	vc2 "github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
@@ -36,25 +36,24 @@ import (
 
 const credentialType = "NutsEmployeeCredential"
 
-func (v sessionStore) SigningSessionStatus(sessionID string) (contract.SigningSessionResult, error) {
+func (v service) SigningSessionStatus(ctx context.Context, sessionID string) (contract.SigningSessionResult, error) {
 	s, ok := v.sessions[sessionID]
 	if !ok {
 		return nil, services.ErrSessionNotFound
 	}
-	var vp *vc2.VerifiablePresentation
+	var vp *vc.VerifiablePresentation
 
 	if s.status == SessionCompleted {
-		issuer := did.MustParseDID(s.Employer) // todo panic << validate in API?
 		expirationData := time.Now().Add(24 * time.Hour)
-		credentialOptions := vc2.VerifiableCredential{
+		credentialOptions := vc.VerifiableCredential{
 			Context:           []ssi.URI{credential.NutsV1ContextURI},
-			Type:              []ssi.URI{vc2.VerifiableCredentialTypeV1URI(), ssi.MustParseURI(credentialType)},
-			Issuer:            issuer.URI(),
+			Type:              []ssi.URI{vc.VerifiableCredentialTypeV1URI(), ssi.MustParseURI(credentialType)},
+			Issuer:            s.issuerDID.URI(),
 			IssuanceDate:      time.Now(),
 			ExpirationDate:    &expirationData,
 			CredentialSubject: s.credentialSubject(),
 		}
-		verifiableCredential, err := v.vcr.Issuer().Issue(context.TODO(), credentialOptions, false, false)
+		verifiableCredential, err := v.vcr.Issuer().Issue(ctx, credentialOptions, false, false)
 		if err != nil {
 			return nil, fmt.Errorf("issue VC failed: %w", err)
 		}
@@ -63,7 +62,7 @@ func (v sessionStore) SigningSessionStatus(sessionID string) (contract.SigningSe
 			Challenge:    &s.contract,
 			ProofPurpose: "",
 		}
-		vp, err = v.vcr.Holder().BuildVP(context.TODO(), []vc2.VerifiableCredential{*verifiableCredential}, proofOptions, &issuer, true)
+		vp, err = v.vcr.Holder().BuildVP(ctx, []vc.VerifiableCredential{*verifiableCredential}, proofOptions, &s.issuerDID, true)
 		if err != nil {
 			return nil, fmt.Errorf("build VP failed: %w", err)
 		}
@@ -77,7 +76,7 @@ func (v sessionStore) SigningSessionStatus(sessionID string) (contract.SigningSe
 	}, nil
 }
 
-func (v sessionStore) StartSigningSession(rawContractText string, params map[string]interface{}) (contract.SessionPointer, error) {
+func (v service) StartSigningSession(rawContractText string, params map[string]interface{}) (contract.SessionPointer, error) {
 	sessionBytes := make([]byte, 16)
 	rand.Reader.Read(sessionBytes)
 
@@ -93,7 +92,14 @@ func (v sessionStore) StartSigningSession(rawContractText string, params map[str
 		return nil, err
 	}
 	// impossible to get an error here since both the pointer and the data is under our control.
-	_ = json.Unmarshal(marshalled, &s)
+	_ = json.Unmarshal(marshalled, &s.params)
+
+	// Parse the DID here so we can return an error
+	did, err := did.ParseDID(s.params.Employer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse employer param as DID: %w", err)
+	}
+	s.issuerDID = *did
 	v.sessions[sessionID] = s
 
 	return sessionPointer{

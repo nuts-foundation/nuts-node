@@ -6,7 +6,7 @@ Content-Type: application/json
     "type": "NutsEmployeeCredential",
     "issuer": "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm",
     "credentialSubject": {
-        "@type": "Organization",
+        "type": "Organization",
         "id": "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm",
         "member": {
           "identifier": "user@example.com",

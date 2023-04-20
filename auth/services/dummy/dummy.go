@@ -19,6 +19,7 @@
 package dummy
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -218,7 +219,7 @@ func (d Dummy) VerifyVP(vp vc.VerifiablePresentation, _ *time.Time) (contract.VP
 // SigningSessionStatus looks up the session by the provided sessionID param.
 // When the session exists it returns the current state and advances the state to the next one.
 // When the session is SessionComplete, it removes the session from the sessionStore.
-func (d Dummy) SigningSessionStatus(sessionID string) (contract.SigningSessionResult, error) {
+func (d Dummy) SigningSessionStatus(_ context.Context, sessionID string) (contract.SigningSessionResult, error) {
 	if d.InStrictMode {
 		return nil, errNotEnabled
 	}

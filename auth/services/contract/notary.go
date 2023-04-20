@@ -214,7 +214,7 @@ func (n *notary) Configure() (err error) {
 	}
 
 	if _, ok := cvMap[selfsigned.ContractFormat]; ok {
-		ss := selfsigned.NewSessionStore(n.vcr)
+		ss := selfsigned.NewService(n.vcr)
 
 		n.verifiers[selfsigned.VerifiablePresentationType] = ss
 		n.signers[selfsigned.ContractFormat] = ss
@@ -253,9 +253,9 @@ func (n *notary) VerifyVP(vp vc.VerifiablePresentation, checkTime *time.Time) (c
 	return n.verifiers[t.String()].VerifyVP(vp, checkTime)
 }
 
-func (n *notary) SigningSessionStatus(sessionID string) (contract.SigningSessionResult, error) {
+func (n *notary) SigningSessionStatus(ctx context.Context, sessionID string) (contract.SigningSessionResult, error) {
 	for _, signer := range n.signers {
-		if r, err := signer.SigningSessionStatus(sessionID); !errors.Is(err, services.ErrSessionNotFound) {
+		if r, err := signer.SigningSessionStatus(ctx, sessionID); !errors.Is(err, services.ErrSessionNotFound) {
 			return r, err
 		}
 	}

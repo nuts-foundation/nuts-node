@@ -157,7 +157,7 @@ func (w Wrapper) CreateSignSession(ctx echo.Context) error {
 
 // GetSignSessionStatus handles the http requests for getting the current status of a signing session.
 func (w Wrapper) GetSignSessionStatus(ctx echo.Context, sessionID string) error {
-	sessionStatus, err := w.Auth.ContractNotary().SigningSessionStatus(sessionID)
+	sessionStatus, err := w.Auth.ContractNotary().SigningSessionStatus(ctx.Request().Context(), sessionID)
 	if err != nil {
 		return fmt.Errorf("failed to get session status for %s, reason: %w", sessionID, err)
 	}

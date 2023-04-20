@@ -19,6 +19,7 @@
 package irma
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -118,7 +119,7 @@ func (v Service) StartSigningSession(rawContractText string, params map[string]i
 
 // SigningSessionStatus returns the current status of a certain session.
 // It returns nil if the session is not found
-func (v Service) SigningSessionStatus(sessionID string) (contract.SigningSessionResult, error) {
+func (v Service) SigningSessionStatus(_ context.Context, sessionID string) (contract.SigningSessionResult, error) {
 	result, err := v.IrmaSessionHandler.GetSessionResult(sessionID)
 	if err != nil {
 		if _, ok := err.(*irmaserver.UnknownSessionError); ok {

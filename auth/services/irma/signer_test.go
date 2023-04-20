@@ -19,6 +19,7 @@
 package irma
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -117,24 +118,25 @@ func TestService_SigningSessionStatus(t *testing.T) {
 	holder := vdr.TestDIDA
 	keyID := holder
 	keyID.Fragment = keyID.ID
+	ctx := context.Background()
 
 	t.Run("error - session not found", func(t *testing.T) {
-		ctx := serviceWithMocks(t)
+		mockCtx := serviceWithMocks(t)
 
-		irmaMock := ctx.service.IrmaSessionHandler.(*mockIrmaClient)
+		irmaMock := mockCtx.service.IrmaSessionHandler.(*mockIrmaClient)
 		irmaMock.sessionResult = nil
 		irmaMock.err = &irmaserver.UnknownSessionError{}
 
-		_, err := ctx.service.SigningSessionStatus("session")
+		_, err := mockCtx.service.SigningSessionStatus(ctx, "session")
 
 		assert.Error(t, err)
 		assert.Equal(t, services.ErrSessionNotFound, err)
 	})
 
 	t.Run("ok", func(t *testing.T) {
-		ctx := serviceWithMocks(t)
+		mockCtx := serviceWithMocks(t)
 
-		irmaMock := ctx.service.IrmaSessionHandler.(*mockIrmaClient)
+		irmaMock := mockCtx.service.IrmaSessionHandler.(*mockIrmaClient)
 		irmaMock.sessionResult = &irmaservercore.SessionResult{
 			Token:  "token",
 			Status: "status",
@@ -143,7 +145,7 @@ func TestService_SigningSessionStatus(t *testing.T) {
 			},
 		}
 
-		result, err := ctx.service.SigningSessionStatus("session")
+		result, err := mockCtx.service.SigningSessionStatus(ctx, "session")
 
 		assert.NoError(t, err)
 		assert.Equal(t, "status", result.Status())

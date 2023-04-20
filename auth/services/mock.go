@@ -202,18 +202,18 @@ func (mr *MockContractNotaryMockRecorder) HandlerFunc() *gomock.Call {
 }
 
 // SigningSessionStatus mocks base method.
-func (m *MockContractNotary) SigningSessionStatus(sessionID string) (contract.SigningSessionResult, error) {
+func (m *MockContractNotary) SigningSessionStatus(ctx context.Context, sessionID string) (contract.SigningSessionResult, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SigningSessionStatus", sessionID)
+	ret := m.ctrl.Call(m, "SigningSessionStatus", ctx, sessionID)
 	ret0, _ := ret[0].(contract.SigningSessionResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // SigningSessionStatus indicates an expected call of SigningSessionStatus.
-func (mr *MockContractNotaryMockRecorder) SigningSessionStatus(sessionID interface{}) *gomock.Call {
+func (mr *MockContractNotaryMockRecorder) SigningSessionStatus(ctx, sessionID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SigningSessionStatus", reflect.TypeOf((*MockContractNotary)(nil).SigningSessionStatus), sessionID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SigningSessionStatus", reflect.TypeOf((*MockContractNotary)(nil).SigningSessionStatus), ctx, sessionID)
 }
 
 // Start mocks base method.

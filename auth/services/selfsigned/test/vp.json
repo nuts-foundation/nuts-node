@@ -1,22 +1,19 @@
 {
   "@context": [
     "https://www.w3.org/2018/credentials/v1",
-    "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json",
-    "https://nuts.nl/credentials/v1"
+    "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
   ],
   "type": [
-    "VerifiablePresentation",
-    "NutsSelfSignedPresentation"
+    "VerifiablePresentation"
   ],
   "verifiableCredential": [
     {
       "@context": [
-        "https://nuts.nl/credentials/v1",
         "https://www.w3.org/2018/credentials/v1",
-        "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
+        "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json",
+        "https://nuts.nl/credentials/v1"
       ],
       "credentialSubject": {
-        "@type": "Organization",
         "id": "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm",
         "member": {
           "identifier": "user@example.com",
@@ -27,14 +24,15 @@
           },
           "roleName": "Verpleegkundige niveau 2",
           "type": "EmployeeRole"
-        }
+        },
+        "type": "Organization"
       },
-      "id": "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm#3ed17821-cedf-4f1b-b29b-393a085b5375",
-      "issuanceDate": "2023-04-14T10:26:49.975464+02:00",
+      "id": "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm#dde77e76-7e3c-483f-a813-2b851a6a969c",
+      "issuanceDate": "2023-04-20T08:52:45.941461+02:00",
       "issuer": "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm",
       "proof": {
-        "created": "2023-04-14T10:26:49.975621+02:00",
-        "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il0sImtpZCI6ImRpZDpudXRzOjhOWXpmc25kWkpIaDZHcXpLaVNCcHlFUnJGeHVYNjR6NnRFNXJhYTduRWptI2JZY3VldDZFSG9qTWxhTXF3Tm9DM2M2ZXRLbFVIb0o5clJ2VXUzWktFRXcifQ..yDorxd8cKtAQ1VldGROz30bYm92bke9d2ZNI2TJW6uDP_gUKgKwWSwBSHKMRY_blRLKfgV8Eu6B0rC8A7hVwPg",
+        "created": "2023-04-20T08:52:45.94152+02:00",
+        "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il0sImtpZCI6ImRpZDpudXRzOjhOWXpmc25kWkpIaDZHcXpLaVNCcHlFUnJGeHVYNjR6NnRFNXJhYTduRWptI2JZY3VldDZFSG9qTWxhTXF3Tm9DM2M2ZXRLbFVIb0o5clJ2VXUzWktFRXcifQ..Ouk_bSDawlQf3aQ57tJwEVIQlVfkOw2omjI1bRfi9FqZ7qlLzDXcOo75CpxyxafIHXnb7Wk9OefOrwTIQz0X8A",
         "proofPurpose": "assertionMethod",
         "type": "JsonWebSignature2020",
         "verificationMethod": "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm#bYcuet6EHojMlaMqwNoC3c6etKlUHoJ9rRvUu3ZKEEw"
@@ -47,10 +45,10 @@
   ],
   "proof": [
     {
-      "challenge": "EN:PractitionerLogin:v3 I hereby declare to act on behalf of CareBears located in Caretown. This declaration is valid from Friday, 14 April 2023 13:40:00 to Saturday, 15 April 2023 13:40:00.",
-      "created": "2023-04-14T13:43:15.936322+02:00",
-      "expires": "2023-04-15T13:40:00+02:00",
-      "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il0sImtpZCI6ImRpZDpudXRzOjhOWXpmc25kWkpIaDZHcXpLaVNCcHlFUnJGeHVYNjR6NnRFNXJhYTduRWptI2JZY3VldDZFSG9qTWxhTXF3Tm9DM2M2ZXRLbFVIb0o5clJ2VXUzWktFRXcifQ..WfJ75e9KUuKPi69mQUUjruDhxbFFIdP5IunY4o3_mxaxYMHRZSwcpCWkkUfV865LwKoEbyKs-WBh2RbGpWPA9w",
+      "challenge": "EN:PractitionerLogin:v3 I hereby declare to act on behalf of CareBears located in Caretown. This declaration is valid from Wednesday, 19 April 2023 12:20:00 until Thursday, 20 April 2023 13:20:00.",
+      "created": "2023-04-20T08:53:27.784346+02:00",
+      "expires": "2023-04-20T13:20:00+02:00",
+      "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il0sImtpZCI6ImRpZDpudXRzOjhOWXpmc25kWkpIaDZHcXpLaVNCcHlFUnJGeHVYNjR6NnRFNXJhYTduRWptI2JZY3VldDZFSG9qTWxhTXF3Tm9DM2M2ZXRLbFVIb0o5clJ2VXUzWktFRXcifQ..QMsjIFDxiW4WLQJFiK1Yn1t5GFecFopoM7VHxWOHS7WhzJixZtpQv88rGC4i8-p91ek5EzSQ4fL3fTMmMIvEZg",
       "proofPurpose": "assertionMethod",
       "type": "JsonWebSignature2020",
       "verificationMethod": "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm#bYcuet6EHojMlaMqwNoC3c6etKlUHoJ9rRvUu3ZKEEw"
