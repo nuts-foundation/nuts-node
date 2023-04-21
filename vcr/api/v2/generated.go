@@ -29,6 +29,9 @@ const (
 
 // CreateVPRequest A request for creating a new Verifiable Presentation for a set of Verifiable Credentials.
 type CreateVPRequest struct {
+	// Context Array of JSON-LD contexts, contain definitions of the given types.
+	Context *[]string `json:"@context,omitempty"`
+
 	// Challenge A random or pseudo-random value used by some authentication protocols to mitigate replay attacks.
 	Challenge *string `json:"challenge,omitempty"`
 
@@ -48,7 +51,10 @@ type CreateVPRequest struct {
 	// SignerDID Specifies the DID of the signing party that must be used to create the digital signature.
 	// If not specified, it is derived from the given Verifiable Credentials' subjectCredential ID.
 	// It can only be derived if all given Verifiable Credentials have the same, single subjectCredential.
-	SignerDID             *string                `json:"signerDID,omitempty"`
+	SignerDID *string `json:"signerDID,omitempty"`
+
+	// Type Array of VerifiablePresentation types that will be added next to the default type. Types must be available in the given context.
+	Type                  *[]string              `json:"type,omitempty"`
 	VerifiableCredentials []VerifiableCredential `json:"verifiableCredentials"`
 }
 

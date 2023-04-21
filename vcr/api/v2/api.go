@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"net/http"
 
 	"github.com/nuts-foundation/nuts-node/jsonld"
@@ -238,14 +239,41 @@ func (w *Wrapper) CreateVP(ctx context.Context, request CreateVPRequestObject) (
 		expires = &parsedTime
 	}
 
-	proofOptions := proof.ProofOptions{
-		Created:   created,
-		Domain:    request.Body.Domain,
-		Challenge: request.Body.Challenge,
-		Expires:   expires,
+	presentationOptions := holder.PresentationOptions{
+		ProofOptions: proof.ProofOptions{
+			Created:   created,
+			Domain:    request.Body.Domain,
+			Challenge: request.Body.Challenge,
+			Expires:   expires,
+		},
 	}
 
-	vp, err := w.VCR.Holder().BuildVP(ctx, request.Body.VerifiableCredentials, proofOptions, signerDID, true)
+	// custom proofPurpose
+	if request.Body.ProofPurpose != nil {
+		presentationOptions.ProofOptions.ProofPurpose = *request.Body.ProofPurpose
+	}
+
+	// pass context and type as ssi.URI
+	if request.Body.Context != nil {
+		for _, sc := range *request.Body.Context {
+			c, err := ssi.ParseURI(sc)
+			if err != nil {
+				return nil, core.InvalidInputError("invalid value for context: %w", err)
+			}
+			presentationOptions.AdditionalContexts = append(presentationOptions.AdditionalContexts, *c)
+		}
+	}
+	if request.Body.Type != nil {
+		for _, st := range *request.Body.Type {
+			t, err := ssi.ParseURI(st)
+			if err != nil {
+				return nil, core.InvalidInputError("invalid value for type: %w", err)
+			}
+			presentationOptions.AdditionalTypes = append(presentationOptions.AdditionalTypes, *t)
+		}
+	}
+
+	vp, err := w.VCR.Holder().BuildVP(ctx, request.Body.VerifiableCredentials, presentationOptions, signerDID, true)
 	if err != nil {
 		return nil, err
 	}

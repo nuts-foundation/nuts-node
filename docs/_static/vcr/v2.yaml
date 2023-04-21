@@ -545,6 +545,16 @@ components:
       required:
         - verifiableCredentials
       properties:
+        "type":
+          type: array
+          description: Array of VerifiablePresentation types that will be added next to the default type. Types must be available in the given context.
+          items:
+            type: string
+        "@context":
+          type: array
+          description: Array of JSON-LD contexts, contain definitions of the given types.
+          items:
+            type: string
         verifiableCredentials:
           type: array
           items:
@@ -561,6 +571,7 @@ components:
           description: |
             The specific intent for the proof, the reason why an entity created it. Acts as a safeguard to prevent the
             proof from being misused for a purpose other than the one it was intended for.
+          enum: [authentication, assertionMethod, keyAgreement, capabilityDelegation, capabilityInvocation]
         challenge:
           type: string
           description: |

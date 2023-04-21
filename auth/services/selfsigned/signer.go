@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"time"
 )
@@ -57,12 +58,16 @@ func (v service) SigningSessionStatus(ctx context.Context, sessionID string) (co
 		if err != nil {
 			return nil, fmt.Errorf("issue VC failed: %w", err)
 		}
-		proofOptions := proof.ProofOptions{
-			Created:      time.Now(),
-			Challenge:    &s.contract,
-			ProofPurpose: proof.AuthenticationProofPurpose,
+		presentationOptions := holder.PresentationOptions{
+			AdditionalContexts: []ssi.URI{credential.NutsV1ContextURI},
+			AdditionalTypes:    []ssi.URI{ssi.MustParseURI(VerifiablePresentationType)},
+			ProofOptions: proof.ProofOptions{
+				Created:      time.Now(),
+				Challenge:    &s.contract,
+				ProofPurpose: proof.AuthenticationProofPurpose,
+			},
 		}
-		vp, err = v.vcr.Holder().BuildVP(ctx, []vc.VerifiableCredential{*verifiableCredential}, proofOptions, &s.issuerDID, true)
+		vp, err = v.vcr.Holder().BuildVP(ctx, []vc.VerifiableCredential{*verifiableCredential}, presentationOptions, &s.issuerDID, true)
 		if err != nil {
 			return nil, fmt.Errorf("build VP failed: %w", err)
 		}
