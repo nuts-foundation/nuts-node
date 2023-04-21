@@ -9,6 +9,10 @@ Hazelnut update (v5.3.0)
 
 Release date: **DRAFT**
 
+- Automatically resolving of node DIDs has been removed, since it caused more confusion than it simplified things.
+  It was only meant for workshop/demo purposes and not allowed in strict mode, so the impact should be very limited.
+  If you didn't configure a node DID but do want to exchange private credentials,
+  you now have to configure it explicitly using `network.nodedid`.
 - The ``tls.crl.maxvaliditydays`` config flag has been deprecated. CRLs are now updated more frequently, making this option obsolete.
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.2.0...v5.3.0

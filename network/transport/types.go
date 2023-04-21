@@ -145,6 +145,15 @@ func isReserved(URL *url.URL) bool {
 	return false
 }
 
+func contains(haystack []string, needle string) bool {
+	for _, curr := range haystack {
+		if curr == needle {
+			return true
+		}
+	}
+	return false
+}
+
 var reservedTLDs = []string{
 	"", // no domain specified
 	"corp",

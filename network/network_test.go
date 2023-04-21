@@ -175,15 +175,6 @@ func TestNetwork_Configure(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "did:nuts:test", test.network.nodeDID.String())
 	})
-	t.Run("ok - auto-resolve node DID", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-
-		ctx := createNetwork(t, ctrl)
-		ctx.protocol.EXPECT().Configure(gomock.Any())
-
-		err := ctx.network.Configure(core.TestServerConfig(core.ServerConfig{Datadir: io.TestDirectory(t)}))
-		require.NoError(t, err)
-	})
 	t.Run("ok - no DID set in strict mode, should return empty node DID", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
