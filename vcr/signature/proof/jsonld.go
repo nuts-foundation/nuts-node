@@ -41,6 +41,12 @@ const RsaSignature2018 = ssi.ProofType("RsaSignature2018")
 // EcdsaSecp256k1Signature2019 contains the string value for the EcdsaSecp256k1Signature2019 signature type
 const EcdsaSecp256k1Signature2019 = ssi.ProofType("EcdsaSecp256k1Signature2019")
 
+// AssertionMethodProofPurpose contains the string value for the assertionMethod proof purpose
+const AssertionMethodProofPurpose = "assertionMethod"
+
+// AuthenticationProofPurpose contains the string value for the authentication proof purpose
+const AuthenticationProofPurpose = "authentication"
+
 // ProofOptions contains the options for a specific proof. When set they wil
 type ProofOptions struct {
 	// Created contains the date and time of signing. When not set, the current date time will be used.
@@ -125,7 +131,7 @@ func (p LDProof) Verify(document Document, suite signature.Suite, key crypto.Pub
 // It returns the complete signed JSON-LD document
 func (p *LDProof) Sign(ctx context.Context, document Document, suite signature.Suite, key nutsCrypto.Key) (interface{}, error) {
 	p.Type = suite.GetType()
-	p.ProofPurpose = "assertionMethod"
+	p.ProofPurpose = AssertionMethodProofPurpose
 	if p.Created.IsZero() {
 		p.Created = time.Now()
 	}

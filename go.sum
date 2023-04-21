@@ -411,6 +411,8 @@ github.com/nuts-foundation/did-ockam v0.0.0-20230313074753-fafd938c948c h1:Q2Naw
 github.com/nuts-foundation/did-ockam v0.0.0-20230313074753-fafd938c948c/go.mod h1:n0NQI71qGVVShnPDjYdCoNStEW0zZoVWbeSQ+esXuhs=
 github.com/nuts-foundation/go-did v0.5.0 h1:41Q/vxRDKL2k6tziAjSjdL6A+yXHV3DgnerYZr2ryHQ=
 github.com/nuts-foundation/go-did v0.5.0/go.mod h1:Aw1pIRyB9naQ8z/dc4rrPhn+nHx5LUcGysBGlezL528=
+github.com/nuts-foundation/go-did v0.5.1 h1:akc4OzNGHdnliJFoxnnSmUI7j1yKz/BHNi6sXiWX30A=
+github.com/nuts-foundation/go-did v0.5.1/go.mod h1:Aw1pIRyB9naQ8z/dc4rrPhn+nHx5LUcGysBGlezL528=
 github.com/nuts-foundation/go-leia/v3 v3.3.0 h1:d0AIihk8nF6QCMpA9I01ZS+pp+GCgoJhblTNkyIZz40=
 github.com/nuts-foundation/go-leia/v3 v3.3.0/go.mod h1:Md202F2wpwkXGtOUzyqs0p1Y96+wOY8lpmDT9nuaxE0=
 github.com/nuts-foundation/go-stoabs v1.8.1 h1:I6sS6eGBAltzpmN0IA78M4DqrPolzHUWp+1q7hAM0Uo=

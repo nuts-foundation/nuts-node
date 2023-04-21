@@ -45,7 +45,12 @@ func (v service) VerifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (con
 	}
 
 	// 2. Contract validation
-	c, err := contract.ParseContractString(proof.Challenge, v.validContracts)
+	if proof.Challenge == nil {
+		result.InvalidReason = "challenge is required"
+		return result, nil
+	}
+
+	c, err := contract.ParseContractString(*proof.Challenge, v.validContracts)
 	if err != nil {
 		result.InvalidReason = err.Error()
 		return result, nil

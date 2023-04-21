@@ -60,7 +60,7 @@ func (v service) SigningSessionStatus(ctx context.Context, sessionID string) (co
 		proofOptions := proof.ProofOptions{
 			Created:      time.Now(),
 			Challenge:    &s.contract,
-			ProofPurpose: "",
+			ProofPurpose: proof.AuthenticationProofPurpose,
 		}
 		vp, err = v.vcr.Holder().BuildVP(ctx, []vc.VerifiableCredential{*verifiableCredential}, proofOptions, &s.issuerDID, true)
 		if err != nil {
