@@ -53,7 +53,7 @@ func New(keyResolver vdr.KeyResolver, keyStore crypto.KeyStore, verifier verifie
 	}
 }
 
-func (h vcHolder) BuildVP(ctx context.Context, credentials []vc.VerifiableCredential, proofOptions proof.ProofOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error) {
+func (h vcHolder) BuildVP(ctx context.Context, credentials []vc.VerifiableCredential, options PresentationOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error) {
 	var err error
 	if signerDID == nil {
 		signerDID, err = h.resolveSubjectDID(credentials)
@@ -73,16 +73,21 @@ func (h vcHolder) BuildVP(ctx context.Context, credentials []vc.VerifiableCreden
 
 	if validateVC {
 		for _, cred := range credentials {
-			err := h.verifier.Validate(cred, &proofOptions.Created)
+			err := h.verifier.Validate(cred, &options.ProofOptions.Created)
 			if err != nil {
 				return nil, core.InvalidInputError("invalid credential (id=%s): %w", cred.ID, err)
 			}
 		}
 	}
 
+	ldContext := []ssi.URI{VerifiableCredentialLDContextV1, signature.JSONWebSignature2020Context}
+	ldContext = append(ldContext, options.AdditionalContexts...)
+	types := []ssi.URI{VerifiablePresentationLDType}
+	types = append(types, options.AdditionalTypes...)
+
 	unsignedVP := &vc.VerifiablePresentation{
-		Context:              []ssi.URI{VerifiableCredentialLDContextV1, signature.JSONWebSignature2020Context},
-		Type:                 []ssi.URI{VerifiablePresentationLDType},
+		Context:              ldContext,
+		Type:                 types,
 		VerifiableCredential: credentials,
 	}
 
@@ -99,7 +104,7 @@ func (h vcHolder) BuildVP(ctx context.Context, credentials []vc.VerifiableCreden
 
 	// TODO: choose between different proof types (JWT or LD-Proof)
 	signingResult, err := proof.
-		NewLDProof(proofOptions).
+		NewLDProof(options.ProofOptions).
 		Sign(ctx, document, signature.JSONWebSignature2020{ContextLoader: h.jsonldManager.DocumentLoader(), Signer: h.keyStore}, key)
 	if err != nil {
 		return nil, fmt.Errorf("unable to sign VP with LD proof: %w", err)

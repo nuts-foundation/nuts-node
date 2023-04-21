@@ -41,5 +41,16 @@ type Holder interface {
 	// BuildVP builds and signs a Verifiable Presentation using the given Verifiable Credentials.
 	// The assertion key used for signing it is taken from signerDID's DID document.
 	// If signerDID is not provided, it will be derived from the credentials credentialSubject.id fields. But only if all provided credentials have the same (singular) credentialSubject.id field.
-	BuildVP(ctx context.Context, credentials []vc.VerifiableCredential, proofOptions proof.ProofOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error)
+	BuildVP(ctx context.Context, credentials []vc.VerifiableCredential, options PresentationOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error)
+}
+
+// PresentationOptions contains parameters used to create the right VerifiablePresentation
+// It's up to the caller to make sure the AdditionalTypes are covered by the AdditionalContexts
+type PresentationOptions struct {
+	// AdditionalContexts contains the contexts to be added in addition to https://www.w3.org/2018/credentials/v1 and the context for JSONWebSignature2020
+	AdditionalContexts []ssi.URI
+	// AdditionalTypes contains the VerifiablePresentation types in addition to VerifiablePresentation
+	AdditionalTypes []ssi.URI
+	// ProofOptions contains the options for a specific proof.
+	ProofOptions proof.ProofOptions
 }

@@ -11,7 +11,6 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	did "github.com/nuts-foundation/go-did/did"
 	vc "github.com/nuts-foundation/go-did/vc"
-	proof "github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 )
 
 // MockHolder is a mock of Holder interface.
@@ -38,16 +37,16 @@ func (m *MockHolder) EXPECT() *MockHolderMockRecorder {
 }
 
 // BuildVP mocks base method.
-func (m *MockHolder) BuildVP(ctx context.Context, credentials []vc.VerifiableCredential, proofOptions proof.ProofOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error) {
+func (m *MockHolder) BuildVP(ctx context.Context, credentials []vc.VerifiableCredential, options PresentationOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BuildVP", ctx, credentials, proofOptions, signerDID, validateVC)
+	ret := m.ctrl.Call(m, "BuildVP", ctx, credentials, options, signerDID, validateVC)
 	ret0, _ := ret[0].(*vc.VerifiablePresentation)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // BuildVP indicates an expected call of BuildVP.
-func (mr *MockHolderMockRecorder) BuildVP(ctx, credentials, proofOptions, signerDID, validateVC interface{}) *gomock.Call {
+func (mr *MockHolderMockRecorder) BuildVP(ctx, credentials, options, signerDID, validateVC interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildVP", reflect.TypeOf((*MockHolder)(nil).BuildVP), ctx, credentials, proofOptions, signerDID, validateVC)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildVP", reflect.TypeOf((*MockHolder)(nil).BuildVP), ctx, credentials, options, signerDID, validateVC)
 }
