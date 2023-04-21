@@ -1,0 +1,30 @@
+{
+  "@context": [
+    "https://nuts.nl/did/v1",
+    "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json",
+    "https://www.w3.org/ns/did/v1"
+  ],
+  "id": "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm",
+  "verificationMethod": [
+    {
+      "id": "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm#bYcuet6EHojMlaMqwNoC3c6etKlUHoJ9rRvUu3ZKEEw",
+      "type": "JsonWebKey2020",
+      "controller": "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm",
+      "publicKeyJwk": {
+        "crv": "P-256",
+        "kty": "EC",
+        "x": "Mw2BMOqhgrt8kA6b02e6h8edqSFMkiZybR3mi3HIbgE",
+        "y": "aXCRfnYK74NJrSWBG7u-iOFglKokIsRr38bmR9Xaftc"
+      }
+    }
+  ],
+  "assertionMethod": [
+    "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm#bYcuet6EHojMlaMqwNoC3c6etKlUHoJ9rRvUu3ZKEEw"
+  ],
+  "keyAgreement": [
+    "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm#bYcuet6EHojMlaMqwNoC3c6etKlUHoJ9rRvUu3ZKEEw"
+  ],
+  "capabilityInvocation": [
+    "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm#bYcuet6EHojMlaMqwNoC3c6etKlUHoJ9rRvUu3ZKEEw"
+  ]
+}

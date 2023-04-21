@@ -5,6 +5,7 @@
 package contract
 
 import (
+	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -35,33 +36,33 @@ func (m *MockSigner) EXPECT() *MockSignerMockRecorder {
 }
 
 // SigningSessionStatus mocks base method.
-func (m *MockSigner) SigningSessionStatus(sessionID string) (SigningSessionResult, error) {
+func (m *MockSigner) SigningSessionStatus(ctx context.Context, sessionID string) (SigningSessionResult, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SigningSessionStatus", sessionID)
+	ret := m.ctrl.Call(m, "SigningSessionStatus", ctx, sessionID)
 	ret0, _ := ret[0].(SigningSessionResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // SigningSessionStatus indicates an expected call of SigningSessionStatus.
-func (mr *MockSignerMockRecorder) SigningSessionStatus(sessionID interface{}) *gomock.Call {
+func (mr *MockSignerMockRecorder) SigningSessionStatus(ctx, sessionID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SigningSessionStatus", reflect.TypeOf((*MockSigner)(nil).SigningSessionStatus), sessionID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SigningSessionStatus", reflect.TypeOf((*MockSigner)(nil).SigningSessionStatus), ctx, sessionID)
 }
 
 // StartSigningSession mocks base method.
-func (m *MockSigner) StartSigningSession(rawContractText string) (SessionPointer, error) {
+func (m *MockSigner) StartSigningSession(rawContractText string, params map[string]interface{}) (SessionPointer, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StartSigningSession", rawContractText)
+	ret := m.ctrl.Call(m, "StartSigningSession", rawContractText, params)
 	ret0, _ := ret[0].(SessionPointer)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // StartSigningSession indicates an expected call of StartSigningSession.
-func (mr *MockSignerMockRecorder) StartSigningSession(rawContractText interface{}) *gomock.Call {
+func (mr *MockSignerMockRecorder) StartSigningSession(rawContractText, params interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartSigningSession", reflect.TypeOf((*MockSigner)(nil).StartSigningSession), rawContractText)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartSigningSession", reflect.TypeOf((*MockSigner)(nil).StartSigningSession), rawContractText, params)
 }
 
 // MockSessionPointer is a mock of SessionPointer interface.

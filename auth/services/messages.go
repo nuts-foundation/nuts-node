@@ -30,6 +30,8 @@ type CreateSessionRequest struct {
 	SigningMeans string
 	// Message to sign
 	Message string
+	// Params contain means specific parameters
+	Params map[string]interface{}
 }
 
 // CreateSessionResult contains the results needed to setup an irma flow

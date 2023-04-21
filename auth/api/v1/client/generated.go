@@ -29,14 +29,16 @@ const (
 
 // Defines values for SignSessionRequestMeans.
 const (
-	SignSessionRequestMeansDummy SignSessionRequestMeans = "dummy"
-	SignSessionRequestMeansIrma  SignSessionRequestMeans = "irma"
+	SignSessionRequestMeansDummy      SignSessionRequestMeans = "dummy"
+	SignSessionRequestMeansIrma       SignSessionRequestMeans = "irma"
+	SignSessionRequestMeansSelfsigned SignSessionRequestMeans = "selfsigned"
 )
 
 // Defines values for SignSessionResponseMeans.
 const (
-	SignSessionResponseMeansDummy SignSessionResponseMeans = "dummy"
-	SignSessionResponseMeansIrma  SignSessionResponseMeans = "irma"
+	SignSessionResponseMeansDummy      SignSessionResponseMeans = "dummy"
+	SignSessionResponseMeansIrma       SignSessionResponseMeans = "irma"
+	SignSessionResponseMeansSelfsigned SignSessionResponseMeans = "selfsigned"
 )
 
 // AccessTokenRequestFailedResponse Error response when access token request fails as described in rfc6749 section 5.2

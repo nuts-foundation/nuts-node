@@ -56,7 +56,8 @@ type ContractNotary interface {
 	CreateSigningSession(sessionRequest CreateSessionRequest) (contract.SessionPointer, error)
 
 	// SigningSessionStatus returns the status of the current signing session or ErrSessionNotFound is sessionID is unknown
-	SigningSessionStatus(sessionID string) (contract.SigningSessionResult, error)
+	// context is used to pass audit context when using crypto library
+	SigningSessionStatus(ctx context.Context, sessionID string) (contract.SigningSessionResult, error)
 
 	Configure() error
 

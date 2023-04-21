@@ -22,29 +22,28 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crl"
 	"net/http"
 	"reflect"
 	"strings"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
-
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	irmago "github.com/privacybydesign/irmago"
-	"github.com/privacybydesign/irmago/server/irmaserver"
-
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/services/dummy"
 	"github.com/nuts-foundation/nuts-node/auth/services/irma"
+	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned"
 	"github.com/nuts-foundation/nuts-node/auth/services/uzi"
 	"github.com/nuts-foundation/nuts-node/auth/services/x509"
+	"github.com/nuts-foundation/nuts-node/crl"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vdr/types"
+	irmago "github.com/privacybydesign/irmago"
+	"github.com/privacybydesign/irmago/server/irmaserver"
 )
 
 // ErrMissingOrganizationKey is used to indicate that this node has no private key of the indicated organization.
@@ -86,8 +85,8 @@ type notary struct {
 	irmaServer        *irmaserver.Server
 	verifiers         map[string]contract.VPVerifier
 	signers           map[string]contract.Signer
-	vcr               vcr.Finder
 	uziCrlValidator   crl.Validator
+	vcr               vcr.VCR
 }
 
 var timeNow = time.Now
@@ -214,6 +213,13 @@ func (n *notary) Configure() (err error) {
 		n.verifiers[uzi.VerifiablePresentationType] = uziVerifier
 	}
 
+	if _, ok := cvMap[selfsigned.ContractFormat]; ok {
+		ss := selfsigned.NewService(n.vcr)
+
+		n.verifiers[selfsigned.VerifiablePresentationType] = ss
+		n.signers[selfsigned.ContractFormat] = ss
+	}
+
 	return
 }
 
@@ -247,9 +253,9 @@ func (n *notary) VerifyVP(vp vc.VerifiablePresentation, checkTime *time.Time) (c
 	return n.verifiers[t.String()].VerifyVP(vp, checkTime)
 }
 
-func (n *notary) SigningSessionStatus(sessionID string) (contract.SigningSessionResult, error) {
+func (n *notary) SigningSessionStatus(ctx context.Context, sessionID string) (contract.SigningSessionResult, error) {
 	for _, signer := range n.signers {
-		if r, err := signer.SigningSessionStatus(sessionID); !errors.Is(err, services.ErrSessionNotFound) {
+		if r, err := signer.SigningSessionStatus(ctx, sessionID); !errors.Is(err, services.ErrSessionNotFound) {
 			return r, err
 		}
 	}
@@ -295,7 +301,7 @@ func (n *notary) CreateSigningSession(sessionRequest services.CreateSessionReque
 		return nil, ErrUnknownSigningMeans
 	}
 
-	return signer.StartSigningSession(sessionRequest.Message)
+	return signer.StartSigningSession(sessionRequest.Message, sessionRequest.Params)
 }
 
 func (n *notary) findVC(orgID did.DID) (string, string, error) {
