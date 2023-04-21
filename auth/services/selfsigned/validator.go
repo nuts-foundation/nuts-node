@@ -66,7 +66,7 @@ func (v service) VerifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (con
 		return result, nil
 	}
 
-	// TODO add role?
+	// TODO add role? See #2047
 	disclosedAttributes := map[string]string{
 		services.InitialsTokenClaim:   credentialSubject.Member.Member.Initials,
 		services.FamilyNameTokenClaim: credentialSubject.Member.Member.FamilyName,
