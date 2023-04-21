@@ -22,6 +22,8 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
@@ -94,8 +96,34 @@ func TestHolder_BuildVP(t *testing.T) {
 
 		resultingPresentation, err := holder.BuildVP(ctx, []vc.VerifiableCredential{testCredential}, options, &testDID, false)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, resultingPresentation)
+	})
+	t.Run("ok - custom options", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		specialType := ssi.MustParseURI("SpecialPresentation")
+		options := PresentationOptions{
+			AdditionalContexts: []ssi.URI{credential.NutsV1ContextURI},
+			AdditionalTypes:    []ssi.URI{specialType},
+			ProofOptions: proof.ProofOptions{
+				ProofPurpose: "authentication",
+			},
+		}
+		keyResolver := types.NewMockKeyResolver(ctrl)
+
+		keyResolver.EXPECT().ResolveAssertionKeyID(testDID).Return(ssi.MustParseURI(kid), nil)
+
+		holder := New(keyResolver, keyStore, nil, jsonldManager)
+
+		resultingPresentation, err := holder.BuildVP(ctx, []vc.VerifiableCredential{testCredential}, options, &testDID, false)
+
+		require.NoError(t, err)
+		require.NotNil(t, resultingPresentation)
+		assert.True(t, resultingPresentation.IsType(specialType))
+		assert.True(t, resultingPresentation.ContainsContext(credential.NutsV1ContextURI))
+		proofs, _ := resultingPresentation.Proofs()
+		require.Len(t, proofs, 1)
+		assert.Equal(t, proofs[0].ProofPurpose, "authentication")
 	})
 	t.Run("ok - multiple VCs", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
