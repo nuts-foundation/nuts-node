@@ -31,6 +31,9 @@ import (
 // StatusCodeResolverContextKey contains the key for the Echo context parameter that specifies a custom HTTP status code resolver.
 const StatusCodeResolverContextKey = "!!StatusCodeResolver"
 
+// ErrorWriterContextKey contains the key for the Echo context parameter that specifies a error writer.
+const ErrorWriterContextKey = "!!ErrorWriter"
+
 // OperationIDContextKey contains the key for the Echo context parameter that specifies the name of the OpenAPI operation being called,
 // for logging/error returning.
 const OperationIDContextKey = "!!OperationId"
@@ -44,7 +47,7 @@ const UserContextKey = "user"
 
 const unmappedStatusCode = 0
 
-// CreateHTTPErrorHandler returns an Echo HTTPErrorHandler that logs the error withe xtra fields and returns it as a HTTP response.
+// CreateHTTPErrorHandler returns an Echo HTTPErrorHandler that logs the error with extra fields and returns it as an HTTP response.
 func CreateHTTPErrorHandler() echo.HTTPErrorHandler {
 	return func(err error, ctx echo.Context) {
 		// HTTPErrors occur e.g. when a parameter bind fails. We map this to a httpStatusCodeError so its status code
@@ -62,7 +65,6 @@ func CreateHTTPErrorHandler() echo.HTTPErrorHandler {
 			title = fmt.Sprintf("%s failed", fmt.Sprintf("%s", operationID))
 		}
 		statusCode := getHTTPStatusCode(err, ctx)
-		result := problem.New(problem.Title(title), problem.Status(statusCode), problem.Detail(err.Error()))
 		logger := getContextLogger(ctx)
 		logMsg := logger.
 			WithField("operationID", operationID).
@@ -75,7 +77,12 @@ func CreateHTTPErrorHandler() echo.HTTPErrorHandler {
 			logMsg.Warn(title)
 		}
 		if !ctx.Response().Committed {
-			if _, err := result.WriteTo(ctx.Response()); err != nil {
+			errorWriter, _ := ctx.Get(ErrorWriterContextKey).(ErrorWriter)
+			if errorWriter == nil {
+				errorWriter = &problemErrorWriter{}
+			}
+			writeError := errorWriter.Write(ctx, statusCode, title, err)
+			if writeError != nil {
 				logger.Error(err)
 			}
 		} else {
@@ -86,7 +93,7 @@ func CreateHTTPErrorHandler() echo.HTTPErrorHandler {
 	}
 }
 
-// Error returns an error that maps to a HTTP status
+// Error returns an error that maps to an HTTP status
 func Error(statusCode int, errStr string, args ...interface{}) error {
 	return httpStatusCodeError{msg: fmt.Errorf(errStr, args...).Error(), err: getErrArg(args), statusCode: statusCode}
 }
@@ -104,6 +111,22 @@ func InvalidInputError(errStr string, args ...interface{}) error {
 // PreconditionFailedError returns an error that maps to a HTTP 412 Status Precondition Failed.
 func PreconditionFailedError(errStr string, args ...interface{}) error {
 	return Error(http.StatusPreconditionFailed, errStr, args...)
+}
+
+// ErrorWriter writes an error as response to the given context.
+type ErrorWriter interface {
+	// Write writes the error to the context. The statusCode is a hint of the status code that should be used.
+	// The description is a short description of what failed (typically the operation name).
+	Write(echoContext echo.Context, statusCode int, description string, err error) error
+}
+
+type problemErrorWriter struct {
+}
+
+func (p problemErrorWriter) Write(echoContext echo.Context, statusCode int, description string, err error) error {
+	result := problem.New(problem.Title(description), problem.Status(statusCode), problem.Detail(err.Error()))
+	_, writeError := result.WriteTo(echoContext.Response())
+	return writeError
 }
 
 // HTTPStatusCodeError defines an interface for HTTP errors that includes a HTTP statuscode

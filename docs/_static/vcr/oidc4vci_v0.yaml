@@ -25,12 +25,18 @@ paths:
               type: string
               example: did:nuts:123
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
                 "$ref": "#/components/schemas/OAuth2ClientMetadata"
+        "404":
+          description: Unknown wallet
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
   "/identity/{did}/.well-known/oauth-authorization-server":
     get:
       tags:
@@ -48,12 +54,18 @@ paths:
             type: string
             example: did:nuts:123
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ProviderMetadata"
+        "404":
+          description: Unknown issuer
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
   "/identity/{did}/.well-known/openid-credential-issuer":
     get:
       tags:
@@ -70,12 +82,18 @@ paths:
             type: string
             example: did:nuts:123
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
                 "$ref": "#/components/schemas/CredentialIssuerMetadata"
+        "404":
+          description: Unknown issuer
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
   "/identity/{did}/oidc/token":
     post:
       tags:
@@ -106,12 +124,26 @@ paths:
                   type: string
                   example: secret
       responses:
-        200:
+        "200":
           description: OK
           content:
             application/json:
               schema:
                 "$ref": "#/components/schemas/TokenResponse"
+        "404":
+          description: Unknown issuer
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        "400":
+          description: >
+            Invalid request. Code can be "invalid_request", "invalid_client", "invalid_grant", "unauthorized_client", "unsupported_grant_type" or "invalid_scope".
+            Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-token-error-response
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
   "/identity/{did}/issuer/oidc4vci/credential":
     post:
       tags:
@@ -136,12 +168,42 @@ paths:
             schema:
               "$ref": "#/components/schemas/CredentialRequest"
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
                 "$ref": "#/components/schemas/CredentialResponse"
+        "404":
+          description: Unknown issuer
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        "400":
+          description: >
+            Invalid request. Code can be "invalid_request", "unsupported_credential_type", "unsupported_credential_format" or "invalid_or_missing_proof".
+            Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-error-response
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        "401":
+          description: >
+            Invalid token. Code will be "invalid_token".
+            Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-error-response
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        "403":
+          description: >
+            Insufficient privileges. Code will be "insufficient_scope".
+            Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-error-response
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
   "/identity/{did}/wallet/oidc4vci/credential_offer":
     get:
       tags:
@@ -163,26 +225,24 @@ paths:
           schema:
             type: string
       responses:
-        202:
+        "202":
           description: Accepted
           content:
             text/plain:
               schema:
                 type: string
-        400:
-          description: Bad Request
+        "404":
+          description: Unknown wallet
           content:
-            text/plain:
+            application/json:
               schema:
-                type: string
-                example: "missing query parameter 'credential_offer'"
-        500:
-          description: Internal Server Error
+                "$ref": "#/components/schemas/ErrorResponse"
+        "400":
+          description: Invalid request (e.g. missing or invalid query parameter 'credential_offer').
           content:
-            text/plain:
+            application/json:
               schema:
-                type: string
-                example: "internal server error"
+                "$ref": "#/components/schemas/ErrorResponse"
 components:
   schemas:
     CredentialIssuerMetadata:
@@ -341,7 +401,15 @@ components:
             "jwt": "eyJraWQiOiJkaWQ6ZXhhbXBsZ...KPxgihac0aW9EkL1nOzM"
           }
         }
-
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+            type: string
+            description: Code identifying the error that occurred.
+            example: "invalid_request"
     CredentialResponse:
       type: object
       required:

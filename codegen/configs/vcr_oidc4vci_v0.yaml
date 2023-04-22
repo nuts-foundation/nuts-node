@@ -12,3 +12,4 @@ output-options:
     - CredentialRequest
     - CredentialResponse
     - TokenResponse
+    - ErrorResponse

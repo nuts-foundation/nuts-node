@@ -19,6 +19,9 @@
 package test
 
 import (
+	"bytes"
+	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"net/http"
@@ -41,17 +44,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var credential = vc.VerifiableCredential{
-	Context: []ssi.URI{
-		didservice.JWS2020ContextV1URI(),
-		credentialTypes.NutsV1ContextURI,
-	},
-	Type: []ssi.URI{
-		ssi.MustParseURI("NutsAuthorizationCredential"),
-	},
-	IssuanceDate: time.Now().Truncate(time.Second),
-}
-
 // TestOIDC4VCIHappyFlow tests issuing a VC using OIDC4VCI.
 func TestOIDC4VCIHappyFlow(t *testing.T) {
 	auditLogs := audit.CaptureLogs(t)
@@ -59,9 +51,9 @@ func TestOIDC4VCIHappyFlow(t *testing.T) {
 	httpServerURL, system := node.StartServer(t, func(_ string) {
 		t.Setenv("NUTS_VCR_OIDC4VCI_ENABLED", "true")
 	})
-	vcrService := system.FindEngine(new(vcr.VCR)).(vcr.VCR)
-	vdrService := system.FindEngine(new(vdrTypes.VDR)).(vdrTypes.VDR)
-	didmanService := system.FindEngine(new(didman.Didman)).(didman.Didman)
+	vcrService := system.FindEngineByName("vcr").(vcr.VCR)
+	vdrService := system.FindEngineByName("vdr").(vdrTypes.VDR)
+	didmanService := system.FindEngineByName("didman").(didman.Didman)
 
 	// Setup issuer
 	var issuerDID did.DID
@@ -81,6 +73,7 @@ func TestOIDC4VCIHappyFlow(t *testing.T) {
 		require.NoError(t, err)
 	}
 
+	credential := testCredential()
 	credential.Issuer = issuerDID.URI()
 	credential.ID, _ = ssi.ParseURI(issuerDID.URI().String() + "#1")
 	credential.CredentialSubject = append(credential.CredentialSubject, map[string]interface{}{
@@ -101,9 +94,8 @@ func TestOIDC4VCIHappyFlow(t *testing.T) {
 func TestOIDC4VCIDisabled(t *testing.T) {
 	ctx := audit.TestContext()
 	httpServerURL, system := node.StartServer(t)
-	vcrService := system.FindEngine(new(vcr.VCR)).(vcr.VCR)
-	vdrService := system.FindEngine(new(vdrTypes.VDR)).(vdrTypes.VDR)
-	didmanService := system.FindEngine(new(didman.Didman)).(didman.Didman)
+	vdrService := system.FindEngineByName("vdr").(vdrTypes.VDR)
+	didmanService := system.FindEngineByName("didman").(didman.Didman)
 
 	// Setup issuer/holder
 	var issuerAndHolderDID did.DID
@@ -116,19 +108,6 @@ func TestOIDC4VCIDisabled(t *testing.T) {
 		_, err = didmanService.AddEndpoint(ctx, issuerAndHolderDID, "oidc4vci-wallet-metadata", *walletMDURL)
 		require.NoError(t, err)
 	}
-
-	t.Run("try to issue", func(t *testing.T) {
-		credential.Issuer = issuerAndHolderDID.URI()
-		credential.ID, _ = ssi.ParseURI(issuerAndHolderDID.URI().String() + "#1")
-		credential.CredentialSubject = append(credential.CredentialSubject, map[string]interface{}{
-			"id":           issuerAndHolderDID.String(),
-			"purposeOfUse": "test",
-		})
-		issuedVC, err := vcrService.Issuer().Issue(ctx, credential, true, false)
-
-		assert.EqualError(t, err, "")
-		assert.Nil(t, issuedVC)
-	})
 	t.Run("API returns 404", func(t *testing.T) {
 		resp, err := http.Get(walletMDURL.String())
 		require.NoError(t, err)
@@ -136,4 +115,63 @@ func TestOIDC4VCIDisabled(t *testing.T) {
 		data, _ := io.ReadAll(resp.Body)
 		assert.Equal(t, `{"detail":"openid4vci is disabled","status":404,"title":"Operation failed"}`, string(data))
 	})
+}
+
+// TestOIDC4VCIErrorResponses tests the API returns the correct error responses (as specified in the OIDC4VCI spec, not as Problem types).
+func TestOIDC4VCIErrorResponses(t *testing.T) {
+	_, system := node.StartServer(t, func(_ string) {
+		t.Setenv("NUTS_VCR_OIDC4VCI_ENABLED", "true")
+	})
+	vcrService := system.FindEngineByName("vcr").(vcr.VCR)
+	vdrService := system.FindEngineByName("vdr").(vdrTypes.VDR)
+
+	// Setup issuer/holder
+	var issuerAndHolderDID did.DID
+	{
+		didDocument, _, err := vdrService.Create(audit.TestContext(), didservice.DefaultCreationOptions())
+		require.NoError(t, err)
+		issuerAndHolderDID = didDocument.ID
+	}
+
+	issuerMD, _ := vcrService.GetOIDCIssuer().Metadata(issuerAndHolderDID)
+	requestBody, _ := json.Marshal(oidc4vci.CredentialRequest{
+		Format: oidc4vci.VerifiableCredentialJSONLDFormat,
+	})
+
+	t.Run("error from API layer (missing access token)", func(t *testing.T) {
+		httpRequest, _ := http.NewRequest("POST", issuerMD.CredentialEndpoint, bytes.NewReader(requestBody))
+		httpRequest.Header.Set("Content-Type", "application/json")
+
+		httpResponse, err := http.DefaultClient.Do(httpRequest)
+
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusBadRequest, httpResponse.StatusCode)
+		responseBody, _ := io.ReadAll(httpResponse.Body)
+		assert.JSONEq(t, `{"error":"invalid_token"}`, string(responseBody))
+	})
+	t.Run("error from service layer (unknown access token)", func(t *testing.T) {
+		httpRequest, _ := http.NewRequest("POST", issuerMD.CredentialEndpoint, bytes.NewReader(requestBody))
+		httpRequest.Header.Set("Content-Type", "application/json")
+		httpRequest.Header.Set("Authentication", "Bearer not-a-valid-token")
+
+		httpResponse, err := http.DefaultClient.Do(httpRequest)
+
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusBadRequest, httpResponse.StatusCode)
+		responseBody, _ := io.ReadAll(httpResponse.Body)
+		assert.JSONEq(t, `{"error":"invalid_token"}`, string(responseBody))
+	})
+}
+
+func testCredential() vc.VerifiableCredential {
+	return vc.VerifiableCredential{
+		Context: []ssi.URI{
+			didservice.JWS2020ContextV1URI(),
+			credentialTypes.NutsV1ContextURI,
+		},
+		Type: []ssi.URI{
+			ssi.MustParseURI("NutsAuthorizationCredential"),
+		},
+		IssuanceDate: time.Now().Truncate(time.Second),
+	}
 }

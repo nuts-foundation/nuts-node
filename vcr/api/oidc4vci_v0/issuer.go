@@ -22,9 +22,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+	"net/http"
 	"strings"
 )
 
@@ -32,9 +33,10 @@ import (
 func (w Wrapper) GetOIDC4VCIIssuerMetadata(_ context.Context, request GetOIDC4VCIIssuerMetadataRequestObject) (GetOIDC4VCIIssuerMetadataResponseObject, error) {
 	issuerDID, err := did.ParseDID(request.Did)
 	if err != nil {
-		return nil, core.NotFoundError("invalid DID")
+		return nil, errHolderOrIssuerNotFound
 	}
 	metadata, err := w.VCR.GetOIDCIssuer().Metadata(*issuerDID)
+	// Other error cases (will end up as 500)
 	if err != nil {
 		return nil, err
 	}
@@ -45,9 +47,10 @@ func (w Wrapper) GetOIDC4VCIIssuerMetadata(_ context.Context, request GetOIDC4VC
 func (w Wrapper) GetOIDCProviderMetadata(_ context.Context, request GetOIDCProviderMetadataRequestObject) (GetOIDCProviderMetadataResponseObject, error) {
 	issuerDID, err := did.ParseDID(request.Did)
 	if err != nil {
-		return nil, core.NotFoundError("invalid DID")
+		return nil, errHolderOrIssuerNotFound
 	}
 	metadata, err := w.VCR.GetOIDCIssuer().ProviderMetadata(*issuerDID)
+	// Other error cases (will end up as 500)
 	if err != nil {
 		return nil, err
 	}
@@ -58,14 +61,22 @@ func (w Wrapper) GetOIDCProviderMetadata(_ context.Context, request GetOIDCProvi
 func (w Wrapper) RequestCredential(ctx context.Context, request RequestCredentialRequestObject) (RequestCredentialResponseObject, error) {
 	issuerDID, err := did.ParseDID(request.Did)
 	if err != nil {
-		return nil, core.NotFoundError("invalid DID")
+		return nil, errHolderOrIssuerNotFound
 	}
 	if request.Params.Authorization == nil {
-		return nil, errors.New("missing authorization header")
+		return nil, oidc4vci.Error{
+			Err:        errors.New("missing access token"),
+			Code:       oidc4vci.InvalidToken,
+			StatusCode: http.StatusBadRequest,
+		}
 	}
 	authHeader := *request.Params.Authorization
 	if len(authHeader) < 7 || strings.ToLower(authHeader[:7]) != "bearer " {
-		return nil, errors.New("invalid authorization header")
+		return nil, oidc4vci.Error{
+			Err:        errors.New("invalid access token"),
+			Code:       oidc4vci.InvalidToken,
+			StatusCode: http.StatusUnauthorized,
+		}
 	}
 	accessToken := authHeader[7:]
 	credential, err := w.VCR.GetOIDCIssuer().HandleCredentialRequest(ctx, *issuerDID, accessToken)
@@ -88,10 +99,14 @@ func (w Wrapper) RequestCredential(ctx context.Context, request RequestCredentia
 func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
 	issuerDID, err := did.ParseDID(request.Did)
 	if err != nil {
-		return nil, core.NotFoundError("invalid DID")
+		return nil, errHolderOrIssuerNotFound
 	}
 	if request.Body.GrantType != oidc4vci.PreAuthorizedCodeGrant {
-		return nil, core.InvalidInputError("unsupported grant type")
+		return nil, oidc4vci.Error{
+			Err:        fmt.Errorf("unsupported grant type: %s", request.Body.GrantType),
+			Code:       oidc4vci.UnsupportedGrantType,
+			StatusCode: http.StatusBadRequest,
+		}
 	}
 	accessToken, err := w.VCR.GetOIDCIssuer().HandleAccessTokenRequest(ctx, *issuerDID, request.Body.PreAuthorizedCode)
 	if err != nil {

@@ -47,27 +47,28 @@ type OIDCWallet interface {
 
 var nowFunc = time.Now
 var _ OIDCWallet = (*wallet)(nil)
-var issuerClientCreator = oidc4vci.NewIssuerAPIClient
 
 // NewOIDCWallet creates an OIDCWallet that tries to retrieve offered credentials, to store it in the given credential store.
 func NewOIDCWallet(did did.DID, identifier string, credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver vdr.KeyResolver, clientTimeout time.Duration) OIDCWallet {
 	return &wallet{
-		did:             did,
-		identifier:      identifier,
-		credentialStore: credentialStore,
-		signer:          signer,
-		resolver:        resolver,
-		clientTimeout:   clientTimeout,
+		did:                 did,
+		identifier:          identifier,
+		credentialStore:     credentialStore,
+		signer:              signer,
+		resolver:            resolver,
+		clientTimeout:       clientTimeout,
+		issuerClientCreator: oidc4vci.NewIssuerAPIClient,
 	}
 }
 
 type wallet struct {
-	did             did.DID
-	identifier      string
-	credentialStore vcrTypes.Writer
-	signer          crypto.JWTSigner
-	resolver        vdr.KeyResolver
-	clientTimeout   time.Duration
+	did                 did.DID
+	identifier          string
+	credentialStore     vcrTypes.Writer
+	signer              crypto.JWTSigner
+	resolver            vdr.KeyResolver
+	clientTimeout       time.Duration
+	issuerClientCreator func(ctx context.Context, httpClient *http.Client, credentialIssuerIdentifier string) (oidc4vci.IssuerAPIClient, error)
 }
 
 func (h wallet) Metadata() oidc4vci.OAuth2ClientMetadata {
@@ -76,15 +77,22 @@ func (h wallet) Metadata() oidc4vci.OAuth2ClientMetadata {
 	}
 }
 
+// HandleCredentialOffer handles a credential offer from an issuer.
+// Error responses on the Credential Offer Endpoint are not defined in the OpenID4VCI spec,
+// so these are inferred of whatever makes sense.
 func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.CredentialOffer) error {
 	// TODO: This check is too simplistic, there can be multiple credential offers,
 	//       but the wallet should only request the one it's interested in.
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2049
 	if len(offer.Credentials) == 0 {
-		return errors.New("there must be at least 1 credential in credential offer")
+		return oidc4vci.Error{
+			Err:        errors.New("there must be at least 1 credential in credential offer"),
+			Code:       oidc4vci.InvalidRequest,
+			StatusCode: http.StatusBadRequest,
+		}
 	}
 
-	issuerClient, err := issuerClientCreator(ctx, &http.Client{}, offer.CredentialIssuer)
+	issuerClient, err := h.issuerClientCreator(ctx, &http.Client{}, offer.CredentialIssuer)
 	if err != nil {
 		return fmt.Errorf("unable to create issuer client: %w", err)
 	}

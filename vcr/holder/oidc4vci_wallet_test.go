@@ -88,11 +88,11 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		nowFunc = func() time.Time {
 			return time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 		}
-		issuerClientCreator = func(_ context.Context, httpClient *http.Client, credentialIssuerIdentifier string) (oidc4vci.IssuerAPIClient, error) {
+
+		w := NewOIDCWallet(holderDID, "https://holder.example.com", credentialStore, jwtSigner, keyResolver, time.Second*5).(*wallet)
+		w.issuerClientCreator = func(_ context.Context, httpClient *http.Client, credentialIssuerIdentifier string) (oidc4vci.IssuerAPIClient, error) {
 			return issuerAPIClient, nil
 		}
-
-		w := NewOIDCWallet(holderDID, "https://holder.example.com", credentialStore, jwtSigner, keyResolver, time.Second*5)
 		credentialOffer := oidc4vci.CredentialOffer{
 			CredentialIssuer: issuerDID.String(),
 			Credentials: []map[string]interface{}{
@@ -129,9 +129,10 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 	t.Run("error - no credentials in offer", func(t *testing.T) {
 		w := NewOIDCWallet(holderDID, "https://holder.example.com", nil, nil, nil, time.Second*5)
 
-		err := w.HandleCredentialOffer(audit.TestContext(), oidc4vci.CredentialOffer{})
+		err := w.HandleCredentialOffer(audit.TestContext(), oidc4vci.CredentialOffer{}).(oidc4vci.Error)
 
-		assert.EqualError(t, err, "there must be at least 1 credential in credential offer")
+		assert.EqualError(t, err, "invalid_request - there must be at least 1 credential in credential offer")
+		assert.Equal(t, http.StatusBadRequest, err.StatusCode)
 	})
 	t.Run("error - can't issuer client (metadata can't be loaded)", func(t *testing.T) {
 		w := NewOIDCWallet(holderDID, "https://holder.example.com", nil, nil, nil, time.Second*5)

@@ -242,6 +242,15 @@ func (response GetOIDCProviderMetadata200JSONResponse) VisitGetOIDCProviderMetad
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetOIDCProviderMetadata404JSONResponse ErrorResponse
+
+func (response GetOIDCProviderMetadata404JSONResponse) VisitGetOIDCProviderMetadataResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetOIDC4VCIIssuerMetadataRequestObject struct {
 	Did string `json:"did"`
 }
@@ -259,6 +268,15 @@ func (response GetOIDC4VCIIssuerMetadata200JSONResponse) VisitGetOIDC4VCIIssuerM
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetOIDC4VCIIssuerMetadata404JSONResponse ErrorResponse
+
+func (response GetOIDC4VCIIssuerMetadata404JSONResponse) VisitGetOIDC4VCIIssuerMetadataResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetOAuth2ClientMetadataRequestObject struct {
 	Did string `json:"did"`
 }
@@ -272,6 +290,15 @@ type GetOAuth2ClientMetadata200JSONResponse OAuth2ClientMetadata
 func (response GetOAuth2ClientMetadata200JSONResponse) VisitGetOAuth2ClientMetadataResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetOAuth2ClientMetadata404JSONResponse ErrorResponse
+
+func (response GetOAuth2ClientMetadata404JSONResponse) VisitGetOAuth2ClientMetadataResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -295,6 +322,42 @@ func (response RequestCredential200JSONResponse) VisitRequestCredentialResponse(
 	return json.NewEncoder(w).Encode(response)
 }
 
+type RequestCredential400JSONResponse ErrorResponse
+
+func (response RequestCredential400JSONResponse) VisitRequestCredentialResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestCredential401JSONResponse ErrorResponse
+
+func (response RequestCredential401JSONResponse) VisitRequestCredentialResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestCredential403JSONResponse ErrorResponse
+
+func (response RequestCredential403JSONResponse) VisitRequestCredentialResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestCredential404JSONResponse ErrorResponse
+
+func (response RequestCredential404JSONResponse) VisitRequestCredentialResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type RequestAccessTokenRequestObject struct {
 	Did  string `json:"did"`
 	Body *RequestAccessTokenFormdataRequestBody
@@ -309,6 +372,24 @@ type RequestAccessToken200JSONResponse TokenResponse
 func (response RequestAccessToken200JSONResponse) VisitRequestAccessTokenResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestAccessToken400JSONResponse ErrorResponse
+
+func (response RequestAccessToken400JSONResponse) VisitRequestAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestAccessToken404JSONResponse ErrorResponse
+
+func (response RequestAccessToken404JSONResponse) VisitRequestAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -332,24 +413,22 @@ func (response HandleCredentialOffer202TextResponse) VisitHandleCredentialOfferR
 	return err
 }
 
-type HandleCredentialOffer400TextResponse string
+type HandleCredentialOffer400JSONResponse ErrorResponse
 
-func (response HandleCredentialOffer400TextResponse) VisitHandleCredentialOfferResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "text/plain")
+func (response HandleCredentialOffer400JSONResponse) VisitHandleCredentialOfferResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(400)
 
-	_, err := w.Write([]byte(response))
-	return err
+	return json.NewEncoder(w).Encode(response)
 }
 
-type HandleCredentialOffer500TextResponse string
+type HandleCredentialOffer404JSONResponse ErrorResponse
 
-func (response HandleCredentialOffer500TextResponse) VisitHandleCredentialOfferResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(500)
+func (response HandleCredentialOffer404JSONResponse) VisitHandleCredentialOfferResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
 
-	_, err := w.Write([]byte(response))
-	return err
+	return json.NewEncoder(w).Encode(response)
 }
 
 // StrictServerInterface represents all server handlers.

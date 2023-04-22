@@ -37,7 +37,6 @@ import (
 
 // ErrUnknownIssuer is returned when the given issuer is unknown.
 var ErrUnknownIssuer = errors.New("unknown OIDC4VCI issuer")
-var walletClientCreator = oidc4vci.NewWalletAPIClient
 var _ OIDCIssuer = (*memoryIssuer)(nil)
 
 // OIDCIssuer defines the interface for an OIDC4VCI credential issuer. It is multi-tenant, accompanying the system
@@ -58,10 +57,11 @@ type OIDCIssuer interface {
 // NewOIDCIssuer creates a new Issuer instance. The identifier is the Credential Issuer Identifier, e.g. https://example.com/issuer/
 func NewOIDCIssuer(baseURL string) OIDCIssuer {
 	return &memoryIssuer{
-		baseURL:      baseURL,
-		state:        make(map[string]vc.VerifiableCredential),
-		accessTokens: make(map[string]string),
-		mux:          &sync.Mutex{},
+		baseURL:             baseURL,
+		state:               make(map[string]vc.VerifiableCredential),
+		accessTokens:        make(map[string]string),
+		mux:                 &sync.Mutex{},
+		walletClientCreator: oidc4vci.NewWalletAPIClient,
 	}
 }
 
@@ -70,8 +70,9 @@ type memoryIssuer struct {
 	// state maps a pre-authorized code to a Verifiable Credential
 	state map[string]vc.VerifiableCredential
 	// accessToken maps an access token to a pre-authorized code
-	accessTokens map[string]string
-	mux          *sync.Mutex
+	accessTokens        map[string]string
+	mux                 *sync.Mutex
+	walletClientCreator func(ctx context.Context, httpClient *http.Client, walletMetadataURL string) (oidc4vci.WalletAPIClient, error)
 }
 
 func (i *memoryIssuer) Metadata(issuer did.DID) (oidc4vci.CredentialIssuerMetadata, error) {
@@ -108,7 +109,11 @@ func (i *memoryIssuer) HandleAccessTokenRequest(ctx context.Context, issuer did.
 	if !ok {
 		audit.Log(ctx, log.Logger(), audit.InvalidOAuthTokenEvent).
 			Info("Client tried requesting access token (for OIDC4VCI) with unknown OAuth2 pre-authorized code")
-		return "", errors.New("unknown pre-authorized code")
+		return "", oidc4vci.Error{
+			Err:        errors.New("unknown pre-authorized code"),
+			Code:       oidc4vci.InvalidGrant,
+			StatusCode: http.StatusBadRequest,
+		}
 	}
 	accessToken := generateCode()
 	i.accessTokens[accessToken] = preAuthorizedCode
@@ -129,7 +134,7 @@ func (i *memoryIssuer) OfferCredential(ctx context.Context, credential vc.Verifi
 
 	// TODO: Support TLS
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2032
-	client, err := walletClientCreator(ctx, &http.Client{}, clientMetadataURL)
+	client, err := i.walletClientCreator(ctx, &http.Client{}, clientMetadataURL)
 	if err != nil {
 		return err
 	}
@@ -156,7 +161,11 @@ func (i *memoryIssuer) HandleCredentialRequest(ctx context.Context, issuer did.D
 	if !ok {
 		audit.Log(ctx, log.Logger(), audit.InvalidOAuthTokenEvent).
 			Info("Client tried retrieving credential over OIDC4VCI with unknown OAuth2 access token")
-		return nil, errors.New("invalid access token")
+		return nil, oidc4vci.Error{
+			Err:        errors.New("unknown access token"),
+			Code:       oidc4vci.InvalidToken,
+			StatusCode: http.StatusBadRequest,
+		}
 	}
 	credential, _ := i.state[preAuthorizedCode]
 	subjectDID, _ := getSubjectDID(credential)

@@ -30,7 +30,7 @@ import (
 func (w Wrapper) GetOAuth2ClientMetadata(_ context.Context, request GetOAuth2ClientMetadataRequestObject) (GetOAuth2ClientMetadataResponseObject, error) {
 	id, err := did.ParseDID(request.Did)
 	if err != nil {
-		return nil, core.NotFoundError("invalid DID")
+		return nil, errHolderOrIssuerNotFound
 	}
 	return GetOAuth2ClientMetadata200JSONResponse(w.VCR.GetOIDCWallet(*id).Metadata()), nil
 }
@@ -39,13 +39,15 @@ func (w Wrapper) GetOAuth2ClientMetadata(_ context.Context, request GetOAuth2Cli
 func (w Wrapper) HandleCredentialOffer(ctx context.Context, request HandleCredentialOfferRequestObject) (HandleCredentialOfferResponseObject, error) {
 	id, err := did.ParseDID(request.Did)
 	if err != nil {
-		return nil, core.NotFoundError("invalid DID")
+		return nil, errHolderOrIssuerNotFound
 	}
 	offer := oidc4vci.CredentialOffer{}
 	if err := json.Unmarshal([]byte(request.Params.CredentialOffer), &offer); err != nil {
+		// Note: error responses on the Credential Offer Endpoint are not specified in the OpenID4VCI spec.
 		return nil, core.InvalidInputError("unable to unmarshal credential_offer: %w", err)
 	}
 	if len(offer.Credentials) == 0 {
+		// Note: error responses on the Credential Offer Endpoint are not specified in the OpenID4VCI spec.
 		return nil, core.InvalidInputError("there must be at least 1 credential in credential offer")
 	}
 

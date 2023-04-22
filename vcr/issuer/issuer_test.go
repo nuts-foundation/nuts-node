@@ -247,6 +247,30 @@ func Test_issuer_Issue(t *testing.T) {
 			require.NoError(t, err)
 			assert.NotNil(t, result)
 		})
+		t.Run("ok - OIDC4VCI not enabled issuer - fallback to network", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			publisher := NewMockPublisher(ctrl)
+			publisher.EXPECT().PublishCredential(gomock.Any(), gomock.Any(), gomock.Any())
+			keyResolver := NewMockkeyResolver(ctrl)
+			keyResolver.EXPECT().ResolveAssertionKey(ctx, gomock.Any()).Return(crypto.NewTestKey(issuerKeyID), nil)
+			store := NewMockStore(ctrl)
+			store.EXPECT().StoreCredential(gomock.Any())
+			sut := issuer{
+				keyResolver:      keyResolver,
+				store:            store,
+				jsonldManager:    jsonldManager,
+				trustConfig:      trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config")),
+				keyStore:         crypto.NewMemoryCryptoInstance(),
+				serviceResolver:  nil,
+				oidcIssuer:       nil,
+				networkPublisher: publisher,
+			}
+
+			result, err := sut.Issue(ctx, credentialOptions, true, false)
+
+			require.NoError(t, err)
+			assert.NotNil(t, result)
+		})
 		t.Run("ok - OIDC4VCI not enabled for holder DID - fallback to network", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			publisher := NewMockPublisher(ctrl)

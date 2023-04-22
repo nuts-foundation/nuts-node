@@ -85,7 +85,10 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 		auditLogs := audit.CaptureLogs(t)
 		response, err := issuer.HandleCredentialRequest(audit.TestContext(), issuerDID, "access-token")
 
-		assert.EqualError(t, err, "invalid access token")
+		var protocolError oidc4vci.Error
+		require.ErrorAs(t, err, &protocolError)
+		assert.EqualError(t, protocolError, "invalid_token - unknown access token")
+		assert.Equal(t, http.StatusBadRequest, protocolError.StatusCode)
 		assert.Nil(t, response)
 		auditLogs.AssertContains(t, "VCR", "InvalidOAuthToken", audit.TestActor, "Client tried retrieving credential over OIDC4VCI with unknown OAuth2 access token")
 	})
@@ -96,10 +99,10 @@ func Test_memoryIssuer_OfferCredential(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		wallet := oidc4vci.NewMockWalletAPIClient(ctrl)
 		wallet.EXPECT().OfferCredential(gomock.Any(), gomock.Any()).Return(nil)
-		walletClientCreator = func(_ context.Context, _ *http.Client, _ string) (oidc4vci.WalletAPIClient, error) {
+		issuer := NewOIDCIssuer("https://example.com").(*memoryIssuer)
+		issuer.walletClientCreator = func(_ context.Context, _ *http.Client, _ string) (oidc4vci.WalletAPIClient, error) {
 			return wallet, nil
 		}
-		issuer := NewOIDCIssuer("https://example.com").(*memoryIssuer)
 
 		err := issuer.OfferCredential(audit.TestContext(), issuedVC, "access-token")
 
@@ -110,10 +113,10 @@ func Test_memoryIssuer_OfferCredential(t *testing.T) {
 		wallet := oidc4vci.NewMockWalletAPIClient(ctrl)
 		wallet.EXPECT().Metadata().Return(oidc4vci.OAuth2ClientMetadata{CredentialOfferEndpoint: "here-please"})
 		wallet.EXPECT().OfferCredential(gomock.Any(), gomock.Any()).Return(errors.New("failed"))
-		walletClientCreator = func(_ context.Context, _ *http.Client, _ string) (oidc4vci.WalletAPIClient, error) {
+		issuer := NewOIDCIssuer("https://example.com").(*memoryIssuer)
+		issuer.walletClientCreator = func(_ context.Context, _ *http.Client, _ string) (oidc4vci.WalletAPIClient, error) {
 			return wallet, nil
 		}
-		issuer := NewOIDCIssuer("https://example.com").(*memoryIssuer)
 
 		err := issuer.OfferCredential(audit.TestContext(), issuedVC, "access-token")
 
@@ -138,7 +141,10 @@ func Test_memoryIssuer_HandleAccessTokenRequest(t *testing.T) {
 		auditLog := audit.CaptureLogs(t)
 		accessToken, err := issuer.HandleAccessTokenRequest(audit.TestContext(), issuerDID, "code")
 
-		assert.EqualError(t, err, "unknown pre-authorized code")
+		var protocolError oidc4vci.Error
+		require.ErrorAs(t, err, &protocolError)
+		assert.EqualError(t, protocolError, "invalid_grant - unknown pre-authorized code")
+		assert.Equal(t, http.StatusBadRequest, protocolError.StatusCode)
 		assert.Empty(t, accessToken)
 		auditLog.AssertContains(t, "VCR", "InvalidOAuthToken", audit.TestActor, "Client tried requesting access token (for OIDC4VCI) with unknown OAuth2 pre-authorized code")
 	})
