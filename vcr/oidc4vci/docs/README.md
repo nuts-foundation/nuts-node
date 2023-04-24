@@ -3,36 +3,6 @@
 ## Resources:
 [Notes on the wiki](https://wiki.nuts.nl/books/credential-issuance-and-presentation/page/notes-on-exploring-credential-issuance)
 
-Candidate libraries:
-- https://github.com/coreos/go-oidc (doesn't support provider role, looks unmaintained)
-
-OpenID Certification: https://openid.net/certification/
-
-## Building
-
-```shell
-oapi-codegen oas3.yaml | go fmt > oidc4vci.go
-```
-
-## Scope
-Build a prototype for Offering a NutsAuthorizationCredential by an issuer to a holder, using the OIDC4VCI specification.
-
-## Decisions
-This section contains topics that were discussed and the decisions made.
-
-- **`code` vs `pre-authentication` flow**.  
-  Decision: We only support the `pre-authenticated` code flow for now.  
-  Rationale: for directly offering credentials server-to-server the more complicated authorization code flow is not needed, since it protects against stealing the pre-authentication code (e.g. scanning a QR-code 'over the shoulder') or phishing the end-user.
-These are not applicable in an offering server-to-server scenario.
-
-- **What to do with client authentication (`client_id`)?**  
-  Decision: We should probably support it.
-  Rationale: It adds another layer of security since other parties can't use a leaked pre-authorized code, unless they can authenticate as the intended client.
-
-## Prerequisites
-
-- The issuer resolved the wallet's offer endpoint by searching the Nuts registry and looking up Wallet VC Offer Endpoint service (?).
-
 ## Request examples
 Here we describe all the requests and responses for obtaining the NutsAuthorizationCredential.
 
@@ -118,7 +88,7 @@ Notes:
 Upon accepting the credential offer, the wallet fetches the Credential Issuer Metadata from the well-known metadata endpoint:
 
 ```http request
-GET https://issuer.example/.well-known/openid-credential-issuer
+GET https://issuer.example/identity/<did>/.well-known/openid-credential-issuer
 ```
 
 Notes:

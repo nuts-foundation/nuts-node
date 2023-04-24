@@ -59,11 +59,11 @@ func NewIssuerAPIClient(ctx context.Context, httpClient *http.Client, credential
 	if err != nil {
 		return nil, fmt.Errorf("unable to load OIDC Provider Metadata (identifier=%s): %w", credentialIssuerIdentifier, err)
 	}
-	return NewIssuerClientFromMD(httpClient, *providerMetadata, *metadata)
+	return newIssuerClientFromMD(httpClient, *providerMetadata, *metadata)
 }
 
-// NewIssuerClientFromMD creates a new IssuerAPIClient from preloaded metadata.
-func NewIssuerClientFromMD(httpClient *http.Client, oidcProvider ProviderMetadata, credentialIssuer CredentialIssuerMetadata) (IssuerAPIClient, error) {
+// newIssuerClientFromMD creates a new IssuerAPIClient from preloaded metadata.
+func newIssuerClientFromMD(httpClient *http.Client, oidcProvider ProviderMetadata, credentialIssuer CredentialIssuerMetadata) (IssuerAPIClient, error) {
 	return &defaultIssuerAPIClient{
 		httpOAuth2Client: httpOAuth2Client{
 			httpClient: httpClient,
