@@ -138,9 +138,10 @@ func startServer(ctx context.Context, system *core.System) error {
 	}
 
 	// register HTTP routes
-	router := system.FindEngineByName("http").(*httpEngine.Engine).Router()
-	for _, r := range system.Routers {
-		r.Routes(router)
+	if http, ok := system.FindEngineByName("http").(*httpEngine.Engine); ok {
+		for _, r := range system.Routers {
+			r.Routes(http.Router())
+		}
 	}
 
 	// start engines
