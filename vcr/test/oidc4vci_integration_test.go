@@ -145,7 +145,7 @@ func TestOIDC4VCIErrorResponses(t *testing.T) {
 		httpResponse, err := http.DefaultClient.Do(httpRequest)
 
 		require.NoError(t, err)
-		assert.Equal(t, http.StatusBadRequest, httpResponse.StatusCode)
+		assert.Equal(t, http.StatusUnauthorized, httpResponse.StatusCode)
 		responseBody, _ := io.ReadAll(httpResponse.Body)
 		assert.JSONEq(t, `{"error":"invalid_token"}`, string(responseBody))
 	})
@@ -157,7 +157,7 @@ func TestOIDC4VCIErrorResponses(t *testing.T) {
 		httpResponse, err := http.DefaultClient.Do(httpRequest)
 
 		require.NoError(t, err)
-		assert.Equal(t, http.StatusBadRequest, httpResponse.StatusCode)
+		assert.Equal(t, http.StatusUnauthorized, httpResponse.StatusCode)
 		responseBody, _ := io.ReadAll(httpResponse.Body)
 		assert.JSONEq(t, `{"error":"invalid_token"}`, string(responseBody))
 	})
