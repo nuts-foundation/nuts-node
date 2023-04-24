@@ -36,7 +36,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
-	"net/http"
 	"net/url"
 	"time"
 )
@@ -156,7 +155,7 @@ func (v *signer) StartSigningSession(userContract contract.Contract, params map[
 	}, nil
 }
 
-// Check for the following structure:
+// checkSessionParams checks for the following structure:
 //
 //	{
 //	  "employer":"did:123",
@@ -203,32 +202,5 @@ func checkSessionParams(params map[string]interface{}) error {
 
 func (v *signer) Routes(router core.EchoRouter) {
 	h := web.NewHandler(v.store)
-
-	// Add test data
-	v.store.Store("1", types.Session{
-		Contract: "NL:BehandelaarLogin:v3 Hierbij verklaar ik te handelen in naam van MijEenZorg te Hengelo. Deze verklaring is geldig van dinsdag, 18 april 2023 17:32:00 tot dinsdag, 18 april 2023 19:32:00.",
-		Status:   types.SessionCreated,
-		Employee: types.Employee{
-			Identifier: "123",
-			RoleName:   "Verpleegkundige",
-			Initials:   "J.",
-			FamilyName: "de Vries",
-		},
-	})
-	// Add test data
-	v.store.Store("2", types.Session{
-		Contract: "EN:PractitionerLogin:v3 I hereby declare to act on behalf of MijnEenZorg located in Hengelo. This declaration is valid from tuesday 18 april 2023 17:32:00 until tuesday 19 april 2023 17:32:00.",
-		Status:   types.SessionCreated,
-		Employee: types.Employee{
-			Identifier: "123",
-			RoleName:   "Verpleegkundige",
-			Initials:   "J.",
-			FamilyName: "de Vries",
-		},
-	})
-
 	h.Routes(router)
-}
-
-func (v *signer) HandleFormRequest(w http.ResponseWriter, r *http.Request) {
 }
