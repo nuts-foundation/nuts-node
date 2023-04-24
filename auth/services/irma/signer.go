@@ -80,7 +80,7 @@ func (s SessionPtr) MarshalJSON() ([]byte, error) {
 const NutsIrmaSignedContract = "NutsIrmaSignedContract"
 
 // StartSigningSession accepts a rawContractText and creates an IRMA signing session.
-func (v Signer) StartSigningSession(contract contract.Contract, params map[string]interface{}) (contract.SessionPointer, error) {
+func (v Signer) StartSigningSession(contract contract.Contract, _ map[string]interface{}) (contract.SessionPointer, error) {
 	// Put the template in an IRMA envelope
 	signatureRequest := irmago.NewSignatureRequest(contract.RawContractText)
 	schemeManager := v.IrmaServiceConfig.IrmaSchemeManager
