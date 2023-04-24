@@ -73,7 +73,7 @@ func TestSignedIrmaContract_VerifySignature(t *testing.T) {
 
 	t.Run("valid contract signed with a missing attributes fails validation", func(t *testing.T) {
 		t.Skip("Migrate to v3 contract")
-		validTestContracts := contract.TemplateStore{
+		validTestContracts := contract.TemplateMap{
 			"NL": {"BehandelaarLogin": {
 				"v3": &contract.Template{
 					Type:               "BehandelaarLogin",

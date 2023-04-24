@@ -268,6 +268,10 @@ func TestService_CreateContractSession(t *testing.T) {
 			Message:      "message to sign",
 			SigningMeans: irmaService.ContractFormat,
 		}
+		store := MockContractTemplateStore{}
+		store[request.Message] = contract.Template{Template: request.Message}
+		ctx.notary.contractTemplateStore = store
+
 		ctx.signerMock.EXPECT().StartSigningSession(gomock.Any(), gomock.Any()).Return(irmaService.SessionPtr{ID: "abc-sessionid-abc", QrCodeInfo: irma.Qr{URL: qrURL, Type: irma.ActionSigning}}, nil)
 
 		result, err := ctx.notary.CreateSigningSession(request)
@@ -404,4 +408,19 @@ func buildContext(t *testing.T) *testContext {
 	ctx.notary = notary
 
 	return ctx
+}
+
+type MockContractTemplateStore map[string]contract.Template
+
+func (s MockContractTemplateStore) Get(cType contract.Type, language contract.Language, version contract.Version) *contract.Template {
+	// pick the first
+	for _, t := range s {
+		return &t
+	}
+	return nil
+}
+
+func (s MockContractTemplateStore) FindFromRawContractText(rawContractText string) (*contract.Template, error) {
+	t := s[rawContractText]
+	return &t, nil
 }
