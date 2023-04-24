@@ -31,6 +31,7 @@ func (h Handler) RenderEmployeeIDPage(ctx echo.Context, sessionID string, params
 	if !ok {
 		return echo.NewHTTPError(http.StatusNotFound, "session not found")
 	}
+
 	// find the correct template language from the used contract template
 	userContract, err := contract.ParseContractString(session.Contract, contract.StandardContractTemplates)
 	if err != nil {
@@ -52,6 +53,11 @@ func (h Handler) RenderEmployeeIDPage(ctx echo.Context, sessionID string, params
 		return err
 	}
 
+	// Check the current status before returning, this results that the form is only shown once
+	if !h.store.CheckAndSetStatus(sessionID, types.SessionCreated, types.SessionInProgress) {
+		return echo.NewHTTPError(http.StatusNotFound, "session not found")
+	}
+
 	return ctx.HTMLBlob(http.StatusOK, responseHTML.Bytes())
 }
 
@@ -68,7 +74,10 @@ func (h Handler) HandleEmployeeIDForm(ctx echo.Context, sessionID string, params
 	} else if submitValue == "false" {
 		session.Status = types.SessionCancelled
 	}
-	h.store.Store(sessionID, session)
+	// Require the session to be in-progress to prevent double submission
+	if !h.store.CheckAndSetStatus(sessionID, types.SessionInProgress, session.Status) {
+		return echo.NewHTTPError(http.StatusNotFound, "session not found")
+	}
 
 	return ctx.Redirect(http.StatusFound, fmt.Sprintf("/public/auth/v1/means/employeeid/%s/done", sessionID))
 }
