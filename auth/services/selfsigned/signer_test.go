@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
+	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/types"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
@@ -65,7 +66,7 @@ func TestSessionStore_StartSigningSession(t *testing.T) {
 		session, _ := ss.store.Load(sp.SessionID())
 		require.NotNil(t, session)
 		assert.Equal(t, testContract, session.Contract)
-		assert.Equal(t, SessionCreated, session.Status)
+		assert.Equal(t, types.SessionCreated, session.Status)
 		assert.Equal(t, employer.String(), session.Employer)
 		assert.Equal(t, familyName, session.Employee.FamilyName)
 		assert.Equal(t, initials, session.Employee.Initials)
@@ -112,7 +113,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 		sp, err := ss.StartSigningSession(contract.Contract{RawContractText: testContract}, params)
 		require.NoError(t, err)
 		s, _ := ss.store.Load(sp.SessionID())
-		s.Status = SessionCompleted
+		s.Status = types.SessionCompleted
 		ss.store.Store(sp.SessionID(), s)
 		result, err := ss.SigningSessionStatus(ctx, sp.SessionID())
 		require.NoError(t, err)
@@ -157,7 +158,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 		sp, err := ss.StartSigningSession(contract.Contract{RawContractText: testContract}, params)
 		require.NoError(t, err)
 		s, _ := ss.store.Load(sp.SessionID())
-		s.Status = SessionCompleted
+		s.Status = types.SessionCompleted
 		ss.store.Store(sp.SessionID(), s)
 		_, err = ss.SigningSessionStatus(ctx, sp.SessionID())
 		require.NoError(t, err)
@@ -179,7 +180,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 		sp, err := ss.StartSigningSession(contract.Contract{RawContractText: testContract}, params)
 		require.NoError(t, err)
 		s, _ := ss.store.Load(sp.SessionID())
-		s.Status = SessionCompleted
+		s.Status = types.SessionCompleted
 		ss.store.Store(sp.SessionID(), s)
 		_, err = ss.SigningSessionStatus(ctx, sp.SessionID())
 
@@ -195,7 +196,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 		sp, err := ss.StartSigningSession(contract.Contract{RawContractText: testContract}, params)
 		require.NoError(t, err)
 		s, _ := ss.store.Load(sp.SessionID())
-		s.Status = SessionCompleted
+		s.Status = types.SessionCompleted
 		ss.store.Store(sp.SessionID(), s)
 		_, err = ss.SigningSessionStatus(ctx, sp.SessionID())
 
