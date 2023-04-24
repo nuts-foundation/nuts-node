@@ -78,14 +78,15 @@ func (c Config) hasContractValidator(cv string) bool {
 }
 
 type notary struct {
-	config          Config
-	jsonldManager   jsonld.JSONLD
-	keyResolver     types.KeyResolver
-	privateKeyStore crypto.KeyStore
-	verifiers       map[string]contract.VPVerifier
-	signers         map[string]contract.Signer
-	uziCrlValidator crl.Validator
-	vcr             vcr.VCR
+	config                Config
+	jsonldManager         jsonld.JSONLD
+	keyResolver           types.KeyResolver
+	privateKeyStore       crypto.KeyStore
+	verifiers             map[string]contract.VPVerifier
+	signers               map[string]contract.Signer
+	uziCrlValidator       crl.Validator
+	vcr                   vcr.VCR
+	contractTemplateStore contract.TemplateStore
 }
 
 var timeNow = time.Now
@@ -93,11 +94,12 @@ var timeNow = time.Now
 // NewNotary accepts the registry and crypto Nuts engines and returns a ContractNotary
 func NewNotary(config Config, vcr vcr.VCR, keyResolver types.KeyResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD) services.ContractNotary {
 	return &notary{
-		config:          config,
-		jsonldManager:   jsonldManager,
-		vcr:             vcr,
-		keyResolver:     keyResolver,
-		privateKeyStore: keyStore,
+		config:                config,
+		jsonldManager:         jsonldManager,
+		vcr:                   vcr,
+		keyResolver:           keyResolver,
+		privateKeyStore:       keyStore,
+		contractTemplateStore: contract.StandardContractTemplates,
 	}
 }
 
@@ -310,7 +312,7 @@ func (n *notary) CreateSigningSession(sessionRequest services.CreateSessionReque
 	}
 
 	// Get the contract by trying to parse the rawContractText
-	c, err := contract.ParseContractString(sessionRequest.Message, contract.StandardContractTemplates)
+	c, err := contract.ParseContractString(sessionRequest.Message, n.contractTemplateStore)
 	if err != nil {
 		return nil, err
 	}

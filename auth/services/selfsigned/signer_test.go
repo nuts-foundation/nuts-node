@@ -26,6 +26,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
@@ -51,21 +52,15 @@ func TestSessionStore_StartSigningSession(t *testing.T) {
 	t.Run("add params to session", func(t *testing.T) {
 		params := map[string]interface{}{
 			"employer": employer.String(),
-			"employee": struct {
-				Identifier string `json:"identifier"`
-				RoleName   string `json:"roleName"`
-				Initials   string `json:"initials"`
-				FamilyName string `json:"familyName"`
-			}{
-				identifier,
-				roleName,
-				initials,
-				familyName,
+			"employee": map[string]interface{}{
+				"identifier": identifier,
+				"roleName":   roleName,
+				"initials":   initials,
+				"familyName": familyName,
 			},
 		}
-		ss := NewSigner(nil).(*signer)
-
-		sp, err := ss.StartSigningSession(testContract, params)
+		ss := NewSigner(nil, "").(*signer)
+		sp, err := ss.StartSigningSession(contract.Contract{RawContractText: testContract}, params)
 		require.NoError(t, err)
 		session, _ := ss.store.Load(sp.SessionID())
 		require.NotNil(t, session)
@@ -82,9 +77,9 @@ func TestSessionStore_StartSigningSession(t *testing.T) {
 		params := map[string]interface{}{
 			"broken": func() {},
 		}
-		ss := NewSigner(nil)
 
-		_, err := ss.StartSigningSession(testContract, params)
+		ss := NewSigner(nil, "").(*signer)
+		_, err := ss.StartSigningSession(contract.Contract{RawContractText: testContract}, params)
 
 		require.Error(t, err)
 	})
@@ -94,16 +89,11 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 	ctx := context.Background()
 	params := map[string]interface{}{
 		"employer": employer.String(),
-		"employee": struct {
-			Identifier string `json:"identifier"`
-			RoleName   string `json:"roleName"`
-			Initials   string `json:"initials"`
-			FamilyName string `json:"familyName"`
-		}{
-			identifier,
-			roleName,
-			initials,
-			familyName,
+		"employee": map[string]interface{}{
+			"identifier": identifier,
+			"roleName":   roleName,
+			"initials":   initials,
+			"familyName": familyName,
 		},
 	}
 	testVC := vc.VerifiableCredential{}
@@ -115,11 +105,11 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 
 	t.Run("status completed returns VP on SigningSessionResult", func(t *testing.T) {
 		mockContext := newMockContext(t)
-		ss := NewSigner(mockContext.vcr).(*signer)
+		ss := NewSigner(mockContext.vcr, "").(*signer)
 		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).Return(&testVC, nil)
 		mockContext.holder.EXPECT().BuildVP(context.TODO(), gomock.Len(1), gomock.Any(), &employer, true).Return(&testVP, nil)
 
-		sp, err := ss.StartSigningSession(testContract, params)
+		sp, err := ss.StartSigningSession(contract.Contract{RawContractText: testContract}, params)
 		require.NoError(t, err)
 		s, _ := ss.store.Load(sp.SessionID())
 		s.Status = SessionCompleted
@@ -133,7 +123,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 
 	t.Run("correct VC options are passed to issuer", func(t *testing.T) {
 		mockContext := newMockContext(t)
-		ss := NewSigner(mockContext.vcr).(*signer)
+		ss := NewSigner(mockContext.vcr, "").(*signer)
 		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).DoAndReturn(
 			func(arg0 interface{}, unsignedCredential interface{}, public interface{}, publish interface{}) (*vc.VerifiableCredential, error) {
 				isPublic, ok := public.(bool)
@@ -164,7 +154,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 			})
 		mockContext.holder.EXPECT().BuildVP(context.TODO(), gomock.Len(1), gomock.Any(), &employer, true).Return(&testVP, nil)
 
-		sp, err := ss.StartSigningSession(testContract, params)
+		sp, err := ss.StartSigningSession(contract.Contract{RawContractText: testContract}, params)
 		require.NoError(t, err)
 		s, _ := ss.store.Load(sp.SessionID())
 		s.Status = SessionCompleted
@@ -174,7 +164,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 	})
 
 	t.Run("error for unknown session", func(t *testing.T) {
-		ss := NewSigner(nil)
+		ss := NewSigner(nil, "")
 
 		_, err := ss.SigningSessionStatus(ctx, "unknown")
 
@@ -183,10 +173,10 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 
 	t.Run("error on VC issuance", func(t *testing.T) {
 		mockContext := newMockContext(t)
-		ss := NewSigner(mockContext.vcr).(*signer)
+		ss := NewSigner(mockContext.vcr, "").(*signer)
 		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).Return(nil, errors.New("error"))
 
-		sp, err := ss.StartSigningSession(testContract, params)
+		sp, err := ss.StartSigningSession(contract.Contract{RawContractText: testContract}, params)
 		require.NoError(t, err)
 		s, _ := ss.store.Load(sp.SessionID())
 		s.Status = SessionCompleted
@@ -198,11 +188,11 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 
 	t.Run("error on building VP", func(t *testing.T) {
 		mockContext := newMockContext(t)
-		ss := NewSigner(mockContext.vcr).(*signer)
+		ss := NewSigner(mockContext.vcr, "").(*signer)
 		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).Return(&testVC, nil)
 		mockContext.holder.EXPECT().BuildVP(context.TODO(), gomock.Len(1), gomock.Any(), &employer, true).Return(nil, errors.New("error"))
 
-		sp, err := ss.StartSigningSession(testContract, params)
+		sp, err := ss.StartSigningSession(contract.Contract{RawContractText: testContract}, params)
 		require.NoError(t, err)
 		s, _ := ss.store.Load(sp.SessionID())
 		s.Status = SessionCompleted

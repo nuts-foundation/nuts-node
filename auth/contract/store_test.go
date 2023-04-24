@@ -35,11 +35,11 @@ func TestTemplateStore_FindFromRawContractText(t *testing.T) {
 		}
 	})
 
-	t.Run("an unknown triple returns a nil", func(t *testing.T) {
+	t.Run("an unknown triple returns an error", func(t *testing.T) {
 		rawContractText := "DE:BehandelaarLogin:v1"
 
 		got, err := StandardContractTemplates.FindFromRawContractText(rawContractText)
-		assert.NoError(t, err)
+		assert.EqualError(t, err, "could not find contract template for language 'DE', type 'BehandelaarLogin' and version 'v1'")
 		assert.Nil(t, got)
 	})
 
