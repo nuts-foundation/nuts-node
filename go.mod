@@ -20,7 +20,7 @@ require (
 	github.com/nats-io/nats-server/v2 v2.9.16
 	github.com/nats-io/nats.go v1.25.0
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
-	github.com/nuts-foundation/go-did v0.4.0
+	github.com/nuts-foundation/go-did v0.5.1
 	github.com/nuts-foundation/go-leia/v3 v3.3.0
 	github.com/nuts-foundation/go-stoabs v1.8.1
 	github.com/piprate/json-gold v0.5.1-0.20230111113000-6ddbe6e6f19f
@@ -117,7 +117,7 @@ require (
 	github.com/nats-io/nkeys v0.4.4 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/nightlyone/lockfile v1.0.0 // indirect
-	github.com/ockam-network/did v0.1.4-0.20210103172416-02ae01ce06d8 // indirect
+	github.com/nuts-foundation/did-ockam v0.0.0-20230313074753-fafd938c948c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35 // indirect
