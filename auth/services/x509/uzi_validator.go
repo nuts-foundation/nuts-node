@@ -43,7 +43,7 @@ type UziSignedToken struct {
 // It can parse and validate a UziSignedToken which implements the SignedToken interface
 type UziValidator struct {
 	validator         *JwtX509Validator
-	contractTemplates *contract.TemplateStore
+	contractTemplates contract.TemplateStore
 }
 
 // UziEnv is used to indicate which Uzi environment (e.g. production, acceptation) should be used.
@@ -144,7 +144,7 @@ func validUziSigningAlgs() []jwa.SignatureAlgorithm {
 // It accepts a *core.TrustStore containing the truststore for the correct UziEnv.
 // The truststore must match that in the truststore in the provided crl.Validator.
 // It accepts a contract template store which is used to check if the signed contract exists and is valid.
-func NewUziValidator(truststore *core.TrustStore, contractTemplates *contract.TemplateStore, crlValidator crl.Validator) (validator *UziValidator, err error) {
+func NewUziValidator(truststore *core.TrustStore, contractTemplates contract.TemplateStore, crlValidator crl.Validator) (validator *UziValidator, err error) {
 	validator = &UziValidator{
 		validator:         NewJwtX509Validator(truststore.RootCAs, truststore.IntermediateCAs, validUziSigningAlgs(), crlValidator),
 		contractTemplates: contractTemplates,
@@ -172,7 +172,7 @@ func (u UziValidator) Parse(rawProofValue string) (services.SignedToken, error) 
 		return nil, fmt.Errorf("token field should contain a string")
 	}
 
-	c, err := contract.ParseContractString(contractText, *u.contractTemplates)
+	c, err := contract.ParseContractString(contractText, u.contractTemplates)
 	if err != nil {
 		return nil, err
 	}

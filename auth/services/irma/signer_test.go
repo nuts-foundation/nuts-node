@@ -98,7 +98,7 @@ func TestService_StartSigningSession(t *testing.T) {
 		}
 		irmaMock.sessionToken = "token"
 
-		session, err := ctx.service.StartSigningSession(contract.Contract{RawContractText: correctContractText}, nil)
+		session, err := ctx.service.StartSigningSession(contract.Contract{RawContractText: correctContractText, Template: &contract.Template{SignerAttributes: []string{}}}, nil)
 
 		assert.NoError(t, err)
 		assert.Equal(t, "token", session.SessionID())
