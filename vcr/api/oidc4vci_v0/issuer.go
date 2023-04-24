@@ -65,15 +65,15 @@ func (w Wrapper) RequestCredential(ctx context.Context, request RequestCredentia
 	}
 	if request.Params.Authorization == nil {
 		return nil, oidc4vci.Error{
-			Err:        errors.New("missing access token"),
+			Err:        errors.New("missing authorization header"),
 			Code:       oidc4vci.InvalidToken,
-			StatusCode: http.StatusBadRequest,
+			StatusCode: http.StatusUnauthorized,
 		}
 	}
 	authHeader := *request.Params.Authorization
 	if len(authHeader) < 7 || strings.ToLower(authHeader[:7]) != "bearer " {
 		return nil, oidc4vci.Error{
-			Err:        errors.New("invalid access token"),
+			Err:        errors.New("invalid authorization header"),
 			Code:       oidc4vci.InvalidToken,
 			StatusCode: http.StatusUnauthorized,
 		}

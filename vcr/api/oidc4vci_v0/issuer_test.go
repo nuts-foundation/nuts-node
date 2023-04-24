@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"net/http"
 	"testing"
 )
 
@@ -96,7 +97,10 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 			},
 		})
 
-		require.EqualError(t, err, "unsupported grant type")
+		var protocolError oidc4vci.Error
+		require.ErrorAs(t, err, &protocolError)
+		assert.EqualError(t, protocolError, "unsupported_grant_type - unsupported grant type: unsupported")
+		assert.Equal(t, http.StatusBadRequest, protocolError.StatusCode)
 		require.Nil(t, response)
 	})
 }
@@ -139,7 +143,10 @@ func TestWrapper_RequestCredential(t *testing.T) {
 			Body: nil,
 		})
 
-		require.EqualError(t, err, "missing authorization header")
+		var protocolError oidc4vci.Error
+		require.ErrorAs(t, err, &protocolError)
+		assert.EqualError(t, protocolError, "invalid_token - missing authorization header")
+		assert.Equal(t, http.StatusUnauthorized, protocolError.StatusCode)
 		assert.Nil(t, response)
 	})
 	t.Run("error - invalid authorization header", func(t *testing.T) {
@@ -156,7 +163,10 @@ func TestWrapper_RequestCredential(t *testing.T) {
 			Body: nil,
 		})
 
-		require.EqualError(t, err, "invalid authorization header")
+		var protocolError oidc4vci.Error
+		require.ErrorAs(t, err, &protocolError)
+		assert.EqualError(t, protocolError, "invalid_token - invalid authorization header")
+		assert.Equal(t, http.StatusUnauthorized, protocolError.StatusCode)
 		assert.Nil(t, response)
 	})
 }
