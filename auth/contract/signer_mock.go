@@ -60,9 +60,9 @@ func (m *MockSigner) StartSigningSession(contract Contract, params map[string]in
 }
 
 // StartSigningSession indicates an expected call of StartSigningSession.
-func (mr *MockSignerMockRecorder) StartSigningSession(rawContractText, params interface{}) *gomock.Call {
+func (mr *MockSignerMockRecorder) StartSigningSession(contract, params interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartSigningSession", reflect.TypeOf((*MockSigner)(nil).StartSigningSession), rawContractText, params)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartSigningSession", reflect.TypeOf((*MockSigner)(nil).StartSigningSession), contract, params)
 }
 
 // MockSessionPointer is a mock of SessionPointer interface.

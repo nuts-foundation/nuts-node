@@ -17,15 +17,6 @@ const VerifiablePresentationType = "NutsSelfSignedPresentation"
 // VerifiablePresentationTypeURI is the dummy verifiable presentation type as URI
 var VerifiablePresentationTypeURI = ssi.MustParseURI(VerifiablePresentationType)
 
-// SessionCreated represents the session state after creation
-const SessionCreated = "created"
-
-// SessionInProgress represents the session state after rendering the html
-const SessionInProgress = "in-progress"
-
-// SessionCompleted represents the session state after the user has accepted the contract
-const SessionCompleted = "completed"
-
 type sessionPointer struct {
 	sessionID string
 	url       string
