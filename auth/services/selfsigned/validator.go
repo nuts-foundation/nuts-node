@@ -119,8 +119,13 @@ func (v service) verifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (cre
 		resultErr = newVerificationError("signer must be credential issuer")
 		return
 	}
-	bytes, _ = json.Marshal(vc.CredentialSubject[0])
-	_ = json.Unmarshal(bytes, &credentialSubject)
+	var credentialSubjects []employeeIdentityCredentialSubject
+	_ = vc.UnmarshalCredentialSubject(&credentialSubjects)
+	if len(credentialSubjects) != 1 {
+		resultErr = newVerificationError("exactly 1 credentialSubject is required")
+		return
+	}
+	credentialSubject = credentialSubjects[0]
 	if vc.Issuer.String() != credentialSubject.ID {
 		resultErr = newVerificationError("signer must be credentialSubject")
 		return
