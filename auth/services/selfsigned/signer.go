@@ -58,15 +58,16 @@ func (v service) SigningSessionStatus(ctx context.Context, sessionID string) (co
 		if err != nil {
 			return nil, fmt.Errorf("issue VC failed: %w", err)
 		}
-		presentationOpts := holder.PresentationOptions{
+		presentationOptions := holder.PresentationOptions{
+			AdditionalContexts: []ssi.URI{credential.NutsV1ContextURI},
+			AdditionalTypes:    []ssi.URI{ssi.MustParseURI(VerifiablePresentationType)},
 			ProofOptions: proof.ProofOptions{
 				Created:      time.Now(),
 				Challenge:    &s.contract,
-				ProofPurpose: "",
+				ProofPurpose: proof.AuthenticationProofPurpose,
 			},
-			AdditionalTypes: []ssi.URI{VerifiablePresentationTypeURI},
 		}
-		vp, err = v.vcr.Holder().BuildVP(ctx, []vc.VerifiableCredential{*verifiableCredential}, presentationOpts, &s.issuerDID, true)
+		vp, err = v.vcr.Holder().BuildVP(ctx, []vc.VerifiableCredential{*verifiableCredential}, presentationOptions, &s.issuerDID, true)
 		if err != nil {
 			return nil, fmt.Errorf("build VP failed: %w", err)
 		}

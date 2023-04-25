@@ -26,10 +26,12 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	issuer2 "github.com/nuts-foundation/nuts-node/vcr/issuer"
+	verifier2 "github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"os"
@@ -62,7 +64,7 @@ func TestSessionStore_StartSigningSession(t *testing.T) {
 				familyName,
 			},
 		}
-		ss := NewService(nil).(*service)
+		ss := NewService(nil, contract.StandardContractTemplates).(*service)
 
 		sp, err := ss.StartSigningSession(testContract, params)
 		require.NoError(t, err)
@@ -82,7 +84,7 @@ func TestSessionStore_StartSigningSession(t *testing.T) {
 		params := map[string]interface{}{
 			"broken": func() {},
 		}
-		ss := NewService(nil)
+		ss := NewService(nil, contract.StandardContractTemplates).(*service)
 
 		_, err := ss.StartSigningSession(testContract, params)
 
@@ -115,7 +117,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 
 	t.Run("status completed returns VP on SigningSessionResult", func(t *testing.T) {
 		mockContext := newMockContext(t)
-		ss := NewService(mockContext.vcr).(*service)
+		ss := NewService(mockContext.vcr, contract.StandardContractTemplates).(*service)
 		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).Return(&testVC, nil)
 		mockContext.holder.EXPECT().BuildVP(context.TODO(), gomock.Len(1), gomock.Any(), &employer, true).Return(&testVP, nil)
 
@@ -133,7 +135,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 
 	t.Run("correct VC options are passed to issuer", func(t *testing.T) {
 		mockContext := newMockContext(t)
-		ss := NewService(mockContext.vcr).(*service)
+		ss := NewService(mockContext.vcr, contract.StandardContractTemplates).(*service)
 		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).DoAndReturn(
 			func(arg0 interface{}, unsignedCredential interface{}, public interface{}, publish interface{}) (*vc.VerifiableCredential, error) {
 				isPublic, ok := public.(bool)
@@ -174,7 +176,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 	})
 
 	t.Run("error for unknown session", func(t *testing.T) {
-		ss := NewService(nil)
+		ss := NewService(nil, contract.StandardContractTemplates)
 
 		_, err := ss.SigningSessionStatus(ctx, "unknown")
 
@@ -183,7 +185,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 
 	t.Run("error on VC issuance", func(t *testing.T) {
 		mockContext := newMockContext(t)
-		ss := NewService(mockContext.vcr).(*service)
+		ss := NewService(mockContext.vcr, contract.StandardContractTemplates).(*service)
 		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).Return(nil, errors.New("error"))
 
 		sp, err := ss.StartSigningSession(testContract, params)
@@ -198,7 +200,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 
 	t.Run("error on building VP", func(t *testing.T) {
 		mockContext := newMockContext(t)
-		ss := NewService(mockContext.vcr).(*service)
+		ss := NewService(mockContext.vcr, contract.StandardContractTemplates).(*service)
 		mockContext.issuer.EXPECT().Issue(context.TODO(), gomock.Any(), false, false).Return(&testVC, nil)
 		mockContext.holder.EXPECT().BuildVP(context.TODO(), gomock.Len(1), gomock.Any(), &employer, true).Return(nil, errors.New("error"))
 
@@ -214,10 +216,11 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 }
 
 type mockContext struct {
-	ctrl   *gomock.Controller
-	vcr    *vcr.MockVCR
-	holder *holder.MockHolder
-	issuer *issuer2.MockIssuer
+	ctrl     *gomock.Controller
+	vcr      *vcr.MockVCR
+	holder   *holder.MockHolder
+	issuer   *issuer2.MockIssuer
+	verifier *verifier2.MockVerifier
 }
 
 func newMockContext(t *testing.T) mockContext {
@@ -225,13 +228,16 @@ func newMockContext(t *testing.T) mockContext {
 	vcr := vcr.NewMockVCR(ctrl)
 	holder := holder.NewMockHolder(ctrl)
 	issuer := issuer2.NewMockIssuer(ctrl)
-	vcr.EXPECT().Issuer().Return(issuer).AnyTimes()
+	verifier := verifier2.NewMockVerifier(ctrl)
 	vcr.EXPECT().Holder().Return(holder).AnyTimes()
+	vcr.EXPECT().Issuer().Return(issuer).AnyTimes()
+	vcr.EXPECT().Verifier().Return(verifier).AnyTimes()
 
 	return mockContext{
-		ctrl:   ctrl,
-		vcr:    vcr,
-		issuer: issuer,
-		holder: holder,
+		ctrl:     ctrl,
+		vcr:      vcr,
+		issuer:   issuer,
+		holder:   holder,
+		verifier: verifier,
 	}
 }

@@ -47,6 +47,6 @@ Content-Type: application/json
   ],
   "signerDID": "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm",
   "proofPurpose": "authentication",
-  "challenge": "EN:PractitionerLogin:v3 I hereby declare to act on behalf of CareBears located in Caretown. This declaration is valid from Friday, 14 April 2023 13:40:00 to Saturday, 15 April 2023 13:40:00.",
-  "expires": "2023-04-15T13:40:00+02:00"
+  "challenge": "EN:PractitionerLogin:v3 I hereby declare to act on behalf of CareBears located in Caretown. This declaration is valid from Wednesday, 19 April 2023 12:20:00 until Thursday, 20 April 2023 13:20:00.",
+  "expires": "2023-04-20T13:20:00+02:00"
 }

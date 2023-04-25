@@ -20,11 +20,13 @@ package selfsigned
 
 import (
 	"encoding/json"
+	"errors"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
 // ContractFormat is the contract format type
@@ -53,15 +55,17 @@ type Service interface {
 // Service is a contract signer and verifier that always succeeds
 // The Service signer is not supposed to be used in a clustered context unless consecutive calls arrive at the same instance
 type service struct {
-	sessions map[string]session
-	vcr      vcr.VCR
+	sessions       map[string]session
+	vcr            vcr.VCR
+	validContracts contract.TemplateStore
 }
 
 // NewService returns an initialized Service
-func NewService(vcr vcr.VCR) Service {
+func NewService(vcr vcr.VCR, validContracts contract.TemplateStore) Service {
 	return &service{
-		sessions: map[string]session{},
-		vcr:      vcr,
+		sessions:       map[string]session{},
+		vcr:            vcr,
+		validContracts: validContracts,
 	}
 }
 
@@ -144,4 +148,40 @@ func (s session) credentialSubject() []interface{} {
 	return []interface{}{
 		credentialSubject,
 	}
+}
+
+type employeeIdentityCredentialSubject struct {
+	credential.BaseCredentialSubject                                  // ID
+	Type                             string                           `json:"type"`
+	Member                           employeeIdentityCredentialMember `json:"member"`
+}
+
+type employeeIdentityCredentialMember struct {
+	Identifier string                                 `json:"identifier"`
+	Member     employeeIdentityCredentialMemberMember `json:"member"`
+	RoleName   string                                 `json:"roleName"`
+	Type       string                                 `json:"type"`
+}
+
+type employeeIdentityCredentialMemberMember struct {
+	FamilyName string `json:"familyName"`
+	Initials   string `json:"initials"`
+	Type       string `json:"type"`
+}
+
+type verificationError struct {
+	err error
+}
+
+func (v verificationError) Error() string {
+	return v.err.Error()
+}
+
+func (v verificationError) Is(other error) bool {
+	_, is := other.(verificationError)
+	return is
+}
+
+func newVerificationError(error string) error {
+	return verificationError{err: errors.New(error)}
 }

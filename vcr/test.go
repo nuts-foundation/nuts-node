@@ -30,16 +30,59 @@ import (
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"path"
 	"testing"
 )
 
+// TestVCRContext contains a VCR and underlying services that can be used to do an integration test.
+type TestVCRContext struct {
+	DIDStore    didstore.Store
+	KeyStore    crypto.KeyStore
+	DocResolver types.DocResolver
+	KeyResolver types.KeyResolver
+	VCR         VCR
+}
+
+func NewTestVCRContext(t *testing.T) TestVCRContext {
+	didStore := didstore.NewTestStore(t)
+
+	ctx := TestVCRContext{
+		DIDStore:    didStore,
+		KeyStore:    crypto.NewMemoryCryptoInstance(),
+		DocResolver: didservice.Resolver{Store: didStore},
+		KeyResolver: didservice.KeyResolver{Store: didStore},
+	}
+
+	testDirectory := io.TestDirectory(t)
+	// give network a subdirectory to avoid duplicate networks in tests
+	newInstance := NewVCRInstance(
+		ctx.KeyStore,
+		ctx.DocResolver,
+		ctx.KeyResolver,
+		network.NewTestNetworkInstance(t),
+		jsonld.NewTestJSONLDManager(t),
+		events.NewTestManager(t),
+		storage.NewTestStorageEngine(testDirectory),
+	).(*vcr)
+
+	if err := newInstance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
+		t.Fatal(err)
+	}
+	if err := newInstance.Start(); err != nil {
+		t.Fatal(err)
+	}
+	ctx.VCR = newInstance
+
+	return ctx
+}
+
 // NewTestVCRInstance returns a new vcr instance to be used for integration tests. Any data is stored in the
 // specified test directory.
 func NewTestVCRInstance(t *testing.T) *vcr {
 	testDirectory := io.TestDirectory(t)
-	// give network a sub directory to avoid duplicate networks in tests
+	// give network a subdirectory to avoid duplicate networks in tests
 	newInstance := NewVCRInstance(
 		nil,
 		nil,
