@@ -21,7 +21,7 @@ Release date: **DRAFT**
 Hazelnut update (v5.2.0)
 ************************
 
-Release date: **DRAFT**
+Release date: 2023-04-25
 
 - Some VDR OpenAPI operations specified ``application/json+did-document`` as Content-Type, while they actually returned ``application/json``.
   This inconsistency is fixed by changing the OpenAPI specification to ``application/json``.
