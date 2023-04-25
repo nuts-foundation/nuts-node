@@ -57,6 +57,9 @@ Release date: 2023-03-15
   It uses a separate service (like a sidecar in Kubernetes) which implements a standardized API.
   The feature is still experimental, but will become the recommended backend for storing private keys in the next major release.
   See `Storage Configuration <https://nuts-node.readthedocs.io/en/latest/pages/deployment/storage-configuration.html#external-store-api>`_ for more information.
+- Fixed situations in which parallel updates of a DID documents lead to the node not being able to sync with the network,
+  recognizable by error logs like ``unable to verify transaction signature, can't resolve key by TX ref``.
+  This typically happened when one of the parallel updates removes keys from a DID document (e.g. deactivation).
 - Internal storage of VDR has changed. A migration will run at startup. If the node is stopped during this process, DID Documents will have to be reprocessed manually (restore functionality)
 - Added audit logging for cryptographic operations (creating a new key pair, signing, decrypting).
   Refer to the documentation for more information.
