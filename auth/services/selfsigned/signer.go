@@ -75,7 +75,7 @@ func (v *signer) SigningSessionStatus(ctx context.Context, sessionID string) (co
 		expirationData := time.Now().Add(24 * time.Hour)
 		credentialOptions := vc.VerifiableCredential{
 			Context:           []ssi.URI{credential.NutsV1ContextURI},
-			Type:              []ssi.URI{vc.VerifiableCredentialTypeV1URI(), ssi.MustParseURI(credentialType)},
+			Type:              []ssi.URI{ssi.MustParseURI(credentialType)},
 			Issuer:            issuerID.URI(),
 			IssuanceDate:      time.Now(),
 			ExpirationDate:    &expirationData,
