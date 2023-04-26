@@ -3,7 +3,6 @@ package selfsigned
 import (
 	"encoding/json"
 	"errors"
-	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
@@ -13,9 +12,6 @@ const ContractFormat = "selfsigned"
 
 // VerifiablePresentationType is the dummy verifiable presentation type
 const VerifiablePresentationType = "NutsSelfSignedPresentation"
-
-// VerifiablePresentationTypeURI is the dummy verifiable presentation type as URI
-var VerifiablePresentationTypeURI = ssi.MustParseURI(VerifiablePresentationType)
 
 type sessionPointer struct {
 	sessionID string
