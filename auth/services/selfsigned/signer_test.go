@@ -136,7 +136,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 				assert.False(t, isPublic)
 				assert.False(t, isPublished)
 				assert.Equal(t, employer.URI(), credential.Issuer)
-				assert.Equal(t, []ssi.URI{vc.VerifiableCredentialTypeV1URI(), ssi.MustParseURI("NutsEmployeeCredential")}, credential.Type)
+				assert.Equal(t, []ssi.URI{ssi.MustParseURI("NutsEmployeeCredential")}, credential.Type)
 
 				credentialSubject := credential.CredentialSubject[0].(map[string]interface{})
 				assert.Equal(t, employer.String(), credentialSubject["id"])
