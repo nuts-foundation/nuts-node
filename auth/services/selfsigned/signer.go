@@ -104,6 +104,16 @@ func (v *signer) SigningSessionStatus(ctx context.Context, sessionID string) (co
 			return nil, fmt.Errorf("build VP failed: %w", err)
 		}
 
+	}
+	// cleanup all sessions in a final state
+	switch s.Status {
+	case types.SessionCompleted:
+		fallthrough
+	case types.SessionExpired:
+		fallthrough
+	case types.SessionCancelled:
+		fallthrough
+	case types.SessionErrored:
 		v.store.Delete(sessionID)
 	}
 
