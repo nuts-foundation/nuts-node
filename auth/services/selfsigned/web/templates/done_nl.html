@@ -10,6 +10,10 @@
     <p>The identificatie is voltooid.</p>
     {{ else if eq .Status "cancelled"}}
     <p>De identificatie is afgebroken.</p>
+    {{ else if eq .Status "errored"}}
+    <p>Er vond een error plaats tijdens het bevestigen van uw identiteit. Probeer het nogmaals of neem contact op met uw werkgever.</p>
+    {{ else if eq .Status "expired"}}
+    <p>De identificatie duurde te lang, probeer het opnieuw.</p>
     {{ end }}
     <p>U kunt dit scherm/tabblad nu sluiten.</p>
 </main>

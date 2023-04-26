@@ -10,6 +10,10 @@
     <p>The identification step is completed.</p>
     {{ else if eq .Status "cancelled"}}
     <p>The identification step is cancelled.</p>
+    {{ else if eq .Status "errored"}}
+    <p>The identification step is errored. Please contact your employer.</p>
+    {{ else if eq .Status "expired"}}
+    <p>The identification step took too long, please try again.</p>
     {{ end }}
     <p>You may now close this browser tab.</p>
 </main>

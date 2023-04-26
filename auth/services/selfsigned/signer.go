@@ -42,24 +42,29 @@ import (
 
 const credentialType = "NutsEmployeeCredential"
 
-// SessionStore is a contract signer and verifier that always succeeds
-// The SessionStore signer is not supposed to be used in a clustered context unless consecutive calls arrive at the same instance
+// signer implements the contract.Signer interface
 type signer struct {
 	store     types.SessionStore
 	vcr       vcr.VCR
 	publicURL string
+	// The time the user has to sign the contract
+	signingDuration time.Duration
 }
 
 // NewSigner returns an initialized employee identity contract signer
 func NewSigner(vcr vcr.VCR, publicURL string) contract.Signer {
 	return &signer{
 		// NewSessionStore returns an initialized SessionStore
-		store:     NewSessionStore(),
-		vcr:       vcr,
-		publicURL: publicURL,
+		store:           NewSessionStore(),
+		vcr:             vcr,
+		publicURL:       publicURL,
+		signingDuration: 10 * time.Minute,
 	}
 }
 
+// SigningSessionStatus returns the status of a signing session
+// If the session is completed, a VerifiablePresentation is created and added to the result
+// The session is deleted after the VerifiablePresentation is created, so the completed result can only be retrieved once
 func (v *signer) SigningSessionStatus(ctx context.Context, sessionID string) (contract.SigningSessionResult, error) {
 	s, ok := v.store.Load(sessionID)
 	if !ok {
@@ -98,6 +103,8 @@ func (v *signer) SigningSessionStatus(ctx context.Context, sessionID string) (co
 		if err != nil {
 			return nil, fmt.Errorf("build VP failed: %w", err)
 		}
+
+		v.store.Delete(sessionID)
 	}
 
 	return signingSessionResult{
@@ -109,6 +116,7 @@ func (v *signer) SigningSessionStatus(ctx context.Context, sessionID string) (co
 }
 
 func (v *signer) StartSigningSession(userContract contract.Contract, params map[string]interface{}) (contract.SessionPointer, error) {
+	// check the session params first to provide the user with feedback if something is missing
 	if err := checkSessionParams(params); err != nil {
 		return nil, services.NewInvalidContractRequestError(fmt.Errorf("invalid session params: %w", err))
 	}
@@ -123,9 +131,10 @@ func (v *signer) StartSigningSession(userContract contract.Contract, params map[
 
 	sessionID := hex.EncodeToString(sessionBytes)
 	s := types.Session{
-		Contract: userContract.RawContractText,
-		Status:   types.SessionCreated,
-		Secret:   hex.EncodeToString(secret),
+		Contract:  userContract.RawContractText,
+		Status:    types.SessionCreated,
+		Secret:    hex.EncodeToString(secret),
+		ExpiresAt: time.Now().Add(v.signingDuration),
 	}
 	// load params directly into session
 	marshalled, err := json.Marshal(params)
