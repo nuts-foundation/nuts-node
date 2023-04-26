@@ -1,5 +1,7 @@
 package types
 
+import "time"
+
 type SessionStore interface {
 	Store(sessionID string, session Session)
 	Load(sessionID string) (Session, bool)
@@ -9,11 +11,12 @@ type SessionStore interface {
 
 // Session contains the contract text and Session signing Status
 type Session struct {
-	Contract string
-	Secret   string
-	Status   string
-	Employer string   `json:"employer"`
-	Employee Employee `json:"employee"`
+	ExpiresAt time.Time
+	Contract  string
+	Secret    string
+	Status    string
+	Employer  string   `json:"employer"`
+	Employee  Employee `json:"employee"`
 }
 
 func (s Session) CredentialSubject() []interface{} {
@@ -55,3 +58,7 @@ const SessionInProgress = "in-progress"
 const SessionCompleted = "completed"
 
 const SessionCancelled = "cancelled"
+
+const SessionErrored = "errored"
+
+const SessionExpired = "expired"

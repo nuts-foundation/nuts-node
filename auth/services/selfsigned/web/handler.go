@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
+	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/types"
 	"github.com/nuts-foundation/nuts-node/core"
 	"html/template"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
 type Handler struct {
@@ -67,16 +69,32 @@ func (h Handler) HandleEmployeeIDForm(ctx echo.Context, sessionID string, params
 		return echo.NewHTTPError(http.StatusNotFound, "session not found")
 	}
 
-	submitValue := ctx.FormValue("accept")
+	// check if the session has expired
+	if time.Now().After(session.ExpiresAt) {
+		session.Status = types.SessionExpired
+		log.Logger().Warn("could not sign contract, session has expired")
+		return echo.NewHTTPError(http.StatusNotFound, "session expired")
+	}
 
-	if submitValue == "true" {
-		session.Status = types.SessionCompleted
-	} else if submitValue == "false" {
-		session.Status = types.SessionCancelled
+	// load the form fields
+	submitValue := ctx.FormValue("accept")
+	secret := ctx.FormValue("secret")
+
+	//  check the hidden secret field
+	if session.Secret != secret {
+		session.Status = types.SessionErrored
+		log.Logger().Warn("could not sign contract, secret does not match")
+	} else {
+		if submitValue == "true" {
+			session.Status = types.SessionCompleted
+		} else if submitValue == "false" {
+			session.Status = types.SessionCancelled
+		}
 	}
 	// Require the session to be in-progress to prevent double submission
 	if !h.store.CheckAndSetStatus(sessionID, types.SessionInProgress, session.Status) {
-		return echo.NewHTTPError(http.StatusNotFound, "session not found")
+		log.Logger().Warn("could not sign contract, session is does not have the in-progress status")
+		return echo.NewHTTPError(http.StatusNotFound, "no session with status in-progress found")
 	}
 
 	return ctx.Redirect(http.StatusFound, fmt.Sprintf("/public/auth/v1/means/employeeid/%s/done", sessionID))
