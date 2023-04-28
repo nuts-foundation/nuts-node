@@ -43,10 +43,18 @@ var (
 	ErrCertBanned = errors.New("certificate is banned")
 )
 
+// DenyList implements a global certificate rejection
 type Denylist interface {
+	// LastUpdated provides the time at which the denylist was last retrieved
 	LastUpdated() time.Time
+
+	// Update fetches a new copy of the denylist
 	Update() error
+
+	// URL returns the URL of the denylist
 	URL() string
+
+	// ValidateCert returns an error if a certificate should not be used
 	ValidateCert(cert *x509.Certificate) error
 }
 
