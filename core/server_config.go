@@ -282,7 +282,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("network.truststorefile", "", "Deprecated: use 'tls.truststorefile'. PEM file containing the trusted CA certificates for authenticating remote gRPC servers.")
 	flagSet.Int("network.maxcrlvaliditydays", 0, "Deprecated: use 'tls.crl.maxvaliditydays'. The number of days a CRL can be outdated, after that it will hard-fail.")
 
-	// Flags for deneylist features
+	// Flags for denylist features
 	flagSet.Int("pki.maxupdatefailhours", 4, "maximum number of hours that a denylist update can fail")
 	// TODO: Choose a default trusted signer key
 	flagSet.String("pki.denylist.trustedsigner", "", "Ed25519 public key (in PEM format) of the trusted signer for denylists")

@@ -231,7 +231,7 @@ func (v *validator) SetValidatePeerCertificateFunc(config *tls.Config) error {
 }
 
 func (v *validator) validateCert(cert *x509.Certificate) error {
-	// Check if a deneylist is in use
+	// Check if a denylist is in use
 	if v.denylist != nil {
 		// Validate the cert against the denylist
 		if err := v.denylist.ValidateCert(cert); err != nil {
