@@ -291,12 +291,8 @@ func FlagSet() *pflag.FlagSet {
 
 	// Changing these config values is not recommended, and they are expected to almost always be the same value, so
 	// do not show them in the config dump
-	flagSet.MarkHidden("pki.maxupdatefailhours")
 	flagSet.MarkHidden("pki.denylist.trustedsigner")
 	flagSet.MarkHidden("pki.denylist.url")
-
-	// Flags for CRL features
-	flagSet.Int("pki.crl.maxupdatefailhours", 4, "maximum number of hours that a CRL update can fail")
 
 	flagSet.MarkDeprecated("tls.crl.maxvaliditydays", "CRLs can no longer be accepted after the time in NextUpdate has past")
 	flagSet.MarkDeprecated("network.certfile", "use 'tls.certfile' instead")
