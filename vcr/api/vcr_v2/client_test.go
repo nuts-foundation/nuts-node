@@ -17,7 +17,7 @@
  *
  */
 
-package v2
+package vcr_v2
 
 import (
 	"github.com/nuts-foundation/nuts-node/core"

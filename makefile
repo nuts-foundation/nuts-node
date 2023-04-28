@@ -57,7 +57,7 @@ gen-api:
 	oapi-codegen --config codegen/configs/crypto_v1.yaml -package v1 docs/_static/crypto/v1.yaml | gofmt > crypto/api/v1/generated.go
 	oapi-codegen --config codegen/configs/vdr_v1.yaml docs/_static/vdr/v1.yaml | gofmt > vdr/api/v1/generated.go
 	oapi-codegen --config codegen/configs/network_v1.yaml docs/_static/network/v1.yaml | gofmt > network/api/v1/generated.go
-	oapi-codegen --config codegen/configs/vcr_v2.yaml docs/_static/vcr/v2.yaml | gofmt > vcr/api/v2/generated.go
+	oapi-codegen --config codegen/configs/vcr_v2.yaml docs/_static/vcr/v2.yaml | gofmt > vcr/api/vcr_v2/generated.go
 	oapi-codegen --config codegen/configs/vcr_oidc4vci_v0.yaml docs/_static/vcr/oidc4vci_v0.yaml | gofmt > vcr/api/oidc4vci_v0/generated.go
 	oapi-codegen --config codegen/configs/vcr_oidc4vci_v0_types.yaml docs/_static/vcr/oidc4vci_v0.yaml | gofmt > vcr/api/oidc4vci_v0/types/generated.go
 	oapi-codegen --config codegen/configs/auth_v1.yaml docs/_static/auth/v1.yaml | gofmt > auth/api/auth_v1/generated.go

@@ -23,7 +23,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/nuts-foundation/nuts-node/core"
-	v2 "github.com/nuts-foundation/nuts-node/vcr/api/v2"
+	v2 "github.com/nuts-foundation/nuts-node/vcr/api/vcr_v2"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"

@@ -51,7 +51,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	storageCmd "github.com/nuts-foundation/nuts-node/storage/cmd"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	credAPIv2 "github.com/nuts-foundation/nuts-node/vcr/api/v2"
+	credAPIv2 "github.com/nuts-foundation/nuts-node/vcr/api/vcr_v2"
 	vcrCmd "github.com/nuts-foundation/nuts-node/vcr/cmd"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	vdrAPI "github.com/nuts-foundation/nuts-node/vdr/api/v1"
