@@ -16,7 +16,7 @@
  *
  */
 
-package crl
+package pki
 
 import (
 	"context"
@@ -30,9 +30,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/pki/blacklist"
 	pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
-	"github.com/nuts-foundation/nuts-node/pki/crl/log"
 )
 
 var nowFunc = time.Now
@@ -82,10 +80,10 @@ type validator struct {
 	// crls maps CRL endpoints to their x509.RevocationList
 	crls sync.Map
 
-	// blacklist implements blocking of certificates with tuples of issuer/serial number
-	blacklist blacklist.Blacklist
+	// denylist implements blocking of certificates with tuples of issuer/serial number
+	denylist Denylist
 
-	// maxUpdateFailHours is the maximum number of hours that a CRL or blacklist can fail to update without causing errors
+	// maxUpdateFailHours is the maximum number of hours that a CRL or denylist can fail to update without causing errors
 	maxUpdateFailHours int
 }
 
@@ -111,25 +109,25 @@ func newRevocationList(cert *x509.Certificate) *revocationList {
 	}
 }
 
-// New returns a new CRL validator.
-func New(config pkiconfig.Config, truststore []*x509.Certificate) (Validator, error) {
+// New returns a new PKI (crl/denylist) validator.
+func NewValidator(config pkiconfig.Config, truststore []*x509.Certificate) (Validator, error) {
 	return newValidatorWithHTTPClient(config, truststore, &http.Client{Timeout: syncTimeout})
 }
 
 // NewValidatorWithHTTPClient returns a new instance with a pre-configured HTTP client
 func newValidatorWithHTTPClient(config pkiconfig.Config, certificates []*x509.Certificate, client *http.Client) (*validator, error) {
-	// Create the new blacklist with the config
-	blacklist, err := blacklist.New(config.Blacklist)
+	// Create the new denylist with the config
+	denylist, err := New(config.Denylist)
 	if err != nil {
-		return nil, fmt.Errorf("failed to init blacklist: %w", err)
+		return nil, fmt.Errorf("failed to init denylist: %w", err)
 	}
 
 	// Create the validator
 	val := &validator{
 		httpClient:         client,
 		truststore:         map[string]*x509.Certificate{},
-		blacklist:          blacklist,
-		maxUpdateFailHours: config.CRL.MaxUpdateFailHours,
+		denylist:          denylist,
+		maxUpdateFailHours: config.MaxUpdateFailHours,
 	}
 
 	// add truststore
@@ -233,11 +231,11 @@ func (v *validator) SetValidatePeerCertificateFunc(config *tls.Config) error {
 }
 
 func (v *validator) validateCert(cert *x509.Certificate) error {
-	// Check if a blacklist is in use
-	if v.blacklist != nil {
-		// Validate the cert against the blacklist
-		if err := v.blacklist.ValidateCert(cert); err != nil {
-			// Return any blacklist error, blocking the certificate
+	// Check if a deneylist is in use
+	if v.denylist != nil {
+		// Validate the cert against the denylist
+		if err := v.denylist.ValidateCert(cert); err != nil {
+			// Return any denylist error, blocking the certificate
 			return err
 		}
 	}
@@ -255,7 +253,7 @@ func (v *validator) validateCert(cert *x509.Certificate) error {
 			}
 			err := v.addEndpoints(issuer, []string{endpoint})
 			if err != nil {
-				log.Logger().WithError(err).
+				logger().WithError(err).
 					WithField("Subject", cert.Subject.String()).
 					WithField("S/N", cert.SerialNumber.String()).
 					Warn("cert validation failed because CRL cannot be added")
@@ -270,7 +268,7 @@ func (v *validator) validateCert(cert *x509.Certificate) error {
 			// Pause validate to download CRL. Client requests run in their own go routine, so we can afford to wait.
 			err := v.updateCRL(endpoint, crl)
 			if err != nil {
-				log.Logger().WithError(err).
+				logger().WithError(err).
 					WithField("Subject", cert.Subject.String()).
 					WithField("S/N", cert.SerialNumber.String()).
 					WithField("endpoint", endpoint).
@@ -329,31 +327,31 @@ func (v *validator) sync() {
 	// Use a WaitGroup to track when background goroutines are complete
 	wg := &sync.WaitGroup{}
 
-	// Check if a blacklist is in use
-	if v.blacklist != nil {
+	// Check if a denylist is in use
+	if v.denylist != nil {
 		// Track that a goroutine is being started
 		wg.Add(1)
 
-		// Update the blacklist in a background routine
+		// Update the denylist in a background routine
 		go func() {
 			// Ensure that the WaitGroup is updated when this goroutine ends
 			defer wg.Done()
 
-			// Update the blacklist
-			if err := v.blacklist.Update(); err != nil {
-				// If the blacklist is more than X hours out of date then there is a serious issue
-				if time.Since(v.blacklist.LastUpdated()) > time.Duration(v.maxUpdateFailHours)*time.Hour {
-					// Log a message about the failed blacklist update
-					log.Logger().
+			// Update the denylist
+			if err := v.denylist.Update(); err != nil {
+				// If the denylist is more than X hours out of date then there is a serious issue
+				if time.Since(v.denylist.LastUpdated()) > time.Duration(v.maxUpdateFailHours)*time.Hour {
+					// Log a message about the failed denylist update
+					logger().
 						WithError(err).
-						WithField("URL", v.blacklist.URL()).
-						Error("Failed to update blacklist")
+						WithField("URL", v.denylist.URL()).
+						Error("Failed to update denylist")
 				} else {
-					// Log a message about the failed blacklist update
-					log.Logger().
+					// Log a message about the failed denylist update
+					logger().
 						WithError(err).
-						WithField("URL", v.blacklist.URL()).
-						Warn("Failed to update blacklist")
+						WithField("URL", v.denylist.URL()).
+						Warn("Failed to update denylist")
 				}
 			}
 		}()
@@ -369,7 +367,7 @@ func (v *validator) sync() {
 		if !isString || !isCRL {
 			// This should never happen. If it does, it indicates a programming error in which
 			// the v.crls sync.Map has been incorrectly populated.
-			log.Logger().
+			logger().
 				WithField("endpoint", fmt.Sprintf("%v", endpointAny)).
 				WithField("CRL", fmt.Sprintf("%v", currentAny)).
 				Error("CRL validator is invalid")
@@ -381,7 +379,7 @@ func (v *validator) sync() {
 		// Enforce the certificate NotBefore/NotAfter fields
 		if nowFunc().Before(current.issuer.NotBefore) || nowFunc().After(current.issuer.NotAfter) {
 			// Log the failure, noting the certificate details in the log message
-			log.Logger().
+			logger().
 				WithField("subject", current.issuer.Subject.String()).
 				WithField("S/N", current.issuer.SerialNumber.String()).
 				Warn("Trust store contains expired certificate")
@@ -402,9 +400,9 @@ func (v *validator) sync() {
 				// Connections containing a certificate pointing to this CRL will be accepted until its current.list.NextUpdate.
 				if crl != nil || time.Since(crl.lastUpdated) > time.Duration(v.maxUpdateFailHours)*time.Hour {
 					// Escalate to error logging if the CRL is missing or fails to update for several hours.
-					log.Logger().WithError(err).WithField("CRLDistributionPoint", endpoint).Error("Update CRL")
+					logger().WithError(err).WithField("CRLDistributionPoint", endpoint).Error("Update CRL")
 				} else {
-					log.Logger().WithError(err).WithField("CRLDistributionPoint", endpoint).Debug("Update CRL")
+					logger().WithError(err).WithField("CRLDistributionPoint", endpoint).Debug("Update CRL")
 				}
 			}
 		}(endpoint, current, wg)
@@ -453,7 +451,7 @@ func (v *validator) downloadCRL(endpoint string) (*x509.RevocationList, error) {
 	}
 	defer func() {
 		if err = response.Body.Close(); err != nil {
-			log.Logger().Warn(err)
+			logger().Warn(err)
 		}
 	}()
 

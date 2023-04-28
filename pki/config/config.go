@@ -22,7 +22,9 @@ package config
 type Config struct {
 	// Denylist specifies config options for the PKI denylist, which acts as a global CRL
 	Denylist DenylistConfig `koanf:"denylist"`
-	CRL      CRLConfig      `koanf:"crl"`
+
+	// MaxUpdateFailHours specifies the maximum number of hours that a denylist update can fail
+	MaxUpdateFailHours int `koanf:"maxupdatefailhours"`
 }
 
 // DenylistConfig specifies the config structure for the crl/certificate blacklist module
@@ -32,13 +34,4 @@ type DenylistConfig struct {
 
 	// TrustedSigner specifies the PEM Ed25519 public key which must sign the blacklist
 	TrustedSigner string `koanf:"trustedsigner"`
-
-	// MaxUpdateFailHours specifies the maximum number of hours that a blacklist update can fail
-	MaxUpdateFailHours int `koanf:"maxupdatefailhours"`
-}
-
-// CRLConfig specifies the config structure for the crl/certificate blacklist module
-type CRLConfig struct {
-	// MaxUpdateFailHours specifies the maximum number of hours that a CRL update can fail
-	MaxUpdateFailHours int `koanf:"maxupdatefailhours"`
 }
