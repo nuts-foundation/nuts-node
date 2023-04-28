@@ -23,14 +23,12 @@ import (
 	"crypto/x509"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/pki/crl"
+	"github.com/nuts-foundation/nuts-node/pki"
+        pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
 	networkTypes "github.com/nuts-foundation/nuts-node/network/transport"
 	"google.golang.org/grpc"
 	"net"
 	"time"
-
-        crlconfig "github.com/nuts-foundation/nuts-node/pki/crl/config"
-        pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
 )
 
 // tcpListenerCreator starts a TCP listener for the inbound gRPC server on the given address.
@@ -69,11 +67,9 @@ func WithTLS(clientCertificate tls.Certificate, trustStore *core.TrustStore) Con
 		config.trustStore = trustStore.CertPool
 		
 		pkiCfg := pkiconfig.Config{
-			CRL: crlconfig.Config{
-				MaxUpdateFailHours: 4,
-			},
+			MaxUpdateFailHours: 4,
 		}
-		crlValidator, err := crl.New(pkiCfg, trustStore.Certificates())
+		crlValidator, err := pki.NewValidator(pkiCfg, trustStore.Certificates())
 		if err != nil {
 			return err
 		}
@@ -128,7 +124,7 @@ type Config struct {
 	// trustStore contains the trust anchors used when verifying remote a peer's TLS certificate.
 	trustStore *x509.CertPool
 	// crlValidator contains the database for revoked certificates
-	crlValidator crl.Validator
+	crlValidator pki.Validator
 	// clientCertHeaderName specifies the name of the HTTP header that contains the client certificate, if TLS is offloaded.
 	clientCertHeaderName string
 	// connectionTimeout specifies the time before an outbound connection attempt times out.

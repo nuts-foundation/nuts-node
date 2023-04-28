@@ -32,9 +32,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/jsonld"
-	crlconfig "github.com/nuts-foundation/nuts-node/pki/crl/config"
 	pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
-	"github.com/nuts-foundation/nuts-node/pki/crl"
+	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/didstore"
@@ -58,7 +57,7 @@ type Auth struct {
 	keyStore        crypto.KeyStore
 	registry        didstore.Store
 	vcr             vcr.VCR
-	crlValidator    crl.Validator
+	crlValidator    pki.Validator
 	shutdownFunc    func()
 }
 
@@ -143,12 +142,10 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		}
 
 		pkiCfg := pkiconfig.Config{
-			CRL: crlconfig.Config{
-				MaxUpdateFailHours: 4,
-			},
+			MaxUpdateFailHours: 4,
 		}
 
-		validator, err := crl.New(pkiCfg, trustStore.Certificates())
+		validator, err := pki.NewValidator(pkiCfg, trustStore.Certificates())
 		if err != nil {
 			return err
 		}

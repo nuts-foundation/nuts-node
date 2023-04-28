@@ -39,9 +39,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/services/x509"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/pki"
 	pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
-	"github.com/nuts-foundation/nuts-node/pki/crl"
-	crlconfig "github.com/nuts-foundation/nuts-node/pki/crl/config"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	irmago "github.com/privacybydesign/irmago"
@@ -87,8 +86,8 @@ type notary struct {
 	irmaServer        *irmaserver.Server
 	verifiers         map[string]contract.VPVerifier
 	signers           map[string]contract.Signer
-	uziCrlValidator   crl.Validator
-	vcr               vcr.VCR
+	vcr               vcr.Finder
+	uziCrlValidator   pki.Validator
 }
 
 var timeNow = time.Now
@@ -203,12 +202,10 @@ func (n *notary) Configure() (err error) {
 		}
 
 		pkiCfg := pkiconfig.Config{
-			CRL: crlconfig.Config{
-				MaxUpdateFailHours: 4,
-			},
+			MaxUpdateFailHours: 4,
 		}
 
-		n.uziCrlValidator, err = crl.New(pkiCfg, truststore.Certificates())
+		n.uziCrlValidator, err = pki.NewValidator(pkiCfg, truststore.Certificates())
 		if err != nil {
 			return err
 		}

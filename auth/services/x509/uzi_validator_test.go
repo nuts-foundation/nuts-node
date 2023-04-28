@@ -29,8 +29,7 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
-	"github.com/nuts-foundation/nuts-node/pki/crl"
-	crlconfig "github.com/nuts-foundation/nuts-node/pki/crl/config"
+	"github.com/nuts-foundation/nuts-node/pki"
 	pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
 )
 
@@ -38,9 +37,7 @@ const uziSignedJwt = `eyJ4NWMiOlsiTUlJSGN6Q0NCVnVnQXdJQkFnSVVIUFU4cVZYS3FEZXByWU
 
 func pkiCfg() pkiconfig.Config {
 	return pkiconfig.Config{
-		CRL: crlconfig.Config{
-			MaxUpdateFailHours: 4,
-		},
+		MaxUpdateFailHours: 4,
 	}
 }
 
@@ -48,7 +45,7 @@ func TestNewUziValidator(t *testing.T) {
 	t.Run("production certificates", func(t *testing.T) {
 		truststore, err := LoadUziTruststore(UziProduction)
 		require.NoError(t, err)
-		crlValidator, err := crl.New(pkiCfg(), truststore.Certificates())
+		crlValidator, err := pki.NewValidator(pkiCfg(), truststore.Certificates())
 		require.NoError(t, err)
 
 		_, err = NewUziValidator(truststore, &contract.StandardContractTemplates, crlValidator)
@@ -58,7 +55,7 @@ func TestNewUziValidator(t *testing.T) {
 	t.Run("acceptation certificates", func(t *testing.T) {
 		truststore, err := LoadUziTruststore(UziAcceptation)
 		require.NoError(t, err)
-		crlValidator, err := crl.New(pkiCfg(), truststore.Certificates())
+		crlValidator, err := pki.NewValidator(pkiCfg(), truststore.Certificates())
 		require.NoError(t, err)
 
 		_, err = NewUziValidator(truststore, &contract.StandardContractTemplates, crlValidator)
@@ -113,7 +110,7 @@ func TestUziValidator(t *testing.T) {
 	t.Run("ok - acceptation environment", func(t *testing.T) {
 		truststore, err := LoadUziTruststore(UziAcceptation)
 		require.NoError(t, err)
-		crlValidator, err := crl.New(pkiCfg(), truststore.Certificates())
+		crlValidator, err := pki.NewValidator(pkiCfg(), truststore.Certificates())
 		require.NoError(t, err)
 		uziValidator, err := NewUziValidator(truststore, &contract.StandardContractTemplates, crlValidator)
 		require.NoError(t, err)

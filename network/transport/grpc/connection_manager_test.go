@@ -39,7 +39,7 @@ import (
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/pki/crl"
+	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test"
 	io2 "github.com/nuts-foundation/nuts-node/test/io"
@@ -91,7 +91,7 @@ func withBufconnDialer(listener *bufconn.Listener) ConfigOption {
 func Test_NewGRPCConnectionManager(t *testing.T) {
 	t.Run("error - invalid truststore", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		crlValidator := crl.NewMockValidator(ctrl)
+		crlValidator := pki.NewMockValidator(ctrl)
 		cfg := Config{trustStore: &x509.CertPool{}}
 		cfg.crlValidator = crlValidator
 		crlValidator.EXPECT().SetValidatePeerCertificateFunc(gomock.Any()).Return(errors.New("custom error"))
@@ -618,7 +618,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 	})
 
 	t.Run("configures CRL check when TLS is enabled", func(t *testing.T) {
-		validator := crl.NewMockValidator(gomock.NewController(t))
+		validator := pki.NewMockValidator(gomock.NewController(t))
 		validator.EXPECT().Start(gomock.Any())
 		validator.EXPECT().SetValidatePeerCertificateFunc(gomock.Any()).DoAndReturn(func(_ interface{}) func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 			return func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
@@ -641,7 +641,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 		require.NoError(t, err)
 
 		ctrl := gomock.NewController(t)
-		crlValidator := crl.NewMockValidator(ctrl)
+		crlValidator := pki.NewMockValidator(ctrl)
 		cm.config.crlValidator = crlValidator
 		crlValidator.EXPECT().Start(gomock.Any())
 		crlValidator.EXPECT().SetValidatePeerCertificateFunc(gomock.Any()).Return(errors.New("custom error"))
