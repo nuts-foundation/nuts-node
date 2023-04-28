@@ -126,7 +126,7 @@ func newValidatorWithHTTPClient(config pkiconfig.Config, certificates []*x509.Ce
 	val := &validator{
 		httpClient:         client,
 		truststore:         map[string]*x509.Certificate{},
-		denylist:          denylist,
+		denylist:           denylist,
 		maxUpdateFailHours: config.MaxUpdateFailHours,
 	}
 

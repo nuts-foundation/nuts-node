@@ -42,7 +42,7 @@ import (
 )
 
 const (
-	testdatapath = "./test"
+	testdatapath   = "./test"
 	truststore     = testdatapath + "/truststore.pem"
 	truststorePKIo = testdatapath + "/truststore_withPKIOverheid.pem"
 	pkiOverheidCRL = testdatapath + "/pkioverheid.crl"
@@ -218,14 +218,14 @@ func Test_ValidatorValidateCert(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("ok", func(t *testing.T) {
-		cert := loadCert(t, testdatapath + "/A-valid.pem")
+		cert := loadCert(t, testdatapath+"/A-valid.pem")
 
 		err := val.validateCert(cert)
 
 		assert.NoError(t, err)
 	})
 	t.Run("revoked cert", func(t *testing.T) {
-		cert := loadCert(t, testdatapath + "/A-revoked.pem")
+		cert := loadCert(t, testdatapath+"/A-revoked.pem")
 
 		err := val.validateCert(cert)
 
@@ -235,7 +235,7 @@ func Test_ValidatorValidateCert(t *testing.T) {
 		val := &validator{
 			truststore: map[string]*x509.Certificate{},
 		}
-		cert := loadCert(t, testdatapath + "/A-valid.pem")
+		cert := loadCert(t, testdatapath+"/A-valid.pem")
 
 		err := val.validateCert(cert)
 
@@ -243,7 +243,7 @@ func Test_ValidatorValidateCert(t *testing.T) {
 	})
 	t.Run("missing crl", func(t *testing.T) {
 		val := newValidatorStarted(t)
-		cert := loadCert(t, testdatapath + "/B-valid_revoked-CA.pem")
+		cert := loadCert(t, testdatapath+"/B-valid_revoked-CA.pem")
 
 		err := val.validateCert(cert)
 
