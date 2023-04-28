@@ -167,6 +167,10 @@ func trustedDenylist(t *testing.T) string {
 		},
 	}
 
+	return encodeDenylist(t, entries)
+}
+
+func encodeDenylist(t *testing.T, entries []denylistEntry) string {
 	// Encode the denylist as JSON
 	payload, err := json.Marshal(&entries)
 	require.NoError(t, err)
@@ -267,6 +271,36 @@ func TestUpdateInvalidDenylistFails(t *testing.T) {
 func TestValidCertificateAccepted(t *testing.T) {
 	// Get the trusted denylist
 	denylistJSON := trustedDenylist(t)
+
+	// Setup a denylist server
+	testServer := denylistTestServer(denylistJSON)
+	defer testServer.Close()
+
+	// Use the server in a new denylist
+	denylist, err := newDenylist(testServer.URL, publicKeyDoNotUse)
+	require.NoError(t, err)
+	require.NotNil(t, denylist)
+
+	// Update the denylist data and ensure there are no errors
+	err = denylist.Update()
+	require.NoError(t, err)
+
+	// Parse the certificate
+	block, _ := pem.Decode([]byte(allowedTestCertificate))
+	cert, err := x509.ParseCertificate(block.Bytes)
+	require.NoError(t, err)
+
+	// Check whether the certificate is banned
+	err = denylist.ValidateCert(cert)
+
+	// Ensure the returned error was nil, meaning the certificate is not banned
+	assert.NoError(t, err)
+}
+
+// TestValidCertificateAcceptedEmptyDenyList ensures a non-banned certificate is accepted with an empty deny list
+func TestValidCertificateAcceptedEmptyDenyList(t *testing.T) {
+	// Get the trusted denylist
+	denylistJSON := encodeDenylist(t, nil)
 
 	// Setup a denylist server
 	testServer := denylistTestServer(denylistJSON)
