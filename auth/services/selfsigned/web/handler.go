@@ -2,6 +2,7 @@ package web
 
 import (
 	"bytes"
+	"embed"
 	"fmt"
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
@@ -9,11 +10,14 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/types"
 	"github.com/nuts-foundation/nuts-node/core"
 	"html/template"
+	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 )
+
+//go:embed templates/*
+var webTemplates embed.FS
 
 type Handler struct {
 	store types.SessionStore
@@ -41,17 +45,9 @@ func (h Handler) RenderEmployeeIDPage(ctx echo.Context, sessionID string, params
 	}
 	lang := userContract.Template.Language
 
-	wd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	tmpl, err := template.ParseFiles(fmt.Sprintf("%s/auth/services/selfsigned/web/templates/employee_identity_%s.html", wd, strings.ToLower(string(lang))))
-	if err != nil {
-		return err
-	}
-
 	responseHTML := new(bytes.Buffer)
-	if err := tmpl.Execute(responseHTML, session); err != nil {
+	err = renderTemplate("employee_identity", lang, session, responseHTML)
+	if err != nil {
 		return err
 	}
 
@@ -111,18 +107,20 @@ func (h Handler) RenderEmployeeIDDonePage(ctx echo.Context, sessionID string) er
 		return err
 	}
 	lang := userContract.Template.Language
-	wd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	tmpl, err := template.ParseFiles(fmt.Sprintf("%s/auth/services/selfsigned/web/templates/done_%s.html", wd, strings.ToLower(string(lang))))
-	if err != nil {
-		return err
-	}
+
 	responseHTML := new(bytes.Buffer)
-	if err := tmpl.Execute(responseHTML, session); err != nil {
+	err = renderTemplate("done", lang, session, responseHTML)
+	if err != nil {
 		return err
 	}
 
 	return ctx.HTMLBlob(http.StatusOK, responseHTML.Bytes())
+}
+
+func renderTemplate(name string, lang contract.Language, session types.Session, target io.Writer) error {
+	tmpl, err := template.ParseFS(webTemplates, fmt.Sprintf("templates/%s_%s.html", name, strings.ToLower(string(lang))))
+	if err != nil {
+		return err
+	}
+	return tmpl.Execute(target, session)
 }
