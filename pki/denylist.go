@@ -132,7 +132,7 @@ func (b *denylistImpl) ValidateCert(cert *x509.Certificate) error {
 			logger().WithError(err).
 				WithField("Issuer", issuer).
 				WithField("S/N", serialNumber).
-				Error("cert validation failed because the denylist cannot be downloaded")
+				Error("Cert validation failed because the denylist cannot be downloaded")
 
 			// Return an error indicating the denylist cannot be retrieved
 			return ErrDenylistMissing
