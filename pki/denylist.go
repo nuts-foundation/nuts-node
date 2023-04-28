@@ -76,15 +76,15 @@ type denylistImpl struct {
 // denylistEntry contains parameters for an X.509 certificate that must not be accepted for TLS connections
 type denylistEntry struct {
 	// Issuer is a string representation (x509.Certificate.Issuer.String()) of the certificate
-	Issuer string
+	Issuer string `json:"issuer"`
 
 	// SerialNumber is a string representation (x509.Certificate.SerialNumber.String()) of the certificate
-	SerialNumber string
+	SerialNumber string `json:"serialnumber"`
 
 	// JWKThumbprint is an identifier of the public key per https://www.rfc-editor.org/rfc/rfc7638
-	JWKThumbprint string
+	JWKThumbprint string `json:"jwkthumbprint"`
 
-	Reason string
+	Reason string `json:"reason"`
 }
 
 // New creates a denylist with the specified configuration
