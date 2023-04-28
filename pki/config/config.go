@@ -18,14 +18,27 @@
  */
 package config
 
-import (
-	blacklistconfig "github.com/nuts-foundation/nuts-node/pki/blacklist/config"
-	crlconfig "github.com/nuts-foundation/nuts-node/pki/crl/config"
-)
-
-// PKIConfig specifies configuration parameters for PKI functionality
+// Config specifies configuration parameters for PKI functionality
 type Config struct {
-	// Blacklist specifies config options for the PKI blacklist, which acts as a global CRL
-	Blacklist blacklistconfig.Config `koanf:"blacklist"`
-	CRL       crlconfig.Config       `koanf:"crl"`
+	// Denylist specifies config options for the PKI denylist, which acts as a global CRL
+	Denylist DenylistConfig `koanf:"denylist"`
+	CRL      CRLConfig      `koanf:"crl"`
+}
+
+// DenylistConfig specifies the config structure for the crl/certificate blacklist module
+type DenylistConfig struct {
+	// URL specifies the URL where the certificate blacklist is downloaded
+	URL string `koanf:"url"`
+
+	// TrustedSigner specifies the PEM Ed25519 public key which must sign the blacklist
+	TrustedSigner string `koanf:"trustedsigner"`
+
+	// MaxUpdateFailHours specifies the maximum number of hours that a blacklist update can fail
+	MaxUpdateFailHours int `koanf:"maxupdatefailhours"`
+}
+
+// CRLConfig specifies the config structure for the crl/certificate blacklist module
+type CRLConfig struct {
+	// MaxUpdateFailHours specifies the maximum number of hours that a CRL update can fail
+	MaxUpdateFailHours int `koanf:"maxupdatefailhours"`
 }

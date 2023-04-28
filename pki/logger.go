@@ -15,14 +15,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
-package blacklist
+package pki
 
 import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/sirupsen/logrus"
 )
 
-var _logger = logrus.StandardLogger().WithField(core.LogFieldModule, "blacklist")
+var _logger = logrus.StandardLogger().WithField(core.LogFieldModule, "pki")
 
 // logger returns a logger with the module field set to the ModuleName
 func logger() *logrus.Entry {

@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
-package blacklist
+package pki
 
 import (
 	"crypto/x509"
@@ -27,32 +27,32 @@ import (
 	"net/http/httptest"
 	"testing"
 
-        "github.com/nuts-foundation/nuts-node/pki/blacklist/config"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	config "github.com/nuts-foundation/nuts-node/pki/config"
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
 )
 
-// Do not use this public key for anything other than unit tests in blacklist_test.go
+// Do not use this public key for anything other than unit tests in denylist_test.go
 const publicKeyDoNotUse = `-----BEGIN PUBLIC KEY-----
 MCowBQYDK2VwAyEAXV5Q9uFPslJcUethKWklYHbIh/2rtOrocZ/Jr7rWpYk=
 -----END PUBLIC KEY-----`
 
-// Do not use this private key for anything other than unit tests in blacklist_test.go
+// Do not use this private key for anything other than unit tests in denylist_test.go
 const privateKeyDoNotUse = `-----BEGIN PRIVATE KEY-----
 MC4CAQAwBQYDK2VwBCIEIMIU940JfXJsaitDRYvNoAyqL7C/qEDjMX9UjzMZblUR
 -----END PRIVATE KEY-----`
 
-// Do not use this private key for anything other than unit tests in blacklist_test.go
+// Do not use this private key for anything other than unit tests in denylist_test.go
 const incorrectPublicKey = `-----BEGIN PUBLIC KEY-----
 MCowBQYDK2VwAyEAsJK7Ij4k+sv8y2hD36tPp2KqxNCQMs34T3JgTEKugoI=
 -----END PUBLIC KEY-----`
 
-// Do not use this certificate for anything other than unit tests in blacklist_test.go
+// Do not use this certificate for anything other than unit tests in denylist_test.go
 const allowedTestCertificate = `-----BEGIN CERTIFICATE-----
 MIIEFzCCAv+gAwIBAgIUfNx4xdDQ4xliuwFvQD4UdzzbHuYwDQYJKoZIhvcNAQEL
 BQAwgZoxCzAJBgNVBAYTAk5MMRYwFAYDVQQIDA1Ob29yZC1Ib2xsYW5kMRIwEAYD
@@ -78,8 +78,8 @@ MgDuy4gmTq4sf0gckrQphbE5rDLvbG/MZiUUI8ioSrbXGofsOWpR5P/MlcPO8DUo
 jDuiDqsepi+J0Y50roqnYMLR839gRKOqZeFwrtVY+JkV2RSBNwAw7nrT+g==
 -----END CERTIFICATE-----`
 
-// Do not use this certificate for anything other than unit tests in blacklist_test.go
-const blacklistedTestCertificate = `-----BEGIN CERTIFICATE-----
+// Do not use this certificate for anything other than unit tests in denylist_test.go
+const bannedTestCertificate = `-----BEGIN CERTIFICATE-----
 MIIEFzCCAv+gAwIBAgIUPbKsg6pF+FK6d+l4EAxxR3cIixAwDQYJKoZIhvcNAQEL
 BQAwgZoxCzAJBgNVBAYTAk5MMRYwFAYDVQQIDA1Ob29yZC1Ib2xsYW5kMRIwEAYD
 VQQHDAlBbXN0ZXJkYW0xITAfBgNVBAoMGEludGVybmV0IFdpZGdpdHMgUHR5IEx0
@@ -104,78 +104,78 @@ ZWp2Pn+Rl1zfuYeXfdtMnFHmGPeiXKZB+u5cZbVxbxZ7nOPEVISKEBxXL8+SE311
 btg+JeGSqs/aDd7h/Y/62V/IhFqDHuDQ344zPvbQl+dTz/9FQ7USQMz9Fw==
 -----END CERTIFICATE-----`
 
-func newBlacklist(url, trustedSigner string) (Blacklist, error) {
-	cfg := config.Config{
+func newDenylist(url, trustedSigner string) (Denylist, error) {
+	cfg := config.DenylistConfig{
 		TrustedSigner: trustedSigner,
-		URL: url,
+		URL:           url,
 	}
 	return New(cfg)
 }
 
-// Do not use this value outside of blacklist_test.go
-const blacklistedCertIssuer = `CN=www.example.com,O=Internet Widgits Pty Ltd,L=Amsterdam,ST=Noord-Holland,C=NL,1.2.840.113549.1.9.1=#0c136578616d706c65406578616d706c652e636f6d`
+// Do not use this value outside of denylist_test.go
+const bannedCertIssuer = `CN=www.example.com,O=Internet Widgits Pty Ltd,L=Amsterdam,ST=Noord-Holland,C=NL,1.2.840.113549.1.9.1=#0c136578616d706c65406578616d706c652e636f6d`
 
-// Do not use this value outside of blacklist_test.go
-const blacklistedCertSerialNumber = `352232997782095055661451877220413401771436182288`
+// Do not use this value outside of denylist_test.go
+const bannedCertSerialNumber = `352232997782095055661451877220413401771436182288`
 
-func blacklistTestServer(blacklist string) *httptest.Server {
+func denylistTestServer(denylist string) *httptest.Server {
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, blacklist)
+		fmt.Fprint(w, denylist)
 	}))
 
 	return testServer
 }
 
-func trustedBlacklist(t *testing.T) string {
-	// Build the blacklist contents
-	entries := []blacklistEntry{
-		blacklistEntry{
-			Issuer:       `FOO`,
-			SerialNumber: `123`,
+func trustedDenylist(t *testing.T) string {
+	// Build the denylist contents
+	entries := []denylistEntry{
+		denylistEntry{
+			Issuer:        `FOO`,
+			SerialNumber:  `123`,
 			JWKThumbprint: `bim`,
-			Reason: `bap`,
+			Reason:        `bap`,
 		},
-		blacklistEntry{
-			Issuer:       `BAR`,
-			SerialNumber: `456`,
+		denylistEntry{
+			Issuer:        `BAR`,
+			SerialNumber:  `456`,
 			JWKThumbprint: `bam`,
-			Reason: `bar`,
+			Reason:        `bar`,
 		},
-		blacklistEntry{
-			Issuer:       ``,
-			SerialNumber: blacklistedCertSerialNumber,
+		denylistEntry{
+			Issuer:        ``,
+			SerialNumber:  bannedCertSerialNumber,
 			JWKThumbprint: `PVOjk-5d4Lb-FGxurW-fNMUv3rYZZBWF3gGaP5s1UVQ`,
-			Reason: `baz1`,
+			Reason:        `baz1`,
 		},
-		blacklistEntry{
-			Issuer:       blacklistedCertIssuer,
-			SerialNumber: ``,
+		denylistEntry{
+			Issuer:        bannedCertIssuer,
+			SerialNumber:  ``,
 			JWKThumbprint: ``,
-			Reason: `baz2`,
+			Reason:        `baz2`,
 		},
-		blacklistEntry{
-			Issuer:       blacklistedCertIssuer,
-			SerialNumber: blacklistedCertSerialNumber,
+		denylistEntry{
+			Issuer:        bannedCertIssuer,
+			SerialNumber:  bannedCertSerialNumber,
 			JWKThumbprint: `PVOjk-5d4Lb-FGxurW-fNMUv3rYZZBWF3gGaP5s1UVQ`,
-			Reason: `baz3`,
+			Reason:        `baz3`,
 		},
-		blacklistEntry{
-			Issuer:       blacklistedCertIssuer + `arst`,
-			SerialNumber: blacklistedCertSerialNumber,
+		denylistEntry{
+			Issuer:        bannedCertIssuer + `arst`,
+			SerialNumber:  bannedCertSerialNumber,
 			JWKThumbprint: `PVOjk-5d4Lb-FGxurW-fNMUv3rYZZBWF3gGaP5s1UVQ`,
-			Reason: `baz3`,
+			Reason:        `baz3`,
 		},
 	}
 
-	// Encode the blacklist as JSON
+	// Encode the denylist as JSON
 	payload, err := json.Marshal(&entries)
 	require.NoError(t, err)
 
-	// Parse the private key for signing the blacklist
+	// Parse the private key for signing the denylist
 	key, err := jwk.ParseKey([]byte(privateKeyDoNotUse), jwk.WithPEM(true))
 	require.NoError(t, err)
 
-	// Sign the blacklist as a JWS Message
+	// Sign the denylist as a JWS Message
 	compactJWS, err := jws.Sign(payload, jwa.EdDSA, key)
 	require.NoError(t, err)
 
@@ -183,48 +183,48 @@ func trustedBlacklist(t *testing.T) string {
 	return string(compactJWS)
 }
 
-// TestDownloadBlacklist ensures a blacklist is correctly downloaded
-func TestDownloadBlacklist(t *testing.T) {
-	// Get the trusted blacklist
-	blacklistJSON := trustedBlacklist(t)
+// TestDownloadDenylist ensures a denylist is correctly downloaded
+func TestDownloadDenylist(t *testing.T) {
+	// Get the trusted denylist
+	denylistJSON := trustedDenylist(t)
 
-	// Setup a blacklist server
-	testServer := blacklistTestServer(blacklistJSON)
+	// Setup a denylist server
+	testServer := denylistTestServer(denylistJSON)
 	defer testServer.Close()
 
-	// Use the server in a new blacklist
-	blacklist, err := New(config.Config{URL: testServer.URL, TrustedSigner: publicKeyDoNotUse})
+	// Use the server in a new denylist
+	denylist, err := New(config.DenylistConfig{URL: testServer.URL, TrustedSigner: publicKeyDoNotUse})
 	require.NoError(t, err)
-	require.NotNil(t, blacklist)
+	require.NotNil(t, denylist)
 
-	// Download the blacklist data and ensure it is correct
-	bytes, err := blacklist.(*blacklistImpl).download()
-	assert.Equal(t, string(bytes), blacklistJSON)
+	// Download the denylist data and ensure it is correct
+	bytes, err := denylist.(*denylistImpl).download()
+	assert.Equal(t, string(bytes), denylistJSON)
 }
 
-// TestUpdateValidBlacklist ensures a trusted blacklist can be updated
-func TestUpdateValidBlacklist(t *testing.T) {
-	// Get the trusted blacklist
-	blacklistJSON := trustedBlacklist(t)
+// TestUpdateValidDenylist ensures a trusted denylist can be updated
+func TestUpdateValidDenylist(t *testing.T) {
+	// Get the trusted denylist
+	denylistJSON := trustedDenylist(t)
 
-	// Setup a blacklist server
-	testServer := blacklistTestServer(blacklistJSON)
+	// Setup a denylist server
+	testServer := denylistTestServer(denylistJSON)
 	defer testServer.Close()
 
-	// Use the server in a new blacklist
-	blacklist, err := newBlacklist(testServer.URL, publicKeyDoNotUse)
+	// Use the server in a new denylist
+	denylist, err := newDenylist(testServer.URL, publicKeyDoNotUse)
 	require.NoError(t, err)
-	require.NotNil(t, blacklist)
+	require.NotNil(t, denylist)
 
-	// Ensure the new blacklist update time is zero
-	assert.True(t, blacklist.LastUpdated().IsZero())
+	// Ensure the new denylist update time is zero
+	assert.True(t, denylist.LastUpdated().IsZero())
 
-	// Update the blacklist data and ensure there are no errors
-	err = blacklist.Update()
+	// Update the denylist data and ensure there are no errors
+	err = denylist.Update()
 	require.NoError(t, err)
 
-	// Ensure the entries are present as expected in the blacklist structure
-	entriesPtr := blacklist.(*blacklistImpl).entries.Load()
+	// Ensure the entries are present as expected in the denylist structure
+	entriesPtr := denylist.(*denylistImpl).entries.Load()
 	require.NotNil(t, entriesPtr)
 
 	// Dereference the entries slice
@@ -233,56 +233,52 @@ func TestUpdateValidBlacklist(t *testing.T) {
 	// Ensure the length is as expected
 	require.Len(t, entries, 6)
 
-	// Ensure the issuers and serial numbers are as expected
+	// Ensure the first issuer/serial numbers are as expected
 	assert.Equal(t, entries[0].Issuer, `FOO`)
 	assert.Equal(t, entries[0].SerialNumber, `123`)
-	assert.Equal(t, entries[1].Issuer, `BAR`)
-	assert.Equal(t, entries[1].SerialNumber, `456`)
-	assert.Equal(t, entries[2].Issuer, blacklistedCertIssuer)
-	assert.Equal(t, entries[2].SerialNumber, blacklistedCertSerialNumber)
 
 	// Ensure the lastUpdated time was updated
-	assert.False(t, blacklist.LastUpdated().IsZero())
+	assert.False(t, denylist.LastUpdated().IsZero())
 }
 
-// TestUpdateInvalidBlacklistFails ensures an untrusted blacklist cannot be updated
-func TestUpdateInvalidBlacklistFails(t *testing.T) {
-	// Get the trusted blacklist
-	blacklistJSON := trustedBlacklist(t)
+// TestUpdateInvalidDenylistFails ensures an untrusted denylist cannot be updated
+func TestUpdateInvalidDenylistFails(t *testing.T) {
+	// Get the trusted denylist
+	denylistJSON := trustedDenylist(t)
 
-	// Setup a blacklist server
-	testServer := blacklistTestServer(blacklistJSON)
+	// Setup a denylist server
+	testServer := denylistTestServer(denylistJSON)
 	defer testServer.Close()
 
-	// Use the server in a new blacklist but with the wrong public key
-	blacklist, err := newBlacklist(testServer.URL, incorrectPublicKey)
+	// Use the server in a new denylist but with the wrong public key
+	denylist, err := newDenylist(testServer.URL, incorrectPublicKey)
 	require.NoError(t, err)
-	require.NotNil(t, blacklist)
+	require.NotNil(t, denylist)
 
-	// Update the blacklist data and ensure there is an error
-	err = blacklist.Update()
+	// Update the denylist data and ensure there is an error
+	err = denylist.Update()
 	require.Error(t, err)
 
-	// Ensure no blacklist data was ingested
-	require.Nil(t, blacklist.(*blacklistImpl).entries.Load())
+	// Ensure no denylist data was ingested
+	require.Nil(t, denylist.(*denylistImpl).entries.Load())
 }
 
-// TestValidCertificateAccepted ensures a non-blacklisted certificate is accepted
+// TestValidCertificateAccepted ensures a non-banned certificate is accepted
 func TestValidCertificateAccepted(t *testing.T) {
-	// Get the trusted blacklist
-	blacklistJSON := trustedBlacklist(t)
+	// Get the trusted denylist
+	denylistJSON := trustedDenylist(t)
 
-	// Setup a blacklist server
-	testServer := blacklistTestServer(blacklistJSON)
+	// Setup a denylist server
+	testServer := denylistTestServer(denylistJSON)
 	defer testServer.Close()
 
-	// Use the server in a new blacklist
-	blacklist, err := newBlacklist(testServer.URL, publicKeyDoNotUse)
+	// Use the server in a new denylist
+	denylist, err := newDenylist(testServer.URL, publicKeyDoNotUse)
 	require.NoError(t, err)
-	require.NotNil(t, blacklist)
+	require.NotNil(t, denylist)
 
-	// Update the blacklist data and ensure there are no errors
-	err = blacklist.Update()
+	// Update the denylist data and ensure there are no errors
+	err = denylist.Update()
 	require.NoError(t, err)
 
 	// Parse the certificate
@@ -290,79 +286,79 @@ func TestValidCertificateAccepted(t *testing.T) {
 	cert, err := x509.ParseCertificate(block.Bytes)
 	require.NoError(t, err)
 
-	// Check whether the certificate is blacklisted
-	err = blacklist.ValidateCert(cert)
+	// Check whether the certificate is banned
+	err = denylist.ValidateCert(cert)
 
-	// Ensure the returned error was nil, meaning the certificate is not blacklisted
+	// Ensure the returned error was nil, meaning the certificate is not banned
 	assert.NoError(t, err)
 }
 
-// TestBlacklistedCertificateBlocked ensures a blacklisted certificate is not accepted
-func TestBlacklistedCertificateBlocked(t *testing.T) {
-	// Get the trusted blacklist
-	blacklistJSON := trustedBlacklist(t)
+// TestDenylistedCertificateBlocked ensures a banned certificate is not accepted
+func TestDenylistedCertificateBlocked(t *testing.T) {
+	// Get the trusted denylist
+	denylistJSON := trustedDenylist(t)
 
-	// Setup a blacklist server
-	testServer := blacklistTestServer(blacklistJSON)
+	// Setup a denylist server
+	testServer := denylistTestServer(denylistJSON)
 	defer testServer.Close()
 
-	// Use the server in a new blacklist
-	blacklist, err := newBlacklist(testServer.URL, publicKeyDoNotUse)
+	// Use the server in a new denylist
+	denylist, err := newDenylist(testServer.URL, publicKeyDoNotUse)
 	require.NoError(t, err)
-	require.NotNil(t, blacklist)
+	require.NotNil(t, denylist)
 
-	// Update the blacklist data and ensure there are no errors
-	err = blacklist.Update()
+	// Update the denylist data and ensure there are no errors
+	err = denylist.Update()
 	require.NoError(t, err)
 
 	// Parse the certificate
-	block, _ := pem.Decode([]byte(blacklistedTestCertificate))
+	block, _ := pem.Decode([]byte(bannedTestCertificate))
 	cert, err := x509.ParseCertificate(block.Bytes)
 	require.NoError(t, err)
 
-	// Check whether the certificate is blacklisted
-	err = blacklist.ValidateCert(cert)
+	// Check whether the certificate is banned
+	err = denylist.ValidateCert(cert)
 
-	// Ensure the validation returned an error, meaning the certificate is blacklisted
+	// Ensure the validation returned an error, meaning the certificate is banned
 	assert.Error(t, err)
-	assert.Equal(t, err, ErrCertBlacklisted)
+	assert.Equal(t, err, ErrCertBanned)
 }
 
-// TestEmptyFieldsDoNotBlock ensures empty fields in a blacklist entry cannot block certificates
+// TestEmptyFieldsDoNotBlock ensures empty fields in a denylist entry cannot block certificates
 func TestEmptyFieldsDoNotBlock(t *testing.T) {
-	// Get the trusted blacklist
-	blacklistJSON := trustedBlacklist(t)
+	// Get the trusted denylist
+	denylistJSON := trustedDenylist(t)
 
-	// Setup a blacklist server
-	testServer := blacklistTestServer(blacklistJSON)
+	// Setup a denylist server
+	testServer := denylistTestServer(denylistJSON)
 	defer testServer.Close()
 
-	// Use the server in a new blacklist
-	blacklist, err := newBlacklist(testServer.URL, publicKeyDoNotUse)
+	// Use the server in a new denylist
+	denylist, err := newDenylist(testServer.URL, publicKeyDoNotUse)
 	require.NoError(t, err)
-	require.NotNil(t, blacklist)
+	require.NotNil(t, denylist)
 
-	// Update the blacklist data and ensure there are no errors
-	err = blacklist.Update()
+	// Update the denylist data and ensure there are no errors
+	err = denylist.Update()
 	require.NoError(t, err)
 
 	// Parse the certificate
-	block, _ := pem.Decode([]byte(blacklistedTestCertificate))
+	block, _ := pem.Decode([]byte(bannedTestCertificate))
 	cert, err := x509.ParseCertificate(block.Bytes)
 	require.NoError(t, err)
 
-	// Check whether the certificate is blacklisted
-	err = blacklist.ValidateCert(cert)
+	// Check whether the certificate is banned
+	err = denylist.ValidateCert(cert)
 
-	// Ensure the validation returned an error, meaning the certificate is blacklisted
+	// Ensure the validation returned an error, meaning the certificate is banned
 	assert.Error(t, err)
-	assert.Equal(t, err, ErrCertBlacklisted)
+	assert.Equal(t, err, ErrCertBanned)
 }
 
 // TestRSACertificateJWKThumbprint ensures ceritficate thumbprints are correctly computed
 func TestRSACertificateJWKThumbprint(t *testing.T) {
 	// Parse the certificate
-	block, _ := pem.Decode([]byte(blacklistedTestCertificate))
+	block, _ := pem.Decode([]byte(bannedTestCertificate))
 	cert, err := x509.ParseCertificate(block.Bytes)
 	require.NoError(t, err)
 

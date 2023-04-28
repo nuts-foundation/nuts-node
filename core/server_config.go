@@ -58,7 +58,7 @@ type ServerConfig struct {
 	Strictmode          bool              `koanf:"strictmode"`
 	InternalRateLimiter bool              `koanf:"internalratelimiter"`
 	Datadir             string            `koanf:"datadir"`
-	PKI		    pkiconfig.Config	   `kaonf:"pki"`
+	PKI                 pkiconfig.Config  `kaonf:"pki"`
 	TLS                 TLSConfig         `koanf:"tls"`
 	LegacyTLS           *NetworkTLSConfig `koanf:"network"`
 	configMap           *koanf.Koanf
@@ -298,13 +298,11 @@ func FlagSet() *pflag.FlagSet {
 	// Flags for CRL features
 	flagSet.Int("pki.crl.maxupdatefailhours", 4, "maximum number of hours that a CRL update can fail")
 
-
 	flagSet.MarkDeprecated("tls.crl.maxvaliditydays", "CRLs can no longer be accepted after the time in NextUpdate has past")
 	flagSet.MarkDeprecated("network.certfile", "use 'tls.certfile' instead")
 	flagSet.MarkDeprecated("network.certkeyfile", "use 'tls.certkeyfile' instead")
 	flagSet.MarkDeprecated("network.truststorefile", "use 'tls.truststorefile' instead")
 	flagSet.MarkDeprecated("network.maxcrlvaliditydays", "use 'tls.crl.maxvaliditydays' instead")
-
 
 	return flagSet
 }

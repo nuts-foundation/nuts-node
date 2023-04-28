@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
-package blacklist
+package pki
 
 import (
 	"crypto/x509"
@@ -28,7 +28,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	config "github.com/nuts-foundation/nuts-node/pki/blacklist/config"
+	config "github.com/nuts-foundation/nuts-node/pki/config"
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
@@ -36,37 +36,37 @@ import (
 )
 
 var (
-	// ErrBlacklistMissing occurs when the blacklist cannot be downloaded
-	ErrBlacklistMissing = errors.New("blacklist cannot be retrieved")
+	// ErrDenylistMissing occurs when the denylist cannot be downloaded
+	ErrDenylistMissing = errors.New("denylist cannot be retrieved")
 
-	// ErrCertBlacklisted means the certificate was blacklisted rather than revoked by a CRL
-	ErrCertBlacklisted = errors.New("certificate is blacklisted")
+	// ErrCertBanned means the certificate was banned by a denylist rather than revoked by a CRL
+	ErrCertBanned = errors.New("certificate is banned")
 )
 
-type Blacklist interface {
+type Denylist interface {
 	LastUpdated() time.Time
 	Update() error
 	URL() string
 	ValidateCert(cert *x509.Certificate) error
 }
 
-// blacklistImpl implements arbitrary certificate rejection using issuer and serial number tuples
-type blacklistImpl struct {
-	// url specifies the URL where the blacklist is downloaded
+// denylistImpl implements arbitrary certificate rejection using issuer and serial number tuples
+type denylistImpl struct {
+	// url specifies the URL where the denylist is downloaded
 	url string
 
-	// entries is the decoded entries from the downloaded blacklist
-	entries atomic.Pointer[[]blacklistEntry]
+	// entries is the decoded entries from the downloaded denylist
+	entries atomic.Pointer[[]denylistEntry]
 
-	// trustedKey is an Ed25519 key which must sign the blacklist
+	// trustedKey is an Ed25519 key which must sign the denylist
 	trustedKey jwk.Key
 
 	// lastUpdated contains the time the certificate was last updated
 	lastUpdated time.Time
 }
 
-// blacklistEntry contains parameters for an X.509 certificate that must not be accepted for TLS connections
-type blacklistEntry struct {
+// denylistEntry contains parameters for an X.509 certificate that must not be accepted for TLS connections
+type denylistEntry struct {
 	// Issuer is a string representation (x509.Certificate.Issuer.String()) of the certificate
 	Issuer string
 
@@ -79,12 +79,12 @@ type blacklistEntry struct {
 	Reason string
 }
 
-// New creates a blacklist with the specified configuration
-func New(config config.Config) (Blacklist, error) {
-	// "Disable" (operate in a NOP mode) the blacklist when the URL is empty
+// New creates a denylist with the specified configuration
+func New(config config.DenylistConfig) (Denylist, error) {
+	// "Disable" (operate in a NOP mode) the denylist when the URL is empty
 	if config.URL == "" {
-		// Return the new blacklist and a nil error
-		return &blacklistImpl{
+		// Return the new denylist and a nil error
+		return &denylistImpl{
 			trustedKey: nil,
 			url:        "",
 		}, nil
@@ -96,38 +96,38 @@ func New(config config.Config) (Blacklist, error) {
 		return nil, fmt.Errorf("failed to parse key: %w", err)
 	}
 
-	// Return the new blacklist and a nil error
-	return &blacklistImpl{
+	// Return the new denylist and a nil error
+	return &denylistImpl{
 		trustedKey: key,
 		url:        config.URL,
 	}, nil
 }
 
-// ValidateCert checks for the issuer and serialNumber in the blacklist, returning nil when the cert is permitted
-// or an error when the cert is blacklisted or the blacklist cannot be retrieved
-func (b *blacklistImpl) ValidateCert(cert *x509.Certificate) error {
-	// Blacklists with an empty URL are a NOP
+// ValidateCert checks for the issuer and serialNumber in the denylist, returning nil when the cert is permitted
+// or an error when the cert is denylisted or the denylist cannot be retrieved
+func (b *denylistImpl) ValidateCert(cert *x509.Certificate) error {
+	// Denylists with an empty URL are a NOP
 	if b.URL() == "" {
 		return nil
 	}
 
-	// Extract the necessary information from the certificate in order to process the blacklist entry
+	// Extract the necessary information from the certificate in order to process the denylist entry
 	issuer := cert.Issuer.String()
 	serialNumber := cert.SerialNumber.String()
-	thumbprint := certKeyJWKThumbprint(cert)	
+	thumbprint := certKeyJWKThumbprint(cert)
 
-	// If the blacklist has not yet been downloaded, do so now
+	// If the denylist has not yet been downloaded, do so now
 	if b.lastUpdated.IsZero() {
-		// Trigger an update of the blacklist
+		// Trigger an update of the denylist
 		if err := b.Update(); err != nil {
-			// If the blacklist download failed then log a message about it
+			// If the denylist download failed then log a message about it
 			logger().WithError(err).
 				WithField("Issuer", issuer).
 				WithField("S/N", serialNumber).
-				Error("cert validation failed because the blacklist cannot be downloaded")
+				Error("cert validation failed because the denylist cannot be downloaded")
 
-			// Return an error indicating the blacklist cannot be retrieved
-			return ErrBlacklistMissing
+			// Return an error indicating the denylist cannot be retrieved
+			return ErrDenylistMissing
 		}
 	}
 
@@ -137,74 +137,74 @@ func (b *blacklistImpl) ValidateCert(cert *x509.Certificate) error {
 	// The entries pointer should not be empty because of the lastUpdated check above
 	if entriesPtr == nil {
 		// If the entries still cannot be fetched then something is not right so return an error
-		return ErrBlacklistMissing
+		return ErrDenylistMissing
 	}
 
-	// Check each entry in the blacklist for matches
+	// Check each entry in the denylist for matches
 	for _, entry := range *entriesPtr {
 		// Check for this issuer and serial number combination
 		if entry.Issuer == issuer && entry.SerialNumber == serialNumber && entry.JWKThumbprint == thumbprint {
-			// Return an error indicating the certificate has been blacklisted
-			return ErrCertBlacklisted
+			// Return an error indicating the certificate has been denylisted
+			return ErrCertBanned
 		}
 	}
 
-	// Return a nil error as the certificate hasn't been blacklisted
+	// Return a nil error as the certificate hasn't been denylisted
 	return nil
 }
 
-func (b *blacklistImpl) LastUpdated() time.Time {
+func (b *denylistImpl) LastUpdated() time.Time {
 	return b.lastUpdated
 }
 
-func (b *blacklistImpl) URL() string {
+func (b *denylistImpl) URL() string {
 	return b.url
 }
 
-// update downloads the blacklist, and updates the in-memory representation
-func (b *blacklistImpl) Update() error {
-	// Updating a blacklist with a URL is a NOP
+// update downloads the denylist, and updates the in-memory representation
+func (b *denylistImpl) Update() error {
+	// Updating a denylist with a URL is a NOP
 	if b.URL() == "" {
 		return nil
 	}
 
-	// Download the blacklist
+	// Download the denylist
 	bytes, err := b.download()
 	if err != nil {
 		logger().WithError(err).
 			WithField("URl", b.url).
-			Warn("certiciate blacklist cannot be downloaded")
+			Warn("certiciate denylist cannot be downloaded")
 		return err
 	}
 
-	// Check the signature of the blacklist
+	// Check the signature of the denylist
 	payload, err := jws.Verify(bytes, jwa.EdDSA, b.trustedKey)
 	if err != nil {
-		return fmt.Errorf("failed to verify blacklist signature: %w", err)
+		return fmt.Errorf("failed to verify denylist signature: %w", err)
 	}
 
 	// Parse the JSON of the payload
-	var entries []blacklistEntry
+	var entries []denylistEntry
 	if err = json.Unmarshal(payload, &entries); err != nil {
-		return fmt.Errorf("failed to parse blacklist JSON: %w", err)
+		return fmt.Errorf("failed to parse denylist JSON: %w", err)
 	}
 
-	// Store the new blacklist entries
+	// Store the new denylist entries
 	b.entries.Store(&entries)
 
-	// Track when the blacklist was last updated
+	// Track when the denylist was last updated
 	b.lastUpdated = time.Now()
 
-	// Return a nil error as the blacklist was successfully updated
+	// Return a nil error as the denylist was successfully updated
 	return nil
 }
 
-// download retrieves and parses the blacklist
-func (b *blacklistImpl) download() ([]byte, error) {
-	// Make an HTTP GET request for the blacklist URL
+// download retrieves and parses the denylist
+func (b *denylistImpl) download() ([]byte, error) {
+	// Make an HTTP GET request for the denylist URL
 	response, err := http.Get(b.url)
 	if err != nil {
-		return nil, fmt.Errorf("failed to download blacklist: %w", err)
+		return nil, fmt.Errorf("failed to download denylist: %w", err)
 	}
 
 	// Ensure the response body is cleaned up
