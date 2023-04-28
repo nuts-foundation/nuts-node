@@ -282,18 +282,18 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("network.truststorefile", "", "Deprecated: use 'tls.truststorefile'. PEM file containing the trusted CA certificates for authenticating remote gRPC servers.")
 	flagSet.Int("network.maxcrlvaliditydays", 0, "Deprecated: use 'tls.crl.maxvaliditydays'. The number of days a CRL can be outdated, after that it will hard-fail.")
 
-	// Flags for blacklist features
-	flagSet.Int("pki.blacklist.maxupdatefailhours", 4, "maximum number of hours that a blacklist update can fail")
+	// Flags for deneylist features
+	flagSet.Int("pki.maxupdatefailhours", 4, "maximum number of hours that a denylist update can fail")
 	// TODO: Choose a default trusted signer key
-	flagSet.String("pki.blacklist.trustedsigner", "TODO: DEFAULT TRUSTED SIGNER", "Ed25519 public key (in PEM format) of the trusted signer for blacklists")
-	// TODO: Choose a default blacklist URL
-	flagSet.String("pki.blacklist.url", "TODO: DEFAULT_URL", "URL of PKI blacklist (set to empty string to disable)")
+	flagSet.String("pki.denylist.trustedsigner", "", "Ed25519 public key (in PEM format) of the trusted signer for denylists")
+	// TODO: Choose a default denylist URL
+	flagSet.String("pki.denylist.url", "", "URL of PKI denylist (set to empty string to disable)")
 
 	// Changing these config values is not recommended, and they are expected to almost always be the same value, so
 	// do not show them in the config dump
-	flagSet.MarkHidden("pki.blacklist.maxupdatefailhours")
-	flagSet.MarkHidden("pki.blacklist.trustedsigner")
-	flagSet.MarkHidden("pki.blacklist.url")
+	flagSet.MarkHidden("pki.maxupdatefailhours")
+	flagSet.MarkHidden("pki.denylist.trustedsigner")
+	flagSet.MarkHidden("pki.denylist.url")
 
 	// Flags for CRL features
 	flagSet.Int("pki.crl.maxupdatefailhours", 4, "maximum number of hours that a CRL update can fail")
