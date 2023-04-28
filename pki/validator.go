@@ -372,7 +372,7 @@ func (v *validator) sync() {
 				WithField("CRL", fmt.Sprintf("%v", currentAny)).
 				Error("CRL validator is invalid")
 
-			// TODO: What is the significance of returning true here?
+			// Return true in order to continue the range operation
 			return true
 		}
 
