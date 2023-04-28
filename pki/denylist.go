@@ -145,6 +145,7 @@ func (b *denylistImpl) ValidateCert(cert *x509.Certificate) error {
 	// The entries pointer should not be empty because of the lastUpdated check above
 	if entriesPtr == nil {
 		// If the entries still cannot be fetched then something is not right so return an error
+		logger().Error("BUG: denylist entries pointer is nil")
 		return ErrDenylistMissing
 	}
 
