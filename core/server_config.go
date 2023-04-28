@@ -58,7 +58,7 @@ type ServerConfig struct {
 	Strictmode          bool              `koanf:"strictmode"`
 	InternalRateLimiter bool              `koanf:"internalratelimiter"`
 	Datadir             string            `koanf:"datadir"`
-	PKI                 pkiconfig.Config  `kaonf:"pki"`
+	PKI                 pkiconfig.Config  `koanf:"pki"`
 	TLS                 TLSConfig         `koanf:"tls"`
 	LegacyTLS           *NetworkTLSConfig `koanf:"network"`
 	configMap           *koanf.Koanf
