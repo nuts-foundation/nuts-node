@@ -384,7 +384,7 @@ func (v *validator) sync() {
 				WithField("S/N", current.issuer.SerialNumber.String()).
 				Warn("Trust store contains expired certificate")
 
-			// TODO: What is the significance of returning true here?
+			// Return true in order to continue the range operation
 			return true
 		}
 
