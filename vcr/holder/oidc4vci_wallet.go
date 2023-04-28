@@ -84,9 +84,9 @@ func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.Creden
 	// TODO: This check is too simplistic, there can be multiple credential offers,
 	//       but the wallet should only request the one it's interested in.
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2049
-	if len(offer.Credentials) == 0 {
+	if len(offer.Credentials) != 1 {
 		return oidc4vci.Error{
-			Err:        errors.New("there must be at least 1 credential in credential offer"),
+			Err:        errors.New("there must be exactly 1 credential in credential offer"),
 			Code:       oidc4vci.InvalidRequest,
 			StatusCode: http.StatusBadRequest,
 		}

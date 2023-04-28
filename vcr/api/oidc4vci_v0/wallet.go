@@ -46,10 +46,6 @@ func (w Wrapper) HandleCredentialOffer(ctx context.Context, request HandleCreden
 		// Note: error responses on the Credential Offer Endpoint are not specified in the OpenID4VCI spec.
 		return nil, core.InvalidInputError("unable to unmarshal credential_offer: %w", err)
 	}
-	if len(offer.Credentials) == 0 {
-		// Note: error responses on the Credential Offer Endpoint are not specified in the OpenID4VCI spec.
-		return nil, core.InvalidInputError("there must be at least 1 credential in credential offer")
-	}
 
 	// TODO: If the wallet DID is unknown, it should still return 404 (like with an invalid DID).
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2056
