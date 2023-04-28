@@ -117,7 +117,7 @@ func NewValidator(config pkiconfig.Config, truststore []*x509.Certificate) (Vali
 // NewValidatorWithHTTPClient returns a new instance with a pre-configured HTTP client
 func newValidatorWithHTTPClient(config pkiconfig.Config, certificates []*x509.Certificate, client *http.Client) (*validator, error) {
 	// Create the new denylist with the config
-	denylist, err := New(config.Denylist)
+	denylist, err := NewDenylist(config.Denylist)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init denylist: %w", err)
 	}

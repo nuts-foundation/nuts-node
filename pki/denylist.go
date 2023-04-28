@@ -80,7 +80,7 @@ type denylistEntry struct {
 }
 
 // New creates a denylist with the specified configuration
-func New(config config.DenylistConfig) (Denylist, error) {
+func NewDenylist(config config.DenylistConfig) (Denylist, error) {
 	// "Disable" (operate in a NOP mode) the denylist when the URL is empty
 	if config.URL == "" {
 		// Return the new denylist and a nil error

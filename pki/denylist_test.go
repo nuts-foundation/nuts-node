@@ -109,7 +109,7 @@ func newDenylist(url, trustedSigner string) (Denylist, error) {
 		TrustedSigner: trustedSigner,
 		URL:           url,
 	}
-	return New(cfg)
+	return NewDenylist(cfg)
 }
 
 // Do not use this value outside of denylist_test.go
@@ -193,7 +193,7 @@ func TestDownloadDenylist(t *testing.T) {
 	defer testServer.Close()
 
 	// Use the server in a new denylist
-	denylist, err := New(config.DenylistConfig{URL: testServer.URL, TrustedSigner: publicKeyDoNotUse})
+	denylist, err := NewDenylist(config.DenylistConfig{URL: testServer.URL, TrustedSigner: publicKeyDoNotUse})
 	require.NoError(t, err)
 	require.NotNil(t, denylist)
 
