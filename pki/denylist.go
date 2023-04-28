@@ -145,7 +145,7 @@ func (b *denylistImpl) ValidateCert(cert *x509.Certificate) error {
 		// Check for this issuer and serial number combination
 		if entry.Issuer == issuer && entry.SerialNumber == serialNumber && entry.JWKThumbprint == thumbprint {
 			// Return an error indicating the certificate has been denylisted
-			return ErrCertBanned
+			return fmt.Errorf("%w: %s", ErrCertBanned, entry.Reason)
 		}
 	}
 
