@@ -182,7 +182,7 @@ func (b *denylistImpl) Update() error {
 	if err != nil {
 		logger().WithError(err).
 			WithField("URL", b.url).
-			Warn("certiciate denylist cannot be downloaded")
+			Warn("Certiciate denylist cannot be downloaded")
 		return err
 	}
 
