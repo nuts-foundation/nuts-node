@@ -165,6 +165,8 @@ func (b *denylistImpl) URL() string {
 func (b *denylistImpl) Update() error {
 	// Updating a denylist with a URL is a NOP
 	if b.URL() == "" {
+		// Prevent update timeout failures when the feature is disabled
+		b.lastUpdated = time.Now()
 		return nil
 	}
 
