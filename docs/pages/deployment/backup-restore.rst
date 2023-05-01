@@ -67,12 +67,19 @@ To restore a backup, follow the following steps:
 - follow the restore procedure for your storage (BBolt, Redis, Hashicorp Vault)
 - restore the ``vcr/trusted_issuers.yaml`` file inside ``datadir``.
 - start your node
-- make an empty POST call to ``/internal/network/v1/reprocess?type=application/vc+json``
-- make an empty POST call to ``/internal/network/v1/reprocess?type=application/ld+json;type=revocation``
-- make an empty POST call to ``/internal/network/v1/reprocess?type=application/did+json``
 
-When making the API calls, make sure you use the proper URL escaping.
-Reprocess calls return immediately and will do the work in the background.
+Make the following empty POST calls:
+
+.. code-block:: http
+
+    POST <node-address>/internal/network/v1/reprocess?type=application/vc+json
+    POST <node-address>/internal/network/v1/reprocess?type=application/ld+json;type=revocation
+    POST <node-address>/internal/network/v1/reprocess?type=application/did+json
+
+.. note::
+
+    When making the API calls, make sure you use the proper URL escaping (```%2B``` for ````+``` and ```%3B``` for ```;```).
+    Reprocess calls return immediately and will do the work in the background.
 
 BBolt
 =====
