@@ -153,13 +153,8 @@ func (n *notary) DrawUpContract(ctx context.Context, template contract.Template,
 }
 
 func (n *notary) Configure() (err error) {
-	n.verifiers = map[string]contract.VPVerifier{}
-	n.signers = map[string]contract.Signer{}
-
-	cvMap := make(map[string]bool, len(n.config.ContractValidators))
-	for _, cv := range n.config.ContractValidators {
-		cvMap[cv] = true
-	}
+	n.verifiers = make(map[string]contract.VPVerifier)
+	n.signers = make(map[string]contract.Signer)
 
 	if n.config.hasContractValidator(irma.ContractFormat) {
 		var (
@@ -191,11 +186,8 @@ func (n *notary) Configure() (err error) {
 			Templates:  contract.StandardContractTemplates,
 		}
 
-		// todo config to VP types
-		if _, ok := cvMap[irma.ContractFormat]; ok {
-			n.verifiers[irma.VerifiablePresentationType] = irmaVerifier
-			n.signers[irma.ContractFormat] = irmaSigner
-		}
+		n.verifiers[irma.VerifiablePresentationType] = irmaVerifier
+		n.signers[irma.ContractFormat] = irmaSigner
 	}
 
 	if n.config.hasContractValidator(dummy.ContractFormat) && !n.config.StrictMode {

@@ -71,46 +71,24 @@ func (v *signer) SigningSessionStatus(ctx context.Context, sessionID string) (co
 		return nil, services.ErrSessionNotFound
 	}
 
-	var vp *vc.VerifiablePresentation
-	issuerID, err := did.ParseDID(s.Employer)
-	if err != nil {
-		return nil, fmt.Errorf("invalid issuer DID: %w", err)
-	}
-
+	var (
+		vp  *vc.VerifiablePresentation
+		err error
+	)
 	if s.Status == types.SessionCompleted {
 		// Make sure no other VP will be created for this session
 		if !v.store.CheckAndSetStatus(sessionID, types.SessionCompleted, types.SessionVPRequested) {
+			// Another VP is already being created for this session
+			// Make sure the session is deleted
 			v.store.Delete(sessionID)
 			return nil, services.ErrSessionNotFound
 		}
 
-		expirationData := time.Now().Add(24 * time.Hour)
-		credentialOptions := vc.VerifiableCredential{
-			Context:           []ssi.URI{credential.NutsV1ContextURI},
-			Type:              []ssi.URI{ssi.MustParseURI(credentialType)},
-			Issuer:            issuerID.URI(),
-			IssuanceDate:      time.Now(),
-			ExpirationDate:    &expirationData,
-			CredentialSubject: s.CredentialSubject(),
-		}
-		verifiableCredential, err := v.vcr.Issuer().Issue(ctx, credentialOptions, false, false)
+		// Create the VerifiablePresentation
+		vp, err = v.createVP(ctx, s)
 		if err != nil {
-			return nil, fmt.Errorf("issue VC failed: %w", err)
+			return nil, fmt.Errorf("failed to create VerifiablePresentation: %w", err)
 		}
-		presentationOptions := holder.PresentationOptions{
-			AdditionalContexts: []ssi.URI{credential.NutsV1ContextURI},
-			AdditionalTypes:    []ssi.URI{ssi.MustParseURI(VerifiablePresentationType)},
-			ProofOptions: proof.ProofOptions{
-				Created:      time.Now(),
-				Challenge:    &s.Contract,
-				ProofPurpose: proof.AuthenticationProofPurpose,
-			},
-		}
-		vp, err = v.vcr.Holder().BuildVP(ctx, []vc.VerifiableCredential{*verifiableCredential}, presentationOptions, issuerID, true)
-		if err != nil {
-			return nil, fmt.Errorf("build VP failed: %w", err)
-		}
-
 	}
 
 	// cleanup all sessions in a final state
@@ -131,6 +109,38 @@ func (v *signer) SigningSessionStatus(ctx context.Context, sessionID string) (co
 		request:                s.Contract,
 		verifiablePresentation: vp,
 	}, nil
+}
+
+// createVP creates a VerifiablePresentation for the given session
+func (v *signer) createVP(ctx context.Context, s types.Session) (*vc.VerifiablePresentation, error) {
+	issuerID, err := did.ParseDID(s.Employer)
+	if err != nil {
+		return nil, fmt.Errorf("invalid issuer DID: %w", err)
+	}
+
+	expirationData := time.Now().Add(24 * time.Hour)
+	credentialOptions := vc.VerifiableCredential{
+		Context:           []ssi.URI{credential.NutsV1ContextURI},
+		Type:              []ssi.URI{ssi.MustParseURI(credentialType)},
+		Issuer:            issuerID.URI(),
+		IssuanceDate:      time.Now(),
+		ExpirationDate:    &expirationData,
+		CredentialSubject: s.CredentialSubject(),
+	}
+	verifiableCredential, err := v.vcr.Issuer().Issue(ctx, credentialOptions, false, false)
+	if err != nil {
+		return nil, fmt.Errorf("issue VC failed: %w", err)
+	}
+	presentationOptions := holder.PresentationOptions{
+		AdditionalContexts: []ssi.URI{credential.NutsV1ContextURI},
+		AdditionalTypes:    []ssi.URI{ssi.MustParseURI(VerifiablePresentationType)},
+		ProofOptions: proof.ProofOptions{
+			Created:      time.Now(),
+			Challenge:    &s.Contract,
+			ProofPurpose: proof.AuthenticationProofPurpose,
+		},
+	}
+	return v.vcr.Holder().BuildVP(ctx, []vc.VerifiableCredential{*verifiableCredential}, presentationOptions, issuerID, true)
 }
 
 func (v *signer) StartSigningSession(userContract contract.Contract, params map[string]interface{}) (contract.SessionPointer, error) {

@@ -184,7 +184,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 		ss.store.Store(sp.SessionID(), s)
 		_, err = ss.SigningSessionStatus(ctx, sp.SessionID())
 
-		assert.EqualError(t, err, "issue VC failed: error")
+		assert.EqualError(t, err, "failed to create VerifiablePresentation: issue VC failed: error")
 	})
 
 	t.Run("error on building VP", func(t *testing.T) {
@@ -200,7 +200,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 		ss.store.Store(sp.SessionID(), s)
 		_, err = ss.SigningSessionStatus(ctx, sp.SessionID())
 
-		assert.EqualError(t, err, "build VP failed: error")
+		assert.EqualError(t, err, "failed to create VerifiablePresentation: error")
 	})
 }
 
