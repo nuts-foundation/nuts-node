@@ -41,7 +41,7 @@ With the following body:
       "type": "BehandelaarLogin",
       "language": "NL",
       "version": "v3",
-      "legalEntity": "did:nuts:90348275fjasihnva4857qp39hn",
+      "legalEntity": "did:nuts:7eaDstczhnigW9uW1JRzYF2u5KhTntFTnee8vGDHokD",
       "validFrom": "2006-01-02T15:04:05+02:00",
       "validDuration": "2h"
     }
