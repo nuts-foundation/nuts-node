@@ -132,10 +132,7 @@ func (r *VDR) Diagnostics() []core.DiagnosticResult {
 		totalCount++
 		controllers, err := r.didDocResolver.ResolveControllers(doc, &types.ResolveMetadata{Hash: &metadata.Hash})
 		if err != nil {
-			log.Logger().
-				WithField(core.LogFieldDID, doc.ID).
-				WithError(err).
-				Info("failed to resolve controller of conflicted DID document")
+			log.Logger().Info("failed to resolve controller for %s: %v", doc.ID, err)
 			return nil
 		}
 		for _, controller := range controllers {
