@@ -163,8 +163,8 @@ It's required in the OAuth flow for obtaining an access token.
 
 .. _irma-contract:
 
-Signing a contract with IRMA
-****************************
+Signing a contract with the IRMA means
+**************************************
 
 This getting started manual shows how to successfully use IRMA to sign a contract.
 
