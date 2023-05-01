@@ -26,7 +26,7 @@ import (
 // StandardContractTemplates contains a the official contract templates as specified in the Nuts specification
 // EN:PractitionerLogin:v1 Template
 // todo: remove v1 template after renewing (irma) test data.
-var StandardContractTemplates = TemplateMap{
+var StandardContractTemplates = TemplateStore{
 	"NL": {"BehandelaarLogin": {
 		"v1": &Template{
 			Type:               "BehandelaarLogin",
@@ -63,17 +63,12 @@ var StandardContractTemplates = TemplateMap{
 	}},
 }
 
-type TemplateStore interface {
-	Get(cType Type, language Language, version Version) *Template
-	FindFromRawContractText(rawContractText string) (*Template, error)
-}
-
 // TemplateStore contains a list of Contract templates sorted by language, type and version
-type TemplateMap map[Language]map[Type]map[Version]*Template
+type TemplateStore map[Language]map[Type]map[Version]*Template
 
 // Get safely searches the template store. When no version is given, v3 is used.
 // Returns the template or nil
-func (m TemplateMap) Get(cType Type, language Language, version Version) *Template {
+func (m TemplateStore) Get(cType Type, language Language, version Version) *Template {
 	if version == "" {
 		version = "v3"
 	}
@@ -84,7 +79,7 @@ func (m TemplateMap) Get(cType Type, language Language, version Version) *Templa
 	return nil
 }
 
-func (m TemplateMap) FindFromRawContractText(rawContractText string) (*Template, error) {
+func (m TemplateStore) FindFromRawContractText(rawContractText string) (*Template, error) {
 	r, _ := regexp.Compile(`^(.{2}):(.+):(v\d+)`)
 
 	matchResult := r.FindSubmatch([]byte(rawContractText))
