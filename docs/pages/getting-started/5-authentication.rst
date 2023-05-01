@@ -12,7 +12,7 @@ The contract is required for every request that results in personal and/or medic
 Generic requirements
 ********************
 
-In the contract signing flow, a device or web page communicates with the Nuts node directly.
+In the contract signing flow, a device or web page communicates with the Nuts node.
 Therefore the Nuts node needs to be accessible to the public internet.
 All APIs on the Nuts node starting with ``/public`` (without a trailing slash) must be accessible over HTTPS without any additional security measures that could prevent access by web or mobile devices.
 A domain must also be available which resolves to those APIs.
