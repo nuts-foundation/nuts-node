@@ -27,7 +27,7 @@ import (
 	"fmt"
 	"time"
 
-        "github.com/nuts-foundation/nuts-node/pki"	
+	"github.com/nuts-foundation/nuts-node/pki"
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"

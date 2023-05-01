@@ -23,9 +23,9 @@ import (
 	"crypto/x509"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/pki"
-        pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
 	networkTypes "github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/pki"
+	pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
 	"google.golang.org/grpc"
 	"net"
 	"time"
@@ -65,7 +65,7 @@ func WithTLS(clientCertificate tls.Certificate, trustStore *core.TrustStore) Con
 	return func(config *Config) error {
 		config.clientCert = &clientCertificate
 		config.trustStore = trustStore.CertPool
-		
+
 		pkiCfg := pkiconfig.Config{
 			MaxUpdateFailHours: 4,
 		}
