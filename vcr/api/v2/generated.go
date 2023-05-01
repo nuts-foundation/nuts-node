@@ -21,6 +21,15 @@ const (
 	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
 )
 
+// Defines values for CreateVPRequestProofPurpose.
+const (
+	AssertionMethod      CreateVPRequestProofPurpose = "assertionMethod"
+	Authentication       CreateVPRequestProofPurpose = "authentication"
+	CapabilityDelegation CreateVPRequestProofPurpose = "capabilityDelegation"
+	CapabilityInvocation CreateVPRequestProofPurpose = "capabilityInvocation"
+	KeyAgreement         CreateVPRequestProofPurpose = "keyAgreement"
+)
+
 // Defines values for IssueVCRequestVisibility.
 const (
 	Private IssueVCRequestVisibility = "private"
@@ -46,7 +55,7 @@ type CreateVPRequest struct {
 
 	// ProofPurpose The specific intent for the proof, the reason why an entity created it. Acts as a safeguard to prevent the
 	// proof from being misused for a purpose other than the one it was intended for.
-	ProofPurpose *string `json:"proofPurpose,omitempty"`
+	ProofPurpose *CreateVPRequestProofPurpose `json:"proofPurpose,omitempty"`
 
 	// SignerDID Specifies the DID of the signing party that must be used to create the digital signature.
 	// If not specified, it is derived from the given Verifiable Credentials' subjectCredential ID.
@@ -57,6 +66,10 @@ type CreateVPRequest struct {
 	Type                  *[]string              `json:"type,omitempty"`
 	VerifiableCredentials []VerifiableCredential `json:"verifiableCredentials"`
 }
+
+// CreateVPRequestProofPurpose The specific intent for the proof, the reason why an entity created it. Acts as a safeguard to prevent the
+// proof from being misused for a purpose other than the one it was intended for.
+type CreateVPRequestProofPurpose string
 
 // CredentialIssuer defines model for CredentialIssuer.
 type CredentialIssuer struct {
