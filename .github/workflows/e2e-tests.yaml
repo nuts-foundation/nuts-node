@@ -66,10 +66,16 @@ jobs:
           push: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
           tags: ghcr.io/nuts-foundation/nuts-node-ci:${{ env.SHA }}
 
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+
       - name: Run E2E tests
         run: |
           git clone https://github.com/nuts-foundation/nuts-go-e2e-test.git && \
             cd nuts-go-e2e-test && \
+            git checkout selfsigned-means && \
             find . -type f -name "docker-compose.yml" | xargs -I{} sed -i 's~nutsfoundation/nuts-node:master~ghcr.io/nuts-foundation/nuts-node-ci:${{ env.SHA }}~g' {} && \
             find . -type f -name "run-test.sh" | xargs -I{} sed -i 's/docker-compose exec/docker-compose exec -T/g' {} && \
             ./run-tests.sh
