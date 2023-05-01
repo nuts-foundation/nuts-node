@@ -122,7 +122,7 @@ The result will be something like:
 
     {
         "sessionID": "56098jvsldrioj230468",
-        "url": "https://node.example.com/public/auth/v1/means/employeeid/{sessionID}"
+        "url": "https://node.example.com/public/auth/v1/means/employeeid/56098jvsldrioj230468"
     }
 
 Displaying the web page
