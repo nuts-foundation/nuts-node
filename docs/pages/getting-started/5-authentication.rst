@@ -113,8 +113,10 @@ The body for this call looks like:
     }
 
 Where ``message`` is the result from the contract call discussed earlier.
-All fields are mandatory except ``roleName``. The ``identifier`` field must include a unique identifier for the user, for example an email address or employee number.
+The ``identifier`` field must include a unique identifier for the user, for example an email address or employee number.
 The ``employer`` must contain the organization DID.
+All fields are mandatory except ``roleName``. ``roleName`` should contain the role the user has within the organization.
+This can be a functional role but also the role used for *role based access control* if such a role is human readable.
 
 The result will be something like:
 
