@@ -42,28 +42,28 @@
 <body>
 <main>
     <p>Please, read the following statement:</p>
-    <div class="contract">{{.Contract}}</div>
+    <div class="contract" id="contract">{{.Contract}}</div>
     <p>And check if the following information describes your identity:</p>
     <table>
         <tr>
             <td>Employee identifier</td>
-            <td>{{.Employee.Identifier}}</td>
+            <td id="employee-identifier">{{.Employee.Identifier}}</td>
         </tr>
         <tr>
             <td>Name</td>
-            <td>{{.Employee.Initials}} {{.Employee.FamilyName}}</td>
+            <td id="employee-name">{{.Employee.Initials}} {{.Employee.FamilyName}}</td>
         </tr>
         <tr>
             <td>Title</td>
-            <td>{{.Employee.RoleName }}</td>
+            <td id="employee-role">{{.Employee.RoleName }}</td>
         </tr>
     </table>
     <p>If you agree, this data is used to fetch patient information from other care organisations.</p>
 
     <form method="POST">
         <input type="hidden" name="secret" value="{{.Secret}}"/>
-        <button type="submit" name="accept" value="true">Yes, the information is correct and I agree.</button>
-        <button type="submit" name="accept" value="false">No</button>
+        <button type="submit" id="accept-button" name="accept" value="true">Yes, the information is correct and I agree.</button>
+        <button type="submit" id="reject-button" name="accept" value="false">No</button>
     </form>
 </main>
 </body>
