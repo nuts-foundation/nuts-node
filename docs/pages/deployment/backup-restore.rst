@@ -72,12 +72,14 @@ Make the following empty POST calls:
 
 .. code-block:: http
 
-    POST <node-address>/internal/network/v1/reprocess?type=application/vc%2Bjson
-    POST <node-address>/internal/network/v1/reprocess?type=application/ld%2Bjson;type=revocation
-    POST <node-address>/internal/network/v1/reprocess?type=application/did%2Bjson
+    POST <node-address>/internal/network/v1/reprocess?type=application/vc+json
+    POST <node-address>/internal/network/v1/reprocess?type=application/ld+json;type=revocation
+    POST <node-address>/internal/network/v1/reprocess?type=application/did+json
 
-When making the API calls, make sure you use the proper URL escaping.
-Reprocess calls return immediately and will do the work in the background.
+.. note::
+
+    When making the API calls, make sure you use the proper URL escaping (```%2B``` for ````+``` and ```%3B``` for ```;```).
+    Reprocess calls return immediately and will do the work in the background.
 
 BBolt
 =====
