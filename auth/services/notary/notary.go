@@ -111,13 +111,13 @@ func (n *notary) DrawUpContract(ctx context.Context, template contract.Template,
 	// Test if the org in managed by this node:
 	signingKeyID, err := n.keyResolver.ResolveSigningKeyID(orgID, &validFrom)
 	if errors.Is(err, types.ErrNotFound) {
-		return nil, services.NewInvalidContractRequestError("no valid organization credential at provided validFrom date")
+		return nil, services.InvalidContractRequestError{Message: "no valid organization credential at provided validFrom date"}
 	} else if err != nil {
 		return nil, fmt.Errorf("could not draw up contract: %w", err)
 	}
 
 	if !n.privateKeyStore.Exists(ctx, signingKeyID) {
-		return nil, services.NewInvalidContractRequestError(fmt.Errorf("organization is not managed by this node: %w", ErrMissingOrganizationKey))
+		return nil, services.InvalidContractRequestError{Message: fmt.Errorf("organization is not managed by this node: %w", ErrMissingOrganizationKey)}
 	}
 
 	var orgName, orgCity string
@@ -338,7 +338,7 @@ func (n *notary) findVC(orgID did.DID) (string, string, error) {
 		return "", "", fmt.Errorf("could not find a credential: %w", err)
 	}
 	if len(result) == 0 {
-		return "", "", services.NewInvalidContractRequestError(errors.New("could not find a NutsOrganizationCredential for this legalEntity issued by a trusted issuer"))
+		return "", "", services.InvalidContractRequestError{Message: errors.New("could not find a NutsOrganizationCredential for this legalEntity issued by a trusted issuer")}
 	}
 
 	// Having multiple VCs with non-matching credentialSubjects for this DID is not supported.
@@ -347,7 +347,7 @@ func (n *notary) findVC(orgID did.DID) (string, string, error) {
 		var credentialSubject interface{}
 		for _, current := range result {
 			if credentialSubject != nil && !reflect.DeepEqual(credentialSubject, current.CredentialSubject) {
-				return "", "", services.NewInvalidContractRequestError(errors.New("found multiple non-matching VCs, which is not supported"))
+				return "", "", services.InvalidContractRequestError{Message: errors.New("found multiple non-matching VCs, which is not supported")}
 			}
 			credentialSubject = current.CredentialSubject
 		}

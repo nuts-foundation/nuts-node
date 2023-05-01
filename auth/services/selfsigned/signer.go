@@ -136,7 +136,7 @@ func (v *signer) SigningSessionStatus(ctx context.Context, sessionID string) (co
 func (v *signer) StartSigningSession(userContract contract.Contract, params map[string]interface{}) (contract.SessionPointer, error) {
 	// check the session params first to provide the user with feedback if something is missing
 	if err := checkSessionParams(params); err != nil {
-		return nil, services.NewInvalidContractRequestError(fmt.Errorf("invalid session params: %w", err))
+		return nil, services.InvalidContractRequestError{Message: fmt.Errorf("invalid session params: %w", err)}
 	}
 
 	// TODO: check if the contract name and city matches the employeeDID

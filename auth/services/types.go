@@ -54,20 +54,15 @@ var ErrSessionNotFound = errors.New("session not found")
 
 // InvalidContractRequestError is returned when the contract request is invalid
 type InvalidContractRequestError struct {
-	message interface{}
-}
-
-func NewInvalidContractRequestError(msg interface{}) InvalidContractRequestError {
-	return InvalidContractRequestError{msg}
+	Message interface{}
 }
 
 func (e InvalidContractRequestError) Error() string {
-	return fmt.Sprintf("could not draw up contract: %v", e.message)
+	return fmt.Sprintf("could not draw up contract: %v", e.Message)
 }
 
 func (e InvalidContractRequestError) Is(target error) bool {
-	_, ok := target.(InvalidContractRequestError)
-	return ok
+	return errors.As(target, &InvalidContractRequestError{})
 }
 
 // SessionID contains a number to uniquely identify a contract signing session
