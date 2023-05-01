@@ -83,7 +83,7 @@ To use the employee identity as a means for signing a contract, the following is
 Exposed endpoints
 =================
 
-The employee identity means uses endpoints under ``{{publicurl}}/public/auth/v1/means/employeeid/{sessionID}``.
+The employee identity means uses endpoints under ``{publicurl}/public/auth/v1/means/employeeid/{sessionID}``.
 
 Starting a session
 ==================
@@ -189,7 +189,7 @@ More info on these endpoints will be provided further down.
 Additional configuration
 ========================
 
-The public URL will be expanded to ``{{publicurl}}/public/auth/irmaclient`` as IRMA path.
+The public URL will be expanded to ``{publicurl}/public/auth/irmaclient`` as IRMA path.
 IRMA's ``session`` API will be mounted at that base path.
 The Nuts APIs used for signing will embed this URL in the QR code shown to the user.
 The javascript in the frontend will also use this URL (exposed via the QR code) to check the status of the signing session.
