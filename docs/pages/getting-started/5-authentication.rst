@@ -78,7 +78,7 @@ To use the employee identity as a means for signing a contract, the following is
 
 - the user interacts with the XIS/ECD via a recent browser capable of running javascript.
 - the vendor has a Nuts node running.
-- the Nuts node contains a DID for the organization of the user.
+- the Nuts node controls a DID for the organization of the user.
 
 Exposed endpoints
 =================
