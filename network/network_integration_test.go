@@ -910,7 +910,7 @@ func TestNetworkIntegration_TLSOffloading(t *testing.T) {
 			outgoingMD.Set("peerID", "client")
 			outgoingMD.Set("nodeDID", "did:nuts:node2")
 			// Load client cert and set as HTTP request header, as will be done by a TLS terminator
-			clientCertBytes, err := os.ReadFile("test/certificate-and-key.pem")
+			clientCertBytes, err := os.ReadFile(testCertAndKeyFile)
 			require.NoError(t, err)
 
 			xffHeader := "8.8.8.8,8.8.4.4,127.0.0.1"
@@ -1032,9 +1032,9 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 	_ = serverConfig.Load(core.FlagSet())
 	serverConfig.Datadir = path.Join(testDirectory, name)
 	serverConfig.LegacyTLS.Enabled = true
-	serverConfig.TLS.CertFile = "test/certificate-and-key.pem"
-	serverConfig.TLS.CertKeyFile = "test/certificate-and-key.pem"
-	serverConfig.TLS.TrustStoreFile = "test/truststore.pem"
+	serverConfig.TLS.CertFile = testCertAndKeyFile
+	serverConfig.TLS.CertKeyFile = testCertAndKeyFile
+	serverConfig.TLS.TrustStoreFile = testTruststoreFile
 
 	// Create Network instance
 	config := Config{

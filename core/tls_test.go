@@ -49,7 +49,7 @@ func TestLoadTrustStore(t *testing.T) {
 		assert.Nil(t, store)
 	})
 	t.Run("incomplete chain", func(t *testing.T) {
-		leafCert, err := os.ReadFile("../network/test/certificate-and-key.pem")
+		leafCert, err := os.ReadFile("../test/pki/certificate-and-key.pem")
 		cert, err := ParseCertificates(leafCert)
 		require.NoError(t, err)
 

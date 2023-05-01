@@ -34,7 +34,7 @@ func TestConfig_tlsEnabled(t *testing.T) {
 }
 
 func TestNewConfig(t *testing.T) {
-	tlsCert, _ := tls.LoadX509KeyPair("../../test/certificate-and-key.pem", "../../test/certificate-and-key.pem")
+	tlsCert, _ := tls.LoadX509KeyPair(testCertAndKeyFile, testCertAndKeyFile)
 	x509Cert, _ := x509.ParseCertificates(tlsCert.Certificate[0])
 	t.Run("without TLS", func(t *testing.T) {
 		cfg, err := NewConfig(":1234", "foo")
