@@ -144,7 +144,7 @@ func TestValidator_SetValidatePeerCertificateFunc(t *testing.T) {
 	t.Run("error - contains cert that is not in truststore", func(t *testing.T) {
 		v := newValidator(t)
 
-		err := v.SetValidatePeerCertificateFunc(newCfg("../network/test/certificate-and-key.pem"))
+		err := v.SetValidatePeerCertificateFunc(newCfg("../test/pki/certificate-and-key.pem"))
 
 		assert.EqualError(t, err, "tls.Config contains certificate from issuer that is not in the truststore: CN=localhost")
 	})
