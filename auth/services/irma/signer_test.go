@@ -158,18 +158,10 @@ type mockContext struct {
 }
 
 func serviceWithMocks(t *testing.T) *mockContext {
-	//serviceConfig := ServerConfig{
-	//	IrmaConfigPath:        "../../../development/irma",
-	//	AutoUpdateIrmaSchemas: false,
-	//	IrmaSchemeManager:     "empty",
-	//}
-
 	ctrl := gomock.NewController(t)
-
-	vcr := vcr.NewMockResolver(ctrl)
+	mockVCR := vcr.NewMockResolver(ctrl)
 	mockSigner := crypto.NewMockJWTSigner(ctrl)
 
-	//irmaConfig, _ := GetIrmaConfig(serviceConfig)
 	service := &Signer{
 		IrmaSessionHandler: &mockIrmaClient{},
 		Signer:             mockSigner,
@@ -178,7 +170,7 @@ func serviceWithMocks(t *testing.T) *mockContext {
 	return &mockContext{
 		ctrl:       ctrl,
 		signer:     mockSigner,
-		vcResolver: vcr,
+		vcResolver: mockVCR,
 		service:    service,
 	}
 }
