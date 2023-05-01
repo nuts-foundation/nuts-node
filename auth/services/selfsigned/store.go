@@ -5,29 +5,29 @@ import (
 	"sync"
 )
 
-type sessionStore struct {
+type memorySessionStore struct {
 	sessions map[string]types.Session
 	lock     sync.Mutex
 }
 
-func NewSessionStore() types.SessionStore {
-	return &sessionStore{sessions: make(map[string]types.Session)}
+func NewMemorySessionStore() types.SessionStore {
+	return &memorySessionStore{sessions: make(map[string]types.Session)}
 }
 
-func (s *sessionStore) Store(sessionID string, session types.Session) {
+func (s *memorySessionStore) Store(sessionID string, session types.Session) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	s.sessions[sessionID] = session
 }
 
-func (s *sessionStore) Load(sessionID string) (types.Session, bool) {
+func (s *memorySessionStore) Load(sessionID string) (types.Session, bool) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	session, ok := s.sessions[sessionID]
 	return session, ok
 }
 
-func (s *sessionStore) CheckAndSetStatus(sessionID string, expectedStatus, status string) bool {
+func (s *memorySessionStore) CheckAndSetStatus(sessionID string, expectedStatus, status string) bool {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	session, ok := s.sessions[sessionID]
@@ -42,7 +42,7 @@ func (s *sessionStore) CheckAndSetStatus(sessionID string, expectedStatus, statu
 	return true
 }
 
-func (s *sessionStore) Delete(sessionID string) {
+func (s *memorySessionStore) Delete(sessionID string) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	delete(s.sessions, sessionID)

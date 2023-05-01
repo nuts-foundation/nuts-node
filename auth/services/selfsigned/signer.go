@@ -54,8 +54,8 @@ type signer struct {
 // NewSigner returns an initialized employee identity contract signer
 func NewSigner(vcr vcr.VCR, publicURL string) contract.Signer {
 	return &signer{
-		// NewSessionStore returns an initialized SessionStore
-		store:           NewSessionStore(),
+		// NewMemorySessionStore returns an initialized SessionStore
+		store:           NewMemorySessionStore(),
 		vcr:             vcr,
 		publicURL:       publicURL,
 		signingDuration: 10 * time.Minute,
