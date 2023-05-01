@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package v1
+package auth_v1
 
 import (
 	"encoding/json"
@@ -29,7 +29,7 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/api/v1/client"
+	"github.com/nuts-foundation/nuts-node/auth/api/auth_v1/client"
 	httpModule "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vcr"
 

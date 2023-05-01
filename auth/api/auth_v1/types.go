@@ -16,20 +16,18 @@
  *
  */
 
-package means
+package auth_v1
 
 import (
-	"github.com/nuts-foundation/nuts-node/auth"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/auth/services"
 )
 
-// Wrapper bridges Echo routes to the server backend.
-type Wrapper struct {
-	Auth auth.AuthenticationServices
-}
+// VerifiableCredential is an alias to use from within the API
+type VerifiableCredential = vc.VerifiableCredential
 
-// Routes registers the Echo routes for the API.
-func (w Wrapper) Routes(router core.EchoRouter) {
-	// Mount all the routes for the enabled authentication means (e.g. IRMA and EmployeeIdentity)
-	w.Auth.ContractNotary().Routes(router)
-}
+// VerifiablePresentation is an alias to use from within the API
+type VerifiablePresentation = vc.VerifiablePresentation
+
+// AccessTokenResponse is an alias to use from within the API
+type AccessTokenResponse = services.AccessTokenResult

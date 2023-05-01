@@ -28,8 +28,8 @@ import (
 	"runtime/pprof"
 
 	"github.com/nuts-foundation/nuts-node/auth"
-	authMeans "github.com/nuts-foundation/nuts-node/auth/api/means"
-	authAPI "github.com/nuts-foundation/nuts-node/auth/api/v1"
+	authAPI "github.com/nuts-foundation/nuts-node/auth/api/auth_v1"
+	authMeans "github.com/nuts-foundation/nuts-node/auth/api/means_v1"
 	authCmd "github.com/nuts-foundation/nuts-node/auth/cmd"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/core/status"
