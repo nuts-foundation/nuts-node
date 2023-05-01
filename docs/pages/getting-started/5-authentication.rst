@@ -102,7 +102,7 @@ The body for this call looks like:
         "means": "EmployeeID",
         "payload": "<message>"
 		"params": {
-			"employer": "did:nuts:90348275fjasihnva4857qp39hn",
+			"employer": "did:nuts:7eaDstczhnigW9uW1JRzYF2u5KhTntFTnee8vGDHokD",
 			"employee": {
 				"identifier": "user@example.com",
 				"initials": "T",
