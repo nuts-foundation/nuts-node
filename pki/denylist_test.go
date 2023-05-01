@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
+
 package pki
 
 import (
@@ -104,7 +105,7 @@ ZWp2Pn+Rl1zfuYeXfdtMnFHmGPeiXKZB+u5cZbVxbxZ7nOPEVISKEBxXL8+SE311
 btg+JeGSqs/aDd7h/Y/62V/IhFqDHuDQ344zPvbQl+dTz/9FQ7USQMz9Fw==
 -----END CERTIFICATE-----`
 
-func newDenylist(url, trustedSigner string) (Denylist, error) {
+func testDenylist(url, trustedSigner string) (Denylist, error) {
 	cfg := config.DenylistConfig{
 		TrustedSigner: trustedSigner,
 		URL:           url,
@@ -187,6 +188,25 @@ func encodeDenylist(t *testing.T, entries []denylistEntry) string {
 	return string(compactJWS)
 }
 
+func TestNewDenylist(t *testing.T) {
+	t.Run("disabled", func(t *testing.T) {
+		// empty DenylistConfig.URL disables the denylist. This should produce no errors.
+		denylist, err := NewDenylist(config.DenylistConfig{})
+		require.NoError(t, err)
+		assert.NoError(t, denylist.Update())
+		assert.NoError(t, denylist.ValidateCert(&x509.Certificate{}))
+		assert.Empty(t, denylist.URL())
+		assert.True(t, denylist.LastUpdated().IsZero())
+	})
+	t.Run("invalid key", func(t *testing.T) {
+		_, err := NewDenylist(config.DenylistConfig{
+			URL:           "example.com",
+			TrustedSigner: "definitely not valid",
+		})
+		assert.EqualError(t, err, "failed to parse key: failed to parse PEM encoded key: failed to decode PEM data")
+	})
+}
+
 // TestDownloadDenylist ensures a denylist is correctly downloaded
 func TestDownloadDenylist(t *testing.T) {
 	// Get the trusted denylist
@@ -203,7 +223,31 @@ func TestDownloadDenylist(t *testing.T) {
 
 	// Download the denylist data and ensure it is correct
 	bytes, err := denylist.(*denylistImpl).download()
+	assert.NoError(t, err)
 	assert.Equal(t, string(bytes), denylistJSON)
+}
+
+func TestDenylistMissing(t *testing.T) {
+	// Parse the private key for signing the denylist
+	key, err := jwk.ParseKey([]byte(privateKeyDoNotUse), jwk.WithPEM(true))
+	require.NoError(t, err)
+
+	// Sign an invalid denylist as a JWS Message
+	payload := []byte("invalid payload")
+	compactJWS, err := jws.Sign(payload, jwa.EdDSA, key)
+	require.NoError(t, err)
+
+	// Setup a denylist server
+	testServer := denylistTestServer(string(compactJWS))
+	defer testServer.Close()
+
+	// Use the server in a new denylist
+	denylist, err := NewDenylist(config.DenylistConfig{URL: testServer.URL, TrustedSigner: publicKeyDoNotUse})
+	require.NoError(t, err)
+	require.NotNil(t, denylist)
+
+	err = denylist.ValidateCert(&x509.Certificate{})
+	assert.ErrorIs(t, err, ErrDenylistMissing)
 }
 
 // TestUpdateValidDenylist ensures a trusted denylist can be updated
@@ -216,7 +260,7 @@ func TestUpdateValidDenylist(t *testing.T) {
 	defer testServer.Close()
 
 	// Use the server in a new denylist
-	denylist, err := newDenylist(testServer.URL, publicKeyDoNotUse)
+	denylist, err := testDenylist(testServer.URL, publicKeyDoNotUse)
 	require.NoError(t, err)
 	require.NotNil(t, denylist)
 
@@ -255,7 +299,7 @@ func TestUpdateInvalidDenylistFails(t *testing.T) {
 	defer testServer.Close()
 
 	// Use the server in a new denylist but with the wrong public key
-	denylist, err := newDenylist(testServer.URL, incorrectPublicKey)
+	denylist, err := testDenylist(testServer.URL, incorrectPublicKey)
 	require.NoError(t, err)
 	require.NotNil(t, denylist)
 
@@ -277,7 +321,7 @@ func TestValidCertificateAccepted(t *testing.T) {
 	defer testServer.Close()
 
 	// Use the server in a new denylist
-	denylist, err := newDenylist(testServer.URL, publicKeyDoNotUse)
+	denylist, err := testDenylist(testServer.URL, publicKeyDoNotUse)
 	require.NoError(t, err)
 	require.NotNil(t, denylist)
 
@@ -307,7 +351,7 @@ func TestValidCertificateAcceptedEmptyDenyList(t *testing.T) {
 	defer testServer.Close()
 
 	// Use the server in a new denylist
-	denylist, err := newDenylist(testServer.URL, publicKeyDoNotUse)
+	denylist, err := testDenylist(testServer.URL, publicKeyDoNotUse)
 	require.NoError(t, err)
 	require.NotNil(t, denylist)
 
@@ -337,7 +381,7 @@ func TestDenylistedCertificateBlocked(t *testing.T) {
 	defer testServer.Close()
 
 	// Use the server in a new denylist
-	denylist, err := newDenylist(testServer.URL, publicKeyDoNotUse)
+	denylist, err := testDenylist(testServer.URL, publicKeyDoNotUse)
 	require.NoError(t, err)
 	require.NotNil(t, denylist)
 
@@ -368,7 +412,7 @@ func TestEmptyFieldsDoNotBlock(t *testing.T) {
 	defer testServer.Close()
 
 	// Use the server in a new denylist
-	denylist, err := newDenylist(testServer.URL, publicKeyDoNotUse)
+	denylist, err := testDenylist(testServer.URL, publicKeyDoNotUse)
 	require.NoError(t, err)
 	require.NotNil(t, denylist)
 

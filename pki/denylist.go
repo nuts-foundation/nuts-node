@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
+
 package pki
 
 import (
@@ -43,7 +44,7 @@ var (
 	ErrCertBanned = errors.New("certificate is banned")
 )
 
-// DenyList implements a global certificate rejection
+// Denylist implements a global certificate rejection
 type Denylist interface {
 	// LastUpdated provides the time at which the denylist was last retrieved
 	LastUpdated() time.Time
@@ -87,7 +88,7 @@ type denylistEntry struct {
 	Reason string `json:"reason"`
 }
 
-// New creates a denylist with the specified configuration
+// NewDenylist creates a denylist with the specified configuration
 func NewDenylist(config config.DenylistConfig) (Denylist, error) {
 	// "Disable" (operate in a NOP mode) the denylist when the URL is empty
 	if config.URL == "" {
@@ -170,7 +171,7 @@ func (b *denylistImpl) URL() string {
 	return b.url
 }
 
-// update downloads the denylist, and updates the in-memory representation
+// Update downloads the denylist, and updates the in-memory representation
 func (b *denylistImpl) Update() error {
 	// Updating a denylist with a URL is a NOP
 	if b.URL() == "" {
@@ -182,7 +183,7 @@ func (b *denylistImpl) Update() error {
 	if err != nil {
 		logger().WithError(err).
 			WithField("URL", b.url).
-			Warn("Certiciate denylist cannot be downloaded")
+			Warn("Certificate denylist cannot be downloaded")
 		return err
 	}
 
@@ -211,7 +212,8 @@ func (b *denylistImpl) Update() error {
 // download retrieves and parses the denylist
 func (b *denylistImpl) download() ([]byte, error) {
 	// Make an HTTP GET request for the denylist URL
-	response, err := http.Get(b.url)
+	httpClient := http.Client{Timeout: syncTimeout}
+	response, err := httpClient.Get(b.url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to download denylist: %w", err)
 	}

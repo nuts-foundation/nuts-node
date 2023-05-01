@@ -109,7 +109,7 @@ func newRevocationList(cert *x509.Certificate) *revocationList {
 	}
 }
 
-// New returns a new PKI (crl/denylist) validator.
+// NewValidator returns a new PKI (crl/denylist) validator.
 func NewValidator(config pkiconfig.Config, truststore []*x509.Certificate) (Validator, error) {
 	return newValidatorWithHTTPClient(config, truststore, &http.Client{Timeout: syncTimeout})
 }
