@@ -57,6 +57,8 @@ const SessionInProgress = "in-progress"
 // SessionCompleted represents the session state after the user has accepted the contract
 const SessionCompleted = "completed"
 
+const SessionVPRequested = "vp-requested"
+
 const SessionCancelled = "cancelled"
 
 const SessionErrored = "errored"

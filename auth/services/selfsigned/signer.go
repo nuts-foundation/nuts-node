@@ -70,6 +70,7 @@ func (v *signer) SigningSessionStatus(ctx context.Context, sessionID string) (co
 	if !ok {
 		return nil, services.ErrSessionNotFound
 	}
+
 	var vp *vc.VerifiablePresentation
 	issuerID, err := did.ParseDID(s.Employer)
 	if err != nil {
@@ -77,6 +78,12 @@ func (v *signer) SigningSessionStatus(ctx context.Context, sessionID string) (co
 	}
 
 	if s.Status == types.SessionCompleted {
+		// Make sure no other VP will be created for this session
+		if !v.store.CheckAndSetStatus(sessionID, types.SessionCompleted, types.SessionVPRequested) {
+			v.store.Delete(sessionID)
+			return nil, services.ErrSessionNotFound
+		}
+
 		expirationData := time.Now().Add(24 * time.Hour)
 		credentialOptions := vc.VerifiableCredential{
 			Context:           []ssi.URI{credential.NutsV1ContextURI},
@@ -105,9 +112,10 @@ func (v *signer) SigningSessionStatus(ctx context.Context, sessionID string) (co
 		}
 
 	}
+
 	// cleanup all sessions in a final state
 	switch s.Status {
-	case types.SessionCompleted:
+	case types.SessionVPRequested:
 		fallthrough
 	case types.SessionExpired:
 		fallthrough
