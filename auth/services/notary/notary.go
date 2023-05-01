@@ -152,33 +152,20 @@ func (n *notary) DrawUpContract(ctx context.Context, template contract.Template,
 	return drawnUpContract, nil
 }
 
-func (n *notary) Configure() (err error) {
+func (n *notary) Configure() error {
 	n.verifiers = make(map[string]contract.VPVerifier)
 	n.signers = make(map[string]contract.Signer)
 
 	if n.config.hasContractValidator(irma.ContractFormat) {
-		var (
-			irmaConfig *irmago.Configuration
-			irmaServer *irmaserver.Server
-		)
-
-		irmaServiceConfig := irma.Config{
-			PublicURL:             n.config.PublicURL,
-			IrmaConfigPath:        n.config.IrmaConfigPath,
-			IrmaSchemeManager:     n.config.IrmaSchemeManager,
-			AutoUpdateIrmaSchemas: n.config.AutoUpdateIrmaSchemas,
-			// Deduce IRMA production mode from the nuts strict-mode
-			Production: n.config.StrictMode,
-		}
-
-		if irmaServer, irmaConfig, err = n.configureIrma(irmaServiceConfig); err != nil {
-			return
+		irmaServer, irmaConfig, err := n.irmaServerWithConfig()
+		if err != nil {
+			return err
 		}
 
 		irmaSigner := irma.Signer{
 			IrmaSessionHandler: &irma.DefaultIrmaSessionHandler{I: irmaServer},
 			Signer:             n.privateKeyStore,
-			IrmaServiceConfig:  irmaServiceConfig,
+			IrmaSchemeManager:  n.config.IrmaSchemeManager,
 		}
 
 		irmaVerifier := irma.Verifier{
@@ -232,7 +219,7 @@ func (n *notary) Configure() (err error) {
 		n.signers[selfsigned.ContractFormat] = es
 	}
 
-	return
+	return nil
 }
 
 func (n *notary) Start(ctx context.Context) {
@@ -274,12 +261,21 @@ func (n *notary) SigningSessionStatus(ctx context.Context, sessionID string) (co
 	return nil, services.ErrSessionNotFound
 }
 
-func (n *notary) configureIrma(config irma.Config) (*irmaserver.Server, *irmago.Configuration, error) {
-	irmaConfig, err := irma.GetIrmaConfig(config)
+func (n *notary) irmaServerWithConfig() (*irmaserver.Server, *irmago.Configuration, error) {
+	validatorConfig := irma.Config{
+		PublicURL:             n.config.PublicURL,
+		IrmaConfigPath:        n.config.IrmaConfigPath,
+		IrmaSchemeManager:     n.config.IrmaSchemeManager,
+		AutoUpdateIrmaSchemas: n.config.AutoUpdateIrmaSchemas,
+		// Deduce IRMA production mode from the nuts strict-mode
+		Production: n.config.StrictMode,
+	}
+
+	irmaConfig, err := irma.GetIrmaConfig(validatorConfig)
 	if err != nil {
 		return nil, nil, err
 	}
-	irmaServer, err := irma.GetIrmaServer(config, irmaConfig)
+	irmaServer, err := irma.GetIrmaServer(validatorConfig, irmaConfig)
 	if err != nil {
 		return nil, nil, err
 	}

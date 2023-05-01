@@ -46,7 +46,7 @@ import (
 // Signer signs contracts using the IRMA logic.
 type Signer struct {
 	IrmaSessionHandler SigningSessionHandler
-	IrmaServiceConfig  Config
+	IrmaSchemeManager  string
 	Signer             nutsCrypto.JWTSigner
 	StrictMode         bool
 }
@@ -83,7 +83,7 @@ const NutsIrmaSignedContract = "NutsIrmaSignedContract"
 func (v Signer) StartSigningSession(contract contract.Contract, _ map[string]interface{}) (contract.SessionPointer, error) {
 	// Put the template in an IRMA envelope
 	signatureRequest := irmago.NewSignatureRequest(contract.RawContractText)
-	schemeManager := v.IrmaServiceConfig.IrmaSchemeManager
+	schemeManager := v.IrmaSchemeManager
 
 	var attributes irmago.AttributeCon
 	for _, att := range contract.Template.SignerAttributes {
