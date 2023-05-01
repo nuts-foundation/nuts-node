@@ -47,7 +47,8 @@ With the following body:
     }
 
 The ``type`` must be one of the valid Nuts contract types, currently only ``BehandelaarLogin`` for Dutch and ``PractitionerLogin`` for English are supported.
-The ``language``` selects the correct language, ``NL`` for Dutch and ``EN`` for english. The ``version`` must be ``v3``.
+The ``language`` selects the correct language, ``NL`` for Dutch and ``EN`` for English.
+The ``version`` must be ``v3``.
 The ``legalEntity`` must refer to the DID of the current organization. The user either selects an organization to login for, or is already logged in.
 The organization must have a DID as described in :ref:`Getting Started on customer integration <connecting-crm>`.
 ``validFrom`` is a RFC3339 compliant time string. ``validDuration`` describes how long the contract is valid for. Time unit strings are used like ``1h`` or ``60m``, the valid time units are: "ns", "us" (or "µs"), "ms", "s", "m", "h". The local system timezone is used to format the date and time string.
