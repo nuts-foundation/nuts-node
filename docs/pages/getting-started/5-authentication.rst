@@ -131,7 +131,7 @@ Displaying the web page
 The webpage served from the ``url`` field from the initiated session result needs to be shown to the user.
 This can be done by using an iframe, pop-up or nested browser window (for native apps).
 The application should make sure the user's attention is on the newly rendered page.
-The application can also render the current status of the process by calling the session status endpoint (see below).
+The application can also query the current status of the process by calling the session status endpoint (see below).
 If the frontend of the application is viewing the status, it must do so by proxying the session status endpoint via it's backend.
 This is because the session status endpoint is an internal endpoint and can only be accessed by a client application's backend.
 
