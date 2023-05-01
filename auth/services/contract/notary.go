@@ -86,7 +86,7 @@ type notary struct {
 	irmaServer        *irmaserver.Server
 	verifiers         map[string]contract.VPVerifier
 	signers           map[string]contract.Signer
-	vcr               vcr.Finder
+	vcr               vcr.VCR
 	uziCrlValidator   pki.Validator
 }
 
