@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Nuts community
+ * Copyright (C) 2023 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,8 +23,9 @@ import (
 	"crypto/x509"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crl"
 	networkTypes "github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/pki"
+	pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
 	"google.golang.org/grpc"
 	"net"
 	"time"
@@ -64,7 +65,11 @@ func WithTLS(clientCertificate tls.Certificate, trustStore *core.TrustStore) Con
 	return func(config *Config) error {
 		config.clientCert = &clientCertificate
 		config.trustStore = trustStore.CertPool
-		crlValidator, err := crl.New(trustStore.Certificates())
+
+		pkiCfg := pkiconfig.Config{
+			MaxUpdateFailHours: 4,
+		}
+		crlValidator, err := pki.NewValidator(pkiCfg, trustStore.Certificates())
 		if err != nil {
 			return err
 		}
@@ -119,7 +124,7 @@ type Config struct {
 	// trustStore contains the trust anchors used when verifying remote a peer's TLS certificate.
 	trustStore *x509.CertPool
 	// crlValidator contains the database for revoked certificates
-	crlValidator crl.Validator
+	crlValidator pki.Validator
 	// clientCertHeaderName specifies the name of the HTTP header that contains the client certificate, if TLS is offloaded.
 	clientCertHeaderName string
 	// connectionTimeout specifies the time before an outbound connection attempt times out.

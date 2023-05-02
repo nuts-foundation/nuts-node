@@ -1,6 +1,6 @@
 /*
  * Nuts node
- * Copyright (C) 2021 Nuts community
+ * Copyright (C) 2023 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,6 +31,8 @@ import (
 	"github.com/spf13/pflag"
 	"reflect"
 	"strings"
+
+	pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
 )
 
 const defaultConfigFile = "nuts.yaml"
@@ -56,6 +58,7 @@ type ServerConfig struct {
 	Strictmode          bool              `koanf:"strictmode"`
 	InternalRateLimiter bool              `koanf:"internalratelimiter"`
 	Datadir             string            `koanf:"datadir"`
+	PKI                 pkiconfig.Config  `koanf:"pki"`
 	TLS                 TLSConfig         `koanf:"tls"`
 	LegacyTLS           *NetworkTLSConfig `koanf:"network"`
 	configMap           *koanf.Koanf
@@ -278,6 +281,18 @@ func FlagSet() *pflag.FlagSet {
 		"Required when 'network.enabletls' is 'true'.")
 	flagSet.String("network.truststorefile", "", "Deprecated: use 'tls.truststorefile'. PEM file containing the trusted CA certificates for authenticating remote gRPC servers.")
 	flagSet.Int("network.maxcrlvaliditydays", 0, "Deprecated: use 'tls.crl.maxvaliditydays'. The number of days a CRL can be outdated, after that it will hard-fail.")
+
+	// Flags for denylist features
+	flagSet.Int("pki.maxupdatefailhours", 4, "maximum number of hours that a denylist update can fail")
+	// TODO: Choose a default trusted signer key
+	flagSet.String("pki.denylist.trustedsigner", "", "Ed25519 public key (in PEM format) of the trusted signer for denylists")
+	// TODO: Choose a default denylist URL
+	flagSet.String("pki.denylist.url", "", "URL of PKI denylist (set to empty string to disable)")
+
+	// Changing these config values is not recommended, and they are expected to almost always be the same value, so
+	// do not show them in the config dump
+	flagSet.MarkHidden("pki.denylist.trustedsigner")
+	flagSet.MarkHidden("pki.denylist.url")
 
 	flagSet.MarkDeprecated("tls.crl.maxvaliditydays", "CRLs can no longer be accepted after the time in NextUpdate has past")
 	flagSet.MarkDeprecated("network.certfile", "use 'tls.certfile' instead")

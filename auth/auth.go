@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Nuts community
+ * Copyright (C) 2023 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,10 +29,11 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/services/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crl"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/pki"
+	pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/didstore"
@@ -56,7 +57,7 @@ type Auth struct {
 	keyStore        crypto.KeyStore
 	registry        didstore.Store
 	vcr             vcr.VCR
-	crlValidator    crl.Validator
+	crlValidator    pki.Validator
 	shutdownFunc    func()
 }
 
@@ -140,7 +141,11 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 			return err
 		}
 
-		validator, err := crl.New(trustStore.Certificates())
+		pkiCfg := pkiconfig.Config{
+			MaxUpdateFailHours: 4,
+		}
+
+		validator, err := pki.NewValidator(pkiCfg, trustStore.Certificates())
 		if err != nil {
 			return err
 		}

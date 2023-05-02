@@ -1,6 +1,6 @@
 /*
  * Nuts node
- * Copyright (C) 2021 Nuts community
+ * Copyright (C) 2023 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,9 +37,10 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned"
 	"github.com/nuts-foundation/nuts-node/auth/services/uzi"
 	"github.com/nuts-foundation/nuts-node/auth/services/x509"
-	"github.com/nuts-foundation/nuts-node/crl"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/pki"
+	pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	irmago "github.com/privacybydesign/irmago"
@@ -85,8 +86,8 @@ type notary struct {
 	irmaServer        *irmaserver.Server
 	verifiers         map[string]contract.VPVerifier
 	signers           map[string]contract.Signer
-	uziCrlValidator   crl.Validator
 	vcr               vcr.VCR
+	uziCrlValidator   pki.Validator
 }
 
 var timeNow = time.Now
@@ -199,7 +200,12 @@ func (n *notary) Configure() (err error) {
 		if err != nil {
 			return err
 		}
-		n.uziCrlValidator, err = crl.New(truststore.Certificates())
+
+		pkiCfg := pkiconfig.Config{
+			MaxUpdateFailHours: 4,
+		}
+
+		n.uziCrlValidator, err = pki.NewValidator(pkiCfg, truststore.Certificates())
 		if err != nil {
 			return err
 		}

@@ -25,8 +25,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crl"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/pki"
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
@@ -46,7 +47,7 @@ type JwtX509Validator struct {
 	roots              []*x509.Certificate
 	intermediates      []*x509.Certificate
 	allowedSigningAlgs []jwa.SignatureAlgorithm
-	crlValidator       crl.Validator
+	crlValidator       pki.Validator
 }
 
 // generalNames defines the asn1 data structure of the generalNames as defined in rfc5280#section-4.2.1.6
@@ -91,7 +92,7 @@ func (j JwtX509Token) SubjectAltNameOtherNames() ([]string, error) {
 // It accepts root and intermediate certificates to validate the chain.
 // It accepts a list of valid signature algorithms
 // It accepts a CRL database
-func NewJwtX509Validator(roots, intermediates []*x509.Certificate, allowedSigAlgs []jwa.SignatureAlgorithm, crlValidator crl.Validator) *JwtX509Validator {
+func NewJwtX509Validator(roots, intermediates []*x509.Certificate, allowedSigAlgs []jwa.SignatureAlgorithm, crlValidator pki.Validator) *JwtX509Validator {
 	return &JwtX509Validator{
 		roots:              roots,
 		intermediates:      intermediates,

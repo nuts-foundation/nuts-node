@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Nuts community
+ * Copyright (C) 2023 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,17 +15,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
-
-package log
+package pki
 
 import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/sirupsen/logrus"
 )
 
-var _logger = logrus.StandardLogger().WithField(core.LogFieldModule, "CRL")
+var _logger = logrus.StandardLogger().WithField(core.LogFieldModule, "pki")
 
-// Logger returns a logger with the module field set to the ModuleName
-func Logger() *logrus.Entry {
+// logger returns a logger with the module field set to the ModuleName
+func logger() *logrus.Entry {
 	return _logger
 }

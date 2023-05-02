@@ -26,11 +26,12 @@ import (
 	"encoding/asn1"
 	"encoding/base64"
 	"github.com/golang/mock/gomock"
-	"github.com/nuts-foundation/nuts-node/crl"
 	"github.com/stretchr/testify/require"
 	"math/big"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/pki"
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
@@ -285,7 +286,7 @@ func TestJwtX509Validator_Verify(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("ok - valid jwt", func(t *testing.T) {
-		db := crl.NewMockValidator(gomock.NewController(t))
+		db := pki.NewMockValidator(gomock.NewController(t))
 
 		db.EXPECT().Validate([]*x509.Certificate{leafCert, intermediateCert, rootCert}).Return(nil)
 
@@ -338,11 +339,11 @@ func TestJwtX509Validator_Verify(t *testing.T) {
 	})
 }
 
-func NewMockValidator(t *testing.T, rootCert, intermediateCert, leafCert *x509.Certificate, intermediateRevoked bool) crl.Validator {
-	db := crl.NewMockValidator(gomock.NewController(t))
+func NewMockValidator(t *testing.T, rootCert, intermediateCert, leafCert *x509.Certificate, intermediateRevoked bool) pki.Validator {
+	db := pki.NewMockValidator(gomock.NewController(t))
 
 	if intermediateRevoked {
-		db.EXPECT().Validate([]*x509.Certificate{leafCert, intermediateCert, rootCert}).Return(crl.ErrCertRevoked)
+		db.EXPECT().Validate([]*x509.Certificate{leafCert, intermediateCert, rootCert}).Return(pki.ErrCertRevoked)
 	} else {
 		db.EXPECT().Validate([]*x509.Certificate{leafCert, intermediateCert, rootCert}).Return(nil)
 	}
@@ -411,7 +412,7 @@ func TestJwtX509Validator_checkCertRevocation(t *testing.T) {
 			)
 
 			err = validator.checkCertRevocation([]*x509.Certificate{leafCert, intermediateCert, rootCert})
-			assert.ErrorIs(t, err, crl.ErrCertRevoked)
+			assert.ErrorIs(t, err, pki.ErrCertRevoked)
 		})
 	})
 }

@@ -16,7 +16,7 @@
  *
  */
 
-package crl
+package pki
 
 import (
 	"bytes"
@@ -35,22 +35,32 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
+	pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 const (
-	truststore     = "test/truststore.pem"
-	truststorePKIo = "test/truststore_withPKIOverheid.pem"
-	pkiOverheidCRL = "test/pkioverheid.crl"
+	testdatapath   = "./test"
+	truststore     = testdatapath + "/truststore.pem"
+	truststorePKIo = testdatapath + "/truststore_withPKIOverheid.pem"
+	pkiOverheidCRL = testdatapath + "/pkioverheid.crl"
 	rootCRLurl     = "http://certs.nuts.nl/RootCALatest.crl"
 )
 
 // crlPathMap maps the URI path to location on of CRL on disk
 var crlPathMap = map[string]string{
-	"/RootCALatest.crl":          "./test/RootCALatest.crl",
-	"/IntermediateCAALatest.crl": "./test/IntermediateCAALatest.crl",
+	"/RootCALatest.crl":          testdatapath + "/RootCALatest.crl",
+	"/IntermediateCAALatest.crl": testdatapath + "/IntermediateCAALatest.crl",
 	"/IntermediateCABLatest.crl": "does not exist",
+}
+
+// testConfig provides a validator module configuration for tests
+func pkiCfg() pkiconfig.Config {
+	return pkiconfig.Config{
+		MaxUpdateFailHours: 4,
+	}
 }
 
 func TestValidator_Start(t *testing.T) {
@@ -59,7 +69,7 @@ func TestValidator_Start(t *testing.T) {
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	val, err := newValidatorWithHTTPClient(store.Certificates(), newClient())
+	val, err := newValidatorWithHTTPClient(pkiCfg(), store.Certificates(), newClient())
 	require.NoError(t, err)
 
 	// crls are empty
@@ -109,7 +119,7 @@ func TestValidator_SetValidatePeerCertificateFunc(t *testing.T) {
 		}
 	}
 	t.Run("set - ok", func(t *testing.T) {
-		cfg := newCfg("./test/A-valid.pem")
+		cfg := newCfg(testdatapath + "/A-valid.pem")
 		v := newValidator(t)
 		require.Nil(t, cfg.VerifyPeerCertificate)
 
@@ -155,14 +165,14 @@ func Test_New(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("ok", func(t *testing.T) {
-		val, err := New(store.Certificates())
+		val, err := NewValidator(pkiCfg(), store.Certificates())
 		require.NoError(t, err)
 		assert.NotNil(t, val)
 	})
 
 	t.Run("invalid truststore", func(t *testing.T) {
 		noRootStore := store.Certificates()[:2]
-		_, err = New(noRootStore)
+		_, err = NewValidator(pkiCfg(), noRootStore)
 		assert.ErrorContains(t, err, "certificate's issuer is not in the trust store")
 	})
 }
@@ -208,14 +218,14 @@ func Test_ValidatorValidateCert(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("ok", func(t *testing.T) {
-		cert := loadCert(t, "./test/A-valid.pem")
+		cert := loadCert(t, testdatapath+"/A-valid.pem")
 
 		err := val.validateCert(cert)
 
 		assert.NoError(t, err)
 	})
 	t.Run("revoked cert", func(t *testing.T) {
-		cert := loadCert(t, "./test/A-revoked.pem")
+		cert := loadCert(t, testdatapath+"/A-revoked.pem")
 
 		err := val.validateCert(cert)
 
@@ -225,7 +235,7 @@ func Test_ValidatorValidateCert(t *testing.T) {
 		val := &validator{
 			truststore: map[string]*x509.Certificate{},
 		}
-		cert := loadCert(t, "./test/A-valid.pem")
+		cert := loadCert(t, testdatapath+"/A-valid.pem")
 
 		err := val.validateCert(cert)
 
@@ -233,7 +243,7 @@ func Test_ValidatorValidateCert(t *testing.T) {
 	})
 	t.Run("missing crl", func(t *testing.T) {
 		val := newValidatorStarted(t)
-		cert := loadCert(t, "./test/B-valid_revoked-CA.pem")
+		cert := loadCert(t, testdatapath+"/B-valid_revoked-CA.pem")
 
 		err := val.validateCert(cert)
 
@@ -313,7 +323,7 @@ func Test_ValidatorVerifyCRL(t *testing.T) {
 	issuer := trustStore.Certificates()[2] // rootCA
 
 	t.Run("ok", func(t *testing.T) {
-		data, err := os.ReadFile("./test/RootCALatest.crl")
+		data, err := os.ReadFile(testdatapath + "/RootCALatest.crl")
 		require.NoError(t, err)
 		rl, err := x509.ParseRevocationList(data)
 		require.NoError(t, err)
@@ -397,7 +407,7 @@ func newValidator(t *testing.T) *validator {
 	store, err := core.LoadTrustStore(truststore)
 	require.NoError(t, err)
 	require.Len(t, store.Certificates(), 3)
-	val, err := newValidatorWithHTTPClient(store.Certificates(), newClient())
+	val, err := newValidatorWithHTTPClient(pkiCfg(), store.Certificates(), newClient())
 	require.NoError(t, err)
 	return val
 }
