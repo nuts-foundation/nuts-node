@@ -559,6 +559,7 @@ func TestNetwork_Start(t *testing.T) {
 		assert.EqualError(t, err, "cm failed")
 	})
 }
+
 func TestNetwork_selfTestNutsCommAddress(t *testing.T) {
 	t.Run("TLS", func(t *testing.T) {
 		// trust config
@@ -1270,7 +1271,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 			health := cxt.network.CheckHealth()
 
 			assert.Equal(t, core.HealthStatusDown, health[healthAuthConfig].Status)
-			assert.Equal(t, "DID document can't be resolved (did=did:nuts:test): supplied DID is deactivated", health[healthAuthConfig].Details)
+			assert.Equal(t, "cannot verify DID ownership: DID document can't be resolved (did=did:nuts:test): supplied DID is deactivated", health[healthAuthConfig].Details)
 		})
 	})
 
