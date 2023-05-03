@@ -194,7 +194,7 @@ func (s selfsignedVerificationResult) DisclosedAttribute(key string) string {
 }
 
 func (s selfsignedVerificationResult) ContractAttribute(key string) string {
-	return s.ContractAttribute(key)
+	return s.contractAttributes[key]
 }
 
 func (s selfsignedVerificationResult) DisclosedAttributes() map[string]string {

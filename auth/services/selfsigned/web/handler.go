@@ -37,6 +37,9 @@ import (
 //go:embed templates/*
 var webTemplates embed.FS
 
+// donePagePathTemplate is the path to the done page, %s is the session ID
+const donePagePathTemplate = `/public/auth/v1/means/employeeid/%s/done`
+
 type Handler struct {
 	store types.SessionStore
 }
@@ -85,7 +88,7 @@ func (h Handler) HandleEmployeeIDForm(ctx echo.Context, sessionID string, params
 
 	// check if the session has expired
 	if time.Now().After(session.ExpiresAt) {
-		session.Status = types.SessionExpired
+		h.store.CheckAndSetStatus(sessionID, types.SessionInProgress, types.SessionExpired)
 		log.Logger().Warn("could not sign contract, session has expired")
 		return echo.NewHTTPError(http.StatusNotFound, "session expired")
 	}
@@ -111,7 +114,7 @@ func (h Handler) HandleEmployeeIDForm(ctx echo.Context, sessionID string, params
 		return echo.NewHTTPError(http.StatusNotFound, "no session with status in-progress found")
 	}
 
-	return ctx.Redirect(http.StatusFound, fmt.Sprintf("./%s/done", sessionID))
+	return ctx.Redirect(http.StatusFound, fmt.Sprintf(donePagePathTemplate, sessionID))
 }
 
 func (h Handler) RenderEmployeeIDDonePage(ctx echo.Context, sessionID string) error {

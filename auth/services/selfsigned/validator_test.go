@@ -281,3 +281,25 @@ func Test_validateRequiredAttributes(t *testing.T) {
 		})
 	}
 }
+
+// tests for selfsignedVerificationResult
+func Test_selfsignedVerificationResult(t *testing.T) {
+	t.Run("ok - getters return expected values", func(t *testing.T) {
+		ssvr := selfsignedVerificationResult{
+			Status:              "success",
+			InvalidReason:       "timeout",
+			contractAttributes:  map[string]string{"cAttr1": "test1"},
+			disclosedAttributes: map[string]string{"dAttr1": "test2"},
+		}
+
+		vr := contract.VPVerificationResult(ssvr)
+
+		assert.Equal(t, contract.State("success"), vr.Validity())
+		assert.Equal(t, "timeout", vr.Reason())
+		assert.Equal(t, map[string]string{"cAttr1": "test1"}, vr.ContractAttributes())
+		assert.Equal(t, map[string]string{"dAttr1": "test2"}, vr.DisclosedAttributes())
+		assert.Equal(t, "NutsSelfSignedPresentation", vr.VPType())
+		assert.Equal(t, "test1", vr.ContractAttribute("cAttr1"))
+		assert.Equal(t, "test2", vr.DisclosedAttribute("dAttr1"))
+	})
+}

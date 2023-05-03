@@ -122,6 +122,47 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 		assert.NotNil(t, vp)
 	})
 
+	t.Run("err - status changed during request", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		mockStore := types.NewMockSessionStore(ctrl)
+		mockStore.EXPECT().Load("123").Return(
+			types.Session{
+				Status: types.SessionCompleted,
+			}, true)
+		mockStore.EXPECT().CheckAndSetStatus("123", types.SessionCompleted, types.SessionVPRequested).Return(false)
+		mockStore.EXPECT().Delete("123")
+		ss := signer{store: mockStore}
+		res, err := ss.SigningSessionStatus(ctx, "123")
+		assert.ErrorIs(t, err, services.ErrSessionNotFound)
+		assert.Nil(t, res)
+	})
+
+	t.Run("ok - all terminal statuses get deleted", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		mockStore := types.NewMockSessionStore(ctrl)
+		terminalStates := []string{
+			types.SessionErrored,
+			types.SessionCancelled,
+			types.SessionExpired,
+			types.SessionVPRequested,
+		}
+		for _, state := range terminalStates {
+			mockStore.EXPECT().Load("123").Return(
+				types.Session{
+					Status: state,
+				}, true)
+		}
+
+		mockStore.EXPECT().Delete("123").Times(len(terminalStates))
+
+		ss := signer{store: mockStore}
+		for _, state := range terminalStates {
+			res, err := ss.SigningSessionStatus(ctx, "123")
+			assert.NoError(t, err)
+			assert.Equal(t, state, res.Status())
+		}
+	})
+
 	t.Run("correct VC options are passed to issuer", func(t *testing.T) {
 		mockContext := newMockContext(t)
 		ss := NewSigner(mockContext.vcr, "").(*signer)
