@@ -38,7 +38,7 @@ import (
 var webTemplates embed.FS
 
 // donePagePathTemplate is the path to the done page, %s is the session ID
-const donePagePathTemplate = `/public/auth/v1/means/employeeid/%s/done`
+const donePagePathTemplate = `./%s/done`
 
 type Handler struct {
 	store types.SessionStore
