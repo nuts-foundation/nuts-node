@@ -18,6 +18,13 @@
 
 package auth
 
+import (
+	"github.com/nuts-foundation/nuts-node/auth/services"
+	"github.com/nuts-foundation/nuts-node/auth/services/dummy"
+	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned"
+	"github.com/nuts-foundation/nuts-node/auth/services/uzi"
+)
+
 // Config holds all the configuration params
 type Config struct {
 	Irma                IrmaConfig `koanf:"irma"`
@@ -40,9 +47,14 @@ func DefaultConfig() Config {
 			SchemeManager:     "pbdf",
 			AutoUpdateSchemas: true,
 		},
-		HTTPTimeout:         30,
-		ClockSkew:           5000,
-		ContractValidators:  []string{"irma", "uzi", "selfsigned", "dummy"},
+		HTTPTimeout: 30,
+		ClockSkew:   5000,
+		ContractValidators: []string{
+			string(services.IrmaFormat),
+			uzi.ContractFormat,
+			dummy.ContractFormat,
+			selfsigned.ContractFormat,
+		},
 		AccessTokenLifeSpan: 60, // seconds, as specced in RFC003
 	}
 }
