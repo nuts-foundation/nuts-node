@@ -148,6 +148,9 @@ func (e embeddedFSDocumentLoader) LoadDocument(path string) (*ld.RemoteDocument,
 // SchemaOrgContext contains the schema.org context url
 const SchemaOrgContext = "https://schema.org"
 
+// SchemaOrgContextURI contains the schema.org context url as URI
+var SchemaOrgContextURI = ssi.MustParseURI("https://schema.org")
+
 // W3cVcContext contains the w3c VerifiableCredential type context
 const W3cVcContext = "https://www.w3.org/2018/credentials/v1"
 

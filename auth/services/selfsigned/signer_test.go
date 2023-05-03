@@ -179,6 +179,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 				assert.Equal(t, employer.URI(), credential.Issuer)
 				assert.Equal(t, []ssi.URI{ssi.MustParseURI("NutsEmployeeCredential")}, credential.Type)
 
+				assert.True(t, credential.ContainsContext(ssi.MustParseURI("https://schema.org")))
 				credentialSubject := credential.CredentialSubject[0].(map[string]interface{})
 				assert.Equal(t, employer.String(), credentialSubject["id"])
 				assert.Equal(t, "Organization", credentialSubject["@type"])
