@@ -111,7 +111,7 @@ func (h Handler) HandleEmployeeIDForm(ctx echo.Context, sessionID string, params
 		return echo.NewHTTPError(http.StatusNotFound, "no session with status in-progress found")
 	}
 
-	return ctx.Redirect(http.StatusFound, fmt.Sprintf("/public/auth/v1/means/employeeid/%s/done", sessionID))
+	return ctx.Redirect(http.StatusFound, fmt.Sprintf("./%s/done", sessionID))
 }
 
 func (h Handler) RenderEmployeeIDDonePage(ctx echo.Context, sessionID string) error {
