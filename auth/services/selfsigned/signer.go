@@ -182,8 +182,7 @@ func (v *signer) StartSigningSession(userContract contract.Contract, params map[
 	s.Employer = employeeDID.String()
 	v.store.Store(sessionID, s)
 
-	urlStr := fmt.Sprintf("%s/%s/%s", v.publicURL, "public/auth/v1/means/employeeid", sessionID)
-	pageURL, err := url.ParseRequestURI(urlStr)
+	pageURL, err := url.ParseRequestURI(core.JoinURLPaths(v.publicURL, "public/auth/v1/means/employeeid", sessionID))
 	if err != nil {
 		return nil, err
 	}
