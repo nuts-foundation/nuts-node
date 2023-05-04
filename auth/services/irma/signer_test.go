@@ -74,7 +74,7 @@ func TestSessionPtr_SessionID(t *testing.T) {
 func TestService_StartSigningSession(t *testing.T) {
 	correctContractText := "EN:PractitionerLogin:v3 I hereby declare to act on behalf of verpleeghuis De nootjes located in Caretown. This declaration is valid from maandag 1 oktober 12:00:00 until maandag 1 oktober 13:00:00."
 
-	t.Run("error - irma.StartSession returns error", func(t *testing.T) {
+	t.Run("error - irma.startSession returns error", func(t *testing.T) {
 		ctx := serviceWithMocks(t)
 
 		irmaMock := ctx.service.IrmaSessionHandler.(*mockIrmaClient)

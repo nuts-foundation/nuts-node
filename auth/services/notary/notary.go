@@ -44,8 +44,6 @@ import (
 	pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	irmago "github.com/privacybydesign/irmago"
-	"github.com/privacybydesign/irmago/server/irmaserver"
 )
 
 // ErrMissingOrganizationKey is used to indicate that this node has no private key of the indicated organization.
@@ -157,23 +155,20 @@ func (n *notary) Configure() error {
 	n.signers = make(map[string]contract.Signer)
 
 	if n.config.hasContractValidator(irma.ContractFormat) {
-		irmaServer, irmaConfig, err := n.irmaServerWithConfig()
+		cfg := irma.Config{
+			PublicURL:             n.config.PublicURL,
+			IrmaConfigPath:        n.config.IrmaConfigPath,
+			IrmaSchemeManager:     n.config.IrmaSchemeManager,
+			AutoUpdateIrmaSchemas: n.config.AutoUpdateIrmaSchemas,
+			// Deduce IRMA production mode from the nuts strict-mode
+			Production: n.config.StrictMode,
+		}
+		signer, verifier, err := irma.NewSignerAndVerifier(cfg)
 		if err != nil {
 			return err
 		}
-
-		irmaSigner := irma.Signer{
-			IrmaSessionHandler: &irma.DefaultIrmaSessionHandler{I: irmaServer},
-			IrmaSchemeManager:  n.config.IrmaSchemeManager,
-		}
-
-		irmaVerifier := irma.Verifier{
-			IrmaConfig: irmaConfig,
-			Templates:  contract.StandardContractTemplates,
-		}
-
-		n.verifiers[irma.VerifiablePresentationType] = irmaVerifier
-		n.signers[irma.ContractFormat] = irmaSigner
+		n.verifiers[irma.VerifiablePresentationType] = verifier
+		n.signers[irma.ContractFormat] = signer
 	}
 
 	if n.config.hasContractValidator(dummy.ContractFormat) && !n.config.StrictMode {
@@ -258,28 +253,6 @@ func (n *notary) SigningSessionStatus(ctx context.Context, sessionID string) (co
 		}
 	}
 	return nil, services.ErrSessionNotFound
-}
-
-func (n *notary) irmaServerWithConfig() (*irmaserver.Server, *irmago.Configuration, error) {
-	validatorConfig := irma.Config{
-		PublicURL:             n.config.PublicURL,
-		IrmaConfigPath:        n.config.IrmaConfigPath,
-		IrmaSchemeManager:     n.config.IrmaSchemeManager,
-		AutoUpdateIrmaSchemas: n.config.AutoUpdateIrmaSchemas,
-		// Deduce IRMA production mode from the nuts strict-mode
-		Production: n.config.StrictMode,
-	}
-
-	irmaConfig, err := irma.GetIrmaConfig(validatorConfig)
-	if err != nil {
-		return nil, nil, err
-	}
-	irmaServer, err := irma.GetIrmaServer(validatorConfig, irmaConfig)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return irmaServer, irmaConfig, nil
 }
 
 func (n *notary) Routes(router core.EchoRouter) {

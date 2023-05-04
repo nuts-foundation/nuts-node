@@ -41,14 +41,14 @@ type mockIrmaClient struct {
 	sessionToken  string
 }
 
-func (m *mockIrmaClient) GetSessionResult(token string) (*irmaservercore.SessionResult, error) {
+func (m *mockIrmaClient) getSessionResult(token string) (*irmaservercore.SessionResult, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
 	return m.sessionResult, nil
 }
 
-func (m *mockIrmaClient) StartSession(request interface{}, handler irmaservercore.SessionHandler) (*irma.Qr, irma.RequestorToken, *irma.FrontendSessionRequest, error) {
+func (m *mockIrmaClient) startSession(request interface{}, handler irmaservercore.SessionHandler) (*irma.Qr, irma.RequestorToken, *irma.FrontendSessionRequest, error) {
 	if m.err != nil {
 		return nil, "", nil, m.err
 	}
@@ -56,7 +56,7 @@ func (m *mockIrmaClient) StartSession(request interface{}, handler irmaservercor
 	return m.irmaQr, irma.RequestorToken(m.sessionToken), nil, nil
 }
 
-func (m *mockIrmaClient) HandlerFunc() http.HandlerFunc {
+func (m *mockIrmaClient) handlerFunc() http.HandlerFunc {
 	//TODO implement me
 	panic("implement me")
 }
@@ -148,7 +148,7 @@ func defaultVerifier(t *testing.T) (contract.VPVerifier, crypto.KeyStore) {
 		PublicURL:             "http://" + address,
 	}
 
-	irmaConfig, err := GetIrmaConfig(serviceConfig)
+	irmaConfig, err := getIrmaConfig(serviceConfig)
 	if err != nil {
 		t.Fatal(err)
 	}

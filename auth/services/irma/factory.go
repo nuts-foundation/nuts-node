@@ -20,6 +20,7 @@ package irma
 
 import (
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"os"
 	"path/filepath"
 
@@ -49,23 +50,43 @@ type Config struct {
 	Production bool
 }
 
-// GetIrmaConfig creates and returns an IRMA config.
+// NewSignerAndVerifier creates a new IRMA signer and verifier.
+func NewSignerAndVerifier(cfg Config) (*Signer, *Verifier, error) {
+	irmaConfig, err := getIrmaConfig(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	irmaServer, err := getIrmaServer(cfg, irmaConfig)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &Signer{
+			IrmaSessionHandler: &defaultIrmaSessionHandler{server: irmaServer},
+			IrmaSchemeManager:  cfg.IrmaSchemeManager,
+		}, &Verifier{
+			IrmaConfig: irmaConfig,
+			Templates:  contract.StandardContractTemplates,
+		}, nil
+}
+
+// getIrmaConfig creates and returns an IRMA config.
 // The config sets the given irma path or a temporary folder. Then it downloads the schemas.
-func GetIrmaConfig(validatorConfig Config) (irmaConfig *irma.Configuration, err error) {
-	if err = os.MkdirAll(validatorConfig.IrmaConfigPath, 0700); err != nil {
+func getIrmaConfig(cfg Config) (irmaConfig *irma.Configuration, err error) {
+	if err = os.MkdirAll(cfg.IrmaConfigPath, 0700); err != nil {
 		err = fmt.Errorf("could not create IRMA config directory: %w", err)
 		return
 	}
 
 	options := irma.ConfigurationOptions{}
-	irmaConfig, err = irma.NewConfiguration(validatorConfig.IrmaConfigPath, options)
+	irmaConfig, err = irma.NewConfiguration(cfg.IrmaConfigPath, options)
 	if err != nil {
 		return
 	}
 
 	// This fixes an IRMA bug https://github.com/privacybydesign/irmago/issues/139
 	// It removes any temporary "tempscheme123" directories, leftover from a previous unfinished schema update.
-	dirs, err := filepath.Glob(filepath.Join(validatorConfig.IrmaConfigPath, "tempscheme*"))
+	dirs, err := filepath.Glob(filepath.Join(cfg.IrmaConfigPath, "tempscheme*"))
 	if err != nil {
 		return nil, err
 	}
@@ -83,9 +104,9 @@ func GetIrmaConfig(validatorConfig Config) (irmaConfig *irma.Configuration, err 
 	return
 }
 
-// GetIrmaServer creates and starts the irma server instance.
+// getIrmaServer creates and starts the irma server instance.
 // The server can be used by a IRMA client like the app to handle IRMA sessions
-func GetIrmaServer(validatorConfig Config, irmaConfig *irma.Configuration) (*irmaserver.Server, error) {
+func getIrmaServer(cfg Config, irmaConfig *irma.Configuration) (*irmaserver.Server, error) {
 	// Customize logger to have it clearly log "IRMA" in module field.
 	// We need a decorator because IRMA config takes a logrus.Logger instead of logrus.Entry
 	logger := *logrus.StandardLogger()
@@ -100,12 +121,12 @@ func GetIrmaServer(validatorConfig Config, irmaConfig *irma.Configuration) (*irm
 
 	config := &server.Configuration{
 		IrmaConfiguration:    irmaConfig,
-		URL:                  validatorConfig.PublicURL + IrmaMountPath,
+		URL:                  cfg.PublicURL + IrmaMountPath,
 		Logger:               &logger,
 		Verbose:              irmaLogLevel(&logger),
-		SchemesPath:          validatorConfig.IrmaConfigPath,
-		DisableSchemesUpdate: !validatorConfig.AutoUpdateIrmaSchemas,
-		Production:           validatorConfig.Production,
+		SchemesPath:          cfg.IrmaConfigPath,
+		DisableSchemesUpdate: !cfg.AutoUpdateIrmaSchemas,
+		Production:           cfg.Production,
 	}
 
 	log.Logger().Debugf("Initializing IRMA library (baseURL=%s)...", config.URL)

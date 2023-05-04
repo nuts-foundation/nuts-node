@@ -105,7 +105,7 @@ type middlewareImpl struct {
 	skipper SkipperFunc
 }
 
-// Handler returns an echo HandlerFunc for processing incoming requests
+// Handler returns an echo handlerFunc for processing incoming requests
 func (m middlewareImpl) Handler(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(context echo.Context) error {
 		return m.checkConnectionAuthorization(context, next)
