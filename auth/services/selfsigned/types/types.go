@@ -37,8 +37,8 @@ type Session struct {
 	Contract  string
 	Secret    string
 	Status    string
-	Employer  string   `json:"employer"`
-	Employee  Employee `json:"employee"`
+	Employer  string
+	Employee  Employee
 }
 
 func (s Session) CredentialSubject() []interface{} {
@@ -65,10 +65,10 @@ func (s Session) CredentialSubject() []interface{} {
 }
 
 type Employee struct {
-	Identifier string `json:"identifier"`
-	RoleName   string `json:"roleName"`
-	Initials   string `json:"initials"`
-	FamilyName string `json:"familyName"`
+	Identifier string
+	RoleName   string
+	Initials   string
+	FamilyName string
 }
 
 type EmployeeIdentityCredentialSubject struct {

@@ -160,16 +160,13 @@ type mockContext struct {
 func serviceWithMocks(t *testing.T) *mockContext {
 	ctrl := gomock.NewController(t)
 	mockVCR := vcr.NewMockResolver(ctrl)
-	mockSigner := crypto.NewMockJWTSigner(ctrl)
 
 	service := &Signer{
 		IrmaSessionHandler: &mockIrmaClient{},
-		Signer:             mockSigner,
 	}
 
 	return &mockContext{
 		ctrl:       ctrl,
-		signer:     mockSigner,
 		vcResolver: mockVCR,
 		service:    service,
 	}

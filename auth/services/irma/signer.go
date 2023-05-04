@@ -25,7 +25,6 @@ import (
 	"fmt"
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/sirupsen/logrus"
 	"net/http"
 	"os"
@@ -45,9 +44,8 @@ import (
 
 // Signer signs contracts using the IRMA logic.
 type Signer struct {
-	IrmaSessionHandler SigningSessionHandler
+	IrmaSessionHandler signingSessionHandler
 	IrmaSchemeManager  string
-	Signer             nutsCrypto.JWTSigner
 	StrictMode         bool
 }
 
@@ -197,18 +195,18 @@ func printQrCode(qrcode string) {
 	qrterminal.GenerateWithConfig(qrcode, config)
 }
 
-// SigningSessionHandler is an abstraction for the Irma Server, mainly for enabling better testing
-type SigningSessionHandler interface {
+// signingSessionHandler is an abstraction for the Irma Server, mainly for enabling better testing
+type signingSessionHandler interface {
 	GetSessionResult(token string) (*server.SessionResult, error)
 	StartSession(request interface{}, handler server.SessionHandler) (*irmago.Qr, irmago.RequestorToken, *irmago.FrontendSessionRequest, error)
 	HandlerFunc() http.HandlerFunc
 }
 
-// Compile time check if the DefaultIrmaSessionHandler implements the SigningSessionHandler interface
-var _ SigningSessionHandler = (*DefaultIrmaSessionHandler)(nil)
+// Compile time check if the DefaultIrmaSessionHandler implements the signingSessionHandler interface
+var _ signingSessionHandler = (*DefaultIrmaSessionHandler)(nil)
 
 // DefaultIrmaSessionHandler is a wrapper for the Irma Server
-// It implements the SigningSessionHandler interface
+// It implements the signingSessionHandler interface
 type DefaultIrmaSessionHandler struct {
 	I *irmaserver.Server
 }

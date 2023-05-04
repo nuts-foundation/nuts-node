@@ -164,7 +164,6 @@ func (n *notary) Configure() error {
 
 		irmaSigner := irma.Signer{
 			IrmaSessionHandler: &irma.DefaultIrmaSessionHandler{I: irmaServer},
-			Signer:             n.privateKeyStore,
 			IrmaSchemeManager:  n.config.IrmaSchemeManager,
 		}
 
