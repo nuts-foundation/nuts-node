@@ -48,7 +48,7 @@ type signer struct {
 	store     types.SessionStore
 	vcr       vcr.VCR
 	publicURL string
-	// The time the user has to sign the contract
+	// signingDuration is the time the user has to sign the contract
 	signingDuration time.Duration
 }
 
