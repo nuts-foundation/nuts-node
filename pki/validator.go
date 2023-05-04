@@ -169,6 +169,9 @@ func (v *validator) syncLoop(ctx context.Context) {
 	}
 }
 
+// softfail does not reject certificates if the CRL (or denylist) is missing or expired
+var softfail = true
+
 func (v *validator) Validate(chain []*x509.Certificate) error {
 	var cert *x509.Certificate
 	var err error
@@ -176,7 +179,13 @@ func (v *validator) Validate(chain []*x509.Certificate) error {
 		cert = chain[len(chain)-1-i]
 		// check in reverse order to prevent CRL expiration errors due to revoked CAs no longer issuing CRLs
 		if err = v.validateCert(cert); err != nil {
-			return fmt.Errorf("%w: subject=%s, S/N=%s, issuer=%s", err, cert.Subject.String(), cert.SerialNumber.String(), cert.Issuer.String())
+			errOut := fmt.Errorf("%w: subject=%s, S/N=%s, issuer=%s", err, cert.Subject.String(), cert.SerialNumber.String(), cert.Issuer.String())
+			if softfail && (errors.Is(err, ErrCRLExpired) || errors.Is(err, ErrCRLMissing) || errors.Is(err, ErrDenylistMissing)) {
+				// Accept the certificate even if it cannot be properly validated
+				logger().WithError(errOut).Error("Certificate CRL check softfail bypass. Might be unsafe, find cause of failure!")
+				continue
+			}
+			return errOut
 		}
 	}
 	return nil
@@ -285,7 +294,8 @@ func (v *validator) validateCert(cert *x509.Certificate) error {
 			return ErrCertRevoked
 		}
 
-		// check CRL status
+		// check CRL status.
+		// This check comes last for softfail purposes. This way a revoked certificate on an outdated CRL is still treated as revoked.
 		if !nowFunc().Before(crl.list.NextUpdate) {
 			// CA expiration is checked earlier in the chain
 			return ErrCRLExpired
