@@ -16,7 +16,7 @@ import (
 )
 
 func Test_GenerateTestData(t *testing.T) {
-	store := true
+	store := false
 
 	contextLoader, _ := jsonld.NewContextLoader(false, jsonld.DefaultContextConfig())
 
