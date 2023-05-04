@@ -42,7 +42,7 @@ func DefaultConfig() Config {
 		},
 		HTTPTimeout:         30,
 		ClockSkew:           5000,
-		ContractValidators:  []string{"irma", "uzi", "dummy"},
+		ContractValidators:  []string{"irma", "uzi", "selfsigned", "dummy"},
 		AccessTokenLifeSpan: 60, // seconds, as specced in RFC003
 	}
 }
