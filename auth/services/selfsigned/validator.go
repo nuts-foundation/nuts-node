@@ -25,6 +25,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
+	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/types"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"time"
@@ -88,7 +89,7 @@ func (v validator) VerifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (c
 	}, nil
 }
 
-func (v validator) verifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (credentialSubject employeeIdentityCredentialSubject, proof vc.JSONWebSignature2020Proof, resultErr error) {
+func (v validator) verifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (credentialSubject types.EmployeeIdentityCredentialSubject, proof vc.JSONWebSignature2020Proof, resultErr error) {
 	vcs, err := v.vcr.Verifier().VerifyVP(vp, true, validAt)
 	if err != nil {
 		if errors.As(err, &verifier.VerificationError{}) {
@@ -120,7 +121,7 @@ func (v validator) verifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (c
 		resultErr = newVerificationError("signer must be credential issuer")
 		return
 	}
-	var credentialSubjects []employeeIdentityCredentialSubject
+	var credentialSubjects []types.EmployeeIdentityCredentialSubject
 	_ = vc.UnmarshalCredentialSubject(&credentialSubjects)
 	if len(credentialSubjects) != 1 {
 		resultErr = newVerificationError("exactly 1 credentialSubject is required")
@@ -135,7 +136,7 @@ func (v validator) verifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (c
 	return credentialSubject, proof, nil
 }
 
-func validateRequiredAttributes(credentialSubject employeeIdentityCredentialSubject) error {
+func validateRequiredAttributes(credentialSubject types.EmployeeIdentityCredentialSubject) error {
 	// check for mandatory attrs
 	if credentialSubject.Type != "Organization" {
 		return errors.New("credentialSubject.type must be \"Organization\"")

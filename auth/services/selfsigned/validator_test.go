@@ -261,11 +261,11 @@ func TestValidator_VerifyVP(t *testing.T) {
 }
 
 func Test_validateRequiredAttributes(t *testing.T) {
-	valid := employeeIdentityCredentialSubject{
+	valid := types.EmployeeIdentityCredentialSubject{
 		Type: "Organization",
-		Member: employeeIdentityCredentialMember{
+		Member: types.EmployeeIdentityCredentialMember{
 			Identifier: "test@example.com",
-			Member: employeeIdentityCredentialMemberMember{
+			Member: types.EmployeeIdentityCredentialMemberMember{
 				FamilyName: "Tester",
 				Initials:   "T",
 				Type:       "Person",
@@ -285,41 +285,41 @@ func Test_validateRequiredAttributes(t *testing.T) {
 
 	tests := []struct {
 		expected  string
-		parameter func(*employeeIdentityCredentialSubject)
+		parameter func(*types.EmployeeIdentityCredentialSubject)
 	}{
 		{
 			"credentialSubject.type must be \"Organization\"",
-			func(subject *employeeIdentityCredentialSubject) {
+			func(subject *types.EmployeeIdentityCredentialSubject) {
 				subject.Type = "Not Organization"
 			},
 		},
 		{
 			"credentialSubject.member.identifier is required",
-			func(subject *employeeIdentityCredentialSubject) {
+			func(subject *types.EmployeeIdentityCredentialSubject) {
 				subject.Member.Identifier = ""
 			},
 		},
 		{
 			"credentialSubject.member.member.initials is required",
-			func(subject *employeeIdentityCredentialSubject) {
+			func(subject *types.EmployeeIdentityCredentialSubject) {
 				subject.Member.Member.Initials = ""
 			},
 		},
 		{
 			"credentialSubject.member.member.familyName is required",
-			func(subject *employeeIdentityCredentialSubject) {
+			func(subject *types.EmployeeIdentityCredentialSubject) {
 				subject.Member.Member.FamilyName = ""
 			},
 		},
 		{
 			"credentialSubject.member.type must be \"EmployeeRole\"",
-			func(subject *employeeIdentityCredentialSubject) {
+			func(subject *types.EmployeeIdentityCredentialSubject) {
 				subject.Member.Type = "Not EmployeeRole"
 			},
 		},
 		{
 			"credentialSubject.member.member.type must be \"Person\"",
-			func(subject *employeeIdentityCredentialSubject) {
+			func(subject *types.EmployeeIdentityCredentialSubject) {
 				subject.Member.Member.Type = "Not Person"
 			},
 		},

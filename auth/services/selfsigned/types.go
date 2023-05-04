@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
 // ContractFormat is the contract format type
@@ -64,25 +63,6 @@ func (s signingSessionResult) Status() string {
 
 func (s signingSessionResult) VerifiablePresentation() (*vc.VerifiablePresentation, error) {
 	return s.verifiablePresentation, nil
-}
-
-type employeeIdentityCredentialSubject struct {
-	credential.BaseCredentialSubject                                  // ID
-	Type                             string                           `json:"type"`
-	Member                           employeeIdentityCredentialMember `json:"member"`
-}
-
-type employeeIdentityCredentialMember struct {
-	Identifier string                                 `json:"identifier"`
-	Member     employeeIdentityCredentialMemberMember `json:"member"`
-	RoleName   string                                 `json:"roleName"`
-	Type       string                                 `json:"type"`
-}
-
-type employeeIdentityCredentialMemberMember struct {
-	FamilyName string `json:"familyName"`
-	Initials   string `json:"initials"`
-	Type       string `json:"type"`
 }
 
 type verificationError struct {

@@ -18,7 +18,11 @@
 
 package types
 
-import "time"
+import (
+	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"time"
+)
 
 type SessionStore interface {
 	Store(sessionID string, session Session)
@@ -38,25 +42,26 @@ type Session struct {
 }
 
 func (s Session) CredentialSubject() []interface{} {
-	person := map[string]string{
-		"type":       "Person",
-		"initials":   s.Employee.Initials,
-		"familyName": s.Employee.FamilyName,
+	subject := EmployeeIdentityCredentialSubject{
+		BaseCredentialSubject: credential.BaseCredentialSubject{
+			ID: s.Employer,
+		},
+		Type: "Organization",
+		Member: EmployeeIdentityCredentialMember{
+			Identifier: s.Employee.Identifier,
+			Member: EmployeeIdentityCredentialMemberMember{
+				FamilyName: s.Employee.FamilyName,
+				Initials:   s.Employee.Initials,
+				Type:       "Person",
+			},
+			RoleName: s.Employee.RoleName,
+			Type:     "EmployeeRole",
+		},
 	}
-	role := map[string]interface{}{
-		"member":     person,
-		"roleName":   s.Employee.RoleName,
-		"type":       "EmployeeRole",
-		"identifier": s.Employee.Identifier,
-	}
-	credentialSubject := map[string]interface{}{
-		"@type":  "Organization",
-		"id":     s.Employer,
-		"member": role,
-	}
-	return []interface{}{
-		credentialSubject,
-	}
+	data, _ := json.Marshal(subject)
+	result := map[string]interface{}{}
+	_ = json.Unmarshal(data, &result)
+	return []interface{}{result}
 }
 
 type Employee struct {
@@ -64,6 +69,25 @@ type Employee struct {
 	RoleName   string `json:"roleName"`
 	Initials   string `json:"initials"`
 	FamilyName string `json:"familyName"`
+}
+
+type EmployeeIdentityCredentialSubject struct {
+	credential.BaseCredentialSubject
+	Type   string                           `json:"type"`
+	Member EmployeeIdentityCredentialMember `json:"member"`
+}
+
+type EmployeeIdentityCredentialMember struct {
+	Identifier string                                 `json:"identifier"`
+	Member     EmployeeIdentityCredentialMemberMember `json:"member"`
+	RoleName   string                                 `json:"roleName"`
+	Type       string                                 `json:"type"`
+}
+
+type EmployeeIdentityCredentialMemberMember struct {
+	FamilyName string `json:"familyName"`
+	Initials   string `json:"initials"`
+	Type       string `json:"type"`
 }
 
 // SessionCreated represents the session state after creation
