@@ -44,9 +44,9 @@ import (
 
 // Signer signs contracts using the IRMA logic.
 type Signer struct {
-	IrmaSessionHandler signingSessionHandler
-	IrmaSchemeManager  string
-	StrictMode         bool
+	sessionHandler signingSessionHandler
+	schemeManager  string
+	strictMode     bool
 }
 
 // SessionPtr should be made private when v0 is removed
@@ -81,7 +81,7 @@ const NutsIrmaSignedContract = "NutsIrmaSignedContract"
 func (v Signer) StartSigningSession(contract contract.Contract, _ map[string]interface{}) (contract.SessionPointer, error) {
 	// Put the template in an IRMA envelope
 	signatureRequest := irmago.NewSignatureRequest(contract.RawContractText)
-	schemeManager := v.IrmaSchemeManager
+	schemeManager := v.schemeManager
 
 	var attributes irmago.AttributeCon
 	for _, att := range contract.Template.SignerAttributes {
@@ -98,7 +98,7 @@ func (v Signer) StartSigningSession(contract contract.Contract, _ map[string]int
 	}
 
 	// Start an IRMA session
-	sessionPointer, token, _, err := v.IrmaSessionHandler.startSession(signatureRequest, func(result *server.SessionResult) {
+	sessionPointer, token, _, err := v.sessionHandler.StartSession(signatureRequest, func(result *server.SessionResult) {
 		log.Logger().Debug("Session done")
 		log.Logger().Trace(server.ToJson(result))
 	})
@@ -123,7 +123,7 @@ func (v Signer) StartSigningSession(contract contract.Contract, _ map[string]int
 }
 
 func (v Signer) Routes(router core.EchoRouter) {
-	rewriteFunc := http.StripPrefix(IrmaMountPath, v.IrmaSessionHandler.handlerFunc())
+	rewriteFunc := http.StripPrefix(IrmaMountPath, v.sessionHandler.HandlerFunc())
 	irmaEchoHandler := echo.WrapHandler(rewriteFunc)
 	methods := []string{http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodConnect, http.MethodOptions, http.MethodTrace}
 
@@ -135,7 +135,7 @@ func (v Signer) Routes(router core.EchoRouter) {
 // SigningSessionStatus returns the current status of a certain session.
 // It returns nil if the session is not found
 func (v Signer) SigningSessionStatus(_ context.Context, sessionID string) (contract.SigningSessionResult, error) {
-	result, err := v.IrmaSessionHandler.getSessionResult(sessionID)
+	result, err := v.sessionHandler.GetSessionResult(irmago.RequestorToken(sessionID))
 	if err != nil {
 		if _, ok := err.(*irmaserver.UnknownSessionError); ok {
 			return nil, services.ErrSessionNotFound
@@ -197,30 +197,7 @@ func printQrCode(qrcode string) {
 
 // signingSessionHandler is an abstraction for the Irma Server, mainly for enabling better testing
 type signingSessionHandler interface {
-	getSessionResult(token string) (*server.SessionResult, error)
-	startSession(request interface{}, handler server.SessionHandler) (*irmago.Qr, irmago.RequestorToken, *irmago.FrontendSessionRequest, error)
-	handlerFunc() http.HandlerFunc
-}
-
-// Compile time check if the defaultIrmaSessionHandler implements the signingSessionHandler interface
-var _ signingSessionHandler = (*defaultIrmaSessionHandler)(nil)
-
-// defaultIrmaSessionHandler is a wrapper for the Irma Server
-// It implements the signingSessionHandler interface
-type defaultIrmaSessionHandler struct {
-	server *irmaserver.Server
-}
-
-// GetSessionResult forwards to Irma Server instance
-func (d *defaultIrmaSessionHandler) getSessionResult(token string) (*server.SessionResult, error) {
-	return d.server.GetSessionResult(irmago.RequestorToken(token))
-}
-
-// StartSession forwards to Irma Server instance
-func (d *defaultIrmaSessionHandler) startSession(request interface{}, handler server.SessionHandler) (*irmago.Qr, irmago.RequestorToken, *irmago.FrontendSessionRequest, error) {
-	return d.server.StartSession(request, handler)
-}
-
-func (d *defaultIrmaSessionHandler) handlerFunc() http.HandlerFunc {
-	return d.server.HandlerFunc()
+	GetSessionResult(token irmago.RequestorToken) (*server.SessionResult, error)
+	StartSession(request interface{}, handler server.SessionHandler) (*irmago.Qr, irmago.RequestorToken, *irmago.FrontendSessionRequest, error)
+	HandlerFunc() http.HandlerFunc
 }

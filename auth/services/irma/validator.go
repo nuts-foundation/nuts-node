@@ -76,7 +76,7 @@ func (v Verifier) VerifyVP(vp vc.VerifiablePresentation, checkTime *time.Time) (
 		return nil, err
 	}
 
-	cvr, err := contractValidator.verifyAll(signedContract.(*SignedIrmaContract), checkTime)
+	cvr, err := contractValidator.verifyAll(signedContract.(*signedIrmaContract), checkTime)
 	if err != nil {
 		return nil, err
 	}

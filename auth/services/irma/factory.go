@@ -62,8 +62,8 @@ func NewSignerAndVerifier(cfg Config) (*Signer, *Verifier, error) {
 	}
 
 	return &Signer{
-			IrmaSessionHandler: &defaultIrmaSessionHandler{server: irmaServer},
-			IrmaSchemeManager:  cfg.IrmaSchemeManager,
+			sessionHandler: irmaServer,
+			schemeManager:  cfg.IrmaSchemeManager,
 		}, &Verifier{
 			IrmaConfig: irmaConfig,
 			Templates:  contract.StandardContractTemplates,

@@ -74,10 +74,10 @@ func TestSessionPtr_SessionID(t *testing.T) {
 func TestService_StartSigningSession(t *testing.T) {
 	correctContractText := "EN:PractitionerLogin:v3 I hereby declare to act on behalf of verpleeghuis De nootjes located in Caretown. This declaration is valid from maandag 1 oktober 12:00:00 until maandag 1 oktober 13:00:00."
 
-	t.Run("error - irma.startSession returns error", func(t *testing.T) {
+	t.Run("error - irma.StartSession returns error", func(t *testing.T) {
 		ctx := serviceWithMocks(t)
 
-		irmaMock := ctx.service.IrmaSessionHandler.(*mockIrmaClient)
+		irmaMock := ctx.service.sessionHandler.(*mockIrmaClient)
 		irmaMock.err = errors.New("some error")
 
 		signedContract, err := contract.ParseContractString(correctContractText, contract.StandardContractTemplates)
@@ -91,7 +91,7 @@ func TestService_StartSigningSession(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := serviceWithMocks(t)
 
-		irmaMock := ctx.service.IrmaSessionHandler.(*mockIrmaClient)
+		irmaMock := ctx.service.sessionHandler.(*mockIrmaClient)
 		irmaMock.irmaQr = &irma.Qr{
 			URL:  "url",
 			Type: "type",
@@ -116,7 +116,7 @@ func TestService_SigningSessionStatus(t *testing.T) {
 	t.Run("error - session not found", func(t *testing.T) {
 		mockCtx := serviceWithMocks(t)
 
-		irmaMock := mockCtx.service.IrmaSessionHandler.(*mockIrmaClient)
+		irmaMock := mockCtx.service.sessionHandler.(*mockIrmaClient)
 		irmaMock.sessionResult = nil
 		irmaMock.err = &irmaserver.UnknownSessionError{}
 
@@ -129,7 +129,7 @@ func TestService_SigningSessionStatus(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		mockCtx := serviceWithMocks(t)
 
-		irmaMock := mockCtx.service.IrmaSessionHandler.(*mockIrmaClient)
+		irmaMock := mockCtx.service.sessionHandler.(*mockIrmaClient)
 		irmaMock.sessionResult = &irmaservercore.SessionResult{
 			Token:  "token",
 			Status: "status",
@@ -162,7 +162,7 @@ func serviceWithMocks(t *testing.T) *mockContext {
 	mockVCR := vcr.NewMockResolver(ctrl)
 
 	service := &Signer{
-		IrmaSessionHandler: &mockIrmaClient{},
+		sessionHandler: &mockIrmaClient{},
 	}
 
 	return &mockContext{
