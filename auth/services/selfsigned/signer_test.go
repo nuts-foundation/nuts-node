@@ -50,16 +50,17 @@ const (
 )
 
 func TestSessionStore_StartSigningSession(t *testing.T) {
+	params := map[string]interface{}{
+		"employer": employer.String(),
+		"employee": map[string]interface{}{
+			"identifier": identifier,
+			"roleName":   roleName,
+			"initials":   initials,
+			"familyName": familyName,
+		},
+	}
+
 	t.Run("add params to session", func(t *testing.T) {
-		params := map[string]interface{}{
-			"employer": employer.String(),
-			"employee": map[string]interface{}{
-				"identifier": identifier,
-				"roleName":   roleName,
-				"initials":   initials,
-				"familyName": familyName,
-			},
-		}
 		ss := NewSigner(nil, "").(*signer)
 		sp, err := ss.StartSigningSession(contract.Contract{RawContractText: testContract}, params)
 		require.NoError(t, err)
@@ -72,6 +73,30 @@ func TestSessionStore_StartSigningSession(t *testing.T) {
 		assert.Equal(t, initials, session.Employee.Initials)
 		assert.Equal(t, identifier, session.Employee.Identifier)
 		assert.Equal(t, roleName, session.Employee.RoleName)
+	})
+
+	t.Run("secret and session ID are different for each session", func(t *testing.T) {
+		const iterations = 100
+		service := NewSigner(nil, "").(*signer)
+		store := service.store.(*memorySessionStore)
+
+		for i := 0; i < iterations; i++ {
+			_, err := service.StartSigningSession(contract.Contract{RawContractText: testContract}, params)
+			require.NoError(t, err)
+			require.Len(t, store.sessions, i+1)
+		}
+
+		// Check every session has a unique secret
+		for id, session := range store.sessions {
+			require.Len(t, id, 32)
+			require.Len(t, session.Secret, 32)
+			for _, otherSession := range store.sessions {
+				if session == otherSession {
+					continue
+				}
+				require.NotEqual(t, session.Secret, otherSession.Secret)
+			}
+		}
 	})
 
 	t.Run("error on invalid JSON", func(t *testing.T) {

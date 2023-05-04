@@ -152,11 +152,18 @@ func (v *signer) StartSigningSession(userContract contract.Contract, params map[
 
 	// TODO: check if the contract name and city matches the employeeDID
 
-	sessionBytes := make([]byte, 16)
-	_, _ = rand.Reader.Read(sessionBytes)
+	const randomByteCount = 16
+	sessionBytes := make([]byte, randomByteCount)
+	count, err := rand.Reader.Read(sessionBytes)
+	if err != nil || count != randomByteCount {
+		return nil, fmt.Errorf("failed to generate session ID: %w", err)
+	}
 
-	secret := make([]byte, 16)
-	_, _ = rand.Reader.Read(sessionBytes)
+	secret := make([]byte, randomByteCount)
+	_, err = rand.Reader.Read(secret)
+	if err != nil || count != randomByteCount {
+		return nil, fmt.Errorf("failed to generate session secret: %w", err)
+	}
 
 	sessionID := hex.EncodeToString(sessionBytes)
 	s := types.Session{
