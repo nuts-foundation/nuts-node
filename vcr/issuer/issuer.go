@@ -41,6 +41,9 @@ import (
 	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 
+// TimeFunc is a function that returns the time used, for e.g. signing time. It can be set for testing purposes.
+var TimeFunc = time.Now
+
 // NewIssuer creates a new issuer which implements the Issuer interface.
 func NewIssuer(store Store, publisher Publisher, docResolver vdr.DocResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config) Issuer {
 	resolver := vdrKeyResolver{docResolver: docResolver, keyResolver: keyStore}
@@ -136,7 +139,7 @@ func (i issuer) buildVC(ctx context.Context, credentialOptions vc.VerifiableCred
 		CredentialSubject: credentialOptions.CredentialSubject,
 		Issuer:            credentialOptions.Issuer,
 		ExpirationDate:    credentialOptions.ExpirationDate,
-		IssuanceDate:      time.Now(),
+		IssuanceDate:      TimeFunc(),
 	}
 	if !unsignedCredential.ContainsContext(vc.VCContextV1URI()) {
 		unsignedCredential.Context = append(unsignedCredential.Context, vc.VCContextV1URI())
@@ -152,7 +155,7 @@ func (i issuer) buildVC(ctx context.Context, credentialOptions vc.VerifiableCred
 	_ = json.Unmarshal(b, &credentialAsMap)
 
 	// Set created date to the issuanceDate if set
-	created := time.Now()
+	created := TimeFunc()
 	if !credentialOptions.IssuanceDate.IsZero() {
 		created = credentialOptions.IssuanceDate
 	}
@@ -238,7 +241,7 @@ func (i issuer) buildRevocation(ctx context.Context, credentialID ssi.URI) (*cre
 	b, _ := json.Marshal(revocation)
 	_ = json.Unmarshal(b, &revocationAsMap)
 
-	ldProof := proof.NewLDProof(proof.ProofOptions{Created: time.Now()})
+	ldProof := proof.NewLDProof(proof.ProofOptions{Created: TimeFunc()})
 	webSig := signature.JSONWebSignature2020{ContextLoader: i.jsonldManager.DocumentLoader(), Signer: i.keyStore}
 	signingResult, err := ldProof.Sign(ctx, revocationAsMap, webSig, assertionKey)
 	if err != nil {

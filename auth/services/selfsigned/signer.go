@@ -86,7 +86,7 @@ func (v *signer) SigningSessionStatus(ctx context.Context, sessionID string) (co
 		}
 
 		// Create the VerifiablePresentation
-		vp, err = v.createVP(ctx, s)
+		vp, err = v.createVP(ctx, s, time.Now())
 		if err != nil {
 			return nil, fmt.Errorf("failed to create VerifiablePresentation: %w", err)
 		}
@@ -113,18 +113,18 @@ func (v *signer) SigningSessionStatus(ctx context.Context, sessionID string) (co
 }
 
 // createVP creates a VerifiablePresentation for the given session
-func (v *signer) createVP(ctx context.Context, s types.Session) (*vc.VerifiablePresentation, error) {
+func (v *signer) createVP(ctx context.Context, s types.Session, issuanceDate time.Time) (*vc.VerifiablePresentation, error) {
 	issuerID, err := did.ParseDID(s.Employer)
 	if err != nil {
 		return nil, fmt.Errorf("invalid issuer DID: %w", err)
 	}
 
-	expirationData := time.Now().Add(24 * time.Hour)
+	expirationData := issuanceDate.Add(24 * time.Hour)
 	credentialOptions := vc.VerifiableCredential{
 		Context:           []ssi.URI{credential.NutsV1ContextURI, jsonld.SchemaOrgContextURI},
 		Type:              []ssi.URI{ssi.MustParseURI(credentialType)},
 		Issuer:            issuerID.URI(),
-		IssuanceDate:      time.Now(),
+		IssuanceDate:      issuanceDate,
 		ExpirationDate:    &expirationData,
 		CredentialSubject: s.CredentialSubject(),
 	}
@@ -136,7 +136,7 @@ func (v *signer) createVP(ctx context.Context, s types.Session) (*vc.VerifiableP
 		AdditionalContexts: []ssi.URI{credential.NutsV1ContextURI},
 		AdditionalTypes:    []ssi.URI{ssi.MustParseURI(VerifiablePresentationType)},
 		ProofOptions: proof.ProofOptions{
-			Created:      time.Now(),
+			Created:      issuanceDate,
 			Challenge:    &s.Contract,
 			ProofPurpose: proof.AuthenticationProofPurpose,
 		},

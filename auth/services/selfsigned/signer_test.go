@@ -42,7 +42,7 @@ import (
 var employer = did.MustParseDID("did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm")
 
 const (
-	testContract = "EN:PractitionerLogin:v3 I hereby declare to act on behalf of CareBears located in Caretown. This declaration is valid from Friday, 14 April 2023 13:40:00 to Saturday, 15 April 2023 13:40:00."
+	testContract = "EN:PractitionerLogin:v3 I hereby declare to act on behalf of CareBears located in Caretown. This declaration is valid from Friday, 14 April 2023 13:40:00 until Saturday, 15 April 2023 13:40:00."
 	familyName   = "Tester"
 	initials     = "T"
 	roleName     = "Verpleegkundige niveau 2"

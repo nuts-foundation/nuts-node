@@ -19,8 +19,14 @@
 package selfsigned
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/types"
+	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/util"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"os"
 	"testing"
@@ -30,7 +36,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
-	vcr2 "github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -39,8 +45,56 @@ import (
 var vpValidTime, _ = time.Parse(time.RFC3339, "2023-04-20T13:00:00.000000+02:00")
 var docTXTime, _ = time.Parse(time.RFC3339, "2023-04-14T12:00:00.000000+02:00")
 
-func TestSessionStore_VerifyVP(t *testing.T) {
+func TestSigner_Validator_Roundtrip(t *testing.T) {
+	// Setup VCR
+	keyStore := crypto.NewMemoryStorage()
+	vcrContext := vcr.NewTestVCRContext(t, crypto.NewTestCryptoInstance(keyStore))
+	{
+		didDocument := did.Document{}
+		didDocumentBytes, _ := os.ReadFile("./test/diddocument.json")
+		_ = json.Unmarshal(didDocumentBytes, &didDocument)
+		// Register DID document in VDR
+		tx := didstore.TestTransaction(didDocument)
+		tx.SigningTime = docTXTime
+		err := vcrContext.DIDStore.Add(didDocument, tx)
+		require.NoError(t, err)
+		// Load private key so we can sign
+		privateKeyData, _ := os.ReadFile("./test/private.pem")
+		privateKey, err := util.PemToPrivateKey(privateKeyData)
+		require.NoError(t, err)
+		err = keyStore.SavePrivateKey(context.Background(), didDocument.VerificationMethod[0].ID.String(), privateKey)
+		require.NoError(t, err)
+	}
 
+	// Sign VP
+	issuanceDate := time.Date(2023, 4, 14, 13, 40, 0, 0, time.Local)
+	issuer.TimeFunc = func() time.Time {
+		return issuanceDate
+	}
+	signerService := NewSigner(vcrContext.VCR, "http://localhost").(*signer)
+	createdVP, err := signerService.createVP(audit.TestContext(), types.Session{
+		ExpiresAt: issuanceDate.Add(time.Hour * 24),
+		Contract:  testContract,
+		Employer:  "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm",
+		Employee: types.Employee{
+			Identifier: "user@examle.com",
+			RoleName:   "Administrator",
+			Initials:   "Ad",
+			FamilyName: "Min",
+		}}, issuanceDate)
+	require.NoError(t, err)
+
+	// Validate VP
+	validatorService := NewValidator(vcrContext.VCR, contract.StandardContractTemplates)
+	checkTime := issuanceDate.Add(time.Minute)
+	result, err := validatorService.VerifyVP(*createdVP, &checkTime)
+
+	require.NoError(t, err)
+	assert.Empty(t, result.Reason())
+	assert.Equal(t, contract.Valid, result.Validity())
+}
+
+func TestValidator_VerifyVP(t *testing.T) {
 	vp := vc.VerifiablePresentation{}
 	vpData, _ := os.ReadFile("./test/vp.json")
 	_ = json.Unmarshal(vpData, &vp)
@@ -83,7 +137,7 @@ func TestSessionStore_VerifyVP(t *testing.T) {
 	})
 
 	t.Run("ok using in-memory DBs", func(t *testing.T) {
-		vcrContext := vcr2.NewTestVCRContext(t)
+		vcrContext := vcr.NewTestVCRContext(t, crypto.NewMemoryCryptoInstance())
 		ss := NewValidator(vcrContext.VCR, contract.StandardContractTemplates)
 		didDocument := did.Document{}
 		ddBytes, _ := os.ReadFile("./test/diddocument.json")
