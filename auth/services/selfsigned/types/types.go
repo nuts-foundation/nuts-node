@@ -21,6 +21,7 @@ package types
 import (
 	"encoding/json"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"strings"
 	"time"
 )
 
@@ -62,6 +63,11 @@ func (s Session) CredentialSubject() []interface{} {
 	result := map[string]interface{}{}
 	_ = json.Unmarshal(data, &result)
 	return []interface{}{result}
+}
+
+// HumanReadableContract returns the contract text without the contract type (e.g. "NL:LoginContract:v3")
+func (s Session) HumanReadableContract() string {
+	return s.Contract[strings.Index(s.Contract, " ")+1:]
 }
 
 type Employee struct {
