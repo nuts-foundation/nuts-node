@@ -25,7 +25,10 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/pem"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/core"
+	pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
 	"go.uber.org/goleak"
 	"math/big"
 	"net/http"
@@ -33,9 +36,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/nuts-foundation/nuts-node/core"
-	pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -94,16 +94,69 @@ func TestValidator_Start(t *testing.T) {
 
 func TestValidator_Validate(t *testing.T) {
 	val := newValidatorStarted(t)
-	store, err := core.LoadTrustStore(truststore)
+
+	// load test certificates
+	validCertA := loadCert(t, testdatapath+"/A-valid.pem")
+	revokedCertA := loadCert(t, testdatapath+"/A-revoked.pem")
+	validCertBWithRevokedCA := loadCert(t, testdatapath+"/B-valid_revoked-CA.pem")
+
+	block, _ := pem.Decode([]byte(bannedTestCertificate))
+	bannedCert, err := x509.ParseCertificate(block.Bytes)
 	require.NoError(t, err)
 
+	// testSoftHard runs the same test for both the soft-fail and hard-fail scenario
+	testSoftHard := func(t *testing.T, val *validator, cert *x509.Certificate, softfailReturn error, hardfailReturn error) {
+		fn := func(softbool bool, expected error) {
+			softfail = softbool
+			err = val.Validate([]*x509.Certificate{cert})
+			if expected == nil {
+				assert.NoError(t, err)
+			} else {
+				assert.ErrorIs(t, err, expected)
+			}
+		}
+		t.Run("softfail", func(t *testing.T) {
+			fn(true, softfailReturn)
+		})
+		t.Run("hardfail", func(t *testing.T) {
+			fn(false, hardfailReturn)
+		})
+	}
+
 	t.Run("ok", func(t *testing.T) {
-		err := val.Validate([]*x509.Certificate{store.IntermediateCAs[0]})
-		assert.NoError(t, err)
+		testSoftHard(t, val, validCertA, nil, nil)
 	})
 	t.Run("revoked cert", func(t *testing.T) {
-		err := val.Validate(store.IntermediateCAs)
-		assert.ErrorIs(t, err, ErrCertRevoked)
+		testSoftHard(t, val, revokedCertA, ErrCertRevoked, ErrCertRevoked)
+	})
+	t.Run("unknown issuer", func(t *testing.T) {
+		val := &validator{truststore: map[string]*x509.Certificate{}}
+		testSoftHard(t, val, validCertA, nil, ErrCertUntrusted)
+	})
+	t.Run("missing crl", func(t *testing.T) {
+		testSoftHard(t, val, validCertBWithRevokedCA, nil, ErrCRLMissing)
+	})
+	t.Run("expired crl", func(t *testing.T) {
+		nowFunc = func() time.Time { return time.Date(2100, 1, 1, 0, 0, 0, 0, time.UTC) }
+		defer func() { nowFunc = time.Now }()
+
+		testSoftHard(t, val, validCertA, nil, ErrCRLExpired)
+	})
+	t.Run("blocked cert", func(t *testing.T) {
+		ts := denylistTestServer(trustedDenylist(t))
+		defer ts.Close()
+		val.denylist, err = testDenylist(ts.URL, publicKeyDoNotUse)
+		require.NoError(t, err)
+
+		testSoftHard(t, val, bannedCert, ErrCertBanned, ErrCertBanned)
+	})
+	t.Run("denylist missing", func(t *testing.T) {
+		ts := denylistTestServer("")
+		defer ts.Close()
+		val.denylist, err = testDenylist(ts.URL, publicKeyDoNotUse)
+		require.NoError(t, err)
+
+		testSoftHard(t, val, bannedCert, nil, ErrDenylistMissing)
 	})
 }
 
@@ -160,7 +213,7 @@ func TestValidator_SetValidatePeerCertificateFunc(t *testing.T) {
 	})
 }
 
-func Test_New(t *testing.T) {
+func Test_NewValidator(t *testing.T) {
 	store, err := core.LoadTrustStore(truststore)
 	require.NoError(t, err)
 
@@ -191,74 +244,6 @@ func Test_ValidatorGetCRL(t *testing.T) {
 
 		assert.False(t, ok)
 		assert.Nil(t, result)
-	})
-}
-
-func Test_ValidatorValidateChain(t *testing.T) {
-	val := newValidatorStarted(t)
-
-	store, err := core.LoadTrustStore(truststore)
-	require.NoError(t, err)
-
-	t.Run("ok", func(t *testing.T) {
-		certs := []*x509.Certificate{store.Certificates()[0], store.Certificates()[2]} // slice without the revoked cert
-		err = val.Validate(certs)
-		assert.NoError(t, err)
-	})
-	t.Run("error - contains revoked cert", func(t *testing.T) {
-		err = val.Validate(store.Certificates())
-		assert.ErrorIs(t, err, ErrCertRevoked)
-		assert.ErrorContains(t, err, "subject=CN=Intermediate B CA, S/N=3, issuer=CN=Root CA,O=Nuts Foundation,C=NL")
-	})
-}
-
-func Test_ValidatorValidateCert(t *testing.T) {
-	val := newValidatorStarted(t)
-	store, err := core.LoadTrustStore(truststore)
-	require.NoError(t, err)
-
-	t.Run("ok", func(t *testing.T) {
-		cert := loadCert(t, testdatapath+"/A-valid.pem")
-
-		err := val.validateCert(cert)
-
-		assert.NoError(t, err)
-	})
-	t.Run("revoked cert", func(t *testing.T) {
-		cert := loadCert(t, testdatapath+"/A-revoked.pem")
-
-		err := val.validateCert(cert)
-
-		assert.ErrorIs(t, err, ErrCertRevoked)
-	})
-	t.Run("unknown issuer", func(t *testing.T) {
-		val := &validator{
-			truststore: map[string]*x509.Certificate{},
-		}
-		cert := loadCert(t, testdatapath+"/A-valid.pem")
-
-		err := val.validateCert(cert)
-
-		assert.ErrorIs(t, err, ErrCertUntrusted)
-	})
-	t.Run("missing crl", func(t *testing.T) {
-		val := newValidatorStarted(t)
-		cert := loadCert(t, testdatapath+"/B-valid_revoked-CA.pem")
-
-		err := val.validateCert(cert)
-
-		assert.ErrorIs(t, err, ErrCRLMissing)
-	})
-	t.Run("expired crl", func(t *testing.T) {
-		cert := store.IntermediateCAs[0]
-		crl, ok := val.getCRL(cert.CRLDistributionPoints[0])
-		require.True(t, ok)
-		crl.list.NextUpdate = time.Time{}
-		val.crls.Store(cert.CRLDistributionPoints[0], crl)
-
-		err := val.validateCert(store.IntermediateCAs[0])
-
-		assert.ErrorIs(t, err, ErrCRLExpired)
 	})
 }
 
