@@ -21,20 +21,16 @@ package irma
 import (
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/auth/log"
+	"github.com/nuts-foundation/nuts-node/auth/services"
+	"strings"
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/services"
-
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-
-	irmaserver2 "github.com/privacybydesign/irmago/server/irmaserver"
-
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 
 	irma "github.com/privacybydesign/irmago"
-	irmaserver "github.com/privacybydesign/irmago/server"
 )
 
 // VerifiablePresentationType is the irma verifiable presentation type
@@ -50,35 +46,55 @@ func init() {
 	jwt.RegisterCustomField("sig", "")
 }
 
-// Service validates contracts using the IRMA logic.
-type Service struct {
-	IrmaSessionHandler SessionHandler
-	IrmaConfig         *irma.Configuration
-	IrmaServiceConfig  ValidatorConfig
-	Signer             nutsCrypto.JWTSigner
-	ContractTemplates  contract.TemplateStore
-	StrictMode         bool
-}
-
-// ValidatorConfig holds the configuration for the irma validator.
-type ValidatorConfig struct {
-	// PublicURL is used for discovery for the IRMA app.
-	PublicURL string
-	// Where to find the IrmaConfig files including the schemas
-	IrmaConfigPath string
-	// Which scheme manager to use
-	IrmaSchemeManager string
-	// Auto update the schemas every x minutes or not?
-	AutoUpdateIrmaSchemas bool
-	// Use the IRMA server in production mode. Without this the IRMA app needs to be in "developer mode"
-	// https://irma.app/docs/irma-app/#developer-mode
-	Production bool
-}
-
 // VPProof is a specific IrmaProof for the specific VerifiablePresentation
 type VPProof struct {
 	Type       string `json:"type"`
 	ProofValue string `json:"proofValue"`
+}
+
+type Verifier struct {
+	IrmaConfig *irma.Configuration
+	Templates  contract.TemplateStore
+	strictMode bool
+}
+
+// VerifyVP expects the given raw VerifiablePresentation to be of the correct type
+// todo: type check?
+func (v Verifier) VerifyVP(vp vc.VerifiablePresentation, checkTime *time.Time) (contract.VPVerificationResult, error) {
+	// Extract the Irma message
+	irmaProof := make([]VPProof, 0)
+	if err := vp.UnmarshalProofValue(&irmaProof); err != nil {
+		return nil, fmt.Errorf("could not verify VP: %w", err)
+	}
+
+	if len(irmaProof) != 1 {
+		return nil, fmt.Errorf("could not verify VP: invalid number of proofs, got %d, want 1", len(irmaProof))
+	}
+
+	// Create the irma contract validator
+	contractValidator := contractVerifier{irmaConfig: v.IrmaConfig, validContracts: v.Templates, strictMode: v.strictMode}
+	signedContract, err := contractValidator.Parse(irmaProof[0].ProofValue)
+	if err != nil {
+		return nil, err
+	}
+
+	cvr, err := contractValidator.verifyAll(signedContract.(*signedIrmaContract), checkTime)
+	if err != nil {
+		return nil, err
+	}
+
+	signerAttributes, err := signedContract.SignerAttributes()
+	if err != nil {
+		return nil, fmt.Errorf("could not verify vp: could not get signer attributes: %w", err)
+	}
+
+	return irmaVPVerificationResult{
+		validity:            contract.State(cvr.ValidationResult),
+		reason:              cvr.FailureReason,
+		vpType:              string(cvr.ContractFormat),
+		disclosedAttributes: signerAttributes,
+		contractAttributes:  signedContract.Contract().Params,
+	}, nil
 }
 
 type irmaVPVerificationResult struct {
@@ -112,8 +128,21 @@ func (I irmaVPVerificationResult) DisclosedAttribute(key string) string {
 		v = I.disclosedAttributes["gemeente.personalData.initials"]
 	case services.EmailTokenClaim:
 		v = I.disclosedAttributes["sidn-pbdf.email.email"]
-	case services.EidasIALClaim:
-		v = I.disclosedAttributes["gemeente.personalData.digidlevel"]
+	case services.AssuranceLevelClaim:
+		// Map DigiD levels to Nuts assurance levels.
+		// Taken from https://www.logius.nl/domeinen/toegang/digid/documentatie/koppelvlakspecificatie-digid-saml-authenticatie
+		switch strings.ToLower(I.disclosedAttributes["gemeente.personalData.digidlevel"]) {
+		case "basis":
+			fallthrough
+		case "midden":
+			v = "low"
+		case "substantieel":
+			v = "substantial"
+		case "hoog":
+			v = "high"
+		default:
+			log.Logger().Warnf("Unknown IRMA DigiD level: %s", I.disclosedAttributes["gemeente.personalData.digidlevel"])
+		}
 	}
 	return v
 }
@@ -128,68 +157,4 @@ func (I irmaVPVerificationResult) DisclosedAttributes() map[string]string {
 
 func (I irmaVPVerificationResult) ContractAttributes() map[string]string {
 	return I.contractAttributes
-}
-
-// VerifyVP expects the given raw VerifiablePresentation to be of the correct type
-// todo: type check?
-func (v Service) VerifyVP(vp vc.VerifiablePresentation, checkTime *time.Time) (contract.VPVerificationResult, error) {
-	// Extract the Irma message
-	irmaProof := make([]VPProof, 0)
-	if err := vp.UnmarshalProofValue(&irmaProof); err != nil {
-		return nil, fmt.Errorf("could not verify VP: %w", err)
-	}
-
-	if len(irmaProof) != 1 {
-		return nil, fmt.Errorf("could not verify VP: invalid number of proofs, got %d, want 1", len(irmaProof))
-	}
-
-	// Create the irma contract validator
-	contractValidator := contractVerifier{irmaConfig: v.IrmaConfig, validContracts: v.ContractTemplates, strictMode: v.StrictMode}
-	signedContract, err := contractValidator.Parse(irmaProof[0].ProofValue)
-	if err != nil {
-		return nil, err
-	}
-
-	cvr, err := contractValidator.verifyAll(signedContract.(*SignedIrmaContract), checkTime)
-	if err != nil {
-		return nil, err
-	}
-
-	signerAttributes, err := signedContract.SignerAttributes()
-	if err != nil {
-		return nil, fmt.Errorf("could not verify vp: could not get signer attributes: %w", err)
-	}
-
-	return irmaVPVerificationResult{
-		validity:            contract.State(cvr.ValidationResult),
-		reason:              cvr.FailureReason,
-		vpType:              string(cvr.ContractFormat),
-		disclosedAttributes: signerAttributes,
-		contractAttributes:  signedContract.Contract().Params,
-	}, nil
-}
-
-// SessionHandler is an abstraction for the Irma Server, mainly for enabling better testing
-type SessionHandler interface {
-	GetSessionResult(token string) (*irmaserver.SessionResult, error)
-	StartSession(request interface{}, handler irmaserver.SessionHandler) (*irma.Qr, irma.RequestorToken, *irma.FrontendSessionRequest, error)
-}
-
-// Compile time check if the DefaultIrmaSessionHandler implements the SessionHandler interface
-var _ SessionHandler = (*DefaultIrmaSessionHandler)(nil)
-
-// DefaultIrmaSessionHandler is a wrapper for the Irma Server
-// It implements the SessionHandler interface
-type DefaultIrmaSessionHandler struct {
-	I *irmaserver2.Server
-}
-
-// GetSessionResult forwards to Irma Server instance
-func (d *DefaultIrmaSessionHandler) GetSessionResult(token string) (*irmaserver.SessionResult, error) {
-	return d.I.GetSessionResult(irma.RequestorToken(token))
-}
-
-// StartSession forwards to Irma Server instance
-func (d *DefaultIrmaSessionHandler) StartSession(request interface{}, handler irmaserver.SessionHandler) (*irma.Qr, irma.RequestorToken, *irma.FrontendSessionRequest, error) {
-	return d.I.StartSession(request, handler)
 }

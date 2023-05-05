@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package v1
+package auth_v1
 
 import (
 	"encoding/json"
@@ -29,7 +29,7 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/api/v1/client"
+	"github.com/nuts-foundation/nuts-node/auth/api/auth_v1/client"
 	httpModule "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vcr"
 
@@ -65,8 +65,9 @@ type Wrapper struct {
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
 func (w *Wrapper) ResolveStatusCode(err error) int {
 	return core.ResolveStatusCode(err, map[error]int{
-		services.ErrSessionNotFound: http.StatusNotFound,
-		did.ErrInvalidDID:           http.StatusBadRequest,
+		services.ErrSessionNotFound:            http.StatusNotFound,
+		did.ErrInvalidDID:                      http.StatusBadRequest,
+		services.InvalidContractRequestError{}: http.StatusBadRequest,
 	})
 }
 
@@ -412,6 +413,12 @@ func (w Wrapper) IntrospectAccessToken(ctx echo.Context) error {
 		Prefix:     claims.Prefix,
 		FamilyName: claims.FamilyName,
 		Email:      claims.Email,
+		Username:   claims.Username,
+		UserRole:   claims.UserRole,
+	}
+	if claims.AssuranceLevel != nil {
+		level := TokenIntrospectionResponseAssuranceLevel(*claims.AssuranceLevel)
+		introspectionResponse.AssuranceLevel = &level
 	}
 
 	if claims.Credentials != nil && len(claims.Credentials) > 0 {

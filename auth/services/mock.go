@@ -6,7 +6,6 @@ package services
 
 import (
 	context "context"
-	http "net/http"
 	reflect "reflect"
 	time "time"
 
@@ -14,6 +13,7 @@ import (
 	did "github.com/nuts-foundation/go-did/did"
 	vc "github.com/nuts-foundation/go-did/vc"
 	contract "github.com/nuts-foundation/nuts-node/auth/contract"
+	core "github.com/nuts-foundation/nuts-node/core"
 )
 
 // MockSignedToken is a mock of SignedToken interface.
@@ -187,18 +187,16 @@ func (mr *MockContractNotaryMockRecorder) DrawUpContract(ctx, template, orgID, v
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DrawUpContract", reflect.TypeOf((*MockContractNotary)(nil).DrawUpContract), ctx, template, orgID, validFrom, validDuration, organizationCredential)
 }
 
-// HandlerFunc mocks base method.
-func (m *MockContractNotary) HandlerFunc() http.HandlerFunc {
+// Routes mocks base method.
+func (m *MockContractNotary) Routes(router core.EchoRouter) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HandlerFunc")
-	ret0, _ := ret[0].(http.HandlerFunc)
-	return ret0
+	m.ctrl.Call(m, "Routes", router)
 }
 
-// HandlerFunc indicates an expected call of HandlerFunc.
-func (mr *MockContractNotaryMockRecorder) HandlerFunc() *gomock.Call {
+// Routes indicates an expected call of Routes.
+func (mr *MockContractNotaryMockRecorder) Routes(router interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandlerFunc", reflect.TypeOf((*MockContractNotary)(nil).HandlerFunc))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Routes", reflect.TypeOf((*MockContractNotary)(nil).Routes), router)
 }
 
 // SigningSessionStatus mocks base method.

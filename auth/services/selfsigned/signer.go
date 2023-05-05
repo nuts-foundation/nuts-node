@@ -29,66 +29,145 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
+	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/types"
+	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/web"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
+	"net/url"
 	"time"
 )
 
 const credentialType = "NutsEmployeeCredential"
 
-func (v service) SigningSessionStatus(ctx context.Context, sessionID string) (contract.SigningSessionResult, error) {
-	s, ok := v.sessions[sessionID]
+// signer implements the contract.Signer interface
+type signer struct {
+	store     types.SessionStore
+	vcr       vcr.VCR
+	publicURL string
+	// signingDuration is the time the user has to sign the contract
+	signingDuration time.Duration
+}
+
+// NewSigner returns an initialized employee identity contract signer
+func NewSigner(vcr vcr.VCR, publicURL string) contract.Signer {
+	return &signer{
+		// NewMemorySessionStore returns an initialized SessionStore
+		store:           NewMemorySessionStore(),
+		vcr:             vcr,
+		publicURL:       publicURL,
+		signingDuration: 10 * time.Minute,
+	}
+}
+
+// SigningSessionStatus returns the status of a signing session
+// If the session is completed, a VerifiablePresentation is created and added to the result
+// The session is deleted after the VerifiablePresentation is created, so the completed result can only be retrieved once
+func (v *signer) SigningSessionStatus(ctx context.Context, sessionID string) (contract.SigningSessionResult, error) {
+	s, ok := v.store.Load(sessionID)
 	if !ok {
 		return nil, services.ErrSessionNotFound
 	}
-	var vp *vc.VerifiablePresentation
 
-	if s.status == SessionCompleted {
-		expirationData := time.Now().Add(24 * time.Hour)
-		credentialOptions := vc.VerifiableCredential{
-			Context:           []ssi.URI{credential.NutsV1ContextURI},
-			Type:              []ssi.URI{vc.VerifiableCredentialTypeV1URI(), ssi.MustParseURI(credentialType)},
-			Issuer:            s.issuerDID.URI(),
-			IssuanceDate:      time.Now(),
-			ExpirationDate:    &expirationData,
-			CredentialSubject: s.credentialSubject(),
+	var (
+		vp  *vc.VerifiablePresentation
+		err error
+	)
+	if s.Status == types.SessionCompleted {
+		// Make sure no other VP will be created for this session
+		if !v.store.CheckAndSetStatus(sessionID, types.SessionCompleted, types.SessionVPRequested) {
+			// Another VP is already being created for this session
+			// Make sure the session is deleted
+			v.store.Delete(sessionID)
+			return nil, services.ErrSessionNotFound
 		}
-		verifiableCredential, err := v.vcr.Issuer().Issue(ctx, credentialOptions, false, false)
+
+		// Create the VerifiablePresentation
+		vp, err = v.createVP(ctx, s, time.Now())
 		if err != nil {
-			return nil, fmt.Errorf("issue VC failed: %w", err)
+			return nil, fmt.Errorf("failed to create VerifiablePresentation: %w", err)
 		}
-		presentationOptions := holder.PresentationOptions{
-			AdditionalContexts: []ssi.URI{credential.NutsV1ContextURI},
-			AdditionalTypes:    []ssi.URI{ssi.MustParseURI(VerifiablePresentationType)},
-			ProofOptions: proof.ProofOptions{
-				Created:      time.Now(),
-				Challenge:    &s.contract,
-				ProofPurpose: proof.AuthenticationProofPurpose,
-			},
-		}
-		vp, err = v.vcr.Holder().BuildVP(ctx, []vc.VerifiableCredential{*verifiableCredential}, presentationOptions, &s.issuerDID, true)
-		if err != nil {
-			return nil, fmt.Errorf("build VP failed: %w", err)
-		}
+	}
+
+	// cleanup all sessions in a final state
+	switch s.Status {
+	case types.SessionVPRequested:
+		fallthrough
+	case types.SessionExpired:
+		fallthrough
+	case types.SessionCancelled:
+		fallthrough
+	case types.SessionErrored:
+		v.store.Delete(sessionID)
 	}
 
 	return signingSessionResult{
 		id:                     sessionID,
-		status:                 s.status,
-		request:                s.contract,
+		status:                 s.Status,
+		request:                s.Contract,
 		verifiablePresentation: vp,
 	}, nil
 }
 
-func (v service) StartSigningSession(rawContractText string, params map[string]interface{}) (contract.SessionPointer, error) {
-	sessionBytes := make([]byte, 16)
-	rand.Reader.Read(sessionBytes)
+// createVP creates a VerifiablePresentation for the given session
+func (v *signer) createVP(ctx context.Context, s types.Session, issuanceDate time.Time) (*vc.VerifiablePresentation, error) {
+	issuerID, err := did.ParseDID(s.Employer)
+	if err != nil {
+		return nil, fmt.Errorf("invalid issuer DID: %w", err)
+	}
+
+	expirationData := issuanceDate.Add(24 * time.Hour)
+	credentialOptions := vc.VerifiableCredential{
+		Context:           []ssi.URI{credential.NutsV1ContextURI},
+		Type:              []ssi.URI{ssi.MustParseURI(credentialType)},
+		Issuer:            issuerID.URI(),
+		IssuanceDate:      issuanceDate,
+		ExpirationDate:    &expirationData,
+		CredentialSubject: s.CredentialSubject(),
+	}
+	verifiableCredential, err := v.vcr.Issuer().Issue(ctx, credentialOptions, false, false)
+	if err != nil {
+		return nil, fmt.Errorf("issue VC failed: %w", err)
+	}
+	presentationOptions := holder.PresentationOptions{
+		AdditionalContexts: []ssi.URI{credential.NutsV1ContextURI},
+		AdditionalTypes:    []ssi.URI{ssi.MustParseURI(VerifiablePresentationType)},
+		ProofOptions: proof.ProofOptions{
+			Created:      issuanceDate,
+			Challenge:    &s.Contract,
+			ProofPurpose: proof.AuthenticationProofPurpose,
+		},
+	}
+	return v.vcr.Holder().BuildVP(ctx, []vc.VerifiableCredential{*verifiableCredential}, presentationOptions, issuerID, true)
+}
+
+func (v *signer) StartSigningSession(userContract contract.Contract, params map[string]interface{}) (contract.SessionPointer, error) {
+	// check the session params first to provide the user with feedback if something is missing
+	if err := checkSessionParams(params); err != nil {
+		return nil, services.InvalidContractRequestError{Message: fmt.Errorf("invalid session params: %w", err)}
+	}
+
+	const randomByteCount = 16
+	sessionBytes := make([]byte, randomByteCount)
+	count, err := rand.Reader.Read(sessionBytes)
+	if err != nil || count != randomByteCount {
+		return nil, fmt.Errorf("failed to generate session ID: %w", err)
+	}
+
+	secret := make([]byte, randomByteCount)
+	_, err = rand.Reader.Read(secret)
+	if err != nil || count != randomByteCount {
+		return nil, fmt.Errorf("failed to generate session secret: %w", err)
+	}
 
 	sessionID := hex.EncodeToString(sessionBytes)
-	s := session{
-		contract: rawContractText,
-		status:   SessionCreated,
+	s := types.Session{
+		Contract:  userContract.RawContractText,
+		Status:    types.SessionCreated,
+		Secret:    hex.EncodeToString(secret),
+		ExpiresAt: time.Now().Add(v.signingDuration),
 	}
 	// load params directly into session
 	marshalled, err := json.Marshal(params)
@@ -97,18 +176,72 @@ func (v service) StartSigningSession(rawContractText string, params map[string]i
 		return nil, err
 	}
 	// impossible to get an error here since both the pointer and the data is under our control.
-	_ = json.Unmarshal(marshalled, &s.params)
+	_ = json.Unmarshal(marshalled, &s)
 
 	// Parse the DID here so we can return an error
-	did, err := did.ParseDID(s.params.Employer)
+	employeeDID, err := did.ParseDID(params["employer"].(string))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse employer param as DID: %w", err)
 	}
-	s.issuerDID = *did
-	v.sessions[sessionID] = s
+	s.Employer = employeeDID.String()
+	v.store.Store(sessionID, s)
 
+	pageURL, err := url.ParseRequestURI(core.JoinURLPaths(v.publicURL, "public/auth/v1/means/employeeid", sessionID))
+	if err != nil {
+		return nil, err
+	}
 	return sessionPointer{
 		sessionID: sessionID,
-		url:       "https://example.com", // placeholder, convert to template
+		url:       pageURL.String(),
 	}, nil
+}
+
+// checkSessionParams checks for the following structure:
+//
+//	{
+//	  "employer":"did:123",
+//	  "employee": {
+//	    "identifier": "481",
+//	    "roleName": "Verpleegkundige niveau 2",
+//	    "initials": "J",
+//	    "familyName": "van Dijk",
+//	    "email": "j.vandijk@example.com"
+//	  }
+//	}
+func checkSessionParams(params map[string]interface{}) error {
+	_, ok := params["employer"]
+	if !ok {
+		return fmt.Errorf("missing employer")
+	}
+	employee, ok := params["employee"]
+	if !ok {
+		return fmt.Errorf("missing employee")
+	}
+	employeeMap, ok := employee.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("employee should be an object")
+	}
+	_, ok = employeeMap["identifier"]
+	if !ok {
+		return fmt.Errorf("missing employee identifier")
+	}
+	_, ok = employeeMap["roleName"]
+	if !ok {
+		return fmt.Errorf("missing employee roleName")
+	}
+	_, ok = employeeMap["initials"]
+	if !ok {
+		return fmt.Errorf("missing employee initials")
+	}
+	_, ok = employeeMap["familyName"]
+	if !ok {
+		return fmt.Errorf("missing employee familyName")
+	}
+	return nil
+
+}
+
+func (v *signer) Routes(router core.EchoRouter) {
+	h := web.NewHandler(v.store)
+	h.Routes(router)
 }

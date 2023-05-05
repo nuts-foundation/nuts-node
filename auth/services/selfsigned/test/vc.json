@@ -1,16 +1,9 @@
 {
   "@context": [
+    "https://nuts.nl/credentials/v1",
     "https://www.w3.org/2018/credentials/v1",
-    "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json",
-    "https://nuts.nl/credentials/v1"
+    "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
   ],
-  "id": "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm#dde77e76-7e3c-483f-a813-2b851a6a969c",
-  "type": [
-    "NutsEmployeeCredential",
-    "VerifiableCredential"
-  ],
-  "issuer": "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm",
-  "issuanceDate": "2023-04-20T08:52:45.941461+02:00",
   "credentialSubject": [
     {
       "id": "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm",
@@ -27,13 +20,19 @@
       "type": "Organization"
     }
   ],
-  "proof": [
-    {
-      "created": "2023-04-20T08:52:45.94152+02:00",
-      "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il0sImtpZCI6ImRpZDpudXRzOjhOWXpmc25kWkpIaDZHcXpLaVNCcHlFUnJGeHVYNjR6NnRFNXJhYTduRWptI2JZY3VldDZFSG9qTWxhTXF3Tm9DM2M2ZXRLbFVIb0o5clJ2VXUzWktFRXcifQ..Ouk_bSDawlQf3aQ57tJwEVIQlVfkOw2omjI1bRfi9FqZ7qlLzDXcOo75CpxyxafIHXnb7Wk9OefOrwTIQz0X8A",
-      "proofPurpose": "assertionMethod",
-      "type": "JsonWebSignature2020",
-      "verificationMethod": "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm#bYcuet6EHojMlaMqwNoC3c6etKlUHoJ9rRvUu3ZKEEw"
-    }
+  "id": "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm#dde77e76-7e3c-483f-a813-2b851a6a969c",
+  "issuanceDate": "2023-04-20T08:52:45.941461+02:00",
+  "issuer": "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm",
+  "proof": {
+    "created": "2023-04-20T09:53:03Z",
+    "expires": "2023-04-24T09:53:03Z",
+    "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il0sImtpZCI6ImRpZDpudXRzOjhOWXpmc25kWkpIaDZHcXpLaVNCcHlFUnJGeHVYNjR6NnRFNXJhYTduRWptI2JZY3VldDZFSG9qTWxhTXF3Tm9DM2M2ZXRLbFVIb0o5clJ2VXUzWktFRXcifQ..VhEbDoth8GrAni_LhZm-12VnlJToAbX0FDg1Rf7u7qIy3W54IcxAxkZP28YxGG681WpufwPeqHrtnYLsW8Fh7w",
+    "proofPurpose": "assertionMethod",
+    "type": "JsonWebSignature2020",
+    "verificationMethod": "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm#bYcuet6EHojMlaMqwNoC3c6etKlUHoJ9rRvUu3ZKEEw"
+  },
+  "type": [
+    "NutsEmployeeCredential",
+    "VerifiableCredential"
   ]
 }

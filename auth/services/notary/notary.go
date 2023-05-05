@@ -16,13 +16,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package contract
+package notary
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
+
+	"github.com/nuts-foundation/nuts-node/core"
 	"reflect"
 	"strings"
 	"time"
@@ -43,8 +44,6 @@ import (
 	pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	irmago "github.com/privacybydesign/irmago"
-	"github.com/privacybydesign/irmago/server/irmaserver"
 )
 
 // ErrMissingOrganizationKey is used to indicate that this node has no private key of the indicated organization.
@@ -78,16 +77,15 @@ func (c Config) hasContractValidator(cv string) bool {
 }
 
 type notary struct {
-	config            Config
-	jsonldManager     jsonld.JSONLD
-	keyResolver       types.KeyResolver
-	privateKeyStore   crypto.KeyStore
-	irmaServiceConfig irma.ValidatorConfig
-	irmaServer        *irmaserver.Server
-	verifiers         map[string]contract.VPVerifier
-	signers           map[string]contract.Signer
-	vcr               vcr.VCR
-	uziCrlValidator   pki.Validator
+	config                Config
+	jsonldManager         jsonld.JSONLD
+	keyResolver           types.KeyResolver
+	privateKeyStore       crypto.KeyStore
+	verifiers             map[string]contract.VPVerifier
+	signers               map[string]contract.Signer
+	uziCrlValidator       pki.Validator
+	vcr                   vcr.VCR
+	contractTemplateStore contract.TemplateStore
 }
 
 var timeNow = time.Now
@@ -95,11 +93,12 @@ var timeNow = time.Now
 // NewNotary accepts the registry and crypto Nuts engines and returns a ContractNotary
 func NewNotary(config Config, vcr vcr.VCR, keyResolver types.KeyResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD) services.ContractNotary {
 	return &notary{
-		config:          config,
-		jsonldManager:   jsonldManager,
-		vcr:             vcr,
-		keyResolver:     keyResolver,
-		privateKeyStore: keyStore,
+		config:                config,
+		jsonldManager:         jsonldManager,
+		vcr:                   vcr,
+		keyResolver:           keyResolver,
+		privateKeyStore:       keyStore,
+		contractTemplateStore: contract.StandardContractTemplates,
 	}
 }
 
@@ -110,13 +109,13 @@ func (n *notary) DrawUpContract(ctx context.Context, template contract.Template,
 	// Test if the org in managed by this node:
 	signingKeyID, err := n.keyResolver.ResolveSigningKeyID(orgID, &validFrom)
 	if errors.Is(err, types.ErrNotFound) {
-		return nil, fmt.Errorf("could not draw up contract: no valid organization credential at provided validFrom date")
+		return nil, services.InvalidContractRequestError{Message: "no valid organization credential at provided validFrom date"}
 	} else if err != nil {
 		return nil, fmt.Errorf("could not draw up contract: %w", err)
 	}
 
 	if !n.privateKeyStore.Exists(ctx, signingKeyID) {
-		return nil, fmt.Errorf("could not draw up contract: organization is not managed by this node: %w", ErrMissingOrganizationKey)
+		return nil, services.InvalidContractRequestError{Message: fmt.Errorf("organization is not managed by this node: %w", ErrMissingOrganizationKey)}
 	}
 
 	var orgName, orgCity string
@@ -151,41 +150,28 @@ func (n *notary) DrawUpContract(ctx context.Context, template contract.Template,
 	return drawnUpContract, nil
 }
 
-func (n *notary) Configure() (err error) {
-	n.verifiers = map[string]contract.VPVerifier{}
-	n.signers = map[string]contract.Signer{}
+func (n *notary) Configure() error {
+	n.verifiers = make(map[string]contract.VPVerifier)
+	n.signers = make(map[string]contract.Signer)
 
-	cvMap := make(map[string]bool, len(n.config.ContractValidators))
-	for _, cv := range n.config.ContractValidators {
-		cvMap[cv] = true
+	if n.config.hasContractValidator(irma.ContractFormat) {
+		cfg := irma.Config{
+			PublicURL:             n.config.PublicURL,
+			IrmaConfigPath:        n.config.IrmaConfigPath,
+			IrmaSchemeManager:     n.config.IrmaSchemeManager,
+			AutoUpdateIrmaSchemas: n.config.AutoUpdateIrmaSchemas,
+			// Deduce IRMA production mode from the nuts strict-mode
+			Production: n.config.StrictMode,
+		}
+		signer, verifier, err := irma.NewSignerAndVerifier(cfg)
+		if err != nil {
+			return err
+		}
+		n.verifiers[irma.VerifiablePresentationType] = verifier
+		n.signers[irma.ContractFormat] = signer
 	}
 
-	if n.config.hasContractValidator("irma") {
-		var (
-			irmaConfig *irmago.Configuration
-			irmaServer *irmaserver.Server
-		)
-
-		if irmaServer, irmaConfig, err = n.configureIrma(n.config); err != nil {
-			return
-		}
-
-		irmaService := irma.Service{
-			IrmaSessionHandler: &irma.DefaultIrmaSessionHandler{I: irmaServer},
-			IrmaConfig:         irmaConfig,
-			Signer:             n.privateKeyStore,
-			IrmaServiceConfig:  n.irmaServiceConfig,
-			ContractTemplates:  contract.StandardContractTemplates,
-		}
-
-		// todo config to VP types
-		if _, ok := cvMap[irma.ContractFormat]; ok {
-			n.verifiers[irma.VerifiablePresentationType] = irmaService
-			n.signers[irma.ContractFormat] = irmaService
-		}
-	}
-
-	if _, ok := cvMap[dummy.ContractFormat]; ok && !n.config.StrictMode {
+	if n.config.hasContractValidator(dummy.ContractFormat) && !n.config.StrictMode {
 		d := dummy.Dummy{
 			Sessions: map[string]string{},
 			Status:   map[string]string{},
@@ -195,7 +181,7 @@ func (n *notary) Configure() (err error) {
 		n.signers[dummy.ContractFormat] = d
 	}
 
-	if _, ok := cvMap[uzi.ContractFormat]; ok {
+	if n.config.hasContractValidator(uzi.ContractFormat) {
 		truststore, err := x509.LoadUziTruststore(x509.UziAcceptation)
 		if err != nil {
 			return err
@@ -219,14 +205,15 @@ func (n *notary) Configure() (err error) {
 		n.verifiers[uzi.VerifiablePresentationType] = uziVerifier
 	}
 
-	if _, ok := cvMap[selfsigned.ContractFormat]; ok {
-		ss := selfsigned.NewService(n.vcr, contract.StandardContractTemplates)
+	if n.config.hasContractValidator(selfsigned.ContractFormat) {
+		es := selfsigned.NewSigner(n.vcr, n.config.PublicURL)
+		ev := selfsigned.NewValidator(n.vcr, contract.StandardContractTemplates)
 
-		n.verifiers[selfsigned.VerifiablePresentationType] = ss
-		n.signers[selfsigned.ContractFormat] = ss
+		n.verifiers[selfsigned.VerifiablePresentationType] = ev
+		n.signers[selfsigned.ContractFormat] = es
 	}
 
-	return
+	return nil
 }
 
 func (n *notary) Start(ctx context.Context) {
@@ -268,29 +255,12 @@ func (n *notary) SigningSessionStatus(ctx context.Context, sessionID string) (co
 	return nil, services.ErrSessionNotFound
 }
 
-func (n *notary) configureIrma(config Config) (irmaServer *irmaserver.Server, irmaConfig *irmago.Configuration, err error) {
-	n.irmaServiceConfig = irma.ValidatorConfig{
-		PublicURL:             config.PublicURL,
-		IrmaConfigPath:        config.IrmaConfigPath,
-		IrmaSchemeManager:     config.IrmaSchemeManager,
-		AutoUpdateIrmaSchemas: config.AutoUpdateIrmaSchemas,
-		// Deduce IRMA production mode from the nuts strict-mode
-		Production: config.StrictMode,
+func (n *notary) Routes(router core.EchoRouter) {
+	for _, signer := range n.signers {
+		if r, ok := signer.(core.Routable); ok {
+			r.Routes(router)
+		}
 	}
-	if irmaConfig, err = irma.GetIrmaConfig(n.irmaServiceConfig); err != nil {
-		return
-	}
-	if irmaServer, err = irma.GetIrmaServer(n.irmaServiceConfig, irmaConfig); err != nil {
-		return
-	}
-	n.irmaServer = irmaServer
-
-	return
-}
-
-// HandlerFunc returns the Irma server handler func
-func (n *notary) HandlerFunc() http.HandlerFunc {
-	return n.irmaServer.HandlerFunc()
 }
 
 // CreateSigningSession creates a session based on a contract. This allows the user to permit the application to
@@ -307,7 +277,13 @@ func (n *notary) CreateSigningSession(sessionRequest services.CreateSessionReque
 		return nil, ErrUnknownSigningMeans
 	}
 
-	return signer.StartSigningSession(sessionRequest.Message, sessionRequest.Params)
+	// Get the contract by trying to parse the rawContractText
+	c, err := contract.ParseContractString(sessionRequest.Message, n.contractTemplateStore)
+	if err != nil {
+		return nil, err
+	}
+
+	return signer.StartSigningSession(*c, sessionRequest.Params)
 }
 
 func (n *notary) findVC(orgID did.DID) (string, string, error) {
@@ -322,7 +298,7 @@ func (n *notary) findVC(orgID did.DID) (string, string, error) {
 		return "", "", fmt.Errorf("could not find a credential: %w", err)
 	}
 	if len(result) == 0 {
-		return "", "", errors.New("could not find a trusted credential with an organization name and city")
+		return "", "", services.InvalidContractRequestError{Message: errors.New("could not find a NutsOrganizationCredential for this legalEntity issued by a trusted issuer")}
 	}
 
 	// Having multiple VCs with non-matching credentialSubjects for this DID is not supported.
@@ -331,7 +307,7 @@ func (n *notary) findVC(orgID did.DID) (string, string, error) {
 		var credentialSubject interface{}
 		for _, current := range result {
 			if credentialSubject != nil && !reflect.DeepEqual(credentialSubject, current.CredentialSubject) {
-				return "", "", errors.New("found multiple non-matching VCs, which is not supported")
+				return "", "", services.InvalidContractRequestError{Message: errors.New("found multiple non-matching VCs, which is not supported")}
 			}
 			credentialSubject = current.CredentialSubject
 		}

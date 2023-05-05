@@ -28,16 +28,16 @@ import (
 )
 
 func TestGetIrmaServer(t *testing.T) {
-	validatorConfig := ValidatorConfig{
+	validatorConfig := Config{
 		IrmaConfigPath:        "../../../development/irma",
 		IrmaSchemeManager:     "empty",
 		AutoUpdateIrmaSchemas: false,
 	}
 
 	t.Run("when the config in initialized, the server can be fetched", func(t *testing.T) {
-		irmaConfig, err := GetIrmaConfig(validatorConfig)
+		irmaConfig, err := getIrmaConfig(validatorConfig)
 		require.NoError(t, err)
-		irmaServer, err := GetIrmaServer(validatorConfig, irmaConfig)
+		irmaServer, err := getIrmaServer(validatorConfig, irmaConfig)
 		require.NoError(t, err)
 		assert.NotNil(t, irmaServer, "expected an IRMA server instance")
 	})
@@ -46,7 +46,7 @@ func TestGetIrmaServer(t *testing.T) {
 		dirname, err := os.MkdirTemp(validatorConfig.IrmaConfigPath, "foo")
 		require.NoError(t, err)
 		defer func() { os.RemoveAll(dirname) }()
-		_, err = GetIrmaConfig(validatorConfig)
+		_, err = getIrmaConfig(validatorConfig)
 		assert.ErrorContains(t, err, "no scheme file")
 	})
 
@@ -55,7 +55,7 @@ func TestGetIrmaServer(t *testing.T) {
 		dirname, err := os.MkdirTemp(validatorConfig.IrmaConfigPath, "tempscheme")
 		require.NoError(t, err)
 		defer func() { os.RemoveAll(dirname) }()
-		_, err = GetIrmaConfig(validatorConfig)
+		_, err = getIrmaConfig(validatorConfig)
 		require.NoError(t, err)
 	})
 }
@@ -64,4 +64,16 @@ func TestIrmaLogLevel(t *testing.T) {
 	assert.Equal(t, 0, irmaLogLevel(&logrus.Logger{Level: logrus.InfoLevel}))
 	assert.Equal(t, 1, irmaLogLevel(&logrus.Logger{Level: logrus.DebugLevel}))
 	assert.Equal(t, 2, irmaLogLevel(&logrus.Logger{Level: logrus.TraceLevel}))
+}
+
+func TestNewSignerAndVerifier(t *testing.T) {
+	signer, verifier, err := NewSignerAndVerifier(Config{
+		IrmaConfigPath:        "../../../development/irma",
+		IrmaSchemeManager:     "empty",
+		AutoUpdateIrmaSchemas: false,
+		Production:            false,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, signer)
+	assert.NotNil(t, verifier)
 }

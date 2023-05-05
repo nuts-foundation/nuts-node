@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/auth/services"
-	"github.com/nuts-foundation/nuts-node/auth/services/contract"
+	"github.com/nuts-foundation/nuts-node/auth/services/notary"
 	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -114,7 +114,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		return ErrMissingPublicURL
 	}
 
-	auth.contractNotary = contract.NewNotary(contract.Config{
+	auth.contractNotary = notary.NewNotary(notary.Config{
 		PublicURL:             auth.config.PublicURL,
 		IrmaConfigPath:        path.Join(config.Datadir, "irma"),
 		IrmaSchemeManager:     auth.config.Irma.SchemeManager,

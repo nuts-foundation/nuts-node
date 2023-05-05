@@ -250,7 +250,8 @@ func (w *Wrapper) CreateVP(ctx context.Context, request CreateVPRequestObject) (
 
 	// custom proofPurpose
 	if request.Body.ProofPurpose != nil {
-		presentationOptions.ProofOptions.ProofPurpose = *request.Body.ProofPurpose
+		purpose := *request.Body.ProofPurpose
+		presentationOptions.ProofOptions.ProofPurpose = string(purpose)
 	}
 
 	// pass context and type as ssi.URI

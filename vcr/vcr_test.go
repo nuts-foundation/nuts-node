@@ -174,7 +174,7 @@ func TestVCR_Resolve(t *testing.T) {
 		ctx.vcr.trustConfig.AddTrust(ssi.MustParseURI("NutsOrganizationCredential"), testVC.Issuer)
 
 		_, err := ctx.vcr.Resolve(*testVC.ID, &time.Time{})
-		assert.Equal(t, vcrTypes.ErrInvalidPeriod, err)
+		assert.Equal(t, vcrTypes.ErrCredentialNotValidAtTime, err)
 	})
 
 	t.Run("error - no longer valid", func(t *testing.T) {
@@ -183,7 +183,7 @@ func TestVCR_Resolve(t *testing.T) {
 		ctx.vcr.trustConfig.AddTrust(ssi.MustParseURI("NutsOrganizationCredential"), testVC.Issuer)
 
 		_, err := ctx.vcr.Resolve(*testVC.ID, &nextYear)
-		assert.Equal(t, vcrTypes.ErrInvalidPeriod, err)
+		assert.Equal(t, vcrTypes.ErrCredentialNotValidAtTime, err)
 	})
 
 	t.Run("ok - revoked", func(t *testing.T) {

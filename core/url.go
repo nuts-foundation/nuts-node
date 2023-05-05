@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Nuts community
+ * Copyright (C) 2023 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,18 +16,22 @@
  *
  */
 
-package v1
+package core
 
-import (
-	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/services"
-)
+import "strings"
 
-// VerifiableCredential is an alias to use from within the API
-type VerifiableCredential = vc.VerifiableCredential
-
-// VerifiablePresentation is an alias to use from within the API
-type VerifiablePresentation = vc.VerifiablePresentation
-
-// AccessTokenResponse is an alias to use from within the API
-type AccessTokenResponse = services.AccessTokenResult
+// JoinURLPaths works like path.Join but for URLs; it won't remove double slashes.
+// It makes sures there is only one slash between the parts.
+func JoinURLPaths(parts ...string) string {
+	if len(parts) == 0 {
+		return ""
+	}
+	result := parts[0]
+	for i := 1; i < len(parts); i++ {
+		if parts[i] == "" {
+			continue
+		}
+		result = strings.TrimSuffix(result, "/") + "/" + strings.TrimPrefix(parts[i], "/")
+	}
+	return result
+}

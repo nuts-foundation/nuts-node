@@ -21,6 +21,7 @@ package irma
 import (
 	"encoding/base64"
 	"github.com/stretchr/testify/require"
+	"net/http"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/vc"
@@ -40,7 +41,7 @@ type mockIrmaClient struct {
 	sessionToken  string
 }
 
-func (m *mockIrmaClient) GetSessionResult(token string) (*irmaservercore.SessionResult, error) {
+func (m *mockIrmaClient) GetSessionResult(token irma.RequestorToken) (*irmaservercore.SessionResult, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -55,9 +56,14 @@ func (m *mockIrmaClient) StartSession(request interface{}, handler irmaservercor
 	return m.irmaQr, irma.RequestorToken(m.sessionToken), nil, nil
 }
 
+func (m *mockIrmaClient) HandlerFunc() http.HandlerFunc {
+	//TODO implement me
+	panic("implement me")
+}
+
 func TestService_VerifyVP(t *testing.T) {
 	t.Run("ok - valid VP", func(t *testing.T) {
-		validator, _ := defaultValidator(t)
+		validator, _ := defaultVerifier(t)
 
 		irmaSignature := test.ValidIrmaContract
 		encodedIrmaSignature := base64.StdEncoding.EncodeToString([]byte(irmaSignature))
@@ -77,12 +83,12 @@ func TestService_VerifyVP(t *testing.T) {
 	})
 
 	t.Run("nok - invalid rawVP", func(t *testing.T) {
-		validator := Service{}
+		verifier := Verifier{}
 		vp := vc.VerifiablePresentation{
 			Proof: []interface{}{},
 		}
 
-		validationResult, err := validator.VerifyVP(vp, nil)
+		validationResult, err := verifier.VerifyVP(vp, nil)
 
 		assert.Nil(t, validationResult)
 		assert.EqualError(t, err, "could not verify VP: invalid number of proofs, got 0, want 1")
@@ -111,7 +117,46 @@ func TestIrmaVPVerificationResult(t *testing.T) {
 		assert.Equal(t, "tester", vr.DisclosedAttribute(services.FamilyNameTokenClaim))
 		assert.Equal(t, "von", vr.DisclosedAttribute(services.PrefixTokenClaim))
 		assert.Equal(t, "info@example.com", vr.DisclosedAttribute(services.EmailTokenClaim))
-		assert.Equal(t, "Midden", vr.DisclosedAttribute(services.EidasIALClaim))
+		assert.Equal(t, "low", vr.DisclosedAttribute(services.AssuranceLevelClaim))
+	})
+
+	t.Run("assurance levels", func(t *testing.T) {
+		cases := []struct {
+			name string
+			want string
+		}{
+			{
+				name: "Basis",
+				want: "low",
+			},
+			{
+
+				name: "Midden",
+				want: "low",
+			},
+			{
+				name: "Substantieel",
+				want: "substantial",
+			},
+			{
+				name: "Hoog",
+				want: "high",
+			},
+			{
+				name: "something else",
+				want: "",
+			},
+		}
+		for _, testCase := range cases {
+			t.Run(testCase.name, func(t *testing.T) {
+				vp := irmaVPVerificationResult{
+					disclosedAttributes: map[string]string{
+						"gemeente.personalData.digidlevel": testCase.name,
+					},
+				}
+				assert.Equal(t, testCase.want, vp.DisclosedAttribute(services.AssuranceLevelClaim))
+			})
+		}
 	})
 
 	t.Run("validity", func(t *testing.T) {
@@ -132,22 +177,22 @@ func TestIrmaVPVerificationResult(t *testing.T) {
 	})
 }
 
-func defaultValidator(t *testing.T) (Service, crypto.KeyStore) {
+func defaultVerifier(t *testing.T) (contract.VPVerifier, crypto.KeyStore) {
 	t.Helper()
 	address := "localhost:1323"
-	serviceConfig := ValidatorConfig{
+	serviceConfig := Config{
 		IrmaSchemeManager:     "empty",
 		AutoUpdateIrmaSchemas: true,
 		IrmaConfigPath:        "../../../development/irma",
 		PublicURL:             "http://" + address,
 	}
 
-	irmaConfig, err := GetIrmaConfig(serviceConfig)
+	irmaConfig, err := getIrmaConfig(serviceConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return Service{
-		IrmaConfig:        irmaConfig,
-		ContractTemplates: contract.StandardContractTemplates,
+	return Verifier{
+		IrmaConfig: irmaConfig,
+		Templates:  contract.StandardContractTemplates,
 	}, crypto.NewMemoryCryptoInstance()
 }

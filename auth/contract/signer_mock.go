@@ -51,18 +51,18 @@ func (mr *MockSignerMockRecorder) SigningSessionStatus(ctx, sessionID interface{
 }
 
 // StartSigningSession mocks base method.
-func (m *MockSigner) StartSigningSession(rawContractText string, params map[string]interface{}) (SessionPointer, error) {
+func (m *MockSigner) StartSigningSession(contract Contract, params map[string]interface{}) (SessionPointer, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StartSigningSession", rawContractText, params)
+	ret := m.ctrl.Call(m, "StartSigningSession", contract, params)
 	ret0, _ := ret[0].(SessionPointer)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // StartSigningSession indicates an expected call of StartSigningSession.
-func (mr *MockSignerMockRecorder) StartSigningSession(rawContractText, params interface{}) *gomock.Call {
+func (mr *MockSignerMockRecorder) StartSigningSession(contract, params interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartSigningSession", reflect.TypeOf((*MockSigner)(nil).StartSigningSession), rawContractText, params)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartSigningSession", reflect.TypeOf((*MockSigner)(nil).StartSigningSession), contract, params)
 }
 
 // MockSessionPointer is a mock of SessionPointer interface.

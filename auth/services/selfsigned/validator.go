@@ -25,11 +25,13 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
+	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/types"
+	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"time"
 )
 
-func (v service) VerifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (contract.VPVerificationResult, error) {
+func (v validator) VerifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (contract.VPVerificationResult, error) {
 	result := selfsignedVerificationResult{
 		Status: contract.Invalid,
 	}
@@ -71,12 +73,12 @@ func (v service) VerifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (con
 		return result, nil
 	}
 
-	// TODO add role? See #2047
 	disclosedAttributes := map[string]string{
 		services.InitialsTokenClaim:   credentialSubject.Member.Member.Initials,
 		services.FamilyNameTokenClaim: credentialSubject.Member.Member.FamilyName,
 		services.UsernameClaim:        credentialSubject.Member.Identifier,
-		services.EidasIALClaim:        "low",
+		services.UserRoleClaim:        credentialSubject.Member.RoleName,
+		services.AssuranceLevelClaim:  "low",
 	}
 
 	return selfsignedVerificationResult{
@@ -87,7 +89,7 @@ func (v service) VerifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (con
 	}, nil
 }
 
-func (v service) verifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (credentialSubject employeeIdentityCredentialSubject, proof vc.JSONWebSignature2020Proof, resultErr error) {
+func (v validator) verifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (credentialSubject types.EmployeeIdentityCredentialSubject, proof vc.JSONWebSignature2020Proof, resultErr error) {
 	vcs, err := v.vcr.Verifier().VerifyVP(vp, true, validAt)
 	if err != nil {
 		if errors.As(err, &verifier.VerificationError{}) {
@@ -119,7 +121,7 @@ func (v service) verifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (cre
 		resultErr = newVerificationError("signer must be credential issuer")
 		return
 	}
-	var credentialSubjects []employeeIdentityCredentialSubject
+	var credentialSubjects []types.EmployeeIdentityCredentialSubject
 	_ = vc.UnmarshalCredentialSubject(&credentialSubjects)
 	if len(credentialSubjects) != 1 {
 		resultErr = newVerificationError("exactly 1 credentialSubject is required")
@@ -134,7 +136,7 @@ func (v service) verifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (cre
 	return credentialSubject, proof, nil
 }
 
-func validateRequiredAttributes(credentialSubject employeeIdentityCredentialSubject) error {
+func validateRequiredAttributes(credentialSubject types.EmployeeIdentityCredentialSubject) error {
 	// check for mandatory attrs
 	if credentialSubject.Type != "Organization" {
 		return errors.New("credentialSubject.type must be \"Organization\"")
@@ -155,6 +157,18 @@ func validateRequiredAttributes(credentialSubject employeeIdentityCredentialSubj
 		return errors.New("credentialSubject.member.member.type must be \"Person\"")
 	}
 	return nil
+}
+
+type validator struct {
+	vcr            vcr.VCR
+	validContracts contract.TemplateStore
+}
+
+func NewValidator(vcrInstance vcr.VCR, contractStore contract.TemplateStore) contract.VPVerifier {
+	return validator{
+		vcr:            vcrInstance,
+		validContracts: contractStore,
+	}
 }
 
 type selfsignedVerificationResult struct {
@@ -181,7 +195,7 @@ func (s selfsignedVerificationResult) DisclosedAttribute(key string) string {
 }
 
 func (s selfsignedVerificationResult) ContractAttribute(key string) string {
-	return s.ContractAttribute(key)
+	return s.contractAttributes[key]
 }
 
 func (s selfsignedVerificationResult) DisclosedAttributes() map[string]string {

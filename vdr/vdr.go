@@ -121,6 +121,32 @@ func (r *VDR) ConflictedDocuments() ([]did.Document, []types.DocumentMetadata, e
 	return conflictedDocs, conflictedMeta, err
 }
 
+// newOwnConflictedDocIterator accepts two counters and returns a new DocIterator that counts the total number of
+// conflicted documents, both total and owned by this node.
+func (r *VDR) newOwnConflictedDocIterator(totalCount, ownedCount *int) types.DocIterator {
+	return func(doc did.Document, metadata types.DocumentMetadata) error {
+		*totalCount++
+		controllers, err := r.didDocResolver.ResolveControllers(doc, &types.ResolveMetadata{Hash: &metadata.Hash})
+		if err != nil {
+			log.Logger().
+				WithField(core.LogFieldDID, doc.ID).
+				WithError(err).
+				Info("failed to resolve controller of conflicted DID document")
+			return nil
+		}
+		for _, controller := range controllers {
+			for _, vr := range controller.CapabilityInvocation {
+				// TODO: Fix context.TODO() when we have a context in the Diagnostics() method
+				if r.keyStore.Exists(context.TODO(), vr.ID.String()) {
+					*ownedCount++
+					return nil
+				}
+			}
+		}
+		return nil
+	}
+}
+
 // Diagnostics returns the diagnostics for this engine
 func (r *VDR) Diagnostics() []core.DiagnosticResult {
 	// return # conflicted docs
@@ -128,24 +154,7 @@ func (r *VDR) Diagnostics() []core.DiagnosticResult {
 	ownedCount := 0
 
 	// uses dedicated storage shelf for conflicted docs, does not loop over all documents
-	err := r.store.Conflicted(func(doc did.Document, metadata types.DocumentMetadata) error {
-		totalCount++
-		controllers, err := r.didDocResolver.ResolveControllers(doc, &types.ResolveMetadata{Hash: &metadata.Hash})
-		if err != nil {
-			log.Logger().Errorf("failed to resolve controller for %s: %v", doc.ID, err)
-			return nil
-		}
-		for _, controller := range controllers {
-			for _, vr := range controller.CapabilityInvocation {
-				// TODO: Fix context.TODO() when we have a context in the Diagnostics() method
-				if r.keyStore.Exists(context.TODO(), vr.ID.String()) {
-					ownedCount++
-					return nil
-				}
-			}
-		}
-		return nil
-	})
+	err := r.store.Conflicted(r.newOwnConflictedDocIterator(&totalCount, &ownedCount))
 	if err != nil {
 		log.Logger().Errorf("Failed to resolve conflicted documents diagnostics: %v", err)
 	}

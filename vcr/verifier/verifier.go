@@ -83,10 +83,9 @@ func NewVerifier(store Store, docResolver vdr.DocResolver, keyResolver vdr.KeyRe
 	return &verifier{store: store, docResolver: docResolver, keyResolver: keyResolver, jsonldManager: jsonldManager, trustConfig: trustConfig}
 }
 
-// validateAtTime is a helper method which checks if a credentia/presentation is valid at a certain given time.
+// validateAtTime is a helper method which checks if a credential/presentation is valid at a certain given time.
 // If no validAt is provided, validAt is set to now.
-// It returns nil if the credential/presentation is valid at the given issuance/expiration date, otherwise it returns types.ErrInvalidPeriod
-func (v *verifier) validateAtTime(issuanceDate time.Time, expirationDate *time.Time, validAt *time.Time) error {
+func (v *verifier) validateAtTime(issuanceDate time.Time, expirationDate *time.Time, validAt *time.Time) bool {
 	// if validAt is nil, use the result from timeFunc (usually now)
 	at := timeFunc()
 	if validAt != nil {
@@ -95,14 +94,14 @@ func (v *verifier) validateAtTime(issuanceDate time.Time, expirationDate *time.T
 
 	// check if issuanceDate is before validAt
 	if issuanceDate.After(at.Add(maxSkew)) {
-		return types.ErrInvalidPeriod
+		return false
 	}
 
 	// check if expirationDate is after validAt
 	if expirationDate != nil && expirationDate.Add(maxSkew).Before(at) {
-		return types.ErrInvalidPeriod
+		return false
 	}
-	return nil
+	return true
 }
 
 // Validate implements the Proof Verification Algorithm: https://w3c-ccg.github.io/data-integrity-spec/#proof-verification-algorithm
@@ -173,8 +172,8 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 	}
 
 	// Check issuance/expiration time
-	if err := v.validateAtTime(credentialToVerify.IssuanceDate, credentialToVerify.ExpirationDate, validAt); err != nil {
-		return err
+	if !v.validateAtTime(credentialToVerify.IssuanceDate, credentialToVerify.ExpirationDate, validAt) {
+		return types.ErrCredentialNotValidAtTime
 	}
 
 	// Check signature
@@ -279,9 +278,8 @@ func (v verifier) doVerifyVP(vcVerifier Verifier, vp vc.VerifiablePresentation, 
 	ldProof := ldProofs[0]
 
 	// Validate signing time
-	err = v.validateAtTime(ldProof.Created, ldProof.Expires, validAt)
-	if err != nil {
-		return nil, toVerificationError(err)
+	if !v.validateAtTime(ldProof.Created, ldProof.Expires, validAt) {
+		return nil, toVerificationError(types.ErrPresentationNotValidAtTime)
 	}
 
 	// Validate signature

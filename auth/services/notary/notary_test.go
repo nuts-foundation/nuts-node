@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package contract
+package notary
 
 import (
 	"context"
@@ -216,7 +216,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 
 		drawnUpContract, err := test.notary.DrawUpContract(ctx, template, orgID, validFrom, duration, nil)
 
-		assert.EqualError(t, err, "found multiple non-matching VCs, which is not supported")
+		assert.EqualError(t, err, "could not draw up contract: found multiple non-matching VCs, which is not supported")
 		assert.Nil(t, drawnUpContract)
 	})
 
@@ -260,13 +260,17 @@ func TestNewContractNotary(t *testing.T) {
 const qrURL = "https://api.nuts-test.example" + irmaService.IrmaMountPath + "/123-session-ref-123"
 
 func TestService_CreateContractSession(t *testing.T) {
+
 	t.Run("Create a new session", func(t *testing.T) {
 		ctx := buildContext(t)
 
 		request := services.CreateSessionRequest{
-			Message:      "message to sign",
+			Message:      "en:test:v1 message to sign",
 			SigningMeans: irmaService.ContractFormat,
 		}
+		store := contract.TemplateStore{"en": {"test": {"v1": &contract.Template{Template: request.Message}}}}
+		ctx.notary.contractTemplateStore = store
+
 		ctx.signerMock.EXPECT().StartSigningSession(gomock.Any(), gomock.Any()).Return(irmaService.SessionPtr{ID: "abc-sessionid-abc", QrCodeInfo: irma.Qr{URL: qrURL, Type: irma.ActionSigning}}, nil)
 
 		result, err := ctx.notary.CreateSigningSession(request)

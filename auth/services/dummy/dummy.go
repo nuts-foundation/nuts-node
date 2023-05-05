@@ -210,7 +210,7 @@ func (d Dummy) VerifyVP(vp vc.VerifiablePresentation, _ *time.Time) (contract.VP
 			services.PrefixTokenClaim:     proof.Prefix,
 			services.FamilyNameTokenClaim: proof.FamilyName,
 			services.EmailTokenClaim:      proof.Email,
-			services.EidasIALClaim:        "low",
+			services.AssuranceLevelClaim:  "low",
 		},
 		contractAttributes: c.Params,
 	}, nil
@@ -254,7 +254,7 @@ func (d Dummy) SigningSessionStatus(_ context.Context, sessionID string) (contra
 // StartSigningSession starts a Dummy session. It takes any string and stores it under a random sessionID.
 // This method is not available in strictMode
 // returns the sessionPointer with the sessionID
-func (d Dummy) StartSigningSession(rawContractText string, _ map[string]interface{}) (contract.SessionPointer, error) {
+func (d Dummy) StartSigningSession(contract contract.Contract, params map[string]interface{}) (contract.SessionPointer, error) {
 	if d.InStrictMode {
 		return nil, errNotEnabled
 	}
@@ -263,7 +263,7 @@ func (d Dummy) StartSigningSession(rawContractText string, _ map[string]interfac
 
 	sessionID := hex.EncodeToString(sessionBytes)
 	d.Status[sessionID] = SessionCreated
-	d.Sessions[sessionID] = rawContractText
+	d.Sessions[sessionID] = contract.RawContractText
 
 	return sessionPointer{
 		sessionID: sessionID,

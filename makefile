@@ -45,6 +45,7 @@ gen-mocks:
 	mockgen -destination=vdr/didstore/mock.go -package=didstore -source=vdr/didstore/interface.go
 	mockgen -destination=vdr/didservice/resolvers_mock.go -package=didservice -source=vdr/didservice/resolvers.go
 	mockgen -destination=vdr/types/mock.go -package=types -source=vdr/types/interface.go -self_package github.com/nuts-foundation/nuts-node/vdr/types --imports did=github.com/nuts-foundation/go-did/did
+	mockgen -destination=auth/services/selfsigned/types/mock.go -package=types -source=auth/services/selfsigned/types/types.go
 
 gen-api:
 	oapi-codegen --config codegen/configs/common_ssi_types.yaml docs/_static/common/ssi_types.yaml | gofmt > api/ssi_types.go
@@ -52,8 +53,8 @@ gen-api:
 	oapi-codegen --config codegen/configs/vdr_v1.yaml docs/_static/vdr/v1.yaml | gofmt > vdr/api/v1/generated.go
 	oapi-codegen --config codegen/configs/network_v1.yaml docs/_static/network/v1.yaml | gofmt > network/api/v1/generated.go
 	oapi-codegen --config codegen/configs/vcr_v2.yaml docs/_static/vcr/v2.yaml | gofmt > vcr/api/v2/generated.go
-	oapi-codegen --config codegen/configs/auth_v1.yaml docs/_static/auth/v1.yaml | gofmt > auth/api/v1/generated.go
-	oapi-codegen --config codegen/configs/auth_client_v1.yaml docs/_static/auth/v1.yaml | gofmt > auth/api/v1/client/generated.go
+	oapi-codegen --config codegen/configs/auth_v1.yaml docs/_static/auth/v1.yaml | gofmt > auth/api/auth_v1/generated.go
+	oapi-codegen --config codegen/configs/auth_employeeid.yaml auth/services/selfsigned/web/spec.yaml | gofmt > auth/services/selfsigned/web/generated.go
 	oapi-codegen --config codegen/configs/didman_v1.yaml docs/_static/didman/v1.yaml | gofmt > didman/api/v1/generated.go
 	oapi-codegen --config codegen/configs/crypto_store_client.yaml https://raw.githubusercontent.com/nuts-foundation/secret-store-api/main/nuts-storage-api-v1.yaml | gofmt > crypto/storage/external/generated.go
 

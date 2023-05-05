@@ -45,12 +45,12 @@ type TestVCRContext struct {
 	VCR         VCR
 }
 
-func NewTestVCRContext(t *testing.T) TestVCRContext {
+func NewTestVCRContext(t *testing.T, keyStore crypto.KeyStore) TestVCRContext {
 	didStore := didstore.NewTestStore(t)
 
 	ctx := TestVCRContext{
 		DIDStore:    didStore,
-		KeyStore:    crypto.NewMemoryCryptoInstance(),
+		KeyStore:    keyStore,
 		DocResolver: didservice.Resolver{Store: didStore},
 		KeyResolver: didservice.KeyResolver{Store: didStore},
 	}

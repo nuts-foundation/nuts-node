@@ -15,7 +15,7 @@ The following options apply to the server commands below:
 
       --auth.accesstokenlifespan int                  defines how long (in seconds) an access token is valid. Uses default in strict mode. (default 60)
       --auth.clockskew int                            allowed JWT Clock skew in milliseconds (default 5000)
-      --auth.contractvalidators strings               sets the different contract validators to use (default [irma,uzi,selfsigned,dummy])
+      --auth.contractvalidators strings               sets the different contract validators to use (default [irma,uzi,dummy,selfsigned])
       --auth.http.timeout int                         HTTP timeout (in seconds) used by the Auth API HTTP client (default 30)
       --auth.irma.autoupdateschemas                   set if you want automatically update the IRMA schemas every 60 minutes. (default true)
       --auth.irma.schememanager string                IRMA schemeManager to use for attributes. Can be either 'pbdf' or 'irma-demo'. (default "pbdf")
@@ -55,6 +55,7 @@ The following options apply to the server commands below:
       --network.protocols ints                        Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.
       --network.v2.diagnosticsinterval int            Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable). (default 5000)
       --network.v2.gossipinterval int                 Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes. (default 5000)
+      --pki.maxupdatefailhours int                    maximum number of hours that a denylist update can fail (default 4)
       --storage.bbolt.backup.directory string         Target directory for BBolt database backups.
       --storage.bbolt.backup.interval duration        Interval, formatted as Golang duration (e.g. 10m, 1h) at which BBolt database backups will be performed.
       --storage.redis.address string                  Redis database server address. This can be a simple 'host:port' or a Redis connection URL with scheme, auth and other options.
@@ -126,6 +127,7 @@ Starts the Nuts server
 
 Client Commands
 ***************
+
 
 nuts didman svc add
 ^^^^^^^^^^^^^^^^^^^

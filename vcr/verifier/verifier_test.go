@@ -358,8 +358,8 @@ func Test_verifier_validateAtTime(t *testing.T) {
 		t.Run("credential is valid", func(t *testing.T) {
 			sut := verifier{}
 			credentialToTest := testCredential(t)
-			validationErr := sut.validateAtTime(credentialToTest.IssuanceDate, credentialToTest.ExpirationDate, timeToCheck)
-			assert.NoError(t, validationErr)
+			valid := sut.validateAtTime(credentialToTest.IssuanceDate, credentialToTest.ExpirationDate, timeToCheck)
+			assert.True(t, valid)
 		})
 	})
 
@@ -369,8 +369,8 @@ func Test_verifier_validateAtTime(t *testing.T) {
 			timeToCheck = &now
 			sut := verifier{}
 			credentialToTest := testCredential(t)
-			validationErr := sut.validateAtTime(credentialToTest.IssuanceDate, credentialToTest.ExpirationDate, timeToCheck)
-			assert.NoError(t, validationErr)
+			valid := sut.validateAtTime(credentialToTest.IssuanceDate, credentialToTest.ExpirationDate, timeToCheck)
+			assert.True(t, valid)
 		})
 
 		t.Run("credential is invalid when timeAt is before issuance", func(t *testing.T) {
@@ -379,8 +379,8 @@ func Test_verifier_validateAtTime(t *testing.T) {
 			timeToCheck = &beforeIssuance
 			sut := verifier{}
 			credentialToTest := testCredential(t)
-			validationErr := sut.validateAtTime(credentialToTest.IssuanceDate, credentialToTest.ExpirationDate, timeToCheck)
-			assert.EqualError(t, validationErr, "credential not valid at given time")
+			valid := sut.validateAtTime(credentialToTest.IssuanceDate, credentialToTest.ExpirationDate, timeToCheck)
+			assert.False(t, valid)
 		})
 
 		t.Run("credential is invalid when timeAt is after expiration", func(t *testing.T) {
@@ -392,8 +392,8 @@ func Test_verifier_validateAtTime(t *testing.T) {
 			credentialToTest := testCredential(t)
 			// Set expirationDate since the testCredential does not have one
 			credentialToTest.ExpirationDate = &expireTime
-			validationErr := sut.validateAtTime(credentialToTest.IssuanceDate, credentialToTest.ExpirationDate, timeToCheck)
-			assert.EqualError(t, validationErr, "credential not valid at given time")
+			valid := sut.validateAtTime(credentialToTest.IssuanceDate, credentialToTest.ExpirationDate, timeToCheck)
+			assert.False(t, valid)
 		})
 
 	})
@@ -558,7 +558,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Len(t, vcs, 1)
 	})
-	t.Run("error - VC verification fails (not valid at time)", func(t *testing.T) {
+	t.Run("error - VP verification fails (not valid at time)", func(t *testing.T) {
 		_ = json.Unmarshal([]byte(rawVP), &vp)
 
 		var validAt time.Time
@@ -569,7 +569,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 
 		vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, &validAt)
 
-		assert.EqualError(t, err, "verification error: credential not valid at given time")
+		assert.EqualError(t, err, "verification error: presentation not valid at given time")
 		assert.Empty(t, vcs)
 	})
 	t.Run("error - VC verification fails", func(t *testing.T) {

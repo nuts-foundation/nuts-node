@@ -551,7 +551,7 @@ func (s *authzServer) buildAccessToken(ctx context.Context, requester did.DID, a
 		accessToken.FamilyName = toStrPtr(disclosedAttributeFn(services.FamilyNameTokenClaim))
 		accessToken.Prefix = toStrPtr(disclosedAttributeFn(services.PrefixTokenClaim))
 		accessToken.Email = toStrPtr(disclosedAttributeFn(services.EmailTokenClaim))
-		accessToken.EidasIAL = toStrPtr(disclosedAttributeFn(services.EidasIALClaim))
+		accessToken.AssuranceLevel = toStrPtr(disclosedAttributeFn(services.AssuranceLevelClaim))
 	}
 
 	if len(credentialIDs) > 0 {

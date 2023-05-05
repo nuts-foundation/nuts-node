@@ -23,7 +23,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/sirupsen/logrus"
+	"net/http"
 	"os"
 	"strings"
 
@@ -38,6 +41,13 @@ import (
 	irmago "github.com/privacybydesign/irmago"
 	"github.com/privacybydesign/irmago/server"
 )
+
+// Signer signs contracts using the IRMA logic.
+type Signer struct {
+	sessionHandler signingSessionHandler
+	schemeManager  string
+	strictMode     bool
+}
 
 // SessionPtr should be made private when v0 is removed
 type SessionPtr struct {
@@ -68,18 +78,13 @@ func (s SessionPtr) MarshalJSON() ([]byte, error) {
 const NutsIrmaSignedContract = "NutsIrmaSignedContract"
 
 // StartSigningSession accepts a rawContractText and creates an IRMA signing session.
-func (v Service) StartSigningSession(rawContractText string, params map[string]interface{}) (contract.SessionPointer, error) {
+func (v Signer) StartSigningSession(contract contract.Contract, _ map[string]interface{}) (contract.SessionPointer, error) {
 	// Put the template in an IRMA envelope
-	signatureRequest := irmago.NewSignatureRequest(rawContractText)
-	schemeManager := v.IrmaServiceConfig.IrmaSchemeManager
-
-	c, err := contract.ParseContractString(rawContractText, v.ContractTemplates)
-	if err != nil {
-		return nil, err
-	}
+	signatureRequest := irmago.NewSignatureRequest(contract.RawContractText)
+	schemeManager := v.schemeManager
 
 	var attributes irmago.AttributeCon
-	for _, att := range c.Template.SignerAttributes {
+	for _, att := range contract.Template.SignerAttributes {
 		// Checks if attribute name start with a dot, if so, add the configured scheme manager.
 		if strings.Index(att, ".") == 0 {
 			att = fmt.Sprintf("%s%s", schemeManager, att)
@@ -93,7 +98,7 @@ func (v Service) StartSigningSession(rawContractText string, params map[string]i
 	}
 
 	// Start an IRMA session
-	sessionPointer, token, _, err := v.IrmaSessionHandler.StartSession(signatureRequest, func(result *server.SessionResult) {
+	sessionPointer, token, _, err := v.sessionHandler.StartSession(signatureRequest, func(result *server.SessionResult) {
 		log.Logger().Debug("Session done")
 		log.Logger().Trace(server.ToJson(result))
 	})
@@ -117,10 +122,20 @@ func (v Service) StartSigningSession(rawContractText string, params map[string]i
 	return challenge, nil
 }
 
+func (v Signer) Routes(router core.EchoRouter) {
+	rewriteFunc := http.StripPrefix(IrmaMountPath, v.sessionHandler.HandlerFunc())
+	irmaEchoHandler := echo.WrapHandler(rewriteFunc)
+	methods := []string{http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodConnect, http.MethodOptions, http.MethodTrace}
+
+	for _, method := range methods {
+		router.Add(method, IrmaMountPath+"/*", irmaEchoHandler)
+	}
+}
+
 // SigningSessionStatus returns the current status of a certain session.
 // It returns nil if the session is not found
-func (v Service) SigningSessionStatus(_ context.Context, sessionID string) (contract.SigningSessionResult, error) {
-	result, err := v.IrmaSessionHandler.GetSessionResult(sessionID)
+func (v Signer) SigningSessionStatus(_ context.Context, sessionID string) (contract.SigningSessionResult, error) {
+	result, err := v.sessionHandler.GetSessionResult(irmago.RequestorToken(sessionID))
 	if err != nil {
 		if _, ok := err.(*irmaserver.UnknownSessionError); ok {
 			return nil, services.ErrSessionNotFound
@@ -178,4 +193,11 @@ func printQrCode(qrcode string) {
 		QuietZone:  1,
 	}
 	qrterminal.GenerateWithConfig(qrcode, config)
+}
+
+// signingSessionHandler is an abstraction for the Irma Server, mainly for enabling better testing
+type signingSessionHandler interface {
+	GetSessionResult(token irmago.RequestorToken) (*server.SessionResult, error)
+	StartSession(request interface{}, handler server.SessionHandler) (*irmago.Qr, irmago.RequestorToken, *irmago.FrontendSessionRequest, error)
+	HandlerFunc() http.HandlerFunc
 }

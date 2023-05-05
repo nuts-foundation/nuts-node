@@ -561,7 +561,8 @@ func TestWrapper_CreateVP(t *testing.T) {
 		ldContext := credential.NutsV1ContextURI
 		vpType := ssi.MustParseURI("SpecialPresentation")
 		request.Expires = &expiredStr
-		request.ProofPurpose = &proofPurpose
+		purpose := CreateVPRequestProofPurpose(proofPurpose)
+		request.ProofPurpose = &purpose
 		request.Context = &[]string{ldContext.String()}
 		request.Type = &[]string{vpType.String()}
 		opts := holder.PresentationOptions{

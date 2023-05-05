@@ -21,6 +21,7 @@ package irma
 import (
 	"context"
 	"errors"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/privacybydesign/irmago/server/irmaserver"
@@ -73,23 +74,15 @@ func TestSessionPtr_SessionID(t *testing.T) {
 func TestService_StartSigningSession(t *testing.T) {
 	correctContractText := "EN:PractitionerLogin:v3 I hereby declare to act on behalf of verpleeghuis De nootjes located in Caretown. This declaration is valid from maandag 1 oktober 12:00:00 until maandag 1 oktober 13:00:00."
 
-	t.Run("error - malformed contract", func(t *testing.T) {
-		ctx := serviceWithMocks(t)
-
-		rawContractText := "not a contract"
-
-		_, err := ctx.service.StartSigningSession(rawContractText, nil)
-
-		assert.Error(t, err)
-	})
-
 	t.Run("error - irma.StartSession returns error", func(t *testing.T) {
 		ctx := serviceWithMocks(t)
 
-		irmaMock := ctx.service.IrmaSessionHandler.(*mockIrmaClient)
+		irmaMock := ctx.service.sessionHandler.(*mockIrmaClient)
 		irmaMock.err = errors.New("some error")
 
-		_, err := ctx.service.StartSigningSession(correctContractText, nil)
+		signedContract, err := contract.ParseContractString(correctContractText, contract.StandardContractTemplates)
+		require.NoError(t, err)
+		_, err = ctx.service.StartSigningSession(*signedContract, nil)
 
 		assert.Error(t, err)
 		assert.Equal(t, "error while creating session: some error", err.Error())
@@ -98,14 +91,14 @@ func TestService_StartSigningSession(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := serviceWithMocks(t)
 
-		irmaMock := ctx.service.IrmaSessionHandler.(*mockIrmaClient)
+		irmaMock := ctx.service.sessionHandler.(*mockIrmaClient)
 		irmaMock.irmaQr = &irma.Qr{
 			URL:  "url",
 			Type: "type",
 		}
 		irmaMock.sessionToken = "token"
 
-		session, err := ctx.service.StartSigningSession(correctContractText, nil)
+		session, err := ctx.service.StartSigningSession(contract.Contract{RawContractText: correctContractText, Template: &contract.Template{SignerAttributes: []string{}}}, nil)
 
 		assert.NoError(t, err)
 		assert.Equal(t, "token", session.SessionID())
@@ -123,7 +116,7 @@ func TestService_SigningSessionStatus(t *testing.T) {
 	t.Run("error - session not found", func(t *testing.T) {
 		mockCtx := serviceWithMocks(t)
 
-		irmaMock := mockCtx.service.IrmaSessionHandler.(*mockIrmaClient)
+		irmaMock := mockCtx.service.sessionHandler.(*mockIrmaClient)
 		irmaMock.sessionResult = nil
 		irmaMock.err = &irmaserver.UnknownSessionError{}
 
@@ -136,7 +129,7 @@ func TestService_SigningSessionStatus(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		mockCtx := serviceWithMocks(t)
 
-		irmaMock := mockCtx.service.IrmaSessionHandler.(*mockIrmaClient)
+		irmaMock := mockCtx.service.sessionHandler.(*mockIrmaClient)
 		irmaMock.sessionResult = &irmaservercore.SessionResult{
 			Token:  "token",
 			Status: "status",
@@ -161,33 +154,20 @@ type mockContext struct {
 	ctrl       *gomock.Controller
 	signer     *crypto.MockJWTSigner
 	vcResolver *vcr.MockResolver
-	service    *Service
+	service    *Signer
 }
 
 func serviceWithMocks(t *testing.T) *mockContext {
-	serviceConfig := ValidatorConfig{
-		IrmaConfigPath:        "../../../development/irma",
-		AutoUpdateIrmaSchemas: false,
-		IrmaSchemeManager:     "empty",
-	}
-
 	ctrl := gomock.NewController(t)
+	mockVCR := vcr.NewMockResolver(ctrl)
 
-	vcr := vcr.NewMockResolver(ctrl)
-	mockSigner := crypto.NewMockJWTSigner(ctrl)
-
-	irmaConfig, _ := GetIrmaConfig(serviceConfig)
-	service := &Service{
-		IrmaSessionHandler: &mockIrmaClient{},
-		IrmaConfig:         irmaConfig,
-		Signer:             mockSigner,
-		ContractTemplates:  contract.StandardContractTemplates,
+	service := &Signer{
+		sessionHandler: &mockIrmaClient{},
 	}
 
 	return &mockContext{
 		ctrl:       ctrl,
-		signer:     mockSigner,
-		vcResolver: vcr,
+		vcResolver: mockVCR,
 		service:    service,
 	}
 }
