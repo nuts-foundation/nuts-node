@@ -32,7 +32,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/types"
 	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/web"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
@@ -121,7 +120,7 @@ func (v *signer) createVP(ctx context.Context, s types.Session, issuanceDate tim
 
 	expirationData := issuanceDate.Add(24 * time.Hour)
 	credentialOptions := vc.VerifiableCredential{
-		Context:           []ssi.URI{credential.NutsV1ContextURI, jsonld.SchemaOrgContextURI},
+		Context:           []ssi.URI{credential.NutsV1ContextURI},
 		Type:              []ssi.URI{ssi.MustParseURI(credentialType)},
 		Issuer:            issuerID.URI(),
 		IssuanceDate:      issuanceDate,
