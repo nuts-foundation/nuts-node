@@ -775,6 +775,7 @@ func (n *Network) Reprocess(ctx context.Context, contentType string) (*Reprocess
 		return nil, fmt.Errorf("reprocess terminate before completing succesful: %w", ctx.Err())
 	}
 
+	log.Logger().Infof("Successfully completed reprocess of %s", contentType)
 	return new(ReprocessReport), nil
 }
 
