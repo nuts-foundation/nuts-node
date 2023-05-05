@@ -682,7 +682,7 @@ components:
           type: string
           description: Assurance level of the identity of the End-User.
           format: enum
-          enum: [low, high]
+          enum: [low, substantial, high]
         user_role:
           type: string
           description: Role of the End-User.

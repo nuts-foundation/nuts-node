@@ -38,8 +38,9 @@ const (
 
 // Defines values for TokenIntrospectionResponseAssuranceLevel.
 const (
-	High TokenIntrospectionResponseAssuranceLevel = "high"
-	Low  TokenIntrospectionResponseAssuranceLevel = "low"
+	High        TokenIntrospectionResponseAssuranceLevel = "high"
+	Low         TokenIntrospectionResponseAssuranceLevel = "low"
+	Substantial TokenIntrospectionResponseAssuranceLevel = "substantial"
 )
 
 // AccessTokenRequestFailedResponse Error response when access token request fails as described in rfc6749 section 5.2

@@ -137,7 +137,7 @@ func (I irmaVPVerificationResult) DisclosedAttribute(key string) string {
 		case "midden":
 			v = "low"
 		case "substantieel":
-			fallthrough
+			v = "substantial"
 		case "hoog":
 			v = "high"
 		default:

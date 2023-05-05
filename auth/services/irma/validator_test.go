@@ -121,46 +121,42 @@ func TestIrmaVPVerificationResult(t *testing.T) {
 	})
 
 	t.Run("assurance levels", func(t *testing.T) {
-		t.Run("Basis", func(t *testing.T) {
-			vp := irmaVPVerificationResult{
-				disclosedAttributes: map[string]string{
-					"gemeente.personalData.digidlevel": "Basis",
-				},
-			}
-			assert.Equal(t, "low", vp.DisclosedAttribute(services.AssuranceLevelClaim))
-		})
-		t.Run("Midden", func(t *testing.T) {
-			vp := irmaVPVerificationResult{
-				disclosedAttributes: map[string]string{
-					"gemeente.personalData.digidlevel": "Midden",
-				},
-			}
-			assert.Equal(t, "low", vp.DisclosedAttribute(services.AssuranceLevelClaim))
-		})
-		t.Run("Substantieel", func(t *testing.T) {
-			vp := irmaVPVerificationResult{
-				disclosedAttributes: map[string]string{
-					"gemeente.personalData.digidlevel": "Substantieel",
-				},
-			}
-			assert.Equal(t, "high", vp.DisclosedAttribute(services.AssuranceLevelClaim))
-		})
-		t.Run("Hoog", func(t *testing.T) {
-			vp := irmaVPVerificationResult{
-				disclosedAttributes: map[string]string{
-					"gemeente.personalData.digidlevel": "Hoog",
-				},
-			}
-			assert.Equal(t, "high", vp.DisclosedAttribute(services.AssuranceLevelClaim))
-		})
-		t.Run("Overig", func(t *testing.T) {
-			vp := irmaVPVerificationResult{
-				disclosedAttributes: map[string]string{
-					"gemeente.personalData.digidlevel": "superb",
-				},
-			}
-			assert.Equal(t, "", vp.DisclosedAttribute(services.AssuranceLevelClaim))
-		})
+		cases := []struct {
+			name string
+			want string
+		}{
+			{
+				name: "Basis",
+				want: "low",
+			},
+			{
+
+				name: "Midden",
+				want: "low",
+			},
+			{
+				name: "Substantieel",
+				want: "substantial",
+			},
+			{
+				name: "Hoog",
+				want: "high",
+			},
+			{
+				name: "something else",
+				want: "",
+			},
+		}
+		for _, testCase := range cases {
+			t.Run(testCase.name, func(t *testing.T) {
+				vp := irmaVPVerificationResult{
+					disclosedAttributes: map[string]string{
+						"gemeente.personalData.digidlevel": testCase.name,
+					},
+				}
+				assert.Equal(t, testCase.want, vp.DisclosedAttribute(services.AssuranceLevelClaim))
+			})
+		}
 	})
 
 	t.Run("validity", func(t *testing.T) {
