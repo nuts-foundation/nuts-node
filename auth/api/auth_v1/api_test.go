@@ -27,6 +27,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	mock2 "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/url"
@@ -744,10 +745,14 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		ctx.echoMock.EXPECT().FormValue("token").Return(body.Token)
 	}
 
-	expectStatusOK := func(ctx *TestContext, response TokenIntrospectionResponse) {
-		data, _ := json.Marshal(response)
-		logrus.Infof("Expect: %s", string(data))
-		ctx.echoMock.EXPECT().JSON(http.StatusOK, gomock.Eq(response))
+	expectStatusOK := func(ctx *TestContext, expected TokenIntrospectionResponse) {
+		expectedData, _ := json.Marshal(expected)
+		logrus.Infof("Expect: %s", string(expectedData))
+		ctx.echoMock.EXPECT().JSON(http.StatusOK, mock2.MatchedBy(func(actual interface{}) bool {
+			actualData, _ := json.Marshal(actual)
+			logrus.Infof("Actual: %s", string(actualData))
+			return assert.JSONEq(t, string(expectedData), string(actualData))
+		}))
 	}
 
 	t.Run("empty token returns active false", func(t *testing.T) {
@@ -762,18 +767,19 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		_ = ctx.wrapper.IntrospectAccessToken(ctx.echoMock)
 	})
 
+	aud := "123"
+	aid := vdr.TestDIDA.String()
+	exp := 1581412667
+	iat := 1581411767
+	iss := vdr.TestDIDB.String()
+	service := "service"
+
 	t.Run("introspect a token", func(t *testing.T) {
 		ctx := createContext(t)
 
 		request := TokenIntrospectionRequest{Token: "123"}
 		bindPostBody(ctx, request)
 
-		aud := "123"
-		aid := vdr.TestDIDA.String()
-		exp := 1581412667
-		iat := 1581411767
-		iss := vdr.TestDIDB.String()
-		service := "service"
 		ctx.authzServerMock.EXPECT().IntrospectAccessToken(ctx.audit, request.Token).Return(
 			&services.NutsAccessToken{
 				Audience:    aud,
@@ -801,6 +807,69 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 			Service:     &service,
 			Vcs:         &credentials,
 			ResolvedVCs: &resolvedVCs,
+		}
+
+		expectStatusOK(ctx, response)
+
+		err := ctx.wrapper.IntrospectAccessToken(ctx.echoMock)
+
+		assert.NoError(t, err)
+	})
+	t.Run("with all fields", func(t *testing.T) {
+		ctx := createContext(t)
+
+		request := TokenIntrospectionRequest{Token: "123"}
+		bindPostBody(ctx, request)
+
+		initials := "I"
+		prefix := "Mr."
+		familyName := "Family"
+		email := "email"
+		assuranceLevel := "low"
+		username := "admin"
+		userRole := "root"
+		ctx.authzServerMock.EXPECT().IntrospectAccessToken(ctx.audit, request.Token).Return(
+			&services.NutsAccessToken{
+				Service:        service,
+				Initials:       &initials,
+				Prefix:         &prefix,
+				FamilyName:     &familyName,
+				Email:          &email,
+				AssuranceLevel: &assuranceLevel,
+				Username:       &username,
+				UserRole:       &userRole,
+				Expiration:     int64(exp),
+				IssuedAt:       int64(iat),
+				Issuer:         iss,
+				Subject:        aid,
+				Audience:       aud,
+				Credentials:    []string{"credentialID-1", "credentialID-2"},
+			}, nil)
+		ctx.cedentialResolverMock.EXPECT().Resolve(ssi.MustParseURI("credentialID-1"), nil).Return(nil, errors.New("not found"))
+		ctx.cedentialResolverMock.EXPECT().Resolve(ssi.MustParseURI("credentialID-2"), nil).Return(&vc.VerifiableCredential{}, nil)
+
+		credentials := []string{"credentialID-1", "credentialID-2"}
+
+		resolvedVCs := []VerifiableCredential{{}}
+		al := Low
+		response := TokenIntrospectionResponse{
+			Active: true,
+			Aud:    &aud,
+			Exp:    &exp,
+			Iat:    &iat,
+			Iss:    &iss,
+			Sub:    &aid,
+			//Uid:    &uid,
+			Service:        &service,
+			Vcs:            &credentials,
+			ResolvedVCs:    &resolvedVCs,
+			Initials:       &initials,
+			Prefix:         &prefix,
+			FamilyName:     &familyName,
+			Email:          &email,
+			AssuranceLevel: &al,
+			Username:       &username,
+			UserRole:       &userRole,
 		}
 
 		expectStatusOK(ctx, response)

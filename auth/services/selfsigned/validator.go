@@ -73,12 +73,12 @@ func (v validator) VerifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (c
 		return result, nil
 	}
 
-	// TODO add role? See #2047
 	disclosedAttributes := map[string]string{
 		services.InitialsTokenClaim:   credentialSubject.Member.Member.Initials,
 		services.FamilyNameTokenClaim: credentialSubject.Member.Member.FamilyName,
 		services.UsernameClaim:        credentialSubject.Member.Identifier,
-		services.EidasIALClaim:        "low",
+		services.UserRoleClaim:        credentialSubject.Member.RoleName,
+		services.AssuranceLevelClaim:  "low",
 	}
 
 	return selfsignedVerificationResult{

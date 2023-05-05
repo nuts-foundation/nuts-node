@@ -117,7 +117,50 @@ func TestIrmaVPVerificationResult(t *testing.T) {
 		assert.Equal(t, "tester", vr.DisclosedAttribute(services.FamilyNameTokenClaim))
 		assert.Equal(t, "von", vr.DisclosedAttribute(services.PrefixTokenClaim))
 		assert.Equal(t, "info@example.com", vr.DisclosedAttribute(services.EmailTokenClaim))
-		assert.Equal(t, "Midden", vr.DisclosedAttribute(services.EidasIALClaim))
+		assert.Equal(t, "low", vr.DisclosedAttribute(services.AssuranceLevelClaim))
+	})
+
+	t.Run("assurance levels", func(t *testing.T) {
+		t.Run("Basis", func(t *testing.T) {
+			vp := irmaVPVerificationResult{
+				disclosedAttributes: map[string]string{
+					"gemeente.personalData.digidlevel": "Basis",
+				},
+			}
+			assert.Equal(t, "low", vp.DisclosedAttribute(services.AssuranceLevelClaim))
+		})
+		t.Run("Midden", func(t *testing.T) {
+			vp := irmaVPVerificationResult{
+				disclosedAttributes: map[string]string{
+					"gemeente.personalData.digidlevel": "Midden",
+				},
+			}
+			assert.Equal(t, "low", vp.DisclosedAttribute(services.AssuranceLevelClaim))
+		})
+		t.Run("Substantieel", func(t *testing.T) {
+			vp := irmaVPVerificationResult{
+				disclosedAttributes: map[string]string{
+					"gemeente.personalData.digidlevel": "Substantieel",
+				},
+			}
+			assert.Equal(t, "high", vp.DisclosedAttribute(services.AssuranceLevelClaim))
+		})
+		t.Run("Hoog", func(t *testing.T) {
+			vp := irmaVPVerificationResult{
+				disclosedAttributes: map[string]string{
+					"gemeente.personalData.digidlevel": "Hoog",
+				},
+			}
+			assert.Equal(t, "high", vp.DisclosedAttribute(services.AssuranceLevelClaim))
+		})
+		t.Run("Overig", func(t *testing.T) {
+			vp := irmaVPVerificationResult{
+				disclosedAttributes: map[string]string{
+					"gemeente.personalData.digidlevel": "superb",
+				},
+			}
+			assert.Equal(t, "", vp.DisclosedAttribute(services.AssuranceLevelClaim))
+		})
 	})
 
 	t.Run("validity", func(t *testing.T) {

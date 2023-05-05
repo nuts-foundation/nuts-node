@@ -210,7 +210,7 @@ func (d Dummy) VerifyVP(vp vc.VerifiablePresentation, _ *time.Time) (contract.VP
 			services.PrefixTokenClaim:     proof.Prefix,
 			services.FamilyNameTokenClaim: proof.FamilyName,
 			services.EmailTokenClaim:      proof.Email,
-			services.EidasIALClaim:        "low",
+			services.AssuranceLevelClaim:  "low",
 		},
 		contractAttributes: c.Params,
 	}, nil

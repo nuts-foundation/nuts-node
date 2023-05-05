@@ -89,9 +89,12 @@ const PrefixTokenClaim = "prefix"
 // EmailTokenClaim is the JWT claim for email
 const EmailTokenClaim = "email"
 
-// EidasIALClaim is the EIDAS identity assurance level claim: Low - to - High
-const EidasIALClaim = "eidas_ial"
+// AssuranceLevelClaim is the identity assurance level claim: Low - High
+const AssuranceLevelClaim = "assurance_level"
 
 // UsernameClaim is the JWT claim for the username. This may be an identifier or email depending on the means used.
-// The claim is a default claim according toRFC 7662 (https://www.rfc-editor.org/rfc/rfc7662)
+// The claim is a default claim according to RFC 7662 (https://www.rfc-editor.org/rfc/rfc7662)
 const UsernameClaim = "username"
+
+// UserRoleClaim is the JWT claim for the user role which can be anything, depending on the authorizer's IAM system.
+const UserRoleClaim = "user_role"

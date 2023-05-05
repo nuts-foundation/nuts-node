@@ -21,7 +21,9 @@ package irma
 import (
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/services"
+	"strings"
 	"time"
 
 	"github.com/lestrrat-go/jwx/jwt"
@@ -126,8 +128,21 @@ func (I irmaVPVerificationResult) DisclosedAttribute(key string) string {
 		v = I.disclosedAttributes["gemeente.personalData.initials"]
 	case services.EmailTokenClaim:
 		v = I.disclosedAttributes["sidn-pbdf.email.email"]
-	case services.EidasIALClaim:
-		v = I.disclosedAttributes["gemeente.personalData.digidlevel"]
+	case services.AssuranceLevelClaim:
+		// Map DigiD levels to Nuts assurance levels.
+		// Taken from https://www.logius.nl/domeinen/toegang/digid/documentatie/koppelvlakspecificatie-digid-saml-authenticatie
+		switch strings.ToLower(I.disclosedAttributes["gemeente.personalData.digidlevel"]) {
+		case "basis":
+			fallthrough
+		case "midden":
+			v = "low"
+		case "substantieel":
+			fallthrough
+		case "hoog":
+			v = "high"
+		default:
+			log.Logger().Warnf("Unknown IRMA DigiD level: %s", I.disclosedAttributes["gemeente.personalData.digidlevel"])
+		}
 	}
 	return v
 }

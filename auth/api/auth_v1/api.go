@@ -413,6 +413,12 @@ func (w Wrapper) IntrospectAccessToken(ctx echo.Context) error {
 		Prefix:     claims.Prefix,
 		FamilyName: claims.FamilyName,
 		Email:      claims.Email,
+		Username:   claims.Username,
+		UserRole:   claims.UserRole,
+	}
+	if claims.AssuranceLevel != nil {
+		level := TokenIntrospectionResponseAssuranceLevel(*claims.AssuranceLevel)
+		introspectionResponse.AssuranceLevel = &level
 	}
 
 	if claims.Credentials != nil && len(claims.Credentials) > 0 {

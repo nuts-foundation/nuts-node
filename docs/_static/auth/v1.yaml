@@ -675,6 +675,17 @@ components:
           type: string
           description: End-User's preferred e-mail address. Should be a personal email and can be used to uniquely identify a user. Just like the email used for an account.
           example: w.debruijn@example.org
+        username:
+          type: string
+          description: Identifier uniquely identifying the End-User's account in the issuing system.
+        assurance_level:
+          type: string
+          description: Assurance level of the identity of the End-User.
+          format: enum
+          enum: [low, high]
+        user_role:
+          type: string
+          description: Role of the End-User.
   securitySchemes:
     jwtBearerAuth:
       type: http

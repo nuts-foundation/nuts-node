@@ -74,12 +74,14 @@ type JwtBearerTokenResult struct {
 // Its contents are derived from a Jwt Bearer token. The Jwt Bearer token is verified by the authorization server and
 // stripped from the proof to make it compact.
 type NutsAccessToken struct {
-	Service    string  `json:"service"`
-	Initials   *string `json:"initials,omitempty"`
-	Prefix     *string `json:"prefix,omitempty"`
-	FamilyName *string `json:"family_name,omitempty"`
-	Email      *string `json:"email,omitempty"`
-	EidasIAL   *string `json:"eidas_ial,omitempty"`
+	Service        string  `json:"service"`
+	Initials       *string `json:"initials,omitempty"`
+	Prefix         *string `json:"prefix,omitempty"`
+	FamilyName     *string `json:"family_name,omitempty"`
+	Email          *string `json:"email,omitempty"`
+	AssuranceLevel *string `json:"assurance_level,omitempty"`
+	Username       *string `json:"username,omitempty"`
+	UserRole       *string `json:"user_role,omitempty"`
 
 	KeyID       string   `json:"-"`
 	Expiration  int64    `json:"exp"`
