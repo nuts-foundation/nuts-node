@@ -150,8 +150,6 @@ func (v *signer) StartSigningSession(userContract contract.Contract, params map[
 		return nil, services.InvalidContractRequestError{Message: fmt.Errorf("invalid session params: %w", err)}
 	}
 
-	// TODO: check if the contract name and city matches the employeeDID
-
 	const randomByteCount = 16
 	sessionBytes := make([]byte, randomByteCount)
 	count, err := rand.Reader.Read(sessionBytes)
