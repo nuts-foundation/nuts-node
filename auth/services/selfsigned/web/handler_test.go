@@ -267,7 +267,7 @@ func TestHandler_Routes(t *testing.T) {
 func Test_renderTemplate(t *testing.T) {
 	t.Run("ok - all values are rendered in the template", func(t *testing.T) {
 		s := types.Session{
-			Contract: "contract string",
+			Contract: "nl:logincontract:v1 contract string",
 			Secret:   "secret value",
 			Employee: types.Employee{
 				Identifier: "123",
@@ -281,7 +281,7 @@ func Test_renderTemplate(t *testing.T) {
 			err := renderTemplate("employee_identity", lang, s, buf)
 
 			assert.NoError(t, err)
-			assert.Contains(t, buf.String(), s.Contract)
+			assert.Contains(t, buf.String(), "contract string")
 			assert.Contains(t, buf.String(), s.Secret, buf.String())
 			assert.Contains(t, buf.String(), s.Employee.Identifier)
 			assert.Contains(t, buf.String(), s.Employee.RoleName)
