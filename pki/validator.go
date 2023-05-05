@@ -180,7 +180,7 @@ func (v *validator) Validate(chain []*x509.Certificate) error {
 		// check in reverse order to prevent CRL expiration errors due to revoked CAs no longer issuing CRLs
 		if err = v.validateCert(cert); err != nil {
 			errOut := fmt.Errorf("%w: subject=%s, S/N=%s, issuer=%s", err, cert.Subject.String(), cert.SerialNumber.String(), cert.Issuer.String())
-			if softfail && !(errors.Is(err, ErrCertRevoked) || errors.Is(err, ErrCertBanned) || errors.Is(err, ErrCertUntrusted)) {
+			if softfail && !(errors.Is(err, ErrCertRevoked) || errors.Is(err, ErrCertBanned)) {
 				// Accept the certificate even if it cannot be properly validated
 				logger().WithError(errOut).Error("Certificate CRL check softfail bypass. Might be unsafe, find cause of failure!")
 				continue

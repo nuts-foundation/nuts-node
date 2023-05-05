@@ -131,7 +131,7 @@ func TestValidator_Validate(t *testing.T) {
 	})
 	t.Run("unknown issuer", func(t *testing.T) {
 		val := &validator{truststore: map[string]*x509.Certificate{}}
-		testSoftHard(t, val, validCertA, ErrCertUntrusted, ErrCertUntrusted)
+		testSoftHard(t, val, validCertA, nil, ErrCertUntrusted)
 	})
 	t.Run("missing crl", func(t *testing.T) {
 		testSoftHard(t, val, validCertBWithRevokedCA, nil, ErrCRLMissing)
