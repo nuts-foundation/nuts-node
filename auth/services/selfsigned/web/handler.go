@@ -74,7 +74,7 @@ func (h Handler) RenderEmployeeIDPage(ctx echo.Context, sessionID string, params
 
 	// Check the current status before returning, this results that the form is only shown once
 	if !h.store.CheckAndSetStatus(sessionID, types.SessionCreated, types.SessionInProgress) {
-		return echo.NewHTTPError(http.StatusNotFound, "session not found")
+		return echo.NewHTTPError(http.StatusNotFound, "no session with status created found")
 	}
 
 	return ctx.HTMLBlob(http.StatusOK, responseHTML.Bytes())
