@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/piprate/json-gold/ld"
 	"strings"
 
@@ -106,6 +107,21 @@ func (d defaultCredentialValidator) Validate(credential vc.VerifiableCredential)
 
 	if credential.Proof == nil {
 		return failure("'proof' is required")
+	}
+
+	if len(credential.CredentialSubject) == 0 {
+		return failure("must have at least one 'credentialSubject'")
+	}
+	var credentialSubjects []BaseCredentialSubject
+	err := credential.UnmarshalCredentialSubject(&credentialSubjects)
+	if err != nil {
+		return failure("invalid credential subject(s): %v", err)
+	}
+	for _, credentialSubject := range credentialSubjects {
+		_, err := did.ParseDID(credentialSubject.ID)
+		if err != nil {
+			return failure("invalid 'credentialSubject.id': %v", err)
+		}
 	}
 
 	return nil

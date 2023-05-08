@@ -383,7 +383,7 @@ func TestDefaultCredentialValidator(t *testing.T) {
 		credential := *ValidNutsAuthorizationCredential()
 		credential.CredentialSubject = []interface{}{
 			map[string]interface{}{
-				"id": "1234",
+				"id": "did:nuts:1234",
 			},
 		}
 
@@ -426,5 +426,47 @@ func TestDefaultCredentialValidator(t *testing.T) {
 		err := validator.Validate(*v)
 
 		assert.EqualError(t, err, "validation failed: type 'VerifiableCredential' is required")
+	})
+	t.Run("failed - no credentialSubjects", func(t *testing.T) {
+		credential := *ValidNutsAuthorizationCredential()
+		credential.CredentialSubject = []interface{}{}
+
+		err := validator.Validate(credential)
+
+		assert.EqualError(t, err, "validation failed: must have at least one 'credentialSubject'")
+	})
+	t.Run("failed - credentialSubject is missing id", func(t *testing.T) {
+		credential := *ValidNutsAuthorizationCredential()
+		credential.CredentialSubject = []interface{}{
+			map[string]interface{}{},
+		}
+
+		err := validator.Validate(credential)
+
+		assert.EqualError(t, err, "validation failed: invalid 'credentialSubject.id': invalid DID: input length is less than 7")
+	})
+	t.Run("failed - credentialSubject contains invalid id", func(t *testing.T) {
+		credential := *ValidNutsAuthorizationCredential()
+		credential.CredentialSubject = []interface{}{
+			map[string]interface{}{
+				"id": "not a did",
+			},
+		}
+
+		err := validator.Validate(credential)
+
+		assert.EqualError(t, err, "validation failed: invalid 'credentialSubject.id': invalid DID: input does not begin with 'did:' prefix")
+	})
+	t.Run("ok - credentialSubject contains non-Nuts DID", func(t *testing.T) {
+		credential := *ValidNutsAuthorizationCredential()
+		credential.CredentialSubject = []interface{}{
+			map[string]interface{}{
+				"id": "did:web:example.com",
+			},
+		}
+
+		err := validator.Validate(credential)
+
+		assert.NoError(t, err)
 	})
 }
