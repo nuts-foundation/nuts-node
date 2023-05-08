@@ -427,15 +427,23 @@ func (d *didman) resolveOrganizationDIDDocuments(organizations []vc.VerifiableCr
 	j := 0
 	for i, organization := range organizations {
 		document, organizationDID, err := d.resolveOrganizationDIDDocument(organization)
-		if err != nil && !(errors.Is(err, types.ErrNotFound) || errors.Is(err, types.ErrDeactivated)) {
-			return nil, nil, err
-		}
-		if document == nil {
-			// DID Document might be deactivated, so just log a warning and omit this entry from the search.
+		if errors.Is(err, types.ErrDeactivated) || errors.Is(err, types.ErrNotFound) || errors.Is(err, did.ErrInvalidDID) {
+			// Just ignore deactivated DID documents or VCs that don't refer to an existing DID document.
+			// Log it on debug, because it might be useful for finding VCs that need to be revoked (since they're invalid).
 			log.Logger().
 				WithError(err).
+				WithField(core.LogFieldCredentialID, organization.ID).
 				WithField(core.LogFieldDID, organizationDID.String()).
-				Warn("Unable to resolve organization DID Document")
+				Debug("Unable to resolve organization DID document (invalid VC?)")
+			continue
+		}
+		if document == nil {
+			// Some other error occurred, log a warning and omit this entry from the search.
+			log.Logger().
+				WithError(err).
+				WithField(core.LogFieldCredentialID, organization.ID).
+				WithField(core.LogFieldDID, organizationDID.String()).
+				Warn("Unable to parse organization VC and/or subject DID document")
 			continue
 		}
 		didDocuments[j] = document
@@ -449,6 +457,9 @@ func (d *didman) resolveOrganizationDIDDocuments(organizations []vc.VerifiableCr
 }
 
 func (d *didman) resolveOrganizationDIDDocument(organization vc.VerifiableCredential) (*did.Document, did.DID, error) {
+	if len(organization.CredentialSubject) == 0 {
+		return nil, did.DID{}, errors.New("no credential subjects in organization credential")
+	}
 	credentialSubject := make([]credential.BaseCredentialSubject, 0)
 	err := organization.UnmarshalCredentialSubject(&credentialSubject)
 	if err != nil {
