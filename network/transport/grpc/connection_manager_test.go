@@ -55,6 +55,11 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 )
 
+const (
+	testTruststoreFile = "../../../test/pki/truststore.pem"
+	testCertAndKeyFile = "../../../test/pki/certificate-and-key.pem"
+)
+
 // newBufconnConfig creates a new Config like NewConfig, but configures an in-memory bufconn listener instead of a TCP listener.
 func newBufconnConfig(peerID transport.PeerID, options ...ConfigOption) (Config, *bufconn.Listener) {
 	bufnet := bufconn.Listen(1024 * 1024)
@@ -105,8 +110,8 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 
 	t.Run("ok - with TLS", func(t *testing.T) {
 		p := &TestProtocol{}
-		ts, _ := core.LoadTrustStore("../../test/truststore.pem")
-		clientCert, _ := tls.LoadX509KeyPair("../../test/certificate-and-key.pem", "../../test/certificate-and-key.pem")
+		ts, _ := core.LoadTrustStore(testTruststoreFile)
+		clientCert, _ := tls.LoadX509KeyPair(testCertAndKeyFile, testCertAndKeyFile)
 		config := NewConfig("", "test", WithTLS(clientCert, ts, 1))
 
 		cm := NewGRPCConnectionManager(config, createKVStore(t), nodeDID, nil, p).(*grpcConnectionManager)
@@ -495,8 +500,8 @@ func Test_grpcConnectionManager_Peers(t *testing.T) {
 }
 
 func Test_grpcConnectionManager_Start(t *testing.T) {
-	trustStore, _ := core.LoadTrustStore("../../test/truststore.pem")
-	serverCert, _ := tls.LoadX509KeyPair("../../test/certificate-and-key.pem", "../../test/certificate-and-key.pem")
+	trustStore, _ := core.LoadTrustStore(testTruststoreFile)
+	serverCert, _ := tls.LoadX509KeyPair(testCertAndKeyFile, testCertAndKeyFile)
 
 	t.Run("ok - gRPC server not bound", func(t *testing.T) {
 		cm := NewGRPCConnectionManager(Config{}, nil, nodeDID, nil).(*grpcConnectionManager)

@@ -52,6 +52,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	testTruststoreFile        = "../test/pki/truststore.pem"
+	testCertAndKeyFile        = "../test/pki/certificate-and-key.pem"
+	testInvalidCertAndKeyFile = "../test/pki/invalid-cert.pem"
+)
+
 var nodeDID, _ = did.ParseDID("did:nuts:test")
 
 type networkTestContext struct {
@@ -215,9 +221,9 @@ func TestNetwork_Configure(t *testing.T) {
 		cfg.Datadir = io.TestDirectory(t)
 		*cfg.LegacyTLS = core.NetworkTLSConfig{
 			Enabled:        true,
-			TrustStoreFile: "test/truststore.pem",
-			CertFile:       "test/certificate-and-key.pem",
-			CertKeyFile:    "test/certificate-and-key.pem",
+			TrustStoreFile: testTruststoreFile,
+			CertFile:       testCertAndKeyFile,
+			CertKeyFile:    testCertAndKeyFile,
 		}
 		err := ctx.network.Configure(cfg)
 
@@ -560,7 +566,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 			},
 		},
 	}
-	certificate, err := tls.LoadX509KeyPair("test/certificate-and-key.pem", "test/certificate-and-key.pem")
+	certificate, err := tls.LoadX509KeyPair(testCertAndKeyFile, testCertAndKeyFile)
 	require.NoError(t, err)
 	certificate.Leaf, err = x509.ParseCertificate(certificate.Certificate[0])
 	require.NoError(t, err)
@@ -1089,9 +1095,9 @@ func TestNetwork_calculateLamportClock(t *testing.T) {
 }
 
 func TestNetwork_checkHealth(t *testing.T) {
-	trustStore, err := core.LoadTrustStore("test/truststore.pem")
+	trustStore, err := core.LoadTrustStore(testTruststoreFile)
 	require.NoError(t, err)
-	certificate, err := tls.LoadX509KeyPair("test/certificate-and-key.pem", "test/certificate-and-key.pem")
+	certificate, err := tls.LoadX509KeyPair(testCertAndKeyFile, testCertAndKeyFile)
 	require.NoError(t, err)
 	certificate.Leaf, err = x509.ParseCertificate(certificate.Certificate[0])
 	require.NoError(t, err)
@@ -1108,9 +1114,9 @@ func TestNetwork_checkHealth(t *testing.T) {
 			assert.Equal(t, core.HealthStatusUp, result[healthTLS].Status)
 		})
 		t.Run("expired", func(t *testing.T) {
-			trustStore, err := core.LoadTrustStore("test/truststore.pem")
+			trustStore, err := core.LoadTrustStore(testTruststoreFile)
 			require.NoError(t, err)
-			certificate, err := tls.LoadX509KeyPair("test/invalid-cert.pem", "test/invalid-cert.pem")
+			certificate, err := tls.LoadX509KeyPair(testInvalidCertAndKeyFile, testInvalidCertAndKeyFile)
 			require.NoError(t, err)
 			certificate.Leaf, err = x509.ParseCertificate(certificate.Certificate[0])
 			require.NoError(t, err)

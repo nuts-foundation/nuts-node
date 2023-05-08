@@ -39,8 +39,8 @@ import (
 )
 
 const (
-	pkiOverheidRootCA   = "../network/test/pkioverheid-server-bundle.pem"
-	pkiOverheidCRL      = "../network/test/pkioverheid.crl"
+	pkiOverheidRootCA   = "../pki/test/pkioverheid-server-bundle.pem"
+	pkiOverheidCRL      = "../pki/test/pkioverheid.crl"
 	revokedSerialNumber = "10000026"
 	revokedIssuerName   = "CN=Staat der Nederlanden EV Root CA,O=Staat der Nederlanden,C=NL"
 )

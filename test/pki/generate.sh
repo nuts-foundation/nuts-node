@@ -13,4 +13,4 @@ cat localhost.{pem,key} > certificate-and-key.pem
 cat ca.pem pkioverheid-server-bundle.pem > truststore.pem
 
 rm localhost.{key,pem,csr}
-rm ca.{key,pem,srl}
+rm ca.{key,srl}
