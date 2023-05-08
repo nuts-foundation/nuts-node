@@ -1238,7 +1238,9 @@ func TestNetwork_checkHealth(t *testing.T) {
 				},
 			},
 		}
-		t.Run("up - correctly configured node DID", func(t *testing.T) {
+		t.Run("unknown - cannot connect", func(t *testing.T) {
+			// passes all checks except self-connect
+			// cannot test happy path since all addresses that would pass the self-connect check are invalid NutsComm addresses
 			ctrl := gomock.NewController(t)
 			cxt := createNetwork(t, ctrl)
 			_ = cxt.keyStorage.SavePrivateKey(context.Background(), keyID.String(), certificate.PrivateKey)
@@ -1249,8 +1251,8 @@ func TestNetwork_checkHealth(t *testing.T) {
 
 			health := cxt.network.CheckHealth()
 
-			assert.Equal(t, core.HealthStatusUp, health[healthAuthConfig].Status)
-			assert.Nil(t, health["auth"].Details)
+			assert.Equal(t, core.HealthStatusUnknown, health[healthAuthConfig].Status)
+			assert.Contains(t, health[healthAuthConfig].Details, "cannot connect to own NutsComm grpc://nuts.nl:5555: dial tcp")
 		})
 		t.Run("up - no node DID", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
