@@ -711,7 +711,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 		assert.NotNil(t, actual)
 		assert.Empty(t, actual)
 	})
-	t.Run("ok - DID document not found (logs, omits result)", func(t *testing.T) {
+	t.Run("ok - DID document not found (omits result)", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.vcr.EXPECT().Search(reqCtx, searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 		ctx.docResolver.EXPECT().Resolve(testDIDB, nil).Return(nil, nil, types.ErrNotFound)
@@ -722,7 +722,7 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 		assert.NotNil(t, actual)
 		assert.Empty(t, actual)
 	})
-	t.Run("ok - DID document deactivated (logs, omits result)", func(t *testing.T) {
+	t.Run("ok - DID document deactivated (omits result)", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.vcr.EXPECT().Search(reqCtx, searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 		ctx.docResolver.EXPECT().Resolve(testDIDB, nil).Return(nil, nil, types.ErrDeactivated)
@@ -733,15 +733,63 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 		assert.NotNil(t, actual)
 		assert.Empty(t, actual)
 	})
-	t.Run("error - other error while resolving DID document", func(t *testing.T) {
+	t.Run("ok - invalid subject ID (omits result)", func(t *testing.T) {
+		ctx := newMockContext(t)
+		credentialWithInvalidSubjectID := vc.VerifiableCredential{}
+		_ = json.Unmarshal([]byte(jsonld.TestOrganizationCredential), &credentialWithInvalidSubjectID)
+		credentialWithInvalidSubjectID.CredentialSubject = []interface{}{
+			map[string]interface{}{
+				"id": "90",
+			},
+		}
+
+		ctx.vcr.EXPECT().Search(reqCtx, searchTerms, false, nil).Return([]vc.VerifiableCredential{credentialWithInvalidSubjectID}, nil)
+
+		actual, err := ctx.instance.SearchOrganizations(reqCtx, "query", nil)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, actual)
+		assert.Empty(t, actual)
+	})
+	t.Run("ok - missing subject ID (omits result)", func(t *testing.T) {
+		ctx := newMockContext(t)
+		credentialWithoutSubjectID := vc.VerifiableCredential{}
+		_ = json.Unmarshal([]byte(jsonld.TestOrganizationCredential), &credentialWithoutSubjectID)
+		credentialWithoutSubjectID.CredentialSubject = []interface{}{
+			map[string]interface{}{},
+		}
+
+		ctx.vcr.EXPECT().Search(reqCtx, searchTerms, false, nil).Return([]vc.VerifiableCredential{credentialWithoutSubjectID}, nil)
+
+		actual, err := ctx.instance.SearchOrganizations(reqCtx, "query", nil)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, actual)
+		assert.Empty(t, actual)
+	})
+	t.Run("ok - no subject (omits result)", func(t *testing.T) {
+		ctx := newMockContext(t)
+		credentialWithoutSubjectID := vc.VerifiableCredential{}
+		_ = json.Unmarshal([]byte(jsonld.TestOrganizationCredential), &credentialWithoutSubjectID)
+		credentialWithoutSubjectID.CredentialSubject = nil
+
+		ctx.vcr.EXPECT().Search(reqCtx, searchTerms, false, nil).Return([]vc.VerifiableCredential{credentialWithoutSubjectID}, nil)
+
+		actual, err := ctx.instance.SearchOrganizations(reqCtx, "query", nil)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, actual)
+		assert.Empty(t, actual)
+	})
+	t.Run("ok - other error while resolving DID document (just logged)", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.vcr.EXPECT().Search(reqCtx, searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 		ctx.docResolver.EXPECT().Resolve(testDIDB, nil).Return(nil, nil, io.EOF)
 
 		actual, err := ctx.instance.SearchOrganizations(reqCtx, "query", nil)
 
-		assert.Error(t, err)
-		assert.Nil(t, actual)
+		assert.NoError(t, err)
+		assert.NotNil(t, actual)
 	})
 }
 
