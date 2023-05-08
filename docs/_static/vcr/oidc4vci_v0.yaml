@@ -374,8 +374,9 @@ components:
                 The fields of the JWT may look like this:
                 
                 {
+                  "typ": "openid4vci-proof+jwt",
                   "alg": "ES256",
-                  "kid":"did:nuts:ebfeb1f712ebc6f1c276e12ec21/keys/1"
+                  "kid": "did:nuts:ebfeb1f712ebc6f1c276e12ec21#keys-1"
                 }.
                 {
                   "iss": "s6BhdRkqt3",
