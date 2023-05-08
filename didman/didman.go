@@ -370,10 +370,7 @@ func (d *didman) SearchOrganizations(ctx context.Context, query string, didServi
 	}
 	// Retrieve DID Documents of found organizations
 	var didDocuments []*did.Document
-	didDocuments, organizations, err = d.resolveOrganizationDIDDocuments(organizations)
-	if err != nil {
-		return nil, err
-	}
+	didDocuments, organizations = d.resolveOrganizationDIDDocuments(organizations)
 
 	// If specified, filter on DID service type
 	if didServiceType != nil && len(*didServiceType) > 0 {
@@ -420,9 +417,7 @@ func (d *didman) SearchOrganizations(ctx context.Context, query string, didServi
 }
 
 // resolveOrganizationDIDDocuments takes a slice of organization VCs and tries to resolve the corresponding DID document for each.
-// If a DID document isn't found or it is deactivated the organization is filtered from the slice (reslicing the given slice) and omitted from the DID documents slice.
-// If any other error occurs, it is returned.
-func (d *didman) resolveOrganizationDIDDocuments(organizations []vc.VerifiableCredential) ([]*did.Document, []vc.VerifiableCredential, error) {
+func (d *didman) resolveOrganizationDIDDocuments(organizations []vc.VerifiableCredential) ([]*did.Document, []vc.VerifiableCredential) {
 	didDocuments := make([]*did.Document, len(organizations))
 	j := 0
 	for i, organization := range organizations {
@@ -453,7 +448,7 @@ func (d *didman) resolveOrganizationDIDDocuments(organizations []vc.VerifiableCr
 	// Reslice to omit results which' DID Document could not be resolved
 	didDocuments = didDocuments[:j]
 	organizations = organizations[:j]
-	return didDocuments, organizations, nil
+	return didDocuments, organizations
 }
 
 func (d *didman) resolveOrganizationDIDDocument(organization vc.VerifiableCredential) (*did.Document, did.DID, error) {
