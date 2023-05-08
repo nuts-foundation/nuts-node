@@ -26,7 +26,7 @@ type RequestAccessTokenFormdataBody struct {
 
 // HandleCredentialOfferParams defines parameters for HandleCredentialOffer.
 type HandleCredentialOfferParams struct {
-	// CredentialOffer Contains the url encoded credential_offer object
+	// CredentialOffer Contains the URL encoded credential_offer object (as JSON, see the CredentialOffer component).
 	CredentialOffer string `form:"credential_offer" json:"credential_offer"`
 }
 

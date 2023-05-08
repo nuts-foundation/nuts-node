@@ -47,9 +47,6 @@ type CredentialResponse = oidc4vci.CredentialResponse
 // OAuth2ClientMetadata is the metadata of the OAuth2 client
 type OAuth2ClientMetadata = oidc4vci.OAuth2ClientMetadata
 
-// CredentialOffer is the credential offer sent to the OIDC4VCI wallet
-type CredentialOffer = oidc4vci.CredentialOffer
-
 type ErrorResponse = oidc4vci.Error
 
 var _ core.ErrorWriter = (*protocolErrorWriter)(nil)

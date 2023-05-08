@@ -219,7 +219,7 @@ paths:
             type: string
             example: did:nuts:123
         - name: credential_offer
-          description: Contains the url encoded credential_offer object
+          description: Contains the URL encoded credential_offer object (as JSON, see the CredentialOffer component).
           in: query
           required: true
           schema:
@@ -352,11 +352,12 @@ components:
       properties:
         format:
           type: string
+          description: |
+            The format of the credential request. This MUST be one of the values specified in the "credentials_supported" array in the Credential Issuer Metadata.
           example: "ldp_vc"
         credential_definition:
           type: object
-          description: |
-            JSON object containing (and isolating) the detailed description of the credential type. This object MUST be processed using full JSON-LD processing
+          description: JSON-LD object describing the requested credential.
         proof:
           type: object
           required:
@@ -465,8 +466,6 @@ components:
           example: "https://issuer.example"
         credentials:
           type: array
-          items:
-            type: object
         grants:
           type: object
       example:

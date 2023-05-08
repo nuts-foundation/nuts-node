@@ -41,9 +41,6 @@ type Finder interface {
 	Search(ctx context.Context, searchTerms []SearchTerm, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error)
 }
 
-// Writer is the interface that groups al the VC write methods
-type Writer = types.Writer
-
 // TrustManager bundles all trust related methods in one interface
 type TrustManager interface {
 	// Trust adds trust for a Issuer/CredentialType combination.
