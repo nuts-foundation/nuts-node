@@ -342,7 +342,7 @@ components:
         {
           "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp..sHQ",
           "token_type": "bearer",
-          "expires_in": 300,
+          "expires_in": 3600,
           "c_nonce": "tZignsnFbp"
         }
     CredentialRequest:
