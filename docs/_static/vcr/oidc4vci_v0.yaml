@@ -379,7 +379,6 @@ components:
                   "kid": "did:nuts:ebfeb1f712ebc6f1c276e12ec21#keys-1"
                 }.
                 {
-                  "iss": "s6BhdRkqt3",
                   "aud": "https://credential-issuer.example.com",
                   "iat": 1659145924,
                   "nonce": "tZignsnFbp"
