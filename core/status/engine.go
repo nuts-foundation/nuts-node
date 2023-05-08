@@ -118,6 +118,7 @@ func (s *status) collectDiagnostics() map[string][]core.DiagnosticResult {
 func (s *status) checkHealth(ctx echo.Context) error {
 	result := s.doCheckHealth()
 	responseCode := 200
+	// log all non-healthy components
 	if result.Status != core.HealthStatusUp {
 		var failures []string
 		for component, componentHealth := range result.Details.(map[string]core.Health) {
@@ -126,6 +127,10 @@ func (s *status) checkHealth(ctx echo.Context) error {
 			}
 		}
 		logrus.Warnf("Health check status is not UP, failing components:\n%s", strings.Join(failures, "\n"))
+	}
+	// return 503 only when status is core.HealthStatusDown.
+	// core.HealthStatusUnknown should return 200, or it would fail with load balancers and container orchestrators
+	if result.Status == core.HealthStatusDown {
 		responseCode = 503
 	}
 

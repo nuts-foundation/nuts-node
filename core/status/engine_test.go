@@ -101,7 +101,7 @@ func TestStatusOK(t *testing.T) {
 }
 
 func Test_status_healthChecks(t *testing.T) {
-	t.Run("status UP", func(t *testing.T) {
+	t.Run("status UP - 200", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		echoContext := mock.NewMockContext(ctrl)
 		echoContext.EXPECT().JSON(200, core.Health{
@@ -114,7 +114,28 @@ func Test_status_healthChecks(t *testing.T) {
 
 		assert.NoError(t, err)
 	})
-	t.Run("status DOWN", func(t *testing.T) {
+	t.Run("status UNKNOWN - 200", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		echoContext := mock.NewMockContext(ctrl)
+		echoContext.EXPECT().JSON(200, gomock.Any())
+		system := core.NewSystem()
+		system.RegisterEngine(&healthCheckingEngine{
+			name: "engine1",
+			check: func() map[string]core.Health {
+				return map[string]core.Health{
+					"check1": {
+						Status: core.HealthStatusUnknown,
+					},
+				}
+			},
+		})
+		s := status{system: system}
+
+		err := s.checkHealth(echoContext)
+
+		assert.NoError(t, err)
+	})
+	t.Run("status DOWN - 503", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		echoContext := mock.NewMockContext(ctrl)
 		echoContext.EXPECT().JSON(503, gomock.Any())
