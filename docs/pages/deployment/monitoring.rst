@@ -17,9 +17,9 @@ The endpoint is available over HTTP:
 
     GET /health
 
-Each component in the health check can have one of the statuses UP, UNKNOWN, or DOWN.
-The overall status is determined by the lowest common denominator, so if one components is DOWN, the overall system status is DOWN.
-The overall system statuses UP and UNKNOWN map to HTTP status code 200, and status DOWN maps to status code 503.
+Each component in the health check can have one of the statuses ``UP``, ``UNKNOWN``, or ``DOWN``.
+The overall status is determined by the lowest common denominator, so if one components is ``DOWN``, the overall system status is ``DOWN``.
+The overall system statuses ``UP`` and ``UNKNOWN`` map to HTTP status code ``200``, and status ``DOWN`` maps to status code ``503``.
 
 Example response when all checks succeeded (formatted for readability):
 
