@@ -337,7 +337,7 @@ components:
           type: string
           description: |
             JSON string containing a nonce to be used to create a proof of possession of key material when requesting a Credential. When received, the Wallet MUST use this nonce value for its subsequent credential requests until the Credential Issuer provides a fresh nonce.
-          example: "n-0S6_WzA2Mj"
+          example: "tZignsnFbp"
       example:
         {
           "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp..sHQ",
