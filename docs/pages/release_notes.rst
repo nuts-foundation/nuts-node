@@ -4,6 +4,17 @@ Release notes
 #############
 
 ************************
+Hazelnut update (v5.2.1)
+************************
+
+Release date: 2023-05-08
+
+- A ```NutsOrganizationCredential``` with an invalid ```credentialSubject.id``` could cause Didman's ```SearchOrganizations```
+  call to fail. This is now fixed by ignoring invalid credentials.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.2.0...v5.2.1
+
+************************
 Hazelnut update (v5.2.0)
 ************************
 
