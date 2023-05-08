@@ -445,7 +445,7 @@ func TestDefaultCredentialValidator(t *testing.T) {
 
 		assert.EqualError(t, err, "validation failed: invalid 'credentialSubject.id': invalid DID: input length is less than 7")
 	})
-	t.Run("failed - credentialSubject contains invalid id", func(t *testing.T) {
+	t.Run("failed - credentialSubject contains invalid id (string)", func(t *testing.T) {
 		credential := *ValidNutsAuthorizationCredential()
 		credential.CredentialSubject = []interface{}{
 			map[string]interface{}{
@@ -456,6 +456,18 @@ func TestDefaultCredentialValidator(t *testing.T) {
 		err := validator.Validate(credential)
 
 		assert.EqualError(t, err, "validation failed: invalid 'credentialSubject.id': invalid DID: input does not begin with 'did:' prefix")
+	})
+	t.Run("failed - credentialSubject contains invalid id (bool)", func(t *testing.T) {
+		credential := *ValidNutsAuthorizationCredential()
+		credential.CredentialSubject = []interface{}{
+			map[string]interface{}{
+				"id": false,
+			},
+		}
+
+		err := validator.Validate(credential)
+
+		assert.EqualError(t, err, "validation failed: invalid credential subject(s): json: cannot unmarshal bool into Go struct field BaseCredentialSubject.id of type string")
 	})
 	t.Run("ok - credentialSubject contains non-Nuts DID", func(t *testing.T) {
 		credential := *ValidNutsAuthorizationCredential()
