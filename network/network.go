@@ -142,10 +142,9 @@ func NewNetworkInstance(
 		storeProvider:       storeProvider,
 		selfTestDialer: tls.Dialer{
 			NetDialer: &net.Dialer{
-				Timeout:   time.Second, // TODO: what is a reasonable timeout for this? It runs every couple of seconds when the /health endpoint is called
-				LocalAddr: nil,         // TODO: should this be filled for logging purposes or something?
+				Timeout: time.Second,
 			},
-			Config: &tls.Config{InsecureSkipVerify: true}, // set during Configure
+			Config: &tls.Config{InsecureSkipVerify: true}, // set during Configure. Connection is not used for any data exchange.
 		},
 	}
 }
