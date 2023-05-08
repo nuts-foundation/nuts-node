@@ -43,12 +43,6 @@ type networkPublisher struct {
 	keyResolver     keyResolver
 }
 
-// VcDocumentType holds the content type used in network documents which contain Verifiable Credentials
-const VcDocumentType = "application/vc+json"
-
-// RevocationDocumentType holds the content type used in network documents which contain a credential revocation
-const RevocationDocumentType = "application/vc+json;type=revocation"
-
 // NewNetworkPublisher creates a new networkPublisher which implements the Publisher interface.
 // It is the default implementation to use for issuers to publish credentials and revocations to the Nuts network.
 func NewNetworkPublisher(networkTx network.Transactions, docResolver vdr.DocResolver, keyResolver crypto.KeyResolver) Publisher {
@@ -94,7 +88,7 @@ func (p networkPublisher) PublishCredential(ctx context.Context, verifiableCrede
 	}
 
 	payload, _ := json.Marshal(verifiableCredential)
-	tx := network.TransactionTemplate(VcDocumentType, payload, key).
+	tx := network.TransactionTemplate(types.VcDocumentType, payload, key).
 		WithTimestamp(verifiableCredential.IssuanceDate).
 		WithAdditionalPrevs(meta.SourceTransactions).
 		WithPrivate(participants)

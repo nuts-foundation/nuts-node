@@ -119,7 +119,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 		expectedTemplate := network.Template{
 			Key:             testKey,
 			Payload:         payload,
-			Type:            VcDocumentType,
+			Type:            types.VcDocumentType,
 			AttachKey:       false,
 			Timestamp:       time.Time{},
 			AdditionalPrevs: nil,
@@ -164,7 +164,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 		expectedTemplate := network.Template{
 			Key:             testKey,
 			Payload:         payload,
-			Type:            VcDocumentType,
+			Type:            types.VcDocumentType,
 			AttachKey:       false,
 			Timestamp:       time.Time{},
 			AdditionalPrevs: nil,
@@ -272,7 +272,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 			expectedTemplate := network.Template{
 				Key:             testKey,
 				Payload:         payload,
-				Type:            VcDocumentType,
+				Type:            types.VcDocumentType,
 				AttachKey:       false,
 				Timestamp:       time.Time{},
 				AdditionalPrevs: nil,
