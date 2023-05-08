@@ -17,7 +17,7 @@ Release date: **DRAFT**
 - Adds support for RFC019 and RFC020, which describe a new EmployeeIdentity authentication means which allows an employer to make claims
   about the identity of their employees. This has a lower level of assurance, but can be used when care organisations trust each others employee enrollment process.
 
-**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.2.1...v5.3.0
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.2.0...v5.3.0
 
 ************************
 Hazelnut update (v5.2.1)
