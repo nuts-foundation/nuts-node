@@ -370,10 +370,7 @@ func (d *didman) SearchOrganizations(ctx context.Context, query string, didServi
 	}
 	// Retrieve DID Documents of found organizations
 	var didDocuments []*did.Document
-	didDocuments, organizations, err = d.resolveOrganizationDIDDocuments(organizations)
-	if err != nil {
-		return nil, err
-	}
+	didDocuments, organizations = d.resolveOrganizationDIDDocuments(organizations)
 
 	// If specified, filter on DID service type
 	if didServiceType != nil && len(*didServiceType) > 0 {
@@ -420,22 +417,28 @@ func (d *didman) SearchOrganizations(ctx context.Context, query string, didServi
 }
 
 // resolveOrganizationDIDDocuments takes a slice of organization VCs and tries to resolve the corresponding DID document for each.
-// If a DID document isn't found or it is deactivated the organization is filtered from the slice (reslicing the given slice) and omitted from the DID documents slice.
-// If any other error occurs, it is returned.
-func (d *didman) resolveOrganizationDIDDocuments(organizations []vc.VerifiableCredential) ([]*did.Document, []vc.VerifiableCredential, error) {
+func (d *didman) resolveOrganizationDIDDocuments(organizations []vc.VerifiableCredential) ([]*did.Document, []vc.VerifiableCredential) {
 	didDocuments := make([]*did.Document, len(organizations))
 	j := 0
 	for i, organization := range organizations {
 		document, organizationDID, err := d.resolveOrganizationDIDDocument(organization)
-		if err != nil && !(errors.Is(err, types.ErrNotFound) || errors.Is(err, types.ErrDeactivated)) {
-			return nil, nil, err
-		}
-		if document == nil {
-			// DID Document might be deactivated, so just log a warning and omit this entry from the search.
+		if errors.Is(err, types.ErrDeactivated) || errors.Is(err, types.ErrNotFound) || errors.Is(err, did.ErrInvalidDID) {
+			// Just ignore deactivated DID documents or VCs that don't refer to an existing DID document.
+			// Log it on debug, because it might be useful for finding VCs that need to be revoked (since they're invalid).
 			log.Logger().
 				WithError(err).
+				WithField(core.LogFieldCredentialID, organization.ID).
 				WithField(core.LogFieldDID, organizationDID.String()).
-				Warn("Unable to resolve organization DID Document")
+				Debug("Unable to resolve organization DID document (invalid VC?)")
+			continue
+		}
+		if document == nil {
+			// Some other error occurred, log a warning and omit this entry from the search.
+			log.Logger().
+				WithError(err).
+				WithField(core.LogFieldCredentialID, organization.ID).
+				WithField(core.LogFieldDID, organizationDID.String()).
+				Warn("Unable to parse organization VC and/or subject DID document")
 			continue
 		}
 		didDocuments[j] = document
@@ -445,10 +448,13 @@ func (d *didman) resolveOrganizationDIDDocuments(organizations []vc.VerifiableCr
 	// Reslice to omit results which' DID Document could not be resolved
 	didDocuments = didDocuments[:j]
 	organizations = organizations[:j]
-	return didDocuments, organizations, nil
+	return didDocuments, organizations
 }
 
 func (d *didman) resolveOrganizationDIDDocument(organization vc.VerifiableCredential) (*did.Document, did.DID, error) {
+	if len(organization.CredentialSubject) == 0 {
+		return nil, did.DID{}, errors.New("no credential subjects in organization credential")
+	}
 	credentialSubject := make([]credential.BaseCredentialSubject, 0)
 	err := organization.UnmarshalCredentialSubject(&credentialSubject)
 	if err != nil {
