@@ -14,10 +14,21 @@ Release date: **DRAFT**
   If you didn't configure a node DID but do want to exchange private credentials,
   you now have to configure it explicitly using `network.nodedid`.
 - The ``tls.crl.maxvaliditydays`` config flag has been deprecated. CRLs are now updated more frequently, making this option obsolete.
-- Adds support for RFC019 and RFC020, which describe a new EmployerIdentity authentication means which allows an employer to make claims
+- Adds support for RFC019 and RFC020, which describe a new EmployeeIdentity authentication means which allows an employer to make claims
   about the identity of their employees. This has a lower level of assurance, but can be used when care organisations trust each others employee enrollment process.
 
-**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.2.0...v5.3.0
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.2.1...v5.3.0
+
+************************
+Hazelnut update (v5.2.1)
+************************
+
+Release date: 2023-05-08
+
+- A ```NutsOrganizationCredential``` with an invalid ```credentialSubject.id``` could cause Didman's ```SearchOrganizations```
+  call to fail. This is now fixed by ignoring invalid credentials.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.2.0...v5.2.1
 
 ************************
 Hazelnut update (v5.2.0)
