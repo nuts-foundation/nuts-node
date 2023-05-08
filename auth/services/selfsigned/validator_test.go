@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/types"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
@@ -112,6 +113,7 @@ func TestValidator_VerifyVP(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, result.Reason())
 		assert.Equal(t, contract.Valid, result.Validity())
+		assert.Equal(t, "user@example.com", result.DisclosedAttribute(services.UsernameClaim))
 	})
 
 	t.Run("technical error on verify", func(t *testing.T) {

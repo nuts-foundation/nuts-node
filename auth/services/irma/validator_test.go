@@ -117,6 +117,7 @@ func TestIrmaVPVerificationResult(t *testing.T) {
 		assert.Equal(t, "tester", vr.DisclosedAttribute(services.FamilyNameTokenClaim))
 		assert.Equal(t, "von", vr.DisclosedAttribute(services.PrefixTokenClaim))
 		assert.Equal(t, "info@example.com", vr.DisclosedAttribute(services.EmailTokenClaim))
+		assert.Equal(t, "info@example.com", vr.DisclosedAttribute(services.UsernameClaim))
 		assert.Equal(t, "low", vr.DisclosedAttribute(services.AssuranceLevelClaim))
 	})
 

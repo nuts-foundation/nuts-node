@@ -126,6 +126,8 @@ func (I irmaVPVerificationResult) DisclosedAttribute(key string) string {
 		v = I.disclosedAttributes["gemeente.personalData.prefix"]
 	case services.InitialsTokenClaim:
 		v = I.disclosedAttributes["gemeente.personalData.initials"]
+	case services.UsernameClaim:
+		fallthrough
 	case services.EmailTokenClaim:
 		v = I.disclosedAttributes["sidn-pbdf.email.email"]
 	case services.AssuranceLevelClaim:
