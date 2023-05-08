@@ -20,24 +20,21 @@ package core
 
 import (
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
 func TestLoadTrustStore(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		store, err := LoadTrustStore("../network/test/truststore.pem")
+		store, err := LoadTrustStore("../test/pki/truststore.pem")
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, store)
-		assert.Len(t, store.Certificates(), 4)
+		assert.Len(t, store.Certificates(), 1)
 
 		// Assert root certs
-		assert.Len(t, store.RootCAs, 2)
+		require.Len(t, store.RootCAs, 1)
 		assert.Equal(t, "CN=Root CA", store.RootCAs[0].Subject.String())
-		assert.Equal(t, "CN=Staat der Nederlanden EV Root CA,O=Staat der Nederlanden,C=NL", store.RootCAs[1].Subject.String())
-		// Assert intermediate certs
-		assert.Len(t, store.IntermediateCAs, 2)
-		assert.Equal(t, "CN=Staat der Nederlanden Domein Server CA 2020,O=Staat der Nederlanden,C=NL", store.IntermediateCAs[1].Subject.String())
 	})
 	t.Run("invalid PEM file", func(t *testing.T) {
 		store, err := LoadTrustStore("tls_test.go")

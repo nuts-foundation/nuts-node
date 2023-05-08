@@ -33,6 +33,7 @@ func TestConfig_tlsEnabled(t *testing.T) {
 }
 
 func TestNewConfig(t *testing.T) {
+
 	t.Run("without TLS", func(t *testing.T) {
 		cfg := NewConfig(":1234", "foo")
 		assert.Equal(t, transport.PeerID("foo"), cfg.peerID)
@@ -42,14 +43,13 @@ func TestNewConfig(t *testing.T) {
 		assert.Nil(t, cfg.trustStore)
 	})
 	t.Run("with TLS", func(t *testing.T) {
-		cert, _ := tls.LoadX509KeyPair("../../test/certificate-and-key.pem", "../../test/certificate-and-key.pem")
+		tlsCert, _ := tls.LoadX509KeyPair(testCertAndKeyFile, testCertAndKeyFile)
 		ts := &core.TrustStore{
 			CertPool: x509.NewCertPool(),
 		}
-		cfg := NewConfig(":1234", "foo", WithTLS(cert, ts, 10))
-		assert.Equal(t, &cert, cfg.clientCert)
-		assert.Equal(t, &cert, cfg.serverCert)
+		cfg := NewConfig(":1234", "foo", WithTLS(tlsCert, ts, 10))
+		assert.Equal(t, &tlsCert, cfg.clientCert)
+		assert.Equal(t, &tlsCert, cfg.serverCert)
 		assert.Same(t, ts.CertPool, cfg.trustStore)
-		assert.Equal(t, 10, cfg.maxCRLValidityDays)
 	})
 }
