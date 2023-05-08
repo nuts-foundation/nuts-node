@@ -144,7 +144,7 @@ The result of the session can be obtained by calling:
 
 .. code-block::
 
-    GET /internal/auth/v1/signature/session/<sessionToken>
+    GET /internal/auth/v1/signature/session/<sessionID>
 
 The call to the Nuts node will return the following response:
 
@@ -341,14 +341,14 @@ The ``url``, in this case ``/web/auth``, must be set so the frontend can access 
 .. code-block::
 
     <url>/session
-    <url>/session/<sessionToken>/result
+    <url>/session/<sessionID>/result
 
-These URLs must both be available on the backend. For the example above this means that both ``/web/auth/session/`` and ``/web/auth/session/<sessionToken>/result`` are available. The ``<sessionToken>`` is the token that will be returned by the call to ``<url>/session/``.
+These URLs must both be available on the backend. For the example above this means that both ``/web/auth/session/`` and ``/web/auth/session/<sessionToken>/result`` are available. The ``<sessionID>`` is the token that will be returned by the call to ``<url>/session/``.
 How to parse the result of that call and extract the token is done via the ``mapping`` object.
 
 The ``mapping`` object is a map where two keys are expected: ``sessionPtr`` and ``sessionToken``.
 ``sessionPtr`` must point to the data that is used to render the QR code.
-``sessionToken`` must point to the session token used to get the result.
+``sessionToken`` must point to the sessionID token used to get the result (IRMA uses the term `sessionToken` for `sessionID` ).
 
 Setting up the backend
 ======================
@@ -358,7 +358,7 @@ As discussed in the previous chapter, the backend is required to expose two APIs
 .. code-block::
 
     <url>/session
-    <url>/session/<sessionToken>/result
+    <url>/session/<sessionID>/result
 
 No particular security context is required, you may require a user session if needed.
 
