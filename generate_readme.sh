@@ -1,1 +1,0 @@
-rst_include include README_template.rst README.rst
