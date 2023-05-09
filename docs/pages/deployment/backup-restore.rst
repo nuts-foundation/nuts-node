@@ -53,7 +53,7 @@ Refer to the `Redis documentation <https://redis.io/docs/manual/persistence/>`_ 
 Other
 =====
 
-Additionaly, the list of trusted VC issuers must be backed up as well. 
+Additionally, the list of trusted VC issuers must be backed up as well.
 Trusted issuers of VCs are stored in  ``vcr/trusted_issuers.yaml`` inside the ``datadir`` directory.
 If the contents of this file is your primary store for trusted issuers (you're not managing them in an external administrative system), make sure to make a backup.
 
@@ -62,23 +62,31 @@ Restore
 
 To restore a backup, follow the following steps:
 
-- shutdown the node.
-- remove the following directories from the ``datadir``: ``events``, ``network``, ``vcr`` and ``vdr``
-- follow the restore procedure for your storage (BBolt, Redis, Hashicorp Vault)
-- restore the ``vcr/trusted_issuers.yaml`` file inside ``datadir``.
-- start your node
+1. shutdown the node
+2. remove the following directories from the ``datadir``: ``events``, ``network``, ``vcr``, and ``vdr``
+3. remove the ``network.nodedid`` from your configuration file
+4. follow the restore procedure for your storage (BBolt, Redis, Hashicorp Vault)
+5. restore the ``vcr/trusted_issuers.yaml`` file inside ``datadir``
+6. start your node
+7. make an empty POST call to
 
-Make the following empty POST calls:
+.. code-block:: http
+
+    POST <node-address>/internal/network/v1/reprocess?type=application/did+json
+
+8. wait until the reprocess of ``type=application/did+json`` is complete to regain control over you DID document (Reprocess of private vc may fail without this)
+9. reinstate the ``network.nodedid`` in your config file
+10. restart the node
+11. make empty POST calls to
 
 .. code-block:: http
 
     POST <node-address>/internal/network/v1/reprocess?type=application/vc+json
     POST <node-address>/internal/network/v1/reprocess?type=application/ld+json;type=revocation
-    POST <node-address>/internal/network/v1/reprocess?type=application/did+json
 
 .. note::
 
-    When making the API calls, make sure you use the proper URL escaping (```%2B``` for ````+``` and ```%3B``` for ```;```).
+    When making the API calls, make sure you use the proper URL escaping (`%2B` for `+` and `%3B` for `;`).
     Reprocess calls return immediately and will do the work in the background.
 
 BBolt
