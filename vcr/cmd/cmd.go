@@ -27,7 +27,7 @@ import (
 	"strings"
 
 	"github.com/nuts-foundation/nuts-node/core"
-	api "github.com/nuts-foundation/nuts-node/vcr/api/vcr_v2"
+	api "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"
 
 	"github.com/spf13/cobra"
 )

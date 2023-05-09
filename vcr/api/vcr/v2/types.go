@@ -17,7 +17,7 @@
  *
  */
 
-package vcr_v2
+package v2
 
 import (
 	"github.com/nuts-foundation/go-did/vc"

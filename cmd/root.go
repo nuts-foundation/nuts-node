@@ -23,7 +23,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0"
 	"io"
 	"os"
 	"runtime/pprof"
@@ -51,7 +50,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	storageCmd "github.com/nuts-foundation/nuts-node/storage/cmd"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	credAPIv2 "github.com/nuts-foundation/nuts-node/vcr/api/vcr_v2"
+	oidc4vciAPI "github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci/v0"
+	vcrAPI "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"
 	vcrCmd "github.com/nuts-foundation/nuts-node/vcr/cmd"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	vdrAPI "github.com/nuts-foundation/nuts-node/vdr/api/v1"
@@ -201,8 +201,8 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 		Updater:    vdrInstance,
 		Resolver:   docResolver,
 	}})
-	system.RegisterRoutes(&credAPIv2.Wrapper{VCR: credentialInstance, ContextManager: jsonld})
-	system.RegisterRoutes(&oidc4vci_v0.Wrapper{
+	system.RegisterRoutes(&vcrAPI.Wrapper{VCR: credentialInstance, ContextManager: jsonld})
+	system.RegisterRoutes(&oidc4vciAPI.Wrapper{
 		VCR: credentialInstance,
 	})
 	system.RegisterRoutes(statusEngine.(core.Routable))
