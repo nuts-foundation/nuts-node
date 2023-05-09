@@ -86,7 +86,7 @@ To restore a backup, follow the following steps:
 
 .. note::
 
-    When making the API calls, make sure you use the proper URL escaping (`%2B` for `+` and `%3B` for `;`).
+    When making the API calls, make sure you use the proper URL escaping (``%2B`` for ``+`` and ``%3B`` for ``;``).
     Reprocess calls return immediately and will do the work in the background.
 
 BBolt
