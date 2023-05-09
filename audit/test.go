@@ -68,6 +68,16 @@ type CapturedLog struct {
 	hook *test.Hook
 }
 
+func (c *CapturedLog) Contains(t *testing.T, eventName string) bool {
+	t.Helper()
+	for _, entry := range c.hook.AllEntries() {
+		if entry.Data["event"] == eventName {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *CapturedLog) AssertContains(t *testing.T, module string, event string, actor string, message string) {
 	t.Helper()
 	for _, entry := range c.hook.AllEntries() {

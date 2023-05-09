@@ -1,0 +1,38 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+
+title Credential Offer (pre-authorized_code flow)
+
+autonumber
+
+box Issuer
+    participant Issuer
+    participant "Token Endpoint" as TokenEP
+    participant "Credential Endpoint" as CredentialEP
+end box
+
+box Holder
+    participant "Offer Endpoint" as OfferEP
+    participant Wallet
+end box
+
+group Credential Offer
+    Issuer -> OfferEP: CredentialOffer(credentials, (pre-authorized_code))
+    OfferEP --> Issuer: Ok
+    Wallet -> Issuer: Get Issuer Metadata
+    Issuer --> Wallet: Issuer and openid-configuration Metadata
+end
+
+group  Obtain access_token (pre-authorized_code)
+    Wallet -> TokenEP: Token Request (Pre-Authorized Code)
+    TokenEP --> Wallet: Token Response (access_token, c_nonce)
+end
+
+group Get Credential
+    Wallet -> CredentialEP: Credential Request (access_token, proof)
+    CredentialEP --> Wallet: Credential Response (credential)
+end
+
+
+
+@enduml

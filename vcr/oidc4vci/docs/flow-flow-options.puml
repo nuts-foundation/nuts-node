@@ -1,0 +1,52 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+
+title Credential Offer Flow with 2 grant types
+
+autonumber
+
+box Issuer
+    participant Issuer
+    participant "Authorization Server" as IssuerAS
+    participant "Token Endpoint" as TokenEP
+    participant "Credential Endpoint" as CredentialEP
+end box
+
+box Holder
+    participant Wallet
+    participant OfferEP
+end box
+
+group Credential Offer
+    Issuer -> Issuer: Store issuer entry
+    Issuer -> OfferEP: CredentialOffer(credentials, issuer_state)
+    OfferEP --> Issuer: Ok
+    Wallet -> Issuer: Get Metadata
+    Issuer --> Wallet: Metadata
+    OfferEP -> Wallet: store offer + metadata
+end
+
+Group  Get access_token
+    Wallet -> Wallet: create request
+
+    alt authorization_code flow
+        Wallet -> IssuerAS: POST issuer/auth?details&redirect=wallet&issuer_state
+        IssuerAS -> Wallet: 302 wallet/cb?code
+        Wallet -> Wallet: Get wallet/cb?code
+        Wallet -> TokenEP: GET issuer/token?code
+        TokenEP --> Wallet: access_token
+    else Pre-authorized-code flow
+        Wallet -> TokenEP: POST issuer/token?pre-authorized_code
+        TokenEP --> Wallet: access_token
+    end
+end
+
+group Get Credential
+    Wallet -> CredentialEP: GET credential
+    CredentialEP --> Wallet: credential
+    Wallet -> Wallet: store credential
+end
+
+
+
+@enduml

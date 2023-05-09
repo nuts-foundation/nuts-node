@@ -23,6 +23,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vcr/api/oidc4vci_v0"
 	"io"
 	"os"
 	"runtime/pprof"
@@ -50,7 +51,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	storageCmd "github.com/nuts-foundation/nuts-node/storage/cmd"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	credAPIv2 "github.com/nuts-foundation/nuts-node/vcr/api/v2"
+	credAPIv2 "github.com/nuts-foundation/nuts-node/vcr/api/vcr_v2"
 	vcrCmd "github.com/nuts-foundation/nuts-node/vcr/cmd"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	vdrAPI "github.com/nuts-foundation/nuts-node/vdr/api/v1"
@@ -136,15 +137,11 @@ func startServer(ctx context.Context, system *core.System) error {
 		return err
 	}
 
-	// register HTTP routes (lookup router in engines first)
-	var router core.EchoRouter
-	system.VisitEngines(func(curr core.Engine) {
-		if instance, ok := curr.(*httpEngine.Engine); ok {
-			router = instance.Router()
+	// register HTTP routes
+	if http, ok := system.FindEngineByName("http").(*httpEngine.Engine); ok {
+		for _, r := range system.Routers {
+			r.Routes(http.Router())
 		}
-	})
-	for _, r := range system.Routers {
-		r.Routes(router)
 	}
 
 	// start engines
@@ -205,6 +202,9 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 		Resolver:   docResolver,
 	}})
 	system.RegisterRoutes(&credAPIv2.Wrapper{VCR: credentialInstance, ContextManager: jsonld})
+	system.RegisterRoutes(&oidc4vci_v0.Wrapper{
+		VCR: credentialInstance,
+	})
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))
 	system.RegisterRoutes(&authAPI.Wrapper{Auth: authInstance, CredentialResolver: credentialInstance})
@@ -317,6 +317,7 @@ func serverConfigFlags() *pflag.FlagSet {
 	set.AddFlagSet(storageCmd.FlagSet())
 	set.AddFlagSet(networkCmd.FlagSet())
 	set.AddFlagSet(vdrCmd.FlagSet())
+	set.AddFlagSet(vcrCmd.FlagSet())
 	set.AddFlagSet(jsonld.FlagSet())
 	set.AddFlagSet(authCmd.FlagSet())
 	set.AddFlagSet(eventsCmd.FlagSet())

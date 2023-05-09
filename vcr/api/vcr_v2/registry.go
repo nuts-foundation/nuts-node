@@ -16,7 +16,7 @@
  *
  */
 
-package v2
+package vcr_v2
 
 import (
 	"context"

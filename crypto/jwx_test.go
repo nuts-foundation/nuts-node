@@ -158,7 +158,7 @@ func TestCrypto_SignJWT(t *testing.T) {
 	key, _ := client.New(audit.TestContext(), StringNamingFunc(kid))
 
 	t.Run("creates valid JWT", func(t *testing.T) {
-		tokenString, err := client.SignJWT(audit.TestContext(), map[string]interface{}{"iss": "nuts", "sub": "subject"}, key)
+		tokenString, err := client.SignJWT(audit.TestContext(), map[string]interface{}{"iss": "nuts", "sub": "subject"}, nil, key)
 
 		require.NoError(t, err)
 
@@ -176,20 +176,20 @@ func TestCrypto_SignJWT(t *testing.T) {
 	t.Run("writes audit logs", func(t *testing.T) {
 		auditLogs := audit.CaptureLogs(t)
 
-		_, err := client.SignJWT(audit.TestContext(), map[string]interface{}{"iss": "nuts", "sub": "subject"}, key)
+		_, err := client.SignJWT(audit.TestContext(), map[string]interface{}{"iss": "nuts", "sub": "subject"}, nil, key)
 
 		require.NoError(t, err)
 		auditLogs.AssertContains(t, ModuleName, "SignJWT", audit.TestActor, "Signing a JWT with key: kid (issuer: nuts, subject: subject)")
 	})
 
 	t.Run("returns error for not found", func(t *testing.T) {
-		_, err := client.SignJWT(audit.TestContext(), map[string]interface{}{"iss": "nuts"}, basicKey{kid: "unknown"})
+		_, err := client.SignJWT(audit.TestContext(), map[string]interface{}{"iss": "nuts"}, nil, basicKey{kid: "unknown"})
 
 		assert.True(t, errors.Is(err, ErrPrivateKeyNotFound))
 	})
 
 	t.Run("returns error for invalid KID", func(t *testing.T) {
-		_, err := client.SignJWT(audit.TestContext(), map[string]interface{}{"iss": "nuts"}, basicKey{kid: "../certificate"})
+		_, err := client.SignJWT(audit.TestContext(), map[string]interface{}{"iss": "nuts"}, nil, basicKey{kid: "../certificate"})
 
 		assert.ErrorContains(t, err, "invalid key ID")
 	})
@@ -458,7 +458,8 @@ func TestSignJWS(t *testing.T) {
 
 func TestCrypto_convertHeaders(t *testing.T) {
 	t.Run("nil headers", func(t *testing.T) {
-		jwtHeader := convertHeaders(nil)
+		jwtHeader, err := convertHeaders(nil)
+		require.NoError(t, err)
 		assert.Len(t, jwtHeader.PrivateParams(), 0)
 	})
 
@@ -467,9 +468,20 @@ func TestCrypto_convertHeaders(t *testing.T) {
 			"key": "value",
 		}
 
-		jwtHeader := convertHeaders(rawHeaders)
+		jwtHeader, err := convertHeaders(rawHeaders)
 		v, _ := jwtHeader.Get("key")
+		require.NoError(t, err)
 		assert.Equal(t, "value", v)
+	})
+	t.Run("error", func(t *testing.T) {
+		rawHeaders := map[string]interface{}{
+			"typ": true,
+		}
+
+		jwtHeader, err := convertHeaders(rawHeaders)
+
+		assert.Error(t, err)
+		assert.Nil(t, jwtHeader)
 	})
 }
 

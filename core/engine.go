@@ -25,6 +25,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"os"
+	"strings"
 )
 
 // Routable enables connecting a REST API to the echo server. The API wrappers should implement this interface
@@ -183,6 +184,16 @@ func (system *System) VisitEnginesE(visitor func(engine Engine) error) error {
 		}
 	}
 
+	return nil
+}
+
+// FindEngineByName looks up given target engine by name, or nil if not found.
+func (system *System) FindEngineByName(target string) Engine {
+	for _, curr := range system.engines {
+		if strings.ToLower(engineName(curr)) == strings.ToLower(target) {
+			return curr
+		}
+	}
 	return nil
 }
 

@@ -45,6 +45,10 @@ const (
 	AccessDeniedEvent = "AccessDenied"
 	// AccessKeyRegisteredEvent occurs when an authorized key is registered for future authorization events
 	AccessKeyRegisteredEvent = "AccessKeyRegistered"
+	// InvalidOAuthTokenEvent occurs when a client presents an invalid (unknown/expired) OAuth2 token.
+	InvalidOAuthTokenEvent = "InvalidOAuthToken"
+	// VerifiableCredentialRetrievedEvent occurs when a VC is retrieved by the remote wallet.
+	VerifiableCredentialRetrievedEvent = "VerifiableCredentialRetrievedEvent"
 )
 
 const auditLogLevel = "audit"

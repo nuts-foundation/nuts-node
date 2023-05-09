@@ -1,0 +1,31 @@
+@startuml
+'https://plantuml.com/object-diagram
+
+title OIDC4VCI Implementation Relationship Diagram
+
+package "VCR Issuer" {
+    object "VCR Issuer" as VCRIssuer
+    object "OIDC4VCI Issuer" as Publisher
+    package "OIDC4VCI Issuer" {
+        object Issuer
+        object "API" as IssuerAPI
+        object WalletClient
+    }
+}
+
+package Holder {
+    object Wallet
+    object "API" as HolderAPI
+    object IssuerClient
+}
+
+VCRIssuer -down-> Publisher : Offer(VC)
+Publisher->Issuer : offer\nVC using
+Issuer->WalletClient : uses
+IssuerAPI->Issuer : invokes
+WalletClient -down-> HolderAPI : offer credential
+
+HolderAPI -left-> Wallet : invokes
+Wallet -> IssuerClient : uses
+IssuerClient -> IssuerAPI : grant flow\nrequest credential
+@enduml

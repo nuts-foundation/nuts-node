@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -49,6 +50,21 @@ func TestHTTPClient_CreateAccessToken(t *testing.T) {
 
 	t.Run("error - non-OK HTTP status code", func(t *testing.T) {
 		server := httptest.NewServer(&http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: "Hello, World!"})
+		serverURL, _ := url.Parse(server.URL)
+
+		client, _ := NewHTTPClient("", time.Second)
+
+		response, err := client.CreateAccessToken(ctx, *serverURL, "bearer_token")
+
+		assert.Nil(t, response)
+		assert.EqualError(t, err, "server returned HTTP 500 (expected: 200)")
+		require.Implements(t, new(core.HTTPStatusCodeError), err)
+		assert.Equal(t, http.StatusInternalServerError, err.(core.HTTPStatusCodeError).StatusCode())
+	})
+	t.Run("error - non-OK HTTP status code (large response body)", func(t *testing.T) {
+		// Respond with 200 random characters
+		responseData := strings.Repeat("a", 200)
+		server := httptest.NewServer(&http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: responseData})
 		serverURL, _ := url.Parse(server.URL)
 
 		client, _ := NewHTTPClient("", time.Second)

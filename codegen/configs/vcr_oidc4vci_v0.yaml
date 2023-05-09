@@ -1,0 +1,15 @@
+package: oidc4vci_v0
+generate:
+  echo-server: true
+  models: true
+  strict-server: true
+output-options:
+  exclude-schemas:
+    - CredentialIssuerMetadata
+    - OAuth2ClientMetadata
+    - ProviderMetadata
+    - CredentialOffer
+    - CredentialRequest
+    - CredentialResponse
+    - TokenResponse
+    - ErrorResponse

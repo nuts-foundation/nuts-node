@@ -1,0 +1,495 @@
+openapi: 3.0.0
+info:
+  title: OIDC4VCI Issuer API
+  version: 0.0.0
+  description: >
+    This API is EXPERIMENTAL and implements a draft version of OpenID 4 Verifiable Credential Issuance.
+    It is subject to change and should not be used in production.
+servers:
+  - url: "http://localhost:1323"
+paths:
+  # TODO: This is not a registered well-known URI, should we; 1. register it, 2. accept it's not registered and use it anyway?, 3. use another URI?
+  # See https://github.com/nuts-foundation/nuts-specification/issues/258
+  "/identity/{did}/.well-known/openid-credential-wallet":
+    get:
+      tags:
+        - Wallet
+      summary: Get the OAuth2 Client Metadata
+      description: Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-client-metadata
+      operationId: getOAuth2ClientMetadata
+      parameters:
+        - name: did
+          in: path
+          required: true
+          schema:
+              type: string
+              example: did:nuts:123
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/OAuth2ClientMetadata"
+        "404":
+          description: Unknown wallet
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+  "/identity/{did}/.well-known/oauth-authorization-server":
+    get:
+      tags:
+        - Issuer
+      summary: Get the OpenID Connect Provider metadata
+      description: >
+        Specified by https://www.rfc-editor.org/info/rfc8414
+        The well-known path is the default specified by https://www.rfc-editor.org/rfc/rfc8414.html#section-3
+      operationId: getOIDCProviderMetadata
+      parameters:
+        - name: did
+          in: path
+          required: true
+          schema:
+            type: string
+            example: did:nuts:123
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ProviderMetadata"
+        "404":
+          description: Unknown issuer
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+  "/identity/{did}/.well-known/openid-credential-issuer":
+    get:
+      tags:
+        - Issuer
+      summary: Get the OIDC4VCI Credential Issuer Metadata
+      description: >
+        Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-issuer-metadata
+      operationId: getOIDC4VCIIssuerMetadata
+      parameters:
+        - name: did
+          in: path
+          required: true
+          schema:
+            type: string
+            example: did:nuts:123
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/CredentialIssuerMetadata"
+        "404":
+          description: Unknown issuer
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+  "/identity/{did}/oidc/token":
+    post:
+      tags:
+        - Issuer
+      summary: Used by the wallet to request an access token
+      description: Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-token-endpoint
+      operationId: requestAccessToken
+      parameters:
+        - name: did
+          in: path
+          required: true
+          schema:
+            type: string
+            example: did:nuts:123
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - grant_type
+                - pre-authorized_code # TODO: Must be optional, since multiple flows will be supported in future
+              properties:
+                grant_type:
+                  type: string
+                  example: urn:ietf:params:oauth:grant-type:pre-authorized_code
+                pre-authorized_code:
+                  type: string
+                  example: secret
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/TokenResponse"
+        "404":
+          description: Unknown issuer
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        "400":
+          description: >
+            Invalid request. Code can be "invalid_request", "invalid_client", "invalid_grant", "unauthorized_client", "unsupported_grant_type" or "invalid_scope".
+            Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-token-error-response
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+  "/identity/{did}/issuer/oidc4vci/credential":
+    post:
+      tags:
+        - Issuer
+      summary: Used by the wallet to request credentials
+      description: Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-endpoint
+      operationId: requestCredential
+      parameters:
+        - name: did
+          in: path
+          required: true
+          schema:
+            type: string
+            example: did:nuts:123
+        - name: Authorization
+          in: header
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CredentialRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/CredentialResponse"
+        "404":
+          description: Unknown issuer
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        "400":
+          description: >
+            Invalid request. Code can be "invalid_request", "unsupported_credential_type", "unsupported_credential_format" or "invalid_or_missing_proof".
+            Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-error-response
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        "401":
+          description: >
+            Invalid token. Code will be "invalid_token".
+            Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-error-response
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        "403":
+          description: >
+            Insufficient privileges. Code will be "insufficient_scope".
+            Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-error-response
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+  "/identity/{did}/wallet/oidc4vci/credential_offer":
+    get:
+      tags:
+        - Wallet
+      summary: Used by the issuer to offer credentials to the wallet
+      description: Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-offer
+      operationId: handleCredentialOffer
+      parameters:
+        - name: did
+          in: path
+          required: true
+          schema:
+            type: string
+            example: did:nuts:123
+        - name: credential_offer
+          description: Contains the URL encoded credential_offer object (as JSON, see the CredentialOffer component).
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "202":
+          description: Accepted
+          content:
+            text/plain:
+              schema:
+                type: string
+        "404":
+          description: Unknown wallet
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        "400":
+          description: Invalid request (e.g. missing or invalid query parameter 'credential_offer').
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+components:
+  schemas:
+    CredentialIssuerMetadata:
+      type: object
+      required:
+        - credential_issuer
+        - credential_endpoint
+        - credentials_supported
+      properties:
+        credential_issuer:
+          type: string
+          description: The Credential Issuer's identifier
+          example: https://credential-issuer.example.com
+        credential_endpoint:
+          type: string
+          example: "https://issuer.example/credential"
+        credentials_supported:
+          type: array
+          description: |
+            A JSON array containing a list of JSON objects, each of them representing metadata about a separate credential type that the Credential Issuer can issue.
+          items:
+            type: object
+            example:
+              {
+                "format": "ldp_vc",
+                "@context": [
+                  "https://www.w3.org/2018/credentials/v1",
+                  "https://nuts.nl/credentials/v1"
+                ],
+                "types": [
+                  "VerifiableCredential",
+                  "NutsAuthorizationCredential"
+                ],
+                "cryptographic_binding_methods_supported": "did:nuts"
+              }
+
+    OAuth2ClientMetadata:
+      description: OAuth2 Client Metadata, extended with OIDC4VCI parameters
+      type: object
+      required:
+        - credential_offer_endpoint
+      properties:
+        credential_offer_endpoint:
+          type: string
+          description: URL of the verifiable credential wallet's offer endpoint
+          example: https://wallet.example.com/credential_offer
+
+    ProviderMetadata:
+      description: OpenID Connect Provider Metadata (OAuth2 Authorization Server Metadata)
+      type: object
+      required:
+        - issuer
+        - token_endpoint
+      properties:
+        issuer:
+          type: string
+          description: |
+            The authorization server's issuer identifier, which is
+            a URL that uses the "https" scheme and has no query or fragment
+            components.
+          example: https://issuer.example.com
+        token_endpoint:
+          type: string
+          description: |
+            URL of the authorization server's token endpoint [RFC6749].
+          example: https://issuer.example.com/token
+
+    TokenResponse:
+      type: object
+      description: |
+        Token Responses are made as defined in [RFC6749] with additional fields as described in OIDC4VCI.
+      required:
+        - access_token
+        - token_type
+      properties:
+        access_token:
+          type: string
+          description: |
+            The access token issued by the authorization server.
+          example: "eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp..sHQ"
+        token_type:
+          type: string
+          description: |
+            The type of the token issued as described in [RFC6749].
+          example: "bearer"
+        expires_in:
+          type: integer
+          description: |
+            The lifetime in seconds of the access token.
+          example: 3600
+        c_nonce:
+          type: string
+          description: |
+            JSON string containing a nonce to be used to create a proof of possession of key material when requesting a Credential. When received, the Wallet MUST use this nonce value for its subsequent credential requests until the Credential Issuer provides a fresh nonce.
+          example: "tZignsnFbp"
+      example:
+        {
+          "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp..sHQ",
+          "token_type": "bearer",
+          "expires_in": 3600,
+          "c_nonce": "tZignsnFbp"
+        }
+    CredentialRequest:
+      type: object
+      required:
+        - format
+      properties:
+        format:
+          type: string
+          description: |
+            The format of the credential request. This MUST be one of the values specified in the "credentials_supported" array in the Credential Issuer Metadata.
+          example: "ldp_vc"
+        credential_definition:
+          type: object
+          description: JSON-LD object describing the requested credential.
+        proof:
+          type: object
+          required:
+            - proof_type
+            - jwt
+          properties:
+            proof_type:
+              type: string
+              example: "jwt"
+            jwt:
+              type: string
+              description: |
+                String with a JWS [RFC7515] as proof of possession.
+                
+                The fields of the JWT may look like this:
+                
+                {
+                  "typ": "openid4vci-proof+jwt",
+                  "alg": "ES256",
+                  "kid": "did:nuts:ebfeb1f712ebc6f1c276e12ec21#keys-1"
+                }.
+                {
+                  "aud": "https://credential-issuer.example.com",
+                  "iat": 1659145924,
+                  "nonce": "tZignsnFbp"
+                }
+      example:
+        {
+          "format": "ldp_vc",
+          "credential_definition": {
+            "@context": [
+              "https://www.w3.org/2018/credentials/v1",
+              "https://nuts.nl/credentials/v1"
+            ],
+            "types": [
+              "VerifiableCredential",
+              "NutsAuthorizationCredential"
+            ],
+          },
+          "proof": {
+            "proof_type": "jwt",
+            "jwt": "eyJraWQiOiJkaWQ6ZXhhbXBsZ...KPxgihac0aW9EkL1nOzM"
+          }
+        }
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+            type: string
+            description: Code identifying the error that occurred.
+            example: "invalid_request"
+    CredentialResponse:
+      type: object
+      required:
+        - format
+      properties:
+        format:
+          type: string
+          example: "ldp_vc"
+        credential:
+          type: object
+        c_nonce:
+          type: string
+          example: "fGFF7UkhLa"
+      example:
+        {
+          "format": "ldp_vc",
+          "credential": {
+            "@context": [
+              "https://www.w3.org/2018/credentials/v1",
+              "https://nuts.nl/credentials/v1"
+            ],
+            "id": "did:nuts:<care organization did>#123",
+            "type": [
+              "VerifiableCredential",
+              "NutsAuthorizationCredential"
+            ],
+            "issuer": "did:nuts:<care organization did>",
+            "issuanceDate": "2010-01-01T00:00:00Z",
+            "credentialSubject": {
+              "id": "did:nuts:<receiver care organization did>",
+              "patient": "bsn:999992",
+              "purposeOfUse": "careviewer"
+            },
+            "proof": {
+              "type": "Ed25519Signature2020",
+              "created": "2022-02-25T14:58:43Z",
+              "verificationMethod": "did:nuts:<care organization did>#key-1",
+              "proofPurpose": "assertionMethod",
+              "proofValue": "zeEdUoM7m9cY8ZyTpey83yBKeBcmcvbyrEQzJ19rD2UXArU2U1jPGoEtrRvGYppdiK37GU4NBeoPakxpWhAvsVSt"
+            }
+          },
+          "c_nonce": "fGFF7UkhLa"
+        }
+    CredentialOffer:
+      type: object
+      required:
+        - credential_issuer
+        - credentials
+        - grants # TODO: This should be optional according to https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-offer-parameters
+      properties:
+        credential_issuer:
+          type: string
+          example: "https://issuer.example"
+        credentials:
+          type: array
+        grants:
+          type: object
+      example:
+        {
+          "credential_issuer": "https://issuer.example",
+          "credentials": [
+            {
+              "format": "ldp_vc",
+              "credential_definition": {
+                "@context": [
+                  "https://www.w3.org/2018/credentials/v1",
+                  "https://nuts.nl/credentials/v1"
+                ],
+                "types": [
+                  "VerifiableCredential",
+                  "NutsAuthorizationCredential"
+                ]
+              }
+            }
+          ],
+          "grants": {
+            "urn:ietf:params:oauth:grant-type:pre-authorized_code": {
+              "pre-authorized_code": "<secret_code>"
+            }
+          }
+        }
+

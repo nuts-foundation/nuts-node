@@ -571,7 +571,7 @@ func (s *authzServer) buildAccessToken(ctx context.Context, requester did.DID, a
 	if err != nil {
 		return "", accessToken, err
 	}
-	token, err := s.privateKeyStore.SignJWT(ctx, keyVals, signingKeyID)
+	token, err := s.privateKeyStore.SignJWT(ctx, keyVals, nil, signingKeyID)
 	if err != nil {
 		return token, accessToken, fmt.Errorf("could not build accessToken: %w", err)
 	}

@@ -48,14 +48,14 @@ type Ambassador interface {
 
 type ambassador struct {
 	networkClient network.Transactions
-	writer        Writer
+	writer        types.Writer
 	// verifier is used to store incoming revocations from the network
 	verifier     verifier.Verifier
 	eventManager events.Event
 }
 
 // NewAmbassador creates a new listener for the network that listens to Verifiable Credential transactions.
-func NewAmbassador(networkClient network.Transactions, writer Writer, verifier verifier.Verifier, eventManager events.Event) Ambassador {
+func NewAmbassador(networkClient network.Transactions, writer types.Writer, verifier verifier.Verifier, eventManager events.Event) Ambassador {
 	return &ambassador{
 		networkClient: networkClient,
 		writer:        writer,

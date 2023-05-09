@@ -35,6 +35,8 @@ const (
 	LogFieldCredentialType = "credentialType"
 	// LogFieldCredentialIssuer is the log field key for the issuer of a Verifiable Credential from the VCR module.
 	LogFieldCredentialIssuer = "credentialIssuer"
+	// LogFieldCredentialSubject is the log field key for the subject of a Verifiable Credential from the VCR module.
+	LogFieldCredentialSubject = "credentialSubject"
 
 	// LogFieldStore is the log field key for the name of a store managed by the storage module.
 	LogFieldStore = "store"

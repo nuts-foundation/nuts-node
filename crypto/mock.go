@@ -259,18 +259,18 @@ func (mr *MockKeyStoreMockRecorder) SignJWS(ctx, payload, headers, key, detached
 }
 
 // SignJWT mocks base method.
-func (m *MockKeyStore) SignJWT(ctx context.Context, claims map[string]interface{}, key interface{}) (string, error) {
+func (m *MockKeyStore) SignJWT(ctx context.Context, claims, headers map[string]interface{}, key interface{}) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SignJWT", ctx, claims, key)
+	ret := m.ctrl.Call(m, "SignJWT", ctx, claims, headers, key)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // SignJWT indicates an expected call of SignJWT.
-func (mr *MockKeyStoreMockRecorder) SignJWT(ctx, claims, key interface{}) *gomock.Call {
+func (mr *MockKeyStoreMockRecorder) SignJWT(ctx, claims, headers, key interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignJWT", reflect.TypeOf((*MockKeyStore)(nil).SignJWT), ctx, claims, key)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignJWT", reflect.TypeOf((*MockKeyStore)(nil).SignJWT), ctx, claims, headers, key)
 }
 
 // MockDecrypter is a mock of Decrypter interface.
@@ -381,18 +381,18 @@ func (mr *MockJWTSignerMockRecorder) SignJWS(ctx, payload, headers, key, detache
 }
 
 // SignJWT mocks base method.
-func (m *MockJWTSigner) SignJWT(ctx context.Context, claims map[string]interface{}, key interface{}) (string, error) {
+func (m *MockJWTSigner) SignJWT(ctx context.Context, claims, headers map[string]interface{}, key interface{}) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SignJWT", ctx, claims, key)
+	ret := m.ctrl.Call(m, "SignJWT", ctx, claims, headers, key)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // SignJWT indicates an expected call of SignJWT.
-func (mr *MockJWTSignerMockRecorder) SignJWT(ctx, claims, key interface{}) *gomock.Call {
+func (mr *MockJWTSignerMockRecorder) SignJWT(ctx, claims, headers, key interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignJWT", reflect.TypeOf((*MockJWTSigner)(nil).SignJWT), ctx, claims, key)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignJWT", reflect.TypeOf((*MockJWTSigner)(nil).SignJWT), ctx, claims, headers, key)
 }
 
 // MockKey is a mock of Key interface.
