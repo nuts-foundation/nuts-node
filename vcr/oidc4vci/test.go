@@ -148,7 +148,7 @@ func startHTTPServer(t *testing.T, mux *http.ServeMux) string {
 		}
 		_, err := http.Get(httpServerURL)
 		return err == nil, nil
-	}, 5*time.Second, "time-out waiting for HTTP server to start")
+	}, 10*time.Second, "time-out waiting for HTTP server to start")
 	t.Cleanup(func() {
 		server.Shutdown(context.Background())
 	})
