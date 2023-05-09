@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -86,7 +87,8 @@ type Network struct {
 	eventPublisher      events.Event
 	storeProvider       storage.Provider
 	// assumeNewNode indicates the node hasn't initially sync'd with the network.
-	assumeNewNode bool
+	assumeNewNode  bool
+	selfTestDialer tls.Dialer
 }
 
 // CheckHealth performs health checks for the network engine.
@@ -110,25 +112,9 @@ func (n *Network) CheckHealth() map[string]core.Health {
 		}
 	}
 
-	// auth_config checks that the node is correctly configured to be authenticated by others
-	if n.nodeDID.Empty() {
-		results[healthAuthConfig] = core.Health{
-			Status:  core.HealthStatusUp,
-			Details: "no node DID",
-		}
-		return results
-	}
+	// healthAuthConfig checks that the node is correctly configured to be authenticated by others
+	results[healthAuthConfig] = n.checkNodeDIDHealth(context.TODO(), n.nodeDID)
 
-	if err := n.validateNodeDID(context.TODO(), n.nodeDID); err != nil {
-		results[healthAuthConfig] = core.Health{
-			Status:  core.HealthStatusDown,
-			Details: err.Error(),
-		}
-	} else {
-		results[healthAuthConfig] = core.Health{
-			Status: core.HealthStatusUp,
-		}
-	}
 	return results
 }
 
@@ -154,6 +140,12 @@ func NewNetworkInstance(
 		didDocumentFinder:   didDocumentFinder,
 		eventPublisher:      eventPublisher,
 		storeProvider:       storeProvider,
+		selfTestDialer: tls.Dialer{
+			NetDialer: &net.Dialer{
+				Timeout: time.Second,
+			},
+			Config: &tls.Config{InsecureSkipVerify: true}, // set during Configure. Connection is not used for any data exchange.
+		},
 	}
 }
 
@@ -181,6 +173,8 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		if err != nil {
 			return err
 		}
+		// set truststore so selfTestNutsCommAddress can verify the endpoint contains a valid certificate
+		n.selfTestDialer.Config = &tls.Config{RootCAs: n.trustStore.CertPool}
 	}
 
 	// Resolve node DID
@@ -446,9 +440,19 @@ func (n *Network) validateNodeDIDKeys(ctx context.Context, nodeDID did.DID) erro
 	return nil
 }
 
-func (n *Network) validateNodeDID(ctx context.Context, nodeDID did.DID) error {
+func (n *Network) checkNodeDIDHealth(ctx context.Context, nodeDID did.DID) core.Health {
+	if nodeDID.Empty() {
+		return core.Health{
+			Status:  core.HealthStatusUp,
+			Details: "no node DID",
+		}
+	}
+
 	if err := n.validateNodeDIDKeys(ctx, nodeDID); err != nil {
-		return err
+		return core.Health{
+			Status:  core.HealthStatusDown,
+			Details: fmt.Sprintf("cannot verify DID ownership: %s", err.Error()),
+		}
 	}
 
 	// Check if the DID document has a resolvable and valid NutsComm endpoint
@@ -456,20 +460,60 @@ func (n *Network) validateNodeDID(ctx context.Context, nodeDID did.DID) error {
 	serviceRef := didservice.MakeServiceReference(nodeDID, transport.NutsCommServiceType)
 	nutsCommService, err := serviceResolver.Resolve(serviceRef, didservice.DefaultMaxServiceReferenceDepth)
 	if err != nil {
-		return fmt.Errorf("unable to resolve %s service endpoint, register it on the DID document (did=%s): %v", transport.NutsCommServiceType, nodeDID, err)
+		// Non-existing NutsComm results in HealthStatusUnknown to make it easier to fix the issue (HealthStatusDown kills the node in certain environments)
+		return core.Health{
+			Status:  core.HealthStatusUnknown,
+			Details: fmt.Sprintf("unable to resolve %s service endpoint, register it on the DID document (did=%s): %s", transport.NutsCommServiceType, nodeDID, err),
+		}
 	}
 	var nutsCommURL transport.NutsCommURL
 	if err = nutsCommService.UnmarshalServiceEndpoint(&nutsCommURL); err != nil {
-		return fmt.Errorf("invalid %s service endpoint: %w", transport.NutsCommServiceType, err)
+		return core.Health{
+			Status:  core.HealthStatusUnknown,
+			Details: fmt.Sprintf("invalid %s service endpoint: %s", transport.NutsCommServiceType, err),
+		}
 	}
 
 	// Check certificate and confirm it contains the NutsComm address
 	if n.certificate.Leaf == nil {
-		return errors.New("missing TLS certificate")
+		return core.Health{
+			Status:  core.HealthStatusDown,
+			Details: "missing TLS certificate",
+		}
 	}
 	if err = n.certificate.Leaf.VerifyHostname(nutsCommURL.Hostname()); err != nil {
-		return fmt.Errorf("none of the DNS names in TLS certificate match the %s service endpoint (nodeDID=%s, %s=%s)", transport.NutsCommServiceType, nodeDID, transport.NutsCommServiceType, nutsCommURL.String())
+		return core.Health{
+			Status:  core.HealthStatusDown,
+			Details: fmt.Sprintf("none of the DNS names in TLS certificate match the %s service endpoint (nodeDID=%s, %s=%s)", transport.NutsCommServiceType, nodeDID, transport.NutsCommServiceType, nutsCommURL.String()),
+		}
 	}
+
+	// Check if we can connect to the NutsComm endpoint
+	if err = n.selfTestNutsCommAddress(nutsCommURL); err != nil {
+		return core.Health{
+			Status:  core.HealthStatusUnknown,
+			Details: fmt.Sprintf("cannot connect to own NutsComm %s: %s", nutsCommURL.String(), err),
+		}
+	}
+
+	return core.Health{Status: core.HealthStatusUp}
+}
+
+// selfTestNutsCommAddress verifies that the NutsComm address can be reached. The NutsCommURL is expected to have scheme grpc.
+func (n *Network) selfTestNutsCommAddress(nutsComm transport.NutsCommURL) error {
+	nutsCommAddr := strings.TrimPrefix(nutsComm.String(), "grpc://")
+
+	conn, err := n.selfTestDialer.Dial("tcp", nutsCommAddr)
+	if err != nil {
+		return err
+	}
+
+	// defer Close just in case
+	defer func() {
+		if err = conn.Close(); err != nil {
+			log.Logger().WithError(err).Warn("Failed to close self-check connection")
+		}
+	}()
 
 	return nil
 }

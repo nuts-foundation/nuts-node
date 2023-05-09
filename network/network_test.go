@@ -28,6 +28,10 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -556,6 +560,57 @@ func TestNetwork_Start(t *testing.T) {
 	})
 }
 
+func TestNetwork_selfTestNutsCommAddress(t *testing.T) {
+	t.Run("TLS", func(t *testing.T) {
+		// trust config
+		truststore, err := core.LoadTrustStore(testTruststoreFile)
+		require.NoError(t, err)
+		certificate, err := tls.LoadX509KeyPair(testCertAndKeyFile, testCertAndKeyFile)
+		require.NoError(t, err)
+
+		// new network
+		network := NewNetworkInstance(Config{}, nil, nil, nil, nil, nil, nil)
+		network.selfTestDialer.Config = &tls.Config{RootCAs: truststore.CertPool}
+
+		// new server
+		ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprintln(w, "Hello, client")
+		}))
+		ts.EnableHTTP2 = true
+		ts.TLS = &tls.Config{Certificates: []tls.Certificate{certificate}}
+		ts.StartTLS()
+		defer ts.Close()
+
+		// ts.URL is hosted on 127.0.0.1:port, use localhost:port since localhost is on the certificate
+		endpointURL, err := url.Parse(fmt.Sprintf("grpc://localhost:%s", strings.Split(ts.URL, ":")[2]))
+		require.NoError(t, err)
+
+		// try to connect with TLS
+		err = network.selfTestNutsCommAddress(transport.NutsCommURL{URL: *endpointURL})
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("no TLS", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		cxt := createNetwork(t, ctrl)
+		ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprintln(w, "Hello, client")
+		}))
+		defer ts.Close()
+
+		// change scheme to grpc since to match expectation of NutsComm
+		endpointURL, err := url.Parse(ts.URL)
+		require.NoError(t, err)
+		endpointURL.Scheme = "grpc"
+
+		// no error because cxt.network.selfTestDialer.Config = &tls.Config{InsecureSkipVerify: true}
+		err = cxt.network.selfTestNutsCommAddress(transport.NutsCommURL{URL: *endpointURL})
+
+		assert.NoError(t, err)
+	})
+}
+
 func TestNetwork_validateNodeDID(t *testing.T) {
 	ctx := context.Background()
 	keyID := *nodeDID
@@ -581,15 +636,20 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 	require.NoError(t, err)
 	certificate.Leaf, err = x509.ParseCertificate(certificate.Certificate[0])
 	require.NoError(t, err)
-	t.Run("ok - configured node DID successfully resolves", func(t *testing.T) {
+	t.Run("ok - no node DID", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		cxt := createNetwork(t, ctrl)
-		_ = cxt.keyStorage.SavePrivateKey(ctx, keyID.String(), certificate.PrivateKey)
-		cxt.network.certificate = certificate
 		cxt.network.nodeDID = *nodeDID
-		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
-		err := cxt.network.validateNodeDID(ctx, *nodeDID)
-		assert.NoError(t, err)
+
+		health := cxt.network.checkNodeDIDHealth(ctx, did.DID{})
+
+		assert.Equal(t, core.HealthStatusUp, health.Status)
+		assert.Equal(t, "no node DID", health.Details)
+	})
+	t.Run("ok", func(t *testing.T) {
+		// Happy flow cannot be tested in full using the current setup unless we use an external domain.
+		// All addresses known to me that connect to the localhost will not pass the "is this a valid NutsComm check".
+		// Last tep is tested in TestNetwork_selfTestNutsCommAddress
 	})
 	t.Run("error - configured node DID does not resolve to a DID document", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -597,9 +657,10 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		cxt.network.nodeDID = *nodeDID
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(nil, nil, did.DeactivatedErr)
 
-		err = cxt.network.validateNodeDID(ctx, *nodeDID)
+		health := cxt.network.checkNodeDIDHealth(ctx, *nodeDID)
 
-		assert.ErrorIs(t, err, did.DeactivatedErr)
+		assert.Equal(t, core.HealthStatusDown, health.Status)
+		assert.Equal(t, "cannot verify DID ownership: DID document can't be resolved (did=did:nuts:test): supplied DID is deactivated", health.Details)
 	})
 	t.Run("error - configured node DID does not have key agreement key", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -608,9 +669,10 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		cxt.network.nodeDID = *nodeDID
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(&did.Document{}, &vdrTypes.DocumentMetadata{}, nil)
 
-		err := cxt.network.validateNodeDID(ctx, *nodeDID)
+		health := cxt.network.checkNodeDIDHealth(ctx, *nodeDID)
 
-		assert.EqualError(t, err, "DID document does not contain a keyAgreement key, register a keyAgreement key (did=did:nuts:test)")
+		assert.Equal(t, core.HealthStatusDown, health.Status)
+		assert.Equal(t, "cannot verify DID ownership: DID document does not contain a keyAgreement key, register a keyAgreement key (did=did:nuts:test)", health.Details)
 	})
 	t.Run("error - configured node DID has key agreement key, but is not present in key store", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -619,9 +681,10 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		cxt.network.nodeDID = *nodeDID
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 
-		err := cxt.network.validateNodeDID(ctx, *nodeDID)
+		health := cxt.network.checkNodeDIDHealth(ctx, *nodeDID)
 
-		assert.EqualError(t, err, "keyAgreement private key is not present in key store, recover your key material or register a new keyAgreement key (did=did:nuts:test,kid=did:nuts:test#some-key)")
+		assert.Equal(t, core.HealthStatusDown, health.Status)
+		assert.Equal(t, "cannot verify DID ownership: keyAgreement private key is not present in key store, recover your key material or register a new keyAgreement key (did=did:nuts:test,kid=did:nuts:test#some-key)", health.Details)
 	})
 	t.Run("error - configured node DID does not have NutsComm service", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -631,9 +694,10 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		cxt.network.nodeDID = *nodeDID
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(documentWithoutNutsCommService, &vdrTypes.DocumentMetadata{}, nil)
 
-		err := cxt.network.validateNodeDID(ctx, *nodeDID)
+		health := cxt.network.checkNodeDIDHealth(ctx, *nodeDID)
 
-		assert.EqualError(t, err, "unable to resolve NutsComm service endpoint, register it on the DID document (did=did:nuts:test): service not found in DID Document")
+		assert.Equal(t, core.HealthStatusUnknown, health.Status)
+		assert.Equal(t, "unable to resolve NutsComm service endpoint, register it on the DID document (did=did:nuts:test): service not found in DID Document", health.Details)
 	})
 	t.Run("error - cannot marshal NutsComm service", func(t *testing.T) {
 		old := completeDocument.Service[0].ServiceEndpoint
@@ -648,9 +712,10 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		cxt.network.nodeDID = *nodeDID
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 
-		err := cxt.network.validateNodeDID(ctx, *nodeDID)
+		health := cxt.network.checkNodeDIDHealth(ctx, *nodeDID)
 
-		assert.EqualError(t, err, "invalid NutsComm service endpoint: endpoint not a string")
+		assert.Equal(t, core.HealthStatusUnknown, health.Status)
+		assert.Equal(t, "invalid NutsComm service endpoint: endpoint not a string", health.Details)
 	})
 	t.Run("error - cannot parse NutsComm service", func(t *testing.T) {
 		old := completeDocument.Service[0].ServiceEndpoint
@@ -665,9 +730,10 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		cxt.network.nodeDID = *nodeDID
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 
-		err := cxt.network.validateNodeDID(ctx, *nodeDID)
+		health := cxt.network.checkNodeDIDHealth(ctx, *nodeDID)
 
-		assert.EqualError(t, err, "invalid NutsComm service endpoint: parse \"\\x00\": net/url: invalid control character in URL")
+		assert.Equal(t, core.HealthStatusUnknown, health.Status)
+		assert.Equal(t, "invalid NutsComm service endpoint: parse \"\\x00\": net/url: invalid control character in URL", health.Details)
 	})
 	t.Run("error - no TLS certificate", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -677,9 +743,10 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		cxt.network.nodeDID = *nodeDID
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 
-		err := cxt.network.validateNodeDID(ctx, *nodeDID)
+		health := cxt.network.checkNodeDIDHealth(ctx, *nodeDID)
 
-		assert.EqualError(t, err, "missing TLS certificate")
+		assert.Equal(t, core.HealthStatusDown, health.Status)
+		assert.Equal(t, "missing TLS certificate", health.Details)
 	})
 	t.Run("error - wrong TLS certificate", func(t *testing.T) {
 		old := completeDocument.Service[0].ServiceEndpoint
@@ -694,9 +761,24 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 		cxt.network.nodeDID = *nodeDID
 		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
 
-		err := cxt.network.validateNodeDID(ctx, *nodeDID)
+		health := cxt.network.checkNodeDIDHealth(ctx, *nodeDID)
 
-		assert.EqualError(t, err, "none of the DNS names in TLS certificate match the NutsComm service endpoint (nodeDID=did:nuts:test, NutsComm=grpc://not.nuts.nl:5555)")
+		assert.Equal(t, core.HealthStatusDown, health.Status)
+		assert.Equal(t, "none of the DNS names in TLS certificate match the NutsComm service endpoint (nodeDID=did:nuts:test, NutsComm=grpc://not.nuts.nl:5555)", health.Details)
+	})
+	t.Run("error - NutsComm unavailable", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		cxt := createNetwork(t, ctrl)
+		_ = cxt.keyStorage.SavePrivateKey(ctx, keyID.String(), certificate.PrivateKey)
+		cxt.network.certificate = certificate
+		cxt.network.nodeDID = *nodeDID
+		cxt.docResolver.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &vdrTypes.DocumentMetadata{}, nil)
+		cxt.network.selfTestDialer.NetDialer.Timeout = 10 * time.Millisecond
+
+		health := cxt.network.checkNodeDIDHealth(ctx, *nodeDID)
+
+		assert.Equal(t, core.HealthStatusUnknown, health.Status)
+		assert.Contains(t, health.Details, "cannot connect to own NutsComm grpc://nuts.nl:5555: dial tcp")
 	})
 }
 
@@ -1156,7 +1238,9 @@ func TestNetwork_checkHealth(t *testing.T) {
 				},
 			},
 		}
-		t.Run("up - correctly configured node DID", func(t *testing.T) {
+		t.Run("unknown - cannot connect", func(t *testing.T) {
+			// passes all checks except self-connect
+			// cannot test happy path since all addresses that would pass the self-connect check are invalid NutsComm addresses
 			ctrl := gomock.NewController(t)
 			cxt := createNetwork(t, ctrl)
 			_ = cxt.keyStorage.SavePrivateKey(context.Background(), keyID.String(), certificate.PrivateKey)
@@ -1167,8 +1251,8 @@ func TestNetwork_checkHealth(t *testing.T) {
 
 			health := cxt.network.CheckHealth()
 
-			assert.Equal(t, core.HealthStatusUp, health[healthAuthConfig].Status)
-			assert.Nil(t, health["auth"].Details)
+			assert.Equal(t, core.HealthStatusUnknown, health[healthAuthConfig].Status)
+			assert.Contains(t, health[healthAuthConfig].Details, "cannot connect to own NutsComm grpc://nuts.nl:5555: dial tcp")
 		})
 		t.Run("up - no node DID", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
@@ -1189,7 +1273,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 			health := cxt.network.CheckHealth()
 
 			assert.Equal(t, core.HealthStatusDown, health[healthAuthConfig].Status)
-			assert.Equal(t, "DID document can't be resolved (did=did:nuts:test): supplied DID is deactivated", health[healthAuthConfig].Details)
+			assert.Equal(t, "cannot verify DID ownership: DID document can't be resolved (did=did:nuts:test): supplied DID is deactivated", health[healthAuthConfig].Details)
 		})
 	})
 
