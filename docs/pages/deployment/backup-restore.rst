@@ -65,29 +65,27 @@ To restore a backup, follow the following steps:
 1. shutdown the node
 2. remove the following directories from the ``datadir``: ``events``, ``network``, ``vcr``, and ``vdr``
 3. remove the ``network.nodedid`` from your configuration file
-4. follow the restore procedure for your storage (BBolt, Redis, Hashicorp Vault)
-5. restore the ``vcr/trusted_issuers.yaml`` file inside ``datadir``
-6. start your node
-7. make an empty POST call to
-
-.. code-block:: http
-
-    POST <node-address>/internal/network/v1/reprocess?type=application/did+json
-
-8. wait until the reprocess of ``type=application/did+json`` is complete to regain control over you DID document (Reprocess of private vc may fail without this)
-9. reinstate the ``network.nodedid`` in your config file
-10. restart the node
-11. make empty POST calls to
+4. keep node offline by removing ``network.bootstrapnodes`` and ``network.grpcaddr`` from the config file and set ``network.enablediscovery`` to ``false``
+5. follow the restore procedure for your storage (BBolt, Redis, Hashicorp Vault)
+6. restore the ``vcr/trusted_issuers.yaml`` file inside ``datadir``
+7. start your node
+8. make empty POST calls to
 
 .. code-block:: http
 
     POST <node-address>/internal/network/v1/reprocess?type=application/vc+json
     POST <node-address>/internal/network/v1/reprocess?type=application/ld+json;type=revocation
+    POST <node-address>/internal/network/v1/reprocess?type=application/did+json
 
 .. note::
 
     When making the API calls, make sure you use the proper URL escaping (``%2B`` for ``+`` and ``%3B`` for ``;``).
     Reprocess calls return immediately and will do the work in the background.
+
+9. wait until the reprocess operations are complete
+10. shutdown the node
+11. undo the configuration changes in steps 3 and 4
+12. start the node
 
 BBolt
 =====
