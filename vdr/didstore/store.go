@@ -77,12 +77,6 @@ func (tl *store) Configure(_ core.ServerConfig) (err error) {
 func (tl *store) Add(didDocument did.Document, transaction Transaction) error {
 	// prevents parallel execution
 	err := tl.db.Write(context.Background(), func(tx stoabs.WriteTx) error {
-		if exists, err := transactionExists(tx, transaction.Ref); err != nil {
-			return err
-		} else if exists {
-			return nil
-		}
-
 		currentEventList, err := readEventList(tx, didDocument.ID)
 		if err != nil {
 			return fmt.Errorf("read eventList failed: %w", err)
@@ -95,15 +89,16 @@ func (tl *store) Add(didDocument did.Document, transaction Transaction) error {
 		}
 
 		transaction.document = &didDocument
-		index := currentEventList.insert(event(transaction))
-		var base *event
-		applyList := currentEventList.Events[index:]
-		if index > 0 {
-			base = &currentEventList.Events[index-1]
-		}
-
-		if err = applyFrom(tx, base, applyList); err != nil {
-			return fmt.Errorf("applying event list failed: %w", err)
+		if !currentEventList.contains(event(transaction)) {
+			index := currentEventList.insert(event(transaction))
+			var base *event
+			applyList := currentEventList.Events[index:]
+			if index > 0 {
+				base = &currentEventList.Events[index-1]
+			}
+			if err = applyFrom(tx, base, applyList); err != nil {
+				return fmt.Errorf("applying event list failed: %w", err)
+			}
 		}
 		return writeEventList(tx, currentEventList, didDocument.ID)
 	}, stoabs.WithWriteLock())

@@ -61,6 +61,11 @@ func (e event) before(other event) bool {
 	return e.Ref.Compare(other.Ref) < 0
 }
 
+// equal returns true when event.Ref are equal.
+func (e event) equal(other event) bool {
+	return e.Ref.Equals(other.Ref)
+}
+
 // eventList is an in-memory representation of an Events shelf entry
 type eventList struct {
 	Events []event `json:"events"`
@@ -91,4 +96,13 @@ func (el *eventList) insert(newEvent event) int {
 	}
 	el.Events = newList
 	return index
+}
+
+func (el *eventList) contains(newEvent event) bool {
+	for _, e := range el.Events {
+		if e.equal(newEvent) {
+			return true
+		}
+	}
+	return false
 }
