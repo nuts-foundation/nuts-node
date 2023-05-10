@@ -90,4 +90,4 @@ To restore a backup, follow the following steps:
 BBolt
 =====
 
-In the fourth step copy ``network/data.db``, ``vcr/backup-issued-credentials.db`` and ``vdr/didstore.db`` from your backup to the ``datadir`` (keep the directory structure).
+In step 5, copy ``network/data.db``, ``vcr/backup-issued-credentials.db`` and ``vdr/didstore.db`` from your backup to the ``datadir`` (keep the directory structure).
