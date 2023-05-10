@@ -8,8 +8,9 @@ install-tools:
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.30.0
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
 
+# requires python package rst-include. install using `pip install rst-include`
 gen-readme:
-	./generate_readme.sh
+	rst_include include README_template.rst README.rst
 
 gen-mocks:
 	mockgen -destination=auth/contract/signer_mock.go -package=contract -source=auth/contract/signer.go
@@ -73,6 +74,7 @@ gen-protobuf:
 
 gen-docs:
 	go run ./docs docs
+	gen-readme
 
 DIR ?= "$(shell pwd)"
 gen-diagrams:
