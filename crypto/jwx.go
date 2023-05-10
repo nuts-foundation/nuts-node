@@ -202,6 +202,7 @@ func ParseJWT(tokenString string, f PublicKeyFunc, options ...jwt.ParseOption) (
 
 	options = append(options, jwt.WithVerify(alg, key))
 	options = append(options, jwt.WithValidate(true))
+
 	return jwt.ParseString(tokenString, options...)
 }
 
