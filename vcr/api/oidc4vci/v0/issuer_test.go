@@ -109,7 +109,7 @@ func TestWrapper_RequestCredential(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		oidcIssuer := issuer.NewMockOIDCIssuer(ctrl)
-		oidcIssuer.EXPECT().HandleCredentialRequest(gomock.Any(), issuerDID, "access-token").Return(&vc.VerifiableCredential{}, nil)
+		oidcIssuer.EXPECT().HandleCredentialRequest(gomock.Any(), issuerDID, gomock.Any(), "access-token").Return(&vc.VerifiableCredential{}, nil)
 		service := vcr.NewMockVCR(ctrl)
 		service.EXPECT().GetOIDCIssuer().Return(oidcIssuer)
 		api := Wrapper{VCR: service}

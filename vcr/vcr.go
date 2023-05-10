@@ -144,7 +144,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 			return errors.New("auth.publicurl is required to enable OIDC4VCI")
 		}
 		c.publicBaseURL = config.Auth.PublicURL
-		c.oidcIssuer = issuer.NewOIDCIssuer(core.JoinURLPaths(c.publicBaseURL, "identity"))
+		c.oidcIssuer = issuer.NewOIDCIssuer(core.JoinURLPaths(c.publicBaseURL, "identity"), c.keyResolver)
 	}
 	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, c.oidcIssuer, c.docResolver, c.keyStore, c.jsonldManager, c.trustConfig)
 	c.verifier = verifier.NewVerifier(c.verifierStore, c.docResolver, c.keyResolver, c.jsonldManager, c.trustConfig)
