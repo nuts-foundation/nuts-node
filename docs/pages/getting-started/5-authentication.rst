@@ -342,7 +342,7 @@ The ``url``, in this case ``/web/auth``, must be set so the frontend can access 
     <url>/session
     <url>/session/<sessionID>/result
 
-These URLs must both be available on the backend. For the example above this means that both ``/web/auth/session/`` and ``/web/auth/session/<sessionToken>/result`` are available. The ``<sessionID>`` is the token that will be returned by the call to ``<url>/session/``.
+These URLs must both be available on the backend. For the example above this means that both ``/web/auth/session/`` and ``/web/auth/session/<sessionID>/result`` are available. The ``<sessionID>`` is the token that will be returned by the call to ``<url>/session/``.
 How to parse the result of that call and extract the token is done via the ``mapping`` object.
 
 The ``mapping`` object is a map where two keys are expected: ``sessionPtr`` and ``sessionToken``.
