@@ -258,7 +258,7 @@ func (r *VDR) Update(ctx context.Context, id did.DID, next did.Document) error {
 
 	// Validate document. No more changes should be made to the document after this point.
 	if err = ManagedDocumentValidator(didservice.NewServiceResolver(r.didDocResolver)).Validate(next); err != nil {
-		return err
+		return fmt.Errorf("could not update DID document, validation failed: %w", err)
 	}
 
 	payload, err := json.Marshal(next)
