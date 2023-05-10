@@ -16,7 +16,7 @@
  *
  */
 
-package means_v1
+package v1
 
 import (
 	"github.com/nuts-foundation/nuts-node/auth"

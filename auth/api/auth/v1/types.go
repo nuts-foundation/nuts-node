@@ -16,7 +16,7 @@
  *
  */
 
-package auth_v1
+package v1
 
 import (
 	"github.com/nuts-foundation/go-did/vc"

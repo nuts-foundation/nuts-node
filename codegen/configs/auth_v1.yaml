@@ -1,4 +1,4 @@
-package: auth_v1
+package: v1
 generate:
   echo-server: true
   client: false
