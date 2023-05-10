@@ -20,6 +20,7 @@ package dummy
 
 import (
 	"context"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -150,6 +151,21 @@ func TestDummy_SigningSessionStatus(t *testing.T) {
 }
 
 func TestDummy_VerifyVP(t *testing.T) {
+	p := vc.VerifiablePresentation{
+		Context: []ssi.URI{vc.VCContextV1URI()},
+		Type:    []ssi.URI{vc.VerifiablePresentationTypeV1URI(), ssi.MustParseURI(VerifiablePresentationType)},
+		Proof: []interface{}{
+			Proof{
+				Type:       NoSignatureType,
+				Initials:   "I",
+				FamilyName: "Tester",
+				Prefix:     "von",
+				Email:      "tester@example.com",
+				Contract:   "EN:PractitionerLogin:v3 I hereby declare to act on behalf of care org located in Caretown. This declaration is valid from maandag 1 oktober 12:00:00 until maandag 1 oktober 13:00:00.",
+			},
+		},
+	}
+
 	t.Run("error - strictMode", func(t *testing.T) {
 		d := Dummy{
 			InStrictMode: true,
@@ -166,26 +182,22 @@ func TestDummy_VerifyVP(t *testing.T) {
 			InStrictMode: false,
 		}
 
-		p := vc.VerifiablePresentation{
-			Context: []ssi.URI{vc.VCContextV1URI()},
-			Type:    []ssi.URI{vc.VerifiablePresentationTypeV1URI(), ssi.MustParseURI(VerifiablePresentationType)},
-			Proof: []interface{}{
-				Proof{
-					Type:       NoSignatureType,
-					Initials:   "I",
-					FamilyName: "Tester",
-					Prefix:     "von",
-					Email:      "tester@example.com",
-					Contract:   "EN:PractitionerLogin:v3 I hereby declare to act on behalf of care org located in Caretown. This declaration is valid from maandag 1 oktober 12:00:00 until maandag 1 oktober 13:00:00.",
-				},
-			},
-		}
-
 		vr, err := d.VerifyVP(p, nil)
 
 		assert.NoError(t, err)
 		assert.Equal(t, contract.Valid, vr.Validity())
 		assert.Equal(t, VerifiablePresentationType, vr.VPType())
+	})
+
+	t.Run("ok - disclosed attributes contain username", func(t *testing.T) {
+		d := Dummy{
+			InStrictMode: false,
+		}
+
+		vr, err := d.VerifyVP(p, nil)
+
+		require.NoError(t, err)
+		assert.Equal(t, "tester@example.com", vr.DisclosedAttribute(services.UsernameClaim))
 	})
 
 	t.Run("error - incorrect contract", func(t *testing.T) {
