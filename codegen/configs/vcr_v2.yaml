@@ -1,4 +1,4 @@
-package: vcr_v2
+package: v2
 generate:
   echo-server: true
   client: true

@@ -16,7 +16,7 @@
  *
  */
 
-package oidc4vci_v0
+package v0
 
 import (
 	"context"

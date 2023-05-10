@@ -30,7 +30,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	vcr "github.com/nuts-foundation/nuts-node/vcr/api/vcr_v2"
+	vcr "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"
 	vdrTypes "github.com/nuts-foundation/nuts-node/vdr/types"
 )
 

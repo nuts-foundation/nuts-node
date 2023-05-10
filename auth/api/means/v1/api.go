@@ -1,5 +1,4 @@
 /*
- * Nuts node
  * Copyright (C) 2021 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
@@ -17,21 +16,20 @@
  *
  */
 
-package vcr_v2
+package v1
 
 import (
-	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/auth"
+	"github.com/nuts-foundation/nuts-node/core"
 )
 
-// VerifiableCredential is an alias to use from within the API
-type VerifiableCredential = vc.VerifiableCredential
+// Wrapper bridges Echo routes to the server backend.
+type Wrapper struct {
+	Auth auth.AuthenticationServices
+}
 
-// CredentialSubject is an alias to use from within the API
-type CredentialSubject = interface{}
-
-// Revocation is an alias to use from within the API
-type Revocation = credential.Revocation
-
-// VerifiablePresentation is an alias to use from within the API
-type VerifiablePresentation = vc.VerifiablePresentation
+// Routes registers the Echo routes for the API.
+func (w Wrapper) Routes(router core.EchoRouter) {
+	// Mount all the routes for the enabled authentication means (e.g. IRMA and EmployeeIdentity)
+	w.Auth.ContractNotary().Routes(router)
+}

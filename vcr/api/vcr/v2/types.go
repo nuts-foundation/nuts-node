@@ -1,4 +1,5 @@
 /*
+ * Nuts node
  * Copyright (C) 2021 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
@@ -16,18 +17,21 @@
  *
  */
 
-package auth_v1
+package v2
 
 import (
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/services"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
 // VerifiableCredential is an alias to use from within the API
 type VerifiableCredential = vc.VerifiableCredential
 
+// CredentialSubject is an alias to use from within the API
+type CredentialSubject = interface{}
+
+// Revocation is an alias to use from within the API
+type Revocation = credential.Revocation
+
 // VerifiablePresentation is an alias to use from within the API
 type VerifiablePresentation = vc.VerifiablePresentation
-
-// AccessTokenResponse is an alias to use from within the API
-type AccessTokenResponse = services.AccessTokenResult
