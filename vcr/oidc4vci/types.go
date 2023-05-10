@@ -35,6 +35,12 @@ const CredentialIssuerMetadataWellKnownPath = "/.well-known/openid-credential-is
 // VerifiableCredentialJSONLDFormat defines the JSON-LD format identifier for Verifiable Credentials.
 const VerifiableCredentialJSONLDFormat = "ldp_vc"
 
+// JWTTypeOpenID4VCIProof defines the OpenID4VCI JWT-subtype (used as typ claim in the JWT).
+const JWTTypeOpenID4VCIProof = "openid4vci-proof+jwt"
+
+// ProofTypeJWT defines the Credential Request proof type for JWTs.
+const ProofTypeJWT = "jwt"
+
 // CredentialIssuerMetadata defines the OIDC4VCI Credential Issuer Metadata.
 // Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-issuer-metadata
 type CredentialIssuerMetadata struct {

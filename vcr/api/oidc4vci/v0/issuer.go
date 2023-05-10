@@ -79,7 +79,8 @@ func (w Wrapper) RequestCredential(ctx context.Context, request RequestCredentia
 		}
 	}
 	accessToken := authHeader[7:]
-	credential, err := w.VCR.GetOIDCIssuer().HandleCredentialRequest(ctx, *issuerDID, accessToken)
+	credentialRequest := *request.Body
+	credential, err := w.VCR.GetOIDCIssuer().HandleCredentialRequest(ctx, *issuerDID, credentialRequest, accessToken)
 	if err != nil {
 		return nil, err
 	}
