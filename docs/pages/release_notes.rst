@@ -16,6 +16,7 @@ Release date: **DRAFT**
 - The ``tls.crl.maxvaliditydays`` config flag has been deprecated. CRLs are now updated more frequently, making this option obsolete.
 - Adds support for RFC019 and RFC020, which describe a new EmployeeIdentity authentication means which allows an employer to make claims
   about the identity of their employees. This has a lower level of assurance, but can be used when care organisations trust each others employee enrollment process.
+- Changed default healthcheck endpoint from ``/status`` to ``/health``. For correctly configured nodes this change should have no impact. The ``/status`` endpoint remains available.
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.2.0...v5.3.0
 

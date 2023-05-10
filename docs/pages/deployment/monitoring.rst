@@ -6,6 +6,9 @@ Monitoring
 Health checks
 *************
 
+Health
+------
+
 An endpoint is provided to perform health checks on the Nuts node.
 It reports in a format compatible with `Spring Boot's Health Actuator <https://docs.spring.io/spring-boot/docs/2.0.x/actuator-api/html/#health>`__.
 The endpoint is available over HTTP:
@@ -13,6 +16,10 @@ The endpoint is available over HTTP:
 .. code-block:: text
 
     GET /health
+
+Each component in the health check can have one of the statuses ``UP``, ``UNKNOWN``, or ``DOWN``.
+The overall status is determined by the lowest common denominator, so if one components is ``DOWN``, the overall system status is ``DOWN``.
+The overall system statuses ``UP`` and ``UNKNOWN`` map to HTTP status code ``200``, and status ``DOWN`` maps to status code ``503``.
 
 Example response when all checks succeeded (formatted for readability):
 
@@ -54,6 +61,9 @@ Example response when one or more checks failed:
     However, if the default port (:1323) has been changed or if the ``/health`` endpoint has been bound to a different port,
     the default healthcheck will fail and Docker will mark the container as unhealthy.
     Override the default healthcheck to solve this.
+
+Status
+------
 
 There's also a status endpoint to check whether the service has been started.
 It does not provide any information on the individual engines running as part of the executable.
