@@ -31,6 +31,7 @@ import (
 	"github.com/knadh/koanf"
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/posflag"
+	pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 )
@@ -52,16 +53,16 @@ var redactedConfigKeys = []string{
 
 // ServerConfig has global server settings.
 type ServerConfig struct {
-	Verbosity           string             `koanf:"verbosity"`
-	LoggerFormat        string             `koanf:"loggerformat"`
-	CPUProfile          string             `koanf:"cpuprofile"`
-	Strictmode          bool               `koanf:"strictmode"`
-	InternalRateLimiter bool               `koanf:"internalratelimiter"`
-	Datadir             string             `koanf:"datadir"`
-	TLS                 TLSConfig          `koanf:"tls"`
-	LegacyTLS           *NetworkTLSConfig  `koanf:"network"`
-	Auth                AuthEndpointConfig `koanf:"auth"`
-	HTTPClient          HTTPClientConfig   `koanf:"http-client"`
+	Verbosity           string            `koanf:"verbosity"`
+	LoggerFormat        string            `koanf:"loggerformat"`
+	CPUProfile          string            `koanf:"cpuprofile"`
+	Strictmode          bool              `koanf:"strictmode"`
+	InternalRateLimiter bool              `koanf:"internalratelimiter"`
+	Datadir             string            `koanf:"datadir"`
+	PKI                 pkiconfig.Config  `koanf:"pki"`
+	TLS                 TLSConfig         `koanf:"tls"`
+	LegacyTLS           *NetworkTLSConfig `koanf:"network"`
+	HTTP                HTTPConfig        `koanf:"http"`
 	configMap           *koanf.Koanf
 }
 
@@ -160,17 +161,15 @@ type NetworkTLSConfig struct {
 	TrustStoreFile string `koanf:"truststorefile"`
 }
 
+// HTTPConfig specifies global HTTP configuration.
+type HTTPConfig struct {
+	Client HTTPClientConfig `koanf:"client"`
+}
+
 // HTTPClientConfig defines config for HTTP clients.
 type HTTPClientConfig struct {
 	// Timeout specifies the timeout for HTTP requests.
 	Timeout time.Duration `koanf:"timeout"`
-}
-
-// AuthEndpointConfig is temporarily here so VCR's OIDC4VCI can use the configured auth.publicurl as Wallet/Issuer identifier.
-// This should probably be moved to VCR config, but we need to decide whether the protocol should really be part of VCR.
-// See https://github.com/nuts-foundation/nuts-node/issues/2032
-type AuthEndpointConfig struct {
-	PublicURL string `koanf:"publicurl"`
 }
 
 // TLSOffloadingMode defines configurable modes for TLS offloading.

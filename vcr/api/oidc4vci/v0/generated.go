@@ -39,22 +39,22 @@ type RequestAccessTokenFormdataRequestBody RequestAccessTokenFormdataBody
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Get the OpenID Connect Provider metadata
-	// (GET /identity/{did}/.well-known/oauth-authorization-server)
+	// (GET /n2n/identity/{did}/.well-known/oauth-authorization-server)
 	GetOIDCProviderMetadata(ctx echo.Context, did string) error
 	// Get the OIDC4VCI Credential Issuer Metadata
-	// (GET /identity/{did}/.well-known/openid-credential-issuer)
+	// (GET /n2n/identity/{did}/.well-known/openid-credential-issuer)
 	GetOIDC4VCIIssuerMetadata(ctx echo.Context, did string) error
 	// Get the OAuth2 Client Metadata
-	// (GET /identity/{did}/.well-known/openid-credential-wallet)
+	// (GET /n2n/identity/{did}/.well-known/openid-credential-wallet)
 	GetOAuth2ClientMetadata(ctx echo.Context, did string) error
 	// Used by the wallet to request credentials
-	// (POST /identity/{did}/issuer/oidc4vci/credential)
+	// (POST /n2n/identity/{did}/issuer/oidc4vci/credential)
 	RequestCredential(ctx echo.Context, did string, params RequestCredentialParams) error
 	// Used by the wallet to request an access token
-	// (POST /identity/{did}/oidc/token)
+	// (POST /n2n/identity/{did}/oidc/token)
 	RequestAccessToken(ctx echo.Context, did string) error
 	// Used by the issuer to offer credentials to the wallet
-	// (GET /identity/{did}/wallet/oidc4vci/credential_offer)
+	// (GET /n2n/identity/{did}/wallet/oidc4vci/credential_offer)
 	HandleCredentialOffer(ctx echo.Context, did string, params HandleCredentialOfferParams) error
 }
 
@@ -216,12 +216,12 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.GET(baseURL+"/identity/:did/.well-known/oauth-authorization-server", wrapper.GetOIDCProviderMetadata)
-	router.GET(baseURL+"/identity/:did/.well-known/openid-credential-issuer", wrapper.GetOIDC4VCIIssuerMetadata)
-	router.GET(baseURL+"/identity/:did/.well-known/openid-credential-wallet", wrapper.GetOAuth2ClientMetadata)
-	router.POST(baseURL+"/identity/:did/issuer/oidc4vci/credential", wrapper.RequestCredential)
-	router.POST(baseURL+"/identity/:did/oidc/token", wrapper.RequestAccessToken)
-	router.GET(baseURL+"/identity/:did/wallet/oidc4vci/credential_offer", wrapper.HandleCredentialOffer)
+	router.GET(baseURL+"/n2n/identity/:did/.well-known/oauth-authorization-server", wrapper.GetOIDCProviderMetadata)
+	router.GET(baseURL+"/n2n/identity/:did/.well-known/openid-credential-issuer", wrapper.GetOIDC4VCIIssuerMetadata)
+	router.GET(baseURL+"/n2n/identity/:did/.well-known/openid-credential-wallet", wrapper.GetOAuth2ClientMetadata)
+	router.POST(baseURL+"/n2n/identity/:did/issuer/oidc4vci/credential", wrapper.RequestCredential)
+	router.POST(baseURL+"/n2n/identity/:did/oidc/token", wrapper.RequestAccessToken)
+	router.GET(baseURL+"/n2n/identity/:did/wallet/oidc4vci/credential_offer", wrapper.HandleCredentialOffer)
 
 }
 
@@ -434,22 +434,22 @@ func (response HandleCredentialOffer404JSONResponse) VisitHandleCredentialOfferR
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Get the OpenID Connect Provider metadata
-	// (GET /identity/{did}/.well-known/oauth-authorization-server)
+	// (GET /n2n/identity/{did}/.well-known/oauth-authorization-server)
 	GetOIDCProviderMetadata(ctx context.Context, request GetOIDCProviderMetadataRequestObject) (GetOIDCProviderMetadataResponseObject, error)
 	// Get the OIDC4VCI Credential Issuer Metadata
-	// (GET /identity/{did}/.well-known/openid-credential-issuer)
+	// (GET /n2n/identity/{did}/.well-known/openid-credential-issuer)
 	GetOIDC4VCIIssuerMetadata(ctx context.Context, request GetOIDC4VCIIssuerMetadataRequestObject) (GetOIDC4VCIIssuerMetadataResponseObject, error)
 	// Get the OAuth2 Client Metadata
-	// (GET /identity/{did}/.well-known/openid-credential-wallet)
+	// (GET /n2n/identity/{did}/.well-known/openid-credential-wallet)
 	GetOAuth2ClientMetadata(ctx context.Context, request GetOAuth2ClientMetadataRequestObject) (GetOAuth2ClientMetadataResponseObject, error)
 	// Used by the wallet to request credentials
-	// (POST /identity/{did}/issuer/oidc4vci/credential)
+	// (POST /n2n/identity/{did}/issuer/oidc4vci/credential)
 	RequestCredential(ctx context.Context, request RequestCredentialRequestObject) (RequestCredentialResponseObject, error)
 	// Used by the wallet to request an access token
-	// (POST /identity/{did}/oidc/token)
+	// (POST /n2n/identity/{did}/oidc/token)
 	RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error)
 	// Used by the issuer to offer credentials to the wallet
-	// (GET /identity/{did}/wallet/oidc4vci/credential_offer)
+	// (GET /n2n/identity/{did}/wallet/oidc4vci/credential_offer)
 	HandleCredentialOffer(ctx context.Context, request HandleCredentialOfferRequestObject) (HandleCredentialOfferResponseObject, error)
 }
 

@@ -10,7 +10,7 @@ servers:
 paths:
   # TODO: This is not a registered well-known URI, should we; 1. register it, 2. accept it's not registered and use it anyway?, 3. use another URI?
   # See https://github.com/nuts-foundation/nuts-specification/issues/258
-  "/identity/{did}/.well-known/openid-credential-wallet":
+  "/n2n/identity/{did}/.well-known/openid-credential-wallet":
     get:
       tags:
         - Wallet
@@ -37,7 +37,7 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
-  "/identity/{did}/.well-known/oauth-authorization-server":
+  "/n2n/identity/{did}/.well-known/oauth-authorization-server":
     get:
       tags:
         - Issuer
@@ -66,7 +66,7 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
-  "/identity/{did}/.well-known/openid-credential-issuer":
+  "/n2n/identity/{did}/.well-known/openid-credential-issuer":
     get:
       tags:
         - Issuer
@@ -94,7 +94,7 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
-  "/identity/{did}/oidc/token":
+  "/n2n/identity/{did}/oidc/token":
     post:
       tags:
         - Issuer
@@ -144,7 +144,7 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
-  "/identity/{did}/issuer/oidc4vci/credential":
+  "/n2n/identity/{did}/issuer/oidc4vci/credential":
     post:
       tags:
         - Issuer
@@ -204,7 +204,7 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
-  "/identity/{did}/wallet/oidc4vci/credential_offer":
+  "/n2n/identity/{did}/wallet/oidc4vci/credential_offer":
     get:
       tags:
         - Wallet

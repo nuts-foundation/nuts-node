@@ -37,6 +37,8 @@ type Config struct {
 type OIDC4VCIConfig struct {
 	// Enabled indicates if issuing and receiving credentials over OIDC4VCI is enabled
 	Enabled bool `koanf:"enabled"`
+	// URL defines the base URL of the OIDC4VCI issuer and wallet
+	URL string `koanf:"url"`
 }
 
 // DefaultConfig returns a fresh Config filled with default values

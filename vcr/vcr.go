@@ -87,7 +87,7 @@ type vcr struct {
 	eventManager    events.Event
 	storageClient   storage.Engine
 	oidcIssuer      issuer.OIDCIssuer
-	publicBaseURL   string
+	baseURL         string
 }
 
 func (c *vcr) GetOIDCIssuer() issuer.OIDCIssuer {
@@ -95,7 +95,7 @@ func (c *vcr) GetOIDCIssuer() issuer.OIDCIssuer {
 }
 
 func (c *vcr) GetOIDCWallet(id did.DID) holder.OIDCWallet {
-	identifier := core.JoinURLPaths(c.publicBaseURL, "identity", url.PathEscape(id.String()))
+	identifier := core.JoinURLPaths(c.baseURL, "n2n", "identity", url.PathEscape(id.String()))
 	return holder.NewOIDCWallet(id, identifier, c, c.keyStore, c.keyResolver, c.config.clientTimeout)
 }
 
@@ -116,7 +116,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 
 	// store config parameters for use in Start()
 	c.config.datadir = config.Datadir
-	c.config.clientTimeout = config.HTTPClient.Timeout
+	c.config.clientTimeout = config.HTTP.Client.Timeout
 
 	issuerStorePath := path.Join(c.config.datadir, "vcr", "issued-credentials.db")
 	issuerBackupStore, err := c.storageClient.GetProvider(ModuleName).GetKVStore("backup-issued-credentials", storage.PersistentStorageClass)
@@ -140,11 +140,20 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 
 	networkPublisher := issuer.NewNetworkPublisher(c.network, c.docResolver, c.keyStore)
 	if c.config.OIDC4VCI.Enabled {
-		if config.Auth.PublicURL == "" {
-			return errors.New("auth.publicurl is required to enable OIDC4VCI")
+		if c.config.OIDC4VCI.URL == "" {
+			return errors.New("vcr.oidc4vci.url must be configured to enable OIDC4VCI")
 		}
-		c.publicBaseURL = config.Auth.PublicURL
-		c.oidcIssuer = issuer.NewOIDCIssuer(core.JoinURLPaths(c.publicBaseURL, "identity"), c.keyResolver)
+		// Must be either HTTP or HTTPS, in strict mode HTTPS is required
+		c.baseURL = c.config.OIDC4VCI.URL
+		if strings.HasPrefix(c.baseURL, "http://") {
+			if config.Strictmode {
+				return errors.New("vcr.oidc4vci.url must use HTTPS when strictmode is enabled")
+			}
+		} else if !strings.HasPrefix(c.baseURL, "https://") {
+			return errors.New("vcr.oidc4vci.url must contain a valid URL (using http:// or https://)")
+		}
+
+		c.oidcIssuer = issuer.NewOIDCIssuer(core.JoinURLPaths(c.baseURL, "n2n", "identity"))
 	}
 	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, c.oidcIssuer, c.docResolver, c.keyStore, c.jsonldManager, c.trustConfig)
 	c.verifier = verifier.NewVerifier(c.verifierStore, c.docResolver, c.keyResolver, c.jsonldManager, c.trustConfig)
