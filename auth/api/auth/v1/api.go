@@ -178,7 +178,7 @@ func (w Wrapper) GetSignSessionStatus(ctx context.Context, request GetSignSessio
 }
 
 // GetContractByType handles the http request for finding a contract by type.
-func (w Wrapper) GetContractByType(ctx context.Context, request GetContractByTypeRequestObject) (GetContractByTypeResponseObject, error) {
+func (w Wrapper) GetContractByType(_ context.Context, request GetContractByTypeRequestObject) (GetContractByTypeResponseObject, error) {
 	// convert generated data types to internal types
 	var (
 		contractLanguage contract.Language
