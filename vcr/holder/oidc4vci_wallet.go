@@ -20,6 +20,7 @@ package holder
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/http"
@@ -49,7 +50,8 @@ var nowFunc = time.Now
 var _ OIDCWallet = (*wallet)(nil)
 
 // NewOIDCWallet creates an OIDCWallet that tries to retrieve offered credentials, to store it in the given credential store.
-func NewOIDCWallet(did did.DID, identifier string, credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver vdr.KeyResolver, clientTimeout time.Duration) OIDCWallet {
+func NewOIDCWallet(did did.DID, identifier string, credentialStore vcrTypes.Writer, signer crypto.JWTSigner, resolver vdr.KeyResolver,
+	clientTimeout time.Duration, clientTLSConfig *tls.Config) OIDCWallet {
 	return &wallet{
 		did:                 did,
 		identifier:          identifier,
@@ -57,6 +59,7 @@ func NewOIDCWallet(did did.DID, identifier string, credentialStore vcrTypes.Writ
 		signer:              signer,
 		resolver:            resolver,
 		clientTimeout:       clientTimeout,
+		clientTLSConfig:     clientTLSConfig,
 		issuerClientCreator: oidc4vci.NewIssuerAPIClient,
 	}
 }
@@ -68,6 +71,7 @@ type wallet struct {
 	signer              crypto.JWTSigner
 	resolver            vdr.KeyResolver
 	clientTimeout       time.Duration
+	clientTLSConfig     *tls.Config
 	issuerClientCreator func(ctx context.Context, httpClient *http.Client, credentialIssuerIdentifier string) (oidc4vci.IssuerAPIClient, error)
 }
 
@@ -101,7 +105,12 @@ func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.Creden
 		}
 	}
 
-	issuerClient, err := h.issuerClientCreator(ctx, &http.Client{}, offer.CredentialIssuer)
+	httpTransport := http.DefaultTransport.(*http.Transport).Clone()
+	httpTransport.TLSClientConfig = h.clientTLSConfig
+	httpClient := &http.Client{
+		Transport: httpTransport,
+	}
+	issuerClient, err := h.issuerClientCreator(ctx, httpClient, offer.CredentialIssuer)
 	if err != nil {
 		return fmt.Errorf("unable to create issuer client: %w", err)
 	}

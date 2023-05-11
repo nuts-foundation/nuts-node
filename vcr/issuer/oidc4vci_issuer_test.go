@@ -53,7 +53,7 @@ var issuedVC = vc.VerifiableCredential{
 }
 
 func Test_memoryIssuer_Metadata(t *testing.T) {
-	metadata, err := NewOIDCIssuer(baseURL, nil).Metadata(issuerDID)
+	metadata, err := NewOIDCIssuer(baseURL, nil, nil).Metadata(issuerDID)
 
 	require.NoError(t, err)
 	assert.Equal(t, oidc4vci.CredentialIssuerMetadata{
@@ -64,7 +64,7 @@ func Test_memoryIssuer_Metadata(t *testing.T) {
 }
 
 func Test_memoryIssuer_ProviderMetadata(t *testing.T) {
-	metadata, err := NewOIDCIssuer(baseURL, nil).ProviderMetadata(issuerDID)
+	metadata, err := NewOIDCIssuer(baseURL, nil, nil).ProviderMetadata(issuerDID)
 
 	require.NoError(t, err)
 	assert.Equal(t, oidc4vci.ProviderMetadata{
@@ -110,7 +110,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 	validRequest := createRequest(createHeaders(), createClaims())
 
 	t.Run("ok", func(t *testing.T) {
-		issuer := NewOIDCIssuer(baseURL, keyResolver).(*memoryIssuer)
+		issuer := NewOIDCIssuer(baseURL, nil, keyResolver).(*memoryIssuer)
 		issuer.createOffer(issuedVC, "secret")
 		issuer.accessTokens["access-token"] = "secret"
 
@@ -124,7 +124,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 	})
 	t.Run("proof validation", func(t *testing.T) {
 		t.Run("unsupported proof type", func(t *testing.T) {
-			issuer := NewOIDCIssuer(baseURL, keyResolver).(*memoryIssuer)
+			issuer := NewOIDCIssuer(baseURL, nil, keyResolver).(*memoryIssuer)
 			issuer.createOffer(issuedVC, "secret")
 			issuer.accessTokens["access-token"] = "secret"
 
@@ -138,7 +138,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 		})
 		t.Run("jwt", func(t *testing.T) {
 			t.Run("missing proof", func(t *testing.T) {
-				issuer := NewOIDCIssuer(baseURL, keyResolver).(*memoryIssuer)
+				issuer := NewOIDCIssuer(baseURL, nil, keyResolver).(*memoryIssuer)
 				issuer.createOffer(issuedVC, "secret")
 				issuer.accessTokens["access-token"] = "secret"
 
@@ -151,7 +151,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 				assert.Nil(t, response)
 			})
 			t.Run("invalid JWT", func(t *testing.T) {
-				issuer := NewOIDCIssuer(baseURL, keyResolver).(*memoryIssuer)
+				issuer := NewOIDCIssuer(baseURL, nil, keyResolver).(*memoryIssuer)
 				issuer.createOffer(issuedVC, "secret")
 				issuer.accessTokens["access-token"] = "secret"
 
@@ -173,7 +173,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 					},
 				}
 
-				issuer := NewOIDCIssuer(baseURL, keyResolver).(*memoryIssuer)
+				issuer := NewOIDCIssuer(baseURL, nil,  keyResolver).(*memoryIssuer)
 				issuer.createOffer(otherIssuedVC, "secret")
 				issuer.accessTokens["access-token"] = "secret"
 
@@ -187,7 +187,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 			t.Run("signing key is unknown", func(t *testing.T) {
 				keyResolver := types.NewMockKeyResolver(ctrl)
 				keyResolver.EXPECT().ResolveSigningKey(keyID, nil).AnyTimes().Return(nil, types.ErrKeyNotFound)
-				issuer := NewOIDCIssuer(baseURL, keyResolver).(*memoryIssuer)
+				issuer := NewOIDCIssuer(baseURL, nil, keyResolver).(*memoryIssuer)
 				issuer.createOffer(issuedVC, "secret")
 				issuer.accessTokens["access-token"] = "secret"
 
@@ -199,7 +199,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 				assert.Nil(t, response)
 			})
 			t.Run("typ header missing", func(t *testing.T) {
-				issuer := NewOIDCIssuer(baseURL, keyResolver).(*memoryIssuer)
+				issuer := NewOIDCIssuer(baseURL, nil, keyResolver).(*memoryIssuer)
 				issuer.createOffer(issuedVC, "secret")
 				issuer.accessTokens["access-token"] = "secret"
 
@@ -213,7 +213,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 				assert.Nil(t, response)
 			})
 			t.Run("typ header invalid", func(t *testing.T) {
-				issuer := NewOIDCIssuer(baseURL, keyResolver).(*memoryIssuer)
+				issuer := NewOIDCIssuer(baseURL, nil, keyResolver).(*memoryIssuer)
 				issuer.createOffer(issuedVC, "secret")
 				issuer.accessTokens["access-token"] = "secret"
 
@@ -227,7 +227,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 				assert.Nil(t, response)
 			})
 			t.Run("aud header doesn't match issuer identifier", func(t *testing.T) {
-				issuer := NewOIDCIssuer(baseURL, keyResolver).(*memoryIssuer)
+				issuer := NewOIDCIssuer(baseURL, nil, keyResolver).(*memoryIssuer)
 				issuer.createOffer(issuedVC, "secret")
 				issuer.accessTokens["access-token"] = "secret"
 
@@ -244,7 +244,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 	})
 
 	t.Run("unknown access token", func(t *testing.T) {
-		issuer := NewOIDCIssuer(baseURL, nil)
+		issuer := NewOIDCIssuer(baseURL, nil, nil)
 
 		auditLogs := audit.CaptureLogs(t)
 		response, err := issuer.HandleCredentialRequest(ctx, issuerDID, validRequest, "access-token")
@@ -260,7 +260,7 @@ func Test_memoryIssuer_OfferCredential(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		wallet := oidc4vci.NewMockWalletAPIClient(ctrl)
 		wallet.EXPECT().OfferCredential(gomock.Any(), gomock.Any()).Return(nil)
-		issuer := NewOIDCIssuer(baseURL, nil).(*memoryIssuer)
+		issuer := NewOIDCIssuer(baseURL, nil,  nil).(*memoryIssuer)
 		issuer.walletClientCreator = func(_ context.Context, _ *http.Client, _ string) (oidc4vci.WalletAPIClient, error) {
 			return wallet, nil
 		}
@@ -274,7 +274,7 @@ func Test_memoryIssuer_OfferCredential(t *testing.T) {
 		wallet := oidc4vci.NewMockWalletAPIClient(ctrl)
 		wallet.EXPECT().Metadata().Return(oidc4vci.OAuth2ClientMetadata{CredentialOfferEndpoint: "here-please"})
 		wallet.EXPECT().OfferCredential(gomock.Any(), gomock.Any()).Return(errors.New("failed"))
-		issuer := NewOIDCIssuer(baseURL, nil).(*memoryIssuer)
+		issuer := NewOIDCIssuer(baseURL, nil, nil).(*memoryIssuer)
 		issuer.walletClientCreator = func(_ context.Context, _ *http.Client, _ string) (oidc4vci.WalletAPIClient, error) {
 			return wallet, nil
 		}
@@ -287,7 +287,7 @@ func Test_memoryIssuer_OfferCredential(t *testing.T) {
 
 func Test_memoryIssuer_HandleAccessTokenRequest(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		issuer := NewOIDCIssuer(baseURL, nil).(*memoryIssuer)
+		issuer := NewOIDCIssuer(baseURL, nil, nil).(*memoryIssuer)
 		_ = issuer.createOffer(issuedVC, "code")
 
 		accessToken, err := issuer.HandleAccessTokenRequest(audit.TestContext(), issuerDID, "code")
@@ -296,7 +296,7 @@ func Test_memoryIssuer_HandleAccessTokenRequest(t *testing.T) {
 		assert.NotEmpty(t, accessToken)
 	})
 	t.Run("unknown pre-authorized code", func(t *testing.T) {
-		issuer := NewOIDCIssuer(baseURL, nil).(*memoryIssuer)
+		issuer := NewOIDCIssuer(baseURL, nil, nil).(*memoryIssuer)
 		_ = issuer.createOffer(issuedVC, "some-other-code")
 
 		auditLog := audit.CaptureLogs(t)

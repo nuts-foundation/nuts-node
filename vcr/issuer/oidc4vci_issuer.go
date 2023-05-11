@@ -22,6 +22,7 @@ import (
 	"context"
 	crypt "crypto"
 	"crypto/rand"
+	"crypto/tls"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -62,7 +63,7 @@ type OIDCIssuer interface {
 }
 
 // NewOIDCIssuer creates a new Issuer instance. The identifier is the Credential Issuer Identifier, e.g. https://example.com/issuer/
-func NewOIDCIssuer(baseURL string, keyResolver types.KeyResolver) OIDCIssuer {
+func NewOIDCIssuer(baseURL string, clientTLSConfig *tls.Config, keyResolver types.KeyResolver) OIDCIssuer {
 	return &memoryIssuer{
 		baseURL:             baseURL,
 		keyResolver:         keyResolver,
@@ -70,6 +71,7 @@ func NewOIDCIssuer(baseURL string, keyResolver types.KeyResolver) OIDCIssuer {
 		accessTokens:        make(map[string]string),
 		mux:                 &sync.Mutex{},
 		walletClientCreator: oidc4vci.NewWalletAPIClient,
+		clientTLSConfig:     clientTLSConfig,
 	}
 }
 
@@ -82,6 +84,7 @@ type memoryIssuer struct {
 	accessTokens        map[string]string
 	mux                 *sync.Mutex
 	walletClientCreator func(ctx context.Context, httpClient *http.Client, walletMetadataURL string) (oidc4vci.WalletAPIClient, error)
+	clientTLSConfig     *tls.Config
 }
 
 func (i *memoryIssuer) Metadata(issuer did.DID) (oidc4vci.CredentialIssuerMetadata, error) {
@@ -141,9 +144,12 @@ func (i *memoryIssuer) OfferCredential(ctx context.Context, credential vc.Verifi
 		WithField(core.LogFieldCredentialSubject, subject).
 		Infof("Offering credential using OIDC4VCI (client-metadata-url=%s)", clientMetadataURL)
 
-	// TODO: Support TLS
-	//       See https://github.com/nuts-foundation/nuts-node/issues/2032
-	client, err := i.walletClientCreator(ctx, &http.Client{}, clientMetadataURL)
+	httpTransport := http.DefaultTransport.(*http.Transport).Clone()
+	httpTransport.TLSClientConfig = i.clientTLSConfig
+	httpClient := &http.Client{
+		Transport: httpTransport,
+	}
+	client, err := i.walletClientCreator(ctx, httpClient, clientMetadataURL)
 	if err != nil {
 		return err
 	}

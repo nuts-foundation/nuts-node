@@ -21,9 +21,11 @@ package vcr
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/pki"
 	"io/fs"
 	"net/url"
 	"path"
@@ -88,6 +90,8 @@ type vcr struct {
 	storageClient   storage.Engine
 	oidcIssuer      issuer.OIDCIssuer
 	baseURL         string
+	crlValidator    pki.Validator
+	clientTLSConfig *tls.Config
 }
 
 func (c *vcr) GetOIDCIssuer() issuer.OIDCIssuer {
@@ -96,7 +100,7 @@ func (c *vcr) GetOIDCIssuer() issuer.OIDCIssuer {
 
 func (c *vcr) GetOIDCWallet(id did.DID) holder.OIDCWallet {
 	identifier := core.JoinURLPaths(c.baseURL, "n2n", "identity", url.PathEscape(id.String()))
-	return holder.NewOIDCWallet(id, identifier, c, c.keyStore, c.keyResolver, c.config.clientTimeout)
+	return holder.NewOIDCWallet(id, identifier, c, c.keyStore, c.keyResolver, c.config.clientTimeout, c.clientTLSConfig)
 }
 
 func (c *vcr) Issuer() issuer.Issuer {
@@ -153,7 +157,16 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 			return errors.New("vcr.oidc4vci.url must contain a valid URL (using http:// or https://)")
 		}
 
-		c.oidcIssuer = issuer.NewOIDCIssuer(core.JoinURLPaths(c.baseURL, "n2n", "identity"))
+		var tlsConfig *tls.Config
+		if config.TLS.Enabled() {
+			var err error
+			c.crlValidator, c.clientTLSConfig, err = pki.CreateTLSConfig(config.TLS)
+			if err != nil {
+				return err
+			}
+		}
+
+		c.oidcIssuer = issuer.NewOIDCIssuer(core.JoinURLPaths(c.baseURL, "n2n", "identity"), tlsConfig)
 	}
 	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, c.oidcIssuer, c.docResolver, c.keyStore, c.jsonldManager, c.trustConfig)
 	c.verifier = verifier.NewVerifier(c.verifierStore, c.docResolver, c.keyResolver, c.jsonldManager, c.trustConfig)
