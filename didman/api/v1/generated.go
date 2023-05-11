@@ -67,11 +67,17 @@ type SearchOrganizationsParams struct {
 // AddCompoundServiceJSONRequestBody defines body for AddCompoundService for application/json ContentType.
 type AddCompoundServiceJSONRequestBody = CompoundServiceProperties
 
+// UpdateCompoundServiceJSONRequestBody defines body for UpdateCompoundService for application/json ContentType.
+type UpdateCompoundServiceJSONRequestBody = CompoundServiceProperties
+
 // UpdateContactInformationJSONRequestBody defines body for UpdateContactInformation for application/json ContentType.
 type UpdateContactInformationJSONRequestBody = ContactInformation
 
 // AddEndpointJSONRequestBody defines body for AddEndpoint for application/json ContentType.
 type AddEndpointJSONRequestBody = EndpointProperties
+
+// UpdateEndpointJSONRequestBody defines body for UpdateEndpoint for application/json ContentType.
+type UpdateEndpointJSONRequestBody = EndpointProperties
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -154,6 +160,11 @@ type ClientInterface interface {
 
 	AddCompoundService(ctx context.Context, did string, body AddCompoundServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// UpdateCompoundService request with any body
+	UpdateCompoundServiceWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateCompoundService(ctx context.Context, did string, body UpdateCompoundServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetCompoundServiceEndpoint request
 	GetCompoundServiceEndpoint(ctx context.Context, did string, compoundServiceType string, endpointType string, params *GetCompoundServiceEndpointParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -169,6 +180,11 @@ type ClientInterface interface {
 	AddEndpointWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	AddEndpoint(ctx context.Context, did string, body AddEndpointJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateEndpoint request with any body
+	UpdateEndpointWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateEndpoint(ctx context.Context, did string, body UpdateEndpointJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteEndpointsByType request
 	DeleteEndpointsByType(ctx context.Context, did string, pType string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -206,6 +222,30 @@ func (c *Client) AddCompoundServiceWithBody(ctx context.Context, did string, con
 
 func (c *Client) AddCompoundService(ctx context.Context, did string, body AddCompoundServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewAddCompoundServiceRequest(c.Server, did, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateCompoundServiceWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateCompoundServiceRequestWithBody(c.Server, did, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateCompoundService(ctx context.Context, did string, body UpdateCompoundServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateCompoundServiceRequest(c.Server, did, body)
 	if err != nil {
 		return nil, err
 	}
@@ -278,6 +318,30 @@ func (c *Client) AddEndpointWithBody(ctx context.Context, did string, contentTyp
 
 func (c *Client) AddEndpoint(ctx context.Context, did string, body AddEndpointJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewAddEndpointRequest(c.Server, did, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateEndpointWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateEndpointRequestWithBody(c.Server, did, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateEndpoint(ctx context.Context, did string, body UpdateEndpointJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateEndpointRequest(c.Server, did, body)
 	if err != nil {
 		return nil, err
 	}
@@ -396,6 +460,53 @@ func NewAddCompoundServiceRequestWithBody(server string, did string, contentType
 	}
 
 	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewUpdateCompoundServiceRequest calls the generic UpdateCompoundService builder with application/json body
+func NewUpdateCompoundServiceRequest(server string, did string, body UpdateCompoundServiceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateCompoundServiceRequestWithBody(server, did, "application/json", bodyReader)
+}
+
+// NewUpdateCompoundServiceRequestWithBody generates requests for UpdateCompoundService with any type of body
+func NewUpdateCompoundServiceRequestWithBody(server string, did string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "did", runtime.ParamLocationPath, did)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/didman/v1/did/%s/compoundservice", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -612,6 +723,53 @@ func NewAddEndpointRequestWithBody(server string, did string, contentType string
 	return req, nil
 }
 
+// NewUpdateEndpointRequest calls the generic UpdateEndpoint builder with application/json body
+func NewUpdateEndpointRequest(server string, did string, body UpdateEndpointJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateEndpointRequestWithBody(server, did, "application/json", bodyReader)
+}
+
+// NewUpdateEndpointRequestWithBody generates requests for UpdateEndpoint with any type of body
+func NewUpdateEndpointRequestWithBody(server string, did string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "did", runtime.ParamLocationPath, did)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/didman/v1/did/%s/endpoint", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewDeleteEndpointsByTypeRequest generates requests for DeleteEndpointsByType
 func NewDeleteEndpointsByTypeRequest(server string, did string, pType string) (*http.Request, error) {
 	var err error
@@ -797,6 +955,11 @@ type ClientWithResponsesInterface interface {
 
 	AddCompoundServiceWithResponse(ctx context.Context, did string, body AddCompoundServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*AddCompoundServiceResponse, error)
 
+	// UpdateCompoundService request with any body
+	UpdateCompoundServiceWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateCompoundServiceResponse, error)
+
+	UpdateCompoundServiceWithResponse(ctx context.Context, did string, body UpdateCompoundServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateCompoundServiceResponse, error)
+
 	// GetCompoundServiceEndpoint request
 	GetCompoundServiceEndpointWithResponse(ctx context.Context, did string, compoundServiceType string, endpointType string, params *GetCompoundServiceEndpointParams, reqEditors ...RequestEditorFn) (*GetCompoundServiceEndpointResponse, error)
 
@@ -812,6 +975,11 @@ type ClientWithResponsesInterface interface {
 	AddEndpointWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddEndpointResponse, error)
 
 	AddEndpointWithResponse(ctx context.Context, did string, body AddEndpointJSONRequestBody, reqEditors ...RequestEditorFn) (*AddEndpointResponse, error)
+
+	// UpdateEndpoint request with any body
+	UpdateEndpointWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateEndpointResponse, error)
+
+	UpdateEndpointWithResponse(ctx context.Context, did string, body UpdateEndpointJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateEndpointResponse, error)
 
 	// DeleteEndpointsByType request
 	DeleteEndpointsByTypeWithResponse(ctx context.Context, did string, pType string, reqEditors ...RequestEditorFn) (*DeleteEndpointsByTypeResponse, error)
@@ -881,6 +1049,38 @@ func (r AddCompoundServiceResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r AddCompoundServiceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type UpdateCompoundServiceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *CompoundService
+	JSONDefault  *struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateCompoundServiceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateCompoundServiceResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -1015,6 +1215,38 @@ func (r AddEndpointResponse) StatusCode() int {
 	return 0
 }
 
+type UpdateEndpointResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *Endpoint
+	JSONDefault  *struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateEndpointResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateEndpointResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type DeleteEndpointsByTypeResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -1135,6 +1367,23 @@ func (c *ClientWithResponses) AddCompoundServiceWithResponse(ctx context.Context
 	return ParseAddCompoundServiceResponse(rsp)
 }
 
+// UpdateCompoundServiceWithBodyWithResponse request with arbitrary body returning *UpdateCompoundServiceResponse
+func (c *ClientWithResponses) UpdateCompoundServiceWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateCompoundServiceResponse, error) {
+	rsp, err := c.UpdateCompoundServiceWithBody(ctx, did, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateCompoundServiceResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateCompoundServiceWithResponse(ctx context.Context, did string, body UpdateCompoundServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateCompoundServiceResponse, error) {
+	rsp, err := c.UpdateCompoundService(ctx, did, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateCompoundServiceResponse(rsp)
+}
+
 // GetCompoundServiceEndpointWithResponse request returning *GetCompoundServiceEndpointResponse
 func (c *ClientWithResponses) GetCompoundServiceEndpointWithResponse(ctx context.Context, did string, compoundServiceType string, endpointType string, params *GetCompoundServiceEndpointParams, reqEditors ...RequestEditorFn) (*GetCompoundServiceEndpointResponse, error) {
 	rsp, err := c.GetCompoundServiceEndpoint(ctx, did, compoundServiceType, endpointType, params, reqEditors...)
@@ -1185,6 +1434,23 @@ func (c *ClientWithResponses) AddEndpointWithResponse(ctx context.Context, did s
 		return nil, err
 	}
 	return ParseAddEndpointResponse(rsp)
+}
+
+// UpdateEndpointWithBodyWithResponse request with arbitrary body returning *UpdateEndpointResponse
+func (c *ClientWithResponses) UpdateEndpointWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateEndpointResponse, error) {
+	rsp, err := c.UpdateEndpointWithBody(ctx, did, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateEndpointResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateEndpointWithResponse(ctx context.Context, did string, body UpdateEndpointJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateEndpointResponse, error) {
+	rsp, err := c.UpdateEndpoint(ctx, did, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateEndpointResponse(rsp)
 }
 
 // DeleteEndpointsByTypeWithResponse request returning *DeleteEndpointsByTypeResponse
@@ -1265,6 +1531,48 @@ func ParseAddCompoundServiceResponse(rsp *http.Response) (*AddCompoundServiceRes
 	}
 
 	response := &AddCompoundServiceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CompoundService
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest struct {
+			// Detail A human-readable explanation specific to this occurrence of the problem.
+			Detail string `json:"detail"`
+
+			// Status HTTP statuscode
+			Status float32 `json:"status"`
+
+			// Title A short, human-readable summary of the problem type.
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateCompoundServiceResponse parses an HTTP response from a UpdateCompoundServiceWithResponse call
+func ParseUpdateCompoundServiceResponse(rsp *http.Response) (*UpdateCompoundServiceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateCompoundServiceResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -1469,6 +1777,48 @@ func ParseAddEndpointResponse(rsp *http.Response) (*AddEndpointResponse, error) 
 	return response, nil
 }
 
+// ParseUpdateEndpointResponse parses an HTTP response from a UpdateEndpointWithResponse call
+func ParseUpdateEndpointResponse(rsp *http.Response) (*UpdateEndpointResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateEndpointResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Endpoint
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest struct {
+			// Detail A human-readable explanation specific to this occurrence of the problem.
+			Detail string `json:"detail"`
+
+			// Status HTTP statuscode
+			Status float32 `json:"status"`
+
+			// Title A short, human-readable summary of the problem type.
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseDeleteEndpointsByTypeResponse parses an HTTP response from a DeleteEndpointsByTypeWithResponse call
 func ParseDeleteEndpointsByTypeResponse(rsp *http.Response) (*DeleteEndpointsByTypeResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -1593,6 +1943,9 @@ type ServerInterface interface {
 	// Add a compound service to a DID Document.
 	// (POST /internal/didman/v1/did/{did}/compoundservice)
 	AddCompoundService(ctx echo.Context, did string) error
+	// Update a compound service.
+	// (PUT /internal/didman/v1/did/{did}/compoundservice)
+	UpdateCompoundService(ctx echo.Context, did string) error
 	// Retrieves the endpoint with the specified endpointType from the specified compound service.
 	// (GET /internal/didman/v1/did/{did}/compoundservice/{compoundServiceType}/endpoint/{endpointType})
 	GetCompoundServiceEndpoint(ctx echo.Context, did string, compoundServiceType string, endpointType string, params GetCompoundServiceEndpointParams) error
@@ -1605,6 +1958,9 @@ type ServerInterface interface {
 	// Add a service endpoint or a reference to a service.
 	// (POST /internal/didman/v1/did/{did}/endpoint)
 	AddEndpoint(ctx echo.Context, did string) error
+	// Update a service endpoint or a reference to a service.
+	// (PUT /internal/didman/v1/did/{did}/endpoint)
+	UpdateEndpoint(ctx echo.Context, did string) error
 
 	// (DELETE /internal/didman/v1/did/{did}/endpoint/{type})
 	DeleteEndpointsByType(ctx echo.Context, did string, pType string) error
@@ -1654,6 +2010,24 @@ func (w *ServerInterfaceWrapper) AddCompoundService(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshalled arguments
 	err = w.Handler.AddCompoundService(ctx, did)
+	return err
+}
+
+// UpdateCompoundService converts echo context to params.
+func (w *ServerInterfaceWrapper) UpdateCompoundService(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.UpdateCompoundService(ctx, did)
 	return err
 }
 
@@ -1771,6 +2145,24 @@ func (w *ServerInterfaceWrapper) AddEndpoint(ctx echo.Context) error {
 	return err
 }
 
+// UpdateEndpoint converts echo context to params.
+func (w *ServerInterfaceWrapper) UpdateEndpoint(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "did" -------------
+	var did string
+
+	err = runtime.BindStyledParameterWithLocation("simple", false, "did", runtime.ParamLocationPath, ctx.Param("did"), &did)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
+	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{""})
+
+	// Invoke the callback with all the unmarshalled arguments
+	err = w.Handler.UpdateEndpoint(ctx, did)
+	return err
+}
+
 // DeleteEndpointsByType converts echo context to params.
 func (w *ServerInterfaceWrapper) DeleteEndpointsByType(ctx echo.Context) error {
 	var err error
@@ -1872,10 +2264,12 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 
 	router.GET(baseURL+"/internal/didman/v1/did/:did/compoundservice", wrapper.GetCompoundServices)
 	router.POST(baseURL+"/internal/didman/v1/did/:did/compoundservice", wrapper.AddCompoundService)
+	router.PUT(baseURL+"/internal/didman/v1/did/:did/compoundservice", wrapper.UpdateCompoundService)
 	router.GET(baseURL+"/internal/didman/v1/did/:did/compoundservice/:compoundServiceType/endpoint/:endpointType", wrapper.GetCompoundServiceEndpoint)
 	router.GET(baseURL+"/internal/didman/v1/did/:did/contactinfo", wrapper.GetContactInformation)
 	router.PUT(baseURL+"/internal/didman/v1/did/:did/contactinfo", wrapper.UpdateContactInformation)
 	router.POST(baseURL+"/internal/didman/v1/did/:did/endpoint", wrapper.AddEndpoint)
+	router.PUT(baseURL+"/internal/didman/v1/did/:did/endpoint", wrapper.UpdateEndpoint)
 	router.DELETE(baseURL+"/internal/didman/v1/did/:did/endpoint/:type", wrapper.DeleteEndpointsByType)
 	router.GET(baseURL+"/internal/didman/v1/search/organizations", wrapper.SearchOrganizations)
 	router.DELETE(baseURL+"/internal/didman/v1/service/:id", wrapper.DeleteService)
@@ -1953,6 +2347,45 @@ type AddCompoundServicedefaultJSONResponse struct {
 }
 
 func (response AddCompoundServicedefaultJSONResponse) VisitAddCompoundServiceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type UpdateCompoundServiceRequestObject struct {
+	Did  string `json:"did"`
+	Body *UpdateCompoundServiceJSONRequestBody
+}
+
+type UpdateCompoundServiceResponseObject interface {
+	VisitUpdateCompoundServiceResponse(w http.ResponseWriter) error
+}
+
+type UpdateCompoundService200JSONResponse CompoundService
+
+func (response UpdateCompoundService200JSONResponse) VisitUpdateCompoundServiceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateCompoundServicedefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response UpdateCompoundServicedefaultJSONResponse) VisitUpdateCompoundServiceResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(response.StatusCode)
 
@@ -2126,6 +2559,45 @@ func (response AddEndpointdefaultJSONResponse) VisitAddEndpointResponse(w http.R
 	return json.NewEncoder(w).Encode(response.Body)
 }
 
+type UpdateEndpointRequestObject struct {
+	Did  string `json:"did"`
+	Body *UpdateEndpointJSONRequestBody
+}
+
+type UpdateEndpointResponseObject interface {
+	VisitUpdateEndpointResponse(w http.ResponseWriter) error
+}
+
+type UpdateEndpoint200JSONResponse Endpoint
+
+func (response UpdateEndpoint200JSONResponse) VisitUpdateEndpointResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateEndpointdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response UpdateEndpointdefaultJSONResponse) VisitUpdateEndpointResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
 type DeleteEndpointsByTypeRequestObject struct {
 	Did  string `json:"did"`
 	Type string `json:"type"`
@@ -2251,6 +2723,9 @@ type StrictServerInterface interface {
 	// Add a compound service to a DID Document.
 	// (POST /internal/didman/v1/did/{did}/compoundservice)
 	AddCompoundService(ctx context.Context, request AddCompoundServiceRequestObject) (AddCompoundServiceResponseObject, error)
+	// Update a compound service.
+	// (PUT /internal/didman/v1/did/{did}/compoundservice)
+	UpdateCompoundService(ctx context.Context, request UpdateCompoundServiceRequestObject) (UpdateCompoundServiceResponseObject, error)
 	// Retrieves the endpoint with the specified endpointType from the specified compound service.
 	// (GET /internal/didman/v1/did/{did}/compoundservice/{compoundServiceType}/endpoint/{endpointType})
 	GetCompoundServiceEndpoint(ctx context.Context, request GetCompoundServiceEndpointRequestObject) (GetCompoundServiceEndpointResponseObject, error)
@@ -2263,6 +2738,9 @@ type StrictServerInterface interface {
 	// Add a service endpoint or a reference to a service.
 	// (POST /internal/didman/v1/did/{did}/endpoint)
 	AddEndpoint(ctx context.Context, request AddEndpointRequestObject) (AddEndpointResponseObject, error)
+	// Update a service endpoint or a reference to a service.
+	// (PUT /internal/didman/v1/did/{did}/endpoint)
+	UpdateEndpoint(ctx context.Context, request UpdateEndpointRequestObject) (UpdateEndpointResponseObject, error)
 
 	// (DELETE /internal/didman/v1/did/{did}/endpoint/{type})
 	DeleteEndpointsByType(ctx context.Context, request DeleteEndpointsByTypeRequestObject) (DeleteEndpointsByTypeResponseObject, error)
@@ -2337,6 +2815,37 @@ func (sh *strictHandler) AddCompoundService(ctx echo.Context, did string) error 
 		return err
 	} else if validResponse, ok := response.(AddCompoundServiceResponseObject); ok {
 		return validResponse.VisitAddCompoundServiceResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// UpdateCompoundService operation middleware
+func (sh *strictHandler) UpdateCompoundService(ctx echo.Context, did string) error {
+	var request UpdateCompoundServiceRequestObject
+
+	request.Did = did
+
+	var body UpdateCompoundServiceJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateCompoundService(ctx.Request().Context(), request.(UpdateCompoundServiceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateCompoundService")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(UpdateCompoundServiceResponseObject); ok {
+		return validResponse.VisitUpdateCompoundServiceResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("Unexpected response type: %T", response)
 	}
@@ -2452,6 +2961,37 @@ func (sh *strictHandler) AddEndpoint(ctx echo.Context, did string) error {
 		return err
 	} else if validResponse, ok := response.(AddEndpointResponseObject); ok {
 		return validResponse.VisitAddEndpointResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// UpdateEndpoint operation middleware
+func (sh *strictHandler) UpdateEndpoint(ctx echo.Context, did string) error {
+	var request UpdateEndpointRequestObject
+
+	request.Did = did
+
+	var body UpdateEndpointJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateEndpoint(ctx.Request().Context(), request.(UpdateEndpointRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateEndpoint")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(UpdateEndpointResponseObject); ok {
+		return validResponse.VisitUpdateEndpointResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("Unexpected response type: %T", response)
 	}

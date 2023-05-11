@@ -94,29 +94,44 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 	}))
 }
 
-// AddEndpoint handles calls to add a service. It only checks params and sets the correct return status code.
-// didman.AddEndpoint does the heavy lifting.
-func (w *Wrapper) AddEndpoint(ctx context.Context, request AddEndpointRequestObject) (AddEndpointResponseObject, error) {
-	id, err := did.ParseDID(request.Did)
+func (w *Wrapper) addOrUpdateEndpoint(
+	ctx context.Context, requestDID string, properties EndpointProperties,
+	operation func(ctx context.Context, id did.DID, serviceType string, endpoint url.URL) (*did.Service, error),
+) (*did.Service, error) {
+	id, err := did.ParseDID(requestDID)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(strings.TrimSpace(request.Body.Type)) == 0 {
+	if len(strings.TrimSpace(properties.Type)) == 0 {
 		return nil, core.InvalidInputError("invalid value for type")
 	}
 
-	u, err := url.Parse(request.Body.Endpoint)
+	endpoint, err := url.Parse(properties.Endpoint)
 	if err != nil {
 		return nil, core.InvalidInputError("invalid value for endpoint: %w", err)
 	}
+	return operation(ctx, *id, properties.Type, *endpoint)
+}
 
-	endpoint, err := w.Didman.AddEndpoint(ctx, *id, request.Body.Type, *u)
+// AddEndpoint handles calls to add a service. It only checks params and sets the correct return status code.
+// didman.AddEndpoint does the heavy lifting.
+func (w *Wrapper) AddEndpoint(ctx context.Context, request AddEndpointRequestObject) (AddEndpointResponseObject, error) {
+	endpoint, err := w.addOrUpdateEndpoint(ctx, request.Did, *request.Body, w.Didman.AddEndpoint)
 	if err != nil {
 		return nil, err
 	}
-
 	return AddEndpoint200JSONResponse(*endpoint), nil
+}
+
+// UpdateEndpoint handles calls to update a service. It only checks params and sets the correct return status code.
+// didman.UpdateEndpoint does the heavy lifting.
+func (w *Wrapper) UpdateEndpoint(ctx context.Context, request UpdateEndpointRequestObject) (UpdateEndpointResponseObject, error) {
+	endpoint, err := w.addOrUpdateEndpoint(ctx, request.Did, *request.Body, w.Didman.UpdateEndpoint)
+	if err != nil {
+		return nil, err
+	}
+	return UpdateEndpoint200JSONResponse(*endpoint), nil
 }
 
 // DeleteEndpointsByType handles calls to delete an endpoint. It only checks params and sets the correct return status code.
@@ -160,6 +175,32 @@ func (w *Wrapper) GetCompoundServices(_ context.Context, request GetCompoundServ
 	return r, nil
 }
 
+func (w *Wrapper) addOrUpdateCompoundService(
+	ctx context.Context, requestDID string, properties CompoundServiceProperties,
+	operation func(ctx context.Context, id did.DID, serviceType string, references map[string]ssi.URI) (*did.Service, error),
+) (*did.Service, error) {
+	id, err := did.ParseDID(requestDID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(strings.TrimSpace(properties.Type)) == 0 {
+		return nil, core.InvalidInputError("invalid value for type")
+	}
+
+	// The api accepts a map[string]interface{} which must be converted to a map[string]ssi.URI.
+	references := make(map[string]ssi.URI, len(properties.ServiceEndpoint))
+	for key, value := range properties.ServiceEndpoint {
+		uri, err := interfaceToURI(value)
+		if err != nil {
+			return nil, core.InvalidInputError("invalid reference for service '%s': %v", key, err)
+		}
+		references[key] = *uri
+	}
+
+	return operation(ctx, *id, properties.Type, references)
+}
+
 // AddCompoundService handles calls to add a compound service.
 // A CompoundService consists of a type and a map of name -> serviceEndpoint(Ref).
 //
@@ -169,32 +210,20 @@ func (w *Wrapper) GetCompoundServices(_ context.Context, request GetCompoundServ
 // Converts the response of AddCompoundService, which is a did.Service back to a CompoundService
 // Sets the http status OK and adds the CompoundService to the response
 func (w *Wrapper) AddCompoundService(ctx context.Context, request AddCompoundServiceRequestObject) (AddCompoundServiceResponseObject, error) {
-	id, err := did.ParseDID(request.Did)
-	if err != nil {
-		return nil, err
-	}
-
-	props := request.Body
-	if len(strings.TrimSpace(props.Type)) == 0 {
-		return nil, core.InvalidInputError("invalid value for type")
-	}
-
-	// The api accepts a map[string]interface{} which must be converted to a map[string]ssi.URI.
-	references := make(map[string]ssi.URI, len(props.ServiceEndpoint))
-	for key, value := range props.ServiceEndpoint {
-		uri, err := interfaceToURI(value)
-		if err != nil {
-			return nil, core.InvalidInputError("invalid reference for service '%s': %v", key, err)
-		}
-		references[key] = *uri
-	}
-
-	// Call Didman
-	service, err := w.Didman.AddCompoundService(ctx, *id, props.Type, references)
+	service, err := w.addOrUpdateCompoundService(ctx, request.Did, *request.Body, w.Didman.AddCompoundService)
 	if err != nil {
 		return nil, err
 	}
 	return AddCompoundService200JSONResponse(*service), nil
+}
+
+// UpdateCompoundService handles calls to update a compound service.
+func (w *Wrapper) UpdateCompoundService(ctx context.Context, request UpdateCompoundServiceRequestObject) (UpdateCompoundServiceResponseObject, error) {
+	service, err := w.addOrUpdateCompoundService(ctx, request.Did, *request.Body, w.Didman.AddCompoundService)
+	if err != nil {
+		return nil, err
+	}
+	return UpdateCompoundService200JSONResponse(*service), nil
 }
 
 // GetCompoundServiceEndpoint handles calls to read a specific endpoint of a compound service.

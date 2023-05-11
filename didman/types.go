@@ -36,7 +36,11 @@ type Didman interface {
 	// AddEndpoint adds a service to a DID Document. The serviceEndpoint is set to the given URL.
 	// It returns ErrDuplicateService if a service with the given type already exists.
 	// It can also return various errors from DocResolver.Resolve and VDR.Update
-	AddEndpoint(ctx context.Context, id did.DID, serviceType string, u url.URL) (*did.Service, error)
+	AddEndpoint(ctx context.Context, id did.DID, serviceType string, endpoint url.URL) (*did.Service, error)
+
+	// UpdateEndpoint updates the serviceEndpoint of a service in a DID Document. The serviceEndpoint is set to the given URL.
+	// It can return various errors from DocResolver.Resolve and VDR.Update.
+	UpdateEndpoint(ctx context.Context, id did.DID, serviceType string, endpoint url.URL) (*did.Service, error)
 
 	// DeleteEndpointsByType takes a did and type and removes all endpoint with the type from the DID Document.
 	// It returns ErrServiceNotFound if no services with the given type can't be found in the DID Document.
@@ -56,6 +60,12 @@ type Didman interface {
 	// It returns ErrReferencedServiceNotAnEndpoint if one of the references does not resolve to a single endpoint URL.
 	// It can also return various errors from DocResolver.Resolve and VDR.Update
 	AddCompoundService(ctx context.Context, id did.DID, serviceType string, endpoints map[string]ssi.URI) (*did.Service, error)
+
+	// UpdateCompoundService updates a compound endpoint in a DID Document.
+	// It returns didservice.DIDServiceQueryError if one of the service references is invalid.
+	// It returns ErrReferencedServiceNotAnEndpoint if one of the references does not resolve to a single endpoint URL.
+	// It can also return various errors from DocResolver.Resolve and VDR.Update
+	UpdateCompoundService(ctx context.Context, id did.DID, serviceType string, endpoints map[string]ssi.URI) (*did.Service, error)
 
 	// UpdateContactInformation adds or updates the compoundService with type equal to node-contact-info with provided
 	// contact information to the DID Document.

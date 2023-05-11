@@ -131,6 +131,73 @@ func TestDidman_AddEndpoint(t *testing.T) {
 	})
 }
 
+func TestDidman_UpdateEndpoint(t *testing.T) {
+	endpoint, _ := url.Parse("https://api.example.com/v1")
+	newEndpoint, _ := url.Parse("https://api.example.com/v2")
+	meta := &types.DocumentMetadata{Hash: hash.EmptyHash()}
+	const serviceType = "type"
+	service := did.Service{
+		Type:            serviceType,
+		ServiceEndpoint: endpoint.String(),
+	}
+	document := &did.Document{
+		Service: []did.Service{service},
+	}
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		var updatedDocument did.Document
+		ctx.docResolver.EXPECT().Resolve(testDIDA, nil).Return(document, meta, nil)
+		ctx.vdr.EXPECT().Update(ctx.audit, testDIDA, gomock.Any()).DoAndReturn(
+			func(_ interface{}, _ interface{}, doc did.Document) error {
+				updatedDocument = doc
+				return nil
+			})
+
+		ep, err := ctx.instance.UpdateEndpoint(ctx.audit, testDIDA, serviceType, *newEndpoint)
+
+		require.NoError(t, err)
+		assert.True(t, strings.HasPrefix(ep.ID.String(), vdr.TestDIDA.String()))
+		assert.Equal(t, serviceType, ep.Type)
+		assert.Equal(t, newEndpoint.String(), ep.ServiceEndpoint.(string))
+
+		assert.Len(t, updatedDocument.Service, 1)
+		assert.Equal(t, serviceType, updatedDocument.Service[0].Type)
+		assert.Equal(t, newEndpoint.String(), updatedDocument.Service[0].ServiceEndpoint)
+		assert.Contains(t, updatedDocument.Service[0].ID.String(), vdr.TestDIDA.String())
+		assert.NotEqual(t, updatedDocument.Service[0].ID.String(), service.ID.String())
+	})
+
+	t.Run("error - update failed", func(t *testing.T) {
+		ctx := newMockContext(t)
+		returnError := errors.New("b00m!")
+		ctx.docResolver.EXPECT().Resolve(testDIDA, nil).Return(document, meta, nil)
+		ctx.vdr.EXPECT().Update(ctx.audit, testDIDA, gomock.Any()).Return(returnError)
+
+		_, err := ctx.instance.UpdateEndpoint(ctx.audit, testDIDA, serviceType, *endpoint)
+
+		assert.Equal(t, returnError, err)
+	})
+
+	t.Run("error - service not found", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.docResolver.EXPECT().Resolve(testDIDA, nil).Return(document, meta, nil)
+
+		_, err := ctx.instance.UpdateEndpoint(ctx.audit, testDIDA, "some-other-type", *endpoint)
+
+		assert.Equal(t, types.ErrServiceNotFound, err)
+	})
+
+	t.Run("error - DID not found", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.docResolver.EXPECT().Resolve(testDIDA, nil).Return(nil, nil, types.ErrNotFound)
+
+		_, err := ctx.instance.AddEndpoint(ctx.audit, testDIDA, serviceType, *endpoint)
+
+		assert.Equal(t, types.ErrNotFound, err)
+	})
+}
+
 func TestDidman_AddCompoundService(t *testing.T) {
 	meta := &types.DocumentMetadata{Hash: hash.EmptyHash()}
 
@@ -218,6 +285,58 @@ func TestDidman_AddCompoundService(t *testing.T) {
 		_, err := ctx.instance.AddCompoundService(ctx.audit, testDIDA, "hellonuts", map[string]ssi.URI{"foobar": s})
 
 		assert.NoError(t, err)
+	})
+}
+
+func TestDidman_UpdateCompoundService(t *testing.T) {
+	meta := &types.DocumentMetadata{Hash: hash.EmptyHash()}
+
+	helloServiceQuery := didservice.MakeServiceReference(testDIDA, "hello")
+	worldServiceQuery := didservice.MakeServiceReference(testDIDB, "world")
+	universeServiceQuery := didservice.MakeServiceReference(testDIDB, "universe")
+	references := make(map[string]ssi.URI, 0)
+	references["hello"] = helloServiceQuery
+	references["world"] = worldServiceQuery
+	references["universe"] = universeServiceQuery
+
+	expectedRefs := map[string]interface{}{}
+	for k, v := range references {
+		expectedRefs[k] = v.String()
+	}
+
+	document := did.Document{
+		Context: []ssi.URI{did.DIDContextV1URI()},
+		ID:      testDIDA,
+		Service: []did.Service{
+			{
+				ID:              ssi.MustParseURI(fmt.Sprintf("%s#1", vdr.TestDIDA.String())),
+				Type:            "hello",
+				ServiceEndpoint: "http://hello",
+			},
+			{
+				ID:              ssi.MustParseURI(fmt.Sprintf("%s#2", vdr.TestDIDA.String())),
+				Type:            "hellonuts",
+				ServiceEndpoint: testDIDA.String() + "/serviceEndpoint?type=hello",
+			},
+		},
+	}
+	t.Run("ok", func(t *testing.T) {
+		var updatedDocument did.Document
+		ctx := newMockContext(t)
+		ctx.docResolver.EXPECT().Resolve(testDIDA, nil).MinTimes(1).Return(&document, meta, nil)
+		ctx.vdr.EXPECT().Update(ctx.audit, testDIDA, gomock.Any()).DoAndReturn(
+			func(_ interface{}, _ interface{}, doc did.Document) error {
+				updatedDocument = doc
+				return nil
+			},
+		)
+
+		s := ssi.MustParseURI("http://nuts.nl")
+		newService := map[string]ssi.URI{"foobar": s}
+		_, err := ctx.instance.UpdateCompoundService(ctx.audit, testDIDA, "hellonuts", newService)
+
+		require.NoError(t, err)
+		assert.Equal(t, newService["foobar"].String(), updatedDocument.Service[1].ServiceEndpoint.(map[string]interface{})["foobar"])
 	})
 }
 
