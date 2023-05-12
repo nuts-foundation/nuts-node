@@ -51,7 +51,6 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 		Body: &service,
 	}
 	ctx := audit.TestContext()
-	wrapper := &Wrapper{}
 
 	t.Run("ok", func(t *testing.T) {
 		test := newMockContext(t)
@@ -68,7 +67,8 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 	})
 
 	t.Run("error - incorrect type", func(t *testing.T) {
-		response, err := wrapper.AddEndpoint(ctx, AddEndpointRequestObject{
+		test := newMockContext(t)
+		response, err := test.wrapper.AddEndpoint(ctx, AddEndpointRequestObject{
 			Did: targetDID.String(),
 			Body: &EndpointProperties{
 				Endpoint: serviceEndpoint.String(),
@@ -80,7 +80,8 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 	})
 
 	t.Run("error - incorrect endpoint", func(t *testing.T) {
-		response, err := wrapper.AddEndpoint(ctx, AddEndpointRequestObject{
+		test := newMockContext(t)
+		response, err := test.wrapper.AddEndpoint(ctx, AddEndpointRequestObject{
 			Did: targetDID.String(),
 			Body: &EndpointProperties{
 				Type:     service.Type,
@@ -93,7 +94,8 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 	})
 
 	t.Run("error - incorrect did", func(t *testing.T) {
-		response, err := wrapper.AddEndpoint(ctx, AddEndpointRequestObject{
+		test := newMockContext(t)
+		response, err := test.wrapper.AddEndpoint(ctx, AddEndpointRequestObject{
 			Body: &EndpointProperties{
 				Type:     service.Type,
 				Endpoint: serviceEndpoint.String(),
@@ -101,7 +103,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 		})
 
 		assert.ErrorIs(t, err, did.ErrInvalidDID)
-		assert.Equal(t, http.StatusBadRequest, wrapper.ResolveStatusCode(err))
+		assert.Equal(t, http.StatusBadRequest, test.wrapper.ResolveStatusCode(err))
 		assert.Nil(t, response)
 	})
 
@@ -293,7 +295,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 
 	t.Run("error - incorrect did", func(t *testing.T) {
 		test := newMockContext(t)
-		response, err := test.wrapper.AddCompoundService(ctx, AddCompoundServiceRequestObject{Did: "not a did"})
+		response, err := test.wrapper.AddCompoundService(ctx, AddCompoundServiceRequestObject{Did: "not a did", Body: &CompoundServiceProperties{}})
 
 		assert.ErrorIs(t, err, did.ErrInvalidDID)
 		assert.Equal(t, http.StatusBadRequest, test.wrapper.ResolveStatusCode(err))
