@@ -53,7 +53,7 @@ Refer to the `Redis documentation <https://redis.io/docs/manual/persistence/>`_ 
 Other
 =====
 
-Additionaly, the list of trusted VC issuers must be backed up as well. 
+Additionally, the list of trusted VC issuers must be backed up as well.
 Trusted issuers of VCs are stored in  ``vcr/trusted_issuers.yaml`` inside the ``datadir`` directory.
 If the contents of this file is your primary store for trusted issuers (you're not managing them in an external administrative system), make sure to make a backup.
 
@@ -62,13 +62,14 @@ Restore
 
 To restore a backup, follow the following steps:
 
-- shutdown the node.
-- remove the following directories from the ``datadir``: ``events``, ``network``, ``vcr`` and ``vdr``
-- follow the restore procedure for your storage (BBolt, Redis, Hashicorp Vault)
-- restore the ``vcr/trusted_issuers.yaml`` file inside ``datadir``.
-- start your node
-
-Make the following empty POST calls:
+1. shutdown the node
+2. remove the following directories from the ``datadir``: ``events``, ``network``, ``vcr``, and ``vdr``
+3. remove the ``network.nodedid`` from your configuration file
+4. keep node offline by removing ``network.bootstrapnodes`` and ``network.grpcaddr`` from the config file and set ``network.enablediscovery`` to ``false``
+5. follow the restore procedure for your storage (BBolt, Redis, Hashicorp Vault)
+6. restore the ``vcr/trusted_issuers.yaml`` file inside ``datadir``
+7. start your node
+8. make empty POST calls to
 
 .. code-block:: http
 
@@ -78,10 +79,15 @@ Make the following empty POST calls:
 
 .. note::
 
-    When making the API calls, make sure you use the proper URL escaping (```%2B``` for ````+``` and ```%3B``` for ```;```).
+    When making the API calls, make sure you use the proper URL escaping (``%2B`` for ``+`` and ``%3B`` for ``;``).
     Reprocess calls return immediately and will do the work in the background.
+
+9. wait until the reprocess operations are complete
+10. shutdown the node
+11. undo the configuration changes in steps 3 and 4
+12. start the node
 
 BBolt
 =====
 
-In the fourth step copy ``network/data.db``, ``vcr/backup-issued-credentials.db`` and ``vdr/didstore.db`` from your backup to the ``datadir`` (keep the directory structure).
+In step 5, copy ``network/data.db``, ``vcr/backup-issued-credentials.db`` and ``vdr/didstore.db`` from your backup to the ``datadir`` (keep the directory structure).
