@@ -4,6 +4,8 @@
 package v1
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -542,8 +544,6 @@ func (w *ServerInterfaceWrapper) GetContractByType(ctx echo.Context) error {
 	return err
 }
 
-// PATCH: This template file was taken from pkg/codegen/templates/echo/echo-register.tmpl
-
 // This is a simple interface which specifies echo.Route addition functions which
 // are present on both echo.Echo and echo.Group, since we want to allow using
 // either of them for path registration
@@ -559,14 +559,6 @@ type EchoRouter interface {
 	TRACE(path string, h echo.HandlerFunc, m ...echo.MiddlewareFunc) *echo.Route
 }
 
-type Preprocessor interface {
-	Preprocess(operationID string, context echo.Context)
-}
-
-type ErrorStatusCodeResolver interface {
-	ResolveStatusCode(err error) int
-}
-
 // RegisterHandlers adds each server route to the EchoRouter.
 func RegisterHandlers(router EchoRouter, si ServerInterface) {
 	RegisterHandlersWithBaseURL(router, si, "")
@@ -580,47 +572,683 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	// PATCH: This alteration wraps the call to the implementation in a function that sets the "OperationId" context parameter,
-	// so it can be used in error reporting middleware.
-	router.POST(baseURL+"/internal/auth/v1/accesstoken/introspect", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("IntrospectAccessToken", context)
-		return wrapper.IntrospectAccessToken(context)
-	})
-	router.HEAD(baseURL+"/internal/auth/v1/accesstoken/verify", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("VerifyAccessToken", context)
-		return wrapper.VerifyAccessToken(context)
-	})
-	router.PUT(baseURL+"/internal/auth/v1/contract/drawup", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("DrawUpContract", context)
-		return wrapper.DrawUpContract(context)
-	})
-	router.POST(baseURL+"/internal/auth/v1/jwt-grant", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("CreateJwtGrant", context)
-		return wrapper.CreateJwtGrant(context)
-	})
-	router.POST(baseURL+"/internal/auth/v1/request-access-token", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("RequestAccessToken", context)
-		return wrapper.RequestAccessToken(context)
-	})
-	router.POST(baseURL+"/internal/auth/v1/signature/session", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("CreateSignSession", context)
-		return wrapper.CreateSignSession(context)
-	})
-	router.GET(baseURL+"/internal/auth/v1/signature/session/:sessionID", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("GetSignSessionStatus", context)
-		return wrapper.GetSignSessionStatus(context)
-	})
-	router.PUT(baseURL+"/internal/auth/v1/signature/verify", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("VerifySignature", context)
-		return wrapper.VerifySignature(context)
-	})
-	router.POST(baseURL+"/n2n/auth/v1/accesstoken", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("CreateAccessToken", context)
-		return wrapper.CreateAccessToken(context)
-	})
-	router.GET(baseURL+"/public/auth/v1/contract/:contractType", func(context echo.Context) error {
-		si.(Preprocessor).Preprocess("GetContractByType", context)
-		return wrapper.GetContractByType(context)
-	})
+	router.POST(baseURL+"/internal/auth/v1/accesstoken/introspect", wrapper.IntrospectAccessToken)
+	router.HEAD(baseURL+"/internal/auth/v1/accesstoken/verify", wrapper.VerifyAccessToken)
+	router.PUT(baseURL+"/internal/auth/v1/contract/drawup", wrapper.DrawUpContract)
+	router.POST(baseURL+"/internal/auth/v1/jwt-grant", wrapper.CreateJwtGrant)
+	router.POST(baseURL+"/internal/auth/v1/request-access-token", wrapper.RequestAccessToken)
+	router.POST(baseURL+"/internal/auth/v1/signature/session", wrapper.CreateSignSession)
+	router.GET(baseURL+"/internal/auth/v1/signature/session/:sessionID", wrapper.GetSignSessionStatus)
+	router.PUT(baseURL+"/internal/auth/v1/signature/verify", wrapper.VerifySignature)
+	router.POST(baseURL+"/n2n/auth/v1/accesstoken", wrapper.CreateAccessToken)
+	router.GET(baseURL+"/public/auth/v1/contract/:contractType", wrapper.GetContractByType)
 
+}
+
+type IntrospectAccessTokenRequestObject struct {
+	Body *IntrospectAccessTokenFormdataRequestBody
+}
+
+type IntrospectAccessTokenResponseObject interface {
+	VisitIntrospectAccessTokenResponse(w http.ResponseWriter) error
+}
+
+type IntrospectAccessToken200JSONResponse TokenIntrospectionResponse
+
+func (response IntrospectAccessToken200JSONResponse) VisitIntrospectAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type VerifyAccessTokenRequestObject struct {
+	Params VerifyAccessTokenParams
+}
+
+type VerifyAccessTokenResponseObject interface {
+	VisitVerifyAccessTokenResponse(w http.ResponseWriter) error
+}
+
+type VerifyAccessToken200Response struct {
+}
+
+func (response VerifyAccessToken200Response) VisitVerifyAccessTokenResponse(w http.ResponseWriter) error {
+	w.WriteHeader(200)
+	return nil
+}
+
+type VerifyAccessToken403Response struct {
+}
+
+func (response VerifyAccessToken403Response) VisitVerifyAccessTokenResponse(w http.ResponseWriter) error {
+	w.WriteHeader(403)
+	return nil
+}
+
+type DrawUpContractRequestObject struct {
+	Body *DrawUpContractJSONRequestBody
+}
+
+type DrawUpContractResponseObject interface {
+	VisitDrawUpContractResponse(w http.ResponseWriter) error
+}
+
+type DrawUpContract200JSONResponse ContractResponse
+
+func (response DrawUpContract200JSONResponse) VisitDrawUpContractResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DrawUpContractdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response DrawUpContractdefaultJSONResponse) VisitDrawUpContractResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type CreateJwtGrantRequestObject struct {
+	Body *CreateJwtGrantJSONRequestBody
+}
+
+type CreateJwtGrantResponseObject interface {
+	VisitCreateJwtGrantResponse(w http.ResponseWriter) error
+}
+
+type CreateJwtGrant200JSONResponse JwtGrantResponse
+
+func (response CreateJwtGrant200JSONResponse) VisitCreateJwtGrantResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateJwtGrantdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response CreateJwtGrantdefaultJSONResponse) VisitCreateJwtGrantResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type RequestAccessTokenRequestObject struct {
+	Body *RequestAccessTokenJSONRequestBody
+}
+
+type RequestAccessTokenResponseObject interface {
+	VisitRequestAccessTokenResponse(w http.ResponseWriter) error
+}
+
+type RequestAccessToken200JSONResponse AccessTokenResponse
+
+func (response RequestAccessToken200JSONResponse) VisitRequestAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestAccessTokendefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response RequestAccessTokendefaultJSONResponse) VisitRequestAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type CreateSignSessionRequestObject struct {
+	Body *CreateSignSessionJSONRequestBody
+}
+
+type CreateSignSessionResponseObject interface {
+	VisitCreateSignSessionResponse(w http.ResponseWriter) error
+}
+
+type CreateSignSession201JSONResponse SignSessionResponse
+
+func (response CreateSignSession201JSONResponse) VisitCreateSignSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateSignSessiondefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response CreateSignSessiondefaultJSONResponse) VisitCreateSignSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type GetSignSessionStatusRequestObject struct {
+	SessionID string `json:"sessionID"`
+}
+
+type GetSignSessionStatusResponseObject interface {
+	VisitGetSignSessionStatusResponse(w http.ResponseWriter) error
+}
+
+type GetSignSessionStatus200JSONResponse SignSessionStatusResponse
+
+func (response GetSignSessionStatus200JSONResponse) VisitGetSignSessionStatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetSignSessionStatusdefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response GetSignSessionStatusdefaultJSONResponse) VisitGetSignSessionStatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type VerifySignatureRequestObject struct {
+	Body *VerifySignatureJSONRequestBody
+}
+
+type VerifySignatureResponseObject interface {
+	VisitVerifySignatureResponse(w http.ResponseWriter) error
+}
+
+type VerifySignature200JSONResponse SignatureVerificationResponse
+
+func (response VerifySignature200JSONResponse) VisitVerifySignatureResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type VerifySignaturedefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response VerifySignaturedefaultJSONResponse) VisitVerifySignatureResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type CreateAccessTokenRequestObject struct {
+	Body *CreateAccessTokenFormdataRequestBody
+}
+
+type CreateAccessTokenResponseObject interface {
+	VisitCreateAccessTokenResponse(w http.ResponseWriter) error
+}
+
+type CreateAccessToken200JSONResponse AccessTokenResponse
+
+func (response CreateAccessToken200JSONResponse) VisitCreateAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateAccessToken400JSONResponse AccessTokenRequestFailedResponse
+
+func (response CreateAccessToken400JSONResponse) VisitCreateAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetContractByTypeRequestObject struct {
+	ContractType string `json:"contractType"`
+	Params       GetContractByTypeParams
+}
+
+type GetContractByTypeResponseObject interface {
+	VisitGetContractByTypeResponse(w http.ResponseWriter) error
+}
+
+type GetContractByType200JSONResponse Contract
+
+func (response GetContractByType200JSONResponse) VisitGetContractByTypeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetContractByTypedefaultJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response GetContractByTypedefaultJSONResponse) VisitGetContractByTypeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+// StrictServerInterface represents all server handlers.
+type StrictServerInterface interface {
+	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662
+	// (POST /internal/auth/v1/accesstoken/introspect)
+	IntrospectAccessToken(ctx context.Context, request IntrospectAccessTokenRequestObject) (IntrospectAccessTokenResponseObject, error)
+	// Verifies the provided access token
+	// (HEAD /internal/auth/v1/accesstoken/verify)
+	VerifyAccessToken(ctx context.Context, request VerifyAccessTokenRequestObject) (VerifyAccessTokenResponseObject, error)
+	// Draw up a contract using a specified contract template, language and version
+	// (PUT /internal/auth/v1/contract/drawup)
+	DrawUpContract(ctx context.Context, request DrawUpContractRequestObject) (DrawUpContractResponseObject, error)
+	// Create a JWT Grant
+	// (POST /internal/auth/v1/jwt-grant)
+	CreateJwtGrant(ctx context.Context, request CreateJwtGrantRequestObject) (CreateJwtGrantResponseObject, error)
+	// Request an access token from the authorizer
+	// (POST /internal/auth/v1/request-access-token)
+	RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error)
+	// Create a signing session for a supported means.
+	// (POST /internal/auth/v1/signature/session)
+	CreateSignSession(ctx context.Context, request CreateSignSessionRequestObject) (CreateSignSessionResponseObject, error)
+	// Get the current status of a signing session
+	// (GET /internal/auth/v1/signature/session/{sessionID})
+	GetSignSessionStatus(ctx context.Context, request GetSignSessionStatusRequestObject) (GetSignSessionStatusResponseObject, error)
+	// Verify a signature in the form of a verifiable presentation
+	// (PUT /internal/auth/v1/signature/verify)
+	VerifySignature(ctx context.Context, request VerifySignatureRequestObject) (VerifySignatureResponseObject, error)
+	// Create an access token using a JWT as authorization grant
+	// (POST /n2n/auth/v1/accesstoken)
+	CreateAccessToken(ctx context.Context, request CreateAccessTokenRequestObject) (CreateAccessTokenResponseObject, error)
+	// Get a contract by type and version
+	// (GET /public/auth/v1/contract/{contractType})
+	GetContractByType(ctx context.Context, request GetContractByTypeRequestObject) (GetContractByTypeResponseObject, error)
+}
+
+type StrictHandlerFunc func(ctx echo.Context, args interface{}) (interface{}, error)
+
+type StrictMiddlewareFunc func(f StrictHandlerFunc, operationID string) StrictHandlerFunc
+
+func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareFunc) ServerInterface {
+	return &strictHandler{ssi: ssi, middlewares: middlewares}
+}
+
+type strictHandler struct {
+	ssi         StrictServerInterface
+	middlewares []StrictMiddlewareFunc
+}
+
+// IntrospectAccessToken operation middleware
+func (sh *strictHandler) IntrospectAccessToken(ctx echo.Context) error {
+	var request IntrospectAccessTokenRequestObject
+
+	if form, err := ctx.FormParams(); err == nil {
+		var body IntrospectAccessTokenFormdataRequestBody
+		if err := runtime.BindForm(&body, form, nil, nil); err != nil {
+			return err
+		}
+		request.Body = &body
+	} else {
+		return err
+	}
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.IntrospectAccessToken(ctx.Request().Context(), request.(IntrospectAccessTokenRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "IntrospectAccessToken")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(IntrospectAccessTokenResponseObject); ok {
+		return validResponse.VisitIntrospectAccessTokenResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// VerifyAccessToken operation middleware
+func (sh *strictHandler) VerifyAccessToken(ctx echo.Context, params VerifyAccessTokenParams) error {
+	var request VerifyAccessTokenRequestObject
+
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.VerifyAccessToken(ctx.Request().Context(), request.(VerifyAccessTokenRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "VerifyAccessToken")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(VerifyAccessTokenResponseObject); ok {
+		return validResponse.VisitVerifyAccessTokenResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// DrawUpContract operation middleware
+func (sh *strictHandler) DrawUpContract(ctx echo.Context) error {
+	var request DrawUpContractRequestObject
+
+	var body DrawUpContractJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DrawUpContract(ctx.Request().Context(), request.(DrawUpContractRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DrawUpContract")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(DrawUpContractResponseObject); ok {
+		return validResponse.VisitDrawUpContractResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// CreateJwtGrant operation middleware
+func (sh *strictHandler) CreateJwtGrant(ctx echo.Context) error {
+	var request CreateJwtGrantRequestObject
+
+	var body CreateJwtGrantJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateJwtGrant(ctx.Request().Context(), request.(CreateJwtGrantRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateJwtGrant")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(CreateJwtGrantResponseObject); ok {
+		return validResponse.VisitCreateJwtGrantResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// RequestAccessToken operation middleware
+func (sh *strictHandler) RequestAccessToken(ctx echo.Context) error {
+	var request RequestAccessTokenRequestObject
+
+	var body RequestAccessTokenJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.RequestAccessToken(ctx.Request().Context(), request.(RequestAccessTokenRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RequestAccessToken")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(RequestAccessTokenResponseObject); ok {
+		return validResponse.VisitRequestAccessTokenResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// CreateSignSession operation middleware
+func (sh *strictHandler) CreateSignSession(ctx echo.Context) error {
+	var request CreateSignSessionRequestObject
+
+	var body CreateSignSessionJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateSignSession(ctx.Request().Context(), request.(CreateSignSessionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateSignSession")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(CreateSignSessionResponseObject); ok {
+		return validResponse.VisitCreateSignSessionResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetSignSessionStatus operation middleware
+func (sh *strictHandler) GetSignSessionStatus(ctx echo.Context, sessionID string) error {
+	var request GetSignSessionStatusRequestObject
+
+	request.SessionID = sessionID
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetSignSessionStatus(ctx.Request().Context(), request.(GetSignSessionStatusRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetSignSessionStatus")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetSignSessionStatusResponseObject); ok {
+		return validResponse.VisitGetSignSessionStatusResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// VerifySignature operation middleware
+func (sh *strictHandler) VerifySignature(ctx echo.Context) error {
+	var request VerifySignatureRequestObject
+
+	var body VerifySignatureJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.VerifySignature(ctx.Request().Context(), request.(VerifySignatureRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "VerifySignature")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(VerifySignatureResponseObject); ok {
+		return validResponse.VisitVerifySignatureResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// CreateAccessToken operation middleware
+func (sh *strictHandler) CreateAccessToken(ctx echo.Context) error {
+	var request CreateAccessTokenRequestObject
+
+	if form, err := ctx.FormParams(); err == nil {
+		var body CreateAccessTokenFormdataRequestBody
+		if err := runtime.BindForm(&body, form, nil, nil); err != nil {
+			return err
+		}
+		request.Body = &body
+	} else {
+		return err
+	}
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateAccessToken(ctx.Request().Context(), request.(CreateAccessTokenRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateAccessToken")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(CreateAccessTokenResponseObject); ok {
+		return validResponse.VisitCreateAccessTokenResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetContractByType operation middleware
+func (sh *strictHandler) GetContractByType(ctx echo.Context, contractType string, params GetContractByTypeParams) error {
+	var request GetContractByTypeRequestObject
+
+	request.ContractType = contractType
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetContractByType(ctx.Request().Context(), request.(GetContractByTypeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetContractByType")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetContractByTypeResponseObject); ok {
+		return validResponse.VisitGetContractByTypeResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("Unexpected response type: %T", response)
+	}
+	return nil
 }

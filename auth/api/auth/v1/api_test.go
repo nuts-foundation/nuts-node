@@ -20,42 +20,33 @@ package v1
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/labstack/echo/v4"
+	"github.com/golang/mock/gomock"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
+	pkg2 "github.com/nuts-foundation/nuts-node/auth"
+	"github.com/nuts-foundation/nuts-node/auth/contract"
+	"github.com/nuts-foundation/nuts-node/auth/services"
+	"github.com/nuts-foundation/nuts-node/auth/services/dummy"
 	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	mock2 "github.com/stretchr/testify/mock"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/url"
 	"reflect"
 	"testing"
 	"time"
-
-	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-
-	"github.com/golang/mock/gomock"
-	"github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/assert"
-
-	"github.com/nuts-foundation/go-did/did"
-	pkg2 "github.com/nuts-foundation/nuts-node/auth"
-	"github.com/nuts-foundation/nuts-node/auth/contract"
-	"github.com/nuts-foundation/nuts-node/auth/services"
-	"github.com/nuts-foundation/nuts-node/auth/services/dummy"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/mock"
-	"github.com/nuts-foundation/nuts-node/vdr"
 )
 
 type TestContext struct {
 	ctrl                  *gomock.Controller
-	echoMock              *mock.MockContext
 	authMock              pkg2.AuthenticationServices
 	notaryMock            *services.MockContractNotary
 	contractClientMock    *services.MockContractNotary
@@ -101,13 +92,9 @@ func createContext(t *testing.T) *TestContext {
 	}
 
 	requestCtx := audit.TestContext()
-	echoMock := mock.NewMockContext(ctrl)
-	request, _ := http.NewRequestWithContext(requestCtx, "GET", "/", nil)
-	echoMock.EXPECT().Request().Return(request).AnyTimes()
 
 	return &TestContext{
 		ctrl:                  ctrl,
-		echoMock:              echoMock,
 		authMock:              authMock,
 		notaryMock:            contractNotary,
 		contractClientMock:    contractNotary,
@@ -119,24 +106,12 @@ func createContext(t *testing.T) *TestContext {
 	}
 }
 
-func TestWrapper_Preprocess(t *testing.T) {
-	w := &Wrapper{}
-	echoCtx := echo.New().NewContext(&http.Request{}, nil)
-	echoCtx.Set(core.UserContextKey, "user")
-
-	w.Preprocess("foo", echoCtx)
-
-	audit.AssertAuditInfo(t, echoCtx, "user@", "Auth", "foo")
-	assert.Equal(t, "foo", echoCtx.Get(core.OperationIDContextKey))
-	assert.Equal(t, "Auth", echoCtx.Get(core.ModuleNameContextKey))
-	assert.Same(t, w, echoCtx.Get(core.StatusCodeResolverContextKey))
-}
-
 func TestWrapper_GetSignSessionStatus(t *testing.T) {
+	signingSessionID := "123"
+	sessionObj := GetSignSessionStatusRequestObject{SessionID: signingSessionID}
 	t.Run("ok - started without VP", func(t *testing.T) {
 		ctx := createContext(t)
 
-		signingSessionID := "123"
 		signingSessionStatus := "started"
 
 		signingSessionResult := contract.NewMockSigningSessionResult(ctx.ctrl)
@@ -148,20 +123,18 @@ func TestWrapper_GetSignSessionStatus(t *testing.T) {
 
 		ctx.contractClientMock.EXPECT().SigningSessionStatus(gomock.Any(), signingSessionID).Return(signingSessionResult, nil)
 
-		response := SignSessionStatusResponse{
+		expectedResponse := GetSignSessionStatus200JSONResponse{
 			Status:                 signingSessionStatus,
 			VerifiablePresentation: nil,
 		}
 
-		ctx.echoMock.EXPECT().JSON(http.StatusOK, response)
-
-		err := ctx.wrapper.GetSignSessionStatus(ctx.echoMock, signingSessionID)
+		response, err := ctx.wrapper.GetSignSessionStatus(ctx.audit, sessionObj)
+		assert.Equal(t, expectedResponse, response)
 		assert.NoError(t, err)
 	})
 
 	t.Run("ok - completed with VP", func(t *testing.T) {
 		ctx := createContext(t)
-		signingSessionID := "123"
 		signingSessionStatus := "completed"
 		signingSessionResult := contract.NewMockSigningSessionResult(ctx.ctrl)
 		vp := vc.VerifiablePresentation{
@@ -170,27 +143,27 @@ func TestWrapper_GetSignSessionStatus(t *testing.T) {
 		signingSessionResult.EXPECT().VerifiablePresentation().Return(&vp, nil)
 		signingSessionResult.EXPECT().Status().Return(signingSessionStatus)
 		ctx.contractClientMock.EXPECT().SigningSessionStatus(gomock.Any(), signingSessionID).Return(signingSessionResult, nil)
-		response := SignSessionStatusResponse{
+		expectedResponse := GetSignSessionStatus200JSONResponse{
 			Status: signingSessionStatus,
 			VerifiablePresentation: &vc.VerifiablePresentation{
 				Context: []ssi.URI{vc.VCContextV1URI()},
 			},
 		}
 
-		ctx.echoMock.EXPECT().JSON(http.StatusOK, response)
+		response, err := ctx.wrapper.GetSignSessionStatus(ctx.audit, sessionObj)
 
-		err := ctx.wrapper.GetSignSessionStatus(ctx.echoMock, signingSessionID)
+		assert.Equal(t, expectedResponse, response)
 		assert.NoError(t, err)
 	})
 
 	t.Run("nok - SigningSessionStatus returns error", func(t *testing.T) {
 		ctx := createContext(t)
 
-		signingSessionID := "123"
 		ctx.contractClientMock.EXPECT().SigningSessionStatus(gomock.Any(), signingSessionID).Return(nil, services.ErrSessionNotFound)
 
-		err := ctx.wrapper.GetSignSessionStatus(ctx.echoMock, signingSessionID)
+		response, err := ctx.wrapper.GetSignSessionStatus(ctx.audit, sessionObj)
 
+		assert.Nil(t, response)
 		assert.ErrorIs(t, err, services.ErrSessionNotFound)
 		assert.Equal(t, http.StatusNotFound, ctx.wrapper.ResolveStatusCode(err))
 	})
@@ -198,15 +171,15 @@ func TestWrapper_GetSignSessionStatus(t *testing.T) {
 	t.Run("nok - unable to build a VP", func(t *testing.T) {
 		ctx := createContext(t)
 
-		signingSessionID := "123"
 		signingSessionResult := contract.NewMockSigningSessionResult(ctx.ctrl)
 
 		signingSessionResult.EXPECT().VerifiablePresentation().Return(nil, errors.New("missing key"))
 
 		ctx.contractClientMock.EXPECT().SigningSessionStatus(gomock.Any(), signingSessionID).Return(signingSessionResult, nil)
 
-		err := ctx.wrapper.GetSignSessionStatus(ctx.echoMock, signingSessionID)
+		response, err := ctx.wrapper.GetSignSessionStatus(ctx.audit, sessionObj)
 
+		assert.Nil(t, response)
 		assert.EqualError(t, err, "error while building verifiable presentation: missing key")
 	})
 }
@@ -215,16 +188,18 @@ func TestWrapper_GetContractByType(t *testing.T) {
 	t.Run("get known contact", func(t *testing.T) {
 		ctx := createContext(t)
 
-		cType := "PractitionerLogin"
 		cVersion := "v3"
 		cLanguage := "EN"
-		params := GetContractByTypeParams{
-			Version:  &cVersion,
-			Language: &cLanguage,
+		request := GetContractByTypeRequestObject{
+			ContractType: "PractitionerLogin",
+			Params: GetContractByTypeParams{
+				Version:  &cVersion,
+				Language: &cLanguage,
+			},
 		}
 
-		a := contract.StandardContractTemplates.Get(contract.Type(cType), contract.Language(cLanguage), contract.Version(cVersion))
-		answer := Contract{
+		a := contract.StandardContractTemplates.Get(contract.Type(request.ContractType), contract.Language(cLanguage), contract.Version(cVersion))
+		expectedResponse := GetContractByType200JSONResponse{
 			Language:           ContractLanguage(a.Language),
 			Template:           &a.Template,
 			TemplateAttributes: &a.TemplateAttributes,
@@ -232,34 +207,27 @@ func TestWrapper_GetContractByType(t *testing.T) {
 			Version:            ContractVersion(a.Version),
 		}
 
-		ctx.echoMock.EXPECT().JSON(http.StatusOK, answer)
+		response, err := ctx.wrapper.GetContractByType(ctx.audit, request)
 
-		wrapper := Wrapper{Auth: ctx.authMock}
-		err := wrapper.GetContractByType(ctx.echoMock, cType, params)
-
+		assert.Equal(t, expectedResponse, response)
 		assert.Nil(t, err)
 	})
 
 	t.Run("get an unknown contract", func(t *testing.T) {
 		ctx := createContext(t)
 
-		cType := "UnknownContract"
-		params := GetContractByTypeParams{}
+		request := GetContractByTypeRequestObject{
+			ContractType: "UnknownContract",
+			Params:       GetContractByTypeParams{},
+		}
+		response, err := ctx.wrapper.GetContractByType(ctx.audit, request)
 
-		wrapper := Wrapper{Auth: ctx.authMock}
-		err := wrapper.GetContractByType(ctx.echoMock, cType, params)
-
+		assert.Nil(t, response)
 		assert.ErrorIs(t, err, core.NotFoundError(""))
 	})
 }
 
 func TestWrapper_DrawUpContract(t *testing.T) {
-	bindPostBody := func(ctx *TestContext, body DrawUpContractRequest) {
-		jsonData, _ := json.Marshal(body)
-		ctx.echoMock.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
-			_ = json.Unmarshal(jsonData, f)
-		})
-	}
 
 	t.Run("ok - it can draw up a standard contract", func(t *testing.T) {
 		ctx := createContext(t)
@@ -270,7 +238,6 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 			Version:     "v3",
 			LegalEntity: vdr.TestDIDA.String(),
 		}
-		bindPostBody(ctx, params)
 
 		template := contract.StandardContractTemplates["EN"]["PractitionerLogin"]["v3"]
 		drawnUpContract := &contract.Contract{
@@ -280,14 +247,14 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 		}
 		ctx.notaryMock.EXPECT().DrawUpContract(ctx.audit, *template, gomock.Any(), gomock.Any(), gomock.Any(), nil).Return(drawnUpContract, nil)
 
-		expectedResponse := ContractResponse{
+		expectedResponse := DrawUpContract200JSONResponse{
 			Language: "EN",
 			Message:  "drawn up contract text",
 			Type:     "PractitionerLogin",
 			Version:  "v3",
 		}
-		ctx.echoMock.EXPECT().JSON(http.StatusOK, expectedResponse)
-		err := ctx.wrapper.DrawUpContract(ctx.echoMock)
+		response, err := ctx.wrapper.DrawUpContract(ctx.audit, DrawUpContractRequestObject{Body: &params})
+		assert.Equal(t, expectedResponse, response)
 		assert.NoError(t, err)
 	})
 
@@ -303,7 +270,6 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 			LegalEntity:            vdr.TestDIDA.String(),
 			OrganizationCredential: &vc,
 		}
-		bindPostBody(ctx, params)
 
 		template := contract.StandardContractTemplates["EN"]["PractitionerLogin"]["v3"]
 		drawnUpContract := &contract.Contract{
@@ -313,14 +279,14 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 		}
 		ctx.notaryMock.EXPECT().DrawUpContract(ctx.audit, *template, gomock.Any(), gomock.Any(), gomock.Any(), &vc).Return(drawnUpContract, nil)
 
-		expectedResponse := ContractResponse{
+		expectedResponse := DrawUpContract200JSONResponse{
 			Language: "EN",
 			Message:  "drawn up contract text",
 			Type:     "PractitionerLogin",
 			Version:  "v3",
 		}
-		ctx.echoMock.EXPECT().JSON(http.StatusOK, expectedResponse)
-		err := ctx.wrapper.DrawUpContract(ctx.echoMock)
+		response, err := ctx.wrapper.DrawUpContract(ctx.audit, DrawUpContractRequestObject{Body: &params})
+		assert.Equal(t, expectedResponse, response)
 		assert.NoError(t, err)
 	})
 
@@ -333,10 +299,10 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 			params := DrawUpContractRequest{
 				ValidFrom: &validFrom,
 			}
-			bindPostBody(ctx, params)
 
-			err := ctx.wrapper.DrawUpContract(ctx.echoMock)
+			response, err := ctx.wrapper.DrawUpContract(ctx.audit, DrawUpContractRequestObject{Body: &params})
 
+			assert.Nil(t, response)
 			// only test for prefix due to some CI weirdness, see https://github.com/nuts-foundation/nuts-node/pull/1999.
 			assert.ErrorContains(t, err, "could not parse validFrom")
 			assert.ErrorIs(t, err, core.InvalidInputError(""))
@@ -350,10 +316,10 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 			params := DrawUpContractRequest{
 				ValidDuration: &duration,
 			}
-			bindPostBody(ctx, params)
 
-			err := ctx.wrapper.DrawUpContract(ctx.echoMock)
+			response, err := ctx.wrapper.DrawUpContract(ctx.audit, DrawUpContractRequestObject{Body: &params})
 
+			assert.Nil(t, response)
 			assert.ErrorIs(t, err, core.InvalidInputError(""))
 			assert.EqualError(t, err, "could not parse validDuration: time: unknown unit \" minutes\" in duration \"15 minutes\"")
 		})
@@ -366,10 +332,10 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 				Type:     "UnknownContractName",
 				Version:  "v3",
 			}
-			bindPostBody(ctx, params)
 
-			err := ctx.wrapper.DrawUpContract(ctx.echoMock)
+			response, err := ctx.wrapper.DrawUpContract(ctx.audit, DrawUpContractRequestObject{Body: &params})
 
+			assert.Nil(t, response)
 			assert.ErrorIs(t, err, core.NotFoundError(""))
 			assert.EqualError(t, err, "no contract found for given combination of type, version, and language")
 		})
@@ -383,10 +349,10 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 				Version:     "v3",
 				LegalEntity: "ZorgId:15",
 			}
-			bindPostBody(ctx, params)
 
-			err := ctx.wrapper.DrawUpContract(ctx.echoMock)
+			response, err := ctx.wrapper.DrawUpContract(ctx.audit, DrawUpContractRequestObject{Body: &params})
 
+			assert.Nil(t, response)
 			assert.ErrorIs(t, err, did.ErrInvalidDID)
 			assert.Equal(t, http.StatusBadRequest, ctx.wrapper.ResolveStatusCode(err))
 		})
@@ -402,28 +368,16 @@ func TestWrapper_DrawUpContract(t *testing.T) {
 			Version:     "v3",
 			LegalEntity: vdr.TestDIDA.String(),
 		}
-		bindPostBody(ctx, params)
-
 		ctx.notaryMock.EXPECT().DrawUpContract(ctx.audit, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), nil).Return(nil, errors.New("unknown error while drawing up the contract"))
 
-		err := ctx.wrapper.DrawUpContract(ctx.echoMock)
+		response, err := ctx.wrapper.DrawUpContract(ctx.audit, DrawUpContractRequestObject{Body: &params})
 
+		assert.Nil(t, response)
 		assert.EqualError(t, err, "unknown error while drawing up the contract")
 	})
 }
 
 func TestWrapper_CreateJwtGrant(t *testing.T) {
-	bindPostBody := func(ctx *TestContext, body CreateJwtGrantRequest) {
-		jsonData, _ := json.Marshal(body)
-		ctx.echoMock.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
-			_ = json.Unmarshal(jsonData, f)
-		})
-	}
-
-	expectStatusOK := func(ctx *TestContext, response JwtGrantResponse) {
-		ctx.echoMock.EXPECT().JSON(http.StatusOK, response)
-	}
-
 	t.Run("make request", func(t *testing.T) {
 		ctx := createContext(t)
 		body := CreateJwtGrantRequest{
@@ -434,8 +388,7 @@ func TestWrapper_CreateJwtGrant(t *testing.T) {
 			},
 			Service: "service",
 		}
-		bindPostBody(ctx, body)
-		response := JwtGrantResponse{
+		expectedResponse := CreateJwtGrant200JSONResponse{
 			BearerToken:                 "123.456.789",
 			AuthorizationServerEndpoint: "http://oauth",
 		}
@@ -448,12 +401,14 @@ func TestWrapper_CreateJwtGrant(t *testing.T) {
 		}
 
 		ctx.relyingPartyMock.EXPECT().CreateJwtGrant(gomock.Any(), expectedRequest).Return(&services.JwtBearerTokenResult{
-			BearerToken:                 response.BearerToken,
-			AuthorizationServerEndpoint: response.AuthorizationServerEndpoint,
+			BearerToken:                 expectedResponse.BearerToken,
+			AuthorizationServerEndpoint: expectedResponse.AuthorizationServerEndpoint,
 		}, nil)
-		expectStatusOK(ctx, response)
 
-		assert.Nil(t, ctx.wrapper.CreateJwtGrant(ctx.echoMock))
+		response, err := ctx.wrapper.CreateJwtGrant(ctx.audit, CreateJwtGrantRequestObject{Body: &body})
+
+		assert.Equal(t, expectedResponse, response)
+		assert.Nil(t, err)
 	})
 }
 
@@ -468,27 +423,8 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 		Service:    "test-service",
 	}
 
-	t.Run("returns error when request is invalid", func(t *testing.T) {
-		ctx := createContext(t)
-
-		ctx.echoMock.EXPECT().
-			Bind(gomock.Any()).
-			Return(errors.New("random error"))
-
-		err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
-
-		assert.EqualError(t, err, "random error")
-	})
-
 	t.Run("returns error when creating jwt grant fails", func(t *testing.T) {
 		ctx := createContext(t)
-
-		ctx.echoMock.EXPECT().
-			Bind(gomock.Any()).
-			DoAndReturn(func(input interface{}) error {
-				*input.(*RequestAccessTokenRequest) = fakeRequest
-				return nil
-			})
 
 		ctx.relyingPartyMock.EXPECT().
 			CreateJwtGrant(gomock.Any(), services.CreateJwtGrantRequest{
@@ -499,8 +435,9 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 			}).
 			Return(nil, errors.New("random error"))
 
-		err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
+		response, err := ctx.wrapper.RequestAccessToken(ctx.audit, RequestAccessTokenRequestObject{Body: &fakeRequest})
 
+		assert.Nil(t, response)
 		assert.EqualError(t, err, "random error")
 	})
 
@@ -508,13 +445,6 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 	var authEndpointURL, _ = url.Parse("https://auth-server")
 	t.Run("returns error when access token request fails", func(t *testing.T) {
 		ctx := createContext(t)
-
-		ctx.echoMock.EXPECT().
-			Bind(gomock.Any()).
-			DoAndReturn(func(input interface{}) error {
-				*input.(*RequestAccessTokenRequest) = fakeRequest
-				return nil
-			})
 
 		ctx.relyingPartyMock.EXPECT().
 			CreateJwtGrant(ctx.audit, services.CreateJwtGrantRequest{
@@ -529,8 +459,9 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 			}, nil)
 		ctx.relyingPartyMock.EXPECT().RequestAccessToken(gomock.Any(), bearerToken, *authEndpointURL).Return(nil, errors.New("random error"))
 
-		err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
+		response, err := ctx.wrapper.RequestAccessToken(ctx.audit, RequestAccessTokenRequestObject{Body: &fakeRequest})
 
+		assert.Nil(t, response)
 		assert.EqualError(t, err, "random error")
 		require.Implements(t, new(core.HTTPStatusCodeError), err)
 		assert.Equal(t, http.StatusServiceUnavailable, err.(core.HTTPStatusCodeError).StatusCode())
@@ -561,15 +492,14 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 			},
 		}
 
-		ctx.echoMock.EXPECT().
-			Bind(gomock.Any()).
-			DoAndReturn(func(input interface{}) error {
-				request := fakeRequest
-				request.Credentials = credentials
+		request := fakeRequest
+		request.Credentials = credentials
 
-				*input.(*RequestAccessTokenRequest) = request
-				return nil
-			})
+		expectedResponse := AccessTokenResponse{
+			TokenType:   "token-type",
+			ExpiresIn:   10,
+			AccessToken: "actual-token",
+		}
 
 		ctx.relyingPartyMock.EXPECT().
 			CreateJwtGrant(ctx.audit, services.CreateJwtGrantRequest{
@@ -585,22 +515,11 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 			}, nil)
 		ctx.relyingPartyMock.EXPECT().
 			RequestAccessToken(gomock.Any(), bearerToken, *authEndpointURL).
-			Return(&AccessTokenResponse{
-				TokenType:   "token-type",
-				ExpiresIn:   10,
-				AccessToken: "actual-token",
-			}, nil)
+			Return(&expectedResponse, nil)
 
-		ctx.echoMock.EXPECT().
-			JSON(http.StatusOK, &AccessTokenResponse{
-				TokenType:   "token-type",
-				ExpiresIn:   10,
-				AccessToken: "actual-token",
-			}).
-			Return(nil)
+		response, err := ctx.wrapper.RequestAccessToken(ctx.audit, RequestAccessTokenRequestObject{Body: &request})
 
-		err := ctx.wrapper.RequestAccessToken(ctx.echoMock)
-
+		assert.Equal(t, RequestAccessToken200JSONResponse(expectedResponse), response)
 		assert.NoError(t, err)
 	})
 }
@@ -608,31 +527,17 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 func TestWrapper_CreateAccessToken(t *testing.T) {
 	const validJwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ1cm46b2lkOjIuMTYuODQwLjEuMTEzODgzLjIuNC42LjE6NDgwMDAwMDAiLCJzdWIiOiJ1cm46b2lkOjIuMTYuODQwLjEuMTEzODgzLjIuNC42LjE6MTI0ODEyNDgiLCJzaWQiOiJ1cm46b2lkOjIuMTYuODQwLjEuMTEzODgzLjIuNC42LjM6OTk5OTk5MCIsImF1ZCI6Imh0dHBzOi8vdGFyZ2V0X3Rva2VuX2VuZHBvaW50IiwidXNpIjoiYmFzZTY0IGVuY29kZWQgc2lnbmF0dXJlIiwiZXhwIjoxNTc4MTEwNDgxLCJpYXQiOjE1Nzg5MTA0ODEsImp0aSI6IjEyMy00NTYtNzg5In0.76XtU81IyR3Ak_2fgrYsuLcvxndf0eedT1mFPa-rPXk"
 
-	bindPostBody := func(ctx *TestContext, body CreateAccessTokenRequest) {
-		ctx.echoMock.EXPECT().FormValue("assertion").Return(body.Assertion)
-		ctx.echoMock.EXPECT().FormValue("grant_type").Return(body.GrantType)
-	}
-
-	expectError := func(ctx *TestContext, err AccessTokenRequestFailedResponse) {
-		ctx.echoMock.EXPECT().JSON(http.StatusBadRequest, oauthErrorMatcher{x: err})
-	}
-
-	expectStatusOK := func(ctx *TestContext, response AccessTokenResponse) {
-		ctx.echoMock.EXPECT().JSON(http.StatusOK, gomock.Eq(response))
-	}
-
 	t.Run("unknown grant_type", func(t *testing.T) {
 		ctx := createContext(t)
 
 		params := CreateAccessTokenRequest{GrantType: "unknown type"}
-		bindPostBody(ctx, params)
 
 		errorDescription := "grant_type must be: 'urn:ietf:params:oauth:grant-type:jwt-bearer'"
-		errorResponse := AccessTokenRequestFailedResponse{ErrorDescription: errorDescription, Error: errOauthUnsupportedGrant}
-		expectError(ctx, errorResponse)
+		expectedResponse := CreateAccessToken400JSONResponse{ErrorDescription: errorDescription, Error: errOauthUnsupportedGrant}
 
-		err := ctx.wrapper.CreateAccessToken(ctx.echoMock)
+		response, err := ctx.wrapper.CreateAccessToken(ctx.audit, CreateAccessTokenRequestObject{Body: &params})
 
+		assert.Equal(t, expectedResponse, response)
 		assert.Nil(t, err)
 	})
 
@@ -640,14 +545,13 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 		ctx := createContext(t)
 
 		params := CreateAccessTokenRequest{GrantType: "urn:ietf:params:oauth:grant-type:jwt-bearer", Assertion: "invalid jwt"}
-		bindPostBody(ctx, params)
 
 		errorDescription := "Assertion must be a valid encoded jwt"
-		errorResponse := AccessTokenRequestFailedResponse{ErrorDescription: errorDescription, Error: errOauthInvalidGrant}
-		expectError(ctx, errorResponse)
+		expectedResponse := CreateAccessToken400JSONResponse{ErrorDescription: errorDescription, Error: errOauthInvalidGrant}
 
-		err := ctx.wrapper.CreateAccessToken(ctx.echoMock)
+		response, err := ctx.wrapper.CreateAccessToken(ctx.audit, CreateAccessTokenRequestObject{Body: &params})
 
+		assert.Equal(t, expectedResponse, response)
 		assert.Nil(t, err)
 	})
 
@@ -655,18 +559,18 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 		ctx := createContext(t)
 
 		params := CreateAccessTokenRequest{GrantType: "urn:ietf:params:oauth:grant-type:jwt-bearer", Assertion: validJwt}
-		bindPostBody(ctx, params)
 
 		errorDescription := "oh boy"
-		errorResponse := AccessTokenRequestFailedResponse{ErrorDescription: errorDescription, Error: errOauthInvalidRequest}
-		expectError(ctx, errorResponse)
+		expectedResponse := CreateAccessToken400JSONResponse{ErrorDescription: errorDescription, Error: errOauthInvalidRequest}
 
 		ctx.authzServerMock.EXPECT().CreateAccessToken(ctx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: validJwt}).Return(nil, &oauth.ErrorResponse{
 			Description: errors.New(errorDescription),
 			Code:        errOauthInvalidRequest,
 		})
-		err := ctx.wrapper.CreateAccessToken(ctx.echoMock)
 
+		response, err := ctx.wrapper.CreateAccessToken(ctx.audit, CreateAccessTokenRequestObject{Body: &params})
+
+		assert.Equal(t, expectedResponse, response)
 		assert.Nil(t, err)
 	})
 
@@ -674,20 +578,19 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 		ctx := createContext(t)
 
 		params := CreateAccessTokenRequest{GrantType: "urn:ietf:params:oauth:grant-type:jwt-bearer", Assertion: validJwt}
-		bindPostBody(ctx, params)
 
 		pkgResponse := &services.AccessTokenResult{AccessToken: "foo", ExpiresIn: 800000}
 		ctx.authzServerMock.EXPECT().CreateAccessToken(gomock.Any(), services.CreateAccessTokenRequest{RawJwtBearerToken: validJwt}).Return(pkgResponse, nil)
 
-		apiResponse := AccessTokenResponse{
+		expectedResponse := CreateAccessToken200JSONResponse{
 			AccessToken: pkgResponse.AccessToken,
 			ExpiresIn:   800000,
 			TokenType:   "bearer",
 		}
-		expectStatusOK(ctx, apiResponse)
 
-		err := ctx.wrapper.CreateAccessToken(ctx.echoMock)
+		response, err := ctx.wrapper.CreateAccessToken(ctx.audit, CreateAccessTokenRequestObject{Body: &params})
 
+		assert.Equal(t, expectedResponse, response)
 		assert.Nil(t, err)
 	})
 }
@@ -699,9 +602,10 @@ func TestWrapper_VerifyAccessToken(t *testing.T) {
 			Authorization: "",
 		}
 
-		ctx.echoMock.EXPECT().NoContent(http.StatusForbidden)
+		response, err := ctx.wrapper.VerifyAccessToken(ctx.audit, VerifyAccessTokenRequestObject{params})
 
-		_ = ctx.wrapper.VerifyAccessToken(ctx.echoMock, params)
+		assert.Equal(t, VerifyAccessToken403Response{}, response)
+		assert.NoError(t, err)
 	})
 
 	t.Run("403 - incorrect authorization header", func(t *testing.T) {
@@ -710,9 +614,10 @@ func TestWrapper_VerifyAccessToken(t *testing.T) {
 			Authorization: "34987569ytihua",
 		}
 
-		ctx.echoMock.EXPECT().NoContent(http.StatusForbidden)
+		response, err := ctx.wrapper.VerifyAccessToken(ctx.audit, VerifyAccessTokenRequestObject{params})
 
-		_ = ctx.wrapper.VerifyAccessToken(ctx.echoMock, params)
+		assert.Equal(t, VerifyAccessToken403Response{}, response)
+		assert.NoError(t, err)
 	})
 
 	t.Run("403 - incorrect token", func(t *testing.T) {
@@ -720,11 +625,12 @@ func TestWrapper_VerifyAccessToken(t *testing.T) {
 		params := VerifyAccessTokenParams{
 			Authorization: "Bearer token",
 		}
-
-		ctx.echoMock.EXPECT().NoContent(http.StatusForbidden)
 		ctx.authzServerMock.EXPECT().IntrospectAccessToken(ctx.audit, "token").Return(nil, errors.New("unauthorized"))
 
-		_ = ctx.wrapper.VerifyAccessToken(ctx.echoMock, params)
+		response, err := ctx.wrapper.VerifyAccessToken(ctx.audit, VerifyAccessTokenRequestObject{params})
+
+		assert.Equal(t, VerifyAccessToken403Response{}, response)
+		assert.NoError(t, err)
 	})
 
 	t.Run("200 - correct token", func(t *testing.T) {
@@ -732,39 +638,27 @@ func TestWrapper_VerifyAccessToken(t *testing.T) {
 		params := VerifyAccessTokenParams{
 			Authorization: "Bearer token",
 		}
-
-		ctx.echoMock.EXPECT().NoContent(http.StatusOK)
 		ctx.authzServerMock.EXPECT().IntrospectAccessToken(ctx.audit, "token").Return(&services.NutsAccessToken{}, nil)
 
-		_ = ctx.wrapper.VerifyAccessToken(ctx.echoMock, params)
+		response, err := ctx.wrapper.VerifyAccessToken(ctx.audit, VerifyAccessTokenRequestObject{params})
+
+		assert.Equal(t, VerifyAccessToken200Response{}, response)
+		assert.NoError(t, err)
 	})
 }
 
 func TestWrapper_IntrospectAccessToken(t *testing.T) {
-	bindPostBody := func(ctx *TestContext, body TokenIntrospectionRequest) {
-		ctx.echoMock.EXPECT().FormValue("token").Return(body.Token)
-	}
-
-	expectStatusOK := func(ctx *TestContext, expected TokenIntrospectionResponse) {
-		expectedData, _ := json.Marshal(expected)
-		logrus.Infof("Expect: %s", string(expectedData))
-		ctx.echoMock.EXPECT().JSON(http.StatusOK, mock2.MatchedBy(func(actual interface{}) bool {
-			actualData, _ := json.Marshal(actual)
-			logrus.Infof("Actual: %s", string(actualData))
-			return assert.JSONEq(t, string(expectedData), string(actualData))
-		}))
-	}
-
 	t.Run("empty token returns active false", func(t *testing.T) {
 		ctx := createContext(t)
 
-		request := TokenIntrospectionRequest{Token: ""}
-		bindPostBody(ctx, request)
+		request := IntrospectAccessTokenFormdataRequestBody{Token: ""}
 
-		response := TokenIntrospectionResponse{Active: false}
-		expectStatusOK(ctx, response)
+		expectedResponse := IntrospectAccessToken200JSONResponse{Active: false}
 
-		_ = ctx.wrapper.IntrospectAccessToken(ctx.echoMock)
+		response, err := ctx.wrapper.IntrospectAccessToken(ctx.audit, IntrospectAccessTokenRequestObject{Body: &request})
+
+		assert.Equal(t, expectedResponse, response)
+		assert.NoError(t, err)
 	})
 
 	aud := "123"
@@ -777,8 +671,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 	t.Run("introspect a token", func(t *testing.T) {
 		ctx := createContext(t)
 
-		request := TokenIntrospectionRequest{Token: "123"}
-		bindPostBody(ctx, request)
+		request := IntrospectAccessTokenFormdataRequestBody{Token: "123"}
 
 		ctx.authzServerMock.EXPECT().IntrospectAccessToken(ctx.audit, request.Token).Return(
 			&services.NutsAccessToken{
@@ -796,7 +689,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		credentials := []string{"credentialID-1", "credentialID-2"}
 
 		resolvedVCs := []VerifiableCredential{{}}
-		response := TokenIntrospectionResponse{
+		expectedResponse := IntrospectAccessToken200JSONResponse{
 			Active: true,
 			Aud:    &aud,
 			Exp:    &exp,
@@ -809,17 +702,15 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 			ResolvedVCs: &resolvedVCs,
 		}
 
-		expectStatusOK(ctx, response)
+		response, err := ctx.wrapper.IntrospectAccessToken(ctx.audit, IntrospectAccessTokenRequestObject{Body: &request})
 
-		err := ctx.wrapper.IntrospectAccessToken(ctx.echoMock)
-
+		assert.Equal(t, expectedResponse, response)
 		assert.NoError(t, err)
 	})
 	t.Run("with all fields", func(t *testing.T) {
 		ctx := createContext(t)
 
-		request := TokenIntrospectionRequest{Token: "123"}
-		bindPostBody(ctx, request)
+		request := IntrospectAccessTokenFormdataRequestBody{Token: "123"}
 
 		initials := "I"
 		prefix := "Mr."
@@ -852,7 +743,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 
 		resolvedVCs := []VerifiableCredential{{}}
 		al := Low
-		response := TokenIntrospectionResponse{
+		expectedResponse := IntrospectAccessToken200JSONResponse{
 			Active: true,
 			Aud:    &aud,
 			Exp:    &exp,
@@ -872,29 +763,11 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 			UserRole:       &userRole,
 		}
 
-		expectStatusOK(ctx, response)
+		response, err := ctx.wrapper.IntrospectAccessToken(ctx.audit, IntrospectAccessTokenRequestObject{Body: &request})
 
-		err := ctx.wrapper.IntrospectAccessToken(ctx.echoMock)
-
+		assert.Equal(t, expectedResponse, response)
 		assert.NoError(t, err)
 	})
-}
-
-type oauthErrorMatcher struct {
-	x AccessTokenRequestFailedResponse
-}
-
-func (e oauthErrorMatcher) Matches(x interface{}) bool {
-	if !reflect.TypeOf(x).AssignableTo(reflect.TypeOf(x)) {
-		return false
-	}
-
-	response := x.(AccessTokenRequestFailedResponse)
-	return e.x.Error == response.Error && e.x.ErrorDescription == response.ErrorDescription
-}
-
-func (e oauthErrorMatcher) String() string {
-	return fmt.Sprintf("is equal to {%v, %v}", e.x.Error, e.x.ErrorDescription)
 }
 
 type signSessionResponseMatcher struct {
@@ -914,13 +787,6 @@ func (s signSessionResponseMatcher) String() string {
 }
 
 func TestWrapper_CreateSignSession(t *testing.T) {
-	bindPostBody := func(ctx *TestContext, body SignSessionRequest) {
-		jsonData, _ := json.Marshal(body)
-		ctx.echoMock.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
-			_ = json.Unmarshal(jsonData, f)
-		})
-	}
-
 	t.Run("create a dummy signing session", func(t *testing.T) {
 		ctx := createContext(t)
 
@@ -939,10 +805,11 @@ func TestWrapper_CreateSignSession(t *testing.T) {
 			Means:   "dummy",
 			Payload: "this is the contract message to agree to",
 		}
-		bindPostBody(ctx, postParams)
 
-		ctx.echoMock.EXPECT().JSON(http.StatusCreated, signSessionResponseMatcher{means: "dummy"})
-		err := ctx.wrapper.CreateSignSession(ctx.echoMock)
+		response, err := ctx.wrapper.CreateSignSession(ctx.audit, CreateSignSessionRequestObject{Body: &postParams})
+
+		assert.IsType(t, CreateSignSession201JSONResponse{}, response)
+		//TODO: check repsonse.SessionPtr["sessionID"] != ""
 		assert.NoError(t, err)
 	})
 
@@ -950,24 +817,17 @@ func TestWrapper_CreateSignSession(t *testing.T) {
 		ctx := createContext(t)
 
 		postParams := SignSessionRequest{}
-		bindPostBody(ctx, postParams)
 
 		ctx.contractClientMock.EXPECT().CreateSigningSession(gomock.Any()).Return(nil, errors.New("some error"))
 
-		err := ctx.wrapper.CreateSignSession(ctx.echoMock)
+		response, err := ctx.wrapper.CreateSignSession(ctx.audit, CreateSignSessionRequestObject{Body: &postParams})
 
+		assert.Nil(t, response)
 		assert.EqualError(t, err, "unable to create sign challenge: some error")
 	})
 }
 
 func TestWrapper_VerifySignature(t *testing.T) {
-	bindPostBody := func(ctx *TestContext, body SignatureVerificationRequest) {
-		jsonData, _ := json.Marshal(body)
-		ctx.echoMock.EXPECT().Bind(gomock.Any()).Do(func(f interface{}) {
-			_ = json.Unmarshal(jsonData, f)
-		})
-	}
-
 	t.Run("ok - VP without checkTime", func(t *testing.T) {
 		ctx := createContext(t)
 
@@ -977,8 +837,6 @@ func TestWrapper_VerifySignature(t *testing.T) {
 				Proof:   []interface{}{vc.JSONWebSignature2020Proof{Jws: "token"}},
 				Type:    []ssi.URI{ssi.MustParseURI("TestCredential")},
 			}}
-
-		bindPostBody(ctx, postParams)
 
 		verificationResult := services.TestVPVerificationResult{
 			Val:         contract.Valid,
@@ -999,9 +857,10 @@ func TestWrapper_VerifySignature(t *testing.T) {
 		}
 
 		ctx.contractClientMock.EXPECT().VerifyVP(gomock.Any(), gomock.Any()).Return(verificationResult, nil)
-		ctx.echoMock.EXPECT().JSON(http.StatusOK, expectedResponse)
 
-		err := ctx.wrapper.VerifySignature(ctx.echoMock)
+		response, err := ctx.wrapper.VerifySignature(ctx.audit, VerifySignatureRequestObject{Body: &postParams})
+
+		assert.Equal(t, VerifySignature200JSONResponse(expectedResponse), response)
 		assert.NoError(t, err)
 	})
 
@@ -1010,8 +869,6 @@ func TestWrapper_VerifySignature(t *testing.T) {
 
 		postParams := SignatureVerificationRequest{
 			VerifiablePresentation: VerifiablePresentation{}}
-
-		bindPostBody(ctx, postParams)
 
 		verificationResult := services.TestVPVerificationResult{
 			Val: contract.Invalid,
@@ -1022,9 +879,10 @@ func TestWrapper_VerifySignature(t *testing.T) {
 		}
 
 		ctx.contractClientMock.EXPECT().VerifyVP(gomock.Any(), gomock.Any()).Return(verificationResult, nil)
-		ctx.echoMock.EXPECT().JSON(http.StatusOK, expectedResponse)
 
-		err := ctx.wrapper.VerifySignature(ctx.echoMock)
+		response, err := ctx.wrapper.VerifySignature(ctx.audit, VerifySignatureRequestObject{Body: &postParams})
+
+		assert.Equal(t, VerifySignature200JSONResponse(expectedResponse), response)
 		assert.NoError(t, err)
 	})
 
@@ -1039,8 +897,6 @@ func TestWrapper_VerifySignature(t *testing.T) {
 				Proof:   []interface{}{vc.JSONWebSignature2020Proof{Jws: "token"}},
 				Type:    []ssi.URI{ssi.MustParseURI("TestCredential")},
 			}}
-
-		bindPostBody(ctx, postParams)
 
 		verificationResult := services.TestVPVerificationResult{
 			Val: contract.Valid,
@@ -1061,9 +917,10 @@ func TestWrapper_VerifySignature(t *testing.T) {
 		require.NoError(t, err)
 
 		ctx.contractClientMock.EXPECT().VerifyVP(gomock.Any(), &checkTime).Return(verificationResult, nil)
-		ctx.echoMock.EXPECT().JSON(http.StatusOK, expectedResponse)
 
-		err = ctx.wrapper.VerifySignature(ctx.echoMock)
+		response, err := ctx.wrapper.VerifySignature(ctx.audit, VerifySignatureRequestObject{Body: &postParams})
+
+		assert.Equal(t, VerifySignature200JSONResponse(expectedResponse), response)
 		assert.NoError(t, err)
 	})
 
@@ -1076,10 +933,9 @@ func TestWrapper_VerifySignature(t *testing.T) {
 			VerifiablePresentation: VerifiablePresentation{},
 		}
 
-		bindPostBody(ctx, postParams)
+		response, err := ctx.wrapper.VerifySignature(ctx.audit, VerifySignatureRequestObject{Body: &postParams})
 
-		err := ctx.wrapper.VerifySignature(ctx.echoMock)
-
+		assert.Nil(t, response)
 		assert.EqualError(t, err, "could not parse checkTime: parsing time \"invalid formatted timestamp\" as \"2006-01-02T15:04:05Z07:00\": cannot parse \"invalid formatted timestamp\" as \"2006\"")
 	})
 
@@ -1090,12 +946,11 @@ func TestWrapper_VerifySignature(t *testing.T) {
 			VerifiablePresentation: VerifiablePresentation{},
 		}
 
-		bindPostBody(ctx, postParams)
-
 		ctx.contractClientMock.EXPECT().VerifyVP(gomock.Any(), gomock.Any()).Return(nil, errors.New("verification error"))
 
-		err := ctx.wrapper.VerifySignature(ctx.echoMock)
+		response, err := ctx.wrapper.VerifySignature(ctx.audit, VerifySignatureRequestObject{Body: &postParams})
 
+		assert.Nil(t, response)
 		assert.EqualError(t, err, "unable to verify the verifiable presentation: verification error")
 	})
 }

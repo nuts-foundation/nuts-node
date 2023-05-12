@@ -19,8 +19,10 @@
 package v1
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -30,7 +32,6 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/api/auth/v1/client"
-	httpModule "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vcr"
 
 	"github.com/labstack/echo/v4"
@@ -43,7 +44,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 )
 
-var _ ServerInterface = (*Wrapper)(nil)
+var _ StrictServerInterface = (*Wrapper)(nil)
 var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
 
 const (
@@ -71,35 +72,37 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 	})
 }
 
-// Preprocess is called just before the API operation itself is invoked.
-func (w *Wrapper) Preprocess(operationID string, context echo.Context) {
-	httpModule.Preprocess(context, w, auth.ModuleName, operationID)
-}
-
 // Routes registers the Echo routes for the API.
 func (w *Wrapper) Routes(router core.EchoRouter) {
-	RegisterHandlers(router, w)
+	RegisterHandlers(router, NewStrictHandler(w, []StrictMiddlewareFunc{
+		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
+			return func(ctx echo.Context, request interface{}) (response interface{}, err error) {
+				ctx.Set(core.OperationIDContextKey, operationID)
+				ctx.Set(core.ModuleNameContextKey, auth.ModuleName)
+				ctx.Set(core.StatusCodeResolverContextKey, w)
+				return f(ctx, request)
+			}
+		},
+		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
+			return audit.StrictMiddleware(f, auth.ModuleName, operationID)
+		},
+	}))
 }
 
 // VerifySignature handles the VerifySignature http request.
 // It parses the request body, parses the verifiable presentation and calls the ContractNotary to verify the VP.
-func (w Wrapper) VerifySignature(ctx echo.Context) error {
+func (w Wrapper) VerifySignature(_ context.Context, request VerifySignatureRequestObject) (VerifySignatureResponseObject, error) {
 	var err error
-	requestParams := new(SignatureVerificationRequest)
-	if err := ctx.Bind(requestParams); err != nil {
-		return err
-	}
-
 	checkTime := time.Now()
-	if requestParams.CheckTime != nil {
-		checkTime, err = time.Parse(time.RFC3339, *requestParams.CheckTime)
+	if request.Body.CheckTime != nil {
+		checkTime, err = time.Parse(time.RFC3339, *request.Body.CheckTime)
 		if err != nil {
-			return core.InvalidInputError("could not parse checkTime: %w", err)
+			return nil, core.InvalidInputError("could not parse checkTime: %w", err)
 		}
 	}
-	validationResult, err := w.Auth.ContractNotary().VerifyVP(requestParams.VerifiablePresentation, &checkTime)
+	validationResult, err := w.Auth.ContractNotary().VerifyVP(request.Body.VerifiablePresentation, &checkTime)
 	if err != nil {
-		return core.InvalidInputError("unable to verify the verifiable presentation: %w", err)
+		return nil, core.InvalidInputError("unable to verify the verifiable presentation: %w", err)
 	}
 	// Convert internal validationResult to api SignatureVerificationResponse
 	response := SignatureVerificationResponse{}
@@ -123,80 +126,76 @@ func (w Wrapper) VerifySignature(ctx echo.Context) error {
 	} else {
 		response.Validity = false
 	}
-	return ctx.JSON(http.StatusOK, response)
+	return VerifySignature200JSONResponse(response), nil
 }
 
 // CreateSignSession handles the CreateSignSession http request. It parses the parameters, finds the means handler and returns a session pointer which can be used to monitor the session.
-func (w Wrapper) CreateSignSession(ctx echo.Context) error {
-	requestParams := new(SignSessionRequest)
-	if err := ctx.Bind(requestParams); err != nil {
-		return core.InvalidInputError("could not parse request body: %w", err)
-	}
+func (w Wrapper) CreateSignSession(_ context.Context, request CreateSignSessionRequestObject) (CreateSignSessionResponseObject, error) {
 	createSessionRequest := services.CreateSessionRequest{
-		SigningMeans: string(requestParams.Means),
-		Message:      requestParams.Payload,
-		Params:       requestParams.Params,
+		SigningMeans: string(request.Body.Means),
+		Message:      request.Body.Payload,
+		Params:       request.Body.Params,
 	}
 	sessionPtr, err := w.Auth.ContractNotary().CreateSigningSession(createSessionRequest)
 	if err != nil {
-		return core.InvalidInputError("unable to create sign challenge: %w", err)
+		return nil, core.InvalidInputError("unable to create sign challenge: %w", err)
 	}
 
 	var keyValPointer map[string]interface{}
 	err = convertToMap(sessionPtr, &keyValPointer)
 	if err != nil {
-		return core.InvalidInputError("unable to build sessionPointer: %w", err)
+		return nil, core.InvalidInputError("unable to build sessionPointer: %w", err)
 	}
 
 	response := SignSessionResponse{
 		SessionID:  sessionPtr.SessionID(),
-		Means:      SignSessionResponseMeans(requestParams.Means),
+		Means:      SignSessionResponseMeans(request.Body.Means),
 		SessionPtr: keyValPointer,
 	}
-	return ctx.JSON(http.StatusCreated, response)
+	return CreateSignSession201JSONResponse(response), nil
 }
 
 // GetSignSessionStatus handles the http requests for getting the current status of a signing session.
-func (w Wrapper) GetSignSessionStatus(ctx echo.Context, sessionID string) error {
-	sessionStatus, err := w.Auth.ContractNotary().SigningSessionStatus(ctx.Request().Context(), sessionID)
+func (w Wrapper) GetSignSessionStatus(ctx context.Context, request GetSignSessionStatusRequestObject) (GetSignSessionStatusResponseObject, error) {
+	sessionStatus, err := w.Auth.ContractNotary().SigningSessionStatus(ctx, request.SessionID)
 	if err != nil {
-		return fmt.Errorf("failed to get session status for %s, reason: %w", sessionID, err)
+		return nil, fmt.Errorf("failed to get session status for %s, reason: %w", request.SessionID, err)
 	}
 	vp, err := sessionStatus.VerifiablePresentation()
 	if err != nil {
-		return fmt.Errorf("error while building verifiable presentation: %w", err)
+		return nil, fmt.Errorf("error while building verifiable presentation: %w", err)
 	}
 	var apiVp *VerifiablePresentation
 	if vp != nil {
 		apiVp = &VerifiablePresentation{}
 		err = convertToMap(vp, apiVp)
 		if err != nil {
-			return fmt.Errorf("unable to convert verifiable presentation: %w", err)
+			return nil, fmt.Errorf("unable to convert verifiable presentation: %w", err)
 		}
 	}
 	response := SignSessionStatusResponse{Status: sessionStatus.Status(), VerifiablePresentation: apiVp}
-	return ctx.JSON(http.StatusOK, response)
+	return GetSignSessionStatus200JSONResponse(response), nil
 }
 
 // GetContractByType handles the http request for finding a contract by type.
-func (w Wrapper) GetContractByType(ctx echo.Context, contractType string, params GetContractByTypeParams) error {
+func (w Wrapper) GetContractByType(_ context.Context, request GetContractByTypeRequestObject) (GetContractByTypeResponseObject, error) {
 	// convert generated data types to internal types
 	var (
 		contractLanguage contract.Language
 		contractVersion  contract.Version
 	)
-	if params.Language != nil {
-		contractLanguage = contract.Language(*params.Language)
+	if request.Params.Language != nil {
+		contractLanguage = contract.Language(*request.Params.Language)
 	}
 
-	if params.Version != nil {
-		contractVersion = contract.Version(*params.Version)
+	if request.Params.Version != nil {
+		contractVersion = contract.Version(*request.Params.Version)
 	}
 
 	// get contract
-	authContract := contract.StandardContractTemplates.Get(contract.Type(contractType), contractLanguage, contractVersion)
+	authContract := contract.StandardContractTemplates.Get(contract.Type(request.ContractType), contractLanguage, contractVersion)
 	if authContract == nil {
-		return core.NotFoundError("could not find contract template")
+		return nil, core.NotFoundError("could not find contract template")
 	}
 
 	// convert internal data types to generated api types
@@ -208,49 +207,44 @@ func (w Wrapper) GetContractByType(ctx echo.Context, contractType string, params
 		Version:            ContractVersion(authContract.Version),
 	}
 
-	return ctx.JSON(http.StatusOK, answer)
+	return GetContractByType200JSONResponse(answer), nil
 }
 
 // DrawUpContract handles the http request for drawing up a contract for a given contract template identified by type, language and version.
-func (w Wrapper) DrawUpContract(ctx echo.Context) error {
-	params := new(DrawUpContractRequest)
-	if err := ctx.Bind(params); err != nil {
-		return err
-	}
-
+func (w Wrapper) DrawUpContract(ctx context.Context, request DrawUpContractRequestObject) (DrawUpContractResponseObject, error) {
 	var (
 		vf            time.Time
 		validDuration time.Duration
 		err           error
 	)
-	if params.ValidFrom != nil {
-		vf, err = time.Parse(time.RFC3339, *params.ValidFrom)
+	if request.Body.ValidFrom != nil {
+		vf, err = time.Parse(time.RFC3339, *request.Body.ValidFrom)
 		if err != nil {
-			return core.InvalidInputError("could not parse validFrom: %w", err)
+			return nil, core.InvalidInputError("could not parse validFrom: %w", err)
 		}
 	} else {
 		vf = time.Now()
 	}
 
-	if params.ValidDuration != nil {
-		validDuration, err = time.ParseDuration(*params.ValidDuration)
+	if request.Body.ValidDuration != nil {
+		validDuration, err = time.ParseDuration(*request.Body.ValidDuration)
 		if err != nil {
-			return core.InvalidInputError("could not parse validDuration: %w", err)
+			return nil, core.InvalidInputError("could not parse validDuration: %w", err)
 		}
 	}
 
-	template := contract.StandardContractTemplates.Get(contract.Type(params.Type), contract.Language(params.Language), contract.Version(params.Version))
+	template := contract.StandardContractTemplates.Get(contract.Type(request.Body.Type), contract.Language(request.Body.Language), contract.Version(request.Body.Version))
 	if template == nil {
-		return core.NotFoundError("no contract found for given combination of type, version, and language")
+		return nil, core.NotFoundError("no contract found for given combination of type, version, and language")
 	}
-	orgID, err := did.ParseDID(params.LegalEntity)
+	orgID, err := did.ParseDID(request.Body.LegalEntity)
 	if err != nil {
-		return core.InvalidInputError("invalid value '%s' for param legalEntity: %w", params.LegalEntity, err)
+		return nil, core.InvalidInputError("invalid value '%s' for param legalEntity: %w", request.Body.LegalEntity, err)
 	}
 
-	drawnUpContract, err := w.Auth.ContractNotary().DrawUpContract(ctx.Request().Context(), *template, *orgID, vf, validDuration, params.OrganizationCredential)
+	drawnUpContract, err := w.Auth.ContractNotary().DrawUpContract(ctx, *template, *orgID, vf, validDuration, request.Body.OrganizationCredential)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	response := ContractResponse{
@@ -259,92 +253,79 @@ func (w Wrapper) DrawUpContract(ctx echo.Context) error {
 		Type:     ContractType(drawnUpContract.Template.Type),
 		Version:  ContractVersion(drawnUpContract.Template.Version),
 	}
-	return ctx.JSON(http.StatusOK, response)
+	return DrawUpContract200JSONResponse(response), nil
 }
 
 // CreateJwtGrant handles the http request (from the vendor's EPD/XIS) for creating a JWT bearer token which can be used to retrieve an access token from a remote Nuts node.
-func (w Wrapper) CreateJwtGrant(ctx echo.Context) error {
-	requestBody := &CreateJwtGrantRequest{}
-	if err := ctx.Bind(requestBody); err != nil {
-		return err
+func (w Wrapper) CreateJwtGrant(ctx context.Context, request CreateJwtGrantRequestObject) (CreateJwtGrantResponseObject, error) {
+
+	req := services.CreateJwtGrantRequest{
+		Requester:   request.Body.Requester,
+		Authorizer:  request.Body.Authorizer,
+		IdentityVP:  request.Body.Identity,
+		Service:     request.Body.Service,
+		Credentials: request.Body.Credentials,
 	}
 
-	request := services.CreateJwtGrantRequest{
-		Requester:   requestBody.Requester,
-		Authorizer:  requestBody.Authorizer,
-		IdentityVP:  requestBody.Identity,
-		Service:     requestBody.Service,
-		Credentials: requestBody.Credentials,
-	}
-
-	response, err := w.Auth.RelyingParty().CreateJwtGrant(ctx.Request().Context(), request)
+	response, err := w.Auth.RelyingParty().CreateJwtGrant(ctx, req)
 	if err != nil {
-		return core.InvalidInputError(err.Error())
+		return nil, core.InvalidInputError(err.Error())
 	}
 
-	return ctx.JSON(http.StatusOK, JwtGrantResponse{BearerToken: response.BearerToken, AuthorizationServerEndpoint: response.AuthorizationServerEndpoint})
+	return CreateJwtGrant200JSONResponse{BearerToken: response.BearerToken, AuthorizationServerEndpoint: response.AuthorizationServerEndpoint}, nil
 }
 
 // RequestAccessToken handles the HTTP request (from the vendor's EPD/XIS) for creating a JWT grant and using it as authorization grant to get an access token from the remote Nuts node.
-func (w Wrapper) RequestAccessToken(ctx echo.Context) error {
-	requestBody := &RequestAccessTokenRequest{}
-	if err := ctx.Bind(requestBody); err != nil {
-		return err
+func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
+	req := services.CreateJwtGrantRequest{
+		Requester:   request.Body.Requester,
+		Authorizer:  request.Body.Authorizer,
+		IdentityVP:  request.Body.Identity,
+		Service:     request.Body.Service,
+		Credentials: request.Body.Credentials,
 	}
 
-	request := services.CreateJwtGrantRequest{
-		Requester:   requestBody.Requester,
-		Authorizer:  requestBody.Authorizer,
-		IdentityVP:  requestBody.Identity,
-		Service:     requestBody.Service,
-		Credentials: requestBody.Credentials,
-	}
-
-	jwtGrant, err := w.Auth.RelyingParty().CreateJwtGrant(ctx.Request().Context(), request)
+	jwtGrant, err := w.Auth.RelyingParty().CreateJwtGrant(ctx, req)
 	if err != nil {
-		return core.InvalidInputError(err.Error())
+		return nil, core.InvalidInputError(err.Error())
 	}
 
 	authServerEndpoint, err := url.Parse(jwtGrant.AuthorizationServerEndpoint)
 	if err != nil {
-		return core.InvalidInputError("invalid authorization server endpoint: %s", jwtGrant.AuthorizationServerEndpoint)
+		return nil, core.InvalidInputError("invalid authorization server endpoint: %s", jwtGrant.AuthorizationServerEndpoint)
 	}
 
-	accessTokenResult, err := w.Auth.RelyingParty().RequestAccessToken(ctx.Request().Context(), jwtGrant.BearerToken, *authServerEndpoint)
+	accessTokenResult, err := w.Auth.RelyingParty().RequestAccessToken(ctx, jwtGrant.BearerToken, *authServerEndpoint)
 	if err != nil {
-		return core.Error(http.StatusServiceUnavailable, err.Error())
+		return nil, core.Error(http.StatusServiceUnavailable, err.Error())
 	}
-	return ctx.JSON(http.StatusOK, accessTokenResult)
+	return RequestAccessToken200JSONResponse(*accessTokenResult), nil
 }
 
 // CreateAccessToken handles the http request (from a remote vendor's Nuts node) for creating an access token for accessing
 // resources of the local vendor's EPD/XIS. It consumes a JWT Bearer token.
 // It consumes and checks the JWT and returns a smaller sessionToken
 // The errors returns for this API do not follow RFC7807 but follow the oauth framework error response: RFC6749 (https://tools.ietf.org/html/rfc6749#page-45)
-func (w Wrapper) CreateAccessToken(ctx echo.Context) (err error) {
-	// Can't use echo.Bind() here since it requires extra tags on generated code
-	request := new(CreateAccessTokenRequest)
-	request.Assertion = ctx.FormValue("assertion")
-	request.GrantType = ctx.FormValue("grant_type")
+func (w Wrapper) CreateAccessToken(ctx context.Context, request CreateAccessTokenRequestObject) (CreateAccessTokenResponseObject, error) {
 
-	if request.GrantType != client.JwtBearerGrantType {
+	if request.Body.GrantType != client.JwtBearerGrantType {
 		errDesc := fmt.Sprintf("grant_type must be: '%s'", client.JwtBearerGrantType)
 		errorResponse := AccessTokenRequestFailedResponse{Error: errOauthUnsupportedGrant, ErrorDescription: errDesc}
-		return ctx.JSON(http.StatusBadRequest, errorResponse)
+		return CreateAccessToken400JSONResponse(errorResponse), nil
 	}
 
 	const jwtPattern = `^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$`
-	if matched, err := regexp.Match(jwtPattern, []byte(request.Assertion)); !matched || err != nil {
+	if matched, err := regexp.Match(jwtPattern, []byte(request.Body.Assertion)); !matched || err != nil {
 		errDesc := "Assertion must be a valid encoded jwt"
 		errorResponse := AccessTokenRequestFailedResponse{Error: errOauthInvalidGrant, ErrorDescription: errDesc}
-		return ctx.JSON(http.StatusBadRequest, errorResponse)
+		return CreateAccessToken400JSONResponse(errorResponse), nil
 	}
 
-	catRequest := services.CreateAccessTokenRequest{RawJwtBearerToken: request.Assertion}
-	acResponse, oauthError := w.Auth.AuthzServer().CreateAccessToken(ctx.Request().Context(), catRequest)
+	catRequest := services.CreateAccessTokenRequest{RawJwtBearerToken: request.Body.Assertion}
+	acResponse, oauthError := w.Auth.AuthzServer().CreateAccessToken(ctx, catRequest)
 	if oauthError != nil {
 		errorResponse := AccessTokenRequestFailedResponse{Error: AccessTokenRequestFailedResponseError(oauthError.Code), ErrorDescription: oauthError.Error()}
-		return ctx.JSON(http.StatusBadRequest, errorResponse)
+		return CreateAccessToken400JSONResponse(errorResponse), nil
 	}
 	response := AccessTokenResponse{
 		AccessToken: acResponse.AccessToken,
@@ -352,36 +333,36 @@ func (w Wrapper) CreateAccessToken(ctx echo.Context) (err error) {
 		TokenType:   "bearer", // bearer token type according to RFC6750/RFC6749
 	}
 
-	return ctx.JSON(http.StatusOK, response)
+	return CreateAccessToken200JSONResponse(response), nil
 }
 
 // VerifyAccessToken handles the http request (from the vendor's EPD/XIS) for verifying an access token received from a remote Nuts node.
-func (w Wrapper) VerifyAccessToken(ctx echo.Context, params VerifyAccessTokenParams) error {
-	if len(params.Authorization) == 0 {
+func (w Wrapper) VerifyAccessToken(ctx context.Context, request VerifyAccessTokenRequestObject) (VerifyAccessTokenResponseObject, error) {
+	if len(request.Params.Authorization) == 0 {
 		log.Logger().Warn("No authorization header given")
-		return ctx.NoContent(http.StatusForbidden)
+		return VerifyAccessToken403Response{}, nil
 	}
 
-	index := strings.Index(strings.ToLower(params.Authorization), bearerTokenHeaderPrefix)
+	index := strings.Index(strings.ToLower(request.Params.Authorization), bearerTokenHeaderPrefix)
 	if index != 0 {
 		log.Logger().Warn("Authorization does not contain bearer token")
-		return ctx.NoContent(http.StatusForbidden)
+		return VerifyAccessToken403Response{}, nil
 	}
 
-	token := params.Authorization[len(bearerTokenHeaderPrefix):]
+	token := request.Params.Authorization[len(bearerTokenHeaderPrefix):]
 
-	_, err := w.Auth.AuthzServer().IntrospectAccessToken(ctx.Request().Context(), token)
+	_, err := w.Auth.AuthzServer().IntrospectAccessToken(ctx, token)
 	if err != nil {
 		log.Logger().WithError(err).Warn("Error while inspecting access token")
-		return ctx.NoContent(http.StatusForbidden)
+		return VerifyAccessToken403Response{}, nil
 	}
 
-	return ctx.NoContent(200)
+	return VerifyAccessToken200Response{}, nil
 }
 
 // IntrospectAccessToken handles the http request (from the vendor's EPD/XIS) for introspecting an access token received from a remote Nuts node.
-func (w Wrapper) IntrospectAccessToken(ctx echo.Context) error {
-	token := ctx.FormValue("token")
+func (w Wrapper) IntrospectAccessToken(ctx context.Context, request IntrospectAccessTokenRequestObject) (IntrospectAccessTokenResponseObject, error) {
+	token := request.Body.Token
 
 	introspectionResponse := TokenIntrospectionResponse{
 		Active: false,
@@ -389,13 +370,13 @@ func (w Wrapper) IntrospectAccessToken(ctx echo.Context) error {
 
 	if len(token) == 0 {
 		log.Logger().Warn("Missing token for introspection")
-		return ctx.JSON(http.StatusOK, introspectionResponse)
+		return IntrospectAccessToken200JSONResponse(introspectionResponse), nil
 	}
 
-	claims, err := w.Auth.AuthzServer().IntrospectAccessToken(ctx.Request().Context(), token)
+	claims, err := w.Auth.AuthzServer().IntrospectAccessToken(ctx, token)
 	if err != nil {
 		log.Logger().WithError(err).Warn("Error while inspecting access token")
-		return ctx.JSON(http.StatusOK, introspectionResponse)
+		return IntrospectAccessToken200JSONResponse(introspectionResponse), nil
 	}
 
 	exp := int(claims.Expiration)
@@ -439,7 +420,7 @@ func (w Wrapper) IntrospectAccessToken(ctx echo.Context) error {
 		introspectionResponse.ResolvedVCs = &resolvedVCs
 	}
 
-	return ctx.JSON(http.StatusOK, introspectionResponse)
+	return IntrospectAccessToken200JSONResponse(introspectionResponse), nil
 }
 
 func (w *Wrapper) resolveCredential(credentialID string) (*vc.VerifiableCredential, error) {
