@@ -114,22 +114,42 @@ func (d *didman) Name() string {
 	return ModuleName
 }
 
-func (d *didman) AddEndpoint(ctx context.Context, id did.DID, serviceType string, u url.URL) (*did.Service, error) {
+func (d *didman) AddEndpoint(ctx context.Context, id did.DID, serviceType string, endpoint url.URL) (*did.Service, error) {
 	unlockFn := d.callSerializer.Lock(id.String())
 	defer unlockFn()
 
 	log.Logger().
 		WithField(core.LogFieldDID, id.String()).
 		WithField(core.LogFieldServiceType, serviceType).
-		WithField(core.LogFieldServiceEndpoint, u.String()).
+		WithField(core.LogFieldServiceEndpoint, endpoint.String()).
 		Debug("Adding endpoint")
-	service, err := d.addService(ctx, id, serviceType, u.String(), nil)
+	service, err := d.addService(ctx, id, serviceType, endpoint.String(), nil)
 	if err == nil {
 		log.Logger().
 			WithField(core.LogFieldDID, id.String()).
 			WithField(core.LogFieldServiceType, serviceType).
-			WithField(core.LogFieldServiceEndpoint, u.String()).
+			WithField(core.LogFieldServiceEndpoint, endpoint.String()).
 			Info("Endpoint added")
+	}
+	return service, err
+}
+
+func (d *didman) UpdateEndpoint(ctx context.Context, id did.DID, serviceType string, endpoint url.URL) (*did.Service, error) {
+	unlockFn := d.callSerializer.Lock(id.String())
+	defer unlockFn()
+
+	log.Logger().
+		WithField(core.LogFieldDID, id.String()).
+		WithField(core.LogFieldServiceType, serviceType).
+		WithField(core.LogFieldServiceEndpoint, endpoint.String()).
+		Debug("Updating endpoint")
+	service, err := d.updateService(ctx, id, serviceType, endpoint.String())
+	if err == nil {
+		log.Logger().
+			WithField(core.LogFieldDID, id.String()).
+			WithField(core.LogFieldServiceType, serviceType).
+			WithField(core.LogFieldServiceEndpoint, endpoint.String()).
+			Info("Endpoint updated")
 	}
 	return service, err
 }
@@ -190,6 +210,34 @@ func (d *didman) AddCompoundService(ctx context.Context, id did.DID, serviceType
 			WithField(core.LogFieldServiceType, serviceType).
 			WithField(core.LogFieldServiceEndpoint, endpoints).
 			Info("Compound service added")
+	}
+
+	return service, err
+}
+
+func (d *didman) UpdateCompoundService(ctx context.Context, id did.DID, serviceType string, endpoints map[string]ssi.URI) (*did.Service, error) {
+	unlockFn := d.callSerializer.Lock(id.String())
+	defer unlockFn()
+
+	log.Logger().
+		WithField(core.LogFieldDID, id.String()).
+		WithField(core.LogFieldServiceType, serviceType).
+		WithField(core.LogFieldServiceEndpoint, endpoints).
+		Debug("Updating compound service")
+
+	// transform service references to map[string]interface{}
+	serviceEndpoint := map[string]interface{}{}
+	for k, v := range endpoints {
+		serviceEndpoint[k] = v.String()
+	}
+
+	service, err := d.updateService(ctx, id, serviceType, serviceEndpoint)
+	if err == nil {
+		log.Logger().
+			WithField(core.LogFieldDID, id.String()).
+			WithField(core.LogFieldServiceType, serviceType).
+			WithField(core.LogFieldServiceEndpoint, endpoints).
+			Info("Compound service updated")
 	}
 
 	return service, err
@@ -518,6 +566,33 @@ func (d *didman) addService(ctx context.Context, id did.DID, serviceType string,
 
 	// Add on DID Document and update
 	doc.Service = append(doc.Service, *service)
+	if err = d.vdr.Update(ctx, id, *doc); err != nil {
+		return nil, err
+	}
+	return service, nil
+}
+
+func (d *didman) updateService(ctx context.Context, id did.DID, serviceType string, serviceEndpoint interface{}) (*did.Service, error) {
+	doc, _, err := d.docResolver.Resolve(id, nil)
+	if err != nil {
+		return nil, err
+	}
+	service := &did.Service{
+		Type:            serviceType,
+		ServiceEndpoint: serviceEndpoint,
+	}
+	service.ID = generateIDForService(id, *service)
+
+	serviceToBeUpdatedFound := false
+	for i, s := range doc.Service {
+		if s.Type == serviceType {
+			doc.Service[i] = *service
+			serviceToBeUpdatedFound = true
+		}
+	}
+	if !serviceToBeUpdatedFound {
+		return nil, types.ErrServiceNotFound
+	}
 	if err = d.vdr.Update(ctx, id, *doc); err != nil {
 		return nil, err
 	}

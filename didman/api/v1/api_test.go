@@ -51,7 +51,6 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 		Body: &service,
 	}
 	ctx := audit.TestContext()
-	wrapper := &Wrapper{}
 
 	t.Run("ok", func(t *testing.T) {
 		test := newMockContext(t)
@@ -68,7 +67,8 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 	})
 
 	t.Run("error - incorrect type", func(t *testing.T) {
-		response, err := wrapper.AddEndpoint(ctx, AddEndpointRequestObject{
+		test := newMockContext(t)
+		response, err := test.wrapper.AddEndpoint(ctx, AddEndpointRequestObject{
 			Did: targetDID.String(),
 			Body: &EndpointProperties{
 				Endpoint: serviceEndpoint.String(),
@@ -80,7 +80,8 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 	})
 
 	t.Run("error - incorrect endpoint", func(t *testing.T) {
-		response, err := wrapper.AddEndpoint(ctx, AddEndpointRequestObject{
+		test := newMockContext(t)
+		response, err := test.wrapper.AddEndpoint(ctx, AddEndpointRequestObject{
 			Did: targetDID.String(),
 			Body: &EndpointProperties{
 				Type:     service.Type,
@@ -93,7 +94,8 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 	})
 
 	t.Run("error - incorrect did", func(t *testing.T) {
-		response, err := wrapper.AddEndpoint(ctx, AddEndpointRequestObject{
+		test := newMockContext(t)
+		response, err := test.wrapper.AddEndpoint(ctx, AddEndpointRequestObject{
 			Body: &EndpointProperties{
 				Type:     service.Type,
 				Endpoint: serviceEndpoint.String(),
@@ -101,7 +103,7 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 		})
 
 		assert.ErrorIs(t, err, did.ErrInvalidDID)
-		assert.Equal(t, http.StatusBadRequest, wrapper.ResolveStatusCode(err))
+		assert.Equal(t, http.StatusBadRequest, test.wrapper.ResolveStatusCode(err))
 		assert.Nil(t, response)
 	})
 
@@ -168,6 +170,73 @@ func TestWrapper_AddEndpoint(t *testing.T) {
 
 		assert.EqualError(t, err, "b00m!")
 		assert.Nil(t, response)
+	})
+}
+
+func TestWrapper_UpdateEndpoint(t *testing.T) {
+	targetDID := did.MustParseDID("did:nuts:1")
+	serviceID := ssi.MustParseURI(targetDID.String() + "#service")
+	serviceEndpoint, _ := url.Parse("https://api.example.com/v1")
+	ctx := audit.TestContext()
+
+	t.Run("ok - type not set", func(t *testing.T) {
+		service := EndpointProperties{
+			Endpoint: serviceEndpoint.String(),
+		}
+		request := UpdateEndpointRequestObject{
+			Did:  targetDID.String(),
+			Type: "type",
+			Body: &service,
+		}
+		test := newMockContext(t)
+		test.didman.EXPECT().UpdateEndpoint(audit.ContextWithAuditInfo(), targetDID, request.Type, *serviceEndpoint).Return(&did.Service{
+			ID:              serviceID,
+			Type:            request.Type,
+			ServiceEndpoint: service.Endpoint,
+		}, nil)
+
+		response, err := test.wrapper.UpdateEndpoint(ctx, request)
+
+		assert.Nil(t, err)
+		assert.NotNil(t, response)
+	})
+	t.Run("ok - type set", func(t *testing.T) {
+		service := EndpointProperties{
+			Endpoint: serviceEndpoint.String(),
+			Type:     "type",
+		}
+		request := UpdateEndpointRequestObject{
+			Did:  targetDID.String(),
+			Type: "type",
+			Body: &service,
+		}
+		test := newMockContext(t)
+		test.didman.EXPECT().UpdateEndpoint(audit.ContextWithAuditInfo(), targetDID, request.Type, *serviceEndpoint).Return(&did.Service{
+			ID:              serviceID,
+			Type:            request.Type,
+			ServiceEndpoint: service.Endpoint,
+		}, nil)
+
+		response, err := test.wrapper.UpdateEndpoint(ctx, request)
+
+		assert.Nil(t, err)
+		assert.NotNil(t, response)
+	})
+	t.Run("error - type set, but differs (updating not supported)", func(t *testing.T) {
+		service := EndpointProperties{
+			Endpoint: serviceEndpoint.String(),
+			Type:     "type",
+		}
+		request := UpdateEndpointRequestObject{
+			Did:  targetDID.String(),
+			Type: "type-different",
+			Body: &service,
+		}
+		test := newMockContext(t)
+
+		_, err := test.wrapper.UpdateEndpoint(ctx, request)
+
+		assert.EqualError(t, err, "updating endpoint type is not supported")
 	})
 }
 
@@ -293,7 +362,7 @@ func TestWrapper_AddCompoundService(t *testing.T) {
 
 	t.Run("error - incorrect did", func(t *testing.T) {
 		test := newMockContext(t)
-		response, err := test.wrapper.AddCompoundService(ctx, AddCompoundServiceRequestObject{Did: "not a did"})
+		response, err := test.wrapper.AddCompoundService(ctx, AddCompoundServiceRequestObject{Did: "not a did", Body: &CompoundServiceProperties{}})
 
 		assert.ErrorIs(t, err, did.ErrInvalidDID)
 		assert.Equal(t, http.StatusBadRequest, test.wrapper.ResolveStatusCode(err))
@@ -627,4 +696,73 @@ func newMockContext(t *testing.T) mockContext {
 		didman:  didmanMock,
 		wrapper: Wrapper{didmanMock},
 	}
+}
+
+func TestWrapper_UpdateCompoundService(t *testing.T) {
+	targetDID := did.MustParseDID("did:nuts:1")
+	serviceID := ssi.MustParseURI(targetDID.String() + "#service")
+	serviceEndpoint := map[string]interface{}{
+		"foo": "bar",
+	}
+	ctx := audit.TestContext()
+
+	t.Run("ok - type not set", func(t *testing.T) {
+		service := CompoundServiceProperties{
+			ServiceEndpoint: serviceEndpoint,
+		}
+		request := UpdateCompoundServiceRequestObject{
+			Did:  targetDID.String(),
+			Type: "type",
+			Body: &service,
+		}
+		test := newMockContext(t)
+		test.didman.EXPECT().UpdateCompoundService(audit.ContextWithAuditInfo(), targetDID, request.Type, gomock.Any()).Return(&did.Service{
+			ID:              serviceID,
+			Type:            request.Type,
+			ServiceEndpoint: serviceEndpoint,
+		}, nil)
+
+		response, err := test.wrapper.UpdateCompoundService(ctx, request)
+
+		assert.Nil(t, err)
+		assert.NotNil(t, response)
+	})
+	t.Run("ok - type set", func(t *testing.T) {
+		service := CompoundServiceProperties{
+			Type:            "type",
+			ServiceEndpoint: serviceEndpoint,
+		}
+		request := UpdateCompoundServiceRequestObject{
+			Did:  targetDID.String(),
+			Type: "type",
+			Body: &service,
+		}
+		test := newMockContext(t)
+		test.didman.EXPECT().UpdateCompoundService(audit.ContextWithAuditInfo(), targetDID, request.Type, gomock.Any()).Return(&did.Service{
+			ID:              serviceID,
+			Type:            request.Type,
+			ServiceEndpoint: serviceEndpoint,
+		}, nil)
+
+		response, err := test.wrapper.UpdateCompoundService(ctx, request)
+
+		assert.Nil(t, err)
+		assert.NotNil(t, response)
+	})
+	t.Run("error - type set, but differs (updating not supported)", func(t *testing.T) {
+		service := CompoundServiceProperties{
+			Type:            "type",
+			ServiceEndpoint: serviceEndpoint,
+		}
+		request := UpdateCompoundServiceRequestObject{
+			Did:  targetDID.String(),
+			Type: "type-different",
+			Body: &service,
+		}
+		test := newMockContext(t)
+
+		_, err := test.wrapper.UpdateCompoundService(ctx, request)
+
+		assert.EqualError(t, err, "updating compound service type is not supported")
+	})
 }

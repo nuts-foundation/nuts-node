@@ -113,6 +113,33 @@ paths:
         example: oauth
         schema:
           type: string
+    put:
+      operationId: "updateEndpoint"
+      summary: Update a service endpoint or a reference to a service.
+      description: |
+        Update an endpoint's URL or reference in a DID document. The endpoint to be updated is selected by type.
+        The URL can either be an Endpoint or a reference to another service. Updating the type is not supported.
+
+        error returns:
+        * 400 - incorrect input
+        * 404 - unknown DID or service with this type
+      tags:
+        - services
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EndpointProperties'
+      responses:
+        "200":
+          description: The endpoint which has been updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Endpoint'
+        default:
+          $ref: '../common/error_response.yaml'
     delete:
       operationId: deleteEndpointsByType
       description: |
@@ -187,6 +214,49 @@ paths:
       responses:
         "200":
           description: The compound service has been added to the DID Document
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompoundService'
+        default:
+          $ref: '../common/error_response.yaml'
+  /internal/didman/v1/did/{did}/compoundservice/{type}:
+    parameters:
+      - name: did
+        in: path
+        description: URL encoded DID.
+        required: true
+        example: did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
+        schema:
+          type: string
+      - name: type
+        in: path
+        description: Type of the compound service
+        required: true
+        example: eOverdracht-sender
+        schema:
+          type: string
+    put:
+      summary: Update a compound service.
+      description: |
+        Update a compound service in a DID Document. It follows the same requirements as when adding a compound service.
+        It updates all endpoints of the compound service (no partial updates). Updating the type is not supported.
+
+        error returns:
+        * 400 - incorrect input
+        * 404 - unknown DID or service with this type
+      operationId: "updateCompoundService"
+      tags:
+        - services
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompoundServiceProperties'
+      responses:
+        "200":
+          description: The compound service has been updated
           content:
             application/json:
               schema:
