@@ -223,7 +223,7 @@ func (d *didman) UpdateCompoundService(ctx context.Context, id did.DID, serviceT
 		WithField(core.LogFieldDID, id.String()).
 		WithField(core.LogFieldServiceType, serviceType).
 		WithField(core.LogFieldServiceEndpoint, endpoints).
-		Debug("Adding compound updated")
+		Debug("Updating compound service")
 
 	// transform service references to map[string]interface{}
 	serviceEndpoint := map[string]interface{}{}
@@ -583,14 +583,14 @@ func (d *didman) updateService(ctx context.Context, id did.DID, serviceType stri
 	}
 	service.ID = generateIDForService(id, *service)
 
-	serviceFound := false
+	serviceToBeUpdatedFound := false
 	for i, s := range doc.Service {
 		if s.Type == serviceType {
 			doc.Service[i] = *service
-			serviceFound = true
+			serviceToBeUpdatedFound = true
 		}
 	}
-	if !serviceFound {
+	if !serviceToBeUpdatedFound {
 		return nil, types.ErrServiceNotFound
 	}
 	if err = d.vdr.Update(ctx, id, *doc); err != nil {
