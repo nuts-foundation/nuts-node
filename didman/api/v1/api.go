@@ -127,6 +127,10 @@ func (w *Wrapper) AddEndpoint(ctx context.Context, request AddEndpointRequestObj
 // UpdateEndpoint handles calls to update a service. It only checks params and sets the correct return status code.
 // didman.UpdateEndpoint does the heavy lifting.
 func (w *Wrapper) UpdateEndpoint(ctx context.Context, request UpdateEndpointRequestObject) (UpdateEndpointResponseObject, error) {
+	if request.Body.Type != "" && request.Body.Type != request.Type {
+		return nil, core.InvalidInputError("updating endpoint type is not supported")
+	}
+	request.Body.Type = request.Type
 	endpoint, err := w.addOrUpdateEndpoint(ctx, request.Did, *request.Body, w.Didman.UpdateEndpoint)
 	if err != nil {
 		return nil, err
@@ -219,7 +223,11 @@ func (w *Wrapper) AddCompoundService(ctx context.Context, request AddCompoundSer
 
 // UpdateCompoundService handles calls to update a compound service.
 func (w *Wrapper) UpdateCompoundService(ctx context.Context, request UpdateCompoundServiceRequestObject) (UpdateCompoundServiceResponseObject, error) {
-	service, err := w.addOrUpdateCompoundService(ctx, request.Did, *request.Body, w.Didman.AddCompoundService)
+	if request.Body.Type != "" && request.Body.Type != request.Type {
+		return nil, core.InvalidInputError("updating compound service type is not supported")
+	}
+	request.Body.Type = request.Type
+	service, err := w.addOrUpdateCompoundService(ctx, request.Did, *request.Body, w.Didman.UpdateCompoundService)
 	if err != nil {
 		return nil, err
 	}
