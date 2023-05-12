@@ -39,6 +39,7 @@ func TestSession_HumanReadableContract(t *testing.T) {
 
 func TestSession_CredentialSubject(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
+		roleName := "Verpleegkundige"
 		s := Session{
 			ExpiresAt: time.Now(),
 			Contract:  "NL:LoginContract:v3 Ik verklaar te handelen namens x",
@@ -47,7 +48,7 @@ func TestSession_CredentialSubject(t *testing.T) {
 			Employer:  "did:nuts:123",
 			Employee: Employee{
 				Identifier: "123",
-				RoleName:   "Verpleegkundige",
+				RoleName:   &roleName,
 				Initials:   "T",
 				FamilyName: "Tester",
 			},

@@ -72,7 +72,7 @@ func TestSessionStore_StartSigningSession(t *testing.T) {
 		assert.Equal(t, familyName, session.Employee.FamilyName)
 		assert.Equal(t, initials, session.Employee.Initials)
 		assert.Equal(t, identifier, session.Employee.Identifier)
-		assert.Equal(t, roleName, session.Employee.RoleName)
+		assert.Equal(t, roleName, *session.Employee.RoleName)
 	})
 
 	t.Run("secret and session ID are different for each session", func(t *testing.T) {

@@ -77,8 +77,10 @@ func (v validator) VerifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (c
 		services.InitialsTokenClaim:   credentialSubject.Member.Member.Initials,
 		services.FamilyNameTokenClaim: credentialSubject.Member.Member.FamilyName,
 		services.UsernameClaim:        credentialSubject.Member.Identifier,
-		services.UserRoleClaim:        credentialSubject.Member.RoleName,
 		services.AssuranceLevelClaim:  "low",
+	}
+	if credentialSubject.Member.RoleName != nil {
+		disclosedAttributes[services.UserRoleClaim] = *credentialSubject.Member.RoleName
 	}
 
 	return selfsignedVerificationResult{

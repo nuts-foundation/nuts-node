@@ -56,10 +56,12 @@
             <td>Naam</td>
             <td id="employee-name">{{.Employee.Initials}} {{.Employee.FamilyName}}</td>
         </tr>
+        {{if .Employee.RoleName}}
         <tr>
             <td>Functieomschrijving</td>
             <td id="employee-role">{{.Employee.RoleName }}</td>
         </tr>
+        {{end}}
     </table>
     <p>Als u akkoord gaat worden deze gegevens gebruikt bij het opvragen van patiënt-gegevens bij andere
         zorginstellingen.</p>
