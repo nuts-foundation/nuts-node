@@ -20,6 +20,7 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
@@ -48,6 +49,10 @@ func CreateTestBBoltStore(tb testing.TB, filePath string) stoabs.KVStore {
 // StaticKVStoreProvider contains a single store.
 type StaticKVStoreProvider struct {
 	Store stoabs.KVStore
+}
+
+func (p *StaticKVStoreProvider) GetSQLStore() *sql.DB {
+	panic("implement me")
 }
 
 // GetKVStore ignores the inputs and returns the Store, or an error when Store == nil.

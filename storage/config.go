@@ -22,6 +22,7 @@ package storage
 type Config struct {
 	BBolt BBoltConfig `koanf:"bbolt"`
 	Redis RedisConfig `koanf:"redis"`
+	SQL   SQLConfig   `koanf:"sql"`
 }
 
 // DefaultConfig returns the default configuration for the module.

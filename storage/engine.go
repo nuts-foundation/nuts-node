@@ -20,6 +20,7 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
@@ -92,7 +93,15 @@ func (e engine) Shutdown() error {
 
 func (e *engine) Configure(config core.ServerConfig) error {
 	e.datadir = config.Datadir
-
+	if e.config.SQL.isConfigured() {
+		log.Logger().Info("SQL database support enabled.")
+		log.Logger().Warn("SQL database support is still experimental: do not use for production environments!")
+		sqlDB, err := createSQLDatabase(e.config.SQL)
+		if err != nil {
+			return fmt.Errorf("unable to configure SQL database: %w", err)
+		}
+		e.databases = append(e.databases, sqlDB)
+	}
 	if e.config.Redis.isConfigured() {
 		redisDB, err := createRedisDatabase(e.config.Redis)
 		if err != nil {
@@ -121,6 +130,15 @@ func (e *engine) GetProvider(moduleName string) Provider {
 type provider struct {
 	moduleName string
 	engine     *engine
+}
+
+func (p *provider) GetSQLStore() *sql.DB {
+	for _, curr := range p.engine.databases {
+		if sqlDB, ok := curr.(*sqlDatabase); ok {
+			return sqlDB.db
+		}
+	}
+	return nil
 }
 
 func (p *provider) GetKVStore(name string, class Class) (stoabs.KVStore, error) {

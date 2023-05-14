@@ -19,6 +19,7 @@
 package storage
 
 import (
+	"database/sql"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"time"
@@ -42,6 +43,9 @@ type Provider interface {
 	// When identical name is passed the same store is returned.
 	// Names must be alphanumeric, non-zero strings.
 	GetKVStore(name string, class Class) (stoabs.KVStore, error)
+
+	// GetSQLStore returns a SQL store, if configured. It returns nil if no SQL store is configured.
+	GetSQLStore() *sql.DB
 }
 
 // Class defines levels of storage reliability.

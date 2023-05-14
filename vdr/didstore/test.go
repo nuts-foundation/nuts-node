@@ -44,6 +44,7 @@ var testServiceA = did.Service{ID: ssi.MustParseURI("did:nuts:service:a"), Servi
 var testServiceB = did.Service{ID: ssi.MustParseURI("did:nuts:service:b"), ServiceEndpoint: []interface{}{"http://b"}}
 
 func NewTestStore(t *testing.T) *store {
+
 	s := New(storage.NewTestStorageEngine(path.Join(io.TestDirectory(t))).GetProvider(moduleName)).(*store)
 	err := s.Configure(core.ServerConfig{})
 	require.NoError(t, err)

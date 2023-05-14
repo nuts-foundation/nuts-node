@@ -38,5 +38,6 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.StringSlice("storage.redis.sentinel.nodes", defs.Redis.Sentinel.Nodes, "Addresses of the Redis Sentinels to connect to initially. Setting this property enables Redis Sentinel.")
 	flagSet.String("storage.redis.sentinel.username", defs.Redis.Sentinel.Username, "Username for authenticating to Redis Sentinels.")
 	flagSet.String("storage.redis.sentinel.password", defs.Redis.Sentinel.Password, "Password for authenticating to Redis Sentinels.")
+	flagSet.String("storage.sql.connection", defs.SQL.ConnectionString, "Connection string for SQL database. Specifying this enables SQL support (experimental).")
 	return flagSet
 }

@@ -169,26 +169,38 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	// copy strictmode for openid4vci usage
 	c.strictmode = config.Strictmode
 
-	// create issuer store (to revoke)
-	issuerStorePath := path.Join(c.datadir, "vcr", "issued-credentials.db")
-	issuerBackupStore, err := c.storageClient.GetProvider(ModuleName).GetKVStore("backup-issued-credentials", storage.PersistentStorageClass)
-	if err != nil {
-		return err
-	}
-	c.issuerStore, err = issuer.NewLeiaIssuerStore(issuerStorePath, issuerBackupStore)
-	if err != nil {
-		return err
-	}
+	sqlDB := c.storageClient.GetProvider(ModuleName).GetSQLStore()
+	if sqlDB == nil {
+		// create issuer store (to revoke)
+		issuerStorePath := path.Join(c.datadir, "vcr", "issued-credentials.db")
+		issuerBackupStore, err := c.storageClient.GetProvider(ModuleName).GetKVStore("backup-issued-credentials", storage.PersistentStorageClass)
+		if err != nil {
+			return err
+		}
+		c.issuerStore, err = issuer.NewLeiaIssuerStore(issuerStorePath, issuerBackupStore)
+		if err != nil {
+			return err
+		}
 
-	// create verifier store (for revocations)
-	verifierStorePath := path.Join(c.datadir, "vcr", "verifier-store.db")
-	verifierBackupStore, err := c.storageClient.GetProvider(ModuleName).GetKVStore("backup-revoked-credentials", storage.PersistentStorageClass)
-	if err != nil {
-		return err
-	}
-	c.verifierStore, err = verifier.NewLeiaVerifierStore(verifierStorePath, verifierBackupStore)
-	if err != nil {
-		return err
+		// create verifier store (for revocations)
+		verifierStorePath := path.Join(c.datadir, "vcr", "verifier-store.db")
+		verifierBackupStore, err := c.storageClient.GetProvider(ModuleName).GetKVStore("backup-revoked-credentials", storage.PersistentStorageClass)
+		if err != nil {
+			return err
+		}
+		c.verifierStore, err = verifier.NewLeiaVerifierStore(verifierStorePath, verifierBackupStore)
+		if err != nil {
+			return err
+		}
+	} else {
+		c.issuerStore, err = issuer.NewSQLStore(sqlDB, c.jsonldManager.DocumentLoader())
+		if err != nil {
+			return err
+		}
+		c.verifierStore, err = verifier.NewSQLStore(sqlDB)
+		if err != nil {
+			return err
+		}
 	}
 
 	// create credentials store (for public credentials and this node's wallet)
