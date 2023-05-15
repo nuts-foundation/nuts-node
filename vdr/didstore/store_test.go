@@ -109,6 +109,37 @@ func TestStore_Add(t *testing.T) {
 		})
 	})
 
+	t.Run("duplicate ok", func(t *testing.T) {
+		store := NewTestStore(t)
+
+		require.NoError(t, store.Add(create, txCreate))
+		require.NoError(t, store.Add(create, txCreate))
+
+		err := store.db.ReadShelf(context.Background(), metadataShelf, func(reader stoabs.Reader) error {
+			metaBytes, err := reader.Get(stoabs.BytesKey(fmt.Sprintf("%s0", testDID.String())))
+			if err != nil {
+				return err
+			}
+			metadata := documentMetadata{}
+			err = json.Unmarshal(metaBytes, &metadata)
+			if err != nil {
+				return err
+			}
+
+			assert.Equal(t, txCreate.SigningTime.Unix(), metadata.Created.Unix())
+			assert.Equal(t, txCreate.SigningTime.Unix(), metadata.Updated.Unix())
+			assert.Nil(t, metadata.PreviousHash)
+			assert.Equal(t, txCreate.PayloadHash, metadata.Hash)
+			assert.Nil(t, metadata.PreviousTransaction)
+			assert.Equal(t, []hash.SHA256Hash{txCreate.Ref}, metadata.SourceTransactions)
+			assert.Equal(t, 0, metadata.Version)
+			assert.Equal(t, false, metadata.Deactivated)
+
+			return nil
+		})
+		require.NoError(t, err)
+	})
+
 	t.Run("update ok", func(t *testing.T) {
 		store := NewTestStore(t)
 

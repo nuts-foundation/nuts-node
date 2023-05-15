@@ -113,3 +113,18 @@ func TestEventList_insert(t *testing.T) {
 		assert.Equal(t, sha2s, el.Events[2].Ref)
 	})
 }
+
+func TestEventList_contains(t *testing.T) {
+	t.Run("false", func(t *testing.T) {
+		el := eventList{}
+
+		assert.False(t, el.contains(event{Ref: sha0s}))
+	})
+
+	t.Run("true", func(t *testing.T) {
+		el := eventList{}
+		el.insert(event{Ref: sha0s})
+
+		assert.True(t, el.contains(event{Ref: sha0s}))
+	})
+}
