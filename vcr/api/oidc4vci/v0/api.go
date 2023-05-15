@@ -19,8 +19,11 @@
 package v0
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr"
@@ -113,4 +116,21 @@ func (w Wrapper) Routes(router core.EchoRouter) {
 			return audit.StrictMiddleware(f, vcr.ModuleName+"/OIDC4VCI", operationID)
 		},
 	}))
+}
+
+// parseTenant parsed the given string as DID and checks whether it's a tenant of this node.
+func (w Wrapper) parseTenant(ctx context.Context, holderOrIssuerDID string) (did.DID, error) {
+	parsedDID, err := did.ParseDID(holderOrIssuerDID)
+	if err != nil {
+		return did.DID{}, errHolderOrIssuerNotFound
+	}
+	// Check if the holder or issuer is a tenant of this node.
+	isTenant, err := w.VCR.Tenants().IsProbableTenant(ctx, *parsedDID)
+	if err != nil {
+		return did.DID{}, fmt.Errorf("error checking tenant: %w", err)
+	}
+	if !isTenant {
+		return did.DID{}, errHolderOrIssuerNotFound
+	}
+	return *parsedDID, nil
 }

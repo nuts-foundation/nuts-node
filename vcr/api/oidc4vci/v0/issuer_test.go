@@ -35,35 +35,69 @@ import (
 var issuerDID = did.MustParseDID("did:nuts:issuer")
 
 func TestWrapper_GetOIDC4VCIIssuerMetadata(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	oidcIssuer := issuer.NewMockOIDCIssuer(ctrl)
-	oidcIssuer.EXPECT().Metadata(issuerDID).Return(oidc4vci.CredentialIssuerMetadata{
-		CredentialIssuer: issuerDID.String(),
-	}, nil)
-	service := vcr.NewMockVCR(ctrl)
-	service.EXPECT().GetOIDCIssuer().Return(oidcIssuer)
-	api := Wrapper{VCR: service}
+	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		oidcIssuer := issuer.NewMockOIDCIssuer(ctrl)
+		oidcIssuer.EXPECT().Metadata(issuerDID).Return(oidc4vci.CredentialIssuerMetadata{
+			CredentialIssuer: issuerDID.String(),
+		}, nil)
+		tenants := vcr.NewMockTenantRegistry(ctrl)
+		tenants.EXPECT().IsProbableTenant(gomock.Any(), gomock.Any()).Return(true, nil)
+		service := vcr.NewMockVCR(ctrl)
+		service.EXPECT().Tenants().Return(tenants)
+		service.EXPECT().GetOIDCIssuer().Return(oidcIssuer)
+		api := Wrapper{VCR: service}
 
-	response, err := api.GetOIDC4VCIIssuerMetadata(context.Background(), GetOIDC4VCIIssuerMetadataRequestObject{Did: issuerDID.String()})
+		response, err := api.GetOIDC4VCIIssuerMetadata(context.Background(), GetOIDC4VCIIssuerMetadataRequestObject{Did: issuerDID.String()})
 
-	require.NoError(t, err)
-	assert.Equal(t, issuerDID.String(), response.(GetOIDC4VCIIssuerMetadata200JSONResponse).CredentialIssuer)
+		require.NoError(t, err)
+		assert.Equal(t, issuerDID.String(), response.(GetOIDC4VCIIssuerMetadata200JSONResponse).CredentialIssuer)
+	})
+	t.Run("unknown tenant", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		tenants := vcr.NewMockTenantRegistry(ctrl)
+		tenants.EXPECT().IsProbableTenant(gomock.Any(), gomock.Any()).Return(false, nil)
+		service := vcr.NewMockVCR(ctrl)
+		service.EXPECT().Tenants().Return(tenants)
+		api := Wrapper{VCR: service}
+
+		_, err := api.GetOIDC4VCIIssuerMetadata(context.Background(), GetOIDC4VCIIssuerMetadataRequestObject{Did: issuerDID.String()})
+
+		require.EqualError(t, err, "invalid_request - holder or issuer not found")
+	})
 }
 
 func TestWrapper_GetOIDCProviderMetadata(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	oidcIssuer := issuer.NewMockOIDCIssuer(ctrl)
-	oidcIssuer.EXPECT().ProviderMetadata(issuerDID).Return(oidc4vci.ProviderMetadata{
-		Issuer: issuerDID.String(),
-	}, nil)
-	service := vcr.NewMockVCR(ctrl)
-	service.EXPECT().GetOIDCIssuer().Return(oidcIssuer)
-	api := Wrapper{VCR: service}
+	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		oidcIssuer := issuer.NewMockOIDCIssuer(ctrl)
+		oidcIssuer.EXPECT().ProviderMetadata(issuerDID).Return(oidc4vci.ProviderMetadata{
+			Issuer: issuerDID.String(),
+		}, nil)
+		tenants := vcr.NewMockTenantRegistry(ctrl)
+		tenants.EXPECT().IsProbableTenant(gomock.Any(), gomock.Any()).Return(true, nil)
+		service := vcr.NewMockVCR(ctrl)
+		service.EXPECT().Tenants().Return(tenants)
+		service.EXPECT().GetOIDCIssuer().Return(oidcIssuer)
+		api := Wrapper{VCR: service}
 
-	response, err := api.GetOIDCProviderMetadata(context.Background(), GetOIDCProviderMetadataRequestObject{Did: issuerDID.String()})
+		response, err := api.GetOIDCProviderMetadata(context.Background(), GetOIDCProviderMetadataRequestObject{Did: issuerDID.String()})
 
-	require.NoError(t, err)
-	assert.Equal(t, issuerDID.String(), response.(GetOIDCProviderMetadata200JSONResponse).Issuer)
+		require.NoError(t, err)
+		assert.Equal(t, issuerDID.String(), response.(GetOIDCProviderMetadata200JSONResponse).Issuer)
+	})
+	t.Run("unknown tenant", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		tenants := vcr.NewMockTenantRegistry(ctrl)
+		tenants.EXPECT().IsProbableTenant(gomock.Any(), gomock.Any()).Return(false, nil)
+		service := vcr.NewMockVCR(ctrl)
+		service.EXPECT().Tenants().Return(tenants)
+		api := Wrapper{VCR: service}
+
+		_, err := api.GetOIDCProviderMetadata(context.Background(), GetOIDCProviderMetadataRequestObject{Did: issuerDID.String()})
+
+		require.EqualError(t, err, "invalid_request - holder or issuer not found")
+	})
 }
 
 func TestWrapper_RequestAccessToken(t *testing.T) {
@@ -71,7 +105,10 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		oidcIssuer := issuer.NewMockOIDCIssuer(ctrl)
 		oidcIssuer.EXPECT().HandleAccessTokenRequest(gomock.Any(), issuerDID, "code").Return("access-token", nil)
+		tenants := vcr.NewMockTenantRegistry(ctrl)
+		tenants.EXPECT().IsProbableTenant(gomock.Any(), gomock.Any()).Return(true, nil)
 		service := vcr.NewMockVCR(ctrl)
+		service.EXPECT().Tenants().Return(tenants)
 		service.EXPECT().GetOIDCIssuer().Return(oidcIssuer)
 		api := Wrapper{VCR: service}
 
@@ -85,9 +122,26 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "access-token", response.(RequestAccessToken200JSONResponse).AccessToken)
 	})
+	t.Run("unknown tenant", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		tenants := vcr.NewMockTenantRegistry(ctrl)
+		tenants.EXPECT().IsProbableTenant(gomock.Any(), gomock.Any()).Return(false, nil)
+		service := vcr.NewMockVCR(ctrl)
+		service.EXPECT().Tenants().Return(tenants)
+		api := Wrapper{VCR: service}
+
+		_, err := api.RequestAccessToken(context.Background(), RequestAccessTokenRequestObject{
+			Did: issuerDID.String(),
+		})
+
+		require.EqualError(t, err, "invalid_request - holder or issuer not found")
+	})
 	t.Run("unsupported grant type", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
+		tenants := vcr.NewMockTenantRegistry(ctrl)
+		tenants.EXPECT().IsProbableTenant(gomock.Any(), gomock.Any()).Return(true, nil)
 		service := vcr.NewMockVCR(ctrl)
+		service.EXPECT().Tenants().Return(tenants)
 		api := Wrapper{VCR: service}
 
 		response, err := api.RequestAccessToken(context.Background(), RequestAccessTokenRequestObject{
@@ -130,9 +184,26 @@ func TestWrapper_RequestCredential(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, response.(RequestCredential200JSONResponse).Credential)
 	})
+	t.Run("unknown tenant", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		tenants := vcr.NewMockTenantRegistry(ctrl)
+		tenants.EXPECT().IsProbableTenant(gomock.Any(), gomock.Any()).Return(false, nil)
+		service := vcr.NewMockVCR(ctrl)
+		service.EXPECT().Tenants().Return(tenants)
+		api := Wrapper{VCR: service}
+
+		_, err := api.RequestCredential(context.Background(), RequestCredentialRequestObject{
+			Did: issuerDID.String(),
+		})
+
+		require.EqualError(t, err, "invalid_request - holder or issuer not found")
+	})
 	t.Run("error - no authorization header", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
+		tenants := vcr.NewMockTenantRegistry(ctrl)
+		tenants.EXPECT().IsProbableTenant(gomock.Any(), gomock.Any()).Return(true, nil)
 		service := vcr.NewMockVCR(ctrl)
+		service.EXPECT().Tenants().Return(tenants)
 		api := Wrapper{VCR: service}
 
 		response, err := api.RequestCredential(context.Background(), RequestCredentialRequestObject{
@@ -151,7 +222,10 @@ func TestWrapper_RequestCredential(t *testing.T) {
 	})
 	t.Run("error - invalid authorization header", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
+		tenants := vcr.NewMockTenantRegistry(ctrl)
+		tenants.EXPECT().IsProbableTenant(gomock.Any(), gomock.Any()).Return(true, nil)
 		service := vcr.NewMockVCR(ctrl)
+		service.EXPECT().Tenants().Return(tenants)
 		api := Wrapper{VCR: service}
 
 		authz := "invalid"

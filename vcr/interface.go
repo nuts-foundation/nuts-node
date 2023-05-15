@@ -62,8 +62,16 @@ type Resolver interface {
 	Resolve(ID ssi.URI, resolveTime *time.Time) (*vc.VerifiableCredential, error)
 }
 
+// TenantRegistry allows checking  which DIDs are managed by the local node.
+// A tenant is a DID with key material present in the node's key store.
+type TenantRegistry interface {
+	// IsProbableTenant returns true if the DID is probably managed by this node.
+	IsProbableTenant(ctx context.Context, id did.DID) (bool, error)
+}
+
 // VCR is the interface that covers all functionality of the vcr store.
 type VCR interface {
+	Tenants() TenantRegistry
 	Issuer() issuer.Issuer
 	Holder() holder.Holder
 	Verifier() verifier.Verifier

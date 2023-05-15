@@ -34,57 +34,96 @@ import (
 var holderDID = did.MustParseDID("did:nuts:holder")
 
 func TestWrapper_GetOAuth2ClientMetadata(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	wallet := holder.NewMockOIDCWallet(ctrl)
-	wallet.EXPECT().Metadata().Return(oidc4vci.OAuth2ClientMetadata{CredentialOfferEndpoint: "endpoint"})
-	service := vcr.NewMockVCR(ctrl)
-	service.EXPECT().GetOIDCWallet(holderDID).Return(wallet)
-	api := Wrapper{VCR: service}
+	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		wallet := holder.NewMockOIDCWallet(ctrl)
+		wallet.EXPECT().Metadata().Return(oidc4vci.OAuth2ClientMetadata{CredentialOfferEndpoint: "endpoint"})
+		tenants := vcr.NewMockTenantRegistry(ctrl)
+		tenants.EXPECT().IsProbableTenant(gomock.Any(), gomock.Any()).Return(true, nil)
+		service := vcr.NewMockVCR(ctrl)
+		service.EXPECT().GetOIDCWallet(holderDID).Return(wallet)
+		service.EXPECT().Tenants().Return(tenants)
+		api := Wrapper{VCR: service}
 
-	response, err := api.GetOAuth2ClientMetadata(context.Background(), GetOAuth2ClientMetadataRequestObject{
-		Did: holderDID.String(),
+		response, err := api.GetOAuth2ClientMetadata(context.Background(), GetOAuth2ClientMetadataRequestObject{
+			Did: holderDID.String(),
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		assert.Equal(t, "endpoint", response.(GetOAuth2ClientMetadata200JSONResponse).CredentialOfferEndpoint)
 	})
+	t.Run("unknown tenant", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		tenants := vcr.NewMockTenantRegistry(ctrl)
+		tenants.EXPECT().IsProbableTenant(gomock.Any(), gomock.Any()).Return(false, nil)
+		service := vcr.NewMockVCR(ctrl)
+		service.EXPECT().Tenants().Return(tenants)
+		api := Wrapper{VCR: service}
 
-	require.NoError(t, err)
-	require.NotNil(t, response)
-	assert.Equal(t, "endpoint", response.(GetOAuth2ClientMetadata200JSONResponse).CredentialOfferEndpoint)
+		_, err := api.GetOAuth2ClientMetadata(context.Background(), GetOAuth2ClientMetadataRequestObject{
+			Did: holderDID.String(),
+		})
+
+		require.EqualError(t, err, "invalid_request - holder or issuer not found")
+	})
 }
 
 func TestWrapper_HandleCredentialOffer(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	wallet := holder.NewMockOIDCWallet(ctrl)
-	wallet.EXPECT().HandleCredentialOffer(gomock.Any(), gomock.Any())
-	service := vcr.NewMockVCR(ctrl)
-	service.EXPECT().GetOIDCWallet(holderDID).Return(wallet)
-	api := Wrapper{VCR: service}
+	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		wallet := holder.NewMockOIDCWallet(ctrl)
+		wallet.EXPECT().HandleCredentialOffer(gomock.Any(), gomock.Any())
+		tenants := vcr.NewMockTenantRegistry(ctrl)
+		tenants.EXPECT().IsProbableTenant(gomock.Any(), gomock.Any()).Return(true, nil)
+		service := vcr.NewMockVCR(ctrl)
+		service.EXPECT().GetOIDCWallet(holderDID).Return(wallet)
+		service.EXPECT().Tenants().Return(tenants)
+		api := Wrapper{VCR: service}
 
-	credentialOffer := oidc4vci.CredentialOffer{
-		CredentialIssuer: issuerDID.String(),
-		Credentials: []map[string]interface{}{
-			{
-				"format": oidc4vci.VerifiableCredentialJSONLDFormat,
-				"credential_definition": map[string]interface{}{
-					"@context": []string{"a", "b"},
-					"types":    []string{"VerifiableCredential", "HumanCredential"},
+		credentialOffer := oidc4vci.CredentialOffer{
+			CredentialIssuer: issuerDID.String(),
+			Credentials: []map[string]interface{}{
+				{
+					"format": oidc4vci.VerifiableCredentialJSONLDFormat,
+					"credential_definition": map[string]interface{}{
+						"@context": []string{"a", "b"},
+						"types":    []string{"VerifiableCredential", "HumanCredential"},
+					},
 				},
 			},
-		},
-		Grants: map[string]interface{}{
-			"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]interface{}{
-				"pre-authorized_code": "code",
+			Grants: map[string]interface{}{
+				"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]interface{}{
+					"pre-authorized_code": "code",
+				},
 			},
-		},
-	}
-	credentialOfferJSON, _ := json.Marshal(credentialOffer)
+		}
+		credentialOfferJSON, _ := json.Marshal(credentialOffer)
 
-	response, err := api.HandleCredentialOffer(context.Background(), HandleCredentialOfferRequestObject{
-		Did: holderDID.String(),
-		Params: HandleCredentialOfferParams{
-			CredentialOffer: string(credentialOfferJSON),
-		},
+		response, err := api.HandleCredentialOffer(context.Background(), HandleCredentialOfferRequestObject{
+			Did: holderDID.String(),
+			Params: HandleCredentialOfferParams{
+				CredentialOffer: string(credentialOfferJSON),
+			},
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		assert.Equal(t, "credential_received", string(response.(HandleCredentialOffer200JSONResponse).Status))
 	})
 
-	require.NoError(t, err)
-	require.NotNil(t, response)
-	assert.Equal(t, "credential_received", string(response.(HandleCredentialOffer200JSONResponse).Status))
+	t.Run("unknown tenant", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		tenants := vcr.NewMockTenantRegistry(ctrl)
+		tenants.EXPECT().IsProbableTenant(gomock.Any(), gomock.Any()).Return(false, nil)
+		service := vcr.NewMockVCR(ctrl)
+		service.EXPECT().Tenants().Return(tenants)
+		api := Wrapper{VCR: service}
+
+		_, err := api.HandleCredentialOffer(context.Background(), HandleCredentialOfferRequestObject{
+			Did: holderDID.String(),
+		})
+
+		require.EqualError(t, err, "invalid_request - holder or issuer not found")
+	})
 }

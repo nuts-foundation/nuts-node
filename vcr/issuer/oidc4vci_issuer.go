@@ -90,8 +90,6 @@ type memoryIssuer struct {
 }
 
 func (i *memoryIssuer) Metadata(issuer did.DID) (oidc4vci.CredentialIssuerMetadata, error) {
-	// TODO: Check if issuer is served by this instance
-	//       See https://github.com/nuts-foundation/nuts-node/issues/2054
 	return oidc4vci.CredentialIssuerMetadata{
 		CredentialIssuer:   i.getIdentifier(issuer.String()),
 		CredentialEndpoint: i.getIdentifier(issuer.String()) + "/issuer/oidc4vci/credential",
@@ -102,8 +100,6 @@ func (i *memoryIssuer) Metadata(issuer did.DID) (oidc4vci.CredentialIssuerMetada
 }
 
 func (i *memoryIssuer) ProviderMetadata(issuer did.DID) (oidc4vci.ProviderMetadata, error) {
-	// TODO: Check if issuer is served by this instance
-	//       See https://github.com/nuts-foundation/nuts-node/issues/2054
 	return oidc4vci.ProviderMetadata{
 		Issuer:        i.getIdentifier(issuer.String()),
 		TokenEndpoint: core.JoinURLPaths(i.getIdentifier(issuer.String()), "oidc/token"),
@@ -115,8 +111,6 @@ func (i *memoryIssuer) ProviderMetadata(issuer did.DID) (oidc4vci.ProviderMetada
 }
 
 func (i *memoryIssuer) HandleAccessTokenRequest(ctx context.Context, issuer did.DID, preAuthorizedCode string) (string, error) {
-	// TODO: Check if issuer is served by this instance
-	//       See https://github.com/nuts-foundation/nuts-node/issues/2054
 	i.mux.Lock()
 	defer i.mux.Unlock()
 	_, ok := i.state[preAuthorizedCode]
@@ -135,8 +129,6 @@ func (i *memoryIssuer) HandleAccessTokenRequest(ctx context.Context, issuer did.
 }
 
 func (i *memoryIssuer) OfferCredential(ctx context.Context, credential vc.VerifiableCredential, clientMetadataURL string) error {
-	// TODO: Check if issuer is served by this instance
-	//       See https://github.com/nuts-foundation/nuts-node/issues/2054
 	preAuthorizedCode := generateCode()
 	subject, err := getSubjectDID(credential)
 	if err != nil {

@@ -83,6 +83,7 @@ type vcr struct {
 	ambassador      Ambassador
 	network         network.Transactions
 	trustConfig     *trust.Config
+	tenants         TenantRegistry
 	issuer          issuer.Issuer
 	verifier        verifier.Verifier
 	holder          holder.Holder
@@ -115,6 +116,10 @@ func (c *vcr) Holder() holder.Holder {
 
 func (c *vcr) Verifier() verifier.Verifier {
 	return c.verifier
+}
+
+func (c *vcr) Tenants() TenantRegistry {
+	return c.tenants
 }
 
 func (c *vcr) Configure(config core.ServerConfig) error {
