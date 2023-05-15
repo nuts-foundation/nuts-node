@@ -21,10 +21,11 @@ package auth
 import (
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
-
+	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 )
 
 func NewTestAuthInstance(t *testing.T) *Auth {
@@ -40,5 +41,8 @@ func TestConfig() Config {
 func testInstance(t *testing.T, cfg Config) *Auth {
 	cryptoInstance := crypto.NewMemoryCryptoInstance()
 	vcrInstance := vcr.NewTestVCRInstance(t)
-	return NewAuthInstance(cfg, didstore.NewTestStore(t), vcrInstance, cryptoInstance, nil, nil)
+	ctrl := gomock.NewController(t)
+	pkiMock := pki.NewMockValidator(ctrl)
+	pkiMock.EXPECT().SetValidatePeerCertificateFunc(gomock.Any()).AnyTimes()
+	return NewAuthInstance(cfg, didstore.NewTestStore(t), vcrInstance, cryptoInstance, nil, nil, pkiMock)
 }

@@ -45,20 +45,16 @@ func TestNewUziValidator(t *testing.T) {
 	t.Run("production certificates", func(t *testing.T) {
 		truststore, err := LoadUziTruststore(UziProduction)
 		require.NoError(t, err)
-		crlValidator, err := pki.NewValidator(pkiCfg(), truststore.Certificates())
-		require.NoError(t, err)
 
-		_, err = NewUziValidator(truststore, &contract.StandardContractTemplates, crlValidator)
+		_, err = NewUziValidator(truststore, &contract.StandardContractTemplates, pki.New())
 		require.NoError(t, err)
 	})
 
 	t.Run("acceptation certificates", func(t *testing.T) {
 		truststore, err := LoadUziTruststore(UziAcceptation)
 		require.NoError(t, err)
-		crlValidator, err := pki.NewValidator(pkiCfg(), truststore.Certificates())
-		require.NoError(t, err)
 
-		_, err = NewUziValidator(truststore, &contract.StandardContractTemplates, crlValidator)
+		_, err = NewUziValidator(truststore, &contract.StandardContractTemplates, pki.New())
 		require.NoError(t, err)
 	})
 }
@@ -110,9 +106,7 @@ func TestUziValidator(t *testing.T) {
 	t.Run("ok - acceptation environment", func(t *testing.T) {
 		truststore, err := LoadUziTruststore(UziAcceptation)
 		require.NoError(t, err)
-		crlValidator, err := pki.NewValidator(pkiCfg(), truststore.Certificates())
-		require.NoError(t, err)
-		uziValidator, err := NewUziValidator(truststore, &contract.StandardContractTemplates, crlValidator)
+		uziValidator, err := NewUziValidator(truststore, &contract.StandardContractTemplates, pki.New())
 		require.NoError(t, err)
 
 		signedToken, err := uziValidator.Parse(uziSignedJwt)

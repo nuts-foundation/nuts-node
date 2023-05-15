@@ -51,23 +51,23 @@ var (
 	ErrCertUntrusted = errors.New("certificate's issuer is not trusted'")
 )
 
-type Validator interface {
-	// Start downloading CRLs. Cancelling the context will stop the Validator.
-	Start(ctx context.Context)
-
-	// Validate returns an error if any of the certificates in the chain has been revoked, or if the request cannot be processed.
-	// ErrCertRevoked and ErrCertUntrusted indicate that at least one of the certificates is revoked, or signed by a CA that is not in the truststore.
-	// ErrCRLMissing and ErrCRLExpired signal that at least one of the certificates cannot be validated reliably.
-	// If the certificate was revoked on an expired CRL, it wil return ErrCertRevoked. Ignoring ErrCRLMissing and ErrCRLExpired changes the behavior from hard-fail to soft-fail.
-	// The certificate chain is expected to be sorted leaf to root.
-	// Calling Validate before Start results in an error.
-	Validate(chain []*x509.Certificate) error
-
-	// SetValidatePeerCertificateFunc sets config.ValidatePeerCertificate to use Validate.
-	// Returns an error when config.Certificates contain certificates that cannot be parsed,
-	// or are signed by CAs that are not in the Validator's truststore.
-	SetValidatePeerCertificateFunc(config *tls.Config) error
-}
+//type Validator interface {
+//	// start downloading CRLs. Cancelling the context will stop the Validator.
+//	start(ctx context.Context)
+//
+//	// Validate returns an error if any of the certificates in the chain has been revoked, or if the request cannot be processed.
+//	// ErrCertRevoked and ErrCertUntrusted indicate that at least one of the certificates is revoked, or signed by a CA that is not in the truststore.
+//	// ErrCRLMissing and ErrCRLExpired signal that at least one of the certificates cannot be validated reliably.
+//	// If the certificate was revoked on an expired CRL, it wil return ErrCertRevoked. Ignoring ErrCRLMissing and ErrCRLExpired changes the behavior from hard-fail to soft-fail.
+//	// The certificate chain is expected to be sorted leaf to root.
+//	// Calling Validate before Start results in an error.
+//	Validate(chain []*x509.Certificate) error
+//
+//	// SetValidatePeerCertificateFunc sets config.ValidatePeerCertificate to use Validate.
+//	// Returns an error when config.Certificates contain certificates that cannot be parsed,
+//	// or are signed by CAs that are not in the Validator's truststore.
+//	SetValidatePeerCertificateFunc(config *tls.Config) error
+//}
 
 type validator struct {
 	// httpClient downloads the CRLs
@@ -109,8 +109,8 @@ func newRevocationList(cert *x509.Certificate) *revocationList {
 	}
 }
 
-// NewValidator returns a new PKI (crl/denylist) validator.
-func NewValidator(config pkiconfig.Config, truststore []*x509.Certificate) (Validator, error) {
+// newValidator returns a new PKI (crl/denylist) validator.
+func newValidator(config pkiconfig.Config, truststore []*x509.Certificate) (*validator, error) {
 	return newValidatorWithHTTPClient(config, truststore, &http.Client{Timeout: syncTimeout})
 }
 
@@ -151,7 +151,7 @@ func newValidatorWithHTTPClient(config pkiconfig.Config, certificates []*x509.Ce
 	return val, nil
 }
 
-func (v *validator) Start(ctx context.Context) {
+func (v *validator) start(ctx context.Context) {
 	go v.syncLoop(ctx)
 }
 

@@ -23,8 +23,6 @@ import (
 	"crypto"
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	"hash/crc32"
 	"math/rand"
 	"net/url"
@@ -37,6 +35,7 @@ import (
 	"github.com/nats-io/nats.go"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -44,7 +43,10 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
+	"github.com/nuts-foundation/nuts-node/pki"
+	pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/io"
@@ -1062,6 +1064,16 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 		Store: storage.CreateTestBBoltStore(t, serverConfig.Datadir+"/test.db"),
 	}
 
+	pkiValidator := pki.New()
+	pkiValidator.SetConfig(t, pkiconfig.DefaultConfig())
+	if err := pkiValidator.Configure(*serverConfig); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := pkiValidator.Start(); err != nil {
+		t.Fatal(err)
+	}
+
 	instance := &Network{
 		config:              config,
 		didDocumentResolver: didservice.Resolver{Store: didStore},
@@ -1070,6 +1082,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 		keyResolver:         didservice.KeyResolver{Store: didStore},
 		eventPublisher:      eventPublisher,
 		storeProvider:       &storeProvider,
+		pkiValidator:        pkiValidator,
 	}
 
 	if err := instance.Configure(*serverConfig); err != nil {
@@ -1094,6 +1107,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 	}
 	t.Cleanup(func() {
 		result.shutdown()
+		pkiValidator.Shutdown()
 	})
 	return result
 }

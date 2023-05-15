@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/pki"
 	"net/url"
 	"sync"
 	"testing"
@@ -259,6 +260,11 @@ func setup(t *testing.T) testContext {
 	// Startup events
 	eventPublisher := events.NewTestManager(t)
 
+	// Create PKI engine
+	pkiValidator := pki.New()
+	pkiValidator.Configure(nutsConfig)
+	// is not pkiValidator.Start()-ed
+
 	// Startup the network layer
 	networkCfg := network.DefaultConfig()
 	nutsNetwork := network.NewNetworkInstance(
@@ -269,6 +275,7 @@ func setup(t *testing.T) testContext {
 		docFinder,
 		eventPublisher,
 		&storageProvider,
+		pkiValidator,
 	)
 	nutsNetwork.Configure(nutsConfig)
 	nutsNetwork.Start()

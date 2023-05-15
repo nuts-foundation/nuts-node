@@ -25,7 +25,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	networkTypes "github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/pki"
-	pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
 	"google.golang.org/grpc"
 	"net"
 	"time"
@@ -61,19 +60,11 @@ func NewConfig(grpcAddress string, peerID networkTypes.PeerID, options ...Config
 }
 
 // WithTLS enables TLS for gRPC ConnectionManager.
-func WithTLS(clientCertificate tls.Certificate, trustStore *core.TrustStore) ConfigOption {
+func WithTLS(clientCertificate tls.Certificate, trustStore *core.TrustStore, pkiValidator pki.Validator) ConfigOption {
 	return func(config *Config) error {
 		config.clientCert = &clientCertificate
 		config.trustStore = trustStore.CertPool
-
-		pkiCfg := pkiconfig.Config{
-			MaxUpdateFailHours: 4,
-		}
-		crlValidator, err := pki.NewValidator(pkiCfg, trustStore.Certificates())
-		if err != nil {
-			return err
-		}
-		config.crlValidator = crlValidator
+		config.crlValidator = pkiValidator
 		// Load TLS server certificate, only if enableTLS=true and gRPC server should be started.
 		if config.listenAddress != "" {
 			config.serverCert = config.clientCert

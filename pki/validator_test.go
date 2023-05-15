@@ -80,7 +80,7 @@ func TestValidator_Start(t *testing.T) {
 	})
 
 	// Start triggers start
-	val.Start(ctx)
+	val.start(ctx)
 	val.sync() // blocks until sync is complete.
 
 	// crls have been updated
@@ -173,7 +173,7 @@ func TestValidator_SetValidatePeerCertificateFunc(t *testing.T) {
 	}
 	t.Run("set - ok", func(t *testing.T) {
 		cfg := newCfg(testdatapath + "/A-valid.pem")
-		v := newValidator(t)
+		v := testValidator(t)
 		require.Nil(t, cfg.VerifyPeerCertificate)
 
 		err := v.SetValidatePeerCertificateFunc(cfg)
@@ -187,7 +187,7 @@ func TestValidator_SetValidatePeerCertificateFunc(t *testing.T) {
 		t.Run("validates", func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			v.Start(ctx)
+			v.start(ctx)
 			v.sync()
 			t.Run("ok", func(t *testing.T) {
 				err := cfg.VerifyPeerCertificate([][]byte{store.IntermediateCAs[0].Raw, store.RootCAs[0].Raw}, nil)
@@ -205,7 +205,7 @@ func TestValidator_SetValidatePeerCertificateFunc(t *testing.T) {
 	})
 
 	t.Run("error - contains cert that is not in truststore", func(t *testing.T) {
-		v := newValidator(t)
+		v := testValidator(t)
 
 		err := v.SetValidatePeerCertificateFunc(newCfg("../test/pki/certificate-and-key.pem"))
 
@@ -218,14 +218,14 @@ func Test_NewValidator(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("ok", func(t *testing.T) {
-		val, err := NewValidator(pkiCfg(), store.Certificates())
+		val, err := newValidator(pkiCfg(), store.Certificates())
 		require.NoError(t, err)
 		assert.NotNil(t, val)
 	})
 
 	t.Run("invalid truststore", func(t *testing.T) {
 		noRootStore := store.Certificates()[:2]
-		_, err = NewValidator(pkiCfg(), noRootStore)
+		_, err = newValidator(pkiCfg(), noRootStore)
 		assert.ErrorContains(t, err, "certificate's issuer is not in the trust store")
 	})
 }
@@ -346,7 +346,7 @@ func Test_ValidatorVerifyCRL(t *testing.T) {
 func Test_ValidatorUpdateCRL(t *testing.T) {
 	crlEndpoint := rootCRLurl
 	t.Run("ok - update flows", func(t *testing.T) {
-		v := newValidator(t)
+		v := testValidator(t)
 
 		// get the empty rl
 		rl, ok := v.getCRL(crlEndpoint)
@@ -379,7 +379,7 @@ func Test_ValidatorUpdateCRL(t *testing.T) {
 	t.Run("invalid CRL issuer", func(t *testing.T) {
 		store, err := core.LoadTrustStore(truststore)
 		require.NoError(t, err)
-		v := newValidator(t)
+		v := testValidator(t)
 		rl := newRevocationList(store.Certificates()[0])
 
 		err = v.updateCRL(rootCRLurl, rl)
@@ -388,7 +388,7 @@ func Test_ValidatorUpdateCRL(t *testing.T) {
 	})
 }
 
-func newValidator(t *testing.T) *validator {
+func testValidator(t *testing.T) *validator {
 	store, err := core.LoadTrustStore(truststore)
 	require.NoError(t, err)
 	require.Len(t, store.Certificates(), 3)
@@ -399,10 +399,10 @@ func newValidator(t *testing.T) *validator {
 
 // newValidatorStarted return a Started validator containing truststore
 func newValidatorStarted(t *testing.T) *validator {
-	val := newValidator(t)
+	val := testValidator(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	val.Start(ctx)
+	val.start(ctx)
 	val.sync() // block until initial sync is completed
 	return val
 }

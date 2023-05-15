@@ -24,10 +24,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
-	"time"
 )
-
-var nowFunc = time.Now
 
 // MinTLSVersion defines the minimal TLS version used by all components that use TLS
 const MinTLSVersion uint16 = tls.VersionTLS12

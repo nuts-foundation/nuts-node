@@ -21,8 +21,10 @@ package grpc
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -36,6 +38,8 @@ func TestConfig_tlsEnabled(t *testing.T) {
 func TestNewConfig(t *testing.T) {
 	tlsCert, _ := tls.LoadX509KeyPair(testCertAndKeyFile, testCertAndKeyFile)
 	x509Cert, _ := x509.ParseCertificates(tlsCert.Certificate[0])
+	ctrl := gomock.NewController(t)
+	pkiMock := pki.NewMockValidator(ctrl)
 	t.Run("without TLS", func(t *testing.T) {
 		cfg, err := NewConfig(":1234", "foo")
 		require.NoError(t, err)
@@ -49,7 +53,7 @@ func TestNewConfig(t *testing.T) {
 		ts := &core.TrustStore{
 			CertPool: x509.NewCertPool(),
 		}
-		cfg, err := NewConfig(":1234", "foo", WithTLS(tlsCert, ts))
+		cfg, err := NewConfig(":1234", "foo", WithTLS(tlsCert, ts, pkiMock))
 		require.NoError(t, err)
 		assert.Equal(t, &tlsCert, cfg.clientCert)
 		assert.Equal(t, &tlsCert, cfg.serverCert)
@@ -59,7 +63,7 @@ func TestNewConfig(t *testing.T) {
 		ts := &core.TrustStore{
 			CertPool: core.NewCertPool(x509Cert),
 		}
-		cfg, err := NewConfig(":1234", "foo", WithTLS(tlsCert, ts))
+		cfg, err := NewConfig(":1234", "foo", WithTLS(tlsCert, ts, pkiMock))
 		require.NoError(t, err)
 		assert.Equal(t, &tlsCert, cfg.clientCert)
 		assert.Equal(t, &tlsCert, cfg.serverCert)

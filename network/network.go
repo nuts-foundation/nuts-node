@@ -41,6 +41,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
 	"github.com/nuts-foundation/nuts-node/network/transport/v2"
+	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
@@ -86,6 +87,7 @@ type Network struct {
 	didDocumentFinder   types.DocFinder
 	eventPublisher      events.Event
 	storeProvider       storage.Provider
+	pkiValidator        pki.Validator
 	// assumeNewNode indicates the node hasn't initially sync'd with the network.
 	assumeNewNode  bool
 	selfTestDialer tls.Dialer
@@ -131,6 +133,7 @@ func NewNetworkInstance(
 	didDocumentFinder types.DocFinder,
 	eventPublisher events.Event,
 	storeProvider storage.Provider,
+	pkiValidator pki.Validator,
 ) *Network {
 	return &Network{
 		config:              config,
@@ -140,6 +143,7 @@ func NewNetworkInstance(
 		didDocumentFinder:   didDocumentFinder,
 		eventPublisher:      eventPublisher,
 		storeProvider:       storeProvider,
+		pkiValidator:        pkiValidator,
 		selfTestDialer: tls.Dialer{
 			NetDialer: &net.Dialer{
 				Timeout: time.Second,
@@ -228,7 +232,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		// Configure TLS
 		var authenticator grpc.Authenticator
 		if config.LegacyTLS.Enabled {
-			grpcOpts = append(grpcOpts, grpc.WithTLS(n.certificate, n.trustStore))
+			grpcOpts = append(grpcOpts, grpc.WithTLS(n.certificate, n.trustStore, n.pkiValidator))
 			if config.TLS.Offload == core.OffloadIncomingTLS {
 				grpcOpts = append(grpcOpts, grpc.WithTLSOffloading(config.TLS.ClientCertHeaderName))
 			}
