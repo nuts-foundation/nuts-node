@@ -187,12 +187,13 @@ func (n *notary) Configure() error {
 			return err
 		}
 
-		pkiValidator := pki.New()
+		// seed pkiValidator with uzi certificate chain
+		err = n.pkiValidator.AddCerts(truststore.Certificates())
+		if err != nil {
+			return fmt.Errorf("could not add uzi certificates to validator: %w", err)
+		}
 
-		// seed uzi certificate chain to validator
-		pkiValidator.AddCerts(truststore.Certificates())
-
-		uziValidator, err := x509.NewUziValidator(truststore, &contract.StandardContractTemplates, pkiValidator)
+		uziValidator, err := x509.NewUziValidator(truststore, &contract.StandardContractTemplates, n.pkiValidator)
 		uziVerifier := uzi.Verifier{UziValidator: uziValidator}
 
 		if err != nil {
