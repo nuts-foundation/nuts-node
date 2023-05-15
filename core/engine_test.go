@@ -153,18 +153,6 @@ func TestSystem_Migrate(t *testing.T) {
 	})
 }
 
-func TestSystem_Diagnostics(t *testing.T) {
-	ctrl := gomock.NewController(t)
-
-	r := NewMockDiagnosable(ctrl)
-	r.EXPECT().Diagnostics().Return([]DiagnosticResult{&GenericDiagnosticResult{Title: "Result"}})
-
-	system := NewSystem()
-	system.RegisterEngine(TestEngine{})
-	system.RegisterEngine(r)
-	assert.Len(t, system.Diagnostics(), 1)
-}
-
 func TestSystem_RegisterEngine(t *testing.T) {
 	t.Run("adds an engine to the list", func(t *testing.T) {
 		ctl := System{

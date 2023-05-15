@@ -77,17 +77,6 @@ func (system *System) Load(flags *pflag.FlagSet) error {
 	})
 }
 
-// Diagnostics returns the compound diagnostics for all engines.
-func (system *System) Diagnostics() []DiagnosticResult {
-	result := make([]DiagnosticResult, 0)
-	system.VisitEngines(func(engine Engine) {
-		if m, ok := engine.(Diagnosable); ok {
-			result = append(result, m.Diagnostics()...)
-		}
-	})
-	return result
-}
-
 // Start starts all engines in the system.
 func (system *System) Start() error {
 	var err error
