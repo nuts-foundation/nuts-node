@@ -150,7 +150,7 @@ type grpcConnectionManager struct {
 	connections       *connectionList
 }
 
-// newGrpcServer configures a new grpc.Server. context.Context is used to cancel the crlValidator
+// newGrpcServer configures a new grpc.Server
 func newGrpcServer(config Config) (*grpc.Server, error) {
 	serverOpts := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(MaxMessageSizeInBytes),

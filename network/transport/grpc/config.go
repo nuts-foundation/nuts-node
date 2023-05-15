@@ -64,7 +64,7 @@ func WithTLS(clientCertificate tls.Certificate, trustStore *core.TrustStore, pki
 	return func(config *Config) error {
 		config.clientCert = &clientCertificate
 		config.trustStore = trustStore.CertPool
-		config.crlValidator = pkiValidator
+		config.pkiValidator = pkiValidator
 		// Load TLS server certificate, only if enableTLS=true and gRPC server should be started.
 		if config.listenAddress != "" {
 			config.serverCert = config.clientCert
@@ -114,8 +114,8 @@ type Config struct {
 	serverCert *tls.Certificate
 	// trustStore contains the trust anchors used when verifying remote a peer's TLS certificate.
 	trustStore *x509.CertPool
-	// crlValidator contains the database for revoked certificates
-	crlValidator pki.Validator
+	// pkiValidator contains the database for revoked certificates
+	pkiValidator pki.Validator
 	// clientCertHeaderName specifies the name of the HTTP header that contains the client certificate, if TLS is offloaded.
 	clientCertHeaderName string
 	// connectionTimeout specifies the time before an outbound connection attempt times out.
@@ -162,7 +162,7 @@ func newTLSConfig(config Config) (*tls.Config, error) {
 		MinVersion: core.MinTLSVersion,
 	}
 
-	if err := config.crlValidator.SetValidatePeerCertificateFunc(tlsConfig); err != nil {
+	if err := config.pkiValidator.SetValidatePeerCertificateFunc(tlsConfig); err != nil {
 		// cannot fail
 		return nil, err
 	}

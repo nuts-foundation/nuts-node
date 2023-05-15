@@ -209,7 +209,7 @@ func (v *validator) SetValidatePeerCertificateFunc(config *tls.Config) error {
 		for _, cert := range certificates {
 			issuer := v.truststore[cert.Issuer.String()]
 			if issuer == nil {
-				// This indicates a mismatch between crlValidator truststore and tls.Config. This is a programming error.
+				// This indicates a mismatch between pkiValidator truststore and tls.Config. This is a programming error.
 				return fmt.Errorf("tls.Config contains certificate from issuer that is not in the truststore: %s", cert.Subject.String())
 			}
 			if err = cert.CheckSignatureFrom(issuer); err != nil {

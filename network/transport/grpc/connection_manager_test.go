@@ -91,10 +91,10 @@ func withBufconnDialer(listener *bufconn.Listener) ConfigOption {
 func Test_NewGRPCConnectionManager(t *testing.T) {
 	t.Run("error - invalid truststore", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		crlValidator := pki.NewMockValidator(ctrl)
+		pkiValidator := pki.NewMockValidator(ctrl)
 		cfg := Config{trustStore: &x509.CertPool{}}
-		cfg.crlValidator = crlValidator
-		crlValidator.EXPECT().SetValidatePeerCertificateFunc(gomock.Any()).Return(errors.New("custom error"))
+		cfg.pkiValidator = pkiValidator
+		pkiValidator.EXPECT().SetValidatePeerCertificateFunc(gomock.Any()).Return(errors.New("custom error"))
 
 		cm, err := NewGRPCConnectionManager(cfg, createKVStore(t), *nodeDID, nil, nil)
 
