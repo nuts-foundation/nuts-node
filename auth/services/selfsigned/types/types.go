@@ -72,9 +72,9 @@ func (s Session) HumanReadableContract() string {
 
 type Employee struct {
 	Identifier string
-	RoleName   string
 	Initials   string
 	FamilyName string
+	RoleName   *string
 }
 
 type EmployeeIdentityCredentialSubject struct {
@@ -86,7 +86,7 @@ type EmployeeIdentityCredentialSubject struct {
 type EmployeeIdentityCredentialMember struct {
 	Identifier string                                 `json:"identifier"`
 	Member     EmployeeIdentityCredentialMemberMember `json:"member"`
-	RoleName   string                                 `json:"roleName"`
+	RoleName   *string                                `json:"roleName,omitempty"`
 	Type       string                                 `json:"type"`
 }
 

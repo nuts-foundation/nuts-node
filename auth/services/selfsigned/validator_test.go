@@ -73,13 +73,14 @@ func TestSigner_Validator_Roundtrip(t *testing.T) {
 		return issuanceDate
 	}
 	signerService := NewSigner(vcrContext.VCR, "http://localhost").(*signer)
+	roleName := "Administrator"
 	createdVP, err := signerService.createVP(audit.TestContext(), types.Session{
 		ExpiresAt: issuanceDate.Add(time.Hour * 24),
 		Contract:  testContract,
 		Employer:  "did:nuts:8NYzfsndZJHh6GqzKiSBpyERrFxuX64z6tE5raa7nEjm",
 		Employee: types.Employee{
 			Identifier: "user@examle.com",
-			RoleName:   "Administrator",
+			RoleName:   &roleName,
 			Initials:   "Ad",
 			FamilyName: "Min",
 		}}, issuanceDate)
@@ -114,6 +115,25 @@ func TestValidator_VerifyVP(t *testing.T) {
 		assert.Empty(t, result.Reason())
 		assert.Equal(t, contract.Valid, result.Validity())
 		assert.Equal(t, "user@example.com", result.DisclosedAttribute(services.UsernameClaim))
+		assert.Equal(t, "low", result.DisclosedAttribute(services.AssuranceLevelClaim))
+		assert.Equal(t, "", result.DisclosedAttribute(services.PrefixTokenClaim))
+		assert.Equal(t, "T", result.DisclosedAttribute(services.InitialsTokenClaim))
+		assert.Equal(t, "Tester", result.DisclosedAttribute(services.FamilyNameTokenClaim))
+		assert.Equal(t, "", result.DisclosedAttribute(services.EmailTokenClaim))
+		assert.Equal(t, "Verpleegkundige niveau 2", result.DisclosedAttribute(services.UserRoleClaim))
+	})
+	t.Run("ok using mocks (without role)", func(t *testing.T) {
+		mockContext := newMockContext(t)
+		ss := NewValidator(mockContext.vcr, contract.StandardContractTemplates)
+		credentialWithoutRole := vc.VerifiableCredential{}
+		data, _ := os.ReadFile("./test/vc-without-role.json")
+		_ = json.Unmarshal(data, &credentialWithoutRole)
+		mockContext.verifier.EXPECT().VerifyVP(vp, true, &vpValidTime).Return([]vc.VerifiableCredential{credentialWithoutRole}, nil)
+
+		result, err := ss.VerifyVP(vp, &vpValidTime)
+
+		require.NoError(t, err)
+		assert.Empty(t, result.DisclosedAttribute(services.UserRoleClaim))
 	})
 
 	t.Run("technical error on verify", func(t *testing.T) {
@@ -272,8 +292,7 @@ func Test_validateRequiredAttributes(t *testing.T) {
 				Initials:   "T",
 				Type:       "Person",
 			},
-			RoleName: "VP",
-			Type:     "EmployeeRole",
+			Type: "EmployeeRole",
 		},
 	}
 

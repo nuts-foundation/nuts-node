@@ -225,10 +225,6 @@ func checkSessionParams(params map[string]interface{}) error {
 	if !ok {
 		return fmt.Errorf("missing employee identifier")
 	}
-	_, ok = employeeMap["roleName"]
-	if !ok {
-		return fmt.Errorf("missing employee roleName")
-	}
 	_, ok = employeeMap["initials"]
 	if !ok {
 		return fmt.Errorf("missing employee initials")

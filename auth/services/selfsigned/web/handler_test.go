@@ -34,6 +34,7 @@ import (
 
 func TestRenderTemplate(t *testing.T) {
 	buf := new(bytes.Buffer)
+	roleName := "Administrator"
 	err := renderTemplate("employee_identity", "nl", types.Session{
 		ExpiresAt: time.Now(),
 		Contract:  "Hello, World!",
@@ -42,13 +43,12 @@ func TestRenderTemplate(t *testing.T) {
 		Employer:  "Darth Vader",
 		Employee: types.Employee{
 			Identifier: "johndoe@example.com",
-			RoleName:   "Administrator",
+			RoleName:   &roleName,
 			Initials:   "J",
 			FamilyName: "Doe",
 		},
 	}, buf)
 	require.NoError(t, err)
-	println(buf.String())
 }
 
 func TestHandler_HandleEmployeeIDForm(t *testing.T) {
@@ -266,12 +266,13 @@ func TestHandler_Routes(t *testing.T) {
 
 func Test_renderTemplate(t *testing.T) {
 	t.Run("ok - all values are rendered in the template", func(t *testing.T) {
+		roleName := "Nurse"
 		s := types.Session{
 			Contract: "nl:logincontract:v1 contract string",
 			Secret:   "secret value",
 			Employee: types.Employee{
 				Identifier: "123",
-				RoleName:   "Nurse",
+				RoleName:   &roleName,
 				Initials:   "T",
 				FamilyName: "Tester",
 			},
@@ -284,9 +285,28 @@ func Test_renderTemplate(t *testing.T) {
 			assert.Contains(t, buf.String(), "contract string")
 			assert.Contains(t, buf.String(), s.Secret, buf.String())
 			assert.Contains(t, buf.String(), s.Employee.Identifier)
-			assert.Contains(t, buf.String(), s.Employee.RoleName)
+			assert.Contains(t, buf.String(), *s.Employee.RoleName)
 			assert.Contains(t, buf.String(), s.Employee.Initials)
 			assert.Contains(t, buf.String(), s.Employee.FamilyName)
+		}
+	})
+	t.Run("ok - role name not present", func(t *testing.T) {
+		s := types.Session{
+			Contract: "nl:logincontract:v1 contract string",
+			Secret:   "secret value",
+			Employee: types.Employee{
+				Identifier: "123",
+				Initials:   "T",
+				FamilyName: "Tester",
+			},
+		}
+		for _, lang := range []contract.Language{"en", "nl"} {
+			buf := new(bytes.Buffer)
+			err := renderTemplate("employee_identity", lang, s, buf)
+
+			assert.NoError(t, err)
+			assert.NotContains(t, buf.String(), "<td>Title</td>")
+			assert.NotContains(t, buf.String(), "<td>Functieomschrijving</td>")
 		}
 	})
 
