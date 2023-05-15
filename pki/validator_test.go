@@ -56,20 +56,13 @@ var crlPathMap = map[string]string{
 	"/IntermediateCABLatest.crl": "does not exist",
 }
 
-// testConfig provides a validator module configuration for tests
-func pkiCfg() pkiconfig.Config {
-	return pkiconfig.Config{
-		MaxUpdateFailHours: 4,
-	}
-}
-
 func TestValidator_Start(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	store, err := core.LoadTrustStore(truststorePKIo)
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	val, err := newValidatorWithHTTPClient(pkiCfg(), store.Certificates(), newClient())
+	val, err := newValidatorWithHTTPClient(pkiconfig.DefaultConfig(), store.Certificates(), newClient())
 	require.NoError(t, err)
 
 	// crls are empty
@@ -218,14 +211,14 @@ func Test_NewValidator(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("ok", func(t *testing.T) {
-		val, err := newValidator(pkiCfg(), store.Certificates())
+		val, err := newValidator(pkiconfig.DefaultConfig(), store.Certificates())
 		require.NoError(t, err)
 		assert.NotNil(t, val)
 	})
 
 	t.Run("invalid truststore", func(t *testing.T) {
 		noRootStore := store.Certificates()[:2]
-		_, err = newValidator(pkiCfg(), noRootStore)
+		_, err = newValidator(pkiconfig.DefaultConfig(), noRootStore)
 		assert.ErrorContains(t, err, "certificate's issuer is not in the trust store")
 	})
 }
@@ -392,7 +385,7 @@ func testValidator(t *testing.T) *validator {
 	store, err := core.LoadTrustStore(truststore)
 	require.NoError(t, err)
 	require.Len(t, store.Certificates(), 3)
-	val, err := newValidatorWithHTTPClient(pkiCfg(), store.Certificates(), newClient())
+	val, err := newValidatorWithHTTPClient(pkiconfig.DefaultConfig(), store.Certificates(), newClient())
 	require.NoError(t, err)
 	return val
 }
