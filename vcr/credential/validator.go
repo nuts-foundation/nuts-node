@@ -109,21 +109,6 @@ func (d defaultCredentialValidator) Validate(credential vc.VerifiableCredential)
 		return failure("'proof' is required")
 	}
 
-	if len(credential.CredentialSubject) == 0 {
-		return failure("must have at least one 'credentialSubject'")
-	}
-	var credentialSubjects []BaseCredentialSubject
-	err := credential.UnmarshalCredentialSubject(&credentialSubjects)
-	if err != nil {
-		return failure("invalid credential subject(s): %v", err)
-	}
-	for _, credentialSubject := range credentialSubjects {
-		_, err := did.ParseDID(credentialSubject.ID)
-		if err != nil {
-			return failure("invalid 'credentialSubject.id': %v", err)
-		}
-	}
-
 	return nil
 }
 
@@ -159,6 +144,9 @@ func (d nutsOrganizationCredentialValidator) Validate(credential vc.VerifiableCr
 	}
 	if cs.ID == "" {
 		return failure("'credentialSubject.ID' is nil")
+	}
+	if _, err = did.ParseDID(cs.ID); err != nil {
+		return failure("invalid 'credentialSubject.id': %v", err)
 	}
 
 	if n, ok := cs.Organization["name"]; !ok || len(strings.TrimSpace(n)) == 0 {
@@ -202,6 +190,9 @@ func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableC
 
 	if len(strings.TrimSpace(cs.ID)) == 0 {
 		return failure("'credentialSubject.ID' is nil")
+	}
+	if _, err = did.ParseDID(cs.ID); err != nil {
+		return failure("invalid 'credentialSubject.id': %v", err)
 	}
 	if len(strings.TrimSpace(cs.PurposeOfUse)) == 0 {
 		return failure("'credentialSubject.PurposeOfUse' is nil")
