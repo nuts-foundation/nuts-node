@@ -17,8 +17,19 @@ Release date: **DRAFT**
 - Adds support for RFC019 and RFC020, which describe a new EmployeeIdentity authentication means which allows an employer to make claims
   about the identity of their employees. This has a lower level of assurance, but can be used when care organisations trust each others employee enrollment process.
 - Changed default healthcheck endpoint from ``/status`` to ``/health``. For correctly configured nodes this change should have no impact. The ``/status`` endpoint remains available.
+- Fixed issue where VDR could no longer update broken DID Documents.
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.2.0...v5.3.0
+
+************************
+Hazelnut update (v5.2.2)
+************************
+
+Release date: 2023-05-16
+
+- Fixed issue where VDR could no longer update broken DID Documents.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.2.1...v5.2.2
 
 ************************
 Hazelnut update (v5.2.1)
@@ -45,6 +56,16 @@ Release date: 2023-04-25
 - Added support for encrypting documents using the JWE standard (for DIDComm support).
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.1.0...v5.2.0
+
+************************
+Hazelnut update (v5.1.1)
+************************
+
+Release date: 2023-05-16
+
+- Fixed issue where VDR could no longer update broken DID Documents.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.1.0...v5.1.1
 
 *************************
 Hazelnut release (v5.1.0)
