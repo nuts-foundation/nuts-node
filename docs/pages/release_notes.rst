@@ -5,6 +5,16 @@ Release notes
 
 What has been changed, and how to update between versions.
 
+************************
+Hazelnut update (v5.1.1)
+************************
+
+Release date: 2023-05-16
+
+- Fixed issue where VDR could no longer update broken DID Documents.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.1.0...v5.1.1
+
 *************************
 Hazelnut release (v5.1.0)
 *************************
