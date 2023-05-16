@@ -88,12 +88,3 @@ func readEventList(tx stoabs.ReadTx, id did.DID) (eventList, error) {
 	}
 	return el, nil
 }
-
-func transactionExists(tx stoabs.ReadTx, ref hash.SHA256Hash) (bool, error) {
-	txReader := tx.GetShelfReader(transactionIndexShelf)
-	bytes, err := txReader.Get(stoabs.HashKey(ref))
-	if err != nil && !errors.Is(err, stoabs.ErrKeyNotFound) {
-		return false, err
-	}
-	return len(bytes) > 0, nil
-}
