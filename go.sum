@@ -447,8 +447,8 @@ github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35 h1:J9b7z+QKAm
 github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35/go.mod h1:prYjPmNq4d1NPVmpShWobRqXY3q7Vp+80DqgxxUrUIA=
 github.com/privacybydesign/gabi v0.0.0-20221012093643-8e978bfbb252 h1:q5BP7Eh/x1GCyIToZTBYQXELmO876ezbQvek7gJaBg4=
 github.com/privacybydesign/gabi v0.0.0-20221012093643-8e978bfbb252/go.mod h1:HQ6L5rKBY7qaqcheK6zpaVf7fhGWD0PvUAXJTDws+0M=
-github.com/privacybydesign/irmago v0.12.2 h1:z/GRO8vgFN9dJHk8DhwpCjYUlmeAcBBjYjKcoRyRcsU=
-github.com/privacybydesign/irmago v0.12.2/go.mod h1:JoFStZhRhLbJQ46DapYLrs72xhYeSHjnGPuMFEmckp4=
+github.com/privacybydesign/irmago v0.12.3 h1:pTf6mwtimVtddMp/9Sz2ISCj/hnFbknfS4sOeRX/Bts=
+github.com/privacybydesign/irmago v0.12.3/go.mod h1:JoFStZhRhLbJQ46DapYLrs72xhYeSHjnGPuMFEmckp4=
 github.com/prometheus/client_golang v0.9.1/go.mod h1:7SWBe2y4D6OKWSNQJUaRYU/AaXPKyh/dDVn+NZz0KFw=
 github.com/prometheus/client_golang v1.0.0/go.mod h1:db9x61etRT2tGnBNRi70OPL5FsnadC4Ky3P0J6CfImo=
 github.com/prometheus/client_golang v1.7.1/go.mod h1:PY5Wy2awLA44sXw4AOSfFBetzPP4j5+D6mVACh+pe2M=
@@ -507,7 +507,6 @@ github.com/spkg/bom v0.0.0-20160624110644-59b7046e48ad/go.mod h1:qLr4V1qq6nMqFKk
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/objx v0.1.1/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/objx v0.4.0/go.mod h1:YvHI0jy2hoMjB+UWwv71VJQ9isScKT/TqJzVSSt89Yw=
-github.com/stretchr/objx v0.5.0 h1:1zr/of2m5FGMsad5YfcqgdqdWrIhu+EBEJRhR1U7z/c=
 github.com/stretchr/objx v0.5.0/go.mod h1:Yh+to48EsGEfYuaHDzXPcE3xhTkx73EhmCGUpEOglKo=
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
