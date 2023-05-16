@@ -96,38 +96,3 @@ func Test_readEventList(t *testing.T) {
 		require.NoError(t, err)
 	})
 }
-
-func Test_transactionExists(t *testing.T) {
-	store := NewTestStore(t)
-
-	t.Run("false", func(t *testing.T) {
-		err := store.db.Read(context.Background(), func(tx stoabs.ReadTx) error {
-			dup, _ := transactionExists(tx, hash.RandomHash())
-
-			assert.False(t, dup)
-
-			return nil
-		})
-		require.NoError(t, err)
-	})
-
-	t.Run("true", func(t *testing.T) {
-		transaction := newTestTransaction(did.Document{})
-
-		err := store.db.Write(context.Background(), func(tx stoabs.WriteTx) error {
-			txShelf := tx.GetShelfWriter(transactionIndexShelf)
-			_ = txShelf.Put(stoabs.HashKey(transaction.Ref), []byte{0})
-			return nil
-		})
-		require.NoError(t, err)
-
-		err = store.db.Read(context.Background(), func(tx stoabs.ReadTx) error {
-			dup, _ := transactionExists(tx, transaction.Ref)
-
-			assert.True(t, dup)
-
-			return nil
-		})
-		require.NoError(t, err)
-	})
-}

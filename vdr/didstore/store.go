@@ -75,33 +75,40 @@ func (tl *store) Configure(_ core.ServerConfig) (err error) {
 // Add inserts the document version at the correct place and updates all later versions if needed
 // The integrity of the document has already been checked by the DAG.
 func (tl *store) Add(didDocument did.Document, transaction Transaction) error {
-	// prevents parallel execution
+	// First write the document and transaction to the transactionIndexShelf and documentShelf.
+	// This operation is duplicate save, since it uses hash values as key.
+	// This operation must succeed because otherwise the second transaction will be broken forever.
+	// Due to the way Redis works, there's no guarantee all the data is written transactionally when
+	// executed in a single write operation.
 	err := tl.db.Write(context.Background(), func(tx stoabs.WriteTx) error {
-		if exists, err := transactionExists(tx, transaction.Ref); err != nil {
-			return err
-		} else if exists {
-			return nil
+		// write document to documentShelf
+		err := writeDocument(tx, didDocument, transaction)
+		if err != nil {
+			return fmt.Errorf("writeDocument failed: %w", err)
 		}
+		return nil
+	}, stoabs.WithWriteLock())
+	if err != nil {
+		return fmt.Errorf("database error on commit: %w", err)
+	}
 
+	err = tl.db.Write(context.Background(), func(tx stoabs.WriteTx) error {
 		currentEventList, err := readEventList(tx, didDocument.ID)
 		if err != nil {
 			return fmt.Errorf("read eventList failed: %w", err)
 		}
 
-		// write document to documentShelf
-		err = writeDocument(tx, didDocument, transaction)
-		if err != nil {
-			return fmt.Errorf("writeDocument failed: %w", err)
+		transaction.document = &didDocument
+		if currentEventList.contains(event(transaction)) {
+			return nil
 		}
 
-		transaction.document = &didDocument
 		index := currentEventList.insert(event(transaction))
 		var base *event
 		applyList := currentEventList.Events[index:]
 		if index > 0 {
 			base = &currentEventList.Events[index-1]
 		}
-
 		if err = applyFrom(tx, base, applyList); err != nil {
 			return fmt.Errorf("applying event list failed: %w", err)
 		}
