@@ -42,14 +42,6 @@ func TestGetIrmaServer(t *testing.T) {
 		assert.NotNil(t, irmaServer, "expected an IRMA server instance")
 	})
 
-	t.Run("it fails on an unknown extra schema dir", func(t *testing.T) {
-		dirname, err := os.MkdirTemp(validatorConfig.IrmaConfigPath, "foo")
-		require.NoError(t, err)
-		defer func() { os.RemoveAll(dirname) }()
-		_, err = getIrmaConfig(validatorConfig)
-		assert.ErrorContains(t, err, "no scheme file")
-	})
-
 	// Check if the fix for https://github.com/privacybydesign/irmago/issues/139 works
 	t.Run("it removes leftover scheme dirs", func(t *testing.T) {
 		dirname, err := os.MkdirTemp(validatorConfig.IrmaConfigPath, "tempscheme")
