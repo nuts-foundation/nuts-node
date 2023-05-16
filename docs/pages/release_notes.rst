@@ -10,6 +10,7 @@ Hazelnut update (v5.2.2)
 Release date: 2023-05-16
 
 - Fixed issue where VDR could no longer update broken DID Documents.
+- Reverted VCR API change in which `credentialSubject` was returned as an array instead of an object.
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.2.1...v5.2.2
 
