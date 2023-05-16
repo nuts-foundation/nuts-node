@@ -125,11 +125,12 @@ func loadCredentialIssuerMetadata(ctx context.Context, identifier string, httpCl
 	if err != nil {
 		return nil, err
 	}
-	if len(result.CredentialEndpoint) == 0 {
-		return nil, errors.New("invalid meta data: does not contain credential endpoint")
+	if result.CredentialIssuer != identifier {
+		return nil, errors.New("invalid credential issuer meta data: identifier in meta data differs from requested identifier")
 	}
-	// TODO: Verify CredentialIssuer is the expected one
-	//       See https://github.com/nuts-foundation/nuts-node/issues/2033
+	if len(result.CredentialEndpoint) == 0 {
+		return nil, errors.New("invalid credential issuer meta data: does not contain credential endpoint")
+	}
 	return &result, nil
 }
 
@@ -143,11 +144,12 @@ func loadOIDCProviderMetadata(ctx context.Context, identifier string, httpClient
 	if err != nil {
 		return nil, err
 	}
-	if len(result.TokenEndpoint) == 0 {
-		return nil, errors.New("invalid meta data: does not contain token endpoint")
+	if result.Issuer != identifier {
+		return nil, errors.New("invalid OpenID provider meta data: issuer in meta data differs from requested issuer")
 	}
-	// TODO: Verify issuer is the expected one
-	//       See https://github.com/nuts-foundation/nuts-node/issues/2033
+	if len(result.TokenEndpoint) == 0 {
+		return nil, errors.New("invalid OpenID provider meta data: does not contain token endpoint")
+	}
 	return &result, nil
 }
 

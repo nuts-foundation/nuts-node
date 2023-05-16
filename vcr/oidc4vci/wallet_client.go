@@ -91,7 +91,5 @@ func loadOAuth2CredentialsClientMetadata(ctx context.Context, metadataURL string
 	if len(result.CredentialOfferEndpoint) == 0 {
 		return nil, errors.New("invalid meta data: does not contain credential offer endpoint")
 	}
-	// TODO: Verify client identifier is the expected one?
-	//       See https://github.com/nuts-foundation/nuts-node/issues/2033
 	return &result, nil
 }

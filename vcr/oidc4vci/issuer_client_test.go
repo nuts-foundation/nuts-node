@@ -35,27 +35,52 @@ func TestNewIssuerClient(t *testing.T) {
 		require.EqualError(t, err, "empty Credential Issuer Identifier")
 		require.Nil(t, client)
 	})
-	t.Run("error loading credential issuer metadata", func(t *testing.T) {
-		setup := setupClientTest(t)
-		setup.issuerMetadataHandler = func(writer http.ResponseWriter, request *http.Request) {
-			writer.WriteHeader(http.StatusNotFound)
-		}
+	t.Run("credential issuer metadata", func(t *testing.T) {
+		t.Run("non-OK HTTP status code", func(t *testing.T) {
+			setup := setupClientTest(t)
+			setup.issuerMetadataHandler = func(writer http.ResponseWriter, request *http.Request) {
+				writer.WriteHeader(http.StatusNotFound)
+			}
 
-		client, err := NewIssuerAPIClient(ctx, httpClient, setup.providerMetadata.Issuer)
+			client, err := NewIssuerAPIClient(ctx, httpClient, setup.issuerMetadata.CredentialIssuer)
 
-		require.ErrorContains(t, err, "unable to load Credential Issuer Metadata")
-		require.Nil(t, client)
+			require.ErrorContains(t, err, "unable to load Credential Issuer Metadata")
+			require.Nil(t, client)
+		})
+		t.Run("identifier differs", func(t *testing.T) {
+			setup := setupClientTest(t)
+			correctIdentifier := setup.issuerMetadata.CredentialIssuer
+			setup.issuerMetadata.CredentialIssuer = "https://example.com"
+
+			client, err := NewIssuerAPIClient(ctx, httpClient, correctIdentifier)
+
+			require.ErrorContains(t, err, "invalid credential issuer meta data: identifier in meta data differs from requested identifier")
+			require.Nil(t, client)
+		})
 	})
-	t.Run("error loading provider metadata", func(t *testing.T) {
-		setup := setupClientTest(t)
-		setup.providerMetadataHandler = func(writer http.ResponseWriter, request *http.Request) {
-			writer.WriteHeader(http.StatusNotFound)
-		}
 
-		client, err := NewIssuerAPIClient(ctx, httpClient, setup.providerMetadata.Issuer)
+	t.Run("OpenID provider metadata", func(t *testing.T) {
+		t.Run("non-OK HTTP status code", func(t *testing.T) {
+			setup := setupClientTest(t)
+			setup.providerMetadataHandler = func(writer http.ResponseWriter, request *http.Request) {
+				writer.WriteHeader(http.StatusNotFound)
+			}
 
-		require.ErrorContains(t, err, "unable to load OIDC Provider Metadata")
-		require.Nil(t, client)
+			client, err := NewIssuerAPIClient(ctx, httpClient, setup.providerMetadata.Issuer)
+
+			require.ErrorContains(t, err, "unable to load OIDC Provider Metadata")
+			require.Nil(t, client)
+		})
+		t.Run("identifier differs", func(t *testing.T) {
+			setup := setupClientTest(t)
+			correctIdentifier := setup.providerMetadata.Issuer
+			setup.providerMetadata.Issuer = "https://example.com"
+
+			client, err := NewIssuerAPIClient(ctx, httpClient, correctIdentifier)
+
+			require.ErrorContains(t, err, "invalid OpenID provider meta data: issuer in meta data differs from requested issuer")
+			require.Nil(t, client)
+		})
 	})
 }
 
