@@ -286,7 +286,9 @@ paths:
                   description: JWT access token
       responses:
         '200':
-          description: An Introspection response as described in RFC7662 section 2.2
+          description: | 
+            An Introspection response as described in RFC7662 section 2.2. The Irma, Dummy and Employee identity means all return 'username', 'initials',  'prefix', 'family_name' and 'assurance_level'.
+            'username' should be used as unique identifier for the user.
           content:
             application/json:
               schema:
