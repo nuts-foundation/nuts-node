@@ -19,6 +19,7 @@
 package types
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"strings"
@@ -26,6 +27,7 @@ import (
 )
 
 type SessionStore interface {
+	Start(ctx context.Context)
 	Store(sessionID string, session Session)
 	Load(sessionID string) (Session, bool)
 	CheckAndSetStatus(sessionID string, expectedStatus, status string) bool

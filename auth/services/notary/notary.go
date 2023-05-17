@@ -220,6 +220,9 @@ func (n *notary) Start(ctx context.Context) {
 	if n.uziCrlValidator != nil {
 		n.uziCrlValidator.Start(ctx)
 	}
+	for _, v := range n.signers {
+		v.Start(ctx)
+	}
 }
 
 func (n *notary) VerifyVP(vp vc.VerifiablePresentation, checkTime *time.Time) (contract.VPVerificationResult, error) {
