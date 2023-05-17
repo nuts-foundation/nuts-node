@@ -496,3 +496,33 @@ It will return a structure similar to:
     }
 
 The ``validity`` will indicate its validity. An expired contract is considered invalid.
+
+Audit log requirements
+**********************
+
+Information in the access token can be used to fulfill any audit log requirements for a protected resource.
+An access token issued by the Nuts node can be introspected using the introspection API (RFC7662):
+
+.. code-block::
+
+    POST /internal/auth/v1/accesstoken/introspect
+
+The POST body is ``application/x-www-form-urlencoded`` encoded
+
+.. code-block::
+
+    token=<jwt>
+
+The result will return the following identifying properties if user authentication was present in the access token request:
+
+- username
+- initials
+- prefix
+- family_name
+- assurance_level
+
+``username`` can be used for an unique identifier. It will be filled with an email address or an employer identifier.
+
+.. note::
+
+	This is not yet the case for the UZI means.
