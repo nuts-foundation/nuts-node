@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/piprate/json-gold/ld"
 	"strings"
 
@@ -144,6 +145,9 @@ func (d nutsOrganizationCredentialValidator) Validate(credential vc.VerifiableCr
 	if cs.ID == "" {
 		return failure("'credentialSubject.ID' is nil")
 	}
+	if _, err = did.ParseDID(cs.ID); err != nil {
+		return failure("invalid 'credentialSubject.id': %v", err)
+	}
 
 	if n, ok := cs.Organization["name"]; !ok || len(strings.TrimSpace(n)) == 0 {
 		return failure("'credentialSubject.name' is empty")
@@ -186,6 +190,9 @@ func (d nutsAuthorizationCredentialValidator) Validate(credential vc.VerifiableC
 
 	if len(strings.TrimSpace(cs.ID)) == 0 {
 		return failure("'credentialSubject.ID' is nil")
+	}
+	if _, err = did.ParseDID(cs.ID); err != nil {
+		return failure("invalid 'credentialSubject.id': %v", err)
 	}
 	if len(strings.TrimSpace(cs.PurposeOfUse)) == 0 {
 		return failure("'credentialSubject.PurposeOfUse' is nil")
