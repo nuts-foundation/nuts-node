@@ -196,6 +196,9 @@ func (i *memoryIssuer) HandleCredentialRequest(ctx context.Context, issuer did.D
 	return &credential, nil
 }
 
+// validateProof validates the proof of the credential request. Aside from checks as specified by the spec,
+// it verifies the proof signature, and whether the signer is the intended wallet.
+// See https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-proof-types
 func (i *memoryIssuer) validateProof(request oidc4vci.CredentialRequest, issuer did.DID, wallet did.DID) error {
 	if request.Proof == nil {
 		return oidc4vci.Error{
