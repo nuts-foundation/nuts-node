@@ -34,6 +34,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/oidc4vci"
+	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 	"net/http"
 	"net/url"
@@ -210,37 +211,23 @@ func (i *memoryIssuer) validateProof(request oidc4vci.CredentialRequest, issuer 
 			StatusCode: http.StatusBadRequest,
 		}
 	}
+	var signingKeyID string
 	token, err := crypto.ParseJWT(request.Proof.Jwt, func(kid string) (crypt.PublicKey, error) {
-		// Check proof signer == offer receiver
-		signerDID, err := did.ParseDIDURL(kid)
-		if err != nil {
-			return nil, oidc4vci.Error{
-				Err:        fmt.Errorf("invalid signing key ID (kid=%s): %w", kid, err),
-				Code:       oidc4vci.InvalidOrMissingProof,
-				StatusCode: http.StatusBadRequest,
-			}
-		}
-		signerDID.Fragment = ""
-		signerDID.Query = ""
-		if signerDID.String() != wallet.String() {
-			return nil, oidc4vci.Error{
-				Err:        fmt.Errorf("credential offer wasn't intended for wallet: %s", wallet),
-				Code:       oidc4vci.InvalidOrMissingProof,
-				StatusCode: http.StatusBadRequest,
-			}
-		}
-
-		// Assert proof is actually signed by wallet to which it was offered (key must be present on DID document)
-		signingKey, err := i.keyResolver.ResolveSigningKey(kid, nil)
-		if err != nil {
-			return nil, fmt.Errorf("unable to resolve signing key (kid=%s): %w", kid, err)
-		}
-
-		return signingKey, nil
+		signingKeyID = kid
+		return i.keyResolver.ResolveSigningKey(kid, nil)
 	}, jwt.WithAcceptableSkew(5*time.Second))
 	if err != nil {
 		return oidc4vci.Error{
 			Err:        err,
+			Code:       oidc4vci.InvalidOrMissingProof,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
+
+	// Proof must be signed by wallet to which it was offered (proof signer == offer receiver)
+	if signerDID, err := didservice.GetDIDFromURL(signingKeyID); err != nil || signerDID.String() != wallet.String() {
+		return oidc4vci.Error{
+			Err:        fmt.Errorf("credential offer was signed by other DID than intended wallet: %s", signingKeyID),
 			Code:       oidc4vci.InvalidOrMissingProof,
 			StatusCode: http.StatusBadRequest,
 		}

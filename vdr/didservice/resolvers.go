@@ -156,12 +156,10 @@ func (r KeyResolver) ResolveSigningKey(keyID string, validAt *time.Time) (crypto
 }
 
 func (r KeyResolver) ResolveRelationKey(keyID string, validAt *time.Time, relationType types.RelationType) (crypto.PublicKey, error) {
-	kid, err := did.ParseDIDURL(keyID)
+	holder, err := GetDIDFromURL(keyID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid key ID (id=%s): %w", keyID, err)
 	}
-	holder := *kid
-	holder.Fragment = ""
 	doc, _, err := r.Store.Resolve(holder, &types.ResolveMetadata{
 		ResolveTime: validAt,
 	})
@@ -265,9 +263,8 @@ func (r KeyResolver) resolvePublicKey(kid string, metadata types.ResolveMetadata
 	if err != nil {
 		return nil, fmt.Errorf("invalid key ID (id=%s): %w", kid, err)
 	}
-	didCopy := *id
-	didCopy.Fragment = ""
-	doc, _, err := r.Store.Resolve(didCopy, &metadata)
+	holder, _ := GetDIDFromURL(kid) // can't fail, already parsed
+	doc, _, err := r.Store.Resolve(holder, &metadata)
 	if err != nil {
 		return nil, err
 	}
@@ -312,18 +309,14 @@ func (s serviceResolver) ResolveEx(endpoint ssi.URI, depth int, maxDepth int, do
 		return did.Service{}, types.ErrServiceReferenceToDeep
 	}
 
-	referencedDID, err := did.ParseDIDURL(endpoint.String())
+	referencedDID, err := GetDIDFromURL(endpoint.String())
 	if err != nil {
 		// Shouldn't happen, because only DID URLs are passed?
 		return did.Service{}, err
 	}
-	referencedDID.Query = ""
-	referencedDID.Path = ""
-	referencedDID.Fragment = ""
-	referencedDID.PathSegments = nil
 	var document *did.Document
 	if document = documentCache[referencedDID.String()]; document == nil {
-		document, _, err = s.doc.Resolve(*referencedDID, nil)
+		document, _, err = s.doc.Resolve(referencedDID, nil)
 		if err != nil {
 			return did.Service{}, err
 		}

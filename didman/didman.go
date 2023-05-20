@@ -288,11 +288,10 @@ func (d *didman) GetCompoundServiceEndpoint(id did.DID, compoundServiceType stri
 }
 
 func (d *didman) DeleteService(ctx context.Context, serviceID ssi.URI) error {
-	id, err := did.ParseDIDURL(serviceID.String())
+	id, err := didservice.GetDIDFromURL(serviceID.String())
 	if err != nil {
 		return err
 	}
-	id.Fragment = ""
 
 	unlockFn := d.callSerializer.Lock(id.String())
 	defer unlockFn()
@@ -305,13 +304,12 @@ func (d *didman) deleteService(ctx context.Context, serviceID ssi.URI) error {
 	log.Logger().
 		WithField(core.LogFieldServiceID, serviceID.String()).
 		Debug("Deleting service")
-	id, err := did.ParseDIDURL(serviceID.String())
+	id, err := didservice.GetDIDFromURL(serviceID.String())
 	if err != nil {
 		return err
 	}
-	id.Fragment = ""
 
-	doc, _, err := d.docResolver.Resolve(*id, nil)
+	doc, _, err := d.docResolver.Resolve(id, nil)
 	if err != nil {
 		return err
 	}
@@ -339,7 +337,7 @@ func (d *didman) deleteService(ctx context.Context, serviceID ssi.URI) error {
 	}
 	doc.Service = doc.Service[:j]
 
-	err = d.vdr.Update(ctx, *id, *doc)
+	err = d.vdr.Update(ctx, id, *doc)
 	if err == nil {
 		log.Logger().
 			WithField(core.LogFieldServiceID, serviceID.String()).

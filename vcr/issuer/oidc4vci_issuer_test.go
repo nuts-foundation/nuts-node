@@ -181,7 +181,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 
 				response, err := issuer.HandleCredentialRequest(ctx, issuerDID, invalidRequest, "access-token")
 
-				assertProtocolError(t, err, http.StatusBadRequest, "invalid_or_missing_proof - invalid_or_missing_proof - credential offer wasn't intended for wallet: did:nuts:other-wallet")
+				assertProtocolError(t, err, http.StatusBadRequest, "invalid_or_missing_proof - credential offer was signed by other DID than intended wallet: did:nuts:holder#1")
 				assert.Nil(t, response)
 			})
 			t.Run("signing key is unknown", func(t *testing.T) {
@@ -195,7 +195,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 
 				response, err := issuer.HandleCredentialRequest(ctx, issuerDID, invalidRequest, "access-token")
 
-				assertProtocolError(t, err, http.StatusBadRequest, "invalid_or_missing_proof - unable to resolve signing key (kid=did:nuts:holder#1): key not found in DID document")
+				assertProtocolError(t, err, http.StatusBadRequest, "invalid_or_missing_proof - key not found in DID document")
 				assert.Nil(t, response)
 			})
 			t.Run("typ header missing", func(t *testing.T) {
