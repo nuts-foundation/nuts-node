@@ -38,7 +38,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("vcr", pflag.ContinueOnError)
 	flagSet.Bool("vcr.oidc4vci.enabled", defs.OIDC4VCI.Enabled, "Enable issuing and receiving credentials over OIDC4VCI (experimental).")
 	flagSet.Bool("vcr.oidc4vci.url", defs.OIDC4VCI.Enabled, "Base URL for the OIDC4VCI wallet and issuer endpoints (experimental). "+
-		"These are a node-to-node (/n2n) endpoints, but only the base path up until (not including) /n2n has to be configured. So typically, only a domain. "+
+		"These are node-to-node (/n2n) endpoints, but only the base path up until (not including) /n2n has to be configured. So typically, only a domain. "+
 		"Must be HTTPS when strict-mode is enabled.")
 	return flagSet
 }
