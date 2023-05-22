@@ -435,21 +435,19 @@ func (v *validator) updateCRL(endpoint string, current *revocationList) error {
 		return err
 	}
 
-	// update when it is a new crl
-	if current.list.Number == nil || current.list.Number.Cmp(crl.Number) < 0 {
-		// parse revocations
-		revoked := make(map[string]bool, len(crl.RevokedCertificates))
-		for _, rev := range crl.RevokedCertificates {
-			revoked[rev.SerialNumber.String()] = true
-		}
-		// set the new CRL
-		v.crls.Store(endpoint, &revocationList{
-			list:        crl,
-			issuer:      current.issuer,
-			revoked:     revoked,
-			lastUpdated: nowFunc(),
-		})
+	// parse revocations
+	revoked := make(map[string]bool, len(crl.RevokedCertificates))
+	for _, rev := range crl.RevokedCertificates {
+		revoked[rev.SerialNumber.String()] = true
 	}
+	// set the new CRL
+	v.crls.Store(endpoint, &revocationList{
+		list:        crl,
+		issuer:      current.issuer,
+		revoked:     revoked,
+		lastUpdated: nowFunc(),
+	})
+
 	return nil
 }
 

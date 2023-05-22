@@ -351,7 +351,7 @@ func Test_ValidatorVerifyCRL(t *testing.T) {
 
 func Test_ValidatorUpdateCRL(t *testing.T) {
 	crlEndpoint := rootCRLurl
-	t.Run("ok - update flows", func(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
 		v := testValidator(t)
 
 		// get the empty rl
@@ -365,22 +365,6 @@ func Test_ValidatorUpdateCRL(t *testing.T) {
 		rl2, ok := v.getCRL(crlEndpoint)
 		require.True(t, ok)
 		assert.NotSame(t, rl, rl2)
-
-		// do not update if the crl.SerialNumber has not changed
-		err = v.updateCRL(crlEndpoint, rl2)
-		require.NoError(t, err)
-		rl3, ok := v.getCRL(crlEndpoint)
-		require.True(t, ok)
-		assert.Same(t, rl3, rl2)
-
-		// update if the crl.SerialNumber has increased
-		lowerCRLNumber := big.NewInt(0)
-		rl2.list.Number = lowerCRLNumber
-		err = v.updateCRL(crlEndpoint, rl2)
-		require.NoError(t, err)
-		rl4, ok := v.getCRL(crlEndpoint)
-		require.True(t, ok)
-		assert.NotSame(t, rl4, rl2)
 	})
 	t.Run("invalid CRL issuer", func(t *testing.T) {
 		store, err := core.LoadTrustStore(truststore)
