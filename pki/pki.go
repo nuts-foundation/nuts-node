@@ -2,7 +2,6 @@ package pki
 
 import (
 	"context"
-
 	"github.com/nuts-foundation/nuts-node/core"
 )
 
