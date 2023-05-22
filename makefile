@@ -32,7 +32,7 @@ gen-mocks:
 	mockgen -destination=network/transport/grpc/interface_mock.go -package=grpc -source=network/transport/grpc/interface.go
 	mockgen -destination=network/transport/v2/senders_mock.go -package=v2 -source=network/transport/v2/senders.go
 	mockgen -destination=network/transport/v2/gossip/mock.go -package=gossip -source=network/transport/v2/gossip/manager.go
-	mockgen -destination=pki/mock.go -package=pki -source=pki/pki.go Validator
+	mockgen -destination=pki/mock.go -package=pki -source=pki/validator.go Validator
 	mockgen -destination=storage/mock.go -package=storage -source=storage/interface.go
 	mockgen -destination=vcr/types/mock.go -package=types -source=vcr/types/interface.go
 	mockgen -destination=vcr/mock.go -package=vcr -source=vcr/interface.go

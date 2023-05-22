@@ -148,6 +148,10 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 			RootCAs:      trustStore.CertPool,
 			MinVersion:   core.MinTLSVersion,
 		}
+		if err = auth.pkiValidator.AddTruststore(trustStore.Certificates()); err != nil {
+			return err
+		}
+
 		if err = auth.pkiValidator.SetValidatePeerCertificateFunc(tlsConfig); err != nil {
 			return err
 		}

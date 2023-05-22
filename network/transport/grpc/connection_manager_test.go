@@ -140,6 +140,7 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 		clientCert, _ := tls.LoadX509KeyPair(testCertAndKeyFile, testCertAndKeyFile)
 		ctrl := gomock.NewController(t)
 		pkiMock := pki.NewMockValidator(ctrl)
+		pkiMock.EXPECT().AddTruststore(ts.Certificates())
 		pkiMock.EXPECT().SetValidatePeerCertificateFunc(gomock.Any())
 
 		config, err := NewConfig("", "test", WithTLS(clientCert, ts, pkiMock))
@@ -557,6 +558,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 	serverCert, _ := tls.LoadX509KeyPair(testCertAndKeyFile, testCertAndKeyFile)
 	ctrl := gomock.NewController(t)
 	pkiMock := pki.NewMockValidator(ctrl)
+	pkiMock.EXPECT().AddTruststore(gomock.Any()).AnyTimes()
 
 	t.Run("ok - gRPC server not bound", func(t *testing.T) {
 		cm, err := NewGRPCConnectionManager(Config{}, nil, *nodeDID, nil)

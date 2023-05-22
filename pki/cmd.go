@@ -1,13 +1,12 @@
 package pki
 
 import (
-	"github.com/nuts-foundation/nuts-node/pki/config"
 	"github.com/spf13/pflag"
 )
 
 // FlagSet contains flags relevant for JSON-LD
 func FlagSet() *pflag.FlagSet {
-	defs := config.DefaultConfig()
+	defs := DefaultConfig()
 
 	flagSet := pflag.NewFlagSet("pki", pflag.ContinueOnError)
 

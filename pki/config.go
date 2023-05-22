@@ -17,7 +17,7 @@
  *
  */
 
-package config
+package pki
 
 func DefaultConfig() Config {
 	return Config{
@@ -46,10 +46,6 @@ type Config struct {
 type DenylistConfig struct {
 	// URL specifies the URL where the certificate blacklist is downloaded
 	URL string `koanf:"url"`
-
-	// File specifies path to local denylist file
-	File string
-	//TODO: should File be able to have its own signer? (may prevent users from removing the 'official' denylist to add their own)
 
 	// TrustedSigner specifies the PEM Ed25519 public key which must sign the blacklist
 	TrustedSigner string `koanf:"trustedsigner"`
