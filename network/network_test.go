@@ -75,6 +75,7 @@ type networkTestContext struct {
 	docResolver       *vdrTypes.MockDocResolver
 	docFinder         *vdrTypes.MockDocFinder
 	eventPublisher    *events.MockEvent
+	pkiValidator      *pki.MockValidator
 }
 
 func (cxt *networkTestContext) start() error {
@@ -210,6 +211,8 @@ func TestNetwork_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		ctx := createNetwork(t, ctrl)
 		ctx.protocol.EXPECT().Configure(gomock.Any())
+		ctx.pkiValidator.EXPECT().AddTruststore(gomock.Any())
+		ctx.pkiValidator.EXPECT().SetValidatePeerCertificateFunc(gomock.Any())
 		ctx.network.connectionManager = nil
 
 		cfg := *core.NewServerConfig()
@@ -251,6 +254,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		ctx := createNetwork(t, ctrl)
 		ctx.protocol.EXPECT().Configure(gomock.Any())
+		ctx.pkiValidator.EXPECT().AddTruststore(gomock.Any())
 		ctx.network.connectionManager = nil
 
 		cfg := *core.NewServerConfig()
@@ -1302,7 +1306,6 @@ func createNetwork(t *testing.T, ctrl *gomock.Controller, cfgFn ...func(config *
 	// required when starting the network, it searches for nodes to connect to
 	docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return([]did.Document{}, nil)
 	pkiMock := pki.NewMockValidator(ctrl)
-	pkiMock.EXPECT().SetValidatePeerCertificateFunc(gomock.Any()).AnyTimes()
 	network := NewNetworkInstance(networkConfig, keyResolver, keyStore, docResolver, docFinder, eventPublisher, storageEngine.GetProvider(ModuleName), pkiMock)
 	network.state = state
 	network.connectionManager = connectionManager
@@ -1324,6 +1327,7 @@ func createNetwork(t *testing.T, ctrl *gomock.Controller, cfgFn ...func(config *
 		docResolver:       docResolver,
 		docFinder:         docFinder,
 		eventPublisher:    eventPublisher,
+		pkiValidator:      pkiMock,
 	}
 }
 
