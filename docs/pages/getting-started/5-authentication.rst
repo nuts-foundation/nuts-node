@@ -83,7 +83,7 @@ To use the employee identity as a means for signing a contract, the following is
 Exposed endpoints
 =================
 
-The employee identity means uses endpoints under ``{publicurl}/public/auth/v1/means/selfsigned/{sessionID}``.
+The employee identity means uses endpoints under ``{publicurl}/public/auth/v1/means/employeeid/{sessionID}``.
 
 Starting a session
 ==================
@@ -99,7 +99,7 @@ The body for this call looks like:
 .. code-block:: json
 
     {
-        "means": "selfsigned",
+        "means": "employeeid",
         "payload": "<message>"
 		"params": {
 			"employer": "did:nuts:7eaDstczhnigW9uW1JRzYF2u5KhTntFTnee8vGDHokD",
@@ -124,7 +124,7 @@ The result will be something like:
 
     {
         "sessionID": "56098jvsldrioj230468",
-        "url": "https://node.example.com/public/auth/v1/means/selfsigned/56098jvsldrioj230468"
+        "url": "https://node.example.com/public/auth/v1/means/employeeid/56098jvsldrioj230468"
     }
 
 Displaying the web page
