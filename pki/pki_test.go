@@ -70,11 +70,3 @@ func TestPKI_Runnable(t *testing.T) {
 	assert.NoError(t, err)
 	assert.ErrorIs(t, e.ctx.Err(), context.Canceled)
 }
-
-//func TestPKI_Diagnostics(t *testing.T) {
-//
-//}
-//
-//func TestPKI_CheckHealth(t *testing.T) {
-//
-//}

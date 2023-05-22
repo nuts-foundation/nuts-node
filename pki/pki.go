@@ -47,14 +47,3 @@ func (p *PKI) Shutdown() error {
 	p.shutdown()
 	return nil
 }
-
-//func (p *PKI) Diagnostics() []core.DiagnosticResult {
-//	// TODO: needed?
-//	return nil
-//}
-
-//func (p *PKI) CheckHealth() map[string]core.Health {
-//	// TODO: loop all crl distribution points + denylist and check the last time it was updated. Outdated should be listed by ...?
-//
-//	return nil
-//}
