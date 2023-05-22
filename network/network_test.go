@@ -212,7 +212,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctx := createNetwork(t, ctrl)
 		ctx.protocol.EXPECT().Configure(gomock.Any())
 		ctx.pkiValidator.EXPECT().AddTruststore(gomock.Any())
-		ctx.pkiValidator.EXPECT().SetValidatePeerCertificateFunc(gomock.Any())
+		ctx.pkiValidator.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any())
 		ctx.network.connectionManager = nil
 
 		cfg := *core.NewServerConfig()

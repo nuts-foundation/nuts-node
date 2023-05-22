@@ -44,7 +44,7 @@ func NewTestNetworkInstance(t *testing.T) *Network {
 	eventPublisher := events.NewManager()
 	ctrl := gomock.NewController(t)
 	pkiMock := pki.NewMockValidator(ctrl)
-	pkiMock.EXPECT().SetValidatePeerCertificateFunc(gomock.Any()).AnyTimes()
+	pkiMock.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any()).AnyTimes()
 	newInstance := NewNetworkInstance(
 		config,
 		didservice.KeyResolver{Store: store},

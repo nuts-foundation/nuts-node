@@ -49,18 +49,18 @@ func (mr *MockValidatorMockRecorder) AddTruststore(chain interface{}) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTruststore", reflect.TypeOf((*MockValidator)(nil).AddTruststore), chain)
 }
 
-// SetValidatePeerCertificateFunc mocks base method.
-func (m *MockValidator) SetValidatePeerCertificateFunc(config *tls.Config) error {
+// SetVerifyPeerCertificateFunc mocks base method.
+func (m *MockValidator) SetVerifyPeerCertificateFunc(config *tls.Config) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetValidatePeerCertificateFunc", config)
+	ret := m.ctrl.Call(m, "SetVerifyPeerCertificateFunc", config)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// SetValidatePeerCertificateFunc indicates an expected call of SetValidatePeerCertificateFunc.
-func (mr *MockValidatorMockRecorder) SetValidatePeerCertificateFunc(config interface{}) *gomock.Call {
+// SetVerifyPeerCertificateFunc indicates an expected call of SetVerifyPeerCertificateFunc.
+func (mr *MockValidatorMockRecorder) SetVerifyPeerCertificateFunc(config interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetValidatePeerCertificateFunc", reflect.TypeOf((*MockValidator)(nil).SetValidatePeerCertificateFunc), config)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetVerifyPeerCertificateFunc", reflect.TypeOf((*MockValidator)(nil).SetVerifyPeerCertificateFunc), config)
 }
 
 // Validate mocks base method.

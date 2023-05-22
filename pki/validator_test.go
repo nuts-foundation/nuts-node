@@ -169,7 +169,7 @@ func TestValidator_SetValidatePeerCertificateFunc(t *testing.T) {
 	v := testValidator(t)
 	require.NoError(t, v.AddTruststore(store.Certificates()))
 
-	err = v.SetValidatePeerCertificateFunc(cfg)
+	err = v.SetVerifyPeerCertificateFunc(cfg)
 
 	require.NoError(t, err)
 	assert.NotNil(t, cfg.VerifyPeerCertificate)

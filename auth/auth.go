@@ -152,7 +152,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 			return err
 		}
 
-		if err = auth.pkiValidator.SetValidatePeerCertificateFunc(tlsConfig); err != nil {
+		if err = auth.pkiValidator.SetVerifyPeerCertificateFunc(tlsConfig); err != nil {
 			return err
 		}
 

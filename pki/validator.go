@@ -60,8 +60,8 @@ type Validator interface {
 	// The certificate chain is expected to be sorted leaf to root.
 	Validate(chain []*x509.Certificate) error
 
-	// SetValidatePeerCertificateFunc sets config.ValidatePeerCertificate to use Validate.
-	SetValidatePeerCertificateFunc(config *tls.Config) error
+	// SetVerifyPeerCertificateFunc sets config.ValidatePeerCertificate to use Validate.
+	SetVerifyPeerCertificateFunc(config *tls.Config) error
 
 	// AddTruststore adds all CAs to the truststore for validation of CRL signatures. It also adds all CRL Distribution Endpoints found in the chain.
 	// CRL Distribution Points encountered during operation, such as on end user certificates, are only added to the monitored CRLs if their issuer is in the truststore.
@@ -170,7 +170,7 @@ func (v *validator) Validate(chain []*x509.Certificate) error {
 	return nil
 }
 
-func (v *validator) SetValidatePeerCertificateFunc(config *tls.Config) error {
+func (v *validator) SetVerifyPeerCertificateFunc(config *tls.Config) error {
 	config.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 		// rawCerts contains raw certificate data presented by the peer during the tls handshake.
 		// It is used together with the tls.Config to generate verifiedChains, but may contain additional certs that are not in a verified chain.

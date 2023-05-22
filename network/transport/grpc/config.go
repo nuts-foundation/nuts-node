@@ -165,7 +165,7 @@ func newTLSConfig(config Config) (*tls.Config, error) {
 		MinVersion: core.MinTLSVersion,
 	}
 
-	if err := config.pkiValidator.SetValidatePeerCertificateFunc(tlsConfig); err != nil {
+	if err := config.pkiValidator.SetVerifyPeerCertificateFunc(tlsConfig); err != nil {
 		// cannot fail
 		return nil, err
 	}

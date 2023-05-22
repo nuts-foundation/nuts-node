@@ -44,6 +44,6 @@ func testInstance(t *testing.T, cfg Config) *Auth {
 	ctrl := gomock.NewController(t)
 	pkiMock := pki.NewMockValidator(ctrl)
 	pkiMock.EXPECT().AddTruststore(gomock.Any()).AnyTimes()
-	pkiMock.EXPECT().SetValidatePeerCertificateFunc(gomock.Any()).AnyTimes()
+	pkiMock.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any()).AnyTimes()
 	return NewAuthInstance(cfg, didstore.NewTestStore(t), vcrInstance, cryptoInstance, nil, nil, pkiMock)
 }
