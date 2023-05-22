@@ -38,7 +38,7 @@ type Config struct {
 	// MaxUpdateFailHours specifies the maximum number of hours that a denylist update can fail
 	MaxUpdateFailHours int `koanf:"maxupdatefailhours"`
 
-	// Softfail still accepts connections if the revocation status of a certificate cannot be reliably established
+	// Softfail still accepts connections if the revocation status of a certificate cannot be reliably established if set to true
 	Softfail bool `koanf:"softfail"`
 }
 
