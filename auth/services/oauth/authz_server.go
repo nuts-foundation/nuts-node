@@ -552,6 +552,8 @@ func (s *authzServer) buildAccessToken(ctx context.Context, requester did.DID, a
 		accessToken.Prefix = toStrPtr(disclosedAttributeFn(services.PrefixTokenClaim))
 		accessToken.Email = toStrPtr(disclosedAttributeFn(services.EmailTokenClaim))
 		accessToken.AssuranceLevel = toStrPtr(disclosedAttributeFn(services.AssuranceLevelClaim))
+		accessToken.UserRole = toStrPtr(disclosedAttributeFn(services.UserRoleClaim))
+		accessToken.Username = toStrPtr(disclosedAttributeFn(services.UsernameClaim))
 	}
 
 	if len(credentialIDs) > 0 {

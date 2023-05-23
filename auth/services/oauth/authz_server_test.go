@@ -634,23 +634,37 @@ func TestService_buildAccessToken(t *testing.T) {
 
 		ctx.keyResolver.EXPECT().ResolveSigningKeyID(authorizerDID, gomock.Any()).MinTimes(1).Return(authorizerSigningKeyID.String(), nil)
 
-		var recordedClaims map[string]interface{}
+		var actualClaims map[string]interface{}
 		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, gomock.Any()).
-			DoAndReturn(func(_ context.Context, claims map[string]interface{}, headers map[string]interface{}, kid string) (token string, err error) {
-				recordedClaims = claims
-
+			DoAndReturn(func(_ context.Context, inputClaims map[string]interface{}, headers map[string]interface{}, kid string) (token string, err error) {
+				actualClaims = inputClaims
 				return "expectedAT", nil
 			})
 
-		token, accessToken, err := ctx.oauthService.buildAccessToken(audit.TestContext(), requesterDID, authorizerDID, "", &services.TestVPVerificationResult{Val: contract.Valid}, []string{"credential"})
+		presentation := services.TestVPVerificationResult{
+			Val: contract.Valid,
+			DAttributes: map[string]string{
+				services.AssuranceLevelClaim:  "low",
+				services.InitialsTokenClaim:   "T.",
+				services.FamilyNameTokenClaim: "Tester",
+				services.UserRoleClaim:        "Developer",
+				services.UsernameClaim:        "1234567890",
+			},
+		}
+		token, accessToken, err := ctx.oauthService.buildAccessToken(audit.TestContext(), requesterDID, authorizerDID, "", &presentation, []string{"credential"})
 
 		assert.Nil(t, err)
 		assert.Equal(t, "expectedAT", token)
 		assert.Equal(t, secureAccessTokenLifeSpan, time.Duration(accessToken.Expiration-accessToken.IssuedAt)*time.Second)
-		assert.Equal(t, authorizerDID.String(), recordedClaims["iss"])
-		recordedCredentials, ok := recordedClaims["vcs"].([]interface{})
+		assert.Equal(t, authorizerDID.String(), actualClaims["iss"])
+		assert.Equal(t, "low", actualClaims["assurance_level"])
+		assert.Equal(t, "T.", actualClaims["initials"])
+		assert.Equal(t, "Tester", actualClaims["family_name"])
+		assert.Equal(t, "Developer", actualClaims["user_role"])
+		assert.Equal(t, "1234567890", actualClaims["username"])
+		actualCredentials, ok := actualClaims["vcs"].([]interface{})
 		require.True(t, ok)
-		assert.Equal(t, "credential", recordedCredentials[0])
+		assert.Equal(t, "credential", actualCredentials[0])
 	})
 }
 
