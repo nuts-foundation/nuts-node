@@ -81,7 +81,7 @@ func Test_memorySessionStore_Delete(t *testing.T) {
 func TestMemorySessionStore_evict(t *testing.T) {
 	t.Run("evict removes expired sessions", func(t *testing.T) {
 		store := NewMemorySessionStore().(*memorySessionStore)
-		store.sessions["sessionID"] = &types.Session{ExpiresAt: time.Now().Add(-1 * time.Second)}
+		store.sessions["sessionID"] = &types.Session{ExpiresAt: time.Now().Add(-11 * time.Minute)}
 
 		store.evict()
 
@@ -91,7 +91,7 @@ func TestMemorySessionStore_evict(t *testing.T) {
 	t.Run("session is evicted when expired by start", func(t *testing.T) {
 		store := NewMemorySessionStore().(*memorySessionStore)
 		store.expiryInterval = time.Nanosecond
-		store.sessions["sessionID"] = &types.Session{ExpiresAt: time.Now().Add(-1 * time.Second)}
+		store.sessions["sessionID"] = &types.Session{ExpiresAt: time.Now().Add(-11 * time.Minute)}
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 

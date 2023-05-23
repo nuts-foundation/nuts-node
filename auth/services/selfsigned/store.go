@@ -79,7 +79,7 @@ func (s *memorySessionStore) Start(ctx context.Context) {
 	done := ctx.Done()
 
 	go func() {
-		timer := time.NewTimer(s.expiryInterval)
+		timer := time.NewTicker(s.expiryInterval)
 		for {
 			select {
 			case <-done:
@@ -96,7 +96,7 @@ func (s *memorySessionStore) evict() {
 	defer s.lock.Unlock()
 
 	for k, v := range s.sessions {
-		if v.ExpiresAt.Before(time.Now()) {
+		if v.ExpiresAt.Before(time.Now().Add(-10 * time.Minute)) {
 			delete(s.sessions, k)
 		}
 	}
