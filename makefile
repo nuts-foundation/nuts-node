@@ -74,7 +74,7 @@ gen-protobuf:
 
 gen-docs:
 	go run ./docs docs
-	make gen-readme
+	make gen-readme # must come last since it uses the updated docs from the step above
 
 DIR ?= "$(shell pwd)"
 gen-diagrams:
