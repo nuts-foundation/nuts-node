@@ -1,4 +1,4 @@
-.PHONY: test run-generators update-docs
+.PHONY: test run-generators all-docs
 
 run-generators: gen-mocks gen-api gen-protobuf
 
