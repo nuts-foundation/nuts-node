@@ -76,8 +76,8 @@ type Resource struct {
 	// UserContext defines if a user login contract is required for the resource.
 	UserContext bool `json:"userContext"`
 	// AssuranceLevel defines the assurance level required for the resource (low, substantial, high).
-	// Should be set if userContext = true
-	AssuranceLevel string `json:"assuranceLevel"`
+	// Should be set if userContext = true, defaults to low
+	AssuranceLevel *string `json:"assuranceLevel"`
 }
 
 // BaseCredentialSubject defines the CredentialSubject struct for fields that are shared amongst all CredentialSubjects
