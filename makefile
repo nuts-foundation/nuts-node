@@ -8,10 +8,6 @@ install-tools:
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.30.0
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
 
-# requires python package rst-include. install using `pip install rst-include`
-gen-readme:
-	rst_include include README_template.rst README.rst
-
 gen-mocks:
 	mockgen -destination=auth/contract/signer_mock.go -package=contract -source=auth/contract/signer.go
 	mockgen -destination=auth/services/mock.go -package=services -source=auth/services/services.go
@@ -72,23 +68,24 @@ gen-protobuf:
 	protoc --go_out=paths=source_relative:network -I network network/transport/grpc/testprotocol.proto
 	protoc --go-grpc_out=require_unimplemented_servers=false,paths=source_relative:network -I network network/transport/grpc/testprotocol.proto
 
-gen-docs:
-	go run ./docs docs
-	make gen-readme # must come last since it uses the updated docs from the step above
-
 DIR ?= "$(shell pwd)"
 gen-diagrams:
 	rm ${DIR}/docs/_static/images/diagrams/*.svg
 	docker run -v ${DIR}/docs/diagrams:/data rlespinasse/drawio-export -f svg
 	mv ${DIR}/docs/diagrams/export/* ${DIR}/docs/_static/images/diagrams/
 
+# requires python package rst-include. install using `pip install rst-include`
+docs:
+	go run ./docs docs
+	rst_include include README_template.rst README.rst
+
+all-docs: docs gen-diagrams
+
 fix-copyright:
 	go run ./docs copyright
 
 test:
 	go test ./...
-
-update-docs: gen-docs gen-readme gen-diagrams
 
 OUTPUT ?= "$(shell pwd)/nuts"
 GIT_COMMIT ?= "$(shell git rev-list -1 HEAD)"
