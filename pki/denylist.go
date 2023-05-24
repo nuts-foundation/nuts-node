@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -97,8 +98,11 @@ func NewDenylist(config DenylistConfig) (Denylist, error) {
 		}, nil
 	}
 
+	// Convert any literal '\n' in the PEM to an actual newline character
+	trustedSigner := strings.ReplaceAll(config.TrustedSigner, "\\n", "\n")
+
 	// Parse the trusted key
-	key, err := jwk.ParseKey([]byte(config.TrustedSigner), jwk.WithPEM(true))
+	key, err := jwk.ParseKey([]byte(trustedSigner), jwk.WithPEM(true))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse key: %w", err)
 	}
