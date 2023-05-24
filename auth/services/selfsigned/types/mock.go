@@ -5,6 +5,7 @@
 package types
 
 import (
+	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -72,6 +73,18 @@ func (m *MockSessionStore) Load(sessionID string) (Session, bool) {
 func (mr *MockSessionStoreMockRecorder) Load(sessionID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Load", reflect.TypeOf((*MockSessionStore)(nil).Load), sessionID)
+}
+
+// Start mocks base method.
+func (m *MockSessionStore) Start(ctx context.Context) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Start", ctx)
+}
+
+// Start indicates an expected call of Start.
+func (mr *MockSessionStoreMockRecorder) Start(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockSessionStore)(nil).Start), ctx)
 }
 
 // Store mocks base method.

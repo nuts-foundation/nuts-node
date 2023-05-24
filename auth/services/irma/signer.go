@@ -77,6 +77,10 @@ func (s SessionPtr) MarshalJSON() ([]byte, error) {
 // NutsIrmaSignedContract is the type of proof used in an Irma VP
 const NutsIrmaSignedContract = "NutsIrmaSignedContract"
 
+func (v Signer) Start(ctx context.Context) {
+	return
+}
+
 // StartSigningSession accepts a rawContractText and creates an IRMA signing session.
 func (v Signer) StartSigningSession(contract contract.Contract, _ map[string]interface{}) (contract.SessionPointer, error) {
 	// Put the template in an IRMA envelope

@@ -27,6 +27,8 @@ import (
 type Signer interface {
 	// SigningSessionStatus returns the current status of the signing session or services.ErrSessionNotFound if not found
 	SigningSessionStatus(ctx context.Context, sessionID string) (SigningSessionResult, error)
+	// Start any background processes, e.g. session cleanups
+	Start(ctx context.Context)
 	// StartSigningSession starts a session for the implementing signer
 	// params are signer specific
 	StartSigningSession(contract Contract, params map[string]interface{}) (SessionPointer, error)

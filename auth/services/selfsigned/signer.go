@@ -143,6 +143,11 @@ func (v *signer) createVP(ctx context.Context, s types.Session, issuanceDate tim
 	return v.vcr.Holder().BuildVP(ctx, []vc.VerifiableCredential{*verifiableCredential}, presentationOptions, issuerID, true)
 }
 
+func (v *signer) Start(ctx context.Context) {
+	v.store.Start(ctx)
+	return
+}
+
 func (v *signer) StartSigningSession(userContract contract.Contract, params map[string]interface{}) (contract.SessionPointer, error) {
 	// check the session params first to provide the user with feedback if something is missing
 	if err := checkSessionParams(params); err != nil {

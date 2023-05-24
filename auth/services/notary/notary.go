@@ -214,6 +214,12 @@ func (n *notary) Configure() error {
 	return nil
 }
 
+func (n *notary) Start(ctx context.Context) {
+	for _, v := range n.signers {
+		v.Start(ctx)
+	}
+}
+
 func (n *notary) VerifyVP(vp vc.VerifiablePresentation, checkTime *time.Time) (contract.VPVerificationResult, error) {
 	// remove default type
 	vpTypes := make([]ssi.URI, len(vp.Type))

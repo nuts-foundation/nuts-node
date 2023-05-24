@@ -50,6 +50,18 @@ func (mr *MockSignerMockRecorder) SigningSessionStatus(ctx, sessionID interface{
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SigningSessionStatus", reflect.TypeOf((*MockSigner)(nil).SigningSessionStatus), ctx, sessionID)
 }
 
+// Start mocks base method.
+func (m *MockSigner) Start(ctx context.Context) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Start", ctx)
+}
+
+// Start indicates an expected call of Start.
+func (mr *MockSignerMockRecorder) Start(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockSigner)(nil).Start), ctx)
+}
+
 // StartSigningSession mocks base method.
 func (m *MockSigner) StartSigningSession(contract Contract, params map[string]interface{}) (SessionPointer, error) {
 	m.ctrl.T.Helper()

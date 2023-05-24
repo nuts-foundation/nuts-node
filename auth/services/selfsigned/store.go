@@ -19,30 +19,39 @@
 package selfsigned
 
 import (
+	"context"
 	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/types"
 	"sync"
+	"time"
 )
 
 type memorySessionStore struct {
-	sessions map[string]types.Session
-	lock     sync.Mutex
+	sessions       map[string]*types.Session
+	lock           sync.Mutex
+	expiryInterval time.Duration
 }
 
 func NewMemorySessionStore() types.SessionStore {
-	return &memorySessionStore{sessions: make(map[string]types.Session)}
+	return &memorySessionStore{
+		sessions:       make(map[string]*types.Session),
+		expiryInterval: time.Second,
+	}
 }
 
 func (s *memorySessionStore) Store(sessionID string, session types.Session) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	s.sessions[sessionID] = session
+	s.sessions[sessionID] = &session
 }
 
 func (s *memorySessionStore) Load(sessionID string) (types.Session, bool) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	session, ok := s.sessions[sessionID]
-	return session, ok
+	if session, ok := s.sessions[sessionID]; ok {
+		return *session, true
+	}
+
+	return types.Session{}, false
 }
 
 func (s *memorySessionStore) CheckAndSetStatus(sessionID string, expectedStatus, status string) bool {
@@ -64,4 +73,31 @@ func (s *memorySessionStore) Delete(sessionID string) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	delete(s.sessions, sessionID)
+}
+
+func (s *memorySessionStore) Start(ctx context.Context) {
+	done := ctx.Done()
+
+	go func() {
+		timer := time.NewTicker(s.expiryInterval)
+		for {
+			select {
+			case <-done:
+				return
+			case <-timer.C:
+				s.evict()
+			}
+		}
+	}()
+}
+
+func (s *memorySessionStore) evict() {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	for k, v := range s.sessions {
+		if v.ExpiresAt.Before(time.Now().Add(-10 * time.Minute)) {
+			delete(s.sessions, k)
+		}
+	}
 }

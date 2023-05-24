@@ -19,9 +19,11 @@
 package selfsigned
 
 import (
+	"context"
 	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/types"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"time"
 )
 
 func TestNewMemorySessionStore(t *testing.T) {
@@ -34,7 +36,7 @@ func Test_memorySessionStore_CheckAndSetStatus(t *testing.T) {
 	t.Run("ok - session has expected status", func(t *testing.T) {
 		store := NewMemorySessionStore()
 		memStore := store.(*memorySessionStore)
-		memStore.sessions["sessionID"] = types.Session{Status: "expectedStatus"}
+		memStore.sessions["sessionID"] = &types.Session{Status: "expectedStatus"}
 		ok := store.CheckAndSetStatus("sessionID", "expectedStatus", "newStatus")
 		assert.True(t, ok)
 		assert.Equal(t, "newStatus", memStore.sessions["sessionID"].Status)
@@ -43,7 +45,7 @@ func Test_memorySessionStore_CheckAndSetStatus(t *testing.T) {
 	t.Run("fail - session has not expected status", func(t *testing.T) {
 		store := NewMemorySessionStore()
 		memStore := store.(*memorySessionStore)
-		memStore.sessions["sessionID"] = types.Session{Status: "unexpectedStatus"}
+		memStore.sessions["sessionID"] = &types.Session{Status: "unexpectedStatus"}
 		ok := store.CheckAndSetStatus("sessionID", "expectedStatus", "newStatus")
 		assert.False(t, ok)
 		assert.Equal(t, "unexpectedStatus", memStore.sessions["sessionID"].Status)
@@ -60,7 +62,7 @@ func Test_memorySessionStore_Delete(t *testing.T) {
 	t.Run("ok - session exists", func(t *testing.T) {
 		store := NewMemorySessionStore()
 		memStore := store.(*memorySessionStore)
-		memStore.sessions["sessionID"] = types.Session{}
+		memStore.sessions["sessionID"] = &types.Session{}
 		store.Delete("sessionID")
 		_, ok := memStore.sessions["sessionID"]
 		assert.False(t, ok)
@@ -76,12 +78,39 @@ func Test_memorySessionStore_Delete(t *testing.T) {
 	})
 }
 
+func TestMemorySessionStore_evict(t *testing.T) {
+	t.Run("evict removes expired sessions", func(t *testing.T) {
+		store := NewMemorySessionStore().(*memorySessionStore)
+		store.sessions["sessionID"] = &types.Session{ExpiresAt: time.Now().Add(-11 * time.Minute)}
+
+		store.evict()
+
+		assert.Nil(t, store.sessions["sessionID"])
+	})
+
+	t.Run("session is evicted when expired by start", func(t *testing.T) {
+		store := NewMemorySessionStore().(*memorySessionStore)
+		store.expiryInterval = time.Nanosecond
+		store.sessions["sessionID"] = &types.Session{ExpiresAt: time.Now().Add(-11 * time.Minute)}
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		store.Start(ctx)
+		time.Sleep(time.Millisecond)
+
+		// prevent race
+		store.lock.Lock()
+		defer store.lock.Unlock()
+		assert.Nil(t, store.sessions["sessionID"])
+	})
+}
+
 func Test_memorySessionStore_Load(t *testing.T) {
 	t.Run("ok - session exists", func(t *testing.T) {
 		store := NewMemorySessionStore()
 		memStore := store.(*memorySessionStore)
 		expectedSession := types.Session{Status: "expectedStatus"}
-		memStore.sessions["sessionID"] = expectedSession
+		memStore.sessions["sessionID"] = &expectedSession
 		session, ok := store.Load("sessionID")
 		assert.True(t, ok)
 		assert.Equal(t, expectedSession, session)
@@ -102,15 +131,15 @@ func Test_memorySessionStore_Store(t *testing.T) {
 		memStore := store.(*memorySessionStore)
 		session := types.Session{Status: "expectedStatus"}
 		store.Store("sessionID", session)
-		assert.Equal(t, session, memStore.sessions["sessionID"])
+		assert.Equal(t, session, *memStore.sessions["sessionID"])
 	})
 
 	t.Run("ok - session overwrites existing", func(t *testing.T) {
 		store := NewMemorySessionStore()
 		memStore := store.(*memorySessionStore)
-		memStore.sessions["sessionID"] = types.Session{Status: "expectedStatus"}
+		memStore.sessions["sessionID"] = &types.Session{Status: "expectedStatus"}
 		newSession := types.Session{Status: "newStatus"}
 		store.Store("sessionID", newSession)
-		assert.Equal(t, newSession, memStore.sessions["sessionID"])
+		assert.Equal(t, newSession, *memStore.sessions["sessionID"])
 	})
 }

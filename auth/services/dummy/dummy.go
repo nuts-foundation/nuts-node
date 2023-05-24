@@ -182,6 +182,10 @@ func (d signingSessionResult) VerifiablePresentation() (*vc.VerifiablePresentati
 	}, nil
 }
 
+func (d Dummy) Start(ctx context.Context) {
+	return
+}
+
 // VerifyVP check a Dummy VerifiablePresentation. It Returns a verificationResult if all was fine, an error otherwise.
 func (d Dummy) VerifyVP(vp vc.VerifiablePresentation, _ *time.Time) (contract.VPVerificationResult, error) {
 	if d.InStrictMode {
