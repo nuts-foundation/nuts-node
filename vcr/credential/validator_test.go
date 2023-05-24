@@ -146,6 +146,21 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 		assert.EqualError(t, err, "validation failed: 'credentialSubject.ID' is nil")
 	})
 
+	t.Run("failed - invalid credentialSubject.ID", func(t *testing.T) {
+		v := validNutsOrganizationCredential()
+		var credentialSubject = make(map[string]interface{})
+		credentialSubject["id"] = "invalid"
+		credentialSubject["organization"] = map[string]interface{}{
+			"name": "Because we care B.V.",
+			"city": "EIbergen",
+		}
+		v.CredentialSubject = []interface{}{credentialSubject}
+
+		err := validator.Validate(*v)
+
+		assert.EqualError(t, err, "validation failed: invalid 'credentialSubject.id': invalid DID: input does not begin with 'did:' prefix")
+	})
+
 	t.Run("failed - invalid ID", func(t *testing.T) {
 		v := validNutsOrganizationCredential()
 		otherID := vdr.TestDIDB.URI()
@@ -294,6 +309,18 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 		assert.EqualError(t, err, "validation failed: 'credentialSubject.ID' is nil")
 	})
 
+	t.Run("failed - invalid credentialSubject.ID", func(t *testing.T) {
+		v := ValidNutsAuthorizationCredential()
+		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
+		cs.ID = "unknown"
+		v.CredentialSubject[0] = cs
+
+		err := validator.Validate(*v)
+
+		assert.Error(t, err)
+		assert.EqualError(t, err, "validation failed: invalid 'credentialSubject.id': invalid DID: input does not begin with 'did:' prefix")
+	})
+
 	t.Run("failed - missing purposeOfUse", func(t *testing.T) {
 		v := ValidNutsAuthorizationCredential()
 		cs := v.CredentialSubject[0].(NutsAuthorizationCredentialSubject)
@@ -383,7 +410,7 @@ func TestDefaultCredentialValidator(t *testing.T) {
 		credential := *ValidNutsAuthorizationCredential()
 		credential.CredentialSubject = []interface{}{
 			map[string]interface{}{
-				"id": "1234",
+				"id": "did:nuts:1234",
 			},
 		}
 

@@ -47,6 +47,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network"
 	networkAPI "github.com/nuts-foundation/nuts-node/network/api/v1"
 	networkCmd "github.com/nuts-foundation/nuts-node/network/cmd"
+	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/storage"
 	storageCmd "github.com/nuts-foundation/nuts-node/storage/cmd"
 	"github.com/nuts-foundation/nuts-node/vcr"
@@ -175,6 +176,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system := core.NewSystem()
 
 	// Create instances
+	pkiInstance := pki.New()
 	cryptoInstance := crypto.NewCryptoInstance()
 	httpServerInstance := httpEngine.New(shutdownCallback, cryptoInstance)
 	jsonld := jsonld.NewJSONLDInstance()
@@ -184,11 +186,11 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	docResolver := didservice.Resolver{Store: didStore}
 	docFinder := didservice.Finder{Store: didStore}
 	eventManager := events.NewManager()
-	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), keyResolver, cryptoInstance, docResolver, docFinder, eventManager, storageInstance.GetProvider(network.ModuleName))
+	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), keyResolver, cryptoInstance, docResolver, docFinder, eventManager, storageInstance.GetProvider(network.ModuleName), pkiInstance)
 	vdrInstance := vdr.NewVDR(vdr.DefaultConfig(), cryptoInstance, networkInstance, didStore, eventManager)
 	credentialInstance := vcr.NewVCRInstance(cryptoInstance, docResolver, keyResolver, networkInstance, jsonld, eventManager, storageInstance)
 	didmanInstance := didman.NewDidmanInstance(docResolver, didStore, vdrInstance, credentialInstance, jsonld)
-	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), didStore, credentialInstance, cryptoInstance, didmanInstance, jsonld)
+	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), didStore, credentialInstance, cryptoInstance, didmanInstance, jsonld, pkiInstance)
 	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
 
@@ -212,13 +214,16 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system.RegisterRoutes(&didmanAPI.Wrapper{Didman: didmanInstance})
 
 	// Register engines
-	system.RegisterEngine(jsonld)
+	// without dependencies
+	system.RegisterEngine(pkiInstance)
 	system.RegisterEngine(cryptoInstance)
-	system.RegisterEngine(eventManager)
+	system.RegisterEngine(jsonld)
 	system.RegisterEngine(storageInstance)
-	system.RegisterEngine(didStore)
 	system.RegisterEngine(statusEngine)
 	system.RegisterEngine(metricsEngine)
+	system.RegisterEngine(eventManager)
+	// with dependencies
+	system.RegisterEngine(didStore)
 	// the order of the next 3 modules is fixed due to configure and start dependencies
 	system.RegisterEngine(credentialInstance)
 	system.RegisterEngine(vdrInstance)
@@ -321,6 +326,7 @@ func serverConfigFlags() *pflag.FlagSet {
 	set.AddFlagSet(jsonld.FlagSet())
 	set.AddFlagSet(authCmd.FlagSet())
 	set.AddFlagSet(eventsCmd.FlagSet())
+	set.AddFlagSet(pki.FlagSet())
 
 	return set
 }

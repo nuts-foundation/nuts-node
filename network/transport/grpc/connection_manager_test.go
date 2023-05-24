@@ -24,6 +24,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/core"
 	"go.uber.org/goleak"
 	"hash/crc32"
 	"io"
@@ -37,7 +38,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/storage"
@@ -91,10 +91,10 @@ func withBufconnDialer(listener *bufconn.Listener) ConfigOption {
 func Test_NewGRPCConnectionManager(t *testing.T) {
 	t.Run("error - invalid truststore", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		crlValidator := pki.NewMockValidator(ctrl)
+		pkiValidator := pki.NewMockValidator(ctrl)
 		cfg := Config{trustStore: &x509.CertPool{}}
-		cfg.crlValidator = crlValidator
-		crlValidator.EXPECT().SetValidatePeerCertificateFunc(gomock.Any()).Return(errors.New("custom error"))
+		cfg.pkiValidator = pkiValidator
+		pkiValidator.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any()).Return(errors.New("custom error"))
 
 		cm, err := NewGRPCConnectionManager(cfg, createKVStore(t), *nodeDID, nil, nil)
 
@@ -138,8 +138,12 @@ func Test_grpcConnectionManager_Connect(t *testing.T) {
 		p := &TestProtocol{}
 		ts, _ := core.LoadTrustStore(testTruststoreFile)
 		clientCert, _ := tls.LoadX509KeyPair(testCertAndKeyFile, testCertAndKeyFile)
+		ctrl := gomock.NewController(t)
+		pkiMock := pki.NewMockValidator(ctrl)
+		pkiMock.EXPECT().AddTruststore(ts.Certificates())
+		pkiMock.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any())
 
-		config, err := NewConfig("", "test", WithTLS(clientCert, ts))
+		config, err := NewConfig("", "test", WithTLS(clientCert, ts, pkiMock))
 		require.NoError(t, err)
 
 		cm, err := NewGRPCConnectionManager(config, createKVStore(t), *nodeDID, nil, p)
@@ -552,6 +556,9 @@ func Test_grpcConnectionManager_Peers(t *testing.T) {
 func Test_grpcConnectionManager_Start(t *testing.T) {
 	trustStore, _ := core.LoadTrustStore(testTruststoreFile)
 	serverCert, _ := tls.LoadX509KeyPair(testCertAndKeyFile, testCertAndKeyFile)
+	ctrl := gomock.NewController(t)
+	pkiMock := pki.NewMockValidator(ctrl)
+	pkiMock.EXPECT().AddTruststore(gomock.Any()).AnyTimes()
 
 	t.Run("ok - gRPC server not bound", func(t *testing.T) {
 		cm, err := NewGRPCConnectionManager(Config{}, nil, *nodeDID, nil)
@@ -561,11 +568,12 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 	})
 
 	t.Run("ok - gRPC server bound, TLS enabled", func(t *testing.T) {
+		pkiMock.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any()).Times(2)
 		cfg, err := NewConfig(
 			fmt.Sprintf("127.0.0.1:%d",
 				test.FreeTCPPort()),
 			"foo",
-			WithTLS(serverCert, trustStore),
+			WithTLS(serverCert, trustStore, pkiMock),
 		)
 		require.NoError(t, err)
 		cm, err := NewGRPCConnectionManager(cfg, nil, *nodeDID, nil)
@@ -577,11 +585,12 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 	})
 
 	t.Run("ok - gRPC server bound, incoming TLS offloaded", func(t *testing.T) {
+		pkiMock.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any())
 		cfg, err := NewConfig(
 			fmt.Sprintf("127.0.0.1:%d",
 				test.FreeTCPPort()),
 			"foo",
-			WithTLS(serverCert, trustStore),
+			WithTLS(serverCert, trustStore, pkiMock),
 			WithTLSOffloading("client-cert"),
 		)
 		require.NoError(t, err)
@@ -598,7 +607,7 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 			fmt.Sprintf("127.0.0.1:%d",
 				test.FreeTCPPort()),
 			"foo",
-			WithTLS(serverCert, trustStore),
+			WithTLS(serverCert, trustStore, pkiMock),
 			WithTLSOffloading(""),
 		)
 
@@ -618,17 +627,14 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 	})
 
 	t.Run("configures CRL check when TLS is enabled", func(t *testing.T) {
-		validator := pki.NewMockValidator(gomock.NewController(t))
-		validator.EXPECT().Start(gomock.Any())
-		validator.EXPECT().SetValidatePeerCertificateFunc(gomock.Any()).DoAndReturn(func(_ interface{}) func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+		pkiMock.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any()).DoAndReturn(func(_ interface{}) func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 			return func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 				return nil
 			}
 		}).Times(2) // on inbound and outbound TLS config
 
-		cfg, err := NewConfig(fmt.Sprintf(":%d", test.FreeTCPPort()), "peerID", WithTLS(serverCert, &core.TrustStore{CertPool: x509.NewCertPool()}))
+		cfg, err := NewConfig(fmt.Sprintf(":%d", test.FreeTCPPort()), "peerID", WithTLS(serverCert, &core.TrustStore{CertPool: x509.NewCertPool()}, pkiMock))
 		require.NoError(t, err)
-		cfg.crlValidator = validator
 		cm, _ := NewGRPCConnectionManager(cfg, nil, *nodeDID, nil, &TestProtocol{})
 		defer cm.Stop()
 
@@ -636,15 +642,12 @@ func Test_grpcConnectionManager_Start(t *testing.T) {
 	})
 
 	t.Run("error - invalid server TLS config", func(t *testing.T) {
-		cfg, err := NewConfig(fmt.Sprintf(":%d", test.FreeTCPPort()), "peerID", WithTLS(serverCert, &core.TrustStore{CertPool: x509.NewCertPool()}))
+		cfg, err := NewConfig(fmt.Sprintf(":%d", test.FreeTCPPort()), "peerID", WithTLS(serverCert, &core.TrustStore{CertPool: x509.NewCertPool()}, pkiMock))
+		pkiMock.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any())
 		cm, err := NewGRPCConnectionManager(cfg, nil, *nodeDID, nil, &TestProtocol{})
 		require.NoError(t, err)
 
-		ctrl := gomock.NewController(t)
-		crlValidator := pki.NewMockValidator(ctrl)
-		cm.config.crlValidator = crlValidator
-		crlValidator.EXPECT().Start(gomock.Any())
-		crlValidator.EXPECT().SetValidatePeerCertificateFunc(gomock.Any()).Return(errors.New("custom error"))
+		pkiMock.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any()).Return(errors.New("custom error"))
 
 		defer cm.Stop()
 		err = cm.Start()

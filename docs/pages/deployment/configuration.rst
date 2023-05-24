@@ -55,7 +55,7 @@ the options table must be regenerated using the Makefile:
 
 .. code-block:: shell
 
-    $ make update-docs
+    $ make docs
 
 Secrets
 *******

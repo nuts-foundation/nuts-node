@@ -25,7 +25,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	networkTypes "github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/pki"
-	pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
 	"google.golang.org/grpc"
 	"net"
 	"time"
@@ -61,19 +60,14 @@ func NewConfig(grpcAddress string, peerID networkTypes.PeerID, options ...Config
 }
 
 // WithTLS enables TLS for gRPC ConnectionManager.
-func WithTLS(clientCertificate tls.Certificate, trustStore *core.TrustStore) ConfigOption {
+func WithTLS(clientCertificate tls.Certificate, trustStore *core.TrustStore, pkiValidator pki.Validator) ConfigOption {
 	return func(config *Config) error {
 		config.clientCert = &clientCertificate
 		config.trustStore = trustStore.CertPool
-
-		pkiCfg := pkiconfig.Config{
-			MaxUpdateFailHours: 4,
-		}
-		crlValidator, err := pki.NewValidator(pkiCfg, trustStore.Certificates())
-		if err != nil {
+		config.pkiValidator = pkiValidator
+		if err := pkiValidator.AddTruststore(trustStore.Certificates()); err != nil {
 			return err
 		}
-		config.crlValidator = crlValidator
 		// Load TLS server certificate, only if enableTLS=true and gRPC server should be started.
 		if config.listenAddress != "" {
 			config.serverCert = config.clientCert
@@ -123,8 +117,8 @@ type Config struct {
 	serverCert *tls.Certificate
 	// trustStore contains the trust anchors used when verifying remote a peer's TLS certificate.
 	trustStore *x509.CertPool
-	// crlValidator contains the database for revoked certificates
-	crlValidator pki.Validator
+	// pkiValidator contains the database for revoked certificates
+	pkiValidator pki.Validator
 	// clientCertHeaderName specifies the name of the HTTP header that contains the client certificate, if TLS is offloaded.
 	clientCertHeaderName string
 	// connectionTimeout specifies the time before an outbound connection attempt times out.
@@ -171,7 +165,7 @@ func newTLSConfig(config Config) (*tls.Config, error) {
 		MinVersion: core.MinTLSVersion,
 	}
 
-	if err := config.crlValidator.SetValidatePeerCertificateFunc(tlsConfig); err != nil {
+	if err := config.pkiValidator.SetVerifyPeerCertificateFunc(tlsConfig); err != nil {
 		// cannot fail
 		return nil, err
 	}

@@ -16,7 +16,19 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  */
-package config
+
+package pki
+
+func DefaultConfig() Config {
+	return Config{
+		Denylist: DenylistConfig{
+			URL:           "",
+			TrustedSigner: "",
+		},
+		MaxUpdateFailHours: 4,
+		Softfail:           true,
+	}
+}
 
 // Config specifies configuration parameters for PKI functionality
 type Config struct {
@@ -25,6 +37,9 @@ type Config struct {
 
 	// MaxUpdateFailHours specifies the maximum number of hours that a denylist update can fail
 	MaxUpdateFailHours int `koanf:"maxupdatefailhours"`
+
+	// Softfail still accepts connections if the revocation status of a certificate cannot be reliably established if set to true
+	Softfail bool `koanf:"softfail"`
 }
 
 // DenylistConfig specifies the config structure for the crl/certificate blacklist module

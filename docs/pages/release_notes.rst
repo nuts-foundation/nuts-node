@@ -19,6 +19,7 @@ Release date: **DRAFT**
 - Changed default healthcheck endpoint from ``/status`` to ``/health``. For correctly configured nodes this change should have no impact. The ``/status`` endpoint remains available.
 - Fixed issue where VDR could no longer update broken DID Documents.
 - Added API calls to _Didman_ to update endpoints and compound services (previously, they had to be deleted and then recreated to change them).
+- NutsAuthorizationCredentials and NutsOrganizationCredentials now require a valid ``credentialSubject.id`` (meaning it is a DID).
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.2.0...v5.3.0
 

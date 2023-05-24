@@ -16,19 +16,20 @@
  *
  */
 
-package oidc4vci
+package pki
 
 import (
-	"errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
-func TestError_Error(t *testing.T) {
-	t.Run("with underlying error", func(t *testing.T) {
-		assert.EqualError(t, Error{Err: errors.New("token has expired"), Code: InvalidToken}, "invalid_token - token has expired")
-	})
-	t.Run("without underlying error", func(t *testing.T) {
-		assert.EqualError(t, Error{Code: InvalidToken}, "invalid_token")
-	})
+func Test_DefaultConfig(t *testing.T) {
+	cfg := DefaultConfig()
+
+	assert.Equal(t, 4, cfg.MaxUpdateFailHours)
+	assert.True(t, cfg.Softfail)
+	require.NotNil(t, cfg.Denylist)
+	assert.Empty(t, cfg.Denylist.TrustedSigner)
+	assert.Empty(t, cfg.Denylist.URL)
 }

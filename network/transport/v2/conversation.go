@@ -97,7 +97,7 @@ func (cMan *conversationManager) start(ctx context.Context) {
 	done := ctx.Done()
 
 	go func() {
-		timer := time.NewTimer(cMan.validity)
+		timer := time.NewTicker(cMan.validity)
 		for {
 			select {
 			case <-done:

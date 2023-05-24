@@ -41,7 +41,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/pki"
-	pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
 )
@@ -83,7 +82,7 @@ type notary struct {
 	privateKeyStore       crypto.KeyStore
 	verifiers             map[string]contract.VPVerifier
 	signers               map[string]contract.Signer
-	uziCrlValidator       pki.Validator
+	pkiValidator          pki.Validator
 	vcr                   vcr.VCR
 	contractTemplateStore contract.TemplateStore
 }
@@ -91,7 +90,7 @@ type notary struct {
 var timeNow = time.Now
 
 // NewNotary accepts the registry and crypto Nuts engines and returns a ContractNotary
-func NewNotary(config Config, vcr vcr.VCR, keyResolver types.KeyResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD) services.ContractNotary {
+func NewNotary(config Config, vcr vcr.VCR, keyResolver types.KeyResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, pkiValidator pki.Validator) services.ContractNotary {
 	return &notary{
 		config:                config,
 		jsonldManager:         jsonldManager,
@@ -99,6 +98,7 @@ func NewNotary(config Config, vcr vcr.VCR, keyResolver types.KeyResolver, keySto
 		keyResolver:           keyResolver,
 		privateKeyStore:       keyStore,
 		contractTemplateStore: contract.StandardContractTemplates,
+		pkiValidator:          pkiValidator,
 	}
 }
 
@@ -187,15 +187,13 @@ func (n *notary) Configure() error {
 			return err
 		}
 
-		pkiCfg := pkiconfig.Config{
-			MaxUpdateFailHours: 4,
+		// seed pkiValidator with uzi certificate chain
+		err = n.pkiValidator.AddTruststore(truststore.Certificates())
+		if err != nil {
+			return fmt.Errorf("could not add uzi certificates to validator: %w", err)
 		}
 
-		n.uziCrlValidator, err = pki.NewValidator(pkiCfg, truststore.Certificates())
-		if err != nil {
-			return err
-		}
-		uziValidator, err := x509.NewUziValidator(truststore, &contract.StandardContractTemplates, n.uziCrlValidator)
+		uziValidator, err := x509.NewUziValidator(truststore, &contract.StandardContractTemplates, n.pkiValidator)
 		uziVerifier := uzi.Verifier{UziValidator: uziValidator}
 
 		if err != nil {
