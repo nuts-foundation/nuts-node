@@ -215,9 +215,6 @@ func (n *notary) Configure() error {
 }
 
 func (n *notary) Start(ctx context.Context) {
-	if n.uziCrlValidator != nil {
-		n.uziCrlValidator.Start(ctx)
-	}
 	for _, v := range n.signers {
 		v.Start(ctx)
 	}
