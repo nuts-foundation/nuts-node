@@ -98,6 +98,9 @@ func TestMemorySessionStore_evict(t *testing.T) {
 		store.Start(ctx)
 		time.Sleep(time.Millisecond)
 
+		// prevent race
+		store.lock.Lock()
+		defer store.lock.Unlock()
 		assert.Nil(t, store.sessions["sessionID"])
 	})
 }
