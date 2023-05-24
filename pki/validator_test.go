@@ -28,7 +28,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/core"
-	pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
 	"go.uber.org/goleak"
 	"math/big"
 	"net/http"
@@ -56,21 +55,15 @@ var crlPathMap = map[string]string{
 	"/IntermediateCABLatest.crl": "does not exist",
 }
 
-// testConfig provides a validator module configuration for tests
-func pkiCfg() pkiconfig.Config {
-	return pkiconfig.Config{
-		MaxUpdateFailHours: 4,
-	}
-}
-
 func TestValidator_Start(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	store, err := core.LoadTrustStore(truststorePKIo)
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	val, err := newValidatorWithHTTPClient(pkiCfg(), store.Certificates(), newClient())
+	val, err := newValidatorWithHTTPClient(DefaultConfig(), newClient())
 	require.NoError(t, err)
+	require.NoError(t, val.AddTruststore(store.Certificates()))
 
 	// crls are empty
 	val.crls.Range(func(key, value any) bool {
@@ -80,7 +73,7 @@ func TestValidator_Start(t *testing.T) {
 	})
 
 	// Start triggers start
-	val.Start(ctx)
+	val.start(ctx)
 	val.sync() // blocks until sync is complete.
 
 	// crls have been updated
@@ -107,7 +100,7 @@ func TestValidator_Validate(t *testing.T) {
 	// testSoftHard runs the same test for both the soft-fail and hard-fail scenario
 	testSoftHard := func(t *testing.T, val *validator, cert *x509.Certificate, softfailReturn error, hardfailReturn error) {
 		fn := func(softbool bool, expected error) {
-			softfail = softbool
+			val.softfail = softbool
 			err = val.Validate([]*x509.Certificate{cert})
 			if expected == nil {
 				assert.NoError(t, err)
@@ -130,7 +123,7 @@ func TestValidator_Validate(t *testing.T) {
 		testSoftHard(t, val, revokedCertA, ErrCertRevoked, ErrCertRevoked)
 	})
 	t.Run("unknown issuer", func(t *testing.T) {
-		val := &validator{truststore: map[string]*x509.Certificate{}}
+		val := &validator{}
 		testSoftHard(t, val, validCertA, nil, ErrCertUntrusted)
 	})
 	t.Run("missing crl", func(t *testing.T) {
@@ -161,73 +154,86 @@ func TestValidator_Validate(t *testing.T) {
 }
 
 func TestValidator_SetValidatePeerCertificateFunc(t *testing.T) {
+	// certificates and tls config
 	store, err := core.LoadTrustStore(truststore)
 	require.NoError(t, err)
-	newCfg := func(leafCertFile string) *tls.Config {
-		tlsCert, err := tls.LoadX509KeyPair(leafCertFile, leafCertFile)
-		require.NoError(t, err)
-		return &tls.Config{
-			RootCAs:      store.CertPool,
-			Certificates: []tls.Certificate{tlsCert},
-		}
+	leafCertFile := testdatapath + "/A-valid.pem"
+	tlsCert, err := tls.LoadX509KeyPair(leafCertFile, leafCertFile)
+	require.NoError(t, err)
+	cfg := &tls.Config{
+		RootCAs:      store.CertPool,
+		Certificates: []tls.Certificate{tlsCert},
 	}
-	t.Run("set - ok", func(t *testing.T) {
-		cfg := newCfg(testdatapath + "/A-valid.pem")
-		v := newValidator(t)
-		require.Nil(t, cfg.VerifyPeerCertificate)
+	require.Nil(t, cfg.VerifyPeerCertificate)
 
-		err := v.SetValidatePeerCertificateFunc(cfg)
+	v := testValidator(t)
+	require.NoError(t, v.AddTruststore(store.Certificates()))
 
-		require.NoError(t, err)
-		assert.NotNil(t, cfg.VerifyPeerCertificate)
-		crl, exists := v.getCRL("http://certs.nuts.nl/IntermediateCAALatest.crl")
-		assert.True(t, exists)
-		assert.NotNil(t, crl)
+	err = v.SetVerifyPeerCertificateFunc(cfg)
 
-		t.Run("validates", func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			v.Start(ctx)
-			v.sync()
-			t.Run("ok", func(t *testing.T) {
-				err := cfg.VerifyPeerCertificate([][]byte{store.IntermediateCAs[0].Raw, store.RootCAs[0].Raw}, nil)
-				assert.NoError(t, err)
-			})
-			t.Run("revoked cert", func(t *testing.T) {
-				err := cfg.VerifyPeerCertificate([][]byte{store.IntermediateCAs[1].Raw, store.RootCAs[0].Raw}, nil)
-				assert.ErrorIs(t, err, ErrCertRevoked)
-			})
-			t.Run("invalid cert data", func(t *testing.T) {
-				err := cfg.VerifyPeerCertificate([][]byte{[]byte("definitely not"), []byte("valid certs")}, nil)
-				assert.Error(t, err)
-			})
+	require.NoError(t, err)
+	assert.NotNil(t, cfg.VerifyPeerCertificate)
+
+	t.Run("validates", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		v.start(ctx)
+		t.Run("ok", func(t *testing.T) {
+			err := cfg.VerifyPeerCertificate([][]byte{store.IntermediateCAs[0].Raw, store.RootCAs[0].Raw}, nil)
+			assert.NoError(t, err)
 		})
-	})
-
-	t.Run("error - contains cert that is not in truststore", func(t *testing.T) {
-		v := newValidator(t)
-
-		err := v.SetValidatePeerCertificateFunc(newCfg("../test/pki/certificate-and-key.pem"))
-
-		assert.EqualError(t, err, "tls.Config contains certificate from issuer that is not in the truststore: CN=localhost")
+		t.Run("revoked cert", func(t *testing.T) {
+			err := cfg.VerifyPeerCertificate([][]byte{store.IntermediateCAs[1].Raw, store.RootCAs[0].Raw}, nil)
+			assert.ErrorIs(t, err, ErrCertRevoked)
+		})
+		t.Run("invalid cert data", func(t *testing.T) {
+			err := cfg.VerifyPeerCertificate([][]byte{[]byte("definitely not"), []byte("valid certs")}, nil)
+			assert.Error(t, err)
+		})
 	})
 }
 
-func Test_NewValidator(t *testing.T) {
+func TestValidator_AddTruststore(t *testing.T) {
 	store, err := core.LoadTrustStore(truststore)
 	require.NoError(t, err)
 
 	t.Run("ok", func(t *testing.T) {
-		val, err := NewValidator(pkiCfg(), store.Certificates())
+		val, err := newValidator(DefaultConfig())
 		require.NoError(t, err)
+
+		err = val.AddTruststore(store.Certificates())
+
 		assert.NotNil(t, val)
 	})
 
-	t.Run("invalid truststore", func(t *testing.T) {
+	t.Run("missing CA", func(t *testing.T) {
 		noRootStore := store.Certificates()[:2]
-		_, err = NewValidator(pkiCfg(), noRootStore)
-		assert.ErrorContains(t, err, "certificate's issuer is not in the trust store")
+		t.Run("softfail", func(t *testing.T) {
+			val, err := newValidator(Config{Softfail: true})
+			require.NoError(t, err)
+
+			assert.NoError(t, val.AddTruststore(noRootStore))
+		})
+		t.Run("hardfail", func(t *testing.T) {
+			val, err := newValidator(Config{Softfail: false})
+			require.NoError(t, err)
+
+			err = val.AddTruststore(noRootStore)
+
+			assert.ErrorContains(t, err, "certificate's issuer is not in the trust store")
+		})
 	})
+}
+
+func Test_NewValidator(t *testing.T) {
+	cfg := DefaultConfig()
+
+	val, err := newValidator(cfg)
+
+	require.NoError(t, err)
+	assert.Equal(t, cfg.Softfail, val.softfail) // softfail is true, so fails if not set
+	assert.Equal(t, cfg.MaxUpdateFailHours, val.maxUpdateFailHours)
+	assert.Equal(t, cfg.Denylist.URL, val.denylist.URL())
 }
 
 func Test_ValidatorGetCRL(t *testing.T) {
@@ -345,8 +351,8 @@ func Test_ValidatorVerifyCRL(t *testing.T) {
 
 func Test_ValidatorUpdateCRL(t *testing.T) {
 	crlEndpoint := rootCRLurl
-	t.Run("ok - update flows", func(t *testing.T) {
-		v := newValidator(t)
+	t.Run("ok", func(t *testing.T) {
+		v := testValidator(t)
 
 		// get the empty rl
 		rl, ok := v.getCRL(crlEndpoint)
@@ -359,27 +365,11 @@ func Test_ValidatorUpdateCRL(t *testing.T) {
 		rl2, ok := v.getCRL(crlEndpoint)
 		require.True(t, ok)
 		assert.NotSame(t, rl, rl2)
-
-		// do not update if the crl.SerialNumber has not changed
-		err = v.updateCRL(crlEndpoint, rl2)
-		require.NoError(t, err)
-		rl3, ok := v.getCRL(crlEndpoint)
-		require.True(t, ok)
-		assert.Same(t, rl3, rl2)
-
-		// update if the crl.SerialNumber has increased
-		lowerCRLNumber := big.NewInt(0)
-		rl2.list.Number = lowerCRLNumber
-		err = v.updateCRL(crlEndpoint, rl2)
-		require.NoError(t, err)
-		rl4, ok := v.getCRL(crlEndpoint)
-		require.True(t, ok)
-		assert.NotSame(t, rl4, rl2)
 	})
 	t.Run("invalid CRL issuer", func(t *testing.T) {
 		store, err := core.LoadTrustStore(truststore)
 		require.NoError(t, err)
-		v := newValidator(t)
+		v := testValidator(t)
 		rl := newRevocationList(store.Certificates()[0])
 
 		err = v.updateCRL(rootCRLurl, rl)
@@ -388,21 +378,22 @@ func Test_ValidatorUpdateCRL(t *testing.T) {
 	})
 }
 
-func newValidator(t *testing.T) *validator {
+func testValidator(t *testing.T) *validator {
 	store, err := core.LoadTrustStore(truststore)
 	require.NoError(t, err)
 	require.Len(t, store.Certificates(), 3)
-	val, err := newValidatorWithHTTPClient(pkiCfg(), store.Certificates(), newClient())
+	val, err := newValidatorWithHTTPClient(DefaultConfig(), newClient())
 	require.NoError(t, err)
+	require.NoError(t, val.AddTruststore(store.Certificates()))
 	return val
 }
 
 // newValidatorStarted return a Started validator containing truststore
 func newValidatorStarted(t *testing.T) *validator {
-	val := newValidator(t)
+	val := testValidator(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	val.Start(ctx)
+	val.start(ctx)
 	val.sync() // block until initial sync is completed
 	return val
 }

@@ -19,7 +19,6 @@
 package auth
 
 import (
-	"context"
 	"crypto/tls"
 	"errors"
 	"path"
@@ -33,7 +32,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/pki"
-	pkiconfig "github.com/nuts-foundation/nuts-node/pki/config"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/didstore"
@@ -57,7 +55,7 @@ type Auth struct {
 	keyStore        crypto.KeyStore
 	registry        didstore.Store
 	vcr             vcr.VCR
-	crlValidator    pki.Validator
+	pkiValidator    pki.Validator
 	shutdownFunc    func()
 }
 
@@ -77,13 +75,14 @@ func (auth *Auth) ContractNotary() services.ContractNotary {
 }
 
 // NewAuthInstance accepts a Config with several Nuts Engines and returns an instance of Auth
-func NewAuthInstance(config Config, registry didstore.Store, vcr vcr.VCR, keyStore crypto.KeyStore, serviceResolver didman.CompoundServiceResolver, jsonldManager jsonld.JSONLD) *Auth {
+func NewAuthInstance(config Config, registry didstore.Store, vcr vcr.VCR, keyStore crypto.KeyStore, serviceResolver didman.CompoundServiceResolver, jsonldManager jsonld.JSONLD, pkiValidator pki.Validator) *Auth {
 	return &Auth{
 		config:          config,
 		jsonldManager:   jsonldManager,
 		registry:        registry,
 		keyStore:        keyStore,
 		vcr:             vcr,
+		pkiValidator:    pkiValidator,
 		serviceResolver: serviceResolver,
 		shutdownFunc:    func() {},
 	}
@@ -122,7 +121,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		ContractValidators:    auth.config.ContractValidators,
 		ContractValidity:      contractValidity,
 		StrictMode:            config.Strictmode,
-	}, auth.vcr, didservice.KeyResolver{Store: auth.registry}, auth.keyStore, auth.jsonldManager)
+	}, auth.vcr, didservice.KeyResolver{Store: auth.registry}, auth.keyStore, auth.jsonldManager, auth.pkiValidator)
 
 	tlsEnabled := config.TLS.Enabled()
 	if config.Strictmode && !tlsEnabled {
@@ -141,11 +140,6 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 			return err
 		}
 
-		pkiCfg := pkiconfig.Config{
-			MaxUpdateFailHours: 4,
-		}
-
-		validator, err := pki.NewValidator(pkiCfg, trustStore.Certificates())
 		if err != nil {
 			return err
 		}
@@ -154,11 +148,14 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 			RootCAs:      trustStore.CertPool,
 			MinVersion:   core.MinTLSVersion,
 		}
-		if err = validator.SetValidatePeerCertificateFunc(tlsConfig); err != nil {
+		if err = auth.pkiValidator.AddTruststore(trustStore.Certificates()); err != nil {
 			return err
 		}
 
-		auth.crlValidator = validator
+		if err = auth.pkiValidator.SetVerifyPeerCertificateFunc(tlsConfig); err != nil {
+			return err
+		}
+
 	}
 
 	if err := auth.contractNotary.Configure(); err != nil {
@@ -178,23 +175,12 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 	return nil
 }
 
-// Start starts the CRL validator synchronization loop
+// Start starts the Auth engine (Noop)
 func (auth *Auth) Start() error {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	auth.shutdownFunc = cancel
-
-	if auth.crlValidator != nil {
-		auth.crlValidator.Start(ctx)
-	}
-	auth.contractNotary.Start(ctx)
-
 	return nil
 }
 
-// Shutdown stops the CRL validator synchronization loop
+// Shutdown stops the Auth engine
 func (auth *Auth) Shutdown() error {
-	auth.shutdownFunc()
-
 	return nil
 }

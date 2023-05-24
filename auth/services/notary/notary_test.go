@@ -243,6 +243,7 @@ func TestNewContractNotary(t *testing.T) {
 			didservice.KeyResolver{Store: didstore.NewTestStore(t)},
 			crypto.NewMemoryCryptoInstance(),
 			nil,
+			nil,
 		)
 
 		require.NotNil(t, instance)

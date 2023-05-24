@@ -36,10 +36,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/stretchr/testify/require"
-
 	"github.com/golang/mock/gomock"
 	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/go-did/did"
@@ -48,12 +44,16 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/pki"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	vdrTypes "github.com/nuts-foundation/nuts-node/vdr/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -75,6 +75,7 @@ type networkTestContext struct {
 	docResolver       *vdrTypes.MockDocResolver
 	docFinder         *vdrTypes.MockDocFinder
 	eventPublisher    *events.MockEvent
+	pkiValidator      *pki.MockValidator
 }
 
 func (cxt *networkTestContext) start() error {
@@ -210,6 +211,8 @@ func TestNetwork_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		ctx := createNetwork(t, ctrl)
 		ctx.protocol.EXPECT().Configure(gomock.Any())
+		ctx.pkiValidator.EXPECT().AddTruststore(gomock.Any())
+		ctx.pkiValidator.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any())
 		ctx.network.connectionManager = nil
 
 		cfg := *core.NewServerConfig()
@@ -251,6 +254,7 @@ func TestNetwork_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		ctx := createNetwork(t, ctrl)
 		ctx.protocol.EXPECT().Configure(gomock.Any())
+		ctx.pkiValidator.EXPECT().AddTruststore(gomock.Any())
 		ctx.network.connectionManager = nil
 
 		cfg := *core.NewServerConfig()
@@ -569,7 +573,7 @@ func TestNetwork_selfTestNutsCommAddress(t *testing.T) {
 		require.NoError(t, err)
 
 		// new network
-		network := NewNetworkInstance(Config{}, nil, nil, nil, nil, nil, nil)
+		network := NewNetworkInstance(Config{}, nil, nil, nil, nil, nil, nil, nil)
 		network.selfTestDialer.Config = &tls.Config{RootCAs: truststore.CertPool}
 
 		// new server
@@ -1301,7 +1305,8 @@ func createNetwork(t *testing.T, ctrl *gomock.Controller, cfgFn ...func(config *
 	})
 	// required when starting the network, it searches for nodes to connect to
 	docFinder.EXPECT().Find(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().Return([]did.Document{}, nil)
-	network := NewNetworkInstance(networkConfig, keyResolver, keyStore, docResolver, docFinder, eventPublisher, storageEngine.GetProvider(ModuleName))
+	pkiMock := pki.NewMockValidator(ctrl)
+	network := NewNetworkInstance(networkConfig, keyResolver, keyStore, docResolver, docFinder, eventPublisher, storageEngine.GetProvider(ModuleName), pkiMock)
 	network.state = state
 	network.connectionManager = connectionManager
 	network.protocols = []transport.Protocol{prot}
@@ -1322,6 +1327,7 @@ func createNetwork(t *testing.T, ctrl *gomock.Controller, cfgFn ...func(config *
 		docResolver:       docResolver,
 		docFinder:         docFinder,
 		eventPublisher:    eventPublisher,
+		pkiValidator:      pkiMock,
 	}
 }
 

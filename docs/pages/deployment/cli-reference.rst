@@ -56,7 +56,8 @@ The following options apply to the server commands below:
       --network.protocols ints                        Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.
       --network.v2.diagnosticsinterval int            Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable). (default 5000)
       --network.v2.gossipinterval int                 Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes. (default 5000)
-      --pki.maxupdatefailhours int                    maximum number of hours that a denylist update can fail (default 4)
+      --pki.maxupdatefailhours int                    Maximum number of hours that a denylist update can fail (default 4)
+      --pki.softfail                                  Do not reject certificates if their revocation status cannot be established when softfail is true (default true)
       --storage.bbolt.backup.directory string         Target directory for BBolt database backups.
       --storage.bbolt.backup.interval duration        Interval, formatted as Golang duration (e.g. 10m, 1h) at which BBolt database backups will be performed.
       --storage.redis.address string                  Redis database server address. This can be a simple 'host:port' or a Redis connection URL with scheme, auth and other options.

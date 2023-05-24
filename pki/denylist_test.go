@@ -31,8 +31,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	config "github.com/nuts-foundation/nuts-node/pki/config"
-
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
@@ -106,7 +104,7 @@ btg+JeGSqs/aDd7h/Y/62V/IhFqDHuDQ344zPvbQl+dTz/9FQ7USQMz9Fw==
 -----END CERTIFICATE-----`
 
 func testDenylist(url, trustedSigner string) (Denylist, error) {
-	cfg := config.DenylistConfig{
+	cfg := DenylistConfig{
 		TrustedSigner: trustedSigner,
 		URL:           url,
 	}
@@ -191,7 +189,7 @@ func encodeDenylist(t *testing.T, entries []denylistEntry) string {
 func TestNewDenylist(t *testing.T) {
 	t.Run("disabled", func(t *testing.T) {
 		// empty DenylistConfig.URL disables the denylist. This should produce no errors.
-		denylist, err := NewDenylist(config.DenylistConfig{})
+		denylist, err := NewDenylist(DenylistConfig{})
 		require.NoError(t, err)
 		assert.NoError(t, denylist.Update())
 		assert.NoError(t, denylist.ValidateCert(&x509.Certificate{}))
@@ -199,7 +197,7 @@ func TestNewDenylist(t *testing.T) {
 		assert.True(t, denylist.LastUpdated().IsZero())
 	})
 	t.Run("invalid key", func(t *testing.T) {
-		_, err := NewDenylist(config.DenylistConfig{
+		_, err := NewDenylist(DenylistConfig{
 			URL:           "example.com",
 			TrustedSigner: "definitely not valid",
 		})
@@ -217,7 +215,7 @@ func TestDownloadDenylist(t *testing.T) {
 	defer testServer.Close()
 
 	// Use the server in a new denylist
-	denylist, err := NewDenylist(config.DenylistConfig{URL: testServer.URL, TrustedSigner: publicKeyDoNotUse})
+	denylist, err := NewDenylist(DenylistConfig{URL: testServer.URL, TrustedSigner: publicKeyDoNotUse})
 	require.NoError(t, err)
 	require.NotNil(t, denylist)
 
@@ -242,7 +240,7 @@ func TestDenylistMissing(t *testing.T) {
 	defer testServer.Close()
 
 	// Use the server in a new denylist
-	denylist, err := NewDenylist(config.DenylistConfig{URL: testServer.URL, TrustedSigner: publicKeyDoNotUse})
+	denylist, err := NewDenylist(DenylistConfig{URL: testServer.URL, TrustedSigner: publicKeyDoNotUse})
 	require.NoError(t, err)
 	require.NotNil(t, denylist)
 

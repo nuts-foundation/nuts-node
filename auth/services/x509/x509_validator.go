@@ -47,7 +47,7 @@ type JwtX509Validator struct {
 	roots              []*x509.Certificate
 	intermediates      []*x509.Certificate
 	allowedSigningAlgs []jwa.SignatureAlgorithm
-	crlValidator       pki.Validator
+	pkiValidator       pki.Validator
 }
 
 // generalNames defines the asn1 data structure of the generalNames as defined in rfc5280#section-4.2.1.6
@@ -92,12 +92,12 @@ func (j JwtX509Token) SubjectAltNameOtherNames() ([]string, error) {
 // It accepts root and intermediate certificates to validate the chain.
 // It accepts a list of valid signature algorithms
 // It accepts a CRL database
-func NewJwtX509Validator(roots, intermediates []*x509.Certificate, allowedSigAlgs []jwa.SignatureAlgorithm, crlValidator pki.Validator) *JwtX509Validator {
+func NewJwtX509Validator(roots, intermediates []*x509.Certificate, allowedSigAlgs []jwa.SignatureAlgorithm, pkiValidator pki.Validator) *JwtX509Validator {
 	return &JwtX509Validator{
 		roots:              roots,
 		intermediates:      intermediates,
 		allowedSigningAlgs: allowedSigAlgs,
-		crlValidator:       crlValidator,
+		pkiValidator:       pkiValidator,
 	}
 }
 
@@ -261,5 +261,5 @@ func (validator JwtX509Validator) verifyCertChain(chain []*x509.Certificate, che
 // checkCertRevocation checks a given certificate chain for revoked certificates.
 // The order of the certificates should be that each certificate is issued by the next one. The root comes last.
 func (validator JwtX509Validator) checkCertRevocation(verifiedChain []*x509.Certificate) error {
-	return validator.crlValidator.Validate(verifiedChain)
+	return validator.pkiValidator.Validate(verifiedChain)
 }

@@ -150,7 +150,7 @@ type grpcConnectionManager struct {
 	connections       *connectionList
 }
 
-// newGrpcServer configures a new grpc.Server. context.Context is used to cancel the crlValidator
+// newGrpcServer configures a new grpc.Server
 func newGrpcServer(config Config) (*grpc.Server, error) {
 	serverOpts := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(MaxMessageSizeInBytes),
@@ -187,11 +187,6 @@ func newGrpcServer(config Config) (*grpc.Server, error) {
 }
 
 func (s *grpcConnectionManager) Start() error {
-	// Start CRL updater
-	if s.config.tlsEnabled() {
-		s.config.crlValidator.Start(s.ctx)
-	}
-
 	// Start outbound
 	s.connectLoopWG.Add(1)
 	go func() {
@@ -240,7 +235,7 @@ func (s *grpcConnectionManager) Start() error {
 
 func (s *grpcConnectionManager) Stop() {
 	log.Logger().Debug("Stopping gRPC connection manager")
-	s.ctxCancel() // stops connectLoop and crlValidator
+	s.ctxCancel() // stops connectLoop
 	log.Logger().Trace("Waiting for connectLoop to close")
 	s.connectLoopWG.Wait()
 	s.connections.forEach(func(connection Connection) {

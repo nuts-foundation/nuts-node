@@ -21,9 +21,11 @@ package network
 import (
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/events"
+	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
@@ -40,6 +42,9 @@ func NewTestNetworkInstance(t *testing.T) *Network {
 	store := didstore.NewTestStore(t)
 	cryptoInstance := crypto.NewMemoryCryptoInstance()
 	eventPublisher := events.NewManager()
+	ctrl := gomock.NewController(t)
+	pkiMock := pki.NewMockValidator(ctrl)
+	pkiMock.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any()).AnyTimes()
 	newInstance := NewNetworkInstance(
 		config,
 		didservice.KeyResolver{Store: store},
@@ -48,6 +53,7 @@ func NewTestNetworkInstance(t *testing.T) *Network {
 		didservice.Finder{Store: store},
 		eventPublisher,
 		storage.NewTestStorageEngine(testDirectory).GetProvider(ModuleName),
+		pkiMock,
 	)
 	if err := newInstance.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory})); err != nil {
 		logrus.Fatal(err)
