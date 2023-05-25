@@ -39,7 +39,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
-	"github.com/sirupsen/logrus"
 )
 
 // VDR stands for the Nuts Verifiable Data Registry. It is the public entrypoint to work with W3C DID documents.
@@ -51,7 +50,6 @@ type VDR struct {
 	network           network.Transactions
 	OnChange          func(registry *VDR)
 	networkAmbassador Ambassador
-	_logger           *logrus.Entry
 	didDocCreator     types.DocCreator
 	didDocResolver    types.DocResolver
 	keyStore          crypto.KeyStore
@@ -62,7 +60,6 @@ func NewVDR(config Config, cryptoClient crypto.KeyStore, networkClient network.T
 	return &VDR{
 		config:            config,
 		network:           networkClient,
-		_logger:           log.Logger(),
 		store:             store,
 		didDocCreator:     didservice.Creator{KeyStore: cryptoClient},
 		didDocResolver:    didservice.Resolver{Store: store},
@@ -126,7 +123,7 @@ func (r *VDR) ConflictedDocuments() ([]did.Document, []types.DocumentMetadata, e
 func (r *VDR) newOwnConflictedDocIterator(totalCount, ownedCount *int) types.DocIterator {
 	return func(doc did.Document, metadata types.DocumentMetadata) error {
 		*totalCount++
-		controllers, err := r.didDocResolver.ResolveControllers(doc, &types.ResolveMetadata{Hash: &metadata.Hash})
+		controllers, err := r.didDocResolver.ResolveControllers(doc, nil)
 		if err != nil {
 			log.Logger().
 				WithField(core.LogFieldDID, doc.ID).
