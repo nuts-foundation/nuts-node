@@ -18,7 +18,7 @@ require (
 	github.com/magiconair/properties v1.8.7
 	github.com/mdp/qrterminal/v3 v3.0.0
 	github.com/nats-io/nats-server/v2 v2.9.17
-	github.com/nats-io/nats.go v1.25.0
+	github.com/nats-io/nats.go v1.26.0
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.5.1
 	github.com/nuts-foundation/go-leia/v3 v3.3.0
