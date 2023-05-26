@@ -500,7 +500,7 @@ The ``validity`` will indicate its validity. An expired contract is considered i
 Audit log requirements
 **********************
 
-Information in the access token can be used to fulfill any audit log requirements for a protected resource.
+Information in the access token can be used to fulfill audit log requirements for protected resources.
 An access token issued by the Nuts node can be introspected using the introspection API (RFC7662):
 
 .. code-block::
