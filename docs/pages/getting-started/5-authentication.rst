@@ -513,7 +513,7 @@ The POST body is ``application/x-www-form-urlencoded`` encoded
 
     token=<jwt>
 
-The result will return the following identifying properties if user authentication was present in the access token request:
+The result will return the following identifying properties if user authentication was present in the access token:
 
 - username
 - initials
