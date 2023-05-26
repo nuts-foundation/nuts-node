@@ -16,7 +16,6 @@ Release date: **DRAFT**
 - The ``tls.crl.maxvaliditydays`` config flag has been deprecated. CRLs are now updated more frequently, making this option obsolete.
 - Adds support for RFC019 and RFC020, which describe a new EmployeeIdentity authentication means which allows an employer to make claims
   about the identity of their employees. This has a lower level of assurance, but can be used when care organisations trust each others employee enrollment process.
-- Changed default healthcheck endpoint from ``/status`` to ``/health``. For correctly configured nodes this change should have no impact. The ``/status`` endpoint remains available.
 - Fixed issue where VDR could no longer update broken DID Documents.
 - Added API calls to _Didman_ to update endpoints and compound services (previously, they had to be deleted and then recreated to change them).
 - NutsAuthorizationCredentials and NutsOrganizationCredentials now require a valid ``credentialSubject.id`` (meaning it is a DID).
