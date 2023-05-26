@@ -205,6 +205,29 @@ func TestNewDenylist(t *testing.T) {
 	})
 }
 
+// TestBackslashNInKey ensures a denylist is correctly downloaded
+func TestBackslashNInKey(t *testing.T) {
+	// Get the trusted denylist
+	denylistJSON := trustedDenylist(t)
+
+	// Setup a denylist server
+	testServer := denylistTestServer(denylistJSON)
+	defer testServer.Close()
+
+	// Trusted signer as PEM with literal \n sequences instead of newlines
+	trustedSigner := `-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAB262IB4Bg7CzZ/kap8gU+16vD9x/mom7WEjIZsBz+LY=\n-----END PUBLIC KEY-----`
+
+	// Use the server in a new denylist
+	denylist, err := NewDenylist(DenylistConfig{URL: testServer.URL, TrustedSigner: trustedSigner})
+	require.NoError(t, err)
+	require.NotNil(t, denylist)
+
+	// Download the denylist data and ensure it is correct
+	bytes, err := denylist.(*denylistImpl).download()
+	assert.NoError(t, err)
+	assert.Equal(t, string(bytes), denylistJSON)
+}
+
 // TestDownloadDenylist ensures a denylist is correctly downloaded
 func TestDownloadDenylist(t *testing.T) {
 	// Get the trusted denylist
@@ -442,3 +465,4 @@ func TestRSACertificateJWKThumbprint(t *testing.T) {
 	keyID := certKeyJWKThumbprint(cert)
 	assert.Equal(t, "PVOjk-5d4Lb-FGxurW-fNMUv3rYZZBWF3gGaP5s1UVQ", keyID)
 }
+

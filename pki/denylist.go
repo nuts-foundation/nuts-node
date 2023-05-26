@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -97,8 +98,11 @@ func NewDenylist(config DenylistConfig) (Denylist, error) {
 		}, nil
 	}
 
+	// Convert any literal '\n' in the PEM to an actual newline character
+	trustedSigner := strings.ReplaceAll(config.TrustedSigner, "\\n", "\n")
+
 	// Parse the trusted key
-	key, err := jwk.ParseKey([]byte(config.TrustedSigner), jwk.WithPEM(true))
+	key, err := jwk.ParseKey([]byte(trustedSigner), jwk.WithPEM(true))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse key: %w", err)
 	}
@@ -131,6 +135,7 @@ func (b *denylistImpl) ValidateCert(cert *x509.Certificate) error {
 			logger().WithError(err).
 				WithField("Issuer", issuer).
 				WithField("S/N", serialNumber).
+				WithField("Thumbprint", thumbprint).
 				Error("Cert validation failed because the denylist cannot be downloaded")
 
 			// Return an error indicating the denylist cannot be retrieved
@@ -152,10 +157,22 @@ func (b *denylistImpl) ValidateCert(cert *x509.Certificate) error {
 	for _, entry := range *entriesPtr {
 		// Check for this issuer and serial number combination
 		if entry.Issuer == issuer && entry.SerialNumber == serialNumber && entry.JWKThumbprint == thumbprint {
+			logger().
+				WithField("Issuer", issuer).
+				WithField("S/N", serialNumber).
+				WithField("Thumbprint", thumbprint).
+				Debug("Rejecting banned certificate")
 			// Return an error indicating the certificate has been denylisted
 			return fmt.Errorf("%w: %s", ErrCertBanned, entry.Reason)
 		}
 	}
+
+	// Log a message about the cert being validated
+	logger().
+		WithField("Issuer", issuer).
+		WithField("S/N", serialNumber).
+		WithField("Thumbprint", thumbprint).
+		Debug("Validated certificate")
 
 	// Return a nil error as the certificate hasn't been denylisted
 	return nil
@@ -202,6 +219,9 @@ func (b *denylistImpl) Update() error {
 
 	// Track when the denylist was last updated
 	b.lastUpdated = time.Now()
+
+	// Log when the denylist is updated
+	logger().Debug("Denylist updated successfully")
 
 	// Return a nil error as the denylist was successfully updated
 	return nil
