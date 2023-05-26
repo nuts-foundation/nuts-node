@@ -25,7 +25,7 @@ import (
 )
 
 // ContractFormat is the contract format type
-const ContractFormat = "selfsigned"
+const ContractFormat = "employeeid"
 
 // VerifiablePresentationType is the dummy verifiable presentation type
 const VerifiablePresentationType = "NutsSelfSignedPresentation"

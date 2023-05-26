@@ -27,15 +27,15 @@ const (
 // Defines values for SignSessionRequestMeans.
 const (
 	SignSessionRequestMeansDummy      SignSessionRequestMeans = "dummy"
+	SignSessionRequestMeansEmployeeid SignSessionRequestMeans = "employeeid"
 	SignSessionRequestMeansIrma       SignSessionRequestMeans = "irma"
-	SignSessionRequestMeansSelfsigned SignSessionRequestMeans = "selfsigned"
 )
 
 // Defines values for SignSessionResponseMeans.
 const (
 	SignSessionResponseMeansDummy      SignSessionResponseMeans = "dummy"
+	SignSessionResponseMeansEmployeeid SignSessionResponseMeans = "employeeid"
 	SignSessionResponseMeansIrma       SignSessionResponseMeans = "irma"
-	SignSessionResponseMeansSelfsigned SignSessionResponseMeans = "selfsigned"
 )
 
 // Defines values for TokenIntrospectionResponseAssuranceLevel.
