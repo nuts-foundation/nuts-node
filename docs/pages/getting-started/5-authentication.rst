@@ -517,11 +517,14 @@ The result will return the following identifying properties if user authenticati
 
 - username
 - initials
-- prefix
 - family_name
 - assurance_level
 
 ``username`` can be used as a unique user identifier. It will be filled with an email address or other identifier, issued by the user's employer.
+
+.. note::
+
+	The listed properties are the minimal result, additional properties may be present in the access token.
 
 .. note::
 
