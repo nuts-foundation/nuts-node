@@ -7,8 +7,10 @@ Release notes
 Hazelnut update (v5.3.0)
 ************************
 
-Release date: **DRAFT**
+Release date: 2023-05-26
 
+- CRL download checks have been added to the ``/health`` endpoint. The node will report being unhealthy if it can't download the CRLs but will still accept connections due to the ``pki.softfail`` flag.
+  Monitor the health endpoint and error logs to detect CRL download errors and act accordingly.
 - Automatically resolving of node DIDs has been removed, since it caused more confusion than it simplified things.
   It was only meant for workshop/demo purposes and not allowed in strict mode, so the impact should be very limited.
   If you didn't configure a node DID but do want to exchange private credentials,
