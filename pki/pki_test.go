@@ -22,7 +22,9 @@ import (
 	"context"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
+	"time"
 )
 
 func Test_New(t *testing.T) {
@@ -87,4 +89,71 @@ func TestPKI_Runnable(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.ErrorIs(t, e.ctx.Err(), context.Canceled)
+}
+
+func TestPKI_CheckHealth(t *testing.T) {
+	// Create Engine
+	e := New()
+	require.NoError(t, e.Configure(core.ServerConfig{}))
+
+	// Add truststore
+	store, err := core.LoadTrustStore(truststore) // contains 1 CRL distribution point
+	require.NoError(t, err)
+	require.NoError(t, e.validator.AddTruststore(store.Certificates()))
+
+	// Add Denylist
+	testServer := denylistTestServer("")
+	defer testServer.Close()
+	e.denylist, err = testDenylist(testServer.URL, publicKeyDoNotUse)
+	require.NoError(t, err)
+	require.NotNil(t, e.denylist)
+
+	t.Run("ok", func(t *testing.T) {
+		// Set time to zero to match non-updated crls/denylist. This works because crls for issuers not valid at nowFunc() are not checked
+		nowFunc = func() time.Time {
+			return time.Time{}.Add(time.Hour)
+		}
+		defer func() { nowFunc = time.Now }()
+
+		results := e.CheckHealth()
+		assert.Len(t, results, 1)
+
+		status := results[healthCRL]
+		require.NotNil(t, status)
+		assert.Equal(t, core.HealthStatusUp, status.Status)
+		assert.Nil(t, status.Details)
+	})
+
+	t.Run("crl + denylist outdated", func(t *testing.T) {
+		nowFunc = func() time.Time {
+			return time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+		}
+		defer func() { nowFunc = time.Now }()
+
+		// Check health
+		results := e.CheckHealth()
+		assert.Len(t, results, 2)
+
+		// validate healthCRL
+		statusCRL := results[healthCRL]
+		require.NotNil(t, statusCRL)
+		require.Equal(t, core.HealthStatusDown, statusCRL.Status)
+		detailsCrl := statusCRL.Details.([]outdatedCRL)
+		assert.Len(t, detailsCrl, 1)
+		assert.Equal(t, outdatedCRL{
+			Issuer:      "CN=Root CA,O=Nuts Foundation,C=NL",
+			Endpoint:    "http://certs.nuts.nl/RootCALatest.crl",
+			LastUpdated: time.Time{},
+		}, detailsCrl[0])
+
+		// validate healthDenylist
+		statusDenylist := results[healthDenylist]
+		require.NotNil(t, statusDenylist)
+		assert.Equal(t, core.HealthStatusDown, statusDenylist.Status)
+		assert.Equal(t, outdatedCRL{
+			Issuer:      "denylist",
+			Endpoint:    testServer.URL,
+			LastUpdated: time.Time{},
+		}, statusDenylist.Details)
+	})
 }

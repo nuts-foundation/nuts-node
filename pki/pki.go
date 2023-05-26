@@ -20,10 +20,18 @@ package pki
 
 import (
 	"context"
+	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
+	"time"
 )
 
-const moduleName = "PKI"
+const (
+	moduleName = "PKI"
+
+	// health check names
+	healthCRL      = "crl"
+	healthDenylist = "denylist"
+)
 
 var _ Validator = (*PKI)(nil)
 
@@ -64,4 +72,74 @@ func (p *PKI) Start() error {
 func (p *PKI) Shutdown() error {
 	p.shutdown()
 	return nil
+}
+
+type outdatedCRL struct {
+	Issuer      string
+	Endpoint    string
+	LastUpdated time.Time
+}
+
+func (p *PKI) CheckHealth() map[string]core.Health {
+	results := make(map[string]core.Health, 1)
+	maxDelay := time.Duration(p.maxUpdateFailHours) * time.Hour
+
+	// deny list
+	if p.denylist != nil && p.denylist.URL() != "" && isOutdated(p.denylist.LastUpdated(), maxDelay) {
+		// deny list is only added when it is outdated
+		results[healthDenylist] = core.Health{
+			Status: core.HealthStatusDown,
+			Details: outdatedCRL{
+				Issuer:      "denylist",
+				Endpoint:    p.denylist.URL(),
+				LastUpdated: p.denylist.LastUpdated(),
+			},
+		}
+	}
+
+	// CRLs
+	var outdatedList []outdatedCRL
+	p.validator.crls.Range(func(endpointAny, crlAny any) bool {
+		// Convert the untyped variables
+		endpoint, isString := endpointAny.(string)
+		crl, isCRL := crlAny.(*revocationList)
+
+		// Ensure the type converions succeeded
+		if !isString || !isCRL {
+			// This should never happen. If it does, it indicates a programming error in which
+			// the v.crls sync.Map has been incorrectly populated.
+			logger().
+				WithField("endpoint", fmt.Sprintf("%v", endpointAny)).
+				WithField("CRL", fmt.Sprintf("%v", crlAny)).
+				Error("CRL validator is invalid")
+
+			// Return true in order to continue the range operation
+			return true
+		}
+
+		// Add clrs to list if they have not beer updated within the configure interval
+		// TODO: should this also return unhealthy on outdated certificates in the truststore?
+		if !invalidByTime(crl.issuer) && isOutdated(crl.lastUpdated, maxDelay) {
+			outdatedList = append(outdatedList, outdatedCRL{
+				Issuer:      crl.issuer.Subject.String(),
+				Endpoint:    endpoint,
+				LastUpdated: crl.lastUpdated,
+			})
+		}
+		return true
+	})
+
+	// set CRL health status
+	if len(outdatedList) == 0 {
+		results[healthCRL] = core.Health{
+			Status: core.HealthStatusUp,
+		}
+	} else {
+		results[healthCRL] = core.Health{
+			Status:  core.HealthStatusDown,
+			Details: outdatedList,
+		}
+	}
+
+	return results
 }
