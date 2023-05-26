@@ -168,18 +168,14 @@ func (r KeyResolver) ResolveRelationKey(keyID string, validAt *time.Time, relati
 	if err != nil {
 		return "", err
 	}
-	var result *did.VerificationRelationship
 	relationships, _ := resolveRelationships(doc, relationType)
 
 	for _, rel := range relationships {
 		if rel.ID.String() == keyID {
-			result = &rel
+			return rel.PublicKey()
 		}
 	}
-	if result == nil {
-		return "", types.ErrKeyNotFound
-	}
-	return result.PublicKey()
+	return "", types.ErrKeyNotFound
 }
 
 func resolveRelationships(doc *did.Document, relationType types.RelationType) (relationships did.VerificationRelationships, err error) {

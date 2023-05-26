@@ -41,6 +41,11 @@ func TestResolveSigningKey(t *testing.T) {
 	keyCreator := newMockKeyCreator()
 	docCreator := Creator{KeyStore: keyCreator}
 	doc, _, _ := docCreator.Create(nil, DefaultCreationOptions())
+	// add a second key to the document
+	methodID := doc.ID
+	methodID.Fragment = "key2"
+	newMethod := &did.VerificationMethod{ID: methodID}
+	doc.AddAssertionMethod(newMethod)
 
 	t.Run("ok", func(t *testing.T) {
 		store.EXPECT().Resolve(testDID, gomock.Any()).Return(doc, nil, nil)
