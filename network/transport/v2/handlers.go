@@ -273,7 +273,7 @@ func (p *protocol) handleGossip(ctx context.Context, connection grpc.Connection,
 		refs[i] = hash.FromSlice(bytes)
 	}
 	if len(refs) > 0 {
-		p.gManager.GossipReceived(connection.Peer().ID, refs...)
+		p.gManager.GossipReceived(connection.Peer(), refs...)
 	}
 
 	// filter for unknown transactions

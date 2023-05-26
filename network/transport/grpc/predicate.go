@@ -28,6 +28,19 @@ type Predicate interface {
 	Match(conn Connection) bool
 }
 
+type peerPredicate struct {
+	peer transport.Peer
+}
+
+// ByPeer filters the connection on the Peer Key (peerID + NodeDID + address)
+func ByPeer(peer transport.Peer) Predicate {
+	return peerPredicate{peer: peer}
+}
+
+func (predicate peerPredicate) Match(conn Connection) bool {
+	return conn.Peer().Key() == predicate.peer.Key()
+}
+
 type peerIDPredicate struct {
 	peerID transport.PeerID
 }
