@@ -164,28 +164,68 @@ func TestVDR_Update(t *testing.T) {
 	})
 }
 func TestVDR_Create(t *testing.T) {
+	key := crypto.NewTestKey("did:nuts:123#key-1")
+	id := did.MustParseDID("did:nuts:123")
+	keyID, _ := did.ParseDIDURL(key.KID())
+	controllerID := did.MustParseDID("did:nuts:456")
+	vm, err := did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, did.DID{}, key.Public())
+	require.NoError(t, err)
+	controllerDocument := did.Document{ID: controllerID, Controller: []did.DID{}}
+	DIDDocument := didservice.CreateDocument()
+	DIDDocument.ID = id
+	DIDDocument.AddCapabilityInvocation(vm)
+	DIDDocument.AddAssertionMethod(vm)
+	DIDDocument.AddKeyAgreement(vm)
+
 	t.Run("ok", func(t *testing.T) {
 		test := newVDRTestCtx(t)
-		key := crypto.NewTestKey("did:nuts:123#key-1")
-		id, _ := did.ParseDID("did:nuts:123")
-		keyID, _ := did.ParseDIDURL(key.KID())
-		nextDIDDocument := didservice.CreateDocument()
-		nextDIDDocument.ID = *id
-		vm, err := did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, did.DID{}, key.Public())
-		require.NoError(t, err)
-		nextDIDDocument.AddCapabilityInvocation(vm)
-		nextDIDDocument.AddAssertionMethod(vm)
-		nextDIDDocument.AddKeyAgreement(vm)
-		expectedPayload, _ := json.Marshal(nextDIDDocument)
+		expectedPayload, _ := json.Marshal(DIDDocument)
 
 		test.mockKeyStore.EXPECT().New(test.ctx, gomock.Any()).Return(key, nil)
-		test.mockNetwork.EXPECT().CreateTransaction(test.ctx, network.TransactionTemplate(expectedPayloadType, expectedPayload, key).WithAttachKey())
+		test.mockNetwork.EXPECT().CreateTransaction(test.ctx, network.TransactionTemplate(expectedPayloadType, expectedPayload, key).WithAttachKey().WithAdditionalPrevs([]hash.SHA256Hash{}))
 
 		didDoc, key, err := test.vdr.Create(test.ctx, didservice.DefaultCreationOptions())
 
 		assert.NoError(t, err)
 		assert.NotNil(t, didDoc)
 		assert.NotNil(t, key)
+	})
+
+	t.Run("ok with controllers in the options", func(t *testing.T) {
+		test := newVDRTestCtx(t)
+		copiedDocument := DIDDocument
+		// given the selfControl option, both the controller and the DID should be added to the document
+		copiedDocument.Controller = []did.DID{controllerID, id}
+		expectedPayload, _ := json.Marshal(copiedDocument)
+		refs := []hash.SHA256Hash{hash.EmptyHash()}
+		creationOptions := types.DIDCreationOptions{
+			Controllers: []did.DID{controllerID},
+			KeyFlags:    types.AssertionMethodUsage | types.CapabilityInvocationUsage | types.KeyAgreementUsage,
+			SelfControl: true,
+		}
+		test.mockKeyStore.EXPECT().New(test.ctx, gomock.Any()).Return(key, nil)
+		test.mockStore.EXPECT().Resolve(controllerID, gomock.Any()).Return(&controllerDocument, &types.DocumentMetadata{SourceTransactions: refs}, nil)
+		test.mockNetwork.EXPECT().CreateTransaction(test.ctx, network.TransactionTemplate(expectedPayloadType, expectedPayload, key).WithAttachKey().WithAdditionalPrevs(refs))
+
+		didDoc, key, err := test.vdr.Create(test.ctx, creationOptions)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, didDoc)
+		assert.NotNil(t, key)
+	})
+
+	t.Run("error - unknown controllers", func(t *testing.T) {
+		test := newVDRTestCtx(t)
+		creationOptions := types.DIDCreationOptions{
+			Controllers: []did.DID{controllerID},
+			KeyFlags:    types.AssertionMethodUsage | types.CapabilityInvocationUsage | types.KeyAgreementUsage,
+			SelfControl: true,
+		}
+		test.mockStore.EXPECT().Resolve(controllerID, gomock.Any()).Return(nil, nil, types.ErrNotFound)
+
+		_, _, err := test.vdr.Create(test.ctx, creationOptions)
+
+		assert.EqualError(t, err, "could not create DID document: could not resolve a controller: unable to find the DID document")
 	})
 
 	t.Run("error - doc creation", func(t *testing.T) {
