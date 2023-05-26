@@ -337,6 +337,9 @@ func (v *validator) sync() {
 	// Use a WaitGroup to track when background goroutines are complete
 	wg := &sync.WaitGroup{}
 
+	// maximum time between updates
+	maxDelay := time.Duration(v.maxUpdateFailHours) * time.Hour
+
 	// Check if a denylist is in use
 	if v.denylist != nil {
 		// Track that a goroutine is being started
@@ -350,7 +353,7 @@ func (v *validator) sync() {
 			// Update the denylist
 			if err := v.denylist.Update(); err != nil {
 				// If the denylist is more than X hours out of date then there is a serious issue
-				if time.Since(v.denylist.LastUpdated()) > time.Duration(v.maxUpdateFailHours)*time.Hour {
+				if isOutdated(v.denylist.LastUpdated(), maxDelay) {
 					// Log a message about the failed denylist update
 					logger().
 						WithError(err).
@@ -387,7 +390,7 @@ func (v *validator) sync() {
 		}
 
 		// Enforce the certificate NotBefore/NotAfter fields
-		if nowFunc().Before(current.issuer.NotBefore) || nowFunc().After(current.issuer.NotAfter) {
+		if invalidByTime(current.issuer) {
 			// Log the failure, noting the certificate details in the log message
 			logger().
 				WithField("subject", current.issuer.Subject.String()).
@@ -408,7 +411,7 @@ func (v *validator) sync() {
 			err := v.updateCRL(endpoint, crl)
 			if err != nil {
 				// Connections containing a certificate pointing to this CRL will be accepted until its current.list.NextUpdate.
-				if crl != nil || time.Since(crl.lastUpdated) > time.Duration(v.maxUpdateFailHours)*time.Hour {
+				if crl != nil || isOutdated(crl.lastUpdated, maxDelay) {
 					// Escalate to error logging if the CRL is missing or fails to update for several hours.
 					logger().WithError(err).WithField("CRLDistributionPoint", endpoint).Error("Update CRL")
 				} else {
@@ -487,4 +490,14 @@ func (v *validator) verifyCRL(crl *x509.RevocationList, expectedIssuer *x509.Cer
 		return fmt.Errorf("crl signature could not be verified: %w", err)
 	}
 	return nil
+}
+
+// invalidByTime returns true if nowFunc() is outside interval [NotBefore, NotAfter]
+func invalidByTime(cert *x509.Certificate) bool {
+	return nowFunc().Before(cert.NotBefore) || nowFunc().After(cert.NotAfter)
+}
+
+// isOutdated returns true if nowFunc() - lastUpdate > maxDelay, where maxDelay is the maximum allowed interval for updates
+func isOutdated(lastUpdate time.Time, maxDelay time.Duration) bool {
+	return nowFunc().Sub(lastUpdate) > maxDelay
 }
