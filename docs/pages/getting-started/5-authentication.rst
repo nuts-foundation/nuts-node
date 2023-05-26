@@ -521,7 +521,7 @@ The result will return the following identifying properties if user authenticati
 - family_name
 - assurance_level
 
-``username`` can be used for an unique identifier. It will be filled with an email address or an employer identifier.
+``username`` can be used as a unique user identifier. It will be filled with an email address or other identifier, issued by the user's employer.
 
 .. note::
 
