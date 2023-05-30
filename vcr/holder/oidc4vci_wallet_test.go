@@ -132,13 +132,13 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 	t.Run("pre-authorized code grant", func(t *testing.T) {
 		w := NewOIDCWallet(holderDID, "https://holder.example.com", nil, nil, nil, time.Second*5).(*wallet)
 		t.Run("no grants", func(t *testing.T) {
-			offer := oidc4vci.CredentialOffer{Credentials: []map[string]interface{}{{}}}
+			offer := oidc4vci.CredentialOffer{Credentials: emptyOfferedCredential()}
 			err := w.HandleCredentialOffer(audit.TestContext(), offer)
 			require.EqualError(t, err, "invalid_grant - couldn't find (valid) pre-authorized code grant in credential offer")
 		})
 		t.Run("no pre-authorized grant", func(t *testing.T) {
 			offer := oidc4vci.CredentialOffer{
-				Credentials: []map[string]interface{}{{}},
+				Credentials: emptyOfferedCredential(),
 				Grants: []map[string]interface{}{
 					{
 						"some-other-grant": nil,
@@ -150,7 +150,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		})
 		t.Run("invalid pre-authorized grant", func(t *testing.T) {
 			offer := oidc4vci.CredentialOffer{
-				Credentials: []map[string]interface{}{{}},
+				Credentials: emptyOfferedCredential(),
 				Grants: []map[string]interface{}{
 					{
 						"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]interface{}{
@@ -219,4 +219,10 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		assert.EqualError(t, err, "unable to create issuer client: unable to load Credential Issuer Metadata (identifier=http://localhost:87632): "+
 			"http request error (http://localhost:87632/.well-known/openid-credential-issuer): Get \"http://localhost:87632/.well-known/openid-credential-issuer\": dial tcp: address 87632: invalid port")
 	})
+}
+
+// emptyOfferedCredential returns a structure that can be used as CredentialOffer.Credentials,
+// specifying an offer with a single credential without properties (which is invalid, but required to pass basic validation).
+func emptyOfferedCredential() []map[string]interface{} {
+	return []map[string]interface{}{{}}
 }

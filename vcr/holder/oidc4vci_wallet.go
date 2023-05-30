@@ -109,8 +109,6 @@ func (h wallet) HandleCredentialOffer(ctx context.Context, offer oidc4vci.Creden
 	// TODO: store offer and perform these requests async
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2040
 	accessTokenResponse, err := issuerClient.RequestAccessToken(oidc4vci.PreAuthorizedCodeGrant, map[string]string{
-		// TODO: The code below is unsafe, validate offered grants and then extract the pre-authorized code
-		//       See https://github.com/nuts-foundation/nuts-node/issues/2038
 		"pre-authorized_code": preAuthorizedCode,
 	})
 	if err != nil {
