@@ -210,7 +210,7 @@ func (v *validator) validateCert(cert *x509.Certificate) error {
 		// add distribution endpoint if unknown
 		if !ok {
 			var issuer *x509.Certificate
-			issuer, ok = v.getCA(cert.Issuer.String())
+			issuer, ok = v.getCert(cert.Issuer.String())
 			if !ok {
 				return ErrCertUntrusted
 			}
@@ -264,12 +264,12 @@ func (v *validator) AddTruststore(chain []*x509.Certificate) error {
 	var certificate *x509.Certificate
 	var err error
 	for _, certificate = range chain {
-		v.addCA(certificate)
+		v.truststore.Store(certificate.Subject.String(), certificate)
 	}
 
 	// Add CRL distribution points, issuers should all be available now
 	for _, certificate = range chain {
-		issuer, ok := v.getCA(certificate.Issuer.String())
+		issuer, ok := v.getCert(certificate.Issuer.String())
 		if !ok {
 			err = fmt.Errorf("certificate's issuer is not in the trust store: subject=%s, issuer=%s", certificate.Subject.String(), certificate.Issuer.String())
 			if !v.softfail {
@@ -289,19 +289,12 @@ func (v *validator) AddTruststore(chain []*x509.Certificate) error {
 	return nil
 }
 
-func (v *validator) getCA(subject string) (*x509.Certificate, bool) {
+func (v *validator) getCert(subject string) (*x509.Certificate, bool) {
 	issuer, ok := v.truststore.Load(subject)
 	if !ok {
 		return nil, false
 	}
 	return issuer.(*x509.Certificate), true
-}
-
-func (v *validator) addCA(cert *x509.Certificate) {
-	// Only add if cert is a CA. Fails for non-x509 v3 certificates.
-	if cert.IsCA {
-		v.truststore.Store(cert.Subject.String(), cert)
-	}
 }
 
 // addEndpoint adds the CRL endpoint if it does not exist. Returns an error if the CRL issuer does not match the expected issuer.
