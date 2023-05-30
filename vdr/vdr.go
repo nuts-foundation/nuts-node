@@ -48,7 +48,6 @@ type VDR struct {
 	config            Config
 	store             didstore.Store
 	network           network.Transactions
-	OnChange          func(registry *VDR)
 	networkAmbassador Ambassador
 	didDocCreator     types.DocCreator
 	didDocResolver    types.DocResolver
