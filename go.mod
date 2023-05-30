@@ -11,7 +11,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/goodsign/monday v1.0.1
 	github.com/google/uuid v1.3.0
-	github.com/hashicorp/vault/api v1.9.1
+	github.com/hashicorp/vault/api v1.9.2
 	github.com/knadh/koanf v1.5.0
 	github.com/labstack/echo/v4 v4.10.2
 	github.com/lestrrat-go/jwx v1.2.25
@@ -72,6 +72,7 @@ require (
 	github.com/go-chi/chi/v5 v5.0.7 // indirect
 	github.com/go-co-op/gocron v1.14.0 // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
+	github.com/go-jose/go-jose/v3 v3.0.0 // indirect
 	github.com/go-redis/redis/v8 v8.11.5 // indirect
 	github.com/go-redsync/redsync/v4 v4.8.1 // indirect
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
@@ -147,6 +148,5 @@ require (
 	golang.org/x/text v0.9.0 // indirect
 	google.golang.org/genproto v0.0.0-20230306155012-7f2fa6fef1f4 // indirect
 	gopkg.in/Regis24GmbH/go-diacritics.v2 v2.0.3 // indirect
-	gopkg.in/square/go-jose.v2 v2.5.1 // indirect
 	rsc.io/qr v0.2.0 // indirect
 )
